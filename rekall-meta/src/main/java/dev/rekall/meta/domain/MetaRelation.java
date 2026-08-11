@@ -13,6 +13,8 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
 import org.hibernate.annotations.CreationTimestamp;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.Instant;
 import java.util.Objects;
@@ -21,6 +23,7 @@ import java.util.UUID;
 /** Definition of a foreign key relation between two dynamically generated entities. */
 @Entity
 @Table(schema = "rekall_meta", name = "meta_relation")
+@Getter
 public class MetaRelation {
 
     @Id
@@ -51,11 +54,13 @@ public class MetaRelation {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "on_delete", nullable = false, length = 20)
+    @Setter
     private OnDeleteAction onDelete = OnDeleteAction.RESTRICT;
 
     /** Rendered into the schema description, e.g. "The environment this task runs on". */
     @NotBlank
     @Column(name = "description", nullable = false, columnDefinition = "text")
+    @Setter
     private String description;
 
     @CreationTimestamp
@@ -98,50 +103,6 @@ public class MetaRelation {
 
     private String shortId() {
         return id == null ? "new" : id.toString().substring(0, 8);
-    }
-
-    public UUID getId() {
-        return id;
-    }
-
-    public MetaTable getSourceTable() {
-        return sourceTable;
-    }
-
-    public MetaTable getTargetTable() {
-        return targetTable;
-    }
-
-    public RelationKind getKind() {
-        return kind;
-    }
-
-    public UUID getSourceFieldId() {
-        return sourceFieldId;
-    }
-
-    public String getJoinTableName() {
-        return joinTableName;
-    }
-
-    public OnDeleteAction getOnDelete() {
-        return onDelete;
-    }
-
-    public void setOnDelete(OnDeleteAction onDelete) {
-        this.onDelete = onDelete;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public Instant getCreatedAt() {
-        return createdAt;
     }
 
     @Override

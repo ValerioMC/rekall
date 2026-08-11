@@ -3,6 +3,7 @@ package dev.rekall.engine.execute;
 import dev.rekall.meta.domain.DdlLog;
 import dev.rekall.meta.domain.DdlStatus;
 import dev.rekall.meta.repository.DdlLogRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,13 +20,10 @@ import java.util.UUID;
  * migration survives the rollback that undid it.
  */
 @Component
+@RequiredArgsConstructor
 public class DdlLogWriter {
 
     private final DdlLogRepository ddlLogs;
-
-    public DdlLogWriter(DdlLogRepository ddlLogs) {
-        this.ddlLogs = ddlLogs;
-    }
 
     /**
      * @param executed statements that ran before the failure and were undone by the rollback

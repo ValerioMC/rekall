@@ -12,6 +12,7 @@ import dev.rekall.meta.repository.MetaFieldRepository;
 import dev.rekall.meta.repository.MetaRelationRepository;
 import dev.rekall.meta.repository.MetaTableRepository;
 import dev.rekall.meta.validation.IdentifierValidator;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,23 +27,13 @@ import java.util.UUID;
  * That separation is what makes the preview meaningful.
  */
 @Service
+@RequiredArgsConstructor
 public class MetaModelService {
 
     private final MetaTableRepository tables;
     private final MetaFieldRepository fields;
     private final MetaRelationRepository relations;
     private final SchemaRegistry registry;
-
-    public MetaModelService(
-            MetaTableRepository tables,
-            MetaFieldRepository fields,
-            MetaRelationRepository relations,
-            SchemaRegistry registry) {
-        this.tables = tables;
-        this.fields = fields;
-        this.relations = relations;
-        this.registry = registry;
-    }
 
     @Transactional(readOnly = true)
     public List<MetaTable> listTables() {

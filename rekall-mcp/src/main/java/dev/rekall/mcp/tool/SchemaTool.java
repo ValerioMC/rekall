@@ -4,6 +4,7 @@ import tools.jackson.databind.JsonNode;
 import dev.rekall.mcp.protocol.McpTool;
 import dev.rekall.mcp.protocol.ToolSchema;
 import dev.rekall.mcp.render.SchemaRenderer;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -17,13 +18,10 @@ import java.util.Map;
  * it survived the reduction to a single retrieval tool.
  */
 @Component
+@RequiredArgsConstructor
 public class SchemaTool implements McpTool {
 
     private final SchemaRenderer renderer;
-
-    public SchemaTool(SchemaRenderer renderer) {
-        this.renderer = renderer;
-    }
 
     @Override
     public String name() {

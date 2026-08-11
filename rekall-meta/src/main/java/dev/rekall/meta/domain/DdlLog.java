@@ -8,6 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import lombok.Getter;
 
 import java.time.Instant;
 import java.util.Objects;
@@ -22,6 +23,7 @@ import java.util.UUID;
  */
 @Entity
 @Table(schema = "rekall_meta", name = "ddl_log")
+@Getter
 public class DdlLog {
 
     @Id
@@ -61,34 +63,6 @@ public class DdlLog {
         this.status = status;
         this.error = error;
         this.appliedAt = Instant.now();
-    }
-
-    public UUID getId() {
-        return id;
-    }
-
-    public UUID getPlanId() {
-        return planId;
-    }
-
-    public int getSequence() {
-        return sequence;
-    }
-
-    public String getStatement() {
-        return statement;
-    }
-
-    public DdlStatus getStatus() {
-        return status;
-    }
-
-    public String getError() {
-        return error;
-    }
-
-    public Instant getAppliedAt() {
-        return appliedAt;
     }
 
     @Override

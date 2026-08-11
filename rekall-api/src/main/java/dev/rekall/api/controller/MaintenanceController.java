@@ -5,6 +5,7 @@ import dev.rekall.content.folder.FolderImporter;
 import dev.rekall.content.folder.ImportReport;
 import dev.rekall.content.folder.ImportRequest;
 import jakarta.validation.constraints.NotBlank;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,15 +16,11 @@ import java.nio.file.Path;
 /** One-off operations: ingesting an existing folder tree, and writing everything back out. */
 @RestController
 @RequestMapping("/api/maintenance")
+@RequiredArgsConstructor
 public class MaintenanceController {
 
     private final FolderImporter importer;
     private final FolderExporter exporter;
-
-    public MaintenanceController(FolderImporter importer, FolderExporter exporter) {
-        this.importer = importer;
-        this.exporter = exporter;
-    }
 
     @PostMapping("/import")
     public ImportReport importFolder(@RequestBody ImportFolderRequest request) {

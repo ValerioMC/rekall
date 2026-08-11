@@ -1,5 +1,7 @@
 package dev.rekall.mcp;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
@@ -10,6 +12,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * point.
  */
 @ConfigurationProperties(prefix = "rekall.mcp.reader")
+@Getter
+@Setter
 public class McpReaderProperties {
 
     /** Role created by Liquibase with SELECT and nothing else. */
@@ -19,28 +23,4 @@ public class McpReaderProperties {
 
     /** Small on purpose: the MCP server serves one conversation at a time. */
     private int maximumPoolSize = 4;
-
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    public int getMaximumPoolSize() {
-        return maximumPoolSize;
-    }
-
-    public void setMaximumPoolSize(int maximumPoolSize) {
-        this.maximumPoolSize = maximumPoolSize;
-    }
 }

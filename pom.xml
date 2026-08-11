@@ -73,6 +73,17 @@
     </dependencyManagement>
 
     <dependencies>
+        <!--
+          Compile-time only, so it never reaches a deployed artifact. The version is the one
+          Spring Boot 4.1 manages; Lombok reads javac internals, so the version has to be one
+          that knows about the JDK in java.version, and pinning it by hand would silently
+          decouple the two.
+        -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>

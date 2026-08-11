@@ -6,8 +6,8 @@ import dev.rekall.engine.data.QueryFilter;
 import dev.rekall.engine.data.RecordView;
 import dev.rekall.engine.schema.SchemaRegistry;
 import dev.rekall.meta.domain.MetaTable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,19 +34,13 @@ import java.util.stream.Stream;
  * the source of truth precisely so that question never arises.
  */
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class FolderImporter {
-
-    private static final Logger log = LoggerFactory.getLogger(FolderImporter.class);
 
     private final SchemaRegistry registry;
     private final DynamicRecordRepository records;
     private final DocumentService documents;
-
-    public FolderImporter(SchemaRegistry registry, DynamicRecordRepository records, DocumentService documents) {
-        this.registry = registry;
-        this.records = records;
-        this.documents = documents;
-    }
 
     @Transactional
     public ImportReport importTree(ImportRequest request) {

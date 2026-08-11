@@ -12,6 +12,7 @@ import dev.rekall.meta.domain.MetaTable;
 import dev.rekall.meta.domain.RelationKind;
 import dev.rekall.meta.repository.MetaRelationRepository;
 import dev.rekall.meta.repository.MetaTableRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +36,7 @@ import java.util.stream.Collectors;
  * that actually run the same thing.
  */
 @Component
+@RequiredArgsConstructor
 public class DdlPlanner {
 
     private final MetaTableRepository metaTables;
@@ -42,19 +44,6 @@ public class DdlPlanner {
     private final PhysicalSchemaReader schemaReader;
     private final PhysicalTypeComparator typeComparator;
     private final DdlRenderer renderer;
-
-    public DdlPlanner(
-            MetaTableRepository metaTables,
-            MetaRelationRepository metaRelations,
-            PhysicalSchemaReader schemaReader,
-            PhysicalTypeComparator typeComparator,
-            DdlRenderer renderer) {
-        this.metaTables = metaTables;
-        this.metaRelations = metaRelations;
-        this.schemaReader = schemaReader;
-        this.typeComparator = typeComparator;
-        this.renderer = renderer;
-    }
 
     @Transactional(readOnly = true)
     public DdlPlan plan(PlanOptions options) {

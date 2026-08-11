@@ -8,8 +8,8 @@ import dev.rekall.meta.domain.MetaTableStatus;
 import dev.rekall.meta.repository.DocumentRepository;
 import dev.rekall.meta.repository.MetaTableRepository;
 import org.jooq.DSLContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,28 +25,15 @@ import java.util.List;
  * preference.
  */
 @Component
+@RequiredArgsConstructor
+@Slf4j
 public class DdlExecutor {
-
-    private static final Logger log = LoggerFactory.getLogger(DdlExecutor.class);
 
     private final DSLContext dsl;
     private final DdlLogWriter logWriter;
     private final MetaTableRepository metaTables;
     private final DocumentRepository documents;
     private final SchemaRegistry schemaRegistry;
-
-    public DdlExecutor(
-            DSLContext dsl,
-            DdlLogWriter logWriter,
-            MetaTableRepository metaTables,
-            DocumentRepository documents,
-            SchemaRegistry schemaRegistry) {
-        this.dsl = dsl;
-        this.logWriter = logWriter;
-        this.metaTables = metaTables;
-        this.documents = documents;
-        this.schemaRegistry = schemaRegistry;
-    }
 
     /**
      * @throws PlanNotApplicableException if the plan is refused or still waiting on the user

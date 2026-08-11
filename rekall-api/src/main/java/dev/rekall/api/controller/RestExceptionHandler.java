@@ -8,8 +8,7 @@ import dev.rekall.engine.data.UnknownFieldException;
 import dev.rekall.engine.execute.PlanNotApplicableException;
 import dev.rekall.engine.type.ValueCoercionException;
 import dev.rekall.meta.validation.InvalidIdentifierException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -27,9 +26,8 @@ import java.util.stream.Collectors;
  * become a 500, and those are the only ones logged with a stack trace.
  */
 @RestControllerAdvice
+@Slf4j
 public class RestExceptionHandler {
-
-    private static final Logger log = LoggerFactory.getLogger(RestExceptionHandler.class);
 
     @ExceptionHandler(NotFoundException.class)
     public ProblemDetail notFound(NotFoundException e) {

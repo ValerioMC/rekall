@@ -7,6 +7,7 @@ import dev.rekall.engine.plan.DdlPhase;
 import dev.rekall.engine.plan.DdlPlan;
 import dev.rekall.engine.plan.DdlPlanner;
 import dev.rekall.engine.plan.PlanOptions;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -26,15 +27,11 @@ import java.util.UUID;
  */
 @RestController
 @RequestMapping("/api/meta")
+@RequiredArgsConstructor
 public class PlanController {
 
     private final DdlPlanner planner;
     private final DdlExecutor executor;
-
-    public PlanController(DdlPlanner planner, DdlExecutor executor) {
-        this.planner = planner;
-        this.executor = executor;
-    }
 
     @GetMapping("/plan")
     public PlanResponse plan() {

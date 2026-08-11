@@ -5,6 +5,7 @@ import dev.rekall.meta.domain.MetaField;
 import dev.rekall.meta.domain.MetaRelation;
 import dev.rekall.meta.domain.MetaTable;
 import dev.rekall.meta.domain.RelationKind;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -19,13 +20,10 @@ import java.util.stream.Collectors;
  * being read, not for being parsed.
  */
 @Component
+@RequiredArgsConstructor
 public class SchemaRenderer {
 
     private final SchemaRegistry registry;
-
-    public SchemaRenderer(SchemaRegistry registry) {
-        this.registry = registry;
-    }
 
     public String render() {
         List<MetaTable> entities = registry.entities();

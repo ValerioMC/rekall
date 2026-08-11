@@ -5,8 +5,7 @@ import tools.jackson.databind.node.NullNode;
 import dev.rekall.mcp.protocol.JsonRpc;
 import dev.rekall.mcp.protocol.McpTool;
 import dev.rekall.mcp.tool.ToolFailure;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,9 +28,8 @@ import java.util.stream.Collectors;
  */
 @RestController
 @RequestMapping("/mcp")
+@Slf4j
 public class McpController {
-
-    private static final Logger log = LoggerFactory.getLogger(McpController.class);
 
     /** MCP revision this server implements. */
     private static final String PROTOCOL_VERSION = "2024-11-05";

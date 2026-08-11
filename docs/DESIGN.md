@@ -77,6 +77,7 @@ services, which is what keeps the read-only guarantee structural rather than acc
 | Database | PostgreSQL 16+ | Transactional DDL is required by D7 |
 | MCP server | Spring AI MCP server starter | Version compatibility with Spring Boot 4.1 must be verified in phase 4; fallback is the plain MCP Java SDK behind a Spring `@RestController` |
 | Frontend | Vue 3 + Vite | |
+| Boilerplate | Lombok | Version managed by Spring Boot, so it stays in step with `java.version`. `@Getter`/`@Setter` are applied field by field on entities, never at class level: a class-level `@Setter` would generate `setPhysicalName` and `setColumnName`, which contradicts the immutability the diff engine depends on. `@Data` is refused by `lombok.config` |
 | Tests | JUnit 5 + Testcontainers | The DDL engine cannot be meaningfully tested against H2 |
 
 ---

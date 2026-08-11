@@ -3,6 +3,7 @@ package dev.rekall.api.controller;
 import dev.rekall.api.dto.MetaDtos;
 import dev.rekall.api.service.MetaModelService;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,13 +21,10 @@ import java.util.UUID;
 /** Schema designer endpoints. Editing here never touches the physical schema. */
 @RestController
 @RequestMapping("/api/meta")
+@RequiredArgsConstructor
 public class MetaController {
 
     private final MetaModelService metaModel;
-
-    public MetaController(MetaModelService metaModel) {
-        this.metaModel = metaModel;
-    }
 
     @GetMapping("/tables")
     public List<MetaDtos.TableResponse> listTables() {

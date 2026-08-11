@@ -7,8 +7,8 @@ import dev.rekall.engine.schema.SchemaRegistry;
 import dev.rekall.meta.domain.Document;
 import dev.rekall.meta.domain.MetaTable;
 import dev.rekall.meta.repository.DocumentRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,19 +29,13 @@ import java.util.UUID;
  * one command and the notes are ordinary files again.
  */
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class FolderExporter {
-
-    private static final Logger log = LoggerFactory.getLogger(FolderExporter.class);
 
     private final SchemaRegistry registry;
     private final DynamicRecordRepository records;
     private final DocumentRepository documents;
-
-    public FolderExporter(SchemaRegistry registry, DynamicRecordRepository records, DocumentRepository documents) {
-        this.registry = registry;
-        this.records = records;
-        this.documents = documents;
-    }
 
     /** @return number of files written */
     @Transactional(readOnly = true)

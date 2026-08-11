@@ -2,6 +2,7 @@ package dev.rekall.content;
 
 import dev.rekall.meta.domain.Document;
 import dev.rekall.meta.repository.DocumentRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,15 +12,11 @@ import java.util.UUID;
 
 /** Markdown documents attached to records of generated entities. */
 @Service
+@RequiredArgsConstructor
 public class DocumentService {
 
     private final DocumentRepository documents;
     private final JdbcTemplate jdbc;
-
-    public DocumentService(DocumentRepository documents, JdbcTemplate jdbc) {
-        this.documents = documents;
-        this.jdbc = jdbc;
-    }
 
     @Transactional(readOnly = true)
     public List<Document> forRecord(String entityName, UUID recordId) {

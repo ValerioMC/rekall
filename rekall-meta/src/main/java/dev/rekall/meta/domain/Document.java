@@ -10,6 +10,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.Instant;
 import java.util.Objects;
@@ -25,6 +27,7 @@ import java.util.UUID;
  */
 @Entity
 @Table(schema = "rekall_meta", name = "document")
+@Getter
 public class Document {
 
     @Id
@@ -43,22 +46,27 @@ public class Document {
     @NotBlank
     @Size(max = 255)
     @Column(name = "title", nullable = false, length = 255)
+    @Setter
     private String title;
 
     /** Free-form classification: {@code context}, {@code notes}, {@code architecture}, {@code report}. */
     @NotBlank
     @Size(max = 40)
     @Column(name = "kind", nullable = false, length = 40)
+    @Setter
     private String kind;
 
     @Column(name = "body_markdown", nullable = false, columnDefinition = "text")
+    @Setter
     private String bodyMarkdown;
 
     /** Provenance when imported from a folder. Never read back as a source of truth. */
     @Column(name = "source_path", columnDefinition = "text")
+    @Setter
     private String sourcePath;
 
     @Column(name = "position", nullable = false)
+    @Setter
     private int position;
 
     @CreationTimestamp
@@ -79,66 +87,6 @@ public class Document {
         this.title = title;
         this.kind = kind;
         this.bodyMarkdown = bodyMarkdown;
-    }
-
-    public UUID getId() {
-        return id;
-    }
-
-    public String getEntityName() {
-        return entityName;
-    }
-
-    public UUID getRecordId() {
-        return recordId;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public void setTitle(String title) {
-        this.title = title;
-    }
-
-    public String getKind() {
-        return kind;
-    }
-
-    public void setKind(String kind) {
-        this.kind = kind;
-    }
-
-    public String getBodyMarkdown() {
-        return bodyMarkdown;
-    }
-
-    public void setBodyMarkdown(String bodyMarkdown) {
-        this.bodyMarkdown = bodyMarkdown;
-    }
-
-    public String getSourcePath() {
-        return sourcePath;
-    }
-
-    public void setSourcePath(String sourcePath) {
-        this.sourcePath = sourcePath;
-    }
-
-    public int getPosition() {
-        return position;
-    }
-
-    public void setPosition(int position) {
-        this.position = position;
-    }
-
-    public Instant getCreatedAt() {
-        return createdAt;
-    }
-
-    public Instant getUpdatedAt() {
-        return updatedAt;
     }
 
     @Override

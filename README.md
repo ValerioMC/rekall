@@ -121,6 +121,8 @@ src/
 
 ### Debug (IntelliJ IDEA)
 
+The backend uses Lombok, so before anything else: Settings > Build, Execution, Deployment > Compiler > Annotation Processors > **Enable annotation processing**. Without it the IDE reports missing getters and constructors on code that compiles fine with Maven.
+
 1. Run > Edit Configurations > Add > Remote JVM Debug, host `localhost`, port `5005`
 2. Start with the debug port open:
 

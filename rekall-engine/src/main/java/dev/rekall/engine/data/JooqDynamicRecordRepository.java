@@ -7,6 +7,7 @@ import dev.rekall.meta.domain.MetaField;
 import dev.rekall.meta.domain.MetaFieldType;
 import dev.rekall.meta.domain.MetaRelation;
 import dev.rekall.meta.domain.MetaTable;
+import lombok.RequiredArgsConstructor;
 import org.jooq.Condition;
 import org.jooq.DSLContext;
 import org.jooq.DataType;
@@ -42,6 +43,7 @@ import java.util.stream.Collectors;
  * Values are always bound, never inlined.
  */
 @Repository
+@RequiredArgsConstructor
 public class JooqDynamicRecordRepository implements DynamicRecordRepository {
 
     private static final Field<UUID> ID = DSL.field(DSL.name("id"), SQLDataType.UUID);
@@ -53,12 +55,6 @@ public class JooqDynamicRecordRepository implements DynamicRecordRepository {
     private final DSLContext dsl;
     private final PostgresTypeMapper typeMapper;
     private final SchemaRegistry registry;
-
-    public JooqDynamicRecordRepository(DSLContext dsl, PostgresTypeMapper typeMapper, SchemaRegistry registry) {
-        this.dsl = dsl;
-        this.typeMapper = typeMapper;
-        this.registry = registry;
-    }
 
     // ----------------------------------------------------------------- writes
 

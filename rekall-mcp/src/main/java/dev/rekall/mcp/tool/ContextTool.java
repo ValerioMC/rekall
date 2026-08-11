@@ -12,6 +12,7 @@ import dev.rekall.meta.domain.MetaField;
 import dev.rekall.meta.domain.MetaRelation;
 import dev.rekall.meta.domain.MetaTable;
 import dev.rekall.meta.domain.RelationKind;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -35,6 +36,7 @@ import java.util.stream.Collectors;
  * without a code change.
  */
 @Component
+@RequiredArgsConstructor
 public class ContextTool implements McpTool {
 
     /** Forward references arrive resolved. Depth stays at 1: a chain of two is already noise. */
@@ -46,12 +48,6 @@ public class ContextTool implements McpTool {
     private final ReadOnlyDataAccess data;
     private final RecordRenderer renderer;
     private final SchemaRenderer schema;
-
-    public ContextTool(ReadOnlyDataAccess data, RecordRenderer renderer, SchemaRenderer schema) {
-        this.data = data;
-        this.renderer = renderer;
-        this.schema = schema;
-    }
 
     @Override
     public String name() {

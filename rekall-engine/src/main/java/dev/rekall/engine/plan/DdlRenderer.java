@@ -7,6 +7,7 @@ import dev.rekall.meta.domain.MetaFieldType;
 import dev.rekall.meta.domain.MetaRelation;
 import dev.rekall.meta.domain.MetaTable;
 import dev.rekall.meta.domain.OnDeleteAction;
+import lombok.RequiredArgsConstructor;
 import org.jooq.Constraint;
 import org.jooq.DSLContext;
 import org.jooq.DataType;
@@ -31,15 +32,11 @@ import java.util.UUID;
  * DDL. The first is {@code IdentifierValidator}, applied before anything is persisted.
  */
 @Component
+@RequiredArgsConstructor
 public class DdlRenderer {
 
     private final DSLContext dsl;
     private final PostgresTypeMapper typeMapper;
-
-    public DdlRenderer(DSLContext dsl, PostgresTypeMapper typeMapper) {
-        this.dsl = dsl;
-        this.typeMapper = typeMapper;
-    }
 
     // ---------------------------------------------------------------- tables
 

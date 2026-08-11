@@ -1,6 +1,7 @@
 package dev.rekall.engine.schema;
 
 import dev.rekall.engine.RekallSchemas;
+import lombok.RequiredArgsConstructor;
 import org.jooq.DSLContext;
 import org.jooq.Record;
 import org.jooq.Result;
@@ -20,13 +21,10 @@ import java.util.Map;
  * detail. Every query is a constant string with bound parameters.
  */
 @Component
+@RequiredArgsConstructor
 public class PhysicalSchemaReader {
 
     private final DSLContext dsl;
-
-    public PhysicalSchemaReader(DSLContext dsl) {
-        this.dsl = dsl;
-    }
 
     @Transactional(readOnly = true)
     public PhysicalSchema read() {

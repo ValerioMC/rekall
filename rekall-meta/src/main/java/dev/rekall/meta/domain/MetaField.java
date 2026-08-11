@@ -14,11 +14,22 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.util.Objects;
 import java.util.UUID;
 
-/** Definition of one column of a dynamically generated entity. */
+/**
+ * Definition of one column of a dynamically generated entity.
+ *
+ * <p>{@code @Setter} is applied field by field. {@code columnName} has none, for the same
+ * reason {@code physicalName} has none on {@link MetaTable}: the identifier is immutable and
+ * a class-level {@code @Setter} would generate the method that breaks it. {@code metaTable}
+ * and {@code position} keep package visibility so that only {@link MetaTable#addField} can
+ * maintain the two sides of the association.
+ */
 @Entity
 @Table(
         schema = "rekall_meta",
@@ -27,6 +38,7 @@ import java.util.UUID;
                 @UniqueConstraint(
                         name = "uq_meta_field_table_column",
                         columnNames = {"meta_table_id", "column_name"}))
+@Getter
 public class MetaField {
 
     /** Default {@code varchar} length when the user does not pick one. */
@@ -45,6 +57,7 @@ public class MetaField {
      */
     @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "meta_table_id", nullable = false)
+    @Setter(AccessLevel.PACKAGE)
     private MetaTable metaTable;
 
     @NotBlank
@@ -55,37 +68,46 @@ public class MetaField {
     @NotBlank
     @Size(max = 120)
     @Column(name = "label", nullable = false, length = 120)
+    @Setter
     private String label;
 
     /** Rendered into the schema description Claude reads. Mandatory for the same reason as on the entity. */
     @NotBlank
     @Column(name = "description", nullable = false, columnDefinition = "text")
+    @Setter
     private String description;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false, length = 20)
+    @Setter
     private MetaFieldType type;
 
     @Column(name = "is_nullable", nullable = false)
+    @Setter
     private boolean nullable = true;
 
     /** Rendered as a bound literal of the mapped type, never as raw SQL. */
     @Column(name = "default_value", columnDefinition = "text")
+    @Setter
     private String defaultValue;
 
     @Column(name = "length")
+    @Setter
     private Integer length;
 
     @Column(name = "precision")
+    @Setter
     private Integer precision;
 
     @Column(name = "scale")
+    @Setter
     private Integer scale;
 
     @Column(name = "enum_values", columnDefinition = "text[]")
     private String[] enumValues;
 
     @Column(name = "position", nullable = false)
+    @Setter(AccessLevel.PACKAGE)
     private int position;
 
     protected MetaField() {
@@ -112,100 +134,13 @@ public class MetaField {
         return scale == null ? 4 : scale;
     }
 
-    public UUID getId() {
-        return id;
-    }
-
-    public MetaTable getMetaTable() {
-        return metaTable;
-    }
-
-    void setMetaTable(MetaTable metaTable) {
-        this.metaTable = metaTable;
-    }
-
-    public String getColumnName() {
-        return columnName;
-    }
-
-    public String getLabel() {
-        return label;
-    }
-
-    public void setLabel(String label) {
-        this.label = label;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public MetaFieldType getType() {
-        return type;
-    }
-
-    public void setType(MetaFieldType type) {
-        this.type = type;
-    }
-
-    public boolean isNullable() {
-        return nullable;
-    }
-
-    public void setNullable(boolean nullable) {
-        this.nullable = nullable;
-    }
-
-    public String getDefaultValue() {
-        return defaultValue;
-    }
-
-    public void setDefaultValue(String defaultValue) {
-        this.defaultValue = defaultValue;
-    }
-
-    public Integer getLength() {
-        return length;
-    }
-
-    public void setLength(Integer length) {
-        this.length = length;
-    }
-
-    public Integer getPrecision() {
-        return precision;
-    }
-
-    public void setPrecision(Integer precision) {
-        this.precision = precision;
-    }
-
-    public Integer getScale() {
-        return scale;
-    }
-
-    public void setScale(Integer scale) {
-        this.scale = scale;
-    }
-
+    /** Defensive copy in both directions. Lombok would hand out the field itself. */
     public String[] getEnumValues() {
         return enumValues == null ? new String[0] : enumValues.clone();
     }
 
     public void setEnumValues(String[] enumValues) {
         this.enumValues = enumValues == null ? null : enumValues.clone();
-    }
-
-    public int getPosition() {
-        return position;
-    }
-
-    void setPosition(int position) {
-        this.position = position;
     }
 
     @Override

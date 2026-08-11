@@ -14,6 +14,8 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import lombok.Getter;
+import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -24,12 +26,24 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
-/** Definition of one dynamically generated entity. */
+/**
+ * Definition of one dynamically generated entity.
+ *
+ * <p>{@code @Setter} is applied field by field and never to the class. {@code physicalName}
+ * has no setter on purpose: a diff between the meta-model and {@code information_schema}
+ * cannot tell a rename from a drop plus an add, so the identifier is immutable and only the
+ * label is editable. A class-level {@code @Setter} would generate the one method that breaks
+ * that guarantee.
+ *
+ * <p>{@code equals}, {@code hashCode} and {@code toString} stay hand-written on the id alone.
+ * Generated ones would walk {@code fields} and force the collection to load.
+ */
 @Entity
 @Table(
         schema = "rekall_meta",
         name = "meta_table",
         uniqueConstraints = @UniqueConstraint(name = "uq_meta_table_physical_name", columnNames = "physical_name"))
+@Getter
 public class MetaTable {
 
     @Id
@@ -45,11 +59,13 @@ public class MetaTable {
     @NotBlank
     @Size(max = 120)
     @Column(name = "label", nullable = false, length = 120)
+    @Setter
     private String label;
 
     @NotBlank
     @Size(max = 120)
     @Column(name = "label_plural", nullable = false, length = 120)
+    @Setter
     private String labelPlural;
 
     /**
@@ -59,9 +75,15 @@ public class MetaTable {
      */
     @NotBlank
     @Column(name = "description", nullable = false, columnDefinition = "text")
+    @Setter
     private String description;
 
-    /** Alternative names the user might use in a question, e.g. {@code progetti, commesse}. */
+    /**
+     * Alternative names the user might use in a question, e.g. {@code progetti, commesse}.
+     *
+     * <p>No Lombok accessor: the pair below copies the array in both directions. A generated
+     * one would hand out the field itself, and a caller mutating it would change the entity.
+     */
     @Column(name = "aliases", columnDefinition = "text[]")
     private String[] aliases = new String[0];
 
@@ -73,10 +95,12 @@ public class MetaTable {
      * Hibernate to resolve a circular insert order for no benefit.
      */
     @Column(name = "display_field_id")
+    @Setter
     private UUID displayFieldId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
+    @Setter
     private MetaTableStatus status = MetaTableStatus.DRAFT;
 
     @OneToMany(mappedBy = "metaTable", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -131,72 +155,13 @@ public class MetaTable {
         return fields.stream().filter(f -> displayFieldId.equals(f.getId())).findFirst();
     }
 
-    public UUID getId() {
-        return id;
-    }
-
-    public String getPhysicalName() {
-        return physicalName;
-    }
-
-    public String getLabel() {
-        return label;
-    }
-
-    public void setLabel(String label) {
-        this.label = label;
-    }
-
-    public String getLabelPlural() {
-        return labelPlural;
-    }
-
-    public void setLabelPlural(String labelPlural) {
-        this.labelPlural = labelPlural;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
+    /** Defensive copy in both directions. Lombok would hand out the field itself. */
     public String[] getAliases() {
         return aliases == null ? new String[0] : aliases.clone();
     }
 
     public void setAliases(String[] aliases) {
         this.aliases = aliases == null ? new String[0] : aliases.clone();
-    }
-
-    public UUID getDisplayFieldId() {
-        return displayFieldId;
-    }
-
-    public void setDisplayFieldId(UUID displayFieldId) {
-        this.displayFieldId = displayFieldId;
-    }
-
-    public MetaTableStatus getStatus() {
-        return status;
-    }
-
-    public void setStatus(MetaTableStatus status) {
-        this.status = status;
-    }
-
-    public List<MetaField> getFields() {
-        return fields;
-    }
-
-    public Instant getCreatedAt() {
-        return createdAt;
-    }
-
-    public Instant getUpdatedAt() {
-        return updatedAt;
     }
 
     @Override

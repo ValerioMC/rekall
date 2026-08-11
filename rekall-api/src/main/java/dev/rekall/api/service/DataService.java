@@ -6,6 +6,7 @@ import dev.rekall.engine.data.RecordView;
 import dev.rekall.engine.schema.SchemaRegistry;
 import dev.rekall.meta.domain.MetaTable;
 import dev.rekall.meta.repository.DocumentRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,17 +16,12 @@ import java.util.UUID;
 
 /** CRUD on records of dynamically generated entities, for the UI's data browser. */
 @Service
+@RequiredArgsConstructor
 public class DataService {
 
     private final SchemaRegistry registry;
     private final DynamicRecordRepository records;
     private final DocumentRepository documents;
-
-    public DataService(SchemaRegistry registry, DynamicRecordRepository records, DocumentRepository documents) {
-        this.registry = registry;
-        this.records = records;
-        this.documents = documents;
-    }
 
     public MetaTable requireEntity(String name) {
         return registry.resolveEntity(name)

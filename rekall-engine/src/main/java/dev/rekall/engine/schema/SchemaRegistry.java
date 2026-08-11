@@ -6,8 +6,8 @@ import dev.rekall.meta.domain.MetaTable;
 import dev.rekall.meta.domain.RelationKind;
 import dev.rekall.meta.repository.MetaRelationRepository;
 import dev.rekall.meta.repository.MetaTableRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,19 +29,15 @@ import java.util.stream.Collectors;
  * eviction policy to reason about, only one explicit call.
  */
 @Component
+@RequiredArgsConstructor
+@Slf4j
 public class SchemaRegistry {
-
-    private static final Logger log = LoggerFactory.getLogger(SchemaRegistry.class);
 
     private final MetaTableRepository metaTables;
     private final MetaRelationRepository metaRelations;
 
+    /** Not final, so it stays out of the generated constructor. */
     private volatile Snapshot snapshot;
-
-    public SchemaRegistry(MetaTableRepository metaTables, MetaRelationRepository metaRelations) {
-        this.metaTables = metaTables;
-        this.metaRelations = metaRelations;
-    }
 
     /** Drops the cached view. The next read rebuilds it. */
     public void invalidate() {
