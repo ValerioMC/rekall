@@ -12,17 +12,17 @@
 
     <artifactId>rekall-mcp</artifactId>
     <name>rekall-mcp</name>
-    <description>Read-only MCP server exposing the meta-model and its data to Claude Code</description>
+    <description>Read-only MCP server: one tool, loading a working context by anchor</description>
 
     <dependencies>
         <!--
-          Depends on content and engine, never on rekall-api.
-          The read-only guarantee is structural: no write path is on this module's classpath
-          beyond what engine exposes, and the MCP tools use the reader DSLContext exclusively.
+          Depends on the domain, never on rekall-api: no controller and no write service is on
+          this module's classpath. The tool reads through repositories bound to the read-only
+          database identity, so the guarantee holds structurally and not by convention.
         -->
         <dependency>
             <groupId>dev.rekall</groupId>
-            <artifactId>rekall-content</artifactId>
+            <artifactId>rekall-domain</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

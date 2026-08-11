@@ -1,11 +1,9 @@
 package dev.rekall.api.controller;
 
-import dev.rekall.content.DocumentMatch;
-import dev.rekall.content.DocumentService;
-import dev.rekall.meta.domain.Document;
+import dev.rekall.api.dto.ApiDtos.DocumentRequest;
+import dev.rekall.api.dto.ApiDtos.DocumentResponse;
+import dev.rekall.api.service.DocumentService;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -19,7 +17,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -31,75 +28,32 @@ public class DocumentController {
     private final DocumentService documents;
 
     @GetMapping
-    public List<DocumentResponse> forRecord(@RequestParam String entity, @RequestParam UUID recordId) {
-        return documents.forRecord(entity, recordId).stream().map(DocumentResponse::from).toList();
-    }
-
-    @GetMapping("/{id}")
-    public DocumentResponse get(@PathVariable UUID id) {
-        return DocumentResponse.from(documents.get(id));
+    public List<DocumentResponse> list(
+            @RequestParam(required = false) UUID projectId,
+            @RequestParam(required = false) UUID taskId,
+            @RequestParam(required = false) UUID environmentId) {
+        return documents.listFor(projectId, taskId, environmentId);
     }
 
     @GetMapping("/search")
-    public List<DocumentMatch> search(
-            @RequestParam String query,
-            @RequestParam(required = false) List<String> entities,
-            @RequestParam(defaultValue = "20") int limit) {
-        return documents.search(query, entities, limit);
+    public List<DocumentResponse> search(@RequestParam String query) {
+        return documents.search(query);
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public DocumentResponse create(@Valid @RequestBody CreateRequest request) {
-        return DocumentResponse.from(documents.create(
-                request.entityName(), request.recordId(), request.title(), request.kind(), request.bodyMarkdown()));
+    public DocumentResponse create(@Valid @RequestBody DocumentRequest request) {
+        return documents.create(request);
     }
 
     @PutMapping("/{id}")
-    public DocumentResponse update(@PathVariable UUID id, @Valid @RequestBody UpdateRequest request) {
-        return DocumentResponse.from(
-                documents.update(id, request.title(), request.kind(), request.bodyMarkdown()));
+    public DocumentResponse update(@PathVariable UUID id, @Valid @RequestBody DocumentRequest request) {
+        return documents.update(id, request);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable UUID id) {
         documents.delete(id);
-    }
-
-    public record CreateRequest(
-            @NotBlank String entityName,
-            @NotNull UUID recordId,
-            @NotBlank String title,
-            @NotBlank String kind,
-            String bodyMarkdown) {
-    }
-
-    public record UpdateRequest(@NotBlank String title, @NotBlank String kind, String bodyMarkdown) {
-    }
-
-    public record DocumentResponse(
-            UUID id,
-            String entityName,
-            UUID recordId,
-            String title,
-            String kind,
-            String bodyMarkdown,
-            String sourcePath,
-            int position,
-            Instant updatedAt) {
-
-        static DocumentResponse from(Document document) {
-            return new DocumentResponse(
-                    document.getId(),
-                    document.getEntityName(),
-                    document.getRecordId(),
-                    document.getTitle(),
-                    document.getKind(),
-                    document.getBodyMarkdown(),
-                    document.getSourcePath(),
-                    document.getPosition(),
-                    document.getUpdatedAt());
-        }
     }
 }

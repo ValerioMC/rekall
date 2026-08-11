@@ -1,0 +1,5 @@
+databaseChangeLog:
+  # One schema, one owner, four tables. There is no second schema handed to a runtime DDL
+  # engine any more: the shape is fixed at compile time and Liquibase owns all of it.
+  - include:
+      file: db/changelog/001-core.yaml

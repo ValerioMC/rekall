@@ -3,7 +3,9 @@ spring:
     name: rekall
 
   datasource:
-    url: ${REKALL_DB_URL:jdbc:postgresql://localhost:5432/rekall}
+    # H2 on file, next to wherever you start it. AUTO_SERVER lets a second process (a SQL
+    # client, a backup script) open the same file while the application is running.
+    url: ${REKALL_DB_URL:jdbc:h2:file:./data/rekall;AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1}
     username: ${REKALL_DB_USER:rekall}
     password: ${REKALL_DB_PASSWORD:rekall}
     hikari:
@@ -11,24 +13,14 @@ spring:
       maximum-pool-size: 10
 
   jpa:
-    # The meta-model schema belongs to Liquibase. A drift between the changelogs and the
-    # entities must stop the application, not be silently patched at runtime.
+    # The schema belongs to Liquibase. A drift between the changelogs and the entities must
+    # stop the application, not be silently patched at runtime.
     hibernate:
       ddl-auto: validate
     open-in-view: false
 
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
-    parameters:
-      # No default on purpose: the read-only role's password is a secret, and a placeholder
-      # that fails to resolve is a better outcome than a well-known fallback.
-      readerPassword: ${REKALL_READER_PASSWORD}
-
-rekall:
-  mcp:
-    reader:
-      username: rekall_reader
-      password: ${REKALL_READER_PASSWORD}
 
 server:
   port: ${SERVER_PORT:8080}
@@ -49,4 +41,3 @@ logging:
   level:
     dev.rekall: INFO
     liquibase: WARN
-    org.jooq.Constants: WARN

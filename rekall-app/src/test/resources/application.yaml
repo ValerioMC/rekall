@@ -1,20 +1,17 @@
 spring:
+  # An in-memory database per test run. The schema is created by the same changelogs the
+  # application uses, so a migration that only works on a file is still caught here.
+  datasource:
+    url: jdbc:h2:mem:rekall;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""
   jpa:
     hibernate:
       ddl-auto: validate
     open-in-view: false
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
-    parameters:
-      readerPassword: reader-test-password
-
-rekall:
-  mcp:
-    reader:
-      username: rekall_reader
-      password: reader-test-password
 
 logging:
   level:
     liquibase: WARN
-    org.jooq.Constants: WARN

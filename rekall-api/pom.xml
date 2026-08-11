@@ -17,7 +17,7 @@
     <dependencies>
         <dependency>
             <groupId>dev.rekall</groupId>
-            <artifactId>rekall-content</artifactId>
+            <artifactId>rekall-domain</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

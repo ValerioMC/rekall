@@ -2,12 +2,8 @@ package dev.rekall.api.controller;
 
 import dev.rekall.api.service.ConflictException;
 import dev.rekall.api.service.NotFoundException;
-import dev.rekall.content.DocumentNotFoundException;
-import dev.rekall.engine.data.RecordNotFoundException;
-import dev.rekall.engine.data.UnknownFieldException;
-import dev.rekall.engine.execute.PlanNotApplicableException;
-import dev.rekall.engine.type.ValueCoercionException;
-import dev.rekall.meta.validation.InvalidIdentifierException;
+import dev.rekall.domain.context.AmbiguousAnchorException;
+import dev.rekall.domain.context.UnknownAnchorException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -34,8 +30,8 @@ public class RestExceptionHandler {
         return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
     }
 
-    @ExceptionHandler({DocumentNotFoundException.class, RecordNotFoundException.class})
-    public ProblemDetail missingRecord(RuntimeException e) {
+    @ExceptionHandler(UnknownAnchorException.class)
+    public ProblemDetail unknownAnchor(UnknownAnchorException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
     }
 
@@ -44,17 +40,8 @@ public class RestExceptionHandler {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
     }
 
-    @ExceptionHandler({InvalidIdentifierException.class, UnknownFieldException.class, ValueCoercionException.class})
-    public ProblemDetail badRequest(RuntimeException e) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
-    }
-
-    /**
-     * A refused plan is a 409 rather than a 400: the request was fine, the model just does not
-     * permit it yet, and the message lists exactly what is missing or blocked.
-     */
-    @ExceptionHandler(PlanNotApplicableException.class)
-    public ProblemDetail planNotApplicable(PlanNotApplicableException e) {
+    @ExceptionHandler(AmbiguousAnchorException.class)
+    public ProblemDetail ambiguousAnchor(AmbiguousAnchorException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
     }
 
@@ -63,7 +50,7 @@ public class RestExceptionHandler {
      *
      * <p>Refusing to delete a row something else still points at is the whole reason for real
      * tables, so the response says what is holding it rather than surfacing a 500 with a
-     * PostgreSQL error string in it.
+     * database error string in it.
      */
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ProblemDetail integrityViolation(DataIntegrityViolationException e) {

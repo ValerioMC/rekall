@@ -1,0 +1,133 @@
+databaseChangeLog:
+
+  - changeSet:
+      id: 001-environment
+      author: rekall
+      changes:
+        - createTable:
+            tableName: environment
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, primaryKeyName: pk_environment}}
+              - column: {name: label, type: varchar(160), constraints: {nullable: false}}
+              - column: {name: namespace, type: varchar(120)}
+              - column: {name: kubeconfig_path, type: varchar(500)}
+              - column: {name: created_at, type: timestamp, constraints: {nullable: false}}
+              - column: {name: updated_at, type: timestamp, constraints: {nullable: false}}
+        - addUniqueConstraint:
+            tableName: environment
+            columnNames: label
+            constraintName: uq_environment_label
+
+  - changeSet:
+      id: 001-project
+      author: rekall
+      changes:
+        - createTable:
+            tableName: project
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, primaryKeyName: pk_project}}
+              - column: {name: name, type: varchar(120), constraints: {nullable: false}}
+              - column: {name: status, type: varchar(20), constraints: {nullable: false}}
+              - column: {name: description, type: varchar(100000)}
+              - column: {name: created_at, type: timestamp, constraints: {nullable: false}}
+              - column: {name: updated_at, type: timestamp, constraints: {nullable: false}}
+        - addUniqueConstraint:
+            tableName: project
+            columnNames: name
+            constraintName: uq_project_name
+
+  - changeSet:
+      id: 001-task
+      author: rekall
+      changes:
+        - createTable:
+            tableName: task
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, primaryKeyName: pk_task}}
+              - column: {name: name, type: varchar(160), constraints: {nullable: false}}
+              - column: {name: status, type: varchar(20), constraints: {nullable: false}}
+              - column: {name: description, type: varchar(100000)}
+              - column: {name: project_id, type: uuid, constraints: {nullable: false}}
+              - column: {name: environment_id, type: uuid}
+              - column: {name: created_at, type: timestamp, constraints: {nullable: false}}
+              - column: {name: updated_at, type: timestamp, constraints: {nullable: false}}
+        # A task can never point at a project that was deleted: the database refuses, rather
+        # than the application remembering to check.
+        - addForeignKeyConstraint:
+            baseTableName: task
+            baseColumnNames: project_id
+            referencedTableName: project
+            referencedColumnNames: id
+            constraintName: fk_task_project
+            onDelete: CASCADE
+        # RESTRICT, not CASCADE: deleting an environment that tasks still run on is a mistake
+        # worth refusing, not a reason to delete the tasks.
+        - addForeignKeyConstraint:
+            baseTableName: task
+            baseColumnNames: environment_id
+            referencedTableName: environment
+            referencedColumnNames: id
+            constraintName: fk_task_environment
+            onDelete: RESTRICT
+        - addUniqueConstraint:
+            tableName: task
+            columnNames: project_id, name
+            constraintName: uq_task_project_name
+
+  - changeSet:
+      id: 001-document
+      author: rekall
+      changes:
+        - createTable:
+            tableName: document
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, primaryKeyName: pk_document}}
+              - column: {name: title, type: varchar(255), constraints: {nullable: false}}
+              - column: {name: kind, type: varchar(40), constraints: {nullable: false}}
+              - column: {name: body_markdown, type: varchar(100000), constraints: {nullable: false}}
+              - column: {name: source_path, type: varchar(500)}
+              - column: {name: position, type: int, constraints: {nullable: false}}
+              - column: {name: project_id, type: uuid}
+              - column: {name: task_id, type: uuid}
+              - column: {name: environment_id, type: uuid}
+              - column: {name: created_at, type: timestamp, constraints: {nullable: false}}
+              - column: {name: updated_at, type: timestamp, constraints: {nullable: false}}
+        - addForeignKeyConstraint:
+            baseTableName: document
+            baseColumnNames: project_id
+            referencedTableName: project
+            referencedColumnNames: id
+            constraintName: fk_document_project
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: document
+            baseColumnNames: task_id
+            referencedTableName: task
+            referencedColumnNames: id
+            constraintName: fk_document_task
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: document
+            baseColumnNames: environment_id
+            referencedTableName: environment
+            referencedColumnNames: id
+            constraintName: fk_document_environment
+            onDelete: CASCADE
+        # Exactly one owner. Without this a note could belong to a project and a task at once,
+        # or to nothing at all, and nothing downstream would notice until it went missing.
+        - sql:
+            sql: >
+              ALTER TABLE document ADD CONSTRAINT ck_document_single_owner CHECK (
+                (CASE WHEN project_id IS NULL THEN 0 ELSE 1 END)
+              + (CASE WHEN task_id IS NULL THEN 0 ELSE 1 END)
+              + (CASE WHEN environment_id IS NULL THEN 0 ELSE 1 END) = 1)
+        - createIndex:
+            tableName: document
+            indexName: idx_document_task
+            columns:
+              - column: {name: task_id}
+        - createIndex:
+            tableName: document
+            indexName: idx_document_project
+            columns:
+              - column: {name: project_id}

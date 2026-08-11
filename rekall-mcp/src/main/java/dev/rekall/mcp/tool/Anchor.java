@@ -66,6 +66,11 @@ record Anchor(String entityName, String value) {
         return entityName != null;
     }
 
+    /** True when this anchor names the given entity, whatever case it was typed in. */
+    boolean is(String entity) {
+        return entityName != null && entityName.equalsIgnoreCase(entity);
+    }
+
     @Override
     public String toString() {
         return isQualified() ? entityName + ":" + value : value;
