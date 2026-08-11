@@ -8,37 +8,26 @@ import { createRouter, createWebHistory } from 'vue-router'
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    { path: '/', redirect: '/schema' },
+    { path: '/', redirect: '/projects' },
+    { path: '/projects', name: 'projects', component: () => import('@/views/ProjectsView.vue') },
     {
-      path: '/schema',
-      name: 'schema-list',
-      component: () => import('@/views/schema/SchemaListView.vue')
-    },
-    {
-      path: '/schema/:id',
-      name: 'schema-detail',
-      component: () => import('@/views/schema/SchemaDetailView.vue'),
-      props: true
-    },
-    { path: '/plan', name: 'plan', component: () => import('@/views/plan/PlanView.vue') },
-    {
-      path: '/data',
-      name: 'data-root',
-      component: () => import('@/views/data/DataListView.vue')
-    },
-    {
-      path: '/data/:entity',
-      name: 'data-list',
-      component: () => import('@/views/data/DataListView.vue'),
+      path: '/projects/:id',
+      name: 'project-detail',
+      component: () => import('@/views/ProjectDetailView.vue'),
       props: true
     },
     {
-      path: '/data/:entity/:id',
-      name: 'data-detail',
-      component: () => import('@/views/data/DataDetailView.vue'),
+      path: '/tasks/:id',
+      name: 'task-detail',
+      component: () => import('@/views/TaskDetailView.vue'),
       props: true
     },
-    { path: '/search', name: 'search', component: () => import('@/views/search/SearchView.vue') }
+    {
+      path: '/environments',
+      name: 'environments',
+      component: () => import('@/views/EnvironmentsView.vue')
+    },
+    { path: '/search', name: 'search', component: () => import('@/views/SearchView.vue') }
   ]
 })
 

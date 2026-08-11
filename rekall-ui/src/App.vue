@@ -2,9 +2,14 @@
 import AppSidebar from '@/components/shared/AppSidebar.vue'
 import AppToaster from '@/components/ui/AppToaster.vue'
 import CommandPalette from '@/components/shared/CommandPalette.vue'
-import { useSchema } from '@/composables/useSchema'
+import { onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useCatalogStore } from '@/stores/catalog.store'
 
-const { entities, appliedEntities, pendingCount } = useSchema()
+const catalog = useCatalogStore()
+const { projects, environments } = storeToRefs(catalog)
+
+onMounted(() => catalog.load())
 </script>
 
 <template>
@@ -20,10 +25,10 @@ const { entities, appliedEntities, pendingCount } = useSchema()
       Skip to content
     </a>
 
-    <AppSidebar :entities="entities" :applied-entities="appliedEntities" :pending-count="pendingCount" />
+    <AppSidebar :project-count="projects.length" :environment-count="environments.length" />
 
     <main id="main" class="flex min-w-0 flex-1 flex-col overflow-y-auto" tabindex="-1">
-      <!-- Keyed on the full path so switching entity remounts the view instead of reusing state. -->
+      <!-- Keyed on the full path so switching record remounts the view instead of reusing state. -->
       <RouterView :key="$route.fullPath" />
     </main>
 

@@ -9,8 +9,8 @@ import AppInput from '@/components/ui/AppInput.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
 import AppTextarea from '@/components/ui/AppTextarea.vue'
 import { renderMarkdown } from '@/common/utils/markdown'
-import { DOCUMENT_KINDS } from '@/model/records'
-import type { RekallDocument } from '@/model/records'
+import { DOCUMENT_KINDS } from '@/model/catalog'
+import type { RekallDocument } from '@/model/catalog'
 import type { DocumentId } from '@/model/branded'
 
 const props = defineProps<{ documents: readonly RekallDocument[] }>()

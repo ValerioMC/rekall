@@ -1,11 +1,5 @@
 <script setup lang="ts">
-import type { Entity } from '@/model/schema'
-
-defineProps<{
-  entities: readonly Entity[]
-  appliedEntities: readonly Entity[]
-  pendingCount: number
-}>()
+defineProps<{ projectCount: number; environmentCount: number }>()
 
 /**
  * The active state is expressed as a group variant rather than scoped CSS, so the whole
@@ -40,48 +34,24 @@ const NAV_DOT =
       </div>
     </div>
 
-    <nav aria-label="Design">
-      <p class="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-[0.09em] text-text-subtle">
-        Design
-      </p>
-      <RouterLink to="/schema" :class="NAV_ITEM" :active-class="NAV_ACTIVE">
-        <span :class="NAV_DOT" aria-hidden="true" />
-        Schema
-        <span class="ml-auto font-mono text-[11px] text-text-subtle">{{ entities.length }}</span>
-      </RouterLink>
-      <RouterLink to="/plan" :class="NAV_ITEM" :active-class="NAV_ACTIVE">
-        <span :class="NAV_DOT" aria-hidden="true" />
-        Plan
-        <span
-          v-if="pendingCount > 0"
-          class="ml-auto rounded-md bg-accent-soft px-1.5 py-0.5 font-mono text-[10px] text-accent ring-1 ring-inset ring-accent/25"
-        >
-          {{ pendingCount }}
-        </span>
-      </RouterLink>
-    </nav>
-
     <nav aria-label="Content">
       <p class="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-[0.09em] text-text-subtle">
         Content
       </p>
+      <RouterLink to="/projects" :class="NAV_ITEM" :active-class="NAV_ACTIVE">
+        <span :class="NAV_DOT" aria-hidden="true" />
+        Projects
+        <span class="ml-auto font-mono text-[11px] text-text-subtle">{{ projectCount }}</span>
+      </RouterLink>
+      <RouterLink to="/environments" :class="NAV_ITEM" :active-class="NAV_ACTIVE">
+        <span :class="NAV_DOT" aria-hidden="true" />
+        Environments
+        <span class="ml-auto font-mono text-[11px] text-text-subtle">{{ environmentCount }}</span>
+      </RouterLink>
       <RouterLink to="/search" :class="NAV_ITEM" :active-class="NAV_ACTIVE">
         <span :class="NAV_DOT" aria-hidden="true" />
         Search
       </RouterLink>
-      <RouterLink
-        v-for="entity in appliedEntities"
-        :key="entity.id"
-        :to="`/data/${entity.physicalName}`"
-        :class="NAV_ITEM"
-        :active-class="NAV_ACTIVE"
-      >
-        <span :class="NAV_DOT" aria-hidden="true" />
-        {{ entity.labelPlural }}
-      </RouterLink>
-      <p v-if="!appliedEntities.length" class="px-2 py-1.5 text-[12px] text-text-subtle">
-        nothing applied yet
-      </p>
     </nav>
 
     <!-- Discoverability: a shortcut nobody knows about is a shortcut nobody uses. -->

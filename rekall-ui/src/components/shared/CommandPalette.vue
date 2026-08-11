@@ -2,20 +2,20 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
-import { useSchemaStore } from '@/stores/schema.store'
+import { useCatalogStore } from '@/stores/catalog.store'
 
 /**
  * Keyboard entry point to everything, on the meta key and K.
  *
  * This is a tool for someone who lives in a terminal: reaching a task should not require three
- * clicks through a sidebar. The palette is the fastest path to any entity, any screen, and it
+ * clicks through a sidebar. The palette is the fastest path to any project, any screen, and it
  * costs nothing to ignore if you would rather use the mouse.
  */
 type Command = Readonly<{ id: string; label: string; hint: string; to: string; group: string }>
 
 const router = useRouter()
-const schema = useSchemaStore()
-const { entities, appliedEntities } = storeToRefs(schema)
+const catalog = useCatalogStore()
+const { projects, environments } = storeToRefs(catalog)
 
 const isOpen = ref(false)
 const query = ref('')
@@ -23,22 +23,23 @@ const activeIndex = ref(0)
 const input = ref<HTMLInputElement | null>(null)
 
 const commands = computed<Command[]>(() => [
-  { id: 'nav-schema', label: 'Schema', hint: 'Design entities', to: '/schema', group: 'Go to' },
-  { id: 'nav-plan', label: 'Plan', hint: 'Review and apply changes', to: '/plan', group: 'Go to' },
-  { id: 'nav-search', label: 'Search', hint: 'Full text across documents', to: '/search', group: 'Go to' },
-  ...entities.value.map((entity) => ({
-    id: `entity-${entity.id}`,
-    label: entity.label,
-    hint: entity.physicalName,
-    to: `/schema/${entity.id}`,
-    group: 'Entity definition'
+  { id: 'nav-projects', label: 'Projects', hint: 'All projects', to: '/projects', group: 'Go to' },
+  { id: 'nav-environments', label: 'Environments', hint: 'Clusters and namespaces', to: '/environments', group: 'Go to' },
+  { id: 'nav-search', label: 'Search', hint: 'Across every note', to: '/search', group: 'Go to' },
+  // The hint is the anchor, so the palette doubles as a reminder of what to type after /rk.
+  ...projects.value.map((project) => ({
+    id: `project-${project.id}`,
+    label: project.name,
+    hint: `project:${project.name}`,
+    to: `/projects/${project.id}`,
+    group: 'Project'
   })),
-  ...appliedEntities.value.map((entity) => ({
-    id: `data-${entity.id}`,
-    label: entity.labelPlural,
-    hint: `Browse ${entity.physicalName} records`,
-    to: `/data/${entity.physicalName}`,
-    group: 'Data'
+  ...environments.value.map((environment) => ({
+    id: `environment-${environment.id}`,
+    label: environment.label,
+    hint: `environment:${environment.label}`,
+    to: '/environments',
+    group: 'Environment'
   }))
 ])
 
@@ -142,7 +143,7 @@ defineExpose({ open })
             ref="input"
             v-model="query"
             class="h-12 flex-1 bg-transparent text-[14px] text-text outline-none placeholder:text-text-subtle"
-            placeholder="Jump to an entity, a screen, a table"
+            placeholder="Jump to a project, an environment, a screen"
             aria-label="Search commands"
           />
           <kbd class="rounded border border-border px-1.5 py-0.5 text-[10px] text-text-subtle">esc</kbd>
