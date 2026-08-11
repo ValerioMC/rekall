@@ -6,6 +6,14 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
+      </profile>
+      <profile name="Annotation profile for rekall-parent" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.46/lombok-1.18.46.jar" />
+        </processorPath>
         <module name="rekall-domain" />
         <module name="rekall-app" />
         <module name="rekall-api" />
@@ -27,6 +35,7 @@
       <module name="rekall-engine" options="-parameters" />
       <module name="rekall-mcp" options="-parameters" />
       <module name="rekall-meta" options="-parameters" />
+      <module name="rekall-parent" options="-parameters" />
     </option>
   </component>
 </project>
