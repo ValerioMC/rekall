@@ -11,8 +11,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * The only tool. Loads the working context named by a list of anchors, in one call.
@@ -67,8 +69,13 @@ public class ContextTool implements McpTool {
     public String execute(JsonNode arguments) {
         List<Anchor> anchors = Anchor.parseAll(Arguments.of(arguments).requiredString("anchors"));
         StringBuilder out = new StringBuilder("# Context\n");
+
+        // Anchoring a project and one of its tasks reaches the project twice, once directly and
+        // once as the task's reference. Rendering it twice would spend the window saying the
+        // same thing, so a record is written the first time it is reached and named after that.
+        Set<String> rendered = new LinkedHashSet<>();
         for (ContextRecord record : load(anchors)) {
-            out.append('\n').append(render(record, 2));
+            out.append('\n').append(render(record, 2, rendered));
         }
         return out.toString();
     }
@@ -97,7 +104,10 @@ public class ContextTool implements McpTool {
 
     // ------------------------------------------------------------------ rendering
 
-    private String render(ContextRecord record, int headingLevel) {
+    private String render(ContextRecord record, int headingLevel, Set<String> rendered) {
+        if (!rendered.add(record.anchor())) {
+            return "";
+        }
         String heading = "#".repeat(headingLevel);
         StringBuilder out = new StringBuilder(heading)
                 .append(' ')
@@ -115,7 +125,12 @@ public class ContextTool implements McpTool {
         }
 
         out.append(renderDocuments(record.documents()));
-        record.references().forEach(reference -> out.append('\n').append(render(reference, headingLevel + 1)));
+        for (ContextRecord reference : record.references()) {
+            String nested = render(reference, headingLevel + 1, rendered);
+            if (!nested.isEmpty()) {
+                out.append('\n').append(nested);
+            }
+        }
         return out.toString();
     }
 

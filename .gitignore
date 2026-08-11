@@ -1,13 +1,7 @@
 target/
 node_modules/
 dist/
-rekall-app/src/main/resources/static/
-
-.env
-.env.local
-.forward.pids
-
-.idea/
-*.iml
-.vscode/
 .DS_Store
+data/
+*.mv.db
+*.trace.db

@@ -90,6 +90,9 @@ class RekallEndToEndTest {
                 .as("and so do the notes of what the task references, which is the whole point")
                 .contains("Cluster kmaster14, accesso via bastion.")
                 .doesNotContain("AINABLER");
+
+        // Reached twice, written once: the project is both an anchor and the task's reference.
+        assertThat(context.split("Project: STVV", -1)).as("no record is rendered twice").hasSize(2);
     }
 
     @Test
