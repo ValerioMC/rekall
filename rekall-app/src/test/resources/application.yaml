@@ -1,0 +1,20 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    parameters:
+      readerPassword: reader-test-password
+
+rekall:
+  mcp:
+    reader:
+      username: rekall_reader
+      password: reader-test-password
+
+logging:
+  level:
+    liquibase: WARN
+    org.jooq.Constants: WARN

@@ -1,0 +1,52 @@
+spring:
+  application:
+    name: rekall
+
+  datasource:
+    url: ${REKALL_DB_URL:jdbc:postgresql://localhost:5432/rekall}
+    username: ${REKALL_DB_USER:rekall}
+    password: ${REKALL_DB_PASSWORD:rekall}
+    hikari:
+      pool-name: rekall-app
+      maximum-pool-size: 10
+
+  jpa:
+    # The meta-model schema belongs to Liquibase. A drift between the changelogs and the
+    # entities must stop the application, not be silently patched at runtime.
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    parameters:
+      # No default on purpose: the read-only role's password is a secret, and a placeholder
+      # that fails to resolve is a better outcome than a well-known fallback.
+      readerPassword: ${REKALL_READER_PASSWORD}
+
+rekall:
+  mcp:
+    reader:
+      username: rekall_reader
+      password: ${REKALL_READER_PASSWORD}
+
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when-authorized
+
+logging:
+  level:
+    dev.rekall: INFO
+    liquibase: WARN
+    org.jooq.Constants: WARN

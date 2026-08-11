@@ -1,0 +1,189 @@
+@import 'tailwindcss';
+
+/*
+ * Fonts are bundled, not fetched. Rekall runs on localhost against a local database, so a
+ * request to a font CDN would be the only thing on the page that needs the internet.
+ *
+ * Fira Sans and Fira Code are one family designed together: the interface and the identifiers
+ * share their proportions, which is what stops a page full of `physical_name` and `varchar(255)`
+ * from reading as two different documents.
+ */
+@import '@fontsource/fira-sans/300.css';
+@import '@fontsource/fira-sans/400.css';
+@import '@fontsource/fira-sans/500.css';
+@import '@fontsource/fira-sans/600.css';
+@import '@fontsource-variable/fira-code';
+
+/*
+ * Design tokens.
+ *
+ * Dark first, because this sits next to a terminal all day. A single warm accent against a
+ * cool neutral scale: warmth marks the things that carry meaning (an entity, a match, a
+ * confirmation) and everything else stays quiet. Names are semantic rather than numeric, so a
+ * component says `bg-surface` and never has to know which grey that is.
+ */
+@theme {
+  --color-canvas: #08090c;
+  --color-surface: #0e1015;
+  --color-surface-raised: #14171e;
+  --color-surface-hover: #1a1e26;
+  --color-border: #1f2530;
+  --color-border-strong: #2c3444;
+
+  /* 15.8:1 on canvas. Muted is 6.4:1, subtle 3.6:1 and therefore never used for body text. */
+  --color-text: #f2f5f9;
+  --color-text-muted: #a3acba;
+  --color-text-subtle: #6b7585;
+
+  --color-accent: #f5a524;
+  --color-accent-strong: #ffc061;
+  --color-accent-deep: #a8681a;
+  --color-accent-soft: #f5a5241f;
+  --color-accent-ink: #2a1a04;
+
+  --color-safe: #3ddc97;
+  --color-safe-soft: #3ddc971a;
+  --color-warn: #f3c04a;
+  --color-warn-soft: #f3c04a1a;
+  --color-danger: #fb7185;
+  --color-danger-soft: #fb71851a;
+
+  --font-sans: 'Fira Sans', ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'Fira Code Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --radius-card: 14px;
+  --radius-control: 9px;
+
+  --shadow-lift: 0 1px 2px rgb(0 0 0 / 0.5), 0 12px 32px -12px rgb(0 0 0 / 0.6);
+  --shadow-glow: 0 0 28px -6px var(--color-accent-soft);
+
+  /*
+   * Data-dense dashboard metrics. Rows and controls line up on a 4px rhythm so a table, a form
+   * and a sidebar read as one grid rather than three.
+   */
+  --spacing-row: 36px;
+  --spacing-control: 36px;
+  --spacing-sidebar: 236px;
+  --spacing-header: 61px;
+
+  /*
+   * One z-index scale, four steps. Arbitrary values like z-[9999] are what produce the bug
+   * where an overlay is behind the thing it covers.
+   */
+  --z-sticky: 20;
+  --z-overlay: 30;
+  --z-modal: 40;
+  --z-toast: 50;
+}
+
+@layer base {
+  html,
+  body,
+  #app {
+    height: 100%;
+  }
+
+  body {
+    background: var(--color-canvas);
+    color: var(--color-text-muted);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  code,
+  kbd {
+    font-family: var(--font-mono);
+    font-size: 0.92em;
+    font-feature-settings: 'ss01', 'ss02';
+  }
+
+  /* Tailwind's reset gives buttons cursor:default; every clickable thing here says so. */
+  button:not(:disabled),
+  [role='button']:not(:disabled),
+  summary {
+    cursor: pointer;
+  }
+
+  ::selection {
+    background: var(--color-accent);
+    color: var(--color-accent-ink);
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-border-strong);
+    border-radius: 8px;
+    border: 3px solid var(--color-canvas);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-text-subtle);
+  }
+}
+
+/*
+ * Declared with @utility rather than as plain classes: only real utilities can be composed
+ * with @apply or wrapped in a variant, and these are used in both ways.
+ */
+
+/* The single focus treatment, so every control agrees on what focus looks like. */
+@utility focus-ring {
+  outline: none;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+/* Backdrop for sticky headers: the content scrolls under, legibly. */
+@utility glass {
+  background: color-mix(in srgb, var(--color-canvas) 82%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+/* Warm halo behind the brand mark and the active navigation marker. */
+@utility halo {
+  box-shadow: var(--shadow-glow);
+}
+
+/* Placeholder shape for content that has not arrived, so the layout never jumps. */
+@utility skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-raised) 0%,
+    var(--color-surface-hover) 50%,
+    var(--color-surface-raised) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-sweep 1.4s ease-in-out infinite;
+  border-radius: 6px;
+}
+
+@keyframes skeleton-sweep {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@layer utilities {
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
