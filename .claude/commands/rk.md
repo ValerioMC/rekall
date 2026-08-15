@@ -1,5 +1,5 @@
 ---
-description: Load a Rekall working context by anchor, e.g. /rk project:stvv task:code-validator
+description: Load a Rekall working context by anchor, e.g. /rk project:vega task:report-builder
 argument-hint: "company:|project:|task: <label> ...  (labels, not titles)"
 allowed-tools: mcp__rekall__rekall_context
 ---
@@ -12,7 +12,7 @@ Then:
 
 - Do not call any other tool first. The anchors are already qualified, there is nothing to look up.
 - The entities are `company`, `project` and `task`. If one was wrong, say which and stop.
-- The value is the record's **label**, never its title: `project:stvv`, not `project:"STVV Platform"`.
+- The value is the record's **label**, never its title: `project:vega`, not `project:"Vega Platform"`.
   A label is lowercase and has no spaces. If I gave you a title, say so and stop rather than guessing
   the label from it.
 - If a term matched more than one record, show me the candidates and stop. Do not choose.

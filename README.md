@@ -2,7 +2,7 @@
 
 Stores the projects and tasks you work on and hands one of them to Claude Code, in full, on a single command.
 
-You keep projects, tasks and their markdown notes in a local app; `/rk project:stvv task:code-validator` loads that task, the project it belongs to and every note attached to it, without Claude ever being able to write.
+You keep projects, tasks and their markdown notes in a local app; `/rk project:vega task:report-builder` loads that task, the project it belongs to and every note attached to it, without Claude ever being able to write.
 
 ## Requirements
 
@@ -51,7 +51,7 @@ cp .claude/commands/rk.md ~/.claude/commands/rk.md
 A session then starts with one line:
 
 ```
-/rk project:stvv task:code-validator-main-workflow
+/rk project:vega task:report-builder-main-workflow
 ```
 
 ## The anchor syntax
@@ -60,10 +60,10 @@ An anchor is `entity:value`, where the entity is `company`, `project` or `task` 
 
 | Form | Meaning |
 |------|---------|
-| `/rk project:stvv task:code-validator` | The project and that task, both in full |
-| `/rk project:stvv` | The project, plus its tasks as a list of anchors |
-| `/rk stvv code-validator` | Positional. Works while each term matches exactly one record |
-| `/rk task:"code validator"` | Quote a value containing spaces |
+| `/rk project:vega task:report-builder` | The project and that task, both in full |
+| `/rk project:vega` | The project, plus its tasks as a list of anchors |
+| `/rk vega report-builder` | Positional. Works while each term matches exactly one record |
+| `/rk task:"report builder"` | Quote a value containing spaces |
 
 Every anchor brings back the record, what it references resolved in full **with their notes**, what references it as anchors, and its own markdown. A note can be attached to several tasks, so cluster access is written once and arrives with each task that needs it.
 
@@ -115,7 +115,7 @@ A project and a task carry two names, and they are not interchangeable:
 
 | Field | What it is | Rules |
 |-------|-----------|-------|
-| `label` | What the anchor resolves. `project:stvv` is a lookup on this column | Lowercase letters, digits, `-`, `_`, `.`. No spaces. Unique inside its parent. Normalised on write, so `Code Validator` is stored as `code-validator` |
+| `label` | What the anchor resolves. `project:vega` is a lookup on this column | Lowercase letters, digits, `-`, `_`, `.`. No spaces. Unique inside its parent. Normalised on write, so `Report Builder` is stored as `report-builder` |
 | `title` | What the record is called on screen and in a sentence | Free text. Changing it never breaks an anchor |
 | `description` | What it is about, in prose | Free text. Travels into every context that loads the record |
 
@@ -135,8 +135,8 @@ Or the **Export** button in the top bar. The archive is a folder tree, one folde
 
 ```
 Acme/
-  stvv/
-    code-validator/
+  vega/
+    report-builder/
       CONTEXT.md
       kmaster14.md
     retry-policy/

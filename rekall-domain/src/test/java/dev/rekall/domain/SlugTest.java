@@ -14,11 +14,11 @@ class SlugTest {
 
     @ParameterizedTest
     @CsvSource({
-            "stvv, stvv",
-            "STVV, stvv",
-            "'  STVV Platform  ', stvv-platform",
-            "Code Validator, code-validator",
-            "code-validator, code-validator",
+            "vega, vega",
+            "Vega, vega",
+            "'  Vega Platform  ', vega-platform",
+            "Report Builder, report-builder",
+            "report-builder, report-builder",
             "release_1.2, release_1.2",
             "'a  //  b', a-b",
             "'--edge--', edge",
@@ -34,7 +34,7 @@ class SlugTest {
     @Test
     @DisplayName("the result is always a valid label, whatever went in")
     void alwaysMatchesThePattern() {
-        for (String raw : new String[] {"STVV", "a / b", "..hidden..", "x--y", "1"}) {
+        for (String raw : new String[] {"Vega", "a / b", "..hidden..", "x--y", "1"}) {
             assertThat(Slug.of(raw)).matches(Slug.PATTERN);
         }
     }

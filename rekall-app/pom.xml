@@ -27,6 +27,16 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
+        <!--
+          Used directly by DatabaseRegistryStore, which reads and writes ~/.rekall/config.json
+          before the Spring context (and its auto-configured ObjectMapper) exists. Declared
+          explicitly rather than relied on transitively: it is not guaranteed to reach this
+          module's compile classpath through rekall-api/rekall-mcp otherwise.
+        -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
     </dependencies>
 
     <build>
@@ -44,6 +54,21 @@
                         </goals>
                     </execution>
                 </executions>
+            </plugin>
+            <!--
+              DatabaseLocationEnvironmentPostProcessor reads and writes ~/.rekall/config.json by
+              default. Without this, `mvn test` run from the repository root (where make
+              test-backend runs it, and where ./data/rekall.mv.db really exists) would adopt that
+              folder into the developer's real home directory config as a side effect of testing.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <systemPropertyVariables>
+                        <rekall.home>${project.build.directory}/test-rekall-home</rekall.home>
+                    </systemPropertyVariables>
+                </configuration>
             </plugin>
         </plugins>
     </build>

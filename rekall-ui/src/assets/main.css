@@ -5,7 +5,7 @@
  * request to a font CDN would be the only thing on the page that needs the internet.
  *
  * Fira Sans and Fira Code are one family designed together: the interface and the identifiers
- * share their proportions, which is what stops a page full of `project:stvv` and `task:setup`
+ * share their proportions, which is what stops a page full of `project:vega` and `task:setup`
  * from reading as two different documents.
  */
 @import '@fontsource/fira-sans/300.css';
@@ -22,7 +22,7 @@
  *
  *   amber   where you are and what you are about to do. Selection, primary action, focus.
  *   cyan    anchors and labels. The one string this product exists to hand you, in the one
- *           colour nothing else uses, so `project:stvv` is findable at a glance on any pane.
+ *           colour nothing else uses, so `project:vega` is findable at a glance on any pane.
  *   status  green, yellow, red. Only ever the state of a record.
  *
  * Two accents rather than one is a deliberate cost. Anchors were amber before, which made the

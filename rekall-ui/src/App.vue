@@ -5,9 +5,11 @@ import AnchorBar from '@/components/console/AnchorBar.vue'
 import NavigatorPane from '@/components/console/NavigatorPane.vue'
 import NoteListPane from '@/components/console/NoteListPane.vue'
 import NotePane from '@/components/console/NotePane.vue'
+import SettingsPanel from '@/components/settings/SettingsPanel.vue'
 import AppToaster from '@/components/ui/AppToaster.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
+import { useModalGate } from '@/composables/useModalGate'
 import type { TaskStatus } from '@/model/catalog'
 
 /**
@@ -20,6 +22,7 @@ import type { TaskStatus } from '@/model/catalog'
 const store = useConsoleStore()
 const { selectedTaskId, navMode } = storeToRefs(store)
 const { run } = useAsyncAction()
+const { isModalOpen } = useModalGate()
 
 /** The four statuses in the order they appear in the navigator, so 1 to 4 match what you see. */
 const STATUS_BY_KEY: Record<string, TaskStatus> = {
@@ -31,6 +34,7 @@ const STATUS_BY_KEY: Record<string, TaskStatus> = {
 
 const anchorBar = ref<InstanceType<typeof AnchorBar> | null>(null)
 const navigator = ref<InstanceType<typeof NavigatorPane> | null>(null)
+const settingsOpen = ref(false)
 
 onMounted(() => store.load())
 
@@ -44,6 +48,8 @@ async function newNote(): Promise<void> {
  * has focus, so typing a note never triggers navigation.
  */
 function onKeydown(event: KeyboardEvent): void {
+  if (isModalOpen.value > 0) return
+
   const target = event.target as HTMLElement | null
   const typing =
     !!target &&
@@ -118,7 +124,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
       Skip to the note
     </a>
 
-    <AnchorBar ref="anchorBar" @new-note="newNote" />
+    <AnchorBar ref="anchorBar" @new-note="newNote" @open-settings="settingsOpen = true" />
 
     <div class="flex min-h-0 flex-1">
       <NavigatorPane ref="navigator" />
@@ -128,6 +134,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
       </div>
     </div>
 
+    <SettingsPanel v-if="settingsOpen" @close="settingsOpen = false" />
     <AppToaster />
   </div>
 </template>

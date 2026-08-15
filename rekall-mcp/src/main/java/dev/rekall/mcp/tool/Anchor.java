@@ -8,9 +8,9 @@ import java.util.regex.Pattern;
 /**
  * One term of a context request.
  *
- * <p>Canonical form is {@code entity:value}, for example {@code project:stvv}. The positional
+ * <p>Canonical form is {@code entity:value}, for example {@code project:vega}. The positional
  * form carries only the value and leaves {@code entityName} null, which is what makes
- * {@code /rk stvv code-validator} work when every term is unambiguous.
+ * {@code /rk vega report-builder} work when every term is unambiguous.
  *
  * <p>Parsing is deliberately the whole of the syntax: there is no grammar to extend here. An
  * anchor is a pair of strings, and deciding what those strings mean is the meta-model's job.
@@ -22,7 +22,7 @@ record Anchor(String entityName, String value) {
 
     /**
      * A term is a run of non-space characters, optionally ending in a quoted section so that a
-     * display value containing spaces survives: {@code env:"kmaster14 / stvv-dev"}.
+     * display value containing spaces survives: {@code env:"kmaster14 / vega-dev"}.
      */
     private static final Pattern TERM = Pattern.compile("\\S*\"[^\"]*\"|\\S+");
 
@@ -33,7 +33,7 @@ record Anchor(String entityName, String value) {
             anchors.add(parse(matcher.group()));
         }
         if (anchors.isEmpty()) {
-            throw new ToolFailure("No anchor given. Pass something like `project:stvv task:code-validator`.");
+            throw new ToolFailure("No anchor given. Pass something like `project:vega task:report-builder`.");
         }
         return anchors;
     }

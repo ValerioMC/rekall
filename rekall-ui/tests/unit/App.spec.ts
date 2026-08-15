@@ -11,7 +11,7 @@ import type { CompanyId, DocumentId, ProjectId, TaskId } from '@/model/branded'
  * a keyboard shortcut wired to nothing, a form that sends the wrong field.
  */
 const acme = 'c1' as CompanyId
-const stvv = 'p1' as ProjectId
+const vega = 'p1' as ProjectId
 const validator = 't1' as TaskId
 const retry = 't2' as TaskId
 
@@ -19,16 +19,16 @@ const companies: Company[] = [
   { id: acme, name: 'acme', description: null, projectCount: 1, taskCount: 2, updatedAt: '2026-08-12T10:00:00Z' }
 ]
 
-const ainabler = 'p2' as ProjectId
+const beacon = 'p2' as ProjectId
 
 const projects: Project[] = [
-  { id: stvv, label: 'stvv', title: 'STVV Platform', status: 'ACTIVE', description: null, companyId: acme, companyName: 'acme', taskCount: 2, anchor: 'project:stvv', updatedAt: '2026-08-12T10:00:00Z' },
-  { id: ainabler, label: 'ainabler', title: 'AInabler', status: 'ACTIVE', description: null, companyId: acme, companyName: 'acme', taskCount: 0, anchor: 'project:ainabler', updatedAt: '2026-08-12T10:00:00Z' }
+  { id: vega, label: 'vega', title: 'Vega Platform', status: 'ACTIVE', description: null, companyId: acme, companyName: 'acme', taskCount: 2, anchor: 'project:vega', updatedAt: '2026-08-12T10:00:00Z' },
+  { id: beacon, label: 'beacon', title: 'Beacon', status: 'ACTIVE', description: null, companyId: acme, companyName: 'acme', taskCount: 0, anchor: 'project:beacon', updatedAt: '2026-08-12T10:00:00Z' }
 ]
 
 const tasks: Task[] = [
-  { id: validator, label: 'code-validator', title: 'Code validator', status: 'IN_PROGRESS', description: null, projectId: stvv, projectLabel: 'stvv', projectTitle: 'STVV Platform', companyName: 'acme', documentCount: 1, anchor: 'project:stvv task:code-validator', updatedAt: '2026-08-12T10:00:00Z' },
-  { id: retry, label: 'retry-policy', title: 'Retry policy', status: 'TODO', description: null, projectId: stvv, projectLabel: 'stvv', projectTitle: 'STVV Platform', companyName: 'acme', documentCount: 1, anchor: 'project:stvv task:retry-policy', updatedAt: '2026-08-12T10:00:00Z' }
+  { id: validator, label: 'report-builder', title: 'Report builder', status: 'IN_PROGRESS', description: null, projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', documentCount: 1, anchor: 'project:vega task:report-builder', updatedAt: '2026-08-12T10:00:00Z' },
+  { id: retry, label: 'retry-policy', title: 'Retry policy', status: 'TODO', description: null, projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', documentCount: 1, anchor: 'project:vega task:retry-policy', updatedAt: '2026-08-12T10:00:00Z' }
 ]
 
 const shared: RekallDocument = {
@@ -37,8 +37,8 @@ const shared: RekallDocument = {
   kind: 'notes',
   bodyMarkdown: '# Cluster\n\nAccesso via bastion.',
   tasks: [
-    { id: validator, label: 'code-validator', title: 'Code validator', projectLabel: 'stvv', projectTitle: 'STVV Platform', companyName: 'acme', anchor: 'project:stvv task:code-validator' },
-    { id: retry, label: 'retry-policy', title: 'Retry policy', projectLabel: 'stvv', projectTitle: 'STVV Platform', companyName: 'acme', anchor: 'project:stvv task:retry-policy' }
+    { id: validator, label: 'report-builder', title: 'Report builder', projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', anchor: 'project:vega task:report-builder' },
+    { id: retry, label: 'retry-policy', title: 'Retry policy', projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', anchor: 'project:vega task:retry-policy' }
   ],
   updatedAt: '2026-08-12T13:00:00Z'
 }
@@ -106,8 +106,8 @@ describe('the console', () => {
     const wrapper = await mountConsole()
     const row = wrapper.findAll('[data-testid="task-row"]')[0]!
 
-    expect(row.text()).toContain('Code validator')
-    expect(row.text()).toContain('code-validator')
+    expect(row.text()).toContain('Report builder')
+    expect(row.text()).toContain('report-builder')
   })
 
   it('walks from a task to its notes to the editor', async () => {
@@ -119,7 +119,7 @@ describe('the console', () => {
     expect(wrapper.findAll('[data-testid="note-card"]')).toHaveLength(1)
     expect(wrapper.text()).toContain('kmaster14.md')
     // The anchor is on screen and is the string you would paste after /rk.
-    expect(wrapper.text()).toContain('project:stvv task:code-validator')
+    expect(wrapper.text()).toContain('project:vega task:report-builder')
   })
 
   /** The point of the model change has to be visible, not merely stored. */
@@ -130,7 +130,7 @@ describe('the console', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('On 2 tasks')
-    expect(wrapper.text()).toContain('stvv/retry-policy')
+    expect(wrapper.text()).toContain('vega/retry-policy')
     expect(wrapper.text()).toContain('Editing here changes what that other task load')
   })
 
@@ -177,8 +177,8 @@ describe('the console', () => {
     expect(wrapper.findAll('[data-testid="scope-company"]')).toHaveLength(1)
     expect(wrapper.findAll('[data-testid="scope-project"]')).toHaveLength(2)
     expect(wrapper.find('[data-testid="scope-company"]').text()).toContain('acme')
-    expect(wrapper.find('[data-testid="scope-project"]').text()).toContain('STVV Platform')
-    expect(wrapper.find('[data-testid="scope-project"]').text()).toContain('project:stvv')
+    expect(wrapper.find('[data-testid="scope-project"]').text()).toContain('Vega Platform')
+    expect(wrapper.find('[data-testid="scope-project"]').text()).toContain('project:vega')
   })
 
   it('narrows to a project and says so in the breadcrumb', async () => {
@@ -188,8 +188,8 @@ describe('the console', () => {
     await wrapper.find('[data-testid="scope-project"]').trigger('click')
     await flushPromises()
 
-    expect(wrapper.find('[data-testid="scope-trigger"]').text()).toContain('STVV Platform')
-    expect(wrapper.find('[data-testid="scope-trigger"]').text()).toContain('project:stvv')
+    expect(wrapper.find('[data-testid="scope-trigger"]').text()).toContain('Vega Platform')
+    expect(wrapper.find('[data-testid="scope-trigger"]').text()).toContain('project:vega')
     expect(wrapper.findAll('[data-testid="task-row"]')).toHaveLength(2)
   })
 
@@ -237,7 +237,7 @@ describe('the console', () => {
       expect((wrapper.find('[data-testid="record-label"]').element as HTMLInputElement).value)
         .toBe('retry-policy-main-workflow')
       expect(wrapper.find('[data-testid="anchor-preview"]').text())
-        .toContain('project:stvv task:retry-policy-main-workflow')
+        .toContain('project:vega task:retry-policy-main-workflow')
     })
 
     /**
@@ -253,11 +253,11 @@ describe('the console', () => {
 
       const parent = wrapper.find('[data-testid="record-parent"] select')
       expect(parent.exists()).toBe(true)
-      expect((parent.element as HTMLSelectElement).value).toBe(stvv)
-      expect(parent.text()).toContain('project:stvv')
+      expect((parent.element as HTMLSelectElement).value).toBe(vega)
+      expect(parent.text()).toContain('project:vega')
 
       // The settled half of the anchor is on screen before a single character is typed.
-      expect(wrapper.find('[data-testid="anchor-preview"]').text()).toContain('project:stvv')
+      expect(wrapper.find('[data-testid="anchor-preview"]').text()).toContain('project:vega')
     })
 
     it('creates the task with both names and the project it landed in', async () => {
@@ -274,7 +274,7 @@ describe('the console', () => {
         title: 'Retry policy',
         status: 'TODO',
         description: null,
-        projectId: stvv
+        projectId: vega
       })
       expect(wrapper.find('[data-testid="record-dialog"]').exists()).toBe(false)
     })
@@ -301,9 +301,9 @@ describe('the console', () => {
       await flushPromises()
 
       expect((wrapper.find('[data-testid="record-title"]').element as HTMLInputElement).value)
-        .toBe('Code validator')
+        .toBe('Report builder')
       expect((wrapper.find('[data-testid="record-label"]').element as HTMLInputElement).value)
-        .toBe('code-validator')
+        .toBe('report-builder')
     })
 
     /**
@@ -322,7 +322,7 @@ describe('the console', () => {
       await wrapper.find('[data-testid="record-label"]').setValue('validator')
       await flushPromises()
 
-      expect(wrapper.find('[data-testid="rename-warning"]').text()).toContain('task:code-validator')
+      expect(wrapper.find('[data-testid="rename-warning"]').text()).toContain('task:report-builder')
     })
 
     it('renames a title without touching the label the anchor uses', async () => {
@@ -332,13 +332,13 @@ describe('the console', () => {
       await wrapper.find('[data-testid="edit-project"]').trigger('click')
       await flushPromises()
 
-      await wrapper.find('[data-testid="record-title"]').setValue('STVV, rebuilt')
+      await wrapper.find('[data-testid="record-title"]').setValue('Vega, rebuilt')
       await wrapper.find('[data-testid="record-save"]').trigger('click')
       await flushPromises()
 
       expect(updateProject).toHaveBeenCalledWith(
-        stvv,
-        expect.objectContaining({ label: 'stvv', title: 'STVV, rebuilt' })
+        vega,
+        expect.objectContaining({ label: 'vega', title: 'Vega, rebuilt' })
       )
     })
 
@@ -350,18 +350,18 @@ describe('the console', () => {
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'e' }))
       await flushPromises()
 
-      await wrapper.find('[data-testid="record-parent"] select').setValue(ainabler)
+      await wrapper.find('[data-testid="record-parent"] select').setValue(beacon)
       await flushPromises()
 
       expect(wrapper.find('[data-testid="anchor-preview"]').text())
-        .toContain('project:ainabler task:code-validator')
+        .toContain('project:beacon task:report-builder')
 
       await wrapper.find('[data-testid="record-save"]').trigger('click')
       await flushPromises()
 
       expect(updateTask).toHaveBeenCalledWith(
         validator,
-        expect.objectContaining({ label: 'code-validator', projectId: ainabler })
+        expect.objectContaining({ label: 'report-builder', projectId: beacon })
       )
     })
 

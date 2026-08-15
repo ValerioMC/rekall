@@ -10,7 +10,7 @@ import java.util.UUID;
 public interface ProjectRepository extends JpaRepository<Project, UUID> {
 
     /**
-     * Resolves the value side of a {@code project:stvv} anchor.
+     * Resolves the value side of a {@code project:vega} anchor.
      *
      * <p>On the label and never on the title: the anchor is an identifier, and a title is free to
      * be rewritten without invalidating what someone wrote in a slash command last month.

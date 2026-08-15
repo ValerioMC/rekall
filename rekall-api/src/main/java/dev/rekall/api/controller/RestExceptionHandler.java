@@ -62,7 +62,7 @@ public class RestExceptionHandler {
     /**
      * A taken label is the constraint a person actually meets, so it gets a sentence of its own.
      *
-     * <p>Two projects in one company cannot share {@code project:stvv}, because the anchor would
+     * <p>Two projects in one company cannot share {@code project:vega}, because the anchor would
      * then name two records and load neither. The database says "Unique index or primary key
      * violation", which is true and useless.
      */

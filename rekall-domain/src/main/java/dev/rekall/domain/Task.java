@@ -33,13 +33,13 @@ import java.util.UUID;
 /**
  * One piece of work on a project, and the unit a session is opened around.
  *
- * <p>{@code label} is what {@code task:code-validator} looks up, {@code title} is what the task
+ * <p>{@code label} is what {@code task:report-builder} looks up, {@code title} is what the task
  * is called in a sentence, and {@code description} is what it is about. Renaming the title of a
  * task you have been anchoring for a month leaves the anchor working, which is the whole reason
  * the two are separate columns.
  *
  * <p>The label is unique within its project rather than globally, because two projects routinely
- * have a task with the same one. A bare {@code task:code-validator} that matches in two projects
+ * have a task with the same one. A bare {@code task:report-builder} that matches in two projects
  * is reported as ambiguous rather than guessed at.
  */
 @Entity

@@ -33,7 +33,7 @@ import java.util.UUID;
  * Something you work on over time, holding tasks.
  *
  * <p>Three fields carry the identity, and they are not interchangeable. {@code label} is what an
- * anchor looks up: {@code project:stvv} is a lookup on this column, so it is a slug and never a
+ * anchor looks up: {@code project:vega} is a lookup on this column, so it is a slug and never a
  * sentence. {@code title} is what a person calls the project and is free to change without
  * breaking a single anchor anyone has written down. {@code description} is the prose.
  *

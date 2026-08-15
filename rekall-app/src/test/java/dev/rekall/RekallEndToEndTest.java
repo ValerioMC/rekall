@@ -28,7 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * The whole application, from entering data through the UI's API to answering with it over MCP.
  *
  * <p>The scenario is the real one: a project, tasks on it, and the notes those tasks share. If
- * this passes, {@code /rk project:stvv task:code-validator} loads a usable working context in
+ * this passes, {@code /rk project:vega task:report-builder} loads a usable working context in
  * one call.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -66,11 +66,11 @@ class RekallEndToEndTest {
     void loadsTheWholeWorkingContext() {
         String acme = aCompany("Acme");
         String projectId = id(post("/api/projects", Map.of(
-                "label", "stvv", "title", "STVV Platform", "status", "ACTIVE",
-                "description", "Progetto STVV", "companyId", acme)));
-        aProject(acme, "ainabler", "PAUSED");
+                "label", "vega", "title", "Vega Platform", "status", "ACTIVE",
+                "description", "Progetto Vega", "companyId", acme)));
+        aProject(acme, "beacon", "PAUSED");
         String taskId = id(post("/api/tasks", Map.of(
-                "label", "code-validator-main-workflow", "title", "Code validator, main workflow",
+                "label", "report-builder-main-workflow", "title", "Report builder, main workflow",
                 "status", "IN_PROGRESS", "projectId", projectId)));
 
         post("/api/documents", Map.of(
@@ -82,22 +82,22 @@ class RekallEndToEndTest {
                 "bodyMarkdown", "Cluster kmaster14, accesso via bastion."));
 
         String context = callTool("rekall_context", Map.of(
-                "anchors", "project:stvv task:code-validator-main-workflow"));
+                "anchors", "project:vega task:report-builder-main-workflow"));
 
         assertThat(context)
                 .as("the heading is what a person calls it")
-                .contains("Project: STVV Platform")
-                .contains("Task: Code validator, main workflow")
+                .contains("Project: Vega Platform")
+                .contains("Task: Report builder, main workflow")
                 .as("and the anchor line is what has to be typed to load it again")
-                .contains("`project:stvv`")
-                .contains("`task:code-validator-main-workflow`")
+                .contains("`project:vega`")
+                .contains("`task:report-builder-main-workflow`")
                 .as("the task's own notes arrive in full")
                 .contains("POST /api/v1/pipelines")
                 .contains("Cluster kmaster14, accesso via bastion.")
-                .doesNotContain("ainabler");
+                .doesNotContain("beacon");
 
         // Reached twice, written once: the project is both an anchor and the task's reference.
-        assertThat(context.split("Project: STVV Platform", -1)).as("no record is rendered twice").hasSize(2);
+        assertThat(context.split("Project: Vega Platform", -1)).as("no record is rendered twice").hasSize(2);
     }
 
     /**
@@ -109,17 +109,17 @@ class RekallEndToEndTest {
     @DisplayName("the title can be rewritten and the anchor still loads the record")
     void titleChangesLeaveTheAnchorAlone() {
         String acme = aCompany("Acme");
-        String projectId = aProject(acme, "stvv", "ACTIVE");
+        String projectId = aProject(acme, "vega", "ACTIVE");
         String taskId = id(post("/api/tasks", Map.of(
-                "label", "code-validator", "title", "Validator", "status", "TODO", "projectId", projectId)));
+                "label", "report-builder", "title", "Validator", "status", "TODO", "projectId", projectId)));
 
         rest.put().uri("/api/tasks/" + taskId)
-                .body(Map.of("label", "code-validator", "title", "Code validator, main workflow",
+                .body(Map.of("label", "report-builder", "title", "Report builder, main workflow",
                         "status", "IN_PROGRESS", "projectId", projectId))
                 .retrieve().toEntity(Map.class);
 
-        assertThat(callTool("rekall_context", Map.of("anchors", "task:code-validator")))
-                .contains("Task: Code validator, main workflow")
+        assertThat(callTool("rekall_context", Map.of("anchors", "task:report-builder")))
+                .contains("Task: Report builder, main workflow")
                 .contains("IN_PROGRESS");
     }
 
@@ -133,14 +133,14 @@ class RekallEndToEndTest {
     void labelsAreNormalised() {
         String acme = aCompany("Acme");
         ResponseEntity<Map> project = post("/api/projects", Map.of(
-                "label", "  STVV Platform ", "title", "STVV Platform", "status", "ACTIVE",
+                "label", "  Vega Platform ", "title", "Vega Platform", "status", "ACTIVE",
                 "companyId", acme));
 
-        assertThat(project.getBody()).containsEntry("label", "stvv-platform");
-        assertThat(project.getBody()).containsEntry("anchor", "project:stvv-platform");
+        assertThat(project.getBody()).containsEntry("label", "vega-platform");
+        assertThat(project.getBody()).containsEntry("anchor", "project:vega-platform");
 
-        assertThat(callTool("rekall_context", Map.of("anchors", "project:stvv-platform")))
-                .contains("Project: STVV Platform");
+        assertThat(callTool("rekall_context", Map.of("anchors", "project:vega-platform")))
+                .contains("Project: Vega Platform");
     }
 
     @Test
@@ -159,7 +159,7 @@ class RekallEndToEndTest {
     @DisplayName("two tasks on one project cannot share a label, and the refusal says why")
     void labelsAreUniqueWithinTheirParent() {
         String acme = aCompany("Acme");
-        String projectId = aProject(acme, "stvv", "ACTIVE");
+        String projectId = aProject(acme, "vega", "ACTIVE");
         post("/api/tasks", Map.of("label", "setup", "title", "Setup", "status", "TODO", "projectId", projectId));
 
         ResponseEntity<Map> second = post("/api/tasks", Map.of(
@@ -175,15 +175,15 @@ class RekallEndToEndTest {
     @DisplayName("changing a label changes the anchor, and the old one stops resolving")
     void labelChangesMoveTheAnchor() {
         String acme = aCompany("Acme");
-        String projectId = aProject(acme, "stvv", "ACTIVE");
+        String projectId = aProject(acme, "vega", "ACTIVE");
 
         rest.put().uri("/api/projects/" + projectId)
-                .body(Map.of("label", "stvv-2", "title", "STVV", "status", "ACTIVE", "companyId", acme))
+                .body(Map.of("label", "vega-2", "title", "Vega", "status", "ACTIVE", "companyId", acme))
                 .retrieve().toEntity(Map.class);
 
-        assertThat(callTool("rekall_context", Map.of("anchors", "project:stvv-2"))).contains("Project: STVV");
-        assertThat(callTool("rekall_context", Map.of("anchors", "project:stvv")))
-                .contains("No project matches 'stvv'");
+        assertThat(callTool("rekall_context", Map.of("anchors", "project:vega-2"))).contains("Project: Vega");
+        assertThat(callTool("rekall_context", Map.of("anchors", "project:vega")))
+                .contains("No project matches 'vega'");
     }
 
     /**
@@ -194,8 +194,8 @@ class RekallEndToEndTest {
     @DisplayName("a note attached to several tasks arrives with each of them")
     void oneNoteServesManyTasks() {
         String acme = aCompany("Acme");
-        String projectId = aProject(acme, "stvv", "ACTIVE");
-        String validator = aTask(projectId, "code-validator");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String validator = aTask(projectId, "report-builder");
         String retry = aTask(projectId, "retry-policy");
 
         ResponseEntity<Map> shared = post("/api/documents", Map.of(
@@ -207,7 +207,7 @@ class RekallEndToEndTest {
                 .as("the response names every task the note is on")
                 .hasSize(2);
 
-        assertThat(callTool("rekall_context", Map.of("anchors", "task:code-validator")))
+        assertThat(callTool("rekall_context", Map.of("anchors", "task:report-builder")))
                 .contains("Accesso via bastion.");
         assertThat(callTool("rekall_context", Map.of("anchors", "task:retry-policy")))
                 .contains("Accesso via bastion.");
@@ -228,7 +228,7 @@ class RekallEndToEndTest {
     @DisplayName("detaching a note from one task leaves it on the others")
     void detachingKeepsTheNoteAlive() {
         String acme = aCompany("Acme");
-        String projectId = aProject(acme, "stvv", "ACTIVE");
+        String projectId = aProject(acme, "vega", "ACTIVE");
         String first = aTask(projectId, "a");
         String second = aTask(projectId, "b");
         String documentId = id(post("/api/documents", Map.of(
@@ -248,7 +248,7 @@ class RekallEndToEndTest {
     @DisplayName("a note has to be on at least one task, because nothing could reach it otherwise")
     void aNoteNeedsATask() {
         String acme = aCompany("Acme");
-        String projectId = aProject(acme, "stvv", "ACTIVE");
+        String projectId = aProject(acme, "vega", "ACTIVE");
         aTask(projectId, "a");
 
         assertThat(post("/api/documents", Map.of(
@@ -264,7 +264,7 @@ class RekallEndToEndTest {
     @DisplayName("deleting a task keeps the notes that other tasks still use")
     void deletingATaskSweepsOnlyWhatIsOrphaned() {
         String acme = aCompany("Acme");
-        String projectId = aProject(acme, "stvv", "ACTIVE");
+        String projectId = aProject(acme, "vega", "ACTIVE");
         String doomed = aTask(projectId, "doomed");
         String survivor = aTask(projectId, "survivor");
 
@@ -286,8 +286,8 @@ class RekallEndToEndTest {
     @DisplayName("deleting a project takes its tasks and sweeps the notes left on nothing")
     void deletingAProjectCascades() {
         String acme = aCompany("Acme");
-        String projectId = aProject(acme, "stvv", "ACTIVE");
-        String task = aTask(projectId, "code-validator");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String task = aTask(projectId, "report-builder");
         post("/api/documents", Map.of("title", "n.md", "kind", "notes",
                 "taskIds", List.of(task), "bodyMarkdown", "x"));
 
@@ -301,16 +301,16 @@ class RekallEndToEndTest {
     @DisplayName("a single project anchor lists its tasks as anchors, without their bodies")
     void projectAnchorListsTasks() {
         String acme = aCompany("Acme");
-        String projectId = aProject(acme, "stvv", "ACTIVE");
-        String taskId = aTask(projectId, "code-validator-main-workflow");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder-main-workflow");
         post("/api/documents", Map.of(
                 "title", "CONTEXT.md", "kind", "context", "taskIds", List.of(taskId),
                 "bodyMarkdown", "segreto"));
 
-        String context = callTool("rekall_context", Map.of("anchors", "project:stvv"));
+        String context = callTool("rekall_context", Map.of("anchors", "project:vega"));
 
         assertThat(context)
-                .contains("`task:code-validator-main-workflow`")
+                .contains("`task:report-builder-main-workflow`")
                 .as("an inverse listing carries anchors only, never the referenced bodies")
                 .doesNotContain("segreto");
     }
@@ -319,13 +319,13 @@ class RekallEndToEndTest {
     @DisplayName("a bare term resolves when it is unambiguous and reports the candidates when it is not")
     void positionalAnchors() {
         String acme = aCompany("Acme");
-        String projectId = aProject(acme, "stvv", "ACTIVE");
-        aTask(projectId, "stvv");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        aTask(projectId, "vega");
 
-        assertThat(callTool("rekall_context", Map.of("anchors", "code-validator")))
-                .contains("Nothing matches 'code-validator'");
-        assertThat(callTool("rekall_context", Map.of("anchors", "stvv")))
-                .as("a project and a task both labelled stvv must stop the tool, not be guessed at")
+        assertThat(callTool("rekall_context", Map.of("anchors", "report-builder")))
+                .contains("Nothing matches 'report-builder'");
+        assertThat(callTool("rekall_context", Map.of("anchors", "vega")))
+                .as("a project and a task both labelled vega must stop the tool, not be guessed at")
                 .contains("matches 2 records")
                 .contains("Qualify it as `entity:value`");
     }
@@ -334,14 +334,14 @@ class RekallEndToEndTest {
     @DisplayName("a task label that two projects share is disambiguated by the project anchor")
     void taskLabelSharedAcrossProjects() {
         String acme = aCompany("Acme");
-        String stvv = aProject(acme, "stvv", "ACTIVE");
-        String ainabler = aProject(acme, "ainabler", "ACTIVE");
-        post("/api/tasks", Map.of("label", "setup", "title", "Setup", "status", "TODO", "projectId", stvv));
-        post("/api/tasks", Map.of("label", "setup", "title", "Setup", "status", "DONE", "projectId", ainabler));
+        String vega = aProject(acme, "vega", "ACTIVE");
+        String beacon = aProject(acme, "beacon", "ACTIVE");
+        post("/api/tasks", Map.of("label", "setup", "title", "Setup", "status", "TODO", "projectId", vega));
+        post("/api/tasks", Map.of("label", "setup", "title", "Setup", "status", "DONE", "projectId", beacon));
 
         assertThat(callTool("rekall_context", Map.of("anchors", "task:setup")))
                 .contains("matches 2 records");
-        assertThat(callTool("rekall_context", Map.of("anchors", "project:ainabler task:setup")))
+        assertThat(callTool("rekall_context", Map.of("anchors", "project:beacon task:setup")))
                 .contains("Task: Setup")
                 .contains("DONE");
     }
@@ -365,12 +365,12 @@ class RekallEndToEndTest {
     void createResponsesCarryTheirTimestamps() {
         String acme = aCompany("Acme");
         ResponseEntity<Map> project = post("/api/projects", Map.of(
-                "label", "stvv", "title", "STVV", "status", "ACTIVE", "companyId", acme));
+                "label", "vega", "title", "Vega", "status", "ACTIVE", "companyId", acme));
         assertThat(project.getBody()).doesNotContainEntry("updatedAt", null);
         String projectId = id(project);
 
         ResponseEntity<Map> task = post("/api/tasks", Map.of(
-                "label", "code-validator", "title", "Code validator", "status", "TODO",
+                "label", "report-builder", "title", "Report builder", "status", "TODO",
                 "projectId", projectId));
         assertThat(task.getBody()).doesNotContainEntry("updatedAt", null);
 
@@ -385,7 +385,7 @@ class RekallEndToEndTest {
     @DisplayName("a status outside the enum is the caller's mistake, so it is a 400 and not a 500")
     void unparseableBodyIsABadRequest() {
         String acme = aCompany("Acme");
-        String projectId = aProject(acme, "stvv", "ACTIVE");
+        String projectId = aProject(acme, "vega", "ACTIVE");
 
         assertThat(post("/api/tasks", Map.of(
                         "label", "t", "title", "T", "status", "OPEN", "projectId", projectId))
@@ -398,7 +398,7 @@ class RekallEndToEndTest {
     @DisplayName("both a label and a title are required")
     void bothNamesAreRequired() {
         String acme = aCompany("Acme");
-        String projectId = aProject(acme, "stvv", "ACTIVE");
+        String projectId = aProject(acme, "vega", "ACTIVE");
 
         assertThat(post("/api/tasks", Map.of("label", "t", "status", "TODO", "projectId", projectId))
                         .getStatusCode())
@@ -412,18 +412,18 @@ class RekallEndToEndTest {
     @DisplayName("every task, unscoped, comes back grouped by project and then by label")
     void unscopedTaskListIsOrdered() {
         String acme = aCompany("Acme");
-        String stvv = aProject(acme, "stvv", "ACTIVE");
-        String ainabler = aProject(acme, "ainabler", "ACTIVE");
-        aTask(stvv, "setup");
-        aTask(stvv, "code-validator");
-        aTask(ainabler, "wiring");
+        String vega = aProject(acme, "vega", "ACTIVE");
+        String beacon = aProject(acme, "beacon", "ACTIVE");
+        aTask(vega, "setup");
+        aTask(vega, "report-builder");
+        aTask(beacon, "wiring");
 
         List<?> tasks = rest.get().uri("/api/tasks").retrieve().toEntity(List.class).getBody();
 
         assertThat(tasks).hasSize(3);
         assertThat(tasks.stream().map(task ->
                         ((Map<?, ?>) task).get("projectLabel") + "/" + ((Map<?, ?>) task).get("label")))
-                .containsExactly("ainabler/wiring", "stvv/code-validator", "stvv/setup");
+                .containsExactly("beacon/wiring", "vega/report-builder", "vega/setup");
     }
 
     /**
@@ -468,12 +468,12 @@ class RekallEndToEndTest {
     @DisplayName("the export is a zip of company/project/task/note.md, shared notes under each task")
     void exportsAFolderTree() throws Exception {
         String acme = aCompany("Acme");
-        String stvv = id(post("/api/projects", Map.of(
-                "label", "stvv", "title", "STVV Platform", "status", "ACTIVE", "companyId", acme)));
-        String validator = aTask(stvv, "code-validator");
-        String retry = aTask(stvv, "retry-policy");
+        String vega = id(post("/api/projects", Map.of(
+                "label", "vega", "title", "Vega Platform", "status", "ACTIVE", "companyId", acme)));
+        String validator = aTask(vega, "report-builder");
+        String retry = aTask(vega, "retry-policy");
         // A task with no notes still has to appear, or the tree misreports the work.
-        aTask(stvv, "empty-one");
+        aTask(vega, "empty-one");
 
         post("/api/documents", Map.of("title", "CONTEXT.md", "kind", "context",
                 "taskIds", List.of(validator), "bodyMarkdown", "# Contesto\n\nprimo"));
@@ -486,25 +486,25 @@ class RekallEndToEndTest {
         assertThat(entries.keySet())
                 .as("folders are named after the label, which is what the anchor says")
                 .contains(
-                        "Acme/stvv/code-validator/CONTEXT.md",
-                        "Acme/stvv/code-validator/kmaster14.md",
-                        "Acme/stvv/retry-policy/kmaster14.md",
-                        "Acme/stvv/empty-one/",
+                        "Acme/vega/report-builder/CONTEXT.md",
+                        "Acme/vega/report-builder/kmaster14.md",
+                        "Acme/vega/retry-policy/kmaster14.md",
+                        "Acme/vega/empty-one/",
                         "MANIFEST.md");
 
-        assertThat(entries.get("Acme/stvv/code-validator/CONTEXT.md")).isEqualTo("# Contesto\n\nprimo");
-        assertThat(entries.get("Acme/stvv/retry-policy/kmaster14.md"))
+        assertThat(entries.get("Acme/vega/report-builder/CONTEXT.md")).isEqualTo("# Contesto\n\nprimo");
+        assertThat(entries.get("Acme/vega/retry-policy/kmaster14.md"))
                 .as("the shared note is complete in every folder, not a pointer")
                 .isEqualTo("Accesso via bastion.");
 
         assertThat(entries.get("MANIFEST.md"))
                 .contains("company:Acme")
                 .as("the manifest carries the title and the anchor that reaches it")
-                .contains("STVV Platform")
-                .contains("project:stvv task:code-validator")
+                .contains("Vega Platform")
+                .contains("project:vega task:report-builder")
                 .as("and says which files are copies of one note")
                 .contains("Notes that appear more than once")
-                .contains("Acme/stvv/retry-policy/kmaster14.md")
+                .contains("Acme/vega/retry-policy/kmaster14.md")
                 .as("and reports the task that has none")
                 .contains("no notes");
     }
@@ -549,17 +549,17 @@ class RekallEndToEndTest {
     @DisplayName("a company anchor lists its projects, and a task reaches back up to it")
     void companyAnchorAndUpwardPath() {
         String acme = aCompany("Acme");
-        String stvv = aProject(acme, "stvv", "ACTIVE");
-        aTask(stvv, "code-validator");
+        String vega = aProject(acme, "vega", "ACTIVE");
+        aTask(vega, "report-builder");
 
         assertThat(callTool("rekall_context", Map.of("anchors", "company:Acme")))
                 .contains("Company: Acme")
-                .contains("`project:stvv`");
+                .contains("`project:vega`");
 
-        assertThat(callTool("rekall_context", Map.of("anchors", "task:code-validator")))
+        assertThat(callTool("rekall_context", Map.of("anchors", "task:report-builder")))
                 .as("a task carries its project, and the project carries its company")
-                .contains("Task: code-validator")
-                .contains("Project: stvv")
+                .contains("Task: report-builder")
+                .contains("Project: vega")
                 .contains("Company: Acme");
     }
 
@@ -568,8 +568,8 @@ class RekallEndToEndTest {
     @DisplayName("deleting a company takes its projects and tasks, and sweeps the orphaned notes")
     void deletingACompanyCascades() {
         String acme = aCompany("Acme");
-        String stvv = aProject(acme, "stvv", "ACTIVE");
-        String task = aTask(stvv, "t");
+        String vega = aProject(acme, "vega", "ACTIVE");
+        String task = aTask(vega, "t");
         post("/api/documents", Map.of("title", "n.md", "kind", "notes",
                 "taskIds", List.of(task), "bodyMarkdown", "x"));
 
@@ -588,7 +588,7 @@ class RekallEndToEndTest {
      * matched nothing. This asserts the expression itself, on the database that will run it.
      */
     @ParameterizedTest
-    @CsvSource({"STVV, stvv", "'Progetto STVV', progetto-stvv", "'../../etc', etc", "a/b/c, a-b-c"})
+    @CsvSource({"Vega, vega", "'Progetto Vega', progetto-vega", "'../../etc', etc", "a/b/c, a-b-c"})
     @DisplayName("the migration's normalising expression turns a legacy name into a label")
     void legacyNamesAreNormalisedBySql(String legacy, String expected) {
         assertThat(jdbc.queryForObject(

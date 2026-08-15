@@ -20,7 +20,7 @@ because Claude Code can read files, but:
 - Duplication. Cluster coordinates and credentials are copied across files and drift.
 - Loading a task into context means naming the right files by hand, every time.
 
-Target: type `/rk project:stvv task:code-validator-main-workflow` and have the full context
+Target: type `/rk project:vega task:report-builder-main-workflow` and have the full context
 loaded in one call, including every note the task shares with its neighbours.
 
 ---
@@ -32,7 +32,7 @@ loaded in one call, including every note the task shares with its neighbours.
 | D1 | Real tables with real foreign keys | A note can never point at a deleted task. On an app whose only job is to be a reliable memory, silent dangling references are the failure mode that matters. |
 | D2 | Claude is read-only | `rekall-mcp` depends on the domain and never on `rekall-api`, so no controller and no write service is on its classpath, and every read runs in a read-only transaction. Weaker than the database role this used to be; see §8. |
 | D3 | Markdown content lives in the database | One backup target, reachable through MCP, searchable. |
-| D4 | One entry point, and it is a slash command | A session begins with `/rk project:stvv task:code-validator`, not with a question. Reaching a record through a natural-language query costs several turns and a few thousand tokens before any work starts, and it is the part that fails when the model guesses the wrong entity. An explicit anchor removes both. |
+| D4 | One entry point, and it is a slash command | A session begins with `/rk project:vega task:report-builder`, not with a question. Reaching a record through a natural-language query costs several turns and a few thousand tokens before any work starts, and it is the part that fails when the model guesses the wrong entity. An explicit anchor removes both. |
 | D5 | The model is fixed at compile time | Superseded D6 of the previous design, which had a runtime meta-model and a DDL engine. See §7. |
 | D6 | Modular monolith, single process, embedded database | Single user, localhost. The application has to be reachable with one command or it will not get used. |
 | D7 | What a record is called and what an anchor resolves are two columns | One column serving both meant a rename broke anchors written down elsewhere, and made every name a compromise between readable and typeable. `label` is a slug and is the identity; `title` is prose and is free. See §4. |
@@ -94,12 +94,12 @@ company is large, which makes it the interface's job to state it before anyone c
 ### The label and the title are separate columns
 
 One column used to do both jobs. `name` was what a person called the project and what
-`project:stvv` resolved, which made every rename a silent break of anchors written down
+`project:vega` resolved, which made every rename a silent break of anchors written down
 elsewhere, and made a readable name and a typeable identifier the same compromise.
 
 | Column | Job | Constraint |
 |---|---|---|
-| `label` | What the anchor resolves | Slug: `^[a-z0-9]+([._-][a-z0-9]+)*$`. Unique inside its parent. Normalised on write by `Slug.of`, so `Code Validator` is stored as `code-validator` |
+| `label` | What the anchor resolves | Slug: `^[a-z0-9]+([._-][a-z0-9]+)*$`. Unique inside its parent. Normalised on write by `Slug.of`, so `Report Builder` is stored as `report-builder` |
 | `title` | What it is called on screen | Free text, `NOT NULL`. Changing it never moves an anchor |
 | `description` | What it is about | Free text, travels into every context |
 
@@ -131,7 +131,7 @@ on another without the two orderings fighting.
 
 Task labels are unique per project rather than globally, because two projects routinely have a
 task with the same one. A bare `task:setup` that matches in two projects is reported as
-ambiguous; `project:ainabler task:setup` resolves it.
+ambiguous; `project:beacon task:setup` resolves it.
 
 ---
 
@@ -150,7 +150,7 @@ The walk distinguishes by direction, not by depth:
 | Forward (`@ManyToOne`) | The record in full, **with its documents** | What this record depends on to be understood. Bounded by the model: a task reaches its project and stops |
 | Inverse (`@OneToMany`) | Labels only, printed as anchors | What points back at this. Unbounded fan-out: a project has forty tasks |
 
-That distinction is why the two-anchor form exists. `/rk project:stvv` loads the project and
+That distinction is why the two-anchor form exists. `/rk project:vega` loads the project and
 lists its tasks as anchors; naming the task as a second anchor is how you narrow to one.
 
 A note arriving with every task that references it is the point of the whole design. In the
@@ -171,7 +171,7 @@ claude mcp add --transport http rekall http://localhost:8080/mcp
 One tool, `rekall_context`, taking one string:
 
 ```json
-{ "anchors": "project:stvv task:code-validator-main-workflow" }
+{ "anchors": "project:vega task:report-builder-main-workflow" }
 ```
 
 An anchor is `entity:value`. A value containing spaces is quoted. A bare term with no `entity:`
@@ -299,8 +299,8 @@ shortcut is inert while a field has focus.
 
 | Phase | Deliverable | Done when |
 |---|---|---|
-| 1 | Fixed model, H2, one MCP tool, typed UI | `/rk project:stvv task:code-validator-main-workflow` answers correctly. **Done** |
-| 2 | Use it on STVV for two weeks, entering data by hand | Either it replaced the folders or it did not |
+| 1 | Fixed model, H2, one MCP tool, typed UI | `/rk project:vega task:report-builder-main-workflow` answers correctly. **Done** |
+| 2 | Use it on Vega for two weeks, entering data by hand | Either it replaced the folders or it did not |
 | 3 | Importer for the existing `ESA/` tree | Only if phase 2 says the tool is worth filling |
 | 4 | Export to a folder tree | A backup and an escape hatch, not a sync. **Done**: `GET /api/export` returns a zip of `project/task/note.md` |
 

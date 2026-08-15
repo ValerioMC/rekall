@@ -17,12 +17,12 @@ const companies: Company[] = [
   { id: globex, name: 'globex', description: null, projectCount: 1, taskCount: 1, updatedAt: '2026-08-12T10:00:00Z' }
 ]
 
-const stvv = 'p1' as ProjectId
-const ainabler = 'p2' as ProjectId
+const vega = 'p1' as ProjectId
+const beacon = 'p2' as ProjectId
 
 const projects: Project[] = [
-  { id: stvv, label: 'stvv', title: 'STVV Platform', status: 'ACTIVE', description: null, companyId: acme, companyName: 'acme', taskCount: 2, anchor: 'project:stvv', updatedAt: '2026-08-12T10:00:00Z' },
-  { id: ainabler, label: 'ainabler', title: 'AInabler', status: 'ACTIVE', description: null, companyId: globex, companyName: 'globex', taskCount: 1, anchor: 'project:ainabler', updatedAt: '2026-08-12T10:00:00Z' }
+  { id: vega, label: 'vega', title: 'Vega Platform', status: 'ACTIVE', description: null, companyId: acme, companyName: 'acme', taskCount: 2, anchor: 'project:vega', updatedAt: '2026-08-12T10:00:00Z' },
+  { id: beacon, label: 'beacon', title: 'Beacon', status: 'ACTIVE', description: null, companyId: globex, companyName: 'globex', taskCount: 1, anchor: 'project:beacon', updatedAt: '2026-08-12T10:00:00Z' }
 ]
 
 const validator = 't1' as TaskId
@@ -54,9 +54,9 @@ const task = (
 })
 
 const tasks: Task[] = [
-  task(validator, 'code-validator', 'Code validator', 'IN_PROGRESS', stvv, 'stvv', 'STVV Platform', 'acme'),
-  task(retry, 'retry-policy', 'Retry policy', 'TODO', stvv, 'stvv', 'STVV Platform', 'acme'),
-  task(wiring, 'wiring', 'Wiring the adapter', 'DONE', ainabler, 'ainabler', 'AInabler', 'globex')
+  task(validator, 'report-builder', 'Report builder', 'IN_PROGRESS', vega, 'vega', 'Vega Platform', 'acme'),
+  task(retry, 'retry-policy', 'Retry policy', 'TODO', vega, 'vega', 'Vega Platform', 'acme'),
+  task(wiring, 'wiring', 'Wiring the adapter', 'DONE', beacon, 'beacon', 'Beacon', 'globex')
 ]
 
 const ref = (id: TaskId, label: string, title: string, projectLabel: string, companyName = 'acme') => ({
@@ -64,7 +64,7 @@ const ref = (id: TaskId, label: string, title: string, projectLabel: string, com
   label,
   title,
   projectLabel,
-  projectTitle: projectLabel === 'stvv' ? 'STVV Platform' : 'AInabler',
+  projectTitle: projectLabel === 'vega' ? 'Vega Platform' : 'Beacon',
   companyName,
   anchor: `project:${projectLabel} task:${label}`
 })
@@ -75,7 +75,7 @@ const documents: RekallDocument[] = [
     title: 'CONTEXT.md',
     kind: 'context',
     bodyMarkdown: 'Il workflow parte da POST /api/v1/pipelines',
-    tasks: [ref(validator, 'code-validator', 'Code validator', 'stvv')],
+    tasks: [ref(validator, 'report-builder', 'Report builder', 'vega')],
     updatedAt: '2026-08-12T12:00:00Z'
   },
   {
@@ -85,8 +85,8 @@ const documents: RekallDocument[] = [
     kind: 'notes',
     bodyMarkdown: 'Accesso via bastion',
     tasks: [
-      ref(validator, 'code-validator', 'Code validator', 'stvv'),
-      ref(retry, 'retry-policy', 'Retry policy', 'stvv')
+      ref(validator, 'report-builder', 'Report builder', 'vega'),
+      ref(retry, 'retry-policy', 'Retry policy', 'vega')
     ],
     updatedAt: '2026-08-12T13:00:00Z'
   },
@@ -95,7 +95,7 @@ const documents: RekallDocument[] = [
     title: 'onboarding.md',
     kind: 'notes',
     bodyMarkdown: 'brew install openjdk',
-    tasks: [ref(wiring, 'wiring', 'Wiring the adapter', 'ainabler', 'globex')],
+    tasks: [ref(wiring, 'wiring', 'Wiring the adapter', 'beacon', 'globex')],
     updatedAt: '2026-08-12T09:00:00Z'
   }
 ]
@@ -138,12 +138,12 @@ describe('console store', () => {
     expect(store.visibleTasks).toHaveLength(3)
 
     store.setScope(acme)
-    expect(store.visibleTasks.map((t) => t.label)).toEqual(['code-validator', 'retry-policy'])
+    expect(store.visibleTasks.map((t) => t.label)).toEqual(['report-builder', 'retry-policy'])
 
-    store.setScope(acme, stvv)
+    store.setScope(acme, vega)
     expect(store.visibleTasks).toHaveLength(2)
-    expect(store.scopeName).toBe('acme / STVV Platform')
-    expect(store.scopeAnchor).toBe('project:stvv')
+    expect(store.scopeName).toBe('acme / Vega Platform')
+    expect(store.scopeAnchor).toBe('project:vega')
 
     store.setScope(null)
     expect(store.visibleTasks).toHaveLength(3)
@@ -151,11 +151,11 @@ describe('console store', () => {
   })
 
   it('finds a task by either half of its anchor', () => {
-    store.filter = 'stvv/retry'
+    store.filter = 'vega/retry'
     expect(store.visibleTasks.map((t) => t.label)).toEqual(['retry-policy'])
 
-    store.filter = 'task:code-validator'
-    expect(store.visibleTasks.map((t) => t.label)).toEqual(['code-validator'])
+    store.filter = 'task:report-builder'
+    expect(store.visibleTasks.map((t) => t.label)).toEqual(['report-builder'])
   })
 
   /**
@@ -252,10 +252,10 @@ describe('console store', () => {
     expect(updateTask).toHaveBeenCalledWith(
       validator,
       expect.objectContaining({
-        label: 'code-validator',
-        title: 'Code validator',
+        label: 'report-builder',
+        title: 'Report builder',
         status: 'DONE',
-        projectId: stvv
+        projectId: vega
       })
     )
   })

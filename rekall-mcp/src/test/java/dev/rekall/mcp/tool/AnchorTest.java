@@ -17,32 +17,32 @@ class AnchorTest {
     @Test
     @DisplayName("the canonical form splits into entity and value")
     void qualifiedForm() {
-        List<Anchor> anchors = Anchor.parseAll("project:stvv task:code-validator");
+        List<Anchor> anchors = Anchor.parseAll("project:vega task:report-builder");
 
         assertThat(anchors)
-                .containsExactly(new Anchor("project", "stvv"), new Anchor("task", "code-validator"));
+                .containsExactly(new Anchor("project", "vega"), new Anchor("task", "report-builder"));
     }
 
     @Test
     @DisplayName("a term without a qualifier is positional")
     void positionalForm() {
-        assertThat(Anchor.parseAll("stvv code-validator"))
-                .containsExactly(new Anchor(null, "stvv"), new Anchor(null, "code-validator"));
+        assertThat(Anchor.parseAll("vega report-builder"))
+                .containsExactly(new Anchor(null, "vega"), new Anchor(null, "report-builder"));
     }
 
     @Test
     @DisplayName("the two forms mix in one request")
     void mixedForms() {
-        assertThat(Anchor.parseAll("stvv task:code-validator"))
-                .containsExactly(new Anchor(null, "stvv"), new Anchor("task", "code-validator"));
+        assertThat(Anchor.parseAll("vega task:report-builder"))
+                .containsExactly(new Anchor(null, "vega"), new Anchor("task", "report-builder"));
     }
 
     @Test
     @DisplayName("a quoted value keeps its spaces")
     void quotedValue() {
-        assertThat(Anchor.parseAll("task:\"code validator\" project:stvv"))
+        assertThat(Anchor.parseAll("task:\"report builder\" project:vega"))
                 .containsExactly(
-                        new Anchor("task", "code validator"), new Anchor("project", "stvv"));
+                        new Anchor("task", "report builder"), new Anchor("project", "vega"));
     }
 
     @Test
@@ -55,15 +55,15 @@ class AnchorTest {
     @Test
     @DisplayName("only the first colon qualifies, so a url survives as a value")
     void onlyTheFirstColonQualifies() {
-        assertThat(Anchor.parseAll("repo:https://gitlab.example/stvv"))
-                .containsExactly(new Anchor("repo", "https://gitlab.example/stvv"));
+        assertThat(Anchor.parseAll("repo:https://gitlab.example/vega"))
+                .containsExactly(new Anchor("repo", "https://gitlab.example/vega"));
     }
 
     @Test
     @DisplayName("irregular spacing is not a syntax error")
     void extraWhitespace() {
-        assertThat(Anchor.parseAll("  project:stvv   task:code-validator \n"))
-                .containsExactly(new Anchor("project", "stvv"), new Anchor("task", "code-validator"));
+        assertThat(Anchor.parseAll("  project:vega   task:report-builder \n"))
+                .containsExactly(new Anchor("project", "vega"), new Anchor("task", "report-builder"));
     }
 
     @Test
@@ -71,7 +71,7 @@ class AnchorTest {
     void emptyRequest() {
         assertThatThrownBy(() -> Anchor.parseAll("   "))
                 .isInstanceOf(ToolFailure.class)
-                .hasMessageContaining("project:stvv");
+                .hasMessageContaining("project:vega");
     }
 
     @Test
@@ -80,7 +80,7 @@ class AnchorTest {
         assertThatThrownBy(() -> Anchor.parseAll("project:"))
                 .isInstanceOf(ToolFailure.class)
                 .hasMessageContaining("not a valid anchor");
-        assertThatThrownBy(() -> Anchor.parseAll(":stvv"))
+        assertThatThrownBy(() -> Anchor.parseAll(":vega"))
                 .isInstanceOf(ToolFailure.class)
                 .hasMessageContaining("not a valid anchor");
     }

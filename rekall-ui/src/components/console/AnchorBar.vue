@@ -11,7 +11,7 @@ import { useConsoleStore } from '@/stores/console.store'
  * the MCP tool. What you type here is what you would type after `/rk`, which is the one thing
  * this product has that nothing else does.
  */
-const emit = defineEmits<{ newNote: [] }>()
+const emit = defineEmits<{ newNote: []; openSettings: [] }>()
 
 const store = useConsoleStore()
 const { filter, scopePath, scopeName, saveState, navMode, visibleTasks, visibleDocuments } =
@@ -22,7 +22,7 @@ const isFocused = ref(false)
 
 const placeholder = computed(() =>
   scopePath.value.length === 0
-    ? 'company:acme project:stvv task:code-validator'
+    ? 'company:acme project:vega task:report-builder'
     : `Find in ${scopeName.value}`
 )
 
@@ -165,6 +165,29 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
         </svg>
         Export
       </a>
+      <button
+        type="button"
+        data-testid="settings-trigger"
+        aria-label="Settings"
+        title="Settings"
+        class="focus-ring grid size-8 shrink-0 place-items-center rounded-[var(--radius-control)] border border-border-strong bg-surface-raised text-text-subtle transition-colors hover:border-accent hover:bg-surface-hover hover:text-text"
+        @click="emit('openSettings')"
+      >
+        <svg class="size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path
+            d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"
+            stroke="currentColor"
+            stroke-width="1.6"
+          />
+          <path
+            d="M19.4 13.5a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V19.5a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H4.5a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 6.1 8.6a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H10.5a1.65 1.65 0 0 0 1-1.51V4.5a2 2 0 1 1 4 0v.09c0 .68.39 1.29 1 1.51a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V10.5c.22.61.83 1 1.51 1H19.5a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </button>
       <AppButton variant="primary" size="sm" @click="emit('newNote')">New note</AppButton>
     </div>
   </header>

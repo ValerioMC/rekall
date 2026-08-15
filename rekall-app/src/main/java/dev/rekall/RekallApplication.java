@@ -2,6 +2,7 @@ package dev.rekall;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.ConfigurableApplicationContext;
 
 /**
  * Rekall: structured memory and context for the projects and tasks you work on.
@@ -14,6 +15,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class RekallApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(RekallApplication.class, args);
+        ConfigurableApplicationContext context = SpringApplication.run(RekallApplication.class, args);
+        ApplicationRestarter.register(context, args);
     }
 }

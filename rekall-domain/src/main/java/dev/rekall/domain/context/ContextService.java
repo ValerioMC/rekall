@@ -62,7 +62,7 @@ public class ContextService {
         };
     }
 
-    /** The qualified two-part form, {@code project:stvv task:code-validator}. */
+    /** The qualified two-part form, {@code project:vega task:report-builder}. */
     @Transactional(readOnly = true)
     public ContextRecord loadTask(String projectLabel, String taskLabel) {
         return tasks.findByProjectLabelIgnoreCaseAndLabelIgnoreCase(projectLabel, taskLabel)

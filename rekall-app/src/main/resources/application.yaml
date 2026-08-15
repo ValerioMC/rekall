@@ -3,9 +3,12 @@ spring:
     name: rekall
 
   datasource:
-    # H2 on file, next to wherever you start it. AUTO_SERVER lets a second process (a SQL
-    # client, a backup script) open the same file while the application is running.
-    url: ${REKALL_DB_URL:jdbc:h2:file:./data/rekall;AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1}
+    # AUTO_SERVER lets a second process (a SQL client, a backup script) open the same file
+    # while the application is running. The path itself is not hardcoded here: it comes from
+    # rekall.resolved-db-url, computed by DatabaseLocationEnvironmentPostProcessor from
+    # ~/.rekall/config.json before this file is even read, so an explicit REKALL_DB_URL still
+    # overrides everything for anyone who sets it by hand.
+    url: ${REKALL_DB_URL:${rekall.resolved-db-url}}
     username: ${REKALL_DB_USER:rekall}
     password: ${REKALL_DB_PASSWORD:rekall}
     hikari:

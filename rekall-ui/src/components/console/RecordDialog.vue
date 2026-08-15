@@ -80,7 +80,7 @@ const status = computed<string>({
 /**
  * The label follows the title until the label is touched, and never afterwards.
  *
- * Typing a title and getting `code-validator` for free is most of the value; having it
+ * Typing a title and getting `report-builder` for free is most of the value; having it
  * overwrite a label you deliberately chose would be the opposite.
  */
 const labelWasTouched = ref(!isNew)
@@ -92,7 +92,7 @@ function onTitleInput(value: string): void {
 
 /**
  * The raw text is kept while typing and narrowed for the anchor and the save, so `code-` on
- * the way to `code-validator` is not swallowed one keystroke at a time.
+ * the way to `report-builder` is not swallowed one keystroke at a time.
  */
 function onLabelInput(value: string): void {
   labelWasTouched.value = true
@@ -363,7 +363,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
           data-testid="record-title"
           class="focus-ring h-10 w-full rounded-[var(--radius-control)] border border-border bg-canvas px-3 text-[15px] text-text outline-none transition-colors placeholder:text-text-subtle hover:border-border-strong focus:border-accent"
           :class="titleError && 'border-danger'"
-          :placeholder="hasLabel ? 'Code validator, main workflow' : 'Acme S.p.A.'"
+          :placeholder="hasLabel ? 'Report builder, main workflow' : 'Acme S.p.A.'"
           @input="onTitleInput(($event.target as HTMLInputElement).value)"
         />
         <p v-if="titleError" class="mt-1.5 text-[11.5px] text-danger" role="alert">
@@ -388,7 +388,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
             autocomplete="off"
             class="focus-ring h-10 w-full rounded-[var(--radius-control)] border border-border bg-canvas px-3 font-mono text-[14px] text-anchor outline-none transition-colors placeholder:text-text-subtle hover:border-border-strong focus:border-anchor"
             :class="labelError && 'border-danger'"
-            placeholder="code-validator"
+            placeholder="report-builder"
             @input="onLabelInput(($event.target as HTMLInputElement).value)"
           />
           <p v-if="labelError" class="mt-1.5 text-[11.5px] text-danger" role="alert">
