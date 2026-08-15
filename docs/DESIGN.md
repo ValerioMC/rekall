@@ -189,6 +189,36 @@ entities fixed in code, its answer is a constant and belongs in the tool descrip
 
 Responses are capped, with an explicit truncation notice rather than a silent cut.
 
+### Two protocol eras
+
+MCP split in two with revision `2026-07-28`. Up to `2025-11-25` a client opens with an
+`initialize` handshake and the agreed revision holds for the session. From `2026-07-28` there is
+no handshake and no session: every request carries its own revision, in the
+`MCP-Protocol-Version` header and again in `params._meta`, along with its method in `Mcp-Method`
+and, for a `tools/call`, its tool name in `Mcp-Name`.
+
+This endpoint answers both. It cost one branch, because the handler never kept state between
+requests: the stateless model the new revision mandates is how it already worked. The rest is
+checking, in the modern era, that the mirrored headers agree with the body — a gateway routing
+on the header while the server executes on the body is two components acting on two different
+requests, so a disagreement is `-32020` on a 400 rather than a guess.
+
+| | Handshake era | Stateless era |
+|---|---|---|
+| Opens with | `initialize`, answered with the revision asked for | nothing |
+| Unknown method | `-32601` on a 200 | `-32601` on a 404, so a probe can tell this from a wrong address |
+| Unknown revision | — | `-32022` on a 400, listing what is supported |
+| `server/discover` | answered | answered, and mandatory |
+
+`2024-11-05` is still accepted, because that is what the endpoint used to pin and a client
+registered before this change still opens with it. It is left out of the versions
+`server/discover` advertises: its transport was HTTP+SSE, which this server has never spoken, so
+a client free to choose should not choose it.
+
+Not implemented, deliberately: `ttlMs`/`cacheScope` on `tools/list`, `structuredContent`, JSON
+Schema 2020-12 and `x-mcp-header`. They solve problems this deployment does not have — one
+process, one user, on localhost.
+
 ---
 
 ## 7. What was removed, and why

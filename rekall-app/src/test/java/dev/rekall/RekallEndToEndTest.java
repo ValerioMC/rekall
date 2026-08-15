@@ -355,6 +355,51 @@ class RekallEndToEndTest {
         assertThat(((Map<?, ?>) tools.getFirst()).get("name")).isEqualTo("rekall_context");
     }
 
+    /*
+     * The 2026-07-28 era, over real HTTP. McpProtocolTest drives the controller directly, so
+     * this is the only place that proves Spring binds the mirrored headers at all: a header name
+     * the framework fails to map arrives as null, which the controller cannot tell apart from a
+     * client that never sent it, and every one of those tests would still pass.
+     */
+
+    @Test
+    @DisplayName("a stateless-era call is served with no handshake before it")
+    void statelessEraNeedsNoInitialize() {
+        String acme = aCompany("Acme");
+        aProject(acme, "vega", "ACTIVE");
+
+        ResponseEntity<Map> response = modernRpc("tools/call", "rekall_context",
+                Map.of("name", "rekall_context", "arguments", Map.of("anchors", "project:vega")));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        Map<?, ?> result = (Map<?, ?>) response.getBody().get("result");
+        assertThat(result.get("isError")).isEqualTo(false);
+        assertThat(String.valueOf(((Map<?, ?>) ((List<?>) result.get("content")).getFirst()).get("text")))
+                .contains("project:vega");
+    }
+
+    @Test
+    @DisplayName("a stateless-era call whose headers disagree with its body is refused")
+    void statelessEraRefusesAHeaderMismatch() {
+        ResponseEntity<Map> response = modernRpc("tools/call", "something_else",
+                Map.of("name", "rekall_context", "arguments", Map.of("anchors", "project:vega")));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(((Map<?, ?>) response.getBody().get("error")).get("code")).isEqualTo(-32020);
+    }
+
+    @Test
+    @DisplayName("server/discover names the revisions this server speaks")
+    void discoverNamesTheSupportedRevisions() {
+        ResponseEntity<Map> response = modernRpc("server/discover", null, Map.of());
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        Map<?, ?> result = (Map<?, ?>) response.getBody().get("result");
+        @SuppressWarnings("unchecked")
+        List<String> versions = (List<String>) result.get("supportedVersions");
+        assertThat(versions).contains("2026-07-28");
+    }
+
     /**
      * Flushed before mapping, because the timestamps are written by Hibernate at flush time.
      * Returning the entity earlier left {@code updatedAt} null, and the frontend rejected a
@@ -656,6 +701,21 @@ class RekallEndToEndTest {
                 rpc("tools/call", Map.of("name", name, "arguments", arguments)).get("result");
         List<?> content = (List<?>) result.get("content");
         return String.valueOf(((Map<?, ?>) content.getFirst()).get("text"));
+    }
+
+    /** A request in the stateless era: no handshake, and every field mirrored into a header. */
+    @SuppressWarnings("rawtypes")
+    private ResponseEntity<Map> modernRpc(String method, String name, Object params) {
+        RestClient.RequestBodySpec spec = rest.post()
+                .uri("/mcp")
+                .header("MCP-Protocol-Version", "2026-07-28")
+                .header("Mcp-Method", method);
+        if (name != null) {
+            spec = spec.header("Mcp-Name", name);
+        }
+        return spec.body(Map.of("jsonrpc", "2.0", "id", 1, "method", method, "params", params))
+                .retrieve()
+                .toEntity(Map.class);
     }
 
     @SuppressWarnings("rawtypes")

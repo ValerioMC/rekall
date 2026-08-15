@@ -24,6 +24,17 @@ public final class JsonRpc {
     public static final int INVALID_PARAMS = -32602;
     public static final int INTERNAL_ERROR = -32603;
 
+    /*
+     * Codes MCP defines on top of JSON-RPC, from the sub-range the specification reserves for
+     * the protocol itself. Both are 2026-07-28 and carry an HTTP 400 alongside them.
+     */
+
+    /** A mirrored header disagrees with the body it was mirrored from, or is missing. */
+    public static final int HEADER_MISMATCH = -32020;
+
+    /** The revision the request declared is one this server does not speak. */
+    public static final int UNSUPPORTED_PROTOCOL_VERSION = -32022;
+
     private JsonRpc() {
     }
 
@@ -48,6 +59,15 @@ public final class JsonRpc {
 
         public static Response failure(JsonNode id, int code, String message) {
             return new Response(VERSION, id, null, new Error(code, message, null));
+        }
+
+        /**
+         * A failure carrying structured data. The version errors are the reason this exists: a
+         * client that asked for a revision this server does not speak needs the list of the ones
+         * it does, in a field it can read, rather than a sentence it would have to parse.
+         */
+        public static Response failure(JsonNode id, int code, String message, Map<String, Object> data) {
+            return new Response(VERSION, id, null, new Error(code, message, data));
         }
     }
 

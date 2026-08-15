@@ -7,10 +7,13 @@ import java.util.Map;
 /**
  * One tool Claude can call.
  *
- * <p>Every implementation is read-only. That is not a convention to remember: the tools reach
- * the database through a datasource authenticated as {@code rekall_reader}, which holds
- * {@code SELECT} and nothing else, so a write would be refused by PostgreSQL rather than by a
- * check someone could forget to write.
+ * <p>Every implementation is read-only, held up by two things: this module's classpath carries
+ * no controller and no write service, and every read runs under
+ * {@code @Transactional(readOnly = true)}, so Hibernate will not flush. It used to be a
+ * PostgreSQL role that held {@code SELECT} and nothing else, which the database enforced no
+ * matter what the code did. On an embedded H2 file that would cost a second {@code DataSource}
+ * and a duplicated set of repositories, so it was traded away deliberately;
+ * {@code docs/DESIGN.md} §8 is the record of that.
  */
 public interface McpTool {
 

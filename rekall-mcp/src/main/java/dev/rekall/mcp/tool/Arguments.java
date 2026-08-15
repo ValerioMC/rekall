@@ -16,9 +16,9 @@ public final class Arguments {
     }
 
     public String requiredString(String name) {
-        if (node == null || !node.hasNonNull(name) || node.get(name).asText().isBlank()) {
+        if (node == null || !node.hasNonNull(name) || node.get(name).asString().isBlank()) {
             throw new IllegalArgumentException("'%s' is required".formatted(name));
         }
-        return node.get(name).asText();
+        return node.get(name).asString();
     }
 }

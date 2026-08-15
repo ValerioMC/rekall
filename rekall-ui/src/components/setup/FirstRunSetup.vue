@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppCard from '@/components/ui/AppCard.vue'
+import AppLogo from '@/components/ui/AppLogo.vue'
 import DatabaseFolderField from '@/components/setup/DatabaseFolderField.vue'
 
 /**
@@ -15,12 +16,7 @@ import DatabaseFolderField from '@/components/setup/DatabaseFolderField.vue'
   <div class="fade-in flex h-full items-center justify-center p-6" data-testid="first-run-setup">
     <div class="w-full max-w-[520px]">
       <div class="mb-6 flex items-center gap-3">
-        <div
-          class="halo grid size-10 shrink-0 place-items-center rounded-[var(--radius-control)] bg-gradient-to-br from-accent-strong to-accent-deep text-[17px] font-bold text-accent-ink"
-          aria-hidden="true"
-        >
-          R
-        </div>
+        <AppLogo :size="40" class="halo rounded-[9px]" />
         <div>
           <p class="text-[17px] font-semibold tracking-[-0.015em] text-text">Welcome to Rekall</p>
           <p class="font-mono text-[10px] text-text-subtle">context, anchored</p>

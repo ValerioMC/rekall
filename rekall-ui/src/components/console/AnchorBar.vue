@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import AppButton from '@/components/ui/AppButton.vue'
+import AppLogo from '@/components/ui/AppLogo.vue'
 import { useConsoleStore } from '@/stores/console.store'
 
 /**
@@ -62,12 +63,7 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
     class="glass flex h-(--spacing-header) shrink-0 items-center gap-3.5 border-b border-border px-4"
   >
     <div class="flex w-(--spacing-nav) shrink-0 items-center gap-2.5 pr-2.5">
-      <div
-        class="halo grid size-8 shrink-0 place-items-center rounded-[9px] bg-gradient-to-br from-accent-strong to-accent-deep text-[15px] font-bold text-accent-ink"
-        aria-hidden="true"
-      >
-        R
-      </div>
+      <AppLogo :size="32" class="halo rounded-[7px]" />
       <span class="min-w-0">
         <span class="block text-[14.5px] font-semibold leading-tight tracking-[-0.015em] text-text">
           Rekall
@@ -174,13 +170,22 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
         @click="emit('openSettings')"
       >
         <svg class="size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <!--
+            The Lucide `settings` gear, unmodified. The path it replaced was the Feather gear
+            with its coordinates hand-edited to fit a smaller box, and three of those edits had
+            broken it: two pairs of arcs collapsed into single large-arc ones, and one arc
+            rewritten as a cubic, which is the spur that used to stick out of the right side.
+            Rescale with the viewBox, never by editing the numbers.
+          -->
           <path
-            d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"
+            d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"
             stroke="currentColor"
             stroke-width="1.6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
           />
           <path
-            d="M19.4 13.5a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V19.5a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H4.5a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 6.1 8.6a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H10.5a1.65 1.65 0 0 0 1-1.51V4.5a2 2 0 1 1 4 0v.09c0 .68.39 1.29 1 1.51a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V10.5c.22.61.83 1 1.51 1H19.5a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"
+            d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"
             stroke="currentColor"
             stroke-width="1.6"
             stroke-linecap="round"
