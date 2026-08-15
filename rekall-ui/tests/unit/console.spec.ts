@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useConsoleStore } from '@/stores/console.store'
-import type { Company, Project, RekallDocument, Task } from '@/model/catalog'
-import type { CompanyId, DocumentId, ProjectId, TaskId } from '@/model/branded'
+import type { Company, Project, RekallDocument, Task, Wrapup } from '@/model/catalog'
+import type { CompanyId, DocumentId, ProjectId, TaskId, WrapupId } from '@/model/branded'
 
 /**
  * The console's reading rules, which is where the screen's behaviour actually lives: what the
@@ -49,6 +49,7 @@ const task = (
   projectTitle,
   companyName,
   documentCount: 1,
+  hasWrapup: id === validator,
   anchor: `project:${projectLabel} task:${label}`,
   updatedAt: '2026-08-12T10:00:00Z'
 })
@@ -100,6 +101,33 @@ const documents: RekallDocument[] = [
   }
 ]
 
+/**
+ * One task has a wrapup and it is deliberately older than one of that task's notes, because
+ * "written before the notes it summarises" is the state the console has to be able to report.
+ */
+const wrapups: Wrapup[] = [
+  {
+    id: 'w1' as WrapupId,
+    taskId: validator,
+    taskLabel: 'report-builder',
+    taskTitle: 'Report builder',
+    projectLabel: 'vega',
+    anchor: 'project:vega task:report-builder',
+    bodyMarkdown: '## Stato\n\nIl builder gira su POST /api/v1/pipelines.',
+    writtenBy: 'CLAUDE',
+    createdAt: '2026-08-12T11:00:00Z',
+    updatedAt: '2026-08-12T12:30:00Z'
+  }
+]
+
+const saveWrapup = vi.fn(async (_taskId: TaskId, bodyMarkdown: string) => ({
+  ...wrapups[0]!,
+  bodyMarkdown,
+  writtenBy: 'HAND' as const,
+  updatedAt: '2026-08-12T14:00:00Z'
+}))
+const deleteWrapup = vi.fn(async () => undefined)
+
 const updateTask = vi.fn(async () => ({ ...tasks[0]!, status: 'DONE' as const }))
 
 vi.mock('@/api/catalog.api', () => ({
@@ -124,11 +152,19 @@ vi.mock('@/api/documents.api', () => ({
   deleteDocument: vi.fn()
 }))
 
+vi.mock('@/api/wrapups.api', () => ({
+  fetchWrapups: vi.fn(async () => wrapups),
+  saveWrapup: (...args: unknown[]) => saveWrapup(...(args as [TaskId, string])),
+  deleteWrapup: (...args: unknown[]) => deleteWrapup(...(args as []))
+}))
+
 describe('console store', () => {
   let store: ReturnType<typeof useConsoleStore>
 
   beforeEach(async () => {
     updateTask.mockClear()
+    saveWrapup.mockClear()
+    deleteWrapup.mockClear()
     setActivePinia(createPinia())
     store = useConsoleStore()
     await store.load()
@@ -239,6 +275,81 @@ describe('console store', () => {
     store.selectTask(wiring)
     store.setScope(acme)
     expect(store.selectedTaskId).toBe(validator)
+  })
+
+  describe('the wrapup', () => {
+    /** One per task, and the task in view is what decides which one is on screen. */
+    it('shows the wrapup of the selected task, and nothing for a task without one', () => {
+      store.selectTask(validator)
+      expect(store.selectedWrapup?.anchor).toBe('project:vega task:report-builder')
+
+      store.selectTask(retry)
+      expect(store.selectedWrapup).toBeNull()
+    })
+
+    /**
+     * A wrapup goes stale silently, which is the one way it can start lying. Notes written
+     * after it are the cheap half of that, and the console counts them rather than judging.
+     */
+    it('counts the notes written since the wrapup was', () => {
+      store.selectTask(validator)
+      // kmaster14.md is 13:00, the wrapup is 12:30; CONTEXT.md at 12:00 is not.
+      expect(store.wrapupIsBehind).toBe(1)
+
+      store.selectTask(retry)
+      expect(store.wrapupIsBehind).toBe(0)
+    })
+
+    it('opens the wrapup pane on the task in view, and leaves it when another is picked', () => {
+      store.selectTask(validator)
+      store.openWrapup()
+      expect(store.paneFocus).toBe('wrapup')
+
+      store.selectTask(retry)
+      expect(store.paneFocus).toBe('note')
+    })
+
+    /** What the keyboard does. A one-way door would need a second key to undo it. */
+    it('toggles the pane, and does nothing at all with no task in view', () => {
+      store.toggleWrapup()
+      expect(store.paneFocus).toBe('note')
+
+      store.selectTask(validator)
+      store.toggleWrapup()
+      expect(store.paneFocus).toBe('wrapup')
+      store.toggleWrapup()
+      expect(store.paneFocus).toBe('note')
+    })
+
+    /** Opening a note is how you leave the wrapup, so the two panes never both claim to be on. */
+    it('returns to the note pane when a note is selected', () => {
+      store.selectTask(validator)
+      store.openWrapup()
+      store.selectDocument('d1' as DocumentId)
+
+      expect(store.paneFocus).toBe('note')
+    })
+
+    it('sends the whole body and keeps what came back', async () => {
+      store.selectTask(validator)
+      await store.saveWrapupBody(validator, '## Stato\n\nRiscritto a mano.')
+
+      expect(saveWrapup).toHaveBeenCalledWith(validator, '## Stato\n\nRiscritto a mano.')
+      expect(store.selectedWrapup?.bodyMarkdown).toBe('## Stato\n\nRiscritto a mano.')
+      // The console shows whose words are on screen, and they are now yours.
+      expect(store.selectedWrapup?.writtenBy).toBe('HAND')
+      expect(store.saveState).toBe('saved')
+    })
+
+    it('drops the wrapup and returns to the notes when it is deleted', async () => {
+      store.selectTask(validator)
+      store.openWrapup()
+      await store.removeWrapup(validator)
+
+      expect(deleteWrapup).toHaveBeenCalledWith(validator)
+      expect(store.selectedWrapup).toBeNull()
+      expect(store.paneFocus).toBe('note')
+    })
   })
 
   /**

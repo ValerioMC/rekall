@@ -7,13 +7,15 @@ import java.util.Map;
 /**
  * One tool Claude can call.
  *
- * <p>Every implementation is read-only, held up by two things: this module's classpath carries
- * no controller and no write service, and every read runs under
- * {@code @Transactional(readOnly = true)}, so Hibernate will not flush. It used to be a
- * PostgreSQL role that held {@code SELECT} and nothing else, which the database enforced no
- * matter what the code did. On an embedded H2 file that would cost a second {@code DataSource}
- * and a duplicated set of repositories, so it was traded away deliberately;
- * {@code docs/DESIGN.md} §8 is the record of that.
+ * <p>Reading is the default and writing is the exception, declared by {@link #writes()}. Every
+ * read runs under {@code @Transactional(readOnly = true)}, so Hibernate will not flush, and the
+ * one tool that does write reaches a service that can only replace the wrapup of a single task:
+ * no entity is created, renamed or deleted from this module.
+ *
+ * <p>This used to be an absolute — a PostgreSQL role holding {@code SELECT} and nothing else,
+ * enforced by the database no matter what the code did. It is now a shape rather than a
+ * prohibition, because a wrapup Claude cannot put back is a wrapup nobody writes.
+ * {@code docs/DESIGN.md} §8 is the record of both trades.
  */
 public interface McpTool {
 
@@ -29,6 +31,16 @@ public interface McpTool {
 
     /** JSON Schema of the arguments object. */
     Map<String, Object> inputSchema();
+
+    /**
+     * Whether calling this changes anything.
+     *
+     * <p>Declared rather than inferred, so the startup log names the write surface out loud
+     * instead of describing every tool as read-only because that used to be true of all of them.
+     */
+    default boolean writes() {
+        return false;
+    }
 
     /** @return the text content returned to Claude */
     String execute(JsonNode arguments);

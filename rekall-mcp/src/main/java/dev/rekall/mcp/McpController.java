@@ -42,10 +42,12 @@ import java.util.stream.Collectors;
  *
  * <p>Nothing here holds state between requests, in either era.
  *
- * <p>Every tool reachable from here reads through a service annotated
- * {@code @Transactional(readOnly = true)}, on a classpath that carries no controller and no
- * write service. That is weaker than the database role it replaced; {@code docs/DESIGN.md} §8
- * records the trade.
+ * <p>Reading is the whole of what this endpoint used to do. It now has one write as well:
+ * {@code rekall_wrapup} replaces the wrapup of a single task, and nothing here can reach any
+ * other row or column. Everything else runs through a service annotated
+ * {@code @Transactional(readOnly = true)}, on a classpath that still carries no controller.
+ * That is weaker again than the database role it once was; {@code docs/DESIGN.md} §8 records
+ * both trades.
  */
 @RestController
 @RequestMapping("/mcp")
@@ -65,8 +67,10 @@ public class McpController {
     private static final String INSTRUCTIONS = """
             Rekall holds one user's companies, projects, tasks and markdown notes, and hands \
             back a whole working context in a single call. Anchor what you need as \
-            `entity:value`, for example `project:vega task:report-builder`. Everything here is \
-            read-only.""";
+            `entity:value`, for example `project:vega task:report-builder`. Reading is \
+            `rekall_context`. The only thing you may write is a task's wrapup, with \
+            `rekall_wrapup`: what its implementation looks like now, replaced in place. \
+            Nothing else here can be changed.""";
 
     /** The wrapper the specification puts around a header value that is not plain ASCII. */
     private static final String BASE64_PREFIX = "=?base64?";
@@ -78,7 +82,9 @@ public class McpController {
     public McpController(List<McpTool> tools) {
         this.tools = tools.stream()
                 .collect(Collectors.toMap(McpTool::name, Function.identity(), (a, b) -> a, LinkedHashMap::new));
-        log.info("MCP server exposing {} read-only tool(s): {}", this.tools.size(), this.tools.keySet());
+        List<String> writing = tools.stream().filter(McpTool::writes).map(McpTool::name).toList();
+        log.info("MCP server exposing {} tool(s): {}. Writes: {}",
+                this.tools.size(), this.tools.keySet(), writing.isEmpty() ? "none" : writing);
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)

@@ -21,11 +21,24 @@ import {
   fetchAllDocuments,
   updateDocument as apiUpdateDocument
 } from '@/api/documents.api'
-import type { Company, Project, RekallDocument, Task, TaskStatus } from '@/model/catalog'
+import {
+  deleteWrapup as apiDeleteWrapup,
+  fetchWrapups,
+  saveWrapup as apiSaveWrapup
+} from '@/api/wrapups.api'
+import type { Company, Project, RekallDocument, Task, TaskStatus, Wrapup } from '@/model/catalog'
 import type { CompanyId, DocumentId, ProjectId, TaskId } from '@/model/branded'
 
 export type NavMode = 'tasks' | 'notes'
 export type SaveState = 'saved' | 'unsaved' | 'saving'
+
+/**
+ * What the right-hand pane is showing.
+ *
+ * A third state rather than a wrapup pretending to be a note: the two are edited differently
+ * and one of them has no title, no kind and no other task it could belong to.
+ */
+export type PaneFocus = 'note' | 'wrapup'
 
 /** Everything the console shows, loaded once and kept in step by the actions below. */
 export const useConsoleStore = defineStore('console', () => {
@@ -33,6 +46,7 @@ export const useConsoleStore = defineStore('console', () => {
   const projects = ref<Project[]>([])
   const tasks = ref<Task[]>([])
   const documents = ref<RekallDocument[]>([])
+  const wrapups = ref<Wrapup[]>([])
 
   const isLoading = ref(true)
   const saveState = ref<SaveState>('saved')
@@ -49,6 +63,7 @@ export const useConsoleStore = defineStore('console', () => {
   const filter = ref('')
   const selectedTaskId = ref<TaskId | null>(null)
   const selectedDocId = ref<DocumentId | null>(null)
+  const paneFocus = ref<PaneFocus>('note')
 
   // ------------------------------------------------------------------ reading
 
@@ -130,6 +145,25 @@ export const useConsoleStore = defineStore('console', () => {
         )
   )
 
+  /** The wrapup of the task in view, or null while nobody has written one. */
+  const selectedWrapup = computed(
+    () => wrapups.value.find((wrapup) => wrapup.taskId === selectedTaskId.value) ?? null
+  )
+
+  /**
+   * The notes on this task that have been written since the wrapup was.
+   *
+   * A wrapup goes stale silently, which is the one way it can start lying. It cannot be
+   * detected in general, but the cheap half can: if you have written notes since, the state it
+   * describes is at least older than what you know. Counted rather than judged, and shown as a
+   * remark rather than a warning.
+   */
+  const wrapupIsBehind = computed(() => {
+    const wrapup = selectedWrapup.value
+    if (!wrapup) return 0
+    return taskDocuments.value.filter((document) => document.updatedAt > wrapup.updatedAt).length
+  })
+
   const recentDocuments = computed(() =>
     [...documents.value]
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
@@ -188,16 +222,19 @@ export const useConsoleStore = defineStore('console', () => {
   async function load(): Promise<void> {
     isLoading.value = true
     try {
-      const [loadedCompanies, loadedProjects, loadedTasks, loadedDocuments] = await Promise.all([
-        fetchCompanies(),
-        fetchProjects(),
-        fetchTasks(),
-        fetchAllDocuments()
-      ])
+      const [loadedCompanies, loadedProjects, loadedTasks, loadedDocuments, loadedWrapups] =
+        await Promise.all([
+          fetchCompanies(),
+          fetchProjects(),
+          fetchTasks(),
+          fetchAllDocuments(),
+          fetchWrapups()
+        ])
       companies.value = loadedCompanies
       projects.value = loadedProjects
       tasks.value = loadedTasks
       documents.value = loadedDocuments
+      wrapups.value = loadedWrapups
     } finally {
       isLoading.value = false
     }
@@ -211,10 +248,14 @@ export const useConsoleStore = defineStore('console', () => {
       document.tasks.some((ref) => ref.id === id)
     )
     selectedDocId.value = first?.id ?? null
+    // Moving to another task leaves the wrapup pane: what was on screen described the task you
+    // just left, and showing the next one's in its place is how the two get confused.
+    paneFocus.value = 'note'
   }
 
   function selectDocument(id: DocumentId): void {
     selectedDocId.value = id
+    paneFocus.value = 'note'
     const document = documents.value.find((candidate) => candidate.id === id)
     if (document && !document.tasks.some((ref) => ref.id === selectedTaskId.value)) {
       selectedTaskId.value = document.tasks[0]?.id ?? null
@@ -276,7 +317,7 @@ export const useConsoleStore = defineStore('console', () => {
     projects.value = projects.value
       .map((project) => (project.id === id ? saved : project))
       .sort((a, b) => a.label.localeCompare(b.label))
-    await Promise.all([refreshTasks(), refreshCompanies(), refreshDocuments()])
+    await Promise.all([refreshTasks(), refreshCompanies(), refreshDocuments(), refreshWrapups()])
   }
 
   async function deleteProject(id: ProjectId): Promise<void> {
@@ -299,15 +340,25 @@ export const useConsoleStore = defineStore('console', () => {
   async function updateTask(id: TaskId, input: TaskInput): Promise<void> {
     const saved = await apiUpdateTask(id, input)
     tasks.value = tasks.value.map((task) => (task.id === id ? saved : task))
-    await Promise.all([refreshDocuments(), refreshProjects(), refreshCompanies()])
+    await Promise.all([
+      refreshDocuments(),
+      refreshProjects(),
+      refreshCompanies(),
+      // The anchor a wrapup carries is built from both labels, so moving or renaming a task
+      // moves it too.
+      refreshWrapups()
+    ])
   }
 
   async function deleteTask(id: TaskId): Promise<void> {
     await apiDeleteTask(id)
     tasks.value = tasks.value.filter((task) => task.id !== id)
+    // The row is gone in the database too: a wrapup describes one task and cascades with it.
+    wrapups.value = wrapups.value.filter((wrapup) => wrapup.taskId !== id)
     if (selectedTaskId.value === id) {
       selectedTaskId.value = null
       selectedDocId.value = null
+      paneFocus.value = 'note'
     }
     await Promise.all([refreshDocuments(), refreshProjects(), refreshCompanies()])
   }
@@ -380,6 +431,51 @@ export const useConsoleStore = defineStore('console', () => {
     await refreshTasks()
   }
 
+  // ------------------------------------------------------------------ wrapup
+
+  /** Opening the state of the task in view. Nothing is created; the pane handles the absence. */
+  function openWrapup(): void {
+    if (selectedTaskId.value === null) return
+    paneFocus.value = 'wrapup'
+  }
+
+  /** What the keyboard does: the key that took you to the wrapup takes you back to the note. */
+  function toggleWrapup(): void {
+    if (selectedTaskId.value === null) return
+    paneFocus.value = paneFocus.value === 'wrapup' ? 'note' : 'wrapup'
+  }
+
+  /**
+   * Writes the whole text, and says it was you.
+   *
+   * The author is not sent: the endpoint stamps HAND on anything that arrives over HTTP and
+   * CLAUDE on anything that arrives over MCP, because a client that could claim to be the other
+   * one would make the field worthless.
+   */
+  async function saveWrapupBody(taskId: TaskId, bodyMarkdown: string): Promise<void> {
+    saveState.value = 'saving'
+    try {
+      const saved = await apiSaveWrapup(taskId, bodyMarkdown)
+      const known = wrapups.value.some((wrapup) => wrapup.id === saved.id)
+      wrapups.value = known
+        ? wrapups.value.map((wrapup) => (wrapup.id === saved.id ? saved : wrapup))
+        : [saved, ...wrapups.value]
+      saveState.value = 'saved'
+      // `hasWrapup` on the task row is now wrong until the task list is read again.
+      if (!known) await refreshTasks()
+    } catch (error) {
+      saveState.value = 'unsaved'
+      throw error
+    }
+  }
+
+  async function removeWrapup(taskId: TaskId): Promise<void> {
+    await apiDeleteWrapup(taskId)
+    wrapups.value = wrapups.value.filter((wrapup) => wrapup.taskId !== taskId)
+    paneFocus.value = 'note'
+    await refreshTasks()
+  }
+
   // ------------------------------------------------------------------ refreshing
 
   async function refreshTasks(): Promise<void> {
@@ -398,6 +494,10 @@ export const useConsoleStore = defineStore('console', () => {
     documents.value = await fetchAllDocuments()
   }
 
+  async function refreshWrapups(): Promise<void> {
+    wrapups.value = await fetchWrapups()
+  }
+
   return {
     companies,
     projects,
@@ -413,6 +513,7 @@ export const useConsoleStore = defineStore('console', () => {
     deleteCompany,
     tasks,
     documents,
+    wrapups,
     isLoading,
     saveState,
     scopeName,
@@ -420,8 +521,11 @@ export const useConsoleStore = defineStore('console', () => {
     filter,
     selectedTaskId,
     selectedDocId,
+    paneFocus,
     selectedTask,
     selectedDocument,
+    selectedWrapup,
+    wrapupIsBehind,
     visibleTasks,
     visibleDocuments,
     taskDocuments,
@@ -440,6 +544,10 @@ export const useConsoleStore = defineStore('console', () => {
     setTaskStatus,
     createNote,
     saveNote,
-    deleteNote
+    deleteNote,
+    openWrapup,
+    toggleWrapup,
+    saveWrapupBody,
+    removeWrapup
   }
 })

@@ -54,6 +54,7 @@ class RekallEndToEndTest {
 
     @BeforeEach
     void resetDatabase() {
+        jdbc.execute("DELETE FROM wrapup");
         jdbc.execute("DELETE FROM document_task");
         jdbc.execute("DELETE FROM document");
         jdbc.execute("DELETE FROM task");
@@ -346,13 +347,196 @@ class RekallEndToEndTest {
                 .contains("DONE");
     }
 
+    /**
+     * Two tools and no more: one way in, one thing that may be written. Asserted as an exact
+     * list rather than a count, because the value of "there is no query tool and no get tool" is
+     * only kept if adding one breaks a test.
+     */
     @Test
-    @DisplayName("the MCP endpoint exposes exactly one tool")
+    @DisplayName("the MCP endpoint exposes one way to read and one thing to write")
     void toolsList() {
         List<?> tools = (List<?>) ((Map<?, ?>) rpc("tools/list", Map.of()).get("result")).get("tools");
 
-        assertThat(tools).hasSize(1);
-        assertThat(((Map<?, ?>) tools.getFirst()).get("name")).isEqualTo("rekall_context");
+        assertThat(tools.stream().map(tool -> String.valueOf(((Map<?, ?>) tool).get("name"))))
+                .containsExactlyInAnyOrder("rekall_context", "rekall_wrapup");
+    }
+
+    /*
+     * The wrapup. A task records what its implementation currently is, Claude writes it at the
+     * end of a session and reads it at the start of the next one, and the console corrects it.
+     */
+
+    /**
+     * The loop the whole feature exists for: written over MCP, loaded back by the anchor that
+     * wrote it, without anyone naming a file.
+     */
+    @Test
+    @DisplayName("a wrapup written over MCP arrives with the next context load")
+    void wrapupIsWrittenAndComesBack() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        aTask(projectId, "report-builder");
+
+        String written = callTool("rekall_wrapup", Map.of(
+                "anchors", "project:vega task:report-builder",
+                "body", "## Stato\n\nIl builder legge da POST /api/v1/pipelines."));
+
+        assertThat(written)
+                .contains("Wrapup written for")
+                .contains("project:vega task:report-builder");
+
+        assertThat(callTool("rekall_context", Map.of("anchors", "project:vega task:report-builder")))
+                .as("it comes back inside its own tag, not as one of the notes")
+                .contains("<wrapup written-by=\"CLAUDE\"")
+                .contains("Il builder legge da POST /api/v1/pipelines.");
+    }
+
+    /**
+     * One per task, and it is the database that says so. A second write is a replacement, which
+     * is what makes a wrapup a description of the state rather than a log of the session.
+     */
+    @Test
+    @DisplayName("writing a second wrapup replaces the first rather than adding one")
+    void wrapupIsReplacedNotAppended() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+
+        callTool("rekall_wrapup", Map.of(
+                "anchors", "project:vega task:report-builder", "body", "Il primo stato."));
+        String second = callTool("rekall_wrapup", Map.of(
+                "anchors", "project:vega task:report-builder", "body", "Lo stato corrente."));
+
+        assertThat(second).contains("Wrapup replaced for");
+        assertThat(jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM wrapup WHERE task_id = ?", Integer.class, UUID.fromString(taskId)))
+                .isEqualTo(1);
+
+        String context = callTool("rekall_context", Map.of("anchors", "task:report-builder"));
+        assertThat(context).contains("Lo stato corrente.").doesNotContain("Il primo stato.");
+    }
+
+    /**
+     * Overwriting a correction someone made by hand is the one outcome worth saying out loud,
+     * because the words that disappear are theirs and nothing keeps a copy.
+     */
+    @Test
+    @DisplayName("replacing a hand-written wrapup says so, and the author follows the last writer")
+    void wrapupReportsWhoseWordsItReplaced() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+
+        ResponseEntity<Map> byHand = rest.put().uri("/api/tasks/" + taskId + "/wrapup")
+                .body(Map.of("bodyMarkdown", "Scritto a mano."))
+                .retrieve().toEntity(Map.class);
+
+        assertThat(byHand.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(byHand.getBody()).containsEntry("writtenBy", "HAND");
+        assertThat(byHand.getBody()).containsEntry("anchor", "project:vega task:report-builder");
+
+        assertThat(callTool("rekall_wrapup", Map.of(
+                        "anchors", "project:vega task:report-builder", "body", "Riscritto da Claude.")))
+                .contains("had been edited by hand");
+
+        assertThat(rest.get().uri("/api/tasks/" + taskId + "/wrapup")
+                        .retrieve().toEntity(Map.class).getBody())
+                .containsEntry("writtenBy", "CLAUDE");
+    }
+
+    /** A write has to land on one task and be sure of it, so anything vaguer is refused. */
+    @Test
+    @DisplayName("a wrapup refuses any anchor that does not name exactly one task")
+    void wrapupNeedsExactlyOneTask() {
+        String acme = aCompany("Acme");
+        String vega = aProject(acme, "vega", "ACTIVE");
+        String beacon = aProject(acme, "beacon", "ACTIVE");
+        aTask(vega, "setup");
+        aTask(beacon, "setup");
+
+        assertThat(callTool("rekall_wrapup", Map.of("anchors", "project:vega", "body", "x")))
+                .as("a project names forty tasks and none of them is the answer")
+                .contains("A wrapup belongs to exactly one task");
+
+        assertThat(callTool("rekall_wrapup", Map.of("anchors", "task:setup", "body", "x")))
+                .contains("matches 2 records")
+                .contains("Qualify it with `project:");
+
+        assertThat(callTool("rekall_wrapup", Map.of("anchors", "task:nowhere", "body", "x")))
+                .contains("No task matches 'nowhere'");
+
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM wrapup", Integer.class))
+                .as("nothing was written on any of those")
+                .isZero();
+    }
+
+    /**
+     * The cap is where a wrapup that has turned into a log gets caught, and the refusal says
+     * which of the two it became.
+     */
+    @Test
+    @DisplayName("a wrapup that has grown into a log is refused, and told why")
+    void wrapupIsCapped() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        aTask(projectId, "report-builder");
+
+        assertThat(callTool("rekall_wrapup", Map.of(
+                        "anchors", "project:vega task:report-builder", "body", "x".repeat(20_001))))
+                .contains("capped at 20000 characters")
+                .contains("not how it got there");
+
+        // Caught by the argument reader before the service sees it, which is the earliest place
+        // it can be, and answered as tool content Claude can retry from.
+        assertThat(callTool("rekall_wrapup", Map.of(
+                        "anchors", "project:vega task:report-builder", "body", "   ")))
+                .contains("'body' is required");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM wrapup", Integer.class)).isZero();
+    }
+
+    /** A wrapup describes one task and has no meaning without it. */
+    @Test
+    @DisplayName("deleting a task takes its wrapup, and deleting a wrapup leaves the task")
+    void wrapupCascadesWithItsTask() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+        callTool("rekall_wrapup", Map.of(
+                "anchors", "project:vega task:report-builder", "body", "Lo stato."));
+
+        rest.delete().uri("/api/tasks/" + taskId + "/wrapup").retrieve().toEntity(Void.class);
+
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM wrapup", Integer.class)).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM task", Integer.class))
+                .as("the task and its notes are untouched")
+                .isEqualTo(1);
+
+        callTool("rekall_wrapup", Map.of(
+                "anchors", "project:vega task:report-builder", "body", "Di nuovo."));
+        rest.delete().uri("/api/tasks/" + taskId).retrieve().toEntity(Void.class);
+
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM wrapup", Integer.class))
+                .as("and the row goes with the task it describes")
+                .isZero();
+    }
+
+    /** The task list is what the navigator reads, and it has to say which tasks have said. */
+    @Test
+    @DisplayName("a task reports whether it has a wrapup, without carrying the body")
+    void taskRowsReportWhetherTheyHaveAWrapup() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        aTask(projectId, "report-builder");
+        aTask(projectId, "retry-policy");
+        callTool("rekall_wrapup", Map.of(
+                "anchors", "project:vega task:report-builder", "body", "Lo stato."));
+
+        List<?> tasks = rest.get().uri("/api/tasks").retrieve().toEntity(List.class).getBody();
+
+        assertThat(tasks).hasSize(2);
+        assertThat(tasks.stream().map(task ->
+                        ((Map<?, ?>) task).get("label") + "=" + ((Map<?, ?>) task).get("hasWrapup")))
+                .containsExactlyInAnyOrder("report-builder=true", "retry-policy=false");
     }
 
     /*
@@ -524,6 +708,8 @@ class RekallEndToEndTest {
                 "taskIds", List.of(validator), "bodyMarkdown", "# Contesto\n\nprimo"));
         post("/api/documents", Map.of("title", "kmaster14.md", "kind", "notes",
                 "taskIds", List.of(validator, retry), "bodyMarkdown", "Accesso via bastion."));
+        callTool("rekall_wrapup", Map.of(
+                "anchors", "project:vega task:report-builder", "body", "## Stato\n\nGira."));
 
         Map<String, String> entries = unzip(
                 rest.get().uri("/api/export").retrieve().toEntity(byte[].class).getBody());
@@ -535,7 +721,9 @@ class RekallEndToEndTest {
                         "Acme/vega/report-builder/kmaster14.md",
                         "Acme/vega/retry-policy/kmaster14.md",
                         "Acme/vega/empty-one/",
-                        "MANIFEST.md");
+                        "MANIFEST.md")
+                .as("the wrapup travels as the file you open first")
+                .contains("Acme/vega/report-builder/WRAPUP.md");
 
         assertThat(entries.get("Acme/vega/report-builder/CONTEXT.md")).isEqualTo("# Contesto\n\nprimo");
         assertThat(entries.get("Acme/vega/retry-policy/kmaster14.md"))
@@ -551,7 +739,9 @@ class RekallEndToEndTest {
                 .contains("Notes that appear more than once")
                 .contains("Acme/vega/retry-policy/kmaster14.md")
                 .as("and reports the task that has none")
-                .contains("no notes");
+                .contains("no notes")
+                .as("and names the wrapup, and who wrote it")
+                .contains("`WRAPUP.md`: the state of the implementation, written by Claude");
     }
 
     /** A record named after a path must become a folder name, never a path. */

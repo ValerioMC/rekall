@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { asCompanyId, asDocumentId, asProjectId, asTaskId } from '@/model/branded'
+import { asCompanyId, asDocumentId, asProjectId, asTaskId, asWrapupId } from '@/model/branded'
 import { PROJECT_STATUSES, TASK_STATUSES } from '@/model/catalog'
 
 /**
@@ -10,6 +10,7 @@ const companyId = z.string().uuid().transform(asCompanyId)
 const projectId = z.string().uuid().transform(asProjectId)
 const taskId = z.string().uuid().transform(asTaskId)
 const documentId = z.string().uuid().transform(asDocumentId)
+const wrapupId = z.string().uuid().transform(asWrapupId)
 
 export const CompanySchema = z.object({
   id: companyId,
@@ -54,6 +55,7 @@ export const TaskSchema = z.object({
   projectTitle: z.string(),
   companyName: z.string(),
   documentCount: z.number().int(),
+  hasWrapup: z.boolean(),
   anchor: z.string(),
   updatedAt: z.string()
 })
@@ -67,7 +69,21 @@ export const DocumentSchema = z.object({
   updatedAt: z.string()
 })
 
+export const WrapupSchema = z.object({
+  id: wrapupId,
+  taskId,
+  taskLabel: z.string(),
+  taskTitle: z.string(),
+  projectLabel: z.string(),
+  anchor: z.string(),
+  bodyMarkdown: z.string(),
+  writtenBy: z.enum(['CLAUDE', 'HAND']),
+  createdAt: z.string(),
+  updatedAt: z.string()
+})
+
 export const CompanyListSchema = z.array(CompanySchema)
 export const ProjectListSchema = z.array(ProjectSchema)
 export const TaskListSchema = z.array(TaskSchema)
 export const DocumentListSchema = z.array(DocumentSchema)
+export const WrapupListSchema = z.array(WrapupSchema)

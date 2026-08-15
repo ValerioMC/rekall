@@ -167,8 +167,18 @@ defineExpose({ beginCreate, editSelected })
                 </span>
               </span>
               <span
-                class="shrink-0 font-mono text-[10.5px] text-text-subtle transition-opacity group-hover/task:opacity-0"
+                class="flex shrink-0 items-center gap-1.5 font-mono text-[10.5px] text-text-subtle transition-opacity group-hover/task:opacity-0"
               >
+                <!-- The same glyph the wrapup card carries, so the mark means one thing. -->
+                <svg
+                  v-if="task.hasWrapup"
+                  class="size-2.5 text-text-muted"
+                  viewBox="0 0 12 12"
+                  role="img"
+                >
+                  <title>Has a wrapup</title>
+                  <path d="M6 1.2 10.8 6 6 10.8 1.2 6z" fill="currentColor" />
+                </svg>
                 {{ task.documentCount }}
               </span>
             </button>

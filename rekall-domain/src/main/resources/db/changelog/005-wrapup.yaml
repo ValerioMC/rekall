@@ -1,0 +1,41 @@
+databaseChangeLog:
+
+  # A task can now say what its implementation looks like, in one place that is replaced rather
+  # than appended to.
+  #
+  # It is not a document. A document is attached to any number of tasks by construction, which
+  # is exactly the shape a wrapup must not have: there is one answer to "what does this task do
+  # now", and a row that could hang off three tasks is three answers waiting to disagree. So it
+  # is its own table, with `task_id` unique and not null, and the constraint is what enforces
+  # "one per task" — a service check would let a second writer slip one in between the read and
+  # the insert.
+
+  - changeSet:
+      id: 005-wrapup
+      author: rekall
+      changes:
+        - createTable:
+            tableName: wrapup
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, primaryKeyName: pk_wrapup, nullable: false}}
+              - column: {name: task_id, type: uuid, constraints: {nullable: false}}
+              # 20,000 rather than the 100,000 a note may hold. A wrapup that no longer fits on
+              # a screen has stopped describing the state and started recording the process.
+              - column: {name: body_markdown, type: varchar(20000), constraints: {nullable: false}}
+              # CLAUDE or HAND. Which of the two wrote it last is what tells you whether the
+              # next `/rk ... wrapup` is about to overwrite something you corrected yourself.
+              - column: {name: written_by, type: varchar(20), constraints: {nullable: false}}
+              - column: {name: created_at, type: timestamp, constraints: {nullable: false}}
+              - column: {name: updated_at, type: timestamp, constraints: {nullable: false}}
+        - addUniqueConstraint:
+            tableName: wrapup
+            columnNames: task_id
+            constraintName: uq_wrapup_task
+        # A wrapup describes a task and has no meaning without it, so it goes when the task does.
+        - addForeignKeyConstraint:
+            baseTableName: wrapup
+            baseColumnNames: task_id
+            referencedTableName: task
+            referencedColumnNames: id
+            constraintName: fk_wrapup_task
+            onDelete: CASCADE

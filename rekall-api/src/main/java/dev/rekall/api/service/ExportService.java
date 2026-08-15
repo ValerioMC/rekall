@@ -4,6 +4,7 @@ import dev.rekall.domain.Company;
 import dev.rekall.domain.Document;
 import dev.rekall.domain.Project;
 import dev.rekall.domain.Task;
+import dev.rekall.domain.WrapupAuthor;
 import dev.rekall.domain.repository.CompanyRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +36,10 @@ import java.util.zip.ZipOutputStream;
  * <p>The one thing the tree cannot represent is a note attached to several tasks. It is written
  * under each of them, so every folder is complete on its own, and {@code MANIFEST.md} records
  * which files are copies of one note so a reader knows not to edit them apart.
+ *
+ * <p>A task's wrapup is written as {@code WRAPUP.md} beside its notes. In capitals and first in
+ * the folder, because on a tree someone opens two years from now it is the file that says what
+ * the thing was.
  */
 @Service
 @RequiredArgsConstructor
@@ -75,6 +80,16 @@ public class ExportService {
                         zip.closeEntry();
 
                         Set<String> used = new HashSet<>();
+
+                        // First in the folder and named in capitals, because it is the file to
+                        // open first: what the task currently is, before the notes explaining
+                        // it. Claimed in `used` as well, so a note that happens to be called
+                        // WRAPUP.md is written alongside it rather than over it.
+                        if (task.getWrapup() != null) {
+                            used.add("WRAPUP.md");
+                            write(zip, taskDir + "/WRAPUP.md", task.getWrapup().getBodyMarkdown());
+                        }
+
                         for (Document document : task.getDocuments()) {
                             String path = taskDir + "/" + unique(used, fileName(document.getTitle()));
                             write(zip, path, document.getBodyMarkdown());
@@ -127,6 +142,12 @@ public class ExportService {
                             .append("- status: ").append(task.getStatus()).append('\n');
                     if (task.getDescription() != null && !task.getDescription().isBlank()) {
                         out.append("- ").append(task.getDescription().replace("\n", " ")).append('\n');
+                    }
+                    if (task.getWrapup() != null) {
+                        out.append("- `WRAPUP.md`: the state of the implementation, written ")
+                                .append(task.getWrapup().getWrittenBy() == WrapupAuthor.CLAUDE
+                                        ? "by Claude" : "by hand")
+                                .append('\n');
                     }
                     if (task.getDocuments().isEmpty()) {
                         out.append("- no notes\n");

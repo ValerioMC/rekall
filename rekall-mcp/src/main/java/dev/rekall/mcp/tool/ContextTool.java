@@ -5,6 +5,7 @@ import dev.rekall.domain.context.ContextRecord;
 import dev.rekall.domain.context.ContextService;
 import dev.rekall.domain.context.DocumentView;
 import dev.rekall.domain.context.UnknownAnchorException;
+import dev.rekall.domain.wrapup.WrapupView;
 import dev.rekall.mcp.protocol.McpTool;
 import dev.rekall.mcp.protocol.ToolSchema;
 import lombok.RequiredArgsConstructor;
@@ -57,6 +58,10 @@ public class ContextTool implements McpTool {
                A note can be attached to several tasks, so the same markdown may arrive under
                more than one anchor. That is deliberate: it is written once and read wherever
                it applies.
+
+               A task also carries its wrapup, if it has one: what its implementation looks
+               like now, written at the end of the last session. Read it as the current state of
+               the work, not as a history of it. Replacing it is `rekall_wrapup`.
 
                Each anchor returns the record, what it references resolved in full with their
                notes, what references it as anchors you can pass back, and all of its markdown.
@@ -133,6 +138,7 @@ public class ContextTool implements McpTool {
             record.related().forEach(anchor -> out.append("  - `").append(anchor).append("`\n"));
         }
 
+        out.append(renderWrapup(record.wrapup()));
         out.append(renderDocuments(record.documents()));
         for (ContextRecord reference : record.references()) {
             String nested = render(reference, headingLevel + 1, rendered);
@@ -141,6 +147,21 @@ public class ContextTool implements McpTool {
             }
         }
         return out.toString();
+    }
+
+    /**
+     * The wrapup, ahead of the notes, in a tag of its own.
+     *
+     * <p>Ahead because a session that opens on a task is asking what it does now, and the notes
+     * are the background to that answer rather than the answer. In its own tag because it is not
+     * a note and must not be edited as one: it is replaced whole, by `rekall_wrapup`.
+     */
+    private String renderWrapup(WrapupView wrapup) {
+        if (wrapup == null) {
+            return "";
+        }
+        return "\n<wrapup written-by=\"%s\" updated=\"%s\">\n%s\n</wrapup>\n"
+                .formatted(wrapup.writtenBy(), wrapup.updatedAt(), truncate(wrapup.bodyMarkdown()));
     }
 
     private String renderDocuments(List<DocumentView> documents) {

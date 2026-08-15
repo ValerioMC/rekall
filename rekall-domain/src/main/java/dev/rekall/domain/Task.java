@@ -13,6 +13,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.OrderColumn;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
@@ -96,6 +97,17 @@ public class Task {
             inverseJoinColumns = @JoinColumn(name = "document_id", foreignKey = @jakarta.persistence.ForeignKey(name = "fk_document_task_document")))
     @OrderColumn(name = "position")
     private List<Document> documents = new ArrayList<>();
+
+    /**
+     * What this task's implementation looks like right now, or null while nobody has said.
+     *
+     * <p>One, at most, and the database holds that shape rather than this field: {@code task_id}
+     * on {@code wrapup} is unique. Cascaded and orphan-removed because a wrapup describes this
+     * task and has no meaning anywhere else, which is the opposite of a note.
+     */
+    @OneToOne(mappedBy = "task", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Setter
+    private Wrapup wrapup;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

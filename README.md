@@ -2,7 +2,7 @@
 
 Stores the projects and tasks you work on and hands one of them to Claude Code, in full, on a single command.
 
-You keep projects, tasks and their markdown notes in a local app; `/rk project:vega task:report-builder` loads that task, the project it belongs to and every note attached to it, without Claude ever being able to write.
+You keep projects, tasks and their markdown notes in a local app; `/rk project:vega task:report-builder` loads that task, the project it belongs to and every note attached to it. At the end of a session `/rk project:vega task:report-builder wrapup` has Claude record what the implementation now is, so the next session opens on the current state instead of reading the code back.
 
 ## Requirements
 
@@ -64,17 +64,37 @@ An anchor is `entity:value`, where the entity is `company`, `project` or `task` 
 | `/rk project:vega` | The project, plus its tasks as a list of anchors |
 | `/rk vega report-builder` | Positional. Works while each term matches exactly one record |
 | `/rk task:"report builder"` | Quote a value containing spaces |
+| `/rk project:vega task:report-builder wrapup` | Write the task's wrapup instead of loading it |
 
 Every anchor brings back the record, what it references resolved in full **with their notes**, what references it as anchors, and its own markdown. A note can be attached to several tasks, so cluster access is written once and arrives with each task that needs it.
 
 If a bare term matches more than one record the candidates come back and nothing is loaded. Task labels are unique per project, so `project:` is what disambiguates a label two projects share.
 
-One read-only tool is exposed: `rekall_context`. There is no query tool, no get tool and no schema tool. Reaching a record by asking a question in prose costs several turns before any work starts and fails silently when the guess is wrong, so the entry point is an explicit anchor and nothing else.
+Two tools are exposed. `rekall_context` reads; there is no query tool, no get tool and no schema tool, because reaching a record by asking a question in prose costs several turns before any work starts and fails silently when the guess is wrong, so the entry point is an explicit anchor and nothing else.
+
+`rekall_wrapup` is the only thing Claude can write, and all it can do is replace the wrapup of one task.
+
+## The wrapup
+
+A task has at most one wrapup: **what its implementation currently is**. Not a changelog — no "added", no "before and after", nothing dated. It describes the system as it stands, for a reader who was not in the session.
+
+```
+/rk project:vega task:report-builder wrapup
+```
+
+Claude reads the current one, rewrites it whole and replaces it. It comes back with the task on the next `/rk`, ahead of the notes. You can correct it in the console at any time, and the pane says who wrote what is on screen and how long ago — the next `/rk … wrapup` replaces it either way, and the tool says so when the words it replaced were yours.
+
+It is capped at 20,000 characters against 100,000 for a note. A wrapup that no longer fits on a screen has stopped describing the state and started recording the process.
 
 ## The console
 
-One surface, three panes: pick a task on the left, pick its note in the middle, write on the
-right. The field at the top is always there and takes the same grammar as `/rk`.
+One surface, three panes: pick a task on the left, pick its wrapup or one of its notes in the
+middle, write on the right. The field at the top is always there and takes the same grammar as
+`/rk`.
+
+The wrapup is pinned above the notes rather than filed among them, because it is the answer to
+the question you arrive with and the notes are the background to it. A task that has none shows
+an empty card: the absence is the reason to write one.
 
 Companies, projects and tasks are created, edited and deleted from one editor, opened from the
 row of the record itself: the scope picker for companies and projects, the task row or `E` for
@@ -90,6 +110,7 @@ with it first.
 | `T` | New task, in the project you are scoped to |
 | `E` | Edit the task in view |
 | `N` | New note on it |
+| `W` | Its wrapup: what it currently is |
 | `B` | Switch between browsing tasks and browsing notes |
 | `J` / `K` | Walk the list |
 | `1`–`4` | Set the status of the selected task |
@@ -101,15 +122,17 @@ Writing autosaves. There is no Save button on a note.
 
 ```
 Company ──< Project ──< Task >──< Document
-                          via document_task
+                         │       via document_task
+                         └──1 Wrapup
 ```
 
 | Entity | Anchored by | Holds |
 |--------|-------------|-------|
 | `Company` | `name` | description, its projects |
 | `Project` | `label`, unique per company | title, status, description, its company, its tasks |
-| `Task` | `label`, unique per project | title, status, description, its project, its notes |
+| `Task` | `label`, unique per project | title, status, description, its project, its notes, its wrapup |
 | `Document` | — | title, kind, markdown body, the tasks it is on |
+| `Wrapup` | through its task | markdown body, who wrote it last. One per task, enforced by the database |
 
 A project and a task carry two names, and they are not interchangeable:
 
@@ -122,6 +145,8 @@ A project and a task carry two names, and they are not interchangeable:
 Renaming a label moves the anchor, and the editor says so before it is saved. Nothing stored points at a label, so there is no reference to repair; what breaks is what was written down outside the application.
 
 A project belongs to exactly one company, and a task to exactly one project. A note belongs to **at least one task and often several**: cluster access or a naming convention is written once and arrives with every task that references it. Deleting a task unlinks its notes and removes only the ones left on nothing.
+
+A wrapup is the opposite: exactly one task, always, and it goes when that task goes. That is why it is not a note with a special kind — a note can be attached to three tasks by construction, and "what does this task currently do" has one answer.
 
 Adding an entity is a JPA class plus a Liquibase changeset, not a UI action: the schema is fixed at compile time on purpose.
 
@@ -137,6 +162,7 @@ Or the **Export** button in the top bar. The archive is a folder tree, one folde
 Acme/
   vega/
     report-builder/
+      WRAPUP.md       <- what the task currently is, if it has said
       CONTEXT.md
       kmaster14.md
     retry-policy/
@@ -177,7 +203,7 @@ src/
 ├── composables/  reusable logic without UI
 └── components/
     ├── ui/       atomic and presentational, no store, no API
-    └── console/  the three panes, the anchor bar and the record editor
+    └── console/  the three panes, the anchor bar, the wrapup and the record editor
 ```
 
 There is no `router/` and no `views/`: the console is one surface, and what would have been a

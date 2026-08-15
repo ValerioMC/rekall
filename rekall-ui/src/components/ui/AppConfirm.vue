@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
+import { useModalGate } from '@/composables/useModalGate'
 
 /**
  * A confirmation that states its blast radius.
@@ -19,6 +20,16 @@ defineProps<{
 
 const emit = defineEmits<{ cancel: []; confirm: [] }>()
 
+/**
+ * The console's single-key shortcuts are inert while this is open.
+ *
+ * This dialog has no field to hold focus, so nothing else stopped a key from reaching the
+ * console underneath: pressing `W` over "Delete wrapup?" switched the pane behind the dialog
+ * and took the dialog with it. A question about destroying something has to be answered before
+ * anything else happens.
+ */
+const { open: openModal, close: closeModal } = useModalGate()
+
 const confirmButton = ref<InstanceType<typeof AppButton> | null>(null)
 
 function onKeydown(event: KeyboardEvent): void {
@@ -28,8 +39,15 @@ function onKeydown(event: KeyboardEvent): void {
   }
 }
 
-onMounted(() => window.addEventListener('keydown', onKeydown, true))
-onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
+onMounted(() => {
+  openModal()
+  window.addEventListener('keydown', onKeydown, true)
+})
+
+onUnmounted(() => {
+  closeModal()
+  window.removeEventListener('keydown', onKeydown, true)
+})
 </script>
 
 <template>

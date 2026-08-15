@@ -5,6 +5,7 @@ import AnchorBar from '@/components/console/AnchorBar.vue'
 import NavigatorPane from '@/components/console/NavigatorPane.vue'
 import NoteListPane from '@/components/console/NoteListPane.vue'
 import NotePane from '@/components/console/NotePane.vue'
+import WrapupPane from '@/components/console/WrapupPane.vue'
 import SettingsPanel from '@/components/settings/SettingsPanel.vue'
 import AppToaster from '@/components/ui/AppToaster.vue'
 import { useConsoleStore } from '@/stores/console.store'
@@ -20,7 +21,7 @@ import type { TaskStatus } from '@/model/catalog'
  * this is that shape.
  */
 const store = useConsoleStore()
-const { selectedTaskId, navMode } = storeToRefs(store)
+const { selectedTaskId, navMode, paneFocus } = storeToRefs(store)
 const { run } = useAsyncAction()
 const { isModalOpen } = useModalGate()
 
@@ -68,6 +69,17 @@ function onKeydown(event: KeyboardEvent): void {
   if (key === 'n') {
     event.preventDefault()
     void newNote()
+    return
+  }
+
+  // The state of the task in view, on the key its name starts with. A toggle rather than a
+  // one-way door, the same way B is: the key that took you here takes you back.
+  if (key === 'w') {
+    event.preventDefault()
+    store.toggleWrapup()
+    // The panes swap without the pointer moving, so focus follows or a keyboard user is left
+    // tabbing through something that is no longer on screen.
+    document.getElementById('note')?.focus()
     return
   }
 
@@ -121,7 +133,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
       href="#note"
       class="focus-ring sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-(--z-toast) focus:rounded-[var(--radius-control)] focus:bg-accent focus:px-4 focus:py-2 focus:text-[13px] focus:font-semibold focus:text-accent-ink"
     >
-      Skip to the note
+      Skip to the editor
     </a>
 
     <AnchorBar ref="anchorBar" @new-note="newNote" @open-settings="settingsOpen = true" />
@@ -130,7 +142,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
       <NavigatorPane ref="navigator" />
       <NoteListPane />
       <div id="note" class="flex min-h-0 flex-1" tabindex="-1">
-        <NotePane />
+        <WrapupPane v-if="paneFocus === 'wrapup'" />
+        <NotePane v-else />
       </div>
     </div>
 

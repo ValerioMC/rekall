@@ -2,8 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import App from '@/App.vue'
-import type { Company, Project, RekallDocument, Task } from '@/model/catalog'
-import type { CompanyId, DocumentId, ProjectId, TaskId } from '@/model/branded'
+import { useConsoleStore } from '@/stores/console.store'
+import type { Company, Project, RekallDocument, Task, Wrapup } from '@/model/catalog'
+import type { CompanyId, DocumentId, ProjectId, TaskId, WrapupId } from '@/model/branded'
 
 /**
  * The console as it actually renders, against a stubbed server. This catches the failures the
@@ -27,8 +28,8 @@ const projects: Project[] = [
 ]
 
 const tasks: Task[] = [
-  { id: validator, label: 'report-builder', title: 'Report builder', status: 'IN_PROGRESS', description: null, projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', documentCount: 1, anchor: 'project:vega task:report-builder', updatedAt: '2026-08-12T10:00:00Z' },
-  { id: retry, label: 'retry-policy', title: 'Retry policy', status: 'TODO', description: null, projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', documentCount: 1, anchor: 'project:vega task:retry-policy', updatedAt: '2026-08-12T10:00:00Z' }
+  { id: validator, label: 'report-builder', title: 'Report builder', status: 'IN_PROGRESS', description: null, projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', documentCount: 1, hasWrapup: true, anchor: 'project:vega task:report-builder', updatedAt: '2026-08-12T10:00:00Z' },
+  { id: retry, label: 'retry-policy', title: 'Retry policy', status: 'TODO', description: null, projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', documentCount: 1, hasWrapup: false, anchor: 'project:vega task:retry-policy', updatedAt: '2026-08-12T10:00:00Z' }
 ]
 
 const shared: RekallDocument = {
@@ -42,6 +43,27 @@ const shared: RekallDocument = {
   ],
   updatedAt: '2026-08-12T13:00:00Z'
 }
+
+const wrapup: Wrapup = {
+  id: 'w1' as WrapupId,
+  taskId: validator,
+  taskLabel: 'report-builder',
+  taskTitle: 'Report builder',
+  projectLabel: 'vega',
+  anchor: 'project:vega task:report-builder',
+  bodyMarkdown: '## Stato\n\nIl builder gira su POST /api/v1/pipelines.',
+  writtenBy: 'CLAUDE',
+  createdAt: '2026-08-12T11:00:00Z',
+  updatedAt: '2026-08-12T12:30:00Z'
+}
+
+const saveWrapup = vi.fn(async () => ({
+  ...wrapup,
+  bodyMarkdown: 'Riscritto a mano.',
+  writtenBy: 'HAND' as const,
+  updatedAt: '2026-08-12T14:00:00Z'
+}))
+const deleteWrapup = vi.fn(async () => undefined)
 
 const updateTask = vi.fn(async () => ({ ...tasks[0]!, status: 'DONE' as const }))
 const createTask = vi.fn(async () => ({ ...tasks[0]!, id: 't9' as TaskId }))
@@ -70,6 +92,12 @@ vi.mock('@/api/documents.api', () => ({
   deleteDocument: vi.fn()
 }))
 
+vi.mock('@/api/wrapups.api', () => ({
+  fetchWrapups: vi.fn(async () => [wrapup]),
+  saveWrapup: (...args: unknown[]) => saveWrapup(...(args as [])),
+  deleteWrapup: (...args: unknown[]) => deleteWrapup(...(args as []))
+}))
+
 async function mountConsole() {
   setActivePinia(createPinia())
   const wrapper = mount(App, { attachTo: document.body })
@@ -83,6 +111,8 @@ describe('the console', () => {
     createTask.mockClear()
     deleteTask.mockClear()
     updateProject.mockClear()
+    saveWrapup.mockClear()
+    deleteWrapup.mockClear()
     document.body.innerHTML = ''
   })
 
@@ -398,6 +428,164 @@ describe('the console', () => {
 
       expect(createTask).not.toHaveBeenCalled()
       expect(wrapper.find('[data-testid="record-dialog"]').exists()).toBe(true)
+    })
+  })
+
+  /**
+   * The wrapup is the answer to the question you arrive with — what is this now — so it sits
+   * above the notes rather than among them, and it has a pane of its own because none of the
+   * note editor's controls mean anything for it.
+   */
+  describe('the wrapup', () => {
+    it('pins the wrapup above the notes of the task in view', async () => {
+      const wrapper = await mountConsole()
+
+      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      await flushPromises()
+
+      const card = wrapper.find('[data-testid="wrapup-card"]')
+      expect(card.exists()).toBe(true)
+      expect(card.text()).toContain('Wrapup')
+      expect(card.text()).toContain('Claude')
+      // It is not one of the notes, and the notes list is unchanged by its presence.
+      expect(wrapper.findAll('[data-testid="note-card"]')).toHaveLength(1)
+    })
+
+    it('opens it on W, and says whose words are on screen', async () => {
+      const wrapper = await mountConsole()
+
+      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }))
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('Written by')
+      expect(wrapper.text()).toContain('Claude')
+      expect(wrapper.text()).toContain('Il builder gira su POST /api/v1/pipelines')
+      // The note editor's controls are absent rather than disabled: a wrapup has no kind and
+      // no second task it could belong to.
+      expect(wrapper.text()).not.toContain('Attach to task')
+    })
+
+    /**
+     * The note whose timestamp is newer than the wrapup is the cheap half of "this may be out
+     * of date", and it is reported as a fact rather than as an alarm.
+     */
+    it('says how many notes were written after it', async () => {
+      const wrapper = await mountConsole()
+
+      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }))
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('1 note is newer than this')
+    })
+
+    /**
+     * The primary way a wrapup gets written is Claude, so the empty state hands over the exact
+     * line to paste rather than a form.
+     */
+    it('offers the command on a task that has none, and a way to write it by hand', async () => {
+      const wrapper = await mountConsole()
+
+      await wrapper.findAll('[data-testid="task-row"]')[1]!.trigger('click')
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }))
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('Nobody has said what this is yet')
+      expect(wrapper.find('[data-testid="copy-wrapup-command"]').text())
+        .toContain('/rk project:vega task:retry-policy wrapup')
+
+      await wrapper.find('[data-testid="write-wrapup-by-hand"]').trigger('click')
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('Describe the state, not the session')
+    })
+
+    /** The key that took you there takes you back, the same way B works. */
+    it('toggles back to the note on a second W', async () => {
+      const wrapper = await mountConsole()
+
+      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }))
+      await flushPromises()
+      expect(wrapper.text()).toContain('Written by')
+
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }))
+      await flushPromises()
+
+      expect(wrapper.text()).not.toContain('Written by')
+      expect(wrapper.text()).toContain('kmaster14.md')
+    })
+
+    /**
+     * Autosave replaces the wrapup in the store with an equal but distinct object. Reacting to
+     * the object rather than to its identity would reload the editor and flip it back to
+     * reading in the middle of a sentence.
+     */
+    it('stays in the editor when the autosave comes back', async () => {
+      const wrapper = await mountConsole()
+
+      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }))
+      await flushPromises()
+
+      const writeTab = () => wrapper.findAll('button').find((button) => button.text() === 'write')!
+      await writeTab().trigger('click')
+      expect(writeTab().attributes('aria-pressed')).toBe('true')
+
+      await useConsoleStore().saveWrapupBody(validator, 'Riscritto a mano.')
+      await flushPromises()
+
+      expect(writeTab().attributes('aria-pressed')).toBe('true')
+    })
+
+    /**
+     * The confirmation has no field to hold focus, so nothing used to stop a key from reaching
+     * the console underneath: W switched the pane behind the dialog and took the dialog with it.
+     */
+    it('makes the shortcuts inert while it is asking whether to delete', async () => {
+      const wrapper = await mountConsole()
+
+      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }))
+      await flushPromises()
+      await wrapper.findAll('button').find((button) => button.text() === 'Delete')!.trigger('click')
+      await flushPromises()
+
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }))
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('The task and its notes stay')
+
+      // Dismissed rather than left standing: the gate is app-wide, so a dialog this test walks
+      // away from would make every shortcut in every later test inert.
+      await wrapper.findAll('button').find((button) => button.text() === 'Keep it')!.trigger('click')
+      await flushPromises()
+
+      expect(wrapper.text()).not.toContain('The task and its notes stay')
+      expect(deleteWrapup).not.toHaveBeenCalled()
+    })
+
+    it('states what deleting a wrapup does and does not take with it', async () => {
+      const wrapper = await mountConsole()
+
+      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }))
+      await flushPromises()
+
+      await wrapper.findAll('button').find((button) => button.text() === 'Delete')!.trigger('click')
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('The task and its notes stay')
+      expect(deleteWrapup).not.toHaveBeenCalled()
+
+      await wrapper
+        .findAll('button')
+        .find((button) => button.text() === 'Delete wrapup')!
+        .trigger('click')
+      await flushPromises()
+
+      expect(deleteWrapup).toHaveBeenCalledWith(validator)
     })
   })
 })

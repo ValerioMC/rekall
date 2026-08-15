@@ -23,6 +23,7 @@ const SHORTCUTS = [
   { keys: 'T', does: 'new task' },
   { keys: 'E', does: 'edit the task in view' },
   { keys: 'N', does: 'new note on it' },
+  { keys: 'W', does: 'its wrapup: what it currently is' },
   { keys: 'B', does: 'switch between tasks and notes' },
   { keys: 'J K', does: 'walk the list' },
   { keys: '1-4', does: 'set the status' }

@@ -84,6 +84,11 @@ public final class ApiDtos {
             UUID companyId) {
     }
 
+    /**
+     * {@code hasWrapup} rather than the wrapup itself, because this is what a row in a list
+     * needs: whether this task has said what it currently is. The body is fetched from its own
+     * endpoint by the one pane that shows it.
+     */
     public record TaskResponse(
             UUID id,
             String label,
@@ -95,6 +100,7 @@ public final class ApiDtos {
             String projectTitle,
             String companyName,
             int documentCount,
+            boolean hasWrapup,
             String anchor,
             Instant updatedAt) {
 
@@ -110,6 +116,7 @@ public final class ApiDtos {
                     task.getProject().getTitle(),
                     task.getProject().getCompany().getName(),
                     task.getDocuments().size(),
+                    task.getWrapup() != null,
                     "project:%s task:%s".formatted(task.getProject().getLabel(), task.getLabel()),
                     task.getUpdatedAt());
         }
@@ -173,5 +180,19 @@ public final class ApiDtos {
             @NotBlank String kind,
             String bodyMarkdown,
             List<UUID> taskIds) {
+    }
+
+    /**
+     * The whole wrapup, every time.
+     *
+     * <p>One field, and no partial form: a wrapup is replaced rather than amended, so a request
+     * that carried only the part that changed would be describing a diff, which is the one
+     * thing a wrapup is defined against.
+     *
+     * <p>There is no response record beside this one. {@code WrapupView} is already materialised
+     * for the MCP side and already carries the anchor, and a second record with the same ten
+     * fields would be a boundary that exists only on paper.
+     */
+    public record WrapupRequest(@NotBlank String bodyMarkdown) {
     }
 }

@@ -7,6 +7,7 @@ import dev.rekall.domain.Task;
 import dev.rekall.domain.repository.CompanyRepository;
 import dev.rekall.domain.repository.ProjectRepository;
 import dev.rekall.domain.repository.TaskRepository;
+import dev.rekall.domain.wrapup.WrapupView;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -132,7 +133,8 @@ public class ContextService {
                 fields,
                 List.of(),
                 company.getProjects().stream().map(project -> "project:" + project.getLabel()).toList(),
-                List.of());
+                List.of(),
+                null);
     }
 
     /**
@@ -154,14 +156,19 @@ public class ContextService {
                 fields,
                 List.of(renderReferenced(project.getCompany())),
                 project.getTasks().stream().map(task -> "task:" + task.getLabel()).toList(),
-                List.of());
+                List.of(),
+                null);
     }
 
     /**
-     * A task carries its project in full, and every note attached to it.
+     * A task carries its project in full, every note attached to it, and its wrapup.
      *
      * <p>A note reached this way may well be attached to other tasks too. That is the point of
      * the relation: cluster access is written once and arrives with each task that needs it.
+     *
+     * <p>The wrapup is what closes the loop the whole feature exists for. A session ends by
+     * writing what the implementation now looks like, and the next one opens on it, so the work
+     * starts from the current state rather than from reading the code back.
      */
     private ContextRecord render(Task task) {
         Map<String, String> fields = new LinkedHashMap<>();
@@ -178,7 +185,8 @@ public class ContextService {
                 fields,
                 references,
                 List.of(),
-                documentsOf(task.getDocuments()));
+                documentsOf(task.getDocuments()),
+                task.getWrapup() == null ? null : WrapupView.of(task.getWrapup()));
     }
 
     /**
@@ -191,13 +199,14 @@ public class ContextService {
         ContextRecord full = render(project);
         return new ContextRecord(
                 full.kind(), full.label(), full.anchor(), full.fields(),
-                full.references(), List.of(), full.documents());
+                full.references(), List.of(), full.documents(), null);
     }
 
     private ContextRecord renderReferenced(Company company) {
         ContextRecord full = render(company);
         return new ContextRecord(
-                full.kind(), full.label(), full.anchor(), full.fields(), List.of(), List.of(), full.documents());
+                full.kind(), full.label(), full.anchor(), full.fields(),
+                List.of(), List.of(), full.documents(), null);
     }
 
     private List<DocumentView> documentsOf(List<Document> documents) {

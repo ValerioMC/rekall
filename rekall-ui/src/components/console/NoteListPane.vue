@@ -1,9 +1,18 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
+import WrapupCard from '@/components/console/WrapupCard.vue'
 import { useConsoleStore } from '@/stores/console.store'
 
+/**
+ * The notes on the selected task, with its wrapup pinned above them.
+ *
+ * The wrapup is first because it is the answer to the question you arrive with — what is this
+ * now — and the notes are the background to that answer. It is one row, always present, even
+ * when nothing has been written: the absence is the reason to write one.
+ */
 const store = useConsoleStore()
-const { selectedTask, selectedDocId, taskDocuments } = storeToRefs(store)
+const { selectedTask, selectedDocId, taskDocuments, paneFocus, selectedWrapup, wrapupIsBehind } =
+  storeToRefs(store)
 
 /** A couple of lines of the body, with the markup stripped so the preview reads as prose. */
 function excerpt(body: string): string {
@@ -39,13 +48,23 @@ function excerpt(body: string): string {
         Pick a task to see its notes.
       </p>
 
-      <p
-        v-else-if="!taskDocuments.length"
-        class="px-2 py-2 text-[12.5px] leading-relaxed text-text-subtle"
-      >
-        No note on this task yet. Press <kbd class="rounded border border-border px-1 font-mono text-[10px]">N</kbd>
-        to write the first one.
-      </p>
+      <template v-else>
+        <WrapupCard
+          :wrapup="selectedWrapup"
+          :selected="paneFocus === 'wrapup'"
+          :behind="wrapupIsBehind"
+          @open="store.openWrapup()"
+        />
+
+        <p
+          v-if="!taskDocuments.length"
+          class="px-2 py-2 text-[12.5px] leading-relaxed text-text-subtle"
+        >
+          No note on this task yet. Press
+          <kbd class="rounded border border-border px-1 font-mono text-[10px]">N</kbd>
+          to write the first one.
+        </p>
+      </template>
 
       <button
         v-for="document in taskDocuments"
@@ -53,11 +72,11 @@ function excerpt(body: string): string {
         data-testid="note-card"
         class="focus-ring mb-1 block w-full rounded-[var(--radius-control)] border p-2.5 text-left transition-all"
         :class="
-          document.id === selectedDocId
+          document.id === selectedDocId && paneFocus === 'note'
             ? 'border-accent bg-surface-raised shadow-lift'
             : 'border-transparent hover:border-border-strong hover:bg-surface-raised'
         "
-        :aria-current="document.id === selectedDocId"
+        :aria-current="document.id === selectedDocId && paneFocus === 'note'"
         @click="store.selectDocument(document.id)"
       >
         <span class="flex items-center gap-2">

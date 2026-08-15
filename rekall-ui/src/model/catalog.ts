@@ -1,4 +1,4 @@
-import type { CompanyId, DocumentId, ProjectId, TaskId } from './branded'
+import type { CompanyId, DocumentId, ProjectId, TaskId, WrapupId } from './branded'
 
 /** Free-form on the server; these are the ones the editor offers. */
 export const DOCUMENT_KINDS = ['context', 'notes', 'architecture', 'report', 'other'] as const
@@ -67,6 +67,8 @@ export interface Task {
   readonly projectTitle: string
   readonly companyName: string
   readonly documentCount: number
+  /** Whether this task has said what it currently is. The body lives on the wrapup itself. */
+  readonly hasWrapup: boolean
   readonly anchor: string
   readonly updatedAt: string
 }
@@ -78,6 +80,35 @@ export interface RekallDocument {
   readonly bodyMarkdown: string
   /** Every task this note is attached to. A note is on at least one, often on several. */
   readonly tasks: readonly TaskRef[]
+  readonly updatedAt: string
+}
+
+/** Who last wrote a wrapup. Not decoration: it says whose words the next write will replace. */
+export type WrapupAuthor = 'CLAUDE' | 'HAND'
+
+export const WRAPUP_AUTHOR_LABEL: Readonly<Record<WrapupAuthor, string>> = {
+  CLAUDE: 'Claude',
+  HAND: 'you'
+}
+
+/**
+ * What a task's implementation looks like now.
+ *
+ * One per task, replaced whole rather than appended to, and deliberately not a note: a note is
+ * something you learned and can be attached to several tasks, a wrapup is the state of one
+ * task and there is only ever one answer to that.
+ */
+export interface Wrapup {
+  readonly id: WrapupId
+  readonly taskId: TaskId
+  readonly taskLabel: string
+  readonly taskTitle: string
+  readonly projectLabel: string
+  /** What you would type after `/rk` to load the task this describes. */
+  readonly anchor: string
+  readonly bodyMarkdown: string
+  readonly writtenBy: WrapupAuthor
+  readonly createdAt: string
   readonly updatedAt: string
 }
 
