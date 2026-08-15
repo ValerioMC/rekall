@@ -5,7 +5,7 @@
  * request to a font CDN would be the only thing on the page that needs the internet.
  *
  * Fira Sans and Fira Code are one family designed together: the interface and the identifiers
- * share their proportions, which is what stops a page full of `physical_name` and `varchar(255)`
+ * share their proportions, which is what stops a page full of `project:stvv` and `task:setup`
  * from reading as two different documents.
  */
 @import '@fontsource/fira-sans/300.css';
@@ -17,18 +17,24 @@
 /*
  * Design tokens.
  *
- * Dark first, because this sits next to a terminal all day. A single warm accent against a
- * cool neutral scale: warmth marks the things that carry meaning (an entity, a match, a
- * confirmation) and everything else stays quiet. Names are semantic rather than numeric, so a
- * component says `bg-surface` and never has to know which grey that is.
+ * Dark first, because this sits next to a terminal all day. Three roles carry all the colour
+ * and nothing else is allowed any:
+ *
+ *   amber   where you are and what you are about to do. Selection, primary action, focus.
+ *   cyan    anchors and labels. The one string this product exists to hand you, in the one
+ *           colour nothing else uses, so `project:stvv` is findable at a glance on any pane.
+ *   status  green, yellow, red. Only ever the state of a record.
+ *
+ * Two accents rather than one is a deliberate cost. Anchors were amber before, which made the
+ * thing you copy and the thing you clicked look identical.
  */
 @theme {
   --color-canvas: #08090c;
-  --color-surface: #0e1015;
+  --color-surface: #0d0f14;
   --color-surface-raised: #14171e;
   --color-surface-hover: #1a1e26;
-  --color-border: #1f2530;
-  --color-border-strong: #2c3444;
+  --color-border: #1c222c;
+  --color-border-strong: #2a323f;
 
   /* 15.8:1 on canvas. Muted is 6.4:1, subtle 3.6:1 and therefore never used for body text. */
   --color-text: #f2f5f9;
@@ -40,6 +46,11 @@
   --color-accent-deep: #a8681a;
   --color-accent-soft: #f5a5241f;
   --color-accent-ink: #2a1a04;
+
+  --color-anchor: #5fd0e0;
+  --color-anchor-strong: #a5eaf4;
+  --color-anchor-soft: #5fd0e01a;
+  --color-anchor-line: #5fd0e040;
 
   --color-safe: #3ddc97;
   --color-safe-soft: #3ddc971a;
@@ -55,16 +66,20 @@
   --radius-control: 9px;
 
   --shadow-lift: 0 1px 2px rgb(0 0 0 / 0.5), 0 12px 32px -12px rgb(0 0 0 / 0.6);
+  --shadow-modal: 0 2px 6px rgb(0 0 0 / 0.6), 0 40px 80px -24px rgb(0 0 0 / 0.85);
   --shadow-glow: 0 0 28px -6px var(--color-accent-soft);
 
   /*
-   * Data-dense dashboard metrics. Rows and controls line up on a 4px rhythm so a table, a form
-   * and a sidebar read as one grid rather than three.
+   * Data-dense metrics. Rows and controls line up on a 4px rhythm so a list, a form and a
+   * sidebar read as one grid rather than three.
    */
   --spacing-row: 36px;
   --spacing-control: 36px;
-  --spacing-sidebar: 236px;
-  --spacing-header: 61px;
+  --spacing-header: 60px;
+
+  /* The two fixed panes. The third takes what is left, because the note is the product. */
+  --spacing-nav: 276px;
+  --spacing-notelist: 304px;
 
   /*
    * One z-index scale, four steps. Arbitrary values like z-[9999] are what produce the bug
@@ -83,8 +98,17 @@
     height: 100%;
   }
 
+  /*
+   * Two very wide, very dim pools of light, one warm at the top left and one cool at the
+   * bottom right. Flat near-black reads as an unlit surface; this reads as a room. Fixed
+   * rather than scrolled, so panes move over it instead of dragging it along.
+   */
   body {
-    background: var(--color-canvas);
+    background-color: var(--color-canvas);
+    background-image:
+      radial-gradient(72rem 40rem at 8% -10%, #f5a5240a, transparent 60%),
+      radial-gradient(60rem 36rem at 100% 108%, #5fd0e00a, transparent 62%);
+    background-attachment: fixed;
     color: var(--color-text-muted);
     font-family: var(--font-sans);
     font-size: 14px;
@@ -121,10 +145,12 @@
   ::-webkit-scrollbar-thumb {
     background: var(--color-border-strong);
     border-radius: 8px;
-    border: 3px solid var(--color-canvas);
+    border: 3px solid transparent;
+    background-clip: padding-box;
   }
   ::-webkit-scrollbar-thumb:hover {
     background: var(--color-text-subtle);
+    background-clip: padding-box;
   }
 }
 
@@ -143,15 +169,33 @@
   }
 }
 
-/* Backdrop for sticky headers: the content scrolls under, legibly. */
+/* Backdrop for sticky headers and the panes themselves: content scrolls under, legibly. */
 @utility glass {
-  background: color-mix(in srgb, var(--color-canvas) 82%, transparent);
-  backdrop-filter: blur(12px);
+  background: color-mix(in srgb, var(--color-surface) 78%, transparent);
+  backdrop-filter: blur(14px) saturate(1.2);
 }
 
 /* Warm halo behind the brand mark and the active navigation marker. */
 @utility halo {
   box-shadow: var(--shadow-glow);
+}
+
+/*
+ * The selected row. A left rail in the accent, a wash that fades out to the right, and no
+ * border: a full outline on every selection turns a list into a grid of boxes.
+ */
+@utility selected-row {
+  background-image: linear-gradient(90deg, var(--color-accent-soft), transparent 78%);
+  box-shadow: inset 2px 0 0 var(--color-accent);
+}
+
+/* An anchor, wherever it appears: the one string worth copying, in the one colour it owns. */
+@utility anchor-chip {
+  color: var(--color-anchor);
+  background: var(--color-anchor-soft);
+  border: 1px solid var(--color-anchor-line);
+  font-family: var(--font-mono);
+  border-radius: 6px;
 }
 
 /* Placeholder shape for content that has not arrived, so the layout never jumps. */
@@ -167,12 +211,58 @@
   border-radius: 6px;
 }
 
+/* Dialogs arrive rather than appear. Short enough that it never delays the first keystroke. */
+@utility rise {
+  animation: rise 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@utility fade-in {
+  animation: fade-in 120ms ease-out;
+}
+
+/* Confirmation that something was copied, on the element that was copied from. */
+@utility flash {
+  animation: flash 520ms ease-out;
+}
+
 @keyframes skeleton-sweep {
   from {
     background-position: 200% 0;
   }
   to {
     background-position: -200% 0;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes flash {
+  0% {
+    box-shadow: 0 0 0 0 var(--color-anchor-line);
+  }
+  40% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
   }
 }
 

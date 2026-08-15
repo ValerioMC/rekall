@@ -1,10 +1,10 @@
 package dev.rekall.domain.context;
 
+import dev.rekall.domain.Company;
 import dev.rekall.domain.Document;
-import dev.rekall.domain.Environment;
 import dev.rekall.domain.Project;
 import dev.rekall.domain.Task;
-import dev.rekall.domain.repository.EnvironmentRepository;
+import dev.rekall.domain.repository.CompanyRepository;
 import dev.rekall.domain.repository.ProjectRepository;
 import dev.rekall.domain.repository.TaskRepository;
 import lombok.RequiredArgsConstructor;
@@ -15,7 +15,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * Loads the working context named by a list of anchors.
@@ -34,11 +33,11 @@ import java.util.Optional;
 public class ContextService {
 
     /** Entity names an anchor may use, in the order a bare value is searched. */
-    public static final List<String> ENTITY_NAMES = List.of("project", "task", "environment");
+    public static final List<String> ENTITY_NAMES = List.of("company", "project", "task");
 
+    private final CompanyRepository companies;
     private final ProjectRepository projects;
     private final TaskRepository tasks;
-    private final EnvironmentRepository environments;
 
     /**
      * @param entityName the entity part of the anchor, or null for the positional form
@@ -51,15 +50,13 @@ public class ContextService {
             return loadAnywhere(value);
         }
         return switch (entityName.toLowerCase()) {
-            case "project", "projects", "progetto", "progetti" -> projects
+            case "company", "companies", "azienda", "aziende", "cliente" -> companies
                     .findByNameIgnoreCase(value)
                     .map(this::render)
-                    .orElseThrow(() -> new UnknownAnchorException("No project matches '%s'".formatted(value)));
-            case "task", "tasks", "issue", "issues", "attivita" -> renderSingleTask(tasks.findByNameIgnoreCase(value), value);
-            case "environment", "environments", "env", "ambiente", "ambienti" -> environments
-                    .findByLabelIgnoreCase(value)
-                    .map(this::render)
-                    .orElseThrow(() -> new UnknownAnchorException("No environment matches '%s'".formatted(value)));
+                    .orElseThrow(() -> new UnknownAnchorException("No company matches '%s'".formatted(value)));
+            case "project", "projects", "progetto", "progetti" ->
+                    renderSingleProject(projects.findByLabelIgnoreCase(value), value);
+            case "task", "tasks", "issue", "issues", "attivita" -> renderSingleTask(tasks.findByLabelIgnoreCase(value), value);
             default -> throw new UnknownAnchorException(
                     "No entity matches '%s'. Known entities: %s".formatted(entityName, String.join(", ", ENTITY_NAMES)));
         };
@@ -67,19 +64,19 @@ public class ContextService {
 
     /** The qualified two-part form, {@code project:stvv task:code-validator}. */
     @Transactional(readOnly = true)
-    public ContextRecord loadTask(String projectName, String taskName) {
-        return tasks.findByProjectNameIgnoreCaseAndNameIgnoreCase(projectName, taskName)
+    public ContextRecord loadTask(String projectLabel, String taskLabel) {
+        return tasks.findByProjectLabelIgnoreCaseAndLabelIgnoreCase(projectLabel, taskLabel)
                 .map(this::render)
                 .orElseThrow(() -> new UnknownAnchorException(
-                        "No task '%s' on project '%s'".formatted(taskName, projectName)));
+                        "No task '%s' on project '%s'".formatted(taskLabel, projectLabel)));
     }
 
     /** The positional form: every entity is tried and exactly one match is required. */
     private ContextRecord loadAnywhere(String value) {
         List<ContextRecord> matches = new ArrayList<>();
-        projects.findByNameIgnoreCase(value).map(this::render).ifPresent(matches::add);
-        tasks.findByNameIgnoreCase(value).stream().map(this::render).forEach(matches::add);
-        environments.findByLabelIgnoreCase(value).map(this::render).ifPresent(matches::add);
+        companies.findByNameIgnoreCase(value).map(this::render).ifPresent(matches::add);
+        projects.findByLabelIgnoreCase(value).stream().map(this::render).forEach(matches::add);
+        tasks.findByLabelIgnoreCase(value).stream().map(this::render).forEach(matches::add);
 
         if (matches.isEmpty()) {
             throw new UnknownAnchorException(
@@ -91,19 +88,60 @@ public class ContextService {
         return matches.getFirst();
     }
 
+    /** The qualified two-part form for a project, {@code company:acme project:website}. */
+    @Transactional(readOnly = true)
+    public ContextRecord loadProject(String companyName, String projectLabel) {
+        return projects.findByCompanyNameIgnoreCaseAndLabelIgnoreCase(companyName, projectLabel)
+                .map(this::render)
+                .orElseThrow(() -> new UnknownAnchorException(
+                        "No project '%s' on company '%s'".formatted(projectLabel, companyName)));
+    }
+
+    private ContextRecord renderSingleProject(List<Project> found, String value) {
+        if (found.isEmpty()) {
+            throw new UnknownAnchorException("No project matches '%s'".formatted(value));
+        }
+        if (found.size() > 1) {
+            throw new AmbiguousAnchorException(
+                    value, found.stream().map(project -> "company:" + project.getCompany().getName()).toList());
+        }
+        return render(found.getFirst());
+    }
+
     private ContextRecord renderSingleTask(List<Task> found, String value) {
         if (found.isEmpty()) {
             throw new UnknownAnchorException("No task matches '%s'".formatted(value));
         }
         if (found.size() > 1) {
             throw new AmbiguousAnchorException(
-                    value, found.stream().map(task -> "project:" + task.getProject().getName()).toList());
+                    value, found.stream().map(task -> "project:" + task.getProject().getLabel()).toList());
         }
         return render(found.getFirst());
     }
 
     // ------------------------------------------------------------------ assembly
 
+    private ContextRecord render(Company company) {
+        Map<String, String> fields = new LinkedHashMap<>();
+        putIfPresent(fields, "description", company.getDescription());
+
+        return new ContextRecord(
+                "Company",
+                company.getName(),
+                "company:" + company.getName(),
+                fields,
+                List.of(),
+                company.getProjects().stream().map(project -> "project:" + project.getLabel()).toList(),
+                List.of());
+    }
+
+    /**
+     * The heading carries the title and the anchor line carries the label.
+     *
+     * <p>Both are worth the tokens they cost. The title is what the record is called in the
+     * conversation that follows; the label is what has to be typed to load it again, and a model
+     * that has only seen the title will invent an anchor out of it.
+     */
     private ContextRecord render(Project project) {
         Map<String, String> fields = new LinkedHashMap<>();
         fields.put("status", project.getStatus().name());
@@ -111,18 +149,19 @@ public class ContextService {
 
         return new ContextRecord(
                 "Project",
-                project.getName(),
-                "project:" + project.getName(),
+                project.getTitle(),
+                "project:" + project.getLabel(),
                 fields,
-                List.of(),
-                project.getTasks().stream().map(task -> "task:" + task.getName()).toList(),
-                documentsOf(project.getDocuments()));
+                List.of(renderReferenced(project.getCompany())),
+                project.getTasks().stream().map(task -> "task:" + task.getLabel()).toList(),
+                List.of());
     }
 
     /**
-     * A task carries its project and its environment in full, each with their own notes. The
-     * environment's markdown is the point: it holds the cluster coordinates that used to live
-     * in a separate file nobody remembered to open.
+     * A task carries its project in full, and every note attached to it.
+     *
+     * <p>A note reached this way may well be attached to other tasks too. That is the point of
+     * the relation: cluster access is written once and arrives with each task that needs it.
      */
     private ContextRecord render(Task task) {
         Map<String, String> fields = new LinkedHashMap<>();
@@ -131,31 +170,15 @@ public class ContextService {
 
         List<ContextRecord> references = new ArrayList<>();
         references.add(renderReferenced(task.getProject()));
-        Optional.ofNullable(task.getEnvironment()).map(this::render).ifPresent(references::add);
 
         return new ContextRecord(
                 "Task",
-                task.getName(),
-                "task:" + task.getName(),
+                task.getTitle(),
+                "task:" + task.getLabel(),
                 fields,
                 references,
                 List.of(),
                 documentsOf(task.getDocuments()));
-    }
-
-    private ContextRecord render(Environment environment) {
-        Map<String, String> fields = new LinkedHashMap<>();
-        putIfPresent(fields, "namespace", environment.getNamespace());
-        putIfPresent(fields, "kubeconfig_path", environment.getKubeconfigPath());
-
-        return new ContextRecord(
-                "Environment",
-                environment.getLabel(),
-                "environment:" + environment.getLabel(),
-                fields,
-                List.of(),
-                environment.getTasks().stream().map(task -> "task:" + task.getName()).toList(),
-                documentsOf(environment.getDocuments()));
     }
 
     /**
@@ -166,6 +189,13 @@ public class ContextService {
      */
     private ContextRecord renderReferenced(Project project) {
         ContextRecord full = render(project);
+        return new ContextRecord(
+                full.kind(), full.label(), full.anchor(), full.fields(),
+                full.references(), List.of(), full.documents());
+    }
+
+    private ContextRecord renderReferenced(Company company) {
+        ContextRecord full = render(company);
         return new ContextRecord(
                 full.kind(), full.label(), full.anchor(), full.fields(), List.of(), List.of(), full.documents());
     }

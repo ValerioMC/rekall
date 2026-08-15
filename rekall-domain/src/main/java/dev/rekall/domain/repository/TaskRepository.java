@@ -10,12 +10,20 @@ import java.util.UUID;
 public interface TaskRepository extends JpaRepository<Task, UUID> {
 
     /**
-     * A list, not an optional: task names are unique per project, so the same name can exist on
-     * two projects and the caller has to decide what an ambiguous anchor means.
+     * A list, not an optional: labels are unique per project, so the same one can exist on two
+     * projects and the caller has to decide what an ambiguous anchor means.
      */
-    List<Task> findByNameIgnoreCase(String name);
+    List<Task> findByLabelIgnoreCase(String label);
 
-    Optional<Task> findByProjectNameIgnoreCaseAndNameIgnoreCase(String projectName, String name);
+    Optional<Task> findByProjectLabelIgnoreCaseAndLabelIgnoreCase(String projectLabel, String label);
 
-    List<Task> findByProjectIdOrderByNameAsc(UUID projectId);
+    List<Task> findByProjectIdOrderByLabelAsc(UUID projectId);
+
+    /**
+     * Every task, grouped by the project it belongs to.
+     *
+     * <p>The unscoped list is read by a screen that mixes projects, where {@code findAll} would
+     * return whatever order the database happened to produce and reshuffle it between calls.
+     */
+    List<Task> findAllByOrderByProjectLabelAscLabelAsc();
 }

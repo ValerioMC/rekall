@@ -1,7 +1,38 @@
+# Build output.
+# Il bundle del frontend NON va qui: vite scrive in rekall-app/src/main/resources/static
+# ed e' committato di proposito, perche' il jar lo serve cosi' com'e'.
 target/
 node_modules/
 dist/
-.DS_Store
+
+# Database H2 su file. AUTO_SERVER=TRUE crea anche il lock file.
 data/
 *.mv.db
 *.trace.db
+*.lock.db
+
+# Segreti e configurazione locale. application.yaml legge REKALL_DB_URL,
+# REKALL_DB_USER, REKALL_DB_PASSWORD e SERVER_PORT dall'ambiente.
+.env
+.env.*
+!.env.example
+
+# Tooling del frontend: vitest, vue-tsc, eslint, cache di vite.
+coverage/
+*.tsbuildinfo
+.eslintcache
+.vite/
+
+# IntelliJ. Niente configurazione dell'IDE nel repo: il pom dichiara gia'
+# annotationProcessorPaths per Lombok, quindi l'import Maven ricostruisce .idea da solo.
+.idea/
+*.iml
+
+# Claude Code: i comandi sono condivisi, i settings locali no.
+.claude/settings.local.json
+
+# Sistema operativo ed editor.
+.DS_Store
+Thumbs.db
+*.swp
+*.log

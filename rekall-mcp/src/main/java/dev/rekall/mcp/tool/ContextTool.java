@@ -44,11 +44,19 @@ public class ContextTool implements McpTool {
                Load the full working context for one or more anchors in a single call.
 
                An anchor is `entity:value`, for example `project:stvv task:code-validator`. The
-               entities are `project`, `task` and `environment`. Quote a value containing spaces:
-               `environment:"kmaster14 / stvv-dev"`.
+               entities are `company`, `project` and `task`.
+
+               The value is the record's label, not its title. A label is lowercase, has no
+               spaces, and is unique inside its parent: `project:stvv`, never
+               `project:"STVV Platform"`. The title is what the record is called and is free to
+               change; the label is what this tool resolves.
 
                A bare term with no `entity:` is looked up across all three and accepted only when
                exactly one record matches; otherwise the candidates come back and nothing loads.
+
+               A note can be attached to several tasks, so the same markdown may arrive under
+               more than one anchor. That is deliberate: it is written once and read wherever
+               it applies.
 
                Each anchor returns the record, what it references resolved in full with their
                notes, what references it as anchors you can pass back, and all of its markdown.
@@ -60,7 +68,8 @@ public class ContextTool implements McpTool {
         return ToolSchema.object()
                 .requiredString(
                         "anchors",
-                        "Space-separated anchors, e.g. `project:stvv task:code-validator`. "
+                        "Space-separated anchors, e.g. `project:stvv task:code-validator`. The value "
+                                + "is the record's label, lowercase and without spaces, never its title. "
                                 + "A single anchor is valid and loads that record alone.")
                 .build();
     }

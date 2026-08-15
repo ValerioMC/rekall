@@ -7,12 +7,12 @@
  */
 type Brand<T, B extends string> = T & { readonly __brand: B }
 
+export type CompanyId = Brand<string, 'CompanyId'>
 export type ProjectId = Brand<string, 'ProjectId'>
 export type TaskId = Brand<string, 'TaskId'>
-export type EnvironmentId = Brand<string, 'EnvironmentId'>
 export type DocumentId = Brand<string, 'DocumentId'>
 
+export const asCompanyId = (value: string): CompanyId => value as CompanyId
 export const asProjectId = (value: string): ProjectId => value as ProjectId
 export const asTaskId = (value: string): TaskId => value as TaskId
-export const asEnvironmentId = (value: string): EnvironmentId => value as EnvironmentId
 export const asDocumentId = (value: string): DocumentId => value as DocumentId

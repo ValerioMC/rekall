@@ -2,13 +2,10 @@ package dev.rekall.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.ForeignKey;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -18,16 +15,21 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.Instant;
+import java.util.LinkedHashSet;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 /**
- * A markdown note attached to exactly one project, task or environment.
+ * A markdown note, attached to any number of tasks.
  *
- * <p>Three nullable foreign keys with a check constraint, rather than the
- * {@code (entityName, recordId)} pair the meta-model needed. The owners are known at compile
- * time now, so the database can enforce that a note never outlives what it documents, and a
- * project reaches its notes by navigating an association instead of by running a query.
+ * <p>It used to belong to exactly one owner, which meant a note that mattered to three tasks
+ * had to be written three times and the three copies drifted. Cluster access, a naming
+ * convention and an onboarding step are all notes of that kind, so the relation is the shape
+ * the content already had.
+ *
+ * <p>{@link Task} owns the association, because attaching happens from a task in the interface
+ * and letting both sides own it is how a join table ends up with orphan rows.
  */
 @Entity
 @Table(name = "document")
@@ -61,21 +63,8 @@ public class Document {
     @Setter
     private String sourcePath;
 
-    @Column(name = "position", nullable = false)
-    @Setter
-    private int position;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "project_id", foreignKey = @ForeignKey(name = "fk_document_project"))
-    private Project project;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "task_id", foreignKey = @ForeignKey(name = "fk_document_task"))
-    private Task task;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "environment_id", foreignKey = @ForeignKey(name = "fk_document_environment"))
-    private Environment environment;
+    @ManyToMany(mappedBy = "documents")
+    private Set<Task> tasks = new LinkedHashSet<>();
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -93,28 +82,6 @@ public class Document {
         this.title = title;
         this.kind = kind;
         this.bodyMarkdown = bodyMarkdown;
-    }
-
-    void attachTo(Project owner) {
-        clearOwners();
-        this.project = owner;
-    }
-
-    void attachTo(Task owner) {
-        clearOwners();
-        this.task = owner;
-    }
-
-    void attachTo(Environment owner) {
-        clearOwners();
-        this.environment = owner;
-    }
-
-    /** Exactly one owner is set, which the check constraint also enforces in the database. */
-    private void clearOwners() {
-        this.project = null;
-        this.task = null;
-        this.environment = null;
     }
 
     @Override

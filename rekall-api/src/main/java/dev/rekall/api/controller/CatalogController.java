@@ -1,7 +1,5 @@
 package dev.rekall.api.controller;
 
-import dev.rekall.api.dto.ApiDtos.EnvironmentRequest;
-import dev.rekall.api.dto.ApiDtos.EnvironmentResponse;
 import dev.rekall.api.dto.ApiDtos.ProjectRequest;
 import dev.rekall.api.dto.ApiDtos.ProjectResponse;
 import dev.rekall.api.dto.ApiDtos.TaskRequest;
@@ -86,30 +84,4 @@ public class CatalogController {
         catalog.deleteTask(id);
     }
 
-    @GetMapping("/environments")
-    public List<EnvironmentResponse> listEnvironments() {
-        return catalog.listEnvironments();
-    }
-
-    @GetMapping("/environments/{id}")
-    public EnvironmentResponse getEnvironment(@PathVariable UUID id) {
-        return catalog.getEnvironment(id);
-    }
-
-    @PostMapping("/environments")
-    @ResponseStatus(HttpStatus.CREATED)
-    public EnvironmentResponse createEnvironment(@Valid @RequestBody EnvironmentRequest request) {
-        return catalog.createEnvironment(request);
-    }
-
-    @PutMapping("/environments/{id}")
-    public EnvironmentResponse updateEnvironment(@PathVariable UUID id, @Valid @RequestBody EnvironmentRequest request) {
-        return catalog.updateEnvironment(id, request);
-    }
-
-    @DeleteMapping("/environments/{id}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteEnvironment(@PathVariable UUID id) {
-        catalog.deleteEnvironment(id);
-    }
 }

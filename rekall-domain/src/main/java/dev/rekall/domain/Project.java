@@ -7,12 +7,16 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
@@ -28,11 +32,19 @@ import java.util.UUID;
 /**
  * Something you work on over time, holding tasks.
  *
- * <p>{@code name} is what an anchor carries: {@code project:stvv} is a lookup on this column.
- * It is unique, so an anchor either resolves to one project or to none.
+ * <p>Three fields carry the identity, and they are not interchangeable. {@code label} is what an
+ * anchor looks up: {@code project:stvv} is a lookup on this column, so it is a slug and never a
+ * sentence. {@code title} is what a person calls the project and is free to change without
+ * breaking a single anchor anyone has written down. {@code description} is the prose.
+ *
+ * <p>The label is unique within its company rather than globally, because two companies
+ * routinely have a project with the same one. A bare {@code project:website} that matches in two
+ * companies is reported as ambiguous rather than guessed at.
  */
 @Entity
-@Table(name = "project", uniqueConstraints = @UniqueConstraint(name = "uq_project_name", columnNames = "name"))
+@Table(
+        name = "project",
+        uniqueConstraints = @UniqueConstraint(name = "uq_project_company_label", columnNames = {"company_id", "label"}))
 @Getter
 public class Project {
 
@@ -43,9 +55,16 @@ public class Project {
 
     @NotBlank
     @Size(max = 120)
-    @Column(name = "name", nullable = false, length = 120)
+    @Pattern(regexp = Slug.PATTERN, message = "must be a slug: lowercase letters, digits, '-', '_' or '.'")
+    @Column(name = "label", nullable = false, length = 120)
     @Setter
-    private String name;
+    private String label;
+
+    @NotBlank
+    @Size(max = 200)
+    @Column(name = "title", nullable = false, length = 200)
+    @Setter
+    private String title;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
@@ -56,13 +75,18 @@ public class Project {
     @Setter
     private String description;
 
-    @OneToMany(mappedBy = "project", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("name ASC")
-    private List<Task> tasks = new ArrayList<>();
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(
+            name = "company_id",
+            nullable = false,
+            foreignKey = @jakarta.persistence.ForeignKey(name = "fk_project_company"))
+    @Setter
+    private Company company;
 
     @OneToMany(mappedBy = "project", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("position ASC")
-    private List<Document> documents = new ArrayList<>();
+    @OrderBy("label ASC")
+    private List<Task> tasks = new ArrayList<>();
+
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -76,18 +100,14 @@ public class Project {
         // for JPA
     }
 
-    public Project(String name) {
-        this.name = name;
+    public Project(String label, String title) {
+        this.label = label;
+        this.title = title;
     }
 
     public void addTask(Task task) {
         task.setProject(this);
         tasks.add(task);
-    }
-
-    public void addDocument(Document document) {
-        document.attachTo(this);
-        documents.add(document);
     }
 
     @Override
@@ -105,6 +125,6 @@ public class Project {
 
     @Override
     public String toString() {
-        return "Project[" + name + "]";
+        return "Project[" + label + "]";
     }
 }

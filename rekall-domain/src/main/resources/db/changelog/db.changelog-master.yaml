@@ -3,3 +3,9 @@ databaseChangeLog:
   # engine any more: the shape is fixed at compile time and Liquibase owns all of it.
   - include:
       file: db/changelog/001-core.yaml
+  - include:
+      file: db/changelog/002-documents-on-many-tasks.yaml
+  - include:
+      file: db/changelog/003-company.yaml
+  - include:
+      file: db/changelog/004-label-title-description.yaml

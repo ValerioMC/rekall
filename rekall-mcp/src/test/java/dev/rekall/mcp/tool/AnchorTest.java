@@ -40,9 +40,9 @@ class AnchorTest {
     @Test
     @DisplayName("a quoted value keeps its spaces")
     void quotedValue() {
-        assertThat(Anchor.parseAll("environment:\"kmaster14 / stvv-dev\" project:stvv"))
+        assertThat(Anchor.parseAll("task:\"code validator\" project:stvv"))
                 .containsExactly(
-                        new Anchor("environment", "kmaster14 / stvv-dev"), new Anchor("project", "stvv"));
+                        new Anchor("task", "code validator"), new Anchor("project", "stvv"));
     }
 
     @Test

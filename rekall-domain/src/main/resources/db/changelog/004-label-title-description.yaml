@@ -1,0 +1,74 @@
+databaseChangeLog:
+
+  # One column was doing two jobs. `name` was both what a person calls a project and what
+  # `/rk project:stvv` looks up, so renaming a task to something clearer silently broke every
+  # anchor written down for it, and an anchor could not be a slug without the interface reading
+  # like a set of filenames.
+  #
+  # They are split here. `label` is the identifier the anchor resolves and is narrowed to a slug;
+  # `title` is the prose name and is free to change; `description` stays what it was.
+
+  - changeSet:
+      id: 004-project-label-and-title
+      author: rekall
+      changes:
+        # The title keeps what was typed, so nothing readable is lost when the label is narrowed.
+        - addColumn:
+            tableName: project
+            columns:
+              - column: {name: title, type: varchar(200)}
+        - sql:
+            sql: UPDATE project SET title = name WHERE title IS NULL
+        - addNotNullConstraint:
+            tableName: project
+            columnName: title
+            columnDataType: varchar(200)
+        - renameColumn:
+            tableName: project
+            oldColumnName: name
+            newColumnName: label
+            columnDataType: varchar(120)
+        # `STVV` and `Progetto STVV` were valid names and are not valid labels. Normalised in
+        # place, once, rather than left for the first edit to discover.
+        - sql:
+            sql: >
+              UPDATE project SET label = REGEXP_REPLACE(
+                REGEXP_REPLACE(LOWER(label), '[^a-z0-9._-]+', '-'), '^[._-]+|[._-]+$', '')
+        - dropUniqueConstraint:
+            tableName: project
+            constraintName: uq_project_company_name
+        - addUniqueConstraint:
+            tableName: project
+            columnNames: company_id, label
+            constraintName: uq_project_company_label
+
+  - changeSet:
+      id: 004-task-label-and-title
+      author: rekall
+      changes:
+        - addColumn:
+            tableName: task
+            columns:
+              - column: {name: title, type: varchar(200)}
+        - sql:
+            sql: UPDATE task SET title = name WHERE title IS NULL
+        - addNotNullConstraint:
+            tableName: task
+            columnName: title
+            columnDataType: varchar(200)
+        - renameColumn:
+            tableName: task
+            oldColumnName: name
+            newColumnName: label
+            columnDataType: varchar(160)
+        - sql:
+            sql: >
+              UPDATE task SET label = REGEXP_REPLACE(
+                REGEXP_REPLACE(LOWER(label), '[^a-z0-9._-]+', '-'), '^[._-]+|[._-]+$', '')
+        - dropUniqueConstraint:
+            tableName: task
+            constraintName: uq_task_project_name
+        - addUniqueConstraint:
+            tableName: task
+            columnNames: project_id, label
+            constraintName: uq_task_project_label

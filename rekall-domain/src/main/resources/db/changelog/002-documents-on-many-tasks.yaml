@@ -1,0 +1,92 @@
+databaseChangeLog:
+
+  # A note is no longer filed in one place. The same note is routinely relevant to several
+  # tasks: cluster access, a convention, an onboarding step. Under the old shape the only way
+  # to have it in two contexts was to write it twice, and the two copies drifted.
+  #
+  # Environments go with this change. They were removed from the interface first and are
+  # dropped here: a task now records what it is, and where it runs is written in a note like
+  # everything else.
+
+  - changeSet:
+      id: 002-document-task
+      author: rekall
+      changes:
+        - createTable:
+            tableName: document_task
+            columns:
+              - column: {name: document_id, type: uuid, constraints: {nullable: false}}
+              - column: {name: task_id, type: uuid, constraints: {nullable: false}}
+              # Order within one task, so the same note can sit first on one task and last on
+              # another without the two orderings fighting.
+              - column: {name: position, type: int, constraints: {nullable: false}}
+        - addPrimaryKey:
+            tableName: document_task
+            columnNames: document_id, task_id
+            constraintName: pk_document_task
+        - addForeignKeyConstraint:
+            baseTableName: document_task
+            baseColumnNames: document_id
+            referencedTableName: document
+            referencedColumnNames: id
+            constraintName: fk_document_task_document
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: document_task
+            baseColumnNames: task_id
+            referencedTableName: task
+            referencedColumnNames: id
+            constraintName: fk_document_task_task
+            onDelete: CASCADE
+        - createIndex:
+            tableName: document_task
+            indexName: idx_document_task_task
+            columns:
+              - column: {name: task_id}
+
+  # Carries the existing task notes across before the column that holds them is dropped.
+  - changeSet:
+      id: 002-carry-task-notes
+      author: rekall
+      changes:
+        - sql:
+            sql: >
+              INSERT INTO document_task (document_id, task_id, position)
+              SELECT id, task_id, position FROM document WHERE task_id IS NOT NULL
+
+  # Notes that belonged to a project or an environment have no owner in the new shape, and a
+  # row that nothing can reach is worse than a row that is gone. Deleted explicitly rather than
+  # left to the foreign keys, so the intent is in the changelog and not a side effect.
+  - changeSet:
+      id: 002-drop-ownerless-notes
+      author: rekall
+      changes:
+        - delete:
+            tableName: document
+            where: task_id IS NULL
+
+  - changeSet:
+      id: 002-document-loses-its-owners
+      author: rekall
+      changes:
+        - dropForeignKeyConstraint: {baseTableName: document, constraintName: fk_document_project}
+        - dropForeignKeyConstraint: {baseTableName: document, constraintName: fk_document_task}
+        - dropForeignKeyConstraint: {baseTableName: document, constraintName: fk_document_environment}
+        - sql:
+            sql: ALTER TABLE document DROP CONSTRAINT ck_document_single_owner
+        - dropIndex: {tableName: document, indexName: idx_document_task}
+        - dropIndex: {tableName: document, indexName: idx_document_project}
+        - dropColumn: {tableName: document, columnName: project_id}
+        - dropColumn: {tableName: document, columnName: task_id}
+        - dropColumn: {tableName: document, columnName: environment_id}
+        # Position now belongs to the link, not to the note: the same note has a place on each
+        # task it is attached to.
+        - dropColumn: {tableName: document, columnName: position}
+
+  - changeSet:
+      id: 002-drop-environment
+      author: rekall
+      changes:
+        - dropForeignKeyConstraint: {baseTableName: task, constraintName: fk_task_environment}
+        - dropColumn: {tableName: task, columnName: environment_id}
+        - dropTable: {tableName: environment}

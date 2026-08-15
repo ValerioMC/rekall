@@ -10,11 +10,33 @@ import java.util.UUID;
 
 public interface DocumentRepository extends JpaRepository<Document, UUID> {
 
-    List<Document> findByProjectIdOrderByPositionAsc(UUID projectId);
+    List<Document> findByTasksIdOrderByTitleAsc(UUID taskId);
 
-    List<Document> findByTaskIdOrderByPositionAsc(UUID taskId);
+    /**
+     * Every note, most recently written first.
+     *
+     * <p>Ordered by {@code updatedAt} because the screen that reads this is the one asking
+     * "what was I working on", and the answer to that is chronological rather than alphabetical.
+     */
+    List<Document> findAllByOrderByUpdatedAtDesc();
 
-    List<Document> findByEnvironmentIdOrderByPositionAsc(UUID environmentId);
+    /**
+     * The notes of every task on one project.
+     *
+     * <p>{@code DISTINCT} because a note attached to three tasks of the same project would
+     * otherwise come back three times, which is the join showing through where it should not.
+     */
+    @Query("""
+           SELECT DISTINCT d FROM Document d
+           JOIN d.tasks t
+           WHERE t.project.id = :projectId
+           ORDER BY d.updatedAt DESC
+           """)
+    List<Document> findByProject(@Param("projectId") UUID projectId);
+
+    /** Notes left on no task at all, which the model has no way to reach and no reason to keep. */
+    @Query("SELECT d FROM Document d WHERE d.tasks IS EMPTY")
+    List<Document> findOrphans();
 
     /**
      * Substring match rather than a full-text index.

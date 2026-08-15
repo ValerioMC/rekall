@@ -1,33 +1,58 @@
 import { apiClient, request } from './client'
 import {
-  EnvironmentListSchema,
-  EnvironmentSchema,
+  CompanyListSchema,
+  CompanySchema,
   ProjectListSchema,
   ProjectSchema,
   TaskListSchema,
   TaskSchema
 } from './schemas/catalog.schema'
-import type { Environment, Project, ProjectStatus, Task, TaskStatus } from '@/model/catalog'
-import type { EnvironmentId, ProjectId, TaskId } from '@/model/branded'
+import type { Company, Project, ProjectStatus, Task, TaskStatus } from '@/model/catalog'
+import type { CompanyId, ProjectId, TaskId } from '@/model/branded'
 
-export interface ProjectInput {
+export interface CompanyInput {
   name: string
+  description: string | null
+}
+
+/**
+ * What a write carries. The label is sent as typed and comes back normalised, so the response
+ * and not the request is what the store keeps.
+ */
+export interface ProjectInput {
+  label: string
+  title: string
   status: ProjectStatus
   description: string | null
+  companyId: CompanyId
 }
 
 export interface TaskInput {
-  name: string
+  label: string
+  title: string
   status: TaskStatus
   description: string | null
   projectId: ProjectId
-  environmentId: EnvironmentId | null
 }
 
-export interface EnvironmentInput {
-  label: string
-  namespace: string | null
-  kubeconfigPath: string | null
+export async function fetchCompanies(): Promise<Company[]> {
+  return request(async () => CompanyListSchema.parse(await apiClient('/api/companies')))
+}
+
+export async function createCompany(input: CompanyInput): Promise<Company> {
+  return request(async () =>
+    CompanySchema.parse(await apiClient('/api/companies', { method: 'POST', body: input }))
+  )
+}
+
+export async function updateCompany(id: CompanyId, input: CompanyInput): Promise<Company> {
+  return request(async () =>
+    CompanySchema.parse(await apiClient(`/api/companies/${id}`, { method: 'PUT', body: input }))
+  )
+}
+
+export async function deleteCompany(id: CompanyId): Promise<void> {
+  await request(() => apiClient(`/api/companies/${id}`, { method: 'DELETE' }))
 }
 
 export async function fetchProjects(): Promise<Project[]> {
@@ -78,29 +103,4 @@ export async function updateTask(id: TaskId, input: TaskInput): Promise<Task> {
 
 export async function deleteTask(id: TaskId): Promise<void> {
   await request(() => apiClient(`/api/tasks/${id}`, { method: 'DELETE' }))
-}
-
-export async function fetchEnvironments(): Promise<Environment[]> {
-  return request(async () => EnvironmentListSchema.parse(await apiClient('/api/environments')))
-}
-
-export async function createEnvironment(input: EnvironmentInput): Promise<Environment> {
-  return request(async () =>
-    EnvironmentSchema.parse(await apiClient('/api/environments', { method: 'POST', body: input }))
-  )
-}
-
-export async function updateEnvironment(
-  id: EnvironmentId,
-  input: EnvironmentInput
-): Promise<Environment> {
-  return request(async () =>
-    EnvironmentSchema.parse(
-      await apiClient(`/api/environments/${id}`, { method: 'PUT', body: input })
-    )
-  )
-}
-
-export async function deleteEnvironment(id: EnvironmentId): Promise<void> {
-  await request(() => apiClient(`/api/environments/${id}`, { method: 'DELETE' }))
 }

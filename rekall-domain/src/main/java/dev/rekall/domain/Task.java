@@ -10,12 +10,14 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.OrderBy;
+import jakarta.persistence.OrderColumn;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
@@ -31,14 +33,19 @@ import java.util.UUID;
 /**
  * One piece of work on a project, and the unit a session is opened around.
  *
- * <p>{@code name} is unique within its project rather than globally, because two projects
- * routinely have a task with the same name. A bare {@code task:code-validator} that matches in
- * two projects is reported as ambiguous rather than guessed at.
+ * <p>{@code label} is what {@code task:code-validator} looks up, {@code title} is what the task
+ * is called in a sentence, and {@code description} is what it is about. Renaming the title of a
+ * task you have been anchoring for a month leaves the anchor working, which is the whole reason
+ * the two are separate columns.
+ *
+ * <p>The label is unique within its project rather than globally, because two projects routinely
+ * have a task with the same one. A bare {@code task:code-validator} that matches in two projects
+ * is reported as ambiguous rather than guessed at.
  */
 @Entity
 @Table(
         name = "task",
-        uniqueConstraints = @UniqueConstraint(name = "uq_task_project_name", columnNames = {"project_id", "name"}))
+        uniqueConstraints = @UniqueConstraint(name = "uq_task_project_label", columnNames = {"project_id", "label"}))
 @Getter
 public class Task {
 
@@ -49,9 +56,16 @@ public class Task {
 
     @NotBlank
     @Size(max = 160)
-    @Column(name = "name", nullable = false, length = 160)
+    @Pattern(regexp = Slug.PATTERN, message = "must be a slug: lowercase letters, digits, '-', '_' or '.'")
+    @Column(name = "label", nullable = false, length = 160)
     @Setter
-    private String name;
+    private String label;
+
+    @NotBlank
+    @Size(max = 200)
+    @Column(name = "title", nullable = false, length = 200)
+    @Setter
+    private String title;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
@@ -67,14 +81,20 @@ public class Task {
     @Setter
     private Project project;
 
-    /** The cluster and namespace this task runs against. Optional: not every task has one. */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "environment_id", foreignKey = @jakarta.persistence.ForeignKey(name = "fk_task_environment"))
-    @Setter
-    private Environment environment;
-
-    @OneToMany(mappedBy = "task", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("position ASC")
+    /**
+     * The notes that arrive when this task is loaded.
+     *
+     * <p>The owning side, so attaching and detaching both happen here. No cascade on removal:
+     * deleting a task unlinks its notes, and a note still attached elsewhere survives. A note
+     * left on no task at all is removed by {@code DocumentService}, which is the only place
+     * that can tell the difference.
+     */
+    @ManyToMany
+    @JoinTable(
+            name = "document_task",
+            joinColumns = @JoinColumn(name = "task_id", foreignKey = @jakarta.persistence.ForeignKey(name = "fk_document_task_task")),
+            inverseJoinColumns = @JoinColumn(name = "document_id", foreignKey = @jakarta.persistence.ForeignKey(name = "fk_document_task_document")))
+    @OrderColumn(name = "position")
     private List<Document> documents = new ArrayList<>();
 
     @CreationTimestamp
@@ -89,13 +109,24 @@ public class Task {
         // for JPA
     }
 
-    public Task(String name) {
-        this.name = name;
+    public Task(String label, String title) {
+        this.label = label;
+        this.title = title;
     }
 
-    public void addDocument(Document document) {
-        document.attachTo(this);
+    /** Both sides are kept in step, so the in-memory graph agrees with what will be flushed. */
+    public void attach(Document document) {
+        if (documents.contains(document)) {
+            return;
+        }
         documents.add(document);
+        document.getTasks().add(this);
+    }
+
+    public void detach(Document document) {
+        if (documents.remove(document)) {
+            document.getTasks().remove(this);
+        }
     }
 
     @Override
@@ -113,6 +144,6 @@ public class Task {
 
     @Override
     public String toString() {
-        return "Task[" + name + "]";
+        return "Task[" + label + "]";
     }
 }

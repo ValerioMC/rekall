@@ -2,7 +2,7 @@
 
 Stores the projects and tasks you work on and hands one of them to Claude Code, in full, on a single command.
 
-You keep projects, tasks, environments and their markdown notes in a local app; `/rk project:stvv task:code-validator` loads that task, everything it references and every note attached to any of them, without Claude ever being able to write.
+You keep projects, tasks and their markdown notes in a local app; `/rk project:stvv task:code-validator` loads that task, the project it belongs to and every note attached to it, without Claude ever being able to write.
 
 ## Requirements
 
@@ -18,8 +18,16 @@ No database server, no Docker, no cluster. The database is an H2 file under `./d
 ## Run
 
 ```bash
-make build   # builds the UI into the jar
-make run     # http://localhost:8080
+make run     # compiles the frontend, then starts on http://localhost:8080
+```
+
+`run` rebuilds the UI first. The compiled frontend is committed under
+`rekall-app/src/main/resources/static`, and a stale bundle fails silently: the application
+serves the old screens instead of reporting an error.
+
+```bash
+make build   # the above, plus the packaged jar
+make ui      # the frontend alone
 ```
 
 | Service | Address                     |
@@ -48,36 +56,97 @@ A session then starts with one line:
 
 ## The anchor syntax
 
-An anchor is `entity:value`, where the entity is `project`, `task` or `environment` and the value is the name you gave the record.
+An anchor is `entity:value`, where the entity is `company`, `project` or `task` and the value is the record's **label**.
 
 | Form | Meaning |
 |------|---------|
 | `/rk project:stvv task:code-validator` | The project and that task, both in full |
 | `/rk project:stvv` | The project, plus its tasks as a list of anchors |
 | `/rk stvv code-validator` | Positional. Works while each term matches exactly one record |
-| `/rk environment:"kmaster14 / stvv-dev"` | Quote a value containing spaces |
+| `/rk task:"code validator"` | Quote a value containing spaces |
 
-Every anchor brings back the record, what it references resolved in full **with their notes**, what references it as anchors, and its own markdown. Loading a task therefore also hands over its environment and the notes attached to that environment, which is where cluster coordinates live.
+Every anchor brings back the record, what it references resolved in full **with their notes**, what references it as anchors, and its own markdown. A note can be attached to several tasks, so cluster access is written once and arrives with each task that needs it.
 
-If a bare term matches more than one record the candidates come back and nothing is loaded. Task names are unique per project, so `project:` is what disambiguates a name two projects share.
+If a bare term matches more than one record the candidates come back and nothing is loaded. Task labels are unique per project, so `project:` is what disambiguates a label two projects share.
 
 One read-only tool is exposed: `rekall_context`. There is no query tool, no get tool and no schema tool. Reaching a record by asking a question in prose costs several turns before any work starts and fails silently when the guess is wrong, so the entry point is an explicit anchor and nothing else.
+
+## The console
+
+One surface, three panes: pick a task on the left, pick its note in the middle, write on the
+right. The field at the top is always there and takes the same grammar as `/rk`.
+
+Companies, projects and tasks are created, edited and deleted from one editor, opened from the
+row of the record itself: the scope picker for companies and projects, the task row or `E` for
+tasks. It opens on the parent, because that is the half of the anchor already settled: a task
+says which project it lands in and a project which company, and changing it there moves the
+record. Title and label sit together underneath, with the anchor assembled live as you type, so
+what a record will answer to is visible before it is saved. Deleting always states what goes
+with it first.
+
+| Key | Does |
+|-----|------|
+| `⌘K` | Focus the anchor field |
+| `T` | New task, in the project you are scoped to |
+| `E` | Edit the task in view |
+| `N` | New note on it |
+| `B` | Switch between browsing tasks and browsing notes |
+| `J` / `K` | Walk the list |
+| `1`–`4` | Set the status of the selected task |
+| `⌘↵` | Save the record editor |
+
+Writing autosaves. There is no Save button on a note.
 
 ## Model
 
 ```
-Project ──< Task >── Environment
-   │          │           │
-   └── notes  └── notes   └── notes
+Company ──< Project ──< Task >──< Document
+                          via document_task
 ```
 
 | Entity | Anchored by | Holds |
 |--------|-------------|-------|
-| `Project` | `name` | status, description, its tasks |
-| `Task` | `name`, unique per project | status, description, its project, its environment |
-| `Environment` | `label` | namespace, kubeconfig path |
+| `Company` | `name` | description, its projects |
+| `Project` | `label`, unique per company | title, status, description, its company, its tasks |
+| `Task` | `label`, unique per project | title, status, description, its project, its notes |
+| `Document` | — | title, kind, markdown body, the tasks it is on |
 
-Notes attach to exactly one of the three, enforced by a check constraint. Adding a fourth entity is a JPA class plus a Liquibase changeset, not a UI action: the schema is fixed at compile time on purpose.
+A project and a task carry two names, and they are not interchangeable:
+
+| Field | What it is | Rules |
+|-------|-----------|-------|
+| `label` | What the anchor resolves. `project:stvv` is a lookup on this column | Lowercase letters, digits, `-`, `_`, `.`. No spaces. Unique inside its parent. Normalised on write, so `Code Validator` is stored as `code-validator` |
+| `title` | What the record is called on screen and in a sentence | Free text. Changing it never breaks an anchor |
+| `description` | What it is about, in prose | Free text. Travels into every context that loads the record |
+
+Renaming a label moves the anchor, and the editor says so before it is saved. Nothing stored points at a label, so there is no reference to repair; what breaks is what was written down outside the application.
+
+A project belongs to exactly one company, and a task to exactly one project. A note belongs to **at least one task and often several**: cluster access or a naming convention is written once and arrives with every task that references it. Deleting a task unlinks its notes and removes only the ones left on nothing.
+
+Adding an entity is a JPA class plus a Liquibase changeset, not a UI action: the schema is fixed at compile time on purpose.
+
+## Export
+
+```bash
+curl -OJ http://localhost:8080/api/export
+```
+
+Or the **Export** button in the top bar. The archive is a folder tree, one folder per company, then per project, then per task, one markdown file per note, plus a `MANIFEST.md` with statuses and anchors.
+
+```
+Acme/
+  stvv/
+    code-validator/
+      CONTEXT.md
+      kmaster14.md
+    retry-policy/
+      kmaster14.md    <- the same note, written under each task it is on
+MANIFEST.md
+```
+
+A backup and an escape hatch, not a sync: nothing reads it back. A note attached to several
+tasks appears under each of them, because a tree cannot say "this file is also over there";
+`MANIFEST.md` lists those copies so a reader knows not to edit them apart.
 
 ## Develop
 
@@ -91,11 +160,13 @@ make test             # backend tests, then frontend lint, types and unit tests
 | Concern | Choice |
 |---|---|
 | Framework | Vue 3, Composition API with `<script setup lang="ts">` only |
+| Shell | One surface, three panes. No router: what would have been a route is a selection |
 | Build | Vite 5 |
 | Styling | Tailwind CSS 4, palette as semantic tokens in `src/assets/main.css` |
-| State | Pinia setup stores |
+| State | Pinia setup stores; `console.store` holds the whole working set |
 | HTTP | `ofetch`, with timeout, retry on 5xx only and a correlation id per request |
 | Validation | Zod on every response; brands are applied by the schema, so an id's kind is decided where it was checked |
+| Markdown | `md-editor-v3`, wrapped by `AppMarkdownEditor`; highlight.js is passed in as a local instance so nothing is fetched at runtime |
 | Tests | Vitest + Vue Test Utils |
 
 ```
@@ -104,12 +175,13 @@ src/
 ├── api/          http calls and Zod schemas, no state
 ├── stores/       Pinia
 ├── composables/  reusable logic without UI
-├── components/
-│   ├── ui/       atomic and presentational, no store, no API
-│   └── shared/   composite, props in and events out
-├── views/        one per route
-└── router/
+└── components/
+    ├── ui/       atomic and presentational, no store, no API
+    └── console/  the three panes, the anchor bar and the record editor
 ```
+
+There is no `router/` and no `views/`: the console is one surface, and what would have been a
+route is a selection in `console.store`.
 
 ### Debug (IntelliJ IDEA)
 
@@ -153,7 +225,7 @@ Notes are stored in plain text in the database file. If you keep credentials in 
 ## Modules
 
 ```
-rekall-domain/    Project, Task, Environment, Document, and the context assembly
+rekall-domain/    Project, Task, Document, and the context assembly
 rekall-api/       REST API for the UI
 rekall-mcp/       Read-only MCP server: one tool
 rekall-app/       Spring Boot entry point, serves everything
@@ -169,7 +241,7 @@ mvn test                          # everything, against an in-memory H2
 cd rekall-ui && pnpm lint && pnpm typecheck && pnpm test
 ```
 
-`RekallEndToEndTest` drives the real HTTP API and the real MCP endpoint: it creates a project, a task and an environment, attaches notes to two of them, and asserts that one anchored call brings back all of it. It runs against the same Liquibase changelogs the application uses, so a migration that disagrees with an entity fails there rather than at startup.
+`RekallEndToEndTest` drives the real HTTP API and the real MCP endpoint: it creates a project and its tasks, attaches one note to several of them, and asserts that one anchored call brings back all of it. It runs against the same Liquibase changelogs the application uses, so a migration that disagrees with an entity fails there rather than at startup.
 
 ## Design
 

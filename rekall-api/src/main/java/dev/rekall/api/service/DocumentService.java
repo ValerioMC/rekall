@@ -3,18 +3,25 @@ package dev.rekall.api.service;
 import dev.rekall.api.dto.ApiDtos.DocumentRequest;
 import dev.rekall.api.dto.ApiDtos.DocumentResponse;
 import dev.rekall.domain.Document;
-import dev.rekall.domain.Environment;
-import dev.rekall.domain.Project;
 import dev.rekall.domain.Task;
 import dev.rekall.domain.repository.DocumentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
-/** The markdown notes attached to a record. */
+/**
+ * The markdown notes, and which tasks each one belongs to.
+ *
+ * <p>A note is attached to at least one task and possibly to many. The lower bound is enforced
+ * here rather than in the database, because it is a rule about what the interface may leave
+ * behind and not about referential integrity: a note on no task is unreachable, and the model
+ * has no screen that could show it again.
+ */
 @Service
 @RequiredArgsConstructor
 public class DocumentService {
@@ -22,18 +29,21 @@ public class DocumentService {
     private final DocumentRepository documents;
     private final CatalogService catalog;
 
+    /**
+     * Notes for one task, for one project, or all of them.
+     *
+     * <p>Three scopes on one endpoint because they are the same question asked at three widths,
+     * and the screen switches between them as you change what you are looking at.
+     */
     @Transactional(readOnly = true)
-    public List<DocumentResponse> listFor(UUID projectId, UUID taskId, UUID environmentId) {
+    public List<DocumentResponse> list(UUID taskId, UUID projectId) {
         if (taskId != null) {
-            return map(documents.findByTaskIdOrderByPositionAsc(taskId));
+            return map(documents.findByTasksIdOrderByTitleAsc(taskId));
         }
         if (projectId != null) {
-            return map(documents.findByProjectIdOrderByPositionAsc(projectId));
+            return map(documents.findByProject(projectId));
         }
-        if (environmentId != null) {
-            return map(documents.findByEnvironmentIdOrderByPositionAsc(environmentId));
-        }
-        throw new NotFoundException("One of projectId, taskId or environmentId is required");
+        return map(documents.findAllByOrderByUpdatedAtDesc());
     }
 
     @Transactional(readOnly = true)
@@ -47,8 +57,10 @@ public class DocumentService {
     @Transactional
     public DocumentResponse create(DocumentRequest request) {
         Document document = new Document(request.title(), request.kind(), body(request));
-        attach(document, request);
-        return DocumentResponse.of(documents.save(document));
+        documents.save(document);
+        link(document, resolve(request.taskIds()));
+        documents.flush();
+        return DocumentResponse.of(document);
     }
 
     @Transactional
@@ -57,43 +69,40 @@ public class DocumentService {
         document.setTitle(request.title());
         document.setKind(request.kind());
         document.setBodyMarkdown(body(request));
+        link(document, resolve(request.taskIds()));
+        documents.flush();
         return DocumentResponse.of(document);
     }
 
+    /** Removes the note everywhere. Detaching it from one task is an update, not a delete. */
     @Transactional
     public void delete(UUID id) {
-        documents.delete(require(id));
+        Document document = require(id);
+        Set.copyOf(document.getTasks()).forEach(task -> task.detach(document));
+        documents.delete(document);
     }
 
     /**
-     * Ownership is set through the owning entity so that both sides of the association agree.
-     * Assigning the field directly would leave the in-memory parent's list stale for the rest
-     * of the transaction.
+     * Brings the set of tasks to exactly what was asked for.
+     *
+     * <p>Computed as a difference rather than cleared and rebuilt: clearing would delete every
+     * join row and insert them again on each save, which churns the order column and shows up
+     * as notes reshuffling themselves on tasks nobody touched.
      */
-    private void attach(Document document, DocumentRequest request) {
-        long owners = count(request.projectId()) + count(request.taskId()) + count(request.environmentId());
-        if (owners != 1) {
-            throw new ConflictException("A document belongs to exactly one project, task or environment");
-        }
-        if (request.taskId() != null) {
-            Task task = catalog.requireTask(request.taskId());
-            document.setPosition(task.getDocuments().size());
-            task.addDocument(document);
-            return;
-        }
-        if (request.projectId() != null) {
-            Project project = catalog.requireProject(request.projectId());
-            document.setPosition(project.getDocuments().size());
-            project.addDocument(document);
-            return;
-        }
-        Environment environment = catalog.requireEnvironment(request.environmentId());
-        document.setPosition(environment.getDocuments().size());
-        environment.addDocument(document);
+    private void link(Document document, Set<Task> wanted) {
+        Set.copyOf(document.getTasks()).stream()
+                .filter(task -> !wanted.contains(task))
+                .forEach(task -> task.detach(document));
+        wanted.forEach(task -> task.attach(document));
     }
 
-    private int count(UUID id) {
-        return id == null ? 0 : 1;
+    private Set<Task> resolve(List<UUID> taskIds) {
+        if (taskIds == null || taskIds.isEmpty()) {
+            throw new ConflictException("A note has to be attached to at least one task");
+        }
+        Set<Task> resolved = new LinkedHashSet<>();
+        taskIds.forEach(id -> resolved.add(catalog.requireTask(id)));
+        return resolved;
     }
 
     private String body(DocumentRequest request) {

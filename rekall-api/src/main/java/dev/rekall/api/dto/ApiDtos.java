@@ -1,7 +1,7 @@
 package dev.rekall.api.dto;
 
+import dev.rekall.domain.Company;
 import dev.rekall.domain.Document;
-import dev.rekall.domain.Environment;
 import dev.rekall.domain.Project;
 import dev.rekall.domain.ProjectStatus;
 import dev.rekall.domain.Task;
@@ -9,6 +9,7 @@ import dev.rekall.domain.TaskStatus;
 import jakarta.validation.constraints.NotBlank;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -23,71 +24,116 @@ public final class ApiDtos {
     private ApiDtos() {
     }
 
+    public record CompanyResponse(
+            UUID id, String name, String description, int projectCount, int taskCount, Instant updatedAt) {
+
+        public static CompanyResponse of(Company company) {
+            return new CompanyResponse(
+                    company.getId(),
+                    company.getName(),
+                    company.getDescription(),
+                    company.getProjects().size(),
+                    company.getProjects().stream().mapToInt(project -> project.getTasks().size()).sum(),
+                    company.getUpdatedAt());
+        }
+    }
+
+    public record CompanyRequest(@NotBlank String name, String description) {
+    }
+
+    /**
+     * The label and the title both travel, because the interface needs both at once: the title
+     * is what a row reads as, and the label is what the anchor next to it has to say.
+     */
     public record ProjectResponse(
-            UUID id, String name, ProjectStatus status, String description, int taskCount, Instant updatedAt) {
+            UUID id,
+            String label,
+            String title,
+            ProjectStatus status,
+            String description,
+            UUID companyId,
+            String companyName,
+            int taskCount,
+            String anchor,
+            Instant updatedAt) {
 
         public static ProjectResponse of(Project project) {
             return new ProjectResponse(
                     project.getId(),
-                    project.getName(),
+                    project.getLabel(),
+                    project.getTitle(),
                     project.getStatus(),
                     project.getDescription(),
+                    project.getCompany().getId(),
+                    project.getCompany().getName(),
                     project.getTasks().size(),
+                    "project:" + project.getLabel(),
                     project.getUpdatedAt());
         }
     }
 
-    public record ProjectRequest(@NotBlank String name, ProjectStatus status, String description) {
+    /**
+     * The label is normalised to a slug on the way in, so what the client sent and what the
+     * anchor will be are allowed to differ. The response carries the stored one.
+     */
+    public record ProjectRequest(
+            @NotBlank String label,
+            @NotBlank String title,
+            ProjectStatus status,
+            String description,
+            UUID companyId) {
     }
 
     public record TaskResponse(
             UUID id,
-            String name,
+            String label,
+            String title,
             TaskStatus status,
             String description,
             UUID projectId,
-            String projectName,
-            UUID environmentId,
-            String environmentLabel,
+            String projectLabel,
+            String projectTitle,
+            String companyName,
+            int documentCount,
+            String anchor,
             Instant updatedAt) {
 
         public static TaskResponse of(Task task) {
-            Environment environment = task.getEnvironment();
             return new TaskResponse(
                     task.getId(),
-                    task.getName(),
+                    task.getLabel(),
+                    task.getTitle(),
                     task.getStatus(),
                     task.getDescription(),
                     task.getProject().getId(),
-                    task.getProject().getName(),
-                    environment == null ? null : environment.getId(),
-                    environment == null ? null : environment.getLabel(),
+                    task.getProject().getLabel(),
+                    task.getProject().getTitle(),
+                    task.getProject().getCompany().getName(),
+                    task.getDocuments().size(),
+                    "project:%s task:%s".formatted(task.getProject().getLabel(), task.getLabel()),
                     task.getUpdatedAt());
         }
     }
 
     public record TaskRequest(
-            @NotBlank String name, TaskStatus status, String description, UUID projectId, UUID environmentId) {
+            @NotBlank String label,
+            @NotBlank String title,
+            TaskStatus status,
+            String description,
+            UUID projectId) {
     }
 
-    public record EnvironmentResponse(
-            UUID id, String label, String namespace, String kubeconfigPath, Instant updatedAt) {
-
-        public static EnvironmentResponse of(Environment environment) {
-            return new EnvironmentResponse(
-                    environment.getId(),
-                    environment.getLabel(),
-                    environment.getNamespace(),
-                    environment.getKubeconfigPath(),
-                    environment.getUpdatedAt());
-        }
-    }
-
-    public record EnvironmentRequest(@NotBlank String label, String namespace, String kubeconfigPath) {
-    }
-
+    /**
+     * A note reports every task it is on, because the interface has to show that editing this
+     * one changes what three other tasks load. A single owner field would hide exactly that.
+     */
     public record DocumentResponse(
-            UUID id, String title, String kind, String bodyMarkdown, String owner, int position, Instant updatedAt) {
+            UUID id,
+            String title,
+            String kind,
+            String bodyMarkdown,
+            List<TaskRef> tasks,
+            Instant updatedAt) {
 
         public static DocumentResponse of(Document document) {
             return new DocumentResponse(
@@ -95,29 +141,37 @@ public final class ApiDtos {
                     document.getTitle(),
                     document.getKind(),
                     document.getBodyMarkdown(),
-                    ownerAnchor(document),
-                    document.getPosition(),
+                    document.getTasks().stream().map(TaskRef::of).toList(),
                     document.getUpdatedAt());
-        }
-
-        private static String ownerAnchor(Document document) {
-            if (document.getProject() != null) {
-                return "project:" + document.getProject().getName();
-            }
-            if (document.getTask() != null) {
-                return "task:" + document.getTask().getName();
-            }
-            return "environment:" + document.getEnvironment().getLabel();
         }
     }
 
-    /** Exactly one owner id is set, matching the check constraint on the table. */
+    /** Enough of a task to name it and to link to it, without dragging the record along. */
+    public record TaskRef(
+            UUID id,
+            String label,
+            String title,
+            String projectLabel,
+            String projectTitle,
+            String companyName,
+            String anchor) {
+
+        public static TaskRef of(Task task) {
+            return new TaskRef(
+                    task.getId(),
+                    task.getLabel(),
+                    task.getTitle(),
+                    task.getProject().getLabel(),
+                    task.getProject().getTitle(),
+                    task.getProject().getCompany().getName(),
+                    "project:%s task:%s".formatted(task.getProject().getLabel(), task.getLabel()));
+        }
+    }
+
     public record DocumentRequest(
             @NotBlank String title,
             @NotBlank String kind,
             String bodyMarkdown,
-            UUID projectId,
-            UUID taskId,
-            UUID environmentId) {
+            List<UUID> taskIds) {
     }
 }

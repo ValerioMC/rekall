@@ -1,0 +1,86 @@
+<script setup lang="ts">
+import { storeToRefs } from 'pinia'
+import { useConsoleStore } from '@/stores/console.store'
+
+const store = useConsoleStore()
+const { selectedTask, selectedDocId, taskDocuments } = storeToRefs(store)
+
+/** A couple of lines of the body, with the markup stripped so the preview reads as prose. */
+function excerpt(body: string): string {
+  return body.replace(/[#`>*|_-]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 110)
+}
+</script>
+
+<template>
+  <section
+    class="flex min-h-0 w-(--spacing-notelist) shrink-0 flex-col border-r border-border bg-surface"
+    aria-label="Notes on the selected task"
+  >
+    <header class="flex h-(--spacing-header) shrink-0 items-center gap-2 border-b border-border px-3.5">
+      <span class="min-w-0 flex-1">
+        <span class="block truncate text-[13.5px] font-semibold text-text">
+          {{ selectedTask?.title ?? 'Notes' }}
+        </span>
+        <span
+          v-if="selectedTask"
+          class="block truncate font-mono text-[10.5px] text-anchor/80"
+          :title="selectedTask.anchor"
+        >
+          {{ selectedTask.anchor }}
+        </span>
+      </span>
+      <span v-if="taskDocuments.length" class="font-mono text-[11px] text-text-subtle">
+        {{ taskDocuments.length }}
+      </span>
+    </header>
+
+    <div class="min-h-0 flex-1 overflow-y-auto p-2">
+      <p v-if="!selectedTask" class="px-2 py-2 text-[12.5px] leading-relaxed text-text-subtle">
+        Pick a task to see its notes.
+      </p>
+
+      <p
+        v-else-if="!taskDocuments.length"
+        class="px-2 py-2 text-[12.5px] leading-relaxed text-text-subtle"
+      >
+        No note on this task yet. Press <kbd class="rounded border border-border px-1 font-mono text-[10px]">N</kbd>
+        to write the first one.
+      </p>
+
+      <button
+        v-for="document in taskDocuments"
+        :key="document.id"
+        data-testid="note-card"
+        class="focus-ring mb-1 block w-full rounded-[var(--radius-control)] border p-2.5 text-left transition-all"
+        :class="
+          document.id === selectedDocId
+            ? 'border-accent bg-surface-raised shadow-lift'
+            : 'border-transparent hover:border-border-strong hover:bg-surface-raised'
+        "
+        :aria-current="document.id === selectedDocId"
+        @click="store.selectDocument(document.id)"
+      >
+        <span class="flex items-center gap-2">
+          <span class="min-w-0 flex-1 truncate text-[13px] font-medium text-text">
+            {{ document.title }}
+          </span>
+          <span
+            class="shrink-0 rounded border border-border bg-surface-raised px-1.5 py-px font-mono text-[9.5px] text-text-muted"
+          >
+            {{ document.kind }}
+          </span>
+          <span
+            v-if="document.tasks.length > 1"
+            class="anchor-chip shrink-0 px-1.5 py-px text-[9.5px]"
+            :title="`On ${document.tasks.length} tasks`"
+          >
+            &#8942; {{ document.tasks.length }}
+          </span>
+        </span>
+        <span class="mt-1 line-clamp-2 block text-[11.5px] leading-relaxed text-text-subtle">
+          {{ excerpt(document.bodyMarkdown) }}
+        </span>
+      </button>
+    </div>
+  </section>
+</template>

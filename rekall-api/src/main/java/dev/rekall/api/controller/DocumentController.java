@@ -29,10 +29,9 @@ public class DocumentController {
 
     @GetMapping
     public List<DocumentResponse> list(
-            @RequestParam(required = false) UUID projectId,
             @RequestParam(required = false) UUID taskId,
-            @RequestParam(required = false) UUID environmentId) {
-        return documents.listFor(projectId, taskId, environmentId);
+            @RequestParam(required = false) UUID projectId) {
+        return documents.list(taskId, projectId);
     }
 
     @GetMapping("/search")

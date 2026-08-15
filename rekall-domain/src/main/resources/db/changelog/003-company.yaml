@@ -1,0 +1,80 @@
+databaseChangeLog:
+
+  # A level above the project: who the work is for. Projects were already grouped in practice,
+  # by the name you gave them, and a name is a bad place to keep a relation.
+
+  - changeSet:
+      id: 003-company
+      author: rekall
+      changes:
+        - createTable:
+            tableName: company
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, primaryKeyName: pk_company}}
+              - column: {name: name, type: varchar(120), constraints: {nullable: false}}
+              - column: {name: description, type: varchar(100000)}
+              - column: {name: created_at, type: timestamp, constraints: {nullable: false}}
+              - column: {name: updated_at, type: timestamp, constraints: {nullable: false}}
+        - addUniqueConstraint:
+            tableName: company
+            columnNames: name
+            constraintName: uq_company_name
+
+  # Existing projects have to land somewhere before the column can be made mandatory. One
+  # holding company, created only if there is anything to hold, so a fresh database does not
+  # start with a record nobody asked for.
+  - changeSet:
+      id: 003-holding-company-for-existing-projects
+      author: rekall
+      preConditions:
+        - onFail: MARK_RAN
+        - sqlCheck:
+            expectedResult: "1"
+            sql: SELECT CASE WHEN EXISTS (SELECT 1 FROM project) THEN 1 ELSE 0 END
+      changes:
+        - sql:
+            sql: >
+              INSERT INTO company (id, name, description, created_at, updated_at)
+              VALUES ('00000000-0000-0000-0000-000000000001', 'Unassigned',
+                      'Projects that existed before companies did. Rename or move them.',
+                      CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+
+  - changeSet:
+      id: 003-project-belongs-to-a-company
+      author: rekall
+      changes:
+        - addColumn:
+            tableName: project
+            columns:
+              - column: {name: company_id, type: uuid}
+        - sql:
+            sql: >
+              UPDATE project SET company_id = '00000000-0000-0000-0000-000000000001'
+              WHERE company_id IS NULL
+        - addNotNullConstraint:
+            tableName: project
+            columnName: company_id
+            columnDataType: uuid
+        # A company's projects have no meaning without it, the same relation a project has with
+        # its tasks. The blast radius is large, which is the interface's problem to state.
+        - addForeignKeyConstraint:
+            baseTableName: project
+            baseColumnNames: company_id
+            referencedTableName: company
+            referencedColumnNames: id
+            constraintName: fk_project_company
+            onDelete: CASCADE
+
+  # Project names only have to be unique inside their company now: two companies routinely have
+  # a project with the same name.
+  - changeSet:
+      id: 003-project-name-unique-per-company
+      author: rekall
+      changes:
+        - dropUniqueConstraint:
+            tableName: project
+            constraintName: uq_project_name
+        - addUniqueConstraint:
+            tableName: project
+            columnNames: company_id, name
+            constraintName: uq_project_company_name
