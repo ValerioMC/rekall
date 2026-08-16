@@ -11,8 +11,15 @@ import { useConsoleStore } from '@/stores/console.store'
  * when nothing has been written: the absence is the reason to write one.
  */
 const store = useConsoleStore()
-const { selectedTask, selectedDocId, taskDocuments, paneFocus, selectedWrapup, wrapupIsBehind } =
-  storeToRefs(store)
+const {
+  selectedTask,
+  selectedDocId,
+  taskDocuments,
+  paneFocus,
+  selectedWrapup,
+  wrapupIsBehind,
+  isLoading
+} = storeToRefs(store)
 
 /** A couple of lines of the body, with the markup stripped so the preview reads as prose. */
 function excerpt(body: string): string {
@@ -44,7 +51,12 @@ function excerpt(body: string): string {
     </header>
 
     <div class="min-h-0 flex-1 overflow-y-auto p-2">
-      <p v-if="!selectedTask" class="px-2 py-2 text-[12.5px] leading-relaxed text-text-subtle">
+      <div v-if="isLoading" class="flex flex-col gap-2" aria-hidden="true">
+        <div class="skeleton h-14 rounded-[var(--radius-control)]" />
+        <div v-for="row in 3" :key="row" class="skeleton h-16 rounded-[var(--radius-control)]" />
+      </div>
+
+      <p v-else-if="!selectedTask" class="px-2 py-2 text-[12.5px] leading-relaxed text-text-subtle">
         Pick a task to see its notes.
       </p>
 

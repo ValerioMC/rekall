@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import AppButton from '@/components/ui/AppButton.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
+import { trapTabKey } from '@/common/a11y/focus-trap'
 import type { TaskStatus } from '@/model/catalog'
 import type { TaskId } from '@/model/branded'
 
@@ -12,6 +13,7 @@ const emit = defineEmits<{ close: [] }>()
 const store = useConsoleStore()
 const { tasks, selectedDocument } = storeToRefs(store)
 const { run } = useAsyncAction()
+const panel = ref<HTMLElement | null>(null)
 
 const STATUS_DOT: Record<TaskStatus, string> = {
   IN_PROGRESS: 'bg-accent',
@@ -38,10 +40,16 @@ function onKeydown(event: KeyboardEvent): void {
   if (event.key === 'Escape') {
     event.stopPropagation()
     emit('close')
+    return
   }
+  if (panel.value) trapTabKey(panel.value, event)
 }
 
-onMounted(() => window.addEventListener('keydown', onKeydown, true))
+onMounted(async () => {
+  window.addEventListener('keydown', onKeydown, true)
+  await nextTick()
+  panel.value?.querySelector<HTMLElement>('[data-testid="attach-row"], button')?.focus()
+})
 onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
 </script>
 
@@ -51,6 +59,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
     @click.self="emit('close')"
   >
     <div
+      ref="panel"
       class="w-full max-w-[440px] overflow-hidden rounded-[var(--radius-card)] border border-border-strong bg-surface shadow-lift"
       role="dialog"
       aria-modal="true"

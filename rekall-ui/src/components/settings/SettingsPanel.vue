@@ -8,6 +8,7 @@ import RestartingOverlay from '@/components/setup/RestartingOverlay.vue'
 import { fetchDatabaseStatus, forgetDatabase, renameDatabase } from '@/api/settings.api'
 import { useDatabaseSetup } from '@/composables/useDatabaseSetup'
 import { useModalGate } from '@/composables/useModalGate'
+import { trapTabKey } from '@/common/a11y/focus-trap'
 import { useToastStore } from '@/stores/toast.store'
 import type { DatabaseEntry, DatabaseStatus } from '@/model/settings'
 
@@ -32,6 +33,7 @@ const editingLabel = ref('')
 const editingInput = ref<HTMLInputElement | null>(null)
 const forgetting = ref<DatabaseEntry | null>(null)
 const closeButton = ref<HTMLButtonElement | null>(null)
+const panel = ref<HTMLElement | null>(null)
 
 /**
  * Whether this panel may be dismissed right now. Once any restart-triggering action has been
@@ -101,7 +103,10 @@ function onKeydown(event: KeyboardEvent): void {
   if (event.key === 'Escape' && canClose.value && !forgetting.value && editingId.value === null) {
     event.stopPropagation()
     emit('close')
+    return
   }
+  // While the "forget this database?" confirmation sits on top, its own trap is the one to run.
+  if (panel.value && !forgetting.value) trapTabKey(panel.value, event)
 }
 
 onMounted(async () => {
@@ -123,6 +128,7 @@ onUnmounted(() => {
     @click.self="canClose && emit('close')"
   >
     <div
+      ref="panel"
       class="rise flex max-h-[85vh] w-full max-w-[560px] flex-col overflow-hidden rounded-[var(--radius-card)] border border-border-strong bg-surface shadow-modal"
       role="dialog"
       aria-modal="true"

@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import App from '@/App.vue'
 import FirstRunSetup from '@/components/setup/FirstRunSetup.vue'
 import DatabaseUnreachable from '@/components/setup/DatabaseUnreachable.vue'
+import AppLogo from '@/components/ui/AppLogo.vue'
 import { fetchDatabaseStatus } from '@/api/settings.api'
 import type { DatabaseStatus } from '@/model/settings'
 
@@ -37,5 +38,11 @@ onMounted(async () => {
     class="grid h-full place-items-center p-6 text-center text-[13px] text-text-subtle"
   >
     Rekall couldn't be reached. Make sure it's running, then reload the page.
+  </div>
+  <!-- The one instant nothing is known yet: which of the three screens above this becomes.
+       A blank canvas reads as broken; the mark fading in reads as a product about to answer. -->
+  <div v-else class="fade-in grid h-full place-items-center" role="status" aria-live="polite">
+    <span class="sr-only">Loading</span>
+    <AppLogo :size="40" class="halo animate-pulse rounded-[9px]" aria-hidden="true" />
   </div>
 </template>

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { nextTick, onMounted, onUnmounted, ref } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import { useModalGate } from '@/composables/useModalGate'
+import { trapTabKey } from '@/common/a11y/focus-trap'
 
 /**
  * A confirmation that states its blast radius.
@@ -30,18 +31,24 @@ const emit = defineEmits<{ cancel: []; confirm: [] }>()
  */
 const { open: openModal, close: closeModal } = useModalGate()
 
-const confirmButton = ref<InstanceType<typeof AppButton> | null>(null)
+const panel = ref<HTMLElement | null>(null)
+// The safe action, focused by default: a stray Enter should keep the record, not destroy it.
+const cancelButton = ref<InstanceType<typeof AppButton> | null>(null)
 
 function onKeydown(event: KeyboardEvent): void {
   if (event.key === 'Escape') {
     event.stopPropagation()
     emit('cancel')
+    return
   }
+  if (panel.value) trapTabKey(panel.value, event)
 }
 
-onMounted(() => {
+onMounted(async () => {
   openModal()
   window.addEventListener('keydown', onKeydown, true)
+  await nextTick()
+  ;(cancelButton.value?.$el as HTMLElement | undefined)?.focus()
 })
 
 onUnmounted(() => {
@@ -56,6 +63,7 @@ onUnmounted(() => {
     @click.self="emit('cancel')"
   >
     <div
+      ref="panel"
       class="w-full max-w-[440px] overflow-hidden rounded-[var(--radius-card)] border border-border-strong bg-surface shadow-lift"
       role="alertdialog"
       aria-modal="true"
@@ -71,8 +79,10 @@ onUnmounted(() => {
         </p>
       </div>
       <div class="flex justify-end gap-2 border-t border-border bg-canvas px-5 py-3">
-        <AppButton variant="ghost" size="sm" @click="emit('cancel')">Keep it</AppButton>
-        <AppButton ref="confirmButton" variant="danger" size="sm" @click="emit('confirm')">
+        <AppButton ref="cancelButton" variant="ghost" size="sm" @click="emit('cancel')">
+          Keep it
+        </AppButton>
+        <AppButton variant="danger" size="sm" @click="emit('confirm')">
           {{ confirmLabel }}
         </AppButton>
       </div>

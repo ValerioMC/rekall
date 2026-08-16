@@ -5,6 +5,7 @@ import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
+import { trapTabKey } from '@/common/a11y/focus-trap'
 import {
   PROJECT_STATUSES,
   PROJECT_STATUS_LABEL,
@@ -30,6 +31,7 @@ const store = useConsoleStore()
 const { run, isRunning } = useAsyncAction()
 
 const form = ref<RecordDraft>({ ...props.draft })
+const panel = ref<HTMLElement | null>(null)
 const firstField = ref<HTMLInputElement | null>(null)
 const isConfirmingDelete = ref(false)
 const submitted = ref(false)
@@ -280,7 +282,10 @@ function onKeydown(event: KeyboardEvent): void {
     event.preventDefault()
     event.stopPropagation()
     void save()
+    return
   }
+  // While the delete confirmation sits on top, Tab is its trap to run, not this dialog's own.
+  if (panel.value && !isConfirmingDelete.value) trapTabKey(panel.value, event)
 }
 
 onMounted(async () => {
@@ -299,6 +304,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
     @click.self="emit('close')"
   >
     <div
+      ref="panel"
       class="rise w-full max-w-[560px] overflow-hidden rounded-[var(--radius-card)] border border-border-strong bg-surface shadow-modal"
       role="dialog"
       aria-modal="true"

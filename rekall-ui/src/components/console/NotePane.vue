@@ -12,7 +12,7 @@ import { DOCUMENT_KINDS } from '@/model/catalog'
 import type { TaskId } from '@/model/branded'
 
 const store = useConsoleStore()
-const { selectedDocument, selectedTaskId, recentDocuments } = storeToRefs(store)
+const { selectedDocument, selectedTaskId, recentDocuments, isLoading } = storeToRefs(store)
 const { run } = useAsyncAction()
 
 const KIND_OPTIONS = DOCUMENT_KINDS.map((kind) => ({ value: kind, label: kind }))
@@ -121,7 +121,11 @@ async function confirmDelete(): Promise<void> {
           Everything here is one anchor away from a Claude session.
         </p>
 
-        <div v-if="recentDocuments.length" class="flex flex-col gap-1.5">
+        <div v-if="isLoading" class="flex flex-col gap-1.5" aria-hidden="true">
+          <div v-for="row in 3" :key="row" class="skeleton h-14 rounded-[var(--radius-control)]" />
+        </div>
+
+        <div v-else-if="recentDocuments.length" class="flex flex-col gap-1.5">
           <button
             v-for="document in recentDocuments"
             :key="document.id"
@@ -231,7 +235,7 @@ async function confirmDelete(): Promise<void> {
 
       <div class="flex min-h-0 flex-1 flex-col">
         <div class="flex shrink-0 items-center gap-2 border-b border-border px-5 py-1.5">
-          <div class="ml-auto flex gap-0.5 rounded-[7px] bg-canvas p-0.5">
+          <div class="ml-auto flex gap-0.5 rounded-[7px] bg-surface p-0.5">
             <button
               v-for="option in (['write', 'read'] as const)"
               :key="option"

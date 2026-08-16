@@ -27,7 +27,8 @@ const {
   visibleDocuments,
   selectedTaskId,
   selectedDocId,
-  elsewhere
+  elsewhere,
+  isLoading
 } = storeToRefs(store)
 
 const STATUS_DOT: Record<TaskStatus, string> = {
@@ -107,6 +108,16 @@ defineExpose({ beginCreate, editSelected })
     </div>
 
     <div class="min-h-0 flex-1 overflow-y-auto pb-4">
+      <!-- Shaped like the list it stands in for, so the empty states below never get a chance
+           to flash "no project here yet" while the first fetch is still in flight. -->
+      <div v-if="isLoading" class="flex flex-col gap-4 p-2 pt-3" aria-hidden="true">
+        <div v-for="group in 3" :key="group" class="flex flex-col gap-1.5">
+          <div class="skeleton mx-1.5 mb-1 h-2.5 w-16" />
+          <div v-for="row in 2" :key="row" class="skeleton h-9 w-full rounded-[var(--radius-control)]" />
+        </div>
+      </div>
+
+      <template v-else>
       <button
         v-if="navMode === 'tasks' && projectChoices.length"
         data-testid="new-task"
@@ -259,6 +270,7 @@ defineExpose({ beginCreate, editSelected })
           search everywhere &#8594;
         </span>
       </button>
+      </template>
     </div>
 
     <RecordDialog v-if="editing" :draft="editing" @close="editing = null" />

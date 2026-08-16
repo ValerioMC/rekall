@@ -20,8 +20,16 @@ import type { CompanyId, ProjectId } from '@/model/branded'
  * same tree a second time is the arrangement this replaces.
  */
 const store = useConsoleStore()
-const { companies, projects, scopeCompany, scopeProject, scopePath, scopeAnchor, tasks } =
-  storeToRefs(store)
+const {
+  companies,
+  projects,
+  scopeCompany,
+  scopeProject,
+  scopePath,
+  scopeAnchor,
+  tasks,
+  isLoading
+} = storeToRefs(store)
 
 const isOpen = ref(false)
 const editing = ref<RecordDraft | null>(null)
@@ -62,11 +70,19 @@ function editProject(project: Project): void {
   edit(projectDraft(project.companyId, project))
 }
 
+/** Every other overlay in the console closes on Escape; this one is no exception. */
+function onKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Escape' && isOpen.value) {
+    event.stopPropagation()
+    isOpen.value = false
+  }
+}
+
 defineExpose({ newCompany, newProject })
 </script>
 
 <template>
-  <div class="relative">
+  <div class="relative" @keydown="onKeydown">
     <button
       data-testid="scope-trigger"
       class="focus-ring flex h-10 w-full items-center gap-2.5 rounded-[var(--radius-control)] border border-border-strong bg-canvas px-2.5 text-left transition-colors hover:border-accent"
@@ -82,7 +98,7 @@ defineExpose({ newCompany, newProject })
           <template v-else>{{ scopePath[scopePath.length - 1] }}</template>
         </span>
         <span class="block truncate font-mono text-[10.5px] text-anchor">
-          {{ scopeAnchor || `${taskTotal} tasks` }}
+          {{ isLoading ? 'Loading…' : scopeAnchor || `${taskTotal} tasks` }}
         </span>
       </span>
       <span class="shrink-0 text-[10px] text-text-subtle" aria-hidden="true">&#9662;</span>
