@@ -1,0 +1,30 @@
+databaseChangeLog:
+
+  # How long a task actually takes, across as many sittings as it needs. One row per sitting
+  # rather than one running total on the task, because a total can only be corrected by editing
+  # it, and a session with its own start and stop can be corrected by editing either. `stopped_at`
+  # is nullable and null means the session is still open — at most one row in the whole table may
+  # be in that state, which `TimeEntryService` enforces rather than a constraint here, the same
+  # trade the wrapup makes for the same reason: one writer, no MCP path in.
+
+  - changeSet:
+      id: 006-time-entry
+      author: rekall
+      changes:
+        - createTable:
+            tableName: time_entry
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, primaryKeyName: pk_time_entry, nullable: false}}
+              - column: {name: task_id, type: uuid, constraints: {nullable: false}}
+              - column: {name: started_at, type: timestamp, constraints: {nullable: false}}
+              - column: {name: stopped_at, type: timestamp}
+              - column: {name: created_at, type: timestamp, constraints: {nullable: false}}
+              - column: {name: updated_at, type: timestamp, constraints: {nullable: false}}
+        # A session describes a task and has no meaning without it, so it goes when the task does.
+        - addForeignKeyConstraint:
+            baseTableName: time_entry
+            baseColumnNames: task_id
+            referencedTableName: task
+            referencedColumnNames: id
+            constraintName: fk_time_entry_task
+            onDelete: CASCADE

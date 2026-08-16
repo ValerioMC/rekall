@@ -1,4 +1,4 @@
-import type { CompanyId, DocumentId, ProjectId, TaskId, WrapupId } from './branded'
+import type { CompanyId, DocumentId, ProjectId, TaskId, TimeEntryId, WrapupId } from './branded'
 
 /** Free-form on the server; these are the ones the editor offers. */
 export const DOCUMENT_KINDS = ['context', 'notes', 'architecture', 'report', 'other'] as const
@@ -108,6 +108,27 @@ export interface Wrapup {
   readonly anchor: string
   readonly bodyMarkdown: string
   readonly writtenBy: WrapupAuthor
+  readonly createdAt: string
+  readonly updatedAt: string
+}
+
+/**
+ * One sitting of work on a task.
+ *
+ * `stoppedAt` is null for exactly as long as the session is open, and only one session across
+ * the whole application may be in that state at a time — starting or resuming a task's timer
+ * closes whatever else was running.
+ */
+export interface TimeEntry {
+  readonly id: TimeEntryId
+  readonly taskId: TaskId
+  readonly taskLabel: string
+  readonly taskTitle: string
+  readonly projectLabel: string
+  /** What you would type after `/rk` to load the task this session was spent on. */
+  readonly anchor: string
+  readonly startedAt: string
+  readonly stoppedAt: string | null
   readonly createdAt: string
   readonly updatedAt: string
 }

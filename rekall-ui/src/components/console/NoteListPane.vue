@@ -1,14 +1,20 @@
 <script setup lang="ts">
+import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
+import TimeLogDialog from '@/components/console/TimeLogDialog.vue'
+import TimerCard from '@/components/console/TimerCard.vue'
 import WrapupCard from '@/components/console/WrapupCard.vue'
 import { useConsoleStore } from '@/stores/console.store'
+import { useAsyncAction } from '@/composables/useAsyncAction'
 
 /**
- * The notes on the selected task, with its wrapup pinned above them.
+ * The notes on the selected task, with its timer and wrapup pinned above them.
  *
- * The wrapup is first because it is the answer to the question you arrive with — what is this
- * now — and the notes are the background to that answer. It is one row, always present, even
- * when nothing has been written: the absence is the reason to write one.
+ * The timer leads because it is the one thing here that is live rather than written: everything
+ * below it describes the task, this counts while you read it. The wrapup follows because it is
+ * the answer to the question you arrive with — what is this now — and the notes are the
+ * background to that answer. Both are one row, always present, even absent: the absence of a
+ * wrapup is the reason to write one, and every task has a timer the moment it exists.
  */
 const store = useConsoleStore()
 const {
@@ -18,8 +24,26 @@ const {
   paneFocus,
   selectedWrapup,
   wrapupIsBehind,
+  selectedTaskEntries,
+  runningEntry,
   isLoading
 } = storeToRefs(store)
+const { run } = useAsyncAction()
+
+const showTimeLog = ref(false)
+const isRunningHere = computed(
+  () => runningEntry.value !== null && runningEntry.value.taskId === selectedTask.value?.id
+)
+
+async function startTimer(): Promise<void> {
+  if (!selectedTask.value) return
+  await run(() => store.startTimer(selectedTask.value!.id))
+}
+
+async function pauseTimer(): Promise<void> {
+  if (!selectedTask.value) return
+  await run(() => store.pauseTimer(selectedTask.value!.id))
+}
 
 /** A couple of lines of the body, with the markup stripped so the preview reads as prose. */
 function excerpt(body: string): string {
@@ -61,6 +85,13 @@ function excerpt(body: string): string {
       </p>
 
       <template v-else>
+        <TimerCard
+          :entries="selectedTaskEntries"
+          :is-running="isRunningHere"
+          @start="startTimer"
+          @pause="pauseTimer"
+          @open-log="showTimeLog = true"
+        />
         <WrapupCard
           :wrapup="selectedWrapup"
           :selected="paneFocus === 'wrapup'"
@@ -114,4 +145,11 @@ function excerpt(body: string): string {
       </button>
     </div>
   </section>
+
+  <TimeLogDialog
+    v-if="showTimeLog && selectedTask"
+    :task="selectedTask"
+    :entries="selectedTaskEntries"
+    @close="showTimeLog = false"
+  />
 </template>

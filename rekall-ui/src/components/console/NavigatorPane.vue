@@ -28,7 +28,8 @@ const {
   selectedTaskId,
   selectedDocId,
   elsewhere,
-  isLoading
+  isLoading,
+  runningEntry
 } = storeToRefs(store)
 
 const STATUS_DOT: Record<TaskStatus, string> = {
@@ -166,7 +167,17 @@ defineExpose({ beginCreate, editSelected })
               @click="store.selectTask(task.id)"
             >
               <span class="min-w-0 flex-1">
-                <span class="block truncate text-[13px]">{{ task.title }}</span>
+                <span class="flex items-center gap-1.5 truncate text-[13px]">
+                  <span
+                    v-if="runningEntry?.taskId === task.id"
+                    class="relative flex size-1.5 shrink-0"
+                    title="Tracking time on this task"
+                  >
+                    <span class="absolute inline-flex size-full animate-ping rounded-full bg-accent opacity-75" />
+                    <span class="relative inline-flex size-1.5 rounded-full bg-accent" />
+                  </span>
+                  <span class="truncate">{{ task.title }}</span>
+                </span>
                 <span class="block truncate font-mono text-[10.5px]">
                   <template v-if="scopeCompany === null">
                     <span class="text-text-subtle">{{ task.companyName }}/</span>

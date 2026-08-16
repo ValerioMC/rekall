@@ -7,6 +7,7 @@ import dev.rekall.domain.ProjectStatus;
 import dev.rekall.domain.Task;
 import dev.rekall.domain.TaskStatus;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 import java.time.Instant;
 import java.util.List;
@@ -194,5 +195,13 @@ public final class ApiDtos {
      * fields would be a boundary that exists only on paper.
      */
     public record WrapupRequest(@NotBlank String bodyMarkdown) {
+    }
+
+    /**
+     * A hand correction to one session. {@code stoppedAt} is nullable and null only means
+     * something when the session was already open; {@code TimeEntryService} is what decides
+     * whether that is allowed.
+     */
+    public record TimeEntryEditRequest(@NotNull Instant startedAt, Instant stoppedAt) {
     }
 }

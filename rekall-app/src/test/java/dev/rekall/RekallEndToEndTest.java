@@ -54,6 +54,7 @@ class RekallEndToEndTest {
 
     @BeforeEach
     void resetDatabase() {
+        jdbc.execute("DELETE FROM time_entry");
         jdbc.execute("DELETE FROM wrapup");
         jdbc.execute("DELETE FROM document_task");
         jdbc.execute("DELETE FROM document");
@@ -537,6 +538,149 @@ class RekallEndToEndTest {
         assertThat(tasks.stream().map(task ->
                         ((Map<?, ?>) task).get("label") + "=" + ((Map<?, ?>) task).get("hasWrapup")))
                 .containsExactlyInAnyOrder("report-builder=true", "retry-policy=false");
+    }
+
+    /*
+     * Time entries. A task is worked in sittings, each one its own session, and at most one
+     * session across the whole application is open at a time.
+     */
+
+    @Test
+    @DisplayName("starting a timer opens a session, and stopping closes it")
+    void startingAndStoppingATimer() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+
+        Map<?, ?> start = post("/api/tasks/" + taskId + "/time-entries/start", Map.of()).getBody();
+        Map<?, ?> started = (Map<?, ?>) start.get("started");
+        assertThat(started.get("taskId")).isEqualTo(taskId);
+        assertThat(started.get("stoppedAt")).isNull();
+        assertThat(start.get("stoppedElsewhere")).isNull();
+
+        Map<?, ?> stopped = post("/api/tasks/" + taskId + "/time-entries/stop", Map.of()).getBody();
+        assertThat(stopped.get("id")).isEqualTo(started.get("id"));
+        assertThat(stopped.get("stoppedAt")).isNotNull();
+    }
+
+    /** Only one timer runs at a time, the same as everywhere else selection is single. */
+    @Test
+    @DisplayName("starting a second task's timer stops whatever was running elsewhere")
+    void startingElsewhereStopsWhatWasRunning() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskA = aTask(projectId, "task-a");
+        String taskB = aTask(projectId, "task-b");
+
+        Map<?, ?> firstStarted = (Map<?, ?>)
+                post("/api/tasks/" + taskA + "/time-entries/start", Map.of()).getBody().get("started");
+        Map<?, ?> second = post("/api/tasks/" + taskB + "/time-entries/start", Map.of()).getBody();
+
+        assertThat(((Map<?, ?>) second.get("started")).get("taskId")).isEqualTo(taskB);
+        Map<?, ?> stoppedElsewhere = (Map<?, ?>) second.get("stoppedElsewhere");
+        assertThat(stoppedElsewhere.get("id")).isEqualTo(firstStarted.get("id"));
+        assertThat(stoppedElsewhere.get("stoppedAt")).isNotNull();
+    }
+
+    /** A doubled click, or a race on the button, must not open a second session. */
+    @Test
+    @DisplayName("starting a timer that is already running on this task is a no-op")
+    void startingWhatIsAlreadyRunningIsANoOp() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+
+        Map<?, ?> first = (Map<?, ?>)
+                post("/api/tasks/" + taskId + "/time-entries/start", Map.of()).getBody().get("started");
+        Map<?, ?> again = post("/api/tasks/" + taskId + "/time-entries/start", Map.of()).getBody();
+
+        assertThat(((Map<?, ?>) again.get("started")).get("id")).isEqualTo(first.get("id"));
+        assertThat(again.get("stoppedElsewhere")).isNull();
+        assertThat(jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM time_entry WHERE task_id = ?", Integer.class, UUID.fromString(taskId)))
+                .isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("stopping a task that is not being tracked is refused")
+    void stoppingWithNothingRunningIsRefused() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+
+        assertThat(post("/api/tasks/" + taskId + "/time-entries/stop", Map.of()).getStatusCode())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    @DisplayName("a session can be corrected by hand, within the rules that keep it sane")
+    void sessionsAreCorrectedByHand() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+        Map<?, ?> started = (Map<?, ?>)
+                post("/api/tasks/" + taskId + "/time-entries/start", Map.of()).getBody().get("started");
+        Map<?, ?> stopped = post("/api/tasks/" + taskId + "/time-entries/stop", Map.of()).getBody();
+        String entryId = String.valueOf(stopped.get("id"));
+
+        assertThat(rest.patch().uri("/api/time-entries/" + entryId)
+                        .body(Map.of("startedAt", stopped.get("stoppedAt"), "stoppedAt", started.get("startedAt")))
+                        .retrieve().toEntity(Map.class).getStatusCode())
+                .as("a session has to end after it starts")
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+
+        assertThat(rest.patch().uri("/api/time-entries/" + entryId)
+                        .body(Map.of("startedAt", started.get("startedAt")))
+                        .retrieve().toEntity(Map.class).getStatusCode())
+                .as("a finished session cannot be reopened")
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+
+        ResponseEntity<Map> corrected = rest.patch().uri("/api/time-entries/" + entryId)
+                .body(Map.of("startedAt", started.get("startedAt"), "stoppedAt", stopped.get("stoppedAt")))
+                .retrieve().toEntity(Map.class);
+        assertThat(corrected.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(corrected.getBody()).containsEntry("startedAt", started.get("startedAt"));
+    }
+
+    @Test
+    @DisplayName("deleting a session removes only that one")
+    void deletingASession() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+        post("/api/tasks/" + taskId + "/time-entries/start", Map.of());
+        String first = String.valueOf(post("/api/tasks/" + taskId + "/time-entries/stop", Map.of())
+                .getBody().get("id"));
+        post("/api/tasks/" + taskId + "/time-entries/start", Map.of());
+        String second = String.valueOf(post("/api/tasks/" + taskId + "/time-entries/stop", Map.of())
+                .getBody().get("id"));
+
+        assertThat(rest.delete().uri("/api/time-entries/" + first).retrieve().toEntity(Void.class)
+                        .getStatusCode())
+                .isEqualTo(HttpStatus.NO_CONTENT);
+
+        assertThat(jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM time_entry WHERE task_id = ?", Integer.class, UUID.fromString(taskId)))
+                .as("the other session on the same task survives")
+                .isEqualTo(1);
+        List<?> remaining = rest.get().uri("/api/time-entries").retrieve().toEntity(List.class).getBody();
+        assertThat(remaining.stream().map(entry -> String.valueOf(((Map<?, ?>) entry).get("id"))))
+                .containsExactly(second);
+    }
+
+    /** A session describes a task and has no meaning without it. */
+    @Test
+    @DisplayName("deleting a task takes its time entries with it")
+    void timeEntriesCascadeWithTheirTask() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+        post("/api/tasks/" + taskId + "/time-entries/start", Map.of());
+        post("/api/tasks/" + taskId + "/time-entries/stop", Map.of());
+
+        rest.delete().uri("/api/tasks/" + taskId).retrieve().toEntity(Void.class);
+
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM time_entry", Integer.class)).isZero();
     }
 
     /*

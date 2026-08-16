@@ -26,8 +26,24 @@ import {
   fetchWrapups,
   saveWrapup as apiSaveWrapup
 } from '@/api/wrapups.api'
-import type { Company, Project, RekallDocument, Task, TaskStatus, Wrapup } from '@/model/catalog'
-import type { CompanyId, DocumentId, ProjectId, TaskId } from '@/model/branded'
+import {
+  deleteTimeEntry as apiDeleteTimeEntry,
+  editTimeEntry as apiEditTimeEntry,
+  fetchTimeEntries,
+  startTimeEntry as apiStartTimeEntry,
+  stopTimeEntry as apiStopTimeEntry
+} from '@/api/time-entries.api'
+import type { TimeEntryEdit } from '@/api/time-entries.api'
+import type {
+  Company,
+  Project,
+  RekallDocument,
+  Task,
+  TaskStatus,
+  TimeEntry,
+  Wrapup
+} from '@/model/catalog'
+import type { CompanyId, DocumentId, ProjectId, TaskId, TimeEntryId } from '@/model/branded'
 
 export type NavMode = 'tasks' | 'notes'
 export type SaveState = 'saved' | 'unsaved' | 'saving'
@@ -47,6 +63,7 @@ export const useConsoleStore = defineStore('console', () => {
   const tasks = ref<Task[]>([])
   const documents = ref<RekallDocument[]>([])
   const wrapups = ref<Wrapup[]>([])
+  const timeEntries = ref<TimeEntry[]>([])
 
   const isLoading = ref(true)
   const saveState = ref<SaveState>('saved')
@@ -164,6 +181,21 @@ export const useConsoleStore = defineStore('console', () => {
     return taskDocuments.value.filter((document) => document.updatedAt > wrapup.updatedAt).length
   })
 
+  /**
+   * The one session running anywhere, if any. Only one may be open at a time, so there is
+   * nothing to disambiguate: whichever task it belongs to is the task being worked right now.
+   */
+  const runningEntry = computed(
+    () => timeEntries.value.find((entry) => entry.stoppedAt === null) ?? null
+  )
+
+  /** The sessions on the task in view, most recently started first. */
+  const selectedTaskEntries = computed(() =>
+    timeEntries.value
+      .filter((entry) => entry.taskId === selectedTaskId.value)
+      .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
+  )
+
   const recentDocuments = computed(() =>
     [...documents.value]
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
@@ -222,19 +254,27 @@ export const useConsoleStore = defineStore('console', () => {
   async function load(): Promise<void> {
     isLoading.value = true
     try {
-      const [loadedCompanies, loadedProjects, loadedTasks, loadedDocuments, loadedWrapups] =
-        await Promise.all([
-          fetchCompanies(),
-          fetchProjects(),
-          fetchTasks(),
-          fetchAllDocuments(),
-          fetchWrapups()
-        ])
+      const [
+        loadedCompanies,
+        loadedProjects,
+        loadedTasks,
+        loadedDocuments,
+        loadedWrapups,
+        loadedTimeEntries
+      ] = await Promise.all([
+        fetchCompanies(),
+        fetchProjects(),
+        fetchTasks(),
+        fetchAllDocuments(),
+        fetchWrapups(),
+        fetchTimeEntries()
+      ])
       companies.value = loadedCompanies
       projects.value = loadedProjects
       tasks.value = loadedTasks
       documents.value = loadedDocuments
       wrapups.value = loadedWrapups
+      timeEntries.value = loadedTimeEntries
     } finally {
       isLoading.value = false
     }
@@ -333,6 +373,8 @@ export const useConsoleStore = defineStore('console', () => {
     tasks.value = [...tasks.value, created]
     await Promise.all([refreshProjects(), refreshCompanies()])
     selectTask(created.id)
+    // A task is worked the moment it exists; the timer says so rather than waiting to be told.
+    await startTimer(created.id)
     return created
   }
 
@@ -476,6 +518,37 @@ export const useConsoleStore = defineStore('console', () => {
     await refreshTasks()
   }
 
+  // ------------------------------------------------------------------ time tracking
+
+  function upsertTimeEntry(entry: TimeEntry): void {
+    const known = timeEntries.value.some((candidate) => candidate.id === entry.id)
+    timeEntries.value = known
+      ? timeEntries.value.map((candidate) => (candidate.id === entry.id ? entry : candidate))
+      : [entry, ...timeEntries.value]
+  }
+
+  /** Opens a session on this task. Whatever else was running closes, and its row updates too. */
+  async function startTimer(taskId: TaskId): Promise<void> {
+    const { started, stoppedElsewhere } = await apiStartTimeEntry(taskId)
+    upsertTimeEntry(started)
+    if (stoppedElsewhere) upsertTimeEntry(stoppedElsewhere)
+  }
+
+  async function pauseTimer(taskId: TaskId): Promise<void> {
+    const stopped = await apiStopTimeEntry(taskId)
+    upsertTimeEntry(stopped)
+  }
+
+  async function editTimer(id: TimeEntryId, input: TimeEntryEdit): Promise<void> {
+    const saved = await apiEditTimeEntry(id, input)
+    upsertTimeEntry(saved)
+  }
+
+  async function deleteTimer(id: TimeEntryId): Promise<void> {
+    await apiDeleteTimeEntry(id)
+    timeEntries.value = timeEntries.value.filter((entry) => entry.id !== id)
+  }
+
   // ------------------------------------------------------------------ refreshing
 
   async function refreshTasks(): Promise<void> {
@@ -514,6 +587,9 @@ export const useConsoleStore = defineStore('console', () => {
     tasks,
     documents,
     wrapups,
+    timeEntries,
+    runningEntry,
+    selectedTaskEntries,
     isLoading,
     saveState,
     scopeName,
@@ -548,6 +624,10 @@ export const useConsoleStore = defineStore('console', () => {
     openWrapup,
     toggleWrapup,
     saveWrapupBody,
-    removeWrapup
+    removeWrapup,
+    startTimer,
+    pauseTimer,
+    editTimer,
+    deleteTimer
   }
 })

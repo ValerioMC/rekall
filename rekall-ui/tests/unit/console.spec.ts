@@ -158,6 +158,14 @@ vi.mock('@/api/wrapups.api', () => ({
   deleteWrapup: (...args: unknown[]) => deleteWrapup(...(args as []))
 }))
 
+vi.mock('@/api/time-entries.api', () => ({
+  fetchTimeEntries: vi.fn(async () => []),
+  startTimeEntry: vi.fn(),
+  stopTimeEntry: vi.fn(),
+  editTimeEntry: vi.fn(),
+  deleteTimeEntry: vi.fn()
+}))
+
 describe('console store', () => {
   let store: ReturnType<typeof useConsoleStore>
 

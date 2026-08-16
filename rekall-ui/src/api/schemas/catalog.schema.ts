@@ -1,5 +1,12 @@
 import { z } from 'zod'
-import { asCompanyId, asDocumentId, asProjectId, asTaskId, asWrapupId } from '@/model/branded'
+import {
+  asCompanyId,
+  asDocumentId,
+  asProjectId,
+  asTaskId,
+  asTimeEntryId,
+  asWrapupId
+} from '@/model/branded'
 import { PROJECT_STATUSES, TASK_STATUSES } from '@/model/catalog'
 
 /**
@@ -11,6 +18,7 @@ const projectId = z.string().uuid().transform(asProjectId)
 const taskId = z.string().uuid().transform(asTaskId)
 const documentId = z.string().uuid().transform(asDocumentId)
 const wrapupId = z.string().uuid().transform(asWrapupId)
+const timeEntryId = z.string().uuid().transform(asTimeEntryId)
 
 export const CompanySchema = z.object({
   id: companyId,
@@ -82,8 +90,28 @@ export const WrapupSchema = z.object({
   updatedAt: z.string()
 })
 
+export const TimeEntrySchema = z.object({
+  id: timeEntryId,
+  taskId,
+  taskLabel: z.string(),
+  taskTitle: z.string(),
+  projectLabel: z.string(),
+  anchor: z.string(),
+  startedAt: z.string(),
+  stoppedAt: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string()
+})
+
+/** What starting a timer produced: the session now open, and whatever it had to close. */
+export const TimeEntryStartResultSchema = z.object({
+  started: TimeEntrySchema,
+  stoppedElsewhere: TimeEntrySchema.nullable()
+})
+
 export const CompanyListSchema = z.array(CompanySchema)
 export const ProjectListSchema = z.array(ProjectSchema)
 export const TaskListSchema = z.array(TaskSchema)
 export const DocumentListSchema = z.array(DocumentSchema)
 export const WrapupListSchema = z.array(WrapupSchema)
+export const TimeEntryListSchema = z.array(TimeEntrySchema)
