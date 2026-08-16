@@ -1,0 +1,58 @@
+name: Release
+
+# Push a tag like v0.1.1 to build the jar and publish it as a GitHub Release asset:
+#   git tag v0.1.1 && git push origin v0.1.1
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: rekall-ui/pnpm-lock.yaml
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+
+      # The compiled frontend is committed under rekall-app/src/main/resources/static, but
+      # it's rebuilt here too (same as `make build`) so the jar never ships a stale bundle.
+      - name: Build frontend
+        run: |
+          cd rekall-ui
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: Build jar
+        run: mvn -B -q clean package
+
+      # spring-boot:repackage leaves both the executable jar and a *.jar.original (thin) jar
+      # in target/; only the former is runnable, so it's the one that gets released.
+      - name: Locate jar
+        id: jar
+        run: |
+          jar=$(find rekall-app/target -maxdepth 1 -name '*.jar' ! -name '*.jar.original')
+          release_name="rekall-${GITHUB_REF_NAME}.jar"
+          cp "$jar" "$release_name"
+          echo "path=$release_name" >> "$GITHUB_OUTPUT"
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.jar.outputs.path }}
+          generate_release_notes: true
