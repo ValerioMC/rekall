@@ -15,8 +15,16 @@ import { useConsoleStore } from '@/stores/console.store'
 const emit = defineEmits<{ newNote: []; openSettings: [] }>()
 
 const store = useConsoleStore()
-const { filter, scopePath, scopeName, saveState, navMode, visibleTasks, visibleDocuments } =
-  storeToRefs(store)
+const {
+  filter,
+  scopePath,
+  scopeName,
+  saveState,
+  navMode,
+  visibleTasks,
+  visibleDocuments,
+  selectedTaskId
+} = storeToRefs(store)
 
 const input = ref<HTMLInputElement | null>(null)
 const isFocused = ref(false)
@@ -193,7 +201,22 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
           />
         </svg>
       </button>
-      <AppButton variant="primary" size="sm" @click="emit('newNote')">New note</AppButton>
+      <span class="group relative inline-block">
+        <AppButton
+          variant="primary"
+          size="sm"
+          :disabled="!selectedTaskId"
+          @click="emit('newNote')"
+        >
+          New note
+        </AppButton>
+        <span
+          v-if="!selectedTaskId"
+          class="pointer-events-none absolute right-0 top-full z-(--z-sticky) mt-2 whitespace-nowrap rounded-[var(--radius-control)] border border-border-strong bg-surface-raised px-2.5 py-1.5 text-xs text-text opacity-0 shadow-lift transition-opacity duration-100 group-hover:opacity-100"
+        >
+          Select a task to create a new note on it
+        </span>
+      </span>
     </div>
   </header>
 </template>

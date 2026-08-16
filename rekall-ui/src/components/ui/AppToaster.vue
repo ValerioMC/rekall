@@ -33,7 +33,7 @@ const { toasts } = storeToRefs(store)
         />
         <p class="flex-1 leading-snug">{{ toast.message }}</p>
         <button
-          class="focus-ring shrink-0 rounded text-text-subtle transition-colors hover:text-text"
+          class="focus-ring -m-1 grid size-6 shrink-0 place-items-center rounded text-text-subtle transition-colors hover:text-text"
           aria-label="Dismiss"
           @click="store.dismiss(toast.id)"
         >

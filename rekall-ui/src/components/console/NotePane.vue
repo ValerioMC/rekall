@@ -220,7 +220,7 @@ async function confirmDelete(): Promise<void> {
           </button>
           <button
             v-if="selectedDocument.tasks.length > 1"
-            class="focus-ring grid size-4 place-items-center rounded-full text-text-subtle transition-colors hover:bg-danger-soft hover:text-danger"
+            class="focus-ring -m-0.5 grid size-5 place-items-center rounded-full text-text-subtle transition-colors hover:bg-danger-soft hover:text-danger"
             :aria-label="`Remove this note from ${task.title}`"
             @click="detachFrom(task.id)"
           >
