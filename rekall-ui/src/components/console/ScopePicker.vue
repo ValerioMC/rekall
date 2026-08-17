@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
+import { useRouter } from 'vue-router'
 import RecordDialog from '@/components/console/RecordDialog.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { companyDraft, projectDraft } from '@/model/record-draft'
@@ -20,6 +21,7 @@ import type { CompanyId, ProjectId } from '@/model/branded'
  * same tree a second time is the arrangement this replaces.
  */
 const store = useConsoleStore()
+const router = useRouter()
 const {
   companies,
   projects,
@@ -66,8 +68,14 @@ function editCompany(company: Company): void {
   edit(companyDraft(company))
 }
 
+/**
+ * A project's own page now has room for what this popover never did — description, blueprint,
+ * its tasks — so the pencil here goes there instead of opening the quick-edit dialog. Companies
+ * keep the dialog: nothing about that side of things asked for more room.
+ */
 function editProject(project: Project): void {
-  edit(projectDraft(project.companyId, project))
+  isOpen.value = false
+  router.push(`/projects/${project.id}`)
 }
 
 /** Every other overlay in the console closes on Escape; this one is no exception. */

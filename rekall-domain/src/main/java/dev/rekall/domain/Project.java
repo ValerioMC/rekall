@@ -75,6 +75,15 @@ public class Project {
     @Setter
     private String description;
 
+    /**
+     * The project's own README: how it is built, how it is organised, the conventions to
+     * follow. Unlike {@code description} it is markdown and it is meant to be long, so it
+     * carries the same length as a note body rather than the field it sits next to on the form.
+     */
+    @Column(name = "blueprint_markdown", length = 100_000)
+    @Setter
+    private String blueprintMarkdown;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(
             name = "company_id",

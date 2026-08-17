@@ -37,8 +37,6 @@ const anchorBar = ref<InstanceType<typeof AnchorBar> | null>(null)
 const navigator = ref<InstanceType<typeof NavigatorPane> | null>(null)
 const settingsOpen = ref(false)
 
-onMounted(() => store.load())
-
 async function newNote(): Promise<void> {
   if (!selectedTaskId.value) return
   await run(() => store.createNote(selectedTaskId.value!), 'Note created')

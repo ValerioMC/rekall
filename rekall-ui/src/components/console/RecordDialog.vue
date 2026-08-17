@@ -225,11 +225,17 @@ async function save(): Promise<void> {
       if (current.id === null) await store.createCompany(input)
       else await store.updateCompany(current.id, input)
     } else if (current.kind === 'project') {
+      // Blueprint has no field in this dialog — it is written on the project's own page — but
+      // the save below is a full replace, so the current value has to be carried through
+      // rather than silently cleared on every quick edit made from here.
+      const existingBlueprint =
+        store.projects.find((candidate) => candidate.id === current.id)?.blueprintMarkdown ?? null
       const input = {
         label: label.value,
         title: current.title.trim(),
         status: current.status,
         description: trimmedDescription,
+        blueprintMarkdown: existingBlueprint,
         companyId: current.companyId
       }
       if (current.id === null) await store.createProject(input)

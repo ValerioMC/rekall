@@ -138,6 +138,7 @@ public class ContextTool implements McpTool {
             record.related().forEach(anchor -> out.append("  - `").append(anchor).append("`\n"));
         }
 
+        out.append(renderBlueprint(record.blueprint()));
         out.append(renderWrapup(record.wrapup()));
         out.append(renderDocuments(record.documents()));
         for (ContextRecord reference : record.references()) {
@@ -162,6 +163,17 @@ public class ContextTool implements McpTool {
         }
         return "\n<wrapup written-by=\"%s\" updated=\"%s\">\n%s\n</wrapup>\n"
                 .formatted(wrapup.writtenBy(), wrapup.updatedAt(), truncate(wrapup.bodyMarkdown()));
+    }
+
+    /**
+     * A project's own README, ahead of its wrapup and its notes: it describes what the thing
+     * is before anything describes what is currently happening to it.
+     */
+    private String renderBlueprint(String blueprint) {
+        if (blueprint == null || blueprint.isBlank()) {
+            return "";
+        }
+        return "\n<blueprint>\n" + truncate(blueprint) + "\n</blueprint>\n";
     }
 
     private String renderDocuments(List<DocumentView> documents) {

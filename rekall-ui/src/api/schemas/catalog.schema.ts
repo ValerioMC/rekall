@@ -45,6 +45,7 @@ export const ProjectSchema = z.object({
   title: z.string(),
   status: z.enum(PROJECT_STATUSES),
   description: z.string().nullable(),
+  blueprintMarkdown: z.string().nullable(),
   companyId,
   companyName: z.string(),
   taskCount: z.number().int(),

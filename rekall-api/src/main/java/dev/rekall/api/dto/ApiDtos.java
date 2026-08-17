@@ -52,6 +52,7 @@ public final class ApiDtos {
             String title,
             ProjectStatus status,
             String description,
+            String blueprintMarkdown,
             UUID companyId,
             String companyName,
             int taskCount,
@@ -65,6 +66,7 @@ public final class ApiDtos {
                     project.getTitle(),
                     project.getStatus(),
                     project.getDescription(),
+                    project.getBlueprintMarkdown(),
                     project.getCompany().getId(),
                     project.getCompany().getName(),
                     project.getTasks().size(),
@@ -82,6 +84,7 @@ public final class ApiDtos {
             @NotBlank String title,
             ProjectStatus status,
             String description,
+            String blueprintMarkdown,
             UUID companyId) {
     }
 

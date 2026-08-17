@@ -366,6 +366,48 @@ export const useConsoleStore = defineStore('console', () => {
     await load()
   }
 
+  /**
+   * Sends the whole project back with one field changed, the same shape `setTaskStatus` writes
+   * against: the endpoint replaces the record, so a save that carried only the field in view
+   * would silently clear whichever of these two it left out.
+   */
+  async function patchProject(
+    id: ProjectId,
+    patch: Partial<Pick<ProjectInput, 'description' | 'blueprintMarkdown'>>
+  ): Promise<void> {
+    const current = projects.value.find((project) => project.id === id)
+    if (!current) return
+    saveState.value = 'saving'
+    try {
+      const saved = await apiUpdateProject(id, {
+        label: current.label,
+        title: current.title,
+        status: current.status,
+        companyId: current.companyId,
+        // `??` would treat an explicit `null` — clearing the field — as absent and fall back
+        // to the old value, so presence is checked instead of nullishness.
+        description: 'description' in patch ? patch.description! : current.description,
+        blueprintMarkdown:
+          'blueprintMarkdown' in patch ? patch.blueprintMarkdown! : current.blueprintMarkdown
+      })
+      projects.value = projects.value.map((project) => (project.id === id ? saved : project))
+      saveState.value = 'saved'
+    } catch (error) {
+      saveState.value = 'unsaved'
+      throw error
+    }
+  }
+
+  function saveProjectDescription(id: ProjectId, description: string): Promise<void> {
+    return patchProject(id, { description: description.trim() === '' ? null : description })
+  }
+
+  function saveProjectBlueprint(id: ProjectId, blueprintMarkdown: string): Promise<void> {
+    return patchProject(id, {
+      blueprintMarkdown: blueprintMarkdown.trim() === '' ? null : blueprintMarkdown
+    })
+  }
+
   // ------------------------------------------------------------------ tasks
 
   async function createTask(input: TaskInput): Promise<Task> {
@@ -614,6 +656,8 @@ export const useConsoleStore = defineStore('console', () => {
     createProject,
     updateProject,
     deleteProject,
+    saveProjectDescription,
+    saveProjectBlueprint,
     createTask,
     updateTask,
     deleteTask,

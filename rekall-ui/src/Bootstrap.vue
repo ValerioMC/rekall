@@ -1,26 +1,29 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import App from '@/App.vue'
 import FirstRunSetup from '@/components/setup/FirstRunSetup.vue'
 import DatabaseUnreachable from '@/components/setup/DatabaseUnreachable.vue'
 import AppLogo from '@/components/ui/AppLogo.vue'
 import { fetchDatabaseStatus } from '@/api/settings.api'
+import { useConsoleStore } from '@/stores/console.store'
 import type { DatabaseStatus } from '@/model/settings'
 
 /**
- * Decides, once, which of three things the console mounts as: the working application, the
- * first-run wizard, or the recovery screen for a database that has stopped being reachable.
+ * Decides, once, which of three things the screen mounts as: the routed application (console
+ * plus the catalog pages beside it), the first-run wizard, or the recovery screen for a
+ * database that has stopped being reachable.
  *
- * A router would be the conventional place for this; the console does not have one (see
- * `main.ts`), and this is a boot-time branch rather than navigation, so a plain conditional
- * render is what the rest of this codebase would do here too.
+ * This is also where the catalog is loaded, and the only place it is: the console used to load
+ * it in its own `onMounted`, which was fine while it was the only screen, but a deep link or a
+ * refresh landing on `/projects/:id` never mounts the console at all.
  */
+const store = useConsoleStore()
 const status = ref<DatabaseStatus | null>(null)
 const failed = ref(false)
 
 onMounted(async () => {
   try {
     status.value = await fetchDatabaseStatus()
+    if (status.value.status === 'READY') await store.load()
   } catch {
     failed.value = true
   }
@@ -29,7 +32,7 @@ onMounted(async () => {
 
 <template>
   <template v-if="status">
-    <App v-if="status.status === 'READY'" />
+    <router-view v-if="status.status === 'READY'" />
     <FirstRunSetup v-else-if="status.status === 'SETUP_NEEDED'" />
     <DatabaseUnreachable v-else :status="status" />
   </template>

@@ -112,6 +112,7 @@ public class CatalogService {
 
     private void applyTo(Project project, ProjectRequest request) {
         project.setDescription(request.description());
+        project.setBlueprintMarkdown(request.blueprintMarkdown());
         project.setStatus(request.status() == null ? ProjectStatus.ACTIVE : request.status());
         project.setCompany(requireCompany(request.companyId()));
     }

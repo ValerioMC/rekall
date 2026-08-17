@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import App from '@/App.vue'
+import { router } from '@/router'
 import { useConsoleStore } from '@/stores/console.store'
 import type { Company, Project, RekallDocument, Task, Wrapup } from '@/model/catalog'
 import type { CompanyId, DocumentId, ProjectId, TaskId, WrapupId } from '@/model/branded'
@@ -23,8 +24,8 @@ const companies: Company[] = [
 const beacon = 'p2' as ProjectId
 
 const projects: Project[] = [
-  { id: vega, label: 'vega', title: 'Vega Platform', status: 'ACTIVE', description: null, companyId: acme, companyName: 'acme', taskCount: 2, anchor: 'project:vega', updatedAt: '2026-08-12T10:00:00Z' },
-  { id: beacon, label: 'beacon', title: 'Beacon', status: 'ACTIVE', description: null, companyId: acme, companyName: 'acme', taskCount: 0, anchor: 'project:beacon', updatedAt: '2026-08-12T10:00:00Z' }
+  { id: vega, label: 'vega', title: 'Vega Platform', status: 'ACTIVE', description: null, blueprintMarkdown: null, companyId: acme, companyName: 'acme', taskCount: 2, anchor: 'project:vega', updatedAt: '2026-08-12T10:00:00Z' },
+  { id: beacon, label: 'beacon', title: 'Beacon', status: 'ACTIVE', description: null, blueprintMarkdown: null, companyId: acme, companyName: 'acme', taskCount: 0, anchor: 'project:beacon', updatedAt: '2026-08-12T10:00:00Z' }
 ]
 
 const tasks: Task[] = [
@@ -124,7 +125,11 @@ vi.mock('@/api/time-entries.api', () => ({
 
 async function mountConsole() {
   setActivePinia(createPinia())
-  const wrapper = mount(App, { attachTo: document.body })
+  await router.push('/')
+  // App itself no longer loads the catalog on mount — that moved to Bootstrap, the one place
+  // guaranteed to run regardless of which route is entered — so the test stands in for it.
+  await useConsoleStore().load()
+  const wrapper = mount(App, { attachTo: document.body, global: { plugins: [router] } })
   await flushPromises()
   return wrapper
 }
@@ -380,21 +385,20 @@ describe('the console', () => {
       expect(wrapper.find('[data-testid="rename-warning"]').text()).toContain('task:report-builder')
     })
 
-    it('renames a title without touching the label the anchor uses', async () => {
+    /**
+     * A project's own page now has the room `RecordDialog` never did, so its pencil in the
+     * scope picker goes there instead of opening the quick-edit dialog.
+     */
+    it('sends the project pencil to the project page rather than opening the dialog', async () => {
       const wrapper = await mountConsole()
+
+      const pushSpy = vi.spyOn(router, 'push')
 
       await wrapper.find('[data-testid="scope-trigger"]').trigger('click')
       await wrapper.find('[data-testid="edit-project"]').trigger('click')
-      await flushPromises()
 
-      await wrapper.find('[data-testid="record-title"]').setValue('Vega, rebuilt')
-      await wrapper.find('[data-testid="record-save"]').trigger('click')
-      await flushPromises()
-
-      expect(updateProject).toHaveBeenCalledWith(
-        vega,
-        expect.objectContaining({ label: 'vega', title: 'Vega, rebuilt' })
-      )
+      expect(wrapper.find('[data-testid="record-dialog"]').exists()).toBe(false)
+      expect(pushSpy).toHaveBeenCalledWith(`/projects/${vega}`)
     })
 
     /** The same field that decides where a task lands is what moves it afterwards. */

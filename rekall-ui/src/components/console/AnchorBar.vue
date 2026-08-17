@@ -169,6 +169,20 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
         </svg>
         Export
       </a>
+      <RouterLink
+        to="/projects"
+        data-testid="open-catalog"
+        class="focus-ring inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-control)] border border-border-strong bg-surface-raised px-3 text-[12.5px] text-text transition-colors hover:border-accent hover:bg-surface-hover"
+        title="Browse and edit companies and projects"
+      >
+        <svg class="size-3.5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="3.5" y="4" width="7" height="7" rx="1.3" stroke="currentColor" stroke-width="1.6" />
+          <rect x="13.5" y="4" width="7" height="7" rx="1.3" stroke="currentColor" stroke-width="1.6" />
+          <rect x="3.5" y="13" width="7" height="7" rx="1.3" stroke="currentColor" stroke-width="1.6" />
+          <rect x="13.5" y="13" width="7" height="7" rx="1.3" stroke="currentColor" stroke-width="1.6" />
+        </svg>
+        Projects
+      </RouterLink>
       <button
         type="button"
         data-testid="settings-trigger"

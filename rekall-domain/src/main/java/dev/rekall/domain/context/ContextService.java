@@ -134,6 +134,7 @@ public class ContextService {
                 List.of(),
                 company.getProjects().stream().map(project -> "project:" + project.getLabel()).toList(),
                 List.of(),
+                null,
                 null);
     }
 
@@ -157,7 +158,8 @@ public class ContextService {
                 List.of(renderReferenced(project.getCompany())),
                 project.getTasks().stream().map(task -> "task:" + task.getLabel()).toList(),
                 List.of(),
-                null);
+                null,
+                project.getBlueprintMarkdown());
     }
 
     /**
@@ -186,7 +188,8 @@ public class ContextService {
                 references,
                 List.of(),
                 documentsOf(task.getDocuments()),
-                task.getWrapup() == null ? null : WrapupView.of(task.getWrapup()));
+                task.getWrapup() == null ? null : WrapupView.of(task.getWrapup()),
+                null);
     }
 
     /**
@@ -199,14 +202,14 @@ public class ContextService {
         ContextRecord full = render(project);
         return new ContextRecord(
                 full.kind(), full.label(), full.anchor(), full.fields(),
-                full.references(), List.of(), full.documents(), null);
+                full.references(), List.of(), full.documents(), null, full.blueprint());
     }
 
     private ContextRecord renderReferenced(Company company) {
         ContextRecord full = render(company);
         return new ContextRecord(
                 full.kind(), full.label(), full.anchor(), full.fields(),
-                List.of(), List.of(), full.documents(), null);
+                List.of(), List.of(), full.documents(), null, full.blueprint());
     }
 
     private List<DocumentView> documentsOf(List<Document> documents) {
