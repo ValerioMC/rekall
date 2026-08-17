@@ -46,4 +46,33 @@
             <scope>runtime</scope>
         </dependency>
     </dependencies>
+
+    <profiles>
+        <!--
+          With hibernate.bytecode.provider=none (required for GraalVM native, see
+          rekall-app/application.yaml), Hibernate has no runtime bytecode provider left to
+          generate lazy-loading proxies for the LAZY @ManyToOne/@OneToOne fields on Project,
+          Task, TimeEntry and Wrapup. Build-time enhancement weaves that logic directly into
+          the compiled entity classes instead, so it works with "none" at runtime.
+        -->
+        <profile>
+            <id>native</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.hibernate.orm</groupId>
+                        <artifactId>hibernate-maven-plugin</artifactId>
+                        <version>${hibernate.version}</version>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>enhance</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

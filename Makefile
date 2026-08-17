@@ -1,14 +1,15 @@
 # Rekall runs as one process against an H2 file. There is no cluster, no container and no
 # database server to start, so this file is short on purpose.
 
-MVN     ?= mvn
-PNPM    ?= pnpm
-JAR     := rekall-app/target/rekall-app-0.1.0-SNAPSHOT.jar
-UI      := rekall-ui
-DB      := ./data/rekall.mv.db
+MVN         ?= mvn
+PNPM        ?= pnpm
+JAR         := rekall-app/target/rekall-app-0.1.0-SNAPSHOT.jar
+NATIVE_BIN  := rekall-app/target/rekall-app
+UI          := rekall-ui
+DB          := ./data/rekall.mv.db
 
 .DEFAULT_GOAL := help
-.PHONY: help run build jar ui ui-dev test test-backend test-ui mcp-add mcp-check console reset
+.PHONY: help run build jar native run-native ui ui-dev test test-backend test-ui mcp-add mcp-check console reset
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -32,6 +33,16 @@ build: ui ## Build the UI into the jar and package it
 
 jar: build ## Alias for build
 	@echo "$(JAR)"
+
+# See scripts/native-build.sh for why this isn't just `mvn -Pnative package`: the
+# ByteBuddy/Hibernate fix needs a jar patched outside anything Maven can do reliably here.
+# It never touches ~/.m2 with the patched jar - that copy lives only under
+# rekall-app/target/native-libs, used solely for the native-image classpath.
+native: ui ## Build the GraalVM native binary (needs GraalVM as JAVA_HOME, takes ~5-8 minutes)
+	./scripts/native-build.sh
+
+run-native: native ## Build and start the GraalVM native binary on http://localhost:8080
+	./$(NATIVE_BIN)
 
 ui-dev: ## Vite dev server on :5173, proxying /api and /mcp to :8080
 	cd $(UI) && $(PNPM) dev

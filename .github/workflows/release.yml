@@ -1,7 +1,13 @@
 name: Release
 
-# Push a tag like v0.1.1 to build the jar and publish it as a GitHub Release asset:
+# Push a tag like v0.1.1 to build the jar plus native binaries for macOS (Apple Silicon) and
+# Windows, and publish all three as GitHub Release assets:
 #   git tag v0.1.1 && git push origin v0.1.1
+#
+# No Linux or Intel-Mac native binary on purpose - the jar already covers every platform the
+# JVM runs on, so the native builds exist only for the two targets where a self-contained,
+# fast-starting binary is worth the ~10x longer CI build: a local Mac dev machine and a
+# Windows desktop, neither of which necessarily has a JVM installed.
 on:
   push:
     tags:
@@ -58,3 +64,106 @@ jobs:
         with:
           files: ${{ steps.jar.outputs.path }}
           generate_release_notes: true
+
+  # See scripts/native-build.sh and rekall-app/pom.xml's native profile for why the Hibernate/
+  # ByteBuddy fix needs that script (not `mvn -Pnative package` alone) on every platform.
+  build-native-macos:
+    needs: build-and-release
+    runs-on: macos-14 # Apple Silicon, not macos-13 (Intel)
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: rekall-ui/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: rekall-ui/pnpm-lock.yaml
+
+      - uses: graalvm/setup-graalvm@v1
+        with:
+          distribution: graalvm
+          java-version: "25"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          cache: maven
+
+      - name: Build frontend
+        run: |
+          cd rekall-ui
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: Build native image
+        run: ./scripts/native-build.sh
+
+      - name: Locate binary
+        id: bin
+        run: |
+          release_name="rekall-${GITHUB_REF_NAME}-macos-arm64"
+          cp rekall-app/target/rekall-app "$release_name"
+          echo "path=$release_name" >> "$GITHUB_OUTPUT"
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.bin.outputs.path }}
+
+  build-native-windows:
+    needs: build-and-release
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: rekall-ui/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: rekall-ui/pnpm-lock.yaml
+
+      - uses: graalvm/setup-graalvm@v1
+        with:
+          distribution: graalvm
+          java-version: "25"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          cache: maven
+
+      # native-image needs a C linker; on Windows that means MSVC's, and this action puts
+      # cl.exe and friends on PATH for the rest of the job (the plain windows-latest runner
+      # doesn't do this by default outside a Developer Command Prompt).
+      - uses: ilammy/msvc-dev-cmd@v1
+
+      # zip isn't on Git Bash's PATH by default; scripts/native-build.sh needs it to strip the
+      # ByteBuddy service registration from the patched hibernate-core.jar copy.
+      - name: Install zip
+        run: choco install zip -y
+
+      - name: Build frontend
+        run: |
+          cd rekall-ui
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: Build native image
+        shell: bash
+        run: ./scripts/native-build.sh
+
+      # native-image appends .exe on Windows even though the script's -o value doesn't have it.
+      - name: Locate binary
+        id: bin
+        shell: bash
+        run: |
+          release_name="rekall-${GITHUB_REF_NAME}-windows-x64.exe"
+          cp rekall-app/target/rekall-app.exe "$release_name"
+          echo "path=$release_name" >> "$GITHUB_OUTPUT"
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.bin.outputs.path }}

@@ -20,6 +20,14 @@ spring:
     # stop the application, not be silently patched at runtime.
     hibernate:
       ddl-auto: validate
+    # GraalVM native image can't run ByteBuddy's runtime bytecode generation (used by the
+    # default provider for fast entity instantiation and lazy-loading proxies). "none" avoids
+    # it; the lazy @ManyToOne/@OneToOne fields rely instead on build-time enhancement, see the
+    # hibernate-maven-plugin enhance execution in rekall-domain/pom.xml.
+    properties:
+      hibernate:
+        bytecode:
+          provider: none
     open-in-view: false
 
   liquibase:

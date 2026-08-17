@@ -72,4 +72,75 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>native</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.springframework.boot</groupId>
+                        <artifactId>spring-boot-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>process-aot</id>
+                                <goals>
+                                    <goal>process-aot</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <!--
+                      hibernate-core only registers the ByteBuddy BytecodeProvider via
+                      META-INF/services (the "none" one, used per application.yaml, is resolved
+                      separately, not through ServiceLoader). Hibernate's AggregatedServiceLoader
+                      still eagerly constructs every provider it finds registered there before
+                      picking one by name, and ByteBuddy's constructor defines a class at runtime
+                      to bridge JDK internals - something no reflection grant can permit under
+                      native image, and GraalVM's own resource-exclude config (the "correct" fix)
+                      hits a parser bug (NPE in LegacyResourceConfigurationParser) on this GraalVM
+                      version.
+
+                      The fix is to drop that one registration from a COPY of the jar used only
+                      for the native-image classpath - never from the shared ~/.m2 cache copy:
+                      hibernate-maven-plugin's own enhance goal below runs on the JVM and needs
+                      ByteBuddy working normally to build its enhancer, so patching the cached jar
+                      breaks the build itself, not just the native image.
+
+                      Every in-pom way tried to wire a patched copy into native-maven-plugin's
+                      <classpath> turned out unreliable: maven-shade-plugin reads the already-built
+                      main artifact, which by the time it can run has already been turned into
+                      spring-boot-maven-plugin's BOOT-INF/ layout; native-maven-plugin does not
+                      glob-expand a "dir/*" classpath entry the way a shell does; and neither Ant's
+                      exportAntProperties nor maven-dependency-plugin's build-classpath
+                      outputProperty survive into native-maven-plugin's own <classpath>
+                      evaluation in this Maven/plugin-version combination.
+
+                      So this profile only prepares the build (AOT processing, reachability
+                      metadata); the actual `native-image` invocation, with a project-local
+                      patched hibernate-core copy substituted on the classpath, is a separate
+                      script - see scripts/native-build.sh. A Docker build step patching the jar
+                      before `native-image` runs, as
+                      https://github.com/Vadym79/aws-lambda-java-25-spring-boot-4 does, would be
+                      the cleaner way to fold this back into `mvn -Pnative package` directly.
+                    -->
+                    <plugin>
+                        <groupId>org.graalvm.buildtools</groupId>
+                        <artifactId>native-maven-plugin</artifactId>
+                        <configuration>
+                            <mainClass>dev.rekall.RekallApplication</mainClass>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>add-reachability-metadata</id>
+                                <goals>
+                                    <goal>add-reachability-metadata</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
