@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppLogo from '@/components/ui/AppLogo.vue'
+import AppNavSwitcher from '@/components/console/AppNavSwitcher.vue'
 import { useConsoleStore } from '@/stores/console.store'
 
 /**
@@ -47,6 +48,17 @@ const SAVE_DOT = {
   saving: 'bg-accent animate-pulse'
 } as const
 
+const justSaved = ref(false)
+watch(saveState, (value, previous) => {
+  if (value === 'saved' && previous !== 'saved') {
+    justSaved.value = false
+    requestAnimationFrame(() => {
+      justSaved.value = true
+      setTimeout(() => (justSaved.value = false), 340)
+    })
+  }
+})
+
 /** Enter opens the first thing the filter found, so search and navigation are one gesture. */
 function openFirst(): void {
   if (navMode.value === 'notes') {
@@ -81,6 +93,8 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
         </span>
       </span>
     </div>
+
+    <AppNavSwitcher />
 
     <div class="relative max-w-[640px] flex-1">
       <span
@@ -142,7 +156,7 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
       >
         <span
           class="size-1.5 rounded-full transition-colors"
-          :class="SAVE_DOT[saveState]"
+          :class="[SAVE_DOT[saveState], justSaved && 'settle']"
           aria-hidden="true"
         />
         {{ SAVE_LABEL[saveState] }}
@@ -169,20 +183,6 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
         </svg>
         Export
       </a>
-      <RouterLink
-        to="/projects"
-        data-testid="open-catalog"
-        class="focus-ring inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-control)] border border-border-strong bg-surface-raised px-3 text-[12.5px] text-text transition-colors hover:border-accent hover:bg-surface-hover"
-        title="Browse and edit companies and projects"
-      >
-        <svg class="size-3.5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <rect x="3.5" y="4" width="7" height="7" rx="1.3" stroke="currentColor" stroke-width="1.6" />
-          <rect x="13.5" y="4" width="7" height="7" rx="1.3" stroke="currentColor" stroke-width="1.6" />
-          <rect x="3.5" y="13" width="7" height="7" rx="1.3" stroke="currentColor" stroke-width="1.6" />
-          <rect x="13.5" y="13" width="7" height="7" rx="1.3" stroke="currentColor" stroke-width="1.6" />
-        </svg>
-        Projects
-      </RouterLink>
       <button
         type="button"
         data-testid="settings-trigger"

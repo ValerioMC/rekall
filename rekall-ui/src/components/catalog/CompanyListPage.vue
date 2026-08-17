@@ -1,14 +1,12 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import CatalogNav from '@/components/catalog/CatalogNav.vue'
+import AppCatalogHeader from '@/components/catalog/AppCatalogHeader.vue'
 import RecordDialog from '@/components/console/RecordDialog.vue'
 import AppButton from '@/components/ui/AppButton.vue'
-import AppCard from '@/components/ui/AppCard.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
 import AppInput from '@/components/ui/AppInput.vue'
-import AppPageHeader from '@/components/ui/AppPageHeader.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { relativeTime } from '@/common/format/relative-time'
 import { useConsoleStore } from '@/stores/console.store'
@@ -16,11 +14,6 @@ import { companyDraft } from '@/model/record-draft'
 import type { RecordDraft } from '@/model/record-draft'
 import type { Company } from '@/model/catalog'
 
-/**
- * Companies, as a page rather than the top level of the `ScopePicker` tree. Editing stays
- * exactly where it already was — `RecordDialog` — because nothing about company editing was
- * the thing asked for here; only somewhere better than a popover to see them from was.
- */
 const store = useConsoleStore()
 const router = useRouter()
 const { run } = useAsyncAction()
@@ -57,10 +50,7 @@ async function confirmDelete(): Promise<void> {
 
 <template>
   <div class="min-h-full bg-canvas">
-    <AppPageHeader title="Companies">
-      <template #back>
-        <CatalogNav />
-      </template>
+    <AppCatalogHeader title="Companies">
       <template #actions>
         <AppButton
           variant="primary"
@@ -71,15 +61,15 @@ async function confirmDelete(): Promise<void> {
           + New company
         </AppButton>
       </template>
-    </AppPageHeader>
+    </AppCatalogHeader>
 
     <div class="mx-auto max-w-[1240px] px-8 py-6">
       <div class="mb-5 w-full max-w-[320px]">
         <AppInput v-model="search" type="search" placeholder="Find a company" />
       </div>
 
-      <div v-if="store.isLoading" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-hidden="true">
-        <div v-for="card in 6" :key="card" class="skeleton h-[120px] rounded-[var(--radius-card)]" />
+      <div v-if="store.isLoading" class="flex flex-col gap-2" aria-hidden="true">
+        <div v-for="row in 5" :key="row" class="skeleton h-[64px] rounded-[var(--radius-control)]" />
       </div>
 
       <AppEmptyState
@@ -94,33 +84,41 @@ async function confirmDelete(): Promise<void> {
 
       <AppEmptyState v-else-if="!visible.length" title="No company matches" description="Try a different search." />
 
-      <div v-else class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <AppCard
-          v-for="company in visible"
+      <div v-else class="overflow-hidden rounded-[var(--radius-card)] border border-border bg-surface">
+        <button
+          v-for="(company, index) in visible"
           :key="company.id"
-          interactive
           data-testid="company-card"
-          class="group/card relative cursor-pointer"
+          class="focus-ring group/row relative flex w-full items-center gap-4 py-3 pl-4 pr-4 text-left transition-colors hover:bg-surface-raised"
+          :class="index > 0 ? 'border-t border-border' : ''"
           @click="openProjectsOf(company)"
         >
-          <h3 class="truncate text-[14.5px] font-semibold text-text">{{ company.name }}</h3>
-          <p v-if="company.description" class="mt-1.5 line-clamp-2 text-[12.5px] leading-relaxed text-text-muted">
-            {{ company.description }}
-          </p>
-          <p v-else class="mt-1.5 text-[12.5px] italic text-text-subtle">No description yet.</p>
-          <p class="mt-3 flex flex-wrap items-center gap-2 text-[11.5px] text-text-subtle">
+          <span
+            class="grid size-9 shrink-0 place-items-center rounded-[9px] border border-border-strong font-mono text-[13px] font-semibold text-accent"
+            style="background-image: linear-gradient(155deg, var(--color-surface-raised), var(--color-canvas))"
+            aria-hidden="true"
+          >
+            {{ company.name.charAt(0).toUpperCase() }}
+          </span>
+
+          <span class="min-w-0 flex-1">
+            <span class="block truncate text-[14px] font-semibold text-text">{{ company.name }}</span>
+            <span v-if="company.description" class="mt-0.5 block truncate text-[12px] text-text-subtle">
+              {{ company.description }}
+            </span>
+          </span>
+
+          <span class="hidden shrink-0 items-center gap-2 text-[11.5px] text-text-subtle sm:flex">
             <span>{{ company.projectCount }} project{{ company.projectCount === 1 ? '' : 's' }}</span>
             <span aria-hidden="true">&middot;</span>
             <span>{{ company.taskCount }} task{{ company.taskCount === 1 ? '' : 's' }}</span>
             <span aria-hidden="true">&middot;</span>
             <span>{{ relativeTime(company.updatedAt) }}</span>
-          </p>
+          </span>
 
-          <div
-            class="absolute right-3 top-3 flex gap-1 opacity-0 transition focus-within:opacity-100 group-hover/card:opacity-100"
-          >
+          <span class="flex shrink-0 gap-1 opacity-0 transition focus-within:opacity-100 group-hover/row:opacity-100">
             <button
-              class="focus-ring grid size-6 place-items-center rounded text-text-subtle hover:bg-surface-hover hover:text-accent"
+              class="focus-ring grid size-7 place-items-center rounded text-text-subtle hover:bg-surface-hover hover:text-accent"
               :aria-label="`Edit ${company.name}`"
               data-testid="edit-company"
               @click.stop="edit(company)"
@@ -135,7 +133,7 @@ async function confirmDelete(): Promise<void> {
               </svg>
             </button>
             <button
-              class="focus-ring grid size-6 place-items-center rounded text-text-subtle hover:bg-surface-hover hover:text-danger"
+              class="focus-ring grid size-7 place-items-center rounded text-text-subtle hover:bg-surface-hover hover:text-danger"
               :aria-label="`Delete ${company.name}`"
               data-testid="delete-company"
               @click.stop="deleting = company"
@@ -150,8 +148,15 @@ async function confirmDelete(): Promise<void> {
                 />
               </svg>
             </button>
-          </div>
-        </AppCard>
+          </span>
+
+          <span
+            class="shrink-0 text-[13px] text-text-subtle transition-transform group-hover/row:translate-x-0.5 group-hover/row:text-accent"
+            aria-hidden="true"
+          >
+            &#8594;
+          </span>
+        </button>
       </div>
     </div>
 

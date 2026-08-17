@@ -1,15 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import CatalogNav from '@/components/catalog/CatalogNav.vue'
+import AppCatalogHeader from '@/components/catalog/AppCatalogHeader.vue'
 import RecordDialog from '@/components/console/RecordDialog.vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
-import AppCard from '@/components/ui/AppCard.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
 import AppInput from '@/components/ui/AppInput.vue'
-import AppPageHeader from '@/components/ui/AppPageHeader.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { relativeTime } from '@/common/format/relative-time'
 import { useConsoleStore } from '@/stores/console.store'
@@ -20,14 +18,6 @@ import type { RecordDraft } from '@/model/record-draft'
 import type { Project } from '@/model/catalog'
 import type { CompanyId } from '@/model/branded'
 
-/**
- * The list the popover in `ScopePicker` never had room to be: every project, grouped by the
- * company it belongs to, searchable, with the status of each one visible without a click.
- *
- * Grouping by company rather than a flat list because that is the shape the domain already
- * has — a project without a company is not a thing this application can hold — so the grouping
- * is free, not a design decision layered on top.
- */
 const store = useConsoleStore()
 const route = useRoute()
 const router = useRouter()
@@ -35,8 +25,6 @@ const { run } = useAsyncAction()
 
 const search = ref('')
 const statusFilter = ref<ProjectStatus | null>(null)
-// A company card in the Companies tab links here with `?company=<id>`, so arriving from there
-// opens already narrowed to the one company that was clicked.
 const companyFilter = ref<CompanyId | null>((route.query.company as CompanyId) ?? null)
 
 const editing = ref<RecordDraft | null>(null)
@@ -95,10 +83,7 @@ async function confirmDelete(): Promise<void> {
 
 <template>
   <div class="min-h-full bg-canvas">
-    <AppPageHeader title="Projects">
-      <template #back>
-        <CatalogNav />
-      </template>
+    <AppCatalogHeader title="Projects">
       <template #actions>
         <AppButton
           variant="primary"
@@ -110,7 +95,7 @@ async function confirmDelete(): Promise<void> {
           + New project
         </AppButton>
       </template>
-    </AppPageHeader>
+    </AppCatalogHeader>
 
     <div class="mx-auto max-w-[1240px] px-8 py-6">
       <div class="mb-5 flex flex-wrap items-center gap-2.5">
@@ -157,11 +142,9 @@ async function confirmDelete(): Promise<void> {
       </div>
 
       <div v-if="store.isLoading" class="flex flex-col gap-6" aria-hidden="true">
-        <div v-for="group in 2" :key="group" class="flex flex-col gap-2.5">
+        <div v-for="group in 2" :key="group" class="flex flex-col gap-2">
           <div class="skeleton h-3 w-32" />
-          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <div v-for="card in 3" :key="card" class="skeleton h-[104px] rounded-[var(--radius-card)]" />
-          </div>
+          <div v-for="row in 3" :key="row" class="skeleton h-[60px] rounded-[var(--radius-control)]" />
         </div>
       </div>
 
@@ -183,38 +166,52 @@ async function confirmDelete(): Promise<void> {
 
       <div v-else class="flex flex-col gap-7">
         <section v-for="group in groups" :key="group.company.id">
-          <h2 class="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.09em] text-text-subtle">
+          <h2 class="mb-2 text-[11px] font-semibold uppercase tracking-[0.09em] text-text-subtle">
             {{ group.company.name }}
           </h2>
-          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <AppCard
-              v-for="project in group.projects"
+          <div class="overflow-hidden rounded-[var(--radius-card)] border border-border bg-surface">
+            <button
+              v-for="(project, index) in group.projects"
               :key="project.id"
-              interactive
               data-testid="project-card"
-              class="group/card relative cursor-pointer"
+              class="focus-ring group/row relative flex w-full items-center gap-4 py-3.5 pl-4 pr-4 text-left transition-colors hover:bg-surface-raised"
+              :class="index > 0 ? 'border-t border-border' : ''"
               @click="open(project)"
             >
-              <div class="flex items-start justify-between gap-2">
-                <h3 class="min-w-0 flex-1 truncate text-[14.5px] font-semibold text-text">
-                  {{ project.title }}
-                </h3>
-                <AppBadge
-                  :tone="project.status === 'ACTIVE' ? 'accent' : project.status === 'DONE' ? 'safe' : 'neutral'"
-                  dot
-                >
-                  {{ PROJECT_STATUS_LABEL[project.status] }}
-                </AppBadge>
-              </div>
-              <p class="mt-1 truncate font-mono text-[11px] text-anchor/80">{{ project.anchor }}</p>
-              <p class="mt-3 flex items-center gap-2 text-[11.5px] text-text-subtle">
+              <span
+                class="h-8 w-[3px] shrink-0 rounded-full"
+                :class="
+                  project.status === 'ACTIVE'
+                    ? 'bg-accent'
+                    : project.status === 'DONE'
+                      ? 'bg-safe'
+                      : 'bg-text-subtle'
+                "
+                aria-hidden="true"
+              />
+
+              <span class="min-w-0 flex-1">
+                <span class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span class="truncate text-[14px] font-semibold text-text">{{ project.title }}</span>
+                  <span class="anchor-chip shrink-0 px-1.5 py-px text-[10px]">{{ project.anchor }}</span>
+                </span>
+              </span>
+
+              <span class="hidden shrink-0 items-center gap-2 text-[11.5px] text-text-subtle sm:flex">
                 <span>{{ project.taskCount }} task{{ project.taskCount === 1 ? '' : 's' }}</span>
                 <span aria-hidden="true">&middot;</span>
                 <span>{{ relativeTime(project.updatedAt) }}</span>
-              </p>
+              </span>
+
+              <AppBadge
+                class="shrink-0"
+                :tone="project.status === 'ACTIVE' ? 'accent' : project.status === 'DONE' ? 'safe' : 'neutral'"
+              >
+                {{ PROJECT_STATUS_LABEL[project.status] }}
+              </AppBadge>
 
               <button
-                class="focus-ring absolute right-3 top-3 grid size-6 place-items-center rounded text-text-subtle opacity-0 transition hover:bg-surface-hover hover:text-danger focus-visible:opacity-100 group-hover/card:opacity-100"
+                class="focus-ring grid size-7 shrink-0 place-items-center rounded text-text-subtle opacity-0 transition hover:bg-surface-hover hover:text-danger focus-visible:opacity-100 group-hover/row:opacity-100"
                 :aria-label="`Delete ${project.title}`"
                 data-testid="delete-project"
                 @click.stop="deleting = project"
@@ -229,7 +226,14 @@ async function confirmDelete(): Promise<void> {
                   />
                 </svg>
               </button>
-            </AppCard>
+
+              <span
+                class="shrink-0 text-[13px] text-text-subtle transition-transform group-hover/row:translate-x-0.5 group-hover/row:text-accent"
+                aria-hidden="true"
+              >
+                &#8594;
+              </span>
+            </button>
           </div>
         </section>
       </div>

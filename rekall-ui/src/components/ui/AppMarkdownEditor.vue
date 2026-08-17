@@ -158,9 +158,8 @@ const TOOLBARS: ToolbarNames[] = [
   color: var(--color-text);
 }
 
-/* The read state carries no chrome of its own: it sits inside a card that already has some. */
-.rekall-md--readonly .md-editor-preview-wrapper {
-  padding: 0;
+.rekall-md--readonly .md-editor-preview {
+  padding: 4px 18px !important;
 }
 
 .rekall-md--readonly .md-editor-previewOnly {

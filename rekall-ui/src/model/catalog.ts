@@ -48,7 +48,6 @@ export interface Project {
   readonly title: string
   readonly status: ProjectStatus
   readonly description: string | null
-  /** The project's own README: how it is built, how it is organised, what to follow. */
   readonly blueprintMarkdown: string | null
   readonly companyId: CompanyId
   readonly companyName: string

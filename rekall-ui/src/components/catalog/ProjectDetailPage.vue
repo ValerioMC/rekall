@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import CatalogNav from '@/components/catalog/CatalogNav.vue'
+import AppCatalogHeader from '@/components/catalog/AppCatalogHeader.vue'
 import RecordDialog from '@/components/console/RecordDialog.vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
-import AppPageHeader from '@/components/ui/AppPageHeader.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { projectDraft } from '@/model/record-draft'
 import { PROJECT_STATUS_LABEL, TASK_STATUS_LABEL } from '@/model/catalog'
@@ -16,14 +15,6 @@ import { asProjectId } from '@/model/branded'
 import type { RecordDraft } from '@/model/record-draft'
 import type { TaskStatus } from '@/model/catalog'
 
-/**
- * The project's own page: name and status up top, a description with room to actually write
- * one, and the Blueprint — the project's README, in the same markdown surface a wrapup uses.
- *
- * Renaming, moving and deleting stay on `RecordDialog`, reached through "Rename / move" here:
- * that dialog already carries the anchor-rename warning and the blast-radius confirmation, and
- * rebuilding either on this page would be two implementations of one thing.
- */
 const props = defineProps<{ id: string }>()
 
 const store = useConsoleStore()
@@ -51,12 +42,6 @@ function openRename(): void {
   if (project.value) editing.value = projectDraft(project.value.companyId, project.value)
 }
 
-/**
- * `RecordDialog` emits the same `saved` event whether it just saved or just deleted, because
- * from its own point of view both are "the write finished". The store has already dropped the
- * record by the time this fires, so checking whether it is still there is what tells the two
- * apart without touching that dialog's contract.
- */
 function onDialogSaved(): void {
   if (!store.projects.some((candidate) => candidate.id === projectId.value)) {
     router.push('/projects')
@@ -69,6 +54,20 @@ function openInConsole(taskId: (typeof projectTasks.value)[number]['id']): void 
   store.selectTask(taskId)
   router.push('/')
 }
+
+const justSaved = ref(false)
+watch(
+  () => store.saveState,
+  (value, previous) => {
+    if (value === 'saved' && previous !== 'saved') {
+      justSaved.value = false
+      requestAnimationFrame(() => {
+        justSaved.value = true
+        setTimeout(() => (justSaved.value = false), 340)
+      })
+    }
+  }
+)
 
 const copied = ref(false)
 async function copyAnchor(): Promise<void> {
@@ -112,9 +111,6 @@ function scheduleBlueprintSave(): void {
   }, 700)
 }
 
-// The page can be reached with the record already loaded (navigating from the catalog) or
-// before it has (a direct link, mid-fetch): both cases are one watcher, keyed on the id rather
-// than on the record's presence, so a slow first load does not reset what was just typed.
 watch(
   () => project.value?.id ?? null,
   async () => {
@@ -129,8 +125,6 @@ watch(
   { immediate: true }
 )
 
-// A pending debounce is lost if the page unmounts before it fires — leaving the page is not a
-// reason to lose the last few keystrokes.
 onUnmounted(() => {
   if (descriptionTimer) {
     clearTimeout(descriptionTimer)
@@ -146,11 +140,7 @@ onUnmounted(() => {
 <template>
   <div class="min-h-full bg-canvas">
     <template v-if="!store.isLoading && !project">
-      <AppPageHeader title="Project">
-        <template #back>
-          <CatalogNav />
-        </template>
-      </AppPageHeader>
+      <AppCatalogHeader title="Project" />
       <div class="mx-auto max-w-[1240px] px-8 py-6">
         <AppEmptyState title="No project here" description="It may have been deleted, or the link is stale.">
           <RouterLink to="/projects"><AppButton variant="secondary" size="sm">Back to projects</AppButton></RouterLink>
@@ -169,10 +159,7 @@ onUnmounted(() => {
     </template>
 
     <template v-else>
-      <AppPageHeader :title="company ? `${company.name} / ${project.title}` : project.title">
-        <template #back>
-          <CatalogNav />
-        </template>
+      <AppCatalogHeader :title="company ? `${company.name} / ${project.title}` : project.title">
         <template #title-suffix>
           <AppBadge
             :tone="project.status === 'ACTIVE' ? 'accent' : project.status === 'DONE' ? 'safe' : 'neutral'"
@@ -197,7 +184,8 @@ onUnmounted(() => {
               :class="{
                 'bg-safe': store.saveState === 'saved',
                 'bg-warn': store.saveState === 'unsaved',
-                'animate-pulse bg-accent': store.saveState === 'saving'
+                'animate-pulse bg-accent': store.saveState === 'saving',
+                settle: justSaved
               }"
               aria-hidden="true"
             />
@@ -207,7 +195,7 @@ onUnmounted(() => {
             Rename / move
           </AppButton>
         </template>
-      </AppPageHeader>
+      </AppCatalogHeader>
 
       <div class="mx-auto flex max-w-[1240px] flex-col gap-5 px-8 py-6">
         <AppCard>
@@ -227,11 +215,7 @@ onUnmounted(() => {
 
         <AppCard :padded="false">
           <div class="relative overflow-hidden rounded-t-[var(--radius-card)]">
-            <div
-              class="pointer-events-none absolute inset-0 opacity-[0.08]"
-              style="background-image: repeating-linear-gradient(0deg, var(--color-anchor) 0 1px, transparent 1px 22px), repeating-linear-gradient(90deg, var(--color-anchor) 0 1px, transparent 1px 22px)"
-              aria-hidden="true"
-            />
+            <div class="texture-grid pointer-events-none absolute inset-0" aria-hidden="true" />
             <div class="relative flex items-center gap-3 border-b border-border px-5 py-4">
               <div class="min-w-0 flex-1">
                 <p class="text-[11px] font-semibold uppercase tracking-[0.09em] text-anchor">Blueprint</p>

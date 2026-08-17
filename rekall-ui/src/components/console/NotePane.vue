@@ -130,9 +130,17 @@ async function confirmDelete(): Promise<void> {
             v-for="document in recentDocuments"
             :key="document.id"
             data-testid="resume-row"
-            class="focus-ring group flex w-full items-center gap-3 rounded-[var(--radius-control)] border border-border bg-surface px-3.5 py-3 text-left transition-all hover:-translate-y-px hover:border-border-strong hover:bg-surface-raised hover:shadow-lift"
+            class="focus-ring group relative flex w-full items-center gap-3 overflow-hidden rounded-[var(--radius-control)] border border-border bg-surface px-3.5 py-3 text-left transition-all hover:-translate-y-px hover:border-border-strong hover:bg-surface-raised hover:shadow-lift"
             @click="store.selectDocument(document.id)"
           >
+            <span
+              class="pointer-events-none absolute right-0 top-0 size-3.5 transition-colors"
+              style="
+                clip-path: polygon(100% 0, 0 0, 100% 100%);
+                background-image: linear-gradient(135deg, var(--color-border-strong), var(--color-canvas));
+              "
+              aria-hidden="true"
+            />
             <span class="min-w-0 flex-1">
               <span class="block truncate text-[13.5px] font-medium text-text">
                 {{ document.title }}
@@ -170,7 +178,7 @@ async function confirmDelete(): Promise<void> {
     </div>
 
     <template v-else>
-      <header class="flex shrink-0 items-start gap-3.5 border-b border-border px-5 py-3.5">
+      <header class="texture-dots flex shrink-0 items-start gap-3.5 border-b border-border px-5 py-3.5">
         <div class="min-w-0 flex-1">
           <input
             v-model="draft.title"

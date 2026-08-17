@@ -366,11 +366,6 @@ export const useConsoleStore = defineStore('console', () => {
     await load()
   }
 
-  /**
-   * Sends the whole project back with one field changed, the same shape `setTaskStatus` writes
-   * against: the endpoint replaces the record, so a save that carried only the field in view
-   * would silently clear whichever of these two it left out.
-   */
   async function patchProject(
     id: ProjectId,
     patch: Partial<Pick<ProjectInput, 'description' | 'blueprintMarkdown'>>
@@ -384,8 +379,6 @@ export const useConsoleStore = defineStore('console', () => {
         title: current.title,
         status: current.status,
         companyId: current.companyId,
-        // `??` would treat an explicit `null` — clearing the field — as absent and fall back
-        // to the old value, so presence is checked instead of nullishness.
         description: 'description' in patch ? patch.description! : current.description,
         blueprintMarkdown:
           'blueprintMarkdown' in patch ? patch.blueprintMarkdown! : current.blueprintMarkdown

@@ -91,11 +91,33 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
             <span class="size-[7px] shrink-0 rounded-full" :class="STATUS_DOT[task.status]" aria-hidden="true" />
             <span class="min-w-0 flex-1">
               <span class="block truncate text-[12.5px]">{{ task.title }}</span>
-              <span class="block truncate font-mono text-[10.5px] text-anchor/80">
-                {{ task.projectLabel }}/{{ task.label }}
+              <span class="mt-0.5 flex items-center gap-1 truncate">
+                <span class="shrink-0 text-[10px] text-text-subtle">{{ task.projectLabel }}</span>
+                <span class="anchor-chip shrink-0 truncate px-1.5 py-px text-[9.5px] leading-[15px]">
+                  {{ task.label }}
+                </span>
               </span>
             </span>
-            <span v-if="attached.has(task.id)" class="font-mono text-[12px] text-accent">&check;</span>
+            <svg
+              v-if="attached.has(task.id)"
+              class="size-3.5 shrink-0 text-accent"
+              viewBox="0 0 16 16"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M6.5 9.5a2.6 2.6 0 0 0 3.7.2l1.6-1.6a2.6 2.6 0 0 0-3.7-3.7L7 5.3"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linecap="round"
+              />
+              <path
+                d="M9.5 6.5a2.6 2.6 0 0 0-3.7-.2l-1.6 1.6a2.6 2.6 0 0 0 3.7 3.7L9 10.7"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linecap="round"
+              />
+            </svg>
           </button>
         </div>
       </div>

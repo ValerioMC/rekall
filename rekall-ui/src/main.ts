@@ -4,9 +4,6 @@ import Bootstrap from './Bootstrap.vue'
 import { router } from './router'
 import './assets/main.css'
 
-// Bootstrap decides, once, whether the screen is the console (still one surface, no route of
-// its own worth naming), the catalog pages that sit beside it, the first-run wizard, or the
-// unreachable-database recovery screen. Routing only ever applies to the first of those four.
 createApp(Bootstrap).use(createPinia()).use(router).mount('#app')
 
 // The one thing standing between the manifest below and an actual "Install Rekall" affordance

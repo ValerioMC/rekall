@@ -165,10 +165,6 @@ public class ContextTool implements McpTool {
                 .formatted(wrapup.writtenBy(), wrapup.updatedAt(), truncate(wrapup.bodyMarkdown()));
     }
 
-    /**
-     * A project's own README, ahead of its wrapup and its notes: it describes what the thing
-     * is before anything describes what is currently happening to it.
-     */
     private String renderBlueprint(String blueprint) {
         if (blueprint == null || blueprint.isBlank()) {
             return "";

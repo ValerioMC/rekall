@@ -68,11 +68,6 @@ function editCompany(company: Company): void {
   edit(companyDraft(company))
 }
 
-/**
- * A project's own page now has room for what this popover never did — description, blueprint,
- * its tasks — so the pencil here goes there instead of opening the quick-edit dialog. Companies
- * keep the dialog: nothing about that side of things asked for more room.
- */
 function editProject(project: Project): void {
   isOpen.value = false
   router.push(`/projects/${project.id}`)
@@ -133,7 +128,9 @@ defineExpose({ newCompany, newProject })
             data-testid="scope-company"
             class="focus-ring flex min-w-0 flex-1 items-center gap-2 rounded-md px-2.5 py-1.5 text-left transition-colors hover:bg-surface"
             :class="
-              scopeCompany === company.id && scopeProject === null ? 'text-accent' : 'text-text'
+              scopeCompany === company.id && scopeProject === null
+                ? 'selected-row text-text'
+                : 'text-text'
             "
             @click="pick(company.id)"
           >
@@ -169,17 +166,18 @@ defineExpose({ newCompany, newProject })
           <button
             data-testid="scope-project"
             class="focus-ring flex min-w-0 flex-1 items-center gap-2 rounded-md py-1.5 pl-6 pr-2 text-left transition-colors hover:bg-surface"
+            :class="scopeProject === project.id ? 'selected-row' : ''"
             @click="pick(company.id, project.id)"
           >
             <span class="min-w-0 flex-1">
               <span
                 class="block truncate text-[12.5px]"
-                :class="scopeProject === project.id ? 'text-accent' : 'text-text-muted'"
+                :class="scopeProject === project.id ? 'text-text' : 'text-text-muted'"
               >
                 {{ project.title }}
               </span>
-              <span class="block truncate font-mono text-[10px] text-anchor/70">
-                {{ project.anchor }}
+              <span class="mt-0.5 block truncate">
+                <span class="anchor-chip px-1.5 py-px text-[9px] leading-[14px]">{{ project.anchor }}</span>
               </span>
             </span>
             <span

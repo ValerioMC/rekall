@@ -177,12 +177,19 @@ onUnmounted(() => {
             {{ group.label }}
           </p>
 
-          <div
-            v-for="entry in group.entries"
-            :key="entry.id"
-            class="rounded-[var(--radius-control)] border border-transparent px-2.5 py-2 hover:border-border-strong hover:bg-surface-raised"
-            data-testid="time-log-row"
-          >
+          <div class="relative pl-3.5">
+            <span class="absolute inset-y-1 left-1 w-px bg-border-strong" aria-hidden="true" />
+            <div
+              v-for="entry in group.entries"
+              :key="entry.id"
+              class="relative rounded-[var(--radius-control)] border border-transparent px-2.5 py-2 hover:border-border-strong hover:bg-surface-raised"
+              data-testid="time-log-row"
+            >
+              <span
+                class="absolute left-[-9px] top-1/2 size-1.5 -translate-y-1/2 rounded-full border-2 border-canvas"
+                :class="entry.stoppedAt ? 'bg-text-subtle' : 'bg-accent'"
+                aria-hidden="true"
+              />
             <div v-if="editingId !== entry.id" class="flex items-center gap-2.5">
               <span class="min-w-0 flex-1 font-mono text-[12.5px]" :class="entry.stoppedAt ? 'text-text' : 'text-accent'">
                 {{ timeOf(entry.startedAt) }} &ndash;
@@ -237,6 +244,7 @@ onUnmounted(() => {
                 <AppButton variant="ghost" size="sm" @click="cancelEdit">Cancel</AppButton>
                 <AppButton variant="primary" size="sm" @click="saveEdit(entry)">Save</AppButton>
               </span>
+            </div>
             </div>
           </div>
         </div>

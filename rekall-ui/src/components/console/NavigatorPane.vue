@@ -167,7 +167,7 @@ defineExpose({ beginCreate, editSelected })
               @click="store.selectTask(task.id)"
             >
               <span class="min-w-0 flex-1">
-                <span class="flex items-center gap-1.5 truncate text-[13px]">
+                <span class="flex items-center gap-1.5 truncate text-[13px] font-medium">
                   <span
                     v-if="runningEntry?.taskId === task.id"
                     class="relative flex size-1.5 shrink-0"
@@ -178,14 +178,19 @@ defineExpose({ beginCreate, editSelected })
                   </span>
                   <span class="truncate">{{ task.title }}</span>
                 </span>
-                <span class="block truncate font-mono text-[10.5px]">
-                  <template v-if="scopeCompany === null">
-                    <span class="text-text-subtle">{{ task.companyName }}/</span>
-                  </template>
-                  <template v-if="scopeProject === null">
-                    <span class="text-text-subtle">{{ task.projectLabel }}/</span>
-                  </template>
-                  <span class="text-anchor/80">{{ task.label }}</span>
+                <span class="mt-0.5 flex items-center gap-1 truncate">
+                  <span v-if="scopeCompany === null" class="shrink-0 truncate text-[10px] text-text-subtle">
+                    {{ task.companyName }}
+                  </span>
+                  <span v-if="scopeCompany === null" class="shrink-0 text-[10px] text-text-subtle" aria-hidden="true">/</span>
+                  <span v-if="scopeProject === null" class="shrink-0 truncate text-[10px] text-text-subtle">
+                    {{ task.projectLabel }}
+                  </span>
+                  <span
+                    class="anchor-chip shrink-0 truncate px-1.5 py-px text-[9.5px] leading-[15px]"
+                  >
+                    {{ task.label }}
+                  </span>
                 </span>
               </span>
               <span

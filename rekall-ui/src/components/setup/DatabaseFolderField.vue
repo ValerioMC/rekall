@@ -104,8 +104,21 @@ defineExpose({ focus: () => input.value?.focus() })
     <RestartingOverlay v-if="phase === 'restarting'" />
 
     <div v-else class="space-y-3">
-      <div>
+      <div class="relative">
         <label for="database-folder" class="sr-only">Database folder</label>
+        <svg
+          class="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-text-subtle"
+          viewBox="0 0 16 16"
+          fill="none"
+          aria-hidden="true"
+        >
+          <path
+            d="M2 4.5A1.5 1.5 0 0 1 3.5 3h2.6l1.2 1.5H12.5A1.5 1.5 0 0 1 14 6v6a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 12Z"
+            stroke="currentColor"
+            stroke-width="1.3"
+            stroke-linejoin="round"
+          />
+        </svg>
         <input
           id="database-folder"
           ref="input"
@@ -116,7 +129,7 @@ defineExpose({ focus: () => input.value?.focus() })
           data-testid="database-folder-input"
           placeholder="/Users/you/Documents/rekall"
           aria-describedby="database-folder-help"
-          class="focus-ring h-10 w-full rounded-[var(--radius-control)] border bg-canvas px-3.5 font-mono text-[13px] text-text outline-none transition-colors placeholder:text-text-subtle hover:border-border-strong focus-visible:border-accent"
+          class="focus-ring h-10 w-full rounded-[var(--radius-control)] border bg-canvas pl-9 pr-3.5 font-mono text-[13px] text-text outline-none transition-colors placeholder:text-text-subtle hover:border-border-strong focus-visible:border-accent"
           :class="hint?.tone === 'danger' ? 'border-danger' : 'border-border'"
           @input="onInput(($event.target as HTMLInputElement).value)"
           @keydown.enter="submit"

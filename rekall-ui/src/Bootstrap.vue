@@ -7,15 +7,6 @@ import { fetchDatabaseStatus } from '@/api/settings.api'
 import { useConsoleStore } from '@/stores/console.store'
 import type { DatabaseStatus } from '@/model/settings'
 
-/**
- * Decides, once, which of three things the screen mounts as: the routed application (console
- * plus the catalog pages beside it), the first-run wizard, or the recovery screen for a
- * database that has stopped being reachable.
- *
- * This is also where the catalog is loaded, and the only place it is: the console used to load
- * it in its own `onMounted`, which was fine while it was the only screen, but a deep link or a
- * refresh landing on `/projects/:id` never mounts the console at all.
- */
 const store = useConsoleStore()
 const status = ref<DatabaseStatus | null>(null)
 const failed = ref(false)

@@ -35,6 +35,7 @@ const panel = ref<HTMLElement | null>(null)
 const firstField = ref<HTMLInputElement | null>(null)
 const isConfirmingDelete = ref(false)
 const submitted = ref(false)
+const anchorLive = ref(false)
 
 const kind = props.draft.kind
 const isNew = props.draft.id === null
@@ -225,9 +226,6 @@ async function save(): Promise<void> {
       if (current.id === null) await store.createCompany(input)
       else await store.updateCompany(current.id, input)
     } else if (current.kind === 'project') {
-      // Blueprint has no field in this dialog — it is written on the project's own page — but
-      // the save below is a full replace, so the current value has to be carried through
-      // rather than silently cleared on every quick edit made from here.
       const existingBlueprint =
         store.projects.find((candidate) => candidate.id === current.id)?.blueprintMarkdown ?? null
       const input = {
@@ -319,7 +317,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
     >
       <header class="flex items-center gap-3 border-b border-border px-6 py-4">
         <span
-          class="grid size-8 shrink-0 place-items-center rounded-[9px] border border-border-strong bg-canvas font-mono text-[13px] text-accent"
+          class="grid size-8 shrink-0 place-items-center rounded-[9px] border border-border-strong font-mono text-[13px] font-semibold text-accent"
+          style="background-image: linear-gradient(155deg, var(--color-surface-raised), var(--color-canvas))"
           aria-hidden="true"
         >
           {{ kind.charAt(0).toUpperCase() }}
@@ -377,6 +376,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
           :class="titleError && 'border-danger'"
           :placeholder="hasLabel ? 'Report builder, main workflow' : 'Acme S.p.A.'"
           @input="onTitleInput(($event.target as HTMLInputElement).value)"
+          @focus="anchorLive = true"
+          @blur="anchorLive = false"
         />
         <p v-if="titleError" class="mt-1.5 text-[11.5px] text-danger" role="alert">
           {{ titleError }}
@@ -402,6 +403,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
             :class="labelError && 'border-danger'"
             placeholder="report-builder"
             @input="onLabelInput(($event.target as HTMLInputElement).value)"
+            @focus="anchorLive = true"
+            @blur="anchorLive = false"
           />
           <p v-if="labelError" class="mt-1.5 text-[11.5px] text-danger" role="alert">
             {{ labelError }}
@@ -413,7 +416,12 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
 
         <!-- The anchor, assembled as it is typed. This is the product, so it is not a footnote. -->
         <div
-          class="mt-4 flex items-center gap-3 rounded-[var(--radius-control)] border border-anchor-line bg-anchor-soft px-3.5 py-3"
+          class="mt-4 flex items-center gap-3 rounded-[var(--radius-control)] border px-3.5 py-3 transition-all duration-200"
+          :class="
+            anchorLive
+              ? 'border-anchor bg-anchor-soft shadow-[0_0_0_3px_var(--color-anchor-soft)]'
+              : 'border-anchor-line bg-anchor-soft'
+          "
           data-testid="anchor-preview"
           :title="anchorPreview"
         >

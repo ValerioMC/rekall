@@ -89,7 +89,7 @@ function toggle(): void {
 
     <div class="mt-2 flex items-end justify-between gap-3">
       <span
-        class="font-mono text-[22px] font-semibold tabular-nums tracking-tight"
+        class="texture-scan rounded-[6px] px-1.5 font-mono text-[22px] font-semibold tabular-nums tracking-tight"
         :class="isRunning ? 'text-accent' : 'text-text-muted'"
         data-testid="timer-display"
       >

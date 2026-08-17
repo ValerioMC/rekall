@@ -168,7 +168,7 @@ onUnmounted(() => {
               v-for="entry in status.databases"
               :key="entry.id"
               class="rounded-[var(--radius-control)] border px-3.5 py-3"
-              :class="entry.active ? 'border-accent-deep bg-accent-soft' : 'border-border bg-canvas'"
+              :class="entry.active ? 'selected-row border-accent-deep' : 'border-border bg-canvas'"
               data-testid="database-row"
             >
               <div class="flex items-start justify-between gap-3">

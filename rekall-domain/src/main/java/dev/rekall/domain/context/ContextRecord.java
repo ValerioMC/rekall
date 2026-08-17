@@ -20,9 +20,7 @@ import java.util.Map;
  * @param wrapup the state of this record's implementation as it stands, or null if nobody has
  *     written one. Only a task ever carries one, and it is the first thing rendered: a session
  *     that opens on a task is asking what it does now, and the notes are the background to that
- * @param blueprint a project's own README — how it is built, how it is organised, the
- *     conventions to follow — or null if nobody has written one. Only a project ever carries
- *     one; unlike {@code fields} it is never squeezed onto one line
+ * @param blueprint a project's own long-form document, or null
  */
 public record ContextRecord(
         String kind,

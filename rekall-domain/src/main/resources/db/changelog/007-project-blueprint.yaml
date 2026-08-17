@@ -1,10 +1,5 @@
 databaseChangeLog:
 
-  # A project's long-form "how this is built" document. Free-form markdown, meant to be read
-  # the way a README is: what the project is made of, how it is organised, the conventions to
-  # follow while working in it. Unlike `description` it is never squeezed into a one-line field
-  # when it reaches `/rk`; it gets its own block, the same treatment a wrapup gets.
-
   - changeSet:
       id: 007-project-blueprint
       author: rekall
