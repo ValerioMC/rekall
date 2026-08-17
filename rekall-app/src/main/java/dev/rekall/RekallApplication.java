@@ -2,6 +2,7 @@ package dev.rekall;
 
 import dev.rekall.bootstrap.DatabaseEntry;
 import dev.rekall.bootstrap.DatabaseRegistry;
+import dev.rekall.bootstrap.SettingsController;
 import dev.rekall.domain.Company;
 import dev.rekall.domain.Document;
 import dev.rekall.domain.Project;
@@ -32,11 +33,24 @@ import org.springframework.context.ConfigurableApplicationContext;
  * (getters, setters, constructors), not these Hibernate-internal methods, so GraalVM's
  * closed-world analysis doesn't see them as reachable and strips them, throwing
  * AbstractMethodError the first time Hibernate calls one at runtime.
+ *
+ * <p>{@link SettingsController}'s nested records are Jackson request/response bodies like any
+ * other {@code @RestController}'s, normally covered automatically by Spring's own AOT
+ * contributor for Spring MVC controllers — but that contributor missed the array type Jackson
+ * needs internally to resolve {@code List<DatabaseView>} ({@code DatabaseView[]}), throwing
+ * MissingReflectionRegistrationError the first time {@code GET /api/settings/databases} (or
+ * any other endpoint returning a list of them) actually ran. Registering the record class
+ * itself here does <b>not</b> also register the array type - {@code Foo[]} needs its own,
+ * separate entry, listed explicitly below.
  */
 @SpringBootApplication
 @RegisterReflectionForBinding({
-        DatabaseRegistry.class, DatabaseEntry.class,
-        Company.class, Project.class, Task.class, TimeEntry.class, Wrapup.class, Document.class
+        DatabaseRegistry.class, DatabaseEntry.class, DatabaseEntry[].class,
+        Company.class, Project.class, Task.class, TimeEntry.class, Wrapup.class, Document.class,
+        SettingsController.DatabaseView.class, SettingsController.DatabaseView[].class,
+        SettingsController.StatusResponse.class,
+        SettingsController.AddRequest.class, SettingsController.AddResponse.class,
+        SettingsController.RenameRequest.class, SettingsController.CheckResponse.class
 })
 public class RekallApplication {
 

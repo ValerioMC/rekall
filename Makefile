@@ -9,7 +9,7 @@ UI          := rekall-ui
 DB          := ./data/rekall.mv.db
 
 .DEFAULT_GOAL := help
-.PHONY: help run build jar native run-native ui ui-dev test test-backend test-ui mcp-add mcp-check console reset
+.PHONY: help run build jar native run-native start-native ui ui-dev test test-backend test-ui mcp-add mcp-check console reset
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -42,6 +42,10 @@ native: ui ## Build the GraalVM native binary (needs GraalVM as JAVA_HOME, takes
 	./scripts/native-build.sh
 
 run-native: native ## Build and start the GraalVM native binary on http://localhost:8080
+	./$(NATIVE_BIN)
+
+start-native: ## Start the already-built native binary, no rebuild - fails if `make native` hasn't run yet
+	@test -x $(NATIVE_BIN) || { echo "$(NATIVE_BIN) not found - run 'make native' first"; exit 1; }
 	./$(NATIVE_BIN)
 
 ui-dev: ## Vite dev server on :5173, proxying /api and /mcp to :8080
