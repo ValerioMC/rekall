@@ -552,34 +552,37 @@ class RekallEndToEndTest {
         String projectId = aProject(acme, "vega", "ACTIVE");
         String taskId = aTask(projectId, "report-builder");
 
-        Map<?, ?> start = post("/api/tasks/" + taskId + "/time-entries/start", Map.of()).getBody();
-        Map<?, ?> started = (Map<?, ?>) start.get("started");
+        Map<?, ?> started = post("/api/tasks/" + taskId + "/time-entries/start", Map.of()).getBody();
         assertThat(started.get("taskId")).isEqualTo(taskId);
         assertThat(started.get("stoppedAt")).isNull();
-        assertThat(start.get("stoppedElsewhere")).isNull();
 
         Map<?, ?> stopped = post("/api/tasks/" + taskId + "/time-entries/stop", Map.of()).getBody();
         assertThat(stopped.get("id")).isEqualTo(started.get("id"));
         assertThat(stopped.get("stoppedAt")).isNotNull();
     }
 
-    /** Only one timer runs at a time, the same as everywhere else selection is single. */
+    /** Different tasks track in parallel: starting one never touches what is running elsewhere. */
     @Test
-    @DisplayName("starting a second task's timer stops whatever was running elsewhere")
-    void startingElsewhereStopsWhatWasRunning() {
+    @DisplayName("starting a second task's timer leaves the first one running")
+    void startingASecondTaskDoesNotStopTheFirst() {
         String acme = aCompany("Acme");
         String projectId = aProject(acme, "vega", "ACTIVE");
         String taskA = aTask(projectId, "task-a");
         String taskB = aTask(projectId, "task-b");
 
-        Map<?, ?> firstStarted = (Map<?, ?>)
-                post("/api/tasks/" + taskA + "/time-entries/start", Map.of()).getBody().get("started");
-        Map<?, ?> second = post("/api/tasks/" + taskB + "/time-entries/start", Map.of()).getBody();
+        Map<?, ?> firstStarted = post("/api/tasks/" + taskA + "/time-entries/start", Map.of()).getBody();
+        Map<?, ?> secondStarted = post("/api/tasks/" + taskB + "/time-entries/start", Map.of()).getBody();
 
-        assertThat(((Map<?, ?>) second.get("started")).get("taskId")).isEqualTo(taskB);
-        Map<?, ?> stoppedElsewhere = (Map<?, ?>) second.get("stoppedElsewhere");
-        assertThat(stoppedElsewhere.get("id")).isEqualTo(firstStarted.get("id"));
-        assertThat(stoppedElsewhere.get("stoppedAt")).isNotNull();
+        assertThat(secondStarted.get("taskId")).isEqualTo(taskB);
+        assertThat(secondStarted.get("stoppedAt")).isNull();
+
+        List<?> entries = rest.get().uri("/api/time-entries").retrieve().toEntity(List.class).getBody();
+        Map<?, ?> stillRunning = entries.stream()
+                .map(entry -> (Map<?, ?>) entry)
+                .filter(entry -> entry.get("id").equals(firstStarted.get("id")))
+                .findFirst()
+                .orElseThrow();
+        assertThat(stillRunning.get("stoppedAt")).isNull();
     }
 
     /** A doubled click, or a race on the button, must not open a second session. */
@@ -590,12 +593,10 @@ class RekallEndToEndTest {
         String projectId = aProject(acme, "vega", "ACTIVE");
         String taskId = aTask(projectId, "report-builder");
 
-        Map<?, ?> first = (Map<?, ?>)
-                post("/api/tasks/" + taskId + "/time-entries/start", Map.of()).getBody().get("started");
+        Map<?, ?> first = post("/api/tasks/" + taskId + "/time-entries/start", Map.of()).getBody();
         Map<?, ?> again = post("/api/tasks/" + taskId + "/time-entries/start", Map.of()).getBody();
 
-        assertThat(((Map<?, ?>) again.get("started")).get("id")).isEqualTo(first.get("id"));
-        assertThat(again.get("stoppedElsewhere")).isNull();
+        assertThat(again.get("id")).isEqualTo(first.get("id"));
         assertThat(jdbc.queryForObject(
                         "SELECT COUNT(*) FROM time_entry WHERE task_id = ?", Integer.class, UUID.fromString(taskId)))
                 .isEqualTo(1);
@@ -618,8 +619,7 @@ class RekallEndToEndTest {
         String acme = aCompany("Acme");
         String projectId = aProject(acme, "vega", "ACTIVE");
         String taskId = aTask(projectId, "report-builder");
-        Map<?, ?> started = (Map<?, ?>)
-                post("/api/tasks/" + taskId + "/time-entries/start", Map.of()).getBody().get("started");
+        Map<?, ?> started = post("/api/tasks/" + taskId + "/time-entries/start", Map.of()).getBody();
         Map<?, ?> stopped = post("/api/tasks/" + taskId + "/time-entries/stop", Map.of()).getBody();
         String entryId = String.valueOf(stopped.get("id"));
 
@@ -808,7 +808,7 @@ class RekallEndToEndTest {
     @DisplayName("a refresh on any ui route serves the application, and an unknown api path still fails")
     void deepLinksReachTheFrontend() {
         for (String path : List.of("/", "/projects", "/projects/" + UUID.randomUUID(), "/tasks",
-                "/tasks/" + UUID.randomUUID(), "/search")) {
+                "/tasks/" + UUID.randomUUID(), "/search", "/calendar")) {
             ResponseEntity<String> response = rest.get().uri(path).retrieve().toEntity(String.class);
 
             assertThat(response.getStatusCode()).as("GET %s", path).isEqualTo(HttpStatus.OK);

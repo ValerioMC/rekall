@@ -6,7 +6,8 @@ const route = useRoute()
 const TABS = [
   { to: '/', label: 'Console', match: 'console' },
   { to: '/projects', label: 'Projects', match: 'projects' },
-  { to: '/companies', label: 'Companies', match: 'companies' }
+  { to: '/companies', label: 'Companies', match: 'companies' },
+  { to: '/calendar', label: 'Calendar', match: 'calendar' }
 ] as const
 
 const isActive = (match: (typeof TABS)[number]['match']): boolean =>

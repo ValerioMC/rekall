@@ -26,9 +26,9 @@ import java.util.UUID;
  * <p>A task worked across several days is several rows, not one running total: a total can only
  * be corrected by editing it, and a session with a start and a stop can be corrected by editing
  * either. {@code stoppedAt} is null for exactly as long as the session is open, and only one row
- * across the whole application may be in that state at a time — {@code TimeEntryService} is
- * what enforces it, the same way a second wrapup on a task is refused in code rather than by a
- * constraint.
+ * per task may be in that state at a time — different tasks may each have one open at once,
+ * tracked in parallel. {@code TimeEntryService} is what enforces the per-task rule, the same way
+ * a second wrapup on a task is refused in code rather than by a constraint.
  *
  * <p>{@code ON DELETE CASCADE} on the task, because a session describes a task and nothing else.
  */

@@ -1,17 +1,7 @@
 import { apiClient, request } from './client'
-import {
-  TimeEntryListSchema,
-  TimeEntrySchema,
-  TimeEntryStartResultSchema
-} from './schemas/catalog.schema'
+import { TimeEntryListSchema, TimeEntrySchema } from './schemas/catalog.schema'
 import type { TimeEntry } from '@/model/catalog'
 import type { TaskId, TimeEntryId } from '@/model/branded'
-
-/** What starting a timer produced: the session now open, and whatever it had to close. */
-export interface TimeEntryStartResult {
-  started: TimeEntry
-  stoppedElsewhere: TimeEntry | null
-}
 
 export interface TimeEntryEdit {
   startedAt: string
@@ -23,10 +13,10 @@ export async function fetchTimeEntries(): Promise<TimeEntry[]> {
   return request(async () => TimeEntryListSchema.parse(await apiClient('/api/time-entries')))
 }
 
-/** Opens a session on this task, closing whatever else was running. */
-export async function startTimeEntry(taskId: TaskId): Promise<TimeEntryStartResult> {
+/** Opens a session on this task. Whatever is running on other tasks keeps running. */
+export async function startTimeEntry(taskId: TaskId): Promise<TimeEntry> {
   return request(async () =>
-    TimeEntryStartResultSchema.parse(
+    TimeEntrySchema.parse(
       await apiClient(`/api/tasks/${taskId}/time-entries/start`, { method: 'POST' })
     )
   )

@@ -2,7 +2,6 @@ package dev.rekall.api.controller;
 
 import dev.rekall.api.dto.ApiDtos.TimeEntryEditRequest;
 import dev.rekall.domain.timeentry.TimeEntryService;
-import dev.rekall.domain.timeentry.TimeEntryService.Started;
 import dev.rekall.domain.timeentry.TimeEntryView;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -46,7 +45,7 @@ public class TimeEntryController {
     }
 
     @PostMapping("/tasks/{taskId}/time-entries/start")
-    public Started start(@PathVariable UUID taskId) {
+    public TimeEntryView start(@PathVariable UUID taskId) {
         return timeEntries.start(taskId);
     }
 

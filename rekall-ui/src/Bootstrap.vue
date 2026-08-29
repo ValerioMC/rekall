@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import FirstRunSetup from '@/components/setup/FirstRunSetup.vue'
 import DatabaseUnreachable from '@/components/setup/DatabaseUnreachable.vue'
+import RunningTasksDock from '@/components/shell/RunningTasksDock.vue'
 import AppLogo from '@/components/ui/AppLogo.vue'
 import { fetchDatabaseStatus } from '@/api/settings.api'
 import { useConsoleStore } from '@/stores/console.store'
@@ -23,7 +24,10 @@ onMounted(async () => {
 
 <template>
   <template v-if="status">
-    <router-view v-if="status.status === 'READY'" />
+    <template v-if="status.status === 'READY'">
+      <router-view />
+      <RunningTasksDock />
+    </template>
     <FirstRunSetup v-else-if="status.status === 'SETUP_NEEDED'" />
     <DatabaseUnreachable v-else :status="status" />
   </template>

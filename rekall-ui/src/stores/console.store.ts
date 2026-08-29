@@ -181,13 +181,8 @@ export const useConsoleStore = defineStore('console', () => {
     return taskDocuments.value.filter((document) => document.updatedAt > wrapup.updatedAt).length
   })
 
-  /**
-   * The one session running anywhere, if any. Only one may be open at a time, so there is
-   * nothing to disambiguate: whichever task it belongs to is the task being worked right now.
-   */
-  const runningEntry = computed(
-    () => timeEntries.value.find((entry) => entry.stoppedAt === null) ?? null
-  )
+  /** Every session currently open, across however many tasks are being worked in parallel. */
+  const runningEntries = computed(() => timeEntries.value.filter((entry) => entry.stoppedAt === null))
 
   /** The sessions on the task in view, most recently started first. */
   const selectedTaskEntries = computed(() =>
@@ -562,11 +557,9 @@ export const useConsoleStore = defineStore('console', () => {
       : [entry, ...timeEntries.value]
   }
 
-  /** Opens a session on this task. Whatever else was running closes, and its row updates too. */
+  /** Opens a session on this task. Whatever is running on other tasks keeps running. */
   async function startTimer(taskId: TaskId): Promise<void> {
-    const { started, stoppedElsewhere } = await apiStartTimeEntry(taskId)
-    upsertTimeEntry(started)
-    if (stoppedElsewhere) upsertTimeEntry(stoppedElsewhere)
+    upsertTimeEntry(await apiStartTimeEntry(taskId))
   }
 
   async function pauseTimer(taskId: TaskId): Promise<void> {
@@ -623,7 +616,7 @@ export const useConsoleStore = defineStore('console', () => {
     documents,
     wrapups,
     timeEntries,
-    runningEntry,
+    runningEntries,
     selectedTaskEntries,
     isLoading,
     saveState,

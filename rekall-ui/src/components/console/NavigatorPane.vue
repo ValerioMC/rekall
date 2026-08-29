@@ -29,8 +29,10 @@ const {
   selectedDocId,
   elsewhere,
   isLoading,
-  runningEntry
+  runningEntries
 } = storeToRefs(store)
+
+const runningTaskIds = computed(() => new Set(runningEntries.value.map((entry) => entry.taskId)))
 
 const STATUS_DOT: Record<TaskStatus, string> = {
   IN_PROGRESS: 'bg-accent',
@@ -169,7 +171,7 @@ defineExpose({ beginCreate, editSelected })
               <span class="min-w-0 flex-1">
                 <span class="flex items-center gap-1.5 truncate text-[13px] font-medium">
                   <span
-                    v-if="runningEntry?.taskId === task.id"
+                    v-if="runningTaskIds.has(task.id)"
                     class="relative flex size-1.5 shrink-0"
                     title="Tracking time on this task"
                   >

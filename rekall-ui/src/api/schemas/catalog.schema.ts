@@ -104,12 +104,6 @@ export const TimeEntrySchema = z.object({
   updatedAt: z.string()
 })
 
-/** What starting a timer produced: the session now open, and whatever it had to close. */
-export const TimeEntryStartResultSchema = z.object({
-  started: TimeEntrySchema,
-  stoppedElsewhere: TimeEntrySchema.nullable()
-})
-
 export const CompanyListSchema = z.array(CompanySchema)
 export const ProjectListSchema = z.array(ProjectSchema)
 export const TaskListSchema = z.array(TaskSchema)

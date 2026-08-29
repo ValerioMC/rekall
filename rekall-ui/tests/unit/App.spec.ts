@@ -100,19 +100,16 @@ vi.mock('@/api/wrapups.api', () => ({
 }))
 
 const startTimeEntry = vi.fn(async (taskId: TaskId) => ({
-  started: {
-    id: 'te1',
-    taskId,
-    taskLabel: 'report-builder',
-    taskTitle: 'Report builder',
-    projectLabel: 'vega',
-    anchor: 'project:vega task:report-builder',
-    startedAt: '2026-08-12T15:00:00Z',
-    stoppedAt: null,
-    createdAt: '2026-08-12T15:00:00Z',
-    updatedAt: '2026-08-12T15:00:00Z'
-  },
-  stoppedElsewhere: null
+  id: 'te1',
+  taskId,
+  taskLabel: 'report-builder',
+  taskTitle: 'Report builder',
+  projectLabel: 'vega',
+  anchor: 'project:vega task:report-builder',
+  startedAt: '2026-08-12T15:00:00Z',
+  stoppedAt: null,
+  createdAt: '2026-08-12T15:00:00Z',
+  updatedAt: '2026-08-12T15:00:00Z'
 }))
 
 vi.mock('@/api/time-entries.api', () => ({

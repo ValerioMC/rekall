@@ -17,11 +17,11 @@ import java.util.UUID;
 /**
  * Opens, closes and corrects the sessions a task's work is tracked in.
  *
- * <p>Only one session across the whole application may be open at a time: starting a task's
- * timer while another is running closes the other one first, the same way switching what you
- * are looking at is a single-selection thing everywhere else in this console. That rule is
- * enforced here rather than at the database, because there is exactly one writer — the console
- * — and no MCP path in, unlike the wrapup.
+ * <p>Only one session on a given task may be open at a time — starting a task's timer twice is
+ * a no-op, not a second row — but different tasks may each have one open at once: work happens
+ * in parallel, and a timer belongs to the task it is tracking, not to a single global cursor.
+ * That rule is enforced here rather than at the database, because there is exactly one writer —
+ * the console — and no MCP path in, unlike the wrapup.
  */
 @Service
 @RequiredArgsConstructor
@@ -29,10 +29,6 @@ public class TimeEntryService {
 
     private final TaskRepository tasks;
     private final TimeEntryRepository timeEntries;
-
-    /** What starting produced: the session now open, and whatever it had to close to open it. */
-    public record Started(TimeEntryView started, TimeEntryView stoppedElsewhere) {
-    }
 
     // ------------------------------------------------------------------ reading
 
@@ -44,32 +40,23 @@ public class TimeEntryService {
     // ------------------------------------------------------------------ tracking
 
     /**
-     * Opens a session on this task.
+     * Opens a session on this task, leaving whatever else is running on other tasks untouched.
      *
-     * <p>Calling it again while this same task is already the one running is a no-op, so a
-     * doubled click or a race on the button does not open a second session. Calling it while a
-     * different task is running closes that one first and reports it back, so the console can
-     * update both rows without a refetch.
+     * <p>Calling it again while this same task is already running is a no-op, so a doubled
+     * click or a race on the button does not open a second session.
      */
     @Transactional
-    public Started start(UUID taskId) {
+    public TimeEntryView start(UUID taskId) {
         Task task = tasks.findById(taskId)
                 .orElseThrow(() -> new UnknownAnchorException("No task with id " + taskId));
 
-        Optional<TimeEntry> running = timeEntries.findByStoppedAtIsNull();
-        if (running.isPresent() && running.get().getTask().getId().equals(taskId)) {
-            return new Started(TimeEntryView.of(running.get()), null);
-        }
-
-        TimeEntryView stoppedElsewhere = null;
+        Optional<TimeEntry> running = timeEntries.findByTaskIdAndStoppedAtIsNull(taskId);
         if (running.isPresent()) {
-            TimeEntry other = running.get();
-            other.setStoppedAt(Instant.now());
-            stoppedElsewhere = TimeEntryView.of(other);
+            return TimeEntryView.of(running.get());
         }
 
         TimeEntry created = new TimeEntry(task, Instant.now());
-        return new Started(TimeEntryView.of(timeEntries.saveAndFlush(created)), stoppedElsewhere);
+        return TimeEntryView.of(timeEntries.saveAndFlush(created));
     }
 
     /** Closes the session open on this task. */
@@ -77,8 +64,7 @@ public class TimeEntryService {
     public TimeEntryView stop(UUID taskId) {
         tasks.findById(taskId).orElseThrow(() -> new UnknownAnchorException("No task with id " + taskId));
 
-        TimeEntry running = timeEntries.findByStoppedAtIsNull()
-                .filter(entry -> entry.getTask().getId().equals(taskId))
+        TimeEntry running = timeEntries.findByTaskIdAndStoppedAtIsNull(taskId)
                 .orElseThrow(() -> new IllegalArgumentException("Nothing is being tracked on this task."));
         running.setStoppedAt(Instant.now());
         return TimeEntryView.of(running);

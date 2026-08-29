@@ -25,14 +25,14 @@ const {
   selectedWrapup,
   wrapupIsBehind,
   selectedTaskEntries,
-  runningEntry,
+  runningEntries,
   isLoading
 } = storeToRefs(store)
 const { run } = useAsyncAction()
 
 const showTimeLog = ref(false)
-const isRunningHere = computed(
-  () => runningEntry.value !== null && runningEntry.value.taskId === selectedTask.value?.id
+const isRunningHere = computed(() =>
+  runningEntries.value.some((entry) => entry.taskId === selectedTask.value?.id)
 )
 
 async function startTimer(): Promise<void> {

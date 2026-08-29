@@ -116,9 +116,9 @@ export interface Wrapup {
 /**
  * One sitting of work on a task.
  *
- * `stoppedAt` is null for exactly as long as the session is open, and only one session across
- * the whole application may be in that state at a time — starting or resuming a task's timer
- * closes whatever else was running.
+ * `stoppedAt` is null for exactly as long as the session is open, and only one session per task
+ * may be in that state at a time — different tasks can each have one open at once, tracked in
+ * parallel.
  */
 export interface TimeEntry {
   readonly id: TimeEntryId
