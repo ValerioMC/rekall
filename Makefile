@@ -7,9 +7,19 @@ JAR         := rekall-app/target/rekall-app-0.1.0-SNAPSHOT.jar
 NATIVE_BIN  := rekall-app/target/rekall-app
 UI          := rekall-ui
 DB          := ./data/rekall.mv.db
+REKALL_URL  ?= http://localhost:8080
+
+# A database of its own, never the one `run`/`reset`/`console` point at (which, once a
+# database folder has been chosen through the setup wizard, is not `./data` at all — see
+# DatabaseLocationEnvironmentPostProcessor). `load-data` writes real-looking demo companies
+# by the dozen; it must never be able to land in the database you actually use.
+DEMO_DB_DIR             := ./data/demo
+DEMO_DB_URL             := jdbc:h2:file:$(CURDIR)/$(DEMO_DB_DIR)/rekall;AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1
+DEMO_COMPANIES          ?= 3
+DEMO_TASKS_PER_COMPANY  ?= 20
 
 .DEFAULT_GOAL := help
-.PHONY: help run build jar native run-native start-native ui ui-dev test test-backend test-ui mcp-add mcp-check console reset
+.PHONY: help run run-demo build jar native run-native start-native ui ui-dev test test-backend test-ui mcp-add mcp-check console reset reset-data load-data
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -27,6 +37,9 @@ ui: ## Compile the frontend into rekall-app/src/main/resources/static
 # that was not in use.
 run: ui ## Start the application on http://localhost:8080
 	$(MVN) -pl rekall-app -am spring-boot:run -Dspring-boot.run.workingDirectory=$(CURDIR)
+
+run-demo: ui ## Start the app on a throwaway database at ./data/demo, for load-data — your real database is untouched
+	REKALL_DB_URL="$(DEMO_DB_URL)" $(MVN) -pl rekall-app -am spring-boot:run -Dspring-boot.run.workingDirectory=$(CURDIR)
 
 build: ui ## Build the UI into the jar and package it
 	$(MVN) -q clean package
@@ -75,3 +88,10 @@ console: ## Open an H2 shell on the database file
 reset: ## Delete the database file. There is no undo
 	rm -f $(DB) ./data/rekall.trace.db
 	@echo "database deleted"
+
+reset-data: ## Delete the demo database (./data/demo) so the next load-data starts clean. Never touches `run`'s database
+	rm -rf $(DEMO_DB_DIR)
+	@echo "demo database deleted"
+
+load-data: ## Seed the running instance with demo companies, tasks, notes and time tracking for the current month. Start it first with `make run-demo`
+	python3 scripts/seed-demo-data.py --base-url $(REKALL_URL) --companies $(DEMO_COMPANIES) --tasks-per-company $(DEMO_TASKS_PER_COMPANY)
