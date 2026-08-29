@@ -6,6 +6,7 @@ import AppSelect from '@/components/ui/AppSelect.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { trapTabKey } from '@/common/a11y/focus-trap'
+import { identityHue } from '@/common/identity'
 import {
   PROJECT_STATUSES,
   PROJECT_STATUS_LABEL,
@@ -327,7 +328,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
           <span class="block text-[15px] font-semibold tracking-[-0.01em] text-text">
             {{ heading }}
           </span>
-          <span v-if="anchorParent" class="block truncate font-mono text-[11px] text-anchor/80">
+          <span v-if="anchorParent" class="flex items-center gap-1.5 truncate font-mono text-[11px] text-anchor/80">
+            <span v-if="kind === 'task'" class="size-1.5 shrink-0 rounded-full" :style="{ backgroundColor: identityHue(parentId).base }" aria-hidden="true" />
             {{ anchorParent }}
           </span>
         </span>
@@ -426,6 +428,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
           :title="anchorPreview"
         >
           <span class="shrink-0 font-mono text-[12px] text-text-subtle" aria-hidden="true">/rk</span>
+          <span v-if="kind === 'task' && anchorParent" class="size-1.5 shrink-0 rounded-full" :style="{ backgroundColor: identityHue(parentId).base }" aria-hidden="true" />
           <span class="min-w-0 flex-1 truncate font-mono text-[13px]">
             <!-- The parent's half is settled and reads that way; the rest is what you are typing.
                  Both spans sit on one line so the separating space survives into the text. -->

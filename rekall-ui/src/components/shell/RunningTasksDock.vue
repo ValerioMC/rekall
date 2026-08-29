@@ -6,6 +6,7 @@ import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useNow } from '@/composables/useNow'
 import { formatClock } from '@/common/format/duration'
+import { identityHue } from '@/common/identity'
 import type { TimeEntry } from '@/model/catalog'
 import type { TaskId } from '@/model/branded'
 
@@ -32,6 +33,10 @@ const latest = computed(() => sortedRunning.value[0] ?? null)
 
 function liveSeconds(entry: TimeEntry): number {
   return (now.value - Date.parse(entry.startedAt)) / 1000
+}
+
+function projectIdOf(entry: TimeEntry): string {
+  return store.tasks.find((t) => t.id === entry.taskId)?.projectId ?? entry.taskId
 }
 
 async function stop(taskId: TaskId): Promise<void> {
@@ -88,7 +93,8 @@ function jumpTo(taskId: TaskId): void {
                 <span class="block truncate text-[12.5px] font-medium text-text">
                   {{ entry.taskTitle }}
                 </span>
-                <span class="block truncate font-mono text-[10px] text-anchor/80">
+                <span class="flex items-center gap-1 truncate font-mono text-[10px] text-anchor/80">
+                  <span class="size-1 shrink-0 rounded-full" :style="{ backgroundColor: identityHue(projectIdOf(entry)).base }" aria-hidden="true" />
                   {{ entry.anchor }}
                 </span>
               </span>

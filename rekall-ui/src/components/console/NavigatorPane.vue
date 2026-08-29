@@ -3,11 +3,14 @@ import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import ScopePicker from '@/components/console/ScopePicker.vue'
 import RecordDialog from '@/components/console/RecordDialog.vue'
+import NavigatorTaskRow from '@/components/console/NavigatorTaskRow.vue'
+import ProjectTrace from '@/components/ui/ProjectTrace.vue'
 import { useConsoleStore } from '@/stores/console.store'
-import { TASK_STATUS_LABEL, TASK_STATUS_ORDER } from '@/model/catalog'
+import { TASK_STATUS_COLOR, TASK_STATUS_LABEL, TASK_STATUS_ORDER } from '@/model/catalog'
 import { taskDraft } from '@/model/record-draft'
 import type { RecordDraft } from '@/model/record-draft'
-import type { Task, TaskStatus } from '@/model/catalog'
+import type { Task } from '@/model/catalog'
+import type { ProjectId } from '@/model/branded'
 
 /**
  * The navigator, and the one rule that governs its layout: every control sits above the
@@ -34,17 +37,39 @@ const {
 
 const runningTaskIds = computed(() => new Set(runningEntries.value.map((entry) => entry.taskId)))
 
-const STATUS_DOT: Record<TaskStatus, string> = {
-  IN_PROGRESS: 'bg-accent',
-  TODO: 'bg-text-subtle',
-  BLOCKED: 'bg-danger',
-  DONE: 'bg-safe'
-}
-
 const editing = ref<RecordDraft | null>(null)
 
 /** A task needs a project. Scoped to one, that is the answer; otherwise it has to be picked. */
 const projectChoices = computed(() => store.scopedProjects)
+
+/** Above a single project, a flat status list is a wall of look-alike rows; grouped by project it
+ *  stays readable at any scale, so grouping is the default everywhere except inside one project. */
+const groupByProject = computed(() => navMode.value === 'tasks' && scopeProject.value === null)
+
+interface ProjectGroup {
+  readonly projectId: ProjectId
+  readonly projectTitle: string
+  readonly companyName: string
+  readonly tasks: Task[]
+}
+
+const groupedByProject = computed<ProjectGroup[]>(() => {
+  const byProject = new Map<ProjectId, ProjectGroup>()
+  for (const task of visibleTasks.value) {
+    let group = byProject.get(task.projectId)
+    if (!group) {
+      group = {
+        projectId: task.projectId,
+        projectTitle: task.projectTitle,
+        companyName: task.companyName,
+        tasks: []
+      }
+      byProject.set(task.projectId, group)
+    }
+    group.tasks.push(task)
+  }
+  return [...byProject.values()].sort((a, b) => a.projectTitle.localeCompare(b.projectTitle))
+})
 
 const grouped = computed(() =>
   TASK_STATUS_ORDER.map((status) => ({
@@ -52,6 +77,30 @@ const grouped = computed(() =>
     tasks: visibleTasks.value.filter((task) => task.status === status)
   })).filter((group) => group.tasks.length > 0)
 )
+
+const COLLAPSE_KEY = 'rekall.nav.collapsed-projects'
+
+function loadCollapsed(): Set<ProjectId> {
+  try {
+    const raw = localStorage.getItem(COLLAPSE_KEY)
+    const parsed: unknown = raw ? JSON.parse(raw) : []
+    return Array.isArray(parsed) ? new Set(parsed as ProjectId[]) : new Set()
+  } catch {
+    return new Set()
+  }
+}
+
+const collapsedProjectIds = ref<Set<ProjectId>>(loadCollapsed())
+
+function toggleCollapsed(projectId: ProjectId): void {
+  const next = new Set(collapsedProjectIds.value)
+  if (next.has(projectId)) next.delete(projectId)
+  else next.add(projectId)
+  collapsedProjectIds.value = next
+  try {
+    localStorage.setItem(COLLAPSE_KEY, JSON.stringify([...next]))
+  } catch {}
+}
 
 /**
  * A new task opens on the project you are already in.
@@ -136,14 +185,58 @@ defineExpose({ beginCreate, editSelected })
         </span>
       </button>
 
-      <template v-if="navMode === 'tasks'">
+      <template v-if="navMode === 'tasks' && groupByProject">
+        <div v-for="group in groupedByProject" :key="group.projectId" class="px-2">
+          <button
+            class="focus-ring flex w-full items-center gap-2 rounded-[var(--radius-control)] px-1.5 py-1.5 text-left"
+            @click="toggleCollapsed(group.projectId)"
+          >
+            <svg
+              class="size-3 shrink-0 text-text-subtle transition-transform"
+              :class="!collapsedProjectIds.has(group.projectId) && 'rotate-90'"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <ProjectTrace :id="group.projectId" size="xs" />
+            <span class="min-w-0 flex-1 truncate text-[11px] font-semibold text-text">
+              {{ group.projectTitle }}
+            </span>
+            <span v-if="scopeCompany === null" class="shrink-0 truncate text-[10px] text-text-subtle">
+              {{ group.companyName }}
+            </span>
+            <span class="shrink-0 font-mono text-[10.5px] text-text-subtle">{{ group.tasks.length }}</span>
+          </button>
+
+          <div v-show="!collapsedProjectIds.has(group.projectId)" class="flex flex-col">
+            <NavigatorTaskRow
+              v-for="task in group.tasks"
+              :key="task.id"
+              :task="task"
+              :selected="task.id === selectedTaskId"
+              :running="runningTaskIds.has(task.id)"
+              :show-context="false"
+              :show-company="false"
+              @select="store.selectTask(task.id)"
+              @edit="editTask(task)"
+            />
+          </div>
+        </div>
+
+        <p v-if="!groupedByProject.length" class="px-4 py-3 text-[12.5px] leading-relaxed text-text-subtle">
+          <template v-if="!projectChoices.length">
+            No project here yet. Add one from the picker above, then a task can live in it.
+          </template>
+          <template v-else>No task here yet.</template>
+        </p>
+      </template>
+
+      <template v-else-if="navMode === 'tasks'">
         <div v-for="group in grouped" :key="group.status" class="px-2">
           <div class="flex items-center gap-2 px-1.5 pb-1 pt-3">
-            <span
-              class="size-[7px] shrink-0 rounded-full"
-              :class="STATUS_DOT[group.status]"
-              aria-hidden="true"
-            />
+            <span class="size-[7px] shrink-0 rounded-full" :class="TASK_STATUS_COLOR[group.status]" aria-hidden="true" />
             <span class="text-[10px] font-semibold uppercase tracking-[0.09em] text-text-subtle">
               {{ TASK_STATUS_LABEL[group.status] }}
             </span>
@@ -152,82 +245,17 @@ defineExpose({ beginCreate, editSelected })
             </span>
           </div>
 
-          <div
+          <NavigatorTaskRow
             v-for="task in group.tasks"
             :key="task.id"
-            class="group/task relative flex items-center"
-          >
-            <button
-              data-testid="task-row"
-              class="focus-ring flex w-full items-center gap-2.5 rounded-[var(--radius-control)] px-2 py-1.5 text-left transition-colors"
-              :class="
-                task.id === selectedTaskId
-                  ? 'selected-row text-text'
-                  : 'text-text-muted hover:bg-surface-raised hover:text-text'
-              "
-              :aria-current="task.id === selectedTaskId"
-              @click="store.selectTask(task.id)"
-            >
-              <span class="min-w-0 flex-1">
-                <span class="flex items-center gap-1.5 truncate text-[13px] font-medium">
-                  <span
-                    v-if="runningTaskIds.has(task.id)"
-                    class="relative flex size-1.5 shrink-0"
-                    title="Tracking time on this task"
-                  >
-                    <span class="absolute inline-flex size-full animate-ping rounded-full bg-accent opacity-75" />
-                    <span class="relative inline-flex size-1.5 rounded-full bg-accent" />
-                  </span>
-                  <span class="truncate">{{ task.title }}</span>
-                </span>
-                <span class="mt-0.5 flex items-center gap-1 truncate">
-                  <span v-if="scopeCompany === null" class="shrink-0 truncate text-[10px] text-text-subtle">
-                    {{ task.companyName }}
-                  </span>
-                  <span v-if="scopeCompany === null" class="shrink-0 text-[10px] text-text-subtle" aria-hidden="true">/</span>
-                  <span v-if="scopeProject === null" class="shrink-0 truncate text-[10px] text-text-subtle">
-                    {{ task.projectLabel }}
-                  </span>
-                  <span
-                    class="anchor-chip shrink-0 truncate px-1.5 py-px text-[9.5px] leading-[15px]"
-                  >
-                    {{ task.label }}
-                  </span>
-                </span>
-              </span>
-              <span
-                class="flex shrink-0 items-center gap-1.5 font-mono text-[10.5px] text-text-subtle transition-opacity group-hover/task:opacity-0"
-              >
-                <!-- The same glyph the wrapup card carries, so the mark means one thing. -->
-                <svg
-                  v-if="task.hasWrapup"
-                  class="size-2.5 text-text-muted"
-                  viewBox="0 0 12 12"
-                  role="img"
-                >
-                  <title>Has a wrapup</title>
-                  <path d="M6 1.2 10.8 6 6 10.8 1.2 6z" fill="currentColor" />
-                </svg>
-                {{ task.documentCount }}
-              </span>
-            </button>
-            <!-- Editing is on the row, not behind it. Hidden until wanted, never further away. -->
-            <button
-              data-testid="edit-task"
-              class="focus-ring absolute right-1.5 grid size-6 place-items-center rounded text-text-subtle opacity-0 transition hover:bg-surface-hover hover:text-accent focus-visible:opacity-100 group-hover/task:opacity-100"
-              :aria-label="`Edit ${task.title}`"
-              @click="editTask(task)"
-            >
-              <svg class="size-3.5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path
-                  d="M4 20h4L20 8l-4-4L4 16v4z"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linejoin="round"
-                />
-              </svg>
-            </button>
-          </div>
+            :task="task"
+            :selected="task.id === selectedTaskId"
+            :running="runningTaskIds.has(task.id)"
+            :show-context="true"
+            :show-company="scopeCompany === null"
+            @select="store.selectTask(task.id)"
+            @edit="editTask(task)"
+          />
         </div>
 
         <p v-if="!grouped.length" class="px-4 py-3 text-[12.5px] leading-relaxed text-text-subtle">

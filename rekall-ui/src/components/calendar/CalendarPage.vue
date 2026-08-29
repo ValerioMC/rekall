@@ -32,7 +32,7 @@ const monthLabel = computed(() =>
   })
 )
 
-const summaries = computed(() => summarizeByDay(store.timeEntries, now.value))
+const summaries = computed(() => summarizeByDay(store.timeEntries, store.tasks, now.value))
 
 const cells = computed(() =>
   monthGridDays(viewYear.value, viewMonth.value).map((date) => ({

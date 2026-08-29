@@ -5,6 +5,8 @@ import { useConsoleStore } from '@/stores/console.store'
 import { useModalGate } from '@/composables/useModalGate'
 import { formatDuration } from '@/common/format/duration'
 import { trapTabKey } from '@/common/a11y/focus-trap'
+import { identityHue } from '@/common/identity'
+import ProjectTrace from '@/components/ui/ProjectTrace.vue'
 import type { DaySummaryRow } from '@/common/calendar/day-summary'
 import type { TaskId } from '@/model/branded'
 
@@ -28,6 +30,29 @@ const heading = computed(() =>
 )
 
 const totalSeconds = computed(() => props.rows.reduce((sum, row) => sum + row.totalSeconds, 0))
+
+interface DayGroup {
+  readonly key: string
+  readonly projectId: string | null
+  readonly projectLabel: string
+  readonly rows: DaySummaryRow[]
+  totalSeconds: number
+}
+
+const groups = computed<DayGroup[]>(() => {
+  const byKey = new Map<string, DayGroup>()
+  for (const row of props.rows) {
+    const key = row.projectId ?? row.taskId
+    let group = byKey.get(key)
+    if (!group) {
+      group = { key, projectId: row.projectId, projectLabel: row.projectLabel, rows: [], totalSeconds: 0 }
+      byKey.set(key, group)
+    }
+    group.rows.push(row)
+    group.totalSeconds += row.totalSeconds
+  }
+  return [...byKey.values()].sort((a, b) => b.totalSeconds - a.totalSeconds)
+})
 
 function openTask(taskId: TaskId): void {
   store.selectTask(taskId)
@@ -86,26 +111,37 @@ onUnmounted(() => {
           Nothing tracked this day.
         </p>
 
-        <button
-          v-for="row in rows"
-          :key="row.taskId"
-          class="focus-ring mb-1.5 flex w-full items-center gap-3 rounded-[var(--radius-control)] border border-transparent px-3 py-2.5 text-left transition-colors last:mb-0 hover:border-border-strong hover:bg-surface-raised"
-          data-testid="day-detail-row"
-          @click="openTask(row.taskId)"
-        >
-          <span
-            class="size-1.5 shrink-0 rounded-full"
-            :class="row.isRunning ? 'animate-pulse bg-accent' : 'bg-text-subtle'"
-            aria-hidden="true"
-          />
-          <span class="min-w-0 flex-1">
-            <span class="block truncate text-[13px] font-medium text-text">{{ row.taskTitle }}</span>
-            <span class="block truncate font-mono text-[10.5px] text-anchor/80">{{ row.anchor }}</span>
-          </span>
-          <span class="shrink-0 font-mono text-[13px]" :class="row.isRunning ? 'text-accent' : 'text-text-muted'">
-            {{ formatDuration(row.totalSeconds) }}
-          </span>
-        </button>
+        <template v-for="group in groups" :key="group.key">
+          <div class="mb-1.5 mt-3 flex items-center gap-2 px-0.5 first:mt-0">
+            <ProjectTrace v-if="group.projectId" :id="group.projectId" size="xs" />
+            <span class="min-w-0 flex-1 truncate text-[11px] font-semibold uppercase tracking-[0.07em] text-text-subtle">
+              {{ group.projectLabel }}
+            </span>
+            <span class="shrink-0 font-mono text-[10.5px] text-text-subtle">{{ formatDuration(group.totalSeconds) }}</span>
+          </div>
+
+          <button
+            v-for="row in group.rows"
+            :key="row.taskId"
+            class="identity-rail focus-ring mb-1.5 flex w-full items-center gap-3 rounded-[var(--radius-control)] border border-transparent px-3 py-2.5 text-left transition-colors last:mb-0 hover:border-border-strong hover:bg-surface-raised"
+            data-testid="day-detail-row"
+            :style="{ '--identity-color': identityHue(group.projectId ?? row.taskId).line }"
+            @click="openTask(row.taskId)"
+          >
+            <span
+              class="size-1.5 shrink-0 rounded-full"
+              :class="row.isRunning ? 'animate-pulse bg-accent' : 'bg-text-subtle'"
+              aria-hidden="true"
+            />
+            <span class="min-w-0 flex-1">
+              <span class="block truncate text-[13px] font-medium text-text">{{ row.taskTitle }}</span>
+              <span class="block truncate font-mono text-[10.5px] text-anchor/80">{{ row.anchor }}</span>
+            </span>
+            <span class="shrink-0 font-mono text-[13px]" :class="row.isRunning ? 'text-accent' : 'text-text-muted'">
+              {{ formatDuration(row.totalSeconds) }}
+            </span>
+          </button>
+        </template>
       </div>
 
       <footer class="flex items-center justify-between border-t border-border bg-canvas px-6 py-3.5">

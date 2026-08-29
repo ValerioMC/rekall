@@ -8,12 +8,14 @@ import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
+import ProjectTrace from '@/components/ui/ProjectTrace.vue'
 import { useConsoleStore } from '@/stores/console.store'
+import { identityHue } from '@/common/identity'
+import { hasActivity, projectActivitySeries } from '@/common/trace/activity-series'
 import { projectDraft } from '@/model/record-draft'
-import { PROJECT_STATUS_LABEL, TASK_STATUS_LABEL } from '@/model/catalog'
+import { PROJECT_STATUS_LABEL, TASK_STATUS_COLOR, TASK_STATUS_LABEL } from '@/model/catalog'
 import { asProjectId } from '@/model/branded'
 import type { RecordDraft } from '@/model/record-draft'
-import type { TaskStatus } from '@/model/catalog'
 
 const props = defineProps<{ id: string }>()
 
@@ -29,12 +31,11 @@ const projectTasks = computed(() =>
   store.tasks.filter((task) => task.projectId === projectId.value)
 )
 
-const STATUS_DOT: Record<TaskStatus, string> = {
-  IN_PROGRESS: 'bg-accent',
-  TODO: 'bg-text-subtle',
-  BLOCKED: 'bg-danger',
-  DONE: 'bg-safe'
-}
+const activitySeries = computed(() => {
+  if (!project.value) return undefined
+  const series = projectActivitySeries(project.value.id, store.tasks, store.timeEntries, Date.now())
+  return hasActivity(series) ? series : undefined
+})
 
 const editing = ref<RecordDraft | null>(null)
 
@@ -161,6 +162,7 @@ onUnmounted(() => {
     <template v-else>
       <AppCatalogHeader :title="company ? `${company.name} / ${project.title}` : project.title">
         <template #title-suffix>
+          <ProjectTrace :id="project.id" size="md" :series="activitySeries" />
           <AppBadge
             :tone="project.status === 'ACTIVE' ? 'accent' : project.status === 'DONE' ? 'safe' : 'neutral'"
             dot
@@ -198,7 +200,7 @@ onUnmounted(() => {
       </AppCatalogHeader>
 
       <div class="mx-auto flex max-w-[1240px] flex-col gap-5 px-8 py-6">
-        <AppCard>
+        <AppCard :style="{ borderTop: `2px solid ${identityHue(project.id).line}` }">
           <p class="mb-2 text-[11px] font-semibold uppercase tracking-[0.09em] text-text-subtle">
             Description
           </p>
@@ -215,7 +217,11 @@ onUnmounted(() => {
 
         <AppCard :padded="false">
           <div class="relative overflow-hidden rounded-t-[var(--radius-card)]">
-            <div class="texture-grid pointer-events-none absolute inset-0" aria-hidden="true" />
+            <div
+              class="texture-grid pointer-events-none absolute inset-0"
+              :style="{ '--texture-tint': identityHue(project.id).base }"
+              aria-hidden="true"
+            />
             <div class="relative flex items-center gap-3 border-b border-border px-5 py-4">
               <div class="min-w-0 flex-1">
                 <p class="text-[11px] font-semibold uppercase tracking-[0.09em] text-anchor">Blueprint</p>
@@ -262,7 +268,7 @@ How it's built, how it's organised, the conventions to follow while working in i
               :key="task.id"
               class="flex items-center gap-2.5 py-2 first:pt-0 last:pb-0"
             >
-              <span class="size-[7px] shrink-0 rounded-full" :class="STATUS_DOT[task.status]" aria-hidden="true" />
+              <span class="size-[7px] shrink-0 rounded-full" :class="TASK_STATUS_COLOR[task.status]" aria-hidden="true" />
               <span class="min-w-0 flex-1">
                 <span class="block truncate text-[13px] text-text">{{ task.title }}</span>
                 <span class="block truncate font-mono text-[10.5px] text-anchor/80">{{ task.label }}</span>

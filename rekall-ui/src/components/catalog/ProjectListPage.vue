@@ -8,15 +8,18 @@ import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
 import AppInput from '@/components/ui/AppInput.vue'
+import ProjectTrace from '@/components/ui/ProjectTrace.vue'
+import StatusMixBar from '@/components/ui/StatusMixBar.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { relativeTime } from '@/common/format/relative-time'
 import { useConsoleStore } from '@/stores/console.store'
+import { hasActivity, projectActivitySeries } from '@/common/trace/activity-series'
 import { projectDraft } from '@/model/record-draft'
 import { PROJECT_STATUSES, PROJECT_STATUS_LABEL } from '@/model/catalog'
-import type { ProjectStatus } from '@/model/catalog'
+import type { ProjectStatus, Task } from '@/model/catalog'
 import type { RecordDraft } from '@/model/record-draft'
 import type { Project } from '@/model/catalog'
-import type { CompanyId } from '@/model/branded'
+import type { CompanyId, ProjectId } from '@/model/branded'
 
 const store = useConsoleStore()
 const route = useRoute()
@@ -71,6 +74,15 @@ function newProject(): void {
 function blastOf(project: Project): string {
   const count = project.taskCount
   return `${count} task${count === 1 ? '' : 's'} · every note left on nothing`
+}
+
+function tasksOf(projectId: ProjectId): Task[] {
+  return store.tasks.filter((t) => t.projectId === projectId)
+}
+
+function activitySeries(projectId: ProjectId): number[] | undefined {
+  const series = projectActivitySeries(projectId, store.tasks, store.timeEntries, Date.now())
+  return hasActivity(series) ? series : undefined
 }
 
 async function confirmDelete(): Promise<void> {
@@ -169,49 +181,43 @@ async function confirmDelete(): Promise<void> {
           <h2 class="mb-2 text-[11px] font-semibold uppercase tracking-[0.09em] text-text-subtle">
             {{ group.company.name }}
           </h2>
-          <div class="overflow-hidden rounded-[var(--radius-card)] border border-border bg-surface">
-            <button
-              v-for="(project, index) in group.projects"
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div
+              v-for="project in group.projects"
               :key="project.id"
-              data-testid="project-card"
-              class="focus-ring group/row relative flex w-full items-center gap-4 py-3.5 pl-4 pr-4 text-left transition-colors hover:bg-surface-raised"
-              :class="index > 0 ? 'border-t border-border' : ''"
-              @click="open(project)"
+              class="group/card relative flex flex-col gap-3 rounded-[var(--radius-card)] border border-border bg-surface p-4 transition-all duration-150 hover:-translate-y-0.5 hover:border-border-strong hover:bg-surface-raised hover:shadow-lift"
             >
-              <span
-                class="h-8 w-[3px] shrink-0 rounded-full"
-                :class="
-                  project.status === 'ACTIVE'
-                    ? 'bg-accent'
-                    : project.status === 'DONE'
-                      ? 'bg-safe'
-                      : 'bg-text-subtle'
-                "
-                aria-hidden="true"
+              <button
+                data-testid="project-card"
+                class="focus-ring absolute inset-0 rounded-[var(--radius-card)]"
+                :aria-label="`Open ${project.title}`"
+                @click="open(project)"
               />
 
-              <span class="min-w-0 flex-1">
-                <span class="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <span class="truncate text-[14px] font-semibold text-text">{{ project.title }}</span>
-                  <span class="anchor-chip shrink-0 px-1.5 py-px text-[10px]">{{ project.anchor }}</span>
-                </span>
-              </span>
+              <div class="pointer-events-none flex items-center justify-between gap-2">
+                <ProjectTrace :id="project.id" size="md" :series="activitySeries(project.id)" />
+                <AppBadge
+                  class="shrink-0"
+                  :tone="project.status === 'ACTIVE' ? 'accent' : project.status === 'DONE' ? 'safe' : 'neutral'"
+                >
+                  {{ PROJECT_STATUS_LABEL[project.status] }}
+                </AppBadge>
+              </div>
 
-              <span class="hidden shrink-0 items-center gap-2 text-[11.5px] text-text-subtle sm:flex">
+              <div class="pointer-events-none min-w-0">
+                <p class="line-clamp-2 text-[14px] font-semibold leading-snug text-text">{{ project.title }}</p>
+                <span class="anchor-chip mt-1.5 inline-block px-1.5 py-px text-[10px]">{{ project.anchor }}</span>
+              </div>
+
+              <StatusMixBar class="pointer-events-none" :tasks="tasksOf(project.id)" />
+
+              <div class="pointer-events-none mt-auto flex items-center justify-between text-[11px] text-text-subtle">
                 <span>{{ project.taskCount }} task{{ project.taskCount === 1 ? '' : 's' }}</span>
-                <span aria-hidden="true">&middot;</span>
                 <span>{{ relativeTime(project.updatedAt) }}</span>
-              </span>
-
-              <AppBadge
-                class="shrink-0"
-                :tone="project.status === 'ACTIVE' ? 'accent' : project.status === 'DONE' ? 'safe' : 'neutral'"
-              >
-                {{ PROJECT_STATUS_LABEL[project.status] }}
-              </AppBadge>
+              </div>
 
               <button
-                class="focus-ring grid size-7 shrink-0 place-items-center rounded text-text-subtle opacity-0 transition hover:bg-surface-hover hover:text-danger focus-visible:opacity-100 group-hover/row:opacity-100"
+                class="focus-ring pointer-events-auto relative z-10 ml-auto grid size-7 place-items-center self-end rounded text-text-subtle opacity-0 transition hover:bg-surface-hover hover:text-danger focus-visible:opacity-100 group-hover/card:opacity-100"
                 :aria-label="`Delete ${project.title}`"
                 data-testid="delete-project"
                 @click.stop="deleting = project"
@@ -226,14 +232,7 @@ async function confirmDelete(): Promise<void> {
                   />
                 </svg>
               </button>
-
-              <span
-                class="shrink-0 text-[13px] text-text-subtle transition-transform group-hover/row:translate-x-0.5 group-hover/row:text-accent"
-                aria-hidden="true"
-              >
-                &#8594;
-              </span>
-            </button>
+            </div>
           </div>
         </section>
       </div>

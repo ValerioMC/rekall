@@ -7,12 +7,15 @@ import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
 import AppInput from '@/components/ui/AppInput.vue'
+import StatusMixBar from '@/components/ui/StatusMixBar.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { relativeTime } from '@/common/format/relative-time'
+import { identityHue } from '@/common/identity'
 import { useConsoleStore } from '@/stores/console.store'
 import { companyDraft } from '@/model/record-draft'
 import type { RecordDraft } from '@/model/record-draft'
-import type { Company } from '@/model/catalog'
+import type { Company, Task } from '@/model/catalog'
+import type { CompanyId } from '@/model/branded'
 
 const store = useConsoleStore()
 const router = useRouter()
@@ -34,6 +37,11 @@ function openProjectsOf(company: Company): void {
 
 function edit(company: Company): void {
   editing.value = companyDraft(company)
+}
+
+function tasksOfCompany(companyId: CompanyId): Task[] {
+  const projectIds = new Set(store.projects.filter((p) => p.companyId === companyId).map((p) => p.id))
+  return store.tasks.filter((t) => projectIds.has(t.projectId))
 }
 
 function blastOf(company: Company): string {
@@ -94,8 +102,12 @@ async function confirmDelete(): Promise<void> {
           @click="openProjectsOf(company)"
         >
           <span
-            class="grid size-9 shrink-0 place-items-center rounded-[9px] border border-border-strong font-mono text-[13px] font-semibold text-accent"
-            style="background-image: linear-gradient(155deg, var(--color-surface-raised), var(--color-canvas))"
+            class="grid size-9 shrink-0 place-items-center rounded-[9px] border font-mono text-[13px] font-semibold"
+            :style="{
+              backgroundColor: identityHue(company.id).soft,
+              borderColor: identityHue(company.id).line,
+              color: identityHue(company.id).base
+            }"
             aria-hidden="true"
           >
             {{ company.name.charAt(0).toUpperCase() }}
@@ -106,6 +118,7 @@ async function confirmDelete(): Promise<void> {
             <span v-if="company.description" class="mt-0.5 block truncate text-[12px] text-text-subtle">
               {{ company.description }}
             </span>
+            <StatusMixBar :tasks="tasksOfCompany(company.id)" class="mt-1.5 max-w-[180px]" />
           </span>
 
           <span class="hidden shrink-0 items-center gap-2 text-[11.5px] text-text-subtle sm:flex">

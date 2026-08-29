@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import RecordDialog from '@/components/console/RecordDialog.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { companyDraft, projectDraft } from '@/model/record-draft'
+import { identityHue } from '@/common/identity'
 import type { RecordDraft } from '@/model/record-draft'
 import type { Company, Project } from '@/model/catalog'
 import type { CompanyId, ProjectId } from '@/model/branded'
@@ -171,10 +172,11 @@ defineExpose({ newCompany, newProject })
           >
             <span class="min-w-0 flex-1">
               <span
-                class="block truncate text-[12.5px]"
+                class="flex items-center gap-1.5 truncate text-[12.5px]"
                 :class="scopeProject === project.id ? 'text-text' : 'text-text-muted'"
               >
-                {{ project.title }}
+                <span class="size-1.5 shrink-0 rounded-full" :style="{ backgroundColor: identityHue(project.id).base }" aria-hidden="true" />
+                <span class="truncate">{{ project.title }}</span>
               </span>
               <span class="mt-0.5 block truncate">
                 <span class="anchor-chip px-1.5 py-px text-[9px] leading-[14px]">{{ project.anchor }}</span>

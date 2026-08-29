@@ -26,6 +26,19 @@ export const TASK_STATUS_LABEL: Readonly<Record<TaskStatus, string>> = {
 /** The order the navigator groups tasks in, so the number keys match what is on screen. */
 export const TASK_STATUS_ORDER: readonly TaskStatus[] = ['IN_PROGRESS', 'TODO', 'BLOCKED', 'DONE']
 
+export const TASK_STATUS_COLOR: Readonly<Record<TaskStatus, string>> = {
+  IN_PROGRESS: 'bg-accent',
+  TODO: 'bg-text-subtle',
+  BLOCKED: 'bg-danger',
+  DONE: 'bg-safe'
+}
+
+export const PROJECT_STATUS_COLOR: Readonly<Record<ProjectStatus, string>> = {
+  ACTIVE: 'bg-accent',
+  PAUSED: 'bg-text-subtle',
+  DONE: 'bg-safe'
+}
+
 export interface Company {
   readonly id: CompanyId
   readonly name: string

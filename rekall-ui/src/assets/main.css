@@ -93,6 +93,27 @@
   --z-toast: 50;
 }
 
+:root {
+  --color-identity-1: #6c91da;
+  --color-identity-1-soft: #6c91da1a;
+  --color-identity-1-line: #6c91da40;
+  --color-identity-2: #6c6cda;
+  --color-identity-2-soft: #6c6cda1a;
+  --color-identity-2-line: #6c6cda40;
+  --color-identity-3: #916cda;
+  --color-identity-3-soft: #916cda1a;
+  --color-identity-3-line: #916cda40;
+  --color-identity-4: #b66cda;
+  --color-identity-4-soft: #b66cda1a;
+  --color-identity-4-line: #b66cda40;
+  --color-identity-5: #da6cda;
+  --color-identity-5-soft: #da6cda1a;
+  --color-identity-5-line: #da6cda40;
+  --color-identity-6: #da6cb6;
+  --color-identity-6-soft: #da6cb61a;
+  --color-identity-6-line: #da6cb640;
+}
+
 @layer base {
   html,
   body,
@@ -206,14 +227,18 @@
   background-image:
     repeating-linear-gradient(
       0deg,
-      color-mix(in srgb, var(--color-anchor) 8%, transparent) 0 1px,
+      color-mix(in srgb, var(--texture-tint, var(--color-anchor)) 8%, transparent) 0 1px,
       transparent 1px 22px
     ),
     repeating-linear-gradient(
       90deg,
-      color-mix(in srgb, var(--color-anchor) 8%, transparent) 0 1px,
+      color-mix(in srgb, var(--texture-tint, var(--color-anchor)) 8%, transparent) 0 1px,
       transparent 1px 22px
     );
+}
+
+@utility identity-rail {
+  border-left: 2px solid var(--identity-color, var(--color-border-strong));
 }
 
 @utility texture-dots {
