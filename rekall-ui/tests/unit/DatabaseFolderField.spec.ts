@@ -198,4 +198,75 @@ describe('DatabaseFolderField', () => {
     expect(addDatabase).toHaveBeenCalledWith({ path: '/a', label: undefined })
     expect(wrapper.find('[data-testid="restarting-overlay"]').exists()).toBe(true)
   })
+
+  /**
+   * The macOS application installs window.rekallDesktop before the page runs. Nothing else about
+   * the field changes: the panel produces a string, and that string goes through the same check
+   * and the same submit as a typed one.
+   */
+  describe('inside the macOS application', () => {
+    it('fills the field with the folder chosen in the system panel', async () => {
+      const pickFolder = vi.fn().mockResolvedValue('/Users/you/rekall')
+      vi.stubGlobal('rekallDesktop', { pickFolder })
+      checkFolder.mockResolvedValue({
+        resolvedPath: '/Users/you/rekall',
+        exists: true,
+        isDirectory: true,
+        writable: true,
+        hasDatabase: true,
+        usable: true
+      })
+      const wrapper = mount(DatabaseFolderField)
+
+      await wrapper.get('[data-testid="folder-browse"]').trigger('click')
+      await flushPromises()
+      await vi.advanceTimersByTimeAsync(350)
+
+      expect(pickFolder).toHaveBeenCalledWith('')
+      expect(wrapper.get<HTMLInputElement>('[data-testid="database-folder-input"]').element.value).toBe(
+        '/Users/you/rekall'
+      )
+      expect(wrapper.get('[data-testid="folder-submit"]').text()).toBe('Open this database')
+    })
+
+    it('opens the panel on what is already typed, and keeps it when the panel is dismissed', async () => {
+      const pickFolder = vi.fn().mockResolvedValue(null)
+      vi.stubGlobal('rekallDesktop', { pickFolder })
+      checkFolder.mockResolvedValue({
+        resolvedPath: '/a',
+        exists: true,
+        isDirectory: true,
+        writable: true,
+        hasDatabase: false,
+        usable: true
+      })
+      const wrapper = mount(DatabaseFolderField)
+
+      await typePath(wrapper, '/a')
+      await wrapper.get('[data-testid="folder-browse"]').trigger('click')
+      await flushPromises()
+
+      expect(pickFolder).toHaveBeenCalledWith('/a')
+      expect(wrapper.get<HTMLInputElement>('[data-testid="database-folder-input"]').element.value).toBe('/a')
+      expect(wrapper.get('[data-testid="folder-submit"]').text()).toBe('Create database here')
+    })
+
+    it('survives a bridge that throws, because a broken panel must not break typing', async () => {
+      vi.stubGlobal('rekallDesktop', {
+        pickFolder: vi.fn().mockRejectedValue(new Error('no window'))
+      })
+      const wrapper = mount(DatabaseFolderField)
+
+      await wrapper.get('[data-testid="folder-browse"]').trigger('click')
+      await flushPromises()
+
+      expect(wrapper.get<HTMLInputElement>('[data-testid="database-folder-input"]').element.value).toBe('')
+    })
+  })
+
+  it('leaves the folder icon as decoration in a browser, where no picker can exist', () => {
+    const wrapper = mount(DatabaseFolderField)
+
+    expect(wrapper.get('[data-testid="folder-browse"]').element.tagName).toBe('SPAN')
+  })
 })

@@ -81,14 +81,7 @@ function jumpTo(taskId: TaskId): void {
               :title="`Jump to ${entry.taskTitle}`"
               @click="jumpTo(entry.taskId)"
             >
-              <span class="flex h-3 shrink-0 items-end gap-[2px]" aria-hidden="true">
-                <span
-                  v-for="bar in 3"
-                  :key="bar"
-                  class="eq-bar w-[3px] rounded-full bg-accent"
-                  :style="{ animationDelay: `${bar * 120}ms` }"
-                />
-              </span>
+              <span class="time-dial shrink-0" aria-hidden="true" />
               <span class="min-w-0 flex-1">
                 <span class="block truncate text-[12.5px] font-medium text-text">
                   {{ entry.taskTitle }}
@@ -123,14 +116,7 @@ function jumpTo(taskId: TaskId): void {
       :aria-expanded="expanded"
       @click="expanded = !expanded"
     >
-      <span class="flex h-3 shrink-0 items-end gap-[2px]" aria-hidden="true">
-        <span
-          v-for="bar in 3"
-          :key="bar"
-          class="eq-bar w-[3px] rounded-full bg-accent"
-          :style="{ animationDelay: `${bar * 120}ms` }"
-        />
-      </span>
+      <span class="time-dial shrink-0" aria-hidden="true" />
       <span class="text-[12.5px] font-medium text-text">
         {{ runningEntries.length }} running
       </span>

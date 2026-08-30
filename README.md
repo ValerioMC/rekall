@@ -40,6 +40,53 @@ make reset   # delete the database file, no undo
 make console # H2 shell on the database
 ```
 
+## The macOS application
+
+```bash
+make dmg-native   # the GraalVM binary in the bundle. Needs GraalVM as JAVA_HOME
+make dmg-jvm      # the jar plus a bundled Java runtime. Any JDK 25
+```
+
+Both write `dist/Rekall-<version>-<flavour>-<arch>.dmg`, side by side. Open one, drag Rekall
+onto Applications, and that bundle is the whole of Rekall: no terminal, no `make`, nothing else
+installed on the machine. They are additive, and macOS only. Every target above them is the
+plain build and keeps working unchanged on Windows and Linux, which is what the rest of the
+project uses.
+
+| | `dmg-native` | `dmg-jvm` |
+|---|---|---|
+| Payload | `Contents/Resources/rekall-app` | `Contents/runtime` plus `rekall-app.jar` |
+| Disk image | 91 MB | 99 MB |
+| First screen | under a second | about three seconds |
+| Build | GraalVM, 4 to 8 minutes | any JDK 25, under a minute |
+
+Both also need the Xcode Command Line Tools, for `swiftc`: the bundle's executable is not the
+server but `packaging/macos/Launcher.swift`, a window that starts the server underneath itself.
+Double clicking opens that window immediately, on a splash screen that is the server booting,
+and swaps it for the console the moment port 8080 answers. Quitting sends SIGTERM, so the H2
+file is closed properly instead of left behind a lock file.
+
+One thing the window can do that a browser tab cannot: the folder icon in the database field
+opens the system folder chooser, and what it returns is the absolute path the server validates.
+A page is never handed a real filesystem path, so in a browser that field stays typed, and the
+help text under it says which of the two you are looking at.
+
+It is the same port, the same `~/.rekall/config.json` and the same MCP endpoint as `make run`,
+not a second installation with a database of its own. When something is already listening on
+8080 the app attaches to it rather than starting a second server, which is what makes opening
+the app while a terminal instance runs harmless.
+
+The bundle is signed ad hoc, not with a Developer ID. That is enough on the machine that built
+it. A disk image that reaches another machine through a browser arrives quarantined and needs
+one command before it will open:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Rekall.app
+```
+
+The server's own output goes to `~/Library/Logs/Rekall/server.log`, which View > Open Server Log
+opens. It is where a window that never gets past the splash screen says why.
+
 ## Connect Claude Code
 
 ```bash

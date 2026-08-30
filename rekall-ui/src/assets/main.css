@@ -288,10 +288,46 @@
   animation: settle 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* The running dock's live mark: three bars keeping time, not a dot repeating one motif app-wide. */
-@utility eq-bar {
-  height: 4px;
-  animation: eq-bounce 900ms ease-in-out infinite;
+/* The running dock's live mark: a hand sweeping a dial, not a dot repeating one motif app-wide.
+
+   What runs on these tasks is time, so the mark measures it — a wedge going round once every
+   few seconds, over a core that breathes with it. It never rests while a session is open. */
+@utility time-dial {
+  position: relative;
+  display: block;
+  height: 13px;
+  width: 13px;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 38%, transparent);
+  background: color-mix(in srgb, var(--color-accent) 9%, transparent);
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: conic-gradient(
+      from 0deg,
+      color-mix(in srgb, var(--color-accent) 55%, transparent) 0deg,
+      color-mix(in srgb, var(--color-accent) 14%, transparent) 42deg,
+      transparent 96deg
+    );
+    animation: dial-sweep 2.6s linear infinite;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    height: 3px;
+    width: 3px;
+    margin: -1.5px 0 0 -1.5px;
+    border-radius: 9999px;
+    background: var(--color-accent);
+    animation: dial-core 2.6s ease-in-out infinite;
+  }
 }
 
 @keyframes skeleton-sweep {
@@ -347,13 +383,24 @@
   }
 }
 
-@keyframes eq-bounce {
+@keyframes dial-sweep {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes dial-core {
   0%,
   100% {
-    height: 4px;
+    opacity: 0.55;
+    transform: scale(0.85);
   }
   50% {
-    height: 12px;
+    opacity: 1;
+    transform: scale(1.15);
   }
 }
 

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Template. scripts/macos-bundle.sh substitutes @VERSION@ and writes the result into
+  Rekall.app/Contents/Info.plist.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>Rekall</string>
+    <key>CFBundleDisplayName</key>
+    <string>Rekall</string>
+    <key>CFBundleIdentifier</key>
+    <string>dev.rekall.app</string>
+    <key>CFBundleExecutable</key>
+    <string>Rekall</string>
+    <key>NSPrincipalClass</key>
+    <string>NSApplication</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleShortVersionString</key>
+    <string>@VERSION@</string>
+    <key>CFBundleVersion</key>
+    <string>@VERSION@</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>13.0</string>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.productivity</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSSupportsAutomaticGraphicsSwitching</key>
+    <true/>
+    <!--
+      App Transport Security blocks plain http by default, and the whole application is plain
+      http against a server on this machine. NSAllowsLocalNetworking covers loopback; the
+      explicit exceptions are there because the view is loaded by address, and a policy that
+      depends on how the host was spelled is not one to leave to chance.
+    -->
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsLocalNetworking</key>
+        <true/>
+        <key>NSExceptionDomains</key>
+        <dict>
+            <key>localhost</key>
+            <dict>
+                <key>NSExceptionAllowsInsecureHTTPLoads</key>
+                <true/>
+                <key>NSIncludesSubdomains</key>
+                <true/>
+            </dict>
+            <key>127.0.0.1</key>
+            <dict>
+                <key>NSExceptionAllowsInsecureHTTPLoads</key>
+                <true/>
+            </dict>
+        </dict>
+    </dict>
+</dict>
+</plist>

@@ -19,7 +19,7 @@ DEMO_COMPANIES          ?= 3
 DEMO_TASKS_PER_COMPANY  ?= 20
 
 .DEFAULT_GOAL := help
-.PHONY: help run run-demo build jar native run-native start-native ui ui-dev test test-backend test-ui mcp-add mcp-check console reset reset-data load-data
+.PHONY: help run run-demo build jar native run-native start-native dmg-native dmg-jvm ui ui-dev test test-backend test-ui mcp-add mcp-check console reset reset-data load-data
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -60,6 +60,15 @@ run-native: native ## Build and start the GraalVM native binary on http://localh
 start-native: ## Start the already-built native binary, no rebuild - fails if `make native` hasn't run yet
 	@test -x $(NATIVE_BIN) || { echo "$(NATIVE_BIN) not found - run 'make native' first"; exit 1; }
 	./$(NATIVE_BIN)
+
+# macOS only, and additive: everything above stays the plain build that has to keep working on
+# Windows and Linux. These two wrap it in Rekall.app - a window that starts the server itself -
+# and hand back a disk image to drag into /Applications. See packaging/macos/Launcher.swift.
+dmg-native: native ## macOS: package the native binary as Rekall.app in a DMG (needs GraalVM as JAVA_HOME)
+	./scripts/macos-bundle.sh native
+
+dmg-jvm: build ## macOS: package the jar plus a bundled Java runtime as Rekall.app in a DMG
+	./scripts/macos-bundle.sh jvm
 
 ui-dev: ## Vite dev server on :5173, proxying /api and /mcp to :8080
 	cd $(UI) && $(PNPM) dev

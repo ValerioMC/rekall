@@ -22,7 +22,7 @@ import random
 import sys
 import urllib.error
 import urllib.request
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 COMPANIES = [
     ("Acme Robotics", "Industrial automation and warehouse robotics.",
@@ -139,7 +139,14 @@ def random_session(now: datetime, day: int) -> tuple[datetime, datetime]:
 
 
 def iso(dt: datetime) -> str:
-    return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+    """UTC, which is the only thing a trailing `Z` may mean.
+
+    Times are generated in the local zone so working hours read as working hours in the
+    console; stamping those naive local times with a `Z` shifts every session by the local
+    offset, and a running one started "now" lands in the future, where its live clock sits at
+    zero until the wall clock catches up.
+    """
+    return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def seed(client: Client, companies_count: int, tasks_per_company: int, force: bool) -> None:
@@ -156,7 +163,7 @@ def seed(client: Client, companies_count: int, tasks_per_company: int, force: bo
         pool = pool * (companies_count // len(pool) + 1)
     chosen = pool[:companies_count]
 
-    now = datetime.now()
+    now = datetime.now().astimezone()
     today = now.day
 
     for index, (name, description, project_words) in enumerate(chosen):
