@@ -64,6 +64,11 @@ It is built by `.github/workflows/release.yml` on a `macos-14` runner, from the 
 `scripts/macos-bundle.sh` the targets below call. There is no Intel build and no Windows or Linux
 bundle: the jar on the same release covers every platform with a JVM 25.
 
+The published image is the **jvm** flavour, not the native one. A GraalVM image of this
+application needs more heap than a free `macos-14` runner has: it reaches 5.9 GB on a 7 GB
+machine and the builder's watchdog aborts it after about half an hour. `dmg-native` is still the
+better bundle and still builds locally, it just cannot be built on that runner.
+
 That image is the head of main, not a version: it changes under the link without notice. A build
 that stays put is a `v*` tag.
 

@@ -17,19 +17,19 @@ name: Release
 #
 # Assets, named without a version on the rolling release and with the tag on a versioned one:
 #   rekall.jar              rekall-v0.1.1.jar               every platform with a JVM 25
-#   rekall-macos-arm64      rekall-v0.1.1-macos-arm64       the bare native binary
 #   rekall-windows-x64.exe  rekall-v0.1.1-windows-x64.exe   the bare native binary
 #   Rekall-macos-arm64.dmg  Rekall-macos-arm64.dmg          Rekall.app, Apple Silicon
 #
 # The disk image keeps the same name on both, because it is the one asset a link off-site points
 # at and a name that moves would defeat that.
 #
-# No Linux or Intel-Mac native binary on purpose - the jar already covers every platform the
-# JVM runs on, so the native builds exist only for the two targets where a self-contained,
-# fast-starting binary is worth the ~10x longer CI build: a local Mac dev machine and a
-# Windows desktop, neither of which necessarily has a JVM installed.
+# No Linux or Intel-Mac binary on purpose - the jar already covers every platform the JVM runs
+# on, so the one native build left exists for the target where a self-contained, fast-starting
+# binary is worth the ~10x longer CI build: a Windows desktop without a JVM. The macOS side
+# ships the bundle instead of a bare binary, because on a Mac the thing worth downloading is an
+# application, not a file to chmod.
 #
-# Every commit on main runs all three builds, two of them GraalVM native images. If that becomes
+# Every commit on main runs all three builds, one of them a GraalVM native image. If that becomes
 # too slow, `paths-ignore` on the main trigger is the knob - but it cannot be added to this `push`
 # block as it stands, because path filters apply to tag pushes too and would silently skip a
 # release whose tagged commit only touched documentation.
@@ -133,9 +133,15 @@ jobs:
           body: ${{ steps.target.outputs.rolling == 'true' && format('Built from `main` at {0}. Rebuilt on every commit, so it moves without warning. For something that stays put, use a versioned release.', github.sha) || '' }}
           files: ${{ steps.jar.outputs.path }}
 
-  # See scripts/native-build.sh and rekall-app/pom.xml's native profile for why the Hibernate/
-  # ByteBuddy fix needs that script (not `mvn -Pnative package` alone) on every platform.
-  build-native-macos:
+  # The macOS bundle is the jvm flavour, not the native one, and that is a constraint rather than
+  # a preference: a GraalVM image of this application needs more heap than a free macos-14 runner
+  # has. It gets to 5.9 GB on a 7 GB machine and the builder's watchdog aborts it after about half
+  # an hour. The jvm flavour needs no GraalVM at all, builds in about a minute, and costs roughly
+  # two seconds on the first screen and eight megabytes on the download.
+  #
+  # `make dmg-jvm` is not used here for the same reason `make dmg-native` was not: the target
+  # installs the bundle into /Applications afterwards, and a runner has nothing to install into.
+  build-dmg-macos:
     needs: build-and-release
     runs-on: macos-14 # Apple Silicon, not macos-13 (Intel)
     steps:
@@ -151,11 +157,12 @@ jobs:
           cache: pnpm
           cache-dependency-path: rekall-ui/pnpm-lock.yaml
 
-      - uses: graalvm/setup-graalvm@v1
+      # Any JDK 25 will do: macos-bundle.sh jvm runs jlink out of JAVA_HOME and refuses anything
+      # older than the version the jar was built for.
+      - uses: actions/setup-java@v5
         with:
-          distribution: graalvm
+          distribution: temurin
           java-version: "25"
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           cache: maven
 
       - name: Build frontend
@@ -164,35 +171,22 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm build
 
-      - name: Build native image
-        run: ./scripts/native-build.sh
+      # The jar has to exist on this runner: the one job 1 built lives on a different machine, and
+      # macos-bundle.sh reads it out of rekall-app/target.
+      - name: Build jar
+        run: mvn -B -q clean package
 
-      - name: Locate binary
-        id: bin
-        run: |
-          release_name="rekall${{ needs.build-and-release.outputs.suffix }}-macos-arm64"
-          cp rekall-app/target/rekall-app "$release_name"
-          echo "path=$release_name" >> "$GITHUB_OUTPUT"
-
-      # scripts/macos-bundle.sh rather than `make dmg-native`: that target rebuilds the binary
-      # this job already produced and then installs the bundle into /Applications, and a runner
-      # has nothing to install into. The script needs swiftc, sips, iconutil, codesign and
-      # hdiutil, all of which a macos-14 image already carries.
-      #
-      # The signature it applies is ad hoc, not a Developer ID one, so this disk image is not
-      # notarized and arrives quarantined on any machine that downloads it. Clearing that is one
-      # command, documented in the README and on the download page.
       - name: Bundle Rekall.app into a disk image
-        run: ./scripts/macos-bundle.sh native
+        run: ./scripts/macos-bundle.sh jvm
 
-      # The disk image keeps one name on every release, versioned or rolling, because a link on
-      # a web page points at it and a name carrying the version would have to be edited for each
-      # build. The name the script writes carries the pom version, which is neither the tag nor
-      # the commit, so the file is found in dist/ by pattern rather than by guessing that string.
+      # The disk image keeps one name on every release, versioned or rolling, because a link on a
+      # web page points at it and a name carrying the version would have to be edited for each
+      # build. The name the script writes carries the pom version, which is neither the tag nor the
+      # commit, so the file is found in dist/ by pattern rather than by guessing that string.
       - name: Locate disk image
         id: dmg
         run: |
-          dmg=$(find dist -maxdepth 1 -name 'Rekall-*-native-arm64.dmg' | head -1)
+          dmg=$(find dist -maxdepth 1 -name 'Rekall-*-jvm-arm64.dmg' | head -1)
           if [ -z "$dmg" ]; then
             echo "no disk image in dist/ - macos-bundle.sh did not produce one" >&2
             ls -la dist/ || true
@@ -205,9 +199,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.build-and-release.outputs.tag }}
-          files: |
-            ${{ steps.bin.outputs.path }}
-            Rekall-macos-arm64.dmg
+          files: Rekall-macos-arm64.dmg
 
   build-native-windows:
     needs: build-and-release

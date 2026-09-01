@@ -66,8 +66,23 @@ for entry in "${ENTRIES[@]}"; do
     fi
 done
 
-echo "==> native-image"
-native-image \
+# GraalVM ships native-image as a .cmd shim on Windows, which Git Bash does not resolve from a
+# bare `native-image` even with the distribution on PATH. Prefer whatever is on PATH, and fall
+# back to the one inside the JDK, .cmd included.
+GRAAL_HOME="${GRAALVM_HOME:-${JAVA_HOME:-}}"
+if command -v native-image >/dev/null 2>&1; then
+    NATIVE_IMAGE="native-image"
+elif [ -n "$GRAAL_HOME" ] && [ -x "$GRAAL_HOME/bin/native-image" ]; then
+    NATIVE_IMAGE="$GRAAL_HOME/bin/native-image"
+elif [ -n "$GRAAL_HOME" ] && [ -f "$GRAAL_HOME/bin/native-image.cmd" ]; then
+    NATIVE_IMAGE="$GRAAL_HOME/bin/native-image.cmd"
+else
+    echo "native-image not found. Set GRAALVM_HOME or JAVA_HOME to a GraalVM 25." >&2
+    exit 1
+fi
+
+echo "==> native-image ($NATIVE_IMAGE)"
+"$NATIVE_IMAGE" \
     -cp "$CLASSPATH" \
     --no-fallback \
     -o rekall-app/target/rekall-app \
