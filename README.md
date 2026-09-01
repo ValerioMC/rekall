@@ -47,6 +47,28 @@ make console # H2 shell on the database
 
 ## The macOS application
 
+A built disk image for Apple Silicon is published on every commit to main, so there is nothing to
+compile to run it:
+
+| | |
+|---|---|
+| Download | [Rekall-macos-arm64.dmg](https://github.com/ValerioMC/rekall/releases/download/latest/Rekall-macos-arm64.dmg) |
+| Needs | macOS 13 or later, Apple Silicon |
+| Then | drag Rekall onto Applications, and run the `xattr` command below once |
+
+`releases/download/latest/` is the release tagged `latest`, not the same thing as
+`releases/latest/download/`, which means the newest release that is not a prerelease. The rolling
+build is marked as a prerelease so that the second URL keeps naming the newest `v*` tag.
+
+It is built by `.github/workflows/release.yml` on a `macos-14` runner, from the same
+`scripts/macos-bundle.sh` the targets below call. There is no Intel build and no Windows or Linux
+bundle: the jar on the same release covers every platform with a JVM 25.
+
+That image is the head of main, not a version: it changes under the link without notice. A build
+that stays put is a `v*` tag.
+
+To build one locally instead:
+
 ```bash
 make dmg-native   # the GraalVM binary in the bundle. Needs GraalVM as JAVA_HOME
 make dmg-jvm      # the jar plus a bundled Java runtime. Any JDK 25

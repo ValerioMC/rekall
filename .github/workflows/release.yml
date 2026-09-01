@@ -1,17 +1,50 @@
 name: Release
 
-# Push a tag like v0.1.1 to build the jar plus native binaries for macOS (Apple Silicon) and
-# Windows, and publish all three as GitHub Release assets:
-#   git tag v0.1.1 && git push origin v0.1.1
+# Two triggers, one pipeline.
+#
+#   push to main      rebuilds everything and republishes the rolling `latest` release
+#   push a v* tag     publishes a versioned release: git tag v0.1.1 && git push origin v0.1.1
+#
+# The `latest` tag is moved to the new commit on every main build, so it always names the head of
+# main rather than wherever it happened to be created. That release is marked as a prerelease on
+# purpose: GitHub's /releases/latest resolves to the newest release that is NOT a prerelease, so
+# marking it keeps that URL pointing at the newest v* tag while the rolling build stays reachable
+# at its own explicit tag.
+#
+# Which is why a download link on a web page uses the tag path and not the latest path:
+#   https://github.com/ValerioMC/rekall/releases/download/latest/Rekall-macos-arm64.dmg   rolling
+#   https://github.com/ValerioMC/rekall/releases/latest/download/rekall-v0.1.1.jar        newest v*
+#
+# Assets, named without a version on the rolling release and with the tag on a versioned one:
+#   rekall.jar              rekall-v0.1.1.jar               every platform with a JVM 25
+#   rekall-macos-arm64      rekall-v0.1.1-macos-arm64       the bare native binary
+#   rekall-windows-x64.exe  rekall-v0.1.1-windows-x64.exe   the bare native binary
+#   Rekall-macos-arm64.dmg  Rekall-macos-arm64.dmg          Rekall.app, Apple Silicon
+#
+# The disk image keeps the same name on both, because it is the one asset a link off-site points
+# at and a name that moves would defeat that.
 #
 # No Linux or Intel-Mac native binary on purpose - the jar already covers every platform the
 # JVM runs on, so the native builds exist only for the two targets where a self-contained,
 # fast-starting binary is worth the ~10x longer CI build: a local Mac dev machine and a
 # Windows desktop, neither of which necessarily has a JVM installed.
+#
+# Every commit on main runs all three builds, two of them GraalVM native images. If that becomes
+# too slow, `paths-ignore` on the main trigger is the knob - but it cannot be added to this `push`
+# block as it stands, because path filters apply to tag pushes too and would silently skip a
+# release whose tagged commit only touched documentation.
 on:
   push:
+    branches:
+      - main
     tags:
       - "v*.*.*"
+
+# A second commit on main while the first is still building would race for the same release.
+# The newer one wins; a tag build has a group of its own and is never cancelled.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref == 'refs/heads/main' }}
 
 permissions:
   contents: write
@@ -19,8 +52,35 @@ permissions:
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.target.outputs.tag }}
+      suffix: ${{ steps.target.outputs.suffix }}
+      rolling: ${{ steps.target.outputs.rolling }}
     steps:
       - uses: actions/checkout@v4
+
+      # One decision, made once and read by the two native jobs, so the three of them cannot
+      # disagree about which release they are uploading to.
+      - name: Resolve the release this run publishes
+        id: target
+        run: |
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            echo "tag=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+            echo "suffix=-$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+            echo "rolling=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=latest" >> "$GITHUB_OUTPUT"
+            echo "suffix=" >> "$GITHUB_OUTPUT"
+            echo "rolling=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # A release object stores its tag as a string and never moves it, so the tag has to be
+      # moved here or `latest` would keep naming the commit it was first created on.
+      - name: Move the latest tag to this commit
+        if: steps.target.outputs.rolling == 'true'
+        run: |
+          git tag -f latest
+          git push -f origin latest
 
       - uses: pnpm/action-setup@v4
         with:
@@ -55,15 +115,23 @@ jobs:
         id: jar
         run: |
           jar=$(find rekall-app/target -maxdepth 1 -name '*.jar' ! -name '*.jar.original')
-          release_name="rekall-${GITHUB_REF_NAME}.jar"
+          release_name="rekall${{ steps.target.outputs.suffix }}.jar"
           cp "$jar" "$release_name"
           echo "path=$release_name" >> "$GITHUB_OUTPUT"
 
+      # This is the step that creates the release the two native jobs then upload into, which is
+      # why they depend on this job rather than running beside it. An asset uploaded under a name
+      # that is already on the release replaces it, so a rebuilt `latest` never accumulates.
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.target.outputs.tag }}
+          name: ${{ steps.target.outputs.rolling == 'true' && 'Latest build from main' || '' }}
+          prerelease: ${{ steps.target.outputs.rolling == 'true' }}
+          make_latest: ${{ steps.target.outputs.rolling != 'true' }}
+          generate_release_notes: ${{ steps.target.outputs.rolling != 'true' }}
+          body: ${{ steps.target.outputs.rolling == 'true' && format('Built from `main` at {0}. Rebuilt on every commit, so it moves without warning. For something that stays put, use a versioned release.', github.sha) || '' }}
           files: ${{ steps.jar.outputs.path }}
-          generate_release_notes: true
 
   # See scripts/native-build.sh and rekall-app/pom.xml's native profile for why the Hibernate/
   # ByteBuddy fix needs that script (not `mvn -Pnative package` alone) on every platform.
@@ -102,14 +170,44 @@ jobs:
       - name: Locate binary
         id: bin
         run: |
-          release_name="rekall-${GITHUB_REF_NAME}-macos-arm64"
+          release_name="rekall${{ needs.build-and-release.outputs.suffix }}-macos-arm64"
           cp rekall-app/target/rekall-app "$release_name"
           echo "path=$release_name" >> "$GITHUB_OUTPUT"
+
+      # scripts/macos-bundle.sh rather than `make dmg-native`: that target rebuilds the binary
+      # this job already produced and then installs the bundle into /Applications, and a runner
+      # has nothing to install into. The script needs swiftc, sips, iconutil, codesign and
+      # hdiutil, all of which a macos-14 image already carries.
+      #
+      # The signature it applies is ad hoc, not a Developer ID one, so this disk image is not
+      # notarized and arrives quarantined on any machine that downloads it. Clearing that is one
+      # command, documented in the README and on the download page.
+      - name: Bundle Rekall.app into a disk image
+        run: ./scripts/macos-bundle.sh native
+
+      # The disk image keeps one name on every release, versioned or rolling, because a link on
+      # a web page points at it and a name carrying the version would have to be edited for each
+      # build. The name the script writes carries the pom version, which is neither the tag nor
+      # the commit, so the file is found in dist/ by pattern rather than by guessing that string.
+      - name: Locate disk image
+        id: dmg
+        run: |
+          dmg=$(find dist -maxdepth 1 -name 'Rekall-*-native-arm64.dmg' | head -1)
+          if [ -z "$dmg" ]; then
+            echo "no disk image in dist/ - macos-bundle.sh did not produce one" >&2
+            ls -la dist/ || true
+            exit 1
+          fi
+          cp "$dmg" "Rekall-macos-arm64.dmg"
+          echo "Built $(basename "$dmg") ($(du -h "$dmg" | cut -f1))"
 
       - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ steps.bin.outputs.path }}
+          tag_name: ${{ needs.build-and-release.outputs.tag }}
+          files: |
+            ${{ steps.bin.outputs.path }}
+            Rekall-macos-arm64.dmg
 
   build-native-windows:
     needs: build-and-release
@@ -159,11 +257,12 @@ jobs:
         id: bin
         shell: bash
         run: |
-          release_name="rekall-${GITHUB_REF_NAME}-windows-x64.exe"
+          release_name="rekall${{ needs.build-and-release.outputs.suffix }}-windows-x64.exe"
           cp rekall-app/target/rekall-app.exe "$release_name"
           echo "path=$release_name" >> "$GITHUB_OUTPUT"
 
       - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ needs.build-and-release.outputs.tag }}
           files: ${{ steps.bin.outputs.path }}
