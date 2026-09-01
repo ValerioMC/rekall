@@ -46,6 +46,9 @@ import java.util.zip.ZipOutputStream;
 @Slf4j
 public class ExportService {
 
+    /** How much of a description the manifest quotes. A sentence, give or take. */
+    private static final int SUMMARY_LENGTH = 180;
+
     private final CompanyRepository companies;
 
     /**
@@ -124,7 +127,7 @@ public class ExportService {
             out.append("\n## ").append(company.getName())
                     .append("  `company:").append(company.getName()).append("`\n");
             if (company.getDescription() != null && !company.getDescription().isBlank()) {
-                out.append("\n").append(company.getDescription().replace("\n", " ")).append('\n');
+                out.append("\n").append(summary(company.getDescription())).append('\n');
             }
 
             for (Project project : company.getProjects()) {
@@ -132,7 +135,7 @@ public class ExportService {
                         .append("  `project:").append(project.getLabel()).append("`\n\n")
                         .append("- status: ").append(project.getStatus()).append('\n');
                 if (project.getDescription() != null && !project.getDescription().isBlank()) {
-                    out.append("- ").append(project.getDescription().replace("\n", " ")).append('\n');
+                    out.append("- ").append(summary(project.getDescription())).append('\n');
                 }
 
                 for (Task task : project.getTasks()) {
@@ -141,7 +144,7 @@ public class ExportService {
                             .append(" task:").append(task.getLabel()).append("`\n\n")
                             .append("- status: ").append(task.getStatus()).append('\n');
                     if (task.getDescription() != null && !task.getDescription().isBlank()) {
-                        out.append("- ").append(task.getDescription().replace("\n", " ")).append('\n');
+                        out.append("- ").append(summary(task.getDescription())).append('\n');
                     }
                     if (task.getWrapup() != null) {
                         out.append("- `WRAPUP.md`: the state of the implementation, written ")
@@ -184,6 +187,19 @@ public class ExportService {
      * <p>Separators and dot segments are removed rather than escaped: a record called
      * {@code ../../etc} must become a folder name, never a path.
      */
+    /**
+     * One line of a description, for an outline that is only an outline.
+     *
+     * <p>A description is a markdown document now, and the manifest is a table of contents: the
+     * whole brief pasted into a bullet would bury the tree it is there to show. The document
+     * itself is never here, so nothing is lost by cutting it: it is a sentence into the folder
+     * below.
+     */
+    private String summary(String description) {
+        String flat = description.replace("\n", " ").replaceAll("\\s+", " ").trim();
+        return flat.length() <= SUMMARY_LENGTH ? flat : flat.substring(0, SUMMARY_LENGTH).trim() + "\u2026";
+    }
+
     private String safe(String name) {
         String cleaned = name.trim()
                 .replaceAll("[^A-Za-z0-9 ._-]", "-")

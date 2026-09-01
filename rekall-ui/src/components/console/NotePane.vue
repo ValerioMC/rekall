@@ -8,6 +8,7 @@ import AttachTasksDialog from '@/components/console/AttachTasksDialog.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
+import { rkCommand } from '@/common/format/rk-command'
 import { DOCUMENT_KINDS } from '@/model/catalog'
 import type { TaskId } from '@/model/branded'
 
@@ -23,6 +24,7 @@ const SHORTCUTS = [
   { keys: 'T', does: 'new task' },
   { keys: 'E', does: 'edit the task in view' },
   { keys: 'N', does: 'new note on it' },
+  { keys: 'D', does: 'its description: what the work is' },
   { keys: 'W', does: 'its wrapup: what it currently is' },
   { keys: 'B', does: 'switch between tasks and notes' },
   { keys: 'J K', does: 'walk the list' },
@@ -81,7 +83,7 @@ const alsoOn = computed(
 const justCopied = ref(false)
 
 async function copyAnchor(): Promise<void> {
-  await navigator.clipboard?.writeText(anchor.value)
+  await navigator.clipboard?.writeText(rkCommand(anchor.value))
   justCopied.value = true
   setTimeout(() => (justCopied.value = false), 1400)
 }
@@ -193,6 +195,7 @@ async function confirmDelete(): Promise<void> {
             data-testid="copy-anchor"
             @click="copyAnchor"
           >
+            <span class="opacity-60">/rk</span>
             <span>{{ anchor }}</span>
             <span class="opacity-70">{{ justCopied ? 'copied' : 'copy' }}</span>
           </button>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { excerpt as previewOf } from '@/common/format/excerpt'
 import { relativeTime } from '@/common/format/relative-time'
 import { WRAPUP_AUTHOR_LABEL } from '@/model/catalog'
 import type { Wrapup } from '@/model/catalog'
@@ -24,14 +25,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ open: [] }>()
 
-/** A couple of lines of the body, with the markup stripped so the preview reads as prose. */
-const excerpt = computed(() =>
-  (props.wrapup?.bodyMarkdown ?? '')
-    .replace(/[#`>*|_-]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 110)
-)
+const excerpt = computed(() => previewOf(props.wrapup?.bodyMarkdown ?? ''))
 
 const writtenBy = computed(() =>
   props.wrapup ? WRAPUP_AUTHOR_LABEL[props.wrapup.writtenBy] : ''

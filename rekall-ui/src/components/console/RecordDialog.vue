@@ -227,14 +227,16 @@ async function save(): Promise<void> {
       if (current.id === null) await store.createCompany(input)
       else await store.updateCompany(current.id, input)
     } else if (current.kind === 'project') {
-      const existingBlueprint =
-        store.projects.find((candidate) => candidate.id === current.id)?.blueprintMarkdown ?? null
+      // Neither of these is editable here, and a write sends the whole record: read back what
+      // is stored or this dialog quietly clears two fields it never showed.
+      const stored = store.projects.find((candidate) => candidate.id === current.id)
       const input = {
         label: label.value,
         title: current.title.trim(),
         status: current.status,
         description: trimmedDescription,
-        blueprintMarkdown: existingBlueprint,
+        blueprintMarkdown: stored?.blueprintMarkdown ?? null,
+        repoFolder: stored?.repoFolder ?? null,
         companyId: current.companyId
       }
       if (current.id === null) await store.createProject(input)

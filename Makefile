@@ -7,7 +7,7 @@ JAR         := rekall-app/target/rekall-app-0.1.0-SNAPSHOT.jar
 NATIVE_BIN  := rekall-app/target/rekall-app
 UI          := rekall-ui
 DB          := ./data/rekall.mv.db
-REKALL_URL  ?= http://localhost:8080
+REKALL_URL  ?= http://localhost:47355
 
 # A database of its own, never the one `run`/`reset`/`console` point at (which, once a
 # database folder has been chosen through the setup wizard, is not `./data` at all — see
@@ -35,7 +35,7 @@ ui: ## Compile the frontend into rekall-app/src/main/resources/static
 # rekall-app/data. Running the packaged jar from here resolves it to ./data, so the application
 # had two databases depending on how it was started, and `reset` and `console` addressed the one
 # that was not in use.
-run: ui ## Start the application on http://localhost:8080
+run: ui ## Start the application on http://localhost:47355
 	$(MVN) -pl rekall-app -am spring-boot:run -Dspring-boot.run.workingDirectory=$(CURDIR)
 
 run-demo: ui ## Start the app on a throwaway database at ./data/demo, for load-data — your real database is untouched
@@ -54,7 +54,7 @@ jar: build ## Alias for build
 native: ui ## Build the GraalVM native binary (needs GraalVM as JAVA_HOME, takes ~5-8 minutes)
 	./scripts/native-build.sh
 
-run-native: native ## Build and start the GraalVM native binary on http://localhost:8080
+run-native: native ## Build and start the GraalVM native binary on http://localhost:47355
 	./$(NATIVE_BIN)
 
 start-native: ## Start the already-built native binary, no rebuild - fails if `make native` hasn't run yet
@@ -63,14 +63,21 @@ start-native: ## Start the already-built native binary, no rebuild - fails if `m
 
 # macOS only, and additive: everything above stays the plain build that has to keep working on
 # Windows and Linux. These two wrap it in Rekall.app - a window that starts the server itself -
-# and hand back a disk image to drag into /Applications. See packaging/macos/Launcher.swift.
-dmg-native: native ## macOS: package the native binary as Rekall.app in a DMG (needs GraalVM as JAVA_HOME)
+# hand back a disk image to pass to another machine, and install the bundle into /Applications
+# on this one. The disk image is for elsewhere; the machine that just built it should be running
+# what it built. See packaging/macos/Launcher.swift.
+#
+# The install replaces an existing /Applications/Rekall.app without asking, quitting it first if
+# it is up. REKALL_INSTALL=0 builds the disk image and stops there.
+dmg-native: native ## macOS: package the native binary as Rekall.app, then install it into /Applications (needs GraalVM as JAVA_HOME)
 	./scripts/macos-bundle.sh native
+	./scripts/macos-install.sh native
 
-dmg-jvm: build ## macOS: package the jar plus a bundled Java runtime as Rekall.app in a DMG
+dmg-jvm: build ## macOS: package the jar plus a bundled Java runtime as Rekall.app, then install it into /Applications
 	./scripts/macos-bundle.sh jvm
+	./scripts/macos-install.sh jvm
 
-ui-dev: ## Vite dev server on :5173, proxying /api and /mcp to :8080
+ui-dev: ## Vite dev server on :5173, proxying /api and /mcp to :47355
 	cd $(UI) && $(PNPM) dev
 
 test: test-backend test-ui ## Everything
@@ -81,11 +88,15 @@ test-backend: ## JUnit against an in-memory H2
 test-ui: ## eslint, vue-tsc and vitest
 	cd $(UI) && $(PNPM) lint && $(PNPM) typecheck && $(PNPM) test
 
-mcp-add: ## Register the MCP server with Claude Code
-	claude mcp add --transport http rekall http://localhost:8080/mcp
+# --scope user, not the default local scope: a local registration exists only for the one
+# directory it was run from, which looks identical from inside that directory and like nothing
+# at all from anywhere else. Settings > Claude Code does the same thing from the running
+# application, and installs the /rk command with it.
+mcp-add: ## Register the MCP server with Claude Code, for every folder
+	claude mcp add --scope user --transport http rekall http://localhost:47355/mcp
 
 mcp-check: ## Verify the endpoint answers, independently of the client
-	@curl -sf -X POST http://localhost:8080/mcp \
+	@curl -sf -X POST http://localhost:47355/mcp \
 		-H 'Content-Type: application/json' \
 		-d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' \
 		| grep -q rekall_context && echo "mcp ok" || (echo "mcp not answering"; exit 1)
@@ -102,5 +113,5 @@ reset-data: ## Delete the demo database (./data/demo) so the next load-data star
 	rm -rf $(DEMO_DB_DIR)
 	@echo "demo database deleted"
 
-load-data: ## Seed the running instance with demo companies, tasks, notes and time tracking for the current month. Start it first with `make run-demo`
+load-data: ## Seed the running instance with demo companies, project blueprints, tasks with markdown briefs, notes and time tracking for the current month. Start it first with `make run-demo`
 	python3 scripts/seed-demo-data.py --base-url $(REKALL_URL) --companies $(DEMO_COMPANIES) --tasks-per-company $(DEMO_TASKS_PER_COMPANY)

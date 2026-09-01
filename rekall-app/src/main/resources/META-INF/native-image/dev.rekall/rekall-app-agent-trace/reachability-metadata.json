@@ -17532,6 +17532,9 @@
   ],
   "resources": [
     {
+      "glob": "claude/commands/rk.md"
+    },
+    {
       "glob": "ContributorValidationMessages.properties"
     },
     {

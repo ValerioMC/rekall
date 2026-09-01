@@ -36,8 +36,7 @@ ARCH="$(uname -m)"
 # root owns target/. Building one flavour there deleted the disk image the other had just
 # produced. dist/ is gitignored and nothing in the Maven build ever looks at it.
 OUT="dist/macos/$FLAVOUR"
-STAGE="$OUT/dmg"
-APP="$STAGE/Rekall.app"
+APP="$OUT/Rekall.app"
 DMG="dist/Rekall-${SHORT_VERSION}-${FLAVOUR}-${ARCH}.dmg"
 
 rm -rf "$OUT"
@@ -92,6 +91,7 @@ echo "==> Launcher (swiftc, $ARCH)"
 # a script, and @main is rejected in a module that has top-level code.
 swiftc -O -parse-as-library -target "${ARCH}-apple-macos13.0" \
     packaging/macos/Launcher.swift packaging/macos/FolderPicker.swift \
+    packaging/macos/ClaudeCodeLauncher.swift \
     -o "$APP/Contents/MacOS/Rekall"
 
 # --- icon --------------------------------------------------------------------------------
@@ -125,9 +125,27 @@ codesign --force --deep --sign - "$APP" 2>/dev/null
 # --- disk image --------------------------------------------------------------------------
 
 echo "==> Disk image"
+# The window you drag Rekall out of needs an /Applications symlink beside the bundle, and to
+# anything walking the tree that symlink is the whole of /Applications: staged inside the
+# repository, it makes the IDE index every application on the machine. So the staging folder
+# lives outside the project and the bundle is moved through it, leaving dist/ with the .app and
+# the disk image and no link at all. The move is a rename when TMPDIR is on the same volume,
+# which on macOS it is.
+STAGE="$(mktemp -d "${TMPDIR:-/tmp}/rekall-dmg.XXXXXX")"
+unstage() {
+    if [ -d "$STAGE/Rekall.app" ]; then
+        mv "$STAGE/Rekall.app" "$APP"
+    fi
+    rm -rf "$STAGE"
+}
+trap unstage EXIT
+
+mv "$APP" "$STAGE/Rekall.app"
 ln -s /Applications "$STAGE/Applications"
 rm -f "$DMG"
 hdiutil create -quiet -volname "Rekall" -srcfolder "$STAGE" -ov -format UDZO "$DMG"
+unstage
+trap - EXIT
 
 echo
 echo "    $DMG ($(du -h "$DMG" | cut -f1))"

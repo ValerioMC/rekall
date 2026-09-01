@@ -2,6 +2,7 @@
 import { onMounted, onUnmounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import AnchorBar from '@/components/console/AnchorBar.vue'
+import DescriptionPane from '@/components/console/DescriptionPane.vue'
 import NavigatorPane from '@/components/console/NavigatorPane.vue'
 import NoteListPane from '@/components/console/NoteListPane.vue'
 import NotePane from '@/components/console/NotePane.vue'
@@ -70,11 +71,13 @@ function onKeydown(event: KeyboardEvent): void {
     return
   }
 
-  // The state of the task in view, on the key its name starts with. A toggle rather than a
-  // one-way door, the same way B is: the key that took you here takes you back.
-  if (key === 'w') {
+  // The two things written about the task in view, each on the key its name starts with. A
+  // toggle rather than a one-way door, the same way B is: the key that took you here takes you
+  // back.
+  if (key === 'w' || key === 'd') {
     event.preventDefault()
-    store.toggleWrapup()
+    if (key === 'w') store.toggleWrapup()
+    else store.toggleDescription()
     // The panes swap without the pointer moving, so focus follows or a keyboard user is left
     // tabbing through something that is no longer on screen.
     document.getElementById('note')?.focus()
@@ -141,6 +144,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
       <NoteListPane />
       <div id="note" class="flex min-h-0 flex-1" tabindex="-1">
         <WrapupPane v-if="paneFocus === 'wrapup'" />
+        <DescriptionPane v-else-if="paneFocus === 'description'" />
         <NotePane v-else />
       </div>
     </div>

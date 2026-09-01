@@ -1,0 +1,10 @@
+databaseChangeLog:
+
+  - changeSet:
+      id: 008-project-repo-folder
+      author: rekall
+      changes:
+        - addColumn:
+            tableName: project
+            columns:
+              - column: {name: repo_folder, type: varchar(1000)}

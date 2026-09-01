@@ -79,6 +79,18 @@ public class Project {
     @Setter
     private String blueprintMarkdown;
 
+    /**
+     * Where a session on this project is opened, absolute, or null when nobody has said.
+     *
+     * <p>Nothing here ever reads inside it. It is handed to a terminal as the directory to start
+     * in, which is the one thing Claude Code cannot be told after the fact: it takes the folder
+     * it was launched from and keeps it for the session.
+     */
+    @Size(max = 1_000)
+    @Column(name = "repo_folder", length = 1_000)
+    @Setter
+    private String repoFolder;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(
             name = "company_id",

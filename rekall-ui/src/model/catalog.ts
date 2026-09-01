@@ -62,6 +62,8 @@ export interface Project {
   readonly status: ProjectStatus
   readonly description: string | null
   readonly blueprintMarkdown: string | null
+  /** Absolute, or null when nobody has said where a session on this project opens. */
+  readonly repoFolder: string | null
   readonly companyId: CompanyId
   readonly companyName: string
   readonly taskCount: number
@@ -80,6 +82,8 @@ export interface Task {
   readonly projectLabel: string
   readonly projectTitle: string
   readonly companyName: string
+  /** Its project's folder, so a task can open a session without loading its project first. */
+  readonly projectRepoFolder: string | null
   readonly documentCount: number
   /** Whether this task has said what it currently is. The body lives on the wrapup itself. */
   readonly hasWrapup: boolean

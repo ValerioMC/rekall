@@ -18,7 +18,7 @@ No database server, no Docker, no cluster. The database is an H2 file under `./d
 ## Run
 
 ```bash
-make run     # compiles the frontend, then starts on http://localhost:8080
+make run     # compiles the frontend, then starts on http://localhost:47355
 ```
 
 `run` rebuilds the UI first. The compiled frontend is committed under
@@ -30,10 +30,15 @@ make build   # the above, plus the packaged jar
 make ui      # the frontend alone
 ```
 
-| Service | Address                     |
-|---------|-----------------------------|
-| UI      | `http://localhost:8080`     |
-| MCP     | `http://localhost:8080/mcp` |
+| Service | Address                      |
+|---------|------------------------------|
+| UI      | `http://localhost:47355`     |
+| MCP     | `http://localhost:47355/mcp` |
+
+The port is 47355 and not 8080 on purpose: 8080 is the first port everything else on a
+developer machine takes, and the MCP endpoint is a fixed URL registered with Claude Code, so a
+clash breaks the registration rather than moving the application somewhere else. `SERVER_PORT`
+overrides it for the server, the `.app` launcher and the tests alike.
 
 ```bash
 make reset   # delete the database file, no undo
@@ -47,11 +52,15 @@ make dmg-native   # the GraalVM binary in the bundle. Needs GraalVM as JAVA_HOME
 make dmg-jvm      # the jar plus a bundled Java runtime. Any JDK 25
 ```
 
-Both write `dist/Rekall-<version>-<flavour>-<arch>.dmg`, side by side. Open one, drag Rekall
-onto Applications, and that bundle is the whole of Rekall: no terminal, no `make`, nothing else
-installed on the machine. They are additive, and macOS only. Every target above them is the
-plain build and keeps working unchanged on Windows and Linux, which is what the rest of the
-project uses.
+Both write `dist/Rekall-<version>-<flavour>-<arch>.dmg` and then install the bundle they built
+into `/Applications` on this machine: the disk image is what travels to another one, and the
+machine that ran the build should be running what it built. An existing `/Applications/Rekall.app`
+is replaced without asking, and a copy that is running is quit first and started again after.
+`REKALL_INSTALL=0 make dmg-jvm` stops at the disk image.
+
+That bundle is the whole of Rekall: no terminal, no `make`, nothing else installed on the
+machine. Both targets are additive, and macOS only. Every target above them is the plain build
+and keeps working unchanged on Windows and Linux, which is what the rest of the project uses.
 
 | | `dmg-native` | `dmg-jvm` |
 |---|---|---|
@@ -63,7 +72,7 @@ project uses.
 Both also need the Xcode Command Line Tools, for `swiftc`: the bundle's executable is not the
 server but `packaging/macos/Launcher.swift`, a window that starts the server underneath itself.
 Double clicking opens that window immediately, on a splash screen that is the server booting,
-and swaps it for the console the moment port 8080 answers. Quitting sends SIGTERM, so the H2
+and swaps it for the console the moment port 47355 answers. Quitting sends SIGTERM, so the H2
 file is closed properly instead of left behind a lock file.
 
 One thing the window can do that a browser tab cannot: the folder icon in the database field
@@ -73,7 +82,7 @@ help text under it says which of the two you are looking at.
 
 It is the same port, the same `~/.rekall/config.json` and the same MCP endpoint as `make run`,
 not a second installation with a database of its own. When something is already listening on
-8080 the app attaches to it rather than starting a second server, which is what makes opening
+47355 the app attaches to it rather than starting a second server, which is what makes opening
 the app while a terminal instance runs harmless.
 
 The bundle is signed ad hoc, not with a Developer ID. That is enough on the machine that built
@@ -89,17 +98,43 @@ opens. It is where a window that never gets past the splash screen says why.
 
 ## Connect Claude Code
 
+**Settings > Claude Code** does it in one click: it registers the MCP server for every folder and
+installs the `/rk` command. The same button repairs a registration that points at the wrong port,
+carries an older copy of the command, or is shadowed in one folder by a registration made there
+without `--scope user`. The badge above it says which of those it found.
+
+From a terminal instead:
+
 ```bash
-make mcp-add          # claude mcp add --transport http rekall http://localhost:8080/mcp
+make mcp-add          # claude mcp add --scope user --transport http rekall http://localhost:47355/mcp
 make mcp-check        # verify the endpoint answers, independently of the client
 cp .claude/commands/rk.md ~/.claude/commands/rk.md
 ```
 
-A session then starts with one line:
+`--scope user` is the part that matters. Without it `claude mcp add` registers the server for the
+one directory it was run from, so `/rk` works there and nowhere else.
+
+A session picks up the registration when it starts, so one already open has to be restarted. It
+then starts with one line:
 
 ```
 /rk project:vega task:report-builder-main-workflow
 ```
+
+### Open a session from the app
+
+**Open in Claude Code**, on a task or on a project, opens a terminal in that project's folder with
+`/rk` already running, so the anchor is never copied or typed. Set the folder on the project page,
+in the **Folder** field under the description; without one the button says what is missing and
+does nothing.
+
+| | |
+|---|---|
+| Terminal | iTerm2 when it is installed, Terminal.app otherwise |
+| Permissions | **Settings > Claude Code** has a switch that adds `--dangerously-skip-permissions`. Off until turned on, and it stays on this machine rather than in the database |
+
+Only inside Rekall.app. A browser tab cannot open a terminal, and an endpoint that let it would be
+one any other page open in that browser could call.
 
 ## The anchor syntax
 
@@ -139,9 +174,21 @@ One surface, three panes: pick a task on the left, pick its wrapup or one of its
 middle, write on the right. The field at the top is always there and takes the same grammar as
 `/rk`.
 
-The wrapup is pinned above the notes rather than filed among them, because it is the answer to
-the question you arrive with and the notes are the background to it. A task that has none shows
-an empty card: the absence is the reason to write one.
+The description and the wrapup are pinned above the notes rather than filed among them: what
+the task is, then where it got to, then the background to both. Each opens in the writing pane
+with a markdown editor of its own, and a task missing either shows an empty card, because the
+absence is the reason to write one.
+
+A description is the brief the work is measured against: what has to be built, what it has to
+satisfy, what is out of scope. It travels into every context that loads the task. It is
+markdown at whatever length the work needs, so it is written on the pane rather than in the
+field of the create dialog, which only ever holds the first sentence of it.
+
+It is also the instruction. A `/rk` that loads a task with a description summarises what it
+found, says in one line what it is about to do, and does it. It asks only where the context does
+not settle the question: no description, one that contradicts itself, or work that would
+overwrite something nothing keeps a copy of. Anything already written down is not asked about
+twice.
 
 Companies, projects and tasks are created, edited and deleted from one editor, opened from the
 row of the record itself: the scope picker for companies and projects, the task row or `E` for
@@ -157,6 +204,7 @@ with it first.
 | `T` | New task, in the project you are scoped to |
 | `E` | Edit the task in view |
 | `N` | New note on it |
+| `D` | Its description: what the work is |
 | `W` | Its wrapup: what it currently is |
 | `B` | Switch between browsing tasks and browsing notes |
 | `J` / `K` | Walk the list |
@@ -177,7 +225,7 @@ Company ──< Project ──< Task >──< Document
 |--------|-------------|-------|
 | `Company` | `name` | description, its projects |
 | `Project` | `label`, unique per company | title, status, description, its company, its tasks |
-| `Task` | `label`, unique per project | title, status, description, its project, its notes, its wrapup |
+| `Task` | `label`, unique per project | title, status, description (markdown), its project, its notes, its wrapup |
 | `Document` | — | title, kind, markdown body, the tasks it is on |
 | `Wrapup` | through its task | markdown body, who wrote it last. One per task, enforced by the database |
 
@@ -200,7 +248,7 @@ Adding an entity is a JPA class plus a Liquibase changeset, not a UI action: the
 ## Export
 
 ```bash
-curl -OJ http://localhost:8080/api/export
+curl -OJ http://localhost:47355/api/export
 ```
 
 Or the **Export** button in the top bar. The archive is a folder tree, one folder per company, then per project, then per task, one markdown file per note, plus a `MANIFEST.md` with statuses and anchors.
@@ -224,9 +272,13 @@ tasks appears under each of them, because a tree cannot say "this file is also o
 ## Develop
 
 ```bash
-make ui-dev           # Vite dev server on :5173, proxying /api and /mcp to :8080
+make ui-dev           # Vite dev server on :5173, proxying /api and /mcp to :47355
 make test             # backend tests, then frontend lint, types and unit tests
 ```
+
+`rekall-app/src/main/resources/claude/commands/rk.md` is a symlink to `.claude/commands/rk.md`.
+The command this repository uses is the one the application installs, so editing it in one place
+is editing it everywhere; Maven copies the content, not the link.
 
 ### Frontend stack
 
@@ -291,7 +343,7 @@ All optional: the defaults run the application against `./data/rekall`.
 | `REKALL_DB_URL`      | `jdbc:h2:file:./data/rekall;AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1` | JDBC url |
 | `REKALL_DB_USER`     | `rekall` | |
 | `REKALL_DB_PASSWORD` | `rekall` | |
-| `SERVER_PORT`        | `8080`  | |
+| `SERVER_PORT`        | `47355` | HTTP port for the UI, the API and MCP |
 
 Notes are stored in plain text in the database file. If you keep credentials in them, they are as protected as your disk is.
 

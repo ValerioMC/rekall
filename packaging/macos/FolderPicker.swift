@@ -25,13 +25,13 @@ final class FolderPicker: NSObject, WKScriptMessageHandlerWithReply {
     /// possible surface: one function, returning the promise postMessage already gives back, so
     /// the page has nothing to poll and no callback to register.
     static let bridge = """
-        window.rekallDesktop = {
+        window.rekallDesktop = Object.assign(window.rekallDesktop || {}, {
             pickFolder: function (currentPath) {
                 return window.webkit.messageHandlers.\(messageName).postMessage({
                     path: typeof currentPath === 'string' ? currentPath : ''
                 });
             }
-        };
+        });
         """
 
     private let hostWindow: () -> NSWindow?

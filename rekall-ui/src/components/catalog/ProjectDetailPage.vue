@@ -15,6 +15,9 @@ import { hasActivity, projectActivitySeries } from '@/common/trace/activity-seri
 import { projectDraft } from '@/model/record-draft'
 import { PROJECT_STATUS_LABEL, TASK_STATUS_COLOR, TASK_STATUS_LABEL } from '@/model/catalog'
 import { asProjectId } from '@/model/branded'
+import { rkCommand } from '@/common/format/rk-command'
+import { desktopHost, pickFolder } from '@/common/native/desktop'
+import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.vue'
 import type { RecordDraft } from '@/model/record-draft'
 
 const props = defineProps<{ id: string }>()
@@ -73,7 +76,7 @@ watch(
 const copied = ref(false)
 async function copyAnchor(): Promise<void> {
   if (!project.value) return
-  await navigator.clipboard?.writeText(project.value.anchor)
+  await navigator.clipboard?.writeText(rkCommand(project.value.anchor))
   copied.value = true
   setTimeout(() => (copied.value = false), 1400)
 }
@@ -99,6 +102,34 @@ function onDescriptionInput(event: Event): void {
   }, 700)
 }
 
+// ------------------------------------------------------------------ the folder a session opens in
+
+const folderDraft = ref('')
+let folderTimer: ReturnType<typeof setTimeout> | null = null
+
+/** Fixed for the lifetime of the page: the bridge is installed before the application boots. */
+const canBrowse = desktopHost() !== null
+
+function scheduleFolderSave(): void {
+  if (folderTimer) clearTimeout(folderTimer)
+  folderTimer = setTimeout(() => {
+    if (project.value) void store.saveProjectRepoFolder(project.value.id, folderDraft.value)
+  }, 700)
+}
+
+function onFolderInput(event: Event): void {
+  folderDraft.value = (event.target as HTMLInputElement).value
+  scheduleFolderSave()
+}
+
+/** A dismissed panel leaves what is typed alone, exactly as it does on the database field. */
+async function browseFolder(): Promise<void> {
+  const chosen = await pickFolder(folderDraft.value)
+  if (!chosen) return
+  folderDraft.value = chosen
+  scheduleFolderSave()
+}
+
 // ------------------------------------------------------------------ blueprint
 
 const blueprintDraft = ref('')
@@ -117,7 +148,9 @@ watch(
   async () => {
     if (descriptionTimer) clearTimeout(descriptionTimer)
     if (blueprintTimer) clearTimeout(blueprintTimer)
+    if (folderTimer) clearTimeout(folderTimer)
     descriptionDraft.value = project.value?.description ?? ''
+    folderDraft.value = project.value?.repoFolder ?? ''
     blueprintDraft.value = project.value?.blueprintMarkdown ?? ''
     blueprintMode.value = blueprintDraft.value.trim() ? 'read' : 'write'
     await nextTick()
@@ -134,6 +167,10 @@ onUnmounted(() => {
   if (blueprintTimer) {
     clearTimeout(blueprintTimer)
     if (project.value) void store.saveProjectBlueprint(project.value.id, blueprintDraft.value)
+  }
+  if (folderTimer) {
+    clearTimeout(folderTimer)
+    if (project.value) void store.saveProjectRepoFolder(project.value.id, folderDraft.value)
   }
 })
 </script>
@@ -175,9 +212,15 @@ onUnmounted(() => {
             data-testid="copy-project-anchor"
             @click="copyAnchor"
           >
+            <span class="opacity-60">/rk</span>
             <span>{{ project.anchor }}</span>
             <span class="opacity-70">{{ copied ? 'copied' : 'copy' }}</span>
           </button>
+          <LaunchClaudeCodeButton
+            :anchors="project.anchor"
+            :folder="project.repoFolder"
+            missing-hint="Set this project's folder below to open a session from it"
+          />
         </template>
         <template #actions>
           <span class="mr-1 flex items-center gap-2 text-[12px]" :class="store.saveState === 'unsaved' ? 'text-warn' : 'text-text-subtle'">
@@ -213,6 +256,31 @@ onUnmounted(() => {
             placeholder="What this is, in a few sentences. Travels into every context that loads this project."
             @input="onDescriptionInput"
           />
+        </AppCard>
+
+        <AppCard>
+          <p class="mb-2 text-[11px] font-semibold uppercase tracking-[0.09em] text-text-subtle">
+            Folder
+          </p>
+          <div class="flex items-center gap-2">
+            <input
+              :value="folderDraft"
+              data-testid="project-repo-folder"
+              spellcheck="false"
+              autocomplete="off"
+              class="focus-ring h-9 min-w-0 flex-1 rounded-[var(--radius-control)] border border-border bg-canvas px-3 font-mono text-[12.5px] text-text outline-none transition-colors placeholder:text-text-subtle hover:border-border-strong focus:border-accent"
+              placeholder="/Users/you/Projects/thing"
+              @input="onFolderInput"
+            />
+            <AppButton v-if="canBrowse" size="sm" variant="secondary" @click="browseFolder">
+              Browse
+            </AppButton>
+          </div>
+          <p class="mt-2 text-[12px] text-text-subtle">
+            Where <span class="text-text-muted">Open in Claude Code</span> starts the session. Claude
+            Code keeps the folder it was launched from for the whole session, so this is what decides
+            which repository the work happens in.
+          </p>
         </AppCard>
 
         <AppCard :padded="false">

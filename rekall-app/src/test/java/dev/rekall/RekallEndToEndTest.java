@@ -103,6 +103,42 @@ class RekallEndToEndTest {
     }
 
     /**
+     * A description is a markdown document, saying what the work is, what it has to satisfy and
+     * what is out of scope, so it is handed over in a tag of its own. Rendered into the field list
+     * above it, every line after the first would fall outside the bullet and its headings would
+     * outrank the record's.
+     */
+    @Test
+    @DisplayName("a task's description arrives as a document, not as a bullet")
+    void theDescriptionIsHandedOverWhole() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String description = """
+                ## Cosa deve fare
+
+                Il report builder genera il report settimanale.
+
+                ## Fuori scope
+
+                Il confronto fra settimane diverse.""";
+        post("/api/tasks", Map.of(
+                "label", "report-builder", "title", "Report builder", "status", "IN_PROGRESS",
+                "description", description, "projectId", projectId));
+
+        String context = callTool("rekall_context", Map.of("anchors", "task:report-builder"));
+
+        assertThat(context)
+                .as("in a tag, beside the wrapup and the notes")
+                .contains("<description>")
+                .contains("</description>")
+                .as("whole, with the structure the brief was written with")
+                .contains("## Fuori scope")
+                .contains("Il confronto fra settimane diverse.")
+                .as("and never flattened into the field list")
+                .doesNotContain("- `description`");
+    }
+
+    /**
      * The reason the two fields are separate columns. An anchor is written down in a slash
      * command, in a note, in someone's head; a title is rewritten the moment a better name comes
      * along. Renaming must not break what was written down.
@@ -186,6 +222,38 @@ class RekallEndToEndTest {
         assertThat(callTool("rekall_context", Map.of("anchors", "project:vega-2"))).contains("Project: Vega");
         assertThat(callTool("rekall_context", Map.of("anchors", "project:vega")))
                 .contains("No project matches 'vega'");
+    }
+
+    /**
+     * The folder a session is opened in is the one thing a task cannot work out for itself, and
+     * the button that opens one lives on the task. So it is stored on the project and travels
+     * down with every task the project holds.
+     */
+    @Test
+    @DisplayName("a project's folder reaches its tasks, and a blank one clears it")
+    @SuppressWarnings("unchecked")
+    void theProjectFolderReachesItsTasks() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+
+        Map<String, Object> saved = updateProjectFolder(projectId, acme, "/Users/someone/Projects/vega");
+
+        assertThat(saved.get("repoFolder")).isEqualTo("/Users/someone/Projects/vega");
+        Map<String, Object> task = rest.get().uri("/api/tasks/" + taskId)
+                .retrieve().toEntity(Map.class).getBody();
+        assertThat(task.get("projectRepoFolder")).isEqualTo("/Users/someone/Projects/vega");
+
+        // Cleared in the interface is an empty field, and an empty path is not a path.
+        assertThat(updateProjectFolder(projectId, acme, "   ").get("repoFolder")).isNull();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> updateProjectFolder(String projectId, String companyId, String folder) {
+        return rest.put().uri("/api/projects/" + projectId)
+                .body(Map.of("label", "vega", "title", "Vega", "status", "ACTIVE",
+                        "companyId", companyId, "repoFolder", folder))
+                .retrieve().toEntity(Map.class).getBody();
     }
 
     /**

@@ -21,6 +21,9 @@ import java.util.Map;
  *     written one. Only a task ever carries one, and it is the first thing rendered: a session
  *     that opens on a task is asking what it does now, and the notes are the background to that
  * @param blueprint a project's own long-form document, or null
+ * @param description what this record is, as markdown, or null. A body rather than a field: it
+ *     is written at whatever length the work needs, and a document inlined into the field list
+ *     would put its own headings above the record's
  */
 public record ContextRecord(
         String kind,
@@ -31,7 +34,8 @@ public record ContextRecord(
         List<String> related,
         List<DocumentView> documents,
         WrapupView wrapup,
-        String blueprint) {
+        String blueprint,
+        String description) {
 
     public ContextRecord {
         fields = fields == null ? Map.of() : Map.copyOf(fields);

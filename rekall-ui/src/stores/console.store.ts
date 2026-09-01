@@ -51,10 +51,12 @@ export type SaveState = 'saved' | 'unsaved' | 'saving'
 /**
  * What the right-hand pane is showing.
  *
- * A third state rather than a wrapup pretending to be a note: the two are edited differently
- * and one of them has no title, no kind and no other task it could belong to.
+ * Three states rather than a wrapup pretending to be a note: they are edited differently, and
+ * two of them have no title, no kind and no other task they could belong to. The description
+ * and the wrapup are separate for the same reason they are separate columns: one is the brief
+ * the work is measured against, the other is where the work got to.
  */
-export type PaneFocus = 'note' | 'wrapup'
+export type PaneFocus = 'note' | 'wrapup' | 'description'
 
 /** Everything the console shows, loaded once and kept in step by the actions below. */
 export const useConsoleStore = defineStore('console', () => {
@@ -363,7 +365,7 @@ export const useConsoleStore = defineStore('console', () => {
 
   async function patchProject(
     id: ProjectId,
-    patch: Partial<Pick<ProjectInput, 'description' | 'blueprintMarkdown'>>
+    patch: Partial<Pick<ProjectInput, 'description' | 'blueprintMarkdown' | 'repoFolder'>>
   ): Promise<void> {
     const current = projects.value.find((project) => project.id === id)
     if (!current) return
@@ -376,9 +378,16 @@ export const useConsoleStore = defineStore('console', () => {
         companyId: current.companyId,
         description: 'description' in patch ? patch.description! : current.description,
         blueprintMarkdown:
-          'blueprintMarkdown' in patch ? patch.blueprintMarkdown! : current.blueprintMarkdown
+          'blueprintMarkdown' in patch ? patch.blueprintMarkdown! : current.blueprintMarkdown,
+        repoFolder: 'repoFolder' in patch ? patch.repoFolder! : current.repoFolder
       })
       projects.value = projects.value.map((project) => (project.id === id ? saved : project))
+      // Its tasks carry a copy of the folder, because the button that opens a session lives on
+      // a task. Without this the pane goes on showing the answer from before the save, and the
+      // button stays disabled on a project that now has somewhere to open.
+      tasks.value = tasks.value.map((task) =>
+        task.projectId === id ? { ...task, projectRepoFolder: saved.repoFolder } : task
+      )
       saveState.value = 'saved'
     } catch (error) {
       saveState.value = 'unsaved'
@@ -394,6 +403,11 @@ export const useConsoleStore = defineStore('console', () => {
     return patchProject(id, {
       blueprintMarkdown: blueprintMarkdown.trim() === '' ? null : blueprintMarkdown
     })
+  }
+
+  /** Where a session on this project opens. Cleared to null, never stored as an empty path. */
+  function saveProjectRepoFolder(id: ProjectId, repoFolder: string): Promise<void> {
+    return patchProject(id, { repoFolder: repoFolder.trim() === '' ? null : repoFolder.trim() })
   }
 
   // ------------------------------------------------------------------ tasks
@@ -447,6 +461,36 @@ export const useConsoleStore = defineStore('console', () => {
       projectId: task.projectId
     })
     tasks.value = tasks.value.map((candidate) => (candidate.id === id ? saved : candidate))
+  }
+
+  /**
+   * The description, saved on its own from the pane that shows it.
+   *
+   * It goes out the way a status change does rather than the way a rename does: the record is
+   * sent back with only that field moved, and none of the cascading reloads `updateTask` owes
+   * to a label or a project change, because neither an anchor nor a note attachment can move
+   * when a sentence is corrected.
+   */
+  async function saveTaskDescription(id: TaskId, description: string): Promise<void> {
+    const task = tasks.value.find((candidate) => candidate.id === id)
+    if (!task) return
+    const next = description.trim() === '' ? null : description
+    if (task.description === next) return
+    saveState.value = 'saving'
+    try {
+      const saved = await apiUpdateTask(id, {
+        label: task.label,
+        title: task.title,
+        status: task.status,
+        description: next,
+        projectId: task.projectId
+      })
+      tasks.value = tasks.value.map((candidate) => (candidate.id === id ? saved : candidate))
+      saveState.value = 'saved'
+    } catch (error) {
+      saveState.value = 'unsaved'
+      throw error
+    }
   }
 
   // ------------------------------------------------------------------ notes
@@ -509,6 +553,17 @@ export const useConsoleStore = defineStore('console', () => {
   function openWrapup(): void {
     if (selectedTaskId.value === null) return
     paneFocus.value = 'wrapup'
+  }
+
+  function openDescription(): void {
+    if (selectedTaskId.value === null) return
+    paneFocus.value = 'description'
+  }
+
+  /** D, like W: the key that took you to the description takes you back to the note. */
+  function toggleDescription(): void {
+    if (selectedTaskId.value === null) return
+    paneFocus.value = paneFocus.value === 'description' ? 'note' : 'description'
   }
 
   /** What the keyboard does: the key that took you to the wrapup takes you back to the note. */
@@ -644,14 +699,18 @@ export const useConsoleStore = defineStore('console', () => {
     deleteProject,
     saveProjectDescription,
     saveProjectBlueprint,
+    saveProjectRepoFolder,
     createTask,
     updateTask,
     deleteTask,
     setTaskStatus,
+    saveTaskDescription,
     createNote,
     saveNote,
     deleteNote,
     openWrapup,
+    openDescription,
+    toggleDescription,
     toggleWrapup,
     saveWrapupBody,
     removeWrapup,

@@ -15,3 +15,5 @@ databaseChangeLog:
       file: db/changelog/006-time-entry.yaml
   - include:
       file: db/changelog/007-project-blueprint.yaml
+  - include:
+      file: db/changelog/008-project-repo-folder.yaml

@@ -53,6 +53,7 @@ public final class ApiDtos {
             ProjectStatus status,
             String description,
             String blueprintMarkdown,
+            String repoFolder,
             UUID companyId,
             String companyName,
             int taskCount,
@@ -67,6 +68,7 @@ public final class ApiDtos {
                     project.getStatus(),
                     project.getDescription(),
                     project.getBlueprintMarkdown(),
+                    project.getRepoFolder(),
                     project.getCompany().getId(),
                     project.getCompany().getName(),
                     project.getTasks().size(),
@@ -85,6 +87,7 @@ public final class ApiDtos {
             ProjectStatus status,
             String description,
             String blueprintMarkdown,
+            String repoFolder,
             UUID companyId) {
     }
 
@@ -103,6 +106,9 @@ public final class ApiDtos {
             String projectLabel,
             String projectTitle,
             String companyName,
+            /* Its project's, carried here so a task row can open a session without fetching the
+             * project it already names three other fields of. */
+            String projectRepoFolder,
             int documentCount,
             boolean hasWrapup,
             String anchor,
@@ -119,6 +125,7 @@ public final class ApiDtos {
                     task.getProject().getLabel(),
                     task.getProject().getTitle(),
                     task.getProject().getCompany().getName(),
+                    task.getProject().getRepoFolder(),
                     task.getDocuments().size(),
                     task.getWrapup() != null,
                     "project:%s task:%s".formatted(task.getProject().getLabel(), task.getLabel()),

@@ -30,6 +30,7 @@ function taskStub(id: TaskId, projectId: ProjectId): Task {
     projectLabel: 'vega',
     projectTitle: 'Vega',
     companyName: 'Acme',
+    projectRepoFolder: null,
     documentCount: 0,
     hasWrapup: false,
     anchor: 'project:vega task:report-builder',

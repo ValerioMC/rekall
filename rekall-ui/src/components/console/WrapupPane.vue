@@ -7,6 +7,7 @@ import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { relativeTime } from '@/common/format/relative-time'
+import { rkCommand } from '@/common/format/rk-command'
 import { WRAPUP_AUTHOR_LABEL } from '@/model/catalog'
 
 /**
@@ -62,7 +63,7 @@ watch(
 
 /** The command that has Claude rewrite it, ready to paste next to the terminal. */
 const command = computed(() =>
-  selectedTask.value ? `/rk ${selectedTask.value.anchor} wrapup` : ''
+  selectedTask.value ? `${rkCommand(selectedTask.value.anchor)} wrapup` : ''
 )
 
 const writtenBy = computed(() =>
@@ -127,8 +128,9 @@ async function confirmDelete(): Promise<void> {
             class="anchor-chip focus-ring mt-1.5 inline-flex items-center gap-2 px-2.5 py-1 text-[11.5px] transition-colors hover:border-anchor"
             :class="copied === 'anchor' && 'flash'"
             data-testid="copy-wrapup-anchor"
-            @click="copy('anchor', selectedTask.anchor)"
+            @click="copy('anchor', rkCommand(selectedTask.anchor))"
           >
+            <span class="opacity-60">/rk</span>
             <span>{{ selectedTask.anchor }}</span>
             <span class="opacity-70">{{ copied === 'anchor' ? 'copied' : 'copy' }}</span>
           </button>

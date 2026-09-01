@@ -59,6 +59,20 @@ watch(saveState, (value, previous) => {
   }
 })
 
+/**
+ * What is typed here, with a pasted `/rk` dropped.
+ *
+ * <p>The anchor chips copy the whole `/rk project:x task:y` line, and that line lands in this
+ * field about as often as in a terminal. The prefix is already printed to the left of it, so a
+ * pasted one is removed rather than searched for and found nowhere.
+ */
+const query = computed<string>({
+  get: () => filter.value,
+  set: (value) => {
+    filter.value = value.replace(/^\s*\/rk\s+/i, '')
+  }
+})
+
 /** Enter opens the first thing the filter found, so search and navigation are one gesture. */
 function openFirst(): void {
   if (navMode.value === 'notes') {
@@ -105,7 +119,7 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
       </span>
       <input
         ref="input"
-        v-model="filter"
+        v-model="query"
         data-testid="anchor-input"
         type="text"
         autocomplete="off"

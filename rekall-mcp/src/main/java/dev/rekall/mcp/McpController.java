@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
  * The MCP endpoint, spoken over one HTTP POST.
  *
  * <p>Registered with
- * {@code claude mcp add --transport http rekall http://localhost:8080/mcp}.
+ * {@code claude mcp add --transport http rekall http://localhost:47355/mcp}.
  *
  * <p>Two eras of the protocol arrive here and both are answered. A legacy client
  * ({@code 2025-11-25} and earlier) opens with {@code initialize} and is served the revision it
@@ -58,10 +58,14 @@ public class McpController {
     private static final String SERVER_VERSION = "0.1.0";
 
     /**
-     * How long a client may cache {@code server/discover}. An hour: the answer is a constant in
-     * any given build, so the only thing a stale copy can cost is one restart.
+     * How long a client may cache the answers that carry cache annotations, {@code server/discover}
+     * and {@code tools/list}. An hour: both are constants in any given build, so the only thing a
+     * stale copy can cost is one restart.
      */
-    private static final int DISCOVER_TTL_MS = 3_600_000;
+    private static final int CACHE_TTL_MS = 3_600_000;
+
+    /** Who a cached copy may be shared with. Nothing in either answer belongs to anyone. */
+    private static final String CACHE_SCOPE = "public";
 
     /** Guidance carried by {@code server/discover}, for a client to display or pass on. */
     private static final String INSTRUCTIONS = """
@@ -168,11 +172,13 @@ public class McpController {
         }
 
         return guarded(request, () -> switch (request.method()) {
-            case "server/discover" -> ResponseEntity.ok(JsonRpc.Response.success(id(request), discover()));
-            case "tools/list" -> ResponseEntity.ok(JsonRpc.Response.success(id(request), toolList()));
+            case "server/discover" ->
+                    ResponseEntity.ok(JsonRpc.Response.success(id(request), complete(cacheable(discover()))));
+            case "tools/list" ->
+                    ResponseEntity.ok(JsonRpc.Response.success(id(request), complete(cacheable(toolList()))));
             case "tools/call" ->
-                    ResponseEntity.ok(JsonRpc.Response.success(id(request), callTool(request.params())));
-            case "ping" -> ResponseEntity.ok(JsonRpc.Response.success(id(request), Map.of()));
+                    ResponseEntity.ok(JsonRpc.Response.success(id(request), complete(callTool(request.params()))));
+            case "ping" -> ResponseEntity.ok(JsonRpc.Response.success(id(request), complete(Map.of())));
             // 404 rather than 200, so a client probing an address can tell an MCP server that
             // does not know this method from something that is not an MCP endpoint at all. This
             // is also where `initialize` lands in this era, which is what tells a client that
@@ -195,7 +201,9 @@ public class McpController {
 
         return guarded(request, () -> ResponseEntity.ok(switch (request.method()) {
             case "initialize" -> JsonRpc.Response.success(id(request), initialize(request));
-            case "server/discover" -> JsonRpc.Response.success(id(request), discover());
+            // The one legacy-era result that still carries those, because they are part of the
+            // shape `server/discover` is defined with rather than of the envelope around it.
+            case "server/discover" -> JsonRpc.Response.success(id(request), complete(cacheable(discover())));
             case "tools/list" -> JsonRpc.Response.success(id(request), toolList());
             case "tools/call" -> JsonRpc.Response.success(id(request), callTool(request.params()));
             case "ping" -> JsonRpc.Response.success(id(request), Map.of());
@@ -227,14 +235,11 @@ public class McpController {
      */
     private Map<String, Object> discover() {
         return Map.of(
-                "resultType", "complete",
                 "supportedVersions", ProtocolVersion.advertisedVersions(),
                 "capabilities", Map.of("tools", Map.of()),
                 "_meta", Map.of("io.modelcontextprotocol/serverInfo",
                         Map.of("name", SERVER_NAME, "version", SERVER_VERSION)),
-                "instructions", INSTRUCTIONS,
-                "ttlMs", DISCOVER_TTL_MS,
-                "cacheScope", "public");
+                "instructions", INSTRUCTIONS);
     }
 
     private Map<String, Object> toolList() {
@@ -266,6 +271,32 @@ public class McpController {
             // result Claude can read and retry from, not a broken request.
             return content(e.getMessage(), true);
         }
+    }
+
+    /**
+     * Tags a result with the kind of result it is, which every result carries from
+     * {@code 2026-07-28} on. Always {@code complete} here: nothing this server does outlives the
+     * response it is answering or asks the client for anything, so neither {@code task} nor
+     * {@code input_required} can arise. The field is not optional in that era and its absence is
+     * not read as {@code complete}: a result without it is rejected, and the tools go with it.
+     */
+    private Map<String, Object> complete(Map<String, Object> result) {
+        Map<String, Object> tagged = new LinkedHashMap<>(result);
+        tagged.put("resultType", "complete");
+        return tagged;
+    }
+
+    /**
+     * How long this answer may be held and who it may be shared with. Required on a list result
+     * from {@code 2026-07-28} on, and required outright: unlike {@code server/discover}, whose
+     * client-side schema defaults both, a {@code tools/list} missing either is rejected whole and
+     * takes every tool in it down with it.
+     */
+    private Map<String, Object> cacheable(Map<String, Object> result) {
+        Map<String, Object> annotated = new LinkedHashMap<>(result);
+        annotated.put("ttlMs", CACHE_TTL_MS);
+        annotated.put("cacheScope", CACHE_SCOPE);
+        return annotated;
     }
 
     private Map<String, Object> content(String text, boolean isError) {

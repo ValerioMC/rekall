@@ -138,6 +138,7 @@ public class ContextTool implements McpTool {
             record.related().forEach(anchor -> out.append("  - `").append(anchor).append("`\n"));
         }
 
+        out.append(renderDescription(record.description()));
         out.append(renderBlueprint(record.blueprint()));
         out.append(renderWrapup(record.wrapup()));
         out.append(renderDocuments(record.documents()));
@@ -163,6 +164,20 @@ public class ContextTool implements McpTool {
         }
         return "\n<wrapup written-by=\"%s\" updated=\"%s\">\n%s\n</wrapup>\n"
                 .formatted(wrapup.writtenBy(), wrapup.updatedAt(), truncate(wrapup.bodyMarkdown()));
+    }
+
+    /**
+     * What the record is, in a tag rather than in the bullet list above it.
+     *
+     * <p>A description is a markdown document, saying what the work is, what it has to satisfy and
+     * what is out of scope, and a document inlined into a list item stops being one: every line after
+     * the first falls outside the bullet, and its own headings outrank the record's.
+     */
+    private String renderDescription(String description) {
+        if (description == null || description.isBlank()) {
+            return "";
+        }
+        return "\n<description>\n" + truncate(description) + "\n</description>\n";
     }
 
     private String renderBlueprint(String blueprint) {

@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
+import ClaudeCodeSection from '@/components/settings/ClaudeCodeSection.vue'
 import DatabaseFolderField from '@/components/setup/DatabaseFolderField.vue'
 import RestartingOverlay from '@/components/setup/RestartingOverlay.vue'
 import { fetchDatabaseStatus, forgetDatabase, renameDatabase } from '@/api/settings.api'
@@ -13,9 +14,9 @@ import { useToastStore } from '@/stores/toast.store'
 import type { DatabaseEntry, DatabaseStatus } from '@/model/settings'
 
 /**
- * One section today — Database — because that is the only setting Rekall has. Structured as a
- * dialog rather than a route: the console has no router, and a settings screen is a place you
- * pass through, not a place you stay.
+ * Two sections: where the database is, and whether Claude Code can reach this instance.
+ * Structured as a dialog rather than a route: the console has no router, and a settings screen
+ * is a place you pass through, not a place you stay.
  */
 const emit = defineEmits<{ close: [] }>()
 
@@ -247,6 +248,8 @@ onUnmounted(() => {
           <p>Couldn't load the database list.</p>
           <AppButton size="sm" variant="secondary" @click="load">Retry</AppButton>
         </div>
+
+        <ClaudeCodeSection class="mt-6 border-t border-border pt-5" />
       </div>
     </div>
 
