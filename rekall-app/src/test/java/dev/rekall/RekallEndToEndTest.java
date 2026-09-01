@@ -875,7 +875,7 @@ class RekallEndToEndTest {
     @Test
     @DisplayName("a refresh on any ui route serves the application, and an unknown api path still fails")
     void deepLinksReachTheFrontend() {
-        for (String path : List.of("/", "/projects", "/projects/" + UUID.randomUUID(), "/tasks",
+        for (String path : List.of("/", "/projects", "/projects/" + UUID.randomUUID(), "/tasks", "/report",
                 "/tasks/" + UUID.randomUUID(), "/search", "/calendar")) {
             ResponseEntity<String> response = rest.get().uri(path).retrieve().toEntity(String.class);
 

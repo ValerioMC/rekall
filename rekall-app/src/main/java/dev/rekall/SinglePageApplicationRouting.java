@@ -29,5 +29,6 @@ public class SinglePageApplicationRouting implements WebMvcConfigurer {
         registry.addViewController("/tasks/**").setViewName("forward:/index.html");
         registry.addViewController("/search").setViewName("forward:/index.html");
         registry.addViewController("/calendar").setViewName("forward:/index.html");
+        registry.addViewController("/report").setViewName("forward:/index.html");
     }
 }

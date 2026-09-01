@@ -21,6 +21,11 @@ export const router = createRouter({
       component: () => import('@/components/catalog/CompanyListPage.vue')
     },
     {
+      path: '/report',
+      name: 'report',
+      component: () => import('@/components/report/ReportPage.vue')
+    },
+    {
       path: '/calendar',
       name: 'calendar',
       component: () => import('@/components/calendar/CalendarPage.vue')

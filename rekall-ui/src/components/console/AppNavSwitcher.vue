@@ -7,7 +7,8 @@ const TABS = [
   { to: '/', label: 'Console', match: 'console' },
   { to: '/projects', label: 'Projects', match: 'projects' },
   { to: '/companies', label: 'Companies', match: 'companies' },
-  { to: '/calendar', label: 'Calendar', match: 'calendar' }
+  { to: '/calendar', label: 'Calendar', match: 'calendar' },
+  { to: '/report', label: 'Report', match: 'report' }
 ] as const
 
 const isActive = (match: (typeof TABS)[number]['match']): boolean =>

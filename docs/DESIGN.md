@@ -303,6 +303,25 @@ answer along with it.
 
 ---
 
+### The report
+
+The weekly and monthly report is a regrouping of the sessions the timer writes, and it is built
+in the browser rather than behind an endpoint of its own. Everything it needs is already in the
+window: the sessions, the tasks and the companies are loaded whole at startup, so a report is a
+question about data that has already arrived rather than a new one to ask the server. The
+grouping is a pure function over them, `common/report/time-report.ts`, which is what makes the
+arithmetic testable without a database.
+
+A session counts on the local day it started on, which is the rule the calendar already uses, and
+one still open counts up to now. Both are the readings a person checking a total against their
+own memory of the week would make.
+
+The company filter holds ids, and an empty selection means every company rather than none. The
+chips are built from the unfiltered period, so narrowing to one client never removes the way back
+to the others.
+
+---
+
 ### Export
 
 `GET /api/export` returns the whole database as a zip of folders, `project/task/note.md`.

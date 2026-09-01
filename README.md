@@ -215,6 +215,25 @@ with it first.
 
 Writing autosaves. There is no Save button on a note.
 
+## Report
+
+**Report** answers the question a week ends on: what went to which client, and for how long.
+
+The frame is a week or a month, stepped with the arrows either side of it. Under the total, one
+column per day, stacked in each company's colour and measured against a dashed line at eight
+hours: which day carried the week, and who it went to, before a single row is read. Then a
+section per company, its projects, its tasks, and what each task came to, with the days it ran on
+beside it.
+
+The chips narrow it to the companies you pick. No pick means all of them.
+
+**Copy as markdown** puts the whole report on the clipboard with every task's anchor intact, so a
+line in an invoice or a status mail is still one `/rk` away from the work behind it.
+
+Nothing on this screen is typed in. It is the sessions the timer already recorded, regrouped,
+which is the only reason a report like this is ever true. A session counts on the day it started,
+and one still running counts up to now.
+
 ## Model
 
 ```
