@@ -168,6 +168,8 @@ Claude reads the current one, rewrites it whole and replaces it. It comes back w
 
 It is capped at 20,000 characters against 100,000 for a note. A wrapup that no longer fits on a screen has stopped describing the state and started recording the process.
 
+A wrapup is written from a terminal, into a window that was already open. The window reads everything again when it comes back to the front, so switching from the session to Rekall is what shows it. It skips that while something on screen is waiting to be saved, so a refresh never lands on top of what is being typed.
+
 ## The console
 
 One surface, three panes: pick a task on the left, pick its wrapup or one of its notes in the

@@ -654,6 +654,30 @@ export const useConsoleStore = defineStore('console', () => {
     wrapups.value = await fetchWrapups()
   }
 
+  async function refreshTimeEntries(): Promise<void> {
+    timeEntries.value = await fetchTimeEntries()
+  }
+
+  /**
+   * Everything this window holds, read again.
+   *
+   * For what changed while nobody was looking at it. The loop this application exists for ends
+   * somewhere else: a Claude session writes a wrapup through MCP, and the window that was open
+   * when it happened is still showing the snapshot it loaded at startup. Unlike {@link load} it
+   * leaves the selection, the scope and the loading flag alone, so it can run under an open pane
+   * without the screen jumping.
+   */
+  async function refreshEverything(): Promise<void> {
+    await Promise.all([
+      refreshCompanies(),
+      refreshProjects(),
+      refreshTasks(),
+      refreshDocuments(),
+      refreshWrapups(),
+      refreshTimeEntries()
+    ])
+  }
+
   return {
     companies,
     projects,
@@ -700,6 +724,7 @@ export const useConsoleStore = defineStore('console', () => {
     saveProjectDescription,
     saveProjectBlueprint,
     saveProjectRepoFolder,
+    refreshEverything,
     createTask,
     updateTask,
     deleteTask,

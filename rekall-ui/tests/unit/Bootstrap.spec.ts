@@ -1,8 +1,10 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import Bootstrap from '@/Bootstrap.vue'
 import { router } from '@/router'
+import { fetchWrapups } from '@/api/wrapups.api'
+import { useConsoleStore } from '@/stores/console.store'
 
 /**
  * The boot-time branch: which of the three top-level screens mounts. The screens themselves are
@@ -38,13 +40,24 @@ vi.mock('@/components/setup/DatabaseUnreachable.vue', () => ({
   }
 }))
 
+/**
+ * Unmounted after every test, and not only for tidiness: this component listens on `window`,
+ * so one left mounted would answer the next test's events alongside the one under it.
+ */
+const mounted: ReturnType<typeof mount>[] = []
+
 async function mountBootstrap() {
   setActivePinia(createPinia())
   await router.push('/')
   const wrapper = mount(Bootstrap, { global: { plugins: [router] } })
+  mounted.push(wrapper)
   await flushPromises()
   return wrapper
 }
+
+afterEach(() => {
+  mounted.splice(0).forEach((wrapper) => wrapper.unmount())
+})
 
 describe('Bootstrap', () => {
   it('mounts the console when the database is ready', async () => {
@@ -54,6 +67,35 @@ describe('Bootstrap', () => {
     await flushPromises()
 
     expect(wrapper.find('[data-testid="app-stub"]').exists()).toBe(true)
+  })
+
+  /**
+   * The loop ends outside this window: a session writes the wrapup through MCP, and what was on
+   * screen when it did knows nothing about it. Coming back to the window is when the answer is
+   * wanted, and reloading the page to get it is not an answer.
+   */
+  it('reads everything again when the window comes back to the front', async () => {
+    fetchDatabaseStatus.mockResolvedValue({ status: 'READY', active: null, databases: [] })
+    await mountBootstrap()
+    vi.mocked(fetchWrapups).mockClear()
+
+    window.dispatchEvent(new Event('focus'))
+    await flushPromises()
+
+    expect(fetchWrapups).toHaveBeenCalledOnce()
+  })
+
+  /** A pane holds the draft being typed. Replacing the record underneath it loses a paragraph. */
+  it('leaves the screen alone while something on it is waiting to be saved', async () => {
+    fetchDatabaseStatus.mockResolvedValue({ status: 'READY', active: null, databases: [] })
+    await mountBootstrap()
+    useConsoleStore().saveState = 'unsaved'
+    vi.mocked(fetchWrapups).mockClear()
+
+    window.dispatchEvent(new Event('focus'))
+    await flushPromises()
+
+    expect(fetchWrapups).not.toHaveBeenCalled()
   })
 
   it('mounts the first-run wizard when nothing is configured yet', async () => {
