@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { excerpt as previewOf } from '@/common/format/excerpt'
 import { relativeTime } from '@/common/format/relative-time'
 import { WRAPUP_AUTHOR_LABEL } from '@/model/catalog'
 import type { Wrapup } from '@/model/catalog'
@@ -24,14 +25,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ open: [] }>()
 
-/** A couple of lines of the body, with the markup stripped so the preview reads as prose. */
-const excerpt = computed(() =>
-  (props.wrapup?.bodyMarkdown ?? '')
-    .replace(/[#`>*|_-]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 110)
-)
+const excerpt = computed(() => previewOf(props.wrapup?.bodyMarkdown ?? ''))
 
 const writtenBy = computed(() =>
   props.wrapup ? WRAPUP_AUTHOR_LABEL[props.wrapup.writtenBy] : ''
@@ -72,9 +66,26 @@ const writtenBy = computed(() =>
         </span>
         <span
           v-if="wrapup"
-          class="ml-auto shrink-0 truncate text-[10.5px] text-text-muted"
+          class="ml-auto flex shrink-0 items-center gap-1 truncate text-[10.5px] text-text-muted"
           :title="`Written by ${writtenBy} on ${new Date(wrapup.updatedAt).toLocaleString()}`"
         >
+          <svg v-if="wrapup.writtenBy === 'CLAUDE'" class="size-2.5 shrink-0" viewBox="0 0 12 12" aria-hidden="true">
+            <path
+              d="M6 0.5v3M6 8.5v3M0.5 6h3M8.5 6h3M2.3 2.3l2.1 2.1M7.6 7.6l2.1 2.1M9.7 2.3 7.6 4.4M4.4 7.6l-2.1 2.1"
+              stroke="currentColor"
+              stroke-width="1.1"
+              stroke-linecap="round"
+            />
+          </svg>
+          <svg v-else class="size-2.5 shrink-0" viewBox="0 0 12 12" aria-hidden="true">
+            <path
+              d="M2 10 3 6.6l4.4-4.4a1.2 1.2 0 0 1 1.7 1.7L4.7 8.3 2 10Z"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.1"
+              stroke-linejoin="round"
+            />
+          </svg>
           {{ writtenBy }} &middot; {{ relativeTime(wrapup.updatedAt) }}
         </span>
       </span>

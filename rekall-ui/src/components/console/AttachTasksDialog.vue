@@ -5,7 +5,8 @@ import AppButton from '@/components/ui/AppButton.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { trapTabKey } from '@/common/a11y/focus-trap'
-import type { TaskStatus } from '@/model/catalog'
+import { identityHue } from '@/common/identity'
+import { TASK_STATUS_COLOR } from '@/model/catalog'
 import type { TaskId } from '@/model/branded'
 
 const emit = defineEmits<{ close: [] }>()
@@ -14,13 +15,6 @@ const store = useConsoleStore()
 const { tasks, selectedDocument } = storeToRefs(store)
 const { run } = useAsyncAction()
 const panel = ref<HTMLElement | null>(null)
-
-const STATUS_DOT: Record<TaskStatus, string> = {
-  IN_PROGRESS: 'bg-accent',
-  TODO: 'bg-text-subtle',
-  BLOCKED: 'bg-danger',
-  DONE: 'bg-safe'
-}
 
 const attached = computed(() => new Set(selectedDocument.value?.tasks.map((task) => task.id) ?? []))
 
@@ -88,14 +82,37 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
             :aria-pressed="attached.has(task.id)"
             @click="toggle(task.id)"
           >
-            <span class="size-[7px] shrink-0 rounded-full" :class="STATUS_DOT[task.status]" aria-hidden="true" />
+            <span class="size-[7px] shrink-0 rounded-full" :class="TASK_STATUS_COLOR[task.status]" aria-hidden="true" />
             <span class="min-w-0 flex-1">
               <span class="block truncate text-[12.5px]">{{ task.title }}</span>
-              <span class="block truncate font-mono text-[10.5px] text-anchor/80">
-                {{ task.projectLabel }}/{{ task.label }}
+              <span class="mt-0.5 flex items-center gap-1 truncate">
+                <span class="size-1.5 shrink-0 rounded-full" :style="{ backgroundColor: identityHue(task.projectId).base }" aria-hidden="true" />
+                <span class="shrink-0 text-[10px] text-text-subtle">{{ task.projectLabel }}</span>
+                <span class="anchor-chip shrink-0 truncate px-1.5 py-px text-[9.5px] leading-[15px]">
+                  {{ task.label }}
+                </span>
               </span>
             </span>
-            <span v-if="attached.has(task.id)" class="font-mono text-[12px] text-accent">&check;</span>
+            <svg
+              v-if="attached.has(task.id)"
+              class="size-3.5 shrink-0 text-accent"
+              viewBox="0 0 16 16"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M6.5 9.5a2.6 2.6 0 0 0 3.7.2l1.6-1.6a2.6 2.6 0 0 0-3.7-3.7L7 5.3"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linecap="round"
+              />
+              <path
+                d="M9.5 6.5a2.6 2.6 0 0 0-3.7-.2l-1.6 1.6a2.6 2.6 0 0 0 3.7 3.7L9 10.7"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linecap="round"
+              />
+            </svg>
           </button>
         </div>
       </div>

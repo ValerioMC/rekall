@@ -1,35 +1,70 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import App from '@/App.vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import FirstRunSetup from '@/components/setup/FirstRunSetup.vue'
 import DatabaseUnreachable from '@/components/setup/DatabaseUnreachable.vue'
+import RunningTasksDock from '@/components/shell/RunningTasksDock.vue'
 import AppLogo from '@/components/ui/AppLogo.vue'
 import { fetchDatabaseStatus } from '@/api/settings.api'
+import { useConsoleStore } from '@/stores/console.store'
+import { useToastStore } from '@/stores/toast.store'
 import type { DatabaseStatus } from '@/model/settings'
 
-/**
- * Decides, once, which of three things the console mounts as: the working application, the
- * first-run wizard, or the recovery screen for a database that has stopped being reachable.
- *
- * A router would be the conventional place for this; the console does not have one (see
- * `main.ts`), and this is a boot-time branch rather than navigation, so a plain conditional
- * render is what the rest of this codebase would do here too.
- */
+const store = useConsoleStore()
+const toast = useToastStore()
 const status = ref<DatabaseStatus | null>(null)
 const failed = ref(false)
+
+let refreshing = false
+
+/**
+ * What changed while this window was in the background.
+ *
+ * A wrapup is written by a Claude session through MCP, and the window that was open when it
+ * happened knows nothing about it: it would go on showing an empty card until someone reloaded
+ * the page. Coming back to the window is the moment the answer is wanted, so that is when it is
+ * read again.
+ *
+ * Not while something here is waiting to be saved. A pane holds the draft being typed, and
+ * replacing the record underneath it mid-edit is how a paragraph disappears.
+ */
+async function refreshWhatChangedElsewhere(): Promise<void> {
+  if (refreshing || status.value?.status !== 'READY') return
+  if (document.visibilityState !== 'visible' || store.saveState !== 'saved') return
+  refreshing = true
+  try {
+    await store.refreshEverything()
+  } catch (caught) {
+    toast.notifyError(caught)
+  } finally {
+    refreshing = false
+  }
+}
 
 onMounted(async () => {
   try {
     status.value = await fetchDatabaseStatus()
+    if (status.value.status === 'READY') await store.load()
   } catch {
     failed.value = true
   }
+  // Both, because they do not fire together: switching applications is a focus change, and
+  // hiding the window or the whole application is a visibility change.
+  window.addEventListener('focus', refreshWhatChangedElsewhere)
+  document.addEventListener('visibilitychange', refreshWhatChangedElsewhere)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('focus', refreshWhatChangedElsewhere)
+  document.removeEventListener('visibilitychange', refreshWhatChangedElsewhere)
 })
 </script>
 
 <template>
   <template v-if="status">
-    <App v-if="status.status === 'READY'" />
+    <template v-if="status.status === 'READY'">
+      <router-view />
+      <RunningTasksDock />
+    </template>
     <FirstRunSetup v-else-if="status.status === 'SETUP_NEEDED'" />
     <DatabaseUnreachable v-else :status="status" />
   </template>

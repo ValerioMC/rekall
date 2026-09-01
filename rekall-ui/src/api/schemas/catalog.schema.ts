@@ -45,6 +45,8 @@ export const ProjectSchema = z.object({
   title: z.string(),
   status: z.enum(PROJECT_STATUSES),
   description: z.string().nullable(),
+  blueprintMarkdown: z.string().nullable(),
+  repoFolder: z.string().nullable(),
   companyId,
   companyName: z.string(),
   taskCount: z.number().int(),
@@ -62,6 +64,7 @@ export const TaskSchema = z.object({
   projectLabel: z.string(),
   projectTitle: z.string(),
   companyName: z.string(),
+  projectRepoFolder: z.string().nullable(),
   documentCount: z.number().int(),
   hasWrapup: z.boolean(),
   anchor: z.string(),
@@ -101,12 +104,6 @@ export const TimeEntrySchema = z.object({
   stoppedAt: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string()
-})
-
-/** What starting a timer produced: the session now open, and whatever it had to close. */
-export const TimeEntryStartResultSchema = z.object({
-  started: TimeEntrySchema,
-  stoppedElsewhere: TimeEntrySchema.nullable()
 })
 
 export const CompanyListSchema = z.array(CompanySchema)

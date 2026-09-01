@@ -8,6 +8,7 @@ import AttachTasksDialog from '@/components/console/AttachTasksDialog.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
+import { rkCommand } from '@/common/format/rk-command'
 import { DOCUMENT_KINDS } from '@/model/catalog'
 import type { TaskId } from '@/model/branded'
 
@@ -23,6 +24,7 @@ const SHORTCUTS = [
   { keys: 'T', does: 'new task' },
   { keys: 'E', does: 'edit the task in view' },
   { keys: 'N', does: 'new note on it' },
+  { keys: 'D', does: 'its description: what the work is' },
   { keys: 'W', does: 'its wrapup: what it currently is' },
   { keys: 'B', does: 'switch between tasks and notes' },
   { keys: 'J K', does: 'walk the list' },
@@ -81,7 +83,7 @@ const alsoOn = computed(
 const justCopied = ref(false)
 
 async function copyAnchor(): Promise<void> {
-  await navigator.clipboard?.writeText(anchor.value)
+  await navigator.clipboard?.writeText(rkCommand(anchor.value))
   justCopied.value = true
   setTimeout(() => (justCopied.value = false), 1400)
 }
@@ -130,9 +132,17 @@ async function confirmDelete(): Promise<void> {
             v-for="document in recentDocuments"
             :key="document.id"
             data-testid="resume-row"
-            class="focus-ring group flex w-full items-center gap-3 rounded-[var(--radius-control)] border border-border bg-surface px-3.5 py-3 text-left transition-all hover:-translate-y-px hover:border-border-strong hover:bg-surface-raised hover:shadow-lift"
+            class="focus-ring group relative flex w-full items-center gap-3 overflow-hidden rounded-[var(--radius-control)] border border-border bg-surface px-3.5 py-3 text-left transition-all hover:-translate-y-px hover:border-border-strong hover:bg-surface-raised hover:shadow-lift"
             @click="store.selectDocument(document.id)"
           >
+            <span
+              class="pointer-events-none absolute right-0 top-0 size-3.5 transition-colors"
+              style="
+                clip-path: polygon(100% 0, 0 0, 100% 100%);
+                background-image: linear-gradient(135deg, var(--color-border-strong), var(--color-canvas));
+              "
+              aria-hidden="true"
+            />
             <span class="min-w-0 flex-1">
               <span class="block truncate text-[13.5px] font-medium text-text">
                 {{ document.title }}
@@ -170,7 +180,7 @@ async function confirmDelete(): Promise<void> {
     </div>
 
     <template v-else>
-      <header class="flex shrink-0 items-start gap-3.5 border-b border-border px-5 py-3.5">
+      <header class="texture-dots flex shrink-0 items-start gap-3.5 border-b border-border px-5 py-3.5">
         <div class="min-w-0 flex-1">
           <input
             v-model="draft.title"
@@ -185,6 +195,7 @@ async function confirmDelete(): Promise<void> {
             data-testid="copy-anchor"
             @click="copyAnchor"
           >
+            <span class="opacity-60">/rk</span>
             <span>{{ anchor }}</span>
             <span class="opacity-70">{{ justCopied ? 'copied' : 'copy' }}</span>
           </button>

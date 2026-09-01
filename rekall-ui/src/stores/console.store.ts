@@ -51,10 +51,12 @@ export type SaveState = 'saved' | 'unsaved' | 'saving'
 /**
  * What the right-hand pane is showing.
  *
- * A third state rather than a wrapup pretending to be a note: the two are edited differently
- * and one of them has no title, no kind and no other task it could belong to.
+ * Three states rather than a wrapup pretending to be a note: they are edited differently, and
+ * two of them have no title, no kind and no other task they could belong to. The description
+ * and the wrapup are separate for the same reason they are separate columns: one is the brief
+ * the work is measured against, the other is where the work got to.
  */
-export type PaneFocus = 'note' | 'wrapup'
+export type PaneFocus = 'note' | 'wrapup' | 'description'
 
 /** Everything the console shows, loaded once and kept in step by the actions below. */
 export const useConsoleStore = defineStore('console', () => {
@@ -181,13 +183,8 @@ export const useConsoleStore = defineStore('console', () => {
     return taskDocuments.value.filter((document) => document.updatedAt > wrapup.updatedAt).length
   })
 
-  /**
-   * The one session running anywhere, if any. Only one may be open at a time, so there is
-   * nothing to disambiguate: whichever task it belongs to is the task being worked right now.
-   */
-  const runningEntry = computed(
-    () => timeEntries.value.find((entry) => entry.stoppedAt === null) ?? null
-  )
+  /** Every session currently open, across however many tasks are being worked in parallel. */
+  const runningEntries = computed(() => timeEntries.value.filter((entry) => entry.stoppedAt === null))
 
   /** The sessions on the task in view, most recently started first. */
   const selectedTaskEntries = computed(() =>
@@ -366,6 +363,53 @@ export const useConsoleStore = defineStore('console', () => {
     await load()
   }
 
+  async function patchProject(
+    id: ProjectId,
+    patch: Partial<Pick<ProjectInput, 'description' | 'blueprintMarkdown' | 'repoFolder'>>
+  ): Promise<void> {
+    const current = projects.value.find((project) => project.id === id)
+    if (!current) return
+    saveState.value = 'saving'
+    try {
+      const saved = await apiUpdateProject(id, {
+        label: current.label,
+        title: current.title,
+        status: current.status,
+        companyId: current.companyId,
+        description: 'description' in patch ? patch.description! : current.description,
+        blueprintMarkdown:
+          'blueprintMarkdown' in patch ? patch.blueprintMarkdown! : current.blueprintMarkdown,
+        repoFolder: 'repoFolder' in patch ? patch.repoFolder! : current.repoFolder
+      })
+      projects.value = projects.value.map((project) => (project.id === id ? saved : project))
+      // Its tasks carry a copy of the folder, because the button that opens a session lives on
+      // a task. Without this the pane goes on showing the answer from before the save, and the
+      // button stays disabled on a project that now has somewhere to open.
+      tasks.value = tasks.value.map((task) =>
+        task.projectId === id ? { ...task, projectRepoFolder: saved.repoFolder } : task
+      )
+      saveState.value = 'saved'
+    } catch (error) {
+      saveState.value = 'unsaved'
+      throw error
+    }
+  }
+
+  function saveProjectDescription(id: ProjectId, description: string): Promise<void> {
+    return patchProject(id, { description: description.trim() === '' ? null : description })
+  }
+
+  function saveProjectBlueprint(id: ProjectId, blueprintMarkdown: string): Promise<void> {
+    return patchProject(id, {
+      blueprintMarkdown: blueprintMarkdown.trim() === '' ? null : blueprintMarkdown
+    })
+  }
+
+  /** Where a session on this project opens. Cleared to null, never stored as an empty path. */
+  function saveProjectRepoFolder(id: ProjectId, repoFolder: string): Promise<void> {
+    return patchProject(id, { repoFolder: repoFolder.trim() === '' ? null : repoFolder.trim() })
+  }
+
   // ------------------------------------------------------------------ tasks
 
   async function createTask(input: TaskInput): Promise<Task> {
@@ -417,6 +461,36 @@ export const useConsoleStore = defineStore('console', () => {
       projectId: task.projectId
     })
     tasks.value = tasks.value.map((candidate) => (candidate.id === id ? saved : candidate))
+  }
+
+  /**
+   * The description, saved on its own from the pane that shows it.
+   *
+   * It goes out the way a status change does rather than the way a rename does: the record is
+   * sent back with only that field moved, and none of the cascading reloads `updateTask` owes
+   * to a label or a project change, because neither an anchor nor a note attachment can move
+   * when a sentence is corrected.
+   */
+  async function saveTaskDescription(id: TaskId, description: string): Promise<void> {
+    const task = tasks.value.find((candidate) => candidate.id === id)
+    if (!task) return
+    const next = description.trim() === '' ? null : description
+    if (task.description === next) return
+    saveState.value = 'saving'
+    try {
+      const saved = await apiUpdateTask(id, {
+        label: task.label,
+        title: task.title,
+        status: task.status,
+        description: next,
+        projectId: task.projectId
+      })
+      tasks.value = tasks.value.map((candidate) => (candidate.id === id ? saved : candidate))
+      saveState.value = 'saved'
+    } catch (error) {
+      saveState.value = 'unsaved'
+      throw error
+    }
   }
 
   // ------------------------------------------------------------------ notes
@@ -481,6 +555,17 @@ export const useConsoleStore = defineStore('console', () => {
     paneFocus.value = 'wrapup'
   }
 
+  function openDescription(): void {
+    if (selectedTaskId.value === null) return
+    paneFocus.value = 'description'
+  }
+
+  /** D, like W: the key that took you to the description takes you back to the note. */
+  function toggleDescription(): void {
+    if (selectedTaskId.value === null) return
+    paneFocus.value = paneFocus.value === 'description' ? 'note' : 'description'
+  }
+
   /** What the keyboard does: the key that took you to the wrapup takes you back to the note. */
   function toggleWrapup(): void {
     if (selectedTaskId.value === null) return
@@ -527,11 +612,9 @@ export const useConsoleStore = defineStore('console', () => {
       : [entry, ...timeEntries.value]
   }
 
-  /** Opens a session on this task. Whatever else was running closes, and its row updates too. */
+  /** Opens a session on this task. Whatever is running on other tasks keeps running. */
   async function startTimer(taskId: TaskId): Promise<void> {
-    const { started, stoppedElsewhere } = await apiStartTimeEntry(taskId)
-    upsertTimeEntry(started)
-    if (stoppedElsewhere) upsertTimeEntry(stoppedElsewhere)
+    upsertTimeEntry(await apiStartTimeEntry(taskId))
   }
 
   async function pauseTimer(taskId: TaskId): Promise<void> {
@@ -571,6 +654,30 @@ export const useConsoleStore = defineStore('console', () => {
     wrapups.value = await fetchWrapups()
   }
 
+  async function refreshTimeEntries(): Promise<void> {
+    timeEntries.value = await fetchTimeEntries()
+  }
+
+  /**
+   * Everything this window holds, read again.
+   *
+   * For what changed while nobody was looking at it. The loop this application exists for ends
+   * somewhere else: a Claude session writes a wrapup through MCP, and the window that was open
+   * when it happened is still showing the snapshot it loaded at startup. Unlike {@link load} it
+   * leaves the selection, the scope and the loading flag alone, so it can run under an open pane
+   * without the screen jumping.
+   */
+  async function refreshEverything(): Promise<void> {
+    await Promise.all([
+      refreshCompanies(),
+      refreshProjects(),
+      refreshTasks(),
+      refreshDocuments(),
+      refreshWrapups(),
+      refreshTimeEntries()
+    ])
+  }
+
   return {
     companies,
     projects,
@@ -588,7 +695,7 @@ export const useConsoleStore = defineStore('console', () => {
     documents,
     wrapups,
     timeEntries,
-    runningEntry,
+    runningEntries,
     selectedTaskEntries,
     isLoading,
     saveState,
@@ -614,14 +721,21 @@ export const useConsoleStore = defineStore('console', () => {
     createProject,
     updateProject,
     deleteProject,
+    saveProjectDescription,
+    saveProjectBlueprint,
+    saveProjectRepoFolder,
+    refreshEverything,
     createTask,
     updateTask,
     deleteTask,
     setTaskStatus,
+    saveTaskDescription,
     createNote,
     saveNote,
     deleteNote,
     openWrapup,
+    openDescription,
+    toggleDescription,
     toggleWrapup,
     saveWrapupBody,
     removeWrapup,

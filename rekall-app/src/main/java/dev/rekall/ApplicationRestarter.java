@@ -44,7 +44,7 @@ public final class ApplicationRestarter {
     }
 
     /**
-     * The old context has to be closed, releasing port 8080, before the new one is started: the
+     * The old context has to be closed, releasing port 47355, before the new one is started: the
      * new context binds the same port while starting up, and Tomcat cannot bind a port the old
      * process is still holding. Doing this the other way around fails every time with a
      * {@code BindException}, and leaves the old context — the one meant to be replaced — as the

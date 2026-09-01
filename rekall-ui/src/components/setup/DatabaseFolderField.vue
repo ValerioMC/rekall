@@ -3,14 +3,18 @@ import { computed, onMounted, ref, watch } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import RestartingOverlay from '@/components/setup/RestartingOverlay.vue'
 import { useDatabaseSetup } from '@/composables/useDatabaseSetup'
+import { desktopHost, pickFolder } from '@/common/native/desktop'
 
 /**
  * Type a folder, see what will happen to it, commit.
  *
- * A native folder-browser dialog cannot exist here: a web page is never handed a real
- * filesystem path by the browser, only a sandboxed handle a JDBC URL cannot use. So this is a
- * plain path field instead, made trustworthy with the one thing a picker would have given for
- * free — live feedback on what is actually at that path before anything commits to it.
+ * A browser never hands a page a real filesystem path, only a sandboxed handle a JDBC URL cannot
+ * use. So the path is typed, and made trustworthy with the one thing a picker would have given
+ * for free: live feedback on what is actually at that path before anything commits to it.
+ *
+ * The macOS application has a real NSOpenPanel to open and installs a bridge to it, so there the
+ * folder icon is a button and typing becomes the fallback rather than the only way in. Both
+ * paths end in the same string in the same field, checked by the same request.
  *
  * Self-contained: it owns its own submit, its own restart wait and its own reload. Every host —
  * the first-run wizard, the unreachable-database screen, Settings — just places it and reacts to
@@ -36,6 +40,19 @@ watch(phase, (value) => emit('busy', value === 'submitting' || value === 'restar
 const path = ref('')
 const touched = ref(false)
 const input = ref<HTMLInputElement | null>(null)
+
+/** Fixed for the lifetime of the page: the bridge is installed before the application boots. */
+const canBrowse = desktopHost() !== null
+
+/**
+ * A dismissed panel leaves what was typed alone. Focus goes back to the field either way, so the
+ * chosen path can be corrected by hand without reaching for the mouse again.
+ */
+async function browse(): Promise<void> {
+  const chosen = await pickFolder(path.value)
+  if (chosen) onInput(chosen)
+  input.value?.focus()
+}
 
 function onInput(value: string): void {
   path.value = value
@@ -67,7 +84,10 @@ const hint = computed<{ tone: 'danger' | 'safe' | 'accent'; text: string } | nul
     case 'file':
       return { tone: 'danger', text: 'That path points at a file, not a folder.' }
     case 'unusable':
-      return { tone: 'danger', text: "Rekall can't write to this folder. Check its permissions and try again." }
+      return {
+        tone: 'danger',
+        text: "Rekall can't write to this folder. Check its permissions and try again."
+      }
     case 'existing':
       return { tone: 'safe', text: 'A database already lives here. It will be opened as is.' }
     case 'new':
@@ -105,25 +125,52 @@ defineExpose({ focus: () => input.value?.focus() })
 
     <div v-else class="space-y-3">
       <div>
-        <label for="database-folder" class="sr-only">Database folder</label>
-        <input
-          id="database-folder"
-          ref="input"
-          :value="path"
-          type="text"
-          spellcheck="false"
-          autocomplete="off"
-          data-testid="database-folder-input"
-          placeholder="/Users/you/Documents/rekall"
-          aria-describedby="database-folder-help"
-          class="focus-ring h-10 w-full rounded-[var(--radius-control)] border bg-canvas px-3.5 font-mono text-[13px] text-text outline-none transition-colors placeholder:text-text-subtle hover:border-border-strong focus-visible:border-accent"
-          :class="hint?.tone === 'danger' ? 'border-danger' : 'border-border'"
-          @input="onInput(($event.target as HTMLInputElement).value)"
-          @keydown.enter="submit"
-        />
+        <!-- The icon is centred on the input alone. While the help text below shared this box,
+             it was centred on the pair and sat visibly below the line of the path it labels. -->
+        <div class="relative">
+          <label for="database-folder" class="sr-only">Database folder</label>
+          <component
+            :is="canBrowse ? 'button' : 'span'"
+            :type="canBrowse ? 'button' : undefined"
+            :aria-label="canBrowse ? 'Choose a folder' : undefined"
+            :aria-hidden="canBrowse ? undefined : 'true'"
+            :title="canBrowse ? 'Choose a folder' : undefined"
+            data-testid="folder-browse"
+            class="absolute left-1 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-[var(--radius-control)] text-text-subtle transition-colors"
+            :class="canBrowse ? 'focus-ring hover:bg-surface-hover hover:text-accent' : 'pointer-events-none'"
+            @click="browse"
+          >
+            <svg class="size-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path
+                d="M2 4.5A1.5 1.5 0 0 1 3.5 3h2.6l1.2 1.5H12.5A1.5 1.5 0 0 1 14 6v6a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 12Z"
+                stroke="currentColor"
+                stroke-width="1.3"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </component>
+          <input
+            id="database-folder"
+            ref="input"
+            :value="path"
+            type="text"
+            spellcheck="false"
+            autocomplete="off"
+            data-testid="database-folder-input"
+            placeholder="/Users/you/Documents/rekall"
+            aria-describedby="database-folder-help"
+            class="focus-ring h-10 w-full rounded-[var(--radius-control)] border bg-canvas pl-9 pr-3.5 font-mono text-[13px] text-text outline-none transition-colors placeholder:text-text-subtle hover:border-border-strong focus-visible:border-accent"
+            :class="hint?.tone === 'danger' ? 'border-danger' : 'border-border'"
+            @input="onInput(($event.target as HTMLInputElement).value)"
+            @keydown.enter="submit"
+          />
+        </div>
         <p id="database-folder-help" class="mt-1.5 text-[11.5px] text-text-subtle">
-          A full path to an existing folder. Browsers can't hand a page a real folder picker, so
-          this is typed rather than browsed.
+          <template v-if="canBrowse"> Click the folder to pick one, or type a full path. </template>
+          <template v-else>
+            A full path to an existing folder. Browsers can't hand a page a real folder picker, so this is
+            typed rather than browsed.
+          </template>
         </p>
       </div>
 

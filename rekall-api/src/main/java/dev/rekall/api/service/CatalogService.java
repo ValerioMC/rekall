@@ -112,6 +112,12 @@ public class CatalogService {
 
     private void applyTo(Project project, ProjectRequest request) {
         project.setDescription(request.description());
+        project.setBlueprintMarkdown(request.blueprintMarkdown());
+        // Blank and absent are the same answer for a path, and only one of the two can be
+        // compared against later: a field cleared in the interface has to come back null.
+        project.setRepoFolder(request.repoFolder() == null || request.repoFolder().isBlank()
+                ? null
+                : request.repoFolder().trim());
         project.setStatus(request.status() == null ? ProjectStatus.ACTIVE : request.status());
         project.setCompany(requireCompany(request.companyId()));
     }

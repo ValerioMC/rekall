@@ -34,7 +34,13 @@ spring:
     change-log: classpath:db/changelog/db.changelog-master.yaml
 
 server:
-  port: ${SERVER_PORT:8080}
+  # Not 8080. Rekall runs all day on a developer machine, where 8080 is the first port
+  # anything else takes, and the MCP endpoint is registered with Claude Code as a fixed
+  # URL: a clash is not a retry, it is a broken registration. 47355 is unassigned by IANA,
+  # absent from /etc/services, and below the ephemeral range (49152+) macOS hands out to
+  # outbound sockets, so nothing takes it by accident. Changing it means changing
+  # Server.port in packaging/macos/Launcher.swift, the vite proxy and `make mcp-add` too.
+  port: ${SERVER_PORT:47355}
   shutdown: graceful
 
 management:

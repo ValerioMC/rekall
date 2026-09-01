@@ -26,6 +26,19 @@ export const TASK_STATUS_LABEL: Readonly<Record<TaskStatus, string>> = {
 /** The order the navigator groups tasks in, so the number keys match what is on screen. */
 export const TASK_STATUS_ORDER: readonly TaskStatus[] = ['IN_PROGRESS', 'TODO', 'BLOCKED', 'DONE']
 
+export const TASK_STATUS_COLOR: Readonly<Record<TaskStatus, string>> = {
+  IN_PROGRESS: 'bg-accent',
+  TODO: 'bg-text-subtle',
+  BLOCKED: 'bg-danger',
+  DONE: 'bg-safe'
+}
+
+export const PROJECT_STATUS_COLOR: Readonly<Record<ProjectStatus, string>> = {
+  ACTIVE: 'bg-accent',
+  PAUSED: 'bg-text-subtle',
+  DONE: 'bg-safe'
+}
+
 export interface Company {
   readonly id: CompanyId
   readonly name: string
@@ -48,6 +61,9 @@ export interface Project {
   readonly title: string
   readonly status: ProjectStatus
   readonly description: string | null
+  readonly blueprintMarkdown: string | null
+  /** Absolute, or null when nobody has said where a session on this project opens. */
+  readonly repoFolder: string | null
   readonly companyId: CompanyId
   readonly companyName: string
   readonly taskCount: number
@@ -66,6 +82,8 @@ export interface Task {
   readonly projectLabel: string
   readonly projectTitle: string
   readonly companyName: string
+  /** Its project's folder, so a task can open a session without loading its project first. */
+  readonly projectRepoFolder: string | null
   readonly documentCount: number
   /** Whether this task has said what it currently is. The body lives on the wrapup itself. */
   readonly hasWrapup: boolean
@@ -115,9 +133,9 @@ export interface Wrapup {
 /**
  * One sitting of work on a task.
  *
- * `stoppedAt` is null for exactly as long as the session is open, and only one session across
- * the whole application may be in that state at a time — starting or resuming a task's timer
- * closes whatever else was running.
+ * `stoppedAt` is null for exactly as long as the session is open, and only one session per task
+ * may be in that state at a time — different tasks can each have one open at once, tracked in
+ * parallel.
  */
 export interface TimeEntry {
   readonly id: TimeEntryId

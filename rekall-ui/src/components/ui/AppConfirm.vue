@@ -73,8 +73,13 @@ onUnmounted(() => {
         <h2 class="mb-2 text-[16px] font-semibold text-text">{{ title }}</h2>
         <p class="text-[13px] leading-relaxed text-text-muted">{{ body }}</p>
         <p
-          class="mt-3.5 rounded-[var(--radius-control)] border border-danger bg-danger-soft px-3 py-2.5 font-mono text-[12px] text-danger"
+          class="relative mt-3.5 overflow-hidden rounded-[var(--radius-control)] border border-danger bg-danger-soft py-2.5 pl-4 pr-3 font-mono text-[12px] text-danger"
         >
+          <span
+            class="absolute inset-y-0 left-0 w-2.5"
+            style="background-image: repeating-linear-gradient(135deg, var(--color-danger) 0 3px, transparent 3px 7px); opacity: 0.55"
+            aria-hidden="true"
+          />
           {{ blast }}
         </p>
       </div>

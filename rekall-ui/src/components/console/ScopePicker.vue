@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
+import { useRouter } from 'vue-router'
 import RecordDialog from '@/components/console/RecordDialog.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { companyDraft, projectDraft } from '@/model/record-draft'
+import { identityHue } from '@/common/identity'
 import type { RecordDraft } from '@/model/record-draft'
 import type { Company, Project } from '@/model/catalog'
 import type { CompanyId, ProjectId } from '@/model/branded'
@@ -20,6 +22,7 @@ import type { CompanyId, ProjectId } from '@/model/branded'
  * same tree a second time is the arrangement this replaces.
  */
 const store = useConsoleStore()
+const router = useRouter()
 const {
   companies,
   projects,
@@ -67,7 +70,8 @@ function editCompany(company: Company): void {
 }
 
 function editProject(project: Project): void {
-  edit(projectDraft(project.companyId, project))
+  isOpen.value = false
+  router.push(`/projects/${project.id}`)
 }
 
 /** Every other overlay in the console closes on Escape; this one is no exception. */
@@ -125,7 +129,9 @@ defineExpose({ newCompany, newProject })
             data-testid="scope-company"
             class="focus-ring flex min-w-0 flex-1 items-center gap-2 rounded-md px-2.5 py-1.5 text-left transition-colors hover:bg-surface"
             :class="
-              scopeCompany === company.id && scopeProject === null ? 'text-accent' : 'text-text'
+              scopeCompany === company.id && scopeProject === null
+                ? 'selected-row text-text'
+                : 'text-text'
             "
             @click="pick(company.id)"
           >
@@ -161,17 +167,19 @@ defineExpose({ newCompany, newProject })
           <button
             data-testid="scope-project"
             class="focus-ring flex min-w-0 flex-1 items-center gap-2 rounded-md py-1.5 pl-6 pr-2 text-left transition-colors hover:bg-surface"
+            :class="scopeProject === project.id ? 'selected-row' : ''"
             @click="pick(company.id, project.id)"
           >
             <span class="min-w-0 flex-1">
               <span
-                class="block truncate text-[12.5px]"
-                :class="scopeProject === project.id ? 'text-accent' : 'text-text-muted'"
+                class="flex items-center gap-1.5 truncate text-[12.5px]"
+                :class="scopeProject === project.id ? 'text-text' : 'text-text-muted'"
               >
-                {{ project.title }}
+                <span class="size-1.5 shrink-0 rounded-full" :style="{ backgroundColor: identityHue(project.id).base }" aria-hidden="true" />
+                <span class="truncate">{{ project.title }}</span>
               </span>
-              <span class="block truncate font-mono text-[10px] text-anchor/70">
-                {{ project.anchor }}
+              <span class="mt-0.5 block truncate">
+                <span class="anchor-chip px-1.5 py-px text-[9px] leading-[14px]">{{ project.anchor }}</span>
               </span>
             </span>
             <span

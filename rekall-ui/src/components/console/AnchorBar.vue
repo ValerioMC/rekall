@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppLogo from '@/components/ui/AppLogo.vue'
+import AppNavSwitcher from '@/components/console/AppNavSwitcher.vue'
 import { useConsoleStore } from '@/stores/console.store'
 
 /**
@@ -47,6 +48,31 @@ const SAVE_DOT = {
   saving: 'bg-accent animate-pulse'
 } as const
 
+const justSaved = ref(false)
+watch(saveState, (value, previous) => {
+  if (value === 'saved' && previous !== 'saved') {
+    justSaved.value = false
+    requestAnimationFrame(() => {
+      justSaved.value = true
+      setTimeout(() => (justSaved.value = false), 340)
+    })
+  }
+})
+
+/**
+ * What is typed here, with a pasted `/rk` dropped.
+ *
+ * <p>The anchor chips copy the whole `/rk project:x task:y` line, and that line lands in this
+ * field about as often as in a terminal. The prefix is already printed to the left of it, so a
+ * pasted one is removed rather than searched for and found nowhere.
+ */
+const query = computed<string>({
+  get: () => filter.value,
+  set: (value) => {
+    filter.value = value.replace(/^\s*\/rk\s+/i, '')
+  }
+})
+
 /** Enter opens the first thing the filter found, so search and navigation are one gesture. */
 function openFirst(): void {
   if (navMode.value === 'notes') {
@@ -82,6 +108,8 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
       </span>
     </div>
 
+    <AppNavSwitcher />
+
     <div class="relative max-w-[640px] flex-1">
       <span
         class="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 font-mono text-[13px] text-anchor"
@@ -91,7 +119,7 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
       </span>
       <input
         ref="input"
-        v-model="filter"
+        v-model="query"
         data-testid="anchor-input"
         type="text"
         autocomplete="off"
@@ -142,7 +170,7 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
       >
         <span
           class="size-1.5 rounded-full transition-colors"
-          :class="SAVE_DOT[saveState]"
+          :class="[SAVE_DOT[saveState], justSaved && 'settle']"
           aria-hidden="true"
         />
         {{ SAVE_LABEL[saveState] }}

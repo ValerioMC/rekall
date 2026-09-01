@@ -3,9 +3,10 @@ databaseChangeLog:
   # How long a task actually takes, across as many sittings as it needs. One row per sitting
   # rather than one running total on the task, because a total can only be corrected by editing
   # it, and a session with its own start and stop can be corrected by editing either. `stopped_at`
-  # is nullable and null means the session is still open — at most one row in the whole table may
-  # be in that state, which `TimeEntryService` enforces rather than a constraint here, the same
-  # trade the wrapup makes for the same reason: one writer, no MCP path in.
+  # is nullable and null means the session is still open — at most one row per task may be in
+  # that state, so different tasks can each have one open at once. `TimeEntryService` enforces
+  # the per-task rule rather than a constraint here, the same trade the wrapup makes for the same
+  # reason: one writer, no MCP path in.
 
   - changeSet:
       id: 006-time-entry

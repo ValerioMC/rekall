@@ -105,7 +105,7 @@ company is large, which makes it the interface's job to state it before anyone c
 |---|---|---|
 | `label` | What the anchor resolves | Slug: `^[a-z0-9]+([._-][a-z0-9]+)*$`. Unique inside its parent. Normalised on write by `Slug.of`, so `Report Builder` is stored as `report-builder` |
 | `title` | What it is called on screen | Free text, `NOT NULL`. Changing it never moves an anchor |
-| `description` | What it is about | Free text, travels into every context |
+| `description` | What it is about | Markdown, up to 100,000 characters. The brief the work is measured against, handed to Claude in a `<description>` tag on every context that loads the record |
 
 Normalised rather than rejected: what someone types into a label field is a name, and what the
 anchor needs is an identifier, and the two differ by punctuation and nothing else. Only a value
@@ -180,6 +180,8 @@ The walk distinguishes by direction, not by depth:
 | Inverse (`@OneToMany`) | Labels only, printed as anchors | What points back at this. Unbounded fan-out: a project has forty tasks |
 | One-to-one (`wrapup`) | In full, in a tag of its own, ahead of the notes | Exactly one, so there is no fan-out to bound. Ahead of the notes because a session that opens on a task is asking what it does now, and the notes are the background to that answer |
 
+Scalars are rendered as bullets and bodies as tags, which is why a description is a `<description>` block rather than a `description` bullet. It is a document, with headings, lists and a scope section, and a document inlined into a list item stops being one: every line after the first falls outside the bullet, and its own headings outrank the record's.
+
 That distinction is why the two-anchor form exists. `/rk project:vega` loads the project and
 lists its tasks as anchors; naming the task as a second anchor is how you narrow to one.
 
@@ -194,7 +196,7 @@ any of its copies.
 Transport: HTTP on the same process as the UI.
 
 ```bash
-claude mcp add --transport http rekall http://localhost:8080/mcp
+claude mcp add --transport http rekall http://localhost:47355/mcp
 ```
 
 Two tools. `rekall_context` reads, taking one string:
@@ -241,6 +243,14 @@ and, for a `tools/call`, its tool name in `Mcp-Name`.
 | Unknown method | `-32601` on a 200 | `-32601` on a 404, so a probe can tell this from a wrong address |
 | Unknown revision | — | `-32022` on a 400, listing what is supported |
 | `server/discover` | answered | answered, and mandatory |
+| Result envelope | a result is a result | every result carries `resultType`, and one without it is discarded |
+| `tools/list` | the tools | the tools plus `ttlMs` and `cacheScope`, both required |
+
+The last two rows are the ones that fail silently, and they fail in the same place. A `tools/list`
+missing `resultType`, or missing either cache annotation, is not repaired or read leniently: it is
+thrown away whole, and a client that cannot read the tool list registers no tools. The server
+shows as connected, `/rk` is there, and there is nothing behind it to call. `server/discover` is
+the exception that hides this, because its own schema defaults both annotations.
 
 
 ---
@@ -260,6 +270,57 @@ What it cannot do is lose a note, move a task or delete anything.
 
 ---
 
+
+### Opening a session from a button
+
+**Open in Claude Code**, on a task or a project, opens a terminal in that project's folder with
+`/rk` already running. It answers the last thing the anchor chips could not: an anchor still has
+to be pasted somewhere, and that somewhere has to be the right directory, because Claude Code
+takes the folder it was launched from and keeps it for the session. So the folder is a column on
+the project, `repo_folder`, and it travels down onto every task response beside the project label
+those rows already carry.
+
+It is a bridge in the macOS launcher (`packaging/macos/ClaudeCodeLauncher.swift`), next to the
+folder chooser, and not an endpoint. A `POST /api/launch` on 47355 would be reachable by any page
+open in any browser on the machine, which makes a button that starts a terminal into a way to
+start one without a click. Through the WebView, only this application can call it.
+
+The page never names a command either. It sends a folder, an anchor and one flag; the folder has
+to exist, the anchor has to be `entity:value` characters and nothing a shell reads as a command,
+and the line is assembled on the native side. A note rendered in that window is markdown someone
+else may have written, and it is one XSS away from being the caller.
+
+The terminal is launched by opening a short script with it rather than by scripting the terminal
+itself. AppleEvents would put a "Rekall wants to control Terminal" prompt in front of a button
+whose whole point is that it is one click, and would fail silently for anyone who declines. The
+script removes itself, `cd`s and `exec`s, so nothing is left behind and closing the window ends
+the session and nothing else.
+
+`--dangerously-skip-permissions` is a switch in Settings, off until it is turned on, and it is
+kept in the browser's storage rather than in the database: "run without asking" is a property of
+this terminal on this machine, and a database opened somewhere else has no business carrying that
+answer along with it.
+
+---
+
+### The report
+
+The weekly and monthly report is a regrouping of the sessions the timer writes, and it is built
+in the browser rather than behind an endpoint of its own. Everything it needs is already in the
+window: the sessions, the tasks and the companies are loaded whole at startup, so a report is a
+question about data that has already arrived rather than a new one to ask the server. The
+grouping is a pure function over them, `common/report/time-report.ts`, which is what makes the
+arithmetic testable without a database.
+
+A session counts on the local day it started on, which is the rule the calendar already uses, and
+one still open counts up to now. Both are the readings a person checking a total against their
+own memory of the week would make.
+
+The company filter holds ids, and an empty selection means every company rather than none. The
+chips are built from the unfiltered period, so narrowing to one client never removes the way back
+to the others.
+
+---
 
 ### Export
 

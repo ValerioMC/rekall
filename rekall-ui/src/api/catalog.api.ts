@@ -24,6 +24,8 @@ export interface ProjectInput {
   title: string
   status: ProjectStatus
   description: string | null
+  blueprintMarkdown: string | null
+  repoFolder: string | null
   companyId: CompanyId
 }
 

@@ -1,20 +1,23 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
+import DescriptionCard from '@/components/console/DescriptionCard.vue'
 import TimeLogDialog from '@/components/console/TimeLogDialog.vue'
 import TimerCard from '@/components/console/TimerCard.vue'
 import WrapupCard from '@/components/console/WrapupCard.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
+import { excerpt } from '@/common/format/excerpt'
 
 /**
- * The notes on the selected task, with its timer and wrapup pinned above them.
+ * The notes on the selected task, with its timer, its description and its wrapup pinned above
+ * them.
  *
  * The timer leads because it is the one thing here that is live rather than written: everything
- * below it describes the task, this counts while you read it. The wrapup follows because it is
- * the answer to the question you arrive with — what is this now — and the notes are the
- * background to that answer. Both are one row, always present, even absent: the absence of a
- * wrapup is the reason to write one, and every task has a timer the moment it exists.
+ * below it describes the task, this counts while you read it. Then the two questions in the
+ * order they are asked, what is this task and where did it get to, with the notes as the
+ * background to both. Each is one row, always present, even absent: an empty row is the reason
+ * to write the thing, and every task has a timer the moment it exists.
  */
 const store = useConsoleStore()
 const {
@@ -25,14 +28,14 @@ const {
   selectedWrapup,
   wrapupIsBehind,
   selectedTaskEntries,
-  runningEntry,
+  runningEntries,
   isLoading
 } = storeToRefs(store)
 const { run } = useAsyncAction()
 
 const showTimeLog = ref(false)
-const isRunningHere = computed(
-  () => runningEntry.value !== null && runningEntry.value.taskId === selectedTask.value?.id
+const isRunningHere = computed(() =>
+  runningEntries.value.some((entry) => entry.taskId === selectedTask.value?.id)
 )
 
 async function startTimer(): Promise<void> {
@@ -43,11 +46,6 @@ async function startTimer(): Promise<void> {
 async function pauseTimer(): Promise<void> {
   if (!selectedTask.value) return
   await run(() => store.pauseTimer(selectedTask.value!.id))
-}
-
-/** A couple of lines of the body, with the markup stripped so the preview reads as prose. */
-function excerpt(body: string): string {
-  return body.replace(/[#`>*|_-]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 110)
 }
 </script>
 
@@ -91,6 +89,11 @@ function excerpt(body: string): string {
           @start="startTimer"
           @pause="pauseTimer"
           @open-log="showTimeLog = true"
+        />
+        <DescriptionCard
+          :description="selectedTask.description"
+          :selected="paneFocus === 'description'"
+          @open="store.openDescription()"
         />
         <WrapupCard
           :wrapup="selectedWrapup"

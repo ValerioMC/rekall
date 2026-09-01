@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import App from '@/App.vue'
+import { router } from '@/router'
 import { useConsoleStore } from '@/stores/console.store'
 import type { Company, Project, RekallDocument, Task, Wrapup } from '@/model/catalog'
 import type { CompanyId, DocumentId, ProjectId, TaskId, WrapupId } from '@/model/branded'
@@ -23,13 +24,15 @@ const companies: Company[] = [
 const beacon = 'p2' as ProjectId
 
 const projects: Project[] = [
-  { id: vega, label: 'vega', title: 'Vega Platform', status: 'ACTIVE', description: null, companyId: acme, companyName: 'acme', taskCount: 2, anchor: 'project:vega', updatedAt: '2026-08-12T10:00:00Z' },
-  { id: beacon, label: 'beacon', title: 'Beacon', status: 'ACTIVE', description: null, companyId: acme, companyName: 'acme', taskCount: 0, anchor: 'project:beacon', updatedAt: '2026-08-12T10:00:00Z' }
+  { id: vega, label: 'vega', title: 'Vega Platform', status: 'ACTIVE', description: null, blueprintMarkdown: null,
+    repoFolder: null, companyId: acme, companyName: 'acme', taskCount: 2, anchor: 'project:vega', updatedAt: '2026-08-12T10:00:00Z' },
+  { id: beacon, label: 'beacon', title: 'Beacon', status: 'ACTIVE', description: null, blueprintMarkdown: null,
+    repoFolder: null, companyId: acme, companyName: 'acme', taskCount: 0, anchor: 'project:beacon', updatedAt: '2026-08-12T10:00:00Z' }
 ]
 
 const tasks: Task[] = [
-  { id: validator, label: 'report-builder', title: 'Report builder', status: 'IN_PROGRESS', description: null, projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', documentCount: 1, hasWrapup: true, anchor: 'project:vega task:report-builder', updatedAt: '2026-08-12T10:00:00Z' },
-  { id: retry, label: 'retry-policy', title: 'Retry policy', status: 'TODO', description: null, projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', documentCount: 1, hasWrapup: false, anchor: 'project:vega task:retry-policy', updatedAt: '2026-08-12T10:00:00Z' }
+  { id: validator, label: 'report-builder', title: 'Report builder', status: 'IN_PROGRESS', description: null, projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', projectRepoFolder: null, documentCount: 1, hasWrapup: true, anchor: 'project:vega task:report-builder', updatedAt: '2026-08-12T10:00:00Z' },
+  { id: retry, label: 'retry-policy', title: 'Retry policy', status: 'TODO', description: '## Scope\n\nRitenta solo gli errori 5xx, con backoff esponenziale.', projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', projectRepoFolder: null, documentCount: 1, hasWrapup: false, anchor: 'project:vega task:retry-policy', updatedAt: '2026-08-12T10:00:00Z' }
 ]
 
 const shared: RekallDocument = {
@@ -99,19 +102,16 @@ vi.mock('@/api/wrapups.api', () => ({
 }))
 
 const startTimeEntry = vi.fn(async (taskId: TaskId) => ({
-  started: {
-    id: 'te1',
-    taskId,
-    taskLabel: 'report-builder',
-    taskTitle: 'Report builder',
-    projectLabel: 'vega',
-    anchor: 'project:vega task:report-builder',
-    startedAt: '2026-08-12T15:00:00Z',
-    stoppedAt: null,
-    createdAt: '2026-08-12T15:00:00Z',
-    updatedAt: '2026-08-12T15:00:00Z'
-  },
-  stoppedElsewhere: null
+  id: 'te1',
+  taskId,
+  taskLabel: 'report-builder',
+  taskTitle: 'Report builder',
+  projectLabel: 'vega',
+  anchor: 'project:vega task:report-builder',
+  startedAt: '2026-08-12T15:00:00Z',
+  stoppedAt: null,
+  createdAt: '2026-08-12T15:00:00Z',
+  updatedAt: '2026-08-12T15:00:00Z'
 }))
 
 vi.mock('@/api/time-entries.api', () => ({
@@ -124,7 +124,11 @@ vi.mock('@/api/time-entries.api', () => ({
 
 async function mountConsole() {
   setActivePinia(createPinia())
-  const wrapper = mount(App, { attachTo: document.body })
+  await router.push('/')
+  // App itself no longer loads the catalog on mount — that moved to Bootstrap, the one place
+  // guaranteed to run regardless of which route is entered — so the test stands in for it.
+  await useConsoleStore().load()
+  const wrapper = mount(App, { attachTo: document.body, global: { plugins: [router] } })
   await flushPromises()
   return wrapper
 }
@@ -193,6 +197,18 @@ describe('the console', () => {
     const wrapper = await mountConsole()
 
     await wrapper.find('[data-testid="anchor-input"]').setValue('retry')
+    await flushPromises()
+
+    const rows = wrapper.findAll('[data-testid="task-row"]')
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.text()).toContain('Retry policy')
+  })
+
+  /** The chips copy a whole `/rk …` line, and this field is where half of them get pasted. */
+  it('drops a pasted /rk instead of searching for it', async () => {
+    const wrapper = await mountConsole()
+
+    await wrapper.find('[data-testid="anchor-input"]').setValue('/rk retry')
     await flushPromises()
 
     const rows = wrapper.findAll('[data-testid="task-row"]')
@@ -380,21 +396,20 @@ describe('the console', () => {
       expect(wrapper.find('[data-testid="rename-warning"]').text()).toContain('task:report-builder')
     })
 
-    it('renames a title without touching the label the anchor uses', async () => {
+    /**
+     * A project's own page now has the room `RecordDialog` never did, so its pencil in the
+     * scope picker goes there instead of opening the quick-edit dialog.
+     */
+    it('sends the project pencil to the project page rather than opening the dialog', async () => {
       const wrapper = await mountConsole()
+
+      const pushSpy = vi.spyOn(router, 'push')
 
       await wrapper.find('[data-testid="scope-trigger"]').trigger('click')
       await wrapper.find('[data-testid="edit-project"]').trigger('click')
-      await flushPromises()
 
-      await wrapper.find('[data-testid="record-title"]').setValue('Vega, rebuilt')
-      await wrapper.find('[data-testid="record-save"]').trigger('click')
-      await flushPromises()
-
-      expect(updateProject).toHaveBeenCalledWith(
-        vega,
-        expect.objectContaining({ label: 'vega', title: 'Vega, rebuilt' })
-      )
+      expect(wrapper.find('[data-testid="record-dialog"]').exists()).toBe(false)
+      expect(pushSpy).toHaveBeenCalledWith(`/projects/${vega}`)
     })
 
     /** The same field that decides where a task lands is what moves it afterwards. */
@@ -611,6 +626,80 @@ describe('the console', () => {
       await flushPromises()
 
       expect(deleteWrapup).toHaveBeenCalledWith(validator)
+    })
+  })
+
+  /**
+   * The description is the brief the work is measured against, so it is a markdown document with
+   * a pane of its own rather than a line under the title. It used to be typed into the create
+   * dialog and then be readable nowhere.
+   */
+  describe('the description', () => {
+    it('pins it between the timer and the wrapup of the task in view', async () => {
+      const wrapper = await mountConsole()
+
+      await wrapper.findAll('[data-testid="task-row"]')[1]!.trigger('click')
+      await flushPromises()
+
+      const card = wrapper.find('[data-testid="description-card"]')
+      expect(card.exists()).toBe(true)
+      expect(card.text()).toContain('Description')
+      expect(card.text()).toContain('Ritenta solo gli errori 5xx')
+
+      const html = wrapper.html()
+      expect(html.indexOf('data-testid="description-card"')).toBeLessThan(
+        html.indexOf('data-testid="wrapup-card"')
+      )
+    })
+
+    it('opens the whole pane on D, in markdown', async () => {
+      const wrapper = await mountConsole()
+
+      await wrapper.findAll('[data-testid="task-row"]')[1]!.trigger('click')
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }))
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('Ritenta solo gli errori 5xx')
+      expect(wrapper.text()).toContain('/rk project:vega task:retry-policy')
+      // Its own pane, not the note editor with another title on it.
+      expect(wrapper.text()).not.toContain('Attach to task')
+    })
+
+    /**
+     * The empty page says which of the three surfaces this is, because that is the moment the
+     * description, the wrapup and a note are easiest to confuse.
+     */
+    it('says what belongs there on a task nobody has described, and opens the editor', async () => {
+      const wrapper = await mountConsole()
+
+      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }))
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('Nothing says what this task is')
+      expect(wrapper.text()).toContain('Where did the implementation get to?')
+
+      await wrapper.find('[data-testid="write-description"]').trigger('click')
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('The brief the work is measured against')
+      expect(wrapper.text()).not.toContain('Nothing says what this task is')
+    })
+
+    /** The key that took you there takes you back, the same way W and B work. */
+    it('toggles back to the note on a second D', async () => {
+      const wrapper = await mountConsole()
+
+      await wrapper.findAll('[data-testid="task-row"]')[1]!.trigger('click')
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }))
+      await flushPromises()
+      expect(wrapper.text()).toContain('The brief the work is measured against')
+
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }))
+      await flushPromises()
+
+      expect(wrapper.text()).not.toContain('The brief the work is measured against')
+      expect(wrapper.text()).toContain('kmaster14.md')
     })
   })
 })

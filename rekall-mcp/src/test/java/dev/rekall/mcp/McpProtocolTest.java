@@ -184,6 +184,34 @@ class McpProtocolTest {
         }
 
         @Test
+        @DisplayName("tools/list carries the cache annotations without which it is rejected whole")
+        void toolListCarriesItsCacheAnnotations() {
+            // Not defaulted client-side the way server/discover's are: a list missing either of
+            // these is thrown away, and a session that cannot read the list registers no tools.
+            Map<String, Object> result = result(call(MODERN, "tools/list", null, request(1, "tools/list", null)));
+
+            assertThat(result).containsKey("tools");
+            assertThat(result.get("ttlMs")).asInstanceOf(
+                    org.assertj.core.api.InstanceOfAssertFactories.INTEGER).isNotNegative();
+            assertThat(result).containsEntry("cacheScope", "public");
+        }
+
+        @Test
+        @DisplayName("every result says which kind of result it is, or the client throws it away")
+        void everyResultCarriesItsKind() {
+            // A missing resultType is not read as complete in this era, it is rejected outright,
+            // and a tools/list rejected is a session that sees no tools and says nothing.
+            assertThat(result(call(MODERN, "tools/list", null, request(1, "tools/list", null))))
+                    .containsEntry("resultType", "complete");
+            assertThat(result(call(MODERN, "tools/call", "rekall_context", toolCall())))
+                    .containsEntry("resultType", "complete");
+            assertThat(result(call(MODERN, "ping", null, request(1, "ping", null))))
+                    .containsEntry("resultType", "complete");
+            assertThat(result(call(MODERN, "server/discover", null, request(1, "server/discover", null))))
+                    .containsEntry("resultType", "complete");
+        }
+
+        @Test
         @DisplayName("initialize is an unknown method here, answered on a 404")
         void initializeIsGone() {
             var response = call(MODERN, "initialize", null, request(1, "initialize", null));

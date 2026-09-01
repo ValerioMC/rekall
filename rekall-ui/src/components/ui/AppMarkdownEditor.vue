@@ -133,6 +133,30 @@ const TOOLBARS: ToolbarNames[] = [
   color: var(--color-text-muted);
 }
 
+/*
+ * The library's github theme breaks lines mid-word: a rule that suits CJK, and one that turns Latin
+ * prose into what looks like a typo ("e lo pubbl / ica su S3").
+ */
+.rekall-md .md-editor-preview {
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+
+/* Tailwind's reset strips list markers, and half of any brief is bullets. */
+.rekall-md .md-editor-preview ul {
+  list-style: disc;
+  padding-left: 1.35em;
+}
+
+.rekall-md .md-editor-preview ol {
+  list-style: decimal;
+  padding-left: 1.35em;
+}
+
+.rekall-md .md-editor-preview li::marker {
+  color: var(--color-text-subtle);
+}
+
 .rekall-md .md-editor-preview h1,
 .rekall-md .md-editor-preview h2,
 .rekall-md .md-editor-preview h3,
@@ -158,12 +182,13 @@ const TOOLBARS: ToolbarNames[] = [
   color: var(--color-text);
 }
 
-/* The read state carries no chrome of its own: it sits inside a card that already has some. */
-.rekall-md--readonly .md-editor-preview-wrapper {
-  padding: 0;
+.rekall-md--readonly .md-editor-preview {
+  padding: 4px 18px !important;
 }
 
+/* Read as a document, not as a boxed field: nothing frames the text but the pane it is in. */
 .rekall-md--readonly .md-editor-previewOnly {
   background: transparent;
+  border: none;
 }
 </style>

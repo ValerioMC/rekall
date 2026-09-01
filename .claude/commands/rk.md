@@ -23,8 +23,21 @@ Call `rekall_context` with `anchors` set to exactly the arguments above, unchang
 
 On success, summarise in no more than ten lines: what the task is, its status, what its wrapup says
 the implementation currently is, and anything in its notes that changes how the work should be done.
-Then wait. Do not start editing, do not propose a plan, do not read files from the repository until
-I ask.
+
+Then get on with it. The description is the brief: it is where the work is written down, and it was
+written so that it would not have to be said again. Take it as the instruction it is, say in one line
+what you are about to do, and start. A question in it is a question to answer, not one to hand back.
+
+Ask only when the context does not settle it:
+
+- there is no description, or what it holds is background rather than an instruction
+- it asks for two things that cannot both be true, or names something that is not there
+- doing it would delete or overwrite something nothing keeps a copy of
+
+Then ask exactly what is missing, in one question, and stop. Nothing already written down is worth a
+question: if it is in the description, the wrapup or a note, it has been answered once already.
+
+Anchors that name a project and no task have no brief in them. Summarise what is there and wait.
 
 ## Wrapping up
 

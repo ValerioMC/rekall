@@ -123,18 +123,17 @@ public class ContextService {
     // ------------------------------------------------------------------ assembly
 
     private ContextRecord render(Company company) {
-        Map<String, String> fields = new LinkedHashMap<>();
-        putIfPresent(fields, "description", company.getDescription());
-
         return new ContextRecord(
                 "Company",
                 company.getName(),
                 "company:" + company.getName(),
-                fields,
+                Map.of(),
                 List.of(),
                 company.getProjects().stream().map(project -> "project:" + project.getLabel()).toList(),
                 List.of(),
-                null);
+                null,
+                null,
+                company.getDescription());
     }
 
     /**
@@ -147,7 +146,6 @@ public class ContextService {
     private ContextRecord render(Project project) {
         Map<String, String> fields = new LinkedHashMap<>();
         fields.put("status", project.getStatus().name());
-        putIfPresent(fields, "description", project.getDescription());
 
         return new ContextRecord(
                 "Project",
@@ -157,7 +155,9 @@ public class ContextService {
                 List.of(renderReferenced(project.getCompany())),
                 project.getTasks().stream().map(task -> "task:" + task.getLabel()).toList(),
                 List.of(),
-                null);
+                null,
+                project.getBlueprintMarkdown(),
+                project.getDescription());
     }
 
     /**
@@ -173,7 +173,6 @@ public class ContextService {
     private ContextRecord render(Task task) {
         Map<String, String> fields = new LinkedHashMap<>();
         fields.put("status", task.getStatus().name());
-        putIfPresent(fields, "description", task.getDescription());
 
         List<ContextRecord> references = new ArrayList<>();
         references.add(renderReferenced(task.getProject()));
@@ -186,7 +185,9 @@ public class ContextService {
                 references,
                 List.of(),
                 documentsOf(task.getDocuments()),
-                task.getWrapup() == null ? null : WrapupView.of(task.getWrapup()));
+                task.getWrapup() == null ? null : WrapupView.of(task.getWrapup()),
+                null,
+                task.getDescription());
     }
 
     /**
@@ -199,25 +200,19 @@ public class ContextService {
         ContextRecord full = render(project);
         return new ContextRecord(
                 full.kind(), full.label(), full.anchor(), full.fields(),
-                full.references(), List.of(), full.documents(), null);
+                full.references(), List.of(), full.documents(), null, full.blueprint(), full.description());
     }
 
     private ContextRecord renderReferenced(Company company) {
         ContextRecord full = render(company);
         return new ContextRecord(
                 full.kind(), full.label(), full.anchor(), full.fields(),
-                List.of(), List.of(), full.documents(), null);
+                List.of(), List.of(), full.documents(), null, full.blueprint(), full.description());
     }
 
     private List<DocumentView> documentsOf(List<Document> documents) {
         return documents.stream()
                 .map(document -> new DocumentView(document.getTitle(), document.getKind(), document.getBodyMarkdown()))
                 .toList();
-    }
-
-    private void putIfPresent(Map<String, String> fields, String key, String value) {
-        if (value != null && !value.isBlank()) {
-            fields.put(key, value);
-        }
     }
 }

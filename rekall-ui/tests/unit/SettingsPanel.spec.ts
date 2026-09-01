@@ -37,6 +37,21 @@ vi.mock('@/api/settings.api', () => ({
   checkFolder: vi.fn()
 }))
 
+/** The Claude Code section has its own spec; here it only has to not reach the network. */
+vi.mock('@/api/claude.api', () => ({
+  fetchClaudeInstallation: () =>
+    Promise.resolve({
+      status: 'NOT_CONNECTED',
+      endpoint: 'http://localhost:47355/mcp',
+      registeredUrl: null,
+      folderScoped: [],
+      commandInstalled: false,
+      cliPath: '/Users/someone/.local/bin/claude',
+      manualCommand: 'claude mcp add --scope user --transport http rekall http://localhost:47355/mcp'
+    }),
+  installClaudeIntegration: vi.fn()
+}))
+
 const local = { id: '1', label: 'Local', path: '/a', active: true, reachable: true, addedAt: 't', lastUsedAt: 't' }
 const backup = { id: '2', label: 'Backup', path: '/b', active: false, reachable: true, addedAt: 't', lastUsedAt: 't' }
 

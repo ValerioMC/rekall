@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { updateProject } from '@/api/catalog.api'
 import { setActivePinia, createPinia } from 'pinia'
 import { useConsoleStore } from '@/stores/console.store'
+import type { TaskInput } from '@/api/catalog.api'
 import type { Company, Project, RekallDocument, Task, Wrapup } from '@/model/catalog'
 import type { CompanyId, DocumentId, ProjectId, TaskId, WrapupId } from '@/model/branded'
 
@@ -21,8 +23,10 @@ const vega = 'p1' as ProjectId
 const beacon = 'p2' as ProjectId
 
 const projects: Project[] = [
-  { id: vega, label: 'vega', title: 'Vega Platform', status: 'ACTIVE', description: null, companyId: acme, companyName: 'acme', taskCount: 2, anchor: 'project:vega', updatedAt: '2026-08-12T10:00:00Z' },
-  { id: beacon, label: 'beacon', title: 'Beacon', status: 'ACTIVE', description: null, companyId: globex, companyName: 'globex', taskCount: 1, anchor: 'project:beacon', updatedAt: '2026-08-12T10:00:00Z' }
+  { id: vega, label: 'vega', title: 'Vega Platform', status: 'ACTIVE', description: null, blueprintMarkdown: null,
+    repoFolder: null, companyId: acme, companyName: 'acme', taskCount: 2, anchor: 'project:vega', updatedAt: '2026-08-12T10:00:00Z' },
+  { id: beacon, label: 'beacon', title: 'Beacon', status: 'ACTIVE', description: null, blueprintMarkdown: null,
+    repoFolder: null, companyId: globex, companyName: 'globex', taskCount: 1, anchor: 'project:beacon', updatedAt: '2026-08-12T10:00:00Z' }
 ]
 
 const validator = 't1' as TaskId
@@ -48,6 +52,7 @@ const task = (
   projectLabel,
   projectTitle,
   companyName,
+  projectRepoFolder: null,
   documentCount: 1,
   hasWrapup: id === validator,
   anchor: `project:${projectLabel} task:${label}`,
@@ -128,7 +133,10 @@ const saveWrapup = vi.fn(async (_taskId: TaskId, bodyMarkdown: string) => ({
 }))
 const deleteWrapup = vi.fn(async () => undefined)
 
-const updateTask = vi.fn(async () => ({ ...tasks[0]!, status: 'DONE' as const }))
+const updateTask = vi.fn(async (id: TaskId, input: TaskInput) => ({
+  ...(tasks.find((candidate) => candidate.id === id) ?? tasks[0]!),
+  ...input
+}))
 
 vi.mock('@/api/catalog.api', () => ({
   fetchCompanies: vi.fn(async () => companies),
@@ -141,7 +149,7 @@ vi.mock('@/api/catalog.api', () => ({
   updateProject: vi.fn(),
   deleteProject: vi.fn(),
   createTask: vi.fn(),
-  updateTask: (...args: unknown[]) => updateTask(...(args as [])),
+  updateTask: (...args: Parameters<typeof updateTask>) => updateTask(...args),
   deleteTask: vi.fn()
 }))
 
@@ -361,6 +369,30 @@ describe('console store', () => {
   })
 
   /**
+   * A task row carries a copy of its project's folder, because the button that opens a session
+   * lives on the task. Saving the folder has to reach the rows already loaded, or that button
+   * goes on saying there is nowhere to open until the window is reloaded.
+   */
+  it('carries a saved project folder onto the tasks already in view', async () => {
+    vi.mocked(updateProject).mockResolvedValue({
+      ...projects[0]!,
+      repoFolder: '/Users/someone/Projects/vega'
+    })
+
+    await store.saveProjectRepoFolder(vega, '  /Users/someone/Projects/vega  ')
+
+    expect(vi.mocked(updateProject).mock.calls[0]?.[1]).toMatchObject({
+      repoFolder: '/Users/someone/Projects/vega'
+    })
+    expect(
+      store.tasks.filter((task) => task.projectId === vega).map((task) => task.projectRepoFolder)
+    ).toEqual(['/Users/someone/Projects/vega', '/Users/someone/Projects/vega'])
+    expect(
+      store.tasks.filter((task) => task.projectId !== vega).map((task) => task.projectRepoFolder)
+    ).toEqual([null])
+  })
+
+  /**
    * A status change sends the record back whole. Dropping the label out of that payload would
    * blank the column the anchor resolves on, which the endpoint would then reject or, worse,
    * accept.
@@ -377,5 +409,59 @@ describe('console store', () => {
         projectId: vega
       })
     )
+  })
+
+  /**
+   * The description is edited where it is read, on the pane, and carries the same obligation as
+   * a status change: everything else about the record goes back untouched.
+   */
+  describe('the description', () => {
+    it('saves it without moving the label, the title or the status', async () => {
+      await store.saveTaskDescription(validator, 'Builds the weekly report from the pipeline runs.')
+
+      expect(updateTask).toHaveBeenCalledWith(validator, {
+        label: 'report-builder',
+        title: 'Report builder',
+        status: 'IN_PROGRESS',
+        description: 'Builds the weekly report from the pipeline runs.',
+        projectId: vega
+      })
+      expect(store.tasks.find((task) => task.id === validator)?.description).toBe(
+        'Builds the weekly report from the pipeline runs.'
+      )
+    })
+
+    /** Emptied means there is none, not that there is one made of spaces. */
+    it('stores a blank one as no description at all', async () => {
+      await store.saveTaskDescription(validator, 'Something to erase.')
+      await store.saveTaskDescription(validator, '   ')
+
+      expect(updateTask).toHaveBeenLastCalledWith(
+        validator,
+        expect.objectContaining({ description: null })
+      )
+      expect(store.tasks.find((task) => task.id === validator)?.description).toBeNull()
+    })
+
+    /** The pane it is written in is reached and left on one key, like the wrapup's. */
+    it('opens and closes its pane without touching the note in view', async () => {
+      store.selectTask(validator)
+      expect(store.paneFocus).toBe('note')
+
+      store.toggleDescription()
+      expect(store.paneFocus).toBe('description')
+
+      store.toggleDescription()
+      expect(store.paneFocus).toBe('note')
+      expect(store.selectedDocId).toBe('d1')
+    })
+
+    /** Autosave fires on a pause, not on a change, so it lands on text that is already saved. */
+    it('sends nothing when the text is what is already stored', async () => {
+      await store.saveTaskDescription(validator, '')
+
+      expect(updateTask).not.toHaveBeenCalled()
+      expect(store.saveState).toBe('saved')
+    })
   })
 })

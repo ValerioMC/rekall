@@ -1,0 +1,10 @@
+databaseChangeLog:
+
+  - changeSet:
+      id: 007-project-blueprint
+      author: rekall
+      changes:
+        - addColumn:
+            tableName: project
+            columns:
+              - column: {name: blueprint_markdown, type: varchar(100000)}

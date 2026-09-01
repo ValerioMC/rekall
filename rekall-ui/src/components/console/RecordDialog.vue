@@ -6,6 +6,7 @@ import AppSelect from '@/components/ui/AppSelect.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { trapTabKey } from '@/common/a11y/focus-trap'
+import { identityHue } from '@/common/identity'
 import {
   PROJECT_STATUSES,
   PROJECT_STATUS_LABEL,
@@ -35,6 +36,7 @@ const panel = ref<HTMLElement | null>(null)
 const firstField = ref<HTMLInputElement | null>(null)
 const isConfirmingDelete = ref(false)
 const submitted = ref(false)
+const anchorLive = ref(false)
 
 const kind = props.draft.kind
 const isNew = props.draft.id === null
@@ -225,11 +227,16 @@ async function save(): Promise<void> {
       if (current.id === null) await store.createCompany(input)
       else await store.updateCompany(current.id, input)
     } else if (current.kind === 'project') {
+      // Neither of these is editable here, and a write sends the whole record: read back what
+      // is stored or this dialog quietly clears two fields it never showed.
+      const stored = store.projects.find((candidate) => candidate.id === current.id)
       const input = {
         label: label.value,
         title: current.title.trim(),
         status: current.status,
         description: trimmedDescription,
+        blueprintMarkdown: stored?.blueprintMarkdown ?? null,
+        repoFolder: stored?.repoFolder ?? null,
         companyId: current.companyId
       }
       if (current.id === null) await store.createProject(input)
@@ -313,7 +320,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
     >
       <header class="flex items-center gap-3 border-b border-border px-6 py-4">
         <span
-          class="grid size-8 shrink-0 place-items-center rounded-[9px] border border-border-strong bg-canvas font-mono text-[13px] text-accent"
+          class="grid size-8 shrink-0 place-items-center rounded-[9px] border border-border-strong font-mono text-[13px] font-semibold text-accent"
+          style="background-image: linear-gradient(155deg, var(--color-surface-raised), var(--color-canvas))"
           aria-hidden="true"
         >
           {{ kind.charAt(0).toUpperCase() }}
@@ -322,7 +330,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
           <span class="block text-[15px] font-semibold tracking-[-0.01em] text-text">
             {{ heading }}
           </span>
-          <span v-if="anchorParent" class="block truncate font-mono text-[11px] text-anchor/80">
+          <span v-if="anchorParent" class="flex items-center gap-1.5 truncate font-mono text-[11px] text-anchor/80">
+            <span v-if="kind === 'task'" class="size-1.5 shrink-0 rounded-full" :style="{ backgroundColor: identityHue(parentId).base }" aria-hidden="true" />
             {{ anchorParent }}
           </span>
         </span>
@@ -371,6 +380,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
           :class="titleError && 'border-danger'"
           :placeholder="hasLabel ? 'Report builder, main workflow' : 'Acme S.p.A.'"
           @input="onTitleInput(($event.target as HTMLInputElement).value)"
+          @focus="anchorLive = true"
+          @blur="anchorLive = false"
         />
         <p v-if="titleError" class="mt-1.5 text-[11.5px] text-danger" role="alert">
           {{ titleError }}
@@ -396,6 +407,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
             :class="labelError && 'border-danger'"
             placeholder="report-builder"
             @input="onLabelInput(($event.target as HTMLInputElement).value)"
+            @focus="anchorLive = true"
+            @blur="anchorLive = false"
           />
           <p v-if="labelError" class="mt-1.5 text-[11.5px] text-danger" role="alert">
             {{ labelError }}
@@ -407,11 +420,17 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
 
         <!-- The anchor, assembled as it is typed. This is the product, so it is not a footnote. -->
         <div
-          class="mt-4 flex items-center gap-3 rounded-[var(--radius-control)] border border-anchor-line bg-anchor-soft px-3.5 py-3"
+          class="mt-4 flex items-center gap-3 rounded-[var(--radius-control)] border px-3.5 py-3 transition-all duration-200"
+          :class="
+            anchorLive
+              ? 'border-anchor bg-anchor-soft shadow-[0_0_0_3px_var(--color-anchor-soft)]'
+              : 'border-anchor-line bg-anchor-soft'
+          "
           data-testid="anchor-preview"
           :title="anchorPreview"
         >
           <span class="shrink-0 font-mono text-[12px] text-text-subtle" aria-hidden="true">/rk</span>
+          <span v-if="kind === 'task' && anchorParent" class="size-1.5 shrink-0 rounded-full" :style="{ backgroundColor: identityHue(parentId).base }" aria-hidden="true" />
           <span class="min-w-0 flex-1 truncate font-mono text-[13px]">
             <!-- The parent's half is settled and reads that way; the rest is what you are typing.
                  Both spans sit on one line so the separating space survives into the text. -->

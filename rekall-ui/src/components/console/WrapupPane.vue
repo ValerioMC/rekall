@@ -7,6 +7,7 @@ import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { relativeTime } from '@/common/format/relative-time'
+import { rkCommand } from '@/common/format/rk-command'
 import { WRAPUP_AUTHOR_LABEL } from '@/model/catalog'
 
 /**
@@ -62,7 +63,7 @@ watch(
 
 /** The command that has Claude rewrite it, ready to paste next to the terminal. */
 const command = computed(() =>
-  selectedTask.value ? `/rk ${selectedTask.value.anchor} wrapup` : ''
+  selectedTask.value ? `${rkCommand(selectedTask.value.anchor)} wrapup` : ''
 )
 
 const writtenBy = computed(() =>
@@ -127,8 +128,9 @@ async function confirmDelete(): Promise<void> {
             class="anchor-chip focus-ring mt-1.5 inline-flex items-center gap-2 px-2.5 py-1 text-[11.5px] transition-colors hover:border-anchor"
             :class="copied === 'anchor' && 'flash'"
             data-testid="copy-wrapup-anchor"
-            @click="copy('anchor', selectedTask.anchor)"
+            @click="copy('anchor', rkCommand(selectedTask.anchor))"
           >
+            <span class="opacity-60">/rk</span>
             <span>{{ selectedTask.anchor }}</span>
             <span class="opacity-70">{{ copied === 'anchor' ? 'copied' : 'copy' }}</span>
           </button>
@@ -156,7 +158,29 @@ async function confirmDelete(): Promise<void> {
         v-if="selectedWrapup"
         class="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border bg-surface px-5 py-2.5"
       >
-        <span class="text-[11.5px] text-text-muted">
+        <span class="inline-flex items-center gap-1.5 text-[11.5px] text-text-muted">
+          <svg
+            v-if="selectedWrapup.writtenBy === 'CLAUDE'"
+            class="size-3 shrink-0 text-text-subtle"
+            viewBox="0 0 12 12"
+            aria-hidden="true"
+          >
+            <path
+              d="M6 0.5v3M6 8.5v3M0.5 6h3M8.5 6h3M2.3 2.3l2.1 2.1M7.6 7.6l2.1 2.1M9.7 2.3 7.6 4.4M4.4 7.6l-2.1 2.1"
+              stroke="currentColor"
+              stroke-width="1"
+              stroke-linecap="round"
+            />
+          </svg>
+          <svg v-else class="size-3 shrink-0 text-text-subtle" viewBox="0 0 12 12" aria-hidden="true">
+            <path
+              d="M2 10 3 6.6l4.4-4.4a1.2 1.2 0 0 1 1.7 1.7L4.7 8.3 2 10Z"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1"
+              stroke-linejoin="round"
+            />
+          </svg>
           Written by
           <span class="font-medium text-text">{{ writtenBy }}</span>
           <span class="text-text-muted">
