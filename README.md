@@ -174,6 +174,7 @@ An anchor is `entity:value`, where the entity is `company`, `project` or `task` 
 | `/rk vega report-builder` | Positional. Works while each term matches exactly one record |
 | `/rk task:"report builder"` | Quote a value containing spaces |
 | `/rk project:vega task:report-builder wrapup` | Write the task's wrapup instead of loading it |
+| `/rk project:vega task:report-builder wrapup "solo il modulo di export"` | Same, told in your words what to write |
 
 Every anchor brings back the record, what it references resolved in full **with their notes**, what references it as anchors, and its own markdown. A note can be attached to several tasks, so cluster access is written once and arrives with each task that needs it.
 
@@ -187,9 +188,20 @@ Two tools are exposed. `rekall_context` reads; there is no query tool, no get to
 
 A task has at most one wrapup: **what its implementation currently is**. Not a changelog — no "added", no "before and after", nothing dated. It describes the system as it stands, for a reader who was not in the session.
 
+It names the code it describes, by the names the code has: the class, the file, the endpoint, the table, a line or two each on what that piece is for and what it decides. Where there is business logic, the rule itself is the point. What it does not do is transcribe: no field lists, no table columns, no method signatures, no directory tree. That is in the repository, it is longer than the wrapup, and it is wrong a week later.
+
 ```
 /rk project:vega task:report-builder wrapup
 ```
+
+A quoted term after `wrapup` is a directive on what to write, and it decides the content:
+
+```
+/rk project:vega task:report-builder wrapup "solo il modulo di export, in italiano"
+/rk project:vega task:report-builder wrapup "scrivi solo le informazioni che ti sto dicendo"
+```
+
+It can narrow the subject, dictate the words, set the language or the length. Without one, Claude writes what the session and the code say the implementation now is. Either way the shape is the same: one state, not a changelog, sent whole.
 
 Claude reads the current one, rewrites it whole and replaces it. It comes back with the task on the next `/rk`, ahead of the notes. You can correct it in the console at any time, and the pane says who wrote what is on screen and how long ago — the next `/rk … wrapup` replaces it either way, and the tool says so when the words it replaced were yours.
 
@@ -419,3 +431,12 @@ cd rekall-ui && pnpm lint && pnpm typecheck && pnpm test
 ## Design
 
 `docs/DESIGN.md` records the decisions and the reasoning behind them, including the ones that were reversed and why.
+
+## License
+
+Source-available, not open source. Licensed under the
+[PolyForm Internal Use License 1.0.0](LICENSE): you may read the source and run the
+software for your own and your company's internal business operations, and change it
+for those same purposes. You may not distribute it, in original or modified form.
+
+Copyright 2026 Valerio Mario Casale.

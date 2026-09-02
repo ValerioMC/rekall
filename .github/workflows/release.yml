@@ -122,6 +122,10 @@ jobs:
       # This is the step that creates the release the two native jobs then upload into, which is
       # why they depend on this job rather than running beside it. An asset uploaded under a name
       # that is already on the release replaces it, so a rebuilt `latest` never accumulates.
+      #
+      # No `body` on the rolling release: the assets and the commit it points at are already on
+      # the page, and a paragraph restating them is noise on every build. A versioned release
+      # gets generated notes instead, which are the commit list and not prose.
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
@@ -130,7 +134,6 @@ jobs:
           prerelease: ${{ steps.target.outputs.rolling == 'true' }}
           make_latest: ${{ steps.target.outputs.rolling != 'true' }}
           generate_release_notes: ${{ steps.target.outputs.rolling != 'true' }}
-          body: ${{ steps.target.outputs.rolling == 'true' && format('Built from `main` at {0}. Rebuilt on every commit, so it moves without warning. For something that stays put, use a versioned release.', github.sha) || '' }}
           files: ${{ steps.jar.outputs.path }}
 
   # The macOS bundle is the jvm flavour, not the native one, and that is a constraint rather than

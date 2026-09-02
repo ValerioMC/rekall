@@ -18,6 +18,15 @@
     <name>rekall-parent</name>
     <description>Structured memory and context store for projects and tasks</description>
 
+    <licenses>
+        <license>
+            <name>PolyForm Internal Use License 1.0.0</name>
+            <url>https://polyformproject.org/licenses/internal-use/1.0.0</url>
+            <distribution>manual</distribution>
+            <comments>Source-available. Internal business use only, no distribution.</comments>
+        </license>
+    </licenses>
+
     <modules>
         <module>rekall-domain</module>
         <module>rekall-api</module>

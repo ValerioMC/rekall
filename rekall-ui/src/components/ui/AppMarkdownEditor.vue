@@ -117,6 +117,16 @@ const TOOLBARS: ToolbarNames[] = [
   --md-scrollbar-thumb-active-color: var(--color-text-subtle);
 }
 
+/*
+ * The editor scrolls its own text, so the toolbar stays where the hand expects it. Without a
+ * resolved height the `height: 100%` handed to the editor falls back to auto, the editor grows
+ * with the note, and the pane scrolls the formatting buttons off the top.
+ */
+.rekall-md:not(.rekall-md--readonly) {
+  height: 100%;
+  min-height: 0;
+}
+
 .rekall-md .md-editor {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-control);

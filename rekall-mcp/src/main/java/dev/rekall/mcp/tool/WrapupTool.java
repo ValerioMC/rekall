@@ -66,6 +66,19 @@ public class WrapupTool implements McpTool {
                If a sentence only makes sense to someone who watched the change happen, it does \
                not belong in a wrapup. Notes are where the reasoning and the history go.
 
+               Name the code, do not transcribe it. It is read next to the repository, so say \
+               where things are by the names they have: the class, the file, the endpoint, the \
+               table, the component, a line or two each on what it is for and what it decides.
+
+               - Yes: what an entity is there for, and, where there is business logic, the rule \
+               itself: what it decides, on what, what happens at the edges, what is refused.
+               - No: the fields of an object, the columns of a table, method signatures, \
+               parameter lists, a directory tree. That is in the code, it is longer than the \
+               wrapup, and it is wrong a week later.
+
+               Small enough to read in one go. Short paragraphs or short bullets, not an essay \
+               and not an index.
+
                Read the current wrapup with `rekall_context` before replacing it: it arrives \
                with the task. Keep what is still true and rewrite the rest, rather than \
                describing only the piece you touched.

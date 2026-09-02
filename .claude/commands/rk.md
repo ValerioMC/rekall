@@ -1,6 +1,6 @@
 ---
 description: Load a Rekall working context by anchor, e.g. /rk project:vega task:report-builder
-argument-hint: "company:|project:|task: <label> ...  [wrapup]   (labels, not titles)"
+argument-hint: "company:|project:|task: <label> ...  [wrapup [\"how to write it\"]]   (labels, not titles)"
 allowed-tools: mcp__rekall__rekall_context, mcp__rekall__rekall_wrapup
 ---
 
@@ -8,7 +8,7 @@ The arguments are:
 
 $ARGUMENTS
 
-If the last term is the bare word `wrapup`, follow **Wrapping up**. Otherwise follow **Loading**.
+If the terms include the bare word `wrapup`, follow **Wrapping up**. Otherwise follow **Loading**.
 
 ## Loading
 
@@ -44,11 +44,33 @@ Anchors that name a project and no task have no brief in them. Summarise what is
 `/rk project:vega task:report-builder wrapup` means: record what that task's implementation looks
 like **now**, replacing what was there.
 
-1. Drop the trailing `wrapup` and call `rekall_context` with the anchors that are left, so you are
-   working from the current wrapup and notes rather than from memory of this session. Skip this only
-   if you already loaded that exact task in this session and nothing has changed since.
-2. Call `rekall_wrapup` with those same anchors and the complete new text as `body`.
-3. Say in one line what you wrote and that it replaced what was there. Then stop.
+Anything in double quotes after `wrapup` is a **directive**: what I want the wrapup to say, in my
+words, not an anchor. `/rk project:vega task:report-builder wrapup "solo il modulo di export"`.
+
+1. Drop the `wrapup` term and the directive, and call `rekall_context` with the anchors that are
+   left, so you are working from the current wrapup and notes rather than from memory of this
+   session. Skip this only if you already loaded that exact task in this session and nothing has
+   changed since.
+2. Call `rekall_wrapup` with those same anchors and the complete new text as `body`. The anchors
+   string never carries the directive.
+3. Say in one line what you wrote and that it replaced what was there. If a directive left something
+   out that the previous wrapup had, say what. Then stop.
+
+### The directive
+
+Without one, the wrapup is yours to write: the implementation as this session and the code leave it,
+by the rule the tool states.
+
+With one, it decides the content and you do not go past it. It can narrow the subject, dictate the
+words, set the language or the length, or say what to leave out. Take it literally.
+
+- "write only what I am telling you" means the body carries what I dictated and nothing you inferred
+  from the code. What I did not mention is gone, and step 3 is where you tell me so.
+- A directive that names a subject, `"solo il modulo di export"`, narrows what you write about. What
+  the rest of the wrapup already says stays true and stays in, unless I said to drop it.
+- It never changes the shape. Still one state and not a changelog, still the whole text in one call,
+  still short enough to read on a screen. If what I dictate is phrased as a change I made, record
+  what that change leaves the system as, not the making of it.
 
 The anchors have to name exactly one task. A `project:` anchor on its own names forty and is refused.
 
@@ -62,6 +84,19 @@ was not here and does not care what it looked like before.
 
 If a sentence only makes sense to someone who watched the change happen, it does not belong in the
 wrapup. That is what the notes are for.
+
+**Name the code, do not transcribe it.** It is read next to the repository, so it has to say where
+things are: the class, the file, the endpoint, the table, the component, by the name they have.
+A line or two on each piece, what it is there for and what it decides.
+
+- Yes: `WrapupService` is the whole write path and the only thing that touches the wrapup row.
+- No: the fields of an object, the columns of a table, method signatures, parameter lists, a
+  directory tree. That is in the code, it is longer than the wrapup, and it is wrong a week later.
+- Where there is a rule, the rule is the point. What it decides, on what, what happens at the edges,
+  what is refused and why. A class name says there is a service; only the wrapup says that
+  overwriting a wrapup edited by hand is announced because nothing kept a copy of it.
+
+Small enough to read in one go. Short paragraphs or short bullets, not an essay and not an index.
 
 Send it whole. Nothing is merged and no previous version is kept, so keep whatever is still true
 from the wrapup you just read and rewrite the rest. Describing only the part you touched would leave
