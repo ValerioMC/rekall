@@ -17,8 +17,16 @@ const props = withDefaults(
     /** CSS length. Ignored in readonly, where the preview grows with its content. */
     height?: string
     placeholder?: string
+    /**
+     * Whether the editor is split with a live preview beside it.
+     *
+     * On a full pane the split is the point: the markdown and what it becomes, together. Inside
+     * a card that is half a pane wide it is two cramped columns instead of one usable one, and
+     * the surface it sits on already has a read state of its own.
+     */
+    showPreview?: boolean
   }>(),
-  { readonly: false, height: '420px', placeholder: '# Contesto' }
+  { readonly: false, height: '420px', placeholder: '# Contesto', showPreview: true }
 )
 
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
@@ -85,6 +93,7 @@ const TOOLBARS: ToolbarNames[] = [
       preview-theme="github"
       code-theme="atom"
       :toolbars="TOOLBARS"
+      :preview="showPreview"
       :footers="['markdownTotal', '=', 'scrollSwitch']"
       :style="{ height }"
       :placeholder="placeholder"

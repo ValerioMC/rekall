@@ -5,6 +5,7 @@ import dev.rekall.domain.context.ContextRecord;
 import dev.rekall.domain.context.ContextService;
 import dev.rekall.domain.context.DocumentView;
 import dev.rekall.domain.context.UnknownAnchorException;
+import dev.rekall.domain.step.TaskStepView;
 import dev.rekall.domain.wrapup.WrapupView;
 import dev.rekall.mcp.protocol.McpTool;
 import dev.rekall.mcp.protocol.ToolSchema;
@@ -16,6 +17,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * The only tool. Loads the working context named by a list of anchors, in one call.
@@ -62,6 +64,29 @@ public class ContextTool implements McpTool {
                A task also carries its wrapup, if it has one: what its implementation looks
                like now, written at the end of the last session. Read it as the current state of
                the work, not as a history of it. Replacing it is `rekall_wrapup`.
+
+               A task may also carry a checklist of steps, and it is what says where the work
+               has got to. An open step is the work: it arrives with its detail and it is what
+               the session is for. A done step arrives as its title alone, because it is
+               finished: do not build it again, and do not treat the missing detail as
+               something to go and find. Read the open ones as the list of what is left, in
+               order, and if the checklist and the wrapup disagree, the checklist is the one a
+               person ticked.
+
+               A done step marked `(finished since the wrapup was written)` is work the wrapup
+               predates and cannot mention. It arrives with its detail for that reason alone,
+               and it is what the next `rekall_wrapup` has to fold in: nothing else here says
+               what that piece was.
+
+               Where a task has open steps, they are the work and its description is not. The
+               description is the standing context to build a step against: what the task is
+               for, what the work has to satisfy, what is out of scope. It is written once and
+               does not shrink as the work is done, so it goes on naming things that are
+               already built, and reading it as a list of instructions is how the same thing
+               gets built twice.
+
+               Nothing you can call changes a step. They are ticked by hand in the console, by
+               the person who reviewed the work.
 
                Each anchor returns the record, what it references resolved in full with their
                notes, what references it as anchors you can pass back, and all of its markdown.
@@ -140,6 +165,7 @@ public class ContextTool implements McpTool {
 
         out.append(renderDescription(record.description()));
         out.append(renderBlueprint(record.blueprint()));
+        out.append(renderSteps(record.steps(), record.wrapup()));
         out.append(renderWrapup(record.wrapup()));
         out.append(renderDocuments(record.documents()));
         for (ContextRecord reference : record.references()) {
@@ -149,6 +175,70 @@ public class ContextTool implements McpTool {
             }
         }
         return out.toString();
+    }
+
+    /**
+     * The checklist, between the brief and the state, and asymmetric on purpose.
+     *
+     * <p>An open step is rendered with its detail because it is the work about to be done. A
+     * done step is rendered as one line, because what it says now is only that it exists and
+     * needs no doing: spending the window on the detail of finished work is how a context load
+     * costs twice what it is worth and invites the same thing to be built again.
+     *
+     * <p>Ahead of the wrapup and after the description, which is the order the three are asked
+     * in: what is this, what is left, and what did it become.
+     */
+    private String renderSteps(List<TaskStepView> steps, WrapupView wrapup) {
+        if (steps.isEmpty()) {
+            return "";
+        }
+        long done = steps.stream().filter(TaskStepView::done).count();
+        long unwritten = steps.stream().filter(step -> isUnwritten(step, wrapup)).count();
+
+        StringBuilder out = new StringBuilder("\n<steps done=\"%d\" open=\"%d\"%s>\n".formatted(
+                done,
+                steps.size() - done,
+                unwritten == 0 ? "" : " finished-since-wrapup=\"%d\"".formatted(unwritten)));
+
+        for (TaskStepView step : steps) {
+            boolean unwrittenHere = isUnwritten(step, wrapup);
+            out.append(step.done() ? "- [x] " : "- [ ] ").append(step.title());
+            if (unwrittenHere) {
+                out.append("  (finished since the wrapup was written)");
+            }
+            out.append('\n');
+
+            // The detail comes back for a step the wrapup has not caught up with. It is done, so
+            // nothing is left to build from it, but nothing else in this context says what it
+            // was: the wrapup predates it and the title alone is not enough to describe what the
+            // task now is. It goes silent again as soon as a wrapup accounts for it.
+            boolean carriesDetail = !step.done() || unwrittenHere;
+            if (carriesDetail && step.bodyMarkdown() != null && !step.bodyMarkdown().isBlank()) {
+                out.append(indent(truncate(step.bodyMarkdown()))).append('\n');
+            }
+        }
+        return out.append("</steps>\n").toString();
+    }
+
+    /**
+     * Whether this step finished after the wrapup was last written.
+     *
+     * <p>The one thing a model cannot work out for itself here, and the reason it is computed
+     * rather than left to be inferred from two timestamps in the text. A step ticked after the
+     * wrapup is a piece of work the current description cannot possibly mention, which is
+     * exactly what the next wrapup has to fold in. With no wrapup at all, every finished step
+     * is unaccounted for, and the first one written has to cover them all.
+     */
+    private boolean isUnwritten(TaskStepView step, WrapupView wrapup) {
+        if (!step.done() || step.doneAt() == null) {
+            return false;
+        }
+        return wrapup == null || step.doneAt().isAfter(wrapup.updatedAt());
+    }
+
+    /** Two spaces, so a step's detail stays inside the item it belongs to rather than ending it. */
+    private String indent(String body) {
+        return body.lines().map(line -> line.isBlank() ? "" : "  " + line).collect(Collectors.joining("\n"));
     }
 
     /**

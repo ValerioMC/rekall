@@ -32,6 +32,8 @@ function taskStub(id: TaskId, projectId: ProjectId): Task {
     companyName: 'Acme',
     projectRepoFolder: null,
     documentCount: 0,
+    stepCount: 0,
+    stepsDone: 0,
     hasWrapup: false,
     anchor: 'project:vega task:report-builder',
     updatedAt: '2026-08-29T10:00:00.000Z'

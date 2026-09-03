@@ -98,8 +98,9 @@ jobs:
           java-version: "25"
           cache: maven
 
-      # The compiled frontend is committed under rekall-app/src/main/resources/static, but
-      # it's rebuilt here too (same as `make build`) so the jar never ships a stale bundle.
+      # The jar serves the UI from its own classpath, and the bundle is not in the repository:
+      # rekall-app copies rekall-ui/dist in at package time. So this step is not a precaution,
+      # it is where the bundle comes from, and `mvn package` fails outright without it.
       - name: Build frontend
         run: |
           cd rekall-ui

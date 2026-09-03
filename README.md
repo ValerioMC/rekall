@@ -2,7 +2,7 @@
 
 Stores the projects and tasks you work on and hands one of them to Claude Code, in full, on a single command.
 
-You keep projects, tasks and their markdown notes in a local app; `/rk project:vega task:report-builder` loads that task, the project it belongs to and every note attached to it. At the end of a session `/rk project:vega task:report-builder wrapup` has Claude record what the implementation now is, so the next session opens on the current state instead of reading the code back.
+You keep projects, tasks and their markdown notes in a local app; `/rk project:vega task:report-builder` loads that task, the project it belongs to, its checklist and every note attached to it. At the end of a session `/rk project:vega task:report-builder wrapup` has Claude record what the implementation now is, so the next session opens on the current state instead of reading the code back.
 
 ## Requirements
 
@@ -21,9 +21,9 @@ No database server, no Docker, no cluster. The database is an H2 file under `./d
 make run     # compiles the frontend, then starts on http://localhost:47355
 ```
 
-`run` rebuilds the UI first. The compiled frontend is committed under
-`rekall-app/src/main/resources/static`, and a stale bundle fails silently: the application
-serves the old screens instead of reporting an error.
+`run` rebuilds the UI first. The frontend compiles to `rekall-ui/dist`, which git ignores;
+`rekall-app` copies that folder into the jar under `static/` at package time. Packaging without
+it fails and says to run `make ui`, so a jar never ships without a UI.
 
 ```bash
 make build   # the above, plus the packaged jar
@@ -182,7 +182,7 @@ If a bare term matches more than one record the candidates come back and nothing
 
 Two tools are exposed. `rekall_context` reads; there is no query tool, no get tool and no schema tool, because reaching a record by asking a question in prose costs several turns before any work starts and fails silently when the guess is wrong, so the entry point is an explicit anchor and nothing else.
 
-`rekall_wrapup` is the only thing Claude can write, and all it can do is replace the wrapup of one task.
+`rekall_wrapup` is the only thing Claude can write, and all it can do is replace the wrapup of one task. Steps are read like everything else and written by nothing: they are ticked in the console.
 
 ## The wrapup
 
@@ -203,33 +203,97 @@ A quoted term after `wrapup` is a directive on what to write, and it decides the
 
 It can narrow the subject, dictate the words, set the language or the length. Without one, Claude writes what the session and the code say the implementation now is. Either way the shape is the same: one state, not a changelog, sent whole.
 
+Written after a step is finished, it folds that step's work into the same description rather than appending to it: one account of the whole task, with the new piece named where it lives, never a section per step. If the step made something the wrapup already said untrue, that sentence goes. The console says when it is due — the wrapup card counts the steps ticked since the text was last written, the same way it counts notes newer than it — and running `/rk … wrapup` is yours to do, not something that happens on its own.
+
 Claude reads the current one, rewrites it whole and replaces it. It comes back with the task on the next `/rk`, ahead of the notes. You can correct it in the console at any time, and the pane says who wrote what is on screen and how long ago — the next `/rk … wrapup` replaces it either way, and the tool says so when the words it replaced were yours.
 
 It is capped at 20,000 characters against 100,000 for a note. A wrapup that no longer fits on a screen has stopped describing the state and started recording the process.
 
 A wrapup is written from a terminal, into a window that was already open. The window reads everything again when it comes back to the front, so switching from the session to Rekall is what shows it. It skips that while something on screen is waiting to be saved, so a refresh never lands on top of what is being typed.
 
+## Steps
+
+A task can be broken into steps, each of which is either done or not. It is the one thing the
+other two surfaces cannot say between them: a description grows as the work is redefined and a
+wrapup says what the work became, so "what is left" was being read out of the two by comparing
+them.
+
+A step is a title, an optional markdown detail of what that one piece has to do, and a box. The
+order is the order the work is meant to happen in, drawn as a line the boxes sit on, and the
+pane opens on the first one still open with its detail already rendered. Ticking is one click:
+
+| Gesture | Does |
+|---------|------|
+| `S` | Open the checklist of the task in view, on the first step still open |
+| `Enter` | Add the step you just typed, and stay there for the next one |
+| Click the box | Tick it, or reopen it. Ticking the open one moves to the next |
+| Click the title | Open another step instead |
+| `Write` / `Read` | The detail, in the same markdown editor the notes use |
+
+What Claude receives is asymmetric on purpose. An open step arrives with its detail, because it
+is the work about to be done. A done step arrives as its title alone, because it needs no doing.
+So a half-finished checklist costs a fraction of what the same text in a description would, and
+nothing is built twice because it read as a fresh instruction.
+
+**A checklist changes what the description is for.** With steps on a task, the open ones are the
+work and the description is no longer a list of things to do: it is what the step is built
+against, the constraints and the scope and what the task is for. A description is written once
+and never shrinks as the work is finished, so left as an instruction it goes on asking for what
+is already built. Anything it asks for that no open step covers is not built: `/rk` says so in a
+line and asks you for the step instead.
+
+The counts come over first, ahead of the list, so the shape of what is left is legible before a
+word of it is read:
+
+```
+- `steps`: 3 of 7 done, 4 open
+```
+
+A finished step is silent only once the wrapup has caught up with it. Tick a step, close the
+console without writing a wrapup, and the next session gets that step marked and its detail
+handed back:
+
+```
+<steps done="2" open="1" finished-since-wrapup="1">
+- [x] Modello e migrazione
+- [x] Aggregazione delle righe  (finished since the wrapup was written)
+  Somma per settimana, gruppo per progetto.
+- [ ] Scrivere i test
+  ...
+</steps>
+```
+
+That comparison is made against the wrapup's own timestamp, so it holds across sessions and
+across however many steps piled up in between: whatever the current text predates is marked, and
+the next `/rk … wrapup` folds all of it in, not only the step that just closed. Once written, the
+marker and the detail go away again.
+
+**Only you tick a step.** There is no MCP tool that writes one, and there is not going to be: the
+point of the box is that a person looked at the work and said it was done. A session closing its
+own boxes would be answering the question it was asked. `/rk … wrapup` ends by naming the steps
+it finished, and ticking them is one click each.
+
 ## The console
 
-One surface, three panes: pick a task on the left, pick its wrapup or one of its notes in the
-middle, write on the right. The field at the top is always there and takes the same grammar as
-`/rk`.
+One surface, three panes: pick a task on the left, pick its checklist, its wrapup or one of its
+notes in the middle, write on the right. The field at the top is always there and takes the same
+grammar as `/rk`.
 
-The description and the wrapup are pinned above the notes rather than filed among them: what
-the task is, then where it got to, then the background to both. Each opens in the writing pane
-with a markdown editor of its own, and a task missing either shows an empty card, because the
-absence is the reason to write one.
+The description, the steps and the wrapup are pinned above the notes rather than filed among
+them: what the task is, what is left of it, where it got to, then the background to all three.
+Each opens in the writing pane, and a task missing one shows an empty card, because the absence
+is the reason to write it.
 
 A description is the brief the work is measured against: what has to be built, what it has to
 satisfy, what is out of scope. It travels into every context that loads the task. It is
 markdown at whatever length the work needs, so it is written on the pane rather than in the
 field of the create dialog, which only ever holds the first sentence of it.
 
-It is also the instruction. A `/rk` that loads a task with a description summarises what it
-found, says in one line what it is about to do, and does it. It asks only where the context does
-not settle the question: no description, one that contradicts itself, or work that would
-overwrite something nothing keeps a copy of. Anything already written down is not asked about
-twice.
+On a task with no checklist it is also the instruction: a `/rk` that loads one summarises what it
+found, says in one line what it is about to do, and does it. On a task with steps it stops being
+an instruction and becomes the context the steps are built against, which is the point of having
+both. Either way it asks only where the context does not settle the question, and anything already
+written down is not asked about twice.
 
 Companies, projects and tasks are created, edited and deleted from one editor, opened from the
 row of the record itself: the scope picker for companies and projects, the task row or `E` for
@@ -246,6 +310,7 @@ with it first.
 | `E` | Edit the task in view |
 | `N` | New note on it |
 | `D` | Its description: what the work is |
+| `S` | Its steps: what is left of it |
 | `W` | Its wrapup: what it currently is |
 | `B` | Switch between browsing tasks and browsing notes |
 | `J` / `K` | Walk the list |
@@ -278,6 +343,7 @@ and one still running counts up to now.
 ```
 Company ──< Project ──< Task >──< Document
                          │       via document_task
+                         ├──< TaskStep
                          └──1 Wrapup
 ```
 
@@ -285,8 +351,9 @@ Company ──< Project ──< Task >──< Document
 |--------|-------------|-------|
 | `Company` | `name` | description, its projects |
 | `Project` | `label`, unique per company | title, status, description, its company, its tasks |
-| `Task` | `label`, unique per project | title, status, description (markdown), its project, its notes, its wrapup |
+| `Task` | `label`, unique per project | title, status, description (markdown), its project, its notes, its steps, its wrapup |
 | `Document` | — | title, kind, markdown body, the tasks it is on |
+| `TaskStep` | through its task | title, optional markdown detail, done or not, position. Ordered, dense from zero |
 | `Wrapup` | through its task | markdown body, who wrote it last. One per task, enforced by the database |
 
 A project and a task carry two names, and they are not interchangeable:
@@ -301,7 +368,7 @@ Renaming a label moves the anchor, and the editor says so before it is saved. No
 
 A project belongs to exactly one company, and a task to exactly one project. A note belongs to **at least one task and often several**: cluster access or a naming convention is written once and arrives with every task that references it. Deleting a task unlinks its notes and removes only the ones left on nothing.
 
-A wrapup is the opposite: exactly one task, always, and it goes when that task goes. That is why it is not a note with a special kind — a note can be attached to three tasks by construction, and "what does this task currently do" has one answer.
+A wrapup is the opposite: exactly one task, always, and it goes when that task goes. That is why it is not a note with a special kind — a note can be attached to three tasks by construction, and "what does this task currently do" has one answer. A step is the same shape and goes the same way: it describes one piece of one task and means nothing beside another.
 
 Adding an entity is a JPA class plus a Liquibase changeset, not a UI action: the schema is fixed at compile time on purpose.
 

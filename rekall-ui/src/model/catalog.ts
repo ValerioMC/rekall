@@ -1,4 +1,12 @@
-import type { CompanyId, DocumentId, ProjectId, TaskId, TimeEntryId, WrapupId } from './branded'
+import type {
+  CompanyId,
+  DocumentId,
+  ProjectId,
+  TaskId,
+  TaskStepId,
+  TimeEntryId,
+  WrapupId
+} from './branded'
 
 /** Free-form on the server; these are the ones the editor offers. */
 export const DOCUMENT_KINDS = ['context', 'notes', 'architecture', 'report', 'other'] as const
@@ -85,9 +93,37 @@ export interface Task {
   /** Its project's folder, so a task can open a session without loading its project first. */
   readonly projectRepoFolder: string | null
   readonly documentCount: number
+  /** How long the checklist is, and how much of it is ticked. Zero and zero when there is none. */
+  readonly stepCount: number
+  readonly stepsDone: number
   /** Whether this task has said what it currently is. The body lives on the wrapup itself. */
   readonly hasWrapup: boolean
   readonly anchor: string
+  readonly updatedAt: string
+}
+
+/**
+ * One piece of a task, done or not.
+ *
+ * The answer neither the description nor the wrapup gives. The description is the brief and
+ * grows as the work is redefined, the wrapup is where the implementation got to; what is left
+ * was being read out of the two by comparing them. A step says it, and `bodyMarkdown` is where
+ * the implementation detail of that one piece lives.
+ *
+ * Ticked in the console and nowhere else: a session can read a checklist but never close a box
+ * on it.
+ */
+export interface TaskStep {
+  readonly id: TaskStepId
+  readonly taskId: TaskId
+  readonly title: string
+  readonly bodyMarkdown: string | null
+  readonly done: boolean
+  /** When it was ticked, or null while it is open. */
+  readonly doneAt: string | null
+  /** Dense from zero. The order the work is meant to happen in. */
+  readonly position: number
+  readonly createdAt: string
   readonly updatedAt: string
 }
 

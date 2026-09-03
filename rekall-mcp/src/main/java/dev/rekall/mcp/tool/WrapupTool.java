@@ -82,6 +82,15 @@ public class WrapupTool implements McpTool {
                Read the current wrapup with `rekall_context` before replacing it: it arrives \
                with the task. Keep what is still true and rewrite the rest, rather than \
                describing only the piece you touched.
+
+               Written after a step was finished, it has to fold that step's work into the \
+               same description rather than append to it. `rekall_context` marks every finished \
+               step this wrapup predates, and all of them belong in the new text, not only the \
+               one this session closed: a step ticked in an earlier session that never got a \
+               wrapup is still waiting to be described. One account of the whole task, with \
+               the new piece named where it lives; never a section per step, and never a \
+               heading carrying a step's title. If the step made something the wrapup already \
+               said untrue, that sentence goes.
                """;
     }
 

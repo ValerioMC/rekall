@@ -39,8 +39,84 @@
         </dependency>
     </dependencies>
 
+    <properties>
+        <!-- Where `pnpm build` leaves the compiled frontend. Not in this module's sources: it is
+             build output, so it is written outside the source tree and ignored by git. -->
+        <ui.bundle>${maven.multiModuleProjectDirectory}/rekall-ui/dist</ui.bundle>
+    </properties>
+
     <build>
         <plugins>
+            <!--
+              The frontend, copied into the jar rather than committed into it.
+
+              A `copy-resources` execution rather than a `<resource>` entry, because declaring
+              resources here would replace the ones spring-boot-starter-parent sets up, and with
+              them the `@`-delimited filtering of application.yaml.
+
+              Nothing here builds the frontend: Maven does not need node on the machine, and a
+              Java-only change does not pay for a bundler. `make` is what keeps the two in step,
+              and the check below is what happens when it did not.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>copy-ui-bundle</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.outputDirectory}/static</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>${ui.bundle}</directory>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!--
+              A jar with no UI in it used to be impossible, because the bundle was committed;
+              what was possible was a jar with yesterday's UI in it, and nothing said so. Now
+              the bundle is built, so it can be absent, and this is where that becomes a
+              sentence instead of a white page: packaging fails and names the command to run.
+
+              `prepare-package`, not `validate`, so `mvn test` still runs on a checkout that has
+              never built the frontend. It is producing an artifact that needs one.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <!-- Pinned: spring-boot-starter-parent manages a set of plugin versions and this
+                     is not one of them, and an unpinned plugin is a build that changes on its
+                     own between two machines. -->
+                <version>3.5.0</version>
+                <executions>
+                    <execution>
+                        <id>check-ui-bundle</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireFilesExist>
+                                    <files>
+                                        <file>${ui.bundle}/index.html</file>
+                                    </files>
+                                    <message>The compiled frontend is missing. Run `make ui` (or `make build`, which does it first) before packaging: this jar serves the UI from its own classpath, and without that folder it would ship without one.</message>
+                                </requireFilesExist>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>

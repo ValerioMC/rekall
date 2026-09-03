@@ -16,10 +16,11 @@ import type { TaskId } from '@/model/branded'
  * What has to be built, what it has to satisfy, what is deliberately out of scope: that is a
  * structured document, and it was being typed into a field the size of a tooltip.
  *
- * Three surfaces, one question each, and the distinction is why none of them is a tab of
+ * Four surfaces, one question each, and the distinction is why none of them is a tab of
  * another. The description is the standing brief and changes when the work is redefined. The
- * wrapup is where the implementation got to and is replaced at the end of every session. A note
- * is something you learned, keeps its own title, and can be attached to several tasks at once.
+ * steps are what is left of it, ticked by hand as the work is reviewed. The wrapup is where the
+ * implementation got to and is replaced at the end of every session. A note is something you
+ * learned, keeps its own title, and can be attached to several tasks at once.
  *
  * The pane carries its project's colour on the rail above the title and in the grid behind it —
  * the same hue the navigator groups the task under. Three panes share this frame, and the
@@ -94,6 +95,17 @@ watch(
 )
 
 const anchor = computed(() => selectedTask.value?.anchor ?? '')
+
+/**
+ * How much of the checklist is still open.
+ *
+ * Read off the task row rather than the checklist itself: this pane never loads the steps, and
+ * all it has to say is whether there are any, which changes what this text is for.
+ */
+const openSteps = computed(() => {
+  const task = selectedTask.value
+  return task ? task.stepCount - task.stepsDone : 0
+})
 
 const copied = ref(false)
 
@@ -179,7 +191,16 @@ onUnmounted(() => {
         v-if="showEditor"
         class="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border bg-surface px-5 py-2.5"
       >
-        <span class="text-[11.5px] text-text-muted">
+        <!-- What this text is for changes the moment the task has a checklist, and this is
+             where the two are confused: a brief that is still read as a list of things to do
+             goes on asking for work that is already ticked. -->
+        <span v-if="openSteps > 0" class="text-[11.5px] text-text-muted">
+          {{ openSteps }} step{{ openSteps === 1 ? '' : 's' }} open, so this is what they are
+          built against rather than a list of things to do. Every
+          <code class="text-anchor/80">/rk {{ anchor }}</code>
+          hands it over as the standing context.
+        </span>
+        <span v-else class="text-[11.5px] text-text-muted">
           The brief the work is measured against. Every
           <code class="text-anchor/80">/rk {{ anchor }}</code>
           hands it to Claude before anything else.
@@ -210,8 +231,8 @@ onUnmounted(() => {
             Write the description
           </button>
 
-          <!-- Three surfaces, one question each. Written down here because this is the pane
-               that was missing, and the one whose job is easiest to give to the other two. -->
+          <!-- Four surfaces, one question each. Written down here because this is the pane
+               that was missing, and the one whose job is easiest to give to the others. -->
           <ul class="mt-9 border-t border-border">
             <li
               v-for="surface in [
@@ -220,6 +241,12 @@ onUnmounted(() => {
                   asks: 'What is this task?',
                   says: 'Changes when the work is redefined.',
                   glyph: 'page'
+                },
+                {
+                  name: 'Steps',
+                  asks: 'What is left of it?',
+                  says: 'Ticked by hand as the work is reviewed.',
+                  glyph: 'check'
                 },
                 {
                   name: 'Wrapup',
@@ -247,6 +274,10 @@ onUnmounted(() => {
                 <template v-if="surface.glyph === 'page'">
                   <path d="M2.6 1.1h4.1l2.7 2.7v7.1H2.6z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round" />
                   <path d="M4.5 6.1h3.2M4.5 8.2h2" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" />
+                </template>
+                <template v-else-if="surface.glyph === 'check'">
+                  <path d="M1.2 3.4 2.6 4.8l2.4-2.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="M6.8 3.6h4M6.8 8.4h4M1.4 8.4h3.4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
                 </template>
                 <path
                   v-else-if="surface.glyph === 'diamond'"

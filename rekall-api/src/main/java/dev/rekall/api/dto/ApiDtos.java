@@ -6,6 +6,7 @@ import dev.rekall.domain.Project;
 import dev.rekall.domain.ProjectStatus;
 import dev.rekall.domain.Task;
 import dev.rekall.domain.TaskStatus;
+import dev.rekall.domain.TaskStep;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -95,6 +96,9 @@ public final class ApiDtos {
      * {@code hasWrapup} rather than the wrapup itself, because this is what a row in a list
      * needs: whether this task has said what it currently is. The body is fetched from its own
      * endpoint by the one pane that shows it.
+     *
+     * <p>The two step counts travel for the same reason and are the navigator's only measure of
+     * progress: how far along a task is, on the row, without loading the checklist behind it.
      */
     public record TaskResponse(
             UUID id,
@@ -110,6 +114,8 @@ public final class ApiDtos {
              * project it already names three other fields of. */
             String projectRepoFolder,
             int documentCount,
+            int stepCount,
+            int stepsDone,
             boolean hasWrapup,
             String anchor,
             Instant updatedAt) {
@@ -127,6 +133,8 @@ public final class ApiDtos {
                     task.getProject().getCompany().getName(),
                     task.getProject().getRepoFolder(),
                     task.getDocuments().size(),
+                    task.getSteps().size(),
+                    (int) task.getSteps().stream().filter(TaskStep::isDone).count(),
                     task.getWrapup() != null,
                     "project:%s task:%s".formatted(task.getProject().getLabel(), task.getLabel()),
                     task.getUpdatedAt());
@@ -205,6 +213,29 @@ public final class ApiDtos {
      * fields would be a boundary that exists only on paper.
      */
     public record WrapupRequest(@NotBlank String bodyMarkdown) {
+    }
+
+    /**
+     * A new step on a task. It lands at the end of the checklist, always.
+     *
+     * <p>The detail is optional: a step is often a line, and demanding a paragraph for "write
+     * the tests" is how a checklist stops being written.
+     */
+    public record TaskStepRequest(@NotBlank String title, String bodyMarkdown) {
+    }
+
+    /**
+     * A change to one step, one field at a time.
+     *
+     * <p>Every field is nullable and null means "leave it alone", which is what lets a row tick
+     * its own box without having loaded the detail behind it. An empty {@code bodyMarkdown}
+     * clears the detail; a null one keeps it.
+     */
+    public record TaskStepPatchRequest(String title, String bodyMarkdown, Boolean done) {
+    }
+
+    /** Where a step is being dragged to. Out of range means the end it was dragged past. */
+    public record TaskStepMoveRequest(@NotNull Integer position) {
     }
 
     /**

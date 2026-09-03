@@ -1,6 +1,7 @@
-# Build output.
-# Il bundle del frontend NON va qui: vite scrive in rekall-app/src/main/resources/static
-# ed e' committato di proposito, perche' il jar lo serve cosi' com'e'.
+# Build output, bundle del frontend incluso. Vite scrive in rekall-ui/dist e rekall-app lo
+# copia dentro il jar in fase di build: era committato sotto src/main/resources/static, il che
+# rendeva ogni modifica alla UI un diff da 205 file di nomi con l'hash dentro. La CI ricostruiva
+# gia' il bundle da sola prima di impacchettare, quindi quella copia non arrivava a nessuno.
 target/
 node_modules/
 dist/

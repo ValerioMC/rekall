@@ -1,5 +1,5 @@
 databaseChangeLog:
-  # One schema, one owner, six tables. There is no second schema handed to a runtime DDL
+  # One schema, one owner, seven tables. There is no second schema handed to a runtime DDL
   # engine any more: the shape is fixed at compile time and Liquibase owns all of it.
   - include:
       file: db/changelog/001-core.yaml
@@ -17,3 +17,5 @@ databaseChangeLog:
       file: db/changelog/007-project-blueprint.yaml
   - include:
       file: db/changelog/008-project-repo-folder.yaml
+  - include:
+      file: db/changelog/009-task-step.yaml

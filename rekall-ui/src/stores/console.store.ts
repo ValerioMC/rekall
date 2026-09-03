@@ -27,6 +27,14 @@ import {
   saveWrapup as apiSaveWrapup
 } from '@/api/wrapups.api'
 import {
+  createStep as apiCreateStep,
+  deleteStep as apiDeleteStep,
+  fetchSteps,
+  moveStep as apiMoveStep,
+  patchStep as apiPatchStep
+} from '@/api/steps.api'
+import type { TaskStepPatch } from '@/api/steps.api'
+import {
   deleteTimeEntry as apiDeleteTimeEntry,
   editTimeEntry as apiEditTimeEntry,
   fetchTimeEntries,
@@ -40,10 +48,18 @@ import type {
   RekallDocument,
   Task,
   TaskStatus,
+  TaskStep,
   TimeEntry,
   Wrapup
 } from '@/model/catalog'
-import type { CompanyId, DocumentId, ProjectId, TaskId, TimeEntryId } from '@/model/branded'
+import type {
+  CompanyId,
+  DocumentId,
+  ProjectId,
+  TaskId,
+  TaskStepId,
+  TimeEntryId
+} from '@/model/branded'
 
 export type NavMode = 'tasks' | 'notes'
 export type SaveState = 'saved' | 'unsaved' | 'saving'
@@ -51,12 +67,12 @@ export type SaveState = 'saved' | 'unsaved' | 'saving'
 /**
  * What the right-hand pane is showing.
  *
- * Three states rather than a wrapup pretending to be a note: they are edited differently, and
- * two of them have no title, no kind and no other task they could belong to. The description
- * and the wrapup are separate for the same reason they are separate columns: one is the brief
- * the work is measured against, the other is where the work got to.
+ * Four states rather than one surface pretending to be another: they are edited differently,
+ * and three of them have no title, no kind and no other task they could belong to. Each answers
+ * one question, which is why none of them is a tab of another: what is this task, what is left
+ * of it, where did the implementation get to, and what did I learn.
  */
-export type PaneFocus = 'note' | 'wrapup' | 'description'
+export type PaneFocus = 'note' | 'wrapup' | 'description' | 'steps'
 
 /** Everything the console shows, loaded once and kept in step by the actions below. */
 export const useConsoleStore = defineStore('console', () => {
@@ -65,6 +81,7 @@ export const useConsoleStore = defineStore('console', () => {
   const tasks = ref<Task[]>([])
   const documents = ref<RekallDocument[]>([])
   const wrapups = ref<Wrapup[]>([])
+  const steps = ref<TaskStep[]>([])
   const timeEntries = ref<TimeEntry[]>([])
 
   const isLoading = ref(true)
@@ -164,10 +181,42 @@ export const useConsoleStore = defineStore('console', () => {
         )
   )
 
+  /** The checklist of the task in view, in the order it is meant to be worked. */
+  const selectedTaskSteps = computed(() =>
+    steps.value
+      .filter((step) => step.taskId === selectedTaskId.value)
+      .sort((a, b) => a.position - b.position)
+  )
+
+  /**
+   * What is left on the task in view.
+   *
+   * The number the whole checklist exists to produce: the one thing a description and a wrapup
+   * together cannot say without being read and compared.
+   */
+  const openStepCount = computed(() => selectedTaskSteps.value.filter((step) => !step.done).length)
+
   /** The wrapup of the task in view, or null while nobody has written one. */
   const selectedWrapup = computed(
     () => wrapups.value.find((wrapup) => wrapup.taskId === selectedTaskId.value) ?? null
   )
+
+  /**
+   * Steps ticked since the wrapup was last written.
+   *
+   * The exact half of {@link wrapupIsBehind}. A note written after a wrapup only suggests the
+   * wrapup is older than what you know; a step ticked after it is a piece of the work that
+   * finished and that the wrapup cannot possibly mention, because nothing has rewritten it
+   * since. It is the console's cue to run `/rk … wrapup`, and the reason it is a count rather
+   * than a warning: the wrapup is not wrong, it is behind by a known number of steps.
+   */
+  const wrapupMissesSteps = computed(() => {
+    const wrapup = selectedWrapup.value
+    if (!wrapup) return 0
+    return selectedTaskSteps.value.filter(
+      (step) => step.done && step.doneAt !== null && step.doneAt > wrapup.updatedAt
+    ).length
+  })
 
   /**
    * The notes on this task that have been written since the wrapup was.
@@ -257,6 +306,7 @@ export const useConsoleStore = defineStore('console', () => {
         loadedTasks,
         loadedDocuments,
         loadedWrapups,
+        loadedSteps,
         loadedTimeEntries
       ] = await Promise.all([
         fetchCompanies(),
@@ -264,6 +314,7 @@ export const useConsoleStore = defineStore('console', () => {
         fetchTasks(),
         fetchAllDocuments(),
         fetchWrapups(),
+        fetchSteps(),
         fetchTimeEntries()
       ])
       companies.value = loadedCompanies
@@ -271,6 +322,7 @@ export const useConsoleStore = defineStore('console', () => {
       tasks.value = loadedTasks
       documents.value = loadedDocuments
       wrapups.value = loadedWrapups
+      steps.value = loadedSteps
       timeEntries.value = loadedTimeEntries
     } finally {
       isLoading.value = false
@@ -439,8 +491,9 @@ export const useConsoleStore = defineStore('console', () => {
   async function deleteTask(id: TaskId): Promise<void> {
     await apiDeleteTask(id)
     tasks.value = tasks.value.filter((task) => task.id !== id)
-    // The row is gone in the database too: a wrapup describes one task and cascades with it.
+    // Gone in the database too: a wrapup and a step each describe one task and cascade with it.
     wrapups.value = wrapups.value.filter((wrapup) => wrapup.taskId !== id)
+    steps.value = steps.value.filter((step) => step.taskId !== id)
     if (selectedTaskId.value === id) {
       selectedTaskId.value = null
       selectedDocId.value = null
@@ -572,6 +625,17 @@ export const useConsoleStore = defineStore('console', () => {
     paneFocus.value = paneFocus.value === 'wrapup' ? 'note' : 'wrapup'
   }
 
+  /** S, like W and D: the key that took you to the checklist takes you back to the note. */
+  function toggleSteps(): void {
+    if (selectedTaskId.value === null) return
+    paneFocus.value = paneFocus.value === 'steps' ? 'note' : 'steps'
+  }
+
+  function openSteps(): void {
+    if (selectedTaskId.value === null) return
+    paneFocus.value = 'steps'
+  }
+
   /**
    * Writes the whole text, and says it was you.
    *
@@ -601,6 +665,86 @@ export const useConsoleStore = defineStore('console', () => {
     wrapups.value = wrapups.value.filter((wrapup) => wrapup.taskId !== taskId)
     paneFocus.value = 'note'
     await refreshTasks()
+  }
+
+  // ------------------------------------------------------------------ steps
+
+  /**
+   * The two counts a task row carries, recomputed from the checklist in memory.
+   *
+   * Ticking a box changes what the navigator shows about that task, and reading the whole task
+   * list back for it would be a round trip per click on a number this window already knows.
+   */
+  function recountSteps(taskId: TaskId): void {
+    const own = steps.value.filter((step) => step.taskId === taskId)
+    tasks.value = tasks.value.map((task) =>
+      task.id === taskId
+        ? { ...task, stepCount: own.length, stepsDone: own.filter((step) => step.done).length }
+        : task
+    )
+  }
+
+  function upsertStep(step: TaskStep): void {
+    const known = steps.value.some((candidate) => candidate.id === step.id)
+    steps.value = known
+      ? steps.value.map((candidate) => (candidate.id === step.id ? step : candidate))
+      : [...steps.value, step]
+    recountSteps(step.taskId)
+  }
+
+  /** Adds to the end of the checklist. Where it lands is the server's to decide, not this. */
+  async function addStep(taskId: TaskId, title: string, bodyMarkdown?: string): Promise<TaskStep> {
+    const created = await apiCreateStep(taskId, title, bodyMarkdown)
+    upsertStep(created)
+    return created
+  }
+
+  /**
+   * One step, one field.
+   *
+   * Ticking, renaming and writing the detail are the same call with a different key filled in,
+   * because they are the same row and a checkbox must not have to resend a detail the row it
+   * sits on never loaded.
+   */
+  async function saveStep(id: TaskStepId, patch: TaskStepPatch): Promise<void> {
+    saveState.value = 'saving'
+    try {
+      upsertStep(await apiPatchStep(id, patch))
+      saveState.value = 'saved'
+    } catch (error) {
+      saveState.value = 'unsaved'
+      throw error
+    }
+  }
+
+  function toggleStep(id: TaskStepId): Promise<void> {
+    const step = steps.value.find((candidate) => candidate.id === id)
+    if (!step) return Promise.resolve()
+    return saveStep(id, { done: !step.done })
+  }
+
+  /**
+   * Moves a step within its own task's list.
+   *
+   * The response is the whole checklist, because a move renumbers everything it displaced:
+   * writing back only the row that moved is how two steps end up claiming one position.
+   */
+  async function moveStep(id: TaskStepId, position: number): Promise<void> {
+    const step = steps.value.find((candidate) => candidate.id === id)
+    if (!step) return
+    const reordered = await apiMoveStep(id, position)
+    steps.value = [
+      ...steps.value.filter((candidate) => candidate.taskId !== step.taskId),
+      ...reordered
+    ]
+  }
+
+  async function removeStep(id: TaskStepId): Promise<void> {
+    const step = steps.value.find((candidate) => candidate.id === id)
+    if (!step) return
+    await apiDeleteStep(id)
+    steps.value = steps.value.filter((candidate) => candidate.id !== id)
+    recountSteps(step.taskId)
   }
 
   // ------------------------------------------------------------------ time tracking
@@ -654,6 +798,10 @@ export const useConsoleStore = defineStore('console', () => {
     wrapups.value = await fetchWrapups()
   }
 
+  async function refreshSteps(): Promise<void> {
+    steps.value = await fetchSteps()
+  }
+
   async function refreshTimeEntries(): Promise<void> {
     timeEntries.value = await fetchTimeEntries()
   }
@@ -674,6 +822,7 @@ export const useConsoleStore = defineStore('console', () => {
       refreshTasks(),
       refreshDocuments(),
       refreshWrapups(),
+      refreshSteps(),
       refreshTimeEntries()
     ])
   }
@@ -694,6 +843,7 @@ export const useConsoleStore = defineStore('console', () => {
     tasks,
     documents,
     wrapups,
+    steps,
     timeEntries,
     runningEntries,
     selectedTaskEntries,
@@ -708,7 +858,10 @@ export const useConsoleStore = defineStore('console', () => {
     selectedTask,
     selectedDocument,
     selectedWrapup,
+    selectedTaskSteps,
+    openStepCount,
     wrapupIsBehind,
+    wrapupMissesSteps,
     visibleTasks,
     visibleDocuments,
     taskDocuments,
@@ -735,8 +888,15 @@ export const useConsoleStore = defineStore('console', () => {
     deleteNote,
     openWrapup,
     openDescription,
+    openSteps,
     toggleDescription,
     toggleWrapup,
+    toggleSteps,
+    addStep,
+    saveStep,
+    toggleStep,
+    moveStep,
+    removeStep,
     saveWrapupBody,
     removeWrapup,
     startTimer,

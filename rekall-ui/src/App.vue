@@ -6,6 +6,7 @@ import DescriptionPane from '@/components/console/DescriptionPane.vue'
 import NavigatorPane from '@/components/console/NavigatorPane.vue'
 import NoteListPane from '@/components/console/NoteListPane.vue'
 import NotePane from '@/components/console/NotePane.vue'
+import StepsPane from '@/components/console/StepsPane.vue'
 import WrapupPane from '@/components/console/WrapupPane.vue'
 import SettingsPanel from '@/components/settings/SettingsPanel.vue'
 import AppToaster from '@/components/ui/AppToaster.vue'
@@ -15,7 +16,7 @@ import { useModalGate } from '@/composables/useModalGate'
 import type { TaskStatus } from '@/model/catalog'
 
 /**
- * One surface, three panes: pick a task, pick its note, write.
+ * One surface, three panes: pick a task, pick what to write about it, write.
  *
  * The application used to be a screen per entity, which meant three or four clicks and two
  * forms before a line of text was visible. The work is triage, then choose, then write, and
@@ -71,12 +72,13 @@ function onKeydown(event: KeyboardEvent): void {
     return
   }
 
-  // The two things written about the task in view, each on the key its name starts with. A
+  // The three things written about the task in view, each on the key its name starts with. A
   // toggle rather than a one-way door, the same way B is: the key that took you here takes you
   // back.
-  if (key === 'w' || key === 'd') {
+  if (key === 'w' || key === 'd' || key === 's') {
     event.preventDefault()
     if (key === 'w') store.toggleWrapup()
+    else if (key === 's') store.toggleSteps()
     else store.toggleDescription()
     // The panes swap without the pointer moving, so focus follows or a keyboard user is left
     // tabbing through something that is no longer on screen.
@@ -142,9 +144,13 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
     <div class="flex min-h-0 flex-1">
       <NavigatorPane ref="navigator" />
       <NoteListPane />
-      <div id="note" class="flex min-h-0 flex-1" tabindex="-1">
+      <!-- `min-w-0` is load-bearing: a flex item defaults to `min-width: auto`, so the widest
+           thing in the writing pane — the markdown toolbar, which does not wrap — became the
+           floor for this column and pushed the header and the navigator off the window. -->
+      <div id="note" class="flex min-h-0 min-w-0 flex-1" tabindex="-1">
         <WrapupPane v-if="paneFocus === 'wrapup'" />
         <DescriptionPane v-else-if="paneFocus === 'description'" />
+        <StepsPane v-else-if="paneFocus === 'steps'" />
         <NotePane v-else />
       </div>
     </div>

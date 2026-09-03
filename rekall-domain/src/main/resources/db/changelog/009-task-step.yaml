@@ -1,0 +1,48 @@
+databaseChangeLog:
+
+  # A task can now be broken into steps, each of which is either done or not.
+  #
+  # It is the answer to the one question neither of the two markdown fields on a task can give.
+  # The description is the brief and grows as the work is redefined; the wrapup is the state of
+  # the implementation as prose. "What is left" was being worked out by reading both and
+  # comparing them, which is slow by hand and a guess for a model. A row per piece says it.
+  #
+  # `position` is dense from zero and maintained by `TaskStepService`, which renumbers the whole
+  # list on every write that could leave a gap. There is no MCP path to this table: a step is
+  # ticked by the person who reviewed the work, never by the session that did it.
+
+  - changeSet:
+      id: 009-task-step
+      author: rekall
+      changes:
+        - createTable:
+            tableName: task_step
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, primaryKeyName: pk_task_step, nullable: false}}
+              - column: {name: task_id, type: uuid, constraints: {nullable: false}}
+              - column: {name: title, type: varchar(200), constraints: {nullable: false}}
+              # The implementation detail of this one piece. Capped where a wrapup is: a step
+              # whose detail runs past a screen is a task, and the model has a level for that.
+              - column: {name: body_markdown, type: varchar(20000)}
+              - column: {name: done, type: boolean, defaultValueBoolean: false, constraints: {nullable: false}}
+              # Null for exactly as long as the step is open, and cleared again if it reopens.
+              - column: {name: done_at, type: timestamp}
+              - column: {name: position, type: int, constraints: {nullable: false}}
+              - column: {name: created_at, type: timestamp, constraints: {nullable: false}}
+              - column: {name: updated_at, type: timestamp, constraints: {nullable: false}}
+        # A step describes one piece of one task and means nothing beside another, so it goes
+        # when the task does.
+        - addForeignKeyConstraint:
+            baseTableName: task_step
+            baseColumnNames: task_id
+            referencedTableName: task
+            referencedColumnNames: id
+            constraintName: fk_task_step_task
+            onDelete: CASCADE
+        # Every read is "the steps of this task, in order", so the index is both columns.
+        - createIndex:
+            tableName: task_step
+            indexName: idx_task_step_task
+            columns:
+              - column: {name: task_id}
+              - column: {name: position}

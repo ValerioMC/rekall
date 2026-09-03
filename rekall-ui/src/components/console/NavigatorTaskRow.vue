@@ -48,6 +48,17 @@ defineEmits<{ select: []; edit: [] }>()
       <span
         class="flex shrink-0 items-center gap-1.5 font-mono text-[10.5px] text-text-subtle transition-opacity group-hover/task:opacity-0"
       >
+        <!-- How far along the work is, which is the one thing a row could not say before: a
+             task in progress with six of seven steps ticked and one with none read the same. -->
+        <span
+          v-if="task.stepCount > 0"
+          class="tabular-nums"
+          :class="task.stepsDone === task.stepCount ? 'text-safe' : ''"
+          :title="`${task.stepsDone} of ${task.stepCount} steps done`"
+          data-testid="task-steps"
+        >
+          {{ task.stepsDone }}/{{ task.stepCount }}
+        </span>
         <svg v-if="task.hasWrapup" class="size-2.5 text-text-muted" viewBox="0 0 12 12" role="img">
           <title>Has a wrapup</title>
           <path d="M6 1.2 10.8 6 6 10.8 1.2 6z" fill="currentColor" />

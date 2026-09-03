@@ -35,6 +35,8 @@ function task(id: TaskId, title: string, projectId: ProjectId, companyName: stri
     companyName,
     projectRepoFolder: null,
     documentCount: 0,
+    stepCount: 0,
+    stepsDone: 0,
     hasWrapup: false,
     anchor: `project:${projectId === vega ? 'vega' : 'beacon'} task:${title.toLowerCase().replace(/ /g, '-')}`,
     updatedAt: ''

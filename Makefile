@@ -24,10 +24,11 @@ DEMO_TASKS_PER_COMPANY  ?= 20
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
 
-# The compiled frontend is committed under rekall-app/src/main/resources/static, so nothing
-# fails when it is out of date: Spring serves the stale bundle and the browser shows a version
-# of the application that no longer exists. Every target that serves the UI rebuilds it first.
-ui: ## Compile the frontend into rekall-app/src/main/resources/static
+# The bundle is build output: vite writes it to rekall-ui/dist, git ignores it, and rekall-app
+# copies it into the jar at package time. So it can be absent or stale, and both are caught -
+# packaging without one fails and names this target, and every target that serves the UI
+# rebuilds it first rather than trusting whatever was left behind.
+ui: ## Compile the frontend into rekall-ui/dist, which the jar is built from
 	cd $(UI) && $(PNPM) install --frozen-lockfile && $(PNPM) build
 
 # workingDirectory is pinned to the repository root because spring-boot:run otherwise runs from

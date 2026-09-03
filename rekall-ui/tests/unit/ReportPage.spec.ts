@@ -28,6 +28,7 @@ vi.mock('@/api/catalog.api', () => ({
 }))
 vi.mock('@/api/documents.api', () => ({ fetchAllDocuments: vi.fn(async () => []) }))
 vi.mock('@/api/wrapups.api', () => ({ fetchWrapups: vi.fn(async () => []) }))
+vi.mock('@/api/steps.api', () => ({ fetchSteps: vi.fn(async () => []) }))
 vi.mock('@/api/time-entries.api', () => ({ fetchTimeEntries: vi.fn(async () => []) }))
 
 const acme = 'c1' as CompanyId
@@ -49,13 +50,13 @@ const tasks: Task[] = [
   {
     id: builder, label: 'report-builder', title: 'Report builder', status: 'IN_PROGRESS',
     description: null, projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform',
-    companyName: 'acme', projectRepoFolder: null, documentCount: 0, hasWrapup: false,
+    companyName: 'acme', projectRepoFolder: null, documentCount: 0, stepCount: 0, stepsDone: 0, hasWrapup: false,
     anchor: 'project:vega task:report-builder', updatedAt: ''
   },
   {
     id: signal, label: 'signal-ingest', title: 'Signal ingest', status: 'TODO',
     description: null, projectId: beacon, projectLabel: 'beacon', projectTitle: 'Beacon',
-    companyName: 'globex', projectRepoFolder: null, documentCount: 0, hasWrapup: false,
+    companyName: 'globex', projectRepoFolder: null, documentCount: 0, stepCount: 0, stepsDone: 0, hasWrapup: false,
     anchor: 'project:beacon task:signal-ingest', updatedAt: ''
   }
 ]

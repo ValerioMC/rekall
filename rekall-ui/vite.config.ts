@@ -9,8 +9,12 @@ export default defineConfig({
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) }
   },
   build: {
-    // Built straight into the Spring Boot module, so one jar serves the UI, the API and MCP.
-    outDir: fileURLToPath(new URL('../rekall-app/src/main/resources/static', import.meta.url)),
+    // Build output, and it lives where build output belongs: outside the source tree, ignored
+    // by git. `rekall-app` copies this folder into the jar under `static/`, which is how one
+    // jar serves the UI, the API and MCP. It used to be written straight into
+    // `rekall-app/src/main/resources/static` and committed, which meant every UI change was a
+    // 205-file diff of hashed filenames and a stale bundle could ship without a word.
+    outDir: fileURLToPath(new URL('./dist', import.meta.url)),
     emptyOutDir: true
   },
   server: {

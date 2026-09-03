@@ -21,6 +21,8 @@ const props = defineProps<{
   selected: boolean
   /** Notes written since the wrapup was. Not proof it is wrong, only that it is older. */
   behind: number
+  /** Steps ticked since the wrapup was. Work that finished and that this text cannot mention. */
+  missesSteps: number
 }>()
 
 const emit = defineEmits<{ open: [] }>()
@@ -100,7 +102,17 @@ const writtenBy = computed(() =>
         No wrapup yet. Open it to write what this task currently is.
       </span>
 
-      <!-- Said as a fact, not as an alarm: newer notes make a wrapup older, not wrong. -->
+      <!-- Said as a fact, not as an alarm: newer notes make a wrapup older, not wrong. A step
+           ticked after it is the sharper version of the same fact, and the one that is worth
+           acting on, so it is the line that goes first. -->
+      <span
+        v-if="wrapup && missesSteps > 0"
+        class="mt-1.5 flex items-center gap-1.5 text-[10.5px] text-warn"
+        data-testid="wrapup-misses-steps"
+      >
+        <span class="size-[5px] shrink-0 rounded-full bg-warn" aria-hidden="true" />
+        {{ missesSteps }} step{{ missesSteps === 1 ? '' : 's' }} done since this was written
+      </span>
       <span
         v-if="wrapup && behind > 0"
         class="mt-1.5 flex items-center gap-1.5 text-[10.5px] text-warn"

@@ -4,6 +4,7 @@ import dev.rekall.domain.Company;
 import dev.rekall.domain.Document;
 import dev.rekall.domain.Project;
 import dev.rekall.domain.Task;
+import dev.rekall.domain.TaskStep;
 import dev.rekall.domain.WrapupAuthor;
 import dev.rekall.domain.repository.CompanyRepository;
 import lombok.RequiredArgsConstructor;
@@ -39,7 +40,8 @@ import java.util.zip.ZipOutputStream;
  *
  * <p>A task's wrapup is written as {@code WRAPUP.md} beside its notes. In capitals and first in
  * the folder, because on a tree someone opens two years from now it is the file that says what
- * the thing was.
+ * the thing was. Its checklist follows as {@code STEPS.md}, for the same reason: a step exists
+ * nowhere but this database, so an export that dropped it would not be a backup.
  */
 @Service
 @RequiredArgsConstructor
@@ -91,6 +93,14 @@ public class ExportService {
                         if (task.getWrapup() != null) {
                             used.add("WRAPUP.md");
                             write(zip, taskDir + "/WRAPUP.md", task.getWrapup().getBodyMarkdown());
+                        }
+
+                        // The checklist, as a checklist: whole, ticked and open alike. This is
+                        // a file on a disk rather than a context window, so the detail of
+                        // finished work is kept here where it costs nothing.
+                        if (!task.getSteps().isEmpty()) {
+                            used.add("STEPS.md");
+                            write(zip, taskDir + "/STEPS.md", checklist(task));
                         }
 
                         for (Document document : task.getDocuments()) {
@@ -152,6 +162,11 @@ public class ExportService {
                                         ? "by Claude" : "by hand")
                                 .append('\n');
                     }
+                    if (!task.getSteps().isEmpty()) {
+                        long done = task.getSteps().stream().filter(TaskStep::isDone).count();
+                        out.append("- `STEPS.md`: ").append(done).append(" of ")
+                                .append(task.getSteps().size()).append(" steps done\n");
+                    }
                     if (task.getDocuments().isEmpty()) {
                         out.append("- no notes\n");
                     }
@@ -187,6 +202,23 @@ public class ExportService {
      * <p>Separators and dot segments are removed rather than escaped: a record called
      * {@code ../../etc} must become a folder name, never a path.
      */
+    /**
+     * The checklist as markdown, in the form anything that reads markdown already understands.
+     *
+     * <p>Checkboxes rather than two lists, because the order is the order the work was thought
+     * of in and splitting the done from the open would lose it.
+     */
+    private String checklist(Task task) {
+        StringBuilder out = new StringBuilder("# Steps\n");
+        for (TaskStep step : task.getSteps()) {
+            out.append('\n').append(step.isDone() ? "- [x] " : "- [ ] ").append(step.getTitle()).append('\n');
+            if (step.getBodyMarkdown() != null && !step.getBodyMarkdown().isBlank()) {
+                out.append('\n').append(step.getBodyMarkdown()).append('\n');
+            }
+        }
+        return out.toString();
+    }
+
     /**
      * One line of a description, for an outline that is only an outline.
      *

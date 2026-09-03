@@ -51,7 +51,7 @@ rekall/
   rekall-api/      REST controllers for the UI
   rekall-mcp/      MCP server, one tool that reads and one that writes a wrapup
   rekall-app/      Spring Boot entry point, serves the built frontend
-  rekall-ui/       Vue 3 + Vite (built into rekall-app/src/main/resources/static)
+  rekall-ui/       Vue 3 + Vite (built into rekall-ui/dist, copied into the jar by rekall-app)
 ```
 
 `rekall-mcp` must not depend on `rekall-api`. The two are independent consumers of the same
@@ -81,6 +81,7 @@ domain, which is what keeps the boundary structural rather than accidental: the 
 ```
 Company ──< Project ──< Task >──< Document
                          │      (document_task)
+                         ├──< TaskStep
                          └──1 Wrapup
 ```
 
@@ -91,6 +92,7 @@ Company ──< Project ──< Task >──< Document
 | `task` | `label`, unique per project | `title`, `status`, `description`, `project_id` |
 | `document` | — | `title`, `kind`, `body_markdown` |
 | `document_task` | — | `document_id`, `task_id`, `position` |
+| `task_step` | through its task | `task_id`, `title`, `body_markdown`, `done`, `done_at`, `position` |
 | `wrapup` | through its task | `task_id` unique, `body_markdown`, `written_by` |
 
 `task.project_id` and `project.company_id` are both `ON DELETE CASCADE`: a project's tasks have
@@ -162,6 +164,29 @@ more often than right. It is stated in the three places it can be read — the t
 slash command, and the empty state in the console — and the cap catches the failure mode it
 produces.
 
+### 4.2 The steps
+
+A task can be broken into steps, each done or not. It exists because of a gap the other two
+markdown fields on a task leave between them: the description is the brief and grows as the work
+is redefined, the wrapup is the state of the implementation as prose, and neither says which
+parts are finished. Working that out meant reading both and comparing them, which is slow by
+hand and a guess for a model. A row with a boolean says it.
+
+| Decision | Why |
+|---|---|
+| A table rather than checkboxes in the description | The description is one blob that Claude cannot rewrite and that carries no per-item state. A row can be ticked in one click, ordered, and rendered differently depending on whether it is open |
+| `position`, dense from zero, maintained by `TaskStepService` | Every write that could leave a gap renumbers the list. A sparse ordering is correct right up until something reads it as an index. An `@OrderColumn` on the inverse side of the association was the alternative, and it is a column two writers can disagree about |
+| `done` and `done_at` move together, in `TaskStep.markDone` | A step done at no time cannot be told apart from one done before the column existed |
+| Capped at 20,000 characters, like a wrapup | A step whose detail runs past a screen is a task, and the model has a level for that |
+| `ON DELETE CASCADE` on the task, like a wrapup | It describes one piece of one task and means nothing beside another |
+| **No MCP tool writes it** | The point of the box is that a person looked at the work and said it was done. A session that ticked its own boxes would be answering the question it was asked. `rekall-mcp` reads the checklist and cannot reach it any other way |
+
+The rendering is asymmetric, and that is the feature. An open step is written into the context
+with its detail, because it is the work about to be done. A done step is written as its title
+alone: it needs no doing, and spending the window on the detail of finished work is how a load
+costs twice what it is worth and invites the same thing to be built again. The counts go in the
+field list, ahead of the block, so the shape of what is left is legible before the list is read.
+
 ---
 
 ## 5. Loading a context
@@ -179,6 +204,7 @@ The walk distinguishes by direction, not by depth:
 | Forward (`@ManyToOne`) | The record in full, **with its documents** | What this record depends on to be understood. Bounded by the model: a task reaches its project and stops |
 | Inverse (`@OneToMany`) | Labels only, printed as anchors | What points back at this. Unbounded fan-out: a project has forty tasks |
 | One-to-one (`wrapup`) | In full, in a tag of its own, ahead of the notes | Exactly one, so there is no fan-out to bound. Ahead of the notes because a session that opens on a task is asking what it does now, and the notes are the background to that answer |
+| Owned collection (`task_step`) | Open ones in full, done ones as a title | Bounded by the task and ordered, so it is not fan-out. Rendered between the description and the wrapup, which is the order the three are asked in: what is this, what is left, what did it become |
 
 Scalars are rendered as bullets and bodies as tags, which is why a description is a `<description>` block rather than a `description` bullet. It is a document, with headings, lists and a scope section, and a document inlined into a list item stops being one: every line after the first falls outside the bullet, and its own headings outrank the record's.
 
@@ -259,7 +285,9 @@ the exception that hides this, because its own schema defaults both annotations.
 
 `rekall-mcp` has no controller, no `CatalogService` and no `DocumentService` on its classpath.
 The one write service it can reach, `WrapupService`, takes a task and a body and can do nothing
-else — it cannot create, rename or delete any record, and cannot touch a note. Every read runs
+else: it cannot create, rename or delete any record, cannot touch a note, and cannot tick a step.
+`TaskStepService` is on the classpath because `ContextService` renders what it stores, and every
+path into it that writes is behind the REST controller the console alone calls. Every read runs
 under `@Transactional(readOnly = true)`, so Hibernate will not flush. `McpTool.writes()` is
 declared rather than inferred, and the startup log names the write surface out loud.
 

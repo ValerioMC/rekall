@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import DescriptionCard from '@/components/console/DescriptionCard.vue'
 import TimeLogDialog from '@/components/console/TimeLogDialog.vue'
+import StepsCard from '@/components/console/StepsCard.vue'
 import TimerCard from '@/components/console/TimerCard.vue'
 import WrapupCard from '@/components/console/WrapupCard.vue'
 import { useConsoleStore } from '@/stores/console.store'
@@ -10,14 +11,14 @@ import { useAsyncAction } from '@/composables/useAsyncAction'
 import { excerpt } from '@/common/format/excerpt'
 
 /**
- * The notes on the selected task, with its timer, its description and its wrapup pinned above
- * them.
+ * The notes on the selected task, with its timer, its description, its checklist and its wrapup
+ * pinned above them.
  *
  * The timer leads because it is the one thing here that is live rather than written: everything
- * below it describes the task, this counts while you read it. Then the two questions in the
- * order they are asked, what is this task and where did it get to, with the notes as the
- * background to both. Each is one row, always present, even absent: an empty row is the reason
- * to write the thing, and every task has a timer the moment it exists.
+ * below it describes the task, this counts while you read it. Then the three questions in the
+ * order they are asked, what is this task, what is left of it and where did it get to, with the
+ * notes as the background to all three. Each is one row, always present, even absent: an empty
+ * row is the reason to write the thing, and every task has a timer the moment it exists.
  */
 const store = useConsoleStore()
 const {
@@ -25,8 +26,10 @@ const {
   selectedDocId,
   taskDocuments,
   paneFocus,
+  selectedTaskSteps,
   selectedWrapup,
   wrapupIsBehind,
+  wrapupMissesSteps,
   selectedTaskEntries,
   runningEntries,
   isLoading
@@ -95,10 +98,16 @@ async function pauseTimer(): Promise<void> {
           :selected="paneFocus === 'description'"
           @open="store.openDescription()"
         />
+        <StepsCard
+          :steps="selectedTaskSteps"
+          :selected="paneFocus === 'steps'"
+          @open="store.openSteps()"
+        />
         <WrapupCard
           :wrapup="selectedWrapup"
           :selected="paneFocus === 'wrapup'"
           :behind="wrapupIsBehind"
+          :misses-steps="wrapupMissesSteps"
           @open="store.openWrapup()"
         />
 

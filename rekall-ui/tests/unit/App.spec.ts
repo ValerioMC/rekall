@@ -4,8 +4,15 @@ import { flushPromises, mount } from '@vue/test-utils'
 import App from '@/App.vue'
 import { router } from '@/router'
 import { useConsoleStore } from '@/stores/console.store'
-import type { Company, Project, RekallDocument, Task, Wrapup } from '@/model/catalog'
-import type { CompanyId, DocumentId, ProjectId, TaskId, WrapupId } from '@/model/branded'
+import type { Company, Project, RekallDocument, Task, TaskStep, Wrapup } from '@/model/catalog'
+import type {
+  CompanyId,
+  DocumentId,
+  ProjectId,
+  TaskId,
+  TaskStepId,
+  WrapupId
+} from '@/model/branded'
 
 /**
  * The console as it actually renders, against a stubbed server. This catches the failures the
@@ -31,8 +38,8 @@ const projects: Project[] = [
 ]
 
 const tasks: Task[] = [
-  { id: validator, label: 'report-builder', title: 'Report builder', status: 'IN_PROGRESS', description: null, projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', projectRepoFolder: null, documentCount: 1, hasWrapup: true, anchor: 'project:vega task:report-builder', updatedAt: '2026-08-12T10:00:00Z' },
-  { id: retry, label: 'retry-policy', title: 'Retry policy', status: 'TODO', description: '## Scope\n\nRitenta solo gli errori 5xx, con backoff esponenziale.', projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', projectRepoFolder: null, documentCount: 1, hasWrapup: false, anchor: 'project:vega task:retry-policy', updatedAt: '2026-08-12T10:00:00Z' }
+  { id: validator, label: 'report-builder', title: 'Report builder', status: 'IN_PROGRESS', description: null, projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', projectRepoFolder: null, documentCount: 1, stepCount: 2, stepsDone: 1, hasWrapup: true, anchor: 'project:vega task:report-builder', updatedAt: '2026-08-12T10:00:00Z' },
+  { id: retry, label: 'retry-policy', title: 'Retry policy', status: 'TODO', description: '## Scope\n\nRitenta solo gli errori 5xx, con backoff esponenziale.', projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', projectRepoFolder: null, documentCount: 1, stepCount: 0, stepsDone: 0, hasWrapup: false, anchor: 'project:vega task:retry-policy', updatedAt: '2026-08-12T10:00:00Z' }
 ]
 
 const shared: RekallDocument = {
@@ -101,6 +108,49 @@ vi.mock('@/api/wrapups.api', () => ({
   deleteWrapup: (...args: unknown[]) => deleteWrapup(...(args as []))
 }))
 
+/**
+ * A checklist half done, which is the state the pane exists to show: one piece finished, one
+ * still open and carrying the detail of what it has to do.
+ */
+const steps: TaskStep[] = [
+  {
+    id: 's1' as TaskStepId,
+    taskId: validator,
+    title: 'Aggregate the rows',
+    bodyMarkdown: null,
+    done: true,
+    // After the wrapup's timestamp, so the card has a reason to say it is behind.
+    doneAt: '2026-08-12T13:30:00Z',
+    position: 0,
+    createdAt: '2026-08-12T10:00:00Z',
+    updatedAt: '2026-08-12T11:00:00Z'
+  },
+  {
+    id: 's2' as TaskStepId,
+    taskId: validator,
+    title: 'Write the tests',
+    bodyMarkdown: 'Un caso per settimana vuota e uno per settimana piena.',
+    done: false,
+    doneAt: null,
+    position: 1,
+    createdAt: '2026-08-12T10:00:00Z',
+    updatedAt: '2026-08-12T10:00:00Z'
+  }
+]
+
+const patchStep = vi.fn(async (id: TaskStepId, patch: { done?: boolean }) => ({
+  ...steps.find((step) => step.id === id)!,
+  ...patch
+}))
+
+vi.mock('@/api/steps.api', () => ({
+  fetchSteps: vi.fn(async () => steps),
+  createStep: vi.fn(),
+  patchStep: (...args: unknown[]) => patchStep(...(args as [TaskStepId, { done?: boolean }])),
+  moveStep: vi.fn(),
+  deleteStep: vi.fn()
+}))
+
 const startTimeEntry = vi.fn(async (taskId: TaskId) => ({
   id: 'te1',
   taskId,
@@ -142,6 +192,7 @@ describe('the console', () => {
     saveWrapup.mockClear()
     deleteWrapup.mockClear()
     startTimeEntry.mockClear()
+    patchStep.mockClear()
     document.body.innerHTML = ''
   })
 
@@ -682,8 +733,23 @@ describe('the console', () => {
       await wrapper.find('[data-testid="write-description"]').trigger('click')
       await flushPromises()
 
-      expect(wrapper.text()).toContain('The brief the work is measured against')
+      // This task has an open step, so the pane says what the description is for in that case:
+      // the thing the steps are built against, not a list of things to do.
+      expect(wrapper.text()).toContain('1 step open')
+      expect(wrapper.text()).toContain('built against rather than a list of things to do')
       expect(wrapper.text()).not.toContain('Nothing says what this task is')
+    })
+
+    /** With no checklist on the task, the description is the instruction and says so. */
+    it('reads as the brief on a task with no steps', async () => {
+      const wrapper = await mountConsole()
+
+      await wrapper.findAll('[data-testid="task-row"]')[1]!.trigger('click')
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }))
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('The brief the work is measured against')
+      expect(wrapper.text()).not.toContain('built against rather than a list of things to do')
     })
 
     /** The key that took you there takes you back, the same way W and B work. */
@@ -699,6 +765,119 @@ describe('the console', () => {
       await flushPromises()
 
       expect(wrapper.text()).not.toContain('The brief the work is measured against')
+      expect(wrapper.text()).toContain('kmaster14.md')
+    })
+  })
+
+  describe('the checklist', () => {
+    /** The cue to run `/rk … wrapup` by hand: work finished that the wrapup cannot mention. */
+    it('says on the wrapup card how many steps closed since it was written', async () => {
+      const wrapper = await mountConsole()
+
+      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      await flushPromises()
+
+      expect(wrapper.find('[data-testid="wrapup-misses-steps"]').text()).toBe(
+        '1 step done since this was written'
+      )
+    })
+
+    it('pins how much is left above the notes, and names what is next', async () => {
+      const wrapper = await mountConsole()
+
+      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      await flushPromises()
+
+      const card = wrapper.find('[data-testid="steps-card"]')
+      expect(card.exists()).toBe(true)
+      expect(card.find('[data-testid="steps-progress"]').text()).toBe('1/2')
+      // The number says how much is left, the title says what it is.
+      expect(card.text()).toContain('Next: Write the tests')
+    })
+
+    /**
+     * The whole point of the pane, and the reason the detail is not in the description: an open
+     * step carries what it has to do, a done one is a line.
+     */
+    it('opens on S, with the open step in full and the done one struck through', async () => {
+      const wrapper = await mountConsole()
+
+      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }))
+      await flushPromises()
+
+      expect(wrapper.find('[data-testid="steps-count"]').text()).toBe('1/2')
+      expect(wrapper.findAll('[data-testid="step-row"]')).toHaveLength(2)
+      expect(wrapper.text()).toContain('Write the tests')
+      expect(wrapper.text()).toContain('Aggregate the rows')
+    })
+
+    /** A box is ticked in one click, with no dialog and no save button between. */
+    it('ticks a step where it stands', async () => {
+      const wrapper = await mountConsole()
+
+      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }))
+      await flushPromises()
+
+      await wrapper.findAll('[data-testid="step-checkbox"]')[1]!.trigger('click')
+      await flushPromises()
+
+      expect(patchStep).toHaveBeenCalledWith('s2', { done: true })
+      expect(useConsoleStore().openStepCount).toBe(0)
+      // Nothing is left open, so the pane stops showing a detail rather than the last one.
+      expect(wrapper.find('[data-testid="step-detail"]').exists()).toBe(false)
+    })
+
+    /**
+     * The pane opens on the work rather than on the list: the first open step is expanded, with
+     * its detail rendered as markdown, because that is what you came here to read.
+     */
+    it('opens on the next step with its detail rendered', async () => {
+      const wrapper = await mountConsole()
+
+      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }))
+      await flushPromises()
+
+      const detail = wrapper.find('[data-testid="step-detail"]')
+      expect(detail.exists()).toBe(true)
+      expect(detail.text()).toContain('settimana vuota')
+      // Markdown, not a textarea of it: the same surface the description and the notes use.
+      expect(wrapper.find('[data-testid="step-detail-read"]').exists()).toBe(true)
+      expect(wrapper.find('[data-testid="step-detail-field"]').exists()).toBe(false)
+    })
+
+    /** The detail is written where it is read, in markdown, and the toggle is the pane's own. */
+    it('switches the detail to the markdown editor on write', async () => {
+      const wrapper = await mountConsole()
+
+      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }))
+      await flushPromises()
+
+      await wrapper.find('[data-testid="step-detail-write"]').trigger('click')
+      await flushPromises()
+
+      expect(wrapper.find('[data-testid="step-detail-field"]').exists()).toBe(true)
+      expect(
+        (wrapper.find('[data-testid="step-title-field"]').element as HTMLInputElement).value
+      ).toBe('Write the tests')
+    })
+
+    /** The key that took you there takes you back, the same way W and D do. */
+    it('toggles back to the note on a second S', async () => {
+      const wrapper = await mountConsole()
+
+      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }))
+      await flushPromises()
+      expect(wrapper.find('[data-testid="new-step"]').exists()).toBe(true)
+
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }))
+      await flushPromises()
+
+      expect(wrapper.find('[data-testid="new-step"]').exists()).toBe(false)
       expect(wrapper.text()).toContain('kmaster14.md')
     })
   })

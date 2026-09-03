@@ -13,7 +13,9 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.OrderColumn;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
@@ -97,6 +99,21 @@ public class Task {
             inverseJoinColumns = @JoinColumn(name = "document_id", foreignKey = @jakarta.persistence.ForeignKey(name = "fk_document_task_document")))
     @OrderColumn(name = "position")
     private List<Document> documents = new ArrayList<>();
+
+    /**
+     * The checklist: what this task is made of, in order, and which parts are finished.
+     *
+     * <p>Cascaded and orphan-removed like the wrapup, and for the same reason: a step describes
+     * one piece of one task and means nothing beside another. Unlike a note, it is never shared.
+     *
+     * <p>What it is for is the gap between the other two fields. The description says what the
+     * work is and grows as the work is redefined; the wrapup says what the implementation looks
+     * like now. Neither answers "what is left", and reading it out of the two by comparing them
+     * is exactly the guess this model exists to avoid.
+     */
+    @OneToMany(mappedBy = "task", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("position ASC")
+    private List<TaskStep> steps = new ArrayList<>();
 
     /**
      * What this task's implementation looks like right now, or null while nobody has said.

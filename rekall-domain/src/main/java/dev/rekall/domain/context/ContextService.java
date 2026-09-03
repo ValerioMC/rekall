@@ -7,6 +7,7 @@ import dev.rekall.domain.Task;
 import dev.rekall.domain.repository.CompanyRepository;
 import dev.rekall.domain.repository.ProjectRepository;
 import dev.rekall.domain.repository.TaskRepository;
+import dev.rekall.domain.step.TaskStepView;
 import dev.rekall.domain.wrapup.WrapupView;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -131,6 +132,7 @@ public class ContextService {
                 List.of(),
                 company.getProjects().stream().map(project -> "project:" + project.getLabel()).toList(),
                 List.of(),
+                List.of(),
                 null,
                 null,
                 company.getDescription());
@@ -155,13 +157,14 @@ public class ContextService {
                 List.of(renderReferenced(project.getCompany())),
                 project.getTasks().stream().map(task -> "task:" + task.getLabel()).toList(),
                 List.of(),
+                List.of(),
                 null,
                 project.getBlueprintMarkdown(),
                 project.getDescription());
     }
 
     /**
-     * A task carries its project in full, every note attached to it, and its wrapup.
+     * A task carries its project in full, every note attached to it, its checklist and its wrapup.
      *
      * <p>A note reached this way may well be attached to other tasks too. That is the point of
      * the relation: cluster access is written once and arrives with each task that needs it.
@@ -169,10 +172,21 @@ public class ContextService {
      * <p>The wrapup is what closes the loop the whole feature exists for. A session ends by
      * writing what the implementation now looks like, and the next one opens on it, so the work
      * starts from the current state rather than from reading the code back.
+     *
+     * <p>The steps are the other half of that answer, and the half a wrapup cannot give: the
+     * wrapup says what the work became, the open steps say what it has not become yet. The
+     * counts go in the field list so the shape of what is left is legible before a word of the
+     * checklist is read.
      */
     private ContextRecord render(Task task) {
+        List<TaskStepView> steps = task.getSteps().stream().map(TaskStepView::of).toList();
+
         Map<String, String> fields = new LinkedHashMap<>();
         fields.put("status", task.getStatus().name());
+        if (!steps.isEmpty()) {
+            long done = steps.stream().filter(TaskStepView::done).count();
+            fields.put("steps", "%d of %d done, %d open".formatted(done, steps.size(), steps.size() - done));
+        }
 
         List<ContextRecord> references = new ArrayList<>();
         references.add(renderReferenced(task.getProject()));
@@ -185,6 +199,7 @@ public class ContextService {
                 references,
                 List.of(),
                 documentsOf(task.getDocuments()),
+                steps,
                 task.getWrapup() == null ? null : WrapupView.of(task.getWrapup()),
                 null,
                 task.getDescription());
@@ -200,14 +215,16 @@ public class ContextService {
         ContextRecord full = render(project);
         return new ContextRecord(
                 full.kind(), full.label(), full.anchor(), full.fields(),
-                full.references(), List.of(), full.documents(), null, full.blueprint(), full.description());
+                full.references(), List.of(), full.documents(), List.of(), null, full.blueprint(),
+                full.description());
     }
 
     private ContextRecord renderReferenced(Company company) {
         ContextRecord full = render(company);
         return new ContextRecord(
                 full.kind(), full.label(), full.anchor(), full.fields(),
-                List.of(), List.of(), full.documents(), null, full.blueprint(), full.description());
+                List.of(), List.of(), full.documents(), List.of(), null, full.blueprint(),
+                full.description());
     }
 
     private List<DocumentView> documentsOf(List<Document> documents) {

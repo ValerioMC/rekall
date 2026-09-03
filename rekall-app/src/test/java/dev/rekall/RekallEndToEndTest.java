@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.client.RestClient;
@@ -54,6 +55,7 @@ class RekallEndToEndTest {
 
     @BeforeEach
     void resetDatabase() {
+        jdbc.execute("DELETE FROM task_step");
         jdbc.execute("DELETE FROM time_entry");
         jdbc.execute("DELETE FROM wrapup");
         jdbc.execute("DELETE FROM document_task");
@@ -900,6 +902,275 @@ class RekallEndToEndTest {
                 .isEmpty();
     }
 
+    /*
+     * Steps. A task is broken into pieces that are each done or not, and the checklist is the
+     * one thing that says which. The description is the brief and the wrapup is what the work
+     * became; neither answers "what is left" without being read against the other.
+     */
+
+    /**
+     * The asymmetry is the whole design. An open step is the work about to be done, so it
+     * arrives with its detail; a done step needs no doing, so it arrives as a line. Spending the
+     * window on the detail of finished work is how a load costs twice what it is worth and
+     * invites the same thing to be built again.
+     */
+    @Test
+    @DisplayName("open steps reach Claude in full, done steps the wrapup covers by name alone")
+    void openStepsCarryTheirDetailAndDoneStepsDoNot() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+        String aggregate = aStep(taskId, "Aggregate the rows", "Somma per settimana, gruppo per progetto.");
+        aStep(taskId, "Write the tests", "Un caso per settimana vuota e uno per settimana piena.");
+
+        rest.patch().uri("/api/steps/" + aggregate).body(Map.of("done", true))
+                .retrieve().toEntity(Map.class);
+        // The wrapup is what makes a finished step redundant. Written after the tick, so that
+        // step is accounted for; one written before it would leave the step unwritten and its
+        // detail on screen, which is the case the next test covers.
+        callTool("rekall_wrapup", Map.of(
+                "anchors", "project:vega task:report-builder", "body", "Le righe sono aggregate."));
+
+        String context = callTool("rekall_context", Map.of("anchors", "task:report-builder"));
+
+        assertThat(context)
+                .as("the shape of what is left is legible before the list is read")
+                .contains("- `steps`: 1 of 2 done, 1 open")
+                .contains("<steps done=\"1\" open=\"1\">")
+                .as("both are named, in the order the work is meant to happen")
+                .contains("- [x] Aggregate the rows")
+                .contains("- [ ] Write the tests")
+                .as("the open one carries what it has to do")
+                .contains("Un caso per settimana vuota")
+                .as("and the finished one does not")
+                .doesNotContain("Somma per settimana");
+    }
+
+    /**
+     * The scenario the marker exists for: a step ticked in one sitting, the console closed
+     * without writing a wrapup, and the wrapup written a session later.
+     *
+     * <p>Without it the next session sees a done step as a title and a wrapup with no idea it
+     * happened, and has to read the code back to find out what changed. That is the twenty
+     * minutes this application exists to remove.
+     */
+    @Test
+    @DisplayName("a step finished after the last wrapup is marked, and gets its detail back")
+    void stepsFinishedSinceTheWrapupAreMarked() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+        String early = aStep(taskId, "Modello e migrazione", "Entita Report, changeset Liquibase.");
+        String late = aStep(taskId, "Aggregazione delle righe", "Somma per settimana, gruppo per progetto.");
+        aStep(taskId, "Scrivere i test", "Un caso per settimana vuota.");
+
+        // The first step was finished and described. The wrapup knows about it.
+        rest.patch().uri("/api/steps/" + early).body(Map.of("done", true)).retrieve().toEntity(Map.class);
+        callTool("rekall_wrapup", Map.of(
+                "anchors", "project:vega task:report-builder", "body", "Il modello esiste."));
+
+        // The second was ticked afterwards and nobody wrote a wrapup. This is the state a
+        // session opens on when the console was closed in between.
+        rest.patch().uri("/api/steps/" + late).body(Map.of("done", true)).retrieve().toEntity(Map.class);
+
+        String context = callTool("rekall_context", Map.of("anchors", "task:report-builder"));
+
+        assertThat(context)
+                .as("the count says how much the wrapup is behind by")
+                .contains("finished-since-wrapup=\"1\"")
+                .as("and the step itself is named as one the wrapup predates")
+                .contains("- [x] Aggregazione delle righe  (finished since the wrapup was written)")
+                .as("with its detail back, because nothing else here says what that piece was")
+                .contains("Somma per settimana, gruppo per progetto.")
+                .as("the step the wrapup already covers stays a title and nothing more")
+                .contains("- [x] Modello e migrazione\n")
+                .doesNotContain("changeset Liquibase");
+
+        // Writing the wrapup is what clears it: the text now accounts for that step.
+        callTool("rekall_wrapup", Map.of(
+                "anchors", "project:vega task:report-builder",
+                "body", "Il modello esiste e le righe sono aggregate per settimana."));
+
+        assertThat(callTool("rekall_context", Map.of("anchors", "task:report-builder")))
+                .as("nothing is behind any more, so nothing is marked")
+                .doesNotContain("finished-since-wrapup")
+                .doesNotContain("finished since the wrapup was written")
+                .as("and the detail goes silent again")
+                .doesNotContain("Somma per settimana, gruppo per progetto.");
+    }
+
+    /**
+     * With no wrapup at all, everything finished is unaccounted for: the first one written has
+     * to cover the lot, so the lot arrives in full.
+     */
+    @Test
+    @DisplayName("with no wrapup yet, every finished step is marked and carries its detail")
+    void withoutAWrapupEveryFinishedStepIsUnaccountedFor() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+        String first = aStep(taskId, "Modello", "Entita Report.");
+        String second = aStep(taskId, "Endpoint", "POST /api/v1/reports.");
+        rest.patch().uri("/api/steps/" + first).body(Map.of("done", true)).retrieve().toEntity(Map.class);
+        rest.patch().uri("/api/steps/" + second).body(Map.of("done", true)).retrieve().toEntity(Map.class);
+
+        assertThat(callTool("rekall_context", Map.of("anchors", "task:report-builder")))
+                .contains("finished-since-wrapup=\"2\"")
+                .contains("Entita Report.")
+                .contains("POST /api/v1/reports.");
+    }
+
+    /** A task with no checklist says nothing about one, rather than an empty block. */
+    @Test
+    @DisplayName("a task with no steps carries no steps block")
+    void aTaskWithoutStepsSaysNothing() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        aTask(projectId, "report-builder");
+
+        assertThat(callTool("rekall_context", Map.of("anchors", "task:report-builder")))
+                .doesNotContain("<steps")
+                .doesNotContain("`steps`");
+    }
+
+    /**
+     * Positions are dense from zero, and every write that could leave a gap renumbers the list.
+     * A sparse ordering is correct right up until something reads it as an index.
+     */
+    @Test
+    @DisplayName("steps are appended, reordered, and renumbered when one is removed")
+    void stepsKeepADenseOrder() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+        String first = aStep(taskId, "First", null);
+        aStep(taskId, "Second", null);
+        String third = aStep(taskId, "Third", null);
+
+        assertThat(labelsOfSteps(taskId)).containsExactly("First", "Second", "Third");
+
+        List<?> reordered = rest.post().uri("/api/steps/" + third + "/move")
+                .body(Map.of("position", 0)).retrieve().toEntity(List.class).getBody();
+        assertThat(reordered.stream().map(step -> String.valueOf(((Map<?, ?>) step).get("title"))))
+                .as("the whole list comes back, because a move renumbers what it displaced")
+                .containsExactly("Third", "First", "Second");
+
+        rest.delete().uri("/api/steps/" + first).retrieve().toEntity(Void.class);
+
+        assertThat(labelsOfSteps(taskId)).containsExactly("Third", "Second");
+        assertThat(jdbc.queryForList(
+                        "SELECT position FROM task_step WHERE task_id = ? ORDER BY position",
+                        Integer.class, UUID.fromString(taskId)))
+                .as("dense from zero, with no gap where the deleted one was")
+                .containsExactly(0, 1);
+    }
+
+    /**
+     * A move past either end is clamped rather than refused: the caller is a row being dragged
+     * or a key being held down, and both mean "as far as it goes".
+     */
+    @Test
+    @DisplayName("moving a step past the end of the list puts it at the end")
+    void movingPastTheEndClamps() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+        String first = aStep(taskId, "First", null);
+        aStep(taskId, "Second", null);
+
+        rest.post().uri("/api/steps/" + first + "/move").body(Map.of("position", 99))
+                .retrieve().toEntity(List.class);
+
+        assertThat(labelsOfSteps(taskId)).containsExactly("Second", "First");
+    }
+
+    /** Ticking is one field, so it never has to resend a detail the row it sits on never held. */
+    @Test
+    @DisplayName("a step is ticked without carrying its title or its detail")
+    void aStepIsTickedOnItsOwn() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+        String stepId = aStep(taskId, "Write the tests", "Un caso per settimana vuota.");
+
+        Map<?, ?> ticked = rest.patch().uri("/api/steps/" + stepId).body(Map.of("done", true))
+                .retrieve().toEntity(Map.class).getBody();
+
+        assertThat(ticked.get("done")).isEqualTo(true);
+        assertThat(ticked.get("title")).isEqualTo("Write the tests");
+        assertThat(ticked.get("bodyMarkdown")).isEqualTo("Un caso per settimana vuota.");
+        assertThat(ticked.get("doneAt")).as("the flag and the moment are one fact").isNotNull();
+
+        Map<?, ?> reopened = rest.patch().uri("/api/steps/" + stepId).body(Map.of("done", false))
+                .retrieve().toEntity(Map.class).getBody();
+
+        assertThat(reopened.get("done")).isEqualTo(false);
+        assertThat(reopened.get("doneAt")).as("and it is cleared again when it reopens").isNull();
+    }
+
+    /** The task list is what the navigator reads, and it has to say how far along the work is. */
+    @Test
+    @DisplayName("a task row reports how much of its checklist is done")
+    void taskRowsReportTheirProgress() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+        aTask(projectId, "retry-policy");
+        String first = aStep(taskId, "First", null);
+        aStep(taskId, "Second", null);
+        rest.patch().uri("/api/steps/" + first).body(Map.of("done", true)).retrieve().toEntity(Map.class);
+
+        List<?> tasks = rest.get().uri("/api/tasks").retrieve().toEntity(List.class).getBody();
+
+        assertThat(tasks.stream().map(task -> {
+                    Map<?, ?> row = (Map<?, ?>) task;
+                    return row.get("label") + "=" + row.get("stepsDone") + "/" + row.get("stepCount");
+                }))
+                .containsExactlyInAnyOrder("report-builder=1/2", "retry-policy=0/0");
+    }
+
+    /** A step describes one piece of one task and means nothing beside another. */
+    @Test
+    @DisplayName("deleting a task takes its checklist with it")
+    void stepsCascadeWithTheirTask() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+        aStep(taskId, "First", null);
+        aStep(taskId, "Second", null);
+
+        rest.delete().uri("/api/tasks/" + taskId).retrieve().toEntity(Void.class);
+
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM task_step", Integer.class)).isZero();
+    }
+
+    /**
+     * The one thing the checklist must not become is a second wrapup. A step whose detail runs
+     * past a screen is a task, and the refusal says so rather than truncating it.
+     */
+    @Test
+    @DisplayName("a step with no title, or with a detail the size of a document, is refused")
+    void stepsAreCheckedBeforeTheyAreStored() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+
+        Map<String, Object> untitled = new LinkedHashMap<>();
+        untitled.put("title", "   ");
+        untitled.put("bodyMarkdown", null);
+        assertThat(rest.post().uri("/api/tasks/" + taskId + "/steps").body(untitled)
+                        .retrieve().toEntity(Map.class).getStatusCode())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+
+        assertThat(rest.post().uri("/api/tasks/" + taskId + "/steps")
+                        .body(Map.of("title", "Too much", "bodyMarkdown", "x".repeat(20_001)))
+                        .retrieve().toEntity(ProblemDetail.class).getBody().getDetail())
+                .contains("capped at 20000 characters")
+                .contains("a task of its own");
+
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM task_step", Integer.class)).isZero();
+    }
+
     /**
      * The export is a backup and an escape hatch: a tree of folders that outlives the
      * application. What it cannot represent is a note on several tasks, so it writes the note
@@ -922,6 +1193,10 @@ class RekallEndToEndTest {
                 "taskIds", List.of(validator, retry), "bodyMarkdown", "Accesso via bastion."));
         callTool("rekall_wrapup", Map.of(
                 "anchors", "project:vega task:report-builder", "body", "## Stato\n\nGira."));
+        String aggregate = aStep(validator, "Aggregate the rows", null);
+        aStep(validator, "Write the tests", "Un caso per settimana vuota.");
+        rest.patch().uri("/api/steps/" + aggregate).body(Map.of("done", true))
+                .retrieve().toEntity(Map.class);
 
         Map<String, String> entries = unzip(
                 rest.get().uri("/api/export").retrieve().toEntity(byte[].class).getBody());
@@ -934,8 +1209,14 @@ class RekallEndToEndTest {
                         "Acme/vega/retry-policy/kmaster14.md",
                         "Acme/vega/empty-one/",
                         "MANIFEST.md")
-                .as("the wrapup travels as the file you open first")
-                .contains("Acme/vega/report-builder/WRAPUP.md");
+                .as("the wrapup travels as the file you open first, and the checklist beside it")
+                .contains("Acme/vega/report-builder/WRAPUP.md", "Acme/vega/report-builder/STEPS.md");
+
+        assertThat(entries.get("Acme/vega/report-builder/STEPS.md"))
+                .as("as a checklist, whole: this is a disk, not a context window")
+                .contains("- [x] Aggregate the rows")
+                .contains("- [ ] Write the tests")
+                .contains("Un caso per settimana vuota.");
 
         assertThat(entries.get("Acme/vega/report-builder/CONTEXT.md")).isEqualTo("# Contesto\n\nprimo");
         assertThat(entries.get("Acme/vega/retry-policy/kmaster14.md"))
@@ -953,7 +1234,9 @@ class RekallEndToEndTest {
                 .as("and reports the task that has none")
                 .contains("no notes")
                 .as("and names the wrapup, and who wrote it")
-                .contains("`WRAPUP.md`: the state of the implementation, written by Claude");
+                .contains("`WRAPUP.md`: the state of the implementation, written by Claude")
+                .as("and how far the checklist has got")
+                .contains("`STEPS.md`: 1 of 2 steps done");
     }
 
     /** A record named after a path must become a folder name, never a path. */
@@ -1083,6 +1366,13 @@ class RekallEndToEndTest {
                 "label", label, "title", label, "status", "TODO", "projectId", projectId)));
     }
 
+    private String aStep(String taskId, String title, String bodyMarkdown) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("title", title);
+        body.put("bodyMarkdown", bodyMarkdown);
+        return id(post("/api/tasks/" + taskId + "/steps", body));
+    }
+
     @SuppressWarnings("rawtypes")
     private ResponseEntity<Map> post(String path, Object body) {
         return rest.post().uri(path).body(body).retrieve().toEntity(Map.class);
@@ -1091,6 +1381,13 @@ class RekallEndToEndTest {
     private String id(ResponseEntity<Map> response) {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         return String.valueOf(response.getBody().get("id"));
+    }
+
+    @SuppressWarnings("rawtypes")
+    private List<String> labelsOfSteps(String taskId) {
+        List<?> steps = rest.get().uri("/api/tasks/" + taskId + "/steps")
+                .retrieve().toEntity(List.class).getBody();
+        return steps.stream().map(step -> String.valueOf(((Map<?, ?>) step).get("title"))).toList();
     }
 
     @SuppressWarnings("rawtypes")

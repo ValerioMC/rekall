@@ -3,8 +3,15 @@ import { updateProject } from '@/api/catalog.api'
 import { setActivePinia, createPinia } from 'pinia'
 import { useConsoleStore } from '@/stores/console.store'
 import type { TaskInput } from '@/api/catalog.api'
-import type { Company, Project, RekallDocument, Task, Wrapup } from '@/model/catalog'
-import type { CompanyId, DocumentId, ProjectId, TaskId, WrapupId } from '@/model/branded'
+import type { Company, Project, RekallDocument, Task, TaskStep, Wrapup } from '@/model/catalog'
+import type {
+  CompanyId,
+  DocumentId,
+  ProjectId,
+  TaskId,
+  TaskStepId,
+  WrapupId
+} from '@/model/branded'
 
 /**
  * The console's reading rules, which is where the screen's behaviour actually lives: what the
@@ -54,6 +61,8 @@ const task = (
   companyName,
   projectRepoFolder: null,
   documentCount: 1,
+  stepCount: 0,
+  stepsDone: 0,
   hasWrapup: id === validator,
   anchor: `project:${projectLabel} task:${label}`,
   updatedAt: '2026-08-12T10:00:00Z'
@@ -125,6 +134,61 @@ const wrapups: Wrapup[] = [
   }
 ]
 
+/**
+ * A checklist on the task that also has a wrapup, half of it done. Both surfaces on one task is
+ * the case that matters: they answer different questions and neither can be read off the other.
+ */
+const steps: TaskStep[] = [
+  {
+    id: 's1' as TaskStepId,
+    taskId: validator,
+    title: 'Aggregate the rows',
+    bodyMarkdown: null,
+    done: true,
+    // Deliberately after the wrapup's own timestamp: "this step finished and the wrapup has
+    // not been rewritten since" is the state the console has to be able to report.
+    doneAt: '2026-08-12T13:30:00Z',
+    position: 0,
+    createdAt: '2026-08-12T10:00:00Z',
+    updatedAt: '2026-08-12T11:00:00Z'
+  },
+  {
+    id: 's2' as TaskStepId,
+    taskId: validator,
+    title: 'Write the tests',
+    bodyMarkdown: 'Un caso per settimana vuota.',
+    done: false,
+    doneAt: null,
+    position: 1,
+    createdAt: '2026-08-12T10:00:00Z',
+    updatedAt: '2026-08-12T10:00:00Z'
+  }
+]
+
+const createStep = vi.fn(async (taskId: TaskId, title: string) => ({
+  id: 's3' as TaskStepId,
+  taskId,
+  title,
+  bodyMarkdown: null,
+  done: false,
+  doneAt: null,
+  position: 2,
+  createdAt: '2026-08-12T16:00:00Z',
+  updatedAt: '2026-08-12T16:00:00Z'
+}))
+
+const patchStep = vi.fn(async (id: TaskStepId, patch: Partial<TaskStep>) => ({
+  ...steps.find((step) => step.id === id)!,
+  ...patch
+}))
+
+const moveStep = vi.fn(async () => [
+  { ...steps[1]!, position: 0 },
+  { ...steps[0]!, position: 1 }
+])
+
+const deleteStep = vi.fn(async () => undefined)
+
 const saveWrapup = vi.fn(async (_taskId: TaskId, bodyMarkdown: string) => ({
   ...wrapups[0]!,
   bodyMarkdown,
@@ -166,6 +230,14 @@ vi.mock('@/api/wrapups.api', () => ({
   deleteWrapup: (...args: unknown[]) => deleteWrapup(...(args as []))
 }))
 
+vi.mock('@/api/steps.api', () => ({
+  fetchSteps: vi.fn(async () => steps),
+  createStep: (...args: unknown[]) => createStep(...(args as [TaskId, string])),
+  patchStep: (...args: unknown[]) => patchStep(...(args as [TaskStepId, Partial<TaskStep>])),
+  moveStep: (...args: unknown[]) => moveStep(...(args as [])),
+  deleteStep: (...args: unknown[]) => deleteStep(...(args as []))
+}))
+
 vi.mock('@/api/time-entries.api', () => ({
   fetchTimeEntries: vi.fn(async () => []),
   startTimeEntry: vi.fn(),
@@ -181,6 +253,10 @@ describe('console store', () => {
     updateTask.mockClear()
     saveWrapup.mockClear()
     deleteWrapup.mockClear()
+    createStep.mockClear()
+    patchStep.mockClear()
+    moveStep.mockClear()
+    deleteStep.mockClear()
     setActivePinia(createPinia())
     store = useConsoleStore()
     await store.load()
@@ -462,6 +538,100 @@ describe('console store', () => {
 
       expect(updateTask).not.toHaveBeenCalled()
       expect(store.saveState).toBe('saved')
+    })
+  })
+
+  /**
+   * The question the description and the wrapup could not answer between them. A brief says what
+   * the work is and grows as it is redefined; a wrapup says what it became. What is left was
+   * being read out of the two by comparing them, which is what this replaces.
+   */
+  describe('the checklist', () => {
+    it('counts the steps ticked since the wrapup was last written', () => {
+      store.selectTask(validator)
+      expect(store.wrapupMissesSteps).toBe(1)
+
+      // Nothing to be behind of on a task with no wrapup, however much is ticked.
+      store.selectTask(retry)
+      expect(store.wrapupMissesSteps).toBe(0)
+    })
+
+    it('lists the steps of the task in view, in order, and counts what is open', () => {
+      store.selectTask(validator)
+
+      expect(store.selectedTaskSteps.map((step) => step.title)).toEqual([
+        'Aggregate the rows',
+        'Write the tests'
+      ])
+      expect(store.openStepCount).toBe(1)
+
+      // A task with no checklist reports none rather than the one belonging to the task before.
+      store.selectTask(retry)
+      expect(store.selectedTaskSteps).toHaveLength(0)
+      expect(store.openStepCount).toBe(0)
+    })
+
+    /** Ticking a box changes what the navigator says about the task, without reading it back. */
+    it('recounts the task row when a step is ticked', async () => {
+      store.selectTask(validator)
+      await store.toggleStep('s2' as TaskStepId)
+
+      expect(patchStep).toHaveBeenCalledWith('s2', { done: true })
+      expect(store.openStepCount).toBe(0)
+
+      const task = store.tasks.find((candidate) => candidate.id === validator)!
+      expect([task.stepCount, task.stepsDone]).toEqual([2, 2])
+    })
+
+    it('appends a new step to the end of the list it is added to', async () => {
+      store.selectTask(validator)
+      await store.addStep(validator, 'Wire the endpoint')
+
+      expect(createStep).toHaveBeenCalledWith(validator, 'Wire the endpoint', undefined)
+      expect(store.selectedTaskSteps.map((step) => step.title)).toEqual([
+        'Aggregate the rows',
+        'Write the tests',
+        'Wire the endpoint'
+      ])
+      expect(store.tasks.find((candidate) => candidate.id === validator)!.stepCount).toBe(3)
+    })
+
+    /**
+     * A move renumbers everything it displaced, so the whole list comes back and replaces the
+     * one held for that task. Writing back only the row that moved is how two steps end up
+     * claiming one position.
+     */
+    it('takes the whole reordered list back from a move', async () => {
+      store.selectTask(validator)
+      await store.moveStep('s2' as TaskStepId, 0)
+
+      expect(store.selectedTaskSteps.map((step) => step.title)).toEqual([
+        'Write the tests',
+        'Aggregate the rows'
+      ])
+    })
+
+    it('drops a deleted step and the count that included it', async () => {
+      store.selectTask(validator)
+      await store.removeStep('s1' as TaskStepId)
+
+      expect(deleteStep).toHaveBeenCalled()
+      expect(store.selectedTaskSteps.map((step) => step.title)).toEqual(['Write the tests'])
+      const task = store.tasks.find((candidate) => candidate.id === validator)!
+      expect([task.stepCount, task.stepsDone]).toEqual([1, 0])
+    })
+
+    /** Four surfaces, and the key that took you to one takes you back, the way W and D do. */
+    it('toggles its pane, and does nothing at all with no task in view', () => {
+      store.selectedTaskId = null
+      store.toggleSteps()
+      expect(store.paneFocus).toBe('note')
+
+      store.selectTask(validator)
+      store.toggleSteps()
+      expect(store.paneFocus).toBe('steps')
+      store.toggleSteps()
+      expect(store.paneFocus).toBe('note')
     })
   })
 })
