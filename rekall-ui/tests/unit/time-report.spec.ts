@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { periodRange } from '@/common/report/period'
 import { buildTimeReport, reportAsMarkdown } from '@/common/report/time-report'
-import type { Company, Task, TimeEntry } from '@/model/catalog'
-import type { CompanyId, ProjectId, TaskId, TimeEntryId } from '@/model/branded'
+import type { Company, Task, TaskStep, TimeEntry } from '@/model/catalog'
+import type { CompanyId, ProjectId, TaskId, TaskStepId, TimeEntryId } from '@/model/branded'
 
 /**
  * The regrouping the report page is: sessions in, one client's week out. Every rule worth
@@ -70,6 +70,23 @@ function session(taskId: TaskId, day: Date, hours: number, open = false): TimeEn
   }
 }
 
+let nextStep = 0
+
+/** One checklist row, ticked at a moment or still open. */
+function step(taskId: TaskId, title: string, doneAt: Date | null): TaskStep {
+  return {
+    id: `st${nextStep++}` as TaskStepId,
+    taskId,
+    title,
+    bodyMarkdown: null,
+    done: doneAt !== null,
+    doneAt: doneAt?.toISOString() ?? null,
+    position: nextStep,
+    createdAt: '',
+    updatedAt: ''
+  }
+}
+
 // The week of Monday 31 August 2026.
 const monday = new Date(2026, 7, 31)
 const wednesday = new Date(2026, 8, 2)
@@ -86,6 +103,7 @@ describe('buildTimeReport', () => {
         session(signal, monday, 3)
       ],
       tasks,
+      [],
       companies,
       range,
       now
@@ -107,6 +125,7 @@ describe('buildTimeReport', () => {
     const report = buildTimeReport(
       [session(builder, monday, 2), session(builder, wednesday, 1)],
       tasks,
+      [],
       companies,
       range,
       now
@@ -123,7 +142,14 @@ describe('buildTimeReport', () => {
 
   it('counts a session still running up to now, and says that it is', () => {
     // Opened at 09:00, read at 12:00.
-    const report = buildTimeReport([session(builder, wednesday, 0, true)], tasks, companies, range, now)
+    const report = buildTimeReport(
+      [session(builder, wednesday, 0, true)],
+      tasks,
+      [],
+      companies,
+      range,
+      now
+    )
 
     const row = report.companies[0]!.projects[0]!.tasks[0]!
     expect(row.totalSeconds).toBe(3 * 3600)
@@ -133,17 +159,71 @@ describe('buildTimeReport', () => {
   it('leaves out what falls outside the period', () => {
     const lastWeek = new Date(2026, 7, 24)
 
-    const report = buildTimeReport([session(builder, lastWeek, 5)], tasks, companies, range, now)
+    const report = buildTimeReport([session(builder, lastWeek, 5)], tasks, [], companies, range, now)
 
     expect(report.totalSeconds).toBe(0)
     expect(report.companies).toEqual([])
   })
 
+  it('lists the steps closed inside the period, oldest first, and counts the rest', () => {
+    const lastWeek = new Date(2026, 7, 24, 10, 0)
+
+    const report = buildTimeReport(
+      [session(builder, monday, 2)],
+      tasks,
+      [
+        step(builder, 'Group the sessions', new Date(2026, 8, 2, 16, 0)),
+        step(builder, 'Draw the ridge', new Date(2026, 7, 31, 11, 0)),
+        step(builder, 'Ship the export', null),
+        step(builder, 'Pick the period', lastWeek),
+        // Another task's checklist, to prove a row only carries its own.
+        step(retry, 'Back off twice', new Date(2026, 8, 1, 9, 0))
+      ],
+      companies,
+      range,
+      now
+    )
+
+    const row = report.companies[0]!.projects[0]!.tasks[0]!
+    expect(row.title).toBe('Report builder')
+    expect(row.closedSteps.map((closed) => closed.title)).toEqual([
+      'Draw the ridge',
+      'Group the sessions'
+    ])
+    expect(row.openStepCount).toBe(1)
+    expect(row.doneElsewhereCount).toBe(1)
+    expect(report.closedStepCount).toBe(2)
+  })
+
+  it('counts a step ticked before the column existed as done somewhere else', () => {
+    const report = buildTimeReport(
+      [session(builder, monday, 2)],
+      tasks,
+      [{ ...step(builder, 'Ticked long ago', null), done: true }],
+      companies,
+      range,
+      now
+    )
+
+    const row = report.companies[0]!.projects[0]!.tasks[0]!
+    expect(row.closedSteps).toEqual([])
+    expect(row.openStepCount).toBe(0)
+    expect(row.doneElsewhereCount).toBe(1)
+  })
+
   it('keeps only the companies picked, and reads no pick as all of them', () => {
     const entries = [session(builder, monday, 2), session(signal, monday, 3)]
 
-    const everything = buildTimeReport(entries, tasks, companies, range, now)
-    const onlyGlobex = buildTimeReport(entries, tasks, companies, range, now, new Set([globex]))
+    const everything = buildTimeReport(entries, tasks, [], companies, range, now)
+    const onlyGlobex = buildTimeReport(
+      entries,
+      tasks,
+      [],
+      companies,
+      range,
+      now,
+      new Set([globex])
+    )
 
     expect(everything.companies).toHaveLength(2)
     expect(onlyGlobex.companies.map((company) => company.name)).toEqual(['globex'])
@@ -155,7 +235,7 @@ describe('buildTimeReport', () => {
 
 describe('reportAsMarkdown', () => {
   it('carries the anchor of every task, so a line read back can be loaded again', () => {
-    const report = buildTimeReport([session(builder, monday, 2)], tasks, companies, range, now)
+    const report = buildTimeReport([session(builder, monday, 2)], tasks, [], companies, range, now)
 
     const markdown = reportAsMarkdown(report, range)
 
@@ -164,8 +244,28 @@ describe('reportAsMarkdown', () => {
     expect(markdown).toContain('- **2h** Report builder · `project:vega task:report-builder`')
   })
 
+  it('writes the steps closed under the task they belong to, and what it has left', () => {
+    const report = buildTimeReport(
+      [session(builder, monday, 2)],
+      tasks,
+      [
+        step(builder, 'Draw the ridge', new Date(2026, 7, 31, 11, 0)),
+        step(builder, 'Ship the export', null)
+      ],
+      companies,
+      range,
+      now
+    )
+
+    const markdown = reportAsMarkdown(report, range)
+
+    expect(markdown).toContain('across 1 task, closing 1 step.')
+    expect(markdown).toContain('  - [x] Draw the ridge · ')
+    expect(markdown).toContain('  - _1 step still open_')
+  })
+
   it('says so plainly when there is nothing in the period', () => {
-    const report = buildTimeReport([], tasks, companies, range, now)
+    const report = buildTimeReport([], tasks, [], companies, range, now)
 
     expect(reportAsMarkdown(report, range)).toContain('Nothing was tracked in this period.')
   })

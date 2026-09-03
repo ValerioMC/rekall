@@ -1,8 +1,17 @@
 import { dateKey } from '@/common/calendar/month-grid'
 import { formatDuration } from '@/common/format/duration'
+import { isWithin } from './period'
 import type { PeriodRange } from './period'
-import type { Company, Task, TimeEntry } from '@/model/catalog'
-import type { CompanyId, ProjectId, TaskId } from '@/model/branded'
+import type { Company, Task, TaskStep, TimeEntry } from '@/model/catalog'
+import type { CompanyId, ProjectId, TaskId, TaskStepId } from '@/model/branded'
+
+/** One step that was ticked inside the period: a piece of the task that got finished in it. */
+export interface ReportStepRow {
+  readonly stepId: TaskStepId
+  readonly title: string
+  /** When it was ticked. Always inside the period, which is why the row is here at all. */
+  readonly doneAt: Date
+}
 
 /** One task, and what it came to over the period. */
 export interface ReportTaskRow {
@@ -15,6 +24,18 @@ export interface ReportTaskRow {
   readonly isRunning: boolean
   /** Seconds on each day of the period, in the order the days come. */
   readonly perDaySeconds: readonly number[]
+  /**
+   * The steps ticked inside the period, oldest first.
+   *
+   * The hours say how long the task took; these say what came out of it. Ordered by the moment
+   * they were ticked rather than by their position in the checklist, because a report is read
+   * as a sequence of events and not as a plan.
+   */
+  readonly closedSteps: readonly ReportStepRow[]
+  /** Still open as the report was built: what this task has left. */
+  readonly openStepCount: number
+  /** Done, but ticked outside the period. Counted rather than listed: it happened elsewhere. */
+  readonly doneElsewhereCount: number
 }
 
 export interface ReportProjectRow {
@@ -50,6 +71,8 @@ export interface TimeReport {
   readonly busiestDay: ReportDay | null
   /** How many distinct tasks were worked on. The count the sentence above the table uses. */
   readonly taskCount: number
+  /** How many steps were ticked in the period, across every task in it. */
+  readonly closedStepCount: number
 }
 
 /**
@@ -64,10 +87,15 @@ export interface TimeReport {
  *
  * <p>`selected` empty means every company. A filter nobody has touched should show everything,
  * not nothing.
+ *
+ * <p>The checklists come in whole and are cut to the period here: a step counts as work done in
+ * the period when it was ticked inside it, which is the only claim a report can make about a
+ * flag that carries one date.
  */
 export function buildTimeReport(
   entries: readonly TimeEntry[],
   tasks: readonly Task[],
+  steps: readonly TaskStep[],
   companies: readonly Company[],
   range: PeriodRange,
   nowMs: number,
@@ -100,8 +128,9 @@ export function buildTimeReport(
     accumulate(accumulators, company, task, entry, seconds, index, range.days.length)
   }
 
+  const stepsByTask = groupSteps(steps, range)
   const companyRows = [...accumulators.values()]
-    .map((accumulator) => toCompanyRow(accumulator))
+    .map((accumulator) => toCompanyRow(accumulator, stepsByTask))
     .sort(byTotalDescending)
   const totalSeconds = companyRows.reduce((sum, row) => sum + row.totalSeconds, 0)
   const days = range.days.map((date, index) => toDay(date, perDay[index]!))
@@ -114,12 +143,16 @@ export function buildTimeReport(
     })),
     days,
     busiestDay: busiest(days),
-    taskCount: companyRows.reduce(
-      (count, company) =>
-        count + company.projects.reduce((tasksSoFar, project) => tasksSoFar + project.tasks.length, 0),
+    taskCount: everyTask(companyRows).length,
+    closedStepCount: everyTask(companyRows).reduce(
+      (count, task) => count + task.closedSteps.length,
       0
     )
   }
+}
+
+function everyTask(companies: readonly ReportCompanyRow[]): readonly ReportTaskRow[] {
+  return companies.flatMap((company) => company.projects.flatMap((project) => project.tasks))
 }
 
 // ------------------------------------------------------------------ assembly
@@ -190,10 +223,78 @@ function accumulate(
   row.perDaySeconds[dayIndex] = (row.perDaySeconds[dayIndex] ?? 0) + seconds
 }
 
-function toCompanyRow(accumulator: CompanyAccumulator): ReportCompanyRow {
+/**
+ * What one task's checklist says about this period: what closed in it, and what it left behind.
+ *
+ * <p>A step ticked before or after the span is counted and not named. It is true of the task
+ * and not of the week, and a report that listed it would be claiming work in a period it did
+ * not happen in.
+ */
+interface StepSummary {
+  readonly closed: readonly ReportStepRow[]
+  readonly openCount: number
+  readonly doneElsewhereCount: number
+}
+
+const NO_STEPS: StepSummary = { closed: [], openCount: 0, doneElsewhereCount: 0 }
+
+function groupSteps(
+  steps: readonly TaskStep[],
+  range: PeriodRange
+): Map<TaskId, StepSummary> {
+  const byTask = new Map<TaskId, { closed: ReportStepRow[]; openCount: number; doneElsewhereCount: number }>()
+
+  for (const step of steps) {
+    let summary = byTask.get(step.taskId)
+    if (!summary) {
+      summary = { closed: [], openCount: 0, doneElsewhereCount: 0 }
+      byTask.set(step.taskId, summary)
+    }
+
+    if (!step.done) {
+      summary.openCount += 1
+      continue
+    }
+
+    // A step ticked before the column existed has no moment to place it in, and a report cannot
+    // date it by guessing. It counts as done somewhere else.
+    const doneAt = step.doneAt ? new Date(step.doneAt) : null
+    if (!doneAt || !isWithin(range, doneAt)) {
+      summary.doneElsewhereCount += 1
+      continue
+    }
+    summary.closed.push({ stepId: step.id, title: step.title, doneAt })
+  }
+
+  for (const summary of byTask.values()) {
+    summary.closed.sort((a, b) => a.doneAt.getTime() - b.doneAt.getTime())
+  }
+  return byTask
+}
+
+function toTaskRow(accumulator: TaskAccumulator, steps: StepSummary): ReportTaskRow {
+  return {
+    taskId: accumulator.taskId,
+    title: accumulator.title,
+    anchor: accumulator.anchor,
+    totalSeconds: accumulator.totalSeconds,
+    isRunning: accumulator.isRunning,
+    perDaySeconds: accumulator.perDaySeconds,
+    closedSteps: steps.closed,
+    openStepCount: steps.openCount,
+    doneElsewhereCount: steps.doneElsewhereCount
+  }
+}
+
+function toCompanyRow(
+  accumulator: CompanyAccumulator,
+  stepsByTask: Map<TaskId, StepSummary>
+): ReportCompanyRow {
   const projects = [...accumulator.projects.values()]
     .map((project) => {
-      const tasks = [...project.tasks.values()].sort(byTotalDescending)
+      const tasks = [...project.tasks.values()]
+        .sort(byTotalDescending)
+        .map((task) => toTaskRow(task, stepsByTask.get(task.taskId) ?? NO_STEPS))
       return {
         projectId: project.projectId,
         label: project.label,
@@ -252,7 +353,13 @@ function elapsedSeconds(entry: TimeEntry, nowMs: number): number {
  */
 export function reportAsMarkdown(report: TimeReport, range: PeriodRange): string {
   const lines: string[] = [`# ${range.period === 'week' ? 'Week' : 'Month'} of ${range.label}`, '']
-  lines.push(`**${formatDuration(report.totalSeconds)}** across ${countOf(report.taskCount, 'task')}.`)
+  const closed =
+    report.closedStepCount === 0
+      ? ''
+      : `, closing ${countOf(report.closedStepCount, 'step')}`
+  lines.push(
+    `**${formatDuration(report.totalSeconds)}** across ${countOf(report.taskCount, 'task')}${closed}.`
+  )
 
   for (const company of report.companies) {
     lines.push('', `## ${company.name} · ${formatDuration(company.totalSeconds)}`)
@@ -260,6 +367,13 @@ export function reportAsMarkdown(report: TimeReport, range: PeriodRange): string
       lines.push('', `### ${project.title} · ${formatDuration(project.totalSeconds)}`)
       for (const task of project.tasks) {
         lines.push(`- **${formatDuration(task.totalSeconds)}** ${task.title} · \`${task.anchor}\``)
+        // Checkboxes rather than bullets: the steps under a task are a record of what was
+        // finished, and every renderer this gets pasted into draws them as one.
+        for (const step of task.closedSteps) {
+          lines.push(`  - [x] ${step.title} · ${stepDay(step.doneAt)}`)
+        }
+        const tail = stepTail(task)
+        if (tail) lines.push(`  - _${tail}_`)
       }
     }
   }
@@ -268,6 +382,26 @@ export function reportAsMarkdown(report: TimeReport, range: PeriodRange): string
     lines.push('', 'Nothing was tracked in this period.')
   }
   return `${lines.join('\n')}\n`
+}
+
+/**
+ * What the checklist has left, in the one sentence the screen and the export both use.
+ *
+ * Null when the task has no steps beyond the ones already listed, because a row saying nothing
+ * is left is a row saying nothing.
+ */
+export function stepTail(task: ReportTaskRow): string | null {
+  const parts: string[] = []
+  if (task.openStepCount > 0) parts.push(`${countOf(task.openStepCount, 'step')} still open`)
+  if (task.doneElsewhereCount > 0) {
+    parts.push(`${task.doneElsewhereCount} done outside this period`)
+  }
+  return parts.length === 0 ? null : parts.join(' · ')
+}
+
+/** The day a step was ticked, short enough to sit at the end of its row: `Tue 1`. */
+export function stepDay(date: Date): string {
+  return date.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })
 }
 
 function countOf(count: number, noun: string): string {

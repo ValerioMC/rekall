@@ -38,12 +38,21 @@ const period = ref<ReportPeriod>('week')
 const anchor = ref(new Date())
 const selected = ref<ReadonlySet<CompanyId>>(new Set())
 
+/**
+ * Whether the rows open on what they closed.
+ *
+ * On, because the hours alone are what a report used to be and the steps are why anyone opens
+ * this screen twice. Off is for the month someone is scanning for a number.
+ */
+const showSteps = ref(true)
+
 const range = computed(() => periodRange(period.value, anchor.value))
 
 const report = computed(() =>
   buildTimeReport(
     store.timeEntries,
     store.tasks,
+    store.steps,
     store.companies,
     range.value,
     now.value,
@@ -53,7 +62,14 @@ const report = computed(() =>
 
 /** Every company that has time in this period, filter or no filter, so the chips do not vanish. */
 const wholePeriod = computed(() =>
-  buildTimeReport(store.timeEntries, store.tasks, store.companies, range.value, now.value)
+  buildTimeReport(
+    store.timeEntries,
+    store.tasks,
+    store.steps,
+    store.companies,
+    range.value,
+    now.value
+  )
 )
 
 const chips = computed(() =>
@@ -130,6 +146,23 @@ async function copyAnchor(taskAnchor: string): Promise<void> {
             {{ option }}
           </button>
         </div>
+        <button
+          class="focus-ring flex h-7 shrink-0 items-center gap-1.5 rounded-[8px] border px-2.5 text-[12px] transition-colors"
+          :class="
+            showSteps
+              ? 'border-border-strong bg-surface-raised text-text'
+              : 'border-border bg-canvas text-text-subtle hover:text-text'
+          "
+          :aria-pressed="showSteps"
+          data-testid="report-steps-toggle"
+          @click="showSteps = !showSteps"
+        >
+          <svg class="size-3" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+            <path d="M1.2 3.4 2.6 4.8l2.4-2.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M6.8 3.6h4M6.8 8.4h4M1.4 8.4h3.4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
+          </svg>
+          Steps
+        </button>
         <AppButton size="sm" variant="secondary" data-testid="report-copy" @click="copyReport">
           Copy as markdown
         </AppButton>
@@ -153,6 +186,10 @@ async function copyAnchor(taskAnchor: string): Promise<void> {
               {{ report.taskCount }} {{ report.taskCount === 1 ? 'task' : 'tasks' }},
               {{ report.companies.length }}
               {{ report.companies.length === 1 ? 'company' : 'companies' }}
+              <template v-if="report.closedStepCount > 0">
+                · {{ report.closedStepCount }}
+                {{ report.closedStepCount === 1 ? 'step' : 'steps' }} closed
+              </template>
               <template v-if="report.busiestDay && report.busiestDay.totalSeconds > 0">
                 · {{ formatDuration(report.busiestDay.totalSeconds) }} on the busiest day
               </template>
@@ -244,6 +281,8 @@ async function copyAnchor(taskAnchor: string): Promise<void> {
         v-for="company in report.companies"
         :key="company.companyId"
         :company="company"
+        :period="period"
+        :steps-open="showSteps"
         @copy-anchor="copyAnchor"
       />
 

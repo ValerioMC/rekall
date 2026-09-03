@@ -329,10 +329,17 @@ hours: which day carried the week, and who it went to, before a single row is re
 section per company, its projects, its tasks, and what each task came to, with the days it ran on
 beside it.
 
+Every task row opens on the steps it closed inside the period, oldest first, with the day each
+was ticked and a line saying how many are still open. Hours say how long the work took; the steps
+say what came out of it. A step ticked outside the period is counted there and not named, because
+it is true of the task and not of the week. **Steps** in the header folds every list away for a
+month someone is scanning for a number, and the caret on a row folds that one back.
+
 The chips narrow it to the companies you pick. No pick means all of them.
 
-**Copy as markdown** puts the whole report on the clipboard with every task's anchor intact, so a
-line in an invoice or a status mail is still one `/rk` away from the work behind it.
+**Copy as markdown** puts the whole report on the clipboard with every task's anchor and its
+closed steps intact, so a line in an invoice or a status mail is still one `/rk` away from the
+work behind it.
 
 Nothing on this screen is typed in. It is the sessions the timer already recorded, regrouped,
 which is the only reason a report like this is ever true. A session counts on the day it started,

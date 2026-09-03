@@ -5,8 +5,8 @@ import type { DOMWrapper, VueWrapper } from '@vue/test-utils'
 import ReportPage from '@/components/report/ReportPage.vue'
 import { router } from '@/router'
 import { useConsoleStore } from '@/stores/console.store'
-import type { Company, Task, TimeEntry } from '@/model/catalog'
-import type { CompanyId, ProjectId, TaskId, TimeEntryId } from '@/model/branded'
+import type { Company, Task, TaskStep, TimeEntry } from '@/model/catalog'
+import type { CompanyId, ProjectId, TaskId, TaskStepId, TimeEntryId } from '@/model/branded'
 
 /**
  * The report as a screen: the frame it opens on, what a company filter does to it, and what it
@@ -78,6 +78,32 @@ function session(id: string, taskId: TaskId, day: number, hours: number): TimeEn
   }
 }
 
+/** The checklist of the report builder: one step ticked in the week, one still open. */
+const steps: TaskStep[] = [
+  {
+    id: 's1' as TaskStepId,
+    taskId: builder,
+    title: 'Group the sessions by company',
+    bodyMarkdown: null,
+    done: true,
+    doneAt: new Date(2026, 8, 1, 17, 0).toISOString(),
+    position: 0,
+    createdAt: '',
+    updatedAt: ''
+  },
+  {
+    id: 's2' as TaskStepId,
+    taskId: builder,
+    title: 'Ship the markdown export',
+    bodyMarkdown: null,
+    done: false,
+    doneAt: null,
+    position: 1,
+    createdAt: '',
+    updatedAt: ''
+  }
+]
+
 /** Typed with its argument, so the assertion below reads the text that was copied. */
 const writeText = vi.fn(async (text: string) => void text)
 
@@ -89,6 +115,14 @@ function chipFor(wrapper: VueWrapper, name: string): DOMWrapper<Element> {
   return chip
 }
 
+function taskRowFor(wrapper: VueWrapper, title: string): DOMWrapper<Element> {
+  const row = wrapper
+    .findAll('[data-testid="report-task"]')
+    .find((candidate) => candidate.text().includes(title))
+  if (!row) throw new Error(`No row for ${title}`)
+  return row
+}
+
 async function mountReport() {
   setActivePinia(createPinia())
   const store = useConsoleStore()
@@ -96,6 +130,7 @@ async function mountReport() {
   store.tasks = tasks
   // 2h on Tuesday for acme, 3h on Wednesday for globex.
   store.timeEntries = [session('te1', builder, 1, 2), session('te2', signal, 2, 3)]
+  store.steps = steps
   await router.push('/report')
   const wrapper = mount(ReportPage, { global: { plugins: [router] } })
   await flushPromises()
@@ -168,6 +203,35 @@ describe('ReportPage', () => {
     expect(wrapper.findAll('[data-testid="ridge-column"]')).toHaveLength(30)
   })
 
+  it('opens the task row on the steps it closed, and says what it has left', async () => {
+    const wrapper = await mountReport()
+
+    // By title: the rows are ordered by how much time each one took, and globex tracked more.
+    const reportBuilder = taskRowFor(wrapper, 'Report builder')
+    expect(reportBuilder.get('[data-testid="report-step"]').text()).toContain(
+      'Group the sessions by company'
+    )
+    expect(reportBuilder.get('[data-testid="report-step-footnote"]').text()).toBe(
+      '1 step still open'
+    )
+
+    // The other task has no checklist at all, so it has nothing to open.
+    const signalIngest = taskRowFor(wrapper, 'Signal ingest')
+    expect(signalIngest.find('[data-testid="report-task-steps"]').exists()).toBe(false)
+  })
+
+  it('folds every checklist away, and one row back open against it', async () => {
+    const wrapper = await mountReport()
+
+    await wrapper.get('[data-testid="report-steps-toggle"]').trigger('click')
+
+    expect(wrapper.findAll('[data-testid="report-step"]')).toHaveLength(0)
+
+    await wrapper.get('[data-testid="report-steps-toggle-task"]').trigger('click')
+
+    expect(wrapper.findAll('[data-testid="report-step"]')).toHaveLength(1)
+  })
+
   it('hands the report over as markdown, anchors and all', async () => {
     const wrapper = await mountReport()
 
@@ -177,5 +241,6 @@ describe('ReportPage', () => {
     const markdown = writeText.mock.calls[0]![0]
     expect(markdown).toContain('## acme · 2h')
     expect(markdown).toContain('`project:beacon task:signal-ingest`')
+    expect(markdown).toContain('  - [x] Group the sessions by company · ')
   })
 })
