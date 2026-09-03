@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { MdEditor, MdPreview, type ToolbarNames } from 'md-editor-v3'
+import { computed, onBeforeUnmount, ref, useId } from 'vue'
+import { MdEditor, MdPreview, type ExposeParam, type ToolbarNames } from 'md-editor-v3'
 import '@/common/config/markdown-editor'
 
 /**
@@ -35,6 +35,28 @@ const body = computed({
   get: () => props.modelValue,
   set: (value: string) => emit('update:modelValue', value)
 })
+
+/**
+ * The editor is unmounted every time a pane is swapped, and md-editor-v3 6.5.6 builds its
+ * CodeMirror view in `onMounted` without ever destroying it: the view keeps its document-level
+ * listeners, and through them the whole detached editor DOM. Roughly three thousand nodes and a
+ * megabyte per swap in Chrome, five megabytes in the WebKit view the macOS app runs in, which
+ * is how a window left open all day reaches hundreds of megabytes. Until the library does it,
+ * the view is destroyed here.
+ */
+const editor = ref<ExposeParam | null>(null)
+
+onBeforeUnmount(() => editor.value?.getEditorView()?.destroy())
+
+/**
+ * One id per instance, the way the library assigns them when none is given.
+ *
+ * The id is what md-editor-v3 keys its global event bus on and what it puts on the root
+ * element. Two previews on screen at once, which the steps pane does whenever more than one
+ * step is open in read mode, shared one id: duplicate ids in the document, and unmounting any
+ * one of them cleared the bus entries of the others, because the library's unmount clears by id.
+ */
+const editorId = `rekall-md-${useId()}`
 
 /**
  * Everything here is satisfied by code bundled with the application.
@@ -75,7 +97,7 @@ const TOOLBARS: ToolbarNames[] = [
     <MdPreview
       v-if="readonly"
       :model-value="modelValue"
-      editor-id="rekall-preview"
+      :editor-id="editorId"
       theme="dark"
       preview-theme="github"
       code-theme="atom"
@@ -86,8 +108,9 @@ const TOOLBARS: ToolbarNames[] = [
     />
     <MdEditor
       v-else
+      ref="editor"
       v-model="body"
-      editor-id="rekall-editor"
+      :editor-id="editorId"
       language="en-US"
       theme="dark"
       preview-theme="github"
