@@ -584,9 +584,13 @@ onUnmounted(flush)
       </div>
 
       <!-- The end of the list, wherever the list has scrolled to. A step is always appended, so
-           the field that adds one sits where the next one will land. -->
+           the field that adds one sits where the next one will land.
+
+           `dock-lane-safe` is what keeps it usable while a timer runs: this bar ends in the
+           corner the running dock floats in, and without the reserved lane the pill sits on the
+           Add button. -->
       <form
-        class="flex shrink-0 items-center gap-2 border-t border-border bg-surface px-5 py-3"
+        class="dock-lane-safe flex shrink-0 items-center gap-2 border-t border-border bg-surface py-3 pl-5"
         @submit.prevent="add"
       >
         <span

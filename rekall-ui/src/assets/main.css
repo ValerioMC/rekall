@@ -257,6 +257,26 @@
   );
 }
 
+/*
+ * The bottom right corner, shared rather than taken.
+ *
+ * The running dock is fixed to it and publishes what it occupies as `--dock-lane-width` and
+ * `--dock-lane-height` (see `useDockLane`); both are absent while nothing is running. A bar
+ * that ends in that corner wears this and its right edge opens by exactly the pill, so no
+ * control of its own is ever underneath one. `max` rather than a sum: the lane already carries
+ * the window gutter, and adding the two would leave a hole twice the size of the pill.
+ */
+@utility dock-lane-safe {
+  padding-right: max(var(--dock-lane-gutter, 20px), var(--dock-lane-width, 0px));
+  transition: padding-right 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* The same deal on the other axis, for what stacks upwards out of that corner. */
+@utility dock-lane-above {
+  bottom: max(var(--dock-lane-gutter, 24px), var(--dock-lane-height, 0px));
+  transition: bottom 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 /* Placeholder shape for content that has not arrived, so the layout never jumps. */
 @utility skeleton {
   background: linear-gradient(

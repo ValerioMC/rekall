@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
+import { useDockLane } from '@/composables/useDockLane'
 import { useNow } from '@/composables/useNow'
 import { formatClock } from '@/common/format/duration'
 import { identityHue } from '@/common/identity'
@@ -14,14 +15,20 @@ import type { TaskId } from '@/model/branded'
  * Every task being worked right now, reachable and stoppable from any screen.
  *
  * Parallel timers only earn their keep if you can see them all at a glance without going back
- * to the task that started them — this is that glance. It renders nothing while nothing is
+ * to the task that started them, and this is that glance. It renders nothing while nothing is
  * running, so it never competes for attention on a quiet day.
+ *
+ * Floating over the application is what makes it reachable from every screen and is also how it
+ * came to sit on the step composer's Add button. It now measures itself into `useDockLane`, so
+ * the corner is shared rather than taken, and rides 10px off the bottom: the height of the
+ * composer's own padding, which puts the pill and that button on one line instead of stacked.
  */
 const store = useConsoleStore()
 const { runningEntries } = storeToRefs(store)
 const { run } = useAsyncAction()
 const router = useRouter()
 const now = useNow()
+const pill = useDockLane()
 
 const expanded = ref(false)
 
@@ -53,7 +60,7 @@ function jumpTo(taskId: TaskId): void {
 <template>
   <div
     v-if="runningEntries.length"
-    class="fixed bottom-4 right-4 z-(--z-sticky) flex flex-col items-end gap-2"
+    class="fixed bottom-2.5 right-4 z-(--z-sticky) flex flex-col items-end gap-2"
     data-testid="running-dock"
   >
     <div
@@ -110,7 +117,10 @@ function jumpTo(taskId: TaskId): void {
       </ul>
     </div>
 
+    <!-- The pill alone carries the ref: it is the part that is always on screen, and so the
+         part the rest of the interface has to leave room for. -->
     <button
+      ref="pill"
       class="focus-ring glass flex h-10 items-center gap-2.5 rounded-full border border-border-strong pl-2.5 pr-3.5 shadow-lift transition-colors hover:border-accent/60"
       data-testid="running-dock-toggle"
       :aria-expanded="expanded"
