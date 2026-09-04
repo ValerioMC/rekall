@@ -349,7 +349,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
         <template v-if="parentOptions.length">
           <label
             for="record-parent"
-            class="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.09em] text-text-subtle"
+            class="mb-1.5 block eyebrow text-[11px]"
           >
             {{ parentLabel }}
           </label>
@@ -367,7 +367,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
 
         <label
           for="record-title"
-          class="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.09em] text-text-subtle"
+          class="mb-1.5 block eyebrow text-[11px]"
         >
           Title
         </label>
@@ -393,7 +393,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
         <template v-if="hasLabel">
           <label
             for="record-label"
-            class="mb-1.5 mt-5 block text-[11px] font-semibold uppercase tracking-[0.09em] text-text-subtle"
+            class="mb-1.5 mt-5 block eyebrow text-[11px]"
           >
             Label
           </label>
@@ -436,7 +436,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
                  Both spans sit on one line so the separating space survives into the text. -->
             <span v-if="anchorParent" class="text-anchor/60">{{ anchorParent }}</span> <span class="text-anchor">{{ anchorSelf || '…' }}</span>
           </span>
-          <span class="shrink-0 text-[10.5px] uppercase tracking-[0.09em] text-text-subtle">
+          <span class="shrink-0 eyebrow font-normal">
             loads this
           </span>
         </div>
@@ -451,7 +451,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
         </p>
 
         <template v-if="hasLabel">
-          <p class="mb-1.5 mt-5 text-[11px] font-semibold uppercase tracking-[0.09em] text-text-subtle">
+          <p class="mb-1.5 mt-5 eyebrow text-[11px]">
             Status
           </p>
           <div class="flex flex-wrap gap-1.5">
@@ -475,7 +475,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
 
         <label
           for="record-description"
-          class="mb-1.5 mt-5 block text-[11px] font-semibold uppercase tracking-[0.09em] text-text-subtle"
+          class="mb-1.5 mt-5 block eyebrow text-[11px]"
         >
           Description
         </label>

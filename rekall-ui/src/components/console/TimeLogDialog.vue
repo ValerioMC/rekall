@@ -173,7 +173,7 @@ onUnmounted(() => {
         </p>
 
         <div v-for="group in groups" :key="group.label" class="mb-4 last:mb-0">
-          <p class="mb-1.5 text-[10.5px] font-semibold uppercase tracking-[0.09em] text-text-subtle">
+          <p class="mb-1.5 eyebrow">
             {{ group.label }}
           </p>
 
@@ -251,7 +251,7 @@ onUnmounted(() => {
       </div>
 
       <footer class="flex items-center justify-between border-t border-border bg-canvas px-6 py-3.5">
-        <span class="text-[11px] uppercase tracking-[0.09em] text-text-subtle">Total tracked</span>
+        <span class="eyebrow text-[11px] font-normal">Total tracked</span>
         <span class="font-mono text-[16px] font-semibold text-accent">
           {{ formatDuration(totalSeconds) }}
         </span>

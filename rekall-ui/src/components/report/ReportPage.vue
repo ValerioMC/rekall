@@ -173,7 +173,7 @@ async function copyAnchor(taskAnchor: string): Promise<void> {
       <AppCard :padded="false">
         <div class="flex flex-wrap items-end justify-between gap-4 px-5 pb-4 pt-5">
           <div class="min-w-0">
-            <p class="text-[10px] font-semibold uppercase tracking-[0.09em] text-text-subtle">
+            <p class="eyebrow">
               Tracked this {{ period }}
             </p>
             <p
@@ -241,7 +241,7 @@ async function copyAnchor(taskAnchor: string): Promise<void> {
       </AppCard>
 
       <div v-if="chips.length" class="flex flex-wrap items-center gap-2" data-testid="report-filter">
-        <span class="mr-1 text-[11px] font-semibold uppercase tracking-[0.09em] text-text-subtle">
+        <span class="mr-1 eyebrow text-[11px]">
           Companies
         </span>
         <button

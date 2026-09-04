@@ -152,7 +152,7 @@ onUnmounted(() => {
       </header>
 
       <div class="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-        <p class="mb-3 text-[11px] font-semibold uppercase tracking-[0.09em] text-text-subtle">Database</p>
+        <p class="mb-3 eyebrow text-[11px]">Database</p>
 
         <RestartingOverlay v-if="phase === 'restarting'" />
 

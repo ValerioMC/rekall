@@ -130,7 +130,7 @@ async function confirmDelete(): Promise<void> {
     <!-- Nothing open: the landing state is what you were last writing, not an empty page. -->
     <div v-if="!selectedDocument" class="min-h-0 flex-1 overflow-y-auto">
       <div class="max-w-[640px] px-9 py-12">
-        <p class="text-[10px] font-semibold uppercase tracking-[0.09em] text-text-subtle">
+        <p class="eyebrow">
           Continue
         </p>
         <h2 class="mb-1.5 mt-1.5 text-[26px] font-semibold leading-tight tracking-[-0.025em] text-text">
@@ -234,7 +234,7 @@ async function confirmDelete(): Promise<void> {
 
       <!-- The many-to-many made visible, and reachable. -->
       <div class="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-surface px-5 py-2.5">
-        <span class="text-[10px] font-semibold uppercase tracking-[0.09em] text-text-subtle">
+        <span class="eyebrow">
           On {{ selectedDocument.tasks.length }}
           task{{ selectedDocument.tasks.length === 1 ? '' : 's' }}
         </span>

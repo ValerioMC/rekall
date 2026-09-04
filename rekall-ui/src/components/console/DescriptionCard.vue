@@ -30,7 +30,7 @@ const hasBody = computed(() => (props.description ?? '').trim().length > 0)
       hasBody
         ? 'border-border-strong bg-surface-raised hover:border-text-subtle'
         : 'border-dashed border-border-strong bg-transparent hover:border-accent hover:bg-accent-soft',
-      selected && 'border-accent bg-surface-raised shadow-lift'
+      selected && 'selected-card'
     ]"
     :aria-current="selected"
     @click="emit('open')"
@@ -57,7 +57,7 @@ const hasBody = computed(() => (props.description ?? '').trim().length > 0)
           stroke-linecap="round"
         />
       </svg>
-      <span class="text-[10px] font-semibold uppercase tracking-[0.09em] text-text-subtle">
+      <span class="eyebrow">
         Description
       </span>
     </span>

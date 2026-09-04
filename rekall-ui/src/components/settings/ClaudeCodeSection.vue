@@ -118,7 +118,7 @@ onMounted(() => void load())
 
 <template>
   <section data-testid="claude-section">
-    <p class="mb-3 text-[11px] font-semibold uppercase tracking-[0.09em] text-text-subtle">Claude Code</p>
+    <p class="mb-3 eyebrow text-[11px]">Claude Code</p>
 
     <div v-if="loading" class="skeleton h-20 rounded-[var(--radius-control)]" aria-hidden="true" />
 

@@ -178,7 +178,7 @@ async function confirmDelete(): Promise<void> {
 
       <div v-else class="flex flex-col gap-7">
         <section v-for="group in groups" :key="group.company.id">
-          <h2 class="mb-2 text-[11px] font-semibold uppercase tracking-[0.09em] text-text-subtle">
+          <h2 class="mb-2 eyebrow text-[11px]">
             {{ group.company.name }}
           </h2>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

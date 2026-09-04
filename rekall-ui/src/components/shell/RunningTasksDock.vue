@@ -68,7 +68,7 @@ function jumpTo(taskId: TaskId): void {
       class="rise w-[300px] overflow-hidden rounded-[var(--radius-card)] border border-border-strong bg-surface shadow-modal"
     >
       <header class="flex items-center justify-between border-b border-border px-3.5 py-2.5">
-        <span class="text-[11px] font-semibold uppercase tracking-[0.09em] text-text-subtle">
+        <span class="eyebrow text-[11px]">
           Running now
         </span>
         <button

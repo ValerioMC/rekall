@@ -43,7 +43,7 @@ const writtenBy = computed(() =>
         wrapup
           ? 'border-border-strong bg-surface-raised hover:border-text-subtle'
           : 'border-dashed border-border-strong bg-transparent hover:border-accent hover:bg-accent-soft',
-        selected && 'border-accent bg-surface-raised shadow-lift'
+        selected && 'selected-card'
       ]"
       :aria-current="selected"
       @click="emit('open')"
@@ -63,7 +63,7 @@ const writtenBy = computed(() =>
             stroke-linejoin="round"
           />
         </svg>
-        <span class="text-[10px] font-semibold uppercase tracking-[0.09em] text-text-subtle">
+        <span class="eyebrow">
           Wrapup
         </span>
         <span
@@ -125,7 +125,7 @@ const writtenBy = computed(() =>
     <!-- The rule is what says the list below is a different kind of thing. -->
     <div class="mt-2 flex items-center gap-2 px-1">
       <span class="h-px flex-1 bg-border" aria-hidden="true" />
-      <span class="text-[9.5px] font-semibold uppercase tracking-[0.09em] text-text-subtle">
+      <span class="eyebrow text-[9.5px]">
         Notes
       </span>
       <span class="h-px flex-1 bg-border" aria-hidden="true" />

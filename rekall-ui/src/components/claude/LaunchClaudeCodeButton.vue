@@ -185,7 +185,7 @@ async function launch(): Promise<void> {
       :style="previewStyle"
       role="tooltip"
     >
-      <p class="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.09em] text-text-subtle">
+      <p class="flex items-center gap-1.5 eyebrow">
         <span
           class="size-1.5 shrink-0 rounded-full"
           :class="folder ? 'bg-safe' : 'bg-warn'"

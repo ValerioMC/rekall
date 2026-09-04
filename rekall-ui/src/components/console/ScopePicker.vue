@@ -6,6 +6,7 @@ import RecordDialog from '@/components/console/RecordDialog.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { companyDraft, projectDraft } from '@/model/record-draft'
 import { identityHue } from '@/common/identity'
+import { PROJECT_STATUS_LABEL } from '@/model/catalog'
 import type { RecordDraft } from '@/model/record-draft'
 import type { Company, Project } from '@/model/catalog'
 import type { CompanyId, ProjectId } from '@/model/branded'
@@ -136,7 +137,7 @@ defineExpose({ newCompany, newProject })
             @click="pick(company.id)"
           >
             <span
-              class="min-w-0 flex-1 truncate text-[11px] font-semibold uppercase tracking-[0.09em]"
+              class="min-w-0 flex-1 truncate eyebrow text-[11px]"
             >
               {{ company.name }}
             </span>
@@ -184,9 +185,9 @@ defineExpose({ newCompany, newProject })
             </span>
             <span
               v-if="project.status !== 'ACTIVE'"
-              class="shrink-0 rounded border border-border-strong px-1 py-px text-[9.5px] uppercase tracking-[0.06em] text-text-subtle"
+              class="shrink-0 rounded border border-border-strong px-1 py-px text-[9.5px] font-medium tracking-[0.01em] text-text-subtle"
             >
-              {{ project.status }}
+              {{ PROJECT_STATUS_LABEL[project.status] }}
             </span>
             <span class="shrink-0 font-mono text-[11px] text-text-subtle">
               {{ project.taskCount }}

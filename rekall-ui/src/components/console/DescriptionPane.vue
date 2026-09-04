@@ -146,7 +146,8 @@ onUnmounted(() => {
 
         <header class="relative flex items-start gap-3.5 px-5 py-3.5">
           <div class="min-w-0 flex-1">
-            <p class="text-[10px] font-semibold uppercase tracking-[0.09em] text-text-subtle">
+            <p class="eyebrow flex items-center gap-1.5">
+              <span class="h-2.5 w-[3px] shrink-0 rounded-full bg-accent" aria-hidden="true" />
               Description
             </p>
             <h2 class="truncate text-[19px] font-semibold tracking-[-0.015em] text-text">
@@ -211,7 +212,7 @@ onUnmounted(() => {
            description, the wrapup and a note are easiest to confuse. -->
       <div v-if="!showEditor" class="min-h-0 flex-1 overflow-y-auto">
         <div class="max-w-[620px] px-9 py-12">
-          <p class="text-[10px] font-semibold uppercase tracking-[0.09em] text-text-subtle">
+          <p class="eyebrow">
             Description
           </p>
           <h2 class="mb-1.5 mt-1.5 text-[26px] font-semibold leading-tight tracking-[-0.025em] text-text">

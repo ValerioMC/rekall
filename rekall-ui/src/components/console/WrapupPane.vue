@@ -119,7 +119,8 @@ async function confirmDelete(): Promise<void> {
     <template v-else>
       <header class="flex shrink-0 items-start gap-3.5 border-b border-border px-5 py-3.5">
         <div class="min-w-0 flex-1">
-          <p class="text-[10px] font-semibold uppercase tracking-[0.09em] text-text-subtle">
+          <p class="eyebrow flex items-center gap-1.5">
+            <span class="h-2.5 w-[3px] shrink-0 rounded-full bg-accent" aria-hidden="true" />
             Wrapup
           </p>
           <h2 class="truncate text-[19px] font-semibold tracking-[-0.015em] text-text">
@@ -219,7 +220,7 @@ async function confirmDelete(): Promise<void> {
       <!-- Nothing written yet. The primary path is Claude, so that is what the page leads with. -->
       <div v-if="!selectedWrapup && !isDrafting" class="min-h-0 flex-1 overflow-y-auto">
         <div class="max-w-[560px] px-9 py-12">
-          <p class="text-[10px] font-semibold uppercase tracking-[0.09em] text-text-subtle">
+          <p class="eyebrow">
             Wrapup
           </p>
           <h2 class="mb-1.5 mt-1.5 text-[26px] font-semibold leading-tight tracking-[-0.025em] text-text">

@@ -86,7 +86,7 @@ onMounted(async () => {
           <p v-if="error" class="mb-4 text-[12.5px] text-danger" role="alert">{{ error }}</p>
 
           <template v-if="otherReachable.length && !addingNew">
-            <p class="mb-2 text-[11px] font-semibold uppercase tracking-[0.09em] text-text-subtle">
+            <p class="mb-2 eyebrow text-[11px]">
               Other databases
             </p>
             <ul class="mb-5 space-y-2">

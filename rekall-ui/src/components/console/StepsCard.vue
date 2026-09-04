@@ -33,7 +33,7 @@ const hasSteps = computed(() => props.steps.length > 0)
       hasSteps
         ? 'border-border-strong bg-surface-raised hover:border-text-subtle'
         : 'border-dashed border-border-strong bg-transparent hover:border-accent hover:bg-accent-soft',
-      selected && 'border-accent bg-surface-raised shadow-lift'
+      selected && 'selected-card'
     ]"
     :aria-current="selected"
     @click="emit('open')"
@@ -49,7 +49,7 @@ const hasSteps = computed(() => props.steps.length > 0)
         <path d="M1.2 3.4 2.6 4.8l2.4-2.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
         <path d="M6.8 3.6h4M6.8 8.4h4M1.4 8.4h3.4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
       </svg>
-      <span class="text-[10px] font-semibold uppercase tracking-[0.09em] text-text-subtle">
+      <span class="eyebrow">
         Steps
       </span>
       <span

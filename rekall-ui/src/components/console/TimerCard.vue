@@ -70,7 +70,7 @@ function toggle(): void {
           :class="isRunning ? 'bg-accent' : 'bg-text-subtle'"
         />
       </span>
-      <span class="text-[10px] font-semibold uppercase tracking-[0.09em] text-text-subtle">Time</span>
+      <span class="eyebrow">Time</span>
 
       <button
         v-if="hasHistory"

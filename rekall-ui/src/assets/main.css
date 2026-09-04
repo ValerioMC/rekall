@@ -216,14 +216,52 @@
 }
 
 /*
- * The selected row. A left rail in the accent, a wash that fades out to the right, and no
- * border: a full outline on every selection turns a list into a grid of boxes.
+ * The selected row.
+ *
+ * Not a flat rail down one edge, which reads as a list turned into a grid of boxes. The row
+ * lifts onto its own raised surface, warms by a few percent as if lit from the left, and takes
+ * a whisper of an accent outline that holds the whole tile rather than just its side. The focal
+ * detail is a short capsule of accent light in the left gutter, glowing, clear of the row's top
+ * and bottom: a marker that has been placed, not a border that happens to be there.
  */
 @utility selected-row {
-  background-image: linear-gradient(90deg, var(--color-accent-soft) 0%, transparent 68%);
+  position: relative;
+  background:
+    radial-gradient(150px 48px at 10px 50%, var(--color-accent-soft), transparent 72%),
+    var(--color-surface-raised);
   box-shadow:
-    inset 3px 0 0 var(--color-accent),
-    inset 6px 0 11px -9px var(--color-accent);
+    0 1px 1px rgb(0 0 0 / 0.34),
+    0 14px 30px -18px rgb(0 0 0 / 0.62),
+    0 0 0 1px color-mix(in srgb, var(--color-accent) 17%, transparent);
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 3px;
+    top: 7px;
+    bottom: 7px;
+    width: 2px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, var(--color-accent-strong), var(--color-accent-deep));
+    box-shadow: 0 0 9px -1px color-mix(in srgb, var(--color-accent) 55%, transparent);
+  }
+}
+
+/*
+ * The selected card. The same idea as {@link selected-row} carried to the bordered cards in the
+ * middle pane: a raised surface lit from its top-left corner, an accent border, and a soft inner
+ * hairline that holds the whole card. It already owns a border and a radius, so this only
+ * recolours and lifts it rather than drawing a second frame.
+ */
+@utility selected-card {
+  border-color: color-mix(in srgb, var(--color-accent) 40%, transparent);
+  background:
+    radial-gradient(170px 66px at 16px -6px, var(--color-accent-soft), transparent 70%),
+    var(--color-surface-raised);
+  box-shadow:
+    0 1px 1px rgb(0 0 0 / 0.3),
+    0 12px 26px -18px rgb(0 0 0 / 0.55),
+    inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 12%, transparent);
 }
 
 /*
@@ -240,6 +278,20 @@
   line-height: 1.25;
   letter-spacing: 0.005em;
   color: var(--color-text);
+}
+
+/*
+ * The quiet kicker above a pane or card title: "Description", "Steps", "Time". Ordinary case
+ * and a hair of tracking rather than the tracked-out capitals it replaces, so it names the
+ * surface without shouting over the title it sits on. Pair it with a 3px accent tick when the
+ * surface it labels is the one on screen.
+ */
+@utility eyebrow {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  color: var(--color-text-subtle);
 }
 
 /*

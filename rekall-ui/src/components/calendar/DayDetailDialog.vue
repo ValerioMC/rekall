@@ -114,7 +114,7 @@ onUnmounted(() => {
         <template v-for="group in groups" :key="group.key">
           <div class="mb-1.5 mt-3 flex items-center gap-2 px-0.5 first:mt-0">
             <ProjectTrace v-if="group.projectId" :id="group.projectId" size="xs" />
-            <span class="min-w-0 flex-1 truncate text-[11px] font-semibold uppercase tracking-[0.07em] text-text-subtle">
+            <span class="eyebrow min-w-0 flex-1 truncate text-[11px]">
               {{ group.projectLabel }}
             </span>
             <span class="shrink-0 font-mono text-[10.5px] text-text-subtle">{{ formatDuration(group.totalSeconds) }}</span>
@@ -145,7 +145,7 @@ onUnmounted(() => {
       </div>
 
       <footer class="flex items-center justify-between border-t border-border bg-canvas px-6 py-3.5">
-        <span class="text-[11px] uppercase tracking-[0.09em] text-text-subtle">Day total</span>
+        <span class="eyebrow text-[11px] font-normal">Day total</span>
         <span class="font-mono text-[16px] font-semibold text-accent">
           {{ formatDuration(totalSeconds) }}
         </span>

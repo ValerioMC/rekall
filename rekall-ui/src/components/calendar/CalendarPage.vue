@@ -113,7 +113,7 @@ function openDay(cell: { date: Date; rows: DaySummaryRow[] }): void {
           <span
             v-for="label in WEEKDAY_LABELS"
             :key="label"
-            class="border-r border-border px-2 py-1.5 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-text-subtle"
+            class="border-r border-border px-2 py-1.5 eyebrow"
           >
             {{ label }}
           </span>

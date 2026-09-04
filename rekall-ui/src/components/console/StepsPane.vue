@@ -239,7 +239,8 @@ onUnmounted(flush)
 
         <header class="relative flex items-start gap-4 px-5 py-3.5">
           <div class="min-w-0 flex-1">
-            <p class="text-[10px] font-semibold uppercase tracking-[0.09em] text-text-subtle">
+            <p class="eyebrow flex items-center gap-1.5">
+              <span class="h-2.5 w-[3px] shrink-0 rounded-full bg-accent" aria-hidden="true" />
               Steps
             </p>
             <h2 class="truncate text-[19px] font-semibold tracking-[-0.015em] text-text">
@@ -438,7 +439,7 @@ onUnmounted(flush)
                   <span class="mt-1 flex flex-wrap items-center gap-2 text-[10.5px]">
                     <span
                       v-if="step.id === currentId"
-                      class="rounded-full bg-accent-soft px-1.5 py-px font-semibold uppercase tracking-[0.08em] text-accent"
+                      class="rounded-full bg-accent-soft px-1.5 py-px text-[10px] font-semibold tracking-[0.02em] text-accent"
                     >
                       Next
                     </span>
@@ -525,7 +526,7 @@ onUnmounted(flush)
               <div v-if="expandedId === step.id" class="mt-2.5" data-testid="step-detail">
                 <div class="mb-2 flex items-center gap-2">
                   <span
-                    class="text-[9.5px] font-semibold uppercase tracking-[0.09em] text-text-subtle"
+                    class="eyebrow text-[9.5px]"
                   >
                     Detail
                   </span>

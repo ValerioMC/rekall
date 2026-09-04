@@ -32,13 +32,16 @@ defineEmits<{ select: []; edit: [] }>()
         its own weight instead of being a single hard dot pushed against the title. While a timer
         runs it becomes a sweeping ping, because "worked right now" should read before the colour.
       -->
-      <span class="relative mt-[3px] grid size-3 shrink-0 place-items-center" aria-hidden="true">
+      <span class="relative mt-[3px] grid size-3.5 shrink-0 place-items-center" aria-hidden="true">
         <span
-          class="absolute size-3 rounded-full"
-          :class="running ? 'bg-accent/20' : TASK_STATUS_RING[task.status]"
+          class="absolute size-3.5 rounded-full transition-shadow"
+          :class="[
+            running ? 'bg-accent/20' : TASK_STATUS_RING[task.status],
+            selected && 'ring-1 ring-inset ring-accent/45'
+          ]"
         />
         <template v-if="running">
-          <span class="absolute inline-flex size-3 animate-ping rounded-full bg-accent/55" />
+          <span class="absolute inline-flex size-3.5 animate-ping rounded-full bg-accent/55" />
           <span class="relative inline-flex size-2 rounded-full bg-accent" />
         </template>
         <span

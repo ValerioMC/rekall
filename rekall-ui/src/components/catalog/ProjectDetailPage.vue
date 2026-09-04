@@ -244,7 +244,7 @@ onUnmounted(() => {
 
       <div class="mx-auto flex max-w-[1240px] flex-col gap-5 px-8 py-6">
         <AppCard :style="{ borderTop: `2px solid ${identityHue(project.id).line}` }">
-          <p class="mb-2 text-[11px] font-semibold uppercase tracking-[0.09em] text-text-subtle">
+          <p class="mb-2 eyebrow text-[11px]">
             Description
           </p>
           <textarea
@@ -259,7 +259,7 @@ onUnmounted(() => {
         </AppCard>
 
         <AppCard>
-          <p class="mb-2 text-[11px] font-semibold uppercase tracking-[0.09em] text-text-subtle">
+          <p class="mb-2 eyebrow text-[11px]">
             Folder
           </p>
           <div class="flex items-center gap-2">
@@ -292,7 +292,7 @@ onUnmounted(() => {
             />
             <div class="relative flex items-center gap-3 border-b border-border px-5 py-4">
               <div class="min-w-0 flex-1">
-                <p class="text-[11px] font-semibold uppercase tracking-[0.09em] text-anchor">Blueprint</p>
+                <p class="text-[11px] font-semibold tracking-[0.02em] text-anchor">Blueprint</p>
                 <p class="mt-0.5 truncate text-[12px] text-text-subtle">
                   What <code class="text-anchor/80">/rk {{ project.anchor }}</code> hands to Claude
                 </p>
@@ -326,7 +326,7 @@ How it's built, how it's organised, the conventions to follow while working in i
         </AppCard>
 
         <AppCard>
-          <p class="mb-3 text-[11px] font-semibold uppercase tracking-[0.09em] text-text-subtle">
+          <p class="mb-3 eyebrow text-[11px]">
             Tasks &middot; {{ projectTasks.length }}
           </p>
           <p v-if="!projectTasks.length" class="text-[12.5px] text-text-subtle">No task on this project yet.</p>

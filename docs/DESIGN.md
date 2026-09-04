@@ -400,6 +400,27 @@ A project heading is also two lines: the title and task count on top, the compan
 activity trace below, so none of the three is fighting the others for the same 12 pixels. The
 navigator is given the width for this rather than made to crush it.
 
+### The selected surface
+
+Selection was a flat accent rail down the left edge, which turned a list into a column of boxes.
+It is now a surface that has been lifted: the row or card rises onto a raised background, warms
+by a few percent as if lit from its top-left corner, takes a whisper of an accent outline that
+holds the whole shape, and carries one focal detail, a short capsule of accent light in the
+left gutter, clear of the top and bottom edges. A marker that was placed, not a border that
+happens to be there. The status pip of a selected row gains a thin accent ring, so the
+emphasis is spread across the row rather than stacked on one side. `selected-row` and
+`selected-card` in `main.css` are the same idea at two scales.
+
+### Labels
+
+The kicker above a title, "Description", "Time", "Tracked this week", a form-section label in a
+dialog, a company name in the scope popover, was tracked-out capitals everywhere. It is now
+ordinary case in the shared `eyebrow` utility, a hair of tracking and nothing more, so it names
+its section without shouting over the content beneath it. In the three writing panes it is
+preceded by a 3px accent tick, the same mark on all of them, which is how you tell at a glance
+which of the four surfaces is on screen. Raw status enums that used to be printed as-is
+(`PAUSED`) now go through their label map (`Paused`) wherever they are shown.
+
 The filed tone is a muted verdigris, `--color-filed`. It is deliberately neither the green of a
 live `DONE` status nor the grey of disabled chrome: a shelf of finished tasks should read as an
 archive, not as a list that has gone dim.
