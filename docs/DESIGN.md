@@ -14,7 +14,7 @@ a task, which is what that task's implementation currently looks like.
 A folder per project, a subfolder per issue, markdown files inside. It works because Claude Code
 can read files, but:
 
-- No structure. What a task belongs to exists only as prose repeated in every `CONTEXT.md`.
+- No structure. What a task belongs to exists only as prose repeated in every `CONTEXT.md`.`
 - Duplication. Cluster coordinates and credentials are copied across files and drift.
 - Loading a task into context means naming the right files by hand, every time.
 - Nothing says what the work currently *is*. Every session opens by reading the code back to

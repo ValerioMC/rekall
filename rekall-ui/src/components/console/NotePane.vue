@@ -6,6 +6,7 @@ import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
 import AttachTasksDialog from '@/components/console/AttachTasksDialog.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
+import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { rkCommand } from '@/common/format/rk-command'
@@ -13,7 +14,8 @@ import { DOCUMENT_KINDS } from '@/model/catalog'
 import type { TaskId } from '@/model/branded'
 
 const store = useConsoleStore()
-const { selectedDocument, selectedTaskId, recentDocuments, isLoading } = storeToRefs(store)
+const { selectedDocument, selectedTask, selectedTaskId, recentDocuments, isLoading } =
+  storeToRefs(store)
 const { run } = useAsyncAction()
 
 const KIND_OPTIONS = DOCUMENT_KINDS.map((kind) => ({ value: kind, label: kind }))
@@ -72,6 +74,21 @@ const anchor = computed(() => {
   if (!document) return ''
   const onCurrent = document.tasks.find((task) => task.id === selectedTaskId.value)
   return (onCurrent ?? document.tasks[0])?.anchor ?? ''
+})
+
+/**
+ * The folder a session opened from this note would start in.
+ *
+ * A note carries only a lightweight ref to each task it is on, none of them with a folder — the
+ * one place a full task, folder included, is already in memory is the store's own selection. So
+ * this is known exactly when the anchor above resolved to that task, and null on a note read by
+ * way of a task other than the one selected, or from the standalone note list where nothing is.
+ */
+const anchorFolder = computed(() => {
+  const document = selectedDocument.value
+  if (!document) return null
+  const onCurrent = document.tasks.some((task) => task.id === selectedTaskId.value)
+  return onCurrent ? (selectedTask.value?.projectRepoFolder ?? null) : null
 })
 
 /** The tasks this note serves besides the one in view. */
@@ -202,6 +219,11 @@ async function confirmDelete(): Promise<void> {
         </div>
 
         <div class="flex shrink-0 items-center gap-2">
+          <LaunchClaudeCodeButton
+            :anchors="anchor"
+            :folder="anchorFolder"
+            missing-hint="Open this note from the task you want to launch, and set that project's folder on its page"
+          />
           <div class="w-[128px]">
             <AppSelect v-model="draft.kind" :options="KIND_OPTIONS" @change="scheduleSave" />
           </div>

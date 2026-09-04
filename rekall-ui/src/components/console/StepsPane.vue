@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
+import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { identityHue } from '@/common/identity'
@@ -255,6 +256,13 @@ onUnmounted(flush)
               <span class="opacity-70">{{ copied ? 'copied' : 'copy' }}</span>
             </button>
           </div>
+
+          <LaunchClaudeCodeButton
+            class="shrink-0"
+            :anchors="selectedTask.anchor"
+            :folder="selectedTask.projectRepoFolder"
+            missing-hint="Set this project's folder on its page to open a session from it"
+          />
 
           <!-- The count, and the shape of it. The number says how much; the segments say where
                the gaps are, which is what tells you whether the work is nearly done or merely

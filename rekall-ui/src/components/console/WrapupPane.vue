@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
+import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { relativeTime } from '@/common/format/relative-time'
@@ -135,6 +136,13 @@ async function confirmDelete(): Promise<void> {
             <span class="opacity-70">{{ copied === 'anchor' ? 'copied' : 'copy' }}</span>
           </button>
         </div>
+
+        <LaunchClaudeCodeButton
+          class="shrink-0"
+          :anchors="selectedTask.anchor"
+          :folder="selectedTask.projectRepoFolder"
+          missing-hint="Set this project's folder on its page to open a session from it"
+        />
 
         <div v-if="selectedWrapup" class="flex shrink-0 items-center gap-2">
           <div class="flex gap-0.5 rounded-[7px] bg-surface p-0.5">
