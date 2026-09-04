@@ -369,3 +369,39 @@ Labels are sanitised into folder names rather than escaped: a project called `..
 becomes a folder, never a path, and a test asserts no entry in the archive contains `..`.
 
 ---
+
+### The navigator's filing drawer
+
+A finished task does not leave the navigator, and after a while that is most of the list: a
+project with thirty closed tasks buries the three still open. So `DONE` tasks are folded into a
+drawer, one per project in the company-wide view and one below the status groups when a single
+project is in scope. The drawer is shut on every load and reopens only for the session: the
+point is that finished work starts out of the way, not that the window remembers you looked at
+it once. This is the opposite of the project collapse next to it, which persists in
+`localStorage`, because that one is a layout preference and this one is a default.
+
+The split is `common/catalog/partition-tasks.ts`, a pure function, so the rule that a `DONE`
+task is filed lives in one tested place rather than in the template. `console.store` is
+untouched: `visibleTasks` stays the one honest list, the tasks/notes counter still counts all
+of it, and `J`/`K` still walks it. A filed task that gets selected, by search or by walking,
+opens the drawer it sits in, because a selection you cannot see is one you cannot tell you made.
+
+### The navigator row
+
+A row is two lines with air around them rather than one crushed line. The status pip is a
+coloured core inside a soft halo of the same hue, so a state carries its own weight instead of
+being a hard dot shoved against the title; while a timer runs the pip becomes a sweeping ping,
+because "worked right now" should read before the colour does. Progress, a wrapup mark and the
+note count sit in a steady right-hand column and do not move: a number that vanishes the moment
+you reach for it is a number you stop trusting, so edit rides in as its own chip on hover
+instead of displacing them.
+
+A project heading is also two lines: the title and task count on top, the company name and the
+activity trace below, so none of the three is fighting the others for the same 12 pixels. The
+navigator is given the width for this rather than made to crush it.
+
+The filed tone is a muted verdigris, `--color-filed`. It is deliberately neither the green of a
+live `DONE` status nor the grey of disabled chrome: a shelf of finished tasks should read as an
+archive, not as a list that has gone dim.
+
+---

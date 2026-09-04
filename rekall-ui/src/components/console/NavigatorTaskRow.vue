@@ -1,43 +1,59 @@
 <script setup lang="ts">
-import { TASK_STATUS_COLOR } from '@/model/catalog'
+import { TASK_STATUS_COLOR, TASK_STATUS_RING } from '@/model/catalog'
 import type { Task } from '@/model/catalog'
 
-defineProps<{
-  task: Task
-  selected: boolean
-  running: boolean
-  showContext: boolean
-  showCompany: boolean
-}>()
+withDefaults(
+  defineProps<{
+    task: Task
+    selected: boolean
+    running: boolean
+    showContext: boolean
+    showCompany: boolean
+    /** In the filing drawer: the row sits at reduced weight and lifts on hover. */
+    filed?: boolean
+  }>(),
+  { filed: false }
+)
 
 defineEmits<{ select: []; edit: [] }>()
 </script>
 
 <template>
-  <div class="group/task relative flex items-center">
+  <div class="group/task relative" :class="filed && 'filed-row'">
     <button
       data-testid="task-row"
-      class="focus-ring flex w-full items-center gap-2.5 rounded-[var(--radius-control)] px-2 py-2 text-left transition-colors"
+      class="focus-ring flex w-full items-start gap-2.5 rounded-[var(--radius-control)] px-2.5 py-2 text-left transition-colors"
       :class="selected ? 'selected-row text-text' : 'text-text-muted hover:bg-surface-raised hover:text-text'"
       :aria-current="selected"
       @click="$emit('select')"
     >
-      <span class="size-[6px] shrink-0 rounded-full" :class="TASK_STATUS_COLOR[task.status]" aria-hidden="true" />
+      <!--
+        The status pip: a coloured core inside a soft halo of the same hue, so the state carries
+        its own weight instead of being a single hard dot pushed against the title. While a timer
+        runs it becomes a sweeping ping, because "worked right now" should read before the colour.
+      -->
+      <span class="relative mt-[3px] grid size-3 shrink-0 place-items-center" aria-hidden="true">
+        <span
+          class="absolute size-3 rounded-full"
+          :class="running ? 'bg-accent/20' : TASK_STATUS_RING[task.status]"
+        />
+        <template v-if="running">
+          <span class="absolute inline-flex size-3 animate-ping rounded-full bg-accent/55" />
+          <span class="relative inline-flex size-2 rounded-full bg-accent" />
+        </template>
+        <span
+          v-else
+          class="relative rounded-full transition-all"
+          :class="[TASK_STATUS_COLOR[task.status], selected ? 'size-2' : 'size-[7px]']"
+        />
+      </span>
 
       <span class="min-w-0 flex-1">
-        <span class="flex items-center gap-1.5 truncate text-[13px] font-medium">
-          <span v-if="running" class="relative flex size-1.5 shrink-0" title="Tracking time on this task">
-            <span class="absolute inline-flex size-full animate-ping rounded-full bg-accent opacity-75" />
-            <span class="relative inline-flex size-1.5 rounded-full bg-accent" />
-          </span>
-          <span class="truncate">{{ task.title }}</span>
-        </span>
-        <span class="mt-0.5 flex items-center gap-1 truncate">
-          <template v-if="showContext">
-            <span v-if="showCompany" class="shrink-0 truncate text-[10px] text-text-subtle">
-              {{ task.companyName }}
-            </span>
-            <span v-if="showCompany" class="shrink-0 text-[10px] text-text-subtle" aria-hidden="true">/</span>
+        <span class="block truncate text-[13px] font-medium leading-[1.35]">{{ task.title }}</span>
+        <span class="mt-1 flex items-center gap-1.5 truncate">
+          <template v-if="showContext && showCompany">
+            <span class="shrink-0 truncate text-[10px] text-text-subtle">{{ task.companyName }}</span>
+            <span class="shrink-0 text-[10px] text-text-subtle" aria-hidden="true">/</span>
           </template>
           <span class="anchor-chip shrink-0 truncate px-1.5 py-px text-[9.5px] leading-[15px]">
             {{ task.label }}
@@ -45,11 +61,13 @@ defineEmits<{ select: []; edit: [] }>()
         </span>
       </span>
 
+      <!--
+        Progress and shape of the task, kept in a steady column rather than swapped out on hover:
+        a number that vanishes the moment you reach for it is a number you stop trusting.
+      -->
       <span
-        class="flex shrink-0 items-center gap-1.5 font-mono text-[10.5px] text-text-subtle transition-opacity group-hover/task:opacity-0"
+        class="mt-[3px] flex shrink-0 items-center gap-1.5 font-mono text-[10.5px] text-text-subtle"
       >
-        <!-- How far along the work is, which is the one thing a row could not say before: a
-             task in progress with six of seven steps ticked and one with none read the same. -->
         <span
           v-if="task.stepCount > 0"
           class="tabular-nums"
@@ -63,15 +81,17 @@ defineEmits<{ select: []; edit: [] }>()
           <title>Has a wrapup</title>
           <path d="M6 1.2 10.8 6 6 10.8 1.2 6z" fill="currentColor" />
         </svg>
-        {{ task.documentCount }}
+        <span class="tabular-nums">{{ task.documentCount }}</span>
       </span>
     </button>
 
+    <!-- Edit rides in from the right on hover as its own chip, so it never has to displace the
+         row's own content to make room. -->
     <button
       data-testid="edit-task"
-      class="focus-ring absolute right-1.5 grid size-6 place-items-center rounded text-text-subtle opacity-0 transition hover:bg-surface-hover hover:text-accent focus-visible:opacity-100 group-hover/task:opacity-100"
+      class="focus-ring absolute right-1.5 top-1/2 grid size-6 -translate-y-1/2 translate-x-1 place-items-center rounded-md border border-border-strong bg-surface-hover text-text-subtle opacity-0 shadow-lift transition-all hover:text-accent focus-visible:translate-x-0 focus-visible:opacity-100 group-hover/task:translate-x-0 group-hover/task:opacity-100"
       :aria-label="`Edit ${task.title}`"
-      @click="$emit('edit')"
+      @click.stop="$emit('edit')"
     >
       <svg class="size-3.5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path

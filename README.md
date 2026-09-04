@@ -317,6 +317,10 @@ with it first.
 | `1`–`4` | Set the status of the selected task |
 | `⌘↵` | Save the record editor |
 
+Finished tasks are folded into a "filed" drawer, one per project or one below the status
+groups, shut on every load and reopened for the session from the `N filed` row. Selecting a
+filed task, by search or by walking the list, opens the drawer it is in.
+
 Writing autosaves. There is no Save button on a note.
 
 ## Report
@@ -422,6 +426,7 @@ is editing it everywhere; Maven copies the content, not the link.
 | Shell | One surface, three panes. No router: what would have been a route is a selection |
 | Build | Vite 5 |
 | Styling | Tailwind CSS 4, palette as semantic tokens in `src/assets/main.css` |
+| Fonts | Fira Sans and Fira Code, bundled, nothing fetched at runtime |
 | State | Pinia setup stores; `console.store` holds the whole working set |
 | HTTP | `ofetch`, with timeout, retry on 5xx only and a correlation id per request |
 | Validation | Zod on every response; brands are applied by the schema, so an id's kind is decided where it was checked |

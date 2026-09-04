@@ -1,12 +1,19 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import ScopePicker from '@/components/console/ScopePicker.vue'
 import RecordDialog from '@/components/console/RecordDialog.vue'
 import NavigatorTaskRow from '@/components/console/NavigatorTaskRow.vue'
+import NavigatorFilingDrawer from '@/components/console/NavigatorFilingDrawer.vue'
 import ProjectTrace from '@/components/ui/ProjectTrace.vue'
+import { partitionTasks } from '@/common/catalog/partition-tasks'
 import { useConsoleStore } from '@/stores/console.store'
-import { TASK_STATUS_COLOR, TASK_STATUS_LABEL, TASK_STATUS_ORDER } from '@/model/catalog'
+import {
+  TASK_STATUS_COLOR,
+  TASK_STATUS_LABEL,
+  TASK_STATUS_ORDER,
+  TASK_STATUS_RING
+} from '@/model/catalog'
 import { taskDraft } from '@/model/record-draft'
 import type { RecordDraft } from '@/model/record-draft'
 import type { Task } from '@/model/catalog'
@@ -51,32 +58,80 @@ interface ProjectGroup {
   readonly projectTitle: string
   readonly companyName: string
   readonly tasks: Task[]
+  /** The same tasks split into open work and filed work: see {@link partitionTasks}. */
+  readonly active: Task[]
+  readonly filed: Task[]
+}
+
+interface ProjectTaskBucket {
+  readonly projectId: ProjectId
+  readonly projectTitle: string
+  readonly companyName: string
+  readonly tasks: Task[]
 }
 
 const groupedByProject = computed<ProjectGroup[]>(() => {
-  const byProject = new Map<ProjectId, ProjectGroup>()
+  const byProject = new Map<ProjectId, ProjectTaskBucket>()
   for (const task of visibleTasks.value) {
-    let group = byProject.get(task.projectId)
-    if (!group) {
-      group = {
+    let bucket = byProject.get(task.projectId)
+    if (!bucket) {
+      bucket = {
         projectId: task.projectId,
         projectTitle: task.projectTitle,
         companyName: task.companyName,
         tasks: []
       }
-      byProject.set(task.projectId, group)
+      byProject.set(task.projectId, bucket)
     }
-    group.tasks.push(task)
+    bucket.tasks.push(task)
   }
-  return [...byProject.values()].sort((a, b) => a.projectTitle.localeCompare(b.projectTitle))
+  return [...byProject.values()]
+    .map((bucket) => ({ ...bucket, ...partitionTasks(bucket.tasks) }))
+    .sort((a, b) => a.projectTitle.localeCompare(b.projectTitle))
 })
 
+/** The status groups the navigator stacks, DONE held back for the filing drawer below them. */
 const grouped = computed(() =>
-  TASK_STATUS_ORDER.map((status) => ({
-    status,
-    tasks: visibleTasks.value.filter((task) => task.status === status)
-  })).filter((group) => group.tasks.length > 0)
+  TASK_STATUS_ORDER.filter((status) => status !== 'DONE')
+    .map((status) => ({
+      status,
+      tasks: visibleTasks.value.filter((task) => task.status === status)
+    }))
+    .filter((group) => group.tasks.length > 0)
 )
+
+/** Every finished task the current scope holds, listed only when the drawer is open. */
+const filedInScope = computed(() =>
+  visibleTasks.value.filter((task) => task.status === 'DONE')
+)
+
+/**
+ * Which filing drawers are open, reset on every load.
+ *
+ * Deliberately not persisted, unlike {@link collapsedProjectIds}: finished work starts out of
+ * the way every session and is pulled back only when it is actually wanted. One flag for the
+ * status view's single drawer, a set of project ids for the per-project ones.
+ */
+const showFiledInScope = ref(false)
+const revealedProjectIds = ref<Set<ProjectId>>(new Set())
+
+function toggleRevealed(projectId: ProjectId): void {
+  const next = new Set(revealedProjectIds.value)
+  if (next.has(projectId)) next.delete(projectId)
+  else next.add(projectId)
+  revealedProjectIds.value = next
+}
+
+/**
+ * A filed task that gets selected, by search or by walking the list, opens the drawer it is
+ * in. A selection you cannot see is one you cannot tell you made.
+ */
+watch(selectedTaskId, () => {
+  const task = store.selectedTask
+  if (!task || task.status !== 'DONE') return
+  showFiledInScope.value = true
+  if (!revealedProjectIds.value.has(task.projectId)) toggleRevealed(task.projectId)
+})
 
 const COLLAPSE_KEY = 'rekall.nav.collapsed-projects'
 
@@ -186,13 +241,13 @@ defineExpose({ beginCreate, editSelected })
       </button>
 
       <template v-if="navMode === 'tasks' && groupByProject">
-        <div v-for="group in groupedByProject" :key="group.projectId" class="px-2">
+        <div v-for="group in groupedByProject" :key="group.projectId" class="px-2 pt-1.5 first:pt-0.5">
           <button
-            class="focus-ring flex w-full items-center gap-2 rounded-[var(--radius-control)] px-1.5 py-1.5 text-left"
+            class="focus-ring flex w-full items-start gap-2 rounded-[var(--radius-control)] px-1.5 pb-1.5 pt-2 text-left"
             @click="toggleCollapsed(group.projectId)"
           >
             <svg
-              class="size-3 shrink-0 text-text-subtle transition-transform"
+              class="mt-0.5 size-3 shrink-0 text-text-subtle transition-transform"
               :class="!collapsedProjectIds.has(group.projectId) && 'rotate-90'"
               viewBox="0 0 24 24"
               fill="none"
@@ -200,19 +255,30 @@ defineExpose({ beginCreate, editSelected })
             >
               <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
-            <ProjectTrace :id="group.projectId" size="xs" />
-            <span class="min-w-0 flex-1 truncate text-[11px] font-semibold text-text">
-              {{ group.projectTitle }}
+            <span class="min-w-0 flex-1">
+              <span class="flex items-center gap-2">
+                <span class="section-label min-w-0 flex-1 truncate">{{ group.projectTitle }}</span>
+                <span
+                  class="shrink-0 rounded-full bg-surface-raised px-1.5 py-px font-mono text-[10px] tabular-nums text-text-subtle"
+                >
+                  {{ group.tasks.length }}
+                </span>
+              </span>
+              <span class="mt-1 flex items-center gap-2">
+                <span
+                  v-if="scopeCompany === null"
+                  class="shrink-0 truncate text-[10px] text-text-subtle"
+                >
+                  {{ group.companyName }}
+                </span>
+                <ProjectTrace :id="group.projectId" size="sm" />
+              </span>
             </span>
-            <span v-if="scopeCompany === null" class="shrink-0 truncate text-[10px] text-text-subtle">
-              {{ group.companyName }}
-            </span>
-            <span class="shrink-0 font-mono text-[10.5px] text-text-subtle">{{ group.tasks.length }}</span>
           </button>
 
-          <div v-show="!collapsedProjectIds.has(group.projectId)" class="flex flex-col">
+          <div v-show="!collapsedProjectIds.has(group.projectId)" class="mt-0.5 flex flex-col gap-0.5">
             <NavigatorTaskRow
-              v-for="task in group.tasks"
+              v-for="task in group.active"
               :key="task.id"
               :task="task"
               :selected="task.id === selectedTaskId"
@@ -222,6 +288,26 @@ defineExpose({ beginCreate, editSelected })
               @select="store.selectTask(task.id)"
               @edit="editTask(task)"
             />
+
+            <NavigatorFilingDrawer
+              v-if="group.filed.length"
+              :count="group.filed.length"
+              :open="revealedProjectIds.has(group.projectId)"
+              @toggle="toggleRevealed(group.projectId)"
+            >
+              <NavigatorTaskRow
+                v-for="task in group.filed"
+                :key="task.id"
+                :task="task"
+                :selected="task.id === selectedTaskId"
+                :running="runningTaskIds.has(task.id)"
+                :show-context="false"
+                :show-company="false"
+                filed
+                @select="store.selectTask(task.id)"
+                @edit="editTask(task)"
+              />
+            </NavigatorFilingDrawer>
           </div>
         </div>
 
@@ -235,30 +321,59 @@ defineExpose({ beginCreate, editSelected })
 
       <template v-else-if="navMode === 'tasks'">
         <div v-for="group in grouped" :key="group.status" class="px-2">
-          <div class="flex items-center gap-2 px-1.5 pb-1 pt-3">
-            <span class="size-[7px] shrink-0 rounded-full" :class="TASK_STATUS_COLOR[group.status]" aria-hidden="true" />
-            <span class="text-[10px] font-semibold uppercase tracking-[0.09em] text-text-subtle">
-              {{ TASK_STATUS_LABEL[group.status] }}
+          <div class="flex items-center gap-2.5 px-1.5 pb-1.5 pt-5">
+            <span class="relative grid size-3 shrink-0 place-items-center" aria-hidden="true">
+              <span class="absolute size-3 rounded-full" :class="TASK_STATUS_RING[group.status]" />
+              <span class="relative size-[7px] rounded-full" :class="TASK_STATUS_COLOR[group.status]" />
             </span>
-            <span class="ml-auto font-mono text-[11px] text-text-subtle">
+            <span class="section-label flex-1">{{ TASK_STATUS_LABEL[group.status] }}</span>
+            <span
+              class="shrink-0 rounded-full bg-surface-raised px-1.5 py-px font-mono text-[10px] tabular-nums text-text-subtle"
+            >
               {{ group.tasks.length }}
             </span>
           </div>
 
-          <NavigatorTaskRow
-            v-for="task in group.tasks"
-            :key="task.id"
-            :task="task"
-            :selected="task.id === selectedTaskId"
-            :running="runningTaskIds.has(task.id)"
-            :show-context="true"
-            :show-company="scopeCompany === null"
-            @select="store.selectTask(task.id)"
-            @edit="editTask(task)"
-          />
+          <div class="flex flex-col gap-0.5">
+            <NavigatorTaskRow
+              v-for="task in group.tasks"
+              :key="task.id"
+              :task="task"
+              :selected="task.id === selectedTaskId"
+              :running="runningTaskIds.has(task.id)"
+              :show-context="true"
+              :show-company="scopeCompany === null"
+              @select="store.selectTask(task.id)"
+              @edit="editTask(task)"
+            />
+          </div>
         </div>
 
-        <p v-if="!grouped.length" class="px-4 py-3 text-[12.5px] leading-relaxed text-text-subtle">
+        <div v-if="filedInScope.length" class="px-2 pt-2">
+          <NavigatorFilingDrawer
+            :count="filedInScope.length"
+            :open="showFiledInScope"
+            @toggle="showFiledInScope = !showFiledInScope"
+          >
+            <NavigatorTaskRow
+              v-for="task in filedInScope"
+              :key="task.id"
+              :task="task"
+              :selected="task.id === selectedTaskId"
+              :running="runningTaskIds.has(task.id)"
+              :show-context="true"
+              :show-company="scopeCompany === null"
+              filed
+              @select="store.selectTask(task.id)"
+              @edit="editTask(task)"
+            />
+          </NavigatorFilingDrawer>
+        </div>
+
+        <p
+          v-if="!grouped.length && !filedInScope.length"
+          class="px-4 py-3 text-[12.5px] leading-relaxed text-text-subtle"
+        >
           <template v-if="!projectChoices.length">
             No project here yet. Add one from the picker above, then a task can live in it.
           </template>

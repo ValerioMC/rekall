@@ -41,6 +41,14 @@ export const TASK_STATUS_COLOR: Readonly<Record<TaskStatus, string>> = {
   DONE: 'bg-safe'
 }
 
+/** The soft halo drawn around a status pip, the same hue as {@link TASK_STATUS_COLOR} at low alpha. */
+export const TASK_STATUS_RING: Readonly<Record<TaskStatus, string>> = {
+  IN_PROGRESS: 'bg-accent/20',
+  TODO: 'bg-text-subtle/20',
+  BLOCKED: 'bg-danger/20',
+  DONE: 'bg-safe/20'
+}
+
 export const PROJECT_STATUS_COLOR: Readonly<Record<ProjectStatus, string>> = {
   ACTIVE: 'bg-accent',
   PAUSED: 'bg-text-subtle',
