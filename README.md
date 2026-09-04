@@ -21,9 +21,7 @@ No database server, no Docker, no cluster. The database is an H2 file under `./d
 make run     # compiles the frontend, then starts on http://localhost:47355
 ```
 
-`run` rebuilds the UI first. The frontend compiles to `rekall-ui/dist`, which git ignores;
-`rekall-app` copies that folder into the jar under `static/` at package time. Packaging without
-it fails and says to run `make ui`, so a jar never ships without a UI.
+`run` rebuilds the UI first. The frontend compiles to `rekall-ui/dist` (git-ignored); `rekall-app` copies it into the jar under `static/` at package time. Packaging without a built UI fails with instructions to run `make ui`.
 
 ```bash
 make build   # the above, plus the packaged jar
@@ -35,10 +33,7 @@ make ui      # the frontend alone
 | UI      | `http://localhost:47355`     |
 | MCP     | `http://localhost:47355/mcp` |
 
-The port is 47355 and not 8080 on purpose: 8080 is the first port everything else on a
-developer machine takes, and the MCP endpoint is a fixed URL registered with Claude Code, so a
-clash breaks the registration rather than moving the application somewhere else. `SERVER_PORT`
-overrides it for the server, the `.app` launcher and the tests alike.
+The port is 47355, not 8080: 8080 is usually already taken on a developer machine, and the MCP endpoint is a fixed URL registered with Claude Code, so a clash breaks the registration instead of just moving the app elsewhere. `SERVER_PORT` overrides it for the server, the `.app` launcher and the tests alike.
 
 ```bash
 make reset   # delete the database file, no undo
@@ -47,8 +42,7 @@ make console # H2 shell on the database
 
 ## The macOS application
 
-A built disk image for Apple Silicon is published on every commit to main, so there is nothing to
-compile to run it:
+A built disk image for Apple Silicon is published on every commit to main; there's nothing to compile to run it:
 
 | | |
 |---|---|
@@ -56,21 +50,13 @@ compile to run it:
 | Needs | macOS 13 or later, Apple Silicon |
 | Then | drag Rekall onto Applications, and run the `xattr` command below once |
 
-`releases/download/latest/` is the release tagged `latest`, not the same thing as
-`releases/latest/download/`, which means the newest release that is not a prerelease. The rolling
-build is marked as a prerelease so that the second URL keeps naming the newest `v*` tag.
+`releases/download/latest/` points at the release tagged `latest`. `releases/latest/download/` is different: it means the newest non-prerelease. The rolling build is marked prerelease so that second URL keeps naming the newest `v*` tag.
 
-It is built by `.github/workflows/release.yml` on a `macos-14` runner, from the same
-`scripts/macos-bundle.sh` the targets below call. There is no Intel build and no Windows or Linux
-bundle: the jar on the same release covers every platform with a JVM 25.
+`.github/workflows/release.yml` builds it on a `macos-14` runner, from the same `scripts/macos-bundle.sh` the targets below call. There's no Intel build and no Windows or Linux bundle: the jar on the same release covers every platform with a JVM 25.
 
-The published image is the **jvm** flavour, not the native one. A GraalVM image of this
-application needs more heap than a free `macos-14` runner has: it reaches 5.9 GB on a 7 GB
-machine and the builder's watchdog aborts it after about half an hour. `dmg-native` is still the
-better bundle and still builds locally, it just cannot be built on that runner.
+The published image is the **jvm** flavour. A GraalVM (native) build needs more heap than a free `macos-14` runner provides: it reaches 5.9 GB on a 7 GB machine, and the runner's watchdog aborts it after about half an hour. `dmg-native` still builds locally and is still the better bundle; it just can't build in CI.
 
-That image is the head of main, not a version: it changes under the link without notice. A build
-that stays put is a `v*` tag.
+That image tracks the head of main and changes under the link without notice. A build that stays put is a `v*` tag.
 
 To build one locally instead:
 
@@ -79,15 +65,9 @@ make dmg-native   # the GraalVM binary in the bundle. Needs GraalVM as JAVA_HOME
 make dmg-jvm      # the jar plus a bundled Java runtime. Any JDK 25
 ```
 
-Both write `dist/Rekall-<version>-<flavour>-<arch>.dmg` and then install the bundle they built
-into `/Applications` on this machine: the disk image is what travels to another one, and the
-machine that ran the build should be running what it built. An existing `/Applications/Rekall.app`
-is replaced without asking, and a copy that is running is quit first and started again after.
-`REKALL_INSTALL=0 make dmg-jvm` stops at the disk image.
+Both write `dist/Rekall-<version>-<flavour>-<arch>.dmg` and install it into `/Applications` on this machine, the machine that ran the build. An existing `/Applications/Rekall.app` is replaced without asking; a running copy is quit first and relaunched after. `REKALL_INSTALL=0 make dmg-jvm` stops at the disk image, which is what you'd copy to another machine.
 
-That bundle is the whole of Rekall: no terminal, no `make`, nothing else installed on the
-machine. Both targets are additive, and macOS only. Every target above them is the plain build
-and keeps working unchanged on Windows and Linux, which is what the rest of the project uses.
+The bundle is the whole of Rekall: no terminal, no `make`, nothing else installed. Both targets are macOS-only additions; every target above them is the plain build, unchanged on Windows and Linux.
 
 | | `dmg-native` | `dmg-jvm` |
 |---|---|---|
@@ -96,39 +76,23 @@ and keeps working unchanged on Windows and Linux, which is what the rest of the 
 | First screen | under a second | about three seconds |
 | Build | GraalVM, 4 to 8 minutes | any JDK 25, under a minute |
 
-Both also need the Xcode Command Line Tools, for `swiftc`: the bundle's executable is not the
-server but `packaging/macos/Launcher.swift`, a window that starts the server underneath itself.
-Double clicking opens that window immediately, on a splash screen that is the server booting,
-and swaps it for the console the moment port 47355 answers. Quitting sends SIGTERM, so the H2
-file is closed properly instead of left behind a lock file.
+Both also need the Xcode Command Line Tools, for `swiftc`. The bundle's executable is `packaging/macos/Launcher.swift`, a window that starts the server underneath itself: double-clicking opens a splash screen while the server boots, then swaps to the console once port 47355 answers. Quitting sends SIGTERM, so the H2 file closes properly instead of leaving a lock file.
 
-One thing the window can do that a browser tab cannot: the folder icon in the database field
-opens the system folder chooser, and what it returns is the absolute path the server validates.
-A page is never handed a real filesystem path, so in a browser that field stays typed, and the
-help text under it says which of the two you are looking at.
+The folder icon in the database field opens the system folder chooser and returns the absolute path the server validates, something a browser tab can't do since a page is never handed a real filesystem path. In a browser, that field stays a typed input; the help text under it says which one you're looking at.
 
-It is the same port, the same `~/.rekall/config.json` and the same MCP endpoint as `make run`,
-not a second installation with a database of its own. When something is already listening on
-47355 the app attaches to it rather than starting a second server, which is what makes opening
-the app while a terminal instance runs harmless.
+It uses the same port, the same `~/.rekall/config.json` and the same MCP endpoint as `make run`, not a separate installation with its own database. If something is already listening on 47355, the app attaches to it instead of starting a second server, so it's safe to open the app while a terminal instance is running.
 
-The bundle is signed ad hoc, not with a Developer ID. That is enough on the machine that built
-it. A disk image that reaches another machine through a browser arrives quarantined and needs
-one command before it will open:
+The bundle is signed ad hoc, not with a Developer ID, which is enough for the machine that built it. A disk image downloaded through a browser on another machine arrives quarantined and needs one command before it opens:
 
 ```bash
 xattr -dr com.apple.quarantine /Applications/Rekall.app
 ```
 
-The server's own output goes to `~/Library/Logs/Rekall/server.log`, which View > Open Server Log
-opens. It is where a window that never gets past the splash screen says why.
+Server output goes to `~/Library/Logs/Rekall/server.log`, opened by View > Open Server Log. Check it when a window doesn't get past the splash screen.
 
 ## Connect Claude Code
 
-**Settings > Claude Code** does it in one click: it registers the MCP server for every folder and
-installs the `/rk` command. The same button repairs a registration that points at the wrong port,
-carries an older copy of the command, or is shadowed in one folder by a registration made there
-without `--scope user`. The badge above it says which of those it found.
+**Settings > Claude Code** does it in one click: it registers the MCP server for every folder and installs the `/rk` command. The same button repairs a registration that points at the wrong port, carries an older copy of the command, or is shadowed in one folder by a registration made there without `--scope user`. The badge above it says which of those it found.
 
 From a terminal instead:
 
@@ -138,11 +102,9 @@ make mcp-check        # verify the endpoint answers, independently of the client
 cp .claude/commands/rk.md ~/.claude/commands/rk.md
 ```
 
-`--scope user` is the part that matters. Without it `claude mcp add` registers the server for the
-one directory it was run from, so `/rk` works there and nowhere else.
+`--scope user` matters: without it, `claude mcp add` registers the server only for the directory it ran from, so `/rk` works there and nowhere else.
 
-A session picks up the registration when it starts, so one already open has to be restarted. It
-then starts with one line:
+A session picks up the registration at start, so restart any session already open. Then:
 
 ```
 /rk project:vega task:report-builder-main-workflow
@@ -150,18 +112,14 @@ then starts with one line:
 
 ### Open a session from the app
 
-**Open in Claude Code**, on a task or on a project, opens a terminal in that project's folder with
-`/rk` already running, so the anchor is never copied or typed. Set the folder on the project page,
-in the **Folder** field under the description; without one the button says what is missing and
-does nothing.
+**Open in Claude Code**, on a task or on a project, opens a terminal in that project's folder with `/rk` already running, so the anchor is never copied or typed. Set the folder on the project page, in the **Folder** field under the description; without one the button says what is missing and does nothing.
 
 | | |
 |---|---|
 | Terminal | iTerm2 when it is installed, Terminal.app otherwise |
 | Permissions | **Settings > Claude Code** has a switch that adds `--dangerously-skip-permissions`. Off until turned on, and it stays on this machine rather than in the database |
 
-Only inside Rekall.app. A browser tab cannot open a terminal, and an endpoint that let it would be
-one any other page open in that browser could call.
+Available only inside Rekall.app: a browser tab can't open a terminal, and an endpoint that let it would be callable by any other page open in that browser.
 
 ## The anchor syntax
 
@@ -178,17 +136,17 @@ An anchor is `entity:value`, where the entity is `company`, `project` or `task` 
 
 Every anchor brings back the record, what it references resolved in full **with their notes**, what references it as anchors, and its own markdown. A note can be attached to several tasks, so cluster access is written once and arrives with each task that needs it.
 
-If a bare term matches more than one record the candidates come back and nothing is loaded. Task labels are unique per project, so `project:` is what disambiguates a label two projects share.
+If a bare term matches more than one record, the candidates come back and nothing loads. Task labels are unique per project; `project:` disambiguates a label two projects share.
 
-Two tools are exposed. `rekall_context` reads; there is no query tool, no get tool and no schema tool, because reaching a record by asking a question in prose costs several turns before any work starts and fails silently when the guess is wrong, so the entry point is an explicit anchor and nothing else.
+Two tools are exposed. `rekall_context` reads. There is no query tool, get tool or schema tool: reaching a record by asking a question in prose costs several turns before any work starts and fails silently on a wrong guess, so the entry point is an explicit anchor and nothing else.
 
 `rekall_wrapup` is the only thing Claude can write, and all it can do is replace the wrapup of one task. Steps are read like everything else and written by nothing: they are ticked in the console.
 
 ## The wrapup
 
-A task has at most one wrapup: **what its implementation currently is**. Not a changelog — no "added", no "before and after", nothing dated. It describes the system as it stands, for a reader who was not in the session.
+A task has at most one wrapup: **what its implementation currently is**, not a changelog. It carries no "added", no before-and-after, nothing dated; it describes the system as it stands, for a reader who wasn't in the session.
 
-It names the code it describes, by the names the code has: the class, the file, the endpoint, the table, a line or two each on what that piece is for and what it decides. Where there is business logic, the rule itself is the point. What it does not do is transcribe: no field lists, no table columns, no method signatures, no directory tree. That is in the repository, it is longer than the wrapup, and it is wrong a week later.
+It names the code it describes using the code's own names: class, file, endpoint, table, with a line or two on what each piece is for and decides. Where there's business logic, the rule itself is the point. It does not transcribe: no field lists, table columns, method signatures, or directory trees. That's already in the repository, longer than the wrapup, and wrong within a week.
 
 ```
 /rk project:vega task:report-builder wrapup
@@ -201,26 +159,21 @@ A quoted term after `wrapup` is a directive on what to write, and it decides the
 /rk project:vega task:report-builder wrapup "scrivi solo le informazioni che ti sto dicendo"
 ```
 
-It can narrow the subject, dictate the words, set the language or the length. Without one, Claude writes what the session and the code say the implementation now is. Either way the shape is the same: one state, not a changelog, sent whole.
+It can narrow the subject, dictate the wording, set the language or set the length. Without one, Claude writes what the session and the code say the implementation now is.
 
-Written after a step is finished, it folds that step's work into the same description rather than appending to it: one account of the whole task, with the new piece named where it lives, never a section per step. If the step made something the wrapup already said untrue, that sentence goes. The console says when it is due — the wrapup card counts the steps ticked since the text was last written, the same way it counts notes newer than it — and running `/rk … wrapup` is yours to do, not something that happens on its own.
+Writing it after a step finishes folds that step's work into the same description rather than appending to it: one account of the whole task, with the new piece named where it lives, never a section per step. If the step made something the wrapup already said untrue, that sentence goes. The console tracks when it's due: the wrapup card counts steps ticked since the text was last written, the same way it counts notes newer than it. Running `/rk … wrapup` is manual, not something that happens on its own.
 
-Claude reads the current one, rewrites it whole and replaces it. It comes back with the task on the next `/rk`, ahead of the notes. You can correct it in the console at any time, and the pane says who wrote what is on screen and how long ago — the next `/rk … wrapup` replaces it either way, and the tool says so when the words it replaced were yours.
+Claude reads the current wrapup, rewrites it whole and replaces it. It comes back with the task on the next `/rk`, ahead of the notes. You can edit it in the console at any time; the pane shows who wrote what's on screen and how long ago. The next `/rk … wrapup` replaces it either way, and the tool says so when it's overwriting your edits.
 
 It is capped at 20,000 characters against 100,000 for a note. A wrapup that no longer fits on a screen has stopped describing the state and started recording the process.
 
-A wrapup is written from a terminal, into a window that was already open. The window reads everything again when it comes back to the front, so switching from the session to Rekall is what shows it. It skips that while something on screen is waiting to be saved, so a refresh never lands on top of what is being typed.
+A wrapup is written from a terminal, into a window that was already open. That window re-reads everything when it regains focus, so switching from the session back to Rekall shows it, unless something on screen is unsaved, in which case the refresh is skipped so it never lands on top of what's being typed.
 
 ## Steps
 
-A task can be broken into steps, each of which is either done or not. It is the one thing the
-other two surfaces cannot say between them: a description grows as the work is redefined and a
-wrapup says what the work became, so "what is left" was being read out of the two by comparing
-them.
+A task can be broken into steps, each done or not. It's the one thing the description and the wrapup can't say between them: a description grows as work is redefined, a wrapup says what the work became, so "what's left" used to be read out of the two by comparing them.
 
-A step is a title, an optional markdown detail of what that one piece has to do, and a box. The
-order is the order the work is meant to happen in, drawn as a line the boxes sit on, and the
-pane opens on the first one still open with its detail already rendered. Ticking is one click:
+A step is a title, an optional markdown detail of what that piece has to do, and a box. Order reflects the sequence the work is meant to happen in, drawn as a line the boxes sit on; the pane opens on the first step still open, its detail already rendered. Ticking is one click:
 
 | Gesture | Does |
 |---------|------|
@@ -230,28 +183,17 @@ pane opens on the first one still open with its detail already rendered. Ticking
 | Click the title | Open another step instead |
 | `Write` / `Read` | The detail, in the same markdown editor the notes use |
 
-What Claude receives is asymmetric on purpose. An open step arrives with its detail, because it
-is the work about to be done. A done step arrives as its title alone, because it needs no doing.
-So a half-finished checklist costs a fraction of what the same text in a description would, and
-nothing is built twice because it read as a fresh instruction.
+What Claude receives is asymmetric on purpose. An open step arrives with its detail, because it's the work about to be done. A done step arrives as its title alone, because it needs no doing. A half-finished checklist costs a fraction of what the same text in a description would, and nothing gets rebuilt for having read as a fresh instruction.
 
-**A checklist changes what the description is for.** With steps on a task, the open ones are the
-work and the description is no longer a list of things to do: it is what the step is built
-against, the constraints and the scope and what the task is for. A description is written once
-and never shrinks as the work is finished, so left as an instruction it goes on asking for what
-is already built. Anything it asks for that no open step covers is not built: `/rk` says so in a
-line and asks you for the step instead.
+**A checklist changes what the description is for.** With steps on a task, the open steps are the work, and the description stops being a to-do list: it becomes what the steps are built against, the constraints and scope of the task. A description is written once and never shrinks as work finishes, so left as an instruction it keeps asking for things already built. Anything it asks for that no open step covers isn't built: `/rk` flags it in a line and asks for the step instead.
 
-The counts come over first, ahead of the list, so the shape of what is left is legible before a
-word of it is read:
+The counts come over first, ahead of the list, so the shape of what's left is legible before a word of it is read:
 
 ```
 - `steps`: 3 of 7 done, 4 open
 ```
 
-A finished step is silent only once the wrapup has caught up with it. Tick a step, close the
-console without writing a wrapup, and the next session gets that step marked and its detail
-handed back:
+A finished step is silent only once the wrapup has caught up with it. Tick a step, close the console without writing a wrapup, and the next session gets that step marked and its detail handed back:
 
 ```
 <steps done="2" open="1" finished-since-wrapup="1">
@@ -263,45 +205,21 @@ handed back:
 </steps>
 ```
 
-That comparison is made against the wrapup's own timestamp, so it holds across sessions and
-across however many steps piled up in between: whatever the current text predates is marked, and
-the next `/rk … wrapup` folds all of it in, not only the step that just closed. Once written, the
-marker and the detail go away again.
+The comparison uses the wrapup's own timestamp, so it holds across sessions and however many steps piled up in between: whatever the current text predates is marked, and the next `/rk … wrapup` folds all of it in, not only the step that just closed. Once written, the marker and the detail disappear again.
 
-**Only you tick a step.** There is no MCP tool that writes one, and there is not going to be: the
-point of the box is that a person looked at the work and said it was done. A session closing its
-own boxes would be answering the question it was asked. `/rk … wrapup` ends by naming the steps
-it finished, and ticking them is one click each.
+**Only you tick a step.** There is no MCP tool that writes one, by design: the point of the box is that a person looked at the work and said it was done. A session closing its own boxes would be answering the question it was asked. `/rk … wrapup` ends by naming the steps it finished; ticking them is one click each.
 
 ## The console
 
-One surface, three panes: pick a task on the left, pick its checklist, its wrapup or one of its
-notes in the middle, write on the right. The field at the top is always there and takes the same
-grammar as `/rk`.
+One surface, three panes: pick a task on the left, pick its checklist, its wrapup or one of its notes in the middle, write on the right. The field at the top is always there and takes the same grammar as `/rk`.
 
-The description, the steps and the wrapup are pinned above the notes rather than filed among
-them: what the task is, what is left of it, where it got to, then the background to all three.
-Each opens in the writing pane, and a task missing one shows an empty card, because the absence
-is the reason to write it.
+The description, the steps and the wrapup are pinned above the notes rather than filed among them: what the task is, what's left of it, where it got to, then the background to all three. Each opens in the writing pane; a task missing one shows an empty card, because the absence is the reason to write it.
 
-A description is the brief the work is measured against: what has to be built, what it has to
-satisfy, what is out of scope. It travels into every context that loads the task. It is
-markdown at whatever length the work needs, so it is written on the pane rather than in the
-field of the create dialog, which only ever holds the first sentence of it.
+A description is the brief the work is measured against: what has to be built and what's out of scope. It travels into every context that loads the task. It's markdown at whatever length the work needs, so it's written on the pane rather than in the field of the create dialog, which only ever holds its first sentence.
 
-On a task with no checklist it is also the instruction: a `/rk` that loads one summarises what it
-found, says in one line what it is about to do, and does it. On a task with steps it stops being
-an instruction and becomes the context the steps are built against, which is the point of having
-both. Either way it asks only where the context does not settle the question, and anything already
-written down is not asked about twice.
+On a task with no checklist the description is also the instruction: a `/rk` that loads one summarises what it found, says in one line what it's about to do, and does it. On a task with steps it stops being an instruction and becomes the context the steps are built against, which is the point of having both. Either way it asks only where the context doesn't settle the question, never about something already written down.
 
-Companies, projects and tasks are created, edited and deleted from one editor, opened from the
-row of the record itself: the scope picker for companies and projects, the task row or `E` for
-tasks. It opens on the parent, because that is the half of the anchor already settled: a task
-says which project it lands in and a project which company, and changing it there moves the
-record. Title and label sit together underneath, with the anchor assembled live as you type, so
-what a record will answer to is visible before it is saved. Deleting always states what goes
-with it first.
+Companies, projects and tasks are created, edited and deleted from one editor, opened from the row of the record itself: the scope picker for companies and projects, the task row or `E` for tasks. It opens on the parent, because that's the half of the anchor already settled: a task says which project it lands in and a project which company, and changing it there moves the record. Title and label sit together underneath, with the anchor assembled live as you type, so what a record will answer to is visible before it's saved. Deleting always states what goes with it first.
 
 | Key | Does |
 |-----|------|
@@ -317,9 +235,7 @@ with it first.
 | `1`–`4` | Set the status of the selected task |
 | `⌘↵` | Save the record editor |
 
-Finished tasks are folded into a "filed" drawer, one per project or one below the status
-groups, shut on every load and reopened for the session from the `N filed` row. Selecting a
-filed task, by search or by walking the list, opens the drawer it is in.
+Finished tasks are folded into a "filed" drawer, one per project or one below the status groups, shut on every load and reopened for the session from the `N filed` row. Selecting a filed task, by search or by walking the list, opens the drawer it's in.
 
 Writing autosaves. There is no Save button on a note.
 
@@ -327,27 +243,15 @@ Writing autosaves. There is no Save button on a note.
 
 **Report** answers the question a week ends on: what went to which client, and for how long.
 
-The frame is a week or a month, stepped with the arrows either side of it. Under the total, one
-column per day, stacked in each company's colour and measured against a dashed line at eight
-hours: which day carried the week, and who it went to, before a single row is read. Then a
-section per company, its projects, its tasks, and what each task came to, with the days it ran on
-beside it.
+The frame is a week or a month, stepped with the arrows either side of it. Under the total, one column per day, stacked in each company's colour and measured against a dashed line at eight hours, shows which day carried the week and who it went to before a single row is read. Below that: a section per company, its projects, its tasks, and what each task came to, with the days it ran on beside it.
 
-Every task row opens on the steps it closed inside the period, oldest first, with the day each
-was ticked and a line saying how many are still open. Hours say how long the work took; the steps
-say what came out of it. A step ticked outside the period is counted there and not named, because
-it is true of the task and not of the week. **Steps** in the header folds every list away for a
-month someone is scanning for a number, and the caret on a row folds that one back.
+Every task row opens on the steps it closed inside the period, oldest first, with the day each was ticked and a line for how many are still open. Hours say how long the work took; the steps say what came out of it. A step ticked outside the period is counted there but not named, because it's true of the task and not of the week. **Steps** in the header folds every list away, useful for a month someone is scanning for a number; the caret on a row folds that one back.
 
 The chips narrow it to the companies you pick. No pick means all of them.
 
-**Copy as markdown** puts the whole report on the clipboard with every task's anchor and its
-closed steps intact, so a line in an invoice or a status mail is still one `/rk` away from the
-work behind it.
+**Copy as markdown** puts the whole report on the clipboard with every task's anchor and its closed steps intact, so a line in an invoice or a status mail is still one `/rk` away from the work behind it.
 
-Nothing on this screen is typed in. It is the sessions the timer already recorded, regrouped,
-which is the only reason a report like this is ever true. A session counts on the day it started,
-and one still running counts up to now.
+Nothing on this screen is typed in: it's the sessions the timer already recorded, regrouped. A session counts on the day it started, and one still running counts up to now.
 
 ## Model
 
@@ -375,11 +279,11 @@ A project and a task carry two names, and they are not interchangeable:
 | `title` | What the record is called on screen and in a sentence | Free text. Changing it never breaks an anchor |
 | `description` | What it is about, in prose | Free text. Travels into every context that loads the record |
 
-Renaming a label moves the anchor, and the editor says so before it is saved. Nothing stored points at a label, so there is no reference to repair; what breaks is what was written down outside the application.
+Renaming a label moves the anchor, and the editor says so before it is saved. Nothing stored points at a label, so there's no reference to repair; what breaks is what was written down outside the application.
 
 A project belongs to exactly one company, and a task to exactly one project. A note belongs to **at least one task and often several**: cluster access or a naming convention is written once and arrives with every task that references it. Deleting a task unlinks its notes and removes only the ones left on nothing.
 
-A wrapup is the opposite: exactly one task, always, and it goes when that task goes. That is why it is not a note with a special kind — a note can be attached to three tasks by construction, and "what does this task currently do" has one answer. A step is the same shape and goes the same way: it describes one piece of one task and means nothing beside another.
+A wrapup is the opposite: exactly one task, always, deleted when that task is. It isn't a note with a special kind: a note can be attached to several tasks by construction, and "what does this task currently do" has one answer. A step follows the same shape: it describes one piece of one task and means nothing attached to another.
 
 Adding an entity is a JPA class plus a Liquibase changeset, not a UI action: the schema is fixed at compile time on purpose.
 
@@ -403,9 +307,7 @@ Acme/
 MANIFEST.md
 ```
 
-A backup and an escape hatch, not a sync: nothing reads it back. A note attached to several
-tasks appears under each of them, because a tree cannot say "this file is also over there";
-`MANIFEST.md` lists those copies so a reader knows not to edit them apart.
+A backup and an escape hatch, not a sync: nothing reads it back. A note attached to several tasks appears under each of them, because a tree cannot say "this file is also over there"; `MANIFEST.md` lists those copies so a reader knows not to edit them apart.
 
 ## Develop
 
@@ -414,9 +316,7 @@ make ui-dev           # Vite dev server on :5173, proxying /api and /mcp to :473
 make test             # backend tests, then frontend lint, types and unit tests
 ```
 
-`rekall-app/src/main/resources/claude/commands/rk.md` is a symlink to `.claude/commands/rk.md`.
-The command this repository uses is the one the application installs, so editing it in one place
-is editing it everywhere; Maven copies the content, not the link.
+`rekall-app/src/main/resources/claude/commands/rk.md` is a symlink to `.claude/commands/rk.md`. The command this repository uses is the one the application installs, so editing it in one place is editing it everywhere; Maven copies the content, not the link.
 
 ### Frontend stack
 
@@ -444,8 +344,7 @@ src/
     └── console/  the three panes, the anchor bar, the wrapup and the record editor
 ```
 
-There is no `router/` and no `views/`: the console is one surface, and what would have been a
-route is a selection in `console.store`.
+The tree omits `router/` and `views/`.
 
 ### Debug (IntelliJ IDEA)
 
