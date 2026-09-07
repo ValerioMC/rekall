@@ -137,14 +137,16 @@ jobs:
           generate_release_notes: ${{ steps.target.outputs.rolling != 'true' }}
           files: ${{ steps.jar.outputs.path }}
 
-  # The macOS bundle is the jvm flavour, not the native one, and that is a constraint rather than
-  # a preference: a GraalVM image of this application needs more heap than a free macos-14 runner
-  # has. It gets to 5.9 GB on a 7 GB machine and the builder's watchdog aborts it after about half
-  # an hour. The jvm flavour needs no GraalVM at all, builds in about a minute, and costs roughly
-  # two seconds on the first screen and eight megabytes on the download.
+  # The macOS bundle is the native flavour: a GraalVM image, ~90 MB, starts instantly. It used to
+  # ship the jvm flavour because the native build overran the free macos-14 runner - the builder
+  # sizes its heap to a share of available RAM, reached about 5.9 GB on a 7 GB machine, and the
+  # watchdog aborted the job. NATIVE_IMAGE_MAX_RAM caps the builder heap below that ceiling; see
+  # scripts/native-build.sh. If this proves flaky, revert this job to `./scripts/macos-bundle.sh
+  # jvm` with a temurin JDK and drop the GraalVM setup - the jvm bundle costs about two seconds on
+  # the first screen and eight megabytes on the download.
   #
-  # `make dmg-jvm` is not used here for the same reason `make dmg-native` was not: the target
-  # installs the bundle into /Applications afterwards, and a runner has nothing to install into.
+  # `make dmg-native` is not used here: the target installs the bundle into /Applications
+  # afterwards, and a runner has nothing to install into.
   build-dmg-macos:
     needs: build-and-release
     runs-on: macos-14 # Apple Silicon, not macos-13 (Intel)
@@ -161,12 +163,13 @@ jobs:
           cache: pnpm
           cache-dependency-path: rekall-ui/pnpm-lock.yaml
 
-      # Any JDK 25 will do: macos-bundle.sh jvm runs jlink out of JAVA_HOME and refuses anything
-      # older than the version the jar was built for.
-      - uses: actions/setup-java@v5
+      # native-build.sh needs a GraalVM 25 with a working C toolchain; macos-14 ships the Xcode
+      # command line tools, so clang is already on PATH.
+      - uses: graalvm/setup-graalvm@v1
         with:
-          distribution: temurin
+          distribution: graalvm
           java-version: "25"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           cache: maven
 
       - name: Build frontend
@@ -175,13 +178,17 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm build
 
-      # The jar has to exist on this runner: the one job 1 built lives on a different machine, and
-      # macos-bundle.sh reads it out of rekall-app/target.
-      - name: Build jar
-        run: mvn -B -q clean package
+      # Builds rekall-app/target/rekall-app (the GraalVM binary macos-bundle.sh copies in) from
+      # this runner - job 1's build lives on a different machine. The heap cap keeps the builder
+      # under the runner's memory ceiling.
+      - name: Build native image
+        shell: bash
+        env:
+          NATIVE_IMAGE_MAX_RAM: 5500m
+        run: ./scripts/native-build.sh
 
       - name: Bundle Rekall.app into a disk image
-        run: ./scripts/macos-bundle.sh jvm
+        run: ./scripts/macos-bundle.sh native
 
       # The disk image keeps one name on every release, versioned or rolling, because a link on a
       # web page points at it and a name carrying the version would have to be edited for each
@@ -190,7 +197,7 @@ jobs:
       - name: Locate disk image
         id: dmg
         run: |
-          dmg=$(find dist -maxdepth 1 -name 'Rekall-*-jvm-arm64.dmg' | head -1)
+          dmg=$(find dist -maxdepth 1 -name 'Rekall-*-native-arm64.dmg' | head -1)
           if [ -z "$dmg" ]; then
             echo "no disk image in dist/ - macos-bundle.sh did not produce one" >&2
             ls -la dist/ || true
