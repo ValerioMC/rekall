@@ -19,3 +19,5 @@ databaseChangeLog:
       file: db/changelog/008-project-repo-folder.yaml
   - include:
       file: db/changelog/009-task-step.yaml
+  - include:
+      file: db/changelog/010-task-step-state.yaml

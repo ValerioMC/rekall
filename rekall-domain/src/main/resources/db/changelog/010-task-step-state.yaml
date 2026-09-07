@@ -1,0 +1,31 @@
+databaseChangeLog:
+
+  # A step is no longer just done or not done. It moves along a line: open, running while a
+  # session works on it, claimed when that session says it is finished, done when a person
+  # accepts the work. Only the last move is the console's alone; the other three a session
+  # makes over MCP, which is what lets it drive the checklist forward on its own.
+  #
+  # `done` (boolean) becomes `state` (varchar). The one value it carried, "a person accepted
+  # this", is now `state = 'DONE'`, and `done_at` keeps its meaning. `running_at` and
+  # `claimed_at` are the moments of the two new states, and `claimed_at` is what a wrapup
+  # written mid-run is measured against: the work was finished then, whatever a later tick says.
+
+  - changeSet:
+      id: 010-task-step-state
+      author: rekall
+      changes:
+        - addColumn:
+            tableName: task_step
+            columns:
+              - column: {name: state, type: varchar(20), defaultValue: 'OPEN', constraints: {nullable: false}}
+              - column: {name: running_at, type: timestamp}
+              - column: {name: claimed_at, type: timestamp}
+        # Every step a person had already ticked keeps that meaning under the new column.
+        - update:
+            tableName: task_step
+            columns:
+              - column: {name: state, value: 'DONE'}
+            where: done = TRUE
+        - dropColumn:
+            tableName: task_step
+            columnName: done

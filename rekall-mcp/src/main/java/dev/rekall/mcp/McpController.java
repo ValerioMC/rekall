@@ -42,12 +42,13 @@ import java.util.stream.Collectors;
  *
  * <p>Nothing here holds state between requests, in either era.
  *
- * <p>Reading is the whole of what this endpoint used to do. It now has one write as well:
- * {@code rekall_wrapup} replaces the wrapup of a single task, and nothing here can reach any
- * other row or column. Everything else runs through a service annotated
+ * <p>Reading is the whole of what this endpoint used to do. It now has two writes as well:
+ * {@code rekall_wrapup} replaces the wrapup of a single task, and {@code rekall_step} moves one
+ * step of a task from {@code open} to {@code running} to {@code claimed}, never to {@code done}.
+ * Neither can reach any other row or column. Everything else runs through a service annotated
  * {@code @Transactional(readOnly = true)}, on a classpath that still carries no controller.
  * That is weaker again than the database role it once was; {@code docs/DESIGN.md} §8 records
- * both trades.
+ * the trades.
  */
 @RestController
 @RequestMapping("/mcp")

@@ -458,6 +458,70 @@
   }
 }
 
+/*
+ * A step a session is working on right now.
+ *
+ * The checklist node stops being a target and starts being a light: a warm ring breathing out
+ * of it once a second, in the accent that already means "here, and what happens next". It runs
+ * only while the step is RUNNING, the same discipline the running dock keeps, so a pane at rest
+ * never has a heartbeat in it. Paired with `energy-rail` on the connector that feeds it.
+ */
+@utility step-node-running {
+  animation: step-pulse 1.7s ease-in-out infinite;
+}
+
+/*
+ * The branch carrying work toward a running node.
+ *
+ * A pending connector is a flat hairline. This one has current in it: a bright band of accent
+ * sliding down the wire toward the node, on a track a shade wider and lit from within. It marks
+ * the one segment of the checklist that is live, and points which way the work is moving.
+ */
+@utility energy-rail {
+  width: 2px;
+  background-image: linear-gradient(
+    180deg,
+    transparent 0%,
+    color-mix(in srgb, var(--color-accent) 20%, transparent) 30%,
+    var(--color-accent-strong) 50%,
+    color-mix(in srgb, var(--color-accent) 20%, transparent) 70%,
+    transparent 100%
+  );
+  background-size: 100% 260%;
+  background-repeat: no-repeat;
+  box-shadow: 0 0 6px -1px color-mix(in srgb, var(--color-accent) 55%, transparent);
+  animation: energy-flow 1.15s linear infinite;
+}
+
+/* A branch already travelled: solid, but stepped back to half light so the live one leads. */
+@utility spent-rail {
+  background: color-mix(in srgb, var(--color-accent) 42%, transparent);
+}
+
+@keyframes step-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-accent) 50%, transparent);
+    transform: scale(1);
+  }
+  70% {
+    box-shadow: 0 0 0 7px transparent;
+    transform: scale(1.06);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+    transform: scale(1);
+  }
+}
+
+@keyframes energy-flow {
+  from {
+    background-position: 0 -130%;
+  }
+  to {
+    background-position: 0 130%;
+  }
+}
+
 @keyframes skeleton-sweep {
   from {
     background-position: 200% 0;

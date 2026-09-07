@@ -1,11 +1,13 @@
 # Rekall - Design Document
 
 Status: label, title and description on projects and tasks; notes shared across tasks; one
-wrapup per task, written by Claude and corrected by hand
+wrapup per task, written by Claude and corrected by hand; a step checklist a session moves along
+and a person ticks done
 
 Rekall stores the structure and the working context of the projects and tasks you work on, and
-hands them to Claude Code over MCP. Claude reads all of it and writes one thing: the wrapup of
-a task, which is what that task's implementation currently looks like.
+hands them to Claude Code over MCP. Claude reads all of it and writes two things: the wrapup of
+a task, which is what that task's implementation currently looks like, and the state of a step,
+which it can move from open to running to claimed. The last tick, done, is a person's.
 
 ---
 
@@ -31,7 +33,7 @@ loaded in one call, including every note the task shares with its neighbours.
 | # | Decision | Rationale |
 |---|---|---|
 | D1 | Real tables with real foreign keys | A note can never point at a deleted task. On an app whose only job is to be a reliable memory, silent dangling references are the failure mode that matters. |
-| D2 | Claude reads everything and writes one thing | `rekall-mcp` depends on the domain and never on `rekall-api`, so no controller is on its classpath, and every read runs in a read-only transaction. The single exception is `rekall_wrapup`, which can replace one column of one row keyed by a task. See §7. |
+| D2 | Claude reads everything and writes two things | `rekall-mcp` depends on the domain and never on `rekall-api`, so no controller is on its classpath, and every read runs in a read-only transaction. The two exceptions are `rekall_wrapup`, which replaces one column of one row keyed by a task, and `rekall_step`, which moves a step from `open` to `running` to `claimed` and cannot reach `done`. See §7. |
 | D3 | Markdown content lives in the database | One backup target, reachable through MCP, searchable. |
 | D4 | One entry point, and it is a slash command | A session begins with `/rk project:vega task:report-builder`, not with a question. Reaching a record through a natural-language query costs several turns and a few thousand tokens before any work starts, and it is the part that fails when the model guesses the wrong entity. An explicit anchor removes both. |
 | D5 | The model is fixed at compile time | There is no runtime meta-model and no DDL engine. Company, project, task and document are fixed JPA entities; adding a new kind of record is a class and a migration, not a screen. |
@@ -49,7 +51,7 @@ Non-goals: multi-user, authentication, remote deployment, vector search.
 rekall/
   rekall-domain/   entities, repositories, context assembly, Liquibase changelogs
   rekall-api/      REST controllers for the UI
-  rekall-mcp/      MCP server, one tool that reads and one that writes a wrapup
+  rekall-mcp/      MCP server: one tool reads, two write (a wrapup, a step's state)
   rekall-app/      Spring Boot entry point, serves the built frontend
   rekall-ui/       Vue 3 + Vite (built into rekall-ui/dist, copied into the jar by rekall-app)
 ```
@@ -166,26 +168,38 @@ produces.
 
 ### 4.2 The steps
 
-A task can be broken into steps, each done or not. It exists because of a gap the other two
-markdown fields on a task leave between them: the description is the brief and grows as the work
-is redefined, the wrapup is the state of the implementation as prose, and neither says which
-parts are finished. Working that out meant reading both and comparing them, which is slow by
-hand and a guess for a model. A row with a boolean says it.
+A task can be broken into steps, and each one is somewhere on a line: `OPEN`, `RUNNING` while a
+session works on it, `CLAIMED` when that session says it is finished, `DONE` when a person
+accepts the work. It exists because of a gap the other two markdown fields on a task leave
+between them: the description is the brief and grows as the work is redefined, the wrapup is the
+state of the implementation as prose, and neither says which parts are finished. Working that
+out meant reading both and comparing them, which is slow by hand and a guess for a model. A row
+with a state says it.
 
 | Decision | Why |
 |---|---|
-| A table rather than checkboxes in the description | The description is one blob that Claude cannot rewrite and that carries no per-item state. A row can be ticked in one click, ordered, and rendered differently depending on whether it is open |
+| A table rather than checkboxes in the description | The description is one blob that Claude cannot rewrite and that carries no per-item state. A row can be ticked in one click, ordered, and rendered differently depending on where it is |
 | `position`, dense from zero, maintained by `TaskStepService` | Every write that could leave a gap renumbers the list. A sparse ordering is correct right up until something reads it as an index. An `@OrderColumn` on the inverse side of the association was the alternative, and it is a column two writers can disagree about |
-| `done` and `done_at` move together, in `TaskStep.markDone` | A step done at no time cannot be told apart from one done before the column existed |
+| `state` is an enum, not a boolean; `running_at`, `claimed_at`, `done_at` follow it in `TaskStep.markState` | The state and its moment are one fact, kept together the way the boolean and `done_at` were. Reopening a step clears all three: a reopened step has no history of being anything else. `completedAt()` is `claimed_at` first, then `done_at`, because a wrapup written right after a claim already accounts for the work and a later console tick does not change what it built |
 | Capped at 20,000 characters, like a wrapup | A step whose detail runs past a screen is a task, and the model has a level for that |
 | `ON DELETE CASCADE` on the task, like a wrapup | It describes one piece of one task and means nothing beside another |
-| **No MCP tool writes it** | The point of the box is that a person looked at the work and said it was done. A session that ticked its own boxes would be answering the question it was asked. `rekall-mcp` reads the checklist and cannot reach it any other way |
+| A session can write `RUNNING` and `CLAIMED`, never `DONE` | `rekall_step` moves a step as far as claimed, which is what lets a session drive its own checklist. The last tick is a person in the console saying they reviewed the work: a session claiming its own work accepted is what the `CLAIMED`/`DONE` split exists to prevent. The navigator's progress count is built on `DONE` alone, so it still means "accepted" |
 
-The rendering is asymmetric, and that is the feature. An open step is written into the context
-with its detail, because it is the work about to be done. A done step is written as its title
+The rendering is asymmetric, and that is the feature. An open or running step is written into
+the context with its detail, because it is the work about to be done or being done now, and its
+line is tagged `(in progress)` or `(claimed, waiting for the console to accept it)` so a session
+that reloads mid-run does not start it again or redo it. A finished step is written as its title
 alone: it needs no doing, and spending the window on the detail of finished work is how a load
-costs twice what it is worth and invites the same thing to be built again. The counts go in the
-field list, ahead of the block, so the shape of what is left is legible before the list is read.
+costs twice what it is worth. The counts, including `running` and `awaiting-review` when they are
+non-zero, go in the field list ahead of the block.
+
+**The live loop.** `TaskStepService` publishes a `StepStreamEvent` after every write, from the
+console or from MCP alike, carrying the affected task's whole checklist. `StepEventStream` in
+`rekall-api` holds it until the transaction commits and fans it out to every open console over
+`GET /api/steps/stream` as Server-Sent Events; `useStepStream` in the UI applies it to the
+store. A session moves a step to `RUNNING` over MCP and the console animates the move without a
+reload: the checklist node breathes, and the branch feeding it carries a band of light toward
+it.
 
 ---
 
@@ -204,7 +218,7 @@ The walk distinguishes by direction, not by depth:
 | Forward (`@ManyToOne`) | The record in full, **with its documents** | What this record depends on to be understood. Bounded by the model: a task reaches its project and stops |
 | Inverse (`@OneToMany`) | Labels only, printed as anchors | What points back at this. Unbounded fan-out: a project has forty tasks |
 | One-to-one (`wrapup`) | In full, in a tag of its own, ahead of the notes | Exactly one, so there is no fan-out to bound. Ahead of the notes because a session that opens on a task is asking what it does now, and the notes are the background to that answer |
-| Owned collection (`task_step`) | Open ones in full, done ones as a title | Bounded by the task and ordered, so it is not fan-out. Rendered between the description and the wrapup, which is the order the three are asked in: what is this, what is left, what did it become |
+| Owned collection (`task_step`) | Open and running ones in full, finished ones as a title | Bounded by the task and ordered, so it is not fan-out. Rendered between the description and the wrapup, which is the order the three are asked in: what is this, what is left, what did it become |
 
 Scalars are rendered as bullets and bodies as tags, which is why a description is a `<description>` block rather than a `description` bullet. It is a document, with headings, lists and a scope section, and a document inlined into a list item stops being one: every line after the first falls outside the bullet, and its own headings outrank the record's.
 
@@ -225,7 +239,7 @@ Transport: HTTP on the same process as the UI.
 claude mcp add --transport http rekall http://localhost:47355/mcp
 ```
 
-Two tools. `rekall_context` reads, taking one string:
+Three tools. `rekall_context` reads, taking one string:
 
 ```json
 { "anchors": "project:vega task:report-builder-main-workflow" }
@@ -237,6 +251,16 @@ Two tools. `rekall_context` reads, taking one string:
 { "anchors": "project:vega task:report-builder", "body": "## What it does\n..." }
 ```
 
+`rekall_step` moves one step of a task along its line, taking the anchors, the step's number or
+title, and the target state:
+
+```json
+{ "anchors": "project:vega task:report-builder", "step": "3", "state": "running" }
+```
+
+`state` is `running`, `claimed` or `open`. It refuses `done`, and refuses a step a person has
+already accepted: reopening one is a console decision.
+
 An anchor is `entity:value`. A value containing spaces is quoted. A bare term with no `entity:`
 is looked up across both entities and accepted only when exactly one record matches; on more
 than one the candidates come back and nothing is loaded. The tool does not score, weigh or
@@ -245,12 +269,13 @@ choose.
 A note attached to several tasks arrives under each of their anchors. The same markdown showing
 up twice in one session is the relation working, not a duplicate.
 
-`rekall_wrapup` is narrower on purpose. `rekall_context` may be handed a company and will
+The two writes are narrower on purpose. `rekall_context` may be handed a company and will
 happily return everything under it; a write cannot, because a project names forty tasks and
 none of them is the answer. Anything that does not resolve to exactly one task is refused with
-the form that would have worked, and an ambiguous bare label is reported rather than picked.
-The tool description carries the state-not-process rule, because that description is the only
-part of this system the model reads before deciding what to write.
+the form that would have worked, and an ambiguous bare label is reported rather than picked. The
+`rekall_wrapup` description carries the state-not-process rule, because that description is the
+only part of this system the model reads before deciding what to write; the `rekall_step`
+description says the last tick is not its to make.
 
 Responses are capped, with an explicit truncation notice rather than a silent cut.
 
@@ -284,17 +309,19 @@ the exception that hides this, because its own schema defaults both annotations.
 ## 7. Write safety
 
 `rekall-mcp` has no controller, no `CatalogService` and no `DocumentService` on its classpath.
-The one write service it can reach, `WrapupService`, takes a task and a body and can do nothing
-else: it cannot create, rename or delete any record, cannot touch a note, and cannot tick a step.
-`TaskStepService` is on the classpath because `ContextService` renders what it stores, and every
-path into it that writes is behind the REST controller the console alone calls. Every read runs
-under `@Transactional(readOnly = true)`, so Hibernate will not flush. `McpTool.writes()` is
-declared rather than inferred, and the startup log names the write surface out loud.
+The two write services it can reach are narrow by construction. `WrapupService` takes a task and
+a body and can do nothing else: no record created, renamed or deleted, no note touched.
+`TaskStepService.transition` takes a task, a step and a target state, and refuses `DONE` and any
+step a person has already accepted; it cannot add, reorder or remove a step, and the console's
+`edit` is still the only path to `DONE`. Every read runs under
+`@Transactional(readOnly = true)`, so Hibernate will not flush. `McpTool.writes()` is declared
+rather than inferred, and the startup log names the write surface out loud.
 
 The residual risk is real and small: Claude can overwrite one task's wrapup with something
-wrong, or with something that replaces a correction made by hand. The first is repaired by
-writing it again; the second is announced in the tool's answer, because nothing keeps a copy.
-What it cannot do is lose a note, move a task or delete anything.
+wrong, or with something that replaces a correction made by hand, and it can mark a step running
+or claimed when it is not. The first is repaired by writing it again; the second is announced in
+the tool's answer, because nothing keeps a copy; the third a person corrects with one tick in
+the console. What it cannot do is tick a step done, lose a note, move a task or delete anything.
 
 ---
 

@@ -1,17 +1,18 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { TaskStep } from '@/model/catalog'
+import { stepIsComplete, type TaskStep } from '@/model/catalog'
 
 /**
  * The checklist, on the way to the pane that holds it, reduced to the one thing a card can say:
- * how much is left, and what is next.
+ * how much is left, and what is happening on it.
  *
  * It sits between the description and the wrapup because that is the order the three are asked
  * in: what is this task, what is left of it, what did it become. The middle question is the one
  * the other two were being made to answer between them.
  *
- * The next open step is named rather than counted. A number says how much work is left; the
- * title says what it is, which is what you came to this row to find out.
+ * The row that matters is named rather than counted. A number says how much work is left; the
+ * title says what it is. When a session is on a step, that one is named instead: it is the more
+ * useful answer to "where is this".
  */
 const props = defineProps<{
   steps: readonly TaskStep[]
@@ -20,8 +21,10 @@ const props = defineProps<{
 
 const emit = defineEmits<{ open: [] }>()
 
-const done = computed(() => props.steps.filter((step) => step.done).length)
-const next = computed(() => props.steps.find((step) => !step.done) ?? null)
+const done = computed(() => props.steps.filter((step) => step.state === 'DONE').length)
+const claimed = computed(() => props.steps.filter((step) => step.state === 'CLAIMED').length)
+const running = computed(() => props.steps.find((step) => step.state === 'RUNNING') ?? null)
+const next = computed(() => props.steps.find((step) => !stepIsComplete(step.state)) ?? null)
 const hasSteps = computed(() => props.steps.length > 0)
 </script>
 
@@ -53,6 +56,17 @@ const hasSteps = computed(() => props.steps.length > 0)
         Steps
       </span>
       <span
+        v-if="running"
+        class="inline-flex items-center gap-1 rounded-full bg-accent-soft px-1.5 py-px text-[9.5px] font-semibold tracking-[0.02em] text-accent"
+        data-testid="steps-card-running"
+      >
+        <span class="relative grid size-1.5 place-items-center" aria-hidden="true">
+          <span class="absolute inline-flex size-1.5 animate-ping rounded-full bg-accent/60" />
+          <span class="relative inline-flex size-1 rounded-full bg-accent" />
+        </span>
+        running
+      </span>
+      <span
         v-if="hasSteps"
         class="ml-auto shrink-0 font-mono text-[10.5px] tabular-nums text-text-muted"
         data-testid="steps-progress"
@@ -62,23 +76,52 @@ const hasSteps = computed(() => props.steps.length > 0)
     </span>
 
     <template v-if="hasSteps">
-      <!-- One segment per step rather than one bar at a percentage, and the same mark the pane
-           carries. A proportion says how far along; segments say how many pieces the work was
-           cut into, and which one is next. -->
+      <!-- One segment per step rather than one bar at a percentage, and the same marks the pane
+           carries: accepted, claimed and waiting, running now, next. -->
       <span class="mt-2 flex h-[4px] gap-[3px]" aria-hidden="true">
         <span
           v-for="step in steps"
           :key="step.id"
           class="h-full flex-1 rounded-full transition-colors duration-300"
           :class="
-            step.done ? 'bg-accent' : step.id === next?.id ? 'bg-accent/40' : 'bg-border-strong'
+            step.state === 'DONE'
+              ? 'bg-accent'
+              : step.state === 'CLAIMED'
+                ? 'bg-accent/60'
+                : step.state === 'RUNNING'
+                  ? 'bg-accent/50 animate-pulse'
+                  : step.id === next?.id
+                    ? 'bg-accent/25'
+                    : 'bg-border-strong'
           "
         />
       </span>
-      <span v-if="next" class="mt-1.5 block truncate text-[12px] leading-relaxed text-text-muted">
+      <span
+        v-if="running"
+        class="mt-1.5 block truncate text-[12px] leading-relaxed text-accent"
+        data-testid="steps-card-line"
+      >
+        Running: {{ running.title }}
+      </span>
+      <span
+        v-else-if="next"
+        class="mt-1.5 block truncate text-[12px] leading-relaxed text-text-muted"
+        data-testid="steps-card-line"
+      >
         Next: {{ next.title }}
       </span>
-      <span v-else class="mt-1.5 block text-[12px] leading-relaxed text-safe">
+      <span
+        v-else-if="claimed > 0"
+        class="mt-1.5 block text-[12px] leading-relaxed text-accent"
+        data-testid="steps-card-line"
+      >
+        {{ claimed }} step{{ claimed > 1 ? 's' : '' }} awaiting your review.
+      </span>
+      <span
+        v-else
+        class="mt-1.5 block text-[12px] leading-relaxed text-safe"
+        data-testid="steps-card-line"
+      >
         Every step is done.
       </span>
     </template>

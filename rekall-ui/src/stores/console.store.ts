@@ -42,15 +42,17 @@ import {
   stopTimeEntry as apiStopTimeEntry
 } from '@/api/time-entries.api'
 import type { TimeEntryEdit } from '@/api/time-entries.api'
-import type {
-  Company,
-  Project,
-  RekallDocument,
-  Task,
-  TaskStatus,
-  TaskStep,
-  TimeEntry,
-  Wrapup
+import {
+  stepCompletedAt,
+  stepIsComplete,
+  type Company,
+  type Project,
+  type RekallDocument,
+  type Task,
+  type TaskStatus,
+  type TaskStep,
+  type TimeEntry,
+  type Wrapup
 } from '@/model/catalog'
 import type {
   CompanyId,
@@ -213,10 +215,17 @@ export const useConsoleStore = defineStore('console', () => {
   const wrapupMissesSteps = computed(() => {
     const wrapup = selectedWrapup.value
     if (!wrapup) return 0
-    return selectedTaskSteps.value.filter(
-      (step) => step.done && step.doneAt !== null && step.doneAt > wrapup.updatedAt
-    ).length
+    return selectedTaskSteps.value.filter((step) => {
+      if (!stepIsComplete(step.state)) return false
+      const at = stepCompletedAt(step)
+      return at !== null && at > wrapup.updatedAt
+    }).length
   })
+
+  /** The step a session is on right now, if any, on the task in view. */
+  const runningStep = computed(
+    () => selectedTaskSteps.value.find((step) => step.state === 'RUNNING') ?? null
+  )
 
   /**
    * The notes on this task that have been written since the wrapup was.
@@ -692,6 +701,19 @@ export const useConsoleStore = defineStore('console', () => {
     recountSteps(step.taskId)
   }
 
+  /**
+   * A checklist change that arrived over the live feed rather than from a call this window made.
+   *
+   * The event carries the whole of one task's checklist, and the rule is "replace what you hold
+   * for this task with this": a session moving a step over MCP, or a box ticked in another
+   * console, lands here and the pane reacts without a reload. Whatever this window has open for
+   * other tasks is left alone.
+   */
+  function applyStepEvent(taskId: TaskId, incoming: TaskStep[]): void {
+    steps.value = [...steps.value.filter((step) => step.taskId !== taskId), ...incoming]
+    recountSteps(taskId)
+  }
+
   /** Adds to the end of the checklist. Where it lands is the server's to decide, not this. */
   async function addStep(taskId: TaskId, title: string, bodyMarkdown?: string): Promise<TaskStep> {
     const created = await apiCreateStep(taskId, title, bodyMarkdown)
@@ -860,6 +882,7 @@ export const useConsoleStore = defineStore('console', () => {
     selectedWrapup,
     selectedTaskSteps,
     openStepCount,
+    runningStep,
     wrapupIsBehind,
     wrapupMissesSteps,
     visibleTasks,
@@ -897,6 +920,7 @@ export const useConsoleStore = defineStore('console', () => {
     toggleStep,
     moveStep,
     removeStep,
+    applyStepEvent,
     saveWrapupBody,
     removeWrapup,
     startTimer,

@@ -13,6 +13,7 @@ import AppToaster from '@/components/ui/AppToaster.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useModalGate } from '@/composables/useModalGate'
+import { useStepStream } from '@/composables/useStepStream'
 import type { TaskStatus } from '@/model/catalog'
 
 /**
@@ -26,6 +27,10 @@ const store = useConsoleStore()
 const { selectedTaskId, navMode, paneFocus } = storeToRefs(store)
 const { run } = useAsyncAction()
 const { isModalOpen } = useModalGate()
+
+// The live feed of checklist changes: a step moved over MCP, or a box ticked in another window,
+// reaches this one without a reload. Torn down with the console when it unmounts.
+useStepStream((taskId, steps) => store.applyStepEvent(taskId, steps))
 
 /** The four statuses in the order they appear in the navigator, so 1 to 4 match what you see. */
 const STATUS_BY_KEY: Record<string, TaskStatus> = {
