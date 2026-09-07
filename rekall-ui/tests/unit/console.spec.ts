@@ -144,7 +144,10 @@ const steps: TaskStep[] = [
     taskId: validator,
     title: 'Aggregate the rows',
     bodyMarkdown: null,
+    state: 'DONE',
     done: true,
+    runningAt: null,
+    claimedAt: null,
     // Deliberately after the wrapup's own timestamp: "this step finished and the wrapup has
     // not been rewritten since" is the state the console has to be able to report.
     doneAt: '2026-08-12T13:30:00Z',
@@ -157,7 +160,10 @@ const steps: TaskStep[] = [
     taskId: validator,
     title: 'Write the tests',
     bodyMarkdown: 'Un caso per settimana vuota.',
+    state: 'OPEN',
     done: false,
+    runningAt: null,
+    claimedAt: null,
     doneAt: null,
     position: 1,
     createdAt: '2026-08-12T10:00:00Z',
@@ -170,17 +176,22 @@ const createStep = vi.fn(async (taskId: TaskId, title: string) => ({
   taskId,
   title,
   bodyMarkdown: null,
+  state: 'OPEN' as const,
   done: false,
+  runningAt: null,
+  claimedAt: null,
   doneAt: null,
   position: 2,
   createdAt: '2026-08-12T16:00:00Z',
   updatedAt: '2026-08-12T16:00:00Z'
 }))
 
-const patchStep = vi.fn(async (id: TaskStepId, patch: Partial<TaskStep>) => ({
-  ...steps.find((step) => step.id === id)!,
-  ...patch
-}))
+/** Mirrors the server: a `done` in the patch also settles the step's state. */
+const patchStep = vi.fn(async (id: TaskStepId, patch: Partial<TaskStep>) => {
+  const merged = { ...steps.find((step) => step.id === id)!, ...patch }
+  if ('done' in patch) merged.state = patch.done ? 'DONE' : 'OPEN'
+  return merged
+})
 
 const moveStep = vi.fn(async () => [
   { ...steps[1]!, position: 0 },
@@ -632,6 +643,52 @@ describe('console store', () => {
       expect(store.paneFocus).toBe('steps')
       store.toggleSteps()
       expect(store.paneFocus).toBe('note')
+    })
+
+    /**
+     * A change that arrived over the live feed rather than from a call this window made: a
+     * session moved a step over MCP. The rule is "replace what you hold for this task", and the
+     * row counts follow.
+     */
+    it('applies a live checklist event and recounts the task row', () => {
+      store.selectTask(validator)
+
+      store.applyStepEvent(validator, [
+        { ...steps[0]!, state: 'DONE' },
+        { ...steps[1]!, state: 'RUNNING', runningAt: '2026-08-12T14:00:00Z' }
+      ])
+
+      expect(store.selectedTaskSteps.map((step) => step.state)).toEqual(['DONE', 'RUNNING'])
+      expect(store.runningStep?.id).toBe('s2')
+      // Only DONE counts as accepted; the running step does not.
+      const task = store.tasks.find((candidate) => candidate.id === validator)!
+      expect([task.stepCount, task.stepsDone]).toEqual([2, 1])
+    })
+
+    /** A live event for another task never disturbs what this window has open. */
+    it('leaves other tasks alone when a live event lands', () => {
+      store.selectTask(validator)
+      const before = store.selectedTaskSteps.length
+
+      store.applyStepEvent(retry, [])
+
+      expect(store.selectedTaskSteps).toHaveLength(before)
+    })
+
+    /**
+     * A step a session has claimed is finished work waiting to be accepted. The wrapup is behind
+     * it from the moment it was claimed, not from a later console tick.
+     */
+    it('counts a claimed step against the wrapup by when it was claimed', () => {
+      store.selectTask(validator)
+
+      store.applyStepEvent(validator, [
+        // Claimed after the wrapup's 12:30, so the wrapup is one step behind.
+        { ...steps[0]!, state: 'CLAIMED', done: false, claimedAt: '2026-08-12T15:00:00Z' },
+        { ...steps[1]! }
+      ])
+
+      expect(store.wrapupMissesSteps).toBe(1)
     })
   })
 })

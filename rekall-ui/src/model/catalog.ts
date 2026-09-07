@@ -14,8 +14,20 @@ export const DOCUMENT_KINDS = ['context', 'notes', 'architecture', 'report', 'ot
 export const PROJECT_STATUSES = ['ACTIVE', 'PAUSED', 'DONE'] as const
 export const TASK_STATUSES = ['TODO', 'IN_PROGRESS', 'BLOCKED', 'DONE'] as const
 
+/**
+ * Where one step has got to. A session moves it OPEN -> RUNNING -> CLAIMED over MCP; only a
+ * console tick reaches DONE, which is why the navigator's progress count still means "accepted".
+ */
+export const TASK_STEP_STATES = ['OPEN', 'RUNNING', 'CLAIMED', 'DONE'] as const
+
 export type ProjectStatus = (typeof PROJECT_STATUSES)[number]
 export type TaskStatus = (typeof TASK_STATUSES)[number]
+export type TaskStepState = (typeof TASK_STEP_STATES)[number]
+
+/** Whether the work of a step is finished, whoever still has to sign off on it. */
+export function stepIsComplete(state: TaskStepState): boolean {
+  return state === 'CLAIMED' || state === 'DONE'
+}
 
 /** Enum constants are shouted; a person reading a list is not. */
 export const PROJECT_STATUS_LABEL: Readonly<Record<ProjectStatus, string>> = {
@@ -111,28 +123,39 @@ export interface Task {
 }
 
 /**
- * One piece of a task, done or not.
+ * One piece of a task, somewhere on the line from open to done.
  *
  * The answer neither the description nor the wrapup gives. The description is the brief and
  * grows as the work is redefined, the wrapup is where the implementation got to; what is left
  * was being read out of the two by comparing them. A step says it, and `bodyMarkdown` is where
  * the implementation detail of that one piece lives.
  *
- * Ticked in the console and nowhere else: a session can read a checklist but never close a box
- * on it.
+ * `state` carries where the work has got to. A session drives it as far as `CLAIMED` over MCP;
+ * the move to `DONE` is a person in the console saying they reviewed it. `done` is
+ * `state === 'DONE'`, kept for the row counts and the "since the wrapup" check.
  */
 export interface TaskStep {
   readonly id: TaskStepId
   readonly taskId: TaskId
   readonly title: string
   readonly bodyMarkdown: string | null
+  readonly state: TaskStepState
   readonly done: boolean
-  /** When it was ticked, or null while it is open. */
+  /** When a session picked it up, or null since it was last open. */
+  readonly runningAt: string | null
+  /** When a session claimed it as finished, or null. */
+  readonly claimedAt: string | null
+  /** When a person accepted the work, or null short of that. */
   readonly doneAt: string | null
   /** Dense from zero. The order the work is meant to happen in. */
   readonly position: number
   readonly createdAt: string
   readonly updatedAt: string
+}
+
+/** The moment a step's work was finished, claimed first, for the wrapup-behind check. */
+export function stepCompletedAt(step: TaskStep): string | null {
+  return step.claimedAt ?? step.doneAt
 }
 
 export interface RekallDocument {

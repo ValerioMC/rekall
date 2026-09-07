@@ -118,7 +118,10 @@ const steps: TaskStep[] = [
     taskId: validator,
     title: 'Aggregate the rows',
     bodyMarkdown: null,
+    state: 'DONE',
     done: true,
+    runningAt: null,
+    claimedAt: null,
     // After the wrapup's timestamp, so the card has a reason to say it is behind.
     doneAt: '2026-08-12T13:30:00Z',
     position: 0,
@@ -130,7 +133,10 @@ const steps: TaskStep[] = [
     taskId: validator,
     title: 'Write the tests',
     bodyMarkdown: 'Un caso per settimana vuota e uno per settimana piena.',
+    state: 'OPEN',
     done: false,
+    runningAt: null,
+    claimedAt: null,
     doneAt: null,
     position: 1,
     createdAt: '2026-08-12T10:00:00Z',
@@ -554,7 +560,7 @@ describe('the console', () => {
       expect(wrapper.text()).toContain('Il builder gira su POST /api/v1/pipelines')
       // The note editor's controls are absent rather than disabled: a wrapup has no kind and
       // no second task it could belong to.
-      expect(wrapper.text()).not.toContain('Attach to task')
+      expect(wrapper.find('[data-testid="assign-open"]').exists()).toBe(false)
     })
 
     /**
@@ -713,7 +719,7 @@ describe('the console', () => {
       expect(wrapper.text()).toContain('Ritenta solo gli errori 5xx')
       expect(wrapper.text()).toContain('/rk project:vega task:retry-policy')
       // Its own pane, not the note editor with another title on it.
-      expect(wrapper.text()).not.toContain('Attach to task')
+      expect(wrapper.find('[data-testid="assign-open"]').exists()).toBe(false)
     })
 
     /**

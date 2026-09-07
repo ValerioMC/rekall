@@ -4,6 +4,7 @@ import dev.rekall.domain.context.AmbiguousAnchorException;
 import dev.rekall.domain.context.ContextRecord;
 import dev.rekall.domain.context.ContextService;
 import dev.rekall.domain.context.DocumentView;
+import dev.rekall.domain.TaskStepState;
 import dev.rekall.domain.context.UnknownAnchorException;
 import dev.rekall.domain.step.TaskStepView;
 import dev.rekall.domain.wrapup.WrapupView;
@@ -192,27 +193,44 @@ public class ContextTool implements McpTool {
         if (steps.isEmpty()) {
             return "";
         }
-        long done = steps.stream().filter(TaskStepView::done).count();
+        long done = steps.stream().filter(step -> step.state().complete()).count();
+        long running = steps.stream().filter(step -> step.state().running()).count();
+        long awaiting = steps.stream().filter(step -> step.state() == TaskStepState.CLAIMED).count();
         long unwritten = steps.stream().filter(step -> isUnwritten(step, wrapup)).count();
 
-        StringBuilder out = new StringBuilder("\n<steps done=\"%d\" open=\"%d\"%s>\n".formatted(
-                done,
-                steps.size() - done,
-                unwritten == 0 ? "" : " finished-since-wrapup=\"%d\"".formatted(unwritten)));
+        StringBuilder attributes = new StringBuilder("done=\"%d\" open=\"%d\"".formatted(done, steps.size() - done));
+        if (running > 0) {
+            attributes.append(" running=\"%d\"".formatted(running));
+        }
+        if (awaiting > 0) {
+            attributes.append(" awaiting-review=\"%d\"".formatted(awaiting));
+        }
+        if (unwritten > 0) {
+            attributes.append(" finished-since-wrapup=\"%d\"".formatted(unwritten));
+        }
+        StringBuilder out = new StringBuilder("\n<steps ").append(attributes).append(">\n");
 
         for (TaskStepView step : steps) {
             boolean unwrittenHere = isUnwritten(step, wrapup);
-            out.append(step.done() ? "- [x] " : "- [ ] ").append(step.title());
+            out.append(step.state().complete() ? "- [x] " : "- [ ] ").append(step.title());
+            // The two states a session drives. Running is the step it is on now; claimed is one
+            // it says it has finished and is waiting for the console to accept. Both are called
+            // out so a session that reloads mid-run does not start the running step again or
+            // redo the claimed one.
+            if (step.state().running()) {
+                out.append("  (in progress)");
+            } else if (step.state() == TaskStepState.CLAIMED) {
+                out.append("  (claimed, waiting for the console to accept it)");
+            }
             if (unwrittenHere) {
                 out.append("  (finished since the wrapup was written)");
             }
             out.append('\n');
 
-            // The detail comes back for a step the wrapup has not caught up with. It is done, so
-            // nothing is left to build from it, but nothing else in this context says what it
-            // was: the wrapup predates it and the title alone is not enough to describe what the
-            // task now is. It goes silent again as soon as a wrapup accounts for it.
-            boolean carriesDetail = !step.done() || unwrittenHere;
+            // Detail comes back while the step is still work, open or running, and for a
+            // complete step the wrapup has not caught up with: nothing else in this context says
+            // what that piece was. It goes silent once a wrapup accounts for it.
+            boolean carriesDetail = !step.state().complete() || unwrittenHere;
             if (carriesDetail && step.bodyMarkdown() != null && !step.bodyMarkdown().isBlank()) {
                 out.append(indent(truncate(step.bodyMarkdown()))).append('\n');
             }
@@ -221,19 +239,21 @@ public class ContextTool implements McpTool {
     }
 
     /**
-     * Whether this step finished after the wrapup was last written.
+     * Whether this step's work finished after the wrapup was last written.
      *
      * <p>The one thing a model cannot work out for itself here, and the reason it is computed
-     * rather than left to be inferred from two timestamps in the text. A step ticked after the
+     * rather than left to be inferred from timestamps in the text. A step finished after the
      * wrapup is a piece of work the current description cannot possibly mention, which is
-     * exactly what the next wrapup has to fold in. With no wrapup at all, every finished step
-     * is unaccounted for, and the first one written has to cover them all.
+     * exactly what the next wrapup has to fold in. Measured against the moment the work was
+     * finished, which is when a session claimed it if it did: a wrapup written right after that
+     * already accounts for the step, and a later console tick does not change what it built.
+     * With no wrapup at all, every finished step is unaccounted for.
      */
     private boolean isUnwritten(TaskStepView step, WrapupView wrapup) {
-        if (!step.done() || step.doneAt() == null) {
+        if (!step.state().complete() || step.completedAt() == null) {
             return false;
         }
-        return wrapup == null || step.doneAt().isAfter(wrapup.updatedAt());
+        return wrapup == null || step.completedAt().isAfter(wrapup.updatedAt());
     }
 
     /** Two spaces, so a step's detail stays inside the item it belongs to rather than ending it. */

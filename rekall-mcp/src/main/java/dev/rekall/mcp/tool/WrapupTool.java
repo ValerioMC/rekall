@@ -10,20 +10,19 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 
 /**
- * The one tool that writes: it replaces a task's wrapup.
+ * The write that replaces a task's wrapup.
  *
  * <p>A wrapup is what the task's implementation looks like now. It is written at the end of a
  * session and read at the start of the next one, which is the loop the whole feature exists
  * for: the work resumes from the current state instead of from reading the code back.
  *
  * <p>Everything this can reach is one row of one table, keyed by a task. It cannot create a
- * task, rename one, touch a note or write any other column, and there is deliberately no tool
- * beside it: a second way to write is a second thing to get wrong.
+ * task, rename one, touch a note or write any other column. Its only sibling on the write side
+ * is {@link StepStateTool}, which moves a step along its line and cannot tick the last box; the
+ * two together are the whole of what a session can change here.
  */
 @Component
 @RequiredArgsConstructor
@@ -111,7 +110,7 @@ public class WrapupTool implements McpTool {
     @Override
     public String execute(JsonNode arguments) {
         Arguments args = Arguments.of(arguments);
-        Target target = target(Anchor.parseAll(args.requiredString("anchors")));
+        AnchoredTask target = AnchoredTask.from(Anchor.parseAll(args.requiredString("anchors")));
         String body = args.requiredString("body");
 
         WrapupService.Written written;
@@ -140,58 +139,5 @@ public class WrapupTool implements McpTool {
                 .append(written.wrapup().anchor())
                 .append("` will load from now on.")
                 .toString();
-    }
-
-    // ------------------------------------------------------------------ addressing
-
-    /**
-     * Which task the anchors name.
-     *
-     * @param projectLabel the {@code project:} half, or null when only a task was given
-     */
-    private record Target(String projectLabel, String taskLabel) {
-    }
-
-    /**
-     * A write has to land on one task and be sure of it.
-     *
-     * <p>The reading tool can afford to accept a company or a project anchor and hand back
-     * whatever hangs off it. This one cannot: a project names forty tasks and none of them is
-     * the answer, so anything that does not resolve to a single task is refused with the form
-     * that would have worked.
-     */
-    private Target target(List<Anchor> anchors) {
-        String project = null;
-        String task = null;
-        List<String> bare = new ArrayList<>();
-
-        for (Anchor anchor : anchors) {
-            if (anchor.is("task")) {
-                if (task != null) {
-                    throw new ToolFailure("Two task anchors were given. A wrapup belongs to one task.");
-                }
-                task = anchor.value();
-            } else if (anchor.is("project")) {
-                project = anchor.value();
-            } else if (!anchor.isQualified()) {
-                bare.add(anchor.value());
-            } else {
-                throw new ToolFailure(
-                        "`%s` cannot say which task to write to. Pass `project:<label> task:<label>`."
-                                .formatted(anchor));
-            }
-        }
-
-        // One bare term is the positional form of a task label, the same way `/rk report-builder`
-        // reads. More than one is a guess, and this is the wrong place to guess.
-        if (task == null && bare.size() == 1) {
-            task = bare.getFirst();
-        }
-        if (task == null) {
-            throw new ToolFailure(
-                    "No task in those anchors. A wrapup belongs to exactly one task: "
-                            + "pass `project:<label> task:<label>`.");
-        }
-        return new Target(project, task);
     }
 }

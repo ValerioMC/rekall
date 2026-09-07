@@ -2,10 +2,13 @@ package dev.rekall.domain.step;
 
 import dev.rekall.domain.Task;
 import dev.rekall.domain.TaskStep;
+import dev.rekall.domain.TaskStepState;
+import dev.rekall.domain.context.AmbiguousAnchorException;
 import dev.rekall.domain.context.UnknownAnchorException;
 import dev.rekall.domain.repository.TaskRepository;
 import dev.rekall.domain.repository.TaskStepRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,15 +17,18 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * The checklist under a task: what it is made of, in order, and which parts are finished.
+ * The checklist under a task: what it is made of, in order, and where each part has got to.
  *
- * <p>One writer, the console, the same trade {@code TimeEntryService} makes. A step is ticked
- * by the person who reviewed the work, never by the session that did it, so there is no MCP
- * path in and the ordering rules below are enforced here rather than by a constraint.
+ * <p>Two ways in and one of them is new. The console still owns the shape of the list, appends,
+ * moves, deletes and, above all, the tick that marks a step {@link TaskStepState#DONE}. What a
+ * session can now do, over MCP through {@link #transition}, is move a step to
+ * {@link TaskStepState#RUNNING} and {@link TaskStepState#CLAIMED}, which is what lets it walk
+ * its own checklist. It cannot reach {@link TaskStepState#DONE}: that is a person saying they
+ * reviewed the work.
  *
- * <p>Positions are dense and start at zero. Every write that can leave a gap renumbers the
- * whole list, because the alternative is a sparse ordering that is correct until something
- * reads it as an index.
+ * <p>Every write publishes a {@link StepStreamEvent} so the open console windows update without
+ * a reload. Positions are dense from zero, and every write that can leave a gap renumbers the
+ * whole list.
  */
 @Service
 @RequiredArgsConstructor
@@ -30,6 +36,7 @@ public class TaskStepService {
 
     private final TaskRepository tasks;
     private final TaskStepRepository steps;
+    private final ApplicationEventPublisher events;
 
     // ------------------------------------------------------------------ reading
 
@@ -61,15 +68,19 @@ public class TaskStepService {
         TaskStep step = new TaskStep(task, validatedTitle(title), siblings.size());
         step.setBodyMarkdown(validatedBody(bodyMarkdown));
         task.getSteps().add(step);
-        return TaskStepView.of(steps.saveAndFlush(step));
+        TaskStepView saved = TaskStepView.of(steps.saveAndFlush(step));
+        publish(taskId);
+        return saved;
     }
 
     /**
-     * Changes one step, one field at a time.
+     * Changes one step from the console, one field at a time.
      *
      * <p>Null means "leave it alone" for every argument, so the checklist can be ticked from a
-     * row that never loaded the detail behind it. Clearing the detail is an empty string, which
-     * is stored as no detail rather than as an empty paragraph.
+     * row that never loaded the detail behind it. {@code done} is the console's move onto and off
+     * the {@link TaskStepState#DONE} end of the line: true accepts the work, false reopens it.
+     * Clearing the detail is an empty string, which is stored as no detail rather than as an
+     * empty paragraph.
      */
     @Transactional
     public TaskStepView edit(UUID id, String title, String bodyMarkdown, Boolean done) {
@@ -81,9 +92,42 @@ public class TaskStepService {
             step.setBodyMarkdown(validatedBody(bodyMarkdown));
         }
         if (done != null) {
-            step.markDone(done);
+            step.markState(done ? TaskStepState.DONE : TaskStepState.OPEN);
         }
-        return TaskStepView.of(steps.saveAndFlush(step));
+        TaskStepView saved = TaskStepView.of(steps.saveAndFlush(step));
+        publish(step.getTask().getId());
+        return saved;
+    }
+
+    /**
+     * A session moving a step along the line, over MCP.
+     *
+     * <p>{@code target} is {@link TaskStepState#RUNNING} when the work starts,
+     * {@link TaskStepState#CLAIMED} when the session is finished with it, or
+     * {@link TaskStepState#OPEN} to put back a step it has to abandon. {@link TaskStepState#DONE}
+     * is refused: a session claiming its own work is accepted is the one thing this split exists
+     * to prevent. A step a person has already accepted is refused too, in either direction:
+     * reopening it is a console decision.
+     *
+     * @param stepRef the step's one-based position in the list, or its exact title
+     */
+    @Transactional
+    public TaskStepView transition(String projectLabel, String taskLabel, String stepRef, TaskStepState target) {
+        if (target == TaskStepState.DONE) {
+            throw new IllegalArgumentException(
+                    "A step is marked done in the console, by the person who reviewed the work. "
+                            + "A session can take it as far as `claimed`.");
+        }
+        Task task = resolveTask(projectLabel, taskLabel);
+        TaskStep step = resolveStep(task.getId(), stepRef);
+        if (step.getState() == TaskStepState.DONE) {
+            throw new IllegalArgumentException(
+                    "'%s' is already done. Reopen it in the console if that was wrong.".formatted(step.getTitle()));
+        }
+        step.markState(target);
+        TaskStepView saved = TaskStepView.of(steps.saveAndFlush(step));
+        publish(task.getId());
+        return saved;
     }
 
     /**
@@ -103,6 +147,7 @@ public class TaskStepService {
         renumber(ordered);
 
         steps.flush();
+        publish(taskId);
         return ordered.stream().map(TaskStepView::of).toList();
     }
 
@@ -115,7 +160,82 @@ public class TaskStepService {
             steps.delete(step);
             steps.flush();
             renumber(steps.findByTaskIdOrderByPositionAsc(taskId));
+            publish(taskId);
         });
+    }
+
+    // ------------------------------------------------------------------ stream
+
+    /**
+     * Announces the task's checklist as it stands now.
+     *
+     * <p>The whole list rather than the one row that moved: a move renumbers all of them, and a
+     * client that replaces what it holds for the task cannot end up half-updated.
+     */
+    private void publish(UUID taskId) {
+        List<TaskStepView> current = steps.findByTaskIdOrderByPositionAsc(taskId).stream()
+                .map(TaskStepView::of).toList();
+        events.publishEvent(new StepStreamEvent(taskId, current));
+    }
+
+    // ------------------------------------------------------------------ addressing
+
+    /**
+     * The task an anchor names, with the rules {@code WrapupService} resolves by: a bare label
+     * that two projects share is reported, never guessed.
+     */
+    private Task resolveTask(String projectLabel, String taskLabel) {
+        if (projectLabel != null) {
+            return tasks.findByProjectLabelIgnoreCaseAndLabelIgnoreCase(projectLabel, taskLabel)
+                    .orElseThrow(() -> new UnknownAnchorException(
+                            "No task '%s' on project '%s'".formatted(taskLabel, projectLabel)));
+        }
+        List<Task> found = tasks.findByLabelIgnoreCase(taskLabel);
+        if (found.isEmpty()) {
+            throw new UnknownAnchorException("No task matches '%s'".formatted(taskLabel));
+        }
+        if (found.size() > 1) {
+            throw new AmbiguousAnchorException(
+                    taskLabel, found.stream().map(task -> "project:" + task.getProject().getLabel()).toList());
+        }
+        return found.getFirst();
+    }
+
+    /**
+     * Which step on the task the caller means: its one-based position, or its exact title.
+     *
+     * <p>A number is how a session refers to "step 3" after reading the checklist; a title is
+     * the fallback for when it has the words but not the count. Anything that resolves to no
+     * step, or a title that matches none, is refused with what the list actually holds.
+     */
+    private TaskStep resolveStep(UUID taskId, String ref) {
+        List<TaskStep> ordered = steps.findByTaskIdOrderByPositionAsc(taskId);
+        if (ordered.isEmpty()) {
+            throw new IllegalArgumentException("That task has no steps to move.");
+        }
+        String trimmed = ref == null ? "" : ref.strip();
+
+        if (trimmed.matches("\\d+")) {
+            int oneBased = Integer.parseInt(trimmed);
+            if (oneBased < 1 || oneBased > ordered.size()) {
+                throw new IllegalArgumentException(
+                        "There is no step %d. The checklist has %d.".formatted(oneBased, ordered.size()));
+            }
+            return ordered.get(oneBased - 1);
+        }
+
+        List<TaskStep> byTitle = ordered.stream()
+                .filter(step -> step.getTitle().strip().equalsIgnoreCase(trimmed))
+                .toList();
+        if (byTitle.size() == 1) {
+            return byTitle.getFirst();
+        }
+        String titles = ordered.stream()
+                .map(step -> "%d. %s".formatted(ordered.indexOf(step) + 1, step.getTitle()))
+                .reduce((a, b) -> a + "\n" + b)
+                .orElse("");
+        throw new IllegalArgumentException(
+                "No step matches '%s'. Pass its number or its exact title:\n%s".formatted(ref, titles));
     }
 
     // ------------------------------------------------------------------ checks

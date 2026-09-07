@@ -1,14 +1,15 @@
 ---
 description: Load a Rekall working context by anchor, e.g. /rk project:vega task:report-builder
-argument-hint: "company:|project:|task: <label> ...  [wrapup [\"how to write it\"]]   (labels, not titles)"
-allowed-tools: mcp__rekall__rekall_context, mcp__rekall__rekall_wrapup
+argument-hint: "company:|project:|task: <label> ...  [wrapup [\"how to write it\"]] | [step:N start|done]   (labels, not titles)"
+allowed-tools: mcp__rekall__rekall_context, mcp__rekall__rekall_wrapup, mcp__rekall__rekall_step
 ---
 
 The arguments are:
 
 $ARGUMENTS
 
-If the terms include the bare word `wrapup`, follow **Wrapping up**. Otherwise follow **Loading**.
+If the terms include the bare word `wrapup`, follow **Wrapping up**. If they include a `step:` term
+alongside `start` or `done`, follow **Stepping**. Otherwise follow **Loading**.
 
 ## Loading
 
@@ -68,10 +69,35 @@ If the task carries steps, that is the plan and it decides what you do next.
   is ticked is done however the description still phrases it, and that is not a contradiction worth
   asking me about.
 
-You cannot tick a step, and no tool here can. When you finish one, say which, in the words the step
-uses, so I can tick it in the console.
+You cannot tick a step **done**, and no tool here can: that is mine to do in the console once I have
+looked at the work. What you can do, while you work a checklist, is move a step to **running** and
+then **claimed** with `/rk ... step:N start` and `/rk ... step:N done` (see **Stepping**). When you
+claim one, say which, in the words the step uses.
 
 Anchors that name a project and no task have no brief in them. Summarise what is there and wait.
+
+## Stepping
+
+`/rk project:vega task:report-builder step:3 start` and `/rk project:vega task:report-builder step:3
+done` are how a session drives its own checklist as it works. `step:` takes the step's number as
+`rekall_context` lists them, or its exact title.
+
+- `start` marks that step **running**: call `rekall_step` with `state` `running`.
+- `done` marks it **claimed**: call `rekall_step` with `state` `claimed`. It does not tick the box.
+  Only I do that, in the console, once I have looked at the work.
+
+The loop, once you are working a checklist:
+
+1. `/rk project:x task:y step:N start`, before you touch the code for step N.
+2. Do the work the step's detail describes.
+3. `/rk project:x task:y wrapup`, to fold what that step built into the task's wrapup, by the rules
+   in **Wrapping up**. One state, rewritten whole, never a section per step.
+4. `/rk project:x task:y step:N done`, to claim it.
+5. If a later step is still open, `/rk project:x task:y step:M start` and go again. When none is,
+   stop and tell me the checklist is claimed and waiting for my review.
+
+`rekall_step` refuses `done` as a state, and refuses a step I have already accepted. If it comes
+back with either, say so and stop.
 
 ## Wrapping up
 

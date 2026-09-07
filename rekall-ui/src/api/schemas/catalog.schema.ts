@@ -8,7 +8,7 @@ import {
   asTimeEntryId,
   asWrapupId
 } from '@/model/branded'
-import { PROJECT_STATUSES, TASK_STATUSES } from '@/model/catalog'
+import { PROJECT_STATUSES, TASK_STATUSES, TASK_STEP_STATES } from '@/model/catalog'
 
 /**
  * Brands are applied by the schema, so an id's kind is decided at the one place the value is
@@ -80,7 +80,10 @@ export const TaskStepSchema = z.object({
   taskId,
   title: z.string(),
   bodyMarkdown: z.string().nullable(),
+  state: z.enum(TASK_STEP_STATES),
   done: z.boolean(),
+  runningAt: z.string().nullable(),
+  claimedAt: z.string().nullable(),
   doneAt: z.string().nullable(),
   position: z.number().int(),
   createdAt: z.string(),
@@ -120,6 +123,17 @@ export const TimeEntrySchema = z.object({
   stoppedAt: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string()
+})
+
+/**
+ * One task's checklist as it stands now, pushed over the live feed after any step write.
+ *
+ * The rule the console applies is "replace what you hold for this task with `steps`", so the
+ * payload is the whole list rather than the one row that moved.
+ */
+export const StepStreamEventSchema = z.object({
+  taskId,
+  steps: z.array(TaskStepSchema)
 })
 
 export const CompanyListSchema = z.array(CompanySchema)

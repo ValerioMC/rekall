@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppInput from '@/components/ui/AppInput.vue'
@@ -10,7 +10,7 @@ import { useAsyncAction } from '@/composables/useAsyncAction'
 import { identityHue } from '@/common/identity'
 import { relativeTime } from '@/common/format/relative-time'
 import { rkCommand } from '@/common/format/rk-command'
-import type { TaskStep } from '@/model/catalog'
+import { stepIsComplete, type TaskStep } from '@/model/catalog'
 import type { TaskStepId } from '@/model/branded'
 
 /**
@@ -37,16 +37,44 @@ const { run } = useAsyncAction()
 const hue = computed(() => identityHue(selectedTask.value?.projectId ?? ''))
 
 const done = computed(() => selectedTaskSteps.value.filter((step) => step.done).length)
+const claimed = computed(
+  () => selectedTaskSteps.value.filter((step) => step.state === 'CLAIMED').length
+)
 
-/** The first step still open: the work this task is actually on. */
+/** The first step whose work is not finished: what this task is actually on next. */
 const currentId = computed(
-  () => selectedTaskSteps.value.find((step) => !step.done)?.id ?? null
+  () => selectedTaskSteps.value.find((step) => !stepIsComplete(step.state))?.id ?? null
+)
+
+/** The step a session is running right now, if any. What the pane animates around. */
+const runningStep = computed(
+  () => selectedTaskSteps.value.find((step) => step.state === 'RUNNING') ?? null
 )
 
 const hideDone = ref(false)
 const visibleSteps = computed(() =>
   hideDone.value ? selectedTaskSteps.value.filter((step) => !step.done) : selectedTaskSteps.value
 )
+
+/**
+ * What the connector on this row is carrying.
+ *
+ * `spent` is a branch already travelled, held at half light. `pending` is the flat hairline of
+ * work not started. The live segment feeding the running node is not drawn here: the
+ * `energy-stream` overlay covers the whole travelled path in one piece, so the running row
+ * keeps only the hairline that continues toward the work still ahead of it.
+ */
+function railKind(index: number): 'spent' | 'pending' {
+  const step = visibleSteps.value[index]
+  return step && stepIsComplete(step.state) ? 'spent' : 'pending'
+}
+
+/** What clicking the node does now, said the way the step's state makes true. */
+function actionLabel(step: TaskStep): string {
+  if (step.state === 'DONE') return `Reopen ${step.title}`
+  if (step.state === 'CLAIMED') return `Accept ${step.title}`
+  return `Mark ${step.title} done`
+}
 
 // ------------------------------------------------------------------ adding
 
@@ -137,7 +165,7 @@ watch(
     flush()
     hideDone.value = false
     expandedId.value = null
-    const next = selectedTaskSteps.value.find((step) => !step.done)
+    const next = selectedTaskSteps.value.find((step) => !stepIsComplete(step.state))
     if (next) open(next)
   },
   { immediate: true }
@@ -156,7 +184,7 @@ async function toggle(step: TaskStep): Promise<void> {
   await run(() => store.toggleStep(step.id))
   if (!wasOpenHere) return
 
-  const next = selectedTaskSteps.value.find((candidate) => !candidate.done)
+  const next = selectedTaskSteps.value.find((candidate) => !stepIsComplete(candidate.state))
   if (next && next.id !== step.id) open(next)
   else expandedId.value = null
 }
@@ -200,7 +228,11 @@ async function remove(): Promise<void> {
 function railStyle(index: number): Record<string, string> {
   const isFirst = index === 0
   const isLast = index === visibleSteps.value.length - 1
+  const isRunning = visibleSteps.value[index]?.state === 'RUNNING'
   if (isFirst && isLast) return { display: 'none' }
+  // The running node's incoming half is drawn by the energy stream overlay. Leave this row
+  // only the hairline that carries on toward the steps still ahead of it.
+  if (isRunning && !isFirst) return isLast ? { display: 'none' } : { top: '18px', bottom: '0' }
   if (isFirst) return { top: '18px', bottom: '0' }
   if (isLast) return { top: '0', height: '18px' }
   return { top: '0', bottom: '0' }
@@ -216,6 +248,66 @@ async function copyAnchor(): Promise<void> {
 }
 
 onUnmounted(flush)
+
+// ------------------------------------------------------------------ the energy stream
+
+/**
+ * The travelled path of the checklist, as one lit conduit from the first finished node down to
+ * the step a session is on now.
+ *
+ * The old treatment lit only the single segment touching the running node. This one runs the
+ * whole way: the work has come from the top of the list, so a head of light falls the same
+ * distance, in the direction the work is moving, and is absorbed into the node that breathes.
+ * Its length is the gap between two nodes and the rows in between are not a fixed height, so it
+ * is measured from the DOM rather than expressed in CSS.
+ */
+const listEl = ref<HTMLElement | null>(null)
+const stream = ref<{ top: number; height: number } | null>(null)
+
+/** Node centre inside a row: the button sits at `top: 7px` and is 22px across. */
+const NODE_CENTER_OFFSET = 18
+
+function measureStream(): void {
+  const list = listEl.value
+  if (!list) {
+    stream.value = null
+    return
+  }
+  const rows = Array.from(list.querySelectorAll<HTMLElement>('li[data-testid="step-row"]'))
+  const runningIndex = rows.findIndex((row) => row.dataset.stepState === 'RUNNING')
+  const startIndex = rows.findIndex(
+    (row) => row.dataset.stepState === 'CLAIMED' || row.dataset.stepState === 'DONE'
+  )
+  const startRow = rows[startIndex]
+  const runningRow = rows[runningIndex]
+  if (!startRow || !runningRow || runningIndex < 1 || startIndex >= runningIndex) {
+    stream.value = null
+    return
+  }
+  const top = startRow.offsetTop + NODE_CENTER_OFFSET
+  const height = runningRow.offsetTop + NODE_CENTER_OFFSET - top
+  stream.value = height > 4 ? { top, height } : null
+}
+
+function scheduleMeasure(): void {
+  void nextTick(measureStream)
+}
+
+let rowObserver: ResizeObserver | null = null
+if (typeof ResizeObserver !== 'undefined') {
+  rowObserver = new ResizeObserver(() => measureStream())
+}
+
+watch(listEl, (element) => {
+  rowObserver?.disconnect()
+  if (element) rowObserver?.observe(element)
+  scheduleMeasure()
+})
+
+watch([visibleSteps, expandedId, mode, () => draftBody.value], scheduleMeasure)
+
+onMounted(scheduleMeasure)
+onUnmounted(() => rowObserver?.disconnect())
 </script>
 
 <template>
@@ -243,8 +335,21 @@ onUnmounted(flush)
               <span class="h-2.5 w-[3px] shrink-0 rounded-full bg-accent" aria-hidden="true" />
               Steps
             </p>
-            <h2 class="truncate text-[19px] font-semibold tracking-[-0.015em] text-text">
-              {{ selectedTask.title }}
+            <h2 class="flex items-center gap-2 truncate text-[19px] font-semibold tracking-[-0.015em] text-text">
+              <span class="truncate">{{ selectedTask.title }}</span>
+              <!-- A session is on a step of this task right now. The mark says so before the
+                   node lower down does, and holds only while something is actually running. -->
+              <span
+                v-if="runningStep"
+                class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-accent-soft px-2 py-0.5 text-[10.5px] font-semibold tracking-[0.02em] text-accent"
+                data-testid="steps-running-flag"
+              >
+                <span class="relative grid size-2 place-items-center" aria-hidden="true">
+                  <span class="absolute inline-flex size-2 animate-ping rounded-full bg-accent/60" />
+                  <span class="relative inline-flex size-1.5 rounded-full bg-accent" />
+                </span>
+                running
+              </span>
             </h2>
             <button
               class="anchor-chip focus-ring mt-1.5 inline-flex items-center gap-2 px-2.5 py-1 text-[11.5px] transition-colors hover:border-anchor"
@@ -284,16 +389,27 @@ onUnmounted(flush)
                 :key="step.id"
                 class="h-full flex-1 rounded-full transition-colors duration-300"
                 :class="
-                  step.done
+                  step.state === 'DONE'
                     ? 'bg-accent'
-                    : step.id === currentId
-                      ? 'bg-accent/40'
-                      : 'bg-border-strong'
+                    : step.state === 'CLAIMED'
+                      ? 'bg-accent/60'
+                      : step.state === 'RUNNING'
+                        ? 'bg-accent/50 animate-pulse'
+                        : step.id === currentId
+                          ? 'bg-accent/25'
+                          : 'bg-border-strong'
                 "
               />
             </span>
+            <p
+              v-if="claimed > 0"
+              class="mt-1 text-[10.5px] text-accent"
+              data-testid="steps-claimed-count"
+            >
+              {{ claimed }} awaiting review
+            </p>
             <button
-              v-if="done > 0"
+              v-if="done > 0 || claimed > 0"
               class="focus-ring mt-2 text-[11px] text-text-subtle transition-colors hover:text-text"
               :aria-pressed="hideDone"
               data-testid="toggle-hide-done"
@@ -309,9 +425,9 @@ onUnmounted(flush)
         class="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border bg-surface px-5 py-2.5"
       >
         <span class="text-[11.5px] text-text-muted">
-          What is left, in order. Every
-          <code class="text-anchor/80">/rk {{ selectedTask.anchor }}</code>
-          hands Claude the open ones in full and the done ones by name alone.
+          What is left, in order. A session moves a step from open to running to claimed over
+          <code class="text-anchor/80">/rk {{ selectedTask.anchor }}</code>; the last tick, done,
+          is yours.
         </span>
       </div>
 
@@ -359,38 +475,60 @@ onUnmounted(flush)
           Every step is done. Show them again to correct one.
         </p>
 
-        <ol v-else class="relative min-w-0">
+        <ol v-else ref="listEl" class="relative min-w-0">
+          <!-- The one lit conduit down the whole travelled path, first finished node to the
+               node a session is on now. Measured, not expressed in CSS: its length is the gap
+               between two nodes and the rows between them are not a fixed height. -->
+          <span
+            v-if="stream"
+            class="energy-stream"
+            :style="{ top: `${stream.top}px`, height: `${stream.height}px` }"
+            data-testid="energy-stream"
+            aria-hidden="true"
+          />
           <li
             v-for="(step, index) in visibleSteps"
             :key="step.id"
             class="group/step relative min-w-0 pb-1.5 pl-9"
             data-testid="step-row"
+            :data-step-state="step.state"
           >
             <span
-              class="absolute left-[11px] w-px -translate-x-1/2 bg-border-strong"
+              class="absolute left-[11px] -translate-x-1/2"
+              :class="{
+                'w-px bg-border-strong': railKind(index) === 'pending',
+                'w-px spent-rail': railKind(index) === 'spent'
+              }"
               :style="railStyle(index)"
               aria-hidden="true"
             />
 
             <!-- The node, and the whole of what the console writes about a step's state. The
-                 canvas fill is what makes the line pass behind it rather than through it. -->
+                 canvas fill is what makes the line pass behind it rather than through it. A
+                 running step breathes; a claimed one is filled but hollow, work done and
+                 waiting for this click; done is the solid check. -->
             <button
               class="focus-ring absolute left-0 top-[7px] z-10 grid size-[22px] place-items-center rounded-full border transition-all duration-200"
-              :class="
-                step.done
-                  ? 'border-accent bg-accent text-accent-ink'
-                  : step.id === currentId
-                    ? 'border-accent bg-canvas text-accent shadow-[0_0_0_4px_var(--color-accent-soft)]'
-                    : 'border-border-strong bg-canvas text-transparent hover:border-accent'
-              "
+              :class="{
+                'border-accent bg-accent text-accent-ink': step.state === 'DONE',
+                'border-accent bg-accent-soft text-accent': step.state === 'CLAIMED',
+                'step-node-running border-accent bg-canvas text-accent shadow-[0_0_0_4px_var(--color-accent-soft)]':
+                  step.state === 'RUNNING',
+                'border-accent bg-canvas text-accent shadow-[0_0_0_4px_var(--color-accent-soft)]':
+                  step.state === 'OPEN' && step.id === currentId,
+                'border-border-strong bg-canvas text-transparent hover:border-accent':
+                  step.state === 'OPEN' && step.id !== currentId
+              }"
               role="checkbox"
-              :aria-checked="step.done"
-              :aria-label="step.done ? `Reopen ${step.title}` : `Mark ${step.title} done`"
+              :aria-checked="
+                step.state === 'DONE' ? 'true' : step.state === 'CLAIMED' ? 'mixed' : 'false'
+              "
+              :aria-label="actionLabel(step)"
               data-testid="step-checkbox"
               @click="toggle(step)"
             >
               <svg
-                v-if="step.done"
+                v-if="step.state === 'DONE'"
                 class="size-3"
                 viewBox="0 0 24 24"
                 fill="none"
@@ -404,7 +542,12 @@ onUnmounted(flush)
                 />
               </svg>
               <span
-                v-else-if="step.id === currentId"
+                v-else-if="step.state === 'CLAIMED'"
+                class="size-2.5 rounded-full border-[1.5px] border-accent"
+                aria-hidden="true"
+              />
+              <span
+                v-else-if="step.state === 'RUNNING' || step.id === currentId"
                 class="size-[7px] rounded-full bg-accent"
                 aria-hidden="true"
               />
@@ -413,10 +556,14 @@ onUnmounted(flush)
             <div
               class="min-w-0 rounded-[var(--radius-card)] border px-3 py-2 transition-all"
               :class="[
-                step.id === currentId
-                  ? 'border-accent/30 bg-surface-raised'
-                  : 'border-transparent group-hover/step:border-border',
-                step.done && 'opacity-60 hover:opacity-100'
+                step.state === 'RUNNING'
+                  ? 'border-accent/60 bg-accent-soft'
+                  : step.state === 'CLAIMED'
+                    ? 'border-accent/25 bg-accent-soft/40'
+                    : step.id === currentId
+                      ? 'border-accent/30 bg-surface-raised'
+                      : 'border-transparent group-hover/step:border-border',
+                step.state === 'DONE' && 'opacity-60 hover:opacity-100'
               ]"
             >
               <div class="flex items-start gap-2">
@@ -429,7 +576,7 @@ onUnmounted(flush)
                   <span
                     class="block text-[13.5px] leading-snug transition-colors"
                     :class="
-                      step.done
+                      step.state === 'DONE'
                         ? 'text-text-subtle line-through decoration-text-subtle/50'
                         : 'text-text'
                     "
@@ -438,12 +585,29 @@ onUnmounted(flush)
                   </span>
                   <span class="mt-1 flex flex-wrap items-center gap-2 text-[10.5px]">
                     <span
-                      v-if="step.id === currentId"
+                      v-if="step.state === 'RUNNING'"
+                      class="inline-flex items-center gap-1 rounded-full bg-accent px-1.5 py-px text-[10px] font-semibold tracking-[0.02em] text-accent-ink"
+                      data-testid="step-running-badge"
+                    >
+                      Running
+                    </span>
+                    <span
+                      v-else-if="step.state === 'CLAIMED'"
+                      class="rounded-full border border-accent/40 px-1.5 py-px text-[10px] font-semibold tracking-[0.02em] text-accent"
+                      data-testid="step-claimed-badge"
+                    >
+                      Awaiting review
+                    </span>
+                    <span
+                      v-else-if="step.id === currentId"
                       class="rounded-full bg-accent-soft px-1.5 py-px text-[10px] font-semibold tracking-[0.02em] text-accent"
                     >
                       Next
                     </span>
-                    <span v-if="step.done && step.doneAt" class="text-text-subtle">
+                    <span v-if="step.state === 'CLAIMED' && step.claimedAt" class="text-text-subtle">
+                      claimed {{ relativeTime(step.claimedAt) }}
+                    </span>
+                    <span v-if="step.state === 'DONE' && step.doneAt" class="text-text-subtle">
                       done {{ relativeTime(step.doneAt) }}
                     </span>
                     <span
@@ -461,7 +625,9 @@ onUnmounted(flush)
                       </svg>
                       detail
                     </span>
-                    <span v-else-if="!step.done" class="text-text-subtle">no detail yet</span>
+                    <span v-else-if="!stepIsComplete(step.state)" class="text-text-subtle">
+                      no detail yet
+                    </span>
                   </span>
                 </button>
 

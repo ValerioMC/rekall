@@ -9,6 +9,8 @@ import dev.rekall.domain.Project;
 import dev.rekall.domain.Task;
 import dev.rekall.domain.TimeEntry;
 import dev.rekall.domain.Wrapup;
+import dev.rekall.domain.step.StepStreamEvent;
+import dev.rekall.domain.step.TaskStepView;
 import org.springframework.aot.hint.annotation.RegisterReflectionForBinding;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -42,11 +44,17 @@ import org.springframework.context.ConfigurableApplicationContext;
  * any other endpoint returning a list of them) actually ran. Registering the record class
  * itself here does <b>not</b> also register the array type - {@code Foo[]} needs its own,
  * separate entry, listed explicitly below.
+ *
+ * <p>{@code StepStreamEvent} and {@code TaskStepView} are here for the same reason: the step
+ * event stream serialises them through {@code SseEmitter.send(...)} rather than as a controller
+ * return type, so the MVC AOT contributor never sees them and Jackson has no reflection to
+ * write one out under native image.
  */
 @SpringBootApplication
 @RegisterReflectionForBinding({
         DatabaseRegistry.class, DatabaseEntry.class, DatabaseEntry[].class,
         Company.class, Project.class, Task.class, TimeEntry.class, Wrapup.class, Document.class,
+        StepStreamEvent.class, TaskStepView.class, TaskStepView[].class,
         SettingsController.DatabaseView.class, SettingsController.DatabaseView[].class,
         SettingsController.StatusResponse.class,
         SettingsController.AddRequest.class, SettingsController.AddResponse.class,

@@ -138,9 +138,9 @@ Every anchor brings back the record, what it references resolved in full **with 
 
 If a bare term matches more than one record, the candidates come back and nothing loads. Task labels are unique per project; `project:` disambiguates a label two projects share.
 
-Two tools are exposed. `rekall_context` reads. There is no query tool, get tool or schema tool: reaching a record by asking a question in prose costs several turns before any work starts and fails silently on a wrong guess, so the entry point is an explicit anchor and nothing else.
+Three tools are exposed. `rekall_context` reads. There is no query tool, get tool or schema tool: reaching a record by asking a question in prose costs several turns before any work starts and fails silently on a wrong guess, so the entry point is an explicit anchor and nothing else.
 
-`rekall_wrapup` is the only thing Claude can write, and all it can do is replace the wrapup of one task. Steps are read like everything else and written by nothing: they are ticked in the console.
+Two tools write, both narrow. `rekall_wrapup` replaces the wrapup of one task. `rekall_step` moves one step of a task from `open` to `running` to `claimed`, so a session can drive its own checklist; it refuses `done`, which is a tick in the console. Nothing else about a record, a note or a step's shape can be changed from a session.
 
 ## The wrapup
 
@@ -171,19 +171,21 @@ A wrapup is written from a terminal, into a window that was already open. That w
 
 ## Steps
 
-A task can be broken into steps, each done or not. It's the one thing the description and the wrapup can't say between them: a description grows as work is redefined, a wrapup says what the work became, so "what's left" used to be read out of the two by comparing them.
+A task can be broken into steps, each somewhere on a line: **open**, **running** while a session works on it, **claimed** when that session says it's finished, **done** when you accept the work. It's the one thing the description and the wrapup can't say between them: a description grows as work is redefined, a wrapup says what the work became, so "what's left" used to be read out of the two by comparing them.
 
-A step is a title, an optional markdown detail of what that piece has to do, and a box. Order reflects the sequence the work is meant to happen in, drawn as a line the boxes sit on; the pane opens on the first step still open, its detail already rendered. Ticking is one click:
+A step is a title, an optional markdown detail of what that piece has to do, and a node on a line. Order reflects the sequence the work is meant to happen in; the pane opens on the first step whose work isn't finished, its detail already rendered. The node breathes while a session is running the step, and the branch feeding it carries a band of light toward it; a claimed step is filled but hollow, work done and waiting for your click. Ticking is one click:
 
 | Gesture | Does |
 |---------|------|
-| `S` | Open the checklist of the task in view, on the first step still open |
+| `S` | Open the checklist of the task in view, on the first unfinished step |
 | `Enter` | Add the step you just typed, and stay there for the next one |
-| Click the box | Tick it, or reopen it. Ticking the open one moves to the next |
+| Click the node | Accept it (done), or reopen it. Accepting the open one moves to the next |
 | Click the title | Open another step instead |
 | `Write` / `Read` | The detail, in the same markdown editor the notes use |
 
-What Claude receives is asymmetric on purpose. An open step arrives with its detail, because it's the work about to be done. A done step arrives as its title alone, because it needs no doing. A half-finished checklist costs a fraction of what the same text in a description would, and nothing gets rebuilt for having read as a fresh instruction.
+The moves are live. A session drives its own checklist over `/rk`: `/rk project:vega task:report-builder step:3 start` marks step 3 running, `step:3 done` claims it. The console holds one `text/event-stream` connection open (`GET /api/steps/stream`), so a step moved from a terminal, or a box ticked in another window, animates here without a reload.
+
+What Claude receives is asymmetric on purpose. An open or running step arrives with its detail, because it's the work about to be done or being done now, its line tagged `(in progress)` or `(claimed, ...)` so a reload doesn't restart it. A finished step arrives as its title alone, because it needs no doing. A half-finished checklist costs a fraction of what the same text in a description would.
 
 **A checklist changes what the description is for.** With steps on a task, the open steps are the work, and the description stops being a to-do list: it becomes what the steps are built against, the constraints and scope of the task. A description is written once and never shrinks as work finishes, so left as an instruction it keeps asking for things already built. Anything it asks for that no open step covers isn't built: `/rk` flags it in a line and asks for the step instead.
 
@@ -207,7 +209,7 @@ A finished step is silent only once the wrapup has caught up with it. Tick a ste
 
 The comparison uses the wrapup's own timestamp, so it holds across sessions and however many steps piled up in between: whatever the current text predates is marked, and the next `/rk … wrapup` folds all of it in, not only the step that just closed. Once written, the marker and the detail disappear again.
 
-**Only you tick a step.** There is no MCP tool that writes one, by design: the point of the box is that a person looked at the work and said it was done. A session closing its own boxes would be answering the question it was asked. `/rk … wrapup` ends by naming the steps it finished; ticking them is one click each.
+**Only you tick a step done.** `rekall_step` takes a step as far as `claimed` and refuses `done`: the point of the last box is that a person looked at the work and accepted it, and a session closing its own would be answering the question it was asked. The navigator's progress count is built on `done` alone, so it keeps meaning "accepted". `/rk … step:N done` ends by naming what it claimed; accepting each is one click.
 
 ## The console
 
@@ -268,7 +270,7 @@ Company ──< Project ──< Task >──< Document
 | `Project` | `label`, unique per company | title, status, description, its company, its tasks |
 | `Task` | `label`, unique per project | title, status, description (markdown), its project, its notes, its steps, its wrapup |
 | `Document` | — | title, kind, markdown body, the tasks it is on |
-| `TaskStep` | through its task | title, optional markdown detail, done or not, position. Ordered, dense from zero |
+| `TaskStep` | through its task | title, optional markdown detail, state (open, running, claimed, done), position. Ordered, dense from zero |
 | `Wrapup` | through its task | markdown body, who wrote it last. One per task, enforced by the database |
 
 A project and a task carry two names, and they are not interchangeable:
@@ -389,8 +391,8 @@ Notes are stored in plain text in the database file. If you keep credentials in 
 
 ```
 rekall-domain/    Project, Task, Document, and the context assembly
-rekall-api/       REST API for the UI
-rekall-mcp/       Read-only MCP server: one tool
+rekall-api/       REST API for the UI, and the step event stream
+rekall-mcp/       MCP server: one tool reads, two write (a wrapup, a step's state)
 rekall-app/       Spring Boot entry point, serves everything
 rekall-ui/        Vue 3 + Vite frontend
 ```

@@ -4,6 +4,7 @@ import dev.rekall.domain.Company;
 import dev.rekall.domain.Document;
 import dev.rekall.domain.Project;
 import dev.rekall.domain.Task;
+import dev.rekall.domain.TaskStepState;
 import dev.rekall.domain.repository.CompanyRepository;
 import dev.rekall.domain.repository.ProjectRepository;
 import dev.rekall.domain.repository.TaskRepository;
@@ -184,8 +185,18 @@ public class ContextService {
         Map<String, String> fields = new LinkedHashMap<>();
         fields.put("status", task.getStatus().name());
         if (!steps.isEmpty()) {
-            long done = steps.stream().filter(TaskStepView::done).count();
-            fields.put("steps", "%d of %d done, %d open".formatted(done, steps.size(), steps.size() - done));
+            long done = steps.stream().filter(step -> step.state().complete()).count();
+            long running = steps.stream().filter(step -> step.state().running()).count();
+            long claimed = steps.stream().filter(step -> step.state() == TaskStepState.CLAIMED).count();
+            StringBuilder summary = new StringBuilder(
+                    "%d of %d done, %d open".formatted(done, steps.size(), steps.size() - done));
+            if (running > 0) {
+                summary.append(", %d running".formatted(running));
+            }
+            if (claimed > 0) {
+                summary.append(", %d awaiting review".formatted(claimed));
+            }
+            fields.put("steps", summary.toString());
         }
 
         List<ContextRecord> references = new ArrayList<>();

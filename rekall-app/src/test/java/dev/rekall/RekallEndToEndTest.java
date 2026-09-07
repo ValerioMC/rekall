@@ -15,11 +15,18 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.client.RestClient;
 
 import java.io.ByteArrayInputStream;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -419,17 +426,18 @@ class RekallEndToEndTest {
     }
 
     /**
-     * Two tools and no more: one way in, one thing that may be written. Asserted as an exact
-     * list rather than a count, because the value of "there is no query tool and no get tool" is
-     * only kept if adding one breaks a test.
+     * One way to read, two writes and no more. Asserted as an exact list rather than a count,
+     * because the value of "there is no query tool and no get tool" is only kept if adding one
+     * breaks a test. {@code rekall_step} moves a step from open to running to claimed and cannot
+     * reach done; that is the whole of what a session changes here beside the wrapup.
      */
     @Test
-    @DisplayName("the MCP endpoint exposes one way to read and one thing to write")
+    @DisplayName("the MCP endpoint exposes one way to read and two writes")
     void toolsList() {
         List<?> tools = (List<?>) ((Map<?, ?>) rpc("tools/list", Map.of()).get("result")).get("tools");
 
         assertThat(tools.stream().map(tool -> String.valueOf(((Map<?, ?>) tool).get("name"))))
-                .containsExactlyInAnyOrder("rekall_context", "rekall_wrapup");
+                .containsExactlyInAnyOrder("rekall_context", "rekall_wrapup", "rekall_step");
     }
 
     /*
@@ -527,7 +535,7 @@ class RekallEndToEndTest {
 
         assertThat(callTool("rekall_wrapup", Map.of("anchors", "project:vega", "body", "x")))
                 .as("a project names forty tasks and none of them is the answer")
-                .contains("A wrapup belongs to exactly one task");
+                .contains("This write belongs to exactly one task");
 
         assertThat(callTool("rekall_wrapup", Map.of("anchors", "task:setup", "body", "x")))
                 .contains("matches 2 records")
@@ -1171,6 +1179,178 @@ class RekallEndToEndTest {
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM task_step", Integer.class)).isZero();
     }
 
+    /*
+     * Live steps. A session drives its own checklist over MCP: it marks the step it is about to
+     * work `running`, does the work, writes the wrapup, marks it `claimed`, and moves on. The
+     * one move it cannot make is the last: `done` is a person in the console.
+     */
+
+    @Test
+    @DisplayName("marking a step running shows it as in progress on the next load")
+    void aStepGoesRunning() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+        aStep(taskId, "Aggregate the rows", "Somma per settimana.");
+        aStep(taskId, "Write the tests", null);
+
+        assertThat(callTool("rekall_step", Map.of(
+                        "anchors", "project:vega task:report-builder", "step", "1", "state", "running")))
+                .contains("is now `running`")
+                .as("and it points at the step to pick up next")
+                .contains("Next open step: 2 \"Write the tests\"");
+
+        assertThat(callTool("rekall_context", Map.of("anchors", "task:report-builder")))
+                .contains("<steps done=\"0\" open=\"2\" running=\"1\">")
+                .contains("- [ ] Aggregate the rows  (in progress)")
+                .as("a running step is still work, so its detail is still on screen")
+                .contains("Somma per settimana.");
+    }
+
+    @Test
+    @DisplayName("a claimed step is finished work, waiting for the console to accept it")
+    void aStepIsClaimed() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+        String first = aStep(taskId, "Aggregate the rows", "Somma per settimana.");
+        aStep(taskId, "Write the tests", null);
+
+        callTool("rekall_step", Map.of(
+                "anchors", "project:vega task:report-builder", "step", "1", "state", "running"));
+        assertThat(callTool("rekall_step", Map.of(
+                        "anchors", "project:vega task:report-builder", "step", "1", "state", "claimed")))
+                .contains("is now `claimed`")
+                .contains("Write the wrapup");
+        // Written after the claim, so the wrapup accounts for it and it is not also flagged as
+        // finished since the wrapup.
+        callTool("rekall_wrapup", Map.of(
+                "anchors", "project:vega task:report-builder", "body", "Le righe sono aggregate."));
+
+        assertThat(callTool("rekall_context", Map.of("anchors", "task:report-builder")))
+                .contains("<steps done=\"1\" open=\"1\" awaiting-review=\"1\">")
+                .contains("- [x] Aggregate the rows  (claimed, waiting for the console to accept it)");
+
+        // The navigator's progress count is built on what a person accepted, so a claimed step
+        // is not one of the done ones there.
+        List<?> tasks = rest.get().uri("/api/tasks").retrieve().toEntity(List.class).getBody();
+        assertThat(tasks.stream().map(task ->
+                        ((Map<?, ?>) task).get("label") + "=" + ((Map<?, ?>) task).get("stepsDone")))
+                .containsExactly("report-builder=0");
+
+        // The console tick is what finishes it, and only the console can.
+        rest.patch().uri("/api/steps/" + first).body(Map.of("done", true)).retrieve().toEntity(Map.class);
+        assertThat(callTool("rekall_context", Map.of("anchors", "task:report-builder")))
+                .contains("<steps done=\"1\" open=\"1\">")
+                .doesNotContain("awaiting-review");
+    }
+
+    @Test
+    @DisplayName("a session cannot mark a step done, only claimed")
+    void aSessionCannotTickTheLastBox() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+        aStep(taskId, "Aggregate the rows", null);
+
+        assertThat(callTool("rekall_step", Map.of(
+                        "anchors", "project:vega task:report-builder", "step", "1", "state", "done")))
+                .as("said as `claimed`, and told why")
+                .contains("Marked `claimed`, not done")
+                .contains("cannot tick the last box");
+
+        assertThat(callTool("rekall_context", Map.of("anchors", "task:report-builder")))
+                .as("claimed, not done: it is waiting for the console, not ticked")
+                .contains("awaiting-review=\"1\"")
+                .contains("(claimed, waiting for the console to accept it)");
+
+        // And the box is not ticked: the task still reports nothing accepted.
+        List<?> tasks = rest.get().uri("/api/tasks").retrieve().toEntity(List.class).getBody();
+        assertThat(((Map<?, ?>) tasks.getFirst()).get("stepsDone")).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("a step reference that matches nothing is refused with the list")
+    void anUnknownStepIsRefused() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+        aStep(taskId, "Aggregate the rows", null);
+
+        assertThat(callTool("rekall_step", Map.of(
+                        "anchors", "project:vega task:report-builder", "step", "7", "state", "running")))
+                .contains("There is no step 7");
+        assertThat(callTool("rekall_step", Map.of(
+                        "anchors", "project:vega task:report-builder", "step", "nope", "state", "running")))
+                .contains("No step matches 'nope'")
+                .contains("1. Aggregate the rows");
+    }
+
+    /**
+     * A wrapup written right after a step is claimed already accounts for it. A later console
+     * tick moving that step to done must not resurface it as "finished since the wrapup".
+     */
+    @Test
+    @DisplayName("a step claimed before the wrapup stays covered when the console ticks it later")
+    void aClaimedStepIsMeasuredFromWhenItWasClaimed() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+        String first = aStep(taskId, "Aggregate the rows", "Somma per settimana.");
+        aStep(taskId, "Write the tests", null);
+
+        callTool("rekall_step", Map.of(
+                "anchors", "project:vega task:report-builder", "step", "1", "state", "claimed"));
+        callTool("rekall_wrapup", Map.of(
+                "anchors", "project:vega task:report-builder", "body", "Le righe sono aggregate."));
+
+        rest.patch().uri("/api/steps/" + first).body(Map.of("done", true)).retrieve().toEntity(Map.class);
+
+        assertThat(callTool("rekall_context", Map.of("anchors", "task:report-builder")))
+                .as("the wrapup already had this step's work in it when it was written")
+                .doesNotContain("finished-since-wrapup")
+                .doesNotContain("finished since the wrapup was written")
+                .doesNotContain("Somma per settimana.");
+    }
+
+    /**
+     * The read side of the loop. A window holds one {@code text/event-stream} connection open,
+     * and a step moved over MCP arrives on it as a {@code steps} frame carrying that task's
+     * whole checklist, so the animation reacts without a reload.
+     */
+    @Test
+    @DisplayName("a step moved over MCP reaches an open console over the event stream")
+    void theEventStreamCarriesAStepChange() throws Exception {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+        aStep(taskId, "Aggregate the rows", null);
+
+        BlockingQueue<String> lines = new LinkedBlockingQueue<>();
+        // Not try-with-resources: close() blocks until the request finishes, and this stream is
+        // meant never to. shutdownNow() drops it.
+        HttpClient client = HttpClient.newHttpClient();
+        try {
+            client.sendAsync(
+                            HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/steps/stream"))
+                                    .GET().build(),
+                            HttpResponse.BodyHandlers.ofLines())
+                    .thenAccept(response -> response.body().forEach(lines::add));
+
+            awaitLine(lines, "event:open", 5);
+
+            callTool("rekall_step", Map.of(
+                    "anchors", "project:vega task:report-builder", "step", "1", "state", "running"));
+
+            assertThat(awaitLine(lines, "event:steps", 5)).isEqualTo("event:steps");
+            assertThat(awaitLine(lines, "data:", 5))
+                    .contains(taskId)
+                    .contains("\"state\":\"RUNNING\"");
+        } finally {
+            client.shutdownNow();
+        }
+    }
+
     /**
      * The export is a backup and an escape hatch: a tree of folders that outlives the
      * application. What it cannot represent is a note on several tasks, so it writes the note
@@ -1337,6 +1517,18 @@ class RekallEndToEndTest {
     }
 
     // ------------------------------------------------------------------ helpers
+
+    /** Polls an event-stream line queue until one contains the needle, or the wait runs out. */
+    private String awaitLine(BlockingQueue<String> lines, String needle, int seconds) throws InterruptedException {
+        long deadline = System.nanoTime() + seconds * 1_000_000_000L;
+        while (System.nanoTime() < deadline) {
+            String line = lines.poll(200, TimeUnit.MILLISECONDS);
+            if (line != null && line.contains(needle)) {
+                return line;
+            }
+        }
+        throw new AssertionError("No event-stream line containing '" + needle + "' within " + seconds + "s");
+    }
 
     /** Entry name to contents, with directory entries kept as their own empty entries. */
     private Map<String, String> unzip(byte[] archive) throws Exception {
