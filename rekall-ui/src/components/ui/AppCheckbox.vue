@@ -8,7 +8,6 @@ const props = withDefaults(
 
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
 
-// Falls back to its own id so the control is still labelled when used outside an AppField.
 const fallbackId = useId()
 const inputId = () => props.id ?? fallbackId
 </script>

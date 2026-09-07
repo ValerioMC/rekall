@@ -8,12 +8,10 @@ export interface TimeEntryEdit {
   stoppedAt: string | null
 }
 
-/** Every session, loaded whole for the same reason the wrapups are: no per-task round trip. */
 export async function fetchTimeEntries(): Promise<TimeEntry[]> {
   return request(async () => TimeEntryListSchema.parse(await apiClient('/api/time-entries')))
 }
 
-/** Opens a session on this task. Whatever is running on other tasks keeps running. */
 export async function startTimeEntry(taskId: TaskId): Promise<TimeEntry> {
   return request(async () =>
     TimeEntrySchema.parse(
@@ -22,7 +20,6 @@ export async function startTimeEntry(taskId: TaskId): Promise<TimeEntry> {
   )
 }
 
-/** Closes the session open on this task. */
 export async function stopTimeEntry(taskId: TaskId): Promise<TimeEntry> {
   return request(async () =>
     TimeEntrySchema.parse(

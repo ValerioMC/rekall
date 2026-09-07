@@ -23,7 +23,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.UUID;
 
-/** Write side of the three entities. Everything the UI can change goes through here. */
 @Service
 @RequiredArgsConstructor
 public class CatalogService {
@@ -32,8 +31,6 @@ public class CatalogService {
     private final ProjectRepository projects;
     private final TaskRepository tasks;
     private final DocumentRepository documents;
-
-    // ------------------------------------------------------------------ companies
 
     @Transactional(readOnly = true)
     public List<CompanyResponse> listCompanies() {
@@ -55,15 +52,12 @@ public class CatalogService {
         return CompanyResponse.of(companies.saveAndFlush(company));
     }
 
-    /** Cascades to the company's projects and their tasks, so the orphan sweep applies here too. */
     @Transactional
     public void deleteCompany(UUID id) {
         companies.delete(requireCompany(id));
         companies.flush();
         documents.deleteAll(documents.findOrphans());
     }
-
-    // ------------------------------------------------------------------ projects
 
     @Transactional(readOnly = true)
     public List<ProjectResponse> listProjects() {
@@ -75,11 +69,6 @@ public class CatalogService {
         return ProjectResponse.of(requireProject(id));
     }
 
-    /**
-     * Flushed before mapping, because {@code @CreationTimestamp} and {@code @UpdateTimestamp}
-     * are written by Hibernate at flush time. Mapping the entity before that returns a response
-     * whose {@code updatedAt} is still null, which the client is entitled to reject.
-     */
     @Transactional
     public ProjectResponse createProject(ProjectRequest request) {
         Project project = new Project(Slug.of(request.label()), request.title().trim());
@@ -87,12 +76,6 @@ public class CatalogService {
         return ProjectResponse.of(projects.saveAndFlush(project));
     }
 
-    /**
-     * The label is editable like anything else, and changing it changes the anchor.
-     *
-     * <p>Nothing stored points at a label, so there is no reference to repair; what breaks is
-     * what is written down outside the application, which is the interface's job to warn about.
-     */
     @Transactional
     public ProjectResponse updateProject(UUID id, ProjectRequest request) {
         Project project = requireProject(id);
@@ -102,7 +85,6 @@ public class CatalogService {
         return ProjectResponse.of(projects.saveAndFlush(project));
     }
 
-    /** Cascades to the project's tasks, so the same orphan sweep applies. */
     @Transactional
     public void deleteProject(UUID id) {
         projects.delete(requireProject(id));
@@ -113,16 +95,12 @@ public class CatalogService {
     private void applyTo(Project project, ProjectRequest request) {
         project.setDescription(request.description());
         project.setBlueprintMarkdown(request.blueprintMarkdown());
-        // Blank and absent are the same answer for a path, and only one of the two can be
-        // compared against later: a field cleared in the interface has to come back null.
         project.setRepoFolder(request.repoFolder() == null || request.repoFolder().isBlank()
                 ? null
                 : request.repoFolder().trim());
         project.setStatus(request.status() == null ? ProjectStatus.ACTIVE : request.status());
         project.setCompany(requireCompany(request.companyId()));
     }
-
-    // ------------------------------------------------------------------ tasks
 
     @Transactional(readOnly = true)
     public List<TaskResponse> listTasks(UUID projectId) {
@@ -153,12 +131,6 @@ public class CatalogService {
         return TaskResponse.of(tasks.saveAndFlush(task));
     }
 
-    /**
-     * Deleting a task unlinks its notes rather than deleting them, because a note may be on
-     * other tasks and those tasks still need it. What is swept up afterwards is only the notes
-     * that are now on nothing at all: the join table cannot express that rule, since a row
-     * that no longer exists cannot be checked.
-     */
     @Transactional
     public void deleteTask(UUID id) {
         Task task = requireTask(id);
@@ -173,8 +145,6 @@ public class CatalogService {
         task.setStatus(request.status() == null ? TaskStatus.TODO : request.status());
         task.setProject(requireProject(request.projectId()));
     }
-
-    // ------------------------------------------------------------------ lookups
 
     Company requireCompany(UUID id) {
         if (id == null) {

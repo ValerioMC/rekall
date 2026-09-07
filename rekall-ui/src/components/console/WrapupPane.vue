@@ -11,17 +11,6 @@ import { relativeTime } from '@/common/format/relative-time'
 import { rkCommand } from '@/common/format/rk-command'
 import { WRAPUP_AUTHOR_LABEL } from '@/model/catalog'
 
-/**
- * The state of the task in view: what its implementation currently is.
- *
- * Deliberately not the note editor with a different title. A note has a name, a kind and any
- * number of tasks it belongs to; a wrapup has none of those, because it is one answer to one
- * question about one task. Every control the note pane has that would be meaningless here is
- * absent rather than disabled.
- *
- * Written by Claude at the end of a session and corrected here. Both write the whole text —
- * there is no merge — so the pane says who wrote what is on screen, and how long ago.
- */
 const store = useConsoleStore()
 const { selectedTask, selectedWrapup, wrapupIsBehind } = storeToRefs(store)
 const { run } = useAsyncAction()
@@ -29,40 +18,21 @@ const { run } = useAsyncAction()
 const mode = ref<'write' | 'read'>('read')
 const isConfirmingDelete = ref(false)
 
-/**
- * Writing by hand starts as a local draft, not as an empty row.
- *
- * A wrapup with no body is refused by the server, and rightly: a task that claims a state and
- * has nothing to say for it is worse than one that says nothing. So the first character typed
- * is what creates it.
- */
 const isDrafting = ref(false)
 const draft = ref('')
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
-/**
- * The task is what this pane reloads on, and nothing else.
- *
- * Every write replaces the wrapup in the store with an equal but distinct object, and the
- * first one replaces a null with a row. Reacting to either would reload the editor and flip it
- * back to reading in the middle of a sentence — once on every autosave, and again the moment a
- * hand-written wrapup first saves. The only event that means "this pane is now about something
- * else" is a different task.
- */
 watch(
   () => selectedTask.value?.id ?? null,
   () => {
     if (saveTimer) clearTimeout(saveTimer)
     draft.value = selectedWrapup.value?.bodyMarkdown ?? ''
     isDrafting.value = false
-    // Reading is the default: this is the pane you open to find out where you left the work,
-    // and it is rewritten far less often than it is read.
     mode.value = selectedWrapup.value ? 'read' : 'write'
   },
   { immediate: true }
 )
 
-/** The command that has Claude rewrite it, ready to paste next to the terminal. */
 const command = computed(() =>
   selectedTask.value ? `${rkCommand(selectedTask.value.anchor)} wrapup` : ''
 )
@@ -79,10 +49,6 @@ async function copy(what: 'anchor' | 'command', text: string): Promise<void> {
   setTimeout(() => (copied.value = null), 1400)
 }
 
-/**
- * Autosave, on the same rhythm as a note: unsaved the moment you type, written when you pause.
- * A blank draft is not sent, because deleting a wrapup is its own act and not an empty save.
- */
 function scheduleSave(): void {
   const task = selectedTask.value
   if (!task) return
@@ -162,7 +128,6 @@ async function confirmDelete(): Promise<void> {
         </div>
       </header>
 
-      <!-- Provenance, because both of you write here and neither merges with the other. -->
       <div
         v-if="selectedWrapup"
         class="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border bg-surface px-5 py-2.5"
@@ -217,7 +182,6 @@ async function confirmDelete(): Promise<void> {
         </button>
       </div>
 
-      <!-- Nothing written yet. The primary path is Claude, so that is what the page leads with. -->
       <div v-if="!selectedWrapup && !isDrafting" class="min-h-0 flex-1 overflow-y-auto">
         <div class="max-w-[560px] px-9 py-12">
           <p class="eyebrow">

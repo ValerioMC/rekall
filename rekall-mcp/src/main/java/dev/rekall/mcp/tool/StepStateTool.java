@@ -14,20 +14,6 @@ import tools.jackson.databind.JsonNode;
 import java.util.List;
 import java.util.Map;
 
-/**
- * The write that moves one step of a task along its line.
- *
- * <p>A step is {@code OPEN}, then {@code RUNNING} while a session works on it, then
- * {@code CLAIMED} when that session says it is finished. This tool makes those three moves, and
- * the reopen back to {@code OPEN} when a session has to abandon a step. It cannot reach
- * {@code DONE}: that is a person in the console saying they reviewed the work. A session marking
- * its own work accepted is the one thing the split between {@code CLAIMED} and {@code DONE}
- * exists to prevent.
- *
- * <p>Driving the checklist is what this is for. A session opens on a task, moves the first open
- * step to {@code RUNNING}, does the work, writes the wrapup, claims the step, and moves to the
- * next one, all anchored through {@code /rk}. The console animates every move as it lands.
- */
 @Component
 @RequiredArgsConstructor
 public class StepStateTool implements McpTool {
@@ -109,8 +95,6 @@ public class StepStateTool implements McpTool {
         return report(target, moved, rawState);
     }
 
-    // ------------------------------------------------------------------ output
-
     private String report(AnchoredTask target, TaskStepView moved, String rawState) {
         String anchor = anchorOf(target);
         List<TaskStepView> all = steps.findByTask(moved.taskId());
@@ -154,16 +138,6 @@ public class StepStateTool implements McpTool {
                 : "project:%s task:%s".formatted(target.projectLabel(), target.taskLabel());
     }
 
-    // ------------------------------------------------------------------ input
-
-    /**
-     * The state a word asks for.
-     *
-     * <p>Forgiving on the way in: a session may say `start`, `begin` or `in progress` for the
-     * same move, and it may say `done` when it means "I am finished", which here is `claimed`.
-     * {@link #meantDone} remembers that last case so the reply can be clear that the box is not
-     * ticked.
-     */
     private TaskStepState parseState(String raw) {
         String value = raw.strip().toLowerCase().replace('-', '_').replace(' ', '_');
         return switch (value) {

@@ -10,12 +10,6 @@ import ProjectTrace from '@/components/ui/ProjectTrace.vue'
 import type { DaySummaryRow } from '@/common/calendar/day-summary'
 import type { TaskId } from '@/model/branded'
 
-/**
- * Every task worked on one day, each with its total for that day rather than its sessions —
- * the calendar's unit is a day, `TimeLogDialog`'s is a task, and the two never try to be the
- * same list. Shell copied from `TimeLogDialog` on purpose: a dialog on this surface should feel
- * like the same object, not a different one that happens to also float over the page.
- */
 const props = defineProps<{ date: Date; rows: readonly DaySummaryRow[] }>()
 const emit = defineEmits<{ close: [] }>()
 

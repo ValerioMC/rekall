@@ -27,37 +27,15 @@ import java.util.TreeMap;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-/**
- * The whole database as a folder tree in a zip: {@code company/project/task/note.md}.
- *
- * <p>A backup and an escape hatch, not a sync. Nothing reads this format back in, which is the
- * point: if Rekall is ever abandoned the notes are still notes, in folders, readable with the
- * tool that opened them before this application existed.
- *
- * <p>The one thing the tree cannot represent is a note attached to several tasks. It is written
- * under each of them, so every folder is complete on its own, and {@code MANIFEST.md} records
- * which files are copies of one note so a reader knows not to edit them apart.
- *
- * <p>A task's wrapup is written as {@code WRAPUP.md} beside its notes. In capitals and first in
- * the folder, because on a tree someone opens two years from now it is the file that says what
- * the thing was. Its checklist follows as {@code STEPS.md}, for the same reason: a step exists
- * nowhere but this database, so an export that dropped it would not be a backup.
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class ExportService {
 
-    /** How much of a description the manifest quotes. A sentence, give or take. */
     private static final int SUMMARY_LENGTH = 180;
 
     private final CompanyRepository companies;
 
-    /**
-     * Built in memory rather than streamed. A single user's notes are a few hundred kilobytes of
-     * markdown, and holding the archive means the transaction closes before the response starts:
-     * streaming lazy associations out of a closed session is the failure this avoids.
-     */
     @Transactional(readOnly = true)
     public byte[] archive() {
         List<Company> all = companies.findAllByOrderByNameAsc();
@@ -71,33 +49,22 @@ public class ExportService {
                 zip.closeEntry();
 
                 for (Project project : company.getProjects()) {
-                    // Folders are named after the label, not the title: the label is the name
-                    // that is already an identifier, and it is what the anchor in the manifest
-                    // says, so a reader can match a folder to a `/rk` line without guessing.
                     String projectDir = companyDir + "/" + safe(project.getLabel());
                     zip.putNextEntry(new ZipEntry(projectDir + "/"));
                     zip.closeEntry();
 
                     for (Task task : project.getTasks()) {
                         String taskDir = projectDir + "/" + safe(task.getLabel());
-                        // Written even when empty, so a task with no notes is still a task.
                         zip.putNextEntry(new ZipEntry(taskDir + "/"));
                         zip.closeEntry();
 
                         Set<String> used = new HashSet<>();
 
-                        // First in the folder and named in capitals, because it is the file to
-                        // open first: what the task currently is, before the notes explaining
-                        // it. Claimed in `used` as well, so a note that happens to be called
-                        // WRAPUP.md is written alongside it rather than over it.
                         if (task.getWrapup() != null) {
                             used.add("WRAPUP.md");
                             write(zip, taskDir + "/WRAPUP.md", task.getWrapup().getBodyMarkdown());
                         }
 
-                        // The checklist, as a checklist: whole, ticked and open alike. This is
-                        // a file on a disk rather than a context window, so the detail of
-                        // finished work is kept here where it costs nothing.
                         if (!task.getSteps().isEmpty()) {
                             used.add("STEPS.md");
                             write(zip, taskDir + "/STEPS.md", checklist(task));
@@ -125,8 +92,6 @@ public class ExportService {
     public String fileNameForToday() {
         return "rekall-" + LocalDate.now() + ".zip";
     }
-
-    // ------------------------------------------------------------------ contents
 
     private String manifest(List<Company> all, Map<String, List<String>> shared) {
         StringBuilder out = new StringBuilder("# Rekall export\n\n")
@@ -194,20 +159,6 @@ public class ExportService {
         zip.closeEntry();
     }
 
-    // ------------------------------------------------------------------ naming
-
-    /**
-     * A name a file system will accept, from a name a person typed.
-     *
-     * <p>Separators and dot segments are removed rather than escaped: a record called
-     * {@code ../../etc} must become a folder name, never a path.
-     */
-    /**
-     * The checklist as markdown, in the form anything that reads markdown already understands.
-     *
-     * <p>Checkboxes rather than two lists, because the order is the order the work was thought
-     * of in and splitting the done from the open would lose it.
-     */
     private String checklist(Task task) {
         StringBuilder out = new StringBuilder("# Steps\n");
         for (TaskStep step : task.getSteps()) {
@@ -219,14 +170,6 @@ public class ExportService {
         return out.toString();
     }
 
-    /**
-     * One line of a description, for an outline that is only an outline.
-     *
-     * <p>A description is a markdown document now, and the manifest is a table of contents: the
-     * whole brief pasted into a bullet would bury the tree it is there to show. The document
-     * itself is never here, so nothing is lost by cutting it: it is a sentence into the folder
-     * below.
-     */
     private String summary(String description) {
         String flat = description.replace("\n", " ").replaceAll("\\s+", " ").trim();
         return flat.length() <= SUMMARY_LENGTH ? flat : flat.substring(0, SUMMARY_LENGTH).trim() + "\u2026";
@@ -247,7 +190,6 @@ public class ExportService {
         return base.toLowerCase().endsWith(".md") ? base : base + ".md";
     }
 
-    /** Two notes on one task may share a title; the folder cannot hold two files with one name. */
     private String unique(Set<String> used, String name) {
         if (used.add(name)) {
             return name;

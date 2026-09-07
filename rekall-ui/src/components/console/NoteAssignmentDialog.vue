@@ -10,18 +10,6 @@ import { identityHue } from '@/common/identity'
 import { TASK_STATUS_COLOR, TASK_STATUS_LABEL } from '@/model/catalog'
 import type { CompanyId, ProjectId, TaskId } from '@/model/branded'
 
-/**
- * Where a note belongs, chosen the way the work is actually shaped: company, then project, then
- * task.
- *
- * The flat list this replaces asked you to recognise one task title among every task there is.
- * Three linked columns cut that to the handful in one project, and the columns open already
- * standing on the task the note was written against, so the common case is one click to confirm.
- *
- * Only the task column changes what the note is attached to. Picking a company or a project just
- * walks the tree; the strip along the top is the note's membership and the only place it is
- * edited, from whichever column you happen to be in.
- */
 const emit = defineEmits<{ close: [] }>()
 
 const store = useConsoleStore()
@@ -33,20 +21,12 @@ const panel = ref<HTMLElement | null>(null)
 const filterField = ref<HTMLInputElement | null>(null)
 const taskFilter = ref('')
 
-/**
- * A project accumulates finished tasks that are almost never the one a note is being filed
- * against. The task pane hides them until asked; `All` brings them back.
- */
 const TASK_SCOPES = [
   { value: 'open', label: 'Open' },
   { value: 'all', label: 'All' }
 ] as const
 const showAllTasks = ref(false)
 
-/**
- * The task the note was written against: the one in view if the note sits on it, otherwise the
- * first it is on. Its project and company are where the columns open.
- */
 const originTaskId = computed<TaskId | null>(() => {
   const doc = selectedDocument.value
   if (!doc) return null
@@ -57,7 +37,6 @@ const originTaskId = computed<TaskId | null>(() => {
 const pickedCompany = ref<CompanyId | null>(null)
 const pickedProject = ref<ProjectId | null>(null)
 
-/** The full task carries the ids a note's lightweight ref does not. */
 const taskById = (id: TaskId | null) => tasks.value.find((task) => task.id === id) ?? null
 const projectById = (id: ProjectId | null) => projects.value.find((p) => p.id === id) ?? null
 
@@ -95,7 +74,6 @@ const projectTasks = computed(() => {
     .filter((task) => !needle || `${task.title} ${task.label}`.toLowerCase().includes(needle))
 })
 
-/** How many finished tasks the current project is hiding, so the toggle only shows when it matters. */
 const doneInProject = computed(() =>
   pickedProject.value === null
     ? 0
@@ -132,14 +110,12 @@ function pickProject(id: ProjectId): void {
   showAllTasks.value = false
 }
 
-/** Walk the columns to a task the note already sits on, from a chip in the strip. */
 function revealTask(id: TaskId): void {
   const task = taskById(id)
   if (!task) return
   pickedProject.value = task.projectId
   pickedCompany.value = projectById(task.projectId)?.companyId ?? pickedCompany.value
   taskFilter.value = ''
-  // The strip can point at a finished task; the pane has to be showing them for the walk to land.
   showAllTasks.value = task.status === 'DONE'
 }
 
@@ -161,7 +137,6 @@ async function toggle(taskId: TaskId): Promise<void> {
   }
 }
 
-/** The strip stays put even as the note moves between tasks under it. */
 const membership = computed(() => selectedDocument.value?.tasks ?? [])
 
 function onKeydown(event: KeyboardEvent): void {
@@ -173,8 +148,6 @@ function onKeydown(event: KeyboardEvent): void {
   if (panel.value) trapTabKey(panel.value, event)
 }
 
-// A note that loses its last task has nowhere to be reached from; the dialog closes with the
-// note it was editing rather than lingering over nothing.
 watch(selectedDocument, (doc) => {
   if (!doc) emit('close')
 })
@@ -185,11 +158,6 @@ watch(selectedDocument, (doc) => {
     class="fade-in fixed inset-0 z-(--z-modal) grid place-items-center bg-black/70 p-5 backdrop-blur-sm"
     @click.self="emit('close')"
   >
-    <!--
-      The frame never resizes. Height and width are set once; walking company -> project -> task
-      and the row counts under each only move the scrollbars inside the three panes, never the
-      panel's edges.
-    -->
     <div
       ref="panel"
       class="rise flex h-[600px] max-h-[86vh] w-full max-w-[760px] flex-col overflow-hidden rounded-[var(--radius-card)] border border-border-strong bg-surface shadow-modal"
@@ -216,11 +184,6 @@ watch(selectedDocument, (doc) => {
         </button>
       </header>
 
-      <!--
-        Where the note lives now, edited from here whichever column you are in. One line, fixed
-        height: extra tasks scroll sideways rather than pushing the panes down. The note's home
-        task carries the amber; every other membership is a plain cyan anchor.
-      -->
       <div class="flex h-11 shrink-0 items-center gap-2 border-b border-border bg-canvas px-5">
         <span class="eyebrow shrink-0">On</span>
         <div class="chip-track flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
@@ -259,7 +222,6 @@ watch(selectedDocument, (doc) => {
         </div>
       </div>
 
-      <!-- Company, then project, then task. Three panes on a wide screen, stacked below. -->
       <div class="flex min-h-0 flex-1 flex-col sm:flex-row">
         <section
           class="flex min-h-0 min-w-0 flex-1 basis-0 flex-col border-b border-border sm:border-b-0 sm:border-r"
@@ -521,12 +483,6 @@ watch(selectedDocument, (doc) => {
 </template>
 
 <style scoped>
-/*
- * The walk selection in the company and project panes. Not the app's full `selected-row` lift,
- * which on a task row read as a claim the row had not made: just a quiet raised surface and a
- * short amber capsule in the gutter, so it marks where you are without competing with the
- * checked state next to it.
- */
 .walk-picked {
   position: relative;
 }
@@ -542,7 +498,6 @@ watch(selectedDocument, (doc) => {
   background: linear-gradient(180deg, var(--color-accent-strong), var(--color-accent-deep));
 }
 
-/* The membership line scrolls sideways when a note is on many tasks; the bar stays one line. */
 .chip-track {
   scrollbar-width: none;
 }

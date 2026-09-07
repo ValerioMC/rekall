@@ -2,18 +2,6 @@
 import { computed } from 'vue'
 import { stepIsComplete, type TaskStep } from '@/model/catalog'
 
-/**
- * The checklist, on the way to the pane that holds it, reduced to the one thing a card can say:
- * how much is left, and what is happening on it.
- *
- * It sits between the description and the wrapup because that is the order the three are asked
- * in: what is this task, what is left of it, what did it become. The middle question is the one
- * the other two were being made to answer between them.
- *
- * The row that matters is named rather than counted. A number says how much work is left; the
- * title says what it is. When a session is on a step, that one is named instead: it is the more
- * useful answer to "where is this".
- */
 const props = defineProps<{
   steps: readonly TaskStep[]
   selected: boolean
@@ -76,8 +64,6 @@ const hasSteps = computed(() => props.steps.length > 0)
     </span>
 
     <template v-if="hasSteps">
-      <!-- One segment per step rather than one bar at a percentage, and the same marks the pane
-           carries: accepted, claimed and waiting, running now, next. -->
       <span class="mt-2 flex h-[4px] gap-[3px]" aria-hidden="true">
         <span
           v-for="step in steps"

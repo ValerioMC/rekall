@@ -2,7 +2,6 @@ import { dateKey } from './month-grid'
 import type { Task, TimeEntry } from '@/model/catalog'
 import type { ProjectId, TaskId } from '@/model/branded'
 
-/** What a task worked out to on one day: not the sessions, just the total. */
 export interface DaySummaryRow {
   readonly taskId: TaskId
   readonly taskTitle: string
@@ -13,14 +12,6 @@ export interface DaySummaryRow {
   readonly isRunning: boolean
 }
 
-/**
- * Every session bucketed by the local calendar day it started on, then by task within that
- * day, summed — the same grouping `TimeLogDialog` already uses for its recap, one level up.
- *
- * An open session counts up to `nowMs` rather than stopping at zero, the same live math
- * `TimerCard` does, so a task being worked right now shows its running total on today's cell
- * without waiting for it to be stopped.
- */
 export function summarizeByDay(
   entries: readonly TimeEntry[],
   tasks: readonly Task[],

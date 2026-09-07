@@ -11,11 +11,6 @@ import { trapTabKey } from '@/common/a11y/focus-trap'
 import type { Task, TimeEntry } from '@/model/catalog'
 import type { TimeEntryId } from '@/model/branded'
 
-/**
- * The recap: every session on this task, grouped by the day it was worked, with the running
- * total at the bottom. Shell copied from `RecordDialog`; the content is a log rather than a
- * form, so rows edit in place instead of opening a second dialog.
- */
 const props = defineProps<{ task: Task; entries: readonly TimeEntry[] }>()
 const emit = defineEmits<{ close: [] }>()
 
@@ -29,11 +24,6 @@ const editingId = ref<TimeEntryId | null>(null)
 const editStart = ref('')
 const editStop = ref('')
 const deletingId = ref<TimeEntryId | null>(null)
-/**
- * Captured when the confirm opens, not read live from `entries`: the row is gone from that
- * array the instant the delete succeeds, and a confirm still on screen for its closing
- * animation must not go looking for what it described.
- */
 const deletingSummary = ref('')
 
 function toLocalInput(iso: string): string {
@@ -62,7 +52,6 @@ function dayLabel(iso: string): string {
   return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-/** Entries arrive newest-first, so grouping preserves that order without a re-sort. */
 const groups = computed(() => {
   const byDay = new Map<string, TimeEntry[]>()
   for (const entry of props.entries) {

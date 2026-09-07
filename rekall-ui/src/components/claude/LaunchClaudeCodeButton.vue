@@ -4,39 +4,11 @@ import { canLaunchClaudeCode, launchClaudeCode } from '@/common/native/desktop'
 import { skipsPermissions } from '@/common/config/claude-launch'
 import { useToastStore } from '@/stores/toast.store'
 
-/**
- * Three root nodes, not one: the button, its always-present screen-reader description, and the
- * teleported preview. Vue only auto-forwards a caller's `class` onto a single root, so it is
- * turned off here and pointed at the button by hand — the one root a caller's `class` (every
- * pane places this with `shrink-0`) is ever meant to land on.
- */
 defineOptions({ inheritAttrs: false })
 
-/**
- * The shortest path between a record and a session that has read it.
- *
- * A terminal opens in the project's folder with `/rk` already running, so the anchor is never
- * copied, pasted or typed. It exists only inside the macOS application: a browser tab cannot
- * open a terminal, and the endpoint that would let it is one any other page could call.
- *
- * Without a folder the button stays and says so when it is pressed. Not disabled: a disabled
- * button shows no tooltip in this window, so the one explanation there was would be invisible to
- * exactly the person who needs it, on a button that looks broken.
- *
- * The glyph tells the same story the toast does, a beat earlier and on the thing you actually
- * clicked: a prompt, then a spinner, then a checkmark that holds long enough to read before the
- * button settles back to being a prompt. A hover or a focus opens a preview of exactly what is
- * about to run — the folder and the `/rk` line — so pressing it is never the first look at what
- * it does. The preview is teleported to the document body rather than positioned in place,
- * because two of the four panes this button sits in clip their header for a texture layer behind
- * it, and a popover clipped by its own background would be worse than no popover.
- */
 const props = defineProps<{
-  /** The anchors as `/rk` takes them, which the server built. */
   anchors: string
-  /** The project's folder, or null when nobody has set one. */
   folder: string | null
-  /** Where to go and set it, in words, for the case where it is not on this screen. */
   missingHint?: string
 }>()
 
@@ -45,8 +17,6 @@ const toast = useToastStore()
 const available = canLaunchClaudeCode()
 const descriptionId = useId()
 
-/** idle → launching → launched → idle. Never anything but idle while there is no folder: a
- *  press that cannot run has nothing to animate toward. */
 const phase = ref<'idle' | 'launching' | 'launched'>('idle')
 const nudging = ref(false)
 let settleTimer: ReturnType<typeof setTimeout> | null = null
@@ -64,12 +34,6 @@ const toneClasses = computed(() =>
     : 'border-transparent bg-transparent text-text-subtle hover:bg-surface-raised hover:text-text-muted'
 )
 
-// ------------------------------------------------------------------ the preview
-
-/**
- * Shown on hover or focus, positioned from the button's own rect rather than laid out beside it
- * in the DOM — teleported, so the header it sits in can clip its texture without clipping this.
- */
 const buttonEl = ref<HTMLButtonElement | null>(null)
 const previewing = ref(false)
 const previewStyle = ref<Record<string, string>>({})
@@ -91,17 +55,12 @@ function closePreview(): void {
   previewing.value = false
 }
 
-// ------------------------------------------------------------------ launching
-
 async function launch(): Promise<void> {
   if (phase.value === 'launching') return
   if (!props.folder) {
     toast.notifyError(new Error(missing.value))
     if (nudgeTimer) clearTimeout(nudgeTimer)
     nudging.value = false
-    // Restarts the animation even on a second press before the first finished, which a bare
-    // class toggle would not: the browser needs the class off for at least one frame to see it
-    // as new rather than as already applied.
     requestAnimationFrame(() => {
       nudging.value = true
       nudgeTimer = setTimeout(() => (nudging.value = false), 400)
@@ -207,8 +166,6 @@ async function launch(): Promise<void> {
 </template>
 
 <style scoped>
-/* The prompt glyph swapping for the spinner, and the spinner for the check: a cut rather than a
-   cross-fade, because two overlapping strokes at this size read as a smudge. */
 .glyph-enter-active,
 .glyph-leave-active {
   transition:
@@ -221,8 +178,6 @@ async function launch(): Promise<void> {
   transform: scale(0.55);
 }
 
-/* Said no without moving anywhere: the button that cannot run yet shakes off the click instead
-   of pretending to take it. */
 @keyframes launch-nudge {
   0%,
   100% {

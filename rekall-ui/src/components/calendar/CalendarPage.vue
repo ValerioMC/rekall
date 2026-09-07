@@ -11,11 +11,6 @@ import { summarizeByDay } from '@/common/calendar/day-summary'
 import { WEEKDAY_LABELS, dateKey, isSameDay, isSameMonth, monthGridDays } from '@/common/calendar/month-grid'
 import type { DaySummaryRow } from '@/common/calendar/day-summary'
 
-/**
- * A month at a time: every day a task ran on it, with the time spent — built entirely from the
- * sessions the timer already writes, the same the way `TimeLogDialog` reads them, just grouped
- * by day instead of by task.
- */
 const store = useConsoleStore()
 const now = useNow()
 

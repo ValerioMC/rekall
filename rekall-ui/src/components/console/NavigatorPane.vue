@@ -19,14 +19,6 @@ import type { RecordDraft } from '@/model/record-draft'
 import type { Task } from '@/model/catalog'
 import type { ProjectId } from '@/model/branded'
 
-/**
- * The navigator, and the one rule that governs its layout: every control sits above the
- * scrolling content and never moves.
- *
- * The previous sidebar listed projects underneath the task groups, so filtering changed their
- * height and the projects slid up and down. A target that moves is a target you have to find
- * again, a hundred times a day.
- */
 const store = useConsoleStore()
 const {
   scopeCompany,
@@ -46,11 +38,8 @@ const runningTaskIds = computed(() => new Set(runningEntries.value.map((entry) =
 
 const editing = ref<RecordDraft | null>(null)
 
-/** A task needs a project. Scoped to one, that is the answer; otherwise it has to be picked. */
 const projectChoices = computed(() => store.scopedProjects)
 
-/** Above a single project, a flat status list is a wall of look-alike rows; grouped by project it
- *  stays readable at any scale, so grouping is the default everywhere except inside one project. */
 const groupByProject = computed(() => navMode.value === 'tasks' && scopeProject.value === null)
 
 interface ProjectGroup {
@@ -58,7 +47,6 @@ interface ProjectGroup {
   readonly projectTitle: string
   readonly companyName: string
   readonly tasks: Task[]
-  /** The same tasks split into open work and filed work: see {@link partitionTasks}. */
   readonly active: Task[]
   readonly filed: Task[]
 }
@@ -90,7 +78,6 @@ const groupedByProject = computed<ProjectGroup[]>(() => {
     .sort((a, b) => a.projectTitle.localeCompare(b.projectTitle))
 })
 
-/** The status groups the navigator stacks, DONE held back for the filing drawer below them. */
 const grouped = computed(() =>
   TASK_STATUS_ORDER.filter((status) => status !== 'DONE')
     .map((status) => ({
@@ -100,18 +87,10 @@ const grouped = computed(() =>
     .filter((group) => group.tasks.length > 0)
 )
 
-/** Every finished task the current scope holds, listed only when the drawer is open. */
 const filedInScope = computed(() =>
   visibleTasks.value.filter((task) => task.status === 'DONE')
 )
 
-/**
- * Which filing drawers are open, reset on every load.
- *
- * Deliberately not persisted, unlike {@link collapsedProjectIds}: finished work starts out of
- * the way every session and is pulled back only when it is actually wanted. One flag for the
- * status view's single drawer, a set of project ids for the per-project ones.
- */
 const showFiledInScope = ref(false)
 const revealedProjectIds = ref<Set<ProjectId>>(new Set())
 
@@ -122,10 +101,6 @@ function toggleRevealed(projectId: ProjectId): void {
   revealedProjectIds.value = next
 }
 
-/**
- * A filed task that gets selected, by search or by walking the list, opens the drawer it is
- * in. A selection you cannot see is one you cannot tell you made.
- */
 watch(selectedTaskId, () => {
   const task = store.selectedTask
   if (!task || task.status !== 'DONE') return
@@ -157,13 +132,6 @@ function toggleCollapsed(projectId: ProjectId): void {
   } catch {}
 }
 
-/**
- * A new task opens on the project you are already in.
- *
- * When the scope does not name one, the project of the task in view is the next best answer and
- * the first in scope is the last resort. Whichever it lands on, the editor shows it as a field:
- * a guess that cannot be seen is how a task ends up in the wrong project.
- */
 function beginCreate(): void {
   const projectId =
     scopeProject.value ?? store.selectedTask?.projectId ?? projectChoices.value[0]?.id
@@ -175,7 +143,6 @@ function editTask(task: Task): void {
   editing.value = taskDraft(task.projectId, task)
 }
 
-/** The keyboard's way in, so editing does not require finding a row with the pointer first. */
 function editSelected(): void {
   const task = store.selectedTask
   if (task) editTask(task)
@@ -189,7 +156,6 @@ defineExpose({ beginCreate, editSelected })
     class="flex min-h-0 w-(--spacing-nav) shrink-0 flex-col border-r border-border bg-surface"
     aria-label="Navigator"
   >
-    <!-- Fixed controls. Nothing here shifts when the list below changes. -->
     <div class="flex shrink-0 flex-col gap-2.5 border-b border-border p-2.5">
       <ScopePicker />
 
@@ -215,8 +181,6 @@ defineExpose({ beginCreate, editSelected })
     </div>
 
     <div class="min-h-0 flex-1 overflow-y-auto pb-4">
-      <!-- Shaped like the list it stands in for, so the empty states below never get a chance
-           to flash "no project here yet" while the first fetch is still in flight. -->
       <div v-if="isLoading" class="flex flex-col gap-4 p-2 pt-3" aria-hidden="true">
         <div v-for="group in 3" :key="group" class="flex flex-col gap-1.5">
           <div class="skeleton mx-1.5 mb-1 h-2.5 w-16" />
@@ -420,7 +384,6 @@ defineExpose({ beginCreate, editSelected })
         </p>
       </template>
 
-      <!-- Results the project scope is hiding, rather than a silent nothing. -->
       <button
         v-if="elsewhere"
         class="focus-ring m-2 flex w-[calc(100%-16px)] flex-wrap items-center gap-2 rounded-[var(--radius-control)] border border-border-strong bg-canvas px-2.5 py-2 text-left text-[12px] text-text-muted transition-colors hover:border-accent hover:text-text"

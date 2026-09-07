@@ -2,14 +2,6 @@
 import { computed } from 'vue'
 import { excerpt as previewOf } from '@/common/format/excerpt'
 
-/**
- * The brief of the task in view, on the way to the pane that holds it.
- *
- * It sits above the wrapup because it is the older of the two answers: what the work is, then
- * where the work got to. The same card in both states, and the glyph carries the difference —
- * a written page against an empty one — so a task nobody has described is visible as a fact
- * rather than as a missing row.
- */
 const props = defineProps<{
   description: string | null
   selected: boolean

@@ -8,7 +8,6 @@ withDefaults(
     placeholder?: string
     mono?: boolean
     disabled?: boolean
-    /** Mobile keyboard hint. Postgres lengths and precisions are numeric fields. */
     inputmode?: 'text' | 'numeric' | 'search'
   }>(),
   {

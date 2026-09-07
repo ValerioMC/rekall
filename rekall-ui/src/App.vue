@@ -16,23 +16,13 @@ import { useModalGate } from '@/composables/useModalGate'
 import { useStepStream } from '@/composables/useStepStream'
 import type { TaskStatus } from '@/model/catalog'
 
-/**
- * One surface, three panes: pick a task, pick what to write about it, write.
- *
- * The application used to be a screen per entity, which meant three or four clicks and two
- * forms before a line of text was visible. The work is triage, then choose, then write, and
- * this is that shape.
- */
 const store = useConsoleStore()
 const { selectedTaskId, navMode, paneFocus } = storeToRefs(store)
 const { run } = useAsyncAction()
 const { isModalOpen } = useModalGate()
 
-// The live feed of checklist changes: a step moved over MCP, or a box ticked in another window,
-// reaches this one without a reload. Torn down with the console when it unmounts.
 useStepStream((taskId, steps) => store.applyStepEvent(taskId, steps))
 
-/** The four statuses in the order they appear in the navigator, so 1 to 4 match what you see. */
 const STATUS_BY_KEY: Record<string, TaskStatus> = {
   '1': 'IN_PROGRESS',
   '2': 'TODO',
@@ -49,10 +39,6 @@ async function newNote(): Promise<void> {
   await run(() => store.createNote(selectedTaskId.value!), 'Note created')
 }
 
-/**
- * Keyboard first, because this sits next to a terminal. Every shortcut is inert while a field
- * has focus, so typing a note never triggers navigation.
- */
 function onKeydown(event: KeyboardEvent): void {
   if (isModalOpen.value > 0) return
 
@@ -77,16 +63,11 @@ function onKeydown(event: KeyboardEvent): void {
     return
   }
 
-  // The three things written about the task in view, each on the key its name starts with. A
-  // toggle rather than a one-way door, the same way B is: the key that took you here takes you
-  // back.
   if (key === 'w' || key === 'd' || key === 's') {
     event.preventDefault()
     if (key === 'w') store.toggleWrapup()
     else if (key === 's') store.toggleSteps()
     else store.toggleDescription()
-    // The panes swap without the pointer moving, so focus follows or a keyboard user is left
-    // tabbing through something that is no longer on screen.
     document.getElementById('note')?.focus()
     return
   }
@@ -97,7 +78,6 @@ function onKeydown(event: KeyboardEvent): void {
     return
   }
 
-  // Records are created and edited from the same two keys, wherever the pointer happens to be.
   if (key === 't') {
     event.preventDefault()
     navigator.value?.beginCreate()
@@ -110,7 +90,6 @@ function onKeydown(event: KeyboardEvent): void {
     return
   }
 
-  // j and k walk the list, the way the terminal next door does.
   if (key === 'j' || key === 'k') {
     event.preventDefault()
     const list = navMode.value === 'tasks' ? store.visibleTasks : store.visibleDocuments
@@ -123,7 +102,6 @@ function onKeydown(event: KeyboardEvent): void {
     return
   }
 
-  // Status is one keystroke, not a select behind a Save button.
   const status = STATUS_BY_KEY[event.key]
   if (status && navMode.value === 'tasks' && selectedTaskId.value) {
     event.preventDefault()
@@ -149,9 +127,6 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
     <div class="flex min-h-0 flex-1">
       <NavigatorPane ref="navigator" />
       <NoteListPane />
-      <!-- `min-w-0` is load-bearing: a flex item defaults to `min-width: auto`, so the widest
-           thing in the writing pane — the markdown toolbar, which does not wrap — became the
-           floor for this column and pushed the header and the navigator off the window. -->
       <div id="note" class="flex min-h-0 min-w-0 flex-1" tabindex="-1">
         <WrapupPane v-if="paneFocus === 'wrapup'" />
         <DescriptionPane v-else-if="paneFocus === 'description'" />

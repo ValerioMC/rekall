@@ -4,13 +4,6 @@ import { formatDuration } from '@/common/format/duration'
 import { identityHue } from '@/common/identity'
 import type { DaySummaryRow } from '@/common/calendar/day-summary'
 
-/**
- * One cell of the month grid: a date, and what got worked on it.
- *
- * Capped at three rows plus an overflow count rather than growing the cell to fit — a day with
- * eight tasks on it would otherwise stretch every row in the grid to match, and the calendar
- * stops reading as a calendar the moment the weeks are different heights.
- */
 const props = defineProps<{
   date: Date
   inMonth: boolean

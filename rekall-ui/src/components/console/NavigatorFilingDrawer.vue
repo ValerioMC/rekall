@@ -1,13 +1,6 @@
 <script setup lang="ts">
 import { useId } from 'vue'
 
-/**
- * The drawer finished tasks are folded into.
- *
- * Closed on every load and reopened only for the session: done work is out of the way by
- * default, one click from view, and back out of the way next time the window opens. The count
- * stays on the row while it is closed, so the pile is never a silent nothing.
- */
 defineProps<{ count: number; open: boolean }>()
 defineEmits<{ toggle: [] }>()
 

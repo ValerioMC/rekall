@@ -15,13 +15,6 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.stream.Collectors;
 
-/**
- * Turns domain failures into responses the UI can show.
- *
- * <p>Everything the user could have caused becomes a 400 or a 409 carrying the original
- * message, because those messages are written to be read. Only genuinely unexpected failures
- * become a 500, and those are the only ones logged with a stack trace.
- */
 @RestControllerAdvice
 @Slf4j
 public class RestExceptionHandler {
@@ -46,26 +39,12 @@ public class RestExceptionHandler {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
     }
 
-    /**
-     * A foreign key doing its job is not a server fault.
-     *
-     * <p>Refusing to delete a row something else still points at is the whole reason for real
-     * tables, so the response says what is holding it rather than surfacing a 500 with a
-     * database error string in it.
-     */
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ProblemDetail integrityViolation(DataIntegrityViolationException e) {
         String cause = e.getMostSpecificCause().getMessage();
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, explain(cause));
     }
 
-    /**
-     * A taken label is the constraint a person actually meets, so it gets a sentence of its own.
-     *
-     * <p>Two projects in one company cannot share {@code project:vega}, because the anchor would
-     * then name two records and load neither. The database says "Unique index or primary key
-     * violation", which is true and useless.
-     */
     private String explain(String cause) {
         if (cause == null) {
             return "This change violates a database constraint.";
@@ -85,12 +64,6 @@ public class RestExceptionHandler {
         return "This change violates a database constraint: " + cause;
     }
 
-    /**
-     * A label with nothing usable in it is a rejected input, not a fault.
-     *
-     * <p>{@code Slug.of} throws this, and without a handler it would reach the catch-all below
-     * and be reported as a 500 for what is a typo.
-     */
     @ExceptionHandler(IllegalArgumentException.class)
     public ProblemDetail illegalArgument(IllegalArgumentException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
@@ -104,11 +77,6 @@ public class RestExceptionHandler {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, detail);
     }
 
-    /**
-     * A body that will not parse is a client mistake, not a server fault. Without this the
-     * generic handler below turns an unknown enum constant or a malformed UUID into a 500,
-     * which reads as "the application is broken" when the request simply was.
-     */
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ProblemDetail unreadableBody(HttpMessageNotReadableException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMostSpecificCause().getMessage());

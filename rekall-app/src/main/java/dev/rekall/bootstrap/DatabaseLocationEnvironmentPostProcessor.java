@@ -14,17 +14,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- * Resolves where the H2 file lives before the datasource bean is built.
- *
- * <p>{@code application.yaml} reads {@code REKALL_DB_URL}, falling back to
- * {@code rekall.resolved-db-url}, which is always set here: an explicit environment variable
- * (tests, power users) still wins outright, everyone else gets whatever the registry — or the
- * legacy {@code ./data} folder, for anyone upgrading from before this existed — resolves to.
- *
- * <p>Runs again, fresh, every time {@code ApplicationRestarter} reboots the context in place,
- * which is what makes a Settings change take effect without the process itself being relaunched.
- */
 public class DatabaseLocationEnvironmentPostProcessor implements EnvironmentPostProcessor {
 
     private static final Path LEGACY_FOLDER = Path.of("./data");
@@ -47,9 +36,6 @@ public class DatabaseLocationEnvironmentPostProcessor implements EnvironmentPost
             url = urlFor(adopted.active().path());
             status = "READY";
         } else if (registry.isPresent()) {
-            // A folder was configured once but is not reachable right now (unplugged drive,
-            // renamed cloud folder). Booting into a blank setup wizard here would read as data
-            // loss, so this is reported as its own status instead of SETUP_NEEDED.
             url = BOOTSTRAP_URL;
             status = "UNREACHABLE";
         } else {

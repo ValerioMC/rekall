@@ -9,44 +9,18 @@ import { rkCommand } from '@/common/format/rk-command'
 import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.vue'
 import type { TaskId } from '@/model/branded'
 
-/**
- * The brief of the task in view: what the work is, at whatever length it takes to say.
- *
- * It gets the whole pane and a markdown editor because a description is rarely one sentence.
- * What has to be built, what it has to satisfy, what is deliberately out of scope: that is a
- * structured document, and it was being typed into a field the size of a tooltip.
- *
- * Four surfaces, one question each, and the distinction is why none of them is a tab of
- * another. The description is the standing brief and changes when the work is redefined. The
- * steps are what is left of it, ticked by hand as the work is reviewed. The wrapup is where the
- * implementation got to and is replaced at the end of every session. A note is something you
- * learned, keeps its own title, and can be attached to several tasks at once.
- *
- * The pane carries its project's colour on the rail above the title and in the grid behind it —
- * the same hue the navigator groups the task under. Three panes share this frame, and the
- * texture is what says which one is on screen before a word of it is read.
- */
 const store = useConsoleStore()
 const { selectedTask } = storeToRefs(store)
 const { run } = useAsyncAction()
 
 const mode = ref<'write' | 'read'>('read')
 
-/**
- * Whether the editor is on screen at all.
- *
- * A task with no description opens on the page that says what one is for, because that is the
- * moment the three surfaces are easiest to confuse. Once there is text, or once you have asked
- * to write it, this pane is the editor and stays the editor — emptying the field mid-sentence
- * must not throw you back to the explanation.
- */
 const showEditor = ref(false)
 const draft = ref('')
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
 const hue = computed(() => identityHue(selectedTask.value?.projectId ?? ''))
 
-/** Writes what is pending now, for the task it was typed on rather than the one now in view. */
 function flush(taskId: TaskId): void {
   if (!saveTimer) return
   clearTimeout(saveTimer)
@@ -54,11 +28,6 @@ function flush(taskId: TaskId): void {
   void run(() => store.saveTaskDescription(taskId, draft.value))
 }
 
-/**
- * Autosave, on the rhythm the notes and the wrapup use: unsaved the moment you type, written
- * when you pause. An emptied description saves like any other edit — clearing the brief is a
- * legitimate thing to do, and the store stores it as none rather than as an empty paragraph.
- */
 function scheduleSave(): void {
   const task = selectedTask.value
   if (!task) return
@@ -76,15 +45,11 @@ watch(
     if (previousId) flush(previousId)
     draft.value = selectedTask.value?.description ?? ''
     showEditor.value = draft.value.trim().length > 0
-    // Reading is the default on a task that has one: this pane is opened to find out what the
-    // work is far more often than to redefine it.
     mode.value = showEditor.value ? 'read' : 'write'
   },
   { immediate: true }
 )
 
-/** The same field, edited in the task dialog while this pane is open. Anything typed here wins
- *  until it is written, so a pending save is left alone. */
 watch(
   () => selectedTask.value?.description ?? '',
   (value) => {
@@ -96,12 +61,6 @@ watch(
 
 const anchor = computed(() => selectedTask.value?.anchor ?? '')
 
-/**
- * How much of the checklist is still open.
- *
- * Read off the task row rather than the checklist itself: this pane never loads the steps, and
- * all it has to say is whether there are any, which changes what this text is for.
- */
 const openSteps = computed(() => {
   const task = selectedTask.value
   return task ? task.stepCount - task.stepsDone : 0
@@ -187,14 +146,10 @@ onUnmounted(() => {
         </header>
       </div>
 
-      <!-- Where these words end up, which is the reason to keep them current. -->
       <div
         v-if="showEditor"
         class="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border bg-surface px-5 py-2.5"
       >
-        <!-- What this text is for changes the moment the task has a checklist, and this is
-             where the two are confused: a brief that is still read as a list of things to do
-             goes on asking for work that is already ticked. -->
         <span v-if="openSteps > 0" class="text-[11.5px] text-text-muted">
           {{ openSteps }} step{{ openSteps === 1 ? '' : 's' }} open, so this is what they are
           built against rather than a list of things to do. Every
@@ -208,8 +163,6 @@ onUnmounted(() => {
         </span>
       </div>
 
-      <!-- Nothing written yet. The page is about what belongs here, because this is where the
-           description, the wrapup and a note are easiest to confuse. -->
       <div v-if="!showEditor" class="min-h-0 flex-1 overflow-y-auto">
         <div class="max-w-[620px] px-9 py-12">
           <p class="eyebrow">
@@ -232,8 +185,6 @@ onUnmounted(() => {
             Write the description
           </button>
 
-          <!-- Four surfaces, one question each. Written down here because this is the pane
-               that was missing, and the one whose job is easiest to give to the others. -->
           <ul class="mt-9 border-t border-border">
             <li
               v-for="surface in [
@@ -308,9 +259,6 @@ onUnmounted(() => {
       </div>
 
       <div v-else class="min-h-0 flex-1 overflow-y-auto p-4">
-        <!-- Read on the pane's own width, as a note is. A measure column here was the reason a
-             brief looked broken up: the text stopped short of the pane with the rest of the
-             width visibly empty, and the same text in a note did not. -->
         <AppMarkdownEditor
           v-if="mode === 'write'"
           v-model="draft"

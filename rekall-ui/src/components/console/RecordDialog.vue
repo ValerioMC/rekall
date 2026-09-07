@@ -17,14 +17,6 @@ import {
 import type { ProjectStatus, TaskStatus } from '@/model/catalog'
 import type { RecordDraft } from '@/model/record-draft'
 
-/**
- * One editor for all three levels, creating and editing alike.
- *
- * A form per level and per direction is four screens that drift apart, and the thing that
- * matters here is the same on every one of them: what the record is called, and what has to be
- * typed to load it. Those two are shown together, always, with the anchor assembled live
- * underneath. Nobody should have to save a record to find out what its anchor became.
- */
 const props = defineProps<{ draft: RecordDraft }>()
 const emit = defineEmits<{ close: []; saved: [] }>()
 
@@ -46,11 +38,6 @@ const originalLabel = props.draft.kind === 'company' ? '' : props.draft.label
 const KIND_NOUN = { company: 'company', project: 'project', task: 'task' } as const
 const heading = `${isNew ? 'New' : 'Edit'} ${KIND_NOUN[kind]}`
 
-/*
- * The union is unpacked into flat accessors here rather than narrowed in the markup. A
- * template that has to prove which variant it is holding before it can bind a field is a
- * template nobody wants to change later.
- */
 const titleValue = computed<string>({
   get: () => (form.value.kind === 'company' ? form.value.name : form.value.title),
   set: (value) => {
@@ -81,12 +68,6 @@ const status = computed<string>({
   }
 })
 
-/**
- * The label follows the title until the label is touched, and never afterwards.
- *
- * Typing a title and getting `report-builder` for free is most of the value; having it
- * overwrite a label you deliberately chose would be the opposite.
- */
 const labelWasTouched = ref(!isNew)
 
 function onTitleInput(value: string): void {
@@ -94,10 +75,6 @@ function onTitleInput(value: string): void {
   if (hasLabel && !labelWasTouched.value) rawLabel.value = slugify(value)
 }
 
-/**
- * The raw text is kept while typing and narrowed for the anchor and the save, so `code-` on
- * the way to `report-builder` is not swallowed one keystroke at a time.
- */
 function onLabelInput(value: string): void {
   labelWasTouched.value = true
   rawLabel.value = value
@@ -105,12 +82,6 @@ function onLabelInput(value: string): void {
 
 const label = computed(() => slugify(rawLabel.value))
 
-/**
- * The part of the anchor the parent contributes, which is settled before you type anything.
- *
- * Shown apart from the rest because it is not in play: a task's anchor opens with the project
- * it belongs to, and that is a fact of where you are, not a field you are filling in.
- */
 const anchorParent = computed(() => {
   const current = form.value
   if (current.kind !== 'task') return ''
@@ -118,7 +89,6 @@ const anchorParent = computed(() => {
   return project ? project.anchor : ''
 })
 
-/** The part this record contributes, which is what the label field is deciding. */
 const anchorSelf = computed(() => {
   const current = form.value
   if (current.kind === 'company') {
@@ -128,19 +98,10 @@ const anchorSelf = computed(() => {
   return `${current.kind}:${label.value}`
 })
 
-/** The whole anchor, as `/rk` would take it. */
 const anchorPreview = computed(() =>
   [anchorParent.value, anchorSelf.value].filter(Boolean).join(' ')
 )
 
-/**
- * The parent, as a field rather than as something the screen decided on your behalf.
- *
- * It used to be inferred from the scope, which is right when you are inside a project and a
- * silent guess when you are not: a task would land in whichever project happened to sort first
- * and nothing said so. It is also the only way to move a record afterwards, which the endpoint
- * has always supported.
- */
 const parentId = computed<string>({
   get: () => {
     const current = form.value
@@ -155,7 +116,6 @@ const parentId = computed<string>({
   }
 })
 
-/** Each option carries the anchor it contributes, so the grammar is legible in the list too. */
 const parentOptions = computed(() => {
   if (kind === 'project') {
     return store.companies.map((company) => ({
@@ -174,7 +134,6 @@ const parentOptions = computed(() => {
 
 const parentLabel = kind === 'task' ? 'Project' : 'Company'
 
-/** Renaming the label moves the anchor, and what breaks is outside this application. */
 const anchorIsMoving = computed(() => !isNew && hasLabel && label.value !== originalLabel)
 
 const statusOptions =
@@ -196,7 +155,6 @@ const canSave = computed(
   () => titleValue.value.trim().length > 0 && (!hasLabel || label.value.length > 0)
 )
 
-/** Counts come from what is loaded, so the warning is the real blast radius and not a guess. */
 const blast = computed(() => {
   const current = form.value
   if (current.kind === 'company') {
@@ -227,8 +185,6 @@ async function save(): Promise<void> {
       if (current.id === null) await store.createCompany(input)
       else await store.updateCompany(current.id, input)
     } else if (current.kind === 'project') {
-      // Neither of these is editable here, and a write sends the whole record: read back what
-      // is stored or this dialog quietly clears two fields it never showed.
       const stored = store.projects.find((candidate) => candidate.id === current.id)
       const input = {
         label: label.value,
@@ -291,7 +247,6 @@ function onKeydown(event: KeyboardEvent): void {
     void save()
     return
   }
-  // While the delete confirmation sits on top, Tab is its trap to run, not this dialog's own.
   if (panel.value && !isConfirmingDelete.value) trapTabKey(panel.value, event)
 }
 
@@ -345,7 +300,6 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
       </header>
 
       <div class="max-h-[62vh] overflow-y-auto px-6 py-5">
-        <!-- Where it lives, first, because it is the half of the anchor already settled. -->
         <template v-if="parentOptions.length">
           <label
             for="record-parent"
@@ -418,7 +372,6 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
           </p>
         </template>
 
-        <!-- The anchor, assembled as it is typed. This is the product, so it is not a footnote. -->
         <div
           class="mt-4 flex items-center gap-3 rounded-[var(--radius-control)] border px-3.5 py-3 transition-all duration-200"
           :class="
@@ -432,8 +385,6 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
           <span class="shrink-0 font-mono text-[12px] text-text-subtle" aria-hidden="true">/rk</span>
           <span v-if="kind === 'task' && anchorParent" class="size-1.5 shrink-0 rounded-full" :style="{ backgroundColor: identityHue(parentId).base }" aria-hidden="true" />
           <span class="min-w-0 flex-1 truncate font-mono text-[13px]">
-            <!-- The parent's half is settled and reads that way; the rest is what you are typing.
-                 Both spans sit on one line so the separating space survives into the text. -->
             <span v-if="anchorParent" class="text-anchor/60">{{ anchorParent }}</span> <span class="text-anchor">{{ anchorSelf || '…' }}</span>
           </span>
           <span class="shrink-0 eyebrow font-normal">

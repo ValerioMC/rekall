@@ -9,16 +9,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
 
-/**
- * Where the database lives cannot be recorded inside the database itself, so it is a small JSON
- * file next to it.
- *
- * <p>The home directory defaults to {@code ~/.rekall} but is read from the {@code rekall.home}
- * system property first, so tests can point it at a build-local temp directory and never touch a
- * real machine's configuration. Built with a plain {@link ObjectMapper} rather than an injected
- * one: this class also runs from {@link DatabaseLocationEnvironmentPostProcessor}, before the
- * Spring context (and its configured {@code ObjectMapper} bean) exists.
- */
 public class DatabaseRegistryStore {
 
     private final Path configFile;

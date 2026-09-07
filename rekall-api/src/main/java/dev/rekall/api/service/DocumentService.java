@@ -14,14 +14,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
-/**
- * The markdown notes, and which tasks each one belongs to.
- *
- * <p>A note is attached to at least one task and possibly to many. The lower bound is enforced
- * here rather than in the database, because it is a rule about what the interface may leave
- * behind and not about referential integrity: a note on no task is unreachable, and the model
- * has no screen that could show it again.
- */
 @Service
 @RequiredArgsConstructor
 public class DocumentService {
@@ -29,12 +21,6 @@ public class DocumentService {
     private final DocumentRepository documents;
     private final CatalogService catalog;
 
-    /**
-     * Notes for one task, for one project, or all of them.
-     *
-     * <p>Three scopes on one endpoint because they are the same question asked at three widths,
-     * and the screen switches between them as you change what you are looking at.
-     */
     @Transactional(readOnly = true)
     public List<DocumentResponse> list(UUID taskId, UUID projectId) {
         if (taskId != null) {
@@ -74,7 +60,6 @@ public class DocumentService {
         return DocumentResponse.of(document);
     }
 
-    /** Removes the note everywhere. Detaching it from one task is an update, not a delete. */
     @Transactional
     public void delete(UUID id) {
         Document document = require(id);
@@ -82,13 +67,6 @@ public class DocumentService {
         documents.delete(document);
     }
 
-    /**
-     * Brings the set of tasks to exactly what was asked for.
-     *
-     * <p>Computed as a difference rather than cleared and rebuilt: clearing would delete every
-     * join row and insert them again on each save, which churns the order column and shows up
-     * as notes reshuffling themselves on tasks nobody touched.
-     */
     private void link(Document document, Set<Task> wanted) {
         Set.copyOf(document.getTasks()).stream()
                 .filter(task -> !wanted.contains(task))

@@ -7,15 +7,6 @@ import RestartingOverlay from '@/components/setup/RestartingOverlay.vue'
 import { useDatabaseSetup } from '@/composables/useDatabaseSetup'
 import type { DatabaseEntry, DatabaseStatus } from '@/model/settings'
 
-/**
- * The database that was active last time no longer answers where it was left — an external
- * drive that's unplugged, a cloud folder that moved or was renamed.
- *
- * Deliberately not the same screen as `FirstRunSetup`: falling back to a blank "let's get
- * started" wizard here would read as the previous database having been lost, when nothing has
- * actually been touched. This names what's missing and offers a way back to it, before offering
- * anything new.
- */
 const props = defineProps<{ status: DatabaseStatus }>()
 
 const { phase, error, switchTo } = useDatabaseSetup()
@@ -33,11 +24,6 @@ async function onSwitch(entry: DatabaseEntry): Promise<void> {
   switchingId.value = null
 }
 
-/**
- * This screen exists specifically to read as "not the same as a blank first run" — a
- * screen-reader user needs that announced, not just visible to a sighted one glancing at the
- * page.
- */
 onMounted(async () => {
   await nextTick()
   heading.value?.focus()

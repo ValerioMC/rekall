@@ -15,10 +15,6 @@ export interface CompanyInput {
   description: string | null
 }
 
-/**
- * What a write carries. The label is sent as typed and comes back normalised, so the response
- * and not the request is what the store keeps.
- */
 export interface ProjectInput {
   label: string
   title: string

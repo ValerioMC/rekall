@@ -19,7 +19,6 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.UUID;
 
-/** The outermost record. Deleting one takes its projects and their tasks with it. */
 @RestController
 @RequestMapping("/api/companies")
 @RequiredArgsConstructor

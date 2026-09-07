@@ -29,18 +29,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
-/**
- * Something you work on over time, holding tasks.
- *
- * <p>Three fields carry the identity, and they are not interchangeable. {@code label} is what an
- * anchor looks up: {@code project:vega} is a lookup on this column, so it is a slug and never a
- * sentence. {@code title} is what a person calls the project and is free to change without
- * breaking a single anchor anyone has written down. {@code description} is the prose.
- *
- * <p>The label is unique within its company rather than globally, because two companies
- * routinely have a project with the same one. A bare {@code project:website} that matches in two
- * companies is reported as ambiguous rather than guessed at.
- */
 @Entity
 @Table(
         name = "project",
@@ -79,13 +67,6 @@ public class Project {
     @Setter
     private String blueprintMarkdown;
 
-    /**
-     * Where a session on this project is opened, absolute, or null when nobody has said.
-     *
-     * <p>Nothing here ever reads inside it. It is handed to a terminal as the directory to start
-     * in, which is the one thing Claude Code cannot be told after the fact: it takes the folder
-     * it was launched from and keeps it for the session.
-     */
     @Size(max = 1_000)
     @Column(name = "repo_folder", length = 1_000)
     @Setter
@@ -103,7 +84,6 @@ public class Project {
     @OrderBy("label ASC")
     private List<Task> tasks = new ArrayList<>();
 
-
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -113,7 +93,6 @@ public class Project {
     private Instant updatedAt;
 
     protected Project() {
-        // for JPA
     }
 
     public Project(String label, String title) {

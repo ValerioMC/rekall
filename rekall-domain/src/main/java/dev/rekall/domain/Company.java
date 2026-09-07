@@ -23,12 +23,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
-/**
- * Who the work is for. The outermost record, holding projects.
- *
- * <p>{@code name} is unique and is what an anchor carries: {@code company:acme} is a lookup on
- * this column.
- */
 @Entity
 @Table(name = "company", uniqueConstraints = @UniqueConstraint(name = "uq_company_name", columnNames = "name"))
 @Getter
@@ -62,7 +56,6 @@ public class Company {
     private Instant updatedAt;
 
     protected Company() {
-        // for JPA
     }
 
     public Company(String name) {

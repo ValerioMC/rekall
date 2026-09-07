@@ -6,13 +6,6 @@ import { formatClock, formatDuration } from '@/common/format/duration'
 import { useNow } from '@/composables/useNow'
 import type { TimeEntry } from '@/model/catalog'
 
-/**
- * How long this task has taken, pinned above the wrapup because it is the one thing on this
- * pane that is live: everything else describes the task, this one is ticking while you read it.
- *
- * Props in, events out, the same shape `WrapupCard` uses — the store's timer actions live in
- * `NoteListPane`, not here.
- */
 const props = defineProps<{
   entries: readonly TimeEntry[]
   isRunning: boolean
@@ -32,7 +25,6 @@ const closedSeconds = computed(() =>
   }, 0)
 )
 
-/** The current session's elapsed time, ticking — zero unless it is this task that is running. */
 const liveSeconds = computed(() => {
   if (!props.isRunning || !runningEntry.value) return 0
   return (now.value - Date.parse(runningEntry.value.startedAt)) / 1000

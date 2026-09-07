@@ -33,18 +33,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
-/**
- * One piece of work on a project, and the unit a session is opened around.
- *
- * <p>{@code label} is what {@code task:report-builder} looks up, {@code title} is what the task
- * is called in a sentence, and {@code description} is what it is about. Renaming the title of a
- * task you have been anchoring for a month leaves the anchor working, which is the whole reason
- * the two are separate columns.
- *
- * <p>The label is unique within its project rather than globally, because two projects routinely
- * have a task with the same one. A bare {@code task:report-builder} that matches in two projects
- * is reported as ambiguous rather than guessed at.
- */
 @Entity
 @Table(
         name = "task",
@@ -84,14 +72,6 @@ public class Task {
     @Setter
     private Project project;
 
-    /**
-     * The notes that arrive when this task is loaded.
-     *
-     * <p>The owning side, so attaching and detaching both happen here. No cascade on removal:
-     * deleting a task unlinks its notes, and a note still attached elsewhere survives. A note
-     * left on no task at all is removed by {@code DocumentService}, which is the only place
-     * that can tell the difference.
-     */
     @ManyToMany
     @JoinTable(
             name = "document_task",
@@ -100,28 +80,10 @@ public class Task {
     @OrderColumn(name = "position")
     private List<Document> documents = new ArrayList<>();
 
-    /**
-     * The checklist: what this task is made of, in order, and which parts are finished.
-     *
-     * <p>Cascaded and orphan-removed like the wrapup, and for the same reason: a step describes
-     * one piece of one task and means nothing beside another. Unlike a note, it is never shared.
-     *
-     * <p>What it is for is the gap between the other two fields. The description says what the
-     * work is and grows as the work is redefined; the wrapup says what the implementation looks
-     * like now. Neither answers "what is left", and reading it out of the two by comparing them
-     * is exactly the guess this model exists to avoid.
-     */
     @OneToMany(mappedBy = "task", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("position ASC")
     private List<TaskStep> steps = new ArrayList<>();
 
-    /**
-     * What this task's implementation looks like right now, or null while nobody has said.
-     *
-     * <p>One, at most, and the database holds that shape rather than this field: {@code task_id}
-     * on {@code wrapup} is unique. Cascaded and orphan-removed because a wrapup describes this
-     * task and has no meaning anywhere else, which is the opposite of a note.
-     */
     @OneToOne(mappedBy = "task", cascade = CascadeType.ALL, orphanRemoval = true)
     @Setter
     private Wrapup wrapup;
@@ -135,7 +97,6 @@ public class Task {
     private Instant updatedAt;
 
     protected Task() {
-        // for JPA
     }
 
     public Task(String label, String title) {
@@ -143,7 +104,6 @@ public class Task {
         this.title = title;
     }
 
-    /** Both sides are kept in step, so the in-memory graph agrees with what will be flushed. */
     public void attach(Document document) {
         if (documents.contains(document)) {
             return;

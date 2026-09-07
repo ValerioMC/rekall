@@ -19,15 +19,6 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * The console's window onto {@code TimeEntryService}.
- *
- * <p>Start and stop are actions on a task, not writes to a session's address, so they are
- * {@code POST} verbs rather than a {@code PUT} the way the wrapup is: there is no single row at
- * {@code /tasks/{id}/time-entries} to replace, only an open-ended list to add to. Correcting or
- * removing an existing session, once it has an id of its own, goes through the usual
- * {@code PATCH}/{@code DELETE} at that id's own address.
- */
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
@@ -35,10 +26,6 @@ public class TimeEntryController {
 
     private final TimeEntryService timeEntries;
 
-    /**
-     * Every session at once, the same as {@code /wrapups}: the console keeps them all in
-     * memory so a task's recap and its running total show without a round trip.
-     */
     @GetMapping("/time-entries")
     public List<TimeEntryView> list() {
         return timeEntries.findAll();

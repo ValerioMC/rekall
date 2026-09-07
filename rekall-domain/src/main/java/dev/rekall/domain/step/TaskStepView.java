@@ -6,19 +6,6 @@ import dev.rekall.domain.TaskStepState;
 import java.time.Instant;
 import java.util.UUID;
 
-/**
- * One step, fully materialised, for the same reason {@code WrapupView} is: read inside a
- * transaction and rendered outside one.
- *
- * <p>{@code done} rides alongside {@code state} rather than being dropped for it: it is
- * {@code state == DONE}, and it is what the navigator's progress count and the "finished since
- * the wrapup" check are already written against. {@code state} is the fuller answer the console
- * animates around.
- *
- * @param doneAt when a person accepted the work, or null short of that
- * @param runningAt when a session picked the step up, or null
- * @param claimedAt when a session claimed it as finished, or null
- */
 public record TaskStepView(
         UUID id,
         UUID taskId,
@@ -49,7 +36,6 @@ public record TaskStepView(
                 step.getUpdatedAt());
     }
 
-    /** The moment the work was finished, {@code claimedAt} first, for the wrapup-behind check. */
     public Instant completedAt() {
         return claimedAt != null ? claimedAt : doneAt;
     }

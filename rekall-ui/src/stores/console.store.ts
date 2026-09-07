@@ -66,17 +66,8 @@ import type {
 export type NavMode = 'tasks' | 'notes'
 export type SaveState = 'saved' | 'unsaved' | 'saving'
 
-/**
- * What the right-hand pane is showing.
- *
- * Four states rather than one surface pretending to be another: they are edited differently,
- * and three of them have no title, no kind and no other task they could belong to. Each answers
- * one question, which is why none of them is a tab of another: what is this task, what is left
- * of it, where did the implementation get to, and what did I learn.
- */
 export type PaneFocus = 'note' | 'wrapup' | 'description' | 'steps'
 
-/** Everything the console shows, loaded once and kept in step by the actions below. */
 export const useConsoleStore = defineStore('console', () => {
   const companies = ref<Company[]>([])
   const projects = ref<Project[]>([])
@@ -89,12 +80,6 @@ export const useConsoleStore = defineStore('console', () => {
   const isLoading = ref(true)
   const saveState = ref<SaveState>('saved')
 
-  /**
-   * How far in you are looking: everything, one company, or one project inside it.
-   *
-   * Two nullable ids rather than a mode plus an id, because the pair is the state: a project
-   * scope implies its company, and there is no third combination to represent.
-   */
   const scopeCompany = ref<CompanyId | null>(null)
   const scopeProject = ref<ProjectId | null>(null)
   const navMode = ref<NavMode>('tasks')
@@ -102,8 +87,6 @@ export const useConsoleStore = defineStore('console', () => {
   const selectedTaskId = ref<TaskId | null>(null)
   const selectedDocId = ref<DocumentId | null>(null)
   const paneFocus = ref<PaneFocus>('note')
-
-  // ------------------------------------------------------------------ reading
 
   const projectInScope = (project: Project): boolean =>
     (scopeCompany.value === null || project.companyId === scopeCompany.value) &&
@@ -115,13 +98,6 @@ export const useConsoleStore = defineStore('console', () => {
     return projects.value.find((p) => p.id === task.projectId)?.companyId === scopeCompany.value
   }
 
-  /**
-   * Both names are searched, because either is what you remember.
-   *
-   * You reach for a task by the anchor you have typed a hundred times or by the sentence you
-   * called it in a meeting, and which one surfaces first is not something to make anyone think
-   * about.
-   */
   function matchesTask(task: Task, needle: string): boolean {
     if (!needle.trim()) return true
     const hay =
@@ -174,7 +150,6 @@ export const useConsoleStore = defineStore('console', () => {
     () => projects.value.find((project) => project.id === scopeProject.value) ?? null
   )
 
-  /** The notes on the selected task, which is what the middle pane lists. */
   const taskDocuments = computed(() =>
     selectedTaskId.value === null
       ? []
@@ -183,35 +158,18 @@ export const useConsoleStore = defineStore('console', () => {
         )
   )
 
-  /** The checklist of the task in view, in the order it is meant to be worked. */
   const selectedTaskSteps = computed(() =>
     steps.value
       .filter((step) => step.taskId === selectedTaskId.value)
       .sort((a, b) => a.position - b.position)
   )
 
-  /**
-   * What is left on the task in view.
-   *
-   * The number the whole checklist exists to produce: the one thing a description and a wrapup
-   * together cannot say without being read and compared.
-   */
   const openStepCount = computed(() => selectedTaskSteps.value.filter((step) => !step.done).length)
 
-  /** The wrapup of the task in view, or null while nobody has written one. */
   const selectedWrapup = computed(
     () => wrapups.value.find((wrapup) => wrapup.taskId === selectedTaskId.value) ?? null
   )
 
-  /**
-   * Steps ticked since the wrapup was last written.
-   *
-   * The exact half of {@link wrapupIsBehind}. A note written after a wrapup only suggests the
-   * wrapup is older than what you know; a step ticked after it is a piece of the work that
-   * finished and that the wrapup cannot possibly mention, because nothing has rewritten it
-   * since. It is the console's cue to run `/rk … wrapup`, and the reason it is a count rather
-   * than a warning: the wrapup is not wrong, it is behind by a known number of steps.
-   */
   const wrapupMissesSteps = computed(() => {
     const wrapup = selectedWrapup.value
     if (!wrapup) return 0
@@ -222,29 +180,18 @@ export const useConsoleStore = defineStore('console', () => {
     }).length
   })
 
-  /** The step a session is on right now, if any, on the task in view. */
   const runningStep = computed(
     () => selectedTaskSteps.value.find((step) => step.state === 'RUNNING') ?? null
   )
 
-  /**
-   * The notes on this task that have been written since the wrapup was.
-   *
-   * A wrapup goes stale silently, which is the one way it can start lying. It cannot be
-   * detected in general, but the cheap half can: if you have written notes since, the state it
-   * describes is at least older than what you know. Counted rather than judged, and shown as a
-   * remark rather than a warning.
-   */
   const wrapupIsBehind = computed(() => {
     const wrapup = selectedWrapup.value
     if (!wrapup) return 0
     return taskDocuments.value.filter((document) => document.updatedAt > wrapup.updatedAt).length
   })
 
-  /** Every session currently open, across however many tasks are being worked in parallel. */
   const runningEntries = computed(() => timeEntries.value.filter((entry) => entry.stoppedAt === null))
 
-  /** The sessions on the task in view, most recently started first. */
   const selectedTaskEntries = computed(() =>
     timeEntries.value
       .filter((entry) => entry.taskId === selectedTaskId.value)
@@ -259,7 +206,6 @@ export const useConsoleStore = defineStore('console', () => {
 
   const scopedProjects = computed(() => projects.value.filter(projectInScope))
 
-  /** The path you are looking at, shown as a breadcrumb rather than a single opaque name. */
   const scopePath = computed<string[]>(() => {
     if (!scopedCompany.value) return []
     return scopedProject.value
@@ -271,18 +217,11 @@ export const useConsoleStore = defineStore('console', () => {
     scopePath.value.length === 0 ? 'All work' : scopePath.value.join(' / ')
   )
 
-  /** What you would type after `/rk` to load everything currently in view. */
   const scopeAnchor = computed(() => {
     if (scopedProject.value) return scopedProject.value.anchor
     return scopedCompany.value ? `company:${scopedCompany.value.name}` : ''
   })
 
-  /**
-   * What the current search would find if the project scope were dropped.
-   *
-   * A scoped search that silently hides results teaches you the note is gone, and the next
-   * thing you do is write it a second time.
-   */
   const elsewhere = computed(() => {
     if ((scopeCompany.value === null && scopeProject.value === null) || !filter.value.trim())
       return null
@@ -303,8 +242,6 @@ export const useConsoleStore = defineStore('console', () => {
     ]
     return { count, names }
   })
-
-  // ------------------------------------------------------------------ loading
 
   async function load(): Promise<void> {
     isLoading.value = true
@@ -338,16 +275,12 @@ export const useConsoleStore = defineStore('console', () => {
     }
   }
 
-  // ------------------------------------------------------------------ selecting
-
   function selectTask(id: TaskId): void {
     selectedTaskId.value = id
     const first = documents.value.find((document) =>
       document.tasks.some((ref) => ref.id === id)
     )
     selectedDocId.value = first?.id ?? null
-    // Moving to another task leaves the wrapup pane: what was on screen described the task you
-    // just left, and showing the next one's in its place is how the two get confused.
     paneFocus.value = 'note'
   }
 
@@ -373,8 +306,6 @@ export const useConsoleStore = defineStore('console', () => {
     }
   }
 
-  // ------------------------------------------------------------------ companies
-
   async function createCompany(input: CompanyInput): Promise<void> {
     const created = await apiCreateCompany(input)
     companies.value = [...companies.value, created].sort((a, b) => a.name.localeCompare(b.name))
@@ -386,7 +317,6 @@ export const useConsoleStore = defineStore('console', () => {
     companies.value = companies.value
       .map((company) => (company.id === id ? saved : company))
       .sort((a, b) => a.name.localeCompare(b.name))
-    // A company's name is on every project and task response, so those have to be read again.
     await Promise.all([refreshProjects(), refreshTasks()])
   }
 
@@ -396,8 +326,6 @@ export const useConsoleStore = defineStore('console', () => {
     await load()
   }
 
-  // ------------------------------------------------------------------ projects
-
   async function createProject(input: ProjectInput): Promise<Project> {
     const created = await apiCreateProject(input)
     projects.value = [...projects.value, created].sort((a, b) => a.label.localeCompare(b.label))
@@ -406,10 +334,6 @@ export const useConsoleStore = defineStore('console', () => {
     return created
   }
 
-  /**
-   * Changing the label changes the anchor, and every task under it carries that anchor in its
-   * own, so the task list is read again rather than patched in place.
-   */
   async function updateProject(id: ProjectId, input: ProjectInput): Promise<void> {
     const saved = await apiUpdateProject(id, input)
     projects.value = projects.value
@@ -443,9 +367,6 @@ export const useConsoleStore = defineStore('console', () => {
         repoFolder: 'repoFolder' in patch ? patch.repoFolder! : current.repoFolder
       })
       projects.value = projects.value.map((project) => (project.id === id ? saved : project))
-      // Its tasks carry a copy of the folder, because the button that opens a session lives on
-      // a task. Without this the pane goes on showing the answer from before the save, and the
-      // button stays disabled on a project that now has somewhere to open.
       tasks.value = tasks.value.map((task) =>
         task.projectId === id ? { ...task, projectRepoFolder: saved.repoFolder } : task
       )
@@ -466,24 +387,19 @@ export const useConsoleStore = defineStore('console', () => {
     })
   }
 
-  /** Where a session on this project opens. Cleared to null, never stored as an empty path. */
   function saveProjectRepoFolder(id: ProjectId, repoFolder: string): Promise<void> {
     return patchProject(id, { repoFolder: repoFolder.trim() === '' ? null : repoFolder.trim() })
   }
-
-  // ------------------------------------------------------------------ tasks
 
   async function createTask(input: TaskInput): Promise<Task> {
     const created = await apiCreateTask(input)
     tasks.value = [...tasks.value, created]
     await Promise.all([refreshProjects(), refreshCompanies()])
     selectTask(created.id)
-    // A task is worked the moment it exists; the timer says so rather than waiting to be told.
     await startTimer(created.id)
     return created
   }
 
-  /** A task can move to another project, so both projects' counts and its notes go stale. */
   async function updateTask(id: TaskId, input: TaskInput): Promise<void> {
     const saved = await apiUpdateTask(id, input)
     tasks.value = tasks.value.map((task) => (task.id === id ? saved : task))
@@ -491,8 +407,6 @@ export const useConsoleStore = defineStore('console', () => {
       refreshDocuments(),
       refreshProjects(),
       refreshCompanies(),
-      // The anchor a wrapup carries is built from both labels, so moving or renaming a task
-      // moves it too.
       refreshWrapups()
     ])
   }
@@ -500,7 +414,6 @@ export const useConsoleStore = defineStore('console', () => {
   async function deleteTask(id: TaskId): Promise<void> {
     await apiDeleteTask(id)
     tasks.value = tasks.value.filter((task) => task.id !== id)
-    // Gone in the database too: a wrapup and a step each describe one task and cascade with it.
     wrapups.value = wrapups.value.filter((wrapup) => wrapup.taskId !== id)
     steps.value = steps.value.filter((step) => step.taskId !== id)
     if (selectedTaskId.value === id) {
@@ -511,7 +424,6 @@ export const useConsoleStore = defineStore('console', () => {
     await Promise.all([refreshDocuments(), refreshProjects(), refreshCompanies()])
   }
 
-  /** Status is one keystroke, so it sends the record back unchanged apart from that field. */
   async function setTaskStatus(id: TaskId, status: TaskStatus): Promise<void> {
     const task = tasks.value.find((candidate) => candidate.id === id)
     if (!task || task.status === status) return
@@ -525,14 +437,6 @@ export const useConsoleStore = defineStore('console', () => {
     tasks.value = tasks.value.map((candidate) => (candidate.id === id ? saved : candidate))
   }
 
-  /**
-   * The description, saved on its own from the pane that shows it.
-   *
-   * It goes out the way a status change does rather than the way a rename does: the record is
-   * sent back with only that field moved, and none of the cascading reloads `updateTask` owes
-   * to a label or a project change, because neither an anchor nor a note attachment can move
-   * when a sentence is corrected.
-   */
   async function saveTaskDescription(id: TaskId, description: string): Promise<void> {
     const task = tasks.value.find((candidate) => candidate.id === id)
     if (!task) return
@@ -555,8 +459,6 @@ export const useConsoleStore = defineStore('console', () => {
     }
   }
 
-  // ------------------------------------------------------------------ notes
-
   async function createNote(taskId: TaskId): Promise<void> {
     const created = await apiCreateDocument({
       title: 'untitled.md',
@@ -569,12 +471,6 @@ export const useConsoleStore = defineStore('console', () => {
     await refreshTasks()
   }
 
-  /**
-   * Saves the whole note, always with its full set of tasks.
-   *
-   * The endpoint replaces the set on every write, so sending only the task in view would
-   * silently detach the note from every other one.
-   */
   async function saveNote(
     id: DocumentId,
     patch: Partial<Pick<RekallDocument, 'title' | 'kind' | 'bodyMarkdown'>> & {
@@ -609,9 +505,6 @@ export const useConsoleStore = defineStore('console', () => {
     await refreshTasks()
   }
 
-  // ------------------------------------------------------------------ wrapup
-
-  /** Opening the state of the task in view. Nothing is created; the pane handles the absence. */
   function openWrapup(): void {
     if (selectedTaskId.value === null) return
     paneFocus.value = 'wrapup'
@@ -622,19 +515,16 @@ export const useConsoleStore = defineStore('console', () => {
     paneFocus.value = 'description'
   }
 
-  /** D, like W: the key that took you to the description takes you back to the note. */
   function toggleDescription(): void {
     if (selectedTaskId.value === null) return
     paneFocus.value = paneFocus.value === 'description' ? 'note' : 'description'
   }
 
-  /** What the keyboard does: the key that took you to the wrapup takes you back to the note. */
   function toggleWrapup(): void {
     if (selectedTaskId.value === null) return
     paneFocus.value = paneFocus.value === 'wrapup' ? 'note' : 'wrapup'
   }
 
-  /** S, like W and D: the key that took you to the checklist takes you back to the note. */
   function toggleSteps(): void {
     if (selectedTaskId.value === null) return
     paneFocus.value = paneFocus.value === 'steps' ? 'note' : 'steps'
@@ -645,13 +535,6 @@ export const useConsoleStore = defineStore('console', () => {
     paneFocus.value = 'steps'
   }
 
-  /**
-   * Writes the whole text, and says it was you.
-   *
-   * The author is not sent: the endpoint stamps HAND on anything that arrives over HTTP and
-   * CLAUDE on anything that arrives over MCP, because a client that could claim to be the other
-   * one would make the field worthless.
-   */
   async function saveWrapupBody(taskId: TaskId, bodyMarkdown: string): Promise<void> {
     saveState.value = 'saving'
     try {
@@ -661,7 +544,6 @@ export const useConsoleStore = defineStore('console', () => {
         ? wrapups.value.map((wrapup) => (wrapup.id === saved.id ? saved : wrapup))
         : [saved, ...wrapups.value]
       saveState.value = 'saved'
-      // `hasWrapup` on the task row is now wrong until the task list is read again.
       if (!known) await refreshTasks()
     } catch (error) {
       saveState.value = 'unsaved'
@@ -676,14 +558,6 @@ export const useConsoleStore = defineStore('console', () => {
     await refreshTasks()
   }
 
-  // ------------------------------------------------------------------ steps
-
-  /**
-   * The two counts a task row carries, recomputed from the checklist in memory.
-   *
-   * Ticking a box changes what the navigator shows about that task, and reading the whole task
-   * list back for it would be a round trip per click on a number this window already knows.
-   */
   function recountSteps(taskId: TaskId): void {
     const own = steps.value.filter((step) => step.taskId === taskId)
     tasks.value = tasks.value.map((task) =>
@@ -701,33 +575,17 @@ export const useConsoleStore = defineStore('console', () => {
     recountSteps(step.taskId)
   }
 
-  /**
-   * A checklist change that arrived over the live feed rather than from a call this window made.
-   *
-   * The event carries the whole of one task's checklist, and the rule is "replace what you hold
-   * for this task with this": a session moving a step over MCP, or a box ticked in another
-   * console, lands here and the pane reacts without a reload. Whatever this window has open for
-   * other tasks is left alone.
-   */
   function applyStepEvent(taskId: TaskId, incoming: TaskStep[]): void {
     steps.value = [...steps.value.filter((step) => step.taskId !== taskId), ...incoming]
     recountSteps(taskId)
   }
 
-  /** Adds to the end of the checklist. Where it lands is the server's to decide, not this. */
   async function addStep(taskId: TaskId, title: string, bodyMarkdown?: string): Promise<TaskStep> {
     const created = await apiCreateStep(taskId, title, bodyMarkdown)
     upsertStep(created)
     return created
   }
 
-  /**
-   * One step, one field.
-   *
-   * Ticking, renaming and writing the detail are the same call with a different key filled in,
-   * because they are the same row and a checkbox must not have to resend a detail the row it
-   * sits on never loaded.
-   */
   async function saveStep(id: TaskStepId, patch: TaskStepPatch): Promise<void> {
     saveState.value = 'saving'
     try {
@@ -745,12 +603,6 @@ export const useConsoleStore = defineStore('console', () => {
     return saveStep(id, { done: !step.done })
   }
 
-  /**
-   * Moves a step within its own task's list.
-   *
-   * The response is the whole checklist, because a move renumbers everything it displaced:
-   * writing back only the row that moved is how two steps end up claiming one position.
-   */
   async function moveStep(id: TaskStepId, position: number): Promise<void> {
     const step = steps.value.find((candidate) => candidate.id === id)
     if (!step) return
@@ -769,8 +621,6 @@ export const useConsoleStore = defineStore('console', () => {
     recountSteps(step.taskId)
   }
 
-  // ------------------------------------------------------------------ time tracking
-
   function upsertTimeEntry(entry: TimeEntry): void {
     const known = timeEntries.value.some((candidate) => candidate.id === entry.id)
     timeEntries.value = known
@@ -778,7 +628,6 @@ export const useConsoleStore = defineStore('console', () => {
       : [entry, ...timeEntries.value]
   }
 
-  /** Opens a session on this task. Whatever is running on other tasks keeps running. */
   async function startTimer(taskId: TaskId): Promise<void> {
     upsertTimeEntry(await apiStartTimeEntry(taskId))
   }
@@ -797,8 +646,6 @@ export const useConsoleStore = defineStore('console', () => {
     await apiDeleteTimeEntry(id)
     timeEntries.value = timeEntries.value.filter((entry) => entry.id !== id)
   }
-
-  // ------------------------------------------------------------------ refreshing
 
   async function refreshTasks(): Promise<void> {
     tasks.value = await fetchTasks()
@@ -828,15 +675,6 @@ export const useConsoleStore = defineStore('console', () => {
     timeEntries.value = await fetchTimeEntries()
   }
 
-  /**
-   * Everything this window holds, read again.
-   *
-   * For what changed while nobody was looking at it. The loop this application exists for ends
-   * somewhere else: a Claude session writes a wrapup through MCP, and the window that was open
-   * when it happened is still showing the snapshot it loaded at startup. Unlike {@link load} it
-   * leaves the selection, the scope and the loading flag alone, so it can run under an open pane
-   * without the screen jumping.
-   */
   async function refreshEverything(): Promise<void> {
     await Promise.all([
       refreshCompanies(),

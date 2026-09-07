@@ -22,16 +22,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- * Where the database is, and every folder it has ever been.
- *
- * <p>Deliberately outside {@code rekall-api}: this has no dependency on a repository or an
- * entity, because it has to keep working in the {@code SETUP_NEEDED} and {@code UNREACHABLE}
- * states, when the real datasource is a throwaway in-memory database or missing entirely. Every
- * mutating endpoint here writes {@code ~/.rekall/config.json} and then restarts the application
- * so the next boot picks up the change; the entry it returns describes what {@code will} be true
- * after that restart completes.
- */
 @RestController
 @RequestMapping("/api/settings/databases")
 public class SettingsController {
@@ -71,7 +61,6 @@ public class SettingsController {
         return new StatusResponse(status, active, views);
     }
 
-    /** Read-only, so the folder field can show what will happen before anything commits to it. */
     @GetMapping("/check")
     public CheckResponse check(@RequestParam String path) {
         FolderValidation.Result result = FolderValidation.inspect(path);
@@ -80,7 +69,6 @@ public class SettingsController {
                 result.hasDatabase(), result.usable());
     }
 
-    /** Registers a folder and switches to it, opening the database already there or creating one. */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public AddResponse add(@RequestBody AddRequest request) {
@@ -110,7 +98,6 @@ public class SettingsController {
         return new AddResponse(check.hasDatabase() ? "opened" : "created", view(entry, updated));
     }
 
-    /** Switches to an already-registered folder. Refuses a folder that is no longer reachable. */
     @PostMapping("/{id}/activate")
     public DatabaseView activate(@PathVariable String id) {
         DatabaseRegistry current = store.read().orElseThrow(() -> new NotFoundException("No database is configured yet"));
@@ -131,7 +118,6 @@ public class SettingsController {
         return view(find(registry, id), registry);
     }
 
-    /** Renaming never restarts anything: the active database does not change. */
     @PatchMapping("/{id}")
     public DatabaseView rename(@PathVariable String id, @RequestBody RenameRequest request) {
         if (request.label() == null || request.label().isBlank()) {
@@ -148,7 +134,6 @@ public class SettingsController {
         return view(find(registry, id), registry);
     }
 
-    /** Forgets the entry. Never touches the files on disk, and refuses the one currently active. */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void forget(@PathVariable String id) {
@@ -160,8 +145,6 @@ public class SettingsController {
         List<DatabaseEntry> remaining = current.databases().stream().filter(entry -> !entry.id().equals(id)).toList();
         store.write(new DatabaseRegistry(current.activeId(), remaining));
     }
-
-    // ------------------------------------------------------------------ helpers
 
     private DatabaseEntry find(DatabaseRegistry registry, String id) {
         return registry.databases().stream().filter(entry -> entry.id().equals(id)).findFirst()

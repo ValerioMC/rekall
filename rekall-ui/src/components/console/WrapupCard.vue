@@ -5,23 +5,10 @@ import { relativeTime } from '@/common/format/relative-time'
 import { WRAPUP_AUTHOR_LABEL } from '@/model/catalog'
 import type { Wrapup } from '@/model/catalog'
 
-/**
- * The wrapup, pinned above the notes it summarises.
- *
- * It is not a note and must not read as the first one in the list. What separates it is form
- * rather than colour: a raised surface, a rule under it, a glyph nothing else uses. The palette
- * already spends amber on where you are and cyan on anchors, and a third hue for "this row is
- * special" is how a two-colour system becomes a five-colour one.
- *
- * The absent state is a card too, in outline. A task with no wrapup is a fact worth showing —
- * it is the reason to write one — and hiding the row would leave nothing to click.
- */
 const props = defineProps<{
   wrapup: Wrapup | null
   selected: boolean
-  /** Notes written since the wrapup was. Not proof it is wrong, only that it is older. */
   behind: number
-  /** Steps ticked since the wrapup was. Work that finished and that this text cannot mention. */
   missesSteps: number
 }>()
 
@@ -102,9 +89,6 @@ const writtenBy = computed(() =>
         No wrapup yet. Open it to write what this task currently is.
       </span>
 
-      <!-- Said as a fact, not as an alarm: newer notes make a wrapup older, not wrong. A step
-           ticked after it is the sharper version of the same fact, and the one that is worth
-           acting on, so it is the line that goes first. -->
       <span
         v-if="wrapup && missesSteps > 0"
         class="mt-1.5 flex items-center gap-1.5 text-[10.5px] text-warn"
@@ -122,7 +106,6 @@ const writtenBy = computed(() =>
       </span>
     </button>
 
-    <!-- The rule is what says the list below is a different kind of thing. -->
     <div class="mt-2 flex items-center gap-2 px-1">
       <span class="h-px flex-1 bg-border" aria-hidden="true" />
       <span class="eyebrow text-[9.5px]">

@@ -22,7 +22,6 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.UUID;
 
-/** CRUD for the three entities, which is now the whole write surface of the application. */
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor

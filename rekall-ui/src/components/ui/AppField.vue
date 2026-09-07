@@ -6,13 +6,6 @@ withDefaults(
   { hint: undefined, required: false, error: null }
 )
 
-/**
- * The field owns the id and hands it to whatever control fills its slot.
- *
- * A label that is merely next to an input is not associated with it: clicking it does nothing
- * and a screen reader announces the control as unlabelled. Generating the id here is what
- * makes `for` and `id` agree without every call site having to invent a unique string.
- */
 const id = useId()
 const describedBy = `${id}-description`
 </script>

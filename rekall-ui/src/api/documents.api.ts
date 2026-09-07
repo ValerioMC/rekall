@@ -7,10 +7,6 @@ export interface DocumentInput {
   title: string
   kind: string
   bodyMarkdown: string
-  /**
-   * Every task the note belongs to, and never empty: a note on no task cannot be reached from
-   * anywhere, so the server refuses it rather than keeping a row nothing can show.
-   */
   taskIds: readonly TaskId[]
 }
 
@@ -20,7 +16,6 @@ export async function fetchDocuments(taskId: TaskId): Promise<RekallDocument[]> 
   )
 }
 
-/** Every note, most recently written first. The console keeps the whole set in memory. */
 export async function fetchAllDocuments(): Promise<RekallDocument[]> {
   return request(async () => DocumentListSchema.parse(await apiClient('/api/documents')))
 }
@@ -40,7 +35,6 @@ export async function updateDocument(
   )
 }
 
-/** Removes the note from every task at once. Detaching it from one is an update. */
 export async function deleteDocument(id: DocumentId): Promise<void> {
   await request(() => apiClient(`/api/documents/${id}`, { method: 'DELETE' }))
 }

@@ -14,13 +14,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * What crosses the HTTP boundary.
- *
- * <p>Mapped from entities inside the controller's transaction and never after it: a response
- * carrying a lazy association fails at serialisation time and nowhere else, which is the bug
- * the endpoint coverage test exists to catch.
- */
 public final class ApiDtos {
 
     private ApiDtos() {
@@ -43,10 +36,6 @@ public final class ApiDtos {
     public record CompanyRequest(@NotBlank String name, String description) {
     }
 
-    /**
-     * The label and the title both travel, because the interface needs both at once: the title
-     * is what a row reads as, and the label is what the anchor next to it has to say.
-     */
     public record ProjectResponse(
             UUID id,
             String label,
@@ -78,10 +67,6 @@ public final class ApiDtos {
         }
     }
 
-    /**
-     * The label is normalised to a slug on the way in, so what the client sent and what the
-     * anchor will be are allowed to differ. The response carries the stored one.
-     */
     public record ProjectRequest(
             @NotBlank String label,
             @NotBlank String title,
@@ -92,14 +77,6 @@ public final class ApiDtos {
             UUID companyId) {
     }
 
-    /**
-     * {@code hasWrapup} rather than the wrapup itself, because this is what a row in a list
-     * needs: whether this task has said what it currently is. The body is fetched from its own
-     * endpoint by the one pane that shows it.
-     *
-     * <p>The two step counts travel for the same reason and are the navigator's only measure of
-     * progress: how far along a task is, on the row, without loading the checklist behind it.
-     */
     public record TaskResponse(
             UUID id,
             String label,
@@ -110,8 +87,6 @@ public final class ApiDtos {
             String projectLabel,
             String projectTitle,
             String companyName,
-            /* Its project's, carried here so a task row can open a session without fetching the
-             * project it already names three other fields of. */
             String projectRepoFolder,
             int documentCount,
             int stepCount,
@@ -149,10 +124,6 @@ public final class ApiDtos {
             UUID projectId) {
     }
 
-    /**
-     * A note reports every task it is on, because the interface has to show that editing this
-     * one changes what three other tasks load. A single owner field would hide exactly that.
-     */
     public record DocumentResponse(
             UUID id,
             String title,
@@ -172,7 +143,6 @@ public final class ApiDtos {
         }
     }
 
-    /** Enough of a task to name it and to link to it, without dragging the record along. */
     public record TaskRef(
             UUID id,
             String label,
@@ -201,48 +171,18 @@ public final class ApiDtos {
             List<UUID> taskIds) {
     }
 
-    /**
-     * The whole wrapup, every time.
-     *
-     * <p>One field, and no partial form: a wrapup is replaced rather than amended, so a request
-     * that carried only the part that changed would be describing a diff, which is the one
-     * thing a wrapup is defined against.
-     *
-     * <p>There is no response record beside this one. {@code WrapupView} is already materialised
-     * for the MCP side and already carries the anchor, and a second record with the same ten
-     * fields would be a boundary that exists only on paper.
-     */
     public record WrapupRequest(@NotBlank String bodyMarkdown) {
     }
 
-    /**
-     * A new step on a task. It lands at the end of the checklist, always.
-     *
-     * <p>The detail is optional: a step is often a line, and demanding a paragraph for "write
-     * the tests" is how a checklist stops being written.
-     */
     public record TaskStepRequest(@NotBlank String title, String bodyMarkdown) {
     }
 
-    /**
-     * A change to one step, one field at a time.
-     *
-     * <p>Every field is nullable and null means "leave it alone", which is what lets a row tick
-     * its own box without having loaded the detail behind it. An empty {@code bodyMarkdown}
-     * clears the detail; a null one keeps it.
-     */
     public record TaskStepPatchRequest(String title, String bodyMarkdown, Boolean done) {
     }
 
-    /** Where a step is being dragged to. Out of range means the end it was dragged past. */
     public record TaskStepMoveRequest(@NotNull Integer position) {
     }
 
-    /**
-     * A hand correction to one session. {@code stoppedAt} is nullable and null only means
-     * something when the session was already open; {@code TimeEntryService} is what decides
-     * whether that is allowed.
-     */
     public record TimeEntryEditRequest(@NotNull Instant startedAt, Instant stoppedAt) {
     }
 }

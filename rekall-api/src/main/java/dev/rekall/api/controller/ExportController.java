@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** The whole database as a zip of folders. One endpoint, no options: it exports everything. */
 @RestController
 @RequestMapping("/api/export")
 @RequiredArgsConstructor

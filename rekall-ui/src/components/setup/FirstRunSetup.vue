@@ -3,13 +3,6 @@ import AppCard from '@/components/ui/AppCard.vue'
 import AppLogo from '@/components/ui/AppLogo.vue'
 import DatabaseFolderField from '@/components/setup/DatabaseFolderField.vue'
 
-/**
- * Shown exactly once: the first time Rekall runs and no database has been configured yet, and
- * nothing was found to adopt from before this screen existed.
- *
- * After this, `~/.rekall/config.json` exists and the backend resolves straight to `READY` on
- * every future boot — this component never mounts again unless that file is removed.
- */
 </script>
 
 <template>

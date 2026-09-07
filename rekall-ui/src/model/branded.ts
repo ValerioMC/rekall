@@ -1,10 +1,3 @@
-/**
- * Branded identifiers.
- *
- * Every id in Rekall is a uuid string, so without brands a project id, a task id and a
- * document id are the same type and the compiler cannot tell you when they are swapped. That
- * mistake is silent at runtime too: the request simply returns nothing.
- */
 type Brand<T, B extends string> = T & { readonly __brand: B }
 
 export type CompanyId = Brand<string, 'CompanyId'>

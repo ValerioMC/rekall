@@ -19,34 +19,16 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Loads the working context named by a list of anchors.
- *
- * <p>This is the whole of what Rekall does at read time. It used to be a diff against
- * {@code information_schema}, a registry of runtime-defined entities and a dynamic query
- * builder; with the shape fixed at compile time it is three lookups and a walk over
- * associations Hibernate already knows how to follow.
- *
- * <p>Everything is assembled inside one read-only transaction and returned materialised. That
- * is what lets the caller render it without an open session, and it is why the lazy
- * associations declared on the entities are safe here and nowhere else.
- */
 @Service
 @RequiredArgsConstructor
 public class ContextService {
 
-    /** Entity names an anchor may use, in the order a bare value is searched. */
     public static final List<String> ENTITY_NAMES = List.of("company", "project", "task");
 
     private final CompanyRepository companies;
     private final ProjectRepository projects;
     private final TaskRepository tasks;
 
-    /**
-     * @param entityName the entity part of the anchor, or null for the positional form
-     * @throws UnknownAnchorException if nothing matches
-     * @throws AmbiguousAnchorException if more than one record matches
-     */
     @Transactional(readOnly = true)
     public ContextRecord load(String entityName, String value) {
         if (entityName == null) {
@@ -65,7 +47,6 @@ public class ContextService {
         };
     }
 
-    /** The qualified two-part form, {@code project:vega task:report-builder}. */
     @Transactional(readOnly = true)
     public ContextRecord loadTask(String projectLabel, String taskLabel) {
         return tasks.findByProjectLabelIgnoreCaseAndLabelIgnoreCase(projectLabel, taskLabel)
@@ -74,7 +55,6 @@ public class ContextService {
                         "No task '%s' on project '%s'".formatted(taskLabel, projectLabel)));
     }
 
-    /** The positional form: every entity is tried and exactly one match is required. */
     private ContextRecord loadAnywhere(String value) {
         List<ContextRecord> matches = new ArrayList<>();
         companies.findByNameIgnoreCase(value).map(this::render).ifPresent(matches::add);
@@ -91,7 +71,6 @@ public class ContextService {
         return matches.getFirst();
     }
 
-    /** The qualified two-part form for a project, {@code company:acme project:website}. */
     @Transactional(readOnly = true)
     public ContextRecord loadProject(String companyName, String projectLabel) {
         return projects.findByCompanyNameIgnoreCaseAndLabelIgnoreCase(companyName, projectLabel)
@@ -122,8 +101,6 @@ public class ContextService {
         return render(found.getFirst());
     }
 
-    // ------------------------------------------------------------------ assembly
-
     private ContextRecord render(Company company) {
         return new ContextRecord(
                 "Company",
@@ -139,13 +116,6 @@ public class ContextService {
                 company.getDescription());
     }
 
-    /**
-     * The heading carries the title and the anchor line carries the label.
-     *
-     * <p>Both are worth the tokens they cost. The title is what the record is called in the
-     * conversation that follows; the label is what has to be typed to load it again, and a model
-     * that has only seen the title will invent an anchor out of it.
-     */
     private ContextRecord render(Project project) {
         Map<String, String> fields = new LinkedHashMap<>();
         fields.put("status", project.getStatus().name());
@@ -164,21 +134,6 @@ public class ContextService {
                 project.getDescription());
     }
 
-    /**
-     * A task carries its project in full, every note attached to it, its checklist and its wrapup.
-     *
-     * <p>A note reached this way may well be attached to other tasks too. That is the point of
-     * the relation: cluster access is written once and arrives with each task that needs it.
-     *
-     * <p>The wrapup is what closes the loop the whole feature exists for. A session ends by
-     * writing what the implementation now looks like, and the next one opens on it, so the work
-     * starts from the current state rather than from reading the code back.
-     *
-     * <p>The steps are the other half of that answer, and the half a wrapup cannot give: the
-     * wrapup says what the work became, the open steps say what it has not become yet. The
-     * counts go in the field list so the shape of what is left is legible before a word of the
-     * checklist is read.
-     */
     private ContextRecord render(Task task) {
         List<TaskStepView> steps = task.getSteps().stream().map(TaskStepView::of).toList();
 
@@ -216,12 +171,6 @@ public class ContextService {
                 task.getDescription());
     }
 
-    /**
-     * A project reached through a task, rather than anchored directly.
-     *
-     * <p>Its task list is deliberately dropped here: you asked for one task, and listing its
-     * forty siblings underneath it is the fan-out the inverse rule exists to prevent.
-     */
     private ContextRecord renderReferenced(Project project) {
         ContextRecord full = render(project);
         return new ContextRecord(

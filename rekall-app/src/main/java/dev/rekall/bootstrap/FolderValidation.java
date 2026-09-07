@@ -3,14 +3,6 @@ package dev.rekall.bootstrap;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/**
- * What a folder typed into the database-location field turns out to be, before anything commits
- * to it.
- *
- * <p>The folder itself is never created here: a user typing a path that does not exist is told
- * to create it by hand, because silently {@code mkdir}-ing a path they may have mistyped is how
- * a database ends up in the wrong place.
- */
 public final class FolderValidation {
 
     private FolderValidation() {
@@ -36,7 +28,6 @@ public final class FolderValidation {
         return new Result(path.toString(), exists, isDirectory, writable, hasDatabase);
     }
 
-    /** A leading {@code ~} is a shell convention the browser never expands, so it is done here. */
     private static Path expand(String trimmed) {
         String withHome = trimmed.equals("~") || trimmed.startsWith("~/")
                 ? System.getProperty("user.home") + trimmed.substring(1)

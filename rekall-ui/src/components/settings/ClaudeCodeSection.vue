@@ -8,14 +8,6 @@ import { canLaunchClaudeCode } from '@/common/native/desktop'
 import { setSkipsPermissions, skipsPermissions } from '@/common/config/claude-launch'
 import type { ClaudeConnectionStatus, ClaudeInstallation } from '@/model/claude'
 
-/**
- * The Claude Code registration, as one line of state and one button.
- *
- * <p>Everything this section can do is the same action — write the registration from scratch —
- * so there is one button whatever state it finds, and the state decides what the button is
- * called and whether it is worth the accent. A machine without the `claude` binary is the only
- * case with nothing to press: there the command itself is the content.
- */
 const toast = useToastStore()
 
 const installation = ref<ClaudeInstallation | null>(null)
@@ -42,7 +34,6 @@ const presentation = computed<Presentation | null>(() =>
   installation.value ? PRESENTATION[installation.value.status] : null
 )
 
-/** One sentence saying what the state means, never a restatement of the badge above it. */
 const explanation = computed<string>(() => {
   const current = installation.value
   if (!current) return ''
@@ -90,13 +81,6 @@ async function install(): Promise<void> {
   }
 }
 
-/**
- * Whether a session opened from a button runs without asking.
- *
- * <p>Only shown where the button exists, which is the application window: offered in a browser
- * tab it would be a switch with nothing behind it. Off until it is turned on, and the sentence
- * under it says what it costs rather than what it saves.
- */
 const canLaunch = canLaunchClaudeCode()
 const skipPermissions = ref(skipsPermissions())
 

@@ -20,7 +20,6 @@ const { run } = useAsyncAction()
 
 const KIND_OPTIONS = DOCUMENT_KINDS.map((kind) => ({ value: kind, label: kind }))
 
-/** The landing screen doubles as the only place the shortcuts are written down. */
 const SHORTCUTS = [
   { keys: '⌘K', does: 'search by anchor, from anywhere' },
   { keys: 'T', does: 'new task' },
@@ -37,11 +36,6 @@ const mode = ref<'write' | 'read'>('write')
 const isAssigning = ref(false)
 const isConfirmingDelete = ref(false)
 
-/**
- * A transversal note collects tasks faster than it sheds them, and the finished ones are rarely
- * what you came to the strip for. They fold behind a count until asked for. Their status is read
- * from the full task list, since a note's own task refs carry no status.
- */
 const doneTaskIds = computed(() => {
   const ids = new Set<TaskId>()
   for (const task of allTasks.value) if (task.status === 'DONE') ids.add(task.id)
@@ -58,7 +52,6 @@ const doneTasks = computed(
 
 const showDoneTasks = ref(false)
 
-/** The local copy being typed into, flushed to the server on a pause rather than on a button. */
 const draft = ref({ title: '', kind: 'notes', bodyMarkdown: '' })
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -77,10 +70,6 @@ watch(
   { immediate: true }
 )
 
-/**
- * Autosave. Typing marks the note unsaved at once so the state is honest, and the write goes
- * out when you stop for a moment. A Save button on a notes application is a way to lose work.
- */
 function scheduleSave(): void {
   const document = selectedDocument.value
   if (!document) return
@@ -98,14 +87,6 @@ const anchor = computed(() => {
   return (onCurrent ?? document.tasks[0])?.anchor ?? ''
 })
 
-/**
- * The folder a session opened from this note would start in.
- *
- * A note carries only a lightweight ref to each task it is on, none of them with a folder — the
- * one place a full task, folder included, is already in memory is the store's own selection. So
- * this is known exactly when the anchor above resolved to that task, and null on a note read by
- * way of a task other than the one selected, or from the standalone note list where nothing is.
- */
 const anchorFolder = computed(() => {
   const document = selectedDocument.value
   if (!document) return null
@@ -113,12 +94,10 @@ const anchorFolder = computed(() => {
   return onCurrent ? (selectedTask.value?.projectRepoFolder ?? null) : null
 })
 
-/** The tasks this note serves besides the one in view. */
 const alsoOn = computed(
   () => selectedDocument.value?.tasks.filter((task) => task.id !== selectedTaskId.value) ?? []
 )
 
-/** The copy is confirmed on the chip itself, where the eye already is. */
 const justCopied = ref(false)
 
 async function copyAnchor(): Promise<void> {
@@ -149,7 +128,6 @@ async function confirmDelete(): Promise<void> {
 
 <template>
   <section class="flex min-h-0 flex-1 flex-col bg-canvas" aria-label="Note">
-    <!-- Nothing open: the landing state is what you were last writing, not an empty page. -->
     <div v-if="!selectedDocument" class="min-h-0 flex-1 overflow-y-auto">
       <div class="max-w-[640px] px-9 py-12">
         <p class="eyebrow">
@@ -253,10 +231,6 @@ async function confirmDelete(): Promise<void> {
         </div>
       </header>
 
-      <!--
-        The many-to-many made visible, and reachable. Tasks still in play are always shown;
-        finished ones fold behind a count so a transversal note's strip stays readable.
-      -->
       <div class="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-surface px-5 py-2.5">
         <span class="eyebrow">
           On {{ selectedDocument.tasks.length }}

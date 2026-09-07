@@ -5,7 +5,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Small builder for the JSON Schema fragments the tools declare. */
 public final class ToolSchema {
 
     private final Map<String, Object> properties = new LinkedHashMap<>();

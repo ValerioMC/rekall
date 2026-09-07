@@ -18,7 +18,6 @@ const props = withDefaults(
 const emit = defineEmits<{ click: [event: MouseEvent] }>()
 
 const VARIANTS: Readonly<Record<Variant, string>> = {
-  // The accent is spent on exactly one action per screen, so it keeps meaning something.
   primary:
     'bg-accent text-accent-ink border-accent hover:bg-accent-strong hover:border-accent-strong font-semibold shadow-lift',
   secondary:

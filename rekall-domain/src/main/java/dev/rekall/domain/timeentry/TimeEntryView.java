@@ -5,13 +5,6 @@ import dev.rekall.domain.TimeEntry;
 import java.time.Instant;
 import java.util.UUID;
 
-/**
- * One session, fully materialised, for the same reason {@code WrapupView} is: read inside a
- * transaction, rendered outside one.
- *
- * @param stoppedAt null while the session is still open
- * @param anchor what you would type after {@code /rk} to load the task this session was on
- */
 public record TimeEntryView(
         UUID id,
         UUID taskId,

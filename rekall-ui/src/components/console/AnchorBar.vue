@@ -6,13 +6,6 @@ import AppLogo from '@/components/ui/AppLogo.vue'
 import AppNavSwitcher from '@/components/console/AppNavSwitcher.vue'
 import { useConsoleStore } from '@/stores/console.store'
 
-/**
- * The spine of the application.
- *
- * Not a palette you summon and dismiss: a field that is always there, in the same grammar as
- * the MCP tool. What you type here is what you would type after `/rk`, which is the one thing
- * this product has that nothing else does.
- */
 const emit = defineEmits<{ newNote: []; openSettings: [] }>()
 
 const store = useConsoleStore()
@@ -59,13 +52,6 @@ watch(saveState, (value, previous) => {
   }
 })
 
-/**
- * What is typed here, with a pasted `/rk` dropped.
- *
- * <p>The anchor chips copy the whole `/rk project:x task:y` line, and that line lands in this
- * field about as often as in a terminal. The prefix is already printed to the left of it, so a
- * pasted one is removed rather than searched for and found nowhere.
- */
 const query = computed<string>({
   get: () => filter.value,
   set: (value) => {
@@ -73,7 +59,6 @@ const query = computed<string>({
   }
 })
 
-/** Enter opens the first thing the filter found, so search and navigation are one gesture. */
 function openFirst(): void {
   if (navMode.value === 'notes') {
     const first = visibleDocuments.value[0]
@@ -137,7 +122,6 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
         @keydown.enter="openFirst"
         @keydown.esc="clear"
       />
-      <!-- The count while searching, the shortcut while not: the same corner, never both. -->
       <span
         class="pointer-events-none absolute right-2.5 top-1/2 flex -translate-y-1/2 items-center gap-1"
         aria-hidden="true"
@@ -175,10 +159,6 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
         />
         {{ SAVE_LABEL[saveState] }}
       </p>
-      <!--
-        A plain link, not a fetch: the browser is already good at saving a file, and routing the
-        bytes through the client to rebuild a download would only add ways to fail.
-      -->
       <a
         href="/api/export"
         download
@@ -206,13 +186,6 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
         @click="emit('openSettings')"
       >
         <svg class="size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <!--
-            The Lucide `settings` gear, unmodified. The path it replaced was the Feather gear
-            with its coordinates hand-edited to fit a smaller box, and three of those edits had
-            broken it: two pairs of arcs collapsed into single large-arc ones, and one arc
-            rewritten as a cubic, which is the spur that used to stick out of the right side.
-            Rescale with the viewBox, never by editing the numbers.
-          -->
           <path
             d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"
             stroke="currentColor"

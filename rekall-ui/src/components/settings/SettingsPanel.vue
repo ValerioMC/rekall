@@ -13,11 +13,6 @@ import { trapTabKey } from '@/common/a11y/focus-trap'
 import { useToastStore } from '@/stores/toast.store'
 import type { DatabaseEntry, DatabaseStatus } from '@/model/settings'
 
-/**
- * Two sections: where the database is, and whether Claude Code can reach this instance.
- * Structured as a dialog rather than a route: the console has no router, and a settings screen
- * is a place you pass through, not a place you stay.
- */
 const emit = defineEmits<{ close: [] }>()
 
 const toast = useToastStore()
@@ -36,13 +31,6 @@ const forgetting = ref<DatabaseEntry | null>(null)
 const closeButton = ref<HTMLButtonElement | null>(null)
 const panel = ref<HTMLElement | null>(null)
 
-/**
- * Whether this panel may be dismissed right now. Once any restart-triggering action has been
- * submitted — switching, or adding a folder through the inline field below — the backend has
- * already committed to restarting; closing the panel at that point would only hide the
- * "Reconfiguring…" state, not stop it, and the page would then reload without warning whenever
- * it finishes.
- */
 const canClose = computed(() => phase.value !== 'submitting' && phase.value !== 'restarting' && !addingNewIsBusy.value)
 
 async function load(): Promise<void> {
@@ -93,20 +81,12 @@ async function confirmForget(): Promise<void> {
   }
 }
 
-/**
- * Only Escape is intercepted here, and only to close the panel — never unconditionally, because
- * a capture-phase `stopPropagation()` on every key would also stop the event from ever reaching
- * this panel's own descendants, such as the rename field's own Enter-to-save. The console's
- * single-key shortcuts ('n', 'j', 't', …) are kept from leaking through separately, via
- * `useModalGate`, which `App.vue` checks before acting on any key at all.
- */
 function onKeydown(event: KeyboardEvent): void {
   if (event.key === 'Escape' && canClose.value && !forgetting.value && editingId.value === null) {
     event.stopPropagation()
     emit('close')
     return
   }
-  // While the "forget this database?" confirmation sits on top, its own trap is the one to run.
   if (panel.value && !forgetting.value) trapTabKey(panel.value, event)
 }
 

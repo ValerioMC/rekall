@@ -2,7 +2,6 @@ package dev.rekall.mcp.tool;
 
 import tools.jackson.databind.JsonNode;
 
-/** Reads tool arguments out of a {@link JsonNode} with clear failures instead of nulls. */
 public final class Arguments {
 
     private final JsonNode node;

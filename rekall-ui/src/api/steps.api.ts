@@ -3,19 +3,16 @@ import { TaskStepListSchema, TaskStepSchema } from './schemas/catalog.schema'
 import type { TaskStep } from '@/model/catalog'
 import type { TaskId, TaskStepId } from '@/model/branded'
 
-/** Every field optional, because ticking a box must not resend a detail the row never loaded. */
 export interface TaskStepPatch {
   title?: string
   bodyMarkdown?: string
   done?: boolean
 }
 
-/** Every step, loaded whole for the same reason the wrapups are: no per-task round trip. */
 export async function fetchSteps(): Promise<TaskStep[]> {
   return request(async () => TaskStepListSchema.parse(await apiClient('/api/steps')))
 }
 
-/** Appends to the end of the task's checklist. Where it lands is the server's to decide. */
 export async function createStep(
   taskId: TaskId,
   title: string,
@@ -37,13 +34,6 @@ export async function patchStep(id: TaskStepId, patch: TaskStepPatch): Promise<T
   )
 }
 
-/**
- * Moves one step and answers with its task's whole checklist.
- *
- * A move renumbers everything it displaced, so the response is the list rather than the row:
- * patching the moved step alone would leave the client holding positions that are no longer
- * true.
- */
 export async function moveStep(id: TaskStepId, position: number): Promise<TaskStep[]> {
   return request(async () =>
     TaskStepListSchema.parse(

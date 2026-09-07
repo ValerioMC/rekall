@@ -5,21 +5,6 @@ import RestartingOverlay from '@/components/setup/RestartingOverlay.vue'
 import { useDatabaseSetup } from '@/composables/useDatabaseSetup'
 import { desktopHost, pickFolder } from '@/common/native/desktop'
 
-/**
- * Type a folder, see what will happen to it, commit.
- *
- * A browser never hands a page a real filesystem path, only a sandboxed handle a JDBC URL cannot
- * use. So the path is typed, and made trustworthy with the one thing a picker would have given
- * for free: live feedback on what is actually at that path before anything commits to it.
- *
- * The macOS application has a real NSOpenPanel to open and installs a bridge to it, so there the
- * folder icon is a button and typing becomes the fallback rather than the only way in. Both
- * paths end in the same string in the same field, checked by the same request.
- *
- * Self-contained: it owns its own submit, its own restart wait and its own reload. Every host —
- * the first-run wizard, the unreachable-database screen, Settings — just places it and reacts to
- * nothing, because a successful submit ends in a full page reload regardless of where this was.
- */
 const props = withDefaults(
   defineProps<{ submitLabel?: string; autofocus?: boolean; cancellable?: boolean }>(),
   { submitLabel: 'Use this folder', autofocus: false, cancellable: false }
@@ -29,25 +14,14 @@ const emit = defineEmits<{ cancel: []; busy: [boolean] }>()
 
 const { checking, check, phase, error, timedOut, checkPath, submitNewFolder } = useDatabaseSetup()
 
-/**
- * A host that embeds this field inline (Settings, the unreachable-database screen) needs to
- * know when it must not let itself be dismissed: once a submit is in flight, the backend has
- * already committed to restarting, and closing the host only hides that — it does not cancel
- * it, and the reload still happens underneath whatever the user does next.
- */
 watch(phase, (value) => emit('busy', value === 'submitting' || value === 'restarting'), { immediate: true })
 
 const path = ref('')
 const touched = ref(false)
 const input = ref<HTMLInputElement | null>(null)
 
-/** Fixed for the lifetime of the page: the bridge is installed before the application boots. */
 const canBrowse = desktopHost() !== null
 
-/**
- * A dismissed panel leaves what was typed alone. Focus goes back to the field either way, so the
- * chosen path can be corrected by hand without reaching for the mouse again.
- */
 async function browse(): Promise<void> {
   const chosen = await pickFolder(path.value)
   if (chosen) onInput(chosen)
@@ -125,8 +99,6 @@ defineExpose({ focus: () => input.value?.focus() })
 
     <div v-else class="space-y-3">
       <div>
-        <!-- The icon is centred on the input alone. While the help text below shared this box,
-             it was centred on the pair and sat visibly below the line of the path it labels. -->
         <div class="relative">
           <label for="database-folder" class="sr-only">Database folder</label>
           <component
@@ -174,8 +146,6 @@ defineExpose({ focus: () => input.value?.focus() })
         </p>
       </div>
 
-      <!-- What was actually typed can differ from what gets checked, once `~` or a relative
-           segment is in play — shown so a decision this hard to undo is never made on a guess. -->
       <p
         v-if="check"
         class="truncate font-mono text-[11px] text-text-subtle"

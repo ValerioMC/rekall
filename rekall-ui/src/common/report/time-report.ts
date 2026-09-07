@@ -5,36 +5,21 @@ import type { PeriodRange } from './period'
 import type { Company, Task, TaskStep, TimeEntry } from '@/model/catalog'
 import type { CompanyId, ProjectId, TaskId, TaskStepId } from '@/model/branded'
 
-/** One step that was ticked inside the period: a piece of the task that got finished in it. */
 export interface ReportStepRow {
   readonly stepId: TaskStepId
   readonly title: string
-  /** When it was ticked. Always inside the period, which is why the row is here at all. */
   readonly doneAt: Date
 }
 
-/** One task, and what it came to over the period. */
 export interface ReportTaskRow {
   readonly taskId: TaskId
   readonly title: string
-  /** What you would type after `/rk` to reload it. */
   readonly anchor: string
   readonly totalSeconds: number
-  /** Still running as this was built, so the total is a moving one. */
   readonly isRunning: boolean
-  /** Seconds on each day of the period, in the order the days come. */
   readonly perDaySeconds: readonly number[]
-  /**
-   * The steps ticked inside the period, oldest first.
-   *
-   * The hours say how long the task took; these say what came out of it. Ordered by the moment
-   * they were ticked rather than by their position in the checklist, because a report is read
-   * as a sequence of events and not as a plan.
-   */
   readonly closedSteps: readonly ReportStepRow[]
-  /** Still open as the report was built: what this task has left. */
   readonly openStepCount: number
-  /** Done, but ticked outside the period. Counted rather than listed: it happened elsewhere. */
   readonly doneElsewhereCount: number
 }
 
@@ -50,16 +35,13 @@ export interface ReportCompanyRow {
   readonly companyId: CompanyId
   readonly name: string
   readonly totalSeconds: number
-  /** This company's share of the period, 0 to 1, for the bar next to the total. */
   readonly share: number
   readonly projects: readonly ReportProjectRow[]
 }
 
-/** One day of the period, and who it went to. */
 export interface ReportDay {
   readonly date: Date
   readonly totalSeconds: number
-  /** Company id to seconds, so a column can be stacked in the same hues as the rows below it. */
   readonly byCompany: readonly { readonly companyId: CompanyId; readonly seconds: number }[]
 }
 
@@ -67,31 +49,11 @@ export interface TimeReport {
   readonly totalSeconds: number
   readonly companies: readonly ReportCompanyRow[]
   readonly days: readonly ReportDay[]
-  /** The longest day in the period, or null when nothing was tracked at all. */
   readonly busiestDay: ReportDay | null
-  /** How many distinct tasks were worked on. The count the sentence above the table uses. */
   readonly taskCount: number
-  /** How many steps were ticked in the period, across every task in it. */
   readonly closedStepCount: number
 }
 
-/**
- * What was worked on over a period, by company, project and task.
- *
- * <p>Built here rather than on the server because everything it needs is already in the window:
- * the sessions, the tasks and the companies are loaded whole at startup, and a report is a
- * regrouping of them rather than a new question to ask.
- *
- * <p>A session belongs to the day it started on, which is the rule the calendar already uses. A
- * session running now counts up to `nowMs`, so the total moves while the work does.
- *
- * <p>`selected` empty means every company. A filter nobody has touched should show everything,
- * not nothing.
- *
- * <p>The checklists come in whole and are cut to the period here: a step counts as work done in
- * the period when it was ticked inside it, which is the only claim a report can make about a
- * flag that carries one date.
- */
 export function buildTimeReport(
   entries: readonly TimeEntry[],
   tasks: readonly Task[],
@@ -113,9 +75,6 @@ export function buildTimeReport(
     const index = dayIndex.get(dateKey(started))
     if (index === undefined) continue
 
-    // A task carries the company; the session only knows which task it was. A session whose task
-    // is gone cannot exist, because deleting a task deletes its sessions, so this is the
-    // impossible case rather than a filter.
     const task = taskById.get(entry.taskId)
     const company = task ? companyByName.get(task.companyName) : undefined
     if (!task || !company) continue
@@ -154,8 +113,6 @@ export function buildTimeReport(
 function everyTask(companies: readonly ReportCompanyRow[]): readonly ReportTaskRow[] {
   return companies.flatMap((company) => company.projects.flatMap((project) => project.tasks))
 }
-
-// ------------------------------------------------------------------ assembly
 
 interface TaskAccumulator {
   readonly taskId: TaskId
@@ -223,13 +180,6 @@ function accumulate(
   row.perDaySeconds[dayIndex] = (row.perDaySeconds[dayIndex] ?? 0) + seconds
 }
 
-/**
- * What one task's checklist says about this period: what closed in it, and what it left behind.
- *
- * <p>A step ticked before or after the span is counted and not named. It is true of the task
- * and not of the week, and a report that listed it would be claiming work in a period it did
- * not happen in.
- */
 interface StepSummary {
   readonly closed: readonly ReportStepRow[]
   readonly openCount: number
@@ -256,8 +206,6 @@ function groupSteps(
       continue
     }
 
-    // A step ticked before the column existed has no moment to place it in, and a report cannot
-    // date it by guessing. It counts as done somewhere else.
     const doneAt = step.doneAt ? new Date(step.doneAt) : null
     if (!doneAt || !isWithin(range, doneAt)) {
       summary.doneElsewhereCount += 1
@@ -336,21 +284,11 @@ function byTotalDescending(a: { totalSeconds: number }, b: { totalSeconds: numbe
   return b.totalSeconds - a.totalSeconds
 }
 
-/** A session that is still open counts up to now, the way the running clock does. */
 function elapsedSeconds(entry: TimeEntry, nowMs: number): number {
   const end = entry.stoppedAt ? Date.parse(entry.stoppedAt) : nowMs
   return (end - Date.parse(entry.startedAt)) / 1000
 }
 
-// ------------------------------------------------------------------ handing it over
-
-/**
- * The same report as markdown, for pasting into an invoice, an email or a note.
- *
- * <p>Every task keeps its anchor, so a line in a report someone is reading back is still one
- * `/rk` away from the work it describes. That is the whole reason this application exists, and a
- * report that dropped it would be a dead end on paper.
- */
 export function reportAsMarkdown(report: TimeReport, range: PeriodRange): string {
   const lines: string[] = [`# ${range.period === 'week' ? 'Week' : 'Month'} of ${range.label}`, '']
   const closed =
@@ -367,8 +305,6 @@ export function reportAsMarkdown(report: TimeReport, range: PeriodRange): string
       lines.push('', `### ${project.title} · ${formatDuration(project.totalSeconds)}`)
       for (const task of project.tasks) {
         lines.push(`- **${formatDuration(task.totalSeconds)}** ${task.title} · \`${task.anchor}\``)
-        // Checkboxes rather than bullets: the steps under a task are a record of what was
-        // finished, and every renderer this gets pasted into draws them as one.
         for (const step of task.closedSteps) {
           lines.push(`  - [x] ${step.title} · ${stepDay(step.doneAt)}`)
         }
@@ -384,12 +320,6 @@ export function reportAsMarkdown(report: TimeReport, range: PeriodRange): string
   return `${lines.join('\n')}\n`
 }
 
-/**
- * What the checklist has left, in the one sentence the screen and the export both use.
- *
- * Null when the task has no steps beyond the ones already listed, because a row saying nothing
- * is left is a row saying nothing.
- */
 export function stepTail(task: ReportTaskRow): string | null {
   const parts: string[] = []
   if (task.openStepCount > 0) parts.push(`${countOf(task.openStepCount, 'step')} still open`)
@@ -399,7 +329,6 @@ export function stepTail(task: ReportTaskRow): string | null {
   return parts.length === 0 ? null : parts.join(' · ')
 }
 
-/** The day a step was ticked, short enough to sit at the end of its row: `Tue 1`. */
 export function stepDay(date: Date): string {
   return date.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })
 }

@@ -1,15 +1,4 @@
 <script setup lang="ts">
-/*
- * The brand mark, in one place so the header, the first-run screen and public/favicon.svg
- * cannot drift apart. Change the geometry here and in the favicon together.
- *
- * The mark is the product: an open ring is the context Rekall holds, the rounded record at
- * the centre is the one task in focus, and the cyan dot in the ring's opening is the anchor —
- * the same colour `project:vega` is drawn in everywhere else, and the only cyan on the mark.
- *
- * Gradient ids are per-instance. Two logos on one page with the same ids would make the
- * second one paint with the first one's fills.
- */
 import { useId } from 'vue'
 
 withDefaults(defineProps<{ size?: number }>(), { size: 32 })

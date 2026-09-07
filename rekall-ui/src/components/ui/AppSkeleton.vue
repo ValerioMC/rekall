@@ -6,11 +6,6 @@ withDefaults(defineProps<{ variant?: 'cards' | 'table' | 'list'; rows?: number }
 </script>
 
 <template>
-  <!--
-    A placeholder shaped like the content it stands in for. A spinner tells you something is
-    happening; this tells you what is about to arrive, and reserves its space so the page does
-    not jump when it does.
-  -->
   <div role="status" aria-live="polite" aria-busy="true">
     <span class="sr-only">Loading</span>
 

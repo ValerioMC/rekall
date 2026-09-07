@@ -20,19 +20,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/**
- * The only tool. Loads the working context named by a list of anchors, in one call.
- *
- * <p>Everything here is rendering: resolution and assembly belong to {@code ContextService},
- * which is the only thing that touches the database. What is left is turning a materialised
- * record into markdown, because the consumer is a model reading a context window rather than a
- * parser, and markdown says the same thing in fewer tokens.
- */
 @Component
 @RequiredArgsConstructor
 public class ContextTool implements McpTool {
 
-    /** Long notes are cut, and the cut is announced rather than silent. */
     private static final int MAX_DOCUMENT_CHARACTERS = 20_000;
 
     private final ContextService context;
@@ -110,9 +101,6 @@ public class ContextTool implements McpTool {
         List<Anchor> anchors = Anchor.parseAll(Arguments.of(arguments).requiredString("anchors"));
         StringBuilder out = new StringBuilder("# Context\n");
 
-        // Anchoring a project and one of its tasks reaches the project twice, once directly and
-        // once as the task's reference. Rendering it twice would spend the window saying the
-        // same thing, so a record is written the first time it is reached and named after that.
         Set<String> rendered = new LinkedHashSet<>();
         for (ContextRecord record : load(anchors)) {
             out.append('\n').append(render(record, 2, rendered));
@@ -120,11 +108,6 @@ public class ContextTool implements McpTool {
         return out.toString();
     }
 
-    /**
-     * The two-anchor {@code project:x task:y} form resolves the task inside its project, which
-     * is what disambiguates a task name that two projects both use. Any other combination is
-     * resolved anchor by anchor.
-     */
     private List<ContextRecord> load(List<Anchor> anchors) {
         try {
             if (anchors.size() == 2 && anchors.get(0).is("project") && anchors.get(1).is("task")) {
@@ -141,8 +124,6 @@ public class ContextTool implements McpTool {
             throw new ToolFailure(e.getMessage() + ". Qualify it as `entity:value`.");
         }
     }
-
-    // ------------------------------------------------------------------ rendering
 
     private String render(ContextRecord record, int headingLevel, Set<String> rendered) {
         if (!rendered.add(record.anchor())) {
@@ -178,17 +159,6 @@ public class ContextTool implements McpTool {
         return out.toString();
     }
 
-    /**
-     * The checklist, between the brief and the state, and asymmetric on purpose.
-     *
-     * <p>An open step is rendered with its detail because it is the work about to be done. A
-     * done step is rendered as one line, because what it says now is only that it exists and
-     * needs no doing: spending the window on the detail of finished work is how a context load
-     * costs twice what it is worth and invites the same thing to be built again.
-     *
-     * <p>Ahead of the wrapup and after the description, which is the order the three are asked
-     * in: what is this, what is left, and what did it become.
-     */
     private String renderSteps(List<TaskStepView> steps, WrapupView wrapup) {
         if (steps.isEmpty()) {
             return "";
@@ -213,10 +183,6 @@ public class ContextTool implements McpTool {
         for (TaskStepView step : steps) {
             boolean unwrittenHere = isUnwritten(step, wrapup);
             out.append(step.state().complete() ? "- [x] " : "- [ ] ").append(step.title());
-            // The two states a session drives. Running is the step it is on now; claimed is one
-            // it says it has finished and is waiting for the console to accept. Both are called
-            // out so a session that reloads mid-run does not start the running step again or
-            // redo the claimed one.
             if (step.state().running()) {
                 out.append("  (in progress)");
             } else if (step.state() == TaskStepState.CLAIMED) {
@@ -227,9 +193,6 @@ public class ContextTool implements McpTool {
             }
             out.append('\n');
 
-            // Detail comes back while the step is still work, open or running, and for a
-            // complete step the wrapup has not caught up with: nothing else in this context says
-            // what that piece was. It goes silent once a wrapup accounts for it.
             boolean carriesDetail = !step.state().complete() || unwrittenHere;
             if (carriesDetail && step.bodyMarkdown() != null && !step.bodyMarkdown().isBlank()) {
                 out.append(indent(truncate(step.bodyMarkdown()))).append('\n');
@@ -238,17 +201,6 @@ public class ContextTool implements McpTool {
         return out.append("</steps>\n").toString();
     }
 
-    /**
-     * Whether this step's work finished after the wrapup was last written.
-     *
-     * <p>The one thing a model cannot work out for itself here, and the reason it is computed
-     * rather than left to be inferred from timestamps in the text. A step finished after the
-     * wrapup is a piece of work the current description cannot possibly mention, which is
-     * exactly what the next wrapup has to fold in. Measured against the moment the work was
-     * finished, which is when a session claimed it if it did: a wrapup written right after that
-     * already accounts for the step, and a later console tick does not change what it built.
-     * With no wrapup at all, every finished step is unaccounted for.
-     */
     private boolean isUnwritten(TaskStepView step, WrapupView wrapup) {
         if (!step.state().complete() || step.completedAt() == null) {
             return false;
@@ -256,18 +208,10 @@ public class ContextTool implements McpTool {
         return wrapup == null || step.completedAt().isAfter(wrapup.updatedAt());
     }
 
-    /** Two spaces, so a step's detail stays inside the item it belongs to rather than ending it. */
     private String indent(String body) {
         return body.lines().map(line -> line.isBlank() ? "" : "  " + line).collect(Collectors.joining("\n"));
     }
 
-    /**
-     * The wrapup, ahead of the notes, in a tag of its own.
-     *
-     * <p>Ahead because a session that opens on a task is asking what it does now, and the notes
-     * are the background to that answer rather than the answer. In its own tag because it is not
-     * a note and must not be edited as one: it is replaced whole, by `rekall_wrapup`.
-     */
     private String renderWrapup(WrapupView wrapup) {
         if (wrapup == null) {
             return "";
@@ -276,13 +220,6 @@ public class ContextTool implements McpTool {
                 .formatted(wrapup.writtenBy(), wrapup.updatedAt(), truncate(wrapup.bodyMarkdown()));
     }
 
-    /**
-     * What the record is, in a tag rather than in the bullet list above it.
-     *
-     * <p>A description is a markdown document, saying what the work is, what it has to satisfy and
-     * what is out of scope, and a document inlined into a list item stops being one: every line after
-     * the first falls outside the bullet, and its own headings outrank the record's.
-     */
     private String renderDescription(String description) {
         if (description == null || description.isBlank()) {
             return "";

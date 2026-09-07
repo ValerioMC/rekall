@@ -10,10 +10,6 @@ import {
 } from '@/model/branded'
 import { PROJECT_STATUSES, TASK_STATUSES, TASK_STEP_STATES } from '@/model/catalog'
 
-/**
- * Brands are applied by the schema, so an id's kind is decided at the one place the value is
- * checked. A component never has to remember to cast.
- */
 const companyId = z.string().uuid().transform(asCompanyId)
 const projectId = z.string().uuid().transform(asProjectId)
 const taskId = z.string().uuid().transform(asTaskId)
@@ -125,12 +121,6 @@ export const TimeEntrySchema = z.object({
   updatedAt: z.string()
 })
 
-/**
- * One task's checklist as it stands now, pushed over the live feed after any step write.
- *
- * The rule the console applies is "replace what you hold for this task with `steps`", so the
- * payload is the whole list rather than the one row that moved.
- */
 export const StepStreamEventSchema = z.object({
   taskId,
   steps: z.array(TaskStepSchema)

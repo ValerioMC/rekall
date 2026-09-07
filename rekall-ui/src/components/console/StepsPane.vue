@@ -13,23 +13,6 @@ import { rkCommand } from '@/common/format/rk-command'
 import { stepIsComplete, type TaskStep } from '@/model/catalog'
 import type { TaskStepId } from '@/model/branded'
 
-/**
- * What is left on the task in view, in the order it is meant to be worked.
- *
- * This is the pane the other three could not be. The description is the brief and grows as the
- * work is redefined; the wrapup is what the implementation became; a note is what you learned.
- * None of them says which parts are finished, and working that out by reading the brief against
- * the wrapup is slow by hand and a guess for a model. Here it is a node on a line.
- *
- * The line is the point of the layout. A checklist is not a set of boxes, it is an order, and
- * the row that matters is the first one still open: it carries the ring, it is expanded when
- * the pane opens, and ticking it moves the ring to the next. The rest of the list is context
- * for that one row, which is why the finished ones recede rather than disappear.
- *
- * A step is ticked here and nowhere else. Claude reads the checklist with every `/rk` and can
- * never close a box on it: the point of the list is that a person looked at the work and said
- * it was done, and a session marking its own homework would be worth nothing.
- */
 const store = useConsoleStore()
 const { selectedTask, selectedTaskSteps } = storeToRefs(store)
 const { run } = useAsyncAction()
@@ -41,12 +24,10 @@ const claimed = computed(
   () => selectedTaskSteps.value.filter((step) => step.state === 'CLAIMED').length
 )
 
-/** The first step whose work is not finished: what this task is actually on next. */
 const currentId = computed(
   () => selectedTaskSteps.value.find((step) => !stepIsComplete(step.state))?.id ?? null
 )
 
-/** The step a session is running right now, if any. What the pane animates around. */
 const runningStep = computed(
   () => selectedTaskSteps.value.find((step) => step.state === 'RUNNING') ?? null
 )
@@ -56,36 +37,19 @@ const visibleSteps = computed(() =>
   hideDone.value ? selectedTaskSteps.value.filter((step) => !step.done) : selectedTaskSteps.value
 )
 
-/**
- * What the connector on this row is carrying.
- *
- * `spent` is a branch already travelled, held at half light. `pending` is the flat hairline of
- * work not started. The live segment feeding the running node is not drawn here: the
- * `energy-stream` overlay covers the whole travelled path in one piece, so the running row
- * keeps only the hairline that continues toward the work still ahead of it.
- */
 function railKind(index: number): 'spent' | 'pending' {
   const step = visibleSteps.value[index]
   return step && stepIsComplete(step.state) ? 'spent' : 'pending'
 }
 
-/** What clicking the node does now, said the way the step's state makes true. */
 function actionLabel(step: TaskStep): string {
   if (step.state === 'DONE') return `Reopen ${step.title}`
   if (step.state === 'CLAIMED') return `Accept ${step.title}`
   return `Mark ${step.title} done`
 }
 
-// ------------------------------------------------------------------ adding
-
 const newTitle = ref('')
 
-/**
- * Adds the step and stays where it is, ready for the next one.
- *
- * A checklist is written in a burst, five items at a time, and a form that had to be reopened
- * between them is a form that gets three of the five.
- */
 async function add(): Promise<void> {
   const title = newTitle.value.trim()
   if (!title || !selectedTask.value) return
@@ -98,15 +62,12 @@ async function focusAdd(): Promise<void> {
   document.getElementById('new-step')?.focus()
 }
 
-// ------------------------------------------------------------------ the open row
-
 const expandedId = ref<TaskStepId | null>(null)
 const mode = ref<'write' | 'read'>('read')
 const draftTitle = ref('')
 const draftBody = ref('')
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
-/** Writes what is pending now, for the step it was typed on rather than the one now open. */
 function flush(): void {
   if (!saveTimer) return
   clearTimeout(saveTimer)
@@ -123,8 +84,6 @@ function writeDraft(): void {
   void run(() => store.saveStep(id, { title, bodyMarkdown: draftBody.value }))
 }
 
-/** Autosave on the rhythm the notes and the description use: unsaved as you type, written when
- *  you pause. */
 function scheduleSave(): void {
   store.saveState = 'unsaved'
   if (saveTimer) clearTimeout(saveTimer)
@@ -138,8 +97,6 @@ function open(step: TaskStep): void {
   expandedId.value = step.id
   draftTitle.value = step.title
   draftBody.value = step.bodyMarkdown ?? ''
-  // Reading is the default on a step that says something: the detail is read every time the
-  // work is picked up and rewritten far less often.
   mode.value = step.bodyMarkdown?.trim() ? 'read' : 'write'
 }
 
@@ -152,13 +109,6 @@ function toggleExpanded(step: TaskStep): void {
   open(step)
 }
 
-/**
- * The pane opens on the work, not on the list.
- *
- * Landing here means asking what to do next, and the answer is the first open step with its
- * detail already on screen. Opening on a list of titles would make the first click the same
- * one every time.
- */
 watch(
   () => selectedTask.value?.id ?? null,
   () => {
@@ -171,13 +121,6 @@ watch(
   { immediate: true }
 )
 
-/**
- * Ticking the row that was open moves to the next one.
- *
- * Finishing a step and being left staring at what you just finished is a click wasted every
- * time. The ring, the expansion and the detail all move together, so the pane always shows the
- * work rather than the record of it.
- */
 async function toggle(step: TaskStep): Promise<void> {
   const wasOpenHere = expandedId.value === step.id
   flush()
@@ -194,13 +137,6 @@ async function move(step: TaskStep, by: number): Promise<void> {
   await run(() => store.moveStep(step.id, step.position + by))
 }
 
-/**
- * Removing a step, and saying what it takes with it.
- *
- * The detail written under a step is the only copy of it, so the confirmation names it instead
- * of asking whether you are sure. A step with nothing under it is still confirmed: the row is
- * one click from the checkbox next to it.
- */
 const deleting = ref<TaskStep | null>(null)
 
 const deletingBlast = computed(() =>
@@ -217,21 +153,11 @@ async function remove(): Promise<void> {
   await run(() => store.removeStep(step.id))
 }
 
-// ------------------------------------------------------------------ the rail
-
-/**
- * The connector between two nodes, trimmed at the ends of the list.
- *
- * A line running past the first and last node reads as a list that continues somewhere off
- * screen, which is the one thing a checklist must not suggest.
- */
 function railStyle(index: number): Record<string, string> {
   const isFirst = index === 0
   const isLast = index === visibleSteps.value.length - 1
   const isRunning = visibleSteps.value[index]?.state === 'RUNNING'
   if (isFirst && isLast) return { display: 'none' }
-  // The running node's incoming half is drawn by the energy stream overlay. Leave this row
-  // only the hairline that carries on toward the steps still ahead of it.
   if (isRunning && !isFirst) return isLast ? { display: 'none' } : { top: '18px', bottom: '0' }
   if (isFirst) return { top: '18px', bottom: '0' }
   if (isLast) return { top: '0', height: '18px' }
@@ -249,22 +175,9 @@ async function copyAnchor(): Promise<void> {
 
 onUnmounted(flush)
 
-// ------------------------------------------------------------------ the energy stream
-
-/**
- * The travelled path of the checklist, as one lit conduit from the first finished node down to
- * the step a session is on now.
- *
- * The old treatment lit only the single segment touching the running node. This one runs the
- * whole way: the work has come from the top of the list, so a head of light falls the same
- * distance, in the direction the work is moving, and is absorbed into the node that breathes.
- * Its length is the gap between two nodes and the rows in between are not a fixed height, so it
- * is measured from the DOM rather than expressed in CSS.
- */
 const listEl = ref<HTMLElement | null>(null)
 const stream = ref<{ top: number; height: number } | null>(null)
 
-/** Node centre inside a row: the button sits at `top: 7px` and is 22px across. */
 const NODE_CENTER_OFFSET = 18
 
 function measureStream(): void {
@@ -337,8 +250,6 @@ onUnmounted(() => rowObserver?.disconnect())
             </p>
             <h2 class="flex items-center gap-2 truncate text-[19px] font-semibold tracking-[-0.015em] text-text">
               <span class="truncate">{{ selectedTask.title }}</span>
-              <!-- A session is on a step of this task right now. The mark says so before the
-                   node lower down does, and holds only while something is actually running. -->
               <span
                 v-if="runningStep"
                 class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-accent-soft px-2 py-0.5 text-[10.5px] font-semibold tracking-[0.02em] text-accent"
@@ -370,9 +281,6 @@ onUnmounted(() => rowObserver?.disconnect())
             missing-hint="Set this project's folder on its page to open a session from it"
           />
 
-          <!-- The count, and the shape of it. The number says how much; the segments say where
-               the gaps are, which is what tells you whether the work is nearly done or merely
-               started at both ends. -->
           <div v-if="selectedTaskSteps.length" class="shrink-0 text-right">
             <p
               class="texture-scan inline-block rounded-[6px] px-1.5 py-0.5 font-mono text-[22px] font-semibold leading-none tabular-nums"
@@ -432,16 +340,11 @@ onUnmounted(() => rowObserver?.disconnect())
       </div>
 
       <div class="min-h-0 min-w-0 flex-1 overflow-y-auto px-5 py-4">
-        <!-- Nothing yet. The shape of what would be here is drawn rather than described: three
-             ghost nodes on the same line the real ones will sit on. -->
         <div v-if="!selectedTaskSteps.length" class="max-w-[560px] py-4">
           <div class="relative mb-7" aria-hidden="true">
             <span
               class="absolute bottom-[18px] left-[11px] top-[18px] w-px -translate-x-1/2 bg-border-strong"
             />
-            <!-- The nodes are placed against this block rather than against each row, for the
-                 same reason the real ones are: padding does not move an absolute origin, so a
-                 node inside a padded row lands where the text starts instead of on the line. -->
             <div v-for="ghost in 3" :key="ghost" class="relative flex h-9 items-center pl-9">
               <span
                 class="absolute left-0 top-1/2 size-[22px] -translate-y-1/2 rounded-full border border-dashed border-border-strong bg-canvas"
@@ -476,9 +379,6 @@ onUnmounted(() => rowObserver?.disconnect())
         </p>
 
         <ol v-else ref="listEl" class="relative min-w-0">
-          <!-- The one lit conduit down the whole travelled path, first finished node to the
-               node a session is on now. Measured, not expressed in CSS: its length is the gap
-               between two nodes and the rows between them are not a fixed height. -->
           <span
             v-if="stream"
             class="energy-stream"
@@ -503,10 +403,6 @@ onUnmounted(() => rowObserver?.disconnect())
               aria-hidden="true"
             />
 
-            <!-- The node, and the whole of what the console writes about a step's state. The
-                 canvas fill is what makes the line pass behind it rather than through it. A
-                 running step breathes; a claimed one is filled but hollow, work done and
-                 waiting for this click; done is the solid check. -->
             <button
               class="focus-ring absolute left-0 top-[7px] z-10 grid size-[22px] place-items-center rounded-full border transition-all duration-200"
               :class="{
@@ -686,9 +582,6 @@ onUnmounted(() => rowObserver?.disconnect())
                 </div>
               </div>
 
-              <!-- The detail of this one piece, in the same markdown surface the description and
-                   the notes are written on. It is what Claude receives while the step is open,
-                   so it is written and read as a document rather than as a field. -->
               <div v-if="expandedId === step.id" class="mt-2.5" data-testid="step-detail">
                 <div class="mb-2 flex items-center gap-2">
                   <span
@@ -758,12 +651,6 @@ onUnmounted(() => rowObserver?.disconnect())
         </ol>
       </div>
 
-      <!-- The end of the list, wherever the list has scrolled to. A step is always appended, so
-           the field that adds one sits where the next one will land.
-
-           `dock-lane-safe` is what keeps it usable while a timer runs: this bar ends in the
-           corner the running dock floats in, and without the reserved lane the pill sits on the
-           Add button. -->
       <form
         class="dock-lane-safe flex shrink-0 items-center gap-2 border-t border-border bg-surface py-3 pl-5"
         @submit.prevent="add"
@@ -806,13 +693,6 @@ onUnmounted(() => rowObserver?.disconnect())
 </template>
 
 <style scoped>
-/**
- * The detail of one step is read at the size of the row it belongs to.
- *
- * The shared markdown preview is built for a pane: a heading in it is the title of a document.
- * Here the title is the step above it, so the headings step down to what they are, subdivisions
- * of a paragraph, and the block loses the leading a standalone document earns.
- */
 .step-detail :deep(.md-editor-preview) {
   font-size: 12.5px;
 }

@@ -26,30 +26,6 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-/**
- * The MCP endpoint, spoken over one HTTP POST.
- *
- * <p>Registered with
- * {@code claude mcp add --transport http rekall http://localhost:47355/mcp}.
- *
- * <p>Two eras of the protocol arrive here and both are answered. A legacy client
- * ({@code 2025-11-25} and earlier) opens with {@code initialize} and is served the revision it
- * asked for. A modern client ({@code 2026-07-28}) sends no handshake at all: each request
- * carries its revision in {@code MCP-Protocol-Version}, its method in {@code Mcp-Method} and,
- * for {@code tools/call}, its tool name in {@code Mcp-Name}, and every one of those is checked
- * against the body before anything runs. See {@link ProtocolVersion} for why answering both
- * costs one branch.
- *
- * <p>Nothing here holds state between requests, in either era.
- *
- * <p>Reading is the whole of what this endpoint used to do. It now has two writes as well:
- * {@code rekall_wrapup} replaces the wrapup of a single task, and {@code rekall_step} moves one
- * step of a task from {@code open} to {@code running} to {@code claimed}, never to {@code done}.
- * Neither can reach any other row or column. Everything else runs through a service annotated
- * {@code @Transactional(readOnly = true)}, on a classpath that still carries no controller.
- * That is weaker again than the database role it once was; {@code docs/DESIGN.md} §8 records
- * the trades.
- */
 @RestController
 @RequestMapping("/mcp")
 @Slf4j
@@ -58,17 +34,10 @@ public class McpController {
     private static final String SERVER_NAME = "rekall";
     private static final String SERVER_VERSION = "0.1.0";
 
-    /**
-     * How long a client may cache the answers that carry cache annotations, {@code server/discover}
-     * and {@code tools/list}. An hour: both are constants in any given build, so the only thing a
-     * stale copy can cost is one restart.
-     */
     private static final int CACHE_TTL_MS = 3_600_000;
 
-    /** Who a cached copy may be shared with. Nothing in either answer belongs to anyone. */
     private static final String CACHE_SCOPE = "public";
 
-    /** Guidance carried by {@code server/discover}, for a client to display or pass on. */
     private static final String INSTRUCTIONS = """
             Rekall holds one user's companies, projects, tasks and markdown notes, and hands \
             back a whole working context in a single call. Anchor what you need as \
@@ -77,7 +46,6 @@ public class McpController {
             `rekall_wrapup`: what its implementation looks like now, replaced in place. \
             Nothing else here can be changed.""";
 
-    /** The wrapper the specification puts around a header value that is not plain ASCII. */
     private static final String BASE64_PREFIX = "=?base64?";
 
     private static final String BASE64_SUFFIX = "?=";
@@ -108,9 +76,6 @@ public class McpController {
                     id(request), JsonRpc.INVALID_REQUEST, "Request has no method"));
         }
 
-        // The header is the modern era's answer; _meta is read too so that a request that
-        // declares a revision only in its body is routed by what it says rather than silently
-        // falling back, and can then be told which of the two the server actually needs.
         String declared = versionHeader != null ? versionHeader : metaProtocolVersion(request);
         ProtocolVersion version;
         if (declared == null) {
@@ -128,12 +93,6 @@ public class McpController {
                 : legacy(request);
     }
 
-    /**
-     * The {@code 2026-07-28} era. No handshake and no session, so the request has to carry
-     * everything; and the headers an intermediary may have routed on have to agree with the body
-     * it forwarded, or that intermediary and this server would be acting on two different
-     * requests.
-     */
     private ResponseEntity<JsonRpc.Response> modern(
             JsonRpc.Request request, String versionHeader, String methodHeader, String nameHeader) {
 
@@ -145,9 +104,6 @@ public class McpController {
             return headerMismatch(request, "MCP-Protocol-Version '%s' does not match _meta '%s'"
                     .formatted(versionHeader, metaVersion));
         }
-        // Ahead of the header checks below, because the revision that requires those headers
-        // explicitly leaves what a notification must carry undefined. Refusing one for a header
-        // the specification never asked it for would be this server's own rule.
         if (request.isNotification()) {
             log.debug("MCP notification: {}", request.method());
             return ResponseEntity.accepted().build();
@@ -180,20 +136,11 @@ public class McpController {
             case "tools/call" ->
                     ResponseEntity.ok(JsonRpc.Response.success(id(request), complete(callTool(request.params()))));
             case "ping" -> ResponseEntity.ok(JsonRpc.Response.success(id(request), complete(Map.of())));
-            // 404 rather than 200, so a client probing an address can tell an MCP server that
-            // does not know this method from something that is not an MCP endpoint at all. This
-            // is also where `initialize` lands in this era, which is what tells a client that
-            // opened with a handshake that it is talking to the wrong side of the split.
             default -> ResponseEntity.status(HttpStatus.NOT_FOUND).body(JsonRpc.Response.failure(
                     id(request), JsonRpc.METHOD_NOT_FOUND, "Unsupported method: " + request.method()));
         });
     }
 
-    /**
-     * The handshake era, {@code 2025-11-25} and earlier. Kept because the client registered
-     * against this endpoint opens this way, and because a legacy client has no way to fall
-     * forward: drop this branch and it has nothing to fall back to either.
-     */
     private ResponseEntity<JsonRpc.Response> legacy(JsonRpc.Request request) {
         if (request.isNotification()) {
             log.debug("MCP notification: {}", request.method());
@@ -202,8 +149,6 @@ public class McpController {
 
         return guarded(request, () -> ResponseEntity.ok(switch (request.method()) {
             case "initialize" -> JsonRpc.Response.success(id(request), initialize(request));
-            // The one legacy-era result that still carries those, because they are part of the
-            // shape `server/discover` is defined with rather than of the envelope around it.
             case "server/discover" -> JsonRpc.Response.success(id(request), complete(cacheable(discover())));
             case "tools/list" -> JsonRpc.Response.success(id(request), toolList());
             case "tools/call" -> JsonRpc.Response.success(id(request), callTool(request.params()));
@@ -213,12 +158,6 @@ public class McpController {
         }));
     }
 
-    /**
-     * The legacy handshake. The revision the client asked for is echoed back when this server
-     * speaks it, which is the whole of the negotiation the specification defines. Anything else
-     * is answered with the newest revision that still has a handshake, and the client decides
-     * whether it can live with that.
-     */
     private Map<String, Object> initialize(JsonRpc.Request request) {
         ProtocolVersion answer = ProtocolVersion.parse(textAt(request.params(), "protocolVersion"))
                 .filter(version -> !version.isModern())
@@ -229,11 +168,6 @@ public class McpController {
                 "serverInfo", Map.of("name", SERVER_NAME, "version", SERVER_VERSION));
     }
 
-    /**
-     * Mandatory from {@code 2026-07-28}: with the handshake gone, this is how a client learns
-     * what the server speaks. Answered in both eras, because it is also the probe a dual-era
-     * client sends to find out which era it has reached.
-     */
     private Map<String, Object> discover() {
         return Map.of(
                 "supportedVersions", ProtocolVersion.advertisedVersions(),
@@ -268,31 +202,16 @@ public class McpController {
             String text = tool.execute(params.get("arguments"));
             return content(text, false);
         } catch (ToolFailure | IllegalArgumentException e) {
-            // Returned as tool content with isError rather than as a protocol error: this is a
-            // result Claude can read and retry from, not a broken request.
             return content(e.getMessage(), true);
         }
     }
 
-    /**
-     * Tags a result with the kind of result it is, which every result carries from
-     * {@code 2026-07-28} on. Always {@code complete} here: nothing this server does outlives the
-     * response it is answering or asks the client for anything, so neither {@code task} nor
-     * {@code input_required} can arise. The field is not optional in that era and its absence is
-     * not read as {@code complete}: a result without it is rejected, and the tools go with it.
-     */
     private Map<String, Object> complete(Map<String, Object> result) {
         Map<String, Object> tagged = new LinkedHashMap<>(result);
         tagged.put("resultType", "complete");
         return tagged;
     }
 
-    /**
-     * How long this answer may be held and who it may be shared with. Required on a list result
-     * from {@code 2026-07-28} on, and required outright: unlike {@code server/discover}, whose
-     * client-side schema defaults both, a {@code tools/list} missing either is rejected whole and
-     * takes every tool in it down with it.
-     */
     private Map<String, Object> cacheable(Map<String, Object> result) {
         Map<String, Object> annotated = new LinkedHashMap<>(result);
         annotated.put("ttlMs", CACHE_TTL_MS);
@@ -306,9 +225,6 @@ public class McpController {
                 "isError", isError);
     }
 
-    // ------------------------------------------------------------------ protocol plumbing
-
-    /** One place where a tool blowing up becomes a JSON-RPC error rather than a 500. */
     private ResponseEntity<JsonRpc.Response> guarded(
             JsonRpc.Request request, Supplier<ResponseEntity<JsonRpc.Response>> body) {
         try {
@@ -336,7 +252,6 @@ public class McpController {
                 id(request), JsonRpc.HEADER_MISMATCH, "Header mismatch: " + detail));
     }
 
-    /** Undoes the base64 wrapper the specification uses for a value that is not plain ASCII. */
     private String decodeHeaderValue(String value) {
         if (value == null
                 || value.length() < BASE64_PREFIX.length() + BASE64_SUFFIX.length()

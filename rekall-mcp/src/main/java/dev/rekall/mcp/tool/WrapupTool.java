@@ -12,18 +12,6 @@ import tools.jackson.databind.JsonNode;
 
 import java.util.Map;
 
-/**
- * The write that replaces a task's wrapup.
- *
- * <p>A wrapup is what the task's implementation looks like now. It is written at the end of a
- * session and read at the start of the next one, which is the loop the whole feature exists
- * for: the work resumes from the current state instead of from reading the code back.
- *
- * <p>Everything this can reach is one row of one table, keyed by a task. It cannot create a
- * task, rename one, touch a note or write any other column. Its only sibling on the write side
- * is {@link StepStateTool}, which moves a step along its line and cannot tick the last box; the
- * two together are the whole of what a session can change here.
- */
 @Component
 @RequiredArgsConstructor
 public class WrapupTool implements McpTool {
@@ -127,9 +115,6 @@ public class WrapupTool implements McpTool {
         StringBuilder out = new StringBuilder(written.created() ? "Wrapup written for " : "Wrapup replaced for ")
                 .append('`').append(written.wrapup().anchor()).append("`.\n");
 
-        // The one outcome worth saying out loud. A wrapup corrected in the console is the user
-        // disagreeing with the last one written here, and overwriting that silently is how the
-        // correction gets lost twice.
         if (written.replaced() == WrapupAuthor.HAND) {
             out.append("\nThe version you replaced had been edited by hand in the console. ")
                     .append("If that edit said something this one does not, it is gone.\n");

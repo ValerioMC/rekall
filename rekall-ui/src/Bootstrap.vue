@@ -16,17 +16,6 @@ const failed = ref(false)
 
 let refreshing = false
 
-/**
- * What changed while this window was in the background.
- *
- * A wrapup is written by a Claude session through MCP, and the window that was open when it
- * happened knows nothing about it: it would go on showing an empty card until someone reloaded
- * the page. Coming back to the window is the moment the answer is wanted, so that is when it is
- * read again.
- *
- * Not while something here is waiting to be saved. A pane holds the draft being typed, and
- * replacing the record underneath it mid-edit is how a paragraph disappears.
- */
 async function refreshWhatChangedElsewhere(): Promise<void> {
   if (refreshing || status.value?.status !== 'READY') return
   if (document.visibilityState !== 'visible' || store.saveState !== 'saved') return
@@ -47,8 +36,6 @@ onMounted(async () => {
   } catch {
     failed.value = true
   }
-  // Both, because they do not fire together: switching applications is a focus change, and
-  // hiding the window or the whole application is a visibility change.
   window.addEventListener('focus', refreshWhatChangedElsewhere)
   document.addEventListener('visibilitychange', refreshWhatChangedElsewhere)
 })
@@ -74,8 +61,6 @@ onUnmounted(() => {
   >
     Rekall couldn't be reached. Make sure it's running, then reload the page.
   </div>
-  <!-- The one instant nothing is known yet: which of the three screens above this becomes.
-       A blank canvas reads as broken; the mark fading in reads as a product about to answer. -->
   <div v-else class="fade-in grid h-full place-items-center" role="status" aria-live="polite">
     <span class="sr-only">Loading</span>
     <AppLogo :size="40" class="halo animate-pulse rounded-[9px]" aria-hidden="true" />

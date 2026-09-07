@@ -81,8 +81,6 @@ async function copyAnchor(): Promise<void> {
   setTimeout(() => (copied.value = false), 1400)
 }
 
-// ------------------------------------------------------------------ description
-
 const descriptionDraft = ref('')
 const descriptionArea = ref<HTMLTextAreaElement | null>(null)
 let descriptionTimer: ReturnType<typeof setTimeout> | null = null
@@ -102,12 +100,9 @@ function onDescriptionInput(event: Event): void {
   }, 700)
 }
 
-// ------------------------------------------------------------------ the folder a session opens in
-
 const folderDraft = ref('')
 let folderTimer: ReturnType<typeof setTimeout> | null = null
 
-/** Fixed for the lifetime of the page: the bridge is installed before the application boots. */
 const canBrowse = desktopHost() !== null
 
 function scheduleFolderSave(): void {
@@ -122,15 +117,12 @@ function onFolderInput(event: Event): void {
   scheduleFolderSave()
 }
 
-/** A dismissed panel leaves what is typed alone, exactly as it does on the database field. */
 async function browseFolder(): Promise<void> {
   const chosen = await pickFolder(folderDraft.value)
   if (!chosen) return
   folderDraft.value = chosen
   scheduleFolderSave()
 }
-
-// ------------------------------------------------------------------ blueprint
 
 const blueprintDraft = ref('')
 const blueprintMode = ref<'write' | 'read'>('read')

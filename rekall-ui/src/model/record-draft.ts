@@ -1,17 +1,6 @@
 import type { CompanyId, ProjectId, TaskId } from './branded'
 import type { Company, Project, ProjectStatus, Task, TaskStatus } from './catalog'
 
-/**
- * What the record editor is working on, for any of the three levels.
- *
- * A discriminated union rather than one optional-everything shape: the editor renders a status
- * field for a project and a task and not for a company, and a type that can express "a company
- * with a project status" would make that a runtime question.
- *
- * A null id means the record does not exist yet. The parent id is always present, because a
- * project without a company and a task without a project are not things this application can
- * hold.
- */
 export type RecordDraft =
   | {
       kind: 'company'

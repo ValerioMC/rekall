@@ -4,35 +4,18 @@ import AppButton from '@/components/ui/AppButton.vue'
 import { useModalGate } from '@/composables/useModalGate'
 import { trapTabKey } from '@/common/a11y/focus-trap'
 
-/**
- * A confirmation that states its blast radius.
- *
- * The screens this replaces deleted a project, its tasks and every note under it on one
- * unguarded click. Naming what goes with it is the whole point: "are you sure" asks a question
- * the person cannot answer without the number.
- */
 defineProps<{
   title: string
   body: string
-  /** What will be destroyed, in the interface's own terms. */
   blast: string
   confirmLabel: string
 }>()
 
 const emit = defineEmits<{ cancel: []; confirm: [] }>()
 
-/**
- * The console's single-key shortcuts are inert while this is open.
- *
- * This dialog has no field to hold focus, so nothing else stopped a key from reaching the
- * console underneath: pressing `W` over "Delete wrapup?" switched the pane behind the dialog
- * and took the dialog with it. A question about destroying something has to be answered before
- * anything else happens.
- */
 const { open: openModal, close: closeModal } = useModalGate()
 
 const panel = ref<HTMLElement | null>(null)
-// The safe action, focused by default: a stray Enter should keep the record, not destroy it.
 const cancelButton = ref<InstanceType<typeof AppButton> | null>(null)
 
 function onKeydown(event: KeyboardEvent): void {

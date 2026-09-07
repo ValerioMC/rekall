@@ -17,33 +17,14 @@ import { buildTimeReport, reportAsMarkdown } from '@/common/report/time-report'
 import type { ReportPeriod } from '@/common/report/period'
 import type { CompanyId } from '@/model/branded'
 
-/**
- * What the week went to, by client.
- *
- * The question this answers is the one asked at the end of a week and again at the end of a
- * month: what did I do for them, and how long did it take. So the period is the frame, the
- * client is the section, and the task is the row, because the task is the unit of work someone
- * outside this application recognises.
- *
- * Everything is read from the sessions the timer already writes. Nothing here is entered by
- * hand, which is the only reason a report like this is ever true.
- */
 const store = useConsoleStore()
 const toast = useToastStore()
-/** Half a minute is close enough for a report, and stops a running session redrawing it every
- *  second while somebody reads it. */
 const now = useNow(30_000)
 
 const period = ref<ReportPeriod>('week')
 const anchor = ref(new Date())
 const selected = ref<ReadonlySet<CompanyId>>(new Set())
 
-/**
- * Whether the rows open on what they closed.
- *
- * On, because the hours alone are what a report used to be and the steps are why anyone opens
- * this screen twice. Off is for the month someone is scanning for a number.
- */
 const showSteps = ref(true)
 
 const range = computed(() => periodRange(period.value, anchor.value))
@@ -60,7 +41,6 @@ const report = computed(() =>
   )
 )
 
-/** Every company that has time in this period, filter or no filter, so the chips do not vanish. */
 const wholePeriod = computed(() =>
   buildTimeReport(
     store.timeEntries,
@@ -100,7 +80,6 @@ function goToCurrent(): void {
   anchor.value = new Date()
 }
 
-/** Switching the frame keeps the day in view, so a week in August stays in August. */
 function setPeriod(next: ReportPeriod): void {
   period.value = next
 }
@@ -109,8 +88,6 @@ function toggleCompany(id: CompanyId): void {
   const next = new Set(selected.value)
   if (next.has(id)) next.delete(id)
   else next.add(id)
-  // Everything selected and nothing selected are the same report, and the empty set is the one
-  // that keeps saying "all of them" as companies come and go.
   selected.value = next.size === wholePeriod.value.companies.length ? new Set() : next
 }
 

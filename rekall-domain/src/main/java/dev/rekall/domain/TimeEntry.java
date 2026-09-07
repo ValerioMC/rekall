@@ -19,19 +19,6 @@ import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
 
-/**
- * One sitting of work on a task, from the moment it was picked up to the moment it was put
- * down.
- *
- * <p>A task worked across several days is several rows, not one running total: a total can only
- * be corrected by editing it, and a session with a start and a stop can be corrected by editing
- * either. {@code stoppedAt} is null for exactly as long as the session is open, and only one row
- * per task may be in that state at a time — different tasks may each have one open at once,
- * tracked in parallel. {@code TimeEntryService} is what enforces the per-task rule, the same way
- * a second wrapup on a task is refused in code rather than by a constraint.
- *
- * <p>{@code ON DELETE CASCADE} on the task, because a session describes a task and nothing else.
- */
 @Entity
 @Table(name = "time_entry")
 @Getter
@@ -54,7 +41,6 @@ public class TimeEntry {
     @Setter
     private Instant startedAt;
 
-    /** Null while the session is still open. */
     @Column(name = "stopped_at")
     @Setter
     private Instant stoppedAt;
@@ -68,7 +54,6 @@ public class TimeEntry {
     private Instant updatedAt;
 
     protected TimeEntry() {
-        // for JPA
     }
 
     public TimeEntry(Task task, Instant startedAt) {
@@ -76,7 +61,6 @@ public class TimeEntry {
         this.startedAt = startedAt;
     }
 
-    /** What you would type after {@code /rk} to load the task this session was spent on. */
     public String anchor() {
         return "project:%s task:%s".formatted(task.getProject().getLabel(), task.getLabel());
     }

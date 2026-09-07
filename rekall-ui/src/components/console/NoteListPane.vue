@@ -10,16 +10,6 @@ import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { excerpt } from '@/common/format/excerpt'
 
-/**
- * The notes on the selected task, with its timer, its description, its checklist and its wrapup
- * pinned above them.
- *
- * The timer leads because it is the one thing here that is live rather than written: everything
- * below it describes the task, this counts while you read it. Then the three questions in the
- * order they are asked, what is this task, what is left of it and where did it get to, with the
- * notes as the background to all three. Each is one row, always present, even absent: an empty
- * row is the reason to write the thing, and every task has a timer the moment it exists.
- */
 const store = useConsoleStore()
 const {
   selectedTask,

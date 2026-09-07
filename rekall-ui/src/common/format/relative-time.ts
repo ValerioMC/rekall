@@ -2,14 +2,6 @@ const MINUTE = 60_000
 const HOUR = 60 * MINUTE
 const DAY = 24 * HOUR
 
-/**
- * How long ago, in the shortest phrase that is still true.
- *
- * A wrapup is read to decide whether to trust it, and an ISO timestamp does not answer that
- * question: "written 3 days ago" does, at a glance, without arithmetic. Past the point where
- * the distance stops being meaningful the date itself is better, so a month-old wrapup says
- * its date rather than "31 days ago".
- */
 export function relativeTime(iso: string, now: number = Date.now()): string {
   const then = Date.parse(iso)
   if (Number.isNaN(then)) return ''

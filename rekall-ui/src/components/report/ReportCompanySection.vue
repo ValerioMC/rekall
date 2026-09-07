@@ -9,22 +9,9 @@ import type { ReportCompanyRow, ReportTaskRow } from '@/common/report/time-repor
 import type { ReportPeriod } from '@/common/report/period'
 import type { TaskId } from '@/model/branded'
 
-/**
- * One client's share of the period: what was worked on, under which project, for how long, and
- * what came out of it.
- *
- * The task is the row because the task is what a person did. The project is a heading rather
- * than a column, because a reader scanning for one piece of work does not want to read the same
- * project name eleven times to find it.
- *
- * Under the row are the steps ticked inside the period. Hours are the invoice and the steps are
- * the answer to the question anyone reading the invoice asks next, so they are part of the row
- * rather than a screen someone has to go and find.
- */
 const props = defineProps<{
   company: ReportCompanyRow
   period: ReportPeriod
-  /** What the header toggle says. A row can still disagree with it, until it is flipped again. */
   stepsOpen: boolean
 }>()
 
@@ -32,7 +19,6 @@ const emit = defineEmits<{ copyAnchor: [anchor: string] }>()
 
 const hue = computed(() => identityHue(props.company.companyId))
 
-/** The busiest day this company had, so a row's bars are read against its own week. */
 const peak = computed(() =>
   Math.max(
     1,
@@ -46,14 +32,6 @@ function intensity(seconds: number): number {
   return seconds === 0 ? 0 : 0.25 + 0.75 * (seconds / peak.value)
 }
 
-// ------------------------------------------------------------------ the steps under a row
-
-/**
- * Rows the reader has folded away from, or unfolded towards, whatever the header says.
- *
- * Held as the exceptions rather than as the state of every row: the toggle above is the
- * intent, and flipping it clears the exceptions, because that is what pressing it means.
- */
 const overrides = ref<ReadonlySet<TaskId>>(new Set())
 
 watch(
@@ -76,13 +54,6 @@ function toggleSteps(task: ReportTaskRow): void {
   overrides.value = next
 }
 
-/**
- * The line under the steps: what the checklist still holds that this period did not close.
- *
- * A task that closed nothing says so outright. Reading hours against an empty list and being
- * left to wonder whether the steps are missing or the work simply did not finish anything is
- * the one thing this line exists to prevent.
- */
 function footnote(task: ReportTaskRow): string | null {
   const tail = stepTail(task)
   if (task.closedSteps.length > 0) return tail
@@ -143,9 +114,6 @@ function footnote(task: ReportTaskRow): string | null {
           data-testid="report-task"
         >
           <div class="flex items-center gap-3 px-5 py-2">
-            <!-- The count is what this task closed in the period, which is the number the row is
-                 being read for. It sits on the control that opens the list rather than beside the
-                 title, so one glance down the column says which tasks moved. -->
             <button
               v-if="hasSteps(task)"
               class="focus-ring flex h-6 shrink-0 items-center gap-1 rounded-[6px] pl-0.5 pr-1 transition-colors"
@@ -194,7 +162,6 @@ function footnote(task: ReportTaskRow): string | null {
               </button>
             </div>
 
-            <!-- The same days as the ridge above, at row scale: where in the period this one went. -->
             <div
               class="hidden h-4 w-[176px] shrink-0 items-end sm:flex"
               :class="task.perDaySeconds.length > 14 ? 'gap-px' : 'gap-[2px]'"
@@ -216,9 +183,6 @@ function footnote(task: ReportTaskRow): string | null {
             </span>
           </div>
 
-          <!-- What the hours produced, in the order it happened. The same node-on-a-line the
-               checklist itself is drawn as, so a step read here is recognisably the step that
-               was ticked there. -->
           <div
             v-if="hasSteps(task) && isOpen(task)"
             class="max-w-[720px] pb-2.5 pl-[42px] pr-5"

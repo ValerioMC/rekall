@@ -20,17 +20,6 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * The console's half of the wrapup.
- *
- * <p>Claude writes one over MCP at the end of a session; this is where it is corrected. Both
- * go through the same {@code WrapupService}, so there is one definition of what a wrapup may
- * be and one place that enforces it, and the only thing that differs is which
- * {@link WrapupAuthor} ends up on the row.
- *
- * <p>{@code PUT} rather than {@code POST}: a task has one wrapup at the address of that task,
- * and writing to it either creates or replaces. There is no collection to post into.
- */
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
@@ -38,13 +27,6 @@ public class WrapupController {
 
     private final WrapupService wrapups;
 
-    /**
-     * Every wrapup at once.
-     *
-     * <p>Read whole, the way the notes are: the console keeps the catalogue in memory so that
-     * selecting a task shows its state without a round trip, and there are at most as many
-     * wrapups as there are tasks.
-     */
     @GetMapping("/wrapups")
     public List<WrapupView> list() {
         return wrapups.findAll();
@@ -61,7 +43,6 @@ public class WrapupController {
         return wrapups.write(taskId, request.bodyMarkdown(), WrapupAuthor.HAND).wrapup();
     }
 
-    /** Removing the wrapup, not the task. Silent when there was none: the end state is the same. */
     @DeleteMapping("/tasks/{taskId}/wrapup")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable UUID taskId) {

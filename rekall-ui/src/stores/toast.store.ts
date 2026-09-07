@@ -6,7 +6,6 @@ export type ToastKind = 'success' | 'error'
 
 export type Toast = Readonly<{ id: number; message: string; kind: ToastKind }>
 
-/** Errors stay up longer: the server's messages explain what to do instead of what failed. */
 const DURATION_MS: Readonly<Record<ToastKind, number>> = { success: 3200, error: 7000 }
 
 export const useToastStore = defineStore('toast', () => {
@@ -27,7 +26,6 @@ export const useToastStore = defineStore('toast', () => {
     push(message, 'success')
   }
 
-  /** Surfaces the server's own wording, which is written to be read by the person who hit it. */
   function notifyError(error: unknown): void {
     if (error instanceof ApiError) {
       push(error.message, 'error')

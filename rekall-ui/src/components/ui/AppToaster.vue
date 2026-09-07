@@ -7,8 +7,6 @@ const { toasts } = storeToRefs(store)
 </script>
 
 <template>
-  <!-- Above the running dock rather than across it: the toast is the loud one and the dock is
-       the one that has to stay readable for hours. -->
   <div
     class="dock-lane-above pointer-events-none fixed right-6 z-(--z-toast) flex w-full max-w-sm flex-col gap-2"
     style="--dock-lane-gutter: 24px"

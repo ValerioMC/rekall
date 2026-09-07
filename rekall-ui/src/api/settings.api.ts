@@ -21,7 +21,6 @@ export async function fetchDatabaseStatus(): Promise<DatabaseStatus> {
   return request(async () => DatabaseStatusSchema.parse(await apiClient('/api/settings/databases')))
 }
 
-/** Read-only: never registers or creates anything, however the path resolves. */
 export async function checkFolder(path: string): Promise<FolderCheck> {
   return request(async () =>
     FolderCheckSchema.parse(await apiClient('/api/settings/databases/check', { query: { path } }))

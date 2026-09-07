@@ -1,12 +1,6 @@
 import { ofetch, FetchError } from 'ofetch'
 import { env } from '@/common/config/env'
 
-/**
- * A failure the user can act on.
- *
- * The server writes its messages to be read, so they are carried through verbatim instead of
- * being replaced with a generic string. `detail` on a ProblemDetail body is the message.
- */
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -25,12 +19,6 @@ function correlationId(): string {
   return crypto.randomUUID()
 }
 
-/**
- * Retries transient failures only.
- *
- * A 4xx means the request itself is wrong, so repeating it just repeats the error. A 5xx or a
- * timeout may be the server being briefly unavailable, which is worth one or two more attempts.
- */
 function shouldRetry(status: number | undefined): boolean {
   return status === undefined || status >= 500
 }
@@ -49,7 +37,6 @@ export const apiClient = ofetch.create({
   }
 })
 
-/** Wraps a call so every caller sees an {@link ApiError} rather than a raw fetch failure. */
 export async function request<T>(operation: () => Promise<T>): Promise<T> {
   try {
     return await operation()

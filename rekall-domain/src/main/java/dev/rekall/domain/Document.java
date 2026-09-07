@@ -20,17 +20,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
-/**
- * A markdown note, attached to any number of tasks.
- *
- * <p>It used to belong to exactly one owner, which meant a note that mattered to three tasks
- * had to be written three times and the three copies drifted. Cluster access, a naming
- * convention and an onboarding step are all notes of that kind, so the relation is the shape
- * the content already had.
- *
- * <p>{@link Task} owns the association, because attaching happens from a task in the interface
- * and letting both sides own it is how a join table ends up with orphan rows.
- */
 @Entity
 @Table(name = "document")
 @Getter
@@ -47,7 +36,6 @@ public class Document {
     @Setter
     private String title;
 
-    /** Free-form classification: {@code context}, {@code notes}, {@code architecture}, {@code report}. */
     @NotBlank
     @Size(max = 40)
     @Column(name = "kind", nullable = false, length = 40)
@@ -58,7 +46,6 @@ public class Document {
     @Setter
     private String bodyMarkdown;
 
-    /** Provenance when imported from a folder. Never read back as a source of truth. */
     @Column(name = "source_path", length = 500)
     @Setter
     private String sourcePath;
@@ -75,7 +62,6 @@ public class Document {
     private Instant updatedAt;
 
     protected Document() {
-        // for JPA
     }
 
     public Document(String title, String kind, String bodyMarkdown) {

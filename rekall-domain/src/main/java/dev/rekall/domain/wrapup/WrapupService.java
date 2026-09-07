@@ -15,20 +15,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- * Reads and replaces the one wrapup a task may have.
- *
- * <p>This is the only write service in the domain, and it exists because the wrapup is the one
- * thing Claude has to be able to put back. Everything it can do is one row of one table: given
- * a task, replace its wrapup body, or read it. It cannot create a task, rename one, touch a
- * note or reach any other column, which is what keeps the widening from D2 to a single shape
- * rather than a door. {@code docs/DESIGN.md} §8 records the trade.
- *
- * <p>Replace, never append. A wrapup is the state of the implementation as it stands, so the
- * caller sends the whole text and it overwrites what was there. Nothing here merges, diffs or
- * keeps a previous version: a wrapup that accumulated would become the log it is defined
- * against.
- */
 @Service
 @RequiredArgsConstructor
 public class WrapupService {
@@ -36,18 +22,8 @@ public class WrapupService {
     private final TaskRepository tasks;
     private final WrapupRepository wrapups;
 
-    /**
-     * The result of a write, and what it displaced.
-     *
-     * @param created true the first time a task gets a wrapup, false every time after
-     * @param replaced who had written the version this one overwrote, or null on the first
-     *     write. Carried because overwriting a wrapup you corrected by hand is the one outcome
-     *     worth saying out loud
-     */
     public record Written(WrapupView wrapup, boolean created, WrapupAuthor replaced) {
     }
-
-    // ------------------------------------------------------------------ reading
 
     @Transactional(readOnly = true)
     public Optional<WrapupView> find(UUID taskId) {
@@ -59,18 +35,11 @@ public class WrapupService {
         return wrapups.findAllByOrderByUpdatedAtDesc().stream().map(WrapupView::of).toList();
     }
 
-    /**
-     * The anchored read, for a caller holding {@code project:vega task:report-builder} rather
-     * than an id.
-     */
     @Transactional(readOnly = true)
     public Optional<WrapupView> find(String projectLabel, String taskLabel) {
         return find(resolve(projectLabel, taskLabel).getId());
     }
 
-    // ------------------------------------------------------------------ writing
-
-    /** The anchored write, which is the form the MCP tool uses. */
     @Transactional
     public Written write(String projectLabel, String taskLabel, String body, WrapupAuthor author) {
         return write(resolve(projectLabel, taskLabel), body, author);
@@ -100,7 +69,6 @@ public class WrapupService {
         return new Written(WrapupView.of(wrapups.saveAndFlush(wrapup)), false, previous);
     }
 
-    /** Clearing a task's wrapup. The task keeps everything else. */
     @Transactional
     public void delete(UUID taskId) {
         wrapups.findByTaskId(taskId).ifPresent(wrapup -> {
@@ -109,16 +77,6 @@ public class WrapupService {
         });
     }
 
-    // ------------------------------------------------------------------ checks
-
-    /**
-     * The two things a wrapup body cannot be: absent, or long enough to have become a log.
-     *
-     * <p>Both are refused here rather than at the column, so the message says what to do about
-     * it. What a wrapup must contain — the state and not the story of how it got there — is not
-     * checkable and is not attempted; it is stated where it can be read, in the tool description
-     * and in the slash command.
-     */
     private String validated(String body) {
         if (body == null || body.isBlank()) {
             throw new IllegalArgumentException(
@@ -135,14 +93,6 @@ public class WrapupService {
         return text;
     }
 
-    /**
-     * Resolves the task an anchor names, with the same rules {@code ContextService} reads by.
-     *
-     * @param projectLabel the {@code project:} half, or null when only a task was given
-     * @throws UnknownAnchorException if nothing matches
-     * @throws AmbiguousAnchorException if a bare task label matches in more than one project,
-     *     because writing to whichever came back first is exactly the guess this design refuses
-     */
     private Task resolve(String projectLabel, String taskLabel) {
         if (projectLabel != null) {
             return tasks.findByProjectLabelIgnoreCaseAndLabelIgnoreCase(projectLabel, taskLabel)

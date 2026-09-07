@@ -11,17 +11,6 @@ import type { RecordDraft } from '@/model/record-draft'
 import type { Company, Project } from '@/model/catalog'
 import type { CompanyId, ProjectId } from '@/model/branded'
 
-/**
- * Four levels of hierarchy in one control.
- *
- * A select per level would put two or three controls above the list and make choosing a project
- * a two-step act. One popover showing companies with their projects nested is the same
- * information in one gesture, and it doubles as the map: you can see the whole shape of the
- * work without navigating into it.
- *
- * Editing lives here too, on the row of the thing being edited. A settings screen listing the
- * same tree a second time is the arrangement this replaces.
- */
 const store = useConsoleStore()
 const router = useRouter()
 const {
@@ -43,7 +32,6 @@ const projectsOf = (companyId: CompanyId) =>
 
 const taskTotal = computed(() => tasks.value.length)
 
-/** The company a new project would land in: the scope, or the only company there is. */
 const targetCompany = computed(
   () => companies.value.find((c) => c.id === scopeCompany.value) ?? companies.value[0] ?? null
 )
@@ -75,7 +63,6 @@ function editProject(project: Project): void {
   router.push(`/projects/${project.id}`)
 }
 
-/** Every other overlay in the console closes on Escape; this one is no exception. */
 function onKeydown(event: KeyboardEvent): void {
   if (event.key === 'Escape' && isOpen.value) {
     event.stopPropagation()
@@ -242,7 +229,6 @@ defineExpose({ newCompany, newProject })
       </button>
     </div>
 
-    <!-- Clicking anywhere else closes the popover, without a listener on the document. -->
     <button
       v-if="isOpen"
       class="fixed inset-0 z-(--z-sticky) cursor-default"

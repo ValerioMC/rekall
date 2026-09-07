@@ -27,7 +27,7 @@ make reset   # delete the database file (no undo)
 make console # H2 shell on the database
 ```
 
-`make run` and `make build` need a built UI. The frontend compiles to `rekall-ui/dist` (git-ignored) and `rekall-app` copies it into the jar under `static/` at package time. Packaging without it fails with instructions to run `make ui`.
+`make run` and `make build` build the UI first. The frontend compiles to `rekall-ui/dist` (git-ignored) and `rekall-app` copies it into the jar under `static/` at package time. Packaging without a built UI fails with instructions to run `make ui`.
 
 | Service | Address                      |
 |---------|------------------------------|
@@ -38,7 +38,7 @@ Port 47355 is fixed because the MCP endpoint is registered with Claude Code by U
 
 ## macOS application
 
-A signed disk image for Apple Silicon is published on every commit to `main`.
+A disk image for Apple Silicon is published on every commit to `main`.
 
 | | |
 |---|---|
@@ -100,7 +100,7 @@ cp .claude/commands/rk.md ~/.claude/commands/rk.md
 
 ## Anchor syntax
 
-An anchor is `entity:value`, where the entity is `company`, `project` or `task` and the value is the record's **label** (lowercase, no spaces, unique inside its parent).
+An anchor is `entity:value`, where the entity is `company`, `project` or `task` and the value is the record's **label** (its `name` for a company). Label rules are under [Model](#model).
 
 | Form | Meaning |
 |------|---------|
@@ -245,6 +245,19 @@ The backend uses Lombok. Enable Settings > Build, Execution, Deployment > Compil
 mvn -pl rekall-app -am spring-boot:run \
   -Dspring-boot.run.jvmArguments="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
 ```
+
+## Environment variables
+
+All optional; the defaults run against `./data/rekall`.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `REKALL_DB_URL` | `jdbc:h2:file:./data/rekall;AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1` | JDBC url |
+| `REKALL_DB_USER` | `rekall` | |
+| `REKALL_DB_PASSWORD` | `rekall` | |
+| `SERVER_PORT` | `47355` | HTTP port for the UI, the API and MCP |
+
+Notes are stored in plain text in the database file. Credentials kept in them are only as protected as the disk is.
 
 ## Modules
 

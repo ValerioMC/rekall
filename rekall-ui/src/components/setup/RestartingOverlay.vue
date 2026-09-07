@@ -1,12 +1,4 @@
 <script setup lang="ts">
-/**
- * Shown from the moment a database-location change is submitted until the backend comes back
- * up.
- *
- * There is a real gap here — the old process has closed its port and the new one has not opened
- * it yet — and this is what fills it. It never has to be dismissed: {@link useDatabaseSetup}
- * reloads the page itself once the new process answers.
- */
 </script>
 
 <template>
