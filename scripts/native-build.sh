@@ -66,17 +66,6 @@ for entry in "${ENTRIES[@]}"; do
     fi
 done
 
-# Left unset, native-image sizes its build heap to a share of the machine's RAM. On a 7 GB
-# CI runner that share peaks around 5.9 GB and the runner watchdog kills the job, so a
-# constrained runner passes NATIVE_IMAGE_MAX_RAM (e.g. `5500m`) to hold the builder below the
-# ceiling. A developer machine leaves it unset and keeps native-image's own default.
-NATIVE_IMAGE_MAX_RAM="${NATIVE_IMAGE_MAX_RAM:-}"
-BUILDER_HEAP_ARGS=()
-if [ -n "$NATIVE_IMAGE_MAX_RAM" ]; then
-    BUILDER_HEAP_ARGS=(-J-Xmx"$NATIVE_IMAGE_MAX_RAM")
-    echo "==> Capping native-image builder heap at $NATIVE_IMAGE_MAX_RAM"
-fi
-
 # GraalVM ships native-image as a .cmd shim on Windows, which Git Bash does not resolve from a
 # bare `native-image` even with the distribution on PATH. Prefer whatever is on PATH, and fall
 # back to the one inside the JDK, .cmd included.
@@ -96,7 +85,6 @@ echo "==> native-image ($NATIVE_IMAGE)"
 "$NATIVE_IMAGE" \
     -cp "$CLASSPATH" \
     --no-fallback \
-    ${BUILDER_HEAP_ARGS[@]+"${BUILDER_HEAP_ARGS[@]}"} \
     -o rekall-app/target/rekall-app \
     dev.rekall.RekallApplication
 
