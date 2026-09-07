@@ -560,7 +560,7 @@ describe('the console', () => {
       expect(wrapper.text()).toContain('Il builder gira su POST /api/v1/pipelines')
       // The note editor's controls are absent rather than disabled: a wrapup has no kind and
       // no second task it could belong to.
-      expect(wrapper.text()).not.toContain('Attach to task')
+      expect(wrapper.find('[data-testid="assign-open"]').exists()).toBe(false)
     })
 
     /**
@@ -719,7 +719,7 @@ describe('the console', () => {
       expect(wrapper.text()).toContain('Ritenta solo gli errori 5xx')
       expect(wrapper.text()).toContain('/rk project:vega task:retry-policy')
       // Its own pane, not the note editor with another title on it.
-      expect(wrapper.text()).not.toContain('Attach to task')
+      expect(wrapper.find('[data-testid="assign-open"]').exists()).toBe(false)
     })
 
     /**

@@ -2,6 +2,8 @@ package dev.rekall.api.stream;
 
 import dev.rekall.domain.step.StepStreamEvent;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.ContextClosedEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -59,6 +61,28 @@ public class StepEventStream {
                 clients.remove(emitter);
             }
         }
+    }
+
+    /**
+     * Release every open connection the moment the context starts closing.
+     *
+     * <p>{@code server.shutdown: graceful} makes Tomcat wait for in-flight requests to finish
+     * before it stops, and an SSE connection is an async request that never finishes on its
+     * own: without this, every shutdown blocks for the full
+     * {@code spring.lifecycle.timeout-per-shutdown-phase} while a console holds the feed open.
+     * {@link ContextClosedEvent} fires before the web server's graceful-shutdown phase begins,
+     * so completing the emitters here means that phase finds nothing to wait on.
+     */
+    @EventListener(ContextClosedEvent.class)
+    public void releaseOnShutdown() {
+        for (SseEmitter emitter : clients) {
+            try {
+                emitter.complete();
+            } catch (RuntimeException e) {
+                // Already closed from the other end; the onCompletion/onError callback has it.
+            }
+        }
+        clients.clear();
     }
 
     /** How many consoles are listening. For the health of the feature, and for tests. */

@@ -4,7 +4,7 @@ import { storeToRefs } from 'pinia'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
-import AttachTasksDialog from '@/components/console/AttachTasksDialog.vue'
+import NoteAssignmentDialog from '@/components/console/NoteAssignmentDialog.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.vue'
 import { useConsoleStore } from '@/stores/console.store'
@@ -14,7 +14,7 @@ import { DOCUMENT_KINDS } from '@/model/catalog'
 import type { TaskId } from '@/model/branded'
 
 const store = useConsoleStore()
-const { selectedDocument, selectedTask, selectedTaskId, recentDocuments, isLoading } =
+const { selectedDocument, selectedTask, selectedTaskId, recentDocuments, isLoading, tasks: allTasks } =
   storeToRefs(store)
 const { run } = useAsyncAction()
 
@@ -34,8 +34,29 @@ const SHORTCUTS = [
 ] as const
 
 const mode = ref<'write' | 'read'>('write')
-const isAttaching = ref(false)
+const isAssigning = ref(false)
 const isConfirmingDelete = ref(false)
+
+/**
+ * A transversal note collects tasks faster than it sheds them, and the finished ones are rarely
+ * what you came to the strip for. They fold behind a count until asked for. Their status is read
+ * from the full task list, since a note's own task refs carry no status.
+ */
+const doneTaskIds = computed(() => {
+  const ids = new Set<TaskId>()
+  for (const task of allTasks.value) if (task.status === 'DONE') ids.add(task.id)
+  return ids
+})
+
+const liveTasks = computed(
+  () => selectedDocument.value?.tasks.filter((task) => !doneTaskIds.value.has(task.id)) ?? []
+)
+
+const doneTasks = computed(
+  () => selectedDocument.value?.tasks.filter((task) => doneTaskIds.value.has(task.id)) ?? []
+)
+
+const showDoneTasks = ref(false)
 
 /** The local copy being typed into, flushed to the server on a pause rather than on a button. */
 const draft = ref({ title: '', kind: 'notes', bodyMarkdown: '' })
@@ -45,6 +66,7 @@ watch(
   selectedDocument,
   (document) => {
     if (saveTimer) clearTimeout(saveTimer)
+    showDoneTasks.value = false
     if (!document) return
     draft.value = {
       title: document.title,
@@ -227,20 +249,24 @@ async function confirmDelete(): Promise<void> {
           <div class="w-[128px]">
             <AppSelect v-model="draft.kind" :options="KIND_OPTIONS" @change="scheduleSave" />
           </div>
-          <AppButton size="sm" @click="isAttaching = true">Attach to task</AppButton>
           <AppButton variant="danger" size="sm" @click="isConfirmingDelete = true">Delete</AppButton>
         </div>
       </header>
 
-      <!-- The many-to-many made visible, and reachable. -->
+      <!--
+        The many-to-many made visible, and reachable. Tasks still in play are always shown;
+        finished ones fold behind a count so a transversal note's strip stays readable.
+      -->
       <div class="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-surface px-5 py-2.5">
         <span class="eyebrow">
           On {{ selectedDocument.tasks.length }}
           task{{ selectedDocument.tasks.length === 1 ? '' : 's' }}
         </span>
+
         <span
-          v-for="task in selectedDocument.tasks"
+          v-for="task in liveTasks"
           :key="task.id"
+          data-testid="note-task-chip"
           class="inline-flex items-center gap-1.5 rounded-full border py-0.5 pl-2.5 pr-1 font-mono text-[11px] transition-colors"
           :class="
             task.id === selectedTaskId
@@ -260,6 +286,65 @@ async function confirmDelete(): Promise<void> {
             &times;
           </button>
         </span>
+
+        <button
+          v-if="doneTasks.length && liveTasks.length"
+          class="focus-ring inline-flex items-center gap-1.5 rounded-full border border-border-strong bg-surface-raised py-0.5 pl-2 pr-2.5 font-mono text-[11px] text-text-muted transition-colors hover:border-border-strong hover:text-text"
+          :aria-expanded="showDoneTasks"
+          data-testid="note-done-toggle"
+          @click="showDoneTasks = !showDoneTasks"
+        >
+          <svg
+            class="size-2.5 transition-transform"
+            :class="showDoneTasks && 'rotate-90'"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="M9 6l6 6-6 6"
+              stroke="currentColor"
+              stroke-width="2.4"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          {{ doneTasks.length }} done
+        </button>
+
+        <template v-if="showDoneTasks || !liveTasks.length">
+          <span
+            v-for="task in doneTasks"
+            :key="task.id"
+            data-testid="note-task-chip-done"
+            class="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface py-0.5 pl-2.5 pr-1 font-mono text-[11px] text-text-subtle transition-colors"
+          >
+            <span class="size-[6px] shrink-0 rounded-full bg-safe" aria-hidden="true" />
+            <button
+              class="focus-ring rounded"
+              :title="`${task.title} (done)`"
+              @click="store.selectTask(task.id)"
+            >
+              {{ task.projectLabel }}/{{ task.label }}
+            </button>
+            <button
+              v-if="selectedDocument.tasks.length > 1"
+              class="focus-ring -m-0.5 grid size-5 place-items-center rounded-full text-text-subtle transition-colors hover:bg-danger-soft hover:text-danger"
+              :aria-label="`Remove this note from ${task.title}`"
+              @click="detachFrom(task.id)"
+            >
+              &times;
+            </button>
+          </span>
+        </template>
+
+        <button
+          class="focus-ring inline-flex items-center gap-1 rounded-full border border-dashed border-border-strong py-0.5 pl-2 pr-2.5 font-mono text-[11px] text-text-muted transition-colors hover:border-accent hover:text-text"
+          data-testid="assign-open"
+          @click="isAssigning = true"
+        >
+          <span class="text-accent">+</span> task
+        </button>
         <span v-if="alsoOn.length" class="w-full text-[11.5px] text-text-subtle">
           Editing here changes what
           {{ alsoOn.length === 1 ? 'that other task' : 'those other tasks' }} load too.
@@ -294,7 +379,7 @@ async function confirmDelete(): Promise<void> {
       </div>
     </template>
 
-    <AttachTasksDialog v-if="isAttaching" @close="isAttaching = false" />
+    <NoteAssignmentDialog v-if="isAssigning" @close="isAssigning = false" />
 
     <AppConfirm
       v-if="isConfirmingDelete && selectedDocument"
