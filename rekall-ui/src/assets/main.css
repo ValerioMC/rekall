@@ -464,36 +464,67 @@
  * The checklist node stops being a target and starts being a light: a warm ring breathing out
  * of it once a second, in the accent that already means "here, and what happens next". It runs
  * only while the step is RUNNING, the same discipline the running dock keeps, so a pane at rest
- * never has a heartbeat in it. Paired with `energy-rail` on the connector that feeds it.
+ * never has a heartbeat in it. Paired with `energy-stream` running the length of the path that
+ * led here.
  */
 @utility step-node-running {
   animation: step-pulse 1.7s ease-in-out infinite;
 }
 
 /*
- * The branch carrying work toward a running node.
+ * The whole travelled path of the checklist, as one lit conduit.
  *
- * A pending connector is a flat hairline. This one has current in it: a bright band of accent
- * sliding down the wire toward the node, on a track a shade wider and lit from within. It marks
- * the one segment of the checklist that is live, and points which way the work is moving.
+ * Not a glow on the single segment that touches the running node: the work has come the length
+ * of the finished steps, so the light does too. A static gradient forms the conduit, brighter
+ * toward the bottom where the running node sits; two heads of light fall down it, half a beat
+ * apart, in the direction the work is moving, and are clipped as they reach the node that
+ * breathes. `top` and `height` are set inline from measured node positions. Runs on the same
+ * 1.7s beat as `step-pulse`, so the arrival and the breath stay in step.
  */
-@utility energy-rail {
+@utility energy-stream {
+  position: absolute;
+  left: 11px;
+  z-index: 5;
   width: 2px;
-  background-image: linear-gradient(
+  transform: translateX(-50%);
+  border-radius: 9999px;
+  overflow: hidden;
+  background: linear-gradient(
     180deg,
-    transparent 0%,
-    color-mix(in srgb, var(--color-accent) 20%, transparent) 30%,
-    var(--color-accent-strong) 50%,
-    color-mix(in srgb, var(--color-accent) 20%, transparent) 70%,
-    transparent 100%
+    color-mix(in srgb, var(--color-accent) 26%, transparent) 0%,
+    color-mix(in srgb, var(--color-accent) 48%, transparent) 55%,
+    var(--color-accent-strong) 100%
   );
-  background-size: 100% 260%;
-  background-repeat: no-repeat;
-  box-shadow: 0 0 6px -1px color-mix(in srgb, var(--color-accent) 55%, transparent);
-  animation: energy-flow 1.15s linear infinite;
+  box-shadow: 0 0 9px -2px color-mix(in srgb, var(--color-accent) 45%, transparent);
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    inset-inline: -1px;
+    height: 34px;
+    border-radius: 9999px;
+    background: linear-gradient(
+      180deg,
+      transparent 0%,
+      color-mix(in srgb, var(--color-accent) 45%, transparent) 42%,
+      var(--color-accent-strong) 80%,
+      color-mix(in srgb, var(--color-accent) 82%, white) 100%
+    );
+    filter: blur(0.4px);
+    animation: energy-descent 1.7s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  }
+
+  /* A second head, half a beat behind and dimmer, so the conduit reads as a stream and not a
+     single blip crossing an empty wire. */
+  &::before {
+    opacity: 0.38;
+    animation-delay: -0.85s;
+  }
 }
 
-/* A branch already travelled: solid, but stepped back to half light so the live one leads. */
+/* The connector on a finished row above the running one: solid, stepped back to half light so
+   the live conduit leads. */
 @utility spent-rail {
   background: color-mix(in srgb, var(--color-accent) 42%, transparent);
 }
@@ -513,12 +544,20 @@
   }
 }
 
-@keyframes energy-flow {
-  from {
-    background-position: 0 -130%;
+@keyframes energy-descent {
+  0% {
+    top: -34px;
+    opacity: 0;
   }
-  to {
-    background-position: 0 130%;
+  12% {
+    opacity: 1;
+  }
+  82% {
+    opacity: 1;
+  }
+  100% {
+    top: 100%;
+    opacity: 0;
   }
 }
 

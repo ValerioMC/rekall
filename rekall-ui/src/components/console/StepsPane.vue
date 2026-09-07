@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppInput from '@/components/ui/AppInput.vue'
@@ -57,17 +57,16 @@ const visibleSteps = computed(() =>
 )
 
 /**
- * What the connector arriving at a node is carrying.
+ * What the connector on this row is carrying.
  *
- * `active` is the one segment with work moving through it, into the running node. `spent` is a
- * branch already travelled: still there, stepped back so the live one leads. `pending` is the
- * flat hairline of work not started.
+ * `spent` is a branch already travelled, held at half light. `pending` is the flat hairline of
+ * work not started. The live segment feeding the running node is not drawn here: the
+ * `energy-stream` overlay covers the whole travelled path in one piece, so the running row
+ * keeps only the hairline that continues toward the work still ahead of it.
  */
-function railKind(index: number): 'active' | 'spent' | 'pending' {
+function railKind(index: number): 'spent' | 'pending' {
   const step = visibleSteps.value[index]
-  if (!step) return 'pending'
-  if (step.state === 'RUNNING') return 'active'
-  return stepIsComplete(step.state) ? 'spent' : 'pending'
+  return step && stepIsComplete(step.state) ? 'spent' : 'pending'
 }
 
 /** What clicking the node does now, said the way the step's state makes true. */
@@ -229,7 +228,11 @@ async function remove(): Promise<void> {
 function railStyle(index: number): Record<string, string> {
   const isFirst = index === 0
   const isLast = index === visibleSteps.value.length - 1
+  const isRunning = visibleSteps.value[index]?.state === 'RUNNING'
   if (isFirst && isLast) return { display: 'none' }
+  // The running node's incoming half is drawn by the energy stream overlay. Leave this row
+  // only the hairline that carries on toward the steps still ahead of it.
+  if (isRunning && !isFirst) return isLast ? { display: 'none' } : { top: '18px', bottom: '0' }
   if (isFirst) return { top: '18px', bottom: '0' }
   if (isLast) return { top: '0', height: '18px' }
   return { top: '0', bottom: '0' }
@@ -245,6 +248,66 @@ async function copyAnchor(): Promise<void> {
 }
 
 onUnmounted(flush)
+
+// ------------------------------------------------------------------ the energy stream
+
+/**
+ * The travelled path of the checklist, as one lit conduit from the first finished node down to
+ * the step a session is on now.
+ *
+ * The old treatment lit only the single segment touching the running node. This one runs the
+ * whole way: the work has come from the top of the list, so a head of light falls the same
+ * distance, in the direction the work is moving, and is absorbed into the node that breathes.
+ * Its length is the gap between two nodes and the rows in between are not a fixed height, so it
+ * is measured from the DOM rather than expressed in CSS.
+ */
+const listEl = ref<HTMLElement | null>(null)
+const stream = ref<{ top: number; height: number } | null>(null)
+
+/** Node centre inside a row: the button sits at `top: 7px` and is 22px across. */
+const NODE_CENTER_OFFSET = 18
+
+function measureStream(): void {
+  const list = listEl.value
+  if (!list) {
+    stream.value = null
+    return
+  }
+  const rows = Array.from(list.querySelectorAll<HTMLElement>('li[data-testid="step-row"]'))
+  const runningIndex = rows.findIndex((row) => row.dataset.stepState === 'RUNNING')
+  const startIndex = rows.findIndex(
+    (row) => row.dataset.stepState === 'CLAIMED' || row.dataset.stepState === 'DONE'
+  )
+  const startRow = rows[startIndex]
+  const runningRow = rows[runningIndex]
+  if (!startRow || !runningRow || runningIndex < 1 || startIndex >= runningIndex) {
+    stream.value = null
+    return
+  }
+  const top = startRow.offsetTop + NODE_CENTER_OFFSET
+  const height = runningRow.offsetTop + NODE_CENTER_OFFSET - top
+  stream.value = height > 4 ? { top, height } : null
+}
+
+function scheduleMeasure(): void {
+  void nextTick(measureStream)
+}
+
+let rowObserver: ResizeObserver | null = null
+if (typeof ResizeObserver !== 'undefined') {
+  rowObserver = new ResizeObserver(() => measureStream())
+}
+
+watch(listEl, (element) => {
+  rowObserver?.disconnect()
+  if (element) rowObserver?.observe(element)
+  scheduleMeasure()
+})
+
+watch([visibleSteps, expandedId, mode, () => draftBody.value], scheduleMeasure)
+
+onMounted(scheduleMeasure)
+onUnmounted(() => rowObserver?.disconnect())
 </script>
 
 <template>
@@ -412,19 +475,29 @@ onUnmounted(flush)
           Every step is done. Show them again to correct one.
         </p>
 
-        <ol v-else class="relative min-w-0">
+        <ol v-else ref="listEl" class="relative min-w-0">
+          <!-- The one lit conduit down the whole travelled path, first finished node to the
+               node a session is on now. Measured, not expressed in CSS: its length is the gap
+               between two nodes and the rows between them are not a fixed height. -->
+          <span
+            v-if="stream"
+            class="energy-stream"
+            :style="{ top: `${stream.top}px`, height: `${stream.height}px` }"
+            data-testid="energy-stream"
+            aria-hidden="true"
+          />
           <li
             v-for="(step, index) in visibleSteps"
             :key="step.id"
             class="group/step relative min-w-0 pb-1.5 pl-9"
             data-testid="step-row"
+            :data-step-state="step.state"
           >
             <span
               class="absolute left-[11px] -translate-x-1/2"
               :class="{
                 'w-px bg-border-strong': railKind(index) === 'pending',
-                'w-px spent-rail': railKind(index) === 'spent',
-                'energy-rail': railKind(index) === 'active'
+                'w-px spent-rail': railKind(index) === 'spent'
               }"
               :style="railStyle(index)"
               aria-hidden="true"
