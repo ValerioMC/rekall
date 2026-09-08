@@ -98,6 +98,19 @@ cp .claude/commands/rk.md ~/.claude/commands/rk.md
 
 **Open in Claude Code**, on a task or a project, opens a terminal in the project's folder with `/rk` already running. Set the folder in the **Folder** field on the project page. The terminal is iTerm2 when installed, Terminal.app otherwise. A switch in **Settings > Claude Code** adds `--dangerously-skip-permissions`; it is stored on the machine, not in the database. This button works only inside Rekall.app.
 
+## Session in Rekall
+
+**Run here**, next to **Open in Claude Code** on the description and steps panes, or `c` from any task, opens a session inside the app instead of a terminal. It runs `claude` in the project's folder with `--input-format stream-json --output-format stream-json`, sends `/rk <anchors>` first, and stays open on stdin: the pane shows the reply as it arrives and every prompt after the first is another line written to the same process. Works in a plain browser, not only Rekall.app.
+
+A session is tied to one task, and several run at once, one per task. The pane's switcher moves between a task's sessions; **N live elsewhere** jumps to a session on another task. A dock in the bottom-right corner, on every screen while a session is live, lists the running sessions and jumps back to any of them, so leaving the pane or the console does not lose the way back. The transcript is persisted, so it survives a pane swap and a reload; a restart marks every open session ended. The **skip permissions** switch is the same one the terminal button uses, and with it off an in-app session cannot answer a permission prompt, so tool use is denied.
+
+| Property | Default | Meaning |
+|---|---|---|
+| `rekall.claude.cli-path` | search `PATH` and the usual install dirs | Absolute path to `claude`, overriding discovery |
+| `rekall.claude.max-sessions` | `8` | Live sessions allowed at once |
+| `rekall.claude.idle-minutes` | `120` | A session untouched this long is closed by the sweep |
+| `rekall.claude.sweep-minutes` | `5` | How often the idle sweep runs |
+
 ## Anchor syntax
 
 An anchor is `entity:value`, where the entity is `company`, `project` or `task` and the value is the record's **label** (its `name` for a company). Label rules are under [Model](#model).
@@ -155,9 +168,9 @@ Only you set a step to **done**. `rekall_step` stops at `claimed`. The navigator
 
 ## Console
 
-One surface, three panes: pick a task on the left, pick its checklist, its wrapup or a note in the middle, write on the right. The field at the top takes the same grammar as `/rk`.
+One surface, three panes: pick a task on the left, pick its checklist, its wrapup, a note or a session in the middle, write on the right. The field at the top takes the same grammar as `/rk`.
 
-The description, steps and wrapup are pinned above the notes. Each opens in the writing pane; a task missing one shows an empty card. Companies, projects and tasks are created, edited and deleted from one editor, opened on the parent record. Title and label sit together with the anchor assembled live as you type. Deleting states what goes with it.
+The description, steps, wrapup and session are pinned above the notes. Each opens in the writing pane; a task missing one shows an empty card. `c` opens the session pane, the same way `s`, `w` and `d` open steps, wrapup and description. Companies, projects and tasks are created, edited and deleted from one editor, opened on the parent record. Title and label sit together with the anchor assembled live as you type. Deleting states what goes with it.
 
 Finished tasks are folded into a "filed" drawer, closed on every load. Writing autosaves; a note has no Save button.
 
@@ -265,6 +278,7 @@ Notes are stored in plain text in the database file. Credentials kept in them ar
 rekall-domain/   Project, Task, Document, and the context assembly
 rekall-api/      REST API for the UI, and the step event stream
 rekall-mcp/      MCP server: one tool reads, two write
+rekall-claude/   Claude Code sessions hosted in the app: spawn, stream, reap
 rekall-app/      Spring Boot entry point, serves everything
 rekall-ui/       Vue 3 + Vite frontend
 ```

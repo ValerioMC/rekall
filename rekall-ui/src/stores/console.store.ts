@@ -66,7 +66,7 @@ import type {
 export type NavMode = 'tasks' | 'notes'
 export type SaveState = 'saved' | 'unsaved' | 'saving'
 
-export type PaneFocus = 'note' | 'wrapup' | 'description' | 'steps'
+export type PaneFocus = 'note' | 'wrapup' | 'description' | 'steps' | 'claude'
 
 export const useConsoleStore = defineStore('console', () => {
   const companies = ref<Company[]>([])
@@ -535,6 +535,16 @@ export const useConsoleStore = defineStore('console', () => {
     paneFocus.value = 'steps'
   }
 
+  function openClaude(): void {
+    if (selectedTaskId.value === null) return
+    paneFocus.value = 'claude'
+  }
+
+  function toggleClaude(): void {
+    if (selectedTaskId.value === null) return
+    paneFocus.value = paneFocus.value === 'claude' ? 'note' : 'claude'
+  }
+
   async function saveWrapupBody(taskId: TaskId, bodyMarkdown: string): Promise<void> {
     saveState.value = 'saving'
     try {
@@ -750,9 +760,11 @@ export const useConsoleStore = defineStore('console', () => {
     openWrapup,
     openDescription,
     openSteps,
+    openClaude,
     toggleDescription,
     toggleWrapup,
     toggleSteps,
+    toggleClaude,
     addStep,
     saveStep,
     toggleStep,

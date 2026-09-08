@@ -9,6 +9,9 @@ import dev.rekall.domain.Project;
 import dev.rekall.domain.Task;
 import dev.rekall.domain.TimeEntry;
 import dev.rekall.domain.Wrapup;
+import dev.rekall.claude.ClaudeApiDtos;
+import dev.rekall.domain.claude.ClaudeMessageView;
+import dev.rekall.domain.claude.ClaudeSessionView;
 import dev.rekall.domain.step.StepStreamEvent;
 import dev.rekall.domain.step.TaskStepView;
 import org.springframework.aot.hint.annotation.RegisterReflectionForBinding;
@@ -21,6 +24,9 @@ import org.springframework.context.ConfigurableApplicationContext;
         DatabaseRegistry.class, DatabaseEntry.class, DatabaseEntry[].class,
         Company.class, Project.class, Task.class, TimeEntry.class, Wrapup.class, Document.class,
         StepStreamEvent.class, TaskStepView.class, TaskStepView[].class,
+        ClaudeSessionView.class, ClaudeSessionView[].class,
+        ClaudeMessageView.class, ClaudeMessageView[].class,
+        ClaudeApiDtos.StartSessionRequest.class, ClaudeApiDtos.PromptRequest.class,
         SettingsController.DatabaseView.class, SettingsController.DatabaseView[].class,
         SettingsController.StatusResponse.class,
         SettingsController.AddRequest.class, SettingsController.AddResponse.class,

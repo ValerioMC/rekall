@@ -31,6 +31,7 @@
         <module>rekall-domain</module>
         <module>rekall-api</module>
         <module>rekall-mcp</module>
+        <module>rekall-claude</module>
         <module>rekall-app</module>
     </modules>
 
@@ -55,6 +56,11 @@
             <dependency>
                 <groupId>dev.rekall</groupId>
                 <artifactId>rekall-mcp</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>dev.rekall</groupId>
+                <artifactId>rekall-claude</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>

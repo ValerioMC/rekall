@@ -8,6 +8,7 @@ import NoteListPane from '@/components/console/NoteListPane.vue'
 import NotePane from '@/components/console/NotePane.vue'
 import StepsPane from '@/components/console/StepsPane.vue'
 import WrapupPane from '@/components/console/WrapupPane.vue'
+import ClaudeSessionPane from '@/components/console/ClaudeSessionPane.vue'
 import SettingsPanel from '@/components/settings/SettingsPanel.vue'
 import AppToaster from '@/components/ui/AppToaster.vue'
 import { useConsoleStore } from '@/stores/console.store'
@@ -72,6 +73,13 @@ function onKeydown(event: KeyboardEvent): void {
     return
   }
 
+  if (key === 'c') {
+    event.preventDefault()
+    store.toggleClaude()
+    document.getElementById('note')?.focus()
+    return
+  }
+
   if (key === 'b') {
     event.preventDefault()
     navMode.value = navMode.value === 'tasks' ? 'notes' : 'tasks'
@@ -131,6 +139,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
         <WrapupPane v-if="paneFocus === 'wrapup'" />
         <DescriptionPane v-else-if="paneFocus === 'description'" />
         <StepsPane v-else-if="paneFocus === 'steps'" />
+        <ClaudeSessionPane v-else-if="paneFocus === 'claude'" />
         <NotePane v-else />
       </div>
     </div>

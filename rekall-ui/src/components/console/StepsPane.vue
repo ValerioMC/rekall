@@ -5,6 +5,7 @@ import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.vue'
+import ClaudeSessionLauncher from '@/components/claude/ClaudeSessionLauncher.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { identityHue } from '@/common/identity'
@@ -274,12 +275,18 @@ onUnmounted(() => rowObserver?.disconnect())
             </button>
           </div>
 
-          <LaunchClaudeCodeButton
-            class="shrink-0"
-            :anchors="selectedTask.anchor"
-            :folder="selectedTask.projectRepoFolder"
-            missing-hint="Set this project's folder on its page to open a session from it"
-          />
+          <div class="flex shrink-0 items-center gap-1.5">
+            <ClaudeSessionLauncher
+              :task-id="selectedTask.id"
+              :step-id="currentId"
+              :folder="selectedTask.projectRepoFolder"
+            />
+            <LaunchClaudeCodeButton
+              :anchors="selectedTask.anchor"
+              :folder="selectedTask.projectRepoFolder"
+              missing-hint="Set this project's folder on its page to open a session from it"
+            />
+          </div>
 
           <div v-if="selectedTaskSteps.length" class="shrink-0 text-right">
             <p

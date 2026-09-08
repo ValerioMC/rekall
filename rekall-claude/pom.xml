@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>dev.rekall</groupId>
+        <artifactId>rekall-parent</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>rekall-claude</artifactId>
+    <name>rekall-claude</name>
+    <description>Claude Code sessions hosted inside Rekall: spawn, stream, persist, one per task</description>
+
+    <dependencies>
+        <!--
+          Depends on rekall-api, not just rekall-domain: this is a write feature and shares its
+          HTTP error vocabulary (ConflictException, NotFoundException) and the @RestControllerAdvice
+          that maps it. The read-only boundary rekall-mcp keeps does not apply here.
+        -->
+        <dependency>
+            <groupId>dev.rekall</groupId>
+            <artifactId>rekall-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <!--
+          Used directly to read `claude`'s stream-json lines and to write prompts back. Declared
+          explicitly, like rekall-app does: the web starter no longer pulls it transitively in
+          Spring Boot 4.
+        -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+    </dependencies>
+</project>

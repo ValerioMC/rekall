@@ -7,6 +7,7 @@ import { useAsyncAction } from '@/composables/useAsyncAction'
 import { identityHue } from '@/common/identity'
 import { rkCommand } from '@/common/format/rk-command'
 import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.vue'
+import ClaudeSessionLauncher from '@/components/claude/ClaudeSessionLauncher.vue'
 import type { TaskId } from '@/model/branded'
 
 const store = useConsoleStore()
@@ -124,12 +125,17 @@ onUnmounted(() => {
             </button>
           </div>
 
-          <LaunchClaudeCodeButton
-            class="shrink-0"
-            :anchors="selectedTask.anchor"
-            :folder="selectedTask.projectRepoFolder"
-            missing-hint="Set this project's folder on its page to open a session from it"
-          />
+          <div class="flex shrink-0 items-center gap-1.5">
+            <ClaudeSessionLauncher
+              :task-id="selectedTask.id"
+              :folder="selectedTask.projectRepoFolder"
+            />
+            <LaunchClaudeCodeButton
+              :anchors="selectedTask.anchor"
+              :folder="selectedTask.projectRepoFolder"
+              missing-hint="Set this project's folder on its page to open a session from it"
+            />
+          </div>
 
           <div v-if="showEditor" class="flex shrink-0 gap-0.5 rounded-[7px] bg-surface p-0.5">
             <button

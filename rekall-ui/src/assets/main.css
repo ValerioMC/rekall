@@ -459,6 +459,57 @@
 }
 
 /*
+ * The session dock's live mark: a caret held open on a prompt, not the running dock's dial.
+ *
+ * A Claude session is a headless CLI kept open on stdin, waiting on the next line, so the mark
+ * is a text caret. It wears the anchor colour the session was opened on — `/rk <anchor>` is the
+ * first line it was ever sent — which also keeps the session corner from reading as the amber
+ * time corner stacked twice. It hard-blinks slow while a session is READY and waiting on you,
+ * and swells to a block on a quicker beat while one is WORKING. Like every mark here, it runs
+ * only while a session is live.
+ */
+@utility session-caret {
+  display: block;
+  height: 13px;
+  width: 3px;
+  border-radius: 1.5px;
+  background: var(--color-anchor);
+  box-shadow: 0 0 8px -1px color-mix(in srgb, var(--color-anchor) 60%, transparent);
+  transform-origin: center left;
+  animation: caret-blink 1.5s steps(1, end) infinite;
+}
+
+@utility session-caret-busy {
+  animation: caret-busy 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes caret-blink {
+  0%,
+  46% {
+    opacity: 1;
+  }
+  50%,
+  96% {
+    opacity: 0.26;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes caret-busy {
+  0%,
+  100% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scaleX(2.8);
+    opacity: 0.82;
+  }
+}
+
+/*
  * A step a session is working on right now.
  *
  * The checklist node stops being a target and starts being a light: a warm ring breathing out
