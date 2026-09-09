@@ -355,6 +355,39 @@ describe('the console', () => {
     expect(wrapper.findAll('[data-testid="task-row"]').length).toBeGreaterThan(0)
   })
 
+  /**
+   * Copy and paste belong to the browser. Cmd/Ctrl+K is the one deliberate chord; every other
+   * shortcut is a bare key, so a modified key must pass straight through without preventDefault.
+   */
+  it('leaves a Cmd or Ctrl chord alone so copy and paste work inside the app', async () => {
+    const wrapper = await mountConsole()
+    await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+    await flushPromises()
+
+    const copy = new KeyboardEvent('keydown', { key: 'c', metaKey: true, cancelable: true })
+    window.dispatchEvent(copy)
+    const paste = new KeyboardEvent('keydown', { key: 'v', ctrlKey: true, cancelable: true })
+    window.dispatchEvent(paste)
+    await flushPromises()
+
+    expect(copy.defaultPrevented).toBe(false)
+    expect(paste.defaultPrevented).toBe(false)
+    // The chord did nothing: the pane is still the note, not the Claude session.
+    expect(useConsoleStore().paneFocus).toBe('note')
+  })
+
+  /** The bare key it shares a letter with still works. */
+  it('toggles the Claude pane on a bare C', async () => {
+    const wrapper = await mountConsole()
+    await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+    await flushPromises()
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c' }))
+    await flushPromises()
+
+    expect(useConsoleStore().paneFocus).toBe('claude')
+  })
+
   describe('creating, editing and deleting a record', () => {
     /**
      * Typing a title and getting the label for free is most of what makes the two fields

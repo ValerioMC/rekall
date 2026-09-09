@@ -219,13 +219,17 @@ onUnmounted(() => {
       </div>
 
       <div
-        v-if="reviewState === 'CLAIMED' || reviewState === 'DONE'"
+        v-if="reviewState === 'RUNNING' || reviewState === 'CLAIMED' || reviewState === 'DONE'"
         class="shrink-0 border-b border-border bg-accent-soft/40 px-5 py-2.5"
         data-testid="description-review-bar"
       >
         <div v-if="!sendingBack" class="flex flex-wrap items-center gap-2">
           <span class="min-w-0 flex-1 text-[11.5px] leading-snug text-text-muted">
-            <template v-if="reviewState === 'CLAIMED'">
+            <template v-if="reviewState === 'RUNNING'">
+              A session is on this task. It moves to review on its own once the session writes the
+              wrapup, and back to open when the session ends. Accept it now if you have seen enough.
+            </template>
+            <template v-else-if="reviewState === 'CLAIMED'">
               A session wrote the wrapup and claimed this. Accept it, or send it back to reopen it
               for another pass.
             </template>
@@ -234,7 +238,7 @@ onUnmounted(() => {
             </template>
           </span>
           <button
-            v-if="reviewState === 'CLAIMED'"
+            v-if="reviewState === 'CLAIMED' || reviewState === 'RUNNING'"
             class="focus-ring h-7 shrink-0 rounded-[var(--radius-control)] border border-accent bg-accent-soft px-3 text-[11.5px] font-medium text-accent transition-colors hover:bg-accent hover:text-accent-ink"
             data-testid="description-accept"
             @click="acceptDescription"
@@ -257,6 +261,7 @@ onUnmounted(() => {
             Mark task done
           </button>
           <button
+            v-if="reviewState !== 'RUNNING'"
             class="focus-ring h-7 shrink-0 rounded-[var(--radius-control)] border border-border-strong px-3 text-[11.5px] font-medium text-text-subtle transition-colors hover:border-danger hover:text-danger"
             data-testid="description-send-back"
             @click="sendingBack = true"

@@ -57,6 +57,10 @@ function onKeydown(event: KeyboardEvent): void {
     return
   }
 
+  // Every other shortcut is a bare key, so a Cmd/Ctrl/Alt chord belongs to the
+  // browser. Copy, paste, cut and select-all must reach it untouched.
+  if (event.metaKey || event.ctrlKey || event.altKey) return
+
   if (typing) return
 
   const key = event.key.toLowerCase()

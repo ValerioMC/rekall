@@ -86,7 +86,14 @@ const accepted = computed(() => props.reviewState === 'DONE')
     </span>
 
     <span
-      v-if="claimed"
+      v-if="running"
+      class="mt-1.5 block text-[12px] leading-relaxed text-text-muted"
+      data-testid="description-card-line"
+    >
+      Session running. Open it to accept, or wait for the wrapup.
+    </span>
+    <span
+      v-else-if="claimed"
       class="mt-1.5 block text-[12px] leading-relaxed text-accent"
       data-testid="description-card-line"
     >
