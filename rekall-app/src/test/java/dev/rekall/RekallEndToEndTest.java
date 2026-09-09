@@ -1408,6 +1408,134 @@ class RekallEndToEndTest {
         }
     }
 
+    /*
+     * The review line a task with no checklist walks: the same open -> running -> claimed ->
+     * accepted a step moves along, read at task scope. Running rides a live session, claimed
+     * rides a Claude-authored wrapup, and only the console accepts or sends back.
+     */
+
+    @Test
+    @DisplayName("a Claude-authored wrapup claims a task that has no checklist")
+    void aClaudeWrapupClaimsASteplessTask() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+
+        callTool("rekall_wrapup", Map.of(
+                "anchors", "project:vega task:report-builder", "body", "Lo stato corrente."));
+
+        Map<?, ?> task = getTask(taskId);
+        assertThat(task.get("reviewActive")).isEqualTo(true);
+        assertThat(task.get("reviewState")).isEqualTo("CLAIMED");
+        assertThat(task.get("claimedAt")).isNotNull();
+    }
+
+    @Test
+    @DisplayName("a hand-written wrapup is the reviewer's correction, so it does not claim the task")
+    void aHandWrittenWrapupLeavesASteplessTaskOpen() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+
+        rest.put().uri("/api/tasks/" + taskId + "/wrapup")
+                .body(Map.of("bodyMarkdown", "Scritto a mano.")).retrieve().toEntity(Map.class);
+
+        assertThat(getTask(taskId).get("reviewState")).isEqualTo("OPEN");
+    }
+
+    @Test
+    @DisplayName("the console accepts a stepless task, and cannot accept it twice")
+    void theConsoleAcceptsASteplessTask() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+
+        ResponseEntity<Map> accepted = review(taskId, Map.of("reviewState", "DONE"));
+        assertThat(accepted.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(accepted.getBody().get("reviewState")).isEqualTo("DONE");
+        assertThat(accepted.getBody().get("acceptedAt")).isNotNull();
+
+        assertThat(review(taskId, Map.of("reviewState", "DONE")).getStatusCode())
+                .as("a second accept has nothing to do and says so")
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    @DisplayName("sending a stepless task back reopens it and carries a note to the next session")
+    void theConsoleSendsASteplessTaskBackWithANote() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+        callTool("rekall_wrapup", Map.of(
+                "anchors", "project:vega task:report-builder", "body", "Lo stato."));
+
+        ResponseEntity<Map> sentBack = review(taskId, Map.of(
+                "reviewState", "OPEN", "note", "la colonna export e' ancora sbagliata"));
+
+        assertThat(sentBack.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(sentBack.getBody().get("reviewState")).isEqualTo("OPEN");
+        assertThat(sentBack.getBody().get("reviewNote")).isEqualTo("la colonna export e' ancora sbagliata");
+        assertThat(sentBack.getBody().get("claimedAt")).isNull();
+    }
+
+    @Test
+    @DisplayName("adding a checklist retires the task-level review line")
+    void aChecklistRetiresTheTaskLevelReviewLine() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+        callTool("rekall_wrapup", Map.of(
+                "anchors", "project:vega task:report-builder", "body", "Lo stato."));
+
+        aStep(taskId, "Aggregate the rows", null);
+
+        assertThat(getTask(taskId).get("reviewActive")).isEqualTo(false);
+        assertThat(review(taskId, Map.of("reviewState", "DONE")).getStatusCode())
+                .as("the steps carry the review now, not the task")
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    @DisplayName("the review endpoint refuses the two states nothing outside the system may set")
+    void theReviewEndpointRefusesTheDerivedStates() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+
+        assertThat(review(taskId, Map.of("reviewState", "RUNNING")).getStatusCode())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(review(taskId, Map.of("reviewState", "CLAIMED")).getStatusCode())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    @DisplayName("a stepless task accepted in the console reaches an open console over the event stream")
+    void theEventStreamCarriesAReviewChange() throws Exception {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+
+        BlockingQueue<String> lines = new LinkedBlockingQueue<>();
+        HttpClient client = HttpClient.newHttpClient();
+        try {
+            client.sendAsync(
+                            HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/steps/stream"))
+                                    .GET().build(),
+                            HttpResponse.BodyHandlers.ofLines())
+                    .thenAccept(response -> response.body().forEach(lines::add));
+
+            awaitLine(lines, "event:open", 5);
+            review(taskId, Map.of("reviewState", "DONE"));
+
+            assertThat(awaitLine(lines, "event:task-review", 5)).isEqualTo("event:task-review");
+            assertThat(awaitLine(lines, "data:", 5))
+                    .contains(taskId)
+                    .contains("\"reviewState\":\"DONE\"");
+        } finally {
+            client.shutdownNow();
+        }
+    }
+
     /**
      * The export is a backup and an escape hatch: a tree of folders that outlives the
      * application. What it cannot represent is a note on several tasks, so it writes the note
@@ -1625,6 +1753,17 @@ class RekallEndToEndTest {
     @SuppressWarnings("rawtypes")
     private ResponseEntity<Map> post(String path, Object body) {
         return rest.post().uri(path).body(body).retrieve().toEntity(Map.class);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private Map<?, ?> getTask(String taskId) {
+        return rest.get().uri("/api/tasks/" + taskId).retrieve().toEntity(Map.class).getBody();
+    }
+
+    @SuppressWarnings("rawtypes")
+    private ResponseEntity<Map> review(String taskId, Map<String, Object> body) {
+        return rest.patch().uri("/api/tasks/" + taskId + "/review").body(body)
+                .retrieve().toEntity(Map.class);
     }
 
     private String id(ResponseEntity<Map> response) {

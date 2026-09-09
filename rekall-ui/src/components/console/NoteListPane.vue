@@ -86,6 +86,11 @@ async function pauseTimer(): Promise<void> {
         <DescriptionCard
           :description="selectedTask.description"
           :selected="paneFocus === 'description'"
+          :review-state="
+            selectedTask.reviewActive && selectedTask.stepCount === 0
+              ? selectedTask.reviewState
+              : null
+          "
           @open="store.openDescription()"
         />
         <StepsCard

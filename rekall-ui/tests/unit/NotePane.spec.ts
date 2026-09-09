@@ -33,6 +33,11 @@ const task = (id: TaskId, label: string, title: string, status: TaskStatus): Tas
   stepCount: 0,
   stepsDone: 0,
   hasWrapup: false,
+  reviewState: 'OPEN',
+  reviewActive: true,
+  claimedAt: null,
+  acceptedAt: null,
+  reviewNote: null,
   anchor: `project:rekall task:${label}`,
   updatedAt: '2026-09-01T10:00:00Z'
 })

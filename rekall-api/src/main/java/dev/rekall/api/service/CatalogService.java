@@ -12,10 +12,12 @@ import dev.rekall.domain.ProjectStatus;
 import dev.rekall.domain.Slug;
 import dev.rekall.domain.Task;
 import dev.rekall.domain.TaskStatus;
+import dev.rekall.domain.TaskStepState;
 import dev.rekall.domain.repository.CompanyRepository;
 import dev.rekall.domain.repository.DocumentRepository;
 import dev.rekall.domain.repository.ProjectRepository;
 import dev.rekall.domain.repository.TaskRepository;
+import dev.rekall.domain.review.TaskReviewService;
 import dev.rekall.domain.timeentry.TimeEntryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -33,6 +35,7 @@ public class CatalogService {
     private final TaskRepository tasks;
     private final DocumentRepository documents;
     private final TimeEntryService timeEntries;
+    private final TaskReviewService taskReview;
 
     @Transactional(readOnly = true)
     public List<CompanyResponse> listCompanies() {
@@ -136,6 +139,25 @@ public class CatalogService {
             timeEntries.stopIfRunning(id);
         }
         return response;
+    }
+
+    /**
+     * The console's Accept / Send back for a task with no checklist. {@code DONE}
+     * accepts it, {@code OPEN} sends it back with an optional note; the two
+     * derived states are refused because nothing outside a live session or the
+     * wrapup write path may set them.
+     */
+    @Transactional
+    public TaskResponse reviewTask(UUID id, TaskStepState target, String note) {
+        Task task = requireTask(id);
+        switch (target) {
+            case DONE -> taskReview.accept(id);
+            case OPEN -> taskReview.sendBack(id, note);
+            default -> throw new IllegalArgumentException(
+                    "The console can accept a task (DONE) or send it back (OPEN). RUNNING follows a "
+                            + "live session and CLAIMED is set when a Claude-authored wrapup lands.");
+        }
+        return TaskResponse.of(task);
     }
 
     @Transactional

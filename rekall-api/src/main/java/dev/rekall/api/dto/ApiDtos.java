@@ -7,6 +7,7 @@ import dev.rekall.domain.ProjectStatus;
 import dev.rekall.domain.Task;
 import dev.rekall.domain.TaskStatus;
 import dev.rekall.domain.TaskStep;
+import dev.rekall.domain.TaskStepState;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -92,6 +93,11 @@ public final class ApiDtos {
             int stepCount,
             int stepsDone,
             boolean hasWrapup,
+            TaskStepState reviewState,
+            boolean reviewActive,
+            Instant claimedAt,
+            Instant acceptedAt,
+            String reviewNote,
             String anchor,
             Instant updatedAt) {
 
@@ -111,6 +117,11 @@ public final class ApiDtos {
                     task.getSteps().size(),
                     (int) task.getSteps().stream().filter(TaskStep::isDone).count(),
                     task.getWrapup() != null,
+                    task.getReviewState(),
+                    task.reviewActive(),
+                    task.getClaimedAt(),
+                    task.getAcceptedAt(),
+                    task.getReviewNote(),
                     "project:%s task:%s".formatted(task.getProject().getLabel(), task.getLabel()),
                     task.getUpdatedAt());
         }
@@ -122,6 +133,15 @@ public final class ApiDtos {
             TaskStatus status,
             String description,
             UUID projectId) {
+    }
+
+    /**
+     * The console's Accept ({@code reviewState = DONE}) and Send back
+     * ({@code reviewState = OPEN}) for a stepless task. {@code RUNNING} follows a
+     * live session and {@code CLAIMED} is the wrapup's to set, so neither is
+     * accepted here.
+     */
+    public record TaskReviewRequest(@NotNull TaskStepState reviewState, String note) {
     }
 
     public record DocumentResponse(

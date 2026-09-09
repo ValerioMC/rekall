@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { TASK_STATUS_COLOR, TASK_STATUS_RING } from '@/model/catalog'
 import type { Task } from '@/model/catalog'
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     task: Task
     selected: boolean
@@ -15,6 +16,20 @@ withDefaults(
 )
 
 defineEmits<{ select: []; edit: [] }>()
+
+// The ping fires for a running timer or for a stepless task a live session is attached to.
+const isRunning = computed(
+  () =>
+    props.running ||
+    (props.task.reviewActive && props.task.stepCount === 0 && props.task.reviewState === 'RUNNING')
+)
+
+const awaitingReview = computed(
+  () =>
+    props.task.reviewActive &&
+    props.task.stepCount === 0 &&
+    props.task.reviewState === 'CLAIMED'
+)
 </script>
 
 <template>
@@ -30,11 +45,11 @@ defineEmits<{ select: []; edit: [] }>()
         <span
           class="absolute size-3.5 rounded-full transition-shadow"
           :class="[
-            running ? 'bg-accent/20' : TASK_STATUS_RING[task.status],
+            isRunning ? 'bg-accent/20' : TASK_STATUS_RING[task.status],
             selected && 'ring-1 ring-inset ring-accent/45'
           ]"
         />
-        <template v-if="running">
+        <template v-if="isRunning">
           <span class="absolute inline-flex size-3.5 animate-ping rounded-full bg-accent/55" />
           <span class="relative inline-flex size-2 rounded-full bg-accent" />
         </template>
@@ -70,6 +85,12 @@ defineEmits<{ select: []; edit: [] }>()
         >
           {{ task.stepsDone }}/{{ task.stepCount }}
         </span>
+        <span
+          v-else-if="awaitingReview"
+          class="size-1.5 rounded-full bg-accent"
+          title="Awaiting your review"
+          data-testid="task-review-dot"
+        />
         <svg v-if="task.hasWrapup" class="size-2.5 text-text-muted" viewBox="0 0 12 12" role="img">
           <title>Has a wrapup</title>
           <path d="M6 1.2 10.8 6 6 10.8 1.2 6z" fill="currentColor" />

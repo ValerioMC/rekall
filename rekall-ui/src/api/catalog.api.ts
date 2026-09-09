@@ -7,7 +7,14 @@ import {
   TaskListSchema,
   TaskSchema
 } from './schemas/catalog.schema'
-import type { Company, Project, ProjectStatus, Task, TaskStatus } from '@/model/catalog'
+import type {
+  Company,
+  Project,
+  ProjectStatus,
+  Task,
+  TaskStatus,
+  TaskStepState
+} from '@/model/catalog'
 import type { CompanyId, ProjectId, TaskId } from '@/model/branded'
 
 export interface CompanyInput {
@@ -101,4 +108,23 @@ export async function updateTask(id: TaskId, input: TaskInput): Promise<Task> {
 
 export async function deleteTask(id: TaskId): Promise<void> {
   await request(() => apiClient(`/api/tasks/${id}`, { method: 'DELETE' }))
+}
+
+/**
+ * Accept (`DONE`) or send back (`OPEN`) a stepless task's review line. The two
+ * derived states are the server's to set and are refused here.
+ */
+export async function reviewTask(
+  id: TaskId,
+  reviewState: TaskStepState,
+  note?: string | null
+): Promise<Task> {
+  return request(async () =>
+    TaskSchema.parse(
+      await apiClient(`/api/tasks/${id}/review`, {
+        method: 'PATCH',
+        body: { reviewState, note: note ?? null }
+      })
+    )
+  )
 }

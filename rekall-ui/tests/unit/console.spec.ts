@@ -65,6 +65,11 @@ const task = (
   stepCount: 0,
   stepsDone: 0,
   hasWrapup: id === validator,
+  reviewState: 'OPEN',
+  reviewActive: true,
+  claimedAt: null,
+  acceptedAt: null,
+  reviewNote: null,
   anchor: `project:${projectLabel} task:${label}`,
   updatedAt: '2026-08-12T10:00:00Z'
 })

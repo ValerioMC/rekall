@@ -4,12 +4,14 @@ import dev.rekall.api.dto.ApiDtos.ProjectRequest;
 import dev.rekall.api.dto.ApiDtos.ProjectResponse;
 import dev.rekall.api.dto.ApiDtos.TaskRequest;
 import dev.rekall.api.dto.ApiDtos.TaskResponse;
+import dev.rekall.api.dto.ApiDtos.TaskReviewRequest;
 import dev.rekall.api.service.CatalogService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -75,6 +77,11 @@ public class CatalogController {
     @PutMapping("/tasks/{id}")
     public TaskResponse updateTask(@PathVariable UUID id, @Valid @RequestBody TaskRequest request) {
         return catalog.updateTask(id, request);
+    }
+
+    @PatchMapping("/tasks/{id}/review")
+    public TaskResponse reviewTask(@PathVariable UUID id, @Valid @RequestBody TaskReviewRequest request) {
+        return catalog.reviewTask(id, request.reviewState(), request.note());
     }
 
     @DeleteMapping("/tasks/{id}")

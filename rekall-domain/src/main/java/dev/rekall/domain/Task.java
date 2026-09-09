@@ -67,6 +67,21 @@ public class Task {
     @Setter
     private String description;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "review_state", nullable = false, length = 20)
+    private TaskStepState reviewState = TaskStepState.OPEN;
+
+    @Column(name = "claimed_at")
+    private Instant claimedAt;
+
+    @Column(name = "accepted_at")
+    private Instant acceptedAt;
+
+    @Size(max = 2_000)
+    @Column(name = "review_note", length = 2_000)
+    @Setter
+    private String reviewNote;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "project_id", nullable = false, foreignKey = @jakarta.persistence.ForeignKey(name = "fk_task_project"))
     @Setter
@@ -102,6 +117,52 @@ public class Task {
     public Task(String label, String title) {
         this.label = label;
         this.title = title;
+    }
+
+    /**
+     * True while this task has no checklist. The task-scoped review line
+     * ({@link #reviewState} and its two moments) only means anything here: once
+     * {@code steps} is not empty the checklist is the source of truth and these
+     * columns are kept but ignored.
+     */
+    public boolean reviewActive() {
+        return steps.isEmpty();
+    }
+
+    /**
+     * Walk the task-scoped review line, the same four values a {@link TaskStep}
+     * moves along read at task scope: {@code OPEN} before a session has run or
+     * after a send back, {@code RUNNING} while a session is attached to the task
+     * anchor with no step target, {@code CLAIMED} once a Claude-authored wrapup
+     * lands, {@code DONE} when the console accepts it. Each move rewrites the two
+     * moments and the send-back note so they never outlive the state that set
+     * them.
+     */
+    public void markReviewState(TaskStepState next) {
+        if (reviewState == next) {
+            return;
+        }
+        reviewState = next;
+        Instant now = Instant.now();
+        switch (next) {
+            case OPEN, RUNNING -> {
+                claimedAt = null;
+                acceptedAt = null;
+                reviewNote = null;
+            }
+            case CLAIMED -> {
+                claimedAt = now;
+                acceptedAt = null;
+                reviewNote = null;
+            }
+            case DONE -> {
+                if (claimedAt == null) {
+                    claimedAt = now;
+                }
+                acceptedAt = now;
+                reviewNote = null;
+            }
+        }
     }
 
     public void attach(Document document) {

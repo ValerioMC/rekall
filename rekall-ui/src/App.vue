@@ -22,7 +22,10 @@ const { selectedTaskId, navMode, paneFocus } = storeToRefs(store)
 const { run } = useAsyncAction()
 const { isModalOpen } = useModalGate()
 
-useStepStream((taskId, steps) => store.applyStepEvent(taskId, steps))
+useStepStream(
+  (taskId, steps) => store.applyStepEvent(taskId, steps),
+  (review) => store.applyTaskReview(review)
+)
 
 const STATUS_BY_KEY: Record<string, TaskStatus> = {
   '1': 'IN_PROGRESS',

@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { excerpt as previewOf } from '@/common/format/excerpt'
+import type { TaskStepState } from '@/model/catalog'
 
 const props = defineProps<{
   description: string | null
   selected: boolean
+  reviewState?: TaskStepState | null
 }>()
 
 const emit = defineEmits<{ open: [] }>()
@@ -12,6 +14,10 @@ const emit = defineEmits<{ open: [] }>()
 const excerpt = computed(() => previewOf(props.description ?? ''))
 
 const hasBody = computed(() => (props.description ?? '').trim().length > 0)
+
+const running = computed(() => props.reviewState === 'RUNNING')
+const claimed = computed(() => props.reviewState === 'CLAIMED')
+const accepted = computed(() => props.reviewState === 'DONE')
 </script>
 
 <template>
@@ -52,6 +58,24 @@ const hasBody = computed(() => (props.description ?? '').trim().length > 0)
       <span class="eyebrow">
         Description
       </span>
+      <span
+        v-if="running"
+        class="inline-flex items-center gap-1 rounded-full bg-accent-soft px-1.5 py-px text-[9.5px] font-semibold tracking-[0.02em] text-accent"
+        data-testid="description-card-running"
+      >
+        <span class="relative grid size-1.5 place-items-center" aria-hidden="true">
+          <span class="absolute inline-flex size-1.5 animate-ping rounded-full bg-accent/60" />
+          <span class="relative inline-flex size-1 rounded-full bg-accent" />
+        </span>
+        running
+      </span>
+      <span
+        v-else-if="claimed"
+        class="rounded-full border border-accent/40 px-1.5 py-px text-[9.5px] font-semibold tracking-[0.02em] text-accent"
+        data-testid="description-card-claimed"
+      >
+        Awaiting review
+      </span>
     </span>
 
     <span v-if="hasBody" class="mt-1 line-clamp-2 block text-[12px] leading-relaxed text-text-muted">
@@ -59,6 +83,21 @@ const hasBody = computed(() => (props.description ?? '').trim().length > 0)
     </span>
     <span v-else class="mt-1 block text-[11.5px] leading-relaxed text-text-muted">
       No description yet. Open it to write the brief.
+    </span>
+
+    <span
+      v-if="claimed"
+      class="mt-1.5 block text-[12px] leading-relaxed text-accent"
+      data-testid="description-card-line"
+    >
+      Awaiting your review.
+    </span>
+    <span
+      v-else-if="accepted"
+      class="mt-1.5 block text-[12px] leading-relaxed text-safe"
+      data-testid="description-card-line"
+    >
+      Accepted.
     </span>
   </button>
 </template>

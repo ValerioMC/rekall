@@ -10,6 +10,7 @@ import {
   fetchCompanies,
   fetchProjects,
   fetchTasks,
+  reviewTask as apiReviewTask,
   updateCompany as apiUpdateCompany,
   updateProject as apiUpdateProject,
   updateTask as apiUpdateTask
@@ -49,6 +50,7 @@ import {
   type Project,
   type RekallDocument,
   type Task,
+  type TaskReview,
   type TaskStatus,
   type TaskStep,
   type TimeEntry,
@@ -165,6 +167,26 @@ export const useConsoleStore = defineStore('console', () => {
   )
 
   const openStepCount = computed(() => selectedTaskSteps.value.filter((step) => !step.done).length)
+
+  // One review queue, not two: a claimed step and a claimed stepless task are the same ask.
+  const reviewQueue = computed(
+    () =>
+      steps.value.filter((step) => step.state === 'CLAIMED').length +
+      tasks.value.filter((task) => task.reviewActive && task.reviewState === 'CLAIMED').length
+  )
+
+  const selectedTaskReview = computed<TaskReview | null>(() => {
+    const task = selectedTask.value
+    if (!task || !task.reviewActive) return null
+    return {
+      taskId: task.id,
+      reviewState: task.reviewState,
+      reviewActive: task.reviewActive,
+      claimedAt: task.claimedAt,
+      acceptedAt: task.acceptedAt,
+      reviewNote: task.reviewNote
+    }
+  })
 
   const selectedWrapup = computed(
     () => wrapups.value.find((wrapup) => wrapup.taskId === selectedTaskId.value) ?? null
@@ -437,6 +459,31 @@ export const useConsoleStore = defineStore('console', () => {
     })
     tasks.value = tasks.value.map((candidate) => (candidate.id === id ? saved : candidate))
     if (status === 'DONE') await refreshTimeEntries()
+  }
+
+  function applyTaskReview(review: TaskReview): void {
+    tasks.value = tasks.value.map((task) =>
+      task.id === review.taskId
+        ? {
+            ...task,
+            reviewState: review.reviewState,
+            reviewActive: review.reviewActive,
+            claimedAt: review.claimedAt,
+            acceptedAt: review.acceptedAt,
+            reviewNote: review.reviewNote
+          }
+        : task
+    )
+  }
+
+  async function acceptTask(id: TaskId): Promise<void> {
+    const saved = await apiReviewTask(id, 'DONE')
+    tasks.value = tasks.value.map((task) => (task.id === id ? saved : task))
+  }
+
+  async function sendBackTask(id: TaskId, note?: string): Promise<void> {
+    const saved = await apiReviewTask(id, 'OPEN', note ?? null)
+    tasks.value = tasks.value.map((task) => (task.id === id ? saved : task))
   }
 
   async function saveTaskDescription(id: TaskId, description: string): Promise<void> {
@@ -740,6 +787,8 @@ export const useConsoleStore = defineStore('console', () => {
     selectedWrapup,
     selectedTaskSteps,
     openStepCount,
+    reviewQueue,
+    selectedTaskReview,
     runningStep,
     wrapupIsBehind,
     wrapupMissesSteps,
@@ -763,6 +812,9 @@ export const useConsoleStore = defineStore('console', () => {
     updateTask,
     deleteTask,
     setTaskStatus,
+    applyTaskReview,
+    acceptTask,
+    sendBackTask,
     saveTaskDescription,
     createNote,
     saveNote,

@@ -1,5 +1,6 @@
 package dev.rekall.api.stream;
 
+import dev.rekall.domain.review.TaskReviewEvent;
 import dev.rekall.domain.step.StepStreamEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.ContextClosedEvent;
@@ -37,9 +38,19 @@ public class StepEventStream {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onStepChange(StepStreamEvent event) {
+        dispatch("steps", event);
+    }
+
+    // A stepless task's review line rides the same feed: one console listener, two event names.
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    public void onTaskReview(TaskReviewEvent event) {
+        dispatch("task-review", event);
+    }
+
+    private void dispatch(String name, Object payload) {
         for (SseEmitter emitter : clients) {
             try {
-                emitter.send(SseEmitter.event().name("steps").data(event));
+                emitter.send(SseEmitter.event().name(name).data(payload));
             } catch (IOException | IllegalStateException e) {
                 // The window is gone or the response is already closed. Drop it and move on.
                 clients.remove(emitter);

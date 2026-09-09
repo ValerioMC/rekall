@@ -353,23 +353,24 @@ onUnmounted(() => rowObserver?.disconnect())
                 "
               />
             </span>
-            <button
-              v-if="claimed > 0"
-              class="focus-ring mt-1 text-[10.5px] text-accent underline-offset-2 transition-colors hover:underline"
-              data-testid="steps-claimed-count"
-              @click="reviewFirst"
-            >
-              {{ claimed }} awaiting review
-            </button>
-            <button
-              v-if="done > 0 || claimed > 0"
-              class="focus-ring mt-2 text-[11px] text-text-subtle transition-colors hover:text-text"
-              :aria-pressed="hideDone"
-              data-testid="toggle-hide-done"
-              @click="hideDone = !hideDone"
-            >
-              {{ hideDone ? 'Show done' : 'Hide done' }}
-            </button>
+            <div v-if="done > 0 || claimed > 0" class="mt-1 flex flex-col items-end gap-1">
+              <button
+                v-if="claimed > 0"
+                class="focus-ring text-[10.5px] text-accent underline-offset-2 transition-colors hover:underline"
+                data-testid="steps-claimed-count"
+                @click="reviewFirst"
+              >
+                {{ claimed }} awaiting review
+              </button>
+              <button
+                class="focus-ring text-[11px] text-text-subtle transition-colors hover:text-text"
+                :aria-pressed="hideDone"
+                data-testid="toggle-hide-done"
+                @click="hideDone = !hideDone"
+              >
+                {{ hideDone ? 'Show done' : 'Hide done' }}
+              </button>
+            </div>
           </div>
         </header>
       </div>

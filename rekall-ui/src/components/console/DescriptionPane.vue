@@ -2,6 +2,7 @@
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
+import AppInput from '@/components/ui/AppInput.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { identityHue } from '@/common/identity'
@@ -67,6 +68,46 @@ const openSteps = computed(() => {
   return task ? task.stepCount - task.stepsDone : 0
 })
 
+// The description's own lifecycle, shown only while the task has no checklist. Same four values
+// a step walks, read at task scope: RUNNING is a session on the anchor, CLAIMED is a
+// Claude-written wrapup, DONE is "you accepted it".
+const reviewState = computed(() => {
+  const task = selectedTask.value
+  return task && task.reviewActive && task.stepCount === 0 ? task.reviewState : null
+})
+
+const sendingBack = ref(false)
+const sendBackNote = ref('')
+
+async function acceptDescription(): Promise<void> {
+  const task = selectedTask.value
+  if (!task) return
+  await run(() => store.acceptTask(task.id))
+}
+
+async function sendBackDescription(): Promise<void> {
+  const task = selectedTask.value
+  if (!task) return
+  const note = sendBackNote.value.trim()
+  sendingBack.value = false
+  sendBackNote.value = ''
+  await run(() => store.sendBackTask(task.id, note || undefined))
+}
+
+async function markTaskDone(): Promise<void> {
+  const task = selectedTask.value
+  if (!task) return
+  await run(() => store.setTaskStatus(task.id, 'DONE'))
+}
+
+watch(
+  () => selectedTask.value?.id ?? null,
+  () => {
+    sendingBack.value = false
+    sendBackNote.value = ''
+  }
+)
+
 const copied = ref(false)
 
 async function copyAnchor(): Promise<void> {
@@ -110,8 +151,33 @@ onUnmounted(() => {
               <span class="h-2.5 w-[3px] shrink-0 rounded-full bg-accent" aria-hidden="true" />
               Description
             </p>
-            <h2 class="truncate text-[19px] font-semibold tracking-[-0.015em] text-text">
-              {{ selectedTask.title }}
+            <h2 class="flex items-center gap-2 text-[19px] font-semibold tracking-[-0.015em] text-text">
+              <span class="truncate">{{ selectedTask.title }}</span>
+              <span
+                v-if="reviewState === 'RUNNING'"
+                class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-accent-soft px-2 py-0.5 text-[10.5px] font-semibold tracking-[0.02em] text-accent"
+                data-testid="description-running-flag"
+              >
+                <span class="relative grid size-2 place-items-center" aria-hidden="true">
+                  <span class="absolute inline-flex size-2 animate-ping rounded-full bg-accent/60" />
+                  <span class="relative inline-flex size-1.5 rounded-full bg-accent" />
+                </span>
+                running
+              </span>
+              <span
+                v-else-if="reviewState === 'CLAIMED'"
+                class="shrink-0 rounded-full border border-accent/40 px-2 py-0.5 text-[10.5px] font-semibold tracking-[0.02em] text-accent"
+                data-testid="description-claimed-flag"
+              >
+                Awaiting review
+              </span>
+              <span
+                v-else-if="reviewState === 'DONE'"
+                class="shrink-0 rounded-full bg-accent px-2 py-0.5 text-[10.5px] font-semibold tracking-[0.02em] text-accent-ink"
+                data-testid="description-accepted-flag"
+              >
+                Accepted
+              </span>
             </h2>
             <button
               class="anchor-chip focus-ring mt-1.5 inline-flex items-center gap-2 px-2.5 py-1 text-[11.5px] transition-colors hover:border-anchor"
@@ -150,6 +216,76 @@ onUnmounted(() => {
             </button>
           </div>
         </header>
+      </div>
+
+      <div
+        v-if="reviewState === 'CLAIMED' || reviewState === 'DONE'"
+        class="shrink-0 border-b border-border bg-accent-soft/40 px-5 py-2.5"
+        data-testid="description-review-bar"
+      >
+        <div v-if="!sendingBack" class="flex flex-wrap items-center gap-2">
+          <span class="min-w-0 flex-1 text-[11.5px] leading-snug text-text-muted">
+            <template v-if="reviewState === 'CLAIMED'">
+              A session wrote the wrapup and claimed this. Accept it, or send it back to reopen it
+              for another pass.
+            </template>
+            <template v-else>
+              You accepted this. Send it back to reopen it, or mark the whole task done.
+            </template>
+          </span>
+          <button
+            v-if="reviewState === 'CLAIMED'"
+            class="focus-ring h-7 shrink-0 rounded-[var(--radius-control)] border border-accent bg-accent-soft px-3 text-[11.5px] font-medium text-accent transition-colors hover:bg-accent hover:text-accent-ink"
+            data-testid="description-accept"
+            @click="acceptDescription"
+          >
+            Accept
+          </button>
+          <button
+            class="focus-ring h-7 shrink-0 rounded-[var(--radius-control)] border border-border-strong px-3 text-[11.5px] font-medium text-text-subtle transition-colors hover:border-accent hover:text-accent"
+            data-testid="description-open-wrapup"
+            @click="store.openWrapup()"
+          >
+            Open the wrapup
+          </button>
+          <button
+            v-if="reviewState === 'DONE' && selectedTask.status !== 'DONE'"
+            class="focus-ring h-7 shrink-0 rounded-[var(--radius-control)] border border-accent bg-accent-soft px-3 text-[11.5px] font-medium text-accent transition-colors hover:bg-accent hover:text-accent-ink"
+            data-testid="description-mark-done"
+            @click="markTaskDone"
+          >
+            Mark task done
+          </button>
+          <button
+            class="focus-ring h-7 shrink-0 rounded-[var(--radius-control)] border border-border-strong px-3 text-[11.5px] font-medium text-text-subtle transition-colors hover:border-danger hover:text-danger"
+            data-testid="description-send-back"
+            @click="sendingBack = true"
+          >
+            Send back
+          </button>
+        </div>
+        <div v-else class="flex flex-wrap items-center gap-2">
+          <AppInput
+            v-model="sendBackNote"
+            class="min-w-0 flex-1"
+            placeholder="Optional: what needs another pass. The next session sees this."
+            aria-label="Send back note"
+            data-testid="description-send-back-note"
+          />
+          <button
+            class="focus-ring h-7 shrink-0 rounded-[var(--radius-control)] border border-danger bg-danger-soft px-3 text-[11.5px] font-medium text-danger transition-colors"
+            data-testid="description-send-back-confirm"
+            @click="sendBackDescription"
+          >
+            Send back
+          </button>
+          <button
+            class="focus-ring h-7 shrink-0 rounded-[var(--radius-control)] border border-border-strong px-3 text-[11.5px] font-medium text-text-subtle transition-colors hover:text-text"
+            @click="sendingBack = false"
+          >
+            Cancel
+          </button>
+        </div>
       </div>
 
       <div

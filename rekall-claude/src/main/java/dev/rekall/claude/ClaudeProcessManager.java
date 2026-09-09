@@ -11,6 +11,7 @@ import dev.rekall.domain.claude.ClaudeMessageView;
 import dev.rekall.domain.claude.ClaudeSessionService;
 import dev.rekall.domain.claude.ClaudeSessionStatus;
 import dev.rekall.domain.claude.ClaudeSessionView;
+import dev.rekall.domain.review.TaskReviewService;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
@@ -58,6 +59,7 @@ public class ClaudeProcessManager {
     private final ClaudeStreamMapper mapper;
     private final ClaudeSessionStream stream;
     private final ClaudeCli cli;
+    private final TaskReviewService taskReview;
     private final ObjectMapper json = new ObjectMapper();
 
     private final int maxLive;
@@ -72,6 +74,7 @@ public class ClaudeProcessManager {
             ClaudeStreamMapper mapper,
             ClaudeSessionStream stream,
             ClaudeCli cli,
+            TaskReviewService taskReview,
             @Value("${rekall.claude.max-sessions:8}") int maxLive,
             @Value("${rekall.claude.idle-minutes:120}") long idleMinutes,
             @Value("${rekall.claude.sweep-minutes:5}") long sweepMinutes) {
@@ -79,6 +82,7 @@ public class ClaudeProcessManager {
         this.mapper = mapper;
         this.stream = stream;
         this.cli = cli;
+        this.taskReview = taskReview;
         this.maxLive = maxLive;
         this.idleMinutes = idleMinutes;
         this.sweepMinutes = sweepMinutes;
@@ -87,12 +91,16 @@ public class ClaudeProcessManager {
     private static final class Live {
         private final Process process;
         private final BufferedWriter stdin;
+        private final UUID taskId;
+        private final UUID stepId;
         private final StringBuilder stderrTail = new StringBuilder();
         private volatile boolean closing;
 
-        private Live(Process process, BufferedWriter stdin) {
+        private Live(Process process, BufferedWriter stdin, UUID taskId, UUID stepId) {
             this.process = process;
             this.stdin = stdin;
+            this.taskId = taskId;
+            this.stepId = stepId;
         }
     }
 
@@ -183,8 +191,10 @@ public class ClaudeProcessManager {
         }
 
         Live handle = new Live(process,
-                new BufferedWriter(new OutputStreamWriter(process.getOutputStream(), StandardCharsets.UTF_8)));
+                new BufferedWriter(new OutputStreamWriter(process.getOutputStream(), StandardCharsets.UTF_8)),
+                taskId, stepId);
         live.put(id, handle);
+        refreshTaskRunning(taskId);
 
         Thread.ofVirtual().name("claude-stdout-" + id).start(() -> pumpStdout(id, process));
         Thread.ofVirtual().name("claude-stderr-" + id).start(() -> drainStderr(handle));
@@ -236,6 +246,7 @@ public class ClaudeProcessManager {
                 Thread.currentThread().interrupt();
                 handle.process.destroyForcibly();
             }
+            refreshTaskRunning(handle.taskId);
         }
         return sessions.end(sessionId, ClaudeSessionStatus.EXITED, reason, null)
                 .map(this::announceEnded)
@@ -316,6 +327,26 @@ public class ClaudeProcessManager {
                 ? "The session ended."
                 : stderr.isBlank() ? "claude exited with code " + code : stderr;
         sessions.end(sessionId, terminal, detail, code).ifPresent(this::announceEnded);
+        refreshTaskRunning(handle.taskId);
+    }
+
+    /**
+     * Tell the task-review line whether a session is still attached to this task
+     * with no step target. A stepless task with one sits at {@code RUNNING}; when
+     * the last one goes it drops back to {@code OPEN}. Inert for a task that has a
+     * checklist, and swallowed on failure because the signal is ambient.
+     */
+    private void refreshTaskRunning(UUID taskId) {
+        if (taskId == null) {
+            return;
+        }
+        boolean anyStepless = live.values().stream()
+                .anyMatch(handle -> taskId.equals(handle.taskId) && handle.stepId == null);
+        try {
+            taskReview.sessionRunning(taskId, anyStepless);
+        } catch (RuntimeException ignored) {
+            // A missed flip is corrected by the next attach or detach.
+        }
     }
 
     private void writeLine(Live handle, String text) {

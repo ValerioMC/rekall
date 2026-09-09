@@ -97,8 +97,27 @@ export interface Task {
   readonly stepCount: number
   readonly stepsDone: number
   readonly hasWrapup: boolean
+  readonly reviewState: TaskStepState
+  readonly reviewActive: boolean
+  readonly claimedAt: string | null
+  readonly acceptedAt: string | null
+  readonly reviewNote: string | null
   readonly anchor: string
   readonly updatedAt: string
+}
+
+/**
+ * The task-scoped review line, as it arrives on the step SSE feed under the
+ * `task-review` event. Meaningful only while `reviewActive` is true, i.e. the
+ * task has no checklist.
+ */
+export interface TaskReview {
+  readonly taskId: TaskId
+  readonly reviewState: TaskStepState
+  readonly reviewActive: boolean
+  readonly claimedAt: string | null
+  readonly acceptedAt: string | null
+  readonly reviewNote: string | null
 }
 
 export interface TaskStep {

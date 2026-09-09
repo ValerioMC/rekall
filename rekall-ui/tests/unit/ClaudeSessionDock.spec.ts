@@ -64,6 +64,11 @@ const task: Task = {
   stepCount: 0,
   stepsDone: 0,
   hasWrapup: false,
+  reviewState: 'OPEN',
+  reviewActive: true,
+  claimedAt: null,
+  acceptedAt: null,
+  reviewNote: null,
   anchor: 'project:vega task:report-builder',
   updatedAt: '2026-09-08T10:00:00Z'
 }

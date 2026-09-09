@@ -178,6 +178,10 @@ Only you set a step to **done**. `rekall_step` stops at `claimed`. The navigator
 
 A claimed step is reviewed from its detail: **Accept** ticks it to done, **Send back** returns it to open for another pass. The **N awaiting review** count in the pane header jumps to the first one. The step node itself only moves a step forward, so a stray click never walks it back; reopening an accepted step is a separate **Reopen** button that arms before it fires.
 
+## Description review
+
+A task with no checklist walks the same line at task scope: **open**, **running** while a hosted session is attached to its anchor with no step target, **claimed** when a Claude-authored wrapup lands, **accepted** when you accept it in the console. Nothing new is typed for it: running follows the session and claimed follows the wrapup write. The description pane shows the running pill and, on **claimed**, a review bar with **Accept**, **Send back** (with an optional note the next session sees) and a link to the wrapup; accepting offers to also mark the task done. It arrives on the same `GET /api/steps/stream` connection as a `task-review` frame, and `PATCH /api/tasks/{id}/review` is the console-only Accept / Send back. Adding a first step retires the task-level line and the checklist takes over.
+
 ## Console
 
 One surface, three panes: pick a task on the left, pick its checklist, its wrapup, a note or a session in the middle, write on the right. The field at the top takes the same grammar as `/rk`.

@@ -27,3 +27,5 @@ databaseChangeLog:
       file: db/changelog/012-claude-session-model.yaml
   - include:
       file: db/changelog/013-claude-session-effort.yaml
+  - include:
+      file: db/changelog/014-task-review-state.yaml

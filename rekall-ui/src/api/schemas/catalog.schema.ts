@@ -67,6 +67,11 @@ export const TaskSchema = z.object({
   stepCount: z.number().int(),
   stepsDone: z.number().int(),
   hasWrapup: z.boolean(),
+  reviewState: z.enum(TASK_STEP_STATES),
+  reviewActive: z.boolean(),
+  claimedAt: z.string().nullable(),
+  acceptedAt: z.string().nullable(),
+  reviewNote: z.string().nullable(),
   anchor: z.string(),
   updatedAt: z.string()
 })
@@ -124,6 +129,20 @@ export const TimeEntrySchema = z.object({
 export const StepStreamEventSchema = z.object({
   taskId,
   steps: z.array(TaskStepSchema)
+})
+
+export const TaskReviewSchema = z.object({
+  taskId,
+  reviewState: z.enum(TASK_STEP_STATES),
+  reviewActive: z.boolean(),
+  claimedAt: z.string().nullable(),
+  acceptedAt: z.string().nullable(),
+  reviewNote: z.string().nullable()
+})
+
+export const TaskReviewEventSchema = z.object({
+  taskId,
+  review: TaskReviewSchema
 })
 
 export const CompanyListSchema = z.array(CompanySchema)

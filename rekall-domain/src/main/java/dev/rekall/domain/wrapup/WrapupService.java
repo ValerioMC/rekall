@@ -7,6 +7,7 @@ import dev.rekall.domain.context.AmbiguousAnchorException;
 import dev.rekall.domain.context.UnknownAnchorException;
 import dev.rekall.domain.repository.TaskRepository;
 import dev.rekall.domain.repository.WrapupRepository;
+import dev.rekall.domain.review.TaskReviewService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +22,7 @@ public class WrapupService {
 
     private final TaskRepository tasks;
     private final WrapupRepository wrapups;
+    private final TaskReviewService taskReview;
 
     public record Written(WrapupView wrapup, boolean created, WrapupAuthor replaced) {
     }
@@ -60,13 +62,25 @@ public class WrapupService {
         if (existing.isEmpty()) {
             Wrapup wrapup = new Wrapup(task, text, author);
             task.setWrapup(wrapup);
-            return new Written(WrapupView.of(wrapups.saveAndFlush(wrapup)), true, null);
+            Written written = new Written(WrapupView.of(wrapups.saveAndFlush(wrapup)), true, null);
+            claimIfClaude(task, author);
+            return written;
         }
         Wrapup wrapup = existing.get();
         WrapupAuthor previous = wrapup.getWrittenBy();
         wrapup.setBodyMarkdown(text);
         wrapup.setWrittenBy(author);
-        return new Written(WrapupView.of(wrapups.saveAndFlush(wrapup)), false, previous);
+        Written written = new Written(WrapupView.of(wrapups.saveAndFlush(wrapup)), false, previous);
+        claimIfClaude(task, author);
+        return written;
+    }
+
+    // A Claude-authored wrapup is what a stepless task delivers, so writing one is what advances
+    // its review line to CLAIMED. A hand-written one is the reviewer's correction, not a claim.
+    private void claimIfClaude(Task task, WrapupAuthor author) {
+        if (author == WrapupAuthor.CLAUDE) {
+            taskReview.claimedByWrapup(task.getId());
+        }
     }
 
     @Transactional
