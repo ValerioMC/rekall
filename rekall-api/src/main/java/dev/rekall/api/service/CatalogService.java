@@ -6,6 +6,7 @@ import dev.rekall.api.dto.ApiDtos.ProjectRequest;
 import dev.rekall.api.dto.ApiDtos.ProjectResponse;
 import dev.rekall.api.dto.ApiDtos.TaskRequest;
 import dev.rekall.api.dto.ApiDtos.TaskResponse;
+import dev.rekall.common.NotFoundException;
 import dev.rekall.domain.Company;
 import dev.rekall.domain.Project;
 import dev.rekall.domain.ProjectStatus;

@@ -1,8 +1,8 @@
 package dev.rekall.bootstrap;
 
 import dev.rekall.ApplicationRestarter;
-import dev.rekall.api.service.ConflictException;
-import dev.rekall.api.service.NotFoundException;
+import dev.rekall.common.ConflictException;
+import dev.rekall.common.NotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;

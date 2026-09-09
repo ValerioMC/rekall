@@ -28,7 +28,10 @@
     </licenses>
 
     <modules>
-        <module>rekall-domain</module>
+        <module>rekall-common</module>
+        <module>rekall-model</module>
+        <module>rekall-repository</module>
+        <module>rekall-service</module>
         <module>rekall-api</module>
         <module>rekall-mcp</module>
         <module>rekall-claude</module>
@@ -45,7 +48,22 @@
         <dependencies>
             <dependency>
                 <groupId>dev.rekall</groupId>
-                <artifactId>rekall-domain</artifactId>
+                <artifactId>rekall-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>dev.rekall</groupId>
+                <artifactId>rekall-model</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>dev.rekall</groupId>
+                <artifactId>rekall-repository</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>dev.rekall</groupId>
+                <artifactId>rekall-service</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

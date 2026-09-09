@@ -1,6 +1,6 @@
 package dev.rekall.claude;
 
-import dev.rekall.api.service.NotFoundException;
+import dev.rekall.common.NotFoundException;
 import dev.rekall.claude.ClaudeApiDtos.PromptRequest;
 import dev.rekall.claude.ClaudeApiDtos.StartSessionRequest;
 import dev.rekall.domain.claude.ClaudeMessageView;

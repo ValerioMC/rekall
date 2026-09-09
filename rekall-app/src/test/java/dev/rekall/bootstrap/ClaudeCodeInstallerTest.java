@@ -1,6 +1,6 @@
 package dev.rekall.bootstrap;
 
-import dev.rekall.api.service.ConflictException;
+import dev.rekall.common.ConflictException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

@@ -33,7 +33,7 @@ loaded in one call, including every note the task shares with its neighbours.
 | # | Decision | Rationale |
 |---|---|---|
 | D1 | Real tables with real foreign keys | A note can never point at a deleted task. On an app whose only job is to be a reliable memory, silent dangling references are the failure mode that matters. |
-| D2 | Claude reads everything and writes two things | `rekall-mcp` depends on the domain and never on `rekall-api`, so no controller is on its classpath, and every read runs in a read-only transaction. The two exceptions are `rekall_wrapup`, which replaces one column of one row keyed by a task, and `rekall_step`, which moves a step from `open` to `running` to `claimed` and cannot reach `done`. See §7. |
+| D2 | Claude reads everything and writes two things | `rekall-mcp` depends on `rekall-service` and never on `rekall-api`, so no controller is on its classpath, and every read runs in a read-only transaction. The two exceptions are `rekall_wrapup`, which replaces one column of one row keyed by a task, and `rekall_step`, which moves a step from `open` to `running` to `claimed` and cannot reach `done`. See §7. |
 | D3 | Markdown content lives in the database | One backup target, reachable through MCP, searchable. |
 | D4 | One entry point, and it is a slash command | A session begins with `/rk project:vega task:report-builder`, not with a question. Reaching a record through a natural-language query costs several turns and a few thousand tokens before any work starts, and it is the part that fails when the model guesses the wrong entity. An explicit anchor removes both. |
 | D5 | The model is fixed at compile time | There is no runtime meta-model and no DDL engine. Company, project, task and document are fixed JPA entities; adding a new kind of record is a class and a migration, not a screen. |
@@ -49,17 +49,27 @@ Non-goals: multi-user, authentication, remote deployment, vector search.
 
 ```
 rekall/
-  rekall-domain/   entities, repositories, context assembly, Liquibase changelogs
-  rekall-api/      REST controllers for the UI
-  rekall-mcp/      MCP server: one tool reads, two write (a wrapup, a step's state)
-  rekall-app/      Spring Boot entry point, serves the built frontend
-  rekall-ui/       Vue 3 + Vite (built into rekall-ui/dist, copied into the jar by rekall-app)
+  rekall-common/     ConflictException, NotFoundException: the error vocabulary shared by every layer
+  rekall-model/      JPA entities and their state rules
+  rekall-repository/ Spring Data repositories and the Liquibase changelogs for their schema
+  rekall-service/    context assembly, the step and review lines, wrapups, time entries, hosted sessions
+  rekall-api/        REST controllers for the UI
+  rekall-mcp/        MCP server: one tool reads, two write (a wrapup, a step's state)
+  rekall-claude/     Claude Code sessions hosted in the app: spawn, stream, reap
+  rekall-app/        Spring Boot entry point, serves the built frontend
+  rekall-ui/         Vue 3 + Vite (built into rekall-ui/dist, copied into the jar by rekall-app)
 ```
 
-`rekall-mcp` must not depend on `rekall-api`. The two are independent consumers of the same
-domain, which is what keeps the boundary structural rather than accidental: the only write
-`rekall-mcp` can reach is `WrapupService`, and no controller, no `CatalogService` and no
-`DocumentService` is on its classpath.
+The layers are separate Maven modules so the dependency direction is enforced by the compiler,
+not by convention: `rekall-repository` cannot see `rekall-api`, and `rekall-service` cannot see
+any controller. Classes keep the `dev.rekall.domain.*` packages they had before the split, so
+the GraalVM reachability metadata and the AOT hints did not have to be regenerated; the module
+boundary carries the guarantee, the package prefix is only a name.
+
+`rekall-mcp` depends on `rekall-service` and must not depend on `rekall-api`. The two are
+independent consumers of the same services, which is what keeps the boundary structural rather
+than accidental: `rekall-mcp` can reach `ContextService`, `TaskStepService` and `WrapupService`,
+but no controller, no `CatalogService` and no `DocumentService` is on its classpath.
 
 ### Stack
 

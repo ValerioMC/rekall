@@ -3,7 +3,7 @@ package dev.rekall.claude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import dev.rekall.api.service.ConflictException;
+import dev.rekall.common.ConflictException;
 import dev.rekall.claude.ClaudeStreamMapper.Entry;
 import dev.rekall.claude.ClaudeStreamMapper.Mapped;
 import dev.rekall.domain.claude.ClaudeMessageRole;

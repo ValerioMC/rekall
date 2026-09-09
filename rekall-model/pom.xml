@@ -10,9 +10,9 @@
         <version>0.1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>rekall-domain</artifactId>
-    <name>rekall-domain</name>
-    <description>Project, task, environment and document entities with their repositories</description>
+    <artifactId>rekall-model</artifactId>
+    <name>rekall-model</name>
+    <description>Company, project, task, document and hosted-session entities with their state rules</description>
 
     <dependencies>
         <dependency>
@@ -22,28 +22,6 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
-        </dependency>
-        <!--
-          Spring Boot 4 splits auto-configuration out of spring-boot-autoconfigure into
-          per-technology modules. liquibase-core on the classpath is no longer enough to
-          trigger it: spring-boot-liquibase is what registers LiquibaseAutoConfiguration.
-        -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-liquibase</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.liquibase</groupId>
-            <artifactId>liquibase-core</artifactId>
-        </dependency>
-        <!--
-          H2 on file. The schema is fixed and created by Liquibase at startup, so nothing here
-          needs transactional DDL any more and the database can be a file next to the jar.
-        -->
-        <dependency>
-            <groupId>com.h2database</groupId>
-            <artifactId>h2</artifactId>
-            <scope>runtime</scope>
         </dependency>
     </dependencies>
 

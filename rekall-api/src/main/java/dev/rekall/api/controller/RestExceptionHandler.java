@@ -1,7 +1,7 @@
 package dev.rekall.api.controller;
 
-import dev.rekall.api.service.ConflictException;
-import dev.rekall.api.service.NotFoundException;
+import dev.rekall.common.ConflictException;
+import dev.rekall.common.NotFoundException;
 import dev.rekall.domain.context.AmbiguousAnchorException;
 import dev.rekall.domain.context.UnknownAnchorException;
 import lombok.extern.slf4j.Slf4j;

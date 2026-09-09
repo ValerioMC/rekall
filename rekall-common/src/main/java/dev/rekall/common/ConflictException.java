@@ -1,4 +1,4 @@
-package dev.rekall.api.service;
+package dev.rekall.common;
 
 public class ConflictException extends RuntimeException {
 

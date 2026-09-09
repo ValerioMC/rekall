@@ -27,6 +27,12 @@
             <groupId>dev.rekall</groupId>
             <artifactId>rekall-claude</artifactId>
         </dependency>
+        <!-- ClaudeCodeInstaller and SettingsController throw ConflictException/NotFoundException
+             directly; the module names their home rather than relying on the transitive path. -->
+        <dependency>
+            <groupId>dev.rekall</groupId>
+            <artifactId>rekall-common</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>

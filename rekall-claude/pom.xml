@@ -16,13 +16,20 @@
 
     <dependencies>
         <!--
-          Depends on rekall-api, not just rekall-domain: this is a write feature and shares its
-          HTTP error vocabulary (ConflictException, NotFoundException) and the @RestControllerAdvice
-          that maps it. The read-only boundary rekall-mcp keeps does not apply here.
+          Depends on rekall-api, not just the service layer: this is a write feature and shares
+          the @RestControllerAdvice in rekall-api that maps the HTTP error vocabulary. The
+          read-only boundary rekall-mcp keeps does not apply here.
         -->
         <dependency>
             <groupId>dev.rekall</groupId>
             <artifactId>rekall-api</artifactId>
+        </dependency>
+        <!-- ConflictException and NotFoundException are thrown directly by ClaudeProcessManager
+             and ClaudeSessionController, so the module names their home explicitly rather than
+             leaning on the transitive path through rekall-api. -->
+        <dependency>
+            <groupId>dev.rekall</groupId>
+            <artifactId>rekall-common</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

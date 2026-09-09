@@ -297,13 +297,20 @@ Notes are stored in plain text in the database file. Credentials kept in them ar
 ## Modules
 
 ```
-rekall-domain/   Project, Task, Document, and the context assembly
-rekall-api/      REST API for the UI, and the step event stream
-rekall-mcp/      MCP server: one tool reads, two write
-rekall-claude/   Claude Code sessions hosted in the app: spawn, stream, reap
-rekall-app/      Spring Boot entry point, serves everything
-rekall-ui/       Vue 3 + Vite frontend
+rekall-common/     ConflictException, NotFoundException: the error vocabulary every layer shares
+rekall-model/      Company, Project, Task, Document, hosted-session entities and their state rules
+rekall-repository/ Spring Data repositories and the Liquibase changelog for their schema
+rekall-service/    Business logic: context assembly, the step and review lines, wrapups, time entries
+rekall-api/        REST API for the UI, and the step event stream
+rekall-mcp/        MCP server, on rekall-service and never rekall-api: one tool reads, two write
+rekall-claude/     Claude Code sessions hosted in the app: spawn, stream, reap
+rekall-app/        Spring Boot entry point, serves everything
+rekall-ui/         Vue 3 + Vite frontend
 ```
+
+Classes still live under the `dev.rekall.domain.*` packages they had before the split; the module
+boundary, not the package name, is what keeps `rekall-repository` off the API's classpath and the
+MCP server off the write controllers.
 
 ## Run tests
 
