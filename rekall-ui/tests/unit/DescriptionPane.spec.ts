@@ -15,13 +15,15 @@ import type { ProjectId, TaskId } from '@/model/branded'
 const rekall = 'p1' as ProjectId
 const taskId = 't1' as TaskId
 
-function makeTask(reviewState: TaskStepState): Task {
+function makeTask(reviewState: TaskStepState, wrapup: Partial<Task> = {}): Task {
   return {
     id: taskId,
     label: 'application-improvements',
     title: 'Application improvements',
     status: 'IN_PROGRESS',
     description: null,
+    autoWrapup: false,
+    wrapupDirective: null,
     projectId: rekall,
     projectLabel: 'rekall',
     projectTitle: 'Rekall',
@@ -37,18 +39,20 @@ function makeTask(reviewState: TaskStepState): Task {
     acceptedAt: null,
     reviewNote: null,
     anchor: 'project:rekall task:application-improvements',
-    updatedAt: '2026-09-09T10:00:00Z'
+    updatedAt: '2026-09-09T10:00:00Z',
+    ...wrapup
   }
 }
 
-function seed(reviewState: TaskStepState) {
+function seed(reviewState: TaskStepState, wrapup: Partial<Task> = {}) {
   const store = useConsoleStore()
-  store.tasks = [makeTask(reviewState)]
+  store.tasks = [makeTask(reviewState, wrapup)]
   store.selectedTaskId = taskId
   store.isLoading = false
   store.acceptTask = vi.fn().mockResolvedValue(undefined)
   store.sendBackTask = vi.fn().mockResolvedValue(undefined)
   store.saveTaskDescription = vi.fn().mockResolvedValue(undefined)
+  store.saveTaskWrapup = vi.fn().mockResolvedValue(undefined)
   return store
 }
 
@@ -100,5 +104,45 @@ describe('DescriptionPane review bar', () => {
     await flushPromises()
 
     expect(wrapper.find('[data-testid="description-review-bar"]').exists()).toBe(false)
+  })
+})
+
+/**
+ * "Generate wrapup": one place on the task to say a wrapup should be written every session, and
+ * the optional directive it should follow, so the console stops passing it on every step.
+ */
+describe('DescriptionPane wrapup directive', () => {
+  beforeEach(() => {
+    pinia = createPinia()
+    setActivePinia(pinia)
+  })
+
+  it('keeps the directive field hidden until the toggle is on', async () => {
+    seed('OPEN')
+    const wrapper = render()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="wrapup-auto-toggle"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="wrapup-directive-field"]').exists()).toBe(false)
+  })
+
+  it('saves the toggle on the spot when it is checked', async () => {
+    const store = seed('OPEN')
+    const wrapper = render()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="wrapup-auto-toggle"] input').setValue(true)
+
+    expect(store.saveTaskWrapup).toHaveBeenCalledWith(taskId, true, '')
+  })
+
+  it('shows the stored directive when the task already carries one', async () => {
+    seed('OPEN', { autoWrapup: true, wrapupDirective: 'solo il modulo di export' })
+    const wrapper = render()
+    await flushPromises()
+
+    const field = wrapper.find('[data-testid="wrapup-directive-field"]')
+    expect(field.exists()).toBe(true)
+    expect(field.find('input').element.value).toBe('solo il modulo di export')
   })
 })

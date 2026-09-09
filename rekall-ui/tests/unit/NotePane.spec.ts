@@ -24,6 +24,8 @@ const task = (id: TaskId, label: string, title: string, status: TaskStatus): Tas
   title,
   status,
   description: null,
+  autoWrapup: false,
+  wrapupDirective: null,
   projectId: rekall,
   projectLabel: 'rekall',
   projectTitle: 'Rekall',

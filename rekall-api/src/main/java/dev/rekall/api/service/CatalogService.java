@@ -171,6 +171,7 @@ public class CatalogService {
 
     private void applyTo(Task task, TaskRequest request) {
         task.setDescription(request.description());
+        task.configureWrapup(Boolean.TRUE.equals(request.autoWrapup()), request.wrapupDirective());
         task.setStatus(request.status() == null ? TaskStatus.TODO : request.status());
         task.setProject(requireProject(request.projectId()));
     }

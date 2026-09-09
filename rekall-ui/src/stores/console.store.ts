@@ -54,7 +54,8 @@ import {
   type TaskStatus,
   type TaskStep,
   type TimeEntry,
-  type Wrapup
+  type Wrapup,
+  type WrapupStreamEvent
 } from '@/model/catalog'
 import type {
   CompanyId,
@@ -455,6 +456,8 @@ export const useConsoleStore = defineStore('console', () => {
       title: task.title,
       status,
       description: task.description,
+      autoWrapup: task.autoWrapup,
+      wrapupDirective: task.wrapupDirective,
       projectId: task.projectId
     })
     tasks.value = tasks.value.map((candidate) => (candidate.id === id ? saved : candidate))
@@ -473,6 +476,23 @@ export const useConsoleStore = defineStore('console', () => {
             reviewNote: review.reviewNote
           }
         : task
+    )
+  }
+
+  // A wrapup written or deleted anywhere (a hosted session, an MCP call, another console)
+  // arrives here so the pane and card reflect it without a reload.
+  function applyWrapupEvent(event: WrapupStreamEvent): void {
+    if (event.deleted || !event.wrapup) {
+      wrapups.value = wrapups.value.filter((wrapup) => wrapup.taskId !== event.taskId)
+    } else {
+      const incoming = event.wrapup
+      const known = wrapups.value.some((wrapup) => wrapup.id === incoming.id)
+      wrapups.value = known
+        ? wrapups.value.map((wrapup) => (wrapup.id === incoming.id ? incoming : wrapup))
+        : [incoming, ...wrapups.value]
+    }
+    tasks.value = tasks.value.map((task) =>
+      task.id === event.taskId ? { ...task, hasWrapup: !event.deleted && event.wrapup !== null } : task
     )
   }
 
@@ -498,6 +518,42 @@ export const useConsoleStore = defineStore('console', () => {
         title: task.title,
         status: task.status,
         description: next,
+        autoWrapup: task.autoWrapup,
+        wrapupDirective: task.wrapupDirective,
+        projectId: task.projectId
+      })
+      tasks.value = tasks.value.map((candidate) => (candidate.id === id ? saved : candidate))
+      saveState.value = 'saved'
+    } catch (error) {
+      saveState.value = 'unsaved'
+      throw error
+    }
+  }
+
+  /**
+   * The "generate wrapup" toggle and its optional standing directive, saved from the description
+   * pane the same way the description is: everything else about the task goes back untouched. A
+   * blank directive is stored as none, and the server drops any directive once the toggle is off,
+   * so a stale instruction never outlives it.
+   */
+  async function saveTaskWrapup(
+    id: TaskId,
+    autoWrapup: boolean,
+    directive: string
+  ): Promise<void> {
+    const task = tasks.value.find((candidate) => candidate.id === id)
+    if (!task) return
+    const nextDirective = directive.trim() === '' ? null : directive.trim()
+    if (task.autoWrapup === autoWrapup && (task.wrapupDirective ?? null) === nextDirective) return
+    saveState.value = 'saving'
+    try {
+      const saved = await apiUpdateTask(id, {
+        label: task.label,
+        title: task.title,
+        status: task.status,
+        description: task.description,
+        autoWrapup,
+        wrapupDirective: nextDirective,
         projectId: task.projectId
       })
       tasks.value = tasks.value.map((candidate) => (candidate.id === id ? saved : candidate))
@@ -813,9 +869,11 @@ export const useConsoleStore = defineStore('console', () => {
     deleteTask,
     setTaskStatus,
     applyTaskReview,
+    applyWrapupEvent,
     acceptTask,
     sendBackTask,
     saveTaskDescription,
+    saveTaskWrapup,
     createNote,
     saveNote,
     deleteNote,

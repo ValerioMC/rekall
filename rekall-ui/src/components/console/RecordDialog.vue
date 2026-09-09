@@ -198,11 +198,14 @@ async function save(): Promise<void> {
       if (current.id === null) await store.createProject(input)
       else await store.updateProject(current.id, input)
     } else {
+      const stored = store.tasks.find((candidate) => candidate.id === current.id)
       const input = {
         label: label.value,
         title: current.title.trim(),
         status: current.status,
         description: trimmedDescription,
+        autoWrapup: stored?.autoWrapup ?? false,
+        wrapupDirective: stored?.wrapupDirective ?? null,
         projectId: current.projectId
       }
       if (current.id === null) await store.createTask(input)

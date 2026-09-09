@@ -1,6 +1,7 @@
 package dev.rekall.api.stream;
 
 import dev.rekall.domain.step.StepStreamEvent;
+import dev.rekall.domain.wrapup.WrapupStreamEvent;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -42,6 +43,18 @@ class StepEventStreamTest {
         stream.releaseOnShutdown();
 
         assertThatCode(() -> stream.onStepChange(new StepStreamEvent(UUID.randomUUID(), List.of())))
+                .doesNotThrowAnyException();
+        assertThat(stream.clientCount()).isZero();
+    }
+
+    @Test
+    @DisplayName("a wrapup change after shutdown reaches nobody and does not throw")
+    void wrapupEventAfterShutdownIsANoOp() {
+        StepEventStream stream = new StepEventStream();
+        stream.open();
+        stream.releaseOnShutdown();
+
+        assertThatCode(() -> stream.onWrapupChange(WrapupStreamEvent.deleted(UUID.randomUUID())))
                 .doesNotThrowAnyException();
         assertThat(stream.clientCount()).isZero();
     }

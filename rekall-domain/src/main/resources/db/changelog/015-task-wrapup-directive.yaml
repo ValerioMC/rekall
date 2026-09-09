@@ -1,0 +1,17 @@
+databaseChangeLog:
+
+  # A task can carry a standing wrapup instruction so the console does not retype it on every
+  # `/rk ... wrapup`. `auto_wrapup` is the toggle: while it is on, each session folds the wrapup
+  # in as part of its work. `wrapup_directive` is the optional message that goes with it, in the
+  # console's own words, and it is kept null whenever the toggle is off so a stale instruction
+  # cannot outlive the intent that set it.
+
+  - changeSet:
+      id: 015-task-wrapup-directive
+      author: rekall
+      changes:
+        - addColumn:
+            tableName: task
+            columns:
+              - column: {name: auto_wrapup, type: boolean, defaultValueBoolean: false, constraints: {nullable: false}}
+              - column: {name: wrapup_directive, type: varchar(2000)}

@@ -153,6 +153,12 @@ public class ContextService {
             }
             fields.put("steps", summary.toString());
         }
+        if (task.isAutoWrapup()) {
+            fields.put("wrapup", task.getWrapupDirective() == null
+                    ? "generate one on every `/rk` wrapup for this task, without being asked"
+                    : "generate one on every `/rk` wrapup for this task, without being asked, to this "
+                            + "standing directive: " + task.getWrapupDirective());
+        }
 
         List<ContextRecord> references = new ArrayList<>();
         references.add(renderReferenced(task.getProject()));

@@ -58,6 +58,8 @@ export const TaskSchema = z.object({
   title: z.string(),
   status: z.enum(TASK_STATUSES),
   description: z.string().nullable(),
+  autoWrapup: z.boolean(),
+  wrapupDirective: z.string().nullable(),
   projectId,
   projectLabel: z.string(),
   projectTitle: z.string(),
@@ -143,6 +145,12 @@ export const TaskReviewSchema = z.object({
 export const TaskReviewEventSchema = z.object({
   taskId,
   review: TaskReviewSchema
+})
+
+export const WrapupStreamEventSchema = z.object({
+  taskId,
+  wrapup: WrapupSchema.nullable(),
+  deleted: z.boolean()
 })
 
 export const CompanyListSchema = z.array(CompanySchema)

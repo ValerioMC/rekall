@@ -33,6 +33,18 @@ watch(
   { immediate: true }
 )
 
+// A wrapup that lands over the SSE feed (a hosted session finishing, an MCP write) while this
+// pane sits in read mode on the same task: adopt the new body so it renders straight away. In
+// write mode the buffer belongs to the person typing, including the autosave echo of their own
+// edit, so it is left alone.
+watch(
+  () => selectedWrapup.value?.bodyMarkdown ?? '',
+  (value) => {
+    if (mode.value === 'write' || value === draft.value) return
+    draft.value = value
+  }
+)
+
 const command = computed(() =>
   selectedTask.value ? `${rkCommand(selectedTask.value.anchor)} wrapup` : ''
 )

@@ -9,6 +9,8 @@ const task = (id: string, status: TaskStatus): Task => ({
   title: id,
   status,
   description: null,
+  autoWrapup: false,
+  wrapupDirective: null,
   projectId: 'p1' as ProjectId,
   projectLabel: 'vega',
   projectTitle: 'Vega',

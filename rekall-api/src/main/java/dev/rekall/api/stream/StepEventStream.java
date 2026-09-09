@@ -2,6 +2,7 @@ package dev.rekall.api.stream;
 
 import dev.rekall.domain.review.TaskReviewEvent;
 import dev.rekall.domain.step.StepStreamEvent;
+import dev.rekall.domain.wrapup.WrapupStreamEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
@@ -45,6 +46,13 @@ public class StepEventStream {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onTaskReview(TaskReviewEvent event) {
         dispatch("task-review", event);
+    }
+
+    // A wrapup write or delete rides the same feed, so the new text lands with the CLAIMED flip
+    // rather than waiting for a reload.
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    public void onWrapupChange(WrapupStreamEvent event) {
+        dispatch("wrapup", event);
     }
 
     private void dispatch(String name, Object payload) {

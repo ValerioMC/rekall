@@ -148,6 +148,34 @@ class RekallEndToEndTest {
     }
 
     /**
+     * A task can carry a standing wrapup instruction so the console does not retype it on every
+     * {@code /rk ... wrapup}. When the toggle is on it shows up in the field list with the
+     * directive; turning it off drops both, so a stale instruction never rides along.
+     */
+    @Test
+    @DisplayName("a task's standing wrapup directive rides along with its context, and leaves when the toggle does")
+    void theStandingWrapupDirectiveIsHandedOver() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = id(post("/api/tasks", Map.of(
+                "label", "report-builder", "title", "Report builder", "status", "IN_PROGRESS",
+                "autoWrapup", true, "wrapupDirective", "solo il modulo di export", "projectId", projectId)));
+
+        assertThat(callTool("rekall_context", Map.of("anchors", "task:report-builder")))
+                .contains("- `wrapup`:")
+                .contains("solo il modulo di export");
+
+        rest.put().uri("/api/tasks/" + taskId)
+                .body(Map.of("label", "report-builder", "title", "Report builder", "status", "IN_PROGRESS",
+                        "autoWrapup", false, "wrapupDirective", "solo il modulo di export", "projectId", projectId))
+                .retrieve().toEntity(Map.class);
+
+        assertThat(callTool("rekall_context", Map.of("anchors", "task:report-builder")))
+                .doesNotContain("- `wrapup`:")
+                .doesNotContain("solo il modulo di export");
+    }
+
+    /**
      * The reason the two fields are separate columns. An anchor is written down in a slash
      * command, in a note, in someone's head; a title is rewritten the moment a better name comes
      * along. Renaming must not break what was written down.
@@ -1531,6 +1559,50 @@ class RekallEndToEndTest {
             assertThat(awaitLine(lines, "data:", 5))
                     .contains(taskId)
                     .contains("\"reviewState\":\"DONE\"");
+        } finally {
+            client.shutdownNow();
+        }
+    }
+
+    /**
+     * The wrapup rides the same connection: a Claude write over MCP lands as a {@code wrapup}
+     * frame carrying the new body, and a delete as one flagged {@code deleted}, so the pane
+     * reflects both without a reload.
+     */
+    @Test
+    @DisplayName("a wrapup written and then deleted reaches an open console over the event stream")
+    void theEventStreamCarriesAWrapupChange() throws Exception {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+
+        BlockingQueue<String> lines = new LinkedBlockingQueue<>();
+        HttpClient client = HttpClient.newHttpClient();
+        try {
+            client.sendAsync(
+                            HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/steps/stream"))
+                                    .GET().build(),
+                            HttpResponse.BodyHandlers.ofLines())
+                    .thenAccept(response -> response.body().forEach(lines::add));
+
+            awaitLine(lines, "event:open", 5);
+
+            callTool("rekall_wrapup", Map.of(
+                    "anchors", "project:vega task:report-builder", "body", "Lo stato corrente."));
+
+            assertThat(awaitLine(lines, "event:wrapup", 5)).isEqualTo("event:wrapup");
+            assertThat(awaitLine(lines, "data:", 5))
+                    .contains(taskId)
+                    .contains("Lo stato corrente.")
+                    .contains("\"writtenBy\":\"CLAUDE\"")
+                    .contains("\"deleted\":false");
+
+            rest.delete().uri("/api/tasks/" + taskId + "/wrapup").retrieve().toEntity(Void.class);
+
+            assertThat(awaitLine(lines, "event:wrapup", 5)).isEqualTo("event:wrapup");
+            assertThat(awaitLine(lines, "data:", 5))
+                    .contains(taskId)
+                    .contains("\"deleted\":true");
         } finally {
             client.shutdownNow();
         }

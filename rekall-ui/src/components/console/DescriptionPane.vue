@@ -3,6 +3,7 @@ import { computed, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import AppInput from '@/components/ui/AppInput.vue'
+import AppCheckbox from '@/components/ui/AppCheckbox.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { identityHue } from '@/common/identity'
@@ -63,6 +64,61 @@ watch(
 
 const anchor = computed(() => selectedTask.value?.anchor ?? '')
 
+// "Generate wrapup", set once on the task so the console does not retype it after every step.
+// The toggle saves on the spot; the directive it reveals autosaves on a pause, like the
+// description does.
+const autoWrapup = ref(false)
+const wrapupDirective = ref('')
+let wrapupTimer: ReturnType<typeof setTimeout> | null = null
+
+function flushWrapup(taskId: TaskId): void {
+  if (!wrapupTimer) return
+  clearTimeout(wrapupTimer)
+  wrapupTimer = null
+  void run(() => store.saveTaskWrapup(taskId, autoWrapup.value, wrapupDirective.value))
+}
+
+function toggleAutoWrapup(value: boolean): void {
+  const task = selectedTask.value
+  if (!task) return
+  if (wrapupTimer) {
+    clearTimeout(wrapupTimer)
+    wrapupTimer = null
+  }
+  autoWrapup.value = value
+  void run(() => store.saveTaskWrapup(task.id, value, wrapupDirective.value))
+}
+
+function scheduleWrapupSave(): void {
+  const task = selectedTask.value
+  if (!task) return
+  store.saveState = 'unsaved'
+  if (wrapupTimer) clearTimeout(wrapupTimer)
+  wrapupTimer = setTimeout(() => {
+    wrapupTimer = null
+    void run(() => store.saveTaskWrapup(task.id, autoWrapup.value, wrapupDirective.value))
+  }, 700)
+}
+
+watch(
+  () => selectedTask.value?.id ?? null,
+  (_id, previousId) => {
+    if (previousId) flushWrapup(previousId)
+    autoWrapup.value = selectedTask.value?.autoWrapup ?? false
+    wrapupDirective.value = selectedTask.value?.wrapupDirective ?? ''
+  },
+  { immediate: true }
+)
+
+watch(
+  () => [selectedTask.value?.autoWrapup ?? false, selectedTask.value?.wrapupDirective ?? ''] as const,
+  ([auto, directive]) => {
+    if (wrapupTimer) return
+    autoWrapup.value = auto
+    wrapupDirective.value = directive
+  }
+)
+
 const openSteps = computed(() => {
   const task = selectedTask.value
   return task ? task.stepCount - task.stepsDone : 0
@@ -122,7 +178,10 @@ function beginWriting(): void {
 }
 
 onUnmounted(() => {
-  if (selectedTask.value) flush(selectedTask.value.id)
+  if (selectedTask.value) {
+    flush(selectedTask.value.id)
+    flushWrapup(selectedTask.value.id)
+  }
 })
 </script>
 
@@ -216,6 +275,41 @@ onUnmounted(() => {
             </button>
           </div>
         </header>
+      </div>
+
+      <div
+        class="shrink-0 border-b border-border bg-surface px-5 py-2.5"
+        data-testid="wrapup-directive"
+      >
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <AppCheckbox
+            :model-value="autoWrapup"
+            label="Generate the wrapup automatically"
+            data-testid="wrapup-auto-toggle"
+            @update:model-value="toggleAutoWrapup"
+          />
+          <span class="text-[11.5px] text-text-muted">
+            Folded into every
+            <code class="text-anchor/80">/rk {{ anchor }}</code>
+            without the session being asked.
+          </span>
+        </div>
+
+        <div
+          v-if="autoWrapup"
+          class="mt-2 flex items-center gap-2"
+          data-testid="wrapup-directive-field"
+        >
+          <span class="eyebrow shrink-0 text-[9.5px]">Directive</span>
+          <AppInput
+            v-model="wrapupDirective"
+            class="min-w-0 flex-1"
+            placeholder="Optional: the words the wrapup should follow, as if typed after wrapup"
+            aria-label="Standing wrapup directive"
+            data-testid="wrapup-directive-input"
+            @update:model-value="scheduleWrapupSave"
+          />
+        </div>
       </div>
 
       <div

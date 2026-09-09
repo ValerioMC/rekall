@@ -56,6 +56,8 @@ const task = (
   title,
   status,
   description: null,
+  autoWrapup: false,
+  wrapupDirective: null,
   projectId,
   projectLabel,
   projectTitle,
@@ -459,6 +461,61 @@ describe('console store', () => {
       expect(store.selectedWrapup).toBeNull()
       expect(store.paneFocus).toBe('note')
     })
+
+    /**
+     * A wrapup written elsewhere (a hosted session, an MCP call) arrives on the step feed. The
+     * store adopts it in place so the pane reflects it without a reload, and never moves the
+     * pane the reader is on.
+     */
+    describe('arriving over the feed', () => {
+      const feedWrapup = (taskId: TaskId, over: Partial<Wrapup> = {}): Wrapup => ({
+        id: 'w9' as WrapupId,
+        taskId,
+        taskLabel: 'retry-policy',
+        taskTitle: 'Retry policy',
+        projectLabel: 'vega',
+        anchor: 'project:vega task:retry-policy',
+        bodyMarkdown: '## Stato\n\nScritto da una sessione.',
+        writtenBy: 'CLAUDE',
+        createdAt: '2026-08-12T15:00:00Z',
+        updatedAt: '2026-08-12T15:00:00Z',
+        ...over
+      })
+
+      it('adds a wrapup for a task that had none and flips its hasWrapup', () => {
+        store.applyWrapupEvent({ taskId: retry, wrapup: feedWrapup(retry), deleted: false })
+
+        store.selectTask(retry)
+        expect(store.selectedWrapup?.bodyMarkdown).toBe('## Stato\n\nScritto da una sessione.')
+        expect(store.tasks.find((task) => task.id === retry)?.hasWrapup).toBe(true)
+      })
+
+      it('replaces the body and author of a wrapup already on screen', () => {
+        store.selectTask(validator)
+        store.applyWrapupEvent({
+          taskId: validator,
+          wrapup: feedWrapup(validator, {
+            id: 'w1' as WrapupId,
+            bodyMarkdown: '## Stato\n\nRiscritto da Claude.'
+          }),
+          deleted: false
+        })
+
+        expect(store.selectedWrapup?.bodyMarkdown).toBe('## Stato\n\nRiscritto da Claude.')
+        expect(store.selectedWrapup?.writtenBy).toBe('CLAUDE')
+      })
+
+      it('drops a deleted wrapup without moving the pane', () => {
+        store.selectTask(validator)
+        store.openWrapup()
+
+        store.applyWrapupEvent({ taskId: validator, wrapup: null, deleted: true })
+
+        expect(store.selectedWrapup).toBeNull()
+        expect(store.tasks.find((task) => task.id === validator)?.hasWrapup).toBe(false)
+        expect(store.paneFocus).toBe('wrapup')
+      })
+    })
   })
 
   /**
@@ -535,6 +592,8 @@ describe('console store', () => {
         title: 'Report builder',
         status: 'IN_PROGRESS',
         description: 'Builds the weekly report from the pipeline runs.',
+        autoWrapup: false,
+        wrapupDirective: null,
         projectId: vega
       })
       expect(store.tasks.find((task) => task.id === validator)?.description).toBe(
@@ -570,6 +629,48 @@ describe('console store', () => {
     /** Autosave fires on a pause, not on a change, so it lands on text that is already saved. */
     it('sends nothing when the text is what is already stored', async () => {
       await store.saveTaskDescription(validator, '')
+
+      expect(updateTask).not.toHaveBeenCalled()
+      expect(store.saveState).toBe('saved')
+    })
+  })
+
+  /**
+   * "Generate wrapup", set once on the task so the console does not retype the directive after
+   * every step. Saved from the same pane as the description and carrying the same obligation:
+   * the label, the title, the status and the description all go back untouched.
+   */
+  describe('the wrapup directive', () => {
+    it('turns the toggle on with its directive, leaving everything else in place', async () => {
+      await store.saveTaskWrapup(validator, true, '  solo il modulo di export  ')
+
+      expect(updateTask).toHaveBeenCalledWith(validator, {
+        label: 'report-builder',
+        title: 'Report builder',
+        status: 'IN_PROGRESS',
+        description: null,
+        autoWrapup: true,
+        wrapupDirective: 'solo il modulo di export',
+        projectId: vega
+      })
+      const saved = store.tasks.find((task) => task.id === validator)
+      expect(saved?.autoWrapup).toBe(true)
+      expect(saved?.wrapupDirective).toBe('solo il modulo di export')
+    })
+
+    /** A blank message is no message, not a message made of spaces. */
+    it('stores a blank directive as none', async () => {
+      await store.saveTaskWrapup(validator, true, '   ')
+
+      expect(updateTask).toHaveBeenLastCalledWith(
+        validator,
+        expect.objectContaining({ autoWrapup: true, wrapupDirective: null })
+      )
+    })
+
+    /** Nothing changed means nothing is sent, the way the description autosave behaves. */
+    it('sends nothing when the toggle and the directive already match', async () => {
+      await store.saveTaskWrapup(validator, false, '')
 
       expect(updateTask).not.toHaveBeenCalled()
       expect(store.saveState).toBe('saved')

@@ -63,6 +63,8 @@ const task = (
   title,
   status,
   description: null,
+  autoWrapup: false,
+  wrapupDirective: null,
   projectId,
   projectLabel,
   projectTitle: projectLabel === 'rekall' ? 'Rekall' : projectLabel === 'vega' ? 'Vega Platform' : 'Beacon',

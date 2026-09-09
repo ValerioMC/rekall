@@ -9,6 +9,7 @@ import dev.rekall.domain.repository.TaskRepository;
 import dev.rekall.domain.repository.WrapupRepository;
 import dev.rekall.domain.review.TaskReviewService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +24,7 @@ public class WrapupService {
     private final TaskRepository tasks;
     private final WrapupRepository wrapups;
     private final TaskReviewService taskReview;
+    private final ApplicationEventPublisher events;
 
     public record Written(WrapupView wrapup, boolean created, WrapupAuthor replaced) {
     }
@@ -64,6 +66,7 @@ public class WrapupService {
             task.setWrapup(wrapup);
             Written written = new Written(WrapupView.of(wrapups.saveAndFlush(wrapup)), true, null);
             claimIfClaude(task, author);
+            events.publishEvent(WrapupStreamEvent.written(written.wrapup()));
             return written;
         }
         Wrapup wrapup = existing.get();
@@ -72,6 +75,7 @@ public class WrapupService {
         wrapup.setWrittenBy(author);
         Written written = new Written(WrapupView.of(wrapups.saveAndFlush(wrapup)), false, previous);
         claimIfClaude(task, author);
+        events.publishEvent(WrapupStreamEvent.written(written.wrapup()));
         return written;
     }
 
@@ -88,6 +92,7 @@ public class WrapupService {
         wrapups.findByTaskId(taskId).ifPresent(wrapup -> {
             wrapup.getTask().setWrapup(null);
             wrapups.delete(wrapup);
+            events.publishEvent(WrapupStreamEvent.deleted(taskId));
         });
     }
 

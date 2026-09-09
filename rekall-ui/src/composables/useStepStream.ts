@@ -1,16 +1,22 @@
 import { onScopeDispose, ref, type Ref } from 'vue'
 import { env } from '@/common/config/env'
-import { StepStreamEventSchema, TaskReviewEventSchema } from '@/api/schemas/catalog.schema'
-import type { TaskReview, TaskStep } from '@/model/catalog'
+import {
+  StepStreamEventSchema,
+  TaskReviewEventSchema,
+  WrapupStreamEventSchema
+} from '@/api/schemas/catalog.schema'
+import type { TaskReview, TaskStep, WrapupStreamEvent } from '@/model/catalog'
 import type { TaskId } from '@/model/branded'
 
 /**
- * One SSE connection carrying two console feeds: `steps` for a task's checklist,
- * `task-review` for the review line of a task that has none.
+ * One SSE connection carrying three console feeds: `steps` for a task's
+ * checklist, `task-review` for the review line of a task that has none, and
+ * `wrapup` for a wrapup write or delete on any task.
  */
 export function useStepStream(
   onSteps: (taskId: TaskId, steps: TaskStep[]) => void,
-  onReview?: (review: TaskReview) => void
+  onReview?: (review: TaskReview) => void,
+  onWrapup?: (event: WrapupStreamEvent) => void
 ): { connected: Ref<boolean>; stop: () => void } {
   const connected = ref(false)
   let source: EventSource | null = null
@@ -51,6 +57,18 @@ export function useStepStream(
         )
         if (parsed.success) {
           onReview?.(parsed.data.review)
+        }
+      } catch {
+      }
+    })
+
+    source.addEventListener('wrapup', (event) => {
+      try {
+        const parsed = WrapupStreamEventSchema.safeParse(
+          JSON.parse((event as MessageEvent<string>).data)
+        )
+        if (parsed.success) {
+          onWrapup?.(parsed.data)
         }
       } catch {
       }

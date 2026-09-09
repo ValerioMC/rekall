@@ -166,6 +166,16 @@ more often than right. It is stated in the three places it can be read — the t
 slash command, and the empty state in the console — and the cap catches the failure mode it
 produces.
 
+A task carries two more columns for the wrapup: `auto_wrapup`, a boolean, and `wrapup_directive`,
+an optional short instruction in the console's own words. They are the standing form of the
+directive a session would otherwise pass on every `/rk … wrapup`. `Task.configureWrapup` keeps
+the directive null whenever the toggle is off, so a stale instruction never rides along after the
+intent behind it is gone. `ContextService` renders them as a `wrapup` field on the task only when
+the toggle is on, next to `status` and `steps`; a session reading the context sees that a wrapup
+is expected without being asked, and the words it should follow. They travel on the same
+`TaskRequest` the description does, edited on the description surface, and nothing about them
+reaches the MCP write path: the toggle is a hint to the reader, not a trigger.
+
 ### 4.2 The steps
 
 A task can be broken into steps, and each one is somewhere on a line: `OPEN`, `RUNNING` while a
@@ -194,12 +204,16 @@ costs twice what it is worth. The counts, including `running` and `awaiting-revi
 non-zero, go in the field list ahead of the block.
 
 **The live loop.** `TaskStepService` publishes a `StepStreamEvent` after every write, from the
-console or from MCP alike, carrying the affected task's whole checklist. `StepEventStream` in
-`rekall-api` holds it until the transaction commits and fans it out to every open console over
-`GET /api/steps/stream` as Server-Sent Events; `useStepStream` in the UI applies it to the
-store. A session moves a step to `RUNNING` over MCP and the console animates the move without a
-reload: the checklist node breathes, and the branch feeding it carries a band of light toward
-it.
+console or from MCP alike, carrying the affected task's whole checklist. `TaskReviewService`
+publishes a `TaskReviewEvent` when a stepless task's review line moves, and `WrapupService` a
+`WrapupStreamEvent` when a wrapup is written or deleted (the latter carrying the new
+`WrapupView`, or a `deleted` flag). `StepEventStream` in `rekall-api` holds each until the
+transaction commits and fans it out to every open console over `GET /api/steps/stream` as
+Server-Sent Events under the frame names `steps`, `task-review` and `wrapup`; `useStepStream`
+in the UI applies each to the store. A session moves a step to `RUNNING` over MCP and the
+console animates the move without a reload: the checklist node breathes, and the branch feeding
+it carries a band of light toward it. A wrapup written by a hosted session or an MCP call lands
+in the pane with the claim it triggers rather than on the next reload.
 
 ---
 

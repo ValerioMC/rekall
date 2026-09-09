@@ -155,6 +155,8 @@ A quoted term after `wrapup` is a directive on what to write. It can narrow the 
 /rk project:vega task:report-builder wrapup "export module only"
 ```
 
+The description pane has a **Generate the wrapup automatically** toggle with an optional directive field. Set once on the task, it stands in for the quoted term: the context load then tells the session a wrapup is expected every time without being asked, and the words it should follow. Turning the toggle off drops the directive with it.
+
 A wrapup written after a step finishes folds that step's work into the same description. The console counts steps ticked and notes added since the wrapup was last written. You can edit the wrapup in the console; the next `/rk … wrapup` replaces it and the tool reports when it overwrites a hand edit.
 
 ## Steps
@@ -168,7 +170,7 @@ A session drives its own checklist over `/rk`:
 /rk project:vega task:report-builder step:3 done    # step 3 -> claimed
 ```
 
-The console holds one `text/event-stream` connection (`GET /api/steps/stream`), so a step moved from a terminal or a box ticked in another window animates without a reload.
+The console holds one `text/event-stream` connection (`GET /api/steps/stream`) carrying three frames: `steps` for a checklist, `task-review` for a stepless task's review line, and `wrapup` for a wrapup write or delete. A step moved from a terminal, a box ticked in another window, or a wrapup written by a hosted session or over MCP all land without a reload.
 
 Claude receives an open or running step with its detail, tagged `(in progress)` or `(claimed, …)`. A finished step arrives as its title alone. A step ticked without a following wrapup is marked `(finished since the wrapup was written)` and handed back with its detail until the next wrapup folds it in.
 
@@ -180,7 +182,7 @@ A claimed step is reviewed from its detail: **Accept** ticks it to done, **Send 
 
 ## Description review
 
-A task with no checklist walks the same line at task scope: **open**, **running** while a hosted session is attached to its anchor with no step target, **claimed** when a Claude-authored wrapup lands, **accepted** when you accept it in the console. Nothing new is typed for it: running follows the session and claimed follows the wrapup write. The description pane shows the running pill and a review bar: on **running** it carries **Accept** and a link to the wrapup, so a session driven by hand still has a console exit; on **claimed** it adds **Send back** (with an optional note the next session sees); accepting offers to also mark the task done. It arrives on the same `GET /api/steps/stream` connection as a `task-review` frame, and `PATCH /api/tasks/{id}/review` is the console-only Accept / Send back. Adding a first step retires the task-level line and the checklist takes over.
+A task with no checklist walks the same line at task scope: **open**, **running** while a hosted session is attached to its anchor with no step target, **claimed** when a Claude-authored wrapup lands, **accepted** when you accept it in the console. Nothing new is typed for it: running follows the session and claimed follows the wrapup write. The description pane shows the running pill and a review bar: on **running** it carries **Accept** and a link to the wrapup, so a session driven by hand still has a console exit; on **claimed** it adds **Send back** (with an optional note the next session sees); accepting offers to also mark the task done. It arrives on the same `GET /api/steps/stream` connection as a `task-review` frame, the wrapup that claims it rides the same connection as a `wrapup` frame so the pane shows the new text with the claim rather than on the next reload, and `PATCH /api/tasks/{id}/review` is the console-only Accept / Send back. Adding a first step retires the task-level line and the checklist takes over.
 
 ## Console
 
@@ -211,7 +213,7 @@ Company ──< Project ──< Task >──< Document
 |--------|-------------|-------|
 | `Company` | `name` | description, its projects |
 | `Project` | `label`, unique per company | title, status, description, its tasks |
-| `Task` | `label`, unique per project | title, status, markdown description, its notes, steps, wrapup |
+| `Task` | `label`, unique per project | title, status, markdown description, a standing wrapup directive, its notes, steps, wrapup |
 | `Document` | none | title, kind, markdown body, the tasks it is on |
 | `TaskStep` | through its task | title, optional detail, state, position |
 | `Wrapup` | through its task | markdown body, who wrote it last. One per task |

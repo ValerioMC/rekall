@@ -29,6 +29,8 @@ function task(id: TaskId, title: string, projectId: ProjectId, companyName: stri
     title,
     status: 'IN_PROGRESS',
     description: null,
+    autoWrapup: false,
+    wrapupDirective: null,
     projectId,
     projectLabel: projectId === vega ? 'vega' : 'beacon',
     projectTitle: projectId === vega ? 'Vega Platform' : 'Beacon',

@@ -88,6 +88,8 @@ export interface Task {
   readonly title: string
   readonly status: TaskStatus
   readonly description: string | null
+  readonly autoWrapup: boolean
+  readonly wrapupDirective: string | null
   readonly projectId: ProjectId
   readonly projectLabel: string
   readonly projectTitle: string
@@ -166,6 +168,16 @@ export interface Wrapup {
   readonly writtenBy: WrapupAuthor
   readonly createdAt: string
   readonly updatedAt: string
+}
+
+/**
+ * A wrapup write or delete, as it arrives on the step SSE feed under the
+ * `wrapup` event. `wrapup` is null when `deleted` is true.
+ */
+export interface WrapupStreamEvent {
+  readonly taskId: TaskId
+  readonly wrapup: Wrapup | null
+  readonly deleted: boolean
 }
 
 export interface TimeEntry {

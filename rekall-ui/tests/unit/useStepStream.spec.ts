@@ -86,6 +86,49 @@ describe('useStepStream', () => {
     scope.stop()
   })
 
+  it('hands a wrapup frame to the third callback', () => {
+    const onSteps = vi.fn()
+    const onReview = vi.fn()
+    const onWrapup = vi.fn<(event: { taskId: string; deleted: boolean }) => void>()
+    const scope = effectScope()
+    scope.run(() => useStepStream(onSteps, onReview, onWrapup))
+
+    FakeEventSource.instances[0]!.emit('wrapup', {
+      data: JSON.stringify({
+        taskId: '22222222-2222-2222-2222-222222222222',
+        deleted: false,
+        wrapup: {
+          id: '33333333-3333-3333-3333-333333333333',
+          taskId: '22222222-2222-2222-2222-222222222222',
+          taskLabel: 'report-builder',
+          taskTitle: 'Report builder',
+          projectLabel: 'vega',
+          anchor: 'project:vega task:report-builder',
+          bodyMarkdown: '## Stato',
+          writtenBy: 'CLAUDE',
+          createdAt: '2026-09-07T09:00:00Z',
+          updatedAt: '2026-09-07T10:00:00Z'
+        }
+      })
+    })
+
+    expect(onWrapup).toHaveBeenCalledTimes(1)
+    expect(onWrapup.mock.calls[0]![0]).toMatchObject({ deleted: false })
+
+    FakeEventSource.instances[0]!.emit('wrapup', {
+      data: JSON.stringify({
+        taskId: '22222222-2222-2222-2222-222222222222',
+        deleted: true,
+        wrapup: null
+      })
+    })
+
+    expect(onWrapup).toHaveBeenCalledTimes(2)
+    expect(onWrapup.mock.calls[1]![0]).toMatchObject({ deleted: true })
+
+    scope.stop()
+  })
+
   it('drops a frame that does not parse instead of throwing', () => {
     const onEvent = vi.fn()
     const scope = effectScope()

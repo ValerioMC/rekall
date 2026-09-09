@@ -29,3 +29,5 @@ databaseChangeLog:
       file: db/changelog/013-claude-session-effort.yaml
   - include:
       file: db/changelog/014-task-review-state.yaml
+  - include:
+      file: db/changelog/015-task-wrapup-directive.yaml

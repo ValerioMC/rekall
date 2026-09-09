@@ -55,6 +55,8 @@ const task: Task = {
   title: 'Report builder',
   status: 'IN_PROGRESS',
   description: null,
+  autoWrapup: false,
+  wrapupDirective: null,
   projectId: 'p-1' as ProjectId,
   projectLabel: 'vega',
   projectTitle: 'Vega',
