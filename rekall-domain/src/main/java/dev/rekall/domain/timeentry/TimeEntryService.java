@@ -44,10 +44,16 @@ public class TimeEntryService {
     public TimeEntryView stop(UUID taskId) {
         tasks.findById(taskId).orElseThrow(() -> new UnknownAnchorException("No task with id " + taskId));
 
-        TimeEntry running = timeEntries.findByTaskIdAndStoppedAtIsNull(taskId)
+        return stopIfRunning(taskId)
                 .orElseThrow(() -> new IllegalArgumentException("Nothing is being tracked on this task."));
-        running.setStoppedAt(Instant.now());
-        return TimeEntryView.of(running);
+    }
+
+    @Transactional
+    public Optional<TimeEntryView> stopIfRunning(UUID taskId) {
+        return timeEntries.findByTaskIdAndStoppedAtIsNull(taskId).map(running -> {
+            running.setStoppedAt(Instant.now());
+            return TimeEntryView.of(running);
+        });
     }
 
     @Transactional

@@ -23,3 +23,7 @@ databaseChangeLog:
       file: db/changelog/010-task-step-state.yaml
   - include:
       file: db/changelog/011-claude-session.yaml
+  - include:
+      file: db/changelog/012-claude-session-model.yaml
+  - include:
+      file: db/changelog/013-claude-session-effort.yaml

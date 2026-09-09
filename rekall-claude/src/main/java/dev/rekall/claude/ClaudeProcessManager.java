@@ -29,6 +29,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -128,13 +130,16 @@ public class ClaudeProcessManager {
 
     // ---------------------------------------------------------------- commands
 
-    public ClaudeSessionView start(UUID taskId, UUID stepId, boolean skipPermissions) {
+    public ClaudeSessionView start(
+            UUID taskId, UUID stepId, boolean skipPermissions, String model, String effort) {
         if (live.size() >= maxLive) {
             throw new ConflictException(
                     "Rekall is already running " + maxLive + " sessions. Stop one before starting another.");
         }
 
-        ClaudeSessionView view = sessions.open(taskId, stepId, skipPermissions);
+        String chosenModel = normaliseModel(model);
+        String chosenEffort = normaliseEffort(effort);
+        ClaudeSessionView view = sessions.open(taskId, stepId, skipPermissions, chosenModel, chosenEffort);
         UUID id = view.id();
 
         Path directory = Path.of(view.workingDir());
@@ -156,6 +161,14 @@ public class ClaudeProcessManager {
                 "--input-format", "stream-json", "--output-format", "stream-json"));
         if (skipPermissions) {
             command.add("--dangerously-skip-permissions");
+        }
+        if (chosenModel != null) {
+            command.add("--model");
+            command.add(chosenModel);
+        }
+        if (chosenEffort != null) {
+            command.add("--effort");
+            command.add(chosenEffort);
         }
 
         ProcessBuilder builder = new ProcessBuilder(command).directory(directory.toFile());
@@ -264,6 +277,9 @@ public class ClaudeProcessManager {
         if (mapped.cliSessionId() != null) {
             sessions.attachCliSession(sessionId, mapped.cliSessionId());
         }
+        if (mapped.model() != null) {
+            sessions.resolveModel(sessionId, mapped.model()).ifPresent(this::emitStatus);
+        }
         for (Entry entry : mapped.entries()) {
             ClaudeMessageView view =
                     sessions.append(sessionId, entry.role(), entry.content(), entry.toolName(), entry.meta());
@@ -338,6 +354,36 @@ public class ClaudeProcessManager {
         } catch (RuntimeException sweepFailed) {
             log.warn("Idle sweep failed: {}", sweepFailed.getMessage());
         }
+    }
+
+    private static final Set<String> MODEL_ALIASES = Set.of("opus", "sonnet", "haiku", "fable");
+    private static final Set<String> EFFORT_LEVELS = Set.of("low", "medium", "high", "xhigh", "max");
+
+    /**
+     * What to hand {@code claude --model}, or null to leave the account default in place. Only the
+     * aliases the settings offer are accepted; each is Claude Code's own name for the latest
+     * model of that family, so no version is pinned. Anything else (including "default") is
+     * treated as no choice, so an unexpected value can never end up as a process argument.
+     */
+    private String normaliseModel(String model) {
+        if (model == null) {
+            return null;
+        }
+        String trimmed = model.strip().toLowerCase(Locale.ROOT);
+        return MODEL_ALIASES.contains(trimmed) ? trimmed : null;
+    }
+
+    /**
+     * What to hand {@code claude --effort}, or null to leave it unset. Same gate as the model:
+     * only the five levels the CLI defines pass, everything else (including "default") is no
+     * choice.
+     */
+    private String normaliseEffort(String effort) {
+        if (effort == null) {
+            return null;
+        }
+        String trimmed = effort.strip().toLowerCase(Locale.ROOT);
+        return EFFORT_LEVELS.contains(trimmed) ? trimmed : null;
     }
 
     private void fail(UUID sessionId, String detail) {

@@ -42,30 +42,36 @@ describe('ClaudeMessageBubble', () => {
     expect(bubble.text()).toContain('Done.')
   })
 
-  it('hides a tool call input until it is expanded', async () => {
-    const wrapper = mount(ClaudeMessageBubble, {
-      props: {
-        message: message('TOOL_USE', { toolName: 'Read', content: '{"file_path":"/a/b.txt"}' })
-      }
-    })
-    expect(wrapper.text()).toContain('Read')
-    expect(wrapper.find('pre').exists()).toBe(false)
-    await wrapper.get('button').trigger('click')
-    expect(wrapper.get('pre').text()).toContain('/a/b.txt')
-  })
-
   it('turns result meta into a stat line', () => {
     const wrapper = mount(ClaudeMessageBubble, {
       props: {
         message: message('RESULT', {
-          meta: JSON.stringify({ numTurns: 3, durationMs: 2500, costUsd: 0.012 })
+          meta: JSON.stringify({
+            numTurns: 3,
+            durationMs: 2500,
+            costUsd: 0.012,
+            totalTokens: 18450
+          })
         })
       }
     })
     const text = wrapper.get('[data-testid="claude-msg-result"]').text()
     expect(text).toContain('3 turns')
     expect(text).toContain('2.5s')
+    expect(text).toContain('18k tokens')
     expect(text).toContain('$0.012')
+  })
+
+  it('shows a fractional k for small token counts and omits a zero count', () => {
+    const small = mount(ClaudeMessageBubble, {
+      props: { message: message('RESULT', { meta: JSON.stringify({ totalTokens: 2400 }) }) }
+    })
+    expect(small.get('[data-testid="claude-msg-result"]').text()).toContain('2.4k tokens')
+
+    const none = mount(ClaudeMessageBubble, {
+      props: { message: message('RESULT', { meta: JSON.stringify({ numTurns: 1, totalTokens: 0 }) }) }
+    })
+    expect(none.get('[data-testid="claude-msg-result"]').text()).not.toContain('tokens')
   })
 
   it('renders a system note centred and quiet', () => {

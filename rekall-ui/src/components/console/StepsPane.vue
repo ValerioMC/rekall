@@ -43,11 +43,15 @@ function railKind(index: number): 'spent' | 'pending' {
   return step && stepIsComplete(step.state) ? 'spent' : 'pending'
 }
 
-function actionLabel(step: TaskStep): string {
-  if (step.state === 'DONE') return `Reopen ${step.title}`
+function checkboxLabel(step: TaskStep): string {
+  if (step.state === 'DONE') return `${step.title} is done. Reopen it from its detail.`
   if (step.state === 'CLAIMED') return `Accept ${step.title}`
   return `Mark ${step.title} done`
 }
+
+const firstClaimed = computed(
+  () => selectedTaskSteps.value.find((step) => step.state === 'CLAIMED') ?? null
+)
 
 const newTitle = ref('')
 
@@ -64,6 +68,7 @@ async function focusAdd(): Promise<void> {
 }
 
 const expandedId = ref<TaskStepId | null>(null)
+const reopenArmed = ref<TaskStepId | null>(null)
 const mode = ref<'write' | 'read'>('read')
 const draftTitle = ref('')
 const draftBody = ref('')
@@ -110,6 +115,10 @@ function toggleExpanded(step: TaskStep): void {
   open(step)
 }
 
+watch(expandedId, () => {
+  reopenArmed.value = null
+})
+
 watch(
   () => selectedTask.value?.id ?? null,
   () => {
@@ -122,15 +131,43 @@ watch(
   { immediate: true }
 )
 
-async function toggle(step: TaskStep): Promise<void> {
+async function markForward(step: TaskStep): Promise<void> {
+  if (step.state === 'DONE') return
   const wasOpenHere = expandedId.value === step.id
   flush()
-  await run(() => store.toggleStep(step.id))
+  await run(() => (step.state === 'CLAIMED' ? store.acceptStep(step.id) : store.toggleStep(step.id)))
   if (!wasOpenHere) return
 
   const next = selectedTaskSteps.value.find((candidate) => !stepIsComplete(candidate.state))
   if (next && next.id !== step.id) open(next)
   else expandedId.value = null
+}
+
+async function sendBack(step: TaskStep): Promise<void> {
+  flush()
+  await run(() => store.reopenStep(step.id))
+  open(step)
+}
+
+async function reopen(step: TaskStep): Promise<void> {
+  if (reopenArmed.value !== step.id) {
+    reopenArmed.value = step.id
+    return
+  }
+  reopenArmed.value = null
+  flush()
+  await run(() => store.reopenStep(step.id))
+  open(step)
+}
+
+async function reviewFirst(): Promise<void> {
+  const step = firstClaimed.value
+  if (!step) return
+  open(step)
+  await nextTick()
+  listEl.value
+    ?.querySelector<HTMLElement>(`li[data-step-id="${step.id}"]`)
+    ?.scrollIntoView({ block: 'center', behavior: 'smooth' })
 }
 
 async function move(step: TaskStep, by: number): Promise<void> {
@@ -316,13 +353,14 @@ onUnmounted(() => rowObserver?.disconnect())
                 "
               />
             </span>
-            <p
+            <button
               v-if="claimed > 0"
-              class="mt-1 text-[10.5px] text-accent"
+              class="focus-ring mt-1 text-[10.5px] text-accent underline-offset-2 transition-colors hover:underline"
               data-testid="steps-claimed-count"
+              @click="reviewFirst"
             >
               {{ claimed }} awaiting review
-            </p>
+            </button>
             <button
               v-if="done > 0 || claimed > 0"
               class="focus-ring mt-2 text-[11px] text-text-subtle transition-colors hover:text-text"
@@ -398,6 +436,7 @@ onUnmounted(() => rowObserver?.disconnect())
             :key="step.id"
             class="group/step relative min-w-0 pb-1.5 pl-9"
             data-testid="step-row"
+            :data-step-id="step.id"
             :data-step-state="step.state"
           >
             <span
@@ -413,7 +452,7 @@ onUnmounted(() => rowObserver?.disconnect())
             <button
               class="focus-ring absolute left-0 top-[7px] z-10 grid size-[22px] place-items-center rounded-full border transition-all duration-200"
               :class="{
-                'border-accent bg-accent text-accent-ink': step.state === 'DONE',
+                'border-accent bg-accent text-accent-ink cursor-default': step.state === 'DONE',
                 'border-accent bg-accent-soft text-accent': step.state === 'CLAIMED',
                 'step-node-running border-accent bg-canvas text-accent shadow-[0_0_0_4px_var(--color-accent-soft)]':
                   step.state === 'RUNNING',
@@ -426,9 +465,9 @@ onUnmounted(() => rowObserver?.disconnect())
               :aria-checked="
                 step.state === 'DONE' ? 'true' : step.state === 'CLAIMED' ? 'mixed' : 'false'
               "
-              :aria-label="actionLabel(step)"
+              :aria-label="checkboxLabel(step)"
               data-testid="step-checkbox"
-              @click="toggle(step)"
+              @click="markForward(step)"
             >
               <svg
                 v-if="step.state === 'DONE'"
@@ -590,6 +629,53 @@ onUnmounted(() => rowObserver?.disconnect())
               </div>
 
               <div v-if="expandedId === step.id" class="mt-2.5" data-testid="step-detail">
+                <div
+                  v-if="step.state === 'CLAIMED'"
+                  class="mb-3 flex flex-wrap items-center gap-2 rounded-[var(--radius-card)] border border-accent/25 bg-accent-soft/40 px-3 py-2"
+                  data-testid="step-review-bar"
+                >
+                  <span class="min-w-0 flex-1 text-[11.5px] leading-snug text-text-muted">
+                    A session claimed this. Accept it to tick the box, or send it back to reopen it
+                    for another pass.
+                  </span>
+                  <button
+                    class="focus-ring h-7 shrink-0 rounded-[var(--radius-control)] border border-accent bg-accent-soft px-3 text-[11.5px] font-medium text-accent transition-colors hover:bg-accent hover:text-accent-ink"
+                    data-testid="step-accept"
+                    @click="markForward(step)"
+                  >
+                    Accept
+                  </button>
+                  <button
+                    class="focus-ring h-7 shrink-0 rounded-[var(--radius-control)] border border-border-strong px-3 text-[11.5px] font-medium text-text-subtle transition-colors hover:border-danger hover:text-danger"
+                    data-testid="step-send-back"
+                    @click="sendBack(step)"
+                  >
+                    Send back
+                  </button>
+                </div>
+
+                <div
+                  v-else-if="step.state === 'DONE'"
+                  class="mb-3 flex flex-wrap items-center gap-2 rounded-[var(--radius-card)] border border-border px-3 py-2"
+                  data-testid="step-reopen-bar"
+                >
+                  <span class="min-w-0 flex-1 text-[11.5px] leading-snug text-text-muted">
+                    Accepted. Reopening drops it back to open and clears the review it passed.
+                  </span>
+                  <button
+                    class="focus-ring h-7 shrink-0 rounded-[var(--radius-control)] border px-3 text-[11.5px] font-medium transition-colors"
+                    :class="
+                      reopenArmed === step.id
+                        ? 'border-danger bg-danger-soft text-danger'
+                        : 'border-border-strong text-text-subtle hover:border-danger hover:text-danger'
+                    "
+                    data-testid="step-reopen"
+                    @click="reopen(step)"
+                  >
+                    {{ reopenArmed === step.id ? 'Confirm reopen' : 'Reopen' }}
+                  </button>
+                </div>
+
                 <div class="mb-2 flex items-center gap-2">
                   <span
                     class="eyebrow text-[9.5px]"

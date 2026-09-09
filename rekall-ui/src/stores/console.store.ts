@@ -407,7 +407,8 @@ export const useConsoleStore = defineStore('console', () => {
       refreshDocuments(),
       refreshProjects(),
       refreshCompanies(),
-      refreshWrapups()
+      refreshWrapups(),
+      refreshTimeEntries()
     ])
   }
 
@@ -435,6 +436,7 @@ export const useConsoleStore = defineStore('console', () => {
       projectId: task.projectId
     })
     tasks.value = tasks.value.map((candidate) => (candidate.id === id ? saved : candidate))
+    if (status === 'DONE') await refreshTimeEntries()
   }
 
   async function saveTaskDescription(id: TaskId, description: string): Promise<void> {
@@ -613,6 +615,14 @@ export const useConsoleStore = defineStore('console', () => {
     return saveStep(id, { done: !step.done })
   }
 
+  function acceptStep(id: TaskStepId): Promise<void> {
+    return saveStep(id, { done: true })
+  }
+
+  function reopenStep(id: TaskStepId): Promise<void> {
+    return saveStep(id, { done: false })
+  }
+
   async function moveStep(id: TaskStepId, position: number): Promise<void> {
     const step = steps.value.find((candidate) => candidate.id === id)
     if (!step) return
@@ -768,6 +778,8 @@ export const useConsoleStore = defineStore('console', () => {
     addStep,
     saveStep,
     toggleStep,
+    acceptStep,
+    reopenStep,
     moveStep,
     removeStep,
     applyStepEvent,

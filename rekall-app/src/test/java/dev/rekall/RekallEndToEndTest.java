@@ -691,6 +691,63 @@ class RekallEndToEndTest {
                 .isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
+    /** Marking a task done ends the sitting: there is nothing left to time once the work is finished. */
+    @Test
+    @DisplayName("moving a task to DONE stops the session running on it")
+    void movingATaskToDoneStopsItsTimer() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+        Map<?, ?> started = post("/api/tasks/" + taskId + "/time-entries/start", Map.of()).getBody();
+
+        rest.put().uri("/api/tasks/" + taskId)
+                .body(Map.of("label", "report-builder", "title", "report-builder",
+                        "status", "DONE", "projectId", projectId))
+                .retrieve().toEntity(Map.class);
+
+        List<?> entries = rest.get().uri("/api/time-entries").retrieve().toEntity(List.class).getBody();
+        Map<?, ?> session = entries.stream()
+                .map(entry -> (Map<?, ?>) entry)
+                .filter(entry -> entry.get("id").equals(started.get("id")))
+                .findFirst()
+                .orElseThrow();
+        assertThat(session.get("stoppedAt")).isNotNull();
+    }
+
+    /** Only DONE ends a sitting. Any other status change leaves the clock running. */
+    @Test
+    @DisplayName("moving a task to a status other than DONE leaves its timer running")
+    void movingATaskToAnotherStatusLeavesItsTimerRunning() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+        post("/api/tasks/" + taskId + "/time-entries/start", Map.of());
+
+        rest.put().uri("/api/tasks/" + taskId)
+                .body(Map.of("label", "report-builder", "title", "report-builder",
+                        "status", "BLOCKED", "projectId", projectId))
+                .retrieve().toEntity(Map.class);
+
+        List<?> entries = rest.get().uri("/api/time-entries").retrieve().toEntity(List.class).getBody();
+        assertThat(entries.stream().map(entry -> ((Map<?, ?>) entry).get("stoppedAt")))
+                .containsOnlyNulls();
+    }
+
+    /** A task finished with no clock running is the common case, and it must not raise anything. */
+    @Test
+    @DisplayName("moving a task to DONE with nothing running is fine")
+    void movingATaskToDoneWithNothingRunningIsFine() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+
+        assertThat(rest.put().uri("/api/tasks/" + taskId)
+                        .body(Map.of("label", "report-builder", "title", "report-builder",
+                                "status", "DONE", "projectId", projectId))
+                        .retrieve().toEntity(Map.class).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+    }
+
     @Test
     @DisplayName("a session can be corrected by hand, within the rules that keep it sane")
     void sessionsAreCorrectedByHand() {

@@ -3,9 +3,17 @@ import {
   ClaudeInstallationSchema,
   ClaudeMessageListSchema,
   ClaudeSessionListSchema,
-  ClaudeSessionSchema
+  ClaudeSessionSchema,
+  ClaudeUsageSchema
 } from './schemas/claude.schema'
-import type { ClaudeInstallation, ClaudeMessage, ClaudeSession } from '@/model/claude'
+import type {
+  ClaudeEffortChoice,
+  ClaudeInstallation,
+  ClaudeMessage,
+  ClaudeModelChoice,
+  ClaudeSession,
+  ClaudeUsage
+} from '@/model/claude'
 import type { ClaudeSessionId, TaskId, TaskStepId } from '@/model/branded'
 
 export async function fetchClaudeInstallation(): Promise<ClaudeInstallation> {
@@ -21,6 +29,12 @@ export async function installClaudeIntegration(): Promise<ClaudeInstallation> {
 export interface StartClaudeSessionInput {
   stepId?: TaskStepId | null
   skipPermissions: boolean
+  model?: ClaudeModelChoice
+  effort?: ClaudeEffortChoice
+}
+
+export async function fetchClaudeUsage(): Promise<ClaudeUsage> {
+  return request(async () => ClaudeUsageSchema.parse(await apiClient('/api/claude/usage')))
 }
 
 export async function fetchClaudeSessions(): Promise<ClaudeSession[]> {
@@ -41,7 +55,12 @@ export async function startClaudeSession(
     ClaudeSessionSchema.parse(
       await apiClient(`/api/tasks/${taskId}/claude/sessions`, {
         method: 'POST',
-        body: { stepId: input.stepId ?? null, skipPermissions: input.skipPermissions }
+        body: {
+          stepId: input.stepId ?? null,
+          skipPermissions: input.skipPermissions,
+          model: input.model && input.model !== 'default' ? input.model : null,
+          effort: input.effort && input.effort !== 'default' ? input.effort : null
+        }
       })
     )
   )

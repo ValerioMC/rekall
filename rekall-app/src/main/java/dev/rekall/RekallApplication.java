@@ -10,6 +10,7 @@ import dev.rekall.domain.Task;
 import dev.rekall.domain.TimeEntry;
 import dev.rekall.domain.Wrapup;
 import dev.rekall.claude.ClaudeApiDtos;
+import dev.rekall.claude.ClaudeUsageView;
 import dev.rekall.domain.claude.ClaudeMessageView;
 import dev.rekall.domain.claude.ClaudeSessionView;
 import dev.rekall.domain.step.StepStreamEvent;
@@ -26,6 +27,7 @@ import org.springframework.context.ConfigurableApplicationContext;
         StepStreamEvent.class, TaskStepView.class, TaskStepView[].class,
         ClaudeSessionView.class, ClaudeSessionView[].class,
         ClaudeMessageView.class, ClaudeMessageView[].class,
+        ClaudeUsageView.class, ClaudeUsageView.Limit.class, ClaudeUsageView.Limit[].class,
         ClaudeApiDtos.StartSessionRequest.class, ClaudeApiDtos.PromptRequest.class,
         SettingsController.DatabaseView.class, SettingsController.DatabaseView[].class,
         SettingsController.StatusResponse.class,

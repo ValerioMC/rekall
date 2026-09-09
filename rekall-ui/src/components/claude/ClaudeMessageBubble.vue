@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { parseTurnStats, type ClaudeMessage } from '@/model/claude'
 
 const props = defineProps<{ message: ClaudeMessage }>()
@@ -32,17 +32,22 @@ const stats = computed(() =>
     : null
 )
 
+function formatTokens(total: number): string {
+  if (total < 1000) return `${total} tokens`
+  if (total < 1_000_000) return `${(total / 1000).toFixed(total < 10_000 ? 1 : 0)}k tokens`
+  return `${(total / 1_000_000).toFixed(1)}M tokens`
+}
+
 const statLine = computed(() => {
   const s = stats.value
   if (!s) return ''
   const parts: string[] = []
   if (typeof s.numTurns === 'number') parts.push(`${s.numTurns} turn${s.numTurns === 1 ? '' : 's'}`)
   if (typeof s.durationMs === 'number') parts.push(`${(s.durationMs / 1000).toFixed(1)}s`)
+  if (typeof s.totalTokens === 'number' && s.totalTokens > 0) parts.push(formatTokens(s.totalTokens))
   if (typeof s.costUsd === 'number' && s.costUsd > 0) parts.push(`$${s.costUsd.toFixed(3)}`)
   return parts.join(' · ')
 })
-
-const toolOpen = ref(false)
 </script>
 
 <template>
@@ -69,52 +74,6 @@ const toolOpen = ref(false)
     </div>
   </div>
 
-  <!-- A tool call, its input tucked away until asked for -->
-  <div
-    v-else-if="message.role === 'TOOL_USE'"
-    class="flex"
-    data-testid="claude-msg-tool-use"
-  >
-    <div class="min-w-0 max-w-[92%]">
-      <button
-        class="focus-ring inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-2 py-0.5 font-mono text-[11px] text-text-subtle transition-colors hover:border-border-strong hover:text-text-muted"
-        :aria-expanded="toolOpen"
-        @click="toolOpen = !toolOpen"
-      >
-        <svg class="size-2.5" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-          <path
-            d="M7.5 1.5a2.5 2.5 0 0 0-2.4 3.2L1.6 8.2a1.3 1.3 0 0 0 1.8 1.8l3.5-3.5A2.5 2.5 0 1 0 7.5 1.5Z"
-            stroke="currentColor"
-            stroke-width="1"
-            stroke-linejoin="round"
-          />
-        </svg>
-        {{ message.toolName ?? 'tool' }}
-      </button>
-      <pre
-        v-if="toolOpen && message.content"
-        class="mt-1.5 overflow-x-auto rounded-[var(--radius-control)] border border-border bg-surface p-2.5 font-mono text-[11px] leading-relaxed text-text-subtle"
-      >{{ message.content }}</pre>
-    </div>
-  </div>
-
-  <!-- What a tool returned -->
-  <details
-    v-else-if="message.role === 'TOOL_RESULT'"
-    class="group/tr text-text-subtle"
-    data-testid="claude-msg-tool-result"
-  >
-    <summary
-      class="focus-ring inline-flex cursor-pointer list-none items-center gap-1 font-mono text-[11px] text-text-subtle transition-colors hover:text-text-muted"
-    >
-      <span class="transition-transform group-open/tr:rotate-90" aria-hidden="true">›</span>
-      result
-    </summary>
-    <pre
-      class="mt-1 overflow-x-auto rounded-[var(--radius-control)] border border-border bg-surface p-2.5 font-mono text-[11px] leading-relaxed"
-    >{{ message.content }}</pre>
-  </details>
-
   <!-- End-of-turn summary -->
   <div
     v-else-if="message.role === 'RESULT'"
@@ -137,7 +96,7 @@ const toolOpen = ref(false)
 
   <!-- A note from Rekall itself -->
   <p
-    v-else
+    v-else-if="message.role === 'SYSTEM'"
     class="text-center text-[10.5px] italic text-text-subtle"
     data-testid="claude-msg-system"
   >

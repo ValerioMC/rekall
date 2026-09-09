@@ -104,6 +104,27 @@ describe('ClaudeCodeSection', () => {
     expect(wrapper.get('[data-testid="claude-install"]').text()).toBe('Repair')
   })
 
+  it('offers a model and a reasoning-effort level for a Run here session, and marks each pick', async () => {
+    fetchClaudeInstallation.mockResolvedValue(installation({ status: 'CONNECTED' }))
+    const wrapper = await mountSection()
+
+    const modelBlock = wrapper.get('[data-testid="claude-model"]')
+    expect(modelBlock.get('[data-testid="claude-model-default"]').attributes('aria-checked')).toBe('true')
+    expect(modelBlock.find('[data-testid="claude-model-fable"]').exists()).toBe(true)
+
+    await modelBlock.get('[data-testid="claude-model-opus"]').trigger('click')
+    expect(modelBlock.get('[data-testid="claude-model-opus"]').attributes('aria-checked')).toBe('true')
+    expect(modelBlock.get('[data-testid="claude-model-default"]').attributes('aria-checked')).toBe('false')
+
+    const effortBlock = wrapper.get('[data-testid="claude-effort"]')
+    expect(effortBlock.get('[data-testid="claude-effort-default"]').attributes('aria-checked')).toBe('true')
+    expect(effortBlock.find('[data-testid="claude-effort-xhigh"]').exists()).toBe(true)
+
+    await effortBlock.get('[data-testid="claude-effort-high"]').trigger('click')
+    expect(effortBlock.get('[data-testid="claude-effort-high"]').attributes('aria-checked')).toBe('true')
+    expect(effortBlock.get('[data-testid="claude-effort-default"]').attributes('aria-checked')).toBe('false')
+  })
+
   it('leaves the section usable when the configuration cannot be read', async () => {
     fetchClaudeInstallation.mockRejectedValue(new Error('nope'))
     const wrapper = await mountSection()

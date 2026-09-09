@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useClaudeStore } from '@/stores/claude.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
-import { skipsPermissions } from '@/common/config/claude-launch'
+import { preferredEffort, preferredModel, skipsPermissions } from '@/common/config/claude-launch'
 import { useToastStore } from '@/stores/toast.store'
 import type { TaskId, TaskStepId } from '@/model/branded'
 
@@ -33,7 +33,9 @@ async function launch(): Promise<void> {
     () =>
       claude.startForTask(props.taskId, {
         stepId: props.stepId,
-        skipPermissions: skipsPermissions()
+        skipPermissions: skipsPermissions(),
+        model: preferredModel(),
+        effort: preferredEffort()
       }),
     'Session started'
   )

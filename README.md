@@ -104,9 +104,19 @@ cp .claude/commands/rk.md ~/.claude/commands/rk.md
 
 A session is tied to one task, and several run at once, one per task. The pane's switcher moves between a task's sessions; **N live elsewhere** jumps to a session on another task. A dock in the bottom-right corner, on every screen while a session is live, lists the running sessions and jumps back to any of them, so leaving the pane or the console does not lose the way back. The transcript is persisted, so it survives a pane swap and a reload; a restart marks every open session ended. The **skip permissions** switch is the same one the terminal button uses, and with it off an in-app session cannot answer a permission prompt, so tool use is denied.
 
+The pane's meta bar shows the model the session is running, read from what `claude` reports on start, and the reasoning-effort level it was started at. **Settings > Claude Code** picks both for a new **Run here** session:
+
+- **Model** (`Account default`, `Sonnet`, `Fable`, `Opus`, `Haiku`): anything but the default adds `--model <alias>` to the command. Each alias is Claude Code's own name for the latest model of that family, so no version is pinned.
+- **Reasoning effort** (`Account default`, `Low`, `Medium`, `High`, `Extra-high`, `Max`): anything but the default adds `--effort <level>`. A higher level lets the model think longer on hard problems and spends more; it applies to models that support extended thinking.
+
+Both are stored on the machine, not in the database, and a session keeps what it started with. The terminal path is unaffected.
+
+The top bar carries a usage meter: the current 5-hour session as a ring with its percentage and time to reset, and, on hover, a bar per window including the weekly per-model limits. The figures are the ones Claude Code's own `/usage` shows, read with the OAuth token Claude Code stores (the macOS keychain, else `~/.claude/.credentials.json`). With no token the meter asks you to sign in; when Anthropic cannot be reached it holds the last figures. It refreshes each minute.
+
 | Property | Default | Meaning |
 |---|---|---|
 | `rekall.claude.cli-path` | search `PATH` and the usual install dirs | Absolute path to `claude`, overriding discovery |
+| `rekall.claude.usage-url` | `https://api.anthropic.com/api/oauth/usage` | Where the usage meter reads session and weekly limits |
 | `rekall.claude.max-sessions` | `8` | Live sessions allowed at once |
 | `rekall.claude.idle-minutes` | `120` | A session untouched this long is closed by the sweep |
 | `rekall.claude.sweep-minutes` | `5` | How often the idle sweep runs |
@@ -165,6 +175,8 @@ Claude receives an open or running step with its detail, tagged `(in progress)` 
 With steps on a task, the open steps are the work and the description becomes the constraints the steps are built against. Anything the description asks for that no open step covers is not built; `/rk` flags it and asks for the step.
 
 Only you set a step to **done**. `rekall_step` stops at `claimed`. The navigator's progress count is built on `done`.
+
+A claimed step is reviewed from its detail: **Accept** ticks it to done, **Send back** returns it to open for another pass. The **N awaiting review** count in the pane header jumps to the first one. The step node itself only moves a step forward, so a stray click never walks it back; reopening an accepted step is a separate **Reopen** button that arms before it fires.
 
 ## Console
 

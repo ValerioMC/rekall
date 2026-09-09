@@ -16,13 +16,34 @@ class ClaudeStreamMapperTest {
     private final ClaudeStreamMapper mapper = new ClaudeStreamMapper();
 
     @Test
-    @DisplayName("the init line carries the cli session id and adds nothing to the transcript")
+    @DisplayName("the init line carries the cli session id and the model, and adds nothing to the transcript")
     void initLine() {
-        Mapped mapped = mapper.map("{\"type\":\"system\",\"subtype\":\"init\",\"session_id\":\"abc-123\"}");
+        Mapped mapped = mapper.map(
+                "{\"type\":\"system\",\"subtype\":\"init\",\"session_id\":\"abc-123\","
+                        + "\"model\":\"claude-sonnet-4-5-20250929\"}");
 
         assertThat(mapped.cliSessionId()).isEqualTo("abc-123");
+        assertThat(mapped.model()).isEqualTo("claude-sonnet-4-5-20250929");
         assertThat(mapped.entries()).isEmpty();
         assertThat(mapped.turnComplete()).isFalse();
+    }
+
+    @Test
+    @DisplayName("an init line with no model reports none")
+    void initLineWithoutModel() {
+        Mapped mapped = mapper.map("{\"type\":\"system\",\"subtype\":\"init\",\"session_id\":\"abc-123\"}");
+
+        assertThat(mapped.model()).isNull();
+    }
+
+    @Test
+    @DisplayName("an assistant line reports the model it names, so a mid-session switch is caught")
+    void assistantLineCarriesTheModel() {
+        String line = "{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\","
+                + "\"model\":\"claude-opus-4-1-20250805\",\"content\":["
+                + "{\"type\":\"text\",\"text\":\"On it.\"}]}}";
+
+        assertThat(mapper.map(line).model()).isEqualTo("claude-opus-4-1-20250805");
     }
 
     @Test
@@ -44,7 +65,20 @@ class ClaudeStreamMapperTest {
     }
 
     @Test
-    @DisplayName("a tool_result echoed on a user line becomes a TOOL_RESULT entry")
+    @DisplayName("a tool call carries its id in meta so a result can be paired with it")
+    void toolCallCarriesItsId() {
+        String line = "{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":["
+                + "{\"type\":\"tool_use\",\"id\":\"tu_1\",\"name\":\"Bash\",\"input\":{\"command\":\"git status\"}}]}}";
+
+        Mapped mapped = mapper.map(line);
+
+        assertThat(mapped.entries()).hasSize(1);
+        assertThat(mapped.entries().getFirst().role()).isEqualTo(ClaudeMessageRole.TOOL_USE);
+        assertThat(mapped.entries().getFirst().meta()).contains("\"toolUseId\":\"tu_1\"");
+    }
+
+    @Test
+    @DisplayName("a tool_result echoed on a user line becomes a TOOL_RESULT entry paired by id")
     void toolResultLine() {
         String line = "{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":["
                 + "{\"type\":\"tool_result\",\"tool_use_id\":\"tu_1\",\"content\":[{\"type\":\"text\",\"text\":\"line one\"}]}]}}";
@@ -54,7 +88,23 @@ class ClaudeStreamMapperTest {
         assertThat(mapped.entries()).hasSize(1);
         assertThat(mapped.entries().getFirst().role()).isEqualTo(ClaudeMessageRole.TOOL_RESULT);
         assertThat(mapped.entries().getFirst().content()).isEqualTo("line one");
-        assertThat(mapped.entries().getFirst().meta()).contains("tu_1");
+        assertThat(mapped.entries().getFirst().meta()).contains("\"toolUseId\":\"tu_1\"");
+    }
+
+    @Test
+    @DisplayName("a tool_result flagged is_error carries that flag in meta")
+    void erroredToolResult() {
+        String line = "{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":["
+                + "{\"type\":\"tool_result\",\"tool_use_id\":\"tu_9\",\"is_error\":true,"
+                + "\"content\":[{\"type\":\"text\",\"text\":\"no such file\"}]}]}}";
+
+        Mapped mapped = mapper.map(line);
+
+        assertThat(mapped.entries()).hasSize(1);
+        assertThat(mapped.entries().getFirst().role()).isEqualTo(ClaudeMessageRole.TOOL_RESULT);
+        assertThat(mapped.entries().getFirst().meta())
+                .contains("\"toolUseId\":\"tu_9\"")
+                .contains("\"error\":true");
     }
 
     @Test
@@ -70,7 +120,9 @@ class ClaudeStreamMapperTest {
     @DisplayName("the result line completes the turn and carries its stats in meta")
     void resultLine() {
         String line = "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,"
-                + "\"result\":\"done\",\"duration_ms\":1234,\"num_turns\":3,\"total_cost_usd\":0.0125}";
+                + "\"result\":\"done\",\"duration_ms\":1234,\"num_turns\":3,\"total_cost_usd\":0.0125,"
+                + "\"usage\":{\"input_tokens\":12,\"cache_creation_input_tokens\":300,"
+                + "\"cache_read_input_tokens\":8000,\"output_tokens\":88}}";
 
         Mapped mapped = mapper.map(line);
 
@@ -80,7 +132,18 @@ class ClaudeStreamMapperTest {
         assertThat(mapped.entries().getFirst().meta())
                 .contains("\"durationMs\":1234")
                 .contains("\"numTurns\":3")
-                .contains("\"costUsd\":0.0125");
+                .contains("\"costUsd\":0.0125")
+                .contains("\"totalTokens\":8400");
+    }
+
+    @Test
+    @DisplayName("a result line with no usage block carries no token count")
+    void resultLineWithoutUsage() {
+        String line = "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,"
+                + "\"result\":\"done\",\"num_turns\":1}";
+
+        assertThat(mapper.map(line).entries().getFirst().meta())
+                .doesNotContain("totalTokens");
     }
 
     @Test

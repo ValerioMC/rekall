@@ -107,16 +107,16 @@ function jumpTo(taskId: TaskId): void {
 
     <button
       ref="pill"
-      class="focus-ring glass flex h-10 items-center gap-2.5 rounded-full border border-border-strong pl-2.5 pr-3.5 shadow-lift transition-colors hover:border-accent/60"
+      class="focus-ring glass flex h-10 w-[184px] items-center gap-2.5 overflow-hidden rounded-full border border-border-strong pl-2.5 pr-3.5 shadow-lift transition-colors hover:border-accent/60"
       data-testid="running-dock-toggle"
       :aria-expanded="expanded"
       @click="expanded = !expanded"
     >
       <span class="time-dial shrink-0" aria-hidden="true" />
-      <span class="text-[12.5px] font-medium text-text">
+      <span class="min-w-0 truncate text-[12.5px] font-medium text-text">
         {{ runningEntries.length }} running
       </span>
-      <span v-if="latest" class="font-mono text-[12px] tabular-nums text-accent">
+      <span v-if="latest" class="ml-auto shrink-0 font-mono text-[12px] tabular-nums text-accent">
         {{ formatClock(liveSeconds(latest)) }}
       </span>
     </button>

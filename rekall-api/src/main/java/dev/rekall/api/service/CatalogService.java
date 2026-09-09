@@ -16,6 +16,7 @@ import dev.rekall.domain.repository.CompanyRepository;
 import dev.rekall.domain.repository.DocumentRepository;
 import dev.rekall.domain.repository.ProjectRepository;
 import dev.rekall.domain.repository.TaskRepository;
+import dev.rekall.domain.timeentry.TimeEntryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +32,7 @@ public class CatalogService {
     private final ProjectRepository projects;
     private final TaskRepository tasks;
     private final DocumentRepository documents;
+    private final TimeEntryService timeEntries;
 
     @Transactional(readOnly = true)
     public List<CompanyResponse> listCompanies() {
@@ -125,10 +127,15 @@ public class CatalogService {
     @Transactional
     public TaskResponse updateTask(UUID id, TaskRequest request) {
         Task task = requireTask(id);
+        TaskStatus previousStatus = task.getStatus();
         task.setLabel(Slug.of(request.label()));
         task.setTitle(request.title().trim());
         applyTo(task, request);
-        return TaskResponse.of(tasks.saveAndFlush(task));
+        TaskResponse response = TaskResponse.of(tasks.saveAndFlush(task));
+        if (previousStatus != TaskStatus.DONE && task.getStatus() == TaskStatus.DONE) {
+            timeEntries.stopIfRunning(id);
+        }
+        return response;
     }
 
     @Transactional

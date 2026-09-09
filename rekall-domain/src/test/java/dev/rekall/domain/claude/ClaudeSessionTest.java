@@ -18,7 +18,7 @@ class ClaudeSessionTest {
     private ClaudeSession newSession() {
         Task task = new Task("report-builder", "Report builder");
         task.setProject(new Project("vega", "Vega"));
-        return new ClaudeSession(task, null, "project:vega task:report-builder", "/tmp/vega", false);
+        return new ClaudeSession(task, null, "project:vega task:report-builder", "/tmp/vega", false, null, null);
     }
 
     @Test
@@ -79,6 +79,44 @@ class ClaudeSessionTest {
 
         session.attachCliSession("cli-something-else");
         assertThat(session.getCliSessionId()).isEqualTo(first);
+    }
+
+    @Test
+    @DisplayName("the model is left null when none was chosen, then filled in by what claude reports")
+    void resolveModelFillsInWhatWasNotChosen() {
+        ClaudeSession session = newSession();
+        assertThat(session.getModel()).isNull();
+
+        assertThat(session.resolveModel("claude-sonnet-4-5-20250929")).isTrue();
+        assertThat(session.getModel()).isEqualTo("claude-sonnet-4-5-20250929");
+
+        assertThat(session.resolveModel("claude-sonnet-4-5-20250929")).isFalse();
+        assertThat(session.resolveModel(null)).isFalse();
+        assertThat(session.resolveModel(" ")).isFalse();
+    }
+
+    @Test
+    @DisplayName("a chosen model is replaced by the concrete id claude names for it")
+    void resolveModelReplacesTheAlias() {
+        Task task = new Task("report-builder", "Report builder");
+        task.setProject(new Project("vega", "Vega"));
+        ClaudeSession session = new ClaudeSession(
+                task, null, "project:vega task:report-builder", "/tmp/vega", false, "opus", "high");
+        assertThat(session.getModel()).isEqualTo("opus");
+        assertThat(session.getEffort()).isEqualTo("high");
+
+        assertThat(session.resolveModel("claude-opus-4-1-20250805")).isTrue();
+        assertThat(session.getModel()).isEqualTo("claude-opus-4-1-20250805");
+    }
+
+    @Test
+    @DisplayName("once ended, the model claude reports late is ignored like any other event")
+    void resolveModelIgnoredAfterEnd() {
+        ClaudeSession session = newSession();
+        session.end(ClaudeSessionStatus.EXITED, "done", 0);
+
+        assertThat(session.resolveModel("claude-sonnet-4-5-20250929")).isFalse();
+        assertThat(session.getModel()).isNull();
     }
 
     @Test

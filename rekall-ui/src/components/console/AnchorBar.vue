@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppLogo from '@/components/ui/AppLogo.vue'
 import AppNavSwitcher from '@/components/console/AppNavSwitcher.vue'
+import ClaudeUsageMeter from '@/components/console/ClaudeUsageMeter.vue'
 import { useConsoleStore } from '@/stores/console.store'
 
 const emit = defineEmits<{ newNote: []; openSettings: [] }>()
@@ -79,7 +80,7 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
 
 <template>
   <header
-    class="glass flex h-(--spacing-header) shrink-0 items-center gap-3.5 border-b border-border px-4"
+    class="glass sticky top-0 z-(--z-sticky) flex h-(--spacing-header) shrink-0 items-center gap-3.5 border-b border-border px-4"
   >
     <div class="flex w-(--spacing-nav) shrink-0 items-center gap-2.5 pr-2.5">
       <AppLogo :size="32" class="halo rounded-[7px]" />
@@ -143,6 +144,8 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
         </template>
       </span>
     </div>
+
+    <ClaudeUsageMeter class="shrink-0" />
 
     <div class="ml-auto flex items-center gap-3">
       <p

@@ -35,10 +35,11 @@ class ClaudeSessionApiTest {
 
     private static final String STUB = """
             #!/bin/sh
-            printf '%s\\n' '{"type":"system","subtype":"init","session_id":"stub-1"}'
+            echo "$@" > "$0.args"
+            printf '%s\\n' '{"type":"system","subtype":"init","session_id":"stub-1","model":"claude-sonnet-4-5-20250929"}'
             while IFS= read -r line; do
               printf '%s\\n' '{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"ack"}]}}'
-              printf '%s\\n' '{"type":"result","subtype":"success","is_error":false,"result":"ack","duration_ms":1,"num_turns":1}'
+              printf '%s\\n' '{"type":"result","subtype":"success","is_error":false,"result":"ack","duration_ms":1,"num_turns":1,"usage":{"input_tokens":10,"cache_read_input_tokens":1200,"output_tokens":40}}'
             done
             """;
 
@@ -87,7 +88,12 @@ class ClaudeSessionApiTest {
         List<?> afterOpen = getList("/api/claude/sessions/" + sessionId + "/messages");
         assertThat(afterOpen).anySatisfy(row ->
                 assertThat(((Map<?, ?>) row).get("role")).isEqualTo("ASSISTANT"));
+        assertThat(afterOpen).anySatisfy(row -> {
+            assertThat(((Map<?, ?>) row).get("role")).isEqualTo("RESULT");
+            assertThat(String.valueOf(((Map<?, ?>) row).get("meta"))).contains("\"totalTokens\":1250");
+        });
         assertThat(get("/api/claude/sessions/" + sessionId).get("cliSessionId")).isEqualTo("stub-1");
+        assertThat(get("/api/claude/sessions/" + sessionId).get("model")).isEqualTo("claude-sonnet-4-5-20250929");
 
         ResponseEntity<Map> prompt = rest.post().uri("/api/claude/sessions/" + sessionId + "/prompt")
                 .body(Map.of("text", "what changed?"))
@@ -109,6 +115,41 @@ class ClaudeSessionApiTest {
                 .retrieve()
                 .toEntity(Map.class);
         assertThat(afterStop.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    }
+
+    @Test
+    @DisplayName("the chosen model and effort are passed to claude and recorded on the session")
+    void startsWithTheChosenModelAndEffort() throws IOException {
+        String taskId = aTaskWithFolder();
+
+        Map<?, ?> started = post("/api/tasks/" + taskId + "/claude/sessions",
+                Map.of("skipPermissions", true, "model", "opus", "effort", "high"));
+        String sessionId = String.valueOf(started.get("id"));
+
+        await(() -> "READY".equals(get("/api/claude/sessions/" + sessionId).get("status")));
+
+        assertThat(Files.readString(Path.of(STUB_CLI + ".args")))
+                .contains("--model opus")
+                .contains("--effort high");
+        Map<?, ?> view = get("/api/claude/sessions/" + sessionId);
+        assertThat(view.get("model")).isEqualTo("claude-sonnet-4-5-20250929");
+        assertThat(view.get("effort")).isEqualTo("high");
+    }
+
+    @Test
+    @DisplayName("with nothing chosen, neither --model nor --effort is passed and the account defaults stand")
+    void startsWithoutAModelOrEffort() throws IOException {
+        String taskId = aTaskWithFolder();
+
+        Map<?, ?> started = post("/api/tasks/" + taskId + "/claude/sessions", Map.of("skipPermissions", true));
+        String sessionId = String.valueOf(started.get("id"));
+
+        await(() -> "READY".equals(get("/api/claude/sessions/" + sessionId).get("status")));
+
+        assertThat(Files.readString(Path.of(STUB_CLI + ".args")))
+                .doesNotContain("--model")
+                .doesNotContain("--effort");
+        assertThat(get("/api/claude/sessions/" + sessionId).get("effort")).isNull();
     }
 
     @Test

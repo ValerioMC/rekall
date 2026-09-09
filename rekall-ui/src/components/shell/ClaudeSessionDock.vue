@@ -119,7 +119,7 @@ async function stop(id: ClaudeSessionId): Promise<void> {
     </div>
 
     <button
-      class="focus-ring glass flex h-10 items-center gap-2.5 rounded-full border border-border-strong pl-3.5 pr-3.5 shadow-lift transition-colors hover:border-anchor/50"
+      class="focus-ring glass flex h-10 w-[184px] items-center gap-2.5 overflow-hidden rounded-full border border-border-strong pl-2.5 pr-3.5 shadow-lift transition-colors hover:border-anchor/50"
       data-testid="claude-dock-toggle"
       :aria-expanded="expanded"
       @click="expanded = !expanded"
@@ -129,10 +129,10 @@ async function stop(id: ClaudeSessionId): Promise<void> {
         :class="{ 'session-caret-busy': working }"
         aria-hidden="true"
       />
-      <span class="text-[12.5px] font-medium text-text">
-        {{ liveSessions.length }} <span class="font-normal text-text-subtle">{{ liveSessions.length === 1 ? 'session' : 'sessions' }}</span>
+      <span class="min-w-0 truncate text-[12.5px] font-medium text-text">
+        {{ liveSessions.length }} {{ liveSessions.length === 1 ? 'session' : 'sessions' }}
       </span>
-      <span v-if="working" class="font-mono text-[10.5px] text-anchor">
+      <span v-if="working" class="ml-auto shrink-0 font-mono text-[12px] tabular-nums text-anchor">
         {{ working }} working
       </span>
     </button>

@@ -1,9 +1,51 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import ClaudeMessageBubble from '@/components/claude/ClaudeMessageBubble.vue'
-import type { ClaudeMessage } from '@/model/claude'
+import ClaudeToolCall from '@/components/claude/ClaudeToolCall.vue'
+import { parseToolMeta, type ClaudeMessage } from '@/model/claude'
 
 const props = defineProps<{ messages: readonly ClaudeMessage[]; working: boolean }>()
+
+interface MessageRow {
+  readonly kind: 'message'
+  readonly key: string
+  readonly message: ClaudeMessage
+}
+
+interface ToolRow {
+  readonly kind: 'tool'
+  readonly key: string
+  call: ClaudeMessage | null
+  result: ClaudeMessage | null
+}
+
+type Row = MessageRow | ToolRow
+
+/** A tool call and the result echoed back for it read as one line, paired by tool-use id. */
+const rows = computed<Row[]>(() => {
+  const out: Row[] = []
+  const byUseId = new Map<string, ToolRow>()
+  let lastTool: ToolRow | null = null
+  for (const message of props.messages) {
+    if (message.role === 'TOOL_USE') {
+      const row: ToolRow = { kind: 'tool', key: message.id, call: message, result: null }
+      out.push(row)
+      lastTool = row
+      const useId = parseToolMeta(message.meta).toolUseId
+      if (useId) byUseId.set(useId, row)
+      continue
+    }
+    if (message.role === 'TOOL_RESULT') {
+      const useId = parseToolMeta(message.meta).toolUseId
+      const target = (useId && byUseId.get(useId)) || (lastTool && !lastTool.result ? lastTool : null)
+      if (target) target.result = message
+      else out.push({ kind: 'tool', key: message.id, call: null, result: message })
+      continue
+    }
+    out.push({ kind: 'message', key: message.id, message })
+  }
+  return out
+})
 
 const scroller = ref<HTMLElement | null>(null)
 let stick = true
@@ -33,7 +75,10 @@ watch(() => props.working, toBottom)
     data-testid="claude-transcript"
     @scroll="onScroll"
   >
-    <ClaudeMessageBubble v-for="message in messages" :key="message.id" :message="message" />
+    <template v-for="row in rows" :key="row.key">
+      <ClaudeToolCall v-if="row.kind === 'tool'" :call="row.call" :result="row.result" />
+      <ClaudeMessageBubble v-else :message="row.message" />
+    </template>
 
     <div
       v-if="working"

@@ -56,7 +56,7 @@ public class ClaudeSessionService {
      * and walks the status forward as {@code claude} reports in.
      */
     @Transactional
-    public ClaudeSessionView open(UUID taskId, UUID stepId, boolean skipPermissions) {
+    public ClaudeSessionView open(UUID taskId, UUID stepId, boolean skipPermissions, String model, String effort) {
         Task task = tasks.findById(taskId)
                 .orElseThrow(() -> new UnknownAnchorException("No task with id " + taskId));
 
@@ -68,7 +68,7 @@ public class ClaudeSessionService {
 
         String anchors = "project:%s task:%s".formatted(task.getProject().getLabel(), task.getLabel());
         ClaudeSession session = sessions.saveAndFlush(
-                new ClaudeSession(task, stepId, anchors, folder.strip(), skipPermissions));
+                new ClaudeSession(task, stepId, anchors, folder.strip(), skipPermissions, model, effort));
         write(session, ClaudeMessageRole.SYSTEM, "Session opened. Loading " + anchors + " with /rk.", null, null);
         return ClaudeSessionView.of(session);
     }
@@ -84,6 +84,17 @@ public class ClaudeSessionService {
     @Transactional
     public void attachCliSession(UUID sessionId, String cliSessionId) {
         require(sessionId).attachCliSession(cliSessionId);
+    }
+
+    /**
+     * Fold in the model {@code claude} reports for a live session. Returns the fresh view only
+     * when the value actually changed, so a caller can push a status update just once.
+     */
+    @Transactional
+    public Optional<ClaudeSessionView> resolveModel(UUID sessionId, String model) {
+        return sessions.findById(sessionId)
+                .filter(session -> session.resolveModel(model))
+                .map(ClaudeSessionView::of);
     }
 
     @Transactional

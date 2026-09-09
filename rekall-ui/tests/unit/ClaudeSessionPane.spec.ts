@@ -60,6 +60,8 @@ function session(over: Partial<ClaudeSession> = {}): ClaudeSession {
     anchors: task.anchor,
     workingDir: '/code/vega',
     cliSessionId: null,
+    model: null,
+    effort: null,
     status: 'READY',
     live: true,
     skipPermissions: true,

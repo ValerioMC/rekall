@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { updateProject } from '@/api/catalog.api'
+import { fetchTimeEntries } from '@/api/time-entries.api'
 import { setActivePinia, createPinia } from 'pinia'
 import { useConsoleStore } from '@/stores/console.store'
 import type { TaskInput } from '@/api/catalog.api'
@@ -499,6 +500,24 @@ describe('console store', () => {
   })
 
   /**
+   * The backend closes any open session when a task is marked done, so the running dock has to
+   * reread the sessions or it would keep showing a timer that has already stopped.
+   */
+  it('rereads the sessions when a task is marked done', async () => {
+    vi.mocked(fetchTimeEntries).mockClear()
+    await store.setTaskStatus(validator, 'DONE')
+
+    expect(fetchTimeEntries).toHaveBeenCalled()
+  })
+
+  it('leaves the sessions alone when the status changes to something other than done', async () => {
+    vi.mocked(fetchTimeEntries).mockClear()
+    await store.setTaskStatus(validator, 'BLOCKED')
+
+    expect(fetchTimeEntries).not.toHaveBeenCalled()
+  })
+
+  /**
    * The description is edited where it is read, on the pane, and carries the same obligation as
    * a status change: everything else about the record goes back untouched.
    */
@@ -592,6 +611,23 @@ describe('console store', () => {
 
       const task = store.tasks.find((candidate) => candidate.id === validator)!
       expect([task.stepCount, task.stepsDone]).toEqual([2, 2])
+    })
+
+    /**
+     * Accepting and reopening are two intents, not one toggle: each asks for the state it wants,
+     * so a second click never walks the step back the way a plain toggle did.
+     */
+    it('accepts a step forward and reopens it back with explicit calls', async () => {
+      store.selectTask(validator)
+
+      await store.acceptStep('s2' as TaskStepId)
+      expect(patchStep).toHaveBeenLastCalledWith('s2', { done: true })
+
+      await store.acceptStep('s2' as TaskStepId)
+      expect(patchStep).toHaveBeenLastCalledWith('s2', { done: true })
+
+      await store.reopenStep('s2' as TaskStepId)
+      expect(patchStep).toHaveBeenLastCalledWith('s2', { done: false })
     })
 
     it('appends a new step to the end of the list it is added to', async () => {

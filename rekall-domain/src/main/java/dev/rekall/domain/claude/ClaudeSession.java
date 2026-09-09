@@ -58,6 +58,12 @@ public class ClaudeSession {
     @Column(name = "cli_session_id", length = 200)
     private String cliSessionId;
 
+    @Column(name = "model", length = 60)
+    private String model;
+
+    @Column(name = "effort", length = 10)
+    private String effort;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private ClaudeSessionStatus status = ClaudeSessionStatus.STARTING;
@@ -91,12 +97,16 @@ public class ClaudeSession {
     protected ClaudeSession() {
     }
 
-    public ClaudeSession(Task task, UUID stepId, String anchors, String workingDir, boolean skipPermissions) {
+    public ClaudeSession(
+            Task task, UUID stepId, String anchors, String workingDir, boolean skipPermissions,
+            String model, String effort) {
         this.task = task;
         this.stepId = stepId;
         this.anchors = anchors;
         this.workingDir = workingDir;
         this.skipPermissions = skipPermissions;
+        this.model = model == null || model.isBlank() ? null : model.strip();
+        this.effort = effort == null || effort.isBlank() ? null : effort.strip();
     }
 
     public void touch() {
@@ -107,6 +117,21 @@ public class ClaudeSession {
         if (id != null && !id.isBlank() && this.cliSessionId == null) {
             this.cliSessionId = id;
         }
+    }
+
+    /**
+     * Record the model {@code claude} says it is running, once its {@code system}/{@code init}
+     * line names it. Unlike {@link #attachCliSession}, this may replace an earlier value: the
+     * session is created holding the alias it was asked for, and the concrete id is better.
+     * Returns whether anything changed, so the caller can decide to announce it.
+     */
+    public boolean resolveModel(String resolved) {
+        if (resolved == null || resolved.isBlank() || resolved.equals(this.model) || !this.status.live()) {
+            return false;
+        }
+        this.model = resolved.strip();
+        touch();
+        return true;
     }
 
     public void markStatus(ClaudeSessionStatus next) {

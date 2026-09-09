@@ -10,8 +10,16 @@ import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useClaudeSessionStream } from '@/composables/useClaudeSessionStream'
 import { identityHue } from '@/common/identity'
 import { relativeTime } from '@/common/format/relative-time'
-import { skipsPermissions } from '@/common/config/claude-launch'
-import { claudeSessionAcceptsPrompt, claudeStatusLabel, type ClaudeSession } from '@/model/claude'
+import { preferredEffort, preferredModel, skipsPermissions } from '@/common/config/claude-launch'
+import {
+  claudeEffortChoiceLabel,
+  claudeEffortLabel,
+  claudeModelChoiceLabel,
+  claudeModelLabel,
+  claudeSessionAcceptsPrompt,
+  claudeStatusLabel,
+  type ClaudeSession
+} from '@/model/claude'
 import type { ClaudeSessionId } from '@/model/branded'
 
 const store = useConsoleStore()
@@ -35,6 +43,22 @@ const working = computed(
 const composerDisabled = computed(
   () => !activeSession.value || !claudeSessionAcceptsPrompt(activeSession.value.status)
 )
+
+const modelLabel = computed(() => claudeModelLabel(activeSession.value?.model))
+
+/** opus / sonnet / haiku each get a faint tone so "which model" reads at a glance. */
+const modelTone = computed(() => {
+  const label = modelLabel.value?.toLowerCase() ?? ''
+  if (label.startsWith('opus')) return 'bg-accent-soft text-accent'
+  if (label.startsWith('sonnet')) return 'bg-anchor/10 text-anchor'
+  if (label.startsWith('haiku')) return 'bg-safe-soft text-safe'
+  return 'bg-surface-raised text-text-muted'
+})
+
+const nextModelLabel = computed(() => claudeModelChoiceLabel(preferredModel()))
+
+const effortLabel = computed(() => claudeEffortLabel(activeSession.value?.effort))
+const nextEffortLabel = computed(() => claudeEffortChoiceLabel(preferredEffort()))
 
 const composerHint = computed(() => {
   const session = activeSession.value
@@ -79,7 +103,12 @@ async function startNew(): Promise<void> {
   const task = selectedTask.value
   if (!task) return
   await run(
-    () => claude.startForTask(task.id, { skipPermissions: skipsPermissions() }),
+    () =>
+      claude.startForTask(task.id, {
+        skipPermissions: skipsPermissions(),
+        model: preferredModel(),
+        effort: preferredEffort()
+      }),
     'Session started'
   )
 }
@@ -229,6 +258,30 @@ function statusTone(status: ClaudeSession['status']): string {
           {{ activeSession.workingDir }}
         </span>
         <span
+          v-if="activeSession && modelLabel"
+          class="inline-flex items-center gap-1 rounded-full px-1.5 py-px text-[10px] font-semibold tracking-[0.02em]"
+          :class="modelTone"
+          data-testid="claude-session-model"
+          title="The model this session is running"
+        >
+          <svg class="size-2.5" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+            <path d="M5 1 8.5 3v4L5 9 1.5 7V3Z" stroke="currentColor" stroke-width="1" stroke-linejoin="round" />
+          </svg>
+          {{ modelLabel }}
+        </span>
+        <span
+          v-if="activeSession && effortLabel"
+          class="inline-flex items-center gap-1 rounded-full bg-surface-raised px-1.5 py-px text-[10px] font-semibold tracking-[0.02em] text-text-muted"
+          data-testid="claude-session-effort"
+          title="The reasoning effort this session runs at"
+        >
+          <svg class="size-2.5" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+            <path d="M1.5 8.5a3.5 3.5 0 0 1 7 0" stroke="currentColor" stroke-width="1" stroke-linecap="round" />
+            <path d="M5 8 6.8 4.2" stroke="currentColor" stroke-width="1" stroke-linecap="round" />
+          </svg>
+          {{ effortLabel }} effort
+        </span>
+        <span
           v-if="activeSession"
           class="rounded-full px-1.5 py-px text-[10px] font-semibold tracking-[0.02em]"
           :class="activeSession.skipPermissions ? 'bg-warn-soft text-warn' : 'bg-safe-soft text-safe'"
@@ -298,6 +351,10 @@ function statusTone(status: ClaudeSession['status']): string {
                 ? 'Permission prompts are skipped (set in Settings), so the session can edit files and run commands in the folder without asking.'
                 : 'Permission prompts are on, so tool use is denied unless you turn on “skip permissions” in Settings. In-app sessions have no way to answer a prompt yet.'
             }}
+          </p>
+          <p class="mb-5 text-[12px] leading-relaxed text-text-subtle" data-testid="claude-next-model">
+            Model <span class="text-text-muted">{{ nextModelLabel }}</span>, effort
+            <span class="text-text-muted">{{ nextEffortLabel }}</span>. Change both in Settings.
           </p>
           <button
             class="focus-ring rounded-[var(--radius-control)] border border-accent bg-accent-soft px-3.5 py-2 text-[12.5px] font-medium text-accent transition-colors hover:bg-accent hover:text-accent-ink"

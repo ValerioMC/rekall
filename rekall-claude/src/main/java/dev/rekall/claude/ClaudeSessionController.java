@@ -49,7 +49,8 @@ public class ClaudeSessionController {
     @PostMapping("/tasks/{taskId}/claude/sessions")
     @ResponseStatus(HttpStatus.CREATED)
     public ClaudeSessionView start(@PathVariable UUID taskId, @Valid @RequestBody StartSessionRequest request) {
-        return manager.start(taskId, request.stepId(), request.skipPermissions());
+        return manager.start(
+                taskId, request.stepId(), request.skipPermissions(), request.model(), request.effort());
     }
 
     @GetMapping("/claude/sessions/{id}")

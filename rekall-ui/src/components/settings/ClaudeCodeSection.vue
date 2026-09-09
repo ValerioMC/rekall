@@ -5,8 +5,26 @@ import AppButton from '@/components/ui/AppButton.vue'
 import { fetchClaudeInstallation, installClaudeIntegration } from '@/api/claude.api'
 import { useToastStore } from '@/stores/toast.store'
 import { canLaunchClaudeCode } from '@/common/native/desktop'
-import { setSkipsPermissions, skipsPermissions } from '@/common/config/claude-launch'
-import type { ClaudeConnectionStatus, ClaudeInstallation } from '@/model/claude'
+import {
+  preferredEffort,
+  preferredModel,
+  setPreferredEffort,
+  setPreferredModel,
+  setSkipsPermissions,
+  skipsPermissions
+} from '@/common/config/claude-launch'
+import {
+  CLAUDE_EFFORT_CHOICES,
+  CLAUDE_MODEL_CHOICES,
+  claudeEffortChoiceLabel,
+  claudeModelChoiceLabel
+} from '@/model/claude'
+import type {
+  ClaudeConnectionStatus,
+  ClaudeEffortChoice,
+  ClaudeInstallation,
+  ClaudeModelChoice
+} from '@/model/claude'
 
 const toast = useToastStore()
 
@@ -87,6 +105,22 @@ const skipPermissions = ref(skipsPermissions())
 function toggleSkipPermissions(): void {
   skipPermissions.value = !skipPermissions.value
   setSkipsPermissions(skipPermissions.value)
+}
+
+const modelChoices = CLAUDE_MODEL_CHOICES
+const model = ref<ClaudeModelChoice>(preferredModel())
+
+function chooseModel(choice: ClaudeModelChoice): void {
+  model.value = choice
+  setPreferredModel(choice)
+}
+
+const effortChoices = CLAUDE_EFFORT_CHOICES
+const effort = ref<ClaudeEffortChoice>(preferredEffort())
+
+function chooseEffort(choice: ClaudeEffortChoice): void {
+  effort.value = choice
+  setPreferredEffort(choice)
 }
 
 async function copyCommand(): Promise<void> {
@@ -171,6 +205,63 @@ onMounted(() => void load())
             :class="skipPermissions ? 'translate-x-[18px] bg-danger' : 'translate-x-[2px] bg-text-subtle'"
           />
         </button>
+      </div>
+
+      <div class="mt-3 border-t border-border pt-3" data-testid="claude-model">
+        <p class="text-[12.5px] text-text">Model for a “Run here” session</p>
+        <p class="mt-0.5 text-[11.5px] leading-relaxed text-text-subtle">
+          Adds <code class="text-anchor/80">--model</code> to what an in-app session launches; each
+          alias is Claude Code's name for the latest model of that family, so nothing is pinned to a
+          version. <span class="text-text-muted">Account default</span> leaves your Claude Code
+          setting alone. A session already running keeps the model it started with.
+        </p>
+        <div class="mt-2 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Model for a Run here session">
+          <button
+            v-for="choice in modelChoices"
+            :key="choice"
+            type="button"
+            role="radio"
+            :aria-checked="model === choice"
+            class="focus-ring inline-flex items-center rounded-full border px-2.5 py-1 text-[11.5px] transition-colors"
+            :class="
+              model === choice
+                ? 'border-accent bg-accent-soft text-accent'
+                : 'border-border text-text-subtle hover:border-border-strong hover:text-text-muted'
+            "
+            :data-testid="`claude-model-${choice}`"
+            @click="chooseModel(choice)"
+          >
+            {{ claudeModelChoiceLabel(choice) }}
+          </button>
+        </div>
+      </div>
+
+      <div class="mt-3 border-t border-border pt-3" data-testid="claude-effort">
+        <p class="text-[12.5px] text-text">Reasoning effort</p>
+        <p class="mt-0.5 text-[11.5px] leading-relaxed text-text-subtle">
+          Adds <code class="text-anchor/80">--effort</code> to a new session. A higher level lets the
+          model think longer on hard problems and spends more; it applies to models that support
+          extended thinking. <span class="text-text-muted">Account default</span> leaves it unset.
+        </p>
+        <div class="mt-2 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Reasoning effort for a Run here session">
+          <button
+            v-for="choice in effortChoices"
+            :key="choice"
+            type="button"
+            role="radio"
+            :aria-checked="effort === choice"
+            class="focus-ring inline-flex items-center rounded-full border px-2.5 py-1 text-[11.5px] transition-colors"
+            :class="
+              effort === choice
+                ? 'border-accent bg-accent-soft text-accent'
+                : 'border-border text-text-subtle hover:border-border-strong hover:text-text-muted'
+            "
+            :data-testid="`claude-effort-${choice}`"
+            @click="chooseEffort(choice)"
+          >
+            {{ claudeEffortChoiceLabel(choice) }}
+          </button>
+        </div>
       </div>
 
       <p v-if="installed" class="mt-2 text-[12px] text-text-muted" data-testid="claude-restart-hint">

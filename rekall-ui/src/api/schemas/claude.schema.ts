@@ -1,6 +1,11 @@
 import { z } from 'zod'
 import { asClaudeMessageId, asClaudeSessionId, asTaskId, asTaskStepId } from '@/model/branded'
-import { CLAUDE_MESSAGE_ROLES, CLAUDE_SESSION_STATUSES } from '@/model/claude'
+import {
+  CLAUDE_MESSAGE_ROLES,
+  CLAUDE_SESSION_STATUSES,
+  CLAUDE_USAGE_SEVERITIES,
+  CLAUDE_USAGE_STATUSES
+} from '@/model/claude'
 
 export const ClaudeInstallationSchema = z.object({
   status: z.enum(['CONNECTED', 'OUTDATED', 'NOT_CONNECTED', 'CLI_MISSING']),
@@ -23,6 +28,8 @@ export const ClaudeSessionSchema = z.object({
   anchors: z.string(),
   workingDir: z.string(),
   cliSessionId: z.string().nullable(),
+  model: z.string().nullable(),
+  effort: z.string().nullable(),
   status: z.enum(CLAUDE_SESSION_STATUSES),
   live: z.boolean(),
   skipPermissions: z.boolean(),
@@ -47,3 +54,17 @@ export const ClaudeMessageSchema = z.object({
 
 export const ClaudeSessionListSchema = z.array(ClaudeSessionSchema)
 export const ClaudeMessageListSchema = z.array(ClaudeMessageSchema)
+
+export const ClaudeUsageSchema = z.object({
+  status: z.enum(CLAUDE_USAGE_STATUSES),
+  limits: z.array(
+    z.object({
+      key: z.string(),
+      label: z.string(),
+      percent: z.number(),
+      severity: z.enum(CLAUDE_USAGE_SEVERITIES),
+      resetsAt: z.string().nullable()
+    })
+  ),
+  fetchedAt: z.string()
+})

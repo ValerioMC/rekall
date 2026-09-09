@@ -102,6 +102,14 @@ vi.mock('@/api/documents.api', () => ({
   deleteDocument: vi.fn()
 }))
 
+vi.mock('@/api/claude.api', async (importOriginal) => {
+  const actual = (await importOriginal()) as Record<string, unknown>
+  return {
+    ...actual,
+    fetchClaudeUsage: vi.fn(async () => ({ status: 'UNAUTHENTICATED', limits: [], fetchedAt: '' }))
+  }
+})
+
 vi.mock('@/api/wrapups.api', () => ({
   fetchWrapups: vi.fn(async () => [wrapup]),
   saveWrapup: (...args: unknown[]) => saveWrapup(...(args as [])),
@@ -833,6 +841,47 @@ describe('the console', () => {
       expect(useConsoleStore().openStepCount).toBe(0)
       // Nothing is left open, so the pane stops showing a detail rather than the last one.
       expect(wrapper.find('[data-testid="step-detail"]').exists()).toBe(false)
+    })
+
+    /**
+     * The reviewer's complaint the pane was built around: a done box that reopened on the next
+     * click. The node no longer walks a step backwards, so clicking a done one does nothing.
+     */
+    it('does nothing when the box of a done step is clicked', async () => {
+      const wrapper = await mountConsole()
+
+      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }))
+      await flushPromises()
+
+      await wrapper.findAll('[data-testid="step-checkbox"]')[0]!.trigger('click')
+      await flushPromises()
+
+      expect(patchStep).not.toHaveBeenCalled()
+    })
+
+    /** Reopening an accepted step is deliberate: its own button, in its detail, armed before it fires. */
+    it('reopens a done step only after the reopen button is confirmed', async () => {
+      const wrapper = await mountConsole()
+
+      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }))
+      await flushPromises()
+
+      await wrapper.findAll('[data-testid="step-title"]')[0]!.trigger('click')
+      await flushPromises()
+
+      const reopen = wrapper.find('[data-testid="step-reopen"]')
+      expect(reopen.exists()).toBe(true)
+
+      await reopen.trigger('click')
+      await flushPromises()
+      expect(patchStep).not.toHaveBeenCalled()
+      expect(wrapper.find('[data-testid="step-reopen"]').text()).toContain('Confirm')
+
+      await wrapper.find('[data-testid="step-reopen"]').trigger('click')
+      await flushPromises()
+      expect(patchStep).toHaveBeenCalledWith('s1', { done: false })
     })
 
     /**
