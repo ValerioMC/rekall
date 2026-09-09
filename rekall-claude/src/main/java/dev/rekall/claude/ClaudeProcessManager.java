@@ -69,6 +69,15 @@ public class ClaudeProcessManager {
     private final long sweepMinutes;
 
     private final ConcurrentHashMap<UUID, Live> live = new ConcurrentHashMap<>();
+
+    /**
+     * Serialises only the spawn decision: "is a process already up for this task? no -> create and
+     * register it". Held for the length of a {@link ProcessBuilder#start()}, never across a write
+     * to an existing process's stdin, so a wedged session can never make this the thing that holds
+     * up graceful shutdown (see application.yaml on the 5s phase budget).
+     */
+    private final Object spawnGate = new Object();
+
     private ScheduledExecutorService reaper;
 
     public ClaudeProcessManager(
@@ -146,15 +155,24 @@ public class ClaudeProcessManager {
      * One live process per task, the way one terminal window is. The first "Run here" on a task
      * spawns {@code claude} and loads {@code /rk}; every press after that, for any step, is
      * handed to {@link #reuse} so the warm session (and its prompt cache) is kept rather than a
-     * second cold process started. Serialized so two fast clicks cannot both spawn.
+     * second cold process started.
+     *
+     * <p>Only the spawn is serialised, on {@link #spawnGate}, so two fast clicks cannot both start
+     * a process. {@link #reuse} runs outside that lock: if the session ended in the gap it throws
+     * a retriable conflict rather than blocking a caller behind a slow stdin write.
      */
-    public synchronized ClaudeSessionView start(
+    public ClaudeSessionView start(
             UUID taskId, UUID stepId, boolean skipPermissions, String model, String effort) {
-        UUID liveSessionId = liveSessionForTask(taskId);
-        if (liveSessionId != null) {
-            return reuse(liveSessionId, stepId);
+        synchronized (spawnGate) {
+            if (liveSessionForTask(taskId) == null) {
+                return spawn(taskId, stepId, skipPermissions, model, effort);
+            }
         }
-        return spawn(taskId, stepId, skipPermissions, model, effort);
+        UUID liveSessionId = liveSessionForTask(taskId);
+        if (liveSessionId == null) {
+            throw new ConflictException("The session for this task just ended. Press Run here again.");
+        }
+        return reuse(liveSessionId, stepId);
     }
 
     /**
@@ -193,7 +211,7 @@ public class ClaudeProcessManager {
      * {@code CLAUDE.md} stay a cache read, so this costs one {@code /rk} load, the same as opening
      * a fresh terminal and typing it.
      */
-    public synchronized ClaudeSessionView clear(UUID sessionId) {
+    public ClaudeSessionView clear(UUID sessionId) {
         Live handle = live.get(sessionId);
         if (handle == null) {
             throw new ConflictException("This session has ended. Start a new one to keep going.");
@@ -447,6 +465,9 @@ public class ClaudeProcessManager {
         block.put("type", "text");
         block.put("text", text);
         synchronized (handle) {
+            if (!handle.process.isAlive()) {
+                throw new ConflictException("The session is no longer accepting input.");
+            }
             try {
                 handle.stdin.write(json.writeValueAsString(message));
                 handle.stdin.write("\n");
