@@ -78,6 +78,14 @@ export async function sendClaudePrompt(sessionId: ClaudeSessionId, text: string)
   )
 }
 
+export async function clearClaudeSession(sessionId: ClaudeSessionId): Promise<ClaudeSession> {
+  return request(async () =>
+    ClaudeSessionSchema.parse(
+      await apiClient(`/api/claude/sessions/${sessionId}/clear`, { method: 'POST' })
+    )
+  )
+}
+
 export async function stopClaudeSession(sessionId: ClaudeSessionId): Promise<ClaudeSession> {
   return request(async () =>
     ClaudeSessionSchema.parse(

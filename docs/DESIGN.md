@@ -173,14 +173,16 @@ the directive null whenever the toggle is off, so a stale instruction never ride
 intent behind it is gone. `ContextService` renders them as a `wrapup` field on the task only when
 the toggle is on, next to `status` and `steps`; a session reading the context sees that a wrapup
 is expected without being asked, and the words it should follow. They travel on the same
-`TaskRequest` the description does, edited on the description surface, and nothing about them
-reaches the MCP write path: the toggle is a hint to the reader, not a trigger.
+`TaskRequest` the description does, edited from `WrapupAutomationBar` under both the description
+and steps panes so the setting is reachable from whichever surface the work is driven from, and
+nothing about them reaches the MCP write path: the toggle is a hint to the reader, not a trigger.
 
 ### 4.2 The steps
 
-A task can be broken into steps, and each one is somewhere on a line: `OPEN`, `RUNNING` while a
-session works on it, `CLAIMED` when that session says it is finished, `DONE` when a person
-accepts the work. It exists because of a gap the other two markdown fields on a task leave
+A task can be broken into steps, and each one is somewhere on a line: `DRAFT` while the
+checklist owner is still wording it, `OPEN` once it is promoted and ready to work, `RUNNING`
+while a session works on it, `CLAIMED` when that session says it is finished, `DONE` when a
+person accepts the work. It exists because of a gap the other two markdown fields on a task leave
 between them: the description is the brief and grows as the work is redefined, the wrapup is the
 state of the implementation as prose, and neither says which parts are finished. Working that
 out meant reading both and comparing them, which is slow by hand and a guess for a model. A row
@@ -194,14 +196,17 @@ with a state says it.
 | Capped at 20,000 characters, like a wrapup | A step whose detail runs past a screen is a task, and the model has a level for that |
 | `ON DELETE CASCADE` on the task, like a wrapup | It describes one piece of one task and means nothing beside another |
 | A session can write `RUNNING` and `CLAIMED`, never `DONE` | `rekall_step` moves a step as far as claimed, which is what lets a session drive its own checklist. The last tick is a person in the console saying they reviewed the work: a session claiming its own work accepted is what the `CLAIMED`/`DONE` split exists to prevent. The navigator's progress count is built on `DONE` alone, so it still means "accepted" |
+| `DRAFT` is the creation default, and only the console leaves it | A new step is a line the checklist owner is still wording, not work: it is kept out of the `<steps>` block a session reads (counted only as `draft="N"` on the tag), `rekall_step` refuses to move it, `markRunning` skips it, and `reviewActive()` still treats a task that holds only drafts as stepless. `TaskStepService.edit` promotes `DRAFT -> OPEN` and sends an untouched `OPEN` step back; a step that has been started, claimed or done cannot return to draft, because the run behind it would be lost. `settleDraftsAtTail` keeps every draft after every non-draft in `position` order, so the numbering a session sees is the numbering the console shows. `stepCount` on `TaskResponse` counts non-draft steps; `draftStepCount` carries the rest |
 
 The rendering is asymmetric, and that is the feature. An open or running step is written into
 the context with its detail, because it is the work about to be done or being done now, and its
 line is tagged `(in progress)` or `(claimed, waiting for the console to accept it)` so a session
 that reloads mid-run does not start it again or redo it. A finished step is written as its title
 alone: it needs no doing, and spending the window on the detail of finished work is how a load
-costs twice what it is worth. The counts, including `running` and `awaiting-review` when they are
-non-zero, go in the field list ahead of the block.
+costs twice what it is worth. A draft step is left out of the block entirely, present only as
+`draft="N"` on the tag and a one-line `drafts` count in the field list. The counts,
+including `running` and `awaiting-review` when they are non-zero, go in the field list ahead of
+the block.
 
 **The live loop.** `TaskStepService` publishes a `StepStreamEvent` after every write, from the
 console or from MCP alike, carrying the affected task's whole checklist. `TaskReviewService`
@@ -212,8 +217,18 @@ transaction commits and fans it out to every open console over `GET /api/steps/s
 Server-Sent Events under the frame names `steps`, `task-review` and `wrapup`; `useStepStream`
 in the UI applies each to the store. A session moves a step to `RUNNING` over MCP and the
 console animates the move without a reload: the checklist node breathes, and the branch feeding
-it carries a band of light toward it. A wrapup written by a hosted session or an MCP call lands
-in the pane with the claim it triggers rather than on the next reload.
+it carries a band of light toward it. Opening a hosted session on a step ("Run here") is the
+other way in: `ClaudeProcessManager` moves that step to `RUNNING` on start through
+`TaskStepService.markRunning` and back to `OPEN` on end through `releaseRunning`, so the launch
+animates whether or not the console is on the checklist pane, and a session that dies without
+claiming its step does not strand it. Both are no-ops unless the step is `OPEN` (start) or still
+`RUNNING` (end), so an MCP `claimed` or a console tick made meanwhile is never undone. There is
+one live process per task: a second "Run here" while one is up is routed to it rather than
+spawning another, and if it names a different step the manager releases the old one and marks the
+new, so the running marker follows the session across a checklist the way it would in one
+terminal. A wrapup
+written by a hosted session or an MCP call lands in the pane with the claim it triggers rather
+than on the next reload.
 
 ---
 

@@ -94,6 +94,7 @@ public final class ApiDtos {
             int documentCount,
             int stepCount,
             int stepsDone,
+            int draftStepCount,
             boolean hasWrapup,
             TaskStepState reviewState,
             boolean reviewActive,
@@ -118,8 +119,9 @@ public final class ApiDtos {
                     task.getProject().getCompany().getName(),
                     task.getProject().getRepoFolder(),
                     task.getDocuments().size(),
-                    task.getSteps().size(),
+                    (int) task.getSteps().stream().filter(step -> !step.getState().draft()).count(),
                     (int) task.getSteps().stream().filter(TaskStep::isDone).count(),
+                    (int) task.getSteps().stream().filter(step -> step.getState().draft()).count(),
                     task.getWrapup() != null,
                     task.getReviewState(),
                     task.reviewActive(),
@@ -203,7 +205,7 @@ public final class ApiDtos {
     public record TaskStepRequest(@NotBlank String title, String bodyMarkdown) {
     }
 
-    public record TaskStepPatchRequest(String title, String bodyMarkdown, Boolean done) {
+    public record TaskStepPatchRequest(String title, String bodyMarkdown, Boolean done, Boolean draft) {
     }
 
     public record TaskStepMoveRequest(@NotNull Integer position) {

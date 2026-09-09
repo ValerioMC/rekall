@@ -2,6 +2,8 @@ package dev.rekall.domain;
 
 public enum TaskStepState {
 
+    DRAFT,
+
     OPEN,
 
     RUNNING,
@@ -18,7 +20,11 @@ public enum TaskStepState {
         return this == RUNNING;
     }
 
+    public boolean draft() {
+        return this == DRAFT;
+    }
+
     public boolean reachableBySession() {
-        return this != DONE;
+        return this != DRAFT && this != DONE;
     }
 }

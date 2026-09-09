@@ -13,7 +13,7 @@ export const DOCUMENT_KINDS = ['context', 'notes', 'architecture', 'report', 'ot
 export const PROJECT_STATUSES = ['ACTIVE', 'PAUSED', 'DONE'] as const
 export const TASK_STATUSES = ['TODO', 'IN_PROGRESS', 'BLOCKED', 'DONE'] as const
 
-export const TASK_STEP_STATES = ['OPEN', 'RUNNING', 'CLAIMED', 'DONE'] as const
+export const TASK_STEP_STATES = ['DRAFT', 'OPEN', 'RUNNING', 'CLAIMED', 'DONE'] as const
 
 export type ProjectStatus = (typeof PROJECT_STATUSES)[number]
 export type TaskStatus = (typeof TASK_STATUSES)[number]
@@ -21,6 +21,10 @@ export type TaskStepState = (typeof TASK_STEP_STATES)[number]
 
 export function stepIsComplete(state: TaskStepState): boolean {
   return state === 'CLAIMED' || state === 'DONE'
+}
+
+export function stepIsDraft(state: TaskStepState): boolean {
+  return state === 'DRAFT'
 }
 
 export const PROJECT_STATUS_LABEL: Readonly<Record<ProjectStatus, string>> = {
@@ -98,6 +102,7 @@ export interface Task {
   readonly documentCount: number
   readonly stepCount: number
   readonly stepsDone: number
+  readonly draftStepCount: number
   readonly hasWrapup: boolean
   readonly reviewState: TaskStepState
   readonly reviewActive: boolean

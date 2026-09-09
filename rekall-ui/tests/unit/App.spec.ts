@@ -38,8 +38,8 @@ const projects: Project[] = [
 ]
 
 const tasks: Task[] = [
-  { id: validator, label: 'report-builder', title: 'Report builder', status: 'IN_PROGRESS', description: null, autoWrapup: false, wrapupDirective: null, projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', projectRepoFolder: null, documentCount: 1, stepCount: 2, stepsDone: 1, hasWrapup: true, reviewState: 'OPEN', reviewActive: false, claimedAt: null, acceptedAt: null, reviewNote: null, anchor: 'project:vega task:report-builder', updatedAt: '2026-08-12T10:00:00Z' },
-  { id: retry, label: 'retry-policy', title: 'Retry policy', status: 'TODO', description: '## Scope\n\nRitenta solo gli errori 5xx, con backoff esponenziale.', autoWrapup: false, wrapupDirective: null, projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', projectRepoFolder: null, documentCount: 1, stepCount: 0, stepsDone: 0, hasWrapup: false, reviewState: 'OPEN', reviewActive: true, claimedAt: null, acceptedAt: null, reviewNote: null, anchor: 'project:vega task:retry-policy', updatedAt: '2026-08-12T10:00:00Z' }
+  { id: validator, label: 'report-builder', title: 'Report builder', status: 'IN_PROGRESS', description: null, autoWrapup: false, wrapupDirective: null, projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', projectRepoFolder: null, documentCount: 1, stepCount: 2, stepsDone: 1, draftStepCount: 0, hasWrapup: true, reviewState: 'OPEN', reviewActive: false, claimedAt: null, acceptedAt: null, reviewNote: null, anchor: 'project:vega task:report-builder', updatedAt: '2026-08-12T10:00:00Z' },
+  { id: retry, label: 'retry-policy', title: 'Retry policy', status: 'TODO', description: '## Scope\n\nRitenta solo gli errori 5xx, con backoff esponenziale.', autoWrapup: false, wrapupDirective: null, projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', projectRepoFolder: null, documentCount: 1, stepCount: 0, stepsDone: 0, draftStepCount: 0, hasWrapup: false, reviewState: 'OPEN', reviewActive: true, claimedAt: null, acceptedAt: null, reviewNote: null, anchor: 'project:vega task:retry-policy', updatedAt: '2026-08-12T10:00:00Z' }
 ]
 
 const shared: RekallDocument = {
@@ -760,7 +760,7 @@ describe('the console', () => {
       await flushPromises()
 
       expect(wrapper.text()).toContain('Ritenta solo gli errori 5xx')
-      expect(wrapper.text()).toContain('/rk project:vega task:retry-policy')
+      expect(wrapper.find('[data-testid="copy-description-anchor"]').exists()).toBe(true)
       // Its own pane, not the note editor with another title on it.
       expect(wrapper.find('[data-testid="assign-open"]').exists()).toBe(false)
     })
@@ -782,23 +782,22 @@ describe('the console', () => {
       await wrapper.find('[data-testid="write-description"]').trigger('click')
       await flushPromises()
 
-      // This task has an open step, so the pane says what the description is for in that case:
-      // the thing the steps are built against, not a list of things to do.
-      expect(wrapper.text()).toContain('1 step open')
-      expect(wrapper.text()).toContain('built against rather than a list of things to do')
+      // The onboarding page gives way to the editor once you start writing.
+      expect(wrapper.find('[data-testid="write-description"]').exists()).toBe(false)
       expect(wrapper.text()).not.toContain('Nothing says what this task is')
     })
 
-    /** With no checklist on the task, the description is the instruction and says so. */
-    it('reads as the brief on a task with no steps', async () => {
+    /** With a description on the task, the pane opens on it in read mode, not the onboarding page. */
+    it('reads the description back on a task that has one', async () => {
       const wrapper = await mountConsole()
 
       await wrapper.findAll('[data-testid="task-row"]')[1]!.trigger('click')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }))
       await flushPromises()
 
-      expect(wrapper.text()).toContain('The brief the work is measured against')
-      expect(wrapper.text()).not.toContain('built against rather than a list of things to do')
+      expect(wrapper.find('[data-testid="copy-description-anchor"]').exists()).toBe(true)
+      expect(wrapper.text()).toContain('Ritenta solo gli errori 5xx')
+      expect(wrapper.text()).not.toContain('Nothing says what this task is')
     })
 
     /** The key that took you there takes you back, the same way W and B work. */
@@ -808,12 +807,12 @@ describe('the console', () => {
       await wrapper.findAll('[data-testid="task-row"]')[1]!.trigger('click')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }))
       await flushPromises()
-      expect(wrapper.text()).toContain('The brief the work is measured against')
+      expect(wrapper.find('[data-testid="copy-description-anchor"]').exists()).toBe(true)
 
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }))
       await flushPromises()
 
-      expect(wrapper.text()).not.toContain('The brief the work is measured against')
+      expect(wrapper.find('[data-testid="copy-description-anchor"]').exists()).toBe(false)
       expect(wrapper.text()).toContain('kmaster14.md')
     })
   })

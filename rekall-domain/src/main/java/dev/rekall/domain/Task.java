@@ -129,11 +129,12 @@ public class Task {
     /**
      * True while this task has no checklist. The task-scoped review line
      * ({@link #reviewState} and its two moments) only means anything here: once
-     * {@code steps} is not empty the checklist is the source of truth and these
-     * columns are kept but ignored.
+     * one step is past {@code DRAFT} the checklist is the source of truth and
+     * these columns are kept but ignored. Draft steps are a planning surface, not
+     * a checklist, so a task that only holds drafts is still review-active.
      */
     public boolean reviewActive() {
-        return steps.isEmpty();
+        return steps.stream().allMatch(step -> step.getState() == TaskStepState.DRAFT);
     }
 
     /**

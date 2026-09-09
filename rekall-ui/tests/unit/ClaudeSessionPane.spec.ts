@@ -13,6 +13,7 @@ const api = {
   startClaudeSession: vi.fn(),
   fetchClaudeTranscript: vi.fn(),
   sendClaudePrompt: vi.fn(),
+  clearClaudeSession: vi.fn(),
   stopClaudeSession: vi.fn(),
   deleteClaudeSession: vi.fn()
 }
@@ -23,6 +24,7 @@ vi.mock('@/api/claude.api', () => ({
   startClaudeSession: (...a: unknown[]) => api.startClaudeSession(...a),
   fetchClaudeTranscript: (...a: unknown[]) => api.fetchClaudeTranscript(...a),
   sendClaudePrompt: (...a: unknown[]) => api.sendClaudePrompt(...a),
+  clearClaudeSession: (...a: unknown[]) => api.clearClaudeSession(...a),
   stopClaudeSession: (...a: unknown[]) => api.stopClaudeSession(...a),
   deleteClaudeSession: (...a: unknown[]) => api.deleteClaudeSession(...a)
 }))
@@ -44,7 +46,7 @@ const task: Task = {
   projectRepoFolder: '/code/vega',
   documentCount: 0,
   stepCount: 0,
-  stepsDone: 0,
+  stepsDone: 0, draftStepCount: 0,
   hasWrapup: false,
   reviewState: 'OPEN',
   reviewActive: true,
@@ -155,6 +157,26 @@ describe('ClaudeSessionPane', () => {
     expect((wrapper.get('[data-testid="claude-composer-send"]').element as HTMLButtonElement).disabled).toBe(true)
     await wrapper.get('[data-testid="claude-composer-input"]').setValue('go on')
     expect((wrapper.get('[data-testid="claude-composer-send"]').element as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('clears the active session and keeps it live', async () => {
+    api.fetchClaudeSessions.mockResolvedValue([session()])
+    api.fetchClaudeTranscript.mockResolvedValue([message()])
+    api.clearClaudeSession.mockResolvedValue(session({ status: 'WORKING' }))
+    const wrapper = await mountPane()
+
+    await wrapper.get('[data-testid="claude-clear"]').trigger('click')
+    await flushPromises()
+
+    expect(api.clearClaudeSession).toHaveBeenCalledWith('s-1')
+    expect(api.startClaudeSession).not.toHaveBeenCalled()
+  })
+
+  it('offers no "New session" button while one is live for the task', async () => {
+    api.fetchClaudeSessions.mockResolvedValue([session()])
+    const wrapper = await mountPane()
+
+    expect(wrapper.find('[data-testid="claude-new"]').exists()).toBe(false)
   })
 
   it('disables the composer and shows why once a session has ended', async () => {

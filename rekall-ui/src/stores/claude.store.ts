@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import {
+  clearClaudeSession,
   deleteClaudeSession,
   fetchClaudeSessions,
   fetchClaudeTranscript,
@@ -69,15 +70,33 @@ export const useClaudeStore = defineStore('claude', () => {
     }
   }
 
+  /**
+   * One live session per task. A task-level press (no step) with a session already running just
+   * focuses it. A step-level press always goes to the server, which reuses the same process and
+   * retargets the step rather than starting a second one.
+   */
   async function startForTask(
     taskId: TaskId,
     input: StartClaudeSessionInput
   ): Promise<ClaudeSession> {
+    if (!input.stepId) {
+      const live = sessions.value.find((session) => session.taskId === taskId && session.live)
+      if (live) {
+        await selectSession(live.id)
+        return live
+      }
+    }
     const created = await startClaudeSession(taskId, input)
     upsertSession(created)
-    messages.value = { ...messages.value, [created.id]: [] }
+    if (!messages.value[created.id]) {
+      messages.value = { ...messages.value, [created.id]: [] }
+    }
     await selectSession(created.id)
     return created
+  }
+
+  async function clearSession(sessionId: ClaudeSessionId): Promise<void> {
+    upsertSession(await clearClaudeSession(sessionId))
   }
 
   async function sendPrompt(sessionId: ClaudeSessionId, text: string): Promise<void> {
@@ -123,6 +142,7 @@ export const useClaudeStore = defineStore('claude', () => {
     openTranscript,
     selectSession,
     startForTask,
+    clearSession,
     sendPrompt,
     stop,
     remove,

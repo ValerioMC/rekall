@@ -70,6 +70,11 @@ public class ContextTool implements McpTool {
                and it is what the next `rekall_wrapup` has to fold in: nothing else here says
                what that piece was.
 
+               A draft step is not in the checklist you get. It is a line the person is still
+               wording, counted only as `draft="N"` on the `<steps>` tag. It carries no work
+               yet, `rekall_step` will not move it, and it becomes a real step when the console
+               promotes it.
+
                Where a task has open steps, they are the work and its description is not. The
                description is the standing context to build a step against: what the task is
                for, what the work has to satisfy, what is out of scope. It is written once and
@@ -159,7 +164,9 @@ public class ContextTool implements McpTool {
         return out.toString();
     }
 
-    private String renderSteps(List<TaskStepView> steps, WrapupView wrapup) {
+    private String renderSteps(List<TaskStepView> allSteps, WrapupView wrapup) {
+        long drafts = allSteps.stream().filter(step -> step.state().draft()).count();
+        List<TaskStepView> steps = allSteps.stream().filter(step -> !step.state().draft()).toList();
         if (steps.isEmpty()) {
             return "";
         }
@@ -177,6 +184,9 @@ public class ContextTool implements McpTool {
         }
         if (unwritten > 0) {
             attributes.append(" finished-since-wrapup=\"%d\"".formatted(unwritten));
+        }
+        if (drafts > 0) {
+            attributes.append(" draft=\"%d\"".formatted(drafts));
         }
         StringBuilder out = new StringBuilder("\n<steps ").append(attributes).append(">\n");
 
@@ -197,6 +207,11 @@ public class ContextTool implements McpTool {
             if (carriesDetail && step.bodyMarkdown() != null && !step.bodyMarkdown().isBlank()) {
                 out.append(indent(truncate(step.bodyMarkdown()))).append('\n');
             }
+        }
+        if (drafts > 0) {
+            out.append("<!-- %d further step%s still in draft, not shown: promoted to the checklist "
+                    .formatted(drafts, drafts == 1 ? "" : "s"))
+                    .append("in the console when it is ready to work -->\n");
         }
         return out.append("</steps>\n").toString();
     }

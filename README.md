@@ -102,7 +102,9 @@ cp .claude/commands/rk.md ~/.claude/commands/rk.md
 
 **Run here**, next to **Open in Claude Code** on the description and steps panes, or `c` from any task, opens a session inside the app instead of a terminal. It runs `claude` in the project's folder with `--input-format stream-json --output-format stream-json`, sends `/rk <anchors>` first, and stays open on stdin: the pane shows the reply as it arrives and every prompt after the first is another line written to the same process. Works in a plain browser, not only Rekall.app.
 
-A session is tied to one task, and several run at once, one per task. The pane's switcher moves between a task's sessions; **N live elsewhere** jumps to a session on another task. A dock in the bottom-right corner, on every screen while a session is live, lists the running sessions and jumps back to any of them, so leaving the pane or the console does not lose the way back. The transcript is persisted, so it survives a pane swap and a reload; a restart marks every open session ended. The **skip permissions** switch is the same one the terminal button uses, and with it off an in-app session cannot answer a permission prompt, so tool use is denied.
+One live process per task, the way one terminal window is. The first **Run here** on a task spawns `claude` and loads `/rk`; pressing it again, for the task or for any step, hands the prompt to the warm session rather than starting a second cold process, so its prompt cache is kept. A press on a different step releases the step the session was on, claims the new one, and drops a one-line note into the session so it starts there, with no `/rk` reload. **Clear**, on a live session, sends `/clear` then re-sends `/rk <anchors>` on the same process: it drops the conversation so far and reloads the task context while the system prompt, tool schemas and `CLAUDE.md` stay a cache read, the same as typing `/clear` then `/rk` in a fresh terminal.
+
+**N live elsewhere** jumps to a session on another task; the pane's switcher moves between a task's current and past sessions. A dock in the bottom-right corner, on every screen while a session is live, lists the running sessions and jumps back to any of them, so leaving the pane or the console does not lose the way back. The transcript is persisted, so it survives a pane swap and a reload; a restart marks every open session ended. The **skip permissions** switch is the same one the terminal button uses, and with it off an in-app session cannot answer a permission prompt, so tool use is denied.
 
 The pane's meta bar shows the model the session is running, read from what `claude` reports on start, and the reasoning-effort level it was started at. **Settings > Claude Code** picks both for a new **Run here** session:
 
@@ -155,13 +157,15 @@ A quoted term after `wrapup` is a directive on what to write. It can narrow the 
 /rk project:vega task:report-builder wrapup "export module only"
 ```
 
-The description pane has a **Generate the wrapup automatically** toggle with an optional directive field. Set once on the task, it stands in for the quoted term: the context load then tells the session a wrapup is expected every time without being asked, and the words it should follow. Turning the toggle off drops the directive with it.
+The description pane and the steps pane both carry a **Generate the wrapup every session** toggle under the header, so it is set from whichever surface the work is driven from. Turning it on reveals an optional directive field. Set once on the task, the toggle stands in for the quoted term: the context load then tells the session a wrapup is expected every time without being asked, and the words it should follow. Turning the toggle off drops the directive with it.
 
 A wrapup written after a step finishes folds that step's work into the same description. The console counts steps ticked and notes added since the wrapup was last written. You can edit the wrapup in the console; the next `/rk … wrapup` replaces it and the tool reports when it overwrites a hand edit.
 
 ## Steps
 
-A step sits on a line: **open**, **running** while a session works it, **claimed** when the session reports it finished, **done** when you accept it. Each step is a title and an optional markdown detail. The pane opens on the first step whose work is not finished.
+A step sits on a line: **draft** while you are still wording it, **open** once you promote it and it is ready to work, **running** while a session works it, **claimed** when the session reports it finished, **done** when you accept it. Each step is a title and an optional markdown detail. The pane opens on the first step whose work is not finished.
+
+A new step is created as a draft and sits on a staging shelf below the checklist, off the rail. **Promote** moves it onto the list; an open step not yet started can go back with **To draft**. A draft is not work: it stays out of the checklist a session reads, `rekall_step` will not move it, and the navigator's step count ignores it. A task that holds only drafts is still treated as having no checklist.
 
 A session drives its own checklist over `/rk`:
 
@@ -172,7 +176,7 @@ A session drives its own checklist over `/rk`:
 
 The console holds one `text/event-stream` connection (`GET /api/steps/stream`) carrying three frames: `steps` for a checklist, `task-review` for a stepless task's review line, and `wrapup` for a wrapup write or delete. A step moved from a terminal, a box ticked in another window, or a wrapup written by a hosted session or over MCP all land without a reload.
 
-Claude receives an open or running step with its detail, tagged `(in progress)` or `(claimed, …)`. A finished step arrives as its title alone. A step ticked without a following wrapup is marked `(finished since the wrapup was written)` and handed back with its detail until the next wrapup folds it in.
+Claude receives an open or running step with its detail, tagged `(in progress)` or `(claimed, …)`. A finished step arrives as its title alone. A draft step is not sent at all, only counted as `draft="N"` on the `<steps>` tag. A step ticked without a following wrapup is marked `(finished since the wrapup was written)` and handed back with its detail until the next wrapup folds it in.
 
 With steps on a task, the open steps are the work and the description becomes the constraints the steps are built against. Anything the description asks for that no open step covers is not built; `/rk` flags it and asks for the step.
 

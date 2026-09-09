@@ -66,6 +66,24 @@ class ClaudeSessionTest {
     }
 
     @Test
+    @DisplayName("retargetStep moves a live session's step, reports the change, and is inert once ended")
+    void retargetStepMovesWhileLive() {
+        ClaudeSession session = newSession();
+        UUID stepOne = UUID.randomUUID();
+        UUID stepTwo = UUID.randomUUID();
+
+        assertThat(session.retargetStep(stepOne)).isTrue();
+        assertThat(session.getStepId()).isEqualTo(stepOne);
+        assertThat(session.retargetStep(stepOne)).isFalse();
+        assertThat(session.retargetStep(stepTwo)).isTrue();
+        assertThat(session.getStepId()).isEqualTo(stepTwo);
+
+        session.end(ClaudeSessionStatus.EXITED, "done", 0);
+        assertThat(session.retargetStep(UUID.randomUUID())).isFalse();
+        assertThat(session.getStepId()).isEqualTo(stepTwo);
+    }
+
+    @Test
     @DisplayName("the cli session id is captured once and never overwritten")
     void cliSessionIdIsStickyOnce() {
         ClaudeSession session = newSession();

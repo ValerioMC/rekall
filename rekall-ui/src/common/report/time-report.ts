@@ -201,6 +201,10 @@ function groupSteps(
       byTask.set(step.taskId, summary)
     }
 
+    if (step.state === 'DRAFT') {
+      continue
+    }
+
     if (!step.done) {
       summary.openCount += 1
       continue

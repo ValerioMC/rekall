@@ -68,6 +68,7 @@ export const TaskSchema = z.object({
   documentCount: z.number().int(),
   stepCount: z.number().int(),
   stepsDone: z.number().int(),
+  draftStepCount: z.number().int(),
   hasWrapup: z.boolean(),
   reviewState: z.enum(TASK_STEP_STATES),
   reviewActive: z.boolean(),

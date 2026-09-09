@@ -86,7 +86,15 @@ const awaitingReview = computed(
           {{ task.stepsDone }}/{{ task.stepCount }}
         </span>
         <span
-          v-else-if="awaitingReview"
+          v-if="task.draftStepCount > 0"
+          class="tabular-nums text-text-subtle/80"
+          :title="`${task.draftStepCount} step${task.draftStepCount > 1 ? 's' : ''} in draft`"
+          data-testid="task-drafts"
+        >
+          {{ task.draftStepCount }}d
+        </span>
+        <span
+          v-if="awaitingReview && task.draftStepCount === 0"
           class="size-1.5 rounded-full bg-accent"
           title="Awaiting your review"
           data-testid="task-review-dot"

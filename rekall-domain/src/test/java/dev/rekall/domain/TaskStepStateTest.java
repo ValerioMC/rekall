@@ -16,16 +16,39 @@ class TaskStepStateTest {
     }
 
     @Test
-    @DisplayName("a step opens OPEN, with nothing behind it")
-    void startsOpen() {
+    @DisplayName("a step opens DRAFT, with nothing behind it")
+    void startsDraft() {
         TaskStep step = newStep();
 
-        assertThat(step.getState()).isEqualTo(TaskStepState.OPEN);
+        assertThat(step.getState()).isEqualTo(TaskStepState.DRAFT);
         assertThat(step.isDone()).isFalse();
         assertThat(step.getRunningAt()).isNull();
         assertThat(step.getClaimedAt()).isNull();
         assertThat(step.getDoneAt()).isNull();
         assertThat(step.completedAt()).isNull();
+    }
+
+    @Test
+    @DisplayName("a draft is not reachable by a session; every later state but DONE is")
+    void draftIsOutOfASessionsReach() {
+        assertThat(TaskStepState.DRAFT.reachableBySession()).isFalse();
+        assertThat(TaskStepState.OPEN.reachableBySession()).isTrue();
+        assertThat(TaskStepState.RUNNING.reachableBySession()).isTrue();
+        assertThat(TaskStepState.CLAIMED.reachableBySession()).isTrue();
+        assertThat(TaskStepState.DONE.reachableBySession()).isFalse();
+    }
+
+    @Test
+    @DisplayName("promoting a draft to open leaves nothing behind it")
+    void promotingADraftKeepsItClean() {
+        TaskStep step = newStep();
+
+        step.markState(TaskStepState.OPEN);
+
+        assertThat(step.getState()).isEqualTo(TaskStepState.OPEN);
+        assertThat(step.getRunningAt()).isNull();
+        assertThat(step.getClaimedAt()).isNull();
+        assertThat(step.getDoneAt()).isNull();
     }
 
     @Test

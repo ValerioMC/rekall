@@ -12,6 +12,7 @@ import dev.rekall.domain.claude.ClaudeSessionService;
 import dev.rekall.domain.claude.ClaudeSessionStatus;
 import dev.rekall.domain.claude.ClaudeSessionView;
 import dev.rekall.domain.review.TaskReviewService;
+import dev.rekall.domain.step.TaskStepService;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
@@ -60,6 +61,7 @@ public class ClaudeProcessManager {
     private final ClaudeSessionStream stream;
     private final ClaudeCli cli;
     private final TaskReviewService taskReview;
+    private final TaskStepService taskSteps;
     private final ObjectMapper json = new ObjectMapper();
 
     private final int maxLive;
@@ -75,6 +77,7 @@ public class ClaudeProcessManager {
             ClaudeSessionStream stream,
             ClaudeCli cli,
             TaskReviewService taskReview,
+            TaskStepService taskSteps,
             @Value("${rekall.claude.max-sessions:8}") int maxLive,
             @Value("${rekall.claude.idle-minutes:120}") long idleMinutes,
             @Value("${rekall.claude.sweep-minutes:5}") long sweepMinutes) {
@@ -83,6 +86,7 @@ public class ClaudeProcessManager {
         this.stream = stream;
         this.cli = cli;
         this.taskReview = taskReview;
+        this.taskSteps = taskSteps;
         this.maxLive = maxLive;
         this.idleMinutes = idleMinutes;
         this.sweepMinutes = sweepMinutes;
@@ -92,7 +96,7 @@ public class ClaudeProcessManager {
         private final Process process;
         private final BufferedWriter stdin;
         private final UUID taskId;
-        private final UUID stepId;
+        private volatile UUID stepId;
         private final StringBuilder stderrTail = new StringBuilder();
         private volatile boolean closing;
 
@@ -138,7 +142,88 @@ public class ClaudeProcessManager {
 
     // ---------------------------------------------------------------- commands
 
-    public ClaudeSessionView start(
+    /**
+     * One live process per task, the way one terminal window is. The first "Run here" on a task
+     * spawns {@code claude} and loads {@code /rk}; every press after that, for any step, is
+     * handed to {@link #reuse} so the warm session (and its prompt cache) is kept rather than a
+     * second cold process started. Serialized so two fast clicks cannot both spawn.
+     */
+    public synchronized ClaudeSessionView start(
+            UUID taskId, UUID stepId, boolean skipPermissions, String model, String effort) {
+        UUID liveSessionId = liveSessionForTask(taskId);
+        if (liveSessionId != null) {
+            return reuse(liveSessionId, stepId);
+        }
+        return spawn(taskId, stepId, skipPermissions, model, effort);
+    }
+
+    /**
+     * Point the task's warm session at another step: release the one it was on, claim the new one,
+     * and drop a one-line note into the session so it starts there. No {@code /rk} reload, so the
+     * only tokens spent are that note against a cache that is still warm. A {@code null} step, or
+     * the one it is already on, just refocuses the session.
+     */
+    private ClaudeSessionView reuse(UUID sessionId, UUID stepId) {
+        Live handle = live.get(sessionId);
+        if (handle == null) {
+            throw new ConflictException("The session for this task has just ended. Try again.");
+        }
+        if (stepId != null && !stepId.equals(handle.stepId)) {
+            taskSteps.releaseRunning(handle.stepId);
+            taskSteps.markRunning(stepId);
+            sessions.retargetStep(sessionId, stepId);
+            handle.stepId = stepId;
+            refreshTaskRunning(handle.taskId);
+            String note = taskSteps.titleOf(stepId)
+                    .map(title -> "Now on step: " + title)
+                    .orElse("Now on another step of this task.");
+            emitSystem(sessionId, note);
+            writeLine(handle, note);
+            sessions.markStatus(sessionId, ClaudeSessionStatus.WORKING).ifPresent(this::emitStatus);
+        } else {
+            emitSystem(sessionId, "Reusing the session already running for this task.");
+        }
+        return sessions.find(sessionId)
+                .orElseThrow(() -> new ConflictException("The session for this task is gone."));
+    }
+
+    /**
+     * Drop the conversation so far and reload the task context: {@code /clear} (the CLI eats it,
+     * no model tokens) then {@code /rk} on the same process. The system prompt, tool schemas and
+     * {@code CLAUDE.md} stay a cache read, so this costs one {@code /rk} load, the same as opening
+     * a fresh terminal and typing it.
+     */
+    public synchronized ClaudeSessionView clear(UUID sessionId) {
+        Live handle = live.get(sessionId);
+        if (handle == null) {
+            throw new ConflictException("This session has ended. Start a new one to keep going.");
+        }
+        ClaudeSessionView view = sessions.find(sessionId)
+                .orElseThrow(() -> new ConflictException("This session has ended. Start a new one to keep going."));
+        writeLine(handle, "/clear");
+        writeLine(handle, "/rk " + view.anchors());
+        emitSystem(sessionId, "Context cleared. Reloading " + view.anchors() + " with /rk.");
+        sessions.markStatus(sessionId, ClaudeSessionStatus.WORKING).ifPresent(this::emitStatus);
+        return sessions.find(sessionId).orElse(view);
+    }
+
+    private void emitSystem(UUID sessionId, String text) {
+        ClaudeMessageView view = sessions.append(sessionId, ClaudeMessageRole.SYSTEM, text, null, null);
+        stream.emit(sessionId, "message", view);
+    }
+
+    private UUID liveSessionForTask(UUID taskId) {
+        if (taskId == null) {
+            return null;
+        }
+        return live.entrySet().stream()
+                .filter(entry -> taskId.equals(entry.getValue().taskId))
+                .map(java.util.Map.Entry::getKey)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private ClaudeSessionView spawn(
             UUID taskId, UUID stepId, boolean skipPermissions, String model, String effort) {
         if (live.size() >= maxLive) {
             throw new ConflictException(
@@ -195,6 +280,7 @@ public class ClaudeProcessManager {
                 taskId, stepId);
         live.put(id, handle);
         refreshTaskRunning(taskId);
+        taskSteps.markRunning(stepId);
 
         Thread.ofVirtual().name("claude-stdout-" + id).start(() -> pumpStdout(id, process));
         Thread.ofVirtual().name("claude-stderr-" + id).start(() -> drainStderr(handle));
@@ -247,6 +333,7 @@ public class ClaudeProcessManager {
                 handle.process.destroyForcibly();
             }
             refreshTaskRunning(handle.taskId);
+            taskSteps.releaseRunning(handle.stepId);
         }
         return sessions.end(sessionId, ClaudeSessionStatus.EXITED, reason, null)
                 .map(this::announceEnded)
@@ -328,6 +415,7 @@ public class ClaudeProcessManager {
                 : stderr.isBlank() ? "claude exited with code " + code : stderr;
         sessions.end(sessionId, terminal, detail, code).ifPresent(this::announceEnded);
         refreshTaskRunning(handle.taskId);
+        taskSteps.releaseRunning(handle.stepId);
     }
 
     /**

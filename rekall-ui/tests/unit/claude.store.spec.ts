@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useClaudeStore } from '@/stores/claude.store'
 import type { ClaudeMessage, ClaudeSession } from '@/model/claude'
-import type { ClaudeMessageId, ClaudeSessionId, TaskId } from '@/model/branded'
+import type { ClaudeMessageId, ClaudeSessionId, TaskId, TaskStepId } from '@/model/branded'
+
+const STEP_TWO = 'step-2' as TaskStepId
 
 const api = {
   fetchClaudeSessions: vi.fn(),
@@ -10,6 +12,7 @@ const api = {
   startClaudeSession: vi.fn(),
   fetchClaudeTranscript: vi.fn(),
   sendClaudePrompt: vi.fn(),
+  clearClaudeSession: vi.fn(),
   stopClaudeSession: vi.fn(),
   deleteClaudeSession: vi.fn()
 }
@@ -20,6 +23,7 @@ vi.mock('@/api/claude.api', () => ({
   startClaudeSession: (...a: unknown[]) => api.startClaudeSession(...a),
   fetchClaudeTranscript: (...a: unknown[]) => api.fetchClaudeTranscript(...a),
   sendClaudePrompt: (...a: unknown[]) => api.sendClaudePrompt(...a),
+  clearClaudeSession: (...a: unknown[]) => api.clearClaudeSession(...a),
   stopClaudeSession: (...a: unknown[]) => api.stopClaudeSession(...a),
   deleteClaudeSession: (...a: unknown[]) => api.deleteClaudeSession(...a)
 }))
@@ -84,6 +88,43 @@ describe('claude.store', () => {
     expect(store.sessions).toHaveLength(1)
     expect(store.activeMessages).toEqual([])
     expect(api.fetchClaudeTranscript).not.toHaveBeenCalled()
+  })
+
+  it('a task-level start with a live session focuses it instead of starting another', async () => {
+    const store = useClaudeStore()
+    store.upsertSession(session({ id: 's-live' as ClaudeSessionId }))
+    api.fetchClaudeTranscript.mockResolvedValue([])
+
+    const result = await store.startForTask(TASK, { skipPermissions: true })
+
+    expect(result.id).toBe('s-live')
+    expect(store.activeSessionId).toBe('s-live')
+    expect(api.startClaudeSession).not.toHaveBeenCalled()
+  })
+
+  it('a step-level start still calls the server so it can retarget the step', async () => {
+    const store = useClaudeStore()
+    store.upsertSession(session({ id: 's-live' as ClaudeSessionId }))
+    api.startClaudeSession.mockResolvedValue(session({ id: 's-live' as ClaudeSessionId, stepId: STEP_TWO }))
+    api.fetchClaudeTranscript.mockResolvedValue([])
+
+    await store.startForTask(TASK, { skipPermissions: true, stepId: STEP_TWO })
+
+    expect(api.startClaudeSession).toHaveBeenCalledWith(
+      TASK,
+      expect.objectContaining({ stepId: STEP_TWO })
+    )
+  })
+
+  it('clearSession upserts the returned session', async () => {
+    const store = useClaudeStore()
+    store.upsertSession(session({ status: 'READY' }))
+    api.clearClaudeSession.mockResolvedValue(session({ status: 'WORKING' }))
+
+    await store.clearSession('s-1' as ClaudeSessionId)
+
+    expect(api.clearClaudeSession).toHaveBeenCalledWith('s-1')
+    expect(store.sessions[0]!.status).toBe('WORKING')
   })
 
   it('fetches a transcript the first time a session is selected, then caches it', async () => {

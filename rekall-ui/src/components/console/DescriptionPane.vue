@@ -3,13 +3,13 @@ import { computed, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import AppInput from '@/components/ui/AppInput.vue'
-import AppCheckbox from '@/components/ui/AppCheckbox.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { identityHue } from '@/common/identity'
 import { rkCommand } from '@/common/format/rk-command'
 import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.vue'
 import ClaudeSessionLauncher from '@/components/claude/ClaudeSessionLauncher.vue'
+import WrapupAutomationBar from '@/components/console/WrapupAutomationBar.vue'
 import type { TaskId } from '@/model/branded'
 
 const store = useConsoleStore()
@@ -63,66 +63,6 @@ watch(
 )
 
 const anchor = computed(() => selectedTask.value?.anchor ?? '')
-
-// "Generate wrapup", set once on the task so the console does not retype it after every step.
-// The toggle saves on the spot; the directive it reveals autosaves on a pause, like the
-// description does.
-const autoWrapup = ref(false)
-const wrapupDirective = ref('')
-let wrapupTimer: ReturnType<typeof setTimeout> | null = null
-
-function flushWrapup(taskId: TaskId): void {
-  if (!wrapupTimer) return
-  clearTimeout(wrapupTimer)
-  wrapupTimer = null
-  void run(() => store.saveTaskWrapup(taskId, autoWrapup.value, wrapupDirective.value))
-}
-
-function toggleAutoWrapup(value: boolean): void {
-  const task = selectedTask.value
-  if (!task) return
-  if (wrapupTimer) {
-    clearTimeout(wrapupTimer)
-    wrapupTimer = null
-  }
-  autoWrapup.value = value
-  void run(() => store.saveTaskWrapup(task.id, value, wrapupDirective.value))
-}
-
-function scheduleWrapupSave(): void {
-  const task = selectedTask.value
-  if (!task) return
-  store.saveState = 'unsaved'
-  if (wrapupTimer) clearTimeout(wrapupTimer)
-  wrapupTimer = setTimeout(() => {
-    wrapupTimer = null
-    void run(() => store.saveTaskWrapup(task.id, autoWrapup.value, wrapupDirective.value))
-  }, 700)
-}
-
-watch(
-  () => selectedTask.value?.id ?? null,
-  (_id, previousId) => {
-    if (previousId) flushWrapup(previousId)
-    autoWrapup.value = selectedTask.value?.autoWrapup ?? false
-    wrapupDirective.value = selectedTask.value?.wrapupDirective ?? ''
-  },
-  { immediate: true }
-)
-
-watch(
-  () => [selectedTask.value?.autoWrapup ?? false, selectedTask.value?.wrapupDirective ?? ''] as const,
-  ([auto, directive]) => {
-    if (wrapupTimer) return
-    autoWrapup.value = auto
-    wrapupDirective.value = directive
-  }
-)
-
-const openSteps = computed(() => {
-  const task = selectedTask.value
-  return task ? task.stepCount - task.stepsDone : 0
-})
 
 // The description's own lifecycle, shown only while the task has no checklist. Same four values
 // a step walks, read at task scope: RUNNING is a session on the anchor, CLAIMED is a
@@ -178,10 +118,7 @@ function beginWriting(): void {
 }
 
 onUnmounted(() => {
-  if (selectedTask.value) {
-    flush(selectedTask.value.id)
-    flushWrapup(selectedTask.value.id)
-  }
+  if (selectedTask.value) flush(selectedTask.value.id)
 })
 </script>
 
@@ -277,40 +214,7 @@ onUnmounted(() => {
         </header>
       </div>
 
-      <div
-        class="shrink-0 border-b border-border bg-surface px-5 py-2.5"
-        data-testid="wrapup-directive"
-      >
-        <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <AppCheckbox
-            :model-value="autoWrapup"
-            label="Generate the wrapup automatically"
-            data-testid="wrapup-auto-toggle"
-            @update:model-value="toggleAutoWrapup"
-          />
-          <span class="text-[11.5px] text-text-muted">
-            Folded into every
-            <code class="text-anchor/80">/rk {{ anchor }}</code>
-            without the session being asked.
-          </span>
-        </div>
-
-        <div
-          v-if="autoWrapup"
-          class="mt-2 flex items-center gap-2"
-          data-testid="wrapup-directive-field"
-        >
-          <span class="eyebrow shrink-0 text-[9.5px]">Directive</span>
-          <AppInput
-            v-model="wrapupDirective"
-            class="min-w-0 flex-1"
-            placeholder="Optional: the words the wrapup should follow, as if typed after wrapup"
-            aria-label="Standing wrapup directive"
-            data-testid="wrapup-directive-input"
-            @update:model-value="scheduleWrapupSave"
-          />
-        </div>
-      </div>
+      <WrapupAutomationBar />
 
       <div
         v-if="reviewState === 'RUNNING' || reviewState === 'CLAIMED' || reviewState === 'DONE'"
@@ -385,23 +289,6 @@ onUnmounted(() => {
             Cancel
           </button>
         </div>
-      </div>
-
-      <div
-        v-if="showEditor"
-        class="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border bg-surface px-5 py-2.5"
-      >
-        <span v-if="openSteps > 0" class="text-[11.5px] text-text-muted">
-          {{ openSteps }} step{{ openSteps === 1 ? '' : 's' }} open, so this is what they are
-          built against rather than a list of things to do. Every
-          <code class="text-anchor/80">/rk {{ anchor }}</code>
-          hands it over as the standing context.
-        </span>
-        <span v-else class="text-[11.5px] text-text-muted">
-          The brief the work is measured against. Every
-          <code class="text-anchor/80">/rk {{ anchor }}</code>
-          hands it to Claude before anything else.
-        </span>
       </div>
 
       <div v-if="!showEditor" class="min-h-0 flex-1 overflow-y-auto">

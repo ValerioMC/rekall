@@ -5,6 +5,7 @@ import dev.rekall.domain.context.UnknownAnchorException;
 import dev.rekall.domain.repository.ClaudeMessageRepository;
 import dev.rekall.domain.repository.ClaudeSessionRepository;
 import dev.rekall.domain.repository.TaskRepository;
+import dev.rekall.domain.step.TaskStepService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +31,7 @@ public class ClaudeSessionService {
     private final TaskRepository tasks;
     private final ClaudeSessionRepository sessions;
     private final ClaudeMessageRepository messages;
+    private final TaskStepService steps;
 
     @Transactional(readOnly = true)
     public List<ClaudeSessionView> findAll() {
@@ -97,6 +99,17 @@ public class ClaudeSessionService {
                 .map(ClaudeSessionView::of);
     }
 
+    /**
+     * Move a live session's step target. Returns the fresh view only when it actually changed, so
+     * the caller can push one status update.
+     */
+    @Transactional
+    public Optional<ClaudeSessionView> retargetStep(UUID sessionId, UUID stepId) {
+        return sessions.findById(sessionId)
+                .filter(session -> session.retargetStep(stepId))
+                .map(ClaudeSessionView::of);
+    }
+
     @Transactional
     public Optional<ClaudeSessionView> markStatus(UUID sessionId, ClaudeSessionStatus status) {
         return sessions.findById(sessionId).map(session -> {
@@ -121,13 +134,15 @@ public class ClaudeSessionService {
     /**
      * Nothing that reports a status a process would still be attached to can be right after a
      * restart: the process died with the JVM. Mark every such row EXITED so the console shows
-     * history rather than a session it can no longer reach. Returns how many were swept.
+     * history rather than a session it can no longer reach, and drops any step one of them left
+     * stranded at {@code RUNNING} back to {@code OPEN}. Returns how many sessions were swept.
      */
     @Transactional
     public int recoverOrphans() {
         List<ClaudeSession> orphans = sessions.findByStatusIn(LIVE_STATUSES);
         for (ClaudeSession orphan : orphans) {
             orphan.end(ClaudeSessionStatus.EXITED, "The server restarted while this session was open.", null);
+            steps.releaseRunning(orphan.getStepId());
         }
         return orphans.size();
     }

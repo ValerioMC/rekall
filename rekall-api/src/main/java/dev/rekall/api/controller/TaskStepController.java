@@ -46,7 +46,7 @@ public class TaskStepController {
 
     @PatchMapping("/steps/{id}")
     public TaskStepView edit(@PathVariable UUID id, @Valid @RequestBody TaskStepPatchRequest request) {
-        return steps.edit(id, request.title(), request.bodyMarkdown(), request.done());
+        return steps.edit(id, request.title(), request.bodyMarkdown(), request.done(), request.draft());
     }
 
     @PostMapping("/steps/{id}/move")

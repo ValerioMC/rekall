@@ -31,3 +31,5 @@ databaseChangeLog:
       file: db/changelog/014-task-review-state.yaml
   - include:
       file: db/changelog/015-task-wrapup-directive.yaml
+  - include:
+      file: db/changelog/016-task-step-draft.yaml

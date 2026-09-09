@@ -125,6 +125,12 @@ async function stop(): Promise<void> {
   await run(() => claude.stop(session.id))
 }
 
+async function clear(): Promise<void> {
+  const session = activeSession.value
+  if (!session) return
+  await run(() => claude.clearSession(session.id), 'Context cleared, /rk reloaded')
+}
+
 const removing = ref<ClaudeSession | null>(null)
 
 async function confirmRemove(): Promise<void> {
@@ -234,6 +240,15 @@ function statusTone(status: ClaudeSession['status']): string {
 
             <button
               v-if="activeSession?.live"
+              class="focus-ring inline-flex h-7 items-center gap-1.5 rounded-[var(--radius-control)] border border-border-strong px-2.5 text-[11.5px] text-text-muted transition-colors hover:border-text-subtle hover:text-text"
+              data-testid="claude-clear"
+              title="Drop the conversation so far and reload /rk. Keeps the session and its warm cache."
+              @click="clear"
+            >
+              Clear
+            </button>
+            <button
+              v-if="activeSession?.live"
               class="focus-ring inline-flex h-7 items-center gap-1.5 rounded-[var(--radius-control)] border border-danger/40 px-2.5 text-[11.5px] text-danger transition-colors hover:bg-danger-soft hover:border-danger"
               data-testid="claude-stop"
               @click="stop"
@@ -241,6 +256,7 @@ function statusTone(status: ClaudeSession['status']): string {
               Stop
             </button>
             <button
+              v-if="!taskSessions.some((session) => session.live)"
               class="focus-ring inline-flex h-7 items-center gap-1.5 rounded-[var(--radius-control)] border border-accent bg-accent-soft px-2.5 text-[11.5px] font-medium text-accent transition-colors hover:bg-accent hover:text-accent-ink"
               data-testid="claude-new"
               @click="startNew"

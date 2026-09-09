@@ -1,0 +1,21 @@
+databaseChangeLog:
+
+  # A step is now born a draft. It is a line the checklist owner is still wording, not work a
+  # session may pick up: it does not reach Claude, it does not count towards "what is left", and
+  # it carries no review. The console promotes it to `OPEN` once it is ready, and only then does
+  # it join the checklist the rest of the system reads.
+  #
+  # Every step that already exists was created before this line and is real work, so nothing is
+  # rewritten: the change is only the default a new row takes when JPA does not name a state.
+
+  - changeSet:
+      id: 016-task-step-draft
+      author: rekall
+      changes:
+        - dropDefaultValue:
+            tableName: task_step
+            columnName: state
+        - addDefaultValue:
+            tableName: task_step
+            columnName: state
+            defaultValue: 'DRAFT'

@@ -11,8 +11,12 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -113,5 +117,57 @@ class ClaudeUsageServiceTest {
         service.current();
 
         assertThat(hits).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("a poll in flight when the context closes is cut loose, not left to time out")
+    void releasedOnShutdown() throws Exception {
+        CountDownLatch reached = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/usage", exchange -> {
+            reached.countDown();
+            try {
+                release.await(10, TimeUnit.SECONDS);
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+            }
+            exchange.sendResponseHeaders(200, -1);
+            exchange.close();
+        });
+        server.start();
+        ClaudeCredentials credentials = mock(ClaudeCredentials.class);
+        when(credentials.accessToken()).thenReturn(Optional.of("sk-token"));
+        String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/usage";
+        ClaudeUsageService service = new ClaudeUsageService(credentials, url);
+
+        AtomicReference<ClaudeUsageView> result = new AtomicReference<>();
+        Thread poll = new Thread(() -> result.set(service.current()), "usage-poll");
+        poll.start();
+        try {
+            assertThat(reached.await(5, TimeUnit.SECONDS)).isTrue();
+
+            service.releaseOnShutdown();
+
+            assertThat(poll.join(Duration.ofSeconds(3))).isTrue();
+            assertThat(result.get().status()).isEqualTo(Status.UNAVAILABLE);
+        } finally {
+            release.countDown();
+            poll.join();
+        }
+    }
+
+    @Test
+    @DisplayName("after the context closes no further call reaches the endpoint")
+    void quietAfterShutdown() throws IOException {
+        AtomicInteger hits = new AtomicInteger();
+        ClaudeUsageService service = serviceFor("sk-token", 200, SAMPLE, hits);
+
+        service.current();
+        service.releaseOnShutdown();
+        ClaudeUsageView after = service.current();
+
+        assertThat(hits).hasValue(1);
+        assertThat(after.status()).isEqualTo(Status.OK);
     }
 }

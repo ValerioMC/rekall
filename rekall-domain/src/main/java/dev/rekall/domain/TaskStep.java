@@ -56,7 +56,7 @@ public class TaskStep {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "state", nullable = false, length = 20)
-    private TaskStepState state = TaskStepState.OPEN;
+    private TaskStepState state = TaskStepState.DRAFT;
 
     @Column(name = "running_at")
     private Instant runningAt;
@@ -103,7 +103,7 @@ public class TaskStep {
         state = next;
         Instant now = Instant.now();
         switch (next) {
-            case OPEN -> {
+            case DRAFT, OPEN -> {
                 runningAt = null;
                 claimedAt = null;
                 doneAt = null;

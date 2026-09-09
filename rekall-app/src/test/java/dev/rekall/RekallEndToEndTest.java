@@ -1127,6 +1127,75 @@ class RekallEndToEndTest {
     }
 
     /**
+     * A draft is a step the checklist owner is still wording. It is not work: a new step is
+     * born a draft, it stays off the list a session reads, and it becomes real only when the
+     * console promotes it.
+     */
+    @Test
+    @DisplayName("a draft step is the creation default, is kept off the session's checklist, and promotes to open")
+    void aDraftStepIsHeldBackUntilPromoted() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+
+        Map<?, ?> created = post("/api/tasks/" + taskId + "/steps",
+                Map.of("title", "Aggregate the rows", "bodyMarkdown", "Somma per settimana."))
+                .getBody();
+        assertThat(created.get("state")).as("a step is born a draft").isEqualTo("DRAFT");
+        String stepId = String.valueOf(created.get("id"));
+
+        assertThat(callTool("rekall_context", Map.of("anchors", "task:report-builder")))
+                .as("a task that only holds drafts has no checklist block")
+                .doesNotContain("<steps")
+                .as("but the draft is counted, so the reader knows planning is under way")
+                .contains("- `drafts`: 1 not yet promoted to the checklist")
+                .as("and its detail never leaks to a session")
+                .doesNotContain("Somma per settimana");
+
+        assertThat(callTool("rekall_step", Map.of(
+                "anchors", "project:vega task:report-builder", "step", "1", "state", "running")))
+                .as("a session cannot start work on a draft")
+                .contains("still a draft");
+
+        rest.patch().uri("/api/steps/" + stepId).body(Map.of("draft", false))
+                .retrieve().toEntity(Map.class);
+
+        assertThat(callTool("rekall_context", Map.of("anchors", "task:report-builder")))
+                .as("once promoted it is an ordinary open step, detail and all")
+                .contains("<steps done=\"0\" open=\"1\">")
+                .contains("- [ ] Aggregate the rows")
+                .contains("Somma per settimana.")
+                .doesNotContain("`drafts`");
+    }
+
+    /**
+     * A promoted step joins the checklist; a step that has not been started can be sent back to
+     * draft, but one a session has already run cannot, because the run behind it would be lost.
+     */
+    @Test
+    @DisplayName("an open step returns to draft; a claimed one does not")
+    void draftStateOnlyMovesWhileAStepIsUntouched() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+        String stepId = aStep(taskId, "Aggregate the rows", null);
+
+        Map<?, ?> backToDraft = rest.patch().uri("/api/steps/" + stepId)
+                .body(Map.of("draft", true)).retrieve().toEntity(Map.class).getBody();
+        assertThat(backToDraft.get("state")).isEqualTo("DRAFT");
+
+        // Promote, take it to claimed the way a session would, then try to send it back.
+        rest.patch().uri("/api/steps/" + stepId).body(Map.of("draft", false))
+                .retrieve().toEntity(Map.class);
+        callTool("rekall_step", Map.of(
+                "anchors", "project:vega task:report-builder", "step", "1", "state", "claimed"));
+
+        ResponseEntity<Map> refused = rest.patch().uri("/api/steps/" + stepId)
+                .body(Map.of("draft", true)).retrieve().toEntity(Map.class);
+        assertThat(refused.getStatusCode().is4xxClientError()).isTrue();
+    }
+
+    /**
      * Positions are dense from zero, and every write that could leave a gap renumbers the list.
      * A sparse ordering is correct right up until something reads it as an index.
      */
@@ -1815,7 +1884,18 @@ class RekallEndToEndTest {
                 "label", label, "title", label, "status", "TODO", "projectId", projectId)));
     }
 
+    /** Creates a step and promotes it out of draft, so it is a workable checklist item. */
     private String aStep(String taskId, String title, String bodyMarkdown) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("title", title);
+        body.put("bodyMarkdown", bodyMarkdown);
+        String stepId = id(post("/api/tasks/" + taskId + "/steps", body));
+        rest.patch().uri("/api/steps/" + stepId).body(Map.of("draft", false))
+                .retrieve().toEntity(Map.class);
+        return stepId;
+    }
+
+    private String aDraftStep(String taskId, String title, String bodyMarkdown) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("title", title);
         body.put("bodyMarkdown", bodyMarkdown);

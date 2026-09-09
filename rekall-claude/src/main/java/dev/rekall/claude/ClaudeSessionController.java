@@ -69,6 +69,11 @@ public class ClaudeSessionController {
         return manager.prompt(id, request.text());
     }
 
+    @PostMapping("/claude/sessions/{id}/clear")
+    public ClaudeSessionView clear(@PathVariable UUID id) {
+        return manager.clear(id);
+    }
+
     @PostMapping("/claude/sessions/{id}/stop")
     public ClaudeSessionView stop(@PathVariable UUID id) {
         ClaudeSessionView view = manager.stop(id, "Stopped from the console.");

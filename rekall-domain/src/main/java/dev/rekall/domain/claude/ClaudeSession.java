@@ -25,8 +25,9 @@ import java.util.UUID;
  * One run of Claude Code, hosted inside Rekall.
  *
  * <p>The row is created {@code STARTING} and walked along {@link ClaudeSessionStatus} by
- * {@code ClaudeProcessManager} as the process reports in. {@code stepId} is a soft hint with no
- * foreign key: it says which step the session was opened against and nothing more.
+ * {@code ClaudeProcessManager} as the process reports in. {@code stepId} says which step the
+ * session was opened against, with no foreign key: the process manager moves that step to
+ * {@code RUNNING} on start and releases it on end, and nothing else reads it.
  */
 @Entity
 @Table(name = "claude_session")
@@ -130,6 +131,20 @@ public class ClaudeSession {
             return false;
         }
         this.model = resolved.strip();
+        touch();
+        return true;
+    }
+
+    /**
+     * Point a live session at a different step, because "Run here" was pressed on one while this
+     * session was already up and it is the process that will drive it. Ignored once the session
+     * has ended. Returns whether the target actually moved.
+     */
+    public boolean retargetStep(UUID nextStepId) {
+        if (!this.status.live() || Objects.equals(this.stepId, nextStepId)) {
+            return false;
+        }
+        this.stepId = nextStepId;
         touch();
         return true;
     }

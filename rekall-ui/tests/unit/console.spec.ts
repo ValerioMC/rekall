@@ -65,7 +65,7 @@ const task = (
   projectRepoFolder: null,
   documentCount: 1,
   stepCount: 0,
-  stepsDone: 0,
+  stepsDone: 0, draftStepCount: 0,
   hasWrapup: id === validator,
   reviewState: 'OPEN',
   reviewActive: true,
@@ -184,7 +184,7 @@ const createStep = vi.fn(async (taskId: TaskId, title: string) => ({
   taskId,
   title,
   bodyMarkdown: null,
-  state: 'OPEN' as const,
+  state: 'DRAFT' as const,
   done: false,
   runningAt: null,
   claimedAt: null,
@@ -194,10 +194,11 @@ const createStep = vi.fn(async (taskId: TaskId, title: string) => ({
   updatedAt: '2026-08-12T16:00:00Z'
 }))
 
-/** Mirrors the server: a `done` in the patch also settles the step's state. */
-const patchStep = vi.fn(async (id: TaskStepId, patch: Partial<TaskStep>) => {
+/** Mirrors the server: a `done` or `draft` in the patch also settles the step's state. */
+const patchStep = vi.fn(async (id: TaskStepId, patch: Partial<TaskStep> & { draft?: boolean }) => {
   const merged = { ...steps.find((step) => step.id === id)!, ...patch }
   if ('done' in patch) merged.state = patch.done ? 'DONE' : 'OPEN'
+  if ('draft' in patch) merged.state = patch.draft ? 'DRAFT' : 'OPEN'
   return merged
 })
 
@@ -637,8 +638,8 @@ describe('console store', () => {
 
   /**
    * "Generate wrapup", set once on the task so the console does not retype the directive after
-   * every step. Saved from the same pane as the description and carrying the same obligation:
-   * the label, the title, the status and the description all go back untouched.
+   * every step. Saved through the same `TaskRequest` the description uses and carrying the same
+   * obligation: the label, the title, the status and the description all go back untouched.
    */
   describe('the wrapup directive', () => {
     it('turns the toggle on with its directive, leaving everything else in place', async () => {
@@ -736,7 +737,7 @@ describe('console store', () => {
       expect(patchStep).toHaveBeenLastCalledWith('s2', { done: false })
     })
 
-    it('appends a new step to the end of the list it is added to', async () => {
+    it('adds a new step as a draft, off the checklist count until it is promoted', async () => {
       store.selectTask(validator)
       await store.addStep(validator, 'Wire the endpoint')
 
@@ -746,7 +747,20 @@ describe('console store', () => {
         'Write the tests',
         'Wire the endpoint'
       ])
-      expect(store.tasks.find((candidate) => candidate.id === validator)!.stepCount).toBe(3)
+      const task = store.tasks.find((candidate) => candidate.id === validator)!
+      expect([task.stepCount, task.draftStepCount]).toEqual([2, 1])
+
+      await store.promoteStep('s3' as TaskStepId)
+      expect(patchStep).toHaveBeenLastCalledWith('s3', { draft: false })
+    })
+
+    it('sends an untouched step back to draft', async () => {
+      store.selectTask(validator)
+      await store.returnStepToDraft('s2' as TaskStepId)
+
+      expect(patchStep).toHaveBeenLastCalledWith('s2', { draft: true })
+      expect(store.openStepCount).toBe(0)
+      expect(store.tasks.find((candidate) => candidate.id === validator)!.draftStepCount).toBe(1)
     })
 
     /**

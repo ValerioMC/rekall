@@ -139,12 +139,14 @@ public class ContextService {
 
         Map<String, String> fields = new LinkedHashMap<>();
         fields.put("status", task.getStatus().name());
-        if (!steps.isEmpty()) {
+        long drafts = steps.stream().filter(step -> step.state().draft()).count();
+        long checklist = steps.size() - drafts;
+        if (checklist > 0) {
             long done = steps.stream().filter(step -> step.state().complete()).count();
             long running = steps.stream().filter(step -> step.state().running()).count();
             long claimed = steps.stream().filter(step -> step.state() == TaskStepState.CLAIMED).count();
             StringBuilder summary = new StringBuilder(
-                    "%d of %d done, %d open".formatted(done, steps.size(), steps.size() - done));
+                    "%d of %d done, %d open".formatted(done, checklist, checklist - done));
             if (running > 0) {
                 summary.append(", %d running".formatted(running));
             }
@@ -152,6 +154,9 @@ public class ContextService {
                 summary.append(", %d awaiting review".formatted(claimed));
             }
             fields.put("steps", summary.toString());
+        }
+        if (drafts > 0) {
+            fields.put("drafts", "%d not yet promoted to the checklist".formatted(drafts));
         }
         if (task.isAutoWrapup()) {
             fields.put("wrapup", task.getWrapupDirective() == null

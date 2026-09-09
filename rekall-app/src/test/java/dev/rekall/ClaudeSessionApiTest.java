@@ -1,5 +1,6 @@
 package dev.rekall;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -73,6 +74,16 @@ class ClaudeSessionApiTest {
         jdbc.execute("DELETE FROM company");
     }
 
+    @AfterEach
+    void stopLiveProcesses() {
+        for (Object row : getList("/api/claude/sessions")) {
+            Map<?, ?> session = (Map<?, ?>) row;
+            if (Boolean.TRUE.equals(session.get("live"))) {
+                post("/api/claude/sessions/" + session.get("id") + "/stop", Map.of());
+            }
+        }
+    }
+
     @Test
     @DisplayName("start, let a turn finish, prompt, read it back, stop")
     void fullRoundTrip() throws IOException {
@@ -92,8 +103,8 @@ class ClaudeSessionApiTest {
             assertThat(((Map<?, ?>) row).get("role")).isEqualTo("RESULT");
             assertThat(String.valueOf(((Map<?, ?>) row).get("meta"))).contains("\"totalTokens\":1250");
         });
-        assertThat(get("/api/claude/sessions/" + sessionId).get("cliSessionId")).isEqualTo("stub-1");
-        assertThat(get("/api/claude/sessions/" + sessionId).get("model")).isEqualTo("claude-sonnet-4-5-20250929");
+        await(() -> "stub-1".equals(get("/api/claude/sessions/" + sessionId).get("cliSessionId")));
+        await(() -> "claude-sonnet-4-5-20250929".equals(get("/api/claude/sessions/" + sessionId).get("model")));
 
         ResponseEntity<Map> prompt = rest.post().uri("/api/claude/sessions/" + sessionId + "/prompt")
                 .body(Map.of("text", "what changed?"))
@@ -153,6 +164,73 @@ class ClaudeSessionApiTest {
     }
 
     @Test
+    @DisplayName("opening a session on a step marks it running, and stopping it releases the step")
+    void aSessionDrivesTheStepItOpenedOn() throws IOException {
+        String taskId = aTaskWithFolder();
+        aStep(taskId, "Aggregate the rows");
+        String secondStepId = aStep(taskId, "Write the tests");
+
+        Map<?, ?> started = post("/api/tasks/" + taskId + "/claude/sessions",
+                Map.of("skipPermissions", true, "stepId", secondStepId));
+        String sessionId = String.valueOf(started.get("id"));
+        assertThat(started.get("stepId")).isEqualTo(secondStepId);
+        await(() -> "READY".equals(get("/api/claude/sessions/" + sessionId).get("status")));
+
+        assertThat(stateOf(taskId, secondStepId)).isEqualTo("RUNNING");
+        assertThat(stateOf(taskId, firstStepId(taskId))).isEqualTo("OPEN");
+
+        post("/api/claude/sessions/" + sessionId + "/stop", Map.of());
+
+        assertThat(stateOf(taskId, secondStepId)).isEqualTo("OPEN");
+    }
+
+    @Test
+    @DisplayName("a second start on a live task reuses the process and retargets the running step")
+    void secondStartReusesTheLiveProcess() throws IOException {
+        String taskId = aTaskWithFolder();
+        String stepA = aStep(taskId, "Aggregate the rows");
+        String stepB = aStep(taskId, "Write the tests");
+
+        Map<?, ?> first = post("/api/tasks/" + taskId + "/claude/sessions",
+                Map.of("skipPermissions", true, "stepId", stepA));
+        String sessionId = String.valueOf(first.get("id"));
+        await(() -> "READY".equals(get("/api/claude/sessions/" + sessionId).get("status")));
+        assertThat(stateOf(taskId, stepA)).isEqualTo("RUNNING");
+
+        Map<?, ?> second = post("/api/tasks/" + taskId + "/claude/sessions",
+                Map.of("skipPermissions", true, "stepId", stepB));
+
+        assertThat(second.get("id")).isEqualTo(sessionId);
+        assertThat(second.get("stepId")).isEqualTo(stepB);
+        assertThat(getList("/api/tasks/" + taskId + "/claude/sessions")).hasSize(1);
+        await(() -> "RUNNING".equals(stateOf(taskId, stepB)));
+        assertThat(stateOf(taskId, stepA)).isEqualTo("OPEN");
+
+        assertThat(getList("/api/claude/sessions/" + sessionId + "/messages")).anySatisfy(row -> {
+            assertThat(((Map<?, ?>) row).get("role")).isEqualTo("SYSTEM");
+            assertThat(String.valueOf(((Map<?, ?>) row).get("content"))).contains("Write the tests");
+        });
+    }
+
+    @Test
+    @DisplayName("clear reloads the context on the same session, no new process")
+    void clearReloadsTheContext() throws IOException {
+        String taskId = aTaskWithFolder();
+        Map<?, ?> started = post("/api/tasks/" + taskId + "/claude/sessions", Map.of("skipPermissions", true));
+        String sessionId = String.valueOf(started.get("id"));
+        await(() -> "READY".equals(get("/api/claude/sessions/" + sessionId).get("status")));
+
+        Map<?, ?> cleared = post("/api/claude/sessions/" + sessionId + "/clear", Map.of());
+        assertThat(cleared.get("id")).isEqualTo(sessionId);
+        assertThat(cleared.get("live")).isEqualTo(true);
+
+        await(() -> getList("/api/claude/sessions/" + sessionId + "/messages").stream()
+                .anyMatch(row -> "SYSTEM".equals(((Map<?, ?>) row).get("role"))
+                        && String.valueOf(((Map<?, ?>) row).get("content")).contains("Context cleared")));
+        assertThat(getList("/api/tasks/" + taskId + "/claude/sessions")).hasSize(1);
+    }
+
+    @Test
     @DisplayName("a task whose project has no folder is refused, and no session row is left behind")
     void refusesWithoutAFolder() {
         String company = id(post("/api/companies", Map.of("name", "Acme")));
@@ -181,6 +259,26 @@ class ClaudeSessionApiTest {
         return id(post("/api/tasks", Map.of(
                 "label", "report-builder", "title", "Report builder", "status", "IN_PROGRESS",
                 "projectId", project)));
+    }
+
+    private String aStep(String taskId, String title) {
+        String stepId = id(post("/api/tasks/" + taskId + "/steps", Map.of("title", title)));
+        rest.patch().uri("/api/steps/" + stepId).body(Map.of("draft", false))
+                .retrieve().toEntity(Map.class);
+        return stepId;
+    }
+
+    private String firstStepId(String taskId) {
+        return String.valueOf(((Map<?, ?>) getList("/api/tasks/" + taskId + "/steps").getFirst()).get("id"));
+    }
+
+    private String stateOf(String taskId, String stepId) {
+        return getList("/api/tasks/" + taskId + "/steps").stream()
+                .map(row -> (Map<?, ?>) row)
+                .filter(row -> stepId.equals(String.valueOf(row.get("id"))))
+                .map(row -> String.valueOf(row.get("state")))
+                .findFirst()
+                .orElseThrow();
     }
 
     private long countRole(String sessionId, String role) {

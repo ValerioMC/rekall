@@ -6,6 +6,8 @@ import dev.rekall.claude.ClaudeUsageView.Limit;
 import dev.rekall.claude.ClaudeUsageView.Severity;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.event.ContextClosedEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
@@ -32,6 +34,11 @@ import java.util.Optional;
  * <p>The result is cached for {@link #CACHE_TTL}: the underlying numbers move in minutes, not
  * seconds, and every open console polls this. A call that fails after a good one has been seen
  * returns that last good one rather than an error, so a blip does not blank the meter.
+ *
+ * <p>The fetch is a blocking call on a request thread. On {@link ContextClosedEvent} the client
+ * is torn down with {@link HttpClient#shutdownNow()} and {@link #stopped} is set, so a poll that
+ * is in flight when the app is quit fails at once instead of holding {@code server.shutdown:
+ * graceful} until its own timeout. Same reason as {@code StepEventStream.releaseOnShutdown}.
  */
 @Service
 @Slf4j
@@ -60,6 +67,7 @@ public class ClaudeUsageService {
     private ClaudeUsageView cached;
     private Instant cachedAt = Instant.EPOCH;
     private ClaudeUsageView lastGood;
+    private volatile boolean stopped;
 
     public ClaudeUsageService(
             ClaudeCredentials credentials,
@@ -69,6 +77,9 @@ public class ClaudeUsageService {
     }
 
     public synchronized ClaudeUsageView current() {
+        if (stopped) {
+            return degraded();
+        }
         if (cached != null && Duration.between(cachedAt, Instant.now()).compareTo(CACHE_TTL) < 0) {
             return cached;
         }
@@ -79,6 +90,17 @@ public class ClaudeUsageService {
             lastGood = fresh;
         }
         return fresh;
+    }
+
+    /**
+     * Cut a poll that is in flight when the app is quitting: {@link HttpClient#shutdownNow()}
+     * makes its {@code send} fail immediately, so graceful shutdown has no request to wait on,
+     * and {@link #stopped} keeps any later call from starting a fresh one.
+     */
+    @EventListener(ContextClosedEvent.class)
+    void releaseOnShutdown() {
+        stopped = true;
+        http.shutdownNow();
     }
 
     private ClaudeUsageView fetch() {

@@ -167,7 +167,9 @@ export const useConsoleStore = defineStore('console', () => {
       .sort((a, b) => a.position - b.position)
   )
 
-  const openStepCount = computed(() => selectedTaskSteps.value.filter((step) => !step.done).length)
+  const openStepCount = computed(
+    () => selectedTaskSteps.value.filter((step) => step.state !== 'DRAFT' && !step.done).length
+  )
 
   // One review queue, not two: a claimed step and a claimed stepless task are the same ask.
   const reviewQueue = computed(
@@ -531,10 +533,10 @@ export const useConsoleStore = defineStore('console', () => {
   }
 
   /**
-   * The "generate wrapup" toggle and its optional standing directive, saved from the description
-   * pane the same way the description is: everything else about the task goes back untouched. A
-   * blank directive is stored as none, and the server drops any directive once the toggle is off,
-   * so a stale instruction never outlives it.
+   * The "generate wrapup" toggle and its optional standing directive, saved from the
+   * WrapupAutomationBar under the description and steps panes: everything else about the task
+   * goes back untouched. A blank directive is stored as none, and the server drops any directive
+   * once the toggle is off, so a stale instruction never outlives it.
    */
   async function saveTaskWrapup(
     id: TaskId,
@@ -675,9 +677,15 @@ export const useConsoleStore = defineStore('console', () => {
 
   function recountSteps(taskId: TaskId): void {
     const own = steps.value.filter((step) => step.taskId === taskId)
+    const checklist = own.filter((step) => step.state !== 'DRAFT')
     tasks.value = tasks.value.map((task) =>
       task.id === taskId
-        ? { ...task, stepCount: own.length, stepsDone: own.filter((step) => step.done).length }
+        ? {
+            ...task,
+            stepCount: checklist.length,
+            stepsDone: checklist.filter((step) => step.done).length,
+            draftStepCount: own.length - checklist.length
+          }
         : task
     )
   }
@@ -724,6 +732,14 @@ export const useConsoleStore = defineStore('console', () => {
 
   function reopenStep(id: TaskStepId): Promise<void> {
     return saveStep(id, { done: false })
+  }
+
+  function promoteStep(id: TaskStepId): Promise<void> {
+    return saveStep(id, { draft: false })
+  }
+
+  function returnStepToDraft(id: TaskStepId): Promise<void> {
+    return saveStep(id, { draft: true })
   }
 
   async function moveStep(id: TaskStepId, position: number): Promise<void> {
@@ -890,6 +906,8 @@ export const useConsoleStore = defineStore('console', () => {
     toggleStep,
     acceptStep,
     reopenStep,
+    promoteStep,
+    returnStepToDraft,
     moveStep,
     removeStep,
     applyStepEvent,

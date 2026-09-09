@@ -2,6 +2,15 @@ spring:
   application:
     name: rekall
 
+  # The macOS launcher (packaging/macos/Launcher.swift) sends SIGTERM on quit and hard-kills the
+  # process after 10 seconds. A hard kill leaves the H2 file with a lock behind it and forces
+  # recovery on the next start, so graceful shutdown has to finish well inside that window; the
+  # framework default of 30s does not. Every regular request returns in milliseconds - the only
+  # thing that can hold a shutdown phase is a background fetch, and those release themselves on
+  # ContextClosedEvent (see ClaudeUsageService, StepEventStream, ClaudeSessionStream).
+  lifecycle:
+    timeout-per-shutdown-phase: 5s
+
   datasource:
     # AUTO_SERVER lets a second process (a SQL client, a backup script) open the same file
     # while the application is running. The path itself is not hardcoded here: it comes from

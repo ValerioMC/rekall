@@ -129,8 +129,10 @@ public class ExportService {
                     }
                     if (!task.getSteps().isEmpty()) {
                         long done = task.getSteps().stream().filter(TaskStep::isDone).count();
+                        long checklist = task.getSteps().stream()
+                                .filter(step -> !step.getState().draft()).count();
                         out.append("- `STEPS.md`: ").append(done).append(" of ")
-                                .append(task.getSteps().size()).append(" steps done\n");
+                                .append(checklist).append(" steps done\n");
                     }
                     if (task.getDocuments().isEmpty()) {
                         out.append("- no notes\n");
@@ -162,7 +164,11 @@ public class ExportService {
     private String checklist(Task task) {
         StringBuilder out = new StringBuilder("# Steps\n");
         for (TaskStep step : task.getSteps()) {
-            out.append('\n').append(step.isDone() ? "- [x] " : "- [ ] ").append(step.getTitle()).append('\n');
+            out.append('\n').append(step.isDone() ? "- [x] " : "- [ ] ").append(step.getTitle());
+            if (step.getState().draft()) {
+                out.append("  (draft)");
+            }
+            out.append('\n');
             if (step.getBodyMarkdown() != null && !step.getBodyMarkdown().isBlank()) {
                 out.append('\n').append(step.getBodyMarkdown()).append('\n');
             }
