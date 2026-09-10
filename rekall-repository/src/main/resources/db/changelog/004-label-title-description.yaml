@@ -1,18 +1,8 @@
 databaseChangeLog:
-
-  # One column was doing two jobs. `name` was both what a person calls a project and what
-  # `/rk project:vega` looks up, so renaming a task to something clearer silently broke every
-  # anchor written down for it, and an anchor could not be a slug without the interface reading
-  # like a set of filenames.
-  #
-  # They are split here. `label` is the identifier the anchor resolves and is narrowed to a slug;
-  # `title` is the prose name and is free to change; `description` stays what it was.
-
   - changeSet:
       id: 004-project-label-and-title
       author: rekall
       changes:
-        # The title keeps what was typed, so nothing readable is lost when the label is narrowed.
         - addColumn:
             tableName: project
             columns:
@@ -28,8 +18,6 @@ databaseChangeLog:
             oldColumnName: name
             newColumnName: label
             columnDataType: varchar(120)
-        # `Vega` and `Progetto Vega` were valid names and are not valid labels. Normalised in
-        # place, once, rather than left for the first edit to discover.
         - sql:
             sql: >
               UPDATE project SET label = REGEXP_REPLACE(

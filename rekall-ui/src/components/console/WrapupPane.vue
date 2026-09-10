@@ -33,10 +33,8 @@ watch(
   { immediate: true }
 )
 
-// A wrapup that lands over the SSE feed (a hosted session finishing, an MCP write) while this
-// pane sits in read mode on the same task: adopt the new body so it renders straight away. In
-// write mode the buffer belongs to the person typing, including the autosave echo of their own
-// edit, so it is left alone.
+// In read mode, adopt a body that lands over the SSE feed; in write mode the buffer belongs to
+// the person typing, so leave it alone.
 watch(
   () => selectedWrapup.value?.bodyMarkdown ?? '',
   (value) => {

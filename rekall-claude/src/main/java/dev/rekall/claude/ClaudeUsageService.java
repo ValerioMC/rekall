@@ -24,21 +24,10 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Fetches the logged-in account's Claude usage from Anthropic and shapes it for the console meter.
- *
- * <p>This is the same figure Claude Code's own {@code /usage} shows: a GET to the OAuth usage
- * endpoint with the token {@link ClaudeCredentials} found. The response carries several named
- * windows; only the four the meter draws are kept, in a fixed order, and each is given a severity
- * from its own percentage so the whole panel escalates on one scale.
- *
- * <p>The result is cached for {@link #CACHE_TTL}: the underlying numbers move in minutes, not
- * seconds, and every open console polls this. A call that fails after a good one has been seen
- * returns that last good one rather than an error, so a blip does not blank the meter.
- *
- * <p>The fetch is a blocking call on a request thread. On {@link ContextClosedEvent} the client
- * is torn down with {@link HttpClient#shutdownNow()} and {@link #stopped} is set, so a poll that
- * is in flight when the app is quit fails at once instead of holding {@code server.shutdown:
- * graceful} until its own timeout. Same reason as {@code StepEventStream.releaseOnShutdown}.
+ * Fetches the logged-in account's Claude usage from Anthropic's OAuth usage endpoint and shapes it
+ * for the console meter. The four drawn windows are kept in a fixed order, each with a severity
+ * from its percentage. Results are cached for {@link #CACHE_TTL}, and a failed fetch falls back to
+ * the last good one so a blip does not blank the meter.
  */
 @Service
 @Slf4j
@@ -49,7 +38,6 @@ public class ClaudeUsageService {
     private static final double WARNING_AT = 80.0;
     private static final double CRITICAL_AT = 95.0;
 
-    /** The named windows the meter draws, mapped to their response key and display label. */
     private static final Map<String, String[]> WINDOWS = new LinkedHashMap<>();
 
     static {
@@ -92,11 +80,7 @@ public class ClaudeUsageService {
         return fresh;
     }
 
-    /**
-     * Cut a poll that is in flight when the app is quitting: {@link HttpClient#shutdownNow()}
-     * makes its {@code send} fail immediately, so graceful shutdown has no request to wait on,
-     * and {@link #stopped} keeps any later call from starting a fresh one.
-     */
+    // Cut an in-flight poll on shutdown so graceful shutdown has no blocking request to wait on.
     @EventListener(ContextClosedEvent.class)
     void releaseOnShutdown() {
         stopped = true;

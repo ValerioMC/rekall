@@ -1,12 +1,4 @@
 databaseChangeLog:
-
-  # A task with no checklist has no per-step lifecycle, but its work still moves along the same
-  # line a step does: open, running while a Claude session is attached to the task anchor with no
-  # step target, claimed when a Claude-authored wrapup lands, done when a person accepts it in the
-  # console. `review_state` carries that line at task scope; `claimed_at` and `accepted_at` are
-  # the two moments on it, and `review_note` is the optional message a send back leaves for the
-  # next session. All four are meaningless, and hidden, once the task has steps.
-
   - changeSet:
       id: 014-task-review-state
       author: rekall

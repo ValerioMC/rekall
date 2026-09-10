@@ -269,7 +269,7 @@ onUnmounted(() => {
             </AppButton>
           </div>
           <p class="mt-2 text-[12px] text-text-subtle">
-            Where <span class="text-text-muted">Open in Claude Code</span> starts the session. Claude
+            Where <span class="text-text-muted">Open in terminal</span> starts the session. Claude
             Code keeps the folder it was launched from for the whole session, so this is what decides
             which repository the work happens in.
           </p>

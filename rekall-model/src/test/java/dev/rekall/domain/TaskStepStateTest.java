@@ -5,10 +5,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * The four-state line a step moves along, and the three timestamps that have to keep saying
- * what they say as it does.
- */
+/** The four-state line a step moves along, and the three timestamps that track it. */
 class TaskStepStateTest {
 
     private TaskStep newStep() {

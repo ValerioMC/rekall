@@ -7,8 +7,7 @@ export type TaskStepId = Brand<string, 'TaskStepId'>
 export type DocumentId = Brand<string, 'DocumentId'>
 export type WrapupId = Brand<string, 'WrapupId'>
 export type TimeEntryId = Brand<string, 'TimeEntryId'>
-export type ClaudeSessionId = Brand<string, 'ClaudeSessionId'>
-export type ClaudeMessageId = Brand<string, 'ClaudeMessageId'>
+export type TerminalId = Brand<string, 'TerminalId'>
 
 export const asCompanyId = (value: string): CompanyId => value as CompanyId
 export const asProjectId = (value: string): ProjectId => value as ProjectId
@@ -17,5 +16,4 @@ export const asTaskStepId = (value: string): TaskStepId => value as TaskStepId
 export const asDocumentId = (value: string): DocumentId => value as DocumentId
 export const asWrapupId = (value: string): WrapupId => value as WrapupId
 export const asTimeEntryId = (value: string): TimeEntryId => value as TimeEntryId
-export const asClaudeSessionId = (value: string): ClaudeSessionId => value as ClaudeSessionId
-export const asClaudeMessageId = (value: string): ClaudeMessageId => value as ClaudeMessageId
+export const asTerminalId = (value: string): TerminalId => value as TerminalId

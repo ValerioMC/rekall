@@ -110,6 +110,35 @@ vi.mock('@/api/claude.api', async (importOriginal) => {
   }
 })
 
+vi.mock('@/api/terminal.api', () => ({
+  fetchTerminals: vi.fn(async () => []),
+  openTerminal: vi.fn(),
+  closeTerminal: vi.fn()
+}))
+
+vi.mock('@xterm/xterm', () => ({
+  Terminal: class {
+    element: HTMLElement | null = null
+    loadAddon = vi.fn()
+    open = vi.fn((host: HTMLElement) => {
+      this.element = host
+    })
+    onData = vi.fn(() => ({ dispose: vi.fn() }))
+    onResize = vi.fn(() => ({ dispose: vi.fn() }))
+    write = vi.fn()
+    reset = vi.fn()
+    focus = vi.fn()
+    dispose = vi.fn()
+  }
+}))
+
+vi.mock('@xterm/addon-fit', () => ({
+  FitAddon: class {
+    fit = vi.fn()
+    dispose = vi.fn()
+  }
+}))
+
 vi.mock('@/api/wrapups.api', () => ({
   fetchWrapups: vi.fn(async () => [wrapup]),
   saveWrapup: (...args: unknown[]) => saveWrapup(...(args as [])),
@@ -372,12 +401,12 @@ describe('the console', () => {
 
     expect(copy.defaultPrevented).toBe(false)
     expect(paste.defaultPrevented).toBe(false)
-    // The chord did nothing: the pane is still the note, not the Claude session.
+    // The chord did nothing: the pane is still the note, not the terminal.
     expect(useConsoleStore().paneFocus).toBe('note')
   })
 
   /** The bare key it shares a letter with still works. */
-  it('toggles the Claude pane on a bare C', async () => {
+  it('toggles the terminal pane on a bare C', async () => {
     const wrapper = await mountConsole()
     await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
     await flushPromises()
@@ -385,7 +414,7 @@ describe('the console', () => {
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c' }))
     await flushPromises()
 
-    expect(useConsoleStore().paneFocus).toBe('claude')
+    expect(useConsoleStore().paneFocus).toBe('terminal')
   })
 
   describe('creating, editing and deleting a record', () => {

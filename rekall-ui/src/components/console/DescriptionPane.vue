@@ -8,7 +8,7 @@ import { useAsyncAction } from '@/composables/useAsyncAction'
 import { identityHue } from '@/common/identity'
 import { rkCommand } from '@/common/format/rk-command'
 import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.vue'
-import ClaudeSessionLauncher from '@/components/claude/ClaudeSessionLauncher.vue'
+import OpenTerminalButton from '@/components/claude/OpenTerminalButton.vue'
 import WrapupAutomationBar from '@/components/console/WrapupAutomationBar.vue'
 import type { TaskId } from '@/model/branded'
 
@@ -64,9 +64,7 @@ watch(
 
 const anchor = computed(() => selectedTask.value?.anchor ?? '')
 
-// The description's own lifecycle, shown only while the task has no checklist. Same four values
-// a step walks, read at task scope: RUNNING is a session on the anchor, CLAIMED is a
-// Claude-written wrapup, DONE is "you accepted it".
+// The task-scoped review line, shown only while the task has no checklist.
 const reviewState = computed(() => {
   const task = selectedTask.value
   return task && task.reviewActive && task.stepCount === 0 ? task.reviewState : null
@@ -188,7 +186,7 @@ onUnmounted(() => {
           </div>
 
           <div class="flex shrink-0 items-center gap-1.5">
-            <ClaudeSessionLauncher
+            <OpenTerminalButton
               :task-id="selectedTask.id"
               :folder="selectedTask.projectRepoFolder"
             />

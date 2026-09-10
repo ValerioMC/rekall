@@ -185,7 +185,10 @@ final class Launcher: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKU
             process.executableURL = binary
         case .jvm(let java, let jar):
             process.executableURL = java
-            process.arguments = ["-jar", jar.path]
+            // pty4j reaches libutil through JNA, which is a restricted native call on JDK 25.
+            // Granting it here keeps the terminal pane working without a startup warning; the
+            // GraalVM binary compiles the access in and needs no flag.
+            process.arguments = ["--enable-native-access=ALL-UNNAMED", "-jar", jar.path]
         }
 
         // An .app is launched with the working directory set to /, and

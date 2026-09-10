@@ -27,8 +27,6 @@
             <groupId>dev.rekall</groupId>
             <artifactId>rekall-claude</artifactId>
         </dependency>
-        <!-- ClaudeCodeInstaller and SettingsController throw ConflictException/NotFoundException
-             directly; the module names their home rather than relying on the transitive path. -->
         <dependency>
             <groupId>dev.rekall</groupId>
             <artifactId>rekall-common</artifactId>
@@ -37,12 +35,6 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
-        <!--
-          Used directly by DatabaseRegistryStore, which reads and writes ~/.rekall/config.json
-          before the Spring context (and its auto-configured ObjectMapper) exists. Declared
-          explicitly rather than relied on transitively: it is not guaranteed to reach this
-          module's compile classpath through rekall-api/rekall-mcp otherwise.
-        -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
@@ -50,24 +42,11 @@
     </dependencies>
 
     <properties>
-        <!-- Where `pnpm build` leaves the compiled frontend. Not in this module's sources: it is
-             build output, so it is written outside the source tree and ignored by git. -->
         <ui.bundle>${maven.multiModuleProjectDirectory}/rekall-ui/dist</ui.bundle>
     </properties>
 
     <build>
         <plugins>
-            <!--
-              The frontend, copied into the jar rather than committed into it.
-
-              A `copy-resources` execution rather than a `<resource>` entry, because declaring
-              resources here would replace the ones spring-boot-starter-parent sets up, and with
-              them the `@`-delimited filtering of application.yaml.
-
-              Nothing here builds the frontend: Maven does not need node on the machine, and a
-              Java-only change does not pay for a bundler. `make` is what keeps the two in step,
-              and the check below is what happens when it did not.
-            -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-resources-plugin</artifactId>
@@ -90,21 +69,9 @@
                 </executions>
             </plugin>
 
-            <!--
-              A jar with no UI in it used to be impossible, because the bundle was committed;
-              what was possible was a jar with yesterday's UI in it, and nothing said so. Now
-              the bundle is built, so it can be absent, and this is where that becomes a
-              sentence instead of a white page: packaging fails and names the command to run.
-
-              `prepare-package`, not `validate`, so `mvn test` still runs on a checkout that has
-              never built the frontend. It is producing an artifact that needs one.
-            -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
-                <!-- Pinned: spring-boot-starter-parent manages a set of plugin versions and this
-                     is not one of them, and an unpinned plugin is a build that changes on its
-                     own between two machines. -->
                 <version>3.5.0</version>
                 <executions>
                     <execution>
@@ -141,12 +108,6 @@
                     </execution>
                 </executions>
             </plugin>
-            <!--
-              DatabaseLocationEnvironmentPostProcessor reads and writes ~/.rekall/config.json by
-              default. Without this, `mvn test` run from the repository root (where make
-              test-backend runs it, and where ./data/rekall.mv.db really exists) would adopt that
-              folder into the developer's real home directory config as a side effect of testing.
-            -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
@@ -176,40 +137,6 @@
                             </execution>
                         </executions>
                     </plugin>
-                    <!--
-                      hibernate-core only registers the ByteBuddy BytecodeProvider via
-                      META-INF/services (the "none" one, used per application.yaml, is resolved
-                      separately, not through ServiceLoader). Hibernate's AggregatedServiceLoader
-                      still eagerly constructs every provider it finds registered there before
-                      picking one by name, and ByteBuddy's constructor defines a class at runtime
-                      to bridge JDK internals - something no reflection grant can permit under
-                      native image, and GraalVM's own resource-exclude config (the "correct" fix)
-                      hits a parser bug (NPE in LegacyResourceConfigurationParser) on this GraalVM
-                      version.
-
-                      The fix is to drop that one registration from a COPY of the jar used only
-                      for the native-image classpath - never from the shared ~/.m2 cache copy:
-                      hibernate-maven-plugin's own enhance goal below runs on the JVM and needs
-                      ByteBuddy working normally to build its enhancer, so patching the cached jar
-                      breaks the build itself, not just the native image.
-
-                      Every in-pom way tried to wire a patched copy into native-maven-plugin's
-                      <classpath> turned out unreliable: maven-shade-plugin reads the already-built
-                      main artifact, which by the time it can run has already been turned into
-                      spring-boot-maven-plugin's BOOT-INF/ layout; native-maven-plugin does not
-                      glob-expand a "dir/*" classpath entry the way a shell does; and neither Ant's
-                      exportAntProperties nor maven-dependency-plugin's build-classpath
-                      outputProperty survive into native-maven-plugin's own <classpath>
-                      evaluation in this Maven/plugin-version combination.
-
-                      So this profile only prepares the build (AOT processing, reachability
-                      metadata); the actual `native-image` invocation, with a project-local
-                      patched hibernate-core copy substituted on the classpath, is a separate
-                      script - see scripts/native-build.sh. A Docker build step patching the jar
-                      before `native-image` runs, as
-                      https://github.com/Vadym79/aws-lambda-java-25-spring-boot-4 does, would be
-                      the cleaner way to fold this back into `mvn -Pnative package` directly.
-                    -->
                     <plugin>
                         <groupId>org.graalvm.buildtools</groupId>
                         <artifactId>native-maven-plugin</artifactId>

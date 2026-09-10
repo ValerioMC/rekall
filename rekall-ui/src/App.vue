@@ -8,7 +8,7 @@ import NoteListPane from '@/components/console/NoteListPane.vue'
 import NotePane from '@/components/console/NotePane.vue'
 import StepsPane from '@/components/console/StepsPane.vue'
 import WrapupPane from '@/components/console/WrapupPane.vue'
-import ClaudeSessionPane from '@/components/console/ClaudeSessionPane.vue'
+import TerminalPane from '@/components/console/TerminalPane.vue'
 import SettingsPanel from '@/components/settings/SettingsPanel.vue'
 import AppToaster from '@/components/ui/AppToaster.vue'
 import { useConsoleStore } from '@/stores/console.store'
@@ -58,8 +58,7 @@ function onKeydown(event: KeyboardEvent): void {
     return
   }
 
-  // Every other shortcut is a bare key, so a Cmd/Ctrl/Alt chord belongs to the
-  // browser. Copy, paste, cut and select-all must reach it untouched.
+  // Shortcuts are bare keys; a Cmd/Ctrl/Alt chord belongs to the browser.
   if (event.metaKey || event.ctrlKey || event.altKey) return
 
   if (typing) return
@@ -83,7 +82,7 @@ function onKeydown(event: KeyboardEvent): void {
 
   if (key === 'c') {
     event.preventDefault()
-    store.toggleClaude()
+    store.toggleTerminal()
     document.getElementById('note')?.focus()
     return
   }
@@ -147,7 +146,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
         <WrapupPane v-if="paneFocus === 'wrapup'" />
         <DescriptionPane v-else-if="paneFocus === 'description'" />
         <StepsPane v-else-if="paneFocus === 'steps'" />
-        <ClaudeSessionPane v-else-if="paneFocus === 'claude'" />
+        <TerminalPane v-else-if="paneFocus === 'terminal'" />
         <NotePane v-else />
       </div>
     </div>

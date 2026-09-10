@@ -1,5 +1,4 @@
 databaseChangeLog:
-
   - changeSet:
       id: 008-project-repo-folder
       author: rekall

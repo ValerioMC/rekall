@@ -2,11 +2,7 @@ const MINUTE = 60_000
 const HOUR = 60 * MINUTE
 const DAY = 24 * HOUR
 
-/**
- * Time left until an ISO instant, as the two coarsest units that still say something: "2d 6h",
- * "3h 24m", "12m". Anything in the past, or an unparseable input, is "now" so a stale reset never
- * shows a negative clock.
- */
+/** Time left until an ISO instant as its two coarsest units ("2d 6h"). Past or unparseable is "now". */
 export function formatResetIn(iso: string | null, now: number = Date.now()): string {
   if (!iso) return ''
   const target = Date.parse(iso)

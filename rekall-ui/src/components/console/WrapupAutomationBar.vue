@@ -8,13 +8,8 @@ import { useAsyncAction } from '@/composables/useAsyncAction'
 import type { TaskId } from '@/model/branded'
 
 /**
- * The standing form of a `/rk … wrapup` directive, set once on a task. It sits under the header
- * of both the description pane and the steps pane, because a task is worked from one or the
- * other and the setting has to be reachable from wherever the session is being driven.
- *
- * The toggle saves the moment it changes. The directive it reveals autosaves on a pause, the
- * way the description does. A blank directive is stored as none, and the server drops any
- * directive once the toggle is off, so a stale instruction never outlives the intent.
+ * The standing form of a `/rk … wrapup` directive, set once on a task. The toggle saves on change;
+ * the directive it reveals autosaves on a pause. A blank directive is stored as none.
  */
 const store = useConsoleStore()
 const { selectedTask } = storeToRefs(store)

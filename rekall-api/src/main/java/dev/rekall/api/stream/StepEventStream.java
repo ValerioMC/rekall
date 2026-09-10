@@ -42,14 +42,11 @@ public class StepEventStream {
         dispatch("steps", event);
     }
 
-    // A stepless task's review line rides the same feed: one console listener, two event names.
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onTaskReview(TaskReviewEvent event) {
         dispatch("task-review", event);
     }
 
-    // A wrapup write or delete rides the same feed, so the new text lands with the CLAIMED flip
-    // rather than waiting for a reload.
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onWrapupChange(WrapupStreamEvent event) {
         dispatch("wrapup", event);
@@ -60,14 +57,12 @@ public class StepEventStream {
             try {
                 emitter.send(SseEmitter.event().name(name).data(payload));
             } catch (IOException | IllegalStateException e) {
-                // The window is gone or the response is already closed. Drop it and move on.
                 clients.remove(emitter);
             }
         }
     }
 
-    // An SSE request never completes on its own; without this, graceful shutdown blocks on every
-    // open console feed until spring.lifecycle.timeout-per-shutdown-phase elapses.
+    // Without this, graceful shutdown blocks on every open feed until the per-phase timeout elapses.
     @EventListener(ContextClosedEvent.class)
     public void releaseOnShutdown() {
         for (SseEmitter emitter : clients) {

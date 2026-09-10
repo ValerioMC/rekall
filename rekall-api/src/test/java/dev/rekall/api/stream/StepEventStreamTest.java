@@ -12,11 +12,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
-/**
- * The fan-out list, and the one thing that matters for shutdown: when the context closes, every
- * held connection is released so {@code server.shutdown: graceful} has no async request to wait
- * on.
- */
+/** The fan-out list and its shutdown release, so graceful shutdown has no held request to wait on. */
 class StepEventStreamTest {
 
     @Test
@@ -76,7 +72,6 @@ class StepEventStreamTest {
 
         assertThatCode(stream::releaseOnShutdown).doesNotThrowAnyException();
 
-        // A second sweep, as if the event fired twice, still finds a clean list.
         assertThatCode(stream::releaseOnShutdown).doesNotThrowAnyException();
         assertThat(stream.clientCount()).isZero();
     }

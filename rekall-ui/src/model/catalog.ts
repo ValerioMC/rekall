@@ -113,11 +113,7 @@ export interface Task {
   readonly updatedAt: string
 }
 
-/**
- * The task-scoped review line, as it arrives on the step SSE feed under the
- * `task-review` event. Meaningful only while `reviewActive` is true, i.e. the
- * task has no checklist.
- */
+/** The task-scoped review line (`task-review` SSE event); meaningful only while `reviewActive` is true. */
 export interface TaskReview {
   readonly taskId: TaskId
   readonly reviewState: TaskStepState
@@ -175,10 +171,7 @@ export interface Wrapup {
   readonly updatedAt: string
 }
 
-/**
- * A wrapup write or delete, as it arrives on the step SSE feed under the
- * `wrapup` event. `wrapup` is null when `deleted` is true.
- */
+/** A wrapup write or delete (`wrapup` SSE event); `wrapup` is null when `deleted` is true. */
 export interface WrapupStreamEvent {
   readonly taskId: TaskId
   readonly wrapup: Wrapup | null

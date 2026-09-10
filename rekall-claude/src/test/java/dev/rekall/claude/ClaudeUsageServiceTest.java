@@ -22,10 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * The shaping of Anthropic's OAuth usage response into the console meter's rows, and the three
- * ways the figures can be absent. A throwaway {@link HttpServer} stands in for the endpoint.
- */
+/** Shaping Anthropic's OAuth usage response into the meter's rows, and the three ways figures can be absent. */
 class ClaudeUsageServiceTest {
 
     private static final String SAMPLE = """

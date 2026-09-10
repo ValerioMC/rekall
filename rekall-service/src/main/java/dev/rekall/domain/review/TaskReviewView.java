@@ -7,9 +7,8 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * The task-scoped review line as the console reads it: the state, the two
- * moments on it, the optional send-back note, and whether it means anything for
- * this task at all ({@code reviewActive} is false once the task has a checklist).
+ * The task-scoped review line as the console reads it. {@code reviewActive} is false once the task
+ * has a checklist, and the rest then means nothing.
  */
 public record TaskReviewView(
         UUID taskId,

@@ -10,10 +10,7 @@ import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * The non-keychain half of the token read: {@code ~/.claude/.credentials.json}. The keychain path
- * is macOS-only and environment-bound, so it is left to the machine it runs on.
- */
+/** The non-keychain half of the token read: {@code ~/.claude/.credentials.json}. */
 class ClaudeCredentialsTest {
 
     @TempDir

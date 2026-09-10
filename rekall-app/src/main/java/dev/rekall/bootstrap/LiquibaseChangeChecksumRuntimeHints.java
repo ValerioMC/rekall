@@ -8,21 +8,10 @@ import org.springframework.aot.hint.TypeReference;
 import java.util.List;
 
 /**
- * Native-image reflection hints for every Liquibase {@code Change} type the changelog can use.
- *
- * <p>On every startup Liquibase's {@code ValidatingVisitor} regenerates the checksum of each
- * changeSet, and that serialises the change by reflectively calling every getter through
- * {@code ChangeParameterMetaData.getCurrentValue}. A change type whose members are not
- * registered for reflection fails the whole context with
- * {@code MissingReflectionRegistrationError}, e.g. on {@code DropDefaultValueChange.getCatalogName()}
- * once {@code 016-task-step-draft} introduced {@code dropDefaultValue}.
- *
- * <p>The bundled GraalVM reachability metadata for {@code liquibase-core} only covers the change
- * types its own trace exercised and gates them on conditions that do not all hold for the
- * checksum path, so a new migration breaks the native build until this list is regenerated.
- * Registering the full {@code liquibase.change.core.*Change} set plus the column and constraint
- * config classes keeps any future migration safe. This is picked up by {@code process-aot}
- * through {@code META-INF/spring/aot.factories} and folded into the AOT reachability metadata.
+ * Native-image reflection hints for every Liquibase {@code Change} type. Liquibase reflects over
+ * every change getter on each startup to regenerate checksums, and the bundled GraalVM metadata
+ * misses the checksum path, so an unregistered type fails the context with
+ * {@code MissingReflectionRegistrationError}. Registering the full set keeps future migrations safe.
  */
 public class LiquibaseChangeChecksumRuntimeHints implements RuntimeHintsRegistrar {
 

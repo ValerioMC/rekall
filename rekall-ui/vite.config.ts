@@ -20,7 +20,8 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': 'http://localhost:47355',
+      // ws:true so the terminal pane's WebSocket (/api/terminal/{id}/io) proxies through too.
+      '/api': { target: 'http://localhost:47355', ws: true },
       '/mcp': 'http://localhost:47355'
     }
   },

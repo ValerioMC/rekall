@@ -25,12 +25,14 @@ let nudgeTimer: ReturnType<typeof setTimeout> | null = null
 const missing = computed(() => props.missingHint ?? 'Set this project’s folder to open a session from it')
 
 const detail = computed(() =>
-  props.folder ? `Opens a terminal in ${props.folder} running /rk ${props.anchors}` : missing.value
+  props.folder
+    ? `Opens ${props.folder} in your terminal app, running /rk ${props.anchors}`
+    : missing.value
 )
 
 const toneClasses = computed(() =>
   props.folder
-    ? 'border-anchor-line bg-anchor-soft text-anchor hover:border-anchor hover:bg-anchor/10 hover:text-anchor-strong hover:shadow-[0_0_20px_-6px_var(--color-anchor-soft)]'
+    ? 'border-border bg-transparent text-text-muted hover:border-border-strong hover:bg-surface-raised hover:text-text'
     : 'border-transparent bg-transparent text-text-subtle hover:bg-surface-raised hover:text-text-muted'
 )
 
@@ -119,20 +121,25 @@ async function launch(): Promise<void> {
             stroke-linejoin="round"
           />
         </svg>
-        <svg v-else key="prompt" class="size-3.5" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-          <rect x="0.9" y="1.5" width="10.2" height="9" rx="1.6" stroke="currentColor" stroke-width="1.1" />
+        <svg v-else key="out" class="size-3.5" viewBox="0 0 12 12" fill="none" aria-hidden="true">
           <path
-            d="M2.9 4.5 4.8 6 2.9 7.5"
+            d="M9.4 6.9v2a1.1 1.1 0 0 1-1.1 1.1H3a1.1 1.1 0 0 1-1.1-1.1V3.6A1.1 1.1 0 0 1 3 2.5h2"
+            stroke="currentColor"
+            stroke-width="1.1"
+            stroke-linecap="round"
+          />
+          <path
+            d="M7.2 2.1H10v2.8"
             stroke="currentColor"
             stroke-width="1.2"
             stroke-linecap="round"
             stroke-linejoin="round"
           />
-          <path d="M5.9 7.5h2.3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
+          <path d="M10 2.1 5.7 6.4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
         </svg>
       </Transition>
     </span>
-    <span>Open in Claude Code</span>
+    <span>Open in terminal</span>
   </button>
 
   <span v-if="available" :id="descriptionId" class="sr-only">{{ detail }}</span>
@@ -150,7 +157,7 @@ async function launch(): Promise<void> {
           :class="folder ? 'bg-safe' : 'bg-warn'"
           aria-hidden="true"
         />
-        {{ folder ? 'Opens a terminal here' : 'Nothing to open yet' }}
+        {{ folder ? 'Opens your terminal app' : 'Nothing to open yet' }}
       </p>
 
       <template v-if="folder">

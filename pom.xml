@@ -42,6 +42,7 @@
         <java.version>25</java.version>
         <maven.compiler.release>25</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <pty4j.version>0.13.12</pty4j.version>
     </properties>
 
     <dependencyManagement>
@@ -81,16 +82,15 @@
                 <artifactId>rekall-claude</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.jetbrains.pty4j</groupId>
+                <artifactId>pty4j</artifactId>
+                <version>${pty4j.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
     <dependencies>
-        <!--
-          Compile-time only, so it never reaches a deployed artifact. The version is the one
-          Spring Boot 4.1 manages; Lombok reads javac internals, so the version has to be one
-          that knows about the JDK in java.version, and pinning it by hand would silently
-          decouple the two.
-        -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
@@ -122,13 +122,6 @@
         </pluginManagement>
 
         <plugins>
-            <!--
-              Lombok has to be named as a processor path, not merely be on the classpath.
-              From JDK 23 javac no longer runs annotation processors it happens to discover
-              there, so relying on the dependency alone produces a build that works only while
-              a previous target/ directory still holds the generated accessors, and fails the
-              first time anyone runs clean.
-            -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>

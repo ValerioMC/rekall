@@ -142,12 +142,7 @@ public class CatalogService {
         return response;
     }
 
-    /**
-     * The console's Accept / Send back for a task with no checklist. {@code DONE}
-     * accepts it, {@code OPEN} sends it back with an optional note; the two
-     * derived states are refused because nothing outside a live session or the
-     * wrapup write path may set them.
-     */
+    /** {@code DONE} accepts a stepless task, {@code OPEN} sends it back; other states are refused. */
     @Transactional
     public TaskResponse reviewTask(UUID id, TaskStepState target, String note) {
         Task task = requireTask(id);

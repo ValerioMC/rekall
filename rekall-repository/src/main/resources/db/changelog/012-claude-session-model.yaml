@@ -1,11 +1,4 @@
 databaseChangeLog:
-
-  # Which model answered a hosted session. Null means the account default was left to stand;
-  # otherwise it holds the choice a session was started with (`opus` / `sonnet` / `haiku`),
-  # overwritten with the concrete id `claude` reports on its `system`/`init` line once it is
-  # known. A session keeps the model it started with; the column is never rewritten to match a
-  # setting changed later.
-
   - changeSet:
       id: 012-claude-session-model
       author: rekall

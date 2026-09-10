@@ -186,9 +186,10 @@ onMounted(() => void load())
         <div class="min-w-0 flex-1">
           <p class="text-[12.5px] text-text">Open sessions without permission prompts</p>
           <p class="mt-0.5 text-[11.5px] leading-relaxed text-text-subtle">
-            Adds <code class="text-anchor/80">--dangerously-skip-permissions</code> to what
-            <span class="text-text-muted">Open in Claude Code</span> launches. That session edits,
-            runs and deletes without asking first.
+            Adds <code class="text-anchor/80">--dangerously-skip-permissions</code> to every session
+            Rekall starts, <span class="text-text-muted">Run here</span> or
+            <span class="text-text-muted">Open in terminal</span>. That session edits, runs and
+            deletes without asking first.
           </p>
         </div>
         <button

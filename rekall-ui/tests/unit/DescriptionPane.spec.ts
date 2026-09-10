@@ -63,7 +63,7 @@ function render() {
       plugins: [pinia],
       stubs: {
         AppMarkdownEditor: true,
-        ClaudeSessionLauncher: true,
+        OpenTerminalButton: true,
         LaunchClaudeCodeButton: true
       }
     }

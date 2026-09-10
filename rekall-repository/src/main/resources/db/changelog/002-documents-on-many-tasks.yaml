@@ -1,13 +1,4 @@
 databaseChangeLog:
-
-  # A note is no longer filed in one place. The same note is routinely relevant to several
-  # tasks: cluster access, a convention, an onboarding step. Under the old shape the only way
-  # to have it in two contexts was to write it twice, and the two copies drifted.
-  #
-  # Environments go with this change. They were removed from the interface first and are
-  # dropped here: a task now records what it is, and where it runs is written in a note like
-  # everything else.
-
   - changeSet:
       id: 002-document-task
       author: rekall
@@ -17,8 +8,6 @@ databaseChangeLog:
             columns:
               - column: {name: document_id, type: uuid, constraints: {nullable: false}}
               - column: {name: task_id, type: uuid, constraints: {nullable: false}}
-              # Order within one task, so the same note can sit first on one task and last on
-              # another without the two orderings fighting.
               - column: {name: position, type: int, constraints: {nullable: false}}
         - addPrimaryKey:
             tableName: document_task
@@ -44,7 +33,6 @@ databaseChangeLog:
             columns:
               - column: {name: task_id}
 
-  # Carries the existing task notes across before the column that holds them is dropped.
   - changeSet:
       id: 002-carry-task-notes
       author: rekall
@@ -54,9 +42,6 @@ databaseChangeLog:
               INSERT INTO document_task (document_id, task_id, position)
               SELECT id, task_id, position FROM document WHERE task_id IS NOT NULL
 
-  # Notes that belonged to a project or an environment have no owner in the new shape, and a
-  # row that nothing can reach is worse than a row that is gone. Deleted explicitly rather than
-  # left to the foreign keys, so the intent is in the changelog and not a side effect.
   - changeSet:
       id: 002-drop-ownerless-notes
       author: rekall
@@ -79,8 +64,6 @@ databaseChangeLog:
         - dropColumn: {tableName: document, columnName: project_id}
         - dropColumn: {tableName: document, columnName: task_id}
         - dropColumn: {tableName: document, columnName: environment_id}
-        # Position now belongs to the link, not to the note: the same note has a place on each
-        # task it is attached to.
         - dropColumn: {tableName: document, columnName: position}
 
   - changeSet:

@@ -14,14 +14,9 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Reads the OAuth access token Claude Code keeps for the logged-in account.
- *
- * <p>Claude Code stores it in one of two places, and this tries them in the order Claude Code
- * itself does: the macOS login keychain under the {@code Claude Code-credentials} service, then a
- * {@code ~/.claude/.credentials.json} file for the platforms without a keychain. Both hold the same
- * shape, {@code {"claudeAiOauth":{"accessToken":"..."}}}. Nothing here writes or refreshes the
- * token: a missing or stale one is reported as absent and the usage panel degrades to "sign in to
- * Claude Code".
+ * Reads the OAuth access token Claude Code keeps for the logged-in account: the macOS keychain
+ * ({@code Claude Code-credentials}) first, then {@code ~/.claude/.credentials.json}. Never writes or
+ * refreshes; a missing token is reported as absent.
  */
 @Component
 @Slf4j
@@ -103,7 +98,6 @@ public class ClaudeCredentials {
         }
     }
 
-    /** Kept for tests and future callers that want to know which sources were consulted. */
     List<String> sources() {
         return macos
                 ? List.of("keychain:" + KEYCHAIN_SERVICE, home.resolve(".claude/.credentials.json").toString())

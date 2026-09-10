@@ -75,10 +75,8 @@ public class TaskStepService {
     }
 
     /**
-     * Promote a step from {@code DRAFT} to {@code OPEN}, or send an untouched {@code OPEN} step
-     * back to {@code DRAFT}. Both moves are the console's: a step that a session has already
-     * started, claimed or finished stays where it is, because dropping it back to a draft would
-     * lose the run behind it.
+     * Move a step between {@code DRAFT} and {@code OPEN}. Only those two states move; a step a
+     * session has started, claimed or finished is refused.
      */
     private void applyDraft(TaskStep step, boolean draft) {
         TaskStepState current = step.getState();
@@ -118,7 +116,6 @@ public class TaskStepService {
         return saved;
     }
 
-    /** The step's title, for a caller that needs to name it. Empty when the id is null or gone. */
     @Transactional(readOnly = true)
     public Optional<String> titleOf(UUID stepId) {
         if (stepId == null) {
@@ -127,11 +124,7 @@ public class TaskStepService {
         return steps.findById(stepId).map(TaskStep::getTitle);
     }
 
-    /**
-     * Move a step to {@code RUNNING} because a hosted session opened on it. A no-op if the step
-     * is gone or has already moved past {@code OPEN}: opening a session never overrides a claim,
-     * a finished step, or a step another session is already on.
-     */
+    /** Move a step {@code OPEN -> RUNNING} when a session opens on it. A no-op past {@code OPEN}. */
     @Transactional
     public void markRunning(UUID stepId) {
         if (stepId == null) {
@@ -146,11 +139,7 @@ public class TaskStepService {
                 });
     }
 
-    /**
-     * Drop a step back to {@code OPEN} when the session that opened on it ends without taking it
-     * to {@code claimed}. A no-op unless the step is still {@code RUNNING}, so a claim or a
-     * console move made while the session ran is never undone.
-     */
+    /** Drop a step {@code RUNNING -> OPEN} when its session ends without claiming it. A no-op otherwise. */
     @Transactional
     public void releaseRunning(UUID stepId) {
         if (stepId == null) {
@@ -180,12 +169,7 @@ public class TaskStepService {
         return settled;
     }
 
-    /**
-     * Keep every {@code DRAFT} step after every step that is past draft, without disturbing the
-     * order within either group. A draft is a step still being written; it is not part of the
-     * checklist a session reads, so it never sits between two steps that are, and the numbering
-     * the session sees stays the numbering the console shows.
-     */
+    /** Keep every {@code DRAFT} step after every non-draft one, order within each group preserved. */
     private void settleDraftsAtTail(UUID taskId) {
         settleDraftsAtTail(new ArrayList<>(steps.findByTaskIdOrderByPositionAsc(taskId)));
         steps.flush();

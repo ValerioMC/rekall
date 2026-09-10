@@ -1,9 +1,4 @@
 databaseChangeLog:
-
-  # The `--effort` level a hosted session was started with (`low` .. `max`), or null when the
-  # account default was left to stand. Claude Code does not echo the level back on its stream,
-  # so unlike `model` this column is only ever what was chosen at start; a session keeps it.
-
   - changeSet:
       id: 013-claude-session-effort
       author: rekall

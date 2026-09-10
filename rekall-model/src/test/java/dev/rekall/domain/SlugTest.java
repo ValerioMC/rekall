@@ -26,8 +26,7 @@ class SlugTest {
     })
     @DisplayName("what a person types becomes a term an anchor can carry")
     void normalises(String raw, String expected) {
-        // The last case is the one worth stating: an accent is dropped rather than transliterated,
-        // because a label is an identifier and `task:caffè` is not something a terminal agrees on.
+        // An accent is dropped, not transliterated: a label is an identifier.
         assertThat(Slug.of(raw)).isEqualTo(expected);
     }
 

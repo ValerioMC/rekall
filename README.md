@@ -96,22 +96,21 @@ cp .claude/commands/rk.md ~/.claude/commands/rk.md
 /rk project:vega task:report-builder
 ```
 
-**Open in Claude Code**, on a task or a project, opens a terminal in the project's folder with `/rk` already running. Set the folder in the **Folder** field on the project page. The terminal is iTerm2 when installed, Terminal.app otherwise. A switch in **Settings > Claude Code** adds `--dangerously-skip-permissions`; it is stored on the machine, not in the database. This button works only inside Rekall.app.
+**Open in terminal**, on a task or a project, hands the session to your own terminal app in the project's folder with `/rk` already running. Set the folder in the **Folder** field on the project page. The terminal is iTerm2 when installed, Terminal.app otherwise. A switch in **Settings > Claude Code** adds `--dangerously-skip-permissions`; it is stored on the machine, not in the database. This button works only inside Rekall.app.
 
-## Session in Rekall
+## Terminal in Rekall
 
-**Run here**, next to **Open in Claude Code** on the description and steps panes, or `c` from any task, opens a session inside the app instead of a terminal. It runs `claude` in the project's folder with `--input-format stream-json --output-format stream-json`, sends `/rk <anchors>` first, and stays open on stdin: the pane shows the reply as it arrives and every prompt after the first is another line written to the same process. Works in a plain browser, not only Rekall.app.
+**Run here**, next to **Open in terminal** on the description and steps panes, or `c` from any task, runs a real terminal inside the app. The backend starts the interactive `claude` in a pseudo-terminal (pty4j) in the project's folder, types `/rk <anchors>` as the first line, and hands it to you; the pane renders it with `xterm.js` and the bytes travel both ways over one WebSocket at `/api/terminal/{id}/io`. Because it is the same binary run the same way as in your own terminal, its prompt caching, context compaction and `/context` read-outs behave identically, and a permission prompt actually renders and can be answered. Works in a plain browser, not only Rekall.app.
 
-One live process per task, the way one terminal window is. The first **Run here** on a task spawns `claude` and loads `/rk`; pressing it again, for the task or for any step, hands the prompt to the warm session rather than starting a second cold process, so its prompt cache is kept. A press on a different step releases the step the session was on, claims the new one, and drops a one-line note into the session so it starts there, with no `/rk` reload. **Clear**, on a live session, sends `/clear` then re-sends `/rk <anchors>` on the same process: it drops the conversation so far and reloads the task context while the system prompt, tool schemas and `CLAUDE.md` stay a cache read, the same as typing `/clear` then `/rk` in a fresh terminal.
+One terminal per task, the way one terminal window is. A second open on a task that already has one just refocuses it; opening on a different step moves the checklist marker (the old step back to open, the new one to running) without touching the process. **Restart** kills the `claude` process and starts a fresh one on the same task; **Close** ends it. Opening on a step marks that step `RUNNING` while the terminal is on it; on a task with no checklist the review line goes `RUNNING` instead, and both are released when the terminal closes. Nothing is persisted: a restart of Rekall clears every terminal and releases any step it left running, and reopening the pane replays a bounded scrollback so it repaints.
 
-**N live elsewhere** jumps to a session on another task; the pane's switcher moves between a task's current and past sessions. A dock in the bottom-right corner, on every screen while a session is live, lists the running sessions and jumps back to any of them, so leaving the pane or the console does not lose the way back. The transcript is persisted, so it survives a pane swap and a reload; a restart marks every open session ended. The **skip permissions** switch is the same one the terminal button uses, and with it off an in-app session cannot answer a permission prompt, so tool use is denied.
+**Settings > Claude Code** picks the model and effort a new terminal starts with, and the **skip permissions** switch:
 
-The pane's meta bar shows the model the session is running, read from what `claude` reports on start, and the reasoning-effort level it was started at. **Settings > Claude Code** picks both for a new **Run here** session:
+- **Model** (`Account default`, `Sonnet`, `Fable`, `Opus`, `Haiku`): anything but the default adds `--model <alias>`. Each alias is Claude Code's own name for the latest model of that family, so no version is pinned.
+- **Reasoning effort** (`Account default`, `Low`, `Medium`, `High`, `Extra-high`, `Max`): anything but the default adds `--effort <level>`.
+- **Skip permissions** adds `--dangerously-skip-permissions`; with it off, an interactive permission prompt in the terminal is yours to answer.
 
-- **Model** (`Account default`, `Sonnet`, `Fable`, `Opus`, `Haiku`): anything but the default adds `--model <alias>` to the command. Each alias is Claude Code's own name for the latest model of that family, so no version is pinned.
-- **Reasoning effort** (`Account default`, `Low`, `Medium`, `High`, `Extra-high`, `Max`): anything but the default adds `--effort <level>`. A higher level lets the model think longer on hard problems and spends more; it applies to models that support extended thinking.
-
-Both are stored on the machine, not in the database, and a session keeps what it started with. The terminal path is unaffected.
+All three are stored on the machine, not in the database. It works in both the jvm and native macOS bundles: the pty4j/JNA GraalVM metadata is committed under `rekall-app/src/main/resources/META-INF/native-image/`.
 
 The top bar carries a usage meter: the current 5-hour session as a ring with its percentage and time to reset, and, on hover, a bar per window including the weekly per-model limits. The figures are the ones Claude Code's own `/usage` shows, read with the OAuth token Claude Code stores (the macOS keychain, else `~/.claude/.credentials.json`). With no token the meter asks you to sign in; when Anthropic cannot be reached it holds the last figures. It refreshes each minute.
 
@@ -119,9 +118,10 @@ The top bar carries a usage meter: the current 5-hour session as a ring with its
 |---|---|---|
 | `rekall.claude.cli-path` | search `PATH` and the usual install dirs | Absolute path to `claude`, overriding discovery |
 | `rekall.claude.usage-url` | `https://api.anthropic.com/api/oauth/usage` | Where the usage meter reads session and weekly limits |
-| `rekall.claude.max-sessions` | `8` | Live sessions allowed at once |
-| `rekall.claude.idle-minutes` | `120` | A session untouched this long is closed by the sweep |
-| `rekall.claude.sweep-minutes` | `5` | How often the idle sweep runs |
+| `rekall.terminal.max-sessions` | `8` | Terminals allowed at once |
+| `rekall.terminal.idle-minutes` | `120` | A terminal untouched this long is closed by the sweep |
+| `rekall.terminal.sweep-minutes` | `5` | How often the idle sweep runs |
+| `rekall.terminal.scrollback-bytes` | `131072` | Bytes of output replayed to a pane that reopens |
 
 ## Anchor syntax
 
@@ -174,7 +174,7 @@ A session drives its own checklist over `/rk`:
 /rk project:vega task:report-builder step:3 done    # step 3 -> claimed
 ```
 
-The console holds one `text/event-stream` connection (`GET /api/steps/stream`) carrying three frames: `steps` for a checklist, `task-review` for a stepless task's review line, and `wrapup` for a wrapup write or delete. A step moved from a terminal, a box ticked in another window, or a wrapup written by a hosted session or over MCP all land without a reload.
+The console holds one `text/event-stream` connection (`GET /api/steps/stream`) carrying three frames: `steps` for a checklist, `task-review` for a stepless task's review line, and `wrapup` for a wrapup write or delete. A step moved from an in-app terminal, a box ticked in another window, or a wrapup written over MCP all land without a reload.
 
 Claude receives an open or running step with its detail, tagged `(in progress)` or `(claimed, …)`. A finished step arrives as its title alone. A draft step is not sent at all, only counted as `draft="N"` on the `<steps>` tag. A step ticked without a following wrapup is marked `(finished since the wrapup was written)` and handed back with its detail until the next wrapup folds it in.
 
@@ -186,13 +186,13 @@ A claimed step is reviewed from its detail: **Accept** ticks it to done, **Send 
 
 ## Description review
 
-A task with no checklist walks the same line at task scope: **open**, **running** while a hosted session is attached to its anchor with no step target, **claimed** when a Claude-authored wrapup lands, **accepted** when you accept it in the console. Nothing new is typed for it: running follows the session and claimed follows the wrapup write. The description pane shows the running pill and a review bar: on **running** it carries **Accept** and a link to the wrapup, so a session driven by hand still has a console exit; on **claimed** it adds **Send back** (with an optional note the next session sees); accepting offers to also mark the task done. It arrives on the same `GET /api/steps/stream` connection as a `task-review` frame, the wrapup that claims it rides the same connection as a `wrapup` frame so the pane shows the new text with the claim rather than on the next reload, and `PATCH /api/tasks/{id}/review` is the console-only Accept / Send back. Adding a first step retires the task-level line and the checklist takes over.
+A task with no checklist walks the same line at task scope: **open**, **running** while a terminal is open on it with no step target, **claimed** when a Claude-authored wrapup lands, **accepted** when you accept it in the console. Nothing new is typed for it: running follows the terminal and claimed follows the wrapup write. The description pane shows the running pill and a review bar: on **running** it carries **Accept** and a link to the wrapup, so a session driven by hand still has a console exit; on **claimed** it adds **Send back** (with an optional note the next session sees); accepting offers to also mark the task done. It arrives on the same `GET /api/steps/stream` connection as a `task-review` frame, the wrapup that claims it rides the same connection as a `wrapup` frame so the pane shows the new text with the claim rather than on the next reload, and `PATCH /api/tasks/{id}/review` is the console-only Accept / Send back. Adding a first step retires the task-level line and the checklist takes over.
 
 ## Console
 
 One surface, three panes: pick a task on the left, pick its checklist, its wrapup, a note or a session in the middle, write on the right. The field at the top takes the same grammar as `/rk`.
 
-The description, steps, wrapup and session are pinned above the notes. Each opens in the writing pane; a task missing one shows an empty card. `c` opens the session pane, the same way `s`, `w` and `d` open steps, wrapup and description. Companies, projects and tasks are created, edited and deleted from one editor, opened on the parent record. Title and label sit together with the anchor assembled live as you type. Deleting states what goes with it.
+The description, steps, wrapup and terminal are pinned above the notes. Each opens in the writing pane; a task missing one shows an empty card. `c` opens the terminal pane, the same way `s`, `w` and `d` open steps, wrapup and description. Companies, projects and tasks are created, edited and deleted from one editor, opened on the parent record. Title and label sit together with the anchor assembled live as you type. Deleting states what goes with it.
 
 Finished tasks are folded into a "filed" drawer, closed on every load. Writing autosaves; a note has no Save button.
 

@@ -8,11 +8,7 @@ import {
 import type { TaskReview, TaskStep, WrapupStreamEvent } from '@/model/catalog'
 import type { TaskId } from '@/model/branded'
 
-/**
- * One SSE connection carrying three console feeds: `steps` for a task's
- * checklist, `task-review` for the review line of a task that has none, and
- * `wrapup` for a wrapup write or delete on any task.
- */
+/** One SSE connection carrying three console feeds: `steps`, `task-review` and `wrapup`. */
 export function useStepStream(
   onSteps: (taskId: TaskId, steps: TaskStep[]) => void,
   onReview?: (review: TaskReview) => void,

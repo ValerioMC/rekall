@@ -1,5 +1,4 @@
 databaseChangeLog:
-
   - changeSet:
       id: 007-project-blueprint
       author: rekall

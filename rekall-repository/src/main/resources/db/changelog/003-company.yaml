@@ -1,8 +1,4 @@
 databaseChangeLog:
-
-  # A level above the project: who the work is for. Projects were already grouped in practice,
-  # by the name you gave them, and a name is a bad place to keep a relation.
-
   - changeSet:
       id: 003-company
       author: rekall
@@ -20,9 +16,6 @@ databaseChangeLog:
             columnNames: name
             constraintName: uq_company_name
 
-  # Existing projects have to land somewhere before the column can be made mandatory. One
-  # holding company, created only if there is anything to hold, so a fresh database does not
-  # start with a record nobody asked for.
   - changeSet:
       id: 003-holding-company-for-existing-projects
       author: rekall
@@ -55,8 +48,6 @@ databaseChangeLog:
             tableName: project
             columnName: company_id
             columnDataType: uuid
-        # A company's projects have no meaning without it, the same relation a project has with
-        # its tasks. The blast radius is large, which is the interface's problem to state.
         - addForeignKeyConstraint:
             baseTableName: project
             baseColumnNames: company_id
@@ -65,8 +56,6 @@ databaseChangeLog:
             constraintName: fk_project_company
             onDelete: CASCADE
 
-  # Project names only have to be unique inside their company now: two companies routinely have
-  # a project with the same name.
   - changeSet:
       id: 003-project-name-unique-per-company
       author: rekall

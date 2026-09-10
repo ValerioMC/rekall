@@ -52,10 +52,10 @@ rekall/
   rekall-common/     ConflictException, NotFoundException: the error vocabulary shared by every layer
   rekall-model/      JPA entities and their state rules
   rekall-repository/ Spring Data repositories and the Liquibase changelogs for their schema
-  rekall-service/    context assembly, the step and review lines, wrapups, time entries, hosted sessions
+  rekall-service/    context assembly, the step and review lines, wrapups, time entries
   rekall-api/        REST controllers for the UI
   rekall-mcp/        MCP server: one tool reads, two write (a wrapup, a step's state)
-  rekall-claude/     Claude Code sessions hosted in the app: spawn, stream, reap
+  rekall-claude/     the in-app terminal (pty4j PTYs over one WebSocket) and the Claude Code usage meter
   rekall-app/        Spring Boot entry point, serves the built frontend
   rekall-ui/         Vue 3 + Vite (built into rekall-ui/dist, copied into the jar by rekall-app)
 ```
@@ -227,18 +227,20 @@ transaction commits and fans it out to every open console over `GET /api/steps/s
 Server-Sent Events under the frame names `steps`, `task-review` and `wrapup`; `useStepStream`
 in the UI applies each to the store. A session moves a step to `RUNNING` over MCP and the
 console animates the move without a reload: the checklist node breathes, and the branch feeding
-it carries a band of light toward it. Opening a hosted session on a step ("Run here") is the
-other way in: `ClaudeProcessManager` moves that step to `RUNNING` on start through
-`TaskStepService.markRunning` and back to `OPEN` on end through `releaseRunning`, so the launch
-animates whether or not the console is on the checklist pane, and a session that dies without
-claiming its step does not strand it. Both are no-ops unless the step is `OPEN` (start) or still
-`RUNNING` (end), so an MCP `claimed` or a console tick made meanwhile is never undone. There is
-one live process per task: a second "Run here" while one is up is routed to it rather than
-spawning another, and if it names a different step the manager releases the old one and marks the
-new, so the running marker follows the session across a checklist the way it would in one
-terminal. A wrapup
-written by a hosted session or an MCP call lands in the pane with the claim it triggers rather
-than on the next reload.
+it carries a band of light toward it. Opening a terminal on a step ("Run here") is the
+other way in: `PtyTerminalManager` moves that step to `RUNNING` on start through
+`TaskStepService.markRunning` and back to `OPEN` on close through `releaseRunning`, so the
+launch animates whether or not the console is on the checklist pane, and a terminal that dies
+without its step being claimed does not strand it. Both are no-ops unless the step is `OPEN`
+(start) or still `RUNNING` (end), so an MCP `claimed` or a console tick made meanwhile is never
+undone. There is one terminal per task: opening again while one is up is routed to it rather
+than spawning another, and if it names a different step the manager releases the old one and
+marks the new, so the running marker follows the terminal across a checklist the way it would
+in one terminal window. A task with no checklist takes the same path at task scope:
+`PtyTerminalManager` calls `TaskReviewService.sessionRunning(taskId, true)` on start and
+`(taskId, false)` on close, so the review line runs while the terminal is open on the task and
+no step. A wrapup written from a terminal-run session (over MCP) or by an MCP call lands in the
+pane with the claim it triggers rather than on the next reload.
 
 ---
 
@@ -367,8 +369,8 @@ the console. What it cannot do is tick a step done, lose a note, move a task or 
 
 ### Opening a session from a button
 
-**Open in Claude Code**, on a task or a project, opens a terminal in that project's folder with
-`/rk` already running. It answers the last thing the anchor chips could not: an anchor still has
+**Open in terminal**, on a task or a project, hands the session to your own terminal app in that
+project's folder with `/rk` already running. It answers the last thing the anchor chips could not: an anchor still has
 to be pasted somewhere, and that somewhere has to be the right directory, because Claude Code
 takes the folder it was launched from and keeps it for the session. So the folder is a column on
 the project, `repo_folder`, and it travels down onto every task response beside the project label
@@ -394,6 +396,55 @@ the session and nothing else.
 kept in the browser's storage rather than in the database: "run without asking" is a property of
 this terminal on this machine, and a database opened somewhere else has no business carrying that
 answer along with it.
+
+---
+
+### The terminal pane
+
+The in-app session is a real terminal, `C` in the console. `PtyTerminalManager` in
+`rekall-claude` starts the interactive `claude` TUI in a pseudo-terminal (pty4j) in the task's
+folder, with `/rk` as the first line, and pumps its raw bytes to whoever is watching. The reason
+it is a PTY and not `claude -p` is token cost: a hand-run `claude` keeps its own cache warm,
+compacts its own context and shows its own `/context` and cost read-outs, and a PTY running the
+same binary the same way inherits all of that, where a headless stream-json process reassembled
+into a transcript could not. It is also the only place an interactive permission prompt actually
+renders and can be answered.
+
+The bytes do not go over HTTP. `TerminalController` only opens (`POST
+/api/tasks/{id}/terminals`), lists and closes; once a terminal exists the pane connects to
+`TerminalSocketHandler` at `/api/terminal/{id}/io`, Rekall's one WebSocket. Binary frames are
+stdin and stdout, a `{"resize":[cols,rows]}` text frame sets the window size, and a
+`{"type":"ended",...}` frame closes it out. Sends are funnelled through a
+`ConcurrentWebSocketSessionDecorator`, which also caps the outbound buffer so a pane that stops
+reading is dropped rather than left to back up memory. `useTerminalSocket` is the client half,
+`TerminalPane.vue` wires it to an `xterm.js` instance.
+
+One terminal per task. Opening again on a task that already has one is routed to it; opening on
+a different step releases the step it was on and marks the new (see §4). `PtyTerminalManager`
+also carries the checklist marker: `TaskStepService.markRunning` / `releaseRunning` for a step,
+`TaskReviewService.sessionRunning` for a stepless task, on open and on every way the terminal
+ends.
+
+Nothing is persisted. There is no row behind a terminal, so `TerminalLaunchService` (in
+`rekall-service`, against the entities) only resolves a task id to its folder and anchors, and a
+`PtyTerminalManager` restart starts empty and releases any step it left `RUNNING` on the way
+down. A bounded in-memory scrollback ring is replayed to a pane that reopens, so it repaints;
+that snapshot can begin mid escape-sequence and flicker once, which is the accepted cost of not
+storing a terminal. A cap on how many run at once (`rekall.terminal.max-sessions`, eight), an
+idle sweep, and a `@PreDestroy` that kills the rest inside the 5s shutdown budget keep strays
+from piling up.
+
+Both packaging flavours carry it. pty4j reaches `libutil` through JNA, a restricted native call
+on JDK 25, so the jlink launcher passes `--enable-native-access=ALL-UNNAMED`
+(`packaging/macos/Launcher.swift`); the GraalVM binary compiles that in. Neither pty4j nor JNA
+ships GraalVM reachability metadata, and `scripts/native-build.sh` calls `native-image` on a
+hand-built classpath rather than the one `mvn -Pnative` assembles, so the community metadata is
+not on it. The pieces the terminal needs are committed instead, under
+`rekall-app/src/main/resources/META-INF/native-image/`: `net.java.dev.jna/jna/` is the upstream
+community file vendored verbatim, `org.jetbrains.pty4j/pty4j/` is pty4j's own JNA structures and
+`Library`-interface proxies plus the two `jna-platform` integer types its read/write bindings
+use, agent-traced from a minimal PTY round trip and given the `jniAccessible` flags the agent
+cannot infer. Bump either dependency and both files are re-derived the same way.
 
 ---
 

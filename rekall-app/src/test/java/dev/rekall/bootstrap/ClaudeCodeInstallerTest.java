@@ -20,14 +20,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * The Claude Code registration, against a home directory of the test's own.
- *
- * <p>Nothing here launches the real CLI: the runner is a stand-in that records what it was asked
- * to run and, for an {@code mcp add} or {@code mcp remove}, rewrites the configuration the real
- * one would have rewritten. That is the whole contract this class has with Claude Code, so it is
- * the thing worth pinning down. {@code searchPath} is passed explicitly by every test, because
- * whether the machine running the build happens to have a {@code claude} on its PATH is not what
- * is under test.
+ * The Claude Code registration, against a home directory of the test's own. The runner is a
+ * stand-in that records commands and rewrites the configuration an {@code mcp add}/{@code remove}
+ * would have.
  */
 class ClaudeCodeInstallerTest {
 
@@ -39,18 +34,17 @@ class ClaudeCodeInstallerTest {
     private final List<List<String>> commands = new ArrayList<>();
     private final List<Path> directories = new ArrayList<>();
 
-    /** The state {@code ~/.claude.json} is rendered from, so a removal can be simulated. */
     private String userScopeUrl;
     private final Set<Path> folderScoped = new LinkedHashSet<>();
 
-    /** Records every command and answers success, writing nothing. Replaced where a test needs more. */
+    /** Records every command and answers success, writing nothing. */
     private ClaudeCodeInstaller.CommandRunner runner = (command, environment, directory) -> {
         commands.add(command);
         directories.add(directory);
         return new ClaudeCodeInstaller.Outcome(0, "");
     };
 
-    /** Stands in for the real CLI: what it is asked to register or remove, it registers or removes. */
+    /** Stands in for the real CLI: it registers or removes what it is asked to. */
     private final ClaudeCodeInstaller.CommandRunner realistic = (command, environment, directory) -> {
         commands.add(command);
         directories.add(directory);
@@ -156,8 +150,7 @@ class ClaudeCodeInstallerTest {
         writeCommandFile(packagedCommand());
         registerFolderScope(projectFolder("carrying"));
 
-        // Inside that folder it is the copy a session finds, so this is not one registration
-        // answering from everywhere, which is the only thing CONNECTED is allowed to mean.
+        // Inside that folder the folder-scoped copy wins, so it is not CONNECTED.
         assertThat(installer().status().status()).isEqualTo(ClaudeCodeInstaller.OUTDATED);
     }
 
@@ -204,7 +197,7 @@ class ClaudeCodeInstallerTest {
         ClaudeCodeInstaller.Installation status = installer().install();
 
         assertThat(commands).contains(List.of(cli.toString(), "mcp", "remove", "--scope", "local", "rekall"));
-        // The directory is the whole of what makes that removal address this folder's copy.
+        // The directory is what makes that removal address this folder's copy.
         assertThat(directories).endsWith(carrying);
         assertThat(status.folderScoped()).isEmpty();
         assertThat(status.status()).isEqualTo(ClaudeCodeInstaller.CONNECTED);
@@ -277,7 +270,7 @@ class ClaudeCodeInstallerTest {
                 home, ENDPOINT, (command, environment, directory) -> runner.run(command, environment, directory), "");
     }
 
-    /** An executable file where Claude Code installs itself, so the lookup finds it without a PATH. */
+    /** An executable where Claude Code installs itself, so the lookup finds it without a PATH. */
     private Path fakeCli() throws IOException {
         Path cli = home.resolve(".local/bin/claude");
         Files.createDirectories(cli.getParent());
@@ -286,7 +279,6 @@ class ClaudeCodeInstallerTest {
         return cli;
     }
 
-    /** A folder that exists, because a registration in one that does not is not reported. */
     private Path projectFolder(String name) throws IOException {
         return Files.createDirectories(home.resolve("Projects").resolve(name));
     }
@@ -296,7 +288,6 @@ class ClaudeCodeInstallerTest {
         writeConfiguration();
     }
 
-    /** The entry a {@code claude mcp add} without a scope leaves under the folder it ran in. */
     private void registerFolderScope(Path folder) {
         folderScoped.add(folder);
         writeConfiguration();

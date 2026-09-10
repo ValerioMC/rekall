@@ -5,11 +5,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * The task-scoped review line: the same four values a step walks, read at task
- * scope, and the two moments that have to keep saying what they say as a stepless
- * task moves along it.
- */
+/** The task-scoped review line and its two moments as a stepless task moves along it. */
 class TaskReviewStateTest {
 
     private Task newTask() {

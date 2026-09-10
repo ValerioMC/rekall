@@ -1,18 +1,4 @@
 databaseChangeLog:
-
-  # A Claude Code session run from inside Rekall rather than in an external terminal.
-  #
-  # `claude` is spawned by the backend with `--input-format stream-json --output-format
-  # stream-json`; its stdout NDJSON is folded into `claude_message` rows and its lifecycle into
-  # the `status` on `claude_session`. One row per session, many sessions per task, several live
-  # at once. `ClaudeProcessManager` owns the process; this table is what survives a pane swap,
-  # a page reload and (as history, marked EXITED by the startup sweep) a restart.
-  #
-  # `step_id` is a soft hint, deliberately not a foreign key: it only labels which step a
-  # session was opened against, and a deleted step should not take the transcript with it.
-  # `working_dir` and `anchors` are captured at start so the row still explains itself after
-  # the project's folder or labels change.
-
   - changeSet:
       id: 011-claude-session
       author: rekall
@@ -25,11 +11,9 @@ databaseChangeLog:
               - column: {name: step_id, type: uuid}
               - column: {name: anchors, type: varchar(300), constraints: {nullable: false}}
               - column: {name: working_dir, type: varchar(1000), constraints: {nullable: false}}
-              # `claude`'s own session id, read from its `system`/`init` event once it starts.
               - column: {name: cli_session_id, type: varchar(200)}
               - column: {name: status, type: varchar(20), defaultValue: 'STARTING', constraints: {nullable: false}}
               - column: {name: skip_permissions, type: boolean, defaultValueBoolean: false, constraints: {nullable: false}}
-              # Why the session is in the state it is: the failure text, or how it was closed.
               - column: {name: detail, type: varchar(2000)}
               - column: {name: exit_code, type: int}
               - column: {name: last_activity_at, type: timestamp, constraints: {nullable: false}}
@@ -37,7 +21,6 @@ databaseChangeLog:
               - column: {name: ended_at, type: timestamp}
               - column: {name: created_at, type: timestamp, constraints: {nullable: false}}
               - column: {name: updated_at, type: timestamp, constraints: {nullable: false}}
-        # A session describes work on one task and means nothing without it.
         - addForeignKeyConstraint:
             baseTableName: claude_session
             baseColumnNames: task_id
@@ -61,14 +44,10 @@ databaseChangeLog:
             columns:
               - column: {name: id, type: uuid, constraints: {primaryKey: true, primaryKeyName: pk_claude_message, nullable: false}}
               - column: {name: session_id, type: uuid, constraints: {nullable: false}}
-              # Dense from zero within a session, the order the events arrived.
               - column: {name: seq, type: int, constraints: {nullable: false}}
               - column: {name: role, type: varchar(16), constraints: {nullable: false}}
-              # The rendered text of an assistant turn, a prompt, a tool's input or its output.
               - column: {name: content, type: varchar(1000000)}
-              # Set only on TOOL_USE / TOOL_RESULT rows.
               - column: {name: tool_name, type: varchar(120)}
-              # Small JSON: turn stats on a RESULT row, the tool_use id on a TOOL_RESULT row.
               - column: {name: meta, type: varchar(8000)}
               - column: {name: created_at, type: timestamp, constraints: {nullable: false}}
         - addForeignKeyConstraint:

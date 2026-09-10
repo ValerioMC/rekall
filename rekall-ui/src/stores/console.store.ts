@@ -69,7 +69,7 @@ import type {
 export type NavMode = 'tasks' | 'notes'
 export type SaveState = 'saved' | 'unsaved' | 'saving'
 
-export type PaneFocus = 'note' | 'wrapup' | 'description' | 'steps' | 'claude'
+export type PaneFocus = 'note' | 'wrapup' | 'description' | 'steps' | 'terminal'
 
 export const useConsoleStore = defineStore('console', () => {
   const companies = ref<Company[]>([])
@@ -481,8 +481,6 @@ export const useConsoleStore = defineStore('console', () => {
     )
   }
 
-  // A wrapup written or deleted anywhere (a hosted session, an MCP call, another console)
-  // arrives here so the pane and card reflect it without a reload.
   function applyWrapupEvent(event: WrapupStreamEvent): void {
     if (event.deleted || !event.wrapup) {
       wrapups.value = wrapups.value.filter((wrapup) => wrapup.taskId !== event.taskId)
@@ -532,12 +530,7 @@ export const useConsoleStore = defineStore('console', () => {
     }
   }
 
-  /**
-   * The "generate wrapup" toggle and its optional standing directive, saved from the
-   * WrapupAutomationBar under the description and steps panes: everything else about the task
-   * goes back untouched. A blank directive is stored as none, and the server drops any directive
-   * once the toggle is off, so a stale instruction never outlives it.
-   */
+  /** The "generate wrapup" toggle and its optional standing directive; a blank directive is stored as none. */
   async function saveTaskWrapup(
     id: TaskId,
     autoWrapup: boolean,
@@ -642,14 +635,14 @@ export const useConsoleStore = defineStore('console', () => {
     paneFocus.value = 'steps'
   }
 
-  function openClaude(): void {
+  function openTerminal(): void {
     if (selectedTaskId.value === null) return
-    paneFocus.value = 'claude'
+    paneFocus.value = 'terminal'
   }
 
-  function toggleClaude(): void {
+  function toggleTerminal(): void {
     if (selectedTaskId.value === null) return
-    paneFocus.value = paneFocus.value === 'claude' ? 'note' : 'claude'
+    paneFocus.value = paneFocus.value === 'terminal' ? 'note' : 'terminal'
   }
 
   async function saveWrapupBody(taskId: TaskId, bodyMarkdown: string): Promise<void> {
@@ -896,11 +889,11 @@ export const useConsoleStore = defineStore('console', () => {
     openWrapup,
     openDescription,
     openSteps,
-    openClaude,
+    openTerminal,
     toggleDescription,
     toggleWrapup,
     toggleSteps,
-    toggleClaude,
+    toggleTerminal,
     addStep,
     saveStep,
     toggleStep,

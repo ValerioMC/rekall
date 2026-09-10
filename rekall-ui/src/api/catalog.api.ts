@@ -112,10 +112,7 @@ export async function deleteTask(id: TaskId): Promise<void> {
   await request(() => apiClient(`/api/tasks/${id}`, { method: 'DELETE' }))
 }
 
-/**
- * Accept (`DONE`) or send back (`OPEN`) a stepless task's review line. The two
- * derived states are the server's to set and are refused here.
- */
+/** Accept (`DONE`) or send back (`OPEN`) a stepless task's review line; other states are refused. */
 export async function reviewTask(
   id: TaskId,
   reviewState: TaskStepState,

@@ -79,8 +79,7 @@ public class WrapupService {
         return written;
     }
 
-    // A Claude-authored wrapup is what a stepless task delivers, so writing one is what advances
-    // its review line to CLAIMED. A hand-written one is the reviewer's correction, not a claim.
+    // A Claude-authored wrapup advances a stepless task's review line to CLAIMED; a hand-written one does not.
     private void claimIfClaude(Task task, WrapupAuthor author) {
         if (author == WrapupAuthor.CLAUDE) {
             taskReview.claimedByWrapup(task.getId());

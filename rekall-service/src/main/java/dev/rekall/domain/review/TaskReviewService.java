@@ -12,25 +12,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.UUID;
 
 /**
- * The task-scoped mirror of {@code TaskStepService}: it walks a stepless task
- * along {@code OPEN -> RUNNING -> CLAIMED -> DONE} and pushes every move onto the
- * step SSE feed as a {@link TaskReviewEvent}.
- *
- * <p>Three of the four moves ride on signals the rest of the system already
- * emits, so no new Claude-facing verb exists:
- *
- * <ul>
- *   <li>{@link #sessionRunning} is called by the process manager when a session
- *       attaches to or leaves the task anchor with no {@code step:} target.
- *   <li>{@link #claimedByWrapup} is called by the wrapup write path when the
- *       author is Claude.
- *   <li>{@link #accept} and {@link #sendBack} are the console's alone. There is
- *       no MCP tool that reaches them, the same way {@code TaskStepService}
- *       refuses {@code DONE}: a person accepts the work after looking at it.
- * </ul>
- *
- * <p>Every method is inert once the task has a checklist: the steps carry the
- * review then, and the task-level columns are kept but ignored.
+ * The task-scoped mirror of {@code TaskStepService}: walks a stepless task along
+ * {@code OPEN -> RUNNING -> CLAIMED -> DONE} and pushes every move onto the step SSE feed as a
+ * {@link TaskReviewEvent}. {@link #sessionRunning} and {@link #claimedByWrapup} ride on existing
+ * signals; {@link #accept} and {@link #sendBack} are the console's alone, with no MCP tool. Every
+ * method is inert once the task has a checklist.
  */
 @Service
 @RequiredArgsConstructor
@@ -39,13 +25,7 @@ public class TaskReviewService {
     private final TaskRepository tasks;
     private final ApplicationEventPublisher events;
 
-    /**
-     * Move a stepless task between {@code OPEN} and {@code RUNNING} as a session
-     * on its anchor comes and goes. {@code running} is whether any live session
-     * is currently attached to the task with no step target. Ambient: it never
-     * blocks a claim or an accept, and a wrong flip is corrected by the next
-     * signal.
-     */
+    /** Flip {@code OPEN <-> RUNNING} as a session on the task anchor comes and goes. Ambient: never blocks a claim. */
     @Transactional
     public void sessionRunning(UUID taskId, boolean running) {
         Task task = tasks.findById(taskId).orElse(null);
@@ -61,12 +41,7 @@ public class TaskReviewService {
         }
     }
 
-    /**
-     * A Claude-authored wrapup is the deliverable of a stepless task, the way a
-     * step's body is: writing one advances {@code OPEN | RUNNING -> CLAIMED}. A
-     * hand-written wrapup does not, and neither does a task that already has a
-     * checklist.
-     */
+    /** A Claude-authored wrapup advances {@code OPEN | RUNNING -> CLAIMED}. A hand-written one does not. */
     @Transactional
     public void claimedByWrapup(UUID taskId) {
         Task task = tasks.findById(taskId).orElse(null);
@@ -80,12 +55,7 @@ public class TaskReviewService {
         }
     }
 
-    /**
-     * The console accepts the work: {@code -> DONE}. Available from any state but
-     * {@code DONE} itself, so a task with no wrapup can still be accepted. The
-     * guard mirrors {@code TaskStepService.transition} refusing an already
-     * accepted step.
-     */
+    /** The console accepts the work: {@code -> DONE} from any state but {@code DONE} itself. */
     @Transactional
     public TaskReviewView accept(UUID taskId) {
         Task task = require(taskId);
@@ -98,10 +68,7 @@ public class TaskReviewService {
         return publish(task);
     }
 
-    /**
-     * The console sends the work back: {@code -> OPEN}, with an optional note the
-     * next session sees. Blank notes are dropped rather than stored.
-     */
+    /** The console sends the work back: {@code -> OPEN}, with an optional note; blank notes are dropped. */
     @Transactional
     public TaskReviewView sendBack(UUID taskId, String note) {
         Task task = require(taskId);

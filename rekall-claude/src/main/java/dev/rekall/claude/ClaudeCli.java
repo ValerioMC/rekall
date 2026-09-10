@@ -12,12 +12,9 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Finds the {@code claude} binary and the environment to run it with.
- *
- * <p>The same search {@code ClaudeCodeInstaller} does, for the same reason: a desktop app is
- * launched with a stripped {@code PATH}, so where Claude Code installs itself is tried before
- * anything the shell would have found. {@code rekall.claude.cli-path} overrides all of it, which
- * is also how the tests point this at a stub.
+ * Finds the {@code claude} binary and the environment to run it with. A desktop app starts with a
+ * stripped {@code PATH}, so the Claude Code install locations are tried first;
+ * {@code rekall.claude.cli-path} overrides everything.
  */
 @Component
 @Slf4j

@@ -15,12 +15,6 @@
     <description>Read-only MCP server: one tool, loading a working context by anchor</description>
 
     <dependencies>
-        <!--
-          Depends on rekall-service, never on rekall-api: no controller is on this module's
-          classpath, only the services and the model behind them. The read tool and the two
-          write tools reach the same services the REST layer does, but the HTTP surface they
-          belong to cannot be reached from here.
-        -->
         <dependency>
             <groupId>dev.rekall</groupId>
             <artifactId>rekall-service</artifactId>

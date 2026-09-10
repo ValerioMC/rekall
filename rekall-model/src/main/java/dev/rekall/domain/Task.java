@@ -127,24 +127,17 @@ public class Task {
     }
 
     /**
-     * True while this task has no checklist. The task-scoped review line
-     * ({@link #reviewState} and its two moments) only means anything here: once
-     * one step is past {@code DRAFT} the checklist is the source of truth and
-     * these columns are kept but ignored. Draft steps are a planning surface, not
-     * a checklist, so a task that only holds drafts is still review-active.
+     * True while the task has no checklist (only draft steps count as none). Once a step is past
+     * {@code DRAFT} the checklist is the source of truth and the review columns are ignored.
      */
     public boolean reviewActive() {
         return steps.stream().allMatch(step -> step.getState() == TaskStepState.DRAFT);
     }
 
     /**
-     * Walk the task-scoped review line, the same four values a {@link TaskStep}
-     * moves along read at task scope: {@code OPEN} before a session has run or
-     * after a send back, {@code RUNNING} while a session is attached to the task
-     * anchor with no step target, {@code CLAIMED} once a Claude-authored wrapup
-     * lands, {@code DONE} when the console accepts it. Each move rewrites the two
-     * moments and the send-back note so they never outlive the state that set
-     * them.
+     * Move the task-scoped review line: {@code OPEN} before a run or after a send back,
+     * {@code RUNNING} during a session, {@code CLAIMED} once a wrapup lands, {@code DONE} on accept.
+     * Each move resets {@link #claimedAt}, {@link #acceptedAt} and {@link #reviewNote} to match.
      */
     public void markReviewState(TaskStepState next) {
         if (reviewState == next) {
@@ -174,12 +167,9 @@ public class Task {
     }
 
     /**
-     * The standing wrapup instruction for this task. While {@code auto} is on,
-     * every {@code /rk ... wrapup} on the task or one of its steps is expected to
-     * run without the console asking for it, folding in {@code directive} as the
-     * wording it should follow. A blank directive is stored as none, and the
-     * directive is cleared whenever the toggle goes off so a stale instruction
-     * never outlives the intent that set it.
+     * The standing wrapup instruction. While {@code auto} is on, {@code /rk ... wrapup} runs
+     * unprompted and follows {@code directive}. A blank directive is stored as none, and the
+     * directive is cleared when {@code auto} goes off.
      */
     public void configureWrapup(boolean auto, String directive) {
         this.autoWrapup = auto;

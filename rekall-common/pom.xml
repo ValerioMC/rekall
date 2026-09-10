@@ -14,10 +14,4 @@
     <name>rekall-common</name>
     <description>Cross-cutting types shared by every layer: the HTTP error vocabulary</description>
 
-    <!--
-      No Spring, no JPA, no web. ConflictException and NotFoundException are thrown by the
-      services, the MCP tools and the app bootstrap alike, and mapped to status codes by
-      rekall-api's @RestControllerAdvice. A module this small exists so a consumer that only
-      needs the exceptions does not pull a service layer onto its classpath to get them.
-    -->
 </project>

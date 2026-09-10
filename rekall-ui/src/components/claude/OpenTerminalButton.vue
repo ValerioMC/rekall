@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useConsoleStore } from '@/stores/console.store'
-import { useClaudeStore } from '@/stores/claude.store'
+import { useTerminalStore } from '@/stores/terminal.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { preferredEffort, preferredModel, skipsPermissions } from '@/common/config/claude-launch'
 import { useToastStore } from '@/stores/toast.store'
@@ -14,11 +14,11 @@ const props = withDefaults(
     stepId?: TaskStepId | null
     missingHint?: string
   }>(),
-  { stepId: null, missingHint: "Set this project's folder on its page to run a session from it" }
+  { stepId: null, missingHint: "Set this project's folder on its page to open a terminal from it" }
 )
 
 const console_ = useConsoleStore()
-const claude = useClaudeStore()
+const terminals = useTerminalStore()
 const toast = useToastStore()
 const { run, isRunning } = useAsyncAction()
 
@@ -29,20 +29,18 @@ async function launch(): Promise<void> {
     toast.notifyError(new Error(props.missingHint))
     return
   }
-  const created = await run(
+  const opened = await run(
     () =>
-      claude.startForTask(props.taskId, {
+      terminals.openForTask(props.taskId, {
         stepId: props.stepId,
         skipPermissions: skipsPermissions(),
         model: preferredModel(),
         effort: preferredEffort()
       }),
-    'Session started'
+    'Running here'
   )
-  if (created) console_.openClaude()
+  if (opened) console_.openTerminal()
 }
-
-const previewing = ref(false)
 </script>
 
 <template>
@@ -55,12 +53,8 @@ const previewing = ref(false)
         : 'border-transparent bg-transparent text-text-subtle hover:bg-surface-raised hover:text-text-muted'
     "
     :disabled="isRunning"
-    data-testid="launch-claude-session"
+    data-testid="open-terminal"
     @click="launch"
-    @mouseenter="previewing = true"
-    @mouseleave="previewing = false"
-    @focus="previewing = true"
-    @blur="previewing = false"
   >
     <span
       v-if="isRunning"
@@ -69,7 +63,7 @@ const previewing = ref(false)
     />
     <svg v-else class="size-3.5" viewBox="0 0 12 12" fill="none" aria-hidden="true">
       <rect x="0.9" y="1.6" width="10.2" height="8.8" rx="1.6" stroke="currentColor" stroke-width="1.1" />
-      <path d="M4.6 4.3 7.3 6 4.6 7.7Z" fill="currentColor" />
+      <path d="M4.6 4.2 7.8 6 4.6 7.8Z" fill="currentColor" />
     </svg>
     <span>Run here</span>
   </button>

@@ -5,7 +5,7 @@ import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.vue'
-import ClaudeSessionLauncher from '@/components/claude/ClaudeSessionLauncher.vue'
+import OpenTerminalButton from '@/components/claude/OpenTerminalButton.vue'
 import WrapupAutomationBar from '@/components/console/WrapupAutomationBar.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
@@ -21,8 +21,7 @@ const { run } = useAsyncAction()
 
 const hue = computed(() => identityHue(selectedTask.value?.projectId ?? ''))
 
-// The checklist is what the plan is: draft steps are still being worded and sit on a
-// staging shelf below it, off the rail, until they are promoted.
+// Draft steps sit on a staging shelf below the checklist until they are promoted.
 const checklistSteps = computed(() =>
   selectedTaskSteps.value.filter((step) => step.state !== 'DRAFT')
 )
@@ -349,7 +348,7 @@ onUnmounted(() => rowObserver?.disconnect())
           </div>
 
           <div class="flex shrink-0 items-center gap-1.5">
-            <ClaudeSessionLauncher
+            <OpenTerminalButton
               :task-id="selectedTask.id"
               :step-id="currentId"
               :folder="selectedTask.projectRepoFolder"

@@ -143,12 +143,7 @@ public final class ApiDtos {
             UUID projectId) {
     }
 
-    /**
-     * The console's Accept ({@code reviewState = DONE}) and Send back
-     * ({@code reviewState = OPEN}) for a stepless task. {@code RUNNING} follows a
-     * live session and {@code CLAIMED} is the wrapup's to set, so neither is
-     * accepted here.
-     */
+    /** Accept ({@code DONE}) or send back ({@code OPEN}) a stepless task; other states are refused. */
     public record TaskReviewRequest(@NotNull TaskStepState reviewState, String note) {
     }
 
