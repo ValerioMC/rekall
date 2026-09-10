@@ -3,13 +3,16 @@ import { onMounted, onUnmounted, ref } from 'vue'
 import FirstRunSetup from '@/components/setup/FirstRunSetup.vue'
 import DatabaseUnreachable from '@/components/setup/DatabaseUnreachable.vue'
 import RunningTasksDock from '@/components/shell/RunningTasksDock.vue'
+import TerminalSessionDock from '@/components/shell/TerminalSessionDock.vue'
 import AppLogo from '@/components/ui/AppLogo.vue'
 import { fetchDatabaseStatus } from '@/api/settings.api'
 import { useConsoleStore } from '@/stores/console.store'
+import { useTerminalStore } from '@/stores/terminal.store'
 import { useToastStore } from '@/stores/toast.store'
 import type { DatabaseStatus } from '@/model/settings'
 
 const store = useConsoleStore()
+const terminals = useTerminalStore()
 const toast = useToastStore()
 const status = ref<DatabaseStatus | null>(null)
 const failed = ref(false)
@@ -21,7 +24,7 @@ async function refreshWhatChangedElsewhere(): Promise<void> {
   if (document.visibilityState !== 'visible' || store.saveState !== 'saved') return
   refreshing = true
   try {
-    await store.refreshEverything()
+    await Promise.all([store.refreshEverything(), terminals.load()])
   } catch (caught) {
     toast.notifyError(caught)
   } finally {
@@ -34,6 +37,7 @@ onMounted(async () => {
     status.value = await fetchDatabaseStatus()
     if (status.value.status === 'READY') {
       await store.load()
+      void terminals.load()
     }
   } catch {
     failed.value = true
@@ -53,6 +57,7 @@ onUnmounted(() => {
     <template v-if="status.status === 'READY'">
       <router-view />
       <RunningTasksDock />
+      <TerminalSessionDock />
     </template>
     <FirstRunSetup v-else-if="status.status === 'SETUP_NEEDED'" />
     <DatabaseUnreachable v-else :status="status" />

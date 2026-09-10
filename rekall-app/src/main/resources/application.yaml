@@ -6,8 +6,8 @@ spring:
   # process after 10 seconds. A hard kill leaves the H2 file with a lock behind it and forces
   # recovery on the next start, so graceful shutdown has to finish well inside that window; the
   # framework default of 30s does not. Every regular request returns in milliseconds - the only
-  # thing that can hold a shutdown phase is a background fetch, and those release themselves on
-  # ContextClosedEvent (see ClaudeUsageService, StepEventStream, ClaudeSessionStream).
+  # thing that can hold a shutdown phase is a background fetch or a live feed, and those release
+  # themselves on ContextClosedEvent (see ClaudeUsageService, StepEventStream, PtyTerminalManager).
   lifecycle:
     timeout-per-shutdown-phase: 5s
 

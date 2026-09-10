@@ -10,9 +10,10 @@ import dev.rekall.domain.claude.TerminalLaunchService.TerminalLaunch;
 import dev.rekall.domain.review.TaskReviewService;
 import dev.rekall.domain.step.TaskStepService;
 import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.event.ContextClosedEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -150,7 +151,13 @@ public class PtyTerminalManager {
         reaper.scheduleWithFixedDelay(this::sweepIdle, sweepMinutes, sweepMinutes, TimeUnit.MINUTES);
     }
 
-    @PreDestroy
+    /**
+     * Kill every PTY and close its socket on {@link ContextClosedEvent}, which fires before the web
+     * server's graceful-shutdown phase. A {@code @PreDestroy} here runs only after that phase has
+     * already waited {@code spring.lifecycle.timeout-per-shutdown-phase} out on the still-open
+     * terminal WebSocket, which is the quit delay this avoids. Idempotent: {@link #live} is emptied.
+     */
+    @EventListener(ContextClosedEvent.class)
     void shutdown() {
         if (reaper != null) {
             reaper.shutdownNow();

@@ -84,11 +84,14 @@ function ensureXterm(): Xterm {
 /** Re-measure xterm against its host on the next frame, once layout has settled. */
 function refit(): void {
   requestAnimationFrame(() => {
+    if (!fit || !xterm) return
     try {
-      fit?.fit()
+      fit.fit()
     } catch {
       // The host has no size yet; the ResizeObserver will catch the next layout.
+      return
     }
+    socket.sendResize(xterm.cols, xterm.rows)
   })
 }
 
