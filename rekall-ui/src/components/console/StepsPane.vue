@@ -14,6 +14,7 @@ import { identityHue } from '@/common/identity'
 import { relativeTime } from '@/common/format/relative-time'
 import { rkCommand } from '@/common/format/rk-command'
 import { stepIsComplete, type TaskStep } from '@/model/catalog'
+import { STEP_DETAIL_TEMPLATE } from '@/model/templates'
 import type { TaskStepId } from '@/model/branded'
 
 const store = useConsoleStore()
@@ -84,10 +85,13 @@ async function add(): Promise<void> {
   const title = newTitle.value.trim()
   if (!title || !selectedTask.value) return
   newTitle.value = ''
-  const created = await run(() => store.addStep(selectedTask.value!.id, title))
+  const created = await run(() =>
+    store.addStep(selectedTask.value!.id, title, STEP_DETAIL_TEMPLATE)
+  )
   if (!created) return
   flush()
   open(created)
+  mode.value = 'write'
   await scrollToDrafts()
 }
 
