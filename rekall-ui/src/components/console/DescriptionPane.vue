@@ -10,7 +10,7 @@ import { rkCommand } from '@/common/format/rk-command'
 import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.vue'
 import OpenTerminalButton from '@/components/claude/OpenTerminalButton.vue'
 import LogCommitButton from '@/components/console/LogCommitButton.vue'
-import CommitReferenceList from '@/components/console/CommitReferenceList.vue'
+import CommitReferenceRail from '@/components/console/CommitReferenceRail.vue'
 import type { TaskId } from '@/model/branded'
 
 const store = useConsoleStore()
@@ -219,13 +219,10 @@ onUnmounted(() => {
 
       <div
         v-if="selectedTaskCommitReferences.length"
-        class="shrink-0 border-b border-border px-5 py-2.5"
+        class="shrink-0 border-b border-border px-5 py-1.5"
         data-testid="description-commits"
       >
-        <p class="eyebrow">
-          Commits <span class="font-mono">{{ selectedTaskCommitReferences.length }}</span>
-        </p>
-        <CommitReferenceList :references="selectedTaskCommitReferences" show-step-tag />
+        <CommitReferenceRail :key="selectedTask.id" :references="selectedTaskCommitReferences" />
       </div>
 
       <div

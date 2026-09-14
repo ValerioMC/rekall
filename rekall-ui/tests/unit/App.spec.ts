@@ -651,6 +651,10 @@ describe('the console', () => {
       // The note editor's controls are absent rather than disabled: a wrapup has no kind and
       // no second task it could belong to.
       expect(wrapper.find('[data-testid="assign-open"]').exists()).toBe(false)
+      // Only one way to copy the wrapup command once a wrapup exists: the chip next to its
+      // metadata, not a second one duplicating the empty state's.
+      expect(wrapper.find('[data-testid="copy-wrapup-command"]').text())
+        .toContain('wrapup')
     })
 
     /**
@@ -668,10 +672,10 @@ describe('the console', () => {
     })
 
     /**
-     * The primary way a wrapup gets written is Claude, so the empty state hands over the exact
-     * line to paste rather than a form.
+     * The primary way a wrapup gets written is Claude, pasting the anchor the header already
+     * offers plus `wrapup`; the empty state points there instead of duplicating that button.
      */
-    it('offers the command on a task that has none, and a way to write it by hand', async () => {
+    it('points to the anchor for a task that has none, and offers a way to write it by hand', async () => {
       const wrapper = await mountConsole()
 
       await wrapper.findAll('[data-testid="task-row"]')[1]!.trigger('click')
@@ -679,8 +683,9 @@ describe('the console', () => {
       await flushPromises()
 
       expect(wrapper.text()).toContain('Nobody has said what this is yet')
-      expect(wrapper.find('[data-testid="copy-wrapup-command"]').text())
-        .toContain('/rk project:vega task:retry-policy wrapup')
+      expect(wrapper.find('[data-testid="copy-wrapup-anchor"]').text())
+        .toContain('project:vega task:retry-policy')
+      expect(wrapper.find('[data-testid="copy-wrapup-command"]').exists()).toBe(false)
 
       await wrapper.find('[data-testid="write-wrapup-by-hand"]').trigger('click')
       await flushPromises()
