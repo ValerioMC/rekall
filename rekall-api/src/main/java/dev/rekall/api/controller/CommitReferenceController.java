@@ -1,5 +1,6 @@
 package dev.rekall.api.controller;
 
+import dev.rekall.api.dto.ApiDtos.CommitReferenceDiffResponse;
 import dev.rekall.api.dto.ApiDtos.CommitReferenceRequest;
 import dev.rekall.domain.commit.CommitReferenceService;
 import dev.rekall.domain.commit.CommitReferenceView;
@@ -32,5 +33,10 @@ public class CommitReferenceController {
             @PathVariable UUID taskId, @RequestBody(required = false) CommitReferenceRequest request) {
         UUID stepId = request == null ? null : request.stepId();
         return commitReferences.recordLatestCommit(taskId, stepId);
+    }
+
+    @GetMapping("/commit-references/{id}/diff")
+    public CommitReferenceDiffResponse diff(@PathVariable UUID id) {
+        return new CommitReferenceDiffResponse(commitReferences.diffFor(id));
     }
 }

@@ -5,15 +5,22 @@ import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.vue'
+import WrapupHereDialog from '@/components/console/WrapupHereDialog.vue'
 import { useConsoleStore } from '@/stores/console.store'
+import { useTerminalStore } from '@/stores/terminal.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { relativeTime } from '@/common/format/relative-time'
-import { rkCommand } from '@/common/format/rk-command'
+import { rkCommand, rkWrapupCommand } from '@/common/format/rk-command'
 import { WRAPUP_AUTHOR_LABEL } from '@/model/catalog'
 
 const store = useConsoleStore()
+const terminals = useTerminalStore()
 const { selectedTask, selectedWrapup, wrapupIsBehind } = storeToRefs(store)
 const { run } = useAsyncAction()
+const { run: runSend, isRunning: sendingWrapupHere } = useAsyncAction()
+
+const liveTerminal = computed(() => terminals.terminalForTask(selectedTask.value?.id ?? null))
+const wrapupHereOpen = ref(false)
 
 const mode = ref<'write' | 'read'>('read')
 const isConfirmingDelete = ref(false)
@@ -84,6 +91,20 @@ async function confirmDelete(): Promise<void> {
   await run(() => store.removeWrapup(task.id), 'Wrapup deleted')
   isConfirmingDelete.value = false
 }
+
+async function sendWrapupHere(message: string): Promise<void> {
+  const task = selectedTask.value
+  const terminal = liveTerminal.value
+  if (!task || !terminal) return
+  const sent = await runSend(
+    () => terminals.sendCommand(terminal.id, rkWrapupCommand(task.anchor, message)),
+    'Sent to the terminal.'
+  )
+  if (sent === null) return
+  wrapupHereOpen.value = false
+  store.openTerminal()
+  terminals.select(terminal.id)
+}
 </script>
 
 <template>
@@ -120,6 +141,17 @@ async function confirmDelete(): Promise<void> {
           :folder="selectedTask.projectRepoFolder"
           missing-hint="Set this project's folder on its page to open a session from it"
         />
+
+        <button
+          v-if="liveTerminal"
+          class="focus-ring inline-flex h-7 shrink-0 items-center gap-2 rounded-[var(--radius-control)] border border-border px-2.5 text-xs font-medium text-text-muted transition-colors hover:border-accent hover:bg-accent-soft hover:text-accent"
+          data-testid="wrapup-here"
+          title="Type the wrapup command into the session already running here"
+          @click="wrapupHereOpen = true"
+        >
+          <span class="session-caret session-caret-busy shrink-0" aria-hidden="true" />
+          Wrapup here
+        </button>
 
         <div v-if="selectedWrapup" class="flex shrink-0 items-center gap-2">
           <div class="flex gap-0.5 rounded-[7px] bg-surface p-0.5">
@@ -264,6 +296,15 @@ async function confirmDelete(): Promise<void> {
       confirm-label="Delete wrapup"
       @cancel="isConfirmingDelete = false"
       @confirm="confirmDelete"
+    />
+
+    <WrapupHereDialog
+      v-if="wrapupHereOpen && selectedTask"
+      :task-title="selectedTask.title"
+      :anchor="selectedTask.anchor"
+      :sending="sendingWrapupHere"
+      @cancel="wrapupHereOpen = false"
+      @send="sendWrapupHere"
     />
   </section>
 </template>

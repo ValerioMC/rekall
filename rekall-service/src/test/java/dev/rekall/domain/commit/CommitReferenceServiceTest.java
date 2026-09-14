@@ -12,6 +12,7 @@ import dev.rekall.domain.repository.TaskStepRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.util.List;
 import java.util.Optional;
@@ -56,7 +57,7 @@ class CommitReferenceServiceTest {
     @Test
     @DisplayName("logs the tip commit against the task when no step is given")
     void logsAgainstTheTaskWhenNoStepIsGiven() {
-        when(git.head(any())).thenReturn(new GitHeadReader.Commit("abc123", "Wire up the button"));
+        when(git.head(any())).thenReturn(new GitHeadReader.Commit("abc123", "Wire up the button", "diff --git a/x b/x"));
         when(commitReferences.findByTaskIdAndCommitHash(taskId, "abc123")).thenReturn(List.of());
 
         CommitReferenceView logged = service.recordLatestCommit(taskId, null);
@@ -68,10 +69,73 @@ class CommitReferenceServiceTest {
     }
 
     @Test
+    @DisplayName("the commit's diff is stored alongside the hash and comment")
+    void storesTheDiffAlongsideTheCommit() {
+        when(git.head(any()))
+                .thenReturn(new GitHeadReader.Commit("abc123", "Wire up the button", "diff --git a/x b/x\n+line"));
+        when(commitReferences.findByTaskIdAndCommitHash(taskId, "abc123")).thenReturn(List.of());
+        ArgumentCaptor<CommitReference> saved = ArgumentCaptor.forClass(CommitReference.class);
+
+        service.recordLatestCommit(taskId, null);
+
+        verify(commitReferences).saveAndFlush(saved.capture());
+        assertThat(saved.getValue().getDiff()).isEqualTo("diff --git a/x b/x\n+line");
+    }
+
+    @Test
+    @DisplayName("a commit git could not diff is stored with no diff, rather than failing the whole log")
+    void storesNoDiffWhenGitCouldNotProduceOne() {
+        when(git.head(any())).thenReturn(new GitHeadReader.Commit("abc123", "Wire up the button", null));
+        when(commitReferences.findByTaskIdAndCommitHash(taskId, "abc123")).thenReturn(List.of());
+        ArgumentCaptor<CommitReference> saved = ArgumentCaptor.forClass(CommitReference.class);
+
+        CommitReferenceView logged = service.recordLatestCommit(taskId, null);
+
+        assertThat(logged.commitHash()).isEqualTo("abc123");
+        verify(commitReferences).saveAndFlush(saved.capture());
+        assertThat(saved.getValue().getDiff()).isNull();
+    }
+
+    @Test
+    @DisplayName("an overlong diff is truncated rather than stored whole")
+    void truncatesAnOverlongDiff() {
+        String longDiff = "+".repeat(CommitReference.DIFF_MAX + 500);
+        when(git.head(any())).thenReturn(new GitHeadReader.Commit("abc123", "Wire up the button", longDiff));
+        when(commitReferences.findByTaskIdAndCommitHash(taskId, "abc123")).thenReturn(List.of());
+        ArgumentCaptor<CommitReference> saved = ArgumentCaptor.forClass(CommitReference.class);
+
+        service.recordLatestCommit(taskId, null);
+
+        verify(commitReferences).saveAndFlush(saved.capture());
+        assertThat(saved.getValue().getDiff())
+                .hasSize(CommitReference.DIFF_MAX + "\n…(diff truncated)".length())
+                .endsWith("…(diff truncated)");
+    }
+
+    @Test
+    @DisplayName("the diff of a logged commit is fetched by its own id")
+    void fetchesTheDiffOfALoggedCommitById() {
+        UUID id = UUID.randomUUID();
+        CommitReference reference = new CommitReference(task, null, "abc123", "Wire up the button", "the diff");
+        when(commitReferences.findById(id)).thenReturn(Optional.of(reference));
+
+        assertThat(service.diffFor(id)).isEqualTo("the diff");
+    }
+
+    @Test
+    @DisplayName("fetching the diff of an unknown commit reference is refused")
+    void refusesTheDiffOfAnUnknownCommitReference() {
+        UUID id = UUID.randomUUID();
+        when(commitReferences.findById(id)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.diffFor(id)).isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
     @DisplayName("pressing the button twice on the same commit does not create a second row")
     void sameCommitIsNotLoggedTwice() {
-        when(git.head(any())).thenReturn(new GitHeadReader.Commit("abc123", "Wire up the button"));
-        CommitReference existing = new CommitReference(task, null, "abc123", "Wire up the button");
+        when(git.head(any())).thenReturn(new GitHeadReader.Commit("abc123", "Wire up the button", "diff --git a/x b/x"));
+        CommitReference existing = new CommitReference(task, null, "abc123", "Wire up the button", "diff --git a/x b/x");
         when(commitReferences.findByTaskIdAndCommitHash(taskId, "abc123")).thenReturn(List.of(existing));
 
         CommitReferenceView logged = service.recordLatestCommit(taskId, null);
@@ -89,8 +153,8 @@ class CommitReferenceServiceTest {
         when(step.getTask()).thenReturn(task);
         when(steps.findById(stepId)).thenReturn(Optional.of(step));
 
-        CommitReference taskLevel = new CommitReference(task, null, "abc123", "Wire up the button");
-        when(git.head(any())).thenReturn(new GitHeadReader.Commit("abc123", "Wire up the button"));
+        CommitReference taskLevel = new CommitReference(task, null, "abc123", "Wire up the button", "diff --git a/x b/x");
+        when(git.head(any())).thenReturn(new GitHeadReader.Commit("abc123", "Wire up the button", "diff --git a/x b/x"));
         when(commitReferences.findByTaskIdAndCommitHash(taskId, "abc123")).thenReturn(List.of(taskLevel));
 
         CommitReferenceView logged = service.recordLatestCommit(taskId, stepId);
@@ -128,7 +192,7 @@ class CommitReferenceServiceTest {
     @DisplayName("the subject line is truncated to the comment's character cap")
     void truncatesAnOverlongSubjectLine() {
         String longSubject = "x".repeat(CommitReference.COMMENT_MAX + 50);
-        when(git.head(any())).thenReturn(new GitHeadReader.Commit("abc123", longSubject));
+        when(git.head(any())).thenReturn(new GitHeadReader.Commit("abc123", longSubject, "diff --git a/x b/x"));
         when(commitReferences.findByTaskIdAndCommitHash(taskId, "abc123")).thenReturn(List.of());
 
         CommitReferenceView logged = service.recordLatestCommit(taskId, null);
@@ -151,7 +215,7 @@ class CommitReferenceServiceTest {
     void resolvesByProjectAndTaskLabelForTheMcpPath() {
         when(tasks.findByProjectLabelIgnoreCaseAndLabelIgnoreCase("vega", "report-builder"))
                 .thenReturn(Optional.of(task));
-        when(git.head(any())).thenReturn(new GitHeadReader.Commit("abc123", "Wire up the button"));
+        when(git.head(any())).thenReturn(new GitHeadReader.Commit("abc123", "Wire up the button", "diff --git a/x b/x"));
         when(commitReferences.findByTaskIdAndCommitHash(taskId, "abc123")).thenReturn(List.of());
 
         CommitReferenceView logged = service.recordLatestCommit("vega", "report-builder", null);

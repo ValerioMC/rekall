@@ -1,6 +1,12 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { closeTerminal, fetchTerminals, openTerminal, type OpenTerminalInput } from '@/api/terminal.api'
+import {
+  closeTerminal,
+  fetchTerminals,
+  openTerminal,
+  sendTerminalInput,
+  type OpenTerminalInput
+} from '@/api/terminal.api'
 import type { Terminal } from '@/model/terminal'
 import type { TaskId, TerminalId } from '@/model/branded'
 
@@ -65,6 +71,11 @@ export const useTerminalStore = defineStore('terminal', () => {
     }
   }
 
+  /** Type a line into a live session's stdin, as if someone had pasted it there and hit enter. */
+  async function sendCommand(id: TerminalId, line: string): Promise<void> {
+    await sendTerminalInput(id, `${line}\r`)
+  }
+
   return {
     terminals,
     activeTerminalId,
@@ -74,6 +85,7 @@ export const useTerminalStore = defineStore('terminal', () => {
     openForTask,
     select,
     markEnded,
-    close
+    close,
+    sendCommand
   }
 })

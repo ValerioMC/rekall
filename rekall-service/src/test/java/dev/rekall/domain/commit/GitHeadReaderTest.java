@@ -37,6 +37,35 @@ class GitHeadReaderTest {
     }
 
     @Test
+    @DisplayName("reads the diff the tip commit introduced")
+    void readsTheDiffTheTipCommitIntroduced(@TempDir Path repo) throws Exception {
+        run(repo, "init", "-q");
+        Files.writeString(repo.resolve("README.md"), "hello");
+        run(repo, "add", "README.md");
+        commit(repo, "Add the readme");
+
+        GitHeadReader.Commit head = reader.head(repo);
+
+        assertThat(head.diff()).contains("+hello").contains("README.md");
+    }
+
+    @Test
+    @DisplayName("the diff of a second commit is only what it changed, not the whole file again")
+    void readsOnlyWhatTheSecondCommitChanged(@TempDir Path repo) throws Exception {
+        run(repo, "init", "-q");
+        Files.writeString(repo.resolve("a.txt"), "one\n");
+        run(repo, "add", "a.txt");
+        commit(repo, "Add a.txt");
+        Files.writeString(repo.resolve("a.txt"), "one\ntwo\n");
+        run(repo, "add", "a.txt");
+        commit(repo, "Append a second line");
+
+        GitHeadReader.Commit head = reader.head(repo);
+
+        assertThat(head.diff()).contains("+two").doesNotContain("+one");
+    }
+
+    @Test
     @DisplayName("only the subject line is kept, even when the commit has a body")
     void readsOnlyTheSubjectLineEvenWithABody(@TempDir Path repo) throws Exception {
         run(repo, "init", "-q");

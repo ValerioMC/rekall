@@ -10,3 +10,7 @@ export const CommitReferenceSchema = z.object({
   comment: z.string(),
   createdAt: z.string()
 })
+
+export const CommitReferenceDiffSchema = z.object({
+  diff: z.string().nullable()
+})

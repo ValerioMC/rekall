@@ -16,7 +16,7 @@ class GitHeadReader {
     /** ASCII unit separator: not going to show up in a commit subject by accident. */
     private static final char FIELD_SEPARATOR = (char) 0x1F;
 
-    record Commit(String hash, String subject) {
+    record Commit(String hash, String subject, String diff) {
     }
 
     Commit head(Path repoFolder) {
@@ -58,6 +58,31 @@ class GitHeadReader {
         if (separator < 0) {
             throw new IllegalArgumentException("Unexpected git output in " + repoFolder + ".");
         }
-        return new Commit(output.substring(0, separator), output.substring(separator + 1));
+        String hash = output.substring(0, separator);
+        return new Commit(hash, output.substring(separator + 1), diffOf(repoFolder, hash));
+    }
+
+    /**
+     * The patch this commit introduced, so it can be reread later without a checkout. Best effort:
+     * a diff that cannot be produced (a huge merge, an odd git state) is dropped rather than
+     * failing the commit that {@link #head} otherwise read cleanly.
+     */
+    private String diffOf(Path repoFolder, String hash) {
+        List<String> command = List.of("git", "-C", repoFolder.toString(), "show", "--format=", hash);
+        try {
+            Process process = new ProcessBuilder(command).start();
+            String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            process.getErrorStream().readAllBytes();
+            if (!process.waitFor(5, TimeUnit.SECONDS)) {
+                process.destroyForcibly();
+                return null;
+            }
+            return process.exitValue() == 0 ? output.strip() : null;
+        } catch (IOException failed) {
+            return null;
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            return null;
+        }
     }
 }

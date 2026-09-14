@@ -206,4 +206,8 @@ public final class ApiDtos {
     /** {@code stepId} is optional: omitted logs the commit against the task itself. */
     public record CommitReferenceRequest(UUID stepId) {
     }
+
+    /** Fetched separately from the list, since not every row's diff is wanted at once. */
+    public record CommitReferenceDiffResponse(String diff) {
+    }
 }

@@ -266,7 +266,8 @@ vi.mock('@/api/time-entries.api', () => ({
 
 vi.mock('@/api/commitReference.api', () => ({
   fetchCommitReferences: vi.fn(async () => []),
-  recordLatestCommit: vi.fn()
+  recordLatestCommit: vi.fn(),
+  fetchCommitReferenceDiff: vi.fn()
 }))
 
 describe('console store', () => {

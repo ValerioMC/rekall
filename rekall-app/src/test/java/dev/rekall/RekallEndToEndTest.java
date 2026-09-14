@@ -471,6 +471,39 @@ class RekallEndToEndTest {
                 .isEqualTo(0);
     }
 
+    @Test
+    @DisplayName("the diff introduced by a logged commit can be fetched by the row's own id")
+    void theDiffOfALoggedCommitCanBeFetched() throws Exception {
+        String acme = aCompany("Acme");
+        Path repo = aGitRepoWithOneCommit("Add the README");
+        String projectId = id(post("/api/projects", Map.of(
+                "label", "vega", "title", "Vega", "status", "ACTIVE",
+                "repoFolder", repo.toString(), "companyId", acme)));
+        String taskId = aTask(projectId, "report-builder");
+
+        ResponseEntity<Map> logged = rest.post()
+                .uri("/api/tasks/" + taskId + "/commit-references/latest")
+                .retrieve().toEntity(Map.class);
+        String referenceId = (String) logged.getBody().get("id");
+
+        ResponseEntity<Map> diff = rest.get()
+                .uri("/api/commit-references/" + referenceId + "/diff")
+                .retrieve().toEntity(Map.class);
+
+        assertThat(diff.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat((String) diff.getBody().get("diff")).contains("+Add the README");
+    }
+
+    @Test
+    @DisplayName("the diff of a commit reference that does not exist is a 404, not an empty body")
+    void theDiffOfAnUnknownCommitReferenceIs404() {
+        ResponseEntity<Map> response = rest.get()
+                .uri("/api/commit-references/" + UUID.randomUUID() + "/diff")
+                .retrieve().toEntity(Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
     private Path aGitRepoWithOneCommit(String subject) throws Exception {
         Path repo = Files.createTempDirectory("rekall-commit-reference-test");
         runGit(repo, "init", "-q");

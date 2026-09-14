@@ -8,6 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
@@ -24,6 +25,7 @@ public class CommitReference {
 
     public static final int HASH_MAX = 40;
     public static final int COMMENT_MAX = 200;
+    public static final int DIFF_MAX = 200_000;
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -51,6 +53,11 @@ public class CommitReference {
     @Column(name = "comment", nullable = false, updatable = false, length = COMMENT_MAX)
     private String comment;
 
+    /** The diff this commit introduced, so the change can be reread later without a checkout. Null for a commit logged before this column existed, or when git could not produce one. */
+    @Lob
+    @Column(name = "diff", updatable = false)
+    private String diff;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -58,11 +65,12 @@ public class CommitReference {
     protected CommitReference() {
     }
 
-    public CommitReference(Task task, TaskStep step, String commitHash, String comment) {
+    public CommitReference(Task task, TaskStep step, String commitHash, String comment, String diff) {
         this.task = task;
         this.step = step;
         this.commitHash = commitHash;
         this.comment = comment;
+        this.diff = diff;
     }
 
     @Override

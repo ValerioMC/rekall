@@ -7,13 +7,15 @@ import type { TaskId, TaskStepId, TerminalId } from '@/model/branded'
 const api = {
   fetchTerminals: vi.fn(),
   openTerminal: vi.fn(),
-  closeTerminal: vi.fn()
+  closeTerminal: vi.fn(),
+  sendTerminalInput: vi.fn()
 }
 
 vi.mock('@/api/terminal.api', () => ({
   fetchTerminals: (...a: unknown[]) => api.fetchTerminals(...a),
   openTerminal: (...a: unknown[]) => api.openTerminal(...a),
-  closeTerminal: (...a: unknown[]) => api.closeTerminal(...a)
+  closeTerminal: (...a: unknown[]) => api.closeTerminal(...a),
+  sendTerminalInput: (...a: unknown[]) => api.sendTerminalInput(...a)
 }))
 
 const TASK = 't-1' as TaskId
@@ -44,6 +46,7 @@ describe('the terminal store', () => {
     api.fetchTerminals.mockReset()
     api.openTerminal.mockReset()
     api.closeTerminal.mockReset()
+    api.sendTerminalInput.mockReset()
   })
 
   it('opens one terminal for a task and makes it active', async () => {
@@ -90,5 +93,17 @@ describe('the terminal store', () => {
 
     expect(store.terminals).toHaveLength(0)
     expect(store.activeTerminalId).toBeNull()
+  })
+
+  it('sendCommand types the line into the PTY with a trailing enter', async () => {
+    api.sendTerminalInput.mockResolvedValue(undefined)
+    const store = useTerminalStore()
+
+    await store.sendCommand('term-1' as TerminalId, '/rk project:vega task:report-builder wrapup')
+
+    expect(api.sendTerminalInput).toHaveBeenCalledWith(
+      'term-1',
+      '/rk project:vega task:report-builder wrapup\r'
+    )
   })
 })

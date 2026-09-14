@@ -75,8 +75,17 @@ public class CommitReferenceService {
             return CommitReferenceView.of(existing.get());
         }
 
-        CommitReference reference = new CommitReference(task, step, head.hash(), truncated(head.subject()));
+        CommitReference reference = new CommitReference(
+                task, step, head.hash(), truncated(head.subject()), truncatedDiff(head.diff()));
         return CommitReferenceView.of(commitReferences.saveAndFlush(reference));
+    }
+
+    /** The diff stored for one logged commit, read on demand: the list endpoint stays light. */
+    @Transactional(readOnly = true)
+    public String diffFor(UUID id) {
+        CommitReference reference =
+                commitReferences.findById(id).orElseThrow(() -> new NotFoundException("commit reference", id));
+        return reference.getDiff();
     }
 
     private TaskStep resolveStepById(Task task, UUID stepId) {
@@ -145,5 +154,14 @@ public class CommitReferenceService {
         return text.length() > CommitReference.COMMENT_MAX
                 ? text.substring(0, CommitReference.COMMENT_MAX - 1) + "…"
                 : text;
+    }
+
+    private static String truncatedDiff(String diff) {
+        if (diff == null || diff.isBlank()) {
+            return null;
+        }
+        return diff.length() > CommitReference.DIFF_MAX
+                ? diff.substring(0, CommitReference.DIFF_MAX) + "\n…(diff truncated)"
+                : diff;
     }
 }
