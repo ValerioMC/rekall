@@ -256,17 +256,17 @@ onBeforeUnmount(() => {
     </p>
 
     <template v-else>
-      <div class="relative shrink-0 overflow-hidden border-b border-border">
-        <div
-          class="texture-grid pointer-events-none absolute inset-0 opacity-60"
-          :style="{ '--texture-tint': hue.base }"
-          aria-hidden="true"
-        />
-        <div
-          class="pointer-events-none absolute inset-x-0 top-0 h-px"
-          :style="{ background: hue.line }"
-          aria-hidden="true"
-        />
+      <div class="relative shrink-0 border-b border-border">
+        <div class="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+          <div
+            class="texture-grid absolute inset-0 opacity-60"
+            :style="{ '--texture-tint': hue.base }"
+          />
+          <div
+            class="absolute inset-x-0 top-0 h-px"
+            :style="{ background: hue.line }"
+          />
+        </div>
         <header class="relative flex items-start gap-4 px-5 py-3.5">
           <div class="min-w-0 flex-1">
             <p class="eyebrow flex items-center gap-1.5">

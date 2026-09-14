@@ -264,6 +264,11 @@ vi.mock('@/api/time-entries.api', () => ({
   deleteTimeEntry: vi.fn()
 }))
 
+vi.mock('@/api/commitReference.api', () => ({
+  fetchCommitReferences: vi.fn(async () => []),
+  recordLatestCommit: vi.fn()
+}))
+
 describe('console store', () => {
   let store: ReturnType<typeof useConsoleStore>
 

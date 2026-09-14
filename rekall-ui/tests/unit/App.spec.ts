@@ -215,6 +215,11 @@ vi.mock('@/api/time-entries.api', () => ({
   deleteTimeEntry: vi.fn()
 }))
 
+vi.mock('@/api/commitReference.api', () => ({
+  fetchCommitReferences: vi.fn(async () => []),
+  recordLatestCommit: vi.fn()
+}))
+
 async function mountConsole() {
   setActivePinia(createPinia())
   await router.push('/')

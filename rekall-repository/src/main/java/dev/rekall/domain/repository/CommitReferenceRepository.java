@@ -9,4 +9,6 @@ import java.util.UUID;
 public interface CommitReferenceRepository extends JpaRepository<CommitReference, UUID> {
 
     List<CommitReference> findByTaskIdAndCommitHash(UUID taskId, String commitHash);
+
+    List<CommitReference> findAllByOrderByCreatedAtDesc();
 }

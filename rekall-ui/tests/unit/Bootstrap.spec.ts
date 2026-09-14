@@ -26,6 +26,7 @@ vi.mock('@/api/documents.api', () => ({ fetchAllDocuments: vi.fn(async () => [])
 vi.mock('@/api/wrapups.api', () => ({ fetchWrapups: vi.fn(async () => []) }))
 vi.mock('@/api/steps.api', () => ({ fetchSteps: vi.fn(async () => []) }))
 vi.mock('@/api/time-entries.api', () => ({ fetchTimeEntries: vi.fn(async () => []) }))
+vi.mock('@/api/commitReference.api', () => ({ fetchCommitReferences: vi.fn(async () => []) }))
 
 vi.mock('@/App.vue', () => ({
   default: { name: 'AppStub', template: '<div data-testid="app-stub" />' }

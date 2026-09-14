@@ -9,10 +9,12 @@ import { identityHue } from '@/common/identity'
 import { rkCommand } from '@/common/format/rk-command'
 import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.vue'
 import OpenTerminalButton from '@/components/claude/OpenTerminalButton.vue'
+import LogCommitButton from '@/components/console/LogCommitButton.vue'
+import CommitReferenceList from '@/components/console/CommitReferenceList.vue'
 import type { TaskId } from '@/model/branded'
 
 const store = useConsoleStore()
-const { selectedTask } = storeToRefs(store)
+const { selectedTask, selectedTaskCommitReferences } = storeToRefs(store)
 const { run } = useAsyncAction()
 
 const mode = ref<'write' | 'read'>('read')
@@ -185,6 +187,10 @@ onUnmounted(() => {
           </div>
 
           <div class="flex shrink-0 items-center gap-1.5">
+            <LogCommitButton
+              :task-id="selectedTask.id"
+              :folder="selectedTask.projectRepoFolder"
+            />
             <OpenTerminalButton
               :task-id="selectedTask.id"
               :folder="selectedTask.projectRepoFolder"
@@ -209,6 +215,17 @@ onUnmounted(() => {
             </button>
           </div>
         </header>
+      </div>
+
+      <div
+        v-if="selectedTaskCommitReferences.length"
+        class="shrink-0 border-b border-border px-5 py-2.5"
+        data-testid="description-commits"
+      >
+        <p class="eyebrow">
+          Commits <span class="font-mono">{{ selectedTaskCommitReferences.length }}</span>
+        </p>
+        <CommitReferenceList :references="selectedTaskCommitReferences" show-step-tag />
       </div>
 
       <div

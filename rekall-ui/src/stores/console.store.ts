@@ -35,6 +35,8 @@ import {
   patchStep as apiPatchStep
 } from '@/api/steps.api'
 import type { TaskStepPatch } from '@/api/steps.api'
+import { fetchCommitReferences } from '@/api/commitReference.api'
+import type { CommitReference } from '@/model/commitReference'
 import {
   deleteTimeEntry as apiDeleteTimeEntry,
   editTimeEntry as apiEditTimeEntry,
@@ -79,6 +81,7 @@ export const useConsoleStore = defineStore('console', () => {
   const wrapups = ref<Wrapup[]>([])
   const steps = ref<TaskStep[]>([])
   const timeEntries = ref<TimeEntry[]>([])
+  const commitReferences = ref<CommitReference[]>([])
 
   const isLoading = ref(true)
   const saveState = ref<SaveState>('saved')
@@ -166,6 +169,16 @@ export const useConsoleStore = defineStore('console', () => {
       .filter((step) => step.taskId === selectedTaskId.value)
       .sort((a, b) => a.position - b.position)
   )
+
+  const selectedTaskCommitReferences = computed(() =>
+    commitReferences.value
+      .filter((reference) => reference.taskId === selectedTaskId.value)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  )
+
+  function stepCommitReferences(stepId: TaskStepId): CommitReference[] {
+    return selectedTaskCommitReferences.value.filter((reference) => reference.stepId === stepId)
+  }
 
   const openStepCount = computed(
     () => selectedTaskSteps.value.filter((step) => step.state !== 'DRAFT' && !step.done).length
@@ -278,7 +291,8 @@ export const useConsoleStore = defineStore('console', () => {
         loadedDocuments,
         loadedWrapups,
         loadedSteps,
-        loadedTimeEntries
+        loadedTimeEntries,
+        loadedCommitReferences
       ] = await Promise.all([
         fetchCompanies(),
         fetchProjects(),
@@ -286,7 +300,8 @@ export const useConsoleStore = defineStore('console', () => {
         fetchAllDocuments(),
         fetchWrapups(),
         fetchSteps(),
-        fetchTimeEntries()
+        fetchTimeEntries(),
+        fetchCommitReferences()
       ])
       companies.value = loadedCompanies
       projects.value = loadedProjects
@@ -295,6 +310,7 @@ export const useConsoleStore = defineStore('console', () => {
       wrapups.value = loadedWrapups
       steps.value = loadedSteps
       timeEntries.value = loadedTimeEntries
+      commitReferences.value = loadedCommitReferences
     } finally {
       isLoading.value = false
     }
@@ -774,6 +790,19 @@ export const useConsoleStore = defineStore('console', () => {
     timeEntries.value = await fetchTimeEntries()
   }
 
+  async function refreshCommitReferences(): Promise<void> {
+    commitReferences.value = await fetchCommitReferences()
+  }
+
+  // The log-commit button already has the row it just wrote; folding it in here keeps the list
+  // current without a round trip, the same way applyStepEvent does for the SSE step stream.
+  function applyCommitReference(reference: CommitReference): void {
+    const known = commitReferences.value.some((existing) => existing.id === reference.id)
+    commitReferences.value = known
+      ? commitReferences.value.map((existing) => (existing.id === reference.id ? reference : existing))
+      : [reference, ...commitReferences.value]
+  }
+
   async function refreshEverything(): Promise<void> {
     await Promise.all([
       refreshCompanies(),
@@ -782,7 +811,8 @@ export const useConsoleStore = defineStore('console', () => {
       refreshDocuments(),
       refreshWrapups(),
       refreshSteps(),
-      refreshTimeEntries()
+      refreshTimeEntries(),
+      refreshCommitReferences()
     ])
   }
 
@@ -804,6 +834,11 @@ export const useConsoleStore = defineStore('console', () => {
     wrapups,
     steps,
     timeEntries,
+    commitReferences,
+    selectedTaskCommitReferences,
+    stepCommitReferences,
+    applyCommitReference,
+    refreshCommitReferences,
     runningEntries,
     selectedTaskEntries,
     isLoading,

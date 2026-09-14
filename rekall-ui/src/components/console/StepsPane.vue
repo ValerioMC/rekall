@@ -6,6 +6,8 @@ import AppInput from '@/components/ui/AppInput.vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.vue'
 import OpenTerminalButton from '@/components/claude/OpenTerminalButton.vue'
+import LogCommitButton from '@/components/console/LogCommitButton.vue'
+import CommitReferenceList from '@/components/console/CommitReferenceList.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { identityHue } from '@/common/identity'
@@ -682,7 +684,24 @@ onUnmounted(() => rowObserver?.disconnect())
 
               <div v-if="expandedId === step.id" class="mt-2.5" data-testid="step-detail">
                 <div
-                  v-if="step.state === 'CLAIMED'"
+                  v-if="step.state === 'RUNNING'"
+                  class="mb-3 flex flex-wrap items-center gap-2 rounded-[var(--radius-card)] border border-accent/60 bg-accent-soft px-3 py-2"
+                  data-testid="step-running-bar"
+                >
+                  <span class="min-w-0 flex-1 text-[11.5px] leading-snug text-text-muted">
+                    A session is on this step now. Log its latest commit here as it lands, without
+                    waiting for the step to be claimed.
+                  </span>
+                  <LogCommitButton
+                    variant="bar"
+                    :task-id="selectedTask.id"
+                    :step-id="step.id"
+                    :folder="selectedTask.projectRepoFolder"
+                  />
+                </div>
+
+                <div
+                  v-else-if="step.state === 'CLAIMED'"
                   class="mb-3 flex flex-wrap items-center gap-2 rounded-[var(--radius-card)] border border-accent/25 bg-accent-soft/40 px-3 py-2"
                   data-testid="step-review-bar"
                 >
@@ -690,6 +709,12 @@ onUnmounted(() => rowObserver?.disconnect())
                     A session claimed this. Accept it to tick the box, or send it back to reopen it
                     for another pass.
                   </span>
+                  <LogCommitButton
+                    variant="bar"
+                    :task-id="selectedTask.id"
+                    :step-id="step.id"
+                    :folder="selectedTask.projectRepoFolder"
+                  />
                   <button
                     class="focus-ring h-7 shrink-0 rounded-[var(--radius-control)] border border-accent bg-accent-soft px-3 text-[11.5px] font-medium text-accent transition-colors hover:bg-accent hover:text-accent-ink"
                     data-testid="step-accept"
@@ -726,6 +751,13 @@ onUnmounted(() => rowObserver?.disconnect())
                   >
                     {{ reopenArmed === step.id ? 'Confirm reopen' : 'Reopen' }}
                   </button>
+                </div>
+
+                <div v-if="store.stepCommitReferences(step.id).length" class="mb-3" data-testid="step-commits">
+                  <span class="eyebrow text-[9.5px]">
+                    Commits <span class="font-mono">{{ store.stepCommitReferences(step.id).length }}</span>
+                  </span>
+                  <CommitReferenceList :references="store.stepCommitReferences(step.id)" dense />
                 </div>
 
                 <div class="mb-2 flex items-center gap-2">

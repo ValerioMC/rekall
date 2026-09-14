@@ -34,6 +34,14 @@ public class CommitReferenceService {
     private final CommitReferenceRepository commitReferences;
     private final GitHeadReader git;
 
+    /** Every commit logged so far, newest first: what the console shows next to each task and step. */
+    @Transactional(readOnly = true)
+    public List<CommitReferenceView> findAll() {
+        return commitReferences.findAllByOrderByCreatedAtDesc().stream()
+                .map(CommitReferenceView::of)
+                .toList();
+    }
+
     /** Called from the console: the caller already knows {@code taskId}/{@code stepId} from the terminal it opened. */
     @Transactional
     public CommitReferenceView recordLatestCommit(UUID taskId, UUID stepId) {
