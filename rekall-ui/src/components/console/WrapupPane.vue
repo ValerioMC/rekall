@@ -238,25 +238,9 @@ async function sendWrapupHere(message: string): Promise<void> {
             the way. That is what the notes are for.
           </p>
 
-          <button
-            class="focus-ring group flex w-full items-center gap-3 rounded-[var(--radius-control)] border border-border bg-surface px-3.5 py-3 text-left transition-all hover:-translate-y-px hover:border-anchor hover:bg-surface-raised hover:shadow-lift"
-            :class="copied === 'command' && 'flash'"
-            data-testid="copy-wrapup-command"
-            @click="copy('command', command)"
-          >
-            <span class="min-w-0 flex-1">
-              <span class="block truncate font-mono text-[12.5px] text-anchor">{{ command }}</span>
-              <span class="mt-0.5 block text-[11.5px] text-text-muted">
-                Run this at the end of a session and Claude writes it.
-              </span>
-            </span>
-            <span class="shrink-0 text-[11px] text-text-subtle group-hover:text-anchor">
-              {{ copied === 'command' ? 'copied' : 'copy' }}
-            </span>
-          </button>
-
-          <p class="mt-6 text-[12.5px] text-text-muted">
-            Or
+          <p class="text-[12.5px] text-text-muted">
+            Copy the anchor above, append <span class="font-mono text-anchor">wrapup</span>, and
+            run it at the end of a session to have Claude write it, or
             <button
               class="focus-ring rounded text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent"
               data-testid="write-wrapup-by-hand"
