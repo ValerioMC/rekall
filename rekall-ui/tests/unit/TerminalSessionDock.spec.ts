@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import TerminalSessionDock from '@/components/shell/TerminalSessionDock.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/stores/terminal.store'
+import { useToastStore } from '@/stores/toast.store'
 import type { Terminal } from '@/model/terminal'
 import type { ProjectId, TaskId, TaskStepId, TerminalId } from '@/model/branded'
 import type { Task } from '@/model/catalog'
@@ -18,6 +19,12 @@ vi.mock('@/api/terminal.api', () => ({
   fetchTerminals: (...a: unknown[]) => api.fetchTerminals(...a),
   openTerminal: (...a: unknown[]) => api.openTerminal(...a),
   closeTerminal: (...a: unknown[]) => api.closeTerminal(...a)
+}))
+
+const recordLatestCommit = vi.fn()
+
+vi.mock('@/api/commitReference.api', () => ({
+  recordLatestCommit: (...a: unknown[]) => recordLatestCommit(...a)
 }))
 
 const routeName = { value: 'projects' }
@@ -101,6 +108,7 @@ describe('TerminalSessionDock', () => {
   beforeEach(() => {
     Object.values(api).forEach((fn) => fn.mockReset())
     api.closeTerminal.mockResolvedValue(undefined)
+    recordLatestCommit.mockReset()
     routeName.value = 'projects'
     push.mockReset()
   })
@@ -144,6 +152,31 @@ describe('TerminalSessionDock', () => {
     await flushPromises()
 
     expect(api.closeTerminal).toHaveBeenCalledWith('term-1')
+  })
+
+  it('logs the latest commit for a session with the task and step it was opened on', async () => {
+    recordLatestCommit.mockResolvedValue({ comment: 'Wire up the button' })
+    const { wrapper } = await mountDock([terminal({ stepId: 'step-1' as TaskStepId })])
+
+    await wrapper.get('[data-testid="terminal-dock-toggle"]').trigger('click')
+    await wrapper.get('[data-testid="terminal-dock-log-commit"]').trigger('click')
+    await flushPromises()
+
+    expect(recordLatestCommit).toHaveBeenCalledWith(TASK, 'step-1')
+    expect(useToastStore().toasts[0]?.message).toBe('Logged “Wire up the button”.')
+  })
+
+  it('says why nothing was logged when there is no commit to read', async () => {
+    recordLatestCommit.mockRejectedValue(new Error('there is no commit yet'))
+    const { wrapper } = await mountDock([terminal()])
+
+    await wrapper.get('[data-testid="terminal-dock-toggle"]').trigger('click')
+    await wrapper.get('[data-testid="terminal-dock-log-commit"]').trigger('click')
+    await flushPromises()
+
+    const toast = useToastStore().toasts[0]
+    expect(toast?.kind).toBe('error')
+    expect(toast?.message).toBe('there is no commit yet')
   })
 
   it('stays hidden while the terminal pane is already open', async () => {

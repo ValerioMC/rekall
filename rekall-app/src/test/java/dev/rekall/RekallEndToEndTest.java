@@ -20,6 +20,9 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,6 +60,7 @@ class RekallEndToEndTest {
 
     @BeforeEach
     void resetDatabase() {
+        jdbc.execute("DELETE FROM commit_reference");
         jdbc.execute("DELETE FROM task_step");
         jdbc.execute("DELETE FROM time_entry");
         jdbc.execute("DELETE FROM wrapup");
@@ -388,12 +392,101 @@ class RekallEndToEndTest {
 
     // Asserted as an exact list so adding a read or write tool breaks a test.
     @Test
-    @DisplayName("the MCP endpoint exposes one way to read and two writes")
+    @DisplayName("the MCP endpoint exposes one way to read and three writes")
     void toolsList() {
         List<?> tools = (List<?>) ((Map<?, ?>) rpc("tools/list", Map.of()).get("result")).get("tools");
 
         assertThat(tools.stream().map(tool -> String.valueOf(((Map<?, ?>) tool).get("name"))))
-                .containsExactlyInAnyOrder("rekall_context", "rekall_wrapup", "rekall_step");
+                .containsExactlyInAnyOrder(
+                        "rekall_context", "rekall_wrapup", "rekall_step", "rekall_record_commit");
+    }
+
+    // --- Commit references
+
+    @Test
+    @DisplayName("rekall_record_commit reads the project's own repo folder and logs its tip commit")
+    void commitIsLoggedThroughTheMcpTool() throws Exception {
+        String acme = aCompany("Acme");
+        Path repo = aGitRepoWithOneCommit("Wire up the commit ledger");
+        String projectId = id(post("/api/projects", Map.of(
+                "label", "vega", "title", "Vega", "status", "ACTIVE",
+                "repoFolder", repo.toString(), "companyId", acme)));
+        String taskId = aTask(projectId, "report-builder");
+
+        String logged = callTool("rekall_record_commit", Map.of("anchors", "project:vega task:report-builder"));
+
+        assertThat(logged).contains("Wire up the commit ledger").contains("the task");
+        assertThat(jdbc.queryForObject(
+                        "SELECT comment FROM commit_reference WHERE task_id = ? AND step_id IS NULL",
+                        String.class, UUID.fromString(taskId)))
+                .isEqualTo("Wire up the commit ledger");
+    }
+
+    @Test
+    @DisplayName("the console button logs the same commit through the same lookup, without duplicating it")
+    void theButtonUsesTheSameLogicAndDoesNotDuplicate() throws Exception {
+        String acme = aCompany("Acme");
+        Path repo = aGitRepoWithOneCommit("Add the terminal dock button");
+        String projectId = id(post("/api/projects", Map.of(
+                "label", "vega", "title", "Vega", "status", "ACTIVE",
+                "repoFolder", repo.toString(), "companyId", acme)));
+        String taskId = aTask(projectId, "report-builder");
+
+        callTool("rekall_record_commit", Map.of("anchors", "project:vega task:report-builder"));
+        ResponseEntity<Map> pressed = rest.post()
+                .uri("/api/tasks/" + taskId + "/commit-references/latest")
+                .retrieve().toEntity(Map.class);
+
+        assertThat(pressed.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(pressed.getBody()).containsEntry("comment", "Add the terminal dock button");
+        assertThat(jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM commit_reference WHERE task_id = ?",
+                        Integer.class, UUID.fromString(taskId)))
+                .as("logging it twice, once from Claude and once from the button, is a no-op")
+                .isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("a commit can be logged against a step, separately from the task itself")
+    void aCommitCanBeLoggedAgainstAStepSeparatelyFromTheTask() throws Exception {
+        String acme = aCompany("Acme");
+        Path repo = aGitRepoWithOneCommit("Add the CommitReference entity and migration");
+        String projectId = id(post("/api/projects", Map.of(
+                "label", "vega", "title", "Vega", "status", "ACTIVE",
+                "repoFolder", repo.toString(), "companyId", acme)));
+        String taskId = aTask(projectId, "report-builder");
+        aStep(taskId, "Backend: CommitReference entity", null);
+
+        callTool("rekall_record_commit", Map.of(
+                "anchors", "project:vega task:report-builder", "step", "1"));
+
+        assertThat(jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM commit_reference WHERE task_id = ? AND step_id IS NOT NULL",
+                        Integer.class, UUID.fromString(taskId)))
+                .isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM commit_reference WHERE task_id = ? AND step_id IS NULL",
+                        Integer.class, UUID.fromString(taskId)))
+                .as("the same commit is not also logged at the task level")
+                .isEqualTo(0);
+    }
+
+    private Path aGitRepoWithOneCommit(String subject) throws Exception {
+        Path repo = Files.createTempDirectory("rekall-commit-reference-test");
+        runGit(repo, "init", "-q");
+        Files.writeString(repo.resolve("README.md"), subject);
+        runGit(repo, "add", "README.md");
+        runGit(repo, "-c", "user.name=Test", "-c", "user.email=test@example.com",
+                "commit", "-q", "-m", subject);
+        return repo;
+    }
+
+    private void runGit(Path directory, String... args) throws Exception {
+        List<String> command = new ArrayList<>(List.of("git", "-C", directory.toString()));
+        command.addAll(List.of(args));
+        Process process = new ProcessBuilder(command).start();
+        process.getInputStream().readAllBytes();
+        process.waitFor(5, TimeUnit.SECONDS);
     }
 
     // --- Wrapup

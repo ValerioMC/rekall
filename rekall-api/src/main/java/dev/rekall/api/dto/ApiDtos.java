@@ -202,4 +202,8 @@ public final class ApiDtos {
 
     public record TimeEntryEditRequest(@NotNull Instant startedAt, Instant stoppedAt) {
     }
+
+    /** {@code stepId} is optional: omitted logs the commit against the task itself. */
+    public record CommitReferenceRequest(UUID stepId) {
+    }
 }

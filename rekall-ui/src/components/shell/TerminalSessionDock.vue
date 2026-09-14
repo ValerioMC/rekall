@@ -4,13 +4,16 @@ import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
 import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/stores/terminal.store'
+import { useToastStore } from '@/stores/toast.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { identityHue } from '@/common/identity'
+import { recordLatestCommit } from '@/api/commitReference.api'
 import type { Terminal } from '@/model/terminal'
 import type { TerminalId } from '@/model/branded'
 
 const store = useConsoleStore()
 const terminals = useTerminalStore()
+const toast = useToastStore()
 const { terminals: allTerminals } = storeToRefs(terminals)
 const { paneFocus } = storeToRefs(store)
 const { run } = useAsyncAction()
@@ -43,6 +46,13 @@ function jumpTo(terminal: Terminal): void {
 
 async function stop(id: TerminalId): Promise<void> {
   await run(() => terminals.close(id))
+}
+
+// The commit's own subject line is the comment: same lookup `rekall_record_commit` uses from
+// inside the session, triggered here instead of after a `git commit` the console never sees.
+async function logCommit(terminal: Terminal): Promise<void> {
+  const logged = await run(() => recordLatestCommit(terminal.taskId, terminal.stepId))
+  if (logged) toast.notify(`Logged “${logged.comment}”.`)
 }
 </script>
 
@@ -97,6 +107,18 @@ async function stop(id: TerminalId): Promise<void> {
             <span class="shrink-0 font-mono text-[10.5px] text-text-subtle">
               {{ terminal.skipPermissions ? 'skip perms' : 'live' }}
             </span>
+            <button
+              class="focus-ring grid size-6 shrink-0 place-items-center rounded-full text-text-subtle transition-colors hover:bg-surface-raised hover:text-anchor"
+              :aria-label="`Log the latest commit for ${terminal.taskTitle}`"
+              title="Log the latest commit"
+              data-testid="terminal-dock-log-commit"
+              @click="logCommit(terminal)"
+            >
+              <svg class="size-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+                <circle cx="8" cy="8" r="2.75" />
+                <path d="M1 8h3.2M11.8 8H15" stroke-linecap="round" />
+              </svg>
+            </button>
             <button
               class="focus-ring grid size-6 shrink-0 place-items-center rounded-full text-text-subtle transition-colors hover:bg-danger-soft hover:text-danger"
               :aria-label="`Stop ${terminal.taskTitle}`"

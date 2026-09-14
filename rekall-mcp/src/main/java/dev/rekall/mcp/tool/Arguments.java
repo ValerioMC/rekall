@@ -20,4 +20,12 @@ public final class Arguments {
         }
         return node.get(name).asString();
     }
+
+    public String optionalString(String name) {
+        if (node == null || !node.hasNonNull(name)) {
+            return null;
+        }
+        String value = node.get(name).asString();
+        return value.isBlank() ? null : value;
+    }
 }

@@ -11,6 +11,7 @@ import { useAsyncAction } from '@/composables/useAsyncAction'
 import { identityHue } from '@/common/identity'
 import { rkCommand } from '@/common/format/rk-command'
 import { preferredEffort, preferredModel, skipsPermissions } from '@/common/config/claude-launch'
+import type { Terminal } from '@/model/terminal'
 import type { TerminalId } from '@/model/branded'
 
 const TERMINAL_THEME = {
@@ -31,16 +32,42 @@ const TERMINAL_THEME = {
 
 const store = useConsoleStore()
 const terminals = useTerminalStore()
-const { selectedTask } = storeToRefs(store)
-const { activeTerminal, activeTerminalId } = storeToRefs(terminals)
+const { selectedTask, tasks } = storeToRefs(store)
+const { terminals: allTerminals, activeTerminal, activeTerminalId } = storeToRefs(terminals)
 const { run, isRunning } = useAsyncAction()
 
 const host = ref<HTMLElement | null>(null)
 const ended = ref<{ exitCode: number; detail: string } | null>(null)
+const switcherOpen = ref(false)
 
 const hue = computed(() => identityHue(selectedTask.value?.projectId ?? ''))
 const folder = computed(() => selectedTask.value?.projectRepoFolder ?? null)
 const taskTerminal = computed(() => terminals.terminalForTask(selectedTask.value?.id ?? null))
+
+const otherSessions = computed(() =>
+  allTerminals.value
+    .filter((terminal) => terminal.live && terminal.id !== activeTerminalId.value)
+    .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
+)
+
+function projectIdOf(terminal: Terminal): string {
+  return tasks.value.find((task) => task.id === terminal.taskId)?.projectId ?? terminal.taskId
+}
+
+/** Switch the pane to another live session without leaving the terminal view. */
+function switchTo(terminal: Terminal): void {
+  store.selectTask(terminal.taskId)
+  store.openTerminal()
+  terminals.select(terminal.id)
+  switcherOpen.value = false
+}
+
+function onSwitcherKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Escape' && switcherOpen.value) {
+    event.stopPropagation()
+    switcherOpen.value = false
+  }
+}
 
 let xterm: Xterm | null = null
 let fit: FitAddon | null = null
@@ -278,6 +305,59 @@ onBeforeUnmount(() => {
           </div>
 
           <div class="flex shrink-0 items-center gap-1.5">
+            <div v-if="otherSessions.length > 0" class="relative" @keydown="onSwitcherKeydown">
+              <button
+                class="focus-ring inline-flex h-7 items-center gap-1.5 rounded-[var(--radius-control)] border border-border-strong px-2.5 text-[11.5px] text-text-muted transition-colors hover:border-anchor/50 hover:text-text"
+                :class="switcherOpen && 'border-anchor/50 text-text'"
+                data-testid="terminal-other-sessions"
+                aria-haspopup="true"
+                :aria-expanded="switcherOpen"
+                @click="switcherOpen = !switcherOpen"
+              >
+                <span class="session-caret session-caret-busy shrink-0" aria-hidden="true" />
+                Other {{ otherSessions.length }} {{ otherSessions.length === 1 ? 'session' : 'sessions' }}
+              </button>
+
+              <div
+                v-if="switcherOpen"
+                class="rise absolute right-0 top-[calc(100%+6px)] z-(--z-overlay) w-[300px] overflow-hidden rounded-[var(--radius-card)] border border-border-strong bg-surface-raised shadow-modal"
+                data-testid="terminal-other-sessions-list"
+              >
+                <ul class="max-h-[280px] overflow-y-auto p-1.5">
+                  <li v-for="terminal in otherSessions" :key="terminal.id">
+                    <button
+                      class="focus-ring flex w-full min-w-0 items-center gap-2.5 rounded-[var(--radius-control)] px-2 py-2 text-left transition-colors hover:bg-surface"
+                      :title="`Switch to ${terminal.taskTitle}`"
+                      data-testid="terminal-other-sessions-row"
+                      @click="switchTo(terminal)"
+                    >
+                      <span class="session-caret session-caret-busy shrink-0" aria-hidden="true" />
+                      <span class="min-w-0 flex-1">
+                        <span class="block truncate text-[12.5px] font-medium text-text">
+                          {{ terminal.taskTitle }}
+                        </span>
+                        <span class="mt-0.5 flex items-center gap-1.5 truncate font-mono text-[10px] text-anchor/80">
+                          <span
+                            class="size-1 shrink-0 rounded-full"
+                            :style="{ backgroundColor: identityHue(projectIdOf(terminal)).base }"
+                            aria-hidden="true"
+                          />
+                          {{ terminal.anchors }}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                </ul>
+              </div>
+
+              <button
+                v-if="switcherOpen"
+                class="fixed inset-0 z-(--z-sticky) cursor-default"
+                tabindex="-1"
+                aria-hidden="true"
+                @click="switcherOpen = false"
+              />
+            </div>
             <button
               v-if="activeTerminal"
               class="focus-ring inline-flex h-7 items-center gap-1.5 rounded-[var(--radius-control)] border border-border-strong px-2.5 text-[11.5px] text-text-muted transition-colors hover:border-text-subtle hover:text-text"

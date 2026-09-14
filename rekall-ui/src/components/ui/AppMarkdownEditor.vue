@@ -173,7 +173,13 @@ const TOOLBARS: ToolbarNames[] = [
 }
 
 .rekall-md--readonly .md-editor-preview {
-  padding: 4px 18px !important;
+  width: 100%;
+  max-width: 680px;
+  margin-inline: auto;
+  padding: 40px 24px 56px !important;
+  font-size: 14.5px !important;
+  line-height: 1.75 !important;
+  box-sizing: border-box;
 }
 
 .rekall-md--readonly .md-editor-previewOnly {
