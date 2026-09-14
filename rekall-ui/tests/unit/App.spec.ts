@@ -38,8 +38,8 @@ const projects: Project[] = [
 ]
 
 const tasks: Task[] = [
-  { id: validator, label: 'report-builder', title: 'Report builder', status: 'IN_PROGRESS', description: null, autoWrapup: false, wrapupDirective: null, projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', projectRepoFolder: null, documentCount: 1, stepCount: 2, stepsDone: 1, draftStepCount: 0, hasWrapup: true, reviewState: 'OPEN', reviewActive: false, claimedAt: null, acceptedAt: null, reviewNote: null, anchor: 'project:vega task:report-builder', updatedAt: '2026-08-12T10:00:00Z' },
-  { id: retry, label: 'retry-policy', title: 'Retry policy', status: 'TODO', description: '## Scope\n\nRitenta solo gli errori 5xx, con backoff esponenziale.', autoWrapup: false, wrapupDirective: null, projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', projectRepoFolder: null, documentCount: 1, stepCount: 0, stepsDone: 0, draftStepCount: 0, hasWrapup: false, reviewState: 'OPEN', reviewActive: true, claimedAt: null, acceptedAt: null, reviewNote: null, anchor: 'project:vega task:retry-policy', updatedAt: '2026-08-12T10:00:00Z' }
+  { id: validator, label: 'report-builder', title: 'Report builder', status: 'IN_PROGRESS', description: null, projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', projectRepoFolder: null, documentCount: 1, stepCount: 2, stepsDone: 1, draftStepCount: 0, hasWrapup: true, reviewState: 'OPEN', reviewActive: false, claimedAt: null, acceptedAt: null, reviewNote: null, anchor: 'project:vega task:report-builder', updatedAt: '2026-08-12T10:00:00Z' },
+  { id: retry, label: 'retry-policy', title: 'Retry policy', status: 'TODO', description: '## Scope\n\nRitenta solo gli errori 5xx, con backoff esponenziale.', projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', projectRepoFolder: null, documentCount: 1, stepCount: 0, stepsDone: 0, draftStepCount: 0, hasWrapup: false, reviewState: 'OPEN', reviewActive: true, claimedAt: null, acceptedAt: null, reviewNote: null, anchor: 'project:vega task:retry-policy', updatedAt: '2026-08-12T10:00:00Z' }
 ]
 
 const shared: RekallDocument = {
@@ -417,6 +417,20 @@ describe('the console', () => {
     expect(useConsoleStore().paneFocus).toBe('terminal')
   })
 
+  /** The anchor on the terminal pane is a copy chip, like the one on the description and steps panes. */
+  it('carries a copyable anchor chip on the terminal pane', async () => {
+    const wrapper = await mountConsole()
+    await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c' }))
+    await flushPromises()
+
+    const chip = wrapper.find('[data-testid="copy-terminal-anchor"]')
+    expect(chip.exists()).toBe(true)
+    expect(chip.element.tagName).toBe('BUTTON')
+    expect(chip.text()).toContain('copy')
+  })
+
   describe('creating, editing and deleting a record', () => {
     /**
      * Typing a title and getting the label for free is most of what makes the two fields
@@ -472,8 +486,6 @@ describe('the console', () => {
         title: 'Retry policy',
         status: 'TODO',
         description: null,
-        autoWrapup: false,
-        wrapupDirective: null,
         projectId: vega
       })
       expect(wrapper.find('[data-testid="record-dialog"]').exists()).toBe(false)

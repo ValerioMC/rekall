@@ -135,29 +135,6 @@ class RekallEndToEndTest {
     }
 
     @Test
-    @DisplayName("a task's standing wrapup directive rides along with its context, and leaves when the toggle does")
-    void theStandingWrapupDirectiveIsHandedOver() {
-        String acme = aCompany("Acme");
-        String projectId = aProject(acme, "vega", "ACTIVE");
-        String taskId = id(post("/api/tasks", Map.of(
-                "label", "report-builder", "title", "Report builder", "status", "IN_PROGRESS",
-                "autoWrapup", true, "wrapupDirective", "solo il modulo di export", "projectId", projectId)));
-
-        assertThat(callTool("rekall_context", Map.of("anchors", "task:report-builder")))
-                .contains("- `wrapup`:")
-                .contains("solo il modulo di export");
-
-        rest.put().uri("/api/tasks/" + taskId)
-                .body(Map.of("label", "report-builder", "title", "Report builder", "status", "IN_PROGRESS",
-                        "autoWrapup", false, "wrapupDirective", "solo il modulo di export", "projectId", projectId))
-                .retrieve().toEntity(Map.class);
-
-        assertThat(callTool("rekall_context", Map.of("anchors", "task:report-builder")))
-                .doesNotContain("- `wrapup`:")
-                .doesNotContain("solo il modulo di export");
-    }
-
-    @Test
     @DisplayName("the title can be rewritten and the anchor still loads the record")
     void titleChangesLeaveTheAnchorAlone() {
         String acme = aCompany("Acme");

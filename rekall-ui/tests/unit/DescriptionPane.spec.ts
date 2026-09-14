@@ -22,8 +22,6 @@ function makeTask(reviewState: TaskStepState, wrapup: Partial<Task> = {}): Task 
     title: 'Application improvements',
     status: 'IN_PROGRESS',
     description: null,
-    autoWrapup: false,
-    wrapupDirective: null,
     projectId: rekall,
     projectLabel: 'rekall',
     projectTitle: 'Rekall',
@@ -103,14 +101,5 @@ describe('DescriptionPane review bar', () => {
     await flushPromises()
 
     expect(wrapper.find('[data-testid="description-review-bar"]').exists()).toBe(false)
-  })
-
-  it('carries the wrapup automation control under the header', async () => {
-    seed('OPEN')
-    const wrapper = render()
-    await flushPromises()
-
-    expect(wrapper.find('[data-testid="wrapup-automation"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="wrapup-auto-toggle"]').exists()).toBe(true)
   })
 })

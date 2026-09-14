@@ -9,7 +9,6 @@ import { identityHue } from '@/common/identity'
 import { rkCommand } from '@/common/format/rk-command'
 import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.vue'
 import OpenTerminalButton from '@/components/claude/OpenTerminalButton.vue'
-import WrapupAutomationBar from '@/components/console/WrapupAutomationBar.vue'
 import type { TaskId } from '@/model/branded'
 
 const store = useConsoleStore()
@@ -212,8 +211,6 @@ onUnmounted(() => {
         </header>
       </div>
 
-      <WrapupAutomationBar />
-
       <div
         v-if="reviewState === 'RUNNING' || reviewState === 'CLAIMED' || reviewState === 'DONE'"
         class="shrink-0 border-b border-border bg-accent-soft/40 px-5 py-2.5"
@@ -329,7 +326,7 @@ onUnmounted(() => {
                 {
                   name: 'Wrapup',
                   asks: 'Where did the implementation get to?',
-                  says: 'Rewritten at the end of every session.',
+                  says: 'Rewritten in place, never appended to.',
                   glyph: 'diamond'
                 },
                 {

@@ -9,6 +9,7 @@ import { useTerminalStore } from '@/stores/terminal.store'
 import { useTerminalSocket } from '@/composables/useTerminalSocket'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { identityHue } from '@/common/identity'
+import { rkCommand } from '@/common/format/rk-command'
 import { preferredEffort, preferredModel, skipsPermissions } from '@/common/config/claude-launch'
 import type { TerminalId } from '@/model/branded'
 
@@ -175,6 +176,15 @@ function pickForTask(): void {
   terminals.select(live ? live.id : null)
 }
 
+const copied = ref(false)
+
+async function copyAnchor(): Promise<void> {
+  if (!selectedTask.value) return
+  await navigator.clipboard?.writeText(rkCommand(selectedTask.value.anchor))
+  copied.value = true
+  setTimeout(() => (copied.value = false), 1400)
+}
+
 onMounted(async () => {
   await run(() => terminals.load())
   pickForTask()
@@ -255,10 +265,16 @@ onBeforeUnmount(() => {
                 {{ connected ? 'connected' : ended ? 'ended' : 'connecting' }}
               </span>
             </h2>
-            <p class="anchor-chip mt-1.5 inline-flex items-center gap-2 px-2.5 py-1 font-mono text-[11.5px]">
+            <button
+              class="anchor-chip focus-ring mt-1.5 inline-flex items-center gap-2 px-2.5 py-1 text-[11.5px] transition-colors hover:border-anchor"
+              :class="copied && 'flash'"
+              data-testid="copy-terminal-anchor"
+              @click="copyAnchor"
+            >
               <span class="opacity-60">/rk</span>
               <span>{{ selectedTask.anchor }}</span>
-            </p>
+              <span class="opacity-70">{{ copied ? 'copied' : 'copy' }}</span>
+            </button>
           </div>
 
           <div class="flex shrink-0 items-center gap-1.5">

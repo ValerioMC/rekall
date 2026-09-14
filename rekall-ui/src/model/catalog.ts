@@ -92,8 +92,6 @@ export interface Task {
   readonly title: string
   readonly status: TaskStatus
   readonly description: string | null
-  readonly autoWrapup: boolean
-  readonly wrapupDirective: string | null
   readonly projectId: ProjectId
   readonly projectLabel: string
   readonly projectTitle: string

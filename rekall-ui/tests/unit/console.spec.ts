@@ -56,8 +56,6 @@ const task = (
   title,
   status,
   description: null,
-  autoWrapup: false,
-  wrapupDirective: null,
   projectId,
   projectLabel,
   projectTitle,
@@ -593,8 +591,6 @@ describe('console store', () => {
         title: 'Report builder',
         status: 'IN_PROGRESS',
         description: 'Builds the weekly report from the pipeline runs.',
-        autoWrapup: false,
-        wrapupDirective: null,
         projectId: vega
       })
       expect(store.tasks.find((task) => task.id === validator)?.description).toBe(
@@ -630,48 +626,6 @@ describe('console store', () => {
     /** Autosave fires on a pause, not on a change, so it lands on text that is already saved. */
     it('sends nothing when the text is what is already stored', async () => {
       await store.saveTaskDescription(validator, '')
-
-      expect(updateTask).not.toHaveBeenCalled()
-      expect(store.saveState).toBe('saved')
-    })
-  })
-
-  /**
-   * "Generate wrapup", set once on the task so the console does not retype the directive after
-   * every step. Saved through the same `TaskRequest` the description uses and carrying the same
-   * obligation: the label, the title, the status and the description all go back untouched.
-   */
-  describe('the wrapup directive', () => {
-    it('turns the toggle on with its directive, leaving everything else in place', async () => {
-      await store.saveTaskWrapup(validator, true, '  solo il modulo di export  ')
-
-      expect(updateTask).toHaveBeenCalledWith(validator, {
-        label: 'report-builder',
-        title: 'Report builder',
-        status: 'IN_PROGRESS',
-        description: null,
-        autoWrapup: true,
-        wrapupDirective: 'solo il modulo di export',
-        projectId: vega
-      })
-      const saved = store.tasks.find((task) => task.id === validator)
-      expect(saved?.autoWrapup).toBe(true)
-      expect(saved?.wrapupDirective).toBe('solo il modulo di export')
-    })
-
-    /** A blank message is no message, not a message made of spaces. */
-    it('stores a blank directive as none', async () => {
-      await store.saveTaskWrapup(validator, true, '   ')
-
-      expect(updateTask).toHaveBeenLastCalledWith(
-        validator,
-        expect.objectContaining({ autoWrapup: true, wrapupDirective: null })
-      )
-    })
-
-    /** Nothing changed means nothing is sent, the way the description autosave behaves. */
-    it('sends nothing when the toggle and the directive already match', async () => {
-      await store.saveTaskWrapup(validator, false, '')
 
       expect(updateTask).not.toHaveBeenCalled()
       expect(store.saveState).toBe('saved')

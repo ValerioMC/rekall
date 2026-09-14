@@ -58,8 +58,6 @@ export const TaskSchema = z.object({
   title: z.string(),
   status: z.enum(TASK_STATUSES),
   description: z.string().nullable(),
-  autoWrapup: z.boolean(),
-  wrapupDirective: z.string().nullable(),
   projectId,
   projectLabel: z.string(),
   projectTitle: z.string(),

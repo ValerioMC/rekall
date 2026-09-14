@@ -67,13 +67,6 @@ public class Task {
     @Setter
     private String description;
 
-    @Column(name = "auto_wrapup", nullable = false)
-    private boolean autoWrapup = false;
-
-    @Size(max = 2_000)
-    @Column(name = "wrapup_directive", length = 2_000)
-    private String wrapupDirective;
-
     @Enumerated(EnumType.STRING)
     @Column(name = "review_state", nullable = false, length = 20)
     private TaskStepState reviewState = TaskStepState.OPEN;
@@ -164,17 +157,6 @@ public class Task {
                 reviewNote = null;
             }
         }
-    }
-
-    /**
-     * The standing wrapup instruction. While {@code auto} is on, {@code /rk ... wrapup} runs
-     * unprompted and follows {@code directive}. A blank directive is stored as none, and the
-     * directive is cleared when {@code auto} goes off.
-     */
-    public void configureWrapup(boolean auto, String directive) {
-        this.autoWrapup = auto;
-        String trimmed = directive == null || directive.isBlank() ? null : directive.trim();
-        this.wrapupDirective = auto ? trimmed : null;
     }
 
     public void attach(Document document) {

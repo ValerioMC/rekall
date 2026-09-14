@@ -12,4 +12,6 @@ public interface TimeEntryRepository extends JpaRepository<TimeEntry, UUID> {
     Optional<TimeEntry> findByTaskIdAndStoppedAtIsNull(UUID taskId);
 
     List<TimeEntry> findAllByOrderByStartedAtDesc();
+
+    List<TimeEntry> findAllByStoppedAtIsNull();
 }

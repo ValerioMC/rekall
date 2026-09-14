@@ -26,8 +26,6 @@ function taskStub(id: TaskId, projectId: ProjectId): Task {
     title: 'Report builder',
     status: 'TODO',
     description: null,
-    autoWrapup: false,
-    wrapupDirective: null,
     projectId,
     projectLabel: 'vega',
     projectTitle: 'Vega',

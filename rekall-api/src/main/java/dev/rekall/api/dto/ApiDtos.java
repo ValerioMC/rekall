@@ -84,8 +84,6 @@ public final class ApiDtos {
             String title,
             TaskStatus status,
             String description,
-            boolean autoWrapup,
-            String wrapupDirective,
             UUID projectId,
             String projectLabel,
             String projectTitle,
@@ -111,8 +109,6 @@ public final class ApiDtos {
                     task.getTitle(),
                     task.getStatus(),
                     task.getDescription(),
-                    task.isAutoWrapup(),
-                    task.getWrapupDirective(),
                     task.getProject().getId(),
                     task.getProject().getLabel(),
                     task.getProject().getTitle(),
@@ -138,8 +134,6 @@ public final class ApiDtos {
             @NotBlank String title,
             TaskStatus status,
             String description,
-            Boolean autoWrapup,
-            String wrapupDirective,
             UUID projectId) {
     }
 

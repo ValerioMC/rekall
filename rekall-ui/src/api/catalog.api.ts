@@ -37,8 +37,6 @@ export interface TaskInput {
   title: string
   status: TaskStatus
   description: string | null
-  autoWrapup: boolean
-  wrapupDirective: string | null
   projectId: ProjectId
 }
 

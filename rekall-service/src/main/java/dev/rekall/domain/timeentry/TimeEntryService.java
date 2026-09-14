@@ -6,6 +6,8 @@ import dev.rekall.domain.context.UnknownAnchorException;
 import dev.rekall.domain.repository.TaskRepository;
 import dev.rekall.domain.repository.TimeEntryRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.event.ContextClosedEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -80,5 +82,14 @@ public class TimeEntryService {
     @Transactional
     public void delete(UUID id) {
         timeEntries.findById(id).ifPresent(timeEntries::delete);
+    }
+
+    // Stop every open timer on shutdown so wall-clock duration, computed on read from startedAt,
+    // doesn't silently keep growing across the app's downtime once it comes back up.
+    @EventListener(ContextClosedEvent.class)
+    @Transactional
+    void stopAllOnShutdown() {
+        Instant now = Instant.now();
+        timeEntries.findAllByStoppedAtIsNull().forEach(entry -> entry.setStoppedAt(now));
     }
 }

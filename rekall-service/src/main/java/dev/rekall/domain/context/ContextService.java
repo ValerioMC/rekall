@@ -158,12 +158,6 @@ public class ContextService {
         if (drafts > 0) {
             fields.put("drafts", "%d not yet promoted to the checklist".formatted(drafts));
         }
-        if (task.isAutoWrapup()) {
-            fields.put("wrapup", task.getWrapupDirective() == null
-                    ? "generate one on every `/rk` wrapup for this task, without being asked"
-                    : "generate one on every `/rk` wrapup for this task, without being asked, to this "
-                            + "standing directive: " + task.getWrapupDirective());
-        }
 
         List<ContextRecord> references = new ArrayList<>();
         references.add(renderReferenced(task.getProject()));

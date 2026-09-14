@@ -458,8 +458,6 @@ export const useConsoleStore = defineStore('console', () => {
       title: task.title,
       status,
       description: task.description,
-      autoWrapup: task.autoWrapup,
-      wrapupDirective: task.wrapupDirective,
       projectId: task.projectId
     })
     tasks.value = tasks.value.map((candidate) => (candidate.id === id ? saved : candidate))
@@ -518,37 +516,6 @@ export const useConsoleStore = defineStore('console', () => {
         title: task.title,
         status: task.status,
         description: next,
-        autoWrapup: task.autoWrapup,
-        wrapupDirective: task.wrapupDirective,
-        projectId: task.projectId
-      })
-      tasks.value = tasks.value.map((candidate) => (candidate.id === id ? saved : candidate))
-      saveState.value = 'saved'
-    } catch (error) {
-      saveState.value = 'unsaved'
-      throw error
-    }
-  }
-
-  /** The "generate wrapup" toggle and its optional standing directive; a blank directive is stored as none. */
-  async function saveTaskWrapup(
-    id: TaskId,
-    autoWrapup: boolean,
-    directive: string
-  ): Promise<void> {
-    const task = tasks.value.find((candidate) => candidate.id === id)
-    if (!task) return
-    const nextDirective = directive.trim() === '' ? null : directive.trim()
-    if (task.autoWrapup === autoWrapup && (task.wrapupDirective ?? null) === nextDirective) return
-    saveState.value = 'saving'
-    try {
-      const saved = await apiUpdateTask(id, {
-        label: task.label,
-        title: task.title,
-        status: task.status,
-        description: task.description,
-        autoWrapup,
-        wrapupDirective: nextDirective,
         projectId: task.projectId
       })
       tasks.value = tasks.value.map((candidate) => (candidate.id === id ? saved : candidate))
@@ -882,7 +849,6 @@ export const useConsoleStore = defineStore('console', () => {
     acceptTask,
     sendBackTask,
     saveTaskDescription,
-    saveTaskWrapup,
     createNote,
     saveNote,
     deleteNote,

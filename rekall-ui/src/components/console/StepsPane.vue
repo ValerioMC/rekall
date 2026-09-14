@@ -6,7 +6,6 @@ import AppInput from '@/components/ui/AppInput.vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.vue'
 import OpenTerminalButton from '@/components/claude/OpenTerminalButton.vue'
-import WrapupAutomationBar from '@/components/console/WrapupAutomationBar.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { identityHue } from '@/common/identity'
@@ -421,8 +420,6 @@ onUnmounted(() => rowObserver?.disconnect())
           </div>
         </header>
       </div>
-
-      <WrapupAutomationBar />
 
       <div class="min-h-0 min-w-0 flex-1 overflow-y-auto px-5 py-4">
         <div
