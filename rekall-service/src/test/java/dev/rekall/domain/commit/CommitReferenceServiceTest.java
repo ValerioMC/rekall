@@ -232,4 +232,25 @@ class CommitReferenceServiceTest {
         assertThatThrownBy(() -> service.recordLatestCommit("vega", "missing", null))
                 .isInstanceOf(UnknownAnchorException.class);
     }
+
+    @Test
+    @DisplayName("deleting a logged commit removes its row")
+    void deletingALoggedCommitRemovesItsRow() {
+        UUID id = UUID.randomUUID();
+        when(commitReferences.existsById(id)).thenReturn(true);
+
+        service.delete(id);
+
+        verify(commitReferences).deleteById(id);
+    }
+
+    @Test
+    @DisplayName("deleting an unknown commit reference is refused rather than silently doing nothing")
+    void refusesDeletingAnUnknownCommitReference() {
+        UUID id = UUID.randomUUID();
+        when(commitReferences.existsById(id)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.delete(id)).isInstanceOf(NotFoundException.class);
+        verify(commitReferences, never()).deleteById(any());
+    }
 }

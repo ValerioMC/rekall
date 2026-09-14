@@ -5,6 +5,7 @@ import dev.rekall.api.dto.ApiDtos.CommitReferenceRequest;
 import dev.rekall.domain.commit.CommitReferenceService;
 import dev.rekall.domain.commit.CommitReferenceView;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -38,5 +39,10 @@ public class CommitReferenceController {
     @GetMapping("/commit-references/{id}/diff")
     public CommitReferenceDiffResponse diff(@PathVariable UUID id) {
         return new CommitReferenceDiffResponse(commitReferences.diffFor(id));
+    }
+
+    @DeleteMapping("/commit-references/{id}")
+    public void delete(@PathVariable UUID id) {
+        commitReferences.delete(id);
     }
 }

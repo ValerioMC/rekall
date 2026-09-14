@@ -35,7 +35,10 @@ import {
   patchStep as apiPatchStep
 } from '@/api/steps.api'
 import type { TaskStepPatch } from '@/api/steps.api'
-import { fetchCommitReferences } from '@/api/commitReference.api'
+import {
+  deleteCommitReference as apiDeleteCommitReference,
+  fetchCommitReferences
+} from '@/api/commitReference.api'
 import type { CommitReference } from '@/model/commitReference'
 import {
   deleteTimeEntry as apiDeleteTimeEntry,
@@ -803,6 +806,11 @@ export const useConsoleStore = defineStore('console', () => {
       : [reference, ...commitReferences.value]
   }
 
+  async function deleteCommitReference(id: string): Promise<void> {
+    await apiDeleteCommitReference(id)
+    commitReferences.value = commitReferences.value.filter((existing) => existing.id !== id)
+  }
+
   async function refreshEverything(): Promise<void> {
     await Promise.all([
       refreshCompanies(),
@@ -839,6 +847,7 @@ export const useConsoleStore = defineStore('console', () => {
     stepCommitReferences,
     applyCommitReference,
     refreshCommitReferences,
+    deleteCommitReference,
     runningEntries,
     selectedTaskEntries,
     isLoading,

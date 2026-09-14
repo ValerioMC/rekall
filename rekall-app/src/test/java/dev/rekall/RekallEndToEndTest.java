@@ -504,6 +504,41 @@ class RekallEndToEndTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
+    @Test
+    @DisplayName("a logged commit can be deleted, removing its row entirely")
+    void aLoggedCommitCanBeDeleted() throws Exception {
+        String acme = aCompany("Acme");
+        Path repo = aGitRepoWithOneCommit("Add the delete button");
+        String projectId = id(post("/api/projects", Map.of(
+                "label", "vega", "title", "Vega", "status", "ACTIVE",
+                "repoFolder", repo.toString(), "companyId", acme)));
+        String taskId = aTask(projectId, "report-builder");
+        ResponseEntity<Map> logged = rest.post()
+                .uri("/api/tasks/" + taskId + "/commit-references/latest")
+                .retrieve().toEntity(Map.class);
+        String referenceId = (String) logged.getBody().get("id");
+
+        ResponseEntity<Void> response = rest.delete()
+                .uri("/api/commit-references/" + referenceId)
+                .retrieve().toBodilessEntity();
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM commit_reference WHERE id = ?",
+                        Integer.class, UUID.fromString(referenceId)))
+                .isZero();
+    }
+
+    @Test
+    @DisplayName("deleting a commit reference that does not exist is a 404, not a silent no-op")
+    void deletingAnUnknownCommitReferenceIs404() {
+        ResponseEntity<Void> response = rest.delete()
+                .uri("/api/commit-references/" + UUID.randomUUID())
+                .retrieve().toBodilessEntity();
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
     private Path aGitRepoWithOneCommit(String subject) throws Exception {
         Path repo = Files.createTempDirectory("rekall-commit-reference-test");
         runGit(repo, "init", "-q");

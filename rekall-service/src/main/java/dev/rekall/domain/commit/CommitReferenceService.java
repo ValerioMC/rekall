@@ -88,6 +88,15 @@ public class CommitReferenceService {
         return reference.getDiff();
     }
 
+    /** Removes the link between a commit and the task/step it was logged against. Manual, from the console. */
+    @Transactional
+    public void delete(UUID id) {
+        if (!commitReferences.existsById(id)) {
+            throw new NotFoundException("commit reference", id);
+        }
+        commitReferences.deleteById(id);
+    }
+
     private TaskStep resolveStepById(Task task, UUID stepId) {
         if (stepId == null) {
             return null;

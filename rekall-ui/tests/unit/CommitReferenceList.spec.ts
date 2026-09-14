@@ -1,7 +1,10 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import CommitReferenceList from '@/components/console/CommitReferenceList.vue'
+import AppConfirm from '@/components/ui/AppConfirm.vue'
 import { fetchCommitReferenceDiff } from '@/api/commitReference.api'
+import { useConsoleStore } from '@/stores/console.store'
 import type { CommitReference } from '@/model/commitReference'
 import type { TaskId, TaskStepId } from '@/model/branded'
 
@@ -25,9 +28,20 @@ function reference(overrides: Partial<CommitReference> = {}): CommitReference {
   }
 }
 
+function render(references: CommitReference[]) {
+  return mount(CommitReferenceList, {
+    props: { references },
+    global: { stubs: { AppConfirm: true } }
+  })
+}
+
 describe('CommitReferenceList', () => {
+  let pinia: Pinia
+
   beforeEach(() => {
     vi.mocked(fetchCommitReferenceDiff).mockReset()
+    pinia = createPinia()
+    setActivePinia(pinia)
   })
 
   it('shows the short hash, the comment, and nothing expanded by default', () => {
@@ -92,5 +106,38 @@ describe('CommitReferenceList', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('Could not load the diff.')
+  })
+
+  it('asks for confirmation before deleting a commit reference', async () => {
+    const wrapper = render([reference()])
+
+    await wrapper.get('[data-testid="commit-reference-delete"]').trigger('click')
+
+    expect(wrapper.findComponent(AppConfirm).exists()).toBe(true)
+  })
+
+  it('deletes the commit reference through the store once confirmed', async () => {
+    const store = useConsoleStore()
+    store.deleteCommitReference = vi.fn().mockResolvedValue(undefined)
+    const wrapper = render([reference({ id: 'c1' })])
+
+    await wrapper.get('[data-testid="commit-reference-delete"]').trigger('click')
+    await wrapper.findComponent(AppConfirm).vm.$emit('confirm')
+    await flushPromises()
+
+    expect(store.deleteCommitReference).toHaveBeenCalledWith('c1')
+    expect(wrapper.findComponent(AppConfirm).exists()).toBe(false)
+  })
+
+  it('does not delete anything when the confirmation is cancelled', async () => {
+    const store = useConsoleStore()
+    store.deleteCommitReference = vi.fn().mockResolvedValue(undefined)
+    const wrapper = render([reference()])
+
+    await wrapper.get('[data-testid="commit-reference-delete"]').trigger('click')
+    await wrapper.findComponent(AppConfirm).vm.$emit('cancel')
+
+    expect(store.deleteCommitReference).not.toHaveBeenCalled()
+    expect(wrapper.findComponent(AppConfirm).exists()).toBe(false)
   })
 })

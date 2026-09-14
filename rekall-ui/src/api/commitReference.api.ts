@@ -30,3 +30,7 @@ export async function fetchCommitReferenceDiff(id: string): Promise<string | nul
     CommitReferenceDiffSchema.parse(await apiClient(`/api/commit-references/${id}/diff`)).diff
   )
 }
+
+export async function deleteCommitReference(id: string): Promise<void> {
+  await request(() => apiClient(`/api/commit-references/${id}`, { method: 'DELETE' }))
+}
