@@ -32,6 +32,11 @@ import java.util.Optional;
  * {@link #DEGRADED_TTL}, so a token that was not readable at launch is retried on the next poll
  * rather than a minute later. A failed fetch falls back to the last good one so a blip does not
  * blank the meter, and {@link #refresh()} skips the cache when the person asks for a new reading.
+ *
+ * <p>A 429 is the one answer that is obeyed rather than retried: Anthropic's edge rate limits
+ * this client by its TLS fingerprint, and every further request while the block stands extends
+ * it. The {@code Retry-After} it carries ({@link #RATE_LIMIT_HOLD} when it carries none) becomes a
+ * hold during which neither a poll nor a refresh goes out, and the console is told when it ends.
  */
 @Service
 @Slf4j
@@ -40,6 +45,7 @@ public class ClaudeUsageService {
     private static final Duration CACHE_TTL = Duration.ofSeconds(60);
     private static final Duration DEGRADED_TTL = Duration.ofSeconds(10);
     private static final Duration HTTP_TIMEOUT = Duration.ofSeconds(10);
+    private static final Duration RATE_LIMIT_HOLD = Duration.ofMinutes(5);
     private static final double WARNING_AT = 80.0;
     private static final double CRITICAL_AT = 95.0;
 
@@ -61,6 +67,7 @@ public class ClaudeUsageService {
     private ClaudeUsageView cached;
     private Instant cachedAt = Instant.EPOCH;
     private ClaudeUsageView lastGood;
+    private Instant holdUntil = Instant.EPOCH;
     private volatile boolean stopped;
 
     @Autowired
@@ -80,18 +87,35 @@ public class ClaudeUsageService {
         if (stopped) {
             return degraded();
         }
+        if (onHold()) {
+            return held();
+        }
         if (cached != null && Duration.between(cachedAt, clock.instant()).compareTo(ttlOf(cached)) < 0) {
             return cached;
         }
         return readAndCache();
     }
 
-    /** A reading taken now, whatever is cached: the person asked, so a stale answer is not one. */
+    /**
+     * A reading taken now, whatever is cached: the person asked, so a stale answer is not one.
+     * A rate-limit hold still stands, because asking again is exactly what prolongs it.
+     */
     public synchronized ClaudeUsageView refresh() {
         if (stopped) {
             return degraded();
         }
+        if (onHold()) {
+            return held();
+        }
         return readAndCache();
+    }
+
+    private boolean onHold() {
+        return clock.instant().isBefore(holdUntil);
+    }
+
+    private ClaudeUsageView held() {
+        return lastGood != null ? lastGood.heldUntil(holdUntil) : ClaudeUsageView.rateLimited(holdUntil);
     }
 
     private static Duration ttlOf(ClaudeUsageView view) {
@@ -132,11 +156,16 @@ public class ClaudeUsageService {
             if (response.statusCode() == 401 || response.statusCode() == 403) {
                 return ClaudeUsageView.unauthenticated();
             }
+            if (response.statusCode() == 429) {
+                holdUntil = clock.instant().plus(retryAfter(response));
+                log.info("Anthropic rate limited the usage read; holding until {}", holdUntil);
+                return held();
+            }
             if (response.statusCode() != 200) {
                 log.debug("Claude usage endpoint returned {}", response.statusCode());
                 return degraded();
             }
-            return new ClaudeUsageView(ClaudeUsageView.Status.OK, parse(response.body()), Instant.now());
+            return ClaudeUsageView.ok(parse(response.body()), Instant.now());
         } catch (IllegalArgumentException | java.io.IOException failure) {
             log.debug("Claude usage endpoint unreachable: {}", failure.getMessage());
             return degraded();
@@ -148,6 +177,20 @@ public class ClaudeUsageService {
 
     private ClaudeUsageView degraded() {
         return lastGood != null ? lastGood : ClaudeUsageView.unavailable();
+    }
+
+    /** {@code Retry-After} as Anthropic sends it, in seconds; anything else means the default hold. */
+    private static Duration retryAfter(HttpResponse<?> response) {
+        Optional<String> header = response.headers().firstValue("Retry-After");
+        if (header.isEmpty()) {
+            return RATE_LIMIT_HOLD;
+        }
+        try {
+            long seconds = Long.parseLong(header.get().strip());
+            return seconds > 0 ? Duration.ofSeconds(seconds) : RATE_LIMIT_HOLD;
+        } catch (NumberFormatException notSeconds) {
+            return RATE_LIMIT_HOLD;
+        }
     }
 
     private List<Limit> parse(String body) throws java.io.IOException {

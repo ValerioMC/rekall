@@ -22,5 +22,6 @@ export const ClaudeUsageSchema = z.object({
       resetsAt: z.string().nullable()
     })
   ),
-  fetchedAt: z.string()
+  fetchedAt: z.string(),
+  retryAt: z.string().nullable()
 })

@@ -106,7 +106,12 @@ vi.mock('@/api/claude.api', async (importOriginal) => {
   const actual = (await importOriginal()) as Record<string, unknown>
   return {
     ...actual,
-    fetchClaudeUsage: vi.fn(async () => ({ status: 'UNAUTHENTICATED', limits: [], fetchedAt: '' }))
+    fetchClaudeUsage: vi.fn(async () => ({
+      status: 'UNAUTHENTICATED',
+      limits: [],
+      fetchedAt: '',
+      retryAt: null
+    }))
   }
 })
 

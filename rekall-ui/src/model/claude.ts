@@ -10,7 +10,7 @@ export interface ClaudeInstallation {
   readonly manualCommand: string
 }
 
-export const CLAUDE_USAGE_STATUSES = ['OK', 'UNAUTHENTICATED', 'UNAVAILABLE'] as const
+export const CLAUDE_USAGE_STATUSES = ['OK', 'UNAUTHENTICATED', 'RATE_LIMITED', 'UNAVAILABLE'] as const
 export type ClaudeUsageStatus = (typeof CLAUDE_USAGE_STATUSES)[number]
 
 export const CLAUDE_USAGE_SEVERITIES = ['NORMAL', 'WARNING', 'CRITICAL'] as const
@@ -28,6 +28,8 @@ export interface ClaudeUsage {
   readonly status: ClaudeUsageStatus
   readonly limits: readonly ClaudeUsageLimit[]
   readonly fetchedAt: string
+  /** Set while Anthropic has asked this machine to wait: no reading can be taken before it. */
+  readonly retryAt: string | null
 }
 
 /** The session window is the one the meter shows at rest; the rest live in the popover. */

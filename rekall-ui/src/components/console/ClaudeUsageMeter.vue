@@ -19,11 +19,19 @@ import {
  * the trigger itself checks again, and so does the button in the popover, because a token that
  * was not readable when the app opened (a keychain still locked, a login that happened after
  * launch) is the usual way this meter goes blank.
+ *
+ * Readings are deliberately not real time. One is taken when the console opens, one every few
+ * minutes while it is on screen, one when the window comes back to the front after being away,
+ * and one whenever the person asks. Nothing retries faster than that, blank or not: Anthropic
+ * rate limits a client that keeps asking, and a rate limit is the one thing that makes the meter
+ * unfixable from here. When it happens, the server says until when, and the meter waits it out.
  */
 
-/** A good reading is refreshed every minute; a blank one is retried more often than that. */
-const POLL_MS = 60_000
-const RETRY_MS = 15_000
+/** How old a reading may get on screen, and how old it may be when the window comes back. */
+const POLL_MS = 5 * 60_000
+const STALE_ON_RETURN_MS = 60_000
+/** How often the meter looks at the clock; not how often it reads. */
+const TICK_MS = 30_000
 const RING_RADIUS = 8
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS
 /** How much of the ring the sweep draws while a reading is in flight. */
@@ -52,39 +60,58 @@ async function load(refresh = false): Promise<void> {
   }
 }
 
-const state = computed<'ok' | 'reading' | 'signed-out' | 'offline'>(() => {
+const state = computed<'ok' | 'reading' | 'signed-out' | 'rate-limited' | 'offline'>(() => {
   const current = usage.value
   if (!current && reading.value) return 'reading'
   if (!reachable.value || !current) return 'offline'
   if (current.status === 'UNAUTHENTICATED') return 'signed-out'
+  if (current.status === 'RATE_LIMITED') return 'rate-limited'
   if (current.status === 'OK' && current.limits.length > 0) return 'ok'
   return 'offline'
 })
 
-const blank = computed(() => state.value === 'signed-out' || state.value === 'offline')
+const blank = computed(
+  () => state.value === 'signed-out' || state.value === 'rate-limited' || state.value === 'offline'
+)
 
-function tick(): void {
-  if (document.hidden) return
-  const since = lastReadAt.value
-    ? Date.now() - Date.parse(lastReadAt.value)
-    : Number.POSITIVE_INFINITY
-  if (since >= (state.value === 'ok' ? POLL_MS : RETRY_MS)) void load()
+/** Until when Anthropic has asked this machine to wait, if the server is holding a reading back. */
+const retryAt = computed<string | null>(() => usage.value?.retryAt ?? null)
+const waiting = computed(() => {
+  const until = retryAt.value
+  return until !== null && Date.parse(until) > now.value
+})
+const waitLabel = computed(() => (retryAt.value ? formatResetIn(retryAt.value, now.value) : ''))
+
+function readingAge(): number {
+  return lastReadAt.value ? Date.now() - Date.parse(lastReadAt.value) : Number.POSITIVE_INFINITY
 }
 
-/** A window brought back to the front has missed its polls; it reads rather than waits. */
+function readIfOlderThan(maxAge: number): void {
+  if (document.hidden || waiting.value) return
+  if (readingAge() >= maxAge) void load()
+}
+
+/** A hold that has just lapsed on a blank meter is read at once; everything else waits its turn. */
+function tick(): void {
+  readIfOlderThan(state.value === 'rate-limited' ? 0 : POLL_MS)
+}
+
+/** A window brought back to the front has been away; a reading older than a minute is replaced. */
 function onVisibilityChange(): void {
-  if (!document.hidden) tick()
+  if (!document.hidden) readIfOlderThan(STALE_ON_RETURN_MS)
 }
 
 onMounted(() => {
   void load()
-  timer = setInterval(tick, RETRY_MS)
+  timer = setInterval(tick, TICK_MS)
   document.addEventListener('visibilitychange', onVisibilityChange)
+  window.addEventListener('focus', onVisibilityChange)
 })
 
 onBeforeUnmount(() => {
   clearInterval(timer)
   document.removeEventListener('visibilitychange', onVisibilityChange)
+  window.removeEventListener('focus', onVisibilityChange)
 })
 
 const limits = computed<readonly ClaudeUsageLimit[]>(() => usage.value?.limits ?? [])
@@ -124,6 +151,8 @@ function resetLabel(limit: ClaudeUsageLimit): string {
   return left ? `resets in ${left}` : 'no scheduled reset'
 }
 
+const figuresAge = computed(() => (usage.value ? relativeTime(usage.value.fetchedAt, now.value) : ''))
+
 const checkedLabel = computed(() =>
   lastReadAt.value ? `Checked ${relativeTime(lastReadAt.value, now.value)}` : ''
 )
@@ -131,6 +160,8 @@ const checkedLabel = computed(() =>
 const triggerLabel = computed(() => {
   if (state.value === 'reading') return 'Claude usage: taking a reading'
   if (state.value === 'signed-out') return 'Claude usage: sign in to Claude Code. Check again'
+  if (state.value === 'rate-limited')
+    return `Claude usage: Anthropic asked to wait, next reading in ${waitLabel.value}`
   if (state.value === 'offline') return 'Claude usage: no reading. Check again'
   const current = session.value
   if (!current) return 'Claude usage'
@@ -142,14 +173,14 @@ const triggerLabel = computed(() => {
 function onTrigger(): void {
   if (blank.value) {
     open.value = true
-    void load(true)
+    if (!waiting.value) void load(true)
     return
   }
   open.value = !open.value
 }
 
 function checkAgain(): void {
-  void load(true)
+  if (!waiting.value) void load(true)
 }
 
 function close(): void {
@@ -227,8 +258,13 @@ function close(): void {
       </template>
 
       <template v-else>
-        <span>{{ state === 'signed-out' ? 'Sign in' : 'No reading' }}</span>
+        <span v-if="state === 'signed-out'">Sign in</span>
+        <span v-else-if="state === 'rate-limited'" class="font-mono tabular-nums">
+          Wait {{ waitLabel }}
+        </span>
+        <span v-else>No reading</span>
         <svg
+          v-if="state !== 'rate-limited'"
           class="size-3 text-text-subtle transition-colors group-hover:text-accent"
           :class="{ 'opacity-0': reading }"
           viewBox="0 0 12 12"
@@ -268,12 +304,21 @@ function close(): void {
           type="button"
           class="focus-ring rounded-md px-1.5 py-0.5 text-[11px] text-text-subtle transition-colors hover:bg-surface-hover hover:text-text disabled:opacity-50"
           data-testid="usage-check-again"
-          :disabled="reading"
+          :disabled="reading || waiting"
           @click="checkAgain"
         >
           {{ reading ? 'Checking…' : 'Check again' }}
         </button>
       </div>
+
+      <p
+        v-if="state === 'ok' && waiting"
+        class="mb-3 rounded-md border border-warn/40 bg-warn/10 px-2 py-1.5 text-[11px] leading-relaxed text-text-muted"
+        data-testid="usage-hold"
+      >
+        Figures from {{ figuresAge }}. Anthropic asked this machine to wait; the next reading can
+        be taken in {{ waitLabel }}.
+      </p>
 
       <ul v-if="state === 'ok'" class="flex flex-col gap-3">
         <li v-for="limit in limits" :key="limit.key" class="flex flex-col gap-1.5">
@@ -301,15 +346,22 @@ function close(): void {
       <template v-else>
         <p class="text-[12px] leading-relaxed text-text-subtle">
           <template v-if="state === 'signed-out'">
-            No Claude Code login was found. Sign in from a Claude Code terminal, then check again.
+            No valid Claude Code login was found. Open a Claude Code terminal, which signs in or
+            refreshes the token, then check again.
+          </template>
+          <template v-else-if="state === 'rate-limited'">
+            Anthropic asked this machine to wait before reading usage again. The meter will take
+            the next reading in {{ waitLabel }}; asking sooner only extends the wait.
           </template>
           <template v-else>
-            Anthropic could not be reached. The meter retries on its own every 15 seconds.
+            Anthropic could not be reached. The meter checks again every five minutes while the
+            console is on screen, and when the window comes back to the front.
           </template>
         </p>
         <div class="mt-3 flex items-center justify-between gap-2">
           <span class="font-mono text-[10.5px] text-text-subtle">{{ checkedLabel }}</span>
           <button
+            v-if="state !== 'rate-limited'"
             type="button"
             class="focus-ring inline-flex h-7 items-center gap-1.5 rounded-[var(--radius-control)] border border-anchor-line bg-anchor-soft px-2.5 text-[12px] text-anchor transition-colors hover:border-anchor hover:bg-anchor/15 disabled:opacity-50"
             data-testid="usage-check-again"

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { flushPromises, mount } from '@vue/test-utils'
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import type { ClaudeUsage } from '@/model/claude'
 
@@ -14,6 +14,7 @@ import ClaudeUsageMeter from '@/components/console/ClaudeUsageMeter.vue'
 const OK: ClaudeUsage = {
   status: 'OK',
   fetchedAt: '2026-09-08T12:00:00Z',
+  retryAt: null,
   limits: [
     {
       key: 'session',
@@ -32,9 +33,24 @@ const OK: ClaudeUsage = {
   ]
 }
 
-const SIGNED_OUT: ClaudeUsage = { status: 'UNAUTHENTICATED', limits: [], fetchedAt: '' }
+const SIGNED_OUT: ClaudeUsage = {
+  status: 'UNAUTHENTICATED',
+  limits: [],
+  fetchedAt: '',
+  retryAt: null
+}
+
+const RATE_LIMITED: ClaudeUsage = {
+  status: 'RATE_LIMITED',
+  limits: [],
+  fetchedAt: '2026-09-08T12:00:00Z',
+  retryAt: '2026-09-08T12:47:00Z'
+}
 
 describe('ClaudeUsageMeter', () => {
+  // The meter listens on `window`; a mount left behind would still answer the next test's focus.
+  enableAutoUnmount(afterEach)
+
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(Date.parse('2026-09-08T12:00:00Z'))
@@ -149,22 +165,77 @@ describe('ClaudeUsageMeter', () => {
     expect(fetchClaudeUsage).toHaveBeenLastCalledWith(true)
   })
 
-  it('retries a blank reading every 15 seconds and a good one every minute', async () => {
+  it('reads every five minutes on screen, blank or not, and never faster', async () => {
     fetchClaudeUsage.mockResolvedValue(SIGNED_OUT)
     mount(ClaudeUsageMeter)
     await flushPromises()
     expect(fetchClaudeUsage).toHaveBeenCalledTimes(1)
 
-    await vi.advanceTimersByTimeAsync(15_000)
+    await vi.advanceTimersByTimeAsync(4 * 60_000 + 30_000)
+    expect(fetchClaudeUsage).toHaveBeenCalledTimes(1)
+
+    await vi.advanceTimersByTimeAsync(30_000)
     expect(fetchClaudeUsage).toHaveBeenCalledTimes(2)
 
     fetchClaudeUsage.mockResolvedValue(OK)
-    await vi.advanceTimersByTimeAsync(15_000)
+    await vi.advanceTimersByTimeAsync(5 * 60_000)
     expect(fetchClaudeUsage).toHaveBeenCalledTimes(3)
+    await vi.advanceTimersByTimeAsync(4 * 60_000)
+    expect(fetchClaudeUsage).toHaveBeenCalledTimes(3)
+  })
 
-    await vi.advanceTimersByTimeAsync(45_000)
-    expect(fetchClaudeUsage).toHaveBeenCalledTimes(3)
-    await vi.advanceTimersByTimeAsync(15_000)
-    expect(fetchClaudeUsage).toHaveBeenCalledTimes(4)
+  it('takes a fresh reading when the window comes back after a minute away, not sooner', async () => {
+    fetchClaudeUsage.mockResolvedValue(OK)
+    mount(ClaudeUsageMeter)
+    await flushPromises()
+
+    await vi.advanceTimersByTimeAsync(30_000)
+    window.dispatchEvent(new Event('focus'))
+    await flushPromises()
+    expect(fetchClaudeUsage).toHaveBeenCalledTimes(1)
+
+    await vi.advanceTimersByTimeAsync(31_000)
+    window.dispatchEvent(new Event('focus'))
+    await flushPromises()
+    expect(fetchClaudeUsage).toHaveBeenCalledTimes(2)
+  })
+
+  it('waits out a rate limit: says for how long, offers no check, then reads once it lapses', async () => {
+    fetchClaudeUsage.mockResolvedValue(RATE_LIMITED)
+    const wrapper = mount(ClaudeUsageMeter)
+    await flushPromises()
+
+    const root = wrapper.get('[data-testid="claude-usage"]')
+    expect(root.attributes('data-state')).toBe('rate-limited')
+    expect(root.get('button').text()).toContain('Wait 47m')
+
+    await root.trigger('mouseenter')
+    expect(wrapper.get('[role="group"]').text()).toContain('next reading in 47m')
+    expect(wrapper.find('[data-testid="usage-check-again"]').exists()).toBe(false)
+
+    await root.get('button').trigger('click')
+    window.dispatchEvent(new Event('focus'))
+    await vi.advanceTimersByTimeAsync(40 * 60_000)
+    expect(fetchClaudeUsage).toHaveBeenCalledTimes(1)
+
+    fetchClaudeUsage.mockResolvedValue(OK)
+    await vi.advanceTimersByTimeAsync(8 * 60_000)
+    expect(fetchClaudeUsage).toHaveBeenCalledTimes(2)
+    expect(root.attributes('data-state')).toBe('ok')
+  })
+
+  it('keeps the last figures during a hold, says they are old, and disables checking again', async () => {
+    fetchClaudeUsage.mockResolvedValue({ ...OK, retryAt: '2026-09-08T12:10:00Z' })
+    const wrapper = mount(ClaudeUsageMeter)
+    await flushPromises()
+
+    expect(wrapper.get('button').text()).toContain('80%')
+    await wrapper.get('[data-testid="claude-usage"]').trigger('mouseenter')
+    const popover = wrapper.get('[role="group"]')
+    expect(popover.get('[data-testid="usage-hold"]').text()).toContain('next reading can be taken in 10m')
+    expect(popover.get('[data-testid="usage-check-again"]').attributes('disabled')).toBeDefined()
+
+    await popover.get('[data-testid="usage-check-again"]').trigger('click')
+    expect(fetchClaudeUsage).toHaveBeenCalledTimes(1)
   })
 })

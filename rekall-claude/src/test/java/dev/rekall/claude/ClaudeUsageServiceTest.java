@@ -57,10 +57,18 @@ class ClaudeUsageServiceTest {
     }
 
     private String usageUrl(int status, String body, AtomicInteger hits) throws IOException {
+        return usageUrl(status, body, hits, null);
+    }
+
+    private String usageUrl(int status, String body, AtomicInteger hits, String retryAfter)
+            throws IOException {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/usage", exchange -> {
             if (hits != null) {
                 hits.incrementAndGet();
+            }
+            if (retryAfter != null) {
+                exchange.getResponseHeaders().add("Retry-After", retryAfter);
             }
             byte[] payload = body.getBytes(StandardCharsets.UTF_8);
             exchange.sendResponseHeaders(status, payload.length == 0 ? -1 : payload.length);
@@ -137,6 +145,79 @@ class ClaudeUsageServiceTest {
         ClaudeUsageView view = serviceFor("sk-token", 500, "", null).current();
 
         assertThat(view.status()).isEqualTo(Status.UNAVAILABLE);
+    }
+
+    @Test
+    @DisplayName("a 429 is obeyed: nothing goes out again, not even a refresh, until Retry-After has passed")
+    void rateLimitHoldsEveryRead() throws IOException {
+        SteppingClock clock = new SteppingClock();
+        AtomicInteger hits = new AtomicInteger();
+        ClaudeCredentials credentials = mock(ClaudeCredentials.class);
+        when(credentials.accessToken()).thenReturn(Optional.of("sk-token"));
+        ClaudeUsageService service =
+                new ClaudeUsageService(credentials, usageUrl(429, "", hits, "120"), clock);
+
+        ClaudeUsageView limited = service.current();
+        assertThat(limited.status()).isEqualTo(Status.RATE_LIMITED);
+        assertThat(limited.retryAt()).isEqualTo(clock.instant().plus(Duration.ofSeconds(120)));
+
+        clock.advance(Duration.ofSeconds(119));
+        assertThat(service.refresh().status()).isEqualTo(Status.RATE_LIMITED);
+        assertThat(service.current().status()).isEqualTo(Status.RATE_LIMITED);
+        assertThat(hits).hasValue(1);
+
+        clock.advance(Duration.ofSeconds(2));
+        service.current();
+        assertThat(hits).hasValue(2);
+    }
+
+    @Test
+    @DisplayName("a 429 with no Retry-After holds for five minutes")
+    void rateLimitWithoutHeaderHoldsFiveMinutes() throws IOException {
+        SteppingClock clock = new SteppingClock();
+        AtomicInteger hits = new AtomicInteger();
+        ClaudeUsageService service = serviceFor("sk-token", 429, "", hits, clock);
+
+        assertThat(service.current().retryAt()).isEqualTo(clock.instant().plus(Duration.ofMinutes(5)));
+        clock.advance(Duration.ofMinutes(4));
+        service.refresh();
+        assertThat(hits).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("a rate limit after a good read keeps the figures on show and says when they can be refreshed")
+    void rateLimitKeepsLastGoodWithRetryAt() throws IOException {
+        SteppingClock clock = new SteppingClock();
+        AtomicInteger hits = new AtomicInteger();
+        ClaudeCredentials credentials = mock(ClaudeCredentials.class);
+        when(credentials.accessToken()).thenReturn(Optional.of("sk-token"));
+        AtomicInteger status = new AtomicInteger(200);
+        server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/usage", exchange -> {
+            hits.incrementAndGet();
+            int code = status.get();
+            byte[] payload = (code == 200 ? SAMPLE : "").getBytes(StandardCharsets.UTF_8);
+            if (code == 429) {
+                exchange.getResponseHeaders().add("Retry-After", "60");
+            }
+            exchange.sendResponseHeaders(code, payload.length == 0 ? -1 : payload.length);
+            try (OutputStream out = exchange.getResponseBody()) {
+                out.write(payload);
+            }
+        });
+        server.start();
+        String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/usage";
+        ClaudeUsageService service = new ClaudeUsageService(credentials, url, clock);
+
+        assertThat(service.current().status()).isEqualTo(Status.OK);
+        status.set(429);
+
+        ClaudeUsageView held = service.refresh();
+        assertThat(held.status()).isEqualTo(Status.OK);
+        assertThat(held.limits()).isNotEmpty();
+        assertThat(held.retryAt()).isEqualTo(clock.instant().plus(Duration.ofSeconds(60)));
+        assertThat(service.refresh().retryAt()).isNotNull();
+        assertThat(hits).hasValue(2);
     }
 
     @Test
