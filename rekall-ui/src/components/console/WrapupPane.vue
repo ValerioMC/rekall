@@ -50,17 +50,13 @@ watch(
   }
 )
 
-const command = computed(() =>
-  selectedTask.value ? `${rkCommand(selectedTask.value.anchor)} wrapup` : ''
-)
-
 const writtenBy = computed(() =>
   selectedWrapup.value ? WRAPUP_AUTHOR_LABEL[selectedWrapup.value.writtenBy] : ''
 )
 
-const copied = ref<'anchor' | 'command' | null>(null)
+const copied = ref<'anchor' | null>(null)
 
-async function copy(what: 'anchor' | 'command', text: string): Promise<void> {
+async function copy(what: 'anchor', text: string): Promise<void> {
   await navigator.clipboard?.writeText(text)
   copied.value = what
   setTimeout(() => (copied.value = null), 1400)
@@ -211,17 +207,6 @@ async function sendWrapupHere(message: string): Promise<void> {
           <span class="size-[5px] shrink-0 rounded-full bg-warn" aria-hidden="true" />
           {{ wrapupIsBehind }} note{{ wrapupIsBehind === 1 ? ' is' : 's are' }} newer than this
         </span>
-
-        <button
-          class="focus-ring ml-auto inline-flex items-center gap-2 rounded-[var(--radius-control)] border border-border-strong px-2.5 py-1 font-mono text-[11px] text-text-muted transition-colors hover:border-anchor hover:text-anchor"
-          :class="copied === 'command' && 'flash'"
-          data-testid="copy-wrapup-command"
-          :title="'Paste this next to the terminal to have Claude rewrite it'"
-          @click="copy('command', command)"
-        >
-          <span>{{ command }}</span>
-          <span class="opacity-70">{{ copied === 'command' ? 'copied' : 'copy' }}</span>
-        </button>
       </div>
 
       <div v-if="!selectedWrapup && !isDrafting" class="min-h-0 flex-1 overflow-y-auto">

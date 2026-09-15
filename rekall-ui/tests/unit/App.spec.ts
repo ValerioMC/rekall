@@ -651,10 +651,11 @@ describe('the console', () => {
       // The note editor's controls are absent rather than disabled: a wrapup has no kind and
       // no second task it could belong to.
       expect(wrapper.find('[data-testid="assign-open"]').exists()).toBe(false)
-      // Only one way to copy the wrapup command once a wrapup exists: the chip next to its
-      // metadata, not a second one duplicating the empty state's.
-      expect(wrapper.find('[data-testid="copy-wrapup-command"]').text())
-        .toContain('wrapup')
+      // Only one way to copy the anchor once a wrapup exists: the header chip, not a second
+      // one duplicating it next to the metadata.
+      expect(wrapper.find('[data-testid="copy-wrapup-anchor"]').text())
+        .toContain('project:vega task:report-builder')
+      expect(wrapper.find('[data-testid="copy-wrapup-command"]').exists()).toBe(false)
     })
 
     /**
