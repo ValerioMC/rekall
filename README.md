@@ -112,7 +112,7 @@ One terminal per task, the way one terminal window is. A second open on a task t
 
 All three are stored on the machine, not in the database. It works in both the jvm and native macOS bundles: the pty4j/JNA GraalVM metadata is committed under `rekall-app/src/main/resources/META-INF/native-image/`.
 
-The top bar carries a usage meter: the current 5-hour session as a ring with its percentage and time to reset, and, on hover, a bar per window including the weekly per-model limits. The figures are the ones Claude Code's own `/usage` shows, read with the OAuth token Claude Code stores (the macOS keychain, else `~/.claude/.credentials.json`). With no token the meter asks you to sign in; when Anthropic cannot be reached it holds the last figures. It refreshes each minute.
+The top bar carries a usage meter: the current 5-hour session as a ring with its percentage and time to reset, and, on hover, a bar per window including the weekly per-model limits. The figures are the ones Claude Code's own `/usage` shows, read with the OAuth token Claude Code stores (the macOS keychain, else `~/.claude/.credentials.json`). With no token the meter asks you to sign in; when Anthropic cannot be reached it holds the last figures. A good reading refreshes each minute; a blank one (no login yet, Anthropic unreachable) is retried every 15 seconds, and clicking the blank meter, or **Check again** in its popover, takes a fresh reading past the server's cache (`GET /api/claude/usage?refresh=true`).
 
 | Property | Default | Meaning |
 |---|---|---|

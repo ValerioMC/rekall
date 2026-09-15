@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.rekall.claude.ClaudeUsageView.Limit;
 import dev.rekall.claude.ClaudeUsageView.Severity;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
@@ -14,6 +15,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -26,14 +28,17 @@ import java.util.Optional;
 /**
  * Fetches the logged-in account's Claude usage from Anthropic's OAuth usage endpoint and shapes it
  * for the console meter. The four drawn windows are kept in a fixed order, each with a severity
- * from its percentage. Results are cached for {@link #CACHE_TTL}, and a failed fetch falls back to
- * the last good one so a blip does not blank the meter.
+ * from its percentage. A good read is cached for {@link #CACHE_TTL}; a degraded one only for
+ * {@link #DEGRADED_TTL}, so a token that was not readable at launch is retried on the next poll
+ * rather than a minute later. A failed fetch falls back to the last good one so a blip does not
+ * blank the meter, and {@link #refresh()} skips the cache when the person asks for a new reading.
  */
 @Service
 @Slf4j
 public class ClaudeUsageService {
 
     private static final Duration CACHE_TTL = Duration.ofSeconds(60);
+    private static final Duration DEGRADED_TTL = Duration.ofSeconds(10);
     private static final Duration HTTP_TIMEOUT = Duration.ofSeconds(10);
     private static final double WARNING_AT = 80.0;
     private static final double CRITICAL_AT = 95.0;
@@ -51,29 +56,52 @@ public class ClaudeUsageService {
     private final ObjectMapper mapper = new ObjectMapper();
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(HTTP_TIMEOUT).build();
     private final String usageUrl;
+    private final Clock clock;
 
     private ClaudeUsageView cached;
     private Instant cachedAt = Instant.EPOCH;
     private ClaudeUsageView lastGood;
     private volatile boolean stopped;
 
+    @Autowired
     public ClaudeUsageService(
             ClaudeCredentials credentials,
             @Value("${rekall.claude.usage-url:https://api.anthropic.com/api/oauth/usage}") String usageUrl) {
+        this(credentials, usageUrl, Clock.systemUTC());
+    }
+
+    ClaudeUsageService(ClaudeCredentials credentials, String usageUrl, Clock clock) {
         this.credentials = credentials;
         this.usageUrl = usageUrl;
+        this.clock = clock;
     }
 
     public synchronized ClaudeUsageView current() {
         if (stopped) {
             return degraded();
         }
-        if (cached != null && Duration.between(cachedAt, Instant.now()).compareTo(CACHE_TTL) < 0) {
+        if (cached != null && Duration.between(cachedAt, clock.instant()).compareTo(ttlOf(cached)) < 0) {
             return cached;
         }
+        return readAndCache();
+    }
+
+    /** A reading taken now, whatever is cached: the person asked, so a stale answer is not one. */
+    public synchronized ClaudeUsageView refresh() {
+        if (stopped) {
+            return degraded();
+        }
+        return readAndCache();
+    }
+
+    private static Duration ttlOf(ClaudeUsageView view) {
+        return view.status() == ClaudeUsageView.Status.OK ? CACHE_TTL : DEGRADED_TTL;
+    }
+
+    private ClaudeUsageView readAndCache() {
         ClaudeUsageView fresh = fetch();
         cached = fresh;
-        cachedAt = Instant.now();
+        cachedAt = clock.instant();
         if (fresh.status() == ClaudeUsageView.Status.OK) {
             lastGood = fresh;
         }

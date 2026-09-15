@@ -12,6 +12,11 @@ export async function installClaudeIntegration(): Promise<ClaudeInstallation> {
   )
 }
 
-export async function fetchClaudeUsage(): Promise<ClaudeUsage> {
-  return request(async () => ClaudeUsageSchema.parse(await apiClient('/api/claude/usage')))
+/** `refresh` skips the server's cache: the person asked for a reading, not for the last one. */
+export async function fetchClaudeUsage(refresh = false): Promise<ClaudeUsage> {
+  return request(async () =>
+    ClaudeUsageSchema.parse(
+      await apiClient('/api/claude/usage', { query: refresh ? { refresh: true } : {} })
+    )
+  )
 }

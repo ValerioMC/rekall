@@ -1,10 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import type { ClaudeUsage } from '@/model/claude'
 
-const fetchClaudeUsage = vi.fn<() => Promise<ClaudeUsage>>()
+const fetchClaudeUsage = vi.fn<(refresh?: boolean) => Promise<ClaudeUsage>>()
 
-vi.mock('@/api/claude.api', () => ({ fetchClaudeUsage: () => fetchClaudeUsage() }))
+vi.mock('@/api/claude.api', () => ({
+  fetchClaudeUsage: (refresh?: boolean) => fetchClaudeUsage(refresh)
+}))
 
 import ClaudeUsageMeter from '@/components/console/ClaudeUsageMeter.vue'
 
@@ -29,6 +32,8 @@ const OK: ClaudeUsage = {
   ]
 }
 
+const SIGNED_OUT: ClaudeUsage = { status: 'UNAUTHENTICATED', limits: [], fetchedAt: '' }
+
 describe('ClaudeUsageMeter', () => {
   beforeEach(() => {
     vi.useFakeTimers()
@@ -49,6 +54,17 @@ describe('ClaudeUsageMeter', () => {
     expect(trigger.text()).toContain('80%')
     expect(trigger.text()).toContain('3h 24m')
     expect(trigger.attributes('aria-label')).toBe('Claude session at 80%, resets in 3h 24m')
+    expect(fetchClaudeUsage).toHaveBeenCalledWith(false)
+  })
+
+  it('sweeps the ring while the first reading is on its way', async () => {
+    fetchClaudeUsage.mockReturnValue(new Promise(() => undefined))
+    const wrapper = mount(ClaudeUsageMeter)
+    await nextTick()
+
+    expect(wrapper.get('[data-testid="claude-usage"]').attributes('data-state')).toBe('reading')
+    expect(wrapper.find('[data-testid="usage-sweep"]').exists()).toBe(true)
+    expect(wrapper.get('button').text()).toContain('Reading usage')
   })
 
   it('opens a row per limit on hover, each with its own reset', async () => {
@@ -66,11 +82,12 @@ describe('ClaudeUsageMeter', () => {
   })
 
   it('asks the user to sign in when Claude Code has no token', async () => {
-    fetchClaudeUsage.mockResolvedValue({ status: 'UNAUTHENTICATED', limits: [], fetchedAt: '' })
+    fetchClaudeUsage.mockResolvedValue(SIGNED_OUT)
     const wrapper = mount(ClaudeUsageMeter)
     await flushPromises()
 
     expect(wrapper.text()).toContain('Sign in')
+    expect(wrapper.get('[data-testid="claude-usage"]').attributes('data-state')).toBe('signed-out')
   })
 
   it('degrades to unavailable when the request fails, without throwing', async () => {
@@ -78,8 +95,76 @@ describe('ClaudeUsageMeter', () => {
     const wrapper = mount(ClaudeUsageMeter)
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Usage')
+    expect(wrapper.text()).toContain('No reading')
     await wrapper.get('[data-testid="claude-usage"]').trigger('mouseenter')
     expect(wrapper.get('[role="group"]').text()).toContain('could not be reached')
+  })
+
+  it('checks again, past the cache, when the blank trigger is clicked', async () => {
+    let deliver: (usage: ClaudeUsage) => void = () => undefined
+    fetchClaudeUsage
+      .mockResolvedValueOnce(SIGNED_OUT)
+      .mockReturnValueOnce(new Promise<ClaudeUsage>((resolve) => (deliver = resolve)))
+    const wrapper = mount(ClaudeUsageMeter)
+    await flushPromises()
+
+    await wrapper.get('[data-testid="claude-usage"] button').trigger('click')
+    expect(wrapper.find('[data-testid="usage-sweep"]').exists()).toBe(true)
+    expect(wrapper.get('button').text()).toContain('Sign in')
+    deliver(OK)
+    await flushPromises()
+
+    expect(fetchClaudeUsage).toHaveBeenLastCalledWith(true)
+    expect(wrapper.get('[data-testid="claude-usage"]').attributes('data-state')).toBe('ok')
+    expect(wrapper.get('button').text()).toContain('80%')
+  })
+
+  it('offers a check-again button in the blank popover, with when it last looked', async () => {
+    fetchClaudeUsage.mockResolvedValue(SIGNED_OUT)
+    const wrapper = mount(ClaudeUsageMeter)
+    await flushPromises()
+
+    await wrapper.get('[data-testid="claude-usage"]').trigger('mouseenter')
+    const popover = wrapper.get('[role="group"]')
+    expect(popover.text()).toContain('Checked just now')
+
+    await popover.get('[data-testid="usage-check-again"]').trigger('click')
+    await flushPromises()
+
+    expect(fetchClaudeUsage).toHaveBeenCalledTimes(2)
+    expect(fetchClaudeUsage).toHaveBeenLastCalledWith(true)
+  })
+
+  it('keeps the popover toggle on click once there is a figure to show', async () => {
+    fetchClaudeUsage.mockResolvedValue(OK)
+    const wrapper = mount(ClaudeUsageMeter)
+    await flushPromises()
+
+    await wrapper.get('[data-testid="claude-usage"] button').trigger('click')
+    expect(wrapper.find('[role="group"]').exists()).toBe(true)
+    expect(fetchClaudeUsage).toHaveBeenCalledTimes(1)
+
+    await wrapper.get('[data-testid="usage-check-again"]').trigger('click')
+    await flushPromises()
+    expect(fetchClaudeUsage).toHaveBeenLastCalledWith(true)
+  })
+
+  it('retries a blank reading every 15 seconds and a good one every minute', async () => {
+    fetchClaudeUsage.mockResolvedValue(SIGNED_OUT)
+    mount(ClaudeUsageMeter)
+    await flushPromises()
+    expect(fetchClaudeUsage).toHaveBeenCalledTimes(1)
+
+    await vi.advanceTimersByTimeAsync(15_000)
+    expect(fetchClaudeUsage).toHaveBeenCalledTimes(2)
+
+    fetchClaudeUsage.mockResolvedValue(OK)
+    await vi.advanceTimersByTimeAsync(15_000)
+    expect(fetchClaudeUsage).toHaveBeenCalledTimes(3)
+
+    await vi.advanceTimersByTimeAsync(45_000)
+    expect(fetchClaudeUsage).toHaveBeenCalledTimes(3)
+    await vi.advanceTimersByTimeAsync(15_000)
+    expect(fetchClaudeUsage).toHaveBeenCalledTimes(4)
   })
 })

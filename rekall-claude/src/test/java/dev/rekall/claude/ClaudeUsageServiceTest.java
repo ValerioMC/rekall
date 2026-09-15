@@ -11,7 +11,10 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -43,6 +46,17 @@ class ClaudeUsageServiceTest {
 
     private ClaudeUsageService serviceFor(String token, int status, String body, AtomicInteger hits)
             throws IOException {
+        return serviceFor(token, status, body, hits, Clock.systemUTC());
+    }
+
+    private ClaudeUsageService serviceFor(
+            String token, int status, String body, AtomicInteger hits, Clock clock) throws IOException {
+        ClaudeCredentials credentials = mock(ClaudeCredentials.class);
+        when(credentials.accessToken()).thenReturn(Optional.ofNullable(token));
+        return new ClaudeUsageService(credentials, usageUrl(status, body, hits), clock);
+    }
+
+    private String usageUrl(int status, String body, AtomicInteger hits) throws IOException {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/usage", exchange -> {
             if (hits != null) {
@@ -55,10 +69,31 @@ class ClaudeUsageServiceTest {
             }
         });
         server.start();
-        ClaudeCredentials credentials = mock(ClaudeCredentials.class);
-        when(credentials.accessToken()).thenReturn(Optional.ofNullable(token));
-        String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/usage";
-        return new ClaudeUsageService(credentials, url);
+        return "http://127.0.0.1:" + server.getAddress().getPort() + "/usage";
+    }
+
+    /** A clock the test moves by hand, so a cache window can be crossed without sleeping through it. */
+    private static final class SteppingClock extends Clock {
+        private Instant now = Instant.parse("2026-09-15T10:00:00Z");
+
+        void advance(Duration by) {
+            now = now.plus(by);
+        }
+
+        @Override
+        public Instant instant() {
+            return now;
+        }
+
+        @Override
+        public java.time.ZoneId getZone() {
+            return ZoneOffset.UTC;
+        }
+
+        @Override
+        public Clock withZone(java.time.ZoneId zone) {
+            return this;
+        }
     }
 
     @Test
@@ -113,6 +148,53 @@ class ClaudeUsageServiceTest {
         service.current();
         service.current();
 
+        assertThat(hits).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("a refresh inside the cache window takes a new reading anyway")
+    void refreshSkipsCache() throws IOException {
+        AtomicInteger hits = new AtomicInteger();
+        ClaudeUsageService service = serviceFor("sk-token", 200, SAMPLE, hits);
+
+        service.current();
+        ClaudeUsageView refreshed = service.refresh();
+
+        assertThat(hits).hasValue(2);
+        assertThat(refreshed.status()).isEqualTo(Status.OK);
+    }
+
+    @Test
+    @DisplayName("a degraded reading is retried after ten seconds, a good one only after sixty")
+    void degradedReadingsExpireSooner() throws IOException {
+        SteppingClock clock = new SteppingClock();
+        AtomicInteger hits = new AtomicInteger();
+        ClaudeUsageService service = serviceFor("sk-token", 500, "", hits, clock);
+
+        assertThat(service.current().status()).isEqualTo(Status.UNAVAILABLE);
+        clock.advance(Duration.ofSeconds(9));
+        service.current();
+        assertThat(hits).hasValue(1);
+
+        clock.advance(Duration.ofSeconds(2));
+        service.current();
+        assertThat(hits).hasValue(2);
+    }
+
+    @Test
+    @DisplayName("a missing token at launch is not remembered once the next poll finds one")
+    void tokenArrivingAfterLaunch() throws IOException {
+        SteppingClock clock = new SteppingClock();
+        AtomicInteger hits = new AtomicInteger();
+        ClaudeCredentials credentials = mock(ClaudeCredentials.class);
+        when(credentials.accessToken()).thenReturn(Optional.empty(), Optional.of("sk-token"));
+        ClaudeUsageService service =
+                new ClaudeUsageService(credentials, usageUrl(200, SAMPLE, hits), clock);
+
+        assertThat(service.current().status()).isEqualTo(Status.UNAUTHENTICATED);
+        clock.advance(Duration.ofSeconds(11));
+
+        assertThat(service.current().status()).isEqualTo(Status.OK);
         assertThat(hits).hasValue(1);
     }
 
