@@ -56,6 +56,15 @@ export async function fetchCommitReferenceDiff(id: string): Promise<string | nul
   )
 }
 
+/** Whether this commit's hash and diff travel with `/rk` for its task. */
+export async function setCommitReferenceInContext(id: string, inContext: boolean): Promise<CommitReference> {
+  return request(async () =>
+    CommitReferenceSchema.parse(
+      await apiClient(`/api/commit-references/${id}`, { method: 'PATCH', body: { inContext } })
+    )
+  )
+}
+
 export async function deleteCommitReference(id: string): Promise<void> {
   await request(() => apiClient(`/api/commit-references/${id}`, { method: 'DELETE' }))
 }

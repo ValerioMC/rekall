@@ -119,6 +119,18 @@ public class CommitReferenceService {
         return reference.getDiff();
     }
 
+    /**
+     * Whether a logged commit rides along with {@code rekall_context}. A null flag reads as off, so a
+     * body that omits it never turns a commit on by accident. Console-only, one row at a time.
+     */
+    @Transactional
+    public CommitReferenceView setInContext(UUID id, Boolean inContext) {
+        CommitReference reference =
+                commitReferences.findById(id).orElseThrow(() -> new NotFoundException("commit reference", id));
+        reference.setInContext(Boolean.TRUE.equals(inContext));
+        return CommitReferenceView.of(commitReferences.saveAndFlush(reference));
+    }
+
     /** Removes the link between a commit and the task/step it was logged against. Manual, from the console. */
     @Transactional
     public void delete(UUID id) {

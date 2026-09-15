@@ -12,6 +12,11 @@ const expanded = ref(false)
 const latest = computed(() => props.references[0] ?? null)
 const railNodes = computed(() => props.references.slice(0, 6))
 const overflowCount = computed(() => props.references.length - railNodes.value.length)
+const inContextCount = computed(() => props.references.filter((reference) => reference.inContext).length)
+const countLabel = computed(() => {
+  const commits = `${props.references.length} commit${props.references.length === 1 ? '' : 's'}`
+  return inContextCount.value > 0 ? `${commits},` : commits
+})
 </script>
 
 <template>
@@ -27,8 +32,15 @@ const overflowCount = computed(() => props.references.length - railNodes.value.l
         <span
           v-for="(reference, index) in railNodes"
           :key="reference.id"
-          class="size-2.5 shrink-0 rounded-full border border-border-strong bg-canvas transition-colors group-hover/rail:border-accent"
+          class="size-2.5 shrink-0 rounded-full border transition-colors"
+          :class="
+            reference.inContext
+              ? 'border-anchor bg-anchor shadow-[0_0_6px_-1px_var(--color-anchor)]'
+              : 'border-border-strong bg-canvas group-hover/rail:border-accent'
+          "
           :style="index > 0 ? { marginLeft: '-5px' } : undefined"
+          :data-in-context="reference.inContext ? 'true' : 'false'"
+          data-testid="commit-rail-node"
         />
         <span
           v-if="overflowCount > 0"
@@ -43,8 +55,11 @@ const overflowCount = computed(() => props.references.length - railNodes.value.l
         <span class="mx-1 text-text-subtle">&#8226;</span>{{ latest?.comment }}
       </span>
 
-      <span class="shrink-0 text-[10.5px] text-text-subtle">
-        {{ references.length }} commit{{ references.length === 1 ? '' : 's' }}
+      <span class="inline-flex shrink-0 gap-1 text-[10.5px] text-text-subtle">
+        <span>{{ countLabel }}</span>
+        <span v-if="inContextCount > 0" class="text-anchor" data-testid="commit-rail-context-count">
+          {{ inContextCount }} in context
+        </span>
       </span>
 
       <svg

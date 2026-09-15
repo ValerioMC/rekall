@@ -8,6 +8,8 @@ export interface CommitReference {
   readonly stepTitle: string | null
   readonly commitHash: string
   readonly comment: string
+  /** Chosen in the console to travel with `/rk`: hash, subject and diff land in the session's context. */
+  readonly inContext: boolean
   readonly createdAt: string
 }
 

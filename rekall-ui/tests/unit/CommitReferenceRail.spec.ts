@@ -20,6 +20,7 @@ function reference(overrides: Partial<CommitReference> = {}): CommitReference {
     stepTitle: null,
     commitHash: 'abc1234def',
     comment: 'Wire up the button',
+    inContext: false,
     createdAt: '2026-09-14T10:00:00Z',
     ...overrides
   }
@@ -87,5 +88,23 @@ describe('CommitReferenceRail', () => {
     await toggle.trigger('click')
 
     expect(toggle.attributes('aria-expanded')).toBe('false')
+  })
+
+  it('fills the nodes of the commits that travel with /rk and counts them', () => {
+    const wrapper = mount(CommitReferenceRail, {
+      props: { references: [reference({ id: 'c1', inContext: true }), reference({ id: 'c2' })] }
+    })
+
+    const nodes = wrapper.findAll('[data-testid="commit-rail-node"]')
+    expect(nodes.map((node) => node.attributes('data-in-context'))).toEqual(['true', 'false'])
+    expect(wrapper.get('[data-testid="commit-rail-context-count"]').text()).toBe('1 in context')
+  })
+
+  it('says nothing about the context when no commit has been chosen', () => {
+    const wrapper = mount(CommitReferenceRail, { props: { references: manyReferences(3) } })
+
+    expect(wrapper.find('[data-testid="commit-rail-context-count"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('3 commits')
+    expect(wrapper.text()).not.toContain(',')
   })
 })

@@ -214,4 +214,8 @@ public final class ApiDtos {
     /** Fetched separately from the list, since not every row's diff is wanted at once. */
     public record CommitReferenceDiffResponse(String diff) {
     }
+
+    /** A wrapper, not a primitive: an absent key must bind as null and read as off, not fail the request. */
+    public record CommitReferenceContextRequest(Boolean inContext) {
+    }
 }

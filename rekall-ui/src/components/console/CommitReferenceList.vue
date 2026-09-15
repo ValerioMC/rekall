@@ -26,6 +26,7 @@ const diffs = ref<Record<string, string | null>>({})
 const loadingId = ref<string | null>(null)
 const failedId = ref<string | null>(null)
 const deletingReference = ref<CommitReference | null>(null)
+const togglingContextId = ref<string | null>(null)
 
 async function toggle(reference: CommitReference): Promise<void> {
   if (expandedId.value === reference.id) {
@@ -43,6 +44,20 @@ async function toggle(reference: CommitReference): Promise<void> {
     failedId.value = reference.id
   } finally {
     loadingId.value = null
+  }
+}
+
+/**
+ * Chooses the commit for `/rk`, or unchooses it. No toast: the pill changing colour is the
+ * confirmation, and a toast per click would drown a person choosing three commits in a row.
+ */
+async function toggleContext(reference: CommitReference): Promise<void> {
+  if (togglingContextId.value) return
+  togglingContextId.value = reference.id
+  try {
+    await run(() => store.setCommitReferenceInContext(reference.id, !reference.inContext))
+  } finally {
+    togglingContextId.value = null
   }
 }
 
@@ -115,6 +130,37 @@ async function confirmDelete(): Promise<void> {
           </span>
 
           <span class="shrink-0 text-[10.5px] text-text-subtle">{{ relativeTime(reference.createdAt) }}</span>
+        </button>
+
+        <button
+          type="button"
+          class="focus-ring flex h-5 shrink-0 items-center gap-1 rounded-[6px] border px-1.5 text-[10px] leading-none transition-all duration-150"
+          :class="
+            reference.inContext
+              ? 'border-anchor-line bg-anchor-soft text-anchor'
+              : 'border-transparent text-text-subtle opacity-0 hover:border-anchor-line hover:text-anchor group-hover/commit:opacity-100 focus-visible:opacity-100'
+          "
+          :aria-pressed="reference.inContext"
+          :disabled="togglingContextId === reference.id"
+          :title="
+            reference.inContext
+              ? 'Stop handing this commit to /rk'
+              : 'Hand this commit, with its diff, to /rk for this task'
+          "
+          data-testid="commit-reference-context-toggle"
+          :data-in-context="reference.inContext ? 'true' : 'false'"
+          @click.stop="toggleContext(reference)"
+        >
+          <svg class="size-2.5 shrink-0" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+            <path
+              d="M4.2 2.4 1.6 6l2.6 3.6M7.8 2.4 10.4 6 7.8 9.6"
+              stroke="currentColor"
+              stroke-width="1.3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          {{ reference.inContext ? 'in context' : 'add to context' }}
         </button>
 
         <button

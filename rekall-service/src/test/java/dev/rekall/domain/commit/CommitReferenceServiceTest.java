@@ -300,6 +300,41 @@ class CommitReferenceServiceTest {
     }
 
     @Test
+    @DisplayName("a logged commit can be chosen for the context, and unchosen again")
+    void aLoggedCommitCanBeChosenForTheContext() {
+        UUID id = UUID.randomUUID();
+        CommitReference reference = new CommitReference(task, null, "abc123", "Wire up the button", "diff");
+        when(commitReferences.findById(id)).thenReturn(Optional.of(reference));
+
+        assertThat(service.setInContext(id, true).inContext()).isTrue();
+        assertThat(reference.isInContext()).isTrue();
+
+        assertThat(service.setInContext(id, false).inContext()).isFalse();
+        assertThat(reference.isInContext()).isFalse();
+    }
+
+    @Test
+    @DisplayName("a missing flag reads as off, so an empty body never chooses a commit by accident")
+    void aMissingFlagReadsAsOff() {
+        UUID id = UUID.randomUUID();
+        CommitReference reference = new CommitReference(task, null, "abc123", "Wire up the button", "diff");
+        reference.setInContext(true);
+        when(commitReferences.findById(id)).thenReturn(Optional.of(reference));
+
+        assertThat(service.setInContext(id, null).inContext()).isFalse();
+    }
+
+    @Test
+    @DisplayName("choosing an unknown commit reference for the context is refused")
+    void refusesChoosingAnUnknownCommitReference() {
+        UUID id = UUID.randomUUID();
+        when(commitReferences.findById(id)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.setInContext(id, true)).isInstanceOf(NotFoundException.class);
+        verify(commitReferences, never()).saveAndFlush(any());
+    }
+
+    @Test
     @DisplayName("deleting a logged commit removes its row")
     void deletingALoggedCommitRemovesItsRow() {
         UUID id = UUID.randomUUID();

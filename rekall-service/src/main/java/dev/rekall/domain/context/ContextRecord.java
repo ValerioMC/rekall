@@ -15,6 +15,7 @@ public record ContextRecord(
         List<String> related,
         List<DocumentView> documents,
         List<TaskStepView> steps,
+        List<ContextCommitView> commits,
         WrapupView wrapup,
         String blueprint,
         String description) {
@@ -25,5 +26,6 @@ public record ContextRecord(
         related = related == null ? List.of() : List.copyOf(related);
         documents = documents == null ? List.of() : List.copyOf(documents);
         steps = steps == null ? List.of() : List.copyOf(steps);
+        commits = commits == null ? List.of() : List.copyOf(commits);
     }
 }

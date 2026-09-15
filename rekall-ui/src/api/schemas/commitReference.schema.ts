@@ -8,6 +8,7 @@ export const CommitReferenceSchema = z.object({
   stepTitle: z.string().nullable(),
   commitHash: z.string(),
   comment: z.string(),
+  inContext: z.boolean(),
   createdAt: z.string()
 })
 

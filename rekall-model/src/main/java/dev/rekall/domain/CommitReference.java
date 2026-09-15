@@ -12,6 +12,7 @@ import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
+import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
@@ -57,6 +58,14 @@ public class CommitReference {
     @Lob
     @Column(name = "diff", updatable = false)
     private String diff;
+
+    /**
+     * Whether this commit rides along with {@code rekall_context}: hash, subject and diff handed to the
+     * session that loads the task. Off when logged; the console flips it, one row at a time.
+     */
+    @Setter
+    @Column(name = "in_context", nullable = false)
+    private boolean inContext;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

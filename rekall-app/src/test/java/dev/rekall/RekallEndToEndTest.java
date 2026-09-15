@@ -651,6 +651,87 @@ class RekallEndToEndTest {
                 .isEqualTo(first);
     }
 
+    @Test
+    @DisplayName("a logged commit is off the context until the console chooses it, then arrives with its diff")
+    void aChosenCommitArrivesInTheContextWithItsDiff() throws Exception {
+        String acme = aCompany("Acme");
+        Path repo = aGitRepoWithOneCommit("Wire up the context toggle");
+        String projectId = id(post("/api/projects", Map.of(
+                "label", "vega", "title", "Vega", "status", "ACTIVE",
+                "repoFolder", repo.toString(), "companyId", acme)));
+        String taskId = aTask(projectId, "report-builder");
+        ResponseEntity<Map> logged = rest.post()
+                .uri("/api/tasks/" + taskId + "/commit-references/latest")
+                .retrieve().toEntity(Map.class);
+        String referenceId = (String) logged.getBody().get("id");
+        String hash = (String) logged.getBody().get("commitHash");
+        assertThat(logged.getBody()).containsEntry("inContext", false);
+
+        assertThat(callTool("rekall_context", Map.of("anchors", "project:vega task:report-builder")))
+                .as("logging alone hands nothing over")
+                .doesNotContain("<commits")
+                .doesNotContain(hash);
+
+        ResponseEntity<Map> chosen = rest.patch()
+                .uri("/api/commit-references/" + referenceId)
+                .body(Map.of("inContext", true))
+                .retrieve().toEntity(Map.class);
+        assertThat(chosen.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(chosen.getBody()).containsEntry("inContext", true);
+
+        String context = callTool("rekall_context", Map.of("anchors", "project:vega task:report-builder"));
+        assertThat(context)
+                .contains("<commits count=\"1\">")
+                .contains("<commit hash=\"" + hash + "\">")
+                .contains("Wire up the context toggle")
+                .as("the diff the commit introduced is what the session reads")
+                .contains("+Wire up the context toggle")
+                .contains("</commits>");
+
+        rest.patch()
+                .uri("/api/commit-references/" + referenceId)
+                .body(Map.of("inContext", false))
+                .retrieve().toBodilessEntity();
+        assertThat(callTool("rekall_context", Map.of("anchors", "project:vega task:report-builder")))
+                .as("unchoosing it takes it out again")
+                .doesNotContain("<commits");
+    }
+
+    @Test
+    @DisplayName("a commit chosen on a step names that step in the context, so the session knows what it belongs to")
+    void aChosenStepCommitNamesItsStep() throws Exception {
+        String acme = aCompany("Acme");
+        Path repo = aGitRepoWithOneCommit("Wire the ledger");
+        String projectId = id(post("/api/projects", Map.of(
+                "label", "vega", "title", "Vega", "status", "ACTIVE",
+                "repoFolder", repo.toString(), "companyId", acme)));
+        String taskId = aTask(projectId, "report-builder");
+        String stepId = id(post("/api/tasks/" + taskId + "/steps", Map.of("title", "Wire the ledger")));
+        ResponseEntity<Map> logged = rest.post()
+                .uri("/api/tasks/" + taskId + "/commit-references")
+                .body(Map.of("commitHash", runGit(repo, "rev-parse", "HEAD"), "stepId", stepId))
+                .retrieve().toEntity(Map.class);
+
+        rest.patch()
+                .uri("/api/commit-references/" + logged.getBody().get("id"))
+                .body(Map.of("inContext", true))
+                .retrieve().toBodilessEntity();
+
+        assertThat(callTool("rekall_context", Map.of("anchors", "project:vega task:report-builder")))
+                .contains("step=\"Wire the ledger\">");
+    }
+
+    @Test
+    @DisplayName("choosing a commit reference that does not exist for the context is a 404")
+    void choosingAnUnknownCommitReferenceIs404() {
+        ResponseEntity<Map> response = rest.patch()
+                .uri("/api/commit-references/" + UUID.randomUUID())
+                .body(Map.of("inContext", true))
+                .retrieve().toEntity(Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
     private Path aGitRepoWithCommits(String... subjects) throws Exception {
         Path repo = Files.createTempDirectory("rekall-commit-reference-test");
         runGit(repo, "init", "-q");

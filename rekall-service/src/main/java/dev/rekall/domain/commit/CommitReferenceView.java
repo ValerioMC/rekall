@@ -12,6 +12,7 @@ public record CommitReferenceView(
         String stepTitle,
         String commitHash,
         String comment,
+        boolean inContext,
         Instant createdAt) {
 
     static CommitReferenceView of(CommitReference reference) {
@@ -22,6 +23,7 @@ public record CommitReferenceView(
                 reference.getStep() == null ? null : reference.getStep().getTitle(),
                 reference.getCommitHash(),
                 reference.getComment(),
+                reference.isInContext(),
                 reference.getCreatedAt());
     }
 }

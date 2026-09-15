@@ -22,11 +22,7 @@ import {
   fetchAllDocuments,
   updateDocument as apiUpdateDocument
 } from '@/api/documents.api'
-import {
-  deleteWrapup as apiDeleteWrapup,
-  fetchWrapups,
-  saveWrapup as apiSaveWrapup
-} from '@/api/wrapups.api'
+import { deleteWrapup as apiDeleteWrapup, fetchWrapups, saveWrapup as apiSaveWrapup } from '@/api/wrapups.api'
 import {
   createStep as apiCreateStep,
   deleteStep as apiDeleteStep,
@@ -37,7 +33,8 @@ import {
 import type { TaskStepPatch } from '@/api/steps.api'
 import {
   deleteCommitReference as apiDeleteCommitReference,
-  fetchCommitReferences
+  fetchCommitReferences,
+  setCommitReferenceInContext as apiSetCommitReferenceInContext
 } from '@/api/commitReference.api'
 import type { CommitReference } from '@/model/commitReference'
 import {
@@ -62,14 +59,7 @@ import {
   type Wrapup,
   type WrapupStreamEvent
 } from '@/model/catalog'
-import type {
-  CompanyId,
-  DocumentId,
-  ProjectId,
-  TaskId,
-  TaskStepId,
-  TimeEntryId
-} from '@/model/branded'
+import type { CompanyId, DocumentId, ProjectId, TaskId, TaskStepId, TimeEntryId } from '@/model/branded'
 
 export type NavMode = 'tasks' | 'notes'
 export type SaveState = 'saved' | 'unsaved' | 'saving'
@@ -109,8 +99,7 @@ export const useConsoleStore = defineStore('console', () => {
 
   function matchesTask(task: Task, needle: string): boolean {
     if (!needle.trim()) return true
-    const hay =
-      `${task.projectLabel} ${task.projectTitle} ${task.label} ${task.title}`.toLowerCase()
+    const hay = `${task.projectLabel} ${task.projectTitle} ${task.label} ${task.title}`.toLowerCase()
     return needle
       .toLowerCase()
       .replace(/(project:|task:|company:)/g, ' ')
@@ -123,7 +112,11 @@ export const useConsoleStore = defineStore('console', () => {
   function matchesDocument(document: RekallDocument, needle: string): boolean {
     if (!needle.trim()) return true
     const hay = `${document.title} ${document.kind} ${document.bodyMarkdown}`.toLowerCase()
-    return needle.toLowerCase().trim().split(/\s+/).every((part) => hay.includes(part))
+    return needle
+      .toLowerCase()
+      .trim()
+      .split(/\s+/)
+      .every((part) => hay.includes(part))
   }
 
   const documentInScope = (document: RekallDocument): boolean =>
@@ -138,14 +131,10 @@ export const useConsoleStore = defineStore('console', () => {
   )
 
   const visibleDocuments = computed(() =>
-    documents.value.filter(
-      (document) => documentInScope(document) && matchesDocument(document, filter.value)
-    )
+    documents.value.filter((document) => documentInScope(document) && matchesDocument(document, filter.value))
   )
 
-  const selectedTask = computed(
-    () => tasks.value.find((task) => task.id === selectedTaskId.value) ?? null
-  )
+  const selectedTask = computed(() => tasks.value.find((task) => task.id === selectedTaskId.value) ?? null)
 
   const selectedDocument = computed(
     () => documents.value.find((document) => document.id === selectedDocId.value) ?? null
@@ -162,15 +151,11 @@ export const useConsoleStore = defineStore('console', () => {
   const taskDocuments = computed(() =>
     selectedTaskId.value === null
       ? []
-      : documents.value.filter((document) =>
-          document.tasks.some((ref) => ref.id === selectedTaskId.value)
-        )
+      : documents.value.filter((document) => document.tasks.some((ref) => ref.id === selectedTaskId.value))
   )
 
   const selectedTaskSteps = computed(() =>
-    steps.value
-      .filter((step) => step.taskId === selectedTaskId.value)
-      .sort((a, b) => a.position - b.position)
+    steps.value.filter((step) => step.taskId === selectedTaskId.value).sort((a, b) => a.position - b.position)
   )
 
   const selectedTaskCommitReferences = computed(() =>
@@ -221,9 +206,7 @@ export const useConsoleStore = defineStore('console', () => {
     }).length
   })
 
-  const runningStep = computed(
-    () => selectedTaskSteps.value.find((step) => step.state === 'RUNNING') ?? null
-  )
+  const runningStep = computed(() => selectedTaskSteps.value.find((step) => step.state === 'RUNNING') ?? null)
 
   const wrapupIsBehind = computed(() => {
     const wrapup = selectedWrapup.value
@@ -240,9 +223,7 @@ export const useConsoleStore = defineStore('console', () => {
   )
 
   const recentDocuments = computed(() =>
-    [...documents.value]
-      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-      .slice(0, 4)
+    [...documents.value].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 4)
   )
 
   const scopedProjects = computed(() => projects.value.filter(projectInScope))
@@ -254,9 +235,7 @@ export const useConsoleStore = defineStore('console', () => {
       : [scopedCompany.value.name]
   })
 
-  const scopeName = computed(() =>
-    scopePath.value.length === 0 ? 'All work' : scopePath.value.join(' / ')
-  )
+  const scopeName = computed(() => (scopePath.value.length === 0 ? 'All work' : scopePath.value.join(' / ')))
 
   const scopeAnchor = computed(() => {
     if (scopedProject.value) return scopedProject.value.anchor
@@ -264,12 +243,9 @@ export const useConsoleStore = defineStore('console', () => {
   })
 
   const elsewhere = computed(() => {
-    if ((scopeCompany.value === null && scopeProject.value === null) || !filter.value.trim())
-      return null
+    if ((scopeCompany.value === null && scopeProject.value === null) || !filter.value.trim()) return null
     const outTasks = tasks.value.filter((t) => !inScope(t) && matchesTask(t, filter.value))
-    const outDocs = documents.value.filter(
-      (d) => !documentInScope(d) && matchesDocument(d, filter.value)
-    )
+    const outDocs = documents.value.filter((d) => !documentInScope(d) && matchesDocument(d, filter.value))
     const count = navMode.value === 'tasks' ? outTasks.length : outDocs.length
     if (count === 0) return null
     const names = [
@@ -321,9 +297,7 @@ export const useConsoleStore = defineStore('console', () => {
 
   function selectTask(id: TaskId): void {
     selectedTaskId.value = id
-    const first = documents.value.find((document) =>
-      document.tasks.some((ref) => ref.id === id)
-    )
+    const first = documents.value.find((document) => document.tasks.some((ref) => ref.id === id))
     selectedDocId.value = first?.id ?? null
     paneFocus.value = 'note'
   }
@@ -725,10 +699,7 @@ export const useConsoleStore = defineStore('console', () => {
     const step = steps.value.find((candidate) => candidate.id === id)
     if (!step) return
     const reordered = await apiMoveStep(id, position)
-    steps.value = [
-      ...steps.value.filter((candidate) => candidate.taskId !== step.taskId),
-      ...reordered
-    ]
+    steps.value = [...steps.value.filter((candidate) => candidate.taskId !== step.taskId), ...reordered]
   }
 
   async function removeStep(id: TaskStepId): Promise<void> {
@@ -806,6 +777,10 @@ export const useConsoleStore = defineStore('console', () => {
       : [reference, ...commitReferences.value]
   }
 
+  async function setCommitReferenceInContext(id: string, inContext: boolean): Promise<void> {
+    applyCommitReference(await apiSetCommitReferenceInContext(id, inContext))
+  }
+
   async function deleteCommitReference(id: string): Promise<void> {
     await apiDeleteCommitReference(id)
     commitReferences.value = commitReferences.value.filter((existing) => existing.id !== id)
@@ -847,6 +822,7 @@ export const useConsoleStore = defineStore('console', () => {
     stepCommitReferences,
     applyCommitReference,
     refreshCommitReferences,
+    setCommitReferenceInContext,
     deleteCommitReference,
     runningEntries,
     selectedTaskEntries,

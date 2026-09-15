@@ -11,4 +11,7 @@ public interface CommitReferenceRepository extends JpaRepository<CommitReference
     List<CommitReference> findByTaskIdAndCommitHash(UUID taskId, String commitHash);
 
     List<CommitReference> findAllByOrderByCreatedAtDesc();
+
+    /** The rows a task hands to {@code rekall_context}, in the order they were logged. */
+    List<CommitReference> findByTaskIdAndInContextTrueOrderByCreatedAtAsc(UUID taskId);
 }

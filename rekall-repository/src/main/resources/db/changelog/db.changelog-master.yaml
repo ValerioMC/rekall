@@ -39,3 +39,5 @@ databaseChangeLog:
       file: db/changelog/019-commit-reference.yaml
   - include:
       file: db/changelog/020-commit-reference-diff.yaml
+  - include:
+      file: db/changelog/021-commit-reference-in-context.yaml

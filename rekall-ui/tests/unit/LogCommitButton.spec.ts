@@ -37,6 +37,7 @@ function logged(hash: string, comment: string, step: TaskStepId | null = null): 
     stepTitle: step ? 'The step' : null,
     commitHash: hash,
     comment,
+    inContext: false,
     createdAt: '2026-09-15T10:00:00Z'
   }
 }

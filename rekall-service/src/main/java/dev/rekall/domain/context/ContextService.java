@@ -5,6 +5,7 @@ import dev.rekall.domain.Document;
 import dev.rekall.domain.Project;
 import dev.rekall.domain.Task;
 import dev.rekall.domain.TaskStepState;
+import dev.rekall.domain.repository.CommitReferenceRepository;
 import dev.rekall.domain.repository.CompanyRepository;
 import dev.rekall.domain.repository.ProjectRepository;
 import dev.rekall.domain.repository.TaskRepository;
@@ -28,6 +29,7 @@ public class ContextService {
     private final CompanyRepository companies;
     private final ProjectRepository projects;
     private final TaskRepository tasks;
+    private final CommitReferenceRepository commitReferences;
 
     @Transactional(readOnly = true)
     public ContextRecord load(String entityName, String value) {
@@ -111,6 +113,7 @@ public class ContextService {
                 company.getProjects().stream().map(project -> "project:" + project.getLabel()).toList(),
                 List.of(),
                 List.of(),
+                List.of(),
                 null,
                 null,
                 company.getDescription());
@@ -127,6 +130,7 @@ public class ContextService {
                 fields,
                 List.of(renderReferenced(project.getCompany())),
                 project.getTasks().stream().map(task -> "task:" + task.getLabel()).toList(),
+                List.of(),
                 List.of(),
                 List.of(),
                 null,
@@ -171,6 +175,7 @@ public class ContextService {
                 List.of(),
                 documentsOf(task.getDocuments()),
                 steps,
+                commitsOf(task),
                 task.getWrapup() == null ? null : WrapupView.of(task.getWrapup()),
                 null,
                 task.getDescription());
@@ -180,7 +185,7 @@ public class ContextService {
         ContextRecord full = render(project);
         return new ContextRecord(
                 full.kind(), full.label(), full.anchor(), full.fields(),
-                full.references(), List.of(), full.documents(), List.of(), null, full.blueprint(),
+                full.references(), List.of(), full.documents(), List.of(), List.of(), null, full.blueprint(),
                 full.description());
     }
 
@@ -188,8 +193,15 @@ public class ContextService {
         ContextRecord full = render(company);
         return new ContextRecord(
                 full.kind(), full.label(), full.anchor(), full.fields(),
-                List.of(), List.of(), full.documents(), List.of(), null, full.blueprint(),
+                List.of(), List.of(), full.documents(), List.of(), List.of(), null, full.blueprint(),
                 full.description());
+    }
+
+    /** Only the commits the console marked for the context, oldest logged first, so the changes read in order. */
+    private List<ContextCommitView> commitsOf(Task task) {
+        return commitReferences.findByTaskIdAndInContextTrueOrderByCreatedAtAsc(task.getId()).stream()
+                .map(ContextCommitView::of)
+                .toList();
     }
 
     private List<DocumentView> documentsOf(List<Document> documents) {

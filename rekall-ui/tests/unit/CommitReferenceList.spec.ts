@@ -23,6 +23,7 @@ function reference(overrides: Partial<CommitReference> = {}): CommitReference {
     stepTitle: null,
     commitHash: 'abc1234def',
     comment: 'Wire up the button',
+    inContext: false,
     createdAt: '2026-09-14T10:00:00Z',
     ...overrides
   }
@@ -106,6 +107,43 @@ describe('CommitReferenceList', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('Could not load the diff.')
+  })
+
+  it('offers to add a commit to the context, and says so once it is in', () => {
+    const off = render([reference()])
+    const offToggle = off.get('[data-testid="commit-reference-context-toggle"]')
+    expect(offToggle.text()).toBe('add to context')
+    expect(offToggle.attributes('aria-pressed')).toBe('false')
+
+    const on = render([reference({ inContext: true })])
+    const onToggle = on.get('[data-testid="commit-reference-context-toggle"]')
+    expect(onToggle.text()).toBe('in context')
+    expect(onToggle.attributes('aria-pressed')).toBe('true')
+    expect(onToggle.attributes('data-in-context')).toBe('true')
+  })
+
+  it('chooses the commit for the context through the store, without opening the diff', async () => {
+    const store = useConsoleStore()
+    store.setCommitReferenceInContext = vi.fn().mockResolvedValue(undefined)
+    const wrapper = render([reference({ id: 'c1' })])
+
+    await wrapper.get('[data-testid="commit-reference-context-toggle"]').trigger('click')
+    await flushPromises()
+
+    expect(store.setCommitReferenceInContext).toHaveBeenCalledWith('c1', true)
+    expect(fetchCommitReferenceDiff).not.toHaveBeenCalled()
+    expect(wrapper.find('[data-testid="commit-reference-diff"]').exists()).toBe(false)
+  })
+
+  it('unchooses a commit that is already in the context', async () => {
+    const store = useConsoleStore()
+    store.setCommitReferenceInContext = vi.fn().mockResolvedValue(undefined)
+    const wrapper = render([reference({ id: 'c1', inContext: true })])
+
+    await wrapper.get('[data-testid="commit-reference-context-toggle"]').trigger('click')
+    await flushPromises()
+
+    expect(store.setCommitReferenceInContext).toHaveBeenCalledWith('c1', false)
   })
 
   it('asks for confirmation before deleting a commit reference', async () => {

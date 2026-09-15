@@ -1,5 +1,6 @@
 package dev.rekall.api.controller;
 
+import dev.rekall.api.dto.ApiDtos.CommitReferenceContextRequest;
 import dev.rekall.api.dto.ApiDtos.CommitReferenceDiffResponse;
 import dev.rekall.api.dto.ApiDtos.CommitReferenceRequest;
 import dev.rekall.api.dto.ApiDtos.PickedCommitReferenceRequest;
@@ -10,6 +11,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -58,6 +60,13 @@ public class CommitReferenceController {
     @GetMapping("/commit-references/{id}/diff")
     public CommitReferenceDiffResponse diff(@PathVariable UUID id) {
         return new CommitReferenceDiffResponse(commitReferences.diffFor(id));
+    }
+
+    /** The console's toggle: whether this commit's hash and diff ride along with {@code rekall_context}. */
+    @PatchMapping("/commit-references/{id}")
+    public CommitReferenceView setInContext(
+            @PathVariable UUID id, @RequestBody CommitReferenceContextRequest request) {
+        return commitReferences.setInContext(id, request.inContext());
     }
 
     @DeleteMapping("/commit-references/{id}")
