@@ -2,8 +2,7 @@
 import { onMounted, onUnmounted, ref } from 'vue'
 import FirstRunSetup from '@/components/setup/FirstRunSetup.vue'
 import DatabaseUnreachable from '@/components/setup/DatabaseUnreachable.vue'
-import RunningTasksDock from '@/components/shell/RunningTasksDock.vue'
-import TerminalSessionDock from '@/components/shell/TerminalSessionDock.vue'
+import ShellDock from '@/components/shell/ShellDock.vue'
 import AppLogo from '@/components/ui/AppLogo.vue'
 import { fetchDatabaseStatus } from '@/api/settings.api'
 import { useConsoleStore } from '@/stores/console.store'
@@ -56,8 +55,7 @@ onUnmounted(() => {
   <template v-if="status">
     <template v-if="status.status === 'READY'">
       <router-view />
-      <RunningTasksDock />
-      <TerminalSessionDock />
+      <ShellDock />
     </template>
     <FirstRunSetup v-else-if="status.status === 'SETUP_NEEDED'" />
     <DatabaseUnreachable v-else :status="status" />
