@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import AppButton from '@/components/ui/AppButton.vue'
+import CopyGlyph from '@/components/ui/CopyGlyph.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.vue'
@@ -122,12 +123,13 @@ async function sendWrapupHere(message: string): Promise<void> {
           <button
             class="anchor-chip focus-ring mt-1.5 inline-flex items-center gap-2 px-2.5 py-1 text-[11.5px] transition-colors hover:border-anchor"
             :class="copied === 'anchor' && 'flash'"
+            :title="copied === 'anchor' ? 'Copied' : `Copy ${rkCommand(selectedTask.anchor)}`"
             data-testid="copy-wrapup-anchor"
             @click="copy('anchor', rkCommand(selectedTask.anchor))"
           >
             <span class="opacity-60">/rk</span>
             <span>{{ selectedTask.anchor }}</span>
-            <span class="opacity-70">{{ copied === 'anchor' ? 'copied' : 'copy' }}</span>
+            <CopyGlyph :copied="copied === 'anchor'" />
           </button>
         </div>
 

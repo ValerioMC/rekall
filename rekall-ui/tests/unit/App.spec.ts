@@ -434,7 +434,8 @@ describe('the console', () => {
     const chip = wrapper.find('[data-testid="copy-terminal-anchor"]')
     expect(chip.exists()).toBe(true)
     expect(chip.element.tagName).toBe('BUTTON')
-    expect(chip.text()).toContain('copy')
+    expect(chip.text()).not.toContain('copy')
+    expect(chip.find('[data-testid="copy-glyph"]').attributes('data-copied')).toBe('false')
   })
 
   describe('creating, editing and deleting a record', () => {

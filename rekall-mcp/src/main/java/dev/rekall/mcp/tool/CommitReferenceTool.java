@@ -35,6 +35,9 @@ public class CommitReferenceTool implements McpTool {
                after `git commit`, once, with nothing but the anchor: it reads the tip of the \
                project's own repo folder itself, so there is no hash or message to pass.
 
+               `commit` is optional: the hash of an earlier commit, abbreviated or full, when the \
+               one to log is not the tip any more. Leave it out for the commit you just made.
+
                Anchor the task the way `rekall_context` does: `project:vega task:report-builder`. \
                It has to name exactly one task.
 
@@ -58,6 +61,10 @@ public class CommitReferenceTool implements McpTool {
                         "step",
                         "Which step, if any: its one-based position in the checklist (`\"3\"`), or its "
                                 + "exact title. Omitted logs the commit against the task itself.")
+                .optionalString(
+                        "commit",
+                        "The hash of the commit to log, abbreviated or full, when it is not the tip of "
+                                + "the repo. Omitted logs the tip.")
                 .build();
     }
 
@@ -66,10 +73,11 @@ public class CommitReferenceTool implements McpTool {
         Arguments args = Arguments.of(arguments);
         AnchoredTask target = AnchoredTask.from(Anchor.parseAll(args.requiredString("anchors")));
         String step = args.optionalString("step");
+        String commit = args.optionalString("commit");
 
         CommitReferenceView logged;
         try {
-            logged = commitReferences.recordLatestCommit(target.projectLabel(), target.taskLabel(), step);
+            logged = commitReferences.recordCommit(target.projectLabel(), target.taskLabel(), step, commit);
         } catch (UnknownAnchorException e) {
             throw new ToolFailure(e.getMessage());
         } catch (AmbiguousAnchorException e) {

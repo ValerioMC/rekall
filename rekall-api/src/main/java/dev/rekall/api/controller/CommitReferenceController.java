@@ -2,8 +2,11 @@ package dev.rekall.api.controller;
 
 import dev.rekall.api.dto.ApiDtos.CommitReferenceDiffResponse;
 import dev.rekall.api.dto.ApiDtos.CommitReferenceRequest;
+import dev.rekall.api.dto.ApiDtos.PickedCommitReferenceRequest;
 import dev.rekall.domain.commit.CommitReferenceService;
 import dev.rekall.domain.commit.CommitReferenceView;
+import dev.rekall.domain.commit.RecentCommitView;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,7 +19,10 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.UUID;
 
-/** The button on a running terminal: log its task's tip commit, same logic {@code rekall_record_commit} uses. */
+/**
+ * The console's commit controls: log a task's tip commit, pick one from its recent log, or paste a
+ * hash — the same logic {@code rekall_record_commit} uses.
+ */
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
@@ -34,6 +40,19 @@ public class CommitReferenceController {
             @PathVariable UUID taskId, @RequestBody(required = false) CommitReferenceRequest request) {
         UUID stepId = request == null ? null : request.stepId();
         return commitReferences.recordLatestCommit(taskId, stepId);
+    }
+
+    /** What the picker lists: the newest commits of the task's project folder, without their diffs. */
+    @GetMapping("/tasks/{taskId}/recent-commits")
+    public List<RecentCommitView> recentCommits(@PathVariable UUID taskId) {
+        return commitReferences.recentCommits(taskId);
+    }
+
+    /** A commit chosen in the picker or pasted by hand, logged by its hash. */
+    @PostMapping("/tasks/{taskId}/commit-references")
+    public CommitReferenceView record(
+            @PathVariable UUID taskId, @Valid @RequestBody PickedCommitReferenceRequest request) {
+        return commitReferences.recordCommit(taskId, request.stepId(), request.commitHash());
     }
 
     @GetMapping("/commit-references/{id}/diff")

@@ -10,3 +10,10 @@ export interface CommitReference {
   readonly comment: string
   readonly createdAt: string
 }
+
+/** One line of the project's recent git log: what the picker lists so a commit can be logged by hand. */
+export interface RecentCommit {
+  readonly hash: string
+  readonly subject: string
+  readonly committedAt: string
+}

@@ -14,3 +14,9 @@ export const CommitReferenceSchema = z.object({
 export const CommitReferenceDiffSchema = z.object({
   diff: z.string().nullable()
 })
+
+export const RecentCommitSchema = z.object({
+  hash: z.string(),
+  subject: z.string(),
+  committedAt: z.string()
+})

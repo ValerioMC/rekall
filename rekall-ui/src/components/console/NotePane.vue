@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import AppButton from '@/components/ui/AppButton.vue'
+import CopyGlyph from '@/components/ui/CopyGlyph.vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
 import NoteAssignmentDialog from '@/components/console/NoteAssignmentDialog.vue'
@@ -209,12 +210,13 @@ async function confirmDelete(): Promise<void> {
           <button
             class="anchor-chip focus-ring mt-1.5 inline-flex items-center gap-2 px-2.5 py-1 text-[11.5px] transition-colors hover:border-anchor"
             :class="justCopied && 'flash'"
+            :title="justCopied ? 'Copied' : `Copy ${rkCommand(anchor)}`"
             data-testid="copy-anchor"
             @click="copyAnchor"
           >
             <span class="opacity-60">/rk</span>
             <span>{{ anchor }}</span>
-            <span class="opacity-70">{{ justCopied ? 'copied' : 'copy' }}</span>
+            <CopyGlyph :copied="justCopied" />
           </button>
         </div>
 

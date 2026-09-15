@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import CopyGlyph from '@/components/ui/CopyGlyph.vue'
 import { storeToRefs } from 'pinia'
 import { Terminal as Xterm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
@@ -295,12 +296,13 @@ onBeforeUnmount(() => {
             <button
               class="anchor-chip focus-ring mt-1.5 inline-flex items-center gap-2 px-2.5 py-1 text-[11.5px] transition-colors hover:border-anchor"
               :class="copied && 'flash'"
+              :title="copied ? 'Copied' : `Copy ${rkCommand(selectedTask.anchor)}`"
               data-testid="copy-terminal-anchor"
               @click="copyAnchor"
             >
               <span class="opacity-60">/rk</span>
               <span>{{ selectedTask.anchor }}</span>
-              <span class="opacity-70">{{ copied ? 'copied' : 'copy' }}</span>
+              <CopyGlyph :copied="copied" />
             </button>
           </div>
 

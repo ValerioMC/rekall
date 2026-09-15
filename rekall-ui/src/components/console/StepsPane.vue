@@ -2,6 +2,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
+import CopyGlyph from '@/components/ui/CopyGlyph.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.vue'
@@ -343,12 +344,13 @@ onUnmounted(() => rowObserver?.disconnect())
             <button
               class="anchor-chip focus-ring mt-1.5 inline-flex items-center gap-2 px-2.5 py-1 text-[11.5px] transition-colors hover:border-anchor"
               :class="copied && 'flash'"
+              :title="copied ? 'Copied' : `Copy ${rkCommand(selectedTask.anchor)}`"
               data-testid="copy-steps-anchor"
               @click="copyAnchor"
             >
               <span class="opacity-60">/rk</span>
               <span>{{ selectedTask.anchor }}</span>
-              <span class="opacity-70">{{ copied ? 'copied' : 'copy' }}</span>
+              <CopyGlyph :copied="copied" />
             </button>
           </div>
 

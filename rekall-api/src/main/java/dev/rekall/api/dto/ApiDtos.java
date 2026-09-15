@@ -207,6 +207,10 @@ public final class ApiDtos {
     public record CommitReferenceRequest(UUID stepId) {
     }
 
+    /** A commit named by hand: the hash is what the picker chose or the person pasted, the step is optional. */
+    public record PickedCommitReferenceRequest(UUID stepId, @NotBlank String commitHash) {
+    }
+
     /** Fetched separately from the list, since not every row's diff is wanted at once. */
     public record CommitReferenceDiffResponse(String diff) {
     }

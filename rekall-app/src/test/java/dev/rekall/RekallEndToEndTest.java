@@ -539,6 +539,130 @@ class RekallEndToEndTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
+    @Test
+    @DisplayName("the recent log of a task's project folder is listed newest first, for picking a commit by hand")
+    void theRecentLogIsListedNewestFirst() throws Exception {
+        String acme = aCompany("Acme");
+        Path repo = aGitRepoWithCommits("Add the readme", "Add the picker", "Polish the picker");
+        String projectId = id(post("/api/projects", Map.of(
+                "label", "vega", "title", "Vega", "status", "ACTIVE",
+                "repoFolder", repo.toString(), "companyId", acme)));
+        String taskId = aTask(projectId, "report-builder");
+
+        ResponseEntity<List> recent = rest.get()
+                .uri("/api/tasks/" + taskId + "/recent-commits")
+                .retrieve().toEntity(List.class);
+
+        assertThat(recent.getStatusCode()).isEqualTo(HttpStatus.OK);
+        List<Map<String, Object>> entries = recent.getBody();
+        assertThat(entries).extracting(entry -> entry.get("subject"))
+                .containsExactly("Polish the picker", "Add the picker", "Add the readme");
+        assertThat(entries).allSatisfy(entry -> {
+            assertThat((String) entry.get("hash")).hasSize(40);
+            assertThat(entry.get("committedAt")).isNotNull();
+        });
+    }
+
+    @Test
+    @DisplayName("a past commit picked by its hash is logged with its own subject and diff, not the tip's")
+    void aPastCommitCanBeLoggedByItsHash() throws Exception {
+        String acme = aCompany("Acme");
+        Path repo = aGitRepoWithCommits("Add the readme", "Add the picker", "Polish the picker");
+        String projectId = id(post("/api/projects", Map.of(
+                "label", "vega", "title", "Vega", "status", "ACTIVE",
+                "repoFolder", repo.toString(), "companyId", acme)));
+        String taskId = aTask(projectId, "report-builder");
+        String middle = runGit(repo, "rev-parse", "HEAD~1");
+
+        ResponseEntity<Map> logged = rest.post()
+                .uri("/api/tasks/" + taskId + "/commit-references")
+                .body(Map.of("commitHash", middle.substring(0, 7)))
+                .retrieve().toEntity(Map.class);
+
+        assertThat(logged.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(logged.getBody()).containsEntry("commitHash", middle).containsEntry("comment", "Add the picker");
+        ResponseEntity<Map> diff = rest.get()
+                .uri("/api/commit-references/" + logged.getBody().get("id") + "/diff")
+                .retrieve().toEntity(Map.class);
+        assertThat((String) diff.getBody().get("diff")).contains("+Add the picker").doesNotContain("Polish");
+    }
+
+    @Test
+    @DisplayName("a past commit can be logged against a step by its hash")
+    void aPastCommitCanBeLoggedAgainstAStepByItsHash() throws Exception {
+        String acme = aCompany("Acme");
+        Path repo = aGitRepoWithCommits("Add the readme", "Add the picker");
+        String projectId = id(post("/api/projects", Map.of(
+                "label", "vega", "title", "Vega", "status", "ACTIVE",
+                "repoFolder", repo.toString(), "companyId", acme)));
+        String taskId = aTask(projectId, "report-builder");
+        String stepId = aStep(taskId, "Backend: picker endpoint", null);
+        String first = runGit(repo, "rev-parse", "HEAD~1");
+
+        ResponseEntity<Map> logged = rest.post()
+                .uri("/api/tasks/" + taskId + "/commit-references")
+                .body(Map.of("commitHash", first, "stepId", stepId))
+                .retrieve().toEntity(Map.class);
+
+        assertThat(logged.getBody()).containsEntry("stepId", stepId).containsEntry("comment", "Add the readme");
+    }
+
+    @Test
+    @DisplayName("a hash that names no commit is a 400 with the hash in the reason, and nothing is logged")
+    void anUnknownHashIsRefused() throws Exception {
+        String acme = aCompany("Acme");
+        Path repo = aGitRepoWithOneCommit("Add the readme");
+        String projectId = id(post("/api/projects", Map.of(
+                "label", "vega", "title", "Vega", "status", "ACTIVE",
+                "repoFolder", repo.toString(), "companyId", acme)));
+        String taskId = aTask(projectId, "report-builder");
+
+        ResponseEntity<ProblemDetail> refused = rest.post()
+                .uri("/api/tasks/" + taskId + "/commit-references")
+                .body(Map.of("commitHash", "deadbeef"))
+                .retrieve().toEntity(ProblemDetail.class);
+
+        assertThat(refused.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(refused.getBody().getDetail()).contains("deadbeef");
+        assertThat(jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM commit_reference WHERE task_id = ?",
+                        Integer.class, UUID.fromString(taskId)))
+                .isZero();
+    }
+
+    @Test
+    @DisplayName("rekall_record_commit logs an earlier commit when a session names its hash")
+    void theMcpToolLogsAnEarlierCommitByHash() throws Exception {
+        String acme = aCompany("Acme");
+        Path repo = aGitRepoWithCommits("Wire up the ledger", "Fix the ledger");
+        String projectId = id(post("/api/projects", Map.of(
+                "label", "vega", "title", "Vega", "status", "ACTIVE",
+                "repoFolder", repo.toString(), "companyId", acme)));
+        String taskId = aTask(projectId, "report-builder");
+        String first = runGit(repo, "rev-parse", "HEAD~1");
+
+        String logged = callTool("rekall_record_commit", Map.of(
+                "anchors", "project:vega task:report-builder", "commit", first.substring(0, 8)));
+
+        assertThat(logged).contains("Wire up the ledger");
+        assertThat(jdbc.queryForObject(
+                        "SELECT commit_hash FROM commit_reference WHERE task_id = ?",
+                        String.class, UUID.fromString(taskId)))
+                .isEqualTo(first);
+    }
+
+    private Path aGitRepoWithCommits(String... subjects) throws Exception {
+        Path repo = Files.createTempDirectory("rekall-commit-reference-test");
+        runGit(repo, "init", "-q");
+        for (String subject : subjects) {
+            Files.writeString(repo.resolve("README.md"), subject);
+            runGit(repo, "add", "README.md");
+            runGit(repo, "-c", "user.name=Test", "-c", "user.email=test@example.com",
+                    "commit", "-q", "-m", subject);
+        }
+        return repo;
+    }
+
     private Path aGitRepoWithOneCommit(String subject) throws Exception {
         Path repo = Files.createTempDirectory("rekall-commit-reference-test");
         runGit(repo, "init", "-q");
@@ -549,12 +673,13 @@ class RekallEndToEndTest {
         return repo;
     }
 
-    private void runGit(Path directory, String... args) throws Exception {
+    private String runGit(Path directory, String... args) throws Exception {
         List<String> command = new ArrayList<>(List.of("git", "-C", directory.toString()));
         command.addAll(List.of(args));
         Process process = new ProcessBuilder(command).start();
-        process.getInputStream().readAllBytes();
+        String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8).strip();
         process.waitFor(5, TimeUnit.SECONDS);
+        return output;
     }
 
     // --- Wrapup

@@ -144,6 +144,7 @@ An anchor brings back the record, everything it references resolved in full with
 | `rekall_context` | read | Resolve anchors, return markdown |
 | `rekall_wrapup` | write | Replace one task's wrapup |
 | `rekall_step` | write | Move one step: `open` to `running` to `claimed` |
+| `rekall_record_commit` | write | Log a commit of the project's repo folder against one task or step |
 
 There is no query, get or schema tool. `rekall_step` refuses `done`; that state is set by hand in the console.
 
@@ -183,6 +184,22 @@ With steps on a task, the open steps are the work and the description becomes th
 Only you set a step to **done**. `rekall_step` stops at `claimed`. The navigator's progress count is built on `done`.
 
 A claimed step is reviewed from its detail: **Accept** ticks it to done, **Send back** returns it to open for another pass. The **N awaiting review** count in the pane header jumps to the first one. The step node itself only moves a step forward, so a stray click never walks it back; reopening an accepted step is a separate **Reopen** button that arms before it fires.
+
+## Commits
+
+A task, or one of its steps, keeps a ledger of the commits that built it: the hash, the commit's own subject line as the comment, and the diff it introduced, read from the project's **repo folder** (set on the project's page). The console shows the ledger under the description as a collapsible rail, and under each step's detail; a row opens to its diff, and can be deleted by hand.
+
+**Log commit** on the description, or inside a running or claimed step, logs the tip of the repo. The chevron next to it opens a picker over the last 30 commits, newest first, with their subject and age, so an earlier commit can be logged against the task or step instead; rows already logged there are marked. A hash the log does not reach can be pasted in the same panel, abbreviated or full. A hash that names no commit is refused and nothing is written. Logging the same commit against the same task and step twice is a no-op.
+
+A session does the same over MCP right after `git commit`:
+
+```
+rekall_record_commit  anchors="project:vega task:report-builder"                 # the tip
+rekall_record_commit  anchors="project:vega task:report-builder" step="3"        # against step 3
+rekall_record_commit  anchors="project:vega task:report-builder" commit="a0fd5cc" # an earlier commit
+```
+
+The REST side is `GET /api/commit-references`, `POST /api/tasks/{id}/commit-references/latest`, `POST /api/tasks/{id}/commit-references` (body `commitHash`, optional `stepId`), `GET /api/tasks/{id}/recent-commits`, `GET /api/commit-references/{id}/diff` and `DELETE /api/commit-references/{id}`. Commit references are not part of what `rekall_context` returns.
 
 ## Description review
 

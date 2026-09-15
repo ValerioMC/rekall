@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
+import CopyGlyph from '@/components/ui/CopyGlyph.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import { fetchClaudeInstallation, installClaudeIntegration } from '@/api/claude.api'
 import { useToastStore } from '@/stores/toast.store'
@@ -170,11 +171,21 @@ onMounted(() => void load())
         v-if="installation.status === 'CLI_MISSING'"
         class="mt-2.5 flex items-center gap-2 rounded-md border border-border bg-surface-raised px-2.5 py-2"
       >
-        <code class="min-w-0 flex-1 truncate font-mono text-[11.5px] text-text" :title="installation.manualCommand">
+        <code
+          class="min-w-0 flex-1 truncate font-mono text-[11.5px] text-text"
+          :title="installation.manualCommand"
+        >
           {{ installation.manualCommand }}
         </code>
-        <AppButton size="sm" variant="ghost" data-testid="claude-copy" @click="copyCommand">
-          {{ copied ? 'Copied' : 'Copy' }}
+        <AppButton
+          size="sm"
+          variant="ghost"
+          data-testid="claude-copy"
+          :title="copied ? 'Copied' : 'Copy this command'"
+          :aria-label="copied ? 'Copied' : 'Copy this command'"
+          @click="copyCommand"
+        >
+          <CopyGlyph :copied="copied" />
         </AppButton>
       </div>
 
@@ -186,10 +197,10 @@ onMounted(() => void load())
         <div class="min-w-0 flex-1">
           <p class="text-[12.5px] text-text">Open sessions without permission prompts</p>
           <p class="mt-0.5 text-[11.5px] leading-relaxed text-text-subtle">
-            Adds <code class="text-anchor/80">--dangerously-skip-permissions</code> to every session
-            Rekall starts, <span class="text-text-muted">Run here</span> or
-            <span class="text-text-muted">Open in terminal</span>. That session edits, runs and
-            deletes without asking first.
+            Adds <code class="text-anchor/80">--dangerously-skip-permissions</code> to every session Rekall
+            starts, <span class="text-text-muted">Run here</span> or
+            <span class="text-text-muted">Open in terminal</span>. That session edits, runs and deletes
+            without asking first.
           </p>
         </div>
         <button
@@ -211,10 +222,10 @@ onMounted(() => void load())
       <div class="mt-3 border-t border-border pt-3" data-testid="claude-model">
         <p class="text-[12.5px] text-text">Model for a “Run here” session</p>
         <p class="mt-0.5 text-[11.5px] leading-relaxed text-text-subtle">
-          Adds <code class="text-anchor/80">--model</code> to what an in-app session launches; each
-          alias is Claude Code's name for the latest model of that family, so nothing is pinned to a
-          version. <span class="text-text-muted">Account default</span> leaves your Claude Code
-          setting alone. A session already running keeps the model it started with.
+          Adds <code class="text-anchor/80">--model</code> to what an in-app session launches; each alias is
+          Claude Code's name for the latest model of that family, so nothing is pinned to a version.
+          <span class="text-text-muted">Account default</span> leaves your Claude Code setting alone. A
+          session already running keeps the model it started with.
         </p>
         <div class="mt-2 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Model for a Run here session">
           <button
@@ -240,11 +251,15 @@ onMounted(() => void load())
       <div class="mt-3 border-t border-border pt-3" data-testid="claude-effort">
         <p class="text-[12.5px] text-text">Reasoning effort</p>
         <p class="mt-0.5 text-[11.5px] leading-relaxed text-text-subtle">
-          Adds <code class="text-anchor/80">--effort</code> to a new session. A higher level lets the
-          model think longer on hard problems and spends more; it applies to models that support
-          extended thinking. <span class="text-text-muted">Account default</span> leaves it unset.
+          Adds <code class="text-anchor/80">--effort</code> to a new session. A higher level lets the model
+          think longer on hard problems and spends more; it applies to models that support extended thinking.
+          <span class="text-text-muted">Account default</span> leaves it unset.
         </p>
-        <div class="mt-2 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Reasoning effort for a Run here session">
+        <div
+          class="mt-2 flex flex-wrap gap-1.5"
+          role="radiogroup"
+          aria-label="Reasoning effort for a Run here session"
+        >
           <button
             v-for="choice in effortChoices"
             :key="choice"
