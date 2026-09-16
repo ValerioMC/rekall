@@ -96,7 +96,34 @@ cp .claude/commands/rk.md ~/.claude/commands/rk.md
 /rk project:vega task:report-builder
 ```
 
-**Open in Claude Code**, on a task or a project, opens a terminal in the project's folder with `/rk` already running. Set the folder in the **Folder** field on the project page. The terminal is iTerm2 when installed, Terminal.app otherwise. A switch in **Settings > Claude Code** adds `--dangerously-skip-permissions`; it is stored on the machine, not in the database. This button works only inside Rekall.app.
+**Open in terminal**, on a task or a project, hands the session to your own terminal app in the project's folder with `/rk` already running. Set the folder in the **Folder** field on the project page. The terminal is iTerm2 when installed, Terminal.app otherwise. A switch in **Settings > Claude Code** adds `--dangerously-skip-permissions`; it is stored on the machine, not in the database. This button works only inside Rekall.app.
+
+## Terminal in Rekall
+
+**Run here**, next to **Open in terminal** on the description and steps panes, or `c` from any task, runs a real terminal inside the app. The backend starts the interactive `claude` in a pseudo-terminal (pty4j) in the project's folder, types `/rk <anchors>` as the first line, and hands it to you; the pane renders it with `xterm.js` and the bytes travel both ways over one WebSocket at `/api/terminal/{id}/io`. Because it is the same binary run the same way as in your own terminal, its prompt caching, context compaction and `/context` read-outs behave identically, and a permission prompt actually renders and can be answered. Works in a plain browser, not only Rekall.app.
+
+One terminal per task, the way one terminal window is. A second open on a task that already has one just refocuses it; opening on a different step moves the checklist marker (the old step back to open, the new one to running) without touching the process. **Restart** kills the `claude` process and starts a fresh one on the same task; **Close** ends it. Opening on a step marks that step `RUNNING` while the terminal is on it; on a task with no checklist the review line goes `RUNNING` instead, and both are released when the terminal closes. Nothing is persisted: a restart of Rekall clears every terminal and releases any step it left running, and reopening the pane replays a bounded scrollback so it repaints.
+
+Live work sits in one bar in the bottom right corner of every screen: a segment for running timers (with the newest timer's clock) and a segment for live terminals, each shown only while it has something to count. A segment opens its sheet above the bar, one sheet at a time; pressing the other segment switches, and pressing the same one again, Escape, or a click anywhere else closes it. From the sheet a row jumps to its task (the terminal one also opens the terminal pane), stops the timer or terminal, and, for a terminal, logs the latest commit against the task and step it was opened on. The bar reports the room it takes so nothing else in that corner sits under it, whichever segments are present; the terminal segment steps aside while the terminal pane is on screen, and the bar leaves entirely when nothing is live.
+
+**Settings > Claude Code** picks the model and effort a new terminal starts with, and the **skip permissions** switch:
+
+- **Model** (`Account default`, `Sonnet`, `Fable`, `Opus`, `Haiku`): anything but the default adds `--model <alias>`. Each alias is Claude Code's own name for the latest model of that family, so no version is pinned.
+- **Reasoning effort** (`Account default`, `Low`, `Medium`, `High`, `Extra-high`, `Max`): anything but the default adds `--effort <level>`.
+- **Skip permissions** adds `--dangerously-skip-permissions`; with it off, an interactive permission prompt in the terminal is yours to answer.
+
+All three are stored on the machine, not in the database. It works in both the jvm and native macOS bundles: the pty4j/JNA GraalVM metadata is committed under `rekall-app/src/main/resources/META-INF/native-image/`.
+
+The top bar carries a usage meter: the current 5-hour session as a ring with its percentage and time to reset, and, on hover, a bar per window including the weekly per-model limits. The figures are the ones Claude Code's own `/usage` shows, read with the OAuth token Claude Code stores (every `Claude Code-credentials` item in the macOS keychain, else `~/.claude/.credentials.json`; the token expiring last wins, and an expired one counts as no token). With no valid token the meter asks you to open a Claude Code terminal, which signs in or refreshes the token; when Anthropic cannot be reached it holds the last figures. Readings are not real time: one when the console opens, one every five minutes while it is on screen, one when the window comes back to the front after a minute away, and one whenever you click the blank meter or **Check again** in its popover (`GET /api/claude/usage?refresh=true`, past the server's cache). If Anthropic answers 429 the meter shows **Wait** with the time left and takes nothing, not even a manual check, until that `Retry-After` has passed: asking again is what extends the block.
+
+| Property | Default | Meaning |
+|---|---|---|
+| `rekall.claude.cli-path` | search `PATH` and the usual install dirs | Absolute path to `claude`, overriding discovery |
+| `rekall.claude.usage-url` | `https://api.anthropic.com/api/oauth/usage` | Where the usage meter reads session and weekly limits |
+| `rekall.terminal.max-sessions` | `8` | Terminals allowed at once |
+| `rekall.terminal.idle-minutes` | `120` | A terminal untouched this long is closed by the sweep |
+| `rekall.terminal.sweep-minutes` | `5` | How often the idle sweep runs |
+| `rekall.terminal.scrollback-bytes` | `131072` | Bytes of output replayed to a pane that reopens |
 
 ## Anchor syntax
 
@@ -119,6 +146,7 @@ An anchor brings back the record, everything it references resolved in full with
 | `rekall_context` | read | Resolve anchors, return markdown |
 | `rekall_wrapup` | write | Replace one task's wrapup |
 | `rekall_step` | write | Move one step: `open` to `running` to `claimed` |
+| `rekall_record_commit` | write | Log a commit of the project's repo folder against one task or step |
 
 There is no query, get or schema tool. `rekall_step` refuses `done`; that state is set by hand in the console.
 
@@ -132,11 +160,15 @@ A quoted term after `wrapup` is a directive on what to write. It can narrow the 
 /rk project:vega task:report-builder wrapup "export module only"
 ```
 
+The description pane and the steps pane both carry a **Generate the wrapup every session** toggle under the header, so it is set from whichever surface the work is driven from. Turning it on reveals an optional directive field. Set once on the task, the toggle stands in for the quoted term: the context load then tells the session a wrapup is expected every time without being asked, and the words it should follow. Turning the toggle off drops the directive with it.
+
 A wrapup written after a step finishes folds that step's work into the same description. The console counts steps ticked and notes added since the wrapup was last written. You can edit the wrapup in the console; the next `/rk … wrapup` replaces it and the tool reports when it overwrites a hand edit.
 
 ## Steps
 
-A step sits on a line: **open**, **running** while a session works it, **claimed** when the session reports it finished, **done** when you accept it. Each step is a title and an optional markdown detail. The pane opens on the first step whose work is not finished.
+A step sits on a line: **draft** while you are still wording it, **open** once you promote it and it is ready to work, **running** while a session works it, **claimed** when the session reports it finished, **done** when you accept it. Each step is a title and an optional markdown detail. The pane opens on the first step whose work is not finished.
+
+A new step is created as a draft and sits on a staging shelf below the checklist, off the rail. **Promote** moves it onto the list; an open step not yet started can go back with **To draft**. A draft is not work: it stays out of the checklist a session reads, `rekall_step` will not move it, and the navigator's step count ignores it. A task that holds only drafts is still treated as having no checklist.
 
 A session drives its own checklist over `/rk`:
 
@@ -145,19 +177,43 @@ A session drives its own checklist over `/rk`:
 /rk project:vega task:report-builder step:3 done    # step 3 -> claimed
 ```
 
-The console holds one `text/event-stream` connection (`GET /api/steps/stream`), so a step moved from a terminal or a box ticked in another window animates without a reload.
+The console holds one `text/event-stream` connection (`GET /api/steps/stream`) carrying three frames: `steps` for a checklist, `task-review` for a stepless task's review line, and `wrapup` for a wrapup write or delete. A step moved from an in-app terminal, a box ticked in another window, or a wrapup written over MCP all land without a reload.
 
-Claude receives an open or running step with its detail, tagged `(in progress)` or `(claimed, …)`. A finished step arrives as its title alone. A step ticked without a following wrapup is marked `(finished since the wrapup was written)` and handed back with its detail until the next wrapup folds it in.
+Claude receives an open or running step with its detail, tagged `(in progress)` or `(claimed, …)`. A finished step arrives as its title alone. A draft step is not sent at all, only counted as `draft="N"` on the `<steps>` tag. A step ticked without a following wrapup is marked `(finished since the wrapup was written)` and handed back with its detail until the next wrapup folds it in.
 
 With steps on a task, the open steps are the work and the description becomes the constraints the steps are built against. Anything the description asks for that no open step covers is not built; `/rk` flags it and asks for the step.
 
 Only you set a step to **done**. `rekall_step` stops at `claimed`. The navigator's progress count is built on `done`.
 
+A claimed step is reviewed from its detail: **Accept** ticks it to done, **Send back** returns it to open for another pass. The **N awaiting review** count in the pane header jumps to the first one. The step node itself only moves a step forward, so a stray click never walks it back; reopening an accepted step is a separate **Reopen** button that arms before it fires.
+
+## Commits
+
+A task, or one of its steps, keeps a ledger of the commits that built it: the hash, the commit's own subject line as the comment, and the diff it introduced, read from the project's **repo folder** (set on the project's page). The console shows the ledger under the description as a collapsible rail, and under each step's detail; a row opens to its diff, and can be deleted by hand.
+
+**Log commit** on the description, or inside a running or claimed step, logs the tip of the repo. The chevron next to it opens a picker over the last 30 commits, newest first, with their subject and age, so an earlier commit can be logged against the task or step instead; rows already logged there are marked. A hash the log does not reach can be pasted in the same panel, abbreviated or full. A hash that names no commit is refused and nothing is written. Logging the same commit against the same task and step twice is a no-op.
+
+A session does the same over MCP right after `git commit`:
+
+```
+rekall_record_commit  anchors="project:vega task:report-builder"                 # the tip
+rekall_record_commit  anchors="project:vega task:report-builder" step="3"        # against step 3
+rekall_record_commit  anchors="project:vega task:report-builder" commit="a0fd5cc" # an earlier commit
+```
+
+A logged commit stays out of `rekall_context` until it is chosen for it. Each row carries an **add to context** toggle (shown on hover; **in context** once on) and the rail fills the node of every chosen commit and counts them. A chosen commit travels with the task's context as a `<commit hash="…" step="…">` element inside `<commits>`: its subject, then its diff (capped at 60,000 characters), oldest logged first. Choosing is console-only; `rekall_record_commit` logs but never chooses.
+
+The REST side is `GET /api/commit-references`, `POST /api/tasks/{id}/commit-references/latest`, `POST /api/tasks/{id}/commit-references` (body `commitHash`, optional `stepId`), `GET /api/tasks/{id}/recent-commits`, `GET /api/commit-references/{id}/diff`, `PATCH /api/commit-references/{id}` (body `inContext`) and `DELETE /api/commit-references/{id}`.
+
+## Description review
+
+A task with no checklist walks the same line at task scope: **open**, **running** while a terminal is open on it with no step target, **claimed** when a Claude-authored wrapup lands, **accepted** when you accept it in the console. Nothing new is typed for it: running follows the terminal and claimed follows the wrapup write. The description pane shows the running pill and a review bar: on **running** it carries **Accept** and a link to the wrapup, so a session driven by hand still has a console exit; on **claimed** it adds **Send back** (with an optional note the next session sees); accepting offers to also mark the task done. It arrives on the same `GET /api/steps/stream` connection as a `task-review` frame, the wrapup that claims it rides the same connection as a `wrapup` frame so the pane shows the new text with the claim rather than on the next reload, and `PATCH /api/tasks/{id}/review` is the console-only Accept / Send back. Adding a first step retires the task-level line and the checklist takes over.
+
 ## Console
 
-One surface, three panes: pick a task on the left, pick its checklist, its wrapup or a note in the middle, write on the right. The field at the top takes the same grammar as `/rk`.
+One surface, three panes: pick a task on the left, pick its checklist, its wrapup, a note or a session in the middle, write on the right. The field at the top takes the same grammar as `/rk`.
 
-The description, steps and wrapup are pinned above the notes. Each opens in the writing pane; a task missing one shows an empty card. Companies, projects and tasks are created, edited and deleted from one editor, opened on the parent record. Title and label sit together with the anchor assembled live as you type. Deleting states what goes with it.
+The description, steps, wrapup and terminal are pinned above the notes. Each opens in the writing pane; a task missing one shows an empty card. `c` opens the terminal pane, the same way `s`, `w` and `d` open steps, wrapup and description. Companies, projects and tasks are created, edited and deleted from one editor, opened on the parent record. Title and label sit together with the anchor assembled live as you type. Deleting states what goes with it.
 
 Finished tasks are folded into a "filed" drawer, closed on every load. Writing autosaves; a note has no Save button.
 
@@ -182,7 +238,7 @@ Company ──< Project ──< Task >──< Document
 |--------|-------------|-------|
 | `Company` | `name` | description, its projects |
 | `Project` | `label`, unique per company | title, status, description, its tasks |
-| `Task` | `label`, unique per project | title, status, markdown description, its notes, steps, wrapup |
+| `Task` | `label`, unique per project | title, status, markdown description, a standing wrapup directive, its notes, steps, wrapup |
 | `Document` | none | title, kind, markdown body, the tasks it is on |
 | `TaskStep` | through its task | title, optional detail, state, position |
 | `Wrapup` | through its task | markdown body, who wrote it last. One per task |
@@ -262,12 +318,20 @@ Notes are stored in plain text in the database file. Credentials kept in them ar
 ## Modules
 
 ```
-rekall-domain/   Project, Task, Document, and the context assembly
-rekall-api/      REST API for the UI, and the step event stream
-rekall-mcp/      MCP server: one tool reads, two write
-rekall-app/      Spring Boot entry point, serves everything
-rekall-ui/       Vue 3 + Vite frontend
+rekall-common/     ConflictException, NotFoundException: the error vocabulary every layer shares
+rekall-model/      Company, Project, Task, Document, hosted-session entities and their state rules
+rekall-repository/ Spring Data repositories and the Liquibase changelog for their schema
+rekall-service/    Business logic: context assembly, the step and review lines, wrapups, time entries
+rekall-api/        REST API for the UI, and the step event stream
+rekall-mcp/        MCP server, on rekall-service and never rekall-api: one tool reads, two write
+rekall-claude/     Claude Code sessions hosted in the app: spawn, stream, reap
+rekall-app/        Spring Boot entry point, serves everything
+rekall-ui/         Vue 3 + Vite frontend
 ```
+
+Classes still live under the `dev.rekall.domain.*` packages they had before the split; the module
+boundary, not the package name, is what keeps `rekall-repository` off the API's classpath and the
+MCP server off the write controllers.
 
 ## Run tests
 

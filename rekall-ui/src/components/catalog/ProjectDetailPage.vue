@@ -2,6 +2,7 @@
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import AppCatalogHeader from '@/components/catalog/AppCatalogHeader.vue'
+import CopyGlyph from '@/components/ui/CopyGlyph.vue'
 import RecordDialog from '@/components/console/RecordDialog.vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
@@ -201,12 +202,13 @@ onUnmounted(() => {
           <button
             class="anchor-chip focus-ring flex items-center gap-2 px-2.5 py-1 text-[11.5px] transition-colors hover:border-anchor"
             :class="copied && 'flash'"
+            :title="copied ? 'Copied' : `Copy ${rkCommand(project.anchor)}`"
             data-testid="copy-project-anchor"
             @click="copyAnchor"
           >
             <span class="opacity-60">/rk</span>
             <span>{{ project.anchor }}</span>
-            <span class="opacity-70">{{ copied ? 'copied' : 'copy' }}</span>
+            <CopyGlyph :copied="copied" />
           </button>
           <LaunchClaudeCodeButton
             :anchors="project.anchor"
@@ -269,7 +271,7 @@ onUnmounted(() => {
             </AppButton>
           </div>
           <p class="mt-2 text-[12px] text-text-subtle">
-            Where <span class="text-text-muted">Open in Claude Code</span> starts the session. Claude
+            Where <span class="text-text-muted">Open in terminal</span> starts the session. Claude
             Code keeps the folder it was launched from for the whole session, so this is what decides
             which repository the work happens in.
           </p>

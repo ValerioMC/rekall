@@ -8,10 +8,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/**
- * The anchor syntax is the whole user-facing surface of {@code /rk}, and it is the one place
- * where a silent misparse sends the wrong record into a context window.
- */
+/** The anchor syntax: the parsing surface of {@code /rk}, where a silent misparse loads the wrong record. */
 class AnchorTest {
 
     @Test

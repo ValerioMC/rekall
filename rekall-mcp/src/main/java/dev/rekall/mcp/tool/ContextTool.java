@@ -1,6 +1,7 @@
 package dev.rekall.mcp.tool;
 
 import dev.rekall.domain.context.AmbiguousAnchorException;
+import dev.rekall.domain.context.ContextCommitView;
 import dev.rekall.domain.context.ContextRecord;
 import dev.rekall.domain.context.ContextService;
 import dev.rekall.domain.context.DocumentView;
@@ -25,6 +26,9 @@ import java.util.stream.Collectors;
 public class ContextTool implements McpTool {
 
     private static final int MAX_DOCUMENT_CHARACTERS = 20_000;
+
+    /** A diff is the one thing here worth more room than a note: it is what the session was handed to read. */
+    private static final int MAX_DIFF_CHARACTERS = 60_000;
 
     private final ContextService context;
 
@@ -70,6 +74,11 @@ public class ContextTool implements McpTool {
                and it is what the next `rekall_wrapup` has to fold in: nothing else here says
                what that piece was.
 
+               A draft step is not in the checklist you get. It is a line the person is still
+               wording, counted only as `draft="N"` on the `<steps>` tag. It carries no work
+               yet, `rekall_step` will not move it, and it becomes a real step when the console
+               promotes it.
+
                Where a task has open steps, they are the work and its description is not. The
                description is the standing context to build a step against: what the task is
                for, what the work has to satisfy, what is out of scope. It is written once and
@@ -79,6 +88,13 @@ public class ContextTool implements McpTool {
 
                Nothing you can call changes a step. They are ticked by hand in the console, by
                the person who reviewed the work.
+
+               A task may also hand over commits. Each `<commit>` inside `<commits>` is a change
+               the person chose in the console to travel with this context: its hash, its subject,
+               the step it was logged against if any, and the diff it introduced. Read a diff as
+               the change it records, not as the current state of the file: it is where to start
+               looking, and the repository is what to trust. A task with no `<commits>` block has
+               nothing chosen; `rekall_record_commit` logs a commit but does not choose it.
 
                Each anchor returns the record, what it references resolved in full with their
                notes, what references it as anchors you can pass back, and all of its markdown.
@@ -148,6 +164,7 @@ public class ContextTool implements McpTool {
         out.append(renderDescription(record.description()));
         out.append(renderBlueprint(record.blueprint()));
         out.append(renderSteps(record.steps(), record.wrapup()));
+        out.append(renderCommits(record.commits()));
         out.append(renderWrapup(record.wrapup()));
         out.append(renderDocuments(record.documents()));
         for (ContextRecord reference : record.references()) {
@@ -159,7 +176,9 @@ public class ContextTool implements McpTool {
         return out.toString();
     }
 
-    private String renderSteps(List<TaskStepView> steps, WrapupView wrapup) {
+    private String renderSteps(List<TaskStepView> allSteps, WrapupView wrapup) {
+        long drafts = allSteps.stream().filter(step -> step.state().draft()).count();
+        List<TaskStepView> steps = allSteps.stream().filter(step -> !step.state().draft()).toList();
         if (steps.isEmpty()) {
             return "";
         }
@@ -177,6 +196,9 @@ public class ContextTool implements McpTool {
         }
         if (unwritten > 0) {
             attributes.append(" finished-since-wrapup=\"%d\"".formatted(unwritten));
+        }
+        if (drafts > 0) {
+            attributes.append(" draft=\"%d\"".formatted(drafts));
         }
         StringBuilder out = new StringBuilder("\n<steps ").append(attributes).append(">\n");
 
@@ -198,6 +220,11 @@ public class ContextTool implements McpTool {
                 out.append(indent(truncate(step.bodyMarkdown()))).append('\n');
             }
         }
+        if (drafts > 0) {
+            out.append("<!-- %d further step%s still in draft, not shown: promoted to the checklist "
+                    .formatted(drafts, drafts == 1 ? "" : "s"))
+                    .append("in the console when it is ready to work -->\n");
+        }
         return out.append("</steps>\n").toString();
     }
 
@@ -218,6 +245,27 @@ public class ContextTool implements McpTool {
         }
         return "\n<wrapup written-by=\"%s\" updated=\"%s\">\n%s\n</wrapup>\n"
                 .formatted(wrapup.writtenBy(), wrapup.updatedAt(), truncate(wrapup.bodyMarkdown()));
+    }
+
+    private String renderCommits(List<ContextCommitView> commits) {
+        if (commits.isEmpty()) {
+            return "";
+        }
+        StringBuilder out = new StringBuilder("\n<commits count=\"%d\">\n".formatted(commits.size()));
+        for (ContextCommitView commit : commits) {
+            out.append("<commit hash=\"").append(commit.commitHash()).append('"');
+            if (commit.stepTitle() != null) {
+                out.append(" step=\"").append(commit.stepTitle().replace("\"", "'")).append('"');
+            }
+            out.append(">\n").append(commit.comment()).append('\n');
+            if (commit.diff() == null || commit.diff().isBlank()) {
+                out.append("\n(no diff was recorded for this commit; read it from the repository by its hash)\n");
+            } else {
+                out.append('\n').append(truncate(commit.diff(), MAX_DIFF_CHARACTERS)).append('\n');
+            }
+            out.append("</commit>\n");
+        }
+        return out.append("</commits>\n").toString();
     }
 
     private String renderDescription(String description) {
@@ -249,13 +297,17 @@ public class ContextTool implements McpTool {
     }
 
     private String truncate(String body) {
+        return truncate(body, MAX_DOCUMENT_CHARACTERS);
+    }
+
+    private String truncate(String body, int limit) {
         if (body == null) {
             return "";
         }
-        if (body.length() <= MAX_DOCUMENT_CHARACTERS) {
+        if (body.length() <= limit) {
             return body;
         }
-        return body.substring(0, MAX_DOCUMENT_CHARACTERS)
-                + "\n\n[truncated: %d of %d characters shown]".formatted(MAX_DOCUMENT_CHARACTERS, body.length());
+        return body.substring(0, limit)
+                + "\n\n[truncated: %d of %d characters shown]".formatted(limit, body.length());
     }
 }

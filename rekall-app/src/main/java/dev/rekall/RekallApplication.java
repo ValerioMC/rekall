@@ -9,6 +9,7 @@ import dev.rekall.domain.Project;
 import dev.rekall.domain.Task;
 import dev.rekall.domain.TimeEntry;
 import dev.rekall.domain.Wrapup;
+import dev.rekall.claude.ClaudeUsageView;
 import dev.rekall.domain.step.StepStreamEvent;
 import dev.rekall.domain.step.TaskStepView;
 import org.springframework.aot.hint.annotation.RegisterReflectionForBinding;
@@ -21,6 +22,7 @@ import org.springframework.context.ConfigurableApplicationContext;
         DatabaseRegistry.class, DatabaseEntry.class, DatabaseEntry[].class,
         Company.class, Project.class, Task.class, TimeEntry.class, Wrapup.class, Document.class,
         StepStreamEvent.class, TaskStepView.class, TaskStepView[].class,
+        ClaudeUsageView.class, ClaudeUsageView.Limit.class, ClaudeUsageView.Limit[].class,
         SettingsController.DatabaseView.class, SettingsController.DatabaseView[].class,
         SettingsController.StatusResponse.class,
         SettingsController.AddRequest.class, SettingsController.AddResponse.class,

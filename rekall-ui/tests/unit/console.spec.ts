@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { updateProject } from '@/api/catalog.api'
+import { fetchTimeEntries } from '@/api/time-entries.api'
 import { setActivePinia, createPinia } from 'pinia'
 import { useConsoleStore } from '@/stores/console.store'
 import type { TaskInput } from '@/api/catalog.api'
@@ -62,8 +63,13 @@ const task = (
   projectRepoFolder: null,
   documentCount: 1,
   stepCount: 0,
-  stepsDone: 0,
+  stepsDone: 0, draftStepCount: 0,
   hasWrapup: id === validator,
+  reviewState: 'OPEN',
+  reviewActive: true,
+  claimedAt: null,
+  acceptedAt: null,
+  reviewNote: null,
   anchor: `project:${projectLabel} task:${label}`,
   updatedAt: '2026-08-12T10:00:00Z'
 })
@@ -176,7 +182,7 @@ const createStep = vi.fn(async (taskId: TaskId, title: string) => ({
   taskId,
   title,
   bodyMarkdown: null,
-  state: 'OPEN' as const,
+  state: 'DRAFT' as const,
   done: false,
   runningAt: null,
   claimedAt: null,
@@ -186,10 +192,11 @@ const createStep = vi.fn(async (taskId: TaskId, title: string) => ({
   updatedAt: '2026-08-12T16:00:00Z'
 }))
 
-/** Mirrors the server: a `done` in the patch also settles the step's state. */
-const patchStep = vi.fn(async (id: TaskStepId, patch: Partial<TaskStep>) => {
+/** Mirrors the server: a `done` or `draft` in the patch also settles the step's state. */
+const patchStep = vi.fn(async (id: TaskStepId, patch: Partial<TaskStep> & { draft?: boolean }) => {
   const merged = { ...steps.find((step) => step.id === id)!, ...patch }
   if ('done' in patch) merged.state = patch.done ? 'DONE' : 'OPEN'
+  if ('draft' in patch) merged.state = patch.draft ? 'DRAFT' : 'OPEN'
   return merged
 })
 
@@ -255,6 +262,12 @@ vi.mock('@/api/time-entries.api', () => ({
   stopTimeEntry: vi.fn(),
   editTimeEntry: vi.fn(),
   deleteTimeEntry: vi.fn()
+}))
+
+vi.mock('@/api/commitReference.api', () => ({
+  fetchCommitReferences: vi.fn(async () => []),
+  recordLatestCommit: vi.fn(),
+  fetchCommitReferenceDiff: vi.fn()
 }))
 
 describe('console store', () => {
@@ -453,6 +466,61 @@ describe('console store', () => {
       expect(store.selectedWrapup).toBeNull()
       expect(store.paneFocus).toBe('note')
     })
+
+    /**
+     * A wrapup written elsewhere (a hosted session, an MCP call) arrives on the step feed. The
+     * store adopts it in place so the pane reflects it without a reload, and never moves the
+     * pane the reader is on.
+     */
+    describe('arriving over the feed', () => {
+      const feedWrapup = (taskId: TaskId, over: Partial<Wrapup> = {}): Wrapup => ({
+        id: 'w9' as WrapupId,
+        taskId,
+        taskLabel: 'retry-policy',
+        taskTitle: 'Retry policy',
+        projectLabel: 'vega',
+        anchor: 'project:vega task:retry-policy',
+        bodyMarkdown: '## Stato\n\nScritto da una sessione.',
+        writtenBy: 'CLAUDE',
+        createdAt: '2026-08-12T15:00:00Z',
+        updatedAt: '2026-08-12T15:00:00Z',
+        ...over
+      })
+
+      it('adds a wrapup for a task that had none and flips its hasWrapup', () => {
+        store.applyWrapupEvent({ taskId: retry, wrapup: feedWrapup(retry), deleted: false })
+
+        store.selectTask(retry)
+        expect(store.selectedWrapup?.bodyMarkdown).toBe('## Stato\n\nScritto da una sessione.')
+        expect(store.tasks.find((task) => task.id === retry)?.hasWrapup).toBe(true)
+      })
+
+      it('replaces the body and author of a wrapup already on screen', () => {
+        store.selectTask(validator)
+        store.applyWrapupEvent({
+          taskId: validator,
+          wrapup: feedWrapup(validator, {
+            id: 'w1' as WrapupId,
+            bodyMarkdown: '## Stato\n\nRiscritto da Claude.'
+          }),
+          deleted: false
+        })
+
+        expect(store.selectedWrapup?.bodyMarkdown).toBe('## Stato\n\nRiscritto da Claude.')
+        expect(store.selectedWrapup?.writtenBy).toBe('CLAUDE')
+      })
+
+      it('drops a deleted wrapup without moving the pane', () => {
+        store.selectTask(validator)
+        store.openWrapup()
+
+        store.applyWrapupEvent({ taskId: validator, wrapup: null, deleted: true })
+
+        expect(store.selectedWrapup).toBeNull()
+        expect(store.tasks.find((task) => task.id === validator)?.hasWrapup).toBe(false)
+        expect(store.paneFocus).toBe('wrapup')
+      })
+    })
   })
 
   /**
@@ -496,6 +564,24 @@ describe('console store', () => {
         projectId: vega
       })
     )
+  })
+
+  /**
+   * The backend closes any open session when a task is marked done, so the running dock has to
+   * reread the sessions or it would keep showing a timer that has already stopped.
+   */
+  it('rereads the sessions when a task is marked done', async () => {
+    vi.mocked(fetchTimeEntries).mockClear()
+    await store.setTaskStatus(validator, 'DONE')
+
+    expect(fetchTimeEntries).toHaveBeenCalled()
+  })
+
+  it('leaves the sessions alone when the status changes to something other than done', async () => {
+    vi.mocked(fetchTimeEntries).mockClear()
+    await store.setTaskStatus(validator, 'BLOCKED')
+
+    expect(fetchTimeEntries).not.toHaveBeenCalled()
   })
 
   /**
@@ -594,7 +680,24 @@ describe('console store', () => {
       expect([task.stepCount, task.stepsDone]).toEqual([2, 2])
     })
 
-    it('appends a new step to the end of the list it is added to', async () => {
+    /**
+     * Accepting and reopening are two intents, not one toggle: each asks for the state it wants,
+     * so a second click never walks the step back the way a plain toggle did.
+     */
+    it('accepts a step forward and reopens it back with explicit calls', async () => {
+      store.selectTask(validator)
+
+      await store.acceptStep('s2' as TaskStepId)
+      expect(patchStep).toHaveBeenLastCalledWith('s2', { done: true })
+
+      await store.acceptStep('s2' as TaskStepId)
+      expect(patchStep).toHaveBeenLastCalledWith('s2', { done: true })
+
+      await store.reopenStep('s2' as TaskStepId)
+      expect(patchStep).toHaveBeenLastCalledWith('s2', { done: false })
+    })
+
+    it('adds a new step as a draft, off the checklist count until it is promoted', async () => {
       store.selectTask(validator)
       await store.addStep(validator, 'Wire the endpoint')
 
@@ -604,7 +707,20 @@ describe('console store', () => {
         'Write the tests',
         'Wire the endpoint'
       ])
-      expect(store.tasks.find((candidate) => candidate.id === validator)!.stepCount).toBe(3)
+      const task = store.tasks.find((candidate) => candidate.id === validator)!
+      expect([task.stepCount, task.draftStepCount]).toEqual([2, 1])
+
+      await store.promoteStep('s3' as TaskStepId)
+      expect(patchStep).toHaveBeenLastCalledWith('s3', { draft: false })
+    })
+
+    it('sends an untouched step back to draft', async () => {
+      store.selectTask(validator)
+      await store.returnStepToDraft('s2' as TaskStepId)
+
+      expect(patchStep).toHaveBeenLastCalledWith('s2', { draft: true })
+      expect(store.openStepCount).toBe(0)
+      expect(store.tasks.find((candidate) => candidate.id === validator)!.draftStepCount).toBe(1)
     })
 
     /**

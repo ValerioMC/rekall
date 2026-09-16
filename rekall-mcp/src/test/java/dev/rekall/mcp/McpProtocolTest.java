@@ -18,11 +18,8 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The protocol edge of the MCP server.
- *
- * <p>Two eras meet on one endpoint, and the failure they can produce is silent: a client that
- * gets served under the wrong era does not crash, it quietly sees no tools. So every case here
- * asserts the era a request was answered in, not only that an answer came back.
+ * The protocol edge of the MCP server. Two eras meet on one endpoint and serving under the wrong
+ * one fails silently, so every case asserts the era a request was answered in.
  */
 class McpProtocolTest {
 
@@ -175,8 +172,7 @@ class McpProtocolTest {
         @Test
         @DisplayName("an Mcp-Name naming a different tool than the body is refused")
         void refusesANameDisagreement() {
-            // The point of the check: a gateway routing on the header and this server executing
-            // on the body would otherwise be acting on two different requests.
+            // Otherwise a gateway routing on the header and this server executing on the body act on two requests.
             var response = call(MODERN, "tools/call", "something_else", toolCall());
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
@@ -186,8 +182,7 @@ class McpProtocolTest {
         @Test
         @DisplayName("tools/list carries the cache annotations without which it is rejected whole")
         void toolListCarriesItsCacheAnnotations() {
-            // Not defaulted client-side the way server/discover's are: a list missing either of
-            // these is thrown away, and a session that cannot read the list registers no tools.
+            // A list missing either annotation is thrown away, and the session registers no tools.
             Map<String, Object> result = result(call(MODERN, "tools/list", null, request(1, "tools/list", null)));
 
             assertThat(result).containsKey("tools");
@@ -199,8 +194,7 @@ class McpProtocolTest {
         @Test
         @DisplayName("every result says which kind of result it is, or the client throws it away")
         void everyResultCarriesItsKind() {
-            // A missing resultType is not read as complete in this era, it is rejected outright,
-            // and a tools/list rejected is a session that sees no tools and says nothing.
+            // A missing resultType is rejected outright in this era, not read as complete.
             assertThat(result(call(MODERN, "tools/list", null, request(1, "tools/list", null))))
                     .containsEntry("resultType", "complete");
             assertThat(result(call(MODERN, "tools/call", "rekall_context", toolCall())))
@@ -275,8 +269,7 @@ class McpProtocolTest {
     @DisplayName("a notification is accepted with no body, in either era")
     void notificationsGetNoBody() {
         for (var response : List.of(
-                // No Mcp-Method on the first: the stateless revision requires that header on a
-                // request and says nothing about a notification, so one must not be demanded.
+                // No Mcp-Method on the first: the header is required on a request, not on a notification.
                 call(MODERN, null, null, request(null, "notifications/initialized", null)),
                 call(null, null, null, request(null, "notifications/initialized", null)))) {
 

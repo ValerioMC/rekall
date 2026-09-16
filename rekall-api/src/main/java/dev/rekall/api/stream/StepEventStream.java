@@ -1,6 +1,8 @@
 package dev.rekall.api.stream;
 
+import dev.rekall.domain.review.TaskReviewEvent;
 import dev.rekall.domain.step.StepStreamEvent;
+import dev.rekall.domain.wrapup.WrapupStreamEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
@@ -37,18 +39,30 @@ public class StepEventStream {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onStepChange(StepStreamEvent event) {
+        dispatch("steps", event);
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    public void onTaskReview(TaskReviewEvent event) {
+        dispatch("task-review", event);
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    public void onWrapupChange(WrapupStreamEvent event) {
+        dispatch("wrapup", event);
+    }
+
+    private void dispatch(String name, Object payload) {
         for (SseEmitter emitter : clients) {
             try {
-                emitter.send(SseEmitter.event().name("steps").data(event));
+                emitter.send(SseEmitter.event().name(name).data(payload));
             } catch (IOException | IllegalStateException e) {
-                // The window is gone or the response is already closed. Drop it and move on.
                 clients.remove(emitter);
             }
         }
     }
 
-    // An SSE request never completes on its own; without this, graceful shutdown blocks on every
-    // open console feed until spring.lifecycle.timeout-per-shutdown-phase elapses.
+    // Without this, graceful shutdown blocks on every open feed until the per-phase timeout elapses.
     @EventListener(ContextClosedEvent.class)
     public void releaseOnShutdown() {
         for (SseEmitter emitter : clients) {

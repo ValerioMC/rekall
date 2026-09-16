@@ -368,11 +368,12 @@
 /*
  * The bottom right corner, shared rather than taken.
  *
- * The running dock is fixed to it and publishes what it occupies as `--dock-lane-width` and
- * `--dock-lane-height` (see `useDockLane`); both are absent while nothing is running. A bar
- * that ends in that corner wears this and its right edge opens by exactly the pill, so no
- * control of its own is ever underneath one. `max` rather than a sum: the lane already carries
- * the window gutter, and adding the two would leave a hole twice the size of the pill.
+ * The shell dock (`ShellDock`) is fixed to it and publishes what its bar occupies as
+ * `--dock-lane-width` and `--dock-lane-height` (see `useDockLane`); both are absent while
+ * nothing is running and no session is live. A bar that ends in that corner wears this and its
+ * right edge opens by exactly the dock, so no control of its own is ever underneath it. `max`
+ * rather than a sum: the lane already carries the window gutter, and adding the two would leave
+ * a hole twice the size of the dock.
  */
 @utility dock-lane-safe {
   padding-right: max(var(--dock-lane-gutter, 20px), var(--dock-lane-width, 0px));
@@ -383,6 +384,72 @@
 @utility dock-lane-above {
   bottom: max(var(--dock-lane-gutter, 24px), var(--dock-lane-height, 0px));
   transition: bottom 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/*
+ * The dock's bar: one capsule, a segment per kind of live work.
+ *
+ * Time and sessions each keep their own hue (amber dial, cyan caret) so the two never read as
+ * one thing counted twice, and the segment whose sheet is open is lit in that hue rather than
+ * marked by a second control. `aria-expanded` is the state and the style follows it, so the
+ * bar cannot say one thing to a screen reader and another to the eye.
+ */
+@utility dock-segment {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px 0 12px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--color-text);
+  transition:
+    background-color 140ms ease-out,
+    box-shadow 140ms ease-out;
+
+  &:hover {
+    background: color-mix(in srgb, var(--dock-tint) 8%, transparent);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--dock-tint);
+  }
+
+  &[aria-expanded='true'] {
+    background: color-mix(in srgb, var(--dock-tint) 14%, transparent);
+    box-shadow: inset 0 -2px 0 0 var(--dock-tint);
+  }
+}
+
+@utility dock-segment-time {
+  --dock-tint: var(--color-accent);
+}
+
+@utility dock-segment-session {
+  --dock-tint: var(--color-anchor);
+}
+
+/* The seam between two segments: a hairline that stops short of the capsule's curve. */
+@utility dock-divider {
+  align-self: center;
+  height: 22px;
+  width: 1px;
+  background: var(--color-border-strong);
+}
+
+/* The sheet wears a hairline of its segment's hue along the top, so the pairing is visible. */
+@utility dock-panel {
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in srgb, var(--dock-tint) 55%, transparent),
+    var(--shadow-modal);
+}
+
+@utility dock-panel-time {
+  --dock-tint: var(--color-accent);
+}
+
+@utility dock-panel-session {
+  --dock-tint: var(--color-anchor);
 }
 
 /* Placeholder shape for content that has not arrived, so the layout never jumps. */
@@ -455,6 +522,57 @@
     border-radius: 9999px;
     background: var(--color-accent);
     animation: dial-core 2.6s ease-in-out infinite;
+  }
+}
+
+/*
+ * The session dock's live mark: a caret held open on a prompt, not the running dock's dial.
+ *
+ * A Claude session is a headless CLI kept open on stdin, waiting on the next line, so the mark
+ * is a text caret. It wears the anchor colour the session was opened on — `/rk <anchor>` is the
+ * first line it was ever sent — which also keeps the session corner from reading as the amber
+ * time corner stacked twice. It hard-blinks slow while a session is READY and waiting on you,
+ * and swells to a block on a quicker beat while one is WORKING. Like every mark here, it runs
+ * only while a session is live.
+ */
+@utility session-caret {
+  display: block;
+  height: 13px;
+  width: 3px;
+  border-radius: 1.5px;
+  background: var(--color-anchor);
+  box-shadow: 0 0 8px -1px color-mix(in srgb, var(--color-anchor) 60%, transparent);
+  transform-origin: center left;
+  animation: caret-blink 1.5s steps(1, end) infinite;
+}
+
+@utility session-caret-busy {
+  animation: caret-busy 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes caret-blink {
+  0%,
+  46% {
+    opacity: 1;
+  }
+  50%,
+  96% {
+    opacity: 0.26;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes caret-busy {
+  0%,
+  100% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scaleX(2.8);
+    opacity: 0.82;
   }
 }
 

@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: 020-commit-reference-diff
+      author: rekall
+      changes:
+        - addColumn:
+            tableName: commit_reference
+            columns:
+              - column: {name: diff, type: clob}

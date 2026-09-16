@@ -1,0 +1,57 @@
+{
+  "comment": "GraalVM metadata for the in-app terminal pane: rekall-claude's PtyTerminalManager -> pty4j 0.13.x. The core JNA half is in ../../net.java.dev.jna/jna/. pty4j ships no metadata of its own; these are the entries beyond core JNA that a minimal pty4j round trip (start a PTY, write, read, setWinSize, destroy) reaches: pty4j's own JNA structures and Library-interface proxies, plus the two jna-platform integer types pty4j's read/write bindings use (jna-platform has no community metadata). Captured with the native-image agent and given the jniAccessible / allDeclaredConstructors flags the agent cannot infer. Regenerate the same way if pty4j is bumped. See docs/DESIGN.md, 'The terminal pane'.",
+  "reflection": [
+    {
+      "type": "com.sun.jna.platform.unix.LibCAPI$size_t",
+      "jniAccessible": true,
+      "unsafeAllocated": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true
+    },
+    {
+      "type": "com.sun.jna.platform.unix.LibCAPI$ssize_t",
+      "jniAccessible": true,
+      "unsafeAllocated": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true
+    },
+    {
+      "type": "com.pty4j.unix.NativePtyExecutor$WinSizeStructure",
+      "jniAccessible": true,
+      "unsafeAllocated": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true
+    },
+    {
+      "type": "com.pty4j.unix.PollfdStructure",
+      "jniAccessible": true,
+      "unsafeAllocated": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true
+    },
+    {
+      "type": "com.pty4j.unix.PollfdStructureByReference",
+      "jniAccessible": true,
+      "unsafeAllocated": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true
+    },
+    {
+      "type": "com.pty4j.unix.PollfdStructureByReference[]",
+      "jniAccessible": true
+    },
+    { "type": { "proxy": ["com.pty4j.unix.CLibraryNative"] } },
+    { "type": { "proxy": ["com.pty4j.unix.NativePtyExecutor$Pty4J"] } },
+    { "type": { "proxy": ["com.pty4j.unix.macosx.OSFacadeImpl$MacOSX_C_lib"] } },
+    { "type": { "proxy": ["com.pty4j.unix.linux.OSFacadeImpl$C_lib"] } },
+    { "type": { "proxy": ["com.pty4j.unix.linux.OSFacadeImpl$Linux_Util_lib"] } }
+  ],
+  "resources": [
+    { "glob": "resources/com/pty4j/native/**" }
+  ]
+}

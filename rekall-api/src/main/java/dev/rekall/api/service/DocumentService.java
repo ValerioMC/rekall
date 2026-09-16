@@ -2,6 +2,8 @@ package dev.rekall.api.service;
 
 import dev.rekall.api.dto.ApiDtos.DocumentRequest;
 import dev.rekall.api.dto.ApiDtos.DocumentResponse;
+import dev.rekall.common.ConflictException;
+import dev.rekall.common.NotFoundException;
 import dev.rekall.domain.Document;
 import dev.rekall.domain.Task;
 import dev.rekall.domain.repository.DocumentRepository;

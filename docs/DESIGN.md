@@ -33,7 +33,7 @@ loaded in one call, including every note the task shares with its neighbours.
 | # | Decision | Rationale |
 |---|---|---|
 | D1 | Real tables with real foreign keys | A note can never point at a deleted task. On an app whose only job is to be a reliable memory, silent dangling references are the failure mode that matters. |
-| D2 | Claude reads everything and writes two things | `rekall-mcp` depends on the domain and never on `rekall-api`, so no controller is on its classpath, and every read runs in a read-only transaction. The two exceptions are `rekall_wrapup`, which replaces one column of one row keyed by a task, and `rekall_step`, which moves a step from `open` to `running` to `claimed` and cannot reach `done`. See §7. |
+| D2 | Claude reads everything and writes two things | `rekall-mcp` depends on `rekall-service` and never on `rekall-api`, so no controller is on its classpath, and every read runs in a read-only transaction. The two exceptions are `rekall_wrapup`, which replaces one column of one row keyed by a task, and `rekall_step`, which moves a step from `open` to `running` to `claimed` and cannot reach `done`. See §7. |
 | D3 | Markdown content lives in the database | One backup target, reachable through MCP, searchable. |
 | D4 | One entry point, and it is a slash command | A session begins with `/rk project:vega task:report-builder`, not with a question. Reaching a record through a natural-language query costs several turns and a few thousand tokens before any work starts, and it is the part that fails when the model guesses the wrong entity. An explicit anchor removes both. |
 | D5 | The model is fixed at compile time | There is no runtime meta-model and no DDL engine. Company, project, task and document are fixed JPA entities; adding a new kind of record is a class and a migration, not a screen. |
@@ -49,17 +49,27 @@ Non-goals: multi-user, authentication, remote deployment, vector search.
 
 ```
 rekall/
-  rekall-domain/   entities, repositories, context assembly, Liquibase changelogs
-  rekall-api/      REST controllers for the UI
-  rekall-mcp/      MCP server: one tool reads, two write (a wrapup, a step's state)
-  rekall-app/      Spring Boot entry point, serves the built frontend
-  rekall-ui/       Vue 3 + Vite (built into rekall-ui/dist, copied into the jar by rekall-app)
+  rekall-common/     ConflictException, NotFoundException: the error vocabulary shared by every layer
+  rekall-model/      JPA entities and their state rules
+  rekall-repository/ Spring Data repositories and the Liquibase changelogs for their schema
+  rekall-service/    context assembly, the step and review lines, wrapups, time entries
+  rekall-api/        REST controllers for the UI
+  rekall-mcp/        MCP server: one tool reads, two write (a wrapup, a step's state)
+  rekall-claude/     the in-app terminal (pty4j PTYs over one WebSocket) and the Claude Code usage meter
+  rekall-app/        Spring Boot entry point, serves the built frontend
+  rekall-ui/         Vue 3 + Vite (built into rekall-ui/dist, copied into the jar by rekall-app)
 ```
 
-`rekall-mcp` must not depend on `rekall-api`. The two are independent consumers of the same
-domain, which is what keeps the boundary structural rather than accidental: the only write
-`rekall-mcp` can reach is `WrapupService`, and no controller, no `CatalogService` and no
-`DocumentService` is on its classpath.
+The layers are separate Maven modules so the dependency direction is enforced by the compiler,
+not by convention: `rekall-repository` cannot see `rekall-api`, and `rekall-service` cannot see
+any controller. Classes keep the `dev.rekall.domain.*` packages they had before the split, so
+the GraalVM reachability metadata and the AOT hints did not have to be regenerated; the module
+boundary carries the guarantee, the package prefix is only a name.
+
+`rekall-mcp` depends on `rekall-service` and must not depend on `rekall-api`. The two are
+independent consumers of the same services, which is what keeps the boundary structural rather
+than accidental: `rekall-mcp` can reach `ContextService`, `TaskStepService` and `WrapupService`,
+but no controller, no `CatalogService` and no `DocumentService` is on its classpath.
 
 ### Stack
 
@@ -166,11 +176,23 @@ more often than right. It is stated in the three places it can be read — the t
 slash command, and the empty state in the console — and the cap catches the failure mode it
 produces.
 
+A task carries two more columns for the wrapup: `auto_wrapup`, a boolean, and `wrapup_directive`,
+an optional short instruction in the console's own words. They are the standing form of the
+directive a session would otherwise pass on every `/rk … wrapup`. `Task.configureWrapup` keeps
+the directive null whenever the toggle is off, so a stale instruction never rides along after the
+intent behind it is gone. `ContextService` renders them as a `wrapup` field on the task only when
+the toggle is on, next to `status` and `steps`; a session reading the context sees that a wrapup
+is expected without being asked, and the words it should follow. They travel on the same
+`TaskRequest` the description does, edited from `WrapupAutomationBar` under both the description
+and steps panes so the setting is reachable from whichever surface the work is driven from, and
+nothing about them reaches the MCP write path: the toggle is a hint to the reader, not a trigger.
+
 ### 4.2 The steps
 
-A task can be broken into steps, and each one is somewhere on a line: `OPEN`, `RUNNING` while a
-session works on it, `CLAIMED` when that session says it is finished, `DONE` when a person
-accepts the work. It exists because of a gap the other two markdown fields on a task leave
+A task can be broken into steps, and each one is somewhere on a line: `DRAFT` while the
+checklist owner is still wording it, `OPEN` once it is promoted and ready to work, `RUNNING`
+while a session works on it, `CLAIMED` when that session says it is finished, `DONE` when a
+person accepts the work. It exists because of a gap the other two markdown fields on a task leave
 between them: the description is the brief and grows as the work is redefined, the wrapup is the
 state of the implementation as prose, and neither says which parts are finished. Working that
 out meant reading both and comparing them, which is slow by hand and a guess for a model. A row
@@ -184,22 +206,41 @@ with a state says it.
 | Capped at 20,000 characters, like a wrapup | A step whose detail runs past a screen is a task, and the model has a level for that |
 | `ON DELETE CASCADE` on the task, like a wrapup | It describes one piece of one task and means nothing beside another |
 | A session can write `RUNNING` and `CLAIMED`, never `DONE` | `rekall_step` moves a step as far as claimed, which is what lets a session drive its own checklist. The last tick is a person in the console saying they reviewed the work: a session claiming its own work accepted is what the `CLAIMED`/`DONE` split exists to prevent. The navigator's progress count is built on `DONE` alone, so it still means "accepted" |
+| `DRAFT` is the creation default, and only the console leaves it | A new step is a line the checklist owner is still wording, not work: it is kept out of the `<steps>` block a session reads (counted only as `draft="N"` on the tag), `rekall_step` refuses to move it, `markRunning` skips it, and `reviewActive()` still treats a task that holds only drafts as stepless. `TaskStepService.edit` promotes `DRAFT -> OPEN` and sends an untouched `OPEN` step back; a step that has been started, claimed or done cannot return to draft, because the run behind it would be lost. `settleDraftsAtTail` keeps every draft after every non-draft in `position` order, so the numbering a session sees is the numbering the console shows. `stepCount` on `TaskResponse` counts non-draft steps; `draftStepCount` carries the rest |
 
 The rendering is asymmetric, and that is the feature. An open or running step is written into
 the context with its detail, because it is the work about to be done or being done now, and its
 line is tagged `(in progress)` or `(claimed, waiting for the console to accept it)` so a session
 that reloads mid-run does not start it again or redo it. A finished step is written as its title
 alone: it needs no doing, and spending the window on the detail of finished work is how a load
-costs twice what it is worth. The counts, including `running` and `awaiting-review` when they are
-non-zero, go in the field list ahead of the block.
+costs twice what it is worth. A draft step is left out of the block entirely, present only as
+`draft="N"` on the tag and a one-line `drafts` count in the field list. The counts,
+including `running` and `awaiting-review` when they are non-zero, go in the field list ahead of
+the block.
 
 **The live loop.** `TaskStepService` publishes a `StepStreamEvent` after every write, from the
-console or from MCP alike, carrying the affected task's whole checklist. `StepEventStream` in
-`rekall-api` holds it until the transaction commits and fans it out to every open console over
-`GET /api/steps/stream` as Server-Sent Events; `useStepStream` in the UI applies it to the
-store. A session moves a step to `RUNNING` over MCP and the console animates the move without a
-reload: the checklist node breathes, and the branch feeding it carries a band of light toward
-it.
+console or from MCP alike, carrying the affected task's whole checklist. `TaskReviewService`
+publishes a `TaskReviewEvent` when a stepless task's review line moves, and `WrapupService` a
+`WrapupStreamEvent` when a wrapup is written or deleted (the latter carrying the new
+`WrapupView`, or a `deleted` flag). `StepEventStream` in `rekall-api` holds each until the
+transaction commits and fans it out to every open console over `GET /api/steps/stream` as
+Server-Sent Events under the frame names `steps`, `task-review` and `wrapup`; `useStepStream`
+in the UI applies each to the store. A session moves a step to `RUNNING` over MCP and the
+console animates the move without a reload: the checklist node breathes, and the branch feeding
+it carries a band of light toward it. Opening a terminal on a step ("Run here") is the
+other way in: `PtyTerminalManager` moves that step to `RUNNING` on start through
+`TaskStepService.markRunning` and back to `OPEN` on close through `releaseRunning`, so the
+launch animates whether or not the console is on the checklist pane, and a terminal that dies
+without its step being claimed does not strand it. Both are no-ops unless the step is `OPEN`
+(start) or still `RUNNING` (end), so an MCP `claimed` or a console tick made meanwhile is never
+undone. There is one terminal per task: opening again while one is up is routed to it rather
+than spawning another, and if it names a different step the manager releases the old one and
+marks the new, so the running marker follows the terminal across a checklist the way it would
+in one terminal window. A task with no checklist takes the same path at task scope:
+`PtyTerminalManager` calls `TaskReviewService.sessionRunning(taskId, true)` on start and
+`(taskId, false)` on close, so the review line runs while the terminal is open on the task and
+no step. A wrapup written from a terminal-run session (over MCP) or by an MCP call lands in the
+pane with the claim it triggers rather than on the next reload.
 
 ---
 
@@ -328,8 +369,8 @@ the console. What it cannot do is tick a step done, lose a note, move a task or 
 
 ### Opening a session from a button
 
-**Open in Claude Code**, on a task or a project, opens a terminal in that project's folder with
-`/rk` already running. It answers the last thing the anchor chips could not: an anchor still has
+**Open in terminal**, on a task or a project, hands the session to your own terminal app in that
+project's folder with `/rk` already running. It answers the last thing the anchor chips could not: an anchor still has
 to be pasted somewhere, and that somewhere has to be the right directory, because Claude Code
 takes the folder it was launched from and keeps it for the session. So the folder is a column on
 the project, `repo_folder`, and it travels down onto every task response beside the project label
@@ -355,6 +396,55 @@ the session and nothing else.
 kept in the browser's storage rather than in the database: "run without asking" is a property of
 this terminal on this machine, and a database opened somewhere else has no business carrying that
 answer along with it.
+
+---
+
+### The terminal pane
+
+The in-app session is a real terminal, `C` in the console. `PtyTerminalManager` in
+`rekall-claude` starts the interactive `claude` TUI in a pseudo-terminal (pty4j) in the task's
+folder, with `/rk` as the first line, and pumps its raw bytes to whoever is watching. The reason
+it is a PTY and not `claude -p` is token cost: a hand-run `claude` keeps its own cache warm,
+compacts its own context and shows its own `/context` and cost read-outs, and a PTY running the
+same binary the same way inherits all of that, where a headless stream-json process reassembled
+into a transcript could not. It is also the only place an interactive permission prompt actually
+renders and can be answered.
+
+The bytes do not go over HTTP. `TerminalController` only opens (`POST
+/api/tasks/{id}/terminals`), lists and closes; once a terminal exists the pane connects to
+`TerminalSocketHandler` at `/api/terminal/{id}/io`, Rekall's one WebSocket. Binary frames are
+stdin and stdout, a `{"resize":[cols,rows]}` text frame sets the window size, and a
+`{"type":"ended",...}` frame closes it out. Sends are funnelled through a
+`ConcurrentWebSocketSessionDecorator`, which also caps the outbound buffer so a pane that stops
+reading is dropped rather than left to back up memory. `useTerminalSocket` is the client half,
+`TerminalPane.vue` wires it to an `xterm.js` instance.
+
+One terminal per task. Opening again on a task that already has one is routed to it; opening on
+a different step releases the step it was on and marks the new (see §4). `PtyTerminalManager`
+also carries the checklist marker: `TaskStepService.markRunning` / `releaseRunning` for a step,
+`TaskReviewService.sessionRunning` for a stepless task, on open and on every way the terminal
+ends.
+
+Nothing is persisted. There is no row behind a terminal, so `TerminalLaunchService` (in
+`rekall-service`, against the entities) only resolves a task id to its folder and anchors, and a
+`PtyTerminalManager` restart starts empty and releases any step it left `RUNNING` on the way
+down. A bounded in-memory scrollback ring is replayed to a pane that reopens, so it repaints;
+that snapshot can begin mid escape-sequence and flicker once, which is the accepted cost of not
+storing a terminal. A cap on how many run at once (`rekall.terminal.max-sessions`, eight), an
+idle sweep, and a `@PreDestroy` that kills the rest inside the 5s shutdown budget keep strays
+from piling up.
+
+Both packaging flavours carry it. pty4j reaches `libutil` through JNA, a restricted native call
+on JDK 25, so the jlink launcher passes `--enable-native-access=ALL-UNNAMED`
+(`packaging/macos/Launcher.swift`); the GraalVM binary compiles that in. Neither pty4j nor JNA
+ships GraalVM reachability metadata, and `scripts/native-build.sh` calls `native-image` on a
+hand-built classpath rather than the one `mvn -Pnative` assembles, so the community metadata is
+not on it. The pieces the terminal needs are committed instead, under
+`rekall-app/src/main/resources/META-INF/native-image/`: `net.java.dev.jna/jna/` is the upstream
+community file vendored verbatim, `org.jetbrains.pty4j/pty4j/` is pty4j's own JNA structures and
+`Library`-interface proxies plus the two `jna-platform` integer types its read/write bindings
+use, agent-traced from a minimal PTY round trip and given the `jniAccessible` flags the agent
+cannot infer. Bump either dependency and both files are re-derived the same way.
 
 ---
 

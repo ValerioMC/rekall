@@ -38,8 +38,8 @@ const projects: Project[] = [
 ]
 
 const tasks: Task[] = [
-  { id: validator, label: 'report-builder', title: 'Report builder', status: 'IN_PROGRESS', description: null, projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', projectRepoFolder: null, documentCount: 1, stepCount: 2, stepsDone: 1, hasWrapup: true, anchor: 'project:vega task:report-builder', updatedAt: '2026-08-12T10:00:00Z' },
-  { id: retry, label: 'retry-policy', title: 'Retry policy', status: 'TODO', description: '## Scope\n\nRitenta solo gli errori 5xx, con backoff esponenziale.', projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', projectRepoFolder: null, documentCount: 1, stepCount: 0, stepsDone: 0, hasWrapup: false, anchor: 'project:vega task:retry-policy', updatedAt: '2026-08-12T10:00:00Z' }
+  { id: validator, label: 'report-builder', title: 'Report builder', status: 'IN_PROGRESS', description: null, projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', projectRepoFolder: null, documentCount: 1, stepCount: 2, stepsDone: 1, draftStepCount: 0, hasWrapup: true, reviewState: 'OPEN', reviewActive: false, claimedAt: null, acceptedAt: null, reviewNote: null, anchor: 'project:vega task:report-builder', updatedAt: '2026-08-12T10:00:00Z' },
+  { id: retry, label: 'retry-policy', title: 'Retry policy', status: 'TODO', description: '## Scope\n\nRitenta solo gli errori 5xx, con backoff esponenziale.', projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', projectRepoFolder: null, documentCount: 1, stepCount: 0, stepsDone: 0, draftStepCount: 0, hasWrapup: false, reviewState: 'OPEN', reviewActive: true, claimedAt: null, acceptedAt: null, reviewNote: null, anchor: 'project:vega task:retry-policy', updatedAt: '2026-08-12T10:00:00Z' }
 ]
 
 const shared: RekallDocument = {
@@ -100,6 +100,48 @@ vi.mock('@/api/documents.api', () => ({
   createDocument: vi.fn(),
   updateDocument: vi.fn(),
   deleteDocument: vi.fn()
+}))
+
+vi.mock('@/api/claude.api', async (importOriginal) => {
+  const actual = (await importOriginal()) as Record<string, unknown>
+  return {
+    ...actual,
+    fetchClaudeUsage: vi.fn(async () => ({
+      status: 'UNAUTHENTICATED',
+      limits: [],
+      fetchedAt: '',
+      retryAt: null
+    }))
+  }
+})
+
+vi.mock('@/api/terminal.api', () => ({
+  fetchTerminals: vi.fn(async () => []),
+  openTerminal: vi.fn(),
+  closeTerminal: vi.fn()
+}))
+
+vi.mock('@xterm/xterm', () => ({
+  Terminal: class {
+    element: HTMLElement | null = null
+    loadAddon = vi.fn()
+    open = vi.fn((host: HTMLElement) => {
+      this.element = host
+    })
+    onData = vi.fn(() => ({ dispose: vi.fn() }))
+    onResize = vi.fn(() => ({ dispose: vi.fn() }))
+    write = vi.fn()
+    reset = vi.fn()
+    focus = vi.fn()
+    dispose = vi.fn()
+  }
+}))
+
+vi.mock('@xterm/addon-fit', () => ({
+  FitAddon: class {
+    fit = vi.fn()
+    dispose = vi.fn()
+  }
 }))
 
 vi.mock('@/api/wrapups.api', () => ({
@@ -176,6 +218,12 @@ vi.mock('@/api/time-entries.api', () => ({
   stopTimeEntry: vi.fn(),
   editTimeEntry: vi.fn(),
   deleteTimeEntry: vi.fn()
+}))
+
+vi.mock('@/api/commitReference.api', () => ({
+  fetchCommitReferences: vi.fn(async () => []),
+  recordLatestCommit: vi.fn(),
+  fetchCommitReferenceDiff: vi.fn()
 }))
 
 async function mountConsole() {
@@ -345,6 +393,54 @@ describe('the console', () => {
     await flushPromises()
 
     expect(wrapper.findAll('[data-testid="task-row"]').length).toBeGreaterThan(0)
+  })
+
+  /**
+   * Copy and paste belong to the browser. Cmd/Ctrl+K is the one deliberate chord; every other
+   * shortcut is a bare key, so a modified key must pass straight through without preventDefault.
+   */
+  it('leaves a Cmd or Ctrl chord alone so copy and paste work inside the app', async () => {
+    const wrapper = await mountConsole()
+    await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+    await flushPromises()
+
+    const copy = new KeyboardEvent('keydown', { key: 'c', metaKey: true, cancelable: true })
+    window.dispatchEvent(copy)
+    const paste = new KeyboardEvent('keydown', { key: 'v', ctrlKey: true, cancelable: true })
+    window.dispatchEvent(paste)
+    await flushPromises()
+
+    expect(copy.defaultPrevented).toBe(false)
+    expect(paste.defaultPrevented).toBe(false)
+    // The chord did nothing: the pane is still the note, not the terminal.
+    expect(useConsoleStore().paneFocus).toBe('note')
+  })
+
+  /** The bare key it shares a letter with still works. */
+  it('toggles the terminal pane on a bare C', async () => {
+    const wrapper = await mountConsole()
+    await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+    await flushPromises()
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c' }))
+    await flushPromises()
+
+    expect(useConsoleStore().paneFocus).toBe('terminal')
+  })
+
+  /** The anchor on the terminal pane is a copy chip, like the one on the description and steps panes. */
+  it('carries a copyable anchor chip on the terminal pane', async () => {
+    const wrapper = await mountConsole()
+    await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c' }))
+    await flushPromises()
+
+    const chip = wrapper.find('[data-testid="copy-terminal-anchor"]')
+    expect(chip.exists()).toBe(true)
+    expect(chip.element.tagName).toBe('BUTTON')
+    expect(chip.text()).not.toContain('copy')
+    expect(chip.find('[data-testid="copy-glyph"]').attributes('data-copied')).toBe('false')
   })
 
   describe('creating, editing and deleting a record', () => {
@@ -561,6 +657,11 @@ describe('the console', () => {
       // The note editor's controls are absent rather than disabled: a wrapup has no kind and
       // no second task it could belong to.
       expect(wrapper.find('[data-testid="assign-open"]').exists()).toBe(false)
+      // Only one way to copy the anchor once a wrapup exists: the header chip, not a second
+      // one duplicating it next to the metadata.
+      expect(wrapper.find('[data-testid="copy-wrapup-anchor"]').text())
+        .toContain('project:vega task:report-builder')
+      expect(wrapper.find('[data-testid="copy-wrapup-command"]').exists()).toBe(false)
     })
 
     /**
@@ -578,10 +679,10 @@ describe('the console', () => {
     })
 
     /**
-     * The primary way a wrapup gets written is Claude, so the empty state hands over the exact
-     * line to paste rather than a form.
+     * The primary way a wrapup gets written is Claude, pasting the anchor the header already
+     * offers plus `wrapup`; the empty state points there instead of duplicating that button.
      */
-    it('offers the command on a task that has none, and a way to write it by hand', async () => {
+    it('points to the anchor for a task that has none, and offers a way to write it by hand', async () => {
       const wrapper = await mountConsole()
 
       await wrapper.findAll('[data-testid="task-row"]')[1]!.trigger('click')
@@ -589,8 +690,9 @@ describe('the console', () => {
       await flushPromises()
 
       expect(wrapper.text()).toContain('Nobody has said what this is yet')
-      expect(wrapper.find('[data-testid="copy-wrapup-command"]').text())
-        .toContain('/rk project:vega task:retry-policy wrapup')
+      expect(wrapper.find('[data-testid="copy-wrapup-anchor"]').text())
+        .toContain('project:vega task:retry-policy')
+      expect(wrapper.find('[data-testid="copy-wrapup-command"]').exists()).toBe(false)
 
       await wrapper.find('[data-testid="write-wrapup-by-hand"]').trigger('click')
       await flushPromises()
@@ -717,7 +819,7 @@ describe('the console', () => {
       await flushPromises()
 
       expect(wrapper.text()).toContain('Ritenta solo gli errori 5xx')
-      expect(wrapper.text()).toContain('/rk project:vega task:retry-policy')
+      expect(wrapper.find('[data-testid="copy-description-anchor"]').exists()).toBe(true)
       // Its own pane, not the note editor with another title on it.
       expect(wrapper.find('[data-testid="assign-open"]').exists()).toBe(false)
     })
@@ -739,23 +841,22 @@ describe('the console', () => {
       await wrapper.find('[data-testid="write-description"]').trigger('click')
       await flushPromises()
 
-      // This task has an open step, so the pane says what the description is for in that case:
-      // the thing the steps are built against, not a list of things to do.
-      expect(wrapper.text()).toContain('1 step open')
-      expect(wrapper.text()).toContain('built against rather than a list of things to do')
+      // The onboarding page gives way to the editor once you start writing.
+      expect(wrapper.find('[data-testid="write-description"]').exists()).toBe(false)
       expect(wrapper.text()).not.toContain('Nothing says what this task is')
     })
 
-    /** With no checklist on the task, the description is the instruction and says so. */
-    it('reads as the brief on a task with no steps', async () => {
+    /** With a description on the task, the pane opens on it in read mode, not the onboarding page. */
+    it('reads the description back on a task that has one', async () => {
       const wrapper = await mountConsole()
 
       await wrapper.findAll('[data-testid="task-row"]')[1]!.trigger('click')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }))
       await flushPromises()
 
-      expect(wrapper.text()).toContain('The brief the work is measured against')
-      expect(wrapper.text()).not.toContain('built against rather than a list of things to do')
+      expect(wrapper.find('[data-testid="copy-description-anchor"]').exists()).toBe(true)
+      expect(wrapper.text()).toContain('Ritenta solo gli errori 5xx')
+      expect(wrapper.text()).not.toContain('Nothing says what this task is')
     })
 
     /** The key that took you there takes you back, the same way W and B work. */
@@ -765,12 +866,12 @@ describe('the console', () => {
       await wrapper.findAll('[data-testid="task-row"]')[1]!.trigger('click')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }))
       await flushPromises()
-      expect(wrapper.text()).toContain('The brief the work is measured against')
+      expect(wrapper.find('[data-testid="copy-description-anchor"]').exists()).toBe(true)
 
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }))
       await flushPromises()
 
-      expect(wrapper.text()).not.toContain('The brief the work is measured against')
+      expect(wrapper.find('[data-testid="copy-description-anchor"]').exists()).toBe(false)
       expect(wrapper.text()).toContain('kmaster14.md')
     })
   })
@@ -833,6 +934,47 @@ describe('the console', () => {
       expect(useConsoleStore().openStepCount).toBe(0)
       // Nothing is left open, so the pane stops showing a detail rather than the last one.
       expect(wrapper.find('[data-testid="step-detail"]').exists()).toBe(false)
+    })
+
+    /**
+     * The reviewer's complaint the pane was built around: a done box that reopened on the next
+     * click. The node no longer walks a step backwards, so clicking a done one does nothing.
+     */
+    it('does nothing when the box of a done step is clicked', async () => {
+      const wrapper = await mountConsole()
+
+      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }))
+      await flushPromises()
+
+      await wrapper.findAll('[data-testid="step-checkbox"]')[0]!.trigger('click')
+      await flushPromises()
+
+      expect(patchStep).not.toHaveBeenCalled()
+    })
+
+    /** Reopening an accepted step is deliberate: its own button, in its detail, armed before it fires. */
+    it('reopens a done step only after the reopen button is confirmed', async () => {
+      const wrapper = await mountConsole()
+
+      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }))
+      await flushPromises()
+
+      await wrapper.findAll('[data-testid="step-title"]')[0]!.trigger('click')
+      await flushPromises()
+
+      const reopen = wrapper.find('[data-testid="step-reopen"]')
+      expect(reopen.exists()).toBe(true)
+
+      await reopen.trigger('click')
+      await flushPromises()
+      expect(patchStep).not.toHaveBeenCalled()
+      expect(wrapper.find('[data-testid="step-reopen"]').text()).toContain('Confirm')
+
+      await wrapper.find('[data-testid="step-reopen"]').trigger('click')
+      await flushPromises()
+      expect(patchStep).toHaveBeenCalledWith('s1', { done: false })
     })
 
     /**

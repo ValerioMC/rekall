@@ -6,16 +6,20 @@ import dev.rekall.api.dto.ApiDtos.ProjectRequest;
 import dev.rekall.api.dto.ApiDtos.ProjectResponse;
 import dev.rekall.api.dto.ApiDtos.TaskRequest;
 import dev.rekall.api.dto.ApiDtos.TaskResponse;
+import dev.rekall.common.NotFoundException;
 import dev.rekall.domain.Company;
 import dev.rekall.domain.Project;
 import dev.rekall.domain.ProjectStatus;
 import dev.rekall.domain.Slug;
 import dev.rekall.domain.Task;
 import dev.rekall.domain.TaskStatus;
+import dev.rekall.domain.TaskStepState;
 import dev.rekall.domain.repository.CompanyRepository;
 import dev.rekall.domain.repository.DocumentRepository;
 import dev.rekall.domain.repository.ProjectRepository;
 import dev.rekall.domain.repository.TaskRepository;
+import dev.rekall.domain.review.TaskReviewService;
+import dev.rekall.domain.timeentry.TimeEntryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +35,8 @@ public class CatalogService {
     private final ProjectRepository projects;
     private final TaskRepository tasks;
     private final DocumentRepository documents;
+    private final TimeEntryService timeEntries;
+    private final TaskReviewService taskReview;
 
     @Transactional(readOnly = true)
     public List<CompanyResponse> listCompanies() {
@@ -125,10 +131,29 @@ public class CatalogService {
     @Transactional
     public TaskResponse updateTask(UUID id, TaskRequest request) {
         Task task = requireTask(id);
+        TaskStatus previousStatus = task.getStatus();
         task.setLabel(Slug.of(request.label()));
         task.setTitle(request.title().trim());
         applyTo(task, request);
-        return TaskResponse.of(tasks.saveAndFlush(task));
+        TaskResponse response = TaskResponse.of(tasks.saveAndFlush(task));
+        if (previousStatus != TaskStatus.DONE && task.getStatus() == TaskStatus.DONE) {
+            timeEntries.stopIfRunning(id);
+        }
+        return response;
+    }
+
+    /** {@code DONE} accepts a stepless task, {@code OPEN} sends it back; other states are refused. */
+    @Transactional
+    public TaskResponse reviewTask(UUID id, TaskStepState target, String note) {
+        Task task = requireTask(id);
+        switch (target) {
+            case DONE -> taskReview.accept(id);
+            case OPEN -> taskReview.sendBack(id, note);
+            default -> throw new IllegalArgumentException(
+                    "The console can accept a task (DONE) or send it back (OPEN). RUNNING follows a "
+                            + "live session and CLAIMED is set when a Claude-authored wrapup lands.");
+        }
+        return TaskResponse.of(task);
     }
 
     @Transactional

@@ -1,7 +1,15 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, useId } from 'vue'
+import { computed, onBeforeUnmount, ref, useId, watch } from 'vue'
 import { MdEditor, MdPreview, type ExposeParam, type ToolbarNames } from 'md-editor-v3'
 import '@/common/config/markdown-editor'
+import {
+  READ_WIDTH_MAX,
+  READ_WIDTH_MIN,
+  readModeAlign,
+  readModeWidth,
+  setReadModeAlign,
+  setReadModeWidth
+} from '@/common/config/read-mode'
 
 const props = withDefaults(
   defineProps<{
@@ -28,6 +36,16 @@ onBeforeUnmount(() => editor.value?.getEditorView()?.destroy())
 
 // Unique per instance: the library keys its global event bus on this id, and two previews sharing one clear each other's entries on unmount.
 const editorId = `rekall-md-${useId()}`
+
+// The reading column's width and alignment, shared across every Read-mode pane via localStorage.
+const readWidth = ref(readModeWidth())
+const readAlign = ref(readModeAlign())
+const readSettingsOpen = ref(false)
+
+watch(readWidth, (value) => setReadModeWidth(value))
+watch(readAlign, (value) => setReadModeAlign(value))
+
+const readStyle = computed(() => ({ '--rk-read-width': `${readWidth.value}px` }))
 
 const TOOLBARS: ToolbarNames[] = [
   'bold',
@@ -56,7 +74,64 @@ const TOOLBARS: ToolbarNames[] = [
 </script>
 
 <template>
-  <div class="rekall-md" :class="{ 'rekall-md--readonly': readonly }">
+  <div
+    class="rekall-md"
+    :class="{ 'rekall-md--readonly': readonly }"
+    :style="readonly ? readStyle : undefined"
+    :data-align="readonly ? readAlign : undefined"
+  >
+    <div v-if="readonly" class="rekall-read-controls">
+      <div class="relative">
+        <button
+          type="button"
+          class="focus-ring flex size-7 items-center justify-center rounded-full border border-border bg-surface text-[11px] font-semibold text-text-subtle shadow-sm transition-colors hover:text-text"
+          :aria-expanded="readSettingsOpen"
+          aria-label="Reading settings"
+          data-testid="read-settings-toggle"
+          @click="readSettingsOpen = !readSettingsOpen"
+        >
+          Aa
+        </button>
+        <div
+          v-if="readSettingsOpen"
+          class="absolute right-0 top-9 z-10 w-56 rounded-[10px] border border-border bg-surface-raised p-3 shadow-lg"
+          data-testid="read-settings-panel"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-[11px] font-medium text-text-subtle">Line width</span>
+            <span class="text-[11px] tabular-nums text-text-subtle">{{ readWidth }}px</span>
+          </div>
+          <input
+            v-model.number="readWidth"
+            type="range"
+            class="mt-1.5 w-full accent-accent"
+            :min="READ_WIDTH_MIN"
+            :max="READ_WIDTH_MAX"
+            step="20"
+            aria-label="Reading line width"
+            data-testid="read-width-slider"
+          />
+
+          <p class="mt-3 text-[11px] font-medium text-text-subtle">
+            Align
+          </p>
+          <div class="mt-1.5 flex gap-0.5 rounded-[7px] bg-canvas p-0.5">
+            <button
+              v-for="option in (['left', 'center'] as const)"
+              :key="option"
+              type="button"
+              class="focus-ring h-6 flex-1 rounded-[5px] text-[11px] capitalize transition-colors"
+              :class="readAlign === option ? 'bg-surface-raised text-text' : 'text-text-subtle hover:text-text'"
+              :aria-pressed="readAlign === option"
+              :data-testid="`read-align-${option}`"
+              @click="readAlign = option"
+            >
+              {{ option }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
     <MdPreview
       v-if="readonly"
       :model-value="modelValue"
@@ -172,12 +247,37 @@ const TOOLBARS: ToolbarNames[] = [
   color: var(--color-text);
 }
 
+.rekall-md--readonly {
+  display: flex;
+  flex-direction: column;
+}
+
 .rekall-md--readonly .md-editor-preview {
-  padding: 4px 18px !important;
+  width: 100%;
+  max-width: var(--rk-read-width, 680px);
+  margin-inline: auto;
+  padding: 40px 24px 56px !important;
+  font-size: 14.5px !important;
+  line-height: 1.75 !important;
+  box-sizing: border-box;
+  transition: max-width 0.12s ease-out;
+}
+
+.rekall-md--readonly[data-align='left'] .md-editor-preview {
+  margin-inline: 0;
+  margin-left: clamp(16px, 4vw, 56px);
 }
 
 .rekall-md--readonly .md-editor-previewOnly {
   background: transparent;
   border: none;
+}
+
+.rekall-read-controls {
+  align-self: flex-end;
+  position: sticky;
+  top: 12px;
+  z-index: 10;
+  margin: 8px 12px 0 0;
 }
 </style>

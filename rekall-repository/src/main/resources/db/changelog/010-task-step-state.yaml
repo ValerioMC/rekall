@@ -1,0 +1,19 @@
+databaseChangeLog:
+  - changeSet:
+      id: 010-task-step-state
+      author: rekall
+      changes:
+        - addColumn:
+            tableName: task_step
+            columns:
+              - column: {name: state, type: varchar(20), defaultValue: 'OPEN', constraints: {nullable: false}}
+              - column: {name: running_at, type: timestamp}
+              - column: {name: claimed_at, type: timestamp}
+        - update:
+            tableName: task_step
+            columns:
+              - column: {name: state, value: 'DONE'}
+            where: done = TRUE
+        - dropColumn:
+            tableName: task_step
+            columnName: done

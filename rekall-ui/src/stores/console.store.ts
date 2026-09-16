@@ -10,6 +10,7 @@ import {
   fetchCompanies,
   fetchProjects,
   fetchTasks,
+  reviewTask as apiReviewTask,
   updateCompany as apiUpdateCompany,
   updateProject as apiUpdateProject,
   updateTask as apiUpdateTask
@@ -21,11 +22,7 @@ import {
   fetchAllDocuments,
   updateDocument as apiUpdateDocument
 } from '@/api/documents.api'
-import {
-  deleteWrapup as apiDeleteWrapup,
-  fetchWrapups,
-  saveWrapup as apiSaveWrapup
-} from '@/api/wrapups.api'
+import { deleteWrapup as apiDeleteWrapup, fetchWrapups, saveWrapup as apiSaveWrapup } from '@/api/wrapups.api'
 import {
   createStep as apiCreateStep,
   deleteStep as apiDeleteStep,
@@ -34,6 +31,12 @@ import {
   patchStep as apiPatchStep
 } from '@/api/steps.api'
 import type { TaskStepPatch } from '@/api/steps.api'
+import {
+  deleteCommitReference as apiDeleteCommitReference,
+  fetchCommitReferences,
+  setCommitReferenceInContext as apiSetCommitReferenceInContext
+} from '@/api/commitReference.api'
+import type { CommitReference } from '@/model/commitReference'
 import {
   deleteTimeEntry as apiDeleteTimeEntry,
   editTimeEntry as apiEditTimeEntry,
@@ -49,24 +52,19 @@ import {
   type Project,
   type RekallDocument,
   type Task,
+  type TaskReview,
   type TaskStatus,
   type TaskStep,
   type TimeEntry,
-  type Wrapup
+  type Wrapup,
+  type WrapupStreamEvent
 } from '@/model/catalog'
-import type {
-  CompanyId,
-  DocumentId,
-  ProjectId,
-  TaskId,
-  TaskStepId,
-  TimeEntryId
-} from '@/model/branded'
+import type { CompanyId, DocumentId, ProjectId, TaskId, TaskStepId, TimeEntryId } from '@/model/branded'
 
 export type NavMode = 'tasks' | 'notes'
 export type SaveState = 'saved' | 'unsaved' | 'saving'
 
-export type PaneFocus = 'note' | 'wrapup' | 'description' | 'steps'
+export type PaneFocus = 'note' | 'wrapup' | 'description' | 'steps' | 'terminal'
 
 export const useConsoleStore = defineStore('console', () => {
   const companies = ref<Company[]>([])
@@ -76,6 +74,7 @@ export const useConsoleStore = defineStore('console', () => {
   const wrapups = ref<Wrapup[]>([])
   const steps = ref<TaskStep[]>([])
   const timeEntries = ref<TimeEntry[]>([])
+  const commitReferences = ref<CommitReference[]>([])
 
   const isLoading = ref(true)
   const saveState = ref<SaveState>('saved')
@@ -100,8 +99,7 @@ export const useConsoleStore = defineStore('console', () => {
 
   function matchesTask(task: Task, needle: string): boolean {
     if (!needle.trim()) return true
-    const hay =
-      `${task.projectLabel} ${task.projectTitle} ${task.label} ${task.title}`.toLowerCase()
+    const hay = `${task.projectLabel} ${task.projectTitle} ${task.label} ${task.title}`.toLowerCase()
     return needle
       .toLowerCase()
       .replace(/(project:|task:|company:)/g, ' ')
@@ -114,7 +112,11 @@ export const useConsoleStore = defineStore('console', () => {
   function matchesDocument(document: RekallDocument, needle: string): boolean {
     if (!needle.trim()) return true
     const hay = `${document.title} ${document.kind} ${document.bodyMarkdown}`.toLowerCase()
-    return needle.toLowerCase().trim().split(/\s+/).every((part) => hay.includes(part))
+    return needle
+      .toLowerCase()
+      .trim()
+      .split(/\s+/)
+      .every((part) => hay.includes(part))
   }
 
   const documentInScope = (document: RekallDocument): boolean =>
@@ -129,14 +131,10 @@ export const useConsoleStore = defineStore('console', () => {
   )
 
   const visibleDocuments = computed(() =>
-    documents.value.filter(
-      (document) => documentInScope(document) && matchesDocument(document, filter.value)
-    )
+    documents.value.filter((document) => documentInScope(document) && matchesDocument(document, filter.value))
   )
 
-  const selectedTask = computed(
-    () => tasks.value.find((task) => task.id === selectedTaskId.value) ?? null
-  )
+  const selectedTask = computed(() => tasks.value.find((task) => task.id === selectedTaskId.value) ?? null)
 
   const selectedDocument = computed(
     () => documents.value.find((document) => document.id === selectedDocId.value) ?? null
@@ -153,18 +151,46 @@ export const useConsoleStore = defineStore('console', () => {
   const taskDocuments = computed(() =>
     selectedTaskId.value === null
       ? []
-      : documents.value.filter((document) =>
-          document.tasks.some((ref) => ref.id === selectedTaskId.value)
-        )
+      : documents.value.filter((document) => document.tasks.some((ref) => ref.id === selectedTaskId.value))
   )
 
   const selectedTaskSteps = computed(() =>
-    steps.value
-      .filter((step) => step.taskId === selectedTaskId.value)
-      .sort((a, b) => a.position - b.position)
+    steps.value.filter((step) => step.taskId === selectedTaskId.value).sort((a, b) => a.position - b.position)
   )
 
-  const openStepCount = computed(() => selectedTaskSteps.value.filter((step) => !step.done).length)
+  const selectedTaskCommitReferences = computed(() =>
+    commitReferences.value
+      .filter((reference) => reference.taskId === selectedTaskId.value)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  )
+
+  function stepCommitReferences(stepId: TaskStepId): CommitReference[] {
+    return selectedTaskCommitReferences.value.filter((reference) => reference.stepId === stepId)
+  }
+
+  const openStepCount = computed(
+    () => selectedTaskSteps.value.filter((step) => step.state !== 'DRAFT' && !step.done).length
+  )
+
+  // One review queue, not two: a claimed step and a claimed stepless task are the same ask.
+  const reviewQueue = computed(
+    () =>
+      steps.value.filter((step) => step.state === 'CLAIMED').length +
+      tasks.value.filter((task) => task.reviewActive && task.reviewState === 'CLAIMED').length
+  )
+
+  const selectedTaskReview = computed<TaskReview | null>(() => {
+    const task = selectedTask.value
+    if (!task || !task.reviewActive) return null
+    return {
+      taskId: task.id,
+      reviewState: task.reviewState,
+      reviewActive: task.reviewActive,
+      claimedAt: task.claimedAt,
+      acceptedAt: task.acceptedAt,
+      reviewNote: task.reviewNote
+    }
+  })
 
   const selectedWrapup = computed(
     () => wrapups.value.find((wrapup) => wrapup.taskId === selectedTaskId.value) ?? null
@@ -180,9 +206,7 @@ export const useConsoleStore = defineStore('console', () => {
     }).length
   })
 
-  const runningStep = computed(
-    () => selectedTaskSteps.value.find((step) => step.state === 'RUNNING') ?? null
-  )
+  const runningStep = computed(() => selectedTaskSteps.value.find((step) => step.state === 'RUNNING') ?? null)
 
   const wrapupIsBehind = computed(() => {
     const wrapup = selectedWrapup.value
@@ -199,9 +223,7 @@ export const useConsoleStore = defineStore('console', () => {
   )
 
   const recentDocuments = computed(() =>
-    [...documents.value]
-      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-      .slice(0, 4)
+    [...documents.value].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 4)
   )
 
   const scopedProjects = computed(() => projects.value.filter(projectInScope))
@@ -213,9 +235,7 @@ export const useConsoleStore = defineStore('console', () => {
       : [scopedCompany.value.name]
   })
 
-  const scopeName = computed(() =>
-    scopePath.value.length === 0 ? 'All work' : scopePath.value.join(' / ')
-  )
+  const scopeName = computed(() => (scopePath.value.length === 0 ? 'All work' : scopePath.value.join(' / ')))
 
   const scopeAnchor = computed(() => {
     if (scopedProject.value) return scopedProject.value.anchor
@@ -223,12 +243,9 @@ export const useConsoleStore = defineStore('console', () => {
   })
 
   const elsewhere = computed(() => {
-    if ((scopeCompany.value === null && scopeProject.value === null) || !filter.value.trim())
-      return null
+    if ((scopeCompany.value === null && scopeProject.value === null) || !filter.value.trim()) return null
     const outTasks = tasks.value.filter((t) => !inScope(t) && matchesTask(t, filter.value))
-    const outDocs = documents.value.filter(
-      (d) => !documentInScope(d) && matchesDocument(d, filter.value)
-    )
+    const outDocs = documents.value.filter((d) => !documentInScope(d) && matchesDocument(d, filter.value))
     const count = navMode.value === 'tasks' ? outTasks.length : outDocs.length
     if (count === 0) return null
     const names = [
@@ -253,7 +270,8 @@ export const useConsoleStore = defineStore('console', () => {
         loadedDocuments,
         loadedWrapups,
         loadedSteps,
-        loadedTimeEntries
+        loadedTimeEntries,
+        loadedCommitReferences
       ] = await Promise.all([
         fetchCompanies(),
         fetchProjects(),
@@ -261,7 +279,8 @@ export const useConsoleStore = defineStore('console', () => {
         fetchAllDocuments(),
         fetchWrapups(),
         fetchSteps(),
-        fetchTimeEntries()
+        fetchTimeEntries(),
+        fetchCommitReferences()
       ])
       companies.value = loadedCompanies
       projects.value = loadedProjects
@@ -270,6 +289,7 @@ export const useConsoleStore = defineStore('console', () => {
       wrapups.value = loadedWrapups
       steps.value = loadedSteps
       timeEntries.value = loadedTimeEntries
+      commitReferences.value = loadedCommitReferences
     } finally {
       isLoading.value = false
     }
@@ -277,9 +297,7 @@ export const useConsoleStore = defineStore('console', () => {
 
   function selectTask(id: TaskId): void {
     selectedTaskId.value = id
-    const first = documents.value.find((document) =>
-      document.tasks.some((ref) => ref.id === id)
-    )
+    const first = documents.value.find((document) => document.tasks.some((ref) => ref.id === id))
     selectedDocId.value = first?.id ?? null
     paneFocus.value = 'note'
   }
@@ -407,7 +425,8 @@ export const useConsoleStore = defineStore('console', () => {
       refreshDocuments(),
       refreshProjects(),
       refreshCompanies(),
-      refreshWrapups()
+      refreshWrapups(),
+      refreshTimeEntries()
     ])
   }
 
@@ -435,6 +454,47 @@ export const useConsoleStore = defineStore('console', () => {
       projectId: task.projectId
     })
     tasks.value = tasks.value.map((candidate) => (candidate.id === id ? saved : candidate))
+    if (status === 'DONE') await refreshTimeEntries()
+  }
+
+  function applyTaskReview(review: TaskReview): void {
+    tasks.value = tasks.value.map((task) =>
+      task.id === review.taskId
+        ? {
+            ...task,
+            reviewState: review.reviewState,
+            reviewActive: review.reviewActive,
+            claimedAt: review.claimedAt,
+            acceptedAt: review.acceptedAt,
+            reviewNote: review.reviewNote
+          }
+        : task
+    )
+  }
+
+  function applyWrapupEvent(event: WrapupStreamEvent): void {
+    if (event.deleted || !event.wrapup) {
+      wrapups.value = wrapups.value.filter((wrapup) => wrapup.taskId !== event.taskId)
+    } else {
+      const incoming = event.wrapup
+      const known = wrapups.value.some((wrapup) => wrapup.id === incoming.id)
+      wrapups.value = known
+        ? wrapups.value.map((wrapup) => (wrapup.id === incoming.id ? incoming : wrapup))
+        : [incoming, ...wrapups.value]
+    }
+    tasks.value = tasks.value.map((task) =>
+      task.id === event.taskId ? { ...task, hasWrapup: !event.deleted && event.wrapup !== null } : task
+    )
+  }
+
+  async function acceptTask(id: TaskId): Promise<void> {
+    const saved = await apiReviewTask(id, 'DONE')
+    tasks.value = tasks.value.map((task) => (task.id === id ? saved : task))
+  }
+
+  async function sendBackTask(id: TaskId, note?: string): Promise<void> {
+    const saved = await apiReviewTask(id, 'OPEN', note ?? null)
+    tasks.value = tasks.value.map((task) => (task.id === id ? saved : task))
   }
 
   async function saveTaskDescription(id: TaskId, description: string): Promise<void> {
@@ -535,6 +595,16 @@ export const useConsoleStore = defineStore('console', () => {
     paneFocus.value = 'steps'
   }
 
+  function openTerminal(): void {
+    if (selectedTaskId.value === null) return
+    paneFocus.value = 'terminal'
+  }
+
+  function toggleTerminal(): void {
+    if (selectedTaskId.value === null) return
+    paneFocus.value = paneFocus.value === 'terminal' ? 'note' : 'terminal'
+  }
+
   async function saveWrapupBody(taskId: TaskId, bodyMarkdown: string): Promise<void> {
     saveState.value = 'saving'
     try {
@@ -560,9 +630,15 @@ export const useConsoleStore = defineStore('console', () => {
 
   function recountSteps(taskId: TaskId): void {
     const own = steps.value.filter((step) => step.taskId === taskId)
+    const checklist = own.filter((step) => step.state !== 'DRAFT')
     tasks.value = tasks.value.map((task) =>
       task.id === taskId
-        ? { ...task, stepCount: own.length, stepsDone: own.filter((step) => step.done).length }
+        ? {
+            ...task,
+            stepCount: checklist.length,
+            stepsDone: checklist.filter((step) => step.done).length,
+            draftStepCount: own.length - checklist.length
+          }
         : task
     )
   }
@@ -603,14 +679,27 @@ export const useConsoleStore = defineStore('console', () => {
     return saveStep(id, { done: !step.done })
   }
 
+  function acceptStep(id: TaskStepId): Promise<void> {
+    return saveStep(id, { done: true })
+  }
+
+  function reopenStep(id: TaskStepId): Promise<void> {
+    return saveStep(id, { done: false })
+  }
+
+  function promoteStep(id: TaskStepId): Promise<void> {
+    return saveStep(id, { draft: false })
+  }
+
+  function returnStepToDraft(id: TaskStepId): Promise<void> {
+    return saveStep(id, { draft: true })
+  }
+
   async function moveStep(id: TaskStepId, position: number): Promise<void> {
     const step = steps.value.find((candidate) => candidate.id === id)
     if (!step) return
     const reordered = await apiMoveStep(id, position)
-    steps.value = [
-      ...steps.value.filter((candidate) => candidate.taskId !== step.taskId),
-      ...reordered
-    ]
+    steps.value = [...steps.value.filter((candidate) => candidate.taskId !== step.taskId), ...reordered]
   }
 
   async function removeStep(id: TaskStepId): Promise<void> {
@@ -675,6 +764,28 @@ export const useConsoleStore = defineStore('console', () => {
     timeEntries.value = await fetchTimeEntries()
   }
 
+  async function refreshCommitReferences(): Promise<void> {
+    commitReferences.value = await fetchCommitReferences()
+  }
+
+  // The log-commit button already has the row it just wrote; folding it in here keeps the list
+  // current without a round trip, the same way applyStepEvent does for the SSE step stream.
+  function applyCommitReference(reference: CommitReference): void {
+    const known = commitReferences.value.some((existing) => existing.id === reference.id)
+    commitReferences.value = known
+      ? commitReferences.value.map((existing) => (existing.id === reference.id ? reference : existing))
+      : [reference, ...commitReferences.value]
+  }
+
+  async function setCommitReferenceInContext(id: string, inContext: boolean): Promise<void> {
+    applyCommitReference(await apiSetCommitReferenceInContext(id, inContext))
+  }
+
+  async function deleteCommitReference(id: string): Promise<void> {
+    await apiDeleteCommitReference(id)
+    commitReferences.value = commitReferences.value.filter((existing) => existing.id !== id)
+  }
+
   async function refreshEverything(): Promise<void> {
     await Promise.all([
       refreshCompanies(),
@@ -683,7 +794,8 @@ export const useConsoleStore = defineStore('console', () => {
       refreshDocuments(),
       refreshWrapups(),
       refreshSteps(),
-      refreshTimeEntries()
+      refreshTimeEntries(),
+      refreshCommitReferences()
     ])
   }
 
@@ -705,6 +817,13 @@ export const useConsoleStore = defineStore('console', () => {
     wrapups,
     steps,
     timeEntries,
+    commitReferences,
+    selectedTaskCommitReferences,
+    stepCommitReferences,
+    applyCommitReference,
+    refreshCommitReferences,
+    setCommitReferenceInContext,
+    deleteCommitReference,
     runningEntries,
     selectedTaskEntries,
     isLoading,
@@ -720,6 +839,8 @@ export const useConsoleStore = defineStore('console', () => {
     selectedWrapup,
     selectedTaskSteps,
     openStepCount,
+    reviewQueue,
+    selectedTaskReview,
     runningStep,
     wrapupIsBehind,
     wrapupMissesSteps,
@@ -743,6 +864,10 @@ export const useConsoleStore = defineStore('console', () => {
     updateTask,
     deleteTask,
     setTaskStatus,
+    applyTaskReview,
+    applyWrapupEvent,
+    acceptTask,
+    sendBackTask,
     saveTaskDescription,
     createNote,
     saveNote,
@@ -750,12 +875,18 @@ export const useConsoleStore = defineStore('console', () => {
     openWrapup,
     openDescription,
     openSteps,
+    openTerminal,
     toggleDescription,
     toggleWrapup,
     toggleSteps,
+    toggleTerminal,
     addStep,
     saveStep,
     toggleStep,
+    acceptStep,
+    reopenStep,
+    promoteStep,
+    returnStepToDraft,
     moveStep,
     removeStep,
     applyStepEvent,

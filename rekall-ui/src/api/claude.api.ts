@@ -1,6 +1,6 @@
 import { apiClient, request } from './client'
-import { ClaudeInstallationSchema } from './schemas/claude.schema'
-import type { ClaudeInstallation } from '@/model/claude'
+import { ClaudeInstallationSchema, ClaudeUsageSchema } from './schemas/claude.schema'
+import type { ClaudeInstallation, ClaudeUsage } from '@/model/claude'
 
 export async function fetchClaudeInstallation(): Promise<ClaudeInstallation> {
   return request(async () => ClaudeInstallationSchema.parse(await apiClient('/api/settings/claude')))
@@ -9,5 +9,14 @@ export async function fetchClaudeInstallation(): Promise<ClaudeInstallation> {
 export async function installClaudeIntegration(): Promise<ClaudeInstallation> {
   return request(async () =>
     ClaudeInstallationSchema.parse(await apiClient('/api/settings/claude/install', { method: 'POST' }))
+  )
+}
+
+/** `refresh` skips the server's cache: the person asked for a reading, not for the last one. */
+export async function fetchClaudeUsage(refresh = false): Promise<ClaudeUsage> {
+  return request(async () =>
+    ClaudeUsageSchema.parse(
+      await apiClient('/api/claude/usage', { query: refresh ? { refresh: true } : {} })
+    )
   )
 }

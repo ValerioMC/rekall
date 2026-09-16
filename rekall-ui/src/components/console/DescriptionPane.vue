@@ -2,15 +2,20 @@
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
+import CopyGlyph from '@/components/ui/CopyGlyph.vue'
+import AppInput from '@/components/ui/AppInput.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { identityHue } from '@/common/identity'
 import { rkCommand } from '@/common/format/rk-command'
 import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.vue'
+import OpenTerminalButton from '@/components/claude/OpenTerminalButton.vue'
+import LogCommitButton from '@/components/console/LogCommitButton.vue'
+import CommitReferenceRail from '@/components/console/CommitReferenceRail.vue'
 import type { TaskId } from '@/model/branded'
 
 const store = useConsoleStore()
-const { selectedTask } = storeToRefs(store)
+const { selectedTask, selectedTaskCommitReferences } = storeToRefs(store)
 const { run } = useAsyncAction()
 
 const mode = ref<'write' | 'read'>('read')
@@ -61,10 +66,43 @@ watch(
 
 const anchor = computed(() => selectedTask.value?.anchor ?? '')
 
-const openSteps = computed(() => {
+// The task-scoped review line, shown only while the task has no checklist.
+const reviewState = computed(() => {
   const task = selectedTask.value
-  return task ? task.stepCount - task.stepsDone : 0
+  return task && task.reviewActive && task.stepCount === 0 ? task.reviewState : null
 })
+
+const sendingBack = ref(false)
+const sendBackNote = ref('')
+
+async function acceptDescription(): Promise<void> {
+  const task = selectedTask.value
+  if (!task) return
+  await run(() => store.acceptTask(task.id))
+}
+
+async function sendBackDescription(): Promise<void> {
+  const task = selectedTask.value
+  if (!task) return
+  const note = sendBackNote.value.trim()
+  sendingBack.value = false
+  sendBackNote.value = ''
+  await run(() => store.sendBackTask(task.id, note || undefined))
+}
+
+async function markTaskDone(): Promise<void> {
+  const task = selectedTask.value
+  if (!task) return
+  await run(() => store.setTaskStatus(task.id, 'DONE'))
+}
+
+watch(
+  () => selectedTask.value?.id ?? null,
+  () => {
+    sendingBack.value = false
+    sendBackNote.value = ''
+  }
+)
 
 const copied = ref(false)
 
@@ -109,27 +147,62 @@ onUnmounted(() => {
               <span class="h-2.5 w-[3px] shrink-0 rounded-full bg-accent" aria-hidden="true" />
               Description
             </p>
-            <h2 class="truncate text-[19px] font-semibold tracking-[-0.015em] text-text">
-              {{ selectedTask.title }}
+            <h2 class="flex items-center gap-2 text-[19px] font-semibold tracking-[-0.015em] text-text">
+              <span class="truncate">{{ selectedTask.title }}</span>
+              <span
+                v-if="reviewState === 'RUNNING'"
+                class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-accent-soft px-2 py-0.5 text-[10.5px] font-semibold tracking-[0.02em] text-accent"
+                data-testid="description-running-flag"
+              >
+                <span class="relative grid size-2 place-items-center" aria-hidden="true">
+                  <span class="absolute inline-flex size-2 animate-ping rounded-full bg-accent/60" />
+                  <span class="relative inline-flex size-1.5 rounded-full bg-accent" />
+                </span>
+                running
+              </span>
+              <span
+                v-else-if="reviewState === 'CLAIMED'"
+                class="shrink-0 rounded-full border border-accent/40 px-2 py-0.5 text-[10.5px] font-semibold tracking-[0.02em] text-accent"
+                data-testid="description-claimed-flag"
+              >
+                Awaiting review
+              </span>
+              <span
+                v-else-if="reviewState === 'DONE'"
+                class="shrink-0 rounded-full bg-accent px-2 py-0.5 text-[10.5px] font-semibold tracking-[0.02em] text-accent-ink"
+                data-testid="description-accepted-flag"
+              >
+                Accepted
+              </span>
             </h2>
             <button
               class="anchor-chip focus-ring mt-1.5 inline-flex items-center gap-2 px-2.5 py-1 text-[11.5px] transition-colors hover:border-anchor"
               :class="copied && 'flash'"
+              :title="copied ? 'Copied' : `Copy ${rkCommand(anchor)}`"
               data-testid="copy-description-anchor"
               @click="copyAnchor"
             >
               <span class="opacity-60">/rk</span>
               <span>{{ selectedTask.anchor }}</span>
-              <span class="opacity-70">{{ copied ? 'copied' : 'copy' }}</span>
+              <CopyGlyph :copied="copied" />
             </button>
           </div>
 
-          <LaunchClaudeCodeButton
-            class="shrink-0"
-            :anchors="selectedTask.anchor"
-            :folder="selectedTask.projectRepoFolder"
-            missing-hint="Set this project's folder on its page to open a session from it"
-          />
+          <div class="flex shrink-0 items-center gap-1.5">
+            <LogCommitButton
+              :task-id="selectedTask.id"
+              :folder="selectedTask.projectRepoFolder"
+            />
+            <OpenTerminalButton
+              :task-id="selectedTask.id"
+              :folder="selectedTask.projectRepoFolder"
+            />
+            <LaunchClaudeCodeButton
+              :anchors="selectedTask.anchor"
+              :folder="selectedTask.projectRepoFolder"
+              missing-hint="Set this project's folder on its page to open a session from it"
+            />
+          </div>
 
           <div v-if="showEditor" class="flex shrink-0 gap-0.5 rounded-[7px] bg-surface p-0.5">
             <button
@@ -147,20 +220,86 @@ onUnmounted(() => {
       </div>
 
       <div
-        v-if="showEditor"
-        class="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border bg-surface px-5 py-2.5"
+        v-if="selectedTaskCommitReferences.length"
+        class="shrink-0 border-b border-border px-5 py-1.5"
+        data-testid="description-commits"
       >
-        <span v-if="openSteps > 0" class="text-[11.5px] text-text-muted">
-          {{ openSteps }} step{{ openSteps === 1 ? '' : 's' }} open, so this is what they are
-          built against rather than a list of things to do. Every
-          <code class="text-anchor/80">/rk {{ anchor }}</code>
-          hands it over as the standing context.
-        </span>
-        <span v-else class="text-[11.5px] text-text-muted">
-          The brief the work is measured against. Every
-          <code class="text-anchor/80">/rk {{ anchor }}</code>
-          hands it to Claude before anything else.
-        </span>
+        <CommitReferenceRail :key="selectedTask.id" :references="selectedTaskCommitReferences" />
+      </div>
+
+      <div
+        v-if="reviewState === 'RUNNING' || reviewState === 'CLAIMED' || reviewState === 'DONE'"
+        class="shrink-0 border-b border-border bg-accent-soft/40 px-5 py-2.5"
+        data-testid="description-review-bar"
+      >
+        <div v-if="!sendingBack" class="flex flex-wrap items-center gap-2">
+          <span class="min-w-0 flex-1 text-[11.5px] leading-snug text-text-muted">
+            <template v-if="reviewState === 'RUNNING'">
+              A session is on this task. It moves to review on its own once the session writes the
+              wrapup, and back to open when the session ends. Accept it now if you have seen enough.
+            </template>
+            <template v-else-if="reviewState === 'CLAIMED'">
+              A session wrote the wrapup and claimed this. Accept it, or send it back to reopen it
+              for another pass.
+            </template>
+            <template v-else>
+              You accepted this. Send it back to reopen it, or mark the whole task done.
+            </template>
+          </span>
+          <button
+            v-if="reviewState === 'CLAIMED' || reviewState === 'RUNNING'"
+            class="focus-ring h-7 shrink-0 rounded-[var(--radius-control)] border border-accent bg-accent-soft px-3 text-[11.5px] font-medium text-accent transition-colors hover:bg-accent hover:text-accent-ink"
+            data-testid="description-accept"
+            @click="acceptDescription"
+          >
+            Accept
+          </button>
+          <button
+            class="focus-ring h-7 shrink-0 rounded-[var(--radius-control)] border border-border-strong px-3 text-[11.5px] font-medium text-text-subtle transition-colors hover:border-accent hover:text-accent"
+            data-testid="description-open-wrapup"
+            @click="store.openWrapup()"
+          >
+            Open the wrapup
+          </button>
+          <button
+            v-if="reviewState === 'DONE' && selectedTask.status !== 'DONE'"
+            class="focus-ring h-7 shrink-0 rounded-[var(--radius-control)] border border-accent bg-accent-soft px-3 text-[11.5px] font-medium text-accent transition-colors hover:bg-accent hover:text-accent-ink"
+            data-testid="description-mark-done"
+            @click="markTaskDone"
+          >
+            Mark task done
+          </button>
+          <button
+            v-if="reviewState !== 'RUNNING'"
+            class="focus-ring h-7 shrink-0 rounded-[var(--radius-control)] border border-border-strong px-3 text-[11.5px] font-medium text-text-subtle transition-colors hover:border-danger hover:text-danger"
+            data-testid="description-send-back"
+            @click="sendingBack = true"
+          >
+            Send back
+          </button>
+        </div>
+        <div v-else class="flex flex-wrap items-center gap-2">
+          <AppInput
+            v-model="sendBackNote"
+            class="min-w-0 flex-1"
+            placeholder="Optional: what needs another pass. The next session sees this."
+            aria-label="Send back note"
+            data-testid="description-send-back-note"
+          />
+          <button
+            class="focus-ring h-7 shrink-0 rounded-[var(--radius-control)] border border-danger bg-danger-soft px-3 text-[11.5px] font-medium text-danger transition-colors"
+            data-testid="description-send-back-confirm"
+            @click="sendBackDescription"
+          >
+            Send back
+          </button>
+          <button
+            class="focus-ring h-7 shrink-0 rounded-[var(--radius-control)] border border-border-strong px-3 text-[11.5px] font-medium text-text-subtle transition-colors hover:text-text"
+            @click="sendingBack = false"
+          >
+            Cancel
+          </button>
+        </div>
       </div>
 
       <div v-if="!showEditor" class="min-h-0 flex-1 overflow-y-auto">
@@ -203,7 +342,7 @@ onUnmounted(() => {
                 {
                   name: 'Wrapup',
                   asks: 'Where did the implementation get to?',
-                  says: 'Rewritten at the end of every session.',
+                  says: 'Rewritten in place, never appended to.',
                   glyph: 'diamond'
                 },
                 {

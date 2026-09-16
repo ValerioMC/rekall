@@ -592,7 +592,7 @@
         {
           "name": "conflict",
           "parameterTypes": [
-            "dev.rekall.api.service.ConflictException"
+            "dev.rekall.common.ConflictException"
           ]
         },
         {

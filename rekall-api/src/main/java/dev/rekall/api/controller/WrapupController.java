@@ -1,7 +1,7 @@
 package dev.rekall.api.controller;
 
 import dev.rekall.api.dto.ApiDtos.WrapupRequest;
-import dev.rekall.api.service.NotFoundException;
+import dev.rekall.common.NotFoundException;
 import dev.rekall.domain.WrapupAuthor;
 import dev.rekall.domain.wrapup.WrapupService;
 import dev.rekall.domain.wrapup.WrapupView;

@@ -13,7 +13,7 @@ export const DOCUMENT_KINDS = ['context', 'notes', 'architecture', 'report', 'ot
 export const PROJECT_STATUSES = ['ACTIVE', 'PAUSED', 'DONE'] as const
 export const TASK_STATUSES = ['TODO', 'IN_PROGRESS', 'BLOCKED', 'DONE'] as const
 
-export const TASK_STEP_STATES = ['OPEN', 'RUNNING', 'CLAIMED', 'DONE'] as const
+export const TASK_STEP_STATES = ['DRAFT', 'OPEN', 'RUNNING', 'CLAIMED', 'DONE'] as const
 
 export type ProjectStatus = (typeof PROJECT_STATUSES)[number]
 export type TaskStatus = (typeof TASK_STATUSES)[number]
@@ -21,6 +21,10 @@ export type TaskStepState = (typeof TASK_STEP_STATES)[number]
 
 export function stepIsComplete(state: TaskStepState): boolean {
   return state === 'CLAIMED' || state === 'DONE'
+}
+
+export function stepIsDraft(state: TaskStepState): boolean {
+  return state === 'DRAFT'
 }
 
 export const PROJECT_STATUS_LABEL: Readonly<Record<ProjectStatus, string>> = {
@@ -96,9 +100,25 @@ export interface Task {
   readonly documentCount: number
   readonly stepCount: number
   readonly stepsDone: number
+  readonly draftStepCount: number
   readonly hasWrapup: boolean
+  readonly reviewState: TaskStepState
+  readonly reviewActive: boolean
+  readonly claimedAt: string | null
+  readonly acceptedAt: string | null
+  readonly reviewNote: string | null
   readonly anchor: string
   readonly updatedAt: string
+}
+
+/** The task-scoped review line (`task-review` SSE event); meaningful only while `reviewActive` is true. */
+export interface TaskReview {
+  readonly taskId: TaskId
+  readonly reviewState: TaskStepState
+  readonly reviewActive: boolean
+  readonly claimedAt: string | null
+  readonly acceptedAt: string | null
+  readonly reviewNote: string | null
 }
 
 export interface TaskStep {
@@ -147,6 +167,13 @@ export interface Wrapup {
   readonly writtenBy: WrapupAuthor
   readonly createdAt: string
   readonly updatedAt: string
+}
+
+/** A wrapup write or delete (`wrapup` SSE event); `wrapup` is null when `deleted` is true. */
+export interface WrapupStreamEvent {
+  readonly taskId: TaskId
+  readonly wrapup: Wrapup | null
+  readonly deleted: boolean
 }
 
 export interface TimeEntry {

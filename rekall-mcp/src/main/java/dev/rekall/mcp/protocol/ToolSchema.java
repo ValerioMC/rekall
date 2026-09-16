@@ -20,6 +20,11 @@ public final class ToolSchema {
         return this;
     }
 
+    public ToolSchema optionalString(String name, String description) {
+        properties.put(name, Map.of("type", "string", "description", description));
+        return this;
+    }
+
     public Map<String, Object> build() {
         Map<String, Object> schema = new LinkedHashMap<>();
         schema.put("type", "object");

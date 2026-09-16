@@ -7,6 +7,7 @@ export interface TaskStepPatch {
   title?: string
   bodyMarkdown?: string
   done?: boolean
+  draft?: boolean
 }
 
 export async function fetchSteps(): Promise<TaskStep[]> {

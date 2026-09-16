@@ -1,0 +1,12 @@
+databaseChangeLog:
+  - changeSet:
+      id: 016-task-step-draft
+      author: rekall
+      changes:
+        - dropDefaultValue:
+            tableName: task_step
+            columnName: state
+        - addDefaultValue:
+            tableName: task_step
+            columnName: state
+            defaultValue: 'DRAFT'

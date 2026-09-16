@@ -9,11 +9,13 @@ const props = defineProps<{
 
 const emit = defineEmits<{ open: [] }>()
 
-const done = computed(() => props.steps.filter((step) => step.state === 'DONE').length)
-const claimed = computed(() => props.steps.filter((step) => step.state === 'CLAIMED').length)
-const running = computed(() => props.steps.find((step) => step.state === 'RUNNING') ?? null)
-const next = computed(() => props.steps.find((step) => !stepIsComplete(step.state)) ?? null)
-const hasSteps = computed(() => props.steps.length > 0)
+const checklist = computed(() => props.steps.filter((step) => step.state !== 'DRAFT'))
+const draftCount = computed(() => props.steps.length - checklist.value.length)
+const done = computed(() => checklist.value.filter((step) => step.state === 'DONE').length)
+const claimed = computed(() => checklist.value.filter((step) => step.state === 'CLAIMED').length)
+const running = computed(() => checklist.value.find((step) => step.state === 'RUNNING') ?? null)
+const next = computed(() => checklist.value.find((step) => !stepIsComplete(step.state)) ?? null)
+const hasSteps = computed(() => checklist.value.length > 0)
 </script>
 
 <template>
@@ -59,14 +61,14 @@ const hasSteps = computed(() => props.steps.length > 0)
         class="ml-auto shrink-0 font-mono text-[10.5px] tabular-nums text-text-muted"
         data-testid="steps-progress"
       >
-        {{ done }}/{{ steps.length }}
+        {{ done }}/{{ checklist.length }}
       </span>
     </span>
 
     <template v-if="hasSteps">
       <span class="mt-2 flex h-[4px] gap-[3px]" aria-hidden="true">
         <span
-          v-for="step in steps"
+          v-for="step in checklist"
           :key="step.id"
           class="h-full flex-1 rounded-full transition-colors duration-300"
           :class="
@@ -110,9 +112,20 @@ const hasSteps = computed(() => props.steps.length > 0)
       >
         Every step is done.
       </span>
+      <span
+        v-if="draftCount > 0"
+        class="mt-1 block text-[11px] leading-relaxed text-text-subtle"
+        data-testid="steps-card-drafts"
+      >
+        {{ draftCount }} in draft
+      </span>
     </template>
     <span v-else class="mt-1 block text-[11.5px] leading-relaxed text-text-muted">
-      No steps yet. Open it to break this task into what is left to do.
+      {{
+        draftCount > 0
+          ? `${draftCount} step${draftCount > 1 ? 's' : ''} in draft. Open it to promote them.`
+          : 'No steps yet. Open it to break this task into what is left to do.'
+      }}
     </span>
   </button>
 </template>

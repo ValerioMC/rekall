@@ -1,0 +1,10 @@
+databaseChangeLog:
+  - changeSet:
+      id: 015-task-wrapup-directive
+      author: rekall
+      changes:
+        - addColumn:
+            tableName: task
+            columns:
+              - column: {name: auto_wrapup, type: boolean, defaultValueBoolean: false, constraints: {nullable: false}}
+              - column: {name: wrapup_directive, type: varchar(2000)}

@@ -20,6 +20,9 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,10 +37,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * The whole application, from entering data through the UI's API to answering with it over MCP.
- *
- * <p>The scenario is the real one: a project, tasks on it, and the notes those tasks share. If
- * this passes, {@code /rk project:vega task:report-builder} loads a usable working context in
- * one call.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class RekallEndToEndTest {
@@ -52,8 +51,7 @@ class RekallEndToEndTest {
 
     @BeforeEach
     void setUpClient() {
-        // Status handling is disabled so the tests can assert on codes rather than on thrown
-        // exceptions. TestRestTemplate no longer ships with Spring Boot 4.
+        // Status handling off so tests assert on codes, not thrown exceptions.
         rest = RestClient.builder()
                 .baseUrl("http://localhost:" + port)
                 .defaultStatusHandler(status -> true, (request, response) -> { })
@@ -62,6 +60,7 @@ class RekallEndToEndTest {
 
     @BeforeEach
     void resetDatabase() {
+        jdbc.execute("DELETE FROM commit_reference");
         jdbc.execute("DELETE FROM task_step");
         jdbc.execute("DELETE FROM time_entry");
         jdbc.execute("DELETE FROM wrapup");
@@ -87,7 +86,6 @@ class RekallEndToEndTest {
         post("/api/documents", Map.of(
                 "title", "CONTEXT.md", "kind", "context", "taskIds", List.of(taskId),
                 "bodyMarkdown", "# Contesto\n\nIl workflow parte da POST /api/v1/pipelines."));
-        // The note that lived in cluster.md and never made it into a conversation before.
         post("/api/documents", Map.of(
                 "title", "kmaster14.md", "kind", "notes", "taskIds", List.of(taskId),
                 "bodyMarkdown", "Cluster kmaster14, accesso via bastion."));
@@ -107,16 +105,9 @@ class RekallEndToEndTest {
                 .contains("Cluster kmaster14, accesso via bastion.")
                 .doesNotContain("beacon");
 
-        // Reached twice, written once: the project is both an anchor and the task's reference.
         assertThat(context.split("Project: Vega Platform", -1)).as("no record is rendered twice").hasSize(2);
     }
 
-    /**
-     * A description is a markdown document, saying what the work is, what it has to satisfy and
-     * what is out of scope, so it is handed over in a tag of its own. Rendered into the field list
-     * above it, every line after the first would fall outside the bullet and its headings would
-     * outrank the record's.
-     */
     @Test
     @DisplayName("a task's description arrives as a document, not as a bullet")
     void theDescriptionIsHandedOverWhole() {
@@ -147,11 +138,6 @@ class RekallEndToEndTest {
                 .doesNotContain("- `description`");
     }
 
-    /**
-     * The reason the two fields are separate columns. An anchor is written down in a slash
-     * command, in a note, in someone's head; a title is rewritten the moment a better name comes
-     * along. Renaming must not break what was written down.
-     */
     @Test
     @DisplayName("the title can be rewritten and the anchor still loads the record")
     void titleChangesLeaveTheAnchorAlone() {
@@ -170,11 +156,6 @@ class RekallEndToEndTest {
                 .contains("IN_PROGRESS");
     }
 
-    /**
-     * What a person types into the label field is a name, and what the anchor needs is an
-     * identifier. Narrowed on the way in rather than rejected, because the two differ by
-     * punctuation and nothing else.
-     */
     @Test
     @DisplayName("a label typed as a sentence is stored as the slug the anchor can carry")
     void labelsAreNormalised() {
@@ -201,7 +182,6 @@ class RekallEndToEndTest {
                 .isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
-    /** An anchor that names two records loads neither, so the second one is refused. */
     @Test
     @DisplayName("two tasks on one project cannot share a label, and the refusal says why")
     void labelsAreUniqueWithinTheirParent() {
@@ -233,11 +213,6 @@ class RekallEndToEndTest {
                 .contains("No project matches 'vega'");
     }
 
-    /**
-     * The folder a session is opened in is the one thing a task cannot work out for itself, and
-     * the button that opens one lives on the task. So it is stored on the project and travels
-     * down with every task the project holds.
-     */
     @Test
     @DisplayName("a project's folder reaches its tasks, and a blank one clears it")
     @SuppressWarnings("unchecked")
@@ -253,7 +228,6 @@ class RekallEndToEndTest {
                 .retrieve().toEntity(Map.class).getBody();
         assertThat(task.get("projectRepoFolder")).isEqualTo("/Users/someone/Projects/vega");
 
-        // Cleared in the interface is an empty field, and an empty path is not a path.
         assertThat(updateProjectFolder(projectId, acme, "   ").get("repoFolder")).isNull();
     }
 
@@ -265,10 +239,6 @@ class RekallEndToEndTest {
                 .retrieve().toEntity(Map.class).getBody();
     }
 
-    /**
-     * The reason the relation was changed. One note, three tasks, one copy: editing it once
-     * changes what every one of those tasks loads.
-     */
     @Test
     @DisplayName("a note attached to several tasks arrives with each of them")
     void oneNoteServesManyTasks() {
@@ -291,7 +261,7 @@ class RekallEndToEndTest {
         assertThat(callTool("rekall_context", Map.of("anchors", "task:retry-policy")))
                 .contains("Accesso via bastion.");
 
-        // Editing through one task is visible from the other: there is one row, not two.
+        // Editing through one task is visible from the other: one row, not two.
         String documentId = String.valueOf(shared.getBody().get("id"));
         rest.put().uri("/api/documents/" + documentId)
                 .body(Map.of("title", "kmaster14.md", "kind", "notes",
@@ -335,10 +305,6 @@ class RekallEndToEndTest {
                 .isEqualTo(HttpStatus.CONFLICT);
     }
 
-    /**
-     * A note on other tasks survives; a note left on nothing is swept up. The join table cannot
-     * express the second rule, because a row that no longer exists cannot be checked.
-     */
     @Test
     @DisplayName("deleting a task keeps the notes that other tasks still use")
     void deletingATaskSweepsOnlyWhatIsOrphaned() {
@@ -360,7 +326,6 @@ class RekallEndToEndTest {
                 .isEqualTo(1);
     }
 
-    /** Deleting a project takes its tasks, and the interface has to say so before it happens. */
     @Test
     @DisplayName("deleting a project takes its tasks and sweeps the notes left on nothing")
     void deletingAProjectCascades() {
@@ -425,30 +390,381 @@ class RekallEndToEndTest {
                 .contains("DONE");
     }
 
-    /**
-     * One way to read, two writes and no more. Asserted as an exact list rather than a count,
-     * because the value of "there is no query tool and no get tool" is only kept if adding one
-     * breaks a test. {@code rekall_step} moves a step from open to running to claimed and cannot
-     * reach done; that is the whole of what a session changes here beside the wrapup.
-     */
+    // Asserted as an exact list so adding a read or write tool breaks a test.
     @Test
-    @DisplayName("the MCP endpoint exposes one way to read and two writes")
+    @DisplayName("the MCP endpoint exposes one way to read and three writes")
     void toolsList() {
         List<?> tools = (List<?>) ((Map<?, ?>) rpc("tools/list", Map.of()).get("result")).get("tools");
 
         assertThat(tools.stream().map(tool -> String.valueOf(((Map<?, ?>) tool).get("name"))))
-                .containsExactlyInAnyOrder("rekall_context", "rekall_wrapup", "rekall_step");
+                .containsExactlyInAnyOrder(
+                        "rekall_context", "rekall_wrapup", "rekall_step", "rekall_record_commit");
     }
 
-    /*
-     * The wrapup. A task records what its implementation currently is, Claude writes it at the
-     * end of a session and reads it at the start of the next one, and the console corrects it.
-     */
+    // --- Commit references
 
-    /**
-     * The loop the whole feature exists for: written over MCP, loaded back by the anchor that
-     * wrote it, without anyone naming a file.
-     */
+    @Test
+    @DisplayName("rekall_record_commit reads the project's own repo folder and logs its tip commit")
+    void commitIsLoggedThroughTheMcpTool() throws Exception {
+        String acme = aCompany("Acme");
+        Path repo = aGitRepoWithOneCommit("Wire up the commit ledger");
+        String projectId = id(post("/api/projects", Map.of(
+                "label", "vega", "title", "Vega", "status", "ACTIVE",
+                "repoFolder", repo.toString(), "companyId", acme)));
+        String taskId = aTask(projectId, "report-builder");
+
+        String logged = callTool("rekall_record_commit", Map.of("anchors", "project:vega task:report-builder"));
+
+        assertThat(logged).contains("Wire up the commit ledger").contains("the task");
+        assertThat(jdbc.queryForObject(
+                        "SELECT comment FROM commit_reference WHERE task_id = ? AND step_id IS NULL",
+                        String.class, UUID.fromString(taskId)))
+                .isEqualTo("Wire up the commit ledger");
+    }
+
+    @Test
+    @DisplayName("the console button logs the same commit through the same lookup, without duplicating it")
+    void theButtonUsesTheSameLogicAndDoesNotDuplicate() throws Exception {
+        String acme = aCompany("Acme");
+        Path repo = aGitRepoWithOneCommit("Add the terminal dock button");
+        String projectId = id(post("/api/projects", Map.of(
+                "label", "vega", "title", "Vega", "status", "ACTIVE",
+                "repoFolder", repo.toString(), "companyId", acme)));
+        String taskId = aTask(projectId, "report-builder");
+
+        callTool("rekall_record_commit", Map.of("anchors", "project:vega task:report-builder"));
+        ResponseEntity<Map> pressed = rest.post()
+                .uri("/api/tasks/" + taskId + "/commit-references/latest")
+                .retrieve().toEntity(Map.class);
+
+        assertThat(pressed.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(pressed.getBody()).containsEntry("comment", "Add the terminal dock button");
+        assertThat(jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM commit_reference WHERE task_id = ?",
+                        Integer.class, UUID.fromString(taskId)))
+                .as("logging it twice, once from Claude and once from the button, is a no-op")
+                .isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("a commit can be logged against a step, separately from the task itself")
+    void aCommitCanBeLoggedAgainstAStepSeparatelyFromTheTask() throws Exception {
+        String acme = aCompany("Acme");
+        Path repo = aGitRepoWithOneCommit("Add the CommitReference entity and migration");
+        String projectId = id(post("/api/projects", Map.of(
+                "label", "vega", "title", "Vega", "status", "ACTIVE",
+                "repoFolder", repo.toString(), "companyId", acme)));
+        String taskId = aTask(projectId, "report-builder");
+        aStep(taskId, "Backend: CommitReference entity", null);
+
+        callTool("rekall_record_commit", Map.of(
+                "anchors", "project:vega task:report-builder", "step", "1"));
+
+        assertThat(jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM commit_reference WHERE task_id = ? AND step_id IS NOT NULL",
+                        Integer.class, UUID.fromString(taskId)))
+                .isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM commit_reference WHERE task_id = ? AND step_id IS NULL",
+                        Integer.class, UUID.fromString(taskId)))
+                .as("the same commit is not also logged at the task level")
+                .isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("the diff introduced by a logged commit can be fetched by the row's own id")
+    void theDiffOfALoggedCommitCanBeFetched() throws Exception {
+        String acme = aCompany("Acme");
+        Path repo = aGitRepoWithOneCommit("Add the README");
+        String projectId = id(post("/api/projects", Map.of(
+                "label", "vega", "title", "Vega", "status", "ACTIVE",
+                "repoFolder", repo.toString(), "companyId", acme)));
+        String taskId = aTask(projectId, "report-builder");
+
+        ResponseEntity<Map> logged = rest.post()
+                .uri("/api/tasks/" + taskId + "/commit-references/latest")
+                .retrieve().toEntity(Map.class);
+        String referenceId = (String) logged.getBody().get("id");
+
+        ResponseEntity<Map> diff = rest.get()
+                .uri("/api/commit-references/" + referenceId + "/diff")
+                .retrieve().toEntity(Map.class);
+
+        assertThat(diff.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat((String) diff.getBody().get("diff")).contains("+Add the README");
+    }
+
+    @Test
+    @DisplayName("the diff of a commit reference that does not exist is a 404, not an empty body")
+    void theDiffOfAnUnknownCommitReferenceIs404() {
+        ResponseEntity<Map> response = rest.get()
+                .uri("/api/commit-references/" + UUID.randomUUID() + "/diff")
+                .retrieve().toEntity(Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("a logged commit can be deleted, removing its row entirely")
+    void aLoggedCommitCanBeDeleted() throws Exception {
+        String acme = aCompany("Acme");
+        Path repo = aGitRepoWithOneCommit("Add the delete button");
+        String projectId = id(post("/api/projects", Map.of(
+                "label", "vega", "title", "Vega", "status", "ACTIVE",
+                "repoFolder", repo.toString(), "companyId", acme)));
+        String taskId = aTask(projectId, "report-builder");
+        ResponseEntity<Map> logged = rest.post()
+                .uri("/api/tasks/" + taskId + "/commit-references/latest")
+                .retrieve().toEntity(Map.class);
+        String referenceId = (String) logged.getBody().get("id");
+
+        ResponseEntity<Void> response = rest.delete()
+                .uri("/api/commit-references/" + referenceId)
+                .retrieve().toBodilessEntity();
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM commit_reference WHERE id = ?",
+                        Integer.class, UUID.fromString(referenceId)))
+                .isZero();
+    }
+
+    @Test
+    @DisplayName("deleting a commit reference that does not exist is a 404, not a silent no-op")
+    void deletingAnUnknownCommitReferenceIs404() {
+        ResponseEntity<Void> response = rest.delete()
+                .uri("/api/commit-references/" + UUID.randomUUID())
+                .retrieve().toBodilessEntity();
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("the recent log of a task's project folder is listed newest first, for picking a commit by hand")
+    void theRecentLogIsListedNewestFirst() throws Exception {
+        String acme = aCompany("Acme");
+        Path repo = aGitRepoWithCommits("Add the readme", "Add the picker", "Polish the picker");
+        String projectId = id(post("/api/projects", Map.of(
+                "label", "vega", "title", "Vega", "status", "ACTIVE",
+                "repoFolder", repo.toString(), "companyId", acme)));
+        String taskId = aTask(projectId, "report-builder");
+
+        ResponseEntity<List> recent = rest.get()
+                .uri("/api/tasks/" + taskId + "/recent-commits")
+                .retrieve().toEntity(List.class);
+
+        assertThat(recent.getStatusCode()).isEqualTo(HttpStatus.OK);
+        List<Map<String, Object>> entries = recent.getBody();
+        assertThat(entries).extracting(entry -> entry.get("subject"))
+                .containsExactly("Polish the picker", "Add the picker", "Add the readme");
+        assertThat(entries).allSatisfy(entry -> {
+            assertThat((String) entry.get("hash")).hasSize(40);
+            assertThat(entry.get("committedAt")).isNotNull();
+        });
+    }
+
+    @Test
+    @DisplayName("a past commit picked by its hash is logged with its own subject and diff, not the tip's")
+    void aPastCommitCanBeLoggedByItsHash() throws Exception {
+        String acme = aCompany("Acme");
+        Path repo = aGitRepoWithCommits("Add the readme", "Add the picker", "Polish the picker");
+        String projectId = id(post("/api/projects", Map.of(
+                "label", "vega", "title", "Vega", "status", "ACTIVE",
+                "repoFolder", repo.toString(), "companyId", acme)));
+        String taskId = aTask(projectId, "report-builder");
+        String middle = runGit(repo, "rev-parse", "HEAD~1");
+
+        ResponseEntity<Map> logged = rest.post()
+                .uri("/api/tasks/" + taskId + "/commit-references")
+                .body(Map.of("commitHash", middle.substring(0, 7)))
+                .retrieve().toEntity(Map.class);
+
+        assertThat(logged.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(logged.getBody()).containsEntry("commitHash", middle).containsEntry("comment", "Add the picker");
+        ResponseEntity<Map> diff = rest.get()
+                .uri("/api/commit-references/" + logged.getBody().get("id") + "/diff")
+                .retrieve().toEntity(Map.class);
+        assertThat((String) diff.getBody().get("diff")).contains("+Add the picker").doesNotContain("Polish");
+    }
+
+    @Test
+    @DisplayName("a past commit can be logged against a step by its hash")
+    void aPastCommitCanBeLoggedAgainstAStepByItsHash() throws Exception {
+        String acme = aCompany("Acme");
+        Path repo = aGitRepoWithCommits("Add the readme", "Add the picker");
+        String projectId = id(post("/api/projects", Map.of(
+                "label", "vega", "title", "Vega", "status", "ACTIVE",
+                "repoFolder", repo.toString(), "companyId", acme)));
+        String taskId = aTask(projectId, "report-builder");
+        String stepId = aStep(taskId, "Backend: picker endpoint", null);
+        String first = runGit(repo, "rev-parse", "HEAD~1");
+
+        ResponseEntity<Map> logged = rest.post()
+                .uri("/api/tasks/" + taskId + "/commit-references")
+                .body(Map.of("commitHash", first, "stepId", stepId))
+                .retrieve().toEntity(Map.class);
+
+        assertThat(logged.getBody()).containsEntry("stepId", stepId).containsEntry("comment", "Add the readme");
+    }
+
+    @Test
+    @DisplayName("a hash that names no commit is a 400 with the hash in the reason, and nothing is logged")
+    void anUnknownHashIsRefused() throws Exception {
+        String acme = aCompany("Acme");
+        Path repo = aGitRepoWithOneCommit("Add the readme");
+        String projectId = id(post("/api/projects", Map.of(
+                "label", "vega", "title", "Vega", "status", "ACTIVE",
+                "repoFolder", repo.toString(), "companyId", acme)));
+        String taskId = aTask(projectId, "report-builder");
+
+        ResponseEntity<ProblemDetail> refused = rest.post()
+                .uri("/api/tasks/" + taskId + "/commit-references")
+                .body(Map.of("commitHash", "deadbeef"))
+                .retrieve().toEntity(ProblemDetail.class);
+
+        assertThat(refused.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(refused.getBody().getDetail()).contains("deadbeef");
+        assertThat(jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM commit_reference WHERE task_id = ?",
+                        Integer.class, UUID.fromString(taskId)))
+                .isZero();
+    }
+
+    @Test
+    @DisplayName("rekall_record_commit logs an earlier commit when a session names its hash")
+    void theMcpToolLogsAnEarlierCommitByHash() throws Exception {
+        String acme = aCompany("Acme");
+        Path repo = aGitRepoWithCommits("Wire up the ledger", "Fix the ledger");
+        String projectId = id(post("/api/projects", Map.of(
+                "label", "vega", "title", "Vega", "status", "ACTIVE",
+                "repoFolder", repo.toString(), "companyId", acme)));
+        String taskId = aTask(projectId, "report-builder");
+        String first = runGit(repo, "rev-parse", "HEAD~1");
+
+        String logged = callTool("rekall_record_commit", Map.of(
+                "anchors", "project:vega task:report-builder", "commit", first.substring(0, 8)));
+
+        assertThat(logged).contains("Wire up the ledger");
+        assertThat(jdbc.queryForObject(
+                        "SELECT commit_hash FROM commit_reference WHERE task_id = ?",
+                        String.class, UUID.fromString(taskId)))
+                .isEqualTo(first);
+    }
+
+    @Test
+    @DisplayName("a logged commit is off the context until the console chooses it, then arrives with its diff")
+    void aChosenCommitArrivesInTheContextWithItsDiff() throws Exception {
+        String acme = aCompany("Acme");
+        Path repo = aGitRepoWithOneCommit("Wire up the context toggle");
+        String projectId = id(post("/api/projects", Map.of(
+                "label", "vega", "title", "Vega", "status", "ACTIVE",
+                "repoFolder", repo.toString(), "companyId", acme)));
+        String taskId = aTask(projectId, "report-builder");
+        ResponseEntity<Map> logged = rest.post()
+                .uri("/api/tasks/" + taskId + "/commit-references/latest")
+                .retrieve().toEntity(Map.class);
+        String referenceId = (String) logged.getBody().get("id");
+        String hash = (String) logged.getBody().get("commitHash");
+        assertThat(logged.getBody()).containsEntry("inContext", false);
+
+        assertThat(callTool("rekall_context", Map.of("anchors", "project:vega task:report-builder")))
+                .as("logging alone hands nothing over")
+                .doesNotContain("<commits")
+                .doesNotContain(hash);
+
+        ResponseEntity<Map> chosen = rest.patch()
+                .uri("/api/commit-references/" + referenceId)
+                .body(Map.of("inContext", true))
+                .retrieve().toEntity(Map.class);
+        assertThat(chosen.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(chosen.getBody()).containsEntry("inContext", true);
+
+        String context = callTool("rekall_context", Map.of("anchors", "project:vega task:report-builder"));
+        assertThat(context)
+                .contains("<commits count=\"1\">")
+                .contains("<commit hash=\"" + hash + "\">")
+                .contains("Wire up the context toggle")
+                .as("the diff the commit introduced is what the session reads")
+                .contains("+Wire up the context toggle")
+                .contains("</commits>");
+
+        rest.patch()
+                .uri("/api/commit-references/" + referenceId)
+                .body(Map.of("inContext", false))
+                .retrieve().toBodilessEntity();
+        assertThat(callTool("rekall_context", Map.of("anchors", "project:vega task:report-builder")))
+                .as("unchoosing it takes it out again")
+                .doesNotContain("<commits");
+    }
+
+    @Test
+    @DisplayName("a commit chosen on a step names that step in the context, so the session knows what it belongs to")
+    void aChosenStepCommitNamesItsStep() throws Exception {
+        String acme = aCompany("Acme");
+        Path repo = aGitRepoWithOneCommit("Wire the ledger");
+        String projectId = id(post("/api/projects", Map.of(
+                "label", "vega", "title", "Vega", "status", "ACTIVE",
+                "repoFolder", repo.toString(), "companyId", acme)));
+        String taskId = aTask(projectId, "report-builder");
+        String stepId = id(post("/api/tasks/" + taskId + "/steps", Map.of("title", "Wire the ledger")));
+        ResponseEntity<Map> logged = rest.post()
+                .uri("/api/tasks/" + taskId + "/commit-references")
+                .body(Map.of("commitHash", runGit(repo, "rev-parse", "HEAD"), "stepId", stepId))
+                .retrieve().toEntity(Map.class);
+
+        rest.patch()
+                .uri("/api/commit-references/" + logged.getBody().get("id"))
+                .body(Map.of("inContext", true))
+                .retrieve().toBodilessEntity();
+
+        assertThat(callTool("rekall_context", Map.of("anchors", "project:vega task:report-builder")))
+                .contains("step=\"Wire the ledger\">");
+    }
+
+    @Test
+    @DisplayName("choosing a commit reference that does not exist for the context is a 404")
+    void choosingAnUnknownCommitReferenceIs404() {
+        ResponseEntity<Map> response = rest.patch()
+                .uri("/api/commit-references/" + UUID.randomUUID())
+                .body(Map.of("inContext", true))
+                .retrieve().toEntity(Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    private Path aGitRepoWithCommits(String... subjects) throws Exception {
+        Path repo = Files.createTempDirectory("rekall-commit-reference-test");
+        runGit(repo, "init", "-q");
+        for (String subject : subjects) {
+            Files.writeString(repo.resolve("README.md"), subject);
+            runGit(repo, "add", "README.md");
+            runGit(repo, "-c", "user.name=Test", "-c", "user.email=test@example.com",
+                    "commit", "-q", "-m", subject);
+        }
+        return repo;
+    }
+
+    private Path aGitRepoWithOneCommit(String subject) throws Exception {
+        Path repo = Files.createTempDirectory("rekall-commit-reference-test");
+        runGit(repo, "init", "-q");
+        Files.writeString(repo.resolve("README.md"), subject);
+        runGit(repo, "add", "README.md");
+        runGit(repo, "-c", "user.name=Test", "-c", "user.email=test@example.com",
+                "commit", "-q", "-m", subject);
+        return repo;
+    }
+
+    private String runGit(Path directory, String... args) throws Exception {
+        List<String> command = new ArrayList<>(List.of("git", "-C", directory.toString()));
+        command.addAll(List.of(args));
+        Process process = new ProcessBuilder(command).start();
+        String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8).strip();
+        process.waitFor(5, TimeUnit.SECONDS);
+        return output;
+    }
+
+    // --- Wrapup
+
     @Test
     @DisplayName("a wrapup written over MCP arrives with the next context load")
     void wrapupIsWrittenAndComesBack() {
@@ -470,10 +786,6 @@ class RekallEndToEndTest {
                 .contains("Il builder legge da POST /api/v1/pipelines.");
     }
 
-    /**
-     * One per task, and it is the database that says so. A second write is a replacement, which
-     * is what makes a wrapup a description of the state rather than a log of the session.
-     */
     @Test
     @DisplayName("writing a second wrapup replaces the first rather than adding one")
     void wrapupIsReplacedNotAppended() {
@@ -495,10 +807,6 @@ class RekallEndToEndTest {
         assertThat(context).contains("Lo stato corrente.").doesNotContain("Il primo stato.");
     }
 
-    /**
-     * Overwriting a correction someone made by hand is the one outcome worth saying out loud,
-     * because the words that disappear are theirs and nothing keeps a copy.
-     */
     @Test
     @DisplayName("replacing a hand-written wrapup says so, and the author follows the last writer")
     void wrapupReportsWhoseWordsItReplaced() {
@@ -523,7 +831,6 @@ class RekallEndToEndTest {
                 .containsEntry("writtenBy", "CLAUDE");
     }
 
-    /** A write has to land on one task and be sure of it, so anything vaguer is refused. */
     @Test
     @DisplayName("a wrapup refuses any anchor that does not name exactly one task")
     void wrapupNeedsExactlyOneTask() {
@@ -549,10 +856,6 @@ class RekallEndToEndTest {
                 .isZero();
     }
 
-    /**
-     * The cap is where a wrapup that has turned into a log gets caught, and the refusal says
-     * which of the two it became.
-     */
     @Test
     @DisplayName("a wrapup that has grown into a log is refused, and told why")
     void wrapupIsCapped() {
@@ -565,15 +868,12 @@ class RekallEndToEndTest {
                 .contains("capped at 20000 characters")
                 .contains("not how it got there");
 
-        // Caught by the argument reader before the service sees it, which is the earliest place
-        // it can be, and answered as tool content Claude can retry from.
         assertThat(callTool("rekall_wrapup", Map.of(
                         "anchors", "project:vega task:report-builder", "body", "   ")))
                 .contains("'body' is required");
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM wrapup", Integer.class)).isZero();
     }
 
-    /** A wrapup describes one task and has no meaning without it. */
     @Test
     @DisplayName("deleting a task takes its wrapup, and deleting a wrapup leaves the task")
     void wrapupCascadesWithItsTask() {
@@ -599,7 +899,6 @@ class RekallEndToEndTest {
                 .isZero();
     }
 
-    /** The task list is what the navigator reads, and it has to say which tasks have said. */
     @Test
     @DisplayName("a task reports whether it has a wrapup, without carrying the body")
     void taskRowsReportWhetherTheyHaveAWrapup() {
@@ -618,10 +917,7 @@ class RekallEndToEndTest {
                 .containsExactlyInAnyOrder("report-builder=true", "retry-policy=false");
     }
 
-    /*
-     * Time entries. A task is worked in sittings, each one its own session, and at most one
-     * session across the whole application is open at a time.
-     */
+    // --- Time entries
 
     @Test
     @DisplayName("starting a timer opens a session, and stopping closes it")
@@ -639,7 +935,6 @@ class RekallEndToEndTest {
         assertThat(stopped.get("stoppedAt")).isNotNull();
     }
 
-    /** Different tasks track in parallel: starting one never touches what is running elsewhere. */
     @Test
     @DisplayName("starting a second task's timer leaves the first one running")
     void startingASecondTaskDoesNotStopTheFirst() {
@@ -663,7 +958,6 @@ class RekallEndToEndTest {
         assertThat(stillRunning.get("stoppedAt")).isNull();
     }
 
-    /** A doubled click, or a race on the button, must not open a second session. */
     @Test
     @DisplayName("starting a timer that is already running on this task is a no-op")
     void startingWhatIsAlreadyRunningIsANoOp() {
@@ -689,6 +983,60 @@ class RekallEndToEndTest {
 
         assertThat(post("/api/tasks/" + taskId + "/time-entries/stop", Map.of()).getStatusCode())
                 .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    @DisplayName("moving a task to DONE stops the session running on it")
+    void movingATaskToDoneStopsItsTimer() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+        Map<?, ?> started = post("/api/tasks/" + taskId + "/time-entries/start", Map.of()).getBody();
+
+        rest.put().uri("/api/tasks/" + taskId)
+                .body(Map.of("label", "report-builder", "title", "report-builder",
+                        "status", "DONE", "projectId", projectId))
+                .retrieve().toEntity(Map.class);
+
+        List<?> entries = rest.get().uri("/api/time-entries").retrieve().toEntity(List.class).getBody();
+        Map<?, ?> session = entries.stream()
+                .map(entry -> (Map<?, ?>) entry)
+                .filter(entry -> entry.get("id").equals(started.get("id")))
+                .findFirst()
+                .orElseThrow();
+        assertThat(session.get("stoppedAt")).isNotNull();
+    }
+
+    @Test
+    @DisplayName("moving a task to a status other than DONE leaves its timer running")
+    void movingATaskToAnotherStatusLeavesItsTimerRunning() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+        post("/api/tasks/" + taskId + "/time-entries/start", Map.of());
+
+        rest.put().uri("/api/tasks/" + taskId)
+                .body(Map.of("label", "report-builder", "title", "report-builder",
+                        "status", "BLOCKED", "projectId", projectId))
+                .retrieve().toEntity(Map.class);
+
+        List<?> entries = rest.get().uri("/api/time-entries").retrieve().toEntity(List.class).getBody();
+        assertThat(entries.stream().map(entry -> ((Map<?, ?>) entry).get("stoppedAt")))
+                .containsOnlyNulls();
+    }
+
+    @Test
+    @DisplayName("moving a task to DONE with nothing running is fine")
+    void movingATaskToDoneWithNothingRunningIsFine() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+
+        assertThat(rest.put().uri("/api/tasks/" + taskId)
+                        .body(Map.of("label", "report-builder", "title", "report-builder",
+                                "status", "DONE", "projectId", projectId))
+                        .retrieve().toEntity(Map.class).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
     }
 
     @Test
@@ -746,7 +1094,6 @@ class RekallEndToEndTest {
                 .containsExactly(second);
     }
 
-    /** A session describes a task and has no meaning without it. */
     @Test
     @DisplayName("deleting a task takes its time entries with it")
     void timeEntriesCascadeWithTheirTask() {
@@ -761,12 +1108,7 @@ class RekallEndToEndTest {
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM time_entry", Integer.class)).isZero();
     }
 
-    /*
-     * The 2026-07-28 era, over real HTTP. McpProtocolTest drives the controller directly, so
-     * this is the only place that proves Spring binds the mirrored headers at all: a header name
-     * the framework fails to map arrives as null, which the controller cannot tell apart from a
-     * client that never sent it, and every one of those tests would still pass.
-     */
+    // --- 2026-07-28 era over real HTTP: the only place that proves Spring binds the mirrored headers.
 
     @Test
     @DisplayName("a stateless-era call is served with no handshake before it")
@@ -806,11 +1148,7 @@ class RekallEndToEndTest {
         assertThat(versions).contains("2026-07-28");
     }
 
-    /**
-     * Flushed before mapping, because the timestamps are written by Hibernate at flush time.
-     * Returning the entity earlier left {@code updatedAt} null, and the frontend rejected a
-     * create that had in fact succeeded.
-     */
+    // Regression: returning the entity before flush left updatedAt null and the frontend rejected the create.
     @Test
     @DisplayName("a create answers with the timestamps already written, not with nulls")
     void createResponsesCarryTheirTimestamps() {
@@ -844,7 +1182,6 @@ class RekallEndToEndTest {
                 .isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
-    /** A task without a title has no name to show, so it is refused before it reaches the table. */
     @Test
     @DisplayName("both a label and a title are required")
     void bothNamesAreRequired() {
@@ -877,11 +1214,7 @@ class RekallEndToEndTest {
                 .containsExactly("beacon/wiring", "vega/report-builder", "vega/setup");
     }
 
-    /**
-     * The forwarding list drifted once already: it still named the screens of the deleted
-     * schema designer, so every current route answered 404 on a refresh while navigating inside
-     * the application worked perfectly.
-     */
+    // Regression: a stale forwarding list left current routes answering 404 on a refresh.
     @Test
     @DisplayName("a refresh on any ui route serves the application, and an unknown api path still fails")
     void deepLinksReachTheFrontend() {
@@ -898,7 +1231,6 @@ class RekallEndToEndTest {
                 .isEqualTo(HttpStatus.NOT_FOUND);
     }
 
-    /** Environments were removed with the model, so their endpoints must be gone too. */
     @Test
     @DisplayName("nothing answers on the environment endpoints any more")
     void environmentsAreGone() {
@@ -910,18 +1242,8 @@ class RekallEndToEndTest {
                 .isEmpty();
     }
 
-    /*
-     * Steps. A task is broken into pieces that are each done or not, and the checklist is the
-     * one thing that says which. The description is the brief and the wrapup is what the work
-     * became; neither answers "what is left" without being read against the other.
-     */
+    // --- Steps
 
-    /**
-     * The asymmetry is the whole design. An open step is the work about to be done, so it
-     * arrives with its detail; a done step needs no doing, so it arrives as a line. Spending the
-     * window on the detail of finished work is how a load costs twice what it is worth and
-     * invites the same thing to be built again.
-     */
     @Test
     @DisplayName("open steps reach Claude in full, done steps the wrapup covers by name alone")
     void openStepsCarryTheirDetailAndDoneStepsDoNot() {
@@ -933,9 +1255,7 @@ class RekallEndToEndTest {
 
         rest.patch().uri("/api/steps/" + aggregate).body(Map.of("done", true))
                 .retrieve().toEntity(Map.class);
-        // The wrapup is what makes a finished step redundant. Written after the tick, so that
-        // step is accounted for; one written before it would leave the step unwritten and its
-        // detail on screen, which is the case the next test covers.
+        // Written after the tick, so the finished step is accounted for.
         callTool("rekall_wrapup", Map.of(
                 "anchors", "project:vega task:report-builder", "body", "Le righe sono aggregate."));
 
@@ -954,14 +1274,6 @@ class RekallEndToEndTest {
                 .doesNotContain("Somma per settimana");
     }
 
-    /**
-     * The scenario the marker exists for: a step ticked in one sitting, the console closed
-     * without writing a wrapup, and the wrapup written a session later.
-     *
-     * <p>Without it the next session sees a done step as a title and a wrapup with no idea it
-     * happened, and has to read the code back to find out what changed. That is the twenty
-     * minutes this application exists to remove.
-     */
     @Test
     @DisplayName("a step finished after the last wrapup is marked, and gets its detail back")
     void stepsFinishedSinceTheWrapupAreMarked() {
@@ -972,13 +1284,12 @@ class RekallEndToEndTest {
         String late = aStep(taskId, "Aggregazione delle righe", "Somma per settimana, gruppo per progetto.");
         aStep(taskId, "Scrivere i test", "Un caso per settimana vuota.");
 
-        // The first step was finished and described. The wrapup knows about it.
+        // First step finished and described; the wrapup knows about it.
         rest.patch().uri("/api/steps/" + early).body(Map.of("done", true)).retrieve().toEntity(Map.class);
         callTool("rekall_wrapup", Map.of(
                 "anchors", "project:vega task:report-builder", "body", "Il modello esiste."));
 
-        // The second was ticked afterwards and nobody wrote a wrapup. This is the state a
-        // session opens on when the console was closed in between.
+        // Second ticked afterwards with no wrapup: the state a session opens on.
         rest.patch().uri("/api/steps/" + late).body(Map.of("done", true)).retrieve().toEntity(Map.class);
 
         String context = callTool("rekall_context", Map.of("anchors", "task:report-builder"));
@@ -994,7 +1305,6 @@ class RekallEndToEndTest {
                 .contains("- [x] Modello e migrazione\n")
                 .doesNotContain("changeset Liquibase");
 
-        // Writing the wrapup is what clears it: the text now accounts for that step.
         callTool("rekall_wrapup", Map.of(
                 "anchors", "project:vega task:report-builder",
                 "body", "Il modello esiste e le righe sono aggregate per settimana."));
@@ -1007,10 +1317,6 @@ class RekallEndToEndTest {
                 .doesNotContain("Somma per settimana, gruppo per progetto.");
     }
 
-    /**
-     * With no wrapup at all, everything finished is unaccounted for: the first one written has
-     * to cover the lot, so the lot arrives in full.
-     */
     @Test
     @DisplayName("with no wrapup yet, every finished step is marked and carries its detail")
     void withoutAWrapupEveryFinishedStepIsUnaccountedFor() {
@@ -1028,7 +1334,6 @@ class RekallEndToEndTest {
                 .contains("POST /api/v1/reports.");
     }
 
-    /** A task with no checklist says nothing about one, rather than an empty block. */
     @Test
     @DisplayName("a task with no steps carries no steps block")
     void aTaskWithoutStepsSaysNothing() {
@@ -1041,10 +1346,66 @@ class RekallEndToEndTest {
                 .doesNotContain("`steps`");
     }
 
-    /**
-     * Positions are dense from zero, and every write that could leave a gap renumbers the list.
-     * A sparse ordering is correct right up until something reads it as an index.
-     */
+    @Test
+    @DisplayName("a draft step is the creation default, is kept off the session's checklist, and promotes to open")
+    void aDraftStepIsHeldBackUntilPromoted() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+
+        Map<?, ?> created = post("/api/tasks/" + taskId + "/steps",
+                Map.of("title", "Aggregate the rows", "bodyMarkdown", "Somma per settimana."))
+                .getBody();
+        assertThat(created.get("state")).as("a step is born a draft").isEqualTo("DRAFT");
+        String stepId = String.valueOf(created.get("id"));
+
+        assertThat(callTool("rekall_context", Map.of("anchors", "task:report-builder")))
+                .as("a task that only holds drafts has no checklist block")
+                .doesNotContain("<steps")
+                .as("but the draft is counted, so the reader knows planning is under way")
+                .contains("- `drafts`: 1 not yet promoted to the checklist")
+                .as("and its detail never leaks to a session")
+                .doesNotContain("Somma per settimana");
+
+        assertThat(callTool("rekall_step", Map.of(
+                "anchors", "project:vega task:report-builder", "step", "1", "state", "running")))
+                .as("a session cannot start work on a draft")
+                .contains("still a draft");
+
+        rest.patch().uri("/api/steps/" + stepId).body(Map.of("draft", false))
+                .retrieve().toEntity(Map.class);
+
+        assertThat(callTool("rekall_context", Map.of("anchors", "task:report-builder")))
+                .as("once promoted it is an ordinary open step, detail and all")
+                .contains("<steps done=\"0\" open=\"1\">")
+                .contains("- [ ] Aggregate the rows")
+                .contains("Somma per settimana.")
+                .doesNotContain("`drafts`");
+    }
+
+    @Test
+    @DisplayName("an open step returns to draft; a claimed one does not")
+    void draftStateOnlyMovesWhileAStepIsUntouched() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+        String stepId = aStep(taskId, "Aggregate the rows", null);
+
+        Map<?, ?> backToDraft = rest.patch().uri("/api/steps/" + stepId)
+                .body(Map.of("draft", true)).retrieve().toEntity(Map.class).getBody();
+        assertThat(backToDraft.get("state")).isEqualTo("DRAFT");
+
+        // Promote, claim it the way a session would, then try to send it back.
+        rest.patch().uri("/api/steps/" + stepId).body(Map.of("draft", false))
+                .retrieve().toEntity(Map.class);
+        callTool("rekall_step", Map.of(
+                "anchors", "project:vega task:report-builder", "step", "1", "state", "claimed"));
+
+        ResponseEntity<Map> refused = rest.patch().uri("/api/steps/" + stepId)
+                .body(Map.of("draft", true)).retrieve().toEntity(Map.class);
+        assertThat(refused.getStatusCode().is4xxClientError()).isTrue();
+    }
+
     @Test
     @DisplayName("steps are appended, reordered, and renumbered when one is removed")
     void stepsKeepADenseOrder() {
@@ -1073,10 +1434,6 @@ class RekallEndToEndTest {
                 .containsExactly(0, 1);
     }
 
-    /**
-     * A move past either end is clamped rather than refused: the caller is a row being dragged
-     * or a key being held down, and both mean "as far as it goes".
-     */
     @Test
     @DisplayName("moving a step past the end of the list puts it at the end")
     void movingPastTheEndClamps() {
@@ -1092,7 +1449,6 @@ class RekallEndToEndTest {
         assertThat(labelsOfSteps(taskId)).containsExactly("Second", "First");
     }
 
-    /** Ticking is one field, so it never has to resend a detail the row it sits on never held. */
     @Test
     @DisplayName("a step is ticked without carrying its title or its detail")
     void aStepIsTickedOnItsOwn() {
@@ -1116,7 +1472,6 @@ class RekallEndToEndTest {
         assertThat(reopened.get("doneAt")).as("and it is cleared again when it reopens").isNull();
     }
 
-    /** The task list is what the navigator reads, and it has to say how far along the work is. */
     @Test
     @DisplayName("a task row reports how much of its checklist is done")
     void taskRowsReportTheirProgress() {
@@ -1137,7 +1492,6 @@ class RekallEndToEndTest {
                 .containsExactlyInAnyOrder("report-builder=1/2", "retry-policy=0/0");
     }
 
-    /** A step describes one piece of one task and means nothing beside another. */
     @Test
     @DisplayName("deleting a task takes its checklist with it")
     void stepsCascadeWithTheirTask() {
@@ -1152,10 +1506,6 @@ class RekallEndToEndTest {
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM task_step", Integer.class)).isZero();
     }
 
-    /**
-     * The one thing the checklist must not become is a second wrapup. A step whose detail runs
-     * past a screen is a task, and the refusal says so rather than truncating it.
-     */
     @Test
     @DisplayName("a step with no title, or with a detail the size of a document, is refused")
     void stepsAreCheckedBeforeTheyAreStored() {
@@ -1179,11 +1529,7 @@ class RekallEndToEndTest {
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM task_step", Integer.class)).isZero();
     }
 
-    /*
-     * Live steps. A session drives its own checklist over MCP: it marks the step it is about to
-     * work `running`, does the work, writes the wrapup, marks it `claimed`, and moves on. The
-     * one move it cannot make is the last: `done` is a person in the console.
-     */
+    // --- Live steps
 
     @Test
     @DisplayName("marking a step running shows it as in progress on the next load")
@@ -1222,8 +1568,7 @@ class RekallEndToEndTest {
                         "anchors", "project:vega task:report-builder", "step", "1", "state", "claimed")))
                 .contains("is now `claimed`")
                 .contains("Write the wrapup");
-        // Written after the claim, so the wrapup accounts for it and it is not also flagged as
-        // finished since the wrapup.
+        // Written after the claim, so the wrapup accounts for it.
         callTool("rekall_wrapup", Map.of(
                 "anchors", "project:vega task:report-builder", "body", "Le righe sono aggregate."));
 
@@ -1231,14 +1576,12 @@ class RekallEndToEndTest {
                 .contains("<steps done=\"1\" open=\"1\" awaiting-review=\"1\">")
                 .contains("- [x] Aggregate the rows  (claimed, waiting for the console to accept it)");
 
-        // The navigator's progress count is built on what a person accepted, so a claimed step
-        // is not one of the done ones there.
+        // The progress count is built on what a person accepted, so a claimed step is not done there.
         List<?> tasks = rest.get().uri("/api/tasks").retrieve().toEntity(List.class).getBody();
         assertThat(tasks.stream().map(task ->
                         ((Map<?, ?>) task).get("label") + "=" + ((Map<?, ?>) task).get("stepsDone")))
                 .containsExactly("report-builder=0");
 
-        // The console tick is what finishes it, and only the console can.
         rest.patch().uri("/api/steps/" + first).body(Map.of("done", true)).retrieve().toEntity(Map.class);
         assertThat(callTool("rekall_context", Map.of("anchors", "task:report-builder")))
                 .contains("<steps done=\"1\" open=\"1\">")
@@ -1264,7 +1607,6 @@ class RekallEndToEndTest {
                 .contains("awaiting-review=\"1\"")
                 .contains("(claimed, waiting for the console to accept it)");
 
-        // And the box is not ticked: the task still reports nothing accepted.
         List<?> tasks = rest.get().uri("/api/tasks").retrieve().toEntity(List.class).getBody();
         assertThat(((Map<?, ?>) tasks.getFirst()).get("stepsDone")).isEqualTo(0);
     }
@@ -1286,10 +1628,6 @@ class RekallEndToEndTest {
                 .contains("1. Aggregate the rows");
     }
 
-    /**
-     * A wrapup written right after a step is claimed already accounts for it. A later console
-     * tick moving that step to done must not resurface it as "finished since the wrapup".
-     */
     @Test
     @DisplayName("a step claimed before the wrapup stays covered when the console ticks it later")
     void aClaimedStepIsMeasuredFromWhenItWasClaimed() {
@@ -1313,11 +1651,6 @@ class RekallEndToEndTest {
                 .doesNotContain("Somma per settimana.");
     }
 
-    /**
-     * The read side of the loop. A window holds one {@code text/event-stream} connection open,
-     * and a step moved over MCP arrives on it as a {@code steps} frame carrying that task's
-     * whole checklist, so the animation reacts without a reload.
-     */
     @Test
     @DisplayName("a step moved over MCP reaches an open console over the event stream")
     void theEventStreamCarriesAStepChange() throws Exception {
@@ -1327,8 +1660,7 @@ class RekallEndToEndTest {
         aStep(taskId, "Aggregate the rows", null);
 
         BlockingQueue<String> lines = new LinkedBlockingQueue<>();
-        // Not try-with-resources: close() blocks until the request finishes, and this stream is
-        // meant never to. shutdownNow() drops it.
+        // Not try-with-resources: close() blocks on a stream meant never to finish; shutdownNow() drops it.
         HttpClient client = HttpClient.newHttpClient();
         try {
             client.sendAsync(
@@ -1351,11 +1683,169 @@ class RekallEndToEndTest {
         }
     }
 
-    /**
-     * The export is a backup and an escape hatch: a tree of folders that outlives the
-     * application. What it cannot represent is a note on several tasks, so it writes the note
-     * under each of them and says so in the manifest.
-     */
+    // --- Task-scoped review line (stepless tasks)
+
+    @Test
+    @DisplayName("a Claude-authored wrapup claims a task that has no checklist")
+    void aClaudeWrapupClaimsASteplessTask() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+
+        callTool("rekall_wrapup", Map.of(
+                "anchors", "project:vega task:report-builder", "body", "Lo stato corrente."));
+
+        Map<?, ?> task = getTask(taskId);
+        assertThat(task.get("reviewActive")).isEqualTo(true);
+        assertThat(task.get("reviewState")).isEqualTo("CLAIMED");
+        assertThat(task.get("claimedAt")).isNotNull();
+    }
+
+    @Test
+    @DisplayName("a hand-written wrapup is the reviewer's correction, so it does not claim the task")
+    void aHandWrittenWrapupLeavesASteplessTaskOpen() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+
+        rest.put().uri("/api/tasks/" + taskId + "/wrapup")
+                .body(Map.of("bodyMarkdown", "Scritto a mano.")).retrieve().toEntity(Map.class);
+
+        assertThat(getTask(taskId).get("reviewState")).isEqualTo("OPEN");
+    }
+
+    @Test
+    @DisplayName("the console accepts a stepless task, and cannot accept it twice")
+    void theConsoleAcceptsASteplessTask() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+
+        ResponseEntity<Map> accepted = review(taskId, Map.of("reviewState", "DONE"));
+        assertThat(accepted.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(accepted.getBody().get("reviewState")).isEqualTo("DONE");
+        assertThat(accepted.getBody().get("acceptedAt")).isNotNull();
+
+        assertThat(review(taskId, Map.of("reviewState", "DONE")).getStatusCode())
+                .as("a second accept has nothing to do and says so")
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    @DisplayName("sending a stepless task back reopens it and carries a note to the next session")
+    void theConsoleSendsASteplessTaskBackWithANote() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+        callTool("rekall_wrapup", Map.of(
+                "anchors", "project:vega task:report-builder", "body", "Lo stato."));
+
+        ResponseEntity<Map> sentBack = review(taskId, Map.of(
+                "reviewState", "OPEN", "note", "la colonna export e' ancora sbagliata"));
+
+        assertThat(sentBack.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(sentBack.getBody().get("reviewState")).isEqualTo("OPEN");
+        assertThat(sentBack.getBody().get("reviewNote")).isEqualTo("la colonna export e' ancora sbagliata");
+        assertThat(sentBack.getBody().get("claimedAt")).isNull();
+    }
+
+    @Test
+    @DisplayName("adding a checklist retires the task-level review line")
+    void aChecklistRetiresTheTaskLevelReviewLine() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+        callTool("rekall_wrapup", Map.of(
+                "anchors", "project:vega task:report-builder", "body", "Lo stato."));
+
+        aStep(taskId, "Aggregate the rows", null);
+
+        assertThat(getTask(taskId).get("reviewActive")).isEqualTo(false);
+        assertThat(review(taskId, Map.of("reviewState", "DONE")).getStatusCode())
+                .as("the steps carry the review now, not the task")
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    @DisplayName("the review endpoint refuses the two states nothing outside the system may set")
+    void theReviewEndpointRefusesTheDerivedStates() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+
+        assertThat(review(taskId, Map.of("reviewState", "RUNNING")).getStatusCode())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(review(taskId, Map.of("reviewState", "CLAIMED")).getStatusCode())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    @DisplayName("a stepless task accepted in the console reaches an open console over the event stream")
+    void theEventStreamCarriesAReviewChange() throws Exception {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+
+        BlockingQueue<String> lines = new LinkedBlockingQueue<>();
+        HttpClient client = HttpClient.newHttpClient();
+        try {
+            client.sendAsync(
+                            HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/steps/stream"))
+                                    .GET().build(),
+                            HttpResponse.BodyHandlers.ofLines())
+                    .thenAccept(response -> response.body().forEach(lines::add));
+
+            awaitLine(lines, "event:open", 5);
+            review(taskId, Map.of("reviewState", "DONE"));
+
+            assertThat(awaitLine(lines, "event:task-review", 5)).isEqualTo("event:task-review");
+            assertThat(awaitLine(lines, "data:", 5))
+                    .contains(taskId)
+                    .contains("\"reviewState\":\"DONE\"");
+        } finally {
+            client.shutdownNow();
+        }
+    }
+
+    @Test
+    @DisplayName("a wrapup written and then deleted reaches an open console over the event stream")
+    void theEventStreamCarriesAWrapupChange() throws Exception {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+
+        BlockingQueue<String> lines = new LinkedBlockingQueue<>();
+        HttpClient client = HttpClient.newHttpClient();
+        try {
+            client.sendAsync(
+                            HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/steps/stream"))
+                                    .GET().build(),
+                            HttpResponse.BodyHandlers.ofLines())
+                    .thenAccept(response -> response.body().forEach(lines::add));
+
+            awaitLine(lines, "event:open", 5);
+
+            callTool("rekall_wrapup", Map.of(
+                    "anchors", "project:vega task:report-builder", "body", "Lo stato corrente."));
+
+            assertThat(awaitLine(lines, "event:wrapup", 5)).isEqualTo("event:wrapup");
+            assertThat(awaitLine(lines, "data:", 5))
+                    .contains(taskId)
+                    .contains("Lo stato corrente.")
+                    .contains("\"writtenBy\":\"CLAUDE\"")
+                    .contains("\"deleted\":false");
+
+            rest.delete().uri("/api/tasks/" + taskId + "/wrapup").retrieve().toEntity(Void.class);
+
+            assertThat(awaitLine(lines, "event:wrapup", 5)).isEqualTo("event:wrapup");
+            assertThat(awaitLine(lines, "data:", 5))
+                    .contains(taskId)
+                    .contains("\"deleted\":true");
+        } finally {
+            client.shutdownNow();
+        }
+    }
+
     @Test
     @DisplayName("the export is a zip of company/project/task/note.md, shared notes under each task")
     void exportsAFolderTree() throws Exception {
@@ -1364,7 +1854,7 @@ class RekallEndToEndTest {
                 "label", "vega", "title", "Vega Platform", "status", "ACTIVE", "companyId", acme)));
         String validator = aTask(vega, "report-builder");
         String retry = aTask(vega, "retry-policy");
-        // A task with no notes still has to appear, or the tree misreports the work.
+        // A task with no notes still has to appear.
         aTask(vega, "empty-one");
 
         post("/api/documents", Map.of("title", "CONTEXT.md", "kind", "context",
@@ -1419,7 +1909,6 @@ class RekallEndToEndTest {
                 .contains("`STEPS.md`: 1 of 2 steps done");
     }
 
-    /** A record named after a path must become a folder name, never a path. */
     @Test
     @DisplayName("a label full of separators cannot escape its folder")
     void exportRefusesToBuildPathsFromNames() throws Exception {
@@ -1437,10 +1926,6 @@ class RekallEndToEndTest {
         assertThat(entries.keySet()).anySatisfy(path -> assertThat(path).endsWith("secret.md"));
     }
 
-    /**
-     * A project label only has to be unique inside its company, so the bare anchor can now match
-     * twice. Reported rather than guessed at, the same way task labels already were.
-     */
     @Test
     @DisplayName("a project label two companies share is disambiguated by the company anchor")
     void projectLabelSharedAcrossCompanies() {
@@ -1473,7 +1958,6 @@ class RekallEndToEndTest {
                 .contains("Company: Acme");
     }
 
-    /** The blast radius the interface has to state before anyone clicks it. */
     @Test
     @DisplayName("deleting a company takes its projects and tasks, and sweeps the orphaned notes")
     void deletingACompanyCascades() {
@@ -1492,11 +1976,7 @@ class RekallEndToEndTest {
                 .isZero();
     }
 
-    /**
-     * The migration that split name into label and title also has to repair the values, and it
-     * runs against an empty schema here, so nothing else would notice if the expression silently
-     * matched nothing. This asserts the expression itself, on the database that will run it.
-     */
+    // Asserts the migration's normalising expression itself, on the database that will run it.
     @ParameterizedTest
     @CsvSource({"Vega, vega", "'Progetto Vega', progetto-vega", "'../../etc', etc", "a/b/c, a-b-c"})
     @DisplayName("the migration's normalising expression turns a legacy name into a label")
@@ -1518,7 +1998,6 @@ class RekallEndToEndTest {
 
     // ------------------------------------------------------------------ helpers
 
-    /** Polls an event-stream line queue until one contains the needle, or the wait runs out. */
     private String awaitLine(BlockingQueue<String> lines, String needle, int seconds) throws InterruptedException {
         long deadline = System.nanoTime() + seconds * 1_000_000_000L;
         while (System.nanoTime() < deadline) {
@@ -1530,7 +2009,7 @@ class RekallEndToEndTest {
         throw new AssertionError("No event-stream line containing '" + needle + "' within " + seconds + "s");
     }
 
-    /** Entry name to contents, with directory entries kept as their own empty entries. */
+    /** Entry name to contents; directory entries kept as their own empty entries. */
     private Map<String, String> unzip(byte[] archive) throws Exception {
         Map<String, String> entries = new LinkedHashMap<>();
         try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(archive), StandardCharsets.UTF_8)) {
@@ -1542,12 +2021,10 @@ class RekallEndToEndTest {
     }
 
 
-    /** Every project needs a company, so the scenarios open with one. */
     private String aCompany(String name) {
         return id(post("/api/companies", Map.of("name", name)));
     }
 
-    /** Where the title carries no weight in the scenario, it is the label written out again. */
     private String aProject(String companyId, String label, String status) {
         return id(post("/api/projects", Map.of(
                 "label", label, "title", label, "status", status, "companyId", companyId)));
@@ -1558,7 +2035,18 @@ class RekallEndToEndTest {
                 "label", label, "title", label, "status", "TODO", "projectId", projectId)));
     }
 
+    /** Creates a step and promotes it out of draft. */
     private String aStep(String taskId, String title, String bodyMarkdown) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("title", title);
+        body.put("bodyMarkdown", bodyMarkdown);
+        String stepId = id(post("/api/tasks/" + taskId + "/steps", body));
+        rest.patch().uri("/api/steps/" + stepId).body(Map.of("draft", false))
+                .retrieve().toEntity(Map.class);
+        return stepId;
+    }
+
+    private String aDraftStep(String taskId, String title, String bodyMarkdown) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("title", title);
         body.put("bodyMarkdown", bodyMarkdown);
@@ -1568,6 +2056,17 @@ class RekallEndToEndTest {
     @SuppressWarnings("rawtypes")
     private ResponseEntity<Map> post(String path, Object body) {
         return rest.post().uri(path).body(body).retrieve().toEntity(Map.class);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private Map<?, ?> getTask(String taskId) {
+        return rest.get().uri("/api/tasks/" + taskId).retrieve().toEntity(Map.class).getBody();
+    }
+
+    @SuppressWarnings("rawtypes")
+    private ResponseEntity<Map> review(String taskId, Map<String, Object> body) {
+        return rest.patch().uri("/api/tasks/" + taskId + "/review").body(body)
+                .retrieve().toEntity(Map.class);
     }
 
     private String id(ResponseEntity<Map> response) {
@@ -1594,7 +2093,7 @@ class RekallEndToEndTest {
         return String.valueOf(((Map<?, ?>) content.getFirst()).get("text"));
     }
 
-    /** A request in the stateless era: no handshake, and every field mirrored into a header. */
+    /** A stateless-era request: no handshake, every field mirrored into a header. */
     @SuppressWarnings("rawtypes")
     private ResponseEntity<Map> modernRpc(String method, String name, Object params) {
         RestClient.RequestBodySpec spec = rest.post()

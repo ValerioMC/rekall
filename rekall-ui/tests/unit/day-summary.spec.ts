@@ -33,8 +33,13 @@ function taskStub(id: TaskId, projectId: ProjectId): Task {
     projectRepoFolder: null,
     documentCount: 0,
     stepCount: 0,
-    stepsDone: 0,
+    stepsDone: 0, draftStepCount: 0,
     hasWrapup: false,
+    reviewState: 'OPEN',
+    reviewActive: true,
+    claimedAt: null,
+    acceptedAt: null,
+    reviewNote: null,
     anchor: 'project:vega task:report-builder',
     updatedAt: '2026-08-29T10:00:00.000Z'
   }

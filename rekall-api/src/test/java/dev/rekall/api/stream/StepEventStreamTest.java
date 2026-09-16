@@ -1,6 +1,7 @@
 package dev.rekall.api.stream;
 
 import dev.rekall.domain.step.StepStreamEvent;
+import dev.rekall.domain.wrapup.WrapupStreamEvent;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -11,11 +12,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
-/**
- * The fan-out list, and the one thing that matters for shutdown: when the context closes, every
- * held connection is released so {@code server.shutdown: graceful} has no async request to wait
- * on.
- */
+/** The fan-out list and its shutdown release, so graceful shutdown has no held request to wait on. */
 class StepEventStreamTest {
 
     @Test
@@ -47,6 +44,18 @@ class StepEventStreamTest {
     }
 
     @Test
+    @DisplayName("a wrapup change after shutdown reaches nobody and does not throw")
+    void wrapupEventAfterShutdownIsANoOp() {
+        StepEventStream stream = new StepEventStream();
+        stream.open();
+        stream.releaseOnShutdown();
+
+        assertThatCode(() -> stream.onWrapupChange(WrapupStreamEvent.deleted(UUID.randomUUID())))
+                .doesNotThrowAnyException();
+        assertThat(stream.clientCount()).isZero();
+    }
+
+    @Test
     @DisplayName("shutdown with no console connected is harmless")
     void shutdownWithNoClients() {
         StepEventStream stream = new StepEventStream();
@@ -63,7 +72,6 @@ class StepEventStreamTest {
 
         assertThatCode(stream::releaseOnShutdown).doesNotThrowAnyException();
 
-        // A second sweep, as if the event fired twice, still finds a clean list.
         assertThatCode(stream::releaseOnShutdown).doesNotThrowAnyException();
         assertThat(stream.clientCount()).isZero();
     }

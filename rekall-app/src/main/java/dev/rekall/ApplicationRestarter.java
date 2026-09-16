@@ -37,15 +37,8 @@ public final class ApplicationRestarter {
         }
         log.info("Restarting to pick up a database location change");
         context.close();
-        // Not SpringApplication.run(RekallApplication.class, args): that convenience overload
-        // deduces the "main application class" by stack-walking for a frame literally named
-        // "main", which this thread ("rekall-restart", started fresh rather than descending
-        // from the process's own main thread) never has. On the JVM that deduction failing
-        // just leaves it null and is silently ignored; under GraalVM native image, AOT mode is
-        // always on and needs the main application class to look up the generated
-        // __ApplicationContextInitializer by name, so a null there is a hard
-        // IllegalStateException instead. Setting it explicitly sidesteps the deduction
-        // entirely.
+        // Set explicitly: the run() overload deduces the main class by stack-walking for a "main"
+        // frame this restart thread lacks, which fails hard under GraalVM native image.
         SpringApplication application = new SpringApplication(RekallApplication.class);
         application.setMainApplicationClass(RekallApplication.class);
         context = application.run(args);

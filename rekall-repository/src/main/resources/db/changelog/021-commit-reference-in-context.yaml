@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: 021-commit-reference-in-context
+      author: rekall
+      changes:
+        - addColumn:
+            tableName: commit_reference
+            columns:
+              - column: {name: in_context, type: boolean, defaultValueBoolean: false, constraints: {nullable: false}}

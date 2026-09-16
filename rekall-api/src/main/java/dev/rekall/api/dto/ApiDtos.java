@@ -7,6 +7,7 @@ import dev.rekall.domain.ProjectStatus;
 import dev.rekall.domain.Task;
 import dev.rekall.domain.TaskStatus;
 import dev.rekall.domain.TaskStep;
+import dev.rekall.domain.TaskStepState;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -91,7 +92,13 @@ public final class ApiDtos {
             int documentCount,
             int stepCount,
             int stepsDone,
+            int draftStepCount,
             boolean hasWrapup,
+            TaskStepState reviewState,
+            boolean reviewActive,
+            Instant claimedAt,
+            Instant acceptedAt,
+            String reviewNote,
             String anchor,
             Instant updatedAt) {
 
@@ -108,9 +115,15 @@ public final class ApiDtos {
                     task.getProject().getCompany().getName(),
                     task.getProject().getRepoFolder(),
                     task.getDocuments().size(),
-                    task.getSteps().size(),
+                    (int) task.getSteps().stream().filter(step -> !step.getState().draft()).count(),
                     (int) task.getSteps().stream().filter(TaskStep::isDone).count(),
+                    (int) task.getSteps().stream().filter(step -> step.getState().draft()).count(),
                     task.getWrapup() != null,
+                    task.getReviewState(),
+                    task.reviewActive(),
+                    task.getClaimedAt(),
+                    task.getAcceptedAt(),
+                    task.getReviewNote(),
                     "project:%s task:%s".formatted(task.getProject().getLabel(), task.getLabel()),
                     task.getUpdatedAt());
         }
@@ -122,6 +135,10 @@ public final class ApiDtos {
             TaskStatus status,
             String description,
             UUID projectId) {
+    }
+
+    /** Accept ({@code DONE}) or send back ({@code OPEN}) a stepless task; other states are refused. */
+    public record TaskReviewRequest(@NotNull TaskStepState reviewState, String note) {
     }
 
     public record DocumentResponse(
@@ -177,12 +194,28 @@ public final class ApiDtos {
     public record TaskStepRequest(@NotBlank String title, String bodyMarkdown) {
     }
 
-    public record TaskStepPatchRequest(String title, String bodyMarkdown, Boolean done) {
+    public record TaskStepPatchRequest(String title, String bodyMarkdown, Boolean done, Boolean draft) {
     }
 
     public record TaskStepMoveRequest(@NotNull Integer position) {
     }
 
     public record TimeEntryEditRequest(@NotNull Instant startedAt, Instant stoppedAt) {
+    }
+
+    /** {@code stepId} is optional: omitted logs the commit against the task itself. */
+    public record CommitReferenceRequest(UUID stepId) {
+    }
+
+    /** A commit named by hand: the hash is what the picker chose or the person pasted, the step is optional. */
+    public record PickedCommitReferenceRequest(UUID stepId, @NotBlank String commitHash) {
+    }
+
+    /** Fetched separately from the list, since not every row's diff is wanted at once. */
+    public record CommitReferenceDiffResponse(String diff) {
+    }
+
+    /** A wrapper, not a primitive: an absent key must bind as null and read as off, not fail the request. */
+    public record CommitReferenceContextRequest(Boolean inContext) {
     }
 }

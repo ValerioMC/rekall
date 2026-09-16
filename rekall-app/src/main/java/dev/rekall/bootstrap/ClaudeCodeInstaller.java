@@ -2,7 +2,7 @@ package dev.rekall.bootstrap;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import dev.rekall.api.service.ConflictException;
+import dev.rekall.common.ConflictException;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;

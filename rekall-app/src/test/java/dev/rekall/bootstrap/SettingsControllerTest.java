@@ -19,12 +19,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * The settings endpoints, exercised over HTTP the way the Settings panel calls them.
- *
- * <p>{@code rekall.home} is pinned by the surefire configuration in {@code pom.xml} to a
- * build-local directory, never the developer's real {@code ~/.rekall}. Each test deletes
- * {@code config.json} first, so the registry always starts empty regardless of what an earlier
- * test class's context boot (which also runs {@link DatabaseLocationEnvironmentPostProcessor})
- * left behind there.
+ * {@code rekall.home} is pinned to a build-local directory by {@code pom.xml}, and each test
+ * deletes {@code config.json} first so the registry starts empty.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class SettingsControllerTest {

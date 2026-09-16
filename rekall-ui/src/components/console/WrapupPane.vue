@@ -2,18 +2,26 @@
 import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import AppButton from '@/components/ui/AppButton.vue'
+import CopyGlyph from '@/components/ui/CopyGlyph.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.vue'
+import WrapupHereDialog from '@/components/console/WrapupHereDialog.vue'
 import { useConsoleStore } from '@/stores/console.store'
+import { useTerminalStore } from '@/stores/terminal.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { relativeTime } from '@/common/format/relative-time'
-import { rkCommand } from '@/common/format/rk-command'
+import { rkCommand, rkWrapupCommand } from '@/common/format/rk-command'
 import { WRAPUP_AUTHOR_LABEL } from '@/model/catalog'
 
 const store = useConsoleStore()
+const terminals = useTerminalStore()
 const { selectedTask, selectedWrapup, wrapupIsBehind } = storeToRefs(store)
 const { run } = useAsyncAction()
+const { run: runSend, isRunning: sendingWrapupHere } = useAsyncAction()
+
+const liveTerminal = computed(() => terminals.terminalForTask(selectedTask.value?.id ?? null))
+const wrapupHereOpen = ref(false)
 
 const mode = ref<'write' | 'read'>('read')
 const isConfirmingDelete = ref(false)
@@ -33,17 +41,23 @@ watch(
   { immediate: true }
 )
 
-const command = computed(() =>
-  selectedTask.value ? `${rkCommand(selectedTask.value.anchor)} wrapup` : ''
+// In read mode, adopt a body that lands over the SSE feed; in write mode the buffer belongs to
+// the person typing, so leave it alone.
+watch(
+  () => selectedWrapup.value?.bodyMarkdown ?? '',
+  (value) => {
+    if (mode.value === 'write' || value === draft.value) return
+    draft.value = value
+  }
 )
 
 const writtenBy = computed(() =>
   selectedWrapup.value ? WRAPUP_AUTHOR_LABEL[selectedWrapup.value.writtenBy] : ''
 )
 
-const copied = ref<'anchor' | 'command' | null>(null)
+const copied = ref<'anchor' | null>(null)
 
-async function copy(what: 'anchor' | 'command', text: string): Promise<void> {
+async function copy(what: 'anchor', text: string): Promise<void> {
   await navigator.clipboard?.writeText(text)
   copied.value = what
   setTimeout(() => (copied.value = null), 1400)
@@ -74,6 +88,20 @@ async function confirmDelete(): Promise<void> {
   await run(() => store.removeWrapup(task.id), 'Wrapup deleted')
   isConfirmingDelete.value = false
 }
+
+async function sendWrapupHere(message: string): Promise<void> {
+  const task = selectedTask.value
+  const terminal = liveTerminal.value
+  if (!task || !terminal) return
+  const sent = await runSend(
+    () => terminals.sendCommand(terminal.id, rkWrapupCommand(task.anchor, message)),
+    'Sent to the terminal.'
+  )
+  if (sent === null) return
+  wrapupHereOpen.value = false
+  store.openTerminal()
+  terminals.select(terminal.id)
+}
 </script>
 
 <template>
@@ -95,12 +123,13 @@ async function confirmDelete(): Promise<void> {
           <button
             class="anchor-chip focus-ring mt-1.5 inline-flex items-center gap-2 px-2.5 py-1 text-[11.5px] transition-colors hover:border-anchor"
             :class="copied === 'anchor' && 'flash'"
+            :title="copied === 'anchor' ? 'Copied' : `Copy ${rkCommand(selectedTask.anchor)}`"
             data-testid="copy-wrapup-anchor"
             @click="copy('anchor', rkCommand(selectedTask.anchor))"
           >
             <span class="opacity-60">/rk</span>
             <span>{{ selectedTask.anchor }}</span>
-            <span class="opacity-70">{{ copied === 'anchor' ? 'copied' : 'copy' }}</span>
+            <CopyGlyph :copied="copied === 'anchor'" />
           </button>
         </div>
 
@@ -110,6 +139,17 @@ async function confirmDelete(): Promise<void> {
           :folder="selectedTask.projectRepoFolder"
           missing-hint="Set this project's folder on its page to open a session from it"
         />
+
+        <button
+          v-if="liveTerminal"
+          class="focus-ring inline-flex h-7 shrink-0 items-center gap-2 rounded-[var(--radius-control)] border border-border px-2.5 text-xs font-medium text-text-muted transition-colors hover:border-accent hover:bg-accent-soft hover:text-accent"
+          data-testid="wrapup-here"
+          title="Type the wrapup command into the session already running here"
+          @click="wrapupHereOpen = true"
+        >
+          <span class="session-caret session-caret-busy shrink-0" aria-hidden="true" />
+          Wrapup here
+        </button>
 
         <div v-if="selectedWrapup" class="flex shrink-0 items-center gap-2">
           <div class="flex gap-0.5 rounded-[7px] bg-surface p-0.5">
@@ -169,17 +209,6 @@ async function confirmDelete(): Promise<void> {
           <span class="size-[5px] shrink-0 rounded-full bg-warn" aria-hidden="true" />
           {{ wrapupIsBehind }} note{{ wrapupIsBehind === 1 ? ' is' : 's are' }} newer than this
         </span>
-
-        <button
-          class="focus-ring ml-auto inline-flex items-center gap-2 rounded-[var(--radius-control)] border border-border-strong px-2.5 py-1 font-mono text-[11px] text-text-muted transition-colors hover:border-anchor hover:text-anchor"
-          :class="copied === 'command' && 'flash'"
-          data-testid="copy-wrapup-command"
-          :title="'Paste this next to the terminal to have Claude rewrite it'"
-          @click="copy('command', command)"
-        >
-          <span>{{ command }}</span>
-          <span class="opacity-70">{{ copied === 'command' ? 'copied' : 'copy' }}</span>
-        </button>
       </div>
 
       <div v-if="!selectedWrapup && !isDrafting" class="min-h-0 flex-1 overflow-y-auto">
@@ -196,25 +225,9 @@ async function confirmDelete(): Promise<void> {
             the way. That is what the notes are for.
           </p>
 
-          <button
-            class="focus-ring group flex w-full items-center gap-3 rounded-[var(--radius-control)] border border-border bg-surface px-3.5 py-3 text-left transition-all hover:-translate-y-px hover:border-anchor hover:bg-surface-raised hover:shadow-lift"
-            :class="copied === 'command' && 'flash'"
-            data-testid="copy-wrapup-command"
-            @click="copy('command', command)"
-          >
-            <span class="min-w-0 flex-1">
-              <span class="block truncate font-mono text-[12.5px] text-anchor">{{ command }}</span>
-              <span class="mt-0.5 block text-[11.5px] text-text-muted">
-                Run this at the end of a session and Claude writes it.
-              </span>
-            </span>
-            <span class="shrink-0 text-[11px] text-text-subtle group-hover:text-anchor">
-              {{ copied === 'command' ? 'copied' : 'copy' }}
-            </span>
-          </button>
-
-          <p class="mt-6 text-[12.5px] text-text-muted">
-            Or
+          <p class="text-[12.5px] text-text-muted">
+            Copy the anchor above, append <span class="font-mono text-anchor">wrapup</span>, and
+            run it at the end of a session to have Claude write it, or
             <button
               class="focus-ring rounded text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent"
               data-testid="write-wrapup-by-hand"
@@ -254,6 +267,15 @@ async function confirmDelete(): Promise<void> {
       confirm-label="Delete wrapup"
       @cancel="isConfirmingDelete = false"
       @confirm="confirmDelete"
+    />
+
+    <WrapupHereDialog
+      v-if="wrapupHereOpen && selectedTask"
+      :task-title="selectedTask.title"
+      :anchor="selectedTask.anchor"
+      :sending="sendingWrapupHere"
+      @cancel="wrapupHereOpen = false"
+      @send="sendWrapupHere"
     />
   </section>
 </template>

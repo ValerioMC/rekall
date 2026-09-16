@@ -1,0 +1,21 @@
+databaseChangeLog:
+  - changeSet:
+      id: 006-time-entry
+      author: rekall
+      changes:
+        - createTable:
+            tableName: time_entry
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, primaryKeyName: pk_time_entry, nullable: false}}
+              - column: {name: task_id, type: uuid, constraints: {nullable: false}}
+              - column: {name: started_at, type: timestamp, constraints: {nullable: false}}
+              - column: {name: stopped_at, type: timestamp}
+              - column: {name: created_at, type: timestamp, constraints: {nullable: false}}
+              - column: {name: updated_at, type: timestamp, constraints: {nullable: false}}
+        - addForeignKeyConstraint:
+            baseTableName: time_entry
+            baseColumnNames: task_id
+            referencedTableName: task
+            referencedColumnNames: id
+            constraintName: fk_time_entry_task
+            onDelete: CASCADE
