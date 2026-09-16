@@ -8,9 +8,9 @@ import type { CompanyId, DocumentId, ProjectId, TaskId } from '@/model/branded'
 
 /**
  * The column that stands in for the task's while notes are browsed: which tasks the selected
- * note is on, and the search that widens it to the ones it could be put on. It only decides
- * which task to attach or detach; the write path is the store's, stubbed here and covered in
- * `console.spec`.
+ * note is on, and the opener for the picker that puts it on more. It only decides which task to
+ * detach and when the picker shows; the write path is the store's, stubbed here and covered in
+ * `console.spec`, and the picker itself is covered in `NoteAssignmentDialog.spec`.
  */
 const vega = 'p1' as ProjectId
 const beacon = 'p2' as ProjectId
@@ -106,11 +106,6 @@ function render() {
 const rowsOf = (wrapper: ReturnType<typeof render>) =>
   wrapper.findAll('[data-testid="note-placement-row"]')
 
-async function type(wrapper: ReturnType<typeof render>, needle: string): Promise<void> {
-  await wrapper.find('[data-testid="note-placements-filter"]').setValue(needle)
-  await flushPromises()
-}
-
 describe('NotePlacementsPane', () => {
   beforeEach(() => {
     document.body.innerHTML = ''
@@ -123,7 +118,7 @@ describe('NotePlacementsPane', () => {
     const wrapper = render()
 
     expect(wrapper.text()).toContain('Pick a note to see which tasks it is on')
-    expect(wrapper.find('[data-testid="note-placements-filter"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="note-placements-open"]').exists()).toBe(false)
     wrapper.unmount()
   })
 
@@ -169,55 +164,33 @@ describe('NotePlacementsPane', () => {
     wrapper.unmount()
   })
 
-  it('widens to every matching task when typing, the ones it is on first in their project', async () => {
-    seed(note([wiring]))
-    const wrapper = render()
-
-    await type(wrapper, 'r')
-
-    const rows = rowsOf(wrapper)
-    expect(rows.map((row) => row.attributes('data-attached'))).toEqual(['true', 'false', 'false', 'false'])
-    expect(rows[0]!.text()).toContain('Wiring the adapter')
-    wrapper.unmount()
-  })
-
-  it('puts the note on a task found by search with one click', async () => {
-    const store = seed(note([builder]))
-    const wrapper = render()
-
-    await type(wrapper, 'retry')
-
-    const rows = rowsOf(wrapper)
-    expect(rows).toHaveLength(1)
-    await rows[0]!.trigger('click')
-    await flushPromises()
-
-    expect(store.attachNoteToTask).toHaveBeenCalledWith('d1', retry)
-    wrapper.unmount()
-  })
-
-  it('walks the matches with the arrows and flips the highlighted one on Enter', async () => {
-    const store = seed(note([builder]))
-    const wrapper = render()
-
-    await type(wrapper, 'beacon')
-    const field = wrapper.find('[data-testid="note-placements-filter"]')
-    await field.trigger('keydown', { key: 'ArrowDown' })
-    await field.trigger('keydown', { key: 'Enter' })
-    await flushPromises()
-
-    // "beacon" matches its two tasks, wiring then archive; one step down lands on archive.
-    expect(store.attachNoteToTask).toHaveBeenCalledWith('d1', archive)
-    wrapper.unmount()
-  })
-
-  it('says when nothing matches', async () => {
+  /** Putting the note somewhere else is the task side's picker, opened here instead of a search. */
+  it('opens the same assignment picker the task side uses, and closes it again', async () => {
     seed(note([builder]))
     const wrapper = render()
 
-    await type(wrapper, 'zzz')
+    expect(wrapper.find('[data-testid="note-assignment"]').exists()).toBe(false)
+    const opener = wrapper.find('[data-testid="note-placements-open"]')
+    expect(opener.text()).toContain('Put it on a task')
 
-    expect(wrapper.find('[data-testid="note-placements-empty"]').text()).toContain('No task matches')
+    await opener.trigger('click')
+    await flushPromises()
+
+    const picker = wrapper.find('[data-testid="note-assignment"]')
+    expect(picker.exists()).toBe(true)
+    expect(picker.text()).toContain('Tasks for cluster.md')
+
+    await picker.find('[aria-label="Close"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="note-assignment"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('tells why the last task cannot be taken off', () => {
+    seed(note([builder]))
+    const wrapper = render()
+
+    expect(wrapper.text()).toContain('Put it on another before taking it off this one')
     wrapper.unmount()
   })
 
