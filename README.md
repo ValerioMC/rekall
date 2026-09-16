@@ -219,6 +219,10 @@ Finished tasks are folded into a "filed" drawer, closed on every load. Writing a
 
 A note is put on a task from either side. From the note, the task chips on its pane open a picker that walks company, project and task. From the task, the **Notes** button in the description and steps headers drops a list of every note under itself, the ones on this task first: one click, or `↑` `↓` and `↵`, adds a note or takes it off, without leaving the pane. A note whose only task is this one stays put, since a note needs at least one.
 
+`b` switches the left column between tasks and notes. Browsing notes, picking one leaves the task in view alone: the middle column becomes the note's placements, the tasks it is on grouped by project, and typing in its field widens that to every task the note could be put on. One click, or `↑` `↓` and `↵`, puts the note on a task or takes it off; the arrow on a row is the only thing that opens that task on the tasks side. Switching back to tasks brings the task up to date with the note.
+
+A note starts from either side too. Browsing tasks, **New note** (or `n`) writes one on the task in view. Browsing notes, the same button, `n`, or **+ New note** at the top of the list turns the middle column into a composer: a name, and the tasks to put it on, with the task in view ticked to begin with and the live tasks in scope offered underneath. Typing finds any task, `↵` ticks it, `⌘↵` or **Create note** makes the note and opens it in the editor. A note lives on at least one task, so nothing is created until one is ticked; `esc` walks away. **Delete** on the editor header removes the note from every task it is on.
+
 ## Report
 
 **Report** shows what went to which client and for how long. The frame is a week or a month, stepped with the arrows either side. One column per day is stacked in each company's colour against a dashed line at eight hours. Below it, a section per company, its projects and its tasks, with the hours and the days each ran on.

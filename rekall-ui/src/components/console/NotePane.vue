@@ -15,8 +15,14 @@ import { DOCUMENT_KINDS } from '@/model/catalog'
 import type { TaskId } from '@/model/branded'
 
 const store = useConsoleStore()
-const { selectedDocument, selectedTask, selectedTaskId, recentDocuments, isLoading, tasks: allTasks } =
-  storeToRefs(store)
+const {
+  selectedDocument,
+  selectedTaskId,
+  recentDocuments,
+  isLoading,
+  navMode,
+  tasks: allTasks
+} = storeToRefs(store)
 const { run } = useAsyncAction()
 
 const KIND_OPTIONS = DOCUMENT_KINDS.map((kind) => ({ value: kind, label: kind }))
@@ -81,19 +87,20 @@ function scheduleSave(): void {
   }, 700)
 }
 
-const anchor = computed(() => {
-  const document = selectedDocument.value
-  if (!document) return ''
-  const onCurrent = document.tasks.find((task) => task.id === selectedTaskId.value)
-  return (onCurrent ?? document.tasks[0])?.anchor ?? ''
-})
-
-const anchorFolder = computed(() => {
+const anchorTask = computed(() => {
   const document = selectedDocument.value
   if (!document) return null
-  const onCurrent = document.tasks.some((task) => task.id === selectedTaskId.value)
-  return onCurrent ? (selectedTask.value?.projectRepoFolder ?? null) : null
+  const onCurrent = document.tasks.find((task) => task.id === selectedTaskId.value)
+  const ref = onCurrent ?? document.tasks[0]
+  return allTasks.value.find((task) => task.id === ref?.id) ?? null
 })
+
+const anchor = computed(() => anchorTask.value?.anchor ?? selectedDocument.value?.tasks[0]?.anchor ?? '')
+
+const anchorFolder = computed(() => anchorTask.value?.projectRepoFolder ?? null)
+
+/** Browsing notes, the placements column owns membership, so the strip here would say it twice. */
+const showMembership = computed(() => navMode.value === 'tasks')
 
 const alsoOn = computed(
   () => selectedDocument.value?.tasks.filter((task) => task.id !== selectedTaskId.value) ?? []
@@ -122,6 +129,8 @@ async function detachFrom(taskId: TaskId): Promise<void> {
 async function confirmDelete(): Promise<void> {
   const document = selectedDocument.value
   if (!document) return
+  // A save still queued behind the debounce would land on a note that no longer exists.
+  if (saveTimer) clearTimeout(saveTimer)
   await run(() => store.deleteNote(document.id), `Deleted ${document.title}`)
   isConfirmingDelete.value = false
 }
@@ -233,7 +242,11 @@ async function confirmDelete(): Promise<void> {
         </div>
       </header>
 
-      <div class="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-surface px-5 py-2.5">
+      <div
+        v-if="showMembership"
+        class="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-surface px-5 py-2.5"
+        data-testid="note-membership"
+      >
         <span class="eyebrow">
           On {{ selectedDocument.tasks.length }}
           task{{ selectedDocument.tasks.length === 1 ? '' : 's' }}

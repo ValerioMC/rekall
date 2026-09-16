@@ -6,6 +6,8 @@ import DescriptionPane from '@/components/console/DescriptionPane.vue'
 import NavigatorPane from '@/components/console/NavigatorPane.vue'
 import NoteListPane from '@/components/console/NoteListPane.vue'
 import NotePane from '@/components/console/NotePane.vue'
+import NoteComposerPane from '@/components/console/NoteComposerPane.vue'
+import NotePlacementsPane from '@/components/console/NotePlacementsPane.vue'
 import StepsPane from '@/components/console/StepsPane.vue'
 import WrapupPane from '@/components/console/WrapupPane.vue'
 import SettingsPanel from '@/components/settings/SettingsPanel.vue'
@@ -21,7 +23,7 @@ import type { TaskStatus } from '@/model/catalog'
 const TerminalPane = defineAsyncComponent(() => import('@/components/console/TerminalPane.vue'))
 
 const store = useConsoleStore()
-const { selectedTaskId, navMode, paneFocus } = storeToRefs(store)
+const { selectedTaskId, navMode, paneFocus, noteComposerOpen } = storeToRefs(store)
 const { run } = useAsyncAction()
 const { isModalOpen } = useModalGate()
 
@@ -42,9 +44,18 @@ const anchorBar = ref<InstanceType<typeof AnchorBar> | null>(null)
 const navigator = ref<InstanceType<typeof NavigatorPane> | null>(null)
 const settingsOpen = ref(false)
 
+/**
+ * Browsing tasks, a note lands on the task in view with no questions. Browsing notes, the task in
+ * view is not on screen, so the composer asks where the note goes.
+ */
 async function newNote(): Promise<void> {
-  if (!selectedTaskId.value) return
-  await run(() => store.createNote(selectedTaskId.value!), 'Note created')
+  if (navMode.value === 'notes') {
+    store.openNoteComposer()
+    return
+  }
+  const taskId = selectedTaskId.value
+  if (!taskId) return
+  await run(() => store.createNote([taskId]), 'Note created')
 }
 
 function onKeydown(event: KeyboardEvent): void {
@@ -92,7 +103,7 @@ function onKeydown(event: KeyboardEvent): void {
 
   if (key === 'b') {
     event.preventDefault()
-    navMode.value = navMode.value === 'tasks' ? 'notes' : 'tasks'
+    store.setNavMode(navMode.value === 'tasks' ? 'notes' : 'tasks')
     return
   }
 
@@ -144,7 +155,9 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
     <div class="flex min-h-0 flex-1">
       <NavigatorPane ref="navigator" />
-      <NoteListPane />
+      <NoteListPane v-if="navMode === 'tasks'" />
+      <NoteComposerPane v-else-if="noteComposerOpen" />
+      <NotePlacementsPane v-else />
       <div id="note" class="flex min-h-0 min-w-0 flex-1" tabindex="-1">
         <WrapupPane v-if="paneFocus === 'wrapup'" />
         <DescriptionPane v-else-if="paneFocus === 'description'" />

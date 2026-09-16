@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { updateProject } from '@/api/catalog.api'
+import { createDocument, updateDocument } from '@/api/documents.api'
 import { fetchTimeEntries } from '@/api/time-entries.api'
 import { setActivePinia, createPinia } from 'pinia'
 import { useConsoleStore } from '@/stores/console.store'
@@ -281,6 +282,8 @@ describe('console store', () => {
     patchStep.mockClear()
     moveStep.mockClear()
     deleteStep.mockClear()
+    vi.mocked(updateDocument).mockReset()
+    vi.mocked(createDocument).mockReset()
     setActivePinia(createPinia())
     store = useConsoleStore()
     await store.load()
@@ -365,12 +368,134 @@ describe('console store', () => {
     expect(store.selectedDocId).toBe('d2')
   })
 
-  /** Picking a note from the Notes list has to bring its task along, or the panes disagree. */
-  it('follows a note back to a task it belongs to', () => {
+  /** Browsing tasks, a note has to bring its task along, or the task panes disagree with it. */
+  it('follows a note back to a task it belongs to while browsing tasks', () => {
     store.selectTask(validator)
     store.selectDocument('d3' as DocumentId)
 
     expect(store.selectedTaskId).toBe(wiring)
+  })
+
+  /**
+   * Browsing notes is for managing notes, not a detour through tasks: the note opens with its
+   * placements, and whatever task was in view stays there untouched.
+   */
+  it('leaves the task alone when a note is picked while browsing notes', () => {
+    store.selectTask(validator)
+    store.setNavMode('notes')
+    store.selectDocument('d3' as DocumentId)
+
+    expect(store.selectedDocId).toBe('d3')
+    expect(store.selectedTaskId).toBe(validator)
+    expect(store.paneFocus).toBe('note')
+  })
+
+  it('catches the task up with the note when going back to browsing tasks', () => {
+    store.selectTask(validator)
+    store.setNavMode('notes')
+    store.selectDocument('d3' as DocumentId)
+
+    store.setNavMode('tasks')
+    expect(store.selectedTaskId).toBe(wiring)
+  })
+
+  it('opens the note itself when switching to browsing notes', () => {
+    store.selectTask(validator)
+    store.openDescription()
+    store.setNavMode('notes')
+
+    expect(store.paneFocus).toBe('note')
+  })
+
+  describe('placing a note on tasks', () => {
+    beforeEach(() => {
+      vi.mocked(updateDocument).mockImplementation(async (id, input) => {
+        const current = documents.find((document) => document.id === id)!
+        return {
+          ...current,
+          tasks: input.taskIds.map(
+            (taskId) => [...current.tasks, ...documents.flatMap((d) => d.tasks)].find((t) => t.id === taskId)!
+          )
+        }
+      })
+    })
+
+    it('puts a note on one more task, keeping the ones it was on', async () => {
+      await store.attachNoteToTask('d1' as DocumentId, retry)
+
+      expect(vi.mocked(updateDocument).mock.calls[0]?.[1]).toMatchObject({ taskIds: [validator, retry] })
+      expect(store.documents.find((d) => d.id === 'd1')?.tasks.map((t) => t.id)).toEqual([validator, retry])
+    })
+
+    it('does nothing when the note is already on that task', async () => {
+      await store.attachNoteToTask('d1' as DocumentId, validator)
+      expect(updateDocument).not.toHaveBeenCalled()
+    })
+
+    it('takes a note off one of its tasks', async () => {
+      await store.detachNoteFromTask('d2' as DocumentId, validator)
+
+      expect(vi.mocked(updateDocument).mock.calls[0]?.[1]).toMatchObject({ taskIds: [retry] })
+    })
+
+    /** A note is on at least one task, so the last placement cannot be taken away. */
+    it('refuses to take a note off the only task it is on', async () => {
+      await store.detachNoteFromTask('d1' as DocumentId, validator)
+      expect(updateDocument).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('starting a note', () => {
+    beforeEach(() => {
+      vi.mocked(createDocument).mockImplementation(async (input) => ({
+        id: 'd9' as DocumentId,
+        title: input.title,
+        kind: input.kind,
+        bodyMarkdown: input.bodyMarkdown,
+        tasks: input.taskIds.map(
+          (taskId) => documents.flatMap((d) => d.tasks).find((t) => t.id === taskId)!
+        ),
+        updatedAt: '2026-08-12T15:00:00Z'
+      }))
+    })
+
+    it('is born on every task it was given, with its name, and opens in the editor', async () => {
+      store.setNavMode('notes')
+      store.openNoteComposer()
+
+      await store.createNote([validator, retry], 'cluster.md')
+
+      expect(vi.mocked(createDocument).mock.calls[0]?.[0]).toMatchObject({
+        title: 'cluster.md',
+        kind: 'notes',
+        taskIds: [validator, retry]
+      })
+      expect(store.selectedDocId).toBe('d9')
+      expect(store.paneFocus).toBe('note')
+      expect(store.noteComposerOpen).toBe(false)
+    })
+
+    it('falls back to untitled.md when no name is given', async () => {
+      await store.createNote([validator], '   ')
+      expect(vi.mocked(createDocument).mock.calls[0]?.[0]).toMatchObject({ title: 'untitled.md' })
+    })
+
+    /** A note lives on at least one task, so there is nothing to create without one. */
+    it('creates nothing when it is on no task', async () => {
+      await store.createNote([])
+      expect(createDocument).not.toHaveBeenCalled()
+    })
+
+    it('closes the composer when a note is picked or the side is switched', () => {
+      store.setNavMode('notes')
+      store.openNoteComposer()
+      store.selectDocument('d1' as DocumentId)
+      expect(store.noteComposerOpen).toBe(false)
+
+      store.openNoteComposer()
+      store.setNavMode('tasks')
+      expect(store.noteComposerOpen).toBe(false)
+    })
   })
 
   it('offers the most recently written notes first', () => {

@@ -34,6 +34,9 @@ const resultCount = computed(() =>
   navMode.value === 'tasks' ? visibleTasks.value.length : visibleDocuments.value.length
 )
 
+/** Browsing tasks, a new note needs a task in view. Browsing notes, the composer asks for one. */
+const needsTaskForNote = computed(() => navMode.value === 'tasks' && !selectedTaskId.value)
+
 const SAVE_LABEL = { saved: 'Saved', unsaved: 'Unsaved', saving: 'Saving' } as const
 
 const SAVE_DOT = {
@@ -209,13 +212,14 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
         <AppButton
           variant="primary"
           size="sm"
-          :disabled="!selectedTaskId"
+          :disabled="needsTaskForNote"
+          data-testid="new-note"
           @click="emit('newNote')"
         >
           New note
         </AppButton>
         <span
-          v-if="!selectedTaskId"
+          v-if="needsTaskForNote"
           class="pointer-events-none absolute right-0 top-full z-(--z-sticky) mt-2 whitespace-nowrap rounded-[var(--radius-control)] border border-border-strong bg-surface-raised px-2.5 py-1.5 text-xs text-text opacity-0 shadow-lift transition-opacity duration-100 group-hover:opacity-100"
         >
           Select a task to create a new note on it

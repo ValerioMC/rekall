@@ -29,6 +29,8 @@ const {
   visibleDocuments,
   selectedTaskId,
   selectedDocId,
+  noteComposerOpen,
+  tasks,
   elsewhere,
   isLoading,
   runningEntries
@@ -170,7 +172,7 @@ defineExpose({ beginCreate, editSelected })
               : 'text-text-subtle hover:text-text'
           "
           :aria-pressed="navMode === mode"
-          @click="navMode = mode"
+          @click="store.setNavMode(mode)"
         >
           {{ mode }}
           <span class="font-mono text-[10.5px] text-text-subtle">
@@ -202,6 +204,22 @@ defineExpose({ beginCreate, editSelected })
         >
           in {{ scopeName }}
         </span>
+      </button>
+
+      <button
+        v-if="navMode === 'notes' && tasks.length"
+        data-testid="new-note-here"
+        class="focus-ring m-2 flex w-[calc(100%-16px)] items-center gap-2 rounded-[var(--radius-control)] border px-2.5 py-2 text-left text-[12.5px] transition-colors"
+        :class="
+          noteComposerOpen
+            ? 'selected-row border-transparent text-text'
+            : 'border-dashed border-border-strong text-text-muted hover:border-solid hover:border-accent hover:bg-accent-soft hover:text-text'
+        "
+        :aria-pressed="noteComposerOpen"
+        @click="store.openNoteComposer()"
+      >
+        <span class="text-accent">+</span> New note
+        <kbd class="ml-auto rounded border border-border px-1 font-mono text-[10px] text-text-subtle">N</kbd>
       </button>
 
       <template v-if="navMode === 'tasks' && groupByProject">
@@ -353,7 +371,7 @@ defineExpose({ beginCreate, editSelected })
             data-testid="note-row"
             class="focus-ring mt-0.5 flex w-full items-center gap-2.5 rounded-[var(--radius-control)] px-2 py-1.5 text-left transition-colors"
             :class="
-              document.id === selectedDocId
+              document.id === selectedDocId && !noteComposerOpen
                 ? 'selected-row text-text'
                 : 'text-text-muted hover:bg-surface-raised hover:text-text'
             "

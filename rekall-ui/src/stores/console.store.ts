@@ -86,6 +86,8 @@ export const useConsoleStore = defineStore('console', () => {
   const selectedTaskId = ref<TaskId | null>(null)
   const selectedDocId = ref<DocumentId | null>(null)
   const paneFocus = ref<PaneFocus>('note')
+  /** Browsing notes, the placements column gives way to the new-note composer while this is on. */
+  const noteComposerOpen = ref(false)
 
   const projectInScope = (project: Project): boolean =>
     (scopeCompany.value === null || project.companyId === scopeCompany.value) &&
@@ -302,13 +304,34 @@ export const useConsoleStore = defineStore('console', () => {
     paneFocus.value = 'note'
   }
 
+  /**
+   * Browsing tasks, a note has to bring one of its tasks along or the task panes disagree with
+   * the editor. Browsing notes, the panes are the note's own, so the task in view is left alone:
+   * that is what makes the Notes side a place to manage notes rather than a detour through tasks.
+   */
   function selectDocument(id: DocumentId): void {
     selectedDocId.value = id
     paneFocus.value = 'note'
+    noteComposerOpen.value = false
+    if (navMode.value === 'notes') return
+    followDocumentToTask(id)
+  }
+
+  function followDocumentToTask(id: DocumentId): void {
     const document = documents.value.find((candidate) => candidate.id === id)
     if (document && !document.tasks.some((ref) => ref.id === selectedTaskId.value)) {
       selectedTaskId.value = document.tasks[0]?.id ?? null
     }
+  }
+
+  function setNavMode(mode: NavMode): void {
+    navMode.value = mode
+    noteComposerOpen.value = false
+    if (mode === 'notes') {
+      if (selectedDocId.value !== null) paneFocus.value = 'note'
+      return
+    }
+    if (selectedDocId.value !== null) followDocumentToTask(selectedDocId.value)
   }
 
   function setScope(company: CompanyId | null, project: ProjectId | null = null): void {
@@ -519,15 +542,30 @@ export const useConsoleStore = defineStore('console', () => {
     }
   }
 
-  async function createNote(taskId: TaskId): Promise<void> {
+  function openNoteComposer(): void {
+    noteComposerOpen.value = true
+  }
+
+  function closeNoteComposer(): void {
+    noteComposerOpen.value = false
+  }
+
+  /**
+   * A note is born on at least one task, so no task means no note. The new one opens in the
+   * editor; browsing notes, that also closes the composer that made it.
+   */
+  async function createNote(taskIds: readonly TaskId[], title = 'untitled.md'): Promise<void> {
+    if (!taskIds.length) return
     const created = await apiCreateDocument({
-      title: 'untitled.md',
+      title: title.trim() || 'untitled.md',
       kind: 'notes',
       bodyMarkdown: '',
-      taskIds: [taskId]
+      taskIds: [...taskIds]
     })
     documents.value = [created, ...documents.value]
     selectedDocId.value = created.id
+    noteComposerOpen.value = false
+    paneFocus.value = 'note'
     await refreshTasks()
   }
 
@@ -554,6 +592,21 @@ export const useConsoleStore = defineStore('console', () => {
       saveState.value = 'unsaved'
       throw error
     }
+  }
+
+  async function attachNoteToTask(id: DocumentId, taskId: TaskId): Promise<void> {
+    const current = documents.value.find((document) => document.id === id)
+    if (!current || current.tasks.some((ref) => ref.id === taskId)) return
+    await saveNote(id, { taskIds: [...current.tasks.map((ref) => ref.id), taskId] })
+  }
+
+  /** A note is on at least one task, so the last placement stays: taking it off is a no-op. */
+  async function detachNoteFromTask(id: DocumentId, taskId: TaskId): Promise<void> {
+    const current = documents.value.find((document) => document.id === id)
+    if (!current || current.tasks.length <= 1) return
+    const remaining = current.tasks.filter((ref) => ref.id !== taskId).map((ref) => ref.id)
+    if (remaining.length === current.tasks.length) return
+    await saveNote(id, { taskIds: remaining })
   }
 
   async function deleteNote(id: DocumentId): Promise<void> {
@@ -834,6 +887,7 @@ export const useConsoleStore = defineStore('console', () => {
     selectedTaskId,
     selectedDocId,
     paneFocus,
+    noteComposerOpen,
     selectedTask,
     selectedDocument,
     selectedWrapup,
@@ -852,6 +906,7 @@ export const useConsoleStore = defineStore('console', () => {
     load,
     selectTask,
     selectDocument,
+    setNavMode,
     setScope,
     createProject,
     updateProject,
@@ -869,8 +924,12 @@ export const useConsoleStore = defineStore('console', () => {
     acceptTask,
     sendBackTask,
     saveTaskDescription,
+    openNoteComposer,
+    closeNoteComposer,
     createNote,
     saveNote,
+    attachNoteToTask,
+    detachNoteFromTask,
     deleteNote,
     openWrapup,
     openDescription,
