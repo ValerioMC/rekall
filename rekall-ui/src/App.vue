@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { defineAsyncComponent, onMounted, onUnmounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import AnchorBar from '@/components/console/AnchorBar.vue'
 import DescriptionPane from '@/components/console/DescriptionPane.vue'
@@ -8,7 +8,6 @@ import NoteListPane from '@/components/console/NoteListPane.vue'
 import NotePane from '@/components/console/NotePane.vue'
 import StepsPane from '@/components/console/StepsPane.vue'
 import WrapupPane from '@/components/console/WrapupPane.vue'
-import TerminalPane from '@/components/console/TerminalPane.vue'
 import SettingsPanel from '@/components/settings/SettingsPanel.vue'
 import AppToaster from '@/components/ui/AppToaster.vue'
 import { useConsoleStore } from '@/stores/console.store'
@@ -16,6 +15,10 @@ import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useModalGate } from '@/composables/useModalGate'
 import { useStepStream } from '@/composables/useStepStream'
 import type { TaskStatus } from '@/model/catalog'
+
+// xterm and its stylesheet are only parsed once a terminal is opened: most sessions never do,
+// and the console's first paint should not pay for them.
+const TerminalPane = defineAsyncComponent(() => import('@/components/console/TerminalPane.vue'))
 
 const store = useConsoleStore()
 const { selectedTaskId, navMode, paneFocus } = storeToRefs(store)

@@ -8,6 +8,7 @@ import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.vue'
 import OpenTerminalButton from '@/components/claude/OpenTerminalButton.vue'
 import LogCommitButton from '@/components/console/LogCommitButton.vue'
+import NotesButton from '@/components/console/NotesButton.vue'
 import CommitReferenceList from '@/components/console/CommitReferenceList.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
@@ -355,6 +356,7 @@ onUnmounted(() => rowObserver?.disconnect())
           </div>
 
           <div class="flex shrink-0 items-center gap-1.5">
+            <NotesButton :task-id="selectedTask.id" />
             <OpenTerminalButton
               :task-id="selectedTask.id"
               :step-id="currentId"

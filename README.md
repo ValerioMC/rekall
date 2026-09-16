@@ -217,6 +217,8 @@ The description, steps, wrapup and terminal are pinned above the notes. Each ope
 
 Finished tasks are folded into a "filed" drawer, closed on every load. Writing autosaves; a note has no Save button.
 
+A note is put on a task from either side. From the note, the task chips on its pane open a picker that walks company, project and task. From the task, the **Notes** button in the description and steps headers drops a list of every note under itself, the ones on this task first: one click, or `↑` `↓` and `↵`, adds a note or takes it off, without leaving the pane. A note whose only task is this one stays put, since a note needs at least one.
+
 ## Report
 
 **Report** shows what went to which client and for how long. The frame is a week or a month, stepped with the arrows either side. One column per day is stacked in each company's colour against a dashed line at eight hours. Below it, a section per company, its projects and its tasks, with the hours and the days each ran on.
@@ -345,6 +347,8 @@ cd rekall-ui && pnpm lint && pnpm typecheck && pnpm test
 ## Design
 
 `docs/DESIGN.md` records the decisions and the reasoning, including the ones that were reversed and why.
+
+`docs/MEMORY.md` is the memory soak of the console: what was measured, how, and why the numbers say there is no leak.
 
 ## License
 

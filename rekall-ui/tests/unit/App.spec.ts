@@ -434,6 +434,8 @@ describe('the console', () => {
     await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
 
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c' }))
+    // The terminal pane is an async component: its chunk has to land before it renders.
+    await vi.dynamicImportSettled()
     await flushPromises()
 
     const chip = wrapper.find('[data-testid="copy-terminal-anchor"]')

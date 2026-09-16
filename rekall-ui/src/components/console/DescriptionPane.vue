@@ -11,6 +11,7 @@ import { rkCommand } from '@/common/format/rk-command'
 import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.vue'
 import OpenTerminalButton from '@/components/claude/OpenTerminalButton.vue'
 import LogCommitButton from '@/components/console/LogCommitButton.vue'
+import NotesButton from '@/components/console/NotesButton.vue'
 import CommitReferenceRail from '@/components/console/CommitReferenceRail.vue'
 import type { TaskId } from '@/model/branded'
 
@@ -189,6 +190,7 @@ onUnmounted(() => {
           </div>
 
           <div class="flex shrink-0 items-center gap-1.5">
+            <NotesButton :task-id="selectedTask.id" />
             <LogCommitButton
               :task-id="selectedTask.id"
               :folder="selectedTask.projectRepoFolder"
