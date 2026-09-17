@@ -116,7 +116,7 @@ async function toggle(row: PickerRow): Promise<void> {
 
 function scrollHighlightedIntoView(): void {
   const row = panel.value?.querySelector<HTMLElement>(`[data-row-index="${highlighted.value}"]`)
-  row?.scrollIntoView({ block: 'nearest' })
+  row?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
 }
 
 function onKeydown(event: KeyboardEvent): void {
@@ -175,7 +175,7 @@ onUnmounted(() => {
   <Teleport to="body">
     <div
       ref="panel"
-      class="note-picker fixed z-(--z-overlay) flex max-h-[min(460px,calc(100vh-24px))] flex-col overflow-hidden rounded-[var(--radius-card)] border border-border-strong bg-surface shadow-lift"
+      class="note-picker rise fixed z-(--z-overlay) flex max-h-[min(460px,calc(100vh-24px))] flex-col overflow-hidden rounded-[var(--radius-card)] border border-border-strong bg-surface shadow-lift"
       :style="{ top: `${position.top}px`, left: `${position.left}px`, width: `${position.width}px` }"
       role="dialog"
       aria-label="Notes on this task"

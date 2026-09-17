@@ -93,7 +93,7 @@ function cancel(): void {
 
 function scrollHighlightedIntoView(): void {
   const row = list.value?.querySelector<HTMLElement>(`[data-walk-index="${highlighted.value}"]`)
-  row?.scrollIntoView({ block: 'nearest' })
+  row?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
 }
 
 /** Cmd/Ctrl+Enter creates from anywhere in the composer. */

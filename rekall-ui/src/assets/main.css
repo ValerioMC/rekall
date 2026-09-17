@@ -474,6 +474,31 @@
   animation: fade-in 120ms ease-out;
 }
 
+/*
+ * The shell's own panes cross-fade rather than cut, from `<Transition name="pane">` in `App.vue`:
+ * the rail (task notes, the note composer, where a note sits) and the main pane (wrapup,
+ * description, steps, terminal, a note) each swap what they show without a hard replace. Plain
+ * classes, not `@utility`: Vue writes these names onto the child component's own root element at
+ * runtime, so nothing in this file's source ever spells the class out for the content scanner to
+ * find, and an `@utility` block only ships what that scanner has seen used.
+ */
+.pane-enter-active,
+.pane-leave-active {
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
+}
+
+.pane-enter-from {
+  opacity: 0;
+  transform: translateY(3px);
+}
+
+.pane-leave-to {
+  opacity: 0;
+  transform: translateY(-3px);
+}
+
 /* Confirmation that something was copied, on the element that was copied from. */
 @utility flash {
   animation: flash 520ms ease-out;

@@ -156,15 +156,19 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
     <div class="flex min-h-0 flex-1">
       <NavigatorPane ref="navigator" />
-      <NoteListPane v-if="navMode === 'tasks'" />
-      <NoteComposerPane v-else-if="noteComposerOpen" />
-      <NotePlacementsPane v-else />
+      <Transition name="pane" mode="out-in">
+        <NoteListPane v-if="navMode === 'tasks'" />
+        <NoteComposerPane v-else-if="noteComposerOpen" />
+        <NotePlacementsPane v-else />
+      </Transition>
       <div id="note" class="flex min-h-0 min-w-0 flex-1" tabindex="-1">
-        <WrapupPane v-if="paneFocus === 'wrapup'" />
-        <DescriptionPane v-else-if="paneFocus === 'description'" />
-        <StepsPane v-else-if="paneFocus === 'steps'" />
-        <TerminalPane v-else-if="paneFocus === 'terminal'" />
-        <NotePane v-else />
+        <Transition name="pane" mode="out-in">
+          <WrapupPane v-if="paneFocus === 'wrapup'" />
+          <DescriptionPane v-else-if="paneFocus === 'description'" />
+          <StepsPane v-else-if="paneFocus === 'steps'" />
+          <TerminalPane v-else-if="paneFocus === 'terminal'" />
+          <NotePane v-else />
+        </Transition>
       </div>
     </div>
 
@@ -172,3 +176,4 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
     <AppToaster />
   </div>
 </template>
+
