@@ -107,6 +107,8 @@ public class PtyTerminalManager {
         private final OutputStream stdin;
         private final TerminalLaunch launch;
         private volatile UUID stepId;
+        private volatile int columns = DEFAULT_COLUMNS;
+        private volatile int rows = DEFAULT_ROWS;
         private final boolean skipPermissions;
         private final String model;
         private final String effort;
@@ -285,7 +287,11 @@ public class PtyTerminalManager {
         }
     }
 
-    /** Attach a pane: replay the scrollback, then follow live output. A closed terminal is a conflict. */
+    /**
+     * Attach a pane: replay the scrollback, then follow live output. A closed terminal is a conflict.
+     * The backlog is a raw byte tail, not a screen snapshot, so on a reconnect it can land mid-redraw
+     * of a full-screen app like claude; {@link #kickResize} forces that app to repaint over it.
+     */
     public TerminalView attach(UUID id, Listener listener) {
         Terminal terminal = require(id);
         // Subscribe before replaying: a chunk arriving in the gap is drawn twice, not dropped.
@@ -293,6 +299,7 @@ public class PtyTerminalManager {
         byte[] backlog = terminal.scrollback.snapshot();
         if (backlog.length > 0) {
             listener.output(backlog, backlog.length);
+            kickResize(terminal);
         }
         return terminal.view();
     }
@@ -329,10 +336,33 @@ public class PtyTerminalManager {
         }
         int safeColumns = Math.clamp(columns, 1, MAX_DIMENSION);
         int safeRows = Math.clamp(rows, 1, MAX_DIMENSION);
+        if (applyWinSize(terminal, safeColumns, safeRows)) {
+            terminal.columns = safeColumns;
+            terminal.rows = safeRows;
+        }
+    }
+
+    /**
+     * Wobble the PTY down a row and back to its last known size. The window's actual dimensions are
+     * unchanged, but each step is a real size change, so the kernel raises SIGWINCH both times and
+     * whatever is running (claude's TUI) repaints in full at the end of it. A no-op on a terminal too
+     * short to shrink.
+     */
+    private void kickResize(Terminal terminal) {
+        if (terminal.rows <= 1) {
+            return;
+        }
+        applyWinSize(terminal, terminal.columns, terminal.rows - 1);
+        applyWinSize(terminal, terminal.columns, terminal.rows);
+    }
+
+    private boolean applyWinSize(Terminal terminal, int columns, int rows) {
         try {
-            terminal.process.setWinSize(new WinSize(safeColumns, safeRows));
+            terminal.process.setWinSize(new WinSize(columns, rows));
+            return true;
         } catch (RuntimeException resizeFailed) {
-            log.debug("Resize of terminal {} to {}x{} failed: {}", id, safeColumns, safeRows, resizeFailed.getMessage());
+            log.debug("Resize of terminal {} to {}x{} failed: {}", terminal.id, columns, rows, resizeFailed.getMessage());
+            return false;
         }
     }
 
