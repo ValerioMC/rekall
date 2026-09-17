@@ -30,7 +30,8 @@ const { isModalOpen } = useModalGate()
 useStepStream(
   (taskId, steps) => store.applyStepEvent(taskId, steps),
   (review) => store.applyTaskReview(review),
-  (event) => store.applyWrapupEvent(event)
+  (event) => store.applyWrapupEvent(event),
+  (reference) => store.applyCommitReference(reference)
 )
 
 const STATUS_BY_KEY: Record<string, TaskStatus> = {

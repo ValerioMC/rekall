@@ -36,6 +36,14 @@ const { toasts } = storeToRefs(store)
         />
         <p class="flex-1 leading-snug">{{ toast.message }}</p>
         <button
+          v-if="toast.action"
+          class="focus-ring -my-0.5 shrink-0 rounded-[var(--radius-control)] px-2 py-0.5 text-[12px] font-semibold text-accent transition-colors hover:bg-accent-soft"
+          data-testid="toast-action"
+          @click="store.act(toast.id)"
+        >
+          {{ toast.action.label }}
+        </button>
+        <button
           class="focus-ring -m-1 grid size-6 shrink-0 place-items-center rounded text-text-subtle transition-colors hover:text-text"
           aria-label="Dismiss"
           @click="store.dismiss(toast.id)"

@@ -193,6 +193,7 @@ async function save(): Promise<void> {
         description: trimmedDescription,
         blueprintMarkdown: stored?.blueprintMarkdown ?? null,
         repoFolder: stored?.repoFolder ?? null,
+        autoCommit: stored?.autoCommit ?? false,
         companyId: current.companyId
       }
       if (current.id === null) await store.createProject(input)

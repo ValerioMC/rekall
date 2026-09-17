@@ -143,6 +143,36 @@ describe('useStepStream', () => {
     scope.stop()
   })
 
+  it('hands a logged commit to the fourth callback, and drops one that does not parse', () => {
+    const onCommit = vi.fn()
+    const scope = effectScope()
+    scope.run(() => useStepStream(vi.fn(), undefined, undefined, onCommit))
+
+    FakeEventSource.instances[0]!.emit('commit-reference', {
+      data: JSON.stringify({
+        taskId: '22222222-2222-2222-2222-222222222222',
+        reference: {
+          id: '44444444-4444-4444-4444-444444444444',
+          taskId: '22222222-2222-2222-2222-222222222222',
+          stepId: '11111111-1111-1111-1111-111111111111',
+          stepTitle: 'Aggregate the rows',
+          commitHash: 'a'.repeat(40),
+          comment: 'feat: Aggregate the rows',
+          inContext: false,
+          createdAt: '2026-09-17T09:00:00Z'
+        }
+      })
+    })
+    FakeEventSource.instances[0]!.emit('commit-reference', { data: JSON.stringify({ taskId: 'x' }) })
+
+    expect(onCommit).toHaveBeenCalledTimes(1)
+    expect(onCommit.mock.calls[0]![0]).toMatchObject({
+      comment: 'feat: Aggregate the rows',
+      stepTitle: 'Aggregate the rows'
+    })
+    scope.stop()
+  })
+
   it('closes the connection when its scope is disposed', () => {
     const scope = effectScope()
     scope.run(() => useStepStream(vi.fn()))

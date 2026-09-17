@@ -1,6 +1,8 @@
 package dev.rekall.mcp.tool;
 
 import dev.rekall.domain.WrapupAuthor;
+import dev.rekall.domain.commit.AutoCommitOutcome;
+import dev.rekall.domain.commit.AutoCommitService;
 import dev.rekall.domain.context.AmbiguousAnchorException;
 import dev.rekall.domain.context.UnknownAnchorException;
 import dev.rekall.domain.wrapup.WrapupService;
@@ -17,6 +19,7 @@ import java.util.Map;
 public class WrapupTool implements McpTool {
 
     private final WrapupService wrapups;
+    private final AutoCommitService autoCommit;
 
     @Override
     public String name() {
@@ -78,6 +81,11 @@ public class WrapupTool implements McpTool {
                the new piece named where it lives; never a section per step, and never a \
                heading carrying a step's title. If the step made something the wrapup already \
                said untrue, that sentence goes.
+
+               On a task with no checklist, this wrapup is what claims the work. If its project \
+               is set to auto-commit, writing it also commits everything in the project's folder \
+               and logs that commit against the task; the answer says so. Do not commit by hand \
+               on such a project.
                """;
     }
 
@@ -120,9 +128,14 @@ public class WrapupTool implements McpTool {
                     .append("If that edit said something this one does not, it is gone.\n");
         }
 
-        return out.append("\nIt is what `/rk ")
+        out.append("\nIt is what `/rk ")
                 .append(written.wrapup().anchor())
-                .append("` will load from now on.")
-                .toString();
+                .append("` will load from now on.");
+
+        AutoCommitOutcome committed = autoCommit.afterWrapup(written.wrapup().taskId());
+        if (!committed.off()) {
+            out.append("\n\n").append(committed.describe());
+        }
+        return out.toString();
     }
 }

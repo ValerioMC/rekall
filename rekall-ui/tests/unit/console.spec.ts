@@ -33,9 +33,9 @@ const beacon = 'p2' as ProjectId
 
 const projects: Project[] = [
   { id: vega, label: 'vega', title: 'Vega Platform', status: 'ACTIVE', description: null, blueprintMarkdown: null,
-    repoFolder: null, companyId: acme, companyName: 'acme', taskCount: 2, anchor: 'project:vega', updatedAt: '2026-08-12T10:00:00Z' },
+    repoFolder: null, autoCommit: false, companyId: acme, companyName: 'acme', taskCount: 2, anchor: 'project:vega', updatedAt: '2026-08-12T10:00:00Z' },
   { id: beacon, label: 'beacon', title: 'Beacon', status: 'ACTIVE', description: null, blueprintMarkdown: null,
-    repoFolder: null, companyId: globex, companyName: 'globex', taskCount: 1, anchor: 'project:beacon', updatedAt: '2026-08-12T10:00:00Z' }
+    repoFolder: null, autoCommit: false, companyId: globex, companyName: 'globex', taskCount: 1, anchor: 'project:beacon', updatedAt: '2026-08-12T10:00:00Z' }
 ]
 
 const validator = 't1' as TaskId
@@ -284,6 +284,7 @@ describe('console store', () => {
     deleteStep.mockClear()
     vi.mocked(updateDocument).mockReset()
     vi.mocked(createDocument).mockReset()
+    vi.mocked(updateProject).mockReset()
     setActivePinia(createPinia())
     store = useConsoleStore()
     await store.load()
@@ -442,6 +443,37 @@ describe('console store', () => {
     it('refuses to take a note off the only task it is on', async () => {
       await store.detachNoteFromTask('d1' as DocumentId, validator)
       expect(updateDocument).not.toHaveBeenCalled()
+    })
+
+    /** Browsing tasks, the editor shows a note on the task in view, so the next one steps in. */
+    it('moves the editor to the next note on the task when the open one leaves it', async () => {
+      store.selectTask(validator)
+      store.selectDocument('d2' as DocumentId)
+
+      await store.detachNoteFromTask('d2' as DocumentId, validator)
+
+      expect(store.selectedDocId).toBe('d1')
+      expect(store.selectedTaskId).toBe(validator)
+    })
+
+    it('keeps the editor on the note when it leaves a task that is not in view', async () => {
+      store.selectTask(validator)
+      store.selectDocument('d2' as DocumentId)
+
+      await store.detachNoteFromTask('d2' as DocumentId, retry)
+
+      expect(store.selectedDocId).toBe('d2')
+    })
+
+    /** Browsing notes, the columns are the note's own: it stays open whatever it leaves. */
+    it('keeps the note open while browsing notes', async () => {
+      store.selectTask(validator)
+      store.setNavMode('notes')
+      store.selectDocument('d2' as DocumentId)
+
+      await store.detachNoteFromTask('d2' as DocumentId, validator)
+
+      expect(store.selectedDocId).toBe('d2')
     })
   })
 
@@ -653,6 +685,20 @@ describe('console store', () => {
    * lives on the task. Saving the folder has to reach the rows already loaded, or that button
    * goes on saying there is nowhere to open until the window is reloaded.
    */
+  it('saves auto-commit through the same full-record update, and keeps what the server decided', async () => {
+    vi.mocked(updateProject).mockResolvedValue({ ...projects[0]!, autoCommit: false })
+
+    await store.saveProjectAutoCommit(vega, true)
+
+    expect(vi.mocked(updateProject).mock.calls[0]?.[1]).toMatchObject({
+      autoCommit: true,
+      repoFolder: null,
+      label: 'vega'
+    })
+    // Outside a git repository the server keeps it off, and the store shows what was saved.
+    expect(store.projects.find((project) => project.id === vega)?.autoCommit).toBe(false)
+  })
+
   it('carries a saved project folder onto the tasks already in view', async () => {
     vi.mocked(updateProject).mockResolvedValue({
       ...projects[0]!,

@@ -391,7 +391,7 @@ export const useConsoleStore = defineStore('console', () => {
 
   async function patchProject(
     id: ProjectId,
-    patch: Partial<Pick<ProjectInput, 'description' | 'blueprintMarkdown' | 'repoFolder'>>
+    patch: Partial<Pick<ProjectInput, 'description' | 'blueprintMarkdown' | 'repoFolder' | 'autoCommit'>>
   ): Promise<void> {
     const current = projects.value.find((project) => project.id === id)
     if (!current) return
@@ -405,7 +405,8 @@ export const useConsoleStore = defineStore('console', () => {
         description: 'description' in patch ? patch.description! : current.description,
         blueprintMarkdown:
           'blueprintMarkdown' in patch ? patch.blueprintMarkdown! : current.blueprintMarkdown,
-        repoFolder: 'repoFolder' in patch ? patch.repoFolder! : current.repoFolder
+        repoFolder: 'repoFolder' in patch ? patch.repoFolder! : current.repoFolder,
+        autoCommit: 'autoCommit' in patch ? patch.autoCommit! : current.autoCommit
       })
       projects.value = projects.value.map((project) => (project.id === id ? saved : project))
       tasks.value = tasks.value.map((task) =>
@@ -430,6 +431,11 @@ export const useConsoleStore = defineStore('console', () => {
 
   function saveProjectRepoFolder(id: ProjectId, repoFolder: string): Promise<void> {
     return patchProject(id, { repoFolder: repoFolder.trim() === '' ? null : repoFolder.trim() })
+  }
+
+  // The server keeps it off outside a git repository, whatever is asked: the saved row is what counts.
+  function saveProjectAutoCommit(id: ProjectId, autoCommit: boolean): Promise<void> {
+    return patchProject(id, { autoCommit })
   }
 
   async function createTask(input: TaskInput): Promise<Task> {
@@ -600,13 +606,20 @@ export const useConsoleStore = defineStore('console', () => {
     await saveNote(id, { taskIds: [...current.tasks.map((ref) => ref.id), taskId] })
   }
 
-  /** A note is on at least one task, so the last placement stays: taking it off is a no-op. */
+  /**
+   * A note is on at least one task, so the last placement stays: taking it off is a no-op.
+   * Browsing tasks, the editor shows a note on the task in view; when that note leaves that task,
+   * the next note on it takes its place so the columns keep agreeing.
+   */
   async function detachNoteFromTask(id: DocumentId, taskId: TaskId): Promise<void> {
     const current = documents.value.find((document) => document.id === id)
     if (!current || current.tasks.length <= 1) return
     const remaining = current.tasks.filter((ref) => ref.id !== taskId).map((ref) => ref.id)
     if (remaining.length === current.tasks.length) return
     await saveNote(id, { taskIds: remaining })
+    if (navMode.value === 'tasks' && selectedDocId.value === id && selectedTaskId.value === taskId) {
+      selectedDocId.value = taskDocuments.value[0]?.id ?? null
+    }
   }
 
   async function deleteNote(id: DocumentId): Promise<void> {
@@ -914,6 +927,7 @@ export const useConsoleStore = defineStore('console', () => {
     saveProjectDescription,
     saveProjectBlueprint,
     saveProjectRepoFolder,
+    saveProjectAutoCommit,
     refreshEverything,
     createTask,
     updateTask,

@@ -471,6 +471,161 @@ class RekallEndToEndTest {
                 .isEqualTo(0);
     }
 
+    // --- Auto-commit
+
+    @Test
+    @DisplayName("auto-commit can only be switched on for a folder that is a git repository")
+    @SuppressWarnings("unchecked")
+    void autoCommitNeedsAGitRepository() throws Exception {
+        String acme = aCompany("Acme");
+        Path plain = Files.createTempDirectory("rekall-plain-folder");
+        Path repo = aGitRepoWithOneCommit("seed");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+
+        Map<String, Object> onPlain = updateProject(projectId, acme, plain.toString(), true);
+        assertThat(onPlain.get("autoCommit")).isEqualTo(false);
+        Map<String, Object> plainStatus = rest.get().uri("/api/projects/" + projectId + "/repository")
+                .retrieve().toEntity(Map.class).getBody();
+        assertThat(plainStatus).containsEntry("exists", true).containsEntry("repository", false)
+                .containsEntry("autoCommit", false);
+
+        Map<String, Object> onRepo = updateProject(projectId, acme, repo.toString(), true);
+        assertThat(onRepo.get("autoCommit")).isEqualTo(true);
+        Map<String, Object> repoStatus = rest.get().uri("/api/projects/" + projectId + "/repository")
+                .retrieve().toEntity(Map.class).getBody();
+        assertThat(repoStatus).containsEntry("repository", true).containsEntry("autoCommit", true)
+                .containsEntry("userEmail", "test@example.com");
+        assertThat(repoStatus.get("branch")).isNotNull();
+    }
+
+    @Test
+    @DisplayName("claiming a step on an auto-commit project commits the folder and logs it against the step")
+    void claimingAStepAutoCommits() throws Exception {
+        String acme = aCompany("Acme");
+        Path repo = aGitRepoWithOneCommit("seed");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        updateProject(projectId, acme, repo.toString(), true);
+        String taskId = aTask(projectId, "report-builder");
+        aStep(taskId, "Wire the export endpoint", null);
+        Files.writeString(repo.resolve("export.ts"), "export const x = 1\n");
+
+        String answer = callTool("rekall_step", Map.of(
+                "anchors", "project:vega task:report-builder", "step", "1", "state", "claimed"));
+
+        assertThat(answer).contains("Auto-committed").contains("feat: Wire the export endpoint")
+                .contains("\"Wire the export endpoint\"");
+        assertThat(runGit(repo, "log", "-1", "--format=%s")).isEqualTo("feat: Wire the export endpoint");
+        assertThat(runGit(repo, "log", "-1", "--format=%b")).contains("project:vega task:report-builder, step 1");
+        assertThat(runGit(repo, "status", "--porcelain")).isEmpty();
+        assertThat(jdbc.queryForObject(
+                        "SELECT comment FROM commit_reference WHERE task_id = ? AND step_id IS NOT NULL",
+                        String.class, UUID.fromString(taskId)))
+                .isEqualTo("feat: Wire the export endpoint");
+    }
+
+    @Test
+    @DisplayName("a claim with a clean tree commits nothing and says so, and the claim stands")
+    void aCleanTreeIsSkippedOnClaim() throws Exception {
+        String acme = aCompany("Acme");
+        Path repo = aGitRepoWithOneCommit("seed");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        updateProject(projectId, acme, repo.toString(), true);
+        String taskId = aTask(projectId, "report-builder");
+        aStep(taskId, "Nothing changed", null);
+
+        String answer = callTool("rekall_step", Map.of(
+                "anchors", "project:vega task:report-builder", "step", "1", "state", "claimed"));
+
+        assertThat(answer).contains("is now `claimed`").contains("nothing to commit");
+        assertThat(runGit(repo, "log", "-1", "--format=%s")).isEqualTo("seed");
+        assertThat(jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM commit_reference WHERE task_id = ?",
+                        Integer.class, UUID.fromString(taskId)))
+                .isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("the wrapup of a stepless task on an auto-commit project commits against the task")
+    void theWrapupOfAStepplessTaskAutoCommits() throws Exception {
+        String acme = aCompany("Acme");
+        Path repo = aGitRepoWithOneCommit("seed");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        updateProject(projectId, acme, repo.toString(), true);
+        String taskId = aTask(projectId, "report-builder");
+        Files.writeString(repo.resolve("README.md"), "seed and more");
+
+        String answer = callTool("rekall_wrapup", Map.of(
+                "anchors", "project:vega task:report-builder", "body", "## State\n\nDone."));
+
+        assertThat(answer).contains("Wrapup written").contains("Auto-committed").contains("against the task");
+        assertThat(runGit(repo, "log", "-1", "--format=%s")).isEqualTo("docs: report-builder");
+        assertThat(jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM commit_reference WHERE task_id = ? AND step_id IS NULL",
+                        Integer.class, UUID.fromString(taskId)))
+                .isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("the wrapup of a task with a checklist never commits: its steps carry the claims")
+    void theWrapupOfATaskWithStepsDoesNotAutoCommit() throws Exception {
+        String acme = aCompany("Acme");
+        Path repo = aGitRepoWithOneCommit("seed");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        updateProject(projectId, acme, repo.toString(), true);
+        String taskId = aTask(projectId, "report-builder");
+        aStep(taskId, "Step one", null);
+        Files.writeString(repo.resolve("README.md"), "seed and more");
+
+        String answer = callTool("rekall_wrapup", Map.of(
+                "anchors", "project:vega task:report-builder", "body", "## State\n\nHalf done."));
+
+        assertThat(answer).doesNotContain("Auto-commit");
+        assertThat(runGit(repo, "log", "-1", "--format=%s")).isEqualTo("seed");
+        assertThat(runGit(repo, "status", "--porcelain")).isNotEmpty();
+    }
+
+    @Test
+    @DisplayName("a project that does not auto-commit leaves the tree alone on a claim")
+    void aProjectWithoutAutoCommitLeavesTheTreeAlone() throws Exception {
+        String acme = aCompany("Acme");
+        Path repo = aGitRepoWithOneCommit("seed");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        updateProject(projectId, acme, repo.toString(), false);
+        String taskId = aTask(projectId, "report-builder");
+        aStep(taskId, "Step one", null);
+        Files.writeString(repo.resolve("export.ts"), "export const x = 1\n");
+
+        String answer = callTool("rekall_step", Map.of(
+                "anchors", "project:vega task:report-builder", "step", "1", "state", "claimed"));
+
+        assertThat(answer).contains("is now `claimed`").doesNotContain("Auto-commit");
+        assertThat(runGit(repo, "status", "--porcelain")).contains("export.ts");
+    }
+
+    @Test
+    @DisplayName("the context tells a session when its project auto-commits")
+    void theContextSaysWhenTheProjectAutoCommits() throws Exception {
+        String acme = aCompany("Acme");
+        Path repo = aGitRepoWithOneCommit("seed");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        aTask(projectId, "report-builder");
+
+        String before = callTool("rekall_context", Map.of("anchors", "project:vega task:report-builder"));
+        updateProject(projectId, acme, repo.toString(), true);
+        String after = callTool("rekall_context", Map.of("anchors", "project:vega task:report-builder"));
+
+        assertThat(before).doesNotContain("auto-commit");
+        assertThat(after).contains("`auto-commit`: on").contains("Do not `git commit` yourself");
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> updateProject(String projectId, String companyId, String folder, boolean autoCommit) {
+        return rest.put().uri("/api/projects/" + projectId)
+                .body(Map.of("label", "vega", "title", "Vega", "status", "ACTIVE",
+                        "companyId", companyId, "repoFolder", folder, "autoCommit", autoCommit))
+                .retrieve().toEntity(Map.class).getBody();
+    }
+
     @Test
     @DisplayName("the diff introduced by a logged commit can be fetched by the row's own id")
     void theDiffOfALoggedCommitCanBeFetched() throws Exception {
@@ -747,6 +902,9 @@ class RekallEndToEndTest {
     private Path aGitRepoWithOneCommit(String subject) throws Exception {
         Path repo = Files.createTempDirectory("rekall-commit-reference-test");
         runGit(repo, "init", "-q");
+        // The auto-commit path commits as whoever git is configured to be in the folder.
+        runGit(repo, "config", "user.name", "Test");
+        runGit(repo, "config", "user.email", "test@example.com");
         Files.writeString(repo.resolve("README.md"), subject);
         runGit(repo, "add", "README.md");
         runGit(repo, "-c", "user.name=Test", "-c", "user.email=test@example.com",

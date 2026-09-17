@@ -8,6 +8,7 @@ import dev.rekall.domain.Task;
 import dev.rekall.domain.TaskStatus;
 import dev.rekall.domain.TaskStep;
 import dev.rekall.domain.TaskStepState;
+import dev.rekall.domain.commit.RepositoryStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -45,6 +46,7 @@ public final class ApiDtos {
             String description,
             String blueprintMarkdown,
             String repoFolder,
+            boolean autoCommit,
             UUID companyId,
             String companyName,
             int taskCount,
@@ -60,6 +62,7 @@ public final class ApiDtos {
                     project.getDescription(),
                     project.getBlueprintMarkdown(),
                     project.getRepoFolder(),
+                    project.isAutoCommit(),
                     project.getCompany().getId(),
                     project.getCompany().getName(),
                     project.getTasks().size(),
@@ -75,7 +78,30 @@ public final class ApiDtos {
             String description,
             String blueprintMarkdown,
             String repoFolder,
+            Boolean autoCommit,
             UUID companyId) {
+    }
+
+    /** What the project's folder is, git-wise: the page's repository strip reads this to offer auto-commit or not. */
+    public record ProjectRepositoryResponse(
+            String folder,
+            boolean exists,
+            boolean repository,
+            String branch,
+            String userName,
+            String userEmail,
+            boolean autoCommit) {
+
+        public static ProjectRepositoryResponse of(RepositoryStatus status, boolean autoCommit) {
+            return new ProjectRepositoryResponse(
+                    status.folder(),
+                    status.exists(),
+                    status.repository(),
+                    status.branch(),
+                    status.userName(),
+                    status.userEmail(),
+                    autoCommit);
+        }
     }
 
     public record TaskResponse(

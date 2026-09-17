@@ -2,6 +2,7 @@ package dev.rekall.api.service;
 
 import dev.rekall.api.dto.ApiDtos.CompanyRequest;
 import dev.rekall.api.dto.ApiDtos.CompanyResponse;
+import dev.rekall.api.dto.ApiDtos.ProjectRepositoryResponse;
 import dev.rekall.api.dto.ApiDtos.ProjectRequest;
 import dev.rekall.api.dto.ApiDtos.ProjectResponse;
 import dev.rekall.api.dto.ApiDtos.TaskRequest;
@@ -14,6 +15,7 @@ import dev.rekall.domain.Slug;
 import dev.rekall.domain.Task;
 import dev.rekall.domain.TaskStatus;
 import dev.rekall.domain.TaskStepState;
+import dev.rekall.domain.commit.GitRepositoryInspector;
 import dev.rekall.domain.repository.CompanyRepository;
 import dev.rekall.domain.repository.DocumentRepository;
 import dev.rekall.domain.repository.ProjectRepository;
@@ -37,6 +39,7 @@ public class CatalogService {
     private final DocumentRepository documents;
     private final TimeEntryService timeEntries;
     private final TaskReviewService taskReview;
+    private final GitRepositoryInspector repositories;
 
     @Transactional(readOnly = true)
     public List<CompanyResponse> listCompanies() {
@@ -98,12 +101,21 @@ public class CatalogService {
         documents.deleteAll(documents.findOrphans());
     }
 
+    /** The folder as git sees it, plus whether the project auto-commits there. */
+    @Transactional(readOnly = true)
+    public ProjectRepositoryResponse getProjectRepository(UUID id) {
+        Project project = requireProject(id);
+        return ProjectRepositoryResponse.of(repositories.inspect(project.getRepoFolder()), project.isAutoCommit());
+    }
+
     private void applyTo(Project project, ProjectRequest request) {
         project.setDescription(request.description());
         project.setBlueprintMarkdown(request.blueprintMarkdown());
         project.setRepoFolder(request.repoFolder() == null || request.repoFolder().isBlank()
                 ? null
                 : request.repoFolder().trim());
+        // Auto-commit only means something in a git repository: asked for anywhere else, it stays off.
+        project.setAutoCommit(Boolean.TRUE.equals(request.autoCommit()) && repositories.isRepository(project.getRepoFolder()));
         project.setStatus(request.status() == null ? ProjectStatus.ACTIVE : request.status());
         project.setCompany(requireCompany(request.companyId()));
     }

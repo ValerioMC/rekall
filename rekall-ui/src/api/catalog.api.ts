@@ -3,6 +3,7 @@ import {
   CompanyListSchema,
   CompanySchema,
   ProjectListSchema,
+  ProjectRepositorySchema,
   ProjectSchema,
   TaskListSchema,
   TaskSchema
@@ -10,6 +11,7 @@ import {
 import type {
   Company,
   Project,
+  ProjectRepository,
   ProjectStatus,
   Task,
   TaskStatus,
@@ -29,6 +31,7 @@ export interface ProjectInput {
   description: string | null
   blueprintMarkdown: string | null
   repoFolder: string | null
+  autoCommit: boolean
   companyId: CompanyId
 }
 
@@ -66,6 +69,12 @@ export async function fetchProjects(): Promise<Project[]> {
 
 export async function fetchProject(id: ProjectId): Promise<Project> {
   return request(async () => ProjectSchema.parse(await apiClient(`/api/projects/${id}`)))
+}
+
+export async function fetchProjectRepository(id: ProjectId): Promise<ProjectRepository> {
+  return request(async () =>
+    ProjectRepositorySchema.parse(await apiClient(`/api/projects/${id}/repository`))
+  )
 }
 
 export async function createProject(input: ProjectInput): Promise<Project> {

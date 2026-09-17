@@ -45,6 +45,7 @@ export const ProjectSchema = z.object({
   description: z.string().nullable(),
   blueprintMarkdown: z.string().nullable(),
   repoFolder: z.string().nullable(),
+  autoCommit: z.boolean(),
   companyId,
   companyName: z.string(),
   taskCount: z.number().int(),
@@ -150,6 +151,17 @@ export const WrapupStreamEventSchema = z.object({
   taskId,
   wrapup: WrapupSchema.nullable(),
   deleted: z.boolean()
+})
+
+/** What the project's folder is, git-wise: the repository strip on the project page reads this. */
+export const ProjectRepositorySchema = z.object({
+  folder: z.string().nullable(),
+  exists: z.boolean(),
+  repository: z.boolean(),
+  branch: z.string().nullable(),
+  userName: z.string().nullable(),
+  userEmail: z.string().nullable(),
+  autoCommit: z.boolean()
 })
 
 export const CompanyListSchema = z.array(CompanySchema)

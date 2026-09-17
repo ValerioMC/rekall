@@ -13,6 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.nio.file.Path;
 import java.time.Instant;
@@ -34,8 +35,9 @@ class CommitReferenceServiceTest {
     private final TaskStepRepository steps = mock(TaskStepRepository.class);
     private final CommitReferenceRepository commitReferences = mock(CommitReferenceRepository.class);
     private final GitLogReader git = mock(GitLogReader.class);
+    private final ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
     private final CommitReferenceService service =
-            new CommitReferenceService(tasks, steps, commitReferences, git);
+            new CommitReferenceService(tasks, steps, commitReferences, git, events);
 
     private final UUID taskId = UUID.randomUUID();
     private Task task;

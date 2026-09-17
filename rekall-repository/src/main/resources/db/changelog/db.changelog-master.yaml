@@ -41,3 +41,5 @@ databaseChangeLog:
       file: db/changelog/020-commit-reference-diff.yaml
   - include:
       file: db/changelog/021-commit-reference-in-context.yaml
+  - include:
+      file: db/changelog/022-project-auto-commit.yaml

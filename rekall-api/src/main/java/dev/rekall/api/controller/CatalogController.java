@@ -1,5 +1,6 @@
 package dev.rekall.api.controller;
 
+import dev.rekall.api.dto.ApiDtos.ProjectRepositoryResponse;
 import dev.rekall.api.dto.ApiDtos.ProjectRequest;
 import dev.rekall.api.dto.ApiDtos.ProjectResponse;
 import dev.rekall.api.dto.ApiDtos.TaskRequest;
@@ -39,6 +40,12 @@ public class CatalogController {
     @GetMapping("/projects/{id}")
     public ProjectResponse getProject(@PathVariable UUID id) {
         return catalog.getProject(id);
+    }
+
+    /** What the project page's repository strip shows: is the folder a repo, on which branch, committing as whom. */
+    @GetMapping("/projects/{id}/repository")
+    public ProjectRepositoryResponse getProjectRepository(@PathVariable UUID id) {
+        return catalog.getProjectRepository(id);
     }
 
     @PostMapping("/projects")

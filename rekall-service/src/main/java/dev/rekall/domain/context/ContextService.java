@@ -122,6 +122,11 @@ public class ContextService {
     private ContextRecord render(Project project) {
         Map<String, String> fields = new LinkedHashMap<>();
         fields.put("status", project.getStatus().name());
+        if (project.isAutoCommit()) {
+            fields.put("auto-commit", "on. Claiming a step with `rekall_step`, or writing the wrapup of a task "
+                    + "with no steps, commits everything in the project's folder and logs that commit against "
+                    + "the step or task. Do not `git commit` yourself.");
+        }
 
         return new ContextRecord(
                 "Project",

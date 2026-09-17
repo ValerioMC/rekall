@@ -2,6 +2,7 @@
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import AppCatalogHeader from '@/components/catalog/AppCatalogHeader.vue'
+import AutoCommitSwitch from '@/components/catalog/AutoCommitSwitch.vue'
 import CopyGlyph from '@/components/ui/CopyGlyph.vue'
 import RecordDialog from '@/components/console/RecordDialog.vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
@@ -18,6 +19,8 @@ import { PROJECT_STATUS_LABEL, TASK_STATUS_COLOR, TASK_STATUS_LABEL } from '@/mo
 import { asProjectId } from '@/model/branded'
 import { rkCommand } from '@/common/format/rk-command'
 import { desktopHost, pickFolder } from '@/common/native/desktop'
+import { fetchProjectRepository } from '@/api/catalog.api'
+import type { ProjectRepository } from '@/model/catalog'
 import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.vue'
 import type { RecordDraft } from '@/model/record-draft'
 
@@ -106,11 +109,45 @@ let folderTimer: ReturnType<typeof setTimeout> | null = null
 
 const canBrowse = desktopHost() !== null
 
+// What git makes of the folder: read once per project and again after every folder save,
+// since the switch below is only offered on a repository.
+const repository = ref<ProjectRepository | null>(null)
+const repositoryPending = ref(false)
+const autoCommitSaving = ref(false)
+
+async function readRepository(): Promise<void> {
+  const id = project.value?.id
+  if (!id) return
+  repositoryPending.value = true
+  try {
+    const status = await fetchProjectRepository(id)
+    if (project.value?.id === id) repository.value = status
+  } catch {
+    if (project.value?.id === id) repository.value = null
+  } finally {
+    if (project.value?.id === id) repositoryPending.value = false
+  }
+}
+
+async function saveFolder(): Promise<void> {
+  if (!project.value) return
+  await store.saveProjectRepoFolder(project.value.id, folderDraft.value)
+  await readRepository()
+}
+
 function scheduleFolderSave(): void {
   if (folderTimer) clearTimeout(folderTimer)
-  folderTimer = setTimeout(() => {
-    if (project.value) void store.saveProjectRepoFolder(project.value.id, folderDraft.value)
-  }, 700)
+  folderTimer = setTimeout(() => void saveFolder(), 700)
+}
+
+async function setAutoCommit(enabled: boolean): Promise<void> {
+  if (!project.value) return
+  autoCommitSaving.value = true
+  try {
+    await store.saveProjectAutoCommit(project.value.id, enabled)
+  } finally {
+    autoCommitSaving.value = false
+  }
 }
 
 function onFolderInput(event: Event): void {
@@ -146,6 +183,8 @@ watch(
     folderDraft.value = project.value?.repoFolder ?? ''
     blueprintDraft.value = project.value?.blueprintMarkdown ?? ''
     blueprintMode.value = blueprintDraft.value.trim() ? 'read' : 'write'
+    repository.value = null
+    void readRepository()
     await nextTick()
     resize(descriptionArea.value)
   },
@@ -275,6 +314,15 @@ onUnmounted(() => {
             Code keeps the folder it was launched from for the whole session, so this is what decides
             which repository the work happens in.
           </p>
+          <div class="mt-4">
+            <AutoCommitSwitch
+              :model-value="project.autoCommit"
+              :repository="repository"
+              :pending="repositoryPending"
+              :saving="autoCommitSaving"
+              @update:model-value="setAutoCommit"
+            />
+          </div>
         </AppCard>
 
         <AppCard :padded="false">

@@ -10,6 +10,7 @@ import dev.rekall.domain.repository.CommitReferenceRepository;
 import dev.rekall.domain.repository.TaskRepository;
 import dev.rekall.domain.repository.TaskStepRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,7 +24,8 @@ import java.util.UUID;
  * Logs a commit of a task's project folder against that task, or one of its steps: the tip by
  * default, or any commit named by its hash. Both the console and {@code rekall_record_commit}
  * land here: same lookup, same git read, same row. A hash already logged for that (task, step)
- * pair is returned as-is rather than duplicated.
+ * pair is returned as-is rather than duplicated. A new row is announced as a
+ * {@link CommitReferenceStreamEvent} so the console sees it without a reload.
  */
 @Service
 @RequiredArgsConstructor
@@ -33,6 +35,7 @@ public class CommitReferenceService {
     private final TaskStepRepository steps;
     private final CommitReferenceRepository commitReferences;
     private final GitLogReader git;
+    private final ApplicationEventPublisher events;
 
     /** How far back the picker looks. Enough to find last week's commit, small enough to read at a glance. */
     public static final int RECENT_LIMIT = 30;
@@ -99,7 +102,9 @@ public class CommitReferenceService {
 
         CommitReference reference = new CommitReference(
                 task, step, commit.hash(), truncated(commit.subject()), truncatedDiff(commit.diff()));
-        return CommitReferenceView.of(commitReferences.saveAndFlush(reference));
+        CommitReferenceView logged = CommitReferenceView.of(commitReferences.saveAndFlush(reference));
+        events.publishEvent(CommitReferenceStreamEvent.logged(logged));
+        return logged;
     }
 
     private static Path repoFolderOf(Task task) {

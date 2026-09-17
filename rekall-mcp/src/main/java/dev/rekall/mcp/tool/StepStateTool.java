@@ -1,6 +1,8 @@
 package dev.rekall.mcp.tool;
 
 import dev.rekall.domain.TaskStepState;
+import dev.rekall.domain.commit.AutoCommitOutcome;
+import dev.rekall.domain.commit.AutoCommitService;
 import dev.rekall.domain.context.AmbiguousAnchorException;
 import dev.rekall.domain.context.UnknownAnchorException;
 import dev.rekall.domain.step.TaskStepService;
@@ -19,6 +21,7 @@ import java.util.Map;
 public class StepStateTool implements McpTool {
 
     private final TaskStepService steps;
+    private final AutoCommitService autoCommit;
 
     @Override
     public String name() {
@@ -53,6 +56,10 @@ public class StepStateTool implements McpTool {
                There is no `done` here. A step is ticked done in the console, by the person who \
                reviewed the work. Ask for `claimed` when you are finished and leave the last \
                move to them.
+
+               On a project set to auto-commit, `claimed` also commits everything in the \
+               project's folder and logs that commit against the step; the answer says so. \
+               Do not commit by hand on such a project.
                """;
     }
 
@@ -92,10 +99,13 @@ public class StepStateTool implements McpTool {
             throw new ToolFailure(e.getMessage());
         }
 
-        return report(target, moved, rawState);
+        AutoCommitOutcome committed = moved.state() == TaskStepState.CLAIMED
+                ? autoCommit.afterStepClaim(moved.taskId(), moved.id())
+                : null;
+        return report(target, moved, rawState, committed);
     }
 
-    private String report(AnchoredTask target, TaskStepView moved, String rawState) {
+    private String report(AnchoredTask target, TaskStepView moved, String rawState, AutoCommitOutcome committed) {
         String anchor = anchorOf(target);
         List<TaskStepView> all = steps.findByTask(moved.taskId());
         int oneBased = moved.position() + 1;
@@ -111,6 +121,9 @@ public class StepStateTool implements McpTool {
             }
             out.append("Write the wrapup for this task now if you have not, folding in what this ")
                     .append("step built.\n");
+            if (committed != null && !committed.off()) {
+                out.append('\n').append(committed.describe()).append('\n');
+            }
         }
 
         all.stream()

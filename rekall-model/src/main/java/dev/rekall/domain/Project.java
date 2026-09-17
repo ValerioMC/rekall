@@ -72,6 +72,15 @@ public class Project {
     @Setter
     private String repoFolder;
 
+    /**
+     * Whether a session's claim commits the repo folder for it: every pending change staged and
+     * committed with a generated message, then logged against the step or task that was claimed.
+     * Meaningful only while {@link #repoFolder} is a git repository; the catalog clears it otherwise.
+     */
+    @Column(name = "auto_commit", nullable = false)
+    @Setter
+    private boolean autoCommit;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(
             name = "company_id",

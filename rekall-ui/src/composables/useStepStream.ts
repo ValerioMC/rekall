@@ -5,14 +5,17 @@ import {
   TaskReviewEventSchema,
   WrapupStreamEventSchema
 } from '@/api/schemas/catalog.schema'
+import { CommitReferenceStreamEventSchema } from '@/api/schemas/commitReference.schema'
 import type { TaskReview, TaskStep, WrapupStreamEvent } from '@/model/catalog'
+import type { CommitReference } from '@/model/commitReference'
 import type { TaskId } from '@/model/branded'
 
-/** One SSE connection carrying three console feeds: `steps`, `task-review` and `wrapup`. */
+/** One SSE connection carrying four console feeds: `steps`, `task-review`, `wrapup` and `commit-reference`. */
 export function useStepStream(
   onSteps: (taskId: TaskId, steps: TaskStep[]) => void,
   onReview?: (review: TaskReview) => void,
-  onWrapup?: (event: WrapupStreamEvent) => void
+  onWrapup?: (event: WrapupStreamEvent) => void,
+  onCommit?: (reference: CommitReference) => void
 ): { connected: Ref<boolean>; stop: () => void } {
   const connected = ref(false)
   let source: EventSource | null = null
@@ -65,6 +68,19 @@ export function useStepStream(
         )
         if (parsed.success) {
           onWrapup?.(parsed.data)
+        }
+      } catch {
+      }
+    })
+
+    // A commit logged from a session, by hand or by auto-commit, lands in the rail without a reload.
+    source.addEventListener('commit-reference', (event) => {
+      try {
+        const parsed = CommitReferenceStreamEventSchema.safeParse(
+          JSON.parse((event as MessageEvent<string>).data)
+        )
+        if (parsed.success) {
+          onCommit?.(parsed.data.reference)
         }
       } catch {
       }

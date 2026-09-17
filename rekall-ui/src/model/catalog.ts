@@ -79,11 +79,24 @@ export interface Project {
   readonly description: string | null
   readonly blueprintMarkdown: string | null
   readonly repoFolder: string | null
+  /** A session's claim commits the repo folder and logs it; only ever true on a git repository. */
+  readonly autoCommit: boolean
   readonly companyId: CompanyId
   readonly companyName: string
   readonly taskCount: number
   readonly anchor: string
   readonly updatedAt: string
+}
+
+/** The project's folder as git sees it: whether auto-commit can be offered, and as whom it would commit. */
+export interface ProjectRepository {
+  readonly folder: string | null
+  readonly exists: boolean
+  readonly repository: boolean
+  readonly branch: string | null
+  readonly userName: string | null
+  readonly userEmail: string | null
+  readonly autoCommit: boolean
 }
 
 export interface Task {

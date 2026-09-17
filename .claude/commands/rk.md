@@ -99,6 +99,10 @@ The loop, once you are working a checklist:
 `rekall_step` refuses `done` as a state, and refuses a step I have already accepted. If it comes
 back with either, say so and stop.
 
+If the project's context carries an `auto-commit` field, the claim is what commits: `step:N done`
+(and, on a task with no checklist, the wrapup) stages and commits the folder and logs the commit
+itself. Do not `git commit` on such a project; read the answer for what it committed, or why not.
+
 ## Wrapping up
 
 `/rk project:vega task:report-builder wrapup` means: record what that task's implementation looks

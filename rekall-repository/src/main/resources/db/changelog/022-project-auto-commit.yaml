@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: 022-project-auto-commit
+      author: rekall
+      changes:
+        - addColumn:
+            tableName: project
+            columns:
+              - column: {name: auto_commit, type: boolean, defaultValueBoolean: false, constraints: {nullable: false}}

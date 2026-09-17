@@ -1,5 +1,6 @@
 package dev.rekall.api.stream;
 
+import dev.rekall.domain.commit.CommitReferenceStreamEvent;
 import dev.rekall.domain.review.TaskReviewEvent;
 import dev.rekall.domain.step.StepStreamEvent;
 import dev.rekall.domain.wrapup.WrapupStreamEvent;
@@ -50,6 +51,11 @@ public class StepEventStream {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onWrapupChange(WrapupStreamEvent event) {
         dispatch("wrapup", event);
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    public void onCommitLogged(CommitReferenceStreamEvent event) {
+        dispatch("commit-reference", event);
     }
 
     private void dispatch(String name, Object payload) {

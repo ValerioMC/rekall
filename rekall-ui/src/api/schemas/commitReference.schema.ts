@@ -12,6 +12,11 @@ export const CommitReferenceSchema = z.object({
   createdAt: z.string()
 })
 
+export const CommitReferenceStreamEventSchema = z.object({
+  taskId: z.string().uuid().transform(asTaskId),
+  reference: CommitReferenceSchema
+})
+
 export const CommitReferenceDiffSchema = z.object({
   diff: z.string().nullable()
 })
