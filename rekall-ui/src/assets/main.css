@@ -126,6 +126,21 @@
 }
 
 @layer base {
+  /*
+   * Every scrollable region in the app manages its own overflow (`.overflow-y-auto`); the
+   * document itself never needs to. Without this, a `translateY`/`translateX` transform from
+   * `.pane-*`/`.dialog-*`/`.popover-*`/`.detail-*`/`.step-list-*`/`.report-row-*` pushes content
+   * a few px past the viewport edge mid-animation, and because `::-webkit-scrollbar` below turns
+   * off overlay scrollbars in favour of space-reserving ones, the document gains a real 10px
+   * scrollbar for the animation's duration and loses it the instant the transform settles back
+   * to identity - visible as every pane's content shifting sideways by that scrollbar's width
+   * right as its transition finishes.
+   */
+  html,
+  body {
+    overflow: hidden;
+  }
+
   html,
   body,
   #app {
