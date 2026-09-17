@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
+import AppConfirm from '@/components/ui/AppConfirm.vue'
 import DescriptionCard from '@/components/console/DescriptionCard.vue'
 import TimeLogDialog from '@/components/console/TimeLogDialog.vue'
 import StepsCard from '@/components/console/StepsCard.vue'
@@ -33,6 +34,8 @@ const toast = useToastStore()
 const showTimeLog = ref(false)
 /** The note whose removal is in flight, so a second click on it does nothing. */
 const leaving = ref<DocumentId | null>(null)
+/** The only-here note whose removal is waiting on the delete confirm, or null. */
+const confirmingDelete = ref<RekallDocument | null>(null)
 const isRunningHere = computed(() =>
   runningEntries.value.some((entry) => entry.taskId === selectedTask.value?.id)
 )
@@ -47,9 +50,22 @@ async function pauseTimer(): Promise<void> {
   await run(() => store.pauseTimer(selectedTask.value!.id))
 }
 
-/** A note is on at least one task, so the card of a note that is only here has no way off. */
+/** A note is on at least one task, so taking one off the only task it is on is deleting it. */
 function onlyHere(note: RekallDocument): boolean {
   return note.tasks.length === 1
+}
+
+/**
+ * The card's one control. A note that lives elsewhere too comes off this task at once; a note
+ * that is only here has nowhere to go, so the same control asks to delete it instead.
+ */
+function takeOff(note: RekallDocument): void {
+  if (leaving.value !== null) return
+  if (onlyHere(note)) {
+    confirmingDelete.value = note
+    return
+  }
+  void detach(note)
 }
 
 /**
@@ -57,9 +73,9 @@ function onlyHere(note: RekallDocument): boolean {
  * which is quicker than a confirm and just as safe. Undo puts the note back and, if it was the
  * one in the editor, opens it again.
  */
-async function takeOff(note: RekallDocument): Promise<void> {
+async function detach(note: RekallDocument): Promise<void> {
   const task = selectedTask.value
-  if (!task || onlyHere(note) || leaving.value !== null) return
+  if (!task || leaving.value !== null) return
   const wasOpen = selectedDocId.value === note.id
   leaving.value = note.id
   try {
@@ -79,6 +95,19 @@ async function takeOff(note: RekallDocument): Promise<void> {
         if (wasOpen) store.selectDocument(note.id)
       })
   })
+}
+
+/** Deleting is not undone by a toast: the confirm is the one gate, and it names the blast. */
+async function confirmDelete(): Promise<void> {
+  const note = confirmingDelete.value
+  confirmingDelete.value = null
+  if (!note || leaving.value !== null) return
+  leaving.value = note.id
+  try {
+    await run(() => store.deleteNote(note.id), `Deleted ${note.title}.`)
+  } finally {
+    leaving.value = null
+  }
 }
 </script>
 
@@ -196,8 +225,9 @@ async function takeOff(note: RekallDocument): Promise<void> {
 
           <!--
             The card's right end is the note's membership. At rest it says where else the note
-            lives; under the pointer or the keyboard it is the one way off this task, or a lock
-            when this is the only task the note is on.
+            lives; under the pointer or the keyboard it is the one way off this task. When this
+            is the only task the note is on, that way off is deleting the note, and the control
+            is a bin rather than a cross so the card says so before the confirm does.
           -->
           <span class="absolute right-2.5 top-2.5 flex h-[18px] items-center" data-testid="note-card-membership">
             <span
@@ -209,29 +239,28 @@ async function takeOff(note: RekallDocument): Promise<void> {
               &#8942; {{ document.tasks.length }}
             </span>
             <button
-              v-if="!onlyHere(document)"
               type="button"
               class="focus-ring absolute right-0 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-md text-text-subtle opacity-0 transition-[opacity,color,background-color] duration-100 hover:bg-danger-soft hover:text-danger focus-visible:opacity-100 group-hover/card:opacity-100 group-focus-within/card:opacity-100"
-              :title="`Take ${document.title} off this task`"
-              :aria-label="`Take ${document.title} off this task`"
-              data-testid="note-card-off"
+              :title="
+                onlyHere(document)
+                  ? `This is the only task ${document.title} is on: taking it off deletes the note`
+                  : `Take ${document.title} off this task`
+              "
+              :aria-label="
+                onlyHere(document)
+                  ? `Delete ${document.title}, this is its only task`
+                  : `Take ${document.title} off this task`
+              "
+              :data-testid="onlyHere(document) ? 'note-card-delete' : 'note-card-off'"
               @click.stop="takeOff(document)"
             >
-              <svg class="size-3" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <svg v-if="onlyHere(document)" class="size-3" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                <path d="M2.5 3.5h7M4.5 3.5V2.5h3v1M3.5 3.5l.5 6h4l.5-6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              <svg v-else class="size-3" viewBox="0 0 12 12" fill="none" aria-hidden="true">
                 <path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
               </svg>
             </button>
-            <span
-              v-else
-              class="absolute right-0 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-md text-text-subtle/70 opacity-0 transition-opacity duration-100 group-hover/card:opacity-100 group-focus-within/card:opacity-100"
-              title="The only task this note is on. A note needs at least one."
-              data-testid="note-card-only-here"
-            >
-              <svg class="size-3" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                <rect x="2.5" y="5.5" width="7" height="5" rx="1" stroke="currentColor" stroke-width="1.2" />
-                <path d="M4.25 5.5V4a1.75 1.75 0 013.5 0v1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
-              </svg>
-            </span>
           </span>
         </div>
       </TransitionGroup>
@@ -243,5 +272,15 @@ async function takeOff(note: RekallDocument): Promise<void> {
     :task="selectedTask"
     :entries="selectedTaskEntries"
     @close="showTimeLog = false"
+  />
+
+  <AppConfirm
+    v-if="confirmingDelete"
+    :title="`Delete ${confirmingDelete.title}?`"
+    body="This is the only task the note is on. Taking it off deletes the note and its content. Put it on another task first to keep it."
+    blast="deletes the note · not recoverable"
+    confirm-label="Delete note"
+    @cancel="confirmingDelete = null"
+    @confirm="confirmDelete"
   />
 </template>

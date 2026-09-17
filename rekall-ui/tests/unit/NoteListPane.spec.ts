@@ -9,9 +9,9 @@ import type { DocumentId, ProjectId, TaskId } from '@/model/branded'
 
 /**
  * The task's note column: each card carries its note's membership at the right end, and that
- * slot is how a note is taken off the task in view. Only the choice of what to detach, the lock
- * on a note that is only here and the Undo that follows are decided here; the write path is the
- * store's, stubbed and covered in `console.spec`.
+ * slot is how a note is taken off the task in view. Only the choice of what to detach, the
+ * delete confirm on a note that is only here and the Undo that follows are decided here; the
+ * write path is the store's, stubbed and covered in `console.spec`.
  */
 const vega = 'p1' as ProjectId
 const builder = 't1' as TaskId
@@ -81,6 +81,7 @@ function seed(documents: RekallDocument[]) {
   store.isLoading = false
   store.attachNoteToTask = vi.fn().mockResolvedValue(undefined)
   store.detachNoteFromTask = vi.fn().mockResolvedValue(undefined)
+  store.deleteNote = vi.fn().mockResolvedValue(undefined)
   store.selectDocument = vi.fn()
   return store
 }
@@ -98,7 +99,7 @@ describe('NoteListPane', () => {
     setActivePinia(pinia)
   })
 
-  it('says where else each note lives, and offers the way off only when there is one', () => {
+  it('says where else each note lives, and names the way off as delete when there is nowhere else', () => {
     seed([note('d1', 'cluster.md', [builder, retry]), note('d2', 'conventions.md', [builder])])
     const wrapper = render()
 
@@ -107,12 +108,12 @@ describe('NoteListPane', () => {
 
     expect(membership[0]!.find('[data-testid="note-card-elsewhere"]').text()).toContain('2')
     expect(membership[0]!.find('[data-testid="note-card-off"]').exists()).toBe(true)
-    expect(membership[0]!.find('[data-testid="note-card-only-here"]').exists()).toBe(false)
+    expect(membership[0]!.find('[data-testid="note-card-delete"]').exists()).toBe(false)
 
     expect(membership[1]!.find('[data-testid="note-card-elsewhere"]').exists()).toBe(false)
     expect(membership[1]!.find('[data-testid="note-card-off"]').exists()).toBe(false)
-    expect(membership[1]!.find('[data-testid="note-card-only-here"]').attributes('title')).toContain(
-      'A note needs at least one'
+    expect(membership[1]!.find('[data-testid="note-card-delete"]').attributes('title')).toContain(
+      'deletes the note'
     )
     wrapper.unmount()
   })
@@ -140,14 +141,36 @@ describe('NoteListPane', () => {
     wrapper.unmount()
   })
 
-  /** A note is on at least one task, so the keyboard cannot take the last placement either. */
-  it('ignores Backspace on a note that is only here', async () => {
+  /**
+   * A note is on at least one task, so taking it off the only one is deleting it: the control
+   * and the keyboard both open the confirm, and nothing is written until it is answered.
+   */
+  it('asks before deleting a note that is only here, from the control or the keyboard', async () => {
     const store = seed([note('d1', 'cluster.md', [builder])])
     const wrapper = render()
 
     await cardsOf(wrapper)[0]!.trigger('keydown', { key: 'Delete' })
     await flushPromises()
 
+    const confirm = document.body.querySelector('[role="alertdialog"]')
+    expect(confirm?.getAttribute('aria-label')).toBe('Delete cluster.md?')
+    expect(confirm?.textContent).toContain('only task the note is on')
+    expect(store.detachNoteFromTask).not.toHaveBeenCalled()
+    expect(store.deleteNote).not.toHaveBeenCalled()
+
+    const keep = Array.from(confirm!.querySelectorAll('button')).find((b) => b.textContent?.includes('Keep it'))!
+    keep.click()
+    await flushPromises()
+    expect(document.body.querySelector('[role="alertdialog"]')).toBeNull()
+
+    await wrapper.find('[data-testid="note-card-delete"]').trigger('click')
+    await flushPromises()
+    const again = document.body.querySelector('[role="alertdialog"]')!
+    const del = Array.from(again.querySelectorAll('button')).find((b) => b.textContent?.includes('Delete note'))!
+    del.click()
+    await flushPromises()
+
+    expect(store.deleteNote).toHaveBeenCalledWith('d1')
     expect(store.detachNoteFromTask).not.toHaveBeenCalled()
     wrapper.unmount()
   })

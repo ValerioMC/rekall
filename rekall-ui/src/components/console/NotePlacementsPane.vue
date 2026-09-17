@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
+import AppConfirm from '@/components/ui/AppConfirm.vue'
 import NoteAssignmentDialog from '@/components/console/NoteAssignmentDialog.vue'
 import NotePlacementRow from '@/components/console/NotePlacementRow.vue'
 import { useConsoleStore } from '@/stores/console.store'
@@ -13,12 +14,13 @@ import type { TaskId } from '@/model/branded'
 /**
  * The middle column while browsing notes: where the selected note is, and the way to put it
  * somewhere else. It replaces the task's own column there, so picking a note never drags a task
- * into view. The list is the note's tasks grouped by project, and a click on one takes the note
- * off it. Putting the note on another task goes through the same picker the task side uses,
- * `NoteAssignmentDialog`, opened from the button at the top: one place to learn, whichever side
- * the note is reached from.
+ * into view. The list is the note's tasks grouped by project; each row carries its own remove
+ * control, and nothing else on the row takes the note anywhere. Putting the note on another task
+ * goes through the same picker the task side uses, `NoteAssignmentDialog`, opened from the
+ * button at the top: one place to learn, whichever side the note is reached from.
  * Removals go through `store.detachNoteFromTask`, which keeps the rule that a note is on at
- * least one task.
+ * least one task. On the last task that control deletes the note instead, through
+ * `store.deleteNote`, after `AppConfirm` has said so.
  */
 const store = useConsoleStore()
 const { selectedDocument, tasks, companies } = storeToRefs(store)
@@ -26,13 +28,15 @@ const { run } = useAsyncAction()
 
 interface PlacementRow {
   readonly task: Task
-  /** True when this is the only task the note is on: it cannot be taken off. */
+  /** True when this is the only task the note is on: taking it off is deleting the note. */
   readonly onlyHere: boolean
 }
 
 const busy = ref<TaskId | null>(null)
 const showDone = ref(false)
 const isAssigning = ref(false)
+/** The last-task row whose removal is waiting on the confirm, or null. */
+const confirmingDelete = ref<PlacementRow | null>(null)
 
 const manyCompanies = computed(() => companies.value.length > 1)
 
@@ -60,21 +64,45 @@ const order = computed(() => groups.value.flatMap((group) => group.rows))
 
 watch(selectedDocument, () => {
   showDone.value = false
+  confirmingDelete.value = null
 })
 
 function orderIndex(taskId: TaskId): number {
   return order.value.findIndex((row) => row.task.id === taskId)
 }
 
-async function takeOff(row: PlacementRow): Promise<void> {
+/**
+ * The row's remove control. With other tasks to stay on, the note comes off this one at once.
+ * On its last task there is nothing to fall back to, so the same control asks to delete the
+ * note, and only the confirm does it.
+ */
+async function remove(row: PlacementRow): Promise<void> {
+  if (busy.value !== null) return
+  if (row.onlyHere) {
+    confirmingDelete.value = row
+    return
+  }
   const document = selectedDocument.value
-  if (!document || busy.value !== null || row.onlyHere) return
+  if (!document) return
   busy.value = row.task.id
   try {
     await run(
       () => store.detachNoteFromTask(document.id, row.task.id),
       `Taken off ${row.task.projectLabel}/${row.task.label}.`
     )
+  } finally {
+    busy.value = null
+  }
+}
+
+async function confirmDelete(): Promise<void> {
+  const document = selectedDocument.value
+  const row = confirmingDelete.value
+  confirmingDelete.value = null
+  if (!document || !row) return
+  busy.value = row.task.id
+  try {
+    await run(() => store.deleteNote(document.id), `Deleted ${document.title}.`)
   } finally {
     busy.value = null
   }
@@ -175,7 +203,8 @@ function openTask(task: Task): void {
             :busy="busy === row.task.id"
             :walk-index="orderIndex(row.task.id)"
             openable
-            @toggle="takeOff(row)"
+            removable
+            @remove="remove(row)"
             @open="openTask(row.task)"
           />
         </div>
@@ -209,13 +238,23 @@ function openTask(task: Task): void {
 
       <div class="shrink-0 border-t border-border bg-canvas px-3.5 py-2 text-[10.5px] text-text-subtle">
         <template v-if="attachedIds.size === 1">
-          Its only task. Put it on another before taking it off this one.
+          Its only task: taking it off deletes the note. Put it on another to keep it.
         </template>
-        <template v-else>Click a task to take the note off it.</template>
+        <template v-else>The cross on a row takes the note off that task.</template>
       </div>
     </template>
 
     <NoteAssignmentDialog v-if="isAssigning" @close="isAssigning = false" />
+
+    <AppConfirm
+      v-if="confirmingDelete && selectedDocument"
+      :title="`Delete ${selectedDocument.title}?`"
+      :body="`${confirmingDelete.task.title} is the only task this note is on. Taking it off deletes the note and its content. Put it on another task first to keep it.`"
+      blast="deletes the note · not recoverable"
+      confirm-label="Delete note"
+      @cancel="confirmingDelete = null"
+      @confirm="confirmDelete"
+    />
   </section>
 </template>
 

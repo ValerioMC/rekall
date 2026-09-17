@@ -96,6 +96,7 @@ function seed(document: RekallDocument | null) {
   store.isLoading = false
   store.attachNoteToTask = vi.fn().mockResolvedValue(undefined)
   store.detachNoteFromTask = vi.fn().mockResolvedValue(undefined)
+  store.deleteNote = vi.fn().mockResolvedValue(undefined)
   return store
 }
 
@@ -136,30 +137,62 @@ describe('NotePlacementsPane', () => {
     wrapper.unmount()
   })
 
-  it('takes the note off a task it is on with one click', async () => {
+  /** The row's body is inert: only its own remove control takes the note anywhere. */
+  it('takes the note off a task from the row\'s remove control, never from the row itself', async () => {
     const store = seed(note([builder, wiring]))
     const wrapper = render()
 
     // Projects sort by title, so Beacon's row comes before Vega's.
     await rowsOf(wrapper)[0]!.trigger('click')
     await flushPromises()
+    expect(store.detachNoteFromTask).not.toHaveBeenCalled()
 
+    const remove = wrapper.findAll('[data-testid="note-placement-remove"]')
+    expect(remove).toHaveLength(2)
+    expect(remove[0]!.attributes('title')).toContain('Take this note off Wiring the adapter')
+
+    await remove[0]!.trigger('click')
+    await flushPromises()
     expect(store.detachNoteFromTask).toHaveBeenCalledWith('d1', wiring)
     wrapper.unmount()
   })
 
-  /** A note is on at least one task: the last row is inert and says why. */
-  it('will not take the note off the only task it is on', async () => {
+  /** Arming the control says on the row what a click will do, before it does it. */
+  it('colours the row it is about to empty while the remove control is under the pointer', async () => {
+    seed(note([builder, wiring]))
+    const wrapper = render()
+
+    const remove = wrapper.find('[data-testid="note-placement-remove"]')
+    expect(remove.text()).toContain('Take off')
+    await remove.trigger('mouseenter')
+    expect(wrapper.find('[data-armed="remove"]').exists()).toBe(true)
+    await remove.trigger('mouseleave')
+    expect(wrapper.find('[data-armed]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  /** A note is on at least one task: on the last one the control deletes the note, after asking. */
+  it('asks to delete the note instead of taking it off the only task it is on', async () => {
     const store = seed(note([builder]))
     const wrapper = render()
 
     const only = rowsOf(wrapper)[0]!
-    expect(only.attributes('aria-disabled')).toBe('true')
     expect(only.text()).toContain('only here')
+    expect(wrapper.find('[data-testid="note-placement-remove"]').exists()).toBe(false)
+    const del = wrapper.find('[data-testid="note-placement-delete"]')
+    expect(del.text()).toContain('Delete note')
 
-    await only.trigger('click')
+    await del.trigger('click')
+    await flushPromises()
+    const confirm = document.body.querySelector('[role="alertdialog"]')!
+    expect(confirm.getAttribute('aria-label')).toBe('Delete cluster.md?')
+    expect(confirm.textContent).toContain('Report builder is the only task this note is on')
+    expect(store.deleteNote).not.toHaveBeenCalled()
+
+    Array.from(confirm.querySelectorAll('button')).find((b) => b.textContent?.includes('Delete note'))!.click()
     await flushPromises()
 
+    expect(store.deleteNote).toHaveBeenCalledWith('d1')
     expect(store.detachNoteFromTask).not.toHaveBeenCalled()
     wrapper.unmount()
   })
@@ -186,11 +219,11 @@ describe('NotePlacementsPane', () => {
     wrapper.unmount()
   })
 
-  it('tells why the last task cannot be taken off', () => {
+  it('says on the last task that taking it off deletes the note', () => {
     seed(note([builder]))
     const wrapper = render()
 
-    expect(wrapper.text()).toContain('Put it on another before taking it off this one')
+    expect(wrapper.text()).toContain('taking it off deletes the note')
     wrapper.unmount()
   })
 
