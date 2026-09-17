@@ -361,20 +361,24 @@ async function confirmDelete(): Promise<void> {
       </div>
     </template>
 
-    <NoteAssignmentDialog v-if="isAssigning" @close="isAssigning = false" />
+    <Transition name="dialog">
+      <NoteAssignmentDialog v-if="isAssigning" @close="isAssigning = false" />
+    </Transition>
 
-    <AppConfirm
-      v-if="isConfirmingDelete && selectedDocument"
-      :title="`Delete ${selectedDocument.title}?`"
-      :body="
-        selectedDocument.tasks.length > 1
-          ? 'This note is on more than one task. Deleting removes it everywhere.'
-          : 'This removes the note and its content.'
-      "
-      :blast="`removes it from ${selectedDocument.tasks.length} task${selectedDocument.tasks.length === 1 ? '' : 's'} · not recoverable`"
-      confirm-label="Delete note"
-      @cancel="isConfirmingDelete = false"
-      @confirm="confirmDelete"
-    />
+    <Transition name="dialog">
+      <AppConfirm
+        v-if="isConfirmingDelete && selectedDocument"
+        :title="`Delete ${selectedDocument.title}?`"
+        :body="
+          selectedDocument.tasks.length > 1
+            ? 'This note is on more than one task. Deleting removes it everywhere.'
+            : 'This removes the note and its content.'
+        "
+        :blast="`removes it from ${selectedDocument.tasks.length} task${selectedDocument.tasks.length === 1 ? '' : 's'} · not recoverable`"
+        confirm-label="Delete note"
+        @cancel="isConfirmingDelete = false"
+        @confirm="confirmDelete"
+      />
+    </Transition>
   </section>
 </template>

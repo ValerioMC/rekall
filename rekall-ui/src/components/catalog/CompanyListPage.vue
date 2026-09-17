@@ -173,16 +173,20 @@ async function confirmDelete(): Promise<void> {
       </div>
     </div>
 
-    <RecordDialog v-if="editing" :draft="editing" @close="editing = null" />
+    <Transition name="dialog">
+      <RecordDialog v-if="editing" :draft="editing" @close="editing = null" />
+    </Transition>
 
-    <AppConfirm
-      v-if="deleting"
-      :title="`Delete ${deleting.name}?`"
-      body="Everything underneath goes with it. This is not recoverable."
-      :blast="blastOf(deleting)"
-      confirm-label="Delete company"
-      @cancel="deleting = null"
-      @confirm="confirmDelete"
-    />
+    <Transition name="dialog">
+      <AppConfirm
+        v-if="deleting"
+        :title="`Delete ${deleting.name}?`"
+        body="Everything underneath goes with it. This is not recoverable."
+        :blast="blastOf(deleting)"
+        confirm-label="Delete company"
+        @cancel="deleting = null"
+        @confirm="confirmDelete"
+      />
+    </Transition>
   </div>
 </template>

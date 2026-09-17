@@ -244,17 +244,21 @@ function openTask(task: Task): void {
       </div>
     </template>
 
-    <NoteAssignmentDialog v-if="isAssigning" @close="isAssigning = false" />
+    <Transition name="dialog">
+      <NoteAssignmentDialog v-if="isAssigning" @close="isAssigning = false" />
+    </Transition>
 
-    <AppConfirm
-      v-if="confirmingDelete && selectedDocument"
-      :title="`Delete ${selectedDocument.title}?`"
-      :body="`${confirmingDelete.task.title} is the only task this note is on. Taking it off deletes the note and its content. Put it on another task first to keep it.`"
-      blast="deletes the note · not recoverable"
-      confirm-label="Delete note"
-      @cancel="confirmingDelete = null"
-      @confirm="confirmDelete"
-    />
+    <Transition name="dialog">
+      <AppConfirm
+        v-if="confirmingDelete && selectedDocument"
+        :title="`Delete ${selectedDocument.title}?`"
+        :body="`${confirmingDelete.task.title} is the only task this note is on. Taking it off deletes the note and its content. Put it on another task first to keep it.`"
+        blast="deletes the note · not recoverable"
+        confirm-label="Delete note"
+        @cancel="confirmingDelete = null"
+        @confirm="confirmDelete"
+      />
+    </Transition>
   </section>
 </template>
 

@@ -54,11 +54,13 @@ const count = computed(
       </span>
     </button>
 
-    <NoteQuickPicker
-      v-if="pickerOpen && host"
-      :task-id="taskId"
-      :anchor="host"
-      @close="pickerOpen = false"
-    />
+    <Transition name="popover">
+      <NoteQuickPicker
+        v-if="pickerOpen && host"
+        :task-id="taskId"
+        :anchor="host"
+        @close="pickerOpen = false"
+      />
+    </Transition>
   </div>
 </template>

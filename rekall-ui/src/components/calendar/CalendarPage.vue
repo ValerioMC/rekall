@@ -127,11 +127,13 @@ function openDay(cell: { date: Date; rows: DaySummaryRow[] }): void {
       </div>
     </div>
 
-    <DayDetailDialog
-      v-if="selectedDay"
-      :date="selectedDay.date"
-      :rows="selectedDay.rows"
-      @close="selectedDay = null"
-    />
+    <Transition name="dialog">
+      <DayDetailDialog
+        v-if="selectedDay"
+        :date="selectedDay.date"
+        :rows="selectedDay.rows"
+        @close="selectedDay = null"
+      />
+    </Transition>
   </div>
 </template>

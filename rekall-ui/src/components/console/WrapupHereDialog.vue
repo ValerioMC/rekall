@@ -48,12 +48,12 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="fade-in fixed inset-0 z-(--z-modal) grid place-items-center bg-black/70 p-5 backdrop-blur-sm"
+    class="fixed inset-0 z-(--z-modal) grid place-items-center bg-black/70 p-5 backdrop-blur-sm"
     @click.self="emit('cancel')"
   >
     <div
       ref="panel"
-      class="rise w-full max-w-[480px] overflow-hidden rounded-[var(--radius-card)] border border-border-strong bg-surface shadow-modal"
+      class="dialog-panel w-full max-w-[480px] overflow-hidden rounded-[var(--radius-card)] border border-border-strong bg-surface shadow-modal"
       role="dialog"
       aria-modal="true"
       aria-label="Run the wrapup here"

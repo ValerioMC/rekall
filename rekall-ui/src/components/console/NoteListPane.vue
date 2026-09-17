@@ -265,22 +265,26 @@ async function confirmDelete(): Promise<void> {
         </div>
       </TransitionGroup>
     </div>
+
+    <Transition name="dialog">
+      <TimeLogDialog
+        v-if="showTimeLog && selectedTask"
+        :task="selectedTask"
+        :entries="selectedTaskEntries"
+        @close="showTimeLog = false"
+      />
+    </Transition>
+
+    <Transition name="dialog">
+      <AppConfirm
+        v-if="confirmingDelete"
+        :title="`Delete ${confirmingDelete.title}?`"
+        body="This is the only task the note is on. Taking it off deletes the note and its content. Put it on another task first to keep it."
+        blast="deletes the note · not recoverable"
+        confirm-label="Delete note"
+        @cancel="confirmingDelete = null"
+        @confirm="confirmDelete"
+      />
+    </Transition>
   </section>
-
-  <TimeLogDialog
-    v-if="showTimeLog && selectedTask"
-    :task="selectedTask"
-    :entries="selectedTaskEntries"
-    @close="showTimeLog = false"
-  />
-
-  <AppConfirm
-    v-if="confirmingDelete"
-    :title="`Delete ${confirmingDelete.title}?`"
-    body="This is the only task the note is on. Taking it off deletes the note and its content. Put it on another task first to keep it."
-    blast="deletes the note · not recoverable"
-    confirm-label="Delete note"
-    @cancel="confirmingDelete = null"
-    @confirm="confirmDelete"
-  />
 </template>

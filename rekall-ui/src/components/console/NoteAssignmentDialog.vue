@@ -155,12 +155,12 @@ watch(selectedDocument, (doc) => {
 
 <template>
   <div
-    class="fade-in fixed inset-0 z-(--z-modal) grid place-items-center bg-black/70 p-5 backdrop-blur-sm"
+    class="fixed inset-0 z-(--z-modal) grid place-items-center bg-black/70 p-5 backdrop-blur-sm"
     @click.self="emit('close')"
   >
     <div
       ref="panel"
-      class="rise flex h-[600px] max-h-[86vh] w-full max-w-[760px] flex-col overflow-hidden rounded-[var(--radius-card)] border border-border-strong bg-surface shadow-modal"
+      class="dialog-panel flex h-[600px] max-h-[86vh] w-full max-w-[760px] flex-col overflow-hidden rounded-[var(--radius-card)] border border-border-strong bg-surface shadow-modal"
       role="dialog"
       aria-modal="true"
       aria-label="Choose the tasks this note belongs to"

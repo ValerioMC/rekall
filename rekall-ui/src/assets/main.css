@@ -465,20 +465,6 @@
   border-radius: 6px;
 }
 
-/*
- * Tap feedback for anything clickable that is not a dialog-opening `AppButton` (which already
- * presses via `active:translate-y-px`): a task row, a step checkbox, a pane-switch card, Promote.
- * A small settle-under-the-finger scale rather than a colour change, so the same touch registers
- * on sight and not just on the eventual state update.
- */
-@utility press {
-  transition: transform 110ms cubic-bezier(0.34, 1.56, 0.64, 1);
-
-  &:active {
-    transform: scale(0.96);
-  }
-}
-
 /* Dialogs arrive rather than appear. Short enough that it never delays the first keystroke. */
 @utility rise {
   animation: rise 160ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -511,6 +497,21 @@
 .pane-leave-to {
   opacity: 0;
   transform: translateY(-3px);
+}
+
+/*
+ * A `rise`d dialog or a `.pane-*` cross-fade animates its whole subtree, and on macOS that
+ * repaints a scrollable descendant on every frame unless it already has its own compositing
+ * layer - WebKit treats that repaint as scroll-relevant activity and flashes the descendant's
+ * overlay scrollbar for as long as the animation runs, then hides it the instant the animation
+ * settles. Visible on Rekall.app's WKWebView as a scrollbar that appears the moment a dialog or
+ * pane starts animating in and disappears the moment it finishes. Promoting every scrollable
+ * region to its own layer up front means an ancestor's opacity/transform animation moves it as
+ * one composited bitmap without touching it, so its scrollbar has nothing to flash for.
+ */
+.overflow-y-auto,
+.overflow-auto {
+  will-change: transform;
 }
 
 /*
@@ -553,6 +554,87 @@
 .step-list-leave-to {
   opacity: 0;
   transform: translateX(10px) scale(0.98);
+}
+
+/*
+ * A full-screen dialog: the backdrop, which is this transition's own root, fades; `.dialog-panel`
+ * inside it - the card itself - rises and settles in step, in both directions. Every modal dialog
+ * (RecordDialog, AppConfirm, TimeLogDialog, NoteAssignmentDialog, WrapupHereDialog,
+ * DayDetailDialog, SettingsPanel) is wrapped in `<Transition name="dialog">` where it is
+ * conditionally rendered, so closing carries the same motion opening does.
+ */
+.dialog-enter-active,
+.dialog-leave-active {
+  transition: opacity 160ms ease;
+}
+
+.dialog-enter-from,
+.dialog-leave-to {
+  opacity: 0;
+}
+
+.dialog-enter-active .dialog-panel,
+.dialog-leave-active .dialog-panel {
+  transition:
+    opacity 160ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dialog-enter-from .dialog-panel,
+.dialog-leave-to .dialog-panel {
+  opacity: 0;
+  transform: translateY(6px) scale(0.985);
+}
+
+/*
+ * An anchored popover with no backdrop of its own (a picker, a dock sheet): the same rise, in
+ * both directions, on the popover's own root.
+ */
+.popover-enter-active,
+.popover-leave-active {
+  transition:
+    opacity 140ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 140ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.popover-enter-from,
+.popover-leave-to {
+  opacity: 0;
+  transform: translateY(-4px) scale(0.98);
+}
+
+/* A step's detail, or a draft's, opening or closing under its title. */
+.detail-enter-active,
+.detail-leave-active {
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease;
+}
+
+.detail-enter-from,
+.detail-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+/* A company's card in the Report, arriving or leaving as its chip is selected or deselected. */
+.report-row-enter-active,
+.report-row-leave-active,
+.report-row-move {
+  transition:
+    opacity 200ms ease,
+    transform 200ms ease;
+}
+
+.report-row-enter-from,
+.report-row-leave-to {
+  opacity: 0;
+  transform: translateY(4px);
+}
+
+.report-row-leave-active {
+  position: absolute;
+  width: 100%;
 }
 
 /* Confirmation that something was copied, on the element that was copied from. */

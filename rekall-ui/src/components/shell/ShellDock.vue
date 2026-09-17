@@ -95,8 +95,10 @@ onUnmounted(() => {
     class="fixed bottom-2.5 right-4 z-(--z-sticky) flex flex-col items-end gap-2"
     data-testid="shell-dock"
   >
-    <RunningTasksPanel v-if="open === 'running'" @close="close" />
-    <TerminalSessionsPanel v-else-if="open === 'sessions'" @close="close" />
+    <Transition name="popover" mode="out-in">
+      <RunningTasksPanel v-if="open === 'running'" @close="close" />
+      <TerminalSessionsPanel v-else-if="open === 'sessions'" @close="close" />
+    </Transition>
 
     <div
       ref="bar"

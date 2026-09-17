@@ -252,23 +252,27 @@ async function sendWrapupHere(message: string): Promise<void> {
       </div>
     </template>
 
-    <AppConfirm
-      v-if="isConfirmingDelete && selectedTask"
-      :title="`Delete the wrapup on ${selectedTask.title}?`"
-      body="The task and its notes stay. What goes is the description of where the implementation currently stands."
-      blast="not recoverable · the next `/rk … wrapup` starts from nothing"
-      confirm-label="Delete wrapup"
-      @cancel="isConfirmingDelete = false"
-      @confirm="confirmDelete"
-    />
+    <Transition name="dialog">
+      <AppConfirm
+        v-if="isConfirmingDelete && selectedTask"
+        :title="`Delete the wrapup on ${selectedTask.title}?`"
+        body="The task and its notes stay. What goes is the description of where the implementation currently stands."
+        blast="not recoverable · the next `/rk … wrapup` starts from nothing"
+        confirm-label="Delete wrapup"
+        @cancel="isConfirmingDelete = false"
+        @confirm="confirmDelete"
+      />
+    </Transition>
 
-    <WrapupHereDialog
-      v-if="wrapupHereOpen && selectedTask"
-      :task-title="selectedTask.title"
-      :anchor="selectedTask.anchor"
-      :sending="sendingWrapupHere"
-      @cancel="wrapupHereOpen = false"
-      @send="sendWrapupHere"
-    />
+    <Transition name="dialog">
+      <WrapupHereDialog
+        v-if="wrapupHereOpen && selectedTask"
+        :task-title="selectedTask.title"
+        :anchor="selectedTask.anchor"
+        :sending="sendingWrapupHere"
+        @cancel="wrapupHereOpen = false"
+        @send="sendWrapupHere"
+      />
+    </Transition>
   </section>
 </template>

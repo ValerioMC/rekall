@@ -84,7 +84,10 @@ const countLabel = computed(() => {
       :class="expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'"
     >
       <div class="overflow-hidden" data-testid="commit-rail-panel">
-        <div class="max-h-[260px] overflow-y-auto pb-1 pt-0.5">
+        <div
+          class="max-h-[260px] overflow-y-auto pb-1 pt-0.5 transition-opacity duration-200"
+          :class="expanded ? 'opacity-100' : 'opacity-0'"
+        >
           <CommitReferenceList :references="references" show-step-tag />
         </div>
       </div>

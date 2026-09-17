@@ -186,13 +186,15 @@ async function confirmDelete(): Promise<void> {
     </li>
   </ul>
 
-  <AppConfirm
-    v-if="deletingReference"
-    title="Delete this commit reference?"
-    body="Removes the link between this commit and the task/step it was logged against. The commit itself in git is untouched."
-    :blast="`${deletingReference.commitHash.slice(0, 7)} · ${deletingReference.comment} · not recoverable`"
-    confirm-label="Delete reference"
-    @cancel="deletingReference = null"
-    @confirm="confirmDelete"
-  />
+  <Transition name="dialog">
+    <AppConfirm
+      v-if="deletingReference"
+      title="Delete this commit reference?"
+      body="Removes the link between this commit and the task/step it was logged against. The commit itself in git is untouched."
+      :blast="`${deletingReference.commitHash.slice(0, 7)} · ${deletingReference.comment} · not recoverable`"
+      confirm-label="Delete reference"
+      @cancel="deletingReference = null"
+      @confirm="confirmDelete"
+    />
+  </Transition>
 </template>

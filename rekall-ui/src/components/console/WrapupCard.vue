@@ -25,7 +25,7 @@ const writtenBy = computed(() =>
   <div class="mb-2">
     <button
       data-testid="wrapup-card"
-      class="focus-ring press block w-full rounded-[var(--radius-control)] border p-2.5 text-left transition-all"
+      class="focus-ring block w-full rounded-[var(--radius-control)] border p-2.5 text-left transition-all"
       :class="[
         wrapup
           ? 'border-border-strong bg-surface-raised hover:border-text-subtle'

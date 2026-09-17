@@ -19,7 +19,7 @@ const emit = defineEmits<{ close: [] }>()
 <template>
   <section
     :id="panelId"
-    class="dock-panel rise w-[320px] overflow-hidden rounded-[var(--radius-card)] border border-border-strong bg-surface"
+    class="dock-panel w-[320px] overflow-hidden rounded-[var(--radius-card)] border border-border-strong bg-surface"
     :class="tint === 'time' ? 'dock-panel-time' : 'dock-panel-session'"
     :aria-label="title"
     data-testid="dock-panel"

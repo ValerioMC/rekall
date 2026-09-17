@@ -105,12 +105,12 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="fade-in fixed inset-0 z-(--z-modal) grid place-items-center bg-black/70 p-5 backdrop-blur-sm"
+    class="fixed inset-0 z-(--z-modal) grid place-items-center bg-black/70 p-5 backdrop-blur-sm"
     @click.self="canClose && emit('close')"
   >
     <div
       ref="panel"
-      class="rise flex max-h-[85vh] w-full max-w-[560px] flex-col overflow-hidden rounded-[var(--radius-card)] border border-border-strong bg-surface shadow-modal"
+      class="dialog-panel flex max-h-[85vh] w-full max-w-[560px] flex-col overflow-hidden rounded-[var(--radius-card)] border border-border-strong bg-surface shadow-modal"
       role="dialog"
       aria-modal="true"
       aria-label="Settings"
@@ -233,14 +233,16 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <AppConfirm
-      v-if="forgetting"
-      :title="`Forget ${forgetting.label}?`"
-      body="This only removes it from Rekall's list. The database file itself is untouched, and can be added back later by pointing at the same folder again."
-      :blast="forgetting.path"
-      confirm-label="Forget"
-      @cancel="forgetting = null"
-      @confirm="confirmForget"
-    />
+    <Transition name="dialog">
+      <AppConfirm
+        v-if="forgetting"
+        :title="`Forget ${forgetting.label}?`"
+        body="This only removes it from Rekall's list. The database file itself is untouched, and can be added back later by pointing at the same folder again."
+        :blast="forgetting.path"
+        confirm-label="Forget"
+        @cancel="forgetting = null"
+        @confirm="confirmForget"
+      />
+    </Transition>
   </div>
 </template>

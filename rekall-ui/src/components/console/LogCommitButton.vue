@@ -189,15 +189,17 @@ function togglePicker(): void {
       </svg>
     </button>
 
-    <CommitPicker
-      v-if="pickerOpen && host"
-      :task-id="taskId"
-      :anchor="host"
-      :logged-hashes="loggedHashes"
-      :busy="phase === 'logging'"
-      @pick="logPicked"
-      @close="pickerOpen = false"
-    />
+    <Transition name="popover">
+      <CommitPicker
+        v-if="pickerOpen && host"
+        :task-id="taskId"
+        :anchor="host"
+        :logged-hashes="loggedHashes"
+        :busy="phase === 'logging'"
+        @pick="logPicked"
+        @close="pickerOpen = false"
+      />
+    </Transition>
   </div>
 </template>
 

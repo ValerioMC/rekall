@@ -172,7 +172,9 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
       </div>
     </div>
 
-    <SettingsPanel v-if="settingsOpen" @close="settingsOpen = false" />
+    <Transition name="dialog">
+      <SettingsPanel v-if="settingsOpen" @close="settingsOpen = false" />
+    </Transition>
     <AppToaster />
   </div>
 </template>

@@ -254,14 +254,16 @@ async function copyAnchor(taskAnchor: string): Promise<void> {
         </button>
       </div>
 
-      <ReportCompanySection
-        v-for="company in report.companies"
-        :key="company.companyId"
-        :company="company"
-        :period="period"
-        :steps-open="showSteps"
-        @copy-anchor="copyAnchor"
-      />
+      <TransitionGroup tag="div" name="report-row" class="relative flex flex-col gap-5">
+        <ReportCompanySection
+          v-for="company in report.companies"
+          :key="company.companyId"
+          :company="company"
+          :period="period"
+          :steps-open="showSteps"
+          @copy-anchor="copyAnchor"
+        />
+      </TransitionGroup>
 
       <AppEmptyState
         v-if="emptiness === 'none-tracked'"

@@ -396,6 +396,8 @@ How it's built, how it's organised, the conventions to follow while working in i
       </div>
     </template>
 
-    <RecordDialog v-if="editing" :draft="editing" @close="editing = null" @saved="onDialogSaved" />
+    <Transition name="dialog">
+      <RecordDialog v-if="editing" :draft="editing" @close="editing = null" @saved="onDialogSaved" />
+    </Transition>
   </div>
 </template>

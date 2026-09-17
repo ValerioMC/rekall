@@ -23,7 +23,7 @@ const accepted = computed(() => props.reviewState === 'DONE')
 <template>
   <button
     data-testid="description-card"
-    class="focus-ring press mb-2 block w-full rounded-[var(--radius-control)] border p-2.5 text-left transition-all"
+    class="focus-ring mb-2 block w-full rounded-[var(--radius-control)] border p-2.5 text-left transition-all"
     :class="[
       hasBody
         ? 'border-border-strong bg-surface-raised hover:border-text-subtle'

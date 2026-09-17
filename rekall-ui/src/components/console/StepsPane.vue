@@ -504,7 +504,7 @@ onUnmounted(() => rowObserver?.disconnect())
             />
 
             <button
-              class="focus-ring press absolute left-0 top-[7px] z-10 grid size-[22px] place-items-center rounded-full border transition-all duration-200"
+              class="focus-ring absolute left-0 top-[7px] z-10 grid size-[22px] place-items-center rounded-full border transition-all duration-200"
               :class="{
                 'border-accent bg-accent text-accent-ink cursor-default': step.state === 'DONE',
                 'border-accent bg-accent-soft text-accent': step.state === 'CLAIMED',
@@ -691,6 +691,7 @@ onUnmounted(() => rowObserver?.disconnect())
                 </div>
               </div>
 
+              <Transition name="detail">
               <div v-if="expandedId === step.id" class="mt-2.5" data-testid="step-detail">
                 <div
                   v-if="step.state === 'RUNNING'"
@@ -820,6 +821,7 @@ onUnmounted(() => rowObserver?.disconnect())
                   </p>
                 </Transition>
               </div>
+              </Transition>
             </div>
           </li>
         </ol>
@@ -905,7 +907,7 @@ onUnmounted(() => rowObserver?.disconnect())
 
                     <div class="flex shrink-0 items-center gap-0.5">
                       <button
-                        class="focus-ring press h-7 shrink-0 rounded-[var(--radius-control)] border border-accent bg-accent-soft px-2.5 text-[11px] font-medium text-accent transition-colors hover:bg-accent hover:text-accent-ink disabled:cursor-not-allowed disabled:opacity-40"
+                        class="focus-ring h-7 shrink-0 rounded-[var(--radius-control)] border border-accent bg-accent-soft px-2.5 text-[11px] font-medium text-accent transition-colors hover:bg-accent hover:text-accent-ink disabled:cursor-not-allowed disabled:opacity-40"
                         :class="promoting === step.id && 'settle'"
                         :disabled="promoting === step.id"
                         data-testid="draft-promote"
@@ -969,6 +971,7 @@ onUnmounted(() => rowObserver?.disconnect())
                     </div>
                   </div>
 
+                  <Transition name="detail">
                   <div v-if="expandedId === step.id" class="mt-2.5" data-testid="draft-detail">
                     <div class="mb-2 flex items-center gap-2">
                       <span class="eyebrow text-[9.5px]">Detail</span>
@@ -1021,6 +1024,7 @@ onUnmounted(() => rowObserver?.disconnect())
                       </p>
                     </Transition>
                   </div>
+                  </Transition>
                 </div>
               </li>
             </TransitionGroup>
@@ -1048,7 +1052,7 @@ onUnmounted(() => rowObserver?.disconnect())
         />
         <button
           type="submit"
-          class="focus-ring press h-(--spacing-control) shrink-0 rounded-[var(--radius-control)] border border-accent bg-accent-soft px-3.5 text-[12.5px] font-medium text-accent transition-colors hover:bg-accent hover:text-accent-ink disabled:cursor-not-allowed disabled:opacity-40"
+          class="focus-ring h-(--spacing-control) shrink-0 rounded-[var(--radius-control)] border border-accent bg-accent-soft px-3.5 text-[12.5px] font-medium text-accent transition-colors hover:bg-accent hover:text-accent-ink disabled:cursor-not-allowed disabled:opacity-40"
           :disabled="!newTitle.trim()"
           data-testid="add-step"
         >
@@ -1057,15 +1061,17 @@ onUnmounted(() => rowObserver?.disconnect())
       </form>
     </template>
 
-    <AppConfirm
-      v-if="deleting"
-      title="Delete this step?"
-      :body="`Removes &quot;${deleting.title}&quot; from this task's checklist.`"
-      :blast="deletingBlast"
-      confirm-label="Delete step"
-      @cancel="deleting = null"
-      @confirm="remove"
-    />
+    <Transition name="dialog">
+      <AppConfirm
+        v-if="deleting"
+        title="Delete this step?"
+        :body="`Removes &quot;${deleting.title}&quot; from this task's checklist.`"
+        :blast="deletingBlast"
+        confirm-label="Delete step"
+        @cancel="deleting = null"
+        @confirm="remove"
+      />
+    </Transition>
   </section>
 </template>
 

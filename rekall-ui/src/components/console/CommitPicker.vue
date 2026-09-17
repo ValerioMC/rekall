@@ -108,7 +108,7 @@ onUnmounted(() => {
   <Teleport to="body">
     <div
       ref="panel"
-      class="commit-picker rise fixed z-(--z-overlay) flex max-h-[min(440px,calc(100vh-24px))] flex-col overflow-hidden rounded-[var(--radius-card)] border border-border-strong bg-surface shadow-lift"
+      class="commit-picker fixed z-(--z-overlay) flex max-h-[min(440px,calc(100vh-24px))] flex-col overflow-hidden rounded-[var(--radius-card)] border border-border-strong bg-surface shadow-lift"
       :style="{ top: `${position.top}px`, left: `${position.left}px`, width: `${position.width}px` }"
       role="dialog"
       aria-label="Pick a commit to log"
@@ -240,17 +240,6 @@ onUnmounted(() => {
 
 <style scoped>
 .commit-picker {
-  animation: picker-in 140ms cubic-bezier(0.16, 1, 0.3, 1);
   transform-origin: top right;
-}
-@keyframes picker-in {
-  from {
-    opacity: 0;
-    transform: translateY(-4px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
 }
 </style>

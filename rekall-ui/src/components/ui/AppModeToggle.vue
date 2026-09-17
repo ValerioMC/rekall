@@ -19,7 +19,7 @@ const OPTIONS = ['write', 'read'] as const
       v-for="option in OPTIONS"
       :key="option"
       type="button"
-      class="focus-ring press relative z-10 h-6 w-[52px] rounded-[5px] text-[11.5px] capitalize transition-colors"
+      class="focus-ring relative z-10 h-6 w-[52px] rounded-[5px] text-[11.5px] capitalize transition-colors"
       :class="modelValue === option ? 'text-text' : 'text-text-subtle hover:text-text'"
       :aria-pressed="modelValue === option"
       :data-testid="testidPrefix ? `${testidPrefix}-${option}` : undefined"

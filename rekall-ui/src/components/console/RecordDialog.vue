@@ -263,12 +263,12 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
 
 <template>
   <div
-    class="fade-in fixed inset-0 z-(--z-modal) grid place-items-center bg-black/70 p-5 backdrop-blur-sm"
+    class="fixed inset-0 z-(--z-modal) grid place-items-center bg-black/70 p-5 backdrop-blur-sm"
     @click.self="emit('close')"
   >
     <div
       ref="panel"
-      class="rise w-full max-w-[560px] overflow-hidden rounded-[var(--radius-card)] border border-border-strong bg-surface shadow-modal"
+      class="dialog-panel w-full max-w-[560px] overflow-hidden rounded-[var(--radius-card)] border border-border-strong bg-surface shadow-modal"
       role="dialog"
       aria-modal="true"
       :aria-label="heading"
@@ -472,18 +472,20 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
       </footer>
     </div>
 
-    <AppConfirm
-      v-if="isConfirmingDelete"
-      :title="`Delete ${titleValue}?`"
-      :body="
-        kind === 'task'
-          ? 'The notes on it are unlinked. A note that other tasks still use survives.'
-          : 'Everything underneath goes with it. This is not recoverable.'
-      "
-      :blast="blast"
-      :confirm-label="`Delete ${KIND_NOUN[kind]}`"
-      @cancel="isConfirmingDelete = false"
-      @confirm="remove"
-    />
+    <Transition name="dialog">
+      <AppConfirm
+        v-if="isConfirmingDelete"
+        :title="`Delete ${titleValue}?`"
+        :body="
+          kind === 'task'
+            ? 'The notes on it are unlinked. A note that other tasks still use survives.'
+            : 'Everything underneath goes with it. This is not recoverable.'
+        "
+        :blast="blast"
+        :confirm-label="`Delete ${KIND_NOUN[kind]}`"
+        @cancel="isConfirmingDelete = false"
+        @confirm="remove"
+      />
+    </Transition>
   </div>
 </template>
