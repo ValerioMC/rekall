@@ -21,7 +21,7 @@ const hasSteps = computed(() => checklist.value.length > 0)
 <template>
   <button
     data-testid="steps-card"
-    class="focus-ring mb-2 block w-full rounded-[var(--radius-control)] border p-2.5 text-left transition-all"
+    class="focus-ring press mb-2 block w-full rounded-[var(--radius-control)] border p-2.5 text-left transition-all"
     :class="[
       hasSteps
         ? 'border-border-strong bg-surface-raised hover:border-text-subtle'

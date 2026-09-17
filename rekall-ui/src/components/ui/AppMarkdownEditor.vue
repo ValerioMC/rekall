@@ -197,6 +197,27 @@ const TOOLBARS: ToolbarNames[] = [
   color: var(--color-accent);
 }
 
+/*
+ * The writing caret, made worth watching: wider than CodeMirror's default hairline and lit with
+ * a soft accent glow that breathes rather than the library's hard on/off blink, so the point
+ * you're about to type at is never just a thin line disappearing and reappearing.
+ */
+.rekall-md:not(.rekall-md--readonly) .cm-cursor {
+  border-left-width: 2px !important;
+  border-left-color: var(--color-accent-strong) !important;
+  animation: caret-glow 1.1s ease-in-out infinite;
+}
+
+@keyframes caret-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 3px 0 color-mix(in srgb, var(--color-accent) 45%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 8px 1px color-mix(in srgb, var(--color-accent) 85%, transparent);
+  }
+}
+
 .rekall-md .md-editor-preview {
   font-size: 13.5px;
   line-height: 1.7;

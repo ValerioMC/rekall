@@ -194,7 +194,7 @@ defineExpose({ beginCreate, editSelected })
       <button
         v-if="navMode === 'tasks' && projectChoices.length"
         data-testid="new-task"
-        class="focus-ring m-2 flex w-[calc(100%-16px)] items-center gap-2 rounded-[var(--radius-control)] border border-dashed border-border-strong px-2.5 py-2 text-left text-[12.5px] text-text-muted transition-colors hover:border-solid hover:border-accent hover:bg-accent-soft hover:text-text"
+        class="focus-ring press m-2 flex w-[calc(100%-16px)] items-center gap-2 rounded-[var(--radius-control)] border border-dashed border-border-strong px-2.5 py-2 text-left text-[12.5px] text-text-muted transition-colors hover:border-solid hover:border-accent hover:bg-accent-soft hover:text-text"
         @click="beginCreate"
       >
         <span class="text-accent">+</span> New task
@@ -209,7 +209,7 @@ defineExpose({ beginCreate, editSelected })
       <button
         v-if="navMode === 'notes' && tasks.length"
         data-testid="new-note-here"
-        class="focus-ring m-2 flex w-[calc(100%-16px)] items-center gap-2 rounded-[var(--radius-control)] border px-2.5 py-2 text-left text-[12.5px] transition-colors"
+        class="focus-ring press m-2 flex w-[calc(100%-16px)] items-center gap-2 rounded-[var(--radius-control)] border px-2.5 py-2 text-left text-[12.5px] transition-colors"
         :class="
           noteComposerOpen
             ? 'selected-row border-transparent text-text'
@@ -369,7 +369,7 @@ defineExpose({ beginCreate, editSelected })
             v-for="document in visibleDocuments"
             :key="document.id"
             data-testid="note-row"
-            class="focus-ring mt-0.5 flex w-full items-center gap-2.5 rounded-[var(--radius-control)] px-2 py-1.5 text-left transition-colors"
+            class="focus-ring press mt-0.5 flex w-full items-center gap-2.5 rounded-[var(--radius-control)] px-2 py-1.5 text-left transition-colors"
             :class="
               document.id === selectedDocId && !noteComposerOpen
                 ? 'selected-row text-text'

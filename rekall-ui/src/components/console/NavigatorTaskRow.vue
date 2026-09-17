@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { TASK_STATUS_COLOR, TASK_STATUS_RING } from '@/model/catalog'
 import type { Task } from '@/model/catalog'
 
@@ -30,13 +30,29 @@ const awaitingReview = computed(
     props.task.stepCount === 0 &&
     props.task.reviewState === 'CLAIMED'
 )
+
+// A short pulse on the marker the moment this row becomes the selected one, not while it stays
+// selected: the settle is the arrival, and a row that is already current has nothing left to say.
+const justSelected = ref(false)
+
+watch(
+  () => props.selected,
+  (selected, wasSelected) => {
+    if (!selected || wasSelected) return
+    justSelected.value = false
+    requestAnimationFrame(() => {
+      justSelected.value = true
+      setTimeout(() => (justSelected.value = false), 340)
+    })
+  }
+)
 </script>
 
 <template>
   <div class="group/task relative" :class="filed && 'filed-row'">
     <button
       data-testid="task-row"
-      class="focus-ring flex w-full items-start gap-2.5 rounded-[var(--radius-control)] px-2.5 py-2 text-left transition-colors"
+      class="focus-ring press flex w-full items-start gap-2.5 rounded-[var(--radius-control)] px-2.5 py-2 text-left transition-colors"
       :class="selected ? 'selected-row text-text' : 'text-text-muted hover:bg-surface-raised hover:text-text'"
       :aria-current="selected"
       @click="$emit('select')"
@@ -46,7 +62,8 @@ const awaitingReview = computed(
           class="absolute size-3.5 rounded-full transition-shadow"
           :class="[
             isRunning ? 'bg-accent/20' : TASK_STATUS_RING[task.status],
-            selected && 'ring-1 ring-inset ring-accent/45'
+            selected && 'ring-1 ring-inset ring-accent/45',
+            justSelected && 'settle'
           ]"
         />
         <template v-if="isRunning">
@@ -109,7 +126,7 @@ const awaitingReview = computed(
 
     <button
       data-testid="edit-task"
-      class="focus-ring absolute right-1.5 top-1/2 grid size-6 -translate-y-1/2 translate-x-1 place-items-center rounded-md border border-border-strong bg-surface-hover text-text-subtle opacity-0 shadow-lift transition-all hover:text-accent focus-visible:translate-x-0 focus-visible:opacity-100 group-hover/task:translate-x-0 group-hover/task:opacity-100"
+      class="focus-ring press absolute right-1.5 top-1/2 grid size-6 -translate-y-1/2 translate-x-1 place-items-center rounded-md border border-border-strong bg-surface-hover text-text-subtle opacity-0 shadow-lift transition-all hover:text-accent focus-visible:translate-x-0 focus-visible:opacity-100 group-hover/task:translate-x-0 group-hover/task:opacity-100"
       :aria-label="`Edit ${task.title}`"
       @click.stop="$emit('edit')"
     >

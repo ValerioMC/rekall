@@ -5,6 +5,7 @@ import AppButton from '@/components/ui/AppButton.vue'
 import CopyGlyph from '@/components/ui/CopyGlyph.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
+import AppModeToggle from '@/components/ui/AppModeToggle.vue'
 import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.vue'
 import WrapupHereDialog from '@/components/console/WrapupHereDialog.vue'
 import { useConsoleStore } from '@/stores/console.store'
@@ -152,18 +153,7 @@ async function sendWrapupHere(message: string): Promise<void> {
         </button>
 
         <div v-if="selectedWrapup" class="flex shrink-0 items-center gap-2">
-          <div class="flex gap-0.5 rounded-[7px] bg-surface p-0.5">
-            <button
-              v-for="option in (['write', 'read'] as const)"
-              :key="option"
-              class="focus-ring h-6 rounded-[5px] px-2.5 text-[11.5px] capitalize transition-colors"
-              :class="mode === option ? 'bg-surface-raised text-text' : 'text-text-subtle hover:text-text'"
-              :aria-pressed="mode === option"
-              @click="mode = option"
-            >
-              {{ option }}
-            </button>
-          </div>
+          <AppModeToggle v-model="mode" />
           <AppButton variant="danger" size="sm" @click="isConfirmingDelete = true">Delete</AppButton>
         </div>
       </header>
@@ -248,13 +238,16 @@ async function sendWrapupHere(message: string): Promise<void> {
           This saves itself. Describe the state, not the session.
         </p>
         <div class="min-h-0 flex-1 overflow-y-auto p-4">
-          <AppMarkdownEditor
-            v-if="mode === 'write'"
-            v-model="draft"
-            height="100%"
-            @update:model-value="scheduleSave"
-          />
-          <AppMarkdownEditor v-else :model-value="draft" readonly />
+          <Transition name="fade-quick" mode="out-in">
+            <AppMarkdownEditor
+              v-if="mode === 'write'"
+              key="write"
+              v-model="draft"
+              height="100%"
+              @update:model-value="scheduleSave"
+            />
+            <AppMarkdownEditor v-else key="read" :model-value="draft" readonly />
+          </Transition>
         </div>
       </div>
     </template>

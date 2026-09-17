@@ -77,7 +77,7 @@ defineExpose({ newCompany, newProject })
   <div class="relative" @keydown="onKeydown">
     <button
       data-testid="scope-trigger"
-      class="focus-ring flex h-10 w-full items-center gap-2.5 rounded-[var(--radius-control)] border border-border-strong bg-canvas px-2.5 text-left transition-colors hover:border-accent"
+      class="focus-ring press flex h-10 w-full items-center gap-2.5 rounded-[var(--radius-control)] border border-border-strong bg-canvas px-2.5 text-left transition-colors hover:border-accent"
       :class="isOpen && 'border-accent'"
       aria-haspopup="true"
       :aria-expanded="isOpen"

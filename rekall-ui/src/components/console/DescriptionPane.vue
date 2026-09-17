@@ -2,6 +2,7 @@
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
+import AppModeToggle from '@/components/ui/AppModeToggle.vue'
 import CopyGlyph from '@/components/ui/CopyGlyph.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import { useConsoleStore } from '@/stores/console.store'
@@ -206,18 +207,7 @@ onUnmounted(() => {
             />
           </div>
 
-          <div v-if="showEditor" class="flex shrink-0 gap-0.5 rounded-[7px] bg-surface p-0.5">
-            <button
-              v-for="option in (['write', 'read'] as const)"
-              :key="option"
-              class="focus-ring h-6 rounded-[5px] px-2.5 text-[11.5px] capitalize transition-colors"
-              :class="mode === option ? 'bg-surface-raised text-text' : 'text-text-subtle hover:text-text'"
-              :aria-pressed="mode === option"
-              @click="mode = option"
-            >
-              {{ option }}
-            </button>
-          </div>
+          <AppModeToggle v-if="showEditor" v-model="mode" />
         </header>
       </div>
 
@@ -400,13 +390,16 @@ onUnmounted(() => {
       </div>
 
       <div v-else class="min-h-0 flex-1 overflow-y-auto p-4">
-        <AppMarkdownEditor
-          v-if="mode === 'write'"
-          v-model="draft"
-          height="100%"
-          @update:model-value="scheduleSave"
-        />
-        <AppMarkdownEditor v-else :model-value="draft" readonly />
+        <Transition name="fade-quick" mode="out-in">
+          <AppMarkdownEditor
+            v-if="mode === 'write'"
+            key="write"
+            v-model="draft"
+            height="100%"
+            @update:model-value="scheduleSave"
+          />
+          <AppMarkdownEditor v-else key="read" :model-value="draft" readonly />
+        </Transition>
       </div>
     </template>
   </section>

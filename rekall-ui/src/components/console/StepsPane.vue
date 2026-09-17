@@ -5,6 +5,7 @@ import AppConfirm from '@/components/ui/AppConfirm.vue'
 import CopyGlyph from '@/components/ui/CopyGlyph.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
+import AppModeToggle from '@/components/ui/AppModeToggle.vue'
 import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.vue'
 import OpenTerminalButton from '@/components/claude/OpenTerminalButton.vue'
 import LogCommitButton from '@/components/console/LogCommitButton.vue'
@@ -503,7 +504,7 @@ onUnmounted(() => rowObserver?.disconnect())
             />
 
             <button
-              class="focus-ring absolute left-0 top-[7px] z-10 grid size-[22px] place-items-center rounded-full border transition-all duration-200"
+              class="focus-ring press absolute left-0 top-[7px] z-10 grid size-[22px] place-items-center rounded-full border transition-all duration-200"
               :class="{
                 'border-accent bg-accent text-accent-ink cursor-default': step.state === 'DONE',
                 'border-accent bg-accent-soft text-accent': step.state === 'CLAIMED',
@@ -775,61 +776,49 @@ onUnmounted(() => rowObserver?.disconnect())
                     Detail
                   </span>
                   <span class="h-px flex-1 bg-border" aria-hidden="true" />
-                  <div class="flex gap-0.5 rounded-[7px] bg-surface p-0.5">
-                    <button
-                      v-for="option in (['write', 'read'] as const)"
-                      :key="option"
-                      class="focus-ring h-6 rounded-[5px] px-2.5 text-[11.5px] capitalize transition-colors"
-                      :class="
-                        mode === option
-                          ? 'bg-surface-hover text-text'
-                          : 'text-text-subtle hover:text-text'
-                      "
-                      :aria-pressed="mode === option"
-                      :data-testid="`step-detail-${option}`"
-                      @click="mode = option"
-                    >
-                      {{ option }}
-                    </button>
-                  </div>
+                  <AppModeToggle v-model="mode" testid-prefix="step-detail" />
                 </div>
 
-                <template v-if="mode === 'write'">
-                  <AppInput
-                    v-model="draftTitle"
-                    :aria-label="`Title of ${step.title}`"
-                    data-testid="step-title-field"
-                    @update:model-value="scheduleSave"
-                  />
-                  <div class="mt-2 h-[300px] min-w-0 overflow-hidden">
+                <Transition name="fade-quick" mode="out-in">
+                  <template v-if="mode === 'write'">
+                    <div key="write">
+                      <AppInput
+                        v-model="draftTitle"
+                        :aria-label="`Title of ${step.title}`"
+                        data-testid="step-title-field"
+                        @update:model-value="scheduleSave"
+                      />
+                      <div class="mt-2 h-[300px] min-w-0 overflow-hidden">
+                        <AppMarkdownEditor
+                          v-model="draftBody"
+                          height="100%"
+                          :show-preview="false"
+                          placeholder="What this step has to do. Markdown, and Claude gets it while the step is open."
+                          data-testid="step-detail-field"
+                          @update:model-value="scheduleSave"
+                        />
+                      </div>
+                    </div>
+                  </template>
+
+                  <div v-else-if="draftBody.trim()" key="read" class="step-detail min-w-0 overflow-x-auto">
                     <AppMarkdownEditor
-                      v-model="draftBody"
-                      height="100%"
-                      :show-preview="false"
-                      placeholder="What this step has to do. Markdown, and Claude gets it while the step is open."
-                      data-testid="step-detail-field"
-                      @update:model-value="scheduleSave"
+                      :model-value="draftBody"
+                      readonly
+                      data-testid="step-detail-read"
                     />
                   </div>
-                </template>
 
-                <div v-else-if="draftBody.trim()" class="step-detail min-w-0 overflow-x-auto">
-                  <AppMarkdownEditor
-                    :model-value="draftBody"
-                    readonly
-                    data-testid="step-detail-read"
-                  />
-                </div>
-
-                <p v-else class="py-1 text-[12px] text-text-subtle">
-                  Nothing written under this step yet.
-                  <button
-                    class="focus-ring text-accent underline-offset-2 hover:underline"
-                    @click="mode = 'write'"
-                  >
-                    Write the detail
-                  </button>
-                </p>
+                  <p v-else key="empty" class="py-1 text-[12px] text-text-subtle">
+                    Nothing written under this step yet.
+                    <button
+                      class="focus-ring text-accent underline-offset-2 hover:underline"
+                      @click="mode = 'write'"
+                    >
+                      Write the detail
+                    </button>
+                  </p>
+                </Transition>
               </div>
             </div>
           </li>
@@ -851,7 +840,7 @@ onUnmounted(() => rowObserver?.disconnect())
               </span>
             </div>
 
-            <ul class="min-w-0 space-y-1.5">
+            <TransitionGroup tag="ul" name="step-list" class="relative min-w-0 space-y-1.5">
               <li
                 v-for="(step, index) in draftSteps"
                 :key="step.id"
@@ -916,7 +905,8 @@ onUnmounted(() => rowObserver?.disconnect())
 
                     <div class="flex shrink-0 items-center gap-0.5">
                       <button
-                        class="focus-ring h-7 shrink-0 rounded-[var(--radius-control)] border border-accent bg-accent-soft px-2.5 text-[11px] font-medium text-accent transition-colors hover:bg-accent hover:text-accent-ink disabled:cursor-not-allowed disabled:opacity-40"
+                        class="focus-ring press h-7 shrink-0 rounded-[var(--radius-control)] border border-accent bg-accent-soft px-2.5 text-[11px] font-medium text-accent transition-colors hover:bg-accent hover:text-accent-ink disabled:cursor-not-allowed disabled:opacity-40"
+                        :class="promoting === step.id && 'settle'"
                         :disabled="promoting === step.id"
                         data-testid="draft-promote"
                         @click="promote(step)"
@@ -983,68 +973,57 @@ onUnmounted(() => rowObserver?.disconnect())
                     <div class="mb-2 flex items-center gap-2">
                       <span class="eyebrow text-[9.5px]">Detail</span>
                       <span class="h-px flex-1 bg-border" aria-hidden="true" />
-                      <div class="flex gap-0.5 rounded-[7px] bg-surface p-0.5">
-                        <button
-                          v-for="option in (['write', 'read'] as const)"
-                          :key="option"
-                          class="focus-ring h-6 rounded-[5px] px-2.5 text-[11.5px] capitalize transition-colors"
-                          :class="
-                            mode === option
-                              ? 'bg-surface-hover text-text'
-                              : 'text-text-subtle hover:text-text'
-                          "
-                          :aria-pressed="mode === option"
-                          :data-testid="`draft-detail-${option}`"
-                          @click="mode = option"
-                        >
-                          {{ option }}
-                        </button>
-                      </div>
+                      <AppModeToggle v-model="mode" testid-prefix="draft-detail" />
                     </div>
 
-                    <template v-if="mode === 'write'">
-                      <AppInput
-                        v-model="draftTitle"
-                        :aria-label="`Title of ${step.title}`"
-                        data-testid="draft-title-field"
-                        @update:model-value="scheduleSave"
-                      />
-                      <div class="mt-2 h-[260px] min-w-0 overflow-hidden">
+                    <Transition name="fade-quick" mode="out-in">
+                      <template v-if="mode === 'write'">
+                        <div key="write">
+                          <AppInput
+                            v-model="draftTitle"
+                            :aria-label="`Title of ${step.title}`"
+                            data-testid="draft-title-field"
+                            @update:model-value="scheduleSave"
+                          />
+                          <div class="mt-2 h-[260px] min-w-0 overflow-hidden">
+                            <AppMarkdownEditor
+                              v-model="draftBody"
+                              height="100%"
+                              :show-preview="false"
+                              placeholder="What this step has to do, once it is promoted. Markdown."
+                              data-testid="draft-detail-field"
+                              @update:model-value="scheduleSave"
+                            />
+                          </div>
+                        </div>
+                      </template>
+
+                      <div
+                        v-else-if="draftBody.trim()"
+                        key="read"
+                        class="step-detail min-w-0 overflow-x-auto"
+                      >
                         <AppMarkdownEditor
-                          v-model="draftBody"
-                          height="100%"
-                          :show-preview="false"
-                          placeholder="What this step has to do, once it is promoted. Markdown."
-                          data-testid="draft-detail-field"
-                          @update:model-value="scheduleSave"
+                          :model-value="draftBody"
+                          readonly
+                          data-testid="draft-detail-read"
                         />
                       </div>
-                    </template>
 
-                    <div
-                      v-else-if="draftBody.trim()"
-                      class="step-detail min-w-0 overflow-x-auto"
-                    >
-                      <AppMarkdownEditor
-                        :model-value="draftBody"
-                        readonly
-                        data-testid="draft-detail-read"
-                      />
-                    </div>
-
-                    <p v-else class="py-1 text-[12px] text-text-subtle">
-                      Nothing written under this draft yet.
-                      <button
-                        class="focus-ring text-accent underline-offset-2 hover:underline"
-                        @click="mode = 'write'"
-                      >
-                        Write the detail
-                      </button>
-                    </p>
+                      <p v-else key="empty" class="py-1 text-[12px] text-text-subtle">
+                        Nothing written under this draft yet.
+                        <button
+                          class="focus-ring text-accent underline-offset-2 hover:underline"
+                          @click="mode = 'write'"
+                        >
+                          Write the detail
+                        </button>
+                      </p>
+                    </Transition>
                   </div>
                 </div>
               </li>
-            </ul>
+            </TransitionGroup>
           </section>
         </template>
       </div>
@@ -1069,7 +1048,7 @@ onUnmounted(() => rowObserver?.disconnect())
         />
         <button
           type="submit"
-          class="focus-ring h-(--spacing-control) shrink-0 rounded-[var(--radius-control)] border border-accent bg-accent-soft px-3.5 text-[12.5px] font-medium text-accent transition-colors hover:bg-accent hover:text-accent-ink disabled:cursor-not-allowed disabled:opacity-40"
+          class="focus-ring press h-(--spacing-control) shrink-0 rounded-[var(--radius-control)] border border-accent bg-accent-soft px-3.5 text-[12.5px] font-medium text-accent transition-colors hover:bg-accent hover:text-accent-ink disabled:cursor-not-allowed disabled:opacity-40"
           :disabled="!newTitle.trim()"
           data-testid="add-step"
         >

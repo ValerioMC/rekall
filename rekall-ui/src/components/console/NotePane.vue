@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia'
 import AppButton from '@/components/ui/AppButton.vue'
 import CopyGlyph from '@/components/ui/CopyGlyph.vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
+import AppModeToggle from '@/components/ui/AppModeToggle.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
 import NoteAssignmentDialog from '@/components/console/NoteAssignmentDialog.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
@@ -342,28 +343,20 @@ async function confirmDelete(): Promise<void> {
 
       <div class="flex min-h-0 flex-1 flex-col">
         <div class="flex shrink-0 items-center gap-2 border-b border-border px-5 py-1.5">
-          <div class="ml-auto flex gap-0.5 rounded-[7px] bg-surface p-0.5">
-            <button
-              v-for="option in (['write', 'read'] as const)"
-              :key="option"
-              class="focus-ring h-6 rounded-[5px] px-2.5 text-[11.5px] capitalize transition-colors"
-              :class="mode === option ? 'bg-surface-raised text-text' : 'text-text-subtle hover:text-text'"
-              :aria-pressed="mode === option"
-              @click="mode = option"
-            >
-              {{ option }}
-            </button>
-          </div>
+          <AppModeToggle v-model="mode" class="ml-auto" />
         </div>
 
         <div class="min-h-0 flex-1 overflow-y-auto p-4">
-          <AppMarkdownEditor
-            v-if="mode === 'write'"
-            v-model="draft.bodyMarkdown"
-            height="100%"
-            @update:model-value="scheduleSave"
-          />
-          <AppMarkdownEditor v-else :model-value="draft.bodyMarkdown" readonly />
+          <Transition name="fade-quick" mode="out-in">
+            <AppMarkdownEditor
+              v-if="mode === 'write'"
+              key="write"
+              v-model="draft.bodyMarkdown"
+              height="100%"
+              @update:model-value="scheduleSave"
+            />
+            <AppMarkdownEditor v-else key="read" :model-value="draft.bodyMarkdown" readonly />
+          </Transition>
         </div>
       </div>
     </template>
