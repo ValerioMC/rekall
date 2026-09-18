@@ -20,7 +20,8 @@ vi.mock('@/api/settings.api', () => ({ fetchDatabaseStatus: () => fetchDatabaseS
 vi.mock('@/api/catalog.api', () => ({
   fetchCompanies: vi.fn(async () => []),
   fetchProjects: vi.fn(async () => []),
-  fetchTasks: vi.fn(async () => [])
+  fetchTasks: vi.fn(async () => []),
+  fetchTags: vi.fn(async () => [])
 }))
 vi.mock('@/api/documents.api', () => ({ fetchAllDocuments: vi.fn(async () => []) }))
 vi.mock('@/api/wrapups.api', () => ({ fetchWrapups: vi.fn(async () => []) }))

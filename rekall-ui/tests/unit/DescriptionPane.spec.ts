@@ -36,6 +36,10 @@ function makeTask(reviewState: TaskStepState, wrapup: Partial<Task> = {}): Task 
     claimedAt: null,
     acceptedAt: null,
     reviewNote: null,
+    tagId: null,
+    tagName: null,
+    tagIcon: null,
+    tagColor: null,
     anchor: 'project:rekall task:application-improvements',
     updatedAt: '2026-09-09T10:00:00Z',
     ...wrapup

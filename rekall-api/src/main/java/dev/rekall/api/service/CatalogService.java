@@ -12,6 +12,7 @@ import dev.rekall.domain.Company;
 import dev.rekall.domain.Project;
 import dev.rekall.domain.ProjectStatus;
 import dev.rekall.domain.Slug;
+import dev.rekall.domain.Tag;
 import dev.rekall.domain.Task;
 import dev.rekall.domain.TaskStatus;
 import dev.rekall.domain.TaskStepState;
@@ -19,6 +20,7 @@ import dev.rekall.domain.commit.GitRepositoryInspector;
 import dev.rekall.domain.repository.CompanyRepository;
 import dev.rekall.domain.repository.DocumentRepository;
 import dev.rekall.domain.repository.ProjectRepository;
+import dev.rekall.domain.repository.TagRepository;
 import dev.rekall.domain.repository.TaskRepository;
 import dev.rekall.domain.review.TaskReviewService;
 import dev.rekall.domain.timeentry.TimeEntryService;
@@ -36,6 +38,7 @@ public class CatalogService {
     private final CompanyRepository companies;
     private final ProjectRepository projects;
     private final TaskRepository tasks;
+    private final TagRepository tags;
     private final DocumentRepository documents;
     private final TimeEntryService timeEntries;
     private final TaskReviewService taskReview;
@@ -181,6 +184,7 @@ public class CatalogService {
         task.setDescription(request.description());
         task.setStatus(request.status() == null ? TaskStatus.TODO : request.status());
         task.setProject(requireProject(request.projectId()));
+        task.setTag(request.tagId() == null ? null : requireTag(request.tagId()));
     }
 
     Company requireCompany(UUID id) {
@@ -199,6 +203,10 @@ public class CatalogService {
 
     Task requireTask(UUID id) {
         return tasks.findById(id).orElseThrow(() -> new NotFoundException("Task", id));
+    }
+
+    private Tag requireTag(UUID id) {
+        return tags.findById(id).orElseThrow(() -> new NotFoundException("Tag", id));
     }
 
 }

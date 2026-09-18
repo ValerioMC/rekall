@@ -3,19 +3,23 @@ import { computed, ref } from 'vue'
 import {
   createCompany as apiCreateCompany,
   createProject as apiCreateProject,
+  createTag as apiCreateTag,
   createTask as apiCreateTask,
   deleteCompany as apiDeleteCompany,
   deleteProject as apiDeleteProject,
+  deleteTag as apiDeleteTag,
   deleteTask as apiDeleteTask,
   fetchCompanies,
   fetchProjects,
+  fetchTags,
   fetchTasks,
   reviewTask as apiReviewTask,
   updateCompany as apiUpdateCompany,
   updateProject as apiUpdateProject,
+  updateTag as apiUpdateTag,
   updateTask as apiUpdateTask
 } from '@/api/catalog.api'
-import type { CompanyInput, ProjectInput, TaskInput } from '@/api/catalog.api'
+import type { CompanyInput, ProjectInput, TagInput, TaskInput } from '@/api/catalog.api'
 import {
   createDocument as apiCreateDocument,
   deleteDocument as apiDeleteDocument,
@@ -51,6 +55,7 @@ import {
   type Company,
   type Project,
   type RekallDocument,
+  type Tag,
   type Task,
   type TaskReview,
   type TaskStatus,
@@ -59,7 +64,7 @@ import {
   type Wrapup,
   type WrapupStreamEvent
 } from '@/model/catalog'
-import type { CompanyId, DocumentId, ProjectId, TaskId, TaskStepId, TimeEntryId } from '@/model/branded'
+import type { CompanyId, DocumentId, ProjectId, TagId, TaskId, TaskStepId, TimeEntryId } from '@/model/branded'
 
 export type NavMode = 'tasks' | 'notes'
 export type SaveState = 'saved' | 'unsaved' | 'saving'
@@ -70,6 +75,7 @@ export const useConsoleStore = defineStore('console', () => {
   const companies = ref<Company[]>([])
   const projects = ref<Project[]>([])
   const tasks = ref<Task[]>([])
+  const tags = ref<Tag[]>([])
   const documents = ref<RekallDocument[]>([])
   const wrapups = ref<Wrapup[]>([])
   const steps = ref<TaskStep[]>([])
@@ -269,6 +275,7 @@ export const useConsoleStore = defineStore('console', () => {
         loadedCompanies,
         loadedProjects,
         loadedTasks,
+        loadedTags,
         loadedDocuments,
         loadedWrapups,
         loadedSteps,
@@ -278,6 +285,7 @@ export const useConsoleStore = defineStore('console', () => {
         fetchCompanies(),
         fetchProjects(),
         fetchTasks(),
+        fetchTags(),
         fetchAllDocuments(),
         fetchWrapups(),
         fetchSteps(),
@@ -287,6 +295,7 @@ export const useConsoleStore = defineStore('console', () => {
       companies.value = loadedCompanies
       projects.value = loadedProjects
       tasks.value = loadedTasks
+      tags.value = loadedTags
       documents.value = loadedDocuments
       wrapups.value = loadedWrapups
       steps.value = loadedSteps
@@ -480,7 +489,8 @@ export const useConsoleStore = defineStore('console', () => {
       title: task.title,
       status,
       description: task.description,
-      projectId: task.projectId
+      projectId: task.projectId,
+      tagId: task.tagId
     })
     tasks.value = tasks.value.map((candidate) => (candidate.id === id ? saved : candidate))
     if (status === 'DONE') await refreshTimeEntries()
@@ -538,7 +548,8 @@ export const useConsoleStore = defineStore('console', () => {
         title: task.title,
         status: task.status,
         description: next,
-        projectId: task.projectId
+        projectId: task.projectId,
+        tagId: task.tagId
       })
       tasks.value = tasks.value.map((candidate) => (candidate.id === id ? saved : candidate))
       saveState.value = 'saved'
@@ -546,6 +557,20 @@ export const useConsoleStore = defineStore('console', () => {
       saveState.value = 'unsaved'
       throw error
     }
+  }
+
+  async function setTaskTag(id: TaskId, tagId: TagId | null): Promise<void> {
+    const task = tasks.value.find((candidate) => candidate.id === id)
+    if (!task || task.tagId === tagId) return
+    const saved = await apiUpdateTask(id, {
+      label: task.label,
+      title: task.title,
+      status: task.status,
+      description: task.description,
+      projectId: task.projectId,
+      tagId
+    })
+    tasks.value = tasks.value.map((candidate) => (candidate.id === id ? saved : candidate))
   }
 
   function openNoteComposer(): void {
@@ -806,6 +831,30 @@ export const useConsoleStore = defineStore('console', () => {
     tasks.value = await fetchTasks()
   }
 
+  async function refreshTags(): Promise<void> {
+    tags.value = await fetchTags()
+  }
+
+  async function createTag(input: TagInput): Promise<Tag> {
+    const created = await apiCreateTag(input)
+    tags.value = [...tags.value, created].sort((a, b) => a.name.localeCompare(b.name))
+    return created
+  }
+
+  async function updateTag(id: TagId, input: TagInput): Promise<void> {
+    const saved = await apiUpdateTag(id, input)
+    tags.value = tags.value
+      .map((tag) => (tag.id === id ? saved : tag))
+      .sort((a, b) => a.name.localeCompare(b.name))
+    await refreshTasks()
+  }
+
+  async function deleteTag(id: TagId): Promise<void> {
+    await apiDeleteTag(id)
+    tags.value = tags.value.filter((tag) => tag.id !== id)
+    await refreshTasks()
+  }
+
   async function refreshProjects(): Promise<void> {
     projects.value = await fetchProjects()
   }
@@ -857,6 +906,7 @@ export const useConsoleStore = defineStore('console', () => {
       refreshCompanies(),
       refreshProjects(),
       refreshTasks(),
+      refreshTags(),
       refreshDocuments(),
       refreshWrapups(),
       refreshSteps(),
@@ -868,6 +918,11 @@ export const useConsoleStore = defineStore('console', () => {
   return {
     companies,
     projects,
+    tags,
+    createTag,
+    updateTag,
+    deleteTag,
+    refreshTags,
     scopedProjects,
     scopedCompany,
     scopedProject,
@@ -933,6 +988,7 @@ export const useConsoleStore = defineStore('console', () => {
     updateTask,
     deleteTask,
     setTaskStatus,
+    setTaskTag,
     applyTaskReview,
     applyWrapupEvent,
     acceptTask,

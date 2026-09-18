@@ -1,4 +1,4 @@
-import type { CompanyId, ProjectId, TaskId } from './branded'
+import type { CompanyId, ProjectId, TagId, TaskId } from './branded'
 import type { Company, Project, ProjectStatus, Task, TaskStatus } from './catalog'
 import { TASK_DESCRIPTION_TEMPLATE } from './templates'
 
@@ -26,6 +26,7 @@ export type RecordDraft =
       description: string
       status: TaskStatus
       projectId: ProjectId
+      tagId: TagId | null
     }
 
 export function companyDraft(company?: Company): RecordDraft {
@@ -57,6 +58,7 @@ export function taskDraft(projectId: ProjectId, task?: Task): RecordDraft {
     title: task?.title ?? '',
     description: task ? (task.description ?? '') : TASK_DESCRIPTION_TEMPLATE,
     status: task?.status ?? 'TODO',
-    projectId: task?.projectId ?? projectId
+    projectId: task?.projectId ?? projectId,
+    tagId: task?.tagId ?? null
   }
 }

@@ -87,6 +87,11 @@ public class Task {
     @Setter
     private Project project;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tag_id", foreignKey = @jakarta.persistence.ForeignKey(name = "fk_task_tag"))
+    @Setter
+    private Tag tag;
+
     @ManyToMany
     @JoinTable(
             name = "document_task",

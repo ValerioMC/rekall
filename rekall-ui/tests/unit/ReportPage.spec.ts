@@ -16,6 +16,10 @@ vi.mock('@/api/catalog.api', () => ({
   fetchCompanies: vi.fn(async () => []),
   fetchProjects: vi.fn(async () => []),
   fetchTasks: vi.fn(async () => []),
+  fetchTags: vi.fn(async () => []),
+  createTag: vi.fn(),
+  updateTag: vi.fn(),
+  deleteTag: vi.fn(),
   createCompany: vi.fn(),
   updateCompany: vi.fn(),
   deleteCompany: vi.fn(),
@@ -51,12 +55,14 @@ const tasks: Task[] = [
     id: builder, label: 'report-builder', title: 'Report builder', status: 'IN_PROGRESS',
     description: null, projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform',
     companyName: 'acme', projectRepoFolder: null, documentCount: 0, stepCount: 0, stepsDone: 0, draftStepCount: 0, hasWrapup: false, reviewState: 'OPEN', reviewActive: true, claimedAt: null, acceptedAt: null, reviewNote: null,
+    tagId: null, tagName: null, tagIcon: null, tagColor: null,
     anchor: 'project:vega task:report-builder', updatedAt: ''
   },
   {
     id: signal, label: 'signal-ingest', title: 'Signal ingest', status: 'TODO',
     description: null, projectId: beacon, projectLabel: 'beacon', projectTitle: 'Beacon',
     companyName: 'globex', projectRepoFolder: null, documentCount: 0, stepCount: 0, stepsDone: 0, draftStepCount: 0, hasWrapup: false, reviewState: 'OPEN', reviewActive: true, claimedAt: null, acceptedAt: null, reviewNote: null,
+    tagId: null, tagName: null, tagIcon: null, tagColor: null,
     anchor: 'project:beacon task:signal-ingest', updatedAt: ''
   }
 ]

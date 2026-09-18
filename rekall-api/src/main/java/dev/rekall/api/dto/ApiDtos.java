@@ -4,6 +4,7 @@ import dev.rekall.domain.Company;
 import dev.rekall.domain.Document;
 import dev.rekall.domain.Project;
 import dev.rekall.domain.ProjectStatus;
+import dev.rekall.domain.Tag;
 import dev.rekall.domain.Task;
 import dev.rekall.domain.TaskStatus;
 import dev.rekall.domain.TaskStep;
@@ -125,10 +126,15 @@ public final class ApiDtos {
             Instant claimedAt,
             Instant acceptedAt,
             String reviewNote,
+            UUID tagId,
+            String tagName,
+            String tagIcon,
+            String tagColor,
             String anchor,
             Instant updatedAt) {
 
         public static TaskResponse of(Task task) {
+            Tag tag = task.getTag();
             return new TaskResponse(
                     task.getId(),
                     task.getLabel(),
@@ -150,6 +156,10 @@ public final class ApiDtos {
                     task.getClaimedAt(),
                     task.getAcceptedAt(),
                     task.getReviewNote(),
+                    tag == null ? null : tag.getId(),
+                    tag == null ? null : tag.getName(),
+                    tag == null ? null : tag.getIcon(),
+                    tag == null ? null : tag.getColor(),
                     "project:%s task:%s".formatted(task.getProject().getLabel(), task.getLabel()),
                     task.getUpdatedAt());
         }
@@ -160,7 +170,18 @@ public final class ApiDtos {
             @NotBlank String title,
             TaskStatus status,
             String description,
-            UUID projectId) {
+            UUID projectId,
+            UUID tagId) {
+    }
+
+    public record TagResponse(UUID id, String name, String icon, String color, Instant updatedAt) {
+
+        public static TagResponse of(Tag tag) {
+            return new TagResponse(tag.getId(), tag.getName(), tag.getIcon(), tag.getColor(), tag.getUpdatedAt());
+        }
+    }
+
+    public record TagRequest(@NotBlank String name, @NotBlank String icon, @NotBlank String color) {
     }
 
     /** Accept ({@code DONE}) or send back ({@code OPEN}) a stepless task; other states are refused. */

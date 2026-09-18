@@ -11,6 +11,7 @@ import NotePlacementsPane from '@/components/console/NotePlacementsPane.vue'
 import StepsPane from '@/components/console/StepsPane.vue'
 import WrapupPane from '@/components/console/WrapupPane.vue'
 import SettingsPanel from '@/components/settings/SettingsPanel.vue'
+import TagsPanel from '@/components/settings/TagsPanel.vue'
 import AppToaster from '@/components/ui/AppToaster.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
@@ -44,6 +45,7 @@ const STATUS_BY_KEY: Record<string, TaskStatus> = {
 const anchorBar = ref<InstanceType<typeof AnchorBar> | null>(null)
 const navigator = ref<InstanceType<typeof NavigatorPane> | null>(null)
 const settingsOpen = ref(false)
+const tagsOpen = ref(false)
 
 /**
  * Browsing tasks, a note lands on the task in view with no questions. Browsing notes, the task in
@@ -152,7 +154,12 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
       Skip to the editor
     </a>
 
-    <AnchorBar ref="anchorBar" @new-note="newNote" @open-settings="settingsOpen = true" />
+    <AnchorBar
+      ref="anchorBar"
+      @new-note="newNote"
+      @open-settings="settingsOpen = true"
+      @open-tags="tagsOpen = true"
+    />
 
     <div class="flex min-h-0 flex-1">
       <NavigatorPane ref="navigator" />
@@ -174,6 +181,9 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
     <Transition name="dialog">
       <SettingsPanel v-if="settingsOpen" @close="settingsOpen = false" />
+    </Transition>
+    <Transition name="dialog">
+      <TagsPanel v-if="tagsOpen" @close="tagsOpen = false" />
     </Transition>
     <AppToaster />
   </div>

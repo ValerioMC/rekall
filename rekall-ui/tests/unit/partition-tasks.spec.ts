@@ -23,6 +23,10 @@ const task = (id: string, status: TaskStatus): Task => ({
   claimedAt: null,
   acceptedAt: null,
   reviewNote: null,
+  tagId: null,
+  tagName: null,
+  tagIcon: null,
+  tagColor: null,
   anchor: `project:vega task:${id}`,
   updatedAt: '2026-09-04T10:00:00Z'
 })

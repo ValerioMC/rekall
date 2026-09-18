@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
+import TagIcon from '@/components/ui/TagIcon.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { trapTabKey } from '@/common/a11y/focus-trap'
@@ -16,6 +17,7 @@ import {
 } from '@/model/catalog'
 import type { ProjectStatus, TaskStatus } from '@/model/catalog'
 import type { RecordDraft } from '@/model/record-draft'
+import type { TagId } from '@/model/branded'
 
 const props = defineProps<{ draft: RecordDraft }>()
 const emit = defineEmits<{ close: []; saved: [] }>()
@@ -141,6 +143,13 @@ const statusOptions =
     ? TASK_STATUSES.map((value) => ({ value, label: TASK_STATUS_LABEL[value] }))
     : PROJECT_STATUSES.map((value) => ({ value, label: PROJECT_STATUS_LABEL[value] }))
 
+const tagId = computed<TagId | null>({
+  get: () => (form.value.kind === 'task' ? form.value.tagId : null),
+  set: (value) => {
+    if (form.value.kind === 'task') form.value.tagId = value
+  }
+})
+
 const titleError = computed(() =>
   submitted.value && !titleValue.value.trim() ? 'A title is required.' : null
 )
@@ -204,7 +213,8 @@ async function save(): Promise<void> {
         title: current.title.trim(),
         status: current.status,
         description: trimmedDescription,
-        projectId: current.projectId
+        projectId: current.projectId,
+        tagId: current.tagId
       }
       if (current.id === null) await store.createTask(input)
       else await store.updateTask(current.id, input)
@@ -423,6 +433,46 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
               {{ option.label }}
             </button>
           </div>
+        </template>
+
+        <template v-if="kind === 'task'">
+          <p class="mb-1.5 mt-5 eyebrow text-[11px]">
+            Tag
+          </p>
+          <div class="flex flex-wrap gap-1.5" data-testid="record-tag-picker">
+            <button
+              type="button"
+              class="focus-ring flex h-8 items-center gap-1.5 rounded-[var(--radius-control)] border px-3 text-[12.5px] transition-colors"
+              :class="
+                tagId === null
+                  ? 'border-accent bg-accent-soft text-accent'
+                  : 'border-border-strong bg-canvas text-text-muted hover:border-text-subtle hover:text-text'
+              "
+              :aria-pressed="tagId === null"
+              @click="tagId = null"
+            >
+              No tag
+            </button>
+            <button
+              v-for="option in store.tags"
+              :key="option.id"
+              type="button"
+              class="focus-ring flex h-8 items-center gap-1.5 rounded-[var(--radius-control)] border px-3 text-[12.5px] transition-colors"
+              :class="
+                tagId === option.id
+                  ? 'border-accent bg-accent-soft text-accent'
+                  : 'border-border-strong bg-canvas text-text-muted hover:border-text-subtle hover:text-text'
+              "
+              :aria-pressed="tagId === option.id"
+              @click="tagId = option.id"
+            >
+              <TagIcon :icon="option.icon" :color="option.color" :size="14" />
+              {{ option.name }}
+            </button>
+          </div>
+          <p v-if="store.tags.length === 0" class="mt-1.5 text-[11.5px] text-text-subtle">
+            No tags configured yet. Add one from the tags button in the header.
+          </p>
         </template>
 
         <label

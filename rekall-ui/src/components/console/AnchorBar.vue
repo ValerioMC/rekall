@@ -3,11 +3,12 @@ import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppLogo from '@/components/ui/AppLogo.vue'
+import TagIcon from '@/components/ui/TagIcon.vue'
 import AppNavSwitcher from '@/components/console/AppNavSwitcher.vue'
 import ClaudeUsageMeter from '@/components/console/ClaudeUsageMeter.vue'
 import { useConsoleStore } from '@/stores/console.store'
 
-const emit = defineEmits<{ newNote: []; openSettings: [] }>()
+const emit = defineEmits<{ newNote: []; openSettings: []; openTags: [] }>()
 
 const store = useConsoleStore()
 const {
@@ -183,6 +184,16 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
         </svg>
         Export
       </a>
+      <button
+        type="button"
+        data-testid="tags-trigger"
+        aria-label="Tags"
+        title="Tags"
+        class="focus-ring grid size-8 shrink-0 place-items-center rounded-[var(--radius-control)] border border-border-strong bg-surface-raised text-text-subtle transition-colors hover:border-accent hover:bg-surface-hover hover:text-text"
+        @click="emit('openTags')"
+      >
+        <TagIcon icon="star" color="crimson" :size="16" />
+      </button>
       <button
         type="button"
         data-testid="settings-trigger"

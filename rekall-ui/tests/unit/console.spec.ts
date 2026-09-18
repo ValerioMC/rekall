@@ -71,6 +71,10 @@ const task = (
   claimedAt: null,
   acceptedAt: null,
   reviewNote: null,
+  tagId: null,
+  tagName: null,
+  tagIcon: null,
+  tagColor: null,
   anchor: `project:${projectLabel} task:${label}`,
   updatedAt: '2026-08-12T10:00:00Z'
 })
@@ -228,6 +232,10 @@ vi.mock('@/api/catalog.api', () => ({
   updateCompany: vi.fn(),
   deleteCompany: vi.fn(),
   fetchTasks: vi.fn(async () => tasks),
+  fetchTags: vi.fn(async () => []),
+  createTag: vi.fn(),
+  updateTag: vi.fn(),
+  deleteTag: vi.fn(),
   createProject: vi.fn(),
   updateProject: vi.fn(),
   deleteProject: vi.fn(),
@@ -768,7 +776,8 @@ describe('console store', () => {
         title: 'Report builder',
         status: 'IN_PROGRESS',
         description: 'Builds the weekly report from the pipeline runs.',
-        projectId: vega
+        projectId: vega,
+        tagId: null
       })
       expect(store.tasks.find((task) => task.id === validator)?.description).toBe(
         'Builds the weekly report from the pipeline runs.'

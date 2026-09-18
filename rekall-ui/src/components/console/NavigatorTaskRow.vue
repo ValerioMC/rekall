@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import TagBadge from '@/components/ui/TagBadge.vue'
 import { TASK_STATUS_COLOR, TASK_STATUS_RING } from '@/model/catalog'
 import type { Task } from '@/model/catalog'
 
@@ -78,7 +79,16 @@ watch(
       </span>
 
       <span class="min-w-0 flex-1">
-        <span class="block truncate text-[13px] font-medium leading-[1.35]">{{ task.title }}</span>
+        <span class="flex items-center gap-1.5">
+          <span class="min-w-0 truncate text-[13px] font-medium leading-[1.35]">{{ task.title }}</span>
+          <TagBadge
+            v-if="task.tagId && task.tagName && task.tagIcon && task.tagColor"
+            class="shrink-0"
+            :name="task.tagName"
+            :icon="task.tagIcon"
+            :color="task.tagColor"
+          />
+        </span>
         <span class="mt-1 flex items-center gap-1.5 truncate">
           <template v-if="showContext && showCompany">
             <span class="shrink-0 truncate text-[10px] text-text-subtle">{{ task.companyName }}</span>

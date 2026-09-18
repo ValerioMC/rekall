@@ -46,6 +46,10 @@ const task = (
   claimedAt: null,
   acceptedAt: null,
   reviewNote: null,
+  tagId: null,
+  tagName: null,
+  tagIcon: null,
+  tagColor: null,
   anchor: `project:${projectId === vega ? 'vega' : 'beacon'} task:${label}`,
   updatedAt: '2026-09-01T10:00:00Z'
 })

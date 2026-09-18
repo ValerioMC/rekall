@@ -40,6 +40,10 @@ function taskStub(id: TaskId, projectId: ProjectId): Task {
     claimedAt: null,
     acceptedAt: null,
     reviewNote: null,
+    tagId: null,
+    tagName: null,
+    tagIcon: null,
+    tagColor: null,
     anchor: 'project:vega task:report-builder',
     updatedAt: '2026-08-29T10:00:00.000Z'
   }

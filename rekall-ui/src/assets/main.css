@@ -123,6 +123,37 @@
   --color-identity-6: #da6cb6;
   --color-identity-6-soft: #da6cb61a;
   --color-identity-6-line: #da6cb640;
+
+  /*
+   * A tag's glow, picked by hand rather than hashed like identity above: a configured tag is
+   * named and chosen on purpose, so it gets a fixed, recognisable set of jewel tones to choose
+   * from instead of whatever a hash lands on. Spread around the wheel and kept clear of the
+   * three roles (accent's amber, anchor's cyan, and status green/yellow/red).
+   */
+  --color-tag-crimson: #ef5d6a;
+  --color-tag-crimson-soft: #ef5d6a1a;
+  --color-tag-crimson-line: #ef5d6a40;
+  --color-tag-tangerine: #f0955a;
+  --color-tag-tangerine-soft: #f0955a1a;
+  --color-tag-tangerine-line: #f0955a40;
+  --color-tag-citrine: #d8c257;
+  --color-tag-citrine-soft: #d8c2571a;
+  --color-tag-citrine-line: #d8c25740;
+  --color-tag-moss: #7fd66a;
+  --color-tag-moss-soft: #7fd66a1a;
+  --color-tag-moss-line: #7fd66a40;
+  --color-tag-teal: #46c9b0;
+  --color-tag-teal-soft: #46c9b01a;
+  --color-tag-teal-line: #46c9b040;
+  --color-tag-cerulean: #4ea1e0;
+  --color-tag-cerulean-soft: #4ea1e01a;
+  --color-tag-cerulean-line: #4ea1e040;
+  --color-tag-violet: #9f78e6;
+  --color-tag-violet-soft: #9f78e61a;
+  --color-tag-violet-line: #9f78e640;
+  --color-tag-magenta: #e263b0;
+  --color-tag-magenta-soft: #e263b01a;
+  --color-tag-magenta-line: #e263b040;
 }
 
 @layer base {
@@ -228,6 +259,24 @@
 /* Warm halo behind the brand mark and the active navigation marker. */
 @utility halo {
   box-shadow: var(--shadow-glow);
+}
+
+/*
+ * A tag's icon, lit in its configured colour. `--tag-tint` is set inline from the tag's colour
+ * key (`TagIcon.vue`); the drop-shadow is what makes a small glyph read as "glowing" rather than
+ * just coloured, at a size where a box-shadow halo would be too heavy to sit next to a title.
+ */
+@utility tag-glow {
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--tag-tint) 85%, transparent))
+    drop-shadow(0 0 7px color-mix(in srgb, var(--tag-tint) 45%, transparent));
+}
+
+/* The pill a tag badge sits in: a soft wash of its colour, a hairline the same colour, and a
+   short-range glow so it still reads as lit even where the icon's own glow is subtle. */
+@utility tag-chip {
+  background: color-mix(in srgb, var(--tag-tint) 13%, transparent);
+  border: 1px solid var(--tag-line, transparent);
+  box-shadow: 0 0 8px -3px var(--tag-tint);
 }
 
 /*

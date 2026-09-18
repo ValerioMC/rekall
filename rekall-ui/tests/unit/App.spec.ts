@@ -4,6 +4,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import App from '@/App.vue'
 import { router } from '@/router'
 import { useConsoleStore } from '@/stores/console.store'
+import { TASK_DESCRIPTION_TEMPLATE } from '@/model/templates'
 import type { Company, Project, RekallDocument, Task, TaskStep, Wrapup } from '@/model/catalog'
 import type { DocumentInput } from '@/api/documents.api'
 import type {
@@ -39,8 +40,8 @@ const projects: Project[] = [
 ]
 
 const tasks: Task[] = [
-  { id: validator, label: 'report-builder', title: 'Report builder', status: 'IN_PROGRESS', description: null, projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', projectRepoFolder: null, documentCount: 1, stepCount: 2, stepsDone: 1, draftStepCount: 0, hasWrapup: true, reviewState: 'OPEN', reviewActive: false, claimedAt: null, acceptedAt: null, reviewNote: null, anchor: 'project:vega task:report-builder', updatedAt: '2026-08-12T10:00:00Z' },
-  { id: retry, label: 'retry-policy', title: 'Retry policy', status: 'TODO', description: '## Scope\n\nRitenta solo gli errori 5xx, con backoff esponenziale.', projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', projectRepoFolder: null, documentCount: 1, stepCount: 0, stepsDone: 0, draftStepCount: 0, hasWrapup: false, reviewState: 'OPEN', reviewActive: true, claimedAt: null, acceptedAt: null, reviewNote: null, anchor: 'project:vega task:retry-policy', updatedAt: '2026-08-12T10:00:00Z' }
+  { id: validator, label: 'report-builder', title: 'Report builder', status: 'IN_PROGRESS', description: null, projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', projectRepoFolder: null, documentCount: 1, stepCount: 2, stepsDone: 1, draftStepCount: 0, hasWrapup: true, reviewState: 'OPEN', reviewActive: false, claimedAt: null, acceptedAt: null, reviewNote: null, tagId: null, tagName: null, tagIcon: null, tagColor: null, anchor: 'project:vega task:report-builder', updatedAt: '2026-08-12T10:00:00Z' },
+  { id: retry, label: 'retry-policy', title: 'Retry policy', status: 'TODO', description: '## Scope\n\nRitenta solo gli errori 5xx, con backoff esponenziale.', projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', projectRepoFolder: null, documentCount: 1, stepCount: 0, stepsDone: 0, draftStepCount: 0, hasWrapup: false, reviewState: 'OPEN', reviewActive: true, claimedAt: null, acceptedAt: null, reviewNote: null, tagId: null, tagName: null, tagIcon: null, tagColor: null, anchor: 'project:vega task:retry-policy', updatedAt: '2026-08-12T10:00:00Z' }
 ]
 
 const shared: RekallDocument = {
@@ -88,6 +89,10 @@ vi.mock('@/api/catalog.api', () => ({
   updateCompany: vi.fn(),
   deleteCompany: vi.fn(),
   fetchTasks: vi.fn(async () => tasks),
+  fetchTags: vi.fn(async () => []),
+  createTag: vi.fn(),
+  updateTag: vi.fn(),
+  deleteTag: vi.fn(),
   createProject: vi.fn(),
   updateProject: (...args: unknown[]) => updateProject(...(args as [])),
   deleteProject: vi.fn(),
@@ -580,8 +585,9 @@ describe('the console', () => {
         label: 'retry-policy',
         title: 'Retry policy',
         status: 'TODO',
-        description: null,
-        projectId: vega
+        description: TASK_DESCRIPTION_TEMPLATE.trim(),
+        projectId: vega,
+        tagId: null
       })
       expect(wrapper.find('[data-testid="record-dialog"]').exists()).toBe(false)
     })

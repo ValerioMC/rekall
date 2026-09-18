@@ -221,6 +221,8 @@ One surface, three panes: pick a task on the left, pick its checklist, its wrapu
 
 The description, steps, wrapup and terminal are pinned above the notes. Each opens in the writing pane; a task missing one shows an empty card. `c` opens the terminal pane, the same way `s`, `w` and `d` open steps, wrapup and description. Companies, projects and tasks are created, edited and deleted from one editor, opened on the parent record. Title and label sit together with the anchor assembled live as you type. Deleting states what goes with it.
 
+A task optionally wears one **tag**: a name, a glowing icon and a glow colour, both picked from a fixed set the console already knows how to draw. Tags are configured in their own panel, opened from the star button in the header next to Settings — add, rename, re-colour or delete one there, with a live count of the tasks currently wearing it. A tag is assigned to a task from that task's edit dialog, and shows as a small glowing badge next to the title wherever the task is listed.
+
 Finished tasks are folded into a "filed" drawer, closed on every load. Writing autosaves; a note has no Save button.
 
 A note is put on a task from either side. From the note, the task chips on its pane open a picker that walks company, project and task. From the task, the **Notes** button in the description and steps headers drops a list of every note under itself, the ones on this task first: one click, or `↑` `↓` and `↵`, adds a note or takes it off, without leaving the pane. A note whose only task is this one stays put, since a note needs at least one.
@@ -245,17 +247,19 @@ The screen is built from the sessions the timer recorded. A session counts on th
 Company ──< Project ──< Task >──< Document
                          │       via document_task
                          ├──< TaskStep
-                         └──1 Wrapup
+                         ├──1 Wrapup
+                         └──> Tag (optional)
 ```
 
 | Entity | Anchored by | Holds |
 |--------|-------------|-------|
 | `Company` | `name` | description, its projects |
 | `Project` | `label`, unique per company | title, status, description, its tasks |
-| `Task` | `label`, unique per project | title, status, markdown description, a standing wrapup directive, its notes, steps, wrapup |
+| `Task` | `label`, unique per project | title, status, markdown description, a standing wrapup directive, its notes, steps, wrapup, an optional tag |
 | `Document` | none | title, kind, markdown body, the tasks it is on |
 | `TaskStep` | through its task | title, optional detail, state, position |
 | `Wrapup` | through its task | markdown body, who wrote it last. One per task |
+| `Tag` | `name`, unique | icon key, glow-colour key, the tasks currently wearing it |
 
 `label` is what an anchor resolves: lowercase letters, digits, `-`, `_`, `.`, no spaces, normalised on write. `title` is free text and changing it never breaks an anchor. Renaming a label moves the anchor, and the editor says so before saving.
 

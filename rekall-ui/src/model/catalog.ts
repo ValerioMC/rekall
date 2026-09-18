@@ -2,6 +2,7 @@ import type {
   CompanyId,
   DocumentId,
   ProjectId,
+  TagId,
   TaskId,
   TaskStepId,
   TimeEntryId,
@@ -120,7 +121,19 @@ export interface Task {
   readonly claimedAt: string | null
   readonly acceptedAt: string | null
   readonly reviewNote: string | null
+  readonly tagId: TagId | null
+  readonly tagName: string | null
+  readonly tagIcon: string | null
+  readonly tagColor: string | null
   readonly anchor: string
+  readonly updatedAt: string
+}
+
+export interface Tag {
+  readonly id: TagId
+  readonly name: string
+  readonly icon: string
+  readonly color: string
   readonly updatedAt: string
 }
 

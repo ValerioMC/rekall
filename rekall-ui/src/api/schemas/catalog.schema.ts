@@ -3,6 +3,7 @@ import {
   asCompanyId,
   asDocumentId,
   asProjectId,
+  asTagId,
   asTaskId,
   asTaskStepId,
   asTimeEntryId,
@@ -17,6 +18,7 @@ const taskStepId = z.string().uuid().transform(asTaskStepId)
 const documentId = z.string().uuid().transform(asDocumentId)
 const wrapupId = z.string().uuid().transform(asWrapupId)
 const timeEntryId = z.string().uuid().transform(asTimeEntryId)
+const tagId = z.string().uuid().transform(asTagId)
 
 export const CompanySchema = z.object({
   id: companyId,
@@ -74,7 +76,19 @@ export const TaskSchema = z.object({
   claimedAt: z.string().nullable(),
   acceptedAt: z.string().nullable(),
   reviewNote: z.string().nullable(),
+  tagId: tagId.nullable(),
+  tagName: z.string().nullable(),
+  tagIcon: z.string().nullable(),
+  tagColor: z.string().nullable(),
   anchor: z.string(),
+  updatedAt: z.string()
+})
+
+export const TagSchema = z.object({
+  id: tagId,
+  name: z.string(),
+  icon: z.string(),
+  color: z.string(),
   updatedAt: z.string()
 })
 
@@ -167,6 +181,7 @@ export const ProjectRepositorySchema = z.object({
 export const CompanyListSchema = z.array(CompanySchema)
 export const ProjectListSchema = z.array(ProjectSchema)
 export const TaskListSchema = z.array(TaskSchema)
+export const TagListSchema = z.array(TagSchema)
 export const TaskStepListSchema = z.array(TaskStepSchema)
 export const DocumentListSchema = z.array(DocumentSchema)
 export const WrapupListSchema = z.array(WrapupSchema)

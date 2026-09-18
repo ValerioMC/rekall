@@ -5,6 +5,8 @@ import {
   ProjectListSchema,
   ProjectRepositorySchema,
   ProjectSchema,
+  TagListSchema,
+  TagSchema,
   TaskListSchema,
   TaskSchema
 } from './schemas/catalog.schema'
@@ -13,11 +15,12 @@ import type {
   Project,
   ProjectRepository,
   ProjectStatus,
+  Tag,
   Task,
   TaskStatus,
   TaskStepState
 } from '@/model/catalog'
-import type { CompanyId, ProjectId, TaskId } from '@/model/branded'
+import type { CompanyId, ProjectId, TagId, TaskId } from '@/model/branded'
 
 export interface CompanyInput {
   name: string
@@ -41,6 +44,13 @@ export interface TaskInput {
   status: TaskStatus
   description: string | null
   projectId: ProjectId
+  tagId: TagId | null
+}
+
+export interface TagInput {
+  name: string
+  icon: string
+  color: string
 }
 
 export async function fetchCompanies(): Promise<Company[]> {
@@ -133,4 +143,22 @@ export async function reviewTask(
       })
     )
   )
+}
+
+export async function fetchTags(): Promise<Tag[]> {
+  return request(async () => TagListSchema.parse(await apiClient('/api/tags')))
+}
+
+export async function createTag(input: TagInput): Promise<Tag> {
+  return request(async () => TagSchema.parse(await apiClient('/api/tags', { method: 'POST', body: input })))
+}
+
+export async function updateTag(id: TagId, input: TagInput): Promise<Tag> {
+  return request(async () =>
+    TagSchema.parse(await apiClient(`/api/tags/${id}`, { method: 'PUT', body: input }))
+  )
+}
+
+export async function deleteTag(id: TagId): Promise<void> {
+  await request(() => apiClient(`/api/tags/${id}`, { method: 'DELETE' }))
 }

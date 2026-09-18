@@ -43,6 +43,10 @@ function task(id: TaskId, title: string, projectId: ProjectId, companyName: stri
     claimedAt: null,
     acceptedAt: null,
     reviewNote: null,
+    tagId: null,
+    tagName: null,
+    tagIcon: null,
+    tagColor: null,
     anchor: `project:${projectId === vega ? 'vega' : 'beacon'} task:${title.toLowerCase().replace(/ /g, '-')}`,
     updatedAt: ''
   }
