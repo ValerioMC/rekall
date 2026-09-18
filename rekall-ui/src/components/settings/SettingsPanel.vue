@@ -31,6 +31,21 @@ const forgetting = ref<DatabaseEntry | null>(null)
 const closeButton = ref<HTMLButtonElement | null>(null)
 const panel = ref<HTMLElement | null>(null)
 
+const previewingPath = ref<DatabaseEntry | null>(null)
+const pathPreviewStyle = ref<Record<string, string>>({})
+const PATH_PREVIEW_WIDTH = 420
+
+function openPathPreview(event: MouseEvent | FocusEvent, entry: DatabaseEntry): void {
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
+  const left = Math.min(Math.max(12, rect.left), window.innerWidth - PATH_PREVIEW_WIDTH - 12)
+  pathPreviewStyle.value = { top: `${rect.bottom + 6}px`, left: `${left}px` }
+  previewingPath.value = entry
+}
+
+function closePathPreview(): void {
+  previewingPath.value = null
+}
+
 const canClose = computed(() => phase.value !== 'submitting' && phase.value !== 'restarting' && !addingNewIsBusy.value)
 
 async function load(): Promise<void> {
@@ -180,7 +195,14 @@ onUnmounted(() => {
                     <AppBadge v-if="entry.active" tone="accent" dot>In use</AppBadge>
                     <AppBadge v-else-if="!entry.reachable" tone="danger">Unreachable</AppBadge>
                   </div>
-                  <p class="mt-1 truncate font-mono text-[11.5px] text-text-subtle" :title="entry.path">
+                  <p
+                    class="mt-1 truncate font-mono text-[11.5px] text-text-subtle"
+                    tabindex="0"
+                    @mouseenter="openPathPreview($event, entry)"
+                    @mouseleave="closePathPreview"
+                    @focus="openPathPreview($event, entry)"
+                    @blur="closePathPreview"
+                  >
                     {{ entry.path }}
                   </p>
                 </div>
@@ -232,6 +254,17 @@ onUnmounted(() => {
         <ClaudeCodeSection class="mt-6 border-t border-border pt-5" />
       </div>
     </div>
+
+    <Teleport to="body">
+      <div
+        v-if="previewingPath"
+        class="pointer-events-none fixed z-(--z-toast) max-w-[420px] rounded-[var(--radius-control)] border border-border-strong bg-surface-raised px-2.5 py-1.5 font-mono text-[11px] break-all text-text shadow-modal"
+        :style="pathPreviewStyle"
+        role="tooltip"
+      >
+        {{ previewingPath.path }}
+      </div>
+    </Teleport>
 
     <Transition name="dialog">
       <AppConfirm
