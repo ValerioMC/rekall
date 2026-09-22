@@ -9,6 +9,7 @@ import AppSelect from '@/components/ui/AppSelect.vue'
 import NoteAssignmentDialog from '@/components/console/NoteAssignmentDialog.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.vue'
+import CloseGlyph from '@/components/ui/CloseGlyph.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { rkCommand } from '@/common/format/rk-command'
@@ -27,7 +28,10 @@ const {
 } = storeToRefs(store)
 const { run } = useAsyncAction()
 
-const KIND_OPTIONS = DOCUMENT_KINDS.map((kind) => ({ value: kind, label: kind }))
+const KIND_OPTIONS = DOCUMENT_KINDS.map((kind) => ({
+  value: kind,
+  label: kind.charAt(0).toUpperCase() + kind.slice(1)
+}))
 
 const SHORTCUTS = [
   { keys: '⌘K', does: 'search by anchor, from anywhere' },
@@ -259,7 +263,7 @@ async function confirmDelete(): Promise<void> {
           <div class="w-[128px]">
             <AppSelect v-model="draft.kind" :options="KIND_OPTIONS" @change="scheduleSave" />
           </div>
-          <AppButton variant="danger" size="sm" @click="isConfirmingDelete = true">Delete</AppButton>
+          <AppButton variant="danger-quiet" size="sm" @click="isConfirmingDelete = true">Delete</AppButton>
         </div>
       </header>
 
@@ -293,7 +297,7 @@ async function confirmDelete(): Promise<void> {
             :aria-label="`Remove this note from ${task.title}`"
             @click="detachFrom(task.id)"
           >
-            &times;
+            <CloseGlyph small />
           </button>
         </span>
 
@@ -343,7 +347,7 @@ async function confirmDelete(): Promise<void> {
               :aria-label="`Remove this note from ${task.title}`"
               @click="detachFrom(task.id)"
             >
-              &times;
+              <CloseGlyph small />
             </button>
           </span>
         </template>

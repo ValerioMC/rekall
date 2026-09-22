@@ -10,11 +10,13 @@ import AppEmptyState from '@/components/ui/AppEmptyState.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import ProjectTrace from '@/components/ui/ProjectTrace.vue'
 import StatusMixBar from '@/components/ui/StatusMixBar.vue'
+import CloseGlyph from '@/components/ui/CloseGlyph.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { relativeTime } from '@/common/format/relative-time'
 import { useConsoleStore } from '@/stores/console.store'
 import { hasActivity, projectActivitySeries } from '@/common/trace/activity-series'
 import { projectDraft } from '@/model/record-draft'
+import { identityHue } from '@/common/identity'
 import { PROJECT_STATUSES, PROJECT_STATUS_LABEL } from '@/model/catalog'
 import type { ProjectStatus, Task } from '@/model/catalog'
 import type { RecordDraft } from '@/model/record-draft'
@@ -33,14 +35,36 @@ const companyFilter = ref<CompanyId | null>((route.query.company as CompanyId) ?
 const editing = ref<RecordDraft | null>(null)
 const deleting = ref<Project | null>(null)
 
-function matches(project: Project): boolean {
-  if (statusFilter.value && project.status !== statusFilter.value) return false
+function matchesOutsideStatus(project: Project): boolean {
   if (companyFilter.value && project.companyId !== companyFilter.value) return false
   if (!search.value.trim()) return true
   const needle = search.value.toLowerCase().trim()
   const hay = `${project.title} ${project.label} ${project.companyName}`.toLowerCase()
   return hay.includes(needle)
 }
+
+function matches(project: Project): boolean {
+  if (statusFilter.value && project.status !== statusFilter.value) return false
+  return matchesOutsideStatus(project)
+}
+
+/**
+ * How many projects each status option would show, given the search and the company filter.
+ * Counted without the status filter itself, so every option says what pressing it gives.
+ */
+const statusCounts = computed(() => {
+  const inScope = store.projects.filter(matchesOutsideStatus)
+  const counts = new Map<ProjectStatus | null, number>([[null, inScope.length]])
+  for (const status of PROJECT_STATUSES) {
+    counts.set(status, inScope.filter((project) => project.status === status).length)
+  }
+  return counts
+})
+
+const STATUS_OPTIONS: readonly { value: ProjectStatus | null; label: string }[] = [
+  { value: null, label: 'All' },
+  ...PROJECT_STATUSES.map((status) => ({ value: status, label: PROJECT_STATUS_LABEL[status] }))
+]
 
 const groups = computed(() =>
   store.companies
@@ -114,30 +138,37 @@ async function confirmDelete(): Promise<void> {
         <div class="w-full max-w-[320px]">
           <AppInput v-model="search" type="search" placeholder="Find a project" />
         </div>
-        <button
-          class="focus-ring h-8 rounded-[var(--radius-control)] border px-3 text-[12.5px] transition-colors"
-          :class="
-            statusFilter === null
-              ? 'border-accent bg-accent-soft text-accent'
-              : 'border-border-strong bg-canvas text-text-muted hover:border-text-subtle hover:text-text'
-          "
-          @click="statusFilter = null"
+        <!-- One segmented control rather than four loose pills: the options are exclusive, so
+             they read as one choice, sit at the search field's height, and each carries the
+             count it would show. -->
+        <div
+          class="flex h-(--spacing-control) items-center gap-0.5 rounded-[var(--radius-control)] border border-border bg-surface p-0.5"
+          role="radiogroup"
+          aria-label="Status"
         >
-          All
-        </button>
-        <button
-          v-for="option in PROJECT_STATUSES"
-          :key="option"
-          class="focus-ring h-8 rounded-[var(--radius-control)] border px-3 text-[12.5px] transition-colors"
-          :class="
-            statusFilter === option
-              ? 'border-accent bg-accent-soft text-accent'
-              : 'border-border-strong bg-canvas text-text-muted hover:border-text-subtle hover:text-text'
-          "
-          @click="statusFilter = option"
-        >
-          {{ PROJECT_STATUS_LABEL[option] }}
-        </button>
+          <button
+            v-for="option in STATUS_OPTIONS"
+            :key="option.label"
+            type="button"
+            role="radio"
+            :aria-checked="statusFilter === option.value"
+            class="focus-ring flex h-full items-center gap-1.5 rounded-[calc(var(--radius-control)-3px)] px-2.5 text-[12.5px] transition-colors"
+            :class="
+              statusFilter === option.value
+                ? 'bg-surface-raised text-text shadow-[0_1px_2px_rgb(0_0_0/0.4)]'
+                : 'text-text-subtle hover:text-text'
+            "
+            @click="statusFilter = option.value"
+          >
+            {{ option.label }}
+            <span
+              class="font-mono text-[10.5px] tabular-nums"
+              :class="statusFilter === option.value ? 'text-accent' : 'text-text-subtle/70'"
+            >
+              {{ statusCounts.get(option.value) ?? 0 }}
+            </span>
+          </button>
+        </div>
 
         <button
           v-if="companyFilter"
@@ -145,7 +176,7 @@ async function confirmDelete(): Promise<void> {
           @click="clearCompanyFilter"
         >
           <span>{{ targetCompany?.name ?? 'one company' }}</span>
-          <span aria-hidden="true">&times;</span>
+          <CloseGlyph small />
         </button>
 
         <span class="ml-auto font-mono text-[11.5px] text-text-subtle">
@@ -187,6 +218,13 @@ async function confirmDelete(): Promise<void> {
               :key="project.id"
               class="group/card relative flex flex-col gap-3 rounded-[var(--radius-card)] border border-border bg-surface p-4 transition-all duration-150 hover:-translate-y-0.5 hover:border-border-strong hover:bg-surface-raised hover:shadow-lift"
             >
+              <!-- The project's own hue along the top edge, the same line its pane header
+                   carries in the console, so a card is recognisable before it is read. -->
+              <span
+                class="pointer-events-none absolute inset-x-4 top-0 h-px opacity-70 transition-opacity group-hover/card:opacity-100"
+                :style="{ background: `linear-gradient(90deg, transparent, ${identityHue(project.id).base}, transparent)` }"
+                aria-hidden="true"
+              />
               <button
                 data-testid="project-card"
                 class="focus-ring absolute inset-0 rounded-[var(--radius-card)]"

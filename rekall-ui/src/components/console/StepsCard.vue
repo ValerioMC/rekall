@@ -57,7 +57,8 @@ const hasBody = computed(() => hasSteps.value || draftCount.value > 0)
       </span>
       <span
         v-if="hasSteps"
-        class="ml-auto shrink-0 font-mono text-[10.5px] tabular-nums text-text-muted"
+        class="ml-auto shrink-0 font-mono text-[10.5px] tabular-nums"
+        :class="done === checklist.length ? 'text-safe' : 'text-text-muted'"
         data-testid="steps-progress"
       >
         {{ done }}/{{ checklist.length }}
@@ -72,7 +73,9 @@ const hasBody = computed(() => hasSteps.value || draftCount.value > 0)
           class="h-full flex-1 rounded-full transition-colors duration-300"
           :class="
             step.state === 'DONE'
-              ? 'bg-accent'
+              ? done === checklist.length
+                ? 'bg-safe/80'
+                : 'bg-accent'
               : step.state === 'CLAIMED'
                 ? 'bg-accent/60'
                 : step.state === 'RUNNING'
@@ -113,9 +116,10 @@ const hasBody = computed(() => hasSteps.value || draftCount.value > 0)
       </span>
       <span
         v-if="draftCount > 0"
-        class="mt-1 block text-[11px] leading-relaxed text-text-subtle"
+        class="mt-1 flex items-center gap-1 text-[11px] leading-relaxed text-text-subtle"
         data-testid="steps-card-drafts"
       >
+        <span class="size-[7px] rounded-[2px] border border-dashed border-current" aria-hidden="true" />
         {{ draftCount }} in draft
       </span>
     </template>

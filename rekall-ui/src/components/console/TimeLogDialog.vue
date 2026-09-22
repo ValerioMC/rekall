@@ -2,6 +2,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
+import CloseGlyph from '@/components/ui/CloseGlyph.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useModalGate } from '@/composables/useModalGate'
@@ -152,7 +153,7 @@ onUnmounted(() => {
           aria-label="Close"
           @click="emit('close')"
         >
-          &times;
+          <CloseGlyph />
         </button>
       </header>
 
@@ -174,9 +175,11 @@ onUnmounted(() => {
               class="relative rounded-[var(--radius-control)] border border-transparent px-2.5 py-2 hover:border-border-strong hover:bg-surface-raised"
               data-testid="time-log-row"
             >
+              <!-- Centred on the rail (left-1 of the group, so 4.5px in, 14px left of the row):
+                   a 9px disc whose 2px canvas ring cuts the rail around it, leaving 5px of colour. -->
               <span
-                class="absolute left-[-9px] top-1/2 size-1.5 -translate-y-1/2 rounded-full border-2 border-canvas"
-                :class="entry.stoppedAt ? 'bg-text-subtle' : 'bg-accent'"
+                class="absolute left-[-14px] top-1/2 size-[9px] -translate-y-1/2 rounded-full border-2 border-surface"
+                :class="entry.stoppedAt ? 'bg-text-subtle' : 'bg-accent shadow-[0_0_8px_-1px_var(--color-accent)]'"
                 aria-hidden="true"
               />
             <div v-if="editingId !== entry.id" class="flex items-center gap-2.5">
@@ -211,7 +214,7 @@ onUnmounted(() => {
                 aria-label="Delete this session"
                 @click="beginDelete(entry)"
               >
-                &times;
+                <CloseGlyph small />
               </button>
             </div>
 
@@ -219,14 +222,14 @@ onUnmounted(() => {
               <input
                 v-model="editStart"
                 type="datetime-local"
-                class="focus-ring h-8 rounded-[var(--radius-control)] border border-border bg-canvas px-2 text-[12px] text-text outline-none transition-colors hover:border-border-strong focus:border-accent"
+                class="field text-text h-8 rounded-[var(--radius-control)] px-2 text-[12px]"
               />
               <span class="text-text-subtle">&ndash;</span>
               <input
                 v-if="entry.stoppedAt"
                 v-model="editStop"
                 type="datetime-local"
-                class="focus-ring h-8 rounded-[var(--radius-control)] border border-border bg-canvas px-2 text-[12px] text-text outline-none transition-colors hover:border-border-strong focus:border-accent"
+                class="field text-text h-8 rounded-[var(--radius-control)] px-2 text-[12px]"
               />
               <span v-else class="text-[12px] text-accent">running</span>
               <span class="ml-auto flex gap-1.5">

@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { identityHue } from '@/common/identity'
 import { formatDuration } from '@/common/format/duration'
+import { capitalised } from '@/common/calendar/month-grid'
 import type { ReportDay } from '@/common/report/time-report'
 import type { ReportPeriod } from '@/common/report/period'
 
@@ -24,7 +25,7 @@ const columns = computed(() =>
   props.days.map((day) => ({
     day,
     isWeekend: day.date.getDay() === 0 || day.date.getDay() === 6,
-    weekday: day.date.toLocaleDateString(undefined, { weekday: 'short' }),
+    weekday: capitalised(day.date.toLocaleDateString(undefined, { weekday: 'short' })),
     dayNumber: day.date.getDate(),
     label: `${day.date.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}: ${formatDuration(day.totalSeconds)}`,
     segments: day.byCompany.map((slice) => ({
@@ -43,7 +44,7 @@ const columns = computed(() =>
         class="absolute inset-x-0 border-t border-dashed border-border-strong"
         :style="{ bottom: fullDayLine }"
       >
-        <span class="absolute right-1 top-0.5 bg-surface px-1.5 font-mono text-[9.5px] text-text-muted">
+        <span class="absolute right-0 top-0 -translate-y-1/2 rounded-full border border-border bg-surface px-1.5 font-mono text-[9.5px] leading-[15px] text-text-muted">
           8h
         </span>
       </div>
@@ -63,9 +64,19 @@ const columns = computed(() =>
         :title="column.label"
         data-testid="ridge-column"
       >
+        <!-- A weekend is marked by a faint hatch, not a darker block: on an empty week a solid
+             panel reads as a hole punched in the chart, and it is only a note that these days
+             were not expected to fill. -->
         <span
           v-if="column.isWeekend"
-          class="pointer-events-none absolute inset-x-0 bottom-6 top-0 rounded-t-[3px] bg-canvas/80"
+          class="pointer-events-none absolute inset-x-0 bottom-6 top-0 rounded-t-[3px]"
+          style="
+            background-image: repeating-linear-gradient(
+              135deg,
+              color-mix(in srgb, var(--color-border-strong) 55%, transparent) 0 1px,
+              transparent 1px 7px
+            );
+          "
           aria-hidden="true"
         />
 

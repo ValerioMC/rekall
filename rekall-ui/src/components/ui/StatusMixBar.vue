@@ -20,16 +20,18 @@ const summary = computed(
 </script>
 
 <template>
+  <!-- Segments are separated by a hairline gap rather than butted together: two statuses in
+       adjacent hues (in progress and blocked) otherwise blur into one colour at 4px tall. -->
   <div
-    class="flex w-full overflow-hidden rounded-full bg-border"
-    :class="size === 'sm' ? 'h-1' : 'h-1.5'"
+    class="flex w-full gap-[2px] overflow-hidden rounded-full"
+    :class="[size === 'sm' ? 'h-1' : 'h-1.5', segments.length ? '' : 'bg-border']"
     role="img"
     :aria-label="summary"
   >
     <span
       v-for="segment in segments"
       :key="segment.status"
-      class="h-full first:rounded-l-full last:rounded-r-full"
+      class="h-full min-w-[3px] rounded-full"
       :class="TASK_STATUS_COLOR[segment.status]"
       :style="{ flexGrow: segment.count, flexBasis: '0%' }"
     />

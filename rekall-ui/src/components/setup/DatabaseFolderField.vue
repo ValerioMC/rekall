@@ -131,8 +131,8 @@ defineExpose({ focus: () => input.value?.focus() })
             data-testid="database-folder-input"
             placeholder="/Users/you/Documents/rekall"
             aria-describedby="database-folder-help"
-            class="focus-ring h-10 w-full rounded-[var(--radius-control)] border bg-canvas pl-9 pr-3.5 font-mono text-[13px] text-text outline-none transition-colors placeholder:text-text-subtle hover:border-border-strong focus-visible:border-accent"
-            :class="hint?.tone === 'danger' ? 'border-danger' : 'border-border'"
+            class="field text-text h-10 w-full rounded-[var(--radius-control)] pl-9 pr-3.5 font-mono text-[13px]"
+            :aria-invalid="hint?.tone === 'danger' ? 'true' : undefined"
             @input="onInput(($event.target as HTMLInputElement).value)"
             @keydown.enter="submit"
           />

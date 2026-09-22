@@ -173,7 +173,7 @@ async function sendWrapupHere(message: string): Promise<void> {
 
         <div v-if="selectedWrapup" class="flex shrink-0 items-center gap-2">
           <AppModeToggle v-model="mode" />
-          <AppButton variant="danger" size="sm" @click="isConfirmingDelete = true">Delete</AppButton>
+          <AppButton variant="danger-quiet" size="sm" @click="isConfirmingDelete = true">Delete</AppButton>
         </div>
       </header>
 

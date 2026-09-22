@@ -70,7 +70,7 @@ function jumpTo(taskId: TaskId): void {
                 :style="{ backgroundColor: identityHue(projectIdOf(entry)).base }"
                 aria-hidden="true"
               />
-              {{ entry.anchor }}
+              <span class="min-w-0 truncate">{{ entry.anchor }}</span>
             </span>
           </span>
         </button>

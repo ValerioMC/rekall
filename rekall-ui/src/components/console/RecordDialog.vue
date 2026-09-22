@@ -4,6 +4,7 @@ import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
 import TagIcon from '@/components/ui/TagIcon.vue'
+import CloseGlyph from '@/components/ui/CloseGlyph.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { trapTabKey } from '@/common/a11y/focus-trap'
@@ -298,7 +299,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
           </span>
           <span v-if="anchorParent" class="flex items-center gap-1.5 truncate font-mono text-[11px] text-anchor/80">
             <span v-if="kind === 'task'" class="size-1.5 shrink-0 rounded-full" :style="{ backgroundColor: identityHue(parentId).base }" aria-hidden="true" />
-            {{ anchorParent }}
+            <span class="min-w-0 truncate">{{ anchorParent }}</span>
           </span>
         </span>
         <button
@@ -306,7 +307,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
           aria-label="Close"
           @click="emit('close')"
         >
-          &times;
+          <CloseGlyph />
         </button>
       </header>
 
@@ -341,8 +342,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
           ref="firstField"
           :value="titleValue"
           data-testid="record-title"
-          class="focus-ring h-10 w-full rounded-[var(--radius-control)] border border-border bg-canvas px-3 text-[15px] text-text outline-none transition-colors placeholder:text-text-subtle hover:border-border-strong focus:border-accent"
-          :class="titleError && 'border-danger'"
+          class="field text-text h-10 w-full rounded-[var(--radius-control)] px-3 text-[15px]"
+          :aria-invalid="titleError ? 'true' : undefined"
           :placeholder="hasLabel ? 'Report builder, main workflow' : 'Acme S.p.A.'"
           @input="onTitleInput(($event.target as HTMLInputElement).value)"
           @focus="anchorLive = true"
@@ -368,8 +369,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
             data-testid="record-label"
             spellcheck="false"
             autocomplete="off"
-            class="focus-ring h-10 w-full rounded-[var(--radius-control)] border border-border bg-canvas px-3 font-mono text-[14px] text-anchor outline-none transition-colors placeholder:text-text-subtle hover:border-border-strong focus:border-anchor"
-            :class="labelError && 'border-danger'"
+            class="field field-anchor h-10 w-full rounded-[var(--radius-control)] px-3 font-mono text-[14px] text-anchor"
+            :aria-invalid="labelError ? 'true' : undefined"
             placeholder="report-builder"
             @input="onLabelInput(($event.target as HTMLInputElement).value)"
             @focus="anchorLive = true"
@@ -486,7 +487,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
           v-model="description"
           data-testid="record-description"
           rows="3"
-          class="focus-ring w-full resize-y rounded-[var(--radius-control)] border border-border bg-canvas p-3 text-[13px] leading-relaxed text-text outline-none transition-colors placeholder:text-text-subtle hover:border-border-strong focus:border-accent"
+          class="field text-text w-full resize-y rounded-[var(--radius-control)] p-3 text-[13px] leading-relaxed"
           placeholder="What it is, in a sentence. This travels with the record into every context."
         />
       </div>

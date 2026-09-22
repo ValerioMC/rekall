@@ -23,7 +23,7 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
       :value="modelValue ?? ''"
       :disabled="disabled"
       :aria-describedby="describedBy"
-      class="focus-ring h-(--spacing-control) w-full cursor-pointer appearance-none rounded-[var(--radius-control)] border border-border bg-canvas pl-3 pr-9 text-[13px] text-text transition-colors hover:border-border-strong focus-visible:border-accent-deep disabled:cursor-not-allowed disabled:opacity-50"
+      class="field text-text h-(--spacing-control) w-full cursor-pointer appearance-none rounded-[var(--radius-control)] pl-3 pr-9 text-[13px]"
       @change="emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
     >
       <option v-if="placeholder" value="">{{ placeholder }}</option>

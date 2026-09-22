@@ -3,7 +3,6 @@ import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppLogo from '@/components/ui/AppLogo.vue'
-import TagIcon from '@/components/ui/TagIcon.vue'
 import AppNavSwitcher from '@/components/console/AppNavSwitcher.vue'
 import ClaudeUsageMeter from '@/components/console/ClaudeUsageMeter.vue'
 import SearchHitList from '@/components/console/SearchHitList.vue'
@@ -32,7 +31,8 @@ const isFocused = ref(false)
 
 const placeholder = computed(() =>
   scopePath.value.length === 0
-    ? 'company:acme project:vega task:report-builder'
+    ? // Short enough to show whole in the narrowest bar: a hint cut off mid-word reads as a bug.
+      'project:vega task:setup'
     : `Find in ${scopeName.value}`
 )
 
@@ -178,12 +178,7 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
         type="text"
         autocomplete="off"
         spellcheck="false"
-        class="focus-ring h-10 w-full rounded-[var(--radius-control)] border bg-canvas pl-[48px] pr-[92px] font-mono text-[13px] text-text outline-none transition-all placeholder:text-text-subtle"
-        :class="
-          isFocused
-            ? 'border-accent shadow-[0_0_0_3px_var(--color-accent-soft)]'
-            : 'border-border hover:border-border-strong'
-        "
+        class="field h-10 w-full rounded-[var(--radius-control)] pl-[48px] pr-[92px] font-mono text-[13px] text-text"
         :placeholder="placeholder"
         aria-label="Find a task or a note"
         @focus="isFocused = true"
@@ -272,7 +267,17 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
         class="focus-ring grid size-8 shrink-0 place-items-center rounded-[var(--radius-control)] border border-border-strong bg-surface-raised text-text-subtle transition-colors hover:border-accent hover:bg-surface-hover hover:text-text"
         @click="emit('openTags')"
       >
-        <TagIcon icon="star" color="crimson" :size="16" />
+        <!-- Drawn in the chrome's grey like the cog beside it: a lit crimson glyph here was the
+             only coloured icon in the bar, and colour up here means state, not a menu. -->
+        <svg class="size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path
+            d="M3.5 12.1V4.6a1.1 1.1 0 0 1 1.1-1.1h7.5a1.1 1.1 0 0 1 .78.32l7.8 7.8a1.1 1.1 0 0 1 0 1.56l-7.5 7.5a1.1 1.1 0 0 1-1.56 0l-7.8-7.8a1.1 1.1 0 0 1-.32-.78Z"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linejoin="round"
+          />
+          <circle cx="8.2" cy="8.2" r="1.5" fill="currentColor" />
+        </svg>
       </button>
       <button
         type="button"

@@ -18,8 +18,14 @@ const props = withDefaults(
     height?: string
     placeholder?: string
     showPreview?: boolean
+    /**
+     * Read inside something else (a step's detail under its title) rather than as the pane: the
+     * page sits flush left at the container's width with no reading-column controls, since the
+     * width and alignment they set belong to a pane-sized page, not to a card.
+     */
+    compact?: boolean
   }>(),
-  { readonly: false, height: '420px', placeholder: '# Contesto', showPreview: true }
+  { readonly: false, height: '420px', placeholder: '# Contesto', showPreview: true, compact: false }
 )
 
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
@@ -76,11 +82,11 @@ const TOOLBARS: ToolbarNames[] = [
 <template>
   <div
     class="rekall-md"
-    :class="{ 'rekall-md--readonly': readonly }"
-    :style="readonly ? readStyle : undefined"
-    :data-align="readonly ? readAlign : undefined"
+    :class="{ 'rekall-md--readonly': readonly, 'rekall-md--compact': readonly && compact }"
+    :style="readonly && !compact ? readStyle : undefined"
+    :data-align="readonly && !compact ? readAlign : undefined"
   >
-    <div v-if="readonly" class="rekall-read-controls">
+    <div v-if="readonly && !compact" class="rekall-read-controls">
       <div class="relative">
         <button
           type="button"
@@ -547,6 +553,16 @@ const TOOLBARS: ToolbarNames[] = [
 .rekall-md--readonly .md-editor-previewOnly {
   background: transparent;
   border: none;
+}
+
+/* Compact: the same typesetting at card scale, flush with the title above it. The section ticks
+   hang into the card's own padding, so the page is indented by exactly their reach. */
+.rekall-md--compact .md-editor-preview {
+  max-width: none;
+  margin-inline: 0 !important;
+  padding: 2px 4px 4px 22px !important;
+  font-size: 13px !important;
+  line-height: 1.7 !important;
 }
 
 /* Held over the page's top-right corner rather than given a row of its own, so opening a read

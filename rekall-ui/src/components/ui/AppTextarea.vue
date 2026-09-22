@@ -21,7 +21,7 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
     :rows="rows"
     :aria-describedby="describedBy"
     spellcheck="false"
-    class="focus-ring w-full resize-y rounded-[var(--radius-control)] border border-border bg-canvas p-3 font-mono text-[12.5px] leading-relaxed text-text transition-colors placeholder:text-text-subtle hover:border-border-strong focus-visible:border-accent-deep"
+    class="field text-text w-full resize-y rounded-[var(--radius-control)] p-3 font-mono text-[12.5px] leading-relaxed"
     @input="emit('update:modelValue', ($event.target as HTMLTextAreaElement).value)"
   />
 </template>

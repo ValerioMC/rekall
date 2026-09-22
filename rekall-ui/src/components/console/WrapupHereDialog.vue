@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
+import CloseGlyph from '@/components/ui/CloseGlyph.vue'
 import { useModalGate } from '@/composables/useModalGate'
 import { trapTabKey } from '@/common/a11y/focus-trap'
 import { rkWrapupCommand } from '@/common/format/rk-command'
@@ -75,7 +76,7 @@ onUnmounted(() => {
           :disabled="sending"
           @click="emit('cancel')"
         >
-          &times;
+          <CloseGlyph />
         </button>
       </header>
 
@@ -90,7 +91,7 @@ onUnmounted(() => {
           type="text"
           data-testid="wrapup-here-message"
           :disabled="sending"
-          class="focus-ring h-10 w-full rounded-[var(--radius-control)] border border-border bg-canvas px-3 text-[13.5px] text-text outline-none transition-colors placeholder:text-text-subtle hover:border-border-strong focus:border-accent disabled:opacity-60"
+          class="field text-text h-10 w-full rounded-[var(--radius-control)] px-3 text-[13.5px] disabled:opacity-60"
           placeholder="What to focus the wrapup on, in your own words"
           @keydown.enter.prevent="send"
         />

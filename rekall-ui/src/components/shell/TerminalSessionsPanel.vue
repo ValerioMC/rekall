@@ -77,7 +77,7 @@ async function logCommit(terminal: Terminal): Promise<void> {
                 :style="{ backgroundColor: identityHue(projectIdOf(terminal)).base }"
                 aria-hidden="true"
               />
-              {{ terminal.anchors }}
+              <span class="min-w-0 truncate">{{ terminal.anchors }}</span>
             </span>
           </span>
         </button>

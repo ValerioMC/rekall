@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
+type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'danger-quiet'
 type Size = 'sm' | 'md'
 
 const props = withDefaults(
@@ -23,7 +23,11 @@ const VARIANTS: Readonly<Record<Variant, string>> = {
   secondary:
     'bg-surface-raised text-text border-border-strong hover:bg-surface-hover hover:border-text-subtle',
   ghost: 'bg-transparent text-text-muted border-transparent hover:bg-surface-raised hover:text-text',
-  danger: 'bg-transparent text-danger border-danger/40 hover:bg-danger-soft hover:border-danger'
+  danger: 'bg-transparent text-danger border-danger/40 hover:bg-danger-soft hover:border-danger',
+  // A destructive action repeated down a list (one per row): ghost at rest, red only under the
+  // pointer, so a column of rows is not a column of alarms. The confirm it opens is the guard.
+  'danger-quiet':
+    'bg-transparent text-text-muted border-transparent hover:bg-danger-soft hover:text-danger'
 }
 
 const SIZES: Readonly<Record<Size, string>> = {

@@ -344,7 +344,7 @@ onBeforeUnmount(() => {
                             :style="{ backgroundColor: identityHue(projectIdOf(terminal)).base }"
                             aria-hidden="true"
                           />
-                          {{ terminal.anchors }}
+                          <span class="min-w-0 truncate">{{ terminal.anchors }}</span>
                         </span>
                       </span>
                     </button>
@@ -413,18 +413,41 @@ onBeforeUnmount(() => {
           v-if="!activeTerminal"
           class="absolute inset-0 grid place-items-center px-9 text-center"
         >
-          <div class="max-w-[460px]">
+          <div class="flex max-w-[460px] flex-col items-center">
+            <!-- A window with a prompt and a caret at rest: what will open here, drawn still,
+                 because nothing is running yet and a mark that moved would say otherwise. -->
+            <span
+              class="mb-5 flex h-[54px] w-[78px] flex-col overflow-hidden rounded-[10px] border border-border-strong bg-surface shadow-lift"
+              aria-hidden="true"
+            >
+              <span class="flex h-3.5 shrink-0 items-center gap-[3px] border-b border-border px-1.5">
+                <span class="size-[4px] rounded-full bg-border-strong" />
+                <span class="size-[4px] rounded-full bg-border-strong" />
+                <span class="size-[4px] rounded-full bg-border-strong" />
+              </span>
+              <span class="flex flex-1 items-center gap-1.5 px-2.5 font-mono text-[11px] text-anchor/70">
+                &rsaquo;
+                <span class="h-[11px] w-[3px] rounded-[1px] bg-anchor/50" />
+              </span>
+            </span>
             <h3 class="text-[17px] font-semibold tracking-[-0.015em] text-text">
               No terminal open on this task
             </h3>
             <p class="mt-2 text-[12.5px] leading-relaxed text-text-muted">
               Opening one starts <code class="text-anchor/80">claude</code> in a pseudo-terminal in
-              <span class="font-mono text-[11.5px]">{{ folder ?? 'this project’s folder' }}</span
-              >, loads the task context with <code class="text-anchor/80">/rk</code>, and hands it to you.
+              <span v-if="folder" class="font-mono text-[11.5px] text-text">{{ folder }}</span>
+              <template v-else>this project's folder</template>, loads the task context with
+              <code class="text-anchor/80">/rk</code>, and hands it to you.
             </p>
-            <p v-if="!folder" class="mt-3 text-[11.5px] text-warn">
-              Set this project's folder on its page first.
-            </p>
+            <RouterLink
+              v-if="!folder"
+              :to="`/projects/${selectedTask.projectId}`"
+              class="focus-ring mt-4 inline-flex items-center gap-1.5 rounded-[var(--radius-control)] border border-warn/40 bg-warn-soft px-3 py-1.5 text-[11.5px] font-medium text-warn transition-colors hover:border-warn"
+              data-testid="terminal-set-folder"
+            >
+              Set this project's folder on its page first
+              <span aria-hidden="true">&rarr;</span>
+            </RouterLink>
           </div>
         </div>
         <div ref="host" class="absolute inset-0 px-3 py-2" data-testid="terminal-host" />

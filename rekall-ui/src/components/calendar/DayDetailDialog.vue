@@ -7,6 +7,7 @@ import { formatDuration } from '@/common/format/duration'
 import { trapTabKey } from '@/common/a11y/focus-trap'
 import { identityHue } from '@/common/identity'
 import ProjectTrace from '@/components/ui/ProjectTrace.vue'
+import CloseGlyph from '@/components/ui/CloseGlyph.vue'
 import type { DaySummaryRow } from '@/common/calendar/day-summary'
 import type { TaskId } from '@/model/branded'
 
@@ -96,7 +97,7 @@ onUnmounted(() => {
           aria-label="Close"
           @click="emit('close')"
         >
-          &times;
+          <CloseGlyph />
         </button>
       </header>
 

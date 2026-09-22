@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dateKey, isSameDay, isSameMonth, monthGridDays } from '@/common/calendar/month-grid'
+import { capitalised, dateKey, isSameDay, isSameMonth, monthGridDays, weekdayLabels } from '@/common/calendar/month-grid'
 
 describe('monthGridDays', () => {
   it('always returns six full weeks', () => {
@@ -51,5 +51,26 @@ describe('isSameMonth', () => {
 describe('dateKey', () => {
   it('pads month and day to two digits', () => {
     expect(dateKey(new Date(2026, 0, 5))).toBe('2026-01-05')
+  })
+})
+
+describe('weekdayLabels', () => {
+  it('names the columns Monday first', () => {
+    expect(weekdayLabels('en-GB')).toEqual(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'])
+  })
+
+  it('speaks the locale it is given, like the month title above it', () => {
+    const italian = weekdayLabels('it-IT')
+    expect(italian).toHaveLength(7)
+    expect(italian[0]).toBe('Lun')
+    expect(italian[6]).toBe('Dom')
+  })
+})
+
+describe('capitalised', () => {
+  it('raises the first letter and leaves the rest alone', () => {
+    expect(capitalised('mer 23')).toBe('Mer 23')
+    expect(capitalised('Wed')).toBe('Wed')
+    expect(capitalised('')).toBe('')
   })
 })

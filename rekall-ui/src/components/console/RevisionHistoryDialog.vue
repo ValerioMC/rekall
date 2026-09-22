@@ -2,6 +2,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
+import CloseGlyph from '@/components/ui/CloseGlyph.vue'
 import { useModalGate } from '@/composables/useModalGate'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { trapTabKey } from '@/common/a11y/focus-trap'
@@ -94,7 +95,7 @@ onUnmounted(() => {
           :disabled="restoring"
           @click="emit('close')"
         >
-          &times;
+          <CloseGlyph />
         </button>
       </header>
 

@@ -2,6 +2,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import AppButton from '@/components/ui/AppButton.vue'
+import CloseGlyph from '@/components/ui/CloseGlyph.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useModalGate } from '@/composables/useModalGate'
@@ -180,7 +181,7 @@ watch(selectedDocument, (doc) => {
           aria-label="Close"
           @click="emit('close')"
         >
-          &times;
+          <CloseGlyph />
         </button>
       </header>
 
@@ -210,7 +211,7 @@ watch(selectedDocument, (doc) => {
               :aria-label="`Remove this note from ${member.title}`"
               @click="toggle(member.id)"
             >
-              &times;
+              <CloseGlyph small />
             </button>
           </span>
           <span
@@ -392,7 +393,7 @@ watch(selectedDocument, (doc) => {
               data-testid="assign-task-filter"
               placeholder="Filter tasks"
               :disabled="pickedProject === null"
-              class="focus-ring h-8 w-full rounded-[var(--radius-control)] border border-border bg-canvas px-2.5 text-[12px] text-text transition-colors placeholder:text-text-subtle hover:border-border-strong focus-visible:border-accent-deep disabled:opacity-40"
+              class="field text-text h-8 w-full rounded-[var(--radius-control)] px-2.5 text-[12px] disabled:opacity-40"
             />
           </div>
           <div class="relative min-h-0 flex-1">

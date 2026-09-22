@@ -395,67 +395,80 @@ onUnmounted(() => rowObserver?.disconnect())
               missing-hint="Set this project's folder on its page to open a session from it"
             />
           </div>
-
-          <div v-if="checklistSteps.length" class="shrink-0 text-right">
-            <p
-              class="texture-scan inline-block rounded-[6px] px-1.5 py-0.5 font-mono text-[22px] font-semibold leading-none tabular-nums"
-              data-testid="steps-count"
-            >
-              <span :class="done === checklistSteps.length ? 'text-safe' : 'text-accent'">
-                {{ done }}
-              </span>
-              <span class="text-text-subtle">/{{ checklistSteps.length }}</span>
-            </p>
-            <span class="mt-2 flex h-[5px] w-[164px] gap-[3px]" aria-hidden="true">
-              <span
-                v-for="step in checklistSteps"
-                :key="step.id"
-                class="h-full flex-1 rounded-full transition-colors duration-300"
-                :class="
-                  step.state === 'DONE'
-                    ? 'bg-accent'
-                    : step.state === 'CLAIMED'
-                      ? 'bg-accent/60'
-                      : step.state === 'RUNNING'
-                        ? 'bg-accent/50 animate-pulse'
-                        : step.id === currentId
-                          ? 'bg-accent/25'
-                          : 'bg-border-strong'
-                "
-              />
-            </span>
-            <div
-              v-if="done > 0 || claimed > 0 || draftSteps.length > 0"
-              class="mt-1 flex flex-col items-end gap-1"
-            >
-              <button
-                v-if="claimed > 0"
-                class="focus-ring text-[10.5px] text-accent underline-offset-2 transition-colors hover:underline"
-                data-testid="steps-claimed-count"
-                @click="reviewFirst"
-              >
-                {{ claimed }} awaiting review
-              </button>
-              <button
-                v-if="draftSteps.length > 0"
-                class="focus-ring text-[10.5px] text-text-subtle underline-offset-2 transition-colors hover:text-text hover:underline"
-                data-testid="steps-draft-count"
-                @click="scrollToDrafts"
-              >
-                {{ draftSteps.length }} in draft
-              </button>
-              <button
-                v-if="done > 0 || claimed > 0"
-                class="focus-ring text-[11px] text-text-subtle transition-colors hover:text-text"
-                :aria-pressed="hideDone"
-                data-testid="toggle-hide-done"
-                @click="hideDone = !hideDone"
-              >
-                {{ hideDone ? 'Show done' : 'Hide done' }}
-              </button>
-            </div>
-          </div>
         </header>
+
+        <!-- The ledger: one segment per step across the pane's full width, so a long checklist
+             still reads at a glance, with the tally and the view toggles on the same line rather
+             than stacked in a corner under the actions. -->
+        <div
+          v-if="checklistSteps.length"
+          class="relative flex items-center gap-3 px-5 pb-3"
+          data-testid="steps-ledger"
+        >
+          <p
+            class="shrink-0 font-mono text-[12px] font-semibold leading-none tabular-nums"
+            data-testid="steps-count"
+          ><span :class="done === checklistSteps.length ? 'text-safe' : 'text-accent'">{{ done }}</span><span class="text-text-subtle">/{{ checklistSteps.length }}</span></p>
+          <span class="flex h-[4px] min-w-0 flex-1 gap-[3px]" aria-hidden="true">
+            <span
+              v-for="step in checklistSteps"
+              :key="step.id"
+              class="h-full min-w-[6px] flex-1 rounded-full transition-colors duration-300"
+              :class="
+                step.state === 'DONE'
+                  ? done === checklistSteps.length
+                    ? 'bg-safe/80'
+                    : 'bg-accent'
+                  : step.state === 'CLAIMED'
+                    ? 'bg-accent/60'
+                    : step.state === 'RUNNING'
+                      ? 'bg-accent/50 animate-pulse'
+                      : step.id === currentId
+                        ? 'bg-accent/25'
+                        : 'bg-border-strong'
+              "
+            />
+          </span>
+          <div
+            v-if="done > 0 || claimed > 0 || draftSteps.length > 0"
+            class="flex shrink-0 items-center gap-2.5 text-[11px]"
+          >
+            <button
+              v-if="claimed > 0"
+              class="focus-ring rounded text-accent underline-offset-2 transition-colors hover:underline"
+              data-testid="steps-claimed-count"
+              @click="reviewFirst"
+            >
+              {{ claimed }} awaiting review
+            </button>
+            <button
+              v-if="draftSteps.length > 0"
+              class="focus-ring inline-flex items-center gap-1 rounded text-text-subtle transition-colors hover:text-text"
+              data-testid="steps-draft-count"
+              @click="scrollToDrafts"
+            >
+              <span
+                class="size-[7px] rounded-[2px] border border-dashed border-current"
+                aria-hidden="true"
+              />
+              {{ draftSteps.length }} in draft
+            </button>
+            <span
+              v-if="(claimed > 0 || draftSteps.length > 0) && (done > 0 || claimed > 0)"
+              class="h-3 w-px bg-border-strong"
+              aria-hidden="true"
+            />
+            <button
+              v-if="done > 0 || claimed > 0"
+              class="focus-ring rounded text-text-subtle transition-colors hover:text-text"
+              :aria-pressed="hideDone"
+              data-testid="toggle-hide-done"
+              @click="hideDone = !hideDone"
+            >
+              {{ hideDone ? 'Show done' : 'Hide done' }}
+            </button>
+          </div>
+        </div>
       </div>
 
       <div class="min-h-0 min-w-0 flex-1 overflow-y-auto px-5 py-4">
@@ -807,7 +820,7 @@ onUnmounted(() => rowObserver?.disconnect())
                 </div>
 
                 <div v-if="store.stepCommitReferences(step.id).length" class="mb-3" data-testid="step-commits">
-                  <span class="eyebrow text-[9.5px]">
+                  <span class="eyebrow">
                     Commits <span class="font-mono">{{ store.stepCommitReferences(step.id).length }}</span>
                   </span>
                   <CommitReferenceList :references="store.stepCommitReferences(step.id)" dense />
@@ -815,7 +828,7 @@ onUnmounted(() => rowObserver?.disconnect())
 
                 <div class="mb-2 flex items-center gap-2">
                   <span
-                    class="eyebrow text-[9.5px]"
+                    class="eyebrow"
                   >
                     Detail
                   </span>
@@ -849,6 +862,7 @@ onUnmounted(() => rowObserver?.disconnect())
                     <AppMarkdownEditor
                       :model-value="draftBody"
                       readonly
+                      compact
                       data-testid="step-detail-read"
                     />
                   </div>
@@ -878,7 +892,10 @@ onUnmounted(() => rowObserver?.disconnect())
             aria-label="Drafts"
           >
             <div class="mb-2.5 flex items-center gap-2">
-              <span class="eyebrow text-[9.5px]">Drafts</span>
+              <span class="eyebrow">Drafts</span>
+              <span class="font-mono text-[10.5px] tabular-nums text-text-subtle">
+                {{ draftSteps.length }}
+              </span>
               <span class="h-px flex-1 bg-border" aria-hidden="true" />
               <span class="text-[10.5px] text-text-subtle">
                 still being worded, not on the list
@@ -925,11 +942,6 @@ onUnmounted(() => rowObserver?.disconnect())
                       <span class="block text-[13.5px] leading-snug text-text">{{ step.title }}</span>
                       <span class="mt-1 flex flex-wrap items-center gap-2 text-[10.5px]">
                         <span
-                          class="rounded-full border border-border-strong px-1.5 py-px text-[10px] font-semibold tracking-[0.02em] text-text-subtle"
-                        >
-                          Draft
-                        </span>
-                        <span
                           v-if="step.bodyMarkdown?.trim()"
                           class="flex items-center gap-1 text-text-subtle"
                           data-testid="draft-has-detail"
@@ -949,13 +961,31 @@ onUnmounted(() => rowObserver?.disconnect())
                     </button>
 
                     <div class="flex shrink-0 items-center gap-0.5">
+                      <!-- Quiet until it is the thing under the pointer: a shelf of drafts
+                           each wearing a filled amber button is a shelf of competing calls to
+                           action, and amber is kept for the one you are about to press. -->
                       <button
-                        class="focus-ring h-7 shrink-0 rounded-[var(--radius-control)] border border-accent bg-accent-soft px-2.5 text-[11px] font-medium text-accent transition-colors hover:bg-accent hover:text-accent-ink disabled:cursor-not-allowed disabled:opacity-40"
+                        class="focus-ring group/promote inline-flex h-7 shrink-0 items-center gap-1.5 rounded-[var(--radius-control)] border border-border-strong px-2.5 text-[11px] font-medium text-text-muted transition-colors hover:border-accent/60 hover:bg-accent-soft hover:text-accent disabled:cursor-not-allowed disabled:opacity-40"
                         :class="promoting === step.id && 'settle'"
                         :disabled="promoting === step.id"
+                        :title="`Put ${step.title} on the checklist`"
                         data-testid="draft-promote"
                         @click="promote(step)"
                       >
+                        <svg
+                          class="size-3 transition-transform duration-200 group-hover/promote:-translate-y-px"
+                          viewBox="0 0 12 12"
+                          fill="none"
+                          aria-hidden="true"
+                        >
+                          <path
+                            d="M6 9.8V4M3.4 6.4 6 3.8l2.6 2.6M2.4 1.8h7.2"
+                            stroke="currentColor"
+                            stroke-width="1.3"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          />
+                        </svg>
                         Promote
                       </button>
                       <div
@@ -1017,7 +1047,7 @@ onUnmounted(() => rowObserver?.disconnect())
                   <Transition name="detail">
                   <div v-if="expandedId === step.id" class="mt-2.5" data-testid="draft-detail">
                     <div class="mb-2 flex items-center gap-2">
-                      <span class="eyebrow text-[9.5px]">Detail</span>
+                      <span class="eyebrow">Detail</span>
                       <span class="h-px flex-1 bg-border" aria-hidden="true" />
                       <AppModeToggle v-model="mode" testid-prefix="draft-detail" />
                     </div>
@@ -1052,6 +1082,7 @@ onUnmounted(() => rowObserver?.disconnect())
                         <AppMarkdownEditor
                           :model-value="draftBody"
                           readonly
+                          compact
                           data-testid="draft-detail-read"
                         />
                       </div>
@@ -1119,10 +1150,6 @@ onUnmounted(() => rowObserver?.disconnect())
 </template>
 
 <style scoped>
-.step-detail :deep(.md-editor-preview) {
-  font-size: 12.5px;
-}
-
 .step-detail :deep(.md-editor-preview) h1,
 .step-detail :deep(.md-editor-preview) h2 {
   font-size: 14px;

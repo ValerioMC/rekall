@@ -8,7 +8,7 @@ import { useConsoleStore } from '@/stores/console.store'
 import { useNow } from '@/composables/useNow'
 import { formatDuration } from '@/common/format/duration'
 import { summarizeByDay } from '@/common/calendar/day-summary'
-import { WEEKDAY_LABELS, dateKey, isSameDay, isSameMonth, monthGridDays } from '@/common/calendar/month-grid'
+import { weekdayLabels, dateKey, isSameDay, isSameMonth, monthGridDays } from '@/common/calendar/month-grid'
 import type { DaySummaryRow } from '@/common/calendar/day-summary'
 
 const store = useConsoleStore()
@@ -59,6 +59,8 @@ function goToday(): void {
 function openDay(cell: { date: Date; rows: DaySummaryRow[] }): void {
   selectedDay.value = { date: cell.date, rows: cell.rows }
 }
+
+const WEEKDAY_LABELS = weekdayLabels()
 </script>
 
 <template>

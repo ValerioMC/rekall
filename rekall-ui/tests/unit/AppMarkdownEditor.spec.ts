@@ -27,6 +27,26 @@ describe('AppMarkdownEditor', () => {
     expect(wrapper.find('code').exists()).toBe(true)
   })
 
+  it('offers the reading controls on a pane-sized page', async () => {
+    const wrapper = mount(AppMarkdownEditor, { props: { modelValue: 'Una riga.', readonly: true } })
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="read-settings-toggle"]').exists()).toBe(true)
+    expect(wrapper.classes()).not.toContain('rekall-md--compact')
+  })
+
+  it('drops the reading controls and the column width when compact, inside a card', async () => {
+    const wrapper = mount(AppMarkdownEditor, {
+      props: { modelValue: 'Una riga.', readonly: true, compact: true }
+    })
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="read-settings-toggle"]').exists()).toBe(false)
+    expect(wrapper.classes()).toContain('rekall-md--compact')
+    expect(wrapper.attributes('style') ?? '').not.toContain('--rk-read-width')
+    expect(wrapper.attributes('data-align')).toBeUndefined()
+  })
+
   it('renders a table, which the previous hand-written renderer could not', async () => {
     const wrapper = mount(AppMarkdownEditor, {
       props: { modelValue: '| Step | Esito |\n|------|-------|\n| 1 | ok |', readonly: true }

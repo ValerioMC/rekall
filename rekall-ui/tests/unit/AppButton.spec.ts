@@ -26,4 +26,12 @@ describe('AppButton', () => {
 
     expect(wrapper.emitted('click')).toBeUndefined()
   })
+
+  it('keeps a repeated delete grey until it is under the pointer', () => {
+    const wrapper = mount(AppButton, { props: { variant: 'danger-quiet' }, slots: { default: 'Delete' } })
+
+    expect(wrapper.classes()).toContain('text-text-muted')
+    expect(wrapper.classes()).toContain('hover:text-danger')
+    expect(wrapper.classes()).not.toContain('text-danger')
+  })
 })

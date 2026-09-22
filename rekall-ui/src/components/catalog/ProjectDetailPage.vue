@@ -229,7 +229,7 @@ onUnmounted(() => {
     </template>
 
     <template v-else>
-      <AppCatalogHeader :title="company ? `${company.name} / ${project.title}` : project.title">
+      <AppCatalogHeader :title="project.title" :parent="company?.name">
         <template #title-suffix>
           <ProjectTrace :id="project.id" size="md" :series="activitySeries" />
           <AppBadge
@@ -285,7 +285,7 @@ onUnmounted(() => {
             :value="descriptionDraft"
             data-testid="project-description"
             rows="2"
-            class="focus-ring block w-full resize-none overflow-hidden rounded-[var(--radius-control)] border border-border bg-canvas p-3 text-[13.5px] leading-relaxed text-text outline-none transition-colors placeholder:text-text-subtle hover:border-border-strong focus:border-accent"
+            class="field text-text block w-full resize-none overflow-hidden rounded-[var(--radius-control)] p-3 text-[13.5px] leading-relaxed"
             placeholder="What this is, in a few sentences. Travels into every context that loads this project."
             @input="onDescriptionInput"
           />
@@ -301,7 +301,7 @@ onUnmounted(() => {
               data-testid="project-repo-folder"
               spellcheck="false"
               autocomplete="off"
-              class="focus-ring h-9 min-w-0 flex-1 rounded-[var(--radius-control)] border border-border bg-canvas px-3 font-mono text-[12.5px] text-text outline-none transition-colors placeholder:text-text-subtle hover:border-border-strong focus:border-accent"
+              class="field text-text h-9 min-w-0 flex-1 rounded-[var(--radius-control)] px-3 font-mono text-[12.5px]"
               placeholder="/Users/you/Projects/thing"
               @input="onFolderInput"
             />

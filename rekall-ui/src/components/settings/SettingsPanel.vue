@@ -8,6 +8,7 @@ import NotificationsSection from '@/components/settings/NotificationsSection.vue
 import BackupsSection from '@/components/settings/BackupsSection.vue'
 import DatabaseFolderField from '@/components/setup/DatabaseFolderField.vue'
 import RestartingOverlay from '@/components/setup/RestartingOverlay.vue'
+import CloseGlyph from '@/components/ui/CloseGlyph.vue'
 import { fetchDatabaseStatus, forgetDatabase, renameDatabase } from '@/api/settings.api'
 import { useDatabaseSetup } from '@/composables/useDatabaseSetup'
 import { useModalGate } from '@/composables/useModalGate'
@@ -148,7 +149,7 @@ onUnmounted(() => {
           aria-label="Close"
           @click="canClose && emit('close')"
         >
-          &times;
+          <CloseGlyph />
         </button>
       </header>
 
@@ -226,7 +227,7 @@ onUnmounted(() => {
                   <AppButton
                     v-if="!entry.active"
                     size="sm"
-                    variant="danger"
+                    variant="danger-quiet"
                     :disabled="phase === 'submitting'"
                     @click="forgetting = entry"
                   >

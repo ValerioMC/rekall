@@ -4,6 +4,7 @@ import { relativeTime } from '@/common/format/relative-time'
 import { fetchCommitReferenceDiff } from '@/api/commitReference.api'
 import CommitDiffView from '@/components/console/CommitDiffView.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
+import CloseGlyph from '@/components/ui/CloseGlyph.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import type { CommitReference } from '@/model/commitReference'
@@ -170,7 +171,7 @@ async function confirmDelete(): Promise<void> {
           data-testid="commit-reference-delete"
           @click.stop="beginDelete(reference)"
         >
-          &times;
+          <CloseGlyph small />
         </button>
       </div>
 

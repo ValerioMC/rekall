@@ -4,6 +4,7 @@ import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import TagBadge from '@/components/ui/TagBadge.vue'
 import TagIcon from '@/components/ui/TagIcon.vue'
+import CloseGlyph from '@/components/ui/CloseGlyph.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useModalGate } from '@/composables/useModalGate'
 import { useToastStore } from '@/stores/toast.store'
@@ -153,7 +154,7 @@ onUnmounted(() => {
           aria-label="Close"
           @click="emit('close')"
         >
-          &times;
+          <CloseGlyph />
         </button>
       </header>
 
@@ -178,7 +179,7 @@ onUnmounted(() => {
               {{ taskCount(tag.id) }} task{{ taskCount(tag.id) === 1 ? '' : 's' }}
             </span>
             <AppButton size="sm" variant="ghost" @click="openEdit(tag)">Edit</AppButton>
-            <AppButton size="sm" variant="danger" @click="deleting = tag">Delete</AppButton>
+            <AppButton size="sm" variant="danger-quiet" @click="deleting = tag">Delete</AppButton>
           </li>
         </ul>
         <p v-else class="text-[12.5px] text-text-subtle">
@@ -201,7 +202,7 @@ onUnmounted(() => {
               ref="nameField"
               v-model="name"
               data-testid="tag-name"
-              class="focus-ring h-9 w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 text-[13.5px] text-text outline-none transition-colors placeholder:text-text-subtle hover:border-border-strong focus:border-accent"
+              class="field text-text h-9 w-full rounded-[var(--radius-control)] px-3 text-[13.5px]"
               placeholder="Bug, Idea, Blocked…"
               @keydown.enter="save"
             />

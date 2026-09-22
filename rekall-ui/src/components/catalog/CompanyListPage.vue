@@ -121,12 +121,18 @@ async function confirmDelete(): Promise<void> {
             <StatusMixBar :tasks="tasksOfCompany(company.id)" class="mt-1.5 max-w-[180px]" />
           </span>
 
-          <span class="hidden shrink-0 items-center gap-2 text-[11.5px] text-text-subtle sm:flex">
-            <span>{{ company.projectCount }} project{{ company.projectCount === 1 ? '' : 's' }}</span>
-            <span aria-hidden="true">&middot;</span>
-            <span>{{ company.taskCount }} task{{ company.taskCount === 1 ? '' : 's' }}</span>
-            <span aria-hidden="true">&middot;</span>
-            <span>{{ relativeTime(company.updatedAt) }}</span>
+          <!-- Counts as figures in the code face, the unit beside them in the chrome's voice:
+               a column of companies then reads down its numbers, not along a sentence. -->
+          <span class="hidden shrink-0 items-baseline gap-4 text-[11.5px] text-text-subtle sm:flex">
+            <span>
+              <span class="font-mono tabular-nums text-text-muted">{{ company.projectCount }}</span>
+              project{{ company.projectCount === 1 ? '' : 's' }}
+            </span>
+            <span>
+              <span class="font-mono tabular-nums text-text-muted">{{ company.taskCount }}</span>
+              task{{ company.taskCount === 1 ? '' : 's' }}
+            </span>
+            <span class="w-[72px] text-right">{{ relativeTime(company.updatedAt) }}</span>
           </span>
 
           <span class="flex shrink-0 gap-1 opacity-0 transition focus-within:opacity-100 group-hover/row:opacity-100">
