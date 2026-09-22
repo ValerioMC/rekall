@@ -10,12 +10,13 @@ import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.v
 import OpenTerminalButton from '@/components/claude/OpenTerminalButton.vue'
 import LogCommitButton from '@/components/console/LogCommitButton.vue'
 import NotesButton from '@/components/console/NotesButton.vue'
+import PlanHereButton from '@/components/console/PlanHereButton.vue'
 import CommitReferenceList from '@/components/console/CommitReferenceList.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { identityHue } from '@/common/identity'
 import { relativeTime } from '@/common/format/relative-time'
-import { rkCommand } from '@/common/format/rk-command'
+import { rkCommand, rkPlanCommand } from '@/common/format/rk-command'
 import { stepIsComplete, type TaskStep } from '@/model/catalog'
 import { STEP_DETAIL_TEMPLATE } from '@/model/templates'
 import type { TaskStepId } from '@/model/branded'
@@ -263,6 +264,15 @@ async function copyAnchor(): Promise<void> {
   setTimeout(() => (copied.value = false), 1400)
 }
 
+const copiedPlan = ref(false)
+
+async function copyPlan(): Promise<void> {
+  if (!selectedTask.value) return
+  await navigator.clipboard?.writeText(rkPlanCommand(selectedTask.value.anchor))
+  copiedPlan.value = true
+  setTimeout(() => (copiedPlan.value = false), 1400)
+}
+
 onUnmounted(flush)
 
 const listEl = ref<HTMLElement | null>(null)
@@ -373,6 +383,7 @@ onUnmounted(() => rowObserver?.disconnect())
 
           <div class="flex shrink-0 items-center gap-1.5">
             <NotesButton :task-id="selectedTask.id" />
+            <PlanHereButton :task-id="selectedTask.id" :anchor="selectedTask.anchor" />
             <OpenTerminalButton
               :task-id="selectedTask.id"
               :step-id="currentId"
@@ -483,6 +494,23 @@ onUnmounted(() => rowObserver?.disconnect())
             @click="focusAdd"
           >
             Draft the first step
+          </button>
+
+          <p class="mt-6 text-[12.5px] leading-relaxed text-text-muted">
+            Or have Claude propose them. A session given this reads the description, the wrapup and
+            the code, and puts each step it suggests on a Drafts shelf here, for you to reword and
+            promote. It builds nothing.
+          </p>
+          <button
+            class="anchor-chip focus-ring mt-2 inline-flex items-center gap-2 px-2.5 py-1 text-[11.5px] transition-colors hover:border-anchor"
+            :class="copiedPlan && 'flash'"
+            :title="copiedPlan ? 'Copied' : `Copy ${rkPlanCommand(selectedTask.anchor)}`"
+            data-testid="copy-plan-command"
+            @click="copyPlan"
+          >
+            <span class="opacity-60">/rk</span>
+            <span>{{ selectedTask.anchor }} plan</span>
+            <CopyGlyph :copied="copiedPlan" />
           </button>
         </div>
 

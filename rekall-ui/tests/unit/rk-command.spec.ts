@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { rkCommand, rkWrapupCommand } from '@/common/format/rk-command'
+import { rkCommand, rkPlanCommand, rkWrapupCommand } from '@/common/format/rk-command'
 
 /**
  * What the anchor chips put on the clipboard. Four chips read from one function, because four
@@ -12,6 +12,22 @@ describe('rkCommand', () => {
 
   it('stays empty when there is no anchor, rather than copying a bare /rk', () => {
     expect(rkCommand('')).toBe('')
+  })
+})
+
+/**
+ * The line that has a session propose the task's checklist as drafts, typed by "Plan here" and
+ * copied by the plan chip on an empty checklist.
+ */
+describe('rkPlanCommand', () => {
+  it('appends the plan term to the task anchor', () => {
+    expect(rkPlanCommand('project:stvv task:env-vars-cv')).toBe(
+      '/rk project:stvv task:env-vars-cv plan'
+    )
+  })
+
+  it('stays empty when there is no anchor, rather than a bare plan', () => {
+    expect(rkPlanCommand('')).toBe('')
   })
 })
 

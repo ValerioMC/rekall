@@ -3,6 +3,15 @@ export function rkCommand(anchor: string): string {
 }
 
 /**
+ * The planning line: a session that reads the task and proposes its checklist as drafts, which
+ * land on the Steps pane's shelf and are nothing until promoted there.
+ */
+export function rkPlanCommand(anchor: string): string {
+  const base = rkCommand(anchor)
+  return base ? `${base} plan` : ''
+}
+
+/**
  * The wrapup line, with an optional directive folded in. A directive is one line: newlines are
  * collapsed to spaces so it cannot submit the terminal line early, and `\`/`"` are escaped so it
  * cannot close the quote it sits in.

@@ -204,6 +204,8 @@ Only you set a step to **done**. `rekall_step` stops at `claimed`. The navigator
 
 `/rk project:vega task:report-builder plan` has a session turn the task into a checklist for you to review. It reads the description, the wrapup, the finished steps and the code the task touches, then calls `rekall_propose_step` once per step, in order: a title saying what the step delivers, a detail saying what to build, where, what it must satisfy and how you can tell it is done. Every proposal lands as a draft on the staging shelf, so nothing is work until you promote it, and the session builds nothing. A title the task already has is refused, so a second `plan` adds only what the first one missed; a task holds at most 20 drafts.
 
+The Steps pane starts it in two places. An empty checklist shows a `/rk … plan` chip to copy into any session. While a session runs on the task in the console's terminal, **Plan here** in the pane header types the command into it. Nothing opens a fresh session for it, because a fresh one starts with a plain `/rk` and would start working the task instead of planning it.
+
 A claimed step is reviewed from its detail: **Accept** ticks it to done, **Send back** returns it to open for another pass. The **N awaiting review** count in the pane header jumps to the first one. The step node itself only moves a step forward, so a stray click never walks it back; reopening an accepted step is a separate **Reopen** button that arms before it fires.
 
 ## Commits
