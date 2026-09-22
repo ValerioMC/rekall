@@ -208,7 +208,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="min-h-full bg-canvas">
+  <div class="h-full overflow-y-auto bg-canvas">
     <template v-if="!store.isLoading && !project">
       <AppCatalogHeader title="Project" />
       <div class="mx-auto max-w-[1240px] px-8 py-6">
