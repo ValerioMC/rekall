@@ -35,6 +35,7 @@ const SHORTCUTS = [
   { keys: 'N', does: 'new note on it' },
   { keys: 'D', does: 'its description: what the work is' },
   { keys: 'W', does: 'its wrapup: what it currently is' },
+  { keys: 'R', does: 'toggle read / write, on a description or a note' },
   { keys: 'B', does: 'switch between tasks and notes' },
   { keys: 'J K', does: 'walk the list' },
   { keys: '1-4', does: 'set the status' }
@@ -43,6 +44,13 @@ const SHORTCUTS = [
 const mode = ref<'write' | 'read'>('write')
 const isAssigning = ref(false)
 const isConfirmingDelete = ref(false)
+
+function toggleMode(): void {
+  if (!selectedDocument.value) return
+  mode.value = mode.value === 'write' ? 'read' : 'write'
+}
+
+defineExpose({ toggleMode })
 
 const doneTaskIds = computed(() => {
   const ids = new Set<TaskId>()

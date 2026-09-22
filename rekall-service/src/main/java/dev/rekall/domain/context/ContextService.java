@@ -148,6 +148,9 @@ public class ContextService {
 
         Map<String, String> fields = new LinkedHashMap<>();
         fields.put("status", task.getStatus().name());
+        if (task.getReviewNote() != null && !task.getReviewNote().isBlank()) {
+            fields.put("review", "sent back — \"%s\"".formatted(task.getReviewNote()));
+        }
         long drafts = steps.stream().filter(step -> step.state().draft()).count();
         long checklist = steps.size() - drafts;
         if (checklist > 0) {

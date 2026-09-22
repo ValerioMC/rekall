@@ -963,6 +963,44 @@ describe('the console', () => {
       expect(wrapper.find('[data-testid="copy-description-anchor"]').exists()).toBe(false)
       expect(wrapper.text()).toContain('kmaster14.md')
     })
+
+    it('toggles the description between read and write on R', async () => {
+      const wrapper = await mountConsole()
+
+      await wrapper.findAll('[data-testid="task-row"]')[1]!.trigger('click')
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }))
+      await flushPromises()
+
+      const mode = () => wrapper.findAll('[aria-label="Mode"] button')
+      expect(mode()[1]!.attributes('aria-pressed')).toBe('true') // opens on read
+
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'r' }))
+      await flushPromises()
+      expect(mode()[0]!.attributes('aria-pressed')).toBe('true')
+
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'r' }))
+      await flushPromises()
+      expect(mode()[1]!.attributes('aria-pressed')).toBe('true')
+    })
+  })
+
+  describe('the note editor', () => {
+    it('toggles a note between write and read on R', async () => {
+      const wrapper = await mountConsole()
+
+      await wrapper.findAll('[data-testid="task-row"]')[1]!.trigger('click')
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'b' }))
+      await flushPromises()
+      await wrapper.find('[data-testid="note-row"]').trigger('click')
+      await flushPromises()
+
+      const mode = () => wrapper.findAll('[aria-label="Mode"] button')
+      expect(mode()[0]!.attributes('aria-pressed')).toBe('true') // opens on write
+
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'r' }))
+      await flushPromises()
+      expect(mode()[1]!.attributes('aria-pressed')).toBe('true')
+    })
   })
 
   describe('the checklist', () => {

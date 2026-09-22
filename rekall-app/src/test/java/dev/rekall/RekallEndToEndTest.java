@@ -1905,6 +1905,10 @@ class RekallEndToEndTest {
         assertThat(sentBack.getBody().get("reviewState")).isEqualTo("OPEN");
         assertThat(sentBack.getBody().get("reviewNote")).isEqualTo("la colonna export e' ancora sbagliata");
         assertThat(sentBack.getBody().get("claimedAt")).isNull();
+
+        assertThat(callTool("rekall_context", Map.of("anchors", "project:vega task:report-builder")))
+                .as("the next session reads why it was sent back, not just that it was")
+                .contains("la colonna export e' ancora sbagliata");
     }
 
     @Test

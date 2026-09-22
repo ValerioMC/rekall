@@ -119,6 +119,13 @@ function beginWriting(): void {
   mode.value = 'write'
 }
 
+function toggleMode(): void {
+  if (!showEditor.value) return
+  mode.value = mode.value === 'write' ? 'read' : 'write'
+}
+
+defineExpose({ toggleMode })
+
 onUnmounted(() => {
   if (selectedTask.value) flush(selectedTask.value.id)
 })

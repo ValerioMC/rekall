@@ -44,6 +44,8 @@ const STATUS_BY_KEY: Record<string, TaskStatus> = {
 
 const anchorBar = ref<InstanceType<typeof AnchorBar> | null>(null)
 const navigator = ref<InstanceType<typeof NavigatorPane> | null>(null)
+const descriptionPane = ref<InstanceType<typeof DescriptionPane> | null>(null)
+const notePane = ref<InstanceType<typeof NotePane> | null>(null)
 const settingsOpen = ref(false)
 const tagsOpen = ref(false)
 
@@ -94,6 +96,13 @@ function onKeydown(event: KeyboardEvent): void {
     else if (key === 's') store.toggleSteps()
     else store.toggleDescription()
     document.getElementById('note')?.focus()
+    return
+  }
+
+  if (key === 'r') {
+    event.preventDefault()
+    if (paneFocus.value === 'description') descriptionPane.value?.toggleMode()
+    else if (paneFocus.value === 'note') notePane.value?.toggleMode()
     return
   }
 
@@ -171,10 +180,10 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
       <div id="note" class="flex min-h-0 min-w-0 flex-1" tabindex="-1">
         <Transition name="pane" mode="out-in">
           <WrapupPane v-if="paneFocus === 'wrapup'" />
-          <DescriptionPane v-else-if="paneFocus === 'description'" />
+          <DescriptionPane v-else-if="paneFocus === 'description'" ref="descriptionPane" />
           <StepsPane v-else-if="paneFocus === 'steps'" />
           <TerminalPane v-else-if="paneFocus === 'terminal'" />
-          <NotePane v-else />
+          <NotePane v-else ref="notePane" />
         </Transition>
       </div>
     </div>
