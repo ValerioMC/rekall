@@ -91,7 +91,7 @@ echo "==> Launcher (swiftc, $ARCH)"
 # a script, and @main is rejected in a module that has top-level code.
 swiftc -O -parse-as-library -target "${ARCH}-apple-macos13.0" \
     packaging/macos/Launcher.swift packaging/macos/FolderPicker.swift \
-    packaging/macos/ClaudeCodeLauncher.swift \
+    packaging/macos/ClaudeCodeLauncher.swift packaging/macos/Notifier.swift \
     -o "$APP/Contents/MacOS/Rekall"
 
 # --- icon --------------------------------------------------------------------------------

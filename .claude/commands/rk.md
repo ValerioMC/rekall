@@ -1,15 +1,16 @@
 ---
 description: Load a Rekall working context by anchor, e.g. /rk project:vega task:report-builder
-argument-hint: "company:|project:|task: <label> ...  [wrapup [\"how to write it\"]] | [step:N start|done]   (labels, not titles)"
-allowed-tools: mcp__rekall__rekall_context, mcp__rekall__rekall_wrapup, mcp__rekall__rekall_step
+argument-hint: "company:|project:|task: <label> ...  [wrapup [\"how to write it\"]] | [plan] | [step:N start|done]   (labels, not titles)"
+allowed-tools: mcp__rekall__rekall_context, mcp__rekall__rekall_wrapup, mcp__rekall__rekall_step, mcp__rekall__rekall_propose_step, mcp__rekall__rekall_record_commit
 ---
 
 The arguments are:
 
 $ARGUMENTS
 
-If the terms include the bare word `wrapup`, follow **Wrapping up**. If they include a `step:` term
-alongside `start` or `done`, follow **Stepping**. Otherwise follow **Loading**.
+If the terms include the bare word `wrapup`, follow **Wrapping up**. If they include the bare word
+`plan`, follow **Planning**. If they include a `step:` term alongside `start` or `done`, follow
+**Stepping**. Otherwise follow **Loading**.
 
 ## Loading
 
@@ -17,6 +18,8 @@ Call `rekall_context` with `anchors` set to exactly the arguments above, unchang
 
 - Do not call any other tool first. The anchors are already qualified, there is nothing to look up.
 - The entities are `company`, `project` and `task`. If one was wrong, say which and stop.
+- A note that arrives `loaded="on request"` is a title, a line and a `note:` anchor. Load it with
+  `rekall_context` and that anchor only if the work needs it.
 - The value is the record's **label**, never its title: `project:vega`, not `project:"Vega Platform"`.
   A label is lowercase and has no spaces. If I gave you a title, say so and stop rather than guessing
   the label from it.
@@ -103,6 +106,35 @@ If the project's context carries an `auto-commit` field, the claim is what commi
 (and, on a task with no checklist, the wrapup) stages and commits the folder and logs the commit
 itself. Do not `git commit` on such a project; read the answer for what it committed, or why not.
 
+On such a project, pass `commit_message` with the claim (with `rekall_wrapup` on a task with no
+checklist), because it is the commit's message:
+
+- The first line is a Conventional Commits subject under 72 characters, `feat: …` or `fix: …`, saying
+  what the work delivers, not the step's number.
+- Then a blank line and two to five sentences of plain prose: what the change does, why, and anything
+  a reader of `git log` should know. No list of files, no "this session", no anchors: Rekall adds a
+  `Refs:` line with the task and step itself.
+
+Without it, Rekall derives the message from the step's title and detail, which is the fallback and
+reads like one.
+
+## Planning
+
+`/rk project:vega task:report-builder plan` means: turn the task into a checklist I can review.
+
+1. Drop the `plan` term and call `rekall_context` with the anchors that are left.
+2. Read what it gives you: the description says what the work is for and what it has to satisfy,
+   the wrapup what already exists, the done steps what is finished. Then read the code the task
+   touches, enough to know where each piece will go.
+3. Call `rekall_propose_step` once per step, in the order the work should be done. A title says
+   what the step delivers; the detail says what to build, where, what it must satisfy and how I can
+   tell it is done, enough for a session that never saw this one to do it alone. Propose only what
+   is still missing, and nothing the description rules out.
+4. Stop. Say in a few lines how many drafts you proposed and anything you left out on purpose.
+   Build nothing: the drafts are not work until I promote them in the console.
+
+A title the task already has is refused, so a second `plan` adds only what the first one missed.
+
 ## Wrapping up
 
 `/rk project:vega task:report-builder wrapup` means: record what that task's implementation looks
@@ -181,13 +213,13 @@ A line or two on each piece, what it is there for and what it decides.
   directory tree. That is in the code, it is longer than the wrapup, and it is wrong a week later.
 - Where there is a rule, the rule is the point. What it decides, on what, what happens at the edges,
   what is refused and why. A class name says there is a service; only the wrapup says that
-  overwriting a wrapup edited by hand is announced because nothing kept a copy of it.
+  overwriting a wrapup edited by hand is announced because no session reads the history it went to.
 
 Small enough to read in one go. Short paragraphs or short bullets, not an essay and not an index.
 
-Send it whole. Nothing is merged and no previous version is kept, so keep whatever is still true
-from the wrapup you just read and rewrite the rest. Describing only the part you touched would leave
-the task claiming to be a fraction of itself.
+Send it whole. Nothing is merged, and the version it replaces goes to a history only I read, so keep
+whatever is still true from the wrapup you just read and rewrite the rest. Describing only the part
+you touched would leave the task claiming to be a fraction of itself.
 
 If the tool answers that the version you replaced had been edited by hand, tell me: those were my
-words and nothing kept a copy.
+words, and only the wrapup's History in the console still has them.

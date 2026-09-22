@@ -42,9 +42,11 @@ public class McpController {
             Rekall holds one user's companies, projects, tasks and markdown notes, and hands \
             back a whole working context in a single call. Anchor what you need as \
             `entity:value`, for example `project:vega task:report-builder`. Reading is \
-            `rekall_context`. The only thing you may write is a task's wrapup, with \
-            `rekall_wrapup`: what its implementation looks like now, replaced in place. \
-            Nothing else here can be changed.""";
+            `rekall_context`. The writes are few and narrow: a task's wrapup \
+            (`rekall_wrapup`, what its implementation looks like now, replaced in place), a \
+            step's progress up to `claimed` (`rekall_step`), a commit logged against a task \
+            (`rekall_record_commit`), and a proposed step that lands as a draft for a person \
+            to promote (`rekall_propose_step`). Nothing else here can be changed.""";
 
     private static final String BASE64_PREFIX = "=?base64?";
 

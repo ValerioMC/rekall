@@ -2,6 +2,7 @@ package dev.rekall.api.dto;
 
 import dev.rekall.domain.Company;
 import dev.rekall.domain.Document;
+import dev.rekall.domain.DocumentContextMode;
 import dev.rekall.domain.Project;
 import dev.rekall.domain.ProjectStatus;
 import dev.rekall.domain.Tag;
@@ -194,6 +195,8 @@ public final class ApiDtos {
             String kind,
             String bodyMarkdown,
             List<TaskRef> tasks,
+            DocumentContextMode contextMode,
+            String anchor,
             Instant updatedAt) {
 
         public static DocumentResponse of(Document document) {
@@ -203,6 +206,8 @@ public final class ApiDtos {
                     document.getKind(),
                     document.getBodyMarkdown(),
                     document.getTasks().stream().map(TaskRef::of).toList(),
+                    document.getContextMode(),
+                    document.anchor(),
                     document.getUpdatedAt());
         }
     }
@@ -228,11 +233,13 @@ public final class ApiDtos {
         }
     }
 
+    /** {@code contextMode} left out keeps what the note had, or {@code FULL} for a new one. */
     public record DocumentRequest(
             @NotBlank String title,
             @NotBlank String kind,
             String bodyMarkdown,
-            List<UUID> taskIds) {
+            List<UUID> taskIds,
+            DocumentContextMode contextMode) {
     }
 
     public record WrapupRequest(@NotBlank String bodyMarkdown) {

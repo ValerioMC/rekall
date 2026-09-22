@@ -2,6 +2,8 @@ package dev.rekall.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -24,6 +26,8 @@ import java.util.UUID;
 @Table(name = "document")
 @Getter
 public class Document {
+
+    public static final int ANCHOR_ID_LENGTH = 8;
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -50,6 +54,11 @@ public class Document {
     @Setter
     private String sourcePath;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "context_mode", nullable = false, length = 20)
+    @Setter
+    private DocumentContextMode contextMode = DocumentContextMode.FULL;
+
     @ManyToMany(mappedBy = "documents")
     private Set<Task> tasks = new LinkedHashSet<>();
 
@@ -68,6 +77,11 @@ public class Document {
         this.title = title;
         this.kind = kind;
         this.bodyMarkdown = bodyMarkdown;
+    }
+
+    /** The short handle a session loads a reference note by: {@code note:} and the first eight characters of its id. */
+    public String anchor() {
+        return "note:" + id.toString().substring(0, ANCHOR_ID_LENGTH);
     }
 
     @Override

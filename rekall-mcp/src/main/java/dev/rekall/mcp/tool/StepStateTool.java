@@ -59,7 +59,9 @@ public class StepStateTool implements McpTool {
 
                On a project set to auto-commit, `claimed` also commits everything in the \
                project's folder and logs that commit against the step; the answer says so. \
-               Do not commit by hand on such a project.
+               Do not commit by hand on such a project. Pass `commit_message` with the claim so \
+               the commit says what the step built: without it, the message is drawn from the \
+               step's title and detail.
                """;
     }
 
@@ -77,6 +79,12 @@ public class StepStateTool implements McpTool {
                         "state",
                         "`running` when you start it, `claimed` when you are finished with it, or "
                                 + "`open` to put it back. Never `done`: the console ticks that.")
+                .optionalString(
+                        "commit_message",
+                        "Only with `claimed`, and only read on an auto-commit project: the commit message. "
+                                + "First line a Conventional Commits subject (`feat: …`, `fix: …`), under 72 "
+                                + "characters. Then a blank line and a body of two to five sentences on what the "
+                                + "change does and why, in plain prose. No list of files.")
                 .build();
     }
 
@@ -86,6 +94,7 @@ public class StepStateTool implements McpTool {
         AnchoredTask target = AnchoredTask.from(Anchor.parseAll(args.requiredString("anchors")));
         String stepRef = args.requiredString("step");
         String rawState = args.requiredString("state");
+        String commitMessage = args.optionalString("commit_message");
         TaskStepState requested = parseState(rawState);
 
         TaskStepView moved;
@@ -100,7 +109,7 @@ public class StepStateTool implements McpTool {
         }
 
         AutoCommitOutcome committed = moved.state() == TaskStepState.CLAIMED
-                ? autoCommit.afterStepClaim(moved.taskId(), moved.id())
+                ? autoCommit.afterStepClaim(moved.taskId(), moved.id(), commitMessage)
                 : null;
         return report(target, moved, rawState, committed);
     }

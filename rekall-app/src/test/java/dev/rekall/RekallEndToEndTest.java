@@ -60,6 +60,7 @@ class RekallEndToEndTest {
 
     @BeforeEach
     void resetDatabase() {
+        jdbc.execute("DELETE FROM task_revision");
         jdbc.execute("DELETE FROM commit_reference");
         jdbc.execute("DELETE FROM task_step");
         jdbc.execute("DELETE FROM time_entry");
@@ -392,13 +393,14 @@ class RekallEndToEndTest {
 
     // Asserted as an exact list so adding a read or write tool breaks a test.
     @Test
-    @DisplayName("the MCP endpoint exposes one way to read and three writes")
+    @DisplayName("the MCP endpoint exposes one way to read and four writes")
     void toolsList() {
         List<?> tools = (List<?>) ((Map<?, ?>) rpc("tools/list", Map.of()).get("result")).get("tools");
 
         assertThat(tools.stream().map(tool -> String.valueOf(((Map<?, ?>) tool).get("name"))))
                 .containsExactlyInAnyOrder(
-                        "rekall_context", "rekall_wrapup", "rekall_step", "rekall_record_commit");
+                        "rekall_context", "rekall_wrapup", "rekall_step", "rekall_record_commit",
+                        "rekall_propose_step");
     }
 
     // --- Commit references
@@ -2182,6 +2184,186 @@ class RekallEndToEndTest {
         return entries;
     }
 
+
+    // --- Revisions
+
+    @Test
+    @DisplayName("what a session's wrapup replaces, and what a delete removes, stays in the history and comes back on restore")
+    void wrapupRevisionsAreKeptAndRestored() {
+        String acme = aCompany("Acme");
+        String taskId = aTask(aProject(acme, "vega", "ACTIVE"), "report-builder");
+        rest.put().uri("/api/tasks/" + taskId + "/wrapup").body(Map.of("bodyMarkdown", "Written by hand."))
+                .retrieve().toBodilessEntity();
+
+        callTool("rekall_wrapup", Map.of("anchors", "project:vega task:report-builder", "body", "Written by Claude."));
+        rest.delete().uri("/api/tasks/" + taskId + "/wrapup").retrieve().toBodilessEntity();
+
+        List<?> revisions = rest.get().uri("/api/tasks/" + taskId + "/revisions?kind=WRAPUP")
+                .retrieve().toEntity(List.class).getBody();
+        assertThat(revisions.stream().map(revision -> String.valueOf(((Map<?, ?>) revision).get("bodyMarkdown"))))
+                .as("newest first: the deleted one, then the hand-written one the session replaced")
+                .containsExactly("Written by Claude.", "Written by hand.");
+
+        String handWritten = String.valueOf(((Map<?, ?>) revisions.get(1)).get("id"));
+        Map<?, ?> restored = post("/api/tasks/" + taskId + "/revisions/" + handWritten + "/restore", Map.of()).getBody();
+
+        assertThat(restored.get("kind")).isEqualTo("WRAPUP");
+        assertThat(callTool("rekall_context", Map.of("anchors", "project:vega task:report-builder")))
+                .contains("Written by hand.");
+    }
+
+    @Test
+    @DisplayName("a description edited as it is typed keeps the version from before the editing, not every keystroke")
+    void descriptionEditsAreCoalesced() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = aTask(projectId, "report-builder");
+        for (String text : List.of("First brief.", "First brief, ed", "First brief, edited.")) {
+            rest.put().uri("/api/tasks/" + taskId)
+                    .body(Map.of("label", "report-builder", "title", "report-builder", "status", "TODO",
+                            "description", text, "projectId", projectId))
+                    .retrieve().toBodilessEntity();
+        }
+
+        List<?> revisions = rest.get().uri("/api/tasks/" + taskId + "/revisions?kind=DESCRIPTION")
+                .retrieve().toEntity(List.class).getBody();
+
+        assertThat(revisions.stream().map(revision -> String.valueOf(((Map<?, ?>) revision).get("bodyMarkdown"))))
+                .containsExactly("First brief.");
+    }
+
+    // --- Proposed steps
+
+    @Test
+    @DisplayName("a session can propose a step, which lands as a draft no session reads, and the same title twice is refused")
+    void aProposedStepIsADraft() {
+        String acme = aCompany("Acme");
+        String taskId = aTask(aProject(acme, "vega", "ACTIVE"), "report-builder");
+
+        String answer = callTool("rekall_propose_step", Map.of(
+                "anchors", "project:vega task:report-builder",
+                "title", "Expose the report as a download",
+                "detail", "Stream it; do not buffer."));
+
+        assertThat(answer).contains("Draft \"Expose the report as a download\" proposed").contains("1 draft");
+        List<?> steps = rest.get().uri("/api/tasks/" + taskId + "/steps").retrieve().toEntity(List.class).getBody();
+        assertThat(((Map<?, ?>) steps.getFirst()).get("state")).isEqualTo("DRAFT");
+        assertThat(callTool("rekall_context", Map.of("anchors", "project:vega task:report-builder")))
+                .as("a draft is not work, so the session's context leaves it out")
+                .doesNotContain("Expose the report as a download");
+
+        assertThat(callTool("rekall_propose_step", Map.of(
+                "anchors", "project:vega task:report-builder", "title", "expose the report as a download")))
+                .contains("already has a step titled");
+        assertThat(callTool("rekall_step", Map.of(
+                "anchors", "project:vega task:report-builder", "step", "1", "state", "running")))
+                .as("and it cannot be started until a person promotes it")
+                .contains("still a draft");
+    }
+
+    // --- Search
+
+    @Test
+    @DisplayName("search finds a phrase in descriptions, steps, wrapups and notes, with the words around it")
+    void searchFindsTheTextBehindTheTitles() {
+        String acme = aCompany("Acme");
+        String projectId = aProject(acme, "vega", "ACTIVE");
+        String taskId = id(post("/api/tasks", Map.of(
+                "label", "settlement", "title", "Settlement", "status", "TODO", "projectId", projectId,
+                "description", "The nightly settlement batch reconciles the ledger.")));
+        aStep(taskId, "Wire the batch", "Schedule the settlement batch at 02:00.");
+        callTool("rekall_wrapup", Map.of("anchors", "project:vega task:settlement", "body", "The settlement batch runs."));
+        post("/api/documents", Map.of("title", "batch.md", "kind", "notes", "taskIds", List.of(taskId),
+                "bodyMarkdown", "Settlement batch logs live in /var/log/batch."));
+
+        List<?> hits = rest.get().uri("/api/search?q=settlement batch").retrieve().toEntity(List.class).getBody();
+
+        assertThat(hits.stream().map(hit -> String.valueOf(((Map<?, ?>) hit).get("kind"))))
+                .containsExactly("DESCRIPTION", "STEP", "WRAPUP", "NOTE");
+        assertThat(hits.stream().map(hit -> String.valueOf(((Map<?, ?>) hit).get("excerpt"))))
+                .allMatch(excerpt -> excerpt.toLowerCase().contains("settlement batch"));
+        assertThat(rest.get().uri("/api/search?q=100%_").retrieve().toEntity(List.class).getBody())
+                .as("the LIKE wildcards are matched literally")
+                .isEmpty();
+    }
+
+    // --- Context size and reference notes
+
+    @Test
+    @DisplayName("a note sent by reference travels as a line and an anchor, loads in full by that anchor, and weighs less")
+    void aReferenceNoteIsLoadedOnRequest() {
+        String acme = aCompany("Acme");
+        String taskId = aTask(aProject(acme, "vega", "ACTIVE"), "report-builder");
+        String body = "Cluster kmaster14, accesso via bastion.\n\n" + "Dettaglio lungo. ".repeat(400);
+        Map<?, ?> note = post("/api/documents", Map.of("title", "kmaster14.md", "kind", "notes",
+                "taskIds", List.of(taskId), "bodyMarkdown", body)).getBody();
+        int fullSize = contextSize(taskId);
+
+        rest.put().uri("/api/documents/" + note.get("id"))
+                .body(Map.of("title", "kmaster14.md", "kind", "notes", "taskIds", List.of(taskId),
+                        "bodyMarkdown", body, "contextMode", "REFERENCE"))
+                .retrieve().toBodilessEntity();
+
+        String anchor = String.valueOf(note.get("anchor"));
+        String context = callTool("rekall_context", Map.of("anchors", "project:vega task:report-builder"));
+        assertThat(context)
+                .contains("loaded=\"on request\"")
+                .contains("Cluster kmaster14, accesso via bastion.")
+                .contains(anchor)
+                .doesNotContain("Dettaglio lungo.");
+        assertThat(contextSize(taskId)).as("the size the console shows drops with it").isLessThan(fullSize / 4);
+
+        assertThat(callTool("rekall_context", Map.of("anchors", anchor)))
+                .contains("Note: kmaster14.md")
+                .contains("Dettaglio lungo.");
+        assertThat(callTool("rekall_context", Map.of("anchors", "note:abc")))
+                .as("a prefix too short to be unique is refused")
+                .contains("is not a note anchor");
+    }
+
+    @Test
+    @DisplayName("the context size is what /rk hands over, split into parts heaviest first")
+    void theContextSizeMatchesWhatASessionGets() {
+        String acme = aCompany("Acme");
+        String taskId = aTask(aProject(acme, "vega", "ACTIVE"), "report-builder");
+        callTool("rekall_wrapup", Map.of("anchors", "project:vega task:report-builder", "body", "W".repeat(4000)));
+
+        Map<?, ?> size = rest.get().uri("/api/tasks/" + taskId + "/context-size").retrieve().toEntity(Map.class).getBody();
+        String context = callTool("rekall_context", Map.of("anchors", "project:vega task:report-builder"));
+
+        assertThat(size.get("characters")).isEqualTo(context.length());
+        List<?> parts = (List<?>) size.get("parts");
+        assertThat(((Map<?, ?>) parts.getFirst()).get("label")).isEqualTo("Wrapup");
+        assertThat(parts.stream().mapToInt(part -> (Integer) ((Map<?, ?>) part).get("characters")).sum())
+                .isEqualTo(context.length());
+    }
+
+    private int contextSize(String taskId) {
+        return (Integer) rest.get().uri("/api/tasks/" + taskId + "/context-size").retrieve()
+                .toEntity(Map.class).getBody().get("characters");
+    }
+
+    // --- Local access
+
+    @Test
+    @DisplayName("a page on another site, or a request naming another host, is refused before it reaches the API")
+    void foreignOriginsAndHostsAreRefused() throws Exception {
+        HttpClient client = HttpClient.newHttpClient();
+        HttpRequest fromAnotherSite = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/companies"))
+                .header("Origin", "https://evil.example")
+                .POST(HttpRequest.BodyPublishers.ofString("{\"name\":\"Evil\"}"))
+                .header("Content-Type", "application/json")
+                .build();
+
+        assertThat(client.send(fromAnotherSite, HttpResponse.BodyHandlers.discarding()).statusCode()).isEqualTo(403);
+        assertThat(rest.get().uri("/api/companies").retrieve().toEntity(List.class).getBody()).isEmpty();
+
+        HttpRequest fromTheConsole = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/companies"))
+                .header("Origin", "http://127.0.0.1:" + port)
+                .GET()
+                .build();
+        assertThat(client.send(fromTheConsole, HttpResponse.BodyHandlers.discarding()).statusCode()).isEqualTo(200);
+    }
 
     private String aCompany(String name) {
         return id(post("/api/companies", Map.of("name", name)));

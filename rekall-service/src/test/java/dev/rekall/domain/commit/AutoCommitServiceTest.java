@@ -98,8 +98,26 @@ class AutoCommitServiceTest {
         ArgumentCaptor<String> message = ArgumentCaptor.forClass(String.class);
         verify(committer).commitAll(eq(Path.of(FOLDER)), message.capture());
         assertThat(message.getValue())
-                .startsWith("feat: Wire the export endpoint\n\nproject:vega task:report-builder, step 3\n");
+                .isEqualTo("feat: Wire the export endpoint\n\nRefs: project:vega task:report-builder, step 3\n");
         assertThat(outcome.describe()).contains("`abc123`").contains("\"Wire the export endpoint\"");
+    }
+
+    @Test
+    @DisplayName("the claiming session's own message becomes the commit message, with the refs line after it")
+    void theSessionMessageIsUsed() {
+        when(step.getBodyMarkdown()).thenReturn("Detail that must not appear.");
+        when(committer.pendingChanges(Path.of(FOLDER)))
+                .thenReturn(List.of(new PendingChange(PendingChange.Kind.ADDED, "src/export.ts")));
+        when(committer.commitAll(eq(Path.of(FOLDER)), anyString())).thenReturn("abc123");
+        when(commitReferences.recordCommit(taskId, stepId, "abc123"))
+                .thenReturn(view(stepId, "Wire the export endpoint", "abc123", "fix: stream the export"));
+
+        service.afterStepClaim(taskId, stepId, "fix: stream the export\n\nIt no longer buffers the file.");
+
+        ArgumentCaptor<String> message = ArgumentCaptor.forClass(String.class);
+        verify(committer).commitAll(eq(Path.of(FOLDER)), message.capture());
+        assertThat(message.getValue()).isEqualTo(
+                "fix: stream the export\n\nIt no longer buffers the file.\n\nRefs: project:vega task:report-builder, step 3\n");
     }
 
     @Test

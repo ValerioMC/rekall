@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: 025-document-context-mode
+      author: rekall
+      changes:
+        - addColumn:
+            tableName: document
+            columns:
+              - column: {name: context_mode, type: varchar(20), defaultValue: FULL, constraints: {nullable: false}}

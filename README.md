@@ -36,6 +36,14 @@ make console # H2 shell on the database
 
 Port 47355 is fixed because the MCP endpoint is registered with Claude Code by URL, so a clash breaks the registration rather than moving the app. `SERVER_PORT` overrides it for the server, the `.app` launcher and the tests.
 
+### This machine only
+
+Nothing in Rekall authenticates, and its API can open a `claude` terminal in a project folder, so `LocalAccessFilter` answers only this machine. It refuses with a 403 a peer that is not loopback (another machine on the same network), a `Host` header that is not `localhost`, `127.0.0.1` or `[::1]` (a page using DNS rebinding), and an `Origin` header from another site (a page open in the same browser). The terminal's WebSocket accepts only loopback origins too. Claude Code and `curl` send no `Origin` and pass.
+
+| Property | Default | Meaning |
+|---|---|---|
+| `rekall.security.remote-access` | `false` | `true` accepts other machines and their own origin. It gives up the DNS-rebinding check; only for a network you trust |
+
 ## macOS application
 
 A disk image for Apple Silicon is published on every commit to `main`.
@@ -136,6 +144,8 @@ An anchor is `entity:value`, where the entity is `company`, `project` or `task` 
 | `/rk vega report-builder` | Positional. Works while each term matches one record |
 | `/rk task:"report builder"` | Quote a value containing spaces |
 | `/rk project:vega task:report-builder wrapup` | Write the task's wrapup instead of loading it |
+| `/rk project:vega task:report-builder plan` | Propose the task's checklist as drafts, then stop |
+| `/rk note:3f2a9c1e` | A note sent by reference, loaded in full (see [Context size](#context-size-and-reference-notes)) |
 
 An anchor brings back the record, everything it references resolved in full with their notes, what references it as anchors, and its own markdown. A note can be attached to several tasks and arrives with each. If a bare term matches more than one record, the candidates come back and nothing loads. `project:` disambiguates a label two projects share.
 
@@ -147,8 +157,9 @@ An anchor brings back the record, everything it references resolved in full with
 | `rekall_wrapup` | write | Replace one task's wrapup |
 | `rekall_step` | write | Move one step: `open` to `running` to `claimed` |
 | `rekall_record_commit` | write | Log a commit of the project's repo folder against one task or step |
+| `rekall_propose_step` | write | Add one step as a draft, for a person to promote |
 
-There is no query, get or schema tool. `rekall_step` refuses `done`; that state is set by hand in the console.
+There is no query, get or schema tool. `rekall_step` refuses `done`; that state is set by hand in the console. `rekall_step` (on `claimed`) and `rekall_wrapup` take an optional `commit_message`, used only on a project that commits on claim (see [Commit on claim](#commit-on-claim)).
 
 ## Wrapup
 
@@ -163,6 +174,10 @@ A quoted term after `wrapup` is a directive on what to write. It can narrow the 
 The description pane and the steps pane both carry a **Generate the wrapup every session** toggle under the header, so it is set from whichever surface the work is driven from. Turning it on reveals an optional directive field. Set once on the task, the toggle stands in for the quoted term: the context load then tells the session a wrapup is expected every time without being asked, and the words it should follow. Turning the toggle off drops the directive with it.
 
 A wrapup written after a step finishes folds that step's work into the same description. The console counts steps ticked and notes added since the wrapup was last written. You can edit the wrapup in the console; the next `/rk … wrapup` replaces it and the tool reports when it overwrites a hand edit.
+
+### History
+
+**History**, on the wrapup and on the description, lists the earlier versions of that text, newest first, and restores one. `TaskRevisionService` keeps what a write replaces: every session write, every delete and every restore, so a restore can be undone the same way. The console autosaves as you type, so a hand edit over hand-written text keeps one version per ten minutes, the one from before you started, not every keystroke; a hand edit over a session's text is always kept. The newest 30 versions of each text are kept per task. Sessions never read the history. `GET /api/tasks/{id}/revisions?kind=WRAPUP|DESCRIPTION` lists it and `POST /api/tasks/{id}/revisions/{revisionId}/restore` restores one.
 
 ## Steps
 
@@ -184,6 +199,10 @@ Claude receives an open or running step with its detail, tagged `(in progress)` 
 With steps on a task, the open steps are the work and the description becomes the constraints the steps are built against. Anything the description asks for that no open step covers is not built; `/rk` flags it and asks for the step.
 
 Only you set a step to **done**. `rekall_step` stops at `claimed`. The navigator's progress count is built on `done`.
+
+### Planning
+
+`/rk project:vega task:report-builder plan` has a session turn the task into a checklist for you to review. It reads the description, the wrapup, the finished steps and the code the task touches, then calls `rekall_propose_step` once per step, in order: a title saying what the step delivers, a detail saying what to build, where, what it must satisfy and how you can tell it is done. Every proposal lands as a draft on the staging shelf, so nothing is work until you promote it, and the session builds nothing. A title the task already has is refused, so a second `plan` adds only what the first one missed; a task holds at most 20 drafts.
 
 A claimed step is reviewed from its detail: **Accept** ticks it to done, **Send back** returns it to open for another pass. The **N awaiting review** count in the pane header jumps to the first one. The step node itself only moves a step forward, so a stray click never walks it back; reopening an accepted step is a separate **Reopen** button that arms before it fires.
 
@@ -209,15 +228,25 @@ The REST side is `GET /api/commit-references`, `POST /api/tasks/{id}/commit-refe
 
 A project can commit for the session instead of waiting for it to. The **Commit on claim** switch sits under the **Folder** field on the project page and only arms when that folder is a git repository: the strip under it says which branch is checked out and whom git would commit as there (`user.name` / `user.email` as `git config` resolves them in that folder, so the global identity unless the repo overrides it). Outside a repository the switch stays off and says why; on a repository with no `user.email` it arms but warns that the commit will fail until one is set. The setting is saved on the project (`autoCommit` on `PUT /api/projects/{id}`; the server keeps it off whenever the folder is not a repository) and `GET /api/projects/{id}/repository` is what the strip reads.
 
-With it on, a claim commits: `rekall_step … state="claimed"` stages everything in the folder (`git add -A`), commits it, and logs that commit against the step; on a task with no checklist, the Claude-authored `rekall_wrapup` that claims the task does the same against the task. A task with a checklist never commits on its wrapup. The message is generated from what moved: a Conventional Commits subject (`feat:` by default, `docs:` when every file is documentation, `test:` when every file is a test) carrying the step or task title, then a body naming the anchor, the step number and the files, one per line, twenty at most. A clean tree commits nothing and says so; a git refusal (no identity, a hook, a folder that stopped being a repository) is reported in the tool's answer and the claim stands either way. `rekall_context` marks such a project with an `auto-commit` field telling the session not to `git commit` itself.
+With it on, a claim commits: `rekall_step … state="claimed"` stages everything in the folder (`git add -A`), commits it, and logs that commit against the step; on a task with no checklist, the Claude-authored `rekall_wrapup` that claims the task does the same against the task. A task with a checklist never commits on its wrapup.
+
+The message says what the work does, never which files it touched. The session that claims writes it, as `commit_message` on `rekall_step` or `rekall_wrapup`: a Conventional Commits subject under 72 characters, a blank line, and a few sentences of body. Without one, `CommitMessageGenerator` derives it: the subject is the step or task title, typed `fix:` or `refactor:` when the title says so, `docs:` when every file is documentation, `test:` when every file is a test and `feat:` otherwise; the body is the opening of the step's detail (or of the wrapup, for a task with no checklist) as plain prose, headings, emphasis and code dropped, cut at a sentence. Either way the body is wrapped at 72 columns and ends with a `Refs: project:… task:…, step N` line. A clean tree commits nothing and says so; a git refusal (no identity, a hook, a folder that stopped being a repository) is reported in the tool's answer and the claim stands either way. `rekall_context` marks such a project with an `auto-commit` field telling the session not to `git commit` itself.
 
 ## Description review
 
 A task with no checklist walks the same line at task scope: **open**, **running** while a terminal is open on it with no step target, **claimed** when a Claude-authored wrapup lands, **accepted** when you accept it in the console. Nothing new is typed for it: running follows the terminal and claimed follows the wrapup write. The description pane shows the running pill and a review bar: on **running** it carries **Accept** and a link to the wrapup, so a session driven by hand still has a console exit; on **claimed** it adds **Send back** (with an optional note the next session sees); accepting offers to also mark the task done. A note left on send back rides in `rekall_context` as a `review` field on the task (`sent back — "…"`), so the next session opened on that anchor reads why, not just that it was. It arrives on the same `GET /api/steps/stream` connection as a `task-review` frame, the wrapup that claims it rides the same connection as a `wrapup` frame so the pane shows the new text with the claim rather than on the next reload, and `PATCH /api/tasks/{id}/review` is the console-only Accept / Send back. Adding a first step retires the task-level line and the checklist takes over.
 
+## Review queue and notifications
+
+**Review** (the checklist icon with a count, in the top bar) counts everything a session claimed and you have not reviewed, across every task: claimed steps, and tasks with no checklist whose wrapup claimed them. It lists them longest-waiting first, and a row opens the step on its steps pane, or the task on its description's review bar. It is built in the console from the same step and review frames the event stream already carries, so it moves as sessions claim and you accept, and it is not there while nothing waits.
+
+When something joins the queue while the console is hidden or another app has the focus, Rekall posts a system notification: through the native bridge in Rekall.app (`packaging/macos/Notifier.swift`, the system asks for permission the first time), through the browser's Notification API elsewhere. What was already waiting when the console loaded never notifies. **Settings > Notifications** turns it off; the choice is stored on the machine, and in a browser that is also where permission is asked, since a browser grants it only from a click.
+
 ## Console
 
 One surface, three panes: pick a task on the left, pick its checklist, its wrapup, a note or a session in the middle, write on the right. The field at the top takes the same grammar as `/rk`.
+
+That field filters the navigator by titles and labels as you type. For a phrase of three characters or more that is not an anchor, it also searches the text behind them and lists the hits under the bar: task descriptions, steps (title and detail), wrapups and notes, each with the words around the match. `↑` `↓` choose, `↵` opens the hit on the pane that shows that text (a step opens expanded on its steps pane). `GET /api/search?q=` answers it: at most 8 hits per kind, newest first, the phrase matched whole and case-insensitively, `%` and `_` literal.
 
 The description, steps, wrapup and terminal are pinned above the notes. Each opens in the writing pane; a task missing one shows an empty card. `c` opens the terminal pane, the same way `s`, `w` and `d` open steps, wrapup and description; `r` toggles read/write on whichever of the description or a note is open. Companies, projects and tasks are created, edited and deleted from one editor, opened on the parent record. Title and label sit together with the anchor assembled live as you type. Deleting states what goes with it.
 
@@ -265,13 +294,31 @@ Company ──< Project ──< Task >──< Document
 
 A project belongs to one company, a task to one project. A note belongs to at least one task and often several. Deleting a task unlinks its notes and removes only the ones left on nothing. A wrapup and a step belong to exactly one task and are deleted with it. Adding an entity is a JPA class plus a Liquibase changeset, not a UI action.
 
+## Context size and reference notes
+
+Next to the anchor on a task's description, a chip estimates what `/rk project:… task:…` costs a session: the characters of the markdown it hands over and roughly how many tokens that is (3.5 characters to a token, an estimate for comparing tasks, not a bill). Under the pointer it lists the parts heaviest first: the description, the steps, the wrapup, the commits chosen for the context, each note, and the project around them. `GET /api/tasks/{id}/context-size` measures it with the same `ContextRenderer` that answers `rekall_context`, so the figure is the length of what a session gets.
+
+A note most sessions do not need can go **By reference**, switched on the note's own pane. It then travels as its title, its first line and an anchor such as `note:3f2a9c1e` (`loaded="on request"`), and a session loads the rest with `rekall_context` and that anchor only when the work asks for it. **In full** puts it back. The mode belongs to the note, so it holds on every task the note is on.
+
+## Backups
+
+H2's `BACKUP TO` copies the open database, consistently and without stopping it, into a `backups` folder beside it (for the default location, `./data/backups`). One is taken when Rekall starts and whenever the newest is older than the interval, checked every hour; **Back up now** in **Settings > Backups** takes one on demand, and every restore takes one first. Only the newest are kept.
+
+| Property | Default | Meaning |
+|---|---|---|
+| `rekall.backup.enabled` | `true` | Scheduled backups. **Back up now** and restores work either way |
+| `rekall.backup.interval-hours` | `24` | Age of the newest backup that makes another one due |
+| `rekall.backup.keep` | `10` | Backups kept, of every kind together; the oldest go first |
+
+**Restore** on a listed backup, or **Restore from a file…** with a zip from elsewhere, replaces the whole database: the zip has to hold an H2 database file (`*.mv.db`, checked by its header), what is there now is backed up first, and Rekall restarts on the restored file, migrating it forward if it came from an older version. That round trip is also how a database moves to another machine: **Download** a backup here, restore it there. An in-memory database has no backups. The REST side is `GET` and `POST /api/backups`, `GET /api/backups/{name}`, `POST /api/backups/{name}/restore` and `POST /api/backups/restore` (multipart `file`, up to 1 GB).
+
 ## Export
 
 ```bash
 curl -OJ http://localhost:47355/api/export
 ```
 
-Or the **Export** button in the top bar. The archive is a folder tree, one folder per company, then project, then task, one markdown file per note, plus a `MANIFEST.md` with statuses and anchors. Nothing reads it back. A note on several tasks appears under each; `MANIFEST.md` lists the copies.
+Or the **Export** button in the top bar. The archive is a folder tree, one folder per company, then project, then task, one markdown file per note, plus a `MANIFEST.md` with statuses and anchors. It is for reading, and nothing reads it back: to save and restore, or to move a database, use a [backup](#backups). A note on several tasks appears under each; `MANIFEST.md` lists the copies.
 
 ## Develop
 
@@ -341,15 +388,18 @@ rekall-model/      Company, Project, Task, Document, hosted-session entities and
 rekall-repository/ Spring Data repositories and the Liquibase changelog for their schema
 rekall-service/    Business logic: context assembly, the step and review lines, wrapups, time entries
 rekall-api/        REST API for the UI, and the step event stream
-rekall-mcp/        MCP server, on rekall-service and never rekall-api: one tool reads, two write
-rekall-claude/     Claude Code sessions hosted in the app: spawn, stream, reap
+rekall-mcp/        MCP server, on rekall-service and never rekall-api: one tool reads, four write
+rekall-claude/     the in-app terminal (pty4j over one WebSocket) and the Claude Code usage meter
 rekall-app/        Spring Boot entry point, serves everything
 rekall-ui/         Vue 3 + Vite frontend
 ```
 
 Classes still live under the `dev.rekall.domain.*` packages they had before the split; the module
 boundary, not the package name, is what keeps `rekall-repository` off the API's classpath and the
-MCP server off the write controllers.
+MCP server off the write controllers. That is also why `CatalogService`, `DocumentService` and
+`RevisionRestoreService` live in `rekall-api` and not in `rekall-service`: they write the catalog,
+and the MCP module must not be able to reach them. Read-only services (`SearchService`,
+`ContextSizeService`) and the narrow writes a session is allowed are in `rekall-service`.
 
 ## Run tests
 
@@ -358,13 +408,17 @@ mvn test                                            # everything, against in-mem
 cd rekall-ui && pnpm lint && pnpm typecheck && pnpm test
 ```
 
-`RekallEndToEndTest` drives the real HTTP API and MCP endpoint against the same Liquibase changelogs the application uses, so a migration that disagrees with an entity fails there rather than at startup.
+`RekallEndToEndTest` drives the real HTTP API and MCP endpoint against the same Liquibase changelogs the application uses, so a migration that disagrees with an entity fails there rather than at startup. `BackupApiTest` runs on a file database in a temporary folder, since an in-memory one has no backups.
+
+`.github/workflows/check.yml` runs all of it on every pull request and every push to a branch other than `main`: `mvn test`, then eslint, vue-tsc, vitest and a production build of the UI. `release.yml` builds and publishes `main`.
 
 ## Design
 
 `docs/DESIGN.md` records the decisions and the reasoning, including the ones that were reversed and why.
 
 `docs/MEMORY.md` is the memory soak of the console: what was measured, how, and why the numbers say there is no leak.
+
+`docs/SPECIFICATION.md` describes what the application is and does, entities and rules only, with no visual direction. `docs/native-image-hibernate.md` records what it took to run Hibernate in the GraalVM native image.
 
 ## License
 

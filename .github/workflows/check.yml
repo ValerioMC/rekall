@@ -1,0 +1,70 @@
+name: Check
+
+# The gate a change passes before it reaches main. release.yml builds and publishes main, and runs
+# the JUnit suite only because `mvn package` does; nothing ran eslint, vue-tsc or vitest in CI.
+# This runs all of it, as `make test` does locally, on every pull request and every push to a
+# branch other than main.
+on:
+  pull_request:
+  push:
+    branches-ignore:
+      - main
+
+# A newer push to the same branch supersedes the run still going on the older one.
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+
+      # `test`, not `verify`: packaging needs the built UI (rekall-app's enforcer check), and the
+      # frontend job below is where the UI is checked.
+      - name: JUnit
+        run: mvn -B test
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rekall-ui
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: rekall-ui/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: rekall-ui/pnpm-lock.yaml
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: eslint
+        run: pnpm lint
+
+      - name: vue-tsc
+        run: pnpm typecheck
+
+      - name: vitest
+        run: pnpm test
+
+      # The bundle is what the jar serves; a change that type-checks but does not build fails here.
+      - name: Build
+        run: pnpm build

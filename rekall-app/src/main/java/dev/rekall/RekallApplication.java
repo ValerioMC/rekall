@@ -1,5 +1,8 @@
 package dev.rekall;
 
+import dev.rekall.backup.BackupController;
+import dev.rekall.backup.BackupFile;
+import dev.rekall.backup.DatabaseBackupService;
 import dev.rekall.bootstrap.DatabaseEntry;
 import dev.rekall.bootstrap.DatabaseRegistry;
 import dev.rekall.bootstrap.SettingsController;
@@ -10,6 +13,7 @@ import dev.rekall.domain.Task;
 import dev.rekall.domain.TimeEntry;
 import dev.rekall.domain.Wrapup;
 import dev.rekall.claude.ClaudeUsageView;
+import dev.rekall.domain.context.ContextSize;
 import dev.rekall.domain.step.StepStreamEvent;
 import dev.rekall.domain.step.TaskStepView;
 import org.springframework.aot.hint.annotation.RegisterReflectionForBinding;
@@ -26,7 +30,10 @@ import org.springframework.context.ConfigurableApplicationContext;
         SettingsController.DatabaseView.class, SettingsController.DatabaseView[].class,
         SettingsController.StatusResponse.class,
         SettingsController.AddRequest.class, SettingsController.AddResponse.class,
-        SettingsController.RenameRequest.class, SettingsController.CheckResponse.class
+        SettingsController.RenameRequest.class, SettingsController.CheckResponse.class,
+        ContextSize.class, ContextSize.Part.class, ContextSize.Part[].class,
+        DatabaseBackupService.Status.class, BackupFile.class, BackupFile[].class,
+        BackupController.RestoreStarted.class
 })
 public class RekallApplication {
 

@@ -168,6 +168,21 @@ watch(
   { immediate: true }
 )
 
+// Something outside this pane (search, the review queue) asked for one step: open it, showing
+// the done ones if that is where it is, then clear the request so it is honoured once.
+watch(
+  () => [store.stepToOpen, visibleSteps.value.length] as const,
+  ([stepId]) => {
+    if (!stepId) return
+    const step = [...checklistSteps.value, ...draftSteps.value].find((candidate) => candidate.id === stepId)
+    if (!step) return
+    if (step.done) hideDone.value = false
+    open(step)
+    store.clearStepToOpen()
+  },
+  { immediate: true }
+)
+
 async function markForward(step: TaskStep): Promise<void> {
   if (step.state === 'DONE') return
   const wasOpenHere = expandedId.value === step.id

@@ -11,6 +11,7 @@ import dev.rekall.common.NotFoundException;
 import dev.rekall.domain.Company;
 import dev.rekall.domain.Project;
 import dev.rekall.domain.ProjectStatus;
+import dev.rekall.domain.RevisionKind;
 import dev.rekall.domain.Slug;
 import dev.rekall.domain.Tag;
 import dev.rekall.domain.Task;
@@ -23,12 +24,15 @@ import dev.rekall.domain.repository.ProjectRepository;
 import dev.rekall.domain.repository.TagRepository;
 import dev.rekall.domain.repository.TaskRepository;
 import dev.rekall.domain.review.TaskReviewService;
+import dev.rekall.domain.revision.RevisionTrigger;
+import dev.rekall.domain.revision.TaskRevisionService;
 import dev.rekall.domain.timeentry.TimeEntryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -43,6 +47,7 @@ public class CatalogService {
     private final TimeEntryService timeEntries;
     private final TaskReviewService taskReview;
     private final GitRepositoryInspector repositories;
+    private final TaskRevisionService revisions;
 
     @Transactional(readOnly = true)
     public List<CompanyResponse> listCompanies() {
@@ -147,6 +152,7 @@ public class CatalogService {
     public TaskResponse updateTask(UUID id, TaskRequest request) {
         Task task = requireTask(id);
         TaskStatus previousStatus = task.getStatus();
+        keepDescriptionIfReplaced(task, request.description(), RevisionTrigger.HAND_EDIT);
         task.setLabel(Slug.of(request.label()));
         task.setTitle(request.title().trim());
         applyTo(task, request);
@@ -155,6 +161,21 @@ public class CatalogService {
             timeEntries.stopIfRunning(id);
         }
         return response;
+    }
+
+    /** Writes an earlier revision back as the task's description, keeping the one it replaces. */
+    @Transactional
+    public TaskResponse restoreDescription(UUID id, String description) {
+        Task task = requireTask(id);
+        keepDescriptionIfReplaced(task, description, RevisionTrigger.RESTORE);
+        task.setDescription(description);
+        return TaskResponse.of(tasks.saveAndFlush(task));
+    }
+
+    private void keepDescriptionIfReplaced(Task task, String incoming, RevisionTrigger trigger) {
+        if (!Objects.equals(task.getDescription(), incoming)) {
+            revisions.keep(task, RevisionKind.DESCRIPTION, task.getDescription(), null, null, trigger);
+        }
     }
 
     /** {@code DONE} accepts a stepless task, {@code OPEN} sends it back; other states are refused. */

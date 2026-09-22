@@ -41,8 +41,9 @@ public class WrapupTool implements McpTool {
                A bare `task:<label>` works when that label exists on only one project.
 
                `body` is the complete new text and it overwrites whatever was there. Nothing is \
-               merged and no previous version is kept, so send the wrapup in full every time, \
-               not the part that changed.
+               merged, so send the wrapup in full every time, not the part that changed. The \
+               version it replaces goes to the wrapup's history in the console, where a person \
+               can restore it; no session reads that history.
 
                Write the state, never the story of getting there. It describes the system as it \
                stands, for a reader who was not in this session and does not care what it looked \
@@ -85,7 +86,8 @@ public class WrapupTool implements McpTool {
                On a task with no checklist, this wrapup is what claims the work. If its project \
                is set to auto-commit, writing it also commits everything in the project's folder \
                and logs that commit against the task; the answer says so. Do not commit by hand \
-               on such a project.
+               on such a project. Pass `commit_message` so the commit says what the work did: \
+               without it, the message is drawn from the task's title and this wrapup.
                """;
     }
 
@@ -100,6 +102,12 @@ public class WrapupTool implements McpTool {
                         "body",
                         "The complete wrapup, in markdown. Replaces what was there. Describes the "
                                 + "implementation as it stands, not what changed in this session.")
+                .optionalString(
+                        "commit_message",
+                        "Only read on a task with no checklist whose project auto-commits: the commit "
+                                + "message. First line a Conventional Commits subject (`feat: …`, `fix: …`), under "
+                                + "72 characters. Then a blank line and a body of two to five sentences on what the "
+                                + "change does and why, in plain prose. No list of files.")
                 .build();
     }
 
@@ -108,6 +116,7 @@ public class WrapupTool implements McpTool {
         Arguments args = Arguments.of(arguments);
         AnchoredTask target = AnchoredTask.from(Anchor.parseAll(args.requiredString("anchors")));
         String body = args.requiredString("body");
+        String commitMessage = args.optionalString("commit_message");
 
         WrapupService.Written written;
         try {
@@ -125,14 +134,15 @@ public class WrapupTool implements McpTool {
 
         if (written.replaced() == WrapupAuthor.HAND) {
             out.append("\nThe version you replaced had been edited by hand in the console. ")
-                    .append("If that edit said something this one does not, it is gone.\n");
+                    .append("It is kept in the wrapup's history there, but if that edit said something this one ")
+                    .append("does not, only a person restoring it brings it back. Tell them.\n");
         }
 
         out.append("\nIt is what `/rk ")
                 .append(written.wrapup().anchor())
                 .append("` will load from now on.");
 
-        AutoCommitOutcome committed = autoCommit.afterWrapup(written.wrapup().taskId());
+        AutoCommitOutcome committed = autoCommit.afterWrapup(written.wrapup().taskId(), commitMessage);
         if (!committed.off()) {
             out.append("\n\n").append(committed.describe());
         }

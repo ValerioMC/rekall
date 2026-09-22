@@ -45,3 +45,7 @@ databaseChangeLog:
       file: db/changelog/022-project-auto-commit.yaml
   - include:
       file: db/changelog/023-tag.yaml
+  - include:
+      file: db/changelog/024-task-revision.yaml
+  - include:
+      file: db/changelog/025-document-context-mode.yaml

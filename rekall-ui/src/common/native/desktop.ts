@@ -4,10 +4,19 @@ export interface ClaudeCodeLaunch {
   readonly skipPermissions: boolean
 }
 
+/** A system notification the native host posts. */
+export interface DesktopNotice {
+  readonly title: string
+  readonly body: string
+}
+
 export interface DesktopHost {
   pickFolder(currentPath: string): Promise<string | null>
 
   openInClaudeCode?(launch: ClaudeCodeLaunch): Promise<string>
+
+  /** Posts a system notification; resolves false when the system refused it. */
+  notify?(notice: DesktopNotice): Promise<boolean>
 }
 
 declare global {

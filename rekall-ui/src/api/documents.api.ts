@@ -1,6 +1,6 @@
 import { apiClient, request } from './client'
 import { DocumentListSchema, DocumentSchema } from './schemas/catalog.schema'
-import type { RekallDocument } from '@/model/catalog'
+import type { DocumentContextMode, RekallDocument } from '@/model/catalog'
 import type { DocumentId, TaskId } from '@/model/branded'
 
 export interface DocumentInput {
@@ -8,6 +8,8 @@ export interface DocumentInput {
   kind: string
   bodyMarkdown: string
   taskIds: readonly TaskId[]
+  /** Left out, a new note is sent in full and an existing one keeps its mode. */
+  contextMode?: DocumentContextMode
 }
 
 export async function fetchDocuments(taskId: TaskId): Promise<RekallDocument[]> {

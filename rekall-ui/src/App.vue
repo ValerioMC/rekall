@@ -17,6 +17,7 @@ import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useModalGate } from '@/composables/useModalGate'
 import { useStepStream } from '@/composables/useStepStream'
+import { useClaimNotifications } from '@/composables/useClaimNotifications'
 import type { TaskStatus } from '@/model/catalog'
 
 // xterm and its stylesheet are only parsed once a terminal is opened: most sessions never do,
@@ -24,7 +25,7 @@ import type { TaskStatus } from '@/model/catalog'
 const TerminalPane = defineAsyncComponent(() => import('@/components/console/TerminalPane.vue'))
 
 const store = useConsoleStore()
-const { selectedTaskId, navMode, paneFocus, noteComposerOpen } = storeToRefs(store)
+const { selectedTaskId, navMode, paneFocus, noteComposerOpen, reviewQueue, isLoading } = storeToRefs(store)
 const { run } = useAsyncAction()
 const { isModalOpen } = useModalGate()
 
@@ -34,6 +35,8 @@ useStepStream(
   (event) => store.applyWrapupEvent(event),
   (reference) => store.applyCommitReference(reference)
 )
+
+useClaimNotifications(reviewQueue, isLoading)
 
 const STATUS_BY_KEY: Record<string, TaskStatus> = {
   '1': 'IN_PROGRESS',

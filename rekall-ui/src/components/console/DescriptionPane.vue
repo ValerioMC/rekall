@@ -14,6 +14,8 @@ import OpenTerminalButton from '@/components/claude/OpenTerminalButton.vue'
 import LogCommitButton from '@/components/console/LogCommitButton.vue'
 import NotesButton from '@/components/console/NotesButton.vue'
 import CommitReferenceRail from '@/components/console/CommitReferenceRail.vue'
+import RevisionHistoryButton from '@/components/console/RevisionHistoryButton.vue'
+import ContextSizeChip from '@/components/console/ContextSizeChip.vue'
 import type { TaskId } from '@/model/branded'
 
 const store = useConsoleStore()
@@ -65,6 +67,17 @@ watch(
     if (value.trim()) showEditor.value = true
   }
 )
+
+// A restore rewrote the description on the server: drop any pending save of the old buffer and
+// show what was restored.
+function adoptRestored(): void {
+  if (saveTimer) clearTimeout(saveTimer)
+  saveTimer = null
+  draft.value = selectedTask.value?.description ?? ''
+  showEditor.value = draft.value.trim().length > 0
+  mode.value = 'read'
+  store.saveState = 'saved'
+}
 
 const anchor = computed(() => selectedTask.value?.anchor ?? '')
 
@@ -184,21 +197,30 @@ onUnmounted(() => {
                 Accepted
               </span>
             </h2>
-            <button
-              class="anchor-chip focus-ring mt-1.5 inline-flex items-center gap-2 px-2.5 py-1 text-[11.5px] transition-colors hover:border-anchor"
-              :class="copied && 'flash'"
-              :title="copied ? 'Copied' : `Copy ${rkCommand(anchor)}`"
-              data-testid="copy-description-anchor"
-              @click="copyAnchor"
-            >
-              <span class="opacity-60">/rk</span>
-              <span>{{ selectedTask.anchor }}</span>
-              <CopyGlyph :copied="copied" />
-            </button>
+            <div class="mt-1.5 flex flex-wrap items-center gap-2">
+              <button
+                class="anchor-chip focus-ring inline-flex items-center gap-2 px-2.5 py-1 text-[11.5px] transition-colors hover:border-anchor"
+                :class="copied && 'flash'"
+                :title="copied ? 'Copied' : `Copy ${rkCommand(anchor)}`"
+                data-testid="copy-description-anchor"
+                @click="copyAnchor"
+              >
+                <span class="opacity-60">/rk</span>
+                <span>{{ selectedTask.anchor }}</span>
+                <CopyGlyph :copied="copied" />
+              </button>
+              <ContextSizeChip :task-id="selectedTask.id" />
+            </div>
           </div>
 
           <div class="flex shrink-0 items-center gap-1.5">
             <NotesButton :task-id="selectedTask.id" />
+            <RevisionHistoryButton
+              :task-id="selectedTask.id"
+              :task-title="selectedTask.title"
+              kind="DESCRIPTION"
+              @restored="adoptRestored"
+            />
             <LogCommitButton
               :task-id="selectedTask.id"
               :folder="selectedTask.projectRepoFolder"

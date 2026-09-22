@@ -27,6 +27,11 @@ import {
   updateDocument as apiUpdateDocument
 } from '@/api/documents.api'
 import { deleteWrapup as apiDeleteWrapup, fetchWrapups, saveWrapup as apiSaveWrapup } from '@/api/wrapups.api'
+import { restoreRevision as apiRestoreRevision } from '@/api/revisions.api'
+import type { RevisionKind } from '@/model/revision'
+import type { SearchHit } from '@/model/search'
+import { reviewQueue as buildReviewQueue } from '@/model/review'
+import type { ReviewItem } from '@/model/review'
 import {
   createStep as apiCreateStep,
   deleteStep as apiDeleteStep,
@@ -92,6 +97,8 @@ export const useConsoleStore = defineStore('console', () => {
   const selectedTaskId = ref<TaskId | null>(null)
   const selectedDocId = ref<DocumentId | null>(null)
   const paneFocus = ref<PaneFocus>('note')
+  /** A step something outside the steps pane asked to see; the pane opens it and clears this. */
+  const stepToOpen = ref<TaskStepId | null>(null)
   /** Browsing notes, the placements column gives way to the new-note composer while this is on. */
   const noteComposerOpen = ref(false)
 
@@ -144,6 +151,9 @@ export const useConsoleStore = defineStore('console', () => {
 
   const selectedTask = computed(() => tasks.value.find((task) => task.id === selectedTaskId.value) ?? null)
 
+  // One review queue, not two: a claimed step and a claimed stepless task are the same ask.
+  const reviewQueue = computed<ReviewItem[]>(() => buildReviewQueue(tasks.value, steps.value))
+
   const selectedDocument = computed(
     () => documents.value.find((document) => document.id === selectedDocId.value) ?? null
   )
@@ -180,12 +190,6 @@ export const useConsoleStore = defineStore('console', () => {
     () => selectedTaskSteps.value.filter((step) => step.state !== 'DRAFT' && !step.done).length
   )
 
-  // One review queue, not two: a claimed step and a claimed stepless task are the same ask.
-  const reviewQueue = computed(
-    () =>
-      steps.value.filter((step) => step.state === 'CLAIMED').length +
-      tasks.value.filter((task) => task.reviewActive && task.reviewState === 'CLAIMED').length
-  )
 
   const selectedTaskReview = computed<TaskReview | null>(() => {
     const task = selectedTask.value
@@ -602,7 +606,7 @@ export const useConsoleStore = defineStore('console', () => {
 
   async function saveNote(
     id: DocumentId,
-    patch: Partial<Pick<RekallDocument, 'title' | 'kind' | 'bodyMarkdown'>> & {
+    patch: Partial<Pick<RekallDocument, 'title' | 'kind' | 'bodyMarkdown' | 'contextMode'>> & {
       taskIds?: readonly TaskId[]
     }
   ): Promise<void> {
@@ -614,7 +618,8 @@ export const useConsoleStore = defineStore('console', () => {
         title: patch.title ?? current.title,
         kind: patch.kind ?? current.kind,
         bodyMarkdown: patch.bodyMarkdown ?? current.bodyMarkdown,
-        taskIds: patch.taskIds ?? current.tasks.map((ref) => ref.id)
+        taskIds: patch.taskIds ?? current.tasks.map((ref) => ref.id),
+        contextMode: patch.contextMode ?? current.contextMode
       })
       documents.value = documents.value.map((document) => (document.id === id ? saved : document))
       saveState.value = 'saved'
@@ -686,6 +691,43 @@ export const useConsoleStore = defineStore('console', () => {
     paneFocus.value = 'steps'
   }
 
+  /** Brings a task into view on its steps pane, with one step open. */
+  function openStep(taskId: TaskId, stepId: TaskStepId): void {
+    if (selectedTaskId.value !== taskId) selectTask(taskId)
+    stepToOpen.value = stepId
+    paneFocus.value = 'steps'
+  }
+
+  function clearStepToOpen(): void {
+    stepToOpen.value = null
+  }
+
+  /** Opens a review item where it is reviewed: the step, or the description's review bar. */
+  function openReviewItem(item: ReviewItem): void {
+    if (item.stepId) {
+      openStep(item.taskId, item.stepId)
+      return
+    }
+    selectTask(item.taskId)
+    paneFocus.value = 'description'
+  }
+
+  /** Opens whatever a search hit points at, on the pane that shows that text. */
+  function openSearchHit(hit: SearchHit): void {
+    if (hit.kind === 'NOTE' && hit.documentId) {
+      if (navMode.value === 'tasks' && hit.taskId) selectTask(hit.taskId)
+      selectDocument(hit.documentId)
+      return
+    }
+    if (!hit.taskId) return
+    if (hit.kind === 'STEP' && hit.stepId) {
+      openStep(hit.taskId, hit.stepId)
+      return
+    }
+    selectTask(hit.taskId)
+    paneFocus.value = hit.kind === 'WRAPUP' ? 'wrapup' : 'description'
+  }
+
   function openTerminal(): void {
     if (selectedTaskId.value === null) return
     paneFocus.value = 'terminal'
@@ -717,6 +759,14 @@ export const useConsoleStore = defineStore('console', () => {
     wrapups.value = wrapups.value.filter((wrapup) => wrapup.taskId !== taskId)
     paneFocus.value = 'note'
     await refreshTasks()
+  }
+
+  /** Writes a kept revision back as the current text, and reloads whatever showed the old one. */
+  async function restoreRevision(taskId: TaskId, revisionId: string): Promise<RevisionKind> {
+    const restored = await apiRestoreRevision(taskId, revisionId)
+    if (restored.kind === 'WRAPUP') wrapups.value = await fetchWrapups()
+    await refreshTasks()
+    return restored.kind
   }
 
   function recountSteps(taskId: TaskId): void {
@@ -955,6 +1005,7 @@ export const useConsoleStore = defineStore('console', () => {
     selectedTaskId,
     selectedDocId,
     paneFocus,
+    stepToOpen,
     noteComposerOpen,
     selectedTask,
     selectedDocument,
@@ -994,6 +1045,7 @@ export const useConsoleStore = defineStore('console', () => {
     acceptTask,
     sendBackTask,
     saveTaskDescription,
+    restoreRevision,
     openNoteComposer,
     closeNoteComposer,
     createNote,
@@ -1004,6 +1056,10 @@ export const useConsoleStore = defineStore('console', () => {
     openWrapup,
     openDescription,
     openSteps,
+    openStep,
+    clearStepToOpen,
+    openSearchHit,
+    openReviewItem,
     openTerminal,
     toggleDescription,
     toggleWrapup,

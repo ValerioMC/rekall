@@ -22,8 +22,9 @@ import java.util.UUID;
  * checklist never commits on its wrapup: its steps carry the claims.
  *
  * <p>The commit is everything in the working tree, staged and committed as the identity git is
- * configured with in that folder, under a message {@link CommitMessageGenerator} writes from the
- * files that moved. It is then logged the way {@code rekall_record_commit} logs one. Nothing here
+ * configured with in that folder, under a message {@link CommitMessageGenerator} writes: the
+ * claiming session's own message when it sent one, otherwise one drawn from the step's detail or
+ * the task's wrapup. It is then logged the way {@code rekall_record_commit} logs one. Nothing here
  * throws past the outcome: the claim that triggered it has already been written and stays written.
  */
 @Service
@@ -40,24 +41,42 @@ public class AutoCommitService {
 
     @Transactional
     public AutoCommitOutcome afterStepClaim(UUID taskId, UUID stepId) {
+        return afterStepClaim(taskId, stepId, null);
+    }
+
+    /**
+     * @param sessionMessage the commit message the claiming session wrote, subject line first, or
+     *                       {@code null} to have one derived from the step
+     */
+    @Transactional
+    public AutoCommitOutcome afterStepClaim(UUID taskId, UUID stepId, String sessionMessage) {
         Task task = tasks.findById(taskId).orElse(null);
         TaskStep step = steps.findById(stepId).orElse(null);
         if (task == null || step == null) {
             return AutoCommitOutcome.notApplicable();
         }
-        return commit(task, step);
+        return commit(task, step, sessionMessage);
     }
 
     @Transactional
     public AutoCommitOutcome afterWrapup(UUID taskId) {
+        return afterWrapup(taskId, null);
+    }
+
+    /**
+     * @param sessionMessage the commit message the session wrote with the wrapup, or {@code null}
+     *                       to have one derived from the wrapup itself
+     */
+    @Transactional
+    public AutoCommitOutcome afterWrapup(UUID taskId, String sessionMessage) {
         Task task = tasks.findById(taskId).orElse(null);
         if (task == null || !task.reviewActive()) {
             return AutoCommitOutcome.notApplicable();
         }
-        return commit(task, null);
+        return commit(task, null, sessionMessage);
     }
 
-    private AutoCommitOutcome commit(Task task, TaskStep step) {
+    private AutoCommitOutcome commit(Task task, TaskStep step, String sessionMessage) {
         Project project = task.getProject();
         if (!project.isAutoCommit()) {
             return AutoCommitOutcome.notApplicable();
@@ -78,7 +97,7 @@ public class AutoCommitService {
             if (changes.isEmpty()) {
                 return AutoCommitOutcome.skipped("nothing to commit in " + folder + ", so nothing was logged.");
             }
-            String message = CommitMessageGenerator.generate(subjectOf(task, step), changes);
+            String message = CommitMessageGenerator.generate(subjectOf(task, step), changes, sessionMessage);
             String hash = committer.commitAll(folder, message);
             log.info("Auto-committed {} in {} for task {} step {}", hash, folder, task.getLabel(),
                     step == null ? "-" : step.getTitle());
@@ -93,8 +112,10 @@ public class AutoCommitService {
     private static CommitMessageGenerator.Subject subjectOf(Task task, TaskStep step) {
         String anchor = "project:%s task:%s".formatted(task.getProject().getLabel(), task.getLabel());
         if (step == null) {
-            return new CommitMessageGenerator.Subject(task.getTitle(), anchor, null);
+            String wrapup = task.getWrapup() == null ? null : task.getWrapup().getBodyMarkdown();
+            return new CommitMessageGenerator.Subject(task.getTitle(), anchor, null, wrapup);
         }
-        return new CommitMessageGenerator.Subject(step.getTitle(), anchor, step.getPosition() + 1);
+        return new CommitMessageGenerator.Subject(
+                step.getTitle(), anchor, step.getPosition() + 1, step.getBodyMarkdown());
     }
 }

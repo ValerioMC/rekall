@@ -45,6 +45,7 @@ public class DocumentService {
     @Transactional
     public DocumentResponse create(DocumentRequest request) {
         Document document = new Document(request.title(), request.kind(), body(request));
+        applyContextMode(document, request);
         documents.save(document);
         link(document, resolve(request.taskIds()));
         documents.flush();
@@ -57,6 +58,7 @@ public class DocumentService {
         document.setTitle(request.title());
         document.setKind(request.kind());
         document.setBodyMarkdown(body(request));
+        applyContextMode(document, request);
         link(document, resolve(request.taskIds()));
         documents.flush();
         return DocumentResponse.of(document);
@@ -83,6 +85,12 @@ public class DocumentService {
         Set<Task> resolved = new LinkedHashSet<>();
         taskIds.forEach(id -> resolved.add(catalog.requireTask(id)));
         return resolved;
+    }
+
+    private void applyContextMode(Document document, DocumentRequest request) {
+        if (request.contextMode() != null) {
+            document.setContextMode(request.contextMode());
+        }
     }
 
     private String body(DocumentRequest request) {

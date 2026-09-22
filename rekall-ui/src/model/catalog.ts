@@ -172,8 +172,14 @@ export interface RekallDocument {
   readonly kind: string
   readonly bodyMarkdown: string
   readonly tasks: readonly TaskRef[]
+  /** In full under every task it is on, or as a reference a session loads by `anchor` when it needs it. */
+  readonly contextMode: DocumentContextMode
+  /** `note:` and the first characters of its id: what a session loads a reference note by. */
+  readonly anchor: string
   readonly updatedAt: string
 }
+
+export type DocumentContextMode = 'FULL' | 'REFERENCE'
 
 export type WrapupAuthor = 'CLAUDE' | 'HAND'
 

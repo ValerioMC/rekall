@@ -33,11 +33,11 @@ loaded in one call, including every note the task shares with its neighbours.
 | # | Decision | Rationale |
 |---|---|---|
 | D1 | Real tables with real foreign keys | A note can never point at a deleted task. On an app whose only job is to be a reliable memory, silent dangling references are the failure mode that matters. |
-| D2 | Claude reads everything and writes two things | `rekall-mcp` depends on `rekall-service` and never on `rekall-api`, so no controller is on its classpath, and every read runs in a read-only transaction. The two exceptions are `rekall_wrapup`, which replaces one column of one row keyed by a task, and `rekall_step`, which moves a step from `open` to `running` to `claimed` and cannot reach `done`. See §7. |
+| D2 | Claude reads everything and writes a few narrow things | `rekall-mcp` depends on `rekall-service` and never on `rekall-api`, so no controller and none of the console's catalog services are on its classpath, and every read runs in a read-only transaction. The exceptions are `rekall_wrapup`, which replaces one task's wrapup; `rekall_step`, which moves a step from `open` to `running` to `claimed` and cannot reach `done`; `rekall_record_commit`, which logs a commit against a task; and `rekall_propose_step`, which can only add a draft a person has to promote. See §7. |
 | D3 | Markdown content lives in the database | One backup target, reachable through MCP, searchable. |
 | D4 | One entry point, and it is a slash command | A session begins with `/rk project:vega task:report-builder`, not with a question. Reaching a record through a natural-language query costs several turns and a few thousand tokens before any work starts, and it is the part that fails when the model guesses the wrong entity. An explicit anchor removes both. |
 | D5 | The model is fixed at compile time | There is no runtime meta-model and no DDL engine. Company, project, task and document are fixed JPA entities; adding a new kind of record is a class and a migration, not a screen. |
-| D6 | Modular monolith, single process, embedded database | Single user, localhost. The application has to be reachable with one command or it will not get used. |
+| D6 | Modular monolith, single process, embedded database | Single user, localhost. The application has to be reachable with one command or it will not get used. Localhost is enforced, not assumed: `LocalAccessFilter` refuses a peer that is not loopback, a `Host` that is not this machine and an `Origin` from another site, since nothing here authenticates and the API can open a terminal. |
 | D7 | What a record is called and what an anchor resolves are two columns | One column serving both jobs would mean a rename breaks anchors written down elsewhere, and makes every name a compromise between readable and typeable. `label` is a slug and is the identity; `title` is prose and is free. See §4. |
 | D8 | A task carries one wrapup, and it is a state and not a log | The thing that costs a session its first twenty minutes is reconstructing what the code already does. A note cannot answer that: notes accumulate, and the reader has to synthesise the current state out of them. A wrapup is that synthesis, written once and overwritten thereafter. Its own table, because a document belongs to many tasks by construction and "one answer per task" has to be a constraint rather than a convention. See §4.1. |
 
@@ -54,7 +54,7 @@ rekall/
   rekall-repository/ Spring Data repositories and the Liquibase changelogs for their schema
   rekall-service/    context assembly, the step and review lines, wrapups, time entries
   rekall-api/        REST controllers for the UI
-  rekall-mcp/        MCP server: one tool reads, two write (a wrapup, a step's state)
+  rekall-mcp/        MCP server: one tool reads, four write (a wrapup, a step's state, a commit log entry, a draft step)
   rekall-claude/     the in-app terminal (pty4j PTYs over one WebSocket) and the Claude Code usage meter
   rekall-app/        Spring Boot entry point, serves the built frontend
   rekall-ui/         Vue 3 + Vite (built into rekall-ui/dist, copied into the jar by rekall-app)
@@ -280,7 +280,7 @@ Transport: HTTP on the same process as the UI.
 claude mcp add --transport http rekall http://localhost:47355/mcp
 ```
 
-Three tools. `rekall_context` reads, taking one string:
+Five tools. `rekall_context` reads, taking one string:
 
 ```json
 { "anchors": "project:vega task:report-builder-main-workflow" }
@@ -301,6 +301,24 @@ title, and the target state:
 
 `state` is `running`, `claimed` or `open`. It refuses `done`, and refuses a step a person has
 already accepted: reopening one is a console decision.
+
+`rekall_record_commit` logs the tip of the project's repo folder, or an earlier hash, against a
+task or one of its steps. On a project set to auto-commit, `rekall_step` with `claimed` (and
+`rekall_wrapup` on a task with no checklist) commits the folder itself; both take an optional
+`commit_message` the session writes, a Conventional Commits subject and a few sentences of body,
+and without one `CommitMessageGenerator` draws the message from the step's detail or the wrapup.
+No commit message lists files.
+
+`rekall_propose_step` adds one step as a draft, which is what `/rk … plan` calls once per step.
+A draft is not work: it stays off the checklist a session reads until a person promotes it, a
+title the task already has is refused so a second plan does not double the shelf, and a task
+holds at most twenty drafts.
+
+A note can travel by reference. It then arrives as its title, its first line and an anchor such
+as `note:3f2a9c1e` (the first eight characters of its id), with `loaded="on request"`, and
+`rekall_context` loads it in full by that anchor. `ContextRenderer`, which writes every context,
+is shared with `ContextSizeService`, so the size the console shows for a task is the length of
+what a session receives.
 
 An anchor is `entity:value`. A value containing spaces is quoted. A bare term with no `entity:`
 is looked up across both entities and accepted only when exactly one record matches; on more
@@ -349,20 +367,27 @@ the exception that hides this, because its own schema defaults both annotations.
 
 ## 7. Write safety
 
-`rekall-mcp` has no controller, no `CatalogService` and no `DocumentService` on its classpath.
-The two write services it can reach are narrow by construction. `WrapupService` takes a task and
-a body and can do nothing else: no record created, renamed or deleted, no note touched.
-`TaskStepService.transition` takes a task, a step and a target state, and refuses `DONE` and any
-step a person has already accepted; it cannot add, reorder or remove a step, and the console's
-`edit` is still the only path to `DONE`. Every read runs under
+`rekall-mcp` has no controller, no `CatalogService`, no `DocumentService` and no
+`RevisionRestoreService` on its classpath: they live in `rekall-api` for exactly that reason, and
+anything that writes the catalog belongs there. The write services it can reach are narrow by
+construction. `WrapupService` takes a task and a body and can do nothing else: no record created,
+renamed or deleted, no note touched. `TaskStepService.transition` takes a task, a step and a
+target state, and refuses `DONE` and any step a person has already accepted; it cannot add,
+reorder or remove a step, and the console's `edit` is still the only path to `DONE`.
+`TaskStepService.propose` can only append a draft, which no session reads until a person promotes
+it. `CommitReferenceService` and `AutoCommitService` log and make commits in the project's own
+folder. Every read runs under
 `@Transactional(readOnly = true)`, so Hibernate will not flush. `McpTool.writes()` is declared
 rather than inferred, and the startup log names the write surface out loud.
 
 The residual risk is real and small: Claude can overwrite one task's wrapup with something
 wrong, or with something that replaces a correction made by hand, and it can mark a step running
-or claimed when it is not. The first is repaired by writing it again; the second is announced in
-the tool's answer, because nothing keeps a copy; the third a person corrects with one tick in
-the console. What it cannot do is tick a step done, lose a note, move a task or delete anything.
+or claimed when it is not. The first two are repaired from the wrapup's history in the console:
+`TaskRevisionService` keeps what every write, delete and restore replaces (a hand edit typed over
+hand-written text is kept once per ten minutes, so the history is versions rather than
+keystrokes), and the tool's answer still announces a replaced hand edit, because no session reads
+that history. The third a person corrects with one tick in the console. What it cannot do is
+tick a step done, lose a note, move a task or delete anything.
 
 ---
 

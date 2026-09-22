@@ -113,6 +113,8 @@ export const DocumentSchema = z.object({
   kind: z.string(),
   bodyMarkdown: z.string(),
   tasks: z.array(TaskRefSchema),
+  contextMode: z.enum(['FULL', 'REFERENCE']),
+  anchor: z.string(),
   updatedAt: z.string()
 })
 

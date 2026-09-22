@@ -21,6 +21,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class TaskStepService {
 
+    /** Drafts a session may leave on one task before a person has promoted or deleted some. */
+    public static final int PROPOSED_DRAFTS_MAX = 20;
+
     private final TaskRepository tasks;
     private final TaskStepRepository steps;
     private final ApplicationEventPublisher events;
@@ -47,6 +50,38 @@ public class TaskStepService {
         TaskStepView saved = TaskStepView.of(steps.saveAndFlush(step));
         publish(taskId);
         return saved;
+    }
+
+    /** A draft a session proposed, and how many drafts the task now holds. */
+    public record Proposed(TaskStepView step, int draftCount) {
+    }
+
+    /**
+     * Adds a step a session proposes, as a draft at the tail. A draft is not work: it stays off the
+     * checklist a session reads until a person promotes it in the console, which is what lets a
+     * session write one at all. A title the task already has, in any state, is refused, so a plan
+     * run twice does not double the shelf; so is a draft past {@link #PROPOSED_DRAFTS_MAX}.
+     */
+    @Transactional
+    public Proposed propose(String projectLabel, String taskLabel, String title, String bodyMarkdown) {
+        Task task = resolveTask(projectLabel, taskLabel);
+        String wanted = validatedTitle(title);
+        List<TaskStep> siblings = steps.findByTaskIdOrderByPositionAsc(task.getId());
+        siblings.stream()
+                .filter(step -> step.getTitle().strip().equalsIgnoreCase(wanted))
+                .findFirst()
+                .ifPresent(existing -> {
+                    throw new IllegalArgumentException("This task already has a step titled '%s' (%s). Nothing was added."
+                            .formatted(existing.getTitle(), existing.getState().name().toLowerCase()));
+                });
+        long drafts = siblings.stream().filter(step -> step.getState() == TaskStepState.DRAFT).count();
+        if (drafts >= PROPOSED_DRAFTS_MAX) {
+            throw new IllegalArgumentException(
+                    "This task already holds %d drafts, the most a session may leave. A person has to promote "
+                            .formatted(drafts) + "or delete some in the console first.");
+        }
+        TaskStepView added = add(task.getId(), wanted, bodyMarkdown);
+        return new Proposed(added, (int) drafts + 1);
     }
 
     @Transactional

@@ -102,6 +102,8 @@ const documents: RekallDocument[] = [
     kind: 'context',
     bodyMarkdown: 'Il workflow parte da POST /api/v1/pipelines',
     tasks: [ref(validator, 'report-builder', 'Report builder', 'vega')],
+    contextMode: 'FULL',
+    anchor: 'note:00000000',
     updatedAt: '2026-08-12T12:00:00Z'
   },
   {
@@ -114,6 +116,8 @@ const documents: RekallDocument[] = [
       ref(validator, 'report-builder', 'Report builder', 'vega'),
       ref(retry, 'retry-policy', 'Retry policy', 'vega')
     ],
+    contextMode: 'FULL',
+    anchor: 'note:00000000',
     updatedAt: '2026-08-12T13:00:00Z'
   },
   {
@@ -122,6 +126,8 @@ const documents: RekallDocument[] = [
     kind: 'notes',
     bodyMarkdown: 'brew install openjdk',
     tasks: [ref(wiring, 'wiring', 'Wiring the adapter', 'beacon', 'globex')],
+    contextMode: 'FULL',
+    anchor: 'note:00000000',
     updatedAt: '2026-08-12T09:00:00Z'
   }
 ]
@@ -495,6 +501,8 @@ describe('console store', () => {
         tasks: input.taskIds.map(
           (taskId) => documents.flatMap((d) => d.tasks).find((t) => t.id === taskId)!
         ),
+        contextMode: 'FULL',
+        anchor: 'note:00000000',
         updatedAt: '2026-08-12T15:00:00Z'
       }))
     })

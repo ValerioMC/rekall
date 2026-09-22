@@ -37,6 +37,22 @@ vi.mock('@/api/settings.api', () => ({
   checkFolder: vi.fn()
 }))
 
+/** The backups section has its own spec; here it only has to not reach the network. */
+vi.mock('@/api/backups.api', () => ({
+  fetchBackupStatus: vi.fn(async () => ({
+    available: true,
+    folder: '/data/rekall/backups',
+    intervalHours: 24,
+    keep: 10,
+    backups: [],
+    lastFailure: null
+  })),
+  takeBackup: vi.fn(),
+  restoreBackup: vi.fn(),
+  restoreUploadedBackup: vi.fn(),
+  backupDownloadUrl: (name: string) => `/api/backups/${name}`
+}))
+
 /** The Claude Code section has its own spec; here it only has to not reach the network. */
 vi.mock('@/api/claude.api', () => ({
   fetchClaudeInstallation: () =>

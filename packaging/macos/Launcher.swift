@@ -71,6 +71,7 @@ final class Launcher: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKU
     private var signalSources: [DispatchSourceSignal] = []
     private var folderPicker: FolderPicker!
     private var claudeCodeLauncher: ClaudeCodeLauncher!
+    private var notifier: Notifier!
     private var pendingStatus: String?
     private let logFile = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent("Library/Logs/Rekall/server.log")
@@ -261,6 +262,7 @@ final class Launcher: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKU
         // copied at initialisation, so a handler added afterwards is added to nothing.
         folderPicker = FolderPicker.install(into: configuration) { [weak self] in self?.window }
         claudeCodeLauncher = ClaudeCodeLauncher.install(into: configuration)
+        notifier = Notifier.install(into: configuration)
         webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = self
         webView.uiDelegate = self

@@ -4,6 +4,8 @@ import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import ClaudeCodeSection from '@/components/settings/ClaudeCodeSection.vue'
+import NotificationsSection from '@/components/settings/NotificationsSection.vue'
+import BackupsSection from '@/components/settings/BackupsSection.vue'
 import DatabaseFolderField from '@/components/setup/DatabaseFolderField.vue'
 import RestartingOverlay from '@/components/setup/RestartingOverlay.vue'
 import { fetchDatabaseStatus, forgetDatabase, renameDatabase } from '@/api/settings.api'
@@ -28,6 +30,8 @@ const editingId = ref<string | null>(null)
 const editingLabel = ref('')
 const editingInput = ref<HTMLInputElement | null>(null)
 const forgetting = ref<DatabaseEntry | null>(null)
+/** A backup confirm or restore is open in the section below: the panel stays put under it. */
+const backupBusy = ref(false)
 const closeButton = ref<HTMLButtonElement | null>(null)
 const panel = ref<HTMLElement | null>(null)
 
@@ -46,7 +50,9 @@ function closePathPreview(): void {
   previewingPath.value = null
 }
 
-const canClose = computed(() => phase.value !== 'submitting' && phase.value !== 'restarting' && !addingNewIsBusy.value)
+const canClose = computed(
+  () => phase.value !== 'submitting' && phase.value !== 'restarting' && !addingNewIsBusy.value && !backupBusy.value
+)
 
 async function load(): Promise<void> {
   loading.value = true
@@ -102,7 +108,7 @@ function onKeydown(event: KeyboardEvent): void {
     emit('close')
     return
   }
-  if (panel.value && !forgetting.value) trapTabKey(panel.value, event)
+  if (panel.value && !forgetting.value && !backupBusy.value) trapTabKey(panel.value, event)
 }
 
 onMounted(async () => {
@@ -252,6 +258,8 @@ onUnmounted(() => {
         </div>
 
         <ClaudeCodeSection class="mt-6 border-t border-border pt-5" />
+        <BackupsSection class="mt-6 border-t border-border pt-5" @busy="backupBusy = $event" />
+        <NotificationsSection class="mt-6 border-t border-border pt-5" />
       </div>
     </div>
 

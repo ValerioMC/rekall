@@ -7,6 +7,7 @@ import dev.rekall.domain.Task;
 import dev.rekall.domain.TaskStepState;
 import dev.rekall.domain.repository.CommitReferenceRepository;
 import dev.rekall.domain.repository.CompanyRepository;
+import dev.rekall.domain.repository.DocumentRepository;
 import dev.rekall.domain.repository.ProjectRepository;
 import dev.rekall.domain.repository.TaskRepository;
 import dev.rekall.domain.step.TaskStepView;
@@ -19,17 +20,19 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class ContextService {
 
-    public static final List<String> ENTITY_NAMES = List.of("company", "project", "task");
+    public static final List<String> ENTITY_NAMES = List.of("company", "project", "task", "note");
 
     private final CompanyRepository companies;
     private final ProjectRepository projects;
     private final TaskRepository tasks;
     private final CommitReferenceRepository commitReferences;
+    private final DocumentRepository documents;
 
     @Transactional(readOnly = true)
     public ContextRecord load(String entityName, String value) {
@@ -44,6 +47,7 @@ public class ContextService {
             case "project", "projects", "progetto", "progetti" ->
                     renderSingleProject(projects.findByLabelIgnoreCase(value), value);
             case "task", "tasks", "issue", "issues", "attivita" -> renderSingleTask(tasks.findByLabelIgnoreCase(value), value);
+            case "note", "notes", "nota", "document" -> renderSingleNote(value);
             default -> throw new UnknownAnchorException(
                     "No entity matches '%s'. Known entities: %s".formatted(entityName, String.join(", ", ENTITY_NAMES)));
         };
@@ -55,6 +59,14 @@ public class ContextService {
                 .map(this::render)
                 .orElseThrow(() -> new UnknownAnchorException(
                         "No task '%s' on project '%s'".formatted(taskLabel, projectLabel)));
+    }
+
+    /** The project and the task, as {@code /rk project:<label> task:<label>} loads them for this task. */
+    @Transactional(readOnly = true)
+    public List<ContextRecord> forTask(UUID taskId) {
+        Task task = tasks.findById(taskId)
+                .orElseThrow(() -> new UnknownAnchorException("No task with id " + taskId));
+        return List.of(render(task.getProject()), render(task));
     }
 
     private ContextRecord loadAnywhere(String value) {
@@ -101,6 +113,42 @@ public class ContextService {
                     value, found.stream().map(task -> "project:" + task.getProject().getLabel()).toList());
         }
         return render(found.getFirst());
+    }
+
+    /**
+     * A note loaded by its own anchor, which is how a session reads a note a task hands over only
+     * as a reference. The value is the id's first {@link Document#ANCHOR_ID_LENGTH} characters or
+     * more; fewer is refused, since a shorter prefix stops being unique long before it stops
+     * looking like one.
+     */
+    private ContextRecord renderSingleNote(String value) {
+        String prefix = value.strip().toLowerCase();
+        if (prefix.length() < Document.ANCHOR_ID_LENGTH || !prefix.matches("[0-9a-f-]+")) {
+            throw new UnknownAnchorException(
+                    "'%s' is not a note anchor. A note is loaded by the anchor its task's context gives, "
+                            .formatted(value) + "`note:` and the first %d characters of its id.".formatted(Document.ANCHOR_ID_LENGTH));
+        }
+        List<Document> found = documents.findByIdPrefix(prefix);
+        if (found.isEmpty()) {
+            throw new UnknownAnchorException("No note matches '%s'".formatted(value));
+        }
+        if (found.size() > 1) {
+            throw new AmbiguousAnchorException(value, found.stream().map(Document::anchor).toList());
+        }
+        Document note = found.getFirst();
+        return new ContextRecord(
+                "Note",
+                note.getTitle(),
+                note.anchor(),
+                Map.of("kind", note.getKind()),
+                List.of(),
+                note.getTasks().stream().map(task -> "task:" + task.getLabel()).toList(),
+                List.of(DocumentView.of(note).inFull()),
+                List.of(),
+                List.of(),
+                null,
+                null,
+                null);
     }
 
     private ContextRecord render(Company company) {
@@ -214,7 +262,7 @@ public class ContextService {
 
     private List<DocumentView> documentsOf(List<Document> documents) {
         return documents.stream()
-                .map(document -> new DocumentView(document.getTitle(), document.getKind(), document.getBodyMarkdown()))
+                .map(DocumentView::of)
                 .toList();
     }
 }

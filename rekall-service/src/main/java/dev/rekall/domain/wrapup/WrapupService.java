@@ -1,5 +1,6 @@
 package dev.rekall.domain.wrapup;
 
+import dev.rekall.domain.RevisionKind;
 import dev.rekall.domain.Task;
 import dev.rekall.domain.Wrapup;
 import dev.rekall.domain.WrapupAuthor;
@@ -8,6 +9,8 @@ import dev.rekall.domain.context.UnknownAnchorException;
 import dev.rekall.domain.repository.TaskRepository;
 import dev.rekall.domain.repository.WrapupRepository;
 import dev.rekall.domain.review.TaskReviewService;
+import dev.rekall.domain.revision.RevisionTrigger;
+import dev.rekall.domain.revision.TaskRevisionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -17,6 +20,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * The one write path for a task's wrapup. Whatever a write replaces, and whatever a delete
+ * removes, is handed to {@link TaskRevisionService} first, so the console's history can bring it
+ * back; that includes an edit made by hand, which a session's write would otherwise erase.
+ */
 @Service
 @RequiredArgsConstructor
 public class WrapupService {
@@ -24,6 +32,7 @@ public class WrapupService {
     private final TaskRepository tasks;
     private final WrapupRepository wrapups;
     private final TaskReviewService taskReview;
+    private final TaskRevisionService revisions;
     private final ApplicationEventPublisher events;
 
     public record Written(WrapupView wrapup, boolean created, WrapupAuthor replaced) {
@@ -46,19 +55,21 @@ public class WrapupService {
 
     @Transactional
     public Written write(String projectLabel, String taskLabel, String body, WrapupAuthor author) {
-        return write(resolve(projectLabel, taskLabel), body, author);
+        return write(resolve(projectLabel, taskLabel), body, author, triggerOf(author));
     }
 
     @Transactional
     public Written write(UUID taskId, String body, WrapupAuthor author) {
-        return write(
-                tasks.findById(taskId)
-                        .orElseThrow(() -> new UnknownAnchorException("No task with id " + taskId)),
-                body,
-                author);
+        return write(requireTask(taskId), body, author, triggerOf(author));
     }
 
-    private Written write(Task task, String body, WrapupAuthor author) {
+    /** Writes an earlier revision back as the current wrapup, keeping the one it replaces. */
+    @Transactional
+    public Written restore(UUID taskId, String body) {
+        return write(requireTask(taskId), body, WrapupAuthor.HAND, RevisionTrigger.RESTORE);
+    }
+
+    private Written write(Task task, String body, WrapupAuthor author, RevisionTrigger trigger) {
         String text = validated(body);
         Optional<Wrapup> existing = wrapups.findByTaskId(task.getId());
         if (existing.isEmpty()) {
@@ -71,6 +82,9 @@ public class WrapupService {
         }
         Wrapup wrapup = existing.get();
         WrapupAuthor previous = wrapup.getWrittenBy();
+        if (!wrapup.getBodyMarkdown().equals(text)) {
+            revisions.keep(task, RevisionKind.WRAPUP, wrapup.getBodyMarkdown(), previous, wrapup.getUpdatedAt(), trigger);
+        }
         wrapup.setBodyMarkdown(text);
         wrapup.setWrittenBy(author);
         Written written = new Written(WrapupView.of(wrapups.saveAndFlush(wrapup)), false, previous);
@@ -89,10 +103,20 @@ public class WrapupService {
     @Transactional
     public void delete(UUID taskId) {
         wrapups.findByTaskId(taskId).ifPresent(wrapup -> {
+            revisions.keep(wrapup.getTask(), RevisionKind.WRAPUP, wrapup.getBodyMarkdown(), wrapup.getWrittenBy(),
+                    wrapup.getUpdatedAt(), RevisionTrigger.DELETION);
             wrapup.getTask().setWrapup(null);
             wrapups.delete(wrapup);
             events.publishEvent(WrapupStreamEvent.deleted(taskId));
         });
+    }
+
+    private Task requireTask(UUID taskId) {
+        return tasks.findById(taskId).orElseThrow(() -> new UnknownAnchorException("No task with id " + taskId));
+    }
+
+    private static RevisionTrigger triggerOf(WrapupAuthor author) {
+        return author == WrapupAuthor.CLAUDE ? RevisionTrigger.CLAUDE_WRITE : RevisionTrigger.HAND_EDIT;
     }
 
     private String validated(String body) {

@@ -53,6 +53,8 @@ const shared: RekallDocument = {
     { id: validator, label: 'report-builder', title: 'Report builder', projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', anchor: 'project:vega task:report-builder' },
     { id: retry, label: 'retry-policy', title: 'Retry policy', projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', anchor: 'project:vega task:retry-policy' }
   ],
+  contextMode: 'FULL',
+  anchor: 'note:00000000',
   updatedAt: '2026-08-12T13:00:00Z'
 }
 
@@ -113,8 +115,23 @@ const createDocument = vi.fn(async (input: DocumentInput) => ({
 vi.mock('@/api/documents.api', () => ({
   fetchAllDocuments: vi.fn(async () => [shared]),
   createDocument: (...args: unknown[]) => createDocument(...(args as [DocumentInput])),
-  updateDocument: vi.fn(),
+  // Answers with the saved note, as the server does: an editor's autosave lands in the store.
+  updateDocument: vi.fn(async (id: DocumentId, input: DocumentInput) => ({
+    ...shared,
+    ...input,
+    id,
+    tasks: shared.tasks.filter((ref) => input.taskIds.includes(ref.id))
+  })),
   deleteDocument: vi.fn()
+}))
+
+/** The panes measure and search on their own; here they only have to not reach the network. */
+vi.mock('@/api/context.api', () => ({
+  fetchContextSize: vi.fn(async () => ({ characters: 3500, estimatedTokens: 1000, parts: [] }))
+}))
+
+vi.mock('@/api/search.api', () => ({
+  searchText: vi.fn(async () => [])
 }))
 
 vi.mock('@/api/claude.api', async (importOriginal) => {

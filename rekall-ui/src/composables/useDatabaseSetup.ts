@@ -43,19 +43,7 @@ export function useDatabaseSetup() {
 
   async function waitForRestart(): Promise<void> {
     phase.value = 'restarting'
-    const deadline = Date.now() + HEALTH_POLL_TIMEOUT_MS
-    await sleep(HEALTH_POLL_INTERVAL_MS)
-    while (Date.now() < deadline) {
-      try {
-        const response = await fetch(`${env.VITE_API_BASE_URL}/actuator/health`, { cache: 'no-store' })
-        if (response.ok) {
-          window.location.reload()
-          return
-        }
-      } catch {
-      }
-      await sleep(HEALTH_POLL_INTERVAL_MS)
-    }
+    if (await reloadWhenBack()) return
     phase.value = 'error'
     timedOut.value = true
     error.value = 'The application is taking longer than expected to come back.'
@@ -90,6 +78,28 @@ export function useDatabaseSetup() {
   }
 
   return { checking, check, phase, error, timedOut, checkPath, submitNewFolder, switchTo }
+}
+
+/**
+ * Waits for a restarting server to answer its health check again, then reloads the page onto it.
+ * Resolves false if it has not come back within the timeout, and the page stays as it is.
+ */
+export async function reloadWhenBack(): Promise<boolean> {
+  const deadline = Date.now() + HEALTH_POLL_TIMEOUT_MS
+  await sleep(HEALTH_POLL_INTERVAL_MS)
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(`${env.VITE_API_BASE_URL}/actuator/health`, { cache: 'no-store' })
+      if (response.ok) {
+        window.location.reload()
+        return true
+      }
+    } catch {
+      // Refused while the server restarts: keep polling until the deadline.
+    }
+    await sleep(HEALTH_POLL_INTERVAL_MS)
+  }
+  return false
 }
 
 function sleep(ms: number): Promise<void> {

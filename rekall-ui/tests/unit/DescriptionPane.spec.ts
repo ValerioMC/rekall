@@ -6,6 +6,11 @@ import { useConsoleStore } from '@/stores/console.store'
 import type { Task, TaskStepState } from '@/model/catalog'
 import type { ProjectId, TaskId } from '@/model/branded'
 
+/** The size chip measures on its own; here it only has to not reach the network. */
+vi.mock('@/api/context.api', () => ({
+  fetchContextSize: vi.fn(async () => ({ characters: 3500, estimatedTokens: 1000, parts: [] }))
+}))
+
 /**
  * The description's own review bar, shown only while the task has no checklist. It has to give
  * the same OPEN -> RUNNING -> CLAIMED -> DONE affordances a step does: while a session is on a

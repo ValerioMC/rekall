@@ -1,6 +1,7 @@
 package dev.rekall.domain.repository;
 
 import dev.rekall.domain.Document;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -32,4 +33,17 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
            ORDER BY d.title ASC
            """)
     List<Document> search(@Param("term") String term);
+
+    /** Notes whose title or body holds the term, newest first. The caller escapes the term. */
+    @Query("""
+           SELECT d FROM Document d
+           WHERE LOWER(d.title) LIKE LOWER(CONCAT('%', :term, '%')) ESCAPE '\\'
+              OR LOWER(d.bodyMarkdown) LIKE LOWER(CONCAT('%', :term, '%')) ESCAPE '\\'
+           ORDER BY d.updatedAt DESC
+           """)
+    List<Document> searchText(@Param("term") String term, Pageable page);
+
+    /** Notes whose id starts with the prefix: how a {@code note:} anchor, an abbreviated id, resolves. */
+    @Query("SELECT d FROM Document d WHERE LOWER(CAST(d.id AS String)) LIKE CONCAT(:prefix, '%')")
+    List<Document> findByIdPrefix(@Param("prefix") String prefix);
 }

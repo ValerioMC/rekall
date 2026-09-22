@@ -38,6 +38,8 @@ const doc = (id: string, title: string, on: TaskId[], updatedAt = '2026-09-01T10
   kind: 'notes',
   bodyMarkdown: `${title} body`,
   tasks: on.map((taskId) => refs[taskId]!),
+  contextMode: 'FULL',
+  anchor: 'note:00000000',
   updatedAt
 })
 

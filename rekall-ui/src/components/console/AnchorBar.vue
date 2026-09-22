@@ -6,7 +6,12 @@ import AppLogo from '@/components/ui/AppLogo.vue'
 import TagIcon from '@/components/ui/TagIcon.vue'
 import AppNavSwitcher from '@/components/console/AppNavSwitcher.vue'
 import ClaudeUsageMeter from '@/components/console/ClaudeUsageMeter.vue'
+import SearchHitList from '@/components/console/SearchHitList.vue'
+import ReviewQueueButton from '@/components/console/ReviewQueueButton.vue'
 import { useConsoleStore } from '@/stores/console.store'
+import { searchText } from '@/api/search.api'
+import { isTextQuery } from '@/model/search'
+import type { SearchHit } from '@/model/search'
 
 const emit = defineEmits<{ newNote: []; openSettings: []; openTags: [] }>()
 
@@ -63,6 +68,65 @@ const query = computed<string>({
     filter.value = value.replace(/^\s*\/rk\s+/i, '')
   }
 })
+
+// The filter matches titles and labels as you type. For a phrase, the text behind them is searched
+// on the server too: descriptions, steps, wrapups and notes, listed under the bar.
+const SEARCH_DEBOUNCE_MS = 200
+const hits = ref<SearchHit[]>([])
+const activeHit = ref(-1)
+const searching = ref(false)
+const searchFailed = ref(false)
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+let searchSequence = 0
+
+const showHits = computed(() => isFocused.value && isTextQuery(filter.value))
+
+watch(filter, (value) => {
+  if (searchTimer) clearTimeout(searchTimer)
+  activeHit.value = -1
+  const sequence = ++searchSequence
+  if (!isTextQuery(value)) {
+    hits.value = []
+    searching.value = false
+    return
+  }
+  searching.value = true
+  searchTimer = setTimeout(async () => {
+    try {
+      const found = await searchText(value.trim())
+      if (sequence !== searchSequence) return
+      hits.value = found
+      searchFailed.value = false
+    } catch {
+      if (sequence !== searchSequence) return
+      hits.value = []
+      searchFailed.value = true
+    } finally {
+      if (sequence === searchSequence) searching.value = false
+    }
+  }, SEARCH_DEBOUNCE_MS)
+})
+
+function moveHit(delta: number): void {
+  if (!showHits.value || hits.value.length === 0) return
+  const count = hits.value.length
+  activeHit.value = activeHit.value < 0 && delta < 0 ? count - 1 : (activeHit.value + delta + count) % count
+}
+
+function openHit(hit: SearchHit): void {
+  store.openSearchHit(hit)
+  filter.value = ''
+  input.value?.blur()
+}
+
+function onEnter(): void {
+  const hit = hits.value[activeHit.value]
+  if (showHits.value && hit) {
+    openHit(hit)
+    return
+  }
+  openFirst()
+}
 
 function openFirst(): void {
   if (navMode.value === 'notes') {
@@ -124,8 +188,20 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
         aria-label="Find a task or a note"
         @focus="isFocused = true"
         @blur="isFocused = false"
-        @keydown.enter="openFirst"
+        @keydown.enter="onEnter"
+        @keydown.down.prevent="moveHit(1)"
+        @keydown.up.prevent="moveHit(-1)"
         @keydown.esc="clear"
+      />
+      <SearchHitList
+        v-if="showHits"
+        :hits="hits"
+        :active-index="activeHit"
+        :searching="searching"
+        :failed="searchFailed"
+        :term="filter.trim()"
+        @pick="openHit"
+        @hover="activeHit = $event"
       />
       <span
         class="pointer-events-none absolute right-2.5 top-1/2 flex -translate-y-1/2 items-center gap-1"
@@ -152,9 +228,13 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
     <ClaudeUsageMeter class="shrink-0" />
 
     <div class="ml-auto flex items-center gap-3">
+      <ReviewQueueButton />
+      <!-- Under 1440px the bar has no room for the word: the dot's colour carries it, and the word
+           stays for screen readers and as the tooltip. -->
       <p
-        class="flex min-w-[92px] items-center gap-2 text-[12px]"
+        class="flex min-w-[92px] items-center gap-2 text-[12px] max-[1440px]:min-w-0"
         :class="saveState === 'unsaved' ? 'text-warn' : 'text-text-subtle'"
+        :title="SAVE_LABEL[saveState]"
         role="status"
         aria-live="polite"
         data-testid="save-state"
@@ -164,7 +244,7 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
           :class="[SAVE_DOT[saveState], justSaved && 'settle']"
           aria-hidden="true"
         />
-        {{ SAVE_LABEL[saveState] }}
+        <span class="max-[1440px]:sr-only">{{ SAVE_LABEL[saveState] }}</span>
       </p>
       <a
         href="/api/export"

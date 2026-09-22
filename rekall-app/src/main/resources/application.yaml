@@ -42,6 +42,13 @@ spring:
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
 
+  # A backup uploaded to restore is the whole database zipped; the default 1 MB cap would refuse
+  # any real one.
+  servlet:
+    multipart:
+      max-file-size: 1GB
+      max-request-size: 1GB
+
 server:
   # Not 8080. Rekall runs all day on a developer machine, where 8080 is the first port
   # anything else takes, and the MCP endpoint is registered with Claude Code as a fixed

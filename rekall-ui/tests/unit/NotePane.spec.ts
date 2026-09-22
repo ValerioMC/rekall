@@ -70,6 +70,8 @@ function makeDocument(on: Task[]): RekallDocument {
     kind: 'notes',
     bodyMarkdown: 'body',
     tasks: on.map(taskRef),
+    contextMode: 'FULL',
+    anchor: 'note:00000000',
     updatedAt: '2026-09-05T10:00:00Z'
   }
 }
@@ -151,5 +153,32 @@ describe('NotePane membership strip', () => {
     await wrapper.get('[aria-label="Remove this note from Filing drawer"]').trigger('click')
 
     expect(store.saveNote).toHaveBeenCalledWith('d1', { taskIds: [live] })
+  })
+})
+
+describe('NotePane context mode', () => {
+  beforeEach(() => {
+    pinia = createPinia()
+    setActivePinia(pinia)
+  })
+
+  it('sends a note by reference, and back in full, saving only the mode', async () => {
+    const store = seed(makeDocument([tasks[0]!]), live)
+    const wrapper = render()
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="note-context-mode-full"]').attributes('aria-checked')).toBe('true')
+
+    await wrapper.get('[data-testid="note-context-mode-reference"]').trigger('click')
+    expect(store.saveNote).toHaveBeenCalledWith('d1', { contextMode: 'REFERENCE' })
+  })
+
+  it('does not save when the mode picked is the one it has', async () => {
+    const store = seed(makeDocument([tasks[0]!]), live)
+    const wrapper = render()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="note-context-mode-full"]').trigger('click')
+    expect(store.saveNote).not.toHaveBeenCalled()
   })
 })

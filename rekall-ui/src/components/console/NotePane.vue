@@ -13,6 +13,7 @@ import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { rkCommand } from '@/common/format/rk-command'
 import { DOCUMENT_KINDS } from '@/model/catalog'
+import type { DocumentContextMode } from '@/model/catalog'
 import type { TaskId } from '@/model/branded'
 
 const store = useConsoleStore()
@@ -132,6 +133,17 @@ async function detachFrom(taskId: TaskId): Promise<void> {
         taskIds: document.tasks.filter((task) => task.id !== taskId).map((task) => task.id)
       }),
     'Removed from that task.'
+  )
+}
+
+async function setContextMode(contextMode: DocumentContextMode): Promise<void> {
+  const document = selectedDocument.value
+  if (!document || document.contextMode === contextMode) return
+  await run(
+    () => store.saveNote(document.id, { contextMode }),
+    contextMode === 'REFERENCE'
+      ? `Sessions now get a line and ${document.anchor}, and load the rest when they need it.`
+      : 'Sessions now get this note in full.'
   )
 }
 
@@ -351,6 +363,38 @@ async function confirmDelete(): Promise<void> {
 
       <div class="flex min-h-0 flex-1 flex-col">
         <div class="flex shrink-0 items-center gap-2 border-b border-border px-5 py-1.5">
+          <div
+            class="inline-flex items-center rounded-[var(--radius-control)] border border-border p-0.5 text-[11px]"
+            role="radiogroup"
+            aria-label="How sessions get this note"
+            data-testid="note-context-mode"
+          >
+            <button
+              v-for="option in [
+                { mode: 'FULL', label: 'In full', hint: 'Every session on its tasks reads the whole note.' },
+                {
+                  mode: 'REFERENCE',
+                  label: 'By reference',
+                  hint: `Sessions get the title, the first line and ${selectedDocument.anchor}, and load the rest only when the work needs it.`
+                }
+              ] as const"
+              :key="option.mode"
+              type="button"
+              role="radio"
+              :aria-checked="selectedDocument.contextMode === option.mode"
+              :title="option.hint"
+              class="focus-ring rounded-[calc(var(--radius-control)-2px)] px-2 py-0.5 font-medium transition-colors"
+              :class="
+                selectedDocument.contextMode === option.mode
+                  ? 'bg-accent-soft text-accent'
+                  : 'text-text-subtle hover:text-text'
+              "
+              :data-testid="`note-context-mode-${option.mode.toLowerCase()}`"
+              @click="setContextMode(option.mode)"
+            >
+              {{ option.label }}
+            </button>
+          </div>
           <AppModeToggle v-model="mode" class="ml-auto" />
         </div>
 

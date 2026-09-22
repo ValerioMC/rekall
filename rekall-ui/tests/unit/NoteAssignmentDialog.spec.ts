@@ -111,6 +111,8 @@ function makeDocument(on: Task[]): RekallDocument {
     kind: 'notes',
     bodyMarkdown: 'body',
     tasks: on.map(ref),
+    contextMode: 'FULL',
+    anchor: 'note:00000000',
     updatedAt: '2026-09-05T10:00:00Z'
   }
 }

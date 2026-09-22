@@ -81,6 +81,8 @@ const note = (on: TaskId[]): RekallDocument => ({
   kind: 'notes',
   bodyMarkdown: 'Accesso via bastion',
   tasks: on.map(refOf),
+  contextMode: 'FULL',
+  anchor: 'note:00000000',
   updatedAt: '2026-09-01T10:00:00Z'
 })
 
