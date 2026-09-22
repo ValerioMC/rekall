@@ -180,7 +180,9 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
         <NoteComposerPane v-else-if="noteComposerOpen" />
         <NotePlacementsPane v-else />
       </Transition>
-      <div id="note" class="flex min-h-0 min-w-0 flex-1" tabindex="-1">
+      <!-- A place focus is sent to (the skip link, a pane shortcut), never a control, so it
+           draws no ring: the pane that appears in it is what says where you are. -->
+      <div id="note" class="flex min-h-0 min-w-0 flex-1 outline-none" tabindex="-1">
         <Transition name="pane" mode="out-in">
           <WrapupPane v-if="paneFocus === 'wrapup'" />
           <DescriptionPane v-else-if="paneFocus === 'description'" ref="descriptionPane" />

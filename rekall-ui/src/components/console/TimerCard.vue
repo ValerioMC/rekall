@@ -47,7 +47,7 @@ function toggle(): void {
 
 <template>
   <div
-    class="mb-2 rounded-[var(--radius-control)] border p-2.5 transition-colors"
+    class="mb-3 rounded-[var(--radius-card)] border px-3 py-2.5 transition-colors"
     :class="isRunning ? 'border-accent/50 bg-accent-soft' : 'border-border-strong bg-surface-raised'"
     data-testid="timer-card"
   >

@@ -23,39 +23,37 @@ const accepted = computed(() => props.reviewState === 'DONE')
 <template>
   <button
     data-testid="description-card"
-    class="focus-ring mb-2 block w-full rounded-[var(--radius-control)] border p-2.5 text-left transition-all"
-    :class="[
-      hasBody
-        ? 'border-border-strong bg-surface-raised hover:border-text-subtle'
-        : 'border-dashed border-border-strong bg-transparent hover:border-accent hover:bg-accent-soft',
-      selected && 'selected-card'
-    ]"
+    class="dossier-section"
+    :class="selected && 'dossier-section-selected'"
     :aria-current="selected"
     @click="emit('open')"
   >
-    <span class="flex items-center gap-2">
-      <svg
-        class="size-3 shrink-0 transition-colors"
-        :class="selected ? 'text-accent' : hasBody ? 'text-text-muted' : 'text-text-subtle'"
-        viewBox="0 0 12 12"
-        fill="none"
-        aria-hidden="true"
-      >
+    <span
+      class="dossier-node"
+      :class="selected ? 'dossier-node-lit' : !hasBody && 'dossier-node-empty'"
+      aria-hidden="true"
+    >
+      <svg class="size-[9px]" viewBox="0 0 12 12" fill="none">
         <path
           d="M2.6 1.1h4.1l2.7 2.7v7.1H2.6z"
           stroke="currentColor"
-          stroke-width="1.2"
+          stroke-width="1.4"
           stroke-linejoin="round"
         />
         <path
           v-if="hasBody"
           d="M4.5 6.1h3.2M4.5 8.2h2"
           stroke="currentColor"
-          stroke-width="1.1"
+          stroke-width="1.3"
           stroke-linecap="round"
         />
       </svg>
-      <span class="eyebrow">
+    </span>
+    <span class="flex min-h-[17px] items-center gap-2">
+      <span
+        class="text-[11.5px] font-semibold tracking-[0.005em] transition-colors"
+        :class="selected ? 'text-text' : 'text-text-muted'"
+      >
         Description
       </span>
       <span

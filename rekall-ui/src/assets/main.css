@@ -329,6 +329,154 @@
 }
 
 /*
+ * The dossier: what `/rk` hands a session about the task in view.
+ *
+ * The description, the checklist, the wrapup and the notes are not four unrelated cards, they are
+ * one context, loaded together, in that order. So they are bound as one strip and hung off a
+ * single rail, a node per piece. The node says how the piece enters the context: solid when it
+ * is there, dashed when it is empty, a hollow ring for a note loaded only on request. The piece
+ * open in the main pane lights its node in the accent and warms its section, the same way the
+ * selected navigator row does.
+ */
+@utility dossier {
+  position: relative;
+  isolation: isolate;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--color-surface-raised) 52%, var(--color-surface));
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.025),
+    0 18px 36px -28px rgb(0 0 0 / 0.8);
+  overflow: hidden;
+
+  /* The rail. It fades out at the foot, where the list of notes ends rather than stops. */
+  &::before {
+    content: '';
+    position: absolute;
+    z-index: 0;
+    left: 20px;
+    top: 20px;
+    bottom: 18px;
+    width: 1px;
+    background: linear-gradient(
+      180deg,
+      var(--color-border-strong) 0%,
+      var(--color-border-strong) 70%,
+      transparent 100%
+    );
+  }
+}
+
+@utility dossier-section {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  padding: 10px 12px 11px 38px;
+  text-align: left;
+  transition: background-color 140ms ease;
+
+  &:hover {
+    background: color-mix(in srgb, var(--color-surface-hover) 72%, transparent);
+  }
+
+  /* Drawn inside the section: the strip clips its corners, and a ring outside it would be cut. */
+  outline: none;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: -2px;
+  }
+}
+
+/* The seam above a section. It starts after the rail, so the rail reads as unbroken. */
+@utility dossier-seam {
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 38px;
+    right: 12px;
+    height: 1px;
+    background: var(--color-border);
+  }
+}
+
+@utility dossier-section-selected {
+  background:
+    radial-gradient(240px 72px at 20px 20px, var(--color-accent-soft), transparent 72%),
+    color-mix(in srgb, var(--color-surface-hover) 64%, transparent);
+
+  &:hover {
+    background:
+      radial-gradient(240px 72px at 20px 20px, var(--color-accent-soft), transparent 72%),
+      color-mix(in srgb, var(--color-surface-hover) 80%, transparent);
+  }
+}
+
+/* A piece's node on the rail. Opaque, so the rail passes behind it rather than through it. */
+@utility dossier-node {
+  position: absolute;
+  left: 13px;
+  top: 11px;
+  display: grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 9999px;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-strong);
+  color: var(--color-text-muted);
+  transition:
+    color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+@utility dossier-node-empty {
+  border-style: dashed;
+  color: var(--color-text-subtle);
+  background: var(--color-surface);
+}
+
+@utility dossier-node-lit {
+  color: var(--color-accent);
+  border-color: color-mix(in srgb, var(--color-accent) 62%, transparent);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--color-accent) 12%, transparent),
+    0 0 12px -2px color-mix(in srgb, var(--color-accent) 55%, transparent);
+}
+
+/* A note's node: smaller than a piece's, because a note hangs off the context rather than
+   being one of its fixed parts. */
+@utility dossier-leaf {
+  position: absolute;
+  left: 16.5px;
+  top: 15px;
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: var(--color-text-subtle);
+  box-shadow: 0 0 0 3px var(--color-surface-raised);
+  transition:
+    background-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+@utility dossier-leaf-reference {
+  background: var(--color-surface-raised);
+  border: 1.5px solid var(--color-text-subtle);
+}
+
+@utility dossier-leaf-lit {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  box-shadow:
+    0 0 0 3px var(--color-surface-raised),
+    0 0 10px 0 color-mix(in srgb, var(--color-accent) 60%, transparent);
+}
+
+/*
  * A group heading in the navigator's index: the status name, a project name, the filing
  * drawer's label. Ordinary case in the interface face rather than tracked-out capitals, so the
  * pane reads as a set of named shelves and not a stack of shouted tags. Sits one weight above

@@ -89,54 +89,66 @@ watch(
             :color="task.tagColor"
           />
         </span>
-        <span class="mt-1 flex items-center gap-1.5 truncate">
+        <span class="mt-1 flex min-w-0 items-center gap-1.5">
           <template v-if="showContext && showCompany">
             <span class="shrink-0 truncate text-[10px] text-text-subtle">{{ task.companyName }}</span>
             <span class="shrink-0 text-[10px] text-text-subtle" aria-hidden="true">/</span>
           </template>
-          <span class="anchor-chip shrink-0 truncate px-1.5 py-px text-[9.5px] leading-[15px]">
+          <span class="anchor-chip min-w-0 truncate px-1.5 py-px text-[9.5px] leading-[15px]">
             {{ task.label }}
           </span>
-        </span>
-      </span>
 
-      <span
-        class="mt-[3px] flex shrink-0 items-center gap-1.5 font-mono text-[10.5px] text-text-subtle"
-      >
-        <span
-          v-if="task.stepCount > 0"
-          class="tabular-nums"
-          :class="task.stepsDone === task.stepCount ? 'text-safe' : ''"
-          :title="`${task.stepsDone} of ${task.stepCount} steps done`"
-          data-testid="task-steps"
-        >
-          {{ task.stepsDone }}/{{ task.stepCount }}
+          <!-- What the task carries, on the anchor's line so the title keeps the whole width above.
+               It steps aside for the edit control under the pointer rather than sitting beneath it. -->
+          <span
+            class="ml-auto flex shrink-0 items-center gap-2 pl-1 font-mono text-[10px] text-text-subtle transition-opacity duration-100 group-hover/task:opacity-0 group-focus-within/task:opacity-0"
+          >
+            <span
+              v-if="task.stepCount > 0"
+              class="tabular-nums"
+              :class="task.stepsDone === task.stepCount ? 'text-safe' : 'text-text-muted'"
+              :title="`${task.stepsDone} of ${task.stepCount} steps done`"
+              data-testid="task-steps"
+            >
+              {{ task.stepsDone }}/{{ task.stepCount }}
+            </span>
+            <span
+              v-if="task.draftStepCount > 0"
+              class="inline-flex items-center gap-[3px] tabular-nums"
+              :title="`${task.draftStepCount} step${task.draftStepCount > 1 ? 's' : ''} in draft`"
+              data-testid="task-drafts"
+            >
+              <span class="size-[7px] rounded-[2px] border border-dashed border-current" aria-hidden="true" />
+              {{ task.draftStepCount }}
+            </span>
+            <span
+              v-if="awaitingReview && task.draftStepCount === 0"
+              class="size-1.5 rounded-full bg-accent"
+              title="Awaiting your review"
+              data-testid="task-review-dot"
+            />
+            <svg v-if="task.hasWrapup" class="size-2 text-text-muted" viewBox="0 0 12 12" role="img">
+              <title>Has a wrapup</title>
+              <path d="M6 1.2 10.8 6 6 10.8 1.2 6z" fill="currentColor" />
+            </svg>
+            <span
+              v-if="task.documentCount > 0"
+              class="inline-flex items-center gap-[3px] tabular-nums"
+              :title="`${task.documentCount} note${task.documentCount > 1 ? 's' : ''}`"
+            >
+              <svg class="size-2" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                <path d="M3 1.5h6v9H3z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+              </svg>
+              {{ task.documentCount }}
+            </span>
+          </span>
         </span>
-        <span
-          v-if="task.draftStepCount > 0"
-          class="tabular-nums text-text-subtle/80"
-          :title="`${task.draftStepCount} step${task.draftStepCount > 1 ? 's' : ''} in draft`"
-          data-testid="task-drafts"
-        >
-          {{ task.draftStepCount }}d
-        </span>
-        <span
-          v-if="awaitingReview && task.draftStepCount === 0"
-          class="size-1.5 rounded-full bg-accent"
-          title="Awaiting your review"
-          data-testid="task-review-dot"
-        />
-        <svg v-if="task.hasWrapup" class="size-2.5 text-text-muted" viewBox="0 0 12 12" role="img">
-          <title>Has a wrapup</title>
-          <path d="M6 1.2 10.8 6 6 10.8 1.2 6z" fill="currentColor" />
-        </svg>
-        <span class="tabular-nums">{{ task.documentCount }}</span>
       </span>
     </button>
 
     <button
       data-testid="edit-task"
-      class="focus-ring absolute right-1.5 top-1/2 grid size-6 -translate-y-1/2 translate-x-1 place-items-center rounded-md border border-border-strong bg-surface-hover text-text-subtle opacity-0 shadow-lift transition-all hover:text-accent focus-visible:translate-x-0 focus-visible:opacity-100 group-hover/task:translate-x-0 group-hover/task:opacity-100"
+      class="focus-ring absolute bottom-[5px] right-1.5 grid size-6 translate-x-1 place-items-center rounded-md border border-border-strong bg-surface-hover text-text-subtle opacity-0 shadow-lift transition-all hover:text-accent focus-visible:translate-x-0 focus-visible:opacity-100 group-hover/task:translate-x-0 group-hover/task:opacity-100"
       :aria-label="`Edit ${task.title}`"
       @click.stop="$emit('edit')"
     >

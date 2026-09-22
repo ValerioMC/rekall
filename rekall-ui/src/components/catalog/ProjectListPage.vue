@@ -213,11 +213,15 @@ async function confirmDelete(): Promise<void> {
 
               <div class="pointer-events-none mt-auto flex items-center justify-between text-[11px] text-text-subtle">
                 <span>{{ project.taskCount }} task{{ project.taskCount === 1 ? '' : 's' }}</span>
-                <span>{{ relativeTime(project.updatedAt) }}</span>
+                <!-- Steps aside for the delete control under the pointer, rather than the card
+                     keeping an empty row at its foot for a control that is hidden at rest. -->
+                <span class="transition-opacity duration-100 group-hover/card:opacity-0 group-focus-within/card:opacity-0">
+                  {{ relativeTime(project.updatedAt) }}
+                </span>
               </div>
 
               <button
-                class="focus-ring pointer-events-auto relative z-10 ml-auto grid size-7 place-items-center self-end rounded text-text-subtle opacity-0 transition hover:bg-surface-hover hover:text-danger focus-visible:opacity-100 group-hover/card:opacity-100"
+                class="focus-ring pointer-events-auto absolute bottom-2.5 right-2.5 z-10 grid size-7 place-items-center rounded text-text-subtle opacity-0 transition hover:bg-surface-hover hover:text-danger focus-visible:opacity-100 group-hover/card:opacity-100"
                 :aria-label="`Delete ${project.title}`"
                 data-testid="delete-project"
                 @click.stop="deleting = project"

@@ -193,10 +193,6 @@ const TOOLBARS: ToolbarNames[] = [
   overflow: hidden;
 }
 
-.rekall-md .md-editor-toolbar-item:hover {
-  color: var(--color-accent);
-}
-
 /*
  * The writing caret, made worth watching: wider than CodeMirror's default hairline and lit with
  * a soft accent glow that breathes rather than the library's hard on/off blink, so the point
@@ -218,54 +214,313 @@ const TOOLBARS: ToolbarNames[] = [
   }
 }
 
+/*
+ * The page.
+ *
+ * Everything Rekall hands a session is read here first: a brief, a wrapup, a note, a step's
+ * detail. So it is typeset rather than dropped into the library's GitHub theme: the interface
+ * face instead of the system stack, a measure held by the reading column, a scale that steps by
+ * a fifth, and headings that hang a short tick into the left margin so a long wrapup can be
+ * scanned by its sections without a rule across every one of them.
+ */
+.rekall-md .md-editor,
+.rekall-md .md-editor-previewOnly,
 .rekall-md .md-editor-preview {
+  font-family: var(--font-sans);
+}
+
+.rekall-md .md-editor-preview {
+  --rk-prose: color-mix(in srgb, var(--color-text) 72%, var(--color-text-muted));
   font-size: 13.5px;
   line-height: 1.7;
-  color: var(--color-text-muted);
-}
-
-.rekall-md .md-editor-preview {
+  color: var(--rk-prose);
   word-break: normal;
   overflow-wrap: break-word;
+  font-feature-settings: 'kern', 'liga', 'tnum' 0;
 }
 
-.rekall-md .md-editor-preview ul {
-  list-style: disc;
-  padding-left: 1.35em;
-}
-
-.rekall-md .md-editor-preview ol {
-  list-style: decimal;
-  padding-left: 1.35em;
-}
-
-.rekall-md .md-editor-preview li::marker {
-  color: var(--color-text-subtle);
+.rekall-md .md-editor-preview > :first-child {
+  margin-top: 0;
 }
 
 .rekall-md .md-editor-preview h1,
 .rekall-md .md-editor-preview h2,
 .rekall-md .md-editor-preview h3,
 .rekall-md .md-editor-preview h4 {
+  position: relative;
   color: var(--color-text);
   border-bottom: none;
+  padding-bottom: 0;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.rekall-md .md-editor-preview h1 {
+  font-size: 1.62em;
+  letter-spacing: -0.018em;
+  margin: 0 0 0.7em;
+}
+
+.rekall-md .md-editor-preview h2 {
+  font-size: 1.2em;
+  letter-spacing: -0.008em;
+  margin: 2.1em 0 0.6em;
+}
+
+.rekall-md .md-editor-preview h3 {
+  font-size: 1em;
+  margin: 1.7em 0 0.45em;
+}
+
+.rekall-md .md-editor-preview h4 {
+  font-size: 0.93em;
+  color: var(--color-text-muted);
+  margin: 1.5em 0 0.4em;
+}
+
+/* The section tick: a short bar hung in the margin, level with the heading's x-height. */
+.rekall-md .md-editor-preview h2::before,
+.rekall-md .md-editor-preview h3::before {
+  content: '';
+  position: absolute;
+  top: 0.62em;
+  left: -22px;
+  height: 2px;
+  width: 12px;
+  border-radius: 2px;
+  background: var(--color-border-strong);
+}
+
+.rekall-md .md-editor-preview h3::before {
+  width: 7px;
+  left: -17px;
+}
+
+.rekall-md .md-editor-preview p,
+.rekall-md .md-editor-preview ul,
+.rekall-md .md-editor-preview ol,
+.rekall-md .md-editor-preview blockquote,
+.rekall-md .md-editor-preview table,
+.rekall-md .md-editor-preview pre {
+  margin: 0 0 1em;
+}
+
+.rekall-md .md-editor-preview strong {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.rekall-md .md-editor-preview ul {
+  list-style: none;
+  padding-left: 1.25em;
+}
+
+/* A short dash rather than a bullet: it sits on the x-height and reads as a list of statements. */
+.rekall-md .md-editor-preview ul > li {
+  position: relative;
+}
+
+.rekall-md .md-editor-preview ul > li::before {
+  content: '';
+  position: absolute;
+  top: 0.82em;
+  left: -1.05em;
+  width: 0.5em;
+  height: 1.5px;
+  border-radius: 1px;
+  background: var(--color-text-subtle);
+}
+
+.rekall-md .md-editor-preview ul.contains-task-list > li::before,
+.rekall-md .md-editor-preview ul > li.task-list-item::before {
+  display: none;
+}
+
+.rekall-md .md-editor-preview ol {
+  list-style: decimal;
+  padding-left: 1.4em;
+}
+
+.rekall-md .md-editor-preview ol > li::marker {
+  color: var(--color-text-subtle);
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+}
+
+.rekall-md .md-editor-preview li + li {
+  margin-top: 0.3em;
+}
+
+.rekall-md .md-editor-preview li > ul,
+.rekall-md .md-editor-preview li > ol {
+  margin: 0.3em 0 0;
+}
+
+.rekall-md .md-editor-preview input[type='checkbox'] {
+  accent-color: var(--color-accent);
+  margin-right: 0.45em;
+  translate: 0 1px;
 }
 
 .rekall-md .md-editor-preview a {
-  color: var(--color-accent);
+  color: var(--color-accent-strong);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--color-accent) 40%, transparent);
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  transition: text-decoration-color 120ms ease;
 }
 
+.rekall-md .md-editor-preview a:hover {
+  text-decoration-color: var(--color-accent-strong);
+}
+
+/*
+ * Code is neutral and anchors are cyan, the split the tokens in main.css set out: amber is where
+ * you are and what you are about to do, so it has no business on every identifier in a wrapup.
+ */
 .rekall-md .md-editor-preview code {
-  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  color: var(--color-text);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: 5px;
+  padding: 0.1em 0.38em;
+  white-space: break-spaces;
+}
+
+.rekall-md .md-editor-preview code.rk-anchor {
+  color: var(--color-anchor);
+  background: var(--color-anchor-soft);
+  border-color: var(--color-anchor-line);
+}
+
+.rekall-md .md-editor-preview pre {
+  background: var(--color-canvas);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
 }
 
 .rekall-md .md-editor-preview pre code {
   color: inherit;
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: 12.5px;
+  white-space: pre;
+}
+
+.rekall-md .md-editor-preview blockquote {
+  border-left: 2px solid var(--color-border-strong);
+  padding: 0.1em 0 0.1em 1em;
+  color: var(--color-text-muted);
+}
+
+.rekall-md .md-editor-preview blockquote > :last-child,
+.rekall-md .md-editor-preview li > p:last-child {
+  margin-bottom: 0;
+}
+
+.rekall-md .md-editor-preview hr {
+  height: 0;
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: 2em 0;
+  background: none;
+}
+
+.rekall-md .md-editor-preview table {
+  display: table;
+  width: auto;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  overflow: hidden;
+  font-size: 0.93em;
+}
+
+.rekall-md .md-editor-preview table th,
+.rekall-md .md-editor-preview table td {
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  padding: 0.45em 0.9em;
+  text-align: left;
+}
+
+.rekall-md .md-editor-preview table tr:last-child td {
+  border-bottom: none;
+}
+
+.rekall-md .md-editor-preview table tr {
+  background: transparent;
+  border: none;
 }
 
 .rekall-md .md-editor-preview table th {
   background: var(--color-surface-raised);
   color: var(--color-text);
+  font-weight: 600;
+}
+
+/*
+ * The writing surface: a quiet toolbar that lights only what is on, source set in the code face
+ * at the same size the page is read at, and a footer that counts in the chrome's voice rather
+ * than the library's.
+ */
+.rekall-md .md-editor-toolbar-wrapper {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.rekall-md .md-editor-toolbar-item {
+  color: var(--color-text-subtle);
+  border-radius: 6px;
+  transition:
+    color 120ms ease,
+    background-color 120ms ease;
+}
+
+.rekall-md .md-editor-toolbar-item:hover {
+  color: var(--color-text);
+  background: var(--color-surface-hover);
+}
+
+.rekall-md .md-editor-toolbar-active {
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.rekall-md .md-editor-toolbar-divider {
+  background: var(--color-border);
+}
+
+.rekall-md .md-editor .cm-scroller {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.75;
+}
+
+.rekall-md .md-editor .cm-content {
+  padding-block: 18px;
+}
+
+.rekall-md .md-editor .cm-line {
+  padding-inline: 18px;
+}
+
+.rekall-md .md-editor-footer {
+  height: 28px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--color-text-subtle);
+  border-color: var(--color-border);
+  background: var(--color-surface);
+}
+
+.rekall-md .md-editor-preview-wrapper .md-editor-preview {
+  padding: 18px 26px 28px 30px;
 }
 
 .rekall-md--readonly {
@@ -277,7 +532,7 @@ const TOOLBARS: ToolbarNames[] = [
   width: 100%;
   max-width: var(--rk-read-width, 680px);
   margin-inline: auto;
-  padding: 40px 24px 56px !important;
+  padding: 32px 28px 56px !important;
   font-size: 14.5px !important;
   line-height: 1.75 !important;
   box-sizing: border-box;
@@ -294,11 +549,15 @@ const TOOLBARS: ToolbarNames[] = [
   border: none;
 }
 
+/* Held over the page's top-right corner rather than given a row of its own, so opening a read
+   view does not start with a strip of nothing above the first line. */
 .rekall-read-controls {
   align-self: flex-end;
   position: sticky;
   top: 12px;
   z-index: 10;
-  margin: 8px 12px 0 0;
+  height: 0;
+  margin-right: 12px;
+  overflow: visible;
 }
 </style>
