@@ -11,6 +11,7 @@ import OpenTerminalButton from '@/components/claude/OpenTerminalButton.vue'
 import LogCommitButton from '@/components/console/LogCommitButton.vue'
 import NotesButton from '@/components/console/NotesButton.vue'
 import PlanHereButton from '@/components/console/PlanHereButton.vue'
+import StepSeal from '@/components/console/StepSeal.vue'
 import CommitReferenceList from '@/components/console/CommitReferenceList.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
@@ -420,9 +421,9 @@ onUnmounted(() => rowObserver?.disconnect())
                     ? 'bg-safe/80'
                     : 'bg-accent'
                   : step.state === 'CLAIMED'
-                    ? 'bg-accent/60'
+                    ? 'ledger-claimed'
                     : step.state === 'RUNNING'
-                      ? 'bg-accent/50 animate-pulse'
+                      ? 'ledger-running'
                       : step.id === currentId
                         ? 'bg-accent/25'
                         : 'bg-border-strong'
@@ -533,7 +534,12 @@ onUnmounted(() => rowObserver?.disconnect())
               Every step is done. Show them again to correct one.
             </p>
 
-            <ol v-else ref="listEl" class="relative min-w-0">
+            <ol
+              v-else
+              ref="listEl"
+              class="relative min-w-0"
+              :style="done === checklistSteps.length ? { '--rail-tint': 'var(--color-safe)' } : undefined"
+            >
           <span
             v-if="stream"
             class="energy-stream"
@@ -552,7 +558,7 @@ onUnmounted(() => rowObserver?.disconnect())
             <span
               class="absolute left-[11px] -translate-x-1/2"
               :class="{
-                'w-px bg-border-strong': railKind(index) === 'pending',
+                'w-px pending-rail': railKind(index) === 'pending',
                 'w-px spent-rail': railKind(index) === 'spent'
               }"
               :style="railStyle(index)"
@@ -560,16 +566,12 @@ onUnmounted(() => rowObserver?.disconnect())
             />
 
             <button
-              class="focus-ring absolute left-0 top-[7px] z-10 grid size-[22px] place-items-center rounded-full border transition-all duration-200"
+              class="focus-ring absolute left-0 top-[7px] z-10 size-[22px] rounded-full"
               :class="{
-                'border-accent bg-accent text-accent-ink cursor-default': step.state === 'DONE',
-                'border-accent bg-accent-soft text-accent': step.state === 'CLAIMED',
-                'step-node-running border-accent bg-canvas text-accent shadow-[0_0_0_4px_var(--color-accent-soft)]':
-                  step.state === 'RUNNING',
-                'border-accent bg-canvas text-accent shadow-[0_0_0_4px_var(--color-accent-soft)]':
-                  step.state === 'OPEN' && step.id === currentId,
-                'border-border-strong bg-canvas text-transparent hover:border-accent':
-                  step.state === 'OPEN' && step.id !== currentId
+                'cursor-default': step.state === 'DONE',
+                'step-node-running': step.state === 'RUNNING',
+                'shadow-[0_0_0_4px_var(--color-accent-soft)]':
+                  step.state === 'RUNNING' || step.id === currentId
               }"
               role="checkbox"
               :aria-checked="
@@ -577,31 +579,13 @@ onUnmounted(() => rowObserver?.disconnect())
               "
               :aria-label="checkboxLabel(step)"
               data-testid="step-checkbox"
+              data-seal-host
               @click="markForward(step)"
             >
-              <svg
-                v-if="step.state === 'DONE'"
-                class="size-3"
-                viewBox="0 0 24 24"
-                fill="none"
-                aria-hidden="true"
-              >
-                <path
-                  d="M5 12.5l4.5 4.5L19 7.5"
-                  stroke="currentColor"
-                  stroke-width="2.8"
-                  stroke-linecap="round"
-                />
-              </svg>
-              <span
-                v-else-if="step.state === 'CLAIMED'"
-                class="size-2.5 rounded-full border-[1.5px] border-accent"
-                aria-hidden="true"
-              />
-              <span
-                v-else-if="step.state === 'RUNNING' || step.id === currentId"
-                class="size-[7px] rounded-full bg-accent"
-                aria-hidden="true"
+              <StepSeal
+                :state="step.state"
+                :next="step.id === currentId"
+                :complete="done === checklistSteps.length"
               />
             </button>
 
@@ -908,6 +892,7 @@ onUnmounted(() => rowObserver?.disconnect())
                 :key="step.id"
                 class="group/draft relative min-w-0"
                 data-testid="draft-row"
+                data-seal-host
                 :data-step-id="step.id"
               >
                 <div
@@ -919,18 +904,8 @@ onUnmounted(() => rowObserver?.disconnect())
                   "
                 >
                   <div class="flex items-start gap-2">
-                    <span
-                      class="mt-[3px] grid size-[18px] shrink-0 place-items-center rounded-[5px] border border-dashed border-border-strong text-text-subtle"
-                      aria-hidden="true"
-                    >
-                      <svg class="size-2.5" viewBox="0 0 12 12" fill="none">
-                        <path
-                          d="M8.1 1.7 10.3 3.9 4.4 9.8 1.6 10.4 2.2 7.6z"
-                          stroke="currentColor"
-                          stroke-width="1.1"
-                          stroke-linejoin="round"
-                        />
-                      </svg>
+                    <span class="mt-[1px] size-[22px] shrink-0">
+                      <StepSeal state="DRAFT" />
                     </span>
 
                     <button

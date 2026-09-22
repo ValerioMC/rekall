@@ -1071,9 +1071,57 @@
 }
 
 /* The connector on a finished row above the running one: solid, stepped back to half light so
-   the live conduit leads. */
+   the live conduit leads. `--rail-tint` turns it green once the whole checklist is done, with
+   the seals and the ledger. */
 @utility spent-rail {
-  background: color-mix(in srgb, var(--color-accent) 42%, transparent);
+  background: color-mix(in srgb, var(--rail-tint, var(--color-accent)) 42%, transparent);
+}
+
+/* The connector below a step not yet reached: dotted, a path drawn but not walked. The spent
+   rail above is solid, so the checklist's line reads as travelled up to where the work is. */
+@utility pending-rail {
+  background: repeating-linear-gradient(
+    180deg,
+    var(--color-border-strong) 0 2px,
+    transparent 2px 5px
+  );
+}
+
+/*
+ * Ledger segments for the two states that are neither finished nor untouched.
+ *
+ * A claimed step is hatched: handed in, not yet stamped, the same half-way the seal's open ring
+ * says on the checklist. A running one carries a sheen crossing it on the checklist's 1.7s beat,
+ * so the ledger, the node and the conduit all move together and nothing else on the pane does.
+ */
+@utility ledger-claimed {
+  background: repeating-linear-gradient(
+    -45deg,
+    color-mix(in srgb, var(--color-accent) 78%, transparent) 0 2px,
+    color-mix(in srgb, var(--color-accent) 30%, transparent) 2px 4px
+  );
+}
+
+@utility ledger-running {
+  background-color: color-mix(in srgb, var(--color-accent) 42%, transparent);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--color-accent-strong) 50%,
+    transparent 100%
+  );
+  background-size: 45% 100%;
+  background-repeat: no-repeat;
+  animation: ledger-sheen 1.7s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+@keyframes ledger-sheen {
+  from {
+    background-position: -120% 0;
+  }
+  to {
+    background-position: 220% 0;
+  }
 }
 
 @keyframes step-pulse {

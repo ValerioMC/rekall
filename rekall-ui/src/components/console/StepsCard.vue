@@ -77,9 +77,9 @@ const hasBody = computed(() => hasSteps.value || draftCount.value > 0)
                 ? 'bg-safe/80'
                 : 'bg-accent'
               : step.state === 'CLAIMED'
-                ? 'bg-accent/60'
+                ? 'ledger-claimed'
                 : step.state === 'RUNNING'
-                  ? 'bg-accent/50 animate-pulse'
+                  ? 'ledger-running'
                   : step.id === next?.id
                     ? 'bg-accent/25'
                     : 'bg-border-strong'
