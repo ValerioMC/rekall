@@ -67,6 +67,8 @@ make dmg-jvm      # jar plus a bundled Java runtime. Any JDK 25
 
 Both need the Xcode Command Line Tools for `swiftc`. Both write `dist/Rekall-<version>-<flavour>-<arch>.dmg` and install it into `/Applications` on the build machine, replacing an existing `Rekall.app` and relaunching a running copy. `REKALL_INSTALL=0 make dmg-jvm` stops at the disk image.
 
+The dock icon is `packaging/macos/AppIcon.png`, a 1024 master on Apple's icon grid. It, the PWA icons and `apple-touch-icon.png` are all rendered from `rekall-ui/public/favicon.svg`, which the console also shows as its logo: edit the SVG, run `make icons` (needs Google Chrome), and commit the PNGs it writes. The bundle build only reads them, so it needs neither Chrome nor the SVG.
+
 | | `dmg-native` | `dmg-jvm` |
 |---|---|---|
 | Payload | `Contents/Resources/rekall-app` | `Contents/runtime` plus `rekall-app.jar` |

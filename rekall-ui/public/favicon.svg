@@ -1,44 +1,185 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Rekall">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Rekall">
+  <!--
+    Rekall's mark and the one source for every icon: the browser tab, AppLogo in the console,
+    the PWA icons and the macOS dock. `make icons` renders the PNGs from this file.
+
+    Drawn full bleed on a 1024 plate. The dock master places it on Apple's icon grid with a
+    baked shadow, so nothing here pads itself.
+
+    What it shows, back to front: the matte plate, the orbits of everything Rekall holds, the
+    context ring open on the right, the stack of records inside it with the one in focus lit,
+    and the anchor that enters through the opening and reaches that record.
+  -->
   <defs>
-    <linearGradient id="rk-tile" x1="0.1" y1="0" x2="0.85" y2="1">
-      <stop offset="0" stop-color="#1e2634" />
-      <stop offset="0.52" stop-color="#12161d" />
-      <stop offset="1" stop-color="#08090c" />
+    <clipPath id="rk-plate-clip"><rect width="1024" height="1024" rx="230"/></clipPath>
+
+    <!-- Matte graphite, Terminal's plate: neutral charcoal lit from above, near-black at the foot. -->
+    <linearGradient id="rk-plate" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2e2f32"/>
+      <stop offset="0.42" stop-color="#1a1b1d"/>
+      <stop offset="1" stop-color="#09090a"/>
     </linearGradient>
-    <linearGradient id="rk-sheen" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.10" />
-      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0" />
-    </linearGradient>
-    <linearGradient id="rk-ring" x1="0.08" y1="0" x2="0.92" y2="1">
-      <stop offset="0" stop-color="#ffd08a" />
-      <stop offset="0.44" stop-color="#f5a524" />
-      <stop offset="1" stop-color="#a8681a" />
-    </linearGradient>
-    <linearGradient id="rk-core" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#ffdca4" />
-      <stop offset="1" stop-color="#e09a20" />
-    </linearGradient>
-    <linearGradient id="rk-node" x1="0.15" y1="0" x2="0.85" y2="1">
-      <stop offset="0" stop-color="#c9f2f9" />
-      <stop offset="1" stop-color="#4cc3d5" />
-    </linearGradient>
-    <radialGradient id="rk-glow">
-      <stop offset="0.5" stop-color="#5fd0e0" stop-opacity="0.28" />
-      <stop offset="1" stop-color="#5fd0e0" stop-opacity="0" />
+    <radialGradient id="rk-plate-light" cx="0.5" cy="0" r="0.85">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.06"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
     </radialGradient>
+    <filter id="rk-grain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="1.1" numOctaves="2" seed="11" result="noise"/>
+      <feColorMatrix in="noise" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.05 0"/>
+    </filter>
+    <radialGradient id="rk-vignette" cx="0.5" cy="0.5" r="0.72">
+      <stop offset="0.62" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.42"/>
+    </radialGradient>
+    <linearGradient id="rk-sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.09"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- Warm light the ring throws on the plate. -->
+    <radialGradient id="rk-warmth" cx="0.48" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#f5a524" stop-opacity="0.16"/>
+      <stop offset="0.6" stop-color="#f5a524" stop-opacity="0.04"/>
+      <stop offset="1" stop-color="#f5a524" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- The ring as a tube: dark at both walls, lit along its crown. Radii match the stroke. -->
+    <radialGradient id="rk-tube" gradientUnits="userSpaceOnUse" cx="512" cy="512" r="324">
+      <stop offset="0.68" stop-color="#8a4f0c"/>
+      <stop offset="0.76" stop-color="#e0901c"/>
+      <stop offset="0.84" stop-color="#ffc766"/>
+      <stop offset="0.92" stop-color="#f0a02a"/>
+      <stop offset="1" stop-color="#7c450a"/>
+    </radialGradient>
+    <!-- Light from the top left over the whole ring, shade to the bottom right. -->
+    <linearGradient id="rk-tube-light" gradientUnits="userSpaceOnUse" x1="260" y1="200" x2="760" y2="840">
+      <stop offset="0" stop-color="#fff4dc" stop-opacity="0.55"/>
+      <stop offset="0.45" stop-color="#fff4dc" stop-opacity="0"/>
+      <stop offset="0.6" stop-color="#1a0c00" stop-opacity="0"/>
+      <stop offset="1" stop-color="#1a0c00" stop-opacity="0.5"/>
+    </linearGradient>
+
+    <!-- The record in focus: amber card, lit at its top edge. -->
+    <linearGradient id="rk-card" x1="0.2" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#ffe2b0"/>
+      <stop offset="0.45" stop-color="#f7b242"/>
+      <stop offset="1" stop-color="#d98a1a"/>
+    </linearGradient>
+    <linearGradient id="rk-card-edge" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff6e4" stop-opacity="0.95"/>
+      <stop offset="0.3" stop-color="#fff6e4" stop-opacity="0"/>
+    </linearGradient>
+    <!-- The records behind it: smoked glass with an amber rim. -->
+    <linearGradient id="rk-record" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#34363c"/>
+      <stop offset="1" stop-color="#16171a"/>
+    </linearGradient>
+    <linearGradient id="rk-record-rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffc766" stop-opacity="0.7"/>
+      <stop offset="0.35" stop-color="#ffc766" stop-opacity="0.08"/>
+      <stop offset="1" stop-color="#ffc766" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- The anchor: a glass bead in the colour nothing else uses. -->
+    <radialGradient id="rk-bead" cx="0.36" cy="0.3" r="0.78">
+      <stop offset="0" stop-color="#f2feff"/>
+      <stop offset="0.28" stop-color="#a5eaf4"/>
+      <stop offset="0.66" stop-color="#3fbccf"/>
+      <stop offset="1" stop-color="#0f5866"/>
+    </radialGradient>
+    <radialGradient id="rk-bead-glow">
+      <stop offset="0.3" stop-color="#5fd0e0" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#5fd0e0" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="rk-thread" gradientUnits="userSpaceOnUse" x1="632" y1="0" x2="720" y2="0">
+      <stop offset="0" stop-color="#a5eaf4"/>
+      <stop offset="1" stop-color="#5fd0e0"/>
+    </linearGradient>
+    <linearGradient id="rk-tail" gradientUnits="userSpaceOnUse" x1="884" y1="0" x2="1024" y2="0">
+      <stop offset="0" stop-color="#5fd0e0" stop-opacity="0.6"/>
+      <stop offset="1" stop-color="#5fd0e0" stop-opacity="0"/>
+    </linearGradient>
+
+    <filter id="rk-blur-xl" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="30"/></filter>
+    <filter id="rk-blur-l" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="18"/></filter>
+    <filter id="rk-blur-m" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="9"/></filter>
+    <filter id="rk-blur-s" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3"/></filter>
+
+    <!-- The ring, open where the anchor enters: r 272, gap of ±38° on the right. -->
+    <path id="rk-ring" d="M726.34 344.54 A272 272 0 1 0 726.34 679.46"/>
   </defs>
 
-  <rect width="512" height="512" rx="115" fill="url(#rk-tile)" />
-  <rect width="512" height="512" rx="115" fill="url(#rk-sheen)" />
-  <rect x="3" y="3" width="506" height="506" rx="112.5" fill="none" stroke="#ffd9a8" stroke-opacity="0.16" stroke-width="6" />
+  <!-- Plate -->
+  <rect width="1024" height="1024" rx="230" fill="url(#rk-plate)"/>
 
-  <!-- The context: everything Rekall holds around one task, open where the anchor enters. -->
-  <path d="M362.79 178.41 A132 132 0 1 0 362.79 333.59" fill="none" stroke="url(#rk-ring)" stroke-width="56" stroke-linecap="round" />
+  <g clip-path="url(#rk-plate-clip)">
+    <rect width="1024" height="1024" fill="url(#rk-plate-light)"/>
+    <rect width="1024" height="1024" filter="url(#rk-grain)"/>
+    <rect width="1024" height="1024" fill="url(#rk-warmth)"/>
 
-  <!-- The record in focus. -->
-  <rect x="200" y="200" width="112" height="112" rx="34" fill="url(#rk-core)" />
+    <!-- Orbits: everything else Rekall holds, quiet around the ring. -->
+    <g fill="none" stroke="#c9d3e0" stroke-opacity="0.07" stroke-width="3">
+      <circle cx="512" cy="512" r="392"/>
+      <circle cx="512" cy="512" r="456" stroke-dasharray="2 22" stroke-linecap="round" stroke-width="5" stroke-opacity="0.12"/>
+    </g>
+    <g fill="#c9d3e0" fill-opacity="0.22">
+      <circle cx="235" cy="235" r="7"/>
+      <circle cx="170" cy="610" r="6"/>
+      <circle cx="400" cy="878" r="7"/>
+      <circle cx="660" cy="147" r="6"/>
+    </g>
 
-  <!-- The anchor, in the colour nothing else uses. -->
-  <circle cx="388" cy="256" r="76" fill="url(#rk-glow)" />
-  <circle cx="388" cy="256" r="38" fill="url(#rk-node)" />
+    <!-- The anchor's line in from outside the plate, through the ring's opening. -->
+    <path d="M884 512 H 1024" stroke="url(#rk-tail)" stroke-width="12"/>
+    <circle cx="940" cy="512" r="7" fill="#5fd0e0" fill-opacity="0.5"/>
+
+    <!-- Ring: shadow on the plate, warm bloom, tube, directional light, crown glint. -->
+    <use href="#rk-ring" fill="none" stroke="#000000" stroke-opacity="0.55" stroke-width="100" stroke-linecap="round" transform="translate(0 22)" filter="url(#rk-blur-l)"/>
+    <use href="#rk-ring" fill="none" stroke="#f5a524" stroke-opacity="0.35" stroke-width="120" stroke-linecap="round" filter="url(#rk-blur-xl)"/>
+    <use href="#rk-ring" fill="none" stroke="url(#rk-tube)" stroke-width="100" stroke-linecap="round"/>
+    <use href="#rk-ring" fill="none" stroke="url(#rk-tube-light)" stroke-width="100" stroke-linecap="round"/>
+    <path d="M662.5 312.3 A250 250 0 0 0 295.5 387" fill="none" stroke="#fff8ea" stroke-opacity="0.55" stroke-width="10" stroke-linecap="round" filter="url(#rk-blur-s)"/>
+
+    <!-- Records: two behind, filed; the one in focus in front. -->
+    <rect x="392" y="444" width="240" height="212" rx="44" fill="#000000" fill-opacity="0.6" transform="translate(0 26)" filter="url(#rk-blur-l)"/>
+
+    <rect x="428" y="372" width="168" height="200" rx="36" fill="url(#rk-record)"/>
+    <rect x="428" y="372" width="168" height="200" rx="36" fill="none" stroke="url(#rk-record-rim)" stroke-width="3"/>
+    <path d="M456 394 H 504" stroke="#ffc766" stroke-opacity="0.35" stroke-width="6" stroke-linecap="round"/>
+
+    <rect x="408" y="404" width="208" height="210" rx="40" fill="#000000" fill-opacity="0.45" transform="translate(0 10)" filter="url(#rk-blur-m)"/>
+    <rect x="408" y="404" width="208" height="210" rx="40" fill="url(#rk-record)"/>
+    <rect x="408" y="404" width="208" height="210" rx="40" fill="none" stroke="url(#rk-record-rim)" stroke-width="3"/>
+    <path d="M438 428 H 498" stroke="#ffc766" stroke-opacity="0.45" stroke-width="6" stroke-linecap="round"/>
+
+    <rect x="392" y="444" width="240" height="212" rx="44" fill="#000000" fill-opacity="0.5" transform="translate(0 12)" filter="url(#rk-blur-m)"/>
+    <rect x="392" y="456" width="240" height="212" rx="44" fill="#7a4309"/>
+    <rect x="392" y="444" width="240" height="212" rx="44" fill="url(#rk-card)"/>
+    <rect x="393.5" y="445.5" width="237" height="209" rx="42.5" fill="none" stroke="url(#rk-card-edge)" stroke-width="3"/>
+
+    <!-- R, pressed into the record in focus. -->
+    <g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="30">
+      <path d="M470 610 V 490 H 530 A 33 33 0 0 1 530 556 H 470 M 520 556 L 558 610" stroke="#fff3d6" stroke-opacity="0.6" transform="translate(0 3)"/>
+      <path d="M470 610 V 490 H 530 A 33 33 0 0 1 530 556 H 470 M 520 556 L 558 610" stroke="#4a2804" stroke-opacity="0.88"/>
+    </g>
+
+    <!-- The anchor reaching the record: thread, pad on the card's edge, bead on the ring. -->
+    <path d="M632 512 H 720" stroke="#5fd0e0" stroke-width="22" stroke-opacity="0.5" filter="url(#rk-blur-m)"/>
+    <path d="M632 512 H 720" stroke="url(#rk-thread)" stroke-width="13" stroke-linecap="round"/>
+    <rect x="618" y="494" width="28" height="36" rx="9" fill="#123840" stroke="#7fe0ee" stroke-width="4"/>
+
+    <circle cx="784" cy="512" r="150" fill="url(#rk-bead-glow)"/>
+    <circle cx="784" cy="512" r="96" fill="none" stroke="#5fd0e0" stroke-opacity="0.28" stroke-width="3"/>
+    <circle cx="784" cy="530" r="68" fill="#000000" fill-opacity="0.55" filter="url(#rk-blur-m)"/>
+    <circle cx="784" cy="512" r="68" fill="url(#rk-bead)"/>
+    <circle cx="784" cy="512" r="66.5" fill="none" stroke="#e6fbff" stroke-opacity="0.35" stroke-width="3"/>
+    <ellipse cx="762" cy="486" rx="22" ry="14" fill="#ffffff" fill-opacity="0.85" transform="rotate(-30 762 486)" filter="url(#rk-blur-s)"/>
+
+    <!-- Finish: top sheen and edge vignette over everything. -->
+    <path d="M0 0 H 1024 V 400 Q 512 480 0 400 Z" fill="url(#rk-sheen)"/>
+    <rect width="1024" height="1024" fill="url(#rk-vignette)"/>
+  </g>
+
+  <!-- Hairline rim, the lit edge dark system icons share. -->
+  <rect x="1.5" y="1.5" width="1021" height="1021" rx="228.5" fill="none" stroke="#ffffff" stroke-opacity="0.14" stroke-width="3"/>
 </svg>

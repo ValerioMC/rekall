@@ -19,7 +19,7 @@ DEMO_COMPANIES          ?= 3
 DEMO_TASKS_PER_COMPANY  ?= 20
 
 .DEFAULT_GOAL := help
-.PHONY: help run run-demo build jar native run-native start-native dmg-native dmg-jvm ui ui-dev test test-backend test-ui mcp-add mcp-check console reset reset-data load-data
+.PHONY: help run run-demo build jar native run-native start-native dmg-native dmg-jvm icons ui ui-dev test test-backend test-ui mcp-add mcp-check console reset reset-data load-data
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -77,6 +77,9 @@ dmg-native: native ## macOS: package the native binary as Rekall.app, then insta
 dmg-jvm: build ## macOS: package the jar plus a bundled Java runtime as Rekall.app, then install it into /Applications
 	./scripts/macos-bundle.sh jvm
 	./scripts/macos-install.sh jvm
+
+icons: ## macOS: re-render the PWA, touch and dock icons from rekall-ui/public/favicon.svg (needs Google Chrome)
+	./scripts/render-icons.sh
 
 ui-dev: ## Vite dev server on :5173, proxying /api and /mcp to :47355
 	cd $(UI) && $(PNPM) dev

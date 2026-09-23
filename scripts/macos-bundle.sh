@@ -96,13 +96,14 @@ swiftc -O -parse-as-library -target "${ARCH}-apple-macos13.0" \
 
 # --- icon --------------------------------------------------------------------------------
 
-# Built from the PWA icon the UI already ships, so the dock icon and the browser tab cannot
-# drift apart. 512 is the largest source there is, so the 1024 slot is an upscale: replace
-# icons/icon-512.png with a larger master and this picks it up unchanged.
+# The 1024 dock master scripts/render-icons.sh draws from the same SVG as the browser tab and
+# the in-app logo, so they cannot drift apart. It is on Apple's icon grid (the plate at 824,
+# shadow in the margin), which is why it is not the PWA icon: that one is full bleed and would
+# sit larger than every other icon in the dock.
 echo "==> Icon"
 ICONSET="$OUT/AppIcon.iconset"
 mkdir -p "$ICONSET"
-ICON_SOURCE="rekall-ui/public/icons/icon-512.png"
+ICON_SOURCE="packaging/macos/AppIcon.png"
 for size in 16 32 128 256 512; do
     sips -z "$size" "$size" "$ICON_SOURCE" --out "$ICONSET/icon_${size}x${size}.png" >/dev/null
     sips -z "$((size * 2))" "$((size * 2))" "$ICON_SOURCE" --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
