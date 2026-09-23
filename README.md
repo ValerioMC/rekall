@@ -134,6 +134,21 @@ The top bar carries a usage meter: the current 5-hour session as a ring with its
 | `rekall.terminal.idle-minutes` | `120` | A terminal untouched this long is closed by the sweep |
 | `rekall.terminal.sweep-minutes` | `5` | How often the idle sweep runs |
 | `rekall.terminal.scrollback-bytes` | `131072` | Bytes of output replayed to a pane that reopens |
+| `rekall.run-queue.tick-seconds` | `20` | How often the run queue looks at its clock, schedule and hold |
+| `rekall.run-queue.settle-grace-seconds` | `8` | How long a finished session keeps its terminal before the queue closes it |
+
+## Run queue
+
+The run queue works through a list of tasks without you: each one in its own terminal, one after another, until everything on it is claimed. It opens from the dial next to the usage meter in the top bar, or `q`. The dial is also its status: three bars when idle, a clock hand at the start time when scheduled, an orbiting comet with `2/5` while running, and a ring stopped at the ceiling with the time it resumes while holding. A strand of beads shows each task in the run.
+
+- **Order.** Add tasks by typing a title, label or anchor. Waiting tasks move up and down or come off. The running one stays until you stop the queue, and finished ones stay as the record of the run until **Clear finished**.
+- **When.** **Start now**, or **At a time** for a schedule. Rekall has to be running then: the queue runs inside it.
+- **Usage ceiling.** With it on, no new task or step starts once a usage window reaches the line: the 5-hour session and the weekly total always, plus the weekly Opus or Sonnet window when the queue runs that model. The queue then holds until the latest reset among the windows over the line, plus a minute, and carries on from there. It checks before every task and at every step claim, never mid-step, so a step that is under way finishes. Set the line below 100 to leave room for it. With a ceiling set and no usage reading available, the queue holds and looks again every five minutes.
+- **Sessions.** Model, effort and **Skip permission prompts** for the terminals the queue opens. They are stored with the queue, separately from **Settings > Claude Code**. Without skip, an unattended session stops at its first permission prompt.
+
+How each task runs: the queue opens a terminal on it, and the session works the open steps in order, claiming each (or writes the wrapup on a task with no checklist). When nothing is left open, the queue closes the terminal and starts the next task. If the ceiling is reached at a claim, it closes the terminal, puts the task back at the head of the queue, sends any step the session had started back to open, and holds; the next session picks up at the first open step. A task with nothing open is skipped. A task fails, and the queue moves on, when the session can't open (no folder, no CLI, a terminal already open on it) or ends before its work is claimed. **Stop the queue** closes the running session after a confirmation. The queue survives a restart: a task that was running goes back to waiting, and an armed queue picks it up again.
+
+`/api/run-queue` holds the queue: `GET`, `PUT /settings`, `POST /items`, `DELETE /items/{id}`, `PUT /items/{id}/position`, `POST /clear`, `POST /start` (`startAt` null starts now), `POST /stop`. Each answers with the whole queue, and every change is pushed on the console's event stream as a `run-queue` frame.
 
 ## Anchor syntax
 
@@ -194,7 +209,7 @@ A session drives its own checklist over `/rk`:
 /rk project:vega task:report-builder step:3 done    # step 3 -> claimed
 ```
 
-The console holds one `text/event-stream` connection (`GET /api/steps/stream`) carrying four frames: `steps` for a checklist, `task-review` for a stepless task's review line, `wrapup` for a wrapup write or delete, and `commit-reference` for a commit logged against a task or step. A step moved from an in-app terminal, a box ticked in another window, a wrapup written over MCP, or a commit logged by a session all land without a reload.
+The console holds one `text/event-stream` connection (`GET /api/steps/stream`) carrying five frames: `steps` for a checklist, `task-review` for a stepless task's review line, `wrapup` for a wrapup write or delete, `commit-reference` for a commit logged against a task or step, and `run-queue` for the run queue. A step moved from an in-app terminal, a box ticked in another window, a wrapup written over MCP, or a commit logged by a session all land without a reload.
 
 Claude receives an open or running step with its detail, tagged `(in progress)` or `(claimed, …)`. A finished step arrives as its title alone. A draft step is not sent at all, only counted as `draft="N"` on the `<steps>` tag. A step ticked without a following wrapup is marked `(finished since the wrapup was written)` and handed back with its detail until the next wrapup folds it in.
 
@@ -252,7 +267,7 @@ One surface, three panes: pick a task on the left, pick its checklist, its wrapu
 
 That field filters the navigator by titles and labels as you type. For a phrase of three characters or more that is not an anchor, it also searches the text behind them and lists the hits under the bar: task descriptions, steps (title and detail), wrapups and notes, each with the words around the match. `↑` `↓` choose, `↵` opens the hit on the pane that shows that text (a step opens expanded on its steps pane). `GET /api/search?q=` answers it: at most 8 hits per kind, newest first, the phrase matched whole and case-insensitively, `%` and `_` literal.
 
-The description, steps, wrapup and terminal are pinned above the notes. Each opens in the writing pane; a task missing one shows an empty card. `c` opens the terminal pane, the same way `s`, `w` and `d` open steps, wrapup and description; `r` toggles read/write on whichever of the description or a note is open. Companies, projects and tasks are created, edited and deleted from one editor, opened on the parent record. Title and label sit together with the anchor assembled live as you type. Deleting states what goes with it.
+The description, steps, wrapup and terminal are pinned above the notes. Each opens in the writing pane; a task missing one shows an empty card. `c` opens the terminal pane, the same way `s`, `w` and `d` open steps, wrapup and description; `q` opens the run queue; `r` toggles read/write on whichever of the description or a note is open. Companies, projects and tasks are created, edited and deleted from one editor, opened on the parent record. Title and label sit together with the anchor assembled live as you type. Deleting states what goes with it.
 
 A task optionally wears one **tag**: a name, a glowing icon and a glow colour, both picked from a fixed set the console already knows how to draw. Tags are configured in their own panel, opened from the star button in the header next to Settings — add, rename, re-colour or delete one there, with a live count of the tasks currently wearing it. A tag is assigned to a task from that task's edit dialog, and shows as a small glowing badge next to the title wherever the task is listed.
 
@@ -393,7 +408,7 @@ rekall-repository/ Spring Data repositories and the Liquibase changelog for thei
 rekall-service/    Business logic: context assembly, the step and review lines, wrapups, time entries
 rekall-api/        REST API for the UI, and the step event stream
 rekall-mcp/        MCP server, on rekall-service and never rekall-api: one tool reads, four write
-rekall-claude/     the in-app terminal (pty4j over one WebSocket) and the Claude Code usage meter
+rekall-claude/     the in-app terminal (pty4j over one WebSocket), the Claude Code usage meter and the run queue
 rekall-app/        Spring Boot entry point, serves everything
 rekall-ui/         Vue 3 + Vite frontend
 ```

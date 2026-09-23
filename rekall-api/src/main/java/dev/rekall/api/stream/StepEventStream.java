@@ -58,6 +58,14 @@ public class StepEventStream {
         dispatch("commit-reference", event);
     }
 
+    /**
+     * Push a named event from a module this one cannot see, such as the run queue in
+     * {@code rekall-claude}. The caller decides the name and has already waited for its commit.
+     */
+    public void broadcast(String name, Object payload) {
+        dispatch(name, payload);
+    }
+
     private void dispatch(String name, Object payload) {
         for (SseEmitter emitter : clients) {
             try {

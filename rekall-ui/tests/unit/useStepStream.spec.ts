@@ -182,4 +182,30 @@ describe('useStepStream', () => {
 
     expect(source.closed).toBe(true)
   })
+  it('hands a run-queue frame to its own callback and drops one that does not parse', () => {
+    const onRunQueue = vi.fn()
+    const scope = effectScope()
+    scope.run(() => useStepStream(vi.fn(), undefined, undefined, undefined, onRunQueue))
+    const source = FakeEventSource.instances[0]!
+
+    source.emit('run-queue', {
+      data: JSON.stringify({
+        state: 'RUNNING',
+        startAt: null,
+        ceilingPercent: 85,
+        skipPermissions: true,
+        model: null,
+        effort: null,
+        holdUntil: null,
+        holdReason: null,
+        items: [],
+        updatedAt: '2026-09-23T10:00:00Z'
+      })
+    })
+    source.emit('run-queue', { data: JSON.stringify({ state: 'SIDEWAYS' }) })
+
+    expect(onRunQueue).toHaveBeenCalledTimes(1)
+    expect(onRunQueue.mock.calls[0]![0].state).toBe('RUNNING')
+    scope.stop()
+  })
 })

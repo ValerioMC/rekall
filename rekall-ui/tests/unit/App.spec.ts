@@ -252,6 +252,31 @@ vi.mock('@/api/time-entries.api', () => ({
   deleteTimeEntry: vi.fn()
 }))
 
+vi.mock('@/api/runQueue.api', () => {
+  const idle = {
+    state: 'IDLE',
+    startAt: null,
+    ceilingPercent: null,
+    skipPermissions: false,
+    model: null,
+    effort: null,
+    holdUntil: null,
+    holdReason: null,
+    items: [],
+    updatedAt: '2026-09-23T10:00:00Z'
+  }
+  return {
+    fetchRunQueue: vi.fn(async () => idle),
+    saveRunQueueSettings: vi.fn(async () => idle),
+    enqueueTask: vi.fn(),
+    dequeueItem: vi.fn(),
+    moveQueueItem: vi.fn(),
+    clearSettledItems: vi.fn(),
+    startRunQueue: vi.fn(),
+    stopRunQueue: vi.fn()
+  }
+})
+
 vi.mock('@/api/commitReference.api', () => ({
   fetchCommitReferences: vi.fn(async () => []),
   recordLatestCommit: vi.fn(),
@@ -529,6 +554,18 @@ describe('the console', () => {
     await flushPromises()
 
     expect(useConsoleStore().paneFocus).toBe('terminal')
+  })
+
+  // Clicked rather than pressed: earlier tests leave their consoles mounted, and a window-level Q
+  // would open a queue panel in every one of them and hold the modal gate for the rest of the file.
+  it('carries the run queue beacon in the top bar, which opens the queue', async () => {
+    const wrapper = await mountConsole()
+
+    await wrapper.find('[data-testid="queue-beacon"]').trigger('click')
+    await flushPromises()
+
+    expect(document.body.querySelector('[data-testid="run-queue-panel"]')).not.toBeNull()
+    wrapper.unmount()
   })
 
   /** The anchor on the terminal pane is a copy chip, like the one on the description and steps panes. */

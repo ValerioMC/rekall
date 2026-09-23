@@ -13,6 +13,7 @@ import dev.rekall.domain.Task;
 import dev.rekall.domain.TimeEntry;
 import dev.rekall.domain.Wrapup;
 import dev.rekall.claude.ClaudeUsageView;
+import dev.rekall.claude.queue.RunQueueView;
 import dev.rekall.domain.context.ContextSize;
 import dev.rekall.domain.step.StepStreamEvent;
 import dev.rekall.domain.step.TaskStepView;
@@ -33,7 +34,8 @@ import org.springframework.context.ConfigurableApplicationContext;
         SettingsController.RenameRequest.class, SettingsController.CheckResponse.class,
         ContextSize.class, ContextSize.Part.class, ContextSize.Part[].class,
         DatabaseBackupService.Status.class, BackupFile.class, BackupFile[].class,
-        BackupController.RestoreStarted.class
+        BackupController.RestoreStarted.class,
+        RunQueueView.class, RunQueueView.Item.class, RunQueueView.Item[].class
 })
 public class RekallApplication {
 

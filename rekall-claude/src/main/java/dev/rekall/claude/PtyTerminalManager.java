@@ -12,6 +12,7 @@ import dev.rekall.domain.step.TaskStepService;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -42,8 +43,9 @@ import java.util.concurrent.TimeUnit;
  * running the interactive {@code claude} TUI. A virtual thread pumps PTY output to every attached
  * {@link Listener} and into a bounded scrollback buffer; {@link #write} and {@link #resize} carry
  * input the other way. The terminal moves the task's checklist marker ({@link TaskStepService}) or
- * review line ({@link TaskReviewService}) as it opens and closes. Nothing is persisted; strays are
- * bounded by a cap, an idle sweep, and a shutdown hook.
+ * review line ({@link TaskReviewService}) as it opens and closes, and announces every end, however it
+ * came, as a {@link TerminalEndedEvent}. Nothing is persisted; strays are bounded by a cap, an idle
+ * sweep, and a shutdown hook.
  */
 @Component
 @Slf4j
@@ -55,13 +57,14 @@ public class PtyTerminalManager {
     private static final int READ_BUFFER = 8192;
 
     /** Only the aliases the settings offer are accepted; anything else leaves the account default. */
-    private static final Set<String> MODEL_ALIASES = Set.of("opus", "sonnet", "haiku", "fable");
-    private static final Set<String> EFFORT_LEVELS = Set.of("low", "medium", "high", "xhigh", "max");
+    public static final Set<String> MODEL_ALIASES = Set.of("opus", "sonnet", "haiku", "fable");
+    public static final Set<String> EFFORT_LEVELS = Set.of("low", "medium", "high", "xhigh", "max");
 
     private final TerminalLaunchService launchService;
     private final ClaudeCli cli;
     private final TaskStepService taskSteps;
     private final TaskReviewService taskReview;
+    private final ApplicationEventPublisher events;
 
     private final int maxLive;
     private final long idleMinutes;
@@ -80,6 +83,7 @@ public class PtyTerminalManager {
             ClaudeCli cli,
             TaskStepService taskSteps,
             TaskReviewService taskReview,
+            ApplicationEventPublisher events,
             @Value("${rekall.terminal.max-sessions:8}") int maxLive,
             @Value("${rekall.terminal.idle-minutes:120}") long idleMinutes,
             @Value("${rekall.terminal.sweep-minutes:5}") long sweepMinutes,
@@ -88,6 +92,7 @@ public class PtyTerminalManager {
         this.cli = cli;
         this.taskSteps = taskSteps;
         this.taskReview = taskReview;
+        this.events = events;
         this.maxLive = maxLive;
         this.idleMinutes = idleMinutes;
         this.sweepMinutes = sweepMinutes;
@@ -181,6 +186,7 @@ public class PtyTerminalManager {
             }
             notifyEnded(terminal, terminal.process.isAlive() ? 0 : safeExitValue(terminal), "The app was shutting down.");
             releaseRunning(terminal.launch.taskId(), terminal.stepId);
+            announceEnded(terminal);
         }
     }
 
@@ -384,6 +390,7 @@ public class PtyTerminalManager {
         }
         notifyEnded(terminal, safeExitValue(terminal), reason);
         releaseRunning(terminal.launch.taskId(), terminal.stepId);
+        announceEnded(terminal);
         log.info("Closed terminal {} ({})", id, reason);
         return terminal.view();
     }
@@ -403,6 +410,12 @@ public class PtyTerminalManager {
 
     public int liveCount() {
         return live.size();
+    }
+
+    /** True while some live terminal is on this task, whoever opened it. */
+    public boolean hasLiveTerminalFor(UUID taskId) {
+        Terminal terminal = liveTerminalForTask(taskId);
+        return terminal != null && terminal.process.isAlive();
     }
 
     // ---------------------------------------------------------------- pty io
@@ -438,6 +451,7 @@ public class PtyTerminalManager {
         int code = safeExitValue(terminal);
         notifyEnded(terminal, code, code == 0 ? "The terminal ended." : "claude exited with code " + code);
         releaseRunning(terminal.launch.taskId(), terminal.stepId);
+        announceEnded(terminal);
         log.info("Terminal {} exited with code {}", id, code);
     }
 
@@ -450,6 +464,14 @@ public class PtyTerminalManager {
             }
         }
         terminal.listeners.clear();
+    }
+
+    private void announceEnded(Terminal terminal) {
+        try {
+            events.publishEvent(new TerminalEndedEvent(terminal.id, terminal.launch.taskId()));
+        } catch (RuntimeException listenerFailed) {
+            log.warn("A listener failed on the end of terminal {}: {}", terminal.id, listenerFailed.getMessage());
+        }
     }
 
     private void sweepIdle() {

@@ -2,6 +2,7 @@ package dev.rekall;
 
 import dev.rekall.backup.BackupFile;
 import dev.rekall.backup.DatabaseBackupService;
+import dev.rekall.claude.queue.RunQueueView;
 import dev.rekall.domain.context.ContextSize;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -22,7 +23,8 @@ class NativeBindingHintsTest {
     @ParameterizedTest
     @ValueSource(classes = {
             ContextSize.class, ContextSize.Part[].class,
-            DatabaseBackupService.Status.class, BackupFile[].class
+            DatabaseBackupService.Status.class, BackupFile[].class,
+            RunQueueView.class, RunQueueView.Item[].class
     })
     @DisplayName("a response record and the array of its list elements are registered for binding")
     void responseTypesAreRegistered(Class<?> type) {

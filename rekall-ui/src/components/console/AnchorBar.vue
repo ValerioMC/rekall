@@ -5,6 +5,7 @@ import AppButton from '@/components/ui/AppButton.vue'
 import AppLogo from '@/components/ui/AppLogo.vue'
 import AppNavSwitcher from '@/components/console/AppNavSwitcher.vue'
 import ClaudeUsageMeter from '@/components/console/ClaudeUsageMeter.vue'
+import QueueBeacon from '@/components/queue/QueueBeacon.vue'
 import SearchHitList from '@/components/console/SearchHitList.vue'
 import ReviewQueueButton from '@/components/console/ReviewQueueButton.vue'
 import { useConsoleStore } from '@/stores/console.store'
@@ -220,7 +221,9 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
       </span>
     </div>
 
+    <!-- Side by side on purpose: the queue's ceiling is read off the meter next to it. -->
     <ClaudeUsageMeter class="shrink-0" />
+    <QueueBeacon />
 
     <div class="ml-auto flex items-center gap-3">
       <ReviewQueueButton />

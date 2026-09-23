@@ -12,8 +12,10 @@ import StepsPane from '@/components/console/StepsPane.vue'
 import WrapupPane from '@/components/console/WrapupPane.vue'
 import SettingsPanel from '@/components/settings/SettingsPanel.vue'
 import TagsPanel from '@/components/settings/TagsPanel.vue'
+import RunQueuePanel from '@/components/queue/RunQueuePanel.vue'
 import AppToaster from '@/components/ui/AppToaster.vue'
 import { useConsoleStore } from '@/stores/console.store'
+import { useRunQueueStore } from '@/stores/runQueue.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useModalGate } from '@/composables/useModalGate'
 import { useStepStream } from '@/composables/useStepStream'
@@ -26,6 +28,8 @@ const TerminalPane = defineAsyncComponent(() => import('@/components/console/Ter
 
 const store = useConsoleStore()
 const { selectedTaskId, navMode, paneFocus, noteComposerOpen, reviewQueue, isLoading } = storeToRefs(store)
+const runQueue = useRunQueueStore()
+const { panelOpen: runQueueOpen } = storeToRefs(runQueue)
 const { run } = useAsyncAction()
 const { isModalOpen } = useModalGate()
 
@@ -33,7 +37,8 @@ useStepStream(
   (taskId, steps) => store.applyStepEvent(taskId, steps),
   (review) => store.applyTaskReview(review),
   (event) => store.applyWrapupEvent(event),
-  (reference) => store.applyCommitReference(reference)
+  (reference) => store.applyCommitReference(reference),
+  (queue) => runQueue.apply(queue)
 )
 
 useClaimNotifications(reviewQueue, isLoading)
@@ -116,6 +121,12 @@ function onKeydown(event: KeyboardEvent): void {
     return
   }
 
+  if (key === 'q') {
+    event.preventDefault()
+    runQueue.openPanel()
+    return
+  }
+
   if (key === 'b') {
     event.preventDefault()
     store.setNavMode(navMode.value === 'tasks' ? 'notes' : 'tasks')
@@ -153,7 +164,11 @@ function onKeydown(event: KeyboardEvent): void {
   }
 }
 
-onMounted(() => window.addEventListener('keydown', onKeydown))
+onMounted(() => {
+  window.addEventListener('keydown', onKeydown)
+  // The beacon needs the queue from the first paint; the SSE feed only carries changes.
+  void runQueue.load().catch(() => undefined)
+})
 onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
@@ -198,6 +213,9 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
     </Transition>
     <Transition name="dialog">
       <TagsPanel v-if="tagsOpen" @close="tagsOpen = false" />
+    </Transition>
+    <Transition name="dialog">
+      <RunQueuePanel v-if="runQueueOpen" @close="runQueue.closePanel()" />
     </Transition>
     <AppToaster />
   </div>

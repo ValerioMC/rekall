@@ -6,16 +6,22 @@ import {
   WrapupStreamEventSchema
 } from '@/api/schemas/catalog.schema'
 import { CommitReferenceStreamEventSchema } from '@/api/schemas/commitReference.schema'
+import { RunQueueSchema } from '@/api/schemas/runQueue.schema'
 import type { TaskReview, TaskStep, WrapupStreamEvent } from '@/model/catalog'
 import type { CommitReference } from '@/model/commitReference'
+import type { RunQueue } from '@/model/runQueue'
 import type { TaskId } from '@/model/branded'
 
-/** One SSE connection carrying four console feeds: `steps`, `task-review`, `wrapup` and `commit-reference`. */
+/**
+ * One SSE connection carrying five console feeds: `steps`, `task-review`, `wrapup`,
+ * `commit-reference` and `run-queue`.
+ */
 export function useStepStream(
   onSteps: (taskId: TaskId, steps: TaskStep[]) => void,
   onReview?: (review: TaskReview) => void,
   onWrapup?: (event: WrapupStreamEvent) => void,
-  onCommit?: (reference: CommitReference) => void
+  onCommit?: (reference: CommitReference) => void,
+  onRunQueue?: (queue: RunQueue) => void
 ): { connected: Ref<boolean>; stop: () => void } {
   const connected = ref(false)
   let source: EventSource | null = null
@@ -81,6 +87,18 @@ export function useStepStream(
         )
         if (parsed.success) {
           onCommit?.(parsed.data.reference)
+        }
+      } catch {
+      }
+    })
+
+    // The run queue moves on the server's clock, so the beacon learns of a start, a hold or a
+    // finished task from here rather than by asking.
+    source.addEventListener('run-queue', (event) => {
+      try {
+        const parsed = RunQueueSchema.safeParse(JSON.parse((event as MessageEvent<string>).data))
+        if (parsed.success) {
+          onRunQueue?.(parsed.data)
         }
       } catch {
       }
