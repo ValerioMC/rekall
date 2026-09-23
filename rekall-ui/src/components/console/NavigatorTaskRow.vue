@@ -1,8 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 import TagBadge from '@/components/ui/TagBadge.vue'
-import { TASK_STATUS_COLOR, TASK_STATUS_RING } from '@/model/catalog'
+import TaskMark from '@/components/console/TaskMark.vue'
+import { TASK_STATUS_LABEL } from '@/model/catalog'
 import type { Task } from '@/model/catalog'
+import { TASK_MARK_LABEL, taskMark } from '@/model/task-mark'
+import { useConsoleStore } from '@/stores/console.store'
 
 const props = withDefaults(
   defineProps<{
@@ -18,18 +22,13 @@ const props = withDefaults(
 
 defineEmits<{ select: []; edit: [] }>()
 
-// The ping fires for a running timer or for a stepless task a live session is attached to.
-const isRunning = computed(
-  () =>
-    props.running ||
-    (props.task.reviewActive && props.task.stepCount === 0 && props.task.reviewState === 'RUNNING')
-)
+const { steps } = storeToRefs(useConsoleStore())
+
+const mark = computed(() => taskMark(props.task, steps.value, props.running))
+const markLabel = computed(() => TASK_MARK_LABEL[mark.value.state] || TASK_STATUS_LABEL[props.task.status])
 
 const awaitingReview = computed(
-  () =>
-    props.task.reviewActive &&
-    props.task.stepCount === 0 &&
-    props.task.reviewState === 'CLAIMED'
+  () => props.task.reviewActive && props.task.stepCount === 0 && props.task.reviewState === 'CLAIMED'
 )
 
 // A short pulse on the marker the moment this row becomes the selected one, not while it stays
@@ -58,24 +57,23 @@ watch(
       :aria-current="selected"
       @click="$emit('select')"
     >
-      <span class="relative mt-[3px] grid size-3.5 shrink-0 place-items-center" aria-hidden="true">
+      <span class="relative mt-[3px] grid size-3.5 shrink-0 place-items-center" :title="markLabel">
         <span
           class="absolute size-3.5 rounded-full transition-shadow"
           :class="[
-            isRunning ? 'bg-accent/20' : TASK_STATUS_RING[task.status],
-            selected && 'ring-1 ring-inset ring-accent/45',
+            selected && mark.state === 'RESTING' && 'ring-1 ring-inset ring-accent/45',
             justSelected && 'settle'
           ]"
-        />
-        <template v-if="isRunning">
-          <span class="absolute inline-flex size-3.5 animate-ping rounded-full bg-accent/55" />
-          <span class="relative inline-flex size-2 rounded-full bg-accent" />
-        </template>
-        <span
-          v-else
-          class="relative rounded-full transition-all"
-          :class="[TASK_STATUS_COLOR[task.status], selected ? 'size-2' : 'size-[7px]']"
-        />
+          aria-hidden="true"
+        >
+          <TaskMark
+            :state="mark.state"
+            :status="task.status"
+            :accepted="mark.accepted"
+            :selected="selected"
+          />
+        </span>
+        <span class="sr-only">{{ markLabel }}.</span>
       </span>
 
       <span class="min-w-0 flex-1">
