@@ -37,3 +37,6 @@ coverage/
 Thumbs.db
 *.swp
 *.log
+
+# Prompt personale, non condiviso col repo.
+/ui-prompt.md
