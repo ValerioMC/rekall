@@ -459,6 +459,15 @@ storing a terminal. A cap on how many run at once (`rekall.terminal.max-sessions
 idle sweep, and a `@PreDestroy` that kills the rest inside the 5s shutdown budget keep strays
 from piling up.
 
+The PTY's environment is the user's login shell's, not the app's: launched from Finder, the app
+inherits launchd's bare `PATH`, which lacks everything a shell profile adds (`~/.cargo/bin` and the like). `LoginShellEnvironment`
+runs `$SHELL -i -l -c` with stdin on `/dev/null`, has it print `env -0` between two random markers
+(so a profile's greeting cannot corrupt it), and caches the result; each read starts a background
+refresh. Failure, no markers or the timeout keep the last good copy, falling back to the process
+environment. `ClaudeCli` adds `HOME` and the usual install directories to it, strips
+`CLAUDECODE`/`CLAUDE_CODE_ENTRYPOINT` so a Rekall started from a Claude session can still open one,
+and searches that `PATH` for `claude`. Windows skips the shell and uses the process environment.
+
 Both packaging flavours carry it. pty4j reaches `libutil` through JNA, a restricted native call
 on JDK 25, so the jlink launcher passes `--enable-native-access=ALL-UNNAMED`
 (`packaging/macos/Launcher.swift`); the GraalVM binary compiles that in. Neither pty4j nor JNA

@@ -6,14 +6,18 @@ import org.springframework.stereotype.Component;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Stream;
 
 /**
- * Finds the {@code claude} binary and the environment to run it with. A desktop app starts with a
- * stripped {@code PATH}, so the Claude Code install locations are tried first;
+ * Finds the {@code claude} binary and the environment to run it with. The environment is the user's
+ * login shell's ({@link LoginShellEnvironment}), so a terminal opened here finds what their own
+ * terminal finds; the Claude Code install locations are still tried first, and
  * {@code rekall.claude.cli-path} overrides everything.
  */
 @Component
@@ -25,12 +29,17 @@ public class ClaudeCli {
     private static final List<String> KNOWN_DIRECTORIES =
             List.of("/opt/homebrew/bin", "/usr/local/bin", "/usr/bin");
 
+    /** Set by a running Claude Code session; inherited, they make the new {@code claude} refuse to nest. */
+    private static final Set<String> SESSION_MARKERS = Set.of("CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT");
+
     private final String override;
     private final Path home;
+    private final LoginShellEnvironment loginShell;
 
-    public ClaudeCli(@Value("${rekall.claude.cli-path:}") String override) {
+    public ClaudeCli(@Value("${rekall.claude.cli-path:}") String override, LoginShellEnvironment loginShell) {
         this.override = override == null ? "" : override.strip();
         this.home = Path.of(System.getProperty("user.home", ""));
+        this.loginShell = loginShell;
     }
 
     public Optional<Path> locate() {
@@ -44,7 +53,7 @@ public class ClaudeCli {
                 return Optional.of(path);
             }
         }
-        for (String directory : searchDirectories()) {
+        for (String directory : searchPath(environment().get("PATH"))) {
             Path path = Path.of(directory).resolve("claude");
             if (Files.isExecutable(path)) {
                 return Optional.of(path);
@@ -53,26 +62,25 @@ public class ClaudeCli {
         return Optional.empty();
     }
 
-    /** {@code HOME} and a {@code PATH} that still finds the CLI's own directories. */
+    /**
+     * The login shell's environment with {@code HOME} set, a {@code PATH} that still reaches the
+     * CLI's usual directories, and no marker of an enclosing Claude Code session.
+     */
     public Map<String, String> environment() {
-        Map<String, String> environment = new HashMap<>();
+        Map<String, String> environment = new HashMap<>(loginShell.current());
+        SESSION_MARKERS.forEach(environment::remove);
         if (!home.toString().isBlank()) {
-            environment.put("HOME", home.toString());
+            environment.putIfAbsent("HOME", home.toString());
         }
-        String current = System.getenv("PATH");
-        String known = String.join(":", KNOWN_DIRECTORIES);
-        environment.put("PATH", current == null || current.isBlank() ? known : current + ":" + known);
+        environment.put("PATH", String.join(":", searchPath(environment.get("PATH"))));
         return environment;
     }
 
-    private List<String> searchDirectories() {
-        String path = System.getenv("PATH");
-        if (path == null || path.isBlank()) {
-            return KNOWN_DIRECTORIES;
-        }
-        return java.util.stream.Stream.concat(
-                        java.util.Arrays.stream(path.split(":")).filter(part -> !part.isBlank()),
-                        KNOWN_DIRECTORIES.stream())
+    /** The directories of {@code path} in order, then any of the usual install directories it lacks. */
+    private static List<String> searchPath(String path) {
+        Stream<String> declared = path == null ? Stream.empty() : Arrays.stream(path.split(":"));
+        return Stream.concat(declared.filter(part -> !part.isBlank()), KNOWN_DIRECTORIES.stream())
+                .distinct()
                 .toList();
     }
 }

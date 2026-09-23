@@ -112,6 +112,8 @@ cp .claude/commands/rk.md ~/.claude/commands/rk.md
 
 **Run here**, next to **Open in terminal** on the description and steps panes, or `c` from any task, runs a real terminal inside the app. The backend starts the interactive `claude` in a pseudo-terminal (pty4j) in the project's folder, types `/rk <anchors>` as the first line, and hands it to you; the pane renders it with `xterm.js` and the bytes travel both ways over one WebSocket at `/api/terminal/{id}/io`. Because it is the same binary run the same way as in your own terminal, its prompt caching, context compaction and `/context` read-outs behave identically, and a permission prompt actually renders and can be answered. Works in a plain browser, not only Rekall.app.
 
+The terminal gets the environment a new window of your own terminal would: Rekall asks your login shell (`$SHELL -i -l -c`) for its variables once it starts, so whatever your profile adds to `PATH` (`~/.cargo/bin`, nvm, pyenv, sdkman) and exports is there, along with `SSH_AUTH_SOCK`. The answer is cached and refreshed in the background every time a terminal opens, so a tool installed while Rekall runs reaches the next terminal but one. A shell that prints nothing usable within the timeout leaves the last good answer in place, or Rekall's own environment when there is none. The shell runs with `REKALL_RESOLVING_ENVIRONMENT=1`, so a slow profile can skip work with `[[ -n $REKALL_RESOLVING_ENVIRONMENT ]] && return`.
+
 One terminal per task, the way one terminal window is. A second open on a task that already has one just refocuses it; opening on a different step moves the checklist marker (the old step back to open, the new one to running) without touching the process. **Restart** kills the `claude` process and starts a fresh one on the same task; **Close** ends it. Opening on a step marks that step `RUNNING` while the terminal is on it; on a task with no checklist the review line goes `RUNNING` instead, and both are released when the terminal closes. Nothing is persisted: a restart of Rekall clears every terminal and releases any step it left running, and reopening the pane replays a bounded scrollback so it repaints.
 
 Live work sits in one bar in the bottom right corner of every screen: a segment for running timers (with the newest timer's clock) and a segment for live terminals, each shown only while it has something to count. A segment opens its sheet above the bar, one sheet at a time; pressing the other segment switches, and pressing the same one again, Escape, or a click anywhere else closes it. From the sheet a row jumps to its task (the terminal one also opens the terminal pane), stops the timer or terminal, and, for a terminal, logs the latest commit against the task and step it was opened on. The bar reports the room it takes so nothing else in that corner sits under it, whichever segments are present; the terminal segment steps aside while the terminal pane is on screen, and the bar leaves entirely when nothing is live.
@@ -128,7 +130,9 @@ The top bar carries a usage meter: the current 5-hour session as a ring with its
 
 | Property | Default | Meaning |
 |---|---|---|
-| `rekall.claude.cli-path` | search `PATH` and the usual install dirs | Absolute path to `claude`, overriding discovery |
+| `rekall.claude.cli-path` | search the login shell's `PATH` and the usual install dirs | Absolute path to `claude`, overriding discovery |
+| `rekall.terminal.shell` | `$SHELL`, else `/bin/zsh` | Login shell asked for the terminal's environment |
+| `rekall.terminal.shell-environment-timeout-seconds` | `10` | How long that shell gets to print its environment |
 | `rekall.claude.usage-url` | `https://api.anthropic.com/api/oauth/usage` | Where the usage meter reads session and weekly limits |
 | `rekall.terminal.max-sessions` | `8` | Terminals allowed at once |
 | `rekall.terminal.idle-minutes` | `120` | A terminal untouched this long is closed by the sweep |

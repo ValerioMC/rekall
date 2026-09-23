@@ -504,17 +504,11 @@ public class PtyTerminalManager {
                 .orElse(null);
     }
 
-    /** {@link ClaudeCli#environment()} plus the {@code TERM}/{@code COLORTERM}/locale a TUI needs. */
+    /** {@link ClaudeCli#environment()}, the user's own shell environment, plus the {@code TERM}/{@code COLORTERM} a TUI needs. */
     private Map<String, String> terminalEnvironment() {
         Map<String, String> environment = new HashMap<>(cli.environment());
         environment.put("TERM", "xterm-256color");
         environment.put("COLORTERM", "truecolor");
-        for (String key : List.of("LANG", "LC_ALL", "LC_CTYPE")) {
-            String value = System.getenv(key);
-            if (value != null && !value.isBlank()) {
-                environment.put(key, value);
-            }
-        }
         return environment;
     }
 
