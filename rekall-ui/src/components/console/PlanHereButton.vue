@@ -72,7 +72,7 @@ async function plan(): Promise<void> {
   >
     <span
       class="session-caret shrink-0"
-      :class="liveTerminal && 'session-caret-busy'"
+      :class="isRunning && 'session-caret-busy'"
       aria-hidden="true"
     />
     Plan here

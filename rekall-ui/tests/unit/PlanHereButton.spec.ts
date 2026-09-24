@@ -100,4 +100,26 @@ describe('the Plan here button', () => {
 
     expect(terminals.activeTerminalId).toBeNull()
   })
+
+  it('rests at the plain caret while a session is already live, and only swells while it types the plan line', async () => {
+    let resolveSend: () => void = () => {}
+    sendTerminalInput.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSend = resolve
+        })
+    )
+    const terminals = useTerminalStore()
+    terminals.terminals = [terminal()]
+
+    const wrapper = mountButton()
+    expect(wrapper.get('.session-caret').classes()).not.toContain('session-caret-busy')
+
+    await wrapper.get('[data-testid="plan-here"]').trigger('click')
+    expect(wrapper.get('.session-caret').classes()).toContain('session-caret-busy')
+
+    resolveSend()
+    await flushPromises()
+    expect(wrapper.get('.session-caret').classes()).not.toContain('session-caret-busy')
+  })
 })
