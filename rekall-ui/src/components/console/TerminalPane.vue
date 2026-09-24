@@ -316,7 +316,7 @@ onBeforeUnmount(() => {
                 :aria-expanded="switcherOpen"
                 @click="switcherOpen = !switcherOpen"
               >
-                <span class="session-caret session-caret-busy shrink-0" aria-hidden="true" />
+                <span class="session-caret shrink-0" aria-hidden="true" />
                 Other {{ otherSessions.length }} {{ otherSessions.length === 1 ? 'session' : 'sessions' }}
               </button>
 
@@ -333,7 +333,7 @@ onBeforeUnmount(() => {
                       data-testid="terminal-other-sessions-row"
                       @click="switchTo(terminal)"
                     >
-                      <span class="session-caret session-caret-busy shrink-0" aria-hidden="true" />
+                      <span class="session-caret shrink-0" aria-hidden="true" />
                       <span class="min-w-0 flex-1">
                         <span class="block truncate text-[12.5px] font-medium text-text">
                           {{ terminal.taskTitle }}

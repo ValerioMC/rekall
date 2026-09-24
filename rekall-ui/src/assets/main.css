@@ -960,9 +960,11 @@
  * A Claude session is a headless CLI kept open on stdin, waiting on the next line, so the mark
  * is a text caret. It wears the anchor colour the session was opened on — `/rk <anchor>` is the
  * first line it was ever sent — which also keeps the session corner from reading as the amber
- * time corner stacked twice. It hard-blinks slow while a session is READY and waiting on you,
- * and swells to a block on a quicker beat while one is WORKING. Like every mark here, it runs
- * only while a session is live.
+ * time corner stacked twice. Wherever it stands for sessions (the dock segment, its panel, the
+ * terminal pane's other-sessions switcher, **Plan here** at rest) it hard-blinks slow. It swells
+ * to a block on a quicker beat only where a session has been handed a line and is at work on it:
+ * a wrapup being written, a plan typed into a live terminal. Like every mark here, it runs only
+ * while a session is live.
  */
 @utility session-caret {
   display: block;
