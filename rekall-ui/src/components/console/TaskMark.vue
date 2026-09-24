@@ -9,6 +9,10 @@
  *             over the ring from twelve, so a half-reviewed task reads as half-closed.
  *   LIVE      a session or timer is on it: the ring goes faint, a comet orbits it and the core
  *             breathes. The only state that moves, and only for as long as it holds.
+ *   LIVE_CLAIMED
+ *             the timer runs and a claim waits for you: the same orbit, so it still reads as
+ *             running, but the breathing core is replaced by the claimed check. Something is on,
+ *             and it is your turn.
  *   CLAIMED   work handed in and waiting for you: the step seal's claimed face, shrunk. A tinted
  *             disc, an amber check, the ring left open on the side facing the title: a stamp not
  *             yet applied.
@@ -91,7 +95,9 @@ onUnmounted(() => {
       />
       <circle v-if="state === 'ACCEPTED'" class="mark-engrave" cx="7" cy="7" r="4.7" />
 
-      <circle v-if="state === 'LIVE'" class="mark-comet" cx="7" cy="7" r="5.9" pathLength="100" />
+      <circle
+        v-if="state === 'LIVE' || state === 'LIVE_CLAIMED'"
+        class="mark-comet" cx="7" cy="7" r="5.9" pathLength="100" />
       <circle
         v-if="state === 'WAITING' || state === 'LIVE'"
         class="mark-core"
@@ -101,7 +107,7 @@ onUnmounted(() => {
       />
 
       <path
-        v-if="state === 'CLAIMED' || state === 'ACCEPTED'"
+        v-if="state === 'CLAIMED' || state === 'ACCEPTED' || state === 'LIVE_CLAIMED'"
         class="mark-check"
         pathLength="1"
         d="M4.3 7.2 6.1 9 9.7 5.3"
@@ -200,11 +206,13 @@ onUnmounted(() => {
 
 /* ---- Live ----------------------------------------------------------------------------- */
 
-.mark[data-state='LIVE'] .mark-disc {
+.mark[data-state='LIVE'] .mark-disc,
+.mark[data-state='LIVE_CLAIMED'] .mark-disc {
   fill: color-mix(in srgb, var(--color-accent) 16%, transparent);
 }
 
-.mark[data-state='LIVE'] .mark-ring {
+.mark[data-state='LIVE'] .mark-ring,
+.mark[data-state='LIVE_CLAIMED'] .mark-ring {
   stroke: color-mix(in srgb, var(--color-accent) 28%, transparent);
 }
 
@@ -224,6 +232,13 @@ onUnmounted(() => {
 .mark[data-state='LIVE'] .mark-core {
   fill: var(--color-accent-strong);
   animation: dial-core 1.7s ease-in-out infinite;
+}
+
+/* ---- Live, with a claim waiting ----------------------------------------------------------- */
+
+.mark[data-state='LIVE_CLAIMED'] .mark-check {
+  stroke: var(--color-accent-strong);
+  stroke-width: 1.6;
 }
 
 /* ---- Claimed -------------------------------------------------------------------------- */
@@ -277,6 +292,7 @@ onUnmounted(() => {
 }
 
 .mark[data-arrive='CLAIMED'] .mark-check,
+.mark[data-arrive='LIVE_CLAIMED'] .mark-check,
 .mark[data-arrive='ACCEPTED'] .mark-check {
   animation: mark-draw 360ms cubic-bezier(0.4, 0, 0.2, 1) 140ms both;
 }

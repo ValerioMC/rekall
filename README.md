@@ -221,7 +221,7 @@ With steps on a task, the open steps are the work and the description becomes th
 
 Only you set a step to **done**. `rekall_step` stops at `claimed`. The navigator's progress count is built on `done`.
 
-The mark in front of each navigator row says where an in-progress task's work stands. A hollow amber ring around a small light means nothing is handed in yet, and a green arc on that ring is the share of the checklist already accepted. An orbiting comet means a session or a timer is on the task now; it is the only mark that moves. An amber check in an open ring means work is claimed and waiting for your review. A filled green seal means every piece of work is accepted and the task is ready to move to Done. Tasks in any other status keep a plain dot in their status colour. Hover the mark to see its meaning in words.
+The mark in front of each navigator row says where an in-progress task's work stands. A hollow amber ring around a small light means nothing is handed in yet, and a green arc on that ring is the share of the checklist already accepted. An orbiting comet means a session or a timer is on the task now; it is the only mark that moves. When the timer runs, no session is at work and a claim is waiting for you, the comet keeps orbiting but an amber check replaces the light at its centre: something is running, and it needs your review to go on. A session still working a step keeps the plain comet, whatever it already claimed. An amber check in an open ring means work is claimed and waiting for your review. A filled green seal means every piece of work is accepted and the task is ready to move to Done. Tasks in any other status keep a plain dot in their status colour. Hover the mark to see its meaning in words.
 
 ### Planning
 
