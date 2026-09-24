@@ -72,6 +72,31 @@ describe('the terminal store', () => {
     expect(store.activeTerminalId).toBe('term-1')
   })
 
+  it('plans in a new terminal opened in plan mode when no session is live on the task', async () => {
+    api.openTerminal.mockResolvedValue(terminal())
+    const store = useTerminalStore()
+
+    const planning = await store.planForTask(TASK, 'project:vega task:report-builder', { skipPermissions: true })
+
+    expect(api.openTerminal).toHaveBeenCalledWith(TASK, { skipPermissions: true, mode: 'PLAN' })
+    expect(api.sendTerminalInput).not.toHaveBeenCalled()
+    expect(planning.id).toBe('term-1')
+    expect(store.activeTerminalId).toBe('term-1')
+  })
+
+  it('plans in the live session on the task instead of opening a second terminal', async () => {
+    api.sendTerminalInput.mockResolvedValue(undefined)
+    const store = useTerminalStore()
+    store.terminals = [terminal()]
+    store.activeTerminalId = null
+
+    await store.planForTask(TASK, 'project:vega task:report-builder', { skipPermissions: true })
+
+    expect(api.sendTerminalInput).toHaveBeenCalledWith('term-1', '/rk project:vega task:report-builder plan\r')
+    expect(api.openTerminal).not.toHaveBeenCalled()
+    expect(store.activeTerminalId).toBe('term-1')
+  })
+
   it('markEnded drops the terminal out of the live set without removing it', () => {
     const store = useTerminalStore()
     store.terminals = [terminal()]

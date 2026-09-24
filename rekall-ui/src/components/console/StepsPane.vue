@@ -384,7 +384,11 @@ onUnmounted(() => rowObserver?.disconnect())
 
           <div class="flex shrink-0 items-center gap-1.5">
             <NotesButton :task-id="selectedTask.id" />
-            <PlanHereButton :task-id="selectedTask.id" :anchor="selectedTask.anchor" />
+            <PlanHereButton
+              :task-id="selectedTask.id"
+              :anchor="selectedTask.anchor"
+              :folder="selectedTask.projectRepoFolder"
+            />
             <OpenTerminalButton
               :task-id="selectedTask.id"
               :step-id="currentId"
@@ -511,9 +515,10 @@ onUnmounted(() => rowObserver?.disconnect())
           </button>
 
           <p class="mt-6 text-[12.5px] leading-relaxed text-text-muted">
-            Or have Claude propose them. A session given this reads the description, the wrapup and
-            the code, and puts each step it suggests on a Drafts shelf here, for you to reword and
-            promote. It builds nothing.
+            Or have Claude propose them: <strong class="font-medium text-text">Plan here</strong>
+            above opens a session on it, or give this to one you have. It reads the description, the
+            wrapup and the code, and puts each step it suggests on a Drafts shelf here, for you to
+            reword and promote. It builds nothing.
           </p>
           <button
             class="anchor-chip focus-ring mt-2 inline-flex items-center gap-2 px-2.5 py-1 text-[11.5px] transition-colors hover:border-anchor"

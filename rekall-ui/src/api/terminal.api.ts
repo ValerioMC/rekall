@@ -1,7 +1,7 @@
 import { apiClient, request } from './client'
 import { TerminalListSchema, TerminalSchema } from './schemas/terminal.schema'
 import { env } from '@/common/config/env'
-import type { Terminal } from '@/model/terminal'
+import type { Terminal, TerminalMode } from '@/model/terminal'
 import type { ClaudeEffortChoice, ClaudeModelChoice } from '@/model/claude'
 import type { TaskId, TaskStepId, TerminalId } from '@/model/branded'
 
@@ -10,6 +10,7 @@ export interface OpenTerminalInput {
   skipPermissions: boolean
   model?: ClaudeModelChoice
   effort?: ClaudeEffortChoice
+  mode?: TerminalMode
 }
 
 export async function fetchTerminals(): Promise<Terminal[]> {
@@ -25,7 +26,8 @@ export async function openTerminal(taskId: TaskId, input: OpenTerminalInput): Pr
           stepId: input.stepId ?? null,
           skipPermissions: input.skipPermissions,
           model: input.model && input.model !== 'default' ? input.model : null,
-          effort: input.effort && input.effort !== 'default' ? input.effort : null
+          effort: input.effort && input.effort !== 'default' ? input.effort : null,
+          mode: input.mode ?? 'WORK'
         }
       })
     )

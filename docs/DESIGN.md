@@ -428,7 +428,8 @@ answer along with it.
 
 The in-app session is a real terminal, `C` in the console. `PtyTerminalManager` in
 `rekall-claude` starts the interactive `claude` TUI in a pseudo-terminal (pty4j) in the task's
-folder, with `/rk` as the first line, and pumps its raw bytes to whoever is watching. The reason
+folder, with `/rk` as the first line (`/rk … plan` for a terminal opened in `TerminalMode.PLAN`,
+which the Steps pane's **Plan here** asks for), and pumps its raw bytes to whoever is watching. The reason
 it is a PTY and not `claude -p` is token cost: a hand-run `claude` keeps its own cache warm,
 compacts its own context and shows its own `/context` and cost read-outs, and a PTY running the
 same binary the same way inherits all of that, where a headless stream-json process reassembled
@@ -445,7 +446,9 @@ reading is dropped rather than left to back up memory. `useTerminalSocket` is th
 `TerminalPane.vue` wires it to an `xterm.js` instance.
 
 One terminal per task. Opening again on a task that already has one is routed to it; opening on
-a different step releases the step it was on and marks the new (see §4). `PtyTerminalManager`
+a different step releases the step it was on and marks the new (see §4). A plan open is always on
+the task, never a step, and on a task that already has a terminal it types the plan line into it
+rather than spawning a second. `PtyTerminalManager`
 also carries the checklist marker: `TaskStepService.markRunning` / `releaseRunning` for a step,
 `TaskReviewService.sessionRunning` for a stepless task, on open and on every way the terminal
 ends.

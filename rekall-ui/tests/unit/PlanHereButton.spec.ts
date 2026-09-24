@@ -8,10 +8,11 @@ import type { Terminal } from '@/model/terminal'
 import type { TaskId, TaskStepId, TerminalId } from '@/model/branded'
 
 const sendTerminalInput = vi.fn()
+const openTerminal = vi.fn()
 
 vi.mock('@/api/terminal.api', () => ({
   fetchTerminals: vi.fn(),
-  openTerminal: vi.fn(),
+  openTerminal: (...args: unknown[]) => openTerminal(...args),
   closeTerminal: vi.fn(),
   sendTerminalInput: (...args: unknown[]) => sendTerminalInput(...args)
 }))
@@ -39,34 +40,52 @@ function terminal(over: Partial<Terminal> = {}): Terminal {
   }
 }
 
-function mountButton() {
-  return mount(PlanHereButton, { props: { taskId: TASK, anchor: ANCHOR } })
+function mountButton(folder: string | null = '/code/vega') {
+  return mount(PlanHereButton, { props: { taskId: TASK, anchor: ANCHOR, folder } })
 }
 
 describe('the Plan here button', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     sendTerminalInput.mockReset()
+    openTerminal.mockReset()
   })
 
-  it('is not there without a live session on the task', () => {
-    useTerminalStore().terminals = [terminal({ live: false })]
+  it('opens a planning session when none is live on the task', async () => {
+    openTerminal.mockResolvedValue(terminal({ id: 'term-2' as TerminalId }))
+    const terminals = useTerminalStore()
+    terminals.terminals = [terminal({ live: false })]
+    const openPane = vi.spyOn(useConsoleStore(), 'openTerminal')
 
-    expect(mountButton().find('[data-testid="plan-here"]').exists()).toBe(false)
+    await mountButton().get('[data-testid="plan-here"]').trigger('click')
+    await flushPromises()
+
+    expect(openTerminal).toHaveBeenCalledWith(TASK, expect.objectContaining({ mode: 'PLAN' }))
+    expect(sendTerminalInput).not.toHaveBeenCalled()
+    expect(openPane).toHaveBeenCalled()
+    expect(terminals.activeTerminalId).toBe('term-2')
+  })
+
+  it('asks for the project folder instead of planning when there is neither a folder nor a session', async () => {
+    await mountButton(null).get('[data-testid="plan-here"]').trigger('click')
+    await flushPromises()
+
+    expect(openTerminal).not.toHaveBeenCalled()
+    expect(sendTerminalInput).not.toHaveBeenCalled()
   })
 
   it('types the plan command into the live session and brings its terminal forward', async () => {
     sendTerminalInput.mockResolvedValue(undefined)
     const terminals = useTerminalStore()
     terminals.terminals = [terminal()]
-    const console_ = useConsoleStore()
-    const openTerminal = vi.spyOn(console_, 'openTerminal')
+    const openPane = vi.spyOn(useConsoleStore(), 'openTerminal')
 
     await mountButton().get('[data-testid="plan-here"]').trigger('click')
     await flushPromises()
 
     expect(sendTerminalInput).toHaveBeenCalledWith('term-1', `/rk ${ANCHOR} plan\r`)
-    expect(openTerminal).toHaveBeenCalled()
+    expect(openTerminal).not.toHaveBeenCalled()
+    expect(openPane).toHaveBeenCalled()
     expect(terminals.activeTerminalId).toBe('term-1')
   })
 
