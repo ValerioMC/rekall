@@ -393,14 +393,14 @@ class RekallEndToEndTest {
 
     // Asserted as an exact list so adding a read or write tool breaks a test.
     @Test
-    @DisplayName("the MCP endpoint exposes one way to read and four writes")
+    @DisplayName("the MCP endpoint exposes one way to read and five writes")
     void toolsList() {
         List<?> tools = (List<?>) ((Map<?, ?>) rpc("tools/list", Map.of()).get("result")).get("tools");
 
         assertThat(tools.stream().map(tool -> String.valueOf(((Map<?, ?>) tool).get("name"))))
                 .containsExactlyInAnyOrder(
                         "rekall_context", "rekall_wrapup", "rekall_step", "rekall_record_commit",
-                        "rekall_propose_step");
+                        "rekall_propose_step", "rekall_note");
     }
 
     // --- Commit references
@@ -2259,6 +2259,36 @@ class RekallEndToEndTest {
                 "anchors", "project:vega task:report-builder", "step", "1", "state", "running")))
                 .as("and it cannot be started until a person promotes it")
                 .contains("still a draft");
+    }
+
+    // --- Notes written by a session
+
+    @Test
+    @DisplayName("a session can write a new note onto a task, which travels with its context, and a title the task's notes carry is refused")
+    void aSessionWritesANoteOntoATask() {
+        String acme = aCompany("Acme");
+        String taskId = aTask(aProject(acme, "vega", "ACTIVE"), "report-builder");
+
+        String answer = callTool("rekall_note", Map.of(
+                "anchors", "project:vega task:report-builder",
+                "title", "export-formats.md",
+                "body", "CSV and XLSX, streamed."));
+
+        assertThat(answer).contains("Note \"export-formats.md\" written on `project:vega task:report-builder`")
+                .containsPattern("as `note:[0-9a-f]{8}`").contains("1 note,");
+        List<?> notes = rest.get().uri("/api/documents?taskId=" + taskId).retrieve().toEntity(List.class).getBody();
+        assertThat(notes).hasSize(1);
+        assertThat(((Map<?, ?>) notes.getFirst()).get("kind")).isEqualTo("notes");
+        assertThat(callTool("rekall_context", Map.of("anchors", "project:vega task:report-builder")))
+                .contains("export-formats.md").contains("CSV and XLSX, streamed.");
+
+        assertThat(callTool("rekall_note", Map.of(
+                "anchors", "project:vega task:report-builder", "title", "Export-Formats.md", "body", "Something else.")))
+                .as("a session only adds, so it cannot overwrite a note by reusing its title")
+                .contains("already has a note titled");
+        assertThat(callTool("rekall_note", Map.of("anchors", "project:vega", "title", "x.md", "body", "y")))
+                .as("a note belongs to exactly one task when a session writes it")
+                .contains("No task in those anchors");
     }
 
     // --- Search

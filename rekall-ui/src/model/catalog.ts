@@ -208,6 +208,12 @@ export interface WrapupStreamEvent {
   readonly deleted: boolean
 }
 
+/** A note a session wrote onto a task (`note` SSE event). */
+export interface NoteStreamEvent {
+  readonly taskId: TaskId
+  readonly documentId: DocumentId
+}
+
 export interface TimeEntry {
   readonly id: TimeEntryId
   readonly taskId: TaskId

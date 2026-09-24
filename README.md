@@ -179,8 +179,9 @@ An anchor brings back the record, everything it references resolved in full with
 | `rekall_step` | write | Move one step: `open` to `running` to `claimed` |
 | `rekall_record_commit` | write | Log a commit of the project's repo folder against one task or step |
 | `rekall_propose_step` | write | Add one step as a draft, for a person to promote |
+| `rekall_note` | write | Write a new note and attach it to one task |
 
-There is no query, get or schema tool. `rekall_step` refuses `done`; that state is set by hand in the console. `rekall_step` (on `claimed`) and `rekall_wrapup` take an optional `commit_message`, used only on a project that commits on claim (see [Commit on claim](#commit-on-claim)).
+There is no query, get or schema tool. `rekall_note` only adds: it cannot edit, detach or delete a note, and a title the task's notes already carry is refused. `rekall_step` refuses `done`; that state is set by hand in the console. `rekall_step` (on `claimed`) and `rekall_wrapup` take an optional `commit_message`, used only on a project that commits on claim (see [Commit on claim](#commit-on-claim)).
 
 ## Wrapup
 
@@ -200,6 +201,16 @@ A wrapup written after a step finishes folds that step's work into the same desc
 
 **History**, on the wrapup and on the description, lists the earlier versions of that text, newest first, and restores one. `TaskRevisionService` keeps what a write replaces: every session write, every delete and every restore, so a restore can be undone the same way. The console autosaves as you type, so a hand edit over hand-written text keeps one version per ten minutes, the one from before you started, not every keystroke; a hand edit over a session's text is always kept. The newest 30 versions of each text are kept per task. Sessions never read the history. `GET /api/tasks/{id}/revisions?kind=WRAPUP|DESCRIPTION` lists it and `POST /api/tasks/{id}/revisions/{revisionId}/restore` restores one.
 
+### Notes written by a session
+
+A session can keep what it produced as a note on the task, rather than in the wrapup. Ask for it with a quoted term after `note`, saying what the note has to hold:
+
+```
+/rk project:vega task:report-builder note "the export formats we settled on"
+```
+
+The session writes the note and calls `rekall_note`, which creates it on that task, in full, with kind `notes`. It then travels with the task's context and shows up in the console without a reload. A step or a description that asks for its output to be kept as a note, or a task whose whole point is to write one, gets the same without the `note` term. The tool only adds: a title the task's notes already carry is refused, so changing, sharing or deleting a note stays in the console. Writing a note does not claim the task or a step.
+
 ## Steps
 
 A step sits on a line: **draft** while you are still wording it, **open** once you promote it and it is ready to work, **running** while a session works it, **claimed** when the session reports it finished, **done** when you accept it. Each step is a title and an optional markdown detail. The pane opens on the first step whose work is not finished.
@@ -213,7 +224,7 @@ A session drives its own checklist over `/rk`:
 /rk project:vega task:report-builder step:3 done    # step 3 -> claimed
 ```
 
-The console holds one `text/event-stream` connection (`GET /api/steps/stream`) carrying five frames: `steps` for a checklist, `task-review` for a stepless task's review line, `wrapup` for a wrapup write or delete, `commit-reference` for a commit logged against a task or step, and `run-queue` for the run queue. A step moved from an in-app terminal, a box ticked in another window, a wrapup written over MCP, or a commit logged by a session all land without a reload.
+The console holds one `text/event-stream` connection (`GET /api/steps/stream`) carrying six frames: `steps` for a checklist, `task-review` for a stepless task's review line, `wrapup` for a wrapup write or delete, `commit-reference` for a commit logged against a task or step, `run-queue` for the run queue, and `note` for a note a session wrote. A step moved from an in-app terminal, a box ticked in another window, a wrapup or a note written over MCP, or a commit logged by a session all land without a reload.
 
 Claude receives an open or running step with its detail, tagged `(in progress)` or `(claimed, …)`. A finished step arrives as its title alone. A draft step is not sent at all, only counted as `draft="N"` on the `<steps>` tag. A step ticked without a following wrapup is marked `(finished since the wrapup was written)` and handed back with its detail until the next wrapup folds it in.
 

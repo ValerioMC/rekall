@@ -530,6 +530,15 @@ export const useConsoleStore = defineStore('console', () => {
     )
   }
 
+  /**
+   * A session wrote a note onto a task. The event only names it, so the notes are fetched again,
+   * and the tasks with them for their note count. Nothing is selected: the reader stays where
+   * they were.
+   */
+  async function applyNoteWritten(): Promise<void> {
+    await Promise.all([refreshDocuments(), refreshTasks()])
+  }
+
   async function acceptTask(id: TaskId): Promise<void> {
     const saved = await apiReviewTask(id, 'DONE')
     tasks.value = tasks.value.map((task) => (task.id === id ? saved : task))
@@ -1042,6 +1051,7 @@ export const useConsoleStore = defineStore('console', () => {
     setTaskTag,
     applyTaskReview,
     applyWrapupEvent,
+    applyNoteWritten,
     acceptTask,
     sendBackTask,
     saveTaskDescription,

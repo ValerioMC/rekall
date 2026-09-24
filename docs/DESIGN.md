@@ -33,7 +33,7 @@ loaded in one call, including every note the task shares with its neighbours.
 | # | Decision | Rationale |
 |---|---|---|
 | D1 | Real tables with real foreign keys | A note can never point at a deleted task. On an app whose only job is to be a reliable memory, silent dangling references are the failure mode that matters. |
-| D2 | Claude reads everything and writes a few narrow things | `rekall-mcp` depends on `rekall-service` and never on `rekall-api`, so no controller and none of the console's catalog services are on its classpath, and every read runs in a read-only transaction. The exceptions are `rekall_wrapup`, which replaces one task's wrapup; `rekall_step`, which moves a step from `open` to `running` to `claimed` and cannot reach `done`; `rekall_record_commit`, which logs a commit against a task; and `rekall_propose_step`, which can only add a draft a person has to promote. See §7. |
+| D2 | Claude reads everything and writes a few narrow things | `rekall-mcp` depends on `rekall-service` and never on `rekall-api`, so no controller and none of the console's catalog services are on its classpath, and every read runs in a read-only transaction. The exceptions are `rekall_wrapup`, which replaces one task's wrapup; `rekall_step`, which moves a step from `open` to `running` to `claimed` and cannot reach `done`; `rekall_record_commit`, which logs a commit against a task; `rekall_propose_step`, which can only add a draft a person has to promote; and `rekall_note`, which can only add a new note to one task. See §7. |
 | D3 | Markdown content lives in the database | One backup target, reachable through MCP, searchable. |
 | D4 | One entry point, and it is a slash command | A session begins with `/rk project:vega task:report-builder`, not with a question. Reaching a record through a natural-language query costs several turns and a few thousand tokens before any work starts, and it is the part that fails when the model guesses the wrong entity. An explicit anchor removes both. |
 | D5 | The model is fixed at compile time | There is no runtime meta-model and no DDL engine. Company, project, task and document are fixed JPA entities; adding a new kind of record is a class and a migration, not a screen. |
@@ -280,7 +280,7 @@ Transport: HTTP on the same process as the UI.
 claude mcp add --transport http rekall http://localhost:47355/mcp
 ```
 
-Five tools. `rekall_context` reads, taking one string:
+Six tools. `rekall_context` reads, taking one string:
 
 ```json
 { "anchors": "project:vega task:report-builder-main-workflow" }
@@ -313,6 +313,12 @@ No commit message lists files.
 A draft is not work: it stays off the checklist a session reads until a person promotes it, a
 title the task already has is refused so a second plan does not double the shelf, and a task
 holds at most twenty drafts.
+
+`rekall_note` writes a new note onto one task, taking the anchors, a `title` and the `body`.
+It is what a session uses for output worth keeping that is not the state of the implementation:
+what a step asks to keep, or the note a task exists to write. `/rk … note "…"` asks for one
+explicitly. It creates, and does nothing else: a title the task's notes already carry is refused
+rather than overwritten, and the note is `FULL` with kind `notes` until a person changes it.
 
 A note can travel by reference. It then arrives as its title, its first line and an anchor such
 as `note:3f2a9c1e` (the first eight characters of its id), with `loaded="on request"`, and
@@ -375,7 +381,9 @@ renamed or deleted, no note touched. `TaskStepService.transition` takes a task, 
 target state, and refuses `DONE` and any step a person has already accepted; it cannot add,
 reorder or remove a step, and the console's `edit` is still the only path to `DONE`.
 `TaskStepService.propose` can only append a draft, which no session reads until a person promotes
-it. `CommitReferenceService` and `AutoCommitService` log and make commits in the project's own
+it. `NoteService` (rekall-service) can only create a note and attach it to the one task it was
+written for: it never loads a note by id, so it cannot edit, detach or delete one, and
+`DocumentService`, which can, stays in `rekall-api`. `CommitReferenceService` and `AutoCommitService` log and make commits in the project's own
 folder. Every read runs under
 `@Transactional(readOnly = true)`, so Hibernate will not flush. `McpTool.writes()` is declared
 rather than inferred, and the startup log names the write surface out loud.
@@ -386,8 +394,9 @@ or claimed when it is not. The first two are repaired from the wrapup's history 
 `TaskRevisionService` keeps what every write, delete and restore replaces (a hand edit typed over
 hand-written text is kept once per ten minutes, so the history is versions rather than
 keystrokes), and the tool's answer still announces a replaced hand edit, because no session reads
-that history. The third a person corrects with one tick in the console. What it cannot do is
-tick a step done, lose a note, move a task or delete anything.
+that history. The third a person corrects with one tick in the console. It can also add a note
+nobody wanted, which a person deletes from the note's pane. What it cannot do is tick a step
+done, change or lose a note, move a task or delete anything.
 
 ---
 
