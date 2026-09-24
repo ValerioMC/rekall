@@ -1,5 +1,8 @@
 package dev.rekall;
 
+import dev.rekall.api.dto.ApiDtos.DirectoryEntryResponse;
+import dev.rekall.api.dto.ApiDtos.DirectoryListingResponse;
+import dev.rekall.api.dto.ApiDtos.PathSegmentResponse;
 import dev.rekall.backup.BackupController;
 import dev.rekall.backup.BackupFile;
 import dev.rekall.backup.DatabaseBackupService;
@@ -35,7 +38,9 @@ import org.springframework.context.ConfigurableApplicationContext;
         ContextSize.class, ContextSize.Part.class, ContextSize.Part[].class,
         DatabaseBackupService.Status.class, BackupFile.class, BackupFile[].class,
         BackupController.RestoreStarted.class,
-        RunQueueView.class, RunQueueView.Item.class, RunQueueView.Item[].class
+        RunQueueView.class, RunQueueView.Item.class, RunQueueView.Item[].class,
+        DirectoryListingResponse.class, PathSegmentResponse.class, PathSegmentResponse[].class,
+        DirectoryEntryResponse.class, DirectoryEntryResponse[].class
 })
 public class RekallApplication {
 

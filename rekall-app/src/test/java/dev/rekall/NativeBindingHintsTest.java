@@ -1,5 +1,8 @@
 package dev.rekall;
 
+import dev.rekall.api.dto.ApiDtos.DirectoryEntryResponse;
+import dev.rekall.api.dto.ApiDtos.DirectoryListingResponse;
+import dev.rekall.api.dto.ApiDtos.PathSegmentResponse;
 import dev.rekall.backup.BackupFile;
 import dev.rekall.backup.DatabaseBackupService;
 import dev.rekall.claude.queue.RunQueueView;
@@ -24,7 +27,8 @@ class NativeBindingHintsTest {
     @ValueSource(classes = {
             ContextSize.class, ContextSize.Part[].class,
             DatabaseBackupService.Status.class, BackupFile[].class,
-            RunQueueView.class, RunQueueView.Item[].class
+            RunQueueView.class, RunQueueView.Item[].class,
+            DirectoryListingResponse.class, PathSegmentResponse[].class, DirectoryEntryResponse[].class
     })
     @DisplayName("a response record and the array of its list elements are registered for binding")
     void responseTypesAreRegistered(Class<?> type) {

@@ -358,6 +358,7 @@ onUnmounted(() => {
               v-if="blueprintMode === 'write'"
               v-model="blueprintDraft"
               height="420px"
+              :path-root="project.repoFolder"
               placeholder="# What this is
 
 How it's built, how it's organised, the conventions to follow while working in it."

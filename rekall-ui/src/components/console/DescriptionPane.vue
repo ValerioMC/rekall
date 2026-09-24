@@ -425,6 +425,7 @@ onUnmounted(() => {
             key="write"
             v-model="draft"
             height="100%"
+            :path-root="selectedTask?.projectRepoFolder"
             @update:model-value="scheduleSave"
           />
           <AppMarkdownEditor v-else key="read" :model-value="draft" readonly />

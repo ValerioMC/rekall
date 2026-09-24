@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, useId, watch } from 'vue'
-import { MdEditor, MdPreview, type ExposeParam, type ToolbarNames } from 'md-editor-v3'
+import { MdEditor, MdPreview, NormalToolbar, type ExposeParam, type ToolbarNames } from 'md-editor-v3'
 import '@/common/config/markdown-editor'
+import PathPicker, { type CaretBox } from '@/components/ui/PathPicker.vue'
+import { formatPathForMarkdown } from '@/common/path/path-query'
 import {
   READ_WIDTH_MAX,
   READ_WIDTH_MIN,
@@ -24,8 +26,20 @@ const props = withDefaults(
      * width and alignment they set belong to a pane-sized page, not to a card.
      */
     compact?: boolean
+    /**
+     * The folder the path picker opens in: the project's, when the text belongs to one. Without
+     * it the picker opens in the home folder, and it can reach anywhere on the machine either way.
+     */
+    pathRoot?: string | null
   }>(),
-  { readonly: false, height: '420px', placeholder: '# Contesto', showPreview: true, compact: false }
+  {
+    readonly: false,
+    height: '420px',
+    placeholder: '# Contesto',
+    showPreview: true,
+    compact: false,
+    pathRoot: null
+  }
 )
 
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
@@ -53,6 +67,85 @@ watch(readAlign, (value) => setReadModeAlign(value))
 
 const readStyle = computed(() => ({ '--rk-read-width': `${readWidth.value}px` }))
 
+type EditorView = NonNullable<ReturnType<ExposeParam['getEditorView']>>
+
+function editorView(): EditorView | null {
+  return editor.value?.getEditorView() ?? null
+}
+
+/*
+ * The path picker. It is opened over the selection as it stands (⌘⇧P, or the toolbar's folder)
+ * and writes into exactly that range when a path is chosen, through CodeMirror, so the insert is
+ * one undo step and the v-model hears about it the way it hears about typing.
+ */
+const pickerOpen = ref(false)
+/** The folder the picker was last left in, so a second path from the same place is one keystroke. */
+const pickerStart = ref<string | null>(null)
+let pickerRange: { from: number; to: number } | null = null
+let pickerTextBefore = ''
+
+watch(
+  () => props.pathRoot,
+  () => {
+    pickerStart.value = null
+  }
+)
+
+function openPicker(): void {
+  const view = editorView()
+  if (!view || props.readonly) return
+  const { from, to } = view.state.selection.main
+  pickerRange = { from, to }
+  pickerTextBefore = view.state.sliceDoc(0, from)
+  pickerOpen.value = true
+}
+
+function closePicker(): void {
+  pickerOpen.value = false
+  editorView()?.focus()
+}
+
+function togglePicker(): void {
+  if (pickerOpen.value) closePicker()
+  else openPicker()
+}
+
+/** Where the path will land, held inside the writing area when that point has scrolled out of it. */
+function locateCaret(): CaretBox | null {
+  const view = editorView()
+  if (!view || !pickerRange) return null
+  const frame = view.scrollDOM.getBoundingClientRect()
+  const coords = view.coordsAtPos(pickerRange.from)
+  if (!coords) return { left: frame.left + 18, top: frame.top, bottom: frame.top + 20 }
+  const top = Math.min(Math.max(coords.top, frame.top), frame.bottom - 20)
+  return { left: coords.left, top, bottom: top + (coords.bottom - coords.top) }
+}
+
+function formatPick(path: string, directory: boolean): string {
+  return formatPathForMarkdown(path, directory, pickerTextBefore)
+}
+
+function insertPath(path: string, directory: boolean): void {
+  const view = editorView()
+  const range = pickerRange
+  closePicker()
+  if (!view || !range) return
+  const text = formatPick(path, directory)
+  view.dispatch({
+    changes: { from: range.from, to: range.to, insert: text },
+    selection: { anchor: range.from + text.length },
+    scrollIntoView: true,
+    userEvent: 'input.paste'
+  })
+}
+
+function onEditorKeydown(event: KeyboardEvent): void {
+  if (props.readonly || !(event.metaKey || event.ctrlKey) || !event.shiftKey || event.code !== 'KeyP') return
+  event.preventDefault()
+  event.stopPropagation()
+  togglePicker()
+}
+
 const TOOLBARS: ToolbarNames[] = [
   'bold',
   'italic',
@@ -67,6 +160,7 @@ const TOOLBARS: ToolbarNames[] = [
   'codeRow',
   'code',
   'link',
+  0,
   'image',
   'table',
   '-',
@@ -85,6 +179,7 @@ const TOOLBARS: ToolbarNames[] = [
     :class="{ 'rekall-md--readonly': readonly, 'rekall-md--compact': readonly && compact }"
     :style="readonly && !compact ? readStyle : undefined"
     :data-align="readonly && !compact ? readAlign : undefined"
+    @keydown.capture="onEditorKeydown"
   >
     <div v-if="readonly && !compact" class="rekall-read-controls">
       <div class="relative">
@@ -169,7 +264,45 @@ const TOOLBARS: ToolbarNames[] = [
       no-echarts
       no-prettier
       no-upload-img
-    />
+    >
+      <template #defToolbars>
+        <NormalToolbar
+          title="Insert a path  ⌘⇧P"
+          aria-label="Insert a path"
+          :aria-expanded="pickerOpen"
+          data-path-picker-trigger
+          data-testid="path-picker-trigger"
+          :class="{ 'md-editor-toolbar-active': pickerOpen }"
+          @on-click="togglePicker"
+        >
+          <!-- A folder with the slash of a path through it: this puts a path, not a file, in the text. -->
+          <svg class="md-editor-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4.4l2 2.2h8.6A1.5 1.5 0 0 1 21 8.7v9.8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5v-12Z"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linejoin="round"
+            />
+            <path d="m13.6 10.4-3.2 6.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          </svg>
+        </NormalToolbar>
+      </template>
+    </MdEditor>
+
+    <Teleport to="body">
+      <Transition name="popover">
+        <PathPicker
+          v-if="pickerOpen"
+          :root="pathRoot"
+          :start="pickerStart"
+          :locate="locateCaret"
+          :format="formatPick"
+          @pick="insertPath"
+          @visit="pickerStart = $event"
+          @close="closePicker"
+        />
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
