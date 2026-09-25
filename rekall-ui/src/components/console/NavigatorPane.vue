@@ -49,6 +49,9 @@ const projectChoices = computed(() => store.scopedProjects)
 
 const groupByProject = computed(() => navMode.value === 'tasks' && scopeProject.value === null)
 
+const showNewTaskButton = computed(() => navMode.value === 'tasks' && projectChoices.value.length > 0)
+const showNewNoteButton = computed(() => navMode.value === 'notes' && tasks.value.length > 0)
+
 interface ProjectGroup {
   readonly projectId: ProjectId
   readonly projectTitle: string
@@ -212,36 +215,41 @@ defineExpose({ beginCreate, editSelected })
       </div>
 
       <template v-else>
-      <button
-        v-if="navMode === 'tasks' && projectChoices.length"
-        data-testid="new-task"
-        class="focus-ring m-2 flex w-[calc(100%-16px)] items-center gap-2 rounded-[var(--radius-control)] border border-dashed border-border-strong px-2.5 py-2 text-left text-[12.5px] text-text-muted transition-colors hover:border-solid hover:border-accent hover:bg-accent-soft hover:text-text"
-        @click="beginCreate"
+      <div
+        v-if="showNewTaskButton || showNewNoteButton"
+        class="glass sticky top-0 z-(--z-sticky) border-b border-border/60 p-2"
       >
-        <span class="text-accent">+</span> New task
-        <span
-          v-if="scopeProject !== null"
-          class="ml-auto min-w-0 truncate font-mono text-[10.5px] text-text-subtle"
+        <button
+          v-if="showNewTaskButton"
+          data-testid="new-task"
+          class="focus-ring flex w-full items-center gap-2 rounded-[var(--radius-control)] border border-dashed border-border-strong px-2.5 py-2 text-left text-[12.5px] text-text-muted transition-colors hover:border-solid hover:border-accent hover:bg-accent-soft hover:text-text"
+          @click="beginCreate"
         >
-          in {{ scopeName }}
-        </span>
-      </button>
+          <span class="text-accent">+</span> New task
+          <span
+            v-if="scopeProject !== null"
+            class="ml-auto min-w-0 truncate font-mono text-[10.5px] text-text-subtle"
+          >
+            in {{ scopeName }}
+          </span>
+        </button>
 
-      <button
-        v-if="navMode === 'notes' && tasks.length"
-        data-testid="new-note-here"
-        class="focus-ring m-2 flex w-[calc(100%-16px)] items-center gap-2 rounded-[var(--radius-control)] border px-2.5 py-2 text-left text-[12.5px] transition-colors"
-        :class="
-          noteComposerOpen
-            ? 'selected-row border-transparent text-text'
-            : 'border-dashed border-border-strong text-text-muted hover:border-solid hover:border-accent hover:bg-accent-soft hover:text-text'
-        "
-        :aria-pressed="noteComposerOpen"
-        @click="store.openNoteComposer()"
-      >
-        <span class="text-accent">+</span> New note
-        <kbd class="ml-auto rounded border border-border px-1 font-mono text-[10px] text-text-subtle">N</kbd>
-      </button>
+        <button
+          v-if="showNewNoteButton"
+          data-testid="new-note-here"
+          class="focus-ring flex w-full items-center gap-2 rounded-[var(--radius-control)] border px-2.5 py-2 text-left text-[12.5px] transition-colors"
+          :class="
+            noteComposerOpen
+              ? 'selected-row border-transparent text-text'
+              : 'border-dashed border-border-strong text-text-muted hover:border-solid hover:border-accent hover:bg-accent-soft hover:text-text'
+          "
+          :aria-pressed="noteComposerOpen"
+          @click="store.openNoteComposer()"
+        >
+          <span class="text-accent">+</span> New note
+          <kbd class="ml-auto rounded border border-border px-1 font-mono text-[10px] text-text-subtle">N</kbd>
+        </button>
+      </div>
 
       <template v-if="navMode === 'tasks' && groupByProject">
         <div
