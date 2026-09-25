@@ -146,14 +146,23 @@ impl DatabaseBackupService {
         }
     }
 
+    /// A folder the backups live in but that cannot be listed (a cloud-synced placeholder, a
+    /// permissions problem) is reported through `last_failure`, not a failed settings page.
     pub fn status(&self) -> Result<BackupStatus> {
         let inner = &self.inner;
+        let backups = match inner.location.is_some() {
+            true => self.list().unwrap_or_else(|failed| {
+                self.failed(failed);
+                Vec::new()
+            }),
+            false => Vec::new(),
+        };
         Ok(BackupStatus {
             available: inner.location.is_some(),
             folder: inner.location.as_ref().map(|l| l.backups().to_string_lossy().into_owned()),
             interval_hours: inner.interval.num_hours(),
             keep: inner.keep,
-            backups: if inner.location.is_some() { self.list()? } else { Vec::new() },
+            backups,
             last_failure: inner.last_failure.lock().expect("never poisoned").clone(),
         })
     }

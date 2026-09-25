@@ -176,6 +176,25 @@ async fn an_upload_that_is_not_a_backup_is_refused_and_nothing_is_left_behind() 
 }
 
 #[tokio::test]
+#[cfg(unix)]
+async fn a_backups_folder_that_cannot_be_read_is_reported_as_a_failure_not_a_broken_settings_page() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let app = backup_app().await;
+    app.post_empty("/api/backups").await;
+    let folder = backups_folder(&app);
+    std::fs::set_permissions(&folder, std::fs::Permissions::from_mode(0o000)).unwrap();
+
+    let status = app.get("/api/backups").await;
+
+    std::fs::set_permissions(&folder, std::fs::Permissions::from_mode(0o755)).unwrap();
+    assert_eq!(status.status, 200, "{}", status.text);
+    assert_eq!(status.get("available"), &json!(true));
+    assert!(status.get("backups").as_array().unwrap().is_empty());
+    assert_contains!(status.get("lastFailure").as_str().unwrap(), "backups");
+}
+
+#[tokio::test]
 async fn an_in_memory_database_has_no_backups() {
     let app = app_with(&[("spring.datasource.url", "jdbc:h2:mem:rekall")], StartOptions { no_restart: true, ..StartOptions::default() }).await;
     let status = app.get("/api/backups").await;
