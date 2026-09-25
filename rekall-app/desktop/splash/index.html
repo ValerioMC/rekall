@@ -1,0 +1,66 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Rekall</title>
+  <style>
+    :root { color-scheme: dark; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      background: #08090c; color: #f2f5f9;
+      font: 400 14px/1.5 -apple-system, BlinkMacSystemFont, 'Fira Sans', sans-serif;
+      display: flex; align-items: center; justify-content: center;
+      -webkit-user-select: none; user-select: none;
+    }
+    .panel { text-align: center; max-width: 34rem; padding: 2rem; }
+    .mark {
+      font-size: 0.75rem; letter-spacing: 0.42em; text-transform: uppercase;
+      color: #f5a524; margin-bottom: 2rem;
+    }
+    .status { color: #a3acba; min-height: 1.5rem; }
+    .detail { color: #7a8494; font-size: 12.5px; margin-top: 0.75rem; }
+    .title { font-size: 1rem; font-weight: 500; margin-bottom: 0.5rem; }
+    .path { font-family: 'Fira Code', ui-monospace, monospace; color: #5fd0e0; font-size: 12px; }
+    .spinner {
+      width: 22px; height: 22px; margin: 0 auto 1.5rem;
+      border: 2px solid #1c222c; border-top-color: #f5a524; border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="panel" id="panel">
+    <div class="mark">Rekall</div>
+    <div class="spinner"></div>
+    <div class="status" id="status">Starting…</div>
+  </div>
+  <script>
+    // Driven from the shell: the status line while the server starts, and the error page if it
+    // does not. Text only, never markup, whatever the shell passes.
+    window.rekallStatus = function (text) {
+      document.getElementById('status').textContent = text;
+    };
+    window.rekallFail = function (title, detail, log) {
+      var panel = document.getElementById('panel');
+      panel.textContent = '';
+      var add = function (cls, text) {
+        var div = document.createElement('div');
+        div.className = cls;
+        div.textContent = text;
+        panel.appendChild(div);
+        return div;
+      };
+      add('mark', 'Rekall');
+      add('title', title);
+      add('detail', detail);
+      var line = add('detail', 'Log: ');
+      var path = document.createElement('span');
+      path.className = 'path';
+      path.textContent = log;
+      line.appendChild(path);
+      add('detail', 'View › Reload tries again.');
+    };
+  </script>
+</body>
+</html>

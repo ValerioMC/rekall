@@ -1,0 +1,15 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "console",
+  "description": "What the console, served by the local Rekall server, may ask of the window: the three bridges and nothing else.",
+  "windows": ["main"],
+  "remote": {
+    "urls": ["http://127.0.0.1:*", "http://localhost:*"]
+  },
+  "permissions": [
+    "core:default",
+    "allow-pick-folder",
+    "allow-open-in-claude-code",
+    "allow-notify"
+  ]
+}
