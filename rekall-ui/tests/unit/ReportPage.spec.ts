@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import { flushPromises, mount } from '@vue/test-utils'
+import { flushPromises } from '@vue/test-utils'
 import type { DOMWrapper, VueWrapper } from '@vue/test-utils'
 import ReportPage from '@/components/report/ReportPage.vue'
 import { router } from '@/router'
 import { useConsoleStore } from '@/stores/console.store'
+import { mountWithHeaderChrome } from './support/mountWithHeaderChrome'
 import type { Company, Task, TaskStep, TimeEntry } from '@/model/catalog'
 import type { CompanyId, ProjectId, TaskId, TaskStepId, TimeEntryId } from '@/model/branded'
 
@@ -144,7 +145,7 @@ async function mountReport() {
   store.timeEntries = [session('te1', builder, 1, 2), session('te2', signal, 2, 3)]
   store.steps = steps
   await router.push('/report')
-  const wrapper = mount(ReportPage, { global: { plugins: [router] } })
+  const wrapper = mountWithHeaderChrome(ReportPage, { global: { plugins: [router] } })
   await flushPromises()
   return wrapper
 }

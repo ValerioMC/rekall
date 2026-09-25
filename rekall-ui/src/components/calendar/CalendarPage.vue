@@ -64,7 +64,7 @@ const WEEKDAY_LABELS = weekdayLabels()
 </script>
 
 <template>
-  <div class="min-h-full bg-canvas">
+  <div class="flex-1 min-h-0 bg-canvas">
     <AppCatalogHeader title="Calendar">
       <template #actions>
         <span class="hidden font-mono text-[11.5px] text-text-subtle sm:inline">

@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import { flushPromises, mount } from '@vue/test-utils'
+import { flushPromises } from '@vue/test-utils'
 import App from '@/App.vue'
 import { router } from '@/router'
 import { useConsoleStore } from '@/stores/console.store'
+import { mountWithHeaderChrome } from './support/mountWithHeaderChrome'
 import { TASK_DESCRIPTION_TEMPLATE } from '@/model/templates'
 import type { Company, Project, RekallDocument, Task, TaskStep, Wrapup } from '@/model/catalog'
 import type { DocumentInput } from '@/api/documents.api'
@@ -289,7 +290,7 @@ async function mountConsole() {
   // App itself no longer loads the catalog on mount — that moved to Bootstrap, the one place
   // guaranteed to run regardless of which route is entered — so the test stands in for it.
   await useConsoleStore().load()
-  const wrapper = mount(App, { attachTo: document.body, global: { plugins: [router] } })
+  const wrapper = mountWithHeaderChrome(App, { global: { plugins: [router] } })
   await flushPromises()
   return wrapper
 }

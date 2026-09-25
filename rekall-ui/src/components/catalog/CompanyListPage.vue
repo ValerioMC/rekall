@@ -57,7 +57,7 @@ async function confirmDelete(): Promise<void> {
 </script>
 
 <template>
-  <div class="min-h-full bg-canvas">
+  <div class="flex-1 min-h-0 bg-canvas">
     <AppCatalogHeader title="Companies">
       <template #actions>
         <AppButton
