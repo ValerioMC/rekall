@@ -1,15 +1,22 @@
 <script setup lang="ts">
 import AppLogo from '@/components/ui/AppLogo.vue'
 import AppNavSwitcher from '@/components/console/AppNavSwitcher.vue'
+import WindowControls from '@/components/console/WindowControls.vue'
+import { isDesktopApp } from '@/common/native/desktop'
 
 /** `parent` is what the title sits inside (a project's company): shown before it, stepped back. */
 withDefaults(defineProps<{ title: string; parent?: string | null }>(), { parent: null })
+
+const isDesktop = isDesktopApp()
 </script>
 
 <template>
   <header
+    :data-tauri-drag-region="isDesktop ? true : undefined"
     class="glass sticky top-0 z-(--z-sticky) flex h-(--spacing-header) shrink-0 items-center gap-3.5 border-b border-border px-4"
   >
+    <WindowControls v-if="isDesktop" />
+
     <div class="flex w-(--spacing-nav) shrink-0 items-center gap-2.5 pr-2.5">
       <AppLogo :size="32" class="halo rounded-[7px]" />
       <span class="min-w-0">

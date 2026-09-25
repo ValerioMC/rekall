@@ -54,11 +54,7 @@ onUnmounted(() => {
 <template>
   <template v-if="status">
     <template v-if="status.status === 'READY'">
-      <router-view v-slot="{ Component }">
-        <Transition name="pane" mode="out-in">
-          <component :is="Component" />
-        </Transition>
-      </router-view>
+      <router-view />
       <ShellDock />
     </template>
     <FirstRunSetup v-else-if="status.status === 'SETUP_NEEDED'" />
