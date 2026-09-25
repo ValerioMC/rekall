@@ -6,9 +6,12 @@ import RecordDialog from '@/components/console/RecordDialog.vue'
 import NavigatorTaskRow from '@/components/console/NavigatorTaskRow.vue'
 import NavigatorFilingDrawer from '@/components/console/NavigatorFilingDrawer.vue'
 import ProjectTrace from '@/components/ui/ProjectTrace.vue'
+import AppBadge from '@/components/ui/AppBadge.vue'
 import { partitionTasks } from '@/common/catalog/partition-tasks'
+import { identityHue } from '@/common/identity'
 import { useConsoleStore } from '@/stores/console.store'
 import {
+  PROJECT_STATUS_LABEL,
   TASK_STATUS_COLOR,
   TASK_STATUS_LABEL,
   TASK_STATUS_ORDER,
@@ -16,7 +19,7 @@ import {
 } from '@/model/catalog'
 import { taskDraft } from '@/model/record-draft'
 import type { RecordDraft } from '@/model/record-draft'
-import type { Task } from '@/model/catalog'
+import type { ProjectStatus, Task } from '@/model/catalog'
 import type { ProjectId } from '@/model/branded'
 
 const store = useConsoleStore()
@@ -31,6 +34,7 @@ const {
   selectedDocId,
   noteComposerOpen,
   tasks,
+  projects,
   elsewhere,
   isLoading,
   runningEntries
@@ -48,6 +52,7 @@ interface ProjectGroup {
   readonly projectId: ProjectId
   readonly projectTitle: string
   readonly companyName: string
+  readonly status: ProjectStatus
   readonly tasks: Task[]
   readonly active: Task[]
   readonly filed: Task[]
@@ -57,8 +62,14 @@ interface ProjectTaskBucket {
   readonly projectId: ProjectId
   readonly projectTitle: string
   readonly companyName: string
+  readonly status: ProjectStatus
   readonly tasks: Task[]
 }
+
+const projectStatusById = computed(() => new Map(projects.value.map((project) => [project.id, project.status])))
+
+// Active projects float to the top of the column so a paused or done one never buries what is live.
+const PROJECT_STATUS_RANK: Readonly<Record<ProjectStatus, number>> = { ACTIVE: 0, PAUSED: 1, DONE: 2 }
 
 const groupedByProject = computed<ProjectGroup[]>(() => {
   const byProject = new Map<ProjectId, ProjectTaskBucket>()
@@ -69,6 +80,7 @@ const groupedByProject = computed<ProjectGroup[]>(() => {
         projectId: task.projectId,
         projectTitle: task.projectTitle,
         companyName: task.companyName,
+        status: projectStatusById.value.get(task.projectId) ?? 'ACTIVE',
         tasks: []
       }
       byProject.set(task.projectId, bucket)
@@ -77,7 +89,11 @@ const groupedByProject = computed<ProjectGroup[]>(() => {
   }
   return [...byProject.values()]
     .map((bucket) => ({ ...bucket, ...partitionTasks(bucket.tasks) }))
-    .sort((a, b) => a.projectTitle.localeCompare(b.projectTitle))
+    .sort(
+      (a, b) =>
+        PROJECT_STATUS_RANK[a.status] - PROJECT_STATUS_RANK[b.status] ||
+        a.projectTitle.localeCompare(b.projectTitle)
+    )
 })
 
 const grouped = computed(() =>
@@ -223,7 +239,13 @@ defineExpose({ beginCreate, editSelected })
       </button>
 
       <template v-if="navMode === 'tasks' && groupByProject">
-        <div v-for="group in groupedByProject" :key="group.projectId" class="px-2 pt-1.5 first:pt-0.5">
+        <div
+          v-for="group in groupedByProject"
+          :key="group.projectId"
+          class="border-l-2 px-2 pt-1.5 first:pt-0.5"
+          :class="group.status !== 'ACTIVE' && 'filed-row'"
+          :style="{ borderLeftColor: identityHue(group.projectId).line }"
+        >
           <button
             class="focus-ring flex w-full items-start gap-2 rounded-[var(--radius-control)] px-1.5 pb-1.5 pt-2 text-left"
             @click="toggleCollapsed(group.projectId)"
@@ -237,9 +259,17 @@ defineExpose({ beginCreate, editSelected })
             >
               <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
+            <span
+              class="mt-[3px] size-1.5 shrink-0 rounded-full"
+              :style="{ backgroundColor: identityHue(group.projectId).base }"
+              aria-hidden="true"
+            />
             <span class="min-w-0 flex-1">
               <span class="flex items-center gap-2">
                 <span class="section-label min-w-0 flex-1 truncate">{{ group.projectTitle }}</span>
+                <AppBadge v-if="group.status !== 'ACTIVE'" :tone="group.status === 'DONE' ? 'safe' : 'neutral'" dot>
+                  {{ PROJECT_STATUS_LABEL[group.status] }}
+                </AppBadge>
                 <span
                   class="shrink-0 rounded-full bg-surface-raised px-1.5 py-px font-mono text-[10px] tabular-nums text-text-subtle"
                 >
