@@ -1964,6 +1964,22 @@ version = "0.1.0"
 [[package]]
 name = "rekall-mcp"
 version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "axum",
+ "base64",
+ "http-body-util",
+ "regex",
+ "rekall-common",
+ "rekall-model",
+ "rekall-repository",
+ "rekall-service",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tower",
+ "tracing",
+]
 
 [[package]]
 name = "rekall-model"
