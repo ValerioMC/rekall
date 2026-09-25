@@ -39,6 +39,7 @@ const BASE64_SUFFIX: &str = "?=";
 
 /// What a call came to: a status and a JSON-RPC body, or an accepted notification with none.
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)] // One per request, returned straight into the response.
 pub enum Answer {
     Body(StatusCode, RpcResponse),
     Accepted,

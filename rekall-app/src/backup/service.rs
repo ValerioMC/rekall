@@ -190,7 +190,7 @@ impl DatabaseBackupService {
         self.prune(&found.backups())?;
         *self.inner.last_failure.lock().expect("never poisoned") = None;
         info!("Backed up the database to {}", target.display());
-        describe(&target).ok_or_else(|| io_failure())
+        describe(&target).ok_or_else(io_failure)
     }
 
     /// Newest first.

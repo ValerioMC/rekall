@@ -70,7 +70,7 @@ pub fn uuid(name: &str, raw: &str) -> ApiResult<Id> {
 pub fn optional_uuid(name: &str, raw: Option<&str>) -> ApiResult<Option<Id>> {
     match raw {
         None => Ok(None),
-        Some(value) if value.is_empty() => Ok(None),
+        Some("") => Ok(None),
         Some(value) => uuid(name, value).map(Some),
     }
 }

@@ -64,7 +64,7 @@ impl StepStateTool {
 }
 
 fn parse_state(raw: &str) -> Result<TaskStepState, ToolError> {
-    let value = rekall_common::jstr::strip(raw).to_lowercase().replace('-', "_").replace(' ', "_");
+    let value = rekall_common::jstr::strip(raw).to_lowercase().replace(['-', ' '], "_");
     match value.as_str() {
         "running" | "run" | "start" | "started" | "starting" | "begin" | "in_progress" | "progress" => Ok(TaskStepState::Running),
         "claimed" | "claim" | "done" | "complete" | "completed" | "finish" | "finished" => Ok(TaskStepState::Claimed),

@@ -293,7 +293,8 @@ async fn a_task_with_nothing_open_is_skipped_and_a_session_that_ends_early_fails
     q.app.delete(&format!("/api/terminals/{terminal}")).await;
 
     await_until(15, || async { q.item_state(1).await == "FAILED" && q.queue_state().await == "IDLE" }).await;
-    assert_contains!(q.item(1).await["detail"].as_str().unwrap().to_string(), "ended before");
+    let detail = q.item(1).await["detail"].clone();
+    assert_contains!(detail.as_str().unwrap(), "ended before");
     q.tear_down().await;
 }
 
@@ -337,7 +338,8 @@ async fn crossing_the_ceiling_at_a_claim_closes_the_session_and_puts_the_task_ba
 
     await_until(15, || async { q.queue_state().await == "HOLDING" && q.terminal_on(&task).await.is_none() }).await;
     assert_eq!(q.item_state(0).await, "QUEUED");
-    assert_contains!(q.item(0).await["detail"].as_str().unwrap().to_string(), "ceiling");
+    let detail = q.item(0).await["detail"].clone();
+    assert_contains!(detail.as_str().unwrap(), "ceiling");
     let steps = q.app.get(&format!("/api/tasks/{task}/steps")).await.list();
     assert_eq!(steps[1]["state"], "OPEN", "a step the session had started is left open for the next one");
     q.tear_down().await;

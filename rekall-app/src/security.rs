@@ -57,7 +57,8 @@ impl LocalAccess {
             }
         }
         if let Some(origin) = origin {
-            if !is_loopback_origin(origin) && !(self.remote_access && is_same_origin(origin, host)) {
+            let this_machine = is_loopback_origin(origin) || (self.remote_access && is_same_origin(origin, host));
+            if !this_machine {
                 return Some(format!("Origin '{origin}' is not a page this machine serves"));
             }
         }

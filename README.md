@@ -17,6 +17,10 @@ Source-available, not open source. See [License](#license).
 
 The database is an H2 file under `./data`. No database server, Docker or cluster.
 
+The backend also exists as a Rust port (Rust 1.85+), one binary serving the same console, API and
+MCP endpoint on the same port, with a SQLite database and a Tauri desktop shell. See
+[The Rust server](#the-rust-server).
+
 ## Run
 
 ```bash
@@ -43,6 +47,21 @@ Nothing in Rekall authenticates, and its API can open a `claude` terminal in a p
 | Property | Default | Meaning |
 |---|---|---|
 | `rekall.security.remote-access` | `false` | `true` accepts other machines and their own origin. It gives up the DNS-rebinding check; only for a network you trust |
+
+## The Rust server
+
+```bash
+make server      # target/release/rekall-server, with the console embedded
+make run-rust    # start it on http://localhost:47355
+make test-rust   # cargo test: every crate, the ported JUnit suites included
+make desktop     # the Tauri desktop app (needs the platform WebView SDK)
+make import-java-db DIR=~/rekall-data   # import a Java-era H2 database into SQLite
+```
+
+Same port, same routes, same JSON, same MCP tools; the database is `rekall.db` (SQLite) in the
+folder that held `rekall.mv.db`, and an existing H2 database is imported rather than recreated.
+`docs/RUST-PORT.md` describes the layout, how parity with the Java server was checked, and every
+place where the two still differ.
 
 ## macOS application
 

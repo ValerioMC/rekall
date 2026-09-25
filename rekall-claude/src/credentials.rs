@@ -260,7 +260,7 @@ mod tests {
     fn a_token_with_no_expiry_is_kept_but_loses_to_one_that_says_when_it_expires() {
         let home = tempfile::tempdir().unwrap();
         let undated = "{\"claudeAiOauth\":{\"accessToken\":\"undated\"}}".to_string();
-        assert_eq!(credentials(home.path(), &[undated.clone()]).access_token().as_deref(), Some("undated"));
+        assert_eq!(credentials(home.path(), std::slice::from_ref(&undated)).access_token().as_deref(), Some("undated"));
         let dated = secret("dated", now().plus_seconds(10));
         assert_eq!(credentials(home.path(), &[undated, dated]).access_token().as_deref(), Some("dated"));
     }

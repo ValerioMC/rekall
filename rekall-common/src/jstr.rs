@@ -283,7 +283,7 @@ mod tests {
         assert_eq!(index_of("héllo wörld", "wörld"), Some(6));
         assert_eq!(last_index_of_from("a b c d", " ", 4), Some(3));
         assert_eq!(index_of_from("a b c d", " ", 2), Some(3));
-        assert!(equals_ignore_case("Straße", "STRASSE") == false);
+        assert!(!equals_ignore_case("Straße", "STRASSE"));
         assert!(equals_ignore_case("Hello", "hELLO"));
     }
 }

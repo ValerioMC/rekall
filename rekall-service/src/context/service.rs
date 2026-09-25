@@ -244,10 +244,7 @@ impl ContextService {
         }
 
         let documents = repo::document::documents_of_task(db, task.id).await?;
-        let wrapup = match load::wrapup_of(db, task.id).await? {
-            Some(found) => Some(WrapupView::of(&found, task, &project)),
-            None => None,
-        };
+        let wrapup = load::wrapup_of(db, task.id).await?.map(|found| WrapupView::of(&found, task, &project));
         Ok(ContextRecord {
             kind: "Task".into(),
             label: task.title.clone(),

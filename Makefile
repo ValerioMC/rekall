@@ -19,7 +19,7 @@ DEMO_COMPANIES          ?= 3
 DEMO_TASKS_PER_COMPANY  ?= 20
 
 .DEFAULT_GOAL := help
-.PHONY: help run run-demo build jar native run-native start-native dmg-native dmg-jvm icons ui ui-dev test test-backend test-ui mcp-add mcp-check console reset reset-data load-data
+.PHONY: server run-rust test-rust desktop import-java-db parity help run run-demo build jar native run-native start-native dmg-native dmg-jvm icons ui ui-dev test test-backend test-ui mcp-add mcp-check console reset reset-data load-data
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -119,3 +119,25 @@ reset-data: ## Delete the demo database (./data/demo) so the next load-data star
 
 load-data: ## Seed the running instance with demo companies, project blueprints, tasks with markdown briefs, notes and time tracking for the current month. Start it first with `make run-demo`
 	python3 scripts/seed-demo-data.py --base-url $(REKALL_URL) --companies $(DEMO_COMPANIES) --tasks-per-company $(DEMO_TASKS_PER_COMPANY)
+
+# The Rust port (docs/RUST-PORT.md): the same application as one binary, rekall-server, with the
+# console embedded, and a Tauri desktop shell over the same server. Additive: nothing above changes.
+
+server: ui ## Rust: build rekall-server (console embedded) into target/release
+	cargo build --release -p rekall-app
+
+run-rust: ui ## Rust: start rekall-server on http://localhost:47355
+	cargo run --release -p rekall-app --bin rekall-server
+
+test-rust: ## Rust: every crate's tests except the desktop shell
+	cargo test
+
+desktop: ui ## Rust: build the Tauri desktop app (needs the platform WebView SDK)
+	cargo build --release -p rekall-desktop
+
+import-java-db: ## Rust: import the H2 database in DIR into SQLite and make it the active one
+	@test -n "$(DIR)" || { echo "usage: make import-java-db DIR=<folder holding rekall.mv.db>"; exit 1; }
+	./scripts/migrate-h2-to-sqlite.sh "$(DIR)"
+
+parity: ## Rust: compare the Java and Rust servers call by call (needs `mvn package` and `cargo build`)
+	./scripts/parity/run.sh
