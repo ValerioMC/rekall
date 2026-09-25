@@ -24,6 +24,7 @@ use tracing::{debug, info, warn};
 
 use crate::cli::ClaudeCli;
 use crate::config::ClaudeConfig;
+use crate::terminal::TerminalMode;
 
 const DEFAULT_COLUMNS: u16 = 80;
 const DEFAULT_ROWS: u16 = 24;
@@ -270,10 +271,13 @@ impl PtyTerminalManager {
 
     // ---------------------------------------------------------------- commands
 
-    /// Start a `claude` PTY for this task in its project's folder, with `/rk` typed first. A
-    /// missing folder or CLI is a retriable conflict. A second open on a task that already has a
-    /// terminal is routed to it. A step id is marked `RUNNING` while the terminal is on it; none
-    /// means the task itself.
+    /// Start a `claude` PTY for this task in its project's folder, with the `/rk` line of `mode`
+    /// typed first. A missing folder or CLI is a retriable conflict. A step id is marked
+    /// `RUNNING` while the terminal is on it; none means the task itself. A plan is always on the
+    /// task, so [`TerminalMode::Plan`] drops the step id. A second open on a task that already has
+    /// a terminal reuses it: a work open is retargeted, a plan open has its plan line typed into
+    /// that session.
+    #[allow(clippy::too_many_arguments)]
     pub async fn open(
         self: &Arc<Self>,
         task_id: Id,
@@ -281,10 +285,16 @@ impl PtyTerminalManager {
         skip_permissions: bool,
         model: Option<&str>,
         effort: Option<&str>,
+        mode: TerminalMode,
     ) -> Result<TerminalView> {
         let launch = self.launch_service.resolve(task_id).await?;
+        let step_id = if mode == TerminalMode::Plan { None } else { step_id };
 
         if let Some(existing) = self.live_terminal_for_task(task_id) {
+            if mode == TerminalMode::Plan {
+                self.write(existing.id, format!("{}\r", mode.first_line(&launch.anchors)).as_bytes())?;
+                return Ok(existing.view());
+            }
             return Ok(self.retarget(&existing, step_id).await);
         }
 
@@ -313,7 +323,7 @@ impl PtyTerminalManager {
         if let Some(effort) = &chosen_effort {
             command.args(["--effort", effort]);
         }
-        command.arg(format!("/rk {}", launch.anchors));
+        command.arg(mode.first_line(&launch.anchors));
         command.env_clear();
         for (key, value) in self.terminal_environment().await {
             command.env(key, value);
@@ -337,7 +347,7 @@ impl PtyTerminalManager {
         };
 
         self.mark_running(task_id, step_id).await;
-        info!("Opened terminal {id} on {} in {}", launch.anchors, launch.working_dir);
+        info!("Opened terminal {id} to {mode} {} in {}", launch.anchors, launch.working_dir);
         Ok(terminal.view())
     }
 

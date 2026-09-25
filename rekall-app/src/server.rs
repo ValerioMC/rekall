@@ -84,7 +84,7 @@ impl Instance {
         let services = Services::new(ctx.clone());
 
         let stream = Arc::new(StepEventStream::new(events.clone()));
-        let api = ApiState::new(services.clone(), stream.clone());
+        let api = ApiState::new(services.clone(), stream.clone(), config.user_home.clone());
         let mcp = rekall_mcp::McpController::new(rekall_mcp::tool::all(&services));
 
         let claude_config = &config.claude;

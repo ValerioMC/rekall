@@ -32,6 +32,7 @@ use super::service::{RunQueueService, Snapshot};
 use super::usage_ceiling::{self, Verdict};
 use super::view::{RunQueueItemView, RunQueueView};
 use crate::pty::PtyTerminalManager;
+use crate::terminal::TerminalMode;
 use crate::usage::UsageReader;
 
 /// The item a session is working now.
@@ -312,7 +313,14 @@ impl Worker {
         }
         let opened = match self
             .terminals
-            .open(item.task_id, None, snapshot.skip_permissions, snapshot.model.as_deref(), snapshot.effort.as_deref())
+            .open(
+                item.task_id,
+                None,
+                snapshot.skip_permissions,
+                snapshot.model.as_deref(),
+                snapshot.effort.as_deref(),
+                TerminalMode::Work,
+            )
             .await
         {
             Ok(opened) => opened,

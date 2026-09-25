@@ -17,7 +17,7 @@ can be read side by side until the Java build is retired.
 | `rekall-repository` | Spring Data, Liquibase | SeaORM queries (one function per repository method), one migration per Liquibase changeset under the changeset's id, SQLite |
 | `rekall-service` | services, `@Transactional` | services over explicit transactions (`in_write!`/`in_read!`, `BEGIN IMMEDIATE` for writes), events published after commit |
 | `rekall-api` | controllers, `RestExceptionHandler`, SSE | Axum routers, the same problem bodies, the event stream |
-| `rekall-mcp` | `McpController`, tools | the hand-rolled JSON-RPC endpoint, both protocol eras, the five tools with the same texts |
+| `rekall-mcp` | `McpController`, tools | the hand-rolled JSON-RPC endpoint, both protocol eras, the six tools with the same texts |
 | `rekall-claude` | pty4j terminals, WebSocket, usage, run queue | portable-pty terminals, Axum WebSocket, usage meter, run queue runner |
 | `rekall-app` | Spring Boot app, settings, backups, filter | `rekall-server`, the database registry, backups, local-access guard, SPA, actuator, in-process restart, H2 import |
 | `rekall-app/desktop` | `packaging/macos/*.swift` | Tauri v2 shell running the same server in-process |

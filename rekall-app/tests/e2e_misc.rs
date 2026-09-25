@@ -1,5 +1,5 @@
-//! `RekallEndToEndTest`, part five: the export, companies, revisions, proposed steps, search,
-//! context size, the stateless MCP era over real HTTP, the console's routes, and local access.
+//! `RekallEndToEndTest`, part five: the export, companies, revisions, proposed steps, notes a
+//! session writes, the path picker's folder listing, search, context size, the stateless MCP era over real HTTP, the console's routes, and local access.
 
 mod support;
 
@@ -233,6 +233,89 @@ async fn a_session_can_propose_a_step_which_lands_as_a_draft_no_session_reads_an
         app.call_tool("rekall_step", json!({ "anchors": "project:vega task:report-builder", "step": "1", "state": "running" })).await,
         "still a draft"
     );
+}
+
+// --- Notes written by a session
+
+#[tokio::test]
+async fn a_session_writes_a_note_onto_a_task_which_travels_with_its_context_and_a_title_the_tasks_notes_carry_is_refused() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
+    let task_id = app.a_task(&project_id, "report-builder").await;
+
+    let answer = app
+        .call_tool(
+            "rekall_note",
+            json!({ "anchors": "project:vega task:report-builder", "title": "export-formats.md", "body": "CSV and XLSX, streamed." }),
+        )
+        .await;
+
+    assert_contains!(answer, "Note \"export-formats.md\" written on `project:vega task:report-builder`", "1 note,");
+    assert!(regex::Regex::new("as `note:[0-9a-f]{8}`").unwrap().is_match(&answer), "{answer}");
+    let notes = app.documents_on(&task_id).await;
+    assert_eq!(notes.len(), 1);
+    assert_eq!(notes[0]["kind"], "notes");
+    assert_contains!(
+        app.call_tool("rekall_context", json!({ "anchors": "project:vega task:report-builder" })).await,
+        "export-formats.md",
+        "CSV and XLSX, streamed."
+    );
+
+    // A session only adds, so it cannot overwrite a note by reusing its title.
+    assert_contains!(
+        app.call_tool(
+            "rekall_note",
+            json!({ "anchors": "project:vega task:report-builder", "title": "Export-Formats.md", "body": "Something else." })
+        )
+        .await,
+        "already has a note titled"
+    );
+    // A note belongs to exactly one task when a session writes it.
+    assert_contains!(
+        app.call_tool("rekall_note", json!({ "anchors": "project:vega", "title": "x.md", "body": "y" })).await,
+        "No task in those anchors"
+    );
+    assert_contains!(
+        app.call_tool("rekall_note", json!({ "anchors": "project:vega task:report-builder", "title": "x.md", "body": "  " }))
+            .await,
+        "'body' is required"
+    );
+    assert_eq!(app.documents_on(&task_id).await.len(), 1);
+}
+
+// --- The path picker's folder listing
+
+#[tokio::test]
+async fn the_path_picker_lists_a_folder_from_the_home_folder_down_and_refuses_what_is_not_one() {
+    let app = app().await;
+    let home = app.folder.path().join("home");
+    std::fs::create_dir_all(home.join("project/src")).unwrap();
+    std::fs::write(home.join("project/README.md"), "#").unwrap();
+
+    let at_home = app.get("/api/filesystem/directory").await;
+    assert_eq!(at_home.status, 200);
+    assert_eq!(at_home.str("home"), home.to_string_lossy());
+    assert_eq!(at_home.str("path"), home.to_string_lossy());
+
+    let base = home.join("project");
+    let listing = app.get(&format!("/api/filesystem/directory?base={}", base.display())).await;
+    assert_eq!(listing.status, 200);
+    let names: Vec<&str> = listing.get("entries").as_array().unwrap().iter().map(|e| e["name"].as_str().unwrap()).collect();
+    assert_eq!(names, ["src", "README.md"]);
+    assert_eq!(listing.get("entries")[0]["directory"], true);
+    assert_eq!(listing.get("readable"), true);
+    assert_eq!(listing.get("truncated"), false);
+    assert_eq!(listing.get("segments").as_array().unwrap().last().unwrap()["name"], "project");
+
+    let typed = app.get(&format!("/api/filesystem/directory?base={}&path=~/project/src", base.display())).await;
+    assert_eq!(typed.str("path"), home.join("project/src").to_string_lossy());
+    assert_eq!(typed.str("parent"), base.to_string_lossy());
+
+    assert_eq!(app.get(&format!("/api/filesystem/directory?base={}&path=nope", base.display())).await.status, 404);
+    let file = app.get(&format!("/api/filesystem/directory?base={}&path=README.md", base.display())).await;
+    assert_eq!(file.status, 400);
+    assert_contains!(file.detail(), "is a file, not a folder.");
 }
 
 // --- Search

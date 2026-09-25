@@ -1,10 +1,11 @@
-//! The five tools: `rekall_context` reads; `rekall_wrapup`, `rekall_step`, `rekall_record_commit`
-//! and `rekall_propose_step` write, each one narrow thing.
+//! The six tools: `rekall_context` reads; `rekall_wrapup`, `rekall_step`, `rekall_record_commit`,
+//! `rekall_propose_step` and `rekall_note` write, each one narrow thing.
 
 mod anchor;
 mod arguments;
 mod commit_reference;
 mod context;
+mod note;
 mod step_proposal;
 mod step_state;
 mod wrapup;
@@ -18,6 +19,7 @@ pub use anchor::{Anchor, AnchoredTask};
 pub use arguments::Arguments;
 pub use commit_reference::CommitReferenceTool;
 pub use context::ContextTool;
+pub use note::NoteTool;
 pub use step_proposal::StepProposalTool;
 pub use step_state::StepStateTool;
 pub use wrapup::WrapupTool;
@@ -29,6 +31,7 @@ pub fn all(services: &Services) -> Vec<Arc<dyn McpTool>> {
     vec![
         Arc::new(CommitReferenceTool::new(services.clone())),
         Arc::new(ContextTool::new(services.clone())),
+        Arc::new(NoteTool::new(services.clone())),
         Arc::new(StepProposalTool::new(services.clone())),
         Arc::new(StepStateTool::new(services.clone())),
         Arc::new(WrapupTool::new(services.clone())),

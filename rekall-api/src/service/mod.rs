@@ -2,6 +2,7 @@
 //! `rekall-service`, out of `rekall-mcp`'s reach.
 
 mod catalog;
+mod directory_listing;
 mod document;
 mod export;
 mod graph;
@@ -9,6 +10,7 @@ mod revision_restore;
 mod tag;
 
 pub use catalog::CatalogService;
+pub use directory_listing::{DirectoryListingService, ENTRY_LIMIT};
 pub use document::DocumentService;
 pub use export::ExportService;
 pub use graph::Snapshot;

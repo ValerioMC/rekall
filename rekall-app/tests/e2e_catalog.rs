@@ -308,7 +308,7 @@ async fn a_task_label_that_two_projects_share_is_disambiguated_by_the_project_an
 
 // Asserted as an exact list so adding a read or write tool breaks a test.
 #[tokio::test]
-async fn the_mcp_endpoint_exposes_one_way_to_read_and_four_writes() {
+async fn the_mcp_endpoint_exposes_one_way_to_read_and_five_writes() {
     let app = app().await;
     let answer = app.rpc("tools/list", json!({})).await;
     let mut names: Vec<String> = answer["result"]["tools"]
@@ -318,5 +318,8 @@ async fn the_mcp_endpoint_exposes_one_way_to_read_and_four_writes() {
         .map(|tool| tool["name"].as_str().unwrap().to_string())
         .collect();
     names.sort();
-    assert_eq!(names, ["rekall_context", "rekall_propose_step", "rekall_record_commit", "rekall_step", "rekall_wrapup"]);
+    assert_eq!(
+        names,
+        ["rekall_context", "rekall_note", "rekall_propose_step", "rekall_record_commit", "rekall_step", "rekall_wrapup"]
+    );
 }

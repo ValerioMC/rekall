@@ -393,6 +393,24 @@ async fn a_step_moved_over_mcp_reaches_an_open_console_over_the_event_stream() {
     assert_contains!(data, &task_id, "\"state\":\"RUNNING\"");
 }
 
+#[tokio::test]
+async fn a_note_written_over_mcp_reaches_an_open_console_over_the_event_stream() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
+    let task_id = app.a_task(&project_id, "report-builder").await;
+
+    let mut lines = app.open_stream().await;
+    lines.await_line("event:open", 5).await;
+
+    app.call_tool("rekall_note", json!({ "anchors": "project:vega task:report-builder", "title": "a.md", "body": "b" })).await;
+
+    assert_eq!(lines.await_line("event:note", 5).await, "event:note");
+    let data = lines.await_line("data:", 5).await;
+    let document_id = app.documents_on(&task_id).await[0]["id"].as_str().unwrap().to_string();
+    assert_eq!(data, format!("data:{{\"taskId\":\"{task_id}\",\"documentId\":\"{document_id}\"}}"));
+}
+
 // --- Task-scoped review line (stepless tasks)
 
 #[tokio::test]

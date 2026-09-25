@@ -46,7 +46,11 @@ async fn serve(world: &World) -> String {
         Duration::from_secs(60),
         Duration::from_secs(1),
     );
-    let api = ApiState::new(world.services.clone(), Arc::new(StepEventStream::new(world.events.clone())));
+    let api = ApiState::new(
+        world.services.clone(),
+        Arc::new(StepEventStream::new(world.events.clone())),
+        world.folder.path().to_path_buf(),
+    );
     let state = ClaudeState { api, terminals, usage, queue, runner };
     let app = rekall_claude::router(state);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();

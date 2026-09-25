@@ -218,6 +218,30 @@ pub fn equals_ignore_case(a: &str, b: &str) -> bool {
     }
 }
 
+/// `String.CASE_INSENSITIVE_ORDER`: character by character, each upper-cased and then
+/// lower-cased before they are compared, then the shorter first.
+pub fn compare_ignore_case(a: &str, b: &str) -> std::cmp::Ordering {
+    let mut left = a.chars();
+    let mut right = b.chars();
+    loop {
+        match (left.next(), right.next()) {
+            (None, None) => return std::cmp::Ordering::Equal,
+            (None, Some(_)) => return std::cmp::Ordering::Less,
+            (Some(_), None) => return std::cmp::Ordering::Greater,
+            (Some(x), Some(y)) => {
+                if x == y {
+                    continue;
+                }
+                let lx = single_lower(single_upper(x));
+                let ly = single_lower(single_upper(y));
+                if lx != ly {
+                    return lx.cmp(&ly);
+                }
+            }
+        }
+    }
+}
+
 fn single_upper(c: char) -> char {
     let mut upper = c.to_uppercase();
     match (upper.next(), upper.next()) {
@@ -285,5 +309,14 @@ mod tests {
         assert_eq!(index_of_from("a b c d", " ", 2), Some(3));
         assert!(!equals_ignore_case("Straße", "STRASSE"));
         assert!(equals_ignore_case("Hello", "hELLO"));
+    }
+
+    #[test]
+    fn orders_ignoring_case_like_java() {
+        use std::cmp::Ordering::*;
+        assert_eq!(compare_ignore_case("app.ts", "README.md"), Less);
+        assert_eq!(compare_ignore_case("Docs", "docs"), Equal);
+        assert_eq!(compare_ignore_case("src", "Src2"), Less);
+        assert_eq!(compare_ignore_case(".env", "app"), Less);
     }
 }

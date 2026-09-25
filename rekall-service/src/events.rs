@@ -5,6 +5,7 @@ use serde::Serialize;
 use tokio::sync::broadcast;
 
 use crate::commit::CommitReferenceStreamEvent;
+use crate::note::NoteStreamEvent;
 use crate::review::TaskReviewEvent;
 use crate::step::StepStreamEvent;
 use crate::wrapup::WrapupStreamEvent;
@@ -15,6 +16,7 @@ pub enum DomainEvent {
     TaskReview(TaskReviewEvent),
     Wrapup(WrapupStreamEvent),
     CommitReference(CommitReferenceStreamEvent),
+    Note(NoteStreamEvent),
     /// A named frame from a module this one cannot see (the run queue's `run-queue`), already
     /// serialised; the caller has already waited for its commit.
     Broadcast { name: String, payload: serde_json::Value },
@@ -28,6 +30,7 @@ impl DomainEvent {
             Self::TaskReview(_) => "task-review",
             Self::Wrapup(_) => "wrapup",
             Self::CommitReference(_) => "commit-reference",
+            Self::Note(_) => "note",
             Self::Broadcast { name, .. } => name,
         }
     }
@@ -41,6 +44,7 @@ impl DomainEvent {
             Self::TaskReview(event) => json(event),
             Self::Wrapup(event) => json(event),
             Self::CommitReference(event) => json(event),
+            Self::Note(event) => json(event),
             Self::Broadcast { payload, .. } => payload.clone(),
         }
     }

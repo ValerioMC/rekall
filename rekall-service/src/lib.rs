@@ -11,6 +11,7 @@ pub mod claude;
 pub mod commit;
 pub mod context;
 pub mod events;
+pub mod note;
 pub mod review;
 pub mod revision;
 pub mod search;
@@ -71,6 +72,7 @@ pub struct Services {
     pub review: review::TaskReviewService,
     pub revisions: revision::TaskRevisionService,
     pub wrapups: wrapup::WrapupService,
+    pub notes: note::NoteService,
     pub time_entries: timeentry::TimeEntryService,
     pub context: context::ContextService,
     pub renderer: context::ContextRenderer,
@@ -92,6 +94,7 @@ impl Services {
         Self {
             steps: step::TaskStepService::new(ctx.clone()),
             wrapups: wrapup::WrapupService::new(ctx.clone(), review.clone(), revisions.clone()),
+            notes: note::NoteService::new(ctx.clone()),
             time_entries: timeentry::TimeEntryService::new(ctx.clone()),
             renderer: context::ContextRenderer,
             context_size: context::ContextSizeService::new(ctx.clone(), context.clone()),

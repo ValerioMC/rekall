@@ -4,6 +4,7 @@ mod catalog;
 mod commit_reference;
 mod company;
 mod context_size;
+mod directory_listing;
 mod document;
 mod export;
 mod search;
@@ -27,6 +28,7 @@ pub fn routes() -> Router<ApiState> {
         .merge(commit_reference::routes())
         .merge(company::routes())
         .merge(context_size::routes())
+        .merge(directory_listing::routes())
         .merge(document::routes())
         .merge(export::routes())
         .merge(search::routes())
