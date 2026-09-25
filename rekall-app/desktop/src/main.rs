@@ -177,6 +177,7 @@ fn build_window(handle: &AppHandle) -> tauri::Result<WebviewWindow> {
         .maximized(true)
         .theme(Some(tauri::Theme::Dark))
         .background_color(tauri::window::Color(8, 9, 12, 255))
+        .shadow(false)
         .initialization_script(bridges::BRIDGE)
         // Anything not served by the local instance belongs in the browser, not in a window with
         // no address bar and no way back.
