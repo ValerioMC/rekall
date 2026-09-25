@@ -1676,6 +1676,19 @@ dependencies = [
 [[package]]
 name = "rekall-service"
 version = "0.1.0"
+dependencies = [
+ "chrono",
+ "regex",
+ "rekall-common",
+ "rekall-model",
+ "rekall-repository",
+ "sea-orm",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
+]
 
 [[package]]
 name = "ring"
