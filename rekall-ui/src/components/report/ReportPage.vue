@@ -107,7 +107,7 @@ async function copyAnchor(taskAnchor: string): Promise<void> {
 </script>
 
 <template>
-  <div class="min-h-full bg-canvas">
+  <div class="flex-1 min-h-0 bg-canvas">
     <AppCatalogHeader title="Report">
       <template #actions>
         <div class="flex shrink-0 gap-0.5 rounded-[8px] bg-canvas p-0.5" role="group" aria-label="Period">

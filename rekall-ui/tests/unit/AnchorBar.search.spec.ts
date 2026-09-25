@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import { flushPromises, mount } from '@vue/test-utils'
+import { flushPromises } from '@vue/test-utils'
 import AnchorBar from '@/components/console/AnchorBar.vue'
 import { useConsoleStore } from '@/stores/console.store'
+import { mountWithHeaderChrome } from './support/mountWithHeaderChrome'
 import type { SearchHit } from '@/model/search'
 import type { TaskId, TaskStepId } from '@/model/branded'
 
@@ -31,9 +32,8 @@ const hits: SearchHit[] = [
 ]
 
 function render() {
-  return mount(AnchorBar, {
-    attachTo: document.body,
-    global: { stubs: { AppNavSwitcher: true, ClaudeUsageMeter: true, ReviewQueueButton: true } }
+  return mountWithHeaderChrome(AnchorBar, {
+    global: { stubs: { ClaudeUsageMeter: true, ReviewQueueButton: true } }
   })
 }
 

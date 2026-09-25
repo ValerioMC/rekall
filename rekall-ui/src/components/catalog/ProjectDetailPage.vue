@@ -208,7 +208,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="h-full overflow-y-auto bg-canvas">
+  <div class="flex-1 min-h-0 overflow-y-auto bg-canvas">
     <template v-if="!store.isLoading && !project">
       <AppCatalogHeader title="Project" />
       <div class="mx-auto max-w-[1240px] px-8 py-6">
@@ -219,9 +219,12 @@ onUnmounted(() => {
     </template>
 
     <template v-else-if="!project">
-      <div class="flex h-(--spacing-header) items-center border-b border-border px-8" aria-hidden="true">
-        <div class="skeleton h-4 w-64" />
-      </div>
+      <Teleport to="#app-header-extra">
+        <span class="h-5 w-px shrink-0 bg-border-strong" aria-hidden="true" />
+        <div class="flex min-w-0 flex-1 items-center gap-3" aria-hidden="true">
+          <div class="skeleton h-4 w-64" />
+        </div>
+      </Teleport>
       <div class="mx-auto flex max-w-[1240px] flex-col gap-4 px-8 py-6" aria-hidden="true">
         <div class="skeleton h-32 rounded-[var(--radius-card)]" />
         <div class="skeleton h-64 rounded-[var(--radius-card)]" />

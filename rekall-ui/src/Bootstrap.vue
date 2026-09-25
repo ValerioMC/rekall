@@ -3,6 +3,7 @@ import { onMounted, onUnmounted, ref } from 'vue'
 import FirstRunSetup from '@/components/setup/FirstRunSetup.vue'
 import DatabaseUnreachable from '@/components/setup/DatabaseUnreachable.vue'
 import ShellDock from '@/components/shell/ShellDock.vue'
+import AppHeaderChrome from '@/components/shell/AppHeaderChrome.vue'
 import AppLogo from '@/components/ui/AppLogo.vue'
 import { fetchDatabaseStatus } from '@/api/settings.api'
 import { useConsoleStore } from '@/stores/console.store'
@@ -54,7 +55,10 @@ onUnmounted(() => {
 <template>
   <template v-if="status">
     <template v-if="status.status === 'READY'">
-      <router-view />
+      <div class="flex h-full flex-col">
+        <AppHeaderChrome />
+        <router-view />
+      </div>
       <ShellDock />
     </template>
     <FirstRunSetup v-else-if="status.status === 'SETUP_NEEDED'" />

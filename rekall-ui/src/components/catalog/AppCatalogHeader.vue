@@ -1,36 +1,13 @@
 <script setup lang="ts">
-import AppLogo from '@/components/ui/AppLogo.vue'
-import AppNavSwitcher from '@/components/console/AppNavSwitcher.vue'
-import WindowControls from '@/components/console/WindowControls.vue'
-import { isDesktopApp } from '@/common/native/desktop'
-
 /** `parent` is what the title sits inside (a project's company): shown before it, stepped back. */
 withDefaults(defineProps<{ title: string; parent?: string | null }>(), { parent: null })
-
-const isDesktop = isDesktopApp()
 </script>
 
 <template>
-  <header
-    :data-tauri-drag-region="isDesktop ? true : undefined"
-    class="glass sticky top-0 z-(--z-sticky) flex h-(--spacing-header) shrink-0 items-center gap-3.5 border-b border-border px-4"
-  >
-    <WindowControls v-if="isDesktop" />
-
-    <div class="flex w-(--spacing-nav) shrink-0 items-center gap-2.5 pr-2.5">
-      <AppLogo :size="32" class="halo rounded-[7px]" />
-      <span class="min-w-0">
-        <span class="block text-[14.5px] font-semibold leading-tight tracking-[-0.015em] text-text">
-          Rekall
-        </span>
-        <span class="block font-mono text-[10px] leading-tight text-text-subtle">
-          context, anchored
-        </span>
-      </span>
-    </div>
-
-    <AppNavSwitcher />
-
+  <!-- The logo/tabs chrome is rendered once by `AppHeaderChrome`, outside the router view, so it
+       never unmounts between screens. This teleports the catalog-specific title and actions into
+       its `#app-header-extra` slot instead of drawing a second header. -->
+  <Teleport to="#app-header-extra">
     <!-- A hairline, then the title with the same short accent tick the panes hang on their
          kicker: the switcher says which screen, the title says what is on it, and the two no
          longer run together as one string of words. -->
@@ -50,5 +27,5 @@ const isDesktop = isDesktopApp()
     <div class="ml-auto flex shrink-0 items-center gap-3">
       <slot name="actions" />
     </div>
-  </header>
+  </Teleport>
 </template>
