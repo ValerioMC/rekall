@@ -1,11 +1,14 @@
-//! The three things the window can do that a browser tab cannot, offered to the page as
-//! `window.rekallDesktop` with the call shape the macOS launcher's WKWebView bridges had:
+//! What the window can do that a browser tab cannot, offered to the page as `window.rekallDesktop`
+//! with the call shape the macOS launcher's WKWebView bridges had:
 //!
 //! - `pickFolder(currentPath)` resolves to an absolute path, or null when the dialog is cancelled
 //!   (`FolderPicker`);
 //! - `openInClaudeCode({directory, anchors, skipPermissions})` resolves to the name of the terminal
 //!   it opened (`ClaudeCodeLauncher`);
-//! - `notify({title, body})` resolves to whether the system showed it (`Notifier`).
+//! - `notify({title, body})` resolves to whether the system showed it (`Notifier`);
+//! - `closeWindow()`, `minimizeWindow()` and `toggleMaximizeWindow()` stand in for the native
+//!   traffic lights the window has none of: the console draws its own close/minimize/maximize
+//!   controls in `AnchorBar.vue` and calls these instead of a titlebar button.
 //!
 //! A refusal rejects the promise with an `Error` whose message says why, as WebKit's reply
 //! handler did.
@@ -43,6 +46,15 @@ pub const BRIDGE: &str = r#"
         title: String((notice && notice.title) || ''),
         body: String((notice && notice.body) || '')
       } });
+    },
+    closeWindow: function () {
+      return call('close_window', {});
+    },
+    minimizeWindow: function () {
+      return call('minimize_window', {});
+    },
+    toggleMaximizeWindow: function () {
+      return call('toggle_maximize_window', {});
     }
   });
 })();
@@ -235,6 +247,27 @@ pub async fn notify<R: Runtime>(app: AppHandle<R>, notice: DesktopNotice) -> Res
     let title: String = notice.title.chars().take(TITLE_LIMIT).collect();
     let body: String = notice.body.chars().take(BODY_LIMIT).collect();
     Ok(notifications.builder().title(title).body(body).show().is_ok())
+}
+
+// ---------------------------------------------------------------- window controls
+
+/// The window has no native close/minimize/maximize buttons (`decorations(false)` in `main.rs`);
+/// these stand in for them, called from the controls `AnchorBar.vue` draws in the console's own
+/// header.
+#[tauri::command]
+pub fn close_window<R: Runtime>(window: WebviewWindow<R>) -> Result<(), String> {
+    window.close().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn minimize_window<R: Runtime>(window: WebviewWindow<R>) -> Result<(), String> {
+    window.minimize().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn toggle_maximize_window<R: Runtime>(window: WebviewWindow<R>) -> Result<(), String> {
+    let maximized = window.is_maximized().map_err(|e| e.to_string())?;
+    if maximized { window.unmaximize() } else { window.maximize() }.map_err(|e| e.to_string())
 }
 
 fn expand_tilde(path: &str) -> PathBuf {

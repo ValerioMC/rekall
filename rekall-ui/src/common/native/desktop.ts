@@ -17,6 +17,11 @@ export interface DesktopHost {
 
   /** Posts a system notification; resolves false when the system refused it. */
   notify?(notice: DesktopNotice): Promise<boolean>
+
+  /** Stand in for the native titlebar buttons the window draws none of. */
+  closeWindow?(): Promise<void>
+  minimizeWindow?(): Promise<void>
+  toggleMaximizeWindow?(): Promise<void>
 }
 
 declare global {
@@ -39,6 +44,23 @@ export async function launchClaudeCode(launch: ClaudeCodeLaunch): Promise<string
 
 export function desktopHost(): DesktopHost | null {
   return typeof window.rekallDesktop?.pickFolder === 'function' ? window.rekallDesktop : null
+}
+
+/** True inside the Tauri window, false in a browser tab: the two share this frontend. */
+export function isDesktopApp(): boolean {
+  return typeof window.rekallDesktop !== 'undefined'
+}
+
+export async function closeWindow(): Promise<void> {
+  await window.rekallDesktop?.closeWindow?.()
+}
+
+export async function minimizeWindow(): Promise<void> {
+  await window.rekallDesktop?.minimizeWindow?.()
+}
+
+export async function toggleMaximizeWindow(): Promise<void> {
+  await window.rekallDesktop?.toggleMaximizeWindow?.()
 }
 
 export async function pickFolder(currentPath: string): Promise<string | null> {

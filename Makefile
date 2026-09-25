@@ -17,7 +17,7 @@ DEMO_COMPANIES          ?= 3
 DEMO_TASKS_PER_COMPANY  ?= 20
 
 .DEFAULT_GOAL := help
-.PHONY: help ui ui-dev run run-demo build start desktop dmg app icons test test-backend test-ui lint \
+.PHONY: help ui ui-dev run run-demo build start desktop dmg app install icons test test-backend test-ui lint \
 	mcp-add mcp-check reset-data load-data import-h2
 
 help: ## Show this help
@@ -60,6 +60,10 @@ dmg: ui ## macOS: bundle the desktop app as Rekall.app and a disk image under ta
 # what you try is exactly what another machine gets, and the installed copy (if any) is left alone.
 app: dmg ## macOS: build the disk image, mount it and run Rekall from it, without installing it
 	./scripts/macos-app.sh
+
+# Replaces whatever is at /Applications/Rekall.app, unlike `app`, which leaves it alone.
+install: dmg ## macOS: build the disk image, mount it and install Rekall.app into /Applications
+	./scripts/macos-install.sh
 
 icons: ## macOS: re-render the PWA, touch and desktop icons from rekall-ui/public/favicon.svg (needs Google Chrome)
 	./scripts/render-icons.sh

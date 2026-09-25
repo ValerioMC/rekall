@@ -86,7 +86,14 @@ fn main() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
         .manage(Arc::new(Shell::default()))
-        .invoke_handler(tauri::generate_handler![bridges::pick_folder, bridges::open_in_claude_code, bridges::notify])
+        .invoke_handler(tauri::generate_handler![
+            bridges::pick_folder,
+            bridges::open_in_claude_code,
+            bridges::notify,
+            bridges::close_window,
+            bridges::minimize_window,
+            bridges::toggle_maximize_window
+        ])
         .menu(|handle| {
             let reload = MenuItemBuilder::with_id("reload", "Reload").accelerator("CmdOrCtrl+R").build(handle)?;
             let open_log = MenuItemBuilder::with_id("open-log", "Open Server Log").build(handle)?;
@@ -162,11 +169,12 @@ fn trap_signals(handle: AppHandle) {
 fn build_window(handle: &AppHandle) -> tauri::Result<WebviewWindow> {
     let opener = handle.clone();
     let downloads = handle.clone();
-    let window = WebviewWindowBuilder::new(handle, "main", WebviewUrl::App("index.html".into()))
+    let builder = WebviewWindowBuilder::new(handle, "main", WebviewUrl::App("index.html".into()))
         .title("Rekall")
         .inner_size(1440.0, 900.0)
         .min_inner_size(960.0, 600.0)
         .center()
+        .maximized(true)
         .theme(Some(tauri::Theme::Dark))
         .background_color(tauri::window::Color(8, 9, 12, 255))
         .initialization_script(bridges::BRIDGE)
@@ -202,9 +210,18 @@ fn build_window(handle: &AppHandle) -> tauri::Result<WebviewWindow> {
             if payload.event() == tauri::webview::PageLoadEvent::Finished && !is_server(payload.url()) {
                 replay_splash(&window);
             }
-        })
-        .build()?;
-    Ok(window)
+        });
+    // No native title bar and no native traffic lights either: the overlay title bar still drew
+    // the system's own close/minimize/maximize buttons, which sat oddly over the console's header.
+    // Fully borderless instead, so the only close/minimize/maximize buttons are the ones the
+    // console draws itself in AnchorBar.vue, wired to `close_window`/`minimize_window`/
+    // `toggle_maximize_window` in bridges.rs. The window stays resizable and miniaturizable: only
+    // the titlebar chrome is gone. The header itself is the drag region
+    // (`data-tauri-drag-region` in AnchorBar.vue), and double-clicking it maximizes, both for free
+    // from Tauri's own drag-region handling.
+    #[cfg(target_os = "macos")]
+    let builder = builder.decorations(false);
+    builder.build()
 }
 
 fn is_local(url: &Url) -> bool {

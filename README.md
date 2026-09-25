@@ -59,11 +59,12 @@ The image tracks the head of `main` and changes under the link without notice. A
 ```bash
 cargo install tauri-cli --version "^2" --locked   # once
 
-make dmg   # Rekall.app and its disk image, under target/release/bundle
-make app   # the above, then mount the disk image and run Rekall from it
+make dmg      # Rekall.app and its disk image, under target/release/bundle
+make app      # the above, then mount the disk image and run Rekall from it
+make install  # the above, then copy Rekall.app into /Applications
 ```
 
-The app is a Tauri v2 window (`rekall-app/desktop`) over the same server `rekall-server` runs, started in the same process. `make app` installs nothing: it quits a running Rekall, ejects a Rekall disk image left mounted by an earlier build, mounts the new one and opens `Rekall.app` from the mounted volume (`scripts/macos-app.sh`), so what you try is exactly what another machine gets and a copy in `/Applications`, if there is one, is left alone. Eject the volume in Finder when you are done. To install it, drag it onto Applications from that window as anyone else would.
+The app is a Tauri v2 window (`rekall-app/desktop`) over the same server `rekall-server` runs, started in the same process. `make app` installs nothing: it quits a running Rekall, ejects a Rekall disk image left mounted by an earlier build, mounts the new one and opens `Rekall.app` from the mounted volume (`scripts/macos-app.sh`), so what you try is exactly what another machine gets and a copy in `/Applications`, if there is one, is left alone. Eject the volume in Finder when you are done. To install it, drag it onto Applications from that window as anyone else would, or run `make install`, which does the same drag-and-drop by quitting any running Rekall, mounting the disk image, replacing `/Applications/Rekall.app` and ejecting the image (`scripts/macos-install.sh`).
 
 `make desktop` builds the app's binary alone, on any platform with the WebView SDK (WebKitGTK on Linux); it is not a default workspace member, so `cargo build` and `cargo test` work on a machine without one.
 

@@ -8,10 +8,14 @@ import ClaudeUsageMeter from '@/components/console/ClaudeUsageMeter.vue'
 import QueueBeacon from '@/components/queue/QueueBeacon.vue'
 import SearchHitList from '@/components/console/SearchHitList.vue'
 import ReviewQueueButton from '@/components/console/ReviewQueueButton.vue'
+import WindowControls from '@/components/console/WindowControls.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { searchText } from '@/api/search.api'
 import { isTextQuery } from '@/model/search'
 import type { SearchHit } from '@/model/search'
+import { isDesktopApp } from '@/common/native/desktop'
+
+const isDesktop = isDesktopApp()
 
 const emit = defineEmits<{ newNote: []; openSettings: []; openTags: [] }>()
 
@@ -149,8 +153,11 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
 
 <template>
   <header
+    :data-tauri-drag-region="isDesktop ? true : undefined"
     class="glass sticky top-0 z-(--z-sticky) flex h-(--spacing-header) shrink-0 items-center gap-3.5 border-b border-border px-4"
   >
+    <WindowControls v-if="isDesktop" />
+
     <div class="flex w-(--spacing-nav) shrink-0 items-center gap-2.5 pr-2.5">
       <AppLogo :size="32" class="halo rounded-[7px]" />
       <span class="min-w-0">
