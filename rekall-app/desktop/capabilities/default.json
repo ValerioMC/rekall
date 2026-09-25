@@ -1,15 +1,19 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "console",
-  "description": "What the console, served by the local Rekall server, may ask of the window: the three bridges and nothing else.",
+  "description": "What the console, served by the local Rekall server, may ask of the window: the bridges and the window controls AnchorBar.vue draws itself, nothing else.",
   "windows": ["main"],
   "remote": {
     "urls": ["http://127.0.0.1:*", "http://localhost:*"]
   },
   "permissions": [
     "core:default",
+    "core:window:allow-start-dragging",
     "allow-pick-folder",
     "allow-open-in-claude-code",
-    "allow-notify"
+    "allow-notify",
+    "allow-close-window",
+    "allow-minimize-window",
+    "allow-toggle-maximize-window"
   ]
 }

@@ -781,6 +781,17 @@
 }
 
 /*
+ * `will-change: transform` above makes the scroller a containing block for its own
+ * `position: fixed` descendants (md-editor-v3's "page fullscreen"), so that overlay gets trapped
+ * inside the pane's box instead of covering the viewport, and the pane's own content is still
+ * reachable by scrolling past it. Drop the containing block while a fullscreen editor is open.
+ */
+.overflow-y-auto:has(.md-editor-fullscreen),
+.overflow-auto:has(.md-editor-fullscreen) {
+  will-change: auto;
+}
+
+/*
  * The write/read swap inside a pane (a step's detail, a description, a wrapup, a note): shorter
  * and without the vertical settle `.pane-*` carries, because it replaces one editor with another
  * at the same width rather than swapping a whole region's layout.

@@ -326,8 +326,14 @@ watch(listEl, (element) => {
 
 watch([visibleSteps, expandedId, mode, () => draftBody.value], scheduleMeasure)
 
-onMounted(scheduleMeasure)
-onUnmounted(() => rowObserver?.disconnect())
+onMounted(() => {
+  scheduleMeasure()
+  window.addEventListener('resize', scheduleMeasure)
+})
+onUnmounted(() => {
+  rowObserver?.disconnect()
+  window.removeEventListener('resize', scheduleMeasure)
+})
 </script>
 
 <template>
