@@ -57,7 +57,11 @@ onUnmounted(() => {
     <template v-if="status.status === 'READY'">
       <div class="flex h-full flex-col">
         <AppHeaderChrome />
-        <router-view />
+        <router-view v-slot="{ Component }">
+          <Transition name="pane" mode="out-in">
+            <component :is="Component" />
+          </Transition>
+        </router-view>
       </div>
       <ShellDock />
     </template>
