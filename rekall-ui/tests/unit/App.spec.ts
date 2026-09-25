@@ -551,6 +551,9 @@ describe('the console', () => {
     await flushPromises()
 
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c' }))
+    // The terminal pane is an async component: its chunk has to land before the test moves on,
+    // or the patch that mounts it lands after a later test has wiped the DOM out from under it.
+    await vi.dynamicImportSettled()
     await flushPromises()
 
     expect(useConsoleStore().paneFocus).toBe('terminal')
