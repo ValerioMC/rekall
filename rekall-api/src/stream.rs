@@ -2,14 +2,19 @@
 //! review, wrapup and commit-reference change, and every run queue change, reaches every open
 //! console under its frame name. A console that falls too far behind loses the frames it missed,
 //! which is what a failed `SseEmitter.send` dropped too.
+//!
+//! Frames are written the way `SseEmitter` wrote them, `event:<name>` and `data:<payload>` with
+//! no space after the colon, rather than through Axum's `Sse`, which adds one.
 
 use std::collections::HashSet;
 use std::convert::Infallible;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
-use axum::response::sse::{Event, Sse};
-use futures::stream::{self, Stream, StreamExt};
+use axum::body::{Body, Bytes};
+use axum::http::{header, HeaderValue};
+use axum::response::{IntoResponse, Response};
+use futures::stream::{self, StreamExt};
 use rekall_service::EventBus;
 use tokio::sync::watch;
 use tokio_stream::wrappers::errors::BroadcastStreamRecvError;
@@ -40,7 +45,7 @@ impl StepEventStream {
     }
 
     /// A new feed: an `open` frame saying `ready`, then every event as it commits.
-    pub fn open(&self) -> Sse<impl Stream<Item = Result<Event, Infallible>> + use<>> {
+    pub fn open(&self) -> Response {
         let id = self.next.fetch_add(1, Ordering::SeqCst);
         if let Ok(mut clients) = self.clients.lock() {
             clients.insert(id);
@@ -49,21 +54,23 @@ impl StepEventStream {
         let mut closing = self.closing.subscribe();
         let events = BroadcastStream::new(self.bus.subscribe()).filter_map(|received| async move {
             match received {
-                Ok(event) => Some(Event::default().event(event.name()).data(event.payload().to_string())),
+                Ok(event) => Some(frame(event.name(), &event.payload().to_string())),
                 Err(BroadcastStreamRecvError::Lagged(_)) => None,
             }
         });
         let ended = async move {
             let _ = closing.wait_for(|closed| *closed).await;
         };
-        let feed = stream::once(async { Event::default().event("open").data("ready") })
+        let feed = stream::once(async { frame("open", "ready") })
             .chain(events)
             .take_until(ended)
             .map(move |event| {
                 let _keep = &guard;
-                Ok(event)
+                Ok::<_, Infallible>(event)
             });
-        Sse::new(feed)
+        let mut response = Body::from_stream(feed).into_response();
+        response.headers_mut().insert(header::CONTENT_TYPE, HeaderValue::from_static("text/event-stream"));
+        response
     }
 
     /// Complete every open feed: graceful shutdown would otherwise wait on each of them.
@@ -77,6 +84,19 @@ impl StepEventStream {
     pub fn client_count(&self) -> usize {
         self.clients.lock().map(|c| c.len()).unwrap_or(0)
     }
+}
+
+/// `SseEmitter.event().name(name).data(data)`: a line per field, a line of data per line of
+/// payload, and a blank line to end the frame.
+fn frame(name: &str, data: &str) -> Bytes {
+    let mut text = format!("event:{name}\n");
+    for line in data.split('\n') {
+        text.push_str("data:");
+        text.push_str(line);
+        text.push('\n');
+    }
+    text.push('\n');
+    Bytes::from(text)
 }
 
 #[cfg(test)]

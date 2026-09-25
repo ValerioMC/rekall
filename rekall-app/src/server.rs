@@ -46,6 +46,9 @@ pub struct StartOptions {
     pub usage: Option<Arc<dyn UsageReader>>,
     /// Stands in for the system clock.
     pub clock: Option<Clock>,
+    /// Hand the instance a restarter nothing listens to, as a Spring test context had: a
+    /// database switch is recorded but the application stays on the database it has.
+    pub no_restart: bool,
 }
 
 /// One start of the application on one database.
@@ -187,7 +190,7 @@ impl Instance {
 /// way to stop it.
 pub struct Running {
     pub port: u16,
-    current: watch::Receiver<Option<Services>>,
+    current: watch::Receiver<Option<(u64, Services)>>,
     stop: Option<oneshot::Sender<()>>,
     supervisor: Option<tokio::task::JoinHandle<()>>,
 }
@@ -195,19 +198,22 @@ pub struct Running {
 impl Running {
     /// The services of the instance up right now; `None` in the gap of a restart.
     pub fn services(&self) -> Option<Services> {
-        self.current.borrow().clone()
+        self.current.borrow().as_ref().map(|(_, services)| services.clone())
     }
 
-    /// Wait until an instance other than `previous` is up (a restart has gone round).
-    pub async fn next_instance(&mut self) -> Option<Services> {
-        loop {
-            if self.current.changed().await.is_err() {
-                return None;
-            }
-            if let Some(services) = self.current.borrow().clone() {
-                return Some(services);
-            }
-        }
+    /// Which start of the application is up: 1 for the first, one more after every restart.
+    pub fn generation(&self) -> u64 {
+        self.current.borrow().as_ref().map(|(generation, _)| *generation).unwrap_or(0)
+    }
+
+    /// Wait until a start later than `generation` is up (a restart has gone round).
+    pub async fn instance_after(&mut self, generation: u64) -> Option<Services> {
+        let found = self
+            .current
+            .wait_for(|current| current.as_ref().is_some_and(|(g, _)| *g > generation))
+            .await
+            .ok()?;
+        found.as_ref().map(|(_, services)| services.clone())
     }
 
     /// Close the application and wait for it.
@@ -240,12 +246,14 @@ async fn supervise(
     options: StartOptions,
     listener: std::net::TcpListener,
     port: u16,
-    current: watch::Sender<Option<Services>>,
+    current: watch::Sender<Option<(u64, Services)>>,
     mut stop_signal: oneshot::Receiver<()>,
     first_up: oneshot::Sender<Result<(), String>>,
 ) {
     let mut first_up = Some(first_up);
+    let mut generation = 0;
     loop {
+        generation += 1;
         let (instance, mut restart_requests) = match open_instance(&config, &options, port).await {
             Ok(opened) => opened,
             Err(failed) => {
@@ -276,17 +284,17 @@ async fn supervise(
                 .await;
         });
         instance.ready();
-        let _ = current.send(Some(instance.services.clone()));
+        let _ = current.send(Some((generation, instance.services.clone())));
         if let Some(first_up) = first_up.take() {
             let _ = first_up.send(Ok(()));
         }
 
+        // A closed restart channel (a restarter nothing can use) is not a request to stop.
         let request = tokio::select! {
             _ = &mut stop_signal => None,
-            request = restart_requests.recv() => request,
+            Some(request) = restart_requests.recv() => Some(request),
         };
-        if let Some(request) = &request {
-            let _ = request;
+        if request.is_some() {
             restart::announce();
             tokio::time::sleep(RESTART_DELAY).await;
         }
@@ -328,6 +336,7 @@ async fn open_instance(
     let resolved = location::resolve(config)?;
     let database = open_database(&resolved.database).await?;
     let (restarter, requests) = Restarter::channel();
+    let restarter = if options.no_restart { Restarter::disabled() } else { restarter };
     Ok((Instance::build(config, database, resolved.status, restarter, port, options), requests))
 }
 
