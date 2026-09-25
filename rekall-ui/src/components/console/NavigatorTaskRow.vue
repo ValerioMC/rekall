@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import TagBadge from '@/components/ui/TagBadge.vue'
 import TaskMark from '@/components/console/TaskMark.vue'
+import { identityHue } from '@/common/identity'
 import { TASK_STATUS_LABEL } from '@/model/catalog'
 import type { Task } from '@/model/catalog'
 import { TASK_MARK_LABEL, taskMark } from '@/model/task-mark'
@@ -25,6 +26,10 @@ defineEmits<{ select: []; edit: [] }>()
 const { steps } = storeToRefs(useConsoleStore())
 
 const mark = computed(() => taskMark(props.task, steps.value, props.running))
+
+// The selected row's line and gradient wash take the task's own project colour, so a row
+// reads as belonging to that project rather than to a single fixed "selected" hue.
+const selectTint = computed(() => identityHue(props.task.projectId))
 const markLabel = computed(() => TASK_MARK_LABEL[mark.value.state] || TASK_STATUS_LABEL[props.task.status])
 
 const awaitingReview = computed(
@@ -54,6 +59,7 @@ watch(
       data-testid="task-row"
       class="focus-ring flex w-full items-start gap-2.5 rounded-[var(--radius-control)] px-2.5 py-2 text-left transition-colors"
       :class="selected ? 'selected-row text-text' : 'text-text-muted hover:bg-surface-raised hover:text-text'"
+      :style="selected ? { '--select-tint': selectTint.base, '--select-tint-soft': selectTint.soft } : undefined"
       :aria-current="selected"
       @click="$emit('select')"
     >

@@ -343,14 +343,19 @@
  * and bottom: a marker that has been placed, not a border that happens to be there.
  */
 @utility selected-row {
+  /* Defaults to the accent; the task navigator retints per project the same way a field is
+     retinted via --field-tint, deriving the line's ends with color-mix instead of needing a
+     matching strong/deep pair per identity hue. */
+  --select-tint: var(--color-accent);
+  --select-tint-soft: var(--color-accent-soft);
   position: relative;
   background:
-    radial-gradient(150px 48px at 10px 50%, var(--color-accent-soft), transparent 72%),
+    radial-gradient(150px 48px at 10px 50%, var(--select-tint-soft), transparent 72%),
     var(--color-surface-raised);
   box-shadow:
     0 1px 1px rgb(0 0 0 / 0.34),
     0 14px 30px -18px rgb(0 0 0 / 0.62),
-    0 0 0 1px color-mix(in srgb, var(--color-accent) 17%, transparent);
+    0 0 0 1px color-mix(in srgb, var(--select-tint) 17%, transparent);
 
   &::before {
     content: '';
@@ -360,8 +365,12 @@
     bottom: 7px;
     width: 2px;
     border-radius: 999px;
-    background: linear-gradient(180deg, var(--color-accent-strong), var(--color-accent-deep));
-    box-shadow: 0 0 9px -1px color-mix(in srgb, var(--color-accent) 55%, transparent);
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--select-tint) 75%, white),
+      color-mix(in srgb, var(--select-tint) 65%, black)
+    );
+    box-shadow: 0 0 9px -1px color-mix(in srgb, var(--select-tint) 55%, transparent);
   }
 }
 
