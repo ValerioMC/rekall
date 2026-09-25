@@ -67,7 +67,7 @@ The app is a Tauri v2 window (`rekall-app/desktop`) over the same server `rekall
 
 `make desktop` builds the app's binary alone, on any platform with the WebView SDK (WebKitGTK on Linux); it is not a default workspace member, so `cargo build` and `cargo test` work on a machine without one.
 
-The dock icon is `rekall-app/desktop/icons/icon.png`, a 1024 master on Apple's icon grid. It, the PWA icons and `apple-touch-icon.png` are all rendered from `rekall-ui/public/favicon.svg`, which the console also shows as its logo: edit the SVG, run `make icons` (needs Google Chrome), and commit the PNGs it writes. The bundle build only reads them, so it needs neither Chrome nor the SVG.
+The dock icon is `rekall-app/desktop/icons/icon@2x.png`, a 1024 master on Apple's icon grid (named `@2x` so Tauri's bundler reads its pixel size as retina density). It, the PWA icons and `apple-touch-icon.png` are all rendered from `rekall-ui/public/favicon.svg`, which the console also shows as its logo: edit the SVG, run `make icons` (needs Google Chrome), and commit the PNGs it writes. The bundle build only reads them, so it needs neither Chrome nor the SVG.
 
 ### Running the app
 

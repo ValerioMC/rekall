@@ -11,7 +11,9 @@
 #   rekall-ui/public/icons/icon-{192,512}.png   PWA "any": the rounded plate, corners transparent
 #   rekall-ui/public/icons/icon-512-maskable.png PWA "maskable": square, the platform crops it
 #   rekall-ui/public/apple-touch-icon.png        square 180, iOS rounds it itself
-#   rekall-app/desktop/icons/icon.png            1024 dock master on Apple's icon grid (Tauri)
+#   rekall-app/desktop/icons/icon@2x.png         1024 dock master on Apple's icon grid (Tauri);
+#                                                 named @2x so the bundler reads it as retina —
+#                                                 1024px only resolves to an ICNS type at density 2.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -77,5 +79,5 @@ resize plate 512 rekall-ui/public/icons/icon-512.png
 resize plate 192 rekall-ui/public/icons/icon-192.png
 resize square 512 rekall-ui/public/icons/icon-512-maskable.png
 resize square 180 rekall-ui/public/apple-touch-icon.png
-cp "$WORK/dock.png" rekall-app/desktop/icons/icon.png
-echo "    rekall-app/desktop/icons/icon.png"
+cp "$WORK/dock.png" rekall-app/desktop/icons/icon@2x.png
+echo "    rekall-app/desktop/icons/icon@2x.png"

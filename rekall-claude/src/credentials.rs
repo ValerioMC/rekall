@@ -156,6 +156,9 @@ fn secret(account: Option<&str>) -> Option<String> {
     run(&command).map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
 }
 
+/// A child whose stdout is not drained as it runs deadlocks once its output outgrows the OS pipe
+/// buffer (`dump-keychain` on a real keychain is well past that). The read has to run on its own
+/// thread, concurrently with the wait, not after it.
 fn run(command: &[&str]) -> Option<String> {
     let mut child = Command::new(command[0])
         .args(&command[1..])
@@ -163,15 +166,19 @@ fn run(command: &[&str]) -> Option<String> {
         .stderr(std::process::Stdio::null())
         .spawn()
         .ok()?;
+    let mut stdout = child.stdout.take()?;
+    let (sender, receiver) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        use std::io::Read;
+        let mut output = String::new();
+        let _ = stdout.read_to_string(&mut output);
+        let _ = sender.send(output);
+    });
     let deadline = std::time::Instant::now() + COMMAND_TIMEOUT;
     loop {
         match child.try_wait() {
             Ok(Some(status)) => {
-                let mut output = String::new();
-                if let Some(mut stdout) = child.stdout.take() {
-                    use std::io::Read;
-                    let _ = stdout.read_to_string(&mut output);
-                }
+                let output = receiver.recv_timeout(Duration::from_millis(500)).unwrap_or_default();
                 return status.success().then_some(output);
             }
             Ok(None) if std::time::Instant::now() < deadline => std::thread::sleep(Duration::from_millis(20)),
