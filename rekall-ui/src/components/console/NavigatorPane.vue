@@ -242,16 +242,16 @@ defineExpose({ beginCreate, editSelected })
         <div
           v-for="group in groupedByProject"
           :key="group.projectId"
-          class="border-l-2 px-2 pt-1.5 first:pt-0.5"
+          class="px-2 pt-2.5 first:pt-1"
           :class="group.status !== 'ACTIVE' && 'filed-row'"
-          :style="{ borderLeftColor: identityHue(group.projectId).line }"
         >
           <button
-            class="focus-ring flex w-full items-start gap-2 rounded-[var(--radius-control)] px-1.5 pb-1.5 pt-2 text-left"
+            class="project-header-card focus-ring flex w-full items-start gap-2.5 rounded-[var(--radius-card)] px-2.5 py-2.5 text-left"
+            :style="{ '--project-tint-soft': identityHue(group.projectId).soft }"
             @click="toggleCollapsed(group.projectId)"
           >
             <svg
-              class="mt-0.5 size-3 shrink-0 text-text-subtle transition-transform"
+              class="mt-1.5 size-3 shrink-0 text-text-subtle transition-transform"
               :class="!collapsedProjectIds.has(group.projectId) && 'rotate-90'"
               viewBox="0 0 24 24"
               fill="none"
@@ -260,18 +260,27 @@ defineExpose({ beginCreate, editSelected })
               <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
             <span
-              class="mt-[3px] size-1.5 shrink-0 rounded-full"
-              :style="{ backgroundColor: identityHue(group.projectId).base }"
+              class="mt-px grid size-6 shrink-0 place-items-center rounded-[7px]"
+              :style="{ backgroundColor: identityHue(group.projectId).soft }"
               aria-hidden="true"
-            />
+            >
+              <svg class="size-3.5" viewBox="0 0 24 24" fill="none" :style="{ color: identityHue(group.projectId).base }">
+                <path
+                  d="M4 6.5A1.5 1.5 0 0 1 5.5 5h4.1a1.5 1.5 0 0 1 1.2.6l1 1.4h7.7A1.5 1.5 0 0 1 21 8.5v10A1.5 1.5 0 0 1 19.5 20h-14A1.5 1.5 0 0 1 4 18.5v-12z"
+                  fill="currentColor"
+                />
+              </svg>
+            </span>
             <span class="min-w-0 flex-1">
               <span class="flex items-center gap-2">
-                <span class="section-label min-w-0 flex-1 truncate">{{ group.projectTitle }}</span>
+                <span class="min-w-0 flex-1 truncate text-[13.5px] font-semibold tracking-[-0.006em] text-text">
+                  {{ group.projectTitle }}
+                </span>
                 <AppBadge v-if="group.status !== 'ACTIVE'" :tone="group.status === 'DONE' ? 'safe' : 'neutral'" dot>
                   {{ PROJECT_STATUS_LABEL[group.status] }}
                 </AppBadge>
                 <span
-                  class="shrink-0 rounded-full bg-surface-raised px-1.5 py-px font-mono text-[10px] tabular-nums text-text-subtle"
+                  class="shrink-0 rounded-full bg-surface px-1.5 py-px font-mono text-[10px] tabular-nums text-text-subtle"
                 >
                   {{ group.tasks.length }}
                 </span>
@@ -288,7 +297,11 @@ defineExpose({ beginCreate, editSelected })
             </span>
           </button>
 
-          <div v-show="!collapsedProjectIds.has(group.projectId)" class="mt-0.5 flex flex-col gap-0.5">
+          <div
+            v-show="!collapsedProjectIds.has(group.projectId)"
+            class="ml-[15px] mt-1 flex flex-col gap-0.5 border-l-2 pl-2"
+            :style="{ borderLeftColor: identityHue(group.projectId).line }"
+          >
             <NavigatorTaskRow
               v-for="task in group.active"
               :key="task.id"
