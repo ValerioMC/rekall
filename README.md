@@ -10,58 +10,37 @@ Source-available, not open source. See [License](#license).
 
 | Tool  | Version |
 |-------|---------|
-| Java  | 25      |
-| Maven | 3.9+    |
+| Rust  | 1.85+   |
 | Node  | 22+     |
 | pnpm  | 9+      |
 
-The database is an H2 file under `./data`. No database server, Docker or cluster.
-
-The backend also exists as a Rust port (Rust 1.85+), one binary serving the same console, API and
-MCP endpoint on the same port, with a SQLite database and a Tauri desktop shell. See
-[The Rust server](#the-rust-server).
+The backend is one Rust binary, `rekall-server`, serving the console, the REST API and the MCP endpoint on one port. The database is a SQLite file (`rekall.db`) in a folder you choose on first run. No database server, Docker or cluster.
 
 ## Run
 
 ```bash
 make run     # build the frontend, then start on http://localhost:47355
-make build   # the above, plus the packaged jar
+make build   # the above, as target/release/rekall-server, without starting it
+make start   # start the binary `make build` left, no rebuild
 make ui      # the frontend alone
-make reset   # delete the database file (no undo)
-make console # H2 shell on the database
 ```
 
-`make run` and `make build` build the UI first. The frontend compiles to `rekall-ui/dist` (git-ignored) and `rekall-app` copies it into the jar under `static/` at package time. Packaging without a built UI fails with instructions to run `make ui`.
+`make run` and `make build` build the UI first. The frontend compiles to `rekall-ui/dist` (git-ignored) and `rekall-app` embeds it into the binary at compile time, so `rekall-server` is the only file that has to travel. `rekall.ui.dist=<folder>` serves the console from a folder instead.
 
 | Service | Address                      |
 |---------|------------------------------|
 | UI      | `http://localhost:47355`     |
 | MCP     | `http://localhost:47355/mcp` |
 
-Port 47355 is fixed because the MCP endpoint is registered with Claude Code by URL, so a clash breaks the registration rather than moving the app. `SERVER_PORT` overrides it for the server, the `.app` launcher and the tests.
+Port 47355 is fixed because the MCP endpoint is registered with Claude Code by URL, so a clash breaks the registration rather than moving the app. `SERVER_PORT` overrides it for the server, the desktop app and the tests.
 
 ### This machine only
 
-Nothing in Rekall authenticates, and its API can open a `claude` terminal in a project folder, so `LocalAccessFilter` answers only this machine. It refuses with a 403 a peer that is not loopback (another machine on the same network), a `Host` header that is not `localhost`, `127.0.0.1` or `[::1]` (a page using DNS rebinding), and an `Origin` header from another site (a page open in the same browser). The terminal's WebSocket accepts only loopback origins too. Claude Code and `curl` send no `Origin` and pass.
+Nothing in Rekall authenticates, and its API can open a `claude` terminal in a project folder, so the local-access guard (`rekall-app/src/security.rs`) answers only this machine. It refuses with a 403 a peer that is not loopback (another machine on the same network), a `Host` header that is not `localhost`, `127.0.0.1` or `[::1]` (a page using DNS rebinding), and an `Origin` header from another site (a page open in the same browser). The terminal's WebSocket accepts only loopback origins too. Claude Code and `curl` send no `Origin` and pass.
 
 | Property | Default | Meaning |
 |---|---|---|
 | `rekall.security.remote-access` | `false` | `true` accepts other machines and their own origin. It gives up the DNS-rebinding check; only for a network you trust |
-
-## The Rust server
-
-```bash
-make server      # target/release/rekall-server, with the console embedded
-make run-rust    # start it on http://localhost:47355
-make test-rust   # cargo test: every crate, the ported JUnit suites included
-make desktop     # the Tauri desktop app (needs the platform WebView SDK)
-make import-java-db DIR=~/rekall-data   # import a Java-era H2 database into SQLite
-```
-
-Same port, same routes, same JSON, same MCP tools; the database is `rekall.db` (SQLite) in the
-folder that held `rekall.mv.db`, and an existing H2 database is imported rather than recreated.
-`docs/RUST-PORT.md` describes the layout, how parity with the Java server was checked, and every
-place where the two still differ.
 
 ## macOS application
 
@@ -73,33 +52,28 @@ A disk image for Apple Silicon is published on every commit to `main`.
 | Needs | macOS 13 or later, Apple Silicon |
 | Install | Drag Rekall onto Applications, then run the `xattr` command below once |
 
-The image tracks the head of `main` and changes under the link without notice. A fixed build is a `v*` tag. It builds on a `macos-14` runner from `.github/workflows/release.yml` and `scripts/macos-bundle.sh`. There is no Intel, Windows or Linux bundle; the jar on the same release runs on any platform with a JVM 25.
-
-The published image is the **jvm** flavour. The GraalVM (native) build reaches 5.9 GB of heap on a 7 GB runner and the watchdog aborts it after about 30 minutes, so it builds only locally.
+The image tracks the head of `main` and changes under the link without notice. A fixed build is a `v*` tag. It builds on a `macos-14` runner from `.github/workflows/release.yml`. The same release carries `rekall-server` for Linux and Windows, with the console embedded.
 
 ### Build locally
 
 ```bash
-make dmg-native   # GraalVM binary in the bundle. Needs GraalVM as JAVA_HOME
-make dmg-jvm      # jar plus a bundled Java runtime. Any JDK 25
+cargo install tauri-cli --version "^2" --locked   # once
+
+make dmg   # Rekall.app and its disk image, under target/release/bundle
+make app   # the above, then mount the disk image and run Rekall from it
 ```
 
-Both need the Xcode Command Line Tools for `swiftc`. Both write `dist/Rekall-<version>-<flavour>-<arch>.dmg` and install it into `/Applications` on the build machine, replacing an existing `Rekall.app` and relaunching a running copy. `REKALL_INSTALL=0 make dmg-jvm` stops at the disk image.
+The app is a Tauri v2 window (`rekall-app/desktop`) over the same server `rekall-server` runs, started in the same process. `make app` installs nothing: it quits a running Rekall, ejects a Rekall disk image left mounted by an earlier build, mounts the new one and opens `Rekall.app` from the mounted volume (`scripts/macos-app.sh`), so what you try is exactly what another machine gets and a copy in `/Applications`, if there is one, is left alone. Eject the volume in Finder when you are done. To install it, drag it onto Applications from that window as anyone else would.
 
-The dock icon is `packaging/macos/AppIcon.png`, a 1024 master on Apple's icon grid. It, the PWA icons and `apple-touch-icon.png` are all rendered from `rekall-ui/public/favicon.svg`, which the console also shows as its logo: edit the SVG, run `make icons` (needs Google Chrome), and commit the PNGs it writes. The bundle build only reads them, so it needs neither Chrome nor the SVG.
+`make desktop` builds the app's binary alone, on any platform with the WebView SDK (WebKitGTK on Linux); it is not a default workspace member, so `cargo build` and `cargo test` work on a machine without one.
 
-| | `dmg-native` | `dmg-jvm` |
-|---|---|---|
-| Payload | `Contents/Resources/rekall-app` | `Contents/runtime` plus `rekall-app.jar` |
-| Disk image | 91 MB | 99 MB |
-| First screen | under a second | about three seconds |
-| Build | GraalVM, 4 to 8 minutes | any JDK 25, under a minute |
+The dock icon is `rekall-app/desktop/icons/icon.png`, a 1024 master on Apple's icon grid. It, the PWA icons and `apple-touch-icon.png` are all rendered from `rekall-ui/public/favicon.svg`, which the console also shows as its logo: edit the SVG, run `make icons` (needs Google Chrome), and commit the PNGs it writes. The bundle build only reads them, so it needs neither Chrome nor the SVG.
 
 ### Running the app
 
-The bundle executable is `packaging/macos/Launcher.swift`. It shows a splash screen while the server boots, then loads the console once port 47355 answers. Quitting sends `SIGTERM` so the H2 file closes cleanly. Server output goes to `~/Library/Logs/Rekall/server.log` (View > Open Server Log).
+The window shows a splash screen while the server boots, then loads the console once port 47355 answers. Quitting stops the server and closes the database cleanly. Server output goes to `~/Library/Logs/Rekall/server.log` (View > Open Server Log).
 
-The app uses the same port, the same `~/.rekall/config.json` and the same MCP endpoint as `make run`. If something is already listening on 47355, the app attaches to it instead of starting a second server. The folder icon in the database field opens the system folder chooser, which a browser tab cannot do; in a browser that field stays a typed input.
+The app uses the same port, the same `~/.rekall/config.json` and the same MCP endpoint as `make run`. If a Rekall server already answers on 47355, the app attaches to it instead of starting a second one, and leaves it running on quit. The folder icon in the database field opens the system folder chooser, which a browser tab cannot do; in a browser that field stays a typed input.
 
 The bundle is signed ad hoc, which is enough for the machine that built it. A disk image downloaded through a browser on another machine is quarantined and needs one command before it opens:
 
@@ -125,11 +99,11 @@ cp .claude/commands/rk.md ~/.claude/commands/rk.md
 /rk project:vega task:report-builder
 ```
 
-**Open in terminal**, on a task or a project, hands the session to your own terminal app in the project's folder with `/rk` already running. Set the folder in the **Folder** field on the project page. The terminal is iTerm2 when installed, Terminal.app otherwise. A switch in **Settings > Claude Code** adds `--dangerously-skip-permissions`; it is stored on the machine, not in the database. This button works only inside Rekall.app.
+**Open in terminal**, on a task or a project, hands the session to your own terminal app in the project's folder with `/rk` already running. Set the folder in the **Folder** field on the project page. The terminal is iTerm2 when installed, Terminal.app otherwise. A switch in **Settings > Claude Code** adds `--dangerously-skip-permissions`; it is stored on the machine, not in the database. This button works only inside the desktop app.
 
 ## Terminal in Rekall
 
-**Run here**, next to **Open in terminal** on the description and steps panes, or `c` from any task, runs a real terminal inside the app. The backend starts the interactive `claude` in a pseudo-terminal (pty4j) in the project's folder, types `/rk <anchors>` as the first line, and hands it to you; the pane renders it with `xterm.js` and the bytes travel both ways over one WebSocket at `/api/terminal/{id}/io`. Because it is the same binary run the same way as in your own terminal, its prompt caching, context compaction and `/context` read-outs behave identically, and a permission prompt actually renders and can be answered. Works in a plain browser, not only Rekall.app.
+**Run here**, next to **Open in terminal** on the description and steps panes, or `c` from any task, runs a real terminal inside the app. The backend starts the interactive `claude` in a pseudo-terminal (`portable-pty`) in the project's folder, types `/rk <anchors>` as the first line, and hands it to you; the pane renders it with `xterm.js` and the bytes travel both ways over one WebSocket at `/api/terminal/{id}/io`. Because it is the same binary run the same way as in your own terminal, its prompt caching, context compaction and `/context` read-outs behave identically, and a permission prompt actually renders and can be answered. Works in a plain browser, not only the desktop app.
 
 The terminal gets the environment a new window of your own terminal would: Rekall asks your login shell (`$SHELL -i -l -c`) for its variables once it starts, so whatever your profile adds to `PATH` (`~/.cargo/bin`, nvm, pyenv, sdkman) and exports is there, along with `SSH_AUTH_SOCK`. The answer is cached and refreshed in the background every time a terminal opens, so a tool installed while Rekall runs reaches the next terminal but one. A shell that prints nothing usable within the timeout leaves the last good answer in place, or Rekall's own environment when there is none. The shell runs with `REKALL_RESOLVING_ENVIRONMENT=1`, so a slow profile can skip work with `[[ -n $REKALL_RESOLVING_ENVIRONMENT ]] && return`.
 
@@ -143,7 +117,7 @@ Live work sits in one bar in the bottom right corner of every screen: a segment 
 - **Reasoning effort** (`Account default`, `Low`, `Medium`, `High`, `Extra-high`, `Max`): anything but the default adds `--effort <level>`.
 - **Skip permissions** adds `--dangerously-skip-permissions`; with it off, an interactive permission prompt in the terminal is yours to answer.
 
-All three are stored on the machine, not in the database. It works in both the jvm and native macOS bundles: the pty4j/JNA GraalVM metadata is committed under `rekall-app/src/main/resources/META-INF/native-image/`.
+All three are stored on the machine, not in the database.
 
 The top bar carries a usage meter: the current 5-hour session as a ring with its percentage and time to reset, and, on hover, a bar per window including the weekly per-model limits. The figures are the ones Claude Code's own `/usage` shows, read with the OAuth token Claude Code stores (every `Claude Code-credentials` item in the macOS keychain, else `~/.claude/.credentials.json`; the token expiring last wins, and an expired one counts as no token). With no valid token the meter asks you to open a Claude Code terminal, which signs in or refreshes the token; when Anthropic cannot be reached it holds the last figures. Readings are not real time: one when the console opens, one every five minutes while it is on screen, one when the window comes back to the front after a minute away, and one whenever you click the blank meter or **Check again** in its popover (`GET /api/claude/usage?refresh=true`, past the server's cache). If Anthropic answers 429 the meter shows **Wait** with the time left and takes nothing, not even a manual check, until that `Retry-After` has passed: asking again is what extends the block.
 
@@ -218,7 +192,7 @@ A wrapup written after a step finishes folds that step's work into the same desc
 
 ### History
 
-**History**, on the wrapup and on the description, lists the earlier versions of that text, newest first, and restores one. `TaskRevisionService` keeps what a write replaces: every session write, every delete and every restore, so a restore can be undone the same way. The console autosaves as you type, so a hand edit over hand-written text keeps one version per ten minutes, the one from before you started, not every keystroke; a hand edit over a session's text is always kept. The newest 30 versions of each text are kept per task. Sessions never read the history. `GET /api/tasks/{id}/revisions?kind=WRAPUP|DESCRIPTION` lists it and `POST /api/tasks/{id}/revisions/{revisionId}/restore` restores one.
+**History**, on the wrapup and on the description, lists the earlier versions of that text, newest first, and restores one. The revision service keeps what a write replaces: every session write, every delete and every restore, so a restore can be undone the same way. The console autosaves as you type, so a hand edit over hand-written text keeps one version per ten minutes, the one from before you started, not every keystroke; a hand edit over a session's text is always kept. The newest 30 versions of each text are kept per task. Sessions never read the history. `GET /api/tasks/{id}/revisions?kind=WRAPUP|DESCRIPTION` lists it and `POST /api/tasks/{id}/revisions/{revisionId}/restore` restores one.
 
 ### Notes written by a session
 
@@ -285,7 +259,7 @@ A project can commit for the session instead of waiting for it to. The **Commit 
 
 With it on, a claim commits: `rekall_step … state="claimed"` stages everything in the folder (`git add -A`), commits it, and logs that commit against the step; on a task with no checklist, the Claude-authored `rekall_wrapup` that claims the task does the same against the task. A task with a checklist never commits on its wrapup.
 
-The message says what the work does, never which files it touched. The session that claims writes it, as `commit_message` on `rekall_step` or `rekall_wrapup`: a Conventional Commits subject under 72 characters, a blank line, and a few sentences of body. Without one, `CommitMessageGenerator` derives it: the subject is the step or task title, typed `fix:` or `refactor:` when the title says so, `docs:` when every file is documentation, `test:` when every file is a test and `feat:` otherwise; the body is the opening of the step's detail (or of the wrapup, for a task with no checklist) as plain prose, headings, emphasis and code dropped, cut at a sentence. Either way the body is wrapped at 72 columns and ends with a `Refs: project:… task:…, step N` line. A clean tree commits nothing and says so; a git refusal (no identity, a hook, a folder that stopped being a repository) is reported in the tool's answer and the claim stands either way. `rekall_context` marks such a project with an `auto-commit` field telling the session not to `git commit` itself.
+The message says what the work does, never which files it touched. The session that claims writes it, as `commit_message` on `rekall_step` or `rekall_wrapup`: a Conventional Commits subject under 72 characters, a blank line, and a few sentences of body. Without one, Rekall derives it: the subject is the step or task title, typed `fix:` or `refactor:` when the title says so, `docs:` when every file is documentation, `test:` when every file is a test and `feat:` otherwise; the body is the opening of the step's detail (or of the wrapup, for a task with no checklist) as plain prose, headings, emphasis and code dropped, cut at a sentence. Either way the body is wrapped at 72 columns and ends with a `Refs: project:… task:…, step N` line. A clean tree commits nothing and says so; a git refusal (no identity, a hook, a folder that stopped being a repository) is reported in the tool's answer and the claim stands either way. `rekall_context` marks such a project with an `auto-commit` field telling the session not to `git commit` itself.
 
 ## Description review
 
@@ -295,7 +269,7 @@ A task with no checklist walks the same line at task scope: **open**, **running*
 
 **Review** (the checklist icon with a count, in the top bar) counts everything a session claimed and you have not reviewed, across every task: claimed steps, and tasks with no checklist whose wrapup claimed them. It lists them longest-waiting first, and a row opens the step on its steps pane, or the task on its description's review bar. It is built in the console from the same step and review frames the event stream already carries, so it moves as sessions claim and you accept, and it is not there while nothing waits.
 
-When something joins the queue while the console is hidden or another app has the focus, Rekall posts a system notification: through the native bridge in Rekall.app (`packaging/macos/Notifier.swift`, the system asks for permission the first time), through the browser's Notification API elsewhere. What was already waiting when the console loaded never notifies. **Settings > Notifications** turns it off; the choice is stored on the machine, and in a browser that is also where permission is asked, since a browser grants it only from a click.
+When something joins the queue while the console is hidden or another app has the focus, Rekall posts a system notification: through the native bridge in the desktop app (`rekall-app/desktop/src/bridges.rs`, the system asks for permission the first time), through the browser's Notification API elsewhere. What was already waiting when the console loaded never notifies. **Settings > Notifications** turns it off; the choice is stored on the machine, and in a browser that is also where permission is asked, since a browser grants it only from a click.
 
 ## Console
 
@@ -349,17 +323,17 @@ Company ──< Project ──< Task >──< Document
 
 `label` is what an anchor resolves: lowercase letters, digits, `-`, `_`, `.`, no spaces, normalised on write. `title` is free text and changing it never breaks an anchor. Renaming a label moves the anchor, and the editor says so before saving.
 
-A project belongs to one company, a task to one project. A note belongs to at least one task and often several. Deleting a task unlinks its notes and removes only the ones left on nothing. A wrapup and a step belong to exactly one task and are deleted with it. Adding an entity is a JPA class plus a Liquibase changeset, not a UI action.
+A project belongs to one company, a task to one project. A note belongs to at least one task and often several. Deleting a task unlinks its notes and removes only the ones left on nothing. A wrapup and a step belong to exactly one task and are deleted with it. Adding an entity is a SeaORM model in `rekall-model` plus a migration in `rekall-repository`, not a UI action.
 
 ## Context size and reference notes
 
-Next to the anchor on a task's description, a chip estimates what `/rk project:… task:…` costs a session: the characters of the markdown it hands over and roughly how many tokens that is (3.5 characters to a token, an estimate for comparing tasks, not a bill). Under the pointer it lists the parts heaviest first: the description, the steps, the wrapup, the commits chosen for the context, each note, and the project around them. `GET /api/tasks/{id}/context-size` measures it with the same `ContextRenderer` that answers `rekall_context`, so the figure is the length of what a session gets.
+Next to the anchor on a task's description, a chip estimates what `/rk project:… task:…` costs a session: the characters of the markdown it hands over and roughly how many tokens that is (3.5 characters to a token, an estimate for comparing tasks, not a bill). Under the pointer it lists the parts heaviest first: the description, the steps, the wrapup, the commits chosen for the context, each note, and the project around them. `GET /api/tasks/{id}/context-size` measures it with the same context renderer that answers `rekall_context`, so the figure is the length of what a session gets.
 
 A note most sessions do not need can go **By reference**, switched on the note's own pane. It then travels as its title, its first line and an anchor such as `note:3f2a9c1e` (`loaded="on request"`), and a session loads the rest with `rekall_context` and that anchor only when the work asks for it. **In full** puts it back. The mode belongs to the note, so it holds on every task the note is on.
 
 ## Backups
 
-H2's `BACKUP TO` copies the open database, consistently and without stopping it, into a `backups` folder beside it (for the default location, `./data/backups`). One is taken when Rekall starts and whenever the newest is older than the interval, checked every hour; **Back up now** in **Settings > Backups** takes one on demand, and every restore takes one first. Only the newest are kept.
+SQLite's `VACUUM INTO` copies the open database, consistently and without stopping it, into a zip in a `backups` folder beside it. One is taken when Rekall starts and whenever the newest is older than the interval, checked every hour; **Back up now** in **Settings > Backups** takes one on demand, and every restore takes one first. Only the newest are kept.
 
 | Property | Default | Meaning |
 |---|---|---|
@@ -367,7 +341,7 @@ H2's `BACKUP TO` copies the open database, consistently and without stopping it,
 | `rekall.backup.interval-hours` | `24` | Age of the newest backup that makes another one due |
 | `rekall.backup.keep` | `10` | Backups kept, of every kind together; the oldest go first |
 
-**Restore** on a listed backup, or **Restore from a file…** with a zip from elsewhere, replaces the whole database: the zip has to hold an H2 database file (`*.mv.db`, checked by its header), what is there now is backed up first, and Rekall restarts on the restored file, migrating it forward if it came from an older version. That round trip is also how a database moves to another machine: **Download** a backup here, restore it there. An in-memory database has no backups. The REST side is `GET` and `POST /api/backups`, `GET /api/backups/{name}`, `POST /api/backups/{name}/restore` and `POST /api/backups/restore` (multipart `file`, up to 1 GB).
+**Restore** on a listed backup, or **Restore from a file…** with a zip from elsewhere, replaces the whole database: the zip has to hold a Rekall SQLite database (`rekall.db`, checked by its header), what is there now is backed up first, and Rekall restarts on the restored file, migrating it forward if it came from an older version. That round trip is also how a database moves to another machine: **Download** a backup here, restore it there. An in-memory database has no backups. The REST side is `GET` and `POST /api/backups`, `GET /api/backups/{name}`, `POST /api/backups/{name}/restore` and `POST /api/backups/restore` (multipart `file`, up to 1 GB).
 
 ## Export
 
@@ -381,10 +355,11 @@ Or the **Export** button in the top bar. The archive is a folder tree, one folde
 
 ```bash
 make ui-dev   # Vite dev server on :5173, proxying /api and /mcp to :47355
-make test     # backend tests, then frontend lint, types and unit tests
+make test     # every crate's tests, then frontend lint, types and unit tests
+make lint     # clippy, as CI runs it
 ```
 
-`rekall-app/src/main/resources/claude/commands/rk.md` is a symlink to `.claude/commands/rk.md`. Maven copies the content, not the link.
+The `/rk` command the app installs is `.claude/commands/rk.md`, compiled into the binary.
 
 ### Frontend stack
 
@@ -412,62 +387,61 @@ src/
     └── console/  the three panes, the anchor bar, the editors
 ```
 
-### Debug (IntelliJ IDEA)
+### Debugging
 
-The backend uses Lombok. Enable Settings > Build, Execution, Deployment > Compiler > Annotation Processors > **Enable annotation processing**, or the IDE reports missing getters on code that compiles with Maven.
+`RUST_LOG=rekall=debug make run` turns on debug logging. The server is a plain binary, so any Rust debugger attaches to it (`rust-lldb target/debug/rekall-server`, or the CodeLLDB extension in VS Code).
 
-1. Run > Edit Configurations > Add > Remote JVM Debug, host `localhost`, port `5005`
-2. Start with the debug port open:
+## Configuration
 
-```bash
-mvn -pl rekall-app -am spring-boot:run \
-  -Dspring-boot.run.jvmArguments="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
-```
-
-## Environment variables
-
-All optional; the defaults run against `./data/rekall`.
+Properties are passed as `--name=value` arguments or as environment variables in relaxed form (`rekall.terminal.max-sessions` is `REKALL_TERMINAL_MAXSESSIONS`). All optional.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `REKALL_DB_URL` | `jdbc:h2:file:./data/rekall;AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1` | JDBC url |
-| `REKALL_DB_USER` | `rekall` | |
-| `REKALL_DB_PASSWORD` | `rekall` | |
 | `SERVER_PORT` | `47355` | HTTP port for the UI, the API and MCP |
+| `REKALL_HOME` | `~/.rekall` | Where `config.json` records the database folder |
+| `REKALL_DB_URL` | the folder in `config.json` | `sqlite:<path>` to a database file, overriding the setup wizard's choice |
 
 Notes are stored in plain text in the database file. Credentials kept in them are only as protected as the disk is.
 
+### A database from the earlier Java version
+
+The first versions of Rekall ran on the JVM with an H2 file, `rekall.mv.db`. A folder that still holds only that file is imported into `rekall.db` beside it the first time it is opened, and the H2 file is never changed. By hand:
+
+```bash
+make import-h2 DIR=~/rekall-data     # or: rekall-server --migrate-from-h2 ~/rekall-data
+```
+
+Reading an H2 file needs H2's own jar, so the import needs a Java runtime and `h2-2.x.jar` (`--h2-jar`, `REKALL_H2_JAR`, or `~/.m2`). Run it on the machine and in the time zone the old version ran in: H2 kept timestamps as local time. Nothing else in Rekall needs Java.
+
 ## Modules
 
+A Cargo workspace, one crate per layer, each depending only on the ones above it:
+
 ```
-rekall-common/     ConflictException, NotFoundException: the error vocabulary every layer shares
-rekall-model/      Company, Project, Task, Document, hosted-session entities and their state rules
-rekall-repository/ Spring Data repositories and the Liquibase changelog for their schema
-rekall-service/    Business logic: context assembly, the step and review lines, wrapups, time entries
-rekall-api/        REST API for the UI, and the step event stream
-rekall-mcp/        MCP server, on rekall-service and never rekall-api: one tool reads, four write
-rekall-claude/     the in-app terminal (pty4j over one WebSocket), the Claude Code usage meter and the run queue
-rekall-app/        Spring Boot entry point, serves everything
+rekall-common/     RekallError, Id, Instant and the string helpers every layer shares
+rekall-model/      SeaORM entities and their state rules
+rekall-repository/ queries, one function per lookup, and the SQLite migrations
+rekall-service/    business logic: context assembly, the step and review lines, wrapups, notes, time entries
+rekall-api/        Axum REST API for the UI, the folder listing and the step event stream
+rekall-mcp/        MCP server, on rekall-service and never rekall-api: one tool reads, five write
+rekall-claude/     the in-app terminal (portable-pty over one WebSocket), the Claude Code usage meter and the run queue
+rekall-app/        rekall-server: settings, backups, the local-access guard, serves everything
+rekall-app/desktop the Tauri desktop app over the same server
 rekall-ui/         Vue 3 + Vite frontend
 ```
 
-Classes still live under the `dev.rekall.domain.*` packages they had before the split; the module
-boundary, not the package name, is what keeps `rekall-repository` off the API's classpath and the
-MCP server off the write controllers. That is also why `CatalogService`, `DocumentService` and
-`RevisionRestoreService` live in `rekall-api` and not in `rekall-service`: they write the catalog,
-and the MCP module must not be able to reach them. Read-only services (`SearchService`,
-`ContextSizeService`) and the narrow writes a session is allowed are in `rekall-service`.
+The crate boundary is what keeps the MCP server off the write paths: `CatalogService`, `DocumentService` and `RevisionRestoreService` live in `rekall-api` and not in `rekall-service` because they write the catalog, and `rekall-mcp` cannot reach them. Read-only services (search, context size) and the narrow writes a session is allowed are in `rekall-service`.
 
 ## Run tests
 
 ```bash
-mvn test                                            # everything, against in-memory H2
+cargo test                                            # every crate but the desktop app
 cd rekall-ui && pnpm lint && pnpm typecheck && pnpm test
 ```
 
-`RekallEndToEndTest` drives the real HTTP API and MCP endpoint against the same Liquibase changelogs the application uses, so a migration that disagrees with an entity fails there rather than at startup. `BackupApiTest` runs on a file database in a temporary folder, since an in-memory one has no backups.
+The end-to-end suites in `rekall-app/tests` start the whole application on a real port with a file database and drive the HTTP API, the MCP endpoint and the event stream; a stub stands in for the `claude` TUI in the terminal and run-queue tests.
 
-`.github/workflows/check.yml` runs all of it on every pull request and every push to a branch other than `main`: `mvn test`, then eslint, vue-tsc, vitest and a production build of the UI. `release.yml` builds and publishes `main`.
+`.github/workflows/check.yml` runs all of it on every pull request and every push to a branch other than `main`: clippy and `cargo test`, eslint, vue-tsc, vitest, a production build of the UI, and a build of the desktop app. `release.yml` builds and publishes `main`.
 
 ## Design
 
@@ -475,7 +449,7 @@ cd rekall-ui && pnpm lint && pnpm typecheck && pnpm test
 
 `docs/MEMORY.md` is the memory soak of the console: what was measured, how, and why the numbers say there is no leak.
 
-`docs/SPECIFICATION.md` describes what the application is and does, entities and rules only, with no visual direction. `docs/native-image-hibernate.md` records what it took to run Hibernate in the GraalVM native image.
+`docs/SPECIFICATION.md` describes what the application is and does, entities and rules only, with no visual direction.
 
 ## License
 

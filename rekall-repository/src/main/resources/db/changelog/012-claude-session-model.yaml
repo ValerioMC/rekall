@@ -1,9 +1,0 @@
-databaseChangeLog:
-  - changeSet:
-      id: 012-claude-session-model
-      author: rekall
-      changes:
-        - addColumn:
-            tableName: claude_session
-            columns:
-              - column: {name: model, type: varchar(60)}

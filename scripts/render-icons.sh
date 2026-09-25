@@ -5,13 +5,13 @@
 #
 # macOS only (sips) and needs Google Chrome, which rasterises the SVG's gradients, blurs and
 # grain faithfully where qlmanage and sips do not. The PNGs it writes are committed, so neither
-# the release workflow nor `make dmg-*` needs Chrome: run this after editing the SVG, and
+# the release workflow nor `make dmg` needs Chrome: run this after editing the SVG, and
 # commit what it produces.
 #
 #   rekall-ui/public/icons/icon-{192,512}.png   PWA "any": the rounded plate, corners transparent
 #   rekall-ui/public/icons/icon-512-maskable.png PWA "maskable": square, the platform crops it
 #   rekall-ui/public/apple-touch-icon.png        square 180, iOS rounds it itself
-#   packaging/macos/AppIcon.png                  1024 dock master on Apple's icon grid
+#   rekall-app/desktop/icons/icon.png            1024 dock master on Apple's icon grid (Tauri)
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -77,5 +77,5 @@ resize plate 512 rekall-ui/public/icons/icon-512.png
 resize plate 192 rekall-ui/public/icons/icon-192.png
 resize square 512 rekall-ui/public/icons/icon-512-maskable.png
 resize square 180 rekall-ui/public/apple-touch-icon.png
-cp "$WORK/dock.png" packaging/macos/AppIcon.png
-echo "    packaging/macos/AppIcon.png"
+cp "$WORK/dock.png" rekall-app/desktop/icons/icon.png
+echo "    rekall-app/desktop/icons/icon.png"

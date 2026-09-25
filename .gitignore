@@ -1,26 +1,23 @@
 # Build output, bundle del frontend incluso. Vite scrive in rekall-ui/dist e rekall-app lo
-# copia dentro il jar in fase di build: era committato sotto src/main/resources/static, il che
-# rendeva ogni modifica alla UI un diff da 205 file di nomi con l'hash dentro. La CI ricostruiva
-# gia' il bundle da sola prima di impacchettare, quindi quella copia non arrivava a nessuno.
+# incorpora nel binario in fase di compilazione.
 target/
 node_modules/
 dist/
 
-# Database H2 su file. AUTO_SERVER=TRUE crea anche il lock file.
+# Database locali (make run-demo scrive in ./data/demo), e i vecchi file H2 da importare.
 data/
 *.mv.db
 *.trace.db
 *.lock.db
 
-# Database SQLite del backend Rust: rekall.db accanto al vecchio rekall.mv.db, piu' il suo WAL.
+# Database SQLite: rekall.db, piu' il suo WAL.
 rekall.db
 *.db-wal
 *.db-shm
 *.db.importing
 *.db.restoring
 
-# Segreti e configurazione locale. application.yaml legge REKALL_DB_URL,
-# REKALL_DB_USER, REKALL_DB_PASSWORD e SERVER_PORT dall'ambiente.
+# Segreti e configurazione locale.
 .env
 .env.*
 !.env.example
@@ -31,8 +28,7 @@ coverage/
 .eslintcache
 .vite/
 
-# IntelliJ. Niente configurazione dell'IDE nel repo: il pom dichiara gia'
-# annotationProcessorPaths per Lombok, quindi l'import Maven ricostruisce .idea da solo.
+# IntelliJ.
 .idea/
 *.iml
 

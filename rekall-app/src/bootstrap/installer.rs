@@ -25,8 +25,8 @@ pub const NOT_CONNECTED: &str = "NOT_CONNECTED";
 pub const CLI_MISSING: &str = "CLI_MISSING";
 
 const COMMAND_FILE: &str = "rk.md";
-/// The slash command this build ships, `classpath:/claude/commands/rk.md`.
-pub const PACKAGED_COMMAND: &str = include_str!("../../src/main/resources/claude/commands/rk.md");
+/// The slash command this build ships: the repository's own `.claude/commands/rk.md`.
+pub const PACKAGED_COMMAND: &str = include_str!("../../../.claude/commands/rk.md");
 const HOME_RELATIVE_BINARIES: [&str; 3] = [".local/bin/claude", ".claude/local/claude", "bin/claude"];
 const KNOWN_DIRECTORIES: &str = "/opt/homebrew/bin:/usr/local/bin:/usr/bin";
 const COMMAND_TIMEOUT: Duration = Duration::from_secs(20);

@@ -1,9 +1,0 @@
-databaseChangeLog:
-  - changeSet:
-      id: 017-drop-claude-session
-      author: rekall
-      changes:
-        - dropTable:
-            tableName: claude_message
-        - dropTable:
-            tableName: claude_session

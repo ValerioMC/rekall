@@ -13,26 +13,14 @@ name: Release
 #
 # Which is why a download link on a web page uses the tag path and not the latest path:
 #   https://github.com/ValerioMC/rekall/releases/download/latest/Rekall-macos-arm64.dmg   rolling
-#   https://github.com/ValerioMC/rekall/releases/latest/download/rekall-v0.1.1.jar        newest v*
 #
 # Assets, named without a version on the rolling release and with the tag on a versioned one:
-#   rekall.jar              rekall-v0.1.1.jar               every platform with a JVM 25
-#   rekall-windows-x64.exe  rekall-v0.1.1-windows-x64.exe   the bare native binary
-#   Rekall-macos-arm64.dmg  Rekall-macos-arm64.dmg          Rekall.app, Apple Silicon
+#   rekall-linux-x64        rekall-v0.1.1-linux-x64         the server, console embedded
+#   rekall-windows-x64.exe  rekall-v0.1.1-windows-x64.exe   the server, console embedded
+#   Rekall-macos-arm64.dmg  Rekall-macos-arm64.dmg          Rekall.app (Tauri), Apple Silicon
 #
 # The disk image keeps the same name on both, because it is the one asset a link off-site points
 # at and a name that moves would defeat that.
-#
-# No Linux or Intel-Mac binary on purpose - the jar already covers every platform the JVM runs
-# on, so the one native build left exists for the target where a self-contained, fast-starting
-# binary is worth the ~10x longer CI build: a Windows desktop without a JVM. The macOS side
-# ships the bundle instead of a bare binary, because on a Mac the thing worth downloading is an
-# application, not a file to chmod.
-#
-# Every commit on main runs all three builds, one of them a GraalVM native image. If that becomes
-# too slow, `paths-ignore` on the main trigger is the knob - but it cannot be added to this `push`
-# block as it stands, because path filters apply to tag pushes too and would silently skip a
-# release whose tagged commit only touched documentation.
 on:
   push:
     branches:
@@ -59,8 +47,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # One decision, made once and read by the two native jobs, so the three of them cannot
-      # disagree about which release they are uploading to.
+      # One decision, made once and read by the other jobs, so they cannot disagree about which
+      # release they are uploading to.
       - name: Resolve the release this run publishes
         id: target
         run: |
@@ -92,41 +80,31 @@ jobs:
           cache: pnpm
           cache-dependency-path: rekall-ui/pnpm-lock.yaml
 
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: "25"
-          cache: maven
+      - uses: dtolnay/rust-toolchain@stable
 
-      # The jar serves the UI from its own classpath, and the bundle is not in the repository:
-      # rekall-app copies rekall-ui/dist in at package time. So this step is not a precaution,
-      # it is where the bundle comes from, and `mvn package` fails outright without it.
+      - uses: Swatinem/rust-cache@v2
+
+      # The server embeds rekall-ui/dist at compile time and the bundle is not in the repository,
+      # so this step is where the console in the binary comes from.
       - name: Build frontend
         run: |
           cd rekall-ui
           pnpm install --frozen-lockfile
           pnpm build
 
-      - name: Build jar
-        run: mvn -B -q clean package
+      - name: Build server
+        run: cargo build --release -p rekall-app
 
-      # spring-boot:repackage leaves both the executable jar and a *.jar.original (thin) jar
-      # in target/; only the former is runnable, so it's the one that gets released.
-      - name: Locate jar
-        id: jar
+      - name: Locate binary
+        id: bin
         run: |
-          jar=$(find rekall-app/target -maxdepth 1 -name '*.jar' ! -name '*.jar.original')
-          release_name="rekall${{ steps.target.outputs.suffix }}.jar"
-          cp "$jar" "$release_name"
+          release_name="rekall${{ steps.target.outputs.suffix }}-linux-x64"
+          cp target/release/rekall-server "$release_name"
           echo "path=$release_name" >> "$GITHUB_OUTPUT"
 
-      # This is the step that creates the release the two native jobs then upload into, which is
-      # why they depend on this job rather than running beside it. An asset uploaded under a name
-      # that is already on the release replaces it, so a rebuilt `latest` never accumulates.
-      #
-      # No `body` on the rolling release: the assets and the commit it points at are already on
-      # the page, and a paragraph restating them is noise on every build. A versioned release
-      # gets generated notes instead, which are the commit list and not prose.
+      # This is the step that creates the release the other jobs then upload into, which is why
+      # they depend on this job rather than running beside it. An asset uploaded under a name that
+      # is already on the release replaces it, so a rebuilt `latest` never accumulates.
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
@@ -135,19 +113,12 @@ jobs:
           prerelease: ${{ steps.target.outputs.rolling == 'true' }}
           make_latest: ${{ steps.target.outputs.rolling != 'true' }}
           generate_release_notes: ${{ steps.target.outputs.rolling != 'true' }}
-          files: ${{ steps.jar.outputs.path }}
+          files: ${{ steps.bin.outputs.path }}
 
-  # The macOS bundle is the jvm flavour, not the native one, and that is a constraint rather than
-  # a preference: a GraalVM image of this application needs more heap than a free macos-14 runner
-  # has. It gets to 5.9 GB on a 7 GB machine and the builder's watchdog aborts it after about half
-  # an hour. The jvm flavour needs no GraalVM at all, builds in about a minute, and costs roughly
-  # two seconds on the first screen and eight megabytes on the download.
-  #
-  # `make dmg-jvm` is not used here for the same reason `make dmg-native` was not: the target
-  # installs the bundle into /Applications afterwards, and a runner has nothing to install into.
+  # The same bundle `make dmg` builds locally.
   build-dmg-macos:
     needs: build-and-release
-    runs-on: macos-14 # Apple Silicon, not macos-13 (Intel)
+    runs-on: macos-14 # Apple Silicon
     steps:
       - uses: actions/checkout@v4
 
@@ -161,13 +132,12 @@ jobs:
           cache: pnpm
           cache-dependency-path: rekall-ui/pnpm-lock.yaml
 
-      # Any JDK 25 will do: macos-bundle.sh jvm runs jlink out of JAVA_HOME and refuses anything
-      # older than the version the jar was built for.
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: "25"
-          cache: maven
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Tauri CLI
+        run: cargo install tauri-cli --version "^2" --locked
 
       - name: Build frontend
         run: |
@@ -175,25 +145,18 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm build
 
-      # The jar has to exist on this runner: the one job 1 built lives on a different machine, and
-      # macos-bundle.sh reads it out of rekall-app/target.
-      - name: Build jar
-        run: mvn -B -q clean package
-
       - name: Bundle Rekall.app into a disk image
-        run: ./scripts/macos-bundle.sh jvm
+        working-directory: rekall-app/desktop
+        run: cargo tauri build --bundles dmg
 
       # The disk image keeps one name on every release, versioned or rolling, because a link on a
-      # web page points at it and a name carrying the version would have to be edited for each
-      # build. The name the script writes carries the pom version, which is neither the tag nor the
-      # commit, so the file is found in dist/ by pattern rather than by guessing that string.
+      # web page points at it. The name Tauri writes carries the version and the architecture, so
+      # the file is found by pattern rather than by guessing that string.
       - name: Locate disk image
-        id: dmg
         run: |
-          dmg=$(find dist -maxdepth 1 -name 'Rekall-*-jvm-arm64.dmg' | head -1)
+          dmg=$(find target/release/bundle/dmg -maxdepth 1 -name '*.dmg' | head -1)
           if [ -z "$dmg" ]; then
-            echo "no disk image in dist/ - macos-bundle.sh did not produce one" >&2
-            ls -la dist/ || true
+            echo "no disk image under target/release/bundle/dmg" >&2
             exit 1
           fi
           cp "$dmg" "Rekall-macos-arm64.dmg"
@@ -205,7 +168,7 @@ jobs:
           tag_name: ${{ needs.build-and-release.outputs.tag }}
           files: Rekall-macos-arm64.dmg
 
-  build-native-windows:
+  build-windows:
     needs: build-and-release
     runs-on: windows-latest
     steps:
@@ -221,40 +184,26 @@ jobs:
           cache: pnpm
           cache-dependency-path: rekall-ui/pnpm-lock.yaml
 
-      - uses: graalvm/setup-graalvm@v1
-        with:
-          distribution: graalvm
-          java-version: "25"
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          cache: maven
+      - uses: dtolnay/rust-toolchain@stable
 
-      # native-image needs a C linker; on Windows that means MSVC's, and this action puts
-      # cl.exe and friends on PATH for the rest of the job (the plain windows-latest runner
-      # doesn't do this by default outside a Developer Command Prompt).
-      - uses: ilammy/msvc-dev-cmd@v1
-
-      # zip isn't on Git Bash's PATH by default; scripts/native-build.sh needs it to strip the
-      # ByteBuddy service registration from the patched hibernate-core.jar copy.
-      - name: Install zip
-        run: choco install zip -y
+      - uses: Swatinem/rust-cache@v2
 
       - name: Build frontend
+        shell: bash
         run: |
           cd rekall-ui
           pnpm install --frozen-lockfile
           pnpm build
 
-      - name: Build native image
-        shell: bash
-        run: ./scripts/native-build.sh
+      - name: Build server
+        run: cargo build --release -p rekall-app
 
-      # native-image appends .exe on Windows even though the script's -o value doesn't have it.
       - name: Locate binary
         id: bin
         shell: bash
         run: |
           release_name="rekall${{ needs.build-and-release.outputs.suffix }}-windows-x64.exe"
-          cp rekall-app/target/rekall-app.exe "$release_name"
+          cp target/release/rekall-server.exe "$release_name"
           echo "path=$release_name" >> "$GITHUB_OUTPUT"
 
       - name: Upload to release

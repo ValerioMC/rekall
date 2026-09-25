@@ -1,3 +1,0 @@
-org.springframework.aot.hint.RuntimeHintsRegistrar=\
-dev.rekall.bootstrap.LiquibaseChangeChecksumRuntimeHints,\
-dev.rekall.bootstrap.BeanValidationRuntimeHints

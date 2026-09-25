@@ -1,7 +1,6 @@
-# The Rust port of the backend. One crate per Maven module, same directories, same dependency
-# direction: rekall-common <- rekall-model <- rekall-repository <- rekall-service <- rekall-api,
-# rekall-mcp, rekall-claude <- rekall-app. Rust sources sit beside the Java ones under each
-# module's src/ (lib.rs next to main/java) until the Java build is retired.
+# The backend: one crate per layer, and the dependency direction the crates enforce:
+# rekall-common <- rekall-model <- rekall-repository <- rekall-service <- rekall-api,
+# rekall-mcp, rekall-claude <- rekall-app.
 #
 # The Tauri shell (rekall-app/desktop) is a member but not a default one: it needs the platform
 # WebView's development libraries to compile, which a headless build machine or CI does not

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Import the Java build's H2 database (a folder holding rekall.mv.db, or the file itself) into
-# rekall.db beside it, make that folder the active database, and start the server on it.
-# The H2 file is read from a copy and never changed. Needs Java and the H2 jar: pass it with
-# --h2-jar <path> or REKALL_H2_JAR, or let it be found in ~/.m2 (where building the Java
-# version put it). Stop the Java server first: its file is locked while it runs.
+# Import an H2 database from the earlier Java version of Rekall (a folder holding rekall.mv.db,
+# or the file itself) into rekall.db beside it, make that folder the active database, and start
+# the server on it. The H2 file is read from a copy and never changed. Reading it needs a Java
+# runtime and H2's own jar: pass it with --h2-jar <path> or REKALL_H2_JAR, or let it be found in
+# ~/.m2. Stop the old server first: its file is locked while it runs.
 #
 #   scripts/migrate-h2-to-sqlite.sh ~/rekall-data [--h2-jar h2-2.4.240.jar]
 set -euo pipefail
