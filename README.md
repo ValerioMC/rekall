@@ -198,8 +198,9 @@ An anchor brings back the record, everything it references resolved in full with
 | `rekall_step` | write | Move one step: `open` to `running` to `claimed` |
 | `rekall_record_commit` | write | Log a commit of the project's repo folder against one task or step |
 | `rekall_propose_step` | write | Add one step as a draft, for a person to promote |
+| `rekall_note` | write | Write a new note and attach it to one task |
 
-There is no query, get or schema tool. `rekall_step` refuses `done`; that state is set by hand in the console. `rekall_step` (on `claimed`) and `rekall_wrapup` take an optional `commit_message`, used only on a project that commits on claim (see [Commit on claim](#commit-on-claim)).
+There is no query, get or schema tool. `rekall_note` only adds: it cannot edit, detach or delete a note, and a title the task's notes already carry is refused. `rekall_step` refuses `done`; that state is set by hand in the console. `rekall_step` (on `claimed`) and `rekall_wrapup` take an optional `commit_message`, used only on a project that commits on claim (see [Commit on claim](#commit-on-claim)).
 
 ## Wrapup
 
@@ -219,6 +220,16 @@ A wrapup written after a step finishes folds that step's work into the same desc
 
 **History**, on the wrapup and on the description, lists the earlier versions of that text, newest first, and restores one. `TaskRevisionService` keeps what a write replaces: every session write, every delete and every restore, so a restore can be undone the same way. The console autosaves as you type, so a hand edit over hand-written text keeps one version per ten minutes, the one from before you started, not every keystroke; a hand edit over a session's text is always kept. The newest 30 versions of each text are kept per task. Sessions never read the history. `GET /api/tasks/{id}/revisions?kind=WRAPUP|DESCRIPTION` lists it and `POST /api/tasks/{id}/revisions/{revisionId}/restore` restores one.
 
+### Notes written by a session
+
+A session can keep what it produced as a note on the task, rather than in the wrapup. Ask for it with a quoted term after `note`, saying what the note has to hold:
+
+```
+/rk project:vega task:report-builder note "the export formats we settled on"
+```
+
+The session writes the note and calls `rekall_note`, which creates it on that task, in full, with kind `notes`. It then travels with the task's context and shows up in the console without a reload. A step or a description that asks for its output to be kept as a note, or a task whose whole point is to write one, gets the same without the `note` term. The tool only adds: a title the task's notes already carry is refused, so changing, sharing or deleting a note stays in the console. Writing a note does not claim the task or a step.
+
 ## Steps
 
 A step sits on a line: **draft** while you are still wording it, **open** once you promote it and it is ready to work, **running** while a session works it, **claimed** when the session reports it finished, **done** when you accept it. Each step is a title and an optional markdown detail. The pane opens on the first step whose work is not finished.
@@ -232,7 +243,7 @@ A session drives its own checklist over `/rk`:
 /rk project:vega task:report-builder step:3 done    # step 3 -> claimed
 ```
 
-The console holds one `text/event-stream` connection (`GET /api/steps/stream`) carrying five frames: `steps` for a checklist, `task-review` for a stepless task's review line, `wrapup` for a wrapup write or delete, `commit-reference` for a commit logged against a task or step, and `run-queue` for the run queue. A step moved from an in-app terminal, a box ticked in another window, a wrapup written over MCP, or a commit logged by a session all land without a reload.
+The console holds one `text/event-stream` connection (`GET /api/steps/stream`) carrying six frames: `steps` for a checklist, `task-review` for a stepless task's review line, `wrapup` for a wrapup write or delete, `commit-reference` for a commit logged against a task or step, `run-queue` for the run queue, and `note` for a note a session wrote. A step moved from an in-app terminal, a box ticked in another window, a wrapup or a note written over MCP, or a commit logged by a session all land without a reload.
 
 Claude receives an open or running step with its detail, tagged `(in progress)` or `(claimed, …)`. A finished step arrives as its title alone. A draft step is not sent at all, only counted as `draft="N"` on the `<steps>` tag. A step ticked without a following wrapup is marked `(finished since the wrapup was written)` and handed back with its detail until the next wrapup folds it in.
 
@@ -240,13 +251,13 @@ With steps on a task, the open steps are the work and the description becomes th
 
 Only you set a step to **done**. `rekall_step` stops at `claimed`. The navigator's progress count is built on `done`.
 
-The mark in front of each navigator row says where an in-progress task's work stands. A hollow amber ring around a small light means nothing is handed in yet, and a green arc on that ring is the share of the checklist already accepted. An orbiting comet means a session or a timer is on the task now; it is the only mark that moves. An amber check in an open ring means work is claimed and waiting for your review. A filled green seal means every piece of work is accepted and the task is ready to move to Done. Tasks in any other status keep a plain dot in their status colour. Hover the mark to see its meaning in words.
+The mark in front of each navigator row says where an in-progress task's work stands. A hollow amber ring around a small light means nothing is handed in yet, and a green arc on that ring is the share of the checklist already accepted. An orbiting comet means a session or a timer is on the task now; it is the only mark that moves. When the timer runs, no session is at work and a claim is waiting for you, the comet keeps orbiting but an amber check replaces the light at its centre: something is running, and it needs your review to go on. A session still working a step keeps the plain comet, whatever it already claimed. An amber check in an open ring means work is claimed and waiting for your review. A filled green seal means every piece of work is accepted and the task is ready to move to Done. Tasks in any other status keep a plain dot in their status colour. Hover the mark to see its meaning in words.
 
 ### Planning
 
 `/rk project:vega task:report-builder plan` has a session turn the task into a checklist for you to review. It reads the description, the wrapup, the finished steps and the code the task touches, then calls `rekall_propose_step` once per step, in order: a title saying what the step delivers, a detail saying what to build, where, what it must satisfy and how you can tell it is done. Every proposal lands as a draft on the staging shelf, so nothing is work until you promote it, and the session builds nothing. A title the task already has is refused, so a second `plan` adds only what the first one missed; a task holds at most 20 drafts.
 
-The Steps pane starts it in two places. An empty checklist shows a `/rk … plan` chip to copy into any session. While a session runs on the task in the console's terminal, **Plan here** in the pane header types the command into it. Nothing opens a fresh session for it, because a fresh one starts with a plain `/rk` and would start working the task instead of planning it.
+The Steps pane starts it from **Plan here** in its header, with or without a session already running. While one runs on the task in the console's terminal, the button types the command into it. Without one, it opens a terminal in the project's folder that starts on `/rk … plan` instead of the plain `/rk`, so the session plans the task rather than working it; the project needs its folder set, as for **Run here**. Either way the drafts land on the shelf for you to reword, promote and then run. An empty checklist also shows the `/rk … plan` chip, to copy into a session outside the console.
 
 A claimed step is reviewed from its detail: **Accept** ticks it to done, **Send back** returns it to open for another pass. The **N awaiting review** count in the pane header jumps to the first one. The step node itself only moves a step forward, so a stray click never walks it back; reopening an accepted step is a separate **Reopen** button that arms before it fires.
 
@@ -297,6 +308,8 @@ The description, steps, wrapup and terminal are pinned above the notes. Each ope
 A task optionally wears one **tag**: a name, a glowing icon and a glow colour, both picked from a fixed set the console already knows how to draw. Tags are configured in their own panel, opened from the star button in the header next to Settings — add, rename, re-colour or delete one there, with a live count of the tasks currently wearing it. A tag is assigned to a task from that task's edit dialog, and shows as a small glowing badge next to the title wherever the task is listed.
 
 Finished tasks are folded into a "filed" drawer, closed on every load. Writing autosaves; a note has no Save button.
+
+Every markdown editor puts a path in the text without a trip to Finder. `⌘⇧P`, or the folder button in the toolbar next to link, opens a file browser under the caret, in the project's folder (for a note, the folder of the task it was opened from), or wherever it was left the last time in that editor. `↑` `↓` move, `→` or `Tab` opens a folder, `⌫` or `←` on an empty filter goes up, and the breadcrumb and the project and home buttons jump. The filter also takes a path: `src/comp` lists `src` and keeps what matches `comp`, `~/` goes home, `/` goes to the root. `↵` inserts the highlighted entry, `⌘↵` the folder in view, and the footer shows exactly what will land: the absolute path, a folder ending in `/`, wrapped in backticks so `_` and `*` survive the preview, bare when the caret is already inside code. Dotfiles stay out until `⌘⇧.`, or until the filter starts with a dot. The first `esc` clears the filter and the second closes. `GET /api/filesystem/directory?base=&path=` lists one folder by name only, never its contents: `~`, absolute and relative paths are resolved on the server, a folder macOS keeps private comes back empty and marked unreadable, and a folder bigger than 2,000 entries is cut off after sorting.
 
 A note is put on a task from either side. From the note, the task chips on its pane open a picker that walks company, project and task. From the task, the **Notes** button in the description and steps headers drops a list of every note under itself, the ones on this task first: one click, or `↑` `↓` and `↵`, adds a note or takes it off, without leaving the pane. A note whose only task is this one stays put, since a note needs at least one.
 

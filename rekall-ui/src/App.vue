@@ -38,7 +38,8 @@ useStepStream(
   (review) => store.applyTaskReview(review),
   (event) => store.applyWrapupEvent(event),
   (reference) => store.applyCommitReference(reference),
-  (queue) => runQueue.apply(queue)
+  (queue) => runQueue.apply(queue),
+  () => void store.applyNoteWritten()
 )
 
 useClaimNotifications(reviewQueue, isLoading)

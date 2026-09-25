@@ -1,27 +1,29 @@
 import { onScopeDispose, ref, type Ref } from 'vue'
 import { env } from '@/common/config/env'
 import {
+  NoteStreamEventSchema,
   StepStreamEventSchema,
   TaskReviewEventSchema,
   WrapupStreamEventSchema
 } from '@/api/schemas/catalog.schema'
 import { CommitReferenceStreamEventSchema } from '@/api/schemas/commitReference.schema'
 import { RunQueueSchema } from '@/api/schemas/runQueue.schema'
-import type { TaskReview, TaskStep, WrapupStreamEvent } from '@/model/catalog'
+import type { NoteStreamEvent, TaskReview, TaskStep, WrapupStreamEvent } from '@/model/catalog'
 import type { CommitReference } from '@/model/commitReference'
 import type { RunQueue } from '@/model/runQueue'
 import type { TaskId } from '@/model/branded'
 
 /**
- * One SSE connection carrying five console feeds: `steps`, `task-review`, `wrapup`,
- * `commit-reference` and `run-queue`.
+ * One SSE connection carrying six console feeds: `steps`, `task-review`, `wrapup`,
+ * `commit-reference`, `run-queue` and `note`.
  */
 export function useStepStream(
   onSteps: (taskId: TaskId, steps: TaskStep[]) => void,
   onReview?: (review: TaskReview) => void,
   onWrapup?: (event: WrapupStreamEvent) => void,
   onCommit?: (reference: CommitReference) => void,
-  onRunQueue?: (queue: RunQueue) => void
+  onRunQueue?: (queue: RunQueue) => void,
+  onNote?: (event: NoteStreamEvent) => void
 ): { connected: Ref<boolean>; stop: () => void } {
   const connected = ref(false)
   let source: EventSource | null = null
@@ -99,6 +101,19 @@ export function useStepStream(
         const parsed = RunQueueSchema.safeParse(JSON.parse((event as MessageEvent<string>).data))
         if (parsed.success) {
           onRunQueue?.(parsed.data)
+        }
+      } catch {
+      }
+    })
+
+    // A note a session wrote onto a task shows up in its list without a reload.
+    source.addEventListener('note', (event) => {
+      try {
+        const parsed = NoteStreamEventSchema.safeParse(
+          JSON.parse((event as MessageEvent<string>).data)
+        )
+        if (parsed.success) {
+          onNote?.(parsed.data)
         }
       } catch {
       }

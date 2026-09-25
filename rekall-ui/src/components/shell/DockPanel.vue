@@ -26,7 +26,7 @@ const emit = defineEmits<{ close: [] }>()
   >
     <header class="flex items-center gap-2.5 border-b border-border px-3.5 py-2.5">
       <span v-if="tint === 'time'" class="time-dial shrink-0" aria-hidden="true" />
-      <span v-else class="session-caret session-caret-busy shrink-0" aria-hidden="true" />
+      <span v-else class="session-caret shrink-0" aria-hidden="true" />
       <h2 class="min-w-0 flex-1 truncate text-[12.5px] font-semibold text-text">
         {{ title }}
       </h2>

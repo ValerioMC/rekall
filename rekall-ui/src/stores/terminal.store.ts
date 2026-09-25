@@ -7,6 +7,7 @@ import {
   sendTerminalInput,
   type OpenTerminalInput
 } from '@/api/terminal.api'
+import { rkPlanCommand } from '@/common/format/rk-command'
 import type { Terminal } from '@/model/terminal'
 import type { TaskId, TerminalId } from '@/model/branded'
 
@@ -52,6 +53,28 @@ export const useTerminalStore = defineStore('terminal', () => {
     return opened
   }
 
+  /**
+   * Have a session propose this task's checklist as drafts. A live session on the task gets the
+   * plan line typed into it; without one, a terminal is opened that starts on that line, so a plan
+   * never needs a session already running. Either way the planning terminal becomes the active one.
+   */
+  async function planForTask(
+    taskId: TaskId,
+    anchor: string,
+    input: Omit<OpenTerminalInput, 'stepId' | 'mode'>
+  ): Promise<Terminal> {
+    const live = terminalForTask(taskId)
+    if (live) {
+      await sendCommand(live.id, rkPlanCommand(anchor))
+      activeTerminalId.value = live.id
+      return live
+    }
+    const opened = await openTerminal(taskId, { ...input, mode: 'PLAN' })
+    upsert(opened)
+    activeTerminalId.value = opened.id
+    return opened
+  }
+
   function select(id: TerminalId | null): void {
     activeTerminalId.value = id
   }
@@ -83,6 +106,7 @@ export const useTerminalStore = defineStore('terminal', () => {
     terminalForTask,
     load,
     openForTask,
+    planForTask,
     select,
     markEnded,
     close,

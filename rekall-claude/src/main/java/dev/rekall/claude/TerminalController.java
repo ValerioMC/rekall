@@ -37,9 +37,10 @@ public class TerminalController {
     @ResponseStatus(HttpStatus.CREATED)
     public TerminalView open(@PathVariable UUID taskId, @RequestBody(required = false) OpenTerminalRequest request) {
         OpenTerminalRequest safe = request == null
-                ? new OpenTerminalRequest(null, false, null, null)
+                ? new OpenTerminalRequest(null, false, null, null, TerminalMode.WORK)
                 : request;
-        return manager.open(taskId, safe.stepId(), safe.skipPermissions(), safe.model(), safe.effort());
+        return manager.open(
+                taskId, safe.stepId(), safe.skipPermissions(), safe.model(), safe.effort(), safe.modeOrDefault());
     }
 
     @GetMapping("/terminals/{id}")

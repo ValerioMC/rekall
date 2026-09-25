@@ -169,6 +169,12 @@ export const WrapupStreamEventSchema = z.object({
   deleted: z.boolean()
 })
 
+/** A note a session wrote onto a task (`note` SSE event); the console refetches the notes on it. */
+export const NoteStreamEventSchema = z.object({
+  taskId,
+  documentId
+})
+
 /** What the project's folder is, git-wise: the repository strip on the project page reads this. */
 export const ProjectRepositorySchema = z.object({
   folder: z.string().nullable(),

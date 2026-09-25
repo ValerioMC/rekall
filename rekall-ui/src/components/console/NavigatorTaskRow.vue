@@ -81,7 +81,7 @@ watch(
           <span class="min-w-0 truncate text-[13px] font-medium leading-[1.35]">{{ task.title }}</span>
           <TagBadge
             v-if="task.tagId && task.tagName && task.tagIcon && task.tagColor"
-            class="shrink-0"
+            class="ml-auto shrink-0"
             :name="task.tagName"
             :icon="task.tagIcon"
             :color="task.tagColor"

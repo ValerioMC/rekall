@@ -4,6 +4,9 @@ import type { Task, TaskStep } from '@/model/catalog'
  * What the mark in front of a task row says, beyond the task's status.
  *
  *   LIVE      a session or a timer is on the task right now, whatever its status.
+ *   LIVE_CLAIMED
+ *             the timer is running and no session is working, but a session has handed work in
+ *             that nobody has reviewed: the work cannot go on until you look at it.
  *   WAITING   in progress, and nothing has been handed in: no work yet, or only work already
  *             accepted on part of the checklist.
  *   CLAIMED   in progress, and a session has handed work in that nobody has reviewed: a claimed
@@ -12,10 +15,12 @@ import type { Task, TaskStep } from '@/model/catalog'
  *             or every step on the checklist. It is ready to be moved to Done.
  *   RESTING   not in progress: the mark is the status colour alone.
  *
- * LIVE outranks CLAIMED, which outranks ACCEPTED: a running session is the most urgent thing to
- * see, and one claimed step on a checklist is still something waiting for you.
+ * A session at work outranks everything: while one is on a step, Claude has not finished, whatever
+ * else is claimed. Then a running timer with a claim pending is LIVE_CLAIMED, a running timer alone
+ * LIVE. CLAIMED outranks ACCEPTED: one claimed step on a checklist is still something waiting for
+ * you.
  */
-export const TASK_MARK_STATES = ['LIVE', 'WAITING', 'CLAIMED', 'ACCEPTED', 'RESTING'] as const
+export const TASK_MARK_STATES = ['LIVE', 'LIVE_CLAIMED', 'WAITING', 'CLAIMED', 'ACCEPTED', 'RESTING'] as const
 
 export type TaskMarkState = (typeof TASK_MARK_STATES)[number]
 
@@ -27,6 +32,7 @@ export interface TaskMark {
 
 export const TASK_MARK_LABEL: Readonly<Record<TaskMarkState, string>> = {
   LIVE: 'A session is running on it',
+  LIVE_CLAIMED: 'Timer running, work claimed and awaiting your review',
   WAITING: 'In progress, no work handed in yet',
   CLAIMED: 'Work claimed, awaiting your review',
   ACCEPTED: 'All work accepted, ready to close',
@@ -46,17 +52,17 @@ export function taskMark(task: Task, steps: readonly TaskStep[], timerRunning: b
   const sessionRunning = stepless
     ? task.reviewState === 'RUNNING'
     : checklist.some((step) => step.state === 'RUNNING')
-  if (timerRunning || sessionRunning) return mark('LIVE')
+  const claimPending = stepless
+    ? task.reviewState === 'CLAIMED'
+    : checklist.some((step) => step.state === 'CLAIMED')
+
+  if (sessionRunning) return mark('LIVE')
+  if (timerRunning) return mark(claimPending ? 'LIVE_CLAIMED' : 'LIVE')
 
   if (task.status !== 'IN_PROGRESS') return mark('RESTING')
 
-  if (stepless) {
-    if (task.reviewState === 'CLAIMED') return mark('CLAIMED')
-    if (task.reviewState === 'DONE') return mark('ACCEPTED')
-    return mark('WAITING')
-  }
-
-  if (checklist.some((step) => step.state === 'CLAIMED')) return mark('CLAIMED')
+  if (claimPending) return mark('CLAIMED')
+  if (stepless) return mark(task.reviewState === 'DONE' ? 'ACCEPTED' : 'WAITING')
   if (task.stepCount > 0 && task.stepsDone === task.stepCount) return mark('ACCEPTED')
   return mark('WAITING')
 }

@@ -5,6 +5,7 @@ import dev.rekall.claude.ClaudeUsageView;
 import dev.rekall.claude.PtyTerminalManager;
 import dev.rekall.claude.TerminalApiDtos.TerminalView;
 import dev.rekall.claude.TerminalEndedEvent;
+import dev.rekall.claude.TerminalMode;
 import dev.rekall.claude.queue.RunQueueService.Snapshot;
 import dev.rekall.claude.queue.UsageCeiling.Verdict;
 import dev.rekall.common.ConflictException;
@@ -282,7 +283,8 @@ public class RunQueueRunner {
         }
         TerminalView opened;
         try {
-            opened = terminals.open(item.taskId(), null, snapshot.skipPermissions(), snapshot.model(), snapshot.effort());
+            opened = terminals.open(
+                    item.taskId(), null, snapshot.skipPermissions(), snapshot.model(), snapshot.effort(), TerminalMode.WORK);
         } catch (ConflictException | IllegalArgumentException | UnknownAnchorException refused) {
             queue.markItem(item.id(), RunQueueItemState.FAILED, refused.getMessage());
             return;

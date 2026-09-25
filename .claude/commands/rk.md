@@ -1,7 +1,7 @@
 ---
 description: Load a Rekall working context by anchor, e.g. /rk project:vega task:report-builder
-argument-hint: "company:|project:|task: <label> ...  [wrapup [\"how to write it\"]] | [plan] | [step:N start|done]   (labels, not titles)"
-allowed-tools: mcp__rekall__rekall_context, mcp__rekall__rekall_wrapup, mcp__rekall__rekall_step, mcp__rekall__rekall_propose_step, mcp__rekall__rekall_record_commit
+argument-hint: "company:|project:|task: <label> ...  [wrapup [\"how to write it\"]] | [note \"what to keep\"] | [plan] | [step:N start|done]   (labels, not titles)"
+allowed-tools: mcp__rekall__rekall_context, mcp__rekall__rekall_wrapup, mcp__rekall__rekall_step, mcp__rekall__rekall_propose_step, mcp__rekall__rekall_record_commit, mcp__rekall__rekall_note
 ---
 
 The arguments are:
@@ -9,8 +9,8 @@ The arguments are:
 $ARGUMENTS
 
 If the terms include the bare word `wrapup`, follow **Wrapping up**. If they include the bare word
-`plan`, follow **Planning**. If they include a `step:` term alongside `start` or `done`, follow
-**Stepping**. Otherwise follow **Loading**.
+`note`, follow **Noting**. If they include the bare word `plan`, follow **Planning**. If they include
+a `step:` term alongside `start` or `done`, follow **Stepping**. Otherwise follow **Loading**.
 
 ## Loading
 
@@ -79,6 +79,13 @@ claim one, say which, in the words the step uses.
 
 Anchors that name a project and no task have no brief in them. Summarise what is there and wait.
 
+### What the work produces
+
+When a step or the description asks for something to be kept as a note (an analysis, a list, a
+draft, a runbook, "put the result in a note"), or the task exists to write one, that output goes
+to `rekall_note` on this task, not into the wrapup. The wrapup can say the note exists; it does not
+carry it. See **Noting**.
+
 ## Stepping
 
 `/rk project:vega task:report-builder step:3 start` and `/rk project:vega task:report-builder step:3
@@ -117,6 +124,29 @@ checklist), because it is the commit's message:
 
 Without it, Rekall derives the message from the step's title and detail, which is the fallback and
 reads like one.
+
+## Noting
+
+`/rk project:vega task:report-builder note "the export formats we settled on"` means: write a new
+note on that task and attach it there.
+
+The text in double quotes after `note` says what the note has to hold, in my words. It is not an
+anchor and not the note's text: it is what to put in it. Without one, the note holds what this
+session just produced that I would want again.
+
+1. Drop the `note` term and the quoted text, and call `rekall_context` with the anchors that are
+   left, unless that exact task is already loaded in this session.
+2. Write the note from what the quoted text asks for: the output of a step, a piece of the
+   description worked out, something the session found. Written to be read on its own by someone
+   who was not here, in markdown.
+3. Call `rekall_note` with those anchors, a short `title` named like a file (`export-formats.md`)
+   and the whole note as `body`.
+4. Say in one line which note you wrote and its `note:` anchor. Then stop.
+
+`rekall_note` only adds. A title the task's notes already carry is refused rather than
+overwritten: pick another title, and tell me if it was the old note that needed changing, because
+only the console can do that. A note is not the wrapup, and writing one does not claim the task or
+a step.
 
 ## Planning
 

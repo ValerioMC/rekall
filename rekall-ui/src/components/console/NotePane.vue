@@ -57,6 +57,24 @@ function toggleMode(): void {
 
 defineExpose({ toggleMode })
 
+/**
+ * A note belongs to no one project, so its path picker opens in the folder of the task it was
+ * reached from when that task holds it, and otherwise in the first of its tasks that has one.
+ */
+const notePathRoot = computed<string | null>(() => {
+  const note = selectedDocument.value
+  if (!note) return null
+  const onIds = note.tasks.map((ref) => ref.id)
+  const ordered = selectedTaskId.value && onIds.includes(selectedTaskId.value)
+    ? [selectedTaskId.value, ...onIds]
+    : onIds
+  for (const id of ordered) {
+    const folder = allTasks.value.find((task) => task.id === id)?.projectRepoFolder
+    if (folder) return folder
+  }
+  return null
+})
+
 const doneTaskIds = computed(() => {
   const ids = new Set<TaskId>()
   for (const task of allTasks.value) if (task.status === 'DONE') ids.add(task.id)
@@ -409,6 +427,7 @@ async function confirmDelete(): Promise<void> {
               key="write"
               v-model="draft.bodyMarkdown"
               height="100%"
+              :path-root="notePathRoot"
               @update:model-value="scheduleSave"
             />
             <AppMarkdownEditor v-else key="read" :model-value="draft.bodyMarkdown" readonly />

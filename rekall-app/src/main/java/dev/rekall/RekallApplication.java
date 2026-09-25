@@ -1,5 +1,8 @@
 package dev.rekall;
 
+import dev.rekall.api.dto.ApiDtos.DirectoryEntryResponse;
+import dev.rekall.api.dto.ApiDtos.DirectoryListingResponse;
+import dev.rekall.api.dto.ApiDtos.PathSegmentResponse;
 import dev.rekall.backup.BackupController;
 import dev.rekall.backup.BackupFile;
 import dev.rekall.backup.DatabaseBackupService;
@@ -15,6 +18,7 @@ import dev.rekall.domain.Wrapup;
 import dev.rekall.claude.ClaudeUsageView;
 import dev.rekall.claude.queue.RunQueueView;
 import dev.rekall.domain.context.ContextSize;
+import dev.rekall.domain.note.NoteStreamEvent;
 import dev.rekall.domain.step.StepStreamEvent;
 import dev.rekall.domain.step.TaskStepView;
 import org.springframework.aot.hint.annotation.RegisterReflectionForBinding;
@@ -26,7 +30,7 @@ import org.springframework.context.ConfigurableApplicationContext;
 @RegisterReflectionForBinding({
         DatabaseRegistry.class, DatabaseEntry.class, DatabaseEntry[].class,
         Company.class, Project.class, Task.class, TimeEntry.class, Wrapup.class, Document.class,
-        StepStreamEvent.class, TaskStepView.class, TaskStepView[].class,
+        StepStreamEvent.class, TaskStepView.class, TaskStepView[].class, NoteStreamEvent.class,
         ClaudeUsageView.class, ClaudeUsageView.Limit.class, ClaudeUsageView.Limit[].class,
         SettingsController.DatabaseView.class, SettingsController.DatabaseView[].class,
         SettingsController.StatusResponse.class,
@@ -35,7 +39,9 @@ import org.springframework.context.ConfigurableApplicationContext;
         ContextSize.class, ContextSize.Part.class, ContextSize.Part[].class,
         DatabaseBackupService.Status.class, BackupFile.class, BackupFile[].class,
         BackupController.RestoreStarted.class,
-        RunQueueView.class, RunQueueView.Item.class, RunQueueView.Item[].class
+        RunQueueView.class, RunQueueView.Item.class, RunQueueView.Item[].class,
+        DirectoryListingResponse.class, PathSegmentResponse.class, PathSegmentResponse[].class,
+        DirectoryEntryResponse.class, DirectoryEntryResponse[].class
 })
 public class RekallApplication {
 

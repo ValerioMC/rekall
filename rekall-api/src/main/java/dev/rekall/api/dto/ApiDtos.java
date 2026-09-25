@@ -272,4 +272,28 @@ public final class ApiDtos {
     /** A wrapper, not a primitive: an absent key must bind as null and read as off, not fail the request. */
     public record CommitReferenceContextRequest(Boolean inContext) {
     }
+
+    /**
+     * One folder as the path picker shows it. Every path in it is absolute and already resolved,
+     * so the page never joins, splits or normalises a path itself and never has to know the
+     * platform's separator. {@code readable} is false for a folder that exists but refused to be
+     * listed (a macOS privacy-protected one, say): the picker still stands in it and says why it
+     * is empty, rather than failing the whole request.
+     */
+    public record DirectoryListingResponse(
+            String path,
+            String parent,
+            String home,
+            List<PathSegmentResponse> segments,
+            List<DirectoryEntryResponse> entries,
+            boolean readable,
+            boolean truncated) {
+    }
+
+    /** One crumb of a listing's breadcrumb, from the filesystem root down to the folder itself. */
+    public record PathSegmentResponse(String name, String path) {
+    }
+
+    public record DirectoryEntryResponse(String name, String path, boolean directory, boolean hidden) {
+    }
 }

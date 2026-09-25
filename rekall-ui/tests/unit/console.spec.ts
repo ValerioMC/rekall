@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { updateProject } from '@/api/catalog.api'
-import { createDocument, updateDocument } from '@/api/documents.api'
+import { createDocument, fetchAllDocuments, updateDocument } from '@/api/documents.api'
 import { fetchTimeEntries } from '@/api/time-entries.api'
 import { setActivePinia, createPinia } from 'pinia'
 import { useConsoleStore } from '@/stores/console.store'
@@ -692,6 +692,24 @@ describe('console store', () => {
         expect(store.selectedWrapup).toBeNull()
         expect(store.tasks.find((task) => task.id === validator)?.hasWrapup).toBe(false)
         expect(store.paneFocus).toBe('wrapup')
+      })
+
+      it('picks up a note a session wrote without moving the selection', async () => {
+        store.selectTask(retry)
+        const selectedBefore = store.selectedDocId
+        const written: RekallDocument = {
+          ...documents[0]!,
+          id: 'd9' as DocumentId,
+          title: 'export-formats.md',
+          tasks: [documents[0]!.tasks[0]!]
+        }
+        vi.mocked(fetchAllDocuments).mockResolvedValueOnce([written, ...documents])
+
+        await store.applyNoteWritten()
+
+        expect(store.documents.map((document) => document.id)).toContain('d9')
+        expect(store.selectedTaskId).toBe(retry)
+        expect(store.selectedDocId).toBe(selectedBefore)
       })
     })
   })

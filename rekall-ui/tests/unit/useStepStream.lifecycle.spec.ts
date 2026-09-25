@@ -107,6 +107,28 @@ describe('useStepStream lifecycle', () => {
     scope.stop()
   })
 
+  it('hands a note frame to its callback and drops one that does not parse', () => {
+    const onNote = vi.fn()
+    const scope = effectScope()
+    scope.run(() => useStepStream(vi.fn(), undefined, undefined, undefined, undefined, onNote))
+    const source = FakeEventSource.instances[0]!
+
+    source.emit('note', {
+      data: JSON.stringify({
+        taskId: '22222222-2222-2222-2222-222222222222',
+        documentId: '33333333-3333-3333-3333-333333333333'
+      })
+    })
+    source.emit('note', { data: JSON.stringify({ taskId: 'not-a-uuid' }) })
+
+    expect(onNote).toHaveBeenCalledTimes(1)
+    expect(onNote.mock.calls[0]?.[0]).toMatchObject({
+      documentId: '33333333-3333-3333-3333-333333333333'
+    })
+
+    scope.stop()
+  })
+
   it('stops handing frames to the callback once the scope is disposed', () => {
     const onEvent = vi.fn<(taskId: TaskId, steps: unknown[]) => void>()
     const scope = effectScope()

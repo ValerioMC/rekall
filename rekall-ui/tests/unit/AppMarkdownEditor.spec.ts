@@ -97,6 +97,17 @@ describe('AppMarkdownEditor', () => {
     expect(wrapper.find('.cm-content[contenteditable]').exists()).toBe(true)
   })
 
+  it('puts the path picker in the toolbar, next to link', async () => {
+    const wrapper = mount(AppMarkdownEditor, { props: { modelValue: '', pathRoot: '/work/app' } })
+    await flushPromises()
+
+    const titles = wrapper.findAll('.md-editor-toolbar-item').map((item) => item.attributes('title'))
+    expect(titles[titles.indexOf('link') + 1]).toBe('Insert a path  ⌘⇧P')
+    const trigger = wrapper.find('[data-testid="path-picker-trigger"]')
+    expect(trigger.attributes('data-path-picker-trigger')).toBeDefined()
+    expect(trigger.attributes('aria-expanded')).toBe('false')
+  })
+
   /**
    * Each of these draws its implementation from unpkg on first click. They are left out of the
    * toolbar rather than merely unused, so that a button cannot put the application in a state

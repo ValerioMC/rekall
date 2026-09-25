@@ -132,7 +132,7 @@ onUnmounted(() => {
         data-testid="terminal-dock-toggle"
         @click="toggle('sessions')"
       >
-        <span class="session-caret session-caret-busy shrink-0" aria-hidden="true" />
+        <span class="session-caret shrink-0" aria-hidden="true" />
         <span class="whitespace-nowrap">{{ sessionsLabel }}</span>
       </button>
     </div>

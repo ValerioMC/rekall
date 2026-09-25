@@ -20,6 +20,7 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -193,17 +194,25 @@ public class PtyTerminalManager {
     // ---------------------------------------------------------------- commands
 
     /**
-     * Start a {@code claude} PTY for this task in its project's folder, with {@code /rk} typed first.
-     * A missing folder or CLI is a retriable conflict. A second open on a task that already has a
-     * terminal is {@linkplain #retarget routed to it}. A non-null {@code stepId} is marked
-     * {@code RUNNING} while the terminal is on it; {@code null} means the task itself.
+     * Start a {@code claude} PTY for this task in its project's folder, with the {@code /rk} line of
+     * {@code mode} typed first. A missing folder or CLI is a retriable conflict. A non-null
+     * {@code stepId} is marked {@code RUNNING} while the terminal is on it; {@code null} means the
+     * task itself. A plan is always on the task, so {@link TerminalMode#PLAN} drops {@code stepId}.
+     * A second open on a task that already has a terminal reuses it: a work open is
+     * {@linkplain #retarget retargeted}, a plan open has its plan line typed into that session.
      */
-    public TerminalView open(UUID taskId, UUID stepId, boolean skipPermissions, String model, String effort) {
+    public TerminalView open(
+            UUID taskId, UUID stepId, boolean skipPermissions, String model, String effort, TerminalMode mode) {
         TerminalLaunch launch = launchService.resolve(taskId);
+        UUID targetStepId = mode == TerminalMode.PLAN ? null : stepId;
 
         Terminal existing = liveTerminalForTask(taskId);
         if (existing != null) {
-            return retarget(existing, stepId);
+            if (mode == TerminalMode.PLAN) {
+                write(existing.id, (mode.firstLine(launch.anchors()) + "\r").getBytes(StandardCharsets.UTF_8));
+                return existing.view();
+            }
+            return retarget(existing, targetStepId);
         }
 
         Path directory = Path.of(launch.workingDir());
@@ -231,7 +240,7 @@ public class PtyTerminalManager {
             command.add("--effort");
             command.add(chosenEffort);
         }
-        command.add("/rk " + launch.anchors());
+        command.add(mode.firstLine(launch.anchors()));
 
         PtyProcessBuilder builder = new PtyProcessBuilder()
                 .setCommand(command.toArray(String[]::new))
@@ -254,15 +263,15 @@ public class PtyTerminalManager {
             } catch (IOException startFailed) {
                 throw new ConflictException("Could not start claude: " + startFailed.getMessage());
             }
-            terminal = new Terminal(id, process, launch, stepId, skipPermissions, chosenModel, chosenEffort);
+            terminal = new Terminal(id, process, launch, targetStepId, skipPermissions, chosenModel, chosenEffort);
             live.put(id, terminal);
         }
 
-        markRunning(taskId, stepId);
+        markRunning(taskId, targetStepId);
         Thread.ofVirtual().name("terminal-pty-" + id).start(() -> pump(terminal));
         terminal.process.onExit().thenAccept(exited -> onExit(id));
 
-        log.info("Opened terminal {} on {} in {}", id, launch.anchors(), launch.workingDir());
+        log.info("Opened terminal {} to {} {} in {}", id, mode, launch.anchors(), launch.workingDir());
         return terminal.view();
     }
 

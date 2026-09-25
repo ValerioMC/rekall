@@ -45,8 +45,9 @@ public class McpController {
             `rekall_context`. The writes are few and narrow: a task's wrapup \
             (`rekall_wrapup`, what its implementation looks like now, replaced in place), a \
             step's progress up to `claimed` (`rekall_step`), a commit logged against a task \
-            (`rekall_record_commit`), and a proposed step that lands as a draft for a person \
-            to promote (`rekall_propose_step`). Nothing else here can be changed.""";
+            (`rekall_record_commit`), a proposed step that lands as a draft for a person to \
+            promote (`rekall_propose_step`), and a new note on one task (`rekall_note`), which \
+            only adds. Nothing else here can be changed.""";
 
     private static final String BASE64_PREFIX = "=?base64?";
 

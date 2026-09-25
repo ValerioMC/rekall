@@ -111,6 +111,21 @@ describe('taskMark', () => {
     expect(taskMark(checklistTask(running), running, false).state).toBe('LIVE')
   })
 
+  it('tells a running timer with a claim waiting apart from a running timer alone', () => {
+    const claimed = [step('a', 'CLAIMED'), step('b', 'OPEN')]
+
+    expect(taskMark(task({ reviewState: 'CLAIMED' }), [], true).state).toBe('LIVE_CLAIMED')
+    expect(taskMark(checklistTask(claimed), claimed, true).state).toBe('LIVE_CLAIMED')
+    expect(taskMark(task(), [], true).state).toBe('LIVE')
+    expect(taskMark(checklistTask([step('a', 'OPEN')]), [step('a', 'OPEN')], true).state).toBe('LIVE')
+  })
+
+  it('stays live while a session is still at work, whatever it already claimed and the timer', () => {
+    const working = [step('a', 'CLAIMED'), step('b', 'RUNNING')]
+
+    expect(taskMark(checklistTask(working), working, true).state).toBe('LIVE')
+  })
+
   it('rests on any status but in progress, claimed or not', () => {
     for (const status of ['TODO', 'BLOCKED', 'DONE'] as const) {
       expect(taskMark(task({ status, reviewState: 'CLAIMED' }), [], false).state).toBe('RESTING')
@@ -132,12 +147,16 @@ describe('TaskMark', () => {
   })
 
   it('gives each in-progress face its own parts', () => {
-    const face = (state: 'WAITING' | 'LIVE' | 'CLAIMED' | 'ACCEPTED') =>
+    const face = (state: 'WAITING' | 'LIVE' | 'LIVE_CLAIMED' | 'CLAIMED' | 'ACCEPTED') =>
       mount(TaskMark, { props: { state, status: 'IN_PROGRESS' } })
 
     expect(face('WAITING').find('.mark-core').exists()).toBe(true)
     expect(face('WAITING').find('.mark-check').exists()).toBe(false)
     expect(face('LIVE').find('.mark-comet').exists()).toBe(true)
+    expect(face('LIVE').find('.mark-check').exists()).toBe(false)
+    expect(face('LIVE_CLAIMED').find('.mark-comet').exists()).toBe(true)
+    expect(face('LIVE_CLAIMED').find('.mark-check').exists()).toBe(true)
+    expect(face('LIVE_CLAIMED').find('.mark-core').exists()).toBe(false)
     expect(face('CLAIMED').get('.mark-ring').attributes('transform')).toBe('rotate(25 7 7)')
     expect(face('CLAIMED').find('.mark-check').exists()).toBe(true)
     expect(face('ACCEPTED').find('.mark-engrave').exists()).toBe(true)
