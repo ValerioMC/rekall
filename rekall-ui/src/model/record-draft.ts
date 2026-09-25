@@ -16,6 +16,7 @@ export type RecordDraft =
       title: string
       description: string
       status: ProjectStatus
+      icon: string
       companyId: CompanyId
     }
   | {
@@ -46,6 +47,7 @@ export function projectDraft(companyId: CompanyId, project?: Project): RecordDra
     title: project?.title ?? '',
     description: project?.description ?? '',
     status: project?.status ?? 'ACTIVE',
+    icon: project?.icon ?? 'folder',
     companyId: project?.companyId ?? companyId
   }
 }

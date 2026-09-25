@@ -18,6 +18,7 @@ mod m004_label_title_description;
 mod m005_to_m010;
 mod m011_to_m018;
 mod m019_to_m026;
+mod m027_project_icon;
 
 pub use m004_label_title_description::legacy_label;
 
@@ -64,6 +65,7 @@ impl MigratorTrait for Migrator {
             Box::new(m019_to_m026::TaskRevision),
             Box::new(m019_to_m026::DocumentContextMode),
             Box::new(m019_to_m026::RunQueue),
+            Box::new(m027_project_icon::ProjectIcon),
         ]
     }
 }

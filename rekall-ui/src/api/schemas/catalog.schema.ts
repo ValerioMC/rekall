@@ -44,6 +44,7 @@ export const ProjectSchema = z.object({
   label: z.string(),
   title: z.string(),
   status: z.enum(PROJECT_STATUSES),
+  icon: z.string(),
   description: z.string().nullable(),
   blueprintMarkdown: z.string().nullable(),
   repoFolder: z.string().nullable(),

@@ -414,6 +414,7 @@ export const useConsoleStore = defineStore('console', () => {
         label: current.label,
         title: current.title,
         status: current.status,
+        icon: current.icon,
         companyId: current.companyId,
         description: 'description' in patch ? patch.description! : current.description,
         blueprintMarkdown:

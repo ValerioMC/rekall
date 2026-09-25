@@ -15,6 +15,9 @@ pub struct Model {
     pub label: String,
     pub title: String,
     pub status: ProjectStatus,
+    /// A key into the console's fixed project-icon set (see `PROJECT_ICON_KEYS` in the UI); never
+    /// validated against that set here, so an icon retired from the UI still renders as a fallback.
+    pub icon: String,
     pub description: Option<String>,
     pub blueprint_markdown: Option<String>,
     pub repo_folder: Option<String>,
@@ -65,6 +68,8 @@ impl Model {
             .slug("label", Some(&self.label))
             .not_blank("title", Some(&self.title))
             .size("title", Some(&self.title), 200)
+            .not_blank("icon", Some(&self.icon))
+            .size("icon", Some(&self.icon), 40)
             .size("repoFolder", self.repo_folder.as_deref(), 1_000)
             .column("description", self.description.as_deref(), 100_000)
             .column("blueprint_markdown", self.blueprint_markdown.as_deref(), 100_000)

@@ -45,6 +45,7 @@ impl World {
             label: label.into(),
             title: label.into(),
             status: ProjectStatus::Active,
+            icon: "folder".into(),
             description: None,
             blueprint_markdown: None,
             repo_folder: folder.map(str::to_string),

@@ -4,11 +4,13 @@ import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
 import TagIcon from '@/components/ui/TagIcon.vue'
+import ProjectIcon from '@/components/ui/ProjectIcon.vue'
 import CloseGlyph from '@/components/ui/CloseGlyph.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { trapTabKey } from '@/common/a11y/focus-trap'
 import { identityHue } from '@/common/identity'
+import { PROJECT_ICON_KEYS, PROJECT_ICON_LABEL } from '@/model/project-icon'
 import {
   PROJECT_STATUSES,
   PROJECT_STATUS_LABEL,
@@ -151,6 +153,13 @@ const tagId = computed<TagId | null>({
   }
 })
 
+const projectIcon = computed<string>({
+  get: () => (form.value.kind === 'project' ? form.value.icon : 'folder'),
+  set: (value) => {
+    if (form.value.kind === 'project') form.value.icon = value
+  }
+})
+
 const titleError = computed(() =>
   submitted.value && !titleValue.value.trim() ? 'A title is required.' : null
 )
@@ -200,6 +209,7 @@ async function save(): Promise<void> {
         label: label.value,
         title: current.title.trim(),
         status: current.status,
+        icon: current.icon,
         description: trimmedDescription,
         blueprintMarkdown: stored?.blueprintMarkdown ?? null,
         repoFolder: stored?.repoFolder ?? null,
@@ -432,6 +442,31 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
               @click="status = option.value"
             >
               {{ option.label }}
+            </button>
+          </div>
+        </template>
+
+        <template v-if="kind === 'project'">
+          <p class="mb-1.5 mt-5 eyebrow text-[11px]">
+            Icon
+          </p>
+          <div class="flex flex-wrap gap-1.5" data-testid="record-icon-picker">
+            <button
+              v-for="option in PROJECT_ICON_KEYS"
+              :key="option"
+              type="button"
+              class="focus-ring grid size-8 place-items-center rounded-[var(--radius-control)] border transition-colors"
+              :class="
+                projectIcon === option
+                  ? 'border-accent bg-accent-soft text-accent'
+                  : 'border-border-strong bg-canvas text-text-muted hover:border-text-subtle hover:text-text'
+              "
+              :aria-pressed="projectIcon === option"
+              :aria-label="PROJECT_ICON_LABEL[option]"
+              :title="PROJECT_ICON_LABEL[option]"
+              @click="projectIcon = option"
+            >
+              <ProjectIcon :icon="option" :size="15" />
             </button>
           </div>
         </template>

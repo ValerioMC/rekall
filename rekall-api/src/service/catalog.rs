@@ -103,6 +103,7 @@ impl CatalogService {
                 label,
                 title: jstr::trim(request.title.as_deref().unwrap_or_default()).to_string(),
                 status: ProjectStatus::Active,
+                icon: "folder".to_string(),
                 description: None,
                 blueprint_markdown: None,
                 repo_folder: None,
@@ -163,6 +164,10 @@ impl CatalogService {
         project.auto_commit = request.auto_commit == Some(true)
             && self.services.repositories.is_repository(project.repo_folder.as_deref()).await;
         project.status = request.status.unwrap_or(ProjectStatus::Active);
+        project.icon = match request.icon.as_deref() {
+            Some(icon) if !jstr::is_blank(icon) => jstr::trim(icon).to_string(),
+            _ => "folder".to_string(),
+        };
         project.company_id = require_company_for_project(tx, request.company_id).await?.id;
         Ok(())
     }

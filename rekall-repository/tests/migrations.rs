@@ -22,6 +22,7 @@ async fn a_fresh_schema_holds_every_entity() {
         label: "vega".into(),
         title: "Vega".into(),
         status: ProjectStatus::Active,
+        icon: "folder".into(),
         description: None,
         blueprint_markdown: None,
         repo_folder: None,
@@ -62,7 +63,7 @@ async fn a_second_task_with_the_same_label_on_a_project_is_refused_by_name() {
     company.clone().into_active_model().insert(db).await.unwrap();
     let project = project::Model {
         id: Id::random(), label: "vega".into(), title: "Vega".into(), status: ProjectStatus::Active,
-        description: None, blueprint_markdown: None, repo_folder: None, auto_commit: false,
+        icon: "folder".into(), description: None, blueprint_markdown: None, repo_folder: None, auto_commit: false,
         company_id: company.id, created_at: now, updated_at: now,
     };
     project.clone().into_active_model().insert(db).await.unwrap();

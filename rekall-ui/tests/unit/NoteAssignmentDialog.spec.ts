@@ -28,6 +28,7 @@ const project = (id: ProjectId, label: string, title: string, companyId: Company
   label,
   title,
   status: 'ACTIVE',
+  icon: 'folder',
   description: null,
   blueprintMarkdown: null,
   repoFolder: null,

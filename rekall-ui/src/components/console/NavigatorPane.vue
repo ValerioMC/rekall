@@ -7,6 +7,7 @@ import NavigatorTaskRow from '@/components/console/NavigatorTaskRow.vue'
 import NavigatorFilingDrawer from '@/components/console/NavigatorFilingDrawer.vue'
 import ProjectTrace from '@/components/ui/ProjectTrace.vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
+import ProjectIcon from '@/components/ui/ProjectIcon.vue'
 import { partitionTasks } from '@/common/catalog/partition-tasks'
 import { identityHue } from '@/common/identity'
 import { useConsoleStore } from '@/stores/console.store'
@@ -53,6 +54,7 @@ interface ProjectGroup {
   readonly projectTitle: string
   readonly companyName: string
   readonly status: ProjectStatus
+  readonly icon: string
   readonly tasks: Task[]
   readonly active: Task[]
   readonly filed: Task[]
@@ -63,10 +65,12 @@ interface ProjectTaskBucket {
   readonly projectTitle: string
   readonly companyName: string
   readonly status: ProjectStatus
+  readonly icon: string
   readonly tasks: Task[]
 }
 
 const projectStatusById = computed(() => new Map(projects.value.map((project) => [project.id, project.status])))
+const projectIconById = computed(() => new Map(projects.value.map((project) => [project.id, project.icon])))
 
 // Active projects float to the top of the column so a paused or done one never buries what is live.
 const PROJECT_STATUS_RANK: Readonly<Record<ProjectStatus, number>> = { ACTIVE: 0, PAUSED: 1, DONE: 2 }
@@ -81,6 +85,7 @@ const groupedByProject = computed<ProjectGroup[]>(() => {
         projectTitle: task.projectTitle,
         companyName: task.companyName,
         status: projectStatusById.value.get(task.projectId) ?? 'ACTIVE',
+        icon: projectIconById.value.get(task.projectId) ?? 'folder',
         tasks: []
       }
       byProject.set(task.projectId, bucket)
@@ -261,15 +266,10 @@ defineExpose({ beginCreate, editSelected })
             </svg>
             <span
               class="mt-px grid size-6 shrink-0 place-items-center rounded-[7px]"
-              :style="{ backgroundColor: identityHue(group.projectId).soft }"
+              :style="{ backgroundColor: identityHue(group.projectId).soft, color: identityHue(group.projectId).base }"
               aria-hidden="true"
             >
-              <svg class="size-3.5" viewBox="0 0 24 24" fill="none" :style="{ color: identityHue(group.projectId).base }">
-                <path
-                  d="M4 6.5A1.5 1.5 0 0 1 5.5 5h4.1a1.5 1.5 0 0 1 1.2.6l1 1.4h7.7A1.5 1.5 0 0 1 21 8.5v10A1.5 1.5 0 0 1 19.5 20h-14A1.5 1.5 0 0 1 4 18.5v-12z"
-                  fill="currentColor"
-                />
-              </svg>
+              <ProjectIcon :icon="group.icon" :size="14" />
             </span>
             <span class="min-w-0 flex-1">
               <span class="flex items-center gap-2">

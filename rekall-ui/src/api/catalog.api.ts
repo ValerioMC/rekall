@@ -31,6 +31,7 @@ export interface ProjectInput {
   label: string
   title: string
   status: ProjectStatus
+  icon: string
   description: string | null
   blueprintMarkdown: string | null
   repoFolder: string | null

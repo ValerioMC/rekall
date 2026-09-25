@@ -77,6 +77,7 @@ export interface Project {
   readonly label: string
   readonly title: string
   readonly status: ProjectStatus
+  readonly icon: string
   readonly description: string | null
   readonly blueprintMarkdown: string | null
   readonly repoFolder: string | null
