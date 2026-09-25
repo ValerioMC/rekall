@@ -1,81 +1,57 @@
 #!/usr/bin/env bash
-# Installs the bundle scripts/macos-bundle.sh just built into /Applications.
+# Mounts the disk image `make dmg` just built, copies Rekall.app into /Applications, and ejects
+# the disk image again.
 #
-#   scripts/macos-install.sh native
-#   scripts/macos-install.sh jvm
+#   scripts/macos-install.sh [path/to/Rekall.dmg]
 #
-# The disk image is still what travels to another machine. This is for the machine that built
-# it: the copy you are iterating on should be the one in the dock, and mounting a disk image to
-# drag a bundle across is a manual step that gets skipped exactly when the build mattered.
-#
-# An existing /Applications/Rekall.app is replaced outright, without asking. REKALL_INSTALL=0
-# skips the install and leaves the disk image as the only output.
+# Unlike scripts/macos-app.sh, this replaces whatever is at /Applications/Rekall.app. A Rekall
+# that is already running (from /Applications or from a mounted disk image) is quit first, so the
+# copy is never in use while it is replaced.
 set -euo pipefail
 
-FLAVOUR="${1:-}"
-case "$FLAVOUR" in
-    native|jvm) ;;
-    *) echo "usage: $(basename "$0") native|jvm" >&2; exit 2 ;;
-esac
-
 if [ "$(uname -s)" != "Darwin" ]; then
-    echo "This installs a macOS .app and only runs on macOS." >&2
+    echo "This mounts a macOS disk image and only runs on macOS." >&2
     exit 1
-fi
-
-if [ "${REKALL_INSTALL:-1}" = "0" ]; then
-    echo "==> Not installing (REKALL_INSTALL=0)"
-    exit 0
 fi
 
 cd "$(dirname "$0")/.."
 
-SOURCE="dist/macos/$FLAVOUR/Rekall.app"
-TARGET="/Applications/Rekall.app"
-
-if [ ! -d "$SOURCE" ]; then
-    echo "$SOURCE not found. Run 'make dmg-$FLAVOUR' rather than this script on its own." >&2
+DMG="${1:-$(ls -t target/release/bundle/dmg/*.dmg 2>/dev/null | head -1 || true)}"
+if [ -z "$DMG" ] || [ ! -f "$DMG" ]; then
+    echo "No disk image under target/release/bundle/dmg. Run 'make dmg' first." >&2
     exit 1
 fi
 
-# /Applications is group-writable by admins on a stock macOS. Where it is not, this stops rather
-# than escalating to sudo on its own: what a build target may write outside the project is not
-# something to decide silently.
-if [ ! -w /Applications ]; then
-    echo "/Applications is not writable by $(whoami). Open $SOURCE's disk image and drag it across instead." >&2
-    exit 1
-fi
-
-# A running copy has the bundle open, and the JVM flavour keeps a child process inside it. A
-# replacement underneath either one leaves a process running code that is no longer on disk, so
-# the app comes down first and goes back up afterwards only if it was up to begin with.
-RUNNING=0
-if pgrep -f "$TARGET/" >/dev/null 2>&1; then
-    RUNNING=1
+if pgrep -xq rekall-desktop || pgrep -xq Rekall; then
     echo "==> Quitting the running Rekall"
     osascript -e 'quit app "Rekall"' >/dev/null 2>&1 || true
     for _ in $(seq 1 40); do
-        pgrep -f "$TARGET/" >/dev/null 2>&1 || break
+        { pgrep -xq rekall-desktop || pgrep -xq Rekall; } || break
         sleep 0.25
     done
-    # It ignored the quit, or a child outlived it. Nothing here is unsaved: the console writes
-    # on a pause and the database is a file the next start reopens.
-    if pgrep -f "$TARGET/" >/dev/null 2>&1; then
-        pkill -f "$TARGET/" >/dev/null 2>&1 || true
-        sleep 1
-    fi
+fi
+
+# Every volume a Rekall disk image was mounted on earlier ("Rekall", "Rekall 1", ...).
+for volume in /Volumes/Rekall*; do
+    [ -d "$volume/Rekall.app" ] || continue
+    echo "==> Ejecting $volume"
+    hdiutil detach "$volume" -quiet || hdiutil detach "$volume" -force -quiet || true
+done
+
+echo "==> Mounting $(basename "$DMG")"
+MOUNT="$(hdiutil attach -noverify -noautoopen "$DMG" | awk -F'\t' '/\/Volumes\// { print $NF }' | tail -1)"
+if [ -z "$MOUNT" ] || [ ! -d "$MOUNT/Rekall.app" ]; then
+    echo "The disk image mounted, but no Rekall.app was found on it." >&2
+    exit 1
 fi
 
 echo "==> Installing into /Applications"
-# ditto rather than cp -R: it carries the extended attributes the ad-hoc signature is stored in,
-# and a bundle that arrives without them is refused at launch on Apple silicon.
-rm -rf "$TARGET"
-ditto "$SOURCE" "$TARGET"
+rm -rf /Applications/Rekall.app
+cp -R "$MOUNT/Rekall.app" /Applications/Rekall.app
+xattr -dr com.apple.quarantine /Applications/Rekall.app 2>/dev/null || true
 
-if [ "$RUNNING" = "1" ]; then
-    echo "==> Starting the new one"
-    open "$TARGET"
-fi
+echo "==> Ejecting $MOUNT"
+hdiutil detach "$MOUNT" -quiet || hdiutil detach "$MOUNT" -force -quiet || true
 
 echo
-echo "    installed $TARGET ($FLAVOUR, $(du -sh "$TARGET" | cut -f1 | tr -d ' '))"
+echo "    Installed at /Applications/Rekall.app"

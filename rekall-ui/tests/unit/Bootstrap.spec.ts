@@ -24,6 +24,7 @@ vi.mock('@/api/catalog.api', () => ({
   fetchTags: vi.fn(async () => [])
 }))
 vi.mock('@/api/documents.api', () => ({ fetchAllDocuments: vi.fn(async () => []) }))
+vi.mock('@/api/terminal.api', () => ({ fetchTerminals: vi.fn(async () => []) }))
 vi.mock('@/api/wrapups.api', () => ({ fetchWrapups: vi.fn(async () => []) }))
 vi.mock('@/api/steps.api', () => ({ fetchSteps: vi.fn(async () => []) }))
 vi.mock('@/api/time-entries.api', () => ({ fetchTimeEntries: vi.fn(async () => []) }))

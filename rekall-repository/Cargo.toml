@@ -1,0 +1,18 @@
+[package]
+name = "rekall-repository"
+description = "The SQLite connection, the migrations that build its schema, and the queries the services read with"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+rekall-common.workspace = true
+rekall-model.workspace = true
+sea-orm.workspace = true
+sea-orm-migration.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+regex.workspace = true
+async-trait.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

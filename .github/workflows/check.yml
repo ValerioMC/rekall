@@ -1,9 +1,8 @@
 name: Check
 
-# The gate a change passes before it reaches main. release.yml builds and publishes main, and runs
-# the JUnit suite only because `mvn package` does; nothing ran eslint, vue-tsc or vitest in CI.
-# This runs all of it, as `make test` does locally, on every pull request and every push to a
-# branch other than main.
+# The gate a change passes before it reaches main: clippy and every crate's tests, the console's
+# eslint, vue-tsc and vitest, and a build of the desktop shell, as `make lint test` does locally,
+# on every pull request and every push to a branch other than main.
 on:
   pull_request:
   push:
@@ -19,22 +18,6 @@ permissions:
   contents: read
 
 jobs:
-  backend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: "25"
-          cache: maven
-
-      # `test`, not `verify`: packaging needs the built UI (rekall-app's enforcer check), and the
-      # frontend job below is where the UI is checked.
-      - name: JUnit
-        run: mvn -B test
-
   frontend:
     runs-on: ubuntu-latest
     defaults:
@@ -65,6 +48,52 @@ jobs:
       - name: vitest
         run: pnpm test
 
-      # The bundle is what the jar serves; a change that type-checks but does not build fails here.
+      # The bundle is what the server embeds; a change that type-checks but does not build fails here.
       - name: Build
         run: pnpm build
+
+  # Every crate's tests. Java and the H2 jar are there only so the legacy H2 import tests run
+  # instead of skipping: reading an H2 file needs H2's own jar.
+  backend:
+    runs-on: ubuntu-latest
+    env:
+      REKALL_H2_JAR: ${{ github.workspace }}/.h2/h2-2.4.240.jar
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: H2 jar for the import tests
+        run: curl -sSfL --create-dirs -o "$REKALL_H2_JAR" https://repo1.maven.org/maven2/com/h2database/h2/2.4.240/h2-2.4.240.jar
+
+      - name: clippy
+        run: cargo clippy --all-targets
+
+      - name: cargo test
+        run: cargo test
+
+  # The desktop shell only compiles against the platform WebView SDK, so it is not a default
+  # workspace member; this checks that it still builds.
+  desktop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: WebKitGTK
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev
+
+      - name: cargo build
+        run: cargo build -p rekall-desktop

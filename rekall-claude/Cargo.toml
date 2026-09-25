@@ -1,0 +1,31 @@
+[package]
+name = "rekall-claude"
+description = "Claude Code hosted in Rekall: the terminal pane's PTYs over a WebSocket, the usage meter, and the run queue"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+rekall-common.workspace = true
+rekall-model.workspace = true
+rekall-repository.workspace = true
+rekall-service.workspace = true
+rekall-api.workspace = true
+sea-orm.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+futures.workspace = true
+axum.workspace = true
+tracing.workspace = true
+chrono.workspace = true
+regex.workspace = true
+base64.workspace = true
+portable-pty.workspace = true
+reqwest.workspace = true
+async-trait.workspace = true
+dirs.workspace = true
+tempfile.workspace = true
+libc = "0.2"
+
+[dev-dependencies]
+tokio-tungstenite = "0.29"

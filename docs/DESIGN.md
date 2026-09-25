@@ -36,7 +36,7 @@ loaded in one call, including every note the task shares with its neighbours.
 | D2 | Claude reads everything and writes a few narrow things | `rekall-mcp` depends on `rekall-service` and never on `rekall-api`, so no controller and none of the console's catalog services are on its classpath, and every read runs in a read-only transaction. The exceptions are `rekall_wrapup`, which replaces one task's wrapup; `rekall_step`, which moves a step from `open` to `running` to `claimed` and cannot reach `done`; `rekall_record_commit`, which logs a commit against a task; `rekall_propose_step`, which can only add a draft a person has to promote; and `rekall_note`, which can only add a new note to one task. See §7. |
 | D3 | Markdown content lives in the database | One backup target, reachable through MCP, searchable. |
 | D4 | One entry point, and it is a slash command | A session begins with `/rk project:vega task:report-builder`, not with a question. Reaching a record through a natural-language query costs several turns and a few thousand tokens before any work starts, and it is the part that fails when the model guesses the wrong entity. An explicit anchor removes both. |
-| D5 | The model is fixed at compile time | There is no runtime meta-model and no DDL engine. Company, project, task and document are fixed JPA entities; adding a new kind of record is a class and a migration, not a screen. |
+| D5 | The model is fixed at compile time | There is no runtime meta-model and no DDL engine. Company, project, task and document are fixed SeaORM entities; adding a new kind of record is a model and a migration, not a screen. |
 | D6 | Modular monolith, single process, embedded database | Single user, localhost. The application has to be reachable with one command or it will not get used. Localhost is enforced, not assumed: `LocalAccessFilter` refuses a peer that is not loopback, a `Host` that is not this machine and an `Origin` from another site, since nothing here authenticates and the API can open a terminal. |
 | D7 | What a record is called and what an anchor resolves are two columns | One column serving both jobs would mean a rename breaks anchors written down elsewhere, and makes every name a compromise between readable and typeable. `label` is a slug and is the identity; `title` is prose and is free. See §4. |
 | D8 | A task carries one wrapup, and it is a state and not a log | The thing that costs a session its first twenty minutes is reconstructing what the code already does. A note cannot answer that: notes accumulate, and the reader has to synthesise the current state out of them. A wrapup is that synthesis, written once and overwritten thereafter. Its own table, because a document belongs to many tasks by construction and "one answer per task" has to be a constraint rather than a convention. See §4.1. |
@@ -49,42 +49,41 @@ Non-goals: multi-user, authentication, remote deployment, vector search.
 
 ```
 rekall/
-  rekall-common/     ConflictException, NotFoundException: the error vocabulary shared by every layer
-  rekall-model/      JPA entities and their state rules
-  rekall-repository/ Spring Data repositories and the Liquibase changelogs for their schema
-  rekall-service/    context assembly, the step and review lines, wrapups, time entries
-  rekall-api/        REST controllers for the UI
-  rekall-mcp/        MCP server: one tool reads, four write (a wrapup, a step's state, a commit log entry, a draft step)
-  rekall-claude/     the in-app terminal (pty4j PTYs over one WebSocket) and the Claude Code usage meter
-  rekall-app/        Spring Boot entry point, serves the built frontend
-  rekall-ui/         Vue 3 + Vite (built into rekall-ui/dist, copied into the jar by rekall-app)
+  rekall-common/     RekallError, Id, Instant: the vocabulary shared by every layer
+  rekall-model/      SeaORM entities and their state rules
+  rekall-repository/ queries and the SQLite migrations for their schema
+  rekall-service/    context assembly, the step and review lines, wrapups, notes, time entries
+  rekall-api/        Axum REST routes for the UI
+  rekall-mcp/        MCP server: one tool reads, five write (a wrapup, a step's state, a commit log entry, a draft step, a new note)
+  rekall-claude/     the in-app terminal (portable-pty PTYs over one WebSocket), the Claude Code usage meter, the run queue
+  rekall-app/        rekall-server: serves the built frontend, embedded at compile time
+  rekall-app/desktop the Tauri desktop app over the same server, in-process
+  rekall-ui/         Vue 3 + Vite (built into rekall-ui/dist, embedded by rekall-app)
 ```
 
-The layers are separate Maven modules so the dependency direction is enforced by the compiler,
-not by convention: `rekall-repository` cannot see `rekall-api`, and `rekall-service` cannot see
-any controller. Classes keep the `dev.rekall.domain.*` packages they had before the split, so
-the GraalVM reachability metadata and the AOT hints did not have to be regenerated; the module
-boundary carries the guarantee, the package prefix is only a name.
+The layers are separate crates in one Cargo workspace so the dependency direction is enforced by
+the compiler, not by convention: `rekall-repository` cannot see `rekall-api`, and `rekall-service`
+cannot see any route. The crate boundary carries the guarantee.
 
 `rekall-mcp` depends on `rekall-service` and must not depend on `rekall-api`. The two are
 independent consumers of the same services, which is what keeps the boundary structural rather
 than accidental: `rekall-mcp` can reach `ContextService`, `TaskStepService` and `WrapupService`,
-but no controller, no `CatalogService` and no `DocumentService` is on its classpath.
+but no route, no `CatalogService` and no `DocumentService` is among its dependencies.
 
 ### Stack
 
 | Component | Choice | Note |
 |---|---|---|
-| Runtime | Java 25 | |
-| Framework | Spring Boot 4.1 | |
-| Persistence | Spring Data JPA | One technology, no second query builder |
-| Migrations | Liquibase | Portable types, so the door to PostgreSQL stays open |
-| Database | H2, file | Embedded. No server to start |
-| Boilerplate | Lombok | `annotationProcessorPaths` is declared explicitly: from JDK 23 javac no longer runs processors it merely finds on the classpath |
+| Language | Rust (1.85+) | One binary, no runtime to install |
+| HTTP | Axum on Tokio | REST, SSE and the terminal's WebSocket on one port |
+| Persistence | SeaORM over SQLite | Explicit transactions (`in_write!` / `in_read!`), events published after commit |
+| Migrations | SeaORM migrations | One per schema change, applied at startup |
+| Database | SQLite, file | Embedded. No server to start |
 | MCP server | Hand-rolled | MCP over HTTP is three JSON-RPC methods and one POST endpoint |
 | Frontend | Vue 3 + Vite | |
 | Document editing | `md-editor-v3` | Toolbar over the markdown source, not a WYSIWYG. A WYSIWYG keeps its own tree and regenerates the source on every edit, and that source is what MCP hands to Claude verbatim |
-| Tests | JUnit 5 against in-memory H2 | |
+| Tests | `cargo test`; end-to-end suites on a real port and a file database | |
+| Desktop | Tauri v2 | The same server in-process, a WebView window, three native bridges |
 
 ---
 
@@ -384,8 +383,8 @@ reorder or remove a step, and the console's `edit` is still the only path to `DO
 it. `NoteService` (rekall-service) can only create a note and attach it to the one task it was
 written for: it never loads a note by id, so it cannot edit, detach or delete one, and
 `DocumentService`, which can, stays in `rekall-api`. `CommitReferenceService` and `AutoCommitService` log and make commits in the project's own
-folder. Every read runs under
-`@Transactional(readOnly = true)`, so Hibernate will not flush. `McpTool.writes()` is declared
+folder. Every read runs in a
+read-only transaction. `McpTool.writes()` is declared
 rather than inferred, and the startup log names the write surface out loud.
 
 The residual risk is real and small: Claude can overwrite one task's wrapup with something
@@ -410,7 +409,7 @@ takes the folder it was launched from and keeps it for the session. So the folde
 the project, `repo_folder`, and it travels down onto every task response beside the project label
 those rows already carry.
 
-It is a bridge in the macOS launcher (`packaging/macos/ClaudeCodeLauncher.swift`), next to the
+It is a bridge in the desktop app (`rekall-app/desktop/src/bridges.rs`), next to the
 folder chooser, and not an endpoint. A `POST /api/launch` on 47355 would be reachable by any page
 open in any browser on the machine, which makes a button that starts a terminal into a way to
 start one without a click. Through the WebView, only this application can call it.
@@ -436,7 +435,7 @@ answer along with it.
 ### The terminal pane
 
 The in-app session is a real terminal, `C` in the console. `PtyTerminalManager` in
-`rekall-claude` starts the interactive `claude` TUI in a pseudo-terminal (pty4j) in the task's
+`rekall-claude` starts the interactive `claude` TUI in a pseudo-terminal (`portable-pty`) in the task's
 folder, with `/rk` as the first line (`/rk … plan` for a terminal opened in `TerminalMode.PLAN`,
 which the Steps pane's **Plan here** asks for), and pumps its raw bytes to whoever is watching. The reason
 it is a PTY and not `claude -p` is token cost: a hand-run `claude` keeps its own cache warm,
@@ -449,9 +448,8 @@ The bytes do not go over HTTP. `TerminalController` only opens (`POST
 /api/tasks/{id}/terminals`), lists and closes; once a terminal exists the pane connects to
 `TerminalSocketHandler` at `/api/terminal/{id}/io`, Rekall's one WebSocket. Binary frames are
 stdin and stdout, a `{"resize":[cols,rows]}` text frame sets the window size, and a
-`{"type":"ended",...}` frame closes it out. Sends are funnelled through a
-`ConcurrentWebSocketSessionDecorator`, which also caps the outbound buffer so a pane that stops
-reading is dropped rather than left to back up memory. `useTerminalSocket` is the client half,
+`{"type":"ended",...}` frame closes it out. Sends go through one bounded
+queue per socket, so a pane that stops reading is dropped rather than left to back up memory. `useTerminalSocket` is the client half,
 `TerminalPane.vue` wires it to an `xterm.js` instance.
 
 One terminal per task. Opening again on a task that already has one is routed to it; opening on
@@ -468,7 +466,7 @@ Nothing is persisted. There is no row behind a terminal, so `TerminalLaunchServi
 down. A bounded in-memory scrollback ring is replayed to a pane that reopens, so it repaints;
 that snapshot can begin mid escape-sequence and flicker once, which is the accepted cost of not
 storing a terminal. A cap on how many run at once (`rekall.terminal.max-sessions`, eight), an
-idle sweep, and a `@PreDestroy` that kills the rest inside the 5s shutdown budget keep strays
+idle sweep, and a shutdown hook that kills the rest inside the 5s shutdown budget keep strays
 from piling up.
 
 The PTY's environment is the user's login shell's, not the app's: launched from Finder, the app
@@ -479,18 +477,6 @@ refresh. Failure, no markers or the timeout keep the last good copy, falling bac
 environment. `ClaudeCli` adds `HOME` and the usual install directories to it, strips
 `CLAUDECODE`/`CLAUDE_CODE_ENTRYPOINT` so a Rekall started from a Claude session can still open one,
 and searches that `PATH` for `claude`. Windows skips the shell and uses the process environment.
-
-Both packaging flavours carry it. pty4j reaches `libutil` through JNA, a restricted native call
-on JDK 25, so the jlink launcher passes `--enable-native-access=ALL-UNNAMED`
-(`packaging/macos/Launcher.swift`); the GraalVM binary compiles that in. Neither pty4j nor JNA
-ships GraalVM reachability metadata, and `scripts/native-build.sh` calls `native-image` on a
-hand-built classpath rather than the one `mvn -Pnative` assembles, so the community metadata is
-not on it. The pieces the terminal needs are committed instead, under
-`rekall-app/src/main/resources/META-INF/native-image/`: `net.java.dev.jna/jna/` is the upstream
-community file vendored verbatim, `org.jetbrains.pty4j/pty4j/` is pty4j's own JNA structures and
-`Library`-interface proxies plus the two `jna-platform` integer types its read/write bindings
-use, agent-traced from a minimal PTY round trip and given the `jniAccessible` flags the agent
-cannot infer. Bump either dependency and both files are re-derived the same way.
 
 ---
 

@@ -19,8 +19,8 @@ fix in place.
 
 ## How it was measured
 
-- One isolated instance on port 47399 (`SERVER_PORT=47399 java -Drekall.home=<throwaway> -jar
-  rekall-app/target/rekall-app-*.jar`), a throwaway H2 file, 4 companies / 12 projects / 120
+- One isolated instance on port 47399, a throwaway database (the soak ran against the JVM build
+  of the server that `rekall-server` replaced; the console it measures is the same code), 4 companies / 12 projects / 120
   tasks / 120 notes from `scripts/seed-demo-data.py`, every project pointed at a scratch git
   repository, and `rekall.claude.cli-path` pointed at a stub shell script that echoes coloured
   output, so terminal sessions run a real PTY without Claude.

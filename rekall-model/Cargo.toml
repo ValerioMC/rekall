@@ -1,0 +1,11 @@
+[package]
+name = "rekall-model"
+description = "The entities and their state rules"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+rekall-common.workspace = true
+sea-orm.workspace = true
+serde.workspace = true
+regex.workspace = true

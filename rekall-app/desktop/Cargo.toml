@@ -1,0 +1,27 @@
+[package]
+name = "rekall-desktop"
+description = "Rekall as a desktop application: a Tauri window over the same Axum server, run in-process"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "rekall-desktop"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+rekall-app.workspace = true
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-opener = "2"
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+dirs.workspace = true
+reqwest.workspace = true
+uuid.workspace = true
