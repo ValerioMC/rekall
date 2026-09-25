@@ -18,7 +18,14 @@ const isDesktop = isDesktopApp()
   >
     <WindowControls v-if="isDesktop" />
 
-    <div class="flex w-(--spacing-nav) shrink-0 items-center gap-2.5 pr-2.5">
+    <!-- Matches the navigator sidebar's own --spacing-nav so the two line up in one column on
+         Console — but only wide enough for that to matter. Under 1600px (a 13"/14" laptop screen,
+         not a 27" monitor) the reserved width is mostly empty space past the logo's real content,
+         and holding it fixed there is what crushed the search bar; letting it hug the logo instead
+         hands that space back to the switcher and the bar next to it. -->
+    <div
+      class="flex w-(--spacing-nav) shrink-0 items-center gap-2.5 pr-2.5 max-[1600px]:w-[220px] max-[1600px]:pr-4"
+    >
       <AppLogo :size="32" class="halo rounded-[7px]" />
       <span class="min-w-0">
         <span class="block text-[14.5px] font-semibold leading-tight tracking-[-0.015em] text-text">
