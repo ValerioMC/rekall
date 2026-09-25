@@ -347,3 +347,75 @@ async fn shutdown_stops_every_open_timer() {
     assert_eq!(entries.len(), 2);
     assert!(entries.iter().all(|e| e.stopped_at.is_some()));
 }
+
+// ------------------------------------------------------------------------------ remaining Java cases
+
+#[tokio::test]
+async fn a_repository_with_no_user_email_is_refused_before_anything_is_staged() {
+    let world = world().await;
+    let repo = ready_repo().await;
+    // A blank local value hides any global one, which is what "no email" looks like here.
+    git(repo.path(), &["config", "user.email", ""]);
+    fs::write(repo.path().join("pending.txt"), "x").unwrap();
+    let project = world.project("vega", Some(&repo.path().to_string_lossy()), true).await;
+    let task = world.task(&project, "report-builder").await;
+    let step = world.step(&task, "Step", 0, TaskStepState::Claimed).await;
+
+    let outcome = world.services.auto_commit.after_step_claim(task.id, step.id, None).await.unwrap();
+
+    assert_eq!(outcome.status, AutoCommitStatus::Failed);
+    assert!(outcome.describe().contains("user.email"), "{}", outcome.describe());
+    assert_eq!(git(repo.path(), &["status", "--porcelain"]), "?? pending.txt", "nothing was staged");
+}
+
+#[tokio::test]
+async fn a_commit_named_by_its_hash_is_read_by_that_hash_and_a_blank_hash_means_the_tip() {
+    let world = world().await;
+    let repo = ready_repo().await;
+    fs::write(repo.path().join("later.txt"), "later").unwrap();
+    git(repo.path(), &["add", "-A"]);
+    commit(repo.path(), "The later one");
+    let earlier = git(repo.path(), &["rev-parse", "HEAD~1"]);
+    let tip = git(repo.path(), &["rev-parse", "HEAD"]);
+    let project = world.project("vega", Some(&repo.path().to_string_lossy()), false).await;
+    let task = world.task(&project, "report-builder").await;
+    let references = &world.services.commit_references;
+
+    let named = references.record_commit(task.id, None, Some(&format!(" {} ", &earlier[..7]))).await.unwrap();
+    assert_eq!(named.commit_hash, earlier);
+    assert_eq!(named.comment, "seed");
+
+    let blank = references.record_commit(task.id, None, Some("   ")).await.unwrap();
+    assert_eq!(blank.commit_hash, tip, "a blank hash is the plain button: the tip");
+    assert_eq!(blank.comment, "The later one");
+
+    let by_anchor = references.record_commit_by_anchor(Some("vega"), "report-builder", None, Some(&earlier)).await.unwrap();
+    assert_eq!(by_anchor.id, named.id, "the MCP path passes the hash through, to the same row");
+}
+
+#[tokio::test]
+async fn the_recent_log_is_read_from_the_tasks_project_folder_newest_first() {
+    let world = world().await;
+    let repo = ready_repo().await;
+    fs::write(repo.path().join("later.txt"), "later").unwrap();
+    git(repo.path(), &["add", "-A"]);
+    commit(repo.path(), "The later one");
+    let project = world.project("vega", Some(&repo.path().to_string_lossy()), false).await;
+    let task = world.task(&project, "report-builder").await;
+
+    let recent = world.services.commit_references.recent_commits(task.id).await.unwrap();
+
+    let subjects: Vec<&str> = recent.iter().map(|entry| entry.subject.as_str()).collect();
+    assert_eq!(subjects, ["The later one", "seed"]);
+    assert_eq!(recent[0].hash, git(repo.path(), &["rev-parse", "HEAD"]));
+}
+
+#[tokio::test]
+async fn under_three_characters_there_is_no_search() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    world.task(&project, "ab").await;
+    assert!(world.services.search.search(Some("ab")).await.unwrap().is_empty());
+    assert!(world.services.search.search(Some("  ")).await.unwrap().is_empty());
+    assert!(world.services.search.search(None).await.unwrap().is_empty());
+}
