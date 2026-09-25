@@ -48,5 +48,7 @@ impl ApiState {
 
 /// Every `/api` route this module owns.
 pub fn router(state: ApiState) -> Router {
-    controller::routes().with_state(state)
+    controller::routes()
+        .route_layer(axum::middleware::from_fn(extract::uuid_path_params))
+        .with_state(state)
 }

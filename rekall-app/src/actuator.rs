@@ -34,7 +34,7 @@ async fn health(State(conn): State<DatabaseConnection>) -> Response {
     let up = conn.execute_unprepared("SELECT 1").await.is_ok();
     let status = if up { "UP" } else { "DOWN" };
     let code = if up { StatusCode::OK } else { StatusCode::SERVICE_UNAVAILABLE };
-    actuator(code, json!({ "status": status, "groups": ["liveness", "readiness"] }))
+    actuator(code, json!({ "groups": ["liveness", "readiness"], "status": status }))
 }
 
 async fn liveness() -> Response {

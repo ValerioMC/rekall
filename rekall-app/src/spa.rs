@@ -1,7 +1,7 @@
 //! The console: `rekall-ui/dist` served as static files, built into the binary the way the jar
 //! carried it under `classpath:/static`, and `SinglePageApplicationRouting`'s forwards so a
 //! refresh on a client-side route gets the application rather than a 404. A path nothing answers
-//! is Spring Boot's 404; a write to one is its 405, since only the resource handler was left.
+//! is Spring Boot's 404, whatever the method.
 
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
@@ -65,15 +65,22 @@ pub fn routes(assets: Assets) -> Router {
     router.fallback(resource).with_state(assets)
 }
 
+/// A forward to `index.html` went through Spring's view rendering, which named the charset.
 async fn index(State(assets): State<Assets>) -> Response {
-    serve(&assets, "index.html").unwrap_or_else(|| framework(StatusCode::NOT_FOUND))
+    match serve(&assets, "index.html") {
+        Some(mut response) => {
+            response.headers_mut().insert(header::CONTENT_TYPE, HeaderValue::from_static("text/html;charset=UTF-8"));
+            response
+        }
+        None => framework(StatusCode::NOT_FOUND),
+    }
 }
 
+/// Whatever no route answers: a static file for a GET, and Spring Boot's 404 for anything else,
+/// whatever the method (the resource handler reported a missing resource, not a wrong method).
 async fn resource(State(assets): State<Assets>, request: Request) -> Response {
     if request.method() != Method::GET && request.method() != Method::HEAD {
-        let mut refused = framework(StatusCode::METHOD_NOT_ALLOWED);
-        refused.headers_mut().insert(header::ALLOW, HeaderValue::from_static("GET,HEAD"));
-        return refused;
+        return framework(StatusCode::NOT_FOUND);
     }
     let path = request.uri().path();
     let Ok(decoded) = percent_decode(path.trim_start_matches('/')) else {

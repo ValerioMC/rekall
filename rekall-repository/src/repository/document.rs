@@ -27,14 +27,24 @@ pub async fn links_of_task(db: &impl ConnectionTrait, task_id: Id) -> Result<Vec
         .await?)
 }
 
-/// The links of one note, oldest first: `Document.tasks`, a `LinkedHashSet` Hibernate filled in
-/// row order.
-pub async fn links_of_document(db: &impl ConnectionTrait, document_id: Id) -> Result<Vec<document_task::Model>, RekallError> {
+/// The links of one note in the order they were added: `Document.tasks` as a note just created
+/// held it, a `LinkedHashSet` filled in the order the request named the tasks.
+pub async fn links_of_document_as_added(db: &impl ConnectionTrait, document_id: Id) -> Result<Vec<document_task::Model>, RekallError> {
     Ok(document_task::Entity::find()
         .filter(document_task::Column::DocumentId.eq(document_id))
         .order_by_asc(sea_orm::sea_query::Expr::cust("rowid"))
         .all(db)
         .await?)
+}
+
+/// The links of one note as `Document.getTasks()` iterated them once loaded: Hibernate fills the
+/// inverse side of the many-to-many into a plain `HashSet`, whose order is its buckets' (see
+/// `rekall_common::jcoll`). Within a bucket it is the order the rows came back in, which H2 read
+/// off the `(document_id, task_id)` primary key: by task id.
+pub async fn links_of_document(db: &impl ConnectionTrait, document_id: Id) -> Result<Vec<document_task::Model>, RekallError> {
+    let mut links = links_of_document_as_added(db, document_id).await?;
+    links.sort_by_key(|link| link.task_id);
+    Ok(rekall_common::jcoll::hash_set_order(links, |link| link.task_id.as_uuid()))
 }
 
 /// `Task.getDocuments()`: a task's notes in their order on it.

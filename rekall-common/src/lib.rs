@@ -5,6 +5,7 @@
 pub mod error;
 pub mod id;
 pub mod instant;
+pub mod jcoll;
 pub mod jstr;
 
 pub use error::{RekallError, Result};

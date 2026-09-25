@@ -12,6 +12,7 @@ pub mod backup;
 pub mod bootstrap;
 pub mod config;
 pub mod h2;
+pub mod methods;
 pub mod restart;
 pub mod security;
 pub mod server;

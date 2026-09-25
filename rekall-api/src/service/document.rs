@@ -68,7 +68,15 @@ impl DocumentService {
             document.validate(Phase::Persist)?;
             document.clone().into_active_model().insert(tx.db()).await?;
             link(&tx, document.id, &wanted).await?;
-            response(&tx, &document).await
+            // A note just created still holds the `LinkedHashSet` it was built with.
+            let snapshot = Snapshot::load(tx.db()).await?;
+            let mut tasks = Vec::new();
+            for link in repo::document::links_of_document_as_added(tx.db(), document.id).await? {
+                if let Some(task) = snapshot.tasks.get(&link.task_id) {
+                    tasks.push(snapshot.task_ref(task)?);
+                }
+            }
+            Ok::<_, RekallError>(DocumentResponse::of(&document, tasks))
         })
     }
 

@@ -115,3 +115,36 @@ impl Validator {
         }
     }
 }
+
+/// Every path variable of the matched route read as a `UUID` before anything else of the
+/// request is: Spring converted `@PathVariable UUID` arguments ahead of the `@RequestBody`, so a
+/// bad id is its 500 even when the body is bad too. Layered with `route_layer`, after routing.
+pub async fn uuid_path_params(
+    params: axum::extract::RawPathParams,
+    request: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    for (name, value) in &params {
+        if let Err(refused) = uuid(&camel_case(name), value) {
+            return axum::response::IntoResponse::into_response(refused);
+        }
+    }
+    next.run(request).await
+}
+
+/// `task_id` -> `taskId`: the Java parameter a route segment was bound to.
+fn camel_case(name: &str) -> String {
+    let mut out = String::with_capacity(name.len());
+    let mut upper = false;
+    for c in name.chars() {
+        if c == '_' {
+            upper = true;
+        } else if upper {
+            out.extend(c.to_uppercase());
+            upper = false;
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}

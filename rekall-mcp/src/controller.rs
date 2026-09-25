@@ -407,11 +407,10 @@ async fn handle_http(State(controller): State<Arc<McpController>>, headers: Head
 /// A body that is not a JSON object is the 400 problem `HttpMessageNotReadableException` gave.
 fn unreadable(detail: &str) -> Response {
     let body = json!({
-        "type": "about:blank",
-        "title": "Bad Request",
-        "status": 400,
         "detail": detail,
         "instance": "/mcp",
+        "status": 400,
+        "title": "Bad Request",
     });
     let mut response = (StatusCode::BAD_REQUEST, body.to_string()).into_response();
     response.headers_mut().insert(header::CONTENT_TYPE, HeaderValue::from_static("application/problem+json"));
