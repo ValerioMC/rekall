@@ -1,0 +1,6 @@
+[package]
+name = "rekall-mcp"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]

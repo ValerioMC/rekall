@@ -1,0 +1,6 @@
+[package]
+name = "rekall-claude"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]

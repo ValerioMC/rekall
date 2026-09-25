@@ -1,0 +1,6 @@
+[package]
+name = "rekall-api"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]

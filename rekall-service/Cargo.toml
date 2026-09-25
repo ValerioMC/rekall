@@ -1,0 +1,6 @@
+[package]
+name = "rekall-service"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]

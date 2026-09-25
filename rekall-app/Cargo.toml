@@ -1,0 +1,6 @@
+[package]
+name = "rekall-app"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]

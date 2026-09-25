@@ -1,0 +1,6 @@
+[package]
+name = "rekall-repository"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]

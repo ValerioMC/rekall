@@ -1,0 +1,78 @@
+# The Rust port of the backend. One crate per Maven module, same directories, same dependency
+# direction: rekall-common <- rekall-model <- rekall-repository <- rekall-service <- rekall-api,
+# rekall-mcp, rekall-claude <- rekall-app. Rust sources sit beside the Java ones under each
+# module's src/ (lib.rs next to main/java) until the Java build is retired.
+#
+# The Tauri shell (rekall-app/desktop) is a member but not a default one: it needs the platform
+# WebView's development libraries to compile, which a headless build machine or CI does not
+# have, and `cargo build` / `cargo test` at the root must keep working there.
+
+[workspace]
+resolver = "2"
+members = [
+    "rekall-common",
+    "rekall-model",
+    "rekall-repository",
+    "rekall-service",
+    "rekall-api",
+    "rekall-mcp",
+    "rekall-claude",
+    "rekall-app",
+    "rekall-app/desktop",
+]
+default-members = [
+    "rekall-common",
+    "rekall-model",
+    "rekall-repository",
+    "rekall-service",
+    "rekall-api",
+    "rekall-mcp",
+    "rekall-claude",
+    "rekall-app",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license-file = "LICENSE"
+rust-version = "1.85"
+
+[workspace.dependencies]
+rekall-common = { path = "rekall-common" }
+rekall-model = { path = "rekall-model" }
+rekall-repository = { path = "rekall-repository" }
+rekall-service = { path = "rekall-service" }
+rekall-api = { path = "rekall-api" }
+rekall-mcp = { path = "rekall-mcp" }
+rekall-claude = { path = "rekall-claude" }
+rekall-app = { path = "rekall-app" }
+
+sea-orm = { version = "2.0", default-features = false, features = ["sqlx-sqlite", "runtime-tokio-rustls", "macros", "with-uuid"] }
+sea-orm-migration = { version = "2.0", default-features = false, features = ["sqlx-sqlite", "runtime-tokio-rustls"] }
+tokio = { version = "1", features = ["full"] }
+tokio-stream = { version = "0.1", features = ["sync"] }
+futures = "0.3"
+axum = { version = "0.8", features = ["ws", "multipart", "macros"] }
+tower = { version = "0.5", features = ["util"] }
+tower-http = { version = "0.6", features = ["fs"] }
+http-body-util = "0.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+regex = "1"
+thiserror = "2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+zip = { version = "2", default-features = false, features = ["deflate"] }
+base64 = "0.22"
+portable-pty = "0.9"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+tempfile = "3"
+async-trait = "0.1"
+dirs = "6"
+
+[profile.release]
+lto = "thin"
+codegen-units = 4
+strip = true
