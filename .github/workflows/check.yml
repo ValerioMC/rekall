@@ -68,3 +68,48 @@ jobs:
       # The bundle is what the jar serves; a change that type-checks but does not build fails here.
       - name: Build
         run: pnpm build
+
+  # The Rust port: every crate's tests, the ported JUnit suites included. Java and the H2 jar are
+  # there so the H2 import tests run instead of skipping.
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+
+      - name: H2 jar for the import tests
+        run: mvn -B -q dependency:get -Dartifact=com.h2database:h2:2.4.240
+
+      - name: clippy
+        run: cargo clippy --all-targets
+
+      - name: cargo test
+        run: cargo test
+
+  # The desktop shell only compiles against the platform WebView SDK, so it is not a default
+  # workspace member; this checks that it still builds.
+  desktop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: WebKitGTK
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev
+
+      - name: cargo build
+        run: cargo build -p rekall-desktop
