@@ -12,6 +12,13 @@ data/
 *.trace.db
 *.lock.db
 
+# Database SQLite del backend Rust: rekall.db accanto al vecchio rekall.mv.db, piu' il suo WAL.
+rekall.db
+*.db-wal
+*.db-shm
+*.db.importing
+*.db.restoring
+
 # Segreti e configurazione locale. application.yaml legge REKALL_DB_URL,
 # REKALL_DB_USER, REKALL_DB_PASSWORD e SERVER_PORT dall'ambiente.
 .env

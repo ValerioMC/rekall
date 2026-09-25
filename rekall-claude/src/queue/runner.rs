@@ -53,6 +53,8 @@ enum Command {
     Settle { generation: u64, outcome: RunQueueItemState, reason: String },
     Pause { generation: u64, verdict: Verdict },
     Stop(oneshot::Sender<Result<RunQueueView>>),
+    /// The application is closing: stop deciding. The terminals are closed by their manager.
+    Shutdown,
 }
 
 #[derive(Clone)]
@@ -104,6 +106,9 @@ impl RunQueueRunner {
         tokio::spawn(async move {
             guarded("recover", worker.queue.recover_after_restart().await);
             while let Some(command) = inbox.recv().await {
+                if matches!(command, Command::Shutdown) {
+                    break;
+                }
                 worker.handle(command).await;
             }
         });
@@ -182,6 +187,12 @@ impl RunQueueRunner {
         }
     }
 
+    /// Stop deciding before the terminals go, as the application closes. The tick and the signal
+    /// listeners end with the worker, on their next send.
+    pub fn shutdown(&self) {
+        let _ = self.commands.send(Command::Shutdown);
+    }
+
     /// Take a look now: the console changed something the next tick would otherwise wait for.
     pub fn nudge(&self) {
         let _ = self.commands.send(Command::Tick);
@@ -211,6 +222,7 @@ impl Worker {
                 let result = self.pause(generation, verdict).await;
                 guarded("settle", result);
             }
+            Command::Shutdown => {}
             Command::Stop(reply) => {
                 if let Some(stopping) = self.active.take() {
                     self.close_session(stopping, "Stopped from the console.").await;
