@@ -270,7 +270,7 @@ A task with no checklist walks the same line at task scope: **open**, **running*
 
 **Review** (the checklist icon with a count, in the top bar) counts everything a session claimed and you have not reviewed, across every task: claimed steps, and tasks with no checklist whose wrapup claimed them. It lists them longest-waiting first, and a row opens the step on its steps pane, or the task on its description's review bar. It is built in the console from the same step and review frames the event stream already carries, so it moves as sessions claim and you accept, and it is not there while nothing waits.
 
-When something joins the queue while the console is hidden or another app has the focus, Rekall posts a system notification: through the native bridge in the desktop app (`rekall-app/desktop/src/bridges.rs`, the system asks for permission the first time), through the browser's Notification API elsewhere. What was already waiting when the console loaded never notifies. **Settings > Notifications** turns it off; the choice is stored on the machine, and in a browser that is also where permission is asked, since a browser grants it only from a click.
+When something joins the queue while the console is hidden or another app has the focus, Rekall posts a system notification: through the native bridge in the desktop app (`rekall-app/desktop/src/bridges/notifier.rs`, the system asks for permission the first time), through the browser's Notification API elsewhere. What was already waiting when the console loaded never notifies. **Settings > Notifications** turns it off; the choice is stored on the machine, and in a browser that is also where permission is asked, since a browser grants it only from a click.
 
 ## Console
 
@@ -431,6 +431,8 @@ rekall-app/desktop the Tauri desktop app over the same server
 rekall-ui/         Vue 3 + Vite frontend
 ```
 
+Inside a crate the layout follows the Java one: a folder per concept or layer (`controller/`, `service/`, `dto/`, `note/`, `step/`), one public type per file named after it (`NoteService` in `note_service.rs`), and a `mod.rs` that only declares the files and re-exports their types. The rules and their exceptions are in [docs/DESIGN.md](docs/DESIGN.md#layout-inside-a-crate).
+
 The crate boundary is what keeps the MCP server off the write paths: `CatalogService`, `DocumentService` and `RevisionRestoreService` live in `rekall-api` and not in `rekall-service` because they write the catalog, and `rekall-mcp` cannot reach them. Read-only services (search, context size) and the narrow writes a session is allowed are in `rekall-service`.
 
 ## Run tests
@@ -440,7 +442,7 @@ cargo test                                            # every crate but the desk
 cd rekall-ui && pnpm lint && pnpm typecheck && pnpm test
 ```
 
-The end-to-end suites in `rekall-app/tests` start the whole application on a real port with a file database and drive the HTTP API, the MCP endpoint and the event stream; a stub stands in for the `claude` TUI in the terminal and run-queue tests.
+Unit tests sit next to the code they test, in a file of their own: `note_service.rs` is tested by `note_service_tests.rs` in the same folder, attached with `#[cfg(test)] #[path = "note_service_tests.rs"] mod tests;`. The end-to-end suites in `rekall-app/tests` start the whole application on a real port with a file database and drive the HTTP API, the MCP endpoint and the event stream; a stub stands in for the `claude` TUI in the terminal and run-queue tests.
 
 `.github/workflows/check.yml` runs all of it on every pull request and every push to a branch other than `main`: clippy and `cargo test`, eslint, vue-tsc, vitest, a production build of the UI, and a build of the desktop app. `release.yml` builds and publishes `main`.
 

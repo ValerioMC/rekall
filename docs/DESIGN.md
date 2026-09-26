@@ -70,6 +70,19 @@ independent consumers of the same services, which is what keeps the boundary str
 than accidental: `rekall-mcp` can reach `ContextService`, `TaskStepService` and `WrapupService`,
 but no route, no `CatalogService` and no `DocumentService` is among its dependencies.
 
+### Layout inside a crate
+
+The crates are the layers; inside one, the code is laid out the way a Java project is.
+
+- **A folder per concept or layer, one public type per file.** A folder is a package: `rekall-api` is split by layer (`controller/`, `service/`, `dto/`), `rekall-service` by concept (`note/`, `step/`, `wrapup/`, `commit/` with `commit/git/` under it). A file holds one public type and is named after it: `NoteService` lives in `note/note_service.rs`, `CompanyResponse` in `dto/company_response.rs`.
+- **`mod.rs` and `lib.rs` hold no logic.** They declare the files and re-export the public types, so a caller writes `rekall_service::note::NoteService` and never the file's name. Moving a type between files changes no caller.
+- **Privacy is per file, so what siblings share is `pub(super)`.** Rust's privacy boundary is the module, which is the file, not the type. A helper two files of one folder use is `pub(super)`, visible to that package and nowhere else: Java's package-private.
+- **Private helpers stay beside the one type that uses them.** A private struct that only one file reads (`ScratchDir` beside `Database`, the export's row types beside `ExportService`, `Worker` beside `RunQueueRunner`) plays the part of a Java nested class and is not moved into a file of its own.
+- **A module of free functions is one file named for what it does.** `repository/task.rs` is the task repository, `jstr.rs` the string helpers, `usage_ceiling.rs` the ceiling rule: Rust's counterpart of a class of static methods.
+- **Unit tests live in a sibling file.** `note_service.rs` ends with `#[cfg(test)] #[path = "note_service_tests.rs"] mod tests;`. The test file is still a child module, so it reads private items with `use super::*`, which moving it to the crate's `tests/` folder would lose. `tests/` holds the integration and end-to-end suites, which see only the public API.
+
+Two things keep their shape on purpose. A SeaORM entity is one file with `Model`, `Relation` and the `Entity` and `ActiveModel` its derive generates: the derive requires them in one module, and the file is the entity, as a JPA entity is one class. The migrations stay as they are, several changesets to a file: they are frozen history. In the desktop app, the modules holding `#[tauri::command]` functions are `pub`, because `generate_handler!` resolves each command's generated companion by path and a re-export does not carry it.
+
 ### Stack
 
 | Component | Choice | Note |
@@ -409,7 +422,7 @@ takes the folder it was launched from and keeps it for the session. So the folde
 the project, `repo_folder`, and it travels down onto every task response beside the project label
 those rows already carry.
 
-It is a bridge in the desktop app (`rekall-app/desktop/src/bridges.rs`), next to the
+It is a bridge in the desktop app (`rekall-app/desktop/src/bridges/claude_code_launcher.rs`), next to the
 folder chooser, and not an endpoint. A `POST /api/launch` on 47355 would be reachable by any page
 open in any browser on the machine, which makes a button that starts a terminal into a way to
 start one without a click. Through the WebView, only this application can call it.

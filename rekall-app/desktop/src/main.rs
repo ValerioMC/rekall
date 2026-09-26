@@ -88,12 +88,12 @@ fn main() {
         .manage(Arc::new(Shell::default()))
         .manage(bridges::WindowGeometry::default())
         .invoke_handler(tauri::generate_handler![
-            bridges::pick_folder,
-            bridges::open_in_claude_code,
-            bridges::notify,
-            bridges::close_window,
-            bridges::minimize_window,
-            bridges::toggle_maximize_window
+            bridges::folder_picker::pick_folder,
+            bridges::claude_code_launcher::open_in_claude_code,
+            bridges::notifier::notify,
+            bridges::window_controls::close_window,
+            bridges::window_controls::minimize_window,
+            bridges::window_controls::toggle_maximize_window
         ])
         .menu(|handle| {
             let reload = MenuItemBuilder::with_id("reload", "Reload").accelerator("CmdOrCtrl+R").build(handle)?;
