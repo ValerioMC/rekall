@@ -308,7 +308,13 @@ pub fn open_maximized<R: Runtime>(window: &WebviewWindow<R>, geometry: &WindowGe
 
 #[tauri::command]
 pub fn toggle_maximize_window<R: Runtime>(window: WebviewWindow<R>, geometry: State<'_, WindowGeometry>) -> Result<(), String> {
-    match geometry.0.lock().unwrap().take() {
+    // Bound to its own statement rather than matched on directly: a match scrutinee's temporaries
+    // live until the end of the match, so matching on the lock guard inline would still hold it
+    // while the `None` arm calls back into `grow`, which locks the same `Mutex` again — a
+    // non-reentrant self-deadlock that froze the app on every other click of the console's own
+    // maximize button.
+    let stored = geometry.0.lock().unwrap().take();
+    match stored {
         Some((position, size)) => {
             // Size before position, for the same reason `grow` does: the window's height at the
             // moment of the call is what its top-left position is computed against.
