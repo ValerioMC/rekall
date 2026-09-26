@@ -8,7 +8,7 @@
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, AtomicU16, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -30,6 +30,9 @@ const DEFAULT_COLUMNS: u16 = 80;
 const DEFAULT_ROWS: u16 = 24;
 const MAX_DIMENSION: i64 = 1000;
 const READ_BUFFER: usize = 8192;
+/// How long the repaint kick holds the PTY a row short: long enough for claude's event loop to
+/// read the smaller size, or it coalesces both SIGWINCHs into no change and never repaints.
+const KICK_SETTLE: Duration = Duration::from_millis(150);
 
 /// Only the aliases the settings offer are accepted; anything else leaves the account default.
 pub const MODEL_ALIASES: [&str; 4] = ["opus", "sonnet", "haiku", "fable"];
@@ -103,8 +106,9 @@ struct Terminal {
     id: Id,
     launch: TerminalLaunch,
     step_id: Mutex<Option<Id>>,
-    columns: AtomicU16,
-    rows: AtomicU16,
+    /// The last size the pane asked for, as (columns, rows). Its lock also serialises every
+    /// resize, so the kick's delayed restore cannot undo a resize that landed meanwhile.
+    size: Mutex<(u16, u16)>,
     skip_permissions: bool,
     model: Option<String>,
     effort: Option<String>,
@@ -378,8 +382,7 @@ impl PtyTerminalManager {
             id,
             launch,
             step_id: Mutex::new(step_id),
-            columns: AtomicU16::new(DEFAULT_COLUMNS),
-            rows: AtomicU16::new(DEFAULT_ROWS),
+            size: Mutex::new((DEFAULT_COLUMNS, DEFAULT_ROWS)),
             skip_permissions,
             model,
             effort,
@@ -452,8 +455,8 @@ impl PtyTerminalManager {
     }
 
     /// Attach a pane: replay the scrollback, then follow live output. A closed terminal is a
-    /// conflict. The backlog can land mid-redraw of a full-screen app, so the PTY is wobbled a
-    /// row and back to make it repaint.
+    /// conflict. The backlog can land mid-redraw of a full-screen app, and a pane switching to a
+    /// live session sends the size the PTY already has, so the PTY is wobbled a row and back.
     pub fn attach(&self, id: Id, listener: Arc<dyn Listener>) -> Result<(TerminalView, u64)> {
         let terminal = self.require(id)?;
         // Subscribe before replaying: a chunk arriving in the gap is drawn twice, not dropped.
@@ -462,7 +465,7 @@ impl PtyTerminalManager {
         let backlog = terminal.scrollback.lock().expect("never poisoned").snapshot();
         if !backlog.is_empty() {
             listener.output(&backlog);
-            kick_resize(&terminal);
+            kick_resize(terminal.clone());
         }
         Ok((terminal.view(), token))
     }
@@ -490,13 +493,18 @@ impl PtyTerminalManager {
     }
 
     /// Tell the PTY its new window size. Out-of-range values are clamped; a failure is logged.
+    /// The size it already has is skipped: it raises no SIGWINCH, and mid-kick it would cut the
+    /// shrink short before claude saw it.
     pub fn resize(&self, id: Id, columns: i64, rows: i64) {
         let Some(terminal) = self.live_map().get(&id).cloned() else { return };
         let columns = columns.clamp(1, MAX_DIMENSION) as u16;
         let rows = rows.clamp(1, MAX_DIMENSION) as u16;
+        let mut size = terminal.size.lock().expect("never poisoned");
+        if *size == (columns, rows) {
+            return;
+        }
         if terminal.apply_win_size(columns, rows) {
-            terminal.columns.store(columns, Ordering::SeqCst);
-            terminal.rows.store(rows, Ordering::SeqCst);
+            *size = (columns, rows);
         }
     }
 
@@ -628,16 +636,29 @@ fn pump(terminal: &Terminal, mut reader: Box<dyn Read + Send>) {
     }
 }
 
-/// Wobble the PTY down a row and back to its last known size: each step is a real size change,
-/// so the kernel raises SIGWINCH both times and the TUI repaints in full.
-fn kick_resize(terminal: &Terminal) {
-    let rows = terminal.rows.load(Ordering::SeqCst);
-    let columns = terminal.columns.load(Ordering::SeqCst);
-    if rows <= 1 {
-        return;
+/// Wobble the PTY down a row and, after `KICK_SETTLE`, back to its last known size: each step is
+/// a size change claude observes, so it repaints in full even when the pane's own resize is a no-op.
+fn kick_resize(terminal: Arc<Terminal>) {
+    {
+        let (columns, rows) = *terminal.size.lock().expect("never poisoned");
+        if rows <= 1 || !terminal.apply_win_size(columns, rows - 1) {
+            return;
+        }
     }
-    terminal.apply_win_size(columns, rows - 1);
-    terminal.apply_win_size(columns, rows);
+    let restoring = terminal.clone();
+    let delayed = std::thread::Builder::new().name(format!("terminal-kick-{}", terminal.id)).spawn(move || {
+        std::thread::sleep(KICK_SETTLE);
+        restore_size(&restoring);
+    });
+    if let Err(failed) = delayed {
+        warn!("Could not delay the repaint kick of terminal {}: {failed}", terminal.id);
+        restore_size(&terminal);
+    }
+}
+
+fn restore_size(terminal: &Terminal) {
+    let size = terminal.size.lock().expect("never poisoned");
+    terminal.apply_win_size(size.0, size.1);
 }
 
 fn normalise(value: Option<&str>, allowed: &[&str]) -> Option<String> {

@@ -19,13 +19,18 @@ use rekall_service::{Ctx, EventBus, Services};
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
 use tempfile::TempDir;
 
-/// Prints its arguments, then echoes each line it reads; `exit` ends it with code 3.
+/// Prints its arguments, then echoes each line it reads; `exit` ends it with code 3, `size`
+/// prints the PTY's rows and columns.
 pub const STUB_CLAUDE: &str = r#"#!/bin/sh
 echo "ARGS:$*"
 while IFS= read -r line; do
   if [ "$line" = "exit" ]; then
     echo "BYE"
     exit 3
+  fi
+  if [ "$line" = "size" ]; then
+    echo "SIZE:$(stty size)"
+    continue
   fi
   echo "GOT:$line"
 done

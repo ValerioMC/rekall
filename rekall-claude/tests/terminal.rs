@@ -134,6 +134,49 @@ async fn a_late_pane_is_repainted_from_the_scrollback() {
 }
 
 #[tokio::test]
+async fn a_late_pane_holds_the_repaint_kick_long_enough_for_the_process_to_see_it() {
+    let world = world().await;
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let task = world.task(&project, "one").await;
+    let terminals = world.terminals(8);
+    let view = terminals.open(task.id, None, false, None, None, TerminalMode::Work).await.unwrap();
+    let first = Arc::new(Recorder::default());
+    terminals.attach(view.id, first.clone()).unwrap();
+    terminals.resize(view.id, 100, 30);
+    eventually("the launch arguments", || async { first.text().contains("ARGS:") }).await;
+
+    // A pane switching to this session sends the size the PTY already has: only the kick repaints.
+    terminals.attach(view.id, Arc::new(Recorder::default())).unwrap();
+    terminals.resize(view.id, 100, 30);
+    terminals.write(view.id, b"size\n").unwrap();
+    eventually("the shrunk size", || async { first.text().contains("SIZE:29 100") }).await;
+
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    terminals.write(view.id, b"size\n").unwrap();
+    eventually("the restored size", || async { first.text().contains("SIZE:30 100") }).await;
+    terminals.shutdown().await;
+}
+
+#[tokio::test]
+async fn a_resize_during_the_repaint_kick_outlives_its_restore() {
+    let world = world().await;
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let task = world.task(&project, "one").await;
+    let terminals = world.terminals(8);
+    let view = terminals.open(task.id, None, false, None, None, TerminalMode::Work).await.unwrap();
+    let first = Arc::new(Recorder::default());
+    terminals.attach(view.id, first.clone()).unwrap();
+    eventually("the launch arguments", || async { first.text().contains("ARGS:") }).await;
+
+    terminals.attach(view.id, Arc::new(Recorder::default())).unwrap();
+    terminals.resize(view.id, 120, 40);
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    terminals.write(view.id, b"size\n").unwrap();
+    eventually("the pane's size", || async { first.text().contains("SIZE:40 120") }).await;
+    terminals.shutdown().await;
+}
+
+#[tokio::test]
 async fn opens_past_the_cap_a_missing_folder_or_a_missing_cli_are_refused() {
     let world = world().await;
     let project = world.project("alpha", Some(world.folder.path())).await;
