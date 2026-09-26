@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
+import AppBadge from '@/components/ui/AppBadge.vue'
 import TagIcon from '@/components/ui/TagIcon.vue'
 import ProjectIcon from '@/components/ui/ProjectIcon.vue'
 import CloseGlyph from '@/components/ui/CloseGlyph.vue'
@@ -131,11 +132,21 @@ const parentOptions = computed(() => {
   if (kind === 'task') {
     return store.projects.map((project) => ({
       value: project.id as string,
-      label: `${project.companyName} / ${project.title}  ·  ${project.anchor}`
+      label: `${project.companyName} / ${project.title}  ·  ${project.anchor}  ·  ${PROJECT_STATUS_LABEL[project.status]}`
     }))
   }
   return []
 })
+
+const parentProjectStatus = computed<ProjectStatus | null>(() =>
+  kind === 'task' ? (store.projects.find((project) => project.id === parentId.value)?.status ?? null) : null
+)
+
+const PROJECT_STATUS_TONE: Readonly<Record<ProjectStatus, 'accent' | 'neutral' | 'safe'>> = {
+  ACTIVE: 'accent',
+  PAUSED: 'neutral',
+  DONE: 'safe'
+}
 
 const parentLabel = kind === 'task' ? 'Project' : 'Company'
 
@@ -334,7 +345,13 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
             v-model="parentId"
             data-testid="record-parent"
             :options="parentOptions"
-          />
+          >
+            <template v-if="parentProjectStatus" #trailing>
+              <AppBadge :tone="PROJECT_STATUS_TONE[parentProjectStatus]" dot data-testid="record-parent-status">
+                {{ PROJECT_STATUS_LABEL[parentProjectStatus] }}
+              </AppBadge>
+            </template>
+          </AppSelect>
           <p class="mb-5 mt-1.5 text-[11.5px] text-text-subtle">
             <template v-if="isNew">Where this lands. It opens the anchor.</template>
             <template v-else>Changing this moves the record, and its anchor with it.</template>

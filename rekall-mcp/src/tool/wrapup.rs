@@ -7,6 +7,9 @@ use super::{told, Anchor, AnchoredTask, Arguments, QUALIFY_WITH_PROJECT};
 use crate::protocol::{McpTool, ToolError, ToolSchema};
 use crate::texts;
 
+/// Past this many words a wrapup is carrying history; the answer says so, the write still lands.
+const WORDS_BEFORE_NUDGE: usize = 600;
+
 pub struct WrapupTool {
     services: Services,
 }
@@ -79,6 +82,10 @@ impl McpTool for WrapupTool {
             );
         }
         out.push_str(&format!("\nIt is what `/rk {}` will load from now on.", written.wrapup.anchor));
+        if let Some(nudge) = length_nudge(&body) {
+            out.push_str("\n\n");
+            out.push_str(&nudge);
+        }
 
         let committed = self.services.auto_commit.after_wrapup(written.wrapup.task_id, commit_message.as_deref()).await?;
         if !committed.off() {
@@ -86,5 +93,31 @@ impl McpTool for WrapupTool {
             out.push_str(&committed.describe());
         }
         Ok(out)
+    }
+}
+
+fn length_nudge(body: &str) -> Option<String> {
+    let words = body.split_whitespace().count();
+    (words > WORDS_BEFORE_NUDGE).then(|| {
+        format!(
+            "It is {words} words, past the {WORDS_BEFORE_NUDGE} a wrapup should stay under. Rewrite it shorter: drop what \
+             is finished and stable, and move detail into a note with `rekall_note`."
+        )
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::length_nudge;
+
+    #[test]
+    fn a_wrapup_within_the_word_budget_carries_no_nudge() {
+        assert_eq!(length_nudge(&"word ".repeat(600)), None);
+    }
+
+    #[test]
+    fn a_wrapup_past_the_word_budget_is_told_its_length() {
+        let nudge = length_nudge(&"word ".repeat(601)).expect("a nudge past 600 words");
+        assert!(nudge.starts_with("It is 601 words"), "{nudge}");
     }
 }

@@ -38,7 +38,7 @@ pub trait McpTool: Send + Sync {
     async fn execute(&self, arguments: Option<&Value>) -> Result<String, ToolError>;
 }
 
-/// `ToolSchema`: an object schema of string properties, in the order they were declared.
+/// `ToolSchema`: an object schema of string and boolean properties, in the order they were declared.
 #[derive(Default)]
 pub struct ToolSchema {
     properties: Map<String, Value>,
@@ -58,6 +58,11 @@ impl ToolSchema {
 
     pub fn optional_string(mut self, name: &str, description: &str) -> Self {
         self.properties.insert(name.into(), json!({ "type": "string", "description": description }));
+        self
+    }
+
+    pub fn optional_boolean(mut self, name: &str, description: &str) -> Self {
+        self.properties.insert(name.into(), json!({ "type": "boolean", "description": description }));
         self
     }
 

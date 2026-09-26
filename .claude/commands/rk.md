@@ -127,8 +127,8 @@ reads like one.
 
 ## Noting
 
-`/rk project:vega task:report-builder note "the export formats we settled on"` means: write a new
-note on that task and attach it there.
+`/rk project:vega task:report-builder note "the export formats we settled on"` means: write a note
+on that task and attach it there, or rewrite the one it already carries on that subject.
 
 The text in double quotes after `note` says what the note has to hold, in my words. It is not an
 anchor and not the note's text: it is what to put in it. Without one, the note holds what this
@@ -140,13 +140,15 @@ session just produced that I would want again.
    description worked out, something the session found. Written to be read on its own by someone
    who was not here, in markdown.
 3. Call `rekall_note` with those anchors, a short `title` named like a file (`export-formats.md`)
-   and the whole note as `body`.
-4. Say in one line which note you wrote and its `note:` anchor. Then stop.
+   and the whole note as `body`. If the task already carries a note this one supersedes (the same
+   subject, an older version of the same results), use that note's title and pass `replace: true`,
+   so the task keeps one current note instead of two.
+4. Say in one line which note you wrote or rewrote and its `note:` anchor. Then stop.
 
-`rekall_note` only adds. A title the task's notes already carry is refused rather than
-overwritten: pick another title, and tell me if it was the old note that needed changing, because
-only the console can do that. A note is not the wrapup, and writing one does not claim the task or
-a step.
+`replace` overwrites the body outright: the old text is not kept anywhere, and a note shared with
+other tasks changes for them too, so send the whole note, not the part that changed. Without it, a
+title the task's notes already carry is refused. A note is not the wrapup, and writing one does not
+claim the task or a step.
 
 ## Planning
 
@@ -204,9 +206,9 @@ The anchors have to name exactly one task. A `project:` anchor on its own names 
 ### Steps that closed since the last one
 
 A wrapup written after a step is finished has to account for it, and that is the whole reason to
-write one there. Read the current wrapup, keep every sentence still true, and rewrite the rest so
-the text describes the system with that step's work in it. The result is one description of the
-whole task, not the previous wrapup with a paragraph stuck on the end.
+write one there. Write the text again so it describes the system with that step's work in it. The
+result is one description of the whole task, not the previous wrapup with a paragraph stuck on the
+end.
 
 You do not have to work out which ones those are. The context marks every finished step the wrapup
 predates with `(finished since the wrapup was written)` and hands back its detail, which it does for
@@ -222,6 +224,13 @@ still marked, and it goes in too. Do not stop at the piece you just built.
 
 If the step's work made something the wrapup already said untrue, the old sentence goes. Keeping
 both is how a wrapup starts contradicting itself.
+
+**Write it fresh.** A wrapup does not grow. It is rewritten from the code every time, and the history
+in the console keeps every earlier version, so dropping a sentence loses nothing. Read the current
+wrapup as a list of claims to check, not as a text to extend: a sentence stays only if the code
+still makes it true and the next session needs it to start work. Open points that are closed,
+decisions nobody will revisit and detail about finished, stable pieces all go. The new text still
+covers the whole task, not only the part you touched.
 
 **Write the state, not the session.** The wrapup describes the system as it stands, for a reader who
 was not here and does not care what it looked like before.
@@ -245,11 +254,20 @@ A line or two on each piece, what it is there for and what it decides.
   what is refused and why. A class name says there is a service; only the wrapup says that
   overwriting a wrapup edited by hand is announced because no session reads the history it went to.
 
-Small enough to read in one go. Short paragraphs or short bullets, not an essay and not an index.
+**Shape it to be scanned.** The kind of information chooses the form:
 
-Send it whole. Nothing is merged, and the version it replaces goes to a history only I read, so keep
-whatever is still true from the wrapup you just read and rewrite the rest. Describing only the part
-you touched would leave the task claiming to be a fraction of itself.
+| Information | Form |
+|---|---|
+| What the task delivers and where it stands | One or two sentences, first |
+| The pieces of the implementation | A table: the name in the code, what it is for or decides |
+| A rule | One bullet: what it decides, on what, the edges, what is refused |
+| Results of something checked or tested | A table, one row per check, its outcome and what was seen |
+| A flow or a lifecycle | A numbered list |
+| What is open or fragile | Bullets under their own heading, last; left out when nothing is |
+
+`###` headings separate those blocks and nothing else. Prose is only for what connects the parts.
+It fits on one screen: about 300 words suits most tasks. Past 600 the tool says so, because the
+text is carrying history or detail that belongs in a note.
 
 If the tool answers that the version you replaced had been edited by hand, tell me: those were my
 words, and only the wrapup's History in the console still has them.

@@ -36,7 +36,7 @@ const beacon = 'p2' as ProjectId
 const projects: Project[] = [
   { id: vega, label: 'vega', title: 'Vega Platform', status: 'ACTIVE', icon: 'folder', description: null, blueprintMarkdown: null,
     repoFolder: null, autoCommit: false, companyId: acme, companyName: 'acme', taskCount: 2, anchor: 'project:vega', updatedAt: '2026-08-12T10:00:00Z' },
-  { id: beacon, label: 'beacon', title: 'Beacon', status: 'ACTIVE', icon: 'folder', description: null, blueprintMarkdown: null,
+  { id: beacon, label: 'beacon', title: 'Beacon', status: 'PAUSED', icon: 'folder', description: null, blueprintMarkdown: null,
     repoFolder: null, autoCommit: false, companyId: acme, companyName: 'acme', taskCount: 0, anchor: 'project:beacon', updatedAt: '2026-08-12T10:00:00Z' }
 ]
 
@@ -628,6 +628,22 @@ describe('the console', () => {
 
       // The settled half of the anchor is on screen before a single character is typed.
       expect(wrapper.find('[data-testid="anchor-preview"]').text()).toContain('project:vega')
+    })
+
+    /** A paused or finished project is still a valid home, so its status sits beside its name rather than hiding it. */
+    it('shows the status of the project a task will land in', async () => {
+      const wrapper = await mountConsole()
+
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 't' }))
+      await flushPromises()
+
+      expect(wrapper.find('[data-testid="record-parent-status"]').text()).toBe('Active')
+      expect(wrapper.find('[data-testid="record-parent"] select').text()).toContain('project:beacon  ·  Paused')
+
+      await wrapper.find('[data-testid="record-parent"] select').setValue(beacon)
+      await flushPromises()
+
+      expect(wrapper.find('[data-testid="record-parent-status"]').text()).toBe('Paused')
     })
 
     it('creates the task with both names and the project it landed in', async () => {

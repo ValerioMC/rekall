@@ -1,6 +1,6 @@
-//! The one way a session writes a note: a new one, on one task. It cannot open a note that is
-//! already there, so it cannot edit, move, detach or delete one; the console's document service
-//! in rekall-api stays the only path for those, and out of the MCP tools' reach.
+//! The one way a session writes a note on one task. It adds a new one, or, asked to replace, rewrites
+//! the body of the note that task carries under the same title. It never moves, detaches or deletes
+//! one; the console's document service in rekall-api stays the only path for those.
 
 use rekall_common::{jstr, Id, RekallError, Result};
 use rekall_model::constraints::Phase;
@@ -17,7 +17,7 @@ pub const TITLE_MAX_CHARACTERS: usize = 255;
 
 pub const BODY_MAX_CHARACTERS: usize = 100_000;
 
-/// Emitted when a session writes a new note onto a task, so an open console can pick it up.
+/// Emitted when a session writes or rewrites a note on a task, so an open console can pick it up.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoteStreamEvent {
@@ -25,13 +25,23 @@ pub struct NoteStreamEvent {
     pub document_id: Id,
 }
 
-/// What a write came to: the note, where it landed, and how many notes that task now carries.
+/// What a write came to: the note, where it landed, how many notes that task now carries, and,
+/// on a replace, how many other tasks read the rewritten body too.
 #[derive(Clone, Debug)]
 pub struct Written {
     pub title: String,
     pub note_anchor: String,
     pub task_anchor: String,
     pub notes_on_task: usize,
+    pub replaced: bool,
+    pub other_tasks: usize,
+}
+
+/// What to do when the task already carries a note with the requested title.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum OnTitleClash {
+    Refuse,
+    Replace,
 }
 
 #[derive(Clone)]
@@ -50,24 +60,48 @@ impl NoteService {
         task_label: &str,
         title: Option<&str>,
         body: Option<&str>,
+        on_clash: OnTitleClash,
     ) -> Result<Written> {
         in_write!(&self.ctx, |tx| {
             let task = load::resolve_task(tx.db(), project_label, task_label).await?;
             let wanted = validated_title(title)?;
             let text = validated_body(body)?;
             let existing = repo::document::documents_of_task(tx.db(), task.id).await?;
+            let project = load::project_of(tx.db(), &task).await?;
+            let task_anchor = format!("project:{} task:{}", project.label, task.label);
+            let now = self.ctx.now();
+
             if let Some(clash) =
                 existing.iter().find(|note| jstr::equals_ignore_case(jstr::strip(&note.title), &wanted))
             {
-                return Err(RekallError::illegal(format!(
-                    "This task already has a note titled '{}' ({}). Nothing was written: a session only adds notes, \
-                     so pick another title, or leave changing that one to a person in the console.",
-                    clash.title,
-                    clash.anchor()
-                )));
+                if on_clash == OnTitleClash::Refuse {
+                    return Err(RekallError::illegal(format!(
+                        "This task already has a note titled '{}' ({}). Nothing was written: pass `replace` to \
+                         rewrite that note, or pick another title to add a new one.",
+                        clash.title,
+                        clash.anchor()
+                    )));
+                }
+                // The title stays as it was typed in the console; only the body is the session's.
+                let mut rewritten = clash.clone();
+                rewritten.body_markdown = text;
+                if rewritten != *clash {
+                    rewritten.updated_at = now;
+                    rewritten.validate(Phase::Update)?;
+                    rewritten.clone().into_active_model().reset_all().update(tx.db()).await?;
+                }
+                let readers = repo::document::links_of_document_as_added(tx.db(), rewritten.id).await?;
+                tx.publish(DomainEvent::Note(NoteStreamEvent { task_id: task.id, document_id: rewritten.id }));
+                return Ok(Written {
+                    note_anchor: rewritten.anchor(),
+                    title: rewritten.title,
+                    task_anchor,
+                    notes_on_task: existing.len(),
+                    replaced: true,
+                    other_tasks: readers.len().saturating_sub(1),
+                });
             }
 
-            let now = self.ctx.now();
             let note = document::Model {
                 id: Id::random(),
                 title: wanted,
@@ -86,12 +120,13 @@ impl NoteService {
                 .await?;
             tx.publish(DomainEvent::Note(NoteStreamEvent { task_id: task.id, document_id: note.id }));
 
-            let project = load::project_of(tx.db(), &task).await?;
             Ok(Written {
                 note_anchor: note.anchor(),
                 title: note.title,
-                task_anchor: format!("project:{} task:{}", project.label, task.label),
+                task_anchor,
                 notes_on_task: existing.len() + 1,
+                replaced: false,
+                other_tasks: 0,
             })
         })
     }

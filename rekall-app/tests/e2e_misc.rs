@@ -262,7 +262,7 @@ async fn a_session_writes_a_note_onto_a_task_which_travels_with_its_context_and_
         "CSV and XLSX, streamed."
     );
 
-    // A session only adds, so it cannot overwrite a note by reusing its title.
+    // Reusing a title without `replace` is refused rather than overwriting.
     assert_contains!(
         app.call_tool(
             "rekall_note",
@@ -282,6 +282,49 @@ async fn a_session_writes_a_note_onto_a_task_which_travels_with_its_context_and_
         "'body' is required"
     );
     assert_eq!(app.documents_on(&task_id).await.len(), 1);
+}
+
+#[tokio::test]
+async fn a_session_rewrites_a_note_by_its_title_when_asked_to_replace_and_every_task_it_is_on_reads_the_new_body() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
+    let task_id = app.a_task(&project_id, "report-builder").await;
+    let other_id = app.a_task(&project_id, "exporter").await;
+    let document_id = app
+        .post(
+            "/api/documents",
+            json!({ "title": "Results.md", "kind": "notes", "taskIds": [task_id, other_id], "bodyMarkdown": "| check | outcome |" }),
+        )
+        .await
+        .str("id")
+        .to_string();
+
+    let answer = app
+        .call_tool(
+            "rekall_note",
+            json!({ "anchors": "project:vega task:report-builder", "title": "results.md", "body": "All green.", "replace": true }),
+        )
+        .await;
+
+    assert_contains!(answer, "Note \"Results.md\" on `project:vega task:report-builder` rewritten", "1 other task,");
+    let notes = app.documents_on(&task_id).await;
+    assert_eq!(notes.len(), 1, "rewritten in place, not added");
+    assert_eq!(notes[0]["id"], document_id.as_str());
+    assert_eq!(notes[0]["title"], "Results.md", "the title keeps the console's spelling");
+    assert_eq!(notes[0]["bodyMarkdown"], "All green.");
+    assert_eq!(app.documents_on(&other_id).await[0]["bodyMarkdown"], "All green.");
+
+    // With nothing to replace, `replace` adds the note.
+    assert_contains!(
+        app.call_tool(
+            "rekall_note",
+            json!({ "anchors": "project:vega task:report-builder", "title": "runbook.md", "body": "Step one.", "replace": "true" })
+        )
+        .await,
+        "written on `project:vega task:report-builder`",
+        "2 notes,"
+    );
 }
 
 // --- The path picker's folder listing

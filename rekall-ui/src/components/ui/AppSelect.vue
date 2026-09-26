@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useSlots } from 'vue'
+
 export type SelectOption = Readonly<{ value: string; label: string }>
 
 withDefaults(
@@ -14,6 +16,9 @@ withDefaults(
 )
 
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
+
+// A `trailing` slot sits inside the field, right-aligned before the chevron, and describes the chosen option.
+const slots = useSlots()
 </script>
 
 <template>
@@ -23,7 +28,8 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
       :value="modelValue ?? ''"
       :disabled="disabled"
       :aria-describedby="describedBy"
-      class="field text-text h-(--spacing-control) w-full cursor-pointer appearance-none rounded-[var(--radius-control)] pl-3 pr-9 text-[13px]"
+      class="field text-text h-(--spacing-control) w-full cursor-pointer appearance-none rounded-[var(--radius-control)] pl-3 text-[13px]"
+      :class="slots.trailing ? 'pr-28' : 'pr-9'"
       @change="emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
     >
       <option v-if="placeholder" value="">{{ placeholder }}</option>
@@ -31,6 +37,12 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
         {{ option.label }}
       </option>
     </select>
+    <span
+      v-if="slots.trailing"
+      class="pointer-events-none absolute right-9 top-1/2 flex -translate-y-1/2 items-center"
+    >
+      <slot name="trailing" />
+    </span>
     <svg
       class="pointer-events-none absolute right-3 top-1/2 size-3.5 -translate-y-1/2 text-text-subtle"
       viewBox="0 0 24 24"

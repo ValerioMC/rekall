@@ -26,6 +26,11 @@ impl<'a> Arguments<'a> {
         self.text(name).filter(|value| !rekall_common::jstr::is_blank(value))
     }
 
+    /// True only for `true` or `"true"`, any case; absent, null and anything else read as false.
+    pub fn flag(&self, name: &str) -> bool {
+        self.text(name).is_some_and(|value| rekall_common::jstr::strip(&value).eq_ignore_ascii_case("true"))
+    }
+
     fn text(&self, name: &str) -> Option<String> {
         json_rpc_text(self.node, name)
     }
