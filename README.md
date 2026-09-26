@@ -442,7 +442,7 @@ cargo test                                            # every crate but the desk
 cd rekall-ui && pnpm lint && pnpm typecheck && pnpm test
 ```
 
-Unit tests live apart from the code, in a `test/` folder beside each crate's `src/` that mirrors its packages: `rekall-service/src/search/search_service.rs` is tested by `rekall-service/test/search/search_service_tests.rs`, attached from the implementation with `#[cfg(test)] #[path = "…"] mod tests;` so it can still test private functions. `tests/` holds the integration suites. The end-to-end suites in `rekall-app/tests` start the whole application on a real port with a file database and drive the HTTP API, the MCP endpoint and the event stream; a stub stands in for the `claude` TUI in the terminal and run-queue tests.
+Each crate keeps its tests under `tests/`: `tests/unit/` mirrors `src/` (`rekall-service/src/search/search_service.rs` is tested by `rekall-service/tests/unit/search/search_service_tests.rs`, attached with `#[cfg(test)] #[path = "…"] mod tests;` so it can test private functions) and `tests/integration/` holds the integration suites. A new integration suite has to be declared as a `[[test]]` in the crate's `Cargo.toml`, or it never runs. The end-to-end suites in `rekall-app/tests/integration` start the whole application on a real port with a file database and drive the HTTP API, the MCP endpoint and the event stream; a stub stands in for the `claude` TUI in the terminal and run-queue tests.
 
 `.github/workflows/check.yml` runs all of it on every pull request and every push to a branch other than `main`: clippy and `cargo test`, eslint, vue-tsc, vitest, a production build of the UI, and a build of the desktop app. `release.yml` builds and publishes `main`.
 

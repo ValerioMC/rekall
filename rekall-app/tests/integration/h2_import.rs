@@ -41,7 +41,7 @@ fn h2_database(importer: &Importer, script: &Path, folder: &Path) -> PathBuf {
 }
 
 fn fixture(name: &str) -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures").join(name)
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/integration/fixtures").join(name)
 }
 
 async fn import(importer: &Importer, h2_file: &Path, target: &Path) -> rekall_app::h2::ImportReport {

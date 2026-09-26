@@ -93,5 +93,5 @@ impl AppConfig {
 }
 
 #[cfg(test)]
-#[path = "../../test/config/app_config_tests.rs"]
+#[path = "../../tests/unit/config/app_config_tests.rs"]
 mod tests;

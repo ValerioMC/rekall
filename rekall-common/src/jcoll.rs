@@ -41,5 +41,5 @@ pub fn hash_set_order<T>(items: Vec<T>, id_of: impl Fn(&T) -> Uuid) -> Vec<T> {
 }
 
 #[cfg(test)]
-#[path = "../test/jcoll_tests.rs"]
+#[path = "../tests/unit/jcoll_tests.rs"]
 mod tests;

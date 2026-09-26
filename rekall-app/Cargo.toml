@@ -46,3 +46,38 @@ async-trait.workspace = true
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
+
+# Integration suites live in tests/integration and unit tests in tests/unit, so Cargo discovers
+# neither by itself: each suite is declared here, and a suite left out of this list never runs.
+
+[[test]]
+name = "e2e_catalog"
+path = "tests/integration/e2e_catalog.rs"
+
+[[test]]
+name = "e2e_commits"
+path = "tests/integration/e2e_commits.rs"
+
+[[test]]
+name = "e2e_misc"
+path = "tests/integration/e2e_misc.rs"
+
+[[test]]
+name = "e2e_steps"
+path = "tests/integration/e2e_steps.rs"
+
+[[test]]
+name = "e2e_wrapup_time"
+path = "tests/integration/e2e_wrapup_time.rs"
+
+[[test]]
+name = "h2_import"
+path = "tests/integration/h2_import.rs"
+
+[[test]]
+name = "settings_backups"
+path = "tests/integration/settings_backups.rs"
+
+[[test]]
+name = "terminal_queue"
+path = "tests/integration/terminal_queue.rs"

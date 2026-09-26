@@ -79,5 +79,5 @@ fn truncate(text: &str) -> String {
 }
 
 #[cfg(test)]
-#[path = "../test/run_queue_item_tests.rs"]
+#[path = "../tests/unit/run_queue_item_tests.rs"]
 mod tests;

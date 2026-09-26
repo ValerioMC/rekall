@@ -81,5 +81,5 @@ pub fn is_writable(path: &Path) -> bool {
 }
 
 #[cfg(test)]
-#[path = "../../test/bootstrap/folder_tests.rs"]
+#[path = "../../tests/unit/bootstrap/folder_tests.rs"]
 mod tests;

@@ -36,5 +36,5 @@ impl DatabaseRegistryStore {
 }
 
 #[cfg(test)]
-#[path = "../../../test/bootstrap/registry/database_registry_store_tests.rs"]
+#[path = "../../../tests/unit/bootstrap/registry/database_registry_store_tests.rs"]
 mod tests;

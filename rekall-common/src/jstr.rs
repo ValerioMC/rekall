@@ -264,5 +264,5 @@ pub fn lower(text: &str) -> String {
 }
 
 #[cfg(test)]
-#[path = "../test/jstr_tests.rs"]
+#[path = "../tests/unit/jstr_tests.rs"]
 mod tests;

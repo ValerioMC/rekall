@@ -16,3 +16,10 @@ async-trait.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
+
+# Integration suites live in tests/integration and unit tests in tests/unit, so Cargo discovers
+# neither by itself: each suite is declared here, and a suite left out of this list never runs.
+
+[[test]]
+name = "migrations"
+path = "tests/integration/migrations.rs"

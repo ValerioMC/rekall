@@ -29,3 +29,18 @@ libc = "0.2"
 
 [dev-dependencies]
 tokio-tungstenite = "0.29"
+
+# Integration suites live in tests/integration and unit tests in tests/unit, so Cargo discovers
+# neither by itself: each suite is declared here, and a suite left out of this list never runs.
+
+[[test]]
+name = "run_queue"
+path = "tests/integration/run_queue.rs"
+
+[[test]]
+name = "socket"
+path = "tests/integration/socket.rs"
+
+[[test]]
+name = "terminal"
+path = "tests/integration/terminal.rs"

@@ -100,5 +100,5 @@ fn frame(name: &str, data: &str) -> Bytes {
 }
 
 #[cfg(test)]
-#[path = "../test/stream_tests.rs"]
+#[path = "../tests/unit/stream_tests.rs"]
 mod tests;

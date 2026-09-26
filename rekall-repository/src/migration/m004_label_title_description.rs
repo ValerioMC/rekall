@@ -98,5 +98,5 @@ changeset!(TaskLabelAndTitle, "004-task-label-and-title", |manager| {
 });
 
 #[cfg(test)]
-#[path = "../../test/migration/m004_label_title_description_tests.rs"]
+#[path = "../../tests/unit/migration/m004_label_title_description_tests.rs"]
 mod tests;

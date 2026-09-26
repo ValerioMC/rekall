@@ -260,5 +260,5 @@ fn run_process(command: &[String], environment: &HashMap<String, String>, direct
 }
 
 #[cfg(test)]
-#[path = "../../../test/bootstrap/installer/claude_code_installer_tests.rs"]
+#[path = "../../../tests/unit/bootstrap/installer/claude_code_installer_tests.rs"]
 mod tests;

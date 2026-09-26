@@ -58,5 +58,5 @@ fn adopt_legacy_folder(config: &AppConfig) -> DatabaseRegistry {
 }
 
 #[cfg(test)]
-#[path = "../../../test/bootstrap/location/location_resolver_tests.rs"]
+#[path = "../../../tests/unit/bootstrap/location/location_resolver_tests.rs"]
 mod tests;

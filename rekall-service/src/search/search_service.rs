@@ -152,5 +152,5 @@ pub fn excerpt(text: Option<&str>, term: &str) -> String {
 }
 
 #[cfg(test)]
-#[path = "../../test/search/search_service_tests.rs"]
+#[path = "../../tests/unit/search/search_service_tests.rs"]
 mod tests;

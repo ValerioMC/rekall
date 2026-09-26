@@ -80,5 +80,5 @@ fn unquote(value: &str) -> String {
 }
 
 #[cfg(test)]
-#[path = "../../test/tool/anchor_tests.rs"]
+#[path = "../../tests/unit/tool/anchor_tests.rs"]
 mod tests;

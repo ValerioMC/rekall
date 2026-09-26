@@ -188,5 +188,5 @@ pub fn delete_quietly(file: &Path) {
 }
 
 #[cfg(test)]
-#[path = "../../test/backup/database_restore_service_tests.rs"]
+#[path = "../../tests/unit/backup/database_restore_service_tests.rs"]
 mod tests;

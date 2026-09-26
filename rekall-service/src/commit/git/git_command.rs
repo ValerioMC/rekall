@@ -70,5 +70,5 @@ pub(super) const COMMAND_TIMEOUT: Duration = Duration::from_secs(15);
 pub(super) const READ_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[cfg(test)]
-#[path = "../../../test/commit/git/git_command_tests.rs"]
+#[path = "../../../tests/unit/commit/git/git_command_tests.rs"]
 mod tests;

@@ -268,5 +268,5 @@ fn unique(used: &mut HashSet<String>, name: String) -> String {
 }
 
 #[cfg(test)]
-#[path = "../../test/service/export_service_tests.rs"]
+#[path = "../../tests/unit/service/export_service_tests.rs"]
 mod tests;

@@ -83,5 +83,5 @@ fn search_path(path: Option<&str>) -> Vec<String> {
 }
 
 #[cfg(test)]
-#[path = "../../test/cli/claude_cli_tests.rs"]
+#[path = "../../tests/unit/cli/claude_cli_tests.rs"]
 mod tests;

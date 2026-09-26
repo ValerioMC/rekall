@@ -148,5 +148,5 @@ fn is_same_origin(origin: &str, host_header: Option<&str>) -> bool {
 }
 
 #[cfg(test)]
-#[path = "../test/security_tests.rs"]
+#[path = "../tests/unit/security_tests.rs"]
 mod tests;

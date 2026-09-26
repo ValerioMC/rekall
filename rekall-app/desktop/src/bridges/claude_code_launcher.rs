@@ -121,5 +121,5 @@ fn open_terminal(_file: &Path) -> Result<String, String> {
 }
 
 #[cfg(test)]
-#[path = "../../test/bridges/claude_code_launcher_tests.rs"]
+#[path = "../../tests/unit/bridges/claude_code_launcher_tests.rs"]
 mod tests;
