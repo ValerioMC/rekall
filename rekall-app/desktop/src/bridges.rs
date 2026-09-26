@@ -14,9 +14,10 @@
 //! handler did.
 
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
 use serde::Deserialize;
-use tauri::{AppHandle, Runtime, WebviewWindow};
+use tauri::{AppHandle, PhysicalPosition, PhysicalRect, PhysicalSize, Runtime, State, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_notification::{NotificationExt, PermissionState};
 
@@ -264,10 +265,80 @@ pub fn minimize_window<R: Runtime>(window: WebviewWindow<R>) -> Result<(), Strin
     window.minimize().map_err(|e| e.to_string())
 }
 
+/// Where the window sat before it was last grown to fill its monitor's work area: `Some` is what
+/// the next click restores, `None` means it is already at that restored size. Tracked here rather
+/// than asked of the window with `is_maximized`/`maximize`/`unmaximize`, because those delegate to
+/// AppKit's native zoom, which on macOS only recognises a titled window as "zoomed" — for a
+/// borderless one (`decorations(false)`, see `main.rs`) it falls back to comparing the window's
+/// frame to the screen's visible area, so the first click after launch only established that the
+/// window was not really zoomed and it took a second click to grow it. Growing and restoring the
+/// window directly, from a size this struct remembers itself, sidesteps that native path entirely.
+#[derive(Default)]
+pub struct WindowGeometry(Mutex<Option<(PhysicalPosition<i32>, PhysicalSize<u32>)>>);
+
+impl WindowGeometry {
+    fn grow<R: Runtime>(
+        &self,
+        window: &WebviewWindow<R>,
+        area: PhysicalRect<i32, u32>,
+        restore: (PhysicalPosition<i32>, PhysicalSize<u32>),
+    ) -> Result<(), String> {
+        *self.0.lock().unwrap() = Some(restore);
+        // Size first: macOS positions a window from its bottom-left corner, so computing where
+        // the top-left ends up (`set_position`) has to happen after the height it is based on is
+        // already correct — setting the position first placed the top edge using the window's
+        // still-old height, then growing it afterwards pushed that edge further up the screen.
+        window.set_size(area.size).map_err(|e| e.to_string())?;
+        window.set_position(area.position).map_err(|e| e.to_string())
+    }
+}
+
+/// Grows `window` to its monitor's work area and remembers its current size to restore later.
+/// Called once at startup (`main.rs`) so the window opens filling the screen, the same way
+/// `toggle_maximize_window` grows it from the console's own maximize button. Returns that work
+/// area, so a caller showing a still-hidden window can wait for the (asynchronously applied,
+/// and not necessarily applied to position and size in the same instant) resize to actually
+/// land there first.
+pub fn open_maximized<R: Runtime>(window: &WebviewWindow<R>, geometry: &WindowGeometry) -> Result<PhysicalRect<i32, u32>, String> {
+    let restore = (window.outer_position().map_err(|e| e.to_string())?, window.inner_size().map_err(|e| e.to_string())?);
+    let area = work_area(window)?;
+    geometry.grow(window, area, restore)?;
+    Ok(area)
+}
+
 #[tauri::command]
-pub fn toggle_maximize_window<R: Runtime>(window: WebviewWindow<R>) -> Result<(), String> {
-    let maximized = window.is_maximized().map_err(|e| e.to_string())?;
-    if maximized { window.unmaximize() } else { window.maximize() }.map_err(|e| e.to_string())
+pub fn toggle_maximize_window<R: Runtime>(window: WebviewWindow<R>, geometry: State<'_, WindowGeometry>) -> Result<(), String> {
+    match geometry.0.lock().unwrap().take() {
+        Some((position, size)) => {
+            // Size before position, for the same reason `grow` does: the window's height at the
+            // moment of the call is what its top-left position is computed against.
+            window.set_size(size).map_err(|e| e.to_string())?;
+            window.set_position(position).map_err(|e| e.to_string())
+        }
+        None => {
+            let restore = (window.outer_position().map_err(|e| e.to_string())?, window.inner_size().map_err(|e| e.to_string())?);
+            geometry.grow(&window, work_area(&window)?, restore)
+        }
+    }
+}
+
+/// The screen area under the window right now, minus the menu bar and the Dock. `None` from
+/// `current_monitor` means no monitor claims the window, which a real desktop never does.
+fn work_area<R: Runtime>(window: &WebviewWindow<R>) -> Result<PhysicalRect<i32, u32>, String> {
+    let monitor = window.current_monitor().map_err(|e| e.to_string())?;
+    monitor.map(|monitor| *monitor.work_area()).ok_or_else(|| "No monitor is showing this window".to_string())
+}
+
+/// AppKit only grants native full screen (the View menu's "Enter Full Screen", `^⌘F`, and the
+/// hidden green-button equivalent) to a window whose collection behavior says it supports one; a
+/// titled window gets that for free, but this one has no title bar (`decorations(false)` in
+/// `main.rs`), so without this the menu item and shortcut both silently do nothing.
+#[cfg(target_os = "macos")]
+pub fn allow_native_fullscreen<R: Runtime>(window: &WebviewWindow<R>) -> tauri::Result<()> {
+    use objc2_app_kit::{NSWindow, NSWindowCollectionBehavior};
+    let ns_window: &NSWindow = unsafe { &*window.ns_window()?.cast() };
+    ns_window.setCollectionBehavior(ns_window.collectionBehavior() | NSWindowCollectionBehavior::FullScreenPrimary);
+    Ok(())
 }
 
 fn expand_tilde(path: &str) -> PathBuf {

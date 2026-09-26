@@ -86,6 +86,7 @@ fn main() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
         .manage(Arc::new(Shell::default()))
+        .manage(bridges::WindowGeometry::default())
         .invoke_handler(tauri::generate_handler![
             bridges::pick_folder,
             bridges::open_in_claude_code,
@@ -174,7 +175,9 @@ fn build_window(handle: &AppHandle) -> tauri::Result<WebviewWindow> {
         .inner_size(1440.0, 900.0)
         .min_inner_size(960.0, 600.0)
         .center()
-        .maximized(true)
+        // Hidden until `open_maximized` below has already grown it to the screen, so the window
+        // never flashes at this windowed size first.
+        .visible(false)
         .theme(Some(tauri::Theme::Dark))
         .background_color(tauri::window::Color(8, 9, 12, 255))
         .shadow(false)
@@ -222,7 +225,37 @@ fn build_window(handle: &AppHandle) -> tauri::Result<WebviewWindow> {
     // from Tauri's own drag-region handling.
     #[cfg(target_os = "macos")]
     let builder = builder.decorations(false);
-    builder.build()
+    let window = builder.build()?;
+    #[cfg(target_os = "macos")]
+    if let Err(error) = bridges::allow_native_fullscreen(&window) {
+        error!("Could not enable native full screen: {error}");
+    }
+    match bridges::open_maximized(&window, &handle.state::<bridges::WindowGeometry>()) {
+        Ok(area) => {
+            let window = window.clone();
+            tauri::async_runtime::spawn(async move {
+                // macOS applies the resize just issued on its own next pass through the run
+                // loop rather than immediately, and position and size do not necessarily land
+                // in that same pass together, so showing the window here would still risk
+                // catching it mid-move. Wait for both to reach the target (a half-second cap in
+                // case they somehow never do) before revealing it.
+                for _ in 0..50 {
+                    let there = window.outer_position().is_ok_and(|p| p == area.position)
+                        && window.inner_size().is_ok_and(|s| s == area.size);
+                    if there {
+                        break;
+                    }
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                }
+                let _ = window.show();
+            });
+        }
+        Err(error) => {
+            error!("Could not open the window maximized: {error}");
+            window.show()?;
+        }
+    }
+    Ok(window)
 }
 
 fn is_local(url: &Url) -> bool {

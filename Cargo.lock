@@ -4137,6 +4137,8 @@ name = "rekall-desktop"
 version = "0.1.0"
 dependencies = [
  "dirs",
+ "objc2",
+ "objc2-app-kit",
  "rekall-app",
  "reqwest 0.12.28",
  "serde",
