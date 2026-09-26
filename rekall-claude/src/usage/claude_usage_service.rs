@@ -205,5 +205,5 @@ fn severity_of(percent: f64) -> Severity {
 }
 
 #[cfg(test)]
-#[path = "claude_usage_service_tests.rs"]
+#[path = "../../test/usage/claude_usage_service_tests.rs"]
 mod tests;

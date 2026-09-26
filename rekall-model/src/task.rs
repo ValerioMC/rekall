@@ -165,5 +165,5 @@ impl Model {
 }
 
 #[cfg(test)]
-#[path = "task_tests.rs"]
+#[path = "../test/task_tests.rs"]
 mod tests;

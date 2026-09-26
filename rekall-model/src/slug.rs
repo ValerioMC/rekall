@@ -41,5 +41,5 @@ impl Slug {
 }
 
 #[cfg(test)]
-#[path = "slug_tests.rs"]
+#[path = "../test/slug_tests.rs"]
 mod tests;

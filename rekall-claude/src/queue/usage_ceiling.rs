@@ -88,5 +88,5 @@ fn counts(window_key: &str, model: Option<&str>) -> bool {
 }
 
 #[cfg(test)]
-#[path = "usage_ceiling_tests.rs"]
+#[path = "../../test/queue/usage_ceiling_tests.rs"]
 mod tests;

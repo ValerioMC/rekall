@@ -178,5 +178,5 @@ fn text(path: &Path) -> String {
 }
 
 #[cfg(test)]
-#[path = "directory_listing_service_tests.rs"]
+#[path = "../../test/service/directory_listing_service_tests.rs"]
 mod tests;

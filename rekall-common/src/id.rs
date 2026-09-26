@@ -69,5 +69,5 @@ impl sea_orm::TryFromU64 for Id {
 }
 
 #[cfg(test)]
-#[path = "id_tests.rs"]
+#[path = "../test/id_tests.rs"]
 mod tests;

@@ -42,5 +42,5 @@ impl PendingChange {
 }
 
 #[cfg(test)]
-#[path = "pending_change_tests.rs"]
+#[path = "../../../test/commit/git/pending_change_tests.rs"]
 mod tests;

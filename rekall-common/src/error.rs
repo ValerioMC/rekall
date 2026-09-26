@@ -122,5 +122,5 @@ fn integrity_cause(text: &str) -> Option<String> {
 }
 
 #[cfg(test)]
-#[path = "error_tests.rs"]
+#[path = "../test/error_tests.rs"]
 mod tests;

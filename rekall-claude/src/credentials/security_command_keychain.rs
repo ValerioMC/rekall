@@ -99,5 +99,5 @@ fn run(command: &[&str]) -> Option<String> {
 }
 
 #[cfg(test)]
-#[path = "security_command_keychain_tests.rs"]
+#[path = "../../test/credentials/security_command_keychain_tests.rs"]
 mod tests;

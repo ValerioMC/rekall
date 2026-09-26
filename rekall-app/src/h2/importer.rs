@@ -423,5 +423,5 @@ fn parse_csv(text: &str) -> Vec<Vec<Option<String>>> {
 }
 
 #[cfg(test)]
-#[path = "importer_tests.rs"]
+#[path = "../../test/h2/importer_tests.rs"]
 mod tests;

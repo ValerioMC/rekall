@@ -32,5 +32,5 @@ impl std::fmt::Display for TerminalMode {
 }
 
 #[cfg(test)]
-#[path = "terminal_mode_tests.rs"]
+#[path = "../../test/terminal/terminal_mode_tests.rs"]
 mod tests;

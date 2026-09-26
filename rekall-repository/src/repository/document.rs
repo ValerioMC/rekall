@@ -178,5 +178,5 @@ fn like(text: &[char], pattern: &[char]) -> bool {
 }
 
 #[cfg(test)]
-#[path = "document_tests.rs"]
+#[path = "../../test/repository/document_tests.rs"]
 mod tests;

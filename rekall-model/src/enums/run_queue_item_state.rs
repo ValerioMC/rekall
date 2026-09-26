@@ -21,5 +21,5 @@ impl RunQueueItemState {
 }
 
 #[cfg(test)]
-#[path = "run_queue_item_state_tests.rs"]
+#[path = "../../test/enums/run_queue_item_state_tests.rs"]
 mod tests;

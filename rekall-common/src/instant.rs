@@ -145,5 +145,5 @@ impl<'de> Deserialize<'de> for Instant {
 }
 
 #[cfg(test)]
-#[path = "instant_tests.rs"]
+#[path = "../test/instant_tests.rs"]
 mod tests;

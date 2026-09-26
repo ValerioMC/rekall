@@ -212,5 +212,5 @@ pub fn is_executable(path: &std::path::Path) -> bool {
 }
 
 #[cfg(test)]
-#[path = "login_shell_tests.rs"]
+#[path = "../test/login_shell_tests.rs"]
 mod tests;

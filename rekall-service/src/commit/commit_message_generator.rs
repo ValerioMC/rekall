@@ -281,5 +281,5 @@ fn collapsed(text: Option<&str>) -> String {
 }
 
 #[cfg(test)]
-#[path = "commit_message_generator_tests.rs"]
+#[path = "../../test/commit/commit_message_generator_tests.rs"]
 mod tests;

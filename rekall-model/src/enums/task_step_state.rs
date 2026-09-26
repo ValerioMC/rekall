@@ -32,5 +32,5 @@ impl TaskStepState {
 }
 
 #[cfg(test)]
-#[path = "task_step_state_tests.rs"]
+#[path = "../../test/enums/task_step_state_tests.rs"]
 mod tests;

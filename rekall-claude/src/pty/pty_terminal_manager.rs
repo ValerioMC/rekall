@@ -495,5 +495,5 @@ fn normalise(value: Option<&str>, allowed: &[&str]) -> Option<String> {
 }
 
 #[cfg(test)]
-#[path = "pty_terminal_manager_tests.rs"]
+#[path = "../../test/pty/pty_terminal_manager_tests.rs"]
 mod tests;

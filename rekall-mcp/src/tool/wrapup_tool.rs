@@ -107,5 +107,5 @@ fn length_nudge(body: &str) -> Option<String> {
 }
 
 #[cfg(test)]
-#[path = "wrapup_tool_tests.rs"]
+#[path = "../../test/tool/wrapup_tool_tests.rs"]
 mod tests;

@@ -203,5 +203,5 @@ fn feed(state: &ClaudeState, terminal_id: Id, bytes: &[u8], sender: &mpsc::Unbou
 }
 
 #[cfg(test)]
-#[path = "socket_controller_tests.rs"]
+#[path = "../../test/socket/socket_controller_tests.rs"]
 mod tests;

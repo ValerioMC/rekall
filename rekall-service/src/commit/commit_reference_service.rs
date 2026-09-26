@@ -246,5 +246,5 @@ fn truncated_diff(diff: Option<&str>) -> Option<String> {
 }
 
 #[cfg(test)]
-#[path = "commit_reference_service_tests.rs"]
+#[path = "../../test/commit/commit_reference_service_tests.rs"]
 mod tests;
