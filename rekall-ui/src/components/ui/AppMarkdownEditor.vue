@@ -237,6 +237,7 @@ const TOOLBARS: ToolbarNames[] = [
       v-if="readonly"
       :model-value="modelValue"
       :editor-id="editorId"
+      language="en-US"
       theme="dark"
       preview-theme="github"
       code-theme="atom"
@@ -548,6 +549,14 @@ const TOOLBARS: ToolbarNames[] = [
   padding: 0;
   font-size: 12.5px;
   white-space: pre;
+}
+
+/* md-editor-v3's default row-number gutter sits at `top: 1em`, a push-down it needs only in the
+   bundled preview themes (vuepress, cyanosis, ...) that stack a header row inside the same <pre>.
+   Ours (github) doesn't, so the un-patched 1em default leaves every gutter number a full line
+   below the code line it labels. */
+.rekall-md .md-editor-preview pre code span[rn-wrapper] {
+  top: 0;
 }
 
 .rekall-md .md-editor-preview blockquote {
