@@ -1,16 +1,20 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/stores/terminal.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { preferredEffort, preferredModel, skipsPermissions } from '@/common/config/claude-launch'
 import { useToastStore } from '@/stores/toast.store'
+import { sessionAtWork } from '@/model/session-at-work'
 import type { TaskId, TaskStepId } from '@/model/branded'
 
 /**
  * Starts the task's session without leaving the pane it was pressed on; the sessions dock is the
- * way back to it. The launch is one glyph that changes: `idle` a play mark, `launching` the mark
- * runs out through the button's edge, `waiting` an open ring turning while the server answers,
- * `done` the ring closing on a check. The button keeps its width throughout.
+ * way back to it. One glyph that changes: `idle` a play mark, `launching` the mark runs out
+ * through the edge, `waiting` an open ring turning while the server answers, `done` the ring
+ * closing on a check, `working` a comet orbiting until the session claims the work or ends. Only
+ * `idle` takes a press, and the button keeps its width throughout.
  */
 const props = withDefaults(
   defineProps<{
@@ -23,21 +27,48 @@ const props = withDefaults(
 )
 
 type LaunchPhase = 'idle' | 'launching' | 'waiting' | 'done'
+type ButtonPhase = LaunchPhase | 'working'
 
 /** Long enough for the play mark to clear the button before the ring takes its place. */
 const TRAVEL_MS = 380
-const DONE_HOLD_MS = 2200
+const DONE_HOLD_MS = 1200
+/** How long `working` holds after a launch while the server's RUNNING mark is still on its way. */
+const HANDOFF_MS = 8000
 
+const console_ = useConsoleStore()
 const terminals = useTerminalStore()
 const toast = useToastStore()
 const { run } = useAsyncAction()
+const { tasks, steps } = storeToRefs(console_)
+const { terminals: openTerminals } = storeToRefs(terminals)
 
-const phase = ref<LaunchPhase>('idle')
-const hasLaunched = ref(false)
+const launchPhase = ref<LaunchPhase>('idle')
+const handingOff = ref(false)
+const returning = ref(false)
 const pendingTimers = new Set<number>()
 
 const ready = computed(() => Boolean(props.folder))
+const atWork = computed(() =>
+  sessionAtWork(
+    tasks.value.find((task) => task.id === props.taskId) ?? null,
+    steps.value,
+    openTerminals.value,
+    props.stepId
+  )
+)
+const phase = computed<ButtonPhase>(() => {
+  if (launchPhase.value !== 'idle') return launchPhase.value
+  return atWork.value || handingOff.value ? 'working' : 'idle'
+})
 const busy = computed(() => phase.value !== 'idle')
+
+watch(atWork, (working) => {
+  if (working) handingOff.value = false
+})
+
+watch(phase, (next, previous) => {
+  returning.value = next === 'idle' && previous !== 'idle'
+})
 
 function pause(milliseconds: number): Promise<void> {
   return new Promise((resolve) => {
@@ -55,8 +86,7 @@ async function launch(): Promise<void> {
     toast.notifyError(new Error(props.missingHint))
     return
   }
-  phase.value = 'launching'
-  hasLaunched.value = true
+  launchPhase.value = 'launching'
   const opening = run(() =>
     terminals.openForTask(props.taskId, {
       stepId: props.stepId,
@@ -67,15 +97,20 @@ async function launch(): Promise<void> {
   )
   await pause(TRAVEL_MS)
   // Painted only if the server is still answering: a settled `opening` moves on in the same tick.
-  phase.value = 'waiting'
+  launchPhase.value = 'waiting'
   const opened = await opening
   if (opened === null) {
-    phase.value = 'idle'
+    launchPhase.value = 'idle'
     return
   }
-  phase.value = 'done'
+  launchPhase.value = 'done'
   await pause(DONE_HOLD_MS)
-  phase.value = 'idle'
+  handingOff.value = !atWork.value
+  launchPhase.value = 'idle'
+  if (handingOff.value) {
+    await pause(HANDOFF_MS)
+    handingOff.value = false
+  }
 }
 
 onBeforeUnmount(() => {
@@ -95,26 +130,52 @@ onBeforeUnmount(() => {
           ? 'border-accent bg-accent-soft text-accent'
           : 'border-transparent bg-transparent text-text-subtle hover:bg-surface-raised hover:text-text-muted',
       ready && phase === 'idle' && 'hover:bg-accent hover:text-accent-ink',
+      phase === 'working' && 'run-working',
       busy && 'cursor-default'
     ]"
-    :aria-busy="phase === 'launching' || phase === 'waiting'"
+    :aria-busy="busy"
     :aria-disabled="busy"
+    :title="phase === 'working' ? 'Claude is working on this. It returns once the work is claimed or the session ends.' : undefined"
     :data-phase="phase"
     data-testid="open-terminal"
     @click="launch"
   >
-    <svg
-      class="size-3.5"
-      :class="phase === 'idle' ? hasLaunched && 'run-play-return' : 'run-play-away'"
-      viewBox="0 0 12 12"
-      aria-hidden="true"
-    >
-      <path
-        d="M3.4 1.9c0-.6.66-.97 1.17-.65l5.9 3.75c.47.3.47.99 0 1.29l-5.9 3.76c-.51.32-1.17-.05-1.17-.65Z"
-        fill="currentColor"
-      />
-    </svg>
-    <span :class="phase === 'idle' ? hasLaunched && 'run-label-return' : 'run-label-away'">Run here</span>
+    <span class="grid size-3.5 [&>*]:[grid-area:1/1]">
+      <svg
+        class="size-3.5"
+        :class="{
+          'run-play-return': phase === 'idle' && returning,
+          'run-play-away': phase !== 'idle' && phase !== 'working',
+          invisible: phase === 'working'
+        }"
+        viewBox="0 0 12 12"
+        aria-hidden="true"
+      >
+        <path
+          d="M3.4 1.9c0-.6.66-.97 1.17-.65l5.9 3.75c.47.3.47.99 0 1.29l-5.9 3.76c-.51.32-1.17-.05-1.17-.65Z"
+          fill="currentColor"
+        />
+      </svg>
+      <svg v-if="phase === 'working'" class="run-orbit size-3.5" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+        <circle class="run-orbit-track" cx="7" cy="7" r="5.6" />
+        <g class="run-orbit-comet">
+          <circle class="run-orbit-tail" cx="7" cy="7" r="5.6" pathLength="100" />
+          <circle class="run-orbit-head" cx="7" cy="7" r="5.6" pathLength="100" />
+        </g>
+        <circle class="run-orbit-core" cx="7" cy="7" r="1.7" />
+      </svg>
+    </span>
+    <span class="grid [&>*]:[grid-area:1/1]">
+      <span
+        :class="{
+          'run-label-return': phase === 'idle' && returning,
+          'run-label-away': phase !== 'idle' && phase !== 'working',
+          invisible: phase === 'working'
+        }"
+        >Run here</span
+      >
+      <span :class="phase === 'working' ? 'run-label-in' : 'invisible'" aria-hidden="true">Working</span>
+    </span>
 
     <span
       v-if="phase === 'waiting' || phase === 'done'"
@@ -146,7 +207,9 @@ onBeforeUnmount(() => {
       </svg>
     </span>
 
-    <span class="sr-only" aria-live="polite">{{ phase === 'done' ? 'Session started' : '' }}</span>
+    <span class="sr-only" aria-live="polite">{{
+      phase === 'done' ? 'Session started' : phase === 'working' ? 'Claude is working' : ''
+    }}</span>
   </button>
 </template>
 
@@ -189,6 +252,59 @@ onBeforeUnmount(() => {
   animation: run-check-draw 240ms cubic-bezier(0.3, 0.7, 0.2, 1) 220ms forwards;
 }
 
+/* The seal's RUNNING motion at button size: a comet orbits a faint track and the core breathes. */
+.run-working {
+  border-color: color-mix(in srgb, var(--color-accent) 38%, transparent);
+}
+
+.run-orbit {
+  animation: fade-in 260ms ease-out both;
+}
+
+.run-orbit-track {
+  stroke: color-mix(in srgb, var(--color-accent) 26%, transparent);
+  stroke-width: 1.2;
+}
+
+.run-orbit-comet {
+  transform-box: view-box;
+  transform-origin: 7px 7px;
+  animation: run-orbit 1.7s linear infinite;
+}
+
+.run-orbit-tail,
+.run-orbit-head {
+  stroke-linecap: round;
+  transform-box: view-box;
+  transform-origin: 7px 7px;
+  transform: rotate(-90deg);
+}
+
+.run-orbit-tail {
+  stroke: color-mix(in srgb, var(--color-accent) 70%, transparent);
+  stroke-width: 1.4;
+  stroke-dasharray: 25 75;
+}
+
+/* The head rides the leading end of the tail. */
+.run-orbit-head {
+  stroke: var(--color-accent-strong);
+  stroke-width: 2;
+  stroke-dasharray: 5 95;
+  stroke-dashoffset: -20;
+}
+
+.run-orbit-core {
+  fill: var(--color-accent);
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: run-breathe 1.7s ease-in-out infinite;
+}
+
+.run-label-in {
+  animation: fade-in 260ms ease-out both;
+}
+
 .run-done {
   background: color-mix(in srgb, var(--color-safe) 12%, transparent);
   border-color: color-mix(in srgb, var(--color-safe) 30%, transparent);
@@ -223,6 +339,19 @@ onBeforeUnmount(() => {
   to {
     stroke-dashoffset: 0;
     transform: rotate(0deg);
+  }
+}
+
+@keyframes run-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes run-breathe {
+  50% {
+    transform: scale(0.7);
+    opacity: 0.6;
   }
 }
 

@@ -4,6 +4,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import OpenTerminalButton from '@/components/claude/OpenTerminalButton.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useToastStore } from '@/stores/toast.store'
+import type { Task, TaskStep } from '@/model/catalog'
 import type { Terminal } from '@/model/terminal'
 import type { TaskId, TaskStepId, TerminalId } from '@/model/branded'
 
@@ -17,6 +18,16 @@ vi.mock('@/api/terminal.api', () => ({
 }))
 
 const TASK = 't-1' as TaskId
+const STEP = 's-1' as TaskStepId
+
+/** Only what the button reads of a task and a step; the rest of the record plays no part. */
+function checklistTask(): Task {
+  return { id: TASK, reviewActive: false, reviewState: 'OPEN' } as Task
+}
+
+function step(state: TaskStep['state']): TaskStep {
+  return { id: STEP, taskId: TASK, state } as TaskStep
+}
 
 function terminal(): Terminal {
   return {
@@ -37,8 +48,8 @@ function terminal(): Terminal {
   }
 }
 
-function mountButton(folder: string | null = '/code/vega') {
-  return mount(OpenTerminalButton, { props: { taskId: TASK, folder } })
+function mountButton(folder: string | null = '/code/vega', stepId: TaskStepId | null = null) {
+  return mount(OpenTerminalButton, { props: { taskId: TASK, folder, stepId } })
 }
 
 describe('the Run here button', () => {
@@ -62,7 +73,7 @@ describe('the Run here button', () => {
     expect(openPane).not.toHaveBeenCalled()
   })
 
-  it('runs the play mark out, then closes the ring on a check, then returns to rest', async () => {
+  it('runs the play mark out, then closes the ring on a check, then shows the work in progress', async () => {
     openTerminal.mockResolvedValue(terminal())
     const wrapper = mountButton()
     const button = wrapper.get('[data-testid="open-terminal"]')
@@ -74,7 +85,53 @@ describe('the Run here button', () => {
     expect(button.attributes('data-phase')).toBe('done')
     expect(wrapper.find('.run-check').exists()).toBe(true)
 
-    await vi.advanceTimersByTimeAsync(2200)
+    await vi.advanceTimersByTimeAsync(1200)
+    expect(button.attributes('data-phase')).toBe('working')
+    expect(wrapper.find('.run-orbit').exists()).toBe(true)
+  })
+
+  /** The server's RUNNING mark may trail the launch; if it never comes, the button is not stuck. */
+  it('returns to rest when no session is reported at work after the launch', async () => {
+    openTerminal.mockResolvedValue(terminal())
+    const button = mountButton().get('[data-testid="open-terminal"]')
+
+    await button.trigger('click')
+    await vi.advanceTimersByTimeAsync(380 + 1200 + 8000)
+
+    expect(button.attributes('data-phase')).toBe('idle')
+  })
+
+  it('stays working while its step runs, refuses a press, and returns once the step is claimed', async () => {
+    const console_ = useConsoleStore()
+    console_.tasks = [checklistTask()]
+    console_.steps = [step('RUNNING')]
+    const wrapper = mountButton('/code/vega', STEP)
+    const button = wrapper.get('[data-testid="open-terminal"]')
+    expect(button.attributes('data-phase')).toBe('working')
+
+    await button.trigger('click')
+    expect(openTerminal).not.toHaveBeenCalled()
+
+    console_.applyStepEvent(TASK, [step('CLAIMED')])
+    await flushPromises()
+    expect(button.attributes('data-phase')).toBe('idle')
+    expect(button.text()).toContain('Run here')
+  })
+
+  it('hands the launch over to the step once the server marks it running', async () => {
+    openTerminal.mockResolvedValue({ ...terminal(), stepId: STEP })
+    const console_ = useConsoleStore()
+    console_.tasks = [checklistTask()]
+    console_.steps = [step('OPEN')]
+    const button = mountButton('/code/vega', STEP).get('[data-testid="open-terminal"]')
+
+    await button.trigger('click')
+    console_.applyStepEvent(TASK, [step('RUNNING')])
+    await vi.advanceTimersByTimeAsync(380 + 1200)
+    expect(button.attributes('data-phase')).toBe('working')
+
+    console_.applyStepEvent(TASK, [step('CLAIMED')])
+    await flushPromises()
     expect(button.attributes('data-phase')).toBe('idle')
   })
 
