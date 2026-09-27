@@ -348,6 +348,60 @@ async fn shutdown_stops_every_open_timer() {
     assert!(entries.iter().all(|e| e.stopped_at.is_some()));
 }
 
+async fn running_entries(world: &support::World) -> usize {
+    let entries = rekall_model::time_entry::Entity::find().all(world.db()).await.unwrap();
+    entries.iter().filter(|e| e.stopped_at.is_none()).count()
+}
+
+#[tokio::test]
+async fn accepting_a_claimed_step_stops_the_tasks_timer() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let task = world.task(&project, "report").await;
+    let step = world.step(&task, "export", 0, TaskStepState::Claimed).await;
+    world.services.time_entries.start(task.id).await.unwrap();
+
+    world.services.steps.edit(step.id, None, None, Some(true), None).await.unwrap();
+
+    assert_eq!(running_entries(&world).await, 0);
+}
+
+#[tokio::test]
+async fn ticking_an_open_step_by_hand_keeps_the_timer_running() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let task = world.task(&project, "report").await;
+    let step = world.step(&task, "export", 0, TaskStepState::Open).await;
+    world.services.time_entries.start(task.id).await.unwrap();
+
+    world.services.steps.edit(step.id, None, None, Some(true), None).await.unwrap();
+
+    assert_eq!(running_entries(&world).await, 1);
+}
+
+#[tokio::test]
+async fn accepting_a_claimed_stepless_task_stops_its_timer_and_accepting_an_unclaimed_one_does_not() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let claimed = world.task(&project, "claimed").await;
+    let open = world.task(&project, "open").await;
+    let mut row = claimed.clone();
+    row.mark_review_state(TaskStepState::Claimed);
+    row.into_active_model().reset_all().update(world.db()).await.unwrap();
+    world.services.time_entries.start(claimed.id).await.unwrap();
+    world.services.time_entries.start(open.id).await.unwrap();
+
+    let mut tx = rekall_service::Tx::write(&world.services.ctx).await.unwrap();
+    world.services.review.accept_in(&mut tx, claimed.id).await.unwrap();
+    world.services.review.accept_in(&mut tx, open.id).await.unwrap();
+    tx.commit().await.unwrap();
+
+    let entries = rekall_model::time_entry::Entity::find().all(world.db()).await.unwrap();
+    let stopped = |task_id: Id| entries.iter().find(|e| e.task_id == task_id).unwrap().stopped_at.is_some();
+    assert!(stopped(claimed.id));
+    assert!(!stopped(open.id));
+}
+
 // ------------------------------------------------------------------------------ remaining Java cases
 
 #[tokio::test]

@@ -8,6 +8,7 @@ use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 use std::sync::LazyLock;
 
 use super::{StepStreamEvent, TaskStepView};
+use crate::timeentry::TimeEntryService;
 use crate::{in_read, in_write, load, Ctx, DomainEvent, Tx};
 
 use super::Proposed;
@@ -18,11 +19,12 @@ pub const PROPOSED_DRAFTS_MAX: usize = 20;
 #[derive(Clone)]
 pub struct TaskStepService {
     ctx: Ctx,
+    time_entries: TimeEntryService,
 }
 
 impl TaskStepService {
-    pub fn new(ctx: Ctx) -> Self {
-        Self { ctx }
+    pub fn new(ctx: Ctx, time_entries: TimeEntryService) -> Self {
+        Self { ctx, time_entries }
     }
 
     pub async fn find_all(&self) -> Result<Vec<TaskStepView>> {
@@ -100,6 +102,8 @@ impl TaskStepService {
         })
     }
 
+    /// A console edit. Ticking a claimed step done accepts the claim, which also stops the task's
+    /// timer; ticking an open step by hand leaves it running.
     pub async fn edit(
         &self,
         id: Id,
@@ -124,7 +128,11 @@ impl TaskStepService {
                 step.mark_state(if done { TaskStepState::Done } else { TaskStepState::Open });
             }
             let task_id = step.task_id;
+            let accepts_claim = before.state == TaskStepState::Claimed && step.state == TaskStepState::Done;
             self.save(&tx, &before, step).await?;
+            if accepts_claim {
+                self.time_entries.stop_if_running_in(&mut tx, task_id).await?;
+            }
             if draft.is_some() {
                 let ordered = load::steps_of(tx.db(), task_id).await?;
                 self.settle_drafts_at_tail(&tx, ordered).await?;

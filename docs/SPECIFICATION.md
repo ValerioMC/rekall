@@ -92,6 +92,10 @@ One session of work on a task.
 - Only **one time entry across the entire system** may be open (running) at once — starting a
   timer on a task automatically stops whatever else was running elsewhere. There is no concept of
   running two timers in parallel.
+- A person writing on a task in the console (its description, wrapup, steps, notes, or the task
+  itself) starts its timer if it is paused; a session's writes never do.
+- Accepting a claim (a claimed step ticked done, or a claimed stepless task accepted) stops the
+  task's timer.
 - Past entries can be corrected by hand (adjusting start/stop times) or deleted.
 - The total time on a task is the sum of all its entries, live-updating while one is running.
 

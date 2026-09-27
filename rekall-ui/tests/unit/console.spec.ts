@@ -1,17 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { updateProject } from '@/api/catalog.api'
 import { createDocument, fetchAllDocuments, updateDocument } from '@/api/documents.api'
-import { fetchTimeEntries } from '@/api/time-entries.api'
+import { fetchTimeEntries, startTimeEntry } from '@/api/time-entries.api'
 import { setActivePinia, createPinia } from 'pinia'
 import { useConsoleStore } from '@/stores/console.store'
 import type { TaskInput } from '@/api/catalog.api'
-import type { Company, Project, RekallDocument, Task, TaskStep, Wrapup } from '@/model/catalog'
+import type { Company, Project, RekallDocument, Task, TaskStep, TimeEntry, Wrapup } from '@/model/catalog'
 import type {
   CompanyId,
   DocumentId,
   ProjectId,
   TaskId,
   TaskStepId,
+  TimeEntryId,
   WrapupId
 } from '@/model/branded'
 
@@ -271,9 +272,22 @@ vi.mock('@/api/steps.api', () => ({
   deleteStep: (...args: unknown[]) => deleteStep(...(args as []))
 }))
 
+const runningEntry = (taskId: TaskId): TimeEntry => ({
+  id: `e-${taskId}` as TimeEntryId,
+  taskId,
+  taskLabel: 'report-builder',
+  taskTitle: 'Report builder',
+  projectLabel: 'vega',
+  anchor: 'project:vega task:report-builder',
+  startedAt: '2026-08-12T15:00:00Z',
+  stoppedAt: null,
+  createdAt: '2026-08-12T15:00:00Z',
+  updatedAt: '2026-08-12T15:00:00Z'
+})
+
 vi.mock('@/api/time-entries.api', () => ({
   fetchTimeEntries: vi.fn(async () => []),
-  startTimeEntry: vi.fn(),
+  startTimeEntry: vi.fn(async (taskId: TaskId) => runningEntry(taskId)),
   stopTimeEntry: vi.fn(),
   editTimeEntry: vi.fn(),
   deleteTimeEntry: vi.fn()
@@ -299,6 +313,7 @@ describe('console store', () => {
     vi.mocked(updateDocument).mockReset()
     vi.mocked(createDocument).mockReset()
     vi.mocked(updateProject).mockReset()
+    vi.mocked(startTimeEntry).mockClear()
     setActivePinia(createPinia())
     store = useConsoleStore()
     await store.load()
@@ -1011,6 +1026,74 @@ describe('console store', () => {
       ])
 
       expect(store.wrapupMissesSteps).toBe(1)
+    })
+  })
+
+  /**
+   * The timer follows the work instead of the button: writing on a task whose timer is paused
+   * starts it, and accepting a claim stops it on the server, which the store then reads back.
+   */
+  describe('the timer', () => {
+    it('starts on a paused task when its description is written', async () => {
+      await store.saveTaskDescription(validator, 'Builds the weekly report.')
+
+      expect(startTimeEntry).toHaveBeenCalledWith(validator)
+      expect(store.runningEntries.map((entry) => entry.taskId)).toEqual([validator])
+    })
+
+    it('asks nothing of the server when the timer is already running', async () => {
+      store.timeEntries = [runningEntry(validator)]
+      await store.saveTaskDescription(validator, 'Builds the weekly report.')
+
+      expect(startTimeEntry).not.toHaveBeenCalled()
+    })
+
+    it('starts on writing the wrapup, adding a step or editing one', async () => {
+      await store.saveWrapupBody(retry, 'Retries three times.')
+      await store.addStep(wiring, 'Wire the endpoint')
+      store.timeEntries = []
+      await store.saveStep('s2' as TaskStepId, { title: 'Write the tests', bodyMarkdown: 'All of them.' })
+
+      expect(vi.mocked(startTimeEntry).mock.calls.map(([taskId]) => taskId)).toEqual([retry, wiring, validator])
+    })
+
+    /** Ticking, promoting or sending a step back is managing the list, not writing on the task. */
+    it('stays paused when a step is only ticked or moved between draft and open', async () => {
+      await store.toggleStep('s2' as TaskStepId)
+      await store.returnStepToDraft('s2' as TaskStepId)
+
+      expect(startTimeEntry).not.toHaveBeenCalled()
+    })
+
+    it('starts on the task in view when a note shared with others is written', async () => {
+      vi.mocked(updateDocument).mockImplementation(async (id, input) => ({
+        ...documents.find((document) => document.id === id)!,
+        ...input
+      }) as RekallDocument)
+      store.selectTask(retry)
+      await store.saveNote('d2' as DocumentId, { bodyMarkdown: 'More on the bastion.' })
+
+      expect(startTimeEntry).toHaveBeenCalledWith(retry)
+    })
+
+    it('rereads the sessions once a claimed step is accepted', async () => {
+      store.applyStepEvent(validator, [steps[0]!, { ...steps[1]!, state: 'CLAIMED', done: false }])
+      store.timeEntries = [runningEntry(validator)]
+      vi.mocked(fetchTimeEntries).mockClear()
+
+      await store.acceptStep('s2' as TaskStepId)
+
+      expect(fetchTimeEntries).toHaveBeenCalled()
+      expect(store.runningEntries).toHaveLength(0)
+    })
+
+    it('leaves the sessions alone when an open step is ticked by hand', async () => {
+      store.timeEntries = [runningEntry(validator)]
+      vi.mocked(fetchTimeEntries).mockClear()
+
+      await store.toggleStep('s2' as TaskStepId)
+
+      expect(fetchTimeEntries).not.toHaveBeenCalled()
     })
   })
 })

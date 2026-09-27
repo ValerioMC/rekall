@@ -4,6 +4,7 @@ use rekall_model::task;
 use rekall_model::TaskStepState;
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
 
+use crate::timeentry::TimeEntryService;
 use crate::{in_write, load, Ctx, DomainEvent, Tx};
 
 use super::{TaskReviewEvent, TaskReviewView};
@@ -11,11 +12,12 @@ use super::{TaskReviewEvent, TaskReviewView};
 #[derive(Clone)]
 pub struct TaskReviewService {
     ctx: Ctx,
+    time_entries: TimeEntryService,
 }
 
 impl TaskReviewService {
-    pub fn new(ctx: Ctx) -> Self {
-        Self { ctx }
+    pub fn new(ctx: Ctx, time_entries: TimeEntryService) -> Self {
+        Self { ctx, time_entries }
     }
 
     /// Flip `OPEN <-> RUNNING` as a session on the task anchor comes and goes. Ambient: never
@@ -56,7 +58,8 @@ impl TaskReviewService {
         Ok(())
     }
 
-    /// The console accepts the work: `-> DONE` from any state but `DONE` itself.
+    /// The console accepts the work: `-> DONE` from any state but `DONE` itself. Accepting a claim
+    /// also stops the task's timer: the work it measured is over.
     pub async fn accept_in(&self, tx: &mut Tx, task_id: Id) -> Result<TaskReviewView> {
         let before = load::task_or_unknown(tx.db(), task_id).await?;
         guard_active(tx, task_id).await?;
@@ -67,7 +70,11 @@ impl TaskReviewService {
         }
         let mut task = before.clone();
         task.mark_review_state(TaskStepState::Done);
-        self.save_and_publish(tx, &before, task).await
+        let view = self.save_and_publish(tx, &before, task).await?;
+        if before.review_state == TaskStepState::Claimed {
+            self.time_entries.stop_if_running_in(tx, task_id).await?;
+        }
+        Ok(view)
     }
 
     /// The console sends the work back: `-> OPEN`, with an optional note; blank notes are dropped.

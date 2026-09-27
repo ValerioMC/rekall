@@ -471,6 +471,7 @@ export const useConsoleStore = defineStore('console', () => {
       refreshWrapups(),
       refreshTimeEntries()
     ])
+    if (saved.status !== 'DONE') await resumeTimerOnWork(id)
   }
 
   async function deleteTask(id: TaskId): Promise<void> {
@@ -543,6 +544,7 @@ export const useConsoleStore = defineStore('console', () => {
   async function acceptTask(id: TaskId): Promise<void> {
     const saved = await apiReviewTask(id, 'DONE')
     tasks.value = tasks.value.map((task) => (task.id === id ? saved : task))
+    await rereadTimerStoppedByAccept(id)
   }
 
   async function sendBackTask(id: TaskId, note?: string): Promise<void> {
@@ -571,6 +573,7 @@ export const useConsoleStore = defineStore('console', () => {
       saveState.value = 'unsaved'
       throw error
     }
+    await resumeTimerOnWork(id)
   }
 
   async function setTaskTag(id: TaskId, tagId: TagId | null): Promise<void> {
@@ -612,6 +615,7 @@ export const useConsoleStore = defineStore('console', () => {
     noteComposerOpen.value = false
     paneFocus.value = 'note'
     await refreshTasks()
+    await resumeTimerOnNote(taskIds)
   }
 
   async function saveNote(
@@ -638,6 +642,8 @@ export const useConsoleStore = defineStore('console', () => {
       saveState.value = 'unsaved'
       throw error
     }
+    const writesContent = patch.title !== undefined || patch.kind !== undefined || patch.bodyMarkdown !== undefined
+    if (writesContent) await resumeTimerOnNote(patch.taskIds ?? current.tasks.map((ref) => ref.id))
   }
 
   async function attachNoteToTask(id: DocumentId, taskId: TaskId): Promise<void> {
@@ -762,6 +768,7 @@ export const useConsoleStore = defineStore('console', () => {
       saveState.value = 'unsaved'
       throw error
     }
+    await resumeTimerOnWork(taskId)
   }
 
   async function removeWrapup(taskId: TaskId): Promise<void> {
@@ -810,18 +817,24 @@ export const useConsoleStore = defineStore('console', () => {
   async function addStep(taskId: TaskId, title: string, bodyMarkdown?: string): Promise<TaskStep> {
     const created = await apiCreateStep(taskId, title, bodyMarkdown)
     upsertStep(created)
+    await resumeTimerOnWork(taskId)
     return created
   }
 
   async function saveStep(id: TaskStepId, patch: TaskStepPatch): Promise<void> {
+    const before = steps.value.find((candidate) => candidate.id === id)
     saveState.value = 'saving'
+    let saved: TaskStep
     try {
-      upsertStep(await apiPatchStep(id, patch))
+      saved = await apiPatchStep(id, patch)
+      upsertStep(saved)
       saveState.value = 'saved'
     } catch (error) {
       saveState.value = 'unsaved'
       throw error
     }
+    if (before?.state === 'CLAIMED' && saved.state === 'DONE') await rereadTimerStoppedByAccept(saved.taskId)
+    if (patch.title !== undefined || patch.bodyMarkdown !== undefined) await resumeTimerOnWork(saved.taskId)
   }
 
   function toggleStep(id: TaskStepId): Promise<void> {
@@ -870,6 +883,34 @@ export const useConsoleStore = defineStore('console', () => {
 
   async function startTimer(taskId: TaskId): Promise<void> {
     upsertTimeEntry(await apiStartTimeEntry(taskId))
+  }
+
+  const timerStartsInFlight = new Set<TaskId>()
+
+  /**
+   * Writing on a task is working on it, so a console write starts its paused timer. Only the
+   * console calls this: a session's writes arrive over the feed and never start one.
+   */
+  async function resumeTimerOnWork(taskId: TaskId): Promise<void> {
+    const running = runningEntries.value.some((entry) => entry.taskId === taskId)
+    if (running || timerStartsInFlight.has(taskId)) return
+    timerStartsInFlight.add(taskId)
+    try {
+      await startTimer(taskId)
+    } finally {
+      timerStartsInFlight.delete(taskId)
+    }
+  }
+
+  /** A note can sit on several tasks: the one in view is being worked on, or else its only task. */
+  async function resumeTimerOnNote(taskIds: readonly TaskId[]): Promise<void> {
+    const worked = taskIds.find((id) => id === selectedTaskId.value) ?? (taskIds.length === 1 ? taskIds[0] : undefined)
+    if (worked) await resumeTimerOnWork(worked)
+  }
+
+  /** Accepting a claim stops the task's timer on the server, so a running one is read again. */
+  async function rereadTimerStoppedByAccept(taskId: TaskId): Promise<void> {
+    if (runningEntries.value.some((entry) => entry.taskId === taskId)) await refreshTimeEntries()
   }
 
   async function pauseTimer(taskId: TaskId): Promise<void> {
