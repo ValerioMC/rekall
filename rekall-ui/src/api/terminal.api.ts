@@ -11,6 +11,8 @@ export interface OpenTerminalInput {
   model?: ClaudeModelChoice
   effort?: ClaudeEffortChoice
   mode?: TerminalMode
+  /** What a `GENERATE` terminal asks the session to draw. */
+  request?: string
 }
 
 export async function fetchTerminals(): Promise<Terminal[]> {
@@ -27,7 +29,8 @@ export async function openTerminal(taskId: TaskId, input: OpenTerminalInput): Pr
           skipPermissions: input.skipPermissions,
           model: input.model && input.model !== 'default' ? input.model : null,
           effort: input.effort && input.effort !== 'default' ? input.effort : null,
-          mode: input.mode ?? 'WORK'
+          mode: input.mode ?? 'WORK',
+          request: input.request ?? null
         }
       })
     )

@@ -7,6 +7,7 @@ edition.workspace = true
 [dependencies]
 rekall-common.workspace = true
 rekall-model.workspace = true
+rekall-diagram.workspace = true
 rekall-repository.workspace = true
 sea-orm.workspace = true
 serde.workspace = true
@@ -29,3 +30,7 @@ path = "tests/integration/git.rs"
 [[test]]
 name = "services"
 path = "tests/integration/services.rs"
+
+[[test]]
+name = "diagrams"
+path = "tests/integration/diagrams.rs"

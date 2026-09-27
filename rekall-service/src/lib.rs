@@ -10,6 +10,7 @@
 pub mod claude;
 pub mod commit;
 pub mod context;
+pub mod diagram;
 pub mod events;
 pub mod note;
 pub mod review;

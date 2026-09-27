@@ -560,6 +560,7 @@ async fn a_refresh_on_any_ui_route_serves_the_application_and_an_unknown_api_pat
         format!("/tasks/{random}"),
         "/search".into(),
         "/calendar".into(),
+        "/diagrams".into(),
     ] {
         let response = app.get(&path).await;
         assert_eq!(response.status, 200, "GET {path}");
@@ -604,4 +605,50 @@ async fn a_page_on_another_site_or_a_request_naming_another_host_is_refused_befo
 
     let rebound = app.client.get(app.url("/api/companies")).header("Host", "rebind.attacker.test").send().await.unwrap();
     assert_eq!(rebound.status(), 403, "a Host that is not this machine is DNS rebinding");
+}
+
+// --- Diagrams
+
+#[tokio::test]
+async fn a_diagram_goes_in_whole_is_listed_read_back_shows_its_code_and_is_deleted_by_the_console() {
+    let app = app().await;
+    let folder = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(folder.path().join("src")).unwrap();
+    std::fs::write(folder.path().join("src/order.rs"), "fn a() {}\nfn process_order() {\n    validate();\n}\n").unwrap();
+    let company = app.a_company("Acme").await;
+    let project = app.a_project_in(&company, "shop", folder.path()).await;
+    let graph = json!({
+        "format": "rekall.semantic-graph", "version": 1,
+        "nodes": [
+            {"id": "process", "kind": "code", "title": "process_order()", "sources": [{"file": "src/order.rs", "startLine": 2, "endLine": 4}]},
+            {"id": "validate", "kind": "action", "title": "Validate", "sources": [{"file": "src/order.rs", "startLine": 3}]}
+        ],
+        "edges": [{"from": "process", "to": "validate", "relation": "contains"}]
+    });
+
+    let created = app.post("/api/diagrams", json!({ "projectId": project, "title": "Orders", "question": "How?", "graph": graph })).await;
+    assert_eq!(created.status, 201, "{}", created.text);
+    let diagram = created.str("id");
+    assert_eq!(created.body.pointer("/graph/edges/0/id"), Some(&json!("e1")));
+
+    let listed = app.get("/api/diagrams").await;
+    assert_eq!(listed.list().len(), 1);
+    assert!(listed.list()[0].get("graph").is_none(), "a list carries no graph");
+
+    let excerpt = app.get(&format!("/api/diagrams/{diagram}/source?file=src/order.rs&start=3")).await;
+    assert_eq!(excerpt.status, 200, "{}", excerpt.text);
+    assert_eq!(excerpt.get("highlightStart"), &json!(3));
+    assert_eq!(excerpt.get("language"), &json!("rust"));
+    let escaping = app.get(&format!("/api/diagrams/{diagram}/source?file=../../etc/hosts")).await;
+    assert!(escaping.status == 400 || escaping.status == 404, "{}", escaping.text);
+
+    let traced = app.get(&format!("/api/projects/{project}/diagram-trace?file=src/order.rs&line=3")).await;
+    assert_eq!(traced.list()[0].pointer("/hits/0/nodeId"), Some(&json!("validate")));
+
+    let refused = app.post("/api/diagrams", json!({ "projectId": project, "title": "Bad", "graph": {"format": "rekall.semantic-graph", "version": 1, "nodes": []} })).await;
+    assert_eq!(refused.status, 400);
+    assert!(refused.detail().contains("nodes: a graph needs at least one node"), "{}", refused.detail());
+
+    assert_eq!(app.delete(&format!("/api/diagrams/{diagram}")).await.status, 204);
+    assert_eq!(app.get(&format!("/api/diagrams/{diagram}")).await.status, 404);
 }

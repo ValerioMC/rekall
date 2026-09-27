@@ -5,6 +5,7 @@ mod catalog_controller;
 mod commit_reference_controller;
 mod company_controller;
 mod context_size_controller;
+mod diagram_controller;
 mod directory_listing_controller;
 mod document_controller;
 mod export_controller;

@@ -1,6 +1,7 @@
 # The backend: one crate per layer, and the dependency direction the crates enforce:
 # rekall-common <- rekall-model <- rekall-repository <- rekall-service <- rekall-api,
-# rekall-mcp, rekall-claude <- rekall-app.
+# rekall-mcp, rekall-claude <- rekall-app. rekall-diagram, the Semantic Graph, depends on nothing
+# of Rekall's own and is read from rekall-service upwards.
 #
 # The Tauri shell (rekall-app/desktop) is a member but not a default one: it needs the platform
 # WebView's development libraries to compile, which a headless build machine or CI does not
@@ -11,6 +12,7 @@ resolver = "2"
 members = [
     "rekall-common",
     "rekall-model",
+    "rekall-diagram",
     "rekall-repository",
     "rekall-service",
     "rekall-api",
@@ -22,6 +24,7 @@ members = [
 default-members = [
     "rekall-common",
     "rekall-model",
+    "rekall-diagram",
     "rekall-repository",
     "rekall-service",
     "rekall-api",
@@ -39,6 +42,7 @@ rust-version = "1.85"
 [workspace.dependencies]
 rekall-common = { path = "rekall-common" }
 rekall-model = { path = "rekall-model" }
+rekall-diagram = { path = "rekall-diagram" }
 rekall-repository = { path = "rekall-repository" }
 rekall-service = { path = "rekall-service" }
 rekall-api = { path = "rekall-api" }

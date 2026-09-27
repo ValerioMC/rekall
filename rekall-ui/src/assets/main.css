@@ -70,6 +70,30 @@
   --color-filed-soft: #8fa89d14;
   --color-filed-line: #8fa89d33;
 
+  /*
+   * Diagram kinds: the second channel of a node's kind, after its shape. Drawn from the same
+   * jewel ring as the tag tones and kept off the three roles, so a diagram's colours never read
+   * as "selected", "anchor" or a status. Selection on the canvas stays amber.
+   *
+   *   concept   teal      an idea the code carries without naming it
+   *   action    cerulean  something the system does
+   *   decision  magenta   a fork: the one shape a reader has to stop at
+   *   state     violet    a condition the system rests in
+   *   event     tangerine something that happens and is announced
+   *   data      moss      what is read and written
+   *   external  slate     outside this codebase: grey on purpose, it is not ours
+   *   code      the muted text tone: real structure, drawn as quiet frames
+   */
+  --color-kind-concept: #46c9b0;
+  --color-kind-action: #4ea1e0;
+  --color-kind-decision: #e263b0;
+  --color-kind-state: #9f78e6;
+  --color-kind-event: #f0955a;
+  --color-kind-data: #7fd66a;
+  --color-kind-external: #8d9bb3;
+  --color-kind-code: #a3acba;
+  --color-kind-custom: #b8a98a;
+
   --font-sans: 'Fira Sans', ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'Fira Code Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
 
@@ -93,6 +117,8 @@
      to breathe rather than made to crush them onto one line. */
   --spacing-nav: 304px;
   --spacing-notelist: 312px;
+  /* The diagram screen's inspector: wide enough for a code excerpt at 80 columns of 11px mono. */
+  --spacing-inspector: 392px;
 
   /*
    * One z-index scale, four steps. Arbitrary values like z-[9999] are what produce the bug

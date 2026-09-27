@@ -7,4 +7,4 @@ mod terminal_mode;
 
 pub use open_terminal_request::OpenTerminalRequest;
 pub use terminal_controller::routes;
-pub use terminal_mode::TerminalMode;
+pub use terminal_mode::{TerminalMode, TerminalModeName, REQUEST_MAX_CHARACTERS};

@@ -39,10 +39,11 @@ async fn a_terminal_starts_claude_in_the_project_folder_with_rk_typed_and_echoes
     terminals.write(view.id, b"hello\n").unwrap();
     eventually("the echoed line", || async { recorder.text().contains("GOT:hello") }).await;
 
-    // A second open on the same task is routed to the live terminal.
+    // A second open on the same task is routed to the live terminal, with its `/rk` line typed in.
     let again = terminals.open(task.id, None, false, None, None, TerminalMode::Work).await.unwrap();
     assert_eq!(again.id, view.id);
     assert_eq!(terminals.live_count(), 1);
+    eventually("the typed work line", || async { recorder.text().contains("GOT:/rk project:alpha task:one") }).await;
 
     terminals.write(view.id, b"exit\n").unwrap();
     let end = tokio::time::timeout(std::time::Duration::from_secs(5), ended.recv()).await.unwrap().unwrap();

@@ -105,10 +105,10 @@ impl PtyTerminalManager {
 
     /// Start a `claude` PTY for this task in its project's folder, with the `/rk` line of `mode`
     /// typed first. A missing folder or CLI is a retriable conflict. A step id is marked
-    /// `RUNNING` while the terminal is on it; none means the task itself. A plan is always on the
-    /// task, so [`TerminalMode::Plan`] drops the step id. A second open on a task that already has
-    /// a terminal reuses it: a work open is retargeted, a plan open has its plan line typed into
-    /// that session.
+    /// `RUNNING` while the terminal is on it; none means the task itself. A plan or a generate is
+    /// always on the task, so every mode but [`TerminalMode::Work`] drops the step id. A second
+    /// open on a task that already has a terminal reuses it: a work open is retargeted, and every
+    /// mode has its line typed into that session so it reloads the task as it stands.
     #[allow(clippy::too_many_arguments)]
     pub async fn open(
         self: &Arc<Self>,
@@ -120,14 +120,12 @@ impl PtyTerminalManager {
         mode: TerminalMode,
     ) -> Result<TerminalView> {
         let launch = self.launch_service.resolve(task_id).await?;
-        let step_id = if mode == TerminalMode::Plan { None } else { step_id };
+        let step_id = if mode.follows_steps() { step_id } else { None };
 
         if let Some(existing) = self.live_terminal_for_task(task_id) {
-            if mode == TerminalMode::Plan {
-                self.write(existing.id, format!("{}\r", mode.first_line(&launch.anchors)).as_bytes())?;
-                return Ok(existing.view());
-            }
-            return Ok(self.retarget(&existing, step_id).await);
+            let view = if mode.follows_steps() { self.retarget(&existing, step_id).await } else { existing.view() };
+            self.write(existing.id, format!("{}\r", mode.first_line(&launch.anchors)).as_bytes())?;
+            return Ok(view);
         }
 
         let directory = Path::new(&launch.working_dir);

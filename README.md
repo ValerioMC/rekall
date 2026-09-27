@@ -108,7 +108,7 @@ cp .claude/commands/rk.md ~/.claude/commands/rk.md
 
 The terminal gets the environment a new window of your own terminal would: Rekall asks your login shell (`$SHELL -i -l -c`) for its variables once it starts, so whatever your profile adds to `PATH` (`~/.cargo/bin`, nvm, pyenv, sdkman) and exports is there, along with `SSH_AUTH_SOCK`. The answer is cached and refreshed in the background every time a terminal opens, so a tool installed while Rekall runs reaches the next terminal but one. A shell that prints nothing usable within the timeout leaves the last good answer in place, or Rekall's own environment when there is none. The shell runs with `REKALL_RESOLVING_ENVIRONMENT=1`, so a slow profile can skip work with `[[ -n $REKALL_RESOLVING_ENVIRONMENT ]] && return`.
 
-One terminal per task, the way one terminal window is. A second open on a task that already has one just refocuses it; opening on a different step moves the checklist marker (the old step back to open, the new one to running) without touching the process. **Restart** kills the `claude` process and starts a fresh one on the same task; **Close** ends it. Opening on a step marks that step `RUNNING` while the terminal is on it; on a task with no checklist the review line goes `RUNNING` instead, and both are released when the terminal closes. Nothing is persisted: a restart of Rekall clears every terminal and releases any step it left running, and reopening the pane replays a bounded scrollback so it repaints.
+One terminal per task, the way one terminal window is. A second **Run here** on a task that already has one refocuses it and types `/rk <anchors>` into the live session, so it reloads the task with any steps written since; opening on a different step also moves the checklist marker (the old step back to open, the new one to running) without restarting the process. **Restart** kills the `claude` process and starts a fresh one on the same task; **Close** ends it. Opening on a step marks that step `RUNNING` while the terminal is on it; on a task with no checklist the review line goes `RUNNING` instead, and both are released when the terminal closes. Nothing is persisted: a restart of Rekall clears every terminal and releases any step it left running, and reopening the pane replays a bounded scrollback so it repaints.
 
 Live work sits in one bar in the bottom right corner of every screen: a segment for running timers (with the newest timer's clock) and a segment for live terminals, each shown only while it has something to count. A segment opens its sheet above the bar, one sheet at a time; pressing the other segment switches, and pressing the same one again, Escape, or a click anywhere else closes it. From the sheet a row jumps to its task (the terminal one also opens the terminal pane), stops the timer or terminal, and, for a terminal, logs the latest commit against the task and step it was opened on. The bar reports the room it takes so nothing else in that corner sits under it, whichever segments are present; the terminal segment steps aside while the terminal pane is on screen, and the bar leaves entirely when nothing is live.
 
@@ -302,14 +302,40 @@ Every task row opens on the steps it closed inside the period, oldest first, wit
 
 The screen is built from the sessions the timer recorded. A session counts on the day it started; one still running counts up to now.
 
+## Diagrams
+
+**Diagrams** draws what the code does rather than how it is laid out. A diagram is a Semantic Graph: concepts, actions, decisions, states, events, data, external systems and code, joined by typed relations (`leads_to`, `conditionally_leads_to`, `calls`, `reads`, `writes`, `contains`, …). An element can stand for something no function names on its own, such as one of the steps a 200-line function performs, and each one points at the lines that implement it. A session writes the graph and the console draws it. The drawing is decided by code, never by the session. The format and its rules are in [docs/SEMANTIC-GRAPH.md](docs/SEMANTIC-GRAPH.md).
+
+The screen has three columns. On the left is the library, grouped by project. In the middle is the canvas, laid out by dagre. On the right is the inspector.
+
+- **Canvas.** The shape of a node is its kind and its colour repeats it. The ring on its corner is the trace mark: the outer ring is the provenance (solid when observed in the code, dashed when inferred, dotted when it comes from docs, doubled when a person stated it), the arc is the confidence, and a filled core means the element points at code. Flow edges are solid, conditions are dashed and carry their condition, data flow is dotted, and dependencies are faint. Selecting a node lights everything one relation away and dims the rest.
+- **Lens.** **Concept** hides the code nodes, so the conceptual pieces of a function stand on their own. **Code** draws each function as a frame around the pieces it implements. A frame folds into one node that takes over its relations, and unfolds again.
+- **Direction.** A diagram opens left to right or top to bottom, whichever fits the canvas at the larger scale. The button next to the lens overrides it.
+- **CONCEPT → CODE.** The inspector lists a node's sources and opens each one in place, showing the span with a few lines around it, read from the project folder.
+- **CODE → CONCEPT.** With nothing selected, the inspector lists the files the diagram points at. Picking one lights the elements it implements. `GET /api/projects/{id}/diagram-trace?file=&line=` answers the same question across every diagram of a project.
+- **Keys.** `f` fit, `+` `-` `0` zoom, `/` find, `l` lens, `d` direction, `esc` clear. The wheel pans; pinch or `⌘`-wheel zooms.
+
+**Generate** opens a terminal on the task you pick with `/rk project:<p> task:<t> generate "<request>"` as its first line (`mode: GENERATE` on `POST /api/tasks/{id}/terminals`). The library shows the request as generating until a diagram for that project arrives on the event stream (`diagram` frames). Note that `/rk` does not handle `generate` yet: that command, and the MCP tool that writes the graph, come in the next step. Until then, **Import** stores a graph written elsewhere. The server checks every rule and lists every one it refuses.
+
+| Route | Effect |
+|---|---|
+| `GET /api/diagrams` | Every diagram, without its graph, newest first |
+| `GET /api/diagrams/{id}` | One diagram with its graph |
+| `POST /api/diagrams` | Create one: `projectId`, `taskId` (optional), `title`, `question`, `graph` |
+| `PUT /api/diagrams/{id}` | Replace its title, question and graph. It stays on its project |
+| `DELETE /api/diagrams/{id}` | Delete it. Console only |
+| `GET /api/diagrams/{id}/source?file=&start=&end=` | The lines of a span in the project folder. A path that leaves the folder is refused |
+| `GET /api/projects/{id}/diagram-trace?file=&line=` | Every element, per diagram, covering that line, narrowest span first |
+
 ## Model
 
 ```
 Company ──< Project ──< Task >──< Document
-                         │       via document_task
-                         ├──< TaskStep
-                         ├──1 Wrapup
-                         └──> Tag (optional)
+               │         │       via document_task
+               │         ├──< TaskStep
+               │         ├──1 Wrapup
+               │         └──> Tag (optional)
+               └──< Diagram ──> Task (the one it was generated from, optional)
 ```
 
 | Entity | Anchored by | Holds |
@@ -321,6 +347,7 @@ Company ──< Project ──< Task >──< Document
 | `TaskStep` | through its task | title, optional detail, state, position |
 | `Wrapup` | through its task | markdown body, who wrote it last. One per task |
 | `Tag` | `name`, unique | icon key, glow-colour key, the tasks currently wearing it |
+| `Diagram` | id | title, the question it answers, the Semantic Graph as JSON, node and edge counts. Goes with its project; loses its task when the task is deleted |
 
 `label` is what an anchor resolves: lowercase letters, digits, `-`, `_`, `.`, no spaces, normalised on write. `title` is free text and changing it never breaks an anchor. Renaming a label moves the anchor, and the editor says so before saving.
 
@@ -421,6 +448,7 @@ A Cargo workspace, one crate per layer, each depending only on the ones above it
 ```
 rekall-common/     RekallError, Id, Instant and the string helpers every layer shares
 rekall-model/      SeaORM entities and their state rules
+rekall-diagram/    the Semantic Graph: its types, JSON format, validation and CODE → CONCEPT index. No database, no UI
 rekall-repository/ queries, one function per lookup, and the SQLite migrations
 rekall-service/    business logic: context assembly, the step and review lines, wrapups, notes, time entries
 rekall-api/        Axum REST API for the UI, the folder listing and the step event stream

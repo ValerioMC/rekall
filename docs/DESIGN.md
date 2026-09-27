@@ -51,6 +51,7 @@ Non-goals: multi-user, authentication, remote deployment, vector search.
 rekall/
   rekall-common/     RekallError, Id, Instant: the vocabulary shared by every layer
   rekall-model/      SeaORM entities and their state rules
+  rekall-diagram/    the Semantic Graph: types, JSON format, validation, trace index; depends on nothing of Rekall's
   rekall-repository/ queries and the SQLite migrations for their schema
   rekall-service/    context assembly, the step and review lines, wrapups, notes, time entries
   rekall-api/        Axum REST routes for the UI

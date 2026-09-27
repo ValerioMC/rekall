@@ -39,14 +39,9 @@ export const useTerminalStore = defineStore('terminal', () => {
     terminals.value = await fetchTerminals()
   }
 
-  // One live terminal per task: a task-level open refocuses an existing one; a step-level open
-  // goes to the server, which retargets the same terminal rather than spawning a second.
+  // One live terminal per task: the server reuses a live one, retargets it and types the `/rk`
+  // line into it, so the session reloads the task's latest steps instead of sitting idle.
   async function openForTask(taskId: TaskId, input: OpenTerminalInput): Promise<Terminal> {
-    const live = terminalForTask(taskId)
-    if (live && !input.stepId) {
-      activeTerminalId.value = live.id
-      return live
-    }
     const opened = await openTerminal(taskId, input)
     upsert(opened)
     activeTerminalId.value = opened.id

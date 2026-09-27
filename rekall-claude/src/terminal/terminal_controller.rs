@@ -30,6 +30,7 @@ async fn open(
 ) -> ApiResult<Response> {
     let task_id = uuid("taskId", &task_id)?;
     let safe = request.unwrap_or_default();
+    let mode = safe.mode()?;
     let opened = state
         .terminals
         .open(
@@ -38,7 +39,7 @@ async fn open(
             safe.skip_permissions.unwrap_or(false),
             safe.model.as_deref(),
             safe.effort.as_deref(),
-            safe.mode_or_default(),
+            mode,
         )
         .await?;
     Ok((StatusCode::CREATED, Json(opened)).into_response())

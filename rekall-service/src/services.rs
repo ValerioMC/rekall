@@ -1,4 +1,4 @@
-use crate::{claude, commit, context, note, review, revision, search, step, timeentry, wrapup, Ctx};
+use crate::{claude, commit, context, diagram, note, review, revision, search, step, timeentry, wrapup, Ctx};
 
 /// Every service, built once over one context: what a controller or a tool is handed.
 #[derive(Clone)]
@@ -9,6 +9,7 @@ pub struct Services {
     pub revisions: revision::TaskRevisionService,
     pub wrapups: wrapup::WrapupService,
     pub notes: note::NoteService,
+    pub diagrams: diagram::DiagramService,
     pub time_entries: timeentry::TimeEntryService,
     pub context: context::ContextService,
     pub renderer: context::ContextRenderer,
@@ -31,6 +32,7 @@ impl Services {
             steps: step::TaskStepService::new(ctx.clone()),
             wrapups: wrapup::WrapupService::new(ctx.clone(), review.clone(), revisions.clone()),
             notes: note::NoteService::new(ctx.clone()),
+            diagrams: diagram::DiagramService::new(ctx.clone()),
             time_entries: timeentry::TimeEntryService::new(ctx.clone()),
             renderer: context::ContextRenderer,
             context_size: context::ContextSizeService::new(ctx.clone(), context.clone()),

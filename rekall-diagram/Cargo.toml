@@ -1,0 +1,10 @@
+[package]
+name = "rekall-diagram"
+description = "The Semantic Graph: the structured language a session describes a system's behaviour in, its validation and its code traceability"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+regex.workspace = true

@@ -7,6 +7,7 @@ use super::{
     commit_reference_controller,
     company_controller,
     context_size_controller,
+    diagram_controller,
     directory_listing_controller,
     document_controller,
     export_controller,
@@ -32,6 +33,7 @@ pub fn routes() -> Router<ApiState> {
         .merge(commit_reference_controller::routes())
         .merge(company_controller::routes())
         .merge(context_size_controller::routes())
+        .merge(diagram_controller::routes())
         .merge(directory_listing_controller::routes())
         .merge(document_controller::routes())
         .merge(export_controller::routes())

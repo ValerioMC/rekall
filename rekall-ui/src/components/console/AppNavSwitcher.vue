@@ -7,6 +7,7 @@ const TABS = [
   { to: '/', label: 'Console', match: 'console' },
   { to: '/projects', label: 'Projects', match: 'projects' },
   { to: '/companies', label: 'Companies', match: 'companies' },
+  { to: '/diagrams', label: 'Diagrams', match: 'diagrams' },
   { to: '/calendar', label: 'Calendar', match: 'calendar' },
   { to: '/report', label: 'Report', match: 'report' }
 ] as const

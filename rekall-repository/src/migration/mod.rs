@@ -16,6 +16,7 @@ mod m005_to_m010;
 mod m011_to_m018;
 mod m019_to_m026;
 mod m027_project_icon;
+mod m028_diagram;
 mod migration_support;
 mod migrator;
 

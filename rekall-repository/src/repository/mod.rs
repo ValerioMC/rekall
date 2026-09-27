@@ -8,6 +8,7 @@
 
 pub mod commit_reference;
 pub mod company;
+pub mod diagram;
 pub mod document;
 pub mod project;
 pub mod run_queue;

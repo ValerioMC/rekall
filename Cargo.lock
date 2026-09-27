@@ -4155,6 +4155,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rekall-diagram"
+version = "0.1.0"
+dependencies = [
+ "regex",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "rekall-mcp"
 version = "0.1.0"
 dependencies = [
@@ -4206,6 +4215,7 @@ dependencies = [
  "chrono",
  "regex",
  "rekall-common",
+ "rekall-diagram",
  "rekall-model",
  "rekall-repository",
  "sea-orm",

@@ -9,6 +9,7 @@ export type WrapupId = Brand<string, 'WrapupId'>
 export type TimeEntryId = Brand<string, 'TimeEntryId'>
 export type TerminalId = Brand<string, 'TerminalId'>
 export type TagId = Brand<string, 'TagId'>
+export type DiagramId = Brand<string, 'DiagramId'>
 
 export const asCompanyId = (value: string): CompanyId => value as CompanyId
 export const asProjectId = (value: string): ProjectId => value as ProjectId
@@ -19,3 +20,4 @@ export const asWrapupId = (value: string): WrapupId => value as WrapupId
 export const asTimeEntryId = (value: string): TimeEntryId => value as TimeEntryId
 export const asTerminalId = (value: string): TerminalId => value as TerminalId
 export const asTagId = (value: string): TagId => value as TagId
+export const asDiagramId = (value: string): DiagramId => value as DiagramId

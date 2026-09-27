@@ -14,6 +14,7 @@ pub mod slug;
 
 pub mod commit_reference;
 pub mod company;
+pub mod diagram;
 pub mod document;
 pub mod document_task;
 pub mod project;
@@ -32,6 +33,7 @@ pub use slug::Slug;
 pub mod prelude {
     pub use super::commit_reference::{Entity as CommitReference, Model as CommitReferenceModel};
     pub use super::company::{Entity as Company, Model as CompanyModel};
+    pub use super::diagram::{Entity as Diagram, Model as DiagramModel};
     pub use super::document::{Entity as Document, Model as DocumentModel};
     pub use super::document_task::{Entity as DocumentTask, Model as DocumentTaskModel};
     pub use super::project::{Entity as Project, Model as ProjectModel};

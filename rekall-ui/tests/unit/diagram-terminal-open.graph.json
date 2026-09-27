@@ -1,0 +1,519 @@
+{
+  "format": "rekall.semantic-graph",
+  "version": 1,
+  "nodes": [
+    {
+      "id": "open",
+      "kind": "code",
+      "title": "PtyTerminalManager::open()",
+      "sources": [
+        {
+          "file": "rekall-claude/src/pty/pty_terminal_manager.rs",
+          "startLine": 113,
+          "endLine": 182,
+          "symbol": "PtyTerminalManager::open"
+        }
+      ],
+      "provenance": "observed",
+      "confidence": 1.0,
+      "description": "One async method of 70 lines that resolves the launch, reuses a live session or spawns a new PTY, and marks the step running."
+    },
+    {
+      "id": "resolve-fn",
+      "kind": "code",
+      "title": "TerminalLaunchService::resolve()",
+      "sources": [
+        {
+          "file": "rekall-service/src/claude/terminal_launch_service.rs",
+          "startLine": 18,
+          "endLine": 38,
+          "symbol": "TerminalLaunchService::resolve"
+        }
+      ],
+      "provenance": "observed",
+      "confidence": 1.0
+    },
+    {
+      "id": "request",
+      "kind": "event",
+      "title": "Open requested from the console",
+      "description": "POST /api/tasks/{id}/terminals, with a mode (WORK, PLAN, GENERATE).",
+      "sources": [
+        {
+          "file": "rekall-claude/src/pty/pty_terminal_manager.rs",
+          "startLine": 113,
+          "endLine": 121,
+          "symbol": "PtyTerminalManager::open"
+        }
+      ],
+      "provenance": "observed",
+      "confidence": 0.95
+    },
+    {
+      "id": "resolve",
+      "kind": "action",
+      "title": "Resolve the task's folder and anchors",
+      "sources": [
+        {
+          "file": "rekall-claude/src/pty/pty_terminal_manager.rs",
+          "startLine": 122,
+          "endLine": 122,
+          "symbol": "PtyTerminalManager::open"
+        }
+      ],
+      "provenance": "observed",
+      "confidence": 0.95
+    },
+    {
+      "id": "has-folder",
+      "kind": "decision",
+      "title": "Does the project have a folder?",
+      "sources": [
+        {
+          "file": "rekall-service/src/claude/terminal_launch_service.rs",
+          "startLine": 18,
+          "endLine": 30,
+          "symbol": "TerminalLaunchService::resolve"
+        }
+      ],
+      "provenance": "observed",
+      "confidence": 0.9
+    },
+    {
+      "id": "step-scope",
+      "kind": "decision",
+      "title": "Does this mode follow a step?",
+      "description": "Only WORK follows a step; PLAN and GENERATE are always on the task.",
+      "sources": [
+        {
+          "file": "rekall-claude/src/pty/pty_terminal_manager.rs",
+          "startLine": 123,
+          "endLine": 123,
+          "symbol": "PtyTerminalManager::open"
+        }
+      ],
+      "provenance": "inferred",
+      "confidence": 0.85
+    },
+    {
+      "id": "live",
+      "kind": "decision",
+      "title": "Is a terminal already live on the task?",
+      "sources": [
+        {
+          "file": "rekall-claude/src/pty/pty_terminal_manager.rs",
+          "startLine": 125,
+          "endLine": 125,
+          "symbol": "PtyTerminalManager::open"
+        }
+      ],
+      "provenance": "observed",
+      "confidence": 0.95
+    },
+    {
+      "id": "retarget",
+      "kind": "action",
+      "title": "Retarget the live session to the step",
+      "sources": [
+        {
+          "file": "rekall-claude/src/pty/pty_terminal_manager.rs",
+          "startLine": 126,
+          "endLine": 126,
+          "symbol": "PtyTerminalManager::open"
+        }
+      ],
+      "provenance": "observed",
+      "confidence": 0.9
+    },
+    {
+      "id": "type-line",
+      "kind": "action",
+      "title": "Type the /rk line into the live session",
+      "sources": [
+        {
+          "file": "rekall-claude/src/pty/pty_terminal_manager.rs",
+          "startLine": 127,
+          "endLine": 128,
+          "symbol": "PtyTerminalManager::open"
+        }
+      ],
+      "provenance": "observed",
+      "confidence": 0.9
+    },
+    {
+      "id": "dir-exists",
+      "kind": "decision",
+      "title": "Is the folder on disk?",
+      "sources": [
+        {
+          "file": "rekall-claude/src/pty/pty_terminal_manager.rs",
+          "startLine": 131,
+          "endLine": 137,
+          "symbol": "PtyTerminalManager::open"
+        }
+      ],
+      "provenance": "observed",
+      "confidence": 0.95
+    },
+    {
+      "id": "cli",
+      "kind": "decision",
+      "title": "Is the claude CLI installed?",
+      "sources": [
+        {
+          "file": "rekall-claude/src/pty/pty_terminal_manager.rs",
+          "startLine": 138,
+          "endLine": 142,
+          "symbol": "PtyTerminalManager::open"
+        }
+      ],
+      "provenance": "observed",
+      "confidence": 0.95
+    },
+    {
+      "id": "compose",
+      "kind": "action",
+      "title": "Compose the command line",
+      "description": "Model and effort normalised against the known aliases; skip-permissions flag; the /rk line as the first argument.",
+      "sources": [
+        {
+          "file": "rekall-claude/src/pty/pty_terminal_manager.rs",
+          "startLine": 143,
+          "endLine": 156,
+          "symbol": "PtyTerminalManager::open"
+        }
+      ],
+      "provenance": "inferred",
+      "confidence": 0.8
+    },
+    {
+      "id": "environment",
+      "kind": "data",
+      "title": "Login shell environment",
+      "description": "Resolved once from $SHELL -i -l and cached; refreshed in the background.",
+      "sources": [
+        {
+          "file": "rekall-claude/src/pty/pty_terminal_manager.rs",
+          "startLine": 157,
+          "endLine": 160,
+          "symbol": "PtyTerminalManager::open"
+        }
+      ],
+      "provenance": "documented",
+      "confidence": 0.75
+    },
+    {
+      "id": "capacity",
+      "kind": "decision",
+      "title": "Room for another terminal?",
+      "sources": [
+        {
+          "file": "rekall-claude/src/pty/pty_terminal_manager.rs",
+          "startLine": 165,
+          "endLine": 171,
+          "symbol": "PtyTerminalManager::open"
+        }
+      ],
+      "provenance": "observed",
+      "confidence": 0.9,
+      "metadata": {
+        "limit": "rekall.terminal.max-sessions",
+        "default": 8
+      }
+    },
+    {
+      "id": "spawn",
+      "kind": "action",
+      "title": "Spawn claude in a PTY",
+      "sources": [
+        {
+          "file": "rekall-claude/src/pty/pty_terminal_manager.rs",
+          "startLine": 172,
+          "endLine": 176,
+          "symbol": "PtyTerminalManager::open"
+        }
+      ],
+      "provenance": "observed",
+      "confidence": 0.9
+    },
+    {
+      "id": "live-map",
+      "kind": "data",
+      "title": "Live terminals",
+      "sources": [
+        {
+          "file": "rekall-claude/src/pty/pty_terminal_manager.rs",
+          "startLine": 175,
+          "endLine": 175,
+          "symbol": "PtyTerminalManager::open"
+        }
+      ],
+      "provenance": "observed",
+      "confidence": 0.85
+    },
+    {
+      "id": "running",
+      "kind": "state",
+      "title": "Step RUNNING",
+      "sources": [
+        {
+          "file": "rekall-claude/src/pty/pty_terminal_manager.rs",
+          "startLine": 179,
+          "endLine": 179,
+          "symbol": "PtyTerminalManager::open"
+        }
+      ],
+      "provenance": "observed",
+      "confidence": 0.9
+    },
+    {
+      "id": "refused",
+      "kind": "state",
+      "title": "Refused with a conflict",
+      "description": "A retriable 409 the console shows as a toast.",
+      "provenance": "inferred",
+      "confidence": 0.7
+    },
+    {
+      "id": "cli-binary",
+      "kind": "external_system",
+      "title": "Claude Code CLI",
+      "provenance": "stated",
+      "confidence": 1.0
+    },
+    {
+      "id": "session",
+      "kind": "concept",
+      "title": "One live session per task",
+      "description": "The rule the whole method enforces: a second open never starts a second process.",
+      "provenance": "inferred",
+      "confidence": 0.8
+    }
+  ],
+  "edges": [
+    {
+      "from": "open",
+      "to": "request",
+      "relation": "contains",
+      "id": "e1"
+    },
+    {
+      "from": "open",
+      "to": "resolve",
+      "relation": "contains",
+      "id": "e2"
+    },
+    {
+      "from": "open",
+      "to": "step-scope",
+      "relation": "contains",
+      "id": "e3"
+    },
+    {
+      "from": "open",
+      "to": "live",
+      "relation": "contains",
+      "id": "e4"
+    },
+    {
+      "from": "open",
+      "to": "retarget",
+      "relation": "contains",
+      "id": "e5"
+    },
+    {
+      "from": "open",
+      "to": "type-line",
+      "relation": "contains",
+      "id": "e6"
+    },
+    {
+      "from": "open",
+      "to": "dir-exists",
+      "relation": "contains",
+      "id": "e7"
+    },
+    {
+      "from": "open",
+      "to": "cli",
+      "relation": "contains",
+      "id": "e8"
+    },
+    {
+      "from": "open",
+      "to": "compose",
+      "relation": "contains",
+      "id": "e9"
+    },
+    {
+      "from": "open",
+      "to": "capacity",
+      "relation": "contains",
+      "id": "e10"
+    },
+    {
+      "from": "open",
+      "to": "spawn",
+      "relation": "contains",
+      "id": "e11"
+    },
+    {
+      "from": "open",
+      "to": "running",
+      "relation": "contains",
+      "id": "e12"
+    },
+    {
+      "from": "resolve-fn",
+      "to": "has-folder",
+      "relation": "contains",
+      "id": "e13"
+    },
+    {
+      "from": "open",
+      "to": "resolve-fn",
+      "relation": "calls",
+      "id": "e14"
+    },
+    {
+      "from": "request",
+      "to": "resolve",
+      "relation": "triggers",
+      "id": "e15"
+    },
+    {
+      "from": "resolve",
+      "to": "has-folder",
+      "relation": "leads_to",
+      "id": "e16"
+    },
+    {
+      "from": "has-folder",
+      "to": "refused",
+      "relation": "conditionally_leads_to",
+      "label": "no",
+      "id": "e17"
+    },
+    {
+      "from": "has-folder",
+      "to": "step-scope",
+      "relation": "conditionally_leads_to",
+      "label": "yes",
+      "id": "e18"
+    },
+    {
+      "from": "step-scope",
+      "to": "live",
+      "relation": "leads_to",
+      "id": "e19"
+    },
+    {
+      "from": "live",
+      "to": "retarget",
+      "relation": "conditionally_leads_to",
+      "label": "yes, WORK",
+      "id": "e20"
+    },
+    {
+      "from": "live",
+      "to": "type-line",
+      "relation": "conditionally_leads_to",
+      "label": "yes, other",
+      "id": "e21"
+    },
+    {
+      "from": "retarget",
+      "to": "type-line",
+      "relation": "leads_to",
+      "id": "e22"
+    },
+    {
+      "from": "live",
+      "to": "dir-exists",
+      "relation": "conditionally_leads_to",
+      "label": "no",
+      "id": "e23"
+    },
+    {
+      "from": "dir-exists",
+      "to": "refused",
+      "relation": "conditionally_leads_to",
+      "label": "missing",
+      "id": "e24"
+    },
+    {
+      "from": "dir-exists",
+      "to": "cli",
+      "relation": "leads_to",
+      "id": "e25"
+    },
+    {
+      "from": "cli",
+      "to": "refused",
+      "relation": "conditionally_leads_to",
+      "label": "not found",
+      "id": "e26"
+    },
+    {
+      "from": "cli",
+      "to": "compose",
+      "relation": "leads_to",
+      "id": "e27"
+    },
+    {
+      "from": "compose",
+      "to": "environment",
+      "relation": "reads",
+      "id": "e28"
+    },
+    {
+      "from": "compose",
+      "to": "capacity",
+      "relation": "leads_to",
+      "id": "e29"
+    },
+    {
+      "from": "capacity",
+      "to": "refused",
+      "relation": "conditionally_leads_to",
+      "label": "full",
+      "id": "e30"
+    },
+    {
+      "from": "capacity",
+      "to": "spawn",
+      "relation": "leads_to",
+      "id": "e31"
+    },
+    {
+      "from": "spawn",
+      "to": "cli-binary",
+      "relation": "calls",
+      "id": "e32"
+    },
+    {
+      "from": "spawn",
+      "to": "live-map",
+      "relation": "writes",
+      "id": "e33"
+    },
+    {
+      "from": "live",
+      "to": "live-map",
+      "relation": "reads",
+      "id": "e34"
+    },
+    {
+      "from": "spawn",
+      "to": "running",
+      "relation": "transitions_to",
+      "id": "e35"
+    },
+    {
+      "from": "session",
+      "to": "live",
+      "relation": "depends_on",
+      "id": "e36"
+    }
+  ]
+}

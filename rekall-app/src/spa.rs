@@ -54,7 +54,7 @@ impl Assets {
     }
 }
 
-const FORWARDED: [&str; 10] = ["/", "/projects", "/companies", "/tasks", "/search", "/calendar", "/report", "/projects/", "/companies/", "/tasks/"];
+const FORWARDED: [&str; 11] = ["/", "/projects", "/companies", "/tasks", "/search", "/calendar", "/report", "/diagrams", "/projects/", "/companies/", "/tasks/"];
 const FORWARDED_TREES: [&str; 3] = ["/projects/{*rest}", "/companies/{*rest}", "/tasks/{*rest}"];
 
 pub fn routes(assets: Assets) -> Router {

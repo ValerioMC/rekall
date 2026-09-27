@@ -1,7 +1,10 @@
 import type { TaskId, TaskStepId, TerminalId } from '@/model/branded'
 
-/** What a terminal is opened to do: `WORK` types `/rk <anchor>`, `PLAN` types `/rk <anchor> plan`. */
-export type TerminalMode = 'WORK' | 'PLAN'
+/**
+ * What a terminal is opened to do: `WORK` types `/rk <anchor>`, `PLAN` types `/rk <anchor> plan`,
+ * `GENERATE` types `/rk <anchor> generate "<request>"`.
+ */
+export type TerminalMode = 'WORK' | 'PLAN' | 'GENERATE'
 
 /** A live in-app terminal: a real PTY running the interactive `claude` TUI. Not persisted. */
 export interface Terminal {

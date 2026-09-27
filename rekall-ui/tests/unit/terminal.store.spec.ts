@@ -60,7 +60,8 @@ describe('the terminal store', () => {
     expect(store.terminalForTask(TASK)?.id).toBe('term-1')
   })
 
-  it('refocuses the live terminal instead of opening a second one', async () => {
+  it('sends a run on a task with a live session to the server, which reuses it', async () => {
+    api.openTerminal.mockResolvedValue(terminal())
     const store = useTerminalStore()
     store.terminals = [terminal()]
     store.activeTerminalId = null
@@ -68,7 +69,8 @@ describe('the terminal store', () => {
     const again = await store.openForTask(TASK, { skipPermissions: true })
 
     expect(again.id).toBe('term-1')
-    expect(api.openTerminal).not.toHaveBeenCalled()
+    expect(api.openTerminal).toHaveBeenCalledWith(TASK, { skipPermissions: true })
+    expect(store.terminals).toHaveLength(1)
     expect(store.activeTerminalId).toBe('term-1')
   })
 
