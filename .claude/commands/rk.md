@@ -1,16 +1,18 @@
 ---
 description: Load a Rekall working context by anchor, e.g. /rk project:vega task:report-builder
-argument-hint: "company:|project:|task: <label> ...  [wrapup [\"how to write it\"]] | [note \"what to keep\"] | [plan] | [step:N start|done]   (labels, not titles)"
-allowed-tools: mcp__rekall__rekall_context, mcp__rekall__rekall_wrapup, mcp__rekall__rekall_step, mcp__rekall__rekall_propose_step, mcp__rekall__rekall_record_commit, mcp__rekall__rekall_note
+argument-hint: "company:|project:|task: <label> ...  [wrapup [\"how to write it\"]] | [note \"what to keep\"] | [plan] | [generate \"what to diagram\"] | [step:N start|done]   (labels, not titles)"
+allowed-tools: mcp__rekall__rekall_context, mcp__rekall__rekall_wrapup, mcp__rekall__rekall_step, mcp__rekall__rekall_propose_step, mcp__rekall__rekall_record_commit, mcp__rekall__rekall_note, mcp__rekall__rekall_diagram, Read, Grep, Glob
 ---
 
 The arguments are:
 
 $ARGUMENTS
 
-If the terms include the bare word `wrapup`, follow **Wrapping up**. If they include the bare word
-`note`, follow **Noting**. If they include the bare word `plan`, follow **Planning**. If they include
-a `step:` term alongside `start` or `done`, follow **Stepping**. Otherwise follow **Loading**.
+If the terms include the bare word `generate`, follow **Generating**. If they include the bare word
+`wrapup`, follow **Wrapping up**. If they include the bare word `note`, follow **Noting**. If they
+include the bare word `plan`, follow **Planning**. If they include a `step:` term alongside `start`
+or `done`, follow **Stepping**. Otherwise follow **Loading**. Words inside double quotes are never
+terms: `generate "how the plan is noted"` is generating, not planning or noting.
 
 ## Loading
 
@@ -166,6 +168,45 @@ claim the task or a step.
    Build nothing: the drafts are not work until I promote them in the console.
 
 A title the task already has is refused, so a second `plan` adds only what the first one missed.
+
+## Generating
+
+`/rk project:vega task:report-builder generate "how checkout decides what to charge"` means: work out
+what the code does to answer that request, describe it as a Semantic Graph, and store it with
+`rekall_diagram`. The console draws it; you never do.
+
+The text in double quotes is the request, in my words: what the diagram has to make clear. It is not
+an anchor.
+
+1. Drop the `generate` term and the request, and call `rekall_context` with the anchors that are
+   left. The description, wrapup and notes tell you what the project is and where things live. They
+   are not work: in this mode you build nothing, and the checklist stays as it is.
+2. Find the code yourself. Your working directory is the project's folder, and every path in the
+   graph is relative to it. Do not ask me where the project is, which files to read, which functions
+   matter or where to save: search, read, follow calls and references until you can answer the
+   request, and read only what it needs.
+3. Describe the behaviour, not the layout. Pick out what the code does: the steps, the validations,
+   the decisions and each of their outcomes, the states and what moves between them, the events, the
+   data read and written, the external systems called, the errors and where they go. A 200-line
+   function that does six things is six nodes, each with its own line span, contained by one `code`
+   node for the function. A status field set on different branches is a state machine even when the
+   code never calls it one: `state` nodes joined by `transitions_to`, each labelled with its condition.
+4. Keep to what the code supports. Every element that has a place in the code carries it in
+   `sources`, and you read those lines before you cite them. `provenance` says how you know:
+   `observed` for what is written there, `inferred` for your reading of it (a grouping, a concept, a
+   name the code never uses), `documented` for what comes from comments or docs. Never draw a call, a
+   transition or a write you did not see; a deduced edge is marked `inferred`. Give `confidence` only
+   when you have a reason for the number.
+5. Call `rekall_diagram` with the task's anchors, a short `title`, the request as `question` and the
+   whole graph. Its description carries the full format: follow it, and answer the request rather
+   than the whole codebase (10 to 40 nodes reads well). If the answer is a refusal, fix every line it
+   lists and send the whole graph again.
+6. Say in two or three lines what the diagram shows, how many of its nodes are traced to code, and
+   its id. Then stop: no wrapup, no step, no commit. A diagram is not the task's work.
+
+The graph is the whole output. Never HTML, SVG, Mermaid, Vue or anything else that draws, and no
+rendition of the diagram in the chat either. To revise a diagram whose id you have, send the whole
+graph again with that id as `diagram`, keeping the ids of the elements that stay.
 
 ## Wrapping up
 

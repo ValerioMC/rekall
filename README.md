@@ -160,6 +160,7 @@ An anchor is `entity:value`, where the entity is `company`, `project` or `task` 
 | `/rk task:"report builder"` | Quote a value containing spaces |
 | `/rk project:vega task:report-builder wrapup` | Write the task's wrapup instead of loading it |
 | `/rk project:vega task:report-builder plan` | Propose the task's checklist as drafts, then stop |
+| `/rk project:vega task:report-builder generate "how checkout charges"` | Read the code and store a diagram answering the request, then stop (see [Diagrams](#diagrams)) |
 | `/rk note:3f2a9c1e` | A note sent by reference, loaded in full (see [Context size](#context-size-and-reference-notes)) |
 
 An anchor brings back the record, everything it references resolved in full with their notes, what references it as anchors, and its own markdown. A note can be attached to several tasks and arrives with each. If a bare term matches more than one record, the candidates come back and nothing loads. `project:` disambiguates a label two projects share.
@@ -174,6 +175,7 @@ An anchor brings back the record, everything it references resolved in full with
 | `rekall_record_commit` | write | Log a commit of the project's repo folder against one task or step |
 | `rekall_propose_step` | write | Add one step as a draft, for a person to promote |
 | `rekall_note` | write | Write a note on one task, or rewrite one it carries by title with `replace` |
+| `rekall_diagram` | write | Store a Semantic Graph generated for one task, or replace one by id with `diagram` |
 
 There is no query, get or schema tool. `rekall_note` adds a note, or with `replace: true` rewrites the body of the note the task already carries under that title (ignoring case); without `replace` that title is refused, and nothing it does detaches or deletes a note. `rekall_step` refuses `done`; that state is set by hand in the console. `rekall_step` (on `claimed`) and `rekall_wrapup` take an optional `commit_message`, used only on a project that commits on claim (see [Commit on claim](#commit-on-claim)).
 
@@ -315,7 +317,7 @@ The screen has three columns. On the left is the library, grouped by project. In
 - **CODE → CONCEPT.** With nothing selected, the inspector lists the files the diagram points at. Picking one lights the elements it implements. `GET /api/projects/{id}/diagram-trace?file=&line=` answers the same question across every diagram of a project.
 - **Keys.** `f` fit, `+` `-` `0` zoom, `/` find, `l` lens, `d` direction, `esc` clear. The wheel pans; pinch or `⌘`-wheel zooms.
 
-**Generate** opens a terminal on the task you pick with `/rk project:<p> task:<t> generate "<request>"` as its first line (`mode: GENERATE` on `POST /api/tasks/{id}/terminals`). The library shows the request as generating until a diagram for that project arrives on the event stream (`diagram` frames). Note that `/rk` does not handle `generate` yet: that command, and the MCP tool that writes the graph, come in the next step. Until then, **Import** stores a graph written elsewhere. The server checks every rule and lists every one it refuses.
+**Generate** opens a terminal on the task you pick with `/rk project:<p> task:<t> generate "<request>"` as its first line (`mode: GENERATE` on `POST /api/tasks/{id}/terminals`). The library shows the request as generating until a diagram for that project arrives on the event stream (`diagram` frames). The session finds and reads the code on its own, from the project's folder, and never asks where it is or what to read. It describes the behaviour the request is about, splitting monolithic functions into the pieces they perform, and calls `rekall_diagram`. That tool carries the whole of [docs/SEMANTIC-GRAPH.md](docs/SEMANTIC-GRAPH.md) in its description. It stores the diagram on the task's project with the task as its origin, but only after the graph passes every rule and every source span is held against the project folder: the file has to exist and the lines have to be inside it. A refusal lists each broken rule with its path, and nothing is stored until the graph passes. `diagram` replaces an existing diagram in place. **Import** stores a graph written elsewhere, checked against the same rules but not against the folder.
 
 | Route | Effect |
 |---|---|

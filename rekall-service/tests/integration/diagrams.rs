@@ -1,11 +1,12 @@
-//! Diagrams through the service: written whole, read back, replaced in place, traced from code
-//! back to their elements, and gone with their project.
+//! Diagrams through the service: written whole, read back, replaced in place, generated for a
+//! task with their spans held against the project folder, traced from code back to their
+//! elements, and gone with their project.
 
 mod support;
 
 use rekall_common::RekallError;
 use rekall_model::prelude::*;
-use rekall_service::diagram::{DiagramDraft, DiagramService};
+use rekall_service::diagram::{DiagramDraft, DiagramService, GeneratedDiagram};
 use rekall_service::DomainEvent;
 use sea_orm::EntityTrait;
 use serde_json::json;
@@ -131,4 +132,77 @@ async fn a_deleted_task_leaves_the_diagram_and_a_deleted_project_takes_it() {
 
     Project::delete_by_id(project.id).exec(world.db()).await.unwrap();
     assert!(world.services.diagrams.list().await.unwrap().is_empty());
+}
+
+/// A project folder holding `src/order.rs`, long enough for every span `order_flow` cites.
+fn order_folder() -> tempfile::TempDir {
+    let folder = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(folder.path().join("src")).unwrap();
+    let body: String = (1..=130).map(|n| format!("line {n}\n")).collect();
+    std::fs::write(folder.path().join("src/order.rs"), body).unwrap();
+    folder
+}
+
+fn generated(graph: serde_json::Value) -> GeneratedDiagram {
+    GeneratedDiagram {
+        project_label: Some("shop".into()),
+        task_label: "orders".into(),
+        diagram_id: None,
+        title: "Order flow".into(),
+        question: "How is an order processed?".into(),
+        graph: DiagramService::read_graph(graph).unwrap(),
+    }
+}
+
+#[tokio::test]
+async fn a_generated_diagram_lands_on_the_anchored_task_and_its_project() {
+    let world = world().await;
+    let folder = order_folder();
+    let project = world.project("shop", Some(&folder.path().to_string_lossy()), false).await;
+    let task = world.task(&project, "orders").await;
+
+    let written = world.services.diagrams.write_generated(generated(order_flow())).await.unwrap();
+
+    assert_eq!(written.diagram.summary.project_id, project.id);
+    assert_eq!(written.diagram.summary.task_id, Some(task.id));
+    assert_eq!(written.task_anchor, "project:shop task:orders");
+    assert!(written.sources_checked && !written.replaced);
+
+    let mut again = generated(order_flow());
+    again.diagram_id = Some(written.diagram.summary.id);
+    let replaced = world.services.diagrams.write_generated(again).await.unwrap();
+    assert!(replaced.replaced);
+    assert_eq!(world.services.diagrams.list().await.unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn a_generated_diagram_citing_code_that_is_not_there_is_refused_and_not_stored() {
+    let world = world().await;
+    let folder = order_folder();
+    let project = world.project("shop", Some(&folder.path().to_string_lossy()), false).await;
+    world.task(&project, "orders").await;
+    let mut guessed = order_flow();
+    guessed["nodes"][0]["sources"][0]["endLine"] = json!(400);
+    guessed["nodes"][1]["sources"][0]["file"] = json!("src/checkout.rs");
+
+    let refused = world.services.diagrams.write_generated(generated(guessed)).await.unwrap_err();
+
+    assert!(matches!(refused, RekallError::IllegalArgument(_)));
+    assert!(refused.message().contains("nodes[0].sources[0].endLine"), "{refused}");
+    assert!(refused.message().contains("nodes[1].sources[0].file"), "{refused}");
+    assert!(world.services.diagrams.list().await.unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn without_a_project_folder_a_generated_diagram_is_stored_unchecked() {
+    let world = world().await;
+    let project = world.project("shop", None, false).await;
+    world.task(&project, "orders").await;
+
+    let written = world.services.diagrams.write_generated(generated(order_flow())).await.unwrap();
+    assert!(!written.sources_checked);
+
+    let mut unknown = generated(order_flow());
+    unknown.task_label = "billing".into();
+    assert!(matches!(world.services.diagrams.write_generated(unknown).await, Err(RekallError::UnknownAnchor(_))));
 }

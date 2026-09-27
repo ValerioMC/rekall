@@ -1,13 +1,18 @@
-use rekall_common::{Id, RekallError, Result};
+use std::path::{Path, PathBuf};
+
+use rekall_common::{jstr, Id, RekallError, Result};
 use rekall_diagram::{GraphCodec, GraphValidator, SemanticGraph, TraceIndex};
 use rekall_model::constraints::Phase;
 use rekall_model::diagram;
 use rekall_repository::repository as repo;
 use sea_orm::{ActiveModelTrait, ConnectionTrait, IntoActiveModel};
 
-use crate::{in_read, in_write, Ctx, DomainEvent};
+use crate::{in_read, in_write, load, Ctx, DomainEvent};
 
-use super::{DiagramDraft, DiagramStreamEvent, DiagramSummaryView, DiagramTraceView, DiagramView};
+use super::{
+    DiagramDraft, DiagramStreamEvent, DiagramSummaryView, DiagramTraceView, DiagramView, GeneratedDiagram, GeneratedDiagramView,
+    ProjectFolder, SourceAudit,
+};
 
 /// Reads and writes diagrams. A graph is validated before it is stored, so everything read back
 /// satisfies the rules the console and the trace index rely on.
@@ -83,6 +88,39 @@ impl DiagramService {
         })
     }
 
+    /// A session's diagram for a task: stored on the task's project with the task as its origin,
+    /// after every cited span is held against the project folder. Without a folder nothing can be.
+    pub async fn write_generated(&self, generated: GeneratedDiagram) -> Result<GeneratedDiagramView> {
+        let (task, project) = in_read!(&self.ctx, |tx| {
+            let task = load::resolve_task(tx.db(), generated.project_label.as_deref(), &generated.task_label).await?;
+            let project = load::project_of(tx.db(), &task).await?;
+            Ok::<_, RekallError>((task, project))
+        })?;
+        let folder = project.repo_folder.as_deref().filter(|folder| !jstr::is_blank(folder)).map(|folder| PathBuf::from(jstr::strip(folder)));
+        if let Some(folder) = folder.clone() {
+            let graph = generated.graph.clone();
+            tokio::task::spawn_blocking(move || audit_sources(&folder, &graph))
+                .await
+                .map_err(|failed| RekallError::internal("IllegalStateException", failed))??;
+        }
+        let diagram = self
+            .write(DiagramDraft {
+                id: generated.diagram_id,
+                project_id: project.id,
+                task_id: Some(task.id),
+                title: generated.title,
+                question: generated.question,
+                graph: generated.graph,
+            })
+            .await?;
+        Ok(GeneratedDiagramView {
+            diagram,
+            task_anchor: format!("project:{} task:{}", project.label, task.label),
+            replaced: generated.diagram_id.is_some(),
+            sources_checked: folder.is_some(),
+        })
+    }
+
     /// CODE → CONCEPT across a project: every diagram with an element covering `file:line`.
     pub async fn trace(&self, project_id: Id, file: &str, line: u32) -> Result<Vec<DiagramTraceView>> {
         in_read!(&self.ctx, |tx| {
@@ -110,6 +148,11 @@ fn view_of(row: &diagram::Model) -> Result<DiagramView> {
 /// A stored graph passed validation on the way in; failing to read one back is corruption.
 fn stored_graph(row: &diagram::Model) -> Result<SemanticGraph> {
     GraphCodec::parse(&row.graph_json).map_err(|error| RekallError::internal("CorruptDiagram", format!("Diagram {}: {error}", row.id)))
+}
+
+fn audit_sources(folder: &Path, graph: &SemanticGraph) -> Result<()> {
+    let folder = ProjectFolder::open(folder)?;
+    SourceAudit::check(&folder, graph).map_err(|violations| RekallError::illegal(violations.to_string()))
 }
 
 fn count(length: usize) -> i32 {

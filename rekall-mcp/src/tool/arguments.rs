@@ -31,6 +31,11 @@ impl<'a> Arguments<'a> {
         self.text(name).is_some_and(|value| rekall_common::jstr::strip(&value).eq_ignore_ascii_case("true"))
     }
 
+    /// The argument as it arrived, for one that is a JSON document rather than text. Null reads as absent.
+    pub fn value(&self, name: &str) -> Option<&'a Value> {
+        self.node.and_then(|node| node.get(name)).filter(|value| !value.is_null())
+    }
+
     fn text(&self, name: &str) -> Option<String> {
         json_rpc_text(self.node, name)
     }

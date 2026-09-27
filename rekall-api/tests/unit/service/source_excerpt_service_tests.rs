@@ -1,3 +1,5 @@
+use std::fs;
+
 use super::*;
 
 fn project() -> tempfile::TempDir {

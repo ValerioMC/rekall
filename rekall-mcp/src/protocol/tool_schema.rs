@@ -1,6 +1,6 @@
 use serde_json::{json, Map, Value};
 
-/// `ToolSchema`: an object schema of string and boolean properties, in the order they were declared.
+/// `ToolSchema`: an object schema of string, boolean and object properties, in the order they were declared.
 #[derive(Default)]
 pub struct ToolSchema {
     properties: Map<String, Value>,
@@ -20,6 +20,12 @@ impl ToolSchema {
 
     pub fn optional_string(mut self, name: &str, description: &str) -> Self {
         self.properties.insert(name.into(), json!({ "type": "string", "description": description }));
+        self
+    }
+
+    pub fn required_object(mut self, name: &str, description: &str) -> Self {
+        self.properties.insert(name.into(), json!({ "type": "object", "description": description }));
+        self.required.push(name.into());
         self
     }
 

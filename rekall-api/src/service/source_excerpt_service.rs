@@ -1,12 +1,11 @@
 //! Reads the code a diagram element points at, so the console can show CONCEPT → CODE without
-//! leaving the page. It only ever reads inside the diagram's project folder: a path that climbs
-//! out of it, through `..` or a symlink, is refused.
+//! leaving the page. It only ever reads inside the diagram's project folder (`ProjectFolder`).
 
-use std::fs;
 use std::path::{Path, PathBuf};
 
 use rekall_common::{jstr, Id, RekallError, Result};
 use rekall_repository::repository as repo;
+use rekall_service::diagram::ProjectFolder;
 use rekall_service::{in_read, Services};
 
 use crate::dto::{SourceExcerptResponse, SourceLineResponse};
@@ -50,13 +49,7 @@ impl SourceExcerptService {
 
 /// The excerpt of `file` under `folder`, confined to it, with [`CONTEXT_LINES`] around the span.
 fn read_excerpt(folder: &Path, file: &str, start: Option<u32>, end: Option<u32>) -> Result<SourceExcerptResponse> {
-    let path = confined(folder, file)?;
-    let size = fs::metadata(&path).map_err(|_| missing(file))?.len();
-    if size > MAX_FILE_BYTES {
-        return Err(RekallError::illegal(format!("{file} is {size} bytes, too large to show.")));
-    }
-    let bytes = fs::read(&path).map_err(|_| missing(file))?;
-    let text = String::from_utf8_lossy(&bytes);
+    let text = ProjectFolder::open(folder)?.read(file, MAX_FILE_BYTES)?;
     let all: Vec<&str> = text.lines().collect();
     let total = u32::try_from(all.len()).unwrap_or(u32::MAX);
 
@@ -79,25 +72,6 @@ fn read_excerpt(folder: &Path, file: &str, start: Option<u32>, end: Option<u32>)
         lines,
         truncated: last_shown < last,
     })
-}
-
-/// `file` resolved under `folder`, refused unless its real path still lies inside it.
-fn confined(folder: &Path, file: &str) -> Result<PathBuf> {
-    let root = folder.canonicalize().map_err(|_| RekallError::not_found_msg(format!("The project folder {} is not there.", folder.display())))?;
-    let requested = Path::new(file.trim());
-    let joined = if requested.is_absolute() { requested.to_path_buf() } else { root.join(requested) };
-    let real = joined.canonicalize().map_err(|_| missing(file))?;
-    if !real.starts_with(&root) {
-        return Err(RekallError::illegal(format!("{file} is outside the project folder.")));
-    }
-    if !real.is_file() {
-        return Err(RekallError::illegal(format!("{file} is not a file.")));
-    }
-    Ok(real)
-}
-
-fn missing(file: &str) -> RekallError {
-    RekallError::not_found_msg(format!("There is no file {file} in the project folder."))
 }
 
 /// A highlight.js language name from the extension, when it is one the console registers.

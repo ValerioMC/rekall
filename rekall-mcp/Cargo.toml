@@ -1,6 +1,6 @@
 [package]
 name = "rekall-mcp"
-description = "The /mcp JSON-RPC endpoint: one tool reads, four write a few narrow things"
+description = "The /mcp JSON-RPC endpoint: one tool reads, six write a few narrow things"
 version.workspace = true
 edition.workspace = true
 

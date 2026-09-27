@@ -95,6 +95,7 @@ This is how a conceptual breakdown is tied to real structure: a `code` node for 
 - Lines are one-based and inclusive. `startLine` 0 is refused. An `endLine` needs a `startLine` and cannot come before it. Without lines, the element claims the whole file.
 - `symbol` names the enclosing function or type when there is one.
 - A node may list several sources (a concept spread across files). A node with none is a pure concept, and the trace mark shows a hollow core.
+- A diagram stored through `rekall_diagram` has every span held against the project's folder before it is written: the file has to be there and `startLine` and `endLine` inside it. A span that points at nothing is refused, not stored. (A graph imported in the console is not checked this way.)
 
 These spans are the whole of the traceability. CONCEPT → CODE opens them. CODE → CONCEPT (`TraceIndex`, `GET /api/projects/{id}/diagram-trace`) returns every node whose span covers a line, narrowest first.
 
@@ -109,13 +110,15 @@ These spans are the whole of the traceability. CONCEPT → CODE opens them. CODE
 
 ## Refusals
 
-A refused graph comes back as a 400 with one line per broken rule, each with its path, for example:
+A refused graph comes back with one line per broken rule, each with its path (a 400 over REST, the tool's answer over MCP), for example:
 
 ```
 The graph breaks 2 rule(s):
 nodes[1].confidence: must be between 0 and 1
 edges[0].to: no node has the id "ghost"
 ```
+
+The spans are checked only once the graph itself passes, and report the same way (`nodes[4].sources[0].endLine: line 312 is past the end of src/order.rs (240 lines)`).
 
 At most 50 rules are listed. Fix them all and send the whole graph again: a graph is written whole, never patched.
 
@@ -131,4 +134,4 @@ At most 50 rules are listed. Fix them all and send the whole graph again: a grap
 
 ## Stored
 
-A diagram belongs to a project, whose folder its paths are relative to. It optionally names the task it was generated from, and it keeps the question it answers. The graph is one JSON column (`diagram.graph_json`), written whole by `DiagramService::write` after validation. The same path serves `POST`/`PUT /api/diagrams` and, in the next step, the MCP tool.
+A diagram belongs to a project, whose folder its paths are relative to. It optionally names the task it was generated from, and it keeps the question it answers. The graph is one JSON column (`diagram.graph_json`), written whole by `DiagramService::write` after validation. `POST`/`PUT /api/diagrams` call it directly. `rekall_diagram` goes through `DiagramService::write_generated`, which resolves the task's anchors, audits the spans against the folder, and stores the diagram on that task's project with the task as its origin. Passing `diagram` replaces that diagram in place, keeping its id and creation time.
