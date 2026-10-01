@@ -129,8 +129,10 @@ watch(
 function scheduleSave(): void {
   const document = selectedDocument.value
   if (!document) return
-  store.saveState = 'unsaved'
   if (saveTimer) clearTimeout(saveTimer)
+  const { title, kind, bodyMarkdown } = draft.value
+  if (title === document.title && kind === document.kind && bodyMarkdown === document.bodyMarkdown) return
+  store.saveState = 'unsaved'
   saveTimer = setTimeout(() => {
     void run(() => store.saveNote(document.id, { ...draft.value }))
   }, 700)

@@ -94,6 +94,10 @@ One session of work on a task.
   running two timers in parallel.
 - A person writing on a task in the console (its description, wrapup, steps, notes, or the task
   itself) starts its timer if it is paused; a session's writes never do.
+- Opening a note, or saving one unchanged, is not writing and never starts a timer.
+- A timer on a task with no write for 30 minutes (task, steps, wrapup or notes) is stopped at the
+  time of that last write; a task with a running step is never idle. Open timers also stop when
+  the application shuts down.
 - Accepting a claim (a claimed step ticked done, or a claimed stepless task accepted) stops the
   task's timer.
 - Past entries can be corrected by hand (adjusting start/stop times) or deleted.

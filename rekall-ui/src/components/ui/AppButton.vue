@@ -18,12 +18,12 @@ const props = withDefaults(
 const emit = defineEmits<{ click: [event: MouseEvent] }>()
 
 const VARIANTS: Readonly<Record<Variant, string>> = {
-  primary:
-    'bg-accent text-accent-ink border-accent hover:bg-accent-strong hover:border-accent-strong font-semibold shadow-lift',
-  secondary:
-    'bg-surface-raised text-text border-border-strong hover:bg-surface-hover hover:border-text-subtle',
-  ghost: 'bg-transparent text-text-muted border-transparent hover:bg-surface-raised hover:text-text',
-  danger: 'bg-transparent text-danger border-danger/40 hover:bg-danger-soft hover:border-danger',
+  primary: 'metal-gold font-semibold',
+  secondary: 'metal-slate',
+  ghost:
+    'bg-transparent text-text-muted border-transparent hover:metal-slate hover:text-text active:shadow-[var(--shadow-well)]',
+  danger:
+    'metal-slate text-danger border-danger/40 hover:bg-danger-soft hover:border-danger hover:text-danger',
   // A destructive action repeated down a list (one per row): ghost at rest, red only under the
   // pointer, so a column of rows is not a column of alarms. The confirm it opens is the guard.
   'danger-quiet':
@@ -37,7 +37,7 @@ const SIZES: Readonly<Record<Size, string>> = {
 
 const classes = computed(() => [
   'focus-ring inline-flex items-center justify-center rounded-[var(--radius-control)] border',
-  'transition-all duration-150 active:translate-y-px select-none whitespace-nowrap',
+  'active:translate-y-px select-none whitespace-nowrap',
   'disabled:opacity-40 disabled:cursor-not-allowed disabled:active:translate-y-0',
   VARIANTS[props.variant],
   SIZES[props.size]
@@ -53,7 +53,7 @@ const classes = computed(() => [
   >
     <span
       v-if="props.loading"
-      class="size-3.5 animate-spin rounded-full border-2 border-current/30 border-t-current"
+      class="size-3.5 animate-spin rounded-full border-2 border-current/25 border-t-current drop-shadow-[0_0_3px_currentColor]"
       aria-hidden="true"
     />
     <slot />

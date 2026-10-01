@@ -29,12 +29,14 @@
  * thing you copy and the thing you clicked look identical.
  */
 @theme {
-  --color-canvas: #08090c;
-  --color-surface: #0d0f14;
-  --color-surface-raised: #14171e;
-  --color-surface-hover: #1a1e26;
-  --color-border: #1c222c;
-  --color-border-strong: #2a323f;
+  /* The icon's body: a blue-slate, lit from the top. Canvas is the deep well the icon's gold ring
+     sits in; the surfaces climb out of it toward the slate of the tile itself. */
+  --color-canvas: #0d1017;
+  --color-surface: #151922;
+  --color-surface-raised: #1d2330;
+  --color-surface-hover: #262d3c;
+  --color-border: #2a3243;
+  --color-border-strong: #3b4558;
 
   /* 18.2:1 on canvas. Muted is 8.7:1, subtle 4.3:1 (WCAG AA at every surface it sits on, down to
      surface-raised) — and therefore never used for body text, only chrome: counts, timestamps,
@@ -43,16 +45,20 @@
   --color-text-muted: #a3acba;
   --color-text-subtle: #7a8494;
 
-  --color-accent: #f5a524;
-  --color-accent-strong: #ffc061;
-  --color-accent-deep: #a8681a;
-  --color-accent-soft: #f5a5241f;
-  --color-accent-ink: #2a1a04;
+  /* Brushed gold, as on the icon's ring and plate: a bright lip, a warm body, a copper shade.
+     `accent` is the body; the metal utilities below build the gradient from the other three. */
+  --color-accent: #eaa43c;
+  --color-accent-strong: #ffd88e;
+  --color-accent-deep: #a8651a;
+  --color-accent-shade: #c27a22;
+  --color-accent-soft: #eaa43c24;
+  --color-accent-ink: #2b1804;
 
-  --color-anchor: #5fd0e0;
-  --color-anchor-strong: #a5eaf4;
-  --color-anchor-soft: #5fd0e01a;
-  --color-anchor-line: #5fd0e040;
+  /* The glass orb on the icon's right: a cool cyan with a white-blue core. */
+  --color-anchor: #55c9ea;
+  --color-anchor-strong: #a9ecfa;
+  --color-anchor-soft: #55c9ea1c;
+  --color-anchor-line: #55c9ea45;
 
   --color-safe: #3ddc97;
   --color-safe-soft: #3ddc971a;
@@ -100,9 +106,21 @@
   --radius-card: 14px;
   --radius-control: 9px;
 
-  --shadow-lift: 0 1px 2px rgb(0 0 0 / 0.5), 0 12px 32px -12px rgb(0 0 0 / 0.6);
-  --shadow-modal: 0 2px 6px rgb(0 0 0 / 0.6), 0 40px 80px -24px rgb(0 0 0 / 0.85);
+  --shadow-lift:
+    inset 0 1px 0 rgb(255 255 255 / 0.12), 0 1px 2px rgb(0 0 0 / 0.55),
+    0 10px 22px -8px rgb(0 0 0 / 0.65);
+  --shadow-modal:
+    inset 0 1px 0 rgb(255 255 255 / 0.06), 0 2px 6px rgb(0 0 0 / 0.6),
+    0 40px 80px -24px rgb(0 0 0 / 0.9);
   --shadow-glow: 0 0 28px -6px var(--color-accent-soft);
+  /* One light source, top-left, everywhere: a lit upper lip, a dark lower lip, a contact shadow
+     and a soft cast one. Raised things carry --shadow-raised, sunk ones --shadow-well. */
+  --shadow-raised:
+    inset 0 1px 0 rgb(255 255 255 / 0.075), inset 0 -1px 0 rgb(0 0 0 / 0.38),
+    0 1px 1px rgb(0 0 0 / 0.55), 0 8px 16px -8px rgb(0 0 0 / 0.65);
+  --shadow-well:
+    inset 0 2px 4px rgb(0 0 0 / 0.5), inset 0 -1px 0 rgb(255 255 255 / 0.04),
+    0 1px 0 rgb(255 255 255 / 0.035);
 
   /*
    * Data-dense metrics. Rows and controls line up on a 4px rhythm so a list, a form and a
@@ -212,9 +230,9 @@
   body {
     background-color: var(--color-canvas);
     background-image:
-      radial-gradient(70rem 42rem at 6% -12%, #f5a52412, transparent 60%),
-      radial-gradient(58rem 38rem at 104% 110%, #63d99a12, transparent 62%),
-      radial-gradient(120rem 80rem at 50% -6%, #63d99a08, transparent 70%);
+      radial-gradient(70rem 42rem at 6% -12%, #eaa43c16, transparent 60%),
+      radial-gradient(58rem 38rem at 104% 110%, #55c9ea14, transparent 62%),
+      radial-gradient(120rem 80rem at 50% -6%, #5a6a9020, transparent 70%);
     background-attachment: fixed;
     color: var(--color-text-muted);
     font-family: var(--font-sans);
@@ -291,8 +309,8 @@
  */
 @utility field {
   border: 1px solid var(--color-border);
-  background: var(--color-canvas);
-  box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.38);
+  background: linear-gradient(180deg, #0a0d13, var(--color-canvas));
+  box-shadow: var(--shadow-well);
   outline: none;
   transition:
     border-color 140ms ease,
@@ -311,8 +329,9 @@
   &:focus-visible {
     border-color: color-mix(in srgb, var(--field-tint, var(--color-accent)) 62%, transparent);
     box-shadow:
-      inset 0 1px 2px rgb(0 0 0 / 0.38),
-      0 0 0 3px color-mix(in srgb, var(--field-tint, var(--color-accent)) 14%, transparent);
+      inset 0 2px 4px rgb(0 0 0 / 0.5),
+      0 0 0 3px color-mix(in srgb, var(--field-tint, var(--color-accent)) 16%, transparent),
+      0 0 14px -2px color-mix(in srgb, var(--field-tint, var(--color-accent)) 38%, transparent);
   }
 
   &[aria-invalid='true'] {
@@ -328,6 +347,161 @@
 
 @utility field-anchor {
   --field-tint: var(--color-anchor);
+}
+
+/*
+ * Material utilities: the icon's three materials, as things a control can be made of.
+ *
+ *   metal-gold   brushed gold. A bright lip, a warm body, a copper shade, a fine horizontal grain.
+ *   metal-slate  the icon's tile. A raised blue-slate key with a lit upper edge.
+ *   tube         a glossy pipe, like the ring: a specular band along the top, shade below. Used
+ *                for progress, where the fill is the gold ring itself.
+ *   trough       the recessed channel a tube sits in.
+ *
+ * Pressing moves the light, not the layout: the key sinks one pixel and its highlights dim.
+ */
+@utility metal-gold {
+  color: var(--color-accent-ink);
+  border: 1px solid #8c5316;
+  background:
+    repeating-linear-gradient(180deg, rgb(255 255 255 / 0.035) 0 1px, transparent 1px 3px),
+    linear-gradient(
+      180deg,
+      #ffe0a0 0%,
+      var(--color-accent-strong) 8%,
+      var(--color-accent) 46%,
+      var(--color-accent-shade) 100%
+    );
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.65),
+    inset 0 -1px 0 rgb(120 62 8 / 0.55),
+    0 1px 1px rgb(0 0 0 / 0.55),
+    0 6px 14px -6px rgb(234 164 60 / 0.45),
+    0 10px 18px -8px rgb(0 0 0 / 0.7);
+  text-shadow: 0 1px 0 rgb(255 255 255 / 0.35);
+  transition:
+    filter 140ms ease,
+    box-shadow 140ms ease,
+    transform 90ms ease;
+
+  &:hover:not(:disabled) {
+    filter: brightness(1.07) saturate(1.05);
+  }
+
+  &:active:not(:disabled) {
+    filter: brightness(0.96);
+    box-shadow:
+      inset 0 2px 4px rgb(120 62 8 / 0.55),
+      0 1px 0 rgb(255 255 255 / 0.08);
+  }
+}
+
+@utility metal-slate {
+  color: var(--color-text);
+  border: 1px solid var(--color-border-strong);
+  background: linear-gradient(180deg, #2b3345 0%, #212836 55%, #1b212d 100%);
+  box-shadow: var(--shadow-raised);
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 90ms ease;
+
+  &:hover:not(:disabled) {
+    background: linear-gradient(180deg, #323c50 0%, #283042 55%, #212836 100%);
+    border-color: color-mix(in srgb, var(--color-accent) 40%, var(--color-border-strong));
+  }
+
+  &:active:not(:disabled) {
+    background: linear-gradient(180deg, #1a202b, #202735);
+    box-shadow: var(--shadow-well);
+  }
+}
+
+@utility trough {
+  border-radius: 9999px;
+  background: linear-gradient(180deg, #080b10, #0f131b);
+  box-shadow:
+    inset 0 1px 3px rgb(0 0 0 / 0.75),
+    0 1px 0 rgb(255 255 255 / 0.05);
+}
+
+/* The glossy gold fill. `--tube` retints it (green once complete) without a second recipe. */
+@utility tube-gold {
+  background:
+    linear-gradient(
+      180deg,
+      rgb(255 255 255 / 0.55) 0%,
+      rgb(255 255 255 / 0.08) 42%,
+      rgb(0 0 0 / 0) 50%,
+      rgb(0 0 0 / 0.28) 100%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--tube, var(--color-accent)) 70%, white),
+      var(--tube, var(--color-accent)) 50%,
+      color-mix(in srgb, var(--tube, var(--color-accent)) 70%, black)
+    );
+  box-shadow:
+    0 0 8px -1px color-mix(in srgb, var(--tube, var(--color-accent)) 55%, transparent),
+    0 1px 1px rgb(0 0 0 / 0.5);
+}
+
+@utility tube-safe {
+  --tube: var(--color-safe);
+}
+
+/* The next step, not started: an empty channel with a gold hairline lit along its floor. */
+@utility tube-next {
+  background: linear-gradient(
+    180deg,
+    transparent,
+    color-mix(in srgb, var(--color-accent) 30%, transparent)
+  );
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 30%, transparent);
+}
+
+/* A glass orb, the icon's cyan sphere: a hot specular spot, a body, a rim of light. */
+@utility orb-cyan {
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle at 32% 28%,
+    #eafcff 0%,
+    var(--color-anchor-strong) 18%,
+    var(--color-anchor) 52%,
+    #1d7fa6 100%
+  );
+  box-shadow:
+    inset 0 -2px 3px rgb(8 60 90 / 0.5),
+    0 0 10px 1px color-mix(in srgb, var(--color-anchor) 55%, transparent),
+    0 1px 2px rgb(0 0 0 / 0.6);
+}
+
+/* A panel lit in gold: the running step, the live timer. Warm glass over slate, a bright upper
+   lip and a cast shadow, so it reads as a plate standing off the pane rather than a tinted box. */
+@utility panel-gold {
+  border-color: color-mix(in srgb, var(--color-accent) 48%, transparent);
+  background:
+    radial-gradient(260px 90px at 14px -10px, #eaa43c2e, transparent 70%),
+    linear-gradient(180deg, #2f2a24, #211e1d);
+  box-shadow:
+    inset 0 1px 0 rgb(255 226 160 / 0.2),
+    inset 0 -1px 0 rgb(0 0 0 / 0.4),
+    0 1px 1px rgb(0 0 0 / 0.5),
+    0 14px 24px -14px rgb(0 0 0 / 0.8),
+    0 0 22px -10px color-mix(in srgb, var(--color-accent) 50%, transparent);
+}
+
+@utility panel-gold-quiet {
+  border-color: color-mix(in srgb, var(--color-accent) 24%, transparent);
+  background: linear-gradient(180deg, #232733, #1c212c);
+  box-shadow: var(--shadow-raised);
+}
+
+@utility panel-slate {
+  border-color: var(--color-border-strong);
+  background: linear-gradient(180deg, #252c3b, #1d2330);
+  box-shadow: var(--shadow-raised);
 }
 
 /* Backdrop for sticky headers and the panes themselves: content scrolls under, legibly. */
@@ -377,11 +551,13 @@
   position: relative;
   background:
     radial-gradient(150px 48px at 10px 50%, var(--select-tint-soft), transparent 72%),
-    var(--color-surface-raised);
+    linear-gradient(180deg, #252c3b, var(--color-surface-raised));
   box-shadow:
-    0 1px 1px rgb(0 0 0 / 0.34),
-    0 14px 30px -18px rgb(0 0 0 / 0.62),
-    0 0 0 1px color-mix(in srgb, var(--select-tint) 17%, transparent);
+    inset 0 1px 0 rgb(255 255 255 / 0.09),
+    inset 0 -1px 0 rgb(0 0 0 / 0.35),
+    0 1px 1px rgb(0 0 0 / 0.5),
+    0 12px 22px -12px rgb(0 0 0 / 0.75),
+    0 0 0 1px color-mix(in srgb, var(--select-tint) 22%, transparent);
 
   &::before {
     content: '';
@@ -389,14 +565,17 @@
     left: 3px;
     top: 7px;
     bottom: 7px;
-    width: 2px;
+    width: 3px;
     border-radius: 999px;
     background: linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--select-tint) 75%, white),
-      color-mix(in srgb, var(--select-tint) 65%, black)
+      90deg,
+      color-mix(in srgb, var(--select-tint) 55%, white),
+      var(--select-tint) 45%,
+      color-mix(in srgb, var(--select-tint) 60%, black)
     );
-    box-shadow: 0 0 9px -1px color-mix(in srgb, var(--select-tint) 55%, transparent);
+    box-shadow:
+      0 0 9px -1px color-mix(in srgb, var(--select-tint) 60%, transparent),
+      0 1px 1px rgb(0 0 0 / 0.5);
   }
 }
 
@@ -410,11 +589,13 @@
   border-color: color-mix(in srgb, var(--color-accent) 40%, transparent);
   background:
     radial-gradient(170px 66px at 16px -6px, var(--color-accent-soft), transparent 70%),
-    var(--color-surface-raised);
+    linear-gradient(180deg, #252c3b, var(--color-surface-raised));
   box-shadow:
-    0 1px 1px rgb(0 0 0 / 0.3),
-    0 12px 26px -18px rgb(0 0 0 / 0.55),
-    inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 12%, transparent);
+    inset 0 1px 0 rgb(255 255 255 / 0.09),
+    inset 0 -1px 0 rgb(0 0 0 / 0.35),
+    0 1px 1px rgb(0 0 0 / 0.4),
+    0 14px 24px -16px rgb(0 0 0 / 0.7),
+    0 0 0 1px color-mix(in srgb, var(--color-accent) 14%, transparent);
 }
 
 /*
@@ -432,10 +613,12 @@
   isolation: isolate;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
-  background: color-mix(in srgb, var(--color-surface-raised) 52%, var(--color-surface));
-  box-shadow:
-    inset 0 1px 0 0 rgb(255 255 255 / 0.025),
-    0 18px 36px -28px rgb(0 0 0 / 0.8);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-surface-raised) 70%, var(--color-surface)),
+    var(--color-surface)
+  );
+  box-shadow: var(--shadow-raised);
   overflow: hidden;
 
   /* The rail. It fades out at the foot, where the list of notes ends rather than stops. */
@@ -513,8 +696,11 @@
   width: 15px;
   height: 15px;
   border-radius: 9999px;
-  background: var(--color-surface-raised);
+  background: radial-gradient(circle at 35% 28%, #313a4c, var(--color-surface) 80%);
   border: 1px solid var(--color-border-strong);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.12),
+    0 1px 2px rgb(0 0 0 / 0.6);
   color: var(--color-text-muted);
   transition:
     color 160ms ease,
@@ -531,9 +717,12 @@
 @utility dossier-node-lit {
   color: var(--color-accent);
   border-color: color-mix(in srgb, var(--color-accent) 62%, transparent);
+  background: radial-gradient(circle at 35% 28%, #4a3a1c, #2a2012 80%);
   box-shadow:
+    inset 0 1px 0 rgb(255 226 160 / 0.35),
     0 0 0 3px color-mix(in srgb, var(--color-accent) 12%, transparent),
-    0 0 12px -2px color-mix(in srgb, var(--color-accent) 55%, transparent);
+    0 0 12px -2px color-mix(in srgb, var(--color-accent) 60%, transparent),
+    0 1px 2px rgb(0 0 0 / 0.6);
 }
 
 /* A note's node: smaller than a piece's, because a note hangs off the context rather than
@@ -555,6 +744,7 @@
 @utility dossier-leaf-reference {
   background: var(--color-surface-raised);
   border: 1.5px solid var(--color-text-subtle);
+  box-shadow: 0 0 0 3px var(--color-surface-raised), inset 0 1px 1px rgb(0 0 0 / 0.5);
 }
 
 @utility dossier-leaf-lit {
@@ -636,9 +826,9 @@
   position: relative;
   background:
     radial-gradient(160px 52px at 18px -8px, var(--project-tint-soft, var(--color-accent-soft)), transparent 70%),
-    var(--color-surface-raised);
+    linear-gradient(180deg, #232a39, var(--color-surface-raised));
   border: 1px solid var(--color-border);
-  box-shadow: 0 1px 1px rgb(0 0 0 / 0.3), 0 10px 22px -16px rgb(0 0 0 / 0.55);
+  box-shadow: var(--shadow-raised);
 }
 
 /* The drawer body arrives rather than appears, the same way a dialog does. */
@@ -991,8 +1181,12 @@
   height: 13px;
   width: 13px;
   border-radius: 9999px;
-  border: 1px solid color-mix(in srgb, var(--color-accent) 38%, transparent);
-  background: color-mix(in srgb, var(--color-accent) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 45%, transparent);
+  background: radial-gradient(circle at 35% 28%, #3d3016, #1c1609 85%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 226 160 / 0.3),
+    0 0 8px -2px color-mix(in srgb, var(--color-accent) 55%, transparent),
+    0 1px 2px rgb(0 0 0 / 0.6);
   overflow: hidden;
 
   &::before {
@@ -1040,8 +1234,10 @@
   height: 13px;
   width: 3px;
   border-radius: 1.5px;
-  background: var(--color-anchor);
-  box-shadow: 0 0 8px -1px color-mix(in srgb, var(--color-anchor) 60%, transparent);
+  background: linear-gradient(90deg, var(--color-anchor-strong), var(--color-anchor));
+  box-shadow:
+    0 0 8px -1px color-mix(in srgb, var(--color-anchor) 70%, transparent),
+    0 1px 1px rgb(0 0 0 / 0.5);
   transform-origin: center left;
   animation: caret-blink 1.5s steps(1, end) infinite;
 }
@@ -1107,13 +1303,16 @@
   transform: translateX(-50%);
   border-radius: 9999px;
   overflow: hidden;
+  width: 3px;
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--color-accent) 26%, transparent) 0%,
-    color-mix(in srgb, var(--color-accent) 48%, transparent) 55%,
+    color-mix(in srgb, var(--color-accent) 30%, transparent) 0%,
+    color-mix(in srgb, var(--color-accent) 60%, transparent) 55%,
     var(--color-accent-strong) 100%
   );
-  box-shadow: 0 0 9px -2px color-mix(in srgb, var(--color-accent) 45%, transparent);
+  box-shadow:
+    inset 1px 0 0 rgb(255 255 255 / 0.35),
+    0 0 10px -1px color-mix(in srgb, var(--color-accent) 55%, transparent);
 
   &::before,
   &::after {
@@ -1145,7 +1344,13 @@
    the live conduit leads. `--rail-tint` turns it green once the whole checklist is done, with
    the seals and the ledger. */
 @utility spent-rail {
-  background: color-mix(in srgb, var(--rail-tint, var(--color-accent)) 42%, transparent);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--rail-tint, var(--color-accent)) 70%, white),
+    color-mix(in srgb, var(--rail-tint, var(--color-accent)) 55%, black)
+  );
+  box-shadow: 0 1px 1px rgb(0 0 0 / 0.5);
+  opacity: 0.7;
 }
 
 /* The connector below a step not yet reached: dotted, a path drawn but not walked. The spent
@@ -1166,32 +1371,39 @@
  * so the ledger, the node and the conduit all move together and nothing else on the pane does.
  */
 @utility ledger-claimed {
-  background: repeating-linear-gradient(
-    -45deg,
-    color-mix(in srgb, var(--color-accent) 78%, transparent) 0 2px,
-    color-mix(in srgb, var(--color-accent) 30%, transparent) 2px 4px
-  );
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.3), transparent 50%, rgb(0 0 0 / 0.25)),
+    repeating-linear-gradient(
+      -45deg,
+      color-mix(in srgb, var(--color-accent) 78%, transparent) 0 2px,
+      color-mix(in srgb, var(--color-accent) 30%, transparent) 2px 4px
+    );
+  box-shadow: 0 1px 1px rgb(0 0 0 / 0.5);
 }
 
 @utility ledger-running {
-  background-color: color-mix(in srgb, var(--color-accent) 42%, transparent);
-  background-image: linear-gradient(
-    90deg,
-    transparent 0%,
-    var(--color-accent-strong) 50%,
-    transparent 100%
-  );
-  background-size: 45% 100%;
+  background-color: color-mix(in srgb, var(--color-accent) 42%, #1a1408);
+  background-image:
+    linear-gradient(180deg, rgb(255 255 255 / 0.3), transparent 50%, rgb(0 0 0 / 0.3)),
+    linear-gradient(90deg, transparent 0%, var(--color-accent-strong) 50%, transparent 100%);
+  background-size:
+    100% 100%,
+    45% 100%;
   background-repeat: no-repeat;
+  box-shadow: 0 0 8px -1px color-mix(in srgb, var(--color-accent) 55%, transparent);
   animation: ledger-sheen 1.7s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
 
 @keyframes ledger-sheen {
   from {
-    background-position: -120% 0;
+    background-position:
+      0 0,
+      -120% 0;
   }
   to {
-    background-position: 220% 0;
+    background-position:
+      0 0,
+      220% 0;
   }
 }
 

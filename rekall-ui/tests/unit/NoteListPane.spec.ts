@@ -158,6 +158,27 @@ describe('NoteListPane', () => {
     wrapper.unmount()
   })
 
+  it('opens the attach picker from the shortcut, counting the notes it can add, and disables it when none is left', async () => {
+    const store = seed([note('d1', 'cluster.md', [builder]), note('d2', 'other.md', [retry])])
+    store.projects = [
+      { id: vega, companyId: 'c1' } as unknown as (typeof store.projects)[number]
+    ]
+    const wrapper = render()
+
+    const button = wrapper.get('[data-testid="note-attach-existing"]')
+    expect(wrapper.get('[data-testid="note-attach-available"]').text()).toBe('1')
+    await button.trigger('click')
+    expect(document.body.querySelector('[data-testid="note-attach-picker"]')).not.toBeNull()
+    wrapper.unmount()
+
+    document.body.innerHTML = ''
+    seed([note('d1', 'cluster.md', [builder])])
+    useConsoleStore().projects = [{ id: vega, companyId: 'c1' } as unknown as ReturnType<typeof useConsoleStore>['projects'][number]]
+    const empty = render()
+    expect(empty.get('[data-testid="note-attach-existing"]').attributes('disabled')).toBeDefined()
+    empty.unmount()
+  })
+
   it('creates a note in the task\'s project, on the task, from the button under the last card', async () => {
     const store = seed([note('d1', 'cluster.md', [builder])])
     store.createNote = vi.fn().mockResolvedValue(undefined)

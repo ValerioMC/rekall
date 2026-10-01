@@ -58,7 +58,7 @@ watch(
     <button
       data-testid="task-row"
       class="focus-ring flex w-full items-start gap-2.5 rounded-[var(--radius-control)] px-2.5 py-2 text-left transition-colors"
-      :class="selected ? 'selected-row text-text' : 'text-text-muted hover:bg-surface-raised hover:text-text'"
+      :class="selected ? 'selected-row text-text' : 'text-text-muted hover:panel-slate hover:text-text'"
       :style="selected ? { '--select-tint': selectTint.base, '--select-tint-soft': selectTint.soft } : undefined"
       :aria-current="selected"
       @click="$emit('select')"

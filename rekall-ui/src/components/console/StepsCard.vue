@@ -66,7 +66,7 @@ const hasBody = computed(() => hasSteps.value || draftCount.value > 0)
     </span>
 
     <template v-if="hasSteps">
-      <span class="mt-2 flex h-[4px] gap-[3px]" aria-hidden="true">
+      <span class="trough mt-2 flex h-[7px] gap-[3px] p-[1.5px]" aria-hidden="true">
         <span
           v-for="step in checklist"
           :key="step.id"
@@ -74,15 +74,15 @@ const hasBody = computed(() => hasSteps.value || draftCount.value > 0)
           :class="
             step.state === 'DONE'
               ? done === checklist.length
-                ? 'bg-safe/80'
-                : 'bg-accent'
+                ? 'tube-gold tube-safe'
+                : 'tube-gold'
               : step.state === 'CLAIMED'
                 ? 'ledger-claimed'
                 : step.state === 'RUNNING'
                   ? 'ledger-running'
                   : step.id === next?.id
-                    ? 'bg-accent/25'
-                    : 'bg-border-strong'
+                    ? 'tube-next'
+                    : 'bg-transparent'
           "
         />
       </span>

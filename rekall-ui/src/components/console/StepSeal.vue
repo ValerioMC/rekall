@@ -14,7 +14,7 @@
  * Only a state change animates, and only once: a checklist loading in draws nothing, so a pane
  * at rest never moves unless a step is running.
  */
-import { computed, onUnmounted, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, useId, watch } from 'vue'
 import type { TaskStepState } from '@/model/catalog'
 
 const props = withDefaults(
@@ -27,6 +27,8 @@ const props = withDefaults(
   }>(),
   { next: false, complete: false }
 )
+
+const gradientId = useId()
 
 const TICK_COUNT = 12
 const ORBIT_SECONDS = 3.4
@@ -86,9 +88,28 @@ onUnmounted(() => {
     :data-next="next ? 'true' : undefined"
     :data-complete="complete ? 'true' : undefined"
     :data-arrive="arrival ?? undefined"
+    :style="{
+      '--seal-well': `url(#${gradientId}-well)`,
+      '--seal-metal': `url(#${gradientId}-metal)`
+    }"
     data-testid="step-seal"
     aria-hidden="true"
   >
+    <defs>
+      <linearGradient :id="`${gradientId}-well`" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#080b10" />
+        <stop offset="1" stop-color="#252d3d" />
+      </linearGradient>
+      <radialGradient :id="`${gradientId}-metal`" cx="0.34" cy="0.26" r="0.95">
+        <stop offset="0" style="stop-color: var(--seal-hi)" />
+        <stop offset="0.5" style="stop-color: var(--seal)" />
+        <stop offset="1" style="stop-color: var(--seal-shade)" />
+      </radialGradient>
+      <linearGradient :id="`${gradientId}-gloss`" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#fff" stop-opacity="0.7" />
+        <stop offset="1" stop-color="#fff" stop-opacity="0" />
+      </linearGradient>
+    </defs>
     <g v-if="state === 'DRAFT'">
       <path
         class="seal-crop"
@@ -101,6 +122,15 @@ onUnmounted(() => {
     <template v-else>
       <circle v-if="arrival === 'DONE'" class="seal-ripple" cx="12" cy="12" r="10.6" />
       <circle class="seal-disc" cx="12" cy="12" r="10.6" />
+      <circle class="seal-rim" cx="12" cy="12" r="10.1" />
+      <ellipse
+        class="seal-gloss"
+        cx="12"
+        cy="7.3"
+        rx="7"
+        ry="4.2"
+        :fill="`url(#${gradientId}-gloss)`"
+      />
       <circle
         class="seal-ring"
         cx="12"
@@ -140,15 +170,21 @@ onUnmounted(() => {
 <style scoped>
 .seal {
   --seal: var(--color-accent);
+  --seal-hi: var(--color-accent-strong);
+  --seal-shade: var(--color-accent-deep);
   --seal-ink: var(--color-accent-ink);
   display: block;
   width: 100%;
   height: 100%;
   overflow: visible;
+  /* Every seal stands proud of the pane: a contact shadow under it, the light from above. */
+  filter: drop-shadow(0 1.5px 1.2px rgb(0 0 0 / 0.65)) drop-shadow(0 4px 5px rgb(0 0 0 / 0.35));
 }
 
 .seal[data-complete='true'] {
   --seal: var(--color-safe);
+  --seal-hi: #a6f2cd;
+  --seal-shade: #14804f;
   --seal-ink: #03200f;
 }
 
@@ -230,7 +266,35 @@ onUnmounted(() => {
 /* ---- The disc and ring, shared by every checklist state ------------------------------ */
 
 .seal-disc {
-  fill: var(--color-canvas);
+  fill: var(--seal-well);
+}
+
+/* The bevel of the bowl the seal sits in: the light catches its lower lip, not its upper one. */
+.seal-rim {
+  fill: none;
+  stroke: rgb(255 255 255 / 0.1);
+  stroke-width: 0.7;
+  stroke-dasharray: 16 100;
+  stroke-dashoffset: -16;
+}
+
+/* The specular band. Only a filled, metal seal has one; a hollow well is matte. */
+.seal-gloss {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms ease;
+}
+
+.seal[data-state='DONE'] .seal-gloss {
+  opacity: 0.8;
+}
+
+.seal[data-state='CLAIMED'] .seal-gloss {
+  opacity: 0.18;
+}
+
+:is([data-seal-host]:hover, [data-seal-host]:focus-visible) > .seal[data-state='CLAIMED'] .seal-gloss {
+  opacity: 0.8;
 }
 
 .seal-ring {
@@ -275,6 +339,7 @@ onUnmounted(() => {
 
 .seal-core {
   fill: var(--seal);
+  filter: drop-shadow(0 0 1.5px var(--seal));
 }
 
 /* Aimed at, then fired: the reticle folds away under the pointer and the check takes its place. */
@@ -288,7 +353,12 @@ onUnmounted(() => {
 /* ---- Running -------------------------------------------------------------------------- */
 
 .seal[data-state='RUNNING'] .seal-disc {
-  fill: color-mix(in srgb, var(--seal) 14%, var(--color-canvas));
+  fill: var(--seal-well);
+}
+
+.seal[data-state='RUNNING'] {
+  filter: drop-shadow(0 1.5px 1.2px rgb(0 0 0 / 0.65))
+    drop-shadow(0 0 5px color-mix(in srgb, var(--seal) 50%, transparent));
 }
 
 .seal[data-state='RUNNING'] .seal-ring {
@@ -340,7 +410,7 @@ onUnmounted(() => {
 /* ---- Claimed -------------------------------------------------------------------------- */
 
 .seal[data-state='CLAIMED'] .seal-disc {
-  fill: color-mix(in srgb, var(--seal) 13%, var(--color-canvas));
+  fill: var(--seal-well);
 }
 
 .seal[data-state='CLAIMED'] .seal-ring {
@@ -360,7 +430,7 @@ onUnmounted(() => {
 }
 
 :is([data-seal-host]:hover, [data-seal-host]:focus-visible) > .seal[data-state='CLAIMED'] .seal-disc {
-  fill: var(--seal);
+  fill: var(--seal-metal);
 }
 
 :is([data-seal-host]:hover, [data-seal-host]:focus-visible)
@@ -373,23 +443,31 @@ onUnmounted(() => {
 /* ---- Done ----------------------------------------------------------------------------- */
 
 .seal[data-state='DONE'] .seal-disc {
-  fill: var(--seal);
+  fill: var(--seal-metal);
+}
+
+.seal[data-state='DONE'] {
+  filter: drop-shadow(0 1.5px 1.2px rgb(0 0 0 / 0.7))
+    drop-shadow(0 3px 6px color-mix(in srgb, var(--seal) 38%, transparent));
 }
 
 .seal[data-state='DONE'] .seal-ring {
-  stroke: var(--seal);
+  stroke: var(--seal-hi);
+  stroke-opacity: 0.55;
 }
 
 .seal-engrave {
   stroke: var(--seal-ink);
-  stroke-width: 0.6;
-  opacity: 0.3;
+  stroke-width: 0.7;
+  opacity: 0.32;
 }
 
 .seal[data-state='DONE'] .seal-check {
   opacity: 1;
   stroke: var(--seal-ink);
   stroke-width: 2.1;
+  /* Engraved: the check is cut into the metal, so the light catches its lower edge. */
+  filter: drop-shadow(0 0.7px 0 rgb(255 255 255 / 0.45));
 }
 
 /* ---- Arrivals: one each, on a change of state ----------------------------------------- */

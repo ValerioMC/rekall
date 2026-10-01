@@ -65,7 +65,7 @@ app: dmg ## macOS: build the disk image, mount it and run Rekall from it, withou
 install: dmg ## macOS: build the disk image, mount it and install Rekall.app into /Applications
 	./scripts/macos-install.sh
 
-icons: ## macOS: re-render the PWA, touch and desktop icons from rekall-ui/public/favicon.svg (needs Google Chrome)
+icons: ## macOS: re-render the favicon, PWA, touch and desktop icons from scripts/icon-master.png (needs Google Chrome)
 	./scripts/render-icons.sh
 
 test: test-backend test-ui ## Everything

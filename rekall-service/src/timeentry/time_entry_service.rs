@@ -1,3 +1,4 @@
+use chrono::TimeDelta;
 use rekall_common::{Id, Instant, RekallError, Result};
 use rekall_model::time_entry;
 use rekall_repository::repository as repo;
@@ -6,6 +7,9 @@ use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 use crate::{in_read, in_write, load, Ctx, Tx};
 
 use super::TimeEntryView;
+
+/// A running timer on a task nobody has touched for this long is stopped by [`TimeEntryService::stop_idle`].
+pub const IDLE_AFTER: TimeDelta = TimeDelta::minutes(30);
 
 #[derive(Clone)]
 pub struct TimeEntryService {
@@ -124,5 +128,47 @@ impl TimeEntryService {
             }
             Ok::<_, RekallError>(())
         })
+    }
+
+    /// Stop every open timer whose task has seen no write for longer than `idle_after`, at the moment
+    /// of its last write so the idle stretch isn't billed. A task with a running step is a live
+    /// session and never idle. Returns how many were stopped.
+    pub async fn stop_idle(&self, idle_after: TimeDelta) -> Result<usize> {
+        in_write!(&self.ctx, |tx| {
+            let now = self.ctx.now();
+            let mut stopped_count = 0;
+            for entry in repo::time_entry::find_all_by_stopped_at_is_null(tx.db()).await? {
+                let Some(last_activity) = self.last_activity_in(&mut tx, &entry).await? else { continue };
+                if last_activity.until(&now) <= idle_after {
+                    continue;
+                }
+                let mut stopped = entry;
+                stopped.stopped_at = Some(last_activity);
+                stopped.updated_at = now;
+                stopped.into_active_model().reset_all().update(tx.db()).await?;
+                stopped_count += 1;
+            }
+            Ok::<_, RekallError>(stopped_count)
+        })
+    }
+
+    /// The latest write on the task behind `entry`: the task, its steps, its wrapup, its notes or
+    /// the entry itself. `None` while a session is running a step, which counts as activity.
+    async fn last_activity_in(&self, tx: &mut Tx, entry: &time_entry::Model) -> Result<Option<Instant>> {
+        let db = tx.db();
+        let steps = repo::task_step::find_by_task_id_order_by_position_asc(db, entry.task_id).await?;
+        if steps.iter().any(|step| step.state.running()) {
+            return Ok(None);
+        }
+        let mut writes = vec![entry.started_at, entry.updated_at];
+        if let Some(task) = repo::task::find_by_id(db, entry.task_id).await? {
+            writes.push(task.updated_at);
+        }
+        writes.extend(steps.iter().map(|step| step.updated_at));
+        if let Some(wrapup) = repo::wrapup::find_by_task_id(db, entry.task_id).await? {
+            writes.push(wrapup.updated_at);
+        }
+        writes.extend(repo::document::documents_of_task(db, entry.task_id).await?.iter().map(|note| note.updated_at));
+        Ok(writes.into_iter().max())
     }
 }

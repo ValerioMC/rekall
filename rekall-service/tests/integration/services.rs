@@ -10,6 +10,7 @@ use chrono::TimeDelta;
 use rekall_common::{Id, Instant};
 use rekall_model::{task_revision, RevisionKind, TaskStepState, WrapupAuthor};
 use rekall_service::commit::AutoCommitStatus;
+use rekall_service::timeentry::IDLE_AFTER;
 use rekall_service::revision::{RevisionTrigger, KEPT_PER_KIND};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 use support::{commit, git, init_with_identity, world, world_at};
@@ -346,6 +347,48 @@ async fn shutdown_stops_every_open_timer() {
     let entries = rekall_model::time_entry::Entity::find().all(world.db()).await.unwrap();
     assert_eq!(entries.len(), 2);
     assert!(entries.iter().all(|e| e.stopped_at.is_some()));
+}
+
+/// A world whose clock sits `hours` ahead of the rows the support helpers stamp, so those rows are idle.
+async fn world_hours_ahead(hours: i64) -> support::World {
+    world_at(Instant::now().plus(TimeDelta::hours(hours))).await
+}
+
+async fn open_entry_at(world: &support::World, task_id: Id, started_at: Instant) {
+    let entry = rekall_model::time_entry::Model { id: Id::random(), task_id, started_at, stopped_at: None, created_at: started_at, updated_at: started_at };
+    entry.into_active_model().insert(world.db()).await.unwrap();
+}
+
+#[tokio::test]
+async fn an_idle_timer_is_stopped_at_the_tasks_last_write_and_a_busy_one_is_kept() {
+    let world = world_hours_ahead(2).await;
+    let project = world.project("vega", None, false).await;
+    let idle = world.task(&project, "idle").await;
+    let busy = world.task(&project, "busy").await;
+    open_entry_at(&world, idle.id, idle.updated_at).await;
+    world.services.time_entries.start(busy.id).await.unwrap();
+
+    let stopped = world.services.time_entries.stop_idle(IDLE_AFTER).await.unwrap();
+
+    assert_eq!(stopped, 1);
+    let entries = rekall_model::time_entry::Entity::find().all(world.db()).await.unwrap();
+    let idle_entry = entries.iter().find(|e| e.task_id == idle.id).unwrap();
+    assert_eq!(idle_entry.stopped_at, Some(idle.updated_at));
+    assert!(entries.iter().find(|e| e.task_id == busy.id).unwrap().stopped_at.is_none());
+}
+
+#[tokio::test]
+async fn a_task_with_a_running_step_is_never_idle() {
+    let world = world_hours_ahead(2).await;
+    let project = world.project("vega", None, false).await;
+    let task = world.task(&project, "working").await;
+    world.step(&task, "Being built", 1, TaskStepState::Running).await;
+    open_entry_at(&world, task.id, task.updated_at).await;
+
+    let stopped = world.services.time_entries.stop_idle(IDLE_AFTER).await.unwrap();
+
+    assert_eq!(stopped, 0);
+    assert_eq!(running_entries(&world).await, 1);
 }
 
 async fn running_entries(world: &support::World) -> usize {

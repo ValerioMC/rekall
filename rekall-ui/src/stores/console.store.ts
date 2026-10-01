@@ -668,7 +668,10 @@ export const useConsoleStore = defineStore('console', () => {
       saveState.value = 'unsaved'
       throw error
     }
-    const writesContent = patch.title !== undefined || patch.kind !== undefined || patch.bodyMarkdown !== undefined
+    const writesContent =
+      (patch.title !== undefined && patch.title !== current.title) ||
+      (patch.kind !== undefined && patch.kind !== current.kind) ||
+      (patch.bodyMarkdown !== undefined && patch.bodyMarkdown !== current.bodyMarkdown)
     if (writesContent) await resumeTimerOnNote(patch.taskIds ?? current.tasks.map((ref) => ref.id))
   }
 

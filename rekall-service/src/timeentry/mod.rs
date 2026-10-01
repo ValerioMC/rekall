@@ -4,5 +4,5 @@
 mod time_entry_service;
 mod time_entry_view;
 
-pub use time_entry_service::TimeEntryService;
+pub use time_entry_service::{TimeEntryService, IDLE_AFTER};
 pub use time_entry_view::TimeEntryView;

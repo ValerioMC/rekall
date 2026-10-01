@@ -422,7 +422,7 @@ onUnmounted(() => {
             class="shrink-0 font-mono text-[12px] font-semibold leading-none tabular-nums"
             data-testid="steps-count"
           ><span :class="done === checklistSteps.length ? 'text-safe' : 'text-accent'">{{ done }}</span><span class="text-text-subtle">/{{ checklistSteps.length }}</span></p>
-          <span class="flex h-[4px] min-w-0 flex-1 gap-[3px]" aria-hidden="true">
+          <span class="trough flex h-[8px] min-w-0 flex-1 gap-[3px] p-[1.5px]" aria-hidden="true">
             <span
               v-for="step in checklistSteps"
               :key="step.id"
@@ -430,15 +430,15 @@ onUnmounted(() => {
               :class="
                 step.state === 'DONE'
                   ? done === checklistSteps.length
-                    ? 'bg-safe/80'
-                    : 'bg-accent'
+                    ? 'tube-gold tube-safe'
+                    : 'tube-gold'
                   : step.state === 'CLAIMED'
                     ? 'ledger-claimed'
                     : step.state === 'RUNNING'
                       ? 'ledger-running'
                       : step.id === currentId
-                        ? 'bg-accent/25'
-                        : 'bg-border-strong'
+                        ? 'tube-next'
+                        : 'bg-transparent'
               "
             />
           </span>
@@ -606,11 +606,11 @@ onUnmounted(() => {
               class="min-w-0 rounded-[var(--radius-card)] border px-3 py-2 transition-all"
               :class="[
                 step.state === 'RUNNING'
-                  ? 'border-accent/60 bg-accent-soft'
+                  ? 'panel-gold'
                   : step.state === 'CLAIMED'
-                    ? 'border-accent/25 bg-accent-soft/40'
+                    ? 'panel-gold-quiet'
                     : step.id === currentId
-                      ? 'border-accent/30 bg-surface-raised'
+                      ? 'panel-slate'
                       : 'border-transparent group-hover/step:border-border',
                 step.state === 'DONE' && 'opacity-60 hover:opacity-100'
               ]"

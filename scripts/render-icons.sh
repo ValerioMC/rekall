@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
-# Render every raster icon from rekall-ui/public/favicon.svg, the mark's one source.
+# Render every icon from scripts/icon-master.png, the mark's one source: a 1024 plate with
+# transparent rounded corners.
 #
 #   ./scripts/render-icons.sh      (or `make icons`)
 #
-# macOS only (sips) and needs Google Chrome, which rasterises the SVG's gradients, blurs and
-# grain faithfully where qlmanage and sips do not. The PNGs it writes are committed, so neither
-# the release workflow nor `make dmg` needs Chrome: run this after editing the SVG, and
-# commit what it produces.
+# macOS only (sips) and needs Google Chrome, which composites the dock icon's baked shadow. The
+# files it writes are committed, so neither the release workflow nor `make dmg` needs Chrome:
+# run this after replacing the master, and commit what it produces.
 #
+#   rekall-ui/public/favicon.svg                 256 copy of the master wrapped in an SVG, for the
+#                                                 browser tab and AppLogo (an <img> loads no files)
 #   rekall-ui/public/icons/icon-{192,512}.png   PWA "any": the rounded plate, corners transparent
 #   rekall-ui/public/icons/icon-512-maskable.png PWA "maskable": square, the platform crops it
 #   rekall-ui/public/apple-touch-icon.png        square 180, iOS rounds it itself
@@ -19,7 +21,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 CHROME="${CHROME:-/Applications/Google Chrome.app/Contents/MacOS/Google Chrome}"
-SOURCE="rekall-ui/public/favicon.svg"
+SOURCE="scripts/icon-master.png"
 
 if [[ ! -x "$CHROME" ]]; then
     echo "Google Chrome not found at $CHROME - set CHROME to its binary" >&2
@@ -28,15 +30,14 @@ fi
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
-cp "$SOURCE" "$WORK/icon.svg"
+cp "$SOURCE" "$WORK/icon.png"
 
 # One page per layout, each 1024 square; Chrome screenshots it with a transparent background.
 #
-# plate:    the SVG as drawn, full bleed.
-# square:   the plate enlarged until its rounded corners and rim fall outside the frame (at
-#           1180 each corner arc only touches the frame's corner), so a platform mask can cut
-#           any shape out of it. The anchor bead, the outermost element that matters, stays
-#           inside the maskable safe zone, the central 80% circle.
+# plate:    the master as drawn, full bleed.
+# square:   the plate on its own slate colour, so a platform mask can cut any shape out of it.
+#           The orb, the outermost element that matters, stays inside the maskable safe zone,
+#           the central 80% circle.
 # dock:     Apple's grid: the plate at 824 in the middle of 1024, with the soft shadow system
 #           icons carry baked into the empty margin.
 page() {
@@ -46,12 +47,12 @@ page() {
   html, body { margin: 0; width: 1024px; height: 1024px; overflow: hidden; }
   body { $body_style }
   img { display: block; $img_style }
-</style></head><body><img src="icon.svg"></body></html>
+</style></head><body><img src="icon.png"></body></html>
 EOF
 }
 
 page plate  "background: transparent;" "width: 1024px; height: 1024px;"
-page square "background: #1a1b1d;" "width: 1180px; height: 1180px; margin: -78px;"
+page square "background: #424856;" "width: 1024px; height: 1024px;"
 page dock   "background: transparent;" \
     "width: 824px; height: 824px; margin: 100px; filter: drop-shadow(0 14px 44px rgba(0, 0, 0, 0.38));"
 
@@ -81,3 +82,12 @@ resize square 512 rekall-ui/public/icons/icon-512-maskable.png
 resize square 180 rekall-ui/public/apple-touch-icon.png
 cp "$WORK/dock.png" rekall-app/desktop/icons/icon@2x.png
 echo "    rekall-app/desktop/icons/icon@2x.png"
+
+# favicon.svg: sips has no base64, so the data URI comes from the system tool.
+sips -z 256 256 "$WORK/plate.png" --out "$WORK/favicon.png" >/dev/null
+{
+    printf '%s\n' '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024" role="img" aria-label="Rekall">'
+    printf '  <image width="1024" height="1024" href="data:image/png;base64,%s"/>\n' "$(base64 < "$WORK/favicon.png" | tr -d '\n')"
+    printf '%s\n' '</svg>'
+} > rekall-ui/public/favicon.svg
+echo "    rekall-ui/public/favicon.svg"

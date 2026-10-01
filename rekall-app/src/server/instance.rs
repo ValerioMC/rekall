@@ -1,4 +1,5 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use axum::extract::DefaultBodyLimit;
 use axum::http::StatusCode;
@@ -13,7 +14,9 @@ use rekall_claude::queue::{RunQueueRunner, RunQueueService};
 use rekall_claude::usage::{ClaudeUsageService, UsageReader};
 use rekall_claude::ClaudeState;
 use rekall_repository::Database;
+use rekall_service::timeentry::IDLE_AFTER;
 use rekall_service::{Ctx, EventBus, Services};
+use tracing::warn;
 
 use crate::backup::{self, DatabaseBackupService, DatabaseLocation, DatabaseRestoreService};
 use crate::bootstrap::installer::{self, ClaudeCodeInstaller};
@@ -28,6 +31,9 @@ use crate::actuator;
 
 use super::StartOptions;
 
+/// How often open timers are checked against [`IDLE_AFTER`].
+const IDLE_SWEEP_EVERY: Duration = Duration::from_secs(60);
+
 /// One start of the application on one database.
 pub struct Instance {
     pub database: Database,
@@ -41,6 +47,7 @@ pub struct Instance {
     backups: DatabaseBackupService,
     login_shell: Arc<LoginShellEnvironment>,
     sweep_minutes: u64,
+    idle_sweep: Mutex<Option<tokio::task::JoinHandle<()>>>,
 }
 
 impl Instance {
@@ -144,6 +151,7 @@ impl Instance {
             backups,
             login_shell,
             sweep_minutes: claude_config.sweep_minutes,
+            idle_sweep: Mutex::new(None),
         }
     }
 
@@ -156,6 +164,21 @@ impl Instance {
         self.login_shell.warm();
         self.terminals.start_reaper(self.sweep_minutes);
         self.backups.start_schedule();
+        self.start_idle_sweep();
+    }
+
+    fn start_idle_sweep(&self) {
+        let time_entries = self.services.time_entries.clone();
+        let handle = tokio::spawn(async move {
+            let mut interval = tokio::time::interval_at(tokio::time::Instant::now() + IDLE_SWEEP_EVERY, IDLE_SWEEP_EVERY);
+            loop {
+                interval.tick().await;
+                if let Err(failed) = time_entries.stop_idle(IDLE_AFTER).await {
+                    warn!("Stopping idle timers: {failed}");
+                }
+            }
+        });
+        *self.idle_sweep.lock().expect("never poisoned") = Some(handle);
     }
 
     /// `ContextClosedEvent`: let go of everything that could hold the web server's shutdown.
@@ -165,5 +188,11 @@ impl Instance {
         self.stream.release_on_shutdown();
         self.terminals.shutdown().await;
         self.backups.stop_schedule();
+        if let Some(sweep) = self.idle_sweep.lock().expect("never poisoned").take() {
+            sweep.abort();
+        }
+        if let Err(failed) = self.services.time_entries.stop_all_on_shutdown().await {
+            warn!("Stopping open timers on shutdown: {failed}");
+        }
     }
 }

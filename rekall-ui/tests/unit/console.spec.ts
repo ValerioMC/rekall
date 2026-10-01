@@ -1090,6 +1090,18 @@ describe('console store', () => {
       expect(startTimeEntry).toHaveBeenCalledWith(retry)
     })
 
+    it('stays paused when a note is saved with the text it already has', async () => {
+      vi.mocked(updateDocument).mockImplementation(async (id, input) => ({
+        ...documents.find((document) => document.id === id)!,
+        ...input
+      }) as RekallDocument)
+      store.selectTask(retry)
+      const note = documents.find((document) => document.id === 'd2')!
+      await store.saveNote('d2' as DocumentId, { title: note.title, bodyMarkdown: note.bodyMarkdown })
+
+      expect(startTimeEntry).not.toHaveBeenCalled()
+    })
+
     it('rereads the sessions once a claimed step is accepted', async () => {
       store.applyStepEvent(validator, [steps[0]!, { ...steps[1]!, state: 'CLAIMED', done: false }])
       store.timeEntries = [runningEntry(validator)]
