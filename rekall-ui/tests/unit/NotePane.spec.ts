@@ -71,6 +71,7 @@ function makeDocument(on: Task[]): RekallDocument {
     bodyMarkdown: 'body',
     tasks: on.map(taskRef),
     contextMode: 'FULL',
+    scope: { kind: 'GLOBAL' },
     anchor: 'note:00000000',
     updatedAt: '2026-09-05T10:00:00Z'
   }
@@ -122,6 +123,23 @@ describe('NotePane membership strip', () => {
     expect(wrapper.findAll('[data-testid="note-task-chip-done"]')).toHaveLength(0)
     expect(wrapper.get('[data-testid="note-done-toggle"]').text()).toContain('2 done')
     expect(wrapper.text()).toContain('On 4 tasks')
+  })
+
+  it('keeps the task in view as a chip and folds the other open ones behind a count', async () => {
+    const extra = { ...tasks[1]!, id: 't-extra' as TaskId, label: 'extra-work' }
+    const store = seed(makeDocument([tasks[0]!, tasks[1]!, extra]), live)
+    store.tasks = [...tasks, extra]
+    const wrapper = render()
+    await flushPromises()
+
+    const shown = () => wrapper.findAll('[data-testid="note-task-chip"]').map((c) => c.text()).join(' ')
+    expect(shown()).toContain('rekall/note-refactor')
+    expect(shown()).not.toContain('rekall/filing-drawer')
+    expect(wrapper.get('[data-testid="note-open-toggle"]').text()).toContain('2 more open')
+
+    await wrapper.get('[data-testid="note-open-toggle"]').trigger('click')
+    expect(shown()).toContain('rekall/filing-drawer')
+    expect(shown()).toContain('rekall/extra-work')
   })
 
   it('reveals the finished chips when the count is clicked', async () => {

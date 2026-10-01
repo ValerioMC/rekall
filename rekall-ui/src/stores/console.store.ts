@@ -37,7 +37,8 @@ import {
   deleteStep as apiDeleteStep,
   fetchSteps,
   moveStep as apiMoveStep,
-  patchStep as apiPatchStep
+  patchStep as apiPatchStep,
+  sendBackStep as apiSendBackStep
 } from '@/api/steps.api'
 import type { TaskStepPatch } from '@/api/steps.api'
 import {
@@ -70,6 +71,14 @@ import {
   type WrapupStreamEvent
 } from '@/model/catalog'
 import type { CompanyId, DocumentId, ProjectId, TagId, TaskId, TaskStepId, TimeEntryId } from '@/model/branded'
+import { GLOBAL_SCOPE, type NoteScope } from '@/model/note-scope'
+
+/** What a new note starts from: where it lives, which of that scope's tasks it is on, its name. */
+export interface NoteDraft {
+  readonly scope: NoteScope
+  readonly taskIds?: readonly TaskId[]
+  readonly title?: string
+}
 
 export type NavMode = 'tasks' | 'notes'
 export type SaveState = 'saved' | 'unsaved' | 'saving'
@@ -134,12 +143,18 @@ export const useConsoleStore = defineStore('console', () => {
       .every((part) => hay.includes(part))
   }
 
-  const documentInScope = (document: RekallDocument): boolean =>
-    (scopeCompany.value === null && scopeProject.value === null) ||
-    document.tasks.some((ref) => {
-      const task = tasks.value.find((t) => t.id === ref.id)
-      return task !== undefined && inScope(task)
-    })
+  /** A note shows where its owner is in view: a global one everywhere, a company's under it and its projects. */
+  const documentInScope = (document: RekallDocument): boolean => {
+    const owner = document.scope
+    if (owner.kind === 'GLOBAL' || (scopeCompany.value === null && scopeProject.value === null)) return true
+    const companyInView =
+      scopeProject.value !== null
+        ? projects.value.find((project) => project.id === scopeProject.value)?.companyId
+        : scopeCompany.value
+    if (owner.kind === 'COMPANY') return owner.id === companyInView
+    if (scopeProject.value !== null) return owner.id === scopeProject.value
+    return projects.value.find((project) => project.id === owner.id)?.companyId === companyInView
+  }
 
   const visibleTasks = computed(() =>
     tasks.value.filter((task) => inScope(task) && matchesTask(task, filter.value))
@@ -457,7 +472,10 @@ export const useConsoleStore = defineStore('console', () => {
     tasks.value = [...tasks.value, created]
     await Promise.all([refreshProjects(), refreshCompanies()])
     selectTask(created.id)
-    await startTimer(created.id)
+    // A task is created without its description, so it opens where that is written.
+    paneFocus.value = 'description'
+    // Filing a task in the backlog parks it: nothing is being worked on yet.
+    if (created.status !== 'BACKLOG') await startTimer(created.id)
     return created
   }
 
@@ -471,7 +489,7 @@ export const useConsoleStore = defineStore('console', () => {
       refreshWrapups(),
       refreshTimeEntries()
     ])
-    if (saved.status !== 'DONE') await resumeTimerOnWork(id)
+    if (saved.status !== 'DONE' && saved.status !== 'BACKLOG') await resumeTimerOnWork(id)
   }
 
   async function deleteTask(id: TaskId): Promise<void> {
@@ -598,29 +616,36 @@ export const useConsoleStore = defineStore('console', () => {
     noteComposerOpen.value = false
   }
 
+  /** The scope a note made from a task starts in: that task's project. */
+  function projectScopeOf(taskId: TaskId): NoteScope {
+    const task = tasks.value.find((candidate) => candidate.id === taskId)
+    return task ? { kind: 'PROJECT', id: task.projectId } : GLOBAL_SCOPE
+  }
+
   /**
-   * A note is born on at least one task, so no task means no note. The new one opens in the
-   * editor; browsing notes, that also closes the composer that made it.
+   * A note is born in a scope and on whichever of its tasks were picked, possibly none. The new
+   * one opens in the editor; browsing notes, that also closes the composer that made it.
    */
-  async function createNote(taskIds: readonly TaskId[], title = 'untitled.md'): Promise<void> {
-    if (!taskIds.length) return
+  async function createNote(draft: NoteDraft): Promise<void> {
+    const taskIds = draft.taskIds ?? []
     const created = await apiCreateDocument({
-      title: title.trim() || 'untitled.md',
+      title: draft.title?.trim() || 'untitled.md',
       kind: 'notes',
       bodyMarkdown: '',
-      taskIds: [...taskIds]
+      taskIds: [...taskIds],
+      scope: draft.scope
     })
     documents.value = [created, ...documents.value]
     selectedDocId.value = created.id
     noteComposerOpen.value = false
     paneFocus.value = 'note'
     await refreshTasks()
-    await resumeTimerOnNote(taskIds)
+    if (taskIds.length) await resumeTimerOnNote(taskIds)
   }
 
   async function saveNote(
     id: DocumentId,
-    patch: Partial<Pick<RekallDocument, 'title' | 'kind' | 'bodyMarkdown' | 'contextMode'>> & {
+    patch: Partial<Pick<RekallDocument, 'title' | 'kind' | 'bodyMarkdown' | 'contextMode' | 'scope'>> & {
       taskIds?: readonly TaskId[]
     }
   ): Promise<void> {
@@ -633,11 +658,12 @@ export const useConsoleStore = defineStore('console', () => {
         kind: patch.kind ?? current.kind,
         bodyMarkdown: patch.bodyMarkdown ?? current.bodyMarkdown,
         taskIds: patch.taskIds ?? current.tasks.map((ref) => ref.id),
-        contextMode: patch.contextMode ?? current.contextMode
+        contextMode: patch.contextMode ?? current.contextMode,
+        scope: patch.scope ?? current.scope
       })
       documents.value = documents.value.map((document) => (document.id === id ? saved : document))
       saveState.value = 'saved'
-      if (patch.taskIds) await refreshTasks()
+      if (patch.taskIds || patch.scope) await refreshTasks()
     } catch (error) {
       saveState.value = 'unsaved'
       throw error
@@ -653,13 +679,13 @@ export const useConsoleStore = defineStore('console', () => {
   }
 
   /**
-   * A note is on at least one task, so the last placement stays: taking it off is a no-op.
-   * Browsing tasks, the editor shows a note on the task in view; when that note leaves that task,
-   * the next note on it takes its place so the columns keep agreeing.
+   * Its scope keeps a note taken off every task. Browsing tasks, the editor shows a note on the
+   * task in view; when that note leaves that task, the next note on it takes its place so the
+   * columns keep agreeing.
    */
   async function detachNoteFromTask(id: DocumentId, taskId: TaskId): Promise<void> {
     const current = documents.value.find((document) => document.id === id)
-    if (!current || current.tasks.length <= 1) return
+    if (!current) return
     const remaining = current.tasks.filter((ref) => ref.id !== taskId).map((ref) => ref.id)
     if (remaining.length === current.tasks.length) return
     await saveNote(id, { taskIds: remaining })
@@ -849,6 +875,11 @@ export const useConsoleStore = defineStore('console', () => {
 
   function reopenStep(id: TaskStepId): Promise<void> {
     return saveStep(id, { done: false })
+  }
+
+  /** A claim sent back keeps what it worked from as a pass; the detail it returns empty is the feedback. */
+  async function sendBackStep(id: TaskStepId): Promise<void> {
+    upsertStep(await apiSendBackStep(id))
   }
 
   function promoteStep(id: TaskStepId): Promise<void> {
@@ -1101,6 +1132,7 @@ export const useConsoleStore = defineStore('console', () => {
     openNoteComposer,
     closeNoteComposer,
     createNote,
+    projectScopeOf,
     saveNote,
     attachNoteToTask,
     detachNoteFromTask,
@@ -1122,6 +1154,7 @@ export const useConsoleStore = defineStore('console', () => {
     toggleStep,
     acceptStep,
     reopenStep,
+    sendBackStep,
     promoteStep,
     returnStepToDraft,
     moveStep,

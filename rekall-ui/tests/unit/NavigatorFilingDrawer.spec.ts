@@ -28,6 +28,17 @@ describe('NavigatorFilingDrawer', () => {
     expect(wrapper.find('.row').exists()).toBe(true)
   })
 
+  it('names a backlog shelf as one and hangs it on its own rail', () => {
+    const wrapper = mount(NavigatorFilingDrawer, {
+      props: { count: 3, open: true, kind: 'backlog' },
+      slots: { default: '<span class="row">row</span>' }
+    })
+
+    expect(wrapper.get('[data-testid="filing-drawer-toggle"]').text()).toContain('3 in backlog')
+    expect(wrapper.find('.backlog-shelf').exists()).toBe(true)
+    expect(wrapper.find('.filed-shelf').exists()).toBe(false)
+  })
+
   it('emits toggle when the disclosure row is clicked', async () => {
     const wrapper = mount(NavigatorFilingDrawer, { props: { count: 1, open: false } })
 

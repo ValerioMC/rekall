@@ -9,10 +9,12 @@ import ProjectTrace from '@/components/ui/ProjectTrace.vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import ProjectIcon from '@/components/ui/ProjectIcon.vue'
 import { partitionTasks } from '@/common/catalog/partition-tasks'
+import { groupNotesByScope } from '@/common/catalog/note-groups'
 import { identityHue } from '@/common/identity'
 import { useConsoleStore } from '@/stores/console.store'
 import {
   PROJECT_STATUS_LABEL,
+  SHELVED_TASK_STATUSES,
   TASK_STATUS_COLOR,
   TASK_STATUS_LABEL,
   TASK_STATUS_ORDER,
@@ -36,10 +38,13 @@ const {
   noteComposerOpen,
   tasks,
   projects,
+  companies,
   elsewhere,
   isLoading,
   runningEntries
 } = storeToRefs(store)
+
+const noteGroups = computed(() => groupNotesByScope(visibleDocuments.value, projects.value, companies.value))
 
 const runningTaskIds = computed(() => new Set(runningEntries.value.map((entry) => entry.taskId)))
 
@@ -60,6 +65,7 @@ interface ProjectGroup {
   readonly icon: string
   readonly tasks: Task[]
   readonly active: Task[]
+  readonly backlog: Task[]
   readonly filed: Task[]
 }
 
@@ -105,7 +111,7 @@ const groupedByProject = computed<ProjectGroup[]>(() => {
 })
 
 const grouped = computed(() =>
-  TASK_STATUS_ORDER.filter((status) => status !== 'DONE')
+  TASK_STATUS_ORDER.filter((status) => !SHELVED_TASK_STATUSES.includes(status))
     .map((status) => ({
       status,
       tasks: visibleTasks.value.filter((task) => task.status === status)
@@ -117,21 +123,41 @@ const filedInScope = computed(() =>
   visibleTasks.value.filter((task) => task.status === 'DONE')
 )
 
-const showFiledInScope = ref(false)
-const revealedProjectIds = ref<Set<ProjectId>>(new Set())
+const backlogInScope = computed(() =>
+  visibleTasks.value.filter((task) => task.status === 'BACKLOG')
+)
 
-function toggleRevealed(projectId: ProjectId): void {
-  const next = new Set(revealedProjectIds.value)
+const showFiledInScope = ref(false)
+const showBacklogInScope = ref(false)
+const revealedProjectIds = ref<Set<ProjectId>>(new Set())
+const revealedBacklogIds = ref<Set<ProjectId>>(new Set())
+
+function toggled(ids: Set<ProjectId>, projectId: ProjectId): Set<ProjectId> {
+  const next = new Set(ids)
   if (next.has(projectId)) next.delete(projectId)
   else next.add(projectId)
-  revealedProjectIds.value = next
+  return next
 }
 
+function toggleRevealed(projectId: ProjectId): void {
+  revealedProjectIds.value = toggled(revealedProjectIds.value, projectId)
+}
+
+function toggleBacklog(projectId: ProjectId): void {
+  revealedBacklogIds.value = toggled(revealedBacklogIds.value, projectId)
+}
+
+// A shelved task picked from elsewhere (search, a note) opens its shelf so the selection is visible.
 watch(selectedTaskId, () => {
   const task = store.selectedTask
-  if (!task || task.status !== 'DONE') return
-  showFiledInScope.value = true
-  if (!revealedProjectIds.value.has(task.projectId)) toggleRevealed(task.projectId)
+  if (!task) return
+  if (task.status === 'DONE') {
+    showFiledInScope.value = true
+    if (!revealedProjectIds.value.has(task.projectId)) toggleRevealed(task.projectId)
+  } else if (task.status === 'BACKLOG') {
+    showBacklogInScope.value = true
+    if (!revealedBacklogIds.value.has(task.projectId)) toggleBacklog(task.projectId)
+  }
 })
 
 const COLLAPSE_KEY = 'rekall.nav.collapsed-projects'
@@ -323,6 +349,27 @@ defineExpose({ beginCreate, editSelected })
             />
 
             <NavigatorFilingDrawer
+              v-if="group.backlog.length"
+              kind="backlog"
+              :count="group.backlog.length"
+              :open="revealedBacklogIds.has(group.projectId)"
+              @toggle="toggleBacklog(group.projectId)"
+            >
+              <NavigatorTaskRow
+                v-for="task in group.backlog"
+                :key="task.id"
+                :task="task"
+                :selected="task.id === selectedTaskId"
+                :running="runningTaskIds.has(task.id)"
+                :show-context="false"
+                :show-company="false"
+                filed
+                @select="store.selectTask(task.id)"
+                @edit="editTask(task)"
+              />
+            </NavigatorFilingDrawer>
+
+            <NavigatorFilingDrawer
               v-if="group.filed.length"
               :count="group.filed.length"
               :open="revealedProjectIds.has(group.projectId)"
@@ -382,6 +429,28 @@ defineExpose({ beginCreate, editSelected })
           </div>
         </div>
 
+        <div v-if="backlogInScope.length" class="px-2 pt-2">
+          <NavigatorFilingDrawer
+            kind="backlog"
+            :count="backlogInScope.length"
+            :open="showBacklogInScope"
+            @toggle="showBacklogInScope = !showBacklogInScope"
+          >
+            <NavigatorTaskRow
+              v-for="task in backlogInScope"
+              :key="task.id"
+              :task="task"
+              :selected="task.id === selectedTaskId"
+              :running="runningTaskIds.has(task.id)"
+              :show-context="true"
+              :show-company="scopeCompany === null"
+              filed
+              @select="store.selectTask(task.id)"
+              @edit="editTask(task)"
+            />
+          </NavigatorFilingDrawer>
+        </div>
+
         <div v-if="filedInScope.length" class="px-2 pt-2">
           <NavigatorFilingDrawer
             :count="filedInScope.length"
@@ -404,7 +473,7 @@ defineExpose({ beginCreate, editSelected })
         </div>
 
         <p
-          v-if="!grouped.length && !filedInScope.length"
+          v-if="!grouped.length && !filedInScope.length && !backlogInScope.length"
           class="px-4 py-3 text-[12.5px] leading-relaxed text-text-subtle"
         >
           <template v-if="!projectChoices.length">
@@ -415,9 +484,39 @@ defineExpose({ beginCreate, editSelected })
       </template>
 
       <template v-else>
-        <div class="px-2">
+        <div
+          v-for="group in noteGroups"
+          :key="group.key"
+          class="px-2"
+          data-testid="note-group"
+        >
+          <div class="flex items-center gap-2 px-1.5 pb-1 pt-4">
+            <span
+              v-if="group.scope.kind === 'PROJECT'"
+              class="size-2 shrink-0 rounded-full"
+              :style="{ backgroundColor: identityHue(group.scope.id).base }"
+              aria-hidden="true"
+            />
+            <svg
+              v-else-if="group.scope.kind === 'COMPANY'"
+              class="size-3 shrink-0 text-text-subtle"
+              viewBox="0 0 12 12"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path d="M2 10.5V2.5h5v8M7 5.5h3v5M1 10.5h10M3.6 4.5h1.8M3.6 6.8h1.8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" />
+            </svg>
+            <svg v-else class="size-3 shrink-0 text-text-subtle" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <circle cx="6" cy="6" r="4.6" stroke="currentColor" stroke-width="1.1" />
+              <path d="M1.4 6h9.2M6 1.4c1.4 1.3 2 2.8 2 4.6s-.6 3.3-2 4.6c-1.4-1.3-2-2.8-2-4.6s.6-3.3 2-4.6Z" stroke="currentColor" stroke-width="1.1" />
+            </svg>
+            <span class="section-label min-w-0 flex-1 truncate" data-testid="note-group-name">{{ group.name }}</span>
+            <span class="shrink-0 rounded-full bg-surface-raised px-1.5 py-px font-mono text-[10px] tabular-nums text-text-subtle">
+              {{ group.notes.length }}
+            </span>
+          </div>
           <button
-            v-for="document in visibleDocuments"
+            v-for="document in group.notes"
             :key="document.id"
             data-testid="note-row"
             class="focus-ring mt-0.5 flex w-full items-center gap-2.5 rounded-[var(--radius-control)] px-2 py-1.5 text-left transition-colors"
@@ -431,9 +530,10 @@ defineExpose({ beginCreate, editSelected })
           >
             <span class="min-w-0 flex-1">
               <span class="block truncate text-[13px]">{{ document.title }}</span>
-              <span class="block truncate font-mono text-[10.5px] text-anchor/80">
+              <span v-if="document.tasks.length" class="block truncate font-mono text-[10.5px] text-anchor/80">
                 {{ document.tasks.map((t) => t.label).join(', ') }}
               </span>
+              <span v-else class="block truncate text-[10.5px] text-text-subtle">on no task</span>
             </span>
             <span
               v-if="document.tasks.length > 1"

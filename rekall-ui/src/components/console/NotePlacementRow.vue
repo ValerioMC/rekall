@@ -12,9 +12,7 @@ import type { Task } from '@/model/catalog'
  * Placed (`removable` on): the row is where the note already is, and it does not react to a
  * click on its body. The only way off is the `remove` control at its right end, always visible
  * so the list reads as a list of removable placements, and under the pointer it colours the
- * whole row with what it is about to do. When the task is the only one the note is on
- * (`locked`), the same control is a bin rather than a cross and says "Delete note": taking the
- * note off its last task is deleting it, and the parent asks before doing so.
+ * whole row with what it is about to do. The note's scope keeps it once it is off every task.
  */
 const props = withDefaults(
   defineProps<{
@@ -23,11 +21,10 @@ const props = withDefaults(
     walkIndex: number
     highlighted?: boolean
     busy?: boolean
-    locked?: boolean
     openable?: boolean
     removable?: boolean
   }>(),
-  { highlighted: false, busy: false, locked: false, openable: false, removable: false }
+  { highlighted: false, busy: false, openable: false, removable: false }
 )
 
 const emit = defineEmits<{ toggle: []; remove: []; open: []; hover: [] }>()
@@ -39,20 +36,14 @@ const pickTitle = computed(() =>
   props.attached ? `Take this note off ${props.task.title}` : `Put this note on ${props.task.title}`
 )
 
-const removeLabel = computed(() => (props.locked ? 'Delete note' : 'Take off'))
-
-const removeTitle = computed(() =>
-  props.locked
-    ? `${props.task.title} is the only task this note is on: taking it off deletes the note`
-    : `Take this note off ${props.task.title}`
-)
+const removeTitle = computed(() => `Take this note off ${props.task.title}`)
 </script>
 
 <template>
   <div
     class="group/row relative rounded-[var(--radius-control)] transition-colors duration-150"
-    :class="[removable && armed && (locked ? 'placement-armed-delete' : 'placement-armed'), busy && 'opacity-60']"
-    :data-armed="removable && armed ? (locked ? 'delete' : 'remove') : undefined"
+    :class="[removable && armed && 'placement-armed', busy && 'opacity-60']"
+    :data-armed="removable && armed ? 'remove' : undefined"
   >
     <component
       :is="removable ? 'div' : 'button'"
@@ -119,7 +110,6 @@ const removeTitle = computed(() =>
           <span class="anchor-chip truncate px-1.5 py-px text-[9.5px] leading-[15px]">
             {{ task.label }}
           </span>
-          <span v-if="locked" class="truncate text-[10px] text-accent/80">only here</span>
         </span>
       </span>
     </component>
@@ -142,19 +132,16 @@ const removeTitle = computed(() =>
             : 'border-border-strong text-text-subtle'
         "
         :title="removeTitle"
-        :aria-label="locked ? `Delete this note, ${task.title} is its only task` : `Take this note off ${task.title}`"
+        :aria-label="`Take this note off ${task.title}`"
         :disabled="busy"
-        :data-testid="locked ? 'note-placement-delete' : 'note-placement-remove'"
+        data-testid="note-placement-remove"
         @mouseenter="armed = true"
         @mouseleave="armed = false"
         @focus="armed = true"
         @blur="armed = false"
         @click.stop="emit('remove')"
       >
-        <svg v-if="locked" class="size-3 shrink-0" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-          <path d="M2.5 3.5h7M4.5 3.5V2.5h3v1M3.5 3.5l.5 6h4l.5-6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
-        <svg v-else class="size-3 shrink-0" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+        <svg class="size-3 shrink-0" viewBox="0 0 12 12" fill="none" aria-hidden="true">
           <path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
         </svg>
         <span
@@ -162,7 +149,7 @@ const removeTitle = computed(() =>
           :class="armed ? 'max-w-[80px] opacity-100' : 'max-w-0 opacity-0'"
           aria-hidden="true"
         >
-          {{ removeLabel }}
+          Take off
         </span>
       </button>
 
@@ -197,11 +184,6 @@ const removeTitle = computed(() =>
  */
 .placement-armed {
   background-color: var(--color-danger-soft);
-  box-shadow: inset 2px 0 0 var(--color-danger);
-}
-
-.placement-armed-delete {
-  background-color: color-mix(in srgb, var(--color-danger) 16%, transparent);
   box-shadow: inset 2px 0 0 var(--color-danger);
 }
 

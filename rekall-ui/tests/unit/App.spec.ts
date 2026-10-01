@@ -55,6 +55,7 @@ const shared: RekallDocument = {
     { id: retry, label: 'retry-policy', title: 'Retry policy', projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', anchor: 'project:vega task:retry-policy' }
   ],
   contextMode: 'FULL',
+  scope: { kind: 'GLOBAL' },
   anchor: 'note:00000000',
   updatedAt: '2026-08-12T13:00:00Z'
 }
@@ -110,6 +111,9 @@ const createDocument = vi.fn(async (input: DocumentInput) => ({
   kind: input.kind,
   bodyMarkdown: input.bodyMarkdown,
   tasks: shared.tasks.filter((ref) => input.taskIds.includes(ref.id)),
+  contextMode: 'FULL' as const,
+  scope: input.scope ?? { kind: 'GLOBAL' as const },
+  anchor: 'note:d9000000',
   updatedAt: '2026-08-12T15:00:00Z'
 }))
 
@@ -200,6 +204,7 @@ const steps: TaskStep[] = [
     // After the wrapup's timestamp, so the card has a reason to say it is behind.
     doneAt: '2026-08-12T13:30:00Z',
     position: 0,
+    passes: [],
     createdAt: '2026-08-12T10:00:00Z',
     updatedAt: '2026-08-12T11:00:00Z'
   },
@@ -214,6 +219,7 @@ const steps: TaskStep[] = [
     claimedAt: null,
     doneAt: null,
     position: 1,
+    passes: [],
     createdAt: '2026-08-12T10:00:00Z',
     updatedAt: '2026-08-12T10:00:00Z'
   }
@@ -425,7 +431,7 @@ describe('the console', () => {
    * created from there, on whatever it was ticked on. (The N key takes the same path, but goes
    * through window, where every App this file has mounted still listens.)
    */
-  it('starts a note from the Notes side through the composer, on the tasks it is ticked on', async () => {
+  it('starts a note from the Notes side through the composer, in its project, on the tasks it is ticked on', async () => {
     const wrapper = await mountConsole()
     await wrapper.findAll('[data-testid="task-row"]')[1]!.trigger('click')
     await flushPromises()
@@ -452,7 +458,8 @@ describe('the console', () => {
       title: 'runbook.md',
       kind: 'notes',
       bodyMarkdown: '',
-      taskIds: [validator, retry]
+      taskIds: [validator, retry],
+      scope: { kind: 'PROJECT', id: vega }
     })
     expect(wrapper.find('[data-testid="note-composer"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="note-placements"]').exists()).toBe(true)

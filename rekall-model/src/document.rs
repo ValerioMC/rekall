@@ -5,6 +5,7 @@ use sea_orm::entity::prelude::*;
 
 use crate::constraints::{Phase, Violations};
 use crate::enums::DocumentContextMode;
+use crate::note_scope::NoteScope;
 
 /// A note's anchor is `note:` and the first eight characters of its id.
 pub const ANCHOR_ID_LENGTH: usize = 8;
@@ -19,6 +20,10 @@ pub struct Model {
     pub body_markdown: String,
     pub source_path: Option<String>,
     pub context_mode: DocumentContextMode,
+    /// Set for a note owned by one company; see `NoteScope`.
+    pub scope_company_id: Option<Id>,
+    /// Set for a note owned by one project; never alongside `scope_company_id`.
+    pub scope_project_id: Option<Id>,
     pub created_at: Instant,
     pub updated_at: Instant,
 }
@@ -48,6 +53,14 @@ impl Related<super::task::Entity> for Entity {
 impl ActiveModelBehavior for ActiveModel {}
 
 impl Model {
+    pub fn scope(&self) -> NoteScope {
+        NoteScope::of_columns(self.scope_company_id, self.scope_project_id)
+    }
+
+    pub fn set_scope(&mut self, scope: NoteScope) {
+        (self.scope_company_id, self.scope_project_id) = scope.columns();
+    }
+
     /// The short handle a session loads a reference note by.
     pub fn anchor(&self) -> String {
         format!("note:{}", &self.id.to_string()[..ANCHOR_ID_LENGTH])

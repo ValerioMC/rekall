@@ -71,6 +71,7 @@ const note = (id: string, title: string, on: TaskId[]): RekallDocument => ({
   bodyMarkdown: 'Accesso via bastion',
   tasks: on.map(refOf),
   contextMode: 'FULL',
+  scope: { kind: 'GLOBAL' },
   anchor: 'note:00000000',
   updatedAt: '2026-09-01T10:00:00Z'
 })
@@ -105,7 +106,7 @@ describe('NoteListPane', () => {
     setActivePinia(pinia)
   })
 
-  it('says where else each note lives, and names the way off as delete when there is nowhere else', () => {
+  it('says where else each note sits, and offers the same way off whether or not it is only here', () => {
     seed([note('d1', 'cluster.md', [builder, retry]), note('d2', 'conventions.md', [builder])])
     const wrapper = render()
 
@@ -114,13 +115,9 @@ describe('NoteListPane', () => {
 
     expect(membership[0]!.find('[data-testid="note-card-elsewhere"]').text()).toContain('2')
     expect(membership[0]!.find('[data-testid="note-card-off"]').exists()).toBe(true)
-    expect(membership[0]!.find('[data-testid="note-card-delete"]').exists()).toBe(false)
 
     expect(membership[1]!.find('[data-testid="note-card-elsewhere"]').exists()).toBe(false)
-    expect(membership[1]!.find('[data-testid="note-card-off"]').exists()).toBe(false)
-    expect(membership[1]!.find('[data-testid="note-card-delete"]').attributes('title')).toContain(
-      'deletes the note'
-    )
+    expect(membership[1]!.find('[data-testid="note-card-off"]').exists()).toBe(true)
     wrapper.unmount()
   })
 
@@ -147,37 +144,29 @@ describe('NoteListPane', () => {
     wrapper.unmount()
   })
 
-  /**
-   * A note is on at least one task, so taking it off the only one is deleting it: the control
-   * and the keyboard both open the confirm, and nothing is written until it is answered.
-   */
-  it('asks before deleting a note that is only here, from the control or the keyboard', async () => {
+  /** Its scope keeps a note, so taking it off its only task is an unlink like any other. */
+  it('takes a note off its only task without deleting it', async () => {
     const store = seed([note('d1', 'cluster.md', [builder])])
     const wrapper = render()
 
     await cardsOf(wrapper)[0]!.trigger('keydown', { key: 'Delete' })
     await flushPromises()
 
-    const confirm = document.body.querySelector('[role="alertdialog"]')
-    expect(confirm?.getAttribute('aria-label')).toBe('Delete cluster.md?')
-    expect(confirm?.textContent).toContain('only task the note is on')
-    expect(store.detachNoteFromTask).not.toHaveBeenCalled()
-    expect(store.deleteNote).not.toHaveBeenCalled()
-
-    const keep = Array.from(confirm!.querySelectorAll('button')).find((b) => b.textContent?.includes('Keep it'))!
-    keep.click()
-    await flushPromises()
     expect(document.body.querySelector('[role="alertdialog"]')).toBeNull()
+    expect(store.detachNoteFromTask).toHaveBeenCalledWith('d1', builder)
+    expect(store.deleteNote).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
 
-    await wrapper.find('[data-testid="note-card-delete"]').trigger('click')
-    await flushPromises()
-    const again = document.body.querySelector('[role="alertdialog"]')!
-    const del = Array.from(again.querySelectorAll('button')).find((b) => b.textContent?.includes('Delete note'))!
-    del.click()
+  it('creates a note in the task\'s project, on the task, from the button under the last card', async () => {
+    const store = seed([note('d1', 'cluster.md', [builder])])
+    store.createNote = vi.fn().mockResolvedValue(undefined)
+    const wrapper = render()
+
+    await wrapper.get('[data-testid="note-create-here"]').trigger('click')
     await flushPromises()
 
-    expect(store.deleteNote).toHaveBeenCalledWith('d1')
-    expect(store.detachNoteFromTask).not.toHaveBeenCalled()
+    expect(store.createNote).toHaveBeenCalledWith({ scope: store.projectScopeOf(builder), taskIds: [builder] })
     wrapper.unmount()
   })
 
@@ -191,7 +180,7 @@ describe('NoteListPane', () => {
 
     const toast = useToastStore()
     const announced = toast.toasts[0]
-    expect(announced?.message).toBe('cluster.md is off this task.')
+    expect(announced?.message).toBe('cluster.md is off this task. It stays in its scope.')
     expect(announced?.action?.label).toBe('Undo')
 
     toast.act(announced!.id)

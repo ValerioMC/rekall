@@ -217,7 +217,8 @@ impl ContextService {
 
     async fn render_task(&self, tx: &Tx, task: &task::Model) -> Result<ContextRecord> {
         let db = tx.db();
-        let steps: Vec<TaskStepView> = load::steps_of(db, task.id).await?.iter().map(TaskStepView::of).collect();
+        let steps: Vec<TaskStepView> =
+            load::steps_of(db, task.id).await?.iter().map(TaskStepView::of).collect::<Result<_>>()?;
         let project = load::project_of(db, task).await?;
 
         let mut fields = vec![("status".to_string(), task.status.name().to_string())];

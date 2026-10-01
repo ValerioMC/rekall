@@ -48,7 +48,8 @@ const STATUS_BY_KEY: Record<string, TaskStatus> = {
   '1': 'IN_PROGRESS',
   '2': 'TODO',
   '3': 'BLOCKED',
-  '4': 'DONE'
+  '4': 'DONE',
+  '5': 'BACKLOG'
 }
 
 const anchorBar = ref<InstanceType<typeof AnchorBar> | null>(null)
@@ -59,8 +60,8 @@ const settingsOpen = ref(false)
 const tagsOpen = ref(false)
 
 /**
- * Browsing tasks, a note lands on the task in view with no questions. Browsing notes, the task in
- * view is not on screen, so the composer asks where the note goes.
+ * Browsing tasks, a note lands on the task in view, in its project, with no questions. Browsing
+ * notes, the task in view is not on screen, so the composer asks where the note goes.
  */
 async function newNote(): Promise<void> {
   if (navMode.value === 'notes') {
@@ -69,7 +70,7 @@ async function newNote(): Promise<void> {
   }
   const taskId = selectedTaskId.value
   if (!taskId) return
-  await run(() => store.createNote([taskId]), 'Note created')
+  await run(() => store.createNote({ scope: store.projectScopeOf(taskId), taskIds: [taskId] }), 'Note created')
 }
 
 function onKeydown(event: KeyboardEvent): void {

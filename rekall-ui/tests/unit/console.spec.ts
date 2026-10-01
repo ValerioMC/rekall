@@ -104,6 +104,7 @@ const documents: RekallDocument[] = [
     bodyMarkdown: 'Il workflow parte da POST /api/v1/pipelines',
     tasks: [ref(validator, 'report-builder', 'Report builder', 'vega')],
     contextMode: 'FULL',
+    scope: { kind: 'GLOBAL' },
     anchor: 'note:00000000',
     updatedAt: '2026-08-12T12:00:00Z'
   },
@@ -118,6 +119,7 @@ const documents: RekallDocument[] = [
       ref(retry, 'retry-policy', 'Retry policy', 'vega')
     ],
     contextMode: 'FULL',
+    scope: { kind: 'GLOBAL' },
     anchor: 'note:00000000',
     updatedAt: '2026-08-12T13:00:00Z'
   },
@@ -128,6 +130,7 @@ const documents: RekallDocument[] = [
     bodyMarkdown: 'brew install openjdk',
     tasks: [ref(wiring, 'wiring', 'Wiring the adapter', 'beacon', 'globex')],
     contextMode: 'FULL',
+    scope: { kind: 'GLOBAL' },
     anchor: 'note:00000000',
     updatedAt: '2026-08-12T09:00:00Z'
   }
@@ -170,6 +173,7 @@ const steps: TaskStep[] = [
     // not been rewritten since" is the state the console has to be able to report.
     doneAt: '2026-08-12T13:30:00Z',
     position: 0,
+    passes: [],
     createdAt: '2026-08-12T10:00:00Z',
     updatedAt: '2026-08-12T11:00:00Z'
   },
@@ -184,6 +188,7 @@ const steps: TaskStep[] = [
     claimedAt: null,
     doneAt: null,
     position: 1,
+    passes: [],
     createdAt: '2026-08-12T10:00:00Z',
     updatedAt: '2026-08-12T10:00:00Z'
   }
@@ -469,9 +474,9 @@ describe('console store', () => {
     })
 
     /** A note is on at least one task, so the last placement cannot be taken away. */
-    it('refuses to take a note off the only task it is on', async () => {
+    it('takes a note off its only task too, since its scope keeps it', async () => {
       await store.detachNoteFromTask('d1' as DocumentId, validator)
-      expect(updateDocument).not.toHaveBeenCalled()
+      expect(vi.mocked(updateDocument).mock.calls[0]?.[1]).toMatchObject({ taskIds: [] })
     })
 
     /** Browsing tasks, the editor shows a note on the task in view, so the next one steps in. */
@@ -517,6 +522,7 @@ describe('console store', () => {
           (taskId) => documents.flatMap((d) => d.tasks).find((t) => t.id === taskId)!
         ),
         contextMode: 'FULL',
+        scope: { kind: 'GLOBAL' },
         anchor: 'note:00000000',
         updatedAt: '2026-08-12T15:00:00Z'
       }))
@@ -526,12 +532,13 @@ describe('console store', () => {
       store.setNavMode('notes')
       store.openNoteComposer()
 
-      await store.createNote([validator, retry], 'cluster.md')
+      await store.createNote({ scope: { kind: 'PROJECT', id: vega }, taskIds: [validator, retry], title: 'cluster.md' })
 
       expect(vi.mocked(createDocument).mock.calls[0]?.[0]).toMatchObject({
         title: 'cluster.md',
         kind: 'notes',
-        taskIds: [validator, retry]
+        taskIds: [validator, retry],
+        scope: { kind: 'PROJECT', id: vega }
       })
       expect(store.selectedDocId).toBe('d9')
       expect(store.paneFocus).toBe('note')
@@ -539,14 +546,21 @@ describe('console store', () => {
     })
 
     it('falls back to untitled.md when no name is given', async () => {
-      await store.createNote([validator], '   ')
+      await store.createNote({ scope: { kind: 'GLOBAL' }, taskIds: [validator], title: '   ' })
       expect(vi.mocked(createDocument).mock.calls[0]?.[0]).toMatchObject({ title: 'untitled.md' })
     })
 
-    /** A note lives on at least one task, so there is nothing to create without one. */
-    it('creates nothing when it is on no task', async () => {
-      await store.createNote([])
-      expect(createDocument).not.toHaveBeenCalled()
+    /** Its scope owns a note, so one on no task is created all the same. */
+    it('creates a note on no task in the scope it was given', async () => {
+      await store.createNote({ scope: { kind: 'PROJECT', id: vega } })
+      expect(vi.mocked(createDocument).mock.calls[0]?.[0]).toMatchObject({
+        taskIds: [],
+        scope: { kind: 'PROJECT', id: vega }
+      })
+    })
+
+    it('starts a note made from a task in that task\'s project', () => {
+      expect(store.projectScopeOf(validator)).toEqual({ kind: 'PROJECT', id: vega })
     })
 
     it('closes the composer when a note is picked or the side is switched', () => {

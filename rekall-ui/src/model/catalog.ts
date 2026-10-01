@@ -8,11 +8,12 @@ import type {
   TimeEntryId,
   WrapupId
 } from './branded'
+import type { NoteScope } from './note-scope'
 
 export const DOCUMENT_KINDS = ['context', 'notes', 'architecture', 'report', 'other'] as const
 
 export const PROJECT_STATUSES = ['ACTIVE', 'PAUSED', 'DONE'] as const
-export const TASK_STATUSES = ['TODO', 'IN_PROGRESS', 'BLOCKED', 'DONE'] as const
+export const TASK_STATUSES = ['BACKLOG', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DONE'] as const
 
 export const TASK_STEP_STATES = ['DRAFT', 'OPEN', 'RUNNING', 'CLAIMED', 'DONE'] as const
 
@@ -38,15 +39,20 @@ export const TASK_STATUS_LABEL: Readonly<Record<TaskStatus, string>> = {
   IN_PROGRESS: 'In progress',
   TODO: 'To do',
   BLOCKED: 'Blocked',
+  BACKLOG: 'Backlog',
   DONE: 'Done'
 }
 
-export const TASK_STATUS_ORDER: readonly TaskStatus[] = ['IN_PROGRESS', 'TODO', 'BLOCKED', 'DONE']
+export const TASK_STATUS_ORDER: readonly TaskStatus[] = ['IN_PROGRESS', 'TODO', 'BLOCKED', 'BACKLOG', 'DONE']
+
+/** Statuses the navigator shelves in a drawer of their own instead of listing among the live work. */
+export const SHELVED_TASK_STATUSES: readonly TaskStatus[] = ['BACKLOG', 'DONE']
 
 export const TASK_STATUS_COLOR: Readonly<Record<TaskStatus, string>> = {
   IN_PROGRESS: 'bg-accent',
   TODO: 'bg-text-subtle',
   BLOCKED: 'bg-danger',
+  BACKLOG: 'bg-border-strong',
   DONE: 'bg-safe'
 }
 
@@ -54,6 +60,7 @@ export const TASK_STATUS_RING: Readonly<Record<TaskStatus, string>> = {
   IN_PROGRESS: 'bg-accent/20',
   TODO: 'bg-text-subtle/20',
   BLOCKED: 'bg-danger/20',
+  BACKLOG: 'bg-border-strong/20',
   DONE: 'bg-safe/20'
 }
 
@@ -148,6 +155,12 @@ export interface TaskReview {
   readonly reviewNote: string | null
 }
 
+/** An earlier pass at a step: what it worked from, kept when its claim was sent back. */
+export interface StepPass {
+  readonly detailMarkdown: string | null
+  readonly sentBackAt: string
+}
+
 export interface TaskStep {
   readonly id: TaskStepId
   readonly taskId: TaskId
@@ -159,6 +172,7 @@ export interface TaskStep {
   readonly claimedAt: string | null
   readonly doneAt: string | null
   readonly position: number
+  readonly passes: readonly StepPass[]
   readonly createdAt: string
   readonly updatedAt: string
 }
@@ -175,6 +189,8 @@ export interface RekallDocument {
   readonly tasks: readonly TaskRef[]
   /** In full under every task it is on, or as a reference a session loads by `anchor` when it needs it. */
   readonly contextMode: DocumentContextMode
+  /** Who owns the note: where it is listed and which tasks it may sit on. */
+  readonly scope: NoteScope
   /** `note:` and the first characters of its id: what a session loads a reference note by. */
   readonly anchor: string
   readonly updatedAt: string

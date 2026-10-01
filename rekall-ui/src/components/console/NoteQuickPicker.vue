@@ -3,13 +3,15 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
+import { useSettledOrder } from '@/composables/useSettledOrder'
 import type { RekallDocument } from '@/model/catalog'
+import { scopeAdmits, scopeName } from '@/model/note-scope'
 import type { DocumentId, TaskId } from '@/model/branded'
 
 /**
- * Every note in the store, hung under the button that opened it, so a note can be put on the
+ * Every note whose scope admits the task, hung under the button that opened it, so a note can be put on the
  * selected task or taken off it without leaving the description or the checklist. The ones on
- * this task sit first; a click or Enter flips membership. The write path is `store.saveNote`,
+ * this task sit first as the panel opens and stay put while a click or Enter flips membership. The write path is `store.saveNote`,
  * the same one `NoteAssignmentDialog` uses from the note's side.
  */
 const props = defineProps<{
@@ -21,7 +23,19 @@ const props = defineProps<{
 const emit = defineEmits<{ close: [] }>()
 
 const store = useConsoleStore()
-const { documents } = storeToRefs(store)
+const { documents, tasks, projects, companies } = storeToRefs(store)
+
+const taskProject = computed(() => {
+  const projectId = tasks.value.find((task) => task.id === props.taskId)?.projectId
+  return projects.value.find((project) => project.id === projectId) ?? null
+})
+
+/** Only notes this task may carry: global ones, its company's and its project's. */
+const offered = computed(() =>
+  taskProject.value === null
+    ? []
+    : documents.value.filter((document) => scopeAdmits(document.scope, taskProject.value!))
+)
 const { run } = useAsyncAction()
 
 const panel = ref<HTMLElement | null>(null)
@@ -37,8 +51,6 @@ const GUTTER = 8
 interface PickerRow {
   readonly document: RekallDocument
   readonly attached: boolean
-  /** True when this task is the only one the note is on, so removing it would orphan the note. */
-  readonly onlyHere: boolean
   readonly elsewhere: string
 }
 
@@ -56,7 +68,9 @@ function matches(document: RekallDocument, needle: string): boolean {
 
 function describeElsewhere(document: RekallDocument, attached: boolean): string {
   const others = document.tasks.filter((ref) => ref.id !== props.taskId)
-  if (others.length === 0) return attached ? 'only here' : 'on no task'
+  if (others.length === 0) {
+    return attached ? 'only here' : `in ${scopeName(document.scope, projects.value, companies.value)}, on no task`
+  }
   if (others.length === 1) {
     const only = others[0]!
     return `${attached ? 'also ' : ''}on ${only.projectLabel}/${only.label}`
@@ -64,15 +78,14 @@ function describeElsewhere(document: RekallDocument, attached: boolean): string 
   return `${attached ? 'also ' : ''}on ${others.length} tasks`
 }
 
-const rows = computed<PickerRow[]>(() => {
+const rankedRows = computed<PickerRow[]>(() => {
   const needle = filter.value.trim().toLowerCase()
-  const byRecency = [...documents.value].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+  const byRecency = [...offered.value].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
   const build = (document: RekallDocument): PickerRow => {
     const attached = isOn(document)
     return {
       document,
       attached,
-      onlyHere: attached && document.tasks.length === 1,
       elsewhere: describeElsewhere(document, attached)
     }
   }
@@ -80,7 +93,9 @@ const rows = computed<PickerRow[]>(() => {
   return [...visible.filter((row) => row.attached), ...visible.filter((row) => !row.attached)]
 })
 
-const attachedCount = computed(() => documents.value.filter(isOn).length)
+const rows = useSettledOrder(() => rankedRows.value, (row) => row.document.id, [filter])
+
+const attachedCount = computed(() => offered.value.filter(isOn).length)
 
 watch(rows, (next) => {
   if (highlighted.value >= next.length) highlighted.value = Math.max(0, next.length - 1)
@@ -98,7 +113,7 @@ function place(): void {
 }
 
 async function toggle(row: PickerRow): Promise<void> {
-  if (busy.value !== null || row.onlyHere) return
+  if (busy.value !== null) return
   const current = row.document.tasks.map((ref) => ref.id)
   const next = row.attached
     ? current.filter((id) => id !== props.taskId)
@@ -234,17 +249,12 @@ onUnmounted(() => {
               :class="[
                 index === highlighted ? 'bg-surface-raised' : 'hover:bg-surface-raised',
                 row.attached && 'note-row-on',
-                row.onlyHere ? 'cursor-default' : 'cursor-pointer',
+                'cursor-pointer',
                 busy === row.document.id && 'opacity-60'
               ]"
               :aria-pressed="row.attached"
-              :aria-disabled="row.onlyHere"
               :title="
-                row.onlyHere
-                  ? 'This is the only task the note is on. A note needs at least one.'
-                  : row.attached
-                    ? `Remove ${row.document.title} from this task`
-                    : `Add ${row.document.title} to this task`
+                row.attached ? `Remove ${row.document.title} from this task` : `Add ${row.document.title} to this task`
               "
               :data-row-index="index"
               :data-attached="row.attached"
@@ -287,8 +297,7 @@ onUnmounted(() => {
                   </span>
                 </span>
                 <span
-                  class="truncate font-mono text-[10.5px]"
-                  :class="row.onlyHere ? 'text-accent/80' : 'text-text-subtle'"
+                  class="truncate font-mono text-[10.5px] text-text-subtle"
                   data-testid="note-picker-elsewhere"
                 >
                   {{ row.elsewhere }}

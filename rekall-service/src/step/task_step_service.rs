@@ -30,7 +30,7 @@ impl TaskStepService {
     pub async fn find_all(&self) -> Result<Vec<TaskStepView>> {
         in_read!(&self.ctx, |tx| {
             let steps = repo::task_step::find_all_by_order_by_task_id_asc_position_asc(tx.db()).await?;
-            Ok::<_, RekallError>(steps.iter().map(TaskStepView::of).collect())
+            steps.iter().map(TaskStepView::of).collect::<Result<Vec<_>>>()
         })
     }
 
@@ -40,7 +40,7 @@ impl TaskStepService {
 
     pub async fn find_by_task_in(&self, tx: &mut Tx, task_id: Id) -> Result<Vec<TaskStepView>> {
         let steps = load::steps_of(tx.db(), task_id).await?;
-        Ok(steps.iter().map(TaskStepView::of).collect())
+        steps.iter().map(TaskStepView::of).collect()
     }
 
     pub async fn add(&self, task_id: Id, title: Option<&str>, body_markdown: Option<&str>) -> Result<TaskStepView> {
@@ -60,7 +60,7 @@ impl TaskStepService {
         step.body_markdown = validated_body(body_markdown)?;
         step.validate(Phase::Persist)?;
         let saved = step.into_active_model().insert(tx.db()).await?;
-        let view = TaskStepView::of(&saved);
+        let view = TaskStepView::of(&saved)?;
         self.publish(tx, task_id).await?;
         Ok(view)
     }
@@ -137,9 +137,23 @@ impl TaskStepService {
                 let ordered = load::steps_of(tx.db(), task_id).await?;
                 self.settle_drafts_at_tail(&tx, ordered).await?;
             }
-            let saved = TaskStepView::of(&self.require(&tx, id).await?);
+            let saved = TaskStepView::of(&self.require(&tx, id).await?)?;
             self.publish(&mut tx, task_id).await?;
             Ok(saved)
+        })
+    }
+
+    /// Sends a claimed step back for another pass: what it was worked from is kept as a pass and
+    /// the detail is left empty for the feedback. Only the console does this; no MCP tool can.
+    pub async fn send_back(&self, id: Id) -> Result<TaskStepView> {
+        in_write!(&self.ctx, |tx| {
+            let before = self.require(&tx, id).await?;
+            let mut step = before.clone();
+            step.send_back(self.ctx.now())?;
+            let saved = self.save(&tx, &before, step).await?;
+            let view = TaskStepView::of(&saved)?;
+            self.publish(&mut tx, saved.task_id).await?;
+            Ok(view)
         })
     }
 
@@ -174,7 +188,7 @@ impl TaskStepService {
             let mut step = before.clone();
             step.mark_state(target);
             let saved = self.save(&tx, &before, step).await?;
-            let view = TaskStepView::of(&saved);
+            let view = TaskStepView::of(&saved)?;
             self.publish(&mut tx, task.id).await?;
             Ok(view)
         })
@@ -248,7 +262,7 @@ impl TaskStepService {
         let mut settled = work;
         settled.extend(drafts);
         let renumbered = self.renumber(tx, settled).await?;
-        Ok(renumbered.iter().map(TaskStepView::of).collect())
+        renumbered.iter().map(TaskStepView::of).collect()
     }
 
     /// Dense positions from zero. Only a step whose position actually moves is written, and only

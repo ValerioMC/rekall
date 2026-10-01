@@ -43,6 +43,13 @@ export async function moveStep(id: TaskStepId, position: number): Promise<TaskSt
   )
 }
 
+/** Sends a claimed step back for another pass; the server keeps its detail as a sealed pass. */
+export async function sendBackStep(id: TaskStepId): Promise<TaskStep> {
+  return request(async () =>
+    TaskStepSchema.parse(await apiClient(`/api/steps/${id}/send-back`, { method: 'POST' }))
+  )
+}
+
 export async function deleteStep(id: TaskStepId): Promise<void> {
   await request(() => apiClient(`/api/steps/${id}`, { method: 'DELETE' }))
 }

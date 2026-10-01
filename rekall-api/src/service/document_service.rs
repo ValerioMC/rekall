@@ -1,13 +1,13 @@
-//! Notes: written, attached to and detached from tasks, and deleted, from the console.
+//! Notes: written, scoped, attached to and detached from tasks, and deleted, from the console.
 
 use rekall_common::{Id, RekallError, Result};
 use rekall_model::constraints::Phase;
+use rekall_model::note_scope::NoteScope;
 use rekall_model::{document, document_task, DocumentContextMode};
 use rekall_repository::repository as repo;
 use rekall_service::{in_read, in_write, Services, Tx};
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, IntoActiveModel, QueryFilter};
 
-use super::catalog_service::require_task;
 use super::Snapshot;
 use crate::dto::{DocumentRequest, DocumentResponse};
 
@@ -58,18 +58,22 @@ impl DocumentService {
                 body_markdown: body(&request),
                 source_path: None,
                 context_mode: DocumentContextMode::Full,
+                scope_company_id: None,
+                scope_project_id: None,
                 created_at: now,
                 updated_at: now,
             };
             if let Some(mode) = request.context_mode {
                 document.context_mode = mode;
             }
-            let wanted = resolve(&tx, request.task_ids.as_deref()).await?;
+            let snapshot = Snapshot::load(tx.db()).await?;
+            let wanted = resolve(&snapshot, request.task_ids.as_deref())?;
+            let scope = request.scope.unwrap_or_else(|| NoteScope::narrowest(&places(&snapshot, &wanted)));
+            settle_scope(&snapshot, &mut document, scope, &wanted)?;
             document.validate(Phase::Persist)?;
             document.clone().into_active_model().insert(tx.db()).await?;
             link(&tx, document.id, &wanted).await?;
             // A note just created still holds the `LinkedHashSet` it was built with.
-            let snapshot = Snapshot::load(tx.db()).await?;
             let mut tasks = Vec::new();
             for link in repo::document::links_of_document_as_added(tx.db(), document.id).await? {
                 if let Some(task) = snapshot.tasks.get(&link.task_id) {
@@ -90,7 +94,9 @@ impl DocumentService {
             if let Some(mode) = request.context_mode {
                 document.context_mode = mode;
             }
-            let wanted = resolve(&tx, request.task_ids.as_deref()).await?;
+            let snapshot = Snapshot::load(tx.db()).await?;
+            let wanted = resolve(&snapshot, request.task_ids.as_deref())?;
+            settle_scope(&snapshot, &mut document, request.scope.unwrap_or(before.scope()), &wanted)?;
             link(&tx, document.id, &wanted).await?;
             if document != before {
                 document.updated_at = self.ctx().now();
@@ -121,20 +127,57 @@ async fn require(tx: &Tx, id: Id) -> Result<document::Model> {
     repo::document::find_by_id(tx.db(), id).await?.ok_or_else(|| RekallError::not_found("Document", id))
 }
 
-/// The tasks a note is to be on, each required to exist. At least one: a note on no task is
-/// unreachable, and no screen could show it again.
-async fn resolve(tx: &Tx, task_ids: Option<&[Id]>) -> Result<Vec<Id>> {
-    let Some(task_ids) = task_ids.filter(|ids| !ids.is_empty()) else {
-        return Err(RekallError::conflict("A note has to be attached to at least one task"));
-    };
+/// The tasks a note is to be on, each required to exist. None is fine: its scope keeps it.
+fn resolve(snapshot: &Snapshot, task_ids: Option<&[Id]>) -> Result<Vec<Id>> {
     let mut resolved = Vec::new();
-    for id in task_ids {
-        let task = require_task(tx, *id).await?;
+    for id in task_ids.unwrap_or_default() {
+        let task = snapshot.tasks.get(id).ok_or_else(|| RekallError::not_found("Task", *id))?;
         if !resolved.contains(&task.id) {
             resolved.push(task.id);
         }
     }
     Ok(resolved)
+}
+
+/// Each task's `(company, project)`, in the order given.
+fn places(snapshot: &Snapshot, task_ids: &[Id]) -> Vec<(Id, Id)> {
+    task_ids
+        .iter()
+        .filter_map(|id| snapshot.tasks.get(id))
+        .filter_map(|task| snapshot.projects.get(&task.project_id).map(|project| (project.company_id, project.id)))
+        .collect()
+}
+
+/// Gives the note its scope once the owner exists and every task it is to be on sits inside it.
+/// A task outside is refused rather than dropped, so narrowing a scope never unlinks silently.
+fn settle_scope(snapshot: &Snapshot, document: &mut document::Model, scope: NoteScope, wanted: &[Id]) -> Result<()> {
+    match scope {
+        NoteScope::Global => {}
+        NoteScope::Company { id } if !snapshot.companies.contains_key(&id) => {
+            return Err(RekallError::not_found("Company", id));
+        }
+        NoteScope::Project { id } if !snapshot.projects.contains_key(&id) => {
+            return Err(RekallError::not_found("Project", id));
+        }
+        _ => {}
+    }
+    let outside: Vec<String> = wanted
+        .iter()
+        .filter_map(|id| snapshot.tasks.get(id))
+        .filter_map(|task| snapshot.projects.get(&task.project_id).map(|project| (task, project)))
+        .filter(|(_, project)| !scope.admits(project.company_id, project.id))
+        .map(|(task, project)| format!("{}/{}", project.label, task.label))
+        .collect();
+    if !outside.is_empty() {
+        return Err(RekallError::conflict(format!(
+            "{} {} outside this note's scope. Take the note off {} or widen its scope first.",
+            outside.join(", "),
+            if outside.len() == 1 { "is" } else { "are" },
+            if outside.len() == 1 { "it" } else { "them" }
+        )));
+    }
+    document.set_scope(scope);
+    Ok(())
 }
 
 /// Detach from every task no longer wanted, then attach to every wanted task it is not on yet,

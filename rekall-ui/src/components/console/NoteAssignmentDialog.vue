@@ -6,9 +6,11 @@ import CloseGlyph from '@/components/ui/CloseGlyph.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useModalGate } from '@/composables/useModalGate'
+import { useSettledOrder } from '@/composables/useSettledOrder'
 import { trapTabKey } from '@/common/a11y/focus-trap'
 import { identityHue } from '@/common/identity'
 import { TASK_STATUS_COLOR, TASK_STATUS_LABEL } from '@/model/catalog'
+import { scopeAdmits, scopeName } from '@/model/note-scope'
 import type { CompanyId, ProjectId, TaskId } from '@/model/branded'
 
 const emit = defineEmits<{ close: [] }>()
@@ -47,9 +49,12 @@ onMounted(async () => {
 
   const origin = taskById(originTaskId.value)
   const originProject = projectById(origin?.projectId ?? null)
-  pickedProject.value = origin?.projectId ?? null
+  const onlyProject = scopedProjects.value.length === 1 ? scopedProjects.value[0]! : null
+  pickedProject.value = origin?.projectId ?? onlyProject?.id ?? null
   pickedCompany.value =
-    originProject?.companyId ?? (companies.value.length === 1 ? companies.value[0]!.id : null)
+    originProject?.companyId ??
+    onlyProject?.companyId ??
+    (scopedCompanies.value.length === 1 ? scopedCompanies.value[0]!.id : null)
 
   await nextTick()
   filterField.value?.focus()
@@ -60,13 +65,31 @@ onUnmounted(() => {
   window.removeEventListener('keydown', onKeydown, true)
 })
 
+// The columns offer only what the note's scope admits: a project note walks one project.
+const scopedProjects = computed(() => {
+  const scope = selectedDocument.value?.scope
+  return scope ? projects.value.filter((project) => scopeAdmits(scope, project)) : []
+})
+
+const scopedCompanies = computed(() =>
+  companies.value.filter((company) => scopedProjects.value.some((project) => project.companyId === company.id))
+)
+
+const scopeLabel = computed(() =>
+  selectedDocument.value ? scopeName(selectedDocument.value.scope, projects.value, companies.value) : ''
+)
+
+const settledCompanies = useSettledOrder(() => scopedCompanies.value, (company) => company.id)
+
 const companyProjects = computed(() =>
   pickedCompany.value === null
     ? []
-    : projects.value.filter((project) => project.companyId === pickedCompany.value)
+    : scopedProjects.value.filter((project) => project.companyId === pickedCompany.value)
 )
 
-const projectTasks = computed(() => {
+const listedProjects = useSettledOrder(() => companyProjects.value, (project) => project.id)
+
+const filteredTasks = computed(() => {
   if (pickedProject.value === null) return []
   const needle = taskFilter.value.trim().toLowerCase()
   return tasks.value
@@ -74,6 +97,13 @@ const projectTasks = computed(() => {
     .filter((task) => showAllTasks.value || task.status !== 'DONE')
     .filter((task) => !needle || `${task.title} ${task.label}`.toLowerCase().includes(needle))
 })
+
+// A tick refetches every task, so rows hold their places until the project or filter changes.
+const projectTasks = useSettledOrder(() => filteredTasks.value, (task) => task.id, [
+  pickedProject,
+  taskFilter,
+  showAllTasks
+])
 
 const doneInProject = computed(() =>
   pickedProject.value === null
@@ -125,7 +155,6 @@ async function toggle(taskId: TaskId): Promise<void> {
   if (!doc) return
   const current = doc.tasks.map((task) => task.id)
   if (attachedIds.value.has(taskId)) {
-    if (current.length === 1) return
     await run(
       () => store.saveNote(doc.id, { taskIds: current.filter((id) => id !== taskId) }),
       'Removed from that task.'
@@ -138,7 +167,7 @@ async function toggle(taskId: TaskId): Promise<void> {
   }
 }
 
-const membership = computed(() => selectedDocument.value?.tasks ?? [])
+const membership = useSettledOrder(() => selectedDocument.value?.tasks ?? [], (task) => task.id)
 
 function onKeydown(event: KeyboardEvent): void {
   if (event.key === 'Escape') {
@@ -173,7 +202,7 @@ watch(selectedDocument, (doc) => {
             Tasks for {{ selectedDocument?.title }}
           </span>
           <span class="mt-0.5 block text-[12.5px] leading-relaxed text-text-muted">
-            A note can sit on several tasks. Open any of them and it comes along.
+            It lives in {{ scopeLabel }} and can sit on any of its tasks. Open one and the note comes along.
           </span>
         </span>
         <button
@@ -206,7 +235,6 @@ watch(selectedDocument, (doc) => {
               {{ member.projectLabel }}/{{ member.label }}
             </button>
             <button
-              v-if="membership.length > 1"
               class="focus-ring -m-0.5 grid size-5 shrink-0 place-items-center rounded-full text-text-subtle transition-colors hover:bg-danger-soft hover:text-danger"
               :aria-label="`Remove this note from ${member.title}`"
               @click="toggle(member.id)"
@@ -215,10 +243,10 @@ watch(selectedDocument, (doc) => {
             </button>
           </span>
           <span
-            v-if="membership.length === 1"
+            v-if="membership.length === 0"
             class="shrink-0 whitespace-nowrap pl-1 text-[11px] text-text-subtle"
           >
-            a note needs at least one
+            no task yet: it waits in {{ scopeLabel }}
           </span>
         </div>
       </div>
@@ -230,17 +258,17 @@ watch(selectedDocument, (doc) => {
         >
           <div class="flex shrink-0 items-baseline justify-between px-3.5 pb-1.5 pt-3">
             <p class="eyebrow">Company</p>
-            <span v-if="companies.length" class="font-mono text-[10px] text-text-subtle">
-              {{ companies.length }}
+            <span v-if="settledCompanies.length" class="font-mono text-[10px] text-text-subtle">
+              {{ settledCompanies.length }}
             </span>
           </div>
           <div class="relative min-h-0 flex-1">
             <div
-              v-if="companies.length"
+              v-if="settledCompanies.length"
               class="h-full space-y-0.5 overflow-y-auto overscroll-contain px-1.5 py-1"
             >
               <button
-                v-for="company in companies"
+                v-for="company in settledCompanies"
                 :key="company.id"
                 data-testid="assign-company"
                 class="focus-ring flex w-full items-center gap-2 rounded-[var(--radius-control)] px-2.5 py-2 text-left transition-colors"
@@ -275,7 +303,7 @@ watch(selectedDocument, (doc) => {
               <p class="text-center text-[12px] leading-relaxed text-text-subtle">No company yet.</p>
             </div>
             <div
-              v-if="companies.length"
+              v-if="settledCompanies.length"
               class="pointer-events-none absolute inset-x-1.5 bottom-0 h-5 bg-gradient-to-t from-surface to-transparent"
               aria-hidden="true"
             />
@@ -301,7 +329,7 @@ watch(selectedDocument, (doc) => {
               class="h-full space-y-0.5 overflow-y-auto overscroll-contain px-1.5 py-1"
             >
               <button
-                v-for="project in companyProjects"
+                v-for="project in listedProjects"
                 :key="project.id"
                 data-testid="assign-project"
                 class="focus-ring flex w-full items-center gap-2 rounded-[var(--radius-control)] px-2.5 py-2 text-left transition-colors"

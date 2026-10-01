@@ -2,11 +2,11 @@
 
 use rekall_common::{jstr, Id, RekallError, Result};
 use rekall_model::constraints::Phase;
-use rekall_model::{company, document, project, task, ProjectStatus, RevisionKind, Slug, TaskStatus, TaskStepState};
+use rekall_model::{company, project, task, ProjectStatus, RevisionKind, Slug, TaskStatus, TaskStepState};
 use rekall_repository::repository as repo;
 use rekall_service::revision::RevisionTrigger;
 use rekall_service::{in_read, in_write, Services, Tx};
-use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, IntoActiveModel, QueryFilter};
+use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
 use super::Snapshot;
 use crate::dto::{
@@ -73,7 +73,7 @@ impl CatalogService {
         in_write!(self.ctx(), |tx| {
             let company = require_company(&tx, Some(id)).await?;
             company::Entity::delete_by_id(company.id).exec(tx.db()).await?;
-            sweep_orphans(&tx).await
+            Ok::<_, RekallError>(())
         })
     }
 
@@ -139,7 +139,7 @@ impl CatalogService {
         in_write!(self.ctx(), |tx| {
             let project = require_project(&tx, Some(id)).await?;
             project::Entity::delete_by_id(project.id).exec(tx.db()).await?;
-            sweep_orphans(&tx).await
+            Ok::<_, RekallError>(())
         })
     }
 
@@ -284,7 +284,7 @@ impl CatalogService {
         in_write!(self.ctx(), |tx| {
             let task = require_task(&tx, id).await?;
             task::Entity::delete_by_id(task.id).exec(tx.db()).await?;
-            sweep_orphans(&tx).await
+            Ok::<_, RekallError>(())
         })
     }
 
@@ -314,14 +314,6 @@ async fn task_response(tx: &Tx, task: &task::Model) -> Result<TaskResponse> {
 }
 
 /// Notes attached to nothing are unreachable: every delete that can leave one sweeps them up.
-async fn sweep_orphans(tx: &Tx) -> Result<()> {
-    let orphans: Vec<Id> = repo::document::find_orphans(tx.db()).await?.into_iter().map(|d| d.id).collect();
-    if !orphans.is_empty() {
-        document::Entity::delete_many().filter(document::Column::Id.is_in(orphans)).exec(tx.db()).await?;
-    }
-    Ok(())
-}
-
 async fn require_company(tx: &Tx, id: Option<Id>) -> Result<company::Model> {
     let Some(id) = id else {
         return Err(RekallError::not_found_msg("A project must belong to a company"));

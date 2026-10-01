@@ -7,6 +7,7 @@ import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import AppModeToggle from '@/components/ui/AppModeToggle.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
 import NoteAssignmentDialog from '@/components/console/NoteAssignmentDialog.vue'
+import NoteScopeSelect from '@/components/console/NoteScopeSelect.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.vue'
 import CloseGlyph from '@/components/ui/CloseGlyph.vue'
@@ -16,6 +17,7 @@ import { rkCommand } from '@/common/format/rk-command'
 import { DOCUMENT_KINDS } from '@/model/catalog'
 import type { DocumentContextMode } from '@/model/catalog'
 import type { TaskId } from '@/model/branded'
+import type { NoteScope } from '@/model/note-scope'
 
 const store = useConsoleStore()
 const {
@@ -43,7 +45,7 @@ const SHORTCUTS = [
   { keys: 'R', does: 'toggle read / write, on a description or a note' },
   { keys: 'B', does: 'switch between tasks and notes' },
   { keys: 'J K', does: 'walk the list' },
-  { keys: '1-4', does: 'set the status' }
+  { keys: '1-5', does: 'set the status' }
 ] as const
 
 const mode = ref<'write' | 'read'>('write')
@@ -91,6 +93,20 @@ const doneTasks = computed(
 
 const showDoneTasks = ref(false)
 
+/*
+ * The strip keeps the task in view as a chip and folds the note's other open tasks behind a
+ * count, the way finished ones already are; a single other one is not worth a fold.
+ */
+const liveInView = computed(() => liveTasks.value.filter((task) => task.id === selectedTaskId.value))
+const otherLiveTasks = computed(() => liveTasks.value.filter((task) => task.id !== selectedTaskId.value))
+const foldsOtherLive = computed(() => otherLiveTasks.value.length > 1)
+const showOtherLiveTasks = ref(false)
+const shownLiveTasks = computed(() =>
+  !foldsOtherLive.value || showOtherLiveTasks.value
+    ? [...liveInView.value, ...otherLiveTasks.value]
+    : liveInView.value
+)
+
 const draft = ref({ title: '', kind: 'notes', bodyMarkdown: '' })
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -99,6 +115,7 @@ watch(
   (document) => {
     if (saveTimer) clearTimeout(saveTimer)
     showDoneTasks.value = false
+    showOtherLiveTasks.value = false
     if (!document) return
     draft.value = {
       title: document.title,
@@ -146,9 +163,15 @@ async function copyAnchor(): Promise<void> {
   setTimeout(() => (justCopied.value = false), 1400)
 }
 
+async function moveTo(scope: NoteScope): Promise<void> {
+  const document = selectedDocument.value
+  if (!document) return
+  await run(() => store.saveNote(document.id, { scope }), 'Moved.')
+}
+
 async function detachFrom(taskId: TaskId): Promise<void> {
   const document = selectedDocument.value
-  if (!document || document.tasks.length === 1) return
+  if (!document) return
   await run(
     () =>
       store.saveNote(document.id, {
@@ -296,7 +319,7 @@ async function confirmDelete(): Promise<void> {
         </span>
 
         <span
-          v-for="task in liveTasks"
+          v-for="task in shownLiveTasks"
           :key="task.id"
           data-testid="note-task-chip"
           class="inline-flex items-center gap-1.5 rounded-full border py-0.5 pl-2.5 pr-1 font-mono text-[11px] transition-colors"
@@ -310,7 +333,6 @@ async function confirmDelete(): Promise<void> {
             {{ task.projectLabel }}/{{ task.label }}
           </button>
           <button
-            v-if="selectedDocument.tasks.length > 1"
             class="focus-ring -m-0.5 grid size-5 place-items-center rounded-full text-text-subtle transition-colors hover:bg-danger-soft hover:text-danger"
             :aria-label="`Remove this note from ${task.title}`"
             @click="detachFrom(task.id)"
@@ -318,6 +340,31 @@ async function confirmDelete(): Promise<void> {
             <CloseGlyph small />
           </button>
         </span>
+
+        <button
+          v-if="foldsOtherLive"
+          class="focus-ring inline-flex items-center gap-1.5 rounded-full border border-border-strong bg-surface-raised py-0.5 pl-2 pr-2.5 font-mono text-[11px] text-text-muted transition-colors hover:border-border-strong hover:text-text"
+          :aria-expanded="showOtherLiveTasks"
+          data-testid="note-open-toggle"
+          @click="showOtherLiveTasks = !showOtherLiveTasks"
+        >
+          <svg
+            class="size-2.5 transition-transform"
+            :class="showOtherLiveTasks && 'rotate-90'"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="M9 6l6 6-6 6"
+              stroke="currentColor"
+              stroke-width="2.4"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          {{ otherLiveTasks.length }} {{ liveInView.length ? 'more ' : '' }}open
+        </button>
 
         <button
           v-if="doneTasks.length && liveTasks.length"
@@ -360,7 +407,6 @@ async function confirmDelete(): Promise<void> {
               {{ task.projectLabel }}/{{ task.label }}
             </button>
             <button
-              v-if="selectedDocument.tasks.length > 1"
               class="focus-ring -m-0.5 grid size-5 place-items-center rounded-full text-text-subtle transition-colors hover:bg-danger-soft hover:text-danger"
               :aria-label="`Remove this note from ${task.title}`"
               @click="detachFrom(task.id)"
@@ -417,6 +463,7 @@ async function confirmDelete(): Promise<void> {
               {{ option.label }}
             </button>
           </div>
+          <NoteScopeSelect :note="selectedDocument" @change="moveTo" />
           <AppModeToggle v-model="mode" class="ml-auto" />
         </div>
 

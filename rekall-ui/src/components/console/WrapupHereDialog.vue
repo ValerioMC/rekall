@@ -61,7 +61,11 @@ onUnmounted(() => {
       data-testid="wrapup-here-dialog"
     >
       <header class="flex items-center gap-3 border-b border-border px-5 py-4">
-        <span class="session-caret session-caret-busy shrink-0" aria-hidden="true" />
+        <span
+          class="session-caret shrink-0"
+          :class="sending && 'session-caret-busy'"
+          aria-hidden="true"
+        />
         <span class="min-w-0 flex-1">
           <span class="block text-[15px] font-semibold tracking-[-0.01em] text-text">
             Run the wrapup here

@@ -32,16 +32,18 @@ const task = (id: string, status: TaskStatus): Task => ({
 })
 
 describe('partitionTasks', () => {
-  it('files DONE tasks and keeps the rest active', () => {
-    const { active, filed } = partitionTasks([
+  it('files DONE tasks, shelves BACKLOG ones and keeps the rest active', () => {
+    const { active, backlog, filed } = partitionTasks([
       task('a', 'IN_PROGRESS'),
       task('b', 'DONE'),
       task('c', 'TODO'),
       task('d', 'BLOCKED'),
-      task('e', 'DONE')
+      task('e', 'DONE'),
+      task('f', 'BACKLOG')
     ])
 
     expect(active.map((t) => t.id)).toEqual(['a', 'c', 'd'])
+    expect(backlog.map((t) => t.id)).toEqual(['f'])
     expect(filed.map((t) => t.id)).toEqual(['b', 'e'])
   })
 
@@ -51,7 +53,7 @@ describe('partitionTasks', () => {
     expect(filed.map((t) => t.id)).toEqual(['z', 'a'])
   })
 
-  it('returns two empty lists for no tasks', () => {
-    expect(partitionTasks([])).toEqual({ active: [], filed: [] })
+  it('returns three empty lists for no tasks', () => {
+    expect(partitionTasks([])).toEqual({ active: [], backlog: [], filed: [] })
   })
 })

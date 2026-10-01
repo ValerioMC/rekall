@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
-import AppConfirm from '@/components/ui/AppConfirm.vue'
 import DescriptionCard from '@/components/console/DescriptionCard.vue'
 import TimeLogDialog from '@/components/console/TimeLogDialog.vue'
 import StepsCard from '@/components/console/StepsCard.vue'
@@ -34,8 +33,7 @@ const toast = useToastStore()
 const showTimeLog = ref(false)
 /** The note whose removal is in flight, so a second click on it does nothing. */
 const leaving = ref<DocumentId | null>(null)
-/** The only-here note whose removal is waiting on the delete confirm, or null. */
-const confirmingDelete = ref<RekallDocument | null>(null)
+const { run: runCreate, isRunning: creatingNote } = useAsyncAction()
 const isRunningHere = computed(() =>
   runningEntries.value.some((entry) => entry.taskId === selectedTask.value?.id)
 )
@@ -60,22 +58,17 @@ const hasReferenceNote = computed(() =>
   taskDocuments.value.some((note) => note.contextMode === 'REFERENCE')
 )
 
-/** A note is on at least one task, so taking one off the only task it is on is deleting it. */
-function onlyHere(note: RekallDocument): boolean {
-  return note.tasks.length === 1
-}
-
-/**
- * The card's one control. A note that lives elsewhere too comes off this task at once; a note
- * that is only here has nowhere to go, so the same control asks to delete it instead.
- */
+/** The card's one control: the note comes off this task and stays in its scope. */
 function takeOff(note: RekallDocument): void {
   if (leaving.value !== null) return
-  if (onlyHere(note)) {
-    confirmingDelete.value = note
-    return
-  }
   void detach(note)
+}
+
+/** The shortcut under the last card: a note in this task's project, already on this task. */
+async function createHere(): Promise<void> {
+  const task = selectedTask.value
+  if (!task || creatingNote.value) return
+  await runCreate(() => store.createNote({ scope: store.projectScopeOf(task.id), taskIds: [task.id] }), 'Note created')
 }
 
 /**
@@ -97,7 +90,7 @@ async function detach(note: RekallDocument): Promise<void> {
   } finally {
     leaving.value = null
   }
-  toast.notify(`${note.title} is off this task.`, {
+  toast.notify(`${note.title} is off this task. It stays in its scope.`, {
     label: 'Undo',
     run: () =>
       void run(async () => {
@@ -107,18 +100,6 @@ async function detach(note: RekallDocument): Promise<void> {
   })
 }
 
-/** Deleting is not undone by a toast: the confirm is the one gate, and it names the blast. */
-async function confirmDelete(): Promise<void> {
-  const note = confirmingDelete.value
-  confirmingDelete.value = null
-  if (!note || leaving.value !== null) return
-  leaving.value = note.id
-  try {
-    await run(() => store.deleteNote(note.id), `Deleted ${note.title}.`)
-  } finally {
-    leaving.value = null
-  }
-}
 </script>
 
 <template>
@@ -225,7 +206,7 @@ async function confirmDelete(): Promise<void> {
           >
             No note on this task yet. Press
             <kbd class="rounded border border-border px-1 font-mono text-[10px]">N</kbd>
-            to write the first one.
+            or the button below to write the first one.
           </p>
 
           <TransitionGroup
@@ -276,9 +257,7 @@ async function confirmDelete(): Promise<void> {
 
               <!--
                 The card's right end is the note's membership. At rest it says where else the note
-                lives; under the pointer or the keyboard it is the one way off this task. When this
-                is the only task the note is on, that way off is deleting the note, and the control
-                is a bin rather than a cross so the card says so before the confirm does.
+                sits; under the pointer or the keyboard it is the one way off this task.
               -->
               <span class="absolute right-2.5 top-2 z-[2] flex h-[18px] items-center" data-testid="note-card-membership">
                 <span
@@ -292,29 +271,31 @@ async function confirmDelete(): Promise<void> {
                 <button
                   type="button"
                   class="focus-ring absolute right-0 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-md text-text-subtle opacity-0 transition-[opacity,color,background-color] duration-100 hover:bg-danger-soft hover:text-danger focus-visible:opacity-100 group-hover/card:opacity-100 group-focus-within/card:opacity-100"
-                  :title="
-                    onlyHere(document)
-                      ? `This is the only task ${document.title} is on: taking it off deletes the note`
-                      : `Take ${document.title} off this task`
-                  "
-                  :aria-label="
-                    onlyHere(document)
-                      ? `Delete ${document.title}, this is its only task`
-                      : `Take ${document.title} off this task`
-                  "
-                  :data-testid="onlyHere(document) ? 'note-card-delete' : 'note-card-off'"
+                  :title="`Take ${document.title} off this task`"
+                  :aria-label="`Take ${document.title} off this task`"
+                  data-testid="note-card-off"
                   @click.stop="takeOff(document)"
                 >
-                  <svg v-if="onlyHere(document)" class="size-3" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                    <path d="M2.5 3.5h7M4.5 3.5V2.5h3v1M3.5 3.5l.5 6h4l.5-6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
-                  </svg>
-                  <svg v-else class="size-3" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                  <svg class="size-3" viewBox="0 0 12 12" fill="none" aria-hidden="true">
                     <path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
                   </svg>
                 </button>
               </span>
             </div>
           </TransitionGroup>
+
+          <button
+            type="button"
+            class="focus-ring relative z-[1] mb-2 ml-[38px] mr-3 mt-0.5 flex w-[calc(100%-50px)] items-center gap-2 rounded-[var(--radius-control)] border border-dashed border-border-strong px-2.5 py-1.5 text-left text-[12px] text-text-muted transition-colors hover:border-solid hover:border-accent hover:bg-accent-soft hover:text-text disabled:opacity-60"
+            :disabled="creatingNote"
+            :title="`A new note in ${selectedTask.projectTitle}, on this task`"
+            data-testid="note-create-here"
+            @click="createHere"
+          >
+            <span class="text-accent" aria-hidden="true">+</span>
+            <span class="min-w-0 flex-1 truncate">New note</span>
+            <span class="shrink-0 truncate text-[10.5px] text-text-subtle">in {{ selectedTask.projectTitle }}</span>
+          </button>
         </div>
       </template>
     </div>
@@ -328,16 +309,5 @@ async function confirmDelete(): Promise<void> {
       />
     </Transition>
 
-    <Transition name="dialog">
-      <AppConfirm
-        v-if="confirmingDelete"
-        :title="`Delete ${confirmingDelete.title}?`"
-        body="This is the only task the note is on. Taking it off deletes the note and its content. Put it on another task first to keep it."
-        blast="deletes the note · not recoverable"
-        confirm-label="Delete note"
-        @cancel="confirmingDelete = null"
-        @confirm="confirmDelete"
-      />
-    </Transition>
   </section>
 </template>

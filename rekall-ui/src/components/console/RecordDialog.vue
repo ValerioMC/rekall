@@ -41,6 +41,9 @@ const isNew = props.draft.id === null
 const hasLabel = kind !== 'company'
 const originalLabel = props.draft.kind === 'company' ? '' : props.draft.label
 
+// A new task opens on the description template and is written in its own pane, not squeezed in here.
+const asksForDescription = !(kind === 'task' && isNew)
+
 const KIND_NOUN = { company: 'company', project: 'project', task: 'task' } as const
 const heading = `${isNew ? 'New' : 'Edit'} ${KIND_NOUN[kind]}`
 
@@ -189,14 +192,14 @@ const blast = computed(() => {
   const current = form.value
   if (current.kind === 'company') {
     const company = store.companies.find((candidate) => candidate.id === current.id)
-    return `${plural(company?.projectCount ?? 0, 'project')} · ${plural(company?.taskCount ?? 0, 'task')} · every note left on nothing`
+    return `${plural(company?.projectCount ?? 0, 'project')} · ${plural(company?.taskCount ?? 0, 'task')} · the notes it and its projects own`
   }
   if (current.kind === 'project') {
     const count = store.tasks.filter((task) => task.projectId === current.id).length
-    return `${plural(count, 'task')} · every note left on nothing`
+    return `${plural(count, 'task')} · the notes it owns`
   }
   const task = store.tasks.find((candidate) => candidate.id === current.id)
-  return `${plural(task?.documentCount ?? 0, 'note')} unlinked · those left on no task are removed`
+  return `${plural(task?.documentCount ?? 0, 'note')} unlinked · each stays where it lives`
 })
 
 function plural(count: number, noun: string): string {
@@ -528,20 +531,22 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
           </p>
         </template>
 
-        <label
-          for="record-description"
-          class="mb-1.5 mt-5 block eyebrow text-[11px]"
-        >
-          Description
-        </label>
-        <textarea
-          id="record-description"
-          v-model="description"
-          data-testid="record-description"
-          rows="3"
-          class="field text-text w-full resize-y rounded-[var(--radius-control)] p-3 text-[13px] leading-relaxed"
-          placeholder="What it is, in a sentence. This travels with the record into every context."
-        />
+        <template v-if="asksForDescription">
+          <label
+            for="record-description"
+            class="mb-1.5 mt-5 block eyebrow text-[11px]"
+          >
+            Description
+          </label>
+          <textarea
+            id="record-description"
+            v-model="description"
+            data-testid="record-description"
+            rows="3"
+            class="field text-text w-full resize-y rounded-[var(--radius-control)] p-3 text-[13px] leading-relaxed"
+            placeholder="What it is, in a sentence. This travels with the record into every context."
+          />
+        </template>
       </div>
 
       <footer class="flex items-center gap-2 border-t border-border bg-canvas px-6 py-3.5">
@@ -581,7 +586,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
         :title="`Delete ${titleValue}?`"
         :body="
           kind === 'task'
-            ? 'The notes on it are unlinked. A note that other tasks still use survives.'
+            ? 'The notes on it are unlinked. Every one of them stays in the project, company or global list that owns it.'
             : 'Everything underneath goes with it. This is not recoverable.'
         "
         :blast="blast"

@@ -104,9 +104,16 @@ export const TaskStepSchema = z.object({
   claimedAt: z.string().nullable(),
   doneAt: z.string().nullable(),
   position: z.number().int(),
+  passes: z.array(z.object({ detailMarkdown: z.string().nullable(), sentBackAt: z.string() })),
   createdAt: z.string(),
   updatedAt: z.string()
 })
+
+export const NoteScopeSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('GLOBAL') }),
+  z.object({ kind: z.literal('COMPANY'), id: companyId }),
+  z.object({ kind: z.literal('PROJECT'), id: projectId })
+])
 
 export const DocumentSchema = z.object({
   id: documentId,
@@ -115,6 +122,7 @@ export const DocumentSchema = z.object({
   bodyMarkdown: z.string(),
   tasks: z.array(TaskRefSchema),
   contextMode: z.enum(['FULL', 'REFERENCE']),
+  scope: NoteScopeSchema,
   anchor: z.string(),
   updatedAt: z.string()
 })

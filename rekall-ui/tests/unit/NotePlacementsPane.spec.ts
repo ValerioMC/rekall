@@ -82,6 +82,7 @@ const note = (on: TaskId[]): RekallDocument => ({
   bodyMarkdown: 'Accesso via bastion',
   tasks: on.map(refOf),
   contextMode: 'FULL',
+  scope: { kind: 'GLOBAL' },
   anchor: 'note:00000000',
   updatedAt: '2026-09-01T10:00:00Z'
 })
@@ -136,7 +137,7 @@ describe('NotePlacementsPane', () => {
     const rows = rowsOf(wrapper)
     expect(rows).toHaveLength(2)
     expect(rows.map((row) => row.attributes('data-attached'))).toEqual(['true', 'true'])
-    expect(wrapper.text()).toContain('On 2 tasks')
+    expect(wrapper.text()).toContain('In Global · on 2 tasks')
     expect(wrapper.text()).toContain('Vega Platform')
     expect(wrapper.text()).toContain('Beacon')
     expect(wrapper.text()).not.toContain('Retry policy')
@@ -177,29 +178,17 @@ describe('NotePlacementsPane', () => {
     wrapper.unmount()
   })
 
-  /** A note is on at least one task: on the last one the control deletes the note, after asking. */
-  it('asks to delete the note instead of taking it off the only task it is on', async () => {
+  /** Its scope keeps the note: the last task comes off like any other, with no confirm. */
+  it('takes the note off its only task without deleting it', async () => {
     const store = seed(note([builder]))
     const wrapper = render()
 
-    const only = rowsOf(wrapper)[0]!
-    expect(only.text()).toContain('only here')
-    expect(wrapper.find('[data-testid="note-placement-remove"]').exists()).toBe(false)
-    const del = wrapper.find('[data-testid="note-placement-delete"]')
-    expect(del.text()).toContain('Delete note')
-
-    await del.trigger('click')
+    await wrapper.get('[data-testid="note-placement-remove"]').trigger('click')
     await flushPromises()
-    const confirm = document.body.querySelector('[role="alertdialog"]')!
-    expect(confirm.getAttribute('aria-label')).toBe('Delete cluster.md?')
-    expect(confirm.textContent).toContain('Report builder is the only task this note is on')
+
+    expect(document.body.querySelector('[role="alertdialog"]')).toBeNull()
+    expect(store.detachNoteFromTask).toHaveBeenCalledWith('d1', builder)
     expect(store.deleteNote).not.toHaveBeenCalled()
-
-    Array.from(confirm.querySelectorAll('button')).find((b) => b.textContent?.includes('Delete note'))!.click()
-    await flushPromises()
-
-    expect(store.deleteNote).toHaveBeenCalledWith('d1')
-    expect(store.detachNoteFromTask).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 
@@ -225,11 +214,11 @@ describe('NotePlacementsPane', () => {
     wrapper.unmount()
   })
 
-  it('says on the last task that taking it off deletes the note', () => {
-    seed(note([builder]))
+  it('says that a note on no task waits in its scope', () => {
+    seed(note([]))
     const wrapper = render()
 
-    expect(wrapper.text()).toContain('taking it off deletes the note')
+    expect(wrapper.text()).toContain('On no task: it waits in Global until it is put on one.')
     wrapper.unmount()
   })
 

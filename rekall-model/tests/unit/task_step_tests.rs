@@ -77,3 +77,42 @@ fn marking_a_step_the_state_it_is_already_in_changes_nothing() {
     step.mark_state(TaskStepState::Running);
     assert_eq!(step.running_at, running_at);
 }
+
+#[test]
+fn sending_a_claim_back_keeps_its_detail_as_a_pass_and_clears_it_for_feedback() {
+    let mut step = new_step();
+    step.body_markdown = Some("Sum by month".into());
+    step.mark_state(TaskStepState::Claimed);
+
+    step.send_back(Instant::now()).unwrap();
+
+    assert_eq!(step.state, TaskStepState::Open);
+    assert!(step.body_markdown.is_none());
+    let passes = step.passes().unwrap();
+    assert_eq!(passes.len(), 1);
+    assert_eq!(passes[0].detail_markdown.as_deref(), Some("Sum by month"));
+}
+
+#[test]
+fn a_second_send_back_keeps_the_feedback_after_the_brief() {
+    let mut step = new_step();
+    step.body_markdown = Some("Sum by month".into());
+    step.mark_state(TaskStepState::Claimed);
+    step.send_back(Instant::now()).unwrap();
+    step.body_markdown = Some("Group by week instead".into());
+    step.mark_state(TaskStepState::Claimed);
+
+    step.send_back(Instant::now()).unwrap();
+
+    let details: Vec<Option<String>> = step.passes().unwrap().into_iter().map(|pass| pass.detail_markdown).collect();
+    assert_eq!(details, vec![Some("Sum by month".into()), Some("Group by week instead".into())]);
+}
+
+#[test]
+fn only_a_claimed_step_is_sent_back() {
+    let mut step = new_step();
+    step.mark_state(TaskStepState::Open);
+
+    assert!(step.send_back(Instant::now()).is_err());
+    assert!(step.passes().unwrap().is_empty());
+}

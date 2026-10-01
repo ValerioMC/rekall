@@ -608,6 +608,13 @@
   padding-left: 3px;
 }
 
+/* Parked work: a dashed rail in the border tone, so it reads as not started rather than as done. */
+@utility backlog-shelf {
+  margin-left: 7px;
+  border-left: 2px dashed var(--color-border-strong);
+  padding-left: 3px;
+}
+
 @utility filed-row {
   opacity: 0.55;
   transition: opacity 140ms ease;
@@ -1023,9 +1030,9 @@
  * is a text caret. It wears the anchor colour the session was opened on — `/rk <anchor>` is the
  * first line it was ever sent — which also keeps the session corner from reading as the amber
  * time corner stacked twice. Wherever it stands for sessions (the dock segment, its panel, the
- * terminal pane's other-sessions switcher, **Plan here** at rest) it hard-blinks slow. It swells
- * to a block on a quicker beat only where a session has been handed a line and is at work on it:
- * a wrapup being written, a plan typed into a live terminal. Like every mark here, it runs only
+ * terminal pane's other-sessions switcher, **Plan here** and **Wrapup here** at rest) it hard-blinks
+ * slow. It swells to a block on a quicker beat only while a line is being handed to a session:
+ * a wrapup or a plan on its way into a live terminal. Like every mark here, it runs only
  * while a session is live.
  */
 @utility session-caret {

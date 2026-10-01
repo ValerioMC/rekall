@@ -216,18 +216,54 @@ async fn detaching_a_note_from_one_task_leaves_it_on_the_others() {
 }
 
 #[tokio::test]
-async fn a_note_has_to_be_on_at_least_one_task_because_nothing_could_reach_it_otherwise() {
+async fn a_note_on_no_task_lives_on_in_its_scope() {
     let app = app().await;
     let acme = app.a_company("Acme").await;
     let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
-    app.a_task(&project_id, "a").await;
 
-    let refused = app.post("/api/documents", json!({ "title": "x", "kind": "notes", "taskIds": [] })).await;
-    assert_eq!(refused.status, 409);
+    let created = app
+        .post("/api/documents", json!({ "title": "x", "kind": "notes", "taskIds": [], "scope": { "kind": "PROJECT", "id": project_id } }))
+        .await;
+
+    assert_eq!(created.status, 201);
+    assert_eq!(created.body["scope"], json!({ "kind": "PROJECT", "id": project_id }));
 }
 
 #[tokio::test]
-async fn deleting_a_task_keeps_the_notes_that_other_tasks_still_use() {
+async fn a_new_note_takes_the_narrowest_scope_its_tasks_share() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let vega = app.a_project(&acme, "vega", "ACTIVE").await;
+    let rigel = app.a_project(&acme, "rigel", "ACTIVE").await;
+    let on_vega = app.a_task(&vega, "a").await;
+    let on_rigel = app.a_task(&rigel, "b").await;
+
+    let one_project = app.post("/api/documents", json!({ "title": "p.md", "kind": "notes", "taskIds": [on_vega] })).await;
+    let two_projects =
+        app.post("/api/documents", json!({ "title": "c.md", "kind": "notes", "taskIds": [on_vega, on_rigel] })).await;
+
+    assert_eq!(one_project.body["scope"], json!({ "kind": "PROJECT", "id": vega }));
+    assert_eq!(two_projects.body["scope"], json!({ "kind": "COMPANY", "id": acme }));
+}
+
+#[tokio::test]
+async fn a_task_outside_the_notes_scope_is_refused_and_says_which() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let vega = app.a_project(&acme, "vega", "ACTIVE").await;
+    let rigel = app.a_project(&acme, "rigel", "ACTIVE").await;
+    let on_rigel = app.a_task(&rigel, "elsewhere").await;
+
+    let refused = app
+        .post("/api/documents", json!({ "title": "x", "kind": "notes", "taskIds": [on_rigel], "scope": { "kind": "PROJECT", "id": vega } }))
+        .await;
+
+    assert_eq!(refused.status, 409);
+    assert!(refused.body.to_string().contains("rigel/elsewhere"), "{}", refused.body);
+}
+
+#[tokio::test]
+async fn deleting_a_task_unlinks_its_notes_and_their_scope_keeps_them() {
     let app = app().await;
     let acme = app.a_company("Acme").await;
     let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
@@ -243,11 +279,11 @@ async fn deleting_a_task_keeps_the_notes_that_other_tasks_still_use() {
     app.delete(&format!("/api/tasks/{doomed}")).await;
 
     assert_eq!(app.documents_on(&survivor).await.len(), 1);
-    assert_eq!(app.count("SELECT COUNT(*) FROM document", vec![]).await, 1, "the note nothing pointed at is gone, the shared one is not");
+    assert_eq!(app.count("SELECT COUNT(*) FROM document", vec![]).await, 2, "both stay with the project that owns them");
 }
 
 #[tokio::test]
-async fn deleting_a_project_takes_its_tasks_and_sweeps_the_notes_left_on_nothing() {
+async fn deleting_a_project_takes_its_tasks_and_the_notes_it_owns() {
     let app = app().await;
     let acme = app.a_company("Acme").await;
     let project_id = app.a_project(&acme, "vega", "ACTIVE").await;

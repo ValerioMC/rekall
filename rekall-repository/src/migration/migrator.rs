@@ -1,6 +1,6 @@
 use sea_orm_migration::prelude::*;
 
-use super::{m001_core, m002_documents_on_many_tasks, m003_company, m004_label_title_description, m005_to_m010, m011_to_m018, m019_to_m026, m027_project_icon, m028_diagram};
+use super::{m001_core, m002_documents_on_many_tasks, m003_company, m004_label_title_description, m005_to_m010, m011_to_m018, m019_to_m026, m027_project_icon, m028_diagram, m029_task_step_passes, m030_note_scope};
 
 /// Every changeset, in the order the Liquibase changelog applied them.
 pub struct Migrator;
@@ -48,6 +48,8 @@ impl MigratorTrait for Migrator {
             Box::new(m019_to_m026::RunQueue),
             Box::new(m027_project_icon::ProjectIcon),
             Box::new(m028_diagram::Diagram),
+            Box::new(m029_task_step_passes::TaskStepPasses),
+            Box::new(m030_note_scope::NoteScope),
         ]
     }
 }

@@ -122,6 +122,8 @@ async fn a_database_from_before_companies_and_labels_comes_through_whole() {
     let links = DocumentTask::find().all(db).await.unwrap();
     assert_eq!(links.len(), 1);
     assert_eq!(links[0].task_id, task.id);
+    assert_eq!(documents[0].scope_project_id, Some(project.id), "a note takes the one project its tasks share");
+    assert_eq!(documents[0].scope_company_id, None);
 
     let tables: Vec<String> = db
         .query_all_raw(sea_orm::Statement::from_string(

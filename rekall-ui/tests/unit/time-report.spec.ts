@@ -94,6 +94,7 @@ function step(taskId: TaskId, title: string, doneAt: Date | null): TaskStep {
     claimedAt: null,
     doneAt: doneAt?.toISOString() ?? null,
     position: nextStep,
+    passes: [],
     createdAt: '',
     updatedAt: ''
   }

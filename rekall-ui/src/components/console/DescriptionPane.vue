@@ -16,6 +16,7 @@ import NotesButton from '@/components/console/NotesButton.vue'
 import CommitReferenceRail from '@/components/console/CommitReferenceRail.vue'
 import RevisionHistoryButton from '@/components/console/RevisionHistoryButton.vue'
 import ContextSizeChip from '@/components/console/ContextSizeChip.vue'
+import { TASK_DESCRIPTION_TEMPLATE, isUntouchedTemplate } from '@/model/templates'
 import type { TaskId } from '@/model/branded'
 
 const store = useConsoleStore()
@@ -54,7 +55,8 @@ watch(
     if (previousId) flush(previousId)
     draft.value = selectedTask.value?.description ?? ''
     showEditor.value = draft.value.trim().length > 0
-    mode.value = showEditor.value ? 'read' : 'write'
+    const blank = !showEditor.value || isUntouchedTemplate(draft.value, TASK_DESCRIPTION_TEMPLATE)
+    mode.value = blank ? 'write' : 'read'
   },
   { immediate: true }
 )

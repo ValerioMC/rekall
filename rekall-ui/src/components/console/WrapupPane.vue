@@ -160,7 +160,11 @@ async function sendWrapupHere(message: string): Promise<void> {
           title="Type the wrapup command into the session already running here"
           @click="wrapupHereOpen = true"
         >
-          <span class="session-caret session-caret-busy shrink-0" aria-hidden="true" />
+          <span
+            class="session-caret shrink-0"
+            :class="sendingWrapupHere && 'session-caret-busy'"
+            aria-hidden="true"
+          />
           Wrapup here
         </button>
 

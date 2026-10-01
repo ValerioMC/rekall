@@ -16,6 +16,7 @@ pub fn routes() -> Router<ApiState> {
         .route("/api/tasks/{task_id}/steps", get(list_on).post(add))
         .route("/api/steps/{id}", patch(edit).delete(delete))
         .route("/api/steps/{id}/move", post(move_step))
+        .route("/api/steps/{id}/send-back", post(send_back))
 }
 
 async fn list(State(state): State<ApiState>) -> ApiResult<Json<Vec<TaskStepView>>> {
@@ -41,6 +42,10 @@ async fn edit(State(state): State<ApiState>, Path(id): Path<String>, JsonBody(re
             .edit(id, request.title.as_deref(), request.body_markdown.as_deref(), request.done, request.draft)
             .await?,
     ))
+}
+
+async fn send_back(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Json<TaskStepView>> {
+    Ok(Json(state.services.steps.send_back(uuid("id", &id)?).await?))
 }
 
 async fn move_step(State(state): State<ApiState>, Path(id): Path<String>, JsonBody(request): JsonBody<TaskStepMoveRequest>) -> ApiResult<Json<Vec<TaskStepView>>> {

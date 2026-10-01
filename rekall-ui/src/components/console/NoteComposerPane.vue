@@ -2,23 +2,32 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import AppButton from '@/components/ui/AppButton.vue'
+import AppSelect from '@/components/ui/AppSelect.vue'
 import NotePlacementRow from '@/components/console/NotePlacementRow.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
+import { useSettledOrder } from '@/composables/useSettledOrder'
 import { identityHue } from '@/common/identity'
 import { groupByProject, matchesTaskQuery } from '@/common/catalog/task-search'
+import {
+  GLOBAL_SCOPE,
+  NOTE_SCOPE_KIND_LABEL,
+  scopeAdmits,
+  scopeName,
+  type NoteScope,
+  type NoteScopeKind
+} from '@/model/note-scope'
 import type { Task } from '@/model/catalog'
-import type { TaskId } from '@/model/branded'
+import type { CompanyId, ProjectId, TaskId } from '@/model/branded'
 
 /**
- * The middle column while a note is being started from the Notes side. A note is born on at
- * least one task, so the composer is a name and the tasks it goes on, in one place: the task in
- * view is ticked to begin with, the active tasks in scope are offered underneath, and typing
- * widens the list to every task. Create sends the lot through `store.createNote`; the new note
- * opens in the editor and this column goes back to being its placements.
+ * The middle column while a note is being started from the Notes side: a name, where it lives,
+ * and, optionally, the tasks inside that scope it goes on. It starts in the project of the task
+ * in view (or the one the scope picker shows); a note on no task is fine, its scope keeps it.
+ * Create sends the lot through `store.createNote`, and the new note opens in the editor.
  */
 const store = useConsoleStore()
-const { tasks, visibleTasks, selectedTaskId, companies } = storeToRefs(store)
+const { tasks, projects, companies, visibleTasks, selectedTask, scopeProject, scopeCompany } = storeToRefs(store)
 const { run, isRunning } = useAsyncAction()
 
 interface ComposerRow {
@@ -26,27 +35,85 @@ interface ComposerRow {
   readonly attached: boolean
 }
 
+const SCOPE_KINDS: readonly NoteScopeKind[] = ['PROJECT', 'COMPANY', 'GLOBAL']
+
+const SCOPE_HINT: Readonly<Record<NoteScopeKind, string>> = {
+  PROJECT: 'Listed with this project, and goes only on its tasks.',
+  COMPANY: 'Shared by every project of this company.',
+  GLOBAL: 'Listed everywhere, and goes on any task.'
+}
+
+const startProject = selectedTask.value?.projectId ?? scopeProject.value
+const startCompany =
+  projects.value.find((project) => project.id === startProject)?.companyId ??
+  scopeCompany.value ??
+  (companies.value.length === 1 ? companies.value[0]!.id : null)
+
 const title = ref('')
 const filter = ref('')
 const highlighted = ref(0)
-const picked = ref<Set<TaskId>>(new Set(selectedTaskId.value ? [selectedTaskId.value] : []))
+const scopeKind = ref<NoteScopeKind>(startProject ? 'PROJECT' : startCompany ? 'COMPANY' : 'GLOBAL')
+const ownerProject = ref<ProjectId | null>(startProject)
+const ownerCompany = ref<CompanyId | null>(startCompany)
+const picked = ref<Set<TaskId>>(new Set(selectedTask.value ? [selectedTask.value.id] : []))
 const titleField = ref<HTMLInputElement | null>(null)
 const filterField = ref<HTMLInputElement | null>(null)
 const list = ref<HTMLElement | null>(null)
 
+/** The scope as chosen, or null while Project or Company still waits for which one. */
+const scope = computed<NoteScope | null>(() => {
+  if (scopeKind.value === 'GLOBAL') return GLOBAL_SCOPE
+  if (scopeKind.value === 'COMPANY') return ownerCompany.value ? { kind: 'COMPANY', id: ownerCompany.value } : null
+  return ownerProject.value ? { kind: 'PROJECT', id: ownerProject.value } : null
+})
+
+const projectOptions = computed(() =>
+  projects.value.map((project) => ({ value: project.id as string, label: `${project.title}  ·  ${project.companyName}` }))
+)
+const companyOptions = computed(() =>
+  companies.value.map((company) => ({ value: company.id as string, label: company.name }))
+)
+
+const ownerProjectChoice = computed<string | null>({
+  get: () => ownerProject.value,
+  set: (value) => (ownerProject.value = (value || null) as ProjectId | null)
+})
+const ownerCompanyChoice = computed<string | null>({
+  get: () => ownerCompany.value,
+  set: (value) => (ownerCompany.value = (value || null) as CompanyId | null)
+})
+
+const scopeLabel = computed(() => (scope.value ? scopeName(scope.value, projects.value, companies.value) : '…'))
+
+function admitted(task: Task): boolean {
+  const project = projects.value.find((candidate) => candidate.id === task.projectId)
+  return scope.value !== null && project !== undefined && scopeAdmits(scope.value, project)
+}
+
+// A tick outside the scope would be refused on create, so a narrower scope lets it go.
+watch(scope, () => {
+  const kept = [...picked.value].filter((id) => {
+    const task = tasks.value.find((candidate) => candidate.id === id)
+    return task !== undefined && admitted(task)
+  })
+  if (kept.length !== picked.value.size) picked.value = new Set(kept)
+})
+
 const searching = computed(() => filter.value.trim().length > 0)
 const manyCompanies = computed(() => companies.value.length > 1)
-const canCreate = computed(() => picked.value.size > 0 && !isRunning.value)
+const canCreate = computed(() => scope.value !== null && !isRunning.value)
 
 /**
- * Not searching: the tasks already ticked, then the live tasks in scope as a place to start.
- * Searching: every task that matches. Ticked ones come first inside their project either way.
+ * Not searching: the tasks already ticked, then the live tasks in view as a place to start.
+ * Searching: every task in the scope that matches. Ticked ones come first inside their project
+ * as the list is drawn, and a tick after that leaves every row where it is.
  */
-const rows = computed<ComposerRow[]>(() => {
+const rankedRows = computed<ComposerRow[]>(() => {
   const build = (task: Task): ComposerRow => ({ task, attached: picked.value.has(task.id) })
+  const inScope = tasks.value.filter(admitted)
   const pool = searching.value
-    ? tasks.value.filter((task) => matchesTaskQuery(task, filter.value))
-    : tasks.value.filter(
+    ? inScope.filter((task) => matchesTaskQuery(task, filter.value))
+    : inScope.filter(
         (task) =>
           picked.value.has(task.id) ||
           (task.status !== 'DONE' && visibleTasks.value.some((visible) => visible.id === task.id))
@@ -54,6 +121,8 @@ const rows = computed<ComposerRow[]>(() => {
   const built = pool.map(build)
   return [...built.filter((row) => row.attached), ...built.filter((row) => !row.attached)]
 })
+
+const rows = useSettledOrder(() => rankedRows.value, (row) => row.task.id, [filter, scope])
 
 const groups = computed(() => groupByProject(rows.value, (row) => row.task))
 
@@ -82,9 +151,10 @@ function toggle(task: Task): void {
 }
 
 async function create(): Promise<void> {
-  if (!canCreate.value) return
+  const owner = scope.value
+  if (!canCreate.value || !owner) return
   const onTasks = tasks.value.filter((task) => picked.value.has(task.id)).map((task) => task.id)
-  await run(() => store.createNote(onTasks, title.value), 'Note created')
+  await run(() => store.createNote({ scope: owner, taskIds: onTasks, title: title.value }), 'Note created')
 }
 
 function cancel(): void {
@@ -104,7 +174,7 @@ function onComposerKeydown(event: KeyboardEvent): void {
   }
 }
 
-/** Enter on the name creates when a task is ticked, otherwise moves on to picking one. */
+/** Enter on the name creates: the scope is already chosen, and tasks are optional. */
 function onTitleKeydown(event: KeyboardEvent): void {
   if (event.key === 'Escape') {
     event.preventDefault()
@@ -113,8 +183,7 @@ function onTitleKeydown(event: KeyboardEvent): void {
   }
   if (event.key === 'Enter' && !event.metaKey && !event.ctrlKey) {
     event.preventDefault()
-    if (picked.value.size) void create()
-    else filterField.value?.focus()
+    void create()
   }
 }
 
@@ -153,7 +222,7 @@ function onFilterKeydown(event: KeyboardEvent): void {
       <span class="min-w-0 flex-1">
         <span class="block truncate text-[13.5px] font-semibold text-text">New note</span>
         <span class="block truncate text-[10.5px] text-text-subtle">
-          Name it, tick where it goes
+          Name it, say where it lives
         </span>
       </span>
       <button
@@ -183,7 +252,46 @@ function onFilterKeydown(event: KeyboardEvent): void {
       />
     </div>
 
+    <div class="shrink-0 border-b border-border px-3.5 py-3" data-testid="note-composer-scope">
+      <p class="eyebrow mb-1.5 text-[11px]">Lives in</p>
+      <div class="grid grid-cols-3 gap-0.5 rounded-[8px] bg-canvas p-0.5" role="radiogroup" aria-label="Where the note lives">
+        <button
+          v-for="kind in SCOPE_KINDS"
+          :key="kind"
+          type="button"
+          role="radio"
+          class="focus-ring h-7 rounded-[6px] text-[12px] transition-colors"
+          :class="scopeKind === kind ? 'bg-surface-raised text-text shadow-[0_1px_2px_rgb(0_0_0/0.4)]' : 'text-text-subtle hover:text-text'"
+          :aria-checked="scopeKind === kind"
+          :data-testid="`note-composer-scope-${kind.toLowerCase()}`"
+          @click="scopeKind = kind"
+        >
+          {{ NOTE_SCOPE_KIND_LABEL[kind] }}
+        </button>
+      </div>
+      <AppSelect
+        v-if="scopeKind === 'PROJECT'"
+        v-model="ownerProjectChoice"
+        class="mt-2"
+        :options="projectOptions"
+        placeholder="Pick a project"
+        data-testid="note-composer-project"
+      />
+      <AppSelect
+        v-else-if="scopeKind === 'COMPANY'"
+        v-model="ownerCompanyChoice"
+        class="mt-2"
+        :options="companyOptions"
+        placeholder="Pick a company"
+        data-testid="note-composer-company"
+      />
+      <p class="mt-1.5 text-[11px] leading-snug text-text-subtle">{{ SCOPE_HINT[scopeKind] }}</p>
+    </div>
+
     <div class="shrink-0 border-b border-border px-2.5 py-2">
+      <p class="eyebrow mb-1.5 px-1 text-[11px]">
+        On tasks <span class="font-normal normal-case text-text-subtle">· optional</span>
+      </p>
       <label class="sr-only" for="note-composer-filter">Find a task to put it on</label>
       <div class="relative">
         <svg
@@ -216,8 +324,9 @@ function onFilterKeydown(event: KeyboardEvent): void {
         class="px-4 py-3 text-[12px] leading-relaxed text-text-subtle"
         data-testid="note-composer-empty"
       >
-        <template v-if="searching">No task matches that.</template>
-        <template v-else>Type to find a task. A note lives on at least one.</template>
+        <template v-if="!scope">Pick where it lives to see its tasks.</template>
+        <template v-else-if="searching">No task in {{ scopeLabel }} matches that.</template>
+        <template v-else>Type to find a task in {{ scopeLabel }}, or create it on none.</template>
       </p>
 
       <div
@@ -248,12 +357,10 @@ function onFilterKeydown(event: KeyboardEvent): void {
 
     <div class="flex shrink-0 items-center gap-2 border-t border-border bg-canvas px-3.5 py-2">
       <span class="min-w-0 flex-1 truncate text-[10.5px] text-text-subtle" data-testid="note-composer-count">
-        <template v-if="picked.size">
-          On {{ picked.size }} task{{ picked.size === 1 ? '' : 's' }}
-          <span class="text-text-subtle/70">·</span>
-          <kbd class="rounded border border-border px-1 font-mono text-[9.5px]">⌘↵</kbd>
-        </template>
-        <template v-else>Tick at least one task</template>
+        In <span class="text-text-muted">{{ scopeLabel }}</span>
+        <template v-if="picked.size"> · on {{ picked.size }} task{{ picked.size === 1 ? '' : 's' }}</template>
+        <span class="text-text-subtle/70"> · </span>
+        <kbd class="rounded border border-border px-1 font-mono text-[9.5px]">⌘↵</kbd>
       </span>
       <AppButton
         variant="primary"

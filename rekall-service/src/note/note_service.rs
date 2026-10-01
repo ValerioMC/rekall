@@ -80,6 +80,9 @@ impl NoteService {
                 body_markdown: text,
                 source_path: None,
                 context_mode: DocumentContextMode::Full,
+                // A session writes for the task it is on, so the note belongs to that task's project.
+                scope_company_id: None,
+                scope_project_id: Some(project.id),
                 created_at: now,
                 updated_at: now,
             };

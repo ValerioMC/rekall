@@ -129,6 +129,10 @@ onUnmounted(() => {
   --mark: var(--color-text-subtle);
 }
 
+.mark[data-status='BACKLOG'] {
+  --mark: var(--color-border-strong);
+}
+
 .mark[data-status='BLOCKED'] {
   --mark: var(--color-danger);
 }

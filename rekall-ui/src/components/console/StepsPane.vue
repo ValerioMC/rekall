@@ -12,6 +12,7 @@ import LogCommitButton from '@/components/console/LogCommitButton.vue'
 import NotesButton from '@/components/console/NotesButton.vue'
 import PlanHereButton from '@/components/console/PlanHereButton.vue'
 import StepSeal from '@/components/console/StepSeal.vue'
+import StepPassHistory from '@/components/console/StepPassHistory.vue'
 import CommitReferenceList from '@/components/console/CommitReferenceList.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
@@ -199,8 +200,9 @@ async function markForward(step: TaskStep): Promise<void> {
 
 async function sendBack(step: TaskStep): Promise<void> {
   flush()
-  await run(() => store.reopenStep(step.id))
-  open(step)
+  await run(() => store.sendBackStep(step.id))
+  const returned = selectedTaskSteps.value.find((candidate) => candidate.id === step.id)
+  open(returned ?? step)
 }
 
 async function reopen(step: TaskStep): Promise<void> {
@@ -767,8 +769,8 @@ onUnmounted(() => {
                   data-testid="step-review-bar"
                 >
                   <span class="min-w-0 flex-1 text-[11.5px] leading-snug text-text-muted">
-                    A session claimed this. Accept it to tick the box, or send it back to reopen it
-                    for another pass.
+                    A session claimed this. Accept it to tick the box, or send it back for another
+                    pass: what it worked from is sealed above, and the feedback goes underneath.
                   </span>
                   <LogCommitButton
                     variant="bar"
@@ -821,11 +823,14 @@ onUnmounted(() => {
                   <CommitReferenceList :references="store.stepCommitReferences(step.id)" dense />
                 </div>
 
+                <StepPassHistory v-if="step.passes.length" :passes="step.passes" class="mb-3" />
+
                 <div class="mb-2 flex items-center gap-2">
                   <span
                     class="eyebrow"
+                    data-testid="step-detail-label"
                   >
-                    Detail
+                    {{ step.passes.length ? `Feedback for pass ${step.passes.length + 1}` : 'Detail' }}
                   </span>
                   <span class="h-px flex-1 bg-border" aria-hidden="true" />
                   <AppModeToggle v-model="mode" testid-prefix="step-detail" />
@@ -846,7 +851,11 @@ onUnmounted(() => {
                           height="100%"
                           :show-preview="false"
                           :path-root="selectedTask?.projectRepoFolder"
-                          placeholder="What this step has to do. Markdown, and Claude gets it while the step is open."
+                          :placeholder="
+                            step.passes.length
+                              ? 'What the next pass has to change. Claude reads it after the sealed passes above.'
+                              : 'What this step has to do. Markdown, and Claude gets it while the step is open.'
+                          "
                           data-testid="step-detail-field"
                           @update:model-value="scheduleSave"
                         />
@@ -864,12 +873,12 @@ onUnmounted(() => {
                   </div>
 
                   <p v-else key="empty" class="py-1 text-[12px] text-text-subtle">
-                    Nothing written under this step yet.
+                    {{ step.passes.length ? 'No feedback yet.' : 'Nothing written under this step yet.' }}
                     <button
                       class="focus-ring text-accent underline-offset-2 hover:underline"
                       @click="mode = 'write'"
                     >
-                      Write the detail
+                      {{ step.passes.length ? 'Write what the next pass has to change' : 'Write the detail' }}
                     </button>
                   </p>
                 </Transition>

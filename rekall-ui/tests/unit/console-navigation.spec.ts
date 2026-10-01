@@ -30,6 +30,7 @@ const note: RekallDocument = {
   bodyMarkdown: 'bastion',
   tasks: [ref(retry)],
   contextMode: 'FULL',
+  scope: { kind: 'GLOBAL' },
   anchor: 'note:00000000',
   updatedAt: '2026-09-01T10:00:00Z'
 }

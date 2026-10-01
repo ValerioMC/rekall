@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import AppConfirm from '@/components/ui/AppConfirm.vue'
 import NoteAssignmentDialog from '@/components/console/NoteAssignmentDialog.vue'
 import NotePlacementRow from '@/components/console/NotePlacementRow.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { identityHue } from '@/common/identity'
 import { groupByProject } from '@/common/catalog/task-search'
+import { scopeName } from '@/model/note-scope'
 import type { Task } from '@/model/catalog'
 import type { TaskId } from '@/model/branded'
 
@@ -18,25 +18,24 @@ import type { TaskId } from '@/model/branded'
  * control, and nothing else on the row takes the note anywhere. Putting the note on another task
  * goes through the same picker the task side uses, `NoteAssignmentDialog`, opened from the
  * button at the top: one place to learn, whichever side the note is reached from.
- * Removals go through `store.detachNoteFromTask`, which keeps the rule that a note is on at
- * least one task. On the last task that control deletes the note instead, through
- * `store.deleteNote`, after `AppConfirm` has said so.
+ * Removals go through `store.detachNoteFromTask`. A note taken off its last task stays in its
+ * scope, so no removal here ever deletes it.
  */
 const store = useConsoleStore()
-const { selectedDocument, tasks, companies } = storeToRefs(store)
+const { selectedDocument, tasks, companies, projects } = storeToRefs(store)
 const { run } = useAsyncAction()
 
 interface PlacementRow {
   readonly task: Task
-  /** True when this is the only task the note is on: taking it off is deleting the note. */
-  readonly onlyHere: boolean
 }
 
 const busy = ref<TaskId | null>(null)
 const showDone = ref(false)
 const isAssigning = ref(false)
-/** The last-task row whose removal is waiting on the confirm, or null. */
-const confirmingDelete = ref<PlacementRow | null>(null)
+
+const scopeLabel = computed(() =>
+  selectedDocument.value ? scopeName(selectedDocument.value.scope, projects.value, companies.value) : ''
+)
 
 const manyCompanies = computed(() => companies.value.length > 1)
 
@@ -54,7 +53,7 @@ const doneAttached = computed(() => attachedTasks.value.filter((task) => task.st
 /** The tasks it is on; finished ones only when asked for, or when there is nothing else to show. */
 const rows = computed<PlacementRow[]>(() => {
   const shown = showDone.value || !liveAttached.value.length ? attachedTasks.value : liveAttached.value
-  return shown.map((task) => ({ task, onlyHere: attachedIds.value.size === 1 }))
+  return shown.map((task) => ({ task }))
 })
 
 const groups = computed(() => groupByProject(rows.value, (row) => row.task))
@@ -64,24 +63,15 @@ const order = computed(() => groups.value.flatMap((group) => group.rows))
 
 watch(selectedDocument, () => {
   showDone.value = false
-  confirmingDelete.value = null
 })
 
 function orderIndex(taskId: TaskId): number {
   return order.value.findIndex((row) => row.task.id === taskId)
 }
 
-/**
- * The row's remove control. With other tasks to stay on, the note comes off this one at once.
- * On its last task there is nothing to fall back to, so the same control asks to delete the
- * note, and only the confirm does it.
- */
+/** The row's remove control: the note comes off this task at once and stays in its scope. */
 async function remove(row: PlacementRow): Promise<void> {
   if (busy.value !== null) return
-  if (row.onlyHere) {
-    confirmingDelete.value = row
-    return
-  }
   const document = selectedDocument.value
   if (!document) return
   busy.value = row.task.id
@@ -90,19 +80,6 @@ async function remove(row: PlacementRow): Promise<void> {
       () => store.detachNoteFromTask(document.id, row.task.id),
       `Taken off ${row.task.projectLabel}/${row.task.label}.`
     )
-  } finally {
-    busy.value = null
-  }
-}
-
-async function confirmDelete(): Promise<void> {
-  const document = selectedDocument.value
-  const row = confirmingDelete.value
-  confirmingDelete.value = null
-  if (!document || !row) return
-  busy.value = row.task.id
-  try {
-    await run(() => store.deleteNote(document.id), `Deleted ${document.title}.`)
   } finally {
     busy.value = null
   }
@@ -128,7 +105,7 @@ function openTask(task: Task): void {
           {{ selectedDocument?.title ?? 'Notes' }}
         </span>
         <span v-if="selectedDocument" class="block truncate text-[10.5px] text-text-subtle">
-          On {{ attachedIds.size }} task{{ attachedIds.size === 1 ? '' : 's' }}
+          In {{ scopeLabel }} · on {{ attachedIds.size }} task{{ attachedIds.size === 1 ? '' : 's' }}
         </span>
       </span>
       <span
@@ -199,7 +176,6 @@ function openTask(task: Task): void {
             :key="row.task.id"
             :task="row.task"
             attached
-            :locked="row.onlyHere"
             :busy="busy === row.task.id"
             :walk-index="orderIndex(row.task.id)"
             openable
@@ -237,10 +213,8 @@ function openTask(task: Task): void {
       </div>
 
       <div class="shrink-0 border-t border-border bg-canvas px-3.5 py-2 text-[10.5px] text-text-subtle">
-        <template v-if="attachedIds.size === 1">
-          Its only task: taking it off deletes the note. Put it on another to keep it.
-        </template>
-        <template v-else>The cross on a row takes the note off that task.</template>
+        <template v-if="attachedIds.size === 0">On no task: it waits in {{ scopeLabel }} until it is put on one.</template>
+        <template v-else>The cross on a row takes the note off that task. It stays in {{ scopeLabel }}.</template>
       </div>
     </template>
 
@@ -248,17 +222,6 @@ function openTask(task: Task): void {
       <NoteAssignmentDialog v-if="isAssigning" @close="isAssigning = false" />
     </Transition>
 
-    <Transition name="dialog">
-      <AppConfirm
-        v-if="confirmingDelete && selectedDocument"
-        :title="`Delete ${selectedDocument.title}?`"
-        :body="`${confirmingDelete.task.title} is the only task this note is on. Taking it off deletes the note and its content. Put it on another task first to keep it.`"
-        blast="deletes the note · not recoverable"
-        confirm-label="Delete note"
-        @cancel="confirmingDelete = null"
-        @confirm="confirmDelete"
-      />
-    </Transition>
   </section>
 </template>
 

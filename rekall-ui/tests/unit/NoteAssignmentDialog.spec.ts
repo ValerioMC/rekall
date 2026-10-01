@@ -113,6 +113,7 @@ function makeDocument(on: Task[]): RekallDocument {
     bodyMarkdown: 'body',
     tasks: on.map(ref),
     contextMode: 'FULL',
+    scope: { kind: 'GLOBAL' },
     anchor: 'note:00000000',
     updatedAt: '2026-09-05T10:00:00Z'
   }
@@ -211,7 +212,7 @@ describe('NoteAssignmentDialog', () => {
     expect(store.saveNote).toHaveBeenCalledWith('d1', { taskIds: [noteUx, stepConduit] })
   })
 
-  it('refuses to remove the last task the note is on', async () => {
+  it('takes the note off its last task, since its scope keeps it', async () => {
     const store = seed(makeDocument([tasks[0]!]), noteUx)
     const wrapper = render()
     await flushPromises()
@@ -220,10 +221,18 @@ describe('NoteAssignmentDialog', () => {
       .findAll('[data-testid="assign-task"]')
       .find((row) => row.text().includes('Note UX review'))!
     await onlyRow.trigger('click')
+    await flushPromises()
 
-    expect(store.saveNote).not.toHaveBeenCalled()
-    // And the strip offers no way to drop it either.
-    expect(wrapper.text()).toContain('a note needs at least one')
+    expect(store.saveNote).toHaveBeenCalledWith('d1', { taskIds: [] })
+  })
+
+  it('walks only the projects the note\'s scope admits', async () => {
+    const scoped = { ...makeDocument([tasks[0]!]), scope: { kind: 'PROJECT' as const, id: tasks[0]!.projectId } }
+    seed(scoped, noteUx)
+    const wrapper = render()
+    await flushPromises()
+
+    expect(wrapper.findAll('[data-testid="assign-project"]')).toHaveLength(1)
   })
 
   it('detaches from the strip when the note is on more than one task', async () => {

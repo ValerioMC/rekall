@@ -99,17 +99,6 @@ pub async fn find_by_project(db: &impl ConnectionTrait, project_id: Id) -> Resul
         .collect())
 }
 
-/// `findOrphans`: notes attached to no task.
-pub async fn find_orphans(db: &impl ConnectionTrait) -> Result<Vec<Model>, RekallError> {
-    let linked: HashSet<Id> = document_task::Entity::find()
-        .all(db)
-        .await?
-        .into_iter()
-        .map(|l| l.document_id)
-        .collect();
-    Ok(Entity::find().all(db).await?.into_iter().filter(|d| !linked.contains(&d.id)).collect())
-}
-
 /// `search`: title or body holds the term, by title. The Java query did not escape the term, so a
 /// `%` or `_` typed into it is a wildcard here too (see `like_matches`).
 pub async fn search(db: &impl ConnectionTrait, term: &str) -> Result<Vec<Model>, RekallError> {

@@ -3,13 +3,13 @@ import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import NoteComposerPane from '@/components/console/NoteComposerPane.vue'
 import { useConsoleStore } from '@/stores/console.store'
-import type { Company, Task } from '@/model/catalog'
+import type { Company, Project, Task } from '@/model/catalog'
 import type { CompanyId, ProjectId, TaskId } from '@/model/branded'
 
 /**
- * The column that starts a note from the Notes side: a name and the tasks it goes on, in one
- * place. It only decides what to send; `store.createNote` is stubbed here and covered in
- * `console.spec`.
+ * The column that starts a note from the Notes side: a name, where it lives, and the tasks of
+ * that scope it goes on. It only decides what to send; `store.createNote` is stubbed here and
+ * covered in `console.spec`.
  */
 const vega = 'p1' as ProjectId
 const beacon = 'p2' as ProjectId
@@ -61,15 +61,37 @@ const tasks: Task[] = [
   task(archive, 'archive', 'Archive the old rows', 'DONE', beacon)
 ]
 
+const acme = 'c1' as CompanyId
+
 const companies: Company[] = [
-  { id: 'c1' as CompanyId, name: 'acme', description: null, projectCount: 2, taskCount: 4, updatedAt: '2026-09-01T10:00:00Z' }
+  { id: acme, name: 'acme', description: null, projectCount: 2, taskCount: 4, updatedAt: '2026-09-01T10:00:00Z' }
 ]
+
+const project = (id: ProjectId, label: string, title: string): Project => ({
+  id,
+  label,
+  title,
+  status: 'ACTIVE',
+  icon: 'folder',
+  description: null,
+  blueprintMarkdown: null,
+  repoFolder: null,
+  autoCommit: false,
+  companyId: acme,
+  companyName: 'acme',
+  taskCount: 2,
+  anchor: `project:${label}`,
+  updatedAt: '2026-09-01T10:00:00Z'
+})
+
+const projects: Project[] = [project(vega, 'vega', 'Vega Platform'), project(beacon, 'beacon', 'Beacon')]
 
 let pinia: Pinia
 
 function seed(taskInView: TaskId | null) {
   const store = useConsoleStore()
   store.companies = companies
+  store.projects = projects
   store.tasks = tasks
   store.documents = []
   store.selectedTaskId = taskInView
@@ -102,84 +124,91 @@ describe('NoteComposerPane', () => {
     setActivePinia(pinia)
   })
 
-  it('starts on the task in view, with the live tasks in scope offered underneath', () => {
+  it('starts in the project of the task in view, offering that project\'s live tasks', () => {
     seed(builder)
     const wrapper = render()
 
     const rows = rowsOf(wrapper)
-    expect(rows.map((row) => row.attributes('data-attached'))).toEqual(['false', 'true', 'false'])
     expect(rows.map((row) => row.text())).toEqual([
-      expect.stringContaining('Wiring the adapter'),
       expect.stringContaining('Report builder'),
       expect.stringContaining('Retry policy')
     ])
-    expect(wrapper.text()).not.toContain('Archive the old rows')
-    expect(wrapper.text()).toContain('On 1 task')
+    expect(rows.map((row) => row.attributes('data-attached'))).toEqual(['true', 'false'])
+    expect(wrapper.get('[data-testid="note-composer-scope-project"]').attributes('aria-checked')).toBe('true')
+    expect(wrapper.get('[data-testid="note-composer-count"]').text()).toContain('In Vega Platform · on 1 task')
     expect(document.activeElement).toBe(wrapper.find('[data-testid="note-composer-title"]').element)
     wrapper.unmount()
   })
 
-  it('will not create a note that is on no task', async () => {
+  it('creates a note on no task, in the scope it starts in', async () => {
     const store = seed(null)
     const wrapper = render()
 
-    const create = wrapper.find('[data-testid="note-composer-create"]')
-    expect(create.attributes('disabled')).toBeDefined()
-    expect(wrapper.text()).toContain('Tick at least one task')
-
+    await wrapper.find('[data-testid="note-composer-title"]').setValue('conventions.md')
     await wrapper.find('[data-testid="note-composer-title"]').trigger('keydown', { key: 'Enter' })
     await flushPromises()
 
-    expect(store.createNote).not.toHaveBeenCalled()
-    expect(document.activeElement).toBe(wrapper.find('[data-testid="note-composer-filter"]').element)
+    expect(store.createNote).toHaveBeenCalledWith({
+      scope: { kind: 'COMPANY', id: acme },
+      taskIds: [],
+      title: 'conventions.md'
+    })
     wrapper.unmount()
   })
 
-  it('creates the note with its name on every ticked task', async () => {
+  it('creates the note with its name and scope on every ticked task', async () => {
     const store = seed(builder)
     const wrapper = render()
 
     await wrapper.find('[data-testid="note-composer-title"]').setValue('cluster.md')
-    await rowTitled(wrapper, 'Wiring the adapter').trigger('click')
-    await flushPromises()
-    expect(wrapper.text()).toContain('On 2 tasks')
-
+    await rowTitled(wrapper, 'Retry policy').trigger('click')
     await wrapper.find('[data-testid="note-composer-create"]').trigger('click')
     await flushPromises()
 
-    expect(store.createNote).toHaveBeenCalledWith([builder, wiring], 'cluster.md')
+    expect(store.createNote).toHaveBeenCalledWith({
+      scope: { kind: 'PROJECT', id: vega },
+      taskIds: [builder, retry],
+      title: 'cluster.md'
+    })
     wrapper.unmount()
   })
 
-  it('creates on Enter from the name once a task is ticked', async () => {
+  it('widens to the company and finds its other projects\' tasks by typing', async () => {
     const store = seed(builder)
     const wrapper = render()
 
-    await wrapper.find('[data-testid="note-composer-title"]').setValue('cluster.md')
-    await wrapper.find('[data-testid="note-composer-title"]').trigger('keydown', { key: 'Enter' })
-    await flushPromises()
-
-    expect(store.createNote).toHaveBeenCalledWith([builder], 'cluster.md')
-    wrapper.unmount()
-  })
-
-  it('finds any task by typing and ticks it with the arrows and Enter', async () => {
-    const store = seed(null)
-    const wrapper = render()
-
-    await type(wrapper, 'archive')
-    expect(rowsOf(wrapper)).toHaveLength(1)
-
+    await wrapper.get('[data-testid="note-composer-scope-company"]').trigger('click')
+    await type(wrapper, 'wiring')
     const filter = wrapper.find('[data-testid="note-composer-filter"]')
     await filter.trigger('keydown', { key: 'Enter' })
-    await flushPromises()
-
-    expect(rowsOf(wrapper)[0]!.attributes('data-attached')).toBe('true')
-
     await filter.trigger('keydown', { key: 'Enter', metaKey: true })
     await flushPromises()
 
-    expect(store.createNote).toHaveBeenCalledWith([archive], '')
+    expect(store.createNote).toHaveBeenCalledWith({
+      scope: { kind: 'COMPANY', id: acme },
+      taskIds: [builder, wiring],
+      title: ''
+    })
+    wrapper.unmount()
+  })
+
+  it('lets go of a tick the narrower scope cannot hold', async () => {
+    const store = seed(builder)
+    const wrapper = render()
+
+    await wrapper.get('[data-testid="note-composer-scope-company"]').trigger('click')
+    await type(wrapper, 'wiring')
+    await rowsOf(wrapper)[0]!.trigger('click')
+    await wrapper.get('[data-testid="note-composer-scope-project"]').trigger('click')
+    await flushPromises()
+    await wrapper.find('[data-testid="note-composer-create"]').trigger('click')
+    await flushPromises()
+
+    expect(store.createNote).toHaveBeenCalledWith({
+      scope: { kind: 'PROJECT', id: vega },
+      taskIds: [builder],
+      title: ''
+    })
     wrapper.unmount()
   })
 

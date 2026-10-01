@@ -61,6 +61,7 @@ const frame = () => ({
         claimedAt: null,
         doneAt: null,
         position: 0,
+        passes: [],
         createdAt: '2026-09-07T09:00:00Z',
         updatedAt: '2026-09-07T10:00:00Z'
       }

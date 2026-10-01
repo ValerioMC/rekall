@@ -4,8 +4,9 @@ import { flushPromises, mount } from '@vue/test-utils'
 import NoteQuickPicker from '@/components/console/NoteQuickPicker.vue'
 import NotesButton from '@/components/console/NotesButton.vue'
 import { useConsoleStore } from '@/stores/console.store'
-import type { RekallDocument, TaskRef } from '@/model/catalog'
-import type { DocumentId, TaskId } from '@/model/branded'
+import type { Project, RekallDocument, Task, TaskRef } from '@/model/catalog'
+import type { NoteScope } from '@/model/note-scope'
+import type { CompanyId, DocumentId, ProjectId, TaskId } from '@/model/branded'
 
 /**
  * The picker hung under the Notes button in the description and steps headers. It only decides
@@ -32,13 +33,69 @@ const refs: Record<TaskId, TaskRef> = {
   [third]: ref(third, 'sse-conduit')
 }
 
-const doc = (id: string, title: string, on: TaskId[], updatedAt = '2026-09-01T10:00:00Z'): RekallDocument => ({
+const rekall = 'p1' as ProjectId
+const vforge = 'c1' as CompanyId
+
+const project: Project = {
+  id: rekall,
+  label: 'rekall',
+  title: 'Rekall',
+  status: 'ACTIVE',
+  icon: 'folder',
+  description: null,
+  blueprintMarkdown: null,
+  repoFolder: null,
+  autoCommit: false,
+  companyId: vforge,
+  companyName: 'vforge',
+  taskCount: 3,
+  anchor: 'project:rekall',
+  updatedAt: '2026-09-01T10:00:00Z'
+}
+
+const taskHere: Task = {
+  id: here,
+  label: 'note-improvement',
+  title: 'note-improvement',
+  status: 'IN_PROGRESS',
+  description: null,
+  projectId: rekall,
+  projectLabel: 'rekall',
+  projectTitle: 'Rekall',
+  companyName: 'vforge',
+  projectRepoFolder: null,
+  documentCount: 0,
+  stepCount: 0,
+  stepsDone: 0,
+  draftStepCount: 0,
+  hasWrapup: false,
+  reviewState: 'OPEN',
+  reviewActive: false,
+  claimedAt: null,
+  acceptedAt: null,
+  reviewNote: null,
+  tagId: null,
+  tagName: null,
+  tagIcon: null,
+  tagColor: null,
+  anchor: 'project:rekall task:note-improvement',
+  updatedAt: '2026-09-01T10:00:00Z'
+}
+
+const doc = (
+  id: string,
+  title: string,
+  on: TaskId[],
+  updatedAt = '2026-09-01T10:00:00Z',
+  scope: NoteScope = { kind: 'GLOBAL' }
+): RekallDocument => ({
   id: id as DocumentId,
   title,
   kind: 'notes',
   bodyMarkdown: `${title} body`,
   tasks: on.map((taskId) => refs[taskId]!),
   contextMode: 'FULL',
+  scope,
   anchor: 'note:00000000',
   updatedAt
 })
@@ -48,6 +105,8 @@ let pinia: Pinia
 function seed(documents: RekallDocument[]) {
   const store = useConsoleStore()
   store.documents = documents
+  store.projects = [project]
+  store.tasks = [taskHere]
   store.selectedTaskId = here
   store.isLoading = false
   store.saveNote = vi.fn().mockResolvedValue(undefined)
@@ -120,18 +179,33 @@ describe('NoteQuickPicker', () => {
     wrapper.unmount()
   })
 
-  it('refuses to remove a note whose only task is this one', async () => {
+  it('takes a note off its only task too, since its scope keeps it', async () => {
     const store = seed([doc('d1', 'conventions.md', [here])])
     const wrapper = render()
     await flushPromises()
 
     const row = rowsOf(wrapper)[0]!
-    expect(row.getAttribute('aria-disabled')).toBe('true')
     expect(row.querySelector('[data-testid="note-picker-elsewhere"]')?.textContent).toContain('only here')
     row.click()
     await flushPromises()
 
-    expect(store.saveNote).not.toHaveBeenCalled()
+    expect(store.saveNote).toHaveBeenCalledWith('d1', { taskIds: [] })
+    wrapper.unmount()
+  })
+
+  it('offers only the notes whose scope admits this task', async () => {
+    seed([
+      doc('d1', 'ours.md', [], undefined, { kind: 'PROJECT', id: rekall }),
+      doc('d2', 'theirs.md', [], undefined, { kind: 'PROJECT', id: 'p9' as ProjectId }),
+      doc('d3', 'company.md', [], undefined, { kind: 'COMPANY', id: vforge })
+    ])
+    const wrapper = render()
+    await flushPromises()
+
+    const titles = rowsOf(wrapper).map((row) => row.textContent)
+    expect(titles.join(' ')).toContain('ours.md')
+    expect(titles.join(' ')).toContain('company.md')
+    expect(titles.join(' ')).not.toContain('theirs.md')
     wrapper.unmount()
   })
 

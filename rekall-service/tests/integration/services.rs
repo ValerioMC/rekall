@@ -473,3 +473,41 @@ async fn under_three_characters_there_is_no_search() {
     assert!(world.services.search.search(Some("  ")).await.unwrap().is_empty());
     assert!(world.services.search.search(None).await.unwrap().is_empty());
 }
+
+// ------------------------------------------------------------------------------ send back
+
+#[tokio::test]
+async fn a_step_sent_back_hands_the_next_session_its_earlier_pass_and_the_feedback_apart() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let task = world.task(&project, "report-builder").await;
+    let step = world.step(&task, "Aggregate the rows", 0, TaskStepState::Open).await;
+    let steps = &world.services.steps;
+    steps.edit(step.id, None, Some("Sum by month"), None, None).await.unwrap();
+    steps.transition(Some("vega"), "report-builder", Some("1"), TaskStepState::Claimed).await.unwrap();
+
+    let sent_back = steps.send_back(step.id).await.unwrap();
+    assert_eq!(sent_back.state, TaskStepState::Open);
+    assert_eq!(sent_back.body_markdown, None);
+    assert_eq!(sent_back.passes[0].detail_markdown.as_deref(), Some("Sum by month"));
+
+    steps.edit(step.id, None, Some("Group by week instead"), None, None).await.unwrap();
+    let record = world.services.context.load_task("vega", "report-builder").await.unwrap();
+    let rendered = world.services.renderer.render_steps(&record.steps, None);
+
+    assert!(rendered.contains("Previously you have executed this:"), "{rendered}");
+    assert!(rendered.contains("<previous-pass number=\"1\""), "{rendered}");
+    assert!(rendered.contains("Sum by month"), "{rendered}");
+    let feedback_at = rendered.find("<feedback>").unwrap();
+    assert!(rendered[feedback_at..].contains("Group by week instead"), "{rendered}");
+}
+
+#[tokio::test]
+async fn only_a_claimed_step_can_be_sent_back() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let task = world.task(&project, "report-builder").await;
+    let step = world.step(&task, "Aggregate the rows", 0, TaskStepState::Open).await;
+
+    assert!(world.services.steps.send_back(step.id).await.is_err());
+}

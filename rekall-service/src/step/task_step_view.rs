@@ -1,4 +1,5 @@
-use rekall_common::{Id, Instant};
+use rekall_common::{Id, Instant, Result};
+use rekall_model::step_pass::StepPass;
 use rekall_model::task_step;
 use rekall_model::TaskStepState;
 use serde::Serialize;
@@ -16,13 +17,15 @@ pub struct TaskStepView {
     pub claimed_at: Option<Instant>,
     pub done_at: Option<Instant>,
     pub position: i32,
+    /// The passes it was sent back from, oldest first; empty for a step on its first pass.
+    pub passes: Vec<StepPass>,
     pub created_at: Instant,
     pub updated_at: Instant,
 }
 
 impl TaskStepView {
-    pub fn of(step: &task_step::Model) -> Self {
-        Self {
+    pub fn of(step: &task_step::Model) -> Result<Self> {
+        Ok(Self {
             id: step.id,
             task_id: step.task_id,
             title: step.title.clone(),
@@ -33,9 +36,10 @@ impl TaskStepView {
             claimed_at: step.claimed_at,
             done_at: step.done_at,
             position: step.position,
+            passes: step.passes()?,
             created_at: step.created_at,
             updated_at: step.updated_at,
-        }
+        })
     }
 
     pub fn completed_at(&self) -> Option<Instant> {

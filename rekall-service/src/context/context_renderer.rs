@@ -107,7 +107,10 @@ impl ContextRenderer {
             }
             out.push('\n');
             let carries_detail = !step.state.complete() || unwritten_here;
-            if let Some(body) = step.body_markdown.as_deref() {
+            if carries_detail && !step.passes.is_empty() {
+                out.push_str(&indent(&render_passes(step)));
+                out.push('\n');
+            } else if let Some(body) = step.body_markdown.as_deref() {
                 if carries_detail && !jstr::is_blank(body) {
                     out.push_str(&indent(&truncate(Some(body), MAX_DOCUMENT_CHARACTERS)));
                     out.push('\n');
@@ -213,6 +216,27 @@ impl ContextRenderer {
             document.anchor
         )
     }
+}
+
+/// A step sent back after review: what each earlier pass worked from, then the feedback this
+/// pass acts on, so a session builds on its work instead of reading the feedback as a new brief.
+fn render_passes(step: &TaskStepView) -> String {
+    let mut out = String::from("Sent back after review. Previously you have executed this:\n");
+    for (at, pass) in step.passes.iter().enumerate() {
+        out.push_str(&format!("\n<previous-pass number=\"{}\" sent-back=\"{}\">\n", at + 1, pass.sent_back_at));
+        match pass.detail_markdown.as_deref().filter(|body| !jstr::is_blank(body)) {
+            Some(body) => out.push_str(&truncate(Some(body), MAX_DOCUMENT_CHARACTERS)),
+            None => out.push_str("(no detail beyond the title)"),
+        }
+        out.push_str("\n</previous-pass>\n");
+    }
+    out.push_str("\nBut the user's feedback is this, and it is what this pass has to do:\n\n<feedback>\n");
+    match step.body_markdown.as_deref().filter(|body| !jstr::is_blank(body)) {
+        Some(body) => out.push_str(&truncate(Some(body), MAX_DOCUMENT_CHARACTERS)),
+        None => out.push_str("(not written yet: ask the user what the pass should change)"),
+    }
+    out.push_str("\n</feedback>");
+    out
 }
 
 fn is_unwritten(step: &TaskStepView, wrapup: Option<&WrapupView>) -> bool {

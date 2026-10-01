@@ -6,6 +6,7 @@ use sea_orm::entity::prelude::*;
 
 use crate::constraints::{Phase, Violations};
 use crate::enums::TaskStepState;
+use crate::step_pass::StepPass;
 
 pub const MAX_CHARACTERS: usize = 20_000;
 
@@ -22,6 +23,8 @@ pub struct Model {
     pub claimed_at: Option<Instant>,
     pub done_at: Option<Instant>,
     pub position: i32,
+    /// The earlier passes, oldest first, as a JSON array of `StepPass`.
+    pub passes_json: String,
     pub created_at: Instant,
     pub updated_at: Instant,
 }
@@ -58,6 +61,7 @@ impl Model {
             claimed_at: None,
             done_at: None,
             position,
+            passes_json: "[]".to_string(),
             created_at: now,
             updated_at: now,
         }
@@ -102,6 +106,29 @@ impl Model {
             }
             TaskStepState::Done => self.done_at = Some(now),
         }
+    }
+
+    pub fn passes(&self) -> Result<Vec<StepPass>, RekallError> {
+        serde_json::from_str(&self.passes_json)
+            .map_err(|error| RekallError::illegal(format!("Step '{}' holds unreadable passes: {error}", self.title)))
+    }
+
+    /// A claim sent back for another pass: the detail that pass worked from is kept as a pass, and
+    /// the detail starts empty, ready for the feedback. Only a claimed step can be sent back.
+    pub fn send_back(&mut self, now: Instant) -> Result<(), RekallError> {
+        if self.state != TaskStepState::Claimed {
+            return Err(RekallError::illegal(format!(
+                "'{}' is {}; only a claimed step is sent back for another pass.",
+                self.title,
+                self.state.name().to_lowercase()
+            )));
+        }
+        let mut passes = self.passes()?;
+        passes.push(StepPass { detail_markdown: self.body_markdown.take(), sent_back_at: now });
+        self.passes_json = serde_json::to_string(&passes)
+            .map_err(|error| RekallError::illegal(format!("Could not keep the pass: {error}")))?;
+        self.mark_state(TaskStepState::Open);
+        Ok(())
     }
 
     pub fn validate(&self, phase: Phase) -> Result<(), RekallError> {
