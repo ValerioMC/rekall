@@ -213,12 +213,8 @@ onUnmounted(() => {
                 v-for="option in TAG_ICON_KEYS"
                 :key="option"
                 type="button"
-                class="focus-ring grid size-9 place-items-center rounded-[var(--radius-control)] border transition-colors"
-                :class="
-                  icon === option
-                    ? 'border-accent bg-accent-soft'
-                    : 'border-border-strong bg-surface hover:border-text-subtle'
-                "
+                class="focus-ring grid size-9 place-items-center rounded-[3px]"
+                :class="icon === option ? 'key-lit' : 'key-quiet'"
                 :aria-pressed="icon === option"
                 :aria-label="TAG_ICON_LABEL[option]"
                 :title="TAG_ICON_LABEL[option]"
@@ -234,12 +230,9 @@ onUnmounted(() => {
                 v-for="option in TAG_COLOR_KEYS"
                 :key="option"
                 type="button"
-                class="focus-ring grid size-9 place-items-center rounded-full border-2 transition-transform"
+                class="tag-bead focus-ring grid size-9 place-items-center rounded-full border-2 transition-transform"
                 :class="color === option ? 'scale-110 border-text' : 'border-transparent hover:scale-105'"
-                :style="{
-                  backgroundColor: `var(--color-tag-${option})`,
-                  boxShadow: `0 0 8px -1px var(--color-tag-${option})`
-                }"
+                :style="{ '--tag-tint': `var(--color-tag-${option})` }"
                 :aria-pressed="color === option"
                 :aria-label="TAG_COLOR_LABEL[option]"
                 :title="TAG_COLOR_LABEL[option]"

@@ -15,13 +15,13 @@ const props = withDefaults(
 
 const style = computed(() => {
   const palette = tagColor(props.color)
-  return { '--tag-tint': palette.base, '--tag-line': palette.line, color: palette.base }
+  return { '--tag-tint': palette.base, color: palette.base }
 })
 </script>
 
 <template>
   <span
-    class="tag-chip inline-flex min-w-0 items-center gap-1 rounded-full font-medium"
+    class="tag-chip inline-flex min-w-0 items-center gap-1 rounded-[3px] font-medium"
     :class="size === 'sm' ? 'h-[19px] px-1.5 text-[10px]' : 'h-6 px-2 text-[11.5px]'"
     :style="style"
     :title="name"

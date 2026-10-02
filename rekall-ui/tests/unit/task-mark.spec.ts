@@ -147,6 +147,17 @@ describe('TaskMark', () => {
     expect(wrapper.find('.mark-ring').exists()).toBe(false)
   })
 
+  it('seats every face in a bevelled well with a gloss band', () => {
+    for (const state of ['RESTING', 'WAITING', 'LIVE', 'LIVE_CLAIMED', 'CLAIMED', 'ACCEPTED'] as const) {
+      const wrapper = mount(TaskMark, { props: { state, status: 'IN_PROGRESS' } })
+
+      expect(wrapper.find('.mark-rim').exists()).toBe(true)
+      expect(wrapper.find('.mark-gloss').exists()).toBe(true)
+      expect(wrapper.find('linearGradient[id$="-well"]').exists()).toBe(true)
+      expect(wrapper.find('radialGradient[id$="-metal"]').exists()).toBe(true)
+    }
+  })
+
   it('gives each in-progress face its own parts', () => {
     const face = (state: 'WAITING' | 'LIVE' | 'LIVE_CLAIMED' | 'CLAIMED' | 'ACCEPTED') =>
       mount(TaskMark, { props: { state, status: 'IN_PROGRESS' } })

@@ -586,16 +586,40 @@
  * just coloured, at a size where a box-shadow halo would be too heavy to sit next to a title.
  */
 @utility tag-glow {
-  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--tag-tint) 85%, transparent))
+  filter: drop-shadow(0 0.8px 0.5px rgb(0 0 0 / 0.55)) drop-shadow(0 0 3px color-mix(in srgb, var(--tag-tint) 85%, transparent))
     drop-shadow(0 0 7px color-mix(in srgb, var(--tag-tint) 45%, transparent));
 }
 
-/* The pill a tag badge sits in: a soft wash of its colour, a hairline the same colour, and a
-   short-range glow so it still reads as lit even where the icon's own glow is subtle. */
+/* The plate a tag badge sits on: a keycap tinted with its colour, lit lip above, darker
+   underside and a tight neutral shadow. No outline and no coloured glow beneath it. */
 @utility tag-chip {
-  background: color-mix(in srgb, var(--tag-tint) 13%, transparent);
-  border: 1px solid var(--tag-line, transparent);
-  box-shadow: 0 0 8px -3px var(--tag-tint);
+  border: 0;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--tag-tint) 24%, #2a3243) 0%,
+    color-mix(in srgb, var(--tag-tint) 12%, #1d2432) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.12),
+    inset 0 -1px 0 rgb(0 0 0 / 0.3),
+    0 1px 2px rgb(0 0 0 / 0.5);
+
+  & svg {
+    filter: drop-shadow(0 -0.5px 0 rgb(255 255 255 / 0.3)) drop-shadow(0 0.8px 0.5px rgb(0 0 0 / 0.6));
+  }
+}
+
+/* A colour swatch as a lit bead: metal highlight top-left, shaded underside, neutral shadow. */
+@utility tag-bead {
+  background: radial-gradient(
+    circle at 34% 26%,
+    color-mix(in srgb, var(--tag-tint) 55%, white) 0%,
+    var(--tag-tint) 50%,
+    color-mix(in srgb, var(--tag-tint) 60%, black) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.3),
+    0 1px 2px rgb(0 0 0 / 0.55);
 }
 
 /*
