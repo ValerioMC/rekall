@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import ScopePicker from '@/components/console/ScopePicker.vue'
 import RecordDialog from '@/components/console/RecordDialog.vue'
@@ -11,6 +11,7 @@ import ProjectIcon from '@/components/ui/ProjectIcon.vue'
 import { partitionTasks } from '@/common/catalog/partition-tasks'
 import { groupNotesByScope } from '@/common/catalog/note-groups'
 import { identityHue } from '@/common/identity'
+import { revealOffset } from '@/common/scroll/reveal-offset'
 import { useConsoleStore } from '@/stores/console.store'
 import {
   PROJECT_STATUS_LABEL,
@@ -160,6 +161,31 @@ watch(selectedTaskId, () => {
   }
 })
 
+const scroller = ref<HTMLElement | null>(null)
+
+// Brings the selected task to the middle of the list when it is out of sight, smoothly unless
+// the system asks for less motion. The sticky "new" bar covers the top of the viewport.
+async function revealSelected(): Promise<void> {
+  await nextTick()
+  const list = scroller.value
+  const row = list?.querySelector<HTMLElement>('[data-testid="task-row"][aria-current="true"]')
+  if (!list || !row) return
+  const stickyBar = list.querySelector<HTMLElement>('[data-nav-sticky]')
+  const listBox = list.getBoundingClientRect()
+  const rowBox = row.getBoundingClientRect()
+  const offset = revealOffset(rowBox, {
+    top: listBox.top + (stickyBar?.offsetHeight ?? 0),
+    bottom: listBox.bottom
+  })
+  if (offset === null) return
+  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+  list.scrollTo?.({ top: list.scrollTop + offset, behavior: reducedMotion ? 'auto' : 'smooth' })
+}
+
+watch([selectedTaskId, navMode, isLoading], () => {
+  if (navMode.value === 'tasks' && !isLoading.value) void revealSelected()
+}, { flush: 'post' })
+
 const COLLAPSE_KEY = 'rekall.nav.collapsed-projects'
 
 function loadCollapsed(): Set<ProjectId> {
@@ -207,6 +233,7 @@ defineExpose({ beginCreate, editSelected })
   <nav
     class="flex min-h-0 w-(--spacing-nav) shrink-0 flex-col border-r border-border bg-surface"
     aria-label="Navigator"
+    @pointerleave="revealSelected"
   >
     <div class="flex shrink-0 flex-col gap-2.5 border-b border-border p-2.5">
       <ScopePicker />
@@ -232,7 +259,7 @@ defineExpose({ beginCreate, editSelected })
       </div>
     </div>
 
-    <div class="min-h-0 flex-1 overflow-y-auto pb-4">
+    <div ref="scroller" class="min-h-0 flex-1 overflow-y-auto pb-4">
       <div v-if="isLoading" class="flex flex-col gap-4 p-2 pt-3" aria-hidden="true">
         <div v-for="group in 3" :key="group" class="flex flex-col gap-1.5">
           <div class="skeleton mx-1.5 mb-1 h-2.5 w-16" />
@@ -244,6 +271,7 @@ defineExpose({ beginCreate, editSelected })
       <div
         v-if="showNewTaskButton || showNewNoteButton"
         class="glass sticky top-0 z-(--z-sticky) border-b border-border/60 p-2"
+        data-nav-sticky
       >
         <button
           v-if="showNewTaskButton"
