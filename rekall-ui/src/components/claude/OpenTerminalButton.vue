@@ -183,7 +183,9 @@ onBeforeUnmount(() => {
       class="absolute inset-0 grid place-items-center"
       aria-hidden="true"
     >
-      <StepSeal v-if="phase === 'done'" class="run-seal size-[18px]" state="DONE" complete />
+      <span v-if="phase === 'done'" class="run-seal block size-[18px]">
+        <StepSeal state="DONE" complete />
+      </span>
       <svg v-else class="size-4" viewBox="0 0 16 16" fill="none">
         <circle
           class="run-ring run-ring-open"
