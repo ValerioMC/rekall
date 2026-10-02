@@ -13,8 +13,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod bridges;
+mod exit_guard;
 
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -30,10 +32,12 @@ const HOST: &str = "127.0.0.1";
 const SLOW_NOTICE: Duration = Duration::from_secs(15);
 
 /// What the shell keeps between events: the server it started (none when it attached to one), and
-/// what the splash should say once it has loaded.
+/// what the splash should say once it has loaded. `quitting` is set while the quit question is on
+/// screen, and stays set once the answer is yes.
 #[derive(Default)]
 struct Shell {
     running: tokio::sync::Mutex<Option<Running>>,
+    quitting: AtomicBool,
     status: Mutex<Option<String>>,
     failure: Mutex<Option<(String, String)>>,
 }
@@ -97,13 +101,16 @@ fn main() {
         ])
         .menu(|handle| {
             let reload = MenuItemBuilder::with_id("reload", "Reload").accelerator("CmdOrCtrl+R").build(handle)?;
+            // Not the predefined item: on macOS that one ends the process without asking, and the
+            // app has to ask first when a Claude session is still live.
+            let quit = MenuItemBuilder::with_id("quit", "Quit Rekall").accelerator("CmdOrCtrl+Q").build(handle)?;
             let open_log = MenuItemBuilder::with_id("open-log", "Open Server Log").build(handle)?;
             let app_menu = SubmenuBuilder::new(handle, "Rekall")
                 .item(&PredefinedMenuItem::about(handle, Some("About Rekall"), None)?)
                 .separator()
                 .item(&PredefinedMenuItem::hide(handle, Some("Hide Rekall"))?)
                 .separator()
-                .item(&PredefinedMenuItem::quit(handle, Some("Quit Rekall"))?)
+                .item(&quit)
                 .build()?;
             // Without an Edit menu the standard shortcuts never reach the web view, and the note
             // editor could not paste.
@@ -118,10 +125,17 @@ fn main() {
         })
         .on_menu_event(|handle, event| match event.id().as_ref() {
             "reload" => reload(handle),
+            "quit" => request_quit(handle),
             "open-log" => {
                 let _ = handle.opener().open_path(log_file().to_string_lossy(), None::<&str>);
             }
             _ => {}
+        })
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                request_quit(window.app_handle());
+            }
         })
         .setup(|app| {
             build_window(app.handle())?;
@@ -143,6 +157,25 @@ fn main() {
                     let _ = tokio::time::timeout(rekall_app::server::STOP_WINDOW, running.stop()).await;
                 }
             });
+        }
+    });
+}
+
+/// Quit and the window's close button both come here. When this process started the server, a live
+/// Claude session dies with it, so the user is asked first; an attached server keeps its sessions
+/// after we leave, so nothing is asked.
+fn request_quit(handle: &AppHandle) {
+    let shell = handle.state::<Arc<Shell>>().inner().clone();
+    if shell.quitting.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    let handle = handle.clone();
+    tauri::async_runtime::spawn(async move {
+        let owns_server = shell.running.lock().await.is_some();
+        if !owns_server || exit_guard::may_quit(&handle, port()).await {
+            handle.exit(0);
+        } else {
+            shell.quitting.store(false, Ordering::SeqCst);
         }
     });
 }

@@ -28,6 +28,7 @@ use crate::restart::Restarter;
 use crate::security::{self, LocalAccess};
 use crate::spa::{self, Assets};
 use crate::actuator;
+use crate::version::{self, GithubReleaseFeed, ReleaseFeed, UpdateChecker, RUNNING_VERSION};
 
 use super::StartOptions;
 
@@ -120,6 +121,12 @@ impl Instance {
         };
         let installer = ClaudeCodeInstaller::new(config.user_home.clone(), config.mcp_endpoint(served_port));
 
+        let release_feed: Arc<dyn ReleaseFeed> = match &options.release_feed {
+            Some(feed) => feed.clone(),
+            None => Arc::new(GithubReleaseFeed::new(&config.update_check.url)),
+        };
+        let update_checker = Arc::new(UpdateChecker::new(RUNNING_VERSION, config.update_check.enabled, release_feed));
+
         let routes = Router::new()
             .merge(rekall_api::router(api))
             .merge(rekall_mcp::router(mcp))
@@ -128,6 +135,7 @@ impl Instance {
             .merge(installer::routes(installer))
             .merge(backup::routes(backups.clone(), restorer))
             .merge(actuator::routes(database.conn.clone()))
+            .merge(version::routes(update_checker))
             .merge(spa::routes(Assets::new(config.ui_dist.clone())))
             .method_not_allowed_fallback(|| async { framework(StatusCode::METHOD_NOT_ALLOWED) });
         // The routes sit behind a fallback so the layers below see each response whole, the

@@ -5,9 +5,13 @@ mod support;
 
 use std::collections::BTreeMap;
 use std::io::Read;
+use std::sync::Arc;
 
+use async_trait::async_trait;
+use rekall_app::version::{Release, ReleaseFeed, ReleaseFeedError};
+use rekall_app::StartOptions;
 use serde_json::json;
-use support::{app, id, App};
+use support::{app, app_with, id, App};
 
 /// Entry name to contents; directory entries kept as their own empty entries.
 fn unzip(archive: &[u8]) -> BTreeMap<String, String> {
@@ -694,4 +698,38 @@ async fn a_session_stores_a_generated_diagram_through_mcp_only_when_its_spans_ar
     assert!(app.call_tool("rekall_diagram", revised).await.contains("replaced"));
     let listed = app.get("/api/diagrams").await.list();
     assert_eq!((listed.len(), listed[0]["title"].as_str()), (1, Some("Orders, revised")));
+}
+
+struct FixedFeed(Release);
+
+#[async_trait]
+impl ReleaseFeed for FixedFeed {
+    async fn latest(&self) -> Result<Option<Release>, ReleaseFeedError> {
+        Ok(Some(self.0.clone()))
+    }
+}
+
+#[tokio::test]
+async fn the_version_endpoint_reports_this_build_and_the_newer_release_the_feed_names() {
+    let newer = Release { tag: "v999.0.0".into(), page_url: "https://example.test/release".into(), assets: vec![] };
+    let options = StartOptions { no_restart: true, release_feed: Some(Arc::new(FixedFeed(newer))), ..StartOptions::default() };
+    let app = app_with(&[], options).await;
+
+    let version = app.get("/api/version").await;
+
+    assert_eq!(version.status, 200);
+    assert_eq!(version.str("current"), rekall_app::version::RUNNING_VERSION);
+    assert_eq!(version.str("check"), "UPDATE_AVAILABLE");
+    assert_eq!(version.get("latest")["version"], "999.0.0");
+    assert_eq!(version.get("latest")["releaseUrl"], "https://example.test/release");
+}
+
+#[tokio::test]
+async fn with_the_check_switched_off_the_version_endpoint_still_names_this_build() {
+    let app = app_with(&[("rekall.update-check.enabled", "false")], StartOptions { no_restart: true, ..StartOptions::default() }).await;
+
+    let version = app.get("/api/version").await;
+
+    assert_eq!(version.str("check"), "DISABLED");
+    assert!(version.get("latest").is_null());
 }

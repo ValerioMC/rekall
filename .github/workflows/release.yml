@@ -14,6 +14,9 @@ name: Release
 #   rekall-v0.1.1-windows-x64.exe   the server, console embedded
 #   Rekall-macos-arm64.dmg          Rekall.app (Tauri), Apple Silicon
 #
+# The tag's version (v0.1.1 -> 0.1.1) is compiled into every build as REKALL_VERSION: the console
+# shows it after "Rekall" and compares it with this release feed to offer a newer download.
+#
 # The disk image carries no version in its name, because it is the one asset a link off-site
 # points at and a name that moves would defeat that.
 on:
@@ -34,6 +37,7 @@ jobs:
     outputs:
       tag: ${{ steps.target.outputs.tag }}
       suffix: ${{ steps.target.outputs.suffix }}
+      version: ${{ steps.target.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -53,6 +57,7 @@ jobs:
         run: |
           echo "tag=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
           echo "suffix=-$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+          echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
       - uses: pnpm/action-setup@v4
         with:
@@ -76,8 +81,11 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm build
 
+      # REKALL_VERSION is the version the app shows and compares against the latest release.
       - name: Build server
         run: cargo build --release -p rekall-app
+        env:
+          REKALL_VERSION: ${{ steps.target.outputs.version }}
 
       - name: Locate binary
         id: bin
@@ -128,7 +136,9 @@ jobs:
 
       - name: Bundle Rekall.app into a disk image
         working-directory: rekall-app/desktop
-        run: cargo tauri build --bundles dmg
+        run: cargo tauri build --bundles dmg --config "{\"version\":\"$REKALL_VERSION\"}"
+        env:
+          REKALL_VERSION: ${{ needs.build-and-release.outputs.version }}
 
       # The disk image keeps one name on every release, because a link on a web page points at it. The name Tauri writes carries the version and the architecture, so
       # the file is found by pattern rather than by guessing that string.
@@ -177,6 +187,8 @@ jobs:
 
       - name: Build server
         run: cargo build --release -p rekall-app
+        env:
+          REKALL_VERSION: ${{ needs.build-and-release.outputs.version }}
 
       - name: Locate binary
         id: bin

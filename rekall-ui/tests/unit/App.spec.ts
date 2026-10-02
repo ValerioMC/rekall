@@ -700,6 +700,24 @@ describe('the console', () => {
         .toBe('report-builder')
     })
 
+    /** The description has its own pane; the popup neither shows it nor loses it on save. */
+    it('edits a task without a description field and saves the description it already has', async () => {
+      const wrapper = await mountConsole()
+
+      const retryRow = wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Retry policy'))!
+      await retryRow.trigger('click')
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'e' }))
+      await flushPromises()
+      await wrapper.find('[data-testid="record-save"]').trigger('click')
+      await flushPromises()
+
+      expect(wrapper.find('[data-testid="record-description"]').exists()).toBe(false)
+      expect(updateTask).toHaveBeenCalledWith(
+        retry,
+        expect.objectContaining({ description: '## Scope\n\nRitenta solo gli errori 5xx, con backoff esponenziale.' })
+      )
+    })
+
     /**
      * The anchor is written down outside this application, in slash commands and in notes.
      * Moving it is allowed and has to be said out loud.

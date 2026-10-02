@@ -41,8 +41,8 @@ const isNew = props.draft.id === null
 const hasLabel = kind !== 'company'
 const originalLabel = props.draft.kind === 'company' ? '' : props.draft.label
 
-// A new task opens on the description template and is written in its own pane, not squeezed in here.
-const asksForDescription = !(kind === 'task' && isNew)
+// A task's description is written in its own pane, never squeezed in here.
+const asksForDescription = kind !== 'task'
 
 const KIND_NOUN = { company: 'company', project: 'project', task: 'task' } as const
 const heading = `${isNew ? 'New' : 'Edit'} ${KIND_NOUN[kind]}`

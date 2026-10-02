@@ -54,6 +54,15 @@ A disk image for Apple Silicon is published with every `v*` tag pushed on a comm
 
 The link always resolves to the newest tagged release. A push to `main` builds nothing; a release is cut with `git tag v0.1.1 && git push origin v0.1.1`, and a tag on a commit that is not on `main` fails before anything is built. It builds on a `macos-14` runner from `.github/workflows/release.yml`. The same release carries `rekall-server` for Linux and Windows, with the console embedded.
 
+### Version and updates
+
+The console shows the running version after "Rekall" in the header. A release build carries the tag it was built from (`v0.1.1` shows as `v0.1.1`; the workflow compiles it in as `REKALL_VERSION`); a local build shows the crate's version. When the console loads, `GET /api/version` asks GitHub for the latest release and, if its tag is newer than the running version, the header offers it as a link: the file for the platform the build runs on (the disk image on macOS), or the release page when the release has none. The answer is remembered for six hours (five minutes after a failure) and a restart forgets it; nothing is shown when GitHub cannot be reached. Only `MAJOR.MINOR.PATCH` tags are compared.
+
+| Property | Default | Meaning |
+|---|---|---|
+| `rekall.update-check.enabled` | `true` | `false` never contacts GitHub; the version is still shown |
+| `rekall.update-check.url` | the repository's `releases/latest` API | The endpoint answering with the latest release |
+
 ### Build locally
 
 ```bash
@@ -72,7 +81,7 @@ The dock icon is `rekall-app/desktop/icons/icon@2x.png`, a 1024 master on Apple'
 
 ### Running the app
 
-The window shows a splash screen while the server boots, then loads the console once port 47355 answers. Quitting stops the server and closes the database cleanly. Server output goes to `~/Library/Logs/Rekall/server.log` (View > Open Server Log).
+The window shows a splash screen while the server boots, then loads the console once port 47355 answers. Quitting stops the server and closes the database cleanly. When a Claude session is still live (a terminal started with **Run here** or by the run queue), `⌘Q`, the console's close button and the window's own close first ask whether to quit, since the session ends with the server; **Keep working** returns to the app. `rekall-app/desktop/src/exit_guard.rs` does the asking. Nothing is asked when no session is live, when the app attached to a server it did not start (the sessions outlive the window), or on `kill` and logout; Dock > Quit bypasses the question, because macOS ends the process there without telling the app. Server output goes to `~/Library/Logs/Rekall/server.log` (View > Open Server Log).
 
 The app uses the same port, the same `~/.rekall/config.json` and the same MCP endpoint as `make run`. If a Rekall server already answers on 47355, the app attaches to it instead of starting a second one, and leaves it running on quit. The folder icon in the database field opens the system folder chooser, which a browser tab cannot do; in a browser that field stays a typed input.
 

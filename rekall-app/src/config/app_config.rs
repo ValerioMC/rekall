@@ -4,7 +4,9 @@ use std::time::Duration;
 
 use rekall_claude::ClaudeConfig;
 
-use super::{BackupConfig, DatabaseOverride, Properties};
+use crate::version::DEFAULT_RELEASE_URL;
+
+use super::{BackupConfig, DatabaseOverride, Properties, UpdateCheckConfig};
 
 /// Not 8080: see `application.yaml`. The MCP endpoint is registered with Claude Code as a fixed
 /// URL, so a clash on a common port is a broken registration, not a retry.
@@ -21,6 +23,7 @@ pub struct AppConfig {
     /// `rekall.security.remote-access`.
     pub remote_access: bool,
     pub backup: BackupConfig,
+    pub update_check: UpdateCheckConfig,
     pub claude: ClaudeConfig,
     /// `rekall.ui.dist`: a folder to serve the console from instead of the bundle built into the
     /// binary, for working on the UI without rebuilding the server.
@@ -76,6 +79,10 @@ impl AppConfig {
                 enabled: properties.flag("rekall.backup.enabled", true),
                 interval_hours: properties.number("rekall.backup.interval-hours", 24i64),
                 keep: properties.number("rekall.backup.keep", 10usize),
+            },
+            update_check: UpdateCheckConfig {
+                enabled: properties.flag("rekall.update-check.enabled", true),
+                url: properties.get("rekall.update-check.url").unwrap_or_else(|| DEFAULT_RELEASE_URL.to_string()),
             },
             claude,
             ui_dist: properties.get("rekall.ui.dist").filter(|p| !p.trim().is_empty()).map(PathBuf::from),

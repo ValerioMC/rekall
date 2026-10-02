@@ -2,6 +2,7 @@
 import AppLogo from '@/components/ui/AppLogo.vue'
 import AppNavSwitcher from '@/components/console/AppNavSwitcher.vue'
 import WindowControls from '@/components/console/WindowControls.vue'
+import AppVersionLabel from '@/components/shell/AppVersionLabel.vue'
 import { isDesktopApp } from '@/common/native/desktop'
 
 const isDesktop = isDesktopApp()
@@ -28,8 +29,11 @@ const isDesktop = isDesktopApp()
     >
       <AppLogo :size="32" class="halo rounded-[7px]" />
       <span class="min-w-0">
-        <span class="block text-[14.5px] font-semibold leading-tight tracking-[-0.015em] text-text">
-          Rekall
+        <span class="flex items-baseline gap-2">
+          <span class="text-[14.5px] font-semibold leading-tight tracking-[-0.015em] text-text">
+            Rekall
+          </span>
+          <AppVersionLabel />
         </span>
         <span class="block font-mono text-[10px] leading-tight text-text-subtle">
           context, anchored
