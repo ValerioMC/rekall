@@ -682,7 +682,7 @@ onUnmounted(() => {
                 </button>
 
                 <div
-                  class="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover/step:opacity-100"
+                  class="flex shrink-0 items-center gap-0.5 opacity-0 focus-within:opacity-100 group-hover/step:opacity-100"
                 >
                   <button
                     v-if="step.state === 'OPEN'"
