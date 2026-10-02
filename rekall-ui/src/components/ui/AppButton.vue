@@ -45,8 +45,8 @@ const SIZES: Readonly<Record<Size, string>> = {
 const keycap = computed(() => (props.square ? KEYCAPS[props.variant] : undefined))
 
 const classes = computed(() => [
-  'focus-ring inline-flex items-center justify-center border',
-  keycap.value ? 'rounded-[3px]' : 'rounded-[var(--radius-control)] active:translate-y-px',
+  'focus-ring inline-flex items-center justify-center',
+  keycap.value ? 'rounded-[3px] border-0' : 'rounded-[var(--radius-control)] border active:translate-y-px',
   'select-none whitespace-nowrap',
   'disabled:opacity-40 disabled:cursor-not-allowed disabled:active:translate-y-0',
   keycap.value ?? VARIANTS[props.variant],

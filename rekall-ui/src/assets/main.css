@@ -419,23 +419,23 @@
 }
 
 /*
- * Keycaps: the same two materials as a flat face on a solid, extruded edge, with square corners.
- * Where the metal keys read as polished, these read as machined: a crisp lit lip, one hard
- * edge below the face for depth and a tight cast shadow. Pressing sinks the face onto its edge,
- * so the depth collapses instead of the light dimming.
+ * Keycaps: the same two materials as a flat face, square corners, lit from above. Depth is
+ * carried by the face itself: a bright top lip, a darker underside inside the edge and a tight
+ * neutral shadow. Nothing extrudes below the button and nothing takes the accent colour, so
+ * it reads as a raised plate, never as a button in perspective. Pressing flattens the lighting.
  */
 @utility key-gold {
-  --key-edge: #8c5316;
   color: var(--color-accent-ink);
   border: 0;
   background: linear-gradient(180deg, var(--color-accent-strong) 0%, var(--color-accent) 100%);
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.5),
-    0 3px 0 var(--key-edge),
-    0 10px 14px -6px rgb(0 0 0 / 0.7);
+    inset 0 1px 0 rgb(255 255 255 / 0.45),
+    inset 0 -1px 0 rgb(0 0 0 / 0.22),
+    0 1px 2px rgb(0 0 0 / 0.55),
+    0 4px 8px -4px rgb(0 0 0 / 0.5);
   transition:
     filter 140ms ease,
-    box-shadow 90ms ease,
+    box-shadow 120ms ease,
     transform 90ms ease;
 
   &:hover:not(:disabled) {
@@ -443,28 +443,26 @@
   }
 
   &:active:not(:disabled) {
-    transform: translateY(2px);
-    filter: brightness(0.97);
+    transform: translateY(1px);
+    filter: brightness(0.96);
     box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 0.35),
-      0 1px 0 var(--key-edge),
-      0 3px 6px -3px rgb(0 0 0 / 0.7);
+      inset 0 1px 2px rgb(0 0 0 / 0.3),
+      0 1px 1px rgb(0 0 0 / 0.4);
   }
 }
 
 @utility key-slate {
-  --key-edge: #0b0e15;
   color: var(--color-text);
   border: 0;
   background: linear-gradient(180deg, #2f384b 0%, #252d3d 100%);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.12),
-    inset 0 0 0 1px rgb(255 255 255 / 0.03),
-    0 3px 0 var(--key-edge),
-    0 10px 14px -6px rgb(0 0 0 / 0.7);
+    inset 0 -1px 0 rgb(0 0 0 / 0.3),
+    0 1px 2px rgb(0 0 0 / 0.55),
+    0 4px 8px -4px rgb(0 0 0 / 0.5);
   transition:
     background 140ms ease,
-    box-shadow 90ms ease,
+    box-shadow 120ms ease,
     transform 90ms ease;
 
   &:hover:not(:disabled) {
@@ -472,31 +470,30 @@
   }
 
   &:active:not(:disabled) {
-    transform: translateY(2px);
+    transform: translateY(1px);
     box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 0.08),
-      0 1px 0 var(--key-edge),
-      0 3px 6px -3px rgb(0 0 0 / 0.7);
+      inset 0 1px 2px rgb(0 0 0 / 0.4),
+      0 1px 1px rgb(0 0 0 / 0.4);
   }
 }
 
 /*
- * Quiet keycap: the machined edge of {@link key-slate} for toolbar buttons that sit flat until
- * they are usable. Square corners, a lit lip and a hard edge below; no outline, no tinted shadow.
+ * Quiet keycap: {@link key-slate} for toolbar buttons that sit flat until they are usable.
+ * Square corners, a lit lip and a neutral shadow; no outline, no extruded edge.
  */
 @utility key-quiet {
-  --key-edge: #0b0e15;
   color: var(--color-text-muted);
   border: 0;
   background: linear-gradient(180deg, #2a3243 0%, #222939 100%);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.1),
-    0 2px 0 var(--key-edge),
-    0 6px 10px -5px rgb(0 0 0 / 0.65);
+    inset 0 -1px 0 rgb(0 0 0 / 0.28),
+    0 1px 2px rgb(0 0 0 / 0.5),
+    0 3px 6px -3px rgb(0 0 0 / 0.45);
   transition:
     background 140ms ease,
     color 140ms ease,
-    box-shadow 90ms ease,
+    box-shadow 120ms ease,
     transform 90ms ease;
 
   &:hover:not(:disabled) {
@@ -507,9 +504,8 @@
   &:active:not(:disabled) {
     transform: translateY(1px);
     box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 0.06),
-      0 1px 0 var(--key-edge),
-      0 2px 4px -2px rgb(0 0 0 / 0.65);
+      inset 0 1px 2px rgb(0 0 0 / 0.4),
+      0 1px 1px rgb(0 0 0 / 0.35);
   }
 }
 
