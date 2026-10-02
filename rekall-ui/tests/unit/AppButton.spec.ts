@@ -19,6 +19,17 @@ describe('AppButton', () => {
     expect(wrapper.find('.animate-spin').exists()).toBe(true)
   })
 
+  it('draws a square keycap for primary and secondary, and leaves other variants alone', () => {
+    const primary = mount(AppButton, { props: { square: true, variant: 'primary' } })
+    const secondary = mount(AppButton, { props: { square: true } })
+    const ghost = mount(AppButton, { props: { square: true, variant: 'ghost' } })
+
+    expect(primary.classes()).toContain('key-gold')
+    expect(secondary.classes()).toContain('key-slate')
+    expect(ghost.classes()).not.toContain('key-slate')
+    expect(ghost.classes()).toContain('rounded-[var(--radius-control)]')
+  })
+
   it('does not emit click when disabled', async () => {
     const wrapper = mount(AppButton, { props: { disabled: true } })
 

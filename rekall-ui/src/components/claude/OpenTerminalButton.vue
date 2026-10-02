@@ -122,14 +122,15 @@ onBeforeUnmount(() => {
 <template>
   <button
     type="button"
-    class="focus-ring relative inline-flex h-7 shrink-0 items-center gap-1.5 overflow-hidden rounded-[var(--radius-control)] border px-2.5 text-xs font-medium transition-colors duration-200 active:translate-y-px"
+    class="focus-ring relative inline-flex h-7 shrink-0 items-center gap-1.5 overflow-hidden rounded-[3px] px-2.5 text-xs font-medium"
     :class="[
       phase === 'done'
-        ? 'run-done border-transparent text-safe'
+        ? 'run-done border border-transparent text-safe'
         : ready
-          ? 'border-accent bg-accent-soft text-accent'
-          : 'border-transparent bg-transparent text-text-subtle hover:bg-surface-raised hover:text-text-muted',
-      ready && phase === 'idle' && 'hover:bg-accent hover:text-accent-ink',
+          ? phase === 'working'
+            ? 'border border-accent/40 bg-accent-soft text-accent'
+            : 'key-gold font-semibold'
+          : 'border border-transparent bg-transparent text-text-subtle transition-colors hover:bg-surface-raised hover:text-text-muted',
       phase === 'working' && 'run-working',
       busy && 'cursor-default'
     ]"

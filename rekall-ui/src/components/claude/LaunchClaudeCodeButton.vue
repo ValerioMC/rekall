@@ -32,8 +32,8 @@ const detail = computed(() =>
 
 const toneClasses = computed(() =>
   props.folder
-    ? 'border-border bg-transparent text-text-muted hover:border-border-strong hover:bg-surface-raised hover:text-text'
-    : 'border-transparent bg-transparent text-text-subtle hover:bg-surface-raised hover:text-text-muted'
+    ? 'key-quiet'
+    : 'border border-transparent bg-transparent text-text-subtle hover:bg-surface-raised hover:text-text-muted'
 )
 
 const buttonEl = ref<HTMLButtonElement | null>(null)
@@ -93,7 +93,7 @@ async function launch(): Promise<void> {
     ref="buttonEl"
     v-bind="$attrs"
     type="button"
-    class="launch-btn focus-ring relative inline-flex h-7 shrink-0 items-center gap-1.5 rounded-[var(--radius-control)] border px-2.5 text-xs font-medium transition-all duration-150 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
+    class="launch-btn focus-ring relative inline-flex h-7 shrink-0 items-center gap-1.5 rounded-[3px] px-2.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-60"
     :class="[toneClasses, nudging && 'nudge', phase === 'launched' && 'flash']"
     :disabled="phase === 'launching'"
     :aria-describedby="descriptionId"

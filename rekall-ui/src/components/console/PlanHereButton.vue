@@ -59,11 +59,11 @@ async function plan(): Promise<void> {
 <template>
   <button
     type="button"
-    class="focus-ring inline-flex h-7 shrink-0 items-center gap-2 rounded-[var(--radius-control)] border px-2.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+    class="focus-ring inline-flex h-7 shrink-0 items-center gap-2 rounded-[3px] px-2.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-60"
     :class="
       ready
-        ? 'border-border text-text-muted hover:border-accent hover:bg-accent-soft hover:text-accent'
-        : 'border-transparent text-text-subtle hover:bg-surface-raised hover:text-text-muted'
+        ? 'key-quiet'
+        : 'border border-transparent text-text-subtle transition-colors hover:bg-surface-raised hover:text-text-muted'
     "
     :disabled="isRunning"
     data-testid="plan-here"

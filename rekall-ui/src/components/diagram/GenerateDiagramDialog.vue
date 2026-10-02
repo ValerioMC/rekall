@@ -16,6 +16,8 @@ const props = defineProps<{
   projects: readonly Project[]
   tasks: readonly Task[]
   initialTaskId: TaskId | null
+  /** Opened from a task: the task is not asked for again, only what to show. */
+  taskFixed?: boolean
   sending: boolean
 }>()
 
@@ -122,7 +124,15 @@ onUnmounted(() => {
           />
         </label>
 
-        <div class="grid grid-cols-2 gap-3">
+        <div v-if="taskFixed && task" class="flex min-w-0 items-center gap-2 rounded-[var(--radius-control)] border border-border bg-canvas px-3 py-2" data-testid="generate-task">
+          <span class="min-w-0 flex-1">
+            <span class="block truncate text-[13px] font-medium text-text">{{ task.title }}</span>
+            <span class="block truncate text-[11.5px] text-text-subtle">{{ task.projectTitle }}</span>
+          </span>
+          <span class="anchor-chip shrink-0 px-1.5 py-px text-[10px]">{{ task.label }}</span>
+        </div>
+
+        <div v-else class="grid grid-cols-2 gap-3">
           <label class="block min-w-0">
             <span class="eyebrow mb-1.5 block text-[11px]">Project</span>
             <AppSelect v-model="projectId" :options="projectOptions" />

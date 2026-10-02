@@ -103,8 +103,8 @@
   --font-sans: 'Fira Sans', ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'Fira Code Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  --radius-card: 14px;
-  --radius-control: 9px;
+  --radius-card: 8px;
+  --radius-control: 5px;
 
   --shadow-lift:
     inset 0 1px 0 rgb(255 255 255 / 0.12), 0 1px 2px rgb(0 0 0 / 0.55),
@@ -418,6 +418,101 @@
   }
 }
 
+/*
+ * Keycaps: the same two materials as a flat face on a solid, extruded edge, with square corners.
+ * Where the metal keys read as polished, these read as machined: a crisp lit lip, one hard
+ * edge below the face for depth and a tight cast shadow. Pressing sinks the face onto its edge,
+ * so the depth collapses instead of the light dimming.
+ */
+@utility key-gold {
+  --key-edge: #8c5316;
+  color: var(--color-accent-ink);
+  border: 0;
+  background: linear-gradient(180deg, var(--color-accent-strong) 0%, var(--color-accent) 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.5),
+    0 3px 0 var(--key-edge),
+    0 10px 14px -6px rgb(0 0 0 / 0.7);
+  transition:
+    filter 140ms ease,
+    box-shadow 90ms ease,
+    transform 90ms ease;
+
+  &:hover:not(:disabled) {
+    filter: brightness(1.06);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(2px);
+    filter: brightness(0.97);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.35),
+      0 1px 0 var(--key-edge),
+      0 3px 6px -3px rgb(0 0 0 / 0.7);
+  }
+}
+
+@utility key-slate {
+  --key-edge: #0b0e15;
+  color: var(--color-text);
+  border: 0;
+  background: linear-gradient(180deg, #2f384b 0%, #252d3d 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.12),
+    inset 0 0 0 1px rgb(255 255 255 / 0.03),
+    0 3px 0 var(--key-edge),
+    0 10px 14px -6px rgb(0 0 0 / 0.7);
+  transition:
+    background 140ms ease,
+    box-shadow 90ms ease,
+    transform 90ms ease;
+
+  &:hover:not(:disabled) {
+    background: linear-gradient(180deg, #37425a 0%, #2b3447 100%);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(2px);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.08),
+      0 1px 0 var(--key-edge),
+      0 3px 6px -3px rgb(0 0 0 / 0.7);
+  }
+}
+
+/*
+ * Quiet keycap: the machined edge of {@link key-slate} for toolbar buttons that sit flat until
+ * they are usable. Square corners, a lit lip and a hard edge below; no outline, no tinted shadow.
+ */
+@utility key-quiet {
+  --key-edge: #0b0e15;
+  color: var(--color-text-muted);
+  border: 0;
+  background: linear-gradient(180deg, #2a3243 0%, #222939 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.1),
+    0 2px 0 var(--key-edge),
+    0 6px 10px -5px rgb(0 0 0 / 0.65);
+  transition:
+    background 140ms ease,
+    color 140ms ease,
+    box-shadow 90ms ease,
+    transform 90ms ease;
+
+  &:hover:not(:disabled) {
+    color: var(--color-text);
+    background: linear-gradient(180deg, #343e53 0%, #2a3347 100%);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(1px);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.06),
+      0 1px 0 var(--key-edge),
+      0 2px 4px -2px rgb(0 0 0 / 0.65);
+  }
+}
+
 @utility trough {
   border-radius: 9999px;
   background: linear-gradient(180deg, #080b10, #0f131b);
@@ -566,7 +661,7 @@
     top: 7px;
     bottom: 7px;
     width: 3px;
-    border-radius: 999px;
+    border-radius: 1px;
     background: linear-gradient(
       90deg,
       color-mix(in srgb, var(--select-tint) 55%, white),
@@ -931,7 +1026,6 @@
 
   &[aria-expanded='true'] {
     background: color-mix(in srgb, var(--dock-tint) 14%, transparent);
-    box-shadow: inset 0 -2px 0 0 var(--dock-tint);
   }
 }
 
@@ -1224,8 +1318,8 @@
  * is a text caret. It wears the anchor colour the session was opened on — `/rk <anchor>` is the
  * first line it was ever sent — which also keeps the session corner from reading as the amber
  * time corner stacked twice. Wherever it stands for sessions (the dock segment, its panel, the
- * terminal pane's other-sessions switcher, **Plan here** and **Wrapup here** at rest) it hard-blinks
- * slow. It swells to a block on a quicker beat only while a line is being handed to a session:
+ * terminal pane's other-sessions switcher, **Plan here** and **Wrapup here** at rest) it fades in and
+ * out slowly. It swells to a block on a quicker beat only while a line is being handed to a session:
  * a wrapup or a plan on its way into a live terminal. Like every mark here, it runs only
  * while a session is live.
  */
@@ -1239,7 +1333,7 @@
     0 0 8px -1px color-mix(in srgb, var(--color-anchor) 70%, transparent),
     0 1px 1px rgb(0 0 0 / 0.5);
   transform-origin: center left;
-  animation: caret-blink 1.5s steps(1, end) infinite;
+  animation: caret-blink 1.6s ease-in-out infinite;
 }
 
 @utility session-caret-busy {
@@ -1248,15 +1342,11 @@
 
 @keyframes caret-blink {
   0%,
-  46% {
-    opacity: 1;
-  }
-  50%,
-  96% {
-    opacity: 0.26;
-  }
   100% {
     opacity: 1;
+  }
+  50% {
+    opacity: 0.2;
   }
 }
 

@@ -10,9 +10,11 @@ const props = withDefaults(
     size?: Size
     disabled?: boolean
     loading?: boolean
+    /** Square-cornered keycap instead of the polished metal key: primary and secondary only. */
+    square?: boolean
     type?: 'button' | 'submit'
   }>(),
-  { variant: 'secondary', size: 'md', disabled: false, loading: false, type: 'button' }
+  { variant: 'secondary', size: 'md', disabled: false, loading: false, square: false, type: 'button' }
 )
 
 const emit = defineEmits<{ click: [event: MouseEvent] }>()
@@ -30,16 +32,24 @@ const VARIANTS: Readonly<Record<Variant, string>> = {
     'bg-transparent text-text-muted border-transparent hover:bg-danger-soft hover:text-danger'
 }
 
+const KEYCAPS: Readonly<Partial<Record<Variant, string>>> = {
+  primary: 'key-gold font-semibold',
+  secondary: 'key-slate'
+}
+
 const SIZES: Readonly<Record<Size, string>> = {
   sm: 'h-7 px-2.5 text-xs gap-1.5',
   md: 'h-9 px-3.5 text-[13px] gap-2'
 }
 
+const keycap = computed(() => (props.square ? KEYCAPS[props.variant] : undefined))
+
 const classes = computed(() => [
-  'focus-ring inline-flex items-center justify-center rounded-[var(--radius-control)] border',
-  'active:translate-y-px select-none whitespace-nowrap',
+  'focus-ring inline-flex items-center justify-center border',
+  keycap.value ? 'rounded-[3px]' : 'rounded-[var(--radius-control)] active:translate-y-px',
+  'select-none whitespace-nowrap',
   'disabled:opacity-40 disabled:cursor-not-allowed disabled:active:translate-y-0',
-  VARIANTS[props.variant],
+  keycap.value ?? VARIANTS[props.variant],
   SIZES[props.size]
 ])
 </script>

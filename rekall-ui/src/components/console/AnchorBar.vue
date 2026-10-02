@@ -293,6 +293,7 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
         <AppButton
           variant="primary"
           size="sm"
+          square
           :disabled="needsTaskForNote"
           data-testid="new-note"
           @click="emit('newNote')"
