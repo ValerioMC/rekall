@@ -44,15 +44,15 @@ Nothing in Rekall authenticates, and its API can open a `claude` terminal in a p
 
 ## macOS application
 
-A disk image for Apple Silicon is published on every commit to `main`.
+A disk image for Apple Silicon is published with every `v*` tag pushed on a commit of `main`.
 
 | | |
 |---|---|
-| Download | [Rekall-macos-arm64.dmg](https://github.com/ValerioMC/rekall/releases/download/latest/Rekall-macos-arm64.dmg) |
+| Download | [Rekall-macos-arm64.dmg](https://github.com/ValerioMC/rekall/releases/latest/download/Rekall-macos-arm64.dmg) |
 | Needs | macOS 13 or later, Apple Silicon |
 | Install | Drag Rekall onto Applications, then run the `xattr` command below once |
 
-The image tracks the head of `main` and changes under the link without notice. A fixed build is a `v*` tag. It builds on a `macos-14` runner from `.github/workflows/release.yml`. The same release carries `rekall-server` for Linux and Windows, with the console embedded.
+The link always resolves to the newest tagged release. A push to `main` builds nothing; a release is cut with `git tag v0.1.1 && git push origin v0.1.1`, and a tag on a commit that is not on `main` fails before anything is built. It builds on a `macos-14` runner from `.github/workflows/release.yml`. The same release carries `rekall-server` for Linux and Windows, with the console embedded.
 
 ### Build locally
 
@@ -484,7 +484,7 @@ cd rekall-ui && pnpm lint && pnpm typecheck && pnpm test
 
 Each crate keeps its tests under `tests/`: `tests/unit/` mirrors `src/` (`rekall-service/src/search/search_service.rs` is tested by `rekall-service/tests/unit/search/search_service_tests.rs`, attached with `#[cfg(test)] #[path = "…"] mod tests;` so it can test private functions) and `tests/integration/` holds the integration suites. A new integration suite has to be declared as a `[[test]]` in the crate's `Cargo.toml`, or it never runs. The end-to-end suites in `rekall-app/tests/integration` start the whole application on a real port with a file database and drive the HTTP API, the MCP endpoint and the event stream; a stub stands in for the `claude` TUI in the terminal and run-queue tests.
 
-`.github/workflows/check.yml` runs all of it on every pull request and every push to a branch other than `main`: clippy and `cargo test`, eslint, vue-tsc, vitest, a production build of the UI, and a build of the desktop app. `release.yml` builds and publishes `main`.
+`.github/workflows/check.yml` runs all of it on every pull request and every push to a branch other than `main`: clippy and `cargo test`, eslint, vue-tsc, vitest, a production build of the UI, and a build of the desktop app. `release.yml` runs only on a `v*` tag on `main`, and builds and publishes that release.
 
 ## Design
 

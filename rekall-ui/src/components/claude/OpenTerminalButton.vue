@@ -238,6 +238,13 @@ onBeforeUnmount(() => {
   animation: run-seal-in 260ms cubic-bezier(0.3, 0.7, 0.2, 1) both;
 }
 
+/* The key clips its overflow for the play mark's exit, so the seal's light must fade within the
+   5px between seal and key edge, or it is cut into a band. */
+.run-seal :deep(.seal[data-state]) {
+  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.6))
+    drop-shadow(0 0 3px color-mix(in srgb, var(--seal) 45%, transparent));
+}
+
 /* The seal's RUNNING motion at button size: a comet orbits a faint track and the core breathes. */
 .run-orbit {
   animation: fade-in 260ms ease-out both;
