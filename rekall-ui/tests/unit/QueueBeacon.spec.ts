@@ -76,7 +76,7 @@ describe('the run queue beacon', () => {
     const wrapper = mount(QueueBeacon)
 
     expect(wrapper.find('[data-testid="run-dial"]').attributes('data-face')).toBe('holding')
-    expect(wrapper.classes()).toContain('text-warn')
+    expect(wrapper.classes()).toContain('key-warn')
     expect(wrapper.attributes('aria-label')).toContain('88%')
   })
 

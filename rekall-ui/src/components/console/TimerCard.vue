@@ -90,7 +90,6 @@ function toggle(): void {
       <AppButton
         :variant="isRunning ? 'secondary' : 'primary'"
         size="sm"
-        square
         data-testid="timer-toggle"
         @click="toggle"
       >

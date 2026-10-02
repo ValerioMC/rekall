@@ -3,6 +3,7 @@ import { computed, ref, useId } from 'vue'
 import { canLaunchClaudeCode, launchClaudeCode } from '@/common/native/desktop'
 import { skipsPermissions } from '@/common/config/claude-launch'
 import { useToastStore } from '@/stores/toast.store'
+import StepSeal from '@/components/console/StepSeal.vue'
 
 defineOptions({ inheritAttrs: false })
 
@@ -112,15 +113,7 @@ async function launch(): Promise<void> {
           class="size-3 animate-spin rounded-full border-[1.6px] border-current/25 border-t-current"
           aria-hidden="true"
         />
-        <svg v-else-if="phase === 'launched'" key="check" class="size-3.5" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-          <path
-            d="M2.1 6.3 4.6 8.8 9.9 3.4"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
+        <StepSeal v-else-if="phase === 'launched'" key="check" class="size-3.5" state="DONE" complete />
         <svg v-else key="out" class="size-3.5" viewBox="0 0 12 12" fill="none" aria-hidden="true">
           <path
             d="M9.4 6.9v2a1.1 1.1 0 0 1-1.1 1.1H3a1.1 1.1 0 0 1-1.1-1.1V3.6A1.1 1.1 0 0 1 3 2.5h2"

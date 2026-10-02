@@ -73,7 +73,7 @@ describe('the Run here button', () => {
     expect(openPane).not.toHaveBeenCalled()
   })
 
-  it('runs the play mark out, then closes the ring on a check, then shows the work in progress', async () => {
+  it('runs the play mark out, then settles the green step seal, then shows the work in progress', async () => {
     openTerminal.mockResolvedValue(terminal())
     const wrapper = mountButton()
     const button = wrapper.get('[data-testid="open-terminal"]')
@@ -83,7 +83,7 @@ describe('the Run here button', () => {
 
     await vi.advanceTimersByTimeAsync(380)
     expect(button.attributes('data-phase')).toBe('done')
-    expect(wrapper.find('.run-check').exists()).toBe(true)
+    expect(wrapper.find('.run-seal').exists()).toBe(true)
 
     await vi.advanceTimersByTimeAsync(1200)
     expect(button.attributes('data-phase')).toBe('working')

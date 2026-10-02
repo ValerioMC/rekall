@@ -52,7 +52,7 @@ onUnmounted(() => {
   <div v-if="reviewQueue.length" ref="host" class="relative">
     <button
       type="button"
-      class="focus-ring inline-flex h-8 shrink-0 items-center gap-1 rounded-[var(--radius-control)] border border-accent/60 bg-accent-soft px-2 text-accent transition-colors hover:border-accent"
+      class="key-slate focus-ring inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[3px] px-2"
       :title="`Review: ${reviewQueue.length} waiting for you, across every task`"
       :aria-label="`Review, ${reviewQueue.length} waiting`"
       aria-haspopup="dialog"
@@ -60,11 +60,11 @@ onUnmounted(() => {
       data-testid="review-queue-open"
       @click="open = !open"
     >
-      <svg class="size-3.5" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+      <svg class="size-3.5 text-accent" viewBox="0 0 12 12" fill="none" aria-hidden="true">
         <path d="M1.2 3.4 2.6 4.8l2.4-2.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
         <path d="M6.8 3.6h4M6.8 8.4h4M1.4 8.4h3.4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
       </svg>
-      <span class="rounded-full bg-accent px-1.5 font-mono text-[10px] tabular-nums leading-[15px] text-accent-ink" data-testid="review-queue-count">
+      <span class="key-gold rounded-[3px] px-1.5 font-mono text-[10px] font-semibold tabular-nums leading-[16px]" data-testid="review-queue-count">
         {{ reviewQueue.length }}
       </span>
     </button>

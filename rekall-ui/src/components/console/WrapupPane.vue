@@ -155,7 +155,7 @@ async function sendWrapupHere(message: string): Promise<void> {
 
         <button
           v-if="liveTerminal"
-          class="focus-ring inline-flex h-7 shrink-0 items-center gap-2 rounded-[var(--radius-control)] border border-border px-2.5 text-xs font-medium text-text-muted transition-colors hover:border-accent hover:bg-accent-soft hover:text-accent"
+          class="key-quiet focus-ring inline-flex h-7 shrink-0 items-center gap-2 rounded-[3px] px-2.5 text-xs font-medium"
           data-testid="wrapup-here"
           title="Type the wrapup command into the session already running here"
           @click="wrapupHereOpen = true"

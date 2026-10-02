@@ -271,14 +271,14 @@ onUnmounted(() => {
           </span>
           <button
             v-if="reviewState === 'CLAIMED' || reviewState === 'RUNNING'"
-            class="focus-ring h-7 shrink-0 rounded-[var(--radius-control)] border border-accent bg-accent-soft px-3 text-[11.5px] font-medium text-accent transition-colors hover:bg-accent hover:text-accent-ink"
+            class="key-gold rounded-[3px] focus-ring h-7 shrink-0 px-3 text-[11.5px] font-medium"
             data-testid="description-accept"
             @click="acceptDescription"
           >
             Accept
           </button>
           <button
-            class="focus-ring h-7 shrink-0 rounded-[var(--radius-control)] border border-border-strong px-3 text-[11.5px] font-medium text-text-subtle transition-colors hover:border-accent hover:text-accent"
+            class="key-quiet rounded-[3px] focus-ring h-7 shrink-0 px-3 text-[11.5px] font-medium"
             data-testid="description-open-wrapup"
             @click="store.openWrapup()"
           >
@@ -286,7 +286,7 @@ onUnmounted(() => {
           </button>
           <button
             v-if="reviewState === 'DONE' && selectedTask.status !== 'DONE'"
-            class="focus-ring h-7 shrink-0 rounded-[var(--radius-control)] border border-accent bg-accent-soft px-3 text-[11.5px] font-medium text-accent transition-colors hover:bg-accent hover:text-accent-ink"
+            class="key-gold rounded-[3px] focus-ring h-7 shrink-0 px-3 text-[11.5px] font-medium"
             data-testid="description-mark-done"
             @click="markTaskDone"
           >
@@ -294,7 +294,7 @@ onUnmounted(() => {
           </button>
           <button
             v-if="reviewState !== 'RUNNING'"
-            class="focus-ring h-7 shrink-0 rounded-[var(--radius-control)] border border-border-strong px-3 text-[11.5px] font-medium text-text-subtle transition-colors hover:border-danger hover:text-danger"
+            class="key-quiet rounded-[3px] focus-ring h-7 shrink-0 px-3 text-[11.5px] font-medium"
             data-testid="description-send-back"
             @click="sendingBack = true"
           >
@@ -310,14 +310,14 @@ onUnmounted(() => {
             data-testid="description-send-back-note"
           />
           <button
-            class="focus-ring h-7 shrink-0 rounded-[var(--radius-control)] border border-danger bg-danger-soft px-3 text-[11.5px] font-medium text-danger transition-colors"
+            class="key-danger focus-ring h-7 shrink-0 rounded-[3px] px-3 text-[11.5px] font-medium"
             data-testid="description-send-back-confirm"
             @click="sendBackDescription"
           >
             Send back
           </button>
           <button
-            class="focus-ring h-7 shrink-0 rounded-[var(--radius-control)] border border-border-strong px-3 text-[11.5px] font-medium text-text-subtle transition-colors hover:text-text"
+            class="key-quiet rounded-[3px] focus-ring h-7 shrink-0 px-3 text-[11.5px] font-medium"
             @click="sendingBack = false"
           >
             Cancel
@@ -340,7 +340,7 @@ onUnmounted(() => {
           </p>
 
           <button
-            class="focus-ring rounded-[var(--radius-control)] border border-accent bg-accent-soft px-3.5 py-2 text-[12.5px] font-medium text-accent transition-colors hover:bg-accent hover:text-accent-ink"
+            class="key-gold rounded-[3px] focus-ring px-3.5 py-2 text-[12.5px] font-medium"
             data-testid="write-description"
             @click="beginWriting"
           >

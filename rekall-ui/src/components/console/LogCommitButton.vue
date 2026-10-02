@@ -99,14 +99,8 @@ function togglePicker(): void {
   >
     <button
       type="button"
-      class="commit-btn focus-ring relative inline-flex items-center gap-1.5 rounded-l-[var(--radius-control)] border px-2.5 text-xs font-medium transition-all duration-150 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
-      :class="[
-        variant === 'header'
-          ? 'border-border bg-transparent text-text-muted hover:border-border-strong hover:bg-surface-raised hover:text-text'
-          : 'border-border-strong px-3 text-[11.5px] transition-colors hover:border-accent hover:text-accent',
-        variant === 'bar' && (phase === 'idle' ? 'text-text-subtle' : 'text-accent'),
-        phase === 'logged' && 'flash'
-      ]"
+      class="commit-btn key-quiet focus-ring relative inline-flex items-center gap-1.5 rounded-l-[3px] font-medium disabled:cursor-not-allowed disabled:opacity-60"
+      :class="[variant === 'bar' ? 'px-3 text-[11.5px]' : 'px-2.5 text-xs', phase === 'logged' && 'flash']"
       :disabled="phase === 'logging'"
       :aria-label="`Log the latest commit against ${target}`"
       :title="folder ? `Log the tip of ${folder} against ${target}` : missing"
@@ -154,16 +148,8 @@ function togglePicker(): void {
 
     <button
       type="button"
-      class="focus-ring -ml-px grid w-6 shrink-0 place-items-center rounded-r-[var(--radius-control)] border transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-60"
-      :class="[
-        variant === 'header'
-          ? 'border-border text-text-muted hover:border-border-strong hover:bg-surface-raised hover:text-text'
-          : 'border-border-strong text-text-subtle hover:border-accent hover:text-accent',
-        pickerOpen &&
-          (variant === 'header'
-            ? 'border-border-strong bg-surface-raised text-text'
-            : 'border-accent text-accent')
-      ]"
+      class="focus-ring ml-px grid w-6 shrink-0 place-items-center rounded-r-[3px] disabled:cursor-not-allowed disabled:opacity-60"
+      :class="pickerOpen ? 'key-lit' : 'key-quiet'"
       :disabled="phase === 'logging'"
       :aria-label="`Pick a commit to log against ${target}`"
       :title="folder ? 'Pick a commit from the recent log, or paste a hash' : missing"

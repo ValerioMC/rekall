@@ -230,7 +230,7 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
         href="/api/export"
         download
         data-testid="export-link"
-        class="focus-ring inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-control)] border border-border-strong bg-surface-raised px-3 text-[12.5px] text-text transition-colors hover:border-accent hover:bg-surface-hover"
+        class="key-slate focus-ring inline-flex h-8 items-center gap-1.5 rounded-[3px] px-3 text-[12.5px]"
         title="Download every company, project, task and note as a folder tree"
       >
         <svg class="size-3.5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -249,7 +249,7 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
         data-testid="tags-trigger"
         aria-label="Tags"
         title="Tags"
-        class="focus-ring grid size-8 shrink-0 place-items-center rounded-[var(--radius-control)] border border-border-strong bg-surface-raised text-text-subtle transition-colors hover:border-accent hover:bg-surface-hover hover:text-text"
+        class="key-quiet focus-ring grid size-8 shrink-0 place-items-center rounded-[3px]"
         @click="emit('openTags')"
       >
         <!-- Drawn in the chrome's grey like the cog beside it: a lit crimson glyph here was the
@@ -269,7 +269,7 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
         data-testid="settings-trigger"
         aria-label="Settings"
         title="Settings"
-        class="focus-ring grid size-8 shrink-0 place-items-center rounded-[var(--radius-control)] border border-border-strong bg-surface-raised text-text-subtle transition-colors hover:border-accent hover:bg-surface-hover hover:text-text"
+        class="key-quiet focus-ring grid size-8 shrink-0 place-items-center rounded-[3px]"
         @click="emit('openSettings')"
       >
         <svg class="size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -293,7 +293,6 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
         <AppButton
           variant="primary"
           size="sm"
-          square
           :disabled="needsTaskForNote"
           data-testid="new-note"
           @click="emit('newNote')"

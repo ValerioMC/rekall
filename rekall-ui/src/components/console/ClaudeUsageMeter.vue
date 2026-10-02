@@ -200,7 +200,7 @@ function close(): void {
   >
     <button
       type="button"
-      class="focus-ring group flex h-8 items-center gap-2 rounded-[var(--radius-control)] border border-border-strong bg-surface-raised px-2.5 text-[12px] text-text-subtle transition-colors hover:border-accent hover:bg-surface-hover"
+      class="key-slate focus-ring group flex h-8 items-center gap-2 rounded-[3px] px-2.5 text-[12px]"
       :aria-label="triggerLabel"
       :aria-expanded="open"
       :aria-busy="reading"
@@ -363,7 +363,7 @@ function close(): void {
           <button
             v-if="state !== 'rate-limited'"
             type="button"
-            class="focus-ring inline-flex h-7 items-center gap-1.5 rounded-[var(--radius-control)] border border-anchor-line bg-anchor-soft px-2.5 text-[12px] text-anchor transition-colors hover:border-anchor hover:bg-anchor/15 disabled:opacity-50"
+            class="key-quiet focus-ring inline-flex h-7 items-center gap-1.5 rounded-[3px] px-2.5 text-[12px] disabled:opacity-50"
             data-testid="usage-check-again"
             :disabled="reading"
             @click="checkAgain"

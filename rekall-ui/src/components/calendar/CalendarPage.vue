@@ -79,7 +79,7 @@ const WEEKDAY_LABELS = weekdayLabels()
     <div class="mx-auto max-w-[1240px] px-8 py-6">
       <div class="mb-4 flex items-center gap-2">
         <button
-          class="focus-ring grid size-8 place-items-center rounded-[var(--radius-control)] border border-border-strong bg-surface-raised text-text-subtle transition-colors hover:border-accent hover:bg-surface-hover hover:text-text"
+          class="key-quiet focus-ring grid size-8 place-items-center rounded-[3px]"
           aria-label="Previous month"
           data-testid="calendar-prev"
           @click="shiftMonth(-1)"
@@ -89,7 +89,7 @@ const WEEKDAY_LABELS = weekdayLabels()
           </svg>
         </button>
         <button
-          class="focus-ring grid size-8 place-items-center rounded-[var(--radius-control)] border border-border-strong bg-surface-raised text-text-subtle transition-colors hover:border-accent hover:bg-surface-hover hover:text-text"
+          class="key-quiet focus-ring grid size-8 place-items-center rounded-[3px]"
           aria-label="Next month"
           data-testid="calendar-next"
           @click="shiftMonth(1)"
