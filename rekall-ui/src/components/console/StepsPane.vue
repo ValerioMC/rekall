@@ -603,7 +603,7 @@ onUnmounted(() => {
             </button>
 
             <div
-              class="min-w-0 rounded-[var(--radius-card)] border px-3 py-2 transition-all"
+              class="min-w-0 rounded-[var(--radius-card)] border px-3 py-2 transition-[opacity,border-color] duration-150"
               :class="[
                 step.state === 'RUNNING'
                   ? 'panel-gold'
@@ -612,7 +612,7 @@ onUnmounted(() => {
                     : step.id === currentId
                       ? 'panel-slate'
                       : 'border-transparent group-hover/step:border-border',
-                step.state === 'DONE' && 'opacity-60 hover:opacity-100'
+                step.state === 'DONE' && 'opacity-60 group-hover/step:opacity-100'
               ]"
             >
               <div class="flex items-start gap-2">
