@@ -498,11 +498,9 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
           <div class="flex flex-wrap gap-1.5" data-testid="record-tag-picker">
             <button
               type="button"
-              class="focus-ring flex h-8 items-center gap-1.5 rounded-[var(--radius-control)] border px-3 text-[12.5px] transition-colors"
+              class="focus-ring flex h-8 items-center gap-1.5 rounded-[3px] px-3 text-[12.5px]"
               :class="
-                tagId === null
-                  ? 'border-accent bg-accent-soft text-accent'
-                  : 'border-border-strong bg-canvas text-text-muted hover:border-text-subtle hover:text-text'
+                tagId === null ? 'key-lit' : 'key-quiet'
               "
               :aria-pressed="tagId === null"
               @click="tagId = null"
@@ -513,11 +511,9 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
               v-for="option in store.tags"
               :key="option.id"
               type="button"
-              class="focus-ring flex h-8 items-center gap-1.5 rounded-[var(--radius-control)] border px-3 text-[12.5px] transition-colors"
+              class="focus-ring flex h-8 items-center gap-1.5 rounded-[3px] px-3 text-[12.5px]"
               :class="
-                tagId === option.id
-                  ? 'border-accent bg-accent-soft text-accent'
-                  : 'border-border-strong bg-canvas text-text-muted hover:border-text-subtle hover:text-text'
+                tagId === option.id ? 'key-lit' : 'key-quiet'
               "
               :aria-pressed="tagId === option.id"
               @click="tagId = option.id"

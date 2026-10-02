@@ -7,6 +7,7 @@ import {
   fetchDiagrams
 } from '@/api/diagrams.api'
 import { preferredEffort, preferredModel, skipsPermissions } from '@/common/config/claude-launch'
+import { diagramsByTask as groupByTask } from '@/common/diagram/task-diagrams'
 import { useTerminalStore } from '@/stores/terminal.store'
 import type { Diagram, DiagramDraft, DiagramStreamEvent, DiagramSummary } from '@/model/diagram'
 import type { DiagramId, ProjectId, TaskId, TerminalId } from '@/model/branded'
@@ -21,6 +22,26 @@ export interface PendingGeneration {
   readonly startedAt: number
 }
 
+const PENDING_STORAGE_KEY = 'rekall.diagram.pending'
+
+/** Pending generations outlive a reload within the tab; storage may be blocked, then they simply do not. */
+function readPending(): PendingGeneration[] {
+  try {
+    const raw = sessionStorage.getItem(PENDING_STORAGE_KEY)
+    return raw ? (JSON.parse(raw) as PendingGeneration[]) : []
+  } catch {
+    return []
+  }
+}
+
+function writePending(pending: readonly PendingGeneration[]): void {
+  try {
+    sessionStorage.setItem(PENDING_STORAGE_KEY, JSON.stringify(pending))
+  } catch {
+    // Storage is a convenience: without it a reload forgets what was being generated.
+  }
+}
+
 /**
  * The diagram library and the one diagram on screen. Summaries are the list; a full diagram
  * is fetched when opened and kept, since a graph does not change unless an event says so.
@@ -31,12 +52,21 @@ export const useDiagramStore = defineStore('diagram', () => {
   const selectedId = ref<DiagramId | null>(null)
   const loaded = ref(false)
   const opening = ref(false)
-  const pending = ref<PendingGeneration[]>([])
+  const pending = ref<PendingGeneration[]>(readPending())
   /** The last diagram a session delivered, so the library can mark its arrival once. */
   const arrivedId = ref<DiagramId | null>(null)
-  let nextPendingKey = 0
+  let nextPendingKey = pending.value.reduce((highest, generation) => Math.max(highest, generation.key + 1), 0)
 
   const current = computed<Diagram | null>(() => (selectedId.value ? cache.value[selectedId.value] ?? null : null))
+
+  const byTask = computed(() => groupByTask(summaries.value))
+
+  /** Tasks a session is drawing for now: a generation whose terminal is known to have ended is not. */
+  const generatingTaskIds = computed<ReadonlySet<TaskId>>(() => {
+    const terminals = useTerminalStore().terminals
+    const ended = new Set(terminals.filter((terminal) => !terminal.live).map((terminal) => terminal.id))
+    return new Set(pending.value.filter((generation) => !ended.has(generation.terminalId)).map((generation) => generation.taskId))
+  })
 
   async function load(): Promise<void> {
     summaries.value = await fetchDiagrams()
@@ -90,12 +120,17 @@ export const useDiagramStore = defineStore('diagram', () => {
       terminalId: terminal.id,
       startedAt: Date.now()
     }
-    pending.value = [generation, ...pending.value]
+    setPending([generation, ...pending.value.filter((known) => known.taskId !== taskId)])
     return generation
   }
 
   function dismissPending(key: number): void {
-    pending.value = pending.value.filter((generation) => generation.key !== key)
+    setPending(pending.value.filter((generation) => generation.key !== key))
+  }
+
+  function setPending(next: PendingGeneration[]): void {
+    pending.value = next
+    writePending(next)
   }
 
   /** A diagram written or deleted anywhere: a session, another window, this one. */
@@ -108,7 +143,9 @@ export const useDiagramStore = defineStore('diagram', () => {
     const isNew = !summaries.value.some((known) => known.id === summary.id)
     upsertSummary(summary)
     cache.value = without(cache.value, summary.id)
-    const answered = pending.value.find((generation) => generation.projectId === summary.projectId)
+    const answered = pending.value.find((generation) =>
+      summary.taskId ? generation.taskId === summary.taskId : generation.projectId === summary.projectId
+    )
     if (answered) {
       dismissPending(answered.key)
       arrivedId.value = summary.id
@@ -133,6 +170,8 @@ export const useDiagramStore = defineStore('diagram', () => {
 
   return {
     summaries,
+    byTask,
+    generatingTaskIds,
     selectedId,
     current,
     loaded,

@@ -7,13 +7,14 @@ import { useAsyncAction } from '@/composables/useAsyncAction'
 import { preferredEffort, preferredModel, skipsPermissions } from '@/common/config/claude-launch'
 import { useToastStore } from '@/stores/toast.store'
 import { sessionAtWork } from '@/model/session-at-work'
+import StepSeal from '@/components/console/StepSeal.vue'
 import type { TaskId, TaskStepId } from '@/model/branded'
 
 /**
  * Starts the task's session without leaving the pane it was pressed on; the sessions dock is the
  * way back to it. One glyph that changes: `idle` a play mark, `launching` the mark runs out
- * through the edge, `waiting` an open ring turning while the server answers, `done` the ring
- * closing on a check, `working` a comet orbiting until the session claims the work or ends. Only
+ * through the edge, `waiting` an open ring turning while the server answers, `done` the
+ * step's green seal settling in, `working` a comet orbiting until the session claims the work or ends. Only
  * `idle` takes a press, and the button keeps its width throughout.
  */
 const props = withDefaults(
@@ -122,15 +123,15 @@ onBeforeUnmount(() => {
 <template>
   <button
     type="button"
-    class="focus-ring relative inline-flex h-7 shrink-0 items-center gap-1.5 overflow-hidden rounded-[var(--radius-control)] border px-2.5 text-xs font-medium transition-colors duration-200 active:translate-y-px"
+    class="focus-ring relative inline-flex h-7 shrink-0 items-center gap-1.5 overflow-hidden rounded-[3px] px-2.5 text-xs font-medium"
     :class="[
       phase === 'done'
-        ? 'run-done border-transparent text-safe'
+        ? 'key-quiet'
         : ready
-          ? 'border-accent bg-accent-soft text-accent'
-          : 'border-transparent bg-transparent text-text-subtle hover:bg-surface-raised hover:text-text-muted',
-      ready && phase === 'idle' && 'hover:bg-accent hover:text-accent-ink',
-      phase === 'working' && 'run-working',
+          ? phase === 'working'
+            ? 'key-lit'
+            : 'key-gold font-semibold'
+          : 'bg-transparent text-text-subtle transition-colors hover:bg-surface-raised hover:text-text-muted',
       busy && 'cursor-default'
     ]"
     :aria-busy="busy"
@@ -182,10 +183,12 @@ onBeforeUnmount(() => {
       class="absolute inset-0 grid place-items-center"
       aria-hidden="true"
     >
-      <svg class="size-4" viewBox="0 0 16 16" fill="none">
+      <span v-if="phase === 'done'" class="run-seal block size-[18px]">
+        <StepSeal state="DONE" complete />
+      </span>
+      <svg v-else class="size-4" viewBox="0 0 16 16" fill="none">
         <circle
-          class="run-ring"
-          :class="phase === 'waiting' ? 'run-ring-open' : 'run-ring-closed'"
+          class="run-ring run-ring-open"
           cx="8"
           cy="8"
           r="6.4"
@@ -193,16 +196,6 @@ onBeforeUnmount(() => {
           stroke="currentColor"
           stroke-width="1.4"
           stroke-linecap="round"
-        />
-        <path
-          v-if="phase === 'done'"
-          class="run-check"
-          d="M5.2 8.3 7.1 10.1 10.9 6"
-          pathLength="1"
-          stroke="currentColor"
-          stroke-width="1.5"
-          stroke-linecap="round"
-          stroke-linejoin="round"
         />
       </svg>
     </span>
@@ -240,23 +233,19 @@ onBeforeUnmount(() => {
   animation: dial-sweep 800ms linear infinite;
 }
 
-.run-ring-closed {
-  stroke-dasharray: 100;
-  stroke-dashoffset: 0;
-  animation: run-ring-close 340ms cubic-bezier(0.3, 0.7, 0.2, 1);
+/* The step's own seal, set into the key: it settles in rather than appearing. */
+.run-seal {
+  animation: run-seal-in 260ms cubic-bezier(0.3, 0.7, 0.2, 1) both;
 }
 
-.run-check {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  animation: run-check-draw 240ms cubic-bezier(0.3, 0.7, 0.2, 1) 220ms forwards;
+/* The key clips its overflow for the play mark's exit, so the seal's light must fade within the
+   5px between seal and key edge, or it is cut into a band. */
+.run-seal :deep(.seal[data-state]) {
+  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.6))
+    drop-shadow(0 0 3px color-mix(in srgb, var(--seal) 45%, transparent));
 }
 
 /* The seal's RUNNING motion at button size: a comet orbits a faint track and the core breathes. */
-.run-working {
-  border-color: color-mix(in srgb, var(--color-accent) 38%, transparent);
-}
-
 .run-orbit {
   animation: fade-in 260ms ease-out both;
 }
@@ -305,11 +294,6 @@ onBeforeUnmount(() => {
   animation: fade-in 260ms ease-out both;
 }
 
-.run-done {
-  background: color-mix(in srgb, var(--color-safe) 12%, transparent);
-  border-color: color-mix(in srgb, var(--color-safe) 30%, transparent);
-}
-
 @keyframes run-play-away {
   0% {
     transform: translateX(0);
@@ -331,17 +315,6 @@ onBeforeUnmount(() => {
   }
 }
 
-@keyframes run-ring-close {
-  from {
-    stroke-dashoffset: 100;
-    transform: rotate(-90deg);
-  }
-  to {
-    stroke-dashoffset: 0;
-    transform: rotate(0deg);
-  }
-}
-
 @keyframes run-orbit {
   to {
     transform: rotate(360deg);
@@ -355,9 +328,10 @@ onBeforeUnmount(() => {
   }
 }
 
-@keyframes run-check-draw {
-  to {
-    stroke-dashoffset: 0;
+@keyframes run-seal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
   }
 }
 </style>

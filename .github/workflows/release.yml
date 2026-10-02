@@ -1,38 +1,29 @@
 name: Release
 
-# Two triggers, one pipeline.
+# Builds and publishes a versioned release, and only that: a push to main builds nothing.
 #
-#   push to main      rebuilds everything and republishes the rolling `latest` release
-#   push a v* tag     publishes a versioned release: git tag v0.1.1 && git push origin v0.1.1
+#   git tag v0.1.1 && git push origin v0.1.1
 #
-# The `latest` tag is moved to the new commit on every main build, so it always names the head of
-# main rather than wherever it happened to be created. That release is marked as a prerelease on
-# purpose: GitHub's /releases/latest resolves to the newest release that is NOT a prerelease, so
-# marking it keeps that URL pointing at the newest v* tag while the rolling build stays reachable
-# at its own explicit tag.
+# The tag has to name a commit already on main; a tag pushed on any other commit fails the run
+# before anything is built. GitHub's /releases/latest resolves to the newest release, so a link
+# that goes through it always downloads the newest tag:
+#   https://github.com/ValerioMC/rekall/releases/latest/download/Rekall-macos-arm64.dmg
 #
-# Which is why a download link on a web page uses the tag path and not the latest path:
-#   https://github.com/ValerioMC/rekall/releases/download/latest/Rekall-macos-arm64.dmg   rolling
+# Assets:
+#   rekall-v0.1.1-linux-x64         the server, console embedded
+#   rekall-v0.1.1-windows-x64.exe   the server, console embedded
+#   Rekall-macos-arm64.dmg          Rekall.app (Tauri), Apple Silicon
 #
-# Assets, named without a version on the rolling release and with the tag on a versioned one:
-#   rekall-linux-x64        rekall-v0.1.1-linux-x64         the server, console embedded
-#   rekall-windows-x64.exe  rekall-v0.1.1-windows-x64.exe   the server, console embedded
-#   Rekall-macos-arm64.dmg  Rekall-macos-arm64.dmg          Rekall.app (Tauri), Apple Silicon
-#
-# The disk image keeps the same name on both, because it is the one asset a link off-site points
-# at and a name that moves would defeat that.
+# The disk image carries no version in its name, because it is the one asset a link off-site
+# points at and a name that moves would defeat that.
 on:
   push:
-    branches:
-      - main
     tags:
       - "v*.*.*"
 
-# A second commit on main while the first is still building would race for the same release.
-# The newer one wins; a tag build has a group of its own and is never cancelled.
 concurrency:
   group: release-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref == 'refs/heads/main' }}
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -43,32 +34,25 @@ jobs:
     outputs:
       tag: ${{ steps.target.outputs.tag }}
       suffix: ${{ steps.target.outputs.suffix }}
-      rolling: ${{ steps.target.outputs.rolling }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Refuse a tag that is not on main
+        run: |
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::$GITHUB_REF_NAME names $GITHUB_SHA, which is not on main."
+            exit 1
+          fi
 
       # One decision, made once and read by the other jobs, so they cannot disagree about which
       # release they are uploading to.
       - name: Resolve the release this run publishes
         id: target
         run: |
-          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
-            echo "tag=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
-            echo "suffix=-$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
-            echo "rolling=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "tag=latest" >> "$GITHUB_OUTPUT"
-            echo "suffix=" >> "$GITHUB_OUTPUT"
-            echo "rolling=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      # A release object stores its tag as a string and never moves it, so the tag has to be
-      # moved here or `latest` would keep naming the commit it was first created on.
-      - name: Move the latest tag to this commit
-        if: steps.target.outputs.rolling == 'true'
-        run: |
-          git tag -f latest
-          git push -f origin latest
+          echo "tag=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+          echo "suffix=-$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
 
       - uses: pnpm/action-setup@v4
         with:
@@ -103,16 +87,13 @@ jobs:
           echo "path=$release_name" >> "$GITHUB_OUTPUT"
 
       # This is the step that creates the release the other jobs then upload into, which is why
-      # they depend on this job rather than running beside it. An asset uploaded under a name that
-      # is already on the release replaces it, so a rebuilt `latest` never accumulates.
+      # they depend on this job rather than running beside it.
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.target.outputs.tag }}
-          name: ${{ steps.target.outputs.rolling == 'true' && 'Latest build from main' || '' }}
-          prerelease: ${{ steps.target.outputs.rolling == 'true' }}
-          make_latest: ${{ steps.target.outputs.rolling != 'true' }}
-          generate_release_notes: ${{ steps.target.outputs.rolling != 'true' }}
+          make_latest: true
+          generate_release_notes: true
           files: ${{ steps.bin.outputs.path }}
 
   # The same bundle `make dmg` builds locally.
@@ -149,8 +130,7 @@ jobs:
         working-directory: rekall-app/desktop
         run: cargo tauri build --bundles dmg
 
-      # The disk image keeps one name on every release, versioned or rolling, because a link on a
-      # web page points at it. The name Tauri writes carries the version and the architecture, so
+      # The disk image keeps one name on every release, because a link on a web page points at it. The name Tauri writes carries the version and the architecture, so
       # the file is found by pattern rather than by guessing that string.
       - name: Locate disk image
         run: |

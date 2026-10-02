@@ -3,6 +3,7 @@ import { computed, ref, useId } from 'vue'
 import { canLaunchClaudeCode, launchClaudeCode } from '@/common/native/desktop'
 import { skipsPermissions } from '@/common/config/claude-launch'
 import { useToastStore } from '@/stores/toast.store'
+import StepSeal from '@/components/console/StepSeal.vue'
 
 defineOptions({ inheritAttrs: false })
 
@@ -32,8 +33,8 @@ const detail = computed(() =>
 
 const toneClasses = computed(() =>
   props.folder
-    ? 'border-border bg-transparent text-text-muted hover:border-border-strong hover:bg-surface-raised hover:text-text'
-    : 'border-transparent bg-transparent text-text-subtle hover:bg-surface-raised hover:text-text-muted'
+    ? 'key-quiet'
+    : 'border border-transparent bg-transparent text-text-subtle hover:bg-surface-raised hover:text-text-muted'
 )
 
 const buttonEl = ref<HTMLButtonElement | null>(null)
@@ -93,7 +94,7 @@ async function launch(): Promise<void> {
     ref="buttonEl"
     v-bind="$attrs"
     type="button"
-    class="launch-btn focus-ring relative inline-flex h-7 shrink-0 items-center gap-1.5 rounded-[var(--radius-control)] border px-2.5 text-xs font-medium transition-all duration-150 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
+    class="launch-btn focus-ring relative inline-flex h-7 shrink-0 items-center gap-1.5 rounded-[3px] px-2.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-60"
     :class="[toneClasses, nudging && 'nudge', phase === 'launched' && 'flash']"
     :disabled="phase === 'launching'"
     :aria-describedby="descriptionId"
@@ -112,15 +113,7 @@ async function launch(): Promise<void> {
           class="size-3 animate-spin rounded-full border-[1.6px] border-current/25 border-t-current"
           aria-hidden="true"
         />
-        <svg v-else-if="phase === 'launched'" key="check" class="size-3.5" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-          <path
-            d="M2.1 6.3 4.6 8.8 9.9 3.4"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
+        <StepSeal v-else-if="phase === 'launched'" key="check" class="size-3.5" state="DONE" complete />
         <svg v-else key="out" class="size-3.5" viewBox="0 0 12 12" fill="none" aria-hidden="true">
           <path
             d="M9.4 6.9v2a1.1 1.1 0 0 1-1.1 1.1H3a1.1 1.1 0 0 1-1.1-1.1V3.6A1.1 1.1 0 0 1 3 2.5h2"

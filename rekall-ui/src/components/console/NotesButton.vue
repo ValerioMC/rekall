@@ -28,11 +28,11 @@ const count = computed(
   <div ref="host" class="relative inline-flex h-7 shrink-0" data-testid="notes-group">
     <button
       type="button"
-      class="focus-ring relative inline-flex items-center gap-1.5 rounded-[var(--radius-control)] border px-2.5 text-xs font-medium transition-all duration-150 active:translate-y-px"
+      class="focus-ring relative inline-flex items-center gap-1.5 rounded-[3px] px-2.5 text-xs font-medium"
       :class="
         pickerOpen
-          ? 'border-border-strong bg-surface-raised text-text'
-          : 'border-border bg-transparent text-text-muted hover:border-border-strong hover:bg-surface-raised hover:text-text'
+          ? 'key-quiet translate-y-px text-text'
+          : 'key-quiet'
       "
       :title="count ? `${count} note${count === 1 ? '' : 's'} on this task. Add or remove one.` : 'Put a note on this task'"
       aria-haspopup="dialog"

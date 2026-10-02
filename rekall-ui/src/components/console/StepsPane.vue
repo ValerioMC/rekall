@@ -515,7 +515,7 @@ onUnmounted(() => {
             list, until you promote it.
           </p>
           <button
-            class="focus-ring mt-5 rounded-[var(--radius-control)] border border-accent bg-accent-soft px-3.5 py-2 text-[12.5px] font-medium text-accent transition-colors hover:bg-accent hover:text-accent-ink"
+            class="key-gold rounded-[3px] focus-ring mt-5 px-3.5 py-2 text-[12.5px] font-medium"
             data-testid="write-first-step"
             @click="focusAdd"
           >
@@ -603,7 +603,7 @@ onUnmounted(() => {
             </button>
 
             <div
-              class="min-w-0 rounded-[var(--radius-card)] border px-3 py-2 transition-all"
+              class="min-w-0 rounded-[var(--radius-card)] border px-3 py-2 transition-[opacity,border-color] duration-150"
               :class="[
                 step.state === 'RUNNING'
                   ? 'panel-gold'
@@ -612,7 +612,7 @@ onUnmounted(() => {
                     : step.id === currentId
                       ? 'panel-slate'
                       : 'border-transparent group-hover/step:border-border',
-                step.state === 'DONE' && 'opacity-60 hover:opacity-100'
+                step.state === 'DONE' && 'opacity-60 group-hover/step:opacity-100'
               ]"
             >
               <div class="flex items-start gap-2">
@@ -727,7 +727,7 @@ onUnmounted(() => {
                     </svg>
                   </button>
                   <button
-                    class="focus-ring grid size-6 place-items-center rounded text-text-subtle transition-colors hover:bg-surface-hover hover:text-danger"
+                    class="focus-ring grid size-6 place-items-center rounded text-text-subtle transition-colors hover:bg-surface-hover"
                     :aria-label="`Delete ${step.title}`"
                     data-testid="step-delete"
                     @click="deleting = step"
@@ -779,14 +779,14 @@ onUnmounted(() => {
                     :folder="selectedTask.projectRepoFolder"
                   />
                   <button
-                    class="focus-ring h-7 shrink-0 rounded-[var(--radius-control)] border border-accent bg-accent-soft px-3 text-[11.5px] font-medium text-accent transition-colors hover:bg-accent hover:text-accent-ink"
+                    class="key-gold rounded-[3px] focus-ring h-7 shrink-0 px-3 text-[11.5px] font-medium"
                     data-testid="step-accept"
                     @click="markForward(step)"
                   >
                     Accept
                   </button>
                   <button
-                    class="focus-ring h-7 shrink-0 rounded-[var(--radius-control)] border border-border-strong px-3 text-[11.5px] font-medium text-text-subtle transition-colors hover:border-danger hover:text-danger"
+                    class="key-quiet rounded-[3px] focus-ring h-7 shrink-0 px-3 text-[11.5px] font-medium"
                     data-testid="step-send-back"
                     @click="sendBack(step)"
                   >
@@ -803,12 +803,8 @@ onUnmounted(() => {
                     Accepted. Reopening drops it back to open and clears the review it passed.
                   </span>
                   <button
-                    class="focus-ring h-7 shrink-0 rounded-[var(--radius-control)] border px-3 text-[11.5px] font-medium transition-colors"
-                    :class="
-                      reopenArmed === step.id
-                        ? 'border-danger bg-danger-soft text-danger'
-                        : 'border-border-strong text-text-subtle hover:border-danger hover:text-danger'
-                    "
+                    class="focus-ring h-7 shrink-0 rounded-[3px] px-3 text-[11.5px] font-medium"
+                    :class="reopenArmed === step.id ? 'key-danger' : 'key-quiet'"
                     data-testid="step-reopen"
                     @click="reopen(step)"
                   >
@@ -961,7 +957,7 @@ onUnmounted(() => {
                            each wearing a filled amber button is a shelf of competing calls to
                            action, and amber is kept for the one you are about to press. -->
                       <button
-                        class="focus-ring group/promote inline-flex h-7 shrink-0 items-center gap-1.5 rounded-[var(--radius-control)] border border-border-strong px-2.5 text-[11px] font-medium text-text-muted transition-colors hover:border-accent/60 hover:bg-accent-soft hover:text-accent disabled:cursor-not-allowed disabled:opacity-40"
+                        class="key-quiet rounded-[3px] focus-ring group/promote inline-flex h-7 shrink-0 items-center gap-1.5 px-2.5 text-[11px] font-medium disabled:cursor-not-allowed disabled:opacity-40"
                         :class="promoting === step.id && 'settle'"
                         :disabled="promoting === step.id"
                         :title="`Put ${step.title} on the checklist`"
@@ -1022,7 +1018,7 @@ onUnmounted(() => {
                           </svg>
                         </button>
                         <button
-                          class="focus-ring grid size-6 place-items-center rounded text-text-subtle transition-colors hover:bg-surface-hover hover:text-danger"
+                          class="focus-ring grid size-6 place-items-center rounded text-text-subtle transition-colors hover:bg-surface-hover"
                           :aria-label="`Delete ${step.title}`"
                           data-testid="draft-delete"
                           @click="deleting = step"
@@ -1123,7 +1119,7 @@ onUnmounted(() => {
         />
         <button
           type="submit"
-          class="focus-ring h-(--spacing-control) shrink-0 rounded-[var(--radius-control)] border border-accent bg-accent-soft px-3.5 text-[12.5px] font-medium text-accent transition-colors hover:bg-accent hover:text-accent-ink disabled:cursor-not-allowed disabled:opacity-40"
+          class="key-gold rounded-[3px] focus-ring h-(--spacing-control) shrink-0 px-3.5 text-[12.5px] font-medium disabled:cursor-not-allowed disabled:opacity-40"
           :disabled="!newTitle.trim()"
           data-testid="add-step"
         >

@@ -25,6 +25,7 @@ import { groupOf, neighbourhoodOf } from '@/common/diagram/neighbourhood'
 import { filesOf, normalisePath } from '@/common/diagram/code-index'
 import type { Spotlight } from '@/common/diagram/emphasis'
 import type { DiagramDraft, NodeKind } from '@/model/diagram'
+import type { Task } from '@/model/catalog'
 import type { DiagramId, ProjectId, TaskId } from '@/model/branded'
 
 /**
@@ -150,6 +151,7 @@ async function generate(projectId: ProjectId, taskId: TaskId, request: string): 
   generating.value = false
   if (!started) return
   showGenerateDialog.value = false
+  generateFor.value = null
   toast.notify('A session is drawing it. It will appear here when it is done.', {
     label: 'Open terminal',
     run: () => openTerminal(started)
@@ -186,6 +188,13 @@ async function removeCurrent(): Promise<void> {
 
 const showGenerateDialog = ref(false)
 const showImportDialog = ref(false)
+/** Set when the request starts from a task row, so the dialog does not ask for the task again. */
+const generateFor = ref<TaskId | null>(null)
+
+function askToGenerate(task: Task | null): void {
+  generateFor.value = task?.id ?? null
+  showGenerateDialog.value = true
+}
 
 function onKeydown(event: KeyboardEvent): void {
   if (isModalOpen.value > 0 || !diagram.value) return
@@ -216,6 +225,7 @@ function onKeydown(event: KeyboardEvent): void {
 onMounted(() => {
   window.addEventListener('keydown', onKeydown)
   void run(() => store.load())
+  void run(() => terminals.load())
 })
 onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
@@ -231,7 +241,7 @@ const blast = computed(() =>
     <AppCatalogHeader title="Diagrams">
       <template #actions>
         <AppButton size="sm" variant="secondary" data-testid="diagram-import-open" @click="showImportDialog = true">Import</AppButton>
-        <AppButton size="sm" variant="primary" data-testid="diagram-generate-open" @click="showGenerateDialog = true">
+        <AppButton size="sm" variant="primary" data-testid="diagram-generate-open" @click="askToGenerate(null)">
           <svg viewBox="0 0 16 16" class="size-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.2 9.5 6.5 13.8 8 9.5 9.5 8 13.8 6.5 9.5 2.2 8 6.5 6.5Z" /></svg>
           Generate
         </AppButton>
@@ -241,6 +251,8 @@ const blast = computed(() =>
     <div class="flex min-h-0 flex-1">
       <DiagramLibrary
         :summaries="store.summaries"
+        :by-task="store.byTask"
+        :generating="store.generatingTaskIds"
         :projects="console_.projects"
         :tasks="console_.tasks"
         :pending="store.pending"
@@ -248,6 +260,7 @@ const blast = computed(() =>
         :arrived-id="store.arrivedId"
         :loaded="store.loaded"
         @select="openDiagram"
+        @generate="askToGenerate"
         @open-terminal="openTerminal"
         @dismiss="store.dismissPending"
       />
@@ -294,7 +307,7 @@ const blast = computed(() =>
               </template>
               <div class="flex gap-2">
                 <AppButton size="sm" variant="secondary" @click="showImportDialog = true">Import</AppButton>
-                <AppButton size="sm" variant="primary" @click="showGenerateDialog = true">Generate a diagram</AppButton>
+                <AppButton size="sm" variant="primary" @click="askToGenerate(null)">Generate a diagram</AppButton>
               </div>
             </AppEmptyState>
           </div>
@@ -334,9 +347,10 @@ const blast = computed(() =>
         v-if="showGenerateDialog"
         :projects="console_.projects"
         :tasks="console_.tasks"
-        :initial-task-id="diagram?.taskId ?? console_.selectedTaskId"
+        :initial-task-id="generateFor ?? diagram?.taskId ?? console_.selectedTaskId"
+        :task-fixed="generateFor !== null"
         :sending="generating || isRunning"
-        @cancel="showGenerateDialog = false"
+        @cancel="(showGenerateDialog = false), (generateFor = null)"
         @generate="generate"
       />
     </Transition>

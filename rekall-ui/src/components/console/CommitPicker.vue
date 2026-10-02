@@ -227,7 +227,7 @@ onUnmounted(() => {
         />
         <button
           type="submit"
-          class="focus-ring h-7 shrink-0 rounded-[var(--radius-control)] border border-accent bg-accent-soft px-3 text-[11.5px] font-medium text-accent transition-colors hover:bg-accent hover:text-accent-ink disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-accent-soft disabled:hover:text-accent"
+          class="key-gold rounded-[3px] focus-ring h-7 shrink-0 px-3 text-[11.5px] font-medium disabled:cursor-not-allowed disabled:opacity-50"
           :disabled="busy || !pastedIsHash"
           data-testid="commit-picker-log-pasted"
         >

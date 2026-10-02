@@ -18,7 +18,7 @@ function onRestored(): void {
 <template>
   <button
     type="button"
-    class="focus-ring inline-flex h-7 shrink-0 items-center gap-1.5 rounded-[var(--radius-control)] border border-border bg-transparent px-2.5 text-xs font-medium text-text-muted transition-all duration-150 hover:border-border-strong hover:bg-surface-raised hover:text-text active:translate-y-px"
+    class="key-quiet focus-ring inline-flex h-7 shrink-0 items-center gap-1.5 rounded-[3px] px-2.5 text-xs font-medium"
     title="Earlier versions, kept whenever something replaced or deleted this"
     aria-haspopup="dialog"
     data-testid="revision-history-open"

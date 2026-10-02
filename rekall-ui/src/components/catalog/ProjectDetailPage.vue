@@ -389,7 +389,7 @@ How it's built, how it's organised, the conventions to follow while working in i
               </span>
               <span class="shrink-0 text-[11px] text-text-subtle">{{ TASK_STATUS_LABEL[task.status] }}</span>
               <button
-                class="focus-ring shrink-0 rounded-[var(--radius-control)] border border-border-strong px-2.5 py-1 text-[11.5px] text-text-muted transition-colors hover:border-accent hover:text-accent"
+                class="key-quiet focus-ring shrink-0 rounded-[3px] px-2.5 py-1 text-[11.5px]"
                 @click="openInConsole(task.id)"
               >
                 Open in console

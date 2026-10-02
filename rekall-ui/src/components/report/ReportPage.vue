@@ -175,7 +175,7 @@ async function copyAnchor(taskAnchor: string): Promise<void> {
 
           <div class="flex items-center gap-2">
             <button
-              class="focus-ring grid size-8 place-items-center rounded-[var(--radius-control)] border border-border-strong bg-surface-raised text-text-subtle transition-colors hover:border-accent hover:bg-surface-hover hover:text-text"
+              class="key-quiet focus-ring grid size-8 place-items-center rounded-[3px]"
               aria-label="Previous period"
               data-testid="report-prev"
               @click="shift(-1)"
@@ -191,7 +191,7 @@ async function copyAnchor(taskAnchor: string): Promise<void> {
               {{ range.label }}
             </p>
             <button
-              class="focus-ring grid size-8 place-items-center rounded-[var(--radius-control)] border border-border-strong bg-surface-raised text-text-subtle transition-colors hover:border-accent hover:bg-surface-hover hover:text-text"
+              class="key-quiet focus-ring grid size-8 place-items-center rounded-[3px]"
               aria-label="Next period"
               data-testid="report-next"
               @click="shift(1)"

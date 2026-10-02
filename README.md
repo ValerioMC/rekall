@@ -44,15 +44,15 @@ Nothing in Rekall authenticates, and its API can open a `claude` terminal in a p
 
 ## macOS application
 
-A disk image for Apple Silicon is published on every commit to `main`.
+A disk image for Apple Silicon is published with every `v*` tag pushed on a commit of `main`.
 
 | | |
 |---|---|
-| Download | [Rekall-macos-arm64.dmg](https://github.com/ValerioMC/rekall/releases/download/latest/Rekall-macos-arm64.dmg) |
+| Download | [Rekall-macos-arm64.dmg](https://github.com/ValerioMC/rekall/releases/latest/download/Rekall-macos-arm64.dmg) |
 | Needs | macOS 13 or later, Apple Silicon |
 | Install | Drag Rekall onto Applications, then run the `xattr` command below once |
 
-The image tracks the head of `main` and changes under the link without notice. A fixed build is a `v*` tag. It builds on a `macos-14` runner from `.github/workflows/release.yml`. The same release carries `rekall-server` for Linux and Windows, with the console embedded.
+The link always resolves to the newest tagged release. A push to `main` builds nothing; a release is cut with `git tag v0.1.1 && git push origin v0.1.1`, and a tag on a commit that is not on `main` fails before anything is built. It builds on a `macos-14` runner from `.github/workflows/release.yml`. The same release carries `rekall-server` for Linux and Windows, with the console embedded.
 
 ### Build locally
 
@@ -325,7 +325,9 @@ The screen has three columns. On the left is the library, grouped by project. In
 - **CODE → CONCEPT.** With nothing selected, the inspector lists the files the diagram points at. Picking one lights the elements it implements. `GET /api/projects/{id}/diagram-trace?file=&line=` answers the same question across every diagram of a project.
 - **Keys.** `f` fit, `+` `-` `0` zoom, `/` find, `l` lens, `d` direction, `esc` clear. The wheel pans; pinch or `⌘`-wheel zooms.
 
-**Generate** opens a terminal on the task you pick with `/rk project:<p> task:<t> generate "<request>"` as its first line (`mode: GENERATE` on `POST /api/tasks/{id}/terminals`). The library shows the request as generating until a diagram for that project arrives on the event stream (`diagram` frames). The session finds and reads the code on its own, from the project's folder, and never asks where it is or what to read. It describes the behaviour the request is about, splitting monolithic functions into the pieces they perform, and calls `rekall_diagram`. That tool carries the whole of [docs/SEMANTIC-GRAPH.md](docs/SEMANTIC-GRAPH.md) in its description. It stores the diagram on the task's project with the task as its origin, but only after the graph passes every rule and every source span is held against the project folder: the file has to exist and the lines have to be inside it. A refusal lists each broken rule with its path, and nothing is stored until the graph passes. `diagram` replaces an existing diagram in place. **Import** stores a graph written elsewhere, checked against the same rules but not against the folder.
+The library on the left lists tasks, grouped by project, not diagrams. A task carries a tag for its diagrams (**Generating** with a moving ring while a session draws one, **Diagram** with a count once one exists, nothing otherwise). Picking a task opens its latest diagram, picking a generating one goes to its terminal, and picking one with no diagram asks for one: the dialog only asks what to show. **All tasks / With a diagram** narrows the list, and diagrams tied to no task (imports) sit under *Not tied to a task*.
+
+**Generate** opens a terminal on the task you pick with `/rk project:<p> task:<t> generate "<request>"` as its first line (`mode: GENERATE` on `POST /api/tasks/{id}/terminals`). The task is marked **Generating** until a diagram for that task arrives on the event stream (`diagram` frames); a generation survives a reload within the tab and stops counting once its terminal is known to have ended. The session finds and reads the code on its own, from the project's folder, and never asks where it is or what to read. It describes the behaviour the request is about, splitting monolithic functions into the pieces they perform, and calls `rekall_diagram`. That tool carries the whole of [docs/SEMANTIC-GRAPH.md](docs/SEMANTIC-GRAPH.md) in its description. It stores the diagram on the task's project with the task as its origin, but only after the graph passes every rule and every source span is held against the project folder: the file has to exist and the lines have to be inside it. A refusal lists each broken rule with its path, and nothing is stored until the graph passes. `diagram` replaces an existing diagram in place. **Import** stores a graph written elsewhere, checked against the same rules but not against the folder.
 
 | Route | Effect |
 |---|---|
@@ -482,7 +484,7 @@ cd rekall-ui && pnpm lint && pnpm typecheck && pnpm test
 
 Each crate keeps its tests under `tests/`: `tests/unit/` mirrors `src/` (`rekall-service/src/search/search_service.rs` is tested by `rekall-service/tests/unit/search/search_service_tests.rs`, attached with `#[cfg(test)] #[path = "…"] mod tests;` so it can test private functions) and `tests/integration/` holds the integration suites. A new integration suite has to be declared as a `[[test]]` in the crate's `Cargo.toml`, or it never runs. The end-to-end suites in `rekall-app/tests/integration` start the whole application on a real port with a file database and drive the HTTP API, the MCP endpoint and the event stream; a stub stands in for the `claude` TUI in the terminal and run-queue tests.
 
-`.github/workflows/check.yml` runs all of it on every pull request and every push to a branch other than `main`: clippy and `cargo test`, eslint, vue-tsc, vitest, a production build of the UI, and a build of the desktop app. `release.yml` builds and publishes `main`.
+`.github/workflows/check.yml` runs all of it on every pull request and every push to a branch other than `main`: clippy and `cargo test`, eslint, vue-tsc, vitest, a production build of the UI, and a build of the desktop app. `release.yml` runs only on a `v*` tag on `main`, and builds and publishes that release.
 
 ## Design
 

@@ -309,8 +309,8 @@ onBeforeUnmount(() => {
           <div class="flex shrink-0 items-center gap-1.5">
             <div v-if="otherSessions.length > 0" class="relative" @keydown="onSwitcherKeydown">
               <button
-                class="focus-ring inline-flex h-7 items-center gap-1.5 rounded-[var(--radius-control)] border border-border-strong px-2.5 text-[11.5px] text-text-muted transition-colors hover:border-anchor/50 hover:text-text"
-                :class="switcherOpen && 'border-anchor/50 text-text'"
+                class="rounded-[3px] focus-ring inline-flex h-7 items-center gap-1.5 px-2.5 text-[11.5px]"
+                :class="switcherOpen ? 'key-lit' : 'key-quiet'"
                 data-testid="terminal-other-sessions"
                 aria-haspopup="true"
                 :aria-expanded="switcherOpen"
@@ -362,7 +362,7 @@ onBeforeUnmount(() => {
             </div>
             <button
               v-if="activeTerminal"
-              class="focus-ring inline-flex h-7 items-center gap-1.5 rounded-[var(--radius-control)] border border-border-strong px-2.5 text-[11.5px] text-text-muted transition-colors hover:border-text-subtle hover:text-text"
+              class="key-quiet rounded-[3px] focus-ring inline-flex h-7 items-center gap-1.5 px-2.5 text-[11.5px]"
               data-testid="terminal-restart"
               :disabled="isRunning"
               @click="restart"
@@ -371,7 +371,7 @@ onBeforeUnmount(() => {
             </button>
             <button
               v-if="activeTerminal"
-              class="focus-ring inline-flex h-7 items-center gap-1.5 rounded-[var(--radius-control)] border border-danger/40 px-2.5 text-[11.5px] text-danger transition-colors hover:border-danger hover:bg-danger-soft"
+              class="key-danger rounded-[3px] focus-ring inline-flex h-7 items-center gap-1.5 px-2.5 text-[11.5px]"
               data-testid="terminal-close"
               :disabled="isRunning"
               @click="closeActive"
@@ -380,7 +380,7 @@ onBeforeUnmount(() => {
             </button>
             <button
               v-else
-              class="focus-ring inline-flex h-7 items-center gap-1.5 rounded-[var(--radius-control)] border border-accent bg-accent-soft px-2.5 text-[11.5px] font-medium text-accent transition-colors hover:bg-accent hover:text-accent-ink disabled:cursor-not-allowed disabled:opacity-60"
+              class="key-gold rounded-[3px] focus-ring inline-flex h-7 items-center gap-1.5 px-2.5 text-[11.5px] font-medium disabled:cursor-not-allowed disabled:opacity-60"
               data-testid="terminal-open"
               :disabled="isRunning || !folder"
               @click="openHere"

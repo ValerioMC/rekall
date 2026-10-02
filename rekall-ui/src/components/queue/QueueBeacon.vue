@@ -70,14 +70,8 @@ const label = computed(() => {
 <template>
   <button
     type="button"
-    class="focus-ring group flex h-8 max-w-[340px] shrink-0 items-center gap-1.5 rounded-[var(--radius-control)] border px-1.5 text-[12px] transition-colors hover:bg-surface-hover"
-    :class="
-      queue.state === 'HOLDING'
-        ? 'border-warn/40 bg-warn-soft text-warn hover:border-warn'
-        : queue.state === 'RUNNING'
-          ? 'border-accent/50 bg-surface-raised text-text hover:border-accent'
-          : 'border-border-strong bg-surface-raised text-text-subtle hover:border-accent'
-    "
+    class="focus-ring group flex h-8 max-w-[340px] shrink-0 items-center gap-1.5 rounded-[3px] px-1.5 text-[12px]"
+    :class="queue.state === 'HOLDING' ? 'key-warn' : queue.state === 'RUNNING' ? 'key-slate' : 'key-quiet'"
     :aria-label="label"
     :title="label"
     aria-haspopup="dialog"

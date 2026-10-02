@@ -21,7 +21,7 @@
  *
  * Only a change of state animates, and only once: a list loading in draws nothing.
  */
-import { onUnmounted, ref, watch } from 'vue'
+import { onUnmounted, ref, useId, watch } from 'vue'
 import type { TaskStatus } from '@/model/catalog'
 import type { TaskMarkState } from '@/model/task-mark'
 
@@ -35,6 +35,8 @@ const props = withDefaults(
   }>(),
   { accepted: 0, selected: false }
 )
+
+const gradientId = useId()
 
 const arrival = ref<TaskMarkState | null>(null)
 let arrivalTimer: ReturnType<typeof setTimeout> | null = null
@@ -63,17 +65,55 @@ onUnmounted(() => {
     :data-status="status"
     :data-selected="selected ? 'true' : undefined"
     :data-arrive="arrival ?? undefined"
+    :style="{
+      '--mark-well': `url(#${gradientId}-well)`,
+      '--mark-metal': `url(#${gradientId}-metal)`
+    }"
     data-testid="task-mark"
     aria-hidden="true"
   >
+    <defs>
+      <linearGradient :id="`${gradientId}-well`" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#080b10" />
+        <stop offset="1" stop-color="#252d3d" />
+      </linearGradient>
+      <radialGradient :id="`${gradientId}-metal`" cx="0.34" cy="0.26" r="0.95">
+        <stop offset="0" style="stop-color: var(--mark-hi)" />
+        <stop offset="0.5" style="stop-color: var(--mark)" />
+        <stop offset="1" style="stop-color: var(--mark-shade)" />
+      </radialGradient>
+      <linearGradient :id="`${gradientId}-gloss`" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#fff" stop-opacity="0.7" />
+        <stop offset="1" stop-color="#fff" stop-opacity="0" />
+      </linearGradient>
+    </defs>
+
     <template v-if="state === 'RESTING'">
-      <circle class="mark-halo" cx="7" cy="7" r="7" />
+      <circle class="mark-halo" cx="7" cy="7" r="6.6" />
+      <circle class="mark-rim" cx="7" cy="7" r="6.2" />
       <circle class="mark-dot" cx="7" cy="7" :r="selected ? 4 : 3.5" />
+      <ellipse
+        class="mark-gloss"
+        cx="6.5"
+        cy="5.4"
+        rx="2.1"
+        ry="1.2"
+        :fill="`url(#${gradientId}-gloss)`"
+      />
     </template>
 
     <template v-else>
       <circle v-if="arrival === 'ACCEPTED'" class="mark-ripple" cx="7" cy="7" r="6.4" />
       <circle class="mark-disc" cx="7" cy="7" r="6.4" />
+      <circle class="mark-rim" cx="7" cy="7" r="5.95" />
+      <ellipse
+        class="mark-gloss"
+        cx="7"
+        cy="4.3"
+        rx="4.1"
+        ry="2.4"
+        :fill="`url(#${gradientId}-gloss)`"
+      />
       <circle
         class="mark-ring"
         cx="7"
@@ -119,10 +159,14 @@ onUnmounted(() => {
 <style scoped>
 .mark {
   --mark: var(--color-accent);
+  --mark-hi: color-mix(in srgb, var(--mark) 55%, white);
+  --mark-shade: color-mix(in srgb, var(--mark) 60%, black);
   display: block;
   width: 100%;
   height: 100%;
   overflow: visible;
+  /* Every mark stands a hair proud of the row: a neutral contact shadow, the light from above. */
+  filter: drop-shadow(0 1px 0.8px rgb(0 0 0 / 0.6));
 }
 
 .mark[data-status='TODO'] {
@@ -141,6 +185,12 @@ onUnmounted(() => {
   --mark: var(--color-safe);
 }
 
+.mark[data-state='ACCEPTED'] {
+  --mark: var(--color-safe);
+  --mark-hi: #a6f2cd;
+  --mark-shade: #14804f;
+}
+
 /* No transform here: the ring's rotation is an SVG attribute that changes with the state, and
    easing between two rotations about a centre slides the ring off the disc. */
 .mark circle,
@@ -155,25 +205,46 @@ onUnmounted(() => {
 .mark-disc,
 .mark-ripple,
 .mark-core,
-.mark-dot {
+.mark-dot,
+.mark-gloss {
   transform-box: fill-box;
   transform-origin: center;
 }
 
 /* ---- Resting -------------------------------------------------------------------------- */
 
+/* The bowl the bead sits in, tinted by its status. */
 .mark-halo {
-  fill: color-mix(in srgb, var(--mark) 20%, transparent);
+  fill: var(--mark-well);
 }
 
 .mark-dot {
-  fill: var(--mark);
+  fill: var(--mark-metal);
+}
+
+/* The bevel of the bowl: the light catches its lower lip, not its upper one. */
+.mark-rim {
+  fill: none;
+  stroke: rgb(255 255 255 / 0.12);
+  stroke-width: 0.6;
+  stroke-dasharray: 16 100;
+  stroke-dashoffset: -16;
+}
+
+/* The specular band. Only a filled, metal face has one; a hollow well is matte. */
+.mark-gloss {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.mark[data-state='RESTING'] .mark-gloss {
+  opacity: 0.55;
 }
 
 /* ---- The disc and ring every in-progress face shares ------------------------------------ */
 
 .mark-disc {
-  fill: transparent;
+  fill: var(--mark-well);
 }
 
 .mark-ring {
@@ -198,7 +269,7 @@ onUnmounted(() => {
 /* ---- Waiting -------------------------------------------------------------------------- */
 
 .mark[data-state='WAITING'] .mark-disc {
-  fill: color-mix(in srgb, var(--color-accent) 8%, transparent);
+  fill: var(--mark-well);
 }
 
 /* Accepted work is green wherever it shows: the arc here, the whole disc once it is all of it. */
@@ -212,7 +283,7 @@ onUnmounted(() => {
 
 .mark[data-state='LIVE'] .mark-disc,
 .mark[data-state='LIVE_CLAIMED'] .mark-disc {
-  fill: color-mix(in srgb, var(--color-accent) 16%, transparent);
+  fill: var(--mark-well);
 }
 
 .mark[data-state='LIVE'] .mark-ring,
@@ -248,7 +319,11 @@ onUnmounted(() => {
 /* ---- Claimed -------------------------------------------------------------------------- */
 
 .mark[data-state='CLAIMED'] .mark-disc {
-  fill: color-mix(in srgb, var(--color-accent) 18%, transparent);
+  fill: var(--mark-well);
+}
+
+.mark[data-state='CLAIMED'] .mark-gloss {
+  opacity: 0.18;
 }
 
 .mark[data-state='CLAIMED'] .mark-ring {
@@ -264,11 +339,16 @@ onUnmounted(() => {
 /* ---- Accepted ------------------------------------------------------------------------- */
 
 .mark[data-state='ACCEPTED'] .mark-disc {
-  fill: var(--color-safe);
+  fill: var(--mark-metal);
+}
+
+.mark[data-state='ACCEPTED'] .mark-gloss {
+  opacity: 0.75;
 }
 
 .mark[data-state='ACCEPTED'] .mark-ring {
-  stroke: var(--color-safe);
+  stroke: var(--mark-hi);
+  stroke-opacity: 0.55;
 }
 
 /* The step seal's done ink: the check is cut into the green, not drawn on top of it. */
@@ -281,6 +361,7 @@ onUnmounted(() => {
 .mark[data-state='ACCEPTED'] .mark-check {
   stroke: #03200f;
   stroke-width: 1.7;
+  filter: drop-shadow(0 0.5px 0 rgb(255 255 255 / 0.45));
 }
 
 /* ---- Selected: the ring firms up the way the resting halo gets its inset line ------------ */

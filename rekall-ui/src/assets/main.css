@@ -103,8 +103,8 @@
   --font-sans: 'Fira Sans', ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'Fira Code Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  --radius-card: 14px;
-  --radius-control: 9px;
+  --radius-card: 8px;
+  --radius-control: 5px;
 
   --shadow-lift:
     inset 0 1px 0 rgb(255 255 255 / 0.12), 0 1px 2px rgb(0 0 0 / 0.55),
@@ -350,72 +350,137 @@
 }
 
 /*
- * Material utilities: the icon's three materials, as things a control can be made of.
+ * Material utilities: the icon's materials, as things a control can be made of.
  *
- *   metal-gold   brushed gold. A bright lip, a warm body, a copper shade, a fine horizontal grain.
- *   metal-slate  the icon's tile. A raised blue-slate key with a lit upper edge.
+ *   key-gold, key-slate, key-quiet, key-danger, key-lit  the flat keycaps (below).
  *   tube         a glossy pipe, like the ring: a specular band along the top, shade below. Used
  *                for progress, where the fill is the gold ring itself.
  *   trough       the recessed channel a tube sits in.
- *
- * Pressing moves the light, not the layout: the key sinks one pixel and its highlights dim.
  */
-@utility metal-gold {
+
+/*
+ * Keycaps: the same two materials as a flat face, square corners, lit from above. Depth is
+ * carried by the face itself: a bright top lip, a darker underside inside the edge and a tight
+ * neutral shadow. Nothing extrudes below the button and nothing takes the accent colour, so
+ * it reads as a raised plate, never as a button in perspective. Pressing flattens the lighting.
+ */
+@utility key-gold {
   color: var(--color-accent-ink);
-  border: 1px solid #8c5316;
-  background:
-    repeating-linear-gradient(180deg, rgb(255 255 255 / 0.035) 0 1px, transparent 1px 3px),
-    linear-gradient(
-      180deg,
-      #ffe0a0 0%,
-      var(--color-accent-strong) 8%,
-      var(--color-accent) 46%,
-      var(--color-accent-shade) 100%
-    );
+  border: 0;
+  background: linear-gradient(180deg, var(--color-accent-strong) 0%, var(--color-accent) 100%);
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.65),
-    inset 0 -1px 0 rgb(120 62 8 / 0.55),
-    0 1px 1px rgb(0 0 0 / 0.55),
-    0 6px 14px -6px rgb(234 164 60 / 0.45),
-    0 10px 18px -8px rgb(0 0 0 / 0.7);
-  text-shadow: 0 1px 0 rgb(255 255 255 / 0.35);
+    inset 0 1px 0 rgb(255 255 255 / 0.45),
+    inset 0 -1px 0 rgb(0 0 0 / 0.22),
+    0 1px 2px rgb(0 0 0 / 0.55),
+    0 4px 8px -4px rgb(0 0 0 / 0.5);
   transition:
     filter 140ms ease,
-    box-shadow 140ms ease,
+    box-shadow 120ms ease,
     transform 90ms ease;
 
   &:hover:not(:disabled) {
-    filter: brightness(1.07) saturate(1.05);
+    filter: brightness(1.06);
   }
 
   &:active:not(:disabled) {
+    transform: translateY(1px);
     filter: brightness(0.96);
     box-shadow:
-      inset 0 2px 4px rgb(120 62 8 / 0.55),
-      0 1px 0 rgb(255 255 255 / 0.08);
+      inset 0 1px 2px rgb(0 0 0 / 0.3),
+      0 1px 1px rgb(0 0 0 / 0.4);
   }
 }
 
-@utility metal-slate {
+@utility key-slate {
   color: var(--color-text);
-  border: 1px solid var(--color-border-strong);
-  background: linear-gradient(180deg, #2b3345 0%, #212836 55%, #1b212d 100%);
-  box-shadow: var(--shadow-raised);
+  border: 0;
+  background: linear-gradient(180deg, #2f384b 0%, #252d3d 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.12),
+    inset 0 -1px 0 rgb(0 0 0 / 0.3),
+    0 1px 2px rgb(0 0 0 / 0.55),
+    0 4px 8px -4px rgb(0 0 0 / 0.5);
   transition:
     background 140ms ease,
-    border-color 140ms ease,
-    box-shadow 140ms ease,
+    box-shadow 120ms ease,
     transform 90ms ease;
 
   &:hover:not(:disabled) {
-    background: linear-gradient(180deg, #323c50 0%, #283042 55%, #212836 100%);
-    border-color: color-mix(in srgb, var(--color-accent) 40%, var(--color-border-strong));
+    background: linear-gradient(180deg, #37425a 0%, #2b3447 100%);
   }
 
   &:active:not(:disabled) {
-    background: linear-gradient(180deg, #1a202b, #202735);
-    box-shadow: var(--shadow-well);
+    transform: translateY(1px);
+    box-shadow:
+      inset 0 1px 2px rgb(0 0 0 / 0.4),
+      0 1px 1px rgb(0 0 0 / 0.4);
   }
+}
+
+/*
+ * Quiet keycap: {@link key-slate} for toolbar buttons that sit flat until they are usable.
+ * Square corners, a lit lip and a neutral shadow; no outline, no extruded edge.
+ */
+@utility key-quiet {
+  color: var(--color-text-muted);
+  border: 0;
+  background: linear-gradient(180deg, #2a3243 0%, #222939 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.1),
+    inset 0 -1px 0 rgb(0 0 0 / 0.28),
+    0 1px 2px rgb(0 0 0 / 0.5),
+    0 3px 6px -3px rgb(0 0 0 / 0.45);
+  transition:
+    background 140ms ease,
+    color 140ms ease,
+    box-shadow 120ms ease,
+    transform 90ms ease;
+
+  &:hover:not(:disabled) {
+    color: var(--color-text);
+    background: linear-gradient(180deg, #343e53 0%, #2a3347 100%);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(1px);
+    box-shadow:
+      inset 0 1px 2px rgb(0 0 0 / 0.4),
+      0 1px 1px rgb(0 0 0 / 0.35);
+  }
+}
+
+/* Destructive key: {@link key-slate} with a red label; the face stays neutral. */
+@utility key-danger {
+  @apply key-slate;
+  color: var(--color-danger);
+
+  &:hover:not(:disabled) {
+    color: var(--color-danger);
+  }
+}
+
+/* Held queue: {@link key-slate} with an amber label. */
+@utility key-warn {
+  @apply key-slate;
+  color: var(--color-warn);
+
+  &:hover:not(:disabled) {
+    color: var(--color-warn);
+  }
+}
+
+/*
+ * A key held down and lit: a work in progress. The face sinks into a darker well with an inner
+ * shade and the label takes the accent colour. The light lives in the label, never in a glow.
+ */
+@utility key-lit {
+  color: var(--color-accent);
+  border: 0;
+  background: linear-gradient(180deg, #1a202b 0%, #202735 100%);
+  box-shadow:
+    inset 0 1px 2px rgb(0 0 0 / 0.55),
+    inset 0 -1px 0 rgb(255 255 255 / 0.06),
+    0 1px 0 rgb(255 255 255 / 0.05);
 }
 
 @utility trough {
@@ -521,16 +586,40 @@
  * just coloured, at a size where a box-shadow halo would be too heavy to sit next to a title.
  */
 @utility tag-glow {
-  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--tag-tint) 85%, transparent))
+  filter: drop-shadow(0 0.8px 0.5px rgb(0 0 0 / 0.55)) drop-shadow(0 0 3px color-mix(in srgb, var(--tag-tint) 85%, transparent))
     drop-shadow(0 0 7px color-mix(in srgb, var(--tag-tint) 45%, transparent));
 }
 
-/* The pill a tag badge sits in: a soft wash of its colour, a hairline the same colour, and a
-   short-range glow so it still reads as lit even where the icon's own glow is subtle. */
+/* The plate a tag badge sits on: a keycap tinted with its colour, lit lip above, darker
+   underside and a tight neutral shadow. No outline and no coloured glow beneath it. */
 @utility tag-chip {
-  background: color-mix(in srgb, var(--tag-tint) 13%, transparent);
-  border: 1px solid var(--tag-line, transparent);
-  box-shadow: 0 0 8px -3px var(--tag-tint);
+  border: 0;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--tag-tint) 24%, #2a3243) 0%,
+    color-mix(in srgb, var(--tag-tint) 12%, #1d2432) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.12),
+    inset 0 -1px 0 rgb(0 0 0 / 0.3),
+    0 1px 2px rgb(0 0 0 / 0.5);
+
+  & svg {
+    filter: drop-shadow(0 -0.5px 0 rgb(255 255 255 / 0.3)) drop-shadow(0 0.8px 0.5px rgb(0 0 0 / 0.6));
+  }
+}
+
+/* A colour swatch as a lit bead: metal highlight top-left, shaded underside, neutral shadow. */
+@utility tag-bead {
+  background: radial-gradient(
+    circle at 34% 26%,
+    color-mix(in srgb, var(--tag-tint) 55%, white) 0%,
+    var(--tag-tint) 50%,
+    color-mix(in srgb, var(--tag-tint) 60%, black) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.3),
+    0 1px 2px rgb(0 0 0 / 0.55);
 }
 
 /*
@@ -566,7 +655,7 @@
     top: 7px;
     bottom: 7px;
     width: 3px;
-    border-radius: 999px;
+    border-radius: 1px;
     background: linear-gradient(
       90deg,
       color-mix(in srgb, var(--select-tint) 55%, white),
@@ -931,7 +1020,6 @@
 
   &[aria-expanded='true'] {
     background: color-mix(in srgb, var(--dock-tint) 14%, transparent);
-    box-shadow: inset 0 -2px 0 0 var(--dock-tint);
   }
 }
 
@@ -1224,8 +1312,8 @@
  * is a text caret. It wears the anchor colour the session was opened on — `/rk <anchor>` is the
  * first line it was ever sent — which also keeps the session corner from reading as the amber
  * time corner stacked twice. Wherever it stands for sessions (the dock segment, its panel, the
- * terminal pane's other-sessions switcher, **Plan here** and **Wrapup here** at rest) it hard-blinks
- * slow. It swells to a block on a quicker beat only while a line is being handed to a session:
+ * terminal pane's other-sessions switcher, **Plan here** and **Wrapup here** at rest) it fades in and
+ * out slowly. It swells to a block on a quicker beat only while a line is being handed to a session:
  * a wrapup or a plan on its way into a live terminal. Like every mark here, it runs only
  * while a session is live.
  */
@@ -1239,7 +1327,7 @@
     0 0 8px -1px color-mix(in srgb, var(--color-anchor) 70%, transparent),
     0 1px 1px rgb(0 0 0 / 0.5);
   transform-origin: center left;
-  animation: caret-blink 1.5s steps(1, end) infinite;
+  animation: caret-blink 1.6s ease-in-out infinite;
 }
 
 @utility session-caret-busy {
@@ -1248,15 +1336,11 @@
 
 @keyframes caret-blink {
   0%,
-  46% {
-    opacity: 1;
-  }
-  50%,
-  96% {
-    opacity: 0.26;
-  }
   100% {
     opacity: 1;
+  }
+  50% {
+    opacity: 0.2;
   }
 }
 

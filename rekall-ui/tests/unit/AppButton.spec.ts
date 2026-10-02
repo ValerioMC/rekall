@@ -19,6 +19,22 @@ describe('AppButton', () => {
     expect(wrapper.find('.animate-spin').exists()).toBe(true)
   })
 
+  it('draws every solid variant as a square keycap, with no outline, and a ghost flat at rest', () => {
+    const primary = mount(AppButton, { props: { variant: 'primary' } })
+    const secondary = mount(AppButton)
+    const danger = mount(AppButton, { props: { variant: 'danger' } })
+    const ghost = mount(AppButton, { props: { variant: 'ghost' } })
+
+    expect(primary.classes()).toContain('key-gold')
+    expect(secondary.classes()).toContain('key-slate')
+    expect(danger.classes()).toContain('key-danger')
+    expect(ghost.classes()).not.toContain('key-slate')
+    for (const button of [primary, secondary, danger, ghost]) {
+      expect(button.classes()).toContain('rounded-[3px]')
+      expect(button.classes()).toContain('border-0')
+    }
+  })
+
   it('does not emit click when disabled', async () => {
     const wrapper = mount(AppButton, { props: { disabled: true } })
 

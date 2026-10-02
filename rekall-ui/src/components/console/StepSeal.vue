@@ -82,7 +82,7 @@ onUnmounted(() => {
 <template>
   <svg
     class="seal"
-    viewBox="0 0 24 24"
+    viewBox="-18 -18 60 60"
     fill="none"
     :data-state="state"
     :data-next="next ? 'true' : undefined"
@@ -95,75 +95,65 @@ onUnmounted(() => {
     data-testid="step-seal"
     aria-hidden="true"
   >
-    <defs>
-      <linearGradient :id="`${gradientId}-well`" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#080b10" />
-        <stop offset="1" stop-color="#252d3d" />
-      </linearGradient>
-      <radialGradient :id="`${gradientId}-metal`" cx="0.34" cy="0.26" r="0.95">
-        <stop offset="0" style="stop-color: var(--seal-hi)" />
-        <stop offset="0.5" style="stop-color: var(--seal)" />
-        <stop offset="1" style="stop-color: var(--seal-shade)" />
-      </radialGradient>
-      <linearGradient :id="`${gradientId}-gloss`" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#fff" stop-opacity="0.7" />
-        <stop offset="1" stop-color="#fff" stop-opacity="0" />
-      </linearGradient>
-    </defs>
-    <g v-if="state === 'DRAFT'">
-      <path
-        class="seal-crop"
-        d="M3.5 8.2V5a1.5 1.5 0 0 1 1.5-1.5h3.2M15.8 3.5H19A1.5 1.5 0 0 1 20.5 5v3.2M20.5 15.8V19a1.5 1.5 0 0 1-1.5 1.5h-3.2M8.2 20.5H5A1.5 1.5 0 0 1 3.5 19v-3.2"
-      />
-      <path class="seal-pencil" d="M14.2 7.4 16.6 9.8 10.6 15.8 7.4 16.6 8.2 13.4Z M12.9 8.7l2.4 2.4" />
-      <path class="seal-stroke" pathLength="1" d="M7.4 18.5h9.2" />
-    </g>
-
-    <template v-else>
-      <circle v-if="arrival === 'DONE'" class="seal-ripple" cx="12" cy="12" r="10.6" />
-      <circle class="seal-disc" cx="12" cy="12" r="10.6" />
-      <circle class="seal-rim" cx="12" cy="12" r="10.1" />
-      <ellipse
-        class="seal-gloss"
-        cx="12"
-        cy="7.3"
-        rx="7"
-        ry="4.2"
-        :fill="`url(#${gradientId}-gloss)`"
-      />
-      <circle
-        class="seal-ring"
-        cx="12"
-        cy="12"
-        r="10.25"
-        pathLength="100"
-        :transform="state === 'CLAIMED' ? 'rotate(25 12 12)' : 'rotate(-90 12 12)'"
-      />
-      <circle v-if="state === 'DONE'" class="seal-engrave" cx="12" cy="12" r="8.3" />
-
-      <g v-if="reticle" class="seal-ticks">
+    <svg class="seal-face" x="0" y="0" width="24" height="24" viewBox="0 0 24 24" overflow="visible">
+      <defs>
+        <linearGradient :id="`${gradientId}-well`" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#080b10" />
+          <stop offset="1" stop-color="#252d3d" />
+        </linearGradient>
+        <radialGradient :id="`${gradientId}-metal`" cx="0.34" cy="0.26" r="0.95">
+          <stop offset="0" style="stop-color: var(--seal-hi)" />
+          <stop offset="0.5" style="stop-color: var(--seal)" />
+          <stop offset="1" style="stop-color: var(--seal-shade)" />
+        </radialGradient>
+        <linearGradient :id="`${gradientId}-gloss`" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#fff" stop-opacity="0.7" />
+          <stop offset="1" stop-color="#fff" stop-opacity="0" />
+        </linearGradient>
+      </defs>
+      <g v-if="state === 'DRAFT'">
         <path
-          v-for="tick in visibleTicks"
-          :key="tick.d"
-          :d="tick.d"
-          :style="{ animationDelay: tick.delay }"
+          class="seal-crop"
+          d="M3.5 8.2V5a1.5 1.5 0 0 1 1.5-1.5h3.2M15.8 3.5H19A1.5 1.5 0 0 1 20.5 5v3.2M20.5 15.8V19a1.5 1.5 0 0 1-1.5 1.5h-3.2M8.2 20.5H5A1.5 1.5 0 0 1 3.5 19v-3.2"
         />
+        <path class="seal-pencil" d="M14.2 7.4 16.6 9.8 10.6 15.8 7.4 16.6 8.2 13.4Z M12.9 8.7l2.4 2.4" />
+        <path class="seal-stroke" pathLength="1" d="M7.4 18.5h9.2" />
       </g>
 
-      <g v-if="state === 'RUNNING'" class="seal-comet">
-        <circle class="seal-tail" cx="12" cy="12" r="10.25" pathLength="100" />
-        <circle class="seal-head" cx="12" cy="12" r="10.25" pathLength="100" />
-      </g>
+      <template v-else>
+        <circle v-if="arrival === 'DONE'" class="seal-ripple" cx="12" cy="12" r="10.6" />
+        <circle class="seal-disc" cx="12" cy="12" r="10.6" />
+        <circle class="seal-rim" cx="12" cy="12" r="10.1" />
+        <ellipse class="seal-gloss" cx="12" cy="7.3" rx="7" ry="4.2" :fill="`url(#${gradientId}-gloss)`" />
+        <circle
+          class="seal-ring"
+          cx="12"
+          cy="12"
+          r="10.25"
+          pathLength="100"
+          :transform="state === 'CLAIMED' ? 'rotate(25 12 12)' : 'rotate(-90 12 12)'"
+        />
+        <circle v-if="state === 'DONE'" class="seal-engrave" cx="12" cy="12" r="8.3" />
 
-      <circle v-if="reticle" class="seal-core" cx="12" cy="12" :r="state === 'RUNNING' ? 2.5 : 2.1" />
+        <g v-if="reticle" class="seal-ticks">
+          <path
+            v-for="tick in visibleTicks"
+            :key="tick.d"
+            :d="tick.d"
+            :style="{ animationDelay: tick.delay }"
+          />
+        </g>
 
-      <path
-        v-if="showsCheck"
-        class="seal-check"
-        pathLength="1"
-        d="M7.5 12.4 10.4 15.3 16.4 9.1"
-      />
-    </template>
+        <g v-if="state === 'RUNNING'" class="seal-comet">
+          <circle class="seal-tail" cx="12" cy="12" r="10.25" pathLength="100" />
+          <circle class="seal-head" cx="12" cy="12" r="10.25" pathLength="100" />
+        </g>
+
+        <circle v-if="reticle" class="seal-core" cx="12" cy="12" :r="state === 'RUNNING' ? 2.5 : 2.1" />
+
+        <path v-if="showsCheck" class="seal-check" pathLength="1" d="M7.5 12.4 10.4 15.3 16.4 9.1" />
+      </template>
+    </svg>
   </svg>
 </template>
 
@@ -174,9 +164,13 @@ onUnmounted(() => {
   --seal-shade: var(--color-accent-deep);
   --seal-ink: var(--color-accent-ink);
   display: block;
-  width: 100%;
-  height: 100%;
+  /* WebKit clips a CSS filter at the svg's own box, which cut the glow into a square. The box
+     overhangs the host by 75% a side so the light fades out inside it; the face stays 24 units. */
+  width: 250%;
+  height: 250%;
+  margin: -75%;
   overflow: visible;
+  pointer-events: none;
   /* Every seal stands proud of the pane: a contact shadow under it, the light from above. */
   filter: drop-shadow(0 1.5px 1.2px rgb(0 0 0 / 0.65)) drop-shadow(0 4px 5px rgb(0 0 0 / 0.35));
 }
@@ -433,9 +427,7 @@ onUnmounted(() => {
   fill: var(--seal-metal);
 }
 
-:is([data-seal-host]:hover, [data-seal-host]:focus-visible)
-  > .seal[data-state='CLAIMED']
-  .seal-check {
+:is([data-seal-host]:hover, [data-seal-host]:focus-visible) > .seal[data-state='CLAIMED'] .seal-check {
   stroke: var(--seal-ink);
   stroke-width: 2.1;
 }
