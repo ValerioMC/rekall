@@ -7,33 +7,42 @@
     :root { color-scheme: dark; }
     html, body { height: 100%; margin: 0; }
     body {
-      background: #08090c; color: #f2f5f9;
+      background: #08090c; color: #f2f5f9; overflow: hidden;
       font: 400 14px/1.5 -apple-system, BlinkMacSystemFont, 'Fira Sans', sans-serif;
-      display: flex; align-items: center; justify-content: center;
       -webkit-user-select: none; user-select: none;
     }
-    .panel { text-align: center; max-width: 34rem; padding: 2rem; }
+    .scene { position: fixed; inset: 0; opacity: 0; animation: appear 600ms ease-out forwards; }
+    .art {
+      position: absolute; inset: 0;
+      background: #0b0d11 url('splash_screen.png') center / cover no-repeat;
+      transition: opacity 300ms ease-out;
+    }
+    .failed .art { opacity: 0.18; }
+    .status {
+      position: absolute; left: 0; right: 0; bottom: 1.75rem; text-align: center;
+      color: #7a8494; font-size: 12px; letter-spacing: 0.04em; min-height: 1.5rem;
+    }
+    .panel {
+      position: absolute; inset: 0; display: none; flex-direction: column;
+      align-items: center; justify-content: center; text-align: center; padding: 2rem;
+    }
+    .failed .panel { display: flex; }
+    .failed .status { display: none; }
     .mark {
       font-size: 0.75rem; letter-spacing: 0.42em; text-transform: uppercase;
       color: #f5a524; margin-bottom: 2rem;
     }
-    .status { color: #a3acba; min-height: 1.5rem; }
-    .detail { color: #7a8494; font-size: 12.5px; margin-top: 0.75rem; }
     .title { font-size: 1rem; font-weight: 500; margin-bottom: 0.5rem; }
+    .detail { color: #a3acba; font-size: 12.5px; margin-top: 0.75rem; max-width: 34rem; }
     .path { font-family: 'Fira Code', ui-monospace, monospace; color: #5fd0e0; font-size: 12px; }
-    .spinner {
-      width: 22px; height: 22px; margin: 0 auto 1.5rem;
-      border: 2px solid #1c222c; border-top-color: #f5a524; border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes appear { to { opacity: 1; } }
   </style>
 </head>
 <body>
-  <div class="panel" id="panel">
-    <div class="mark">Rekall</div>
-    <div class="spinner"></div>
-    <div class="status" id="status">Starting…</div>
+  <div class="scene" id="scene">
+    <div class="art"></div>
+    <div class="status" id="status" role="status">Starting…</div>
+    <div class="panel" id="panel"></div>
   </div>
   <script>
     // Driven from the shell: the status line while the server starts, and the error page if it
@@ -60,6 +69,7 @@
       path.textContent = log;
       line.appendChild(path);
       add('detail', 'View › Reload tries again.');
+      document.getElementById('scene').classList.add('failed');
     };
   </script>
 </body>

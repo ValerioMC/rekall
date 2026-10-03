@@ -18,18 +18,24 @@ mod exit_guard;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use rekall_app::{AppConfig, Properties, Running, StartOptions};
 use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
 use tauri::webview::DownloadEvent;
-use tauri::{AppHandle, Manager, RunEvent, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use tauri::{AppHandle, LogicalSize, Manager, RunEvent, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 use tauri_plugin_opener::OpenerExt;
 use tracing::{error, info};
 
 const DEFAULT_PORT: u16 = 47355;
 const HOST: &str = "127.0.0.1";
 const SLOW_NOTICE: Duration = Duration::from_secs(15);
+/// The splash stays at least this long, so it is seen even when the server answers at once.
+const SPLASH_MINIMUM: Duration = Duration::from_millis(1500);
+/// What the splash window is when the console takes over: the size it is restored to, and the
+/// smallest it can be made.
+const CONSOLE_SIZE: LogicalSize<f64> = LogicalSize::new(1440.0, 900.0);
+const CONSOLE_MINIMUM_SIZE: LogicalSize<f64> = LogicalSize::new(960.0, 600.0);
 
 /// What the shell keeps between events: the server it started (none when it attached to one), and
 /// what the splash should say once it has loaded. `quitting` is set while the quit question is on
@@ -203,13 +209,12 @@ fn trap_signals(handle: AppHandle) {
 fn build_window(handle: &AppHandle) -> tauri::Result<WebviewWindow> {
     let opener = handle.clone();
     let downloads = handle.clone();
+    let splash = splash_window_size(handle);
     let builder = WebviewWindowBuilder::new(handle, "main", WebviewUrl::App("index.html".into()))
         .title("Rekall")
-        .inner_size(1440.0, 900.0)
-        .min_inner_size(960.0, 600.0)
+        .inner_size(splash.width, splash.height)
         .center()
-        // Hidden until `open_maximized` below has already grown it to the screen, so the window
-        // never flashes at this windowed size first.
+        // Hidden until it can fade in at its splash size.
         .visible(false)
         .theme(Some(tauri::Theme::Dark))
         .background_color(tauri::window::Color(8, 9, 12, 255))
@@ -263,32 +268,23 @@ fn build_window(handle: &AppHandle) -> tauri::Result<WebviewWindow> {
     if let Err(error) = bridges::allow_native_fullscreen(&window) {
         error!("Could not enable native full screen: {error}");
     }
-    match bridges::open_maximized(&window, &handle.state::<bridges::WindowGeometry>()) {
-        Ok(area) => {
-            let window = window.clone();
-            tauri::async_runtime::spawn(async move {
-                // macOS applies the resize just issued on its own next pass through the run
-                // loop rather than immediately, and position and size do not necessarily land
-                // in that same pass together, so showing the window here would still risk
-                // catching it mid-move. Wait for both to reach the target (a half-second cap in
-                // case they somehow never do) before revealing it.
-                for _ in 0..50 {
-                    let there = window.outer_position().is_ok_and(|p| p == area.position)
-                        && window.inner_size().is_ok_and(|s| s == area.size);
-                    if there {
-                        break;
-                    }
-                    tokio::time::sleep(Duration::from_millis(10)).await;
-                }
-                let _ = window.show();
-            });
+    let visible = window.clone();
+    tauri::async_runtime::spawn(async move {
+        if let Err(error) = bridges::show_fading_in(&visible).await {
+            error!("Could not fade the window in: {error}");
+            let _ = visible.show();
         }
-        Err(error) => {
-            error!("Could not open the window maximized: {error}");
-            window.show()?;
-        }
-    }
+    });
     Ok(window)
+}
+
+/// The splash card for the monitor the cursor-less launch lands on (the primary one), or a
+/// sensible default when no monitor answers.
+fn splash_window_size(handle: &AppHandle) -> LogicalSize<f64> {
+    match handle.primary_monitor() {
+        Ok(Some(monitor)) => bridges::splash_size(monitor.work_area().size.width, monitor.scale_factor()),
+        _ => LogicalSize::new(768.0, 429.0),
+    }
 }
 
 fn is_local(url: &Url) -> bool {
@@ -360,9 +356,10 @@ fn js(text: &str) -> String {
 
 /// Attach to a server that answers, or start one; then show the console.
 async fn boot(handle: AppHandle) {
+    let since = Instant::now();
     if answering().await {
         status(&handle, "Connecting to the running instance…");
-        open_console(&handle);
+        dismiss_splash_then_open(&handle, since).await;
         return;
     }
     status(&handle, "Starting the server…");
@@ -382,13 +379,55 @@ async fn boot(handle: AppHandle) {
     match started {
         Ok(running) => {
             *handle.state::<Arc<Shell>>().running.lock().await = Some(running);
-            open_console(&handle);
+            dismiss_splash_then_open(&handle, since).await;
         }
         Err(failed) => fail(
             &handle,
             "The server did not start",
             &format!("{failed}. The most common cause is port {} already being used by something that is not Rekall.", port()),
         ),
+    }
+}
+
+/// Once the splash has been on screen for `SPLASH_MINIMUM`: fades the window out, grows it unseen
+/// to fill the screen, loads the console into it and fades it back in.
+async fn dismiss_splash_then_open(handle: &AppHandle, shown_since: Instant) {
+    tokio::time::sleep(SPLASH_MINIMUM.saturating_sub(shown_since.elapsed())).await;
+    let Some(window) = handle.get_webview_window("main") else { return };
+    if let Err(error) = bridges::fade_out(&window).await {
+        error!("Could not fade the splash out: {error}");
+    }
+    if let Err(error) = grow_to_console(handle, &window).await {
+        error!("Could not open the window maximized: {error}");
+    }
+    open_console(handle);
+    if let Err(error) = bridges::fade_in(&window).await {
+        error!("Could not fade the console in: {error}");
+    }
+}
+
+/// Resizes the splash window to the console's restored size, then maximizes it. macOS applies a
+/// resize on its own next pass through the run loop, and position and size do not necessarily land
+/// together, so each step waits for the system to reach its target before the next one reads it.
+async fn grow_to_console(handle: &AppHandle, window: &WebviewWindow) -> Result<(), String> {
+    let failed = |error: tauri::Error| error.to_string();
+    window.set_min_size(Some(CONSOLE_MINIMUM_SIZE)).map_err(failed)?;
+    window.set_size(CONSOLE_SIZE).map_err(failed)?;
+    let restored = CONSOLE_SIZE.to_physical::<u32>(window.scale_factor().map_err(failed)?);
+    settle(|| window.inner_size().is_ok_and(|size| size == restored)).await;
+    window.center().map_err(failed)?;
+    let area = bridges::open_maximized(window, &handle.state::<bridges::WindowGeometry>())?;
+    settle(|| window.outer_position().is_ok_and(|p| p == area.position) && window.inner_size().is_ok_and(|s| s == area.size)).await;
+    Ok(())
+}
+
+/// Polls `reached` for up to half a second, in case the system never gets there.
+async fn settle(reached: impl Fn() -> bool) {
+    for _ in 0..50 {
+        if reached() {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
     }
 }
 

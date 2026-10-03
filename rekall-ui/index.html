@@ -9,6 +9,11 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.json" />
+    <style>
+      /* The desktop shell fades the splash out; the console fades in from the same background. */
+      @keyframes console-appear { from { opacity: 0; } }
+      #app { animation: console-appear 400ms ease-out; }
+    </style>
   </head>
   <body>
     <div id="app"></div>

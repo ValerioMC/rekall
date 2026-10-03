@@ -23,12 +23,16 @@ pub mod folder_picker;
 mod home_path;
 pub mod notifier;
 pub mod window_controls;
+mod splash_size;
+mod window_fade;
 mod window_geometry;
 
 pub use bridge_script::BRIDGE;
 pub use claude_code_launch::ClaudeCodeLaunch;
 pub use desktop_notice::DesktopNotice;
 pub use window_controls::{allow_native_fullscreen, open_maximized};
+pub use splash_size::splash_size;
+pub use window_fade::{fade_in, fade_out, show_fading_in};
 pub use window_geometry::WindowGeometry;
 
 use home_path::expand_tilde;
