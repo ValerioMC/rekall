@@ -11,6 +11,8 @@ use crate::exit_guard::{self, Leaving};
 use crate::Shell;
 
 const WORK_FOLDER: &str = "rekall-update";
+const WAIT_THEN_OPEN: &str =
+    r#"while kill -0 "$1" 2>/dev/null; do sleep 0.2; done; exec /usr/bin/open "$2""#;
 
 /// Resolves false when the user kept a live Claude session instead, true once the restart is
 /// requested. A refusal rejects with the reason, so the console can offer the browser download.
@@ -28,8 +30,26 @@ pub async fn install_update<R: Runtime>(app: AppHandle<R>) -> Result<bool, Strin
         failure
     })?;
     info!("Restarting into Rekall {version}");
-    app.request_restart();
+    relaunch_in_foreground(&app)?;
     Ok(true)
+}
+
+/// Waits for this process to end, then opens the bundle through LaunchServices, which brings the
+/// new app to the front; a restart that execs the binary directly opens behind other windows.
+fn relaunch_in_foreground<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
+    let executable = std::env::current_exe().map_err(|failure| failure.to_string())?;
+    let bundle =
+        rekall_app::version::app_bundle_of(&executable).map_err(|failure| failure.to_string())?;
+    std::process::Command::new("/bin/sh")
+        .args(["-c", WAIT_THEN_OPEN, "sh", &std::process::id().to_string()])
+        .arg(&bundle)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .map_err(|failure| format!("Could not relaunch Rekall: {failure}"))?;
+    app.exit(0);
+    Ok(())
 }
 
 async fn install() -> Result<String, String> {

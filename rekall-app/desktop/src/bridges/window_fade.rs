@@ -12,6 +12,7 @@ pub async fn show_fading_in<R: Runtime>(window: &WebviewWindow<R>) -> tauri::Res
     {
         set_opacity(window, 0.0)?;
         window.show()?;
+        window.set_focus()?;
         fade(window, 0.0, 1.0).await
     }
     #[cfg(not(target_os = "macos"))]

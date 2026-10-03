@@ -69,7 +69,7 @@ In the macOS app **Install** puts the new version in place itself (`rekall-app/s
 
 1. It downloads the release's `.dmg` from inside the app, and only from `github.com/ValerioMC/rekall/releases/download/`.
 2. It mounts the image with `hdiutil`, copies `Rekall.app` with `ditto` beside the running one as `.Rekall.app.new`, and swaps the two. The old bundle is kept as `.Rekall.app.old` until the new one is in place, and is put back if the swap fails.
-3. It restarts into the new version, stopping the server cleanly first. When a Claude session is live it asks first, in the console's own dialog, as quitting does (the system dialog only stands in when the console cannot show one).
+3. It restarts into the new version, stopping the server cleanly first and reopening the app through the system so the new window comes to the front, not behind other apps. When a Claude session is live it asks first, in the console's own dialog, as quitting does (the system dialog only stands in when the console cannot show one).
 
 The file never passes through a browser, so it gets no `com.apple.quarantine` and the new version opens without `xattr`. When the install fails (the app runs from the mounted disk image, `/Applications` is not writable, the release has no disk image), the dialog says why and its button opens the download in the browser. A browser tab, and the desktop app on other platforms, keep the plain download link. The first install from a browser download still needs the `xattr` command below once: only a Developer ID signature with notarization removes that.
 
