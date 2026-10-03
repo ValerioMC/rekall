@@ -135,6 +135,21 @@ describe('the Run here button', () => {
     expect(button.attributes('data-phase')).toBe('idle')
   })
 
+  it('says nothing will run, and starts no session, when only drafts are left after the claims', async () => {
+    const console_ = useConsoleStore()
+    console_.tasks = [checklistTask()]
+    console_.steps = [step('CLAIMED'), { ...step('DRAFT'), id: 's-2' as TaskStepId }]
+    const toast = useToastStore()
+    const wrapper = mountButton()
+
+    await wrapper.get('[data-testid="open-terminal"]').trigger('click')
+    await flushPromises()
+
+    expect(openTerminal).not.toHaveBeenCalled()
+    expect(toast.toasts[0]?.message).toContain('Nothing to run')
+    expect(wrapper.get('[data-testid="open-terminal"]').attributes('data-phase')).toBe('idle')
+  })
+
   it('holds an open, turning ring while the server has not answered', async () => {
     let answer: (value: Terminal) => void = () => undefined
     openTerminal.mockReturnValue(new Promise<Terminal>((resolve) => (answer = resolve)))

@@ -32,6 +32,8 @@ const HOST: &str = "127.0.0.1";
 const SLOW_NOTICE: Duration = Duration::from_secs(15);
 /// The splash stays at least this long, so it is seen even when the server answers at once.
 const SPLASH_MINIMUM: Duration = Duration::from_millis(1500);
+/// How long the console gets to load before the window fades in regardless.
+const CONSOLE_LOAD_LIMIT: Duration = Duration::from_secs(5);
 /// What the splash window is when the console takes over: the size it is restored to, and the
 /// smallest it can be made.
 const CONSOLE_SIZE: LogicalSize<f64> = LogicalSize::new(1440.0, 900.0);
@@ -44,6 +46,7 @@ const CONSOLE_MINIMUM_SIZE: LogicalSize<f64> = LogicalSize::new(960.0, 600.0);
 struct Shell {
     running: tokio::sync::Mutex<Option<Running>>,
     quitting: AtomicBool,
+    console_loaded: AtomicBool,
     status: Mutex<Option<String>>,
     failure: Mutex<Option<(String, String)>>,
 }
@@ -249,7 +252,12 @@ fn build_window(handle: &AppHandle) -> tauri::Result<WebviewWindow> {
             true
         })
         .on_page_load(|window, payload| {
-            if payload.event() == tauri::webview::PageLoadEvent::Finished && !is_server(payload.url()) {
+            if payload.event() != tauri::webview::PageLoadEvent::Finished {
+                return;
+            }
+            if is_server(payload.url()) {
+                window.state::<Arc<Shell>>().console_loaded.store(true, Ordering::SeqCst);
+            } else {
                 replay_splash(&window);
             }
         });
@@ -401,6 +409,9 @@ async fn dismiss_splash_then_open(handle: &AppHandle, shown_since: Instant) {
         error!("Could not open the window maximized: {error}");
     }
     open_console(handle);
+    // Fading in before the console has loaded shows the splash stretched to the full window.
+    let shell = handle.state::<Arc<Shell>>();
+    wait_until(|| shell.console_loaded.load(Ordering::SeqCst), CONSOLE_LOAD_LIMIT).await;
     if let Err(error) = bridges::fade_in(&window).await {
         error!("Could not fade the console in: {error}");
     }
@@ -423,16 +434,20 @@ async fn grow_to_console(handle: &AppHandle, window: &WebviewWindow) -> Result<(
 
 /// Polls `reached` for up to half a second, in case the system never gets there.
 async fn settle(reached: impl Fn() -> bool) {
-    for _ in 0..50 {
-        if reached() {
-            return;
-        }
+    wait_until(reached, Duration::from_millis(500)).await;
+}
+
+/// Polls `reached` every 10 ms until it holds or `limit` passes.
+async fn wait_until(reached: impl Fn() -> bool, limit: Duration) {
+    let started = Instant::now();
+    while !reached() && started.elapsed() < limit {
         tokio::time::sleep(Duration::from_millis(10)).await;
     }
 }
 
 fn open_console(handle: &AppHandle) {
     let shell = handle.state::<Arc<Shell>>();
+    shell.console_loaded.store(false, Ordering::SeqCst);
     *shell.status.lock().unwrap() = None;
     *shell.failure.lock().unwrap() = None;
     if let Some(window) = handle.get_webview_window("main") {

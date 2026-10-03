@@ -7,6 +7,7 @@ import { useAsyncAction } from '@/composables/useAsyncAction'
 import { preferredEffort, preferredModel, skipsPermissions } from '@/common/config/claude-launch'
 import { useToastStore } from '@/stores/toast.store'
 import { sessionAtWork } from '@/model/session-at-work'
+import { NOTHING_TO_RUN_MESSAGE, nothingToRun } from '@/model/nothing-to-run'
 import StepSeal from '@/components/console/StepSeal.vue'
 import type { TaskId, TaskStepId } from '@/model/branded'
 
@@ -85,6 +86,11 @@ async function launch(): Promise<void> {
   if (busy.value) return
   if (!ready.value) {
     toast.notifyError(new Error(props.missingHint))
+    return
+  }
+  const task = tasks.value.find((candidate) => candidate.id === props.taskId) ?? null
+  if (nothingToRun(task, steps.value, props.stepId)) {
+    toast.notifyError(new Error(NOTHING_TO_RUN_MESSAGE))
     return
   }
   launchPhase.value = 'launching'
