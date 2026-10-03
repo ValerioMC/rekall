@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import TagBadge from '@/components/ui/TagBadge.vue'
+import SelectionTrail from '@/components/console/SelectionTrail.vue'
 import TaskMark from '@/components/console/TaskMark.vue'
 import { identityHue } from '@/common/identity'
 import { TASK_STATUS_LABEL } from '@/model/catalog'
@@ -63,6 +64,7 @@ watch(
       :aria-current="selected"
       @click="$emit('select')"
     >
+      <SelectionTrail v-if="selected" />
       <span class="relative mt-[3px] grid size-3.5 shrink-0 place-items-center" :title="markLabel">
         <span
           class="absolute size-3.5 rounded-full transition-shadow"
