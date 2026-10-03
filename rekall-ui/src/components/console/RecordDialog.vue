@@ -3,7 +3,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
-import AppBadge from '@/components/ui/AppBadge.vue'
+import ProjectPicker from '@/components/console/ProjectPicker.vue'
 import TagIcon from '@/components/ui/TagIcon.vue'
 import ProjectIcon from '@/components/ui/ProjectIcon.vue'
 import CloseGlyph from '@/components/ui/CloseGlyph.vue'
@@ -35,6 +35,7 @@ const firstField = ref<HTMLInputElement | null>(null)
 const isConfirmingDelete = ref(false)
 const submitted = ref(false)
 const anchorLive = ref(false)
+const isPickingProject = ref(false)
 
 const kind = props.draft.kind
 const isNew = props.draft.id === null
@@ -125,31 +126,14 @@ const parentId = computed<string>({
   }
 })
 
-const parentOptions = computed(() => {
-  if (kind === 'project') {
-    return store.companies.map((company) => ({
-      value: company.id as string,
-      label: `${company.name}  ·  company:${company.name}`
-    }))
-  }
-  if (kind === 'task') {
-    return store.projects.map((project) => ({
-      value: project.id as string,
-      label: `${project.companyName} / ${project.title}  ·  ${project.anchor}  ·  ${PROJECT_STATUS_LABEL[project.status]}`
-    }))
-  }
-  return []
-})
-
-const parentProjectStatus = computed<ProjectStatus | null>(() =>
-  kind === 'task' ? (store.projects.find((project) => project.id === parentId.value)?.status ?? null) : null
+const companyOptions = computed(() =>
+  kind === 'project'
+    ? store.companies.map((company) => ({
+        value: company.id as string,
+        label: `${company.name}  ·  company:${company.name}`
+      }))
+    : []
 )
-
-const PROJECT_STATUS_TONE: Readonly<Record<ProjectStatus, 'accent' | 'neutral' | 'safe'>> = {
-  ACTIVE: 'accent',
-  PAUSED: 'neutral',
-  DONE: 'safe'
-}
 
 const parentLabel = kind === 'task' ? 'Project' : 'Company'
 
@@ -273,6 +257,7 @@ async function remove(): Promise<void> {
 }
 
 function onKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Escape' && isPickingProject.value) return
   if (event.key === 'Escape' && !isConfirmingDelete.value) {
     event.stopPropagation()
     emit('close')
@@ -337,25 +322,28 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
       </header>
 
       <div class="max-h-[62vh] overflow-y-auto px-6 py-5">
-        <template v-if="parentOptions.length">
+        <template v-if="kind === 'task' || companyOptions.length">
           <label
             for="record-parent"
             class="mb-1.5 block eyebrow text-[11px]"
           >
             {{ parentLabel }}
           </label>
-          <AppSelect
+          <ProjectPicker
+            v-if="kind === 'task'"
             id="record-parent"
             v-model="parentId"
             data-testid="record-parent"
-            :options="parentOptions"
-          >
-            <template v-if="parentProjectStatus" #trailing>
-              <AppBadge :tone="PROJECT_STATUS_TONE[parentProjectStatus]" dot data-testid="record-parent-status">
-                {{ PROJECT_STATUS_LABEL[parentProjectStatus] }}
-              </AppBadge>
-            </template>
-          </AppSelect>
+            :projects="store.projects"
+            @open-change="isPickingProject = $event"
+          />
+          <AppSelect
+            v-else
+            id="record-parent"
+            v-model="parentId"
+            data-testid="record-parent"
+            :options="companyOptions"
+          />
           <p class="mb-5 mt-1.5 text-[11.5px] text-text-subtle">
             <template v-if="isNew">Where this lands. It opens the anchor.</template>
             <template v-else>Changing this moves the record, and its anchor with it.</template>

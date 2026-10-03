@@ -628,9 +628,9 @@ describe('the console', () => {
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 't' }))
       await flushPromises()
 
-      const parent = wrapper.find('[data-testid="record-parent"] select')
+      const parent = wrapper.find('[data-testid="record-parent"]')
       expect(parent.exists()).toBe(true)
-      expect((parent.element as HTMLSelectElement).value).toBe(vega)
+      expect(parent.find('[data-testid="project-picker-title"]').text()).toBe('Vega Platform')
       expect(parent.text()).toContain('project:vega')
 
       // The settled half of the anchor is on screen before a single character is typed.
@@ -645,9 +645,13 @@ describe('the console', () => {
       await flushPromises()
 
       expect(wrapper.find('[data-testid="record-parent-status"]').text()).toBe('Active')
-      expect(wrapper.find('[data-testid="record-parent"] select').text()).toContain('project:beacon  ·  Paused')
 
-      await wrapper.find('[data-testid="record-parent"] select').setValue(beacon)
+      await wrapper.find('[data-testid="project-picker-trigger"]').trigger('click')
+      const beaconOption = wrapper
+        .findAll('[data-testid="project-picker-option"]')
+        .find((option) => option.text().includes('project:beacon'))!
+      expect(beaconOption.text()).toContain('Paused')
+      await beaconOption.trigger('click')
       await flushPromises()
 
       expect(wrapper.find('[data-testid="record-parent-status"]').text()).toBe('Paused')
@@ -761,7 +765,11 @@ describe('the console', () => {
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'e' }))
       await flushPromises()
 
-      await wrapper.find('[data-testid="record-parent"] select').setValue(beacon)
+      await wrapper.find('[data-testid="project-picker-trigger"]').trigger('click')
+      await wrapper
+        .findAll('[data-testid="project-picker-option"]')
+        .find((option) => option.text().includes('project:beacon'))!
+        .trigger('click')
       await flushPromises()
 
       expect(wrapper.find('[data-testid="anchor-preview"]').text())
