@@ -9,6 +9,7 @@ fn main() {
             "close_window",
             "minimize_window",
             "toggle_maximize_window",
+            "install_update",
         ]),
     ))
     .expect("the Tauri build step");

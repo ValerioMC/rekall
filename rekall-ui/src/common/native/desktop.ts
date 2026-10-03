@@ -22,6 +22,12 @@ export interface DesktopHost {
   closeWindow?(): Promise<void>
   minimizeWindow?(): Promise<void>
   toggleMaximizeWindow?(): Promise<void>
+
+  /**
+   * Installs the newest release over this app and restarts into it (macOS). Resolves false when
+   * the user chose to keep a live Claude session; rejects with the reason the install failed.
+   */
+  installUpdate?(): Promise<boolean>
 }
 
 declare global {
@@ -40,6 +46,19 @@ export async function launchClaudeCode(launch: ClaudeCodeLaunch): Promise<string
     throw new Error('This window cannot open a terminal.')
   }
   return host.openInClaudeCode(launch)
+}
+
+/** True when the window can put a newer release in place itself rather than link to it. */
+export function canInstallUpdate(): boolean {
+  return typeof window.rekallDesktop?.installUpdate === 'function'
+}
+
+export async function installUpdate(): Promise<boolean> {
+  const host = window.rekallDesktop
+  if (typeof host?.installUpdate !== 'function') {
+    throw new Error('This window cannot install an update.')
+  }
+  return host.installUpdate()
 }
 
 export function desktopHost(): DesktopHost | null {

@@ -207,6 +207,7 @@ function plural(count: number, noun: string): string {
 }
 
 async function save(): Promise<void> {
+  if (isRunning.value) return
   submitted.value = true
   if (!canSave.value) return
   const current = form.value
@@ -566,8 +567,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
             variant="primary"
             size="sm"
             data-testid="record-save"
-            :loading="isRunning"
-            :disabled="!canSave"
+            :disabled="!canSave || isRunning"
             @click="save"
           >
             {{ isNew ? 'Create' : 'Save' }}

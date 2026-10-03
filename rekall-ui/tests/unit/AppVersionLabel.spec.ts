@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import type { VersionStatus } from '@/model/version'
 
@@ -13,8 +13,19 @@ import AppVersionLabel from '@/components/shell/AppVersionLabel.vue'
 const RELEASE = 'https://github.com/ValerioMC/rekall/releases/tag/v0.2.0'
 const DMG = 'https://github.com/ValerioMC/rekall/releases/download/v0.2.0/Rekall-macos-arm64.dmg'
 
+const NEWER: VersionStatus = {
+  current: '0.1.0',
+  check: 'UPDATE_AVAILABLE',
+  latest: { version: '0.2.0', releaseUrl: RELEASE, downloadUrl: DMG }
+}
+
+afterEach(() => {
+  delete window.rekallDesktop
+  document.body.innerHTML = ''
+})
+
 async function mounted() {
-  const wrapper = mount(AppVersionLabel)
+  const wrapper = mount(AppVersionLabel, { attachTo: document.body })
   await flushPromises()
   return wrapper
 }
@@ -58,5 +69,24 @@ describe('AppVersionLabel', () => {
     answer = () => Promise.reject(new Error('offline'))
 
     expect((await mounted()).find('[data-testid="app-version"]').exists()).toBe(false)
+  })
+
+  it('in the desktop app opens the install dialog instead of linking to the download', async () => {
+    window.rekallDesktop = { pickFolder: vi.fn(), installUpdate: vi.fn() }
+    answer = () => Promise.resolve(NEWER)
+
+    const wrapper = await mounted()
+    const label = wrapper.get('[data-testid="app-update"]')
+    expect(label.element.tagName).toBe('BUTTON')
+    await label.trigger('click')
+
+    expect(document.body.querySelector('[data-testid="update-dialog"]')?.textContent).toContain('Rekall 0.2.0')
+  })
+
+  it('in a window without the install bridge keeps the download link', async () => {
+    window.rekallDesktop = { pickFolder: vi.fn() }
+    answer = () => Promise.resolve(NEWER)
+
+    expect((await mounted()).get('[data-testid="app-update"]').attributes('href')).toBe(DMG)
   })
 })

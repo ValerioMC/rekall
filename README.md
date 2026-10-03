@@ -63,6 +63,16 @@ The console shows the running version after "Rekall" in the header. A release bu
 | `rekall.update-check.enabled` | `true` | `false` never contacts GitHub; the version is still shown |
 | `rekall.update-check.url` | the repository's `releases/latest` API | The endpoint answering with the latest release |
 
+In the macOS app the header label is a button instead: it opens a dialog with one sentence and **Later** / **Install**, and **Install** puts the new version in place itself (`rekall-app/src/version/update_installer.rs`, called by the `installUpdate()` bridge in `rekall-app/desktop/src/update_install.rs`):
+
+1. It downloads the release's `.dmg` from inside the app, and only from `github.com/ValerioMC/rekall/releases/download/`.
+2. It mounts the image with `hdiutil`, copies `Rekall.app` with `ditto` beside the running one as `.Rekall.app.new`, and swaps the two. The old bundle is kept as `.Rekall.app.old` until the new one is in place, and is put back if the swap fails.
+3. It restarts into the new version, stopping the server cleanly first. When a Claude session is live it asks first, as quitting does.
+
+The file never passes through a browser, so it gets no `com.apple.quarantine` and the new version opens without `xattr`. When the install fails (the app runs from the mounted disk image, `/Applications` is not writable, the release has no disk image), the dialog says why and its button opens the download in the browser. A browser tab, and `rekall-server` on Linux and Windows, keep the plain download link. The first install from a browser download still needs the `xattr` command below once: only a Developer ID signature with notarization removes that.
+
+A real install of the published release into a temporary folder (network, macOS only): `cargo test -p rekall-app live_ -- --ignored`.
+
 ### Build locally
 
 ```bash
@@ -85,7 +95,7 @@ The window fades in as a centered splash card (`rekall-app/desktop/splash/`, art
 
 The app uses the same port, the same `~/.rekall/config.json` and the same MCP endpoint as `make run`. If a Rekall server already answers on 47355, the app attaches to it instead of starting a second one, and leaves it running on quit. The folder icon in the database field opens the system folder chooser, which a browser tab cannot do; in a browser that field stays a typed input.
 
-The bundle is signed ad hoc, which is enough for the machine that built it. A disk image downloaded through a browser on another machine is quarantined and needs one command before it opens:
+The bundle is signed ad hoc, which is enough for the machine that built it. A disk image downloaded through a browser on another machine is quarantined and needs one command before it opens the first time (updates installed from the app do not, see *Version and updates*):
 
 ```bash
 xattr -dr com.apple.quarantine /Applications/Rekall.app

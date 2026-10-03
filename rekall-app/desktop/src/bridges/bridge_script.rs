@@ -33,6 +33,9 @@ pub const BRIDGE: &str = r#"
     },
     toggleMaximizeWindow: function () {
       return call('toggle_maximize_window', {});
+    },
+    installUpdate: function () {
+      return call('install_update', {});
     }
   });
 })();

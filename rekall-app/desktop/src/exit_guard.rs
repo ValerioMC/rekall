@@ -1,5 +1,5 @@
-//! The question asked before the app quits while Claude sessions are still live: quitting stops
-//! the server this process started, and with it every terminal it holds.
+//! The question asked before the app quits, or restarts into an update, while Claude sessions are
+//! still live: either stops the server this process started, and with it every terminal it holds.
 
 use std::time::Duration;
 
@@ -10,9 +10,30 @@ use tokio::sync::oneshot;
 use tracing::warn;
 
 const LOOKUP_TIMEOUT: Duration = Duration::from_secs(2);
-const TITLE: &str = "Quit Rekall?";
-const QUIT: &str = "Quit";
 const STAY: &str = "Keep working";
+
+/// Why the server is about to stop: it decides the dialog's title, button and wording.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Leaving {
+    Quit,
+    Update,
+}
+
+impl Leaving {
+    fn title(self) -> &'static str {
+        match self {
+            Leaving::Quit => "Quit Rekall?",
+            Leaving::Update => "Install the update now?",
+        }
+    }
+
+    fn confirm(self) -> &'static str {
+        match self {
+            Leaving::Quit => "Quit",
+            Leaving::Update => "Install and restart",
+        }
+    }
+}
 
 /// The one field of a terminal that says whether its session is still running.
 #[derive(Debug, Deserialize)]
@@ -24,11 +45,15 @@ pub fn count_live(sessions: &[SessionState]) -> usize {
     sessions.iter().filter(|session| session.live).count()
 }
 
-pub fn warning(live: usize) -> String {
+pub fn warning(live: usize, leaving: Leaving) -> String {
+    let action = match leaving {
+        Leaving::Quit => "Quitting",
+        Leaving::Update => "Installing the update restarts Rekall, which",
+    };
     if live == 1 {
-        "1 Claude session is still running. Quitting stops the server and closes its terminal, so it will end and any work in progress is cut short.".into()
+        format!("1 Claude session is still running. {action} stops the server and closes its terminal, so it will end and any work in progress is cut short.")
     } else {
-        format!("{live} Claude sessions are still running. Quitting stops the server and closes their terminals, so they will end and any work in progress is cut short.")
+        format!("{live} Claude sessions are still running. {action} stops the server and closes their terminals, so they will end and any work in progress is cut short.")
     }
 }
 
@@ -45,31 +70,31 @@ pub async fn live_sessions(port: u16) -> Result<usize, reqwest::Error> {
     Ok(count_live(&sessions))
 }
 
-/// Whether the app may quit: at once when no session is live, otherwise as the dialog's answer.
+/// Whether the server may stop: at once when no session is live, otherwise as the dialog's answer.
 /// A server that cannot be asked is not a reason to hold the user in the app, so it is logged and
-/// the quit goes ahead.
-pub async fn may_quit<R: Runtime>(handle: &AppHandle<R>, port: u16) -> bool {
+/// the stop goes ahead.
+pub async fn may_leave<R: Runtime>(handle: &AppHandle<R>, port: u16, leaving: Leaving) -> bool {
     let live = match live_sessions(port).await {
         Ok(live) => live,
         Err(failure) => {
-            warn!("Could not count the live sessions before quitting: {failure}");
+            warn!("Could not count the live sessions before stopping the server: {failure}");
             return true;
         }
     };
     if live == 0 {
         return true;
     }
-    ask(handle, &warning(live)).await
+    ask(handle, leaving, &warning(live, leaving)).await
 }
 
-async fn ask<R: Runtime>(handle: &AppHandle<R>, message: &str) -> bool {
+async fn ask<R: Runtime>(handle: &AppHandle<R>, leaving: Leaving, message: &str) -> bool {
     let (answer, reply) = oneshot::channel();
     let mut dialog = handle
         .dialog()
         .message(message)
-        .title(TITLE)
+        .title(leaving.title())
         .kind(MessageDialogKind::Warning)
-        .buttons(MessageDialogButtons::OkCancelCustom(QUIT.into(), STAY.into()));
+        .buttons(MessageDialogButtons::OkCancelCustom(leaving.confirm().into(), STAY.into()));
     if let Some(window) = handle.get_webview_window("main") {
         dialog = dialog.parent(&window as &WebviewWindow<R>);
     }

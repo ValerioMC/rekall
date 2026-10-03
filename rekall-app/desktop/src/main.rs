@@ -4,7 +4,7 @@
 //!
 //! The server is always a real HTTP server on the fixed port (`SERVER_PORT`, 47355): Claude Code
 //! reaches `/mcp` there, and the console talks to it over the same REST, SSE and WebSocket routes
-//! a browser uses. Only the three native bridges (`bridges.rs`) go through Tauri.
+//! a browser uses. Only the native bridges (`bridges.rs`, `update_install.rs`) go through Tauri.
 //!
 //! If a Rekall server already answers on the port (a `rekall-server` in a terminal, another copy
 //! of the app), the window attaches to it and leaves it running on quit: we did not start it, we
@@ -14,6 +14,7 @@
 
 mod bridges;
 mod exit_guard;
+mod update_install;
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -106,7 +107,8 @@ fn main() {
             bridges::notifier::notify,
             bridges::window_controls::close_window,
             bridges::window_controls::minimize_window,
-            bridges::window_controls::toggle_maximize_window
+            bridges::window_controls::toggle_maximize_window,
+            update_install::install_update
         ])
         .menu(|handle| {
             let reload = MenuItemBuilder::with_id("reload", "Reload").accelerator("CmdOrCtrl+R").build(handle)?;
@@ -181,7 +183,7 @@ fn request_quit(handle: &AppHandle) {
     let handle = handle.clone();
     tauri::async_runtime::spawn(async move {
         let owns_server = shell.running.lock().await.is_some();
-        if !owns_server || exit_guard::may_quit(&handle, port()).await {
+        if !owns_server || exit_guard::may_leave(&handle, port(), exit_guard::Leaving::Quit).await {
             handle.exit(0);
         } else {
             shell.quitting.store(false, Ordering::SeqCst);
@@ -362,6 +364,14 @@ fn js(text: &str) -> String {
 
 // ---------------------------------------------------------------- the server
 
+/// The configuration the in-process server starts with, read again by whatever needs its settings.
+fn server_config() -> AppConfig {
+    let args = vec![format!("--server.port={}", port())];
+    let mut config = AppConfig::from_sources(&Properties::new(&args, std::env::vars().collect()));
+    config.working_dir = working_dir();
+    config
+}
+
 /// Attach to a server that answers, or start one; then show the console.
 async fn boot(handle: AppHandle) {
     let since = Instant::now();
@@ -371,11 +381,7 @@ async fn boot(handle: AppHandle) {
         return;
     }
     status(&handle, "Starting the server…");
-    let args = vec![format!("--server.port={}", port())];
-    let mut config = AppConfig::from_sources(&Properties::new(&args, std::env::vars().collect()));
-    config.working_dir = working_dir();
-
-    let starting = rekall_app::start(config, StartOptions::default());
+    let starting = rekall_app::start(server_config(), StartOptions::default());
     tokio::pin!(starting);
     let started = tokio::select! {
         started = &mut starting => started,

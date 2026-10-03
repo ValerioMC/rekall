@@ -174,6 +174,13 @@ describe('ReportPage', () => {
     expect(wrapper.findAll('[data-testid="ridge-column"]')).toHaveLength(7)
   })
 
+  /** The document never scrolls (`html, body { overflow: hidden }`), so the report must. */
+  it('scrolls its own content when it is taller than the window', async () => {
+    const wrapper = await mountReport()
+
+    expect(wrapper.get('[data-testid="report-scroller"]').classes()).toContain('overflow-y-auto')
+  })
+
   it('narrows to the companies picked, and back to all of them', async () => {
     const wrapper = await mountReport()
 

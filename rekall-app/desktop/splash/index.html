@@ -18,9 +18,10 @@
       transition: opacity 300ms ease-out;
     }
     .failed .art { opacity: 0.18; }
+    /* Not drawn over the artwork, whose own motto sits where a visible line would land. */
     .status {
-      position: absolute; left: 0; right: 0; bottom: 1.75rem; text-align: center;
-      color: #7a8494; font-size: 12px; letter-spacing: 0.04em; min-height: 1.5rem;
+      position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%);
+      white-space: nowrap;
     }
     .panel {
       position: absolute; inset: 0; display: none; flex-direction: column;

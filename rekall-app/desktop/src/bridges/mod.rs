@@ -8,7 +8,9 @@
 //! - `notify({title, body})` resolves to whether the system showed it (`Notifier`);
 //! - `closeWindow()`, `minimizeWindow()` and `toggleMaximizeWindow()` stand in for the native
 //!   traffic lights the window has none of: the console draws its own close/minimize/maximize
-//!   controls in `AnchorBar.vue` and calls these instead of a titlebar button.
+//!   controls in `AnchorBar.vue` and calls these instead of a titlebar button;
+//! - `installUpdate()` resolves to whether the newest release is being installed and restarted
+//!   into (`update_install.rs`, outside this module because it stops the server the shell owns).
 //!
 //! A refusal rejects the promise with an `Error` whose message says why, as WebKit's reply
 //! handler did.
