@@ -4,15 +4,19 @@ import FirstRunSetup from '@/components/setup/FirstRunSetup.vue'
 import DatabaseUnreachable from '@/components/setup/DatabaseUnreachable.vue'
 import ShellDock from '@/components/shell/ShellDock.vue'
 import AppHeaderChrome from '@/components/shell/AppHeaderChrome.vue'
+import LeaveDialog from '@/components/shell/LeaveDialog.vue'
+import UpdateDialog from '@/components/shell/UpdateDialog.vue'
 import AppLogo from '@/components/ui/AppLogo.vue'
 import { fetchDatabaseStatus } from '@/api/settings.api'
 import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/stores/terminal.store'
+import { useUpdateStore } from '@/stores/update.store'
 import { useToastStore } from '@/stores/toast.store'
 import type { DatabaseStatus } from '@/model/settings'
 
 const store = useConsoleStore()
 const terminals = useTerminalStore()
+const update = useUpdateStore()
 const toast = useToastStore()
 const status = ref<DatabaseStatus | null>(null)
 const failed = ref(false)
@@ -38,6 +42,7 @@ onMounted(async () => {
     if (status.value.status === 'READY') {
       await store.load()
       void terminals.load()
+      void update.checkAtStartup()
     }
   } catch {
     failed.value = true
@@ -53,6 +58,7 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <LeaveDialog />
   <template v-if="status">
     <template v-if="status.status === 'READY'">
       <div class="flex h-full flex-col">
@@ -64,6 +70,7 @@ onUnmounted(() => {
         </router-view>
       </div>
       <ShellDock />
+      <UpdateDialog v-if="update.promptOpen" />
     </template>
     <FirstRunSetup v-else-if="status.status === 'SETUP_NEEDED'" />
     <DatabaseUnreachable v-else :status="status" />

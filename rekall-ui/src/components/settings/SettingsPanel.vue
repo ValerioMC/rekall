@@ -5,6 +5,7 @@ import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import ClaudeCodeSection from '@/components/settings/ClaudeCodeSection.vue'
 import NotificationsSection from '@/components/settings/NotificationsSection.vue'
+import VersionSection from '@/components/settings/VersionSection.vue'
 import BackupsSection from '@/components/settings/BackupsSection.vue'
 import DatabaseFolderField from '@/components/setup/DatabaseFolderField.vue'
 import RestartingOverlay from '@/components/setup/RestartingOverlay.vue'
@@ -261,6 +262,7 @@ onUnmounted(() => {
         <ClaudeCodeSection class="mt-6 border-t border-border pt-5" />
         <BackupsSection class="mt-6 border-t border-border pt-5" @busy="backupBusy = $event" />
         <NotificationsSection class="mt-6 border-t border-border pt-5" />
+        <VersionSection class="mt-6 border-t border-border pt-5" />
       </div>
     </div>
 

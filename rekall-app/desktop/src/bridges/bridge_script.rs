@@ -1,6 +1,6 @@
 /// The JavaScript half, installed before the page runs. It merges rather than assigns, as the
 /// three Swift bridges did, and turns a rejected invoke into an `Error` the console can read.
-pub const BRIDGE: &str = r#"
+const BRIDGE: &str = r#"
 (function () {
   if (!window.__TAURI_INTERNALS__) return;
   var call = function (command, args) {
@@ -34,9 +34,18 @@ pub const BRIDGE: &str = r#"
     toggleMaximizeWindow: function () {
       return call('toggle_maximize_window', {});
     },
+    installsUpdates: __INSTALLS_UPDATES__,
     installUpdate: function () {
       return call('install_update', {});
+    },
+    answerLeave: function (confirmed) {
+      return call('answer_leave', { answer: typeof confirmed === 'boolean' ? confirmed : null });
     }
   });
 })();
 "#;
+
+/// The script with what only the build knows: installing from the app is a macOS feature.
+pub fn bridge_script() -> String {
+    BRIDGE.replace("__INSTALLS_UPDATES__", if cfg!(target_os = "macos") { "true" } else { "false" })
+}

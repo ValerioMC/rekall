@@ -101,6 +101,7 @@ fn main() {
         .plugin(tauri_plugin_opener::init())
         .manage(Arc::new(Shell::default()))
         .manage(bridges::WindowGeometry::default())
+        .manage(exit_guard::LeaveQuestion::default())
         .invoke_handler(tauri::generate_handler![
             bridges::folder_picker::pick_folder,
             bridges::claude_code_launcher::open_in_claude_code,
@@ -108,7 +109,8 @@ fn main() {
             bridges::window_controls::close_window,
             bridges::window_controls::minimize_window,
             bridges::window_controls::toggle_maximize_window,
-            update_install::install_update
+            update_install::install_update,
+            exit_guard::answer_leave
         ])
         .menu(|handle| {
             let reload = MenuItemBuilder::with_id("reload", "Reload").accelerator("CmdOrCtrl+R").build(handle)?;
@@ -224,7 +226,7 @@ fn build_window(handle: &AppHandle) -> tauri::Result<WebviewWindow> {
         .theme(Some(tauri::Theme::Dark))
         .background_color(tauri::window::Color(8, 9, 12, 255))
         .shadow(false)
-        .initialization_script(bridges::BRIDGE)
+        .initialization_script(bridges::bridge_script())
         // Anything not served by the local instance belongs in the browser, not in a window with
         // no address bar and no way back.
         .on_navigation(move |url| {

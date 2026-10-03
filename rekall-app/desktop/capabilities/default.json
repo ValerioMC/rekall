@@ -15,6 +15,7 @@
     "allow-close-window",
     "allow-minimize-window",
     "allow-toggle-maximize-window",
-    "allow-install-update"
+    "allow-install-update",
+    "allow-answer-leave"
   ]
 }

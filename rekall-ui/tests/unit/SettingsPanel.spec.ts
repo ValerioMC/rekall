@@ -53,6 +53,11 @@ vi.mock('@/api/backups.api', () => ({
   backupDownloadUrl: (name: string) => `/api/backups/${name}`
 }))
 
+/** The version section has its own spec; here it only has to not reach the network. */
+vi.mock('@/api/version.api', () => ({
+  fetchVersionStatus: vi.fn(async () => ({ current: '0.1.0', check: 'UP_TO_DATE', latest: null }))
+}))
+
 /** The Claude Code section has its own spec; here it only has to not reach the network. */
 vi.mock('@/api/claude.api', () => ({
   fetchClaudeInstallation: () =>

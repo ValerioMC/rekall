@@ -1,10 +1,13 @@
 //! The question asked before the app quits, or restarts into an update, while Claude sessions are
 //! still live: either stops the server this process started, and with it every terminal it holds.
+//! The console asks it in its own dialog; the system dialog is the fallback when the console
+//! cannot show one.
 
+use std::sync::Mutex;
 use std::time::Duration;
 
 use serde::Deserialize;
-use tauri::{AppHandle, Manager, Runtime, WebviewWindow};
+use tauri::{AppHandle, Manager, Runtime, State, WebviewWindow};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 use tokio::sync::oneshot;
 use tracing::warn;
@@ -33,6 +36,34 @@ impl Leaving {
             Leaving::Update => "Install and restart",
         }
     }
+}
+
+/// The question the console is answering now. `None` as the answer means the console could not
+/// show it, so the system dialog asks instead.
+#[derive(Default)]
+pub struct LeaveQuestion {
+    pending: Mutex<Option<oneshot::Sender<Option<bool>>>>,
+}
+
+impl LeaveQuestion {
+    /// Starts a question; one still waiting is abandoned and counts as a refusal.
+    fn open(&self) -> oneshot::Receiver<Option<bool>> {
+        let (sender, receiver) = oneshot::channel();
+        *self.pending.lock().expect("the leave question lock") = Some(sender);
+        receiver
+    }
+
+    /// Delivers the answer to the question that is waiting; false when none is.
+    fn answer(&self, answer: Option<bool>) -> bool {
+        let sender = self.pending.lock().expect("the leave question lock").take();
+        sender.is_some_and(|sender| sender.send(answer).is_ok())
+    }
+}
+
+/// The `answerLeave(confirmed)` bridge: the console's reply to the question it was shown.
+#[tauri::command]
+pub fn answer_leave(question: State<'_, LeaveQuestion>, answer: Option<bool>) {
+    question.answer(answer);
 }
 
 /// The one field of a terminal that says whether its session is still running.
@@ -88,6 +119,36 @@ pub async fn may_leave<R: Runtime>(handle: &AppHandle<R>, port: u16, leaving: Le
 }
 
 async fn ask<R: Runtime>(handle: &AppHandle<R>, leaving: Leaving, message: &str) -> bool {
+    match ask_in_console(handle, leaving, message).await {
+        Some(confirmed) => confirmed,
+        None => ask_with_system_dialog(handle, leaving, message).await,
+    }
+}
+
+/// `None` when the console cannot show the question.
+async fn ask_in_console<R: Runtime>(handle: &AppHandle<R>, leaving: Leaving, message: &str) -> Option<bool> {
+    let window = handle.get_webview_window("main")?;
+    let reply = handle.state::<LeaveQuestion>().open();
+    if window.eval(leave_script(leaving, message)).is_err() {
+        handle.state::<LeaveQuestion>().answer(None);
+    }
+    reply.await.unwrap_or(Some(false))
+}
+
+/// Hands the question to the console; a console not yet listening answers `null` at once.
+fn leave_script(leaving: Leaving, message: &str) -> String {
+    let detail = serde_json::json!({
+        "title": leaving.title(),
+        "message": message,
+        "confirm": leaving.confirm(),
+        "stay": STAY,
+    });
+    format!(
+        "window.rekallLeaveReady ? window.dispatchEvent(new CustomEvent('rekall:leave', {{ detail: {detail} }})) : window.rekallDesktop.answerLeave(null)"
+    )
+}
+
+async fn ask_with_system_dialog<R: Runtime>(handle: &AppHandle<R>, leaving: Leaving, message: &str) -> bool {
     let (answer, reply) = oneshot::channel();
     let mut dialog = handle
         .dialog()

@@ -35,3 +35,33 @@ fn the_update_warning_says_the_restart_stops_the_server() {
     assert!(text.starts_with("2 Claude sessions are still running. Installing the update restarts Rekall"));
     assert!(text.contains("so they will end"));
 }
+
+#[tokio::test]
+async fn the_consoles_answer_reaches_the_question_that_is_waiting() {
+    let question = LeaveQuestion::default();
+    let reply = question.open();
+    assert!(question.answer(Some(true)));
+    assert_eq!(reply.await.unwrap(), Some(true));
+}
+
+#[test]
+fn an_answer_with_no_question_waiting_is_ignored() {
+    assert!(!LeaveQuestion::default().answer(Some(true)));
+}
+
+#[tokio::test]
+async fn a_new_question_abandons_the_one_still_waiting() {
+    let question = LeaveQuestion::default();
+    let abandoned = question.open();
+    let _current = question.open();
+    assert!(abandoned.await.is_err());
+}
+
+#[test]
+fn the_console_is_told_what_to_say_and_a_deaf_console_defers_to_the_system() {
+    let script = leave_script(Leaving::Quit, "2 sessions \"live\"");
+    assert!(script.contains(r#""title":"Quit Rekall?""#));
+    assert!(script.contains(r#""message":"2 sessions \"live\"""#));
+    assert!(script.contains(r#""confirm":"Quit""#));
+    assert!(script.contains("answerLeave(null)"));
+}

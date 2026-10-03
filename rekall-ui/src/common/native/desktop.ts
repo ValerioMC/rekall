@@ -23,16 +23,24 @@ export interface DesktopHost {
   minimizeWindow?(): Promise<void>
   toggleMaximizeWindow?(): Promise<void>
 
+  /** True where the window can install a release over itself (macOS). */
+  installsUpdates?: boolean
+
   /**
    * Installs the newest release over this app and restarts into it (macOS). Resolves false when
    * the user chose to keep a live Claude session; rejects with the reason the install failed.
    */
   installUpdate?(): Promise<boolean>
+
+  /** Answers the question the shell put to `LeaveDialog`; null when the console cannot ask it. */
+  answerLeave?(confirmed: boolean | null): Promise<void>
 }
 
 declare global {
   interface Window {
     rekallDesktop?: DesktopHost
+    /** Set while `LeaveDialog` listens for the shell's question about quitting. */
+    rekallLeaveReady?: boolean
   }
 }
 
@@ -50,7 +58,8 @@ export async function launchClaudeCode(launch: ClaudeCodeLaunch): Promise<string
 
 /** True when the window can put a newer release in place itself rather than link to it. */
 export function canInstallUpdate(): boolean {
-  return typeof window.rekallDesktop?.installUpdate === 'function'
+  const host = window.rekallDesktop
+  return host?.installsUpdates === true && typeof host.installUpdate === 'function'
 }
 
 export async function installUpdate(): Promise<boolean> {
@@ -59,6 +68,10 @@ export async function installUpdate(): Promise<boolean> {
     throw new Error('This window cannot install an update.')
   }
   return host.installUpdate()
+}
+
+export async function answerLeave(confirmed: boolean): Promise<void> {
+  await window.rekallDesktop?.answerLeave?.(confirmed)
 }
 
 export function desktopHost(): DesktopHost | null {
