@@ -6,6 +6,7 @@ import AppSelect from '@/components/ui/AppSelect.vue'
 import ProjectPicker from '@/components/console/ProjectPicker.vue'
 import TagIcon from '@/components/ui/TagIcon.vue'
 import ProjectIcon from '@/components/ui/ProjectIcon.vue'
+import ProjectMark from '@/components/ui/ProjectMark.vue'
 import CloseGlyph from '@/components/ui/CloseGlyph.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
@@ -21,7 +22,7 @@ import {
 } from '@/model/catalog'
 import type { ProjectStatus, TaskStatus } from '@/model/catalog'
 import type { RecordDraft } from '@/model/record-draft'
-import type { TagId } from '@/model/branded'
+import type { ProjectId, TagId } from '@/model/branded'
 
 const props = defineProps<{ draft: RecordDraft }>()
 const emit = defineEmits<{ close: []; saved: [] }>()
@@ -158,6 +159,58 @@ const projectIcon = computed<string>({
   }
 })
 
+const ICON_IMAGE_MAX_BYTES = 10 * 1024 * 1024
+const ICON_IMAGE_TYPES = 'image/png,image/jpeg,image/webp,image/gif'
+
+const storedProject = computed(() =>
+  form.value.kind === 'project' && form.value.id
+    ? store.projects.find((candidate) => candidate.id === form.value.id)
+    : undefined
+)
+const iconFileField = ref<HTMLInputElement | null>(null)
+const pendingImage = ref<File | null>(null)
+const pendingImagePreview = ref<string | null>(null)
+const isRemovingImage = ref(false)
+const imageError = ref<string | null>(null)
+
+const shownImageVersion = computed(() =>
+  isRemovingImage.value ? null : (storedProject.value?.iconImageVersion ?? null)
+)
+const hasIconImage = computed(() => pendingImage.value !== null || shownImageVersion.value !== null)
+
+function releasePreview(): void {
+  if (pendingImagePreview.value) URL.revokeObjectURL(pendingImagePreview.value)
+  pendingImagePreview.value = null
+}
+
+function pickIconImage(event: Event): void {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0] ?? null
+  input.value = ''
+  if (!file) return
+  if (file.size > ICON_IMAGE_MAX_BYTES) {
+    imageError.value = 'The image is larger than 10 MB.'
+    return
+  }
+  imageError.value = null
+  releasePreview()
+  pendingImage.value = file
+  pendingImagePreview.value = URL.createObjectURL(file)
+  isRemovingImage.value = false
+}
+
+function clearIconImage(): void {
+  imageError.value = null
+  releasePreview()
+  pendingImage.value = null
+  isRemovingImage.value = storedProject.value?.iconImageVersion != null
+}
+
+async function applyIconImage(projectId: ProjectId): Promise<void> {
+  if (pendingImage.value) await store.setProjectIconImage(projectId, pendingImage.value)
+  else if (isRemovingImage.value) await store.setProjectIconImage(projectId, null)
+}
+
 const titleError = computed(() =>
   submitted.value && !titleValue.value.trim() ? 'A title is required.' : null
 )
@@ -215,8 +268,13 @@ async function save(): Promise<void> {
         autoCommit: stored?.autoCommit ?? false,
         companyId: current.companyId
       }
-      if (current.id === null) await store.createProject(input)
-      else await store.updateProject(current.id, input)
+      if (current.id === null) {
+        const created = await store.createProject(input)
+        await applyIconImage(created.id)
+      } else {
+        await store.updateProject(current.id, input)
+        await applyIconImage(current.id)
+      }
     } else {
       const input = {
         label: label.value,
@@ -279,7 +337,10 @@ onMounted(async () => {
   firstField.value?.select()
 })
 
-onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKeydown, true)
+  releasePreview()
+})
 </script>
 
 <template>
@@ -459,6 +520,36 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
           <p class="mb-1.5 mt-5 eyebrow text-[11px]">
             Icon
           </p>
+          <div class="mb-3 flex items-center gap-3" data-testid="record-icon-image">
+            <ProjectMark
+              :project-id="form.id ?? 'new-project'"
+              :icon="projectIcon"
+              :image-version="shownImageVersion"
+              :preview-src="pendingImagePreview"
+              :size="48"
+            />
+            <div class="min-w-0">
+              <div class="flex items-center gap-2">
+                <AppButton size="sm" data-testid="record-icon-upload" @click="iconFileField?.click()">
+                  {{ hasIconImage ? 'Replace image' : 'Upload image' }}
+                </AppButton>
+                <AppButton v-if="hasIconImage" variant="ghost" size="sm" data-testid="record-icon-remove" @click="clearIconImage">
+                  Remove
+                </AppButton>
+              </div>
+              <p class="mt-1.5 text-[11.5px]" :class="imageError ? 'text-danger' : 'text-text-subtle'" :role="imageError ? 'alert' : undefined">
+                {{ imageError ?? 'PNG, JPEG, WebP or GIF, cropped to a square with rounded corners. The icon below shows without one.' }}
+              </p>
+            </div>
+            <input
+              ref="iconFileField"
+              type="file"
+              class="hidden"
+              :accept="ICON_IMAGE_TYPES"
+              data-testid="record-icon-file"
+              @change="pickIconImage"
+            />
+          </div>
           <div class="flex flex-wrap gap-1.5" data-testid="record-icon-picker">
             <button
               v-for="option in PROJECT_ICON_KEYS"

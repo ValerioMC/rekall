@@ -20,6 +20,7 @@ mod m028_diagram;
 mod m029_task_step_passes;
 mod m030_note_scope;
 mod m031_project_section;
+mod m032_project_icon_image;
 mod migration_support;
 mod migrator;
 

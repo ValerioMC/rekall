@@ -138,7 +138,7 @@ async fn a_database_from_before_companies_and_labels_comes_through_whole() {
     assert_eq!(
         tables,
         [
-            "commit_reference", "company", "diagram", "document", "document_task", "project", "project_section",
+            "commit_reference", "company", "diagram", "document", "document_task", "project", "project_icon_image", "project_section",
             "run_queue", "run_queue_item", "seaql_migrations", "tag", "task", "task_revision", "task_step",
             "time_entry", "wrapup"
         ]

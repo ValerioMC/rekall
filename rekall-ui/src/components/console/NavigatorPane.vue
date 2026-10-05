@@ -7,7 +7,7 @@ import NavigatorTaskRow from '@/components/console/NavigatorTaskRow.vue'
 import NavigatorFilingDrawer from '@/components/console/NavigatorFilingDrawer.vue'
 import ProjectTrace from '@/components/ui/ProjectTrace.vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
-import ProjectIcon from '@/components/ui/ProjectIcon.vue'
+import ProjectMark from '@/components/ui/ProjectMark.vue'
 import { partitionTasks } from '@/common/catalog/partition-tasks'
 import { groupNotesByScope } from '@/common/catalog/note-groups'
 import { identityHue } from '@/common/identity'
@@ -64,6 +64,7 @@ interface ProjectGroup {
   readonly companyName: string
   readonly status: ProjectStatus
   readonly icon: string
+  readonly iconImageVersion: string | null
   readonly tasks: Task[]
   readonly active: Task[]
   readonly backlog: Task[]
@@ -76,11 +77,12 @@ interface ProjectTaskBucket {
   readonly companyName: string
   readonly status: ProjectStatus
   readonly icon: string
+  readonly iconImageVersion: string | null
   readonly tasks: Task[]
 }
 
 const projectStatusById = computed(() => new Map(projects.value.map((project) => [project.id, project.status])))
-const projectIconById = computed(() => new Map(projects.value.map((project) => [project.id, project.icon])))
+const projectById = computed(() => new Map(projects.value.map((project) => [project.id, project])))
 
 // Active projects float to the top of the column so a paused or done one never buries what is live.
 const PROJECT_STATUS_RANK: Readonly<Record<ProjectStatus, number>> = { ACTIVE: 0, PAUSED: 1, DONE: 2 }
@@ -95,7 +97,8 @@ const groupedByProject = computed<ProjectGroup[]>(() => {
         projectTitle: task.projectTitle,
         companyName: task.companyName,
         status: projectStatusById.value.get(task.projectId) ?? 'ACTIVE',
-        icon: projectIconById.value.get(task.projectId) ?? 'folder',
+        icon: projectById.value.get(task.projectId)?.icon ?? 'folder',
+        iconImageVersion: projectById.value.get(task.projectId)?.iconImageVersion ?? null,
         tasks: []
       }
       byProject.set(task.projectId, bucket)
@@ -326,13 +329,13 @@ defineExpose({ beginCreate, editSelected })
             >
               <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
-            <span
-              class="mt-px grid size-6 shrink-0 place-items-center rounded-[7px]"
-              :style="{ backgroundColor: identityHue(group.projectId).soft, color: identityHue(group.projectId).base }"
-              aria-hidden="true"
-            >
-              <ProjectIcon :icon="group.icon" :size="14" />
-            </span>
+            <ProjectMark
+              class="mt-px"
+              :project-id="group.projectId"
+              :icon="group.icon"
+              :image-version="group.iconImageVersion"
+              :size="24"
+            />
             <span class="min-w-0 flex-1">
               <span class="flex items-center gap-2">
                 <span class="min-w-0 flex-1 truncate text-[13.5px] font-semibold tracking-[-0.006em] text-text">

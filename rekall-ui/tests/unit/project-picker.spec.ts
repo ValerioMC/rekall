@@ -10,6 +10,7 @@ function project(id: string, title: string, companyName: string, status: Project
     title,
     status,
     icon: 'folder',
+    iconImageVersion: null,
     description: null,
     blueprintMarkdown: null,
     repoFolder: null,

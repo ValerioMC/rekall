@@ -15,7 +15,9 @@ import {
   fetchTasks,
   reviewTask as apiReviewTask,
   updateCompany as apiUpdateCompany,
+  removeProjectIconImage as apiRemoveProjectIconImage,
   updateProject as apiUpdateProject,
+  uploadProjectIconImage as apiUploadProjectIconImage,
   updateTag as apiUpdateTag,
   updateTask as apiUpdateTask
 } from '@/api/catalog.api'
@@ -409,6 +411,19 @@ export const useConsoleStore = defineStore('console', () => {
       .map((project) => (project.id === id ? saved : project))
       .sort((a, b) => a.label.localeCompare(b.label))
     await Promise.all([refreshTasks(), refreshCompanies(), refreshDocuments(), refreshWrapups()])
+  }
+
+  /** `null` takes the picture off, and the project goes back to its icon key. */
+  async function setProjectIconImage(id: ProjectId, file: File | null): Promise<void> {
+    if (file) {
+      const saved = await apiUploadProjectIconImage(id, file)
+      projects.value = projects.value.map((project) => (project.id === id ? saved : project))
+      return
+    }
+    await apiRemoveProjectIconImage(id)
+    projects.value = projects.value.map((project) =>
+      project.id === id ? { ...project, iconImageVersion: null } : project
+    )
   }
 
   async function deleteProject(id: ProjectId): Promise<void> {
@@ -1119,6 +1134,7 @@ export const useConsoleStore = defineStore('console', () => {
     saveProjectBlueprint,
     saveProjectRepoFolder,
     saveProjectAutoCommit,
+    setProjectIconImage,
     refreshEverything,
     createTask,
     updateTask,

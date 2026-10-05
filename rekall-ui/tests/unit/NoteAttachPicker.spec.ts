@@ -40,6 +40,7 @@ const project: Project = {
   title: 'Rekall',
   status: 'ACTIVE',
   icon: 'folder',
+  iconImageVersion: null,
   description: null,
   blueprintMarkdown: null,
   repoFolder: null,

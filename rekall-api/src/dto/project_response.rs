@@ -11,6 +11,8 @@ pub struct ProjectResponse {
     pub title: String,
     pub status: ProjectStatus,
     pub icon: String,
+    /// Set when the project has an uploaded picture; changes with every upload.
+    pub icon_image_version: Option<Instant>,
     pub description: Option<String>,
     pub blueprint_markdown: Option<String>,
     pub repo_folder: Option<String>,
@@ -23,13 +25,14 @@ pub struct ProjectResponse {
 }
 
 impl ProjectResponse {
-    pub fn of(project: &project::Model, company: &company::Model, task_count: usize) -> Self {
+    pub fn of(project: &project::Model, company: &company::Model, task_count: usize, icon_image_version: Option<Instant>) -> Self {
         Self {
             id: project.id,
             label: project.label.clone(),
             title: project.title.clone(),
             status: project.status,
             icon: project.icon.clone(),
+            icon_image_version,
             description: project.description.clone(),
             blueprint_markdown: project.blueprint_markdown.clone(),
             repo_folder: project.repo_folder.clone(),

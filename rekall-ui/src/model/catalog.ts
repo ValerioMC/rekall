@@ -85,6 +85,8 @@ export interface Project {
   readonly title: string
   readonly status: ProjectStatus
   readonly icon: string
+  /** Set when the project has an uploaded picture; changes with every upload, so it keys the cache. */
+  readonly iconImageVersion: string | null
   readonly description: string | null
   readonly blueprintMarkdown: string | null
   readonly repoFolder: string | null

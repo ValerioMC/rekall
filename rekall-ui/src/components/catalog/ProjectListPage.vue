@@ -8,6 +8,7 @@ import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
 import AppInput from '@/components/ui/AppInput.vue'
+import ProjectMark from '@/components/ui/ProjectMark.vue'
 import ProjectTrace from '@/components/ui/ProjectTrace.vue'
 import StatusMixBar from '@/components/ui/StatusMixBar.vue'
 import CloseGlyph from '@/components/ui/CloseGlyph.vue'
@@ -242,9 +243,12 @@ async function confirmDelete(): Promise<void> {
                 </AppBadge>
               </div>
 
-              <div class="pointer-events-none min-w-0">
-                <p class="line-clamp-2 text-[14px] font-semibold leading-snug text-text">{{ project.title }}</p>
-                <span class="anchor-chip mt-1.5 inline-block px-1.5 py-px text-[10px]">{{ project.anchor }}</span>
+              <div class="pointer-events-none flex min-w-0 items-start gap-3">
+                <ProjectMark :project-id="project.id" :icon="project.icon" :image-version="project.iconImageVersion" :size="36" />
+                <div class="min-w-0">
+                  <p class="line-clamp-2 text-[14px] font-semibold leading-snug text-text">{{ project.title }}</p>
+                  <span class="anchor-chip mt-1.5 inline-block px-1.5 py-px text-[10px]">{{ project.anchor }}</span>
+                </div>
               </div>
 
               <StatusMixBar class="pointer-events-none" :tasks="tasksOf(project.id)" />

@@ -2,7 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import ProjectIcon from '@/components/ui/ProjectIcon.vue'
-import { identityHue } from '@/common/identity'
+import ProjectMark from '@/components/ui/ProjectMark.vue'
 import { groupProjectsByCompany, matchesProjectQuery } from '@/common/catalog/project-picker'
 import { PROJECT_STATUS_LABEL } from '@/model/catalog'
 import type { Project, ProjectStatus } from '@/model/catalog'
@@ -99,17 +99,19 @@ function indexOf(project: Project): number {
       :aria-expanded="isOpen"
       @click="isOpen ? close() : open()"
     >
+      <ProjectMark
+        v-if="current"
+        :project-id="current.id"
+        :icon="current.icon"
+        :image-version="current.iconImageVersion"
+        :size="36"
+      />
       <span
-        class="grid size-9 shrink-0 place-items-center rounded-[9px] border"
-        :style="
-          current
-            ? { color: identityHue(current.id).base, backgroundColor: identityHue(current.id).soft, borderColor: identityHue(current.id).line }
-            : undefined
-        "
-        :class="current ? '' : 'border-border-strong text-text-subtle'"
+        v-else
+        class="grid size-9 shrink-0 place-items-center rounded-[22.37%] border border-border-strong text-text-subtle"
         aria-hidden="true"
       >
-        <ProjectIcon :icon="current?.icon ?? 'folder'" :size="17" />
+        <ProjectIcon icon="folder" :size="17" />
       </span>
       <span class="min-w-0 flex-1">
         <template v-if="current">
@@ -171,7 +173,7 @@ function indexOf(project: Project): number {
             @mousemove="highlighted = indexOf(project)"
             @click="pick(project)"
           >
-            <span class="size-1.5 shrink-0 rounded-full" :style="{ backgroundColor: identityHue(project.id).base }" aria-hidden="true" />
+            <ProjectMark :project-id="project.id" :icon="project.icon" :image-version="project.iconImageVersion" :size="22" />
             <span class="min-w-0 flex-1">
               <span class="block truncate text-[13px]" :class="project.id === modelValue ? 'text-text' : 'text-text-muted'">{{ project.title }}</span>
               <span class="block truncate font-mono text-[10.5px] text-anchor/70">{{ project.anchor }}</span>

@@ -104,6 +104,23 @@ export async function deleteProject(id: ProjectId): Promise<void> {
   await request(() => apiClient(`/api/projects/${id}`, { method: 'DELETE' }))
 }
 
+/** The body is the image file itself, in any format the server can decode. */
+export async function uploadProjectIconImage(id: ProjectId, file: File): Promise<Project> {
+  return request(async () =>
+    ProjectSchema.parse(
+      await apiClient(`/api/projects/${id}/icon-image`, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': file.type || 'application/octet-stream' }
+      })
+    )
+  )
+}
+
+export async function removeProjectIconImage(id: ProjectId): Promise<void> {
+  await request(() => apiClient(`/api/projects/${id}/icon-image`, { method: 'DELETE' }))
+}
+
 export async function fetchTasks(projectId?: ProjectId): Promise<Task[]> {
   return request(async () =>
     TaskListSchema.parse(await apiClient('/api/tasks', { query: projectId ? { projectId } : {} }))

@@ -11,6 +11,7 @@ pub mod company;
 pub mod diagram;
 pub mod document;
 pub mod project;
+pub mod project_icon_image;
 pub mod project_section;
 pub mod run_queue;
 pub mod tag;

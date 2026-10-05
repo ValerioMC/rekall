@@ -14,6 +14,7 @@ import ProjectBlueprintPane from '@/components/project/ProjectBlueprintPane.vue'
 import ProjectDocsRail from '@/components/project/ProjectDocsRail.vue'
 import ProjectSectionPane from '@/components/project/ProjectSectionPane.vue'
 import ProjectTasksDrawer from '@/components/project/ProjectTasksDrawer.vue'
+import ProjectMark from '@/components/ui/ProjectMark.vue'
 import ProjectTrace from '@/components/ui/ProjectTrace.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useProjectSectionsStore } from '@/stores/projectSections.store'
@@ -267,6 +268,9 @@ onUnmounted(() => {
 
     <template v-else>
       <AppCatalogHeader :title="project.title" :parent="company?.name">
+        <template #leading>
+          <ProjectMark :project-id="project.id" :icon="project.icon" :image-version="project.iconImageVersion" :size="24" />
+        </template>
         <template #title-suffix>
           <ProjectTrace :id="project.id" size="md" :series="activitySeries" />
           <AppBadge

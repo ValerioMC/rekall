@@ -15,7 +15,9 @@ withDefaults(defineProps<{ title: string; parent?: string | null }>(), { parent:
 
     <div class="flex min-w-0 flex-1 items-center gap-3">
       <h1 class="flex min-w-0 items-center gap-2 text-[15px] font-semibold tracking-[-0.01em] text-text">
-        <span class="h-3 w-[3px] shrink-0 rounded-full bg-accent" aria-hidden="true" />
+        <slot name="leading">
+          <span class="h-3 w-[3px] shrink-0 rounded-full bg-accent" aria-hidden="true" />
+        </slot>
         <span v-if="parent" class="shrink-0 font-medium text-text-subtle">
           {{ parent }}<span class="px-1.5 text-border-strong" aria-hidden="true">/</span>
         </span>

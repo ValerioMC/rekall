@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import DiagramTag from '@/components/diagram/DiagramTag.vue'
-import ProjectIcon from '@/components/ui/ProjectIcon.vue'
+import ProjectMark from '@/components/ui/ProjectMark.vue'
 import { relativeTime } from '@/common/format/relative-time'
 import { taskDiagrams, type TaskDiagrams } from '@/common/diagram/task-diagrams'
 import { useNow } from '@/composables/useNow'
@@ -164,7 +164,12 @@ function hint(entry: TaskEntry): string {
 
       <section v-for="group in groups" :key="group.projectId" class="mb-3" :aria-label="group.project?.title ?? 'Project'">
         <h3 class="flex h-7 items-center gap-2 px-2.5 text-[11.5px] font-medium text-text-subtle">
-          <ProjectIcon :icon="group.project?.icon ?? 'folder'" :size="13" />
+          <ProjectMark
+            :project-id="group.projectId"
+            :icon="group.project?.icon ?? 'folder'"
+            :image-version="group.project?.iconImageVersion ?? null"
+            :size="16"
+          />
           <span class="min-w-0 flex-1 truncate">{{ group.project?.title ?? 'Unknown project' }}</span>
           <span class="font-mono tabular-nums" :title="`${diagramCount(group)} with a diagram`">{{ diagramCount(group) }}</span>
         </h3>

@@ -24,6 +24,7 @@ const project = {
   anchor: 'project:vega',
   status: 'ACTIVE',
   icon: 'folder',
+  iconImageVersion: null,
   description: null,
   blueprintMarkdown: '# Blueprint text',
   repoFolder: null,

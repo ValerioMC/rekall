@@ -2,7 +2,8 @@
 
 use std::collections::HashMap;
 
-use rekall_common::{Id, RekallError, Result};
+use rekall_common::{Id, Instant, RekallError, Result};
+use rekall_repository::repository as repo;
 use rekall_model::prelude::*;
 use rekall_model::{company, document_task, project, tag, task, task_step, wrapup};
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QueryOrder};
@@ -19,6 +20,7 @@ pub struct Snapshot {
     pub tags: HashMap<Id, tag::Model>,
     pub documents_per_task: HashMap<Id, usize>,
     pub tasks_per_project: HashMap<Id, usize>,
+    pub icon_image_versions: HashMap<Id, Instant>,
 }
 
 impl Snapshot {
@@ -31,6 +33,7 @@ impl Snapshot {
         for project in Project::find().all(db).await? {
             snapshot.projects.insert(project.id, project);
         }
+        snapshot.icon_image_versions = repo::project_icon_image::find_all_versions(db).await?.into_iter().collect();
         for task in Task::find().all(db).await? {
             *snapshot.tasks_per_project.entry(task.project_id).or_default() += 1;
             snapshot.tasks.insert(task.id, task);
@@ -83,6 +86,9 @@ impl Snapshot {
         let company = Company::find_by_id(project.company_id).one(db).await?.ok_or_else(missing)?;
         let count = Task::find().filter(task::Column::ProjectId.eq(project.id)).all(db).await?.len();
         snapshot.tasks_per_project.insert(project.id, count);
+        if let Some(version) = repo::project_icon_image::find_version(db, project.id).await? {
+            snapshot.icon_image_versions.insert(project.id, version);
+        }
         snapshot.companies.insert(company.id, company);
         snapshot.projects.insert(project.id, project.clone());
         Ok(snapshot)
@@ -105,7 +111,12 @@ impl Snapshot {
 
     pub fn project_response(&self, project: &project::Model) -> Result<ProjectResponse> {
         let company = self.companies.get(&project.company_id).ok_or_else(missing)?;
-        Ok(ProjectResponse::of(project, company, self.tasks_per_project.get(&project.id).copied().unwrap_or(0)))
+        Ok(ProjectResponse::of(
+            project,
+            company,
+            self.tasks_per_project.get(&project.id).copied().unwrap_or(0),
+            self.icon_image_versions.get(&project.id).copied(),
+        ))
     }
 
     pub fn company_response(&self, company: &company::Model) -> CompanyResponse {

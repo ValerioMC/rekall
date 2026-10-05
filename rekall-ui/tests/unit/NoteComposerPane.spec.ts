@@ -73,6 +73,7 @@ const project = (id: ProjectId, label: string, title: string): Project => ({
   title,
   status: 'ACTIVE',
   icon: 'folder',
+  iconImageVersion: null,
   description: null,
   blueprintMarkdown: null,
   repoFolder: null,
