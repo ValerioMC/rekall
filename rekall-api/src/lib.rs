@@ -1,8 +1,8 @@
-//! The REST API the console calls: one router per Java controller, the request and response
-//! shapes of `ApiDtos`, the console-only services that write the catalog (`CatalogService`,
-//! `DocumentService`, `TagService`, `ProjectSectionCatalogService`, `RevisionRestoreService`), the folder
-//! listing behind the path picker, and the one Server-Sent Events feed. `rekall-mcp` never sees any of it, which is what keeps the MCP write
-//! surface narrow.
+//! The REST API the console calls: one router per resource, the request and response shapes,
+//! the console-only services that write the catalog (`CompanyService`, `ProjectService`,
+//! `TaskService`, `DocumentService`, `TagService`, `ProjectSectionCatalogService`,
+//! `RevisionRestoreService`), the folder listing behind the path picker, and the one
+//! Server-Sent Events feed. `rekall-mcp` never sees any of it, which keeps the MCP write surface narrow.
 
 mod api_state;
 pub mod controller;

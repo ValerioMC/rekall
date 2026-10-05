@@ -12,15 +12,15 @@ pub struct Tx {
 }
 
 impl Tx {
-    /// `@Transactional(readOnly = true)`: a deferred transaction, which in WAL mode reads one
-    /// consistent snapshot and never waits for a writer.
+    /// A deferred transaction, which in WAL mode reads one consistent snapshot and never waits
+    /// for a writer.
     pub async fn read(ctx: &Ctx) -> Result<Self> {
         Self::begin(ctx, SqliteTransactionMode::Deferred).await
     }
 
-    /// `@Transactional`: an immediate transaction, which takes the write lock up front (waiting
-    /// for another writer to finish) so that a read made inside it cannot be invalidated by a
-    /// write committed before this one's first write.
+    /// An immediate transaction, which takes the write lock up front (waiting for another writer
+    /// to finish) so that a read made inside it cannot be invalidated by a write committed before
+    /// this one's first write.
     pub async fn write(ctx: &Ctx) -> Result<Self> {
         Self::begin(ctx, SqliteTransactionMode::Immediate).await
     }
@@ -66,14 +66,16 @@ impl Tx {
                 Ok(value)
             }
             Err(error) => {
-                let _ = self.rollback().await;
+                if let Err(rollback_failure) = self.rollback().await {
+                    tracing::error!(%rollback_failure, cause = %error, "Rollback failed");
+                }
                 Err(error)
             }
         }
     }
 }
 
-/// Run `body` in a write transaction of its own: a public `@Transactional` method.
+/// Runs `body` in a write transaction of its own, committed on `Ok` and rolled back on `Err`.
 #[macro_export]
 macro_rules! in_write {
     ($ctx:expr, |$tx:ident| $body:expr) => {{
@@ -84,7 +86,7 @@ macro_rules! in_write {
     }};
 }
 
-/// Run `body` in a read transaction of its own: a public `@Transactional(readOnly = true)` method.
+/// Runs `body` in a read transaction of its own.
 #[macro_export]
 macro_rules! in_read {
     ($ctx:expr, |$tx:ident| $body:expr) => {{

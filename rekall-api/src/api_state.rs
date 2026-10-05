@@ -9,7 +9,9 @@ use crate::{service, StepEventStream};
 #[derive(Clone)]
 pub struct ApiState {
     pub services: Services,
-    pub catalog: service::CatalogService,
+    pub companies: service::CompanyService,
+    pub projects: service::ProjectService,
+    pub tasks: service::TaskService,
     pub documents: service::DocumentService,
     pub tags: service::TagService,
     pub diagrams: service::DiagramCatalogService,
@@ -22,9 +24,9 @@ pub struct ApiState {
 }
 
 impl ApiState {
-    /// `user_home` is where the path picker starts: `System.getProperty("user.home")`.
+    /// `user_home` is where the path picker starts.
     pub fn new(services: Services, stream: Arc<StepEventStream>, user_home: PathBuf) -> Self {
-        let catalog = service::CatalogService::new(services.clone());
+        let tasks = service::TaskService::new(&services);
         Self {
             documents: service::DocumentService::new(services.clone()),
             tags: service::TagService::new(services.clone()),
@@ -32,9 +34,11 @@ impl ApiState {
             sources: service::SourceExcerptService::new(services.clone()),
             sections: service::ProjectSectionCatalogService::new(services.clone()),
             icons: service::ProjectIconService::new(services.clone()),
-            restorer: service::RevisionRestoreService::new(services.clone(), catalog.clone()),
+            restorer: service::RevisionRestoreService::new(services.clone(), tasks.clone()),
             directories: service::DirectoryListingService::new(user_home),
-            catalog,
+            companies: service::CompanyService::new(services.ctx.clone()),
+            projects: service::ProjectService::new(services.ctx.clone(), services.repositories),
+            tasks,
             services,
             stream,
         }

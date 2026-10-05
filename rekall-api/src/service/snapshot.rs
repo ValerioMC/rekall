@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use rekall_common::{Id, Instant, RekallError, Result};
+use rekall_common::{Id, Instant, InternalFailure, RekallError, Result};
 use rekall_repository::repository as repo;
 use rekall_model::prelude::*;
 use rekall_model::{company, document_task, project, tag, task, task_step, wrapup};
@@ -133,5 +133,5 @@ impl Snapshot {
 }
 
 fn missing() -> RekallError {
-    RekallError::internal("IllegalStateException", "A row points at a parent that is not there")
+    RekallError::internal(InternalFailure::Integrity, "A row points at a parent that is not there")
 }

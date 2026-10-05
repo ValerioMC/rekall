@@ -20,14 +20,7 @@ async fn list(State(state): State<ApiState>, Path(task_id): Path<String>, Query(
     let task_id = uuid("taskId", &task_id)?;
     let raw = required(query.kind)?;
     let kind = RevisionKind::value_of(&raw).ok_or_else(|| {
-        ApiError::Domain(RekallError::internal(
-            "MethodArgumentTypeMismatchException",
-            format!(
-                "Method parameter 'kind': Failed to convert value of type 'java.lang.String' to required type \
-                 'dev.rekall.domain.RevisionKind'; Failed to convert from type [java.lang.String] to type \
-                 [@org.springframework.web.bind.annotation.RequestParam dev.rekall.domain.RevisionKind] for value [{raw}]"
-            ),
-        ))
+        ApiError::Domain(RekallError::illegal(format!("Parameter 'kind' is not a revision kind: {raw}")))
     })?;
     Ok(Json(state.services.revisions.list(task_id, kind).await?))
 }

@@ -6,7 +6,7 @@ use std::io::Cursor;
 
 use image::imageops::{self, FilterType};
 use image::{ImageFormat, ImageReader, Limits, RgbaImage};
-use rekall_common::{RekallError, Result};
+use rekall_common::{InternalFailure, RekallError, Result};
 
 /// The master's side; a smaller upload keeps its own size rather than being enlarged.
 pub const MASTER_SIDE: u32 = 512;
@@ -49,7 +49,7 @@ fn encode(image: &RgbaImage) -> Result<Vec<u8>> {
     let mut out = Cursor::new(Vec::new());
     image
         .write_to(&mut out, ImageFormat::Png)
-        .map_err(|error| RekallError::internal("ImageEncodingException", error))?;
+        .map_err(|error| RekallError::internal(InternalFailure::Encoding, error))?;
     Ok(out.into_inner())
 }
 

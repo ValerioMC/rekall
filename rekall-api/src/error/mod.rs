@@ -1,8 +1,7 @@
-//! `RestExceptionHandler`: every failure a handler returns becomes an RFC 7807 problem, with the
-//! status the Java handler chose for its exception class and the request path as `instance`, the
-//! way Spring filled it in. Failures Spring raised before a controller ran (a missing query
-//! parameter, a path nothing answers, a method nothing takes) keep the shape Spring Boot's error
-//! controller gave them instead: `timestamp`, `status`, `error`, `path`.
+//! Every failure a handler returns becomes an RFC 9457 problem, its status chosen by the kind
+//! of `RekallError` and the request path as `instance`. Failures raised before a handler runs (a
+//! missing query parameter, a path nothing answers, a method nothing takes) are a small JSON
+//! status instead: `timestamp`, `status`, `error`, `path`.
 
 mod api_error;
 mod error_renderer;

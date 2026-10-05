@@ -9,6 +9,11 @@ pub async fn find_by_id(db: &impl ConnectionTrait, id: Id) -> Result<Option<Mode
     Ok(Entity::find_by_id(id).one(db).await?)
 }
 
+/// The project by id, or `NotFound` when there is none.
+pub async fn require(db: &impl ConnectionTrait, id: Id) -> Result<Model, RekallError> {
+    find_by_id(db, id).await?.ok_or_else(|| RekallError::not_found("Project", id))
+}
+
 pub async fn find_by_ids(db: &impl ConnectionTrait, ids: Vec<Id>) -> Result<Vec<Model>, RekallError> {
     if ids.is_empty() {
         return Ok(Vec::new());

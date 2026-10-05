@@ -3,7 +3,7 @@
 use rekall_common::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;
 
-use crate::constraints::{Phase, Violations};
+use crate::constraints::Violations;
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
 #[sea_orm(table_name = "company")]
@@ -31,11 +31,11 @@ impl Related<super::project::Entity> for Entity {
 impl ActiveModelBehavior for ActiveModel {}
 
 impl Model {
-    pub fn validate(&self, phase: Phase) -> Result<(), RekallError> {
-        Violations::new("Company", phase)
+    pub fn validate(&self) -> Result<(), RekallError> {
+        Violations::new("Company")
             .not_blank("name", Some(&self.name))
-            .size("name", Some(&self.name), 120)
-            .column("description", self.description.as_deref(), 100_000)
+            .max_length("name", Some(&self.name), 120)
+            .max_length("description", self.description.as_deref(), 100_000)
             .finish()
     }
 }

@@ -1,19 +1,20 @@
-//! One router per Java controller, under the same paths.
+//! One router per resource.
 
 mod api_router;
-mod catalog_controller;
 mod commit_reference_controller;
 mod company_controller;
 mod context_size_controller;
 mod diagram_controller;
 mod directory_listing_controller;
 mod document_controller;
+mod project_controller;
 mod project_icon_controller;
 mod project_section_controller;
 mod responses;
 mod search_controller;
 mod step_event_controller;
 mod tag_controller;
+mod task_controller;
 mod task_revision_controller;
 mod task_step_controller;
 mod time_entry_controller;

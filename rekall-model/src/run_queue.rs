@@ -4,7 +4,7 @@
 use rekall_common::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;
 
-use crate::constraints::{Phase, Violations};
+use crate::constraints::Violations;
 use crate::enums::RunQueueState;
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
@@ -63,10 +63,10 @@ impl Model {
     }
 
     pub fn validate(&self) -> Result<(), RekallError> {
-        Violations::new("RunQueue", Phase::Update)
-            .column("model", self.model.as_deref(), 20)
-            .column("effort", self.effort.as_deref(), 20)
-            .column("hold_reason", self.hold_reason.as_deref(), 500)
+        Violations::new("RunQueue")
+            .max_length("model", self.model.as_deref(), 20)
+            .max_length("effort", self.effort.as_deref(), 20)
+            .max_length("holdReason", self.hold_reason.as_deref(), 500)
             .finish()
     }
 }

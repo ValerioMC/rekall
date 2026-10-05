@@ -9,13 +9,13 @@ pub type ApiResult<T> = Result<T, ApiError>;
 
 #[derive(Debug)]
 pub enum ApiError {
-    /// Something the exception handler mapped to a problem detail.
+    /// A refusal from a service, rendered as a problem detail.
     Domain(RekallError),
-    /// `MethodArgumentNotValidException`: the `@Valid` constraints of a request body.
+    /// The constraints `Validator` checks on a request body, one entry per broken field.
     Validation(Vec<(String, String)>),
-    /// `HttpMessageNotReadableException`: a body Jackson could not read.
+    /// A body that could not be parsed into the request type.
     Unreadable(String),
-    /// An error Spring answered on its own, before or around the controller.
+    /// A failure of routing or extraction, before a handler runs.
     Framework(StatusCode),
 }
 

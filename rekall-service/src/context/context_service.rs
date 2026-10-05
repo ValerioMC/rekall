@@ -1,10 +1,10 @@
-//! Resolves anchors and walks the associations: forward (`@ManyToOne`) in full with documents,
-//! inverse (`@OneToMany`) as anchors only, the one-to-one wrapup and the owned step list in full.
+//! Resolves anchors and walks the associations: up to the parent records in full with their
+//! notes, down to the children as anchors only, and a task's wrapup and steps in full.
 
 use std::sync::LazyLock;
 
 use regex::Regex;
-use rekall_common::{jstr, Id, RekallError, Result};
+use rekall_common::{jstr, Id, InternalFailure, RekallError, Result};
 use rekall_model::document::ANCHOR_ID_LENGTH;
 use rekall_model::{company, project, task, TaskStepState};
 use rekall_repository::repository as repo;
@@ -293,5 +293,5 @@ impl ContextService {
 async fn company_of(tx: &Tx, project: &project::Model) -> Result<company::Model> {
     repo::company::find_by_id(tx.db(), project.company_id)
         .await?
-        .ok_or_else(|| RekallError::internal("IllegalStateException", format!("Project {} has no company", project.id)))
+        .ok_or_else(|| RekallError::internal(InternalFailure::Integrity, format!("Project {} has no company", project.id)))
 }

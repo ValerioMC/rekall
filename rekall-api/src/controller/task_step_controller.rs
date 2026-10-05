@@ -7,7 +7,7 @@ use rekall_service::step::TaskStepView;
 use super::{created, no_content};
 use crate::dto::{TaskStepMoveRequest, TaskStepPatchRequest, TaskStepRequest};
 use crate::error::ApiResult;
-use crate::extract::{uuid, JsonBody, Validator};
+use crate::extract::{present, uuid, JsonBody, Validator};
 use crate::ApiState;
 
 pub fn routes() -> Router<ApiState> {
@@ -50,8 +50,8 @@ async fn send_back(State(state): State<ApiState>, Path(id): Path<String>) -> Api
 
 async fn move_step(State(state): State<ApiState>, Path(id): Path<String>, JsonBody(request): JsonBody<TaskStepMoveRequest>) -> ApiResult<Json<Vec<TaskStepView>>> {
     let id = uuid("id", &id)?;
-    Validator::new().not_null("position", &request.position).finish()?;
-    Ok(Json(state.services.steps.move_to(id, request.position.expect("validated")).await?))
+    let position = present("position", request.position)?;
+    Ok(Json(state.services.steps.move_to(id, position).await?))
 }
 
 async fn delete(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Response> {

@@ -4,7 +4,6 @@
 use std::collections::HashSet;
 
 use rekall_common::{Id, RekallError, Result};
-use rekall_model::constraints::Phase;
 use rekall_model::project_section;
 use rekall_repository::repository as repo;
 use rekall_service::section::{rules, ProjectSectionView, SectionStreamEvent};
@@ -26,7 +25,7 @@ impl ProjectSectionCatalogService {
 
     pub async fn create(&self, project_id: Id, request: ProjectSectionRequest) -> Result<ProjectSectionView> {
         in_write!(&self.services.ctx, |tx| {
-            repo::project::find_by_id(tx.db(), project_id).await?.ok_or_else(|| RekallError::not_found("Project", project_id))?;
+            repo::project::require(tx.db(), project_id).await?;
             let title = rules::title(request.title.as_deref())?;
             require_title_free(&tx, project_id, &title, None).await?;
             let existing = repo::project_section::find_by_project_id_order_by_position_asc(tx.db(), project_id).await?;
@@ -40,7 +39,7 @@ impl ProjectSectionCatalogService {
                 created_at: now,
                 updated_at: now,
             };
-            section.validate(Phase::Persist)?;
+            section.validate()?;
             section.clone().into_active_model().insert(tx.db()).await?;
             tx.publish(DomainEvent::ProjectSection(SectionStreamEvent { project_id }));
             Ok::<_, RekallError>(ProjectSectionView::of(&section))
@@ -59,11 +58,9 @@ impl ProjectSectionCatalogService {
                 section.body_markdown = body.clone();
             }
             if section != before {
-                section.updated_at = self.services.ctx.now();
-                section.validate(Phase::Update)?;
-                section.clone().into_active_model().reset_all().update(tx.db()).await?;
                 tx.publish(DomainEvent::ProjectSection(SectionStreamEvent { project_id: section.project_id }));
             }
+            let section = repo::update_if_changed(tx.db(), &before, section, self.services.ctx.now()).await?;
             Ok::<_, RekallError>(ProjectSectionView::of(&section))
         })
     }
@@ -71,7 +68,7 @@ impl ProjectSectionCatalogService {
     /// Positions follow `section_ids`, which has to name every section of the project once.
     pub async fn reorder(&self, project_id: Id, request: ProjectSectionOrderRequest) -> Result<Vec<ProjectSectionView>> {
         in_write!(&self.services.ctx, |tx| {
-            repo::project::find_by_id(tx.db(), project_id).await?.ok_or_else(|| RekallError::not_found("Project", project_id))?;
+            repo::project::require(tx.db(), project_id).await?;
             let sections = repo::project_section::find_by_project_id_order_by_position_asc(tx.db(), project_id).await?;
             let wanted: Vec<Id> = request
                 .section_ids

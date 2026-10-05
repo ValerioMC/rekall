@@ -4,7 +4,7 @@
 use rekall_common::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;
 
-use crate::constraints::{Phase, Violations};
+use crate::constraints::Violations;
 use crate::enums::ProjectStatus;
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
@@ -61,18 +61,18 @@ impl Model {
         format!("project:{}", self.label)
     }
 
-    pub fn validate(&self, phase: Phase) -> Result<(), RekallError> {
-        Violations::new("Project", phase)
+    pub fn validate(&self) -> Result<(), RekallError> {
+        Violations::new("Project")
             .not_blank("label", Some(&self.label))
-            .size("label", Some(&self.label), 120)
+            .max_length("label", Some(&self.label), 120)
             .slug("label", Some(&self.label))
             .not_blank("title", Some(&self.title))
-            .size("title", Some(&self.title), 200)
+            .max_length("title", Some(&self.title), 200)
             .not_blank("icon", Some(&self.icon))
-            .size("icon", Some(&self.icon), 40)
-            .size("repoFolder", self.repo_folder.as_deref(), 1_000)
-            .column("description", self.description.as_deref(), 100_000)
-            .column("blueprint_markdown", self.blueprint_markdown.as_deref(), 100_000)
+            .max_length("icon", Some(&self.icon), 40)
+            .max_length("repoFolder", self.repo_folder.as_deref(), 1_000)
+            .max_length("description", self.description.as_deref(), 100_000)
+            .max_length("blueprintMarkdown", self.blueprint_markdown.as_deref(), 100_000)
             .finish()
     }
 }

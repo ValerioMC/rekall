@@ -6,7 +6,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use rekall_api::error::{framework, ApiResult};
-use rekall_common::RekallError;
+use rekall_common::{InternalFailure, RekallError};
 
 use super::{BackupFile, BackupReason, BackupStatus, DatabaseBackupService, DatabaseRestoreService};
 
@@ -39,7 +39,7 @@ async fn download(State(state): State<BackupState>, Path(name): Path<String>) ->
     let file = state.backups.resolve(&name)?;
     let bytes = tokio::fs::read(&file)
         .await
-        .map_err(|_| RekallError::internal("UncheckedIOException", format!("Could not read {}", file.display())))?;
+        .map_err(|_| RekallError::internal(InternalFailure::Io, format!("Could not read {}", file.display())))?;
     let mut response = bytes.into_response();
     let headers = response.headers_mut();
     headers.insert(header::CONTENT_TYPE, HeaderValue::from_static("application/zip"));
@@ -64,7 +64,7 @@ async fn restore_upload(State(state): State<BackupState>, multipart: Result<Mult
     let Ok(mut multipart) = multipart else {
         return Ok(framework(StatusCode::BAD_REQUEST));
     };
-    let unreadable = || RekallError::internal("UncheckedIOException", "Could not read the uploaded file");
+    let unreadable = || RekallError::internal(InternalFailure::Io, "Could not read the uploaded file");
     let mut upload: Option<(tempfile::NamedTempFile, u64)> = None;
     while let Some(mut field) = multipart.next_field().await.map_err(|_| unreadable())? {
         if field.name() != Some("file") {

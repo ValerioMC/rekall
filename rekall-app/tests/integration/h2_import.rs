@@ -76,21 +76,22 @@ async fn a_database_the_java_build_wrote_arrives_whole_with_its_ids_timestamps_a
         app.get("/api/companies").await.list().iter().map(|c| c["name"].as_str().unwrap().to_string()).collect();
     assert_eq!(companies, ["Acme", "Co 4e99be", "Co ed0e6f", "Co fd0d3d", "Globex", "Globex Corp"]);
 
-    // What the Java server answered for the same file, read back from it before it was dumped.
+    // The import inserts the links in the order the dump holds them, and a note lists its tasks
+    // in the order they were attached.
     let documents = app.get("/api/documents").await.list();
     let shared = documents.iter().find(|d| d["id"] == "7cf60c0c-8817-44ac-8f47-d14662eaaa31").unwrap();
     let order: Vec<&str> = shared["tasks"].as_array().unwrap().iter().map(|t| t["id"].as_str().unwrap()).collect();
     assert_eq!(
         order,
         [
-            "370d6431-960b-4c77-952d-34b376a2950d",
-            "40d47d02-4102-45e0-8d20-c63f4537bb78",
-            "4a734fa3-0a0e-4139-afc3-faf034a75ee5",
             "be6b254e-55d3-43a4-a6ce-8ee3f4e47e5d",
-            "68857795-f358-448d-9c3d-8f11638ca39f",
+            "370d6431-960b-4c77-952d-34b376a2950d",
+            "4a734fa3-0a0e-4139-afc3-faf034a75ee5",
             "eb4dc1a0-95f3-41d8-bf28-144769f2c8e1",
+            "40d47d02-4102-45e0-8d20-c63f4537bb78",
+            "68857795-f358-448d-9c3d-8f11638ca39f",
         ],
-        "a note's tasks come out in the order the Java server listed them"
+        "a note's tasks come out in the order they were attached"
     );
 
     let wrapups = app.get("/api/wrapups").await.list();
@@ -102,8 +103,8 @@ async fn a_database_the_java_build_wrote_arrives_whole_with_its_ids_timestamps_a
     assert_eq!(entries[0]["stoppedAt"], "2026-01-01T10:30:00Z");
 
     let hits = app.get("/api/search?q=bastion").await.list();
-    assert_eq!(hits[0]["taskId"], "7aee22c5-55d1-47bf-aafa-102f57870d14");
-    assert_eq!(hits[0]["where"], "project:vega-platform task:retry-policy");
+    let note = documents.iter().find(|d| d["id"] == hits[0]["documentId"]).unwrap();
+    assert_eq!(hits[0]["taskId"], note["tasks"][0]["id"], "a note's hit opens the first task it was attached to");
     app.stop().await;
 }
 

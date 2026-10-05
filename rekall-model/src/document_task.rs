@@ -1,6 +1,5 @@
-//! The link between a note and a task. `position` is the note's place on that task
-//! (`@OrderColumn` on `Task.documents`): dense from zero, per task, so one note can sit first on
-//! one task and last on another.
+//! The link between a note and a task. `position` is the note's place on that task: dense from
+//! zero, per task, so one note can sit first on one task and last on another.
 
 use rekall_common::Id;
 use sea_orm::entity::prelude::*;

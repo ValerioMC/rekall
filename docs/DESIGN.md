@@ -69,7 +69,7 @@ cannot see any route. The crate boundary carries the guarantee.
 `rekall-mcp` depends on `rekall-service` and must not depend on `rekall-api`. The two are
 independent consumers of the same services, which is what keeps the boundary structural rather
 than accidental: `rekall-mcp` can reach `ContextService`, `TaskStepService` and `WrapupService`,
-but no route, no `CatalogService` and no `DocumentService` is among its dependencies.
+but no route, none of `CompanyService`, `ProjectService`, `TaskService` or `DocumentService` is among its dependencies.
 
 ### Layout inside a crate
 
@@ -392,7 +392,7 @@ the exception that hides this, because its own schema defaults both annotations.
 
 ## 7. Write safety
 
-`rekall-mcp` has no controller, no `CatalogService`, no `DocumentService` and no
+`rekall-mcp` has no controller, no `CompanyService`, `ProjectService` or `TaskService`, no `DocumentService` and no
 `RevisionRestoreService` on its classpath: they live in `rekall-api` for exactly that reason, and
 anything that writes the catalog belongs there. The write services it can reach are narrow by
 construction. `WrapupService` takes a task and a body and can do nothing else: no record created,

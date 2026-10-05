@@ -138,7 +138,7 @@ impl<'de> Deserialize<'de> for Instant {
         let text = String::deserialize(deserializer)?;
         Self::parse(&text).map_err(|_| {
             serde::de::Error::custom(format!(
-                "Cannot deserialize value of type `java.time.Instant` from String \"{text}\""
+                "Not an ISO 8601 instant: \"{text}\""
             ))
         })
     }

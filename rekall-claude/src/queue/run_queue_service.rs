@@ -1,5 +1,5 @@
 use chrono::TimeDelta;
-use rekall_common::{jstr, Id, Instant, RekallError, Result};
+use rekall_common::{jstr, Id, Instant, InternalFailure, RekallError, Result};
 use rekall_model::{run_queue, run_queue_item, RunQueueItemState, RunQueueState};
 use rekall_repository::repository as repo;
 use rekall_service::{in_read, in_write, Ctx, DomainEvent, Tx};
@@ -353,7 +353,7 @@ async fn item_view(tx: &Tx, item: &run_queue_item::Model) -> Result<RunQueueItem
         .ok_or_else(|| RekallError::unknown_anchor(format!("No task with id {}", item.task_id)))?;
     let project = repo::project::find_by_id(tx.db(), task.project_id)
         .await?
-        .ok_or_else(|| RekallError::internal("IllegalStateException", "A task has no project"))?;
+        .ok_or_else(|| RekallError::internal(InternalFailure::Integrity, "A task has no project"))?;
     Ok(RunQueueItemView::of(item, &task, &project))
 }
 

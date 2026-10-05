@@ -8,6 +8,7 @@ import NavigatorFilingDrawer from '@/components/console/NavigatorFilingDrawer.vu
 import ProjectTrace from '@/components/ui/ProjectTrace.vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import ProjectMark from '@/components/ui/ProjectMark.vue'
+import ProjectPageLink from '@/components/console/ProjectPageLink.vue'
 import { partitionTasks } from '@/common/catalog/partition-tasks'
 import { groupNotesByScope } from '@/common/catalog/note-groups'
 import { identityHue } from '@/common/identity'
@@ -315,52 +316,59 @@ defineExpose({ beginCreate, editSelected })
           class="px-2 pt-2.5 first:pt-1"
           :class="group.status !== 'ACTIVE' && 'filed-row'"
         >
-          <button
-            class="project-header-card focus-ring flex w-full items-start gap-2.5 rounded-[var(--radius-card)] px-2.5 py-2.5 text-left"
+          <div
+            class="project-header-card flex items-stretch rounded-[var(--radius-card)]"
             :style="{ '--project-tint-soft': identityHue(group.projectId).soft }"
-            @click="toggleCollapsed(group.projectId)"
           >
-            <svg
-              class="mt-1.5 size-3 shrink-0 text-text-subtle transition-transform"
-              :class="!collapsedProjectIds.has(group.projectId) && 'rotate-90'"
-              viewBox="0 0 24 24"
-              fill="none"
-              aria-hidden="true"
+            <button
+              data-testid="project-group-toggle"
+              class="focus-ring flex min-w-0 flex-1 items-start gap-2.5 rounded-l-[var(--radius-card)] py-2.5 pl-2.5 pr-2 text-left"
+              :aria-expanded="!collapsedProjectIds.has(group.projectId)"
+              @click="toggleCollapsed(group.projectId)"
             >
-              <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-            <ProjectMark
-              class="mt-px"
-              :project-id="group.projectId"
-              :icon="group.icon"
-              :image-version="group.iconImageVersion"
-              :size="24"
-            />
-            <span class="min-w-0 flex-1">
-              <span class="flex items-center gap-2">
-                <span class="min-w-0 flex-1 truncate text-[13.5px] font-semibold tracking-[-0.006em] text-text">
-                  {{ group.projectTitle }}
+              <svg
+                class="mt-1.5 size-3 shrink-0 text-text-subtle transition-transform"
+                :class="!collapsedProjectIds.has(group.projectId) && 'rotate-90'"
+                viewBox="0 0 24 24"
+                fill="none"
+                aria-hidden="true"
+              >
+                <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              <ProjectMark
+                class="mt-px"
+                :project-id="group.projectId"
+                :icon="group.icon"
+                :image-version="group.iconImageVersion"
+                :size="24"
+              />
+              <span class="min-w-0 flex-1">
+                <span class="flex items-center gap-2">
+                  <span class="min-w-0 flex-1 truncate text-[13.5px] font-semibold tracking-[-0.006em] text-text">
+                    {{ group.projectTitle }}
+                  </span>
+                  <AppBadge v-if="group.status !== 'ACTIVE'" :tone="group.status === 'DONE' ? 'safe' : 'neutral'" dot>
+                    {{ PROJECT_STATUS_LABEL[group.status] }}
+                  </AppBadge>
+                  <span
+                    class="shrink-0 rounded-full bg-surface px-1.5 py-px font-mono text-[10px] tabular-nums text-text-subtle"
+                  >
+                    {{ group.tasks.length }}
+                  </span>
                 </span>
-                <AppBadge v-if="group.status !== 'ACTIVE'" :tone="group.status === 'DONE' ? 'safe' : 'neutral'" dot>
-                  {{ PROJECT_STATUS_LABEL[group.status] }}
-                </AppBadge>
-                <span
-                  class="shrink-0 rounded-full bg-surface px-1.5 py-px font-mono text-[10px] tabular-nums text-text-subtle"
-                >
-                  {{ group.tasks.length }}
+                <span class="mt-1 flex items-center gap-2">
+                  <span
+                    v-if="scopeCompany === null"
+                    class="shrink-0 truncate text-[10px] text-text-subtle"
+                  >
+                    {{ group.companyName }}
+                  </span>
+                  <ProjectTrace :id="group.projectId" size="sm" />
                 </span>
               </span>
-              <span class="mt-1 flex items-center gap-2">
-                <span
-                  v-if="scopeCompany === null"
-                  class="shrink-0 truncate text-[10px] text-text-subtle"
-                >
-                  {{ group.companyName }}
-                </span>
-                <ProjectTrace :id="group.projectId" size="sm" />
-              </span>
-            </span>
-          </button>
+            </button>
+            <ProjectPageLink :project-id="group.projectId" :project-title="group.projectTitle" />
+          </div>
 
           <div
             v-show="!collapsedProjectIds.has(group.projectId)"

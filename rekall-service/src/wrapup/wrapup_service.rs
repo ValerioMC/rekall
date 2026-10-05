@@ -1,5 +1,4 @@
 use rekall_common::{jstr, Id, RekallError, Result};
-use rekall_model::constraints::Phase;
 use rekall_model::wrapup::{self, MAX_CHARACTERS};
 use rekall_model::{task, RevisionKind, WrapupAuthor};
 use rekall_repository::repository as repo;
@@ -101,7 +100,7 @@ impl WrapupService {
                     created_at: now,
                     updated_at: now,
                 };
-                created.validate(Phase::Persist)?;
+                created.validate()?;
                 created.clone().into_active_model().insert(tx.db()).await?;
                 Written { wrapup: WrapupView::of(&created, &task, &project), created: true, replaced: None }
             }
@@ -116,11 +115,7 @@ impl WrapupService {
                 let mut after = before.clone();
                 after.body_markdown = text;
                 after.written_by = author;
-                if after != before {
-                    after.updated_at = now;
-                    after.validate(Phase::Update)?;
-                    after.clone().into_active_model().reset_all().update(tx.db()).await?;
-                }
+                let after = repo::update_if_changed(tx.db(), &before, after, now).await?;
                 Written { wrapup: WrapupView::of(&after, &task, &project), created: false, replaced: Some(previous) }
             }
         };

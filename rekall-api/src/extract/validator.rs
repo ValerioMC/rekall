@@ -2,7 +2,7 @@ use rekall_common::jstr;
 
 use crate::error::{ApiError, ApiResult};
 
-/// The `@Valid` constraints of a request body, checked in declaration order.
+/// The constraints of a request body, checked in the order they are declared.
 #[derive(Default)]
 pub struct Validator {
     errors: Vec<(String, String)>,
@@ -13,7 +13,7 @@ impl Validator {
         Self::default()
     }
 
-    /// `@NotBlank`.
+    /// Absent, empty or whitespace only is refused.
     pub fn not_blank(mut self, field: &str, value: Option<&str>) -> Self {
         if jstr::is_null_or_blank(value) {
             self.errors.push((field.into(), "must not be blank".into()));
@@ -21,7 +21,7 @@ impl Validator {
         self
     }
 
-    /// `@NotNull`.
+    /// Absent is refused.
     pub fn not_null<T>(mut self, field: &str, value: &Option<T>) -> Self {
         if value.is_none() {
             self.errors.push((field.into(), "must not be null".into()));
@@ -36,4 +36,9 @@ impl Validator {
             Err(ApiError::Validation(self.errors))
         }
     }
+}
+
+/// A required body field: the value itself, or the same 400 `Validator::not_null` reports.
+pub fn present<T>(field: &str, value: Option<T>) -> ApiResult<T> {
+    value.ok_or_else(|| ApiError::Validation(vec![(field.into(), "must not be null".into())]))
 }

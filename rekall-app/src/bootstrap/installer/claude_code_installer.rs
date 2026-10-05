@@ -5,7 +5,7 @@ use std::process::{Command, Stdio};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use rekall_common::RekallError;
+use rekall_common::{InternalFailure, RekallError};
 use serde_json::Value;
 use tracing::{debug, info, warn};
 
@@ -167,7 +167,7 @@ impl ClaudeCodeInstaller {
 
     fn install_command(&self) -> Result<(), RekallError> {
         let file = self.command_file();
-        let failed = || RekallError::internal("UncheckedIOException", format!("Could not write {}", file.display()));
+        let failed = || RekallError::internal(InternalFailure::Io, format!("Could not write {}", file.display()));
         std::fs::create_dir_all(file.parent().expect("has a parent")).map_err(|_| failed())?;
         std::fs::write(&file, PACKAGED_COMMAND).map_err(|_| failed())
     }

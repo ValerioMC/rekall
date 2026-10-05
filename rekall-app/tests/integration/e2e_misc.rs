@@ -438,6 +438,26 @@ async fn a_status_outside_the_enum_is_the_callers_mistake_so_it_is_a_400_and_not
 }
 
 #[tokio::test]
+async fn an_id_that_is_not_a_uuid_is_the_callers_mistake_so_it_is_a_400_and_not_a_500() {
+    let app = app().await;
+
+    let refused = app.get("/api/tasks/not-a-uuid").await;
+    assert_eq!(refused.status, 400);
+    assert_eq!(refused.body["detail"], "Parameter 'id' is not a UUID: not-a-uuid");
+}
+
+#[tokio::test]
+async fn a_review_without_a_target_state_is_refused_as_a_400() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
+    let task = app.post("/api/tasks", json!({ "label": "t", "title": "T", "status": "TODO", "projectId": project_id })).await;
+
+    let refused = app.patch(&format!("/api/tasks/{}/review", task.body["id"].as_str().unwrap()), json!({})).await;
+    assert_eq!(refused.status, 400);
+}
+
+#[tokio::test]
 async fn both_a_label_and_a_title_are_required() {
     let app = app().await;
     let acme = app.a_company("Acme").await;

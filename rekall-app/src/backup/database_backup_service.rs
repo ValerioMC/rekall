@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use chrono::{NaiveDateTime, TimeDelta};
 use regex::Regex;
-use rekall_common::{Instant, RekallError, Result};
+use rekall_common::{Instant, InternalFailure, RekallError, Result};
 use rekall_service::Clock;
 use sea_orm::{ConnectionTrait, DatabaseConnection};
 use tokio::task::JoinHandle;
@@ -94,7 +94,7 @@ impl DatabaseBackupService {
         let Some(found) = self.inner.location.clone() else {
             return Err(RekallError::conflict("This database is not a file on disk, so it has no backups."));
         };
-        let io_failure = || RekallError::internal("UncheckedIOException", format!("Could not write to {}", found.backups().display()));
+        let io_failure = || RekallError::internal(InternalFailure::Io, format!("Could not write to {}", found.backups().display()));
         std::fs::create_dir_all(found.backups()).map_err(|_| self.failed(io_failure()))?;
         let target = self.fresh_name(&found.backups(), reason);
         let copy = found.backups().join(format!(".{}.copy", target.file_name().unwrap().to_string_lossy()));
@@ -102,8 +102,7 @@ impl DatabaseBackupService {
         let sql = format!("VACUUM INTO '{}'", copy.to_string_lossy().replace('\'', "''"));
         if let Err(refused) = self.inner.conn.execute_unprepared(&sql).await {
             let _ = std::fs::remove_file(&copy);
-            return Err(self.failed(RekallError::internal(
-                "IllegalStateException",
+            return Err(self.failed(RekallError::internal(InternalFailure::Database,
                 format!("SQLite refused the backup: {refused}"),
             )));
         }
@@ -128,7 +127,7 @@ impl DatabaseBackupService {
             return Ok(Vec::new());
         }
         let entries = std::fs::read_dir(&folder)
-            .map_err(|_| RekallError::internal("UncheckedIOException", format!("Could not read {}", folder.display())))?;
+            .map_err(|_| RekallError::internal(InternalFailure::Io, format!("Could not read {}", folder.display())))?;
         let mut files: Vec<BackupFile> = entries.filter_map(|e| e.ok()).filter_map(|e| describe(&e.path())).collect();
         files.sort_by(|a, b| b.name.cmp(&a.name));
         Ok(files)

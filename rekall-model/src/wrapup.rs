@@ -4,7 +4,7 @@
 use rekall_common::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;
 
-use crate::constraints::{Phase, Violations};
+use crate::constraints::Violations;
 use crate::enums::WrapupAuthor;
 
 pub const MAX_CHARACTERS: usize = 20_000;
@@ -42,10 +42,10 @@ impl Related<super::task::Entity> for Entity {
 impl ActiveModelBehavior for ActiveModel {}
 
 impl Model {
-    pub fn validate(&self, phase: Phase) -> Result<(), RekallError> {
-        Violations::new("Wrapup", phase)
+    pub fn validate(&self) -> Result<(), RekallError> {
+        Violations::new("Wrapup")
             .not_blank("bodyMarkdown", Some(&self.body_markdown))
-            .size("bodyMarkdown", Some(&self.body_markdown), MAX_CHARACTERS)
+            .max_length("bodyMarkdown", Some(&self.body_markdown), MAX_CHARACTERS)
             .finish()
     }
 }

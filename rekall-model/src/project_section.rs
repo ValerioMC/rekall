@@ -4,7 +4,7 @@
 use rekall_common::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;
 
-use crate::constraints::{Phase, Violations};
+use crate::constraints::Violations;
 
 pub const TITLE_MAX_CHARACTERS: usize = 200;
 pub const BODY_MAX_CHARACTERS: usize = 100_000;
@@ -38,11 +38,11 @@ impl Related<super::project::Entity> for Entity {
 impl ActiveModelBehavior for ActiveModel {}
 
 impl Model {
-    pub fn validate(&self, phase: Phase) -> Result<(), RekallError> {
-        Violations::new("ProjectSection", phase)
+    pub fn validate(&self) -> Result<(), RekallError> {
+        Violations::new("ProjectSection")
             .not_blank("title", Some(&self.title))
-            .size("title", Some(&self.title), TITLE_MAX_CHARACTERS)
-            .column("body_markdown", Some(&self.body_markdown), BODY_MAX_CHARACTERS)
+            .max_length("title", Some(&self.title), TITLE_MAX_CHARACTERS)
+            .max_length("bodyMarkdown", Some(&self.body_markdown), BODY_MAX_CHARACTERS)
             .finish()
     }
 }

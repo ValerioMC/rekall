@@ -1,7 +1,7 @@
 //! A project's uploaded icon: normalised once when it is stored, resized to the exact size on each
 //! request. Console-only, like the catalog it decorates.
 
-use rekall_common::{Id, RekallError, Result};
+use rekall_common::{Id, InternalFailure, RekallError, Result};
 use rekall_model::project_icon_image;
 use rekall_repository::repository as repo;
 use rekall_service::{in_read, in_write, Services};
@@ -24,9 +24,9 @@ impl ProjectIconService {
     pub async fn store(&self, project_id: Id, upload: Vec<u8>) -> Result<()> {
         let png = tokio::task::spawn_blocking(move || icon_raster::normalise(&upload))
             .await
-            .map_err(|error| RekallError::internal("JoinError", error))??;
+            .map_err(|error| RekallError::internal(InternalFailure::Background, error))??;
         in_write!(&self.services.ctx, |tx| {
-            repo::project::find_by_id(tx.db(), project_id).await?.ok_or_else(|| RekallError::not_found("Project", project_id))?;
+            repo::project::require(tx.db(), project_id).await?;
             let row = project_icon_image::ActiveModel {
                 project_id: Set(project_id),
                 png: Set(png.clone()),
@@ -46,7 +46,7 @@ impl ProjectIconService {
 
     pub async fn clear(&self, project_id: Id) -> Result<()> {
         in_write!(&self.services.ctx, |tx| {
-            repo::project::find_by_id(tx.db(), project_id).await?.ok_or_else(|| RekallError::not_found("Project", project_id))?;
+            repo::project::require(tx.db(), project_id).await?;
             repo::project_icon_image::delete_by_project_id(tx.db(), project_id).await?;
             Ok::<_, RekallError>(())
         })
@@ -61,6 +61,6 @@ impl ProjectIconService {
         })?;
         tokio::task::spawn_blocking(move || icon_raster::render(&master.png, pixels))
             .await
-            .map_err(|error| RekallError::internal("JoinError", error))?
+            .map_err(|error| RekallError::internal(InternalFailure::Background, error))?
     }
 }

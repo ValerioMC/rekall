@@ -1,8 +1,7 @@
 use std::path::{Path, PathBuf};
 
-use rekall_common::{jstr, Id, RekallError, Result};
+use rekall_common::{jstr, Id, InternalFailure, RekallError, Result};
 use rekall_diagram::{GraphCodec, GraphValidator, SemanticGraph, TraceIndex};
-use rekall_model::constraints::Phase;
 use rekall_model::diagram;
 use rekall_repository::repository as repo;
 use sea_orm::{ActiveModelTrait, ConnectionTrait, IntoActiveModel};
@@ -51,9 +50,9 @@ impl DiagramService {
     pub async fn write(&self, draft: DiagramDraft) -> Result<DiagramView> {
         GraphValidator::validate(&draft.graph).map_err(|violations| RekallError::illegal(violations.to_string()))?;
         in_write!(&self.ctx, |tx| {
-            repo::project::find_by_id(tx.db(), draft.project_id).await?.ok_or_else(|| RekallError::not_found("Project", draft.project_id))?;
+            repo::project::require(tx.db(), draft.project_id).await?;
             if let Some(task_id) = draft.task_id {
-                let task = repo::task::find_by_id(tx.db(), task_id).await?.ok_or_else(|| RekallError::not_found("Task", task_id))?;
+                let task = repo::task::require(tx.db(), task_id).await?;
                 if task.project_id != draft.project_id {
                     return Err(RekallError::illegal("The task a diagram is generated from has to be on the diagram's project."));
                 }
@@ -78,7 +77,7 @@ impl DiagramService {
                 created_at: existing.as_ref().map_or(now, |row| row.created_at),
                 updated_at: now,
             };
-            row.validate(if existing.is_some() { Phase::Update } else { Phase::Persist })?;
+            row.validate()?;
             match existing {
                 Some(_) => row.clone().into_active_model().reset_all().update(tx.db()).await?,
                 None => row.clone().into_active_model().insert(tx.db()).await?,
@@ -101,7 +100,7 @@ impl DiagramService {
             let graph = generated.graph.clone();
             tokio::task::spawn_blocking(move || audit_sources(&folder, &graph))
                 .await
-                .map_err(|failed| RekallError::internal("IllegalStateException", failed))??;
+                .map_err(|failed| RekallError::internal(InternalFailure::Background, failed))??;
         }
         let diagram = self
             .write(DiagramDraft {
@@ -147,7 +146,7 @@ fn view_of(row: &diagram::Model) -> Result<DiagramView> {
 
 /// A stored graph passed validation on the way in; failing to read one back is corruption.
 fn stored_graph(row: &diagram::Model) -> Result<SemanticGraph> {
-    GraphCodec::parse(&row.graph_json).map_err(|error| RekallError::internal("CorruptDiagram", format!("Diagram {}: {error}", row.id)))
+    GraphCodec::parse(&row.graph_json).map_err(|error| RekallError::internal(InternalFailure::CorruptData, format!("Diagram {}: {error}", row.id)))
 }
 
 fn audit_sources(folder: &Path, graph: &SemanticGraph) -> Result<()> {

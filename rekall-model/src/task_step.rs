@@ -4,7 +4,7 @@
 use rekall_common::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;
 
-use crate::constraints::{Phase, Violations};
+use crate::constraints::Violations;
 use crate::enums::TaskStepState;
 use crate::step_pass::StepPass;
 
@@ -131,11 +131,11 @@ impl Model {
         Ok(())
     }
 
-    pub fn validate(&self, phase: Phase) -> Result<(), RekallError> {
-        Violations::new("TaskStep", phase)
+    pub fn validate(&self) -> Result<(), RekallError> {
+        Violations::new("TaskStep")
             .not_blank("title", Some(&self.title))
-            .size("title", Some(&self.title), 200)
-            .size("bodyMarkdown", self.body_markdown.as_deref(), MAX_CHARACTERS)
+            .max_length("title", Some(&self.title), 200)
+            .max_length("bodyMarkdown", self.body_markdown.as_deref(), MAX_CHARACTERS)
             .finish()
     }
 }

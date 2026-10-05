@@ -5,9 +5,7 @@ use super::{ContextCommitView, DocumentView};
 
 /// One record of a loaded context, materialised so it renders with no database behind it.
 ///
-/// `fields` keeps the order the fields were added in. The Java record copied them into
-/// `Map.copyOf`, whose iteration order is unspecified (and differs between JVM runs); insertion
-/// order is the one stable order among those it could print, and the one the code wrote them in.
+/// `fields` keeps the order the fields were added in, so a context renders the same way every time.
 #[derive(Clone, Debug, Default)]
 pub struct ContextRecord {
     pub kind: String,

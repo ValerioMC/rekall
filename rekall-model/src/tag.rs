@@ -4,7 +4,7 @@
 use rekall_common::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;
 
-use crate::constraints::{Phase, Violations};
+use crate::constraints::Violations;
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
 #[sea_orm(table_name = "tag")]
@@ -33,14 +33,14 @@ impl Related<super::task::Entity> for Entity {
 impl ActiveModelBehavior for ActiveModel {}
 
 impl Model {
-    pub fn validate(&self, phase: Phase) -> Result<(), RekallError> {
-        Violations::new("Tag", phase)
+    pub fn validate(&self) -> Result<(), RekallError> {
+        Violations::new("Tag")
             .not_blank("name", Some(&self.name))
-            .size("name", Some(&self.name), 60)
+            .max_length("name", Some(&self.name), 60)
             .not_blank("icon", Some(&self.icon))
-            .size("icon", Some(&self.icon), 40)
+            .max_length("icon", Some(&self.icon), 40)
             .not_blank("color", Some(&self.color))
-            .size("color", Some(&self.color), 40)
+            .max_length("color", Some(&self.color), 40)
             .finish()
     }
 }

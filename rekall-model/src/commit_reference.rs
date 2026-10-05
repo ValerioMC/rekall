@@ -4,7 +4,7 @@
 use rekall_common::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;
 
-use crate::constraints::{Phase, Violations};
+use crate::constraints::Violations;
 
 pub const HASH_MAX: usize = 40;
 pub const COMMENT_MAX: usize = 200;
@@ -62,9 +62,9 @@ impl ActiveModelBehavior for ActiveModel {}
 
 impl Model {
     pub fn validate(&self) -> Result<(), RekallError> {
-        Violations::new("CommitReference", Phase::Persist)
-            .column("commit_hash", Some(&self.commit_hash), HASH_MAX)
-            .column("comment", Some(&self.comment), COMMENT_MAX)
+        Violations::new("CommitReference")
+            .max_length("commitHash", Some(&self.commit_hash), HASH_MAX)
+            .max_length("comment", Some(&self.comment), COMMENT_MAX)
             .finish()
     }
 }

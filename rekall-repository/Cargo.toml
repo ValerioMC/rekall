@@ -23,3 +23,7 @@ tempfile.workspace = true
 [[test]]
 name = "migrations"
 path = "tests/integration/migrations.rs"
+
+[[test]]
+name = "stamped_update"
+path = "tests/integration/stamped_update.rs"

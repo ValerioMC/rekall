@@ -1,7 +1,6 @@
 //! Notes: written, scoped, attached to and detached from tasks, and deleted, from the console.
 
 use rekall_common::{Id, RekallError, Result};
-use rekall_model::constraints::Phase;
 use rekall_model::note_scope::NoteScope;
 use rekall_model::{document, document_task, DocumentContextMode};
 use rekall_repository::repository as repo;
@@ -70,12 +69,12 @@ impl DocumentService {
             let wanted = resolve(&snapshot, request.task_ids.as_deref())?;
             let scope = request.scope.unwrap_or_else(|| NoteScope::narrowest(&places(&snapshot, &wanted)));
             settle_scope(&snapshot, &mut document, scope, &wanted)?;
-            document.validate(Phase::Persist)?;
+            document.validate()?;
             document.clone().into_active_model().insert(tx.db()).await?;
             link(&tx, document.id, &wanted).await?;
             // A note just created still holds the `LinkedHashSet` it was built with.
             let mut tasks = Vec::new();
-            for link in repo::document::links_of_document_as_added(tx.db(), document.id).await? {
+            for link in repo::document::links_of_document(tx.db(), document.id).await? {
                 if let Some(task) = snapshot.tasks.get(&link.task_id) {
                     tasks.push(snapshot.task_ref(task)?);
                 }
@@ -98,11 +97,7 @@ impl DocumentService {
             let wanted = resolve(&snapshot, request.task_ids.as_deref())?;
             settle_scope(&snapshot, &mut document, request.scope.unwrap_or(before.scope()), &wanted)?;
             link(&tx, document.id, &wanted).await?;
-            if document != before {
-                document.updated_at = self.ctx().now();
-                document.validate(Phase::Update)?;
-                document.clone().into_active_model().reset_all().update(tx.db()).await?;
-            }
+            let document = repo::update_if_changed(tx.db(), &before, document, self.ctx().now()).await?;
             response(&tx, &document).await
         })
     }

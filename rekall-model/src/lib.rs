@@ -1,16 +1,16 @@
 //! The entities and the state rules that live on them.
 //!
-//! One module per JPA entity, each a SeaORM entity over the table the migrations create, with
-//! the rules the Java entity carried as methods on its `Model`: `TaskStep::markState`,
-//! `Task::markReviewState`, `RunQueue::moveTo`, `RunQueueItem::moveTo`, and the bean-validation
-//! constraints (`@NotBlank`, `@Size`, `@Pattern`) as a `validate` beside them.
+//! One module per table, each a SeaORM entity, with the state rules of that row as methods on
+//! its `Model` (`task_step::Model::mark_state`, `task::Model::mark_review_state`, the run queue's
+//! moves) and its limits as a `validate` beside them.
 //!
-//! `@CreationTimestamp` / `@UpdateTimestamp` have no SeaORM equivalent that knows whether a row
-//! changed, so the services stamp them when they write, and only when something did change.
+//! `updated_at` moves only when a value does: `Stamped` marks the rows that follow that rule, and
+//! `rekall_repository::repository::update_if_changed` is the write that applies it.
 
 pub mod constraints;
 pub mod enums;
 pub mod slug;
+pub mod stamped;
 
 pub mod commit_reference;
 pub mod company;
@@ -33,6 +33,7 @@ pub mod wrapup;
 
 pub use enums::*;
 pub use slug::Slug;
+pub use stamped::Stamped;
 
 pub mod prelude {
     pub use super::commit_reference::{Entity as CommitReference, Model as CommitReferenceModel};

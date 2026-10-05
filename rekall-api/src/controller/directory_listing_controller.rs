@@ -4,7 +4,7 @@
 use axum::extract::{Query, State};
 use axum::routing::get;
 use axum::{Json, Router};
-use rekall_common::RekallError;
+use rekall_common::{InternalFailure, RekallError};
 
 use crate::dto::DirectoryListingResponse;
 use crate::error::ApiResult;
@@ -19,6 +19,6 @@ async fn list(State(state): State<ApiState>, Query(query): Query<DirectoryListin
     let listings = state.directories.clone();
     let listing = tokio::task::spawn_blocking(move || listings.list(query.base.as_deref(), query.path.as_deref()))
         .await
-        .map_err(|failed| RekallError::internal("IllegalStateException", failed))??;
+        .map_err(|failed| RekallError::internal(InternalFailure::Background, failed))??;
     Ok(Json(listing))
 }

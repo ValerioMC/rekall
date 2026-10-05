@@ -33,7 +33,7 @@ static FIX_TITLE: LazyLock<Regex> = LazyLock::new(|| {
 static REFACTOR_TITLE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i)^(refactor|refactoring|riorganizza|ripulisci)\b").unwrap());
 
-/// `^(\s*)([-*+]|\d+[.)])\s+(.*)$` with Java's ASCII `\s` and `\d`.
+/// `^(\s*)([-*+]|\d+[.)])\s+(.*)$` with `\s` and `\d` restricted to ASCII.
 static LIST_ITEM: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^([ \t\n\x0B\x0C\r]*)([-*+]|[0-9]+[.)])[ \t\n\x0B\x0C\r]+(.*)$").unwrap());
 

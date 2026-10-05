@@ -1,8 +1,8 @@
 //! A row id: a random UUID, stored as its lowercase hyphenated text.
 //!
 //! Text rather than SQLite's 16-byte blob, because the `note:` anchor is a prefix of the id as a
-//! string (`LOWER(CAST(id AS String)) LIKE 'prefix%'` in the Java repository), and because an id
-//! read out of the file with any SQLite client should look like the one the API hands out.
+//! string, and because an id read out of the file with any SQLite client should look like the
+//! one the API hands out.
 
 use std::fmt;
 use std::str::FromStr;

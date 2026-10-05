@@ -1,5 +1,4 @@
 use rekall_common::{jstr, Id, RekallError, Result};
-use rekall_model::constraints::Phase;
 use rekall_model::{document, document_task, DocumentContextMode};
 use rekall_repository::repository as repo;
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
@@ -56,12 +55,8 @@ impl NoteService {
                 // The title stays as it was typed in the console; only the body is the session's.
                 let mut rewritten = clash.clone();
                 rewritten.body_markdown = text;
-                if rewritten != *clash {
-                    rewritten.updated_at = now;
-                    rewritten.validate(Phase::Update)?;
-                    rewritten.clone().into_active_model().reset_all().update(tx.db()).await?;
-                }
-                let readers = repo::document::links_of_document_as_added(tx.db(), rewritten.id).await?;
+                let rewritten = repo::update_if_changed(tx.db(), clash, rewritten, now).await?;
+                let readers = repo::document::links_of_document(tx.db(), rewritten.id).await?;
                 tx.publish(DomainEvent::Note(NoteStreamEvent { task_id: task.id, document_id: rewritten.id }));
                 return Ok(Written {
                     note_anchor: rewritten.anchor(),
@@ -86,7 +81,7 @@ impl NoteService {
                 created_at: now,
                 updated_at: now,
             };
-            note.validate(Phase::Persist)?;
+            note.validate()?;
             note.clone().into_active_model().insert(tx.db()).await?;
             document_task::Model { document_id: note.id, task_id: task.id, position: existing.len() as i32 }
                 .into_active_model()

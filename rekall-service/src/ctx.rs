@@ -6,7 +6,7 @@ use sea_orm::DatabaseConnection;
 use crate::{EventBus, Tx};
 
 /// What a clock-driven rule reads the time from. The application reads the system clock; a test
-/// can fix it, the way the Java services took a `java.time.Clock`.
+/// can fix it.
 pub type Clock = Arc<dyn Fn() -> Instant + Send + Sync>;
 
 pub fn system_clock() -> Clock {

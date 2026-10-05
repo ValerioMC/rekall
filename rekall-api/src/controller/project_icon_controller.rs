@@ -39,7 +39,7 @@ async fn read(State(state): State<ApiState>, Path(id): Path<String>, Query(query
 async fn replace(State(state): State<ApiState>, Path(id): Path<String>, body: Bytes) -> ApiResult<Json<ProjectResponse>> {
     let id = uuid("id", &id)?;
     state.icons.store(id, body.to_vec()).await?;
-    Ok(Json(state.catalog.get_project(id).await?))
+    Ok(Json(state.projects.get(id).await?))
 }
 
 async fn remove(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Response> {

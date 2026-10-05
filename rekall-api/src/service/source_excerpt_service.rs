@@ -3,7 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
-use rekall_common::{jstr, Id, RekallError, Result};
+use rekall_common::{jstr, Id, InternalFailure, RekallError, Result};
 use rekall_repository::repository as repo;
 use rekall_service::diagram::ProjectFolder;
 use rekall_service::{in_read, Services};
@@ -32,13 +32,13 @@ impl SourceExcerptService {
         let file = file.to_string();
         tokio::task::spawn_blocking(move || read_excerpt(&folder, &file, start, end))
             .await
-            .map_err(|failed| RekallError::internal("IllegalStateException", failed))?
+            .map_err(|failed| RekallError::internal(InternalFailure::Background, failed))?
     }
 
     async fn project_folder(&self, diagram_id: Id) -> Result<PathBuf> {
         in_read!(&self.services.ctx, |tx| {
             let row = repo::diagram::find_by_id(tx.db(), diagram_id).await?.ok_or_else(|| RekallError::not_found("Diagram", diagram_id))?;
-            let project = repo::project::find_by_id(tx.db(), row.project_id).await?.ok_or_else(|| RekallError::not_found("Project", row.project_id))?;
+            let project = repo::project::require(tx.db(), row.project_id).await?;
             let folder = project.repo_folder.filter(|folder| !jstr::is_blank(folder)).ok_or_else(|| {
                 RekallError::illegal("This diagram's project has no folder, so its code cannot be shown. Set one on the project page.")
             })?;

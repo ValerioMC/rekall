@@ -16,12 +16,12 @@ pub fn routes() -> Router<ApiState> {
 }
 
 async fn list(State(state): State<ApiState>) -> ApiResult<Json<Vec<CompanyResponse>>> {
-    Ok(Json(state.catalog.list_companies().await?))
+    Ok(Json(state.companies.list().await?))
 }
 
 async fn create(State(state): State<ApiState>, JsonBody(request): JsonBody<CompanyRequest>) -> ApiResult<Response> {
     Validator::new().not_blank("name", request.name.as_deref()).finish()?;
-    Ok(created(state.catalog.create_company(request).await?))
+    Ok(created(state.companies.create(request).await?))
 }
 
 async fn update(
@@ -31,10 +31,10 @@ async fn update(
 ) -> ApiResult<Json<CompanyResponse>> {
     let id = uuid("id", &id)?;
     Validator::new().not_blank("name", request.name.as_deref()).finish()?;
-    Ok(Json(state.catalog.update_company(id, request).await?))
+    Ok(Json(state.companies.update(id, request).await?))
 }
 
 async fn delete(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Response> {
-    state.catalog.delete_company(uuid("id", &id)?).await?;
+    state.companies.delete(uuid("id", &id)?).await?;
     Ok(no_content())
 }

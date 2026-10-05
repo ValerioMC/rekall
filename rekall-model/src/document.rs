@@ -3,7 +3,7 @@
 use rekall_common::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;
 
-use crate::constraints::{Phase, Violations};
+use crate::constraints::Violations;
 use crate::enums::DocumentContextMode;
 use crate::note_scope::NoteScope;
 
@@ -66,14 +66,14 @@ impl Model {
         format!("note:{}", &self.id.to_string()[..ANCHOR_ID_LENGTH])
     }
 
-    pub fn validate(&self, phase: Phase) -> Result<(), RekallError> {
-        Violations::new("Document", phase)
+    pub fn validate(&self) -> Result<(), RekallError> {
+        Violations::new("Document")
             .not_blank("title", Some(&self.title))
-            .size("title", Some(&self.title), 255)
+            .max_length("title", Some(&self.title), 255)
             .not_blank("kind", Some(&self.kind))
-            .size("kind", Some(&self.kind), 40)
-            .column("body_markdown", Some(&self.body_markdown), 100_000)
-            .column("source_path", self.source_path.as_deref(), 500)
+            .max_length("kind", Some(&self.kind), 40)
+            .max_length("bodyMarkdown", Some(&self.body_markdown), 100_000)
+            .max_length("sourcePath", self.source_path.as_deref(), 500)
             .finish()
     }
 }

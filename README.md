@@ -205,7 +205,7 @@ There is no query, get or schema tool. `rekall_note` adds a note, or with `repla
 
 ## Project page
 
-The project page keeps what the project is on one screen. **Description** and **Folder** (with **Commit on claim**) sit on top. Below, a rail lists the project's pages: the **Blueprint**, pinned and marked as what every `/rk` hands to Claude, then the **Sections**. A section is a title and markdown, written from the **+** in the rail, edited in place with autosave, moved up or down, or deleted behind a confirm. Titles are unique on a project, ignoring case. Sections are never part of any context, so they cost no tokens and a session reads them only if you paste one in; a session adds one with `rekall_project_section`, starting from the task it works, and it appears in the rail without a reload.
+From the console, the open-page button on the right end of any project header in the navigator (shown while browsing **All work** or a company) goes straight to that project's page; the rest of the header still folds its tasks. The project page keeps what the project is on one screen. **Description** and **Folder** (with **Commit on claim**) sit on top. Below, a rail lists the project's pages: the **Blueprint**, pinned and marked as what every `/rk` hands to Claude, then the **Sections**. A section is a title and markdown, written from the **+** in the rail, edited in place with autosave, moved up or down, or deleted behind a confirm. Titles are unique on a project, ignoring case. Sections are never part of any context, so they cost no tokens and a session reads them only if you paste one in; a session adds one with `rekall_project_section`, starting from the task it works, and it appears in the rail without a reload.
 
 A project wears an **icon**: one of the fixed glyphs, or a picture of your own, both set in the project's edit dialog (**Upload image** takes a PNG, JPEG, WebP or GIF up to 10 MB). Whatever its shape, a picture is cropped to the centred square and shown with the rounded corners of a macOS icon, in the project cards and header, the console's task column and the project picker of the New task dialog. The server keeps one 512 px PNG master per project (`project_icon_image`; a smaller upload is not enlarged) and resizes it with Lanczos3 on premultiplied alpha to exactly the device pixels each spot asks for (`GET /api/projects/{id}/icon-image?size=N&v=<version>`, 8 to 512; with `v` the answer is cached for good, and `iconImageVersion` on the project changes with every upload). `PUT` takes the image file as the body and answers the project; `DELETE` takes the picture off and the glyph returns.
 
@@ -493,9 +493,9 @@ rekall-app/desktop the Tauri desktop app over the same server
 rekall-ui/         Vue 3 + Vite frontend
 ```
 
-Inside a crate the layout follows the Java one: a folder per concept or layer (`controller/`, `service/`, `dto/`, `note/`, `step/`), one public type per file named after it (`NoteService` in `note_service.rs`), and a `mod.rs` that only declares the files and re-exports their types. The rules and their exceptions are in [docs/DESIGN.md](docs/DESIGN.md#layout-inside-a-crate).
+Inside a crate the code is laid out by package: a folder per concept or layer (`controller/`, `service/`, `dto/`, `note/`, `step/`), one public type per file named after it (`NoteService` in `note_service.rs`), and a `mod.rs` that only declares the files and re-exports their types. The rules and their exceptions are in [docs/DESIGN.md](docs/DESIGN.md#layout-inside-a-crate).
 
-The crate boundary is what keeps the MCP server off the write paths: `CatalogService`, `DocumentService` and `RevisionRestoreService` live in `rekall-api` and not in `rekall-service` because they write the catalog, and `rekall-mcp` cannot reach them. Read-only services (search, context size) and the narrow writes a session is allowed are in `rekall-service`.
+The crate boundary is what keeps the MCP server off the write paths: `CompanyService`, `ProjectService`, `TaskService`, `DocumentService` and `RevisionRestoreService` live in `rekall-api` and not in `rekall-service` because they write the catalog, and `rekall-mcp` cannot reach them. Read-only services (search, context size) and the narrow writes a session is allowed are in `rekall-service`.
 
 ## Run tests
 
@@ -511,6 +511,8 @@ Each crate keeps its tests under `tests/`: `tests/unit/` mirrors `src/` (`rekall
 ## Design
 
 `docs/DESIGN.md` records the decisions and the reasoning, including the ones that were reversed and why.
+
+`CLAUDE.md` holds the code rules every change follows: one service per entity, thin controllers, the shared write helpers, error and logging conventions, and how comments are written.
 
 `docs/MEMORY.md` is the memory soak of the console: what was measured, how, and why the numbers say there is no leak.
 

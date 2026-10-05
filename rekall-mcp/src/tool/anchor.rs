@@ -17,7 +17,7 @@ impl Anchor {
 
     /// Every term in `raw`: whitespace-separated, a quoted value kept whole.
     pub fn parse_all(raw: Option<&str>) -> Result<Vec<Anchor>, ToolError> {
-        // `\S*"[^"]*"|\S+`, with Java's ASCII `\S`.
+        // `\S*"[^"]*"|\S+`, with `\S` restricted to ASCII.
         static TERM: LazyLock<Regex> = LazyLock::new(|| {
             Regex::new(r#"[^ \t\n\x0B\x0C\r]*"[^"]*"|[^ \t\n\x0B\x0C\r]+"#).unwrap()
         });

@@ -42,7 +42,7 @@ impl CommitReferenceService {
     /// The recent log of the task's project folder, newest first.
     pub async fn recent_commits(&self, task_id: Id) -> Result<Vec<RecentCommitView>> {
         in_read!(&self.ctx, |tx| {
-            let task = require_task(&tx, task_id).await?;
+            let task = repo::task::require(tx.db(), task_id).await?;
             let folder = repo_folder_of(&tx, &task).await?;
             let recent = self.git.recent(&folder, RECENT_LIMIT).await?;
             Ok::<_, RekallError>(recent.into_iter().map(RecentCommitView::of).collect())
@@ -67,7 +67,7 @@ impl CommitReferenceService {
         step_id: Option<Id>,
         commit_hash: Option<&str>,
     ) -> Result<CommitReferenceView> {
-        let task = require_task(tx, task_id).await?;
+        let task = repo::task::require(tx.db(), task_id).await?;
         let step = resolve_step_by_id(tx, &task, step_id).await?;
         self.record(tx, &task, step, commit_hash).await
     }
@@ -163,12 +163,6 @@ impl CommitReferenceService {
             Ok(())
         })
     }
-}
-
-async fn require_task(tx: &Tx, task_id: Id) -> Result<task::Model> {
-    repo::task::find_by_id(tx.db(), task_id)
-        .await?
-        .ok_or_else(|| RekallError::not_found("task", task_id))
 }
 
 async fn repo_folder_of(tx: &Tx, task: &task::Model) -> Result<PathBuf> {

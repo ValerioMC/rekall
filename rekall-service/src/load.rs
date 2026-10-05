@@ -1,12 +1,11 @@
-//! Reads the services share: an entity by id, or the refusal the Java code threw when it was
-//! not there, and a task resolved by its anchors.
+//! Reads the services share: a task by id or by its anchors, and what hangs off a task.
 
-use rekall_common::{Id, RekallError, Result};
+use rekall_common::{Id, InternalFailure, RekallError, Result};
 use rekall_model::{project, task, task_step, wrapup};
 use rekall_repository::repository as repo;
 use sea_orm::ConnectionTrait;
 
-/// `tasks.findById(id).orElseThrow(() -> new UnknownAnchorException("No task with id " + id))`.
+/// The task by id, or `UnknownAnchor`: the MCP tools report a missing task as an anchor that resolves to nothing.
 pub async fn task_or_unknown(db: &impl ConnectionTrait, id: Id) -> Result<task::Model> {
     repo::task::find_by_id(db, id)
         .await?
@@ -16,7 +15,7 @@ pub async fn task_or_unknown(db: &impl ConnectionTrait, id: Id) -> Result<task::
 pub async fn project_of(db: &impl ConnectionTrait, task: &task::Model) -> Result<project::Model> {
     repo::project::find_by_id(db, task.project_id)
         .await?
-        .ok_or_else(|| RekallError::internal("IllegalStateException", format!("Task {} has no project", task.id)))
+        .ok_or_else(|| RekallError::internal(InternalFailure::Integrity, format!("Task {} has no project", task.id)))
 }
 
 pub async fn steps_of(db: &impl ConnectionTrait, task_id: Id) -> Result<Vec<task_step::Model>> {
@@ -27,14 +26,14 @@ pub async fn wrapup_of(db: &impl ConnectionTrait, task_id: Id) -> Result<Option<
     repo::wrapup::find_by_task_id(db, task_id).await
 }
 
-/// `Task.reviewActive()`, reading the task's steps.
+/// Whether the task carries its own review line: only while it has no step past `DRAFT`.
 pub async fn review_active(db: &impl ConnectionTrait, task_id: Id) -> Result<bool> {
     let steps = steps_of(db, task_id).await?;
     Ok(rekall_model::task::review_active(steps.iter().map(|s| &s.state)))
 }
 
-/// How every write path resolves `project:<label> task:<label>` (or a bare task label that has
-/// to be unique across projects): the private `resolveTask` each Java write service carried.
+/// How every write path resolves `project:<label> task:<label>`, or a bare task label that has
+/// to be unique across projects.
 pub async fn resolve_task(db: &impl ConnectionTrait, project_label: Option<&str>, task_label: &str) -> Result<task::Model> {
     if let Some(project_label) = project_label {
         return repo::task::find_by_project_label_ignore_case_and_label_ignore_case(db, project_label, task_label)

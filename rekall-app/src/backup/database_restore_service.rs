@@ -1,7 +1,7 @@
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-use rekall_common::{RekallError, Result};
+use rekall_common::{InternalFailure, RekallError, Result};
 use tracing::{error, info, warn};
 
 use super::{BackupFile, BackupReason, DatabaseBackupService, DatabaseLocation};
@@ -32,7 +32,7 @@ impl DatabaseRestoreService {
     /// Keeps an uploaded backup in the folder as `…-uploaded.zip`, then restores it.
     pub async fn restore_upload(&self, upload: &Path) -> Result<BackupFile> {
         let location = self.require_location()?;
-        let failed = || RekallError::internal("UncheckedIOException", "Could not keep the uploaded backup");
+        let failed = || RekallError::internal(InternalFailure::Io, "Could not keep the uploaded backup");
         std::fs::create_dir_all(location.backups()).map_err(|_| failed())?;
         let kept = self.backups.fresh_name(&location.backups(), BackupReason::Uploaded);
         std::fs::copy(upload, &kept).map_err(|_| failed())?;

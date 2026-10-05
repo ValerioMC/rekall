@@ -19,19 +19,13 @@ async fn usage(State(state): State<ClaudeState>, Query(query): Query<UsageQuery>
     let refresh = match query.refresh.as_deref() {
         None => false,
         Some(value) => parse_boolean(value).ok_or_else(|| {
-            ApiError::Domain(RekallError::internal(
-                "MethodArgumentTypeMismatchException",
-                format!(
-                    "Method parameter 'refresh': Failed to convert value of type 'java.lang.String' to required type \
-                     'boolean'; Invalid boolean value [{value}]"
-                ),
-            ))
+            ApiError::Domain(RekallError::illegal(format!("Parameter 'refresh' is not a boolean: {value}")))
         })?,
     };
     Ok(Json(if refresh { state.usage.refresh().await } else { state.usage.current().await }))
 }
 
-/// Spring's `StringToBooleanConverter`.
+/// Lenient on purpose: an empty value is false, and `on`/`yes`/`1` read as true.
 fn parse_boolean(value: &str) -> Option<bool> {
     match value.trim().to_lowercase().as_str() {
         "" => Some(false),

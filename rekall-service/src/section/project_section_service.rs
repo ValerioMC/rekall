@@ -1,5 +1,4 @@
 use rekall_common::{Id, RekallError, Result};
-use rekall_model::constraints::Phase;
 use rekall_model::project_section;
 use rekall_repository::repository as repo;
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
@@ -22,7 +21,7 @@ impl ProjectSectionService {
 
     pub async fn list(&self, project_id: Id) -> Result<Vec<ProjectSectionView>> {
         in_read!(&self.ctx, |tx| {
-            repo::project::find_by_id(tx.db(), project_id).await?.ok_or_else(|| RekallError::not_found("Project", project_id))?;
+            repo::project::require(tx.db(), project_id).await?;
             let rows = repo::project_section::find_by_project_id_order_by_position_asc(tx.db(), project_id).await?;
             Ok::<_, RekallError>(rows.iter().map(ProjectSectionView::of).collect())
         })
@@ -52,11 +51,7 @@ impl ProjectSectionService {
                 // The title stays as a person typed it; only the body is the session's.
                 let mut rewritten = clash.clone();
                 rewritten.body_markdown = text;
-                if rewritten != clash {
-                    rewritten.updated_at = now;
-                    rewritten.validate(Phase::Update)?;
-                    rewritten.clone().into_active_model().reset_all().update(tx.db()).await?;
-                }
+                let rewritten = repo::update_if_changed(tx.db(), &clash, rewritten, now).await?;
                 tx.publish(DomainEvent::ProjectSection(SectionStreamEvent { project_id: project.id }));
                 return Ok(SectionWritten { title: rewritten.title, project_anchor, sections_on_project: existing.len(), replaced: true });
             }
@@ -70,7 +65,7 @@ impl ProjectSectionService {
                 created_at: now,
                 updated_at: now,
             };
-            section.validate(Phase::Persist)?;
+            section.validate()?;
             section.clone().into_active_model().insert(tx.db()).await?;
             tx.publish(DomainEvent::ProjectSection(SectionStreamEvent { project_id: project.id }));
             Ok(SectionWritten { title: section.title, project_anchor, sections_on_project: existing.len() + 1, replaced: false })

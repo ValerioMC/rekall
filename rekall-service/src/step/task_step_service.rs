@@ -1,6 +1,5 @@
 use regex::Regex;
 use rekall_common::{jstr, Id, RekallError, Result};
-use rekall_model::constraints::Phase;
 use rekall_model::task_step::{self, MAX_CHARACTERS};
 use rekall_model::TaskStepState;
 use rekall_repository::repository as repo;
@@ -58,7 +57,7 @@ impl TaskStepService {
         let siblings = load::steps_of(tx.db(), task_id).await?;
         let mut step = task_step::Model::new(task_id, validated_title(title)?, siblings.len() as i32, self.ctx.now());
         step.body_markdown = validated_body(body_markdown)?;
-        step.validate(Phase::Persist)?;
+        step.validate()?;
         let saved = step.into_active_model().insert(tx.db()).await?;
         let view = TaskStepView::of(&saved)?;
         self.publish(tx, task_id).await?;
@@ -129,7 +128,7 @@ impl TaskStepService {
             }
             let task_id = step.task_id;
             let accepts_claim = before.state == TaskStepState::Claimed && step.state == TaskStepState::Done;
-            self.save(&tx, &before, step).await?;
+            repo::update_if_changed(tx.db(), &before, step, self.ctx.now()).await?;
             if accepts_claim {
                 self.time_entries.stop_if_running_in(&mut tx, task_id).await?;
             }
@@ -150,7 +149,7 @@ impl TaskStepService {
             let before = self.require(&tx, id).await?;
             let mut step = before.clone();
             step.send_back(self.ctx.now())?;
-            let saved = self.save(&tx, &before, step).await?;
+            let saved = repo::update_if_changed(tx.db(), &before, step, self.ctx.now()).await?;
             let view = TaskStepView::of(&saved)?;
             self.publish(&mut tx, saved.task_id).await?;
             Ok(view)
@@ -187,7 +186,7 @@ impl TaskStepService {
             }
             let mut step = before.clone();
             step.mark_state(target);
-            let saved = self.save(&tx, &before, step).await?;
+            let saved = repo::update_if_changed(tx.db(), &before, step, self.ctx.now()).await?;
             let view = TaskStepView::of(&saved)?;
             self.publish(&mut tx, task.id).await?;
             Ok(view)
@@ -222,7 +221,7 @@ impl TaskStepService {
                 if before.state == from {
                     let mut step = before.clone();
                     step.mark_state(to);
-                    self.save(&tx, &before, step).await?;
+                    repo::update_if_changed(tx.db(), &before, step, self.ctx.now()).await?;
                     self.publish(&mut tx, before.task_id).await?;
                 }
             }
@@ -265,27 +264,15 @@ impl TaskStepService {
         renumbered.iter().map(TaskStepView::of).collect()
     }
 
-    /// Dense positions from zero. Only a step whose position actually moves is written, and only
-    /// that one has its update stamp moved, as Hibernate's dirty check did.
+    /// Dense positions from zero. Only a step whose position actually moves is written and stamped.
     async fn renumber(&self, tx: &Tx, ordered: Vec<task_step::Model>) -> Result<Vec<task_step::Model>> {
         let mut out = Vec::with_capacity(ordered.len());
         for (at, before) in ordered.into_iter().enumerate() {
             let mut step = before.clone();
             step.position = at as i32;
-            out.push(self.save(tx, &before, step).await?);
+            out.push(repo::update_if_changed(tx.db(), &before, step, self.ctx.now()).await?);
         }
         Ok(out)
-    }
-
-    /// Write `after` over `before` if anything changed, stamping `updated_at`.
-    async fn save(&self, tx: &Tx, before: &task_step::Model, mut after: task_step::Model) -> Result<task_step::Model> {
-        if &after == before {
-            return Ok(after);
-        }
-        after.updated_at = self.ctx.now();
-        after.validate(Phase::Update)?;
-        after.clone().into_active_model().reset_all().update(tx.db()).await?;
-        Ok(after)
     }
 
     async fn publish(&self, tx: &mut Tx, task_id: Id) -> Result<()> {
@@ -328,16 +315,7 @@ async fn resolve_step(db: &impl sea_orm::ConnectionTrait, task_id: Id, reference
     }
     let trimmed = reference.map(jstr::strip).unwrap_or("");
     if DIGITS.is_match(trimmed) {
-        let count = ordered.len();
-        // Integer.parseInt: a number past int range is a NumberFormatException, an IAE.
-        let one_based: i64 = trimmed
-            .parse::<i32>()
-            .map_err(|_| RekallError::illegal(format!("For input string: \"{trimmed}\"")))?
-            .into();
-        if one_based < 1 || one_based > count as i64 {
-            return Err(RekallError::illegal(format!("There is no step {one_based}. The checklist has {count}.")));
-        }
-        return Ok(ordered[(one_based - 1) as usize].clone());
+        return step_by_number(ordered, trimmed);
     }
     let by_title: Vec<&task_step::Model> = ordered
         .iter()
@@ -356,6 +334,15 @@ async fn resolve_step(db: &impl sea_orm::ConnectionTrait, task_id: Id, reference
         reference.unwrap_or("null"),
         titles.join("\n")
     )))
+}
+
+/// `number` is all digits; one too large to parse is out of range like any other.
+fn step_by_number(mut ordered: Vec<task_step::Model>, number: &str) -> Result<task_step::Model> {
+    let count = ordered.len();
+    match number.parse::<usize>() {
+        Ok(one_based) if (1..=count).contains(&one_based) => Ok(ordered.swap_remove(one_based - 1)),
+        _ => Err(RekallError::illegal(format!("There is no step {number}. The checklist has {count}."))),
+    }
 }
 
 fn validated_title(title: Option<&str>) -> Result<String> {

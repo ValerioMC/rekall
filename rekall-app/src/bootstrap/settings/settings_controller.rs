@@ -7,7 +7,7 @@ use axum::routing::{get, patch, post};
 use axum::{Json, Router};
 use rekall_api::error::{framework, ApiResult};
 use rekall_api::extract::JsonBody;
-use rekall_common::{Id, Instant, RekallError};
+use rekall_common::{Id, Instant, InternalFailure, RekallError};
 
 use super::super::folder::inspect;
 use super::super::registry::{DatabaseEntry, DatabaseRegistry};
@@ -160,11 +160,11 @@ async fn forget(State(state): State<SettingsState>, UrlPath(id): UrlPath<String>
 }
 
 fn read(state: &SettingsState) -> ApiResult<Option<DatabaseRegistry>> {
-    state.store.read().map_err(|failed| RekallError::internal("UncheckedIOException", failed).into())
+    state.store.read().map_err(|failed| RekallError::internal(InternalFailure::Io, failed).into())
 }
 
 fn write(state: &SettingsState, registry: &DatabaseRegistry) -> ApiResult<()> {
-    state.store.write(registry).map_err(|failed| RekallError::internal("UncheckedIOException", failed).into())
+    state.store.write(registry).map_err(|failed| RekallError::internal(InternalFailure::Io, failed).into())
 }
 
 fn require_registry(state: &SettingsState) -> ApiResult<DatabaseRegistry> {

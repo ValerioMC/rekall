@@ -1,8 +1,7 @@
-use rekall_common::{Id, RekallError, Result};
-use rekall_model::constraints::Phase;
+use rekall_common::{jstr, Id, RekallError, Result};
 use rekall_model::task;
 use rekall_model::TaskStepState;
-use sea_orm::{ActiveModelTrait, IntoActiveModel};
+use rekall_repository::repository as repo;
 
 use crate::timeentry::TimeEntryService;
 use crate::{in_write, load, Ctx, DomainEvent, Tx};
@@ -24,7 +23,7 @@ impl TaskReviewService {
     /// blocks a claim.
     pub async fn session_running(&self, task_id: Id, running: bool) -> Result<()> {
         in_write!(&self.ctx, |tx| {
-            let Some(before) = rekall_repository::repository::task::find_by_id(tx.db(), task_id).await? else {
+            let Some(before) = repo::task::find_by_id(tx.db(), task_id).await? else {
                 return Ok(());
             };
             if !load::review_active(tx.db(), task_id).await? {
@@ -44,7 +43,7 @@ impl TaskReviewService {
 
     /// A Claude-authored wrapup advances `OPEN | RUNNING -> CLAIMED`. A hand-written one does not.
     pub async fn claimed_by_wrapup_in(&self, tx: &mut Tx, task_id: Id) -> Result<()> {
-        let Some(before) = rekall_repository::repository::task::find_by_id(tx.db(), task_id).await? else {
+        let Some(before) = repo::task::find_by_id(tx.db(), task_id).await? else {
             return Ok(());
         };
         if !load::review_active(tx.db(), task_id).await? {
@@ -84,17 +83,13 @@ impl TaskReviewService {
         let mut task = before.clone();
         task.mark_review_state(TaskStepState::Open);
         task.review_note = note
-            .filter(|n| !rekall_common::jstr::is_blank(n))
-            .map(|n| rekall_common::jstr::strip(n).to_string());
+            .filter(|n| !jstr::is_blank(n))
+            .map(|n| jstr::strip(n).to_string());
         self.save_and_publish(tx, &before, task).await
     }
 
-    async fn save_and_publish(&self, tx: &mut Tx, before: &task::Model, mut task: task::Model) -> Result<TaskReviewView> {
-        if &task != before {
-            task.updated_at = self.ctx.now();
-            task.validate(Phase::Update)?;
-            task.clone().into_active_model().reset_all().update(tx.db()).await?;
-        }
+    async fn save_and_publish(&self, tx: &mut Tx, before: &task::Model, task: task::Model) -> Result<TaskReviewView> {
+        let task = repo::update_if_changed(tx.db(), before, task, self.ctx.now()).await?;
         let view = TaskReviewView::of(&task, load::review_active(tx.db(), task.id).await?);
         tx.publish(DomainEvent::TaskReview(TaskReviewEvent { task_id: task.id, review: view.clone() }));
         Ok(view)

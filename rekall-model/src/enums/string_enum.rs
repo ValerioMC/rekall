@@ -1,4 +1,4 @@
-/// Declares an enum stored and serialised by name, with Java's `name()`, `ordinal()` and `valueOf()`.
+/// Declares an enum stored and serialised by name, with `name()`, `ordinal()` and `value_of()`.
 macro_rules! string_enum {
     ($(#[$meta:meta])* $name:ident { $($variant:ident = $text:literal),+ $(,)? }) => {
         $(#[$meta])*
@@ -18,7 +18,7 @@ macro_rules! string_enum {
                 match self { $(Self::$variant => $text,)+ }
             }
 
-            /// `Enum.ordinal()`.
+            /// The position in declaration order.
             pub fn ordinal(&self) -> usize {
                 <Self as sea_orm::Iterable>::iter().position(|v| v == *self).unwrap_or(0)
             }

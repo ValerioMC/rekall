@@ -5,7 +5,7 @@
 use rekall_common::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;
 
-use crate::constraints::{Phase, Violations};
+use crate::constraints::Violations;
 use crate::enums::{TaskStatus, TaskStepState};
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
@@ -87,7 +87,7 @@ impl Related<super::document::Entity> for Entity {
 
 impl ActiveModelBehavior for ActiveModel {}
 
-/// `Task.reviewActive()`: true while the task has no checklist, only draft steps counting as
+/// True while the task has no checklist, only draft steps counting as
 /// none. Once a step is past `DRAFT` the checklist is the source of truth and the review columns
 /// are ignored.
 pub fn review_active<'a>(step_states: impl IntoIterator<Item = &'a TaskStepState>) -> bool {
@@ -142,7 +142,7 @@ impl Model {
                 self.accepted_at = Some(now);
                 self.review_note = None;
             }
-            // DRAFT is a step's state, never the task's; the switch in Java had no case for it.
+            // DRAFT is a step's state, never the task's.
             TaskStepState::Draft => {}
         }
     }
@@ -151,15 +151,15 @@ impl Model {
         format!("project:{project_label} task:{}", self.label)
     }
 
-    pub fn validate(&self, phase: Phase) -> Result<(), RekallError> {
-        Violations::new("Task", phase)
+    pub fn validate(&self) -> Result<(), RekallError> {
+        Violations::new("Task")
             .not_blank("label", Some(&self.label))
-            .size("label", Some(&self.label), 160)
+            .max_length("label", Some(&self.label), 160)
             .slug("label", Some(&self.label))
             .not_blank("title", Some(&self.title))
-            .size("title", Some(&self.title), 200)
-            .size("reviewNote", self.review_note.as_deref(), 2_000)
-            .column("description", self.description.as_deref(), 100_000)
+            .max_length("title", Some(&self.title), 200)
+            .max_length("reviewNote", self.review_note.as_deref(), 2_000)
+            .max_length("description", self.description.as_deref(), 100_000)
             .finish()
     }
 }

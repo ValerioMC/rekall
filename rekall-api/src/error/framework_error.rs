@@ -1,7 +1,7 @@
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 
-/// Marks a framework error the middleware renders in Spring Boot's error-controller shape.
+/// Marks a routing or extraction failure for `render_errors` to give a JSON body.
 #[derive(Clone, Copy, Debug)]
 pub struct FrameworkError(pub StatusCode);
 

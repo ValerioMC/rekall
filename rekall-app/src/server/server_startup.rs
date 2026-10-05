@@ -63,11 +63,14 @@ async fn supervise(
         let (serving_stop, serving_stop_signal) = oneshot::channel::<()>();
         let app = instance.router().into_make_service_with_connect_info::<SocketAddr>();
         let server = tokio::spawn(async move {
-            let _ = axum::serve(tokio_listener, app)
+            let served = axum::serve(tokio_listener, app)
                 .with_graceful_shutdown(async move {
                     let _ = serving_stop_signal.await;
                 })
                 .await;
+            if let Err(failure) = served {
+                error!(%failure, "The HTTP server stopped with an error");
+            }
         });
         instance.ready();
         let _ = current.send(Some((generation, instance.services.clone())));

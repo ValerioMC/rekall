@@ -1,5 +1,4 @@
-//! The enumerations, stored by name (`@Enumerated(EnumType.STRING)`) and written on the wire by
-//! name, as Jackson wrote a Java enum.
+//! The enumerations, stored and written on the wire by their upper-case name.
 
 #[macro_use]
 mod string_enum;

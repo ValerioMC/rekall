@@ -18,7 +18,7 @@ pub async fn find_by_ids(db: &impl ConnectionTrait, ids: Vec<Id>) -> Result<Vec<
     Ok(Entity::find().filter(Column::Id.is_in(ids)).all(db).await?)
 }
 
-/// The links of one task, in `position` order: `Task.documents` with its `@OrderColumn`.
+/// The links of one task, in `position` order.
 pub async fn links_of_task(db: &impl ConnectionTrait, task_id: Id) -> Result<Vec<document_task::Model>, RekallError> {
     Ok(document_task::Entity::find()
         .filter(document_task::Column::TaskId.eq(task_id))
@@ -27,9 +27,8 @@ pub async fn links_of_task(db: &impl ConnectionTrait, task_id: Id) -> Result<Vec
         .await?)
 }
 
-/// The links of one note in the order they were added: `Document.tasks` as a note just created
-/// held it, a `LinkedHashSet` filled in the order the request named the tasks.
-pub async fn links_of_document_as_added(db: &impl ConnectionTrait, document_id: Id) -> Result<Vec<document_task::Model>, RekallError> {
+/// The links of one note in the order its tasks were attached.
+pub async fn links_of_document(db: &impl ConnectionTrait, document_id: Id) -> Result<Vec<document_task::Model>, RekallError> {
     Ok(document_task::Entity::find()
         .filter(document_task::Column::DocumentId.eq(document_id))
         .order_by_asc(sea_orm::sea_query::Expr::cust("rowid"))
@@ -37,17 +36,7 @@ pub async fn links_of_document_as_added(db: &impl ConnectionTrait, document_id: 
         .await?)
 }
 
-/// The links of one note as `Document.getTasks()` iterated them once loaded: Hibernate fills the
-/// inverse side of the many-to-many into a plain `HashSet`, whose order is its buckets' (see
-/// `rekall_common::jcoll`). Within a bucket it is the order the rows came back in, which H2 read
-/// off the `(document_id, task_id)` primary key: by task id.
-pub async fn links_of_document(db: &impl ConnectionTrait, document_id: Id) -> Result<Vec<document_task::Model>, RekallError> {
-    let mut links = links_of_document_as_added(db, document_id).await?;
-    links.sort_by_key(|link| link.task_id);
-    Ok(rekall_common::jcoll::hash_set_order(links, |link| link.task_id.as_uuid()))
-}
-
-/// `Task.getDocuments()`: a task's notes in their order on it.
+/// A task's notes in their order on it.
 pub async fn documents_of_task(db: &impl ConnectionTrait, task_id: Id) -> Result<Vec<Model>, RekallError> {
     let links = links_of_task(db, task_id).await?;
     let docs = find_by_ids(db, links.iter().map(|l| l.document_id).collect()).await?;
@@ -57,7 +46,7 @@ pub async fn documents_of_task(db: &impl ConnectionTrait, task_id: Id) -> Result
         .collect())
 }
 
-/// `Document.getTasks()`: the tasks a note is on.
+/// The tasks a note is on, in the order they were attached.
 pub async fn tasks_of_document(db: &impl ConnectionTrait, document_id: Id) -> Result<Vec<task::Model>, RekallError> {
     let links = links_of_document(db, document_id).await?;
     let tasks = super::task::find_by_ids(db, links.iter().map(|l| l.task_id).collect()).await?;
@@ -67,7 +56,7 @@ pub async fn tasks_of_document(db: &impl ConnectionTrait, document_id: Id) -> Re
         .collect())
 }
 
-/// `findByTasksIdOrderByTitleAsc`.
+/// A task's notes by title.
 pub async fn find_by_tasks_id_order_by_title_asc(db: &impl ConnectionTrait, task_id: Id) -> Result<Vec<Model>, RekallError> {
     let mut docs = documents_of_task(db, task_id).await?;
     docs.sort_by(|a, b| a.title.cmp(&b.title));
@@ -99,8 +88,7 @@ pub async fn find_by_project(db: &impl ConnectionTrait, project_id: Id) -> Resul
         .collect())
 }
 
-/// `search`: title or body holds the term, by title. The Java query did not escape the term, so a
-/// `%` or `_` typed into it is a wildcard here too (see `like_matches`).
+/// Title or body holds the term, by title. `%` and `_` in the term are wildcards (see `like_matches`).
 pub async fn search(db: &impl ConnectionTrait, term: &str) -> Result<Vec<Model>, RekallError> {
     let mut found: Vec<Model> = Entity::find()
         .all(db)
@@ -112,7 +100,7 @@ pub async fn search(db: &impl ConnectionTrait, term: &str) -> Result<Vec<Model>,
     Ok(found)
 }
 
-/// `searchText`: title or body holds the (already escaped, so literal) term, newest first.
+/// Title or body holds the term literally, newest first.
 pub async fn search_text(db: &impl ConnectionTrait, term: &str, limit: usize) -> Result<Vec<Model>, RekallError> {
     Ok(find_all_by_order_by_updated_at_desc(db)
         .await?
@@ -122,7 +110,7 @@ pub async fn search_text(db: &impl ConnectionTrait, term: &str, limit: usize) ->
         .collect())
 }
 
-/// `findByIdPrefix`: notes whose id starts with the prefix, how a `note:` anchor resolves.
+/// Notes whose id starts with the prefix: how a `note:` anchor resolves.
 pub async fn find_by_id_prefix(db: &impl ConnectionTrait, prefix: &str) -> Result<Vec<Model>, RekallError> {
     Ok(Entity::find()
         .filter(Column::Id.starts_with(prefix))
@@ -130,8 +118,8 @@ pub async fn find_by_id_prefix(db: &impl ConnectionTrait, prefix: &str) -> Resul
         .await?)
 }
 
-/// `LOWER(text) LIKE LOWER('%' || term || '%')` with the term unescaped: `%` matches any run of
-/// characters and `_` any one, as H2 read them.
+/// `text` contains `term`, case folded, where `%` in the term matches any run of characters and
+/// `_` any one.
 pub fn like_matches(text: &str, term: &str) -> bool {
     let text: Vec<char> = text.to_lowercase().chars().collect();
     let mut pattern = vec!['%'];

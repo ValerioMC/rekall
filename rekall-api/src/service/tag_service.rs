@@ -1,7 +1,6 @@
 //! The badges a task can carry.
 
 use rekall_common::{jstr, Id, RekallError, Result};
-use rekall_model::constraints::Phase;
 use rekall_model::tag;
 use rekall_repository::repository as repo;
 use rekall_service::{in_read, in_write, Services, Tx};
@@ -42,7 +41,7 @@ impl TagService {
                 created_at: now,
                 updated_at: now,
             };
-            tag.validate(Phase::Persist)?;
+            tag.validate()?;
             tag.clone().into_active_model().insert(tx.db()).await?;
             Ok::<_, RekallError>(TagResponse::of(&tag))
         })
@@ -57,11 +56,7 @@ impl TagService {
             tag.name = jstr::trim(&name).to_string();
             tag.icon = request.icon.clone().unwrap_or_default();
             tag.color = request.color.clone().unwrap_or_default();
-            if tag != before {
-                tag.updated_at = self.ctx().now();
-                tag.validate(Phase::Update)?;
-                tag.clone().into_active_model().reset_all().update(tx.db()).await?;
-            }
+            let tag = repo::update_if_changed(tx.db(), &before, tag, self.ctx().now()).await?;
             Ok::<_, RekallError>(TagResponse::of(&tag))
         })
     }
