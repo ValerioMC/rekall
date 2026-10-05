@@ -73,7 +73,7 @@ describe('the Run here button', () => {
     expect(openPane).not.toHaveBeenCalled()
   })
 
-  it('runs the play mark out, then stamps the amber step seal, then shows the work in progress', async () => {
+  it('runs the play mark out, then stamps the amber step seal, then turns the seal of a running step', async () => {
     openTerminal.mockResolvedValue(terminal())
     const wrapper = mountButton()
     const button = wrapper.get('[data-testid="open-terminal"]')
@@ -89,7 +89,7 @@ describe('the Run here button', () => {
 
     await vi.advanceTimersByTimeAsync(1200)
     expect(button.attributes('data-phase')).toBe('working')
-    expect(wrapper.find('.run-orbit').exists()).toBe(true)
+    expect(wrapper.get('.run-working [data-testid="step-seal"]').attributes('data-state')).toBe('RUNNING')
   })
 
   /** The server's RUNNING mark may trail the launch; if it never comes, the button is not stuck. */

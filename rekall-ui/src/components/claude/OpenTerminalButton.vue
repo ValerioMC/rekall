@@ -15,8 +15,8 @@ import type { TaskId, TaskStepId } from '@/model/branded'
  * Starts the task's session without leaving the pane it was pressed on; the sessions dock is the
  * way back to it. One glyph that changes: `idle` a play mark, `launching` the mark runs out
  * through the edge, `waiting` an open ring turning while the server answers, `done` the amber
- * seal stamped in as a completed step's is, `working` a comet orbiting until the session claims
- * the work or ends. Only `idle` takes a press, and the button keeps its width throughout.
+ * seal stamped in as a completed step's is, `working` the running step's own seal turning until
+ * the session claims the work or ends. Only `idle` takes a press, and the button keeps its width throughout.
  */
 const props = withDefaults(
   defineProps<{
@@ -163,14 +163,9 @@ onBeforeUnmount(() => {
           fill="currentColor"
         />
       </svg>
-      <svg v-if="phase === 'working'" class="run-orbit size-3.5" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-        <circle class="run-orbit-track" cx="7" cy="7" r="5.6" />
-        <g class="run-orbit-comet">
-          <circle class="run-orbit-tail" cx="7" cy="7" r="5.6" pathLength="100" />
-          <circle class="run-orbit-head" cx="7" cy="7" r="5.6" pathLength="100" />
-        </g>
-        <circle class="run-orbit-core" cx="7" cy="7" r="1.7" />
-      </svg>
+      <span v-if="phase === 'working'" class="run-working block size-4 place-self-center" aria-hidden="true">
+        <StepSeal state="RUNNING" />
+      </span>
     </span>
     <span class="grid [&>*]:[grid-area:1/1]">
       <span
@@ -244,58 +239,15 @@ onBeforeUnmount(() => {
   animation: fade-in 140ms ease-out both;
 }
 
-/* The key clips its overflow for the play mark's exit, so the seal's light must fade within the
+/* The key clips its overflow for the play mark's exit, so a seal's light must fade within the
    5px between seal and key edge, or it is cut into a band. */
-.run-seal :deep(.seal[data-state]) {
+.run-seal :deep(.seal[data-state]),
+.run-working :deep(.seal[data-state]) {
   filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.6))
     drop-shadow(0 0 3px color-mix(in srgb, var(--seal) 45%, transparent));
 }
 
-/* The seal's RUNNING motion at button size: a comet orbits a faint track and the core breathes. */
-.run-orbit {
-  animation: fade-in 260ms ease-out both;
-}
-
-.run-orbit-track {
-  stroke: color-mix(in srgb, var(--color-accent) 26%, transparent);
-  stroke-width: 1.2;
-}
-
-.run-orbit-comet {
-  transform-box: view-box;
-  transform-origin: 7px 7px;
-  animation: run-orbit 1.7s linear infinite;
-}
-
-.run-orbit-tail,
-.run-orbit-head {
-  stroke-linecap: round;
-  transform-box: view-box;
-  transform-origin: 7px 7px;
-  transform: rotate(-90deg);
-}
-
-.run-orbit-tail {
-  stroke: color-mix(in srgb, var(--color-accent) 70%, transparent);
-  stroke-width: 1.4;
-  stroke-dasharray: 25 75;
-}
-
-/* The head rides the leading end of the tail. */
-.run-orbit-head {
-  stroke: var(--color-accent-strong);
-  stroke-width: 2;
-  stroke-dasharray: 5 95;
-  stroke-dashoffset: -20;
-}
-
-.run-orbit-core {
-  fill: var(--color-accent);
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: run-breathe 1.7s ease-in-out infinite;
-}
-
+.run-working,
 .run-label-in {
   animation: fade-in 260ms ease-out both;
 }
@@ -318,19 +270,6 @@ onBeforeUnmount(() => {
   to {
     opacity: 0;
     transform: translateX(6px);
-  }
-}
-
-@keyframes run-orbit {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes run-breathe {
-  50% {
-    transform: scale(0.7);
-    opacity: 0.6;
   }
 }
 </style>
