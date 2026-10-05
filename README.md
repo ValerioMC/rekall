@@ -435,7 +435,7 @@ The `/rk` command the app installs is `.claude/commands/rk.md`, compiled into th
 | State | Pinia setup stores; `console.store` holds the working set |
 | HTTP | `ofetch`, timeout, retry on 5xx only, correlation id per request |
 | Validation | Zod on every response |
-| Markdown | `md-editor-v3` wrapped by `AppMarkdownEditor`, highlight.js passed in as a local instance |
+| Markdown | `md-editor-v3` wrapped by `AppMarkdownEditor`, highlight.js and mermaid passed in as local instances. A ```` ```mermaid ```` fence renders as a diagram in the read view; the editor's live preview keeps it as code |
 | Tests | Vitest + Vue Test Utils |
 
 ```

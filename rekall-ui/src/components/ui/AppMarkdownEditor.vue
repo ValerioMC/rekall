@@ -242,7 +242,6 @@ const TOOLBARS: ToolbarNames[] = [
       preview-theme="github"
       code-theme="atom"
       no-katex
-      no-mermaid
       no-echarts
       no-img-zoom-in
     />

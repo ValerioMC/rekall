@@ -77,6 +77,19 @@ describe('AppMarkdownEditor', () => {
     expect(wrapper.find('.hljs-keyword, .hljs-string, .hljs-title, .hljs-type').exists()).toBe(true)
   })
 
+  it('turns a mermaid fence into a diagram container without reaching for a cdn', async () => {
+    const wrapper = mount(AppMarkdownEditor, {
+      props: { modelValue: '```mermaid\ngraph TD\n  A --> B\n```', readonly: true }
+    })
+    await flushPromises()
+    await nextTick()
+
+    expect(wrapper.find('.md-editor-mermaid').exists()).toBe(true)
+    expect(wrapper.find('pre code').exists()).toBe(false)
+    expect(document.getElementById('md-editor-mermaid')).toBeNull()
+    expect(document.getElementById('md-editor-mermaid-m')).toBeNull()
+  })
+
   it('offers the formatting toolbar over an editable surface', async () => {
     const wrapper = mount(AppMarkdownEditor, { props: { modelValue: '# prima' } })
     await flushPromises()
