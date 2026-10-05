@@ -226,24 +226,6 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
         />
         <span class="max-[1440px]:sr-only">{{ SAVE_LABEL[saveState] }}</span>
       </p>
-      <a
-        href="/api/export"
-        download
-        data-testid="export-link"
-        class="key-slate focus-ring inline-flex h-8 items-center gap-1.5 rounded-[3px] px-3 text-[12.5px]"
-        title="Download every company, project, task and note as a folder tree"
-      >
-        <svg class="size-3.5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path
-            d="M12 3v12m0 0l-4-4m4 4l4-4M4 19h16"
-            stroke="currentColor"
-            stroke-width="1.8"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
-        Export
-      </a>
       <button
         type="button"
         data-testid="tags-trigger"

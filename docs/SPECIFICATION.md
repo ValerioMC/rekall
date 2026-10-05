@@ -44,6 +44,11 @@ Something you work on over time, inside one company.
   works" reference. Distinct from the short description: this is meant to be read start-to-finish
   as documentation, and is included whenever an AI assistant loads context for this project or
   any of its tasks.
+- **sections** — any number of titled markdown entries kept on the project for what the blueprint
+  does not hold (deployment, conventions, a glossary). A project's structure is its own, so there
+  is no fixed shape: a section is a title and its content, and nothing else. Never loaded into a
+  context. A person writes them in the console; an assistant can add one, from a task, but not
+  rename, reorder or delete one.
 - Belongs to exactly one company. Holds many **Tasks**. Deleting a project deletes every task
   beneath it.
 
@@ -172,14 +177,10 @@ A working surface for a person (not the assistant) to:
 - Pick a task and write/read the notes attached to it, and its wrapup.
 - Create a note and, at any point, attach or detach it from any number of tasks.
 - Start, pause and review time tracking for the task in view, and correct or delete past sessions.
-- See and write a project's description and its blueprint document.
+- See and write a project's description and its blueprint document, and keep any number of
+  titled markdown sections beside it. The project's tasks are one press away, not listed by default.
 - Quickly copy the anchor for anything in view, formatted exactly as it should be typed to load it
   again.
-
-### Data portability
-Export everything (every company, project, task and note) as a downloadable archive laid out as a
-folder tree mirroring the company/project/task hierarchy, for backup or for reading outside the
-application.
 
 ### Local data management
 - The application's data lives in a single local file; the person points the application at a

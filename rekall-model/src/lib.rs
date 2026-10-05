@@ -19,6 +19,7 @@ pub mod document;
 pub mod document_task;
 pub mod note_scope;
 pub mod project;
+pub mod project_section;
 pub mod run_queue;
 pub mod run_queue_item;
 pub mod step_pass;
@@ -39,6 +40,7 @@ pub mod prelude {
     pub use super::document::{Entity as Document, Model as DocumentModel};
     pub use super::document_task::{Entity as DocumentTask, Model as DocumentTaskModel};
     pub use super::project::{Entity as Project, Model as ProjectModel};
+    pub use super::project_section::{Entity as ProjectSection, Model as ProjectSectionModel};
     pub use super::run_queue::{Entity as RunQueue, Model as RunQueueModel};
     pub use super::run_queue_item::{Entity as RunQueueItem, Model as RunQueueItemModel};
     pub use super::tag::{Entity as Tag, Model as TagModel};

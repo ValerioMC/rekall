@@ -198,9 +198,16 @@ An anchor brings back the record, everything it references resolved in full with
 | `rekall_record_commit` | write | Log a commit of the project's repo folder against one task or step |
 | `rekall_propose_step` | write | Add one step as a draft, for a person to promote |
 | `rekall_note` | write | Write a note on one task, or rewrite one it carries by title with `replace` |
+| `rekall_project_section` | write | Write a titled markdown section on a task's project, or rewrite one by title with `replace` |
 | `rekall_diagram` | write | Store a Semantic Graph generated for one task, or replace one by id with `diagram` |
 
-There is no query, get or schema tool. `rekall_note` adds a note, or with `replace: true` rewrites the body of the note the task already carries under that title (ignoring case); without `replace` that title is refused, and nothing it does detaches or deletes a note. `rekall_step` refuses `done`; that state is set by hand in the console. `rekall_step` (on `claimed`) and `rekall_wrapup` take an optional `commit_message`, used only on a project that commits on claim (see [Commit on claim](#commit-on-claim)).
+There is no query, get or schema tool. `rekall_note` adds a note, or with `replace: true` rewrites the body of the note the task already carries under that title (ignoring case); without `replace` that title is refused, and nothing it does detaches or deletes a note. `rekall_project_section` works the same way on a project's sections: it adds one, or with `replace: true` rewrites the body of the section with that title, and it can never rename, reorder or delete one. `rekall_step` refuses `done`; that state is set by hand in the console. `rekall_step` (on `claimed`) and `rekall_wrapup` take an optional `commit_message`, used only on a project that commits on claim (see [Commit on claim](#commit-on-claim)).
+
+## Project page
+
+The project page keeps what the project is on one screen. **Description** and **Folder** (with **Commit on claim**) sit on top. Below, a rail lists the project's pages: the **Blueprint**, pinned and marked as what every `/rk` hands to Claude, then the **Sections**. A section is a title and markdown, written from the **+** in the rail, edited in place with autosave, moved up or down, or deleted behind a confirm. Titles are unique on a project, ignoring case. Sections are never part of any context, so they cost no tokens and a session reads them only if you paste one in; a session adds one with `rekall_project_section`, starting from the task it works, and it appears in the rail without a reload.
+
+The project's tasks are not listed on the page: **Tasks** in the header opens them in a panel from the right, each with an **Open** that takes you to it in the console. The REST side is `GET` and `POST /api/projects/{id}/sections`, `PUT /api/projects/{id}/sections/order` (every section id once, in the order to show) and `PUT` and `DELETE /api/project-sections/{id}`.
 
 ## Wrapup
 
@@ -403,14 +410,6 @@ SQLite's `VACUUM INTO` copies the open database, consistently and without stoppi
 | `rekall.backup.keep` | `10` | Backups kept, of every kind together; the oldest go first |
 
 **Restore** on a listed backup, or **Restore from a file…** with a zip from elsewhere, replaces the whole database: the zip has to hold a Rekall SQLite database (`rekall.db`, checked by its header), what is there now is backed up first, and Rekall restarts on the restored file, migrating it forward if it came from an older version. That round trip is also how a database moves to another machine: **Download** a backup here, restore it there. An in-memory database has no backups. The REST side is `GET` and `POST /api/backups`, `GET /api/backups/{name}`, `POST /api/backups/{name}/restore` and `POST /api/backups/restore` (multipart `file`, up to 1 GB).
-
-## Export
-
-```bash
-curl -OJ http://localhost:47355/api/export
-```
-
-Or the **Export** button in the top bar. The archive is a folder tree, one folder per company, then project, then task, one markdown file per note, plus a `MANIFEST.md` with statuses and anchors. It is for reading, and nothing reads it back: to save and restore, or to move a database, use a [backup](#backups). A note on several tasks appears under each; `MANIFEST.md` lists the copies.
 
 ## Develop
 

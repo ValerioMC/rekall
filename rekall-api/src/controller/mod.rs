@@ -8,7 +8,7 @@ mod context_size_controller;
 mod diagram_controller;
 mod directory_listing_controller;
 mod document_controller;
-mod export_controller;
+mod project_section_controller;
 mod responses;
 mod search_controller;
 mod step_event_controller;

@@ -9,13 +9,21 @@ import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
-import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
+import AppConfirm from '@/components/ui/AppConfirm.vue'
+import ProjectBlueprintPane from '@/components/project/ProjectBlueprintPane.vue'
+import ProjectDocsRail from '@/components/project/ProjectDocsRail.vue'
+import ProjectSectionPane from '@/components/project/ProjectSectionPane.vue'
+import ProjectTasksDrawer from '@/components/project/ProjectTasksDrawer.vue'
 import ProjectTrace from '@/components/ui/ProjectTrace.vue'
 import { useConsoleStore } from '@/stores/console.store'
+import { useProjectSectionsStore } from '@/stores/projectSections.store'
+import { useProjectSectionStream } from '@/composables/useProjectSectionStream'
+import { useAsyncAction } from '@/composables/useAsyncAction'
+import { canMove, type Direction } from '@/common/project/section-order'
 import { identityHue } from '@/common/identity'
 import { hasActivity, projectActivitySeries } from '@/common/trace/activity-series'
 import { projectDraft } from '@/model/record-draft'
-import { PROJECT_STATUS_LABEL, TASK_STATUS_COLOR, TASK_STATUS_LABEL } from '@/model/catalog'
+import { PROJECT_STATUS_LABEL } from '@/model/catalog'
 import { asProjectId } from '@/model/branded'
 import { rkCommand } from '@/common/format/rk-command'
 import { desktopHost, pickFolder } from '@/common/native/desktop'
@@ -23,6 +31,8 @@ import { fetchProjectRepository } from '@/api/catalog.api'
 import type { ProjectRepository } from '@/model/catalog'
 import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.vue'
 import type { RecordDraft } from '@/model/record-draft'
+import type { RailSelection } from '@/components/project/ProjectDocsRail.vue'
+import type { ProjectSection } from '@/model/project-section'
 
 const props = defineProps<{ id: string }>()
 
@@ -37,6 +47,40 @@ const company = computed(
 const projectTasks = computed(() =>
   store.tasks.filter((task) => task.projectId === projectId.value)
 )
+
+const sectionsStore = useProjectSectionsStore()
+const { run } = useAsyncAction()
+
+const sections = computed(() => sectionsStore.sectionsOf(projectId.value))
+const selection = ref<RailSelection>('blueprint')
+const selectedSection = computed<ProjectSection | null>(() =>
+  selection.value === 'blueprint' ? null : (sections.value.find((section) => section.id === selection.value) ?? null)
+)
+const sectionIds = computed(() => sections.value.map((section) => section.id))
+const showingTasks = ref(false)
+const creatingSection = ref(false)
+const deletingSection = ref<ProjectSection | null>(null)
+
+useProjectSectionStream((event) => void sectionsStore.applyEvent(event.projectId))
+
+async function createSection(title: string): Promise<void> {
+  creatingSection.value = true
+  const created = await run(() => sectionsStore.create(projectId.value, title))
+  creatingSection.value = false
+  if (created) selection.value = created.id
+}
+
+async function moveSection(direction: Direction): Promise<void> {
+  if (selectedSection.value) await run(() => sectionsStore.move(projectId.value, selectedSection.value!.id, direction))
+}
+
+async function confirmDeleteSection(): Promise<void> {
+  const target = deletingSection.value
+  deletingSection.value = null
+  if (!target) return
+  const removed = await run(() => sectionsStore.remove(projectId.value, target.id).then(() => true), `Deleted ${target.title}`)
+  if (removed && selection.value === target.id) selection.value = 'blueprint'
+}
 
 const activitySeries = computed(() => {
   if (!project.value) return undefined
@@ -58,6 +102,7 @@ function onDialogSaved(): void {
 
 function openInConsole(taskId: (typeof projectTasks.value)[number]['id']): void {
   if (!project.value) return
+  showingTasks.value = false
   store.setScope(project.value.companyId, project.value.id)
   store.selectTask(taskId)
   router.push('/')
@@ -162,27 +207,16 @@ async function browseFolder(): Promise<void> {
   scheduleFolderSave()
 }
 
-const blueprintDraft = ref('')
-const blueprintMode = ref<'write' | 'read'>('read')
-let blueprintTimer: ReturnType<typeof setTimeout> | null = null
-
-function scheduleBlueprintSave(): void {
-  if (blueprintTimer) clearTimeout(blueprintTimer)
-  blueprintTimer = setTimeout(() => {
-    if (project.value) void store.saveProjectBlueprint(project.value.id, blueprintDraft.value)
-  }, 700)
-}
-
 watch(
   () => project.value?.id ?? null,
   async () => {
     if (descriptionTimer) clearTimeout(descriptionTimer)
-    if (blueprintTimer) clearTimeout(blueprintTimer)
     if (folderTimer) clearTimeout(folderTimer)
     descriptionDraft.value = project.value?.description ?? ''
     folderDraft.value = project.value?.repoFolder ?? ''
-    blueprintDraft.value = project.value?.blueprintMarkdown ?? ''
-    blueprintMode.value = blueprintDraft.value.trim() ? 'read' : 'write'
+    selection.value = 'blueprint'
+    showingTasks.value = false
+    if (project.value) void run(() => sectionsStore.load(project.value!.id))
     repository.value = null
     void readRepository()
     await nextTick()
@@ -191,14 +225,14 @@ watch(
   { immediate: true }
 )
 
+watch(sections, (list) => {
+  if (selection.value !== 'blueprint' && !list.some((section) => section.id === selection.value)) selection.value = 'blueprint'
+})
+
 onUnmounted(() => {
   if (descriptionTimer) {
     clearTimeout(descriptionTimer)
     if (project.value) void store.saveProjectDescription(project.value.id, descriptionDraft.value)
-  }
-  if (blueprintTimer) {
-    clearTimeout(blueprintTimer)
-    if (project.value) void store.saveProjectBlueprint(project.value.id, blueprintDraft.value)
   }
   if (folderTimer) {
     clearTimeout(folderTimer)
@@ -272,6 +306,10 @@ onUnmounted(() => {
             />
             {{ store.saveState === 'saved' ? 'Saved' : store.saveState === 'saving' ? 'Saving' : 'Unsaved' }}
           </span>
+          <AppButton variant="secondary" size="sm" data-testid="show-tasks" @click="showingTasks = true">
+            Tasks
+            <span class="font-mono text-[11px] text-text-subtle">{{ projectTasks.length }}</span>
+          </AppButton>
           <AppButton variant="secondary" size="sm" data-testid="rename-project" @click="openRename">
             Rename / move
           </AppButton>
@@ -279,126 +317,99 @@ onUnmounted(() => {
       </AppCatalogHeader>
 
       <div class="mx-auto flex max-w-[1240px] flex-col gap-5 px-8 py-6">
-        <AppCard :style="{ borderTop: `2px solid ${identityHue(project.id).line}` }">
-          <p class="mb-2 eyebrow text-[11px]">
-            Description
-          </p>
-          <textarea
-            ref="descriptionArea"
-            :value="descriptionDraft"
-            data-testid="project-description"
-            rows="2"
-            class="field text-text block w-full resize-none overflow-hidden rounded-[var(--radius-control)] p-3 text-[13.5px] leading-relaxed"
-            placeholder="What this is, in a few sentences. Travels into every context that loads this project."
-            @input="onDescriptionInput"
+        <div class="grid gap-5 lg:grid-cols-2">
+          <AppCard :style="{ borderTop: `2px solid ${identityHue(project.id).line}` }">
+            <p class="mb-2 eyebrow text-[11px]">
+              Description
+            </p>
+            <textarea
+              ref="descriptionArea"
+              :value="descriptionDraft"
+              data-testid="project-description"
+              rows="3"
+              class="field text-text block w-full resize-none overflow-hidden rounded-[var(--radius-control)] p-3 text-[13.5px] leading-relaxed"
+              placeholder="What this is, in a few sentences. Travels into every context that loads this project."
+              @input="onDescriptionInput"
+            />
+          </AppCard>
+
+          <AppCard>
+            <p class="mb-2 eyebrow text-[11px]">
+              Folder
+            </p>
+            <div class="flex items-center gap-2">
+              <input
+                :value="folderDraft"
+                data-testid="project-repo-folder"
+                spellcheck="false"
+                autocomplete="off"
+                class="field text-text h-9 min-w-0 flex-1 rounded-[var(--radius-control)] px-3 font-mono text-[12.5px]"
+                placeholder="/Users/you/Projects/thing"
+                @input="onFolderInput"
+              />
+              <AppButton v-if="canBrowse" size="sm" variant="secondary" @click="browseFolder">
+                Browse
+              </AppButton>
+            </div>
+            <p class="mt-2 text-[12px] text-text-subtle">
+              Where <span class="text-text-muted">Open in terminal</span> starts the session. Claude
+              Code keeps the folder it was launched from for the whole session, so this is what decides
+              which repository the work happens in.
+            </p>
+            <div class="mt-4">
+              <AutoCommitSwitch
+                :model-value="project.autoCommit"
+                :repository="repository"
+                :pending="repositoryPending"
+                :saving="autoCommitSaving"
+                @update:model-value="setAutoCommit"
+              />
+            </div>
+          </AppCard>
+        </div>
+
+        <div class="grid items-start gap-5 lg:grid-cols-[264px_minmax(0,1fr)]">
+          <ProjectDocsRail
+            class="lg:sticky lg:top-4"
+            :sections="sections"
+            :selected="selection"
+            :loading="sectionsStore.isLoading(project.id)"
+            :creating="creatingSection"
+            @select="selection = $event"
+            @create="createSection"
           />
-        </AppCard>
-
-        <AppCard>
-          <p class="mb-2 eyebrow text-[11px]">
-            Folder
-          </p>
-          <div class="flex items-center gap-2">
-            <input
-              :value="folderDraft"
-              data-testid="project-repo-folder"
-              spellcheck="false"
-              autocomplete="off"
-              class="field text-text h-9 min-w-0 flex-1 rounded-[var(--radius-control)] px-3 font-mono text-[12.5px]"
-              placeholder="/Users/you/Projects/thing"
-              @input="onFolderInput"
+          <Transition name="fade-quick" mode="out-in">
+            <ProjectSectionPane
+              v-if="selectedSection"
+              :key="selectedSection.id"
+              :section="selectedSection"
+              :repo-folder="project.repoFolder"
+              :can-move-up="canMove(sectionIds, selectedSection.id, 'up')"
+              :can-move-down="canMove(sectionIds, selectedSection.id, 'down')"
+              @move="moveSection"
+              @delete="deletingSection = selectedSection"
             />
-            <AppButton v-if="canBrowse" size="sm" variant="secondary" @click="browseFolder">
-              Browse
-            </AppButton>
-          </div>
-          <p class="mt-2 text-[12px] text-text-subtle">
-            Where <span class="text-text-muted">Open in terminal</span> starts the session. Claude
-            Code keeps the folder it was launched from for the whole session, so this is what decides
-            which repository the work happens in.
-          </p>
-          <div class="mt-4">
-            <AutoCommitSwitch
-              :model-value="project.autoCommit"
-              :repository="repository"
-              :pending="repositoryPending"
-              :saving="autoCommitSaving"
-              @update:model-value="setAutoCommit"
-            />
-          </div>
-        </AppCard>
-
-        <AppCard :padded="false">
-          <div class="relative overflow-hidden rounded-t-[var(--radius-card)]">
-            <div
-              class="texture-grid pointer-events-none absolute inset-0"
-              :style="{ '--texture-tint': identityHue(project.id).base }"
-              aria-hidden="true"
-            />
-            <div class="relative flex items-center gap-3 border-b border-border px-5 py-4">
-              <div class="min-w-0 flex-1">
-                <p class="text-[11px] font-semibold tracking-[0.02em] text-anchor">Blueprint</p>
-                <p class="mt-0.5 truncate text-[12px] text-text-subtle">
-                  What <code class="text-anchor/80">/rk {{ project.anchor }}</code> hands to Claude
-                </p>
-              </div>
-              <div class="flex gap-0.5 rounded-[7px] bg-surface p-0.5">
-                <button
-                  v-for="option in (['write', 'read'] as const)"
-                  :key="option"
-                  class="focus-ring h-6 rounded-[5px] px-2.5 text-[11.5px] capitalize transition-colors"
-                  :class="blueprintMode === option ? 'bg-surface-raised text-text' : 'text-text-subtle hover:text-text'"
-                  :aria-pressed="blueprintMode === option"
-                  @click="blueprintMode = option"
-                >
-                  {{ option }}
-                </button>
-              </div>
-            </div>
-          </div>
-          <div class="p-4">
-            <AppMarkdownEditor
-              v-if="blueprintMode === 'write'"
-              v-model="blueprintDraft"
-              height="420px"
-              :path-root="project.repoFolder"
-              placeholder="# What this is
-
-How it's built, how it's organised, the conventions to follow while working in it."
-              @update:model-value="scheduleBlueprintSave"
-            />
-            <AppMarkdownEditor v-else :model-value="blueprintDraft" readonly />
-          </div>
-        </AppCard>
-
-        <AppCard>
-          <p class="mb-3 eyebrow text-[11px]">
-            Tasks &middot; {{ projectTasks.length }}
-          </p>
-          <p v-if="!projectTasks.length" class="text-[12.5px] text-text-subtle">No task on this project yet.</p>
-          <div v-else class="flex flex-col divide-y divide-border">
-            <div
-              v-for="task in projectTasks"
-              :key="task.id"
-              class="flex items-center gap-2.5 py-2 first:pt-0 last:pb-0"
-            >
-              <span class="size-[7px] shrink-0 rounded-full" :class="TASK_STATUS_COLOR[task.status]" aria-hidden="true" />
-              <span class="min-w-0 flex-1">
-                <span class="block truncate text-[13px] text-text">{{ task.title }}</span>
-                <span class="block truncate font-mono text-[10.5px] text-anchor/80">{{ task.label }}</span>
-              </span>
-              <span class="shrink-0 text-[11px] text-text-subtle">{{ TASK_STATUS_LABEL[task.status] }}</span>
-              <button
-                class="key-quiet focus-ring shrink-0 rounded-[3px] px-2.5 py-1 text-[11.5px]"
-                @click="openInConsole(task.id)"
-              >
-                Open in console
-              </button>
-            </div>
-          </div>
-        </AppCard>
+            <ProjectBlueprintPane v-else key="blueprint" :project="project" />
+          </Transition>
+        </div>
       </div>
     </template>
+
+    <Transition name="slide-over">
+      <ProjectTasksDrawer v-if="showingTasks" :tasks="projectTasks" @close="showingTasks = false" @open="openInConsole" />
+    </Transition>
+
+    <Transition name="dialog">
+      <AppConfirm
+        v-if="deletingSection"
+        :title="`Delete ${deletingSection.title}?`"
+        body="The section and everything written in it is removed. No history keeps it."
+        :blast="`Deletes the section \u201c${deletingSection.title}\u201d from ${project?.title ?? 'this project'}.`"
+        confirm-label="Delete section"
+        @cancel="deletingSection = null"
+        @confirm="confirmDeleteSection"
+      />
+    </Transition>
 
     <Transition name="dialog">
       <RecordDialog v-if="editing" :draft="editing" @close="editing = null" @saved="onDialogSaved" />

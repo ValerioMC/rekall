@@ -33,7 +33,7 @@ loaded in one call, including every note the task shares with its neighbours.
 | # | Decision | Rationale |
 |---|---|---|
 | D1 | Real tables with real foreign keys | A note can never point at a deleted task. On an app whose only job is to be a reliable memory, silent dangling references are the failure mode that matters. |
-| D2 | Claude reads everything and writes a few narrow things | `rekall-mcp` depends on `rekall-service` and never on `rekall-api`, so no controller and none of the console's catalog services are on its classpath, and every read runs in a read-only transaction. The exceptions are `rekall_wrapup`, which replaces one task's wrapup; `rekall_step`, which moves a step from `open` to `running` to `claimed` and cannot reach `done`; `rekall_record_commit`, which logs a commit against a task; `rekall_propose_step`, which can only add a draft a person has to promote; and `rekall_note`, which can only add a new note to one task. See §7. |
+| D2 | Claude reads everything and writes a few narrow things | `rekall-mcp` depends on `rekall-service` and never on `rekall-api`, so no controller and none of the console's catalog services are on its classpath, and every read runs in a read-only transaction. The exceptions are `rekall_wrapup`, which replaces one task's wrapup; `rekall_step`, which moves a step from `open` to `running` to `claimed` and cannot reach `done`; `rekall_record_commit`, which logs a commit against a task; `rekall_propose_step`, which can only add a draft a person has to promote; `rekall_note`, which can only add a new note to one task; and `rekall_project_section`, which can only add a section to a task's project or rewrite the body of one that already has that title. See §7. |
 | D3 | Markdown content lives in the database | One backup target, reachable through MCP, searchable. |
 | D4 | One entry point, and it is a slash command | A session begins with `/rk project:vega task:report-builder`, not with a question. Reaching a record through a natural-language query costs several turns and a few thousand tokens before any work starts, and it is the part that fails when the model guesses the wrong entity. An explicit anchor removes both. |
 | D5 | The model is fixed at compile time | There is no runtime meta-model and no DDL engine. Company, project, task and document are fixed SeaORM entities; adding a new kind of record is a model and a migration, not a screen. |
@@ -78,9 +78,9 @@ The crates are the layers; inside one, the code is laid out the way a Java proje
 - **A folder per concept or layer, one public type per file.** A folder is a package: `rekall-api` is split by layer (`controller/`, `service/`, `dto/`), `rekall-service` by concept (`note/`, `step/`, `wrapup/`, `commit/` with `commit/git/` under it). A file holds one public type and is named after it: `NoteService` lives in `note/note_service.rs`, `CompanyResponse` in `dto/company_response.rs`.
 - **`mod.rs` and `lib.rs` hold no logic.** They declare the files and re-export the public types, so a caller writes `rekall_service::note::NoteService` and never the file's name. Moving a type between files changes no caller.
 - **Privacy is per file, so what siblings share is `pub(super)`.** Rust's privacy boundary is the module, which is the file, not the type. A helper two files of one folder use is `pub(super)`, visible to that package and nowhere else: Java's package-private.
-- **Private helpers stay beside the one type that uses them.** A private struct that only one file reads (`ScratchDir` beside `Database`, the export's row types beside `ExportService`, `Worker` beside `RunQueueRunner`) plays the part of a Java nested class and is not moved into a file of its own.
+- **Private helpers stay beside the one type that uses them.** A private struct that only one file reads (`ScratchDir` beside `Database`, `Worker` beside `RunQueueRunner`) plays the part of a Java nested class and is not moved into a file of its own.
 - **A module of free functions is one file named for what it does.** `repository/task.rs` is the task repository, `jstr.rs` the string helpers, `usage_ceiling.rs` the ceiling rule: Rust's counterpart of a class of static methods.
-- **Tests live under `tests/`, split in two.** `tests/unit/` mirrors `src/`: the tests of `rekall-api/src/service/export_service.rs` are `rekall-api/tests/unit/service/export_service_tests.rs`, attached from the implementation with `#[cfg(test)] #[path = "../../tests/unit/service/export_service_tests.rs"] mod tests;`, so the file is still a child module of the code it tests and reads private items with `use super::*`. `tests/integration/` holds the integration and end-to-end suites, which see only the public API, with their `support/` helpers and fixtures. Cargo discovers only files directly in `tests/`, so it finds neither folder by itself: unit files are compiled through their `#[path]`, and every integration suite is declared as a `[[test]]` in its crate's `Cargo.toml`. A suite missing from that list never runs, and nothing warns about it. `autotests` stays on, since nothing sits in `tests/` itself for it to pick up.
+- **Tests live under `tests/`, split in two.** `tests/unit/` mirrors `src/`: the tests of `rekall-api/src/service/directory_listing_service.rs` are `rekall-api/tests/unit/service/directory_listing_service_tests.rs`, attached from the implementation with `#[cfg(test)] #[path = "../../tests/unit/service/directory_listing_service_tests.rs"] mod tests;`, so the file is still a child module of the code it tests and reads private items with `use super::*`. `tests/integration/` holds the integration and end-to-end suites, which see only the public API, with their `support/` helpers and fixtures. Cargo discovers only files directly in `tests/`, so it finds neither folder by itself: unit files are compiled through their `#[path]`, and every integration suite is declared as a `[[test]]` in its crate's `Cargo.toml`. A suite missing from that list never runs, and nothing warns about it. `autotests` stays on, since nothing sits in `tests/` itself for it to pick up.
 
 Two things keep their shape on purpose. A SeaORM entity is one file with `Model`, `Relation` and the `Entity` and `ActiveModel` its derive generates: the derive requires them in one module, and the file is the entity, as a JPA entity is one class. The migrations stay as they are, several changesets to a file: they are frozen history. In the desktop app, the modules holding `#[tauri::command]` functions are `pub`, because `generate_handler!` resolves each command's generated companion by path and a re-export does not carry it.
 
@@ -333,6 +333,12 @@ what a step asks to keep, or the note a task exists to write. `/rk … note "…
 explicitly. It creates, and does nothing else: a title the task's notes already carry is refused
 rather than overwritten, and the note is `FULL` with kind `notes` until a person changes it.
 
+`rekall_project_section` is `rekall_note` for a project: the anchors name a task, the section lands on that
+task's project, and `replace` rewrites the body of the section with the same title (ignoring case) instead
+of refusing. Sections live in their own table, `project_section`, not in `document`, because a note is
+reached through tasks and loads into a context and a section does neither. Renaming, reordering and
+deleting are the console's, in `ProjectSectionCatalogService` in rekall-api.
+
 A note can travel by reference. It then arrives as its title, its first line and an anchor such
 as `note:3f2a9c1e` (the first eight characters of its id), with `loaded="on request"`, and
 `rekall_context` loads it in full by that anchor. `ContextRenderer`, which writes every context,
@@ -510,26 +516,6 @@ own memory of the week would make.
 The company filter holds ids, and an empty selection means every company rather than none. The
 chips are built from the unfiltered period, so narrowing to one client never removes the way back
 to the others.
-
----
-
-### Export
-
-`GET /api/export` returns the whole database as a zip of folders, `project/task/note.md`.
-
-The tree cannot represent a note attached to several tasks, so the note is written under each
-of them and `MANIFEST.md` records which files are copies of one row. Writing it once with
-pointers would produce a tree that only Rekall can read, which defeats the purpose: the format
-has to survive the application being abandoned.
-
-A task's wrapup is written as `WRAPUP.md` beside its notes: in capitals and first in the
-folder, because on a tree someone opens two years from now it is the file that says what the
-thing was.
-
-Folders are named after the label, which is the name that is already an identifier and the one
-the manifest's anchors carry, so a folder can be matched to a `/rk` line without guessing.
-Labels are sanitised into folder names rather than escaped: a project called `../../etc`
-becomes a folder, never a path, and a test asserts no entry in the archive contains `..`.
 
 ---
 

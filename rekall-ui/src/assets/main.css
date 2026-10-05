@@ -1200,6 +1200,30 @@
 }
 
 /*
+ * A panel that comes in from the right edge (the project's tasks): the backdrop is this
+ * transition's root and fades, `.slide-over-panel` inside it slides in on the dialog's easing.
+ */
+.slide-over-enter-active,
+.slide-over-leave-active {
+  transition: opacity 160ms ease;
+}
+
+.slide-over-enter-from,
+.slide-over-leave-to {
+  opacity: 0;
+}
+
+.slide-over-enter-active .slide-over-panel,
+.slide-over-leave-active .slide-over-panel {
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.slide-over-enter-from .slide-over-panel,
+.slide-over-leave-to .slide-over-panel {
+  transform: translateX(24px);
+}
+
+/*
  * An anchored popover with no backdrop of its own (a picker, a dock sheet): the same rise, in
  * both directions, on the popover's own root.
  */

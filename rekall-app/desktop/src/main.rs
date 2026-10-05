@@ -13,6 +13,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod bridges;
+mod download_tracker;
 mod exit_guard;
 mod update_install;
 
@@ -21,6 +22,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+use download_tracker::DownloadTracker;
 use rekall_app::{AppConfig, Properties, Running, StartOptions};
 use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
 use tauri::webview::DownloadEvent;
@@ -216,6 +218,7 @@ fn trap_signals(handle: AppHandle) {
 fn build_window(handle: &AppHandle) -> tauri::Result<WebviewWindow> {
     let opener = handle.clone();
     let downloads = handle.clone();
+    let tracker = DownloadTracker::default();
     let splash = splash_window_size(handle);
     let builder = WebviewWindowBuilder::new(handle, "main", WebviewUrl::App("index.html".into()))
         .title("Rekall")
@@ -236,20 +239,30 @@ fn build_window(handle: &AppHandle) -> tauri::Result<WebviewWindow> {
             let _ = opener.opener().open_url(url.as_str(), None::<&str>);
             false
         })
-        // The export is a plain link to a zip: saved to Downloads under a name not yet taken, and
-        // shown in the file manager once it is there.
+        // A download is a plain link (a backup's zip): saved to Downloads under a name not yet taken,
+        // and shown in the file manager once it is there.
         .on_download(move |_, event| {
             match event {
-                DownloadEvent::Requested { destination, .. } => {
+                DownloadEvent::Requested { url, destination } => {
                     let name = destination
                         .file_name()
                         .map(|n| n.to_string_lossy().into_owned())
                         .unwrap_or_else(|| "download".into());
                     let folder = dirs::download_dir().unwrap_or_else(|| dirs::home_dir().unwrap_or_default().join("Downloads"));
                     *destination = unused_path(&folder, &name);
+                    tracker.started(url.as_str(), destination);
                 }
-                DownloadEvent::Finished { path: Some(path), success: true, .. } => {
-                    let _ = downloads.opener().reveal_item_in_dir(path);
+                DownloadEvent::Finished { url, path, success } => {
+                    let saved = tracker.finished(url.as_str(), path);
+                    match (success, saved) {
+                        (true, Some(path)) => {
+                            if let Err(error) = downloads.opener().reveal_item_in_dir(&path) {
+                                error!("Could not show {} in the file manager: {error}", path.display());
+                            }
+                        }
+                        (true, None) => error!("Download of {url} finished with no known destination"),
+                        (false, _) => error!("Download of {url} failed"),
+                    }
                 }
                 _ => {}
             }

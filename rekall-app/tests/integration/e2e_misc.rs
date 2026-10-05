@@ -1,10 +1,8 @@
-//! `RekallEndToEndTest`, part five: the export, companies, revisions, proposed steps, notes a
+//! `RekallEndToEndTest`, part five: companies, revisions, proposed steps, notes a
 //! session writes, the path picker's folder listing, search, context size, the stateless MCP era over real HTTP, the console's routes, and local access.
 
 mod support;
 
-use std::collections::BTreeMap;
-use std::io::Read;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -12,90 +10,6 @@ use rekall_app::version::{Release, ReleaseFeed, ReleaseFeedError};
 use rekall_app::StartOptions;
 use serde_json::json;
 use support::{app, app_with, id, App};
-
-/// Entry name to contents; directory entries kept as their own empty entries.
-fn unzip(archive: &[u8]) -> BTreeMap<String, String> {
-    let mut zip = zip::ZipArchive::new(std::io::Cursor::new(archive)).unwrap();
-    let mut entries = BTreeMap::new();
-    for index in 0..zip.len() {
-        let mut entry = zip.by_index(index).unwrap();
-        let mut text = String::new();
-        entry.read_to_string(&mut text).unwrap();
-        entries.insert(entry.name().to_string(), text);
-    }
-    entries
-}
-
-async fn export(app: &App) -> BTreeMap<String, String> {
-    let bytes = app.client.get(app.url("/api/export")).send().await.unwrap().bytes().await.unwrap();
-    unzip(&bytes)
-}
-
-#[tokio::test]
-async fn the_export_is_a_zip_of_company_project_task_note_md_shared_notes_under_each_task() {
-    let app = app().await;
-    let acme = app.a_company("Acme").await;
-    let vega = id(&app
-        .post("/api/projects", json!({ "label": "vega", "title": "Vega Platform", "status": "ACTIVE", "companyId": acme }))
-        .await);
-    let validator = app.a_task(&vega, "report-builder").await;
-    let retry = app.a_task(&vega, "retry-policy").await;
-    app.a_task(&vega, "empty-one").await;
-
-    app.post("/api/documents", json!({ "title": "CONTEXT.md", "kind": "context", "taskIds": [validator], "bodyMarkdown": "# Contesto\n\nprimo" }))
-        .await;
-    app.post(
-        "/api/documents",
-        json!({ "title": "kmaster14.md", "kind": "notes", "taskIds": [validator, retry], "bodyMarkdown": "Accesso via bastion." }),
-    )
-    .await;
-    app.call_tool("rekall_wrapup", json!({ "anchors": "project:vega task:report-builder", "body": "## Stato\n\nGira." })).await;
-    let aggregate = app.a_step(&validator, "Aggregate the rows", None).await;
-    app.a_step(&validator, "Write the tests", Some("Un caso per settimana vuota.")).await;
-    app.patch(&format!("/api/steps/{aggregate}"), json!({ "done": true })).await;
-
-    let entries = export(&app).await;
-
-    for name in [
-        "Acme/vega/report-builder/CONTEXT.md",
-        "Acme/vega/report-builder/kmaster14.md",
-        "Acme/vega/retry-policy/kmaster14.md",
-        "Acme/vega/empty-one/",
-        "MANIFEST.md",
-        "Acme/vega/report-builder/WRAPUP.md",
-        "Acme/vega/report-builder/STEPS.md",
-    ] {
-        assert!(entries.contains_key(name), "{name} in {:?}", entries.keys());
-    }
-    assert_contains!(entries["Acme/vega/report-builder/STEPS.md"], "- [x] Aggregate the rows", "- [ ] Write the tests", "Un caso per settimana vuota.");
-    assert_eq!(entries["Acme/vega/report-builder/CONTEXT.md"], "# Contesto\n\nprimo");
-    assert_eq!(entries["Acme/vega/retry-policy/kmaster14.md"], "Accesso via bastion.");
-    assert_contains!(
-        entries["MANIFEST.md"],
-        "company:Acme",
-        "Vega Platform",
-        "project:vega task:report-builder",
-        "Notes that appear more than once",
-        "Acme/vega/retry-policy/kmaster14.md",
-        "no notes",
-        "`WRAPUP.md`: the state of the implementation, written by Claude",
-        "`STEPS.md`: 1 of 2 steps done"
-    );
-}
-
-#[tokio::test]
-async fn a_label_full_of_separators_cannot_escape_its_folder() {
-    let app = app().await;
-    let acme = app.a_company("Acme").await;
-    let project = app.a_project(&acme, "../../etc", "ACTIVE").await;
-    let task = app.a_task(&project, "a/b/c").await;
-    app.post("/api/documents", json!({ "title": "../secret", "kind": "notes", "taskIds": [task], "bodyMarkdown": "x" })).await;
-
-    let entries = export(&app).await;
-
-    assert!(entries.keys().all(|path| !path.contains("..") && !path.starts_with('/')), "{:?}", entries.keys());
-    assert!(entries.keys().any(|path| path.ends_with("secret.md")));
-}
 
 #[tokio::test]
 async fn a_project_label_two_companies_share_is_disambiguated_by_the_company_anchor() {

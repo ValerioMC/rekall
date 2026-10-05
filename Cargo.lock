@@ -4039,7 +4039,6 @@ dependencies = [
  "chrono",
  "futures",
  "http-body-util",
- "regex",
  "rekall-common",
  "rekall-model",
  "rekall-repository",
@@ -4052,7 +4051,6 @@ dependencies = [
  "tokio-stream",
  "tower",
  "tracing",
- "zip",
 ]
 
 [[package]]

@@ -4,6 +4,7 @@ use crate::commit::CommitReferenceStreamEvent;
 use crate::diagram::DiagramStreamEvent;
 use crate::note::NoteStreamEvent;
 use crate::review::TaskReviewEvent;
+use crate::section::SectionStreamEvent;
 use crate::step::StepStreamEvent;
 use crate::wrapup::WrapupStreamEvent;
 
@@ -15,6 +16,7 @@ pub enum DomainEvent {
     CommitReference(CommitReferenceStreamEvent),
     Note(NoteStreamEvent),
     Diagram(DiagramStreamEvent),
+    ProjectSection(SectionStreamEvent),
     /// A named frame from a module this one cannot see (the run queue's `run-queue`), already
     /// serialised; the caller has already waited for its commit.
     Broadcast { name: String, payload: serde_json::Value },
@@ -30,6 +32,7 @@ impl DomainEvent {
             Self::CommitReference(_) => "commit-reference",
             Self::Note(_) => "note",
             Self::Diagram(_) => "diagram",
+            Self::ProjectSection(_) => "project-section",
             Self::Broadcast { name, .. } => name,
         }
     }
@@ -45,6 +48,7 @@ impl DomainEvent {
             Self::CommitReference(event) => json(event),
             Self::Note(event) => json(event),
             Self::Diagram(event) => json(event),
+            Self::ProjectSection(event) => json(event),
             Self::Broadcast { payload, .. } => payload.clone(),
         }
     }

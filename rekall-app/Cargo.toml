@@ -65,6 +65,10 @@ name = "e2e_misc"
 path = "tests/integration/e2e_misc.rs"
 
 [[test]]
+name = "e2e_sections"
+path = "tests/integration/e2e_sections.rs"
+
+[[test]]
 name = "e2e_steps"
 path = "tests/integration/e2e_steps.rs"
 
