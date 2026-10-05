@@ -19,11 +19,11 @@ pub fn routes() -> Router<ApiState> {
 }
 
 async fn list(State(state): State<ApiState>) -> ApiResult<Json<Vec<WrapupView>>> {
-    Ok(Json(state.services.wrapups.find_all().await?))
+    Ok(Json(state.wrapups.find_all().await?))
 }
 
 async fn get_one(State(state): State<ApiState>, Path(task_id): Path<String>) -> ApiResult<Json<WrapupView>> {
-    let found = state.services.wrapups.find(uuid("taskId", &task_id)?).await?;
+    let found = state.wrapups.find(uuid("taskId", &task_id)?).await?;
     Ok(Json(found.ok_or_else(|| RekallError::not_found_msg("This task has no wrapup yet"))?))
 }
 
@@ -31,11 +31,11 @@ async fn get_one(State(state): State<ApiState>, Path(task_id): Path<String>) -> 
 async fn write(State(state): State<ApiState>, Path(task_id): Path<String>, JsonBody(request): JsonBody<WrapupRequest>) -> ApiResult<Json<WrapupView>> {
     let task_id = uuid("taskId", &task_id)?;
     Validator::new().not_blank("bodyMarkdown", request.body_markdown.as_deref()).finish()?;
-    let written = state.services.wrapups.write(task_id, request.body_markdown.as_deref(), WrapupAuthor::Hand).await?;
+    let written = state.wrapups.write(task_id, request.body_markdown.as_deref(), WrapupAuthor::Hand).await?;
     Ok(Json(written.wrapup))
 }
 
 async fn delete(State(state): State<ApiState>, Path(task_id): Path<String>) -> ApiResult<Response> {
-    state.services.wrapups.delete(uuid("taskId", &task_id)?).await?;
+    state.wrapups.delete(uuid("taskId", &task_id)?).await?;
     Ok(no_content())
 }

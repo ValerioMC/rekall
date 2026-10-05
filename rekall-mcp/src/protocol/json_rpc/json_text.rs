@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-/// Jackson's `asString()`: a string as itself, a number or boolean as its text, anything else empty.
+/// A string as itself, a number or boolean as its text, anything else empty.
 pub fn as_text(value: &Value) -> String {
     match value {
         Value::String(s) => s.clone(),

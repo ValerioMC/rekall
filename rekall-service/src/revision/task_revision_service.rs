@@ -40,7 +40,7 @@ impl TaskRevisionService {
         let Some(outgoing) = outgoing.filter(|o| !rekall_common::jstr::is_blank(o)) else {
             return Ok(false);
         };
-        let newest = repo::task_revision::find_first_by_task_id_and_kind_order_by_created_at_desc(tx.db(), task_id, kind).await?;
+        let newest = repo::task_revision::find_newest_of_task(tx.db(), task_id, kind).await?;
         if newest.as_ref().is_some_and(|n| n.body_markdown == outgoing) {
             return Ok(false);
         }
@@ -68,20 +68,20 @@ impl TaskRevisionService {
 
     pub async fn list(&self, task_id: Id, kind: RevisionKind) -> Result<Vec<TaskRevisionView>> {
         in_read!(&self.ctx, |tx| {
-            let all = repo::task_revision::find_by_task_id_and_kind_order_by_created_at_desc(tx.db(), task_id, kind).await?;
+            let all = repo::task_revision::list_of_task_newest_first(tx.db(), task_id, kind).await?;
             Ok::<_, RekallError>(all.iter().map(TaskRevisionView::of).collect())
         })
     }
 
     pub async fn find_in(&self, tx: &mut Tx, task_id: Id, revision_id: Id) -> Result<TaskRevisionView> {
-        repo::task_revision::find_by_id_and_task_id(tx.db(), revision_id, task_id)
+        repo::task_revision::find_on_task(tx.db(), revision_id, task_id)
             .await?
             .map(|r| TaskRevisionView::of(&r))
             .ok_or_else(|| RekallError::not_found("Revision", revision_id))
     }
 
     async fn prune(&self, tx: &Tx, task_id: Id, kind: RevisionKind) -> Result<()> {
-        let all = repo::task_revision::find_by_task_id_and_kind_order_by_created_at_desc(tx.db(), task_id, kind).await?;
+        let all = repo::task_revision::list_of_task_newest_first(tx.db(), task_id, kind).await?;
         if all.len() > KEPT_PER_KIND {
             let stale: Vec<Id> = all[KEPT_PER_KIND..].iter().map(|r| r.id).collect();
             task_revision::Entity::delete_many()

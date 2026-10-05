@@ -69,7 +69,7 @@ impl SearchService {
                     excerpt: excerpt(Some(&wrapup.body_markdown), &term),
                 });
             }
-            for document in repo::document::search_text(tx.db(), &term, PER_KIND).await? {
+            for document in repo::document::search_newest_first(tx.db(), &term, PER_KIND).await? {
                 let first = repo::document::tasks_of_document(tx.db(), document.id).await?.into_iter().next();
                 let body = if contains(Some(&document.body_markdown), &term) {
                     document.body_markdown.clone()

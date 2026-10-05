@@ -8,7 +8,7 @@ use rekall_repository::repository as repo;
 use rekall_service::review::TaskReviewService;
 use rekall_service::revision::{RevisionTrigger, TaskRevisionService};
 use rekall_service::timeentry::TimeEntryService;
-use rekall_service::{in_read, in_write, Ctx, Services, Tx};
+use rekall_service::{in_read, in_write, Ctx, Tx};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
 use super::Snapshot;
@@ -23,22 +23,17 @@ pub struct TaskService {
 }
 
 impl TaskService {
-    pub fn new(services: &Services) -> Self {
-        Self {
-            ctx: services.ctx.clone(),
-            review: services.review.clone(),
-            revisions: services.revisions.clone(),
-            time_entries: services.time_entries.clone(),
-        }
+    pub fn new(ctx: Ctx, review: TaskReviewService, revisions: TaskRevisionService, time_entries: TimeEntryService) -> Self {
+        Self { ctx, review, revisions, time_entries }
     }
 
     pub async fn list(&self, project_id: Option<Id>) -> Result<Vec<TaskResponse>> {
         in_read!(&self.ctx, |tx| {
             let found = match project_id {
-                None => repo::task::find_all_by_order_by_project_label_asc_label_asc(tx.db()).await?,
-                Some(project_id) => repo::task::find_by_project_id_order_by_label_asc(tx.db(), project_id).await?,
+                None => repo::task::list_in_catalog_order(tx.db()).await?,
+                Some(project_id) => repo::task::list_of_project(tx.db(), project_id).await?,
             };
-            let snapshot = Snapshot::load(tx.db()).await?;
+            let snapshot = Snapshot::for_tasks(tx.db(), &found).await?;
             found.iter().map(|task| snapshot.task_response(task)).collect::<Result<Vec<_>>>()
         })
     }
@@ -57,6 +52,7 @@ impl TaskService {
             let mut task = task::Model::new(label, trimmed_title(&request), project.id, self.ctx.now());
             apply_request(&tx, &mut task, &request).await?;
             task.validate()?;
+            require_label_free(&tx, &task, None).await?;
             task.clone().into_active_model().insert(tx.db()).await?;
             response(&tx, &task).await
         })
@@ -72,6 +68,7 @@ impl TaskService {
             task.title = trimmed_title(&request);
             task.project_id = require_owning_project(&tx, request.project_id).await?.id;
             apply_request(&tx, &mut task, &request).await?;
+            require_label_free(&tx, &task, Some(id)).await?;
             let task = repo::update_if_changed(tx.db(), &before, task, self.ctx.now()).await?;
             let response = response(&tx, &task).await?;
             if before.status != TaskStatus::Done && task.status == TaskStatus::Done {
@@ -168,4 +165,14 @@ async fn require_owning_project(tx: &Tx, id: Option<Id>) -> Result<project::Mode
         return Err(RekallError::not_found_msg("A task must belong to a project"));
     };
     repo::project::require(tx.db(), id).await
+}
+
+/// A label names one task within its project, or a `task:` anchor would be ambiguous.
+async fn require_label_free(tx: &Tx, task: &task::Model, except: Option<Id>) -> Result<()> {
+    if repo::task::label_taken(tx.db(), task.project_id, &task.label, except).await? {
+        return Err(RekallError::conflict(
+            "Another task on this project already uses that label. An anchor has to name one record.",
+        ));
+    }
+    Ok(())
 }

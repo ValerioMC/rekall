@@ -39,7 +39,7 @@ async fn status(State(state): State<SettingsState>) -> ApiResult<Json<StatusResp
     Ok(Json(StatusResponse { status, active, databases: views }))
 }
 
-/// `@RequestParam String path`: required, so its absence is Spring's own 400.
+/// `path` is a required query parameter; without it the request is a 400.
 async fn check(State(state): State<SettingsState>, Query(query): Query<CheckQuery>) -> Response {
     let Some(path) = query.path else {
         return framework(StatusCode::BAD_REQUEST);

@@ -1,14 +1,12 @@
-//! A point on the UTC timeline, as `java.time.Instant` was used here.
+//! A point on the UTC timeline.
 //!
 //! Three spellings matter, and each is fixed:
 //!
-//! - On the wire (JSON) and in rendered text it is written the way `Instant.toString()` and
-//!   Jackson's `InstantSerializer` wrote it, `DateTimeFormatter.ISO_INSTANT`: seconds always, the
-//!   fraction in groups of three digits only as far as it is non-zero, and `Z`.
+//! - On the wire (JSON) and in rendered text it is ISO 8601: seconds always, the fraction in
+//!   groups of three digits only as far as it is non-zero, and `Z`.
 //! - In the database it is TEXT with exactly six fractional digits and `Z`, so that SQL ordering
 //!   (`ORDER BY updated_at`) is ordering in time and an older row never sorts after a newer one.
-//! - Its precision is the microsecond, which is what H2's `TIMESTAMP` column kept and what
-//!   `Instant.now()` produced on the machines this ran on.
+//! - Its precision is the microsecond, so a value survives a round trip through the database.
 
 use std::fmt;
 use std::str::FromStr;
@@ -88,9 +86,8 @@ impl Instant {
         Self::parse(text)
     }
 
-    /// `Instant.parse` and `OffsetDateTime.parse(...).toInstant()` together: ISO 8601 with `Z`
-    /// or an offset. A space instead of the `T`, and a bare local date-time read as UTC, are
-    /// accepted too, which is what an H2 export and SQLite's own `CURRENT_TIMESTAMP` write.
+    /// ISO 8601 with `Z` or an offset. A space instead of the `T`, and a bare local date-time read
+    /// as UTC, are accepted too, which is what SQLite's own `CURRENT_TIMESTAMP` writes.
     pub fn parse(text: &str) -> Result<Self, chrono::ParseError> {
         let text = text.trim();
         match DateTime::parse_from_rfc3339(text) {

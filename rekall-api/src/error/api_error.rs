@@ -50,19 +50,11 @@ impl ApiError {
     }
 }
 
-/// `RestExceptionHandler.explain`: a constraint named in the cause gets a sentence of its own.
+/// The fallback for a write the services did not check first: the services refuse known clashes
+/// with their own message before writing, so reaching this means a rule they do not know.
 fn explain(cause: &str) -> String {
-    if cause.contains("still referenced") {
-        return "Something still references this record. Delete or repoint those records first.".into();
-    }
-    if cause.contains("UQ_PROJECT_COMPANY_LABEL") {
-        return "Another project in this company already uses that label. An anchor has to name one record.".into();
-    }
-    if cause.contains("UQ_TASK_PROJECT_LABEL") {
-        return "Another task on this project already uses that label. An anchor has to name one record.".into();
-    }
-    if cause.contains("UQ_COMPANY_NAME") {
-        return "A company with that name already exists.".into();
+    if cause.contains("FOREIGN KEY") {
+        return "This change points at a record that is not there, or removes one something still points at.".into();
     }
     format!("This change violates a database constraint: {cause}")
 }

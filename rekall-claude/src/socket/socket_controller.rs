@@ -23,7 +23,7 @@ const MAX_BINARY_FRAME_BYTES: usize = 524_288;
 const MAX_TEXT_FRAME_BYTES: usize = 65_536;
 pub(super) const SEND_BUFFER_LIMIT_BYTES: usize = 1_048_576;
 
-/// RFC 6455 close codes Spring's `CloseStatus` named.
+/// The RFC 6455 close codes the terminal socket sends.
 pub(super) const NORMAL: u16 = 1000;
 const NOT_ACCEPTABLE: u16 = 1003;
 const BAD_DATA: u16 = 1007;
@@ -183,7 +183,7 @@ async fn serve(state: ClaudeState, raw: String, mut socket: WebSocket) {
     let _ = writer.await;
 }
 
-/// Jackson's `asInt()`: a number's integer part, a numeric string parsed, anything else 0.
+/// Lenient on purpose: a number's integer part, a numeric string parsed, anything else 0.
 fn as_int(value: &Value) -> i64 {
     match value {
         Value::Number(n) => n.as_i64().or_else(|| n.as_f64().map(|f| f as i64)).unwrap_or(0),

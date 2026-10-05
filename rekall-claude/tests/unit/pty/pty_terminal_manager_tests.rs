@@ -1,4 +1,4 @@
-use super::*;
+use super::super::scrollback::Scrollback;
 
 #[test]
 fn the_scrollback_keeps_the_newest_bytes() {
@@ -9,11 +9,4 @@ fn the_scrollback_keeps_the_newest_bytes() {
     assert_eq!(ring.snapshot(), b"cdef");
     ring.append(b"g");
     assert_eq!(ring.snapshot(), b"defg");
-}
-
-#[test]
-fn only_the_offered_model_and_effort_values_pass() {
-    assert_eq!(normalise(Some(" Opus "), &MODEL_ALIASES).as_deref(), Some("opus"));
-    assert_eq!(normalise(Some("gpt"), &MODEL_ALIASES), None);
-    assert_eq!(normalise(None, &EFFORT_LEVELS), None);
 }

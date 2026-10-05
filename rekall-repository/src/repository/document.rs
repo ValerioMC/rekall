@@ -1,9 +1,7 @@
-use std::collections::HashSet;
-
 use rekall_common::{Id, RekallError};
 use rekall_model::document::{Column, Entity, Model};
 use rekall_model::{document_task, task};
-use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QueryOrder};
+use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QueryOrder, QuerySelect};
 
 use super::contains_ignore_case;
 
@@ -57,52 +55,54 @@ pub async fn tasks_of_document(db: &impl ConnectionTrait, document_id: Id) -> Re
 }
 
 /// A task's notes by title.
-pub async fn find_by_tasks_id_order_by_title_asc(db: &impl ConnectionTrait, task_id: Id) -> Result<Vec<Model>, RekallError> {
+pub async fn notes_of_task_by_title(db: &impl ConnectionTrait, task_id: Id) -> Result<Vec<Model>, RekallError> {
     let mut docs = documents_of_task(db, task_id).await?;
     docs.sort_by(|a, b| a.title.cmp(&b.title));
     Ok(docs)
 }
 
-pub async fn find_all_by_order_by_updated_at_desc(db: &impl ConnectionTrait) -> Result<Vec<Model>, RekallError> {
+pub async fn list_newest_first(db: &impl ConnectionTrait) -> Result<Vec<Model>, RekallError> {
     Ok(Entity::find().order_by_desc(Column::UpdatedAt).all(db).await?)
 }
 
-/// `findByProject`: every note on any task of the project, once, newest first.
-pub async fn find_by_project(db: &impl ConnectionTrait, project_id: Id) -> Result<Vec<Model>, RekallError> {
-    let tasks: HashSet<Id> = super::task::find_by_project_id_order_by_label_asc(db, project_id)
-        .await?
-        .into_iter()
-        .map(|t| t.id)
-        .collect();
-    let linked: HashSet<Id> = document_task::Entity::find()
+/// Every note on any task of the project, once, newest first.
+pub async fn list_on_project_tasks(db: &impl ConnectionTrait, project_id: Id) -> Result<Vec<Model>, RekallError> {
+    let task_ids: Vec<Id> = task::Entity::find()
+        .select_only()
+        .column(task::Column::Id)
+        .filter(task::Column::ProjectId.eq(project_id))
+        .into_tuple()
+        .all(db)
+        .await?;
+    let document_ids: Vec<Id> = document_task::Entity::find()
+        .select_only()
+        .column(document_task::Column::DocumentId)
+        .filter(document_task::Column::TaskId.is_in(task_ids))
+        .distinct()
+        .into_tuple()
+        .all(db)
+        .await?;
+    Ok(Entity::find()
+        .filter(Column::Id.is_in(document_ids))
+        .order_by_desc(Column::UpdatedAt)
+        .all(db)
+        .await?)
+}
+
+/// Title or body holds the term, ignoring case, by title.
+pub async fn search_by_title(db: &impl ConnectionTrait, term: &str) -> Result<Vec<Model>, RekallError> {
+    Ok(Entity::find()
+        .order_by_asc(Column::Title)
         .all(db)
         .await?
         .into_iter()
-        .filter(|l| tasks.contains(&l.task_id))
-        .map(|l| l.document_id)
-        .collect();
-    Ok(find_all_by_order_by_updated_at_desc(db)
-        .await?
-        .into_iter()
-        .filter(|d| linked.contains(&d.id))
+        .filter(|d| contains_ignore_case(&d.title, term) || contains_ignore_case(&d.body_markdown, term))
         .collect())
 }
 
-/// Title or body holds the term, by title. `%` and `_` in the term are wildcards (see `like_matches`).
-pub async fn search(db: &impl ConnectionTrait, term: &str) -> Result<Vec<Model>, RekallError> {
-    let mut found: Vec<Model> = Entity::find()
-        .all(db)
-        .await?
-        .into_iter()
-        .filter(|d| like_matches(&d.title, term) || like_matches(&d.body_markdown, term))
-        .collect();
-    found.sort_by(|a, b| a.title.cmp(&b.title));
-    Ok(found)
-}
-
 /// Title or body holds the term literally, newest first.
-pub async fn search_text(db: &impl ConnectionTrait, term: &str, limit: usize) -> Result<Vec<Model>, RekallError> {
-    Ok(find_all_by_order_by_updated_at_desc(db)
+pub async fn search_newest_first(db: &impl ConnectionTrait, term: &str, limit: usize) -> Result<Vec<Model>, RekallError> {
+    Ok(list_newest_first(db)
         .await?
         .into_iter()
         .filter(|d| contains_ignore_case(&d.title, term) || contains_ignore_case(&d.body_markdown, term))
@@ -111,49 +111,10 @@ pub async fn search_text(db: &impl ConnectionTrait, term: &str, limit: usize) ->
 }
 
 /// Notes whose id starts with the prefix: how a `note:` anchor resolves.
-pub async fn find_by_id_prefix(db: &impl ConnectionTrait, prefix: &str) -> Result<Vec<Model>, RekallError> {
+pub async fn find_by_anchor_prefix(db: &impl ConnectionTrait, prefix: &str) -> Result<Vec<Model>, RekallError> {
     Ok(Entity::find()
         .filter(Column::Id.starts_with(prefix))
         .all(db)
         .await?)
 }
 
-/// `text` contains `term`, case folded, where `%` in the term matches any run of characters and
-/// `_` any one.
-pub fn like_matches(text: &str, term: &str) -> bool {
-    let text: Vec<char> = text.to_lowercase().chars().collect();
-    let mut pattern = vec!['%'];
-    pattern.extend(term.to_lowercase().chars());
-    pattern.push('%');
-    like(&text, &pattern)
-}
-
-fn like(text: &[char], pattern: &[char]) -> bool {
-    // Iterative wildcard matching with backtracking on the last '%'.
-    let (mut t, mut p) = (0usize, 0usize);
-    let (mut star, mut mark) = (None::<usize>, 0usize);
-    while t < text.len() {
-        if p < pattern.len() && (pattern[p] == '_' || (pattern[p] != '%' && pattern[p] == text[t])) {
-            t += 1;
-            p += 1;
-        } else if p < pattern.len() && pattern[p] == '%' {
-            star = Some(p);
-            mark = t;
-            p += 1;
-        } else if let Some(s) = star {
-            p = s + 1;
-            mark += 1;
-            t = mark;
-        } else {
-            return false;
-        }
-    }
-    while p < pattern.len() && pattern[p] == '%' {
-        p += 1;
-    }
-    p == pattern.len()
-}
-
-#[cfg(test)]
-#[path = "../../tests/unit/repository/document_tests.rs"]
-mod tests;

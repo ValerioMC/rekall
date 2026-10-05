@@ -56,7 +56,7 @@ async fn adding_an_existing_empty_folder_registers_and_activates_it_as_a_new_dat
 async fn adding_a_folder_that_already_has_a_database_opens_it_instead_of_creating_one() {
     let app = app().await;
     let folder = tempfile::tempdir().unwrap();
-    std::fs::File::create(folder.path().join("rekall.mv.db")).unwrap();
+    std::fs::File::create(folder.path().join("rekall.db")).unwrap();
 
     let response = app.post("/api/settings/databases", json!({ "path": folder.path().to_string_lossy() })).await;
 
@@ -196,7 +196,7 @@ async fn a_backups_folder_that_cannot_be_read_is_reported_as_a_failure_not_a_bro
 
 #[tokio::test]
 async fn an_in_memory_database_has_no_backups() {
-    let app = app_with(&[("spring.datasource.url", "jdbc:h2:mem:rekall")], StartOptions { no_restart: true, ..StartOptions::default() }).await;
+    let app = app_with(&[("rekall.database.url", "sqlite::memory:")], StartOptions { no_restart: true, ..StartOptions::default() }).await;
     let status = app.get("/api/backups").await;
     assert_eq!(status.get("available"), &json!(false));
     assert_eq!(app.post_empty("/api/backups").await.status, 409);
@@ -235,11 +235,11 @@ async fn a_restore_restarts_the_application_onto_the_backup_and_keeps_what_was_t
 async fn switching_the_database_in_settings_restarts_onto_the_new_folder() {
     let app = app_with(&[], StartOptions::default()).await;
     app.a_company("On the first database").await;
-    // The test database comes from `spring.datasource.url`, which overrides the registry as
-    // `REKALL_DB_URL` did; start one on the registry alone to see the switch.
+    // The test database comes from `rekall.database.url`, which overrides the registry; start
+    // one on the registry alone to see the switch.
     app.stop().await;
 
-    let mut app = app_with(&[("spring.datasource.url", "")], StartOptions::default()).await;
+    let mut app = app_with(&[("rekall.database.url", "")], StartOptions::default()).await;
     assert_eq!(app.get("/api/settings/databases").await.str("status"), "SETUP_NEEDED");
     let folder = tempfile::tempdir().unwrap();
 

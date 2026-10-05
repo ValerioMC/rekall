@@ -3,11 +3,13 @@
 
 use std::collections::HashSet;
 
+use rekall_service::Ctx;
+
 use rekall_common::{Id, RekallError, Result};
 use rekall_model::project_section;
 use rekall_repository::repository as repo;
 use rekall_service::section::{rules, ProjectSectionView, SectionStreamEvent};
-use rekall_service::{in_write, DomainEvent, Services, Tx};
+use rekall_service::{in_write, DomainEvent, Tx};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
 use crate::dto::{ProjectSectionOrderRequest, ProjectSectionRequest};
@@ -15,21 +17,21 @@ use crate::extract::uuid;
 
 #[derive(Clone)]
 pub struct ProjectSectionCatalogService {
-    services: Services,
+    ctx: Ctx,
 }
 
 impl ProjectSectionCatalogService {
-    pub fn new(services: Services) -> Self {
-        Self { services }
+    pub fn new(ctx: Ctx) -> Self {
+        Self { ctx }
     }
 
     pub async fn create(&self, project_id: Id, request: ProjectSectionRequest) -> Result<ProjectSectionView> {
-        in_write!(&self.services.ctx, |tx| {
+        in_write!(&self.ctx, |tx| {
             repo::project::require(tx.db(), project_id).await?;
             let title = rules::title(request.title.as_deref())?;
             require_title_free(&tx, project_id, &title, None).await?;
-            let existing = repo::project_section::find_by_project_id_order_by_position_asc(tx.db(), project_id).await?;
-            let now = self.services.ctx.now();
+            let existing = repo::project_section::list_of_project(tx.db(), project_id).await?;
+            let now = self.ctx.now();
             let section = project_section::Model {
                 id: Id::random(),
                 project_id,
@@ -47,7 +49,7 @@ impl ProjectSectionCatalogService {
     }
 
     pub async fn update(&self, id: Id, request: ProjectSectionRequest) -> Result<ProjectSectionView> {
-        in_write!(&self.services.ctx, |tx| {
+        in_write!(&self.ctx, |tx| {
             let before = require(&tx, id).await?;
             let mut section = before.clone();
             if request.title.is_some() {
@@ -60,16 +62,16 @@ impl ProjectSectionCatalogService {
             if section != before {
                 tx.publish(DomainEvent::ProjectSection(SectionStreamEvent { project_id: section.project_id }));
             }
-            let section = repo::update_if_changed(tx.db(), &before, section, self.services.ctx.now()).await?;
+            let section = repo::update_if_changed(tx.db(), &before, section, self.ctx.now()).await?;
             Ok::<_, RekallError>(ProjectSectionView::of(&section))
         })
     }
 
     /// Positions follow `section_ids`, which has to name every section of the project once.
     pub async fn reorder(&self, project_id: Id, request: ProjectSectionOrderRequest) -> Result<Vec<ProjectSectionView>> {
-        in_write!(&self.services.ctx, |tx| {
+        in_write!(&self.ctx, |tx| {
             repo::project::require(tx.db(), project_id).await?;
-            let sections = repo::project_section::find_by_project_id_order_by_position_asc(tx.db(), project_id).await?;
+            let sections = repo::project_section::list_of_project(tx.db(), project_id).await?;
             let wanted: Vec<Id> = request
                 .section_ids
                 .clone()
@@ -81,7 +83,7 @@ impl ProjectSectionCatalogService {
             if wanted.len() != known.len() || wanted.iter().collect::<HashSet<_>>() != known.iter().collect::<HashSet<_>>() {
                 return Err(RekallError::illegal("An order has to name every section of the project exactly once."));
             }
-            let now = self.services.ctx.now();
+            let now = self.ctx.now();
             let mut ordered = Vec::with_capacity(sections.len());
             for (position, id) in wanted.iter().enumerate() {
                 let mut section = sections.iter().find(|section| section.id == *id).cloned().expect("checked against the project's sections");
@@ -98,7 +100,7 @@ impl ProjectSectionCatalogService {
     }
 
     pub async fn delete(&self, id: Id) -> Result<()> {
-        in_write!(&self.services.ctx, |tx| {
+        in_write!(&self.ctx, |tx| {
             let section = require(&tx, id).await?;
             project_section::Entity::delete_by_id(section.id).exec(tx.db()).await?;
             tx.publish(DomainEvent::ProjectSection(SectionStreamEvent { project_id: section.project_id }));

@@ -13,11 +13,23 @@ pub async fn require(db: &impl ConnectionTrait, id: Id) -> Result<Model, RekallE
     find_by_id(db, id).await?.ok_or_else(|| RekallError::not_found("Company", id))
 }
 
-pub async fn find_by_name_ignore_case(db: &impl ConnectionTrait, name: &str) -> Result<Option<Model>, RekallError> {
+/// The company with this name, ignoring case. Names are free text, folded in Rust across all of
+/// Unicode; the table holds tens of rows.
+pub async fn find_by_name(db: &impl ConnectionTrait, name: &str) -> Result<Option<Model>, RekallError> {
     let all = Entity::find().all(db).await?;
     at_most_one(all.into_iter().filter(|c| equals_ignore_case(&c.name, name)).collect())
 }
 
-pub async fn find_all_by_order_by_name_asc(db: &impl ConnectionTrait) -> Result<Vec<Model>, RekallError> {
+pub async fn list_by_name(db: &impl ConnectionTrait) -> Result<Vec<Model>, RekallError> {
     Ok(Entity::find().order_by_asc(Column::Name).all(db).await?)
+}
+
+/// Whether a company other than `except` already has this name, ignoring case: two such names
+/// would make a `company:` anchor ambiguous.
+pub async fn name_taken(db: &impl ConnectionTrait, name: &str, except: Option<Id>) -> Result<bool, RekallError> {
+    Ok(Entity::find()
+        .all(db)
+        .await?
+        .iter()
+        .any(|company| Some(company.id) != except && equals_ignore_case(&company.name, name)))
 }

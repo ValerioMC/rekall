@@ -138,12 +138,10 @@ impl Instance {
             .merge(version::routes(update_checker))
             .merge(spa::routes(Assets::new(config.ui_dist.clone())))
             .method_not_allowed_fallback(|| async { framework(StatusCode::METHOD_NOT_ALLOWED) });
-        // The routes sit behind a fallback so the layers below see each response whole, the
-        // `Allow` header Axum adds to a 405 included.
+        // The routes sit behind a fallback so the layers below see each response whole.
         let router = Router::new()
             .fallback_service(routes)
             .layer(DefaultBodyLimit::max(1024 * 1024 * 1024))
-            .layer(middleware::from_fn(crate::methods::spring_methods))
             .layer(middleware::from_fn_with_state(LocalAccess::new(config.remote_access), security::guard))
             .layer(middleware::from_fn(render_errors));
 

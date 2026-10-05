@@ -16,12 +16,10 @@ fn arguments_beat_the_environment_which_is_read_in_its_relaxed_form() {
 }
 
 #[test]
-fn a_jdbc_url_from_the_java_build_names_the_sqlite_file_beside_the_h2_one() {
-    assert_eq!(
-        DatabaseOverride::parse("jdbc:h2:file:/data/demo/rekall;AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1"),
-        Some(DatabaseOverride::File(PathBuf::from("/data/demo/rekall.db")))
-    );
-    assert_eq!(DatabaseOverride::parse("jdbc:h2:mem:rekall;DB_CLOSE_DELAY=-1"), Some(DatabaseOverride::Memory));
+fn a_database_url_names_a_sqlite_file_or_memory() {
+    assert_eq!(DatabaseOverride::parse("sqlite::memory:"), Some(DatabaseOverride::Memory));
     assert_eq!(DatabaseOverride::parse("sqlite:/tmp/x.db"), Some(DatabaseOverride::File(PathBuf::from("/tmp/x.db"))));
+    assert_eq!(DatabaseOverride::parse("sqlite:///tmp/x.db?mode=rwc"), Some(DatabaseOverride::File(PathBuf::from("/tmp/x.db"))));
+    assert_eq!(DatabaseOverride::parse("/tmp/y.db"), Some(DatabaseOverride::File(PathBuf::from("/tmp/y.db"))));
     assert_eq!(DatabaseOverride::parse("  "), None);
 }

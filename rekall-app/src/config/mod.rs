@@ -1,7 +1,6 @@
-//! The application's properties, read the way Spring Boot read `application.yaml`'s: a
-//! `--name=value` command-line argument wins, then an environment variable in Spring's relaxed
-//! form (`server.port` from `SERVER_PORT`, `rekall.claude.cli-path` from `REKALL_CLAUDE_CLIPATH`),
-//! then the default the Java code declared.
+//! The application's properties: a `--name=value` command-line argument wins, then an environment
+//! variable in relaxed form (`server.port` from `SERVER_PORT`, `rekall.claude.cli-path` from
+//! `REKALL_CLAUDE_CLIPATH`), then the default declared in `AppConfig`.
 
 mod app_config;
 mod backup_config;

@@ -64,7 +64,7 @@ pub async fn app_with(properties: &[(&str, &str)], options: StartOptions) -> App
         ("server.port".into(), "0".into()),
         ("rekall.home".into(), home.join(".rekall").to_string_lossy().into_owned()),
         ("user.home".into(), home.to_string_lossy().into_owned()),
-        ("spring.datasource.url".into(), db_url),
+        ("rekall.database.url".into(), db_url),
         ("rekall.backup.enabled".into(), "false".into()),
         ("rekall.terminal.sweep-minutes".into(), "60".into()),
         ("rekall.ui.dist".into(), ui.to_string_lossy().into_owned()),
@@ -128,7 +128,7 @@ impl App {
         self.send(reqwest::Method::DELETE, path, None).await
     }
 
-    // ------------------------------------------------------------ the database, as jdbc read it
+    // ------------------------------------------------------------ the database, read directly
 
     pub async fn query(&self, sql: &str, params: Vec<DbValue>) -> Vec<sea_orm::QueryResult> {
         let db = self.services().ctx.db.clone();

@@ -12,5 +12,5 @@ pub fn routes() -> Router<ApiState> {
 }
 
 async fn measure(State(state): State<ApiState>, Path(task_id): Path<String>) -> ApiResult<Json<ContextSize>> {
-    Ok(Json(state.services.context_size.measure(uuid("taskId", &task_id)?).await?))
+    Ok(Json(state.context_size.measure(uuid("taskId", &task_id)?).await?))
 }

@@ -22,7 +22,7 @@ pub fn routes() -> Router<ApiState> {
 }
 
 async fn list(State(state): State<ApiState>) -> ApiResult<Json<Vec<CommitReferenceView>>> {
-    Ok(Json(state.services.commit_references.find_all().await?))
+    Ok(Json(state.commit_references.find_all().await?))
 }
 
 async fn record_latest(
@@ -32,12 +32,12 @@ async fn record_latest(
 ) -> ApiResult<Json<CommitReferenceView>> {
     let task_id = uuid("taskId", &task_id)?;
     let step_id = request.and_then(|r| r.step_id);
-    Ok(Json(state.services.commit_references.record_latest_commit(task_id, step_id).await?))
+    Ok(Json(state.commit_references.record_latest_commit(task_id, step_id).await?))
 }
 
 /// What the picker lists: the newest commits of the task's project folder, without their diffs.
 async fn recent_commits(State(state): State<ApiState>, Path(task_id): Path<String>) -> ApiResult<Json<Vec<RecentCommitView>>> {
-    Ok(Json(state.services.commit_references.recent_commits(uuid("taskId", &task_id)?).await?))
+    Ok(Json(state.commit_references.recent_commits(uuid("taskId", &task_id)?).await?))
 }
 
 /// A commit chosen in the picker or pasted by hand, logged by its hash.
@@ -50,7 +50,6 @@ async fn record(
     Validator::new().not_blank("commitHash", request.commit_hash.as_deref()).finish()?;
     Ok(Json(
         state
-            .services
             .commit_references
             .record_commit(task_id, request.step_id, request.commit_hash.as_deref())
             .await?,
@@ -58,7 +57,7 @@ async fn record(
 }
 
 async fn diff(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Json<CommitReferenceDiffResponse>> {
-    let diff = state.services.commit_references.diff_for(uuid("id", &id)?).await?;
+    let diff = state.commit_references.diff_for(uuid("id", &id)?).await?;
     Ok(Json(CommitReferenceDiffResponse { diff }))
 }
 
@@ -69,10 +68,10 @@ async fn set_in_context(
     JsonBody(request): JsonBody<CommitReferenceContextRequest>,
 ) -> ApiResult<Json<CommitReferenceView>> {
     let id = uuid("id", &id)?;
-    Ok(Json(state.services.commit_references.set_in_context(id, request.in_context).await?))
+    Ok(Json(state.commit_references.set_in_context(id, request.in_context).await?))
 }
 
 async fn delete(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<()> {
-    state.services.commit_references.delete(uuid("id", &id)?).await?;
+    state.commit_references.delete(uuid("id", &id)?).await?;
     Ok(())
 }

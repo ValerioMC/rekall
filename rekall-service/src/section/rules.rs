@@ -42,7 +42,7 @@ pub async fn clashing(
     wanted: &str,
     except: Option<Id>,
 ) -> Result<Option<project_section::Model>> {
-    let sections = repo::project_section::find_by_project_id_order_by_position_asc(db, project_id).await?;
+    let sections = repo::project_section::list_of_project(db, project_id).await?;
     Ok(sections
         .into_iter()
         .find(|section| Some(section.id) != except && jstr::equals_ignore_case(jstr::strip(&section.title), wanted)))

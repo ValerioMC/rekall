@@ -1,13 +1,11 @@
-//! The migrations, run the two ways a database meets them: from nothing, and from a file that
-//! already held data under an older schema.
+//! The migrations, run the ways a database meets them: from nothing, from a file a v0.2.x
+//! release wrote, and from a file too old to carry forward.
 
 use rekall_common::{Id, Instant};
 use rekall_model::prelude::*;
-use rekall_model::{company, document, project, task, task_step, wrapup};
-use rekall_repository::migration::Migrator;
+use rekall_model::{company, project, task, task_step, wrapup};
 use sea_orm::sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use sea_orm::{ActiveModelTrait, ConnectionTrait, EntityTrait, IntoActiveModel, SqlxSqliteConnector};
-use sea_orm_migration::MigratorTrait;
 
 #[tokio::test]
 async fn a_fresh_schema_holds_every_entity() {
@@ -47,7 +45,7 @@ async fn a_fresh_schema_holds_every_entity() {
     let read_step = TaskStep::find_by_id(step.id).one(db).await.unwrap().unwrap();
     assert_eq!(read_step.state, TaskStepState::Draft);
 
-    // Deleting the company takes everything under it: the cascades survived every rebuild.
+    // Deleting the company takes everything under it.
     Company::delete_by_id(company.id).exec(db).await.unwrap();
     assert_eq!(Task::find().all(db).await.unwrap().len(), 0);
     assert_eq!(TaskStep::find().all(db).await.unwrap().len(), 0);
@@ -55,7 +53,7 @@ async fn a_fresh_schema_holds_every_entity() {
 }
 
 #[tokio::test]
-async fn a_second_task_with_the_same_label_on_a_project_is_refused_by_name() {
+async fn a_second_task_with_the_same_label_on_a_project_is_refused_by_the_schema_too() {
     let database = rekall_repository::open_temporary().await.unwrap();
     let db = &database.conn;
     let now = Instant::now();
@@ -74,74 +72,91 @@ async fn a_second_task_with_the_same_label_on_a_project_is_refused_by_name() {
         .await
         .unwrap_err();
     let mapped = rekall_common::RekallError::from(error);
-    assert!(mapped.message().contains("UQ_TASK_PROJECT_LABEL"), "{mapped:?}");
+    assert!(mapped.message().contains("task.project_id, task.label"), "{mapped:?}");
+}
+
+/// A SQLite file at `path` holding what `script` writes, opened the way an old release left it.
+async fn a_file_from(path: &std::path::Path, script: &'static str) {
+    let options = SqliteConnectOptions::new().filename(path).create_if_missing(true).foreign_keys(false);
+    let pool = SqlitePoolOptions::new().max_connections(1).connect_with(options).await.unwrap();
+    sea_orm::sqlx::raw_sql(script).execute(&pool).await.unwrap();
+    pool.close().await;
+}
+
+async fn applied_versions(db: &impl ConnectionTrait) -> Vec<String> {
+    db.query_all_raw(sea_orm::Statement::from_string(
+        db.get_database_backend(),
+        "SELECT version FROM seaql_migrations ORDER BY version",
+    ))
+    .await
+    .unwrap()
+    .iter()
+    .map(|row| row.try_get_by_index::<String>(0).unwrap())
+    .collect()
 }
 
 #[tokio::test]
-async fn a_database_from_before_companies_and_labels_comes_through_whole() {
+async fn a_database_written_by_v0_2_moves_onto_the_baseline_with_its_rows() {
     let folder = tempfile::tempdir().unwrap();
     let path = folder.path().join("rekall.db");
-    let options = SqliteConnectOptions::new().filename(&path).create_if_missing(true).foreign_keys(false);
-    let pool = SqlitePoolOptions::new().max_connections(1).connect_with(options).await.unwrap();
-    let conn = SqlxSqliteConnector::from_sqlx_sqlite_pool(pool);
-
-    // The schema as 001-core.yaml left it, with data in it.
-    Migrator::up(&conn, Some(4)).await.unwrap();
-    let now = "2024-01-01T00:00:00.000000Z";
-    for statement in [
-        format!("INSERT INTO project VALUES ('11111111-1111-1111-1111-111111111111', 'Progetto Vega', 'ACTIVE', NULL, '{now}', '{now}')"),
-        format!("INSERT INTO task VALUES ('22222222-2222-2222-2222-222222222222', 'Report Builder!', 'TODO', NULL, '11111111-1111-1111-1111-111111111111', NULL, '{now}', '{now}')"),
-        format!("INSERT INTO document VALUES ('33333333-3333-3333-3333-333333333333', 'Cluster', 'context', 'body', NULL, 0, NULL, '22222222-2222-2222-2222-222222222222', NULL, '{now}', '{now}')"),
-        format!("INSERT INTO document VALUES ('44444444-4444-4444-4444-444444444444', 'Owned by the project', 'context', 'body', NULL, 0, '11111111-1111-1111-1111-111111111111', NULL, NULL, '{now}', '{now}')"),
-    ] {
-        conn.execute_unprepared(&statement).await.unwrap();
-    }
-    Migrator::up(&conn, None).await.unwrap();
-    conn.close().await.unwrap();
+    a_file_from(&path, include_str!("fixtures/v0.2-database.sql")).await;
 
     let database = rekall_repository::open(&path).await.unwrap();
     let db = &database.conn;
 
-    let companies = Company::find().all(db).await.unwrap();
-    assert_eq!(companies.len(), 1, "one holding company for the projects that were there");
-    assert_eq!(companies[0].name, "Unassigned");
-
-    let project = Project::find().one(db).await.unwrap().unwrap();
-    assert_eq!(project.label, "progetto-vega");
-    assert_eq!(project.title, "Progetto Vega");
-    assert_eq!(project.company_id, companies[0].id);
-
+    assert_eq!(applied_versions(db).await, ["000-baseline", "031-project-section", "032-project-icon-image"]);
     let task = Task::find().one(db).await.unwrap().unwrap();
-    assert_eq!(task.label, "report-builder");
-    assert_eq!(task.title, "Report Builder!");
-    assert_eq!(task.review_state, TaskStepState::Open);
+    assert_eq!((task.label.as_str(), task.title.as_str()), ("report", "Report"));
+    let wrapup = Wrapup::find().one(db).await.unwrap().unwrap();
+    assert_eq!(wrapup.body_markdown, "The report renders.");
+    assert_eq!(wrapup.task_id, task.id);
+}
 
-    let documents = Document::find().all(db).await.unwrap();
-    assert_eq!(documents.len(), 1, "a note with no task is dropped, a task's note is kept");
-    assert_eq!(documents[0].context_mode, DocumentContextMode::Full);
-    let links = DocumentTask::find().all(db).await.unwrap();
-    assert_eq!(links.len(), 1);
-    assert_eq!(links[0].task_id, task.id);
-    assert_eq!(documents[0].scope_project_id, Some(project.id), "a note takes the one project its tasks share");
-    assert_eq!(documents[0].scope_company_id, None);
+#[tokio::test]
+async fn a_database_on_the_baseline_opens_again_unchanged() {
+    let folder = tempfile::tempdir().unwrap();
+    let path = folder.path().join("rekall.db");
+    rekall_repository::open(&path).await.unwrap().close().await.unwrap();
 
-    let tables: Vec<String> = db
-        .query_all_raw(sea_orm::Statement::from_string(
-            db.get_database_backend(),
-            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
-        ))
-        .await
-        .unwrap()
-        .iter()
-        .map(|row| row.try_get_by_index::<String>(0).unwrap())
-        .collect();
-    assert_eq!(
-        tables,
-        [
-            "commit_reference", "company", "diagram", "document", "document_task", "project", "project_icon_image", "project_section",
-            "run_queue", "run_queue_item", "seaql_migrations", "tag", "task", "task_revision", "task_step",
-            "time_entry", "wrapup"
-        ]
-    );
-    let _ = document::ANCHOR_ID_LENGTH;
+    let database = rekall_repository::open(&path).await.unwrap();
+
+    assert_eq!(applied_versions(&database.conn).await, ["000-baseline", "031-project-section", "032-project-icon-image"]);
+}
+
+#[tokio::test]
+async fn a_database_older_than_v0_2_is_refused_and_left_as_it_was() {
+    let folder = tempfile::tempdir().unwrap();
+    let path = folder.path().join("rekall.db");
+    a_file_from(
+        &path,
+        "CREATE TABLE seaql_migrations (version VARCHAR NOT NULL PRIMARY KEY, applied_at BIGINT NOT NULL);
+         INSERT INTO seaql_migrations VALUES ('001-core', 0), ('028-diagram', 0);",
+    )
+    .await;
+
+    let refused = rekall_repository::open(&path).await.unwrap_err().to_string();
+
+    assert!(refused.contains("older than v0.2.0") && refused.contains("v0.2.2"), "{refused}");
+    let options = SqliteConnectOptions::new().filename(&path);
+    let pool = SqlitePoolOptions::new().max_connections(1).connect_with(options).await.unwrap();
+    let conn = SqlxSqliteConnector::from_sqlx_sqlite_pool(pool);
+    assert_eq!(applied_versions(&conn).await, ["001-core", "028-diagram"]);
+}
+
+#[tokio::test]
+async fn checking_a_file_before_a_restore_refuses_one_too_old_without_touching_it() {
+    let folder = tempfile::tempdir().unwrap();
+    let old = folder.path().join("old.db");
+    a_file_from(&old, "CREATE TABLE seaql_migrations (version VARCHAR NOT NULL PRIMARY KEY, applied_at BIGINT NOT NULL);
+                       INSERT INTO seaql_migrations VALUES ('028-diagram', 0);").await;
+    let current = folder.path().join("current.db");
+    a_file_from(&current, include_str!("fixtures/v0.2-database.sql")).await;
+
+    assert!(rekall_repository::check_openable(&old).await.unwrap_err().to_string().contains("v0.2.2"));
+    rekall_repository::check_openable(&current).await.unwrap();
+
+    let options = SqliteConnectOptions::new().filename(&current);
+    let pool = SqlitePoolOptions::new().max_connections(1).connect_with(options).await.unwrap();
+    let conn = SqlxSqliteConnector::from_sqlx_sqlite_pool(pool);
+    assert_eq!(applied_versions(&conn).await.len(), 41, "a check writes nothing");
 }

@@ -28,7 +28,7 @@ impl TaskStepService {
 
     pub async fn find_all(&self) -> Result<Vec<TaskStepView>> {
         in_read!(&self.ctx, |tx| {
-            let steps = repo::task_step::find_all_by_order_by_task_id_asc_position_asc(tx.db()).await?;
+            let steps = repo::task_step::list_all_in_order(tx.db()).await?;
             steps.iter().map(TaskStepView::of).collect::<Result<Vec<_>>>()
         })
     }

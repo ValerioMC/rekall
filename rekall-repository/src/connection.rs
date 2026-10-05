@@ -1,10 +1,10 @@
 //! Opening the database: migrate it on a connection of its own, then hand out a pool.
 //!
-//! Two settings differ between the two steps, on purpose. The migrations rebuild tables SQLite
+//! Two settings differ between the two steps, on purpose. A migration may rebuild a table SQLite
 //! cannot alter in place (a constraint added or dropped, a default changed), and dropping the old
-//! copy of a table with foreign keys enforced would cascade into every row that points at it, so
-//! they run with enforcement off and the whole file is checked for dangling references before the
-//! pool opens with enforcement on, which is where it stays.
+//! copy with foreign keys enforced would cascade into every row that points at it. So migrations
+//! run with enforcement off, the whole file is checked for dangling references, and only then
+//! does the pool open with enforcement on, where it stays.
 //!
 //! The pool uses WAL, so a read never waits for a write, and a busy timeout, so a write that
 //! finds another one in progress waits for it instead of failing. Writes are serialised by
@@ -19,11 +19,9 @@ use sea_orm::sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolO
 use sea_orm::{ConnectionTrait, DatabaseConnection, DbErr, SqlxSqliteConnector, Statement};
 use sea_orm_migration::MigratorTrait;
 
-use crate::migration::Migrator;
+use crate::migration::{adopt_baseline, check_baseline, Migrator};
 
-/// The file name the database has inside the folder a person chose. H2 kept `rekall.mv.db`
-/// there; the SQLite file sits beside it under its own name, so a folder that still holds the
-/// H2 file can be migrated from it rather than overwritten.
+/// The file name the database has inside the folder a person chose.
 pub const DATA_FILE_NAME: &str = "rekall.db";
 
 const BUSY_TIMEOUT: Duration = Duration::from_secs(10);
@@ -82,9 +80,24 @@ pub async fn open(path: &Path) -> Result<Database, DbErr> {
     })
 }
 
+/// Refuses a file this build could not open, reading it without changing it: what a restore
+/// checks before a backup replaces the live database.
+pub async fn check_openable(path: &Path) -> Result<(), DbErr> {
+    let options = SqliteConnectOptions::new().filename(path).read_only(true);
+    let pool = SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect_with(options)
+        .await
+        .map_err(|e| DbErr::Conn(sea_orm::RuntimeErr::SqlxError(Arc::new(e))))?;
+    let conn = SqlxSqliteConnector::from_sqlx_sqlite_pool(pool);
+    let checked = check_baseline(&conn).await;
+    conn.close().await?;
+    checked
+}
+
 /// A database that lives only as long as the process, which is what runs while no folder has
-/// been chosen yet (the setup screen), as `jdbc:h2:mem:rekall-setup` did. One connection holds
-/// all of it, so the pool never grows past that one.
+/// been chosen yet (the setup screen). One connection holds all of it, so the pool never grows
+/// past that one.
 pub async fn open_in_memory() -> Result<Database, DbErr> {
     let options = SqliteConnectOptions::from_str("sqlite::memory:")
         .map_err(|e| DbErr::Conn(sea_orm::RuntimeErr::SqlxError(Arc::new(e))))?;
@@ -124,13 +137,14 @@ async fn migrate(options: SqliteConnectOptions) -> Result<(), DbErr> {
         .await
         .map_err(|e| DbErr::Conn(sea_orm::RuntimeErr::SqlxError(Arc::new(e))))?;
     let conn = SqlxSqliteConnector::from_sqlx_sqlite_pool(pool);
+    adopt_baseline(&conn).await?;
     Migrator::up(&conn, None).await?;
     check_foreign_keys(&conn).await?;
     conn.close().await
 }
 
-/// Refuse to open a file whose rows point at rows that are not there. The Java schema could not
-/// hold one (H2 enforced every key on every write); a SQLite file edited by hand could.
+/// Refuse to open a file whose rows point at rows that are not there, which a SQLite file edited
+/// by hand or restored from elsewhere could hold.
 async fn check_foreign_keys(conn: &DatabaseConnection) -> Result<(), DbErr> {
     let dangling = conn
         .query_all_raw(Statement::from_string(conn.get_database_backend(), "PRAGMA foreign_key_check"))

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-/// Command-line arguments over environment variables, with Spring's relaxed names.
+/// Command-line arguments over environment variables, each looked up by its relaxed name too.
 #[derive(Clone, Debug, Default)]
 pub struct Properties {
     arguments: HashMap<String, String>,
@@ -20,7 +20,7 @@ impl Properties {
         Self { arguments, environment }
     }
 
-    /// Properties set in code: what the tests use instead of `@DynamicPropertySource`.
+    /// Properties set in code, with no environment: what the tests start an application with.
     pub fn of(pairs: &[(&str, &str)]) -> Self {
         Self {
             arguments: pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect(),

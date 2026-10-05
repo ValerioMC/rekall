@@ -4,28 +4,31 @@
 
 use rekall_common::{Id, Result};
 use rekall_model::RevisionKind;
-use rekall_service::revision::RestoredRevision;
-use rekall_service::{in_write, Services};
+use rekall_service::revision::{RestoredRevision, TaskRevisionService};
+use rekall_service::wrapup::WrapupService;
+use rekall_service::{in_write, Ctx};
 
 use super::TaskService;
 
 #[derive(Clone)]
 pub struct RevisionRestoreService {
-    services: Services,
+    ctx: Ctx,
+    revisions: TaskRevisionService,
+    wrapups: WrapupService,
     tasks: TaskService,
 }
 
 impl RevisionRestoreService {
-    pub fn new(services: Services, tasks: TaskService) -> Self {
-        Self { services, tasks }
+    pub fn new(ctx: Ctx, revisions: TaskRevisionService, wrapups: WrapupService, tasks: TaskService) -> Self {
+        Self { ctx, revisions, wrapups, tasks }
     }
 
     pub async fn restore(&self, task_id: Id, revision_id: Id) -> Result<RestoredRevision> {
-        in_write!(&self.services.ctx, |tx| {
-            let revision = self.services.revisions.find_in(&mut tx, task_id, revision_id).await?;
+        in_write!(&self.ctx, |tx| {
+            let revision = self.revisions.find_in(&mut tx, task_id, revision_id).await?;
             match revision.kind {
                 RevisionKind::Wrapup => {
-                    self.services.wrapups.restore_in(&mut tx, task_id, &revision.body_markdown).await?;
+                    self.wrapups.restore_in(&mut tx, task_id, &revision.body_markdown).await?;
                 }
                 RevisionKind::Description => {
                     self.tasks.restore_description_in(&mut tx, task_id, &revision.body_markdown).await?;

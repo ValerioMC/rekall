@@ -3,6 +3,7 @@ import mermaid from 'mermaid'
 import { config } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
 import 'highlight.js/styles/github-dark.css'
+import '@/assets/markdown-editor.css'
 import { markAnchorCode } from '@/common/config/anchor-code'
 
 config({

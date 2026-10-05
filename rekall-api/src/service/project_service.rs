@@ -26,8 +26,8 @@ impl ProjectService {
 
     pub async fn list(&self) -> Result<Vec<ProjectResponse>> {
         in_read!(&self.ctx, |tx| {
-            let snapshot = Snapshot::load(tx.db()).await?;
-            let projects = repo::project::find_all_by_order_by_company_name_asc_label_asc(tx.db()).await?;
+            let snapshot = Snapshot::of_catalog(tx.db()).await?;
+            let projects = repo::project::list_in_catalog_order(tx.db()).await?;
             projects.iter().map(|project| snapshot.project_response(project)).collect::<Result<Vec<_>>>()
         })
     }
@@ -60,6 +60,7 @@ impl ProjectService {
             };
             self.apply_request(&mut project, &request).await;
             project.validate()?;
+            require_label_free(&tx, &project, None).await?;
             project.clone().into_active_model().insert(tx.db()).await?;
             Snapshot::for_project(tx.db(), &project).await?.project_response(&project)
         })
@@ -73,6 +74,7 @@ impl ProjectService {
             project.title = trimmed_title(&request);
             project.company_id = require_owning_company(&tx, request.company_id).await?.id;
             self.apply_request(&mut project, &request).await;
+            require_label_free(&tx, &project, Some(id)).await?;
             let project = repo::update_if_changed(tx.db(), &before, project, self.ctx.now()).await?;
             Snapshot::for_project(tx.db(), &project).await?.project_response(&project)
         })
@@ -123,4 +125,14 @@ async fn require_owning_company(tx: &Tx, id: Option<Id>) -> Result<company::Mode
         return Err(RekallError::not_found_msg("A project must belong to a company"));
     };
     repo::company::require(tx.db(), id).await
+}
+
+/// A label names one project within its company, or a `project:` anchor would be ambiguous.
+async fn require_label_free(tx: &Tx, project: &project::Model, except: Option<Id>) -> Result<()> {
+    if repo::project::label_taken(tx.db(), project.company_id, &project.label, except).await? {
+        return Err(RekallError::conflict(
+            "Another project in this company already uses that label. An anchor has to name one record.",
+        ));
+    }
+    Ok(())
 }

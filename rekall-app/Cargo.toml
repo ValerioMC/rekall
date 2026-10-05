@@ -81,9 +81,6 @@ path = "tests/integration/e2e_steps.rs"
 name = "e2e_wrapup_time"
 path = "tests/integration/e2e_wrapup_time.rs"
 
-[[test]]
-name = "h2_import"
-path = "tests/integration/h2_import.rs"
 
 [[test]]
 name = "settings_backups"

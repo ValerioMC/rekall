@@ -6,7 +6,7 @@ pub async fn find_by_id(db: &impl ConnectionTrait, id: Id) -> Result<Option<Mode
     Ok(Entity::find_by_id(id).one(db).await?)
 }
 
-pub async fn find_by_task_id_and_commit_hash(db: &impl ConnectionTrait, task_id: Id, hash: &str) -> Result<Vec<Model>, RekallError> {
+pub async fn find_on_task(db: &impl ConnectionTrait, task_id: Id, hash: &str) -> Result<Vec<Model>, RekallError> {
     Ok(Entity::find()
         .filter(Column::TaskId.eq(task_id))
         .filter(Column::CommitHash.eq(hash))
@@ -14,12 +14,12 @@ pub async fn find_by_task_id_and_commit_hash(db: &impl ConnectionTrait, task_id:
         .await?)
 }
 
-pub async fn find_all_by_order_by_created_at_desc(db: &impl ConnectionTrait) -> Result<Vec<Model>, RekallError> {
+pub async fn list_newest_first(db: &impl ConnectionTrait) -> Result<Vec<Model>, RekallError> {
     Ok(Entity::find().order_by_desc(Column::CreatedAt).all(db).await?)
 }
 
 /// The rows a task hands to `rekall_context`, in the order they were logged.
-pub async fn find_by_task_id_and_in_context_true_order_by_created_at_asc(
+pub async fn list_in_context_of_task(
     db: &impl ConnectionTrait,
     task_id: Id,
 ) -> Result<Vec<Model>, RekallError> {

@@ -19,11 +19,11 @@ pub async fn project_of(db: &impl ConnectionTrait, task: &task::Model) -> Result
 }
 
 pub async fn steps_of(db: &impl ConnectionTrait, task_id: Id) -> Result<Vec<task_step::Model>> {
-    repo::task_step::find_by_task_id_order_by_position_asc(db, task_id).await
+    repo::task_step::list_of_task(db, task_id).await
 }
 
 pub async fn wrapup_of(db: &impl ConnectionTrait, task_id: Id) -> Result<Option<wrapup::Model>> {
-    repo::wrapup::find_by_task_id(db, task_id).await
+    repo::wrapup::find_of_task(db, task_id).await
 }
 
 /// Whether the task carries its own review line: only while it has no step past `DRAFT`.
@@ -36,13 +36,13 @@ pub async fn review_active(db: &impl ConnectionTrait, task_id: Id) -> Result<boo
 /// to be unique across projects.
 pub async fn resolve_task(db: &impl ConnectionTrait, project_label: Option<&str>, task_label: &str) -> Result<task::Model> {
     if let Some(project_label) = project_label {
-        return repo::task::find_by_project_label_ignore_case_and_label_ignore_case(db, project_label, task_label)
+        return repo::task::find_by_anchor(db, project_label, task_label)
             .await?
             .ok_or_else(|| {
                 RekallError::unknown_anchor(format!("No task '{task_label}' on project '{project_label}'"))
             });
     }
-    let mut found = repo::task::find_by_label_ignore_case(db, task_label).await?;
+    let mut found = repo::task::find_by_label(db, task_label).await?;
     if found.is_empty() {
         return Err(RekallError::unknown_anchor(format!("No task matches '{task_label}'")));
     }

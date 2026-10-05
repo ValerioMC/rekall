@@ -1,8 +1,7 @@
 //! Rotating copies of the open database in a `backups` folder beside it, and putting one back.
 //!
-//! H2 wrote a backup with `BACKUP TO`; SQLite writes a consistent copy of a live database with
-//! `VACUUM INTO`, which this zips under the database file's own name, so a backup is still one
-//! zip holding one database file.
+//! A backup is a consistent copy of the live database written with `VACUUM INTO`, zipped under
+//! the database file's own name: one zip holding one database file.
 
 mod backup_controller;
 mod backup_file;

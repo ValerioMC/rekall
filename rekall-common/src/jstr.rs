@@ -1,14 +1,12 @@
-//! The `java.lang.String` semantics the domain rules were written against.
+//! The text rules every cap, excerpt and blank check in Rekall is measured with.
 //!
-//! The caps (a wrapup is 20,000 characters, a note 100,000), the truncation points and the
-//! excerpt windows were all measured with `String.length()`, which counts UTF-16 code units, and
-//! the blanks were judged with `strip()`/`isBlank()`, which use `Character.isWhitespace`. Rust's
-//! `len()` counts bytes and `trim()` uses the Unicode `White_Space` property, and both differ on
-//! real text (an accented letter, a non-breaking space, an emoji). These helpers keep the Java
-//! arithmetic, so a limit refuses the same text it refused before.
+//! Lengths and indices count UTF-16 code units, the unit the console's JavaScript counts in, so a
+//! cap (a wrapup is 20,000 characters, a note 100,000) refuses exactly what the console's counter
+//! shows as too long. Rust's `len()` counts bytes and would disagree on any accented letter or
+//! emoji. Blank means only whitespace by `is_whitespace`, which leaves non-breaking spaces out.
 
-/// `Character.isWhitespace`: space, line and paragraph separators except the non-breaking ones,
-/// plus the ASCII controls `\t \n \u000B \f \r` and `\u001C`-`\u001F`.
+/// Space, line and paragraph separators except the non-breaking ones, plus the ASCII controls
+/// `\t \n \u000B \f \r` and `\u001C`-`\u001F`.
 pub fn is_whitespace(c: char) -> bool {
     match c {
         '\t' | '\n' | '\u{000B}' | '\u{000C}' | '\r' | '\u{001C}'..='\u{001F}' => true,
@@ -19,43 +17,43 @@ pub fn is_whitespace(c: char) -> bool {
     }
 }
 
-/// `String.strip()`.
+/// Without leading and trailing whitespace.
 pub fn strip(text: &str) -> &str {
     text.trim_matches(is_whitespace)
 }
 
-/// `String.stripTrailing()`.
+/// Without trailing whitespace.
 pub fn strip_trailing(text: &str) -> &str {
     text.trim_end_matches(is_whitespace)
 }
 
-/// `String.stripLeading()`.
+/// Without leading whitespace.
 pub fn strip_leading(text: &str) -> &str {
     text.trim_start_matches(is_whitespace)
 }
 
-/// `String.isBlank()`.
+/// Empty, or whitespace only.
 pub fn is_blank(text: &str) -> bool {
     text.chars().all(is_whitespace)
 }
 
-/// `Option<String>` read the way `value == null || value.isBlank()` reads.
+/// Absent, empty, or whitespace only.
 pub fn is_null_or_blank(text: Option<&str>) -> bool {
     text.is_none_or(is_blank)
 }
 
-/// `String.trim()`: every code point up to and including U+0020, and nothing else.
+/// Without leading and trailing code points up to and including U+0020, and nothing else.
 pub fn trim(text: &str) -> &str {
     text.trim_matches(|c: char| c <= ' ')
 }
 
-/// `String.length()`: UTF-16 code units.
+/// The length in UTF-16 code units.
 pub fn len(text: &str) -> usize {
     text.chars().map(char::len_utf16).sum()
 }
 
 /// The byte offset of UTF-16 index `index`, clamped to the text. An index inside a surrogate pair
-/// (where Java would split the pair) is moved back to the start of that character.
+/// is moved back to the start of that character, so a cut never splits one.
 fn byte_offset(text: &str, index: usize) -> usize {
     let mut units = 0;
     for (offset, c) in text.char_indices() {
@@ -68,35 +66,35 @@ fn byte_offset(text: &str, index: usize) -> usize {
     text.len()
 }
 
-/// `String.substring(start, end)` in UTF-16 indices, clamped to the text.
+/// The part between UTF-16 indices `start` and `end`, clamped to the text.
 pub fn substring(text: &str, start: usize, end: usize) -> &str {
     let from = byte_offset(text, start);
     let to = byte_offset(text, end).max(from);
     &text[from..to]
 }
 
-/// `String.substring(0, end)`.
+/// The first `end` UTF-16 units.
 pub fn prefix(text: &str, end: usize) -> &str {
     substring(text, 0, end)
 }
 
-/// `String.substring(start)`.
+/// Everything from UTF-16 index `start`.
 pub fn suffix(text: &str, start: usize) -> &str {
     &text[byte_offset(text, start)..]
 }
 
-/// `String.indexOf(needle)` as a UTF-16 index.
+/// Where `needle` first starts, as a UTF-16 index.
 pub fn index_of(text: &str, needle: &str) -> Option<usize> {
     text.find(needle).map(|byte| len(&text[..byte]))
 }
 
-/// `String.indexOf(needle, from)` as a UTF-16 index.
+/// Where `needle` first starts at or after UTF-16 index `from`.
 pub fn index_of_from(text: &str, needle: &str, from: usize) -> Option<usize> {
     let start = byte_offset(text, from);
     text[start..].find(needle).map(|byte| len(&text[..start + byte]))
 }
 
-/// `String.lastIndexOf(needle, from)`: the last match starting at or before UTF-16 index `from`.
+/// Where the last `needle` starts at or before UTF-16 index `from`.
 pub fn last_index_of_from(text: &str, needle: &str, from: usize) -> Option<usize> {
     let limit = byte_offset(text, from);
     let mut best = None;
@@ -109,7 +107,7 @@ pub fn last_index_of_from(text: &str, needle: &str, from: usize) -> Option<usize
     best
 }
 
-/// `text.replaceAll("\\s+", " ")`, where `\s` is Java's ASCII class `[ \t\n\x0B\f\r]`.
+/// Every run of ASCII whitespace (`[ \t\n\x0B\f\r]`) as one space.
 pub fn collapse_whitespace(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     let mut in_run = false;
@@ -127,12 +125,12 @@ pub fn collapse_whitespace(text: &str) -> String {
     out
 }
 
-/// Java regex `\s` without `UNICODE_CHARACTER_CLASS`.
+/// ASCII whitespace: `[ \t\n\x0B\f\r]`.
 pub fn is_ascii_space(c: char) -> bool {
     matches!(c, ' ' | '\t' | '\n' | '\u{000B}' | '\u{000C}' | '\r')
 }
 
-/// `String.lines()`: split on `\n`, `\r` or `\r\n`, with no empty trailing line.
+/// Split on `\n`, `\r` or `\r\n`, with no empty trailing line.
 pub fn lines(text: &str) -> Vec<&str> {
     let mut out = Vec::new();
     let bytes = text.as_bytes();
@@ -159,8 +157,8 @@ pub fn lines(text: &str) -> Vec<&str> {
     out
 }
 
-/// `text.split("\\R")` (with Java's dropping of trailing empty strings when `keep_trailing` is
-/// false, and `split("\\R", -1)` when it is true). `\R` is `\r\n` or any single line break.
+/// Split on `\r\n` or any single line break. Trailing empty parts are dropped unless
+/// `keep_trailing` is set.
 pub fn split_linebreaks(text: &str, keep_trailing: bool) -> Vec<&str> {
     let mut out = Vec::new();
     let mut start = 0;
@@ -192,7 +190,7 @@ pub fn split_linebreaks(text: &str, keep_trailing: bool) -> Vec<&str> {
     out
 }
 
-/// `String.equalsIgnoreCase`: equal after upper-casing and then lower-casing each character.
+/// Equal after upper-casing and then lower-casing each character.
 pub fn equals_ignore_case(a: &str, b: &str) -> bool {
     let mut left = a.chars();
     let mut right = b.chars();
@@ -218,8 +216,8 @@ pub fn equals_ignore_case(a: &str, b: &str) -> bool {
     }
 }
 
-/// `String.CASE_INSENSITIVE_ORDER`: character by character, each upper-cased and then
-/// lower-cased before they are compared, then the shorter first.
+/// Character by character, each upper-cased and then lower-cased before they are compared, then
+/// the shorter first.
 pub fn compare_ignore_case(a: &str, b: &str) -> std::cmp::Ordering {
     let mut left = a.chars();
     let mut right = b.chars();
@@ -258,7 +256,7 @@ fn single_lower(c: char) -> char {
     }
 }
 
-/// `String.toLowerCase()` as the Java code used it (root locale in practice).
+/// Lower case with no locale rules.
 pub fn lower(text: &str) -> String {
     text.to_lowercase()
 }

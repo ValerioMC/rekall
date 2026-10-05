@@ -30,7 +30,7 @@ impl CommitReferenceService {
     /// Every commit logged so far, newest first.
     pub async fn find_all(&self) -> Result<Vec<CommitReferenceView>> {
         in_read!(&self.ctx, |tx| {
-            let all = repo::commit_reference::find_all_by_order_by_created_at_desc(tx.db()).await?;
+            let all = repo::commit_reference::list_newest_first(tx.db()).await?;
             let mut views = Vec::with_capacity(all.len());
             for reference in &all {
                 views.push(CommitReferenceView::load(tx.db(), reference).await?);
@@ -105,7 +105,7 @@ impl CommitReferenceService {
         };
         let step_id = step.as_ref().map(|s| s.id);
 
-        let existing = repo::commit_reference::find_by_task_id_and_commit_hash(tx.db(), task.id, &commit.hash).await?;
+        let existing = repo::commit_reference::find_on_task(tx.db(), task.id, &commit.hash).await?;
         if let Some(found) = existing.into_iter().find(|reference| reference.step_id == step_id) {
             return CommitReferenceView::load(tx.db(), &found).await;
         }

@@ -47,7 +47,6 @@ fn a_zip_with_no_database_two_databases_or_a_file_that_is_not_sqlite_is_refused_
     assert!(refused(&[("notes.md", b"hello")]).contains("no Rekall database file"));
     assert!(refused(&[("a.db", &sqlite("")), ("b.db", &sqlite(""))]).contains("more than one"));
     assert!(refused(&[("rekall.db", b"PK not a database")]).contains("not a SQLite database file"));
-    assert!(refused(&[("rekall.mv.db", b"H:2 data")]).contains("--migrate-from-h2"));
     assert!(!target.exists());
 }
 

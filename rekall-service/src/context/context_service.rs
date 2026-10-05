@@ -36,17 +36,17 @@ impl ContextService {
         };
         match entity_name.to_lowercase().as_str() {
             "company" | "companies" | "azienda" | "aziende" | "cliente" => {
-                match repo::company::find_by_name_ignore_case(tx.db(), value).await? {
+                match repo::company::find_by_name(tx.db(), value).await? {
                     Some(company) => self.render_company(tx, &company).await,
                     None => Err(RekallError::unknown_anchor(format!("No company matches '{value}'"))),
                 }
             }
             "project" | "projects" | "progetto" | "progetti" => {
-                let found = repo::project::find_by_label_ignore_case(tx.db(), value).await?;
+                let found = repo::project::find_by_label(tx.db(), value).await?;
                 self.render_single_project(tx, found, value).await
             }
             "task" | "tasks" | "issue" | "issues" | "attivita" => {
-                let found = repo::task::find_by_label_ignore_case(tx.db(), value).await?;
+                let found = repo::task::find_by_label(tx.db(), value).await?;
                 self.render_single_task(tx, found, value).await
             }
             "note" | "notes" | "nota" | "document" => self.render_single_note(tx, value).await,
@@ -62,7 +62,7 @@ impl ContextService {
     }
 
     pub async fn load_task_in(&self, tx: &Tx, project_label: &str, task_label: &str) -> Result<ContextRecord> {
-        match repo::task::find_by_project_label_ignore_case_and_label_ignore_case(tx.db(), project_label, task_label).await? {
+        match repo::task::find_by_anchor(tx.db(), project_label, task_label).await? {
             Some(task) => self.render_task(tx, &task).await,
             None => Err(RekallError::unknown_anchor(format!(
                 "No task '{task_label}' on project '{project_label}'"
@@ -83,7 +83,7 @@ impl ContextService {
 
     pub async fn load_project(&self, company_name: &str, project_label: &str) -> Result<ContextRecord> {
         in_read!(&self.ctx, |tx| {
-            match repo::project::find_by_company_name_ignore_case_and_label_ignore_case(tx.db(), company_name, project_label)
+            match repo::project::find_by_anchor(tx.db(), company_name, project_label)
                 .await?
             {
                 Some(project) => self.render_project(&tx, &project).await,
@@ -96,13 +96,13 @@ impl ContextService {
 
     async fn load_anywhere(&self, tx: &Tx, value: &str) -> Result<ContextRecord> {
         let mut matches = Vec::new();
-        if let Some(company) = repo::company::find_by_name_ignore_case(tx.db(), value).await? {
+        if let Some(company) = repo::company::find_by_name(tx.db(), value).await? {
             matches.push(self.render_company(tx, &company).await?);
         }
-        for project in repo::project::find_by_label_ignore_case(tx.db(), value).await? {
+        for project in repo::project::find_by_label(tx.db(), value).await? {
             matches.push(self.render_project(tx, &project).await?);
         }
-        for task in repo::task::find_by_label_ignore_case(tx.db(), value).await? {
+        for task in repo::task::find_by_label(tx.db(), value).await? {
             matches.push(self.render_task(tx, &task).await?);
         }
         if matches.is_empty() {
@@ -157,7 +157,7 @@ impl ContextService {
                  `note:` and the first {ANCHOR_ID_LENGTH} characters of its id."
             )));
         }
-        let found = repo::document::find_by_id_prefix(tx.db(), &prefix).await?;
+        let found = repo::document::find_by_anchor_prefix(tx.db(), &prefix).await?;
         if found.is_empty() {
             return Err(RekallError::unknown_anchor(format!("No note matches '{value}'")));
         }
@@ -178,7 +178,7 @@ impl ContextService {
     }
 
     async fn render_company(&self, tx: &Tx, company: &company::Model) -> Result<ContextRecord> {
-        let projects = repo::project::find_by_company_id_order_by_label_asc(tx.db(), company.id).await?;
+        let projects = repo::project::list_of_company(tx.db(), company.id).await?;
         Ok(ContextRecord {
             kind: "Company".into(),
             label: company.name.clone(),
@@ -201,7 +201,7 @@ impl ContextService {
             ));
         }
         let company = company_of(tx, project).await?;
-        let tasks = repo::task::find_by_project_id_order_by_label_asc(tx.db(), project.id).await?;
+        let tasks = repo::task::list_of_project(tx.db(), project.id).await?;
         Ok(ContextRecord {
             kind: "Project".into(),
             label: project.title.clone(),
@@ -277,7 +277,7 @@ impl ContextService {
     /// Only the commits the console marked for the context, oldest logged first.
     async fn commits_of(&self, tx: &Tx, task: &task::Model) -> Result<Vec<ContextCommitView>> {
         let references =
-            repo::commit_reference::find_by_task_id_and_in_context_true_order_by_created_at_asc(tx.db(), task.id).await?;
+            repo::commit_reference::list_in_context_of_task(tx.db(), task.id).await?;
         let mut out = Vec::with_capacity(references.len());
         for reference in &references {
             let step = match reference.step_id {

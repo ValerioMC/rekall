@@ -8,7 +8,7 @@ fn config(home: &Path, working_dir: &Path) -> AppConfig {
 }
 
 #[test]
-fn nothing_registered_and_no_legacy_folder_is_the_setup_screen_on_memory() {
+fn nothing_registered_and_no_data_folder_is_the_setup_screen_on_memory() {
     let home = tempfile::tempdir().unwrap();
     let work = tempfile::tempdir().unwrap();
     let resolved = resolve(&config(home.path(), work.path())).unwrap();
@@ -16,11 +16,11 @@ fn nothing_registered_and_no_legacy_folder_is_the_setup_screen_on_memory() {
 }
 
 #[test]
-fn a_legacy_data_folder_is_adopted_as_local_and_opened() {
+fn a_data_folder_beside_the_app_holding_a_database_is_adopted_as_local_and_opened() {
     let home = tempfile::tempdir().unwrap();
     let work = tempfile::tempdir().unwrap();
     std::fs::create_dir_all(work.path().join("data")).unwrap();
-    std::fs::File::create(work.path().join("data/rekall.mv.db")).unwrap();
+    std::fs::File::create(work.path().join("data/rekall.db")).unwrap();
 
     let resolved = resolve(&config(home.path(), work.path())).unwrap();
     assert_eq!(resolved.status, SetupStatus::Ready);

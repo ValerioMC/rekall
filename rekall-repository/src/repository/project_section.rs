@@ -7,7 +7,7 @@ pub async fn find_by_id(db: &impl ConnectionTrait, id: Id) -> Result<Option<Mode
 }
 
 /// A project's sections in the order the console shows them.
-pub async fn find_by_project_id_order_by_position_asc(db: &impl ConnectionTrait, project_id: Id) -> Result<Vec<Model>, RekallError> {
+pub async fn list_of_project(db: &impl ConnectionTrait, project_id: Id) -> Result<Vec<Model>, RekallError> {
     Ok(Entity::find()
         .filter(Column::ProjectId.eq(project_id))
         .order_by_asc(Column::Position)

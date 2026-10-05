@@ -107,7 +107,7 @@ fn is_loopback_name(host: &str) -> bool {
     LOOPBACK_NAMES.contains(&name.as_str()) || IPV4_LOOPBACK.is_match(&name)
 }
 
-/// `scheme://authority/...` split as `java.net.URI` would, for the two parts the checks need.
+/// `scheme://authority/...` split into the two parts the checks need.
 struct Origin {
     scheme: String,
     authority: String,

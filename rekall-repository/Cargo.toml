@@ -27,3 +27,7 @@ path = "tests/integration/migrations.rs"
 [[test]]
 name = "stamped_update"
 path = "tests/integration/stamped_update.rs"
+
+[[test]]
+name = "queries"
+path = "tests/integration/queries.rs"

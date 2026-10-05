@@ -111,6 +111,34 @@ async fn a_label_with_nothing_usable_left_in_it_is_refused_as_a_bad_request() {
 }
 
 #[tokio::test]
+async fn two_companies_cannot_share_a_name_in_any_case_and_a_rename_to_its_own_name_is_fine() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+
+    let second = app.post("/api/companies", json!({ "name": "ACME" })).await;
+    let renamed = app.put(&format!("/api/companies/{acme}"), json!({ "name": "Acme", "description": "same name" })).await;
+
+    assert_eq!(second.status, 409);
+    assert_contains!(second.detail(), "already exists");
+    assert_eq!(renamed.status, 200);
+}
+
+#[tokio::test]
+async fn two_projects_of_one_company_cannot_share_a_label_but_two_companies_can() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let globex = app.a_company("Globex").await;
+    app.a_project(&acme, "website", "ACTIVE").await;
+
+    let clash = app.post("/api/projects", json!({ "label": "website", "title": "Again", "status": "ACTIVE", "companyId": acme })).await;
+    let elsewhere = app.post("/api/projects", json!({ "label": "website", "title": "Theirs", "status": "ACTIVE", "companyId": globex })).await;
+
+    assert_eq!(clash.status, 409);
+    assert_contains!(clash.detail(), "already uses that label");
+    assert_eq!(elsewhere.status, 201);
+}
+
+#[tokio::test]
 async fn two_tasks_on_one_project_cannot_share_a_label_and_the_refusal_says_why() {
     let app = app().await;
     let acme = app.a_company("Acme").await;

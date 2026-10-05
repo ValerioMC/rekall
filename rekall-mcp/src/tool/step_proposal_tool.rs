@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use rekall_service::Services;
+use rekall_service::step::TaskStepService;
 use serde_json::Value;
 
 use super::{told, Anchor, AnchoredTask, Arguments, QUALIFY_WITH_PROJECT};
@@ -9,12 +9,12 @@ use crate::texts;
 /// Lets a planning session put the checklist it proposes on the task, as drafts. It can only ever
 /// create a draft: nothing it writes is work until a person promotes it in the console.
 pub struct StepProposalTool {
-    services: Services,
+    steps: TaskStepService,
 }
 
 impl StepProposalTool {
-    pub fn new(services: Services) -> Self {
-        Self { services }
+    pub fn new(steps: TaskStepService) -> Self {
+        Self { steps }
     }
 }
 
@@ -53,7 +53,6 @@ impl McpTool for StepProposalTool {
         let title = args.required_string("title")?;
         let detail = args.optional_string("detail");
         let proposed = self
-            .services
             .steps
             .propose(target.project_label.as_deref(), &target.task_label, Some(&title), detail.as_deref())
             .await

@@ -20,25 +20,25 @@ pub fn routes() -> Router<ApiState> {
 }
 
 async fn list(State(state): State<ApiState>) -> ApiResult<Json<Vec<DiagramSummaryView>>> {
-    Ok(Json(state.services.diagrams.list().await?))
+    Ok(Json(state.diagrams.list().await?))
 }
 
 async fn get_one(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Json<DiagramView>> {
-    Ok(Json(state.services.diagrams.get(uuid("id", &id)?).await?))
+    Ok(Json(state.diagrams.get(uuid("id", &id)?).await?))
 }
 
 async fn create(State(state): State<ApiState>, JsonBody(request): JsonBody<DiagramRequest>) -> ApiResult<Response> {
     let draft = draft_of(None, request)?;
-    Ok(created(state.services.diagrams.write(draft).await?))
+    Ok(created(state.diagrams.write(draft).await?))
 }
 
 async fn replace(State(state): State<ApiState>, Path(id): Path<String>, JsonBody(request): JsonBody<DiagramRequest>) -> ApiResult<Json<DiagramView>> {
     let draft = draft_of(Some(uuid("id", &id)?), request)?;
-    Ok(Json(state.services.diagrams.write(draft).await?))
+    Ok(Json(state.diagrams.write(draft).await?))
 }
 
 async fn delete(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Response> {
-    state.diagrams.delete(uuid("id", &id)?).await?;
+    state.diagram_catalog.delete(uuid("id", &id)?).await?;
     Ok(no_content())
 }
 
@@ -50,7 +50,7 @@ async fn source(State(state): State<ApiState>, Path(id): Path<String>, Query(que
 async fn trace(State(state): State<ApiState>, Path(id): Path<String>, Query(query): Query<DiagramTraceQuery>) -> ApiResult<Json<Vec<DiagramTraceView>>> {
     let file = required(query.file.filter(|file| !jstr::is_blank(file)))?;
     let line = required(query.line)?;
-    Ok(Json(state.services.diagrams.trace(uuid("id", &id)?, &file, line).await?))
+    Ok(Json(state.diagrams.trace(uuid("id", &id)?, &file, line).await?))
 }
 
 fn draft_of(id: Option<rekall_common::Id>, request: DiagramRequest) -> ApiResult<DiagramDraft> {

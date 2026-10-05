@@ -4,7 +4,7 @@ use serde::de::DeserializeOwned;
 
 use crate::error::ApiError;
 
-/// `@RequestBody(required = false)`: an absent body reads as null.
+/// An optional JSON body: an absent one reads as `None`.
 pub struct OptionalJsonBody<T>(pub Option<T>);
 
 impl<S, T> FromRequest<S> for OptionalJsonBody<T>

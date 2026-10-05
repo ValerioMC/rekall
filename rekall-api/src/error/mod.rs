@@ -1,7 +1,7 @@
-//! Every failure a handler returns becomes an RFC 9457 problem, its status chosen by the kind
-//! of `RekallError` and the request path as `instance`. Failures raised before a handler runs (a
-//! missing query parameter, a path nothing answers, a method nothing takes) are a small JSON
-//! status instead: `timestamp`, `status`, `error`, `path`.
+//! Every failure becomes an RFC 9457 problem with the request path as `instance`: a handler's
+//! with its status chosen by the kind of `RekallError`, and one raised before a handler runs (a
+//! missing query parameter, a path nothing answers, a method nothing takes) with its status's
+//! reason as the detail.
 
 mod api_error;
 mod error_renderer;

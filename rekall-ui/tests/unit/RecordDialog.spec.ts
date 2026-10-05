@@ -3,7 +3,7 @@ import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import RecordDialog from '@/components/console/RecordDialog.vue'
 import { useConsoleStore } from '@/stores/console.store'
-import { projectDraft, taskDraft } from '@/model/record-draft'
+import { projectDraft, taskDraft, type RecordDraft } from '@/model/record-draft'
 import type { Project, Task } from '@/model/catalog'
 import type { CompanyId, ProjectId } from '@/model/branded'
 
@@ -122,5 +122,95 @@ describe('RecordDialog project icon image', () => {
 
     expect(dialog.get('[role="alert"]').text()).toContain('10 MB')
     expect(store.setProjectIconImage).not.toHaveBeenCalled()
+  })
+})
+
+describe('RecordDialog identity fields', () => {
+  function renderNewTask(): VueWrapper {
+    const store = useConsoleStore()
+    store.projects = [{ id: projectId, anchor: 'project:vega' } as Project]
+    wrapper = mount(RecordDialog, {
+      attachTo: document.body,
+      props: { draft: taskDraft(projectId) },
+      global: { plugins: [pinia] }
+    })
+    return wrapper
+  }
+
+  it('fills the label from the title until the label is typed in', async () => {
+    const dialog = renderNewTask()
+
+    await dialog.get('[data-testid="record-title"]').setValue('Report Builder')
+    expect((dialog.get('[data-testid="record-label"]').element as HTMLInputElement).value).toBe('report-builder')
+
+    await dialog.get('[data-testid="record-label"]').setValue('rb')
+    await dialog.get('[data-testid="record-title"]').setValue('Report Builder v2')
+    expect((dialog.get('[data-testid="record-label"]').element as HTMLInputElement).value).toBe('rb')
+  })
+
+  it('previews the anchor the record will load under, parent first', async () => {
+    const dialog = renderNewTask()
+
+    await dialog.get('[data-testid="record-title"]').setValue('Report Builder')
+
+    expect(dialog.get('[data-testid="anchor-preview"]').text()).toContain('project:vega task:report-builder')
+  })
+
+  it('warns that renaming the label moves the anchor of an existing record', async () => {
+    const store = useConsoleStore()
+    store.projects = [{ id: projectId, anchor: 'project:vega' } as Project]
+    wrapper = mount(RecordDialog, {
+      attachTo: document.body,
+      props: { draft: { ...taskDraft(projectId), id: 't1', title: 'Report', label: 'report' } as RecordDraft },
+      global: { plugins: [pinia] }
+    })
+    expect(wrapper.find('[data-testid="rename-warning"]').exists()).toBe(false)
+
+    await wrapper.get('[data-testid="record-label"]').setValue('report-builder')
+
+    expect(wrapper.get('[data-testid="rename-warning"]').text()).toContain('task:report')
+  })
+
+  it('refuses to save without a title and says why', async () => {
+    const store = useConsoleStore()
+    store.createTask = vi.fn()
+    const dialog = renderNewTask()
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', metaKey: true }))
+    await flushPromises()
+
+    expect(store.createTask).not.toHaveBeenCalled()
+    expect(dialog.get('[role="alert"]').text()).toBe('A title is required.')
+  })
+})
+
+describe('RecordDialog task tag and keys', () => {
+  it('creates the task with the tag picked', async () => {
+    const store = useConsoleStore()
+    store.tags = [{ id: 'g1', name: 'Bug', icon: 'bug', color: 'red' } as (typeof store.tags)[number]]
+    store.createTask = vi.fn().mockResolvedValue({} as Task)
+    const dialog = render()
+
+    const bug = dialog.findAll('[data-testid="record-tag-picker"] button').find((button) => button.text() === 'Bug')!
+    await bug.trigger('click')
+    await dialog.get('[data-testid="record-save"]').trigger('click')
+    await flushPromises()
+
+    expect(store.createTask).toHaveBeenCalledWith(expect.objectContaining({ tagId: 'g1', label: 'report-builder' }))
+  })
+
+  it('closes on Escape', async () => {
+    const dialog = render()
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+
+    expect(dialog.emitted('close')).toHaveLength(1)
+  })
+
+  it('focuses the title when it opens', async () => {
+    render()
+    await flushPromises()
+
+    expect((document.activeElement as HTMLElement | null)?.dataset.testid).toBe('record-title')
   })
 })

@@ -1,6 +1,6 @@
 use rekall_common::RekallError;
 
-/// A method's handler failed: `IllegalArgumentException` became `-32602`, anything else `-32603`.
+/// A method's handler failed: a broken rule is `-32602` (invalid params), anything else `-32603`.
 pub(super) enum Failure {
     Illegal(String),
     Other(RekallError),

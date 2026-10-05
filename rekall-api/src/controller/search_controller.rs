@@ -12,5 +12,5 @@ pub fn routes() -> Router<ApiState> {
 }
 
 async fn search(State(state): State<ApiState>, Query(query): Query<SearchQuery>) -> ApiResult<Json<Vec<SearchHit>>> {
-    Ok(Json(state.services.search.search(Some(query.q.as_deref().unwrap_or(""))).await?))
+    Ok(Json(state.search.search(Some(query.q.as_deref().unwrap_or(""))).await?))
 }

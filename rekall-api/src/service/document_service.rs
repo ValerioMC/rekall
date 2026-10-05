@@ -4,7 +4,7 @@ use rekall_common::{Id, RekallError, Result};
 use rekall_model::note_scope::NoteScope;
 use rekall_model::{document, document_task, DocumentContextMode};
 use rekall_repository::repository as repo;
-use rekall_service::{in_read, in_write, Services, Tx};
+use rekall_service::{in_read, in_write, Ctx, Tx};
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, IntoActiveModel, QueryFilter};
 
 use super::Snapshot;
@@ -12,26 +12,22 @@ use crate::dto::{DocumentRequest, DocumentResponse};
 
 #[derive(Clone)]
 pub struct DocumentService {
-    services: Services,
+    ctx: Ctx,
 }
 
 impl DocumentService {
-    pub fn new(services: Services) -> Self {
-        Self { services }
-    }
-
-    fn ctx(&self) -> &rekall_service::Ctx {
-        &self.services.ctx
+    pub fn new(ctx: Ctx) -> Self {
+        Self { ctx }
     }
 
     pub async fn list(&self, task_id: Option<Id>, project_id: Option<Id>) -> Result<Vec<DocumentResponse>> {
-        in_read!(self.ctx(), |tx| {
+        in_read!(&self.ctx, |tx| {
             let found = if let Some(task_id) = task_id {
-                repo::document::find_by_tasks_id_order_by_title_asc(tx.db(), task_id).await?
+                repo::document::notes_of_task_by_title(tx.db(), task_id).await?
             } else if let Some(project_id) = project_id {
-                repo::document::find_by_project(tx.db(), project_id).await?
+                repo::document::list_on_project_tasks(tx.db(), project_id).await?
             } else {
-                repo::document::find_all_by_order_by_updated_at_desc(tx.db()).await?
+                repo::document::list_newest_first(tx.db()).await?
             };
             responses(&tx, &found).await
         })
@@ -41,15 +37,15 @@ impl DocumentService {
         let Some(term) = term.filter(|t| !rekall_common::jstr::is_blank(t)) else {
             return Ok(Vec::new());
         };
-        in_read!(self.ctx(), |tx| {
-            let found = repo::document::search(tx.db(), rekall_common::jstr::trim(term)).await?;
+        in_read!(&self.ctx, |tx| {
+            let found = repo::document::search_by_title(tx.db(), rekall_common::jstr::trim(term)).await?;
             responses(&tx, &found).await
         })
     }
 
     pub async fn create(&self, request: DocumentRequest) -> Result<DocumentResponse> {
-        in_write!(self.ctx(), |tx| {
-            let now = self.ctx().now();
+        in_write!(&self.ctx, |tx| {
+            let now = self.ctx.now();
             let mut document = document::Model {
                 id: Id::random(),
                 title: request.title.clone().unwrap_or_default(),
@@ -65,26 +61,21 @@ impl DocumentService {
             if let Some(mode) = request.context_mode {
                 document.context_mode = mode;
             }
-            let snapshot = Snapshot::load(tx.db()).await?;
-            let wanted = resolve(&snapshot, request.task_ids.as_deref())?;
+            let requested = request.task_ids.as_deref().unwrap_or_default();
+            let snapshot = Snapshot::for_task_refs(tx.db(), requested).await?;
+            let wanted = resolve(&snapshot, requested)?;
             let scope = request.scope.unwrap_or_else(|| NoteScope::narrowest(&places(&snapshot, &wanted)));
+            require_scope_owner(&tx, scope).await?;
             settle_scope(&snapshot, &mut document, scope, &wanted)?;
             document.validate()?;
             document.clone().into_active_model().insert(tx.db()).await?;
             link(&tx, document.id, &wanted).await?;
-            // A note just created still holds the `LinkedHashSet` it was built with.
-            let mut tasks = Vec::new();
-            for link in repo::document::links_of_document(tx.db(), document.id).await? {
-                if let Some(task) = snapshot.tasks.get(&link.task_id) {
-                    tasks.push(snapshot.task_ref(task)?);
-                }
-            }
-            Ok::<_, RekallError>(DocumentResponse::of(&document, tasks))
+            response(&tx, &document).await
         })
     }
 
     pub async fn update(&self, id: Id, request: DocumentRequest) -> Result<DocumentResponse> {
-        in_write!(self.ctx(), |tx| {
+        in_write!(&self.ctx, |tx| {
             let before = require(&tx, id).await?;
             let mut document = before.clone();
             document.title = request.title.clone().unwrap_or_default();
@@ -93,17 +84,20 @@ impl DocumentService {
             if let Some(mode) = request.context_mode {
                 document.context_mode = mode;
             }
-            let snapshot = Snapshot::load(tx.db()).await?;
-            let wanted = resolve(&snapshot, request.task_ids.as_deref())?;
-            settle_scope(&snapshot, &mut document, request.scope.unwrap_or(before.scope()), &wanted)?;
+            let requested = request.task_ids.as_deref().unwrap_or_default();
+            let snapshot = Snapshot::for_task_refs(tx.db(), requested).await?;
+            let wanted = resolve(&snapshot, requested)?;
+            let scope = request.scope.unwrap_or(before.scope());
+            require_scope_owner(&tx, scope).await?;
+            settle_scope(&snapshot, &mut document, scope, &wanted)?;
             link(&tx, document.id, &wanted).await?;
-            let document = repo::update_if_changed(tx.db(), &before, document, self.ctx().now()).await?;
+            let document = repo::update_if_changed(tx.db(), &before, document, self.ctx.now()).await?;
             response(&tx, &document).await
         })
     }
 
     pub async fn delete(&self, id: Id) -> Result<()> {
-        in_write!(self.ctx(), |tx| {
+        in_write!(&self.ctx, |tx| {
             let document = require(&tx, id).await?;
             for link in repo::document::links_of_document(tx.db(), document.id).await? {
                 detach(&tx, document.id, link.task_id).await?;
@@ -123,9 +117,9 @@ async fn require(tx: &Tx, id: Id) -> Result<document::Model> {
 }
 
 /// The tasks a note is to be on, each required to exist. None is fine: its scope keeps it.
-fn resolve(snapshot: &Snapshot, task_ids: Option<&[Id]>) -> Result<Vec<Id>> {
+fn resolve(snapshot: &Snapshot, task_ids: &[Id]) -> Result<Vec<Id>> {
     let mut resolved = Vec::new();
-    for id in task_ids.unwrap_or_default() {
+    for id in task_ids {
         let task = snapshot.tasks.get(id).ok_or_else(|| RekallError::not_found("Task", *id))?;
         if !resolved.contains(&task.id) {
             resolved.push(task.id);
@@ -143,19 +137,18 @@ fn places(snapshot: &Snapshot, task_ids: &[Id]) -> Vec<(Id, Id)> {
         .collect()
 }
 
-/// Gives the note its scope once the owner exists and every task it is to be on sits inside it.
-/// A task outside is refused rather than dropped, so narrowing a scope never unlinks silently.
-fn settle_scope(snapshot: &Snapshot, document: &mut document::Model, scope: NoteScope, wanted: &[Id]) -> Result<()> {
+/// The company or project a scope names has to exist.
+async fn require_scope_owner(tx: &Tx, scope: NoteScope) -> Result<()> {
     match scope {
-        NoteScope::Global => {}
-        NoteScope::Company { id } if !snapshot.companies.contains_key(&id) => {
-            return Err(RekallError::not_found("Company", id));
-        }
-        NoteScope::Project { id } if !snapshot.projects.contains_key(&id) => {
-            return Err(RekallError::not_found("Project", id));
-        }
-        _ => {}
+        NoteScope::Global => Ok(()),
+        NoteScope::Company { id } => repo::company::require(tx.db(), id).await.map(|_| ()),
+        NoteScope::Project { id } => repo::project::require(tx.db(), id).await.map(|_| ()),
     }
+}
+
+/// Gives the note its scope once every task it is to be on sits inside it. A task outside is
+/// refused rather than dropped, so narrowing a scope never unlinks silently.
+fn settle_scope(snapshot: &Snapshot, document: &mut document::Model, scope: NoteScope, wanted: &[Id]) -> Result<()> {
     let outside: Vec<String> = wanted
         .iter()
         .filter_map(|id| snapshot.tasks.get(id))
@@ -200,8 +193,7 @@ async fn link(tx: &Tx, document_id: Id, wanted: &[Id]) -> Result<()> {
     Ok(())
 }
 
-/// `Task.detach`: the link goes, and the notes after it on that task move up one place, as the
-/// `@OrderColumn` was rewritten.
+/// The link goes, and the notes after it on that task move up one place, so positions stay dense.
 pub(crate) async fn detach(tx: &Tx, document_id: Id, task_id: Id) -> Result<()> {
     document_task::Entity::delete_many()
         .filter(document_task::Column::DocumentId.eq(document_id))
@@ -226,11 +218,16 @@ async fn responses(tx: &Tx, documents: &[document::Model]) -> Result<Vec<Documen
     if documents.is_empty() {
         return Ok(Vec::new());
     }
-    let snapshot = Snapshot::load(tx.db()).await?;
-    let mut out = Vec::with_capacity(documents.len());
+    let mut links_per_document = Vec::with_capacity(documents.len());
     for document in documents {
+        links_per_document.push(repo::document::links_of_document(tx.db(), document.id).await?);
+    }
+    let task_ids: Vec<Id> = links_per_document.iter().flatten().map(|link| link.task_id).collect();
+    let snapshot = Snapshot::for_task_refs(tx.db(), &task_ids).await?;
+    let mut out = Vec::with_capacity(documents.len());
+    for (document, links) in documents.iter().zip(&links_per_document) {
         let mut tasks = Vec::new();
-        for link in repo::document::links_of_document(tx.db(), document.id).await? {
+        for link in links {
             if let Some(task) = snapshot.tasks.get(&link.task_id) {
                 tasks.push(snapshot.task_ref(task)?);
             }

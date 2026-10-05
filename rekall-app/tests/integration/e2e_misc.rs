@@ -58,15 +58,6 @@ async fn deleting_a_company_takes_its_projects_and_tasks_and_sweeps_the_orphaned
     assert_eq!(app.count("SELECT COUNT(*) FROM document", vec![]).await, 0, "the notes had nothing left to hang from");
 }
 
-/// The Java test ran the migration's `REGEXP_REPLACE` on H2 itself; SQLite has no regex, so the
-/// migration does the same in Rust, and this runs that.
-#[test]
-fn the_migrations_normalising_expression_turns_a_legacy_name_into_a_label() {
-    for (legacy, expected) in [("Vega", "vega"), ("Progetto Vega", "progetto-vega"), ("../../etc", "etc"), ("a/b/c", "a-b-c")] {
-        assert_eq!(rekall_repository::migration::legacy_label(legacy), expected, "{legacy}");
-    }
-}
-
 #[tokio::test]
 async fn a_project_cannot_exist_without_a_company() {
     let app = app().await;

@@ -6,6 +6,7 @@ mod move_request;
 mod queue_controller;
 mod run_queue_item_view;
 mod run_queue_runner;
+mod run_queue_worker;
 mod run_queue_service;
 mod run_queue_view;
 mod settings_request;

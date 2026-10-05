@@ -1,8 +1,7 @@
 use async_trait::async_trait;
 use rekall_model::TaskStepState;
-use rekall_service::commit::AutoCommitOutcome;
-use rekall_service::step::TaskStepView;
-use rekall_service::Services;
+use rekall_service::commit::{AutoCommitOutcome, AutoCommitService};
+use rekall_service::step::{TaskStepService, TaskStepView};
 use serde_json::Value;
 
 use super::{told, Anchor, AnchoredTask, Arguments, QUALIFY_WITH_PROJECT};
@@ -10,12 +9,13 @@ use crate::protocol::{McpTool, ToolError, ToolSchema};
 use crate::texts;
 
 pub struct StepStateTool {
-    services: Services,
+    auto_commit: AutoCommitService,
+    steps: TaskStepService,
 }
 
 impl StepStateTool {
-    pub fn new(services: Services) -> Self {
-        Self { services }
+    pub fn new(auto_commit: AutoCommitService, steps: TaskStepService) -> Self {
+        Self { auto_commit, steps }
     }
 
     async fn report(
@@ -26,7 +26,7 @@ impl StepStateTool {
         committed: Option<&AutoCommitOutcome>,
     ) -> Result<String, ToolError> {
         let anchor = target.anchor();
-        let all = self.services.steps.find_by_task(moved.task_id).await?;
+        let all = self.steps.find_by_task(moved.task_id).await?;
         let one_based = moved.position + 1;
         let mut out = format!(
             "Step {one_based} \"{}\" on `{anchor}` is now `{}`.\n",
@@ -123,14 +123,13 @@ impl McpTool for StepStateTool {
         let requested = parse_state(&raw_state)?;
 
         let moved = self
-            .services
             .steps
             .transition(target.project_label.as_deref(), &target.task_label, Some(&step_ref), requested)
             .await
             .map_err(|e| told(e, QUALIFY_WITH_PROJECT))?;
 
         let committed = if moved.state == TaskStepState::Claimed {
-            Some(self.services.auto_commit.after_step_claim(moved.task_id, moved.id, commit_message.as_deref()).await?)
+            Some(self.auto_commit.after_step_claim(moved.task_id, moved.id, commit_message.as_deref()).await?)
         } else {
             None
         };

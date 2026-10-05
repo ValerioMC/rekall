@@ -9,7 +9,6 @@ use tracing::{error, info, warn};
 use crate::bootstrap::location;
 use crate::config::{AppConfig, DatabaseOverride};
 use crate::restart::{self, Restarter, RESTART_DELAY};
-use crate::h2;
 
 use super::{Instance, Running, StartOptions};
 
@@ -129,41 +128,20 @@ async fn open_instance(
     Ok((Instance::build(config, database, resolved.status, restarter, port, options), requests))
 }
 
-/// A file that is not there yet but has the Java build's H2 database beside it is imported from
-/// it first. An import that fails leaves the application on an in-memory database, with the
-/// reason in the log, rather than an empty file over the person's data.
+/// The database the configuration names: in memory, or the file, created with its folder if absent.
 pub async fn open_database(target: &DatabaseOverride) -> Result<Database, String> {
     match target {
         DatabaseOverride::Memory => rekall_repository::open_in_memory().await.map_err(|e| e.to_string()),
         DatabaseOverride::File(path) => {
-            if !path.exists() {
-                if let Some(legacy) = h2::legacy_file_beside(path) {
-                    info!("{} holds the Java build's H2 database; importing it into {}", legacy.display(), path.display());
-                    let (source, target) = (legacy.clone(), path.clone());
-                    let imported = tokio::task::spawn_blocking(move || h2::Importer::locate()?.import_blocking(&source, &target))
-                        .await
-                        .map_err(|e| e.to_string())
-                        .and_then(|r| r);
-                    if let Err(failed) = imported {
-                        error!(
-                            "Could not import {}: {failed}. Running on an empty in-memory database instead; \
-                             run `rekall-server --migrate-from-h2 {}` to import it by hand.",
-                            legacy.display(),
-                            legacy.display()
-                        );
-                        return rekall_repository::open_in_memory().await.map_err(|e| e.to_string());
-                    }
-                }
-            }
             if let Some(parent) = path.parent() {
-                let _ = std::fs::create_dir_all(parent);
+                std::fs::create_dir_all(parent).map_err(|e| format!("Could not create {}: {e}", parent.display()))?;
             }
             rekall_repository::open(path).await.map_err(|e| format!("Could not open {}: {e}", path.display()))
         }
     }
 }
 
-/// Every interface, IPv6 and IPv4 on one socket where the system allows it, as Tomcat did.
+/// Every interface, IPv6 and IPv4 on one socket where the system allows it.
 fn bind(port: u16) -> Result<std::net::TcpListener, String> {
     use socket2::{Domain, Protocol, Socket, Type};
     let dual = (|| -> std::io::Result<Socket> {

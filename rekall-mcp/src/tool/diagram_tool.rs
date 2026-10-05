@@ -1,7 +1,6 @@
 use async_trait::async_trait;
 use rekall_common::Id;
 use rekall_service::diagram::{DiagramService, GeneratedDiagram, GeneratedDiagramView};
-use rekall_service::Services;
 use serde_json::Value;
 
 use super::{told, Anchor, AnchoredTask, Arguments, QUALIFY_WITH_PROJECT};
@@ -11,12 +10,12 @@ use crate::texts;
 /// Stores the Semantic Graph a session generated for a task. It writes a graph whole, new or in
 /// place of one it names, and never decides how the graph is drawn: that is the console's.
 pub struct DiagramTool {
-    services: Services,
+    diagrams: DiagramService,
 }
 
 impl DiagramTool {
-    pub fn new(services: Services) -> Self {
-        Self { services }
+    pub fn new(diagrams: DiagramService) -> Self {
+        Self { diagrams }
     }
 }
 
@@ -65,7 +64,7 @@ impl McpTool for DiagramTool {
             question: args.required_string("question")?,
             graph: DiagramService::read_graph(graph_document(args.value("graph"))?).map_err(|e| told(e, ""))?,
         };
-        let written = self.services.diagrams.write_generated(generated).await.map_err(|e| told(e, QUALIFY_WITH_PROJECT))?;
+        let written = self.diagrams.write_generated(generated).await.map_err(|e| told(e, QUALIFY_WITH_PROJECT))?;
         Ok(written_report(&written))
     }
 }

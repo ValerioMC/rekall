@@ -52,12 +52,9 @@ jobs:
       - name: Build
         run: pnpm build
 
-  # Every crate's tests. Java and the H2 jar are there only so the legacy H2 import tests run
-  # instead of skipping: reading an H2 file needs H2's own jar.
+  # Every crate's tests.
   backend:
     runs-on: ubuntu-latest
-    env:
-      REKALL_H2_JAR: ${{ github.workspace }}/.h2/h2-2.4.240.jar
     steps:
       - uses: actions/checkout@v4
 
@@ -66,14 +63,6 @@ jobs:
           components: clippy
 
       - uses: Swatinem/rust-cache@v2
-
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: "25"
-
-      - name: H2 jar for the import tests
-        run: curl -sSfL --create-dirs -o "$REKALL_H2_JAR" https://repo1.maven.org/maven2/com/h2database/h2/2.4.240/h2-2.4.240.jar
 
       - name: clippy
         run: cargo clippy --all-targets

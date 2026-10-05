@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use rekall_service::Services;
+use rekall_service::commit::CommitReferenceService;
 use serde_json::Value;
 
 use super::{told, Anchor, AnchoredTask, Arguments, QUALIFY_WITH_PROJECT};
@@ -7,12 +7,12 @@ use crate::protocol::{McpTool, ToolError, ToolSchema};
 use crate::texts;
 
 pub struct CommitReferenceTool {
-    services: Services,
+    commit_references: CommitReferenceService,
 }
 
 impl CommitReferenceTool {
-    pub fn new(services: Services) -> Self {
-        Self { services }
+    pub fn new(commit_references: CommitReferenceService) -> Self {
+        Self { commit_references }
     }
 }
 
@@ -56,7 +56,6 @@ impl McpTool for CommitReferenceTool {
         let step = args.optional_string("step");
         let commit = args.optional_string("commit");
         let logged = self
-            .services
             .commit_references
             .record_commit_by_anchor(target.project_label.as_deref(), &target.task_label, step.as_deref(), commit.as_deref())
             .await

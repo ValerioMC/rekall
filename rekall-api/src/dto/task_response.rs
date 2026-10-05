@@ -54,7 +54,7 @@ impl TaskResponse {
             step_count: graph.steps.iter().filter(|s| !s.state.draft()).count(),
             steps_done: graph.steps.iter().filter(|s| s.is_done()).count(),
             draft_step_count: graph.steps.iter().filter(|s| s.state.draft()).count(),
-            has_wrapup: graph.wrapup.is_some(),
+            has_wrapup: graph.has_wrapup,
             review_state: task.review_state,
             review_active: rekall_model::task::review_active(graph.steps.iter().map(|s| &s.state)),
             claimed_at: task.claimed_at,

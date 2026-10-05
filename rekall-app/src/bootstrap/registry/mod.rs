@@ -1,6 +1,6 @@
 //! `~/.rekall/config.json`: every database folder a person has registered and which one is in
-//! use. The file is shared with the Java build, which reads it with Jackson, so the shape is the
-//! records' own: `{"activeId": ..., "databases": [{"id", "label", "path", "addedAt", "lastUsedAt"}]}`.
+//! use. Its shape is fixed, since files written by every earlier release are read as they are:
+//! `{"activeId": ..., "databases": [{"id", "label", "path", "addedAt", "lastUsedAt"}]}`.
 
 mod database_entry;
 mod database_registry;

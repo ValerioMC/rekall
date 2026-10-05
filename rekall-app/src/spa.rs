@@ -1,7 +1,6 @@
-//! The console: `rekall-ui/dist` served as static files, built into the binary the way the jar
-//! carried it under `classpath:/static`, and `SinglePageApplicationRouting`'s forwards so a
-//! refresh on a client-side route gets the application rather than a 404. A path nothing answers
-//! is Spring Boot's 404, whatever the method.
+//! The console: `rekall-ui/dist` served as static files built into the binary, and the
+//! client-side routes answered with `index.html`, so a refresh on one gets the application rather
+//! than a 404. A path nothing answers is a 404, whatever the method.
 
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
@@ -65,7 +64,7 @@ pub fn routes(assets: Assets) -> Router {
     router.fallback(resource).with_state(assets)
 }
 
-/// A forward to `index.html` went through Spring's view rendering, which named the charset.
+/// `index.html` for a client-side route, with its charset named.
 async fn index(State(assets): State<Assets>) -> Response {
     match serve(&assets, "index.html") {
         Some(mut response) => {
@@ -76,8 +75,8 @@ async fn index(State(assets): State<Assets>) -> Response {
     }
 }
 
-/// Whatever no route answers: a static file for a GET, and Spring Boot's 404 for anything else,
-/// whatever the method (the resource handler reported a missing resource, not a wrong method).
+/// Whatever no route answers: a static file for a GET or HEAD, and a 404 for anything else, since
+/// the path names no resource rather than a resource with other methods.
 async fn resource(State(assets): State<Assets>, request: Request) -> Response {
     if request.method() != Method::GET && request.method() != Method::HEAD {
         return framework(StatusCode::NOT_FOUND);

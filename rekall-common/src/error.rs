@@ -18,8 +18,7 @@ pub enum RekallError {
     UnknownAnchor(String),
     /// A bare term that resolves to more than one record.
     AmbiguousAnchor { message: String, candidates: Vec<String> },
-    /// The database refused a write. The text is the most specific cause, with the constraint's
-    /// name when it is one `NAMED_CONSTRAINTS` knows.
+    /// The database refused a write. The text is SQLite's own cause, naming the columns.
     Integrity(String),
     /// Anything unexpected; the text is `kind: message`.
     Internal(String),
@@ -110,16 +109,6 @@ impl fmt::Display for RekallError {
 
 impl std::error::Error for RekallError {}
 
-/// The constraints the REST layer explains in words. SQLite names the columns of a broken
-/// constraint, so each is mapped back to the constraint's name here.
-const NAMED_CONSTRAINTS: &[(&str, &str)] = &[
-    ("project.company_id, project.label", "UQ_PROJECT_COMPANY_LABEL"),
-    ("task.project_id, task.label", "UQ_TASK_PROJECT_LABEL"),
-    ("company.name", "UQ_COMPANY_NAME"),
-    ("tag.name", "UQ_TAG_NAME"),
-    ("wrapup.task_id", "UQ_WRAPUP_TASK"),
-];
-
 impl From<sea_orm::DbErr> for RekallError {
     fn from(error: sea_orm::DbErr) -> Self {
         let text = error.to_string();
@@ -134,13 +123,7 @@ fn integrity_cause(text: &str) -> Option<String> {
     let at = text.find("UNIQUE constraint failed").or_else(|| text.find("FOREIGN KEY constraint failed"))
         .or_else(|| text.find("NOT NULL constraint failed"))
         .or_else(|| text.find("CHECK constraint failed"))?;
-    let cause = text[at..].trim_end().to_string();
-    for (columns, name) in NAMED_CONSTRAINTS {
-        if cause.contains(columns) {
-            return Some(format!("{cause} ({name})"));
-        }
-    }
-    Some(cause)
+    Some(text[at..].trim_end().to_string())
 }
 
 #[cfg(test)]

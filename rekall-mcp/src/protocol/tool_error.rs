@@ -5,7 +5,7 @@ use rekall_common::RekallError;
 pub enum ToolError {
     /// `ToolFailure`: the session asked for something this tool will not do; it is told why.
     Failure(String),
-    /// `IllegalArgumentException`: an argument broke a rule; it is told why, too.
+    /// An argument broke a rule; the session is told why.
     Illegal(String),
     /// Anything else: a JSON-RPC error.
     Other(RekallError),

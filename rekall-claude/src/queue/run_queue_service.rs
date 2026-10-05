@@ -181,7 +181,7 @@ impl RunQueueService {
 
     pub async fn snapshot(&self) -> Result<Snapshot> {
         in_read!(&self.ctx, |tx| {
-            Ok::<_, RekallError>(match repo::run_queue::find_first_by_order_by_created_at_asc(tx.db()).await? {
+            Ok::<_, RekallError>(match repo::run_queue::find_oldest(tx.db()).await? {
                 None => Snapshot {
                     state: RunQueueState::Idle,
                     start_at: None,
@@ -291,7 +291,7 @@ impl RunQueueService {
 
     /// The one queue row, created the first time it is asked for.
     async fn queue(&self, tx: &Tx) -> Result<run_queue::Model> {
-        if let Some(queue) = repo::run_queue::find_first_by_order_by_created_at_asc(tx.db()).await? {
+        if let Some(queue) = repo::run_queue::find_oldest(tx.db()).await? {
             return Ok(queue);
         }
         let queue = run_queue::Model::new(self.now());
@@ -315,7 +315,7 @@ impl RunQueueService {
 }
 
 async fn ordered(tx: &Tx) -> Result<Vec<run_queue_item::Model>> {
-    repo::run_queue::find_all_items_by_order_by_position_asc(tx.db()).await
+    repo::run_queue::list_items_in_order(tx.db()).await
 }
 
 async fn repo_item(tx: &Tx, id: Id) -> Result<Option<run_queue_item::Model>> {

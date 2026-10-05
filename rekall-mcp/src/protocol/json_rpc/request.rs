@@ -2,7 +2,7 @@ use serde_json::Value;
 
 use super::as_text;
 
-/// A request as Jackson bound it: every field optional, `id` and `params` any JSON.
+/// A JSON-RPC request read leniently: every field optional, `id` and `params` any JSON.
 #[derive(Clone, Debug, Default)]
 pub struct Request {
     pub jsonrpc: Option<String>,
@@ -12,8 +12,8 @@ pub struct Request {
 }
 
 impl Request {
-    /// Reads the fields the way Jackson bound `JsonRpc.Request`: a JSON `null` is an absent field,
-    /// and a scalar where a string belongs is coerced to its text.
+    /// A JSON `null` is an absent field, and a scalar where a string belongs is read as its text,
+    /// so a client that is loose with types is still understood.
     pub fn from_value(value: &Value) -> Self {
         let field = |name: &str| value.get(name).filter(|v| !v.is_null());
         Self {

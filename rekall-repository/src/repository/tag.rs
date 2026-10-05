@@ -8,18 +8,16 @@ pub async fn find_by_id(db: &impl ConnectionTrait, id: Id) -> Result<Option<Mode
     Ok(Entity::find_by_id(id).one(db).await?)
 }
 
-pub async fn find_all_by_order_by_name_asc(db: &impl ConnectionTrait) -> Result<Vec<Model>, RekallError> {
+pub async fn list_by_name(db: &impl ConnectionTrait) -> Result<Vec<Model>, RekallError> {
     Ok(Entity::find().order_by_asc(Column::Name).all(db).await?)
 }
 
-pub async fn exists_by_name_ignore_case(db: &impl ConnectionTrait, name: &str) -> Result<bool, RekallError> {
-    Ok(Entity::find().all(db).await?.iter().any(|t| equals_ignore_case(&t.name, name)))
-}
-
-pub async fn exists_by_name_ignore_case_and_id_not(db: &impl ConnectionTrait, name: &str, id: Id) -> Result<bool, RekallError> {
+/// Whether a tag other than `except` already has this name, ignoring case. Names are free text,
+/// folded in Rust across all of Unicode; the table holds tens of rows.
+pub async fn name_taken(db: &impl ConnectionTrait, name: &str, except: Option<Id>) -> Result<bool, RekallError> {
     Ok(Entity::find()
         .all(db)
         .await?
         .iter()
-        .any(|t| t.id != id && equals_ignore_case(&t.name, name)))
+        .any(|tag| Some(tag.id) != except && equals_ignore_case(&tag.name, name)))
 }

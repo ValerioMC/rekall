@@ -1,5 +1,5 @@
-//! The `rekall.claude.*`, `rekall.terminal.*` and `rekall.run-queue.*` properties, with the
-//! defaults the Java components declared.
+//! The `rekall.claude.*`, `rekall.terminal.*` and `rekall.run-queue.*` properties, with their
+//! defaults.
 
 use std::path::PathBuf;
 use std::time::Duration;
@@ -26,7 +26,7 @@ pub struct ClaudeConfig {
     pub run_queue_tick: Duration,
     /// `rekall.run-queue.settle-grace-seconds`.
     pub run_queue_settle_grace: Duration,
-    /// The user's home, `System.getProperty("user.home")`.
+    /// The user's home.
     pub home: PathBuf,
 }
 

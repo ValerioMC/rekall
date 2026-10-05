@@ -461,19 +461,13 @@ Properties are passed as `--name=value` arguments or as environment variables in
 |----------|---------|-------------|
 | `SERVER_PORT` | `47355` | HTTP port for the UI, the API and MCP |
 | `REKALL_HOME` | `~/.rekall` | Where `config.json` records the database folder |
-| `REKALL_DB_URL` | the folder in `config.json` | `sqlite:<path>` to a database file, overriding the setup wizard's choice |
+| `REKALL_DATABASE_URL` (`rekall.database.url`, or `REKALL_DB_URL`) | the folder in `config.json` | `sqlite:<path>` to a database file, or `sqlite::memory:`, overriding the setup wizard's choice. `spring.datasource.url` is still read, with a deprecation warning |
 
 Notes are stored in plain text in the database file. Credentials kept in them are only as protected as the disk is.
 
-### A database from the earlier Java version
+### Older databases
 
-The first versions of Rekall ran on the JVM with an H2 file, `rekall.mv.db`. A folder that still holds only that file is imported into `rekall.db` beside it the first time it is opened, and the H2 file is never changed. By hand:
-
-```bash
-make import-h2 DIR=~/rekall-data     # or: rekall-server --migrate-from-h2 ~/rekall-data
-```
-
-Reading an H2 file needs H2's own jar, so the import needs a Java runtime and `h2-2.x.jar` (`--h2-jar`, `REKALL_H2_JAR`, or `~/.m2`). Run it on the machine and in the time zone the old version ran in: H2 kept timestamps as local time. Nothing else in Rekall needs Java.
+The schema starts from a baseline: the tables as release v0.2.x left them. A `rekall.db` written by v0.2.x is moved onto it the first time it is opened, with every row kept. A file older than v0.2.0 is refused with a message, and so is a backup of one, before it replaces anything. Open such a file once with v0.2.2, then open it here. The H2 file (`rekall.mv.db`) of the first, Java-based versions can no longer be read: import it with v0.2.2, which still has the importer.
 
 ## Modules
 

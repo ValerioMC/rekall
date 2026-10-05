@@ -1,6 +1,5 @@
 use async_trait::async_trait;
-use rekall_service::note::OnTitleClash;
-use rekall_service::Services;
+use rekall_service::note::{NoteService, OnTitleClash};
 use serde_json::Value;
 
 use super::{told, Anchor, AnchoredTask, Arguments, QUALIFY_WITH_PROJECT};
@@ -11,12 +10,12 @@ use crate::texts;
 /// it into a wrapup that is not the place for it. It adds a note, or with `replace` rewrites the
 /// body of the one that task carries under the same title; nothing can be detached or deleted.
 pub struct NoteTool {
-    services: Services,
+    notes: NoteService,
 }
 
 impl NoteTool {
-    pub fn new(services: Services) -> Self {
-        Self { services }
+    pub fn new(notes: NoteService) -> Self {
+        Self { notes }
     }
 }
 
@@ -58,7 +57,6 @@ impl McpTool for NoteTool {
         let body = args.required_string("body")?;
         let on_clash = if args.flag("replace") { OnTitleClash::Replace } else { OnTitleClash::Refuse };
         let written = self
-            .services
             .notes
             .write(target.project_label.as_deref(), &target.task_label, Some(&title), Some(&body), on_clash)
             .await

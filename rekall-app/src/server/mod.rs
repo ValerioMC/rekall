@@ -2,7 +2,7 @@
 //! one port, and the supervisor that brings it down and back up in the same process when the
 //! database changes (`ApplicationRestarter`).
 //!
-//! Closing follows Spring's order: the closing hooks run first (the run queue stops deciding, the
+//! Closing runs in a fixed order: the closing hooks run first (the run queue stops deciding, the
 //! usage fetch and the event stream let go, every terminal is killed, the backup schedule stops),
 //! then the web server stops taking requests and waits a bounded time for the ones in flight,
 //! then the database pool closes.

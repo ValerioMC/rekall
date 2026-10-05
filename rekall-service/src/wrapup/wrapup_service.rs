@@ -27,7 +27,7 @@ impl WrapupService {
     }
 
     async fn find_in(&self, tx: &Tx, task_id: Id) -> Result<Option<WrapupView>> {
-        match repo::wrapup::find_by_task_id(tx.db(), task_id).await? {
+        match repo::wrapup::find_of_task(tx.db(), task_id).await? {
             Some(found) => Ok(Some(WrapupView::load(tx.db(), &found).await?)),
             None => Ok(None),
         }
@@ -35,7 +35,7 @@ impl WrapupService {
 
     pub async fn find_all(&self) -> Result<Vec<WrapupView>> {
         in_read!(&self.ctx, |tx| {
-            let all = repo::wrapup::find_all_by_order_by_updated_at_desc(tx.db()).await?;
+            let all = repo::wrapup::list_newest_first(tx.db()).await?;
             let mut views = Vec::with_capacity(all.len());
             for found in &all {
                 views.push(WrapupView::load(tx.db(), found).await?);
@@ -90,7 +90,7 @@ impl WrapupService {
         let text = validated(body)?;
         let project = load::project_of(tx.db(), &task).await?;
         let now = self.ctx.now();
-        let written = match repo::wrapup::find_by_task_id(tx.db(), task.id).await? {
+        let written = match repo::wrapup::find_of_task(tx.db(), task.id).await? {
             None => {
                 let created = wrapup::Model {
                     id: Id::random(),
@@ -134,7 +134,7 @@ impl WrapupService {
 
     pub async fn delete(&self, task_id: Id) -> Result<()> {
         in_write!(&self.ctx, |tx| {
-            if let Some(found) = repo::wrapup::find_by_task_id(tx.db(), task_id).await? {
+            if let Some(found) = repo::wrapup::find_of_task(tx.db(), task_id).await? {
                 self.revisions
                     .keep_in(&mut tx, task_id, RevisionKind::Wrapup, Some(&found.body_markdown), Some(found.written_by),
                              Some(found.updated_at), RevisionTrigger::Deletion)

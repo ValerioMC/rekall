@@ -21,11 +21,7 @@ fn an_empty_existing_folder_is_usable_but_has_no_database_yet() {
 }
 
 #[test]
-fn a_folder_with_an_mv_db_file_or_a_sqlite_one_is_reported_as_already_having_a_database() {
-    let legacy = tempfile::tempdir().unwrap();
-    std::fs::File::create(legacy.path().join("rekall.mv.db")).unwrap();
-    assert!(inspect(legacy.path().to_str(), &home()).has_database);
-
+fn a_folder_with_a_rekall_db_file_is_reported_as_already_having_a_database() {
     let current = tempfile::tempdir().unwrap();
     std::fs::File::create(current.path().join("rekall.db")).unwrap();
     assert!(inspect(current.path().to_str(), &home()).has_database);

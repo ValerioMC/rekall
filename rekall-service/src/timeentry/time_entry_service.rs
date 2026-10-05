@@ -23,9 +23,9 @@ impl TimeEntryService {
 
     pub async fn find_all(&self) -> Result<Vec<TimeEntryView>> {
         in_read!(&self.ctx, |tx| {
-            let all = repo::time_entry::find_all_by_order_by_started_at_desc(tx.db()).await?;
-            let tasks = repo::task::find_all(tx.db()).await?;
-            let projects = repo::project::find_all(tx.db()).await?;
+            let all = repo::time_entry::list_newest_first(tx.db()).await?;
+            let tasks = repo::task::list_oldest_first(tx.db()).await?;
+            let projects = repo::project::list_oldest_first(tx.db()).await?;
             let mut views = Vec::with_capacity(all.len());
             for entry in &all {
                 let task = tasks.iter().find(|t| t.id == entry.task_id);
@@ -41,7 +41,7 @@ impl TimeEntryService {
     pub async fn start(&self, task_id: Id) -> Result<TimeEntryView> {
         in_write!(&self.ctx, |tx| {
             load::task_or_unknown(tx.db(), task_id).await?;
-            if let Some(running) = repo::time_entry::find_by_task_id_and_stopped_at_is_null(tx.db(), task_id).await? {
+            if let Some(running) = repo::time_entry::find_running_of_task(tx.db(), task_id).await? {
                 return TimeEntryView::load(tx.db(), &running).await;
             }
             let now = self.ctx.now();
@@ -68,7 +68,7 @@ impl TimeEntryService {
     }
 
     pub async fn stop_if_running_in(&self, tx: &mut Tx, task_id: Id) -> Result<Option<TimeEntryView>> {
-        let Some(running) = repo::time_entry::find_by_task_id_and_stopped_at_is_null(tx.db(), task_id).await? else {
+        let Some(running) = repo::time_entry::find_running_of_task(tx.db(), task_id).await? else {
             return Ok(None);
         };
         let now = self.ctx.now();
@@ -120,7 +120,7 @@ impl TimeEntryService {
     pub async fn stop_all_on_shutdown(&self) -> Result<()> {
         in_write!(&self.ctx, |tx| {
             let now = self.ctx.now();
-            for entry in repo::time_entry::find_all_by_stopped_at_is_null(tx.db()).await? {
+            for entry in repo::time_entry::list_running(tx.db()).await? {
                 let mut stopped = entry;
                 stopped.stopped_at = Some(now);
                 stopped.updated_at = now;
@@ -137,7 +137,7 @@ impl TimeEntryService {
         in_write!(&self.ctx, |tx| {
             let now = self.ctx.now();
             let mut stopped_count = 0;
-            for entry in repo::time_entry::find_all_by_stopped_at_is_null(tx.db()).await? {
+            for entry in repo::time_entry::list_running(tx.db()).await? {
                 let Some(last_activity) = self.last_activity_in(&mut tx, &entry).await? else { continue };
                 if last_activity.until(&now) <= idle_after {
                     continue;
@@ -156,7 +156,7 @@ impl TimeEntryService {
     /// the entry itself. `None` while a session is running a step, which counts as activity.
     async fn last_activity_in(&self, tx: &mut Tx, entry: &time_entry::Model) -> Result<Option<Instant>> {
         let db = tx.db();
-        let steps = repo::task_step::find_by_task_id_order_by_position_asc(db, entry.task_id).await?;
+        let steps = repo::task_step::list_of_task(db, entry.task_id).await?;
         if steps.iter().any(|step| step.state.running()) {
             return Ok(None);
         }
@@ -165,7 +165,7 @@ impl TimeEntryService {
             writes.push(task.updated_at);
         }
         writes.extend(steps.iter().map(|step| step.updated_at));
-        if let Some(wrapup) = repo::wrapup::find_by_task_id(db, entry.task_id).await? {
+        if let Some(wrapup) = repo::wrapup::find_of_task(db, entry.task_id).await? {
             writes.push(wrapup.updated_at);
         }
         writes.extend(repo::document::documents_of_task(db, entry.task_id).await?.iter().map(|note| note.updated_at));

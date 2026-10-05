@@ -13,14 +13,14 @@ use super::{BackupFile, BackupReason, BackupStatus, DatabaseBackupService, Datab
 use super::BackupState;
 use super::RestoreStarted;
 
-/// `spring.servlet.multipart.max-file-size`: a backup is the whole database zipped.
+/// The largest upload accepted: a backup is the whole database zipped.
 const MAX_UPLOAD_BYTES: usize = 1024 * 1024 * 1024;
 
 pub fn routes(backups: DatabaseBackupService, restorer: DatabaseRestoreService) -> Router {
     let state = BackupState { backups, restorer };
     Router::new()
         .route("/api/backups", get(status).post(back_up_now))
-        .route("/api/backups/restore", post(restore_upload).get(download_restore))
+        .route("/api/backups/restore", post(restore_upload))
         .route("/api/backups/{name}", get(download))
         .route("/api/backups/{name}/restore", post(restore))
         .layer(DefaultBodyLimit::max(MAX_UPLOAD_BYTES))
@@ -49,17 +49,12 @@ async fn download(State(state): State<BackupState>, Path(name): Path<String>) ->
     Ok(response)
 }
 
-/// `GET /api/backups/restore` reached `download("restore")` in Spring, whose name check refuses it.
-async fn download_restore(state: State<BackupState>) -> ApiResult<Response> {
-    download(state, Path("restore".to_string())).await
-}
-
 async fn restore(State(state): State<BackupState>, Path(name): Path<String>) -> ApiResult<Json<RestoreStarted>> {
     let previous_state = state.restorer.restore(&name).await?;
     Ok(Json(RestoreStarted { restarting: true, previous_state }))
 }
 
-/// `@RequestParam("file") MultipartFile`: a request with no such part is Spring's own 400.
+/// The upload is the multipart part named `file`; a request that is not multipart is a 400.
 async fn restore_upload(State(state): State<BackupState>, multipart: Result<Multipart, axum::extract::multipart::MultipartRejection>) -> ApiResult<Response> {
     let Ok(mut multipart) = multipart else {
         return Ok(framework(StatusCode::BAD_REQUEST));

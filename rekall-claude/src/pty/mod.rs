@@ -5,14 +5,17 @@
 //! it opens and closes, and announces every end, however it came, as a `TerminalEnded` event.
 //! Nothing is persisted; strays are bounded by a cap, an idle sweep, and a shutdown hook.
 
+mod claude_command;
 mod listener;
+mod pty_process;
 mod pty_terminal_manager;
 mod scrollback;
 mod terminal;
 mod terminal_ended;
 mod terminal_view;
 
+pub use claude_command::{EFFORT_LEVELS, MODEL_ALIASES};
 pub use listener::Listener;
-pub use pty_terminal_manager::{PtyTerminalManager, EFFORT_LEVELS, MODEL_ALIASES};
+pub use pty_terminal_manager::PtyTerminalManager;
 pub use terminal_ended::TerminalEnded;
 pub use terminal_view::TerminalView;

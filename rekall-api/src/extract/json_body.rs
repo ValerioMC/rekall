@@ -4,7 +4,7 @@ use serde::de::DeserializeOwned;
 
 use crate::error::ApiError;
 
-/// `@RequestBody`: required, JSON.
+/// A required JSON body; one that cannot be parsed is a 400 with the parser's reason.
 pub struct JsonBody<T>(pub T);
 
 impl<S, T> FromRequest<S> for JsonBody<T>

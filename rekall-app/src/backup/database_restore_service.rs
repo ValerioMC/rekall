@@ -10,7 +10,6 @@ use crate::restart::Restarter;
 /// The first bytes of every SQLite database file.
 const SQLITE_HEADER: &[u8; 16] = b"SQLite format 3\0";
 const STAGED_SUFFIX: &str = ".restoring";
-const H2_SUFFIX: &str = ".mv.db";
 
 #[derive(Clone)]
 pub struct DatabaseRestoreService {
@@ -49,6 +48,10 @@ impl DatabaseRestoreService {
         let location = self.require_location()?;
         let staged = location.folder.join(format!("{}{STAGED_SUFFIX}", location.data_file_name));
         extract_database(zip, &location.data_file_name, &staged)?;
+        if let Err(refused) = rekall_repository::check_openable(&staged).await {
+            delete_quietly(&staged);
+            return Err(RekallError::illegal(format!("{refused} Nothing was restored.")));
+        }
         if !self.restarter.can_restart() {
             delete_quietly(&staged);
             return Err(RekallError::conflict("This instance cannot restart itself, so nothing was restored."));
@@ -118,15 +121,10 @@ fn database_entry_in(zip: &Path, data_file_name: &str) -> Result<String> {
     let mut archive = zip::ZipArchive::new(file).map_err(|_| unreadable())?;
     let mut single = None;
     let mut databases = 0;
-    let mut h2 = false;
     for index in 0..archive.len() {
         let entry = archive.by_index(index).map_err(|_| unreadable())?;
         let name = entry.name().to_string();
         if entry.is_dir() || name.contains('/') || name.contains('\\') {
-            continue;
-        }
-        if name.ends_with(H2_SUFFIX) {
-            h2 = true;
             continue;
         }
         if !name.ends_with(".db") {
@@ -140,10 +138,6 @@ fn database_entry_in(zip: &Path, data_file_name: &str) -> Result<String> {
     }
     match (databases, single) {
         (1, Some(name)) => Ok(name),
-        (0, _) if h2 => Err(RekallError::illegal(
-            "That zip holds an H2 database from the Java build of Rekall. Import it with \
-             `rekall-server --migrate-from-h2 <folder>`. Nothing was restored.",
-        )),
         (0, _) => Err(RekallError::illegal("That zip holds no Rekall database file (*.db). Nothing was restored.")),
         _ => Err(RekallError::illegal("That zip holds more than one database file. Nothing was restored.")),
     }

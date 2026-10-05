@@ -3,16 +3,16 @@ import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
-import ProjectPicker from '@/components/console/ProjectPicker.vue'
-import TagIcon from '@/components/ui/TagIcon.vue'
-import ProjectIcon from '@/components/ui/ProjectIcon.vue'
-import ProjectMark from '@/components/ui/ProjectMark.vue'
 import CloseGlyph from '@/components/ui/CloseGlyph.vue'
+import ProjectPicker from '@/components/console/ProjectPicker.vue'
+import ProjectIconField from '@/components/console/record/ProjectIconField.vue'
+import RecordIdentityFields from '@/components/console/record/RecordIdentityFields.vue'
+import TaskTagField from '@/components/console/record/TaskTagField.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
+import { useRecordWrites } from '@/composables/useRecordWrites'
 import { trapTabKey } from '@/common/a11y/focus-trap'
 import { identityHue } from '@/common/identity'
-import { PROJECT_ICON_KEYS, PROJECT_ICON_LABEL } from '@/model/project-icon'
 import {
   PROJECT_STATUSES,
   PROJECT_STATUS_LABEL,
@@ -22,7 +22,7 @@ import {
 } from '@/model/catalog'
 import type { ProjectStatus, TaskStatus } from '@/model/catalog'
 import type { RecordDraft } from '@/model/record-draft'
-import type { ProjectId, TagId } from '@/model/branded'
+import type { TagId } from '@/model/branded'
 
 const props = defineProps<{ draft: RecordDraft }>()
 const emit = defineEmits<{ close: []; saved: [] }>()
@@ -32,10 +32,10 @@ const { run, isRunning } = useAsyncAction()
 
 const form = ref<RecordDraft>({ ...props.draft })
 const panel = ref<HTMLElement | null>(null)
-const firstField = ref<HTMLInputElement | null>(null)
+const identity = ref<InstanceType<typeof RecordIdentityFields> | null>(null)
+const iconField = ref<InstanceType<typeof ProjectIconField> | null>(null)
 const isConfirmingDelete = ref(false)
 const submitted = ref(false)
-const anchorLive = ref(false)
 const isPickingProject = ref(false)
 
 const kind = props.draft.kind
@@ -79,39 +79,14 @@ const status = computed<string>({
   }
 })
 
-const labelWasTouched = ref(!isNew)
-
-function onTitleInput(value: string): void {
-  titleValue.value = value
-  if (hasLabel && !labelWasTouched.value) rawLabel.value = slugify(value)
-}
-
-function onLabelInput(value: string): void {
-  labelWasTouched.value = true
-  rawLabel.value = value
-}
-
 const label = computed(() => slugify(rawLabel.value))
 
+/** The parent's anchor a task's own is appended to: its project's. */
 const anchorParent = computed(() => {
   const current = form.value
   if (current.kind !== 'task') return ''
-  const project = store.projects.find((candidate) => candidate.id === current.projectId)
-  return project ? project.anchor : ''
+  return store.projects.find((candidate) => candidate.id === current.projectId)?.anchor ?? ''
 })
-
-const anchorSelf = computed(() => {
-  const current = form.value
-  if (current.kind === 'company') {
-    return current.name.trim() ? `company:${current.name.trim()}` : ''
-  }
-  if (!label.value) return ''
-  return `${current.kind}:${label.value}`
-})
-
-const anchorPreview = computed(() =>
-  [anchorParent.value, anchorSelf.value].filter(Boolean).join(' ')
-)
 
 const parentId = computed<string>({
   get: () => {
@@ -138,8 +113,6 @@ const companyOptions = computed(() =>
 
 const parentLabel = kind === 'task' ? 'Project' : 'Company'
 
-const anchorIsMoving = computed(() => !isNew && hasLabel && label.value !== originalLabel)
-
 const statusOptions =
   kind === 'task'
     ? TASK_STATUSES.map((value) => ({ value, label: TASK_STATUS_LABEL[value] }))
@@ -159,58 +132,6 @@ const projectIcon = computed<string>({
   }
 })
 
-const ICON_IMAGE_MAX_BYTES = 10 * 1024 * 1024
-const ICON_IMAGE_TYPES = 'image/png,image/jpeg,image/webp,image/gif'
-
-const storedProject = computed(() =>
-  form.value.kind === 'project' && form.value.id
-    ? store.projects.find((candidate) => candidate.id === form.value.id)
-    : undefined
-)
-const iconFileField = ref<HTMLInputElement | null>(null)
-const pendingImage = ref<File | null>(null)
-const pendingImagePreview = ref<string | null>(null)
-const isRemovingImage = ref(false)
-const imageError = ref<string | null>(null)
-
-const shownImageVersion = computed(() =>
-  isRemovingImage.value ? null : (storedProject.value?.iconImageVersion ?? null)
-)
-const hasIconImage = computed(() => pendingImage.value !== null || shownImageVersion.value !== null)
-
-function releasePreview(): void {
-  if (pendingImagePreview.value) URL.revokeObjectURL(pendingImagePreview.value)
-  pendingImagePreview.value = null
-}
-
-function pickIconImage(event: Event): void {
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0] ?? null
-  input.value = ''
-  if (!file) return
-  if (file.size > ICON_IMAGE_MAX_BYTES) {
-    imageError.value = 'The image is larger than 10 MB.'
-    return
-  }
-  imageError.value = null
-  releasePreview()
-  pendingImage.value = file
-  pendingImagePreview.value = URL.createObjectURL(file)
-  isRemovingImage.value = false
-}
-
-function clearIconImage(): void {
-  imageError.value = null
-  releasePreview()
-  pendingImage.value = null
-  isRemovingImage.value = storedProject.value?.iconImageVersion != null
-}
-
-async function applyIconImage(projectId: ProjectId): Promise<void> {
-  if (pendingImage.value) await store.setProjectIconImage(projectId, pendingImage.value)
-  else if (isRemovingImage.value) await store.setProjectIconImage(projectId, null)
-}
-
 const titleError = computed(() =>
   submitted.value && !titleValue.value.trim() ? 'A title is required.' : null
 )
@@ -225,71 +146,17 @@ const canSave = computed(
   () => titleValue.value.trim().length > 0 && (!hasLabel || label.value.length > 0)
 )
 
-const blast = computed(() => {
-  const current = form.value
-  if (current.kind === 'company') {
-    const company = store.companies.find((candidate) => candidate.id === current.id)
-    return `${plural(company?.projectCount ?? 0, 'project')} · ${plural(company?.taskCount ?? 0, 'task')} · the notes it and its projects own`
-  }
-  if (current.kind === 'project') {
-    const count = store.tasks.filter((task) => task.projectId === current.id).length
-    return `${plural(count, 'task')} · the notes it owns`
-  }
-  const task = store.tasks.find((candidate) => candidate.id === current.id)
-  return `${plural(task?.documentCount ?? 0, 'note')} unlinked · each stays where it lives`
-})
-
-function plural(count: number, noun: string): string {
-  return `${count} ${noun}${count === 1 ? '' : 's'}`
-}
+const writes = useRecordWrites()
+const blast = computed(() => writes.deletionBlast(form.value))
 
 async function save(): Promise<void> {
   if (isRunning.value) return
   submitted.value = true
   if (!canSave.value) return
-  const current = form.value
-  const trimmedDescription = current.description.trim() === '' ? null : current.description.trim()
-
   const saved = await run(async () => {
-    if (current.kind === 'company') {
-      const input = { name: current.name.trim(), description: trimmedDescription }
-      if (current.id === null) await store.createCompany(input)
-      else await store.updateCompany(current.id, input)
-    } else if (current.kind === 'project') {
-      const stored = store.projects.find((candidate) => candidate.id === current.id)
-      const input = {
-        label: label.value,
-        title: current.title.trim(),
-        status: current.status,
-        icon: current.icon,
-        description: trimmedDescription,
-        blueprintMarkdown: stored?.blueprintMarkdown ?? null,
-        repoFolder: stored?.repoFolder ?? null,
-        autoCommit: stored?.autoCommit ?? false,
-        companyId: current.companyId
-      }
-      if (current.id === null) {
-        const created = await store.createProject(input)
-        await applyIconImage(created.id)
-      } else {
-        await store.updateProject(current.id, input)
-        await applyIconImage(current.id)
-      }
-    } else {
-      const input = {
-        label: label.value,
-        title: current.title.trim(),
-        status: current.status,
-        description: trimmedDescription,
-        projectId: current.projectId,
-        tagId: current.tagId
-      }
-      if (current.id === null) await store.createTask(input)
-      else await store.updateTask(current.id, input)
-    }
+    await writes.write(form.value, label.value, async (projectId) => await iconField.value?.apply(projectId))
     return true
   }, `${isNew ? 'Created' : 'Saved'} ${titleValue.value.trim()}`)
-
   if (saved) {
     emit('saved')
     emit('close')
@@ -297,16 +164,11 @@ async function save(): Promise<void> {
 }
 
 async function remove(): Promise<void> {
-  const current = form.value
-  if (current.id === null) return
-
+  if (form.value.id === null) return
   const done = await run(async () => {
-    if (current.kind === 'company' && current.id) await store.deleteCompany(current.id)
-    else if (current.kind === 'project' && current.id) await store.deleteProject(current.id)
-    else if (current.kind === 'task' && current.id) await store.deleteTask(current.id)
+    await writes.erase(form.value)
     return true
   }, `Deleted ${titleValue.value.trim()}`)
-
   isConfirmingDelete.value = false
   if (done) {
     emit('saved')
@@ -333,14 +195,10 @@ function onKeydown(event: KeyboardEvent): void {
 onMounted(async () => {
   window.addEventListener('keydown', onKeydown, true)
   await nextTick()
-  firstField.value?.focus()
-  firstField.value?.select()
+  identity.value?.focusTitle()
 })
 
-onUnmounted(() => {
-  window.removeEventListener('keydown', onKeydown, true)
-  releasePreview()
-})
+onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
 </script>
 
 <template>
@@ -411,87 +269,18 @@ onUnmounted(() => {
           </p>
         </template>
 
-        <label
-          for="record-title"
-          class="mb-1.5 block eyebrow text-[11px]"
-        >
-          Title
-        </label>
-        <input
-          id="record-title"
-          ref="firstField"
-          :value="titleValue"
-          data-testid="record-title"
-          class="field text-text h-10 w-full rounded-[var(--radius-control)] px-3 text-[15px]"
-          :aria-invalid="titleError ? 'true' : undefined"
-          :placeholder="hasLabel ? 'Report builder, main workflow' : 'Acme S.p.A.'"
-          @input="onTitleInput(($event.target as HTMLInputElement).value)"
-          @focus="anchorLive = true"
-          @blur="anchorLive = false"
+        <RecordIdentityFields
+          ref="identity"
+          v-model:title="titleValue"
+          v-model:label="rawLabel"
+          :kind="kind"
+          :is-new="isNew"
+          :original-label="originalLabel"
+          :anchor-parent="anchorParent"
+          :parent-id="parentId"
+          :title-error="titleError"
+          :label-error="labelError"
         />
-        <p v-if="titleError" class="mt-1.5 text-[11.5px] text-danger" role="alert">
-          {{ titleError }}
-        </p>
-        <p v-else class="mt-1.5 text-[11.5px] text-text-subtle">
-          What this is called. Change it whenever a better name turns up.
-        </p>
-
-        <template v-if="hasLabel">
-          <label
-            for="record-label"
-            class="mb-1.5 mt-5 block eyebrow text-[11px]"
-          >
-            Label
-          </label>
-          <input
-            id="record-label"
-            :value="rawLabel"
-            data-testid="record-label"
-            spellcheck="false"
-            autocomplete="off"
-            class="field field-anchor h-10 w-full rounded-[var(--radius-control)] px-3 font-mono text-[14px] text-anchor"
-            :aria-invalid="labelError ? 'true' : undefined"
-            placeholder="report-builder"
-            @input="onLabelInput(($event.target as HTMLInputElement).value)"
-            @focus="anchorLive = true"
-            @blur="anchorLive = false"
-          />
-          <p v-if="labelError" class="mt-1.5 text-[11.5px] text-danger" role="alert">
-            {{ labelError }}
-          </p>
-          <p v-else class="mt-1.5 text-[11.5px] text-text-subtle">
-            What the anchor carries. Lowercase, no spaces, unique inside its parent.
-          </p>
-        </template>
-
-        <div
-          class="mt-4 flex items-center gap-3 rounded-[var(--radius-control)] border px-3.5 py-3 transition-all duration-200"
-          :class="
-            anchorLive
-              ? 'border-anchor bg-anchor-soft shadow-[0_0_0_3px_var(--color-anchor-soft)]'
-              : 'border-anchor-line bg-anchor-soft'
-          "
-          data-testid="anchor-preview"
-          :title="anchorPreview"
-        >
-          <span class="shrink-0 font-mono text-[12px] text-text-subtle" aria-hidden="true">/rk</span>
-          <span v-if="kind === 'task' && anchorParent" class="size-1.5 shrink-0 rounded-full" :style="{ backgroundColor: identityHue(parentId).base }" aria-hidden="true" />
-          <span class="min-w-0 flex-1 truncate font-mono text-[13px]">
-            <span v-if="anchorParent" class="text-anchor/60">{{ anchorParent }}</span> <span class="text-anchor">{{ anchorSelf || '…' }}</span>
-          </span>
-          <span class="shrink-0 eyebrow font-normal">
-            loads this
-          </span>
-        </div>
-
-        <p
-          v-if="anchorIsMoving"
-          class="mt-2.5 rounded-[var(--radius-control)] border border-warn bg-warn-soft px-3.5 py-2.5 text-[12px] leading-relaxed text-warn"
-          data-testid="rename-warning"
-        >
-          The anchor moves with this label. Anything still typing
-          <code>{{ kind }}:{{ originalLabel }}</code> will stop finding it.
-        </p>
 
         <template v-if="hasLabel">
           <p class="mb-1.5 mt-5 eyebrow text-[11px]">
@@ -516,96 +305,9 @@ onUnmounted(() => {
           </div>
         </template>
 
-        <template v-if="kind === 'project'">
-          <p class="mb-1.5 mt-5 eyebrow text-[11px]">
-            Icon
-          </p>
-          <div class="mb-3 flex items-center gap-3" data-testid="record-icon-image">
-            <ProjectMark
-              :project-id="form.id ?? 'new-project'"
-              :icon="projectIcon"
-              :image-version="shownImageVersion"
-              :preview-src="pendingImagePreview"
-              :size="48"
-            />
-            <div class="min-w-0">
-              <div class="flex items-center gap-2">
-                <AppButton size="sm" data-testid="record-icon-upload" @click="iconFileField?.click()">
-                  {{ hasIconImage ? 'Replace image' : 'Upload image' }}
-                </AppButton>
-                <AppButton v-if="hasIconImage" variant="ghost" size="sm" data-testid="record-icon-remove" @click="clearIconImage">
-                  Remove
-                </AppButton>
-              </div>
-              <p class="mt-1.5 text-[11.5px]" :class="imageError ? 'text-danger' : 'text-text-subtle'" :role="imageError ? 'alert' : undefined">
-                {{ imageError ?? 'PNG, JPEG, WebP or GIF, cropped to a square with rounded corners. The icon below shows without one.' }}
-              </p>
-            </div>
-            <input
-              ref="iconFileField"
-              type="file"
-              class="hidden"
-              :accept="ICON_IMAGE_TYPES"
-              data-testid="record-icon-file"
-              @change="pickIconImage"
-            />
-          </div>
-          <div class="flex flex-wrap gap-1.5" data-testid="record-icon-picker">
-            <button
-              v-for="option in PROJECT_ICON_KEYS"
-              :key="option"
-              type="button"
-              class="focus-ring grid size-8 place-items-center rounded-[var(--radius-control)] border transition-colors"
-              :class="
-                projectIcon === option
-                  ? 'border-accent bg-accent-soft text-accent'
-                  : 'border-border-strong bg-canvas text-text-muted hover:border-text-subtle hover:text-text'
-              "
-              :aria-pressed="projectIcon === option"
-              :aria-label="PROJECT_ICON_LABEL[option]"
-              :title="PROJECT_ICON_LABEL[option]"
-              @click="projectIcon = option"
-            >
-              <ProjectIcon :icon="option" :size="15" />
-            </button>
-          </div>
-        </template>
+        <ProjectIconField v-if="form.kind === 'project'" ref="iconField" v-model="projectIcon" :project-id="form.id" />
 
-        <template v-if="kind === 'task'">
-          <p class="mb-1.5 mt-5 eyebrow text-[11px]">
-            Tag
-          </p>
-          <div class="flex flex-wrap gap-1.5" data-testid="record-tag-picker">
-            <button
-              type="button"
-              class="focus-ring flex h-8 items-center gap-1.5 rounded-[3px] px-3 text-[12.5px]"
-              :class="
-                tagId === null ? 'key-lit' : 'key-quiet'
-              "
-              :aria-pressed="tagId === null"
-              @click="tagId = null"
-            >
-              No tag
-            </button>
-            <button
-              v-for="option in store.tags"
-              :key="option.id"
-              type="button"
-              class="focus-ring flex h-8 items-center gap-1.5 rounded-[3px] px-3 text-[12.5px]"
-              :class="
-                tagId === option.id ? 'key-lit' : 'key-quiet'
-              "
-              :aria-pressed="tagId === option.id"
-              @click="tagId = option.id"
-            >
-              <TagIcon :icon="option.icon" :color="option.color" :size="14" />
-              {{ option.name }}
-            </button>
-          </div>
-          <p v-if="store.tags.length === 0" class="mt-1.5 text-[11.5px] text-text-subtle">
-            No tags configured yet. Add one from the tags button in the header.
-          </p>
-        </template>
+        <TaskTagField v-if="kind === 'task'" v-model="tagId" />
 
         <template v-if="asksForDescription">
           <label

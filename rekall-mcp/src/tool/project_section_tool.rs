@@ -1,6 +1,5 @@
 use async_trait::async_trait;
-use rekall_service::note::OnTitleClash;
-use rekall_service::Services;
+use rekall_service::{note::OnTitleClash, section::ProjectSectionService};
 use serde_json::Value;
 
 use super::{told, Anchor, AnchoredTask, Arguments, QUALIFY_WITH_PROJECT};
@@ -11,12 +10,12 @@ use crate::texts;
 /// every context. It adds a section, or with `replace` rewrites the body of the one with that
 /// title; nothing can be renamed, reordered or deleted.
 pub struct ProjectSectionTool {
-    services: Services,
+    sections: ProjectSectionService,
 }
 
 impl ProjectSectionTool {
-    pub fn new(services: Services) -> Self {
-        Self { services }
+    pub fn new(sections: ProjectSectionService) -> Self {
+        Self { sections }
     }
 }
 
@@ -58,7 +57,6 @@ impl McpTool for ProjectSectionTool {
         let body = args.required_string("body")?;
         let on_clash = if args.flag("replace") { OnTitleClash::Replace } else { OnTitleClash::Refuse };
         let written = self
-            .services
             .sections
             .write(target.project_label.as_deref(), &target.task_label, Some(&title), Some(&body), on_clash)
             .await

@@ -22,7 +22,7 @@ impl ProjectSectionService {
     pub async fn list(&self, project_id: Id) -> Result<Vec<ProjectSectionView>> {
         in_read!(&self.ctx, |tx| {
             repo::project::require(tx.db(), project_id).await?;
-            let rows = repo::project_section::find_by_project_id_order_by_position_asc(tx.db(), project_id).await?;
+            let rows = repo::project_section::list_of_project(tx.db(), project_id).await?;
             Ok::<_, RekallError>(rows.iter().map(ProjectSectionView::of).collect())
         })
     }
@@ -40,7 +40,7 @@ impl ProjectSectionService {
             let project = load::project_of(tx.db(), &task).await?;
             let wanted = rules::title(title)?;
             let text = rules::written_body(body)?;
-            let existing = repo::project_section::find_by_project_id_order_by_position_asc(tx.db(), project.id).await?;
+            let existing = repo::project_section::list_of_project(tx.db(), project.id).await?;
             let now = self.ctx.now();
             let project_anchor = project.anchor();
 

@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use rekall_common::{Id, Instant};
 use rekall_repository::DATA_FILE_NAME;
 
-use super::super::folder::{absolute_normalised, LEGACY_DATA_FILE_NAME};
+use super::super::folder::absolute_normalised;
 use super::super::registry::{DatabaseEntry, DatabaseRegistry, DatabaseRegistryStore};
 use crate::config::{AppConfig, DatabaseOverride};
 
@@ -17,8 +17,8 @@ pub fn resolve(config: &AppConfig) -> Result<Resolved, String> {
             let active = registry.active().expect("reachable implies present");
             (DatabaseOverride::File(data_file_in(Path::new(&active.path))), SetupStatus::Ready)
         }
-        None if legacy_data_folder_exists(config) => {
-            let adopted = adopt_legacy_folder(config);
+        None if data_folder_beside_the_app_has_a_database(config) => {
+            let adopted = adopt_data_folder_beside_the_app(config);
             store.write(&adopted)?;
             let active = adopted.active().expect("adopted with itself active");
             (DatabaseOverride::File(data_file_in(Path::new(&active.path))), SetupStatus::Ready)
@@ -38,18 +38,19 @@ fn reachable(entry: Option<&DatabaseEntry>) -> bool {
     entry.is_some_and(|entry| Path::new(&entry.path).is_dir())
 }
 
-fn legacy_folder(config: &AppConfig) -> PathBuf {
+/// `./data` under the working directory: where a database lived before folders were registered.
+fn data_folder_beside_the_app(config: &AppConfig) -> PathBuf {
     config.working_dir.join("data")
 }
 
-fn legacy_data_folder_exists(config: &AppConfig) -> bool {
-    let folder = legacy_folder(config);
-    folder.join(LEGACY_DATA_FILE_NAME).is_file() || folder.join(DATA_FILE_NAME).is_file()
+fn data_folder_beside_the_app_has_a_database(config: &AppConfig) -> bool {
+    data_file_in(&data_folder_beside_the_app(config)).is_file()
 }
 
-fn adopt_legacy_folder(config: &AppConfig) -> DatabaseRegistry {
+/// With no registry yet, a database already in `./data` becomes the registered, active one.
+fn adopt_data_folder_beside_the_app(config: &AppConfig) -> DatabaseRegistry {
     let id = Id::random().to_string();
-    let path = absolute_normalised(&legacy_folder(config)).to_string_lossy().into_owned();
+    let path = absolute_normalised(&data_folder_beside_the_app(config)).to_string_lossy().into_owned();
     let now = Instant::now().to_string();
     DatabaseRegistry {
         active_id: Some(id.clone()),

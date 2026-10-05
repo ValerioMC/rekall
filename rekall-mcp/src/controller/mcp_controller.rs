@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use axum::http::StatusCode;
 use base64::Engine;
-use rekall_common::RekallError;
 use serde_json::{json, Map, Value};
 use tracing::{debug, error, info};
 
@@ -244,23 +243,10 @@ fn guarded(request: &Request, answer: Result<Answer, Failure>) -> Answer {
         Ok(answer) => answer,
         Err(Failure::Illegal(message)) => Answer::ok(RpcResponse::failure(request.response_id(), INVALID_PARAMS, message)),
         Err(Failure::Other(failure)) => {
-            let text = java_exception_text(&failure);
-            error!("MCP call {} failed: {text}", request.method.as_deref().unwrap_or(""));
+            let text = failure.message();
+            error!(method = request.method.as_deref().unwrap_or(""), %failure, "MCP call failed");
             Answer::ok(RpcResponse::failure(request.response_id(), INTERNAL_ERROR, text))
         }
-    }
-}
-
-/// `e.getClass().getSimpleName() + ": " + e.getMessage()` for the exception each error was.
-fn java_exception_text(error: &RekallError) -> String {
-    match error {
-        RekallError::Internal(text) => text.clone(),
-        RekallError::NotFound(m) => format!("NotFoundException: {m}"),
-        RekallError::Conflict(m) => format!("ConflictException: {m}"),
-        RekallError::UnknownAnchor(m) => format!("UnknownAnchorException: {m}"),
-        RekallError::AmbiguousAnchor { message, .. } => format!("AmbiguousAnchorException: {message}"),
-        RekallError::Integrity(m) => format!("DataIntegrityViolationException: {m}"),
-        RekallError::IllegalArgument(m) => format!("IllegalArgumentException: {m}"),
     }
 }
 

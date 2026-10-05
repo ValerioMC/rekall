@@ -1,7 +1,6 @@
 use async_trait::async_trait;
 use rekall_common::RekallError;
-use rekall_service::context::{ContextRecord, ContextRenderer};
-use rekall_service::Services;
+use rekall_service::{context::ContextService, context::{ContextRecord, ContextRenderer}};
 use serde_json::Value;
 
 use super::{Anchor, Arguments};
@@ -9,16 +8,16 @@ use crate::protocol::{McpTool, ToolError, ToolSchema};
 use crate::texts;
 
 pub struct ContextTool {
-    services: Services,
+    context: ContextService,
 }
 
 impl ContextTool {
-    pub fn new(services: Services) -> Self {
-        Self { services }
+    pub fn new(context: ContextService) -> Self {
+        Self { context }
     }
 
     async fn load(&self, anchors: &[Anchor]) -> Result<Vec<ContextRecord>, RekallError> {
-        let context = &self.services.context;
+        let context = &self.context;
         if anchors.len() == 2 && anchors[0].is("project") && anchors[1].is("task") {
             return Ok(vec![
                 context.load(Some("project"), &anchors[0].value).await?,

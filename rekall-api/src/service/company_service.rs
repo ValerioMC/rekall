@@ -4,7 +4,7 @@
 use rekall_common::{Id, RekallError, Result};
 use rekall_model::company;
 use rekall_repository::repository as repo;
-use rekall_service::{in_read, in_write, Ctx};
+use rekall_service::{in_read, in_write, Ctx, Tx};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
 use super::Snapshot;
@@ -22,8 +22,8 @@ impl CompanyService {
 
     pub async fn list(&self) -> Result<Vec<CompanyResponse>> {
         in_read!(&self.ctx, |tx| {
-            let snapshot = Snapshot::load(tx.db()).await?;
-            let companies = repo::company::find_all_by_order_by_name_asc(tx.db()).await?;
+            let snapshot = Snapshot::of_catalog(tx.db()).await?;
+            let companies = repo::company::list_by_name(tx.db()).await?;
             Ok::<_, RekallError>(companies.iter().map(|company| snapshot.company_response(company)).collect())
         })
     }
@@ -39,6 +39,7 @@ impl CompanyService {
                 updated_at: now,
             };
             company.validate()?;
+            require_name_free(&tx, &company.name, None).await?;
             company.clone().into_active_model().insert(tx.db()).await?;
             Ok::<_, RekallError>(CompanyResponse::of(&company, 0, 0))
         })
@@ -50,8 +51,9 @@ impl CompanyService {
             let mut company = before.clone();
             company.name = request.name.clone().unwrap_or_default();
             company.description = request.description.clone();
+            require_name_free(&tx, &company.name, Some(id)).await?;
             let company = repo::update_if_changed(tx.db(), &before, company, self.ctx.now()).await?;
-            let snapshot = Snapshot::load(tx.db()).await?;
+            let snapshot = Snapshot::of_catalog(tx.db()).await?;
             Ok::<_, RekallError>(snapshot.company_response(&company))
         })
     }
@@ -63,4 +65,11 @@ impl CompanyService {
             Ok::<_, RekallError>(())
         })
     }
+}
+
+async fn require_name_free(tx: &Tx, name: &str, except: Option<Id>) -> Result<()> {
+    if repo::company::name_taken(tx.db(), name, except).await? {
+        return Err(RekallError::conflict(format!("A company named \"{name}\" already exists.")));
+    }
+    Ok(())
 }

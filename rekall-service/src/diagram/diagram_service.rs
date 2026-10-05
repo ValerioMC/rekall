@@ -35,7 +35,7 @@ impl DiagramService {
 
     pub async fn list(&self) -> Result<Vec<DiagramSummaryView>> {
         in_read!(&self.ctx, |tx| {
-            let rows = repo::diagram::find_all_without_graph_order_by_updated_at_desc(tx.db()).await?;
+            let rows = repo::diagram::list_summaries_newest_first(tx.db()).await?;
             Ok::<_, RekallError>(rows.iter().map(DiagramSummaryView::of).collect())
         })
     }
@@ -124,7 +124,7 @@ impl DiagramService {
     pub async fn trace(&self, project_id: Id, file: &str, line: u32) -> Result<Vec<DiagramTraceView>> {
         in_read!(&self.ctx, |tx| {
             let mut traces = Vec::new();
-            for row in repo::diagram::find_all_by_project_id(tx.db(), project_id).await? {
+            for row in repo::diagram::list_of_project(tx.db(), project_id).await? {
                 let graph = stored_graph(&row)?;
                 let hits = TraceIndex::of(&graph).nodes_at(file, line);
                 if !hits.is_empty() {

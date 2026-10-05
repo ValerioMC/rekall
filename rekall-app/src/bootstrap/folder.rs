@@ -5,10 +5,6 @@ use std::path::{Component, Path, PathBuf};
 
 use rekall_repository::DATA_FILE_NAME;
 
-/// The file the Java build kept its H2 database in. A folder holding one has a database too: the
-/// first start on it imports it (see `crate::h2`).
-pub const LEGACY_DATA_FILE_NAME: &str = "rekall.mv.db";
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Inspection {
     pub resolved_path: String,
@@ -33,12 +29,12 @@ pub fn inspect(raw_path: Option<&str>, user_home: &Path) -> Inspection {
     let exists = path.exists() || path.symlink_metadata().is_ok();
     let is_directory = exists && path.is_dir();
     let writable = is_directory && is_writable(&path);
-    let has_database = is_directory && (path.join(DATA_FILE_NAME).is_file() || path.join(LEGACY_DATA_FILE_NAME).is_file());
+    let has_database = is_directory && path.join(DATA_FILE_NAME).is_file();
     Inspection { resolved_path: path.to_string_lossy().into_owned(), exists, is_directory, writable, has_database }
 }
 
 /// `~` and `~/...` are the user's home; the rest is made absolute against the working directory
-/// and normalised lexically, as `Path.toAbsolutePath().normalize()` did.
+/// and normalised lexically, without touching the filesystem.
 fn expand(trimmed: &str, user_home: &Path) -> PathBuf {
     let with_home = if trimmed == "~" || trimmed.starts_with("~/") {
         format!("{}{}", user_home.to_string_lossy(), &trimmed[1..])

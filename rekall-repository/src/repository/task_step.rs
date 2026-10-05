@@ -8,7 +8,7 @@ pub async fn find_by_id(db: &impl ConnectionTrait, id: Id) -> Result<Option<Mode
     Ok(Entity::find_by_id(id).one(db).await?)
 }
 
-pub async fn find_by_task_id_order_by_position_asc(db: &impl ConnectionTrait, task_id: Id) -> Result<Vec<Model>, RekallError> {
+pub async fn list_of_task(db: &impl ConnectionTrait, task_id: Id) -> Result<Vec<Model>, RekallError> {
     Ok(Entity::find()
         .filter(Column::TaskId.eq(task_id))
         .order_by_asc(Column::Position)
@@ -16,7 +16,7 @@ pub async fn find_by_task_id_order_by_position_asc(db: &impl ConnectionTrait, ta
         .await?)
 }
 
-pub async fn find_by_task_ids(db: &impl ConnectionTrait, task_ids: Vec<Id>) -> Result<Vec<Model>, RekallError> {
+pub async fn list_of_tasks(db: &impl ConnectionTrait, task_ids: Vec<Id>) -> Result<Vec<Model>, RekallError> {
     if task_ids.is_empty() {
         return Ok(Vec::new());
     }
@@ -27,7 +27,7 @@ pub async fn find_by_task_ids(db: &impl ConnectionTrait, task_ids: Vec<Id>) -> R
         .await?)
 }
 
-pub async fn find_all_by_order_by_task_id_asc_position_asc(db: &impl ConnectionTrait) -> Result<Vec<Model>, RekallError> {
+pub async fn list_all_in_order(db: &impl ConnectionTrait) -> Result<Vec<Model>, RekallError> {
     Ok(Entity::find()
         .order_by_asc(Column::TaskId)
         .order_by_asc(Column::Position)

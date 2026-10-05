@@ -1,38 +1,33 @@
+//! Every live terminal: opened on a task, attached to by panes, written to, resized, closed, and
+//! swept when idle. The process inside each is `pty_process`'s; the command it runs is
+//! `claude_command`'s.
+
 use std::collections::HashMap;
-use std::io::{Read, Write};
-use std::path::Path;
+use std::io::Write;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use chrono::TimeDelta;
-use portable_pty::{native_pty_system, CommandBuilder, PtySize};
+use portable_pty::CommandBuilder;
 use rekall_common::{Id, Instant, RekallError, Result};
 use rekall_service::claude::{TerminalLaunch, TerminalLaunchService};
 use rekall_service::review::TaskReviewService;
 use rekall_service::step::TaskStepService;
-use tokio::sync::{broadcast, watch};
-use tracing::{debug, info, warn};
+use tokio::sync::broadcast;
+use tracing::{info, warn};
 
 use crate::cli::ClaudeCli;
 use crate::config::ClaudeConfig;
 use crate::terminal::TerminalMode;
 
-use super::{Listener, TerminalEnded, TerminalView};
-use super::scrollback::Scrollback;
+use super::claude_command::{claude_command, ClaudeOptions};
+use super::pty_process::{kick_resize, spawn_terminal};
 use super::terminal::Terminal;
+use super::{Listener, TerminalEnded, TerminalView};
 
-const DEFAULT_COLUMNS: u16 = 80;
-const DEFAULT_ROWS: u16 = 24;
 const MAX_DIMENSION: i64 = 1000;
-const READ_BUFFER: usize = 8192;
-/// How long the repaint kick holds the PTY a row short: long enough for claude's event loop to
-/// read the smaller size, or it coalesces both SIGWINCHs into no change and never repaints.
-const KICK_SETTLE: Duration = Duration::from_millis(150);
-
-/// Only the aliases the settings offer are accepted; anything else leaves the account default.
-pub const MODEL_ALIASES: [&str; 4] = ["opus", "sonnet", "haiku", "fable"];
-pub const EFFORT_LEVELS: [&str; 5] = ["low", "medium", "high", "xhigh", "max"];
 
 pub struct PtyTerminalManager {
     launch_service: TerminalLaunchService,
@@ -128,122 +123,54 @@ impl PtyTerminalManager {
             return Ok(view);
         }
 
-        let directory = Path::new(&launch.working_dir);
-        if !directory.is_dir() {
-            return Err(RekallError::conflict(format!(
-                "This project's folder ({}) is not there. Set it again on the project page.",
-                launch.working_dir
-            )));
-        }
-        let Some(binary) = self.cli.locate().await else {
-            return Err(RekallError::conflict(
-                "Claude Code's command line tool isn't on this machine. Install it, then try again.",
-            ));
-        };
-        let chosen_model = normalise(model, &MODEL_ALIASES);
-        let chosen_effort = normalise(effort, &EFFORT_LEVELS);
-
-        let mut command = CommandBuilder::new(&binary);
-        if skip_permissions {
-            command.arg("--dangerously-skip-permissions");
-        }
-        if let Some(model) = &chosen_model {
-            command.args(["--model", model]);
-        }
-        if let Some(effort) = &chosen_effort {
-            command.args(["--effort", effort]);
-        }
-        command.arg(mode.first_line(&launch.anchors));
-        command.env_clear();
-        for (key, value) in self.terminal_environment().await {
-            command.env(key, value);
-        }
-        command.cwd(directory);
+        let directory = require_folder(&launch)?;
+        let binary = self.require_cli().await?;
+        let options = ClaudeOptions::chosen(skip_permissions, model, effort);
+        let environment = self.cli.environment().await;
+        let command = claude_command(&binary, &options, &mode.first_line(&launch.anchors), environment, directory);
 
         let id = Id::random();
-        let terminal = {
-            let _gate = self.spawn_gate.lock().await;
-            if self.live_map().len() >= self.max_live {
-                return Err(RekallError::conflict(format!(
-                    "Rekall is already running {} terminals. Close one before opening another.",
-                    self.max_live
-                )));
-            }
-            let terminal = self
-                .spawn(id, launch.clone(), step_id, skip_permissions, chosen_model, chosen_effort, command)
-                .map_err(|failed| RekallError::conflict(format!("Could not start claude: {failed}")))?;
-            self.live_map().insert(id, terminal.clone());
-            terminal
-        };
+        let terminal = self.register(id, launch.clone(), step_id, options, command).await?;
 
         self.mark_running(task_id, step_id).await;
         info!("Opened terminal {id} to {mode} {} in {}", launch.anchors, launch.working_dir);
         Ok(terminal.view())
     }
 
-    #[allow(clippy::too_many_arguments)]
-    fn spawn(
+    /// Starts the process and records it as live, under the cap. The check and the record are
+    /// one step behind `spawn_gate`, so two fast opens cannot both slip past the cap.
+    async fn register(
         self: &Arc<Self>,
         id: Id,
         launch: TerminalLaunch,
         step_id: Option<Id>,
-        skip_permissions: bool,
-        model: Option<String>,
-        effort: Option<String>,
+        options: ClaudeOptions,
         command: CommandBuilder,
-    ) -> std::result::Result<Arc<Terminal>, String> {
-        let text = |e: &dyn std::fmt::Display| e.to_string();
-        let pair = native_pty_system()
-            .openpty(PtySize { rows: DEFAULT_ROWS, cols: DEFAULT_COLUMNS, pixel_width: 0, pixel_height: 0 })
-            .map_err(|e| text(&e))?;
-        let mut child = pair.slave.spawn_command(command).map_err(|e| text(&e))?;
-        drop(pair.slave);
-        let reader = pair.master.try_clone_reader().map_err(|e| text(&e))?;
-        let writer = pair.master.take_writer().map_err(|e| text(&e))?;
-        let killer = child.clone_killer();
-        let pid = child.process_id();
-        let (exit_sender, exit) = watch::channel(None);
-        let now = Instant::now();
-        let terminal = Arc::new(Terminal {
-            id,
-            launch,
-            step_id: Mutex::new(step_id),
-            size: Mutex::new((DEFAULT_COLUMNS, DEFAULT_ROWS)),
-            skip_permissions,
-            model,
-            effort,
-            started_at: now,
-            last_activity_at: Mutex::new(now),
-            closing: AtomicBool::new(false),
-            master: Mutex::new(pair.master),
-            writer: Mutex::new(writer),
-            killer: Mutex::new(killer),
-            pid,
-            exit,
-            listeners: Mutex::new(Vec::new()),
-            scrollback: Mutex::new(Scrollback::new(self.scrollback_bytes)),
-        });
-
-        let pumped = terminal.clone();
-        std::thread::Builder::new()
-            .name(format!("terminal-pty-{id}"))
-            .spawn(move || pump(&pumped, reader))
-            .map_err(|e| text(&e))?;
-
+    ) -> Result<Arc<Terminal>> {
+        let _gate = self.spawn_gate.lock().await;
+        if self.live_map().len() >= self.max_live {
+            return Err(RekallError::conflict(format!(
+                "Rekall is already running {} terminals. Close one before opening another.",
+                self.max_live
+            )));
+        }
         let runtime = tokio::runtime::Handle::current();
         let manager = Arc::downgrade(self);
-        std::thread::Builder::new().name(format!("terminal-wait-{id}")).spawn(move || {
-            let code = match child.wait() {
-                Ok(status) => status.exit_code() as i32,
-                Err(_) => -1,
-            };
-            let _ = exit_sender.send(Some(code));
+        let on_exit = move || {
             if let Some(manager) = manager.upgrade() {
                 runtime.spawn(async move { manager.on_exit(id).await });
             }
-        })
-        .map_err(|e| text(&e))?;
+        };
+        let terminal = spawn_terminal(id, launch, step_id, options, command, self.scrollback_bytes, on_exit)
+            .map_err(|failed| RekallError::conflict(format!("Could not start claude: {failed}")))?;
+        self.live_map().insert(id, terminal.clone());
         Ok(terminal)
+    }
+
+    async fn require_cli(&self) -> Result<PathBuf> {
+        self.cli.locate().await.ok_or_else(|| {
+            RekallError::conflict("Claude Code's command line tool isn't on this machine. Install it, then try again.")
+        })
     }
 
     /// Move the running marker to another step without touching the process.
@@ -430,66 +357,18 @@ impl PtyTerminalManager {
     fn live_terminal_for_task(&self, task_id: Id) -> Option<Arc<Terminal>> {
         self.live_map().values().find(|t| t.launch.task_id == task_id).cloned()
     }
-
-    /// The user's own shell environment, plus the `TERM`/`COLORTERM` a TUI needs.
-    async fn terminal_environment(&self) -> HashMap<String, String> {
-        let mut environment = self.cli.environment().await;
-        environment.insert("TERM".into(), "xterm-256color".into());
-        environment.insert("COLORTERM".into(), "truecolor".into());
-        environment
-    }
 }
 
-fn pump(terminal: &Terminal, mut reader: Box<dyn Read + Send>) {
-    let mut buffer = vec![0u8; READ_BUFFER];
-    loop {
-        match reader.read(&mut buffer) {
-            Ok(0) => break,
-            Ok(read) => {
-                let chunk = &buffer[..read];
-                terminal.scrollback.lock().expect("never poisoned").append(chunk);
-                let listeners: Vec<Arc<dyn Listener>> =
-                    terminal.listeners.lock().expect("never poisoned").iter().map(|(_, l)| l.clone()).collect();
-                for listener in listeners {
-                    listener.output(chunk);
-                }
-            }
-            Err(ended) => {
-                debug!("PTY output for terminal {} closed: {ended}", terminal.id);
-                break;
-            }
-        }
+/// The project's folder, which has to be there for a session to start in it.
+fn require_folder(launch: &TerminalLaunch) -> Result<&Path> {
+    let directory = Path::new(&launch.working_dir);
+    if !directory.is_dir() {
+        return Err(RekallError::conflict(format!(
+            "This project's folder ({}) is not there. Set it again on the project page.",
+            launch.working_dir
+        )));
     }
-}
-
-/// Wobble the PTY down a row and, after `KICK_SETTLE`, back to its last known size: each step is
-/// a size change claude observes, so it repaints in full even when the pane's own resize is a no-op.
-fn kick_resize(terminal: Arc<Terminal>) {
-    {
-        let (columns, rows) = *terminal.size.lock().expect("never poisoned");
-        if rows <= 1 || !terminal.apply_win_size(columns, rows - 1) {
-            return;
-        }
-    }
-    let restoring = terminal.clone();
-    let delayed = std::thread::Builder::new().name(format!("terminal-kick-{}", terminal.id)).spawn(move || {
-        std::thread::sleep(KICK_SETTLE);
-        restore_size(&restoring);
-    });
-    if let Err(failed) = delayed {
-        warn!("Could not delay the repaint kick of terminal {}: {failed}", terminal.id);
-        restore_size(&terminal);
-    }
-}
-
-fn restore_size(terminal: &Terminal) {
-    let size = terminal.size.lock().expect("never poisoned");
-    terminal.apply_win_size(size.0, size.1);
-}
-
-fn normalise(value: Option<&str>, allowed: &[&str]) -> Option<String> {
-    let trimmed = rekall_common::jstr::strip(value?).to_lowercase();
-    allowed.contains(&trimmed.as_str()).then_some(trimmed)
+    Ok(directory)
 }
 
 #[cfg(test)]

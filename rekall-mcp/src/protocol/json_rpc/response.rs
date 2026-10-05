@@ -3,7 +3,7 @@ use serde_json::{Map, Value};
 
 use super::{RpcError, VERSION};
 
-/// `@JsonInclude(NON_NULL)`: a success carries `result`, a failure `error`; `id` is always there.
+/// A success carries `result`, a failure `error`, never both; `id` is always there.
 #[derive(Clone, Debug, Serialize)]
 pub struct Response {
     pub jsonrpc: &'static str,

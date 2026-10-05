@@ -3,36 +3,32 @@
 use rekall_common::{jstr, Id, RekallError, Result};
 use rekall_model::tag;
 use rekall_repository::repository as repo;
-use rekall_service::{in_read, in_write, Services, Tx};
+use rekall_service::{in_read, in_write, Ctx, Tx};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
 use crate::dto::{TagRequest, TagResponse};
 
 #[derive(Clone)]
 pub struct TagService {
-    services: Services,
+    ctx: Ctx,
 }
 
 impl TagService {
-    pub fn new(services: Services) -> Self {
-        Self { services }
-    }
-
-    fn ctx(&self) -> &rekall_service::Ctx {
-        &self.services.ctx
+    pub fn new(ctx: Ctx) -> Self {
+        Self { ctx }
     }
 
     pub async fn list(&self) -> Result<Vec<TagResponse>> {
-        in_read!(self.ctx(), |tx| {
-            Ok::<_, RekallError>(repo::tag::find_all_by_order_by_name_asc(tx.db()).await?.iter().map(TagResponse::of).collect())
+        in_read!(&self.ctx, |tx| {
+            Ok::<_, RekallError>(repo::tag::list_by_name(tx.db()).await?.iter().map(TagResponse::of).collect())
         })
     }
 
     pub async fn create(&self, request: TagRequest) -> Result<TagResponse> {
-        in_write!(self.ctx(), |tx| {
+        in_write!(&self.ctx, |tx| {
             let name = request.name.clone().unwrap_or_default();
             require_name_free(&tx, &name, None).await?;
-            let now = self.ctx().now();
+            let now = self.ctx.now();
             let tag = tag::Model {
                 id: Id::random(),
                 name: jstr::trim(&name).to_string(),
@@ -48,7 +44,7 @@ impl TagService {
     }
 
     pub async fn update(&self, id: Id, request: TagRequest) -> Result<TagResponse> {
-        in_write!(self.ctx(), |tx| {
+        in_write!(&self.ctx, |tx| {
             let before = require(&tx, id).await?;
             let name = request.name.clone().unwrap_or_default();
             require_name_free(&tx, &name, Some(id)).await?;
@@ -56,13 +52,13 @@ impl TagService {
             tag.name = jstr::trim(&name).to_string();
             tag.icon = request.icon.clone().unwrap_or_default();
             tag.color = request.color.clone().unwrap_or_default();
-            let tag = repo::update_if_changed(tx.db(), &before, tag, self.ctx().now()).await?;
+            let tag = repo::update_if_changed(tx.db(), &before, tag, self.ctx.now()).await?;
             Ok::<_, RekallError>(TagResponse::of(&tag))
         })
     }
 
     pub async fn delete(&self, id: Id) -> Result<()> {
-        in_write!(self.ctx(), |tx| {
+        in_write!(&self.ctx, |tx| {
             let tag = require(&tx, id).await?;
             tag::Entity::delete_by_id(tag.id).exec(tx.db()).await?;
             Ok::<_, RekallError>(())
@@ -76,11 +72,7 @@ async fn require(tx: &Tx, id: Id) -> Result<tag::Model> {
 
 async fn require_name_free(tx: &Tx, name: &str, except: Option<Id>) -> Result<()> {
     let name = jstr::trim(name);
-    let taken = match except {
-        None => repo::tag::exists_by_name_ignore_case(tx.db(), name).await?,
-        Some(id) => repo::tag::exists_by_name_ignore_case_and_id_not(tx.db(), name, id).await?,
-    };
-    if taken {
+    if repo::tag::name_taken(tx.db(), name, except).await? {
         return Err(RekallError::conflict(format!("A tag named \"{name}\" already exists")));
     }
     Ok(())

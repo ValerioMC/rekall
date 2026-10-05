@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use rekall_model::WrapupAuthor;
-use rekall_service::Services;
+use rekall_service::{commit::AutoCommitService, wrapup::WrapupService};
 use serde_json::Value;
 
 use super::{told, Anchor, AnchoredTask, Arguments, QUALIFY_WITH_PROJECT};
@@ -11,12 +11,13 @@ use crate::texts;
 const WORDS_BEFORE_NUDGE: usize = 600;
 
 pub struct WrapupTool {
-    services: Services,
+    auto_commit: AutoCommitService,
+    wrapups: WrapupService,
 }
 
 impl WrapupTool {
-    pub fn new(services: Services) -> Self {
-        Self { services }
+    pub fn new(auto_commit: AutoCommitService, wrapups: WrapupService) -> Self {
+        Self { auto_commit, wrapups }
     }
 }
 
@@ -63,7 +64,6 @@ impl McpTool for WrapupTool {
 
         // The transport stamps the author: anything arriving over MCP was written by Claude.
         let written = self
-            .services
             .wrapups
             .write_by_anchor(target.project_label.as_deref(), &target.task_label, Some(&body), WrapupAuthor::Claude)
             .await
@@ -87,7 +87,7 @@ impl McpTool for WrapupTool {
             out.push_str(&nudge);
         }
 
-        let committed = self.services.auto_commit.after_wrapup(written.wrapup.task_id, commit_message.as_deref()).await?;
+        let committed = self.auto_commit.after_wrapup(written.wrapup.task_id, commit_message.as_deref()).await?;
         if !committed.off() {
             out.push_str("\n\n");
             out.push_str(&committed.describe());

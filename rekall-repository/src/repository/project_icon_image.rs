@@ -2,7 +2,7 @@ use rekall_common::{Id, Instant, RekallError};
 use rekall_model::project_icon_image::{Column, Entity, Model};
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QuerySelect};
 
-pub async fn find_by_project_id(db: &impl ConnectionTrait, project_id: Id) -> Result<Option<Model>, RekallError> {
+pub async fn find_of_project(db: &impl ConnectionTrait, project_id: Id) -> Result<Option<Model>, RekallError> {
     Ok(Entity::find_by_id(project_id).one(db).await?)
 }
 

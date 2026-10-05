@@ -8,8 +8,8 @@ use crate::version::DEFAULT_RELEASE_URL;
 
 use super::{BackupConfig, DatabaseOverride, Properties, UpdateCheckConfig};
 
-/// Not 8080: see `application.yaml`. The MCP endpoint is registered with Claude Code as a fixed
-/// URL, so a clash on a common port is a broken registration, not a retry.
+/// Not 8080: the MCP endpoint is registered with Claude Code as a fixed URL, so a clash on a
+/// common port is a broken registration, not a retry.
 pub const DEFAULT_PORT: u16 = 47355;
 
 #[derive(Clone, Debug)]
@@ -18,7 +18,7 @@ pub struct AppConfig {
     pub port: u16,
     /// `rekall.home`: where `config.json` lives.
     pub home: PathBuf,
-    /// `REKALL_DB_URL` / `spring.datasource.url`.
+    /// `rekall.database.url` (`REKALL_DATABASE_URL`), or `REKALL_DB_URL`.
     pub database: Option<DatabaseOverride>,
     /// `rekall.security.remote-access`.
     pub remote_access: bool,
@@ -28,12 +28,11 @@ pub struct AppConfig {
     /// `rekall.ui.dist`: a folder to serve the console from instead of the bundle built into the
     /// binary, for working on the UI without rebuilding the server.
     pub ui_dist: Option<PathBuf>,
-    /// The user's home: `System.getProperty("user.home")`.
+    /// The user's home (`user.home` overrides it in tests).
     pub user_home: PathBuf,
     /// Where `./data` resolves: the working directory the server was started from.
     pub working_dir: PathBuf,
-    /// How long the web server waits for requests in flight on shutdown
-    /// (`spring.lifecycle.timeout-per-shutdown-phase`).
+    /// How long the web server waits for requests in flight on shutdown.
     pub shutdown_timeout: Duration,
 }
 
@@ -66,10 +65,7 @@ impl AppConfig {
             run_queue_settle_grace: Duration::from_secs(properties.number("rekall.run-queue.settle-grace-seconds", 8u64)),
             home: user_home.clone(),
         };
-        let database = properties
-            .get("REKALL_DB_URL")
-            .or_else(|| properties.get("spring.datasource.url"))
-            .and_then(|url| DatabaseOverride::parse(&url));
+        let database = database_url(properties).and_then(|url| DatabaseOverride::parse(&url));
         Self {
             port: properties.number("server.port", DEFAULT_PORT),
             home: properties.get("rekall.home").map(PathBuf::from).unwrap_or_else(|| user_home.join(".rekall")),
@@ -92,11 +88,23 @@ impl AppConfig {
         }
     }
 
-    /// The URL the MCP endpoint is registered under: `ClaudeCodeController`'s.
+    /// The URL the MCP endpoint is registered under with Claude Code.
     pub fn mcp_endpoint(&self, served_port: u16) -> String {
         let port = if served_port > 0 { served_port } else { DEFAULT_PORT };
         format!("http://localhost:{port}/mcp")
     }
+}
+
+/// `spring.datasource.url` is read as a deprecated alias, so a script written for an older
+/// release keeps working, and it says so in the log.
+fn database_url(properties: &Properties) -> Option<String> {
+    let current = properties.get("rekall.database.url").or_else(|| properties.get("REKALL_DB_URL"));
+    if current.is_some() {
+        return current;
+    }
+    let deprecated = properties.get("spring.datasource.url")?;
+    tracing::warn!("`spring.datasource.url` is deprecated and will be removed; set `rekall.database.url` instead");
+    Some(deprecated)
 }
 
 #[cfg(test)]

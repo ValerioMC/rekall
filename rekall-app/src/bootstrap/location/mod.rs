@@ -8,7 +8,7 @@
 //!   console can come up and offer to pick another.
 //! - Nothing at all: an in-memory database and the setup screen.
 //!
-//! `REKALL_DB_URL` (or `spring.datasource.url`) set by hand overrides the choice, as it did.
+//! `rekall.database.url` (or `REKALL_DB_URL`) set by hand overrides the choice.
 
 mod location_resolver;
 mod resolved;

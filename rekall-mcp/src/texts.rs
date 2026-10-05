@@ -1,5 +1,4 @@
-//! The texts a session reads before it calls anything. Most began as the Java server's text blocks;
-//! this file is now their only source.
+//! The texts a session reads before it calls anything; this file is their only source.
 
 /// What `server/discover` hands a client: the whole server in one paragraph.
 pub const INSTRUCTIONS: &str = "Rekall holds one user's companies, projects, tasks and markdown notes, and hands back a whole working context in a single call. Anchor what you need as `entity:value`, for example `project:vega task:report-builder`. Reading is `rekall_context`. The writes are few and narrow: a task's wrapup (`rekall_wrapup`, what its implementation looks like now, replaced in place), a step's progress up to `claimed` (`rekall_step`), a commit logged against a task (`rekall_record_commit`), a proposed step that lands as a draft for a person to promote (`rekall_propose_step`), a note on one task (`rekall_note`), added, or rewritten by its title when asked to replace, and a diagram generated for one task (`rekall_diagram`), a Semantic Graph written whole. Nothing else here can be changed.";

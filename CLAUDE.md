@@ -62,8 +62,7 @@ convention are in `docs/DESIGN.md` §3 ("Layout inside a crate") and are not rep
   restates the code.
 - At most 30 words on a function and 50 on a type or module.
 - Describe Rekall as it is. Do not reference the retired Java/Spring implementation
-  (`@Transactional`, `orElseThrow`, Hibernate, Jackson, H2) except in `rekall-app/src/h2`, which
-  exists to import that database.
+  (`@Transactional`, `orElseThrow`, Hibernate, Jackson, H2).
 - No `TODO` in committed code: fix it or open a task.
 
 ## Tests

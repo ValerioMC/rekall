@@ -1,7 +1,7 @@
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 
-/// Marks a routing or extraction failure for `render_errors` to give a JSON body.
+/// Marks a routing or extraction failure for `render_errors` to give a problem body.
 #[derive(Clone, Copy, Debug)]
 pub struct FrameworkError(pub StatusCode);
 

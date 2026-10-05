@@ -8,7 +8,8 @@ use tauri::{AppHandle, Manager, Runtime};
 use tracing::{error, info};
 
 use crate::exit_guard::{self, Leaving};
-use crate::Shell;
+use crate::server_boot::server_config;
+use crate::shell::{port, Shell};
 
 const WORK_FOLDER: &str = "rekall-update";
 const WAIT_THEN_OPEN: &str =
@@ -22,7 +23,7 @@ pub async fn install_update<R: Runtime>(app: AppHandle<R>) -> Result<bool, Strin
         return Err("Installing from the app is only available on macOS".into());
     }
     let owns_server = app.state::<Arc<Shell>>().running.lock().await.is_some();
-    if owns_server && !exit_guard::may_leave(&app, crate::port(), Leaving::Update).await {
+    if owns_server && !exit_guard::may_leave(&app, port(), Leaving::Update).await {
         return Ok(false);
     }
     let version = install().await.map_err(|failure| {
@@ -55,7 +56,7 @@ fn relaunch_in_foreground<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> 
 async fn install() -> Result<String, String> {
     use rekall_app::version::{self, DiskImageInstaller, GithubReleaseFeed, UpdateTarget};
 
-    let feed = GithubReleaseFeed::new(&crate::server_config().update_check.url);
+    let feed = GithubReleaseFeed::new(&server_config().update_check.url);
     let running_executable = std::env::current_exe().map_err(|failure| failure.to_string())?;
     let work_dir = std::env::temp_dir().join(WORK_FOLDER);
     version::install(UpdateTarget {

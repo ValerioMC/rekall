@@ -19,24 +19,24 @@ pub fn routes() -> Router<ApiState> {
 }
 
 async fn list(State(state): State<ApiState>) -> ApiResult<Json<Vec<TimeEntryView>>> {
-    Ok(Json(state.services.time_entries.find_all().await?))
+    Ok(Json(state.time_entries.find_all().await?))
 }
 
 async fn start(State(state): State<ApiState>, Path(task_id): Path<String>) -> ApiResult<Json<TimeEntryView>> {
-    Ok(Json(state.services.time_entries.start(uuid("taskId", &task_id)?).await?))
+    Ok(Json(state.time_entries.start(uuid("taskId", &task_id)?).await?))
 }
 
 async fn stop(State(state): State<ApiState>, Path(task_id): Path<String>) -> ApiResult<Json<TimeEntryView>> {
-    Ok(Json(state.services.time_entries.stop(uuid("taskId", &task_id)?).await?))
+    Ok(Json(state.time_entries.stop(uuid("taskId", &task_id)?).await?))
 }
 
 async fn edit(State(state): State<ApiState>, Path(id): Path<String>, JsonBody(request): JsonBody<TimeEntryEditRequest>) -> ApiResult<Json<TimeEntryView>> {
     let id = uuid("id", &id)?;
     Validator::new().not_null("startedAt", &request.started_at).finish()?;
-    Ok(Json(state.services.time_entries.edit(id, request.started_at, request.stopped_at).await?))
+    Ok(Json(state.time_entries.edit(id, request.started_at, request.stopped_at).await?))
 }
 
 async fn delete(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Response> {
-    state.services.time_entries.delete(uuid("id", &id)?).await?;
+    state.time_entries.delete(uuid("id", &id)?).await?;
     Ok(no_content())
 }

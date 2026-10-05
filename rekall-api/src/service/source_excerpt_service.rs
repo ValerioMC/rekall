@@ -3,10 +3,12 @@
 
 use std::path::{Path, PathBuf};
 
+use rekall_service::Ctx;
+
 use rekall_common::{jstr, Id, InternalFailure, RekallError, Result};
 use rekall_repository::repository as repo;
 use rekall_service::diagram::ProjectFolder;
-use rekall_service::{in_read, Services};
+use rekall_service::in_read;
 
 use crate::dto::{SourceExcerptResponse, SourceLineResponse};
 
@@ -19,12 +21,12 @@ const MAX_FILE_BYTES: u64 = 4 * 1024 * 1024;
 
 #[derive(Clone)]
 pub struct SourceExcerptService {
-    services: Services,
+    ctx: Ctx,
 }
 
 impl SourceExcerptService {
-    pub fn new(services: Services) -> Self {
-        Self { services }
+    pub fn new(ctx: Ctx) -> Self {
+        Self { ctx }
     }
 
     pub async fn excerpt(&self, diagram_id: Id, file: &str, start: Option<u32>, end: Option<u32>) -> Result<SourceExcerptResponse> {
@@ -36,7 +38,7 @@ impl SourceExcerptService {
     }
 
     async fn project_folder(&self, diagram_id: Id) -> Result<PathBuf> {
-        in_read!(&self.services.ctx, |tx| {
+        in_read!(&self.ctx, |tx| {
             let row = repo::diagram::find_by_id(tx.db(), diagram_id).await?.ok_or_else(|| RekallError::not_found("Diagram", diagram_id))?;
             let project = repo::project::require(tx.db(), row.project_id).await?;
             let folder = project.repo_folder.filter(|folder| !jstr::is_blank(folder)).ok_or_else(|| {

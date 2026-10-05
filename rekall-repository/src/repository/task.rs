@@ -3,7 +3,7 @@ use rekall_model::project;
 use rekall_model::task::{Column, Entity, Model};
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QueryOrder};
 
-use super::{at_most_one, contains_ignore_case, equals_ignore_case};
+use super::{at_most_one, contains_ignore_case};
 
 pub async fn find_by_id(db: &impl ConnectionTrait, id: Id) -> Result<Option<Model>, RekallError> {
     Ok(Entity::find_by_id(id).one(db).await?)
@@ -21,33 +21,35 @@ pub async fn find_by_ids(db: &impl ConnectionTrait, ids: Vec<Id>) -> Result<Vec<
     Ok(Entity::find().filter(Column::Id.is_in(ids)).all(db).await?)
 }
 
-pub async fn find_all(db: &impl ConnectionTrait) -> Result<Vec<Model>, RekallError> {
+/// Every task, in creation order.
+pub async fn list_oldest_first(db: &impl ConnectionTrait) -> Result<Vec<Model>, RekallError> {
     Ok(Entity::find().order_by_asc(Column::CreatedAt).order_by_asc(Column::Id).all(db).await?)
 }
 
-pub async fn find_by_label_ignore_case(db: &impl ConnectionTrait, label: &str) -> Result<Vec<Model>, RekallError> {
-    Ok(find_all(db).await?.into_iter().filter(|t| equals_ignore_case(&t.label, label)).collect())
+/// Tasks whose label is `label`, ignoring case, oldest first. Labels are stored lowercase, so
+/// this is a plain comparison in SQL.
+pub async fn find_by_label(db: &impl ConnectionTrait, label: &str) -> Result<Vec<Model>, RekallError> {
+    Ok(Entity::find()
+        .filter(Column::Label.eq(label.to_lowercase()))
+        .order_by_asc(Column::CreatedAt)
+        .order_by_asc(Column::Id)
+        .all(db)
+        .await?)
 }
 
-pub async fn find_by_project_label_ignore_case_and_label_ignore_case(
-    db: &impl ConnectionTrait,
-    project_label: &str,
-    label: &str,
-) -> Result<Option<Model>, RekallError> {
-    let projects: Vec<Id> = super::project::find_by_label_ignore_case(db, project_label)
-        .await?
-        .into_iter()
-        .map(|p| p.id)
-        .collect();
-    let found = find_by_label_ignore_case(db, label)
-        .await?
-        .into_iter()
-        .filter(|t| projects.contains(&t.project_id))
-        .collect();
+/// The task `project:<label> task:<label>` names, both ignoring case. Two companies may each
+/// have a project with that label; more than one match is reported, not guessed.
+pub async fn find_by_anchor(db: &impl ConnectionTrait, project_label: &str, label: &str) -> Result<Option<Model>, RekallError> {
+    let found = Entity::find()
+        .inner_join(project::Entity)
+        .filter(project::Column::Label.eq(project_label.to_lowercase()))
+        .filter(Column::Label.eq(label.to_lowercase()))
+        .all(db)
+        .await?;
     at_most_one(found)
 }
 
-pub async fn find_by_project_id_order_by_label_asc(db: &impl ConnectionTrait, project_id: Id) -> Result<Vec<Model>, RekallError> {
+pub async fn list_of_project(db: &impl ConnectionTrait, project_id: Id) -> Result<Vec<Model>, RekallError> {
     Ok(Entity::find()
         .filter(Column::ProjectId.eq(project_id))
         .order_by_asc(Column::Label)
@@ -55,16 +57,18 @@ pub async fn find_by_project_id_order_by_label_asc(db: &impl ConnectionTrait, pr
         .await?)
 }
 
-/// `findAllByOrderByProjectLabelAscLabelAsc`: grouped by project label, then by label.
-pub async fn find_all_by_order_by_project_label_asc_label_asc(db: &impl ConnectionTrait) -> Result<Vec<Model>, RekallError> {
-    let projects = project::Entity::find().all(db).await?;
-    let mut tasks = Entity::find().all(db).await?;
-    let label_of = |id: &Id| projects.iter().find(|p| p.id == *id).map(|p| p.label.clone()).unwrap_or_default();
-    tasks.sort_by(|a, b| (label_of(&a.project_id), &a.label).cmp(&(label_of(&b.project_id), &b.label)));
-    Ok(tasks)
+/// By project label, then by label: the order the catalog lists tasks in.
+pub async fn list_in_catalog_order(db: &impl ConnectionTrait) -> Result<Vec<Model>, RekallError> {
+    Ok(Entity::find()
+        .inner_join(project::Entity)
+        .order_by_asc(project::Column::Label)
+        .order_by_asc(Column::Label)
+        .order_by_asc(Column::CreatedAt)
+        .all(db)
+        .await?)
 }
 
-/// `searchDescriptions`: tasks whose description holds the term, newest first, at most `limit`.
+/// Tasks whose description holds the term, newest first, at most `limit`.
 pub async fn search_descriptions(db: &impl ConnectionTrait, term: &str, limit: usize) -> Result<Vec<Model>, RekallError> {
     let rows = Entity::find()
         .filter(Column::Description.is_not_null())
@@ -76,4 +80,13 @@ pub async fn search_descriptions(db: &impl ConnectionTrait, term: &str, limit: u
         .filter(|t| t.description.as_deref().is_some_and(|d| contains_ignore_case(d, term)))
         .take(limit)
         .collect())
+}
+
+/// Whether a task of the project other than `except` already uses this label.
+pub async fn label_taken(db: &impl ConnectionTrait, project_id: Id, label: &str, except: Option<Id>) -> Result<bool, RekallError> {
+    let mut query = Entity::find().filter(Column::ProjectId.eq(project_id)).filter(Column::Label.eq(label.to_lowercase()));
+    if let Some(except) = except {
+        query = query.filter(Column::Id.ne(except));
+    }
+    Ok(query.one(db).await?.is_some())
 }

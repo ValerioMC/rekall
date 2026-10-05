@@ -1,24 +1,16 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
-import CopyGlyph from '@/components/ui/CopyGlyph.vue'
-import AppInput from '@/components/ui/AppInput.vue'
-import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
-import AppModeToggle from '@/components/ui/AppModeToggle.vue'
-import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.vue'
-import OpenTerminalButton from '@/components/claude/OpenTerminalButton.vue'
-import LogCommitButton from '@/components/console/LogCommitButton.vue'
-import NotesButton from '@/components/console/NotesButton.vue'
-import PlanHereButton from '@/components/console/PlanHereButton.vue'
-import StepSeal from '@/components/console/StepSeal.vue'
-import StepPassHistory from '@/components/console/StepPassHistory.vue'
-import CommitReferenceList from '@/components/console/CommitReferenceList.vue'
+import StepAddForm from '@/components/console/steps/StepAddForm.vue'
+import StepChecklistRow from '@/components/console/steps/StepChecklistRow.vue'
+import StepDraftRow from '@/components/console/steps/StepDraftRow.vue'
+import StepsEmptyState from '@/components/console/steps/StepsEmptyState.vue'
+import StepsHeader from '@/components/console/steps/StepsHeader.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
-import { identityHue } from '@/common/identity'
-import { relativeTime } from '@/common/format/relative-time'
-import { rkCommand, rkPlanCommand } from '@/common/format/rk-command'
+import { useEnergyStream } from '@/composables/useEnergyStream'
+import { provideStepEditor } from '@/composables/useStepEditor'
 import { stepIsComplete, type TaskStep } from '@/model/catalog'
 import { STEP_DETAIL_TEMPLATE } from '@/model/templates'
 import type { TaskStepId } from '@/model/branded'
@@ -27,226 +19,30 @@ const store = useConsoleStore()
 const { selectedTask, selectedTaskSteps } = storeToRefs(store)
 const { run } = useAsyncAction()
 
-const hue = computed(() => identityHue(selectedTask.value?.projectId ?? ''))
+const editor = provideStepEditor({
+  steps: () => selectedTaskSteps.value,
+  save: (id, changes) => void run(() => store.saveStep(id, changes)),
+  markUnsaved: () => (store.saveState = 'unsaved')
+})
 
 // Draft steps sit on a staging shelf below the checklist until they are promoted.
-const checklistSteps = computed(() =>
-  selectedTaskSteps.value.filter((step) => step.state !== 'DRAFT')
-)
+const checklistSteps = computed(() => selectedTaskSteps.value.filter((step) => step.state !== 'DRAFT'))
 const draftSteps = computed(() => selectedTaskSteps.value.filter((step) => step.state === 'DRAFT'))
-
-const done = computed(() => checklistSteps.value.filter((step) => step.done).length)
-const claimed = computed(
-  () => checklistSteps.value.filter((step) => step.state === 'CLAIMED').length
-)
-
-const currentId = computed(
-  () => checklistSteps.value.find((step) => step.state === 'OPEN')?.id ?? null
-)
-
-const runningStep = computed(
-  () => checklistSteps.value.find((step) => step.state === 'RUNNING') ?? null
-)
+const allDone = computed(() => checklistSteps.value.every((step) => step.done))
+const currentId = computed(() => checklistSteps.value.find((step) => step.state === 'OPEN')?.id ?? null)
+const running = computed(() => checklistSteps.value.some((step) => step.state === 'RUNNING'))
+const firstClaimed = computed(() => checklistSteps.value.find((step) => step.state === 'CLAIMED') ?? null)
 
 const hideDone = ref(false)
 const visibleSteps = computed(() =>
   hideDone.value ? checklistSteps.value.filter((step) => !step.done) : checklistSteps.value
 )
 
-const promoting = ref<TaskStepId | null>(null)
+const listEl = ref<HTMLElement | null>(null)
+const draftsEl = ref<HTMLElement | null>(null)
+const stream = useEnergyStream(listEl, [visibleSteps, editor.expandedId, editor.mode, editor.body])
 
-async function promote(step: TaskStep): Promise<void> {
-  flush()
-  promoting.value = step.id
-  try {
-    await run(() => store.promoteStep(step.id))
-  } finally {
-    promoting.value = null
-  }
-}
-
-async function returnToDraft(step: TaskStep): Promise<void> {
-  flush()
-  await run(() => store.returnStepToDraft(step.id))
-}
-
-function railKind(index: number): 'spent' | 'pending' {
-  const step = visibleSteps.value[index]
-  return step && stepIsComplete(step.state) ? 'spent' : 'pending'
-}
-
-function checkboxLabel(step: TaskStep): string {
-  if (step.state === 'DONE') return `${step.title} is done. Reopen it from its detail.`
-  if (step.state === 'CLAIMED') return `Accept ${step.title}`
-  return `Mark ${step.title} done`
-}
-
-const firstClaimed = computed(
-  () => checklistSteps.value.find((step) => step.state === 'CLAIMED') ?? null
-)
-
-const newTitle = ref('')
-
-async function add(): Promise<void> {
-  const title = newTitle.value.trim()
-  if (!title || !selectedTask.value) return
-  newTitle.value = ''
-  const created = await run(() =>
-    store.addStep(selectedTask.value!.id, title, STEP_DETAIL_TEMPLATE)
-  )
-  if (!created) return
-  flush()
-  open(created)
-  mode.value = 'write'
-  await scrollToDrafts()
-}
-
-async function focusAdd(): Promise<void> {
-  await nextTick()
-  document.getElementById('new-step')?.focus()
-}
-
-const expandedId = ref<TaskStepId | null>(null)
-const reopenArmed = ref<TaskStepId | null>(null)
-const mode = ref<'write' | 'read'>('read')
-const draftTitle = ref('')
-const draftBody = ref('')
-let saveTimer: ReturnType<typeof setTimeout> | null = null
-
-function flush(): void {
-  if (!saveTimer) return
-  clearTimeout(saveTimer)
-  saveTimer = null
-  writeDraft()
-}
-
-function writeDraft(): void {
-  const id = expandedId.value
-  const title = draftTitle.value.trim()
-  if (!id || !title) return
-  const step = selectedTaskSteps.value.find((candidate) => candidate.id === id)
-  if (!step || (step.title === title && (step.bodyMarkdown ?? '') === draftBody.value)) return
-  void run(() => store.saveStep(id, { title, bodyMarkdown: draftBody.value }))
-}
-
-function scheduleSave(): void {
-  store.saveState = 'unsaved'
-  if (saveTimer) clearTimeout(saveTimer)
-  saveTimer = setTimeout(() => {
-    saveTimer = null
-    writeDraft()
-  }, 700)
-}
-
-function open(step: TaskStep): void {
-  expandedId.value = step.id
-  draftTitle.value = step.title
-  draftBody.value = step.bodyMarkdown ?? ''
-  mode.value = step.bodyMarkdown?.trim() ? 'read' : 'write'
-}
-
-function toggleExpanded(step: TaskStep): void {
-  flush()
-  if (expandedId.value === step.id) {
-    expandedId.value = null
-    return
-  }
-  open(step)
-}
-
-watch(expandedId, () => {
-  reopenArmed.value = null
-})
-
-watch(
-  () => selectedTask.value?.id ?? null,
-  () => {
-    flush()
-    hideDone.value = false
-    expandedId.value = null
-    const next =
-      checklistSteps.value.find((step) => !stepIsComplete(step.state)) ?? draftSteps.value[0]
-    if (next) open(next)
-  },
-  { immediate: true }
-)
-
-// Something outside this pane (search, the review queue) asked for one step: open it, showing
-// the done ones if that is where it is, then clear the request so it is honoured once.
-watch(
-  () => [store.stepToOpen, visibleSteps.value.length] as const,
-  ([stepId]) => {
-    if (!stepId) return
-    const step = [...checklistSteps.value, ...draftSteps.value].find((candidate) => candidate.id === stepId)
-    if (!step) return
-    if (step.done) hideDone.value = false
-    open(step)
-    store.clearStepToOpen()
-  },
-  { immediate: true }
-)
-
-async function markForward(step: TaskStep): Promise<void> {
-  if (step.state === 'DONE') return
-  const wasOpenHere = expandedId.value === step.id
-  flush()
-  await run(() => (step.state === 'CLAIMED' ? store.acceptStep(step.id) : store.toggleStep(step.id)))
-  if (!wasOpenHere) return
-
-  const next = checklistSteps.value.find((candidate) => !stepIsComplete(candidate.state))
-  if (next && next.id !== step.id) open(next)
-  else expandedId.value = null
-}
-
-async function sendBack(step: TaskStep): Promise<void> {
-  flush()
-  await run(() => store.sendBackStep(step.id))
-  const returned = selectedTaskSteps.value.find((candidate) => candidate.id === step.id)
-  open(returned ?? step)
-}
-
-async function reopen(step: TaskStep): Promise<void> {
-  if (reopenArmed.value !== step.id) {
-    reopenArmed.value = step.id
-    return
-  }
-  reopenArmed.value = null
-  flush()
-  await run(() => store.reopenStep(step.id))
-  open(step)
-}
-
-async function reviewFirst(): Promise<void> {
-  const step = firstClaimed.value
-  if (!step) return
-  open(step)
-  await nextTick()
-  listEl.value
-    ?.querySelector<HTMLElement>(`li[data-step-id="${step.id}"]`)
-    ?.scrollIntoView({ block: 'center', behavior: 'smooth' })
-}
-
-async function move(step: TaskStep, by: number): Promise<void> {
-  flush()
-  await run(() => store.moveStep(step.id, step.position + by))
-}
-
-const deleting = ref<TaskStep | null>(null)
-
-const deletingBlast = computed(() =>
-  deleting.value?.bodyMarkdown?.trim()
-    ? 'the step and the detail written under it · not recoverable'
-    : 'one step · not recoverable'
-)
-
-async function remove(): Promise<void> {
-  const step = deleting.value
-  deleting.value = null
-  if (!step) return
-  if (expandedId.value === step.id) expandedId.value = null
-  await run(() => store.removeStep(step.id))
-}
-
+/** The rail beside row `index`: from its node down, up to its node, or both ways. */
 function railStyle(index: number): Record<string, string> {
   const isFirst = index === 0
   const isLast = index === visibleSteps.value.length - 1
@@ -258,84 +54,143 @@ function railStyle(index: number): Record<string, string> {
   return { top: '0', bottom: '0' }
 }
 
-const copied = ref(false)
-
-async function copyAnchor(): Promise<void> {
-  if (!selectedTask.value) return
-  await navigator.clipboard?.writeText(rkCommand(selectedTask.value.anchor))
-  copied.value = true
-  setTimeout(() => (copied.value = false), 1400)
+/** The first step still to finish, or the first draft when every step is done. */
+function openFirstUnfinished(): void {
+  const next = checklistSteps.value.find((step) => !stepIsComplete(step.state)) ?? draftSteps.value[0]
+  if (next) editor.open(next)
 }
 
-const copiedPlan = ref(false)
+watch(
+  () => selectedTask.value?.id ?? null,
+  () => {
+    editor.flush()
+    hideDone.value = false
+    editor.close()
+    openFirstUnfinished()
+  },
+  { immediate: true }
+)
 
-async function copyPlan(): Promise<void> {
-  if (!selectedTask.value) return
-  await navigator.clipboard?.writeText(rkPlanCommand(selectedTask.value.anchor))
-  copiedPlan.value = true
-  setTimeout(() => (copiedPlan.value = false), 1400)
+// Something outside this pane (search, the review queue) asked for one step: open it, showing
+// the done ones if that is where it is, then clear the request so it is honoured once.
+watch(
+  () => [store.stepToOpen, visibleSteps.value.length] as const,
+  ([stepId]) => {
+    if (!stepId) return
+    const step = selectedTaskSteps.value.find((candidate) => candidate.id === stepId)
+    if (!step) return
+    if (step.done) hideDone.value = false
+    editor.open(step)
+    store.clearStepToOpen()
+  },
+  { immediate: true }
+)
+
+const reopenArmed = ref<TaskStepId | null>(null)
+watch(editor.expandedId, () => (reopenArmed.value = null))
+
+/** Ticks an open step or accepts a claimed one; the open detail moves on to the next step. */
+async function markForward(step: TaskStep): Promise<void> {
+  if (step.state === 'DONE') return
+  const wasOpenHere = editor.expandedId.value === step.id
+  editor.flush()
+  await run(() => (step.state === 'CLAIMED' ? store.acceptStep(step.id) : store.toggleStep(step.id)))
+  if (!wasOpenHere) return
+  const next = checklistSteps.value.find((candidate) => !stepIsComplete(candidate.state))
+  if (next && next.id !== step.id) editor.open(next)
+  else editor.close()
 }
 
-onUnmounted(flush)
+async function sendBack(step: TaskStep): Promise<void> {
+  editor.flush()
+  await run(() => store.sendBackStep(step.id))
+  editor.open(selectedTaskSteps.value.find((candidate) => candidate.id === step.id) ?? step)
+}
 
-const listEl = ref<HTMLElement | null>(null)
-const draftsEl = ref<HTMLElement | null>(null)
-const stream = ref<{ top: number; height: number } | null>(null)
+async function reopen(step: TaskStep): Promise<void> {
+  if (reopenArmed.value !== step.id) {
+    reopenArmed.value = step.id
+    return
+  }
+  reopenArmed.value = null
+  editor.flush()
+  await run(() => store.reopenStep(step.id))
+  editor.open(step)
+}
+
+async function reviewFirst(): Promise<void> {
+  const step = firstClaimed.value
+  if (!step) return
+  editor.open(step)
+  await nextTick()
+  listEl.value
+    ?.querySelector<HTMLElement>(`li[data-step-id="${step.id}"]`)
+    ?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+}
+
+async function move(step: TaskStep, by: number): Promise<void> {
+  editor.flush()
+  await run(() => store.moveStep(step.id, step.position + by))
+}
+
+const promoting = ref<TaskStepId | null>(null)
+
+async function promote(step: TaskStep): Promise<void> {
+  editor.flush()
+  promoting.value = step.id
+  try {
+    await run(() => store.promoteStep(step.id))
+  } finally {
+    promoting.value = null
+  }
+}
+
+async function returnToDraft(step: TaskStep): Promise<void> {
+  editor.flush()
+  await run(() => store.returnStepToDraft(step.id))
+}
+
+const deleting = ref<TaskStep | null>(null)
+const deletingBlast = computed(() =>
+  deleting.value?.bodyMarkdown?.trim()
+    ? 'the step and the detail written under it · not recoverable'
+    : 'one step · not recoverable'
+)
+
+async function remove(): Promise<void> {
+  const step = deleting.value
+  deleting.value = null
+  if (!step) return
+  if (editor.expandedId.value === step.id) editor.close()
+  await run(() => store.removeStep(step.id))
+}
+
+const newTitle = ref('')
+
+/** A new step starts as a draft, opened for writing its detail. */
+async function add(): Promise<void> {
+  const title = newTitle.value.trim()
+  if (!title || !selectedTask.value) return
+  newTitle.value = ''
+  const created = await run(() => store.addStep(selectedTask.value!.id, title, STEP_DETAIL_TEMPLATE))
+  if (!created) return
+  editor.flush()
+  editor.open(created)
+  editor.mode.value = 'write'
+  await scrollToDrafts()
+}
+
+async function focusAdd(): Promise<void> {
+  await nextTick()
+  document.getElementById('new-step')?.focus()
+}
 
 async function scrollToDrafts(): Promise<void> {
   await nextTick()
   draftsEl.value?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
 }
 
-const NODE_CENTER_OFFSET = 18
-
-function measureStream(): void {
-  const list = listEl.value
-  if (!list) {
-    stream.value = null
-    return
-  }
-  const rows = Array.from(list.querySelectorAll<HTMLElement>('li[data-testid="step-row"]'))
-  const runningIndex = rows.findIndex((row) => row.dataset.stepState === 'RUNNING')
-  const startIndex = rows.findIndex(
-    (row) => row.dataset.stepState === 'CLAIMED' || row.dataset.stepState === 'DONE'
-  )
-  const startRow = rows[startIndex]
-  const runningRow = rows[runningIndex]
-  if (!startRow || !runningRow || runningIndex < 1 || startIndex >= runningIndex) {
-    stream.value = null
-    return
-  }
-  const top = startRow.offsetTop + NODE_CENTER_OFFSET
-  const height = runningRow.offsetTop + NODE_CENTER_OFFSET - top
-  stream.value = height > 4 ? { top, height } : null
-}
-
-function scheduleMeasure(): void {
-  void nextTick(measureStream)
-}
-
-let rowObserver: ResizeObserver | null = null
-if (typeof ResizeObserver !== 'undefined') {
-  rowObserver = new ResizeObserver(() => measureStream())
-}
-
-watch(listEl, (element) => {
-  rowObserver?.disconnect()
-  if (element) rowObserver?.observe(element)
-  scheduleMeasure()
-})
-
-watch([visibleSteps, expandedId, mode, () => draftBody.value], scheduleMeasure)
-
-onMounted(() => {
-  scheduleMeasure()
-  window.addEventListener('resize', scheduleMeasure)
-})
-onUnmounted(() => {
-  rowObserver?.disconnect()
-  window.removeEventListener('resize', scheduleMeasure)
-})
+onUnmounted(editor.flush)
 </script>
 
 <template>
@@ -345,201 +200,23 @@ onUnmounted(() => {
     </p>
 
     <template v-else>
-      <div class="relative shrink-0 overflow-hidden border-b border-border">
-        <div
-          class="texture-grid pointer-events-none absolute inset-0 opacity-60"
-          :style="{ '--texture-tint': hue.base }"
-          aria-hidden="true"
-        />
-        <div
-          class="pointer-events-none absolute inset-x-0 top-0 h-px"
-          :style="{ background: hue.line }"
-          aria-hidden="true"
-        />
-
-        <header class="relative flex items-start gap-4 px-5 py-3.5">
-          <div class="min-w-0 flex-1">
-            <p class="eyebrow flex items-center gap-1.5">
-              <span class="h-2.5 w-[3px] shrink-0 rounded-full bg-accent" aria-hidden="true" />
-              Steps
-            </p>
-            <h2 class="flex items-center gap-2 truncate text-[19px] font-semibold tracking-[-0.015em] text-text">
-              <span class="truncate">{{ selectedTask.title }}</span>
-              <span
-                v-if="runningStep"
-                class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-accent-soft px-2 py-0.5 text-[10.5px] font-semibold tracking-[0.02em] text-accent"
-                data-testid="steps-running-flag"
-              >
-                <span class="relative grid size-2 place-items-center" aria-hidden="true">
-                  <span class="absolute inline-flex size-2 animate-ping rounded-full bg-accent/60" />
-                  <span class="relative inline-flex size-1.5 rounded-full bg-accent" />
-                </span>
-                running
-              </span>
-            </h2>
-            <button
-              class="anchor-chip focus-ring mt-1.5 inline-flex items-center gap-2 px-2.5 py-1 text-[11.5px] transition-colors hover:border-anchor"
-              :class="copied && 'flash'"
-              :title="copied ? 'Copied' : `Copy ${rkCommand(selectedTask.anchor)}`"
-              data-testid="copy-steps-anchor"
-              @click="copyAnchor"
-            >
-              <span class="opacity-60">/rk</span>
-              <span>{{ selectedTask.anchor }}</span>
-              <CopyGlyph :copied="copied" />
-            </button>
-          </div>
-
-          <div class="flex shrink-0 items-center gap-1.5">
-            <NotesButton :task-id="selectedTask.id" />
-            <PlanHereButton
-              :task-id="selectedTask.id"
-              :anchor="selectedTask.anchor"
-              :folder="selectedTask.projectRepoFolder"
-            />
-            <OpenTerminalButton
-              :task-id="selectedTask.id"
-              :step-id="currentId"
-              :folder="selectedTask.projectRepoFolder"
-            />
-            <LaunchClaudeCodeButton
-              :anchors="selectedTask.anchor"
-              :folder="selectedTask.projectRepoFolder"
-              missing-hint="Set this project's folder on its page to open a session from it"
-            />
-          </div>
-        </header>
-
-        <!-- The ledger: one segment per step across the pane's full width, so a long checklist
-             still reads at a glance, with the tally and the view toggles on the same line rather
-             than stacked in a corner under the actions. -->
-        <div
-          v-if="checklistSteps.length"
-          class="relative flex items-center gap-3 px-5 pb-3"
-          data-testid="steps-ledger"
-        >
-          <p
-            class="shrink-0 font-mono text-[12px] font-semibold leading-none tabular-nums"
-            data-testid="steps-count"
-          ><span :class="done === checklistSteps.length ? 'text-safe' : 'text-accent'">{{ done }}</span><span class="text-text-subtle">/{{ checklistSteps.length }}</span></p>
-          <span class="trough flex h-[8px] min-w-0 flex-1 gap-[3px] p-[1.5px]" aria-hidden="true">
-            <span
-              v-for="step in checklistSteps"
-              :key="step.id"
-              class="h-full min-w-[6px] flex-1 rounded-full transition-colors duration-300"
-              :class="
-                step.state === 'DONE'
-                  ? done === checklistSteps.length
-                    ? 'tube-gold tube-safe'
-                    : 'tube-gold'
-                  : step.state === 'CLAIMED'
-                    ? 'ledger-claimed'
-                    : step.state === 'RUNNING'
-                      ? 'ledger-running'
-                      : step.id === currentId
-                        ? 'tube-next'
-                        : 'bg-transparent'
-              "
-            />
-          </span>
-          <div
-            v-if="done > 0 || claimed > 0 || draftSteps.length > 0"
-            class="flex shrink-0 items-center gap-2.5 text-[11px]"
-          >
-            <button
-              v-if="claimed > 0"
-              class="focus-ring rounded text-accent underline-offset-2 transition-colors hover:underline"
-              data-testid="steps-claimed-count"
-              @click="reviewFirst"
-            >
-              {{ claimed }} awaiting review
-            </button>
-            <button
-              v-if="draftSteps.length > 0"
-              class="focus-ring inline-flex items-center gap-1 rounded text-text-subtle transition-colors hover:text-text"
-              data-testid="steps-draft-count"
-              @click="scrollToDrafts"
-            >
-              <span
-                class="size-[7px] rounded-[2px] border border-dashed border-current"
-                aria-hidden="true"
-              />
-              {{ draftSteps.length }} in draft
-            </button>
-            <span
-              v-if="(claimed > 0 || draftSteps.length > 0) && (done > 0 || claimed > 0)"
-              class="h-3 w-px bg-border-strong"
-              aria-hidden="true"
-            />
-            <button
-              v-if="done > 0 || claimed > 0"
-              class="focus-ring rounded text-text-subtle transition-colors hover:text-text"
-              :aria-pressed="hideDone"
-              data-testid="toggle-hide-done"
-              @click="hideDone = !hideDone"
-            >
-              {{ hideDone ? 'Show done' : 'Hide done' }}
-            </button>
-          </div>
-        </div>
-      </div>
+      <StepsHeader
+        v-model:hide-done="hideDone"
+        :task="selectedTask"
+        :checklist-steps="checklistSteps"
+        :draft-count="draftSteps.length"
+        :current-id="currentId"
+        :running="running"
+        @review-first="reviewFirst"
+        @show-drafts="scrollToDrafts"
+      />
 
       <div class="min-h-0 min-w-0 flex-1 overflow-y-auto px-5 py-4">
-        <div
+        <StepsEmptyState
           v-if="!checklistSteps.length && !draftSteps.length"
-          class="max-w-[560px] py-4"
-        >
-          <div class="relative mb-7" aria-hidden="true">
-            <span
-              class="absolute bottom-[18px] left-[11px] top-[18px] w-px -translate-x-1/2 bg-border-strong"
-            />
-            <div v-for="ghost in 3" :key="ghost" class="relative flex h-9 items-center pl-9">
-              <span
-                class="absolute left-0 top-1/2 size-[22px] -translate-y-1/2 rounded-full border border-dashed border-border-strong bg-canvas"
-              />
-              <span
-                class="h-[7px] rounded-full bg-border"
-                :style="{ width: `${[62, 45, 54][ghost - 1]}%` }"
-              />
-            </div>
-          </div>
-
-          <h3 class="mb-1.5 text-[21px] font-semibold leading-tight tracking-[-0.02em] text-text">
-            Nothing says what is left
-          </h3>
-          <p class="text-[13px] leading-relaxed text-text-muted">
-            The description says what the task is and the wrapup says what it became. Neither says
-            which parts are finished, and reading that out of the two is guesswork. Break the work
-            into steps, write the detail of each in markdown, and tick them as you review them: the
-            next session opens on the ones still open, in full. A step starts as a draft, off the
-            list, until you promote it.
-          </p>
-          <button
-            class="key-gold rounded-[3px] focus-ring mt-5 px-3.5 py-2 text-[12.5px] font-medium"
-            data-testid="write-first-step"
-            @click="focusAdd"
-          >
-            Draft the first step
-          </button>
-
-          <p class="mt-6 text-[12.5px] leading-relaxed text-text-muted">
-            Or have Claude propose them: <strong class="font-medium text-text">Plan here</strong>
-            above opens a session on it, or give this to one you have. It reads the description, the
-            wrapup and the code, and puts each step it suggests on a Drafts shelf here, for you to
-            reword and promote. It builds nothing.
-          </p>
-          <button
-            class="anchor-chip focus-ring mt-2 inline-flex items-center gap-2 px-2.5 py-1 text-[11.5px] transition-colors hover:border-anchor"
-            :class="copiedPlan && 'flash'"
-            :title="copiedPlan ? 'Copied' : `Copy ${rkPlanCommand(selectedTask.anchor)}`"
-            data-testid="copy-plan-command"
-            @click="copyPlan"
-          >
-            <span class="opacity-60">/rk</span>
-            <span>{{ selectedTask.anchor }} plan</span>
-            <CopyGlyph :copied="copiedPlan" />
-          </button>
-        </div>
+          :anchor="selectedTask.anchor"
+          @draft-first="focusAdd"
+        />
 
         <template v-else>
           <template v-if="checklistSteps.length">
@@ -551,339 +228,34 @@ onUnmounted(() => {
               v-else
               ref="listEl"
               class="relative min-w-0"
-              :style="done === checklistSteps.length ? { '--rail-tint': 'var(--color-safe)' } : undefined"
+              :style="allDone ? { '--rail-tint': 'var(--color-safe)' } : undefined"
             >
-          <span
-            v-if="stream"
-            class="energy-stream"
-            :style="{ top: `${stream.top}px`, height: `${stream.height}px` }"
-            data-testid="energy-stream"
-            aria-hidden="true"
-          />
-          <li
-            v-for="(step, index) in visibleSteps"
-            :key="step.id"
-            class="group/step relative min-w-0 pb-1.5 pl-9"
-            data-testid="step-row"
-            :data-step-id="step.id"
-            :data-step-state="step.state"
-          >
-            <span
-              class="absolute left-[11px] -translate-x-1/2"
-              :class="{
-                'w-px pending-rail': railKind(index) === 'pending',
-                'w-px spent-rail': railKind(index) === 'spent'
-              }"
-              :style="railStyle(index)"
-              aria-hidden="true"
-            />
-
-            <button
-              class="focus-ring absolute left-0 top-[7px] z-10 size-[22px] rounded-full"
-              :class="{
-                'cursor-default': step.state === 'DONE',
-                'step-node-running': step.state === 'RUNNING',
-                'shadow-[0_0_0_4px_var(--color-accent-soft)]':
-                  step.state === 'RUNNING' || step.id === currentId
-              }"
-              role="checkbox"
-              :aria-checked="
-                step.state === 'DONE' ? 'true' : step.state === 'CLAIMED' ? 'mixed' : 'false'
-              "
-              :aria-label="checkboxLabel(step)"
-              data-testid="step-checkbox"
-              data-seal-host
-              @click="markForward(step)"
-            >
-              <StepSeal
-                :state="step.state"
-                :next="step.id === currentId"
-                :complete="done === checklistSteps.length"
+              <span
+                v-if="stream"
+                class="energy-stream"
+                :style="{ top: `${stream.top}px`, height: `${stream.height}px` }"
+                data-testid="energy-stream"
+                aria-hidden="true"
               />
-            </button>
-
-            <div
-              class="min-w-0 rounded-[var(--radius-card)] border px-3 py-2"
-              :class="[
-                step.state === 'RUNNING'
-                  ? 'panel-gold'
-                  : step.state === 'CLAIMED'
-                    ? 'panel-gold-quiet'
-                    : step.id === currentId
-                      ? 'panel-slate'
-                      : step.state === 'DONE'
-                        ? 'border-transparent opacity-60'
-                        : 'border-transparent transition-[border-color] duration-150 group-hover/step:border-border'
-              ]"
-            >
-              <div class="flex items-start gap-2">
-                <button
-                  class="focus-ring min-w-0 flex-1 rounded text-left"
-                  :aria-expanded="expandedId === step.id"
-                  data-testid="step-title"
-                  @click="toggleExpanded(step)"
-                >
-                  <span
-                    class="block text-[13.5px] leading-snug transition-colors"
-                    :class="
-                      step.state === 'DONE'
-                        ? 'text-text-subtle line-through decoration-text-subtle/50'
-                        : 'text-text'
-                    "
-                  >
-                    {{ step.title }}
-                  </span>
-                  <span class="mt-1 flex flex-wrap items-center gap-2 text-[10.5px]">
-                    <span
-                      v-if="step.state === 'RUNNING'"
-                      class="inline-flex items-center gap-1 rounded-full bg-accent px-1.5 py-px text-[10px] font-semibold tracking-[0.02em] text-accent-ink"
-                      data-testid="step-running-badge"
-                    >
-                      Running
-                    </span>
-                    <span
-                      v-else-if="step.state === 'CLAIMED'"
-                      class="rounded-full border border-accent/40 px-1.5 py-px text-[10px] font-semibold tracking-[0.02em] text-accent"
-                      data-testid="step-claimed-badge"
-                    >
-                      Awaiting review
-                    </span>
-                    <span
-                      v-else-if="step.id === currentId"
-                      class="rounded-full bg-accent-soft px-1.5 py-px text-[10px] font-semibold tracking-[0.02em] text-accent"
-                    >
-                      Next
-                    </span>
-                    <span v-if="step.state === 'CLAIMED' && step.claimedAt" class="text-text-subtle">
-                      claimed {{ relativeTime(step.claimedAt) }}
-                    </span>
-                    <span v-if="step.state === 'DONE' && step.doneAt" class="text-text-subtle">
-                      done {{ relativeTime(step.doneAt) }}
-                    </span>
-                    <span
-                      v-if="step.bodyMarkdown?.trim()"
-                      class="flex items-center gap-1 text-text-subtle"
-                      data-testid="step-has-detail"
-                    >
-                      <svg class="size-2.5" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                        <path
-                          d="M1.6 3h8.8M1.6 6h8.8M1.6 9h5.4"
-                          stroke="currentColor"
-                          stroke-width="1.2"
-                          stroke-linecap="round"
-                        />
-                      </svg>
-                      detail
-                    </span>
-                    <span v-else-if="!stepIsComplete(step.state)" class="text-text-subtle">
-                      no detail yet
-                    </span>
-                  </span>
-                </button>
-
-                <div
-                  class="flex shrink-0 items-center gap-0.5 opacity-0 focus-within:opacity-100 group-hover/step:opacity-100"
-                >
-                  <button
-                    v-if="step.state === 'OPEN'"
-                    class="focus-ring mr-0.5 grid h-6 place-items-center rounded px-1.5 text-[10.5px] font-medium text-text-subtle transition-colors hover:bg-surface-hover hover:text-text"
-                    :aria-label="`Return ${step.title} to draft`"
-                    data-testid="step-to-draft"
-                    @click="returnToDraft(step)"
-                  >
-                    To draft
-                  </button>
-                  <button
-                    class="focus-ring grid size-6 place-items-center rounded text-text-subtle transition-colors hover:bg-surface-hover hover:text-text disabled:opacity-30"
-                    :disabled="step.position === 0"
-                    :aria-label="`Move ${step.title} up`"
-                    data-testid="step-up"
-                    @click="move(step, -1)"
-                  >
-                    <svg class="size-3" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                      <path
-                        d="M6 9.5v-7M2.8 5.4 6 2.2l3.2 3.2"
-                        stroke="currentColor"
-                        stroke-width="1.3"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      />
-                    </svg>
-                  </button>
-                  <button
-                    class="focus-ring grid size-6 place-items-center rounded text-text-subtle transition-colors hover:bg-surface-hover hover:text-text disabled:opacity-30"
-                    :disabled="step.position === checklistSteps.length - 1"
-                    :aria-label="`Move ${step.title} down`"
-                    data-testid="step-down"
-                    @click="move(step, 1)"
-                  >
-                    <svg class="size-3" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                      <path
-                        d="M6 2.5v7M2.8 6.6 6 9.8l3.2-3.2"
-                        stroke="currentColor"
-                        stroke-width="1.3"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      />
-                    </svg>
-                  </button>
-                  <button
-                    class="focus-ring grid size-6 place-items-center rounded text-text-subtle transition-colors hover:bg-surface-hover"
-                    :aria-label="`Delete ${step.title}`"
-                    data-testid="step-delete"
-                    @click="deleting = step"
-                  >
-                    <svg class="size-3" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                      <path
-                        d="M2.6 2.6l6.8 6.8M9.4 2.6 2.6 9.4"
-                        stroke="currentColor"
-                        stroke-width="1.3"
-                        stroke-linecap="round"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-
-              <Transition name="detail">
-              <div v-if="expandedId === step.id" class="mt-2.5" data-testid="step-detail">
-                <div
-                  v-if="step.state === 'RUNNING'"
-                  class="mb-3 flex flex-wrap items-center gap-2 rounded-[var(--radius-card)] border border-accent/60 bg-accent-soft px-3 py-2"
-                  data-testid="step-running-bar"
-                >
-                  <span class="min-w-0 flex-1 text-[11.5px] leading-snug text-text-muted">
-                    A session is on this step now. Log its latest commit here as it lands, without
-                    waiting for the step to be claimed.
-                  </span>
-                  <LogCommitButton
-                    variant="bar"
-                    :task-id="selectedTask.id"
-                    :step-id="step.id"
-                    :folder="selectedTask.projectRepoFolder"
-                  />
-                </div>
-
-                <div
-                  v-else-if="step.state === 'CLAIMED'"
-                  class="mb-3 flex flex-wrap items-center gap-2 rounded-[var(--radius-card)] border border-accent/25 bg-accent-soft/40 px-3 py-2"
-                  data-testid="step-review-bar"
-                >
-                  <span class="min-w-0 flex-1 text-[11.5px] leading-snug text-text-muted">
-                    A session claimed this. Accept it to tick the box, or send it back for another
-                    pass: what it worked from is sealed above, and the feedback goes underneath.
-                  </span>
-                  <LogCommitButton
-                    variant="bar"
-                    :task-id="selectedTask.id"
-                    :step-id="step.id"
-                    :folder="selectedTask.projectRepoFolder"
-                  />
-                  <button
-                    class="key-gold rounded-[3px] focus-ring h-7 shrink-0 px-3 text-[11.5px] font-medium"
-                    data-testid="step-accept"
-                    @click="markForward(step)"
-                  >
-                    Accept
-                  </button>
-                  <button
-                    class="key-quiet rounded-[3px] focus-ring h-7 shrink-0 px-3 text-[11.5px] font-medium"
-                    data-testid="step-send-back"
-                    @click="sendBack(step)"
-                  >
-                    Send back
-                  </button>
-                </div>
-
-                <div
-                  v-else-if="step.state === 'DONE'"
-                  class="mb-3 flex flex-wrap items-center gap-2 rounded-[var(--radius-card)] border border-border px-3 py-2"
-                  data-testid="step-reopen-bar"
-                >
-                  <span class="min-w-0 flex-1 text-[11.5px] leading-snug text-text-muted">
-                    Accepted. Reopening drops it back to open and clears the review it passed.
-                  </span>
-                  <button
-                    class="focus-ring h-7 shrink-0 rounded-[3px] px-3 text-[11.5px] font-medium"
-                    :class="reopenArmed === step.id ? 'key-danger' : 'key-quiet'"
-                    data-testid="step-reopen"
-                    @click="reopen(step)"
-                  >
-                    {{ reopenArmed === step.id ? 'Confirm reopen' : 'Reopen' }}
-                  </button>
-                </div>
-
-                <div v-if="store.stepCommitReferences(step.id).length" class="mb-3" data-testid="step-commits">
-                  <span class="eyebrow">
-                    Commits <span class="font-mono">{{ store.stepCommitReferences(step.id).length }}</span>
-                  </span>
-                  <CommitReferenceList :references="store.stepCommitReferences(step.id)" dense />
-                </div>
-
-                <StepPassHistory v-if="step.passes.length" :passes="step.passes" class="mb-3" />
-
-                <div class="mb-2 flex items-center gap-2">
-                  <span
-                    class="eyebrow"
-                    data-testid="step-detail-label"
-                  >
-                    {{ step.passes.length ? `Feedback for pass ${step.passes.length + 1}` : 'Detail' }}
-                  </span>
-                  <span class="h-px flex-1 bg-border" aria-hidden="true" />
-                  <AppModeToggle v-model="mode" testid-prefix="step-detail" />
-                </div>
-
-                <Transition name="fade-quick" mode="out-in">
-                  <template v-if="mode === 'write'">
-                    <div key="write">
-                      <AppInput
-                        v-model="draftTitle"
-                        :aria-label="`Title of ${step.title}`"
-                        data-testid="step-title-field"
-                        @update:model-value="scheduleSave"
-                      />
-                      <div class="mt-2 h-[300px] min-w-0 overflow-hidden">
-                        <AppMarkdownEditor
-                          v-model="draftBody"
-                          height="100%"
-                          :show-preview="false"
-                          :path-root="selectedTask?.projectRepoFolder"
-                          :placeholder="
-                            step.passes.length
-                              ? 'What the next pass has to change. Claude reads it after the sealed passes above.'
-                              : 'What this step has to do. Markdown, and Claude gets it while the step is open.'
-                          "
-                          data-testid="step-detail-field"
-                          @update:model-value="scheduleSave"
-                        />
-                      </div>
-                    </div>
-                  </template>
-
-                  <div v-else-if="draftBody.trim()" key="read" class="step-detail min-w-0 overflow-x-auto">
-                    <AppMarkdownEditor
-                      :model-value="draftBody"
-                      readonly
-                      compact
-                      data-testid="step-detail-read"
-                    />
-                  </div>
-
-                  <p v-else key="empty" class="py-1 text-[12px] text-text-subtle">
-                    {{ step.passes.length ? 'No feedback yet.' : 'Nothing written under this step yet.' }}
-                    <button
-                      class="focus-ring text-accent underline-offset-2 hover:underline"
-                      @click="mode = 'write'"
-                    >
-                      {{ step.passes.length ? 'Write what the next pass has to change' : 'Write the detail' }}
-                    </button>
-                  </p>
-                </Transition>
-              </div>
-              </Transition>
-            </div>
-          </li>
-        </ol>
+              <StepChecklistRow
+                v-for="(step, index) in visibleSteps"
+                :key="step.id"
+                :step="step"
+                :task="selectedTask"
+                :rail-style="railStyle(index)"
+                :rail-spent="stepIsComplete(step.state)"
+                :is-next="step.id === currentId"
+                :all-done="allDone"
+                :is-last="step.position === checklistSteps.length - 1"
+                :reopen-armed="reopenArmed === step.id"
+                @mark-forward="markForward(step)"
+                @to-draft="returnToDraft(step)"
+                @move="(by) => move(step, by)"
+                @remove="deleting = step"
+                @send-back="sendBack(step)"
+                @reopen="reopen(step)"
+              />
+            </ol>
           </template>
 
           <section
@@ -895,238 +267,30 @@ onUnmounted(() => {
           >
             <div class="mb-2.5 flex items-center gap-2">
               <span class="eyebrow">Drafts</span>
-              <span class="font-mono text-[10.5px] tabular-nums text-text-subtle">
-                {{ draftSteps.length }}
-              </span>
+              <span class="font-mono text-[10.5px] tabular-nums text-text-subtle">{{ draftSteps.length }}</span>
               <span class="h-px flex-1 bg-border" aria-hidden="true" />
-              <span class="text-[10.5px] text-text-subtle">
-                still being worded, not on the list
-              </span>
+              <span class="text-[10.5px] text-text-subtle">still being worded, not on the list</span>
             </div>
 
             <TransitionGroup tag="ul" name="step-list" class="relative min-w-0 space-y-1.5">
-              <li
+              <StepDraftRow
                 v-for="(step, index) in draftSteps"
                 :key="step.id"
-                class="group/draft relative min-w-0"
-                data-testid="draft-row"
-                data-seal-host
-                :data-step-id="step.id"
-              >
-                <div
-                  class="min-w-0 rounded-[var(--radius-card)] border border-dashed px-3 py-2 transition-colors"
-                  :class="
-                    expandedId === step.id
-                      ? 'border-border-strong bg-surface-raised'
-                      : 'border-border-strong/70 hover:border-border-strong'
-                  "
-                >
-                  <div class="flex items-start gap-2">
-                    <span class="mt-[1px] size-[22px] shrink-0">
-                      <StepSeal state="DRAFT" />
-                    </span>
-
-                    <button
-                      class="focus-ring min-w-0 flex-1 rounded text-left"
-                      :aria-expanded="expandedId === step.id"
-                      data-testid="draft-title"
-                      @click="toggleExpanded(step)"
-                    >
-                      <span class="block text-[13.5px] leading-snug text-text">{{ step.title }}</span>
-                      <span class="mt-1 flex flex-wrap items-center gap-2 text-[10.5px]">
-                        <span
-                          v-if="step.bodyMarkdown?.trim()"
-                          class="flex items-center gap-1 text-text-subtle"
-                          data-testid="draft-has-detail"
-                        >
-                          <svg class="size-2.5" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                            <path
-                              d="M1.6 3h8.8M1.6 6h8.8M1.6 9h5.4"
-                              stroke="currentColor"
-                              stroke-width="1.2"
-                              stroke-linecap="round"
-                            />
-                          </svg>
-                          detail
-                        </span>
-                        <span v-else class="text-text-subtle">no detail yet</span>
-                      </span>
-                    </button>
-
-                    <div class="flex shrink-0 items-center gap-0.5">
-                      <!-- Quiet until it is the thing under the pointer: a shelf of drafts
-                           each wearing a filled amber button is a shelf of competing calls to
-                           action, and amber is kept for the one you are about to press. -->
-                      <button
-                        class="key-quiet rounded-[3px] focus-ring group/promote inline-flex h-7 shrink-0 items-center gap-1.5 px-2.5 text-[11px] font-medium disabled:cursor-not-allowed disabled:opacity-40"
-                        :class="promoting === step.id && 'settle'"
-                        :disabled="promoting === step.id"
-                        :title="`Put ${step.title} on the checklist`"
-                        data-testid="draft-promote"
-                        @click="promote(step)"
-                      >
-                        <svg
-                          class="size-3 transition-transform duration-200 group-hover/promote:-translate-y-px"
-                          viewBox="0 0 12 12"
-                          fill="none"
-                          aria-hidden="true"
-                        >
-                          <path
-                            d="M6 9.8V4M3.4 6.4 6 3.8l2.6 2.6M2.4 1.8h7.2"
-                            stroke="currentColor"
-                            stroke-width="1.3"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                          />
-                        </svg>
-                        Promote
-                      </button>
-                      <div
-                        class="flex items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover/draft:opacity-100"
-                      >
-                        <button
-                          class="focus-ring grid size-6 place-items-center rounded text-text-subtle transition-colors hover:bg-surface-hover hover:text-text disabled:opacity-30"
-                          :disabled="index === 0"
-                          :aria-label="`Move ${step.title} up`"
-                          data-testid="draft-up"
-                          @click="move(step, -1)"
-                        >
-                          <svg class="size-3" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                            <path
-                              d="M6 9.5v-7M2.8 5.4 6 2.2l3.2 3.2"
-                              stroke="currentColor"
-                              stroke-width="1.3"
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                            />
-                          </svg>
-                        </button>
-                        <button
-                          class="focus-ring grid size-6 place-items-center rounded text-text-subtle transition-colors hover:bg-surface-hover hover:text-text disabled:opacity-30"
-                          :disabled="index === draftSteps.length - 1"
-                          :aria-label="`Move ${step.title} down`"
-                          data-testid="draft-down"
-                          @click="move(step, 1)"
-                        >
-                          <svg class="size-3" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                            <path
-                              d="M6 2.5v7M2.8 6.6 6 9.8l3.2-3.2"
-                              stroke="currentColor"
-                              stroke-width="1.3"
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                            />
-                          </svg>
-                        </button>
-                        <button
-                          class="focus-ring grid size-6 place-items-center rounded text-text-subtle transition-colors hover:bg-surface-hover"
-                          :aria-label="`Delete ${step.title}`"
-                          data-testid="draft-delete"
-                          @click="deleting = step"
-                        >
-                          <svg class="size-3" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                            <path
-                              d="M2.6 2.6l6.8 6.8M9.4 2.6 2.6 9.4"
-                              stroke="currentColor"
-                              stroke-width="1.3"
-                              stroke-linecap="round"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <Transition name="detail">
-                  <div v-if="expandedId === step.id" class="mt-2.5" data-testid="draft-detail">
-                    <div class="mb-2 flex items-center gap-2">
-                      <span class="eyebrow">Detail</span>
-                      <span class="h-px flex-1 bg-border" aria-hidden="true" />
-                      <AppModeToggle v-model="mode" testid-prefix="draft-detail" />
-                    </div>
-
-                    <Transition name="fade-quick" mode="out-in">
-                      <template v-if="mode === 'write'">
-                        <div key="write">
-                          <AppInput
-                            v-model="draftTitle"
-                            :aria-label="`Title of ${step.title}`"
-                            data-testid="draft-title-field"
-                            @update:model-value="scheduleSave"
-                          />
-                          <div class="mt-2 h-[260px] min-w-0 overflow-hidden">
-                            <AppMarkdownEditor
-                              v-model="draftBody"
-                              height="100%"
-                              :show-preview="false"
-                              :path-root="selectedTask?.projectRepoFolder"
-                              placeholder="What this step has to do, once it is promoted. Markdown."
-                              data-testid="draft-detail-field"
-                              @update:model-value="scheduleSave"
-                            />
-                          </div>
-                        </div>
-                      </template>
-
-                      <div
-                        v-else-if="draftBody.trim()"
-                        key="read"
-                        class="step-detail min-w-0 overflow-x-auto"
-                      >
-                        <AppMarkdownEditor
-                          :model-value="draftBody"
-                          readonly
-                          compact
-                          data-testid="draft-detail-read"
-                        />
-                      </div>
-
-                      <p v-else key="empty" class="py-1 text-[12px] text-text-subtle">
-                        Nothing written under this draft yet.
-                        <button
-                          class="focus-ring text-accent underline-offset-2 hover:underline"
-                          @click="mode = 'write'"
-                        >
-                          Write the detail
-                        </button>
-                      </p>
-                    </Transition>
-                  </div>
-                  </Transition>
-                </div>
-              </li>
+                :step="step"
+                :task="selectedTask"
+                :is-first="index === 0"
+                :is-last="index === draftSteps.length - 1"
+                :promoting="promoting === step.id"
+                @promote="promote(step)"
+                @move="(by) => move(step, by)"
+                @remove="deleting = step"
+              />
             </TransitionGroup>
           </section>
         </template>
       </div>
 
-      <form
-        class="dock-lane-safe flex shrink-0 items-center gap-2 border-t border-border bg-surface py-3 pl-5"
-        @submit.prevent="add"
-      >
-        <span
-          class="grid size-[22px] shrink-0 place-items-center rounded-full border border-dashed border-border-strong text-text-subtle"
-          aria-hidden="true"
-        >
-          <svg class="size-3" viewBox="0 0 12 12" fill="none">
-            <path d="M6 2.4v7.2M2.4 6h7.2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
-          </svg>
-        </span>
-        <AppInput
-          id="new-step"
-          v-model="newTitle"
-          placeholder="Name the next piece of this task. It starts as a draft."
-          data-testid="new-step"
-        />
-        <button
-          type="submit"
-          class="key-gold rounded-[3px] focus-ring h-(--spacing-control) shrink-0 px-3.5 text-[12.5px] font-medium disabled:cursor-not-allowed disabled:opacity-40"
-          :disabled="!newTitle.trim()"
-          data-testid="add-step"
-        >
-          Add draft
-        </button>
-      </form>
+      <StepAddForm v-model="newTitle" @submit="add" />
     </template>
 
     <Transition name="dialog">
@@ -1142,27 +306,3 @@ onUnmounted(() => {
     </Transition>
   </section>
 </template>
-
-<style scoped>
-.step-detail :deep(.md-editor-preview) h1,
-.step-detail :deep(.md-editor-preview) h2 {
-  font-size: 14px;
-  margin-top: 0.6em;
-}
-
-.step-detail :deep(.md-editor-preview) h3,
-.step-detail :deep(.md-editor-preview) h4 {
-  font-size: 13px;
-  margin-top: 0.6em;
-}
-
-.step-detail :deep(.md-editor-preview) > :first-child {
-  margin-top: 0;
-}
-
-.step-detail :deep(.md-editor-preview) p,
-.step-detail :deep(.md-editor-preview) ul,
-.step-detail :deep(.md-editor-preview) ol {
-  margin-block: 0.5em;
-}
-</style>

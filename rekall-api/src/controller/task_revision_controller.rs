@@ -22,7 +22,7 @@ async fn list(State(state): State<ApiState>, Path(task_id): Path<String>, Query(
     let kind = RevisionKind::value_of(&raw).ok_or_else(|| {
         ApiError::Domain(RekallError::illegal(format!("Parameter 'kind' is not a revision kind: {raw}")))
     })?;
-    Ok(Json(state.services.revisions.list(task_id, kind).await?))
+    Ok(Json(state.revisions.list(task_id, kind).await?))
 }
 
 async fn restore(State(state): State<ApiState>, Path((task_id, revision_id)): Path<(String, String)>) -> ApiResult<Json<RestoredRevision>> {
