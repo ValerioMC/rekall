@@ -5,6 +5,7 @@ import type { RekallDocument, TaskRef } from '@/model/catalog'
 import type { SearchHit } from '@/model/search'
 import type { ReviewItem } from '@/model/review'
 import type { DocumentId, TaskId, TaskStepId } from '@/model/branded'
+import { taskFixture } from './support/taskFixture'
 
 /**
  * Where search hits and review items land. Both open something another pane owns, so what is
@@ -96,5 +97,42 @@ describe('opening from search and from the review queue', () => {
 
     store.openReviewItem(item(null))
     expect(store.paneFocus).toBe('description')
+  })
+})
+
+describe('going back to a location', () => {
+  let store: ReturnType<typeof useConsoleStore>
+
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    store = useConsoleStore()
+    store.tasks = [taskFixture(report), taskFixture(retry)]
+    store.documents = [note]
+  })
+
+  it('shows the task, note and pane it names, and closes the composer', () => {
+    store.openNoteComposer()
+
+    const shown = store.showLocation({ mode: 'notes', taskId: retry, documentId: note.id, pane: 'wrapup' })
+
+    expect(shown).toEqual({ mode: 'notes', taskId: retry, documentId: note.id, pane: 'wrapup' })
+    expect([store.navMode, store.selectedTaskId, store.selectedDocId, store.paneFocus]).toEqual([
+      'notes',
+      retry,
+      note.id,
+      'wrapup'
+    ])
+    expect(store.noteComposerOpen).toBe(false)
+  })
+
+  it('drops a task and note deleted since, and with them the task pane', () => {
+    const shown = store.showLocation({
+      mode: 'tasks',
+      taskId: 'gone' as TaskId,
+      documentId: 'gone' as DocumentId,
+      pane: 'steps'
+    })
+
+    expect(shown).toEqual({ mode: 'tasks', taskId: null, documentId: null, pane: 'note' })
   })
 })

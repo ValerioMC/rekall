@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises } from '@vue/test-utils'
 import App from '@/App.vue'
@@ -290,6 +290,13 @@ vi.mock('@/api/commitReference.api', () => ({
   fetchCommitReferenceDiff: vi.fn()
 }))
 
+// Each console follows the shared router; one left mounted would answer the next test's moves.
+const mounted: Array<{ unmount(): void }> = []
+
+afterEach(() => {
+  mounted.splice(0).forEach((wrapper) => wrapper.unmount())
+})
+
 async function mountConsole() {
   setActivePinia(createPinia())
   await router.push('/')
@@ -297,6 +304,7 @@ async function mountConsole() {
   // guaranteed to run regardless of which route is entered — so the test stands in for it.
   await useConsoleStore().load()
   const wrapper = mountWithHeaderChrome(App, { global: { plugins: [router] } })
+  mounted.push(wrapper)
   await flushPromises()
   return wrapper
 }

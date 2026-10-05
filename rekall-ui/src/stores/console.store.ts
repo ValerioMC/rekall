@@ -74,6 +74,7 @@ import {
 } from '@/model/catalog'
 import type { CompanyId, DocumentId, ProjectId, TagId, TaskId, TaskStepId, TimeEntryId } from '@/model/branded'
 import { GLOBAL_SCOPE, type NoteScope } from '@/model/note-scope'
+import type { ConsoleLocation, NavMode, PaneFocus } from '@/model/console-location'
 
 /** What a new note starts from: where it lives, which of that scope's tasks it is on, its name. */
 export interface NoteDraft {
@@ -82,10 +83,7 @@ export interface NoteDraft {
   readonly title?: string
 }
 
-export type NavMode = 'tasks' | 'notes'
 export type SaveState = 'saved' | 'unsaved' | 'saving'
-
-export type PaneFocus = 'note' | 'wrapup' | 'description' | 'steps' | 'terminal'
 
 export const useConsoleStore = defineStore('console', () => {
   const companies = ref<Company[]>([])
@@ -289,6 +287,13 @@ export const useConsoleStore = defineStore('console', () => {
     return { count, names }
   })
 
+  const location = computed<ConsoleLocation>(() => ({
+    mode: navMode.value,
+    taskId: selectedTaskId.value,
+    documentId: selectedDocId.value,
+    pane: paneFocus.value
+  }))
+
   async function load(): Promise<void> {
     isLoading.value = true
     try {
@@ -362,6 +367,23 @@ export const useConsoleStore = defineStore('console', () => {
       return
     }
     if (selectedDocId.value !== null) followDocumentToTask(selectedDocId.value)
+  }
+
+  /**
+   * Puts the console back where a history entry left it. A task or note deleted since is dropped
+   * and a task pane without its task falls back to the note; returns what is actually shown.
+   */
+  function showLocation(target: ConsoleLocation): ConsoleLocation {
+    const taskId = tasks.value.some((task) => task.id === target.taskId) ? target.taskId : null
+    const documentId = documents.value.some((document) => document.id === target.documentId)
+      ? target.documentId
+      : null
+    navMode.value = target.mode
+    selectedTaskId.value = taskId
+    selectedDocId.value = documentId
+    paneFocus.value = taskId === null ? 'note' : target.pane
+    noteComposerOpen.value = false
+    return location.value
   }
 
   function setScope(company: CompanyId | null, project: ProjectId | null = null): void {
@@ -1105,6 +1127,8 @@ export const useConsoleStore = defineStore('console', () => {
     selectedTaskId,
     selectedDocId,
     paneFocus,
+    location,
+    showLocation,
     stepToOpen,
     noteComposerOpen,
     selectedTask,

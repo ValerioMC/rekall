@@ -17,6 +17,7 @@ const routeName = computed(() => (typeof route.name === 'string' ? route.name : 
       <RouterLink
         v-if="entry.kind === 'screen'"
         :to="entry.screen.to"
+        :replace="isScreenActive(entry.screen, routeName)"
         :title="entry.screen.hint"
         data-testid="nav-switcher-tab"
         class="focus-ring flex h-7 items-center justify-center rounded-[6px] px-3 text-[12px] transition-colors"

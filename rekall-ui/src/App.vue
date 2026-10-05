@@ -20,6 +20,7 @@ import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useModalGate } from '@/composables/useModalGate'
 import { useStepStream } from '@/composables/useStepStream'
 import { useClaimNotifications } from '@/composables/useClaimNotifications'
+import { useConsoleLocation } from '@/composables/useConsoleLocation'
 import type { TaskStatus } from '@/model/catalog'
 
 // xterm and its stylesheet are only parsed once a terminal is opened: most sessions never do,
@@ -43,6 +44,7 @@ useStepStream(
 )
 
 useClaimNotifications(reviewQueue, isLoading)
+useConsoleLocation()
 
 const STATUS_BY_KEY: Record<string, TaskStatus> = {
   '1': 'IN_PROGRESS',
