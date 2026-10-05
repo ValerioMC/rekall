@@ -8,3 +8,8 @@ export function pixelsOf(length: string, fallback: number): number {
 export function fittedEditorHeight(contentHeight: number, chromeHeight: number, minimum: number): number {
   return Math.max(minimum, Math.ceil(contentHeight + chromeHeight))
 }
+
+/** The editor's least height as the window allows it: what is left under the page's own chrome, never below `floor`. */
+export function viewportEditorHeight(viewportHeight: number, chromeHeight: number, floor: number): string {
+  return `${Math.max(floor, Math.floor(viewportHeight - chromeHeight))}px`
+}

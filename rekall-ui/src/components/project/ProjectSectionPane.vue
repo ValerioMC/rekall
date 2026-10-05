@@ -5,11 +5,15 @@ import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import AppModeToggle from '@/components/ui/AppModeToggle.vue'
 import { relativeTime } from '@/common/format/relative-time'
 import { useAsyncAction } from '@/composables/useAsyncAction'
+import { useViewportEditorHeight } from '@/composables/useViewportEditorHeight'
 import { useProjectSectionsStore } from '@/stores/projectSections.store'
 import type { Direction } from '@/common/project/section-order'
 import type { ProjectSection } from '@/model/project-section'
 
 const SAVE_DELAY_MS = 700
+// Page header, pane header and card padding around the editor; the editor takes the rest of the window.
+const PAGE_CHROME_PX = 230
+const EDITOR_FLOOR_PX = 360
 
 const props = defineProps<{
   section: ProjectSection
@@ -22,6 +26,7 @@ const emit = defineEmits<{ move: [direction: Direction]; delete: [] }>()
 
 const store = useProjectSectionsStore()
 const { run } = useAsyncAction()
+const editorMinimum = useViewportEditorHeight(PAGE_CHROME_PX, EDITOR_FLOOR_PX)
 
 const titleDraft = ref('')
 const bodyDraft = ref('')
@@ -137,7 +142,7 @@ onUnmounted(() => {
           v-if="mode === 'write'"
           key="write"
           v-model="bodyDraft"
-          height="520px"
+          :height="editorMinimum"
           grow
           :path-root="repoFolder"
           placeholder="Write in markdown. Anything about this project that isn't the blueprint."

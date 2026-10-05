@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fittedEditorHeight, pixelsOf } from '@/common/config/editor-height'
+import { fittedEditorHeight, pixelsOf, viewportEditorHeight } from '@/common/config/editor-height'
 
 describe('pixelsOf', () => {
   it('reads a pixel length', () => {
@@ -24,5 +24,19 @@ describe('fittedEditorHeight', () => {
 
   it('rounds a fractional measure up so the last line is never clipped', () => {
     expect(fittedEditorHeight(900.2, 70, 520)).toBe(971)
+  })
+})
+
+describe('viewportEditorHeight', () => {
+  it('takes what the window leaves under the page chrome', () => {
+    expect(viewportEditorHeight(1440, 230, 360)).toBe('1210px')
+  })
+
+  it('holds the floor on a short window', () => {
+    expect(viewportEditorHeight(500, 230, 360)).toBe('360px')
+  })
+
+  it('rounds a fractional window height down', () => {
+    expect(viewportEditorHeight(900.7, 230, 360)).toBe('670px')
   })
 })

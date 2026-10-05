@@ -3,14 +3,19 @@ import { onUnmounted, ref, watch } from 'vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import AppModeToggle from '@/components/ui/AppModeToggle.vue'
 import { identityHue } from '@/common/identity'
+import { useViewportEditorHeight } from '@/composables/useViewportEditorHeight'
 import { useConsoleStore } from '@/stores/console.store'
 import type { Project } from '@/model/catalog'
 
 const SAVE_DELAY_MS = 700
+// Page header, pane header and card padding around the editor; the editor takes the rest of the window.
+const PAGE_CHROME_PX = 230
+const EDITOR_FLOOR_PX = 360
 
 const props = defineProps<{ project: Project }>()
 
 const store = useConsoleStore()
+const editorHeight = useViewportEditorHeight(PAGE_CHROME_PX, EDITOR_FLOOR_PX)
 const draft = ref('')
 const mode = ref<'write' | 'read'>('read')
 let timer: ReturnType<typeof setTimeout> | null = null
@@ -67,7 +72,7 @@ onUnmounted(flush)
           v-if="mode === 'write'"
           key="write"
           v-model="draft"
-          height="520px"
+          :height="editorHeight"
           :path-root="project.repoFolder"
           placeholder="# What this is
 

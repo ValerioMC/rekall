@@ -742,6 +742,69 @@ const TOOLBARS: ToolbarNames[] = [
   line-height: 1.7 !important;
 }
 
+/*
+ * A diagram and its two controls (copy the source, pan and zoom). The library inserts the controls
+ * as bare elements after the SVG and ships no rule for them, so on a wide window they sat in the
+ * flow beside the drawing. They are held over the diagram's top-right corner instead, clear of
+ * the page's own reading controls, and the SVG is kept inside the frame at any width.
+ */
+.rekall-md .md-editor-preview .md-editor-mermaid {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  overflow-x: auto;
+  padding: 36px 16px 16px;
+  background: var(--color-canvas);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+}
+
+.rekall-md .md-editor-preview .md-editor-mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.rekall-md .md-editor-preview .md-editor-mermaid[data-grab] {
+  overflow: hidden;
+  cursor: grab;
+}
+
+.rekall-md .md-editor-preview .md-editor-mermaid-action {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: var(--z-sticky);
+  display: flex;
+  gap: 2px;
+}
+
+.rekall-md .md-editor-preview .md-editor-mermaid-action > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  color: var(--color-text-subtle);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    color 120ms ease,
+    background-color 120ms ease;
+}
+
+.rekall-md .md-editor-preview .md-editor-mermaid-action > span:hover {
+  color: var(--color-text);
+  background: var(--color-surface-hover);
+}
+
+.rekall-md .md-editor-preview .md-editor-mermaid-action svg.md-editor-icon {
+  width: 14px;
+  height: 14px;
+  padding: 0;
+}
+
 /* Held over the page's top-right corner rather than given a row of its own, so opening a read
    view does not start with a strip of nothing above the first line. */
 .rekall-read-controls {
