@@ -7,6 +7,7 @@ use std::sync::Mutex;
 
 use rekall_app::Running;
 use tauri::Url;
+use tracing::warn;
 
 const DEFAULT_PORT: u16 = 47355;
 pub(crate) const HOST: &str = "127.0.0.1";
@@ -47,7 +48,9 @@ pub(crate) fn working_dir() -> PathBuf {
     let folder = dirs::home_dir().unwrap_or_default().join("Library/Application Support/Rekall");
     #[cfg(not(target_os = "macos"))]
     let folder = dirs::data_dir().unwrap_or_default().join("Rekall");
-    let _ = std::fs::create_dir_all(&folder);
+    if let Err(failed) = std::fs::create_dir_all(&folder) {
+        warn!(%failed, folder = %folder.display(), "Could not create the app's working folder");
+    }
     folder
 }
 

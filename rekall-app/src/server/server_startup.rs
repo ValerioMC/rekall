@@ -22,7 +22,7 @@ pub async fn start(config: AppConfig, options: StartOptions) -> Result<Running, 
     let (first_up, first_up_signal) = oneshot::channel();
     let supervisor = tokio::spawn(supervise(config, options, listener, port, current_sender, stop_signal, first_up));
     first_up_signal.await.map_err(|_| "The application did not start.".to_string())??;
-    info!("Rekall is listening on http://localhost:{port}");
+    info!(%port, "Rekall is listening on localhost");
     Ok(Running { port, current, stop: Some(stop), supervisor: Some(supervisor) })
 }
 
@@ -42,7 +42,7 @@ async fn supervise(
         let (instance, mut restart_requests) = match open_instance(&config, &options, port).await {
             Ok(opened) => opened,
             Err(failed) => {
-                error!("Could not start: {failed}");
+                error!(%failed, "Could not start");
                 if let Some(first_up) = first_up.take() {
                     let _ = first_up.send(Err(failed));
                 }
@@ -52,7 +52,7 @@ async fn supervise(
         let tokio_listener = match listener.try_clone().and_then(tokio::net::TcpListener::from_std) {
             Ok(tokio_listener) => tokio_listener,
             Err(failed) => {
-                error!("Could not listen on port {port}: {failed}");
+                error!(%failed, %port, "Could not listen on the port");
                 if let Some(first_up) = first_up.take() {
                     let _ = first_up.send(Err(failed.to_string()));
                 }
@@ -98,12 +98,12 @@ async fn supervise(
         instance.close_hooks().await;
         let _ = serving_stop.send(());
         if tokio::time::timeout(config.shutdown_timeout, server).await.is_err() {
-            warn!("Requests were still in flight after {:?}; closing anyway", config.shutdown_timeout);
+            warn!(timeout = ?config.shutdown_timeout, "Requests were still in flight; closing anyway");
         }
         let Instance { database, router, .. } = instance;
         drop(router);
         if let Err(failed) = database.close().await {
-            warn!("Closing the database: {failed}");
+            warn!(%failed, "Closing the database failed");
         }
 
         match after_close {

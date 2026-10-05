@@ -5,34 +5,24 @@ use rekall_model::project_section::{self, BODY_MAX_CHARACTERS, TITLE_MAX_CHARACT
 use rekall_repository::repository as repo;
 use sea_orm::ConnectionTrait;
 
+use crate::text_rule;
+
 /// The title as stored: trimmed, present, and within the column.
 pub fn title(title: Option<&str>) -> Result<String> {
-    let Some(title) = title.filter(|t| !jstr::is_blank(t)) else {
-        return Err(RekallError::illegal("A section needs a title."));
-    };
-    let text = jstr::strip(title);
-    let length = jstr::len(text);
-    if length > TITLE_MAX_CHARACTERS {
-        return Err(RekallError::illegal(format!(
-            "A section's title is capped at {TITLE_MAX_CHARACTERS} characters and this one is {length}."
-        )));
-    }
-    Ok(text.to_string())
+    let title = text_rule::present(title).ok_or_else(|| RekallError::illegal("A section needs a title."))?;
+    text_rule::within(title, TITLE_MAX_CHARACTERS, |length| {
+        format!("A section's title is capped at {TITLE_MAX_CHARACTERS} characters and this one is {length}.")
+    })
 }
 
 /// A body a session sends: present, stripped and within the column. A person may leave one empty.
 pub fn written_body(body: Option<&str>) -> Result<String> {
-    let Some(body) = body.filter(|b| !jstr::is_blank(b)) else {
-        return Err(RekallError::illegal("A section needs a body. An empty one is something a person makes in the console."));
-    };
-    let text = jstr::strip(body);
-    let length = jstr::len(text);
-    if length > BODY_MAX_CHARACTERS {
-        return Err(RekallError::illegal(format!(
-            "A section is capped at {BODY_MAX_CHARACTERS} characters and this one is {length}. Split it."
-        )));
-    }
-    Ok(text.to_string())
+    let body = text_rule::present(body).ok_or_else(|| {
+        RekallError::illegal("A section needs a body. An empty one is something a person makes in the console.")
+    })?;
+    text_rule::within(body, BODY_MAX_CHARACTERS, |length| {
+        format!("A section is capped at {BODY_MAX_CHARACTERS} characters and this one is {length}. Split it.")
+    })
 }
 
 /// The section of `project_id` already titled `wanted` (ignoring case), other than `except`.

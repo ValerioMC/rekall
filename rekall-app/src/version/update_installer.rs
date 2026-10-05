@@ -65,13 +65,13 @@ pub async fn install(target: UpdateTarget<'_>) -> Result<String, UpdateInstallEr
         Err(failure) => Err(failure),
     };
     if let Err(failure) = target.installer.detach(&mount_point).await {
-        warn!("The update's disk image was left mounted: {failure}");
+        warn!(%failure, "The update's disk image was left mounted");
     }
     if let Err(failure) = bundle_files::remove_tree(&image).await {
-        warn!("The update's disk image was not deleted: {failure}");
+        warn!(%failure, "The update's disk image was not deleted");
     }
     replaced?;
-    info!("Installed Rekall {latest} over {}", bundle.display());
+    info!(%latest, bundle = %bundle.display(), "Installed the new Rekall");
     Ok(latest)
 }
 
@@ -118,7 +118,7 @@ async fn replace_bundle(installer: &dyn BundleInstaller, source: &Path, bundle: 
         return Err(failure);
     }
     if let Err(failure) = bundle_files::remove_tree(&previous).await {
-        warn!("The previous version was not deleted: {failure}");
+        warn!(%failure, "The previous version was not deleted");
     }
     Ok(())
 }

@@ -81,12 +81,12 @@ impl DirectoryListingService {
     }
 }
 
-/// `Path.toAbsolutePath()`: a relative path is taken against the working directory.
+/// A relative path is taken against the working directory.
 fn absolute(path: &Path) -> PathBuf {
     std::path::absolute(path).unwrap_or_else(|_| path.to_path_buf())
 }
 
-/// `Path.normalize()`: `.` goes, and `name/..` cancels out, without touching the disk. A `..`
+/// Lexical cleanup: `.` goes, and `name/..` cancels out, without touching the disk. A `..`
 /// with nothing left above it at the root is dropped.
 fn normalize(path: &Path) -> PathBuf {
     let mut out = PathBuf::new();
@@ -117,11 +117,11 @@ fn read_entries(folder: &Path) -> (Vec<DirectoryEntryResponse>, bool) {
     match listed {
         Ok(entries) => (entries, true),
         Err(e) if e.kind() == io::ErrorKind::PermissionDenied => {
-            info!("Folder listing refused: {}", folder.display());
+            info!(folder = %folder.display(), "Folder listing refused");
             (Vec::new(), false)
         }
         Err(e) => {
-            warn!("Folder listing failed: {}: {e}", folder.display());
+            warn!(failed = %e, folder = %folder.display(), "Folder listing failed");
             (Vec::new(), false)
         }
     }
@@ -137,18 +137,19 @@ fn entry(child: &Path, name: &str) -> DirectoryEntryResponse {
 }
 
 fn is_hidden(child: &Path, name: &str) -> bool {
-    if name.starts_with('.') {
-        return true;
-    }
-    #[cfg(windows)]
-    {
-        use std::os::windows::fs::MetadataExt;
-        const FILE_ATTRIBUTE_HIDDEN: u32 = 0x2;
-        if let Ok(metadata) = std::fs::symlink_metadata(child) {
-            return metadata.file_attributes() & FILE_ATTRIBUTE_HIDDEN != 0;
-        }
-    }
-    let _ = child;
+    name.starts_with('.') || has_hidden_attribute(child)
+}
+
+#[cfg(windows)]
+fn has_hidden_attribute(child: &Path) -> bool {
+    use std::os::windows::fs::MetadataExt;
+    const FILE_ATTRIBUTE_HIDDEN: u32 = 0x2;
+    std::fs::symlink_metadata(child).is_ok_and(|metadata| metadata.file_attributes() & FILE_ATTRIBUTE_HIDDEN != 0)
+}
+
+/// Outside Windows, hidden is only the leading dot.
+#[cfg(not(windows))]
+fn has_hidden_attribute(_child: &Path) -> bool {
     false
 }
 

@@ -35,7 +35,7 @@ impl ApiError {
                 RekallError::Integrity(cause) => (StatusCode::CONFLICT, explain(cause)),
                 RekallError::IllegalArgument(m) => (StatusCode::BAD_REQUEST, m.clone()),
                 RekallError::Internal(m) => {
-                    error!("Unhandled failure: {m}");
+                    error!(failure = %m, "Unhandled failure");
                     (StatusCode::INTERNAL_SERVER_ERROR, m.clone())
                 }
             },

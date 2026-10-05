@@ -40,7 +40,7 @@ impl ProjectResponse {
             company_id: company.id,
             company_name: company.name.clone(),
             task_count,
-            anchor: format!("project:{}", project.label),
+            anchor: project.anchor(),
             updated_at: project.updated_at,
         }
     }

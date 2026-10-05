@@ -86,8 +86,8 @@ impl StepEventStream {
     }
 }
 
-/// `SseEmitter.event().name(name).data(data)`: a line per field, a line of data per line of
-/// payload, and a blank line to end the frame.
+/// One server-sent event: a line per field, a line of data per line of payload, and a blank line
+/// to end the frame.
 fn frame(name: &str, data: &str) -> Bytes {
     let mut text = format!("event:{name}\n");
     for line in data.split('\n') {

@@ -46,8 +46,8 @@ impl ContextService {
                 self.render_single_project(tx, found, value).await
             }
             "task" | "tasks" | "issue" | "issues" | "attivita" => {
-                let found = repo::task::find_by_label(tx.db(), value).await?;
-                self.render_single_task(tx, found, value).await
+                let task = load::resolve_task(tx.db(), None, value).await?;
+                self.render_task(tx, &task).await
             }
             "note" | "notes" | "nota" | "document" => self.render_single_note(tx, value).await,
             _ => Err(RekallError::unknown_anchor(format!(
@@ -62,12 +62,8 @@ impl ContextService {
     }
 
     pub async fn load_task_in(&self, tx: &Tx, project_label: &str, task_label: &str) -> Result<ContextRecord> {
-        match repo::task::find_by_anchor(tx.db(), project_label, task_label).await? {
-            Some(task) => self.render_task(tx, &task).await,
-            None => Err(RekallError::unknown_anchor(format!(
-                "No task '{task_label}' on project '{project_label}'"
-            ))),
-        }
+        let task = load::resolve_task(tx.db(), Some(project_label), task_label).await?;
+        self.render_task(tx, &task).await
     }
 
     /// The project and the task, as `/rk project:<label> task:<label>` loads them for this task.
@@ -132,24 +128,10 @@ impl ContextService {
         self.render_project(tx, &found[0]).await
     }
 
-    async fn render_single_task(&self, tx: &Tx, found: Vec<task::Model>, value: &str) -> Result<ContextRecord> {
-        if found.is_empty() {
-            return Err(RekallError::unknown_anchor(format!("No task matches '{value}'")));
-        }
-        if found.len() > 1 {
-            let mut candidates = Vec::new();
-            for task in &found {
-                candidates.push(format!("project:{}", load::project_of(tx.db(), task).await?.label));
-            }
-            return Err(RekallError::ambiguous(value, candidates));
-        }
-        self.render_task(tx, &found[0]).await
-    }
-
     /// A note loaded by its own anchor: the id's first eight characters or more. Fewer is
     /// refused, since a shorter prefix stops being unique long before it stops looking like one.
     async fn render_single_note(&self, tx: &Tx, value: &str) -> Result<ContextRecord> {
-        static HEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[0-9a-f-]+$").unwrap());
+        static HEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[0-9a-f-]+$").expect("a valid pattern"));
         let prefix = jstr::strip(value).to_lowercase();
         if jstr::len(&prefix) < ANCHOR_ID_LENGTH || !HEX.is_match(&prefix) {
             return Err(RekallError::unknown_anchor(format!(
@@ -183,7 +165,7 @@ impl ContextService {
             kind: "Company".into(),
             label: company.name.clone(),
             anchor: format!("company:{}", company.name),
-            related: projects.iter().map(|p| format!("project:{}", p.label)).collect(),
+            related: projects.iter().map(project::Model::anchor).collect(),
             description: company.description.clone(),
             ..Default::default()
         })
@@ -205,7 +187,7 @@ impl ContextService {
         Ok(ContextRecord {
             kind: "Project".into(),
             label: project.title.clone(),
-            anchor: format!("project:{}", project.label),
+            anchor: project.anchor(),
             fields,
             references: vec![self.referenced_company(tx, &company).await?],
             related: tasks.iter().map(|t| format!("task:{}", t.label)).collect(),

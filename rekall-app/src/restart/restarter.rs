@@ -50,7 +50,7 @@ impl Restarter {
 /// A hook that fails is logged and the restart goes on, so the application always comes back.
 pub fn run_hook(when: &str, hook: Hook) {
     if let Err(failed) = hook() {
-        error!("The restart hook {when} failed; restarting anyway: {failed}");
+        error!(%failed, hook = when, "A restart hook failed; restarting anyway");
     }
 }
 

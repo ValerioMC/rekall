@@ -10,6 +10,8 @@ use crate::step_pass::StepPass;
 
 pub const MAX_CHARACTERS: usize = 20_000;
 
+pub const TITLE_MAX_CHARACTERS: usize = 200;
+
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
 #[sea_orm(table_name = "task_step")]
 pub struct Model {
@@ -49,7 +51,7 @@ impl Related<super::task::Entity> for Entity {
 impl ActiveModelBehavior for ActiveModel {}
 
 impl Model {
-    /// `new TaskStep(task, title, position)`: a draft, with nothing behind it.
+    /// A draft step, with nothing behind it.
     pub fn new(task_id: Id, title: String, position: i32, now: Instant) -> Self {
         Self {
             id: Id::random(),
@@ -134,7 +136,7 @@ impl Model {
     pub fn validate(&self) -> Result<(), RekallError> {
         Violations::new("TaskStep")
             .not_blank("title", Some(&self.title))
-            .max_length("title", Some(&self.title), 200)
+            .max_length("title", Some(&self.title), TITLE_MAX_CHARACTERS)
             .max_length("bodyMarkdown", self.body_markdown.as_deref(), MAX_CHARACTERS)
             .finish()
     }

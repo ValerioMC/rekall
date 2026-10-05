@@ -72,10 +72,10 @@ impl DatabaseRestoreService {
             return Err(RekallError::conflict("This instance cannot restart itself, so nothing was restored."));
         }
         info!(
-            "Restoring {} over {}; the previous state is in {}",
-            zip.file_name().unwrap_or_default().to_string_lossy(),
-            location.data_file().display(),
-            safety.name
+            backup = %zip.file_name().unwrap_or_default().to_string_lossy(),
+            live = %location.data_file().display(),
+            safety = %safety.name,
+            "Restoring a backup; the previous state is kept in the safety backup"
         );
         Ok(safety)
     }
@@ -156,17 +156,17 @@ fn swap(staged: &Path, live: &Path) -> std::result::Result<(), String> {
         let companion = PathBuf::from(format!("{}{suffix}", live.display()));
         if companion.exists() {
             if let Err(failed) = std::fs::remove_file(&companion) {
-                warn!("Could not delete {}: {failed}", companion.display());
+                warn!(%failed, file = %companion.display(), "Could not delete a database companion file");
             }
         }
     }
     match std::fs::rename(staged, live) {
         Ok(()) => {
-            info!("Restored the database file {}", live.display());
+            info!(live = %live.display(), "Restored the database file");
             Ok(())
         }
         Err(failed) => {
-            error!("The restore could not replace {}; the application restarts on the file it had: {failed}", live.display());
+            error!(%failed, live = %live.display(), "The restore could not replace the database; the application restarts on the file it had");
             delete_quietly(staged);
             Err(failed.to_string())
         }
@@ -176,7 +176,7 @@ fn swap(staged: &Path, live: &Path) -> std::result::Result<(), String> {
 pub fn delete_quietly(file: &Path) {
     if let Err(failed) = std::fs::remove_file(file) {
         if failed.kind() != std::io::ErrorKind::NotFound {
-            warn!("Could not delete {}: {failed}", file.display());
+            warn!(%failed, file = %file.display(), "Could not delete a staged file");
         }
     }
 }

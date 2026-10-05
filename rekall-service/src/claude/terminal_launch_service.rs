@@ -26,7 +26,7 @@ impl TerminalLaunchService {
             };
             Ok(TerminalLaunch {
                 task_id,
-                anchors: format!("project:{} task:{}", project.label, task.label),
+                anchors: task.anchor(&project.label),
                 working_dir: jstr::strip(folder).to_string(),
                 project_label: project.label.clone(),
                 task_label: task.label.clone(),

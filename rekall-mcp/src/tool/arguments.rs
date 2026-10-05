@@ -3,7 +3,7 @@ use serde_json::Value;
 use crate::protocol::json_rpc_text;
 use crate::protocol::ToolError;
 
-/// A tool's arguments, read the way `Arguments` read the `JsonNode`.
+/// A tool's arguments, read leniently: a number or boolean where text is expected reads as its text.
 pub struct Arguments<'a> {
     node: Option<&'a Value>,
 }
@@ -13,7 +13,7 @@ impl<'a> Arguments<'a> {
         Self { node }
     }
 
-    /// Present, not null and not blank, or an `IllegalArgumentException`.
+    /// Present, not null and not blank, or a `ToolError::Illegal` naming the argument.
     pub fn required_string(&self, name: &str) -> Result<String, ToolError> {
         match self.text(name) {
             Some(value) if !rekall_common::jstr::is_blank(&value) => Ok(value),

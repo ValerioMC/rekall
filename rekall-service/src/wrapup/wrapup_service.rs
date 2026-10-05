@@ -1,4 +1,4 @@
-use rekall_common::{jstr, Id, RekallError, Result};
+use rekall_common::{Id, RekallError, Result};
 use rekall_model::wrapup::{self, MAX_CHARACTERS};
 use rekall_model::{task, RevisionKind, WrapupAuthor};
 use rekall_repository::repository as repo;
@@ -6,7 +6,7 @@ use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
 use crate::review::TaskReviewService;
 use crate::revision::{RevisionTrigger, TaskRevisionService};
-use crate::{in_read, in_write, load, Ctx, DomainEvent, Tx};
+use crate::{in_read, in_write, load, text_rule, Ctx, DomainEvent, Tx};
 
 use super::{WrapupStreamEvent, WrapupView, Written};
 
@@ -89,36 +89,14 @@ impl WrapupService {
     ) -> Result<Written> {
         let text = validated(body)?;
         let project = load::project_of(tx.db(), &task).await?;
-        let now = self.ctx.now();
-        let written = match repo::wrapup::find_of_task(tx.db(), task.id).await? {
-            None => {
-                let created = wrapup::Model {
-                    id: Id::random(),
-                    task_id: task.id,
-                    body_markdown: text,
-                    written_by: author,
-                    created_at: now,
-                    updated_at: now,
-                };
-                created.validate()?;
-                created.clone().into_active_model().insert(tx.db()).await?;
-                Written { wrapup: WrapupView::of(&created, &task, &project), created: true, replaced: None }
-            }
+        let (current, replaced) = match repo::wrapup::find_of_task(tx.db(), task.id).await? {
+            None => (self.create(tx, task.id, text, author).await?, None),
             Some(before) => {
                 let previous = before.written_by;
-                if before.body_markdown != text {
-                    self.revisions
-                        .keep_in(tx, task.id, RevisionKind::Wrapup, Some(&before.body_markdown), Some(previous),
-                                 Some(before.updated_at), trigger)
-                        .await?;
-                }
-                let mut after = before.clone();
-                after.body_markdown = text;
-                after.written_by = author;
-                let after = repo::update_if_changed(tx.db(), &before, after, now).await?;
-                Written { wrapup: WrapupView::of(&after, &task, &project), created: false, replaced: Some(previous) }
+                (self.replace(tx, before, text, author, trigger).await?, Some(previous))
             }
         };
+        let written = Written { wrapup: WrapupView::of(&current, &task, &project), created: replaced.is_none(), replaced };
         // A Claude-authored wrapup advances a stepless task's review line to CLAIMED; a
         // hand-written one does not.
         if author == WrapupAuthor::Claude {
@@ -130,6 +108,35 @@ impl WrapupService {
             deleted: false,
         }));
         Ok(written)
+    }
+
+    async fn create(&self, tx: &mut Tx, task_id: Id, text: String, author: WrapupAuthor) -> Result<wrapup::Model> {
+        let now = self.ctx.now();
+        let created = wrapup::Model { id: Id::random(), task_id, body_markdown: text, written_by: author, created_at: now, updated_at: now };
+        created.validate()?;
+        created.clone().into_active_model().insert(tx.db()).await?;
+        Ok(created)
+    }
+
+    /// The text it replaces goes to the task's revisions first, unless it is the same text.
+    async fn replace(
+        &self,
+        tx: &mut Tx,
+        before: wrapup::Model,
+        text: String,
+        author: WrapupAuthor,
+        trigger: RevisionTrigger,
+    ) -> Result<wrapup::Model> {
+        if before.body_markdown != text {
+            self.revisions
+                .keep_in(tx, before.task_id, RevisionKind::Wrapup, Some(&before.body_markdown), Some(before.written_by),
+                         Some(before.updated_at), trigger)
+                .await?;
+        }
+        let mut after = before.clone();
+        after.body_markdown = text;
+        after.written_by = author;
+        repo::update_if_changed(tx.db(), &before, after, self.ctx.now()).await
     }
 
     pub async fn delete(&self, task_id: Id) -> Result<()> {
@@ -156,19 +163,14 @@ fn trigger_of(author: WrapupAuthor) -> RevisionTrigger {
 }
 
 fn validated(body: Option<&str>) -> Result<String> {
-    let Some(body) = body.filter(|b| !jstr::is_blank(b)) else {
-        return Err(RekallError::illegal(
-            "A wrapup needs a body. To remove one, delete it rather than blanking it.",
-        ));
-    };
-    let text = jstr::strip(body);
-    let length = jstr::len(text);
-    if length > MAX_CHARACTERS {
-        return Err(RekallError::illegal(format!(
+    let body = text_rule::present(body).ok_or_else(|| {
+        RekallError::illegal("A wrapup needs a body. To remove one, delete it rather than blanking it.")
+    })?;
+    text_rule::within(body, MAX_CHARACTERS, |length| {
+        format!(
             "A wrapup is capped at {MAX_CHARACTERS} characters and this one is {length}. It describes the state of the \
              implementation, not how it got there; if it does not fit, it is recording the process. Move the detail \
              into a note."
-        )));
-    }
-    Ok(text.to_string())
+        )
+    })
 }

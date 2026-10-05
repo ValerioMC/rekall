@@ -434,7 +434,7 @@ The `/rk` command the app installs is `.claude/commands/rk.md`, compiled into th
 | Build | Vite 5 |
 | Styling | Tailwind CSS 4, semantic tokens in `src/assets/main.css` |
 | Fonts | Fira Sans and Fira Code, bundled |
-| State | Pinia setup stores; `console.store` holds the working set |
+| State | Pinia setup stores; `console.store` holds the working set, one slice per concern under `stores/console/` |
 | HTTP | `ofetch`, timeout, retry on 5xx only, correlation id per request |
 | Validation | Zod on every response |
 | Markdown | `md-editor-v3` wrapped by `AppMarkdownEditor`, highlight.js and mermaid passed in as local instances. A ```` ```mermaid ```` fence renders as a diagram in the read view; the editor's live preview keeps it as code |

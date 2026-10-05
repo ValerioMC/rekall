@@ -106,7 +106,7 @@ impl ClaudeUsageService {
         let response = match response {
             Ok(response) => response,
             Err(failure) => {
-                debug!("Claude usage endpoint unreachable: {failure}");
+                debug!(%failure, "Claude usage endpoint unreachable");
                 return Self::degraded(state);
             }
         };
@@ -116,11 +116,11 @@ impl ClaudeUsageService {
         }
         if status == 429 {
             state.hold_until = self.now().plus(retry_after(response.headers().get("Retry-After")));
-            info!("Anthropic rate limited the usage read; holding until {}", state.hold_until);
+            info!(hold_until = %state.hold_until, "Anthropic rate limited the usage read; holding");
             return Self::held(state);
         }
         if status != 200 {
-            debug!("Claude usage endpoint returned {status}");
+            debug!(%status, "Claude usage endpoint answered with an error status");
             return Self::degraded(state);
         }
         match response.text().await.ok().and_then(|body| parse(&body)) {

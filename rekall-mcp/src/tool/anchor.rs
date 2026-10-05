@@ -19,7 +19,7 @@ impl Anchor {
     pub fn parse_all(raw: Option<&str>) -> Result<Vec<Anchor>, ToolError> {
         // `\S*"[^"]*"|\S+`, with `\S` restricted to ASCII.
         static TERM: LazyLock<Regex> = LazyLock::new(|| {
-            Regex::new(r#"[^ \t\n\x0B\x0C\r]*"[^"]*"|[^ \t\n\x0B\x0C\r]+"#).unwrap()
+            Regex::new(r#"[^ \t\n\x0B\x0C\r]*"[^"]*"|[^ \t\n\x0B\x0C\r]+"#).expect("a valid pattern")
         });
         let mut anchors = Vec::new();
         for term in TERM.find_iter(raw.unwrap_or("")) {

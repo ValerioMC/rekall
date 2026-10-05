@@ -10,7 +10,7 @@ pub fn as_text(value: &Value) -> String {
     }
 }
 
-/// `node.hasNonNull(field) ? node.get(field).asString() : null`.
+/// The field as text, absent when it is missing or null.
 pub fn text_at(node: Option<&Value>, field: &str) -> Option<String> {
     node.and_then(|n| n.get(field)).filter(|v| !v.is_null()).map(as_text)
 }

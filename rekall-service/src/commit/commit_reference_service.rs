@@ -187,7 +187,7 @@ async fn resolve_step_by_id(tx: &Tx, task: &task::Model, step_id: Option<Id>) ->
 }
 
 async fn resolve_step_by_ref(tx: &Tx, task: &task::Model, reference: &str) -> Result<task_step::Model> {
-    static DIGITS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\d+$").unwrap());
+    static DIGITS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\d+$").expect("a valid pattern"));
     let ordered = load::steps_of(tx.db(), task.id).await?;
     if ordered.is_empty() {
         return Err(RekallError::illegal("That task has no steps to log this commit against."));

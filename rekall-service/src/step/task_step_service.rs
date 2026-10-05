@@ -1,6 +1,6 @@
 use regex::Regex;
 use rekall_common::{jstr, Id, RekallError, Result};
-use rekall_model::task_step::{self, MAX_CHARACTERS};
+use rekall_model::task_step::{self, MAX_CHARACTERS, TITLE_MAX_CHARACTERS};
 use rekall_model::TaskStepState;
 use rekall_repository::repository as repo;
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
@@ -8,7 +8,7 @@ use std::sync::LazyLock;
 
 use super::{StepStreamEvent, TaskStepView};
 use crate::timeentry::TimeEntryService;
-use crate::{in_read, in_write, load, Ctx, DomainEvent, Tx};
+use crate::{in_read, in_write, load, text_rule, Ctx, DomainEvent, Tx};
 
 use super::Proposed;
 
@@ -308,7 +308,7 @@ fn apply_draft(step: &mut task_step::Model, draft: bool) -> Result<()> {
 
 /// A step by its one-based number in the checklist, or by its exact title.
 async fn resolve_step(db: &impl sea_orm::ConnectionTrait, task_id: Id, reference: Option<&str>) -> Result<task_step::Model> {
-    static DIGITS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\d+$").unwrap());
+    static DIGITS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\d+$").expect("a valid pattern"));
     let ordered = load::steps_of(db, task_id).await?;
     if ordered.is_empty() {
         return Err(RekallError::illegal("That task has no steps to move."));
@@ -346,31 +346,26 @@ fn step_by_number(mut ordered: Vec<task_step::Model>, number: &str) -> Result<ta
 }
 
 fn validated_title(title: Option<&str>) -> Result<String> {
-    let Some(title) = title.filter(|t| !jstr::is_blank(t)) else {
-        return Err(RekallError::illegal("A step needs a title. To remove one, delete it."));
-    };
-    let text = jstr::strip(title);
-    let length = jstr::len(text);
-    if length > 200 {
-        return Err(RekallError::illegal(format!(
-            "A step's title is capped at 200 characters and this one is {length}. What it has to satisfy goes in \
-             the detail below it."
-        )));
-    }
-    Ok(text.to_string())
+    let title =
+        text_rule::present(title).ok_or_else(|| RekallError::illegal("A step needs a title. To remove one, delete it."))?;
+    text_rule::within(title, TITLE_MAX_CHARACTERS, |length| {
+        format!(
+            "A step's title is capped at {TITLE_MAX_CHARACTERS} characters and this one is {length}. What it has to \
+             satisfy goes in the detail below it."
+        )
+    })
 }
 
+/// A step's detail is optional: blank clears it.
 fn validated_body(body: Option<&str>) -> Result<Option<String>> {
-    let Some(body) = body.filter(|b| !jstr::is_blank(b)) else {
-        return Ok(None);
-    };
-    let text = jstr::strip(body);
-    let length = jstr::len(text);
-    if length > MAX_CHARACTERS {
-        return Err(RekallError::illegal(format!(
-            "A step's detail is capped at {MAX_CHARACTERS} characters and this one is {length}. A step that long is a \
-             task of its own; split it, or move the detail into a note."
-        )));
-    }
-    Ok(Some(text.to_string()))
+    text_rule::present(body)
+        .map(|body| {
+            text_rule::within(body, MAX_CHARACTERS, |length| {
+                format!(
+                    "A step's detail is capped at {MAX_CHARACTERS} characters and this one is {length}. A step that \
+                     long is a task of its own; split it, or move the detail into a note."
+                )
+            })
+        })
+        .transpose()
 }

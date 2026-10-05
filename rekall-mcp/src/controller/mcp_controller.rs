@@ -41,12 +41,7 @@ impl McpController {
         }
         let names: Vec<&str> = kept.iter().map(|t| t.name()).collect();
         let writing: Vec<&str> = kept.iter().filter(|t| t.writes()).map(|t| t.name()).collect();
-        info!(
-            "MCP server exposing {} tool(s): [{}]. Writes: {}",
-            kept.len(),
-            names.join(", "),
-            if writing.is_empty() { "none".to_string() } else { format!("[{}]", writing.join(", ")) }
-        );
+        info!(tools = ?names, writes = ?writing, "MCP server ready");
         Self { tools: kept, by_name }
     }
 
@@ -100,7 +95,7 @@ impl McpController {
         }
         let method = request.method.clone().unwrap_or_default();
         if request.is_notification() {
-            debug!("MCP notification: {method}");
+            debug!(%method, "MCP notification");
             return Answer::Accepted;
         }
         if method_header != Some(method.as_str()) {
@@ -148,7 +143,7 @@ impl McpController {
     async fn legacy(&self, request: &Request) -> Answer {
         let method = request.method.clone().unwrap_or_default();
         if request.is_notification() {
-            debug!("MCP notification: {method}");
+            debug!(%method, "MCP notification");
             return Answer::Accepted;
         }
         let id = request.response_id();

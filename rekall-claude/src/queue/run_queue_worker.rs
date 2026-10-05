@@ -175,7 +175,7 @@ impl Worker {
             };
             let verdict = self.ceiling(&snapshot).await;
             if !verdict.clear {
-                info!("Run queue: holding until {:?} ({:?})", verdict.resume_at, verdict.reason);
+                info!(resume_at = ?verdict.resume_at, reason = ?verdict.reason, "Run queue: holding");
                 self.queue.hold(verdict.resume_at, verdict.reason.as_deref()).await?;
                 return Ok(());
             }
@@ -233,7 +233,7 @@ impl Worker {
             closing: false,
         });
         self.queue.mark_item(item.id, RunQueueItemState::Running, None).await?;
-        info!("Run queue: running {} in terminal {}", item.anchor, opened.id);
+        info!(anchor = %item.anchor, terminal_id = %opened.id, "Run queue: running");
         Ok(())
     }
 
@@ -307,7 +307,7 @@ impl Worker {
             .mark_item(current.item_id, RunQueueItemState::Queued, Some("Paused at the usage ceiling; it picks up at the next open step."))
             .await?;
         self.queue.hold(verdict.resume_at, verdict.reason.as_deref()).await?;
-        info!("Run queue: paused at the ceiling until {:?} ({:?})", verdict.resume_at, verdict.reason);
+        info!(resume_at = ?verdict.resume_at, reason = ?verdict.reason, "Run queue: paused at the ceiling");
         Ok(())
     }
 
@@ -353,7 +353,7 @@ impl Worker {
         if let Some(state) = self.read_or_none(task_id).await {
             for step_id in state.running_step_ids {
                 if let Err(failed) = self.steps.release_running(Some(step_id)).await {
-                    warn!("Run queue: releasing step {step_id} failed: {failed}");
+                    warn!(%failed, %step_id, "Run queue: releasing a step failed");
                 }
             }
         }
@@ -392,6 +392,6 @@ fn finished(remaining: Remaining) -> &'static str {
 /// One failed decision is logged and the next tick tries again; it never kills the runner.
 fn guarded(what: &str, result: Result<()>) {
     if let Err(failed) = result {
-        warn!("Run queue: {what} failed: {failed}");
+        warn!(%failed, action = what, "Run queue: an action failed");
     }
 }

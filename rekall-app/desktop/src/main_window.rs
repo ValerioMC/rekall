@@ -8,7 +8,7 @@ use std::sync::Arc;
 use tauri::webview::DownloadEvent;
 use tauri::{AppHandle, LogicalSize, Manager, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 use tauri_plugin_opener::OpenerExt;
-use tracing::error;
+use tracing::{error, warn};
 
 use crate::bridges;
 use crate::download_tracker::DownloadTracker;
@@ -36,7 +36,9 @@ pub(crate) fn build_window(handle: &AppHandle) -> tauri::Result<WebviewWindow> {
             if is_local(url) {
                 return true;
             }
-            let _ = opener.opener().open_url(url.as_str(), None::<&str>);
+            if let Err(failed) = opener.opener().open_url(url.as_str(), None::<&str>) {
+                warn!(%failed, %url, "Could not open the link in the browser");
+            }
             false
         })
         // A download is a plain link (a backup's zip): saved to Downloads under a name not yet taken,
@@ -57,11 +59,11 @@ pub(crate) fn build_window(handle: &AppHandle) -> tauri::Result<WebviewWindow> {
                     match (success, saved) {
                         (true, Some(path)) => {
                             if let Err(error) = downloads.opener().reveal_item_in_dir(&path) {
-                                error!("Could not show {} in the file manager: {error}", path.display());
+                                error!(%error, path = %path.display(), "Could not show the download in the file manager");
                             }
                         }
-                        (true, None) => error!("Download of {url} finished with no known destination"),
-                        (false, _) => error!("Download of {url} failed"),
+                        (true, None) => error!(%url, "Download finished with no known destination"),
+                        (false, _) => error!(%url, "Download failed"),
                     }
                 }
                 _ => {}
@@ -91,13 +93,15 @@ pub(crate) fn build_window(handle: &AppHandle) -> tauri::Result<WebviewWindow> {
     let window = builder.build()?;
     #[cfg(target_os = "macos")]
     if let Err(error) = bridges::allow_native_fullscreen(&window) {
-        error!("Could not enable native full screen: {error}");
+        error!(%error, "Could not enable native full screen");
     }
     let visible = window.clone();
     tauri::async_runtime::spawn(async move {
         if let Err(error) = bridges::show_fading_in(&visible).await {
-            error!("Could not fade the window in: {error}");
-            let _ = visible.show();
+            error!(%error, "Could not fade the window in");
+            if let Err(failed) = visible.show() {
+                error!(%failed, "Could not show the window");
+            }
         }
     });
     Ok(window)

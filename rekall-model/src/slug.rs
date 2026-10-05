@@ -15,9 +15,9 @@ impl Slug {
     /// separators folded, and separators at either end dropped. Refuses a value with nothing
     /// usable left in it.
     pub fn of(raw: Option<&str>) -> Result<String, RekallError> {
-        static OTHER: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[^a-z0-9._-]+").unwrap());
-        static RUNS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[._-]{2,}").unwrap());
-        static EDGES: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[._-]+|[._-]+$").unwrap());
+        static OTHER: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[^a-z0-9._-]+").expect("a valid pattern"));
+        static RUNS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[._-]{2,}").expect("a valid pattern"));
+        static EDGES: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[._-]+|[._-]+$").expect("a valid pattern"));
 
         let Some(raw) = raw else {
             return Err(RekallError::illegal("A label is required. It is what `/rk` looks up."));
@@ -35,7 +35,7 @@ impl Slug {
     }
 
     pub fn matches(value: &str) -> bool {
-        static PATTERN: LazyLock<Regex> = LazyLock::new(|| Regex::new(Slug::PATTERN).unwrap());
+        static PATTERN: LazyLock<Regex> = LazyLock::new(|| Regex::new(Slug::PATTERN).expect("a valid pattern"));
         PATTERN.is_match(value)
     }
 }

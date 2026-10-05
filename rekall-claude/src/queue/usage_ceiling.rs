@@ -55,7 +55,7 @@ pub fn check(usage: Option<&ClaudeUsageView>, ceiling_percent: Option<i32>, mode
     if over.is_empty() {
         return Verdict::go();
     }
-    // `Stream.max`: the first of equal maxima.
+    // The first of equal maxima, so the reason names the window listed first.
     let mut worst = over[0];
     for limit in &over[1..] {
         if limit.percent > worst.percent {
@@ -65,7 +65,7 @@ pub fn check(usage: Option<&ClaudeUsageView>, ceiling_percent: Option<i32>, mode
     let reason = format!(
         "{} is at {}%, at or over the {ceiling}% ceiling.",
         worst.label,
-        java_round(worst.percent)
+        round_half_up(worst.percent)
     );
     if over.iter().any(|limit| limit.resets_at.is_none()) {
         return Verdict::hold(now.plus(NO_RESET_RECHECK), reason);
@@ -75,8 +75,8 @@ pub fn check(usage: Option<&ClaudeUsageView>, ceiling_percent: Option<i32>, mode
     Verdict::hold(if resume_at.is_after(&now) { resume_at } else { now.plus(RESET_GRACE) }, reason)
 }
 
-/// `Math.round(double)`: half up.
-fn java_round(value: f64) -> i64 {
+/// Half up, so 79.5% reads as 80%.
+fn round_half_up(value: f64) -> i64 {
     (value + 0.5).floor() as i64
 }
 

@@ -49,7 +49,7 @@ pub async fn resolve_task(db: &impl ConnectionTrait, project_label: Option<&str>
     if found.len() > 1 {
         let mut candidates = Vec::with_capacity(found.len());
         for task in &found {
-            candidates.push(format!("project:{}", project_of(db, task).await?.label));
+            candidates.push(project_of(db, task).await?.anchor());
         }
         return Err(RekallError::ambiguous(task_label, candidates));
     }

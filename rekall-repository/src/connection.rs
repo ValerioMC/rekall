@@ -40,7 +40,7 @@ struct ScratchDir(PathBuf);
 
 impl Drop for ScratchDir {
     fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
+        rekall_common::cleanup::remove_dir_all(&self.0);
     }
 }
 

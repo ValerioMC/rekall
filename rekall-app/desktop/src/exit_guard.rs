@@ -108,7 +108,7 @@ pub async fn may_leave<R: Runtime>(handle: &AppHandle<R>, port: u16, leaving: Le
     let live = match live_sessions(port).await {
         Ok(live) => live,
         Err(failure) => {
-            warn!("Could not count the live sessions before stopping the server: {failure}");
+            warn!(%failure, "Could not count the live sessions before stopping the server");
             return true;
         }
     };

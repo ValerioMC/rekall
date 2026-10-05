@@ -1,9 +1,9 @@
 use rekall_common::{jstr, Id, RekallError, Result};
-use rekall_model::{document, document_task, DocumentContextMode};
+use rekall_model::{document, document_task, task, DocumentContextMode};
 use rekall_repository::repository as repo;
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
 
-use crate::{in_write, load, Ctx, DomainEvent};
+use crate::{in_write, load, text_rule, Ctx, DomainEvent, Tx};
 
 use super::{NoteStreamEvent, OnTitleClash, Written};
 
@@ -38,93 +38,94 @@ impl NoteService {
             let text = validated_body(body)?;
             let existing = repo::document::documents_of_task(tx.db(), task.id).await?;
             let project = load::project_of(tx.db(), &task).await?;
-            let task_anchor = format!("project:{} task:{}", project.label, task.label);
-            let now = self.ctx.now();
+            let target = Target { task: &task, task_anchor: task.anchor(&project.label), notes_on_task: existing.len() };
 
-            if let Some(clash) =
-                existing.iter().find(|note| jstr::equals_ignore_case(jstr::strip(&note.title), &wanted))
-            {
-                if on_clash == OnTitleClash::Refuse {
-                    return Err(RekallError::illegal(format!(
-                        "This task already has a note titled '{}' ({}). Nothing was written: pass `replace` to \
-                         rewrite that note, or pick another title to add a new one.",
-                        clash.title,
-                        clash.anchor()
-                    )));
-                }
-                // The title stays as it was typed in the console; only the body is the session's.
-                let mut rewritten = clash.clone();
-                rewritten.body_markdown = text;
-                let rewritten = repo::update_if_changed(tx.db(), clash, rewritten, now).await?;
-                let readers = repo::document::links_of_document(tx.db(), rewritten.id).await?;
-                tx.publish(DomainEvent::Note(NoteStreamEvent { task_id: task.id, document_id: rewritten.id }));
-                return Ok(Written {
-                    note_anchor: rewritten.anchor(),
-                    title: rewritten.title,
-                    task_anchor,
-                    notes_on_task: existing.len(),
-                    replaced: true,
-                    other_tasks: readers.len().saturating_sub(1),
-                });
+            match existing.iter().find(|note| jstr::equals_ignore_case(jstr::strip(&note.title), &wanted)) {
+                Some(clash) if on_clash == OnTitleClash::Refuse => Err(clash_refusal(clash)),
+                Some(clash) => self.rewrite(&mut tx, target, clash, text).await,
+                None => self.add(&mut tx, target, project.id, wanted, text).await,
             }
+        })
+    }
 
-            let note = document::Model {
-                id: Id::random(),
-                title: wanted,
-                kind: KIND.to_string(),
-                body_markdown: text,
-                source_path: None,
-                context_mode: DocumentContextMode::Full,
-                // A session writes for the task it is on, so the note belongs to that task's project.
-                scope_company_id: None,
-                scope_project_id: Some(project.id),
-                created_at: now,
-                updated_at: now,
-            };
-            note.validate()?;
-            note.clone().into_active_model().insert(tx.db()).await?;
-            document_task::Model { document_id: note.id, task_id: task.id, position: existing.len() as i32 }
-                .into_active_model()
-                .insert(tx.db())
-                .await?;
-            tx.publish(DomainEvent::Note(NoteStreamEvent { task_id: task.id, document_id: note.id }));
+    /// The title stays as it was typed in the console; only the body is the session's.
+    async fn rewrite(&self, tx: &mut Tx, target: Target<'_>, clash: &document::Model, text: String) -> Result<Written> {
+        let mut rewritten = clash.clone();
+        rewritten.body_markdown = text;
+        let rewritten = repo::update_if_changed(tx.db(), clash, rewritten, self.ctx.now()).await?;
+        let readers = repo::document::links_of_document(tx.db(), rewritten.id).await?;
+        tx.publish(DomainEvent::Note(NoteStreamEvent { task_id: target.task.id, document_id: rewritten.id }));
+        Ok(Written {
+            note_anchor: rewritten.anchor(),
+            title: rewritten.title,
+            task_anchor: target.task_anchor,
+            notes_on_task: target.notes_on_task,
+            replaced: true,
+            other_tasks: readers.len().saturating_sub(1),
+        })
+    }
 
-            Ok(Written {
-                note_anchor: note.anchor(),
-                title: note.title,
-                task_anchor,
-                notes_on_task: existing.len() + 1,
-                replaced: false,
-                other_tasks: 0,
-            })
+    /// A session writes for the task it is on, so the note belongs to that task's project.
+    async fn add(&self, tx: &mut Tx, target: Target<'_>, project_id: Id, title: String, text: String) -> Result<Written> {
+        let now = self.ctx.now();
+        let note = document::Model {
+            id: Id::random(),
+            title,
+            kind: KIND.to_string(),
+            body_markdown: text,
+            source_path: None,
+            context_mode: DocumentContextMode::Full,
+            scope_company_id: None,
+            scope_project_id: Some(project_id),
+            created_at: now,
+            updated_at: now,
+        };
+        note.validate()?;
+        note.clone().into_active_model().insert(tx.db()).await?;
+        document_task::Model { document_id: note.id, task_id: target.task.id, position: target.notes_on_task as i32 }
+            .into_active_model()
+            .insert(tx.db())
+            .await?;
+        tx.publish(DomainEvent::Note(NoteStreamEvent { task_id: target.task.id, document_id: note.id }));
+        Ok(Written {
+            note_anchor: note.anchor(),
+            title: note.title,
+            task_anchor: target.task_anchor,
+            notes_on_task: target.notes_on_task + 1,
+            replaced: false,
+            other_tasks: 0,
         })
     }
 }
 
+/// The task a note is written on, as both write paths report it.
+struct Target<'a> {
+    task: &'a task::Model,
+    task_anchor: String,
+    notes_on_task: usize,
+}
+
+fn clash_refusal(clash: &document::Model) -> RekallError {
+    RekallError::illegal(format!(
+        "This task already has a note titled '{}' ({}). Nothing was written: pass `replace` to rewrite that note, or \
+         pick another title to add a new one.",
+        clash.title,
+        clash.anchor()
+    ))
+}
+
 fn validated_title(title: Option<&str>) -> Result<String> {
-    let Some(title) = title.filter(|t| !jstr::is_blank(t)) else {
-        return Err(RekallError::illegal("A note needs a title."));
-    };
-    let text = jstr::strip(title);
-    let length = jstr::len(text);
-    if length > TITLE_MAX_CHARACTERS {
-        return Err(RekallError::illegal(format!(
-            "A note's title is capped at {TITLE_MAX_CHARACTERS} characters and this one is {length}."
-        )));
-    }
-    Ok(text.to_string())
+    let title = text_rule::present(title).ok_or_else(|| RekallError::illegal("A note needs a title."))?;
+    text_rule::within(title, TITLE_MAX_CHARACTERS, |length| {
+        format!("A note's title is capped at {TITLE_MAX_CHARACTERS} characters and this one is {length}.")
+    })
 }
 
 fn validated_body(body: Option<&str>) -> Result<String> {
-    let Some(body) = body.filter(|b| !jstr::is_blank(b)) else {
-        return Err(RekallError::illegal("A note needs a body. An empty one is something a person makes in the console."));
-    };
-    let text = jstr::strip(body);
-    let length = jstr::len(text);
-    if length > BODY_MAX_CHARACTERS {
-        return Err(RekallError::illegal(format!(
-            "A note is capped at {BODY_MAX_CHARACTERS} characters and this one is {length}. Split it."
-        )));
-    }
-    Ok(text.to_string())
+    let body = text_rule::present(body).ok_or_else(|| {
+        RekallError::illegal("A note needs a body. An empty one is something a person makes in the console.")
+    })?;
+    text_rule::within(body, BODY_MAX_CHARACTERS, |length| {
+        format!("A note is capped at {BODY_MAX_CHARACTERS} characters and this one is {length}. Split it.")
+    })
 }

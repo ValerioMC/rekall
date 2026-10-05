@@ -78,7 +78,9 @@ fn run(command: &[&str]) -> Option<String> {
     std::thread::spawn(move || {
         use std::io::Read;
         let mut output = String::new();
-        let _ = stdout.read_to_string(&mut output);
+        if let Err(failed) = stdout.read_to_string(&mut output) {
+            debug!(%failed, "Stopped reading the keychain command's output");
+        }
         let _ = sender.send(output);
     });
     let deadline = std::time::Instant::now() + COMMAND_TIMEOUT;
@@ -90,8 +92,8 @@ fn run(command: &[&str]) -> Option<String> {
             }
             Ok(None) if std::time::Instant::now() < deadline => std::thread::sleep(Duration::from_millis(20)),
             _ => {
-                debug!("Timed out running {}", command[1]);
-                let _ = child.kill();
+                debug!(command = command[1], "Keychain command timed out");
+                rekall_common::cleanup::kill(&mut child);
                 return None;
             }
         }

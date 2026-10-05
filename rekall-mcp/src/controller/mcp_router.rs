@@ -24,11 +24,8 @@ fn header<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
 async fn handle_http(State(controller): State<Arc<McpController>>, headers: HeaderMap, body: Bytes) -> Response {
     let value: Value = match serde_json::from_slice(&body) {
         Ok(value @ Value::Object(_)) => value,
-        Ok(_) => return unreadable("Cannot deserialize value of type `dev.rekall.mcp.protocol.JsonRpc$Request`"),
-        Err(e) if body.iter().all(u8::is_ascii_whitespace) => {
-            let _ = e;
-            return unreadable("Required request body is missing");
-        }
+        Ok(_) => return unreadable("A JSON-RPC request is a JSON object"),
+        Err(_) if body.iter().all(u8::is_ascii_whitespace) => return unreadable("Required request body is missing"),
         Err(e) => return unreadable(&e.to_string()),
     };
     let request = Request::from_value(&value);
@@ -43,7 +40,7 @@ async fn handle_http(State(controller): State<Arc<McpController>>, headers: Head
         .into_response()
 }
 
-/// A body that is not a JSON object is the 400 problem `HttpMessageNotReadableException` gave.
+/// A body that is not a JSON object is a 400 problem, rendered here because `rekall-mcp` cannot reach `rekall-api`'s renderer.
 fn unreadable(detail: &str) -> Response {
     let body = json!({
         "detail": detail,

@@ -5,7 +5,7 @@ use std::process::{Command, Stdio};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use rekall_common::{InternalFailure, RekallError};
+use rekall_common::{cleanup, InternalFailure, RekallError};
 use serde_json::Value;
 use tracing::{debug, info, warn};
 
@@ -82,7 +82,7 @@ impl ClaudeCodeInstaller {
 
         let removed = (self.runner)(&args(&cli, &["mcp", "remove", "--scope", "user", SERVER_NAME]), &environment, &self.home);
         if !removed.succeeded() {
-            debug!("Nothing to remove before registering {SERVER_NAME}: {}", removed.output);
+            debug!(server = SERVER_NAME, output = %removed.output, "Nothing to remove before registering");
         }
 
         let added = (self.runner)(
@@ -96,7 +96,7 @@ impl ClaudeCodeInstaller {
 
         self.clear_folder_scoped(&cli, &environment);
         self.install_command()?;
-        info!("Registered {SERVER_NAME} at user scope on {} and installed the /rk command", self.endpoint);
+        info!(server = SERVER_NAME, endpoint = %self.endpoint, "Registered at user scope and installed the /rk command");
         Ok(self.status())
     }
 
@@ -104,9 +104,9 @@ impl ClaudeCodeInstaller {
         for folder in self.folder_scoped() {
             let outcome = (self.runner)(&args(cli, &["mcp", "remove", "--scope", "local", SERVER_NAME]), environment, Path::new(&folder));
             if outcome.succeeded() {
-                info!("Removed the {SERVER_NAME} registration {folder} carried of its own");
+                info!(server = SERVER_NAME, %folder, "Removed a project-scoped registration");
             } else {
-                warn!("Could not remove the {SERVER_NAME} registration in {folder}: {}", outcome.output);
+                warn!(server = SERVER_NAME, %folder, output = %outcome.output, "Could not remove a project-scoped registration");
             }
         }
     }
@@ -141,7 +141,7 @@ impl ClaudeCodeInstaller {
         match std::fs::read(&file).map_err(|e| e.to_string()).and_then(|b| serde_json::from_slice(&b).map_err(|e| e.to_string())) {
             Ok(value) => value,
             Err(failed) => {
-                warn!("Could not read {}, reporting Rekall as unregistered: {failed}", file.display());
+                warn!(%failed, file = %file.display(), "Could not read the Claude Code settings; reporting Rekall as unregistered");
                 Value::Object(Default::default())
             }
         }
@@ -159,7 +159,7 @@ impl ClaudeCodeInstaller {
         match std::fs::read_to_string(&file) {
             Ok(text) => text == PACKAGED_COMMAND,
             Err(failed) => {
-                warn!("Could not read {}: {failed}", file.display());
+                warn!(%failed, file = %file.display(), "Could not read the Claude Code settings");
                 false
             }
         }
@@ -225,26 +225,17 @@ fn run_process(command: &[String], environment: &HashMap<String, String>, direct
         Ok(child) => child,
         Err(failed) => return Outcome { exit_code: -1, output: failed.to_string() },
     };
-    let mut stdout = child.stdout.take().expect("piped");
-    let mut stderr = child.stderr.take().expect("piped");
-    let out = std::thread::spawn(move || {
-        let mut text = String::new();
-        let _ = stdout.read_to_string(&mut text);
-        text
-    });
-    let err = std::thread::spawn(move || {
-        let mut text = String::new();
-        let _ = stderr.read_to_string(&mut text);
-        text
-    });
+    let stdout = child.stdout.take().expect("both pipes were requested at spawn");
+    let stderr = child.stderr.take().expect("both pipes were requested at spawn");
+    let out = std::thread::spawn(move || drain(stdout));
+    let err = std::thread::spawn(move || drain(stderr));
     let deadline = Instant::now() + COMMAND_TIMEOUT;
     let status = loop {
         match child.try_wait() {
             Ok(Some(status)) => break Some(status),
             Ok(None) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(20)),
             _ => {
-                let _ = child.kill();
-                let _ = child.wait();
+                cleanup::kill(&mut child);
                 break None;
             }
         }
@@ -257,6 +248,15 @@ fn run_process(command: &[String], environment: &HashMap<String, String>, direct
             output: format!("`{}` did not finish in {} seconds", command.join(" "), COMMAND_TIMEOUT.as_secs()),
         },
     }
+}
+
+/// What the pipe held until it closed; a read that fails part-way keeps what it had and logs why.
+fn drain(mut pipe: impl Read) -> String {
+    let mut text = String::new();
+    if let Err(failed) = pipe.read_to_string(&mut text) {
+        debug!(%failed, "Stopped reading a command's output");
+    }
+    text
 }
 
 #[cfg(test)]

@@ -109,7 +109,7 @@ impl LoginShellEnvironment {
         let mut child = match command.spawn() {
             Ok(child) => child,
             Err(failed) => {
-                warn!("Could not read the environment of {}: {failed}", shell.display());
+                warn!(%failed, shell = %shell.display(), "Could not read the login shell's environment");
                 return None;
             }
         };
@@ -120,9 +120,9 @@ impl LoginShellEnvironment {
                 Ok(None) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(20)),
                 Ok(None) => {
                     warn!(
-                        "{} took longer than {}s to print its environment; terminals keep the last one known",
-                        shell.display(),
-                        self.timeout.as_secs()
+                        shell = %shell.display(),
+                        timeout = ?self.timeout,
+                        "The login shell was too slow to print its environment; terminals keep the last one known"
                     );
                     kill_group(&mut child);
                     return None;
@@ -137,9 +137,9 @@ impl LoginShellEnvironment {
         let environment = parse(&text, &marker);
         if environment.is_none() {
             warn!(
-                "{} exited with code {} without printing its environment",
-                shell.display(),
-                status.code().unwrap_or(-1)
+                shell = %shell.display(),
+                code = status.code().unwrap_or(-1),
+                "The login shell exited without printing its environment"
             );
         }
         environment
@@ -151,8 +151,7 @@ fn kill_group(child: &mut std::process::Child) {
     unsafe {
         libc::kill(-(child.id() as i32), libc::SIGKILL);
     }
-    let _ = child.kill();
-    let _ = child.wait();
+    rekall_common::cleanup::kill(child);
 }
 
 /// The `env -0` block between the two markers, minus the resolving shell's own variables.

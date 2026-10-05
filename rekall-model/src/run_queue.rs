@@ -33,7 +33,7 @@ pub enum Relation {}
 impl ActiveModelBehavior for ActiveModel {}
 
 impl Model {
-    /// `new RunQueue()`: idle, no ceiling, nothing scheduled.
+    /// An idle queue: no ceiling, nothing scheduled.
     pub fn new(now: Instant) -> Self {
         Self {
             id: Id::random(),

@@ -1,5 +1,6 @@
 use rekall_service::Services;
 use tokio::sync::{oneshot, watch};
+use tracing::error;
 
 /// A running server: the port it answers on, the services of the instance currently up, and the
 /// way to stop it.
@@ -37,7 +38,9 @@ impl Running {
             let _ = stop.send(());
         }
         if let Some(supervisor) = self.supervisor.take() {
-            let _ = supervisor.await;
+            if let Err(failed) = supervisor.await {
+                error!(%failed, "The server supervisor ended abnormally");
+            }
         }
     }
 }

@@ -42,7 +42,7 @@ impl Related<super::task::Entity> for Entity {
 impl ActiveModelBehavior for ActiveModel {}
 
 impl Model {
-    /// `new RunQueueItem(task, position)`: waiting its turn.
+    /// An item waiting its turn.
     pub fn new(task_id: Id, position: i32, now: Instant) -> Self {
         Self {
             id: Id::random(),

@@ -1,11 +1,6 @@
 use super::*;
 
 #[test]
-fn the_like_wildcards_in_a_term_are_matched_literally() {
-    assert_eq!(escape_like("100%_done\\"), "100\\%\\_done\\\\");
-}
-
-#[test]
 fn an_excerpt_surrounds_the_match_on_one_line_cut_at_a_word() {
     let text = format!("{}the\nsettlement   batch runs nightly {}", "word ".repeat(30), "tail ".repeat(30));
     let excerpt = excerpt(Some(&text), "Settlement batch");

@@ -95,7 +95,7 @@ pub fn review_active<'a>(step_states: impl IntoIterator<Item = &'a TaskStepState
 }
 
 impl Model {
-    /// A new task as `new Task(label, title)` left it: `TODO`, review line `OPEN`, no moments.
+    /// A new task: `TODO`, review line `OPEN`, no moments.
     pub fn new(label: String, title: String, project_id: Id, now: Instant) -> Self {
         Self {
             id: Id::random(),

@@ -27,7 +27,7 @@ use std::sync::{Arc, Mutex};
 use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
 use tauri::{AppHandle, Manager, RunEvent};
 use tauri_plugin_opener::OpenerExt;
-use tracing::info;
+use tracing::{info, warn};
 
 use main_window::build_window;
 use server_boot::{boot, reload};
@@ -36,7 +36,10 @@ use shell::{log_file, port, Shell};
 fn init_logging() {
     let file = log_file();
     if let Some(parent) = file.parent() {
-        let _ = std::fs::create_dir_all(parent);
+        // Logging is not up yet, so this is the one failure that can only go to stderr.
+        if let Err(failed) = std::fs::create_dir_all(parent) {
+            eprintln!("Could not create the log folder {}: {failed}", parent.display());
+        }
     }
     let filter = tracing_subscriber::EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info,sqlx=warn,sea_orm=warn,sea_orm_migration=warn"));
@@ -93,7 +96,9 @@ fn main() {
             "reload" => reload(handle),
             "quit" => request_quit(handle),
             "open-log" => {
-                let _ = handle.opener().open_path(log_file().to_string_lossy(), None::<&str>);
+                if let Err(failed) = handle.opener().open_path(log_file().to_string_lossy(), None::<&str>) {
+                    warn!(%failed, "Could not open the log file");
+                }
             }
             _ => {}
         })
@@ -120,7 +125,9 @@ fn main() {
             tauri::async_runtime::block_on(async move {
                 if let Some(running) = shell.running.lock().await.take() {
                     info!("Stopping the server");
-                    let _ = tokio::time::timeout(rekall_app::server::STOP_WINDOW, running.stop()).await;
+                    if tokio::time::timeout(rekall_app::server::STOP_WINDOW, running.stop()).await.is_err() {
+                        warn!(window = ?rekall_app::server::STOP_WINDOW, "The server did not stop in time; exiting anyway");
+                    }
                 }
             });
         }

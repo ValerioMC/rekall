@@ -114,7 +114,7 @@ impl DiagramService {
             .await?;
         Ok(GeneratedDiagramView {
             diagram,
-            task_anchor: format!("project:{} task:{}", project.label, task.label),
+            task_anchor: task.anchor(&project.label),
             replaced: generated.diagram_id.is_some(),
             sources_checked: folder.is_some(),
         })

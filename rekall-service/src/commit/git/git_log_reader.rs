@@ -24,7 +24,7 @@ impl GitLogReader {
     /// string cannot become a flag; a prefix that matches no commit, or more than one, is refused
     /// with git's own reason.
     pub async fn commit(&self, folder: &Path, reference: &str) -> Result<LoggedCommit> {
-        static HASH: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[0-9a-fA-F]{4,40}$").unwrap());
+        static HASH: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[0-9a-fA-F]{4,40}$").expect("a valid pattern"));
         require_repository(folder)?;
         let tip = reference == "HEAD";
         if !tip && !HASH.is_match(reference) {

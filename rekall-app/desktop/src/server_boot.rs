@@ -5,6 +5,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use rekall_app::{AppConfig, Properties, StartOptions};
+use tracing::error;
 use tauri::{AppHandle, Manager, Url};
 
 use crate::shell::{base, is_server, port, working_dir, Shell, HOST};
@@ -64,12 +65,16 @@ async fn answering() -> bool {
 pub(crate) fn reload(handle: &AppHandle) {
     let Some(window) = handle.get_webview_window("main") else { return };
     if window.url().is_ok_and(|url| is_server(&url)) {
-        let _ = window.eval("window.location.reload()");
+        if let Err(failed) = window.eval("window.location.reload()") {
+            error!(%failed, "Could not reload the console");
+        }
         return;
     }
     let shell = handle.state::<Arc<Shell>>();
-    *shell.failure.lock().unwrap() = None;
-    let _ = window.navigate(Url::parse("tauri://localhost/index.html").unwrap_or_else(|_| base()));
+    *shell.failure.lock().expect("never poisoned") = None;
+    if let Err(failed) = window.navigate(Url::parse("tauri://localhost/index.html").unwrap_or_else(|_| base())) {
+        error!(%failed, "Could not return to the splash screen");
+    }
     let handle = handle.clone();
     tauri::async_runtime::spawn(async move {
         let already = handle.state::<Arc<Shell>>().running.lock().await.is_some();

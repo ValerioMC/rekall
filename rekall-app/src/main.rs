@@ -29,7 +29,7 @@ async fn main() -> ExitCode {
     let running = match rekall_app::start(config, StartOptions::default()).await {
         Ok(running) => running,
         Err(failed) => {
-            error!("Rekall could not start: {failed}");
+            error!(%failed, "Rekall could not start");
             return ExitCode::FAILURE;
         }
     };

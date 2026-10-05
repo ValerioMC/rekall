@@ -39,7 +39,7 @@ pub fn routes() -> Router<ClaudeState> {
 /// or without a port.
 pub fn is_allowed_origin(origin: &str) -> bool {
     static LOOPBACK: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r"^http://(localhost|127\.0\.0\.1|\[::1\])(:[0-9]*)?$").unwrap());
+        LazyLock::new(|| Regex::new(r"^http://(localhost|127\.0\.0\.1|\[::1\])(:[0-9]*)?$").expect("a valid pattern"));
     LOOPBACK.is_match(&origin.to_lowercase())
 }
 
@@ -62,7 +62,7 @@ async fn upgrade(
 }
 
 fn terminal_id_of(raw: &str) -> Option<Id> {
-    static ID: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[0-9a-fA-F-]{36}$").unwrap());
+    static ID: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[0-9a-fA-F-]{36}$").expect("a valid pattern"));
     if !ID.is_match(raw) {
         return None;
     }
@@ -147,7 +147,7 @@ async fn serve(state: ClaudeState, raw: String, mut socket: WebSocket) {
         let message = match received {
             Ok(message) => message,
             Err(failure) => {
-                debug!("Terminal socket {terminal_id} transport error: {failure}");
+                debug!(%failure, %terminal_id, "Terminal socket transport error");
                 let _ = sender.send(Outbound::Close(SERVER_ERROR, String::new()));
                 break;
             }

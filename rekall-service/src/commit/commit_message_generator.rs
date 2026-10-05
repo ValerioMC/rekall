@@ -15,35 +15,35 @@ pub const BODY_WIDTH: usize = 72;
 pub const DERIVED_BODY_MAX: usize = 800;
 
 static DOCUMENTATION: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)(^|/)(docs?|documentation)/|\.(md|mdx|markdown|rst|txt|adoc)$").unwrap());
+    LazyLock::new(|| Regex::new(r"(?i)(^|/)(docs?|documentation)/|\.(md|mdx|markdown|rst|txt|adoc)$").expect("a valid pattern"));
 
 static TEST: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)(^|/)(tests?|__tests__|spec|e2e)/|\.(spec|test)\.[a-z]+$|Tests?\.java$|_test\.(go|py)$|test_[^/]*\.py$")
-        .unwrap()
+        .expect("a valid pattern")
 });
 
 static CONVENTIONAL_PREFIX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^(feat|fix|docs|test|refactor|chore|perf|build|ci|style|revert)(\([^)]*\))?!?: .+$").unwrap()
+    Regex::new(r"^(feat|fix|docs|test|refactor|chore|perf|build|ci|style|revert)(\([^)]*\))?!?: .+$").expect("a valid pattern")
 });
 
 static FIX_TITLE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)^(fix|bug|hotfix|correggi|corregge|correzione|risolvi|risolve|errore|problema)\b").unwrap()
+    Regex::new(r"(?i)^(fix|bug|hotfix|correggi|corregge|correzione|risolvi|risolve|errore|problema)\b").expect("a valid pattern")
 });
 
 static REFACTOR_TITLE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)^(refactor|refactoring|riorganizza|ripulisci)\b").unwrap());
+    LazyLock::new(|| Regex::new(r"(?i)^(refactor|refactoring|riorganizza|ripulisci)\b").expect("a valid pattern"));
 
 /// `^(\s*)([-*+]|\d+[.)])\s+(.*)$` with `\s` and `\d` restricted to ASCII.
 static LIST_ITEM: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^([ \t\n\x0B\x0C\r]*)([-*+]|[0-9]+[.)])[ \t\n\x0B\x0C\r]+(.*)$").unwrap());
+    LazyLock::new(|| Regex::new(r"^([ \t\n\x0B\x0C\r]*)([-*+]|[0-9]+[.)])[ \t\n\x0B\x0C\r]+(.*)$").expect("a valid pattern"));
 
-static SENTENCE_END: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[.!?]([ \t\n\x0B\x0C\r]|$)").unwrap());
+static SENTENCE_END: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[.!?]([ \t\n\x0B\x0C\r]|$)").expect("a valid pattern"));
 
-static RULE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[-*_]{3,}$").unwrap());
+static RULE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[-*_]{3,}$").expect("a valid pattern"));
 
-static QUOTE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[ \t\n\x0B\x0C\r]*>[ \t\n\x0B\x0C\r]?").unwrap());
+static QUOTE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[ \t\n\x0B\x0C\r]*>[ \t\n\x0B\x0C\r]?").expect("a valid pattern"));
 
-static BLANK_RUNS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\n{3,}").unwrap());
+static BLANK_RUNS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\n{3,}").expect("a valid pattern"));
 
 pub struct CommitMessageGenerator;
 

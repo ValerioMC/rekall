@@ -62,7 +62,7 @@ impl Terminal {
         }
     }
 
-    /// `Process.destroy()`: SIGTERM.
+    /// Asks the process to end, with SIGTERM.
     pub(super) fn destroy(&self) {
         #[cfg(unix)]
         if let Some(pid) = self.pid {
@@ -71,10 +71,10 @@ impl Terminal {
             }
             return;
         }
-        let _ = self.killer.lock().expect("never poisoned").kill();
+        self.kill_through_handle();
     }
 
-    /// `Process.destroyForcibly()`: SIGKILL.
+    /// Ends the process outright, with SIGKILL.
     pub(super) fn destroy_forcibly(&self) {
         #[cfg(unix)]
         if let Some(pid) = self.pid {
@@ -83,7 +83,14 @@ impl Terminal {
             }
             return;
         }
-        let _ = self.killer.lock().expect("never poisoned").kill();
+        self.kill_through_handle();
+    }
+
+    /// Where there is no pid to signal, the PTY's own killer is the only way to end the child.
+    fn kill_through_handle(&self) {
+        if let Err(failed) = self.killer.lock().expect("never poisoned").kill() {
+            debug!(%failed, terminal_id = %self.id, "Kill found the terminal's process already gone");
+        }
     }
 
     pub(super) async fn wait_for(&self, timeout: Duration) -> bool {
@@ -102,7 +109,7 @@ impl Terminal {
         match self.master.lock().expect("never poisoned").resize(size) {
             Ok(()) => true,
             Err(failed) => {
-                debug!("Resize of terminal {} to {columns}x{rows} failed: {failed}", self.id);
+                debug!(%failed, terminal_id = %self.id, columns, rows, "Terminal resize failed");
                 false
             }
         }

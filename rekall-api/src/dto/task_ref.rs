@@ -23,7 +23,7 @@ impl TaskRef {
             project_label: project.label.clone(),
             project_title: project.title.clone(),
             company_name: company.name.clone(),
-            anchor: format!("project:{} task:{}", project.label, task.label),
+            anchor: task.anchor(&project.label),
         }
     }
 }

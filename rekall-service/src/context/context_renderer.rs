@@ -74,48 +74,9 @@ impl ContextRenderer {
         if steps.is_empty() {
             return String::new();
         }
-        let done = steps.iter().filter(|s| s.state.complete()).count();
-        let running = steps.iter().filter(|s| s.state.running()).count();
-        let awaiting = steps.iter().filter(|s| s.state == TaskStepState::Claimed).count();
-        let unwritten = steps.iter().filter(|s| is_unwritten(s, wrapup)).count();
-
-        let mut attributes = format!("done=\"{done}\" open=\"{}\"", steps.len() - done);
-        if running > 0 {
-            attributes.push_str(&format!(" running=\"{running}\""));
-        }
-        if awaiting > 0 {
-            attributes.push_str(&format!(" awaiting-review=\"{awaiting}\""));
-        }
-        if unwritten > 0 {
-            attributes.push_str(&format!(" finished-since-wrapup=\"{unwritten}\""));
-        }
-        if drafts > 0 {
-            attributes.push_str(&format!(" draft=\"{drafts}\""));
-        }
-        let mut out = format!("\n<steps {attributes}>\n");
+        let mut out = format!("\n<steps {}>\n", steps_attributes(&steps, drafts, wrapup));
         for step in &steps {
-            let unwritten_here = is_unwritten(step, wrapup);
-            out.push_str(if step.state.complete() { "- [x] " } else { "- [ ] " });
-            out.push_str(&step.title);
-            if step.state.running() {
-                out.push_str("  (in progress)");
-            } else if step.state == TaskStepState::Claimed {
-                out.push_str("  (claimed, waiting for the console to accept it)");
-            }
-            if unwritten_here {
-                out.push_str("  (finished since the wrapup was written)");
-            }
-            out.push('\n');
-            let carries_detail = !step.state.complete() || unwritten_here;
-            if carries_detail && !step.passes.is_empty() {
-                out.push_str(&indent(&render_passes(step)));
-                out.push('\n');
-            } else if let Some(body) = step.body_markdown.as_deref() {
-                if carries_detail && !jstr::is_blank(body) {
-                    out.push_str(&indent(&truncate(Some(body), MAX_DOCUMENT_CHARACTERS)));
-                    out.push('\n');
-                }
-            }
+            out.push_str(&render_step(step, wrapup));
         }
         if drafts > 0 {
             out.push_str(&format!(
@@ -282,4 +243,47 @@ fn truncate(body: Option<&str>, limit: usize) -> String {
         return body.to_string();
     }
     format!("{}\n\n[truncated: {limit} of {length} characters shown]", jstr::prefix(body, limit))
+}
+
+/// The checklist's counts; one that is zero is left out, except done and open.
+fn steps_attributes(steps: &[&TaskStepView], drafts: usize, wrapup: Option<&WrapupView>) -> String {
+    let done = steps.iter().filter(|s| s.state.complete()).count();
+    let running = steps.iter().filter(|s| s.state.running()).count();
+    let awaiting = steps.iter().filter(|s| s.state == TaskStepState::Claimed).count();
+    let unwritten = steps.iter().filter(|s| is_unwritten(s, wrapup)).count();
+    let mut attributes = format!("done=\"{done}\" open=\"{}\"", steps.len() - done);
+    let optional = [("running", running), ("awaiting-review", awaiting), ("finished-since-wrapup", unwritten), ("draft", drafts)];
+    for (name, count) in optional {
+        if count > 0 {
+            attributes.push_str(&format!(" {name}=\"{count}\""));
+        }
+    }
+    attributes
+}
+
+/// A closed step is its title alone, unless the wrapup predates it: then, like an open one, it carries its detail.
+fn render_step(step: &TaskStepView, wrapup: Option<&WrapupView>) -> String {
+    let unwritten = is_unwritten(step, wrapup);
+    let mut out = String::from(if step.state.complete() { "- [x] " } else { "- [ ] " });
+    out.push_str(&step.title);
+    if step.state.running() {
+        out.push_str("  (in progress)");
+    } else if step.state == TaskStepState::Claimed {
+        out.push_str("  (claimed, waiting for the console to accept it)");
+    }
+    if unwritten {
+        out.push_str("  (finished since the wrapup was written)");
+    }
+    out.push('\n');
+    if step.state.complete() && !unwritten {
+        return out;
+    }
+    if !step.passes.is_empty() {
+        out.push_str(&indent(&render_passes(step)));
+        out.push('\n');
+    } else if let Some(body) = step.body_markdown.as_deref().filter(|body| !jstr::is_blank(body)) {
+        out.push_str(&indent(&truncate(Some(body), MAX_DOCUMENT_CHARACTERS)));
+        out.push('\n');
+    }
+    out
 }

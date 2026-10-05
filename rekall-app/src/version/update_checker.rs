@@ -62,7 +62,7 @@ impl UpdateChecker {
                 None => (self.answer(UpdateCheck::Unavailable, None), FAILURE_KEPT),
             },
             Err(failure) => {
-                warn!("Could not check for a newer release: {failure}");
+                warn!(%failure, "Could not check for a newer release");
                 (self.answer(UpdateCheck::Unavailable, None), FAILURE_KEPT)
             }
         }

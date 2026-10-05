@@ -102,7 +102,7 @@ fn pump(terminal: &Terminal, mut reader: Box<dyn Read + Send>) {
                 }
             }
             Err(ended) => {
-                debug!("PTY output for terminal {} closed: {ended}", terminal.id);
+                debug!(%ended, terminal_id = %terminal.id, "PTY output closed");
                 break;
             }
         }
@@ -124,7 +124,7 @@ pub(super) fn kick_resize(terminal: Arc<Terminal>) {
         restore_size(&restoring);
     });
     if let Err(failed) = delayed {
-        warn!("Could not delay the repaint kick of terminal {}: {failed}", terminal.id);
+        warn!(%failed, terminal_id = %terminal.id, "Could not delay the repaint kick");
         restore_size(&terminal);
     }
 }

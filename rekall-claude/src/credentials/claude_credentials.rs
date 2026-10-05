@@ -55,7 +55,7 @@ impl ClaudeCredentials {
         }
         let freshest = freshest?;
         if freshest.expires_at.is_some_and(|expiry| !expiry.is_after(&(self.clock)())) {
-            debug!("Every stored Claude Code token has expired, the latest at {:?}", freshest.expires_at);
+            debug!(latest_expiry = ?freshest.expires_at, "Every stored Claude Code token has expired");
             return None;
         }
         Some(freshest.access_token)

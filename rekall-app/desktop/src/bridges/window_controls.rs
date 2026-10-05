@@ -35,7 +35,7 @@ pub fn toggle_maximize_window<R: Runtime>(window: WebviewWindow<R>, geometry: St
     // while the `None` arm calls back into `grow`, which locks the same `Mutex` again — a
     // non-reentrant self-deadlock that froze the app on every other click of the console's own
     // maximize button.
-    let stored = geometry.0.lock().unwrap().take();
+    let stored = geometry.0.lock().expect("never poisoned").take();
     match stored {
         Some((position, size)) => {
             // Size before position, for the same reason `grow` does: the window's height at the

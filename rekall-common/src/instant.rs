@@ -22,7 +22,7 @@ pub struct Instant(DateTime<Utc>);
 impl Instant {
     pub const EPOCH: Instant = Instant(DateTime::<Utc>::UNIX_EPOCH);
 
-    /// `Instant.now()`, cut to the microsecond the database keeps.
+    /// The current time, cut to the microsecond the database keeps.
     pub fn now() -> Self {
         Self::from_datetime(Utc::now())
     }
@@ -109,7 +109,7 @@ impl Instant {
 }
 
 impl fmt::Display for Instant {
-    /// `DateTimeFormatter.ISO_INSTANT`, which is what `Instant.toString()` is.
+    /// RFC 3339 in UTC with a `Z`, the form the console and stored rows use.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // chrono's AutoSi is the same rule: no fraction when it is zero, else 3, 6 or 9 digits.
         f.write_str(&self.0.to_rfc3339_opts(SecondsFormat::AutoSi, true))

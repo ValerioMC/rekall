@@ -1,7 +1,7 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use rekall_common::{Id, RekallError, Result};
-use rekall_model::{task, task_step};
+use rekall_model::{project, task, task_step};
 use rekall_repository::repository as repo;
 use tracing::{info, warn};
 
@@ -63,49 +63,62 @@ impl AutoCommitService {
         if !project.auto_commit {
             return Ok(AutoCommitOutcome::not_applicable());
         }
-        let status = self.inspector.inspect(project.repo_folder.as_deref()).await;
-        if !status.repository {
-            return Ok(AutoCommitOutcome::failed(format!(
-                "this project's folder ({}) is not a git repository.",
-                project.repo_folder.as_deref().unwrap_or("null")
-            )));
-        }
-        let status_folder = status.folder.clone().unwrap_or_default();
-        if status.user_email.is_none() {
-            return Ok(AutoCommitOutcome::failed(format!(
-                "git has no user.email in {status_folder}; set it with `git config --global user.email`."
-            )));
-        }
-        let folder = PathBuf::from(&status_folder);
-        let shown = display_path(&folder);
-        let attempt: Result<AutoCommitOutcome> = async {
-            let changes = self.committer.pending_changes(&folder).await?;
-            if changes.is_empty() {
-                return Ok(AutoCommitOutcome::skipped(format!("nothing to commit in {shown}, so nothing was logged.")));
-            }
-            let subject = self.subject_of(tx, task, &project.label, step).await?;
-            let message = CommitMessageGenerator::generate(&subject, &changes, session_message);
-            let hash = self.committer.commit_all(&folder, &message).await?;
-            info!(
-                "Auto-committed {hash} in {shown} for task {} step {}",
-                task.label,
-                step.map(|s| s.title.as_str()).unwrap_or("-")
-            );
-            let logged = self.references.record_commit_in(tx, task.id, step.map(|s| s.id), Some(&hash)).await?;
-            Ok(AutoCommitOutcome::committed(logged))
-        }
-        .await;
+        let folder = match self.committable_folder(&project).await {
+            Ok(folder) => folder,
+            Err(refusal) => return Ok(refusal),
+        };
+        let attempt = self.commit_pending(tx, task, &project.label, step, session_message, &folder).await;
         match attempt {
             Err(RekallError::IllegalArgument(reason)) => {
-                warn!("Auto-commit refused in {shown} for task {}: {reason}", task.label);
+                warn!(%reason, folder = %display_path(&folder), task = %task.label, "Auto-commit refused");
                 Ok(AutoCommitOutcome::failed(reason))
             }
             other => other,
         }
     }
 
+    /// The repository folder git can commit in, or the failed outcome saying why there is none.
+    async fn committable_folder(&self, project: &project::Model) -> std::result::Result<PathBuf, AutoCommitOutcome> {
+        let status = self.inspector.inspect(project.repo_folder.as_deref()).await;
+        if !status.repository {
+            return Err(AutoCommitOutcome::failed(format!(
+                "this project's folder ({}) is not a git repository.",
+                project.repo_folder.as_deref().unwrap_or("none set")
+            )));
+        }
+        let status_folder = status.folder.unwrap_or_default();
+        if status.user_email.is_none() {
+            return Err(AutoCommitOutcome::failed(format!(
+                "git has no user.email in {status_folder}; set it with `git config --global user.email`."
+            )));
+        }
+        Ok(PathBuf::from(status_folder))
+    }
+
+    async fn commit_pending(
+        &self,
+        tx: &mut Tx,
+        task: &task::Model,
+        project_label: &str,
+        step: Option<&task_step::Model>,
+        session_message: Option<&str>,
+        folder: &Path,
+    ) -> Result<AutoCommitOutcome> {
+        let shown = display_path(folder);
+        let changes = self.committer.pending_changes(folder).await?;
+        if changes.is_empty() {
+            return Ok(AutoCommitOutcome::skipped(format!("nothing to commit in {shown}, so nothing was logged.")));
+        }
+        let subject = self.subject_of(tx, task, project_label, step).await?;
+        let message = CommitMessageGenerator::generate(&subject, &changes, session_message);
+        let hash = self.committer.commit_all(folder, &message).await?;
+        info!(%hash, folder = %shown, task = %task.label, step = step.map(|s| s.title.as_str()).unwrap_or("-"), "Auto-committed");
+        let logged = self.references.record_commit_in(tx, task.id, step.map(|s| s.id), Some(&hash)).await?;
+        Ok(AutoCommitOutcome::committed(logged))
+    }
+
     async fn subject_of(&self, tx: &Tx, task: &task::Model, project_label: &str, step: Option<&task_step::Model>) -> Result<Subject> {
-        let anchor = format!("project:{project_label} task:{}", task.label);
+        let anchor = task.anchor(project_label);
         Ok(match step {
             None => Subject {
                 title: task.title.clone(),

@@ -10,4 +10,4 @@ mod search_service;
 
 pub use search_hit::SearchHit;
 pub use search_hit_kind::SearchHitKind;
-pub use search_service::{TERM_MIN, SearchService, escape_like, excerpt};
+pub use search_service::{TERM_MIN, SearchService, excerpt};

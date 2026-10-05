@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use chrono::{NaiveDateTime, TimeDelta};
 use regex::Regex;
-use rekall_common::{Instant, InternalFailure, RekallError, Result};
+use rekall_common::{cleanup, Instant, InternalFailure, RekallError, Result};
 use rekall_service::Clock;
 use sea_orm::{ConnectionTrait, DatabaseConnection};
 use tokio::task::JoinHandle;
@@ -15,7 +15,7 @@ use super::{BackupFile, BackupReason, BackupStatus, DatabaseLocation};
 
 /// The only names this folder hands out or accepts back, which is what keeps a name from being a path.
 pub static NAME: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^rekall-(\d{8}-\d{6})(?:-(\d{1,3}))?-(auto|manual|before-restore|uploaded)\.zip$").unwrap()
+    Regex::new(r"^rekall-(\d{8}-\d{6})(?:-(\d{1,3}))?-(auto|manual|before-restore|uploaded)\.zip$").expect("a valid pattern")
 });
 
 const STAMP: &str = "%Y%m%d-%H%M%S";
@@ -97,24 +97,24 @@ impl DatabaseBackupService {
         let io_failure = || RekallError::internal(InternalFailure::Io, format!("Could not write to {}", found.backups().display()));
         std::fs::create_dir_all(found.backups()).map_err(|_| self.failed(io_failure()))?;
         let target = self.fresh_name(&found.backups(), reason);
-        let copy = found.backups().join(format!(".{}.copy", target.file_name().unwrap().to_string_lossy()));
-        let _ = std::fs::remove_file(&copy);
+        let copy = found.backups().join(format!(".{}.copy", target.file_name().expect("a fresh name is a file name").to_string_lossy()));
+        cleanup::remove_file(&copy);
         let sql = format!("VACUUM INTO '{}'", copy.to_string_lossy().replace('\'', "''"));
         if let Err(refused) = self.inner.conn.execute_unprepared(&sql).await {
-            let _ = std::fs::remove_file(&copy);
+            cleanup::remove_file(&copy);
             return Err(self.failed(RekallError::internal(InternalFailure::Database,
                 format!("SQLite refused the backup: {refused}"),
             )));
         }
         let zipped = zip_single(&copy, &found.data_file_name, &target);
-        let _ = std::fs::remove_file(&copy);
+        cleanup::remove_file(&copy);
         if zipped.is_err() {
-            let _ = std::fs::remove_file(&target);
+            cleanup::remove_file(&target);
             return Err(self.failed(io_failure()));
         }
         self.prune(&found.backups())?;
         *self.inner.last_failure.lock().expect("never poisoned") = None;
-        info!("Backed up the database to {}", target.display());
+        info!(target = %target.display(), "Backed up the database");
         describe(&target).ok_or_else(io_failure)
     }
 
@@ -168,7 +168,7 @@ impl DatabaseBackupService {
         let due = match self.list() {
             Ok(list) => list.first().map(|newest| newest.created_at.is_before(&cutoff)).unwrap_or(true),
             Err(failed) => {
-                warn!("The scheduled backup failed: {}", failed.message());
+                warn!(failure = %failed.message(), "The scheduled backup failed");
                 return;
             }
         };
@@ -176,7 +176,7 @@ impl DatabaseBackupService {
             return;
         }
         if let Err(failed) = self.back_up(BackupReason::Auto).await {
-            warn!("The scheduled backup failed: {}", failed.message());
+            warn!(failure = %failed.message(), "The scheduled backup failed");
         }
     }
 
@@ -208,7 +208,7 @@ impl DatabaseBackupService {
         for old in all.iter().skip(self.inner.keep) {
             if let Err(failed) = std::fs::remove_file(folder.join(&old.name)) {
                 if failed.kind() != std::io::ErrorKind::NotFound {
-                    warn!("Could not delete the old backup {}: {failed}", old.name);
+                    warn!(%failed, backup = %old.name, "Could not delete an old backup");
                 }
             }
         }
@@ -218,7 +218,7 @@ impl DatabaseBackupService {
     fn failed(&self, failure: RekallError) -> RekallError {
         let message = failure.message().to_string();
         let message = message.split_once(": ").map(|(_, m)| m.to_string()).unwrap_or(message);
-        warn!("Backup failed: {message}");
+        warn!(failure = %message, "Backup failed");
         *self.inner.last_failure.lock().expect("never poisoned") = Some(message);
         failure
     }
@@ -244,7 +244,7 @@ pub fn describe(file: &Path) -> Option<BackupFile> {
     let size_bytes = match file.metadata() {
         Ok(metadata) => metadata.len(),
         Err(failed) => {
-            warn!("Skipping the backup {}, which could not be read: {failed}", file.display());
+            warn!(%failed, file = %file.display(), "Skipping a backup that could not be read");
             return None;
         }
     };

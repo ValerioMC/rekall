@@ -13,7 +13,7 @@ macro_rules! string_enum {
         }
 
         impl $name {
-            /// `Enum.name()`.
+            /// The stored and serialised text.
             pub fn name(&self) -> &'static str {
                 match self { $(Self::$variant => $text,)+ }
             }

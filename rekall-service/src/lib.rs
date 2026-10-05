@@ -23,6 +23,7 @@ pub mod wrapup;
 mod ctx;
 mod load;
 mod services;
+mod text_rule;
 
 pub use ctx::{system_clock, Clock, Ctx};
 pub use events::{DomainEvent, EventBus};

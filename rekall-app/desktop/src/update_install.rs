@@ -27,10 +27,10 @@ pub async fn install_update<R: Runtime>(app: AppHandle<R>) -> Result<bool, Strin
         return Ok(false);
     }
     let version = install().await.map_err(|failure| {
-        error!("The update was not installed: {failure}");
+        error!(%failure, "The update was not installed");
         failure
     })?;
-    info!("Restarting into Rekall {version}");
+    info!(%version, "Restarting into the new Rekall");
     relaunch_in_foreground(&app)?;
     Ok(true)
 }

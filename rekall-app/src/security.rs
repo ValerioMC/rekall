@@ -1,4 +1,4 @@
-//! `LocalAccessFilter`: keeps Rekall a single-user, localhost application. Nothing here
+//! Keeps Rekall a single-user, localhost application. Nothing here
 //! authenticates, and the API can open a `claude` terminal in a project folder, so every request
 //! has to prove it comes from this machine and from a page this machine serves. Three checks, all
 //! refused with a 403:
@@ -29,7 +29,7 @@ use rekall_api::error::framework;
 use tracing::warn;
 
 const LOOPBACK_NAMES: [&str; 4] = ["localhost", "127.0.0.1", "::1", "[::1]"];
-static IPV4_LOOPBACK: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^127(\.\d{1,3}){3}$").unwrap());
+static IPV4_LOOPBACK: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^127(\.\d{1,3}){3}$").expect("a valid pattern"));
 
 #[derive(Clone, Copy, Debug)]
 pub struct LocalAccess {
@@ -81,7 +81,7 @@ pub async fn guard(State(access): State<LocalAccess>, request: Request, next: Ne
         })
     };
     if let Some(refusal) = refusal {
-        warn!("{refusal}");
+        warn!(%refusal, "Request refused");
         return framework(StatusCode::FORBIDDEN);
     }
     next.run(request).await

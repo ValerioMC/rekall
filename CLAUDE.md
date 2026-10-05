@@ -38,8 +38,10 @@ convention are in `docs/DESIGN.md` §3 ("Layout inside a crate") and are not rep
   is a single call adds a hop and no meaning.
 - **No duplication.** Before writing a pattern a third time, look for the helper. Existing
   shared pieces: `repo::update_if_changed` (stamp, validate, write only when a value changed),
-  `repo::<entity>::require`, `load::resolve_task`, `jstr` for text rules, `Snapshot` for
-  response assembly.
+  `repo::<entity>::require`, `load::resolve_task`, `jstr` for text rules, `text_rule` for a
+  writer's capped free text, `task.anchor(..)` / `project.anchor()`, `rekall_common::cleanup` for
+  logged best-effort deletes and kills, `Snapshot` for response assembly; in the console,
+  `stores/console/rows` (`upsertById`, `replaceById`, `trackSave`).
 - **No useless abstraction.** No trait, generic or builder without a second implementation or
   a test that needs it. Composition over inheritance: services hold the services they use.
 - **Errors are values.** Return `RekallError` through `Result`. Never `unwrap`/`expect` on input
@@ -79,9 +81,11 @@ convention are in `docs/DESIGN.md` §3 ("Layout inside a crate") and are not rep
 
 - Vue 3 `<script setup lang="ts">`, typed props and emits, no `any`.
 - Data access goes through the API modules and Pinia stores, never `fetch` from a component.
-- One component per concern. Past ~300 lines a component is doing several jobs: split the one
-  you are changing (`StepsPane`, `AppMarkdownEditor`, `PathPicker`, `RecordDialog` are already
-  well past it) instead of growing it further.
+- One component per concern. The console store is one slice per concern under
+  `stores/console/`, wired in `console.store.ts`; a new concern is a new slice, not more lines there.
+- Past ~300 lines a component is doing several jobs: split the one you are changing
+  (`RunQueuePanel`, `NavigatorPane`, `StepSeal`, `NoteAssignmentDialog` are well past it) instead
+  of growing it further.
 
 ## Commits and docs
 

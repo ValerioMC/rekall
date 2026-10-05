@@ -27,68 +27,10 @@ impl SearchService {
             return Ok(Vec::new());
         }
         in_read!(&self.ctx, |tx| {
-            // The repositories take the term literally, which is what escaping it for LIKE did.
-            let mut hits = Vec::new();
-            for task in repo::task::search_descriptions(tx.db(), &term, PER_KIND).await? {
-                hits.push(SearchHit {
-                    kind: SearchHitKind::Description,
-                    task_id: Some(task.id),
-                    step_id: None,
-                    document_id: None,
-                    title: task.title.clone(),
-                    r#where: anchor_of(&tx, &task).await?,
-                    excerpt: excerpt(task.description.as_deref(), &term),
-                });
-            }
-            for step in repo::task_step::search(tx.db(), &term, PER_KIND).await? {
-                let task = load::task_or_unknown(tx.db(), step.task_id).await?;
-                let body = if contains(step.body_markdown.as_deref(), &term) {
-                    step.body_markdown.clone()
-                } else {
-                    Some(step.title.clone())
-                };
-                hits.push(SearchHit {
-                    kind: SearchHitKind::Step,
-                    task_id: Some(task.id),
-                    step_id: Some(step.id),
-                    document_id: None,
-                    title: step.title.clone(),
-                    r#where: anchor_of(&tx, &task).await?,
-                    excerpt: excerpt(body.as_deref(), &term),
-                });
-            }
-            for wrapup in repo::wrapup::search(tx.db(), &term, PER_KIND).await? {
-                let task = load::task_or_unknown(tx.db(), wrapup.task_id).await?;
-                hits.push(SearchHit {
-                    kind: SearchHitKind::Wrapup,
-                    task_id: Some(task.id),
-                    step_id: None,
-                    document_id: None,
-                    title: task.title.clone(),
-                    r#where: anchor_of(&tx, &task).await?,
-                    excerpt: excerpt(Some(&wrapup.body_markdown), &term),
-                });
-            }
-            for document in repo::document::search_newest_first(tx.db(), &term, PER_KIND).await? {
-                let first = repo::document::tasks_of_document(tx.db(), document.id).await?.into_iter().next();
-                let body = if contains(Some(&document.body_markdown), &term) {
-                    document.body_markdown.clone()
-                } else {
-                    document.title.clone()
-                };
-                hits.push(SearchHit {
-                    kind: SearchHitKind::Note,
-                    task_id: first.as_ref().map(|t| t.id),
-                    step_id: None,
-                    document_id: Some(document.id),
-                    title: document.title.clone(),
-                    r#where: match &first {
-                        Some(task) => anchor_of(&tx, task).await?,
-                        None => String::new(),
-                    },
-                    excerpt: excerpt(Some(&body), &term),
-                });
-            }
+            let mut hits = description_hits(&tx, &term).await?;
+            hits.extend(step_hits(&tx, &term).await?);
+            hits.extend(wrapup_hits(&tx, &term).await?);
+            hits.extend(note_hits(&tx, &term).await?);
             // Stable: within a kind, the newest first, and a title hit before a body hit.
             hits.sort_by_key(|hit| (hit.kind as usize, !contains(Some(&hit.title), &term)));
             Ok::<_, RekallError>(hits)
@@ -96,18 +38,86 @@ impl SearchService {
     }
 }
 
+async fn description_hits(tx: &Tx, term: &str) -> Result<Vec<SearchHit>> {
+    let mut hits = Vec::new();
+    for task in repo::task::search_descriptions(tx.db(), term, PER_KIND).await? {
+        hits.push(SearchHit {
+            kind: SearchHitKind::Description,
+            task_id: Some(task.id),
+            step_id: None,
+            document_id: None,
+            title: task.title.clone(),
+            r#where: anchor_of(tx, &task).await?,
+            excerpt: excerpt(task.description.as_deref(), term),
+        });
+    }
+    Ok(hits)
+}
+
+/// A step matched on its title alone shows the title as its excerpt.
+async fn step_hits(tx: &Tx, term: &str) -> Result<Vec<SearchHit>> {
+    let mut hits = Vec::new();
+    for step in repo::task_step::search(tx.db(), term, PER_KIND).await? {
+        let task = load::task_or_unknown(tx.db(), step.task_id).await?;
+        let shown = if contains(step.body_markdown.as_deref(), term) { step.body_markdown.as_deref() } else { Some(step.title.as_str()) };
+        hits.push(SearchHit {
+            kind: SearchHitKind::Step,
+            task_id: Some(task.id),
+            step_id: Some(step.id),
+            document_id: None,
+            title: step.title.clone(),
+            r#where: anchor_of(tx, &task).await?,
+            excerpt: excerpt(shown, term),
+        });
+    }
+    Ok(hits)
+}
+
+async fn wrapup_hits(tx: &Tx, term: &str) -> Result<Vec<SearchHit>> {
+    let mut hits = Vec::new();
+    for wrapup in repo::wrapup::search(tx.db(), term, PER_KIND).await? {
+        let task = load::task_or_unknown(tx.db(), wrapup.task_id).await?;
+        hits.push(SearchHit {
+            kind: SearchHitKind::Wrapup,
+            task_id: Some(task.id),
+            step_id: None,
+            document_id: None,
+            title: task.title.clone(),
+            r#where: anchor_of(tx, &task).await?,
+            excerpt: excerpt(Some(&wrapup.body_markdown), term),
+        });
+    }
+    Ok(hits)
+}
+
+/// A note opens on the first task it is attached to; a detached one has no anchor.
+async fn note_hits(tx: &Tx, term: &str) -> Result<Vec<SearchHit>> {
+    let mut hits = Vec::new();
+    for document in repo::document::search_newest_first(tx.db(), term, PER_KIND).await? {
+        let first = repo::document::tasks_of_document(tx.db(), document.id).await?.into_iter().next();
+        let shown = if contains(Some(&document.body_markdown), term) { &document.body_markdown } else { &document.title };
+        hits.push(SearchHit {
+            kind: SearchHitKind::Note,
+            task_id: first.as_ref().map(|t| t.id),
+            step_id: None,
+            document_id: Some(document.id),
+            title: document.title.clone(),
+            r#where: match &first {
+                Some(task) => anchor_of(tx, task).await?,
+                None => String::new(),
+            },
+            excerpt: excerpt(Some(shown), term),
+        });
+    }
+    Ok(hits)
+}
+
 async fn anchor_of(tx: &Tx, task: &task::Model) -> Result<String> {
-    let project = load::project_of(tx.db(), task).await?;
-    Ok(format!("project:{} task:{}", project.label, task.label))
+    Ok(task.anchor(&load::project_of(tx.db(), task).await?.label))
 }
 
 fn contains(text: Option<&str>, term: &str) -> bool {
     text.is_some_and(|t| t.to_lowercase().contains(&term.to_lowercase()))
-}
-
-/// `SearchService.escapeLike`: `\`, `%` and `_` escaped with a backslash.
-pub fn escape_like(term: &str) -> String {
-    term.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_")
 }
 
 /// The match with the radius either side, whitespace collapsed, cut at words.

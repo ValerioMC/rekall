@@ -27,7 +27,7 @@ impl TimeEntryView {
             task_label: task.label.clone(),
             task_title: task.title.clone(),
             project_label: project.label.clone(),
-            anchor: format!("project:{} task:{}", project.label, task.label),
+            anchor: task.anchor(&project.label),
             started_at: entry.started_at,
             stopped_at: entry.stopped_at,
             created_at: entry.created_at,

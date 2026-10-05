@@ -27,7 +27,7 @@ impl RunQueueItemView {
             task_title: task.title.clone(),
             task_label: task.label.clone(),
             project_label: project.label.clone(),
-            anchor: format!("project:{} task:{}", project.label, task.label),
+            anchor: task.anchor(&project.label),
             position: item.position,
             state: item.state,
             detail: item.detail.clone(),

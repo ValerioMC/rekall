@@ -64,7 +64,7 @@ impl TaskResponse {
             tag_name: graph.tag.map(|t| t.name.clone()),
             tag_icon: graph.tag.map(|t| t.icon.clone()),
             tag_color: graph.tag.map(|t| t.color.clone()),
-            anchor: format!("project:{} task:{}", project.label, task.label),
+            anchor: task.anchor(&project.label),
             updated_at: task.updated_at,
         }
     }

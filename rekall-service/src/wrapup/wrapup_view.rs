@@ -28,7 +28,7 @@ impl WrapupView {
             task_label: task.label.clone(),
             task_title: task.title.clone(),
             project_label: project.label.clone(),
-            anchor: format!("project:{} task:{}", project.label, task.label),
+            anchor: task.anchor(&project.label),
             body_markdown: wrapup.body_markdown.clone(),
             written_by: wrapup.written_by,
             created_at: wrapup.created_at,

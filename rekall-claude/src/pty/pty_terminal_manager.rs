@@ -133,7 +133,7 @@ impl PtyTerminalManager {
         let terminal = self.register(id, launch.clone(), step_id, options, command).await?;
 
         self.mark_running(task_id, step_id).await;
-        info!("Opened terminal {id} to {mode} {} in {}", launch.anchors, launch.working_dir);
+        info!(terminal_id = %id, %mode, anchors = %launch.anchors, working_dir = %launch.working_dir, "Opened terminal");
         Ok(terminal.view())
     }
 
@@ -193,7 +193,7 @@ impl PtyTerminalManager {
             None => self.task_review.session_running(task_id, true).await,
         };
         if let Err(failed) = result {
-            warn!("Could not mark terminal work on task {task_id} running: {failed}");
+            warn!(%failed, %task_id, "Could not mark terminal work running");
         }
     }
 
@@ -203,7 +203,7 @@ impl PtyTerminalManager {
             None => self.task_review.session_running(task_id, false).await,
         };
         if let Err(failed) = result {
-            warn!("Could not release terminal work on task {task_id}: {failed}");
+            warn!(%failed, %task_id, "Could not release terminal work");
         }
     }
 
@@ -272,7 +272,7 @@ impl PtyTerminalManager {
         terminal.notify_ended(terminal.safe_exit_value(), reason);
         self.release_running(terminal.launch.task_id, terminal.step_id()).await;
         self.announce_ended(&terminal);
-        info!("Closed terminal {id} ({reason})");
+        info!(terminal_id = %id, %reason, "Closed terminal");
         Some(terminal.view())
     }
 
@@ -327,7 +327,7 @@ impl PtyTerminalManager {
         terminal.notify_ended(code, &detail);
         self.release_running(terminal.launch.task_id, terminal.step_id()).await;
         self.announce_ended(&terminal);
-        info!("Terminal {id} exited with code {code}");
+        info!(terminal_id = %id, code, "Terminal exited");
     }
 
     fn announce_ended(&self, terminal: &Terminal) {

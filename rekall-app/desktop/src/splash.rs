@@ -22,16 +22,16 @@ const CONSOLE_MINIMUM_SIZE: LogicalSize<f64> = LogicalSize::new(960.0, 600.0);
 
 pub(crate) fn status(handle: &AppHandle, text: &str) {
     let shell = handle.state::<Arc<Shell>>();
-    *shell.status.lock().unwrap() = Some(text.to_string());
+    *shell.status.lock().expect("never poisoned") = Some(text.to_string());
     if let Some(window) = handle.get_webview_window("main") {
         replay_splash(&window);
     }
 }
 
 pub(crate) fn fail(handle: &AppHandle, title: &str, detail: &str) {
-    error!("{title}: {detail}");
+    error!(%title, %detail, "Rekall could not start");
     let shell = handle.state::<Arc<Shell>>();
-    *shell.failure.lock().unwrap() = Some((title.to_string(), detail.to_string()));
+    *shell.failure.lock().expect("never poisoned") = Some((title.to_string(), detail.to_string()));
     if let Some(window) = handle.get_webview_window("main") {
         replay_splash(&window);
     }
@@ -41,19 +41,21 @@ pub(crate) fn fail(handle: &AppHandle, title: &str, detail: &str) {
 /// before the page was ready is not lost.
 pub(crate) fn replay_splash(window: &WebviewWindow) {
     let shell = window.state::<Arc<Shell>>();
-    let script = if let Some((title, detail)) = shell.failure.lock().unwrap().clone() {
+    let script = if let Some((title, detail)) = shell.failure.lock().expect("never poisoned").clone() {
         format!(
             "window.rekallFail && window.rekallFail({}, {}, {})",
             js(&title),
             js(&detail),
             js(&log_file().to_string_lossy())
         )
-    } else if let Some(text) = shell.status.lock().unwrap().clone() {
+    } else if let Some(text) = shell.status.lock().expect("never poisoned").clone() {
         format!("window.rekallStatus && window.rekallStatus({})", js(&text))
     } else {
         return;
     };
-    let _ = window.eval(&script);
+    if let Err(failed) = window.eval(&script) {
+        error!(%failed, "Could not update the splash screen");
+    }
 }
 
 fn js(text: &str) -> String {
@@ -66,17 +68,17 @@ pub(crate) async fn dismiss_splash_then_open(handle: &AppHandle, shown_since: In
     tokio::time::sleep(SPLASH_MINIMUM.saturating_sub(shown_since.elapsed())).await;
     let Some(window) = handle.get_webview_window("main") else { return };
     if let Err(error) = bridges::fade_out(&window).await {
-        error!("Could not fade the splash out: {error}");
+        error!(%error, "Could not fade the splash out");
     }
     if let Err(error) = grow_to_console(handle, &window).await {
-        error!("Could not open the window maximized: {error}");
+        error!(%error, "Could not open the window maximized");
     }
     open_console(handle);
     // Fading in before the console has loaded shows the splash stretched to the full window.
     let shell = handle.state::<Arc<Shell>>();
     wait_until(|| shell.console_loaded.load(Ordering::SeqCst), CONSOLE_LOAD_LIMIT).await;
     if let Err(error) = bridges::fade_in(&window).await {
-        error!("Could not fade the console in: {error}");
+        error!(%error, "Could not fade the console in");
     }
 }
 
@@ -111,9 +113,11 @@ async fn wait_until(reached: impl Fn() -> bool, limit: Duration) {
 pub(crate) fn open_console(handle: &AppHandle) {
     let shell = handle.state::<Arc<Shell>>();
     shell.console_loaded.store(false, Ordering::SeqCst);
-    *shell.status.lock().unwrap() = None;
-    *shell.failure.lock().unwrap() = None;
+    *shell.status.lock().expect("never poisoned") = None;
+    *shell.failure.lock().expect("never poisoned") = None;
     if let Some(window) = handle.get_webview_window("main") {
-        let _ = window.navigate(base());
+        if let Err(failed) = window.navigate(base()) {
+            error!(%failed, "Could not open the console");
+        }
     }
 }

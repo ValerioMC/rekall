@@ -180,7 +180,7 @@ impl Instance {
             loop {
                 interval.tick().await;
                 if let Err(failed) = time_entries.stop_idle(IDLE_AFTER).await {
-                    warn!("Stopping idle timers: {failed}");
+                    warn!(%failed, "Stopping idle timers failed");
                 }
             }
         });
@@ -198,7 +198,7 @@ impl Instance {
             sweep.abort();
         }
         if let Err(failed) = self.services.time_entries.stop_all_on_shutdown().await {
-            warn!("Stopping open timers on shutdown: {failed}");
+            warn!(%failed, "Stopping open timers on shutdown failed");
         }
     }
 }
