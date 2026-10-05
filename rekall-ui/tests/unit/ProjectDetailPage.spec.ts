@@ -91,6 +91,13 @@ describe('the project page', () => {
     expect(page.text()).not.toContain('Build the report')
   })
 
+  it('carries no anchor to copy and no terminal to open in its header', async () => {
+    const page = await render()
+
+    expect(page.find('[data-testid="copy-project-anchor"]').exists()).toBe(false)
+    expect(page.find('[data-testid="launch-claude-code"]').exists()).toBe(false)
+  })
+
   it('shows the tasks only when asked and closes them again', async () => {
     const page = await render()
 

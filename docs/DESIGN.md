@@ -422,7 +422,7 @@ done, change or lose a note, move a task or delete anything.
 
 ### Opening a session from a button
 
-**Open in terminal**, on a task or a project, hands the session to your own terminal app in that
+**Open in terminal**, on a task, hands the session to your own terminal app in that
 project's folder with `/rk` already running. It answers the last thing the anchor chips could not: an anchor still has
 to be pasted somewhere, and that somewhere has to be the right directory, because Claude Code
 takes the folder it was launched from and keeps it for the session. So the folder is a column on

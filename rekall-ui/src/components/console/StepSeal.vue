@@ -12,7 +12,7 @@
  *   DONE     the stamped seal, an engraved ring inside it. Green once the whole list is.
  *
  * Only a state change animates, and only once: a checklist loading in draws nothing, so a pane
- * at rest never moves unless a step is running.
+ * at rest never moves unless a step is running. `arriving` opts a freshly mounted seal into it.
  */
 import { computed, onUnmounted, ref, useId, watch } from 'vue'
 import type { TaskStepState } from '@/model/catalog'
@@ -24,8 +24,10 @@ const props = withDefaults(
     next?: boolean
     /** Every step on the checklist is done. */
     complete?: boolean
+    /** Plays its state's arrival once on mount, for a seal that appears already in that state. */
+    arriving?: boolean
   }>(),
-  { next: false, complete: false }
+  { next: false, complete: false, arriving: false }
 )
 
 const gradientId = useId()
@@ -64,13 +66,19 @@ const showsCheck = computed(() => props.state !== 'RUNNING')
 const arrival = ref<TaskStepState | null>(null)
 let arrivalTimer: ReturnType<typeof setTimeout> | null = null
 
+function arrive(state: TaskStepState): void {
+  arrival.value = state
+  if (arrivalTimer) clearTimeout(arrivalTimer)
+  arrivalTimer = setTimeout(() => (arrival.value = null), 1100)
+}
+
+if (props.arriving) arrive(props.state)
+
 watch(
   () => props.state,
   (now, before) => {
     if (!before || now === before) return
-    arrival.value = now
-    if (arrivalTimer) clearTimeout(arrivalTimer)
-    arrivalTimer = setTimeout(() => (arrival.value = null), 1100)
+    arrive(now)
   }
 )
 

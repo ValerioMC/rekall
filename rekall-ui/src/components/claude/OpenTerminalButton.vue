@@ -14,9 +14,9 @@ import type { TaskId, TaskStepId } from '@/model/branded'
 /**
  * Starts the task's session without leaving the pane it was pressed on; the sessions dock is the
  * way back to it. One glyph that changes: `idle` a play mark, `launching` the mark runs out
- * through the edge, `waiting` an open ring turning while the server answers, `done` the
- * step's green seal settling in, `working` a comet orbiting until the session claims the work or ends. Only
- * `idle` takes a press, and the button keeps its width throughout.
+ * through the edge, `waiting` an open ring turning while the server answers, `done` the amber
+ * seal stamped in as a completed step's is, `working` a comet orbiting until the session claims
+ * the work or ends. Only `idle` takes a press, and the button keeps its width throughout.
  */
 const props = withDefaults(
   defineProps<{
@@ -190,7 +190,7 @@ onBeforeUnmount(() => {
       aria-hidden="true"
     >
       <span v-if="phase === 'done'" class="run-seal block size-[18px]">
-        <StepSeal state="DONE" complete />
+        <StepSeal state="DONE" arriving />
       </span>
       <svg v-else class="size-4" viewBox="0 0 16 16" fill="none">
         <circle
@@ -239,9 +239,9 @@ onBeforeUnmount(() => {
   animation: dial-sweep 800ms linear infinite;
 }
 
-/* The step's own seal, set into the key: it settles in rather than appearing. */
+/* The bezel fades in under the seal's own stamp, so only the disc and the check carry the motion. */
 .run-seal {
-  animation: run-seal-in 260ms cubic-bezier(0.3, 0.7, 0.2, 1) both;
+  animation: fade-in 140ms ease-out both;
 }
 
 /* The key clips its overflow for the play mark's exit, so the seal's light must fade within the
@@ -331,13 +331,6 @@ onBeforeUnmount(() => {
   50% {
     transform: scale(0.7);
     opacity: 0.6;
-  }
-}
-
-@keyframes run-seal-in {
-  from {
-    opacity: 0;
-    transform: scale(0.6);
   }
 }
 </style>

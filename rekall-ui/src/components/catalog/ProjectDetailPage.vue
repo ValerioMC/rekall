@@ -3,7 +3,6 @@ import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import AppCatalogHeader from '@/components/catalog/AppCatalogHeader.vue'
 import AutoCommitSwitch from '@/components/catalog/AutoCommitSwitch.vue'
-import CopyGlyph from '@/components/ui/CopyGlyph.vue'
 import RecordDialog from '@/components/console/RecordDialog.vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
@@ -26,11 +25,9 @@ import { hasActivity, projectActivitySeries } from '@/common/trace/activity-seri
 import { projectDraft } from '@/model/record-draft'
 import { PROJECT_STATUS_LABEL } from '@/model/catalog'
 import { asProjectId } from '@/model/branded'
-import { rkCommand } from '@/common/format/rk-command'
 import { desktopHost, pickFolder } from '@/common/native/desktop'
 import { fetchProjectRepository } from '@/api/catalog.api'
 import type { ProjectRepository } from '@/model/catalog'
-import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.vue'
 import type { RecordDraft } from '@/model/record-draft'
 import type { RailSelection } from '@/components/project/ProjectDocsRail.vue'
 import type { ProjectSection } from '@/model/project-section'
@@ -122,14 +119,6 @@ watch(
     }
   }
 )
-
-const copied = ref(false)
-async function copyAnchor(): Promise<void> {
-  if (!project.value) return
-  await navigator.clipboard?.writeText(rkCommand(project.value.anchor))
-  copied.value = true
-  setTimeout(() => (copied.value = false), 1400)
-}
 
 const descriptionDraft = ref('')
 const descriptionArea = ref<HTMLTextAreaElement | null>(null)
@@ -279,22 +268,6 @@ onUnmounted(() => {
           >
             {{ PROJECT_STATUS_LABEL[project.status] }}
           </AppBadge>
-          <button
-            class="anchor-chip focus-ring flex items-center gap-2 px-2.5 py-1 text-[11.5px] transition-colors hover:border-anchor"
-            :class="copied && 'flash'"
-            :title="copied ? 'Copied' : `Copy ${rkCommand(project.anchor)}`"
-            data-testid="copy-project-anchor"
-            @click="copyAnchor"
-          >
-            <span class="opacity-60">/rk</span>
-            <span>{{ project.anchor }}</span>
-            <CopyGlyph :copied="copied" />
-          </button>
-          <LaunchClaudeCodeButton
-            :anchors="project.anchor"
-            :folder="project.repoFolder"
-            missing-hint="Set this project's folder below to open a session from it"
-          />
         </template>
         <template #actions>
           <span class="mr-1 flex items-center gap-2 text-[12px]" :class="store.saveState === 'unsaved' ? 'text-warn' : 'text-text-subtle'">

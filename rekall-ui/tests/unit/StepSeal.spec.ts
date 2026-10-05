@@ -75,4 +75,17 @@ describe('StepSeal', () => {
     expect(seal.attributes('data-arrive')).toBeUndefined()
     expect(wrapper.find('.seal-ripple').exists()).toBe(false)
   })
+
+  it('plays its arrival on mount when asked to, and only once', async () => {
+    vi.useFakeTimers()
+    const wrapper = mount(StepSeal, { props: { state: 'DONE', arriving: true } })
+    const seal = wrapper.get('[data-testid="step-seal"]')
+
+    expect(seal.attributes('data-arrive')).toBe('DONE')
+    expect(wrapper.find('.seal-ripple').exists()).toBe(true)
+
+    vi.advanceTimersByTime(1100)
+    await wrapper.vm.$nextTick()
+    expect(seal.attributes('data-arrive')).toBeUndefined()
+  })
 })

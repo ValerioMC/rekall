@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AppLogo from '@/components/ui/AppLogo.vue'
 import AppNavSwitcher from '@/components/console/AppNavSwitcher.vue'
+import HistoryArrows from '@/components/shell/HistoryArrows.vue'
 import WindowControls from '@/components/console/WindowControls.vue'
 import { isDesktopApp } from '@/common/native/desktop'
 
@@ -27,14 +28,8 @@ const isDesktop = isDesktopApp()
       class="flex w-(--spacing-nav) shrink-0 items-center gap-2.5 pr-2.5 max-[1600px]:w-[220px] max-[1600px]:pr-4"
     >
       <AppLogo :size="32" class="halo rounded-[7px]" />
-      <span class="min-w-0">
-        <span class="block text-[14.5px] font-semibold leading-tight tracking-[-0.015em] text-text">
-          Rekall
-        </span>
-        <span class="block font-mono text-[10px] leading-tight text-text-subtle">
-          context, anchored
-        </span>
-      </span>
+      <span class="text-[14.5px] font-semibold leading-none tracking-[-0.015em] text-text">Rekall</span>
+      <HistoryArrows class="ml-1" />
     </div>
 
     <AppNavSwitcher />
