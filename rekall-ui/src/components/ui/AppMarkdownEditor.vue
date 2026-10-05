@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, useId, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
 import { MdEditor, MdPreview, NormalToolbar, type ExposeParam, type ToolbarNames } from 'md-editor-v3'
 import '@/common/config/markdown-editor'
 import PathPicker, { type CaretBox } from '@/components/ui/PathPicker.vue'
 import { formatPathForMarkdown } from '@/common/path/path-query'
+import { fittedEditorHeight, pixelsOf } from '@/common/config/editor-height'
 import {
   READ_WIDTH_MAX,
   READ_WIDTH_MIN,
@@ -18,6 +19,8 @@ const props = withDefaults(
     modelValue: string
     readonly?: boolean
     height?: string
+    /** Size the writing surface to its text, with `height` as the least it takes, instead of holding `height` and scrolling inside. */
+    grow?: boolean
     placeholder?: string
     showPreview?: boolean
     /**
@@ -35,6 +38,7 @@ const props = withDefaults(
   {
     readonly: false,
     height: '420px',
+    grow: false,
     placeholder: '# Contesto',
     showPreview: true,
     compact: false,
@@ -50,9 +54,35 @@ const body = computed({
 })
 
 const editor = ref<ExposeParam | null>(null)
+const root = ref<HTMLElement | null>(null)
 
 // md-editor-v3 6.5.6 never destroys its CodeMirror view on unmount; without this each pane swap leaks the detached editor DOM.
 onBeforeUnmount(() => editor.value?.getEditorView()?.destroy())
+
+const fittedHeight = ref<number | null>(null)
+const editorHeight = computed(() => (props.grow && fittedHeight.value !== null ? `${fittedHeight.value}px` : props.height))
+
+/** The text's own height plus everything around it (toolbar, footer, borders), read from the live editor. */
+function fit(): void {
+  const view = props.grow ? editor.value?.getEditorView() : null
+  const frame = root.value?.querySelector<HTMLElement>('.md-editor')
+  if (!view || !frame) return
+  const chrome = frame.offsetHeight - view.scrollDOM.clientHeight
+  fittedHeight.value = fittedEditorHeight(view.contentHeight, chrome, pixelsOf(props.height, 420))
+}
+
+// Wrapping changes with the column's width, so a resize refits the text.
+let widthWatcher: ResizeObserver | null = null
+
+onMounted(() => {
+  if (!props.grow) return
+  void nextTick(fit)
+  if (typeof ResizeObserver === 'undefined' || !root.value) return
+  widthWatcher = new ResizeObserver(fit)
+  widthWatcher.observe(root.value)
+})
+
+onBeforeUnmount(() => widthWatcher?.disconnect())
 
 // Unique per instance: the library keys its global event bus on this id, and two previews sharing one clear each other's entries on unmount.
 const editorId = `rekall-md-${useId()}`
@@ -175,6 +205,7 @@ const TOOLBARS: ToolbarNames[] = [
 
 <template>
   <div
+    ref="root"
     class="rekall-md"
     :class="{ 'rekall-md--readonly': readonly, 'rekall-md--compact': readonly && compact }"
     :style="readonly && !compact ? readStyle : undefined"
@@ -257,13 +288,14 @@ const TOOLBARS: ToolbarNames[] = [
       :toolbars="TOOLBARS"
       :preview="showPreview"
       :footers="['markdownTotal', '=', 'scrollSwitch']"
-      :style="{ height }"
+      :style="{ height: editorHeight }"
       :placeholder="placeholder"
       no-katex
       no-mermaid
       no-echarts
       no-prettier
       no-upload-img
+      @on-change="nextTick(fit)"
     >
       <template #defToolbars>
         <NormalToolbar

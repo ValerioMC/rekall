@@ -138,6 +138,7 @@ onUnmounted(() => {
           key="write"
           v-model="bodyDraft"
           height="520px"
+          grow
           :path-root="repoFolder"
           placeholder="Write in markdown. Anything about this project that isn't the blueprint."
           @update:model-value="schedule"
