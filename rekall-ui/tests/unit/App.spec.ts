@@ -497,15 +497,19 @@ describe('the console', () => {
     expect(wrapper.findAll('[data-testid="scope-company"]')).toHaveLength(1)
     expect(wrapper.findAll('[data-testid="scope-project"]')).toHaveLength(2)
     expect(wrapper.find('[data-testid="scope-company"]').text()).toContain('acme')
-    expect(wrapper.find('[data-testid="scope-project"]').text()).toContain('Vega Platform')
-    expect(wrapper.find('[data-testid="scope-project"]').text()).toContain('project:vega')
+    const projectRows = wrapper.findAll('[data-testid="scope-project"]')
+    expect(projectRows.map((row) => row.text())).toEqual([
+      expect.stringContaining('Beacon'),
+      expect.stringContaining('Vega Platform')
+    ])
+    expect(projectRows[1]?.text()).toContain('project:vega')
   })
 
   it('narrows to a project and says so in the breadcrumb', async () => {
     const wrapper = await mountConsole()
 
     await wrapper.find('[data-testid="scope-trigger"]').trigger('click')
-    await wrapper.find('[data-testid="scope-project"]').trigger('click')
+    await wrapper.findAll('[data-testid="scope-project"]')[1]?.trigger('click')
     await flushPromises()
 
     expect(wrapper.find('[data-testid="scope-trigger"]').text()).toContain('Vega Platform')
@@ -759,7 +763,7 @@ describe('the console', () => {
       const pushSpy = vi.spyOn(router, 'push')
 
       await wrapper.find('[data-testid="scope-trigger"]').trigger('click')
-      await wrapper.find('[data-testid="edit-project"]').trigger('click')
+      await wrapper.findAll('[data-testid="edit-project"]')[1]?.trigger('click')
 
       expect(wrapper.find('[data-testid="record-dialog"]').exists()).toBe(false)
       expect(pushSpy).toHaveBeenCalledWith(`/projects/${vega}`)

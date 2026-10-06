@@ -360,6 +360,15 @@ describe('console store', () => {
     expect(store.visibleTasks.map((t) => t.label)).toEqual(['wiring'])
   })
 
+  it('lists tasks and notes by title, whatever order they were loaded in', () => {
+    const titles = store.visibleTasks.map((task) => task.title)
+    expect(titles).toEqual([...titles].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' })))
+
+    store.navMode = 'notes'
+    const noteTitles = store.visibleDocuments.map((document) => document.title)
+    expect(noteTitles).toEqual(['CONTEXT.md', 'kmaster14.md', 'onboarding.md'])
+  })
+
   it('searches note bodies, not only their titles', () => {
     store.navMode = 'notes'
     store.filter = 'bastion'

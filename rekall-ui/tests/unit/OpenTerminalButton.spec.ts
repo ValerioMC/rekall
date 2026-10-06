@@ -86,9 +86,11 @@ describe('the Run here button', () => {
     const seal = wrapper.get('.run-seal [data-testid="step-seal"]')
     expect(seal.attributes('data-arrive')).toBe('DONE')
     expect(seal.attributes('data-complete')).toBeUndefined()
+    expect(button.classes()).toContain('key-lit')
 
     await vi.advanceTimersByTimeAsync(1200)
     expect(button.attributes('data-phase')).toBe('working')
+    expect(button.classes()).toContain('key-lit')
     expect(wrapper.get('.run-working [data-testid="step-seal"]').attributes('data-state')).toBe('RUNNING')
   })
 

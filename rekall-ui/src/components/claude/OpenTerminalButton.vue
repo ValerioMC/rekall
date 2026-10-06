@@ -16,7 +16,7 @@ import type { TaskId, TaskStepId } from '@/model/branded'
  * way back to it. One glyph that changes: `idle` a play mark, `launching` the mark runs out
  * through the edge, `waiting` an open ring turning while the server answers, `done` the amber
  * seal stamped in as a completed step's is, `working` the running step's own seal turning until
- * the session claims the work or ends. Only `idle` takes a press, and the button keeps its width throughout.
+ * the session claims the work or ends. `done` and `working` share the pressed key. Only `idle` takes a press.
  */
 const props = withDefaults(
   defineProps<{
@@ -63,6 +63,8 @@ const phase = computed<ButtonPhase>(() => {
   return atWork.value || handingOff.value ? 'working' : 'idle'
 })
 const busy = computed(() => phase.value !== 'idle')
+/** The key sits pressed in while the seal stamps and for as long as Claude works. */
+const pressed = computed(() => phase.value === 'done' || phase.value === 'working')
 
 watch(atWork, (working) => {
   if (working) handingOff.value = false
@@ -131,13 +133,11 @@ onBeforeUnmount(() => {
     type="button"
     class="focus-ring relative inline-flex h-7 shrink-0 items-center gap-1.5 overflow-hidden rounded-[3px] px-2.5 text-xs font-medium"
     :class="[
-      phase === 'done'
-        ? 'key-quiet'
-        : ready
-          ? phase === 'working'
-            ? 'key-lit'
-            : 'key-gold font-semibold'
-          : 'bg-transparent text-text-subtle transition-colors hover:bg-surface-raised hover:text-text-muted',
+      ready
+        ? pressed
+          ? 'key-lit'
+          : 'key-gold font-semibold'
+        : 'bg-transparent text-text-subtle transition-colors hover:bg-surface-raised hover:text-text-muted',
       busy && 'cursor-default'
     ]"
     :aria-busy="busy"

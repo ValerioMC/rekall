@@ -1,4 +1,5 @@
 import { computed } from 'vue'
+import { compareText } from '@/common/catalog/compare-text'
 import type { Project, RekallDocument, Task } from '@/model/catalog'
 import type { ConsoleState } from './console-state'
 
@@ -24,7 +25,10 @@ function matchesDocument(document: RekallDocument, needle: string): boolean {
     .every((part) => hay.includes(part))
 }
 
-/** What the navigator lists: the rows inside the company or project in scope that match the filter. */
+const byTitle = (a: { readonly title: string }, b: { readonly title: string }): number =>
+  compareText(a.title, b.title)
+
+/** What the navigator lists: the rows inside the company or project in scope that match the filter, by title. */
 export function useConsoleView(state: ConsoleState) {
   const { companies, projects, tasks, documents, scopeCompany, scopeProject, navMode, filter } = state
 
@@ -52,11 +56,13 @@ export function useConsoleView(state: ConsoleState) {
   }
 
   const visibleTasks = computed(() =>
-    tasks.value.filter((task) => inScope(task) && matchesTask(task, filter.value))
+    tasks.value.filter((task) => inScope(task) && matchesTask(task, filter.value)).sort(byTitle)
   )
 
   const visibleDocuments = computed(() =>
-    documents.value.filter((document) => documentInScope(document) && matchesDocument(document, filter.value))
+    documents.value
+      .filter((document) => documentInScope(document) && matchesDocument(document, filter.value))
+      .sort(byTitle)
   )
 
   const scopedCompany = computed(

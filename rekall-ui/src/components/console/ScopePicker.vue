@@ -7,6 +7,7 @@ import { useConsoleStore } from '@/stores/console.store'
 import { companyDraft, projectDraft } from '@/model/record-draft'
 import { identityHue } from '@/common/identity'
 import { PROJECT_STATUS_LABEL } from '@/model/catalog'
+import { compareText } from '@/common/catalog/compare-text'
 import type { RecordDraft } from '@/model/record-draft'
 import type { Company, Project } from '@/model/catalog'
 import type { CompanyId, ProjectId } from '@/model/branded'
@@ -27,8 +28,12 @@ const {
 const isOpen = ref(false)
 const editing = ref<RecordDraft | null>(null)
 
+const companiesByName = computed(() => [...companies.value].sort((a, b) => compareText(a.name, b.name)))
+
 const projectsOf = (companyId: CompanyId) =>
-  projects.value.filter((project) => project.companyId === companyId)
+  projects.value
+    .filter((project) => project.companyId === companyId)
+    .sort((a, b) => compareText(a.title, b.title))
 
 const taskTotal = computed(() => tasks.value.length)
 
@@ -111,7 +116,7 @@ defineExpose({ newCompany, newProject })
 
       <div class="my-1 h-px bg-border" />
 
-      <template v-for="company in companies" :key="company.id">
+      <template v-for="company in companiesByName" :key="company.id">
         <div class="group/company flex items-center gap-0.5">
           <button
             data-testid="scope-company"
