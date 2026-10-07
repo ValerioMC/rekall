@@ -43,7 +43,6 @@ const { mode, title, body, scheduleSave } = useStepEditor()
           <AppMarkdownEditor
             v-model="body"
             height="100%"
-            :show-preview="false"
             :path-root="pathRoot"
             :placeholder="placeholder"
             :data-testid="`${testidPrefix}-detail-field`"

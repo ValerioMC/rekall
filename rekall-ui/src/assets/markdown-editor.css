@@ -1,8 +1,7 @@
 /* The console's look on md-editor-v3: colours, type, the reading column and its controls.
    Unscoped on purpose, since the editor renders its own DOM; every rule sits under `.rekall-md`. */
 
-.rekall-md .md-editor,
-.rekall-md .md-editor-preview-wrapper {
+.rekall-md .md-editor {
   --md-bk-color: var(--color-surface);
   --md-color: var(--color-text);
   --md-border-color: var(--color-border);
@@ -39,6 +38,32 @@
   border-left-width: 2px !important;
   border-left-color: var(--color-accent-strong) !important;
   box-shadow: 0 0 6px 0 color-mix(in srgb, var(--color-accent) 65%, transparent);
+}
+
+/*
+ * Selected text keeps its own colour. The global ::selection paints dark ink, but CodeMirror draws
+ * the selection itself on a separate layer, so that ink landed on a dark ground. Both the layer
+ * and the native selection (code blocks, tables, the read page) take one translucent accent wash.
+ */
+.rekall-md {
+  --rk-selection: color-mix(in srgb, var(--color-accent) 38%, transparent);
+}
+
+.rekall-md .md-editor .cm-editor .cm-selectionLayer .cm-selectionBackground,
+.rekall-md .md-editor .cm-editor.cm-focused .cm-selectionLayer .cm-selectionBackground {
+  background: var(--rk-selection);
+}
+
+/* A fence open for writing paints its own ground, which would hide a layer drawn behind the text. */
+.rekall-md .md-editor .cm-editor .cm-selectionLayer {
+  z-index: 150 !important;
+  pointer-events: none;
+}
+
+.rekall-md ::selection,
+.rekall-md .md-editor .cm-content ::selection {
+  background: var(--rk-selection);
+  color: inherit;
 }
 
 @keyframes caret-fade {
@@ -310,9 +335,9 @@
 }
 
 /*
- * The writing surface: a quiet toolbar that lights only what is on, source set in the code face
- * at the same size the page is read at, and a footer that counts in the chrome's voice rather
- * than the library's.
+ * The writing surface: a quiet toolbar that lights only what is on, text set in the page's face
+ * and scale (live-preview.css draws the markdown), and a footer that counts in the chrome's voice
+ * rather than the library's.
  */
 .rekall-md .md-editor-toolbar-wrapper {
   padding: 6px 8px;
@@ -342,9 +367,9 @@
 }
 
 .rekall-md .md-editor .cm-scroller {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  line-height: 1.75;
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  line-height: 1.7;
 }
 
 .rekall-md .md-editor .cm-content {
@@ -362,10 +387,6 @@
   color: var(--color-text-subtle);
   border-color: var(--color-border);
   background: var(--color-surface);
-}
-
-.rekall-md .md-editor-preview-wrapper .md-editor-preview {
-  padding: 18px 26px 28px 30px;
 }
 
 .rekall-md--readonly {
@@ -477,4 +498,15 @@
   height: 0;
   margin-right: 12px;
   overflow: visible;
+}
+
+/* Find-in-page matches (CSS Custom Highlight API): painted over the text, no markup added. */
+::highlight(rekall-find) {
+  background-color: var(--color-accent-soft);
+  color: var(--color-accent-strong);
+}
+
+::highlight(rekall-find-current) {
+  background-color: var(--color-accent);
+  color: var(--color-accent-ink);
 }

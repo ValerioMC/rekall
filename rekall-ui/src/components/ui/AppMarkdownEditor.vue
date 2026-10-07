@@ -4,8 +4,12 @@ import { MdEditor, MdPreview, NormalToolbar, type ExposeParam, type ToolbarNames
 import '@/common/config/markdown-editor'
 import PathPicker from '@/components/ui/PathPicker.vue'
 import ReadModeSettings from '@/components/ui/ReadModeSettings.vue'
+import ReadSearchBar from '@/components/ui/ReadSearchBar.vue'
+import TableContextMenu from '@/components/ui/TableContextMenu.vue'
 import { useEditorPathPicker } from '@/composables/useEditorPathPicker'
 import { useFittedEditorHeight } from '@/composables/useFittedEditorHeight'
+import { useReadModeSearch } from '@/composables/useReadModeSearch'
+import { useTableContextMenu } from '@/composables/useTableContextMenu'
 import { readModeAlign, readModeWidth, setReadModeAlign, setReadModeWidth } from '@/common/config/read-mode'
 
 const props = withDefaults(
@@ -16,7 +20,6 @@ const props = withDefaults(
     /** Size the writing surface to its text, with `height` as the least it takes, instead of holding `height` and scrolling inside. */
     grow?: boolean
     placeholder?: string
-    showPreview?: boolean
     /**
      * Read inside something else (a step's detail under its title) rather than as the pane: the
      * page sits flush left at the container's width with no reading-column controls, since the
@@ -34,7 +37,6 @@ const props = withDefaults(
     height: '420px',
     grow: false,
     placeholder: '# Contesto',
-    showPreview: true,
     compact: false,
     pathRoot: null
   }
@@ -64,6 +66,11 @@ const {
   insert: insertPath,
   onKeydown: onEditorKeydown
 } = useEditorPathPicker(editor, { readonly: () => props.readonly, pathRoot: () => props.pathRoot })
+
+const tableMenu = useTableContextMenu(editor)
+
+// A card-sized read view has no room for a bar; ⌘F there is left to the page.
+const search = useReadModeSearch(root, { enabled: () => props.readonly && !props.compact })
 
 // Unique per instance: the library keys its global event bus on this id, and two previews sharing one clear each other's entries on unmount.
 const editorId = `rekall-md-${useId()}`
@@ -97,7 +104,6 @@ const TOOLBARS: ToolbarNames[] = [
   'next',
   '=',
   'pageFullscreen',
-  'preview',
   'catalog'
 ]
 </script>
@@ -110,9 +116,22 @@ const TOOLBARS: ToolbarNames[] = [
     :style="readonly && !compact ? readStyle : undefined"
     :data-align="readonly && !compact ? readAlign : undefined"
     @keydown.capture="onEditorKeydown"
+    @rk-table-menu="tableMenu.open"
   >
     <div v-if="readonly && !compact" class="rekall-read-controls">
-      <ReadModeSettings v-model:width="readWidth" v-model:align="readAlign" />
+      <div class="flex items-start gap-2">
+        <ReadSearchBar
+          v-if="search.open.value"
+          v-model="search.query.value"
+          :label="search.label.value"
+          :count="search.count.value"
+          :focus-requests="search.focusRequests.value"
+          @next="search.next"
+          @previous="search.previous"
+          @close="search.close"
+        />
+        <ReadModeSettings v-model:width="readWidth" v-model:align="readAlign" />
+      </div>
     </div>
     <MdPreview
       v-if="readonly"
@@ -136,8 +155,8 @@ const TOOLBARS: ToolbarNames[] = [
       preview-theme="github"
       code-theme="atom"
       :toolbars="TOOLBARS"
-      :preview="showPreview"
-      :footers="['markdownTotal', '=', 'scrollSwitch']"
+      :preview="false"
+      :footers="['markdownTotal']"
       :style="{ height: editorHeight }"
       :placeholder="placeholder"
       no-katex
@@ -184,6 +203,12 @@ const TOOLBARS: ToolbarNames[] = [
           @close="closePicker"
         />
       </Transition>
+      <TableContextMenu
+        v-if="tableMenu.request.value"
+        :request="tableMenu.request.value"
+        @choose="tableMenu.choose"
+        @close="tableMenu.close"
+      />
     </Teleport>
   </div>
 </template>

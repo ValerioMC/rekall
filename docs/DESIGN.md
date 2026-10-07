@@ -95,7 +95,7 @@ Two things keep their shape on purpose. A SeaORM entity is one file with `Model`
 | Database | SQLite, file | Embedded. No server to start |
 | MCP server | Hand-rolled | MCP over HTTP is three JSON-RPC methods and one POST endpoint |
 | Frontend | Vue 3 + Vite | |
-| Document editing | `md-editor-v3` | Toolbar over the markdown source, not a WYSIWYG. A WYSIWYG keeps its own tree and regenerates the source on every edit, and that source is what MCP hands to Claude verbatim |
+| Document editing | `md-editor-v3` with a CodeMirror live preview | Toolbar over the markdown source, not a WYSIWYG. A WYSIWYG keeps its own tree and regenerates the source on every edit, and that source is what MCP hands to Claude verbatim. The live preview (`rekall-ui/src/common/live-preview/`) only decorates the source: it hides markup off the caret's line and draws tables, code and diagrams as widgets, and a table edit rewrites that cell or that table alone |
 | Tests | `cargo test`; end-to-end suites on a real port and a file database | |
 | Desktop | Tauri v2 | The same server in-process, a WebView window, three native bridges |
 

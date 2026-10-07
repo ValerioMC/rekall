@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
@@ -119,6 +119,64 @@ describe('AppMarkdownEditor', () => {
     const trigger = wrapper.find('[data-testid="path-picker-trigger"]')
     expect(trigger.attributes('data-path-picker-trigger')).toBeDefined()
     expect(trigger.attributes('aria-expanded')).toBe('false')
+  })
+
+  it('writes in one pane, drawn as the page, with no split preview beside it', async () => {
+    const wrapper = mount(AppMarkdownEditor, { props: { modelValue: '# Titolo\n\nUn **punto**.' } })
+    await flushPromises()
+
+    expect(wrapper.find('.md-editor-preview-wrapper').exists()).toBe(false)
+    const titles = wrapper.findAll('.md-editor-toolbar-item').map((item) => item.attributes('title'))
+    expect(titles).not.toContain('preview')
+    expect(wrapper.find('.cm-content .cm-rk-h1').text()).toBe('Titolo')
+    expect(wrapper.find('.cm-content .cm-rk-strong').text()).toBe('punto')
+  })
+
+  it('adds a table row from the right-click menu and hands back the new markdown', async () => {
+    const wrapper = mount(AppMarkdownEditor, {
+      props: { modelValue: '| a | b |\n|---|---|\n| 1 | 2 |' },
+      attachTo: document.body
+    })
+    await flushPromises()
+
+    wrapper
+      .find('.cm-rk-table td[data-column="0"]')
+      .element.dispatchEvent(
+        new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 })
+      )
+    await nextTick()
+    const menu = document.querySelector('[data-testid="table-context-menu"]')
+    expect(menu).not.toBeNull()
+    const deleteColumn = document.querySelector<HTMLButtonElement>('[data-testid="table-menu-deleteColumn"]')
+    expect(deleteColumn?.disabled).toBe(false)
+
+    document.querySelector<HTMLButtonElement>('[data-testid="table-menu-rowBelow"]')?.click()
+    await nextTick()
+
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([
+      '| a | b |\n| --- | --- |\n| 1 | 2 |\n|  |  |'
+    ])
+    expect(document.querySelector('[data-testid="table-context-menu"]')).toBeNull()
+    wrapper.unmount()
+  })
+
+  it('refits a growing editor when its content resizes, as a diagram does once drawn', async () => {
+    const observed: Element[] = []
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe(target: Element): void {
+          observed.push(target)
+        }
+        disconnect(): void {}
+      }
+    )
+    const wrapper = mount(AppMarkdownEditor, { props: { modelValue: 'Testo.', grow: true } })
+    await flushPromises()
+
+    expect(observed).toContain(wrapper.find('.cm-content').element)
+    wrapper.unmount()
+    vi.unstubAllGlobals()
   })
 
   /**

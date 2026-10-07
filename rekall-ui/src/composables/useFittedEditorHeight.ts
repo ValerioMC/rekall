@@ -5,7 +5,7 @@ import { fittedEditorHeight, pixelsOf } from '@/common/config/editor-height'
 /**
  * The height a growing editor takes: its text's own height plus everything around it (toolbar,
  * footer, borders), never less than `height`. A fixed editor keeps `height`. Wrapping changes with
- * the column's width, so a resize refits; `refit` is for a change of text.
+ * the column's width and a diagram draws after the text, so either resize refits.
  */
 export function useFittedEditorHeight(
   editor: Ref<ExposeParam | null>,
@@ -23,15 +23,17 @@ export function useFittedEditorHeight(
     fitted.value = fittedEditorHeight(view.contentHeight, chrome, pixelsOf(options.height(), 420))
   }
 
-  let widthWatcher: ResizeObserver | null = null
+  let sizeWatcher: ResizeObserver | null = null
   onMounted(() => {
     if (!options.grow()) return
     void nextTick(refit)
     if (typeof ResizeObserver === 'undefined' || !root.value) return
-    widthWatcher = new ResizeObserver(refit)
-    widthWatcher.observe(root.value)
+    sizeWatcher = new ResizeObserver(refit)
+    sizeWatcher.observe(root.value)
+    const content = editor.value?.getEditorView()?.contentDOM
+    if (content) sizeWatcher.observe(content)
   })
-  onBeforeUnmount(() => widthWatcher?.disconnect())
+  onBeforeUnmount(() => sizeWatcher?.disconnect())
 
   return { editorHeight, refit: () => void nextTick(refit) }
 }

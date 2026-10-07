@@ -8,9 +8,27 @@ importers:
 
   .:
     dependencies:
+      '@codemirror/lang-markdown':
+        specifier: ^6.5.2
+        version: 6.5.2
+      '@codemirror/language':
+        specifier: ^6.12.4
+        version: 6.12.4
+      '@codemirror/language-data':
+        specifier: ^6.5.2
+        version: 6.5.2
+      '@codemirror/state':
+        specifier: ^6.7.1
+        version: 6.7.1
+      '@codemirror/view':
+        specifier: ^6.43.8
+        version: 6.43.8
       '@dagrejs/dagre':
         specifier: ^3.1.1
         version: 3.1.1
+      '@lezer/common':
+        specifier: ^1.5.2
+        version: 1.5.2
       '@xterm/addon-fit':
         specifier: ^0.11.0
         version: 0.11.0
@@ -20,6 +38,9 @@ importers:
       highlight.js:
         specifier: ^11.12.0
         version: 11.12.0
+      markdown-it:
+        specifier: ^14.3.0
+        version: 14.3.0
       md-editor-v3:
         specifier: ^6.5.6
         version: 6.5.6(vue@3.5.41(typescript@5.9.3))
@@ -51,6 +72,9 @@ importers:
       '@tailwindcss/vite':
         specifier: ^4.0.0
         version: 4.3.3(vite@5.4.21(@types/node@22.20.1)(lightningcss@1.32.0))
+      '@types/markdown-it':
+        specifier: ^14.1.2
+        version: 14.1.2
       '@types/node':
         specifier: ^22.10.7
         version: 22.20.1
