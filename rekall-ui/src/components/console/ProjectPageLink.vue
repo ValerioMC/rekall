@@ -19,7 +19,7 @@ const label = computed(() => `Open ${props.projectTitle}`)
 <template>
   <RouterLink
     data-testid="open-project-page"
-    class="project-page-link focus-ring grid w-9 shrink-0 place-items-center rounded-r-card border-l border-border text-text-subtle transition-colors"
+    class="project-page-link focus-ring my-2 mr-2 grid size-7 shrink-0 place-items-center self-start rounded-control text-text-subtle transition-colors duration-(--motion-quick)"
     :style="{ '--project-tint': hue.base, '--project-tint-soft': hue.soft }"
     :to="{ name: 'project-detail', params: { id: projectId } }"
     :aria-label="label"

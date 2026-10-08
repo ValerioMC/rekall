@@ -10,30 +10,22 @@ const isDesktop = isDesktopApp()
 
 <!-- The one header instance for every screen: mounted once by Bootstrap, above `router-view`, so
      it never unmounts on navigation. Each screen teleports its own content (a search bar, a page
-     title, its actions) into `#app-header-extra` below rather than rendering a header of its own,
-     which is what used to make the logo/tabs block flicker and drift between screens. -->
+     title, its actions) into `#app-header-extra` rather than rendering a header of its own. One
+     48px row: the mark, history, the screen tabs, then whatever the screen puts there. -->
 <template>
   <header
     :data-tauri-drag-region="isDesktop ? true : undefined"
-    class="glass sticky top-0 z-(--z-sticky) flex h-(--spacing-header) shrink-0 items-center gap-3.5 border-b border-border px-4"
+    class="glass sticky top-0 z-(--z-sticky) flex h-(--spacing-header) shrink-0 items-center gap-4 border-b border-border px-3"
   >
     <WindowControls v-if="isDesktop" />
 
-    <!-- Matches the navigator sidebar's own --spacing-nav so the two line up in one column on
-         Console — but only wide enough for that to matter. Under 1600px (a 13"/14" laptop screen,
-         not a 27" monitor) the reserved width is mostly empty space past the logo's real content,
-         and holding it fixed there is what crushed the search bar; letting it hug the logo instead
-         hands that space back to the switcher and the bar next to it. -->
-    <div
-      class="flex w-(--spacing-nav) shrink-0 items-center gap-2.5 pr-2.5 max-[1600px]:w-[220px] max-[1600px]:pr-4 max-[1279px]:w-auto"
-    >
-      <AppLogo :size="32" class="halo rounded-control" />
-      <span class="text-body font-semibold leading-none tracking-[-0.015em] text-text max-[1099px]:sr-only">Rekall</span>
-      <HistoryArrows class="ml-1" />
+    <div class="flex shrink-0 items-center gap-2.5">
+      <AppLogo :size="24" class="halo rounded-key" />
+      <HistoryArrows />
     </div>
 
     <AppNavSwitcher />
 
-    <div id="app-header-extra" class="flex min-w-0 flex-1 items-center gap-3.5"></div>
+    <div id="app-header-extra" class="flex min-w-0 flex-1 items-center gap-3"></div>
   </header>
 </template>

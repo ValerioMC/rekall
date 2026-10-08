@@ -166,7 +166,12 @@ async function confirmDelete(): Promise<void> {
           <div class="w-[128px]">
             <AppSelect v-model="draft.kind" :options="KIND_OPTIONS" @change="scheduleSave" />
           </div>
-          <AppButton variant="danger-quiet" size="sm" @click="isConfirmingDelete = true">Delete</AppButton>
+          <AppButton variant="danger-quiet" size="md" data-testid="note-delete" @click="isConfirmingDelete = true">
+            <svg class="size-3.5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M2.5 4.5h11M6 4.5V3h4v1.5M4 4.5l.7 8.6a1 1 0 0 0 1 .9h4.6a1 1 0 0 0 1-.9l.7-8.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            Delete
+          </AppButton>
         </div>
       </header>
 

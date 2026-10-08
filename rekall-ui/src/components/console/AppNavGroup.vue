@@ -88,18 +88,12 @@ onBeforeUnmount(() => window.removeEventListener('pointerdown', onPointerDown, t
 </script>
 
 <template>
-  <div ref="host" class="relative flex" data-testid="nav-group">
+  <div ref="host" class="relative flex self-stretch" data-testid="nav-group">
     <button
       ref="trigger"
       type="button"
-      class="focus-ring flex h-7 items-center gap-1.5 rounded-control pl-3 pr-2 text-small transition-colors"
-      :class="
-        current
-          ? 'bg-surface-raised text-text shadow-[0_1px_2px_rgb(0_0_0/0.4)]'
-          : open
-            ? 'text-text'
-            : 'text-text-subtle hover:text-text'
-      "
+      class="nav-tab focus-ring pr-2.5 max-[1099px]:pl-2.5"
+      :class="current ? 'nav-tab-current' : open && 'text-text'"
       aria-haspopup="menu"
       :aria-expanded="open"
       :aria-label="current ? `${group.label}: ${current.label}` : group.label"
@@ -138,7 +132,7 @@ onBeforeUnmount(() => window.removeEventListener('pointerdown', onPointerDown, t
       <div
         v-if="open"
         ref="menu"
-        class="absolute left-0 top-full z-(--z-overlay) mt-2 w-[208px] origin-top-left rounded-card border border-border-strong bg-surface p-1 shadow-(--shadow-lift)"
+        class="absolute left-0 top-full z-(--z-overlay) mt-1.5 w-[208px] origin-top-left rounded-card border border-border-strong bg-surface p-1 shadow-(--shadow-lift)"
         role="menu"
         :aria-label="group.label"
         data-testid="nav-group-menu"

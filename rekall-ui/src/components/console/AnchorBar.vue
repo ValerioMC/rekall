@@ -2,10 +2,8 @@
 import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import AppButton from '@/components/ui/AppButton.vue'
-import ClaudeUsageMeter from '@/components/console/ClaudeUsageMeter.vue'
-import QueueBeacon from '@/components/queue/QueueBeacon.vue'
+import HeaderStatus from '@/components/console/HeaderStatus.vue'
 import SearchHitList from '@/components/console/SearchHitList.vue'
-import ReviewQueueButton from '@/components/console/ReviewQueueButton.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { searchText } from '@/api/search.api'
 import { isTextQuery } from '@/model/search'
@@ -22,7 +20,10 @@ const {
   navMode,
   visibleTasks,
   visibleDocuments,
-  selectedTaskId
+  selectedTaskId,
+  selectedTask,
+  selectedDocument,
+  scopeAnchor
 } = storeToRefs(store)
 
 const input = ref<HTMLInputElement | null>(null)
@@ -34,6 +35,18 @@ const placeholder = computed(() =>
       'project:vega task:setup'
     : `Find in ${scopeName.value}`
 )
+
+/** Where the reader is, as the anchors a session would be handed: the note, the task, or the scope. */
+const location = computed<string[]>(() => {
+  const anchors =
+    navMode.value === 'notes' && selectedDocument.value
+      ? selectedDocument.value.anchor
+      : (selectedTask.value?.anchor ?? scopeAnchor.value)
+  return anchors.split(' ').filter((part) => part.length > 0)
+})
+
+/** At rest the bar is a location bar; the moment it is focused or holds a query it is a search. */
+const showsLocation = computed(() => !isFocused.value && !filter.value && location.value.length > 0)
 
 const resultCount = computed(() =>
   navMode.value === 'tasks' ? visibleTasks.value.length : visibleDocuments.value.length
@@ -147,9 +160,9 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
 
 <template>
   <Teleport to="#app-header-extra">
-    <div class="relative min-w-0 max-w-[640px] flex-1">
+    <div class="relative mx-auto min-w-0 max-w-[620px] flex-1">
       <span
-        class="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 font-mono text-body text-anchor"
+        class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 font-mono text-small text-anchor"
         aria-hidden="true"
       >
         /rk
@@ -161,9 +174,10 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
         type="text"
         autocomplete="off"
         spellcheck="false"
-        class="field h-10 w-full rounded-control pl-[48px] pr-[92px] font-mono text-body text-text max-[1099px]:pr-3"
-        :placeholder="placeholder"
+        class="field h-9 w-full rounded-card pl-11 pr-16 font-mono text-small text-text max-[1099px]:pr-3"
+        :placeholder="showsLocation ? '' : placeholder"
         aria-label="Find a task or a note"
+        :aria-describedby="showsLocation ? 'anchor-location' : undefined"
         @focus="isFocused = true"
         @blur="isFocused = false"
         @keydown.enter="onEnter"
@@ -171,6 +185,29 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
         @keydown.up.prevent="moveHit(-1)"
         @keydown.esc="clear"
       />
+      <span
+        v-if="showsLocation"
+        id="anchor-location"
+        class="pointer-events-none absolute inset-y-0 left-11 right-16 flex min-w-0 items-center gap-1.5 overflow-hidden max-[1099px]:right-3"
+        data-testid="anchor-location"
+      >
+        <span class="sr-only">Showing</span>
+        <template v-for="(part, index) in location" :key="part">
+          <span
+            v-if="index > 0"
+            class="text-text-subtle max-[1279px]:hidden"
+            aria-hidden="true"
+          >
+            &#8250;
+          </span>
+          <span
+            class="anchor-chip shrink-0 truncate px-1.5 text-caption leading-5"
+            :class="index === location.length - 1 ? 'text-anchor-strong' : 'max-[1279px]:hidden'"
+          >
+            {{ part }}
+          </span>
+        </template>
+      </span>
       <SearchHitList
         v-if="showHits"
         :hits="hits"
@@ -182,37 +219,27 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
         @hover="activeHit = $event"
       />
       <span
-        class="pointer-events-none absolute right-2.5 top-1/2 flex -translate-y-1/2 items-center gap-1 max-[1099px]:hidden"
+        class="pointer-events-none absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1 max-[1099px]:hidden"
         aria-hidden="true"
       >
         <template v-if="filter.trim()">
           <span class="font-mono text-caption text-text-subtle">{{ resultCount }} found</span>
         </template>
-        <template v-else>
-          <kbd
-            class="rounded-key border border-border bg-surface-raised px-1.5 py-0.5 font-mono text-micro text-text-subtle"
-          >
-            &#8984;
-          </kbd>
-          <kbd
-            class="rounded-key border border-border bg-surface-raised px-1.5 py-0.5 font-mono text-micro text-text-subtle"
-          >
-            K
-          </kbd>
-        </template>
+        <kbd
+          v-else
+          class="rounded-key border border-b-2 border-border-strong bg-surface-raised px-1.5 font-mono text-micro leading-4 text-text-subtle"
+        >
+          &#8984;K
+        </kbd>
       </span>
     </div>
 
-    <!-- Side by side on purpose: the queue's ceiling is read off the meter next to it. -->
-    <ClaudeUsageMeter class="shrink-0" />
-    <QueueBeacon />
+    <HeaderStatus />
 
-    <div class="ml-auto flex items-center gap-3">
-      <ReviewQueueButton />
-      <!-- Under 1440px the bar has no room for the word: the dot's colour carries it, and the word
-           stays for screen readers and as the tooltip. -->
+    <div class="header-capsule" role="group" aria-label="Tools">
+      <!-- The dot's colour carries the save state; the word stays for screen readers and as the tooltip. -->
       <p
-        class="flex min-w-[92px] items-center gap-2 text-small max-[1440px]:min-w-0"
+        class="grid size-5 place-items-center text-small"
         :class="saveState === 'unsaved' ? 'text-warn' : 'text-text-subtle'"
         :title="SAVE_LABEL[saveState]"
         role="status"
@@ -224,11 +251,11 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
           :class="[SAVE_DOT[saveState], justSaved && 'settle']"
           aria-hidden="true"
         />
-        <span class="max-[1440px]:sr-only">{{ SAVE_LABEL[saveState] }}</span>
+        <span class="sr-only">{{ SAVE_LABEL[saveState] }}</span>
       </p>
-      <AppButton
-        variant="quiet"
-        size="icon"
+      <button
+        type="button"
+        class="header-key focus-ring"
         data-testid="tags-trigger"
         aria-label="Tags"
         title="Tags"
@@ -245,10 +272,10 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
           />
           <circle cx="8.2" cy="8.2" r="1.5" fill="currentColor" />
         </svg>
-      </AppButton>
-      <AppButton
-        variant="quiet"
-        size="icon"
+      </button>
+      <button
+        type="button"
+        class="header-key focus-ring"
         data-testid="settings-trigger"
         aria-label="Settings"
         title="Settings"
@@ -270,16 +297,21 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
             stroke-linejoin="round"
           />
         </svg>
-      </AppButton>
+      </button>
+      <span class="mx-0.5 h-4 w-px bg-border" aria-hidden="true" />
       <span class="group relative inline-block">
         <AppButton
           variant="primary"
           size="sm"
           :disabled="needsTaskForNote"
           data-testid="new-note"
+          title="New note"
           @click="emit('newNote')"
         >
-          New note
+          <svg class="size-3.5 min-[1280px]:hidden" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+            <path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          </svg>
+          <span class="max-[1279px]:sr-only">New note</span>
         </AppButton>
         <span
           v-if="needsTaskForNote"

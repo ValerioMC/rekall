@@ -9,7 +9,7 @@ const routeName = computed(() => (typeof route.name === 'string' ? route.name : 
 </script>
 
 <template>
-  <div class="flex shrink-0 gap-0.5 rounded-card bg-canvas p-0.5" role="group" aria-label="Screen">
+  <nav class="flex shrink-0 self-stretch" aria-label="Screen">
     <template
       v-for="entry in NAV_ENTRIES"
       :key="entry.kind === 'screen' ? entry.screen.to : entry.group.label"
@@ -20,17 +20,13 @@ const routeName = computed(() => (typeof route.name === 'string' ? route.name : 
         :replace="isScreenActive(entry.screen, routeName)"
         :title="entry.screen.hint"
         data-testid="nav-switcher-tab"
-        class="focus-ring flex h-7 items-center justify-center rounded-control px-3 text-small transition-colors"
-        :class="
-          isScreenActive(entry.screen, routeName)
-            ? 'bg-surface-raised text-text shadow-[0_1px_2px_rgb(0_0_0/0.4)]'
-            : 'text-text-subtle hover:text-text'
-        "
+        class="nav-tab focus-ring max-[1099px]:px-2.5"
+        :class="isScreenActive(entry.screen, routeName) && 'nav-tab-current'"
         :aria-current="isScreenActive(entry.screen, routeName) ? 'page' : undefined"
       >
         {{ entry.screen.label }}
       </RouterLink>
       <AppNavGroup v-else :group="entry.group" />
     </template>
-  </div>
+  </nav>
 </template>

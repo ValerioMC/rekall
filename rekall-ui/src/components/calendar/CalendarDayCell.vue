@@ -2,115 +2,103 @@
 import { computed } from 'vue'
 import { formatDuration } from '@/common/format/duration'
 import { identityHue } from '@/common/identity'
+import { dayLoad, projectShares, totalSeconds } from '@/common/calendar/day-shares'
 import type { DaySummaryRow } from '@/common/calendar/day-summary'
 
+/**
+ * One day of the month grid. The head carries the day's total; under it, a load bar whose length
+ * is the day against a working day and whose segments are its projects, so a busy day and what
+ * filled it read before any title does.
+ */
 const props = defineProps<{
   date: Date
   inMonth: boolean
   isToday: boolean
+  isWeekend: boolean
   rows: readonly DaySummaryRow[]
 }>()
 
 defineEmits<{ open: [] }>()
 
 const VISIBLE = 3
-const HEAT_MAX_SECONDS = 4 * 3600
-const HEAT_MAX_ALPHA = 0.16
 
 const visibleRows = computed(() => props.rows.slice(0, VISIBLE))
 const overflow = computed(() => Math.max(0, props.rows.length - VISIBLE))
+const shares = computed(() => projectShares(props.rows))
+const dayTotal = computed(() => totalSeconds(props.rows))
+const load = computed(() => dayLoad(dayTotal.value))
 
-const projectTotals = computed(() => {
-  const totals = new Map<string, number>()
-  for (const row of props.rows) {
-    const key = row.projectId ?? row.taskId
-    totals.set(key, (totals.get(key) ?? 0) + row.totalSeconds)
-  }
-  return [...totals.entries()].map(([id, seconds]) => ({ id, seconds, hue: identityHue(id) }))
+const label = computed(() => {
+  const day = props.date.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })
+  return dayTotal.value ? `${day}, ${formatDuration(dayTotal.value)} tracked` : `${day}, nothing tracked`
 })
 
-const dayTotalSeconds = computed(() => props.rows.reduce((sum, row) => sum + row.totalSeconds, 0))
-
-const dominantId = computed<string | null>(() => {
-  let best: string | null = null
-  let bestSeconds = -1
-  for (const share of projectTotals.value) {
-    if (share.seconds > bestSeconds) {
-      best = share.id
-      bestSeconds = share.seconds
-    }
-  }
-  return best
-})
-
-const heatOpacity = computed(() => Math.min(1, dayTotalSeconds.value / HEAT_MAX_SECONDS) * HEAT_MAX_ALPHA)
-
-function rowKey(row: DaySummaryRow): string {
-  return row.projectId ?? row.taskId
+function rowHue(row: DaySummaryRow): string {
+  return identityHue(row.projectId ?? row.taskId).base
 }
 </script>
 
 <template>
   <button
-    class="focus-ring relative flex min-h-[104px] flex-col items-stretch gap-1 border-b border-r border-border p-1.5 text-left transition-colors hover:bg-surface-raised"
-    :class="inMonth ? 'bg-surface' : 'bg-canvas'"
+    class="calendar-day focus-ring relative flex min-h-[112px] flex-col items-stretch gap-1.5 border-b border-r border-border px-2 pb-2 pt-1.5 text-left transition-colors duration-(--motion-quick) hover:bg-surface-hover"
+    :class="[inMonth ? (isWeekend ? 'bg-surface/60' : 'bg-surface') : 'bg-canvas', isToday && 'calendar-today']"
+    :aria-label="label"
+    :aria-current="isToday ? 'date' : undefined"
     data-testid="calendar-day-cell"
     @click="$emit('open')"
   >
-    <div
-      v-if="dominantId"
-      class="pointer-events-none absolute inset-0"
-      :style="{ backgroundColor: identityHue(dominantId).base, opacity: heatOpacity }"
-      aria-hidden="true"
-    />
-
-    <span class="relative flex items-center justify-end">
+    <span class="flex h-6 items-center gap-2">
       <span
-        class="grid size-6 place-items-center rounded-full text-small tabular-nums"
-        :class="[
-          isToday ? 'bg-accent font-semibold text-accent-ink' : 'text-text-subtle',
-          !inMonth && !isToday ? 'opacity-40' : ''
-        ]"
+        class="grid h-6 min-w-6 place-items-center rounded-control px-1 text-small font-medium tabular-nums"
+        :class="isToday ? 'bg-accent text-accent-ink' : inMonth ? 'text-text-muted' : 'text-text-subtle'"
       >
         {{ date.getDate() }}
       </span>
+      <span v-if="dayTotal" class="ml-auto font-mono text-caption tabular-nums text-text" :class="!inMonth && 'text-text-subtle'">
+        {{ formatDuration(dayTotal) }}
+      </span>
     </span>
 
-    <div v-if="projectTotals.length > 1" class="relative flex h-[3px] w-full overflow-hidden rounded-full bg-border" aria-hidden="true">
-      <span
-        v-for="share in projectTotals"
-        :key="share.id"
-        :style="{ backgroundColor: share.hue.base, flexGrow: share.seconds, flexBasis: '0%' }"
-      />
-    </div>
+    <span v-if="dayTotal" class="flex h-1 w-full overflow-hidden rounded-full bg-border/60" aria-hidden="true">
+      <span class="flex h-full overflow-hidden rounded-full" :style="{ width: `${Math.max(load * 100, 6)}%` }">
+        <span
+          v-for="share in shares"
+          :key="share.id"
+          class="h-full"
+          :style="{ backgroundColor: identityHue(share.id).base, flexGrow: share.seconds, flexBasis: '0%' }"
+        />
+      </span>
+    </span>
 
-    <span class="relative flex min-h-0 flex-1 flex-col gap-1">
+    <span class="flex min-h-0 flex-1 flex-col gap-0.5" :class="!inMonth && 'opacity-60'">
       <span
         v-for="row in visibleRows"
         :key="row.taskId"
-        class="identity-rail flex items-center gap-1 rounded-control px-1.5 py-[3px]"
-        :class="row.isRunning ? 'bg-accent-soft' : 'bg-surface-raised'"
-        :style="{ '--identity-color': identityHue(rowKey(row)).base }"
+        class="flex items-center gap-1.5 rounded-key px-1 py-px"
+        :class="row.isRunning && 'bg-accent-soft'"
       >
         <span
-          v-if="row.isRunning"
-          class="size-1 shrink-0 animate-pulse rounded-full bg-accent"
+          class="size-1.5 shrink-0 rounded-full"
+          :class="row.isRunning && 'animate-pulse'"
+          :style="{ backgroundColor: row.isRunning ? 'var(--color-accent)' : rowHue(row) }"
           aria-hidden="true"
         />
-        <span
-          class="min-w-0 flex-1 truncate text-micro"
-          :class="row.isRunning ? 'text-accent' : 'text-text-muted'"
-        >
+        <span class="min-w-0 flex-1 truncate text-caption" :class="row.isRunning ? 'text-accent' : 'text-text-muted'">
           {{ row.taskTitle }}
         </span>
-        <span class="shrink-0 font-mono text-micro text-text-subtle">
+        <span class="shrink-0 font-mono text-micro tabular-nums text-text-subtle max-[1279px]:hidden">
           {{ formatDuration(row.totalSeconds) }}
         </span>
       </span>
 
-      <span v-if="overflow > 0" class="px-1.5 text-micro text-text-subtle">
-        +{{ overflow }} more
-      </span>
+      <span v-if="overflow > 0" class="mt-auto px-1 text-micro text-text-subtle">+{{ overflow }} more</span>
     </span>
   </button>
 </template>
+
+<style scoped>
+/* Today is held by a ring inside its own borders, so the grid's lines never shift around it. */
+.calendar-today {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 55%, transparent);
+}
+</style>

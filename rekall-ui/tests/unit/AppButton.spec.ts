@@ -19,7 +19,7 @@ describe('AppButton', () => {
     expect(wrapper.find('.animate-spin').exists()).toBe(true)
   })
 
-  it('draws every solid variant as a square keycap, with no outline, and a ghost flat at rest', () => {
+  it('draws every solid variant as a control-cornered key, with no outline, and a ghost flat at rest', () => {
     const primary = mount(AppButton, { props: { variant: 'primary' } })
     const secondary = mount(AppButton)
     const danger = mount(AppButton, { props: { variant: 'danger' } })
@@ -30,7 +30,7 @@ describe('AppButton', () => {
     expect(danger.classes()).toContain('key-danger')
     expect(ghost.classes()).not.toContain('key-slate')
     for (const button of [primary, secondary, danger, ghost]) {
-      expect(button.classes()).toContain('rounded-key')
+      expect(button.classes()).toContain('rounded-control')
       expect(button.classes()).toContain('border-0')
     }
   })

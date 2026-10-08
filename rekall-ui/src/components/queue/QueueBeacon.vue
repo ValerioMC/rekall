@@ -70,8 +70,14 @@ const label = computed(() => {
 <template>
   <button
     type="button"
-    class="focus-ring group flex h-8 max-w-[340px] shrink-0 items-center gap-1.5 rounded-key px-1.5 text-small"
-    :class="queue.state === 'HOLDING' ? 'key-warn' : queue.state === 'RUNNING' ? 'key-slate' : 'key-quiet'"
+    class="status-segment focus-ring group max-w-[340px] shrink-0 pl-1.5"
+    :class="
+      queue.state === 'HOLDING'
+        ? 'bg-warn-soft text-warn'
+        : queue.state === 'RUNNING'
+          ? 'text-text'
+          : 'text-text-muted hover:text-text'
+    "
     :aria-label="label"
     :title="label"
     aria-haspopup="dialog"

@@ -2,32 +2,26 @@
 import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import NoteAssignmentDialog from '@/components/console/NoteAssignmentDialog.vue'
-import NotePlacementRow from '@/components/console/NotePlacementRow.vue'
+import NotePlacementCard from '@/components/console/NotePlacementCard.vue'
+import AppButton from '@/components/ui/AppButton.vue'
+import { useToastStore } from '@/stores/toast.store'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
-import { identityHue } from '@/common/identity'
 import { groupByProject } from '@/common/catalog/task-search'
 import { scopeName } from '@/model/note-scope'
 import type { Task } from '@/model/catalog'
 import type { TaskId } from '@/model/branded'
 
 /**
- * The middle column while browsing notes: where the selected note is, and the way to put it
- * somewhere else. It replaces the task's own column there, so picking a note never drags a task
- * into view. The list is the note's tasks grouped by project; each row carries its own remove
- * control, and nothing else on the row takes the note anywhere. Putting the note on another task
- * goes through the same picker the task side uses, `NoteAssignmentDialog`, opened from the
- * button at the top: one place to learn, whichever side the note is reached from.
- * Removals go through `store.detachNoteFromTask`. A note taken off its last task stays in its
- * scope, so no removal here ever deletes it.
+ * The middle column while browsing notes: the tasks the selected note is on, one card per
+ * project, so picking a note never drags a task into view. Detaching is one click with an Undo
+ * toast, since the note stays in its scope. Placing it elsewhere opens `NoteAssignmentDialog`,
+ * the task side's own picker.
  */
 const store = useConsoleStore()
 const { selectedDocument, tasks, companies, projects } = storeToRefs(store)
 const { run } = useAsyncAction()
-
-interface PlacementRow {
-  readonly task: Task
-}
+const toast = useToastStore()
 
 const busy = ref<TaskId | null>(null)
 const showDone = ref(false)
@@ -59,35 +53,30 @@ const liveAttached = computed(() => attachedTasks.value.filter((task) => task.st
 const doneAttached = computed(() => attachedTasks.value.filter((task) => task.status === 'DONE'))
 
 /** The tasks it is on; finished ones only when asked for, or when there is nothing else to show. */
-const rows = computed<PlacementRow[]>(() => {
-  const shown = showDone.value || !liveAttached.value.length ? attachedTasks.value : liveAttached.value
-  return shown.map((task) => ({ task }))
-})
+const shownTasks = computed(() =>
+  showDone.value || !liveAttached.value.length ? attachedTasks.value : liveAttached.value
+)
 
-const groups = computed(() => groupByProject(rows.value, (row) => row.task))
-
-/** The flat order the groups render in, which is what a row's index refers to. */
-const order = computed(() => groups.value.flatMap((group) => group.rows))
+const groups = computed(() => groupByProject(shownTasks.value, (task) => task))
 
 watch(selectedDocument, () => {
   showDone.value = false
 })
 
-function orderIndex(taskId: TaskId): number {
-  return order.value.findIndex((row) => row.task.id === taskId)
-}
-
-/** The row's remove control: the note comes off this task at once and stays in its scope. */
-async function remove(row: PlacementRow): Promise<void> {
+/** The note comes off this task at once; the toast's Undo puts it back. */
+async function detach(task: Task): Promise<void> {
   if (busy.value !== null) return
   const document = selectedDocument.value
   if (!document) return
-  busy.value = row.task.id
+  busy.value = task.id
   try {
-    await run(
-      () => store.detachNoteFromTask(document.id, row.task.id),
-      `Taken off ${row.task.projectLabel}/${row.task.label}.`
-    )
+    const detached = await run(() => store.detachNoteFromTask(document.id, task.id).then(() => true))
+    if (detached) {
+      toast.notify(`Detached from ${task.projectLabel}/${task.label}.`, {
+        label: 'Undo',
+        run: () => void run(() => store.attachNoteToTask(document.id, task.id))
+      })
+    }
   } finally {
     busy.value = null
   }
@@ -116,6 +105,19 @@ function openTask(task: Task): void {
           Lives in {{ scopeLabel }}
         </span>
       </span>
+      <AppButton
+        v-if="selectedDocument && attachedIds.size"
+        variant="quiet"
+        size="sm"
+        title="Choose the tasks this note is on"
+        data-testid="note-placements-open"
+        @click="isAssigning = true"
+      >
+        <svg class="size-3" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+          <path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+        </svg>
+        Put it on a task
+      </AppButton>
     </header>
 
     <div v-if="!selectedDocument" class="px-4 py-4 text-small leading-relaxed text-text-subtle">
@@ -127,114 +129,63 @@ function openTask(task: Task): void {
       </p>
     </div>
 
-    <template v-else>
-      <div class="shrink-0 border-b border-border px-2.5 py-2">
-        <button
-          type="button"
-          class="place-opener focus-ring group/opener flex h-9 w-full items-center gap-2.5 rounded-control border border-dashed border-border-strong bg-canvas pl-2.5 pr-2 text-left text-small text-text-muted transition-colors hover:border-solid hover:border-accent hover:bg-accent-soft hover:text-text"
-          title="Choose the tasks this note is on"
-          data-testid="note-placements-open"
-          @click="isAssigning = true"
-        >
-          <svg
-            class="size-4 shrink-0 text-text-subtle transition-colors group-hover/opener:text-accent"
-            viewBox="0 0 16 16"
-            fill="none"
-            aria-hidden="true"
-          >
-            <rect x="1" y="2.5" width="3.4" height="11" rx="1" stroke="currentColor" stroke-width="1.2" />
-            <rect x="6.3" y="2.5" width="3.4" height="11" rx="1" stroke="currentColor" stroke-width="1.2" />
-            <rect x="11.6" y="2.5" width="3.4" height="11" rx="1" stroke="currentColor" stroke-width="1.2" />
-            <rect x="12.5" y="5" width="1.6" height="2.4" rx="0.5" fill="currentColor" />
-          </svg>
-          <span class="min-w-0 flex-1 truncate">Put it on a task</span>
-          <svg
-            class="size-3 shrink-0 text-text-subtle transition-colors group-hover/opener:text-accent"
-            viewBox="0 0 12 12"
-            fill="none"
-            aria-hidden="true"
-          >
-            <path d="M4.5 3l3 3-3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </button>
-      </div>
-
-      <div class="min-h-0 flex-1 overflow-y-auto py-1.5" data-testid="note-placements-list">
-        <div
-          v-for="group in groups"
-          :key="group.projectId"
-          class="placement-group mx-2 mb-2"
-          :style="{ '--identity-color': identityHue(group.projectId).base }"
-        >
-          <div class="flex items-baseline gap-1.5 px-2 pb-1 pt-1.5">
-            <span class="truncate text-caption font-medium text-text-muted">{{ group.projectTitle }}</span>
-            <span v-if="manyCompanies" class="truncate text-micro text-text-subtle">
-              {{ group.companyName }}
-            </span>
-          </div>
-
-          <NotePlacementRow
-            v-for="row in group.rows"
-            :key="row.task.id"
-            :task="row.task"
-            attached
-            :busy="busy === row.task.id"
-            :walk-index="orderIndex(row.task.id)"
-            openable
-            removable
-            @remove="remove(row)"
-            @open="openTask(row.task)"
-          />
-        </div>
-
-        <button
-          v-if="doneAttached.length && liveAttached.length"
-          type="button"
-          class="focus-ring mx-4 mt-1 inline-flex items-center gap-1.5 rounded-full border border-border-strong bg-surface-raised py-0.5 pl-2 pr-2.5 font-mono text-caption text-text-muted transition-colors hover:text-text"
-          :aria-expanded="showDone"
-          data-testid="note-placements-done-toggle"
-          @click="showDone = !showDone"
-        >
-          <svg
-            class="size-2.5 transition-transform"
-            :class="showDone && 'rotate-90'"
-            viewBox="0 0 24 24"
-            fill="none"
-            aria-hidden="true"
-          >
+    <div v-else-if="attachedIds.size === 0" class="p-3">
+      <div class="flex flex-col items-center rounded-card border border-dashed border-border-strong px-5 py-8 text-center">
+        <span class="mb-3 grid size-10 place-items-center rounded-card bg-surface-raised text-text-subtle">
+          <svg class="size-5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
             <path
-              d="M9 6l6 6-6 6"
+              d="M6.5 4.5l1-1a2.83 2.83 0 0 1 4 4l-1 1M9.5 11.5l-1 1a2.83 2.83 0 0 1-4-4l1-1M3 3l1.5 1.5M13 13l-1.5-1.5"
               stroke="currentColor"
-              stroke-width="2.4"
+              stroke-width="1.3"
               stroke-linecap="round"
               stroke-linejoin="round"
             />
           </svg>
-          {{ doneAttached.length }} done
-        </button>
+        </span>
+        <p class="text-body font-semibold text-text">On no task yet</p>
+        <p class="mt-1 text-small leading-relaxed text-text-subtle">
+          It waits in {{ scopeLabel }} until it is put on one. Sessions load it from a task.
+        </p>
+        <AppButton class="mt-4" variant="primary" size="sm" data-testid="note-placements-open" @click="isAssigning = true">
+          Put it on a task
+        </AppButton>
       </div>
+    </div>
 
-      <div class="shrink-0 border-t border-border bg-canvas px-3.5 py-2 text-micro text-text-subtle">
-        <template v-if="attachedIds.size === 0">On no task: it waits in {{ scopeLabel }} until it is put on one.</template>
-        <template v-else>The cross on a row takes the note off that task. It stays in {{ scopeLabel }}.</template>
-      </div>
-    </template>
+    <div v-else class="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto p-2.5" data-testid="note-placements-list">
+      <NotePlacementCard
+        v-for="group in groups"
+        :key="group.projectId"
+        :group="group"
+        :show-company="manyCompanies"
+        :busy-task-id="busy"
+        @detach="detach"
+        @open="openTask"
+      />
+
+      <button
+        v-if="doneAttached.length && liveAttached.length"
+        type="button"
+        class="focus-ring inline-flex items-center gap-1.5 self-start rounded-full border border-border-strong bg-surface-raised py-0.5 pl-2 pr-2.5 font-mono text-caption text-text-muted transition-colors hover:text-text"
+        :aria-expanded="showDone"
+        data-testid="note-placements-done-toggle"
+        @click="showDone = !showDone"
+      >
+        <svg
+          class="size-2.5 transition-transform"
+          :class="showDone && 'rotate-90'"
+          viewBox="0 0 24 24"
+          fill="none"
+          aria-hidden="true"
+        >
+          <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        {{ doneAttached.length }} done
+      </button>
+    </div>
 
     <Transition name="dialog">
       <NoteAssignmentDialog v-if="isAssigning" @close="isAssigning = false" />
     </Transition>
-
   </section>
 </template>
-
-<style scoped>
-.placement-group {
-  border-left: 2px solid var(--identity-color, var(--color-border-strong));
-  padding-left: 2px;
-}
-
-/* The opener shows a slice of the picker it opens: the three columns, one task ticked. */
-.place-opener:focus-visible {
-  border-style: solid;
-}
-</style>

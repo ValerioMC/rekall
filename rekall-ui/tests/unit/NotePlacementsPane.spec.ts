@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
+import { useToastStore } from '@/stores/toast.store'
 import NotePlacementsPane from '@/components/console/NotePlacementsPane.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import type { Company, RekallDocument, Task, TaskRef } from '@/model/catalog'
@@ -165,17 +166,22 @@ describe('NotePlacementsPane', () => {
     wrapper.unmount()
   })
 
-  /** Arming the control says on the row what a click will do, before it does it. */
-  it('colours the row it is about to empty while the remove control is under the pointer', async () => {
-    seed(note([builder, wiring]))
+  /** Detaching is one click, so the toast it raises is the way back. */
+  it('offers an Undo that puts the note back on the task it came off', async () => {
+    const store = seed(note([builder, wiring]))
+    const toast = useToastStore()
     const wrapper = render()
 
-    const remove = wrapper.find('[data-testid="note-placement-remove"]')
-    expect(remove.text()).toContain('Take off')
-    await remove.trigger('mouseenter')
-    expect(wrapper.find('[data-armed="remove"]').exists()).toBe(true)
-    await remove.trigger('mouseleave')
-    expect(wrapper.find('[data-armed]').exists()).toBe(false)
+    await wrapper.findAll('[data-testid="note-placement-remove"]')[0]!.trigger('click')
+    await flushPromises()
+
+    const announced = toast.toasts.at(-1)
+    expect(announced?.message).toContain('Detached from')
+    expect(announced?.action?.label).toBe('Undo')
+
+    toast.act(announced!.id)
+    await flushPromises()
+    expect(store.attachNoteToTask).toHaveBeenCalledWith('d1', wiring)
     wrapper.unmount()
   })
 
@@ -219,7 +225,8 @@ describe('NotePlacementsPane', () => {
     seed(note([]))
     const wrapper = render()
 
-    expect(wrapper.text()).toContain('On no task: it waits in Global until it is put on one.')
+    expect(wrapper.text()).toContain('On no task yet')
+    expect(wrapper.text()).toContain('It waits in Global until it is put on one.')
     wrapper.unmount()
   })
 

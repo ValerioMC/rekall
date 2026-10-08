@@ -135,8 +135,12 @@
   /* One light source, top-left, everywhere: a lit upper lip, a dark lower lip, a contact shadow
      and a soft cast one. Raised things carry --shadow-raised, sunk ones --shadow-well. */
   --shadow-raised:
-    inset 0 1px 0 rgb(255 255 255 / 0.075), inset 0 -1px 0 rgb(0 0 0 / 0.38),
-    0 1px 1px rgb(0 0 0 / 0.55), 0 8px 16px -8px rgb(0 0 0 / 0.65);
+    inset 0 1px 0 rgb(255 255 255 / 0.05), 0 1px 2px rgb(0 0 0 / 0.35),
+    0 6px 12px -8px rgb(0 0 0 / 0.45);
+  /* A key's relief: a faint lit lip and a contact shadow, nothing cast. Enough to read as
+     pressable beside the flat status capsule without standing out of the bar. */
+  --shadow-key: inset 0 1px 0 rgb(255 255 255 / 0.07), 0 1px 1px rgb(0 0 0 / 0.35);
+  --shadow-key-pressed: inset 0 1px 2px rgb(0 0 0 / 0.35);
   --shadow-well:
     inset 0 2px 4px rgb(0 0 0 / 0.5), inset 0 -1px 0 rgb(255 255 255 / 0.04),
     0 1px 0 rgb(255 255 255 / 0.035);
@@ -147,7 +151,7 @@
    */
   --spacing-row: 36px;
   --spacing-control: 36px;
-  --spacing-header: 60px;
+  --spacing-header: 48px;
 
   /* The two fixed panes. The third takes what is left, because the note is the product. The
      navigator carries a two-line row with a trace and a status pip, so it is given the width
@@ -456,20 +460,19 @@
  */
 
 /*
- * Keycaps: the same two materials as a flat face, square corners, lit from above. Depth is
- * carried by the face itself: a bright top lip, a darker underside inside the edge and a tight
- * neutral shadow. Nothing extrudes below the button and nothing takes the accent colour, so
- * it reads as a raised plate, never as a button in perspective. Pressing flattens the lighting.
+ * Keycaps: the icon's two materials as a nearly flat face with a hairline edge. --shadow-key
+ * gives the only relief, a faint lip and a contact shadow, so keys sit in the same plane as
+ * the header's capsules and fields. Pressing sinks the face.
  */
 @utility key-gold {
   color: var(--color-accent-ink);
   border: 0;
-  background: linear-gradient(180deg, var(--color-accent-strong) 0%, var(--color-accent) 100%);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.45),
-    inset 0 -1px 0 rgb(0 0 0 / 0.22),
-    0 1px 2px rgb(0 0 0 / 0.55),
-    0 4px 8px -4px rgb(0 0 0 / 0.5);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-accent-strong) 55%, var(--color-accent)) 0%,
+    var(--color-accent) 100%
+  );
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.25), 0 1px 1px rgb(0 0 0 / 0.35);
   transition:
     filter var(--motion-quick) ease,
     box-shadow var(--motion-quick) ease,
@@ -482,51 +485,39 @@
   &:active:not(:disabled) {
     transform: translateY(1px);
     filter: brightness(0.96);
-    box-shadow:
-      inset 0 1px 2px rgb(0 0 0 / 0.3),
-      0 1px 1px rgb(0 0 0 / 0.4);
+    box-shadow: var(--shadow-key-pressed);
   }
 }
 
 @utility key-slate {
   color: var(--color-text);
   border: 0;
-  background: linear-gradient(180deg, #2f384b 0%, #252d3d 100%);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.12),
-    inset 0 -1px 0 rgb(0 0 0 / 0.3),
-    0 1px 2px rgb(0 0 0 / 0.55),
-    0 4px 8px -4px rgb(0 0 0 / 0.5);
+  background: linear-gradient(180deg, #2a3243 0%, #252c3b 100%);
+  box-shadow: inset 0 0 0 1px var(--color-border-strong), var(--shadow-key);
   transition:
     background var(--motion-quick) ease,
     box-shadow var(--motion-quick) ease,
     transform var(--motion-press) ease;
 
   &:hover:not(:disabled) {
-    background: linear-gradient(180deg, #37425a 0%, #2b3447 100%);
+    background: linear-gradient(180deg, #313a4e 0%, #2a3243 100%);
   }
 
   &:active:not(:disabled) {
     transform: translateY(1px);
-    box-shadow:
-      inset 0 1px 2px rgb(0 0 0 / 0.4),
-      0 1px 1px rgb(0 0 0 / 0.4);
+    box-shadow: inset 0 0 0 1px var(--color-border-strong), var(--shadow-key-pressed);
   }
 }
 
 /*
- * Quiet keycap: {@link key-slate} for toolbar buttons that sit flat until they are usable.
- * Square corners, a lit lip and a neutral shadow; no outline, no extruded edge.
+ * Quiet keycap: {@link key-slate} for toolbar buttons, one step back: muted label, the canvas's
+ * own surface and a hairline, so a row of them reads as a toolbar rather than a keyboard.
  */
 @utility key-quiet {
   color: var(--color-text-muted);
   border: 0;
-  background: linear-gradient(180deg, #2a3243 0%, #222939 100%);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.1),
-    inset 0 -1px 0 rgb(0 0 0 / 0.28),
-    0 1px 2px rgb(0 0 0 / 0.5),
-    0 3px 6px -3px rgb(0 0 0 / 0.45);
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-border), var(--shadow-key);
   transition:
     background var(--motion-quick) ease,
     color var(--motion-quick) ease,
@@ -535,14 +526,12 @@
 
   &:hover:not(:disabled) {
     color: var(--color-text);
-    background: linear-gradient(180deg, #343e53 0%, #2a3347 100%);
+    background: var(--color-surface-hover);
   }
 
   &:active:not(:disabled) {
     transform: translateY(1px);
-    box-shadow:
-      inset 0 1px 2px rgb(0 0 0 / 0.4),
-      0 1px 1px rgb(0 0 0 / 0.35);
+    box-shadow: inset 0 0 0 1px var(--color-border), var(--shadow-key-pressed);
   }
 }
 
@@ -739,11 +728,9 @@
     radial-gradient(150px 48px at 10px 50%, var(--select-tint-soft), transparent 72%),
     linear-gradient(180deg, #252c3b, var(--color-surface-raised));
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.09),
-    inset 0 -1px 0 rgb(0 0 0 / 0.35),
-    0 1px 1px rgb(0 0 0 / 0.5),
-    0 12px 22px -12px rgb(0 0 0 / 0.75),
-    0 0 0 1px color-mix(in srgb, var(--select-tint) 22%, transparent);
+    inset 0 1px 0 rgb(255 255 255 / 0.06),
+    0 1px 2px rgb(0 0 0 / 0.35),
+    0 0 0 1px color-mix(in srgb, var(--select-tint) 28%, transparent);
 
   &::before {
     content: '';
@@ -777,10 +764,8 @@
     radial-gradient(170px 66px at 16px -6px, var(--color-accent-soft), transparent 70%),
     linear-gradient(180deg, #252c3b, var(--color-surface-raised));
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.09),
-    inset 0 -1px 0 rgb(0 0 0 / 0.35),
-    0 1px 1px rgb(0 0 0 / 0.4),
-    0 14px 24px -16px rgb(0 0 0 / 0.7),
+    inset 0 1px 0 rgb(255 255 255 / 0.06),
+    0 1px 2px rgb(0 0 0 / 0.35),
     0 0 0 1px color-mix(in srgb, var(--color-accent) 14%, transparent);
 }
 
@@ -1126,6 +1111,99 @@
 
 @utility dock-segment-session {
   --dock-tint: var(--color-anchor);
+}
+
+/*
+ * A screen tab in the header: plain text on the bar, and an amber rule along the bar's bottom
+ * edge under the screen you are on. Amber is "where you are", as on the navigator's selection.
+ */
+@utility nav-tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  padding: 0 12px;
+  font-size: var(--text-small);
+  color: var(--color-text-subtle);
+  transition: color var(--motion-quick) ease;
+
+  &:hover {
+    color: var(--color-text);
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: -1px;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    background: var(--color-accent);
+    transform: scaleX(0);
+    transition: transform var(--motion-move) ease;
+  }
+}
+
+@utility nav-tab-current {
+  color: var(--color-text);
+
+  &::after {
+    transform: scaleX(1);
+  }
+}
+
+/*
+ * A group of header controls: one 36px well with a hairline, the same shape as the `/rk` field
+ * beside it, so the bar reads as a row of matching pieces whatever sits inside each one.
+ */
+@utility header-capsule {
+  display: flex;
+  height: 36px;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 2px;
+  padding: 0 4px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-canvas);
+}
+
+/* One reading inside the header's status capsule. The component sets the text colour, which is state. */
+@utility status-segment {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--radius-control);
+  font-size: var(--text-small);
+  transition:
+    background-color var(--motion-quick) ease,
+    color var(--motion-quick) ease;
+
+  &:hover:not(:disabled) {
+    background: var(--color-surface-hover);
+  }
+}
+
+/* An icon key inside a header capsule: a segment with no label, square on the 28px row. */
+@utility header-key {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-control);
+  color: var(--color-text-muted);
+  transition:
+    background-color var(--motion-quick) ease,
+    color var(--motion-quick) ease;
+
+  &:hover:not(:disabled) {
+    background: var(--color-surface-hover);
+    color: var(--color-text);
+  }
 }
 
 /* The seam between two segments: a hairline that stops short of the capsule's curve. */

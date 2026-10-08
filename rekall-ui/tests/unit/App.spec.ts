@@ -326,7 +326,7 @@ describe('the console', () => {
   it('opens on the resume screen rather than an empty page', async () => {
     const wrapper = await mountConsole()
 
-    expect(wrapper.text()).toContain('Pick up where you left off')
+    expect(wrapper.text()).toContain('Continue writing')
     expect(wrapper.findAll('[data-testid="resume-row"]')).toHaveLength(1)
   })
 

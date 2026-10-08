@@ -201,7 +201,7 @@ function close(): void {
   >
     <button
       type="button"
-      class="key-slate focus-ring group flex h-8 items-center gap-2 rounded-key px-2.5 text-small"
+      class="status-segment focus-ring group text-text-muted hover:text-text"
       :aria-label="triggerLabel"
       :aria-expanded="open"
       :aria-busy="reading"
@@ -249,7 +249,7 @@ function close(): void {
         <span class="font-mono tabular-nums" :class="TEXT[severity]">
           {{ percentLabel(session) }}
         </span>
-        <span class="hidden font-mono text-caption text-text-subtle min-[1280px]:inline">
+        <span class="hidden font-mono text-caption text-text-subtle min-[1600px]:inline">
           {{ formatResetIn(session.resetsAt, now) }}
         </span>
       </template>

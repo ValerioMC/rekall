@@ -39,7 +39,7 @@ const SIZES: Readonly<Record<Size, string>> = {
 
 const classes = computed(() => [
   'focus-ring inline-flex items-center justify-center',
-  'rounded-key border-0 select-none whitespace-nowrap',
+  'rounded-control border-0 select-none whitespace-nowrap',
   'disabled:opacity-40 disabled:cursor-not-allowed disabled:active:translate-y-0',
   props.pressed ? 'key-lit' : VARIANTS[props.variant],
   SIZES[props.size]

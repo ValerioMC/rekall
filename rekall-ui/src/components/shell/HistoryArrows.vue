@@ -39,7 +39,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <template>
-  <div class="rocker flex shrink-0 items-center rounded-control bg-canvas p-0.5" role="group" aria-label="History">
+  <div class="rocker flex h-8 shrink-0 items-center rounded-card border border-border bg-canvas px-1" role="group" aria-label="History">
     <button
       type="button"
       class="rocker-key focus-ring"
@@ -88,8 +88,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 .rocker-key {
   display: grid;
   place-items: center;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border-radius: 5px;
   color: var(--color-text-muted);
   transition:
