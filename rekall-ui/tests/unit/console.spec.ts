@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { updateProject } from '@/api/catalog.api'
+import { removeCompanyLogoImage, updateProject, uploadCompanyLogoImage } from '@/api/catalog.api'
 import { createDocument, fetchAllDocuments, updateDocument } from '@/api/documents.api'
 import { fetchTimeEntries, startTimeEntry } from '@/api/time-entries.api'
 import { setActivePinia, createPinia } from 'pinia'
@@ -25,8 +25,8 @@ const acme = 'c1' as CompanyId
 const globex = 'c2' as CompanyId
 
 const companies: Company[] = [
-  { id: acme, name: 'acme', description: null, projectCount: 1, taskCount: 2, updatedAt: '2026-08-12T10:00:00Z' },
-  { id: globex, name: 'globex', description: null, projectCount: 1, taskCount: 1, updatedAt: '2026-08-12T10:00:00Z' }
+  { id: acme, name: 'acme', description: null, logoImageVersion: null, projectCount: 1, taskCount: 2, updatedAt: '2026-08-12T10:00:00Z' },
+  { id: globex, name: 'globex', description: null, logoImageVersion: null, projectCount: 1, taskCount: 1, updatedAt: '2026-08-12T10:00:00Z' }
 ]
 
 const vega = 'p1' as ProjectId
@@ -243,6 +243,8 @@ vi.mock('@/api/catalog.api', () => ({
   createCompany: vi.fn(),
   updateCompany: vi.fn(),
   deleteCompany: vi.fn(),
+  uploadCompanyLogoImage: vi.fn(),
+  removeCompanyLogoImage: vi.fn(),
   fetchTasks: vi.fn(async () => tasks),
   fetchTags: vi.fn(async () => []),
   createTag: vi.fn(),
@@ -1129,6 +1131,26 @@ describe('console store', () => {
       await store.toggleStep('s2' as TaskStepId)
 
       expect(fetchTimeEntries).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('company logo', () => {
+    it('takes the uploaded company as stored, so the picker shows the new version', async () => {
+      vi.mocked(uploadCompanyLogoImage).mockResolvedValue({ ...companies[0]!, logoImageVersion: 'v2' })
+
+      await store.setCompanyLogoImage(acme, new File(['x'], 'logo.png', { type: 'image/png' }))
+
+      expect(store.companies.find((company) => company.id === acme)?.logoImageVersion).toBe('v2')
+    })
+
+    it('drops the version once the logo is removed', async () => {
+      store.companies = store.companies.map((company) => ({ ...company, logoImageVersion: 'v1' }))
+
+      await store.setCompanyLogoImage(acme, null)
+
+      expect(removeCompanyLogoImage).toHaveBeenCalledWith(acme)
+      expect(store.companies.find((company) => company.id === acme)?.logoImageVersion).toBeNull()
+      expect(store.companies.find((company) => company.id === globex)?.logoImageVersion).toBe('v1')
     })
   })
 })

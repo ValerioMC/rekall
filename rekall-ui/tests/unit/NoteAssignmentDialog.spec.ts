@@ -15,8 +15,8 @@ const vforge = 'c1' as CompanyId
 const northwind = 'c2' as CompanyId
 
 const companies: Company[] = [
-  { id: vforge, name: 'vforge', description: null, projectCount: 2, taskCount: 5, updatedAt: '2026-09-01T10:00:00Z' },
-  { id: northwind, name: 'northwind', description: null, projectCount: 1, taskCount: 1, updatedAt: '2026-09-01T10:00:00Z' }
+  { id: vforge, name: 'vforge', description: null, logoImageVersion: null, projectCount: 2, taskCount: 5, updatedAt: '2026-09-01T10:00:00Z' },
+  { id: northwind, name: 'northwind', description: null, logoImageVersion: null, projectCount: 1, taskCount: 1, updatedAt: '2026-09-01T10:00:00Z' }
 ]
 
 const rekall = 'p1' as ProjectId

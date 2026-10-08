@@ -23,10 +23,11 @@ pub struct Snapshot {
     documents_per_task: HashMap<Id, usize>,
     tasks_per_project: HashMap<Id, usize>,
     icon_image_versions: HashMap<Id, Instant>,
+    logo_image_versions: HashMap<Id, Instant>,
 }
 
 impl Snapshot {
-    /// Every company and project, with a task count per project and each project's icon version:
+    /// Every company and project, with a task count per project and each icon and logo version:
     /// what the company and project lists answer from.
     pub async fn of_catalog(db: &impl ConnectionTrait) -> Result<Self> {
         Ok(Self {
@@ -34,6 +35,7 @@ impl Snapshot {
             projects: Project::find().all(db).await?.into_iter().map(|p| (p.id, p)).collect(),
             tasks_per_project: count_by(db, Task::find(), task::Column::ProjectId).await?,
             icon_image_versions: repo::project_icon_image::find_all_versions(db).await?.into_iter().collect(),
+            logo_image_versions: repo::company_logo_image::find_all_versions(db).await?.into_iter().collect(),
             ..Self::default()
         })
     }
@@ -134,7 +136,7 @@ impl Snapshot {
     pub fn company_response(&self, company: &company::Model) -> CompanyResponse {
         let projects: Vec<&project::Model> = self.projects.values().filter(|p| p.company_id == company.id).collect();
         let tasks = projects.iter().map(|p| self.tasks_per_project.get(&p.id).copied().unwrap_or(0)).sum();
-        CompanyResponse::of(company, projects.len(), tasks)
+        CompanyResponse::of(company, projects.len(), tasks, self.logo_image_versions.get(&company.id).copied())
     }
 
     pub fn task_ref(&self, task: &task::Model) -> Result<TaskRef> {

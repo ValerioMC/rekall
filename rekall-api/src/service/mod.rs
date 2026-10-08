@@ -1,6 +1,7 @@
 //! The console-only services: they write the catalog, delete diagrams or read the disk, so they
 //! live here and not in `rekall-service`, out of `rekall-mcp`'s reach.
 
+mod company_logo_service;
 mod company_service;
 mod diagram_catalog_service;
 mod directory_listing_service;
@@ -16,6 +17,7 @@ mod source_excerpt_service;
 mod tag_service;
 mod task_service;
 
+pub use company_logo_service::CompanyLogoService;
 pub use company_service::CompanyService;
 pub use diagram_catalog_service::DiagramCatalogService;
 pub use directory_listing_service::{DirectoryListingService, ENTRY_LIMIT};

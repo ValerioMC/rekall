@@ -1,5 +1,6 @@
-//! A project's uploaded icon: stored as one normalised square, served at the exact size a spot on
-//! screen asks for, and announced on the project by a version that changes with every upload.
+//! A project's uploaded icon and a company's uploaded logo: stored as one normalised square, served
+//! at the exact size a spot on screen asks for, and announced on the record by a version that
+//! changes with every upload.
 
 mod support;
 
@@ -80,4 +81,26 @@ async fn deleting_a_project_deletes_its_picture() {
     app.delete(&format!("/api/projects/{project_id}")).await;
 
     assert_eq!(app.count("SELECT COUNT(*) FROM project_icon_image", vec![]).await, 0);
+}
+
+#[tokio::test]
+async fn a_company_logo_is_served_at_the_size_asked_and_refused_when_it_is_not_an_image() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let logo_url = |company: &str| app.url(&format!("/api/companies/{company}/logo-image"));
+
+    let stored = app.client.put(logo_url(&acme)).body(jpeg(300, 200)).send().await.unwrap();
+    assert_eq!(stored.status(), 200);
+    let company: serde_json::Value = stored.json().await.unwrap();
+    assert!(company["logoImageVersion"].is_string(), "{company}");
+    let rendered = app.client.get(format!("{}?size=40", logo_url(&acme))).send().await.unwrap();
+    assert_eq!(rendered.headers()["content-type"], "image/png");
+    assert_eq!(image::load_from_memory(&rendered.bytes().await.unwrap()).unwrap().width(), 40);
+
+    assert_eq!(app.client.put(logo_url(&acme)).body(b"not a picture".to_vec()).send().await.unwrap().status(), 400);
+    let unknown = "00000000-0000-4000-8000-000000000000";
+    assert_eq!(app.client.put(logo_url(unknown)).body(jpeg(32, 32)).send().await.unwrap().status(), 404);
+
+    assert_eq!(app.delete(&format!("/api/companies/{acme}/logo-image")).await.status, 204);
+    assert!(app.get("/api/companies").await.list()[0]["logoImageVersion"].is_null());
 }

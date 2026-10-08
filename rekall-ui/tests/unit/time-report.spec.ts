@@ -18,8 +18,8 @@ const retry = 't2' as TaskId
 const signal = 't3' as TaskId
 
 const companies: Company[] = [
-  { id: acme, name: 'acme', description: null, projectCount: 1, taskCount: 2, updatedAt: '' },
-  { id: globex, name: 'globex', description: null, projectCount: 1, taskCount: 1, updatedAt: '' }
+  { id: acme, name: 'acme', description: null, logoImageVersion: null, projectCount: 1, taskCount: 2, updatedAt: '' },
+  { id: globex, name: 'globex', description: null, logoImageVersion: null, projectCount: 1, taskCount: 1, updatedAt: '' }
 ]
 
 function task(id: TaskId, title: string, projectId: ProjectId, companyName: string): Task {

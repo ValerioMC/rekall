@@ -28,6 +28,14 @@ impl CompanyService {
         })
     }
 
+    pub async fn get(&self, id: Id) -> Result<CompanyResponse> {
+        in_read!(&self.ctx, |tx| {
+            let company = repo::company::require(tx.db(), id).await?;
+            let snapshot = Snapshot::of_catalog(tx.db()).await?;
+            Ok::<_, RekallError>(snapshot.company_response(&company))
+        })
+    }
+
     pub async fn create(&self, request: CompanyRequest) -> Result<CompanyResponse> {
         in_write!(&self.ctx, |tx| {
             let now = self.ctx.now();
@@ -41,7 +49,7 @@ impl CompanyService {
             company.validate()?;
             require_name_free(&tx, &company.name, None).await?;
             company.clone().into_active_model().insert(tx.db()).await?;
-            Ok::<_, RekallError>(CompanyResponse::of(&company, 0, 0))
+            Ok::<_, RekallError>(CompanyResponse::of(&company, 0, 0, None))
         })
     }
 

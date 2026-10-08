@@ -64,7 +64,7 @@ const tasks: Task[] = [
 const acme = 'c1' as CompanyId
 
 const companies: Company[] = [
-  { id: acme, name: 'acme', description: null, projectCount: 2, taskCount: 4, updatedAt: '2026-09-01T10:00:00Z' }
+  { id: acme, name: 'acme', description: null, logoImageVersion: null, projectCount: 2, taskCount: 4, updatedAt: '2026-09-01T10:00:00Z' }
 ]
 
 const project = (id: ProjectId, label: string, title: string): Project => ({

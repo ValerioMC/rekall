@@ -1,6 +1,6 @@
-//! The pixels of a project icon: an upload of any shape becomes one square master, and a render is
-//! that master resized once, straight to the size a spot on screen needs. Rounded corners are not
-//! baked in; the console clips them, so they stay sharp at every size.
+//! The pixels of a project icon or a company logo: an upload of any shape becomes one square master,
+//! and a render is that master resized once, straight to the size a spot on screen needs. Rounded
+//! corners are not baked in; the console clips them, so they stay sharp at every size.
 
 use std::io::Cursor;
 
@@ -13,6 +13,13 @@ pub const MASTER_SIDE: u32 = 512;
 pub const MIN_RENDER_SIDE: u32 = 8;
 pub const MAX_UPLOAD_BYTES: usize = 10 * 1024 * 1024;
 const MAX_DECODED_SIDE: u32 = 8_192;
+
+/// Runs pixel work on the blocking pool, so a large decode never stalls the async runtime.
+pub async fn in_background<T: Send + 'static>(work: impl FnOnce() -> Result<T> + Send + 'static) -> Result<T> {
+    tokio::task::spawn_blocking(work)
+        .await
+        .map_err(|error| RekallError::internal(InternalFailure::Background, error))?
+}
 
 /// Decode, crop the centre to a square, shrink to `MASTER_SIDE`, and encode as PNG.
 pub fn normalise(upload: &[u8]) -> Result<Vec<u8>> {

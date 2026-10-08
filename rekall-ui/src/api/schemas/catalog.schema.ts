@@ -24,6 +24,7 @@ export const CompanySchema = z.object({
   id: companyId,
   name: z.string(),
   description: z.string().nullable(),
+  logoImageVersion: z.string().nullable(),
   projectCount: z.number().int(),
   taskCount: z.number().int(),
   updatedAt: z.string()

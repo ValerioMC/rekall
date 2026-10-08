@@ -1,8 +1,14 @@
 import { useConsoleStore } from '@/stores/console.store'
 import type { RecordDraft } from '@/model/record-draft'
-import type { ProjectId } from '@/model/branded'
+import type { CompanyId, ProjectId } from '@/model/branded'
 
 type Draft<Kind extends RecordDraft['kind']> = Extract<RecordDraft, { kind: Kind }>
+
+/** What runs once a saved company or project has its id: its picture's upload or removal. */
+export interface AfterSave {
+  company: (id: CompanyId) => Promise<void>
+  project: (id: ProjectId) => Promise<void>
+}
 
 /**
  * What saving or deleting a company, project or task from the record dialog sends to the store.
@@ -17,10 +23,11 @@ export function useRecordWrites() {
     return trimmed === '' ? null : trimmed
   }
 
-  async function writeCompany(draft: Draft<'company'>): Promise<void> {
+  async function writeCompany(draft: Draft<'company'>): Promise<CompanyId> {
     const input = { name: draft.name.trim(), description: descriptionOf(draft) }
-    if (draft.id === null) await store.createCompany(input)
-    else await store.updateCompany(draft.id, input)
+    if (draft.id === null) return (await store.createCompany(input)).id
+    await store.updateCompany(draft.id, input)
+    return draft.id
   }
 
   async function writeProject(draft: Draft<'project'>, label: string): Promise<ProjectId> {
@@ -54,10 +61,10 @@ export function useRecordWrites() {
     else await store.updateTask(draft.id, input)
   }
 
-  /** Creates or updates the record; `afterProject` runs once a project has its id. */
-  async function write(draft: RecordDraft, label: string, afterProject: (id: ProjectId) => Promise<void>): Promise<void> {
-    if (draft.kind === 'company') await writeCompany(draft)
-    else if (draft.kind === 'project') await afterProject(await writeProject(draft, label))
+  /** Creates or updates the record, then runs `after` for a company or a project. */
+  async function write(draft: RecordDraft, label: string, after: AfterSave): Promise<void> {
+    if (draft.kind === 'company') await after.company(await writeCompany(draft))
+    else if (draft.kind === 'project') await after.project(await writeProject(draft, label))
     else await writeTask(draft, label)
   }
 

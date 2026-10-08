@@ -47,8 +47,8 @@ const signal = 't2' as TaskId
 const TODAY = new Date(2026, 8, 2, 12, 0)
 
 const companies: Company[] = [
-  { id: acme, name: 'acme', description: null, projectCount: 1, taskCount: 1, updatedAt: '' },
-  { id: globex, name: 'globex', description: null, projectCount: 1, taskCount: 1, updatedAt: '' }
+  { id: acme, name: 'acme', description: null, logoImageVersion: null, projectCount: 1, taskCount: 1, updatedAt: '' },
+  { id: globex, name: 'globex', description: null, logoImageVersion: null, projectCount: 1, taskCount: 1, updatedAt: '' }
 ]
 
 const tasks: Task[] = [

@@ -1,27 +1,15 @@
 use axum::body::Bytes;
 use axum::extract::{DefaultBodyLimit, Path, Query, State};
-use axum::http::{header, HeaderValue};
-use axum::response::{IntoResponse, Response};
+use axum::response::Response;
 use axum::routing::get;
 use axum::{Json, Router};
-use serde::Deserialize;
 
-use super::no_content;
-use crate::dto::ProjectResponse;
+use super::{no_content, png};
+use crate::dto::{ImageSizeQuery, ProjectResponse};
 use crate::error::ApiResult;
 use crate::extract::uuid;
 use crate::service::{MASTER_SIDE, MAX_UPLOAD_BYTES};
 use crate::ApiState;
-
-const IMMUTABLE: &str = "public, max-age=31536000, immutable";
-
-#[derive(Debug, Deserialize)]
-struct IconQuery {
-    /// Side in device pixels; the whole master when left out.
-    size: Option<u32>,
-    /// The image's version: present means the URL names one image for good, so it is cached for good.
-    v: Option<String>,
-}
 
 pub fn routes() -> Router<ApiState> {
     Router::new()
@@ -29,10 +17,9 @@ pub fn routes() -> Router<ApiState> {
         .layer(DefaultBodyLimit::max(MAX_UPLOAD_BYTES))
 }
 
-async fn read(State(state): State<ApiState>, Path(id): Path<String>, Query(query): Query<IconQuery>) -> ApiResult<Response> {
-    let png = state.icons.render(uuid("id", &id)?, query.size.unwrap_or(MASTER_SIDE)).await?;
-    let cache = if query.v.is_some() { IMMUTABLE } else { "no-cache" };
-    Ok(([(header::CONTENT_TYPE, HeaderValue::from_static("image/png")), (header::CACHE_CONTROL, HeaderValue::from_static(cache))], png).into_response())
+async fn read(State(state): State<ApiState>, Path(id): Path<String>, Query(query): Query<ImageSizeQuery>) -> ApiResult<Response> {
+    let bytes = state.icons.render(uuid("id", &id)?, query.size.unwrap_or(MASTER_SIDE)).await?;
+    Ok(png(bytes, query.v.is_some()))
 }
 
 /// The request body is the image file itself, in any format the server can decode.

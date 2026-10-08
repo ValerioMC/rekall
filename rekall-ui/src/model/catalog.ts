@@ -74,6 +74,8 @@ export interface Company {
   readonly id: CompanyId
   readonly name: string
   readonly description: string | null
+  /** Set when the company has an uploaded logo; changes with every upload. */
+  readonly logoImageVersion: string | null
   readonly projectCount: number
   readonly taskCount: number
   readonly updatedAt: string

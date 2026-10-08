@@ -27,6 +27,7 @@ pub struct ApiState {
     pub diagrams: DiagramService,
     pub sections: ProjectSectionService,
     pub companies: service::CompanyService,
+    pub logos: service::CompanyLogoService,
     pub projects: service::ProjectService,
     pub tasks: service::TaskService,
     pub documents: service::DocumentService,
@@ -60,6 +61,7 @@ impl ApiState {
         );
         Self {
             companies: service::CompanyService::new(ctx.clone()),
+            logos: service::CompanyLogoService::new(ctx.clone()),
             projects: service::ProjectService::new(ctx.clone(), services.repositories),
             tasks,
             documents: service::DocumentService::new(ctx.clone()),

@@ -3,8 +3,8 @@ import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import RecordDialog from '@/components/console/RecordDialog.vue'
 import { useConsoleStore } from '@/stores/console.store'
-import { projectDraft, taskDraft, type RecordDraft } from '@/model/record-draft'
-import type { Project, Task } from '@/model/catalog'
+import { companyDraft, projectDraft, taskDraft, type RecordDraft } from '@/model/record-draft'
+import type { Company, Project, Task } from '@/model/catalog'
 import type { CompanyId, ProjectId } from '@/model/branded'
 
 /**
@@ -122,6 +122,74 @@ describe('RecordDialog project icon image', () => {
 
     expect(dialog.get('[role="alert"]').text()).toContain('10 MB')
     expect(store.setProjectIconImage).not.toHaveBeenCalled()
+  })
+})
+
+describe('RecordDialog company logo', () => {
+  const acme: Company = {
+    id: 'c1' as CompanyId,
+    name: 'acme',
+    description: null,
+    logoImageVersion: 'v1',
+    projectCount: 0,
+    taskCount: 0,
+    updatedAt: ''
+  }
+
+  function renderCompany(company?: Company): VueWrapper {
+    wrapper = mount(RecordDialog, {
+      attachTo: document.body,
+      props: { draft: company ? companyDraft(company) : { ...companyDraft(), name: 'Globex' } },
+      global: { plugins: [pinia] }
+    })
+    return wrapper
+  }
+
+  it('uploads the picked logo for the company it has just created', async () => {
+    URL.createObjectURL = vi.fn().mockReturnValue('blob:logo')
+    URL.revokeObjectURL = vi.fn()
+    const store = useConsoleStore()
+    store.createCompany = vi.fn().mockResolvedValue({ ...acme, id: 'c9' as CompanyId })
+    store.setCompanyLogoImage = vi.fn().mockResolvedValue(undefined)
+    const dialog = renderCompany()
+    const file = new File(['x'], 'logo.png', { type: 'image/png' })
+    const input = dialog.get('[data-testid="record-logo-file"]')
+    Object.defineProperty(input.element, 'files', { value: [file], configurable: true })
+
+    await input.trigger('change')
+    expect(dialog.get('[data-testid="company-mark-image"] img').attributes('src')).toBe('blob:logo')
+    await dialog.get('[data-testid="record-save"]').trigger('click')
+    await flushPromises()
+
+    expect(store.setCompanyLogoImage).toHaveBeenCalledWith('c9', file)
+  })
+
+  it('takes the stored logo off on save, and shows the initial meanwhile', async () => {
+    const store = useConsoleStore()
+    store.companies = [acme]
+    store.updateCompany = vi.fn().mockResolvedValue(undefined)
+    store.setCompanyLogoImage = vi.fn().mockResolvedValue(undefined)
+    const dialog = renderCompany(acme)
+
+    await dialog.get('[data-testid="record-logo-remove"]').trigger('click')
+    expect(dialog.get('[data-testid="company-mark-initial"]').text()).toBe('A')
+    await dialog.get('[data-testid="record-save"]').trigger('click')
+    await flushPromises()
+
+    expect(store.setCompanyLogoImage).toHaveBeenCalledWith('c1', null)
+  })
+
+  it('leaves the logo alone when it was not touched', async () => {
+    const store = useConsoleStore()
+    store.companies = [acme]
+    store.updateCompany = vi.fn().mockResolvedValue(undefined)
+    store.setCompanyLogoImage = vi.fn()
+    const dialog = renderCompany(acme)
+
+    await dialog.get('[data-testid="record-save"]').trigger('click')
+    await flushPromises()
+
+    expect(store.setCompanyLogoImage).not.toHaveBeenCalled()
   })
 })
 

@@ -694,6 +694,24 @@
   box-shadow: var(--shadow-key);
 }
 
+/* A company's plate with --shadow-key's lip. Its hairline is drawn above the face, so it edges an
+   uploaded logo as well as the initial; `--mark-tint` colours it. */
+@utility company-mark {
+  --mark-tint: var(--color-border-strong);
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-key);
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--mark-tint) 45%, transparent);
+    pointer-events: none;
+  }
+}
+
 /*
  * The selected row: the raised surface warmed from the left by its tint, a tinted hairline that
  * holds the whole tile, --shadow-key's relief, and a short solid capsule in the left gutter as the

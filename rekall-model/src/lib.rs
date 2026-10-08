@@ -14,6 +14,7 @@ pub mod stamped;
 
 pub mod commit_reference;
 pub mod company;
+pub mod company_logo_image;
 pub mod diagram;
 pub mod document;
 pub mod document_task;
@@ -39,6 +40,7 @@ pub use stamped::Stamped;
 pub mod prelude {
     pub use super::commit_reference::{Entity as CommitReference, Model as CommitReferenceModel};
     pub use super::company::{Entity as Company, Model as CompanyModel};
+    pub use super::company_logo_image::{Entity as CompanyLogoImage, Model as CompanyLogoImageModel};
     pub use super::diagram::{Entity as Diagram, Model as DiagramModel};
     pub use super::document::{Entity as Document, Model as DocumentModel};
     pub use super::document_task::{Entity as DocumentTask, Model as DocumentTaskModel};

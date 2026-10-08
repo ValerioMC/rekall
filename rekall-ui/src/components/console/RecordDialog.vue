@@ -5,6 +5,7 @@ import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
 import CloseGlyph from '@/components/ui/CloseGlyph.vue'
 import ProjectPicker from '@/components/console/ProjectPicker.vue'
+import CompanyLogoField from '@/components/console/record/CompanyLogoField.vue'
 import ProjectIconField from '@/components/console/record/ProjectIconField.vue'
 import RecordIdentityFields from '@/components/console/record/RecordIdentityFields.vue'
 import TaskTagField from '@/components/console/record/TaskTagField.vue'
@@ -33,6 +34,7 @@ const { run, isRunning } = useAsyncAction()
 const form = ref<RecordDraft>({ ...props.draft })
 const identity = ref<InstanceType<typeof RecordIdentityFields> | null>(null)
 const iconField = ref<InstanceType<typeof ProjectIconField> | null>(null)
+const logoField = ref<InstanceType<typeof CompanyLogoField> | null>(null)
 const isConfirmingDelete = ref(false)
 const submitted = ref(false)
 const isPickingProject = ref(false)
@@ -153,7 +155,10 @@ async function save(): Promise<void> {
   submitted.value = true
   if (!canSave.value) return
   const saved = await run(async () => {
-    await writes.write(form.value, label.value, async (projectId) => await iconField.value?.apply(projectId))
+    await writes.write(form.value, label.value, {
+      company: async (companyId) => await logoField.value?.apply(companyId),
+      project: async (projectId) => await iconField.value?.apply(projectId)
+    })
     return true
   }, `${isNew ? 'Created' : 'Saved'} ${titleValue.value.trim()}`)
   if (saved) {
@@ -291,6 +296,8 @@ onUnmounted(() => window.removeEventListener('keydown', saveOnModEnter, true))
       </template>
 
       <ProjectIconField v-if="form.kind === 'project'" ref="iconField" v-model="projectIcon" :project-id="form.id" />
+
+      <CompanyLogoField v-if="form.kind === 'company'" ref="logoField" :company-id="form.id" :name="titleValue" />
 
       <TaskTagField v-if="kind === 'task'" v-model="tagId" />
 

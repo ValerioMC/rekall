@@ -74,6 +74,23 @@ export async function deleteCompany(id: CompanyId): Promise<void> {
   await request(() => apiClient(`/api/companies/${id}`, { method: 'DELETE' }))
 }
 
+/** The body is the image file itself, in any format the server can decode. */
+export async function uploadCompanyLogoImage(id: CompanyId, file: File): Promise<Company> {
+  return request(async () =>
+    CompanySchema.parse(
+      await apiClient(`/api/companies/${id}/logo-image`, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': file.type || 'application/octet-stream' }
+      })
+    )
+  )
+}
+
+export async function removeCompanyLogoImage(id: CompanyId): Promise<void> {
+  await request(() => apiClient(`/api/companies/${id}/logo-image`, { method: 'DELETE' }))
+}
+
 export async function fetchProjects(): Promise<Project[]> {
   return request(async () => ProjectListSchema.parse(await apiClient('/api/projects')))
 }

@@ -28,7 +28,7 @@ const validator = 't1' as TaskId
 const retry = 't2' as TaskId
 
 const companies: Company[] = [
-  { id: acme, name: 'acme', description: null, projectCount: 1, taskCount: 2, updatedAt: '2026-08-12T10:00:00Z' }
+  { id: acme, name: 'acme', description: null, logoImageVersion: null, projectCount: 1, taskCount: 2, updatedAt: '2026-08-12T10:00:00Z' }
 ]
 
 const beacon = 'p2' as ProjectId

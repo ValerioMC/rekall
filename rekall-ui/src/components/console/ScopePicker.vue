@@ -3,6 +3,8 @@ import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import RecordDialog from '@/components/console/RecordDialog.vue'
+import CompanyMark from '@/components/ui/CompanyMark.vue'
+import ProjectMark from '@/components/ui/ProjectMark.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { companyDraft, projectDraft } from '@/model/record-draft'
 import { identityHue } from '@/common/identity'
@@ -36,6 +38,13 @@ const projectsOf = (companyId: CompanyId) =>
     .sort((a, b) => compareText(a.title, b.title))
 
 const taskTotal = computed(() => tasks.value.length)
+
+/** The company the trigger wears: the one in scope, or the owner of the project in scope. */
+const markedProject = computed(() => projects.value.find((p) => p.id === scopeProject.value) ?? null)
+const markedCompany = computed(() => {
+  const companyId = markedProject.value?.companyId ?? scopeCompany.value
+  return companies.value.find((c) => c.id === companyId) ?? null
+})
 
 const targetCompany = computed(
   () => companies.value.find((c) => c.id === scopeCompany.value) ?? companies.value[0] ?? null
@@ -88,7 +97,18 @@ defineExpose({ newCompany, newProject })
       :aria-expanded="isOpen"
       @click="isOpen = !isOpen"
     >
-      <span class="size-2 shrink-0 rotate-45 rounded-[1px] bg-accent" aria-hidden="true" />
+      <span v-if="markedCompany" class="relative shrink-0" data-testid="scope-trigger-mark">
+        <CompanyMark :company-id="markedCompany.id" :name="markedCompany.name" :image-version="markedCompany.logoImageVersion" :size="24" />
+        <span
+          v-if="markedProject"
+          class="absolute -bottom-1 -right-1 rounded-key"
+          :style="{ boxShadow: '0 0 0 1.5px var(--color-canvas)' }"
+          data-testid="scope-trigger-project-mark"
+        >
+          <ProjectMark :project-id="markedProject.id" :icon="markedProject.icon" :image-version="markedProject.iconImageVersion" :size="14" />
+        </span>
+      </span>
+      <span v-else class="size-2 shrink-0 rotate-45 rounded-[1px] bg-accent" aria-hidden="true" />
       <span class="min-w-0 flex-1">
         <span class="block truncate text-body text-text">
           <template v-if="scopePath.length === 0">All work</template>
@@ -128,6 +148,7 @@ defineExpose({ newCompany, newProject })
             "
             @click="pick(company.id)"
           >
+            <CompanyMark :company-id="company.id" :name="company.name" :image-version="company.logoImageVersion" :size="18" />
             <span
               class="min-w-0 flex-1 truncate eyebrow text-caption"
             >

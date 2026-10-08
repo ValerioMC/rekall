@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onUnmounted, ref } from 'vue'
-import AppButton from '@/components/ui/AppButton.vue'
+import { computed, ref } from 'vue'
+import ImageUploadField from '@/components/console/record/ImageUploadField.vue'
 import ProjectIcon from '@/components/ui/ProjectIcon.vue'
 import ProjectMark from '@/components/ui/ProjectMark.vue'
 import { useConsoleStore } from '@/stores/console.store'
@@ -18,87 +18,40 @@ const props = defineProps<{
 
 const icon = defineModel<string>({ required: true })
 
-const MAX_BYTES = 10 * 1024 * 1024
-const ACCEPTED_TYPES = 'image/png,image/jpeg,image/webp,image/gif'
-
 const store = useConsoleStore()
-const fileField = ref<HTMLInputElement | null>(null)
-const pendingImage = ref<File | null>(null)
-const pendingPreview = ref<string | null>(null)
-const isRemoving = ref(false)
-const error = ref<string | null>(null)
+const imageField = ref<InstanceType<typeof ImageUploadField> | null>(null)
 
 const storedVersion = computed(
   () => store.projects.find((candidate) => candidate.id === props.projectId)?.iconImageVersion ?? null
 )
-const shownVersion = computed(() => (isRemoving.value ? null : storedVersion.value))
-const hasImage = computed(() => pendingImage.value !== null || shownVersion.value !== null)
-
-function releasePreview(): void {
-  if (pendingPreview.value) URL.revokeObjectURL(pendingPreview.value)
-  pendingPreview.value = null
-}
-
-/** A file over 10 MB is refused and nothing is kept. */
-function pick(event: Event): void {
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0] ?? null
-  input.value = ''
-  if (!file) return
-  if (file.size > MAX_BYTES) {
-    error.value = 'The image is larger than 10 MB.'
-    return
-  }
-  error.value = null
-  releasePreview()
-  pendingImage.value = file
-  pendingPreview.value = URL.createObjectURL(file)
-  isRemoving.value = false
-}
-
-function clear(): void {
-  error.value = null
-  releasePreview()
-  pendingImage.value = null
-  isRemoving.value = storedVersion.value !== null
-}
-
-onUnmounted(releasePreview)
 
 defineExpose({
   /** Uploads the picked picture, or takes the stored one off, once the project has its id. */
   async apply(projectId: ProjectId): Promise<void> {
-    if (pendingImage.value) await store.setProjectIconImage(projectId, pendingImage.value)
-    else if (isRemoving.value) await store.setProjectIconImage(projectId, null)
+    await imageField.value?.apply((file) => store.setProjectIconImage(projectId, file))
   }
 })
 </script>
 
 <template>
   <p class="mb-1.5 mt-5 eyebrow text-caption">Icon</p>
-  <div class="mb-3 flex items-center gap-3" data-testid="record-icon-image">
-    <ProjectMark
-      :project-id="projectId ?? 'new-project'"
-      :icon="icon"
-      :image-version="shownVersion"
-      :preview-src="pendingPreview"
-      :size="48"
-    />
-    <div class="min-w-0">
-      <div class="flex items-center gap-2">
-        <AppButton size="sm" data-testid="record-icon-upload" @click="fileField?.click()">
-          {{ hasImage ? 'Replace image' : 'Upload image' }}
-        </AppButton>
-        <AppButton v-if="hasImage" variant="ghost" size="sm" data-testid="record-icon-remove" @click="clear">
-          Remove
-        </AppButton>
-      </div>
-      <p class="mt-1.5 text-caption" :class="error ? 'text-danger' : 'text-text-subtle'" :role="error ? 'alert' : undefined">
-        {{ error ?? 'PNG, JPEG, WebP or GIF, cropped to a square with rounded-key corners. The icon below shows without one.' }}
-      </p>
-    </div>
-    <input ref="fileField" type="file" class="hidden" :accept="ACCEPTED_TYPES" data-testid="record-icon-file" @change="pick" />
-  </div>
+  <ImageUploadField
+    ref="imageField"
+    class="mb-3"
+    :stored-version="storedVersion"
+    hint="PNG, JPEG, WebP or GIF, cropped to a square with rounded-key corners. The icon below shows without one."
+    testid-prefix="record-icon"
+  >
+    <template #mark="{ version, previewSrc }">
+      <ProjectMark
+        :project-id="projectId ?? 'new-project'"
+        :icon="icon"
+        :image-version="version"
+        :preview-src="previewSrc"
+        :size="48"
+      />
+    </template>
+  </ImageUploadField>
   <div class="flex flex-wrap gap-1.5" data-testid="record-icon-picker">
     <button
       v-for="option in PROJECT_ICON_KEYS"

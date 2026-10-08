@@ -6,6 +6,7 @@
 
 pub mod commit_reference;
 pub mod company;
+pub mod company_logo_image;
 pub mod diagram;
 pub mod document;
 pub mod project;
