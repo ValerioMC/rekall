@@ -59,7 +59,7 @@ const panelClass = computed(() => {
   if (props.step.state === 'CLAIMED') return 'panel-gold-quiet'
   if (props.isNext) return 'panel-slate'
   if (props.step.state === 'DONE') return 'border-transparent opacity-60'
-  return 'border-transparent transition-[border-color] duration-150 group-hover/step:border-border'
+  return 'border-transparent transition-[border-color] duration-(--motion-quick) group-hover/step:border-border'
 })
 </script>
 
@@ -78,7 +78,7 @@ const panelClass = computed(() => {
     />
 
     <button
-      class="focus-ring absolute left-0 top-[7px] z-10 size-[22px] rounded-full"
+      class="focus-ring hit-target absolute left-0 top-[7px] z-10 size-[22px] rounded-full"
       :class="{
         'cursor-default': step.state === 'DONE',
         'step-node-running': step.state === 'RUNNING',
@@ -94,38 +94,38 @@ const panelClass = computed(() => {
       <StepSeal :state="step.state" :next="isNext" :complete="allDone" />
     </button>
 
-    <div class="min-w-0 rounded-[var(--radius-card)] border px-3 py-2" :class="panelClass">
+    <div class="min-w-0 rounded-card border px-3 py-2" :class="panelClass">
       <div class="flex items-start gap-2">
         <button
-          class="focus-ring min-w-0 flex-1 rounded text-left"
+          class="focus-ring min-w-0 flex-1 rounded-key text-left"
           :aria-expanded="expanded"
           data-testid="step-title"
           @click="toggle(step)"
         >
           <span
-            class="block text-[13.5px] leading-snug transition-colors"
+            class="block text-body leading-snug transition-colors"
             :class="step.state === 'DONE' ? 'text-text-subtle line-through decoration-text-subtle/50' : 'text-text'"
           >
             {{ step.title }}
           </span>
-          <span class="mt-1 flex flex-wrap items-center gap-2 text-[10.5px]">
+          <span class="mt-1 flex flex-wrap items-center gap-2 text-micro">
             <span
               v-if="step.state === 'RUNNING'"
-              class="inline-flex items-center gap-1 rounded-full bg-accent px-1.5 py-px text-[10px] font-semibold tracking-[0.02em] text-accent-ink"
+              class="inline-flex items-center gap-1 rounded-full bg-accent px-1.5 py-px text-micro font-semibold tracking-[0.02em] text-accent-ink"
               data-testid="step-running-badge"
             >
               Running
             </span>
             <span
               v-else-if="step.state === 'CLAIMED'"
-              class="rounded-full border border-accent/40 px-1.5 py-px text-[10px] font-semibold tracking-[0.02em] text-accent"
+              class="rounded-full border border-accent/40 px-1.5 py-px text-micro font-semibold tracking-[0.02em] text-accent"
               data-testid="step-claimed-badge"
             >
               Awaiting review
             </span>
             <span
               v-else-if="isNext"
-              class="rounded-full bg-accent-soft px-1.5 py-px text-[10px] font-semibold tracking-[0.02em] text-accent"
+              class="rounded-full bg-accent-soft px-1.5 py-px text-micro font-semibold tracking-[0.02em] text-accent"
             >
               Next
             </span>
@@ -148,7 +148,7 @@ const panelClass = computed(() => {
         <div class="flex shrink-0 items-center gap-0.5 opacity-0 focus-within:opacity-100 group-hover/step:opacity-100">
           <button
             v-if="step.state === 'OPEN'"
-            class="focus-ring mr-0.5 grid h-6 place-items-center rounded px-1.5 text-[10.5px] font-medium text-text-subtle transition-colors hover:bg-surface-hover hover:text-text"
+            class="focus-ring mr-0.5 grid h-6 place-items-center rounded-key px-1.5 text-micro font-medium text-text-subtle transition-colors hover:bg-surface-hover hover:text-text"
             :aria-label="`Return ${step.title} to draft`"
             data-testid="step-to-draft"
             @click="$emit('to-draft')"

@@ -55,7 +55,7 @@ const { mode, title, body, scheduleSave } = useStepEditor()
         <AppMarkdownEditor :model-value="body" readonly compact :data-testid="`${testidPrefix}-detail-read`" />
       </div>
 
-      <p v-else key="empty" class="py-1 text-[12px] text-text-subtle">
+      <p v-else key="empty" class="py-1 text-small text-text-subtle">
         {{ emptyText }}
         <button class="focus-ring text-accent underline-offset-2 hover:underline" @click="mode = 'write'">
           {{ writePrompt }}
@@ -68,13 +68,13 @@ const { mode, title, body, scheduleSave } = useStepEditor()
 <style scoped>
 .step-detail :deep(.md-editor-preview) h1,
 .step-detail :deep(.md-editor-preview) h2 {
-  font-size: 14px;
+  font-size: var(--text-body);
   margin-top: 0.6em;
 }
 
 .step-detail :deep(.md-editor-preview) h3,
 .step-detail :deep(.md-editor-preview) h4 {
-  font-size: 13px;
+  font-size: var(--text-body);
   margin-top: 0.6em;
 }
 

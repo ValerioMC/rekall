@@ -21,8 +21,8 @@ const style = computed(() => {
 
 <template>
   <span
-    class="tag-chip inline-flex min-w-0 items-center gap-1 rounded-[3px] font-medium"
-    :class="size === 'sm' ? 'h-[19px] px-1.5 text-[10px]' : 'h-6 px-2 text-[11.5px]'"
+    class="tag-chip inline-flex min-w-0 items-center gap-1 rounded-key font-medium"
+    :class="size === 'sm' ? 'h-[19px] px-1.5 text-micro' : 'h-6 px-2 text-caption'"
     :style="style"
     :title="name"
   >

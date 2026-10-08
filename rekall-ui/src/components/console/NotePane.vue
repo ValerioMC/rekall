@@ -10,21 +10,19 @@ import NoteAssignmentDialog from '@/components/console/NoteAssignmentDialog.vue'
 import NoteScopeSelect from '@/components/console/NoteScopeSelect.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.vue'
-import CloseGlyph from '@/components/ui/CloseGlyph.vue'
+import ConsoleHome from '@/components/console/ConsoleHome.vue'
+import NoteContextModeSwitch from '@/components/console/NoteContextModeSwitch.vue'
+import NoteMembershipStrip from '@/components/console/NoteMembershipStrip.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { rkCommand } from '@/common/format/rk-command'
 import { DOCUMENT_KINDS } from '@/model/catalog'
-import type { DocumentContextMode } from '@/model/catalog'
-import type { TaskId } from '@/model/branded'
 import type { NoteScope } from '@/model/note-scope'
 
 const store = useConsoleStore()
 const {
   selectedDocument,
   selectedTaskId,
-  recentDocuments,
-  isLoading,
   navMode,
   tasks: allTasks
 } = storeToRefs(store)
@@ -34,19 +32,6 @@ const KIND_OPTIONS = DOCUMENT_KINDS.map((kind) => ({
   value: kind,
   label: kind.charAt(0).toUpperCase() + kind.slice(1)
 }))
-
-const SHORTCUTS = [
-  { keys: '⌘K', does: 'search by anchor, from anywhere' },
-  { keys: 'T', does: 'new task' },
-  { keys: 'E', does: 'edit the task in view' },
-  { keys: 'N', does: 'new note on it' },
-  { keys: 'D', does: 'its description: what the work is' },
-  { keys: 'W', does: 'its wrapup: what it currently is' },
-  { keys: 'R', does: 'toggle read / write, on a description or a note' },
-  { keys: 'B', does: 'switch between tasks and notes' },
-  { keys: 'J K', does: 'walk the list' },
-  { keys: '1-5', does: 'set the status' }
-] as const
 
 const mode = ref<'write' | 'read'>('write')
 const isAssigning = ref(false)
@@ -77,36 +62,6 @@ const notePathRoot = computed<string | null>(() => {
   return null
 })
 
-const doneTaskIds = computed(() => {
-  const ids = new Set<TaskId>()
-  for (const task of allTasks.value) if (task.status === 'DONE') ids.add(task.id)
-  return ids
-})
-
-const liveTasks = computed(
-  () => selectedDocument.value?.tasks.filter((task) => !doneTaskIds.value.has(task.id)) ?? []
-)
-
-const doneTasks = computed(
-  () => selectedDocument.value?.tasks.filter((task) => doneTaskIds.value.has(task.id)) ?? []
-)
-
-const showDoneTasks = ref(false)
-
-/*
- * The strip keeps the task in view as a chip and folds the note's other open tasks behind a
- * count, the way finished ones already are; a single other one is not worth a fold.
- */
-const liveInView = computed(() => liveTasks.value.filter((task) => task.id === selectedTaskId.value))
-const otherLiveTasks = computed(() => liveTasks.value.filter((task) => task.id !== selectedTaskId.value))
-const foldsOtherLive = computed(() => otherLiveTasks.value.length > 1)
-const showOtherLiveTasks = ref(false)
-const shownLiveTasks = computed(() =>
-  !foldsOtherLive.value || showOtherLiveTasks.value
-    ? [...liveInView.value, ...otherLiveTasks.value]
-    : liveInView.value
-)
-
 const draft = ref({ title: '', kind: 'notes', bodyMarkdown: '' })
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -114,8 +69,6 @@ watch(
   selectedDocument,
   (document) => {
     if (saveTimer) clearTimeout(saveTimer)
-    showDoneTasks.value = false
-    showOtherLiveTasks.value = false
     if (!document) return
     draft.value = {
       title: document.title,
@@ -153,10 +106,6 @@ const anchorFolder = computed(() => anchorTask.value?.projectRepoFolder ?? null)
 /** Browsing notes, the placements column owns membership, so the strip here would say it twice. */
 const showMembership = computed(() => navMode.value === 'tasks')
 
-const alsoOn = computed(
-  () => selectedDocument.value?.tasks.filter((task) => task.id !== selectedTaskId.value) ?? []
-)
-
 const justCopied = ref(false)
 
 async function copyAnchor(): Promise<void> {
@@ -171,29 +120,6 @@ async function moveTo(scope: NoteScope): Promise<void> {
   await run(() => store.saveNote(document.id, { scope }), 'Moved.')
 }
 
-async function detachFrom(taskId: TaskId): Promise<void> {
-  const document = selectedDocument.value
-  if (!document) return
-  await run(
-    () =>
-      store.saveNote(document.id, {
-        taskIds: document.tasks.filter((task) => task.id !== taskId).map((task) => task.id)
-      }),
-    'Removed from that task.'
-  )
-}
-
-async function setContextMode(contextMode: DocumentContextMode): Promise<void> {
-  const document = selectedDocument.value
-  if (!document || document.contextMode === contextMode) return
-  await run(
-    () => store.saveNote(document.id, { contextMode }),
-    contextMode === 'REFERENCE'
-      ? `Sessions now get a line and ${document.anchor}, and load the rest when they need it.`
-      : 'Sessions now get this note in full.'
-  )
-}
-
 async function confirmDelete(): Promise<void> {
   const document = selectedDocument.value
   if (!document) return
@@ -206,73 +132,7 @@ async function confirmDelete(): Promise<void> {
 
 <template>
   <section class="flex min-h-0 flex-1 flex-col bg-canvas" aria-label="Note">
-    <div v-if="!selectedDocument" class="min-h-0 flex-1 overflow-y-auto">
-      <div class="max-w-[640px] px-9 py-12">
-        <p class="eyebrow">
-          Continue
-        </p>
-        <h2 class="mb-1.5 mt-1.5 text-[26px] font-semibold leading-tight tracking-[-0.025em] text-text">
-          Pick up where you left off
-        </h2>
-        <p class="mb-6 text-[13px] leading-relaxed text-text-muted">
-          Everything here is one anchor away from a Claude session.
-        </p>
-
-        <div v-if="isLoading" class="flex flex-col gap-1.5" aria-hidden="true">
-          <div v-for="row in 3" :key="row" class="skeleton h-14 rounded-[var(--radius-control)]" />
-        </div>
-
-        <div v-else-if="recentDocuments.length" class="flex flex-col gap-1.5">
-          <button
-            v-for="document in recentDocuments"
-            :key="document.id"
-            data-testid="resume-row"
-            class="focus-ring group relative flex w-full items-center gap-3 overflow-hidden rounded-[var(--radius-control)] border border-border bg-surface px-3.5 py-3 text-left transition-all hover:-translate-y-px hover:border-border-strong hover:bg-surface-raised hover:shadow-lift"
-            @click="store.selectDocument(document.id)"
-          >
-            <span
-              class="pointer-events-none absolute right-0 top-0 size-3.5 transition-colors"
-              style="
-                clip-path: polygon(100% 0, 0 0, 100% 100%);
-                background-image: linear-gradient(135deg, var(--color-border-strong), var(--color-canvas));
-              "
-              aria-hidden="true"
-            />
-            <span class="min-w-0 flex-1">
-              <span class="block truncate text-[13.5px] font-medium text-text">
-                {{ document.title }}
-              </span>
-              <span class="mt-0.5 block truncate font-mono text-[11px] text-anchor">
-                {{ document.tasks[0]?.anchor }}
-              </span>
-            </span>
-            <span
-              class="shrink-0 text-[13px] text-text-subtle transition-transform group-hover:translate-x-0.5 group-hover:text-accent"
-              aria-hidden="true"
-            >
-              &#8594;
-            </span>
-          </button>
-        </div>
-
-        <p v-else class="text-[13px] leading-relaxed text-text-subtle">
-          Nothing written yet. Create a task on the left, then press
-          <kbd class="rounded border border-border px-1 font-mono text-[10px]">N</kbd> to write its
-          first note.
-        </p>
-
-        <ul class="mt-8 flex flex-col gap-2 text-[12px]">
-          <li v-for="hint in SHORTCUTS" :key="hint.keys" class="flex items-center gap-3">
-            <kbd
-              class="w-9 shrink-0 rounded border border-border bg-surface py-0.5 text-center font-mono text-[10px] text-text-muted"
-            >
-              {{ hint.keys }}
-            </kbd>
-            <span class="text-text-subtle">{{ hint.does }}</span>
-          </li>
-        </ul>
-      </div>
-    </div>
+    <ConsoleHome v-if="!selectedDocument" />
 
     <template v-else>
       <header class="texture-dots flex shrink-0 items-start gap-3.5 border-b border-border px-5 py-3.5">
@@ -280,12 +140,12 @@ async function confirmDelete(): Promise<void> {
           <input
             v-model="draft.title"
             data-testid="note-title"
-            class="focus-ring w-full truncate rounded border-0 bg-transparent text-[19px] font-semibold tracking-[-0.015em] text-text outline-none"
+            class="focus-ring w-full truncate rounded-key border-0 bg-transparent text-heading font-semibold tracking-[-0.015em] text-text outline-none"
             aria-label="Note title"
             @input="scheduleSave"
           />
           <button
-            class="anchor-chip focus-ring mt-1.5 inline-flex items-center gap-2 px-2.5 py-1 text-[11.5px] transition-colors hover:border-anchor"
+            class="anchor-chip focus-ring mt-1.5 inline-flex items-center gap-2 px-2.5 py-1 text-caption transition-colors hover:border-anchor"
             :class="justCopied && 'flash'"
             :title="justCopied ? 'Copied' : `Copy ${rkCommand(anchor)}`"
             data-testid="copy-anchor"
@@ -310,161 +170,11 @@ async function confirmDelete(): Promise<void> {
         </div>
       </header>
 
-      <div
-        v-if="showMembership"
-        class="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-surface px-5 py-2.5"
-        data-testid="note-membership"
-      >
-        <span class="eyebrow">
-          On {{ selectedDocument.tasks.length }}
-          task{{ selectedDocument.tasks.length === 1 ? '' : 's' }}
-        </span>
-
-        <span
-          v-for="task in shownLiveTasks"
-          :key="task.id"
-          data-testid="note-task-chip"
-          class="inline-flex items-center gap-1.5 rounded-full border py-0.5 pl-2.5 pr-1 font-mono text-[11px] transition-colors"
-          :class="
-            task.id === selectedTaskId
-              ? 'border-accent bg-accent-soft text-accent'
-              : 'border-border-strong bg-surface-raised text-text-muted'
-          "
-        >
-          <button class="focus-ring rounded" :title="task.title" @click="store.selectTask(task.id)">
-            {{ task.projectLabel }}/{{ task.label }}
-          </button>
-          <button
-            class="focus-ring -m-0.5 grid size-5 place-items-center rounded-full text-text-subtle transition-colors hover:bg-danger-soft hover:text-danger"
-            :aria-label="`Remove this note from ${task.title}`"
-            @click="detachFrom(task.id)"
-          >
-            <CloseGlyph small />
-          </button>
-        </span>
-
-        <button
-          v-if="foldsOtherLive"
-          class="focus-ring inline-flex items-center gap-1.5 rounded-full border border-border-strong bg-surface-raised py-0.5 pl-2 pr-2.5 font-mono text-[11px] text-text-muted transition-colors hover:border-border-strong hover:text-text"
-          :aria-expanded="showOtherLiveTasks"
-          data-testid="note-open-toggle"
-          @click="showOtherLiveTasks = !showOtherLiveTasks"
-        >
-          <svg
-            class="size-2.5 transition-transform"
-            :class="showOtherLiveTasks && 'rotate-90'"
-            viewBox="0 0 24 24"
-            fill="none"
-            aria-hidden="true"
-          >
-            <path
-              d="M9 6l6 6-6 6"
-              stroke="currentColor"
-              stroke-width="2.4"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-          {{ otherLiveTasks.length }} {{ liveInView.length ? 'more ' : '' }}open
-        </button>
-
-        <button
-          v-if="doneTasks.length && liveTasks.length"
-          class="focus-ring inline-flex items-center gap-1.5 rounded-full border border-border-strong bg-surface-raised py-0.5 pl-2 pr-2.5 font-mono text-[11px] text-text-muted transition-colors hover:border-border-strong hover:text-text"
-          :aria-expanded="showDoneTasks"
-          data-testid="note-done-toggle"
-          @click="showDoneTasks = !showDoneTasks"
-        >
-          <svg
-            class="size-2.5 transition-transform"
-            :class="showDoneTasks && 'rotate-90'"
-            viewBox="0 0 24 24"
-            fill="none"
-            aria-hidden="true"
-          >
-            <path
-              d="M9 6l6 6-6 6"
-              stroke="currentColor"
-              stroke-width="2.4"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-          {{ doneTasks.length }} done
-        </button>
-
-        <template v-if="showDoneTasks || !liveTasks.length">
-          <span
-            v-for="task in doneTasks"
-            :key="task.id"
-            data-testid="note-task-chip-done"
-            class="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface py-0.5 pl-2.5 pr-1 font-mono text-[11px] text-text-subtle transition-colors"
-          >
-            <span class="size-[6px] shrink-0 rounded-full bg-safe" aria-hidden="true" />
-            <button
-              class="focus-ring rounded"
-              :title="`${task.title} (done)`"
-              @click="store.selectTask(task.id)"
-            >
-              {{ task.projectLabel }}/{{ task.label }}
-            </button>
-            <button
-              class="focus-ring -m-0.5 grid size-5 place-items-center rounded-full text-text-subtle transition-colors hover:bg-danger-soft hover:text-danger"
-              :aria-label="`Remove this note from ${task.title}`"
-              @click="detachFrom(task.id)"
-            >
-              <CloseGlyph small />
-            </button>
-          </span>
-        </template>
-
-        <button
-          class="focus-ring inline-flex items-center gap-1 rounded-full border border-dashed border-border-strong py-0.5 pl-2 pr-2.5 font-mono text-[11px] text-text-muted transition-colors hover:border-accent hover:text-text"
-          data-testid="assign-open"
-          @click="isAssigning = true"
-        >
-          <span class="text-accent">+</span> task
-        </button>
-        <span v-if="alsoOn.length" class="w-full text-[11.5px] text-text-subtle">
-          Editing here changes what
-          {{ alsoOn.length === 1 ? 'that other task' : 'those other tasks' }} load too.
-        </span>
-      </div>
+      <NoteMembershipStrip v-if="showMembership" :note="selectedDocument" @assign="isAssigning = true" />
 
       <div class="flex min-h-0 flex-1 flex-col">
         <div class="flex shrink-0 items-center gap-2 border-b border-border px-5 py-1.5">
-          <div
-            class="inline-flex items-center rounded-[var(--radius-control)] border border-border p-0.5 text-[11px]"
-            role="radiogroup"
-            aria-label="How sessions get this note"
-            data-testid="note-context-mode"
-          >
-            <button
-              v-for="option in [
-                { mode: 'FULL', label: 'In full', hint: 'Every session on its tasks reads the whole note.' },
-                {
-                  mode: 'REFERENCE',
-                  label: 'By reference',
-                  hint: `Sessions get the title, the first line and ${selectedDocument.anchor}, and load the rest only when the work needs it.`
-                }
-              ] as const"
-              :key="option.mode"
-              type="button"
-              role="radio"
-              :aria-checked="selectedDocument.contextMode === option.mode"
-              :title="option.hint"
-              class="focus-ring rounded-[calc(var(--radius-control)-2px)] px-2 py-0.5 font-medium transition-colors"
-              :class="
-                selectedDocument.contextMode === option.mode
-                  ? 'bg-accent-soft text-accent'
-                  : 'text-text-subtle hover:text-text'
-              "
-              :data-testid="`note-context-mode-${option.mode.toLowerCase()}`"
-              @click="setContextMode(option.mode)"
-            >
-              {{ option.label }}
-            </button>
-          </div>
+          <NoteContextModeSwitch :note="selectedDocument" />
           <NoteScopeSelect :note="selectedDocument" @change="moveTo" />
           <AppModeToggle v-model="mode" class="ml-auto" />
         </div>

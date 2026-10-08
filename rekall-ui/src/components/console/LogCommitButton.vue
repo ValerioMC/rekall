@@ -99,8 +99,8 @@ function togglePicker(): void {
   >
     <button
       type="button"
-      class="commit-btn key-quiet focus-ring relative inline-flex items-center gap-1.5 rounded-l-[3px] font-medium disabled:cursor-not-allowed disabled:opacity-60"
-      :class="[variant === 'bar' ? 'px-3 text-[11.5px]' : 'px-2.5 text-xs', phase === 'logged' && 'flash']"
+      class="commit-btn key-quiet focus-ring relative inline-flex items-center gap-1.5 rounded-l-key font-medium disabled:cursor-not-allowed disabled:opacity-60"
+      :class="[variant === 'bar' ? 'px-3 text-caption' : 'px-2.5 text-small', phase === 'logged' && 'flash']"
       :disabled="phase === 'logging'"
       :aria-label="`Log the latest commit against ${target}`"
       :title="folder ? `Log the tip of ${folder} against ${target}` : missing"
@@ -138,7 +138,7 @@ function togglePicker(): void {
         </Transition>
       </span>
       <Transition name="glyph" mode="out-in">
-        <span v-if="phase === 'logged'" key="hash" class="font-mono text-[11px] tabular-nums">{{
+        <span v-if="phase === 'logged'" key="hash" class="font-mono text-caption tabular-nums">{{
           lastHash
         }}</span>
         <span v-else-if="phase === 'logging'" key="logging">Logging…</span>
@@ -148,7 +148,7 @@ function togglePicker(): void {
 
     <button
       type="button"
-      class="focus-ring ml-px grid w-6 shrink-0 place-items-center rounded-r-[3px] disabled:cursor-not-allowed disabled:opacity-60"
+      class="focus-ring ml-px grid w-6 shrink-0 place-items-center rounded-r-key disabled:cursor-not-allowed disabled:opacity-60"
       :class="pickerOpen ? 'key-lit' : 'key-quiet'"
       :disabled="phase === 'logging'"
       :aria-label="`Pick a commit to log against ${target}`"
@@ -159,7 +159,7 @@ function togglePicker(): void {
       @click="togglePicker"
     >
       <svg
-        class="size-3 transition-transform duration-150"
+        class="size-3 transition-transform duration-(--motion-quick)"
         :class="pickerOpen && 'rotate-180'"
         viewBox="0 0 12 12"
         fill="none"
@@ -193,8 +193,8 @@ function togglePicker(): void {
 .glyph-enter-active,
 .glyph-leave-active {
   transition:
-    opacity 110ms ease,
-    transform 110ms ease;
+    opacity var(--motion-quick) ease,
+    transform var(--motion-quick) ease;
 }
 .glyph-enter-from,
 .glyph-leave-to {

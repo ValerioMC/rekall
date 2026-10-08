@@ -71,7 +71,7 @@ function onUp(): void {
 </script>
 
 <template>
-  <div class="glass overflow-hidden rounded-[12px] border border-border shadow-lift" data-testid="diagram-minimap">
+  <div class="glass overflow-hidden rounded-card border border-border shadow-lift" data-testid="diagram-minimap">
     <svg
       ref="surface"
       :width="WIDTH"

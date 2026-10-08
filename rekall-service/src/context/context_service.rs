@@ -10,6 +10,7 @@ use rekall_model::{company, project, task, TaskStepState};
 use rekall_repository::repository as repo;
 
 use super::{ContextCommitView, ContextRecord, DocumentView};
+use crate::component::ProjectComponentView;
 use crate::step::TaskStepView;
 use crate::wrapup::WrapupView;
 use crate::{in_read, load, Ctx, Tx};
@@ -184,6 +185,7 @@ impl ContextService {
         }
         let company = company_of(tx, project).await?;
         let tasks = repo::task::list_of_project(tx.db(), project.id).await?;
+        let components = repo::project_component::list_of_project(tx.db(), project.id).await?;
         Ok(ContextRecord {
             kind: "Project".into(),
             label: project.title.clone(),
@@ -191,6 +193,7 @@ impl ContextService {
             fields,
             references: vec![self.referenced_company(tx, &company).await?],
             related: tasks.iter().map(|t| format!("task:{}", t.label)).collect(),
+            components: components.iter().map(ProjectComponentView::of).collect(),
             blueprint: project.blueprint_markdown.clone(),
             description: project.description.clone(),
             ..Default::default()
@@ -239,6 +242,7 @@ impl ContextService {
             steps,
             commits: self.commits_of(tx, task).await?,
             wrapup,
+            components: Vec::new(),
             blueprint: None,
             description: task.description.clone(),
         })

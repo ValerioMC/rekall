@@ -289,7 +289,7 @@ const blast = computed(() =>
           />
           <div v-else-if="store.opening" key="opening" class="grid flex-1 place-items-center" role="status" aria-busy="true">
             <span class="sr-only">Opening the diagram</span>
-            <span class="skeleton h-40 w-[min(520px,70%)] rounded-[var(--radius-card)]" />
+            <span class="skeleton h-40 w-[min(520px,70%)] rounded-card" />
           </div>
           <div v-else-if="store.loaded" key="empty" class="grid flex-1 place-items-center p-8">
             <AppEmptyState

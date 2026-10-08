@@ -143,7 +143,7 @@ async function confirmDelete(): Promise<void> {
              they read as one choice, sit at the search field's height, and each carries the
              count it would show. -->
         <div
-          class="flex h-(--spacing-control) items-center gap-0.5 rounded-[var(--radius-control)] border border-border bg-surface p-0.5"
+          class="flex h-(--spacing-control) items-center gap-0.5 rounded-control border border-border bg-surface p-0.5"
           role="radiogroup"
           aria-label="Status"
         >
@@ -153,7 +153,7 @@ async function confirmDelete(): Promise<void> {
             type="button"
             role="radio"
             :aria-checked="statusFilter === option.value"
-            class="focus-ring flex h-full items-center gap-1.5 rounded-[calc(var(--radius-control)-3px)] px-2.5 text-[12.5px] transition-colors"
+            class="focus-ring flex h-full items-center gap-1.5 rounded-[calc(var(--radius-control)-3px)] px-2.5 text-small transition-colors"
             :class="
               statusFilter === option.value
                 ? 'bg-surface-raised text-text shadow-[0_1px_2px_rgb(0_0_0/0.4)]'
@@ -163,8 +163,8 @@ async function confirmDelete(): Promise<void> {
           >
             {{ option.label }}
             <span
-              class="font-mono text-[10.5px] tabular-nums"
-              :class="statusFilter === option.value ? 'text-accent' : 'text-text-subtle/70'"
+              class="font-mono text-micro tabular-nums"
+              :class="statusFilter === option.value ? 'text-accent' : 'text-text-subtle'"
             >
               {{ statusCounts.get(option.value) ?? 0 }}
             </span>
@@ -173,14 +173,14 @@ async function confirmDelete(): Promise<void> {
 
         <button
           v-if="companyFilter"
-          class="anchor-chip focus-ring ml-1 flex items-center gap-1.5 px-2.5 py-1 text-[11.5px]"
+          class="anchor-chip focus-ring ml-1 flex items-center gap-1.5 px-2.5 py-1 text-caption"
           @click="clearCompanyFilter"
         >
           <span>{{ targetCompany?.name ?? 'one company' }}</span>
           <CloseGlyph small />
         </button>
 
-        <span class="ml-auto font-mono text-[11.5px] text-text-subtle">
+        <span class="ml-auto font-mono text-caption text-text-subtle">
           {{ totalMatching }} project{{ totalMatching === 1 ? '' : 's' }}
         </span>
       </div>
@@ -188,7 +188,7 @@ async function confirmDelete(): Promise<void> {
       <div v-if="store.isLoading" class="flex flex-col gap-6" aria-hidden="true">
         <div v-for="group in 2" :key="group" class="flex flex-col gap-2">
           <div class="skeleton h-3 w-32" />
-          <div v-for="row in 3" :key="row" class="skeleton h-[60px] rounded-[var(--radius-control)]" />
+          <div v-for="row in 3" :key="row" class="skeleton h-[60px] rounded-control" />
         </div>
       </div>
 
@@ -210,14 +210,14 @@ async function confirmDelete(): Promise<void> {
 
       <div v-else class="flex flex-col gap-7">
         <section v-for="group in groups" :key="group.company.id">
-          <h2 class="mb-2 eyebrow text-[11px]">
+          <h2 class="mb-2 eyebrow text-caption">
             {{ group.company.name }}
           </h2>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             <div
               v-for="project in group.projects"
               :key="project.id"
-              class="group/card relative flex flex-col gap-3 rounded-[var(--radius-card)] border border-border bg-surface p-4 transition-all duration-150 hover:-translate-y-0.5 hover:border-border-strong hover:bg-surface-raised hover:shadow-lift"
+              class="group/card relative flex flex-col gap-3 rounded-card border border-border bg-surface p-4 transition-all duration-(--motion-quick) hover:-translate-y-0.5 hover:border-border-strong hover:bg-surface-raised hover:shadow-lift"
             >
               <!-- The project's own hue along the top edge, the same line its pane header
                    carries in the console, so a card is recognisable before it is read. -->
@@ -228,7 +228,7 @@ async function confirmDelete(): Promise<void> {
               />
               <button
                 data-testid="project-card"
-                class="focus-ring absolute inset-0 rounded-[var(--radius-card)]"
+                class="focus-ring absolute inset-0 rounded-card"
                 :aria-label="`Open ${project.title}`"
                 @click="open(project)"
               />
@@ -246,24 +246,24 @@ async function confirmDelete(): Promise<void> {
               <div class="pointer-events-none flex min-w-0 items-start gap-3">
                 <ProjectMark :project-id="project.id" :icon="project.icon" :image-version="project.iconImageVersion" :size="36" />
                 <div class="min-w-0">
-                  <p class="line-clamp-2 text-[14px] font-semibold leading-snug text-text">{{ project.title }}</p>
-                  <span class="anchor-chip mt-1.5 inline-block px-1.5 py-px text-[10px]">{{ project.anchor }}</span>
+                  <p class="line-clamp-2 text-body font-semibold leading-snug text-text">{{ project.title }}</p>
+                  <span class="anchor-chip mt-1.5 inline-block px-1.5 py-px text-micro">{{ project.anchor }}</span>
                 </div>
               </div>
 
               <StatusMixBar class="pointer-events-none" :tasks="tasksOf(project.id)" />
 
-              <div class="pointer-events-none mt-auto flex items-center justify-between text-[11px] text-text-subtle">
+              <div class="pointer-events-none mt-auto flex items-center justify-between text-caption text-text-subtle">
                 <span>{{ project.taskCount }} task{{ project.taskCount === 1 ? '' : 's' }}</span>
                 <!-- Steps aside for the delete control under the pointer, rather than the card
                      keeping an empty row at its foot for a control that is hidden at rest. -->
-                <span class="transition-opacity duration-100 group-hover/card:opacity-0 group-focus-within/card:opacity-0">
+                <span class="transition-opacity duration-(--motion-quick) group-hover/card:opacity-0 group-focus-within/card:opacity-0">
                   {{ relativeTime(project.updatedAt) }}
                 </span>
               </div>
 
               <button
-                class="focus-ring pointer-events-auto absolute bottom-2.5 right-2.5 z-10 grid size-7 place-items-center rounded text-text-subtle opacity-0 transition hover:bg-surface-hover hover:text-danger focus-visible:opacity-100 group-hover/card:opacity-100"
+                class="focus-ring pointer-events-auto absolute bottom-2.5 right-2.5 z-10 grid size-7 place-items-center rounded-key text-text-subtle opacity-0 transition hover:bg-surface-hover hover:text-danger focus-visible:opacity-100 group-hover/card:opacity-100"
                 :aria-label="`Delete ${project.title}`"
                 data-testid="delete-project"
                 @click.stop="deleting = project"

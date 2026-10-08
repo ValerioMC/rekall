@@ -15,7 +15,7 @@ const inputId = () => props.id ?? fallbackId
 <template>
   <label
     :for="inputId()"
-    class="inline-flex cursor-pointer select-none items-center gap-2.5 text-[13px] text-text"
+    class="inline-flex cursor-pointer select-none items-center gap-2.5 text-body text-text"
   >
     <span class="relative flex size-4 items-center justify-center">
       <input
@@ -23,7 +23,7 @@ const inputId = () => props.id ?? fallbackId
         type="checkbox"
         :checked="modelValue"
         :aria-describedby="describedBy"
-        class="focus-ring peer size-4 cursor-pointer appearance-none rounded border border-border-strong bg-canvas transition-colors checked:border-accent checked:bg-accent"
+        class="focus-ring peer size-4 cursor-pointer appearance-none rounded-key border border-border-strong bg-canvas transition-colors checked:border-accent checked:bg-accent"
         @change="emit('update:modelValue', ($event.target as HTMLInputElement).checked)"
       />
       <svg

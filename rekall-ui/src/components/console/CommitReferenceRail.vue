@@ -23,7 +23,7 @@ const countLabel = computed(() => {
   <div class="min-w-0" data-testid="commit-rail">
     <button
       type="button"
-      class="focus-ring group/rail flex w-full min-w-0 items-center gap-2.5 rounded-[var(--radius-control)] py-1 text-left"
+      class="focus-ring group/rail flex w-full min-w-0 items-center gap-2.5 rounded-control py-1 text-left"
       :aria-expanded="expanded"
       data-testid="commit-rail-toggle"
       @click="expanded = !expanded"
@@ -44,18 +44,18 @@ const countLabel = computed(() => {
         />
         <span
           v-if="overflowCount > 0"
-          class="ml-1.5 shrink-0 rounded-full border border-border-strong bg-surface px-1.5 py-px font-mono text-[10px] text-text-subtle"
+          class="ml-1.5 shrink-0 rounded-full border border-border-strong bg-surface px-1.5 py-px font-mono text-micro text-text-subtle"
         >
           +{{ overflowCount }}
         </span>
       </span>
 
-      <span class="min-w-0 flex-1 truncate text-[11.5px] text-text-muted" data-testid="commit-rail-latest">
+      <span class="min-w-0 flex-1 truncate text-caption text-text-muted" data-testid="commit-rail-latest">
         <span class="font-mono text-accent">{{ latest?.commitHash.slice(0, 7) }}</span>
         <span class="mx-1 text-text-subtle">&#8226;</span>{{ latest?.comment }}
       </span>
 
-      <span class="inline-flex shrink-0 gap-1 text-[10.5px] text-text-subtle">
+      <span class="inline-flex shrink-0 gap-1 text-micro text-text-subtle">
         <span>{{ countLabel }}</span>
         <span v-if="inContextCount > 0" class="text-anchor" data-testid="commit-rail-context-count">
           {{ inContextCount }} in context
@@ -63,7 +63,7 @@ const countLabel = computed(() => {
       </span>
 
       <svg
-        class="size-3 shrink-0 text-text-subtle transition-transform duration-150"
+        class="size-3 shrink-0 text-text-subtle transition-transform duration-(--motion-quick)"
         :class="expanded && 'rotate-90'"
         viewBox="0 0 12 12"
         fill="none"
@@ -80,12 +80,12 @@ const countLabel = computed(() => {
     </button>
 
     <div
-      class="grid transition-[grid-template-rows] duration-200 ease-out"
+      class="grid transition-[grid-template-rows] duration-(--motion-move) ease-out"
       :class="expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'"
     >
       <div class="overflow-hidden" data-testid="commit-rail-panel">
         <div
-          class="max-h-[260px] overflow-y-auto pb-1 pt-0.5 transition-opacity duration-200"
+          class="max-h-[260px] overflow-y-auto pb-1 pt-0.5 transition-opacity duration-(--motion-move)"
           :class="expanded ? 'opacity-100' : 'opacity-0'"
         >
           <CommitReferenceList :references="references" show-step-tag />

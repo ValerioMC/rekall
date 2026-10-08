@@ -6,6 +6,7 @@ use rekall_common::jstr;
 use rekall_model::{DocumentContextMode, TaskStepState};
 
 use super::{ContextCommitView, ContextRecord, DocumentView};
+use crate::component::ProjectComponentView;
 use crate::step::TaskStepView;
 use crate::wrapup::WrapupView;
 
@@ -53,6 +54,7 @@ impl ContextRenderer {
             }
         }
         out.push_str(&self.render_description(record.description.as_deref()));
+        out.push_str(&self.render_components(&record.components));
         out.push_str(&self.render_blueprint(record.blueprint.as_deref()));
         out.push_str(&self.render_steps(&record.steps, record.wrapup.as_ref()));
         out.push_str(&self.render_commits(&record.commits));
@@ -137,6 +139,28 @@ impl ContextRenderer {
         }
     }
 
+    /// The project's parts: each folder a session can open to find that part, with what it is.
+    pub fn render_components(&self, components: &[ProjectComponentView]) -> String {
+        if components.is_empty() {
+            return String::new();
+        }
+        let mut out = format!("\n<components count=\"{}\">\n", components.len());
+        for component in components {
+            out.push_str(&format!(
+                "<component name=\"{}\" folder=\"{}\">\n",
+                attribute(&component.name),
+                attribute(&component.folder)
+            ));
+            if !jstr::is_blank(&component.description) {
+                out.push_str(&truncate(Some(&component.description), MAX_DOCUMENT_CHARACTERS));
+                out.push('\n');
+            }
+            out.push_str("</component>\n");
+        }
+        out.push_str("</components>\n");
+        out
+    }
+
     pub fn render_blueprint(&self, blueprint: Option<&str>) -> String {
         match blueprint {
             Some(text) if !jstr::is_blank(text) => {
@@ -211,6 +235,10 @@ fn is_unwritten(step: &TaskStepView, wrapup: Option<&WrapupView>) -> bool {
         None => true,
         Some(wrapup) => completed.is_after(&wrapup.updated_at),
     }
+}
+
+fn attribute(value: &str) -> String {
+    value.replace('"', "'")
 }
 
 fn indent(body: &str) -> String {

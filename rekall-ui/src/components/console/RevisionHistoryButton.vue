@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppButton from '@/components/ui/AppButton.vue'
 import { ref } from 'vue'
 import RevisionHistoryDialog from '@/components/console/RevisionHistoryDialog.vue'
 import type { TaskId } from '@/model/branded'
@@ -16,9 +17,9 @@ function onRestored(): void {
 </script>
 
 <template>
-  <button
-    type="button"
-    class="key-quiet focus-ring inline-flex h-7 shrink-0 items-center gap-1.5 rounded-[3px] px-2.5 text-xs font-medium"
+  <AppButton
+    variant="quiet"
+    size="sm"
     title="Earlier versions, kept whenever something replaced or deleted this"
     aria-haspopup="dialog"
     data-testid="revision-history-open"
@@ -30,7 +31,7 @@ function onRestored(): void {
       <path d="M6 3.6V6l1.6 1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
     </svg>
     <span>History</span>
-  </button>
+  </AppButton>
 
   <Teleport to="body">
     <Transition name="dialog">

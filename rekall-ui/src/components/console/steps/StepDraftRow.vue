@@ -24,7 +24,7 @@ const expanded = computed(() => expandedId.value === props.step.id)
 <template>
   <li class="group/draft relative min-w-0" data-testid="draft-row" data-seal-host :data-step-id="step.id">
     <div
-      class="min-w-0 rounded-[var(--radius-card)] border border-dashed px-3 py-2 transition-colors"
+      class="min-w-0 rounded-card border border-dashed px-3 py-2 transition-colors"
       :class="expanded ? 'border-border-strong bg-surface-raised' : 'border-border-strong/70 hover:border-border-strong'"
     >
       <div class="flex items-start gap-2">
@@ -33,13 +33,13 @@ const expanded = computed(() => expandedId.value === props.step.id)
         </span>
 
         <button
-          class="focus-ring min-w-0 flex-1 rounded text-left"
+          class="focus-ring min-w-0 flex-1 rounded-key text-left"
           :aria-expanded="expanded"
           data-testid="draft-title"
           @click="toggle(step)"
         >
-          <span class="block text-[13.5px] leading-snug text-text">{{ step.title }}</span>
-          <span class="mt-1 flex flex-wrap items-center gap-2 text-[10.5px]">
+          <span class="block text-body leading-snug text-text">{{ step.title }}</span>
+          <span class="mt-1 flex flex-wrap items-center gap-2 text-micro">
             <span v-if="step.bodyMarkdown?.trim()" class="flex items-center gap-1 text-text-subtle" data-testid="draft-has-detail">
               <svg class="size-2.5" viewBox="0 0 12 12" fill="none" aria-hidden="true">
                 <path d="M1.6 3h8.8M1.6 6h8.8M1.6 9h5.4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
@@ -54,7 +54,7 @@ const expanded = computed(() => expandedId.value === props.step.id)
           <!-- Quiet until it is the thing under the pointer: a shelf of drafts each wearing a
                filled amber button is a shelf of competing calls to action. -->
           <button
-            class="key-quiet rounded-[3px] focus-ring group/promote inline-flex h-7 shrink-0 items-center gap-1.5 px-2.5 text-[11px] font-medium disabled:cursor-not-allowed disabled:opacity-40"
+            class="key-quiet rounded-key focus-ring group/promote inline-flex h-7 shrink-0 items-center gap-1.5 px-2.5 text-caption font-medium disabled:cursor-not-allowed disabled:opacity-40"
             :class="promoting && 'settle'"
             :disabled="promoting"
             :title="`Put ${step.title} on the checklist`"
@@ -62,7 +62,7 @@ const expanded = computed(() => expandedId.value === props.step.id)
             @click="$emit('promote')"
           >
             <svg
-              class="size-3 transition-transform duration-200 group-hover/promote:-translate-y-px"
+              class="size-3 transition-transform duration-(--motion-move) group-hover/promote:-translate-y-px"
               viewBox="0 0 12 12"
               fill="none"
               aria-hidden="true"

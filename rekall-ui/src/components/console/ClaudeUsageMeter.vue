@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppButton from '@/components/ui/AppButton.vue'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { fetchClaudeUsage } from '@/api/claude.api'
 import { formatResetIn } from '@/common/format/countdown'
@@ -200,7 +201,7 @@ function close(): void {
   >
     <button
       type="button"
-      class="key-slate focus-ring group flex h-8 items-center gap-2 rounded-[3px] px-2.5 text-[12px]"
+      class="key-slate focus-ring group flex h-8 items-center gap-2 rounded-key px-2.5 text-small"
       :aria-label="triggerLabel"
       :aria-expanded="open"
       :aria-busy="reading"
@@ -223,7 +224,7 @@ function close(): void {
             cx="11"
             cy="11"
             :r="RING_RADIUS"
-            class="transition-[stroke-dashoffset] duration-500"
+            class="transition-[stroke-dashoffset] duration-(--motion-slow)"
             :class="STROKE[severity]"
             stroke-width="2.5"
             stroke-linecap="round"
@@ -248,7 +249,7 @@ function close(): void {
         <span class="font-mono tabular-nums" :class="TEXT[severity]">
           {{ percentLabel(session) }}
         </span>
-        <span class="hidden font-mono text-[11px] text-text-subtle sm:inline">
+        <span class="hidden font-mono text-caption text-text-subtle min-[1280px]:inline">
           {{ formatResetIn(session.resetsAt, now) }}
         </span>
       </template>
@@ -290,7 +291,7 @@ function close(): void {
 
     <div
       v-if="open"
-      class="rise absolute right-0 top-full z-(--z-overlay) mt-2 w-[264px] rounded-[var(--radius-card)] border border-border-strong bg-surface-raised p-3 shadow-modal"
+      class="rise absolute right-0 top-full z-(--z-overlay) mt-2 w-[264px] rounded-card border border-border-strong bg-surface-raised p-3 shadow-modal"
       role="group"
       aria-label="Claude usage"
     >
@@ -299,21 +300,21 @@ function close(): void {
           <span class="h-2.5 w-[3px] shrink-0 rounded-full bg-anchor" aria-hidden="true" />
           Claude usage
         </p>
-        <button
+        <AppButton
           v-if="state === 'ok'"
-          type="button"
-          class="focus-ring rounded-md px-1.5 py-0.5 text-[11px] text-text-subtle transition-colors hover:bg-surface-hover hover:text-text disabled:opacity-50"
+          variant="quiet"
+          size="sm"
           data-testid="usage-check-again"
           :disabled="reading || waiting"
           @click="checkAgain"
         >
           {{ reading ? 'Checking…' : 'Check again' }}
-        </button>
+        </AppButton>
       </div>
 
       <p
         v-if="state === 'ok' && waiting"
-        class="mb-3 rounded-md border border-warn/40 bg-warn/10 px-2 py-1.5 text-[11px] leading-relaxed text-text-muted"
+        class="mb-3 rounded-control border border-warn/40 bg-warn/10 px-2 py-1.5 text-caption leading-relaxed text-text-muted"
         data-testid="usage-hold"
       >
         Figures from {{ figuresAge }}. Anthropic asked this machine to wait; the next reading can
@@ -323,28 +324,28 @@ function close(): void {
       <ul v-if="state === 'ok'" class="flex flex-col gap-3">
         <li v-for="limit in limits" :key="limit.key" class="flex flex-col gap-1.5">
           <div class="flex items-baseline justify-between gap-2">
-            <span class="text-[12px] text-text-muted">{{ limit.label }}</span>
-            <span class="font-mono text-[12px] tabular-nums" :class="TEXT[limit.severity]">
+            <span class="text-small text-text-muted">{{ limit.label }}</span>
+            <span class="font-mono text-small tabular-nums" :class="TEXT[limit.severity]">
               {{ percentLabel(limit) }}
             </span>
           </div>
           <div class="h-1.5 w-full overflow-hidden rounded-full bg-border">
             <span
-              class="block h-full rounded-full transition-[width] duration-500"
+              class="block h-full rounded-full transition-[width] duration-(--motion-slow)"
               :class="FILL[limit.severity]"
               :style="{ width: `${Math.min(100, Math.max(2, limit.percent))}%` }"
             />
           </div>
-          <span class="font-mono text-[10.5px] text-text-subtle">{{ resetLabel(limit) }}</span>
+          <span class="font-mono text-micro text-text-subtle">{{ resetLabel(limit) }}</span>
         </li>
       </ul>
 
-      <p v-else-if="state === 'reading'" class="text-[12px] leading-relaxed text-text-subtle">
+      <p v-else-if="state === 'reading'" class="text-small leading-relaxed text-text-subtle">
         Taking a reading from Anthropic.
       </p>
 
       <template v-else>
-        <p class="text-[12px] leading-relaxed text-text-subtle">
+        <p class="text-small leading-relaxed text-text-subtle">
           <template v-if="state === 'signed-out'">
             No valid Claude Code login was found. Open a Claude Code terminal, which signs in or
             refreshes the token, then check again.
@@ -359,11 +360,11 @@ function close(): void {
           </template>
         </p>
         <div class="mt-3 flex items-center justify-between gap-2">
-          <span class="font-mono text-[10.5px] text-text-subtle">{{ checkedLabel }}</span>
+          <span class="font-mono text-micro text-text-subtle">{{ checkedLabel }}</span>
           <button
             v-if="state !== 'rate-limited'"
             type="button"
-            class="key-quiet focus-ring inline-flex h-7 items-center gap-1.5 rounded-[3px] px-2.5 text-[12px] disabled:opacity-50"
+            class="key-quiet focus-ring inline-flex h-7 items-center gap-1.5 rounded-key px-2.5 text-small disabled:opacity-50"
             data-testid="usage-check-again"
             :disabled="reading"
             @click="checkAgain"

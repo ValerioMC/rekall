@@ -106,8 +106,8 @@ onUnmounted(() => {
     <svg class="seal-face" x="0" y="0" width="24" height="24" viewBox="0 0 24 24" overflow="visible">
       <defs>
         <linearGradient :id="`${gradientId}-well`" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#080b10" />
-          <stop offset="1" stop-color="#252d3d" />
+          <stop offset="0" style="stop-color: var(--color-well-top)" />
+          <stop offset="1" style="stop-color: var(--color-well-floor)" />
         </linearGradient>
         <radialGradient :id="`${gradientId}-metal`" cx="0.34" cy="0.26" r="0.95">
           <stop offset="0" style="stop-color: var(--seal-hi)" />
@@ -185,9 +185,9 @@ onUnmounted(() => {
 
 .seal[data-complete='true'] {
   --seal: var(--color-safe);
-  --seal-hi: #a6f2cd;
-  --seal-shade: #14804f;
-  --seal-ink: #03200f;
+  --seal-hi: var(--color-seal-hi);
+  --seal-shade: var(--color-seal-shade);
+  --seal-ink: var(--color-seal-ink);
 }
 
 /* No transform in the shared transition: the ring's rotation is an SVG attribute that changes
@@ -195,20 +195,20 @@ onUnmounted(() => {
 .seal circle,
 .seal path {
   transition:
-    fill 220ms ease,
-    stroke 220ms ease,
-    stroke-dasharray 320ms cubic-bezier(0.3, 0.7, 0.2, 1),
-    opacity 200ms ease;
+    fill var(--motion-move) ease,
+    stroke var(--motion-move) ease,
+    stroke-dasharray var(--motion-slow) cubic-bezier(0.3, 0.7, 0.2, 1),
+    opacity var(--motion-move) ease;
 }
 
 .seal-pencil,
 .seal-ticks path,
 .seal-core {
   transition:
-    stroke 220ms ease,
-    fill 220ms ease,
-    opacity 200ms ease,
-    transform 220ms ease;
+    stroke var(--motion-move) ease,
+    fill var(--motion-move) ease,
+    opacity var(--motion-move) ease,
+    transform var(--motion-move) ease;
 }
 
 /* What scales does so about its own centre. The ring and the comet keep the default origin:
@@ -249,7 +249,7 @@ onUnmounted(() => {
   stroke-linecap: round;
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  transition: stroke-dashoffset 420ms cubic-bezier(0.3, 0.7, 0.2, 1);
+  transition: stroke-dashoffset var(--motion-slow) cubic-bezier(0.3, 0.7, 0.2, 1);
 }
 
 :is([data-seal-host]:hover, [data-seal-host]:focus-within) .seal-crop {
@@ -284,7 +284,7 @@ onUnmounted(() => {
 .seal-gloss {
   opacity: 0;
   pointer-events: none;
-  transition: opacity 220ms ease;
+  transition: opacity var(--motion-move) ease;
 }
 
 .seal[data-state='DONE'] .seal-gloss {

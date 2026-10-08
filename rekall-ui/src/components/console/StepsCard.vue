@@ -39,25 +39,24 @@ const hasBody = computed(() => hasSteps.value || draftCount.value > 0)
     </span>
     <span class="flex min-h-[17px] items-center gap-2">
       <span
-        class="text-[11.5px] font-semibold tracking-[0.005em] transition-colors"
+        class="text-caption font-semibold tracking-[0.005em] transition-colors"
         :class="selected ? 'text-text' : 'text-text-muted'"
       >
         Steps
       </span>
       <span
         v-if="running"
-        class="inline-flex items-center gap-1 rounded-full bg-accent-soft px-1.5 py-px text-[9.5px] font-semibold tracking-[0.02em] text-accent"
+        class="inline-flex items-center gap-1 rounded-full bg-accent-soft px-1.5 py-px text-micro font-semibold tracking-[0.02em] text-accent"
         data-testid="steps-card-running"
       >
         <span class="relative grid size-1.5 place-items-center" aria-hidden="true">
-          <span class="absolute inline-flex size-1.5 animate-ping rounded-full bg-accent/60" />
           <span class="relative inline-flex size-1 rounded-full bg-accent" />
         </span>
         running
       </span>
       <span
         v-if="hasSteps"
-        class="ml-auto shrink-0 font-mono text-[10.5px] tabular-nums"
+        class="ml-auto shrink-0 font-mono text-micro tabular-nums"
         :class="done === checklist.length ? 'text-safe' : 'text-text-muted'"
         data-testid="steps-progress"
       >
@@ -70,7 +69,7 @@ const hasBody = computed(() => hasSteps.value || draftCount.value > 0)
         <span
           v-for="step in checklist"
           :key="step.id"
-          class="h-full flex-1 rounded-full transition-colors duration-300"
+          class="h-full flex-1 rounded-full transition-colors duration-(--motion-slow)"
           :class="
             step.state === 'DONE'
               ? done === checklist.length
@@ -88,42 +87,42 @@ const hasBody = computed(() => hasSteps.value || draftCount.value > 0)
       </span>
       <span
         v-if="running"
-        class="mt-1.5 block truncate text-[12px] leading-relaxed text-accent"
+        class="mt-1.5 block truncate text-small leading-relaxed text-accent"
         data-testid="steps-card-line"
       >
         Running: {{ running.title }}
       </span>
       <span
         v-else-if="next"
-        class="mt-1.5 block truncate text-[12px] leading-relaxed text-text-muted"
+        class="mt-1.5 block truncate text-small leading-relaxed text-text-muted"
         data-testid="steps-card-line"
       >
         Next: {{ next.title }}
       </span>
       <span
         v-else-if="claimed > 0"
-        class="mt-1.5 block text-[12px] leading-relaxed text-accent"
+        class="mt-1.5 block text-small leading-relaxed text-accent"
         data-testid="steps-card-line"
       >
         {{ claimed }} step{{ claimed > 1 ? 's' : '' }} awaiting your review.
       </span>
       <span
         v-else
-        class="mt-1.5 block text-[12px] leading-relaxed text-safe"
+        class="mt-1.5 block text-small leading-relaxed text-safe"
         data-testid="steps-card-line"
       >
         Every step is done.
       </span>
       <span
         v-if="draftCount > 0"
-        class="mt-1 flex items-center gap-1 text-[11px] leading-relaxed text-text-subtle"
+        class="mt-1 flex items-center gap-1 text-caption leading-relaxed text-text-subtle"
         data-testid="steps-card-drafts"
       >
-        <span class="size-[7px] rounded-[2px] border border-dashed border-current" aria-hidden="true" />
+        <span class="size-[7px] rounded-key border border-dashed border-current" aria-hidden="true" />
         {{ draftCount }} in draft
       </span>
     </template>
-    <span v-else class="mt-1 block text-[11.5px] leading-relaxed text-text-muted">
+    <span v-else class="mt-1 block text-caption leading-relaxed text-text-muted">
       {{
         draftCount > 0
           ? `${draftCount} step${draftCount > 1 ? 's' : ''} in draft. Open it to promote them.`

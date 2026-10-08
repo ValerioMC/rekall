@@ -67,7 +67,7 @@ const WEEKDAY_LABELS = weekdayLabels()
   <div class="flex-1 min-h-0 bg-canvas">
     <AppCatalogHeader title="Calendar">
       <template #actions>
-        <span class="hidden font-mono text-[11.5px] text-text-subtle sm:inline">
+        <span class="hidden font-mono text-caption text-text-subtle sm:inline">
           {{ formatDuration(monthTotalSeconds) }} this month
         </span>
         <AppButton variant="secondary" size="sm" data-testid="calendar-today" @click="goToday">
@@ -78,8 +78,9 @@ const WEEKDAY_LABELS = weekdayLabels()
 
     <div class="mx-auto max-w-[1240px] px-8 py-6">
       <div class="mb-4 flex items-center gap-2">
-        <button
-          class="key-quiet focus-ring grid size-8 place-items-center rounded-[3px]"
+        <AppButton
+          variant="quiet"
+          size="icon"
           aria-label="Previous month"
           data-testid="calendar-prev"
           @click="shiftMonth(-1)"
@@ -87,9 +88,10 @@ const WEEKDAY_LABELS = weekdayLabels()
           <svg class="size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
-        </button>
-        <button
-          class="key-quiet focus-ring grid size-8 place-items-center rounded-[3px]"
+        </AppButton>
+        <AppButton
+          variant="quiet"
+          size="icon"
           aria-label="Next month"
           data-testid="calendar-next"
           @click="shiftMonth(1)"
@@ -97,15 +99,15 @@ const WEEKDAY_LABELS = weekdayLabels()
           <svg class="size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
-        </button>
-        <h2 class="ml-1 min-w-0 truncate text-[15px] font-semibold capitalize tracking-[-0.01em] text-text">
+        </AppButton>
+        <h2 class="ml-1 min-w-0 truncate text-title font-semibold capitalize tracking-[-0.01em] text-text">
           {{ monthLabel }}
         </h2>
       </div>
 
-      <div v-if="store.isLoading" class="skeleton h-[600px] rounded-[var(--radius-card)]" aria-hidden="true" />
+      <div v-if="store.isLoading" class="skeleton h-[600px] rounded-card" aria-hidden="true" />
 
-      <div v-else class="overflow-hidden rounded-[var(--radius-card)] border-l border-t border-border">
+      <div v-else class="overflow-hidden rounded-card border-l border-t border-border">
         <div class="grid grid-cols-7 border-b border-border bg-surface">
           <span
             v-for="label in WEEKDAY_LABELS"

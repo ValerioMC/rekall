@@ -131,13 +131,13 @@ function hint(entry: TaskEntry): string {
       <label class="relative block">
         <span class="sr-only">Filter tasks</span>
         <svg viewBox="0 0 16 16" class="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-text-subtle" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.2" /><path d="m10.2 10.2 3.3 3.3" /></svg>
-        <input v-model="filter" type="search" placeholder="Find a task" class="field h-8 w-full rounded-[var(--radius-control)] pl-8 pr-2.5 text-[12.5px] text-text" data-testid="diagram-filter" />
+        <input v-model="filter" type="search" placeholder="Find a task" class="field h-8 w-full rounded-control pl-8 pr-2.5 text-small text-text" data-testid="diagram-filter" />
       </label>
-      <div class="grid grid-cols-2 gap-1 rounded-[var(--radius-control)] bg-canvas p-0.5" role="group" aria-label="Which tasks">
+      <div class="grid grid-cols-2 gap-1 rounded-control bg-canvas p-0.5" role="group" aria-label="Which tasks">
         <button
           v-for="option in [{ value: 'all', label: 'All tasks' }, { value: 'diagrams', label: 'With a diagram' }] as const"
           :key="option.value"
-          class="focus-ring h-7 rounded-[7px] text-[12px] transition-colors"
+          class="focus-ring h-7 rounded-control text-small transition-colors"
           :class="scope === option.value ? 'bg-surface-raised font-medium text-text' : 'text-text-subtle hover:text-text'"
           :aria-pressed="scope === option.value"
           :data-testid="`diagram-scope-${option.value}`"
@@ -151,19 +151,19 @@ function hint(entry: TaskEntry): string {
     <div class="min-h-0 flex-1 overflow-y-auto px-2 pb-16 pt-2">
       <div v-if="!loaded" class="flex flex-col gap-2 p-1" role="status" aria-busy="true">
         <span class="sr-only">Loading tasks</span>
-        <span v-for="index in 4" :key="index" class="skeleton h-[52px] rounded-[var(--radius-control)]" />
+        <span v-for="index in 4" :key="index" class="skeleton h-[52px] rounded-control" />
       </div>
 
-      <p v-else-if="groups.length === 0 && (filter || scope === 'diagrams')" class="px-3 py-6 text-center text-[12px] leading-relaxed text-text-subtle">
+      <p v-else-if="groups.length === 0 && (filter || scope === 'diagrams')" class="px-3 py-6 text-center text-small leading-relaxed text-text-subtle">
         {{ filter ? `Nothing matches “${filter}”.` : 'No task has a diagram yet.' }}
       </p>
 
-      <p v-else-if="groups.length === 0" class="px-3 py-6 text-center text-[12px] leading-relaxed text-text-subtle">
+      <p v-else-if="groups.length === 0" class="px-3 py-6 text-center text-small leading-relaxed text-text-subtle">
         No tasks yet. A diagram is drawn from a task.
       </p>
 
       <section v-for="group in groups" :key="group.projectId" class="mb-3" :aria-label="group.project?.title ?? 'Project'">
-        <h3 class="flex h-7 items-center gap-2 px-2.5 text-[11.5px] font-medium text-text-subtle">
+        <h3 class="flex h-7 items-center gap-2 px-2.5 text-caption font-medium text-text-subtle">
           <ProjectMark
             :project-id="group.projectId"
             :icon="group.project?.icon ?? 'folder'"
@@ -176,7 +176,7 @@ function hint(entry: TaskEntry): string {
 
         <div v-for="entry in group.entries" :key="entry.task.id" class="mb-0.5">
           <button
-            class="focus-ring group/row block w-full rounded-[var(--radius-control)] px-3 py-2 text-left transition-colors"
+            class="focus-ring group/row block w-full rounded-control px-3 py-2 text-left transition-colors"
             :class="[
               isSelected(entry) ? 'selected-row' : 'hover:bg-surface-raised',
               entry.state.diagrams.some((diagram) => diagram.id === arrivedId) ? 'row-arrived' : ''
@@ -186,12 +186,12 @@ function hint(entry: TaskEntry): string {
             @click="activate(entry)"
           >
             <span class="flex items-center gap-2">
-              <span class="min-w-0 flex-1 truncate text-[13px] font-medium" :class="entry.state.phase === 'none' ? 'text-text-muted' : 'text-text'">{{ entry.task.title }}</span>
+              <span class="min-w-0 flex-1 truncate text-body font-medium" :class="entry.state.phase === 'none' ? 'text-text-muted' : 'text-text'">{{ entry.task.title }}</span>
               <DiagramTag :phase="entry.state.phase" :count="entry.state.diagrams.length" />
             </span>
             <span class="mt-1 flex items-center gap-2">
-              <span class="anchor-chip min-w-0 shrink truncate px-1.5 py-px text-[9.5px] leading-[15px]">{{ entry.task.label }}</span>
-              <span class="min-w-0 flex-1 truncate text-right text-[11px] text-text-subtle" :class="entry.state.phase === 'ready' && 'tabular-nums'">
+              <span class="anchor-chip min-w-0 shrink truncate px-1.5 py-px text-micro leading-[15px]">{{ entry.task.label }}</span>
+              <span class="min-w-0 flex-1 truncate text-right text-caption text-text-subtle" :class="entry.state.phase === 'ready' && 'tabular-nums'">
                 <template v-if="entry.state.phase === 'none'">
                   <span class="group-hover/row:hidden group-focus-visible/row:hidden">{{ hint(entry) }}</span>
                   <span class="hidden font-medium text-accent group-hover/row:inline group-focus-visible/row:inline">Generate a diagram</span>
@@ -201,44 +201,44 @@ function hint(entry: TaskEntry): string {
             </span>
           </button>
 
-          <div v-if="entry.state.phase === 'generating' && entry.generation" class="mb-1 flex items-center gap-1 px-3 pt-0.5 text-[11px] text-text-subtle">
-            <button class="focus-ring rounded underline-offset-2 hover:text-text hover:underline" @click="emit('openTerminal', entry.generation)">Open its terminal</button>
+          <div v-if="entry.state.phase === 'generating' && entry.generation" class="mb-1 flex items-center gap-1 px-3 pt-0.5 text-caption text-text-subtle">
+            <button class="focus-ring rounded-key underline-offset-2 hover:text-text hover:underline" @click="emit('openTerminal', entry.generation)">Open its terminal</button>
             <span aria-hidden="true">·</span>
-            <button class="focus-ring rounded underline-offset-2 hover:text-text hover:underline" aria-label="Stop waiting for this diagram" @click="emit('dismiss', entry.generation.key)">Stop waiting</button>
+            <button class="focus-ring rounded-key underline-offset-2 hover:text-text hover:underline" aria-label="Stop waiting for this diagram" @click="emit('dismiss', entry.generation.key)">Stop waiting</button>
           </div>
 
           <ul v-if="isSelected(entry) && entry.state.diagrams.length > 1" class="mb-1 ml-4 border-l border-border pl-2" aria-label="Diagrams of this task">
             <li v-for="diagram in entry.state.diagrams" :key="diagram.id">
               <button
-                class="focus-ring flex w-full items-baseline gap-2 rounded-md px-2 py-1 text-left text-[12px] transition-colors hover:bg-surface-raised"
+                class="focus-ring flex w-full items-baseline gap-2 rounded-control px-2 py-1 text-left text-small transition-colors hover:bg-surface-raised"
                 :class="diagram.id === selectedId ? 'text-text' : 'text-text-muted'"
                 :aria-current="diagram.id === selectedId"
                 data-testid="diagram-row"
                 @click="emit('select', diagram.id)"
               >
                 <span class="min-w-0 flex-1 truncate">{{ diagram.title }}</span>
-                <span class="shrink-0 text-[10.5px] tabular-nums text-text-subtle">{{ relativeTime(diagram.updatedAt, now) }}</span>
+                <span class="shrink-0 text-micro tabular-nums text-text-subtle">{{ relativeTime(diagram.updatedAt, now) }}</span>
               </button>
             </li>
           </ul>
         </div>
 
         <template v-if="group.loose.length > 0">
-          <h4 class="mt-2 px-2.5 text-[11px] text-text-subtle">Not tied to a task</h4>
+          <h4 class="mt-2 px-2.5 text-caption text-text-subtle">Not tied to a task</h4>
           <button
             v-for="summary in group.loose"
             :key="summary.id"
-            class="focus-ring mb-0.5 block w-full rounded-[var(--radius-control)] px-3 py-2 text-left transition-colors"
+            class="focus-ring mb-0.5 block w-full rounded-control px-3 py-2 text-left transition-colors"
             :class="[selectedId === summary.id ? 'selected-row' : 'hover:bg-surface-raised', arrivedId === summary.id ? 'row-arrived' : '']"
             :aria-current="selectedId === summary.id"
             data-testid="diagram-row"
             @click="emit('select', summary.id)"
           >
             <span class="flex items-baseline gap-2">
-              <span class="min-w-0 flex-1 truncate text-[13px] font-medium text-text">{{ summary.title }}</span>
-              <span class="shrink-0 text-[11px] tabular-nums text-text-subtle">{{ relativeTime(summary.updatedAt, now) }}</span>
+              <span class="min-w-0 flex-1 truncate text-body font-medium text-text">{{ summary.title }}</span>
+              <span class="shrink-0 text-caption tabular-nums text-text-subtle">{{ relativeTime(summary.updatedAt, now) }}</span>
             </span>
-            <span class="mt-1 block font-mono text-[10.5px] tabular-nums text-text-subtle">{{ summary.nodeCount }} elements · {{ summary.edgeCount }} relations</span>
+            <span class="mt-1 block font-mono text-micro tabular-nums text-text-subtle">{{ summary.nodeCount }} elements · {{ summary.edgeCount }} relations</span>
           </button>
         </template>
       </section>

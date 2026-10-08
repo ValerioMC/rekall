@@ -8,6 +8,7 @@
 mod baseline;
 mod m031_project_section;
 mod m032_project_icon_image;
+mod m033_project_component;
 mod migration_support;
 mod migrator;
 

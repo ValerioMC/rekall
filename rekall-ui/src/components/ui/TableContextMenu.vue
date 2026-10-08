@@ -55,7 +55,7 @@ onUnmounted(() => {
     ref="menu"
     role="menu"
     aria-label="Table"
-    class="fixed z-[var(--z-overlay)] w-[200px] rounded-[10px] border border-border bg-surface-raised p-1 shadow-lg"
+    class="fixed z-[var(--z-overlay)] w-[200px] rounded-card border border-border bg-surface-raised p-1 shadow-lg"
     :style="{ left: `${left}px`, top: `${top}px` }"
     data-testid="table-context-menu"
   >
@@ -66,7 +66,7 @@ onUnmounted(() => {
         :key="item.action"
         type="button"
         role="menuitem"
-        class="focus-ring flex h-7 w-full items-center rounded-[6px] px-2 text-left text-[12px] text-text-muted transition-colors enabled:hover:bg-surface-hover enabled:hover:text-text disabled:opacity-40"
+        class="focus-ring flex h-7 w-full items-center rounded-control px-2 text-left text-small text-text-muted transition-colors enabled:hover:bg-surface-hover enabled:hover:text-text disabled:opacity-40"
         :disabled="!available(item.action)"
         :data-testid="`table-menu-${item.action}`"
         @click="emit('choose', item.action)"

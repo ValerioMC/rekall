@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppButton from '@/components/ui/AppButton.vue'
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { fetchRecentCommits } from '@/api/commitReference.api'
 import { relativeTime } from '@/common/format/relative-time'
@@ -108,7 +109,7 @@ onUnmounted(() => {
   <Teleport to="body">
     <div
       ref="panel"
-      class="commit-picker fixed z-(--z-overlay) flex max-h-[min(440px,calc(100vh-24px))] flex-col overflow-hidden rounded-[var(--radius-card)] border border-border-strong bg-surface shadow-lift"
+      class="commit-picker fixed z-(--z-overlay) flex max-h-[min(440px,calc(100vh-24px))] flex-col overflow-hidden rounded-card border border-border-strong bg-surface shadow-lift"
       :style="{ top: `${position.top}px`, left: `${position.left}px`, width: `${position.width}px` }"
       role="dialog"
       aria-label="Pick a commit to log"
@@ -119,7 +120,7 @@ onUnmounted(() => {
         <span class="eyebrow">Recent commits</span>
         <span
           v-if="!loading && !failure"
-          class="ml-auto font-mono text-[10.5px] tabular-nums text-text-subtle"
+          class="ml-auto font-mono text-micro tabular-nums text-text-subtle"
           data-testid="commit-picker-count"
         >
           {{ commits.length }}
@@ -129,14 +130,14 @@ onUnmounted(() => {
       <div class="min-h-0 flex-1 overflow-y-auto py-1" data-testid="commit-picker-log">
         <p
           v-if="loading"
-          class="px-3.5 py-3 text-[11.5px] text-text-subtle"
+          class="px-3.5 py-3 text-caption text-text-subtle"
           data-testid="commit-picker-loading"
         >
           Reading the log…
         </p>
         <p
           v-else-if="failure"
-          class="px-3.5 py-3 text-[11.5px] leading-relaxed text-danger"
+          class="px-3.5 py-3 text-caption leading-relaxed text-danger"
           data-testid="commit-picker-failure"
         >
           {{ failure }}
@@ -171,30 +172,30 @@ onUnmounted(() => {
               <span class="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span class="flex min-w-0 items-center gap-2">
                   <span
-                    class="shrink-0 rounded-[6px] border border-border-strong bg-surface-raised px-1.5 py-px font-mono text-[10.5px] text-accent"
+                    class="shrink-0 rounded-control border border-border-strong bg-surface-raised px-1.5 py-px font-mono text-micro text-accent"
                     data-testid="commit-picker-hash"
                   >
                     {{ commit.hash.slice(0, 7) }}
                   </span>
                   <span
                     v-if="index === 0"
-                    class="shrink-0 rounded-full border border-anchor-line bg-anchor-soft px-1.5 py-px font-mono text-[9.5px] uppercase tracking-[0.06em] text-anchor"
+                    class="shrink-0 rounded-full border border-anchor-line bg-anchor-soft px-1.5 py-px font-mono text-micro uppercase tracking-[0.06em] text-anchor"
                   >
                     tip
                   </span>
                   <span
                     v-if="isLogged(commit.hash)"
-                    class="shrink-0 rounded-full bg-accent-soft px-1.5 py-px text-[9.5px] font-semibold uppercase tracking-[0.06em] text-accent"
+                    class="shrink-0 rounded-full bg-accent-soft px-1.5 py-px text-micro font-semibold uppercase tracking-[0.06em] text-accent"
                     data-testid="commit-picker-logged"
                   >
                     logged
                   </span>
-                  <span class="ml-auto shrink-0 text-[10.5px] text-text-subtle">
+                  <span class="ml-auto shrink-0 text-micro text-text-subtle">
                     {{ relativeTime(commit.committedAt) }}
                   </span>
                 </span>
                 <span
-                  class="truncate text-[12px] leading-snug"
+                  class="truncate text-small leading-snug"
                   :class="isLogged(commit.hash) ? 'text-text-subtle' : 'text-text'"
                   :title="commit.subject"
                   data-testid="commit-picker-subject"
@@ -220,19 +221,20 @@ onUnmounted(() => {
           autocomplete="off"
           spellcheck="false"
           placeholder="or paste a hash…"
-          class="focus-ring h-7 min-w-0 flex-1 rounded-[var(--radius-control)] border border-border bg-surface px-2.5 font-mono text-[11.5px] text-text placeholder:font-sans placeholder:text-text-subtle"
+          class="focus-ring h-7 min-w-0 flex-1 rounded-control border border-border bg-surface px-2.5 font-mono text-caption text-text placeholder:font-sans placeholder:text-text-subtle"
           :class="pasted && !pastedIsHash && 'border-danger'"
           :disabled="busy"
           data-testid="commit-picker-paste"
         />
-        <button
+        <AppButton
+          variant="primary"
+          size="sm"
           type="submit"
-          class="key-gold rounded-[3px] focus-ring h-7 shrink-0 px-3 text-[11.5px] font-medium disabled:cursor-not-allowed disabled:opacity-50"
           :disabled="busy || !pastedIsHash"
           data-testid="commit-picker-log-pasted"
         >
           Log
-        </button>
+        </AppButton>
       </form>
     </div>
   </Teleport>

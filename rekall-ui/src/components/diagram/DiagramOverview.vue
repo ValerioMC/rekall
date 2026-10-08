@@ -32,8 +32,8 @@ const provenance = computed(() => {
   <div class="flex flex-col gap-6" data-testid="diagram-overview">
     <section>
       <p class="eyebrow mb-1.5">The question</p>
-      <p class="whitespace-pre-line text-[13.5px] leading-relaxed text-text">{{ diagram.question || 'No question was recorded.' }}</p>
-      <p class="mt-2 text-[11.5px] text-text-subtle">
+      <p class="whitespace-pre-line text-body leading-relaxed text-text">{{ diagram.question || 'No question was recorded.' }}</p>
+      <p class="mt-2 text-caption text-text-subtle">
         Written {{ relativeTime(diagram.createdAt) }}<template v-if="diagram.updatedAt !== diagram.createdAt">, revised {{ relativeTime(diagram.updatedAt) }}</template>
       </p>
     </section>
@@ -41,13 +41,13 @@ const provenance = computed(() => {
     <section aria-labelledby="overview-trace">
       <h4 id="overview-trace" class="section-label mb-2 flex items-baseline justify-between">
         Traced to code
-        <span class="font-mono text-[11.5px] font-normal tabular-nums text-text-muted">{{ coverage.traced }} / {{ coverage.total }}</span>
+        <span class="font-mono text-caption font-normal tabular-nums text-text-muted">{{ coverage.traced }} / {{ coverage.total }}</span>
       </h4>
       <div class="h-1.5 overflow-hidden rounded-full bg-surface-raised" role="meter" :aria-valuenow="percent" aria-valuemin="0" aria-valuemax="100" aria-label="Elements traced to code">
-        <div class="h-full rounded-full bg-accent/80 transition-[width] duration-500" :style="{ width: `${percent}%` }" />
+        <div class="h-full rounded-full bg-accent/80 transition-[width] duration-(--motion-slow)" :style="{ width: `${percent}%` }" />
       </div>
       <div class="mt-2.5 flex flex-wrap gap-1.5">
-        <span v-for="entry in provenance" :key="entry.key" class="rounded-full border border-border px-2 py-0.5 text-[11px] text-text-muted">
+        <span v-for="entry in provenance" :key="entry.key" class="rounded-full border border-border px-2 py-0.5 text-caption text-text-muted">
           {{ entry.key === 'unsaid' ? 'no provenance' : entry.key }} <span class="font-mono tabular-nums text-text-subtle">{{ entry.count }}</span>
         </span>
       </div>
@@ -55,14 +55,14 @@ const provenance = computed(() => {
 
     <section aria-labelledby="overview-files">
       <h4 id="overview-files" class="section-label mb-1">Files</h4>
-      <p class="mb-2 text-[11.5px] text-text-subtle">Pick a file to light the elements it implements.</p>
-      <p v-if="files.length === 0" class="rounded-[var(--radius-control)] border border-dashed border-border px-3 py-2.5 text-[12px] text-text-subtle">
+      <p class="mb-2 text-caption text-text-subtle">Pick a file to light the elements it implements.</p>
+      <p v-if="files.length === 0" class="rounded-control border border-dashed border-border px-3 py-2.5 text-small text-text-subtle">
         No element points at code yet.
       </p>
       <ul v-else class="flex flex-col">
         <li v-for="entry in files" :key="entry.file">
           <button
-            class="focus-ring flex h-(--spacing-row) w-full items-center gap-2 rounded-[var(--radius-control)] px-2.5 text-left transition-colors"
+            class="focus-ring flex h-(--spacing-row) w-full items-center gap-2 rounded-control px-2.5 text-left transition-colors"
             :class="focusedFile === entry.file ? 'selected-row text-text' : 'text-text-muted hover:bg-surface-raised hover:text-text'"
             :aria-pressed="focusedFile === entry.file"
             data-testid="overview-file"
@@ -70,10 +70,10 @@ const provenance = computed(() => {
             @pointerleave="emit('hoverFile', null)"
             @click="emit('focusFile', focusedFile === entry.file ? null : entry.file)"
           >
-            <span class="flex min-w-0 flex-1 font-mono text-[11.5px]" :title="entry.file">
+            <span class="flex min-w-0 flex-1 font-mono text-caption" :title="entry.file">
               <span class="truncate text-text-subtle">{{ folderOf(entry.file) }}</span><span class="shrink-0">{{ baseOf(entry.file) }}</span>
             </span>
-            <span class="shrink-0 font-mono text-[11px] tabular-nums text-text-subtle">{{ entry.nodeIds.length }}</span>
+            <span class="shrink-0 font-mono text-caption tabular-nums text-text-subtle">{{ entry.nodeIds.length }}</span>
           </button>
         </li>
       </ul>

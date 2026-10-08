@@ -30,9 +30,38 @@ describe('AppButton', () => {
     expect(danger.classes()).toContain('key-danger')
     expect(ghost.classes()).not.toContain('key-slate')
     for (const button of [primary, secondary, danger, ghost]) {
-      expect(button.classes()).toContain('rounded-[3px]')
+      expect(button.classes()).toContain('rounded-key')
       expect(button.classes()).toContain('border-0')
     }
+  })
+
+  it('announces a slow action as busy while it spins', () => {
+    const idle = mount(AppButton)
+    const busy = mount(AppButton, { props: { loading: true } })
+
+    expect(idle.attributes('aria-busy')).toBeUndefined()
+    expect(busy.attributes('aria-busy')).toBe('true')
+  })
+
+  it('lights a toggle that is on and says so, and leaves a plain button without a pressed state', () => {
+    const plain = mount(AppButton, { props: { variant: 'quiet' } })
+    const off = mount(AppButton, { props: { variant: 'quiet', pressed: false } })
+    const on = mount(AppButton, { props: { variant: 'quiet', pressed: true } })
+
+    expect(plain.attributes('aria-pressed')).toBeUndefined()
+    expect(plain.classes()).toContain('key-quiet')
+    expect(off.attributes('aria-pressed')).toBe('false')
+    expect(off.classes()).toContain('key-quiet')
+    expect(on.attributes('aria-pressed')).toBe('true')
+    expect(on.classes()).toContain('key-lit')
+    expect(on.classes()).not.toContain('key-quiet')
+  })
+
+  it('draws an icon key square, so its glyph sits in a 32px target', () => {
+    const wrapper = mount(AppButton, { props: { variant: 'quiet', size: 'icon' }, attrs: { 'aria-label': 'Settings' } })
+
+    expect(wrapper.classes()).toContain('size-8')
+    expect(wrapper.attributes('aria-label')).toBe('Settings')
   })
 
   it('does not emit click when disabled', async () => {

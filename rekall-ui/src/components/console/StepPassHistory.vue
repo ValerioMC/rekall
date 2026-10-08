@@ -34,12 +34,12 @@ function toggle(index: number): void {
     <li
       v-for="(pass, index) in passes"
       :key="pass.sentBackAt"
-      class="sealed-pass rounded-[var(--radius-control)] border border-border bg-canvas"
+      class="sealed-pass rounded-control border border-border bg-canvas"
       data-testid="step-pass"
     >
       <button
         type="button"
-        class="focus-ring flex w-full items-center gap-2 rounded-[var(--radius-control)] px-2.5 py-1.5 text-left"
+        class="focus-ring flex w-full items-center gap-2 rounded-control px-2.5 py-1.5 text-left"
         :aria-expanded="openIndexes.has(index)"
         @click="toggle(index)"
       >
@@ -47,8 +47,8 @@ function toggle(index: number): void {
           <rect x="2.2" y="5.2" width="7.6" height="5.3" rx="1.2" stroke="currentColor" stroke-width="1.1" />
           <path d="M4 5.2V3.9a2 2 0 0 1 4 0v1.3" stroke="currentColor" stroke-width="1.1" />
         </svg>
-        <span class="text-[11.5px] font-medium text-text-muted">Pass {{ index + 1 }}</span>
-        <span class="min-w-0 flex-1 truncate text-[10.5px] text-text-subtle">
+        <span class="text-caption font-medium text-text-muted">Pass {{ index + 1 }}</span>
+        <span class="min-w-0 flex-1 truncate text-micro text-text-subtle">
           executed, sent back {{ relativeTime(pass.sentBackAt) }}
         </span>
         <svg
@@ -69,7 +69,7 @@ function toggle(index: number): void {
           compact
           data-testid="step-pass-detail"
         />
-        <p v-else class="text-[12px] text-text-subtle">Worked from the title alone.</p>
+        <p v-else class="text-small text-text-subtle">Worked from the title alone.</p>
       </div>
     </li>
   </ol>

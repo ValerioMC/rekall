@@ -41,14 +41,14 @@ const removeTitle = computed(() => `Take this note off ${props.task.title}`)
 
 <template>
   <div
-    class="group/row relative rounded-[var(--radius-control)] transition-colors duration-150"
+    class="group/row relative rounded-control transition-colors duration-(--motion-quick)"
     :class="[removable && armed && 'placement-armed', busy && 'opacity-60']"
     :data-armed="removable && armed ? 'remove' : undefined"
   >
     <component
       :is="removable ? 'div' : 'button'"
       :type="removable ? undefined : 'button'"
-      class="flex w-full items-center gap-2.5 rounded-[var(--radius-control)] py-1.5 pl-2 text-left transition-colors"
+      class="flex w-full items-center gap-2.5 rounded-control py-1.5 pl-2 text-left transition-colors"
       :class="[
         removable ? (openable ? 'pr-[68px]' : 'pr-11') : 'pr-2',
         !removable && (highlighted ? 'bg-surface-raised' : 'hover:bg-surface-raised'),
@@ -64,7 +64,7 @@ const removeTitle = computed(() => `Take this note off ${props.task.title}`)
     >
       <span
         v-if="!removable"
-        class="grid size-4 shrink-0 place-items-center rounded-[5px] border transition-colors"
+        class="grid size-4 shrink-0 place-items-center rounded-control border transition-colors"
         :class="
           attached
             ? 'border-accent-deep bg-accent-soft text-accent'
@@ -92,7 +92,7 @@ const removeTitle = computed(() => `Take this note off ${props.task.title}`)
 
       <span class="min-w-0 flex-1">
         <span
-          class="block truncate text-[12.5px] leading-[1.35] transition-[text-decoration-color] duration-150"
+          class="block truncate text-small leading-[1.35] transition-[text-decoration-color] duration-(--motion-quick)"
           :class="[
             attached ? 'text-text' : 'text-text-muted',
             removable && armed && 'line-through decoration-danger/70'
@@ -107,7 +107,7 @@ const removeTitle = computed(() => `Take this note off ${props.task.title}`)
             :class="TASK_STATUS_COLOR[task.status]"
             :title="TASK_STATUS_LABEL[task.status]"
           />
-          <span class="anchor-chip truncate px-1.5 py-px text-[9.5px] leading-[15px]">
+          <span class="anchor-chip truncate px-1.5 py-px text-micro leading-[15px]">
             {{ task.label }}
           </span>
         </span>
@@ -125,7 +125,7 @@ const removeTitle = computed(() => `Take this note off ${props.task.title}`)
     >
       <button
         type="button"
-        class="focus-ring placement-remove flex h-6 items-center gap-1 rounded-full border pr-1.5 pl-1 font-mono text-[10px] transition-[color,background-color,border-color] duration-150"
+        class="focus-ring placement-remove flex h-6 items-center gap-1 rounded-full border pr-1.5 pl-1 font-mono text-micro transition-[color,background-color,border-color] duration-(--motion-quick)"
         :class="
           armed
             ? 'border-danger/60 bg-danger-soft text-danger'
@@ -145,7 +145,7 @@ const removeTitle = computed(() => `Take this note off ${props.task.title}`)
           <path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
         </svg>
         <span
-          class="placement-remove-label overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-150"
+          class="placement-remove-label overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-(--motion-quick)"
           :class="armed ? 'max-w-[80px] opacity-100' : 'max-w-0 opacity-0'"
           aria-hidden="true"
         >
@@ -156,7 +156,7 @@ const removeTitle = computed(() => `Take this note off ${props.task.title}`)
       <button
         v-if="openable && attached"
         type="button"
-        class="focus-ring grid size-6 place-items-center rounded-md text-text-subtle opacity-0 transition-opacity hover:bg-surface-hover hover:text-accent focus-visible:opacity-100 group-hover/row:opacity-100"
+        class="focus-ring grid size-6 place-items-center rounded-control text-text-subtle opacity-0 transition-opacity hover:bg-surface-hover hover:text-accent focus-visible:opacity-100 group-hover/row:opacity-100"
         :title="`Open ${task.title} on the Tasks side`"
         :aria-label="`Open ${task.title}`"
         data-testid="note-placement-open"

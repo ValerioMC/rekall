@@ -51,55 +51,54 @@ const accepted = computed(() => props.reviewState === 'DONE')
     </span>
     <span class="flex min-h-[17px] items-center gap-2">
       <span
-        class="text-[11.5px] font-semibold tracking-[0.005em] transition-colors"
+        class="text-caption font-semibold tracking-[0.005em] transition-colors"
         :class="selected ? 'text-text' : 'text-text-muted'"
       >
         Description
       </span>
       <span
         v-if="running"
-        class="inline-flex items-center gap-1 rounded-full bg-accent-soft px-1.5 py-px text-[9.5px] font-semibold tracking-[0.02em] text-accent"
+        class="inline-flex items-center gap-1 rounded-full bg-accent-soft px-1.5 py-px text-micro font-semibold tracking-[0.02em] text-accent"
         data-testid="description-card-running"
       >
         <span class="relative grid size-1.5 place-items-center" aria-hidden="true">
-          <span class="absolute inline-flex size-1.5 animate-ping rounded-full bg-accent/60" />
           <span class="relative inline-flex size-1 rounded-full bg-accent" />
         </span>
         running
       </span>
       <span
         v-else-if="claimed"
-        class="rounded-full border border-accent/40 px-1.5 py-px text-[9.5px] font-semibold tracking-[0.02em] text-accent"
+        class="rounded-full border border-accent/40 px-1.5 py-px text-micro font-semibold tracking-[0.02em] text-accent"
         data-testid="description-card-claimed"
       >
         Awaiting review
       </span>
     </span>
 
-    <span v-if="hasBody" class="mt-1 line-clamp-2 block text-[12px] leading-relaxed text-text-muted">
+    <span v-if="hasBody" class="mt-1 line-clamp-2 block text-small leading-relaxed text-text-muted">
       {{ excerpt }}
     </span>
-    <span v-else class="mt-1 block text-[11.5px] leading-relaxed text-text-muted">
+    <span v-else class="mt-1 block text-caption leading-relaxed text-text-muted">
       No description yet. Open it to write the brief.
     </span>
 
     <span
       v-if="running"
-      class="mt-1.5 block text-[12px] leading-relaxed text-text-muted"
+      class="mt-1.5 block text-small leading-relaxed text-text-muted"
       data-testid="description-card-line"
     >
       Session running. Open it to accept, or wait for the wrapup.
     </span>
     <span
       v-else-if="claimed"
-      class="mt-1.5 block text-[12px] leading-relaxed text-accent"
+      class="mt-1.5 block text-small leading-relaxed text-accent"
       data-testid="description-card-line"
     >
       Awaiting your review.
     </span>
     <span
       v-else-if="accepted"
-      class="mt-1.5 block text-[12px] leading-relaxed text-safe"
+      class="mt-1.5 block text-small leading-relaxed text-safe"
       data-testid="description-card-line"
     >
       Accepted.

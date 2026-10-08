@@ -2,12 +2,20 @@
 import { useId } from 'vue'
 
 /**
- * A shelf under a project's live tasks. `filed` holds the finished ones on a verdigris rail;
- * `backlog` holds the parked ones on a dashed grey rail, work that exists but is not started.
+ * A shelf under a card's live rows. `filed` holds finished tasks on a verdigris rail; `backlog`
+ * holds parked tasks, and `loose` notes on no task, both on a dashed grey rail: present, not in play.
  */
-withDefaults(defineProps<{ count: number; open: boolean; kind?: 'filed' | 'backlog' }>(), {
+type ShelfKind = 'filed' | 'backlog' | 'loose'
+
+withDefaults(defineProps<{ count: number; open: boolean; kind?: ShelfKind }>(), {
   kind: 'filed'
 })
+
+const SHELF_LABEL: Readonly<Record<ShelfKind, string>> = {
+  filed: 'filed',
+  backlog: 'in backlog',
+  loose: 'on no task'
+}
 defineEmits<{ toggle: [] }>()
 
 const bodyId = useId()
@@ -16,7 +24,7 @@ const bodyId = useId()
 <template>
   <div>
     <button
-      class="focus-ring group/filed flex w-full items-center gap-2 rounded-[var(--radius-control)] px-1.5 py-1.5 text-left text-text-subtle transition-colors hover:bg-surface-raised"
+      class="focus-ring group/filed flex w-full items-center gap-2 rounded-control px-1.5 py-1.5 text-left text-text-subtle transition-colors hover:bg-surface-raised"
       :class="kind === 'filed' ? 'hover:text-filed' : 'hover:text-text-muted'"
       :aria-expanded="open"
       :aria-controls="bodyId"
@@ -55,6 +63,21 @@ const bodyId = useId()
           stroke-linejoin="round"
         />
       </svg>
+      <svg
+        v-else-if="kind === 'loose'"
+        class="size-3.5 shrink-0 text-text-muted"
+        viewBox="0 0 24 24"
+        fill="none"
+        aria-hidden="true"
+      >
+        <path
+          d="M7 3.5h7l4 4V20a.5.5 0 0 1-.5.5h-10.5a.5.5 0 0 1-.5-.5V4a.5.5 0 0 1 .5-.5Z"
+          stroke="currentColor"
+          stroke-width="1.7"
+          stroke-dasharray="2.6 2.4"
+          stroke-linejoin="round"
+        />
+      </svg>
       <svg v-else class="size-3.5 shrink-0 text-text-muted" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path
           d="M4 14h4.5l1.5 2.5h4l1.5-2.5H20M4 14l2.2-7.4A2 2 0 0 1 8.1 5h7.8a2 2 0 0 1 1.9 1.6L20 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-4Z"
@@ -65,12 +88,12 @@ const bodyId = useId()
         />
       </svg>
 
-      <span class="min-w-0 flex-1 truncate text-[11.5px] font-semibold">
-        {{ count }} {{ kind === 'filed' ? 'filed' : 'in backlog' }}
+      <span class="min-w-0 flex-1 truncate text-caption font-semibold">
+        {{ count }} {{ SHELF_LABEL[kind] }}
       </span>
 
       <span
-        class="shrink-0 font-mono text-[10px] text-text-subtle"
+        class="shrink-0 font-mono text-micro text-text-subtle"
         :class="kind === 'filed' ? 'group-hover/filed:text-filed' : 'group-hover/filed:text-text-muted'"
       >
         {{ open ? 'hide' : 'show' }}

@@ -75,7 +75,7 @@ defineExpose({
 </script>
 
 <template>
-  <p class="mb-1.5 mt-5 eyebrow text-[11px]">Icon</p>
+  <p class="mb-1.5 mt-5 eyebrow text-caption">Icon</p>
   <div class="mb-3 flex items-center gap-3" data-testid="record-icon-image">
     <ProjectMark
       :project-id="projectId ?? 'new-project'"
@@ -93,8 +93,8 @@ defineExpose({
           Remove
         </AppButton>
       </div>
-      <p class="mt-1.5 text-[11.5px]" :class="error ? 'text-danger' : 'text-text-subtle'" :role="error ? 'alert' : undefined">
-        {{ error ?? 'PNG, JPEG, WebP or GIF, cropped to a square with rounded corners. The icon below shows without one.' }}
+      <p class="mt-1.5 text-caption" :class="error ? 'text-danger' : 'text-text-subtle'" :role="error ? 'alert' : undefined">
+        {{ error ?? 'PNG, JPEG, WebP or GIF, cropped to a square with rounded-key corners. The icon below shows without one.' }}
       </p>
     </div>
     <input ref="fileField" type="file" class="hidden" :accept="ACCEPTED_TYPES" data-testid="record-icon-file" @change="pick" />
@@ -104,7 +104,7 @@ defineExpose({
       v-for="option in PROJECT_ICON_KEYS"
       :key="option"
       type="button"
-      class="focus-ring grid size-8 place-items-center rounded-[var(--radius-control)] border transition-colors"
+      class="focus-ring grid size-8 place-items-center rounded-control border transition-colors"
       :class="
         icon === option
           ? 'border-accent bg-accent-soft text-accent'

@@ -137,21 +137,21 @@ onMounted(() => void load())
 
 <template>
   <section data-testid="claude-section">
-    <p class="mb-3 eyebrow text-[11px]">Claude Code</p>
+    <p class="mb-3 eyebrow text-caption">Claude Code</p>
 
-    <div v-if="loading" class="skeleton h-20 rounded-[var(--radius-control)]" aria-hidden="true" />
+    <div v-if="loading" class="skeleton h-20 rounded-control" aria-hidden="true" />
 
     <div
       v-else-if="installation"
-      class="rounded-[var(--radius-control)] border border-border bg-canvas px-3.5 py-3"
+      class="rounded-control border border-border bg-canvas px-3.5 py-3"
     >
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0 flex-1">
           <AppBadge :tone="presentation!.tone" dot data-testid="claude-status">
             {{ presentation!.label }}
           </AppBadge>
-          <p class="mt-1.5 text-[12.5px] leading-relaxed text-text-muted">{{ explanation }}</p>
-          <p class="mt-1 truncate font-mono text-[11.5px] text-text-subtle" :title="installation.endpoint">
+          <p class="mt-1.5 text-small leading-relaxed text-text-muted">{{ explanation }}</p>
+          <p class="mt-1 truncate font-mono text-caption text-text-subtle" :title="installation.endpoint">
             {{ installation.endpoint }}
           </p>
         </div>
@@ -169,10 +169,10 @@ onMounted(() => void load())
 
       <div
         v-if="installation.status === 'CLI_MISSING'"
-        class="mt-2.5 flex items-center gap-2 rounded-md border border-border bg-surface-raised px-2.5 py-2"
+        class="mt-2.5 flex items-center gap-2 rounded-control border border-border bg-surface-raised px-2.5 py-2"
       >
         <code
-          class="min-w-0 flex-1 truncate font-mono text-[11.5px] text-text"
+          class="min-w-0 flex-1 truncate font-mono text-caption text-text"
           :title="installation.manualCommand"
         >
           {{ installation.manualCommand }}
@@ -195,8 +195,8 @@ onMounted(() => void load())
         data-testid="claude-skip-permissions"
       >
         <div class="min-w-0 flex-1">
-          <p class="text-[12.5px] text-text">Open sessions without permission prompts</p>
-          <p class="mt-0.5 text-[11.5px] leading-relaxed text-text-subtle">
+          <p class="text-small text-text">Open sessions without permission prompts</p>
+          <p class="mt-0.5 text-caption leading-relaxed text-text-subtle">
             Adds <code class="text-anchor/80">--dangerously-skip-permissions</code> to every session Rekall
             starts, <span class="text-text-muted">Run here</span> or
             <span class="text-text-muted">Open in terminal</span>. That session edits, runs and deletes
@@ -220,8 +220,8 @@ onMounted(() => void load())
       </div>
 
       <div class="mt-3 border-t border-border pt-3" data-testid="claude-model">
-        <p class="text-[12.5px] text-text">Model for a “Run here” session</p>
-        <p class="mt-0.5 text-[11.5px] leading-relaxed text-text-subtle">
+        <p class="text-small text-text">Model for a “Run here” session</p>
+        <p class="mt-0.5 text-caption leading-relaxed text-text-subtle">
           Adds <code class="text-anchor/80">--model</code> to what an in-app session launches; each alias is
           Claude Code's name for the latest model of that family, so nothing is pinned to a version.
           <span class="text-text-muted">Account default</span> leaves your Claude Code setting alone. A
@@ -234,7 +234,7 @@ onMounted(() => void load())
             type="button"
             role="radio"
             :aria-checked="model === choice"
-            class="focus-ring inline-flex items-center rounded-full border px-2.5 py-1 text-[11.5px] transition-colors"
+            class="focus-ring inline-flex items-center rounded-full border px-2.5 py-1 text-caption transition-colors"
             :class="
               model === choice
                 ? 'border-accent bg-accent-soft text-accent'
@@ -249,8 +249,8 @@ onMounted(() => void load())
       </div>
 
       <div class="mt-3 border-t border-border pt-3" data-testid="claude-effort">
-        <p class="text-[12.5px] text-text">Reasoning effort</p>
-        <p class="mt-0.5 text-[11.5px] leading-relaxed text-text-subtle">
+        <p class="text-small text-text">Reasoning effort</p>
+        <p class="mt-0.5 text-caption leading-relaxed text-text-subtle">
           Adds <code class="text-anchor/80">--effort</code> to a new session. A higher level lets the model
           think longer on hard problems and spends more; it applies to models that support extended thinking.
           <span class="text-text-muted">Account default</span> leaves it unset.
@@ -266,7 +266,7 @@ onMounted(() => void load())
             type="button"
             role="radio"
             :aria-checked="effort === choice"
-            class="focus-ring inline-flex items-center rounded-full border px-2.5 py-1 text-[11.5px] transition-colors"
+            class="focus-ring inline-flex items-center rounded-full border px-2.5 py-1 text-caption transition-colors"
             :class="
               effort === choice
                 ? 'border-accent bg-accent-soft text-accent'
@@ -280,12 +280,12 @@ onMounted(() => void load())
         </div>
       </div>
 
-      <p v-if="installed" class="mt-2 text-[12px] text-text-muted" data-testid="claude-restart-hint">
+      <p v-if="installed" class="mt-2 text-small text-text-muted" data-testid="claude-restart-hint">
         Sessions already open keep the configuration they started with. This one needs restarting.
       </p>
     </div>
 
-    <div v-else class="flex flex-col items-start gap-3 text-[12.5px] text-text-subtle">
+    <div v-else class="flex flex-col items-start gap-3 text-small text-text-subtle">
       <p>Couldn't read the Claude Code configuration.</p>
       <AppButton size="sm" variant="secondary" @click="load">Retry</AppButton>
     </div>

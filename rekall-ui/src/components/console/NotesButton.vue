@@ -28,7 +28,7 @@ const count = computed(
   <div ref="host" class="relative inline-flex h-7 shrink-0" data-testid="notes-group">
     <button
       type="button"
-      class="focus-ring relative inline-flex items-center gap-1.5 rounded-[3px] px-2.5 text-xs font-medium"
+      class="focus-ring relative inline-flex items-center gap-1.5 rounded-key px-2.5 text-small font-medium"
       :class="
         pickerOpen
           ? 'key-quiet translate-y-px text-text'
@@ -46,7 +46,7 @@ const count = computed(
       <span>Notes</span>
       <span
         v-if="count"
-        class="rounded-full px-1.5 font-mono text-[10px] tabular-nums leading-[15px]"
+        class="rounded-full px-1.5 font-mono text-micro tabular-nums leading-[15px]"
         :class="pickerOpen ? 'bg-accent-soft text-accent' : 'bg-surface-raised text-text-subtle'"
         data-testid="notes-count"
       >

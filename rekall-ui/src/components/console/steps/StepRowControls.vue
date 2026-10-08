@@ -11,7 +11,7 @@ defineProps<{
 defineEmits<{ up: []; down: []; remove: [] }>()
 
 const ICON_BUTTON =
-  'focus-ring grid size-6 place-items-center rounded text-text-subtle transition-colors hover:bg-surface-hover'
+  'focus-ring grid size-6 place-items-center rounded-key text-text-subtle transition-colors hover:bg-surface-hover'
 </script>
 
 <template>

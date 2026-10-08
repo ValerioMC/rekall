@@ -110,11 +110,11 @@ async function copyAnchor(taskAnchor: string): Promise<void> {
   <div class="flex-1 min-h-0 overflow-y-auto bg-canvas" data-testid="report-scroller">
     <AppCatalogHeader title="Report">
       <template #actions>
-        <div class="flex shrink-0 gap-0.5 rounded-[8px] bg-canvas p-0.5" role="group" aria-label="Period">
+        <div class="flex shrink-0 gap-0.5 rounded-card bg-canvas p-0.5" role="group" aria-label="Period">
           <button
             v-for="option in (['week', 'month'] as const)"
             :key="option"
-            class="focus-ring flex h-7 items-center rounded-[6px] px-3 text-[12px] capitalize transition-colors"
+            class="focus-ring flex h-7 items-center rounded-control px-3 text-small capitalize transition-colors"
             :class="period === option ? 'bg-surface-raised text-text shadow-[0_1px_2px_rgb(0_0_0/0.4)]' : 'text-text-subtle hover:text-text'"
             :aria-pressed="period === option"
             :data-testid="`report-period-${option}`"
@@ -124,7 +124,7 @@ async function copyAnchor(taskAnchor: string): Promise<void> {
           </button>
         </div>
         <button
-          class="focus-ring flex h-7 shrink-0 items-center gap-1.5 rounded-[8px] border px-2.5 text-[12px] transition-colors"
+          class="focus-ring flex h-7 shrink-0 items-center gap-1.5 rounded-card border px-2.5 text-small transition-colors"
           :class="
             showSteps
               ? 'border-border-strong bg-surface-raised text-text'
@@ -154,12 +154,12 @@ async function copyAnchor(taskAnchor: string): Promise<void> {
               Tracked this {{ period }}
             </p>
             <p
-              class="mt-1 font-mono text-[34px] font-semibold leading-none tracking-[-0.03em] text-text tabular-nums"
+              class="mt-1 font-mono text-hero font-semibold leading-none tracking-[-0.03em] text-text tabular-nums"
               data-testid="report-total"
             >
               {{ formatDuration(report.totalSeconds) }}
             </p>
-            <p class="mt-2 text-[12.5px] text-text-muted">
+            <p class="mt-2 text-small text-text-muted">
               {{ report.taskCount }} {{ report.taskCount === 1 ? 'task' : 'tasks' }},
               {{ report.companies.length }}
               {{ report.companies.length === 1 ? 'company' : 'companies' }}
@@ -174,8 +174,9 @@ async function copyAnchor(taskAnchor: string): Promise<void> {
           </div>
 
           <div class="flex items-center gap-2">
-            <button
-              class="key-quiet focus-ring grid size-8 place-items-center rounded-[3px]"
+            <AppButton
+              variant="quiet"
+              size="icon"
               aria-label="Previous period"
               data-testid="report-prev"
               @click="shift(-1)"
@@ -183,15 +184,16 @@ async function copyAnchor(taskAnchor: string): Promise<void> {
               <svg class="size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
               </svg>
-            </button>
+            </AppButton>
             <p
-              class="min-w-[168px] text-center font-mono text-[13px] text-text tabular-nums"
+              class="min-w-[168px] text-center font-mono text-body text-text tabular-nums"
               data-testid="report-range"
             >
               {{ range.label }}
             </p>
-            <button
-              class="key-quiet focus-ring grid size-8 place-items-center rounded-[3px]"
+            <AppButton
+              variant="quiet"
+              size="icon"
               aria-label="Next period"
               data-testid="report-next"
               @click="shift(1)"
@@ -199,7 +201,7 @@ async function copyAnchor(taskAnchor: string): Promise<void> {
               <svg class="size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
               </svg>
-            </button>
+            </AppButton>
             <AppButton
               v-if="!isCurrent"
               size="sm"
@@ -218,13 +220,13 @@ async function copyAnchor(taskAnchor: string): Promise<void> {
       </AppCard>
 
       <div v-if="chips.length" class="flex flex-wrap items-center gap-2" data-testid="report-filter">
-        <span class="mr-1 eyebrow text-[11px]">
+        <span class="mr-1 eyebrow text-caption">
           Companies
         </span>
         <button
           v-for="chip in chips"
           :key="chip.id"
-          class="focus-ring flex h-7 items-center gap-2 rounded-full border px-3 text-[12px] transition-colors"
+          class="focus-ring flex h-7 items-center gap-2 rounded-full border px-3 text-small transition-colors"
           :class="
             chip.on
               ? 'border-border-strong bg-surface-raised text-text'
@@ -240,13 +242,13 @@ async function copyAnchor(taskAnchor: string): Promise<void> {
             aria-hidden="true"
           />
           {{ chip.name }}
-          <span class="font-mono text-[10.5px] text-text-subtle tabular-nums">
+          <span class="font-mono text-micro text-text-subtle tabular-nums">
             {{ formatDuration(chip.totalSeconds) }}
           </span>
         </button>
         <button
           v-if="selected.size > 0"
-          class="focus-ring h-7 rounded-full px-2.5 text-[11.5px] text-text-subtle underline decoration-dotted transition-colors hover:text-text"
+          class="focus-ring h-7 rounded-full px-2.5 text-caption text-text-subtle underline decoration-dotted transition-colors hover:text-text"
           data-testid="report-clear-filter"
           @click="clearCompanies"
         >

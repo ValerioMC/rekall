@@ -94,7 +94,7 @@ async function launch(): Promise<void> {
     ref="buttonEl"
     v-bind="$attrs"
     type="button"
-    class="launch-btn focus-ring relative inline-flex h-7 shrink-0 items-center gap-1.5 rounded-[3px] px-2.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-60"
+    class="launch-btn focus-ring relative inline-flex h-7 shrink-0 items-center gap-1.5 rounded-key px-2.5 text-small font-medium disabled:cursor-not-allowed disabled:opacity-60"
     :class="[toneClasses, nudging && 'nudge', phase === 'launched' && 'flash']"
     :disabled="phase === 'launching'"
     :aria-describedby="descriptionId"
@@ -140,7 +140,7 @@ async function launch(): Promise<void> {
   <Teleport v-if="available" to="body">
     <div
       v-if="previewing"
-      class="rise pointer-events-none fixed z-(--z-toast) w-[272px] rounded-[var(--radius-card)] border border-border-strong bg-surface-raised p-3 shadow-modal"
+      class="rise pointer-events-none fixed z-(--z-toast) w-[272px] rounded-card border border-border-strong bg-surface-raised p-3 shadow-modal"
       :style="previewStyle"
       role="tooltip"
     >
@@ -154,13 +154,13 @@ async function launch(): Promise<void> {
       </p>
 
       <template v-if="folder">
-        <p class="mt-2 truncate font-mono text-[11px] text-text-subtle">{{ folder }}</p>
-        <p class="anchor-chip mt-1.5 flex max-w-full items-center gap-1.5 truncate px-2 py-1 font-mono text-[11px]">
+        <p class="mt-2 truncate font-mono text-caption text-text-subtle">{{ folder }}</p>
+        <p class="anchor-chip mt-1.5 flex max-w-full items-center gap-1.5 truncate px-2 py-1 font-mono text-caption">
           <span class="shrink-0 opacity-60">/rk</span>
           <span class="truncate">{{ anchors }}</span>
         </p>
       </template>
-      <p v-else class="mt-1.5 text-[11.5px] leading-relaxed text-text-muted">{{ missing }}</p>
+      <p v-else class="mt-1.5 text-caption leading-relaxed text-text-muted">{{ missing }}</p>
     </div>
   </Teleport>
 </template>
@@ -169,8 +169,8 @@ async function launch(): Promise<void> {
 .glyph-enter-active,
 .glyph-leave-active {
   transition:
-    opacity 110ms ease,
-    transform 110ms ease;
+    opacity var(--motion-quick) ease,
+    transform var(--motion-quick) ease;
 }
 .glyph-enter-from,
 .glyph-leave-to {

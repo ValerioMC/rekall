@@ -108,7 +108,7 @@ defineExpose({ focus: () => input.value?.focus() })
             :aria-hidden="canBrowse ? undefined : 'true'"
             :title="canBrowse ? 'Choose a folder' : undefined"
             data-testid="folder-browse"
-            class="absolute left-1 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-[var(--radius-control)] text-text-subtle transition-colors"
+            class="absolute left-1 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-control text-text-subtle transition-colors"
             :class="canBrowse ? 'focus-ring hover:bg-surface-hover hover:text-accent' : 'pointer-events-none'"
             @click="browse"
           >
@@ -131,13 +131,13 @@ defineExpose({ focus: () => input.value?.focus() })
             data-testid="database-folder-input"
             placeholder="/Users/you/Documents/rekall"
             aria-describedby="database-folder-help"
-            class="field text-text h-10 w-full rounded-[var(--radius-control)] pl-9 pr-3.5 font-mono text-[13px]"
+            class="field text-text h-10 w-full rounded-control pl-9 pr-3.5 font-mono text-body"
             :aria-invalid="hint?.tone === 'danger' ? 'true' : undefined"
             @input="onInput(($event.target as HTMLInputElement).value)"
             @keydown.enter="submit"
           />
         </div>
-        <p id="database-folder-help" class="mt-1.5 text-[11.5px] text-text-subtle">
+        <p id="database-folder-help" class="mt-1.5 text-caption text-text-subtle">
           <template v-if="canBrowse"> Click the folder to pick one, or type a full path. </template>
           <template v-else>
             A full path to an existing folder. Browsers can't hand a page a real folder picker, so this is
@@ -148,7 +148,7 @@ defineExpose({ focus: () => input.value?.focus() })
 
       <p
         v-if="check"
-        class="truncate font-mono text-[11px] text-text-subtle"
+        class="truncate font-mono text-caption text-text-subtle"
         :title="check.resolvedPath"
         data-testid="resolved-path"
       >
@@ -157,7 +157,7 @@ defineExpose({ focus: () => input.value?.focus() })
 
       <p
         v-if="hint"
-        class="rounded-[var(--radius-control)] border px-3.5 py-2.5 text-[12.5px] leading-relaxed"
+        class="rounded-control border px-3.5 py-2.5 text-small leading-relaxed"
         :class="{
           'border-danger bg-danger-soft text-danger': hint.tone === 'danger',
           'border-safe bg-safe-soft text-safe': hint.tone === 'safe',
@@ -169,16 +169,16 @@ defineExpose({ focus: () => input.value?.focus() })
       >
         {{ hint.text }}
       </p>
-      <p v-else-if="state === 'checking'" class="text-[11.5px] text-text-subtle" aria-live="polite">
+      <p v-else-if="state === 'checking'" class="text-caption text-text-subtle" aria-live="polite">
         Checking&hellip;
       </p>
 
-      <p v-if="error" class="flex items-center gap-2 text-[12.5px] text-danger" role="alert">
+      <p v-if="error" class="flex items-center gap-2 text-small text-danger" role="alert">
         {{ error }}
         <button
           v-if="timedOut"
           type="button"
-          class="focus-ring shrink-0 rounded underline decoration-dotted"
+          class="focus-ring shrink-0 rounded-key underline decoration-dotted"
           @click="reload"
         >
           Reload

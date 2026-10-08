@@ -11,7 +11,7 @@ import TaskTagField from '@/components/console/record/TaskTagField.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useRecordWrites } from '@/composables/useRecordWrites'
-import { trapTabKey } from '@/common/a11y/focus-trap'
+import AppDialog from '@/components/ui/AppDialog.vue'
 import { identityHue } from '@/common/identity'
 import {
   PROJECT_STATUSES,
@@ -31,7 +31,6 @@ const store = useConsoleStore()
 const { run, isRunning } = useAsyncAction()
 
 const form = ref<RecordDraft>({ ...props.draft })
-const panel = ref<HTMLElement | null>(null)
 const identity = ref<InstanceType<typeof RecordIdentityFields> | null>(null)
 const iconField = ref<InstanceType<typeof ProjectIconField> | null>(null)
 const isConfirmingDelete = ref(false)
@@ -176,201 +175,187 @@ async function remove(): Promise<void> {
   }
 }
 
-function onKeydown(event: KeyboardEvent): void {
-  if (event.key === 'Escape' && isPickingProject.value) return
-  if (event.key === 'Escape' && !isConfirmingDelete.value) {
-    event.stopPropagation()
-    emit('close')
-    return
-  }
-  if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-    event.preventDefault()
-    event.stopPropagation()
-    void save()
-    return
-  }
-  if (panel.value && !isConfirmingDelete.value) trapTabKey(panel.value, event)
+function saveOnModEnter(event: KeyboardEvent): void {
+  if (!(event.metaKey || event.ctrlKey) || event.key !== 'Enter') return
+  event.preventDefault()
+  event.stopPropagation()
+  void save()
 }
 
 onMounted(async () => {
-  window.addEventListener('keydown', onKeydown, true)
+  window.addEventListener('keydown', saveOnModEnter, true)
   await nextTick()
   identity.value?.focusTitle()
 })
 
-onUnmounted(() => window.removeEventListener('keydown', onKeydown, true))
+onUnmounted(() => window.removeEventListener('keydown', saveOnModEnter, true))
 </script>
 
 <template>
-  <div
-    class="fixed inset-0 z-(--z-modal) grid place-items-center bg-black/70 p-5 backdrop-blur-sm"
-    @click.self="emit('close')"
+  <AppDialog
+    :label="heading"
+    panel-class="max-w-[560px]"
+    panel-testid="record-dialog"
+    :dismissible="!isPickingProject"
+    @dismiss="emit('close')"
   >
-    <div
-      ref="panel"
-      class="dialog-panel w-full max-w-[560px] overflow-hidden rounded-[var(--radius-card)] border border-border-strong bg-surface shadow-modal"
-      role="dialog"
-      aria-modal="true"
-      :aria-label="heading"
-      data-testid="record-dialog"
-    >
-      <header class="flex items-center gap-3 border-b border-border px-6 py-4">
-        <span
-          class="grid size-8 shrink-0 place-items-center rounded-[9px] border border-border-strong font-mono text-[13px] font-semibold text-accent"
-          style="background-image: linear-gradient(155deg, var(--color-surface-raised), var(--color-canvas))"
-          aria-hidden="true"
-        >
-          {{ kind.charAt(0).toUpperCase() }}
+    <header class="flex items-center gap-3 border-b border-border px-6 py-4">
+      <span
+        class="grid size-8 shrink-0 place-items-center rounded-card border border-border-strong font-mono text-body font-semibold text-accent"
+        style="background-image: linear-gradient(155deg, var(--color-surface-raised), var(--color-canvas))"
+        aria-hidden="true"
+      >
+        {{ kind.charAt(0).toUpperCase() }}
+      </span>
+      <span class="min-w-0 flex-1">
+        <span class="block text-title font-semibold tracking-[-0.01em] text-text">
+          {{ heading }}
         </span>
-        <span class="min-w-0 flex-1">
-          <span class="block text-[15px] font-semibold tracking-[-0.01em] text-text">
-            {{ heading }}
-          </span>
-          <span v-if="anchorParent" class="flex items-center gap-1.5 truncate font-mono text-[11px] text-anchor/80">
-            <span v-if="kind === 'task'" class="size-1.5 shrink-0 rounded-full" :style="{ backgroundColor: identityHue(parentId).base }" aria-hidden="true" />
-            <span class="min-w-0 truncate">{{ anchorParent }}</span>
-          </span>
+        <span v-if="anchorParent" class="flex items-center gap-1.5 truncate font-mono text-caption text-anchor/80">
+          <span v-if="kind === 'task'" class="size-1.5 shrink-0 rounded-full" :style="{ backgroundColor: identityHue(parentId).base }" aria-hidden="true" />
+          <span class="min-w-0 truncate">{{ anchorParent }}</span>
         </span>
-        <button
-          class="focus-ring grid size-7 place-items-center rounded-md text-text-subtle transition-colors hover:bg-surface-raised hover:text-text"
-          aria-label="Close"
-          @click="emit('close')"
+      </span>
+      <button
+        class="focus-ring grid size-7 place-items-center rounded-control text-text-subtle transition-colors hover:bg-surface-raised hover:text-text"
+        aria-label="Close"
+        @click="emit('close')"
+      >
+        <CloseGlyph />
+      </button>
+    </header>
+
+    <div class="max-h-[62vh] overflow-y-auto px-6 py-5">
+      <template v-if="kind === 'task' || companyOptions.length">
+        <label
+          for="record-parent"
+          class="mb-1.5 block eyebrow text-caption"
         >
-          <CloseGlyph />
-        </button>
-      </header>
-
-      <div class="max-h-[62vh] overflow-y-auto px-6 py-5">
-        <template v-if="kind === 'task' || companyOptions.length">
-          <label
-            for="record-parent"
-            class="mb-1.5 block eyebrow text-[11px]"
-          >
-            {{ parentLabel }}
-          </label>
-          <ProjectPicker
-            v-if="kind === 'task'"
-            id="record-parent"
-            v-model="parentId"
-            data-testid="record-parent"
-            :projects="store.projects"
-            @open-change="isPickingProject = $event"
-          />
-          <AppSelect
-            v-else
-            id="record-parent"
-            v-model="parentId"
-            data-testid="record-parent"
-            :options="companyOptions"
-          />
-          <p class="mb-5 mt-1.5 text-[11.5px] text-text-subtle">
-            <template v-if="isNew">Where this lands. It opens the anchor.</template>
-            <template v-else>Changing this moves the record, and its anchor with it.</template>
-          </p>
-        </template>
-
-        <RecordIdentityFields
-          ref="identity"
-          v-model:title="titleValue"
-          v-model:label="rawLabel"
-          :kind="kind"
-          :is-new="isNew"
-          :original-label="originalLabel"
-          :anchor-parent="anchorParent"
-          :parent-id="parentId"
-          :title-error="titleError"
-          :label-error="labelError"
+          {{ parentLabel }}
+        </label>
+        <ProjectPicker
+          v-if="kind === 'task'"
+          id="record-parent"
+          v-model="parentId"
+          data-testid="record-parent"
+          :projects="store.projects"
+          @open-change="isPickingProject = $event"
         />
+        <AppSelect
+          v-else
+          id="record-parent"
+          v-model="parentId"
+          data-testid="record-parent"
+          :options="companyOptions"
+        />
+        <p class="mb-5 mt-1.5 text-caption text-text-subtle">
+          <template v-if="isNew">Where this lands. It opens the anchor.</template>
+          <template v-else>Changing this moves the record, and its anchor with it.</template>
+        </p>
+      </template>
 
-        <template v-if="hasLabel">
-          <p class="mb-1.5 mt-5 eyebrow text-[11px]">
-            Status
-          </p>
-          <div class="flex flex-wrap gap-1.5">
-            <button
-              v-for="option in statusOptions"
-              :key="option.value"
-              type="button"
-              class="focus-ring h-8 rounded-[var(--radius-control)] border px-3 text-[12.5px] transition-colors"
-              :class="
-                status === option.value
-                  ? 'border-accent bg-accent-soft text-accent'
-                  : 'border-border-strong bg-canvas text-text-muted hover:border-text-subtle hover:text-text'
-              "
-              :aria-pressed="status === option.value"
-              @click="status = option.value"
-            >
-              {{ option.label }}
-            </button>
-          </div>
-        </template>
+      <RecordIdentityFields
+        ref="identity"
+        v-model:title="titleValue"
+        v-model:label="rawLabel"
+        :kind="kind"
+        :is-new="isNew"
+        :original-label="originalLabel"
+        :anchor-parent="anchorParent"
+        :parent-id="parentId"
+        :title-error="titleError"
+        :label-error="labelError"
+      />
 
-        <ProjectIconField v-if="form.kind === 'project'" ref="iconField" v-model="projectIcon" :project-id="form.id" />
-
-        <TaskTagField v-if="kind === 'task'" v-model="tagId" />
-
-        <template v-if="asksForDescription">
-          <label
-            for="record-description"
-            class="mb-1.5 mt-5 block eyebrow text-[11px]"
+      <template v-if="hasLabel">
+        <p class="mb-1.5 mt-5 eyebrow text-caption">
+          Status
+        </p>
+        <div class="flex flex-wrap gap-1.5">
+          <button
+            v-for="option in statusOptions"
+            :key="option.value"
+            type="button"
+            class="focus-ring h-8 rounded-control border px-3 text-small transition-colors"
+            :class="
+              status === option.value
+                ? 'border-accent bg-accent-soft text-accent'
+                : 'border-border-strong bg-canvas text-text-muted hover:border-text-subtle hover:text-text'
+            "
+            :aria-pressed="status === option.value"
+            @click="status = option.value"
           >
-            Description
-          </label>
-          <textarea
-            id="record-description"
-            v-model="description"
-            data-testid="record-description"
-            rows="3"
-            class="field text-text w-full resize-y rounded-[var(--radius-control)] p-3 text-[13px] leading-relaxed"
-            placeholder="What it is, in a sentence. This travels with the record into every context."
-          />
-        </template>
-      </div>
+            {{ option.label }}
+          </button>
+        </div>
+      </template>
 
-      <footer class="flex items-center gap-2 border-t border-border bg-canvas px-6 py-3.5">
-        <AppButton
-          v-if="!isNew"
-          variant="danger"
-          size="sm"
-          data-testid="record-delete"
-          @click="isConfirmingDelete = true"
+      <ProjectIconField v-if="form.kind === 'project'" ref="iconField" v-model="projectIcon" :project-id="form.id" />
+
+      <TaskTagField v-if="kind === 'task'" v-model="tagId" />
+
+      <template v-if="asksForDescription">
+        <label
+          for="record-description"
+          class="mb-1.5 mt-5 block eyebrow text-caption"
         >
-          Delete
-        </AppButton>
-        <span class="ml-auto flex items-center gap-2">
-          <kbd
-            class="hidden rounded border border-border px-1.5 py-0.5 font-mono text-[10px] text-text-subtle sm:inline"
-          >
-            &#8984;&crarr;
-          </kbd>
-          <AppButton variant="ghost" size="sm" @click="emit('close')">Cancel</AppButton>
-          <AppButton
-            variant="primary"
-            size="sm"
-            data-testid="record-save"
-            :disabled="!canSave || isRunning"
-            @click="save"
-          >
-            {{ isNew ? 'Create' : 'Save' }}
-          </AppButton>
-        </span>
-      </footer>
+          Description
+        </label>
+        <textarea
+          id="record-description"
+          v-model="description"
+          data-testid="record-description"
+          rows="3"
+          class="field text-text w-full resize-y rounded-control p-3 text-body leading-relaxed"
+          placeholder="What it is, in a sentence. This travels with the record into every context."
+        />
+      </template>
     </div>
 
-    <Transition name="dialog">
-      <AppConfirm
-        v-if="isConfirmingDelete"
-        :title="`Delete ${titleValue}?`"
-        :body="
-          kind === 'task'
-            ? 'The notes on it are unlinked. Every one of them stays in the project, company or global list that owns it.'
-            : 'Everything underneath goes with it. This is not recoverable.'
-        "
-        :blast="blast"
-        :confirm-label="`Delete ${KIND_NOUN[kind]}`"
-        @cancel="isConfirmingDelete = false"
-        @confirm="remove"
-      />
-    </Transition>
-  </div>
+    <footer class="flex items-center gap-2 border-t border-border bg-canvas px-6 py-3.5">
+      <AppButton
+        v-if="!isNew"
+        variant="danger"
+        size="sm"
+        data-testid="record-delete"
+        @click="isConfirmingDelete = true"
+      >
+        Delete
+      </AppButton>
+      <span class="ml-auto flex items-center gap-2">
+        <kbd
+          class="hidden rounded-key border border-border px-1.5 py-0.5 font-mono text-micro text-text-subtle sm:inline"
+        >
+          &#8984;&crarr;
+        </kbd>
+        <AppButton variant="ghost" size="sm" @click="emit('close')">Cancel</AppButton>
+        <AppButton
+          variant="primary"
+          size="sm"
+          data-testid="record-save"
+          :disabled="!canSave || isRunning"
+          @click="save"
+        >
+          {{ isNew ? 'Create' : 'Save' }}
+        </AppButton>
+      </span>
+    </footer>
+    <template #overlay>
+      <Transition name="dialog">
+        <AppConfirm
+          v-if="isConfirmingDelete"
+          :title="`Delete ${titleValue}?`"
+          :body="
+            kind === 'task'
+              ? 'The notes on it are unlinked. Every one of them stays in the project, company or global list that owns it.'
+              : 'Everything underneath goes with it. This is not recoverable.'
+          "
+          :blast="blast"
+          :confirm-label="`Delete ${KIND_NOUN[kind]}`"
+          @cancel="isConfirmingDelete = false"
+          @confirm="remove"
+        />
+      </Transition>
+    </template>
+  </AppDialog>
 </template>

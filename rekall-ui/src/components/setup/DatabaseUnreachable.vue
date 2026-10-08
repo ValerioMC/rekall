@@ -35,7 +35,7 @@ onMounted(async () => {
     <div class="w-full max-w-[560px]">
       <div class="mb-6 flex items-center gap-3">
         <div
-          class="grid size-10 shrink-0 place-items-center rounded-[var(--radius-control)] border border-danger bg-danger-soft text-[17px] font-bold text-danger"
+          class="grid size-10 shrink-0 place-items-center rounded-control border border-danger bg-danger-soft text-heading font-bold text-danger"
           aria-hidden="true"
         >
           !
@@ -44,46 +44,46 @@ onMounted(async () => {
           <h1
             ref="heading"
             tabindex="-1"
-            class="text-[17px] font-semibold tracking-[-0.015em] text-text outline-none"
+            class="text-heading font-semibold tracking-[-0.015em] text-text outline-none"
           >
             Can't reach this database
           </h1>
-          <p class="font-mono text-[10px] text-text-subtle">context, anchored</p>
+          <p class="font-mono text-micro text-text-subtle">context, anchored</p>
         </div>
       </div>
 
       <AppCard>
         <RestartingOverlay v-if="phase === 'restarting'" />
         <template v-else>
-          <p class="mb-1.5 text-[13px] leading-relaxed text-text-muted">
+          <p class="mb-1.5 text-body leading-relaxed text-text-muted">
             <strong class="text-text">{{ props.status.active?.label }}</strong> was last configured at
           </p>
           <p
-            class="mb-5 truncate rounded-[var(--radius-control)] border border-border bg-canvas px-3 py-2 font-mono text-[12.5px] text-text-subtle"
+            class="mb-5 truncate rounded-control border border-border bg-canvas px-3 py-2 font-mono text-small text-text-subtle"
             :title="props.status.active?.path"
           >
             {{ props.status.active?.path }}
           </p>
-          <p class="mb-5 text-[12.5px] leading-relaxed text-text-subtle">
+          <p class="mb-5 text-small leading-relaxed text-text-subtle">
             That folder isn't there right now. Nothing has been lost — reconnect it and reopen
             Rekall, pick another database below, or add a new one.
           </p>
 
-          <p v-if="error" class="mb-4 text-[12.5px] text-danger" role="alert">{{ error }}</p>
+          <p v-if="error" class="mb-4 text-small text-danger" role="alert">{{ error }}</p>
 
           <template v-if="otherReachable.length && !addingNew">
-            <p class="mb-2 eyebrow text-[11px]">
+            <p class="mb-2 eyebrow text-caption">
               Other databases
             </p>
             <ul class="mb-5 space-y-2">
               <li
                 v-for="entry in otherReachable"
                 :key="entry.id"
-                class="flex items-center justify-between gap-3 rounded-[var(--radius-control)] border border-border bg-canvas px-3.5 py-2.5"
+                class="flex items-center justify-between gap-3 rounded-control border border-border bg-canvas px-3.5 py-2.5"
               >
                 <span class="min-w-0">
-                  <span class="block truncate text-[13px] text-text">{{ entry.label }}</span>
-                  <span class="block truncate font-mono text-[11px] text-text-subtle" :title="entry.path">
+                  <span class="block truncate text-body text-text">{{ entry.label }}</span>
+                  <span class="block truncate font-mono text-caption text-text-subtle" :title="entry.path">
                     {{ entry.path }}
                   </span>
                 </span>

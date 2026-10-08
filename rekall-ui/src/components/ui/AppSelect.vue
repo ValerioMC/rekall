@@ -28,7 +28,7 @@ const slots = useSlots()
       :value="modelValue ?? ''"
       :disabled="disabled"
       :aria-describedby="describedBy"
-      class="field text-text h-(--spacing-control) w-full cursor-pointer appearance-none rounded-[var(--radius-control)] pl-3 text-[13px]"
+      class="field text-text h-(--spacing-control) w-full cursor-pointer appearance-none rounded-control pl-3 text-body"
       :class="slots.trailing ? 'pr-28' : 'pr-9'"
       @change="emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
     >

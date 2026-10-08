@@ -1,3 +1,4 @@
+use crate::component::ProjectComponentView;
 use crate::step::TaskStepView;
 use crate::wrapup::WrapupView;
 
@@ -18,6 +19,7 @@ pub struct ContextRecord {
     pub steps: Vec<TaskStepView>,
     pub commits: Vec<ContextCommitView>,
     pub wrapup: Option<WrapupView>,
+    pub components: Vec<ProjectComponentView>,
     pub blueprint: Option<String>,
     pub description: Option<String>,
 }

@@ -147,9 +147,9 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
 
 <template>
   <Teleport to="#app-header-extra">
-    <div class="relative max-w-[640px] flex-1">
+    <div class="relative min-w-0 max-w-[640px] flex-1">
       <span
-        class="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 font-mono text-[13px] text-anchor"
+        class="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 font-mono text-body text-anchor"
         aria-hidden="true"
       >
         /rk
@@ -161,7 +161,7 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
         type="text"
         autocomplete="off"
         spellcheck="false"
-        class="field h-10 w-full rounded-[var(--radius-control)] pl-[48px] pr-[92px] font-mono text-[13px] text-text"
+        class="field h-10 w-full rounded-control pl-[48px] pr-[92px] font-mono text-body text-text max-[1099px]:pr-3"
         :placeholder="placeholder"
         aria-label="Find a task or a note"
         @focus="isFocused = true"
@@ -182,20 +182,20 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
         @hover="activeHit = $event"
       />
       <span
-        class="pointer-events-none absolute right-2.5 top-1/2 flex -translate-y-1/2 items-center gap-1"
+        class="pointer-events-none absolute right-2.5 top-1/2 flex -translate-y-1/2 items-center gap-1 max-[1099px]:hidden"
         aria-hidden="true"
       >
         <template v-if="filter.trim()">
-          <span class="font-mono text-[11px] text-text-subtle">{{ resultCount }} found</span>
+          <span class="font-mono text-caption text-text-subtle">{{ resultCount }} found</span>
         </template>
         <template v-else>
           <kbd
-            class="rounded border border-border bg-surface-raised px-1.5 py-0.5 font-mono text-[10px] text-text-subtle"
+            class="rounded-key border border-border bg-surface-raised px-1.5 py-0.5 font-mono text-micro text-text-subtle"
           >
             &#8984;
           </kbd>
           <kbd
-            class="rounded border border-border bg-surface-raised px-1.5 py-0.5 font-mono text-[10px] text-text-subtle"
+            class="rounded-key border border-border bg-surface-raised px-1.5 py-0.5 font-mono text-micro text-text-subtle"
           >
             K
           </kbd>
@@ -212,7 +212,7 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
       <!-- Under 1440px the bar has no room for the word: the dot's colour carries it, and the word
            stays for screen readers and as the tooltip. -->
       <p
-        class="flex min-w-[92px] items-center gap-2 text-[12px] max-[1440px]:min-w-0"
+        class="flex min-w-[92px] items-center gap-2 text-small max-[1440px]:min-w-0"
         :class="saveState === 'unsaved' ? 'text-warn' : 'text-text-subtle'"
         :title="SAVE_LABEL[saveState]"
         role="status"
@@ -226,12 +226,12 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
         />
         <span class="max-[1440px]:sr-only">{{ SAVE_LABEL[saveState] }}</span>
       </p>
-      <button
-        type="button"
+      <AppButton
+        variant="quiet"
+        size="icon"
         data-testid="tags-trigger"
         aria-label="Tags"
         title="Tags"
-        class="key-quiet focus-ring grid size-8 shrink-0 place-items-center rounded-[3px]"
         @click="emit('openTags')"
       >
         <!-- Drawn in the chrome's grey like the cog beside it: a lit crimson glyph here was the
@@ -245,13 +245,13 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
           />
           <circle cx="8.2" cy="8.2" r="1.5" fill="currentColor" />
         </svg>
-      </button>
-      <button
-        type="button"
+      </AppButton>
+      <AppButton
+        variant="quiet"
+        size="icon"
         data-testid="settings-trigger"
         aria-label="Settings"
         title="Settings"
-        class="key-quiet focus-ring grid size-8 shrink-0 place-items-center rounded-[3px]"
         @click="emit('openSettings')"
       >
         <svg class="size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -270,7 +270,7 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
             stroke-linejoin="round"
           />
         </svg>
-      </button>
+      </AppButton>
       <span class="group relative inline-block">
         <AppButton
           variant="primary"
@@ -283,7 +283,7 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
         </AppButton>
         <span
           v-if="needsTaskForNote"
-          class="pointer-events-none absolute right-0 top-full z-(--z-sticky) mt-2 whitespace-nowrap rounded-[var(--radius-control)] border border-border-strong bg-surface-raised px-2.5 py-1.5 text-xs text-text opacity-0 shadow-lift transition-opacity duration-100 group-hover:opacity-100"
+          class="pointer-events-none absolute right-0 top-full z-(--z-sticky) mt-2 whitespace-nowrap rounded-control border border-border-strong bg-surface-raised px-2.5 py-1.5 text-small text-text opacity-0 shadow-lift transition-opacity duration-(--motion-quick) group-hover:opacity-100"
         >
           Select a task to create a new note on it
         </span>

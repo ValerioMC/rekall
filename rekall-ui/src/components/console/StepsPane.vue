@@ -195,7 +195,7 @@ onUnmounted(editor.flush)
 
 <template>
   <section class="flex min-h-0 w-full min-w-0 flex-1 flex-col bg-canvas" aria-label="Steps">
-    <p v-if="!selectedTask" class="px-9 py-12 text-[13px] text-text-muted">
+    <p v-if="!selectedTask" class="px-9 py-12 text-body text-text-muted">
       Pick a task to see what is left on it.
     </p>
 
@@ -220,7 +220,7 @@ onUnmounted(editor.flush)
 
         <template v-else>
           <template v-if="checklistSteps.length">
-            <p v-if="!visibleSteps.length" class="py-6 text-[12.5px] text-text-subtle">
+            <p v-if="!visibleSteps.length" class="py-6 text-small text-text-subtle">
               Every step is done. Show them again to correct one.
             </p>
 
@@ -267,9 +267,9 @@ onUnmounted(editor.flush)
           >
             <div class="mb-2.5 flex items-center gap-2">
               <span class="eyebrow">Drafts</span>
-              <span class="font-mono text-[10.5px] tabular-nums text-text-subtle">{{ draftSteps.length }}</span>
+              <span class="font-mono text-micro tabular-nums text-text-subtle">{{ draftSteps.length }}</span>
               <span class="h-px flex-1 bg-border" aria-hidden="true" />
-              <span class="text-[10.5px] text-text-subtle">still being worded, not on the list</span>
+              <span class="text-micro text-text-subtle">still being worded, not on the list</span>
             </div>
 
             <TransitionGroup tag="ul" name="step-list" class="relative min-w-0 space-y-1.5">

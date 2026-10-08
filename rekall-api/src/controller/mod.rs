@@ -7,6 +7,7 @@ mod context_size_controller;
 mod diagram_controller;
 mod directory_listing_controller;
 mod document_controller;
+mod project_component_controller;
 mod project_controller;
 mod project_icon_controller;
 mod project_section_controller;

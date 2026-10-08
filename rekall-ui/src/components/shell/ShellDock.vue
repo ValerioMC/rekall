@@ -117,7 +117,7 @@ onUnmounted(() => {
       >
         <span class="time-dial shrink-0" aria-hidden="true" />
         <span class="whitespace-nowrap">{{ runningEntries.length }} running</span>
-        <span v-if="latestClock" class="font-mono text-[12px] tabular-nums text-accent">
+        <span v-if="latestClock" class="font-mono text-small tabular-nums text-accent">
           {{ latestClock }}
         </span>
       </button>

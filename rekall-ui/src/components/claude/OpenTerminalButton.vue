@@ -131,7 +131,7 @@ onBeforeUnmount(() => {
 <template>
   <button
     type="button"
-    class="focus-ring relative inline-flex h-7 shrink-0 items-center gap-1.5 overflow-hidden rounded-[3px] px-2.5 text-xs font-medium"
+    class="focus-ring relative inline-flex h-7 shrink-0 items-center gap-1.5 overflow-hidden rounded-key px-2.5 text-small font-medium"
     :class="[
       ready
         ? pressed

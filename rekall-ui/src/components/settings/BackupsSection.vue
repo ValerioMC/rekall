@@ -81,18 +81,18 @@ onMounted(load)
 
     <RestartingOverlay v-if="phase === 'restarting'" />
 
-    <p v-else-if="phase === 'timed-out'" class="text-[12.5px] text-warn">
+    <p v-else-if="phase === 'timed-out'" class="text-small text-warn">
       Rekall is taking longer than expected to come back. Reload the page in a moment.
     </p>
 
-    <p v-else-if="!status" class="text-[12.5px] text-text-subtle">Loading…</p>
+    <p v-else-if="!status" class="text-small text-text-subtle">Loading…</p>
 
-    <p v-else-if="!status.available" class="text-[12.5px] leading-relaxed text-text-subtle">
+    <p v-else-if="!status.available" class="text-small leading-relaxed text-text-subtle">
       This database is not a file on disk, so there is nothing to back up.
     </p>
 
     <template v-else>
-      <p class="text-[11.5px] leading-relaxed text-text-subtle">
+      <p class="text-caption leading-relaxed text-text-subtle">
         A copy of the whole database every {{ status.intervalHours }} hours and before every restore,
         the newest {{ status.keep }} kept, in
         <span class="break-all font-mono text-text-muted">{{ status.folder }}</span>. Download one to move
@@ -101,12 +101,12 @@ onMounted(load)
 
       <p
         v-if="status.lastFailure"
-        class="mt-2 rounded-[var(--radius-control)] border border-warn bg-warn-soft px-3 py-2 text-[11.5px] text-warn"
+        class="mt-2 rounded-control border border-warn bg-warn-soft px-3 py-2 text-caption text-warn"
       >
         The last backup failed: {{ status.lastFailure }}
       </p>
 
-      <ul v-if="status.backups.length" class="mt-3 divide-y divide-border rounded-[var(--radius-control)] border border-border">
+      <ul v-if="status.backups.length" class="mt-3 divide-y divide-border rounded-control border border-border">
         <li
           v-for="backup in status.backups"
           :key="backup.name"
@@ -114,15 +114,15 @@ onMounted(load)
           data-testid="backup-row"
         >
           <span class="min-w-0 flex-1">
-            <span class="block text-[12.5px] text-text">{{ relativeTime(backup.createdAt) }}</span>
-            <span class="block text-[11px] text-text-subtle">
+            <span class="block text-small text-text">{{ relativeTime(backup.createdAt) }}</span>
+            <span class="block text-caption text-text-subtle">
               {{ BACKUP_REASON_LABEL[backup.reason] }} · {{ readableSize(backup.sizeBytes) }}
             </span>
           </span>
           <a
             :href="backupDownloadUrl(backup.name)"
             download
-            class="focus-ring rounded text-[11.5px] text-text-muted underline decoration-border-strong underline-offset-2 hover:text-text"
+            class="focus-ring rounded-key text-caption text-text-muted underline decoration-border-strong underline-offset-2 hover:text-text"
           >
             Download
           </a>
@@ -131,7 +131,7 @@ onMounted(load)
           </AppButton>
         </li>
       </ul>
-      <p v-else class="mt-3 text-[12px] text-text-subtle">No backup yet.</p>
+      <p v-else class="mt-3 text-small text-text-subtle">No backup yet.</p>
 
       <div class="mt-3 flex flex-wrap gap-2">
         <AppButton size="sm" variant="secondary" :loading="backingUp" data-testid="backup-now" @click="backUpNow">

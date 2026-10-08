@@ -14,7 +14,7 @@ withDefaults(defineProps<{ title: string; parent?: string | null }>(), { parent:
     <span class="h-5 w-px shrink-0 bg-border-strong" aria-hidden="true" />
 
     <div class="flex min-w-0 flex-1 items-center gap-3">
-      <h1 class="flex min-w-0 items-center gap-2 text-[15px] font-semibold tracking-[-0.01em] text-text">
+      <h1 class="flex min-w-0 items-center gap-2 text-title font-semibold tracking-[-0.01em] text-text">
         <slot name="leading">
           <span class="h-3 w-[3px] shrink-0 rounded-full bg-accent" aria-hidden="true" />
         </slot>

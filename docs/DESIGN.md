@@ -119,6 +119,7 @@ Company ──< Project ──< Task >──< Document
 | `document_task` | — | `document_id`, `task_id`, `position` |
 | `task_step` | through its task | `task_id`, `title`, `body_markdown`, `done`, `done_at`, `position` |
 | `wrapup` | through its task | `task_id` unique, `body_markdown`, `written_by` |
+| `project_component` | through its project | `project_id`, `name`, `folder`, `description`, `position` |
 
 `task.project_id` and `project.company_id` are both `ON DELETE CASCADE`: a project's tasks have
 no meaning without it, and neither do a company's projects. The blast radius of deleting a
@@ -338,6 +339,14 @@ task's project, and `replace` rewrites the body of the section with the same tit
 of refusing. Sections live in their own table, `project_section`, not in `document`, because a note is
 reached through tasks and loads into a context and a section does neither. Renaming, reordering and
 deleting are the console's, in `ProjectSectionCatalogService` in rekall-api.
+
+A project's components are the folders of it that are parts of it, one row each in `project_component`
+(`name`, `folder`, `description`, `position`; the name is unique per project ignoring case, and starts as
+the folder's last segment when none is given). Unlike a section, they are context: `ContextService`
+reads them with the project and `ContextRenderer.render_components` writes a `<components>` block, so the
+project's own anchor and every task of it carry them once, and `ContextSizeService` counts them as their
+own part. They are read-only to a session, no MCP tool writes them; the console's
+`ProjectComponentCatalogService` in rekall-api lists, adds, edits, orders and deletes them.
 
 A note can travel by reference. It then arrives as its title, its first line and an anchor such
 as `note:3f2a9c1e` (the first eight characters of its id), with `loaded="on request"`, and
@@ -573,5 +582,37 @@ which of the four surfaces is on screen. Raw status enums that used to be printe
 The filed tone is a muted verdigris, `--color-filed`. It is deliberately neither the green of a
 live `DONE` status nor the grey of disabled chrome: a shelf of finished tasks should read as an
 archive, not as a list that has gone dim.
+
+### Tokens, not values
+
+Every size, corner, grey and tempo a component uses is a token in `main.css`, because values
+picked one component at a time drift: the console had reached twenty-two font sizes, half of them
+half a pixel apart.
+
+| Token | Steps | Rule |
+|---|---|---|
+| Type, `text-micro` … `text-hero` | 10.5, 11.5, 12.5, 13.5, 15, 19, 26, 34 px | Micro is the floor and never prose. No line heights: text inherits its leading |
+| Corners, `rounded-key` / `-control` / `-card` | 3, 5, 8 px | A keycap or chip, a field or row, a card or dialog. Pills are `full` |
+| Tempo, `--motion-press` … `--motion-slow` | 90, 140, 220, 320 ms | Press, hover, a pane moving, a seal. Choreographed keyframes keep their own |
+| `--color-text-subtle` | `#8c96a6` | 4.5:1 up to `surface-hover`, so small hints stay readable. Never faded further with an opacity modifier |
+| `--color-border-field` | `#5e6a82` | The edge of something you type into, 3:1 against the field's well; hairline separators keep `border` |
+
+`tests/unit/design-tokens.spec.ts` fails on a bracketed font size or radius, a faded subtle grey,
+a pixel `font-size` in a style block or a numeric `duration-*`. `TerminalPane.vue` is exempt: it
+frames a real terminal and is left as it is.
+
+Two components carry what every screen repeats. `AppDialog` is the one modal shell (backdrop,
+`role`, `aria-modal`, Escape, focus trap and the modal gate); `common/a11y/dialog-stack.ts` makes
+only the dialog on top answer the keyboard, so a confirm over a panel closes alone, and a dialog
+that is not dismissible lets Escape through to the control inside it. `AppButton` adds `quiet`,
+an `icon` size and `pressed`, which lights a toggle as `key-lit` and sets `aria-pressed`, so
+toolbar keys stop being hand-built from the keycap utilities. A control drawn smaller than 24px
+takes `hit-target`, which grows the pointer target, not the glyph.
+
+The two fixed panes are tokens too, `--spacing-nav` and `--spacing-notelist`. Below a 1280px
+window both narrow to 272px, so at the desktop shell's 960px minimum the note still keeps a
+column of about 420px. The header gives way in the same range: under 1280px the logo column hugs
+the logo and the usage meter drops its reset time, under 1100px the wordmark and the search
+field's `⌘K` hint go, so New note and Settings stay on screen down to 960px.
 
 ---

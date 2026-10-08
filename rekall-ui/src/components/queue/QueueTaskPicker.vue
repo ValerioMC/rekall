@@ -67,7 +67,7 @@ function onInput(): void {
 <template>
   <div class="relative" data-testid="queue-task-picker">
     <span
-      class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[15px] leading-none text-accent"
+      class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-title leading-none text-accent"
       aria-hidden="true"
       >+</span
     >
@@ -83,7 +83,7 @@ function onInput(): void {
       :aria-activedescendant="open && matches[active] ? `${listId}-${active}` : undefined"
       aria-label="Add a task to the queue"
       placeholder="Add a task by title or anchor"
-      class="field h-(--spacing-control) w-full rounded-[var(--radius-control)] pl-8 pr-3 text-[13px] text-text"
+      class="field h-(--spacing-control) w-full rounded-control pl-8 pr-3 text-body text-text"
       data-testid="queue-task-input"
       @input="onInput"
       @focus="open = true"
@@ -98,7 +98,7 @@ function onInput(): void {
         v-if="open && matches.length"
         :id="listId"
         role="listbox"
-        class="absolute inset-x-0 bottom-full z-(--z-overlay) mb-1.5 max-h-[300px] overflow-y-auto rounded-[var(--radius-card)] border border-border-strong bg-surface-raised py-1 shadow-modal"
+        class="absolute inset-x-0 bottom-full z-(--z-overlay) mb-1.5 max-h-[300px] overflow-y-auto rounded-card border border-border-strong bg-surface-raised py-1 shadow-modal"
       >
         <li
           v-for="(task, index) in matches"
@@ -112,8 +112,8 @@ function onInput(): void {
           @mousedown.prevent="pick(task)"
           @mouseenter="active = index"
         >
-          <span class="truncate text-[12.5px] text-text">{{ task.title }}</span>
-          <span class="flex items-baseline gap-2 text-[11px]">
+          <span class="truncate text-small text-text">{{ task.title }}</span>
+          <span class="flex items-baseline gap-2 text-caption">
             <span class="min-w-0 truncate font-mono text-anchor">{{ task.anchor }}</span>
             <span class="ml-auto shrink-0 text-text-subtle">{{ workLine(task) }}</span>
           </span>

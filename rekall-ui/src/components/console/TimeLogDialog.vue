@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import CloseGlyph from '@/components/ui/CloseGlyph.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
-import { useModalGate } from '@/composables/useModalGate'
 import { useNow } from '@/composables/useNow'
 import { formatDuration } from '@/common/format/duration'
-import { trapTabKey } from '@/common/a11y/focus-trap'
+import AppDialog from '@/components/ui/AppDialog.vue'
 import type { Task, TimeEntry } from '@/model/catalog'
 import type { TimeEntryId } from '@/model/branded'
 
@@ -17,10 +16,8 @@ const emit = defineEmits<{ close: [] }>()
 
 const store = useConsoleStore()
 const { run } = useAsyncAction()
-const { open: openModal, close: closeModal } = useModalGate()
 const now = useNow()
 
-const panel = ref<HTMLElement | null>(null)
 const editingId = ref<TimeEntryId | null>(null)
 const editStart = ref('')
 const editStop = ref('')
@@ -108,158 +105,137 @@ async function remove(): Promise<void> {
   deletingId.value = null
 }
 
-function onKeydown(event: KeyboardEvent): void {
-  if (event.key === 'Escape' && !deletingId.value) {
-    event.stopPropagation()
-    emit('close')
-    return
-  }
-  if (panel.value && !deletingId.value) trapTabKey(panel.value, event)
-}
-
 onMounted(async () => {
-  openModal()
-  window.addEventListener('keydown', onKeydown, true)
   await nextTick()
-})
-onUnmounted(() => {
-  closeModal()
-  window.removeEventListener('keydown', onKeydown, true)
 })
 </script>
 
 <template>
-  <div
-    class="fixed inset-0 z-(--z-modal) grid place-items-center bg-black/70 p-5 backdrop-blur-sm"
-    @click.self="emit('close')"
+  <AppDialog
+    :label="`Time on ${task.title}`"
+    panel-class="flex flex-col max-h-[80vh] max-w-[520px]"
+    panel-testid="time-log-dialog"
+    @dismiss="emit('close')"
   >
-    <div
-      ref="panel"
-      class="dialog-panel flex max-h-[80vh] w-full max-w-[520px] flex-col overflow-hidden rounded-[var(--radius-card)] border border-border-strong bg-surface shadow-modal"
-      role="dialog"
-      aria-modal="true"
-      :aria-label="`Time on ${task.title}`"
-      data-testid="time-log-dialog"
-    >
-      <header class="flex items-center gap-3 border-b border-border px-6 py-4">
-        <span class="min-w-0 flex-1">
-          <span class="block text-[15px] font-semibold tracking-[-0.01em] text-text">
-            Time on {{ task.title }}
-          </span>
-          <span class="block truncate font-mono text-[11px] text-anchor/80">{{ task.anchor }}</span>
+    <header class="flex items-center gap-3 border-b border-border px-6 py-4">
+      <span class="min-w-0 flex-1">
+        <span class="block text-title font-semibold tracking-[-0.01em] text-text">
+          Time on {{ task.title }}
         </span>
-        <button
-          class="focus-ring grid size-7 shrink-0 place-items-center rounded-md text-text-subtle transition-colors hover:bg-surface-raised hover:text-text"
-          aria-label="Close"
-          @click="emit('close')"
-        >
-          <CloseGlyph />
-        </button>
-      </header>
+        <span class="block truncate font-mono text-caption text-anchor/80">{{ task.anchor }}</span>
+      </span>
+      <button
+        class="focus-ring grid size-7 shrink-0 place-items-center rounded-control text-text-subtle transition-colors hover:bg-surface-raised hover:text-text"
+        aria-label="Close"
+        @click="emit('close')"
+      >
+        <CloseGlyph />
+      </button>
+    </header>
 
-      <div class="min-h-0 flex-1 overflow-y-auto px-6 py-4">
-        <p v-if="!entries.length" class="py-6 text-center text-[13px] text-text-subtle">
-          No sessions yet.
+    <div class="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+      <p v-if="!entries.length" class="py-6 text-center text-body text-text-subtle">
+        No sessions yet.
+      </p>
+
+      <div v-for="group in groups" :key="group.label" class="mb-4 last:mb-0">
+        <p class="mb-1.5 eyebrow">
+          {{ group.label }}
         </p>
 
-        <div v-for="group in groups" :key="group.label" class="mb-4 last:mb-0">
-          <p class="mb-1.5 eyebrow">
-            {{ group.label }}
-          </p>
-
-          <div class="relative pl-3.5">
-            <span class="absolute inset-y-1 left-1 w-px bg-border-strong" aria-hidden="true" />
-            <div
-              v-for="entry in group.entries"
-              :key="entry.id"
-              class="relative rounded-[var(--radius-control)] border border-transparent px-2.5 py-2 hover:border-border-strong hover:bg-surface-raised"
-              data-testid="time-log-row"
+        <div class="relative pl-3.5">
+          <span class="absolute inset-y-1 left-1 w-px bg-border-strong" aria-hidden="true" />
+          <div
+            v-for="entry in group.entries"
+            :key="entry.id"
+            class="relative rounded-control border border-transparent px-2.5 py-2 hover:border-border-strong hover:bg-surface-raised"
+            data-testid="time-log-row"
+          >
+            <!-- Centred on the rail (left-1 of the group, so 4.5px in, 14px left of the row):
+                 a 9px disc whose 2px canvas ring cuts the rail around it, leaving 5px of colour. -->
+            <span
+              class="absolute left-[-14px] top-1/2 size-[9px] -translate-y-1/2 rounded-full border-2 border-surface"
+              :class="entry.stoppedAt ? 'bg-text-subtle' : 'bg-accent shadow-[0_0_8px_-1px_var(--color-accent)]'"
+              aria-hidden="true"
+            />
+          <div v-if="editingId !== entry.id" class="flex items-center gap-2.5">
+            <span class="min-w-0 flex-1 font-mono text-small" :class="entry.stoppedAt ? 'text-text' : 'text-accent'">
+              {{ timeOf(entry.startedAt) }} &ndash;
+              <span v-if="entry.stoppedAt">{{ timeOf(entry.stoppedAt) }}</span>
+              <span v-else class="inline-flex items-center gap-1">
+                running
+                <span class="size-1.5 animate-pulse rounded-full bg-accent" aria-hidden="true" />
+              </span>
+            </span>
+            <span class="shrink-0 font-mono text-small text-text-muted">
+              {{ formatDuration(durationOf(entry)) }}
+            </span>
+            <button
+              class="focus-ring grid size-6 shrink-0 place-items-center rounded-full text-text-subtle transition-colors hover:bg-accent-soft hover:text-accent"
+              :aria-label="`Edit this session`"
+              @click="beginEdit(entry)"
             >
-              <!-- Centred on the rail (left-1 of the group, so 4.5px in, 14px left of the row):
-                   a 9px disc whose 2px canvas ring cuts the rail around it, leaving 5px of colour. -->
-              <span
-                class="absolute left-[-14px] top-1/2 size-[9px] -translate-y-1/2 rounded-full border-2 border-surface"
-                :class="entry.stoppedAt ? 'bg-text-subtle' : 'bg-accent shadow-[0_0_8px_-1px_var(--color-accent)]'"
-                aria-hidden="true"
-              />
-            <div v-if="editingId !== entry.id" class="flex items-center gap-2.5">
-              <span class="min-w-0 flex-1 font-mono text-[12.5px]" :class="entry.stoppedAt ? 'text-text' : 'text-accent'">
-                {{ timeOf(entry.startedAt) }} &ndash;
-                <span v-if="entry.stoppedAt">{{ timeOf(entry.stoppedAt) }}</span>
-                <span v-else class="inline-flex items-center gap-1">
-                  running
-                  <span class="size-1.5 animate-pulse rounded-full bg-accent" aria-hidden="true" />
-                </span>
-              </span>
-              <span class="shrink-0 font-mono text-[12px] text-text-muted">
-                {{ formatDuration(durationOf(entry)) }}
-              </span>
-              <button
-                class="focus-ring grid size-6 shrink-0 place-items-center rounded-full text-text-subtle transition-colors hover:bg-accent-soft hover:text-accent"
-                :aria-label="`Edit this session`"
-                @click="beginEdit(entry)"
-              >
-                <svg class="size-3.5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                  <path
-                    d="M11.3 2.7a1.5 1.5 0 0 1 2.1 2.1L5.8 12.4l-2.9.7.7-2.9 7.7-7.5Z"
-                    stroke="currentColor"
-                    stroke-width="1.3"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-              </button>
-              <button
-                v-if="entry.stoppedAt"
-                class="focus-ring grid size-6 shrink-0 place-items-center rounded-full text-text-subtle transition-colors hover:bg-danger-soft hover:text-danger"
-                aria-label="Delete this session"
-                @click="beginDelete(entry)"
-              >
-                <CloseGlyph small />
-              </button>
-            </div>
+              <svg class="size-3.5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path
+                  d="M11.3 2.7a1.5 1.5 0 0 1 2.1 2.1L5.8 12.4l-2.9.7.7-2.9 7.7-7.5Z"
+                  stroke="currentColor"
+                  stroke-width="1.3"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+            <button
+              v-if="entry.stoppedAt"
+              class="focus-ring grid size-6 shrink-0 place-items-center rounded-full text-text-subtle transition-colors hover:bg-danger-soft hover:text-danger"
+              aria-label="Delete this session"
+              @click="beginDelete(entry)"
+            >
+              <CloseGlyph small />
+            </button>
+          </div>
 
-            <div v-else class="flex flex-wrap items-center gap-2">
-              <input
-                v-model="editStart"
-                type="datetime-local"
-                class="field text-text h-8 rounded-[var(--radius-control)] px-2 text-[12px]"
-              />
-              <span class="text-text-subtle">&ndash;</span>
-              <input
-                v-if="entry.stoppedAt"
-                v-model="editStop"
-                type="datetime-local"
-                class="field text-text h-8 rounded-[var(--radius-control)] px-2 text-[12px]"
-              />
-              <span v-else class="text-[12px] text-accent">running</span>
-              <span class="ml-auto flex gap-1.5">
-                <AppButton variant="ghost" size="sm" @click="cancelEdit">Cancel</AppButton>
-                <AppButton variant="primary" size="sm" @click="saveEdit(entry)">Save</AppButton>
-              </span>
-            </div>
-            </div>
+          <div v-else class="flex flex-wrap items-center gap-2">
+            <input
+              v-model="editStart"
+              type="datetime-local"
+              class="field text-text h-8 rounded-control px-2 text-small"
+            />
+            <span class="text-text-subtle">&ndash;</span>
+            <input
+              v-if="entry.stoppedAt"
+              v-model="editStop"
+              type="datetime-local"
+              class="field text-text h-8 rounded-control px-2 text-small"
+            />
+            <span v-else class="text-small text-accent">running</span>
+            <span class="ml-auto flex gap-1.5">
+              <AppButton variant="ghost" size="sm" @click="cancelEdit">Cancel</AppButton>
+              <AppButton variant="primary" size="sm" @click="saveEdit(entry)">Save</AppButton>
+            </span>
+          </div>
           </div>
         </div>
       </div>
-
-      <footer class="flex items-center justify-between border-t border-border bg-canvas px-6 py-3.5">
-        <span class="eyebrow text-[11px] font-normal">Total tracked</span>
-        <span class="font-mono text-[16px] font-semibold text-accent">
-          {{ formatDuration(totalSeconds) }}
-        </span>
-      </footer>
     </div>
 
-    <Transition name="dialog">
-      <AppConfirm
-        v-if="deletingId"
-        title="Delete this session?"
-        body="Removes it from this task's recap."
-        :blast="`${deletingSummary} tracked · not recoverable`"
-        confirm-label="Delete session"
-        @cancel="deletingId = null"
-        @confirm="remove"
-      />
-    </Transition>
-  </div>
+    <footer class="flex items-center justify-between border-t border-border bg-canvas px-6 py-3.5">
+      <span class="eyebrow text-caption font-normal">Total tracked</span>
+      <span class="font-mono text-title font-semibold text-accent">
+        {{ formatDuration(totalSeconds) }}
+      </span>
+    </footer>
+    <template #overlay>
+      <Transition name="dialog">
+        <AppConfirm
+          v-if="deletingId"
+          title="Delete this session?"
+          body="Removes it from this task's recap."
+          :blast="`${deletingSummary} tracked · not recoverable`"
+          confirm-label="Delete session"
+          @cancel="deletingId = null"
+          @confirm="remove"
+        />
+      </Transition>
+    </template>
+  </AppDialog>
 </template>

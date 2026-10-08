@@ -9,16 +9,16 @@ import DatabaseFolderField from '@/components/setup/DatabaseFolderField.vue'
   <div class="fade-in flex h-full items-center justify-center p-6" data-testid="first-run-setup">
     <div class="w-full max-w-[520px]">
       <div class="mb-6 flex items-center gap-3">
-        <AppLogo :size="40" class="halo rounded-[9px]" />
+        <AppLogo :size="40" class="halo rounded-card" />
         <div>
-          <p class="text-[17px] font-semibold tracking-[-0.015em] text-text">Welcome to Rekall</p>
-          <p class="font-mono text-[10px] text-text-subtle">context, anchored</p>
+          <p class="text-heading font-semibold tracking-[-0.015em] text-text">Welcome to Rekall</p>
+          <p class="font-mono text-micro text-text-subtle">context, anchored</p>
         </div>
       </div>
 
       <AppCard>
-        <h1 class="mb-1.5 text-[15px] font-semibold text-text">Where should Rekall keep its data?</h1>
-        <p class="mb-5 text-[13px] leading-relaxed text-text-muted">
+        <h1 class="mb-1.5 text-title font-semibold text-text">Where should Rekall keep its data?</h1>
+        <p class="mb-5 text-body leading-relaxed text-text-muted">
           Every company, project, task and note lives in one folder, as a single database file.
           Point Rekall at one now — an existing one from another machine, or a fresh, empty
           folder. You can add more, or switch between them, later from Settings.

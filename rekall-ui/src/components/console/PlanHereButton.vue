@@ -59,7 +59,7 @@ async function plan(): Promise<void> {
 <template>
   <button
     type="button"
-    class="focus-ring inline-flex h-7 shrink-0 items-center gap-2 rounded-[3px] px-2.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-60"
+    class="focus-ring inline-flex h-7 shrink-0 items-center gap-2 rounded-key px-2.5 text-small font-medium disabled:cursor-not-allowed disabled:opacity-60"
     :class="
       ready
         ? 'key-quiet'

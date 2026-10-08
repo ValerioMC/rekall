@@ -70,7 +70,7 @@ const showWhere = computed(
 
 <style scoped>
 .diagram-cluster {
-  transition: opacity 160ms ease;
+  transition: opacity var(--motion-quick) ease;
 }
 
 .cluster-frame {
@@ -94,7 +94,7 @@ const showWhere = computed(
 
 .cluster-title {
   font-family: var(--font-sans);
-  font-size: 12px;
+  font-size: var(--text-small);
   font-weight: 600;
   fill: var(--color-text);
 }
@@ -106,7 +106,7 @@ const showWhere = computed(
 
 .cluster-where {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--text-micro);
   fill: var(--color-text-subtle);
 }
 
@@ -117,7 +117,7 @@ const showWhere = computed(
 
 .cluster-fold rect {
   fill: transparent;
-  transition: fill 140ms ease;
+  transition: fill var(--motion-quick) ease;
 }
 
 .cluster-fold path {

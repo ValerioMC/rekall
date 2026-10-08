@@ -20,12 +20,12 @@ const lines = computed<DiffLine[]>(() =>
 </script>
 
 <template>
-  <p v-if="!diff" class="px-1 py-1 text-[11px] text-text-subtle" data-testid="commit-diff-empty">
+  <p v-if="!diff" class="px-1 py-1 text-caption text-text-subtle" data-testid="commit-diff-empty">
     No diff recorded for this commit.
   </p>
   <pre
     v-else
-    class="max-h-[320px] min-w-0 overflow-auto rounded-[var(--radius-control)] border border-border bg-canvas px-2.5 py-2 font-mono text-[11px] leading-relaxed"
+    class="max-h-[320px] min-w-0 overflow-auto rounded-control border border-border bg-canvas px-2.5 py-2 font-mono text-caption leading-relaxed"
     data-testid="commit-diff-view"
   ><code
     v-for="(line, index) in lines"

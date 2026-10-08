@@ -94,4 +94,17 @@ describe('the history arrows', () => {
     expect(disabled(page, 'back')).toBe(false)
     expect(disabled(page, 'forward')).toBe(true)
   })
+
+  it('answer the Alt+Arrow chord from anywhere on the page', async () => {
+    const page = await render()
+    await router.push('/projects')
+    await flushPromises()
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowLeft', altKey: true, metaKey: true }))
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowLeft', altKey: true }))
+    await flushPromises()
+
+    expect(router.currentRoute.value.fullPath).toBe('/')
+    expect(disabled(page, 'back')).toBe(true)
+  })
 })

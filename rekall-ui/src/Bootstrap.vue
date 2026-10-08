@@ -77,12 +77,12 @@ onUnmounted(() => {
   </template>
   <div
     v-else-if="failed"
-    class="grid h-full place-items-center p-6 text-center text-[13px] text-text-subtle"
+    class="grid h-full place-items-center p-6 text-center text-body text-text-subtle"
   >
     Rekall couldn't be reached. Make sure it's running, then reload the page.
   </div>
   <div v-else class="fade-in grid h-full place-items-center" role="status" aria-live="polite">
     <span class="sr-only">Loading</span>
-    <AppLogo :size="40" class="halo animate-pulse rounded-[9px]" aria-hidden="true" />
+    <AppLogo :size="40" class="halo animate-pulse rounded-card" aria-hidden="true" />
   </div>
 </template>

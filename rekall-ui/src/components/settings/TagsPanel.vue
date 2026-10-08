@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import TagBadge from '@/components/ui/TagBadge.vue'
 import TagIcon from '@/components/ui/TagIcon.vue'
 import CloseGlyph from '@/components/ui/CloseGlyph.vue'
 import { useConsoleStore } from '@/stores/console.store'
-import { useModalGate } from '@/composables/useModalGate'
 import { useToastStore } from '@/stores/toast.store'
-import { trapTabKey } from '@/common/a11y/focus-trap'
+import AppDialog from '@/components/ui/AppDialog.vue'
 import {
   TAG_COLOR_KEYS,
   TAG_COLOR_LABEL,
@@ -24,9 +23,6 @@ const emit = defineEmits<{ close: [] }>()
 
 const store = useConsoleStore()
 const toast = useToastStore()
-const { open: openModal, close: closeModal } = useModalGate()
-
-const panel = ref<HTMLElement | null>(null)
 const closeButton = ref<HTMLButtonElement | null>(null)
 const nameField = ref<HTMLInputElement | null>(null)
 
@@ -108,161 +104,143 @@ function taskCount(tagId: TagId): number {
   return store.tasks.filter((task) => task.tagId === tagId).length
 }
 
-function onKeydown(event: KeyboardEvent): void {
-  if (event.key === 'Escape') {
-    event.stopPropagation()
-    if (deleting.value) return
-    if (formOpen.value) closeForm()
-    else emit('close')
-    return
-  }
-  if (panel.value && !deleting.value) trapTabKey(panel.value, event)
+function onDismiss(reason: 'escape' | 'backdrop'): void {
+  if (reason === 'escape' && formOpen.value) closeForm()
+  else emit('close')
 }
 
 onMounted(async () => {
-  openModal()
-  window.addEventListener('keydown', onKeydown, true)
   await store.refreshTags()
   await nextTick()
   closeButton.value?.focus()
 })
-onUnmounted(() => {
-  closeModal()
-  window.removeEventListener('keydown', onKeydown, true)
-})
 </script>
 
 <template>
-  <div
-    class="fixed inset-0 z-(--z-modal) grid place-items-center bg-black/70 p-5 backdrop-blur-sm"
-    @click.self="!deleting && emit('close')"
+  <AppDialog
+    label="Tags"
+    panel-class="flex flex-col max-h-[85vh] max-w-[560px]"
+    panel-testid="tags-panel"
+    @dismiss="onDismiss"
   >
-    <div
-      ref="panel"
-      class="dialog-panel flex max-h-[85vh] w-full max-w-[560px] flex-col overflow-hidden rounded-[var(--radius-card)] border border-border-strong bg-surface shadow-modal"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Tags"
-      data-testid="tags-panel"
-    >
-      <header class="flex items-center gap-3 border-b border-border px-6 py-4">
-        <span class="text-[15px] font-semibold tracking-[-0.01em] text-text">Tags</span>
-        <button
-          ref="closeButton"
-          type="button"
-          class="focus-ring ml-auto grid size-7 place-items-center rounded-md text-text-subtle transition-colors hover:bg-surface-raised hover:text-text"
-          aria-label="Close"
-          @click="emit('close')"
+    <header class="flex items-center gap-3 border-b border-border px-6 py-4">
+      <span class="text-title font-semibold tracking-[-0.01em] text-text">Tags</span>
+      <button
+        ref="closeButton"
+        type="button"
+        class="focus-ring ml-auto grid size-7 place-items-center rounded-control text-text-subtle transition-colors hover:bg-surface-raised hover:text-text"
+        aria-label="Close"
+        @click="emit('close')"
+      >
+        <CloseGlyph />
+      </button>
+    </header>
+
+    <div class="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+      <p class="mb-3 eyebrow text-caption">
+        Configured tags
+      </p>
+      <p class="mb-4 text-small leading-relaxed text-text-subtle">
+        A tag is a name, a glowing icon and a glow colour. Assign one to a task from the task's
+        edit dialog; it shows as a badge wherever that task is listed.
+      </p>
+
+      <ul v-if="store.tags.length" class="space-y-2">
+        <li
+          v-for="tag in store.tags"
+          :key="tag.id"
+          class="flex items-center gap-3 rounded-control border border-border bg-canvas px-3.5 py-3"
+          data-testid="tag-row"
         >
-          <CloseGlyph />
-        </button>
-      </header>
+          <TagBadge size="md" :name="tag.name" :icon="tag.icon" :color="tag.color" />
+          <span class="ml-auto shrink-0 text-caption text-text-subtle">
+            {{ taskCount(tag.id) }} task{{ taskCount(tag.id) === 1 ? '' : 's' }}
+          </span>
+          <AppButton size="sm" variant="ghost" @click="openEdit(tag)">Edit</AppButton>
+          <AppButton size="sm" variant="danger-quiet" @click="deleting = tag">Delete</AppButton>
+        </li>
+      </ul>
+      <p v-else class="text-small text-text-subtle">
+        No tags yet. Add the first one below.
+      </p>
 
-      <div class="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-        <p class="mb-3 eyebrow text-[11px]">
-          Configured tags
-        </p>
-        <p class="mb-4 text-[12.5px] leading-relaxed text-text-subtle">
-          A tag is a name, a glowing icon and a glow colour. Assign one to a task from the task's
-          edit dialog; it shows as a badge wherever that task is listed.
-        </p>
+      <div class="mt-4">
+        <AppButton v-if="!formOpen" variant="ghost" size="sm" @click="openCreate">
+          + Add a tag
+        </AppButton>
 
-        <ul v-if="store.tags.length" class="space-y-2">
-          <li
-            v-for="tag in store.tags"
-            :key="tag.id"
-            class="flex items-center gap-3 rounded-[var(--radius-control)] border border-border bg-canvas px-3.5 py-3"
-            data-testid="tag-row"
-          >
-            <TagBadge size="md" :name="tag.name" :icon="tag.icon" :color="tag.color" />
-            <span class="ml-auto shrink-0 text-[11.5px] text-text-subtle">
-              {{ taskCount(tag.id) }} task{{ taskCount(tag.id) === 1 ? '' : 's' }}
-            </span>
-            <AppButton size="sm" variant="ghost" @click="openEdit(tag)">Edit</AppButton>
-            <AppButton size="sm" variant="danger-quiet" @click="deleting = tag">Delete</AppButton>
-          </li>
-        </ul>
-        <p v-else class="text-[12.5px] text-text-subtle">
-          No tags yet. Add the first one below.
-        </p>
+        <div
+          v-else
+          class="rounded-control border border-border-strong bg-canvas p-4"
+          data-testid="tag-form"
+        >
+          <label for="tag-name" class="mb-1.5 block eyebrow text-caption">Name</label>
+          <input
+            id="tag-name"
+            ref="nameField"
+            v-model="name"
+            data-testid="tag-name"
+            class="field text-text h-9 w-full rounded-control px-3 text-body"
+            placeholder="Bug, Idea, Blocked…"
+            @keydown.enter="save"
+          />
 
-        <div class="mt-4">
-          <AppButton v-if="!formOpen" variant="ghost" size="sm" @click="openCreate">
-            + Add a tag
-          </AppButton>
+          <p class="mb-1.5 mt-4 eyebrow text-caption">Icon</p>
+          <div class="flex flex-wrap gap-1.5">
+            <button
+              v-for="option in TAG_ICON_KEYS"
+              :key="option"
+              type="button"
+              class="focus-ring grid size-9 place-items-center rounded-key"
+              :class="icon === option ? 'key-lit' : 'key-quiet'"
+              :aria-pressed="icon === option"
+              :aria-label="TAG_ICON_LABEL[option]"
+              :title="TAG_ICON_LABEL[option]"
+              @click="icon = option"
+            >
+              <TagIcon :icon="option" :color="color" :size="16" />
+            </button>
+          </div>
 
-          <div
-            v-else
-            class="rounded-[var(--radius-control)] border border-border-strong bg-canvas p-4"
-            data-testid="tag-form"
-          >
-            <label for="tag-name" class="mb-1.5 block eyebrow text-[11px]">Name</label>
-            <input
-              id="tag-name"
-              ref="nameField"
-              v-model="name"
-              data-testid="tag-name"
-              class="field text-text h-9 w-full rounded-[var(--radius-control)] px-3 text-[13.5px]"
-              placeholder="Bug, Idea, Blocked…"
-              @keydown.enter="save"
+          <p class="mb-1.5 mt-4 eyebrow text-caption">Glow colour</p>
+          <div class="flex flex-wrap gap-1.5">
+            <button
+              v-for="option in TAG_COLOR_KEYS"
+              :key="option"
+              type="button"
+              class="tag-bead focus-ring grid size-9 place-items-center rounded-full border-2 transition-transform"
+              :class="color === option ? 'scale-110 border-text' : 'border-transparent hover:scale-105'"
+              :style="{ '--tag-tint': `var(--color-tag-${option})` }"
+              :aria-pressed="color === option"
+              :aria-label="TAG_COLOR_LABEL[option]"
+              :title="TAG_COLOR_LABEL[option]"
+              @click="color = option"
             />
+          </div>
 
-            <p class="mb-1.5 mt-4 eyebrow text-[11px]">Icon</p>
-            <div class="flex flex-wrap gap-1.5">
-              <button
-                v-for="option in TAG_ICON_KEYS"
-                :key="option"
-                type="button"
-                class="focus-ring grid size-9 place-items-center rounded-[3px]"
-                :class="icon === option ? 'key-lit' : 'key-quiet'"
-                :aria-pressed="icon === option"
-                :aria-label="TAG_ICON_LABEL[option]"
-                :title="TAG_ICON_LABEL[option]"
-                @click="icon = option"
-              >
-                <TagIcon :icon="option" :color="color" :size="16" />
-              </button>
-            </div>
+          <p v-if="error" class="mt-3 text-small text-danger" role="alert">{{ error }}</p>
 
-            <p class="mb-1.5 mt-4 eyebrow text-[11px]">Glow colour</p>
-            <div class="flex flex-wrap gap-1.5">
-              <button
-                v-for="option in TAG_COLOR_KEYS"
-                :key="option"
-                type="button"
-                class="tag-bead focus-ring grid size-9 place-items-center rounded-full border-2 transition-transform"
-                :class="color === option ? 'scale-110 border-text' : 'border-transparent hover:scale-105'"
-                :style="{ '--tag-tint': `var(--color-tag-${option})` }"
-                :aria-pressed="color === option"
-                :aria-label="TAG_COLOR_LABEL[option]"
-                :title="TAG_COLOR_LABEL[option]"
-                @click="color = option"
-              />
-            </div>
-
-            <p v-if="error" class="mt-3 text-[12px] text-danger" role="alert">{{ error }}</p>
-
-            <div class="mt-4 flex items-center justify-end gap-2">
-              <AppButton variant="ghost" size="sm" @click="closeForm">Cancel</AppButton>
-              <AppButton variant="primary" size="sm" :loading="submitting" @click="save">
-                {{ isNew ? 'Create' : 'Save' }}
-              </AppButton>
-            </div>
+          <div class="mt-4 flex items-center justify-end gap-2">
+            <AppButton variant="ghost" size="sm" @click="closeForm">Cancel</AppButton>
+            <AppButton variant="primary" size="sm" :loading="submitting" @click="save">
+              {{ isNew ? 'Create' : 'Save' }}
+            </AppButton>
           </div>
         </div>
       </div>
     </div>
-
-    <Transition name="dialog">
-      <AppConfirm
-        v-if="deleting"
-        :title="`Delete ${deleting.name}?`"
-        body="Every task wearing this tag loses its badge. The tasks themselves are untouched."
-        :blast="`${taskCount(deleting.id)} task${taskCount(deleting.id) === 1 ? '' : 's'} lose this badge`"
-        confirm-label="Delete tag"
-        @cancel="deleting = null"
-        @confirm="confirmDelete"
-      />
-    </Transition>
-  </div>
+    <template #overlay>
+      <Transition name="dialog">
+        <AppConfirm
+          v-if="deleting"
+          :title="`Delete ${deleting.name}?`"
+          body="Every task wearing this tag loses its badge. The tasks themselves are untouched."
+          :blast="`${taskCount(deleting.id)} task${taskCount(deleting.id) === 1 ? '' : 's'} lose this badge`"
+          confirm-label="Delete tag"
+          @cancel="deleting = null"
+          @confirm="confirmDelete"
+        />
+      </Transition>
+    </template>
+  </AppDialog>
 </template>

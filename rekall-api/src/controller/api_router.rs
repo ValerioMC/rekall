@@ -9,6 +9,7 @@ use super::{
     diagram_controller,
     directory_listing_controller,
     document_controller,
+    project_component_controller,
     project_controller,
     project_icon_controller,
     project_section_controller,
@@ -37,6 +38,7 @@ pub fn routes() -> Router<ApiState> {
         .merge(diagram_controller::routes())
         .merge(directory_listing_controller::routes())
         .merge(document_controller::routes())
+        .merge(project_component_controller::routes())
         .merge(project_controller::routes())
         .merge(project_icon_controller::routes())
         .merge(project_section_controller::routes())

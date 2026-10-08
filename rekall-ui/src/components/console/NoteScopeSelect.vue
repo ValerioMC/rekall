@@ -61,8 +61,8 @@ function choose(key: string): void {
 </script>
 
 <template>
-  <label class="relative inline-flex items-center gap-1.5 text-[11px] text-text-muted" data-testid="note-scope">
-    <span class="eyebrow text-[10.5px]">Lives in</span>
+  <label class="relative inline-flex items-center gap-1.5 text-caption text-text-muted" data-testid="note-scope">
+    <span class="eyebrow text-micro">Lives in</span>
     <span class="relative inline-flex items-center">
       <span
         class="pointer-events-none absolute left-2 size-1.5 rounded-full"
@@ -70,7 +70,7 @@ function choose(key: string): void {
         aria-hidden="true"
       />
       <select
-        class="focus-ring h-6 max-w-[220px] cursor-pointer appearance-none truncate rounded-full border border-border-strong bg-surface-raised pl-5 pr-6 text-[11px] text-text transition-colors hover:border-text-subtle"
+        class="focus-ring h-6 max-w-[220px] cursor-pointer appearance-none truncate rounded-full border border-border-strong bg-surface-raised pl-5 pr-6 text-caption text-text transition-colors hover:border-text-subtle"
         :value="current"
         aria-label="Where this note lives"
         data-testid="note-scope-select"

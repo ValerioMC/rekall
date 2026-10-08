@@ -30,7 +30,7 @@ watch(
     })
 )
 
-const PLACE_BUTTON = 'focus-ring grid size-7 shrink-0 place-items-center rounded-[7px] transition-colors'
+const PLACE_BUTTON = 'focus-ring grid size-7 shrink-0 place-items-center rounded-control transition-colors'
 const ACTIVE = 'bg-accent-soft text-accent'
 const IDLE = 'text-text-subtle hover:bg-surface-hover hover:text-text'
 </script>
@@ -38,12 +38,12 @@ const IDLE = 'text-text-subtle hover:bg-surface-hover hover:text-text'
 <template>
   <div class="flex h-9 shrink-0 items-center gap-1 border-b border-border pl-1.5 pr-1.5">
     <nav ref="crumbsEl" class="path-crumbs min-w-0 flex-1 overflow-x-auto" aria-label="Folder in view" data-testid="path-picker-crumbs">
-      <ol class="flex w-max items-center font-mono text-[11px] leading-none">
+      <ol class="flex w-max items-center font-mono text-caption leading-none">
         <li v-for="(crumb, index) in crumbs" :key="crumb.path" class="flex items-center">
-          <span v-if="index > 0 && !/[\\/]$/.test(crumbs[index - 1]!.label)" class="px-px text-text-subtle/50" aria-hidden="true">/</span>
+          <span v-if="index > 0 && !/[\\/]$/.test(crumbs[index - 1]!.label)" class="px-px text-text-subtle" aria-hidden="true">/</span>
           <button
             type="button"
-            class="focus-ring flex h-6 items-center gap-1 rounded-[6px] px-1.5 transition-colors"
+            class="focus-ring flex h-6 items-center gap-1 rounded-control px-1.5 transition-colors"
             :class="index === crumbs.length - 1 ? 'text-text' : 'text-text-subtle hover:bg-surface-hover hover:text-text'"
             :aria-current="index === crumbs.length - 1 ? 'location' : undefined"
             :title="crumb.path"
@@ -100,7 +100,7 @@ const IDLE = 'text-text-subtle hover:bg-surface-hover hover:text-text'
     </button>
     <button
       type="button"
-      class="focus-ring grid h-7 shrink-0 place-items-center rounded-[7px] px-1.5 font-mono text-[11px] transition-colors"
+      class="focus-ring grid h-7 shrink-0 place-items-center rounded-control px-1.5 font-mono text-caption transition-colors"
       :class="showHidden ? ACTIVE : IDLE"
       :aria-pressed="showHidden"
       :title="showHidden ? 'Hide hidden files  ⌘⇧.' : 'Show hidden files  ⌘⇧.'"

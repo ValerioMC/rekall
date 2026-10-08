@@ -54,12 +54,12 @@ const LENSES: readonly { value: Lens; label: string; hint: string }[] = [
 </script>
 
 <template>
-  <div class="glass flex h-10 items-center gap-1 rounded-[12px] border border-border px-1.5 shadow-lift" role="toolbar" aria-label="Canvas">
-    <div class="flex gap-0.5 rounded-[8px] bg-canvas p-0.5" role="group" aria-label="Lens">
+  <div class="glass flex h-10 items-center gap-1 rounded-card border border-border px-1.5 shadow-lift" role="toolbar" aria-label="Canvas">
+    <div class="flex gap-0.5 rounded-card bg-canvas p-0.5" role="group" aria-label="Lens">
       <button
         v-for="option in LENSES"
         :key="option.value"
-        class="focus-ring flex h-7 items-center rounded-[6px] px-2.5 text-[12px] transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+        class="focus-ring flex h-7 items-center rounded-control px-2.5 text-small transition-colors disabled:cursor-not-allowed disabled:opacity-40"
         :class="lens === option.value ? 'bg-surface-raised text-text shadow-[0_1px_2px_rgb(0_0_0/0.4)]' : 'text-text-subtle hover:text-text'"
         :aria-pressed="lens === option.value"
         :title="option.hint"
@@ -74,13 +74,13 @@ const LENSES: readonly { value: Lens; label: string; hint: string }[] = [
     <span class="mx-0.5 h-5 w-px bg-border" aria-hidden="true" />
 
     <button
-      class="focus-ring grid size-8 place-items-center rounded-[8px] text-text-muted transition-colors hover:bg-surface-raised hover:text-text"
+      class="focus-ring grid size-8 place-items-center rounded-card text-text-muted transition-colors hover:bg-surface-raised hover:text-text"
       :title="direction === 'LR' ? 'Read top to bottom (D)' : 'Read left to right (D)'"
       :aria-label="direction === 'LR' ? 'Read top to bottom' : 'Read left to right'"
       data-testid="diagram-direction"
       @click="emit('update:direction', direction === 'LR' ? 'TB' : 'LR')"
     >
-      <svg viewBox="0 0 16 16" class="size-4 transition-transform duration-200" :class="direction === 'TB' ? 'rotate-90' : ''" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <svg viewBox="0 0 16 16" class="size-4 transition-transform duration-(--motion-move)" :class="direction === 'TB' ? 'rotate-90' : ''" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <rect x="1.8" y="5.6" width="3.6" height="4.8" rx="1" />
         <rect x="10.6" y="5.6" width="3.6" height="4.8" rx="1" />
         <path d="M5.8 8h3.8M8.2 6.4 9.8 8 8.2 9.6" />
@@ -90,7 +90,7 @@ const LENSES: readonly { value: Lens; label: string; hint: string }[] = [
     <div class="flex items-center">
       <button
         v-if="!searching && !query"
-        class="focus-ring grid size-8 place-items-center rounded-[8px] text-text-muted transition-colors hover:bg-surface-raised hover:text-text"
+        class="focus-ring grid size-8 place-items-center rounded-card text-text-muted transition-colors hover:bg-surface-raised hover:text-text"
         title="Find an element (/)"
         aria-label="Find an element"
         @click="openSearch"
@@ -107,13 +107,13 @@ const LENSES: readonly { value: Lens; label: string; hint: string }[] = [
           :value="query"
           type="search"
           placeholder="Find an element"
-          class="field h-7 w-44 rounded-[7px] pl-2.5 pr-7 text-[12px] text-text"
+          class="field h-7 w-44 rounded-control pl-2.5 pr-7 text-small text-text"
           data-testid="diagram-search"
           @input="emit('update:query', ($event.target as HTMLInputElement).value)"
           @keydown="onSearchKey"
           @blur="onBlur"
         />
-        <button class="focus-ring absolute right-1 grid size-5 place-items-center rounded text-text-subtle hover:text-text" aria-label="Clear the search" @click="closeSearch">
+        <button class="focus-ring hit-target absolute right-1 grid size-5 place-items-center rounded-key text-text-subtle hover:text-text" aria-label="Clear the search" @click="closeSearch">
           <svg viewBox="0 0 12 12" class="size-3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><path d="m3 3 6 6M9 3 3 9" /></svg>
         </button>
       </label>
@@ -121,11 +121,11 @@ const LENSES: readonly { value: Lens; label: string; hint: string }[] = [
 
     <span class="mx-0.5 h-5 w-px bg-border" aria-hidden="true" />
 
-    <button class="focus-ring grid size-8 place-items-center rounded-[8px] text-text-muted transition-colors hover:bg-surface-raised hover:text-text" title="Zoom out (−)" aria-label="Zoom out" @click="emit('zoomOut')">
+    <button class="focus-ring grid size-8 place-items-center rounded-card text-text-muted transition-colors hover:bg-surface-raised hover:text-text" title="Zoom out (−)" aria-label="Zoom out" @click="emit('zoomOut')">
       <svg viewBox="0 0 16 16" class="size-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 8h8" /></svg>
     </button>
     <button
-      class="focus-ring h-8 min-w-[3.25rem] rounded-[8px] px-1.5 font-mono text-[11.5px] tabular-nums text-text-muted transition-colors hover:bg-surface-raised hover:text-text"
+      class="focus-ring h-8 min-w-[3.25rem] rounded-card px-1.5 font-mono text-caption tabular-nums text-text-muted transition-colors hover:bg-surface-raised hover:text-text"
       title="Actual size (0)"
       aria-label="Zoom to actual size"
       data-testid="diagram-zoom-readout"
@@ -133,10 +133,10 @@ const LENSES: readonly { value: Lens; label: string; hint: string }[] = [
     >
       {{ Math.round(scale * 100) }}%
     </button>
-    <button class="focus-ring grid size-8 place-items-center rounded-[8px] text-text-muted transition-colors hover:bg-surface-raised hover:text-text" title="Zoom in (+)" aria-label="Zoom in" @click="emit('zoomIn')">
+    <button class="focus-ring grid size-8 place-items-center rounded-card text-text-muted transition-colors hover:bg-surface-raised hover:text-text" title="Zoom in (+)" aria-label="Zoom in" @click="emit('zoomIn')">
       <svg viewBox="0 0 16 16" class="size-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 8h8M8 4v8" /></svg>
     </button>
-    <button class="focus-ring grid size-8 place-items-center rounded-[8px] text-text-muted transition-colors hover:bg-surface-raised hover:text-text" title="Fit the diagram (F)" aria-label="Fit the diagram" data-testid="diagram-fit" @click="emit('fit')">
+    <button class="focus-ring grid size-8 place-items-center rounded-card text-text-muted transition-colors hover:bg-surface-raised hover:text-text" title="Fit the diagram (F)" aria-label="Fit the diagram" data-testid="diagram-fit" @click="emit('fit')">
       <svg viewBox="0 0 16 16" class="size-4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M2.5 5.5v-3h3M10.5 2.5h3v3M13.5 10.5v3h-3M5.5 13.5h-3v-3" />
       </svg>

@@ -52,7 +52,7 @@ onUnmounted(() => {
   <div v-if="reviewQueue.length" ref="host" class="relative">
     <button
       type="button"
-      class="key-slate focus-ring inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[3px] px-2"
+      class="key-slate focus-ring inline-flex h-8 shrink-0 items-center gap-1.5 rounded-key px-2"
       :title="`Review: ${reviewQueue.length} waiting for you, across every task`"
       :aria-label="`Review, ${reviewQueue.length} waiting`"
       aria-haspopup="dialog"
@@ -64,7 +64,7 @@ onUnmounted(() => {
         <path d="M1.2 3.4 2.6 4.8l2.4-2.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
         <path d="M6.8 3.6h4M6.8 8.4h4M1.4 8.4h3.4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
       </svg>
-      <span class="key-gold rounded-[3px] px-1.5 font-mono text-[10px] font-semibold tabular-nums leading-[16px]" data-testid="review-queue-count">
+      <span class="key-gold rounded-key px-1.5 font-mono text-micro font-semibold tabular-nums leading-[16px]" data-testid="review-queue-count">
         {{ reviewQueue.length }}
       </span>
     </button>
@@ -72,12 +72,12 @@ onUnmounted(() => {
     <Transition name="popover">
       <div
         v-if="open"
-        class="absolute right-0 top-full z-(--z-overlay) mt-1.5 w-[380px] overflow-hidden rounded-[var(--radius-card)] border border-border-strong bg-surface shadow-modal"
+        class="absolute right-0 top-full z-(--z-overlay) mt-1.5 w-[380px] overflow-hidden rounded-card border border-border-strong bg-surface shadow-modal"
         role="dialog"
         aria-label="Waiting for review"
         data-testid="review-queue"
       >
-        <p class="border-b border-border px-3.5 py-2 text-[11px] text-text-subtle">
+        <p class="border-b border-border px-3.5 py-2 text-caption text-text-subtle">
           Claimed by a session, waiting for you · longest-waiting first
         </p>
         <ul class="max-h-[420px] overflow-y-auto py-1">
@@ -88,10 +88,10 @@ onUnmounted(() => {
               data-testid="review-queue-item"
               @click="pick(item)"
             >
-              <span class="w-full truncate text-[12.5px] font-medium text-text">
+              <span class="w-full truncate text-small font-medium text-text">
                 {{ item.stepTitle ?? item.taskTitle }}
               </span>
-              <span class="flex w-full items-baseline gap-2 text-[11px] text-text-muted">
+              <span class="flex w-full items-baseline gap-2 text-caption text-text-muted">
                 <span class="min-w-0 truncate">{{ item.stepTitle ? item.taskTitle : 'Whole task, no checklist' }}</span>
                 <span v-if="item.claimedAt" class="ml-auto shrink-0">claimed {{ relativeTime(item.claimedAt) }}</span>
               </span>

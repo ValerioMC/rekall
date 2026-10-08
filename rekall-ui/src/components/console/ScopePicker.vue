@@ -82,7 +82,7 @@ defineExpose({ newCompany, newProject })
   <div class="relative" @keydown="onKeydown">
     <button
       data-testid="scope-trigger"
-      class="focus-ring flex h-10 w-full items-center gap-2.5 rounded-[var(--radius-control)] border border-border-strong bg-canvas px-2.5 text-left transition-colors hover:border-accent"
+      class="focus-ring flex h-10 w-full items-center gap-2.5 rounded-control border border-border-strong bg-canvas px-2.5 text-left transition-colors hover:border-accent"
       :class="isOpen && 'border-accent'"
       aria-haspopup="true"
       :aria-expanded="isOpen"
@@ -90,28 +90,28 @@ defineExpose({ newCompany, newProject })
     >
       <span class="size-2 shrink-0 rotate-45 rounded-[1px] bg-accent" aria-hidden="true" />
       <span class="min-w-0 flex-1">
-        <span class="block truncate text-[13px] text-text">
+        <span class="block truncate text-body text-text">
           <template v-if="scopePath.length === 0">All work</template>
           <template v-else>{{ scopePath[scopePath.length - 1] }}</template>
         </span>
-        <span class="block truncate font-mono text-[10.5px] text-anchor">
+        <span class="block truncate font-mono text-micro text-anchor">
           {{ isLoading ? 'Loading…' : scopeAnchor || `${taskTotal} tasks` }}
         </span>
       </span>
-      <span class="shrink-0 text-[10px] text-text-subtle" aria-hidden="true">&#9662;</span>
+      <span class="shrink-0 text-micro text-text-subtle" aria-hidden="true">&#9662;</span>
     </button>
 
     <div
       v-if="isOpen"
-      class="rise absolute inset-x-0 top-[calc(100%+6px)] z-(--z-overlay) max-h-[64vh] overflow-y-auto rounded-[var(--radius-card)] border border-border-strong bg-surface-raised p-1.5 shadow-modal"
+      class="rise absolute inset-x-0 top-[calc(100%+6px)] z-(--z-overlay) max-h-[64vh] overflow-y-auto rounded-card border border-border-strong bg-surface-raised p-1.5 shadow-modal"
     >
       <button
-        class="focus-ring flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[12.5px] transition-colors hover:bg-surface"
+        class="focus-ring flex w-full items-center gap-2 rounded-control px-2.5 py-1.5 text-left text-small transition-colors hover:bg-surface"
         :class="scopeCompany === null ? 'text-accent' : 'text-text-muted'"
         @click="pick(null)"
       >
         <span class="flex-1">All work</span>
-        <span class="font-mono text-[11px] text-text-subtle">{{ taskTotal }}</span>
+        <span class="font-mono text-caption text-text-subtle">{{ taskTotal }}</span>
       </button>
 
       <div class="my-1 h-px bg-border" />
@@ -120,7 +120,7 @@ defineExpose({ newCompany, newProject })
         <div class="group/company flex items-center gap-0.5">
           <button
             data-testid="scope-company"
-            class="focus-ring flex min-w-0 flex-1 items-center gap-2 rounded-md px-2.5 py-1.5 text-left transition-colors hover:bg-surface"
+            class="focus-ring flex min-w-0 flex-1 items-center gap-2 rounded-control px-2.5 py-1.5 text-left transition-colors hover:bg-surface"
             :class="
               scopeCompany === company.id && scopeProject === null
                 ? 'selected-row text-text'
@@ -129,15 +129,15 @@ defineExpose({ newCompany, newProject })
             @click="pick(company.id)"
           >
             <span
-              class="min-w-0 flex-1 truncate eyebrow text-[11px]"
+              class="min-w-0 flex-1 truncate eyebrow text-caption"
             >
               {{ company.name }}
             </span>
-            <span class="font-mono text-[11px] text-text-subtle">{{ company.taskCount }}</span>
+            <span class="font-mono text-caption text-text-subtle">{{ company.taskCount }}</span>
           </button>
           <button
             data-testid="edit-company"
-            class="focus-ring mr-1 grid size-6 shrink-0 place-items-center rounded text-text-subtle opacity-0 transition hover:bg-surface hover:text-accent focus-visible:opacity-100 group-hover/company:opacity-100"
+            class="focus-ring mr-1 grid size-6 shrink-0 place-items-center rounded-key text-text-subtle opacity-0 transition hover:bg-surface hover:text-accent focus-visible:opacity-100 group-hover/company:opacity-100"
             :aria-label="`Edit ${company.name}`"
             @click="editCompany(company)"
           >
@@ -159,35 +159,35 @@ defineExpose({ newCompany, newProject })
         >
           <button
             data-testid="scope-project"
-            class="focus-ring flex min-w-0 flex-1 items-center gap-2 rounded-md py-1.5 pl-6 pr-2 text-left transition-colors hover:bg-surface"
+            class="focus-ring flex min-w-0 flex-1 items-center gap-2 rounded-control py-1.5 pl-6 pr-2 text-left transition-colors hover:bg-surface"
             :class="scopeProject === project.id ? 'selected-row' : ''"
             @click="pick(company.id, project.id)"
           >
             <span class="min-w-0 flex-1">
               <span
-                class="flex items-center gap-1.5 truncate text-[12.5px]"
+                class="flex items-center gap-1.5 truncate text-small"
                 :class="scopeProject === project.id ? 'text-text' : 'text-text-muted'"
               >
                 <span class="size-1.5 shrink-0 rounded-full" :style="{ backgroundColor: identityHue(project.id).base }" aria-hidden="true" />
                 <span class="truncate">{{ project.title }}</span>
               </span>
               <span class="mt-0.5 block truncate">
-                <span class="anchor-chip px-1.5 py-px text-[9px] leading-[14px]">{{ project.anchor }}</span>
+                <span class="anchor-chip px-1.5 py-px text-micro leading-[14px]">{{ project.anchor }}</span>
               </span>
             </span>
             <span
               v-if="project.status !== 'ACTIVE'"
-              class="shrink-0 rounded border border-border-strong px-1 py-px text-[9.5px] font-medium tracking-[0.01em] text-text-subtle"
+              class="shrink-0 rounded-key border border-border-strong px-1 py-px text-micro font-medium tracking-[0.01em] text-text-subtle"
             >
               {{ PROJECT_STATUS_LABEL[project.status] }}
             </span>
-            <span class="shrink-0 font-mono text-[11px] text-text-subtle">
+            <span class="shrink-0 font-mono text-caption text-text-subtle">
               {{ project.taskCount }}
             </span>
           </button>
           <button
             data-testid="edit-project"
-            class="focus-ring mr-1 grid size-6 shrink-0 place-items-center rounded text-text-subtle opacity-0 transition hover:bg-surface hover:text-accent focus-visible:opacity-100 group-hover/project:opacity-100"
+            class="focus-ring mr-1 grid size-6 shrink-0 place-items-center rounded-key text-text-subtle opacity-0 transition hover:bg-surface hover:text-accent focus-visible:opacity-100 group-hover/project:opacity-100"
             :aria-label="`Edit ${project.title}`"
             @click="editProject(project)"
           >
@@ -204,13 +204,13 @@ defineExpose({ newCompany, newProject })
 
         <p
           v-if="!projectsOf(company.id).length"
-          class="py-1 pl-6 pr-2.5 text-[11.5px] italic text-text-subtle"
+          class="py-1 pl-6 pr-2.5 text-caption italic text-text-subtle"
         >
           no projects yet
         </p>
       </template>
 
-      <p v-if="!companies.length" class="px-2.5 py-2 text-[12.5px] leading-relaxed text-text-subtle">
+      <p v-if="!companies.length" class="px-2.5 py-2 text-small leading-relaxed text-text-subtle">
         Start with a company: it holds the projects, and those hold the work.
       </p>
 
@@ -218,7 +218,7 @@ defineExpose({ newCompany, newProject })
 
       <button
         data-testid="new-company"
-        class="focus-ring flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[12.5px] text-text-muted transition-colors hover:bg-surface hover:text-text"
+        class="focus-ring flex w-full items-center gap-2 rounded-control px-2.5 py-1.5 text-left text-small text-text-muted transition-colors hover:bg-surface hover:text-text"
         @click="newCompany"
       >
         <span class="text-accent">+</span> New company
@@ -226,7 +226,7 @@ defineExpose({ newCompany, newProject })
       <button
         v-if="targetCompany"
         data-testid="new-project"
-        class="focus-ring flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[12.5px] text-text-muted transition-colors hover:bg-surface hover:text-text"
+        class="focus-ring flex w-full items-center gap-2 rounded-control px-2.5 py-1.5 text-left text-small text-text-muted transition-colors hover:bg-surface hover:text-text"
         @click="newProject"
       >
         <span class="text-accent">+</span>

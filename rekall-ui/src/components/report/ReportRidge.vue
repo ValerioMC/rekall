@@ -44,7 +44,7 @@ const columns = computed(() =>
         class="absolute inset-x-0 border-t border-dashed border-border-strong"
         :style="{ bottom: fullDayLine }"
       >
-        <span class="absolute right-0 top-0 -translate-y-1/2 rounded-full border border-border bg-surface px-1.5 font-mono text-[9.5px] leading-[15px] text-text-muted">
+        <span class="absolute right-0 top-0 -translate-y-1/2 rounded-full border border-border bg-surface px-1.5 font-mono text-micro leading-[15px] text-text-muted">
           8h
         </span>
       </div>
@@ -69,7 +69,7 @@ const columns = computed(() =>
              were not expected to fill. -->
         <span
           v-if="column.isWeekend"
-          class="pointer-events-none absolute inset-x-0 bottom-6 top-0 rounded-t-[3px]"
+          class="pointer-events-none absolute inset-x-0 bottom-6 top-0 rounded-t-key"
           style="
             background-image: repeating-linear-gradient(
               135deg,
@@ -89,8 +89,8 @@ const columns = computed(() =>
         <span
           v-for="(segment, index) in column.segments"
           :key="segment.companyId"
-          class="relative transition-[filter] duration-150 group-hover:brightness-110"
-          :class="index === 0 ? 'rounded-t-[4px]' : ''"
+          class="relative transition-[filter] duration-(--motion-quick) group-hover:brightness-110"
+          :class="index === 0 ? 'rounded-t-key' : ''"
           :style="{
             height: segment.height,
             width: barWidth,
@@ -102,14 +102,14 @@ const columns = computed(() =>
         />
 
         <span
-          class="pointer-events-none absolute inset-x-0 -top-1 text-center font-mono text-[10px] text-text opacity-0 transition-opacity group-hover:opacity-100"
+          class="pointer-events-none absolute inset-x-0 -top-1 text-center font-mono text-micro text-text opacity-0 transition-opacity group-hover:opacity-100"
           aria-hidden="true"
         >
           {{ formatDuration(column.day.totalSeconds) }}
         </span>
 
         <span
-          class="absolute inset-x-0 bottom-0 truncate text-center text-[10px] leading-6"
+          class="absolute inset-x-0 bottom-0 truncate text-center text-micro leading-6"
           :class="column.day.totalSeconds > 0 ? 'text-text-muted' : 'text-text-subtle'"
           aria-hidden="true"
         >

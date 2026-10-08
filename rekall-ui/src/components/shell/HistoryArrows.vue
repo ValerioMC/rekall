@@ -1,32 +1,50 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { useNavigationHistory } from '@/composables/useNavigationHistory'
+import { useModalGate } from '@/composables/useModalGate'
+import {
+  historyDirectionOf,
+  historyShortcutLabel,
+  runsOnMac,
+  type HistoryDirection
+} from '@/common/shell/history-shortcut'
 
 /**
  * Back and forward through the screens the reader has visited, as one rocker beside the
  * wordmark. A side with nowhere to go dims and refuses the press; a press nudges its chevron
  * the way it travels.
  */
-type Direction = 'back' | 'forward'
-
 const { canGoBack, canGoForward, goBack, goForward } = useNavigationHistory()
-const nudged = ref<Direction | null>(null)
+const { isModalOpen } = useModalGate()
+const nudged = ref<HistoryDirection | null>(null)
+const mac = runsOnMac(navigator.platform)
 
-function travel(direction: Direction): void {
+function travel(direction: HistoryDirection): void {
   nudged.value = null
   requestAnimationFrame(() => (nudged.value = direction))
   if (direction === 'back') goBack()
   else goForward()
 }
+
+// Also fires while typing: the chord has no text-editing meaning. A modal owns the keyboard.
+function onKeydown(event: KeyboardEvent): void {
+  const direction = historyDirectionOf(event, mac)
+  if (!direction || isModalOpen.value > 0) return
+  event.preventDefault()
+  travel(direction)
+}
+
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <template>
-  <div class="rocker flex shrink-0 items-center rounded-[7px] bg-canvas p-0.5" role="group" aria-label="History">
+  <div class="rocker flex shrink-0 items-center rounded-control bg-canvas p-0.5" role="group" aria-label="History">
     <button
       type="button"
       class="rocker-key focus-ring"
       :disabled="!canGoBack"
-      title="Back"
+      :title="`Back (${historyShortcutLabel('back', mac)})`"
       aria-label="Back"
       data-testid="history-back"
       @click="travel('back')"
@@ -47,7 +65,7 @@ function travel(direction: Direction): void {
       type="button"
       class="rocker-key focus-ring"
       :disabled="!canGoForward"
-      title="Forward"
+      :title="`Forward (${historyShortcutLabel('forward', mac)})`"
       aria-label="Forward"
       data-testid="history-forward"
       @click="travel('forward')"
@@ -75,8 +93,8 @@ function travel(direction: Direction): void {
   border-radius: 5px;
   color: var(--color-text-muted);
   transition:
-    background-color 140ms ease,
-    color 140ms ease;
+    background-color var(--motion-quick) ease,
+    color var(--motion-quick) ease;
 }
 
 .rocker-key:hover:not(:disabled) {

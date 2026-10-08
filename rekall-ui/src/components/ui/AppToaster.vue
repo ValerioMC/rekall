@@ -12,16 +12,16 @@ const { toasts } = storeToRefs(store)
     style="--dock-lane-gutter: 24px"
   >
     <TransitionGroup
-      enter-active-class="transition duration-200 ease-out"
+      enter-active-class="transition duration-(--motion-move) ease-out"
       enter-from-class="translate-y-2 opacity-0"
-      leave-active-class="transition duration-150 ease-in"
+      leave-active-class="transition duration-(--motion-quick) ease-in"
       leave-to-class="translate-y-1 opacity-0"
     >
       <div
         v-for="toast in toasts"
         :key="toast.id"
         data-testid="toast"
-        class="pointer-events-auto flex items-start gap-3 rounded-[var(--radius-card)] border p-3.5 text-[13px] shadow-lift backdrop-blur"
+        class="pointer-events-auto flex items-start gap-3 rounded-card border p-3.5 text-body shadow-lift backdrop-blur"
         :class="
           toast.kind === 'error'
             ? 'border-danger/40 bg-danger-soft text-text'
@@ -37,14 +37,14 @@ const { toasts } = storeToRefs(store)
         <p class="flex-1 leading-snug">{{ toast.message }}</p>
         <button
           v-if="toast.action"
-          class="focus-ring -my-0.5 shrink-0 rounded-[var(--radius-control)] px-2 py-0.5 text-[12px] font-semibold text-accent transition-colors hover:bg-accent-soft"
+          class="focus-ring -my-0.5 shrink-0 rounded-control px-2 py-0.5 text-small font-semibold text-accent transition-colors hover:bg-accent-soft"
           data-testid="toast-action"
           @click="store.act(toast.id)"
         >
           {{ toast.action.label }}
         </button>
         <button
-          class="focus-ring -m-1 grid size-6 shrink-0 place-items-center rounded text-text-subtle transition-colors hover:text-text"
+          class="focus-ring -m-1 grid size-6 shrink-0 place-items-center rounded-key text-text-subtle transition-colors hover:text-text"
           aria-label="Dismiss"
           @click="store.dismiss(toast.id)"
         >

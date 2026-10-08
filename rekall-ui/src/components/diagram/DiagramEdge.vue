@@ -63,7 +63,7 @@ const merged = computed(() => props.item.edgeIds.length)
 <style scoped>
 .diagram-edge {
   --edge-tint: var(--color-text-subtle);
-  transition: opacity 160ms ease;
+  transition: opacity var(--motion-quick) ease;
 }
 
 .family-conditional {
@@ -90,8 +90,8 @@ const merged = computed(() => props.item.edgeIds.length)
   stroke-width: 1.4;
   stroke-linecap: round;
   transition:
-    stroke 140ms ease,
-    stroke-width 140ms ease;
+    stroke var(--motion-quick) ease,
+    stroke-width var(--motion-quick) ease;
 }
 
 .family-conditional .edge-line {
@@ -129,14 +129,14 @@ const merged = computed(() => props.item.edgeIds.length)
 
 .edge-label text {
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: var(--text-caption);
   fill: var(--color-text-muted);
 }
 
 .edge-count {
   fill: var(--color-text-subtle);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-micro);
 }
 
 .diagram-edge:hover .edge-line {

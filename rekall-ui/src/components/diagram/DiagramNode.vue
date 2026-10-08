@@ -111,8 +111,8 @@ function onKeydown(event: KeyboardEvent): void {
   cursor: pointer;
   outline: none;
   transition:
-    transform 280ms cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 160ms ease;
+    transform var(--motion-slow) cubic-bezier(0.16, 1, 0.3, 1),
+    opacity var(--motion-quick) ease;
 }
 
 .node-arrive {
@@ -141,8 +141,8 @@ function onKeydown(event: KeyboardEvent): void {
   stroke-width: 1.1;
   stroke-linejoin: round;
   transition:
-    stroke 140ms ease,
-    fill 140ms ease;
+    stroke var(--motion-quick) ease,
+    fill var(--motion-quick) ease;
 }
 
 .node-detail {
@@ -162,7 +162,7 @@ function onKeydown(event: KeyboardEvent): void {
   stroke: transparent;
   stroke-width: 7;
   stroke-linejoin: round;
-  transition: stroke 160ms ease;
+  transition: stroke var(--motion-quick) ease;
 }
 
 .node-socket {
@@ -177,13 +177,13 @@ function onKeydown(event: KeyboardEvent): void {
 
 .node-kind {
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: var(--text-micro);
   fill: color-mix(in srgb, var(--tint) 80%, var(--color-text-muted));
 }
 
 .node-title {
   font-family: var(--font-sans);
-  font-size: 12.5px;
+  font-size: var(--text-small);
   font-weight: 500;
   fill: var(--color-text);
 }
@@ -194,7 +194,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 .is-code .node-title {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--text-small);
 }
 
 .node-fold rect {
@@ -204,7 +204,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 .node-fold text {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-micro);
   fill: var(--color-text);
 }
 

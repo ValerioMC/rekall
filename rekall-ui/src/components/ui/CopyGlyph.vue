@@ -41,8 +41,8 @@ defineProps<{ copied: boolean }>()
 .copy-glyph-enter-active,
 .copy-glyph-leave-active {
   transition:
-    opacity 110ms ease,
-    transform 110ms ease;
+    opacity var(--motion-quick) ease,
+    transform var(--motion-quick) ease;
 }
 .copy-glyph-enter-from,
 .copy-glyph-leave-to {

@@ -40,21 +40,21 @@ const lines = computed(() => {
 </script>
 
 <template>
-  <div class="overflow-hidden rounded-[var(--radius-control)] border border-border bg-canvas" data-testid="source-excerpt">
-    <div v-if="failure" class="px-3 py-2.5 text-[12px] leading-relaxed text-text-muted" role="status">{{ failure }}</div>
+  <div class="overflow-hidden rounded-control border border-border bg-canvas" data-testid="source-excerpt">
+    <div v-if="failure" class="px-3 py-2.5 text-small leading-relaxed text-text-muted" role="status">{{ failure }}</div>
     <div v-else-if="!excerpt" class="skeleton-lines flex flex-col gap-1.5 px-3 py-3" role="status" aria-busy="true">
       <span class="sr-only">Loading the code</span>
-      <span v-for="index in 5" :key="index" class="skeleton h-2.5 rounded" :style="{ width: `${40 + ((index * 23) % 50)}%` }" />
+      <span v-for="index in 5" :key="index" class="skeleton h-2.5 rounded-key" :style="{ width: `${40 + ((index * 23) % 50)}%` }" />
     </div>
     <div v-else class="max-h-[320px] overflow-auto py-1.5">
-      <pre class="min-w-max font-mono text-[11px] leading-[1.65]"><code><span
+      <pre class="min-w-max font-mono text-caption leading-[1.65]"><code><span
         v-for="line in lines"
         :key="line.number"
         class="excerpt-line"
         :class="{ 'is-marked': line.marked }"
       ><span class="excerpt-number">{{ line.number }}</span><span class="excerpt-text"><span v-for="(token, index) in line.tokens" :key="index" :class="token.classes">{{ token.text }}</span></span>
 </span></code></pre>
-      <p v-if="excerpt.truncated" class="px-3 pt-1 text-[11px] text-text-subtle">Cut at 400 lines of {{ excerpt.totalLines }}.</p>
+      <p v-if="excerpt.truncated" class="px-3 pt-1 text-caption text-text-subtle">Cut at 400 lines of {{ excerpt.totalLines }}.</p>
     </div>
   </div>
 </template>

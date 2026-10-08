@@ -77,7 +77,7 @@ async function confirmDelete(): Promise<void> {
       </div>
 
       <div v-if="store.isLoading" class="flex flex-col gap-2" aria-hidden="true">
-        <div v-for="row in 5" :key="row" class="skeleton h-[64px] rounded-[var(--radius-control)]" />
+        <div v-for="row in 5" :key="row" class="skeleton h-[64px] rounded-control" />
       </div>
 
       <AppEmptyState
@@ -92,7 +92,7 @@ async function confirmDelete(): Promise<void> {
 
       <AppEmptyState v-else-if="!visible.length" title="No company matches" description="Try a different search." />
 
-      <div v-else class="overflow-hidden rounded-[var(--radius-card)] border border-border bg-surface">
+      <div v-else class="overflow-hidden rounded-card border border-border bg-surface">
         <button
           v-for="(company, index) in visible"
           :key="company.id"
@@ -102,7 +102,7 @@ async function confirmDelete(): Promise<void> {
           @click="openProjectsOf(company)"
         >
           <span
-            class="grid size-9 shrink-0 place-items-center rounded-[9px] border font-mono text-[13px] font-semibold"
+            class="grid size-9 shrink-0 place-items-center rounded-card border font-mono text-body font-semibold"
             :style="{
               backgroundColor: identityHue(company.id).soft,
               borderColor: identityHue(company.id).line,
@@ -114,8 +114,8 @@ async function confirmDelete(): Promise<void> {
           </span>
 
           <span class="min-w-0 flex-1">
-            <span class="block truncate text-[14px] font-semibold text-text">{{ company.name }}</span>
-            <span v-if="company.description" class="mt-0.5 block truncate text-[12px] text-text-subtle">
+            <span class="block truncate text-body font-semibold text-text">{{ company.name }}</span>
+            <span v-if="company.description" class="mt-0.5 block truncate text-small text-text-subtle">
               {{ company.description }}
             </span>
             <StatusMixBar :tasks="tasksOfCompany(company.id)" class="mt-1.5 max-w-[180px]" />
@@ -123,7 +123,7 @@ async function confirmDelete(): Promise<void> {
 
           <!-- Counts as figures in the code face, the unit beside them in the chrome's voice:
                a column of companies then reads down its numbers, not along a sentence. -->
-          <span class="hidden shrink-0 items-baseline gap-4 text-[11.5px] text-text-subtle sm:flex">
+          <span class="hidden shrink-0 items-baseline gap-4 text-caption text-text-subtle sm:flex">
             <span>
               <span class="font-mono tabular-nums text-text-muted">{{ company.projectCount }}</span>
               project{{ company.projectCount === 1 ? '' : 's' }}
@@ -137,7 +137,7 @@ async function confirmDelete(): Promise<void> {
 
           <span class="flex shrink-0 gap-1 opacity-0 transition focus-within:opacity-100 group-hover/row:opacity-100">
             <button
-              class="focus-ring grid size-7 place-items-center rounded text-text-subtle hover:bg-surface-hover hover:text-accent"
+              class="focus-ring grid size-7 place-items-center rounded-key text-text-subtle hover:bg-surface-hover hover:text-accent"
               :aria-label="`Edit ${company.name}`"
               data-testid="edit-company"
               @click.stop="edit(company)"
@@ -152,7 +152,7 @@ async function confirmDelete(): Promise<void> {
               </svg>
             </button>
             <button
-              class="focus-ring grid size-7 place-items-center rounded text-text-subtle hover:bg-surface-hover hover:text-danger"
+              class="focus-ring grid size-7 place-items-center rounded-key text-text-subtle hover:bg-surface-hover hover:text-danger"
               :aria-label="`Delete ${company.name}`"
               data-testid="delete-company"
               @click.stop="deleting = company"
@@ -170,7 +170,7 @@ async function confirmDelete(): Promise<void> {
           </span>
 
           <span
-            class="shrink-0 text-[13px] text-text-subtle transition-transform group-hover/row:translate-x-0.5 group-hover/row:text-accent"
+            class="shrink-0 text-body text-text-subtle transition-transform group-hover/row:translate-x-0.5 group-hover/row:text-accent"
             aria-hidden="true"
           >
             &#8594;

@@ -124,29 +124,29 @@ async function detach(note: RekallDocument): Promise<void> {
   >
     <header class="flex h-(--spacing-header) shrink-0 items-center gap-2 border-b border-border px-3.5">
       <span class="min-w-0 flex-1">
-        <span class="block truncate text-[13.5px] font-semibold text-text">
+        <span class="block truncate text-body font-semibold text-text">
           {{ selectedTask?.title ?? 'Notes' }}
         </span>
         <span
           v-if="selectedTask"
-          class="block truncate font-mono text-[10.5px] text-anchor/80"
+          class="block truncate font-mono text-micro text-anchor/80"
           :title="selectedTask.anchor"
         >
           {{ selectedTask.anchor }}
         </span>
       </span>
-      <span v-if="taskDocuments.length" class="font-mono text-[11px] text-text-subtle">
+      <span v-if="taskDocuments.length" class="font-mono text-caption text-text-subtle">
         {{ taskDocuments.length }}
       </span>
     </header>
 
     <div class="min-h-0 flex-1 overflow-y-auto p-2">
       <div v-if="isLoading" class="flex flex-col gap-2" aria-hidden="true">
-        <div class="skeleton h-14 rounded-[var(--radius-control)]" />
-        <div v-for="row in 3" :key="row" class="skeleton h-16 rounded-[var(--radius-control)]" />
+        <div class="skeleton h-14 rounded-control" />
+        <div v-for="row in 3" :key="row" class="skeleton h-16 rounded-control" />
       </div>
 
-      <p v-else-if="!selectedTask" class="px-2 py-2 text-[12.5px] leading-relaxed text-text-subtle">
+      <p v-else-if="!selectedTask" class="px-2 py-2 text-small leading-relaxed text-text-subtle">
         Pick a task to see its notes.
       </p>
 
@@ -195,16 +195,16 @@ async function detach(note: RekallDocument): Promise<void> {
                 <path d="M1.2 3.6v7.2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
               </svg>
             </span>
-            <span class="text-[11.5px] font-semibold tracking-[0.005em] text-text-muted">Notes</span>
+            <span class="text-caption font-semibold tracking-[0.005em] text-text-muted">Notes</span>
             <span
               v-if="taskDocuments.length"
-              class="font-mono text-[10.5px] tabular-nums text-text-subtle"
+              class="font-mono text-micro tabular-nums text-text-subtle"
             >
               {{ taskDocuments.length }}
             </span>
             <span
               v-if="hasReferenceNote"
-              class="ml-auto flex items-center gap-1.5 text-[10.5px] text-text-subtle"
+              class="ml-auto flex items-center gap-1.5 text-micro text-text-subtle"
               data-testid="dossier-reference-legend"
             >
               <span
@@ -217,17 +217,17 @@ async function detach(note: RekallDocument): Promise<void> {
 
           <p
             v-if="!taskDocuments.length"
-            class="relative z-[1] pb-3.5 pl-[38px] pr-3 text-[12px] leading-relaxed text-text-subtle"
+            class="relative z-[1] pb-3.5 pl-[38px] pr-3 text-small leading-relaxed text-text-subtle"
           >
             No note on this task yet. Press
-            <kbd class="rounded border border-border px-1 font-mono text-[10px]">N</kbd>
+            <kbd class="rounded-key border border-border px-1 font-mono text-micro">N</kbd>
             or the button below to write the first one.
           </p>
 
           <TransitionGroup
             tag="div"
             class="pb-1"
-            leave-active-class="transition duration-150 ease-in"
+            leave-active-class="transition duration-(--motion-quick) ease-in"
             leave-to-class="-translate-x-2 opacity-0"
           >
             <div
@@ -255,16 +255,16 @@ async function detach(note: RekallDocument): Promise<void> {
                 />
                 <span class="flex items-center gap-2 pr-8">
                   <span
-                    class="min-w-0 flex-1 truncate text-[13px] font-medium transition-colors"
+                    class="min-w-0 flex-1 truncate text-body font-medium transition-colors"
                     :class="isOpen(document) ? 'text-text' : 'text-text/90'"
                   >
                     {{ document.title }}
                   </span>
-                  <span class="shrink-0 font-mono text-[9.5px] text-text-subtle">
+                  <span class="shrink-0 font-mono text-micro text-text-subtle">
                     {{ document.kind }}
                   </span>
                 </span>
-                <span class="mt-0.5 line-clamp-2 block text-[11.5px] leading-relaxed text-text-subtle">
+                <span class="mt-0.5 line-clamp-2 block text-caption leading-relaxed text-text-subtle">
                   <span v-if="document.contextMode === 'REFERENCE'" class="sr-only">Loaded on request. </span>
                   {{ excerpt(document.bodyMarkdown) }}
                 </span>
@@ -277,7 +277,7 @@ async function detach(note: RekallDocument): Promise<void> {
               <span class="absolute right-2.5 top-2 z-[2] flex h-[18px] items-center" data-testid="note-card-membership">
                 <span
                   v-if="document.tasks.length > 1"
-                  class="anchor-chip px-1.5 py-px text-[9.5px] transition-opacity duration-100 group-hover/card:opacity-0 group-focus-within/card:opacity-0"
+                  class="anchor-chip px-1.5 py-px text-micro transition-opacity duration-(--motion-quick) group-hover/card:opacity-0 group-focus-within/card:opacity-0"
                   :title="`On ${document.tasks.length} tasks`"
                   data-testid="note-card-elsewhere"
                 >
@@ -285,7 +285,7 @@ async function detach(note: RekallDocument): Promise<void> {
                 </span>
                 <button
                   type="button"
-                  class="focus-ring absolute right-0 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-md text-text-subtle opacity-0 transition-[opacity,color,background-color] duration-100 hover:bg-danger-soft hover:text-danger focus-visible:opacity-100 group-hover/card:opacity-100 group-focus-within/card:opacity-100"
+                  class="focus-ring absolute right-0 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-control text-text-subtle opacity-0 transition-[opacity,color,background-color] duration-(--motion-quick) hover:bg-danger-soft hover:text-danger focus-visible:opacity-100 group-hover/card:opacity-100 group-focus-within/card:opacity-100"
                   :title="`Take ${document.title} off this task`"
                   :aria-label="`Take ${document.title} off this task`"
                   data-testid="note-card-off"
@@ -301,7 +301,7 @@ async function detach(note: RekallDocument): Promise<void> {
 
           <button
             type="button"
-            class="focus-ring relative z-[1] mb-2 ml-[38px] mr-3 mt-0.5 flex w-[calc(100%-50px)] items-center gap-2 rounded-[var(--radius-control)] border border-dashed border-border-strong px-2.5 py-1.5 text-left text-[12px] text-text-muted transition-colors hover:border-solid hover:border-accent hover:bg-accent-soft hover:text-text disabled:opacity-60"
+            class="add-row focus-ring relative z-[1] mb-2 ml-[38px] mr-3 mt-0.5 w-[calc(100%-50px)]"
             :disabled="creatingNote"
             :title="`A new note in ${selectedTask.projectTitle}, on this task`"
             data-testid="note-create-here"
@@ -309,14 +309,14 @@ async function detach(note: RekallDocument): Promise<void> {
           >
             <span class="text-accent" aria-hidden="true">+</span>
             <span class="min-w-0 flex-1 truncate">New note</span>
-            <span class="shrink-0 truncate text-[10.5px] text-text-subtle">in {{ selectedTask.projectTitle }}</span>
+            <span class="shrink-0 truncate text-micro text-text-subtle">in {{ selectedTask.projectTitle }}</span>
           </button>
 
           <button
             ref="attachButton"
             type="button"
-            class="focus-ring relative z-[1] mb-2 ml-[38px] mr-3 flex w-[calc(100%-50px)] items-center gap-2 rounded-[var(--radius-control)] border border-dashed border-border px-2.5 py-1.5 text-left text-[12px] text-text-muted transition-colors hover:border-solid hover:border-accent hover:bg-accent-soft hover:text-text disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-dashed disabled:hover:bg-transparent"
-            :class="isAttaching && 'border-solid border-accent bg-accent-soft text-text'"
+            class="add-row focus-ring relative z-[1] mb-2 ml-[38px] mr-3 w-[calc(100%-50px)]"
+            :class="isAttaching && 'add-row-open'"
             :disabled="attachableCount === 0"
             :aria-expanded="isAttaching"
             aria-haspopup="dialog"
@@ -328,7 +328,7 @@ async function detach(note: RekallDocument): Promise<void> {
               <path d="M5 7l2-2M4.2 5.6L3 6.8a2 2 0 0 0 2.8 2.8L7 8.4M7.8 6.4L9 5.2A2 2 0 0 0 6.2 2.4L5 3.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
             </svg>
             <span class="min-w-0 flex-1 truncate">Add existing note</span>
-            <span class="shrink-0 font-mono text-[10.5px] tabular-nums text-text-subtle" data-testid="note-attach-available">
+            <span class="shrink-0 font-mono text-micro tabular-nums text-text-subtle" data-testid="note-attach-available">
               {{ attachableCount }}
             </span>
           </button>

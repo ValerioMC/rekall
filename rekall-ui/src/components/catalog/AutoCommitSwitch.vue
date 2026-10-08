@@ -94,10 +94,10 @@ function toggle(): void {
       </button>
 
       <div class="min-w-0 flex-1">
-        <label :for="id" class="block cursor-pointer text-[13.5px] font-medium text-text">
+        <label :for="id" class="block cursor-pointer text-body font-medium text-text">
           Commit on claim
         </label>
-        <p :id="descriptionId" class="mt-1 max-w-[62ch] text-[12px] leading-relaxed text-text-subtle">
+        <p :id="descriptionId" class="mt-1 max-w-[62ch] text-small leading-relaxed text-text-subtle">
           When a session claims a step, or writes the wrapup of a task with no checklist,
           everything in this folder is committed under a generated message and logged against
           that step or task. The session is told not to commit by hand.
@@ -105,7 +105,7 @@ function toggle(): void {
 
         <p
           v-if="reason"
-          class="mt-2 flex items-start gap-1.5 text-[12px] leading-relaxed"
+          class="mt-2 flex items-start gap-1.5 text-small leading-relaxed"
           :class="readiness === 'no-identity' ? 'text-warn' : 'text-text-muted'"
           data-testid="auto-commit-reason"
         >
@@ -115,7 +115,7 @@ function toggle(): void {
 
         <div
           v-if="repository?.repository"
-          class="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11.5px]"
+          class="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-caption"
           data-testid="auto-commit-repository"
         >
           <span class="flex items-center gap-1.5 text-text-muted">
@@ -145,8 +145,8 @@ function toggle(): void {
   border: 1px solid var(--color-border);
   background: var(--color-surface);
   transition:
-    border-color 220ms ease,
-    box-shadow 320ms ease;
+    border-color var(--motion-move) ease,
+    box-shadow var(--motion-slow) ease;
 }
 
 .auto-commit-on {
@@ -183,8 +183,8 @@ function toggle(): void {
   background: var(--color-canvas);
   color: var(--switch-tint);
   transition:
-    border-color 220ms ease,
-    background-color 220ms ease;
+    border-color var(--motion-move) ease,
+    background-color var(--motion-move) ease;
 }
 
 .auto-commit-on .auto-commit-track {
@@ -204,7 +204,7 @@ function toggle(): void {
   width: 100%;
   height: 100%;
   opacity: 0.35;
-  transition: opacity 260ms ease;
+  transition: opacity var(--motion-move) ease;
 }
 
 .auto-commit-on .auto-commit-graph {
@@ -221,9 +221,9 @@ function toggle(): void {
   background: var(--color-text-muted);
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.6);
   transition:
-    transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    background-color 220ms ease,
-    box-shadow 220ms ease;
+    transform var(--motion-move) cubic-bezier(0.2, 0.8, 0.2, 1),
+    background-color var(--motion-move) ease,
+    box-shadow var(--motion-move) ease;
 }
 
 .auto-commit-on .auto-commit-knob {

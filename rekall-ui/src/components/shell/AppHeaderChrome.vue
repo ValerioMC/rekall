@@ -25,10 +25,10 @@ const isDesktop = isDesktopApp()
          and holding it fixed there is what crushed the search bar; letting it hug the logo instead
          hands that space back to the switcher and the bar next to it. -->
     <div
-      class="flex w-(--spacing-nav) shrink-0 items-center gap-2.5 pr-2.5 max-[1600px]:w-[220px] max-[1600px]:pr-4"
+      class="flex w-(--spacing-nav) shrink-0 items-center gap-2.5 pr-2.5 max-[1600px]:w-[220px] max-[1600px]:pr-4 max-[1279px]:w-auto"
     >
-      <AppLogo :size="32" class="halo rounded-[7px]" />
-      <span class="text-[14.5px] font-semibold leading-none tracking-[-0.015em] text-text">Rekall</span>
+      <AppLogo :size="32" class="halo rounded-control" />
+      <span class="text-body font-semibold leading-none tracking-[-0.015em] text-text max-[1099px]:sr-only">Rekall</span>
       <HistoryArrows class="ml-1" />
     </div>
 

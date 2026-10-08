@@ -190,7 +190,7 @@ onUnmounted(() => {
   <Teleport to="body">
     <div
       ref="panel"
-      class="note-picker fixed z-(--z-overlay) flex max-h-[min(460px,calc(100vh-24px))] flex-col overflow-hidden rounded-[var(--radius-card)] border border-border-strong bg-surface shadow-lift"
+      class="note-picker fixed z-(--z-overlay) flex max-h-[min(460px,calc(100vh-24px))] flex-col overflow-hidden rounded-card border border-border-strong bg-surface shadow-lift"
       :style="{ top: `${position.top}px`, left: `${position.left}px`, width: `${position.width}px` }"
       role="dialog"
       aria-label="Notes on this task"
@@ -206,11 +206,11 @@ onUnmounted(() => {
           autocomplete="off"
           spellcheck="false"
           placeholder="Find a note"
-          class="focus-ring h-7 min-w-0 flex-1 rounded-[var(--radius-control)] border border-border bg-canvas px-2.5 text-[12px] text-text placeholder:text-text-subtle"
+          class="focus-ring h-7 min-w-0 flex-1 rounded-control border border-border bg-canvas px-2.5 text-small text-text placeholder:text-text-subtle"
           data-testid="note-picker-filter"
         />
         <span
-          class="shrink-0 font-mono text-[10.5px] tabular-nums text-text-subtle"
+          class="shrink-0 font-mono text-micro tabular-nums text-text-subtle"
           :title="`${attachedCount} on this task`"
           data-testid="note-picker-count"
         >
@@ -221,16 +221,16 @@ onUnmounted(() => {
       <div class="min-h-0 flex-1 overflow-y-auto py-1" data-testid="note-picker-list">
         <p
           v-if="!documents.length"
-          class="px-3.5 py-3 text-[11.5px] leading-relaxed text-text-subtle"
+          class="px-3.5 py-3 text-caption leading-relaxed text-text-subtle"
           data-testid="note-picker-empty"
         >
           No note yet. Press
-          <kbd class="rounded border border-border px-1 font-mono text-[10px]">N</kbd>
+          <kbd class="rounded-key border border-border px-1 font-mono text-micro">N</kbd>
           to write the first one on this task.
         </p>
         <p
           v-else-if="!rows.length"
-          class="px-3.5 py-3 text-[11.5px] leading-relaxed text-text-subtle"
+          class="px-3.5 py-3 text-caption leading-relaxed text-text-subtle"
           data-testid="note-picker-empty"
         >
           No note matches that.
@@ -263,7 +263,7 @@ onUnmounted(() => {
               @click="toggle(row)"
             >
               <span
-                class="grid size-4 shrink-0 place-items-center rounded-[5px] border transition-colors"
+                class="grid size-4 shrink-0 place-items-center rounded-control border transition-colors"
                 :class="
                   row.attached
                     ? 'border-accent-deep bg-accent-soft text-accent'
@@ -284,20 +284,20 @@ onUnmounted(() => {
               <span class="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span class="flex min-w-0 items-center gap-2">
                   <span
-                    class="min-w-0 flex-1 truncate text-[12.5px]"
+                    class="min-w-0 flex-1 truncate text-small"
                     :class="row.attached ? 'text-text' : 'text-text-muted'"
                     :title="row.document.title"
                   >
                     {{ row.document.title }}
                   </span>
                   <span
-                    class="shrink-0 rounded border border-border bg-surface-raised px-1.5 py-px font-mono text-[9.5px] text-text-muted"
+                    class="shrink-0 rounded-key border border-border bg-surface-raised px-1.5 py-px font-mono text-micro text-text-muted"
                   >
                     {{ row.document.kind }}
                   </span>
                 </span>
                 <span
-                  class="truncate font-mono text-[10.5px] text-text-subtle"
+                  class="truncate font-mono text-micro text-text-subtle"
                   data-testid="note-picker-elsewhere"
                 >
                   {{ row.elsewhere }}
@@ -309,15 +309,15 @@ onUnmounted(() => {
       </div>
 
       <div class="flex items-center justify-between gap-2 border-t border-border bg-canvas px-3.5 py-2">
-        <span class="text-[10.5px] text-text-subtle">
-          <kbd class="rounded border border-border px-1 font-mono text-[9.5px]">↑↓</kbd>
+        <span class="text-micro text-text-subtle">
+          <kbd class="rounded-key border border-border px-1 font-mono text-micro">↑↓</kbd>
           move,
-          <kbd class="rounded border border-border px-1 font-mono text-[9.5px]">↵</kbd>
+          <kbd class="rounded-key border border-border px-1 font-mono text-micro">↵</kbd>
           add or remove
         </span>
         <button
           type="button"
-          class="focus-ring text-[10.5px] text-text-subtle transition-colors hover:text-text"
+          class="focus-ring text-micro text-text-subtle transition-colors hover:text-text"
           @click="emit('close')"
         >
           Done

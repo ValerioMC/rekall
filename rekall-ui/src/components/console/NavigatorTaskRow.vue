@@ -57,7 +57,7 @@ watch(
   <div class="group/task relative" :class="filed && 'filed-row'">
     <button
       data-testid="task-row"
-      class="focus-ring flex w-full items-start gap-2.5 rounded-[var(--radius-control)] px-2.5 py-2 text-left transition-colors"
+      class="focus-ring flex w-full items-start gap-2.5 rounded-control px-2.5 py-2 text-left transition-colors"
       :class="selected ? 'selected-row text-text' : 'text-text-muted hover:panel-slate hover:text-text'"
       :style="selected ? { '--select-tint': selectTint.base, '--select-tint-soft': selectTint.soft } : undefined"
       :aria-current="selected"
@@ -84,7 +84,7 @@ watch(
 
       <span class="min-w-0 flex-1">
         <span class="flex items-center gap-1.5">
-          <span class="min-w-0 truncate text-[13px] font-medium leading-[1.35]">{{ task.title }}</span>
+          <span class="min-w-0 truncate text-body font-medium leading-[1.35]">{{ task.title }}</span>
           <TagBadge
             v-if="task.tagId && task.tagName && task.tagIcon && task.tagColor"
             class="ml-auto shrink-0"
@@ -95,17 +95,17 @@ watch(
         </span>
         <span class="mt-1 flex min-w-0 items-center gap-1.5">
           <template v-if="showContext && showCompany">
-            <span class="shrink-0 truncate text-[10px] text-text-subtle">{{ task.companyName }}</span>
-            <span class="shrink-0 text-[10px] text-text-subtle" aria-hidden="true">/</span>
+            <span class="shrink-0 truncate text-micro text-text-subtle">{{ task.companyName }}</span>
+            <span class="shrink-0 text-micro text-text-subtle" aria-hidden="true">/</span>
           </template>
-          <span class="anchor-chip min-w-0 truncate px-1.5 py-px text-[9.5px] leading-[15px]">
+          <span class="anchor-chip min-w-0 truncate px-1.5 py-px text-micro leading-[15px]">
             {{ task.label }}
           </span>
 
           <!-- What the task carries, on the anchor's line so the title keeps the whole width above.
                It steps aside for the edit control under the pointer rather than sitting beneath it. -->
           <span
-            class="ml-auto flex shrink-0 items-center gap-2 pl-1 font-mono text-[10px] text-text-subtle transition-opacity duration-100 group-hover/task:opacity-0 group-focus-within/task:opacity-0"
+            class="ml-auto flex shrink-0 items-center gap-2 pl-1 font-mono text-micro text-text-subtle transition-opacity duration-(--motion-quick) group-hover/task:opacity-0 group-focus-within/task:opacity-0"
           >
             <span
               v-if="task.stepCount > 0"
@@ -122,7 +122,7 @@ watch(
               :title="`${task.draftStepCount} step${task.draftStepCount > 1 ? 's' : ''} in draft`"
               data-testid="task-drafts"
             >
-              <span class="size-[7px] rounded-[2px] border border-dashed border-current" aria-hidden="true" />
+              <span class="size-[7px] rounded-key border border-dashed border-current" aria-hidden="true" />
               {{ task.draftStepCount }}
             </span>
             <span
@@ -152,7 +152,7 @@ watch(
 
     <button
       data-testid="edit-task"
-      class="focus-ring absolute bottom-[5px] right-1.5 grid size-6 translate-x-1 place-items-center rounded-md border border-border-strong bg-surface-hover text-text-subtle opacity-0 shadow-lift transition-all hover:text-accent focus-visible:translate-x-0 focus-visible:opacity-100 group-hover/task:translate-x-0 group-hover/task:opacity-100"
+      class="focus-ring absolute bottom-[5px] right-1.5 grid size-6 translate-x-1 place-items-center rounded-control border border-border-strong bg-surface-hover text-text-subtle opacity-0 shadow-lift transition-all hover:text-accent focus-visible:translate-x-0 focus-visible:opacity-100 group-hover/task:translate-x-0 group-hover/task:opacity-100"
       :aria-label="`Edit ${task.title}`"
       @click.stop="$emit('edit')"
     >

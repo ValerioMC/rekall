@@ -46,14 +46,14 @@ const writtenBy = computed(() =>
     </span>
     <span class="flex min-h-[17px] items-center gap-2">
       <span
-        class="text-[11.5px] font-semibold tracking-[0.005em] transition-colors"
+        class="text-caption font-semibold tracking-[0.005em] transition-colors"
         :class="selected ? 'text-text' : 'text-text-muted'"
       >
         Wrapup
       </span>
       <span
         v-if="wrapup"
-        class="ml-auto flex shrink-0 items-center gap-1 truncate text-[10.5px] text-text-muted"
+        class="ml-auto flex shrink-0 items-center gap-1 truncate text-micro text-text-muted"
         :title="`Written by ${writtenBy} on ${new Date(wrapup.updatedAt).toLocaleString()}`"
       >
         <svg v-if="wrapup.writtenBy === 'CLAUDE'" class="size-2.5 shrink-0" viewBox="0 0 12 12" aria-hidden="true">
@@ -79,17 +79,17 @@ const writtenBy = computed(() =>
 
     <span
       v-if="wrapup"
-      class="mt-1 line-clamp-2 block text-[12px] leading-relaxed text-text-muted"
+      class="mt-1 line-clamp-2 block text-small leading-relaxed text-text-muted"
     >
       {{ excerpt }}
     </span>
-    <span v-else class="mt-1 block text-[11.5px] leading-relaxed text-text-muted">
+    <span v-else class="mt-1 block text-caption leading-relaxed text-text-muted">
       No wrapup yet. Open it to write what this task currently is.
     </span>
 
     <span
       v-if="wrapup && missesSteps > 0"
-      class="mt-1.5 flex items-center gap-1.5 text-[10.5px] text-warn"
+      class="mt-1.5 flex items-center gap-1.5 text-micro text-warn"
       data-testid="wrapup-misses-steps"
     >
       <span class="size-[5px] shrink-0 rounded-full bg-warn" aria-hidden="true" />
@@ -97,7 +97,7 @@ const writtenBy = computed(() =>
     </span>
     <span
       v-if="wrapup && behind > 0"
-      class="mt-1.5 flex items-center gap-1.5 text-[10.5px] text-warn"
+      class="mt-1.5 flex items-center gap-1.5 text-micro text-warn"
     >
       <span class="size-[5px] shrink-0 rounded-full bg-warn" aria-hidden="true" />
       {{ behind }} note{{ behind === 1 ? '' : 's' }} newer than this

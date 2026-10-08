@@ -16,7 +16,7 @@ defineEmits<{ hover: []; activate: []; insert: [] }>()
     :id="id"
     role="option"
     :aria-selected="highlighted"
-    class="path-row group/row flex h-[30px] cursor-pointer items-center gap-2.5 rounded-[7px] pl-3.5 pr-1.5"
+    class="path-row group/row flex h-[30px] cursor-pointer items-center gap-2.5 rounded-control pl-3.5 pr-1.5"
     :class="[highlighted ? 'selected-row' : 'hover:bg-surface-hover', row.entry.hidden && 'opacity-60']"
     :data-directory="row.entry.directory"
     data-testid="path-picker-row"
@@ -50,7 +50,7 @@ defineEmits<{ hover: []; activate: []; insert: [] }>()
     </svg>
 
     <span
-      class="min-w-0 flex-1 truncate font-mono text-[12px]"
+      class="min-w-0 flex-1 truncate font-mono text-small"
       :class="highlighted ? 'text-text' : 'text-text-muted'"
       :title="row.entry.name"
     >
@@ -61,11 +61,11 @@ defineEmits<{ hover: []; activate: []; insert: [] }>()
     </span>
 
     <!-- On the highlighted folder, both of its moves, since a click only does one. -->
-    <span v-if="row.entry.directory && highlighted" class="flex shrink-0 items-center gap-1 text-[10.5px] text-text-subtle">
+    <span v-if="row.entry.directory && highlighted" class="flex shrink-0 items-center gap-1 text-micro text-text-subtle">
       <button
         type="button"
         tabindex="-1"
-        class="rounded-[5px] px-1.5 py-0.5 transition-colors hover:bg-accent-soft hover:text-accent"
+        class="rounded-control px-1.5 py-0.5 transition-colors hover:bg-accent-soft hover:text-accent"
         data-testid="path-picker-insert-folder"
         @click.stop="$emit('insert')"
       >
@@ -75,7 +75,7 @@ defineEmits<{ hover: []; activate: []; insert: [] }>()
     <svg
       v-if="row.entry.directory"
       class="size-3 shrink-0 transition-colors"
-      :class="highlighted ? 'text-text-muted' : 'text-text-subtle/50'"
+      :class="highlighted ? 'text-text-muted' : 'text-text-subtle'"
       viewBox="0 0 12 12"
       fill="none"
       aria-hidden="true"

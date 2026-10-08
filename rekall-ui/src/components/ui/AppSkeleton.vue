@@ -13,7 +13,7 @@ withDefaults(defineProps<{ variant?: 'cards' | 'table' | 'list'; rows?: number }
       <div
         v-for="index in 3"
         :key="index"
-        class="rounded-[var(--radius-card)] border border-border bg-surface p-5"
+        class="rounded-card border border-border bg-surface p-5"
       >
         <div class="skeleton h-4 w-1/3" />
         <div class="skeleton mt-3 h-3 w-4/5" />
@@ -25,7 +25,7 @@ withDefaults(defineProps<{ variant?: 'cards' | 'table' | 'list'; rows?: number }
 
     <div
       v-else-if="variant === 'table'"
-      class="overflow-hidden rounded-[var(--radius-card)] border border-border bg-surface"
+      class="overflow-hidden rounded-card border border-border bg-surface"
     >
       <div class="border-b border-border px-4 py-2.5">
         <div class="skeleton h-2.5 w-24" />
@@ -46,7 +46,7 @@ withDefaults(defineProps<{ variant?: 'cards' | 'table' | 'list'; rows?: number }
       <div
         v-for="index in rows"
         :key="index"
-        class="rounded-[var(--radius-card)] border border-border bg-surface p-5"
+        class="rounded-card border border-border bg-surface p-5"
       >
         <div class="skeleton h-3.5 w-1/2" />
         <div class="skeleton mt-3 h-14 w-full" />

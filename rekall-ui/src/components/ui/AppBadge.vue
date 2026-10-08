@@ -27,7 +27,7 @@ const DOTS: Readonly<Record<Tone, string>> = {
 }
 
 const classes = computed(() => [
-  'inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset',
+  'inline-flex items-center gap-1.5 rounded-control px-2 py-0.5 text-caption font-medium ring-1 ring-inset',
   props.mono ? 'font-mono' : '',
   TONES[props.tone]
 ])

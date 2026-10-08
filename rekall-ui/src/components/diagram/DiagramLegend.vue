@@ -29,11 +29,11 @@ const RELATIONS = [
 </script>
 
 <template>
-  <div class="glass w-[296px] rounded-[12px] border border-border p-1.5 shadow-lift" data-testid="diagram-legend">
+  <div class="glass w-[296px] rounded-card border border-border p-1.5 shadow-lift" data-testid="diagram-legend">
     <ul class="grid grid-cols-2 gap-x-1" aria-label="Kinds">
       <li v-for="entry in kinds" :key="entry.kind">
         <button
-          class="focus-ring flex h-6 w-full items-center gap-1.5 rounded-[6px] px-1.5 text-left text-[11.5px] transition-colors"
+          class="focus-ring flex h-6 w-full items-center gap-1.5 rounded-control px-1.5 text-left text-caption transition-colors"
           :class="pinned === entry.kind ? 'bg-surface-raised text-text' : 'text-text-muted hover:bg-surface-raised/70 hover:text-text'"
           :aria-pressed="pinned === entry.kind"
           @pointerenter="emit('hover', entry.kind)"
@@ -46,12 +46,12 @@ const RELATIONS = [
             <NodeKindGlyph :glyph="entry.style.glyph" :size="14" />
           </span>
           <span class="min-w-0 flex-1 truncate">{{ entry.style.label }}</span>
-          <span class="font-mono text-[10.5px] tabular-nums text-text-subtle">{{ entry.count }}</span>
+          <span class="font-mono text-micro tabular-nums text-text-subtle">{{ entry.count }}</span>
         </button>
       </li>
     </ul>
     <div class="mt-1 grid grid-cols-4 gap-x-2 border-t border-border px-1.5 pb-0.5 pt-1.5" aria-label="Relations">
-      <span v-for="relation in RELATIONS" :key="relation.family" class="flex items-center gap-1 text-[10.5px] text-text-subtle">
+      <span v-for="relation in RELATIONS" :key="relation.family" class="flex items-center gap-1 text-micro text-text-subtle">
         <svg viewBox="0 0 16 6" class="h-1.5 w-4 shrink-0 overflow-visible" aria-hidden="true">
           <path d="M1 3h14" class="legend-line" :class="`family-${relation.family}`" />
         </svg>

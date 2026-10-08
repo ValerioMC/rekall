@@ -92,7 +92,7 @@ onBeforeUnmount(() => window.removeEventListener('pointerdown', onPointerDown, t
     <button
       ref="trigger"
       type="button"
-      class="focus-ring flex h-7 items-center gap-1.5 rounded-[6px] pl-3 pr-2 text-[12px] transition-colors"
+      class="focus-ring flex h-7 items-center gap-1.5 rounded-control pl-3 pr-2 text-small transition-colors"
       :class="
         current
           ? 'bg-surface-raised text-text shadow-[0_1px_2px_rgb(0_0_0/0.4)]'
@@ -118,7 +118,7 @@ onBeforeUnmount(() => window.removeEventListener('pointerdown', onPointerDown, t
         </span>
       </span>
       <svg
-        class="size-2.5 text-text-subtle transition-transform duration-150"
+        class="size-2.5 text-text-subtle transition-transform duration-(--motion-quick)"
         :class="open && 'rotate-180'"
         viewBox="0 0 10 10"
         fill="none"
@@ -138,7 +138,7 @@ onBeforeUnmount(() => window.removeEventListener('pointerdown', onPointerDown, t
       <div
         v-if="open"
         ref="menu"
-        class="absolute left-0 top-full z-(--z-overlay) mt-2 w-[208px] origin-top-left rounded-[var(--radius-card)] border border-border-strong bg-surface p-1 shadow-(--shadow-lift)"
+        class="absolute left-0 top-full z-(--z-overlay) mt-2 w-[208px] origin-top-left rounded-card border border-border-strong bg-surface p-1 shadow-(--shadow-lift)"
         role="menu"
         :aria-label="group.label"
         data-testid="nav-group-menu"
@@ -149,13 +149,13 @@ onBeforeUnmount(() => window.removeEventListener('pointerdown', onPointerDown, t
           :key="member.to"
           :to="member.to"
           role="menuitem"
-          class="focus-ring flex flex-col gap-0.5 rounded-[var(--radius-control)] py-2 pl-3.5 pr-3 outline-offset-[-2px] transition-colors"
+          class="focus-ring flex flex-col gap-0.5 rounded-control py-2 pl-3.5 pr-3 outline-offset-[-2px] transition-colors"
           :class="isScreenActive(member, routeName) ? 'selected-row' : 'hover:bg-surface-hover'"
           :aria-current="isScreenActive(member, routeName) ? 'page' : undefined"
           data-testid="nav-group-item"
         >
-          <span class="text-[12.5px] font-medium leading-tight text-text">{{ member.label }}</span>
-          <span class="text-[11.5px] leading-tight text-text-muted">{{ member.hint }}</span>
+          <span class="text-small font-medium leading-tight text-text">{{ member.label }}</span>
+          <span class="text-caption leading-tight text-text-muted">{{ member.hint }}</span>
         </RouterLink>
       </div>
     </Transition>

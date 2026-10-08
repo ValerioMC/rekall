@@ -52,19 +52,19 @@ function jumpTo(taskId: TaskId): void {
   >
     <li v-for="entry in sortedRunning" :key="entry.id" data-testid="running-dock-row">
       <div
-        class="flex items-center gap-2.5 rounded-[var(--radius-control)] px-2 py-2 hover:bg-surface-raised"
+        class="flex items-center gap-2.5 rounded-control px-2 py-2 hover:bg-surface-raised"
       >
         <button
-          class="focus-ring flex min-w-0 flex-1 items-center gap-2.5 rounded-[var(--radius-control)] text-left"
+          class="focus-ring flex min-w-0 flex-1 items-center gap-2.5 rounded-control text-left"
           :title="`Jump to ${entry.taskTitle}`"
           data-testid="running-dock-jump"
           @click="jumpTo(entry.taskId)"
         >
           <span class="min-w-0 flex-1">
-            <span class="block truncate text-[12.5px] font-medium text-text">
+            <span class="block truncate text-small font-medium text-text">
               {{ entry.taskTitle }}
             </span>
-            <span class="mt-0.5 flex items-center gap-1.5 truncate font-mono text-[10px] text-anchor/80">
+            <span class="mt-0.5 flex items-center gap-1.5 truncate font-mono text-micro text-anchor/80">
               <span
                 class="size-1 shrink-0 rounded-full"
                 :style="{ backgroundColor: identityHue(projectIdOf(entry)).base }"
@@ -74,7 +74,7 @@ function jumpTo(taskId: TaskId): void {
             </span>
           </span>
         </button>
-        <span class="shrink-0 font-mono text-[12px] tabular-nums text-accent">
+        <span class="shrink-0 font-mono text-small tabular-nums text-accent">
           {{ formatClock(liveSeconds(entry)) }}
         </span>
         <button

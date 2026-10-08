@@ -10,6 +10,7 @@ import AppCard from '@/components/ui/AppCard.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import ProjectBlueprintPane from '@/components/project/ProjectBlueprintPane.vue'
+import ProjectComponentsSection from '@/components/project/ProjectComponentsSection.vue'
 import ProjectDocsRail from '@/components/project/ProjectDocsRail.vue'
 import ProjectSectionPane from '@/components/project/ProjectSectionPane.vue'
 import ProjectTasksDrawer from '@/components/project/ProjectTasksDrawer.vue'
@@ -235,7 +236,7 @@ onUnmounted(() => {
   <div class="flex-1 min-h-0 overflow-y-auto bg-canvas">
     <template v-if="!store.isLoading && !project">
       <AppCatalogHeader title="Project" />
-      <div class="mx-auto max-w-[1240px] px-8 py-6">
+      <div class="mx-auto w-full max-w-[1800px] px-6 py-6 2xl:px-10">
         <AppEmptyState title="No project here" description="It may have been deleted, or the link is stale.">
           <RouterLink to="/projects"><AppButton variant="secondary" size="sm">Back to projects</AppButton></RouterLink>
         </AppEmptyState>
@@ -249,9 +250,9 @@ onUnmounted(() => {
           <div class="skeleton h-4 w-64" />
         </div>
       </Teleport>
-      <div class="mx-auto flex max-w-[1240px] flex-col gap-4 px-8 py-6" aria-hidden="true">
-        <div class="skeleton h-32 rounded-[var(--radius-card)]" />
-        <div class="skeleton h-64 rounded-[var(--radius-card)]" />
+      <div class="mx-auto flex w-full max-w-[1800px] flex-col gap-4 px-6 py-6 2xl:px-10" aria-hidden="true">
+        <div class="skeleton h-32 rounded-card" />
+        <div class="skeleton h-64 rounded-card" />
       </div>
     </template>
 
@@ -270,7 +271,7 @@ onUnmounted(() => {
           </AppBadge>
         </template>
         <template #actions>
-          <span class="mr-1 flex items-center gap-2 text-[12px]" :class="store.saveState === 'unsaved' ? 'text-warn' : 'text-text-subtle'">
+          <span class="mr-1 flex items-center gap-2 text-small" :class="store.saveState === 'unsaved' ? 'text-warn' : 'text-text-subtle'">
             <span
               class="size-1.5 rounded-full"
               :class="{
@@ -285,7 +286,7 @@ onUnmounted(() => {
           </span>
           <AppButton variant="secondary" size="sm" data-testid="show-tasks" @click="showingTasks = true">
             Tasks
-            <span class="font-mono text-[11px] text-text-subtle">{{ projectTasks.length }}</span>
+            <span class="font-mono text-caption text-text-subtle">{{ projectTasks.length }}</span>
           </AppButton>
           <AppButton variant="secondary" size="sm" data-testid="rename-project" @click="openRename">
             Rename / move
@@ -293,10 +294,10 @@ onUnmounted(() => {
         </template>
       </AppCatalogHeader>
 
-      <div class="mx-auto flex max-w-[1240px] flex-col gap-5 px-8 py-6">
+      <div class="mx-auto flex w-full max-w-[1800px] flex-col gap-5 px-6 py-6 2xl:px-10">
         <div class="grid gap-5 lg:grid-cols-2">
           <AppCard :style="{ borderTop: `2px solid ${identityHue(project.id).line}` }">
-            <p class="mb-2 eyebrow text-[11px]">
+            <p class="mb-2 eyebrow text-caption">
               Description
             </p>
             <textarea
@@ -304,14 +305,14 @@ onUnmounted(() => {
               :value="descriptionDraft"
               data-testid="project-description"
               rows="3"
-              class="field text-text block w-full resize-none overflow-hidden rounded-[var(--radius-control)] p-3 text-[13.5px] leading-relaxed"
+              class="field text-text block w-full resize-none overflow-hidden rounded-control p-3 text-body leading-relaxed"
               placeholder="What this is, in a few sentences. Travels into every context that loads this project."
               @input="onDescriptionInput"
             />
           </AppCard>
 
           <AppCard>
-            <p class="mb-2 eyebrow text-[11px]">
+            <p class="mb-2 eyebrow text-caption">
               Folder
             </p>
             <div class="flex items-center gap-2">
@@ -320,7 +321,7 @@ onUnmounted(() => {
                 data-testid="project-repo-folder"
                 spellcheck="false"
                 autocomplete="off"
-                class="field text-text h-9 min-w-0 flex-1 rounded-[var(--radius-control)] px-3 font-mono text-[12.5px]"
+                class="field text-text h-9 min-w-0 flex-1 rounded-control px-3 font-mono text-small"
                 placeholder="/Users/you/Projects/thing"
                 @input="onFolderInput"
               />
@@ -328,7 +329,7 @@ onUnmounted(() => {
                 Browse
               </AppButton>
             </div>
-            <p class="mt-2 text-[12px] text-text-subtle">
+            <p class="mt-2 text-small text-text-subtle">
               Where <span class="text-text-muted">Open in terminal</span> starts the session. Claude
               Code keeps the folder it was launched from for the whole session, so this is what decides
               which repository the work happens in.
@@ -344,6 +345,8 @@ onUnmounted(() => {
             </div>
           </AppCard>
         </div>
+
+        <ProjectComponentsSection :project-id="project.id" :project-title="project.title" :repo-folder="project.repoFolder" />
 
         <div class="grid items-start gap-5 lg:grid-cols-[264px_minmax(0,1fr)]">
           <ProjectDocsRail

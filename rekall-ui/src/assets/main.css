@@ -37,13 +37,16 @@
   --color-surface-hover: #262d3c;
   --color-border: #2a3243;
   --color-border-strong: #3b4558;
+  /* The edge of something you type into: 3:1 against the field's well and the canvas around it,
+     where the hairline would vanish. */
+  --color-border-field: #5e6a82;
 
-  /* 18.2:1 on canvas. Muted is 8.7:1, subtle 4.3:1 (WCAG AA at every surface it sits on, down to
-     surface-raised) — and therefore never used for body text, only chrome: counts, timestamps,
-     hints, kbd labels. */
+  /* On canvas: text 17.4:1, muted 8.3:1, subtle 6.4:1. Subtle keeps 4.5:1 up to surface-hover,
+     so it is safe for the small chrome it carries: counts, timestamps, hints, kbd labels. Never
+     fade it further with an opacity modifier; a quieter grey than this is unreadable. */
   --color-text: #f2f5f9;
   --color-text-muted: #a3acba;
-  --color-text-subtle: #7a8494;
+  --color-text-subtle: #8c96a6;
 
   /* Brushed gold, as on the icon's ring and plate: a bright lip, a warm body, a copper shade.
      `accent` is the body; the metal utilities below build the gradient from the other three. */
@@ -103,6 +106,22 @@
   --font-sans: 'Fira Sans', ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'Fira Code Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
 
+  /*
+   * Type scale. Eight steps and nothing between them: a size that is not here is a size a reader
+   * cannot tell from its neighbour. Micro is the floor, for kbd hints and pip counts, never prose.
+   * No line heights: text inherits its leading, as the bracketed sizes these replace did.
+   */
+  --text-micro: 10.5px;
+  --text-caption: 11.5px;
+  --text-small: 12.5px;
+  --text-body: 13.5px;
+  --text-title: 15px;
+  --text-heading: 19px;
+  --text-display: 26px;
+  --text-hero: 34px;
+
+  /* Three corners: a keycap or chip, a control or row, a card or dialog. Pills are `full`. */
+  --radius-key: 3px;
   --radius-card: 8px;
   --radius-control: 5px;
 
@@ -148,16 +167,41 @@
   --z-toast: 50;
 }
 
+/* A laptop-sized window: the two fixed panes give width back, so at the 960px floor the desktop
+   shell allows the note still keeps a column of about 420px. */
+@media (max-width: 1279px) {
+  :root {
+    --spacing-nav: 272px;
+    --spacing-notelist: 272px;
+  }
+}
+
 :root {
+  /*
+   * Four tempos. A press answers at once, a hover or colour change at quick, a pane or popover
+   * moves at move, a seal or reveal takes slow. Choreographed keyframes keep their own timing.
+   */
+  --motion-press: 90ms;
+  --motion-quick: 140ms;
+  --motion-move: 220ms;
+  --motion-slow: 320ms;
+
+  /* The sunk well a seal or task mark sits in, and the green metal it turns once done. */
+  --color-well-top: #080b10;
+  --color-well-floor: #252d3d;
+  --color-seal-hi: #a6f2cd;
+  --color-seal-shade: #14804f;
+  --color-seal-ink: #03200f;
+
   --color-identity-1: #6c91da;
   --color-identity-1-soft: #6c91da1a;
   --color-identity-1-line: #6c91da40;
-  --color-identity-2: #6c6cda;
-  --color-identity-2-soft: #6c6cda1a;
-  --color-identity-2-line: #6c6cda40;
-  --color-identity-3: #916cda;
-  --color-identity-3-soft: #916cda1a;
-  --color-identity-3-line: #916cda40;
+  --color-identity-2: #7f7fe3;
+  --color-identity-2-soft: #7f7fe31a;
+  --color-identity-2-line: #7f7fe340;
+  --color-identity-3: #9a78e0;
+  --color-identity-3-soft: #9a78e01a;
+  --color-identity-3-line: #9a78e040;
   --color-identity-4: #b66cda;
   --color-identity-4-soft: #b66cda1a;
   --color-identity-4-line: #b66cda40;
@@ -236,7 +280,7 @@
     background-attachment: fixed;
     color: var(--color-text-muted);
     font-family: var(--font-sans);
-    font-size: 14px;
+    font-size: var(--text-body);
     line-height: 1.55;
     -webkit-font-smoothing: antialiased;
   }
@@ -308,14 +352,14 @@
  * and the rest are `text-text`, each said where the field is.
  */
 @utility field {
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border-field);
   background: linear-gradient(180deg, #0a0d13, var(--color-canvas));
   box-shadow: var(--shadow-well);
   outline: none;
   transition:
-    border-color 140ms ease,
-    box-shadow 180ms ease,
-    background-color 140ms ease;
+    border-color var(--motion-quick) ease,
+    box-shadow var(--motion-move) ease,
+    background-color var(--motion-quick) ease;
 
   &::placeholder {
     color: var(--color-text-subtle);
@@ -345,8 +389,61 @@
   }
 }
 
+/*
+ * A control drawn smaller than a finger or a tired hand can hit: the glyph keeps its size and the
+ * pointer target grows 4px on every side, to at least 24px. Needs a positioned element.
+ */
+@utility hit-target {
+  &::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+  }
+}
+
+/* An add row whose form or picker is open below it: held in its hover state. */
+@utility add-row-open {
+  border-style: solid;
+  border-color: var(--color-accent);
+  background-color: var(--color-accent-soft);
+  color: var(--color-text);
+}
+
 @utility field-anchor {
   --field-tint: var(--color-anchor);
+}
+
+/*
+ * The dashed row that adds something to the list it closes: a new task, a new note, a note that
+ * already exists. Dashed because it is not a record yet; it turns solid and warm under the pointer.
+ */
+@utility add-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-control);
+  padding: 6px 10px;
+  text-align: left;
+  font-size: var(--text-small);
+  color: var(--color-text-muted);
+  transition:
+    border-color var(--motion-quick) ease,
+    background-color var(--motion-quick) ease,
+    color var(--motion-quick) ease;
+
+  &:hover:not(:disabled) {
+    border-style: solid;
+    border-color: var(--color-accent);
+    background: var(--color-accent-soft);
+    color: var(--color-text);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
 }
 
 /*
@@ -374,9 +471,9 @@
     0 1px 2px rgb(0 0 0 / 0.55),
     0 4px 8px -4px rgb(0 0 0 / 0.5);
   transition:
-    filter 140ms ease,
-    box-shadow 120ms ease,
-    transform 90ms ease;
+    filter var(--motion-quick) ease,
+    box-shadow var(--motion-quick) ease,
+    transform var(--motion-press) ease;
 
   &:hover:not(:disabled) {
     filter: brightness(1.06);
@@ -401,9 +498,9 @@
     0 1px 2px rgb(0 0 0 / 0.55),
     0 4px 8px -4px rgb(0 0 0 / 0.5);
   transition:
-    background 140ms ease,
-    box-shadow 120ms ease,
-    transform 90ms ease;
+    background var(--motion-quick) ease,
+    box-shadow var(--motion-quick) ease,
+    transform var(--motion-press) ease;
 
   &:hover:not(:disabled) {
     background: linear-gradient(180deg, #37425a 0%, #2b3447 100%);
@@ -431,10 +528,10 @@
     0 1px 2px rgb(0 0 0 / 0.5),
     0 3px 6px -3px rgb(0 0 0 / 0.45);
   transition:
-    background 140ms ease,
-    color 140ms ease,
-    box-shadow 120ms ease,
-    transform 90ms ease;
+    background var(--motion-quick) ease,
+    color var(--motion-quick) ease,
+    box-shadow var(--motion-quick) ease,
+    transform var(--motion-press) ease;
 
   &:hover:not(:disabled) {
     color: var(--color-text);
@@ -735,7 +832,7 @@
   width: 100%;
   padding: 10px 12px 11px 38px;
   text-align: left;
-  transition: background-color 140ms ease;
+  transition: background-color var(--motion-quick) ease;
 
   &:hover {
     background: color-mix(in srgb, var(--color-surface-hover) 72%, transparent);
@@ -792,9 +889,9 @@
     0 1px 2px rgb(0 0 0 / 0.6);
   color: var(--color-text-muted);
   transition:
-    color 160ms ease,
-    border-color 160ms ease,
-    box-shadow 160ms ease;
+    color var(--motion-quick) ease,
+    border-color var(--motion-quick) ease,
+    box-shadow var(--motion-quick) ease;
 }
 
 @utility dossier-node-empty {
@@ -826,8 +923,8 @@
   background: var(--color-text-subtle);
   box-shadow: 0 0 0 3px var(--color-surface-raised);
   transition:
-    background-color 160ms ease,
-    box-shadow 160ms ease;
+    background-color var(--motion-quick) ease,
+    box-shadow var(--motion-quick) ease;
 }
 
 @utility dossier-leaf-reference {
@@ -854,7 +951,7 @@
 @utility section-label {
   font-family: var(--font-sans);
   font-weight: 600;
-  font-size: 12px;
+  font-size: var(--text-small);
   line-height: 1.25;
   letter-spacing: 0.005em;
   color: var(--color-text);
@@ -869,7 +966,7 @@
 @utility eyebrow {
   font-family: var(--font-sans);
   font-weight: 600;
-  font-size: 10.5px;
+  font-size: var(--text-micro);
   letter-spacing: 0.02em;
   color: var(--color-text-subtle);
 }
@@ -896,7 +993,7 @@
 
 @utility filed-row {
   opacity: 0.55;
-  transition: opacity 140ms ease;
+  transition: opacity var(--motion-quick) ease;
 
   &:hover,
   &:focus-within {
@@ -980,13 +1077,13 @@
  */
 @utility dock-lane-safe {
   padding-right: max(var(--dock-lane-gutter, 20px), var(--dock-lane-width, 0px));
-  transition: padding-right 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: padding-right var(--motion-move) cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* The same deal on the other axis, for what stacks upwards out of that corner. */
 @utility dock-lane-above {
   bottom: max(var(--dock-lane-gutter, 24px), var(--dock-lane-height, 0px));
-  transition: bottom 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: bottom var(--motion-move) cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /*
@@ -1002,12 +1099,12 @@
   align-items: center;
   gap: 10px;
   padding: 0 14px 0 12px;
-  font-size: 12.5px;
+  font-size: var(--text-small);
   font-weight: 500;
   color: var(--color-text);
   transition:
-    background-color 140ms ease-out,
-    box-shadow 140ms ease-out;
+    background-color var(--motion-quick) ease-out,
+    box-shadow var(--motion-quick) ease-out;
 
   &:hover {
     background: color-mix(in srgb, var(--dock-tint) 8%, transparent);
@@ -1087,8 +1184,8 @@
 .pane-enter-active,
 .pane-leave-active {
   transition:
-    opacity 140ms ease,
-    transform 140ms ease;
+    opacity var(--motion-quick) ease,
+    transform var(--motion-quick) ease;
 }
 
 .pane-enter-from {
@@ -1134,7 +1231,7 @@
  */
 .fade-quick-enter-active,
 .fade-quick-leave-active {
-  transition: opacity 100ms ease;
+  transition: opacity var(--motion-quick) ease;
 }
 
 .fade-quick-enter-from,
@@ -1150,8 +1247,8 @@
 .step-list-leave-active,
 .step-list-move {
   transition:
-    opacity 160ms ease,
-    transform 160ms ease;
+    opacity var(--motion-quick) ease,
+    transform var(--motion-quick) ease;
 }
 
 .step-list-enter-from {
@@ -1178,7 +1275,7 @@
  */
 .dialog-enter-active,
 .dialog-leave-active {
-  transition: opacity 160ms ease;
+  transition: opacity var(--motion-quick) ease;
 }
 
 .dialog-enter-from,
@@ -1189,8 +1286,8 @@
 .dialog-enter-active .dialog-panel,
 .dialog-leave-active .dialog-panel {
   transition:
-    opacity 160ms cubic-bezier(0.16, 1, 0.3, 1),
-    transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
+    opacity var(--motion-quick) cubic-bezier(0.16, 1, 0.3, 1),
+    transform var(--motion-quick) cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .dialog-enter-from .dialog-panel,
@@ -1205,7 +1302,7 @@
  */
 .slide-over-enter-active,
 .slide-over-leave-active {
-  transition: opacity 160ms ease;
+  transition: opacity var(--motion-quick) ease;
 }
 
 .slide-over-enter-from,
@@ -1215,7 +1312,7 @@
 
 .slide-over-enter-active .slide-over-panel,
 .slide-over-leave-active .slide-over-panel {
-  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform var(--motion-move) cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .slide-over-enter-from .slide-over-panel,
@@ -1230,8 +1327,8 @@
 .popover-enter-active,
 .popover-leave-active {
   transition:
-    opacity 140ms cubic-bezier(0.16, 1, 0.3, 1),
-    transform 140ms cubic-bezier(0.16, 1, 0.3, 1);
+    opacity var(--motion-quick) cubic-bezier(0.16, 1, 0.3, 1),
+    transform var(--motion-quick) cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .popover-enter-from,
@@ -1244,8 +1341,8 @@
 .detail-enter-active,
 .detail-leave-active {
   transition:
-    opacity 160ms ease,
-    transform 160ms ease;
+    opacity var(--motion-quick) ease,
+    transform var(--motion-quick) ease;
 }
 
 .detail-enter-from,
@@ -1259,8 +1356,8 @@
 .report-row-leave-active,
 .report-row-move {
   transition:
-    opacity 200ms ease,
-    transform 200ms ease;
+    opacity var(--motion-move) ease,
+    transform var(--motion-move) ease;
 }
 
 .report-row-enter-from,
@@ -1639,7 +1736,7 @@
     *::after {
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
+      transition-duration: 0.var(--motion-press) !important;
     }
   }
 }

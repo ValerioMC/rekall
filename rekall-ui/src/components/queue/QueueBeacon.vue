@@ -70,7 +70,7 @@ const label = computed(() => {
 <template>
   <button
     type="button"
-    class="focus-ring group flex h-8 max-w-[340px] shrink-0 items-center gap-1.5 rounded-[3px] px-1.5 text-[12px]"
+    class="focus-ring group flex h-8 max-w-[340px] shrink-0 items-center gap-1.5 rounded-key px-1.5 text-small"
     :class="queue.state === 'HOLDING' ? 'key-warn' : queue.state === 'RUNNING' ? 'key-slate' : 'key-quiet'"
     :aria-label="label"
     :title="label"
@@ -101,7 +101,7 @@ const label = computed(() => {
         <span class="sr-only min-[1680px]:not-sr-only">Queue</span>
         <span
           v-if="progress.waiting > 0"
-          class="rounded-full bg-surface-hover px-1.5 font-mono text-[10px] tabular-nums leading-[15px] text-text-muted"
+          class="rounded-full bg-surface-hover px-1.5 font-mono text-micro tabular-nums leading-[15px] text-text-muted"
         >
           {{ progress.waiting }}
         </span>
@@ -119,7 +119,7 @@ const label = computed(() => {
         :state="item.state"
         :live="queue.state === 'RUNNING'"
       />
-      <span v-if="overflow" class="ml-0.5 font-mono text-[10px] text-text-subtle">+{{ overflow }}</span>
+      <span v-if="overflow" class="ml-0.5 font-mono text-micro text-text-subtle">+{{ overflow }}</span>
     </span>
   </button>
 </template>

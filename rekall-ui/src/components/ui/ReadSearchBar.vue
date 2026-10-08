@@ -30,7 +30,7 @@ watch(() => props.focusRequests, focusField)
 
 <template>
   <div
-    class="flex items-center gap-1 rounded-[10px] border border-border bg-surface-raised p-1 shadow-lg"
+    class="flex items-center gap-1 rounded-card border border-border bg-surface-raised p-1 shadow-lg"
     role="search"
     data-testid="read-search"
   >
@@ -38,14 +38,14 @@ watch(() => props.focusRequests, focusField)
       ref="field"
       v-model="query"
       type="text"
-      class="h-7 w-44 rounded-[6px] bg-canvas px-2 text-[12px] text-text outline-none placeholder:text-text-subtle focus:ring-1 focus:ring-accent"
+      class="h-7 w-44 rounded-control bg-canvas px-2 text-small text-text outline-none placeholder:text-text-subtle focus:ring-1 focus:ring-accent"
       placeholder="Find in page"
       aria-label="Find in page"
       data-testid="read-search-input"
       @keydown="onKeydown"
     />
     <span
-      class="min-w-10 text-center text-[11px] tabular-nums text-text-subtle"
+      class="min-w-10 text-center text-caption tabular-nums text-text-subtle"
       :class="{ 'text-danger': query && count === 0 }"
       data-testid="read-search-count"
     >
@@ -53,7 +53,7 @@ watch(() => props.focusRequests, focusField)
     </span>
     <button
       type="button"
-      class="focus-ring flex size-7 items-center justify-center rounded-[6px] text-text-subtle transition-colors hover:text-text disabled:opacity-40"
+      class="focus-ring flex size-7 items-center justify-center rounded-control text-text-subtle transition-colors hover:text-text disabled:opacity-40"
       aria-label="Previous match"
       :disabled="count === 0"
       data-testid="read-search-previous"
@@ -71,7 +71,7 @@ watch(() => props.focusRequests, focusField)
     </button>
     <button
       type="button"
-      class="focus-ring flex size-7 items-center justify-center rounded-[6px] text-text-subtle transition-colors hover:text-text disabled:opacity-40"
+      class="focus-ring flex size-7 items-center justify-center rounded-control text-text-subtle transition-colors hover:text-text disabled:opacity-40"
       aria-label="Next match"
       :disabled="count === 0"
       data-testid="read-search-next"
@@ -89,7 +89,7 @@ watch(() => props.focusRequests, focusField)
     </button>
     <button
       type="button"
-      class="focus-ring flex size-7 items-center justify-center rounded-[6px] text-text-subtle transition-colors hover:text-text"
+      class="focus-ring flex size-7 items-center justify-center rounded-control text-text-subtle transition-colors hover:text-text"
       aria-label="Close search"
       data-testid="read-search-close"
       @click="emit('close')"

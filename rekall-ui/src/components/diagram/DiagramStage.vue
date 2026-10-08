@@ -103,12 +103,12 @@ defineExpose({
 
     <!-- Overlays sit on glass over the canvas; each takes pointer events only where it is drawn. -->
     <div class="pointer-events-none absolute inset-x-4 top-4 flex items-start gap-3">
-      <div class="glass pointer-events-auto min-w-0 max-w-[480px] rounded-[12px] border border-border px-4 py-3 shadow-lift" data-testid="diagram-title-card">
-        <h2 class="truncate text-[15px] font-semibold tracking-[-0.01em] text-text">{{ diagram.title }}</h2>
-        <p v-if="diagram.question" class="mt-0.5 line-clamp-2 text-[12.5px] leading-snug text-text-muted" :title="diagram.question">
+      <div class="glass pointer-events-auto min-w-0 max-w-[480px] rounded-card border border-border px-4 py-3 shadow-lift" data-testid="diagram-title-card">
+        <h2 class="truncate text-title font-semibold tracking-[-0.01em] text-text">{{ diagram.title }}</h2>
+        <p v-if="diagram.question" class="mt-0.5 line-clamp-2 text-small leading-snug text-text-muted" :title="diagram.question">
           {{ diagram.question }}
         </p>
-        <div class="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
+        <div class="mt-2 flex flex-wrap items-center gap-1.5 text-caption">
           <span v-if="projectAnchor" class="anchor-chip px-1.5 py-0.5">{{ projectAnchor }}</span>
           <span v-if="taskAnchor" class="anchor-chip px-1.5 py-0.5">{{ taskAnchor }}</span>
           <span class="font-mono tabular-nums text-text-subtle">

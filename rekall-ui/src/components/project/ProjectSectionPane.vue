@@ -86,7 +86,7 @@ onUnmounted(() => {
 
 <template>
   <section class="flex min-h-0 flex-col" :aria-label="section.title" data-testid="section-pane">
-    <header class="flex flex-wrap items-center gap-3 rounded-t-[var(--radius-card)] border border-b-0 border-border bg-surface px-5 py-3">
+    <header class="flex flex-wrap items-center gap-3 rounded-t-card border border-b-0 border-border bg-surface px-5 py-3">
       <div class="min-w-0 flex-1">
         <label class="sr-only" :for="`section-title-${section.id}`">Section title</label>
         <input
@@ -94,12 +94,12 @@ onUnmounted(() => {
           v-model="titleDraft"
           maxlength="200"
           autocomplete="off"
-          class="focus-ring w-full truncate rounded-[3px] border-0 bg-transparent px-1 py-0.5 -mx-1 text-[15px] font-semibold tracking-[-0.01em] text-text hover:bg-surface-raised focus:bg-surface-raised"
+          class="focus-ring w-full truncate rounded-key border-0 bg-transparent px-1 py-0.5 -mx-1 text-title font-semibold tracking-[-0.01em] text-text hover:bg-surface-raised focus:bg-surface-raised"
           data-testid="section-title"
           @input="schedule"
           @keydown.enter.prevent="($event.target as HTMLInputElement).blur()"
         />
-        <p class="mt-0.5 text-[12px] text-text-subtle">
+        <p class="mt-0.5 text-small text-text-subtle">
           Edited {{ relativeTime(section.updatedAt) }}
           <span class="px-1 text-border-strong" aria-hidden="true">/</span>
           <span :class="saveState === 'unsaved' ? 'text-warn' : ''" role="status" data-testid="section-save-state">{{ saveLabel }}</span>
@@ -136,7 +136,7 @@ onUnmounted(() => {
       </div>
       <AppModeToggle v-model="mode" testid-prefix="section-mode" />
     </header>
-    <div class="rounded-b-[var(--radius-card)] border border-border bg-surface p-4">
+    <div class="rounded-b-card border border-border bg-surface p-4">
       <Transition name="fade-quick" mode="out-in">
         <AppMarkdownEditor
           v-if="mode === 'write'"

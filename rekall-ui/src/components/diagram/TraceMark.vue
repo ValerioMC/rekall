@@ -76,6 +76,6 @@ const ringDash = computed(() => {
 
 <style scoped>
 .trace-arc {
-  transition: stroke-dashoffset 560ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: stroke-dashoffset var(--motion-slow) cubic-bezier(0.16, 1, 0.3, 1);
 }
 </style>

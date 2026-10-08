@@ -66,11 +66,11 @@ async function copyAnchor(): Promise<void> {
           <span class="h-2.5 w-[3px] shrink-0 rounded-full bg-accent" aria-hidden="true" />
           Steps
         </p>
-        <h2 class="flex items-center gap-2 truncate text-[19px] font-semibold tracking-[-0.015em] text-text">
+        <h2 class="flex items-center gap-2 truncate text-heading font-semibold tracking-[-0.015em] text-text">
           <span class="truncate">{{ task.title }}</span>
           <span
             v-if="running"
-            class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-accent-soft px-2 py-0.5 text-[10.5px] font-semibold tracking-[0.02em] text-accent"
+            class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-accent-soft px-2 py-0.5 text-micro font-semibold tracking-[0.02em] text-accent"
             data-testid="steps-running-flag"
           >
             <span class="relative grid size-2 place-items-center" aria-hidden="true">
@@ -81,7 +81,7 @@ async function copyAnchor(): Promise<void> {
           </span>
         </h2>
         <button
-          class="anchor-chip focus-ring mt-1.5 inline-flex items-center gap-2 px-2.5 py-1 text-[11.5px] transition-colors hover:border-anchor"
+          class="anchor-chip focus-ring mt-1.5 inline-flex items-center gap-2 px-2.5 py-1 text-caption transition-colors hover:border-anchor"
           :class="copied && 'flash'"
           :title="copied ? 'Copied' : `Copy ${rkCommand(task.anchor)}`"
           data-testid="copy-steps-anchor"
@@ -106,20 +106,20 @@ async function copyAnchor(): Promise<void> {
     </header>
 
     <div v-if="checklistSteps.length" class="relative flex items-center gap-3 px-5 pb-3" data-testid="steps-ledger">
-      <p class="shrink-0 font-mono text-[12px] font-semibold leading-none tabular-nums" data-testid="steps-count"
+      <p class="shrink-0 font-mono text-small font-semibold leading-none tabular-nums" data-testid="steps-count"
       ><span :class="allDone ? 'text-safe' : 'text-accent'">{{ done }}</span><span class="text-text-subtle">/{{ checklistSteps.length }}</span></p>
       <span class="trough flex h-[8px] min-w-0 flex-1 gap-[3px] p-[1.5px]" aria-hidden="true">
         <span
           v-for="step in checklistSteps"
           :key="step.id"
-          class="h-full min-w-[6px] flex-1 rounded-full transition-colors duration-300"
+          class="h-full min-w-[6px] flex-1 rounded-full transition-colors duration-(--motion-slow)"
           :class="segmentClass(step)"
         />
       </span>
-      <div v-if="done > 0 || claimed > 0 || draftCount > 0" class="flex shrink-0 items-center gap-2.5 text-[11px]">
+      <div v-if="done > 0 || claimed > 0 || draftCount > 0" class="flex shrink-0 items-center gap-2.5 text-caption">
         <button
           v-if="claimed > 0"
-          class="focus-ring rounded text-accent underline-offset-2 transition-colors hover:underline"
+          class="focus-ring rounded-key text-accent underline-offset-2 transition-colors hover:underline"
           data-testid="steps-claimed-count"
           @click="$emit('review-first')"
         >
@@ -127,11 +127,11 @@ async function copyAnchor(): Promise<void> {
         </button>
         <button
           v-if="draftCount > 0"
-          class="focus-ring inline-flex items-center gap-1 rounded text-text-subtle transition-colors hover:text-text"
+          class="focus-ring inline-flex items-center gap-1 rounded-key text-text-subtle transition-colors hover:text-text"
           data-testid="steps-draft-count"
           @click="$emit('show-drafts')"
         >
-          <span class="size-[7px] rounded-[2px] border border-dashed border-current" aria-hidden="true" />
+          <span class="size-[7px] rounded-key border border-dashed border-current" aria-hidden="true" />
           {{ draftCount }} in draft
         </button>
         <span
@@ -141,7 +141,7 @@ async function copyAnchor(): Promise<void> {
         />
         <button
           v-if="done > 0 || claimed > 0"
-          class="focus-ring rounded text-text-subtle transition-colors hover:text-text"
+          class="focus-ring rounded-key text-text-subtle transition-colors hover:text-text"
           :aria-pressed="hideDone"
           data-testid="toggle-hide-done"
           @click="hideDone = !hideDone"

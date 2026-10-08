@@ -66,7 +66,7 @@ function rowKey(row: DaySummaryRow): string {
 
     <span class="relative flex items-center justify-end">
       <span
-        class="grid size-6 place-items-center rounded-full text-[12px] tabular-nums"
+        class="grid size-6 place-items-center rounded-full text-small tabular-nums"
         :class="[
           isToday ? 'bg-accent font-semibold text-accent-ink' : 'text-text-subtle',
           !inMonth && !isToday ? 'opacity-40' : ''
@@ -88,7 +88,7 @@ function rowKey(row: DaySummaryRow): string {
       <span
         v-for="row in visibleRows"
         :key="row.taskId"
-        class="identity-rail flex items-center gap-1 rounded-[5px] px-1.5 py-[3px]"
+        class="identity-rail flex items-center gap-1 rounded-control px-1.5 py-[3px]"
         :class="row.isRunning ? 'bg-accent-soft' : 'bg-surface-raised'"
         :style="{ '--identity-color': identityHue(rowKey(row)).base }"
       >
@@ -98,17 +98,17 @@ function rowKey(row: DaySummaryRow): string {
           aria-hidden="true"
         />
         <span
-          class="min-w-0 flex-1 truncate text-[10.5px]"
+          class="min-w-0 flex-1 truncate text-micro"
           :class="row.isRunning ? 'text-accent' : 'text-text-muted'"
         >
           {{ row.taskTitle }}
         </span>
-        <span class="shrink-0 font-mono text-[9.5px] text-text-subtle">
+        <span class="shrink-0 font-mono text-micro text-text-subtle">
           {{ formatDuration(row.totalSeconds) }}
         </span>
       </span>
 
-      <span v-if="overflow > 0" class="px-1.5 text-[10px] text-text-subtle">
+      <span v-if="overflow > 0" class="px-1.5 text-micro text-text-subtle">
         +{{ overflow }} more
       </span>
     </span>

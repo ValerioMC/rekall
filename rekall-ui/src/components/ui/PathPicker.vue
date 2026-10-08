@@ -23,7 +23,8 @@ export type { CaretBox }
  *   server against the folder in view, so nothing here joins or normalises a path.
  *
  * ↵ inserts the highlighted entry, ⌘↵ the folder in view. The footer shows exactly the text that
- * will land, formatted by the editor, so what is inserted is never a surprise.
+ * will land, formatted by the editor, so what is inserted is never a surprise. With `foldersOnly`
+ * it chooses a folder instead, and files are left out of the list.
  */
 const props = defineProps<{
   /** The project's folder: where the picker opens and what the project button returns to. */
@@ -34,6 +35,8 @@ const props = defineProps<{
   locate: () => CaretBox | null
   /** The exact text a pick inserts, so the footer can preview it. */
   format: (path: string, directory: boolean) => string
+  /** Chooses a folder rather than inserting a path: files are not listed. */
+  foldersOnly?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -57,7 +60,8 @@ const browser = useDirectoryBrowser({
   start: props.start,
   onVisit: (folder) => emit('visit', folder),
   onNavigate: () => filterField.value?.focus(),
-  onHighlightMoved: () => scrollHighlightedIntoView()
+  onHighlightMoved: () => scrollHighlightedIntoView(),
+  foldersOnly: () => !!props.foldersOnly
 })
 const { query, parsed, listing, failure, notice, slow, showHidden, highlighted, rows, hiddenCount, current, crumbs, atProject, atHome } =
   browser
@@ -171,10 +175,10 @@ onUnmounted(() => {
 <template>
   <div
     ref="panel"
-    class="path-picker fixed z-(--z-overlay) flex flex-col overflow-hidden rounded-[var(--radius-card)] border border-border-strong bg-surface shadow-lift"
+    class="path-picker fixed z-(--z-overlay) flex flex-col overflow-hidden rounded-card border border-border-strong bg-surface shadow-lift"
     :style="panelStyle"
     role="dialog"
-    aria-label="Insert a path"
+    :aria-label="foldersOnly ? 'Choose a folder' : 'Insert a path'"
     data-testid="path-picker"
   >
     <PathPickerTopBar
@@ -206,7 +210,7 @@ onUnmounted(() => {
         autocapitalize="off"
         spellcheck="false"
         placeholder="Filter, or type a path: src/  ~/  /"
-        class="field h-8 w-full rounded-[var(--radius-control)] px-2.5 font-mono text-[12px] text-text"
+        class="field h-8 w-full rounded-control px-2.5 font-mono text-small text-text"
         :aria-invalid="failure ? 'true' : undefined"
         data-testid="path-picker-filter"
       />
@@ -216,7 +220,7 @@ onUnmounted(() => {
     <div ref="listEl" class="relative min-h-0 flex-1 overflow-y-auto px-1 py-1" data-testid="path-picker-list">
       <p
         v-if="notice"
-        class="mx-2 mb-1 mt-0.5 rounded-[7px] bg-warn-soft px-2.5 py-1.5 text-[11.5px] leading-snug text-warn"
+        class="mx-2 mb-1 mt-0.5 rounded-control bg-warn-soft px-2.5 py-1.5 text-caption leading-snug text-warn"
         data-testid="path-picker-notice"
       >
         {{ notice }}
@@ -257,16 +261,16 @@ onUnmounted(() => {
     <!-- What lands in the markdown, exactly, and the keys that put it there. -->
     <div class="shrink-0 border-t border-border bg-canvas px-3 pb-2 pt-1.5">
       <div class="flex min-w-0 items-baseline gap-2">
-        <span class="shrink-0 text-[10.5px] text-text-subtle">Inserts</span>
+        <span class="shrink-0 text-micro text-text-subtle">{{ foldersOnly ? 'Chooses' : 'Inserts' }}</span>
         <code
           ref="previewEl"
-          class="path-preview min-w-0 flex-1 overflow-hidden whitespace-nowrap font-mono text-[11px] text-text-muted"
+          class="path-preview min-w-0 flex-1 overflow-hidden whitespace-nowrap font-mono text-caption text-text-muted"
           data-testid="path-picker-preview"
           >{{ preview }}</code
         >
       </div>
-      <div class="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[10.5px] text-text-subtle">
-        <span><kbd>↵</kbd> insert</span>
+      <div class="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-micro text-text-subtle">
+        <span><kbd>↵</kbd> {{ foldersOnly ? 'choose' : 'insert' }}</span>
         <span><kbd>→</kbd> open</span>
         <span><kbd>⌫</kbd> up</span>
         <span><kbd>⌘↵</kbd> this folder</span>
@@ -286,7 +290,7 @@ onUnmounted(() => {
   padding: 0 0.3em;
   border: 1px solid var(--color-border);
   border-radius: 4px;
-  font-size: 9.5px;
+  font-size: var(--text-micro);
   line-height: 1.5;
   text-align: center;
   color: var(--color-text-muted);

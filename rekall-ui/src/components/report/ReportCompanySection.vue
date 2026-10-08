@@ -65,7 +65,7 @@ function footnote(task: ReportTaskRow): string | null {
 <template>
   <AppCard :padded="false" data-testid="report-company">
     <header
-      class="relative flex items-center gap-3 overflow-hidden rounded-t-[var(--radius-card)] border-b border-border px-5 py-4"
+      class="relative flex items-center gap-3 overflow-hidden rounded-t-card border-b border-border px-5 py-4"
     >
       <div
         class="texture-grid pointer-events-none absolute inset-0 opacity-70"
@@ -76,16 +76,16 @@ function footnote(task: ReportTaskRow): string | null {
 
       <span class="relative size-2 shrink-0 rounded-full" :style="{ background: hue.base }" aria-hidden="true" />
       <div class="relative min-w-0 flex-1">
-        <h2 class="truncate text-[15px] font-semibold tracking-[-0.01em] text-text">
+        <h2 class="truncate text-title font-semibold tracking-[-0.01em] text-text">
           {{ company.name }}
         </h2>
-        <p class="mt-0.5 font-mono text-[11px] text-text-subtle">
+        <p class="mt-0.5 font-mono text-caption text-text-subtle">
           {{ Math.round(company.share * 100) }}% of the period
         </p>
       </div>
 
       <div class="relative shrink-0 text-right">
-        <p class="font-mono text-[19px] font-semibold tracking-[-0.02em] text-text tabular-nums">
+        <p class="font-mono text-heading font-semibold tracking-[-0.02em] text-text tabular-nums">
           {{ formatDuration(company.totalSeconds) }}
         </p>
         <div class="mt-1.5 h-1 w-28 overflow-hidden rounded-full bg-canvas">
@@ -99,9 +99,9 @@ function footnote(task: ReportTaskRow): string | null {
 
     <div v-for="project in company.projects" :key="project.projectId" class="border-b border-border last:border-b-0">
       <div class="flex items-baseline gap-2 px-5 pb-1.5 pt-3.5">
-        <h3 class="truncate text-[12.5px] font-medium text-text-muted">{{ project.title }}</h3>
-        <code class="truncate font-mono text-[10.5px] text-anchor/70">project:{{ project.label }}</code>
-        <span class="ml-auto shrink-0 font-mono text-[11.5px] text-text-subtle tabular-nums">
+        <h3 class="truncate text-small font-medium text-text-muted">{{ project.title }}</h3>
+        <code class="truncate font-mono text-micro text-anchor/70">project:{{ project.label }}</code>
+        <span class="ml-auto shrink-0 font-mono text-caption text-text-subtle tabular-nums">
           {{ formatDuration(project.totalSeconds) }}
         </span>
       </div>
@@ -116,14 +116,14 @@ function footnote(task: ReportTaskRow): string | null {
           <div class="flex items-center gap-3 px-5 py-2">
             <button
               v-if="hasSteps(task)"
-              class="focus-ring flex h-6 shrink-0 items-center gap-1 rounded-[6px] pl-0.5 pr-1 transition-colors"
+              class="focus-ring flex h-6 shrink-0 items-center gap-1 rounded-control pl-0.5 pr-1 transition-colors"
               :aria-expanded="isOpen(task)"
               :aria-label="`Steps closed on ${task.title}`"
               data-testid="report-steps-toggle-task"
               @click="toggleSteps(task)"
             >
               <svg
-                class="size-3 text-text-subtle transition-transform duration-200"
+                class="size-3 text-text-subtle transition-transform duration-(--motion-move)"
                 :class="isOpen(task) && 'rotate-90'"
                 viewBox="0 0 24 24"
                 fill="none"
@@ -132,7 +132,7 @@ function footnote(task: ReportTaskRow): string | null {
                 <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
               </svg>
               <span
-                class="font-mono text-[11px] tabular-nums"
+                class="font-mono text-caption tabular-nums"
                 :style="task.closedSteps.length > 0 ? { color: hue.base } : undefined"
                 :class="task.closedSteps.length === 0 && 'text-text-subtle'"
               >
@@ -142,18 +142,18 @@ function footnote(task: ReportTaskRow): string | null {
             <span v-else class="h-6 w-[26px] shrink-0" aria-hidden="true" />
 
             <div class="min-w-0 flex-1">
-              <p class="truncate text-[13.5px] text-text">
+              <p class="truncate text-body text-text">
                 {{ task.title }}
                 <span
                   v-if="task.isRunning"
-                  class="ml-1.5 align-middle font-mono text-[10px] text-accent"
+                  class="ml-1.5 align-middle font-mono text-micro text-accent"
                   data-testid="report-running"
                 >
                   running
                 </span>
               </p>
               <button
-                class="focus-ring mt-0.5 truncate font-mono text-[10.5px] text-anchor/70 transition-colors hover:text-anchor"
+                class="focus-ring mt-0.5 truncate font-mono text-micro text-anchor/70 transition-colors hover:text-anchor"
                 :title="`Copy ${rkCommand(task.anchor)}`"
                 data-testid="report-copy-anchor"
                 @click="emit('copyAnchor', task.anchor)"
@@ -178,7 +178,7 @@ function footnote(task: ReportTaskRow): string | null {
               />
             </div>
 
-            <span class="w-16 shrink-0 text-right font-mono text-[13px] text-text tabular-nums">
+            <span class="w-16 shrink-0 text-right font-mono text-body text-text tabular-nums">
               {{ formatDuration(task.totalSeconds) }}
             </span>
           </div>
@@ -206,10 +206,10 @@ function footnote(task: ReportTaskRow): string | null {
                   :style="{ background: hue.base }"
                   aria-hidden="true"
                 />
-                <span class="min-w-0 flex-1 truncate text-[12.5px] leading-relaxed text-text-muted">
+                <span class="min-w-0 flex-1 truncate text-small leading-relaxed text-text-muted">
                   {{ step.title }}
                 </span>
-                <span class="shrink-0 font-mono text-[10.5px] tabular-nums text-text-subtle">
+                <span class="shrink-0 font-mono text-micro tabular-nums text-text-subtle">
                   {{ stepDay(step.doneAt) }}
                 </span>
               </li>
@@ -217,7 +217,7 @@ function footnote(task: ReportTaskRow): string | null {
 
             <p
               v-if="footnote(task)"
-              class="pl-4 text-[11.5px] leading-relaxed text-text-subtle"
+              class="pl-4 text-caption leading-relaxed text-text-subtle"
               :class="task.closedSteps.length > 0 && 'mt-1'"
               data-testid="report-step-footnote"
             >

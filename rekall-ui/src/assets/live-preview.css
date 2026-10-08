@@ -120,7 +120,7 @@
 /* A fence holding the caret: its source, in the code face, on the code block's ground. */
 .rekall-md .md-editor .cm-rk-codeline {
   font-family: var(--font-mono);
-  font-size: 12.5px;
+  font-size: var(--text-small);
   background: var(--color-canvas);
 }
 
@@ -142,7 +142,7 @@
 
 .rekall-md .md-editor .cm-rk-codeblock code {
   font-family: var(--font-mono);
-  font-size: 12.5px;
+  font-size: var(--text-small);
   line-height: 1.6;
   white-space: pre;
   background: transparent;
@@ -166,7 +166,7 @@
 .rekall-md .md-editor .cm-rk-mermaid--failed .cm-rk-mermaid-canvas {
   justify-content: flex-start;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--text-small);
   color: var(--color-danger);
 }
 

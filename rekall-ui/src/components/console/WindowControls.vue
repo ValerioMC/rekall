@@ -10,7 +10,7 @@ import { closeWindow, minimizeWindow, toggleMaximizeWindow } from '@/common/nati
       type="button"
       aria-label="Close"
       title="Close"
-      class="focus-ring grid size-6 place-items-center rounded-[var(--radius-control)] text-text-subtle transition-colors hover:bg-danger-soft hover:text-danger"
+      class="focus-ring grid size-6 place-items-center rounded-control text-text-subtle transition-colors hover:bg-danger-soft hover:text-danger"
       @click="closeWindow"
     >
       <svg class="size-3" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -21,7 +21,7 @@ import { closeWindow, minimizeWindow, toggleMaximizeWindow } from '@/common/nati
       type="button"
       aria-label="Minimize"
       title="Minimize"
-      class="focus-ring grid size-6 place-items-center rounded-[var(--radius-control)] text-text-subtle transition-colors hover:bg-surface-hover hover:text-text"
+      class="focus-ring grid size-6 place-items-center rounded-control text-text-subtle transition-colors hover:bg-surface-hover hover:text-text"
       @click="minimizeWindow"
     >
       <svg class="size-3" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -32,7 +32,7 @@ import { closeWindow, minimizeWindow, toggleMaximizeWindow } from '@/common/nati
       type="button"
       aria-label="Maximize"
       title="Maximize"
-      class="focus-ring grid size-6 place-items-center rounded-[var(--radius-control)] text-text-subtle transition-colors hover:bg-surface-hover hover:text-text"
+      class="focus-ring grid size-6 place-items-center rounded-control text-text-subtle transition-colors hover:bg-surface-hover hover:text-text"
       @click="toggleMaximizeWindow"
     >
       <svg class="size-3" viewBox="0 0 24 24" fill="none" aria-hidden="true">

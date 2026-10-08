@@ -119,7 +119,7 @@ async function sendWrapupHere(message: string): Promise<void> {
 
 <template>
   <section class="flex min-h-0 flex-1 flex-col bg-canvas" aria-label="Wrapup">
-    <p v-if="!selectedTask" class="px-9 py-12 text-[13px] text-text-muted">
+    <p v-if="!selectedTask" class="px-9 py-12 text-body text-text-muted">
       Pick a task to see what it currently is.
     </p>
 
@@ -130,11 +130,11 @@ async function sendWrapupHere(message: string): Promise<void> {
             <span class="h-2.5 w-[3px] shrink-0 rounded-full bg-accent" aria-hidden="true" />
             Wrapup
           </p>
-          <h2 class="truncate text-[19px] font-semibold tracking-[-0.015em] text-text">
+          <h2 class="truncate text-heading font-semibold tracking-[-0.015em] text-text">
             {{ selectedTask.title }}
           </h2>
           <button
-            class="anchor-chip focus-ring mt-1.5 inline-flex items-center gap-2 px-2.5 py-1 text-[11.5px] transition-colors hover:border-anchor"
+            class="anchor-chip focus-ring mt-1.5 inline-flex items-center gap-2 px-2.5 py-1 text-caption transition-colors hover:border-anchor"
             :class="copied === 'anchor' && 'flash'"
             :title="copied === 'anchor' ? 'Copied' : `Copy ${rkCommand(selectedTask.anchor)}`"
             data-testid="copy-wrapup-anchor"
@@ -153,9 +153,10 @@ async function sendWrapupHere(message: string): Promise<void> {
           missing-hint="Set this project's folder on its page to open a session from it"
         />
 
-        <button
+        <AppButton
           v-if="liveTerminal"
-          class="key-quiet focus-ring inline-flex h-7 shrink-0 items-center gap-2 rounded-[3px] px-2.5 text-xs font-medium"
+          variant="quiet"
+          size="sm"
           data-testid="wrapup-here"
           title="Type the wrapup command into the session already running here"
           @click="wrapupHereOpen = true"
@@ -166,7 +167,7 @@ async function sendWrapupHere(message: string): Promise<void> {
             aria-hidden="true"
           />
           Wrapup here
-        </button>
+        </AppButton>
 
         <RevisionHistoryButton
           :task-id="selectedTask.id"
@@ -185,7 +186,7 @@ async function sendWrapupHere(message: string): Promise<void> {
         v-if="selectedWrapup"
         class="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border bg-surface px-5 py-2.5"
       >
-        <span class="inline-flex items-center gap-1.5 text-[11.5px] text-text-muted">
+        <span class="inline-flex items-center gap-1.5 text-caption text-text-muted">
           <svg
             v-if="selectedWrapup.writtenBy === 'CLAUDE'"
             class="size-3 shrink-0 text-text-subtle"
@@ -217,7 +218,7 @@ async function sendWrapupHere(message: string): Promise<void> {
 
         <span
           v-if="wrapupIsBehind > 0"
-          class="inline-flex items-center gap-1.5 rounded-full bg-warn-soft px-2 py-0.5 text-[11px] text-warn"
+          class="inline-flex items-center gap-1.5 rounded-full bg-warn-soft px-2 py-0.5 text-caption text-warn"
         >
           <span class="size-[5px] shrink-0 rounded-full bg-warn" aria-hidden="true" />
           {{ wrapupIsBehind }} note{{ wrapupIsBehind === 1 ? ' is' : 's are' }} newer than this
@@ -229,20 +230,20 @@ async function sendWrapupHere(message: string): Promise<void> {
           <p class="eyebrow">
             Wrapup
           </p>
-          <h2 class="mb-1.5 mt-1.5 text-[26px] font-semibold leading-tight tracking-[-0.025em] text-text">
+          <h2 class="mb-1.5 mt-1.5 text-display font-semibold leading-tight tracking-[-0.025em] text-text">
             Nobody has said what this is yet
           </h2>
-          <p class="mb-6 text-[13px] leading-relaxed text-text-muted">
+          <p class="mb-6 text-body leading-relaxed text-text-muted">
             One per task, replaced each time it is written. It describes the implementation as it
             stands — what exists, how it fits, what is still open — and never what changed along
             the way. That is what the notes are for.
           </p>
 
-          <p class="text-[12.5px] text-text-muted">
+          <p class="text-small text-text-muted">
             Copy the anchor above, append <span class="font-mono text-anchor">wrapup</span>, and
             run it at the end of a session to have Claude write it, or
             <button
-              class="focus-ring rounded text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent"
+              class="focus-ring rounded-key text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent"
               data-testid="write-wrapup-by-hand"
               @click="beginWriting"
             >
@@ -256,7 +257,7 @@ async function sendWrapupHere(message: string): Promise<void> {
       <div v-else class="flex min-h-0 flex-1 flex-col">
         <p
           v-if="isDrafting && !selectedWrapup"
-          class="shrink-0 border-b border-border bg-surface px-5 py-2 text-[11.5px] text-text-muted"
+          class="shrink-0 border-b border-border bg-surface px-5 py-2 text-caption text-text-muted"
         >
           This saves itself. Describe the state, not the session.
         </p>

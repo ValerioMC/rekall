@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import AppButton from '@/components/ui/AppButton.vue'
 import CloseGlyph from '@/components/ui/CloseGlyph.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
-import { useModalGate } from '@/composables/useModalGate'
 import { useSettledOrder } from '@/composables/useSettledOrder'
-import { trapTabKey } from '@/common/a11y/focus-trap'
+import AppDialog from '@/components/ui/AppDialog.vue'
+import AssignTaskColumn from '@/components/console/AssignTaskColumn.vue'
+import AssignWalkColumn, { type WalkRow } from '@/components/console/AssignWalkColumn.vue'
 import { identityHue } from '@/common/identity'
-import { TASK_STATUS_COLOR, TASK_STATUS_LABEL } from '@/model/catalog'
 import { scopeAdmits, scopeName } from '@/model/note-scope'
 import type { CompanyId, ProjectId, TaskId } from '@/model/branded'
 
@@ -18,16 +18,8 @@ const emit = defineEmits<{ close: [] }>()
 const store = useConsoleStore()
 const { companies, projects, tasks, selectedDocument, selectedTaskId } = storeToRefs(store)
 const { run } = useAsyncAction()
-const { open: openModal, close: closeModal } = useModalGate()
-
-const panel = ref<HTMLElement | null>(null)
-const filterField = ref<HTMLInputElement | null>(null)
+const taskColumn = ref<InstanceType<typeof AssignTaskColumn> | null>(null)
 const taskFilter = ref('')
-
-const TASK_SCOPES = [
-  { value: 'open', label: 'Open' },
-  { value: 'all', label: 'All' }
-] as const
 const showAllTasks = ref(false)
 
 const originTaskId = computed<TaskId | null>(() => {
@@ -44,9 +36,6 @@ const taskById = (id: TaskId | null) => tasks.value.find((task) => task.id === i
 const projectById = (id: ProjectId | null) => projects.value.find((p) => p.id === id) ?? null
 
 onMounted(async () => {
-  openModal()
-  window.addEventListener('keydown', onKeydown, true)
-
   const origin = taskById(originTaskId.value)
   const originProject = projectById(origin?.projectId ?? null)
   const onlyProject = scopedProjects.value.length === 1 ? scopedProjects.value[0]! : null
@@ -57,12 +46,7 @@ onMounted(async () => {
     (scopedCompanies.value.length === 1 ? scopedCompanies.value[0]!.id : null)
 
   await nextTick()
-  filterField.value?.focus()
-})
-
-onUnmounted(() => {
-  closeModal()
-  window.removeEventListener('keydown', onKeydown, true)
+  taskColumn.value?.focusFilter()
 })
 
 // The columns offer only what the note's scope admits: a project note walks one project.
@@ -89,28 +73,8 @@ const companyProjects = computed(() =>
 
 const listedProjects = useSettledOrder(() => companyProjects.value, (project) => project.id)
 
-const filteredTasks = computed(() => {
-  if (pickedProject.value === null) return []
-  const needle = taskFilter.value.trim().toLowerCase()
-  return tasks.value
-    .filter((task) => task.projectId === pickedProject.value)
-    .filter((task) => showAllTasks.value || task.status !== 'DONE')
-    .filter((task) => !needle || `${task.title} ${task.label}`.toLowerCase().includes(needle))
-})
-
-// A tick refetches every task, so rows hold their places until the project or filter changes.
-const projectTasks = useSettledOrder(() => filteredTasks.value, (task) => task.id, [
-  pickedProject,
-  taskFilter,
-  showAllTasks
-])
-
-const doneInProject = computed(() =>
-  pickedProject.value === null
-    ? 0
-    : tasks.value.filter(
-        (task) => task.projectId === pickedProject.value && task.status === 'DONE'
-      ).length
+const pickedProjectTasks = computed(() =>
+  pickedProject.value === null ? [] : tasks.value.filter((task) => task.projectId === pickedProject.value)
 )
 
 const attachedIds = computed(
@@ -127,6 +91,25 @@ const companyAttachedCount = (companyId: CompanyId) =>
     const project = projectById(taskById(entry.id)?.projectId ?? null)
     return project?.companyId === companyId
   }).length
+
+const companyRows = computed<WalkRow<CompanyId>[]>(() =>
+  settledCompanies.value.map((company) => ({
+    id: company.id,
+    title: company.name,
+    attached: companyAttachedCount(company.id),
+    taskCount: company.taskCount
+  }))
+)
+
+const projectRows = computed<WalkRow<ProjectId>[]>(() =>
+  listedProjects.value.map((project) => ({
+    id: project.id,
+    title: project.title,
+    attached: projectAttachedCount(project.id),
+    taskCount: project.taskCount,
+    hue: identityHue(project.id).base
+  }))
+)
 
 function pickCompany(id: CompanyId): void {
   pickedCompany.value = id
@@ -169,364 +152,116 @@ async function toggle(taskId: TaskId): Promise<void> {
 
 const membership = useSettledOrder(() => selectedDocument.value?.tasks ?? [], (task) => task.id)
 
-function onKeydown(event: KeyboardEvent): void {
-  if (event.key === 'Escape') {
-    event.stopPropagation()
-    emit('close')
-    return
-  }
-  if (panel.value) trapTabKey(panel.value, event)
-}
-
 watch(selectedDocument, (doc) => {
   if (!doc) emit('close')
 })
 </script>
 
 <template>
-  <div
-    class="fixed inset-0 z-(--z-modal) grid place-items-center bg-black/70 p-5 backdrop-blur-sm"
-    @click.self="emit('close')"
+  <AppDialog
+    label="Choose the tasks this note belongs to"
+    panel-class="flex flex-col h-[600px] max-h-[86vh] max-w-[760px]"
+    panel-testid="note-assignment"
+    @dismiss="emit('close')"
   >
-    <div
-      ref="panel"
-      class="dialog-panel flex h-[600px] max-h-[86vh] w-full max-w-[760px] flex-col overflow-hidden rounded-[var(--radius-card)] border border-border-strong bg-surface shadow-modal"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Choose the tasks this note belongs to"
-      data-testid="note-assignment"
-    >
-      <header class="flex shrink-0 items-start gap-3 border-b border-border px-5 py-4">
-        <span class="min-w-0 flex-1">
-          <span class="block truncate text-[15px] font-semibold tracking-[-0.01em] text-text">
-            Tasks for {{ selectedDocument?.title }}
-          </span>
-          <span class="mt-0.5 block text-[12.5px] leading-relaxed text-text-muted">
-            It lives in {{ scopeLabel }} and can sit on any of its tasks. Open one and the note comes along.
-          </span>
+    <header class="flex shrink-0 items-start gap-3 border-b border-border px-5 py-4">
+      <span class="min-w-0 flex-1">
+        <span class="block truncate text-title font-semibold tracking-[-0.01em] text-text">
+          Tasks for {{ selectedDocument?.title }}
         </span>
-        <button
-          class="focus-ring grid size-7 shrink-0 place-items-center rounded-md text-text-subtle transition-colors hover:bg-surface-raised hover:text-text"
-          aria-label="Close"
-          @click="emit('close')"
-        >
-          <CloseGlyph />
-        </button>
-      </header>
-
-      <div class="flex h-11 shrink-0 items-center gap-2 border-b border-border bg-canvas px-5">
-        <span class="eyebrow shrink-0">On</span>
-        <div class="chip-track flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
-          <span
-            v-for="member in membership"
-            :key="member.id"
-            class="inline-flex shrink-0 items-center gap-1.5 rounded-full border py-0.5 pl-2.5 pr-1 font-mono text-[11px]"
-            :class="
-              member.id === originTaskId
-                ? 'border-accent bg-accent-soft text-accent'
-                : 'border-anchor-line bg-anchor-soft text-anchor'
-            "
-          >
-            <button
-              class="focus-ring whitespace-nowrap rounded"
-              :title="`Show ${member.title} in the columns`"
-              @click="revealTask(member.id)"
-            >
-              {{ member.projectLabel }}/{{ member.label }}
-            </button>
-            <button
-              class="focus-ring -m-0.5 grid size-5 shrink-0 place-items-center rounded-full text-text-subtle transition-colors hover:bg-danger-soft hover:text-danger"
-              :aria-label="`Remove this note from ${member.title}`"
-              @click="toggle(member.id)"
-            >
-              <CloseGlyph small />
-            </button>
-          </span>
-          <span
-            v-if="membership.length === 0"
-            class="shrink-0 whitespace-nowrap pl-1 text-[11px] text-text-subtle"
-          >
-            no task yet: it waits in {{ scopeLabel }}
-          </span>
-        </div>
-      </div>
-
-      <div class="flex min-h-0 flex-1 flex-col sm:flex-row">
-        <section
-          class="flex min-h-0 min-w-0 flex-1 basis-0 flex-col border-b border-border sm:border-b-0 sm:border-r"
-          aria-label="Companies"
-        >
-          <div class="flex shrink-0 items-baseline justify-between px-3.5 pb-1.5 pt-3">
-            <p class="eyebrow">Company</p>
-            <span v-if="settledCompanies.length" class="font-mono text-[10px] text-text-subtle">
-              {{ settledCompanies.length }}
-            </span>
-          </div>
-          <div class="relative min-h-0 flex-1">
-            <div
-              v-if="settledCompanies.length"
-              class="h-full space-y-0.5 overflow-y-auto overscroll-contain px-1.5 py-1"
-            >
-              <button
-                v-for="company in settledCompanies"
-                :key="company.id"
-                data-testid="assign-company"
-                class="focus-ring flex w-full items-center gap-2 rounded-[var(--radius-control)] px-2.5 py-2 text-left transition-colors"
-                :class="
-                  company.id === pickedCompany
-                    ? 'walk-picked bg-surface-raised text-text'
-                    : 'text-text-muted hover:bg-surface-raised hover:text-text'
-                "
-                :aria-pressed="company.id === pickedCompany"
-                @click="pickCompany(company.id)"
-              >
-                <span
-                  class="min-w-0 flex-1 truncate text-[12.5px]"
-                  :title="company.name"
-                >{{ company.name }}</span>
-                <span
-                  v-if="companyAttachedCount(company.id)"
-                  class="shrink-0 rounded-full bg-accent-soft px-1.5 font-mono text-[10px] text-accent"
-                  :title="`${companyAttachedCount(company.id)} of this note's tasks are here`"
-                >
-                  {{ companyAttachedCount(company.id) }}
-                </span>
-                <span
-                  class="shrink-0 font-mono text-[10.5px] text-text-subtle"
-                  :title="`${company.taskCount} tasks`"
-                >
-                  {{ company.taskCount }}
-                </span>
-              </button>
-            </div>
-            <div v-else class="grid h-full place-items-center px-5">
-              <p class="text-center text-[12px] leading-relaxed text-text-subtle">No company yet.</p>
-            </div>
-            <div
-              v-if="settledCompanies.length"
-              class="pointer-events-none absolute inset-x-1.5 bottom-0 h-5 bg-gradient-to-t from-surface to-transparent"
-              aria-hidden="true"
-            />
-          </div>
-        </section>
-
-        <section
-          class="flex min-h-0 min-w-0 flex-1 basis-0 flex-col border-b border-border sm:border-b-0 sm:border-r"
-          aria-label="Projects"
-        >
-          <div class="flex shrink-0 items-baseline justify-between px-3.5 pb-1.5 pt-3">
-            <p class="eyebrow">Project</p>
-            <span
-              v-if="pickedCompany !== null && companyProjects.length"
-              class="font-mono text-[10px] text-text-subtle"
-            >
-              {{ companyProjects.length }}
-            </span>
-          </div>
-          <div class="relative min-h-0 flex-1">
-            <div
-              v-if="pickedCompany !== null && companyProjects.length"
-              class="h-full space-y-0.5 overflow-y-auto overscroll-contain px-1.5 py-1"
-            >
-              <button
-                v-for="project in listedProjects"
-                :key="project.id"
-                data-testid="assign-project"
-                class="focus-ring flex w-full items-center gap-2 rounded-[var(--radius-control)] px-2.5 py-2 text-left transition-colors"
-                :class="
-                  project.id === pickedProject
-                    ? 'walk-picked bg-surface-raised text-text'
-                    : 'text-text-muted hover:bg-surface-raised hover:text-text'
-                "
-                :aria-pressed="project.id === pickedProject"
-                @click="pickProject(project.id)"
-              >
-                <span
-                  class="size-1.5 shrink-0 rounded-full"
-                  :style="{ backgroundColor: identityHue(project.id).base }"
-                  aria-hidden="true"
-                />
-                <span
-                  class="min-w-0 flex-1 truncate text-[12.5px]"
-                  :title="project.title"
-                >{{ project.title }}</span>
-                <span
-                  v-if="projectAttachedCount(project.id)"
-                  class="shrink-0 rounded-full bg-accent-soft px-1.5 font-mono text-[10px] text-accent"
-                  :title="`${projectAttachedCount(project.id)} of this note's tasks are here`"
-                >
-                  {{ projectAttachedCount(project.id) }}
-                </span>
-                <span
-                  class="shrink-0 font-mono text-[10.5px] text-text-subtle"
-                  :title="`${project.taskCount} tasks`"
-                >
-                  {{ project.taskCount }}
-                </span>
-              </button>
-            </div>
-            <div v-else class="grid h-full place-items-center px-5">
-              <p class="text-center text-[12px] leading-relaxed text-text-subtle">
-                {{
-                  pickedCompany === null
-                    ? 'Pick a company to see its projects.'
-                    : 'No project in this company yet.'
-                }}
-              </p>
-            </div>
-            <div
-              v-if="pickedCompany !== null && companyProjects.length"
-              class="pointer-events-none absolute inset-x-1.5 bottom-0 h-5 bg-gradient-to-t from-surface to-transparent"
-              aria-hidden="true"
-            />
-          </div>
-        </section>
-
-        <section class="flex min-h-0 min-w-0 flex-1 basis-0 flex-col" aria-label="Tasks">
-          <div class="shrink-0 px-3.5 pb-2 pt-3">
-            <div class="flex items-center justify-between pb-1.5">
-              <p class="eyebrow">Task</p>
-              <div v-if="pickedProject !== null" class="flex items-center gap-2">
-                <div
-                  v-if="doneInProject"
-                  class="flex gap-0.5 rounded-[6px] bg-canvas p-0.5"
-                  role="group"
-                  aria-label="Which tasks to show"
-                >
-                  <button
-                    v-for="scope in TASK_SCOPES"
-                    :key="scope.value"
-                    class="focus-ring h-[18px] rounded-[4px] px-1.5 text-[10px] transition-colors"
-                    :class="
-                      (scope.value === 'all') === showAllTasks
-                        ? 'bg-surface-raised text-text'
-                        : 'text-text-subtle hover:text-text'
-                    "
-                    :aria-pressed="(scope.value === 'all') === showAllTasks"
-                    :data-testid="`assign-scope-${scope.value}`"
-                    @click="showAllTasks = scope.value === 'all'"
-                  >
-                    {{ scope.label }}
-                  </button>
-                </div>
-                <span class="font-mono text-[10px] text-text-subtle">
-                  {{ projectTasks.length }}
-                </span>
-              </div>
-            </div>
-            <input
-              ref="filterField"
-              v-model="taskFilter"
-              type="search"
-              data-testid="assign-task-filter"
-              placeholder="Filter tasks"
-              :disabled="pickedProject === null"
-              class="field text-text h-8 w-full rounded-[var(--radius-control)] px-2.5 text-[12px] disabled:opacity-40"
-            />
-          </div>
-          <div class="relative min-h-0 flex-1">
-            <div
-              v-if="pickedProject !== null && projectTasks.length"
-              class="h-full space-y-0.5 overflow-y-auto overscroll-contain px-1.5 py-1"
-            >
-              <button
-                v-for="task in projectTasks"
-                :key="task.id"
-                data-testid="assign-task"
-                class="focus-ring flex w-full items-center gap-2.5 rounded-[var(--radius-control)] px-2.5 py-2 text-left transition-colors"
-                :class="
-                  attachedIds.has(task.id)
-                    ? 'bg-surface-raised text-text'
-                    : 'text-text-muted hover:bg-surface-raised hover:text-text'
-                "
-                :aria-pressed="attachedIds.has(task.id)"
-                @click="toggle(task.id)"
-              >
-                <span
-                  class="grid size-4 shrink-0 place-items-center rounded-[5px] border transition-colors"
-                  :class="
-                    attachedIds.has(task.id)
-                      ? 'border-accent-deep bg-accent-soft text-accent'
-                      : 'border-border-strong text-transparent'
-                  "
-                  aria-hidden="true"
-                >
-                  <svg class="size-3" viewBox="0 0 24 24" fill="none">
-                    <path
-                      d="M5 12.5l4.5 4.5L19 7.5"
-                      stroke="currentColor"
-                      stroke-width="2.6"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    />
-                  </svg>
-                </span>
-                <span class="min-w-0 flex-1">
-                  <span class="block truncate text-[12.5px]" :title="task.title">
-                    {{ task.title }}
-                  </span>
-                  <span
-                    class="anchor-chip mt-0.5 inline-block max-w-full truncate align-bottom px-1.5 py-px text-[9.5px] leading-[15px]"
-                    :title="task.label"
-                  >
-                    {{ task.label }}
-                  </span>
-                </span>
-                <span
-                  class="size-[7px] shrink-0 rounded-full"
-                  :class="TASK_STATUS_COLOR[task.status]"
-                  :title="TASK_STATUS_LABEL[task.status]"
-                  aria-hidden="true"
-                />
-              </button>
-            </div>
-            <div v-else class="grid h-full place-items-center px-5">
-              <p class="text-center text-[12px] leading-relaxed text-text-subtle">
-                <template v-if="pickedProject === null">Pick a project to see its tasks.</template>
-                <template v-else-if="taskFilter.trim()">No task matches that filter.</template>
-                <template v-else-if="!showAllTasks && doneInProject">
-                  Every task here is done. Switch to All to see them.
-                </template>
-                <template v-else>No task in this project yet.</template>
-              </p>
-            </div>
-            <div
-              v-if="pickedProject !== null && projectTasks.length"
-              class="pointer-events-none absolute inset-x-1.5 bottom-0 h-5 bg-gradient-to-t from-surface to-transparent"
-              aria-hidden="true"
-            />
-          </div>
-        </section>
-      </div>
-
-      <footer
-        class="flex shrink-0 items-center justify-between gap-2 border-t border-border bg-canvas px-5 py-3"
+        <span class="mt-0.5 block text-small leading-relaxed text-text-muted">
+          It lives in {{ scopeLabel }} and can sit on any of its tasks. Open one and the note comes along.
+        </span>
+      </span>
+      <button
+        class="focus-ring grid size-7 shrink-0 place-items-center rounded-control text-text-subtle transition-colors hover:bg-surface-raised hover:text-text"
+        aria-label="Close"
+        @click="emit('close')"
       >
-        <span class="font-mono text-[11px] text-text-subtle">
-          on {{ membership.length }} task{{ membership.length === 1 ? '' : 's' }}
+        <CloseGlyph />
+      </button>
+    </header>
+
+    <div class="flex h-11 shrink-0 items-center gap-2 border-b border-border bg-canvas px-5">
+      <span class="eyebrow shrink-0">On</span>
+      <div class="chip-track flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
+        <span
+          v-for="member in membership"
+          :key="member.id"
+          class="inline-flex shrink-0 items-center gap-1.5 rounded-full border py-0.5 pl-2.5 pr-1 font-mono text-caption"
+          :class="
+            member.id === originTaskId
+              ? 'border-accent bg-accent-soft text-accent'
+              : 'border-anchor-line bg-anchor-soft text-anchor'
+          "
+        >
+          <button
+            class="focus-ring whitespace-nowrap rounded-key"
+            :title="`Show ${member.title} in the columns`"
+            @click="revealTask(member.id)"
+          >
+            {{ member.projectLabel }}/{{ member.label }}
+          </button>
+          <button
+            class="focus-ring hit-target relative -m-0.5 grid size-5 shrink-0 place-items-center rounded-full text-text-subtle transition-colors hover:bg-danger-soft hover:text-danger"
+            :aria-label="`Remove this note from ${member.title}`"
+            @click="toggle(member.id)"
+          >
+            <CloseGlyph small />
+          </button>
         </span>
-        <AppButton variant="primary" size="sm" @click="emit('close')">Done</AppButton>
-      </footer>
+        <span
+          v-if="membership.length === 0"
+          class="shrink-0 whitespace-nowrap pl-1 text-caption text-text-subtle"
+        >
+          no task yet: it waits in {{ scopeLabel }}
+        </span>
+      </div>
     </div>
-  </div>
+
+    <div class="flex min-h-0 flex-1 flex-col sm:flex-row">
+      <AssignWalkColumn
+        heading="Company"
+        region-label="Companies"
+        :rows="companyRows"
+        :picked="pickedCompany"
+        empty-text="No company yet."
+        testid="assign-company"
+        @pick="pickCompany"
+      />
+      <AssignWalkColumn
+        heading="Project"
+        region-label="Projects"
+        :rows="projectRows"
+        :picked="pickedProject"
+        :empty-text="pickedCompany === null ? 'Pick a company to see its projects.' : 'No project in this company yet.'"
+        testid="assign-project"
+        @pick="pickProject"
+      />
+
+      <AssignTaskColumn
+        ref="taskColumn"
+        v-model:filter="taskFilter"
+        v-model:show-all="showAllTasks"
+        :project-id="pickedProject"
+        :tasks="pickedProjectTasks"
+        :attached-ids="attachedIds"
+        @toggle="toggle"
+      />
+    </div>
+
+    <footer
+      class="flex shrink-0 items-center justify-between gap-2 border-t border-border bg-canvas px-5 py-3"
+    >
+      <span class="font-mono text-caption text-text-subtle">
+        on {{ membership.length }} task{{ membership.length === 1 ? '' : 's' }}
+      </span>
+      <AppButton variant="primary" size="sm" @click="emit('close')">Done</AppButton>
+    </footer>
+  </AppDialog>
 </template>
 
 <style scoped>
-.walk-picked {
-  position: relative;
-}
-
-.walk-picked::before {
-  content: '';
-  position: absolute;
-  left: 3px;
-  top: 7px;
-  bottom: 7px;
-  width: 3px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, var(--color-accent-strong), var(--color-accent-deep));
-}
-
 .chip-track {
   scrollbar-width: none;
 }

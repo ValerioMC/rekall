@@ -63,10 +63,10 @@ function resetLabel(limit: ClaudeUsageLimit): string {
   >
     <ul class="flex flex-col gap-3 pt-7">
       <li v-for="limit in windows" :key="limit.key" class="flex flex-col gap-1">
-        <div class="flex items-baseline justify-between gap-2 text-[11.5px]">
+        <div class="flex items-baseline justify-between gap-2 text-caption">
           <span class="text-text-muted">{{ limit.label }}</span>
-          <span class="relative z-10 flex items-baseline gap-2 rounded bg-surface px-1">
-            <span class="font-mono text-[10.5px] text-text-subtle">{{ resetLabel(limit) }}</span>
+          <span class="relative z-10 flex items-baseline gap-2 rounded-key bg-surface px-1">
+            <span class="font-mono text-micro text-text-subtle">{{ resetLabel(limit) }}</span>
             <span
               class="font-mono tabular-nums"
               :class="reached(limit) && !disabled ? 'text-warn' : 'text-anchor'"
@@ -77,7 +77,7 @@ function resetLabel(limit: ClaudeUsageLimit): string {
         <div class="relative">
           <div class="h-1.5 overflow-hidden rounded-full bg-border">
             <span
-              class="block h-full rounded-full transition-[width,background-color] duration-300"
+              class="block h-full rounded-full transition-[width,background-color] duration-(--motion-slow)"
               :class="reached(limit) && !disabled ? 'bg-warn' : 'bg-anchor'"
               :style="{ width: `${Math.min(100, Math.max(1.5, limit.percent))}%` }"
               :data-reached="reached(limit)"
@@ -86,7 +86,7 @@ function resetLabel(limit: ClaudeUsageLimit): string {
           <span class="notch pointer-events-none absolute -top-1 h-3.5 w-0.5 rounded-full bg-accent" aria-hidden="true" />
         </div>
       </li>
-      <li v-if="windows.length === 0" class="py-1 text-[11.5px] leading-relaxed text-text-subtle">
+      <li v-if="windows.length === 0" class="py-1 text-caption leading-relaxed text-text-subtle">
         No usage reading yet. The line still holds: the queue checks it before every task and step.
       </li>
     </ul>
@@ -94,14 +94,14 @@ function resetLabel(limit: ClaudeUsageLimit): string {
     <!-- The waterline: from the capsule down through every track. -->
     <span class="waterline pointer-events-none absolute bottom-5 top-[18px] w-0" aria-hidden="true" />
     <span
-      class="capsule pointer-events-none absolute top-0 grid h-[18px] min-w-9 place-items-center rounded-full bg-accent px-1.5 font-mono text-[10.5px] font-semibold tabular-nums text-accent-ink shadow-lift"
+      class="capsule pointer-events-none absolute top-0 grid h-[18px] min-w-9 place-items-center rounded-full bg-accent px-1.5 font-mono text-micro font-semibold tabular-nums text-accent-ink shadow-lift"
       aria-hidden="true"
       data-testid="ceiling-capsule"
     >
       {{ clamped }}%
     </span>
 
-    <div class="mt-2 flex justify-between font-mono text-[10px] text-text-subtle" aria-hidden="true">
+    <div class="mt-2 flex justify-between font-mono text-micro text-text-subtle" aria-hidden="true">
       <span v-for="tick in SCALE_TICKS" :key="tick">{{ tick }}</span>
     </div>
 

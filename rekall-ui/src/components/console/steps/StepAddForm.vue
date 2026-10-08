@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppButton from '@/components/ui/AppButton.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 
 /** The line at the foot of the checklist that names a new step, which starts as a draft. */
@@ -26,13 +27,13 @@ defineEmits<{ submit: [] }>()
       placeholder="Name the next piece of this task. It starts as a draft."
       data-testid="new-step"
     />
-    <button
+    <AppButton
+      variant="primary"
       type="submit"
-      class="key-gold rounded-[3px] focus-ring h-(--spacing-control) shrink-0 px-3.5 text-[12.5px] font-medium disabled:cursor-not-allowed disabled:opacity-40"
       :disabled="!title.trim()"
       data-testid="add-step"
     >
       Add draft
-    </button>
+    </AppButton>
   </form>
 </template>

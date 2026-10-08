@@ -30,7 +30,7 @@ async function toggle(value: boolean): Promise<void> {
       data-testid="notify-claims"
       @update:model-value="toggle"
     />
-    <p id="notifications-hint" class="mt-1.5 text-[11.5px] leading-relaxed text-text-subtle">
+    <p id="notifications-hint" class="mt-1.5 text-caption leading-relaxed text-text-subtle">
       <template v-if="!available">This window cannot post notifications.</template>
       <template v-else-if="refused">
         The system refused. Allow notifications for Rekall in its settings, then turn this on again.

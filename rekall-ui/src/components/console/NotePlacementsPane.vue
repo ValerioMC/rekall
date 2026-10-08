@@ -43,6 +43,14 @@ const attachedIds = computed(
   () => new Set(selectedDocument.value?.tasks.map((ref) => ref.id) ?? [])
 )
 
+/** The note's own title and kind are in the editor beside this column; here only where it is. */
+const placementsTitle = computed(() => {
+  if (!selectedDocument.value) return 'Placements'
+  const count = attachedIds.value.size
+  if (count === 0) return 'On no task'
+  return `On ${count} task${count === 1 ? '' : 's'}`
+})
+
 const attachedTasks = computed(() =>
   tasks.value.filter((task) => attachedIds.value.has(task.id))
 )
@@ -101,26 +109,20 @@ function openTask(task: Task): void {
   >
     <header class="flex h-(--spacing-header) shrink-0 items-center gap-2 border-b border-border px-3.5">
       <span class="min-w-0 flex-1">
-        <span class="block truncate text-[13.5px] font-semibold text-text">
-          {{ selectedDocument?.title ?? 'Notes' }}
+        <span class="block truncate text-body font-semibold text-text" data-testid="note-placements-count">
+          {{ placementsTitle }}
         </span>
-        <span v-if="selectedDocument" class="block truncate text-[10.5px] text-text-subtle">
-          In {{ scopeLabel }} · on {{ attachedIds.size }} task{{ attachedIds.size === 1 ? '' : 's' }}
+        <span v-if="selectedDocument" class="block truncate text-micro text-text-subtle">
+          Lives in {{ scopeLabel }}
         </span>
-      </span>
-      <span
-        v-if="selectedDocument"
-        class="shrink-0 rounded border border-border bg-surface-raised px-1.5 py-px font-mono text-[9.5px] text-text-muted"
-      >
-        {{ selectedDocument.kind }}
       </span>
     </header>
 
-    <div v-if="!selectedDocument" class="px-4 py-4 text-[12.5px] leading-relaxed text-text-subtle">
+    <div v-if="!selectedDocument" class="px-4 py-4 text-small leading-relaxed text-text-subtle">
       <p>Pick a note to see which tasks it is on.</p>
       <p class="mt-2">
         Or press
-        <kbd class="rounded border border-border px-1 font-mono text-[10px]">N</kbd>
+        <kbd class="rounded-key border border-border px-1 font-mono text-micro">N</kbd>
         to start a new one.
       </p>
     </div>
@@ -129,7 +131,7 @@ function openTask(task: Task): void {
       <div class="shrink-0 border-b border-border px-2.5 py-2">
         <button
           type="button"
-          class="place-opener focus-ring group/opener flex h-9 w-full items-center gap-2.5 rounded-[var(--radius-control)] border border-dashed border-border-strong bg-canvas pl-2.5 pr-2 text-left text-[12.5px] text-text-muted transition-colors hover:border-solid hover:border-accent hover:bg-accent-soft hover:text-text"
+          class="place-opener focus-ring group/opener flex h-9 w-full items-center gap-2.5 rounded-control border border-dashed border-border-strong bg-canvas pl-2.5 pr-2 text-left text-small text-text-muted transition-colors hover:border-solid hover:border-accent hover:bg-accent-soft hover:text-text"
           title="Choose the tasks this note is on"
           data-testid="note-placements-open"
           @click="isAssigning = true"
@@ -165,8 +167,8 @@ function openTask(task: Task): void {
           :style="{ '--identity-color': identityHue(group.projectId).base }"
         >
           <div class="flex items-baseline gap-1.5 px-2 pb-1 pt-1.5">
-            <span class="truncate text-[11px] font-medium text-text-muted">{{ group.projectTitle }}</span>
-            <span v-if="manyCompanies" class="truncate text-[10px] text-text-subtle">
+            <span class="truncate text-caption font-medium text-text-muted">{{ group.projectTitle }}</span>
+            <span v-if="manyCompanies" class="truncate text-micro text-text-subtle">
               {{ group.companyName }}
             </span>
           </div>
@@ -188,7 +190,7 @@ function openTask(task: Task): void {
         <button
           v-if="doneAttached.length && liveAttached.length"
           type="button"
-          class="focus-ring mx-4 mt-1 inline-flex items-center gap-1.5 rounded-full border border-border-strong bg-surface-raised py-0.5 pl-2 pr-2.5 font-mono text-[11px] text-text-muted transition-colors hover:text-text"
+          class="focus-ring mx-4 mt-1 inline-flex items-center gap-1.5 rounded-full border border-border-strong bg-surface-raised py-0.5 pl-2 pr-2.5 font-mono text-caption text-text-muted transition-colors hover:text-text"
           :aria-expanded="showDone"
           data-testid="note-placements-done-toggle"
           @click="showDone = !showDone"
@@ -212,7 +214,7 @@ function openTask(task: Task): void {
         </button>
       </div>
 
-      <div class="shrink-0 border-t border-border bg-canvas px-3.5 py-2 text-[10.5px] text-text-subtle">
+      <div class="shrink-0 border-t border-border bg-canvas px-3.5 py-2 text-micro text-text-subtle">
         <template v-if="attachedIds.size === 0">On no task: it waits in {{ scopeLabel }} until it is put on one.</template>
         <template v-else>The cross on a row takes the note off that task. It stays in {{ scopeLabel }}.</template>
       </div>

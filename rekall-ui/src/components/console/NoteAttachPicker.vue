@@ -174,7 +174,7 @@ onUnmounted(() => {
   <Teleport to="body">
     <div
       ref="panel"
-      class="fixed z-(--z-overlay) flex max-h-[min(380px,calc(100vh-24px))] flex-col overflow-hidden rounded-[var(--radius-card)] border border-border-strong bg-surface shadow-lift"
+      class="fixed z-(--z-overlay) flex max-h-[min(380px,calc(100vh-24px))] flex-col overflow-hidden rounded-card border border-border-strong bg-surface shadow-lift"
       :style="{
         left: `${position.left}px`,
         width: `${position.width}px`,
@@ -194,10 +194,10 @@ onUnmounted(() => {
           autocomplete="off"
           spellcheck="false"
           placeholder="Find a note to add"
-          class="focus-ring h-7 min-w-0 flex-1 rounded-[var(--radius-control)] border border-border bg-canvas px-2.5 text-[12px] text-text placeholder:text-text-subtle"
+          class="focus-ring h-7 min-w-0 flex-1 rounded-control border border-border bg-canvas px-2.5 text-small text-text placeholder:text-text-subtle"
           data-testid="note-attach-filter"
         />
-        <span class="shrink-0 font-mono text-[10.5px] tabular-nums text-text-subtle" data-testid="note-attach-count">
+        <span class="shrink-0 font-mono text-micro tabular-nums text-text-subtle" data-testid="note-attach-count">
           {{ rows.length }}
         </span>
       </div>
@@ -205,14 +205,14 @@ onUnmounted(() => {
       <div class="min-h-0 flex-1 overflow-y-auto py-1">
         <p
           v-if="!available.length"
-          class="px-3.5 py-3 text-[11.5px] leading-relaxed text-text-subtle"
+          class="px-3.5 py-3 text-caption leading-relaxed text-text-subtle"
           data-testid="note-attach-empty"
         >
           Every note this task can carry is already on it.
         </p>
         <p
           v-else-if="!rows.length"
-          class="px-3.5 py-3 text-[11.5px] leading-relaxed text-text-subtle"
+          class="px-3.5 py-3 text-caption leading-relaxed text-text-subtle"
           data-testid="note-attach-empty"
         >
           No note matches that.
@@ -230,15 +230,15 @@ onUnmounted(() => {
               @click="attach(document)"
             >
               <span class="flex min-w-0 items-center gap-2">
-                <span class="min-w-0 flex-1 truncate text-[12.5px] font-medium text-text">{{ document.title }}</span>
+                <span class="min-w-0 flex-1 truncate text-small font-medium text-text">{{ document.title }}</span>
                 <span
-                  class="shrink-0 rounded border border-border bg-surface-raised px-1.5 py-px font-mono text-[9.5px] text-text-muted"
+                  class="shrink-0 rounded-key border border-border bg-surface-raised px-1.5 py-px font-mono text-micro text-text-muted"
                 >
                   {{ document.kind }}
                 </span>
               </span>
-              <span class="line-clamp-1 text-[11.5px] text-text-subtle">{{ excerpt(document.bodyMarkdown, 90) }}</span>
-              <span class="truncate font-mono text-[10.5px] text-anchor/80" data-testid="note-attach-where">
+              <span class="line-clamp-1 text-caption text-text-subtle">{{ excerpt(document.bodyMarkdown, 90) }}</span>
+              <span class="truncate font-mono text-micro text-anchor/80" data-testid="note-attach-where">
                 {{ whereItLives(document) }}
               </span>
             </button>
@@ -247,15 +247,15 @@ onUnmounted(() => {
       </div>
 
       <div class="flex items-center justify-between gap-2 border-t border-border bg-canvas px-3.5 py-2">
-        <span class="text-[10.5px] text-text-subtle">
-          <kbd class="rounded border border-border px-1 font-mono text-[9.5px]">↑↓</kbd>
+        <span class="text-micro text-text-subtle">
+          <kbd class="rounded-key border border-border px-1 font-mono text-micro">↑↓</kbd>
           move,
-          <kbd class="rounded border border-border px-1 font-mono text-[9.5px]">↵</kbd>
+          <kbd class="rounded-key border border-border px-1 font-mono text-micro">↵</kbd>
           add to this task
         </span>
         <button
           type="button"
-          class="focus-ring text-[10.5px] text-text-subtle transition-colors hover:text-text"
+          class="focus-ring text-micro text-text-subtle transition-colors hover:text-text"
           @click="emit('close')"
         >
           Close

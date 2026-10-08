@@ -57,7 +57,7 @@ defineEmits<{ 'show-hidden': [] }>()
   flex-direction: column;
   gap: 4px;
   padding: 14px 14px 10px;
-  font-size: 12px;
+  font-size: var(--text-small);
   line-height: 1.5;
 }
 </style>

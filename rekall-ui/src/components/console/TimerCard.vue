@@ -47,7 +47,7 @@ function toggle(): void {
 
 <template>
   <div
-    class="mb-3 rounded-[var(--radius-card)] border px-3 py-2.5 transition-colors"
+    class="mb-3 rounded-card border px-3 py-2.5 transition-colors"
     :class="isRunning ? 'panel-gold' : 'panel-slate'"
     data-testid="timer-card"
   >
@@ -81,7 +81,7 @@ function toggle(): void {
 
     <div class="mt-2 flex items-end justify-between gap-3">
       <span
-        class="texture-scan rounded-[6px] px-1.5 font-mono text-[22px] font-semibold tabular-nums tracking-tight"
+        class="texture-scan rounded-control px-1.5 font-mono text-heading font-semibold tabular-nums tracking-tight"
         :class="isRunning ? 'text-accent' : 'text-text-muted'"
         data-testid="timer-display"
       >
@@ -97,11 +97,11 @@ function toggle(): void {
       </AppButton>
     </div>
 
-    <p v-if="isRunning && hasHistory" class="mt-1.5 text-[11px] text-text-subtle">
+    <p v-if="isRunning && hasHistory" class="mt-1.5 text-caption text-text-subtle">
       {{ formatDuration(totalSeconds) }} total &middot; {{ entries.length }}
       session{{ entries.length === 1 ? '' : 's' }}
     </p>
-    <p v-else-if="hasHistory" class="mt-1.5 text-[11px] text-text-subtle">
+    <p v-else-if="hasHistory" class="mt-1.5 text-caption text-text-subtle">
       {{ entries.length }} session{{ entries.length === 1 ? '' : 's' }}
       <template v-if="lastStoppedAt"> &middot; stopped {{ relativeTime(lastStoppedAt) }}</template>
     </p>

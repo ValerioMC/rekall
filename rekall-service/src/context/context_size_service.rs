@@ -24,9 +24,11 @@ impl ContextSizeService {
             let renderer = ContextRenderer;
             let records = self.context.for_task_in(&tx, task_id).await?;
             let total = jstr::len(&renderer.render(&records));
+            let project = records.first().expect("for_task returns the project and the task");
             let task = records.last().expect("for_task returns the project and the task");
 
             let mut parts = Vec::new();
+            add_part(&mut parts, "Components", &renderer.render_components(&project.components), false);
             add_part(&mut parts, "Description", &renderer.render_description(task.description.as_deref()), false);
             add_part(&mut parts, "Steps", &renderer.render_steps(&task.steps, task.wrapup.as_ref()), false);
             add_part(&mut parts, "Wrapup", &renderer.render_wrapup(task.wrapup.as_ref()), false);

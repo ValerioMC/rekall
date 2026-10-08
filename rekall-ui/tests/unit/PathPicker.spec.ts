@@ -66,7 +66,7 @@ function installStorage(): void {
   })
 }
 
-function mountPicker(props: Partial<{ root: string | null; start: string | null }> = {}): VueWrapper {
+function mountPicker(props: Partial<{ root: string | null; start: string | null; foldersOnly: boolean }> = {}): VueWrapper {
   wrapper = mount(PathPicker, {
     attachTo: document.body,
     props: {
@@ -246,5 +246,16 @@ describe('PathPicker', () => {
     document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }))
 
     expect(wrapper!.emitted('close')).toHaveLength(1)
+  })
+
+  it('lists only folders when it is choosing one, and says so', async () => {
+    mountPicker({ foldersOnly: true })
+    await settle()
+
+    expect(names()).toEqual(['docs', 'src'])
+    expect(wrapper!.find('[data-testid="path-picker"]').attributes('aria-label')).toBe('Choose a folder')
+    key({ key: 'ArrowDown' })
+    key({ key: 'Enter' })
+    expect(wrapper!.emitted('pick')).toEqual([[`${PROJECT}/src`, true]])
   })
 })

@@ -88,7 +88,7 @@ const heaviestNote = computed(() =>
     <button
       ref="chip"
       type="button"
-      class="focus-ring inline-flex h-[26px] items-center gap-1.5 rounded-full border border-border px-2.5 font-mono text-[11px] text-text-muted transition-colors hover:border-border-strong hover:text-text"
+      class="focus-ring inline-flex h-[26px] items-center gap-1.5 rounded-full border border-border px-2.5 font-mono text-caption text-text-muted transition-colors hover:border-border-strong hover:text-text"
       :title="failed ? 'Could not measure this task\'s context' : 'What /rk hands a session for this task'"
       :aria-expanded="open"
       data-testid="context-size"
@@ -106,13 +106,13 @@ const heaviestNote = computed(() =>
       <Transition name="popover">
         <div
           v-if="open && size"
-          class="pointer-events-none fixed z-(--z-overlay) w-[340px] overflow-hidden rounded-[var(--radius-card)] border border-border-strong bg-surface shadow-modal"
+          class="pointer-events-none fixed z-(--z-overlay) w-[340px] overflow-hidden rounded-card border border-border-strong bg-surface shadow-modal"
           :style="{ top: `${position.top}px`, left: `${position.left}px` }"
           role="tooltip"
           aria-label="Context size"
           data-testid="context-size-parts"
         >
-          <p class="border-b border-border px-3.5 py-2 text-[11px] leading-relaxed text-text-subtle">
+          <p class="border-b border-border px-3.5 py-2 text-caption leading-relaxed text-text-subtle">
             {{ size.characters.toLocaleString() }} characters on <span class="font-mono">/rk</span>, about
             {{ size.estimatedTokens.toLocaleString() }} tokens. An estimate for comparing, not a bill.
           </p>
@@ -120,14 +120,14 @@ const heaviestNote = computed(() =>
             <li
               v-for="part in size.parts"
               :key="part.label"
-              class="flex items-baseline gap-2 px-3.5 py-1 text-[11.5px]"
+              class="flex items-baseline gap-2 px-3.5 py-1 text-caption"
             >
               <span class="min-w-0 flex-1 truncate text-text">{{ part.label }}</span>
-              <span v-if="part.reference" class="shrink-0 text-[10px] uppercase tracking-[0.04em] text-accent">reference</span>
+              <span v-if="part.reference" class="shrink-0 text-micro uppercase tracking-[0.04em] text-accent">reference</span>
               <span class="shrink-0 font-mono text-text-muted">≈ {{ compactCount(tokensOf(part.characters)) }}</span>
             </li>
           </ul>
-          <p v-if="heaviestNote" class="border-t border-border px-3.5 py-2 text-[11px] leading-relaxed text-text-subtle">
+          <p v-if="heaviestNote" class="border-t border-border px-3.5 py-2 text-caption leading-relaxed text-text-subtle">
             A note most sessions do not need can go <span class="text-text">By reference</span> from its
             own pane: sessions then get a line and its anchor, and load it only when the work asks.
           </p>

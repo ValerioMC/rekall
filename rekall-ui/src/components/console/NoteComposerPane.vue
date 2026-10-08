@@ -220,14 +220,14 @@ function onFilterKeydown(event: KeyboardEvent): void {
   >
     <header class="flex h-(--spacing-header) shrink-0 items-center gap-2 border-b border-border px-3.5">
       <span class="min-w-0 flex-1">
-        <span class="block truncate text-[13.5px] font-semibold text-text">New note</span>
-        <span class="block truncate text-[10.5px] text-text-subtle">
+        <span class="block truncate text-body font-semibold text-text">New note</span>
+        <span class="block truncate text-micro text-text-subtle">
           Name it, say where it lives
         </span>
       </span>
       <button
         type="button"
-        class="focus-ring shrink-0 rounded border border-border bg-surface-raised px-1.5 py-px font-mono text-[9.5px] text-text-muted transition-colors hover:text-text"
+        class="focus-ring shrink-0 rounded-key border border-border bg-surface-raised px-1.5 py-px font-mono text-micro text-text-muted transition-colors hover:text-text"
         title="Cancel"
         data-testid="note-composer-cancel"
         @click="cancel"
@@ -246,21 +246,21 @@ function onFilterKeydown(event: KeyboardEvent): void {
         autocomplete="off"
         spellcheck="false"
         placeholder="untitled.md"
-        class="focus-ring w-full rounded border-0 bg-transparent text-[17px] font-semibold tracking-[-0.015em] text-text outline-none placeholder:text-text-subtle/70"
+        class="focus-ring w-full rounded-key border-0 bg-transparent text-heading font-semibold tracking-[-0.015em] text-text outline-none placeholder:text-text-subtle"
         data-testid="note-composer-title"
         @keydown="onTitleKeydown"
       />
     </div>
 
     <div class="shrink-0 border-b border-border px-3.5 py-3" data-testid="note-composer-scope">
-      <p class="eyebrow mb-1.5 text-[11px]">Lives in</p>
-      <div class="grid grid-cols-3 gap-0.5 rounded-[8px] bg-canvas p-0.5" role="radiogroup" aria-label="Where the note lives">
+      <p class="eyebrow mb-1.5 text-caption">Lives in</p>
+      <div class="grid grid-cols-3 gap-0.5 rounded-card bg-canvas p-0.5" role="radiogroup" aria-label="Where the note lives">
         <button
           v-for="kind in SCOPE_KINDS"
           :key="kind"
           type="button"
           role="radio"
-          class="focus-ring h-7 rounded-[6px] text-[12px] transition-colors"
+          class="focus-ring h-7 rounded-control text-small transition-colors"
           :class="scopeKind === kind ? 'bg-surface-raised text-text shadow-[0_1px_2px_rgb(0_0_0/0.4)]' : 'text-text-subtle hover:text-text'"
           :aria-checked="scopeKind === kind"
           :data-testid="`note-composer-scope-${kind.toLowerCase()}`"
@@ -285,11 +285,11 @@ function onFilterKeydown(event: KeyboardEvent): void {
         placeholder="Pick a company"
         data-testid="note-composer-company"
       />
-      <p class="mt-1.5 text-[11px] leading-snug text-text-subtle">{{ SCOPE_HINT[scopeKind] }}</p>
+      <p class="mt-1.5 text-caption leading-snug text-text-subtle">{{ SCOPE_HINT[scopeKind] }}</p>
     </div>
 
     <div class="shrink-0 border-b border-border px-2.5 py-2">
-      <p class="eyebrow mb-1.5 px-1 text-[11px]">
+      <p class="eyebrow mb-1.5 px-1 text-caption">
         On tasks <span class="font-normal normal-case text-text-subtle">· optional</span>
       </p>
       <label class="sr-only" for="note-composer-filter">Find a task to put it on</label>
@@ -311,7 +311,7 @@ function onFilterKeydown(event: KeyboardEvent): void {
           autocomplete="off"
           spellcheck="false"
           placeholder="Put it on a task"
-          class="focus-ring h-8 w-full rounded-[var(--radius-control)] border border-border bg-canvas pl-7 pr-2.5 text-[12px] text-text placeholder:text-text-subtle"
+          class="focus-ring h-8 w-full rounded-control border border-border bg-canvas pl-7 pr-2.5 text-small text-text placeholder:text-text-subtle"
           data-testid="note-composer-filter"
           @keydown="onFilterKeydown"
         />
@@ -321,7 +321,7 @@ function onFilterKeydown(event: KeyboardEvent): void {
     <div ref="list" class="min-h-0 flex-1 overflow-y-auto py-1.5" data-testid="note-composer-list">
       <p
         v-if="!walk.length"
-        class="px-4 py-3 text-[12px] leading-relaxed text-text-subtle"
+        class="px-4 py-3 text-small leading-relaxed text-text-subtle"
         data-testid="note-composer-empty"
       >
         <template v-if="!scope">Pick where it lives to see its tasks.</template>
@@ -336,8 +336,8 @@ function onFilterKeydown(event: KeyboardEvent): void {
         :style="{ '--identity-color': identityHue(group.projectId).base }"
       >
         <div class="flex items-baseline gap-1.5 px-2 pb-1 pt-1.5">
-          <span class="truncate text-[11px] font-medium text-text-muted">{{ group.projectTitle }}</span>
-          <span v-if="manyCompanies" class="truncate text-[10px] text-text-subtle">
+          <span class="truncate text-caption font-medium text-text-muted">{{ group.projectTitle }}</span>
+          <span v-if="manyCompanies" class="truncate text-micro text-text-subtle">
             {{ group.companyName }}
           </span>
         </div>
@@ -356,11 +356,11 @@ function onFilterKeydown(event: KeyboardEvent): void {
     </div>
 
     <div class="flex shrink-0 items-center gap-2 border-t border-border bg-canvas px-3.5 py-2">
-      <span class="min-w-0 flex-1 truncate text-[10.5px] text-text-subtle" data-testid="note-composer-count">
+      <span class="min-w-0 flex-1 truncate text-micro text-text-subtle" data-testid="note-composer-count">
         In <span class="text-text-muted">{{ scopeLabel }}</span>
         <template v-if="picked.size"> · on {{ picked.size }} task{{ picked.size === 1 ? '' : 's' }}</template>
-        <span class="text-text-subtle/70"> · </span>
-        <kbd class="rounded border border-border px-1 font-mono text-[9.5px]">⌘↵</kbd>
+        <span class="text-text-subtle"> · </span>
+        <kbd class="rounded-key border border-border px-1 font-mono text-micro">⌘↵</kbd>
       </span>
       <AppButton
         variant="primary"

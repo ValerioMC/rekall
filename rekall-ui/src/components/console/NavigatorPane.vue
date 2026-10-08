@@ -3,29 +3,16 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import ScopePicker from '@/components/console/ScopePicker.vue'
 import RecordDialog from '@/components/console/RecordDialog.vue'
-import NavigatorTaskRow from '@/components/console/NavigatorTaskRow.vue'
-import NavigatorFilingDrawer from '@/components/console/NavigatorFilingDrawer.vue'
-import ProjectTrace from '@/components/ui/ProjectTrace.vue'
-import AppBadge from '@/components/ui/AppBadge.vue'
-import ProjectMark from '@/components/ui/ProjectMark.vue'
-import ProjectPageLink from '@/components/console/ProjectPageLink.vue'
-import { partitionTasks } from '@/common/catalog/partition-tasks'
-import { groupNotesByScope } from '@/common/catalog/note-groups'
-import { identityHue } from '@/common/identity'
+import NavigatorProjectGroup from '@/components/console/NavigatorProjectGroup.vue'
+import NavigatorStatusGroups from '@/components/console/NavigatorStatusGroups.vue'
+import NavigatorNoteList from '@/components/console/NavigatorNoteList.vue'
+import { groupTasksByProject } from '@/common/catalog/project-task-groups'
 import { revealOffset } from '@/common/scroll/reveal-offset'
+import { useNavigatorShelves } from '@/composables/useNavigatorShelves'
 import { useConsoleStore } from '@/stores/console.store'
-import {
-  PROJECT_STATUS_LABEL,
-  SHELVED_TASK_STATUSES,
-  TASK_STATUS_COLOR,
-  TASK_STATUS_LABEL,
-  TASK_STATUS_ORDER,
-  TASK_STATUS_RING
-} from '@/model/catalog'
 import { taskDraft } from '@/model/record-draft'
 import type { RecordDraft } from '@/model/record-draft'
-import type { ProjectStatus, Task } from '@/model/catalog'
-import type { ProjectId } from '@/model/branded'
+import type { Task } from '@/model/catalog'
 
 const store = useConsoleStore()
 const {
@@ -36,17 +23,14 @@ const {
   visibleTasks,
   visibleDocuments,
   selectedTaskId,
-  selectedDocId,
+  selectedTask,
   noteComposerOpen,
   tasks,
   projects,
-  companies,
   elsewhere,
   isLoading,
   runningEntries
 } = storeToRefs(store)
-
-const noteGroups = computed(() => groupNotesByScope(visibleDocuments.value, projects.value, companies.value))
 
 const runningTaskIds = computed(() => new Set(runningEntries.value.map((entry) => entry.taskId)))
 
@@ -59,111 +43,11 @@ const groupByProject = computed(() => navMode.value === 'tasks' && scopeProject.
 const showNewTaskButton = computed(() => navMode.value === 'tasks' && projectChoices.value.length > 0)
 const showNewNoteButton = computed(() => navMode.value === 'notes' && tasks.value.length > 0)
 
-interface ProjectGroup {
-  readonly projectId: ProjectId
-  readonly projectTitle: string
-  readonly companyName: string
-  readonly status: ProjectStatus
-  readonly icon: string
-  readonly iconImageVersion: string | null
-  readonly tasks: Task[]
-  readonly active: Task[]
-  readonly backlog: Task[]
-  readonly filed: Task[]
-}
-
-interface ProjectTaskBucket {
-  readonly projectId: ProjectId
-  readonly projectTitle: string
-  readonly companyName: string
-  readonly status: ProjectStatus
-  readonly icon: string
-  readonly iconImageVersion: string | null
-  readonly tasks: Task[]
-}
-
-const projectStatusById = computed(() => new Map(projects.value.map((project) => [project.id, project.status])))
-const projectById = computed(() => new Map(projects.value.map((project) => [project.id, project])))
-
-// Active projects float to the top of the column so a paused or done one never buries what is live.
-const PROJECT_STATUS_RANK: Readonly<Record<ProjectStatus, number>> = { ACTIVE: 0, PAUSED: 1, DONE: 2 }
-
-const groupedByProject = computed<ProjectGroup[]>(() => {
-  const byProject = new Map<ProjectId, ProjectTaskBucket>()
-  for (const task of visibleTasks.value) {
-    let bucket = byProject.get(task.projectId)
-    if (!bucket) {
-      bucket = {
-        projectId: task.projectId,
-        projectTitle: task.projectTitle,
-        companyName: task.companyName,
-        status: projectStatusById.value.get(task.projectId) ?? 'ACTIVE',
-        icon: projectById.value.get(task.projectId)?.icon ?? 'folder',
-        iconImageVersion: projectById.value.get(task.projectId)?.iconImageVersion ?? null,
-        tasks: []
-      }
-      byProject.set(task.projectId, bucket)
-    }
-    bucket.tasks.push(task)
-  }
-  return [...byProject.values()]
-    .map((bucket) => ({ ...bucket, ...partitionTasks(bucket.tasks) }))
-    .sort(
-      (a, b) =>
-        PROJECT_STATUS_RANK[a.status] - PROJECT_STATUS_RANK[b.status] ||
-        a.projectTitle.localeCompare(b.projectTitle)
-    )
-})
-
-const grouped = computed(() =>
-  TASK_STATUS_ORDER.filter((status) => !SHELVED_TASK_STATUSES.includes(status))
-    .map((status) => ({
-      status,
-      tasks: visibleTasks.value.filter((task) => task.status === status)
-    }))
-    .filter((group) => group.tasks.length > 0)
+const groupedByProject = computed(() =>
+  groupTasksByProject(visibleTasks.value, projects.value, scopeCompany.value === null)
 )
 
-const filedInScope = computed(() =>
-  visibleTasks.value.filter((task) => task.status === 'DONE')
-)
-
-const backlogInScope = computed(() =>
-  visibleTasks.value.filter((task) => task.status === 'BACKLOG')
-)
-
-const showFiledInScope = ref(false)
-const showBacklogInScope = ref(false)
-const revealedProjectIds = ref<Set<ProjectId>>(new Set())
-const revealedBacklogIds = ref<Set<ProjectId>>(new Set())
-
-function toggled(ids: Set<ProjectId>, projectId: ProjectId): Set<ProjectId> {
-  const next = new Set(ids)
-  if (next.has(projectId)) next.delete(projectId)
-  else next.add(projectId)
-  return next
-}
-
-function toggleRevealed(projectId: ProjectId): void {
-  revealedProjectIds.value = toggled(revealedProjectIds.value, projectId)
-}
-
-function toggleBacklog(projectId: ProjectId): void {
-  revealedBacklogIds.value = toggled(revealedBacklogIds.value, projectId)
-}
-
-// A shelved task picked from elsewhere (search, a note) opens its shelf so the selection is visible.
-watch(selectedTaskId, () => {
-  const task = store.selectedTask
-  if (!task) return
-  if (task.status === 'DONE') {
-    showFiledInScope.value = true
-    if (!revealedProjectIds.value.has(task.projectId)) toggleRevealed(task.projectId)
-  } else if (task.status === 'BACKLOG') {
-    showBacklogInScope.value = true
-    if (!revealedBacklogIds.value.has(task.projectId)) toggleBacklog(task.projectId)
-  }
-})
+const shelves = useNavigatorShelves(selectedTask)
 
 const scroller = ref<HTMLElement | null>(null)
 
@@ -189,30 +73,6 @@ async function revealSelected(): Promise<void> {
 watch([selectedTaskId, navMode, isLoading], () => {
   if (navMode.value === 'tasks' && !isLoading.value) void revealSelected()
 }, { flush: 'post' })
-
-const COLLAPSE_KEY = 'rekall.nav.collapsed-projects'
-
-function loadCollapsed(): Set<ProjectId> {
-  try {
-    const raw = localStorage.getItem(COLLAPSE_KEY)
-    const parsed: unknown = raw ? JSON.parse(raw) : []
-    return Array.isArray(parsed) ? new Set(parsed as ProjectId[]) : new Set()
-  } catch {
-    return new Set()
-  }
-}
-
-const collapsedProjectIds = ref<Set<ProjectId>>(loadCollapsed())
-
-function toggleCollapsed(projectId: ProjectId): void {
-  const next = new Set(collapsedProjectIds.value)
-  if (next.has(projectId)) next.delete(projectId)
-  else next.add(projectId)
-  collapsedProjectIds.value = next
-  try {
-    localStorage.setItem(COLLAPSE_KEY, JSON.stringify([...next]))
-  } catch {}
-}
 
 function beginCreate(): void {
   const projectId =
@@ -242,11 +102,11 @@ defineExpose({ beginCreate, editSelected })
     <div class="flex shrink-0 flex-col gap-2.5 border-b border-border p-2.5">
       <ScopePicker />
 
-      <div class="flex gap-0.5 rounded-[8px] bg-canvas p-0.5" role="group" aria-label="Browse by">
+      <div class="flex gap-0.5 rounded-card bg-canvas p-0.5" role="group" aria-label="Browse by">
         <button
           v-for="mode in (['tasks', 'notes'] as const)"
           :key="mode"
-          class="focus-ring flex h-7 flex-1 items-center justify-center gap-1.5 rounded-[6px] text-[12px] capitalize transition-colors"
+          class="focus-ring flex h-7 flex-1 items-center justify-center gap-1.5 rounded-control text-small capitalize transition-colors"
           :class="
             navMode === mode
               ? 'bg-surface-raised text-text shadow-[0_1px_2px_rgb(0_0_0/0.4)]'
@@ -256,7 +116,7 @@ defineExpose({ beginCreate, editSelected })
           @click="store.setNavMode(mode)"
         >
           {{ mode }}
-          <span class="font-mono text-[10.5px] text-text-subtle">
+          <span class="font-mono text-micro text-text-subtle">
             {{ mode === 'tasks' ? visibleTasks.length : visibleDocuments.length }}
           </span>
         </button>
@@ -267,7 +127,7 @@ defineExpose({ beginCreate, editSelected })
       <div v-if="isLoading" class="flex flex-col gap-4 p-2 pt-3" aria-hidden="true">
         <div v-for="group in 3" :key="group" class="flex flex-col gap-1.5">
           <div class="skeleton mx-1.5 mb-1 h-2.5 w-16" />
-          <div v-for="row in 2" :key="row" class="skeleton h-9 w-full rounded-[var(--radius-control)]" />
+          <div v-for="row in 2" :key="row" class="skeleton h-9 w-full rounded-control" />
         </div>
       </div>
 
@@ -280,13 +140,13 @@ defineExpose({ beginCreate, editSelected })
         <button
           v-if="showNewTaskButton"
           data-testid="new-task"
-          class="focus-ring flex w-full items-center gap-2 rounded-[var(--radius-control)] border border-dashed border-border-strong px-2.5 py-2 text-left text-[12.5px] text-text-muted transition-colors hover:border-solid hover:border-accent hover:bg-accent-soft hover:text-text"
+          class="add-row focus-ring py-2"
           @click="beginCreate"
         >
           <span class="text-accent">+</span> New task
           <span
             v-if="scopeProject !== null"
-            class="ml-auto min-w-0 truncate font-mono text-[10.5px] text-text-subtle"
+            class="ml-auto min-w-0 truncate font-mono text-micro text-text-subtle"
           >
             in {{ scopeName }}
           </span>
@@ -295,142 +155,28 @@ defineExpose({ beginCreate, editSelected })
         <button
           v-if="showNewNoteButton"
           data-testid="new-note-here"
-          class="focus-ring flex w-full items-center gap-2 rounded-[var(--radius-control)] border px-2.5 py-2 text-left text-[12.5px] transition-colors"
-          :class="
-            noteComposerOpen
-              ? 'selected-row border-transparent text-text'
-              : 'border-dashed border-border-strong text-text-muted hover:border-solid hover:border-accent hover:bg-accent-soft hover:text-text'
-          "
+          class="add-row focus-ring py-2"
+          :class="noteComposerOpen && 'add-row-open'"
           :aria-pressed="noteComposerOpen"
           @click="store.openNoteComposer()"
         >
           <span class="text-accent">+</span> New note
-          <kbd class="ml-auto rounded border border-border px-1 font-mono text-[10px] text-text-subtle">N</kbd>
+          <kbd class="ml-auto rounded-key border border-border px-1 font-mono text-micro text-text-subtle">N</kbd>
         </button>
       </div>
 
       <template v-if="navMode === 'tasks' && groupByProject">
-        <div
+        <NavigatorProjectGroup
           v-for="group in groupedByProject"
           :key="group.projectId"
-          class="px-2 pt-2.5 first:pt-1"
-          :class="group.status !== 'ACTIVE' && 'filed-row'"
-        >
-          <div
-            class="project-header-card flex items-stretch rounded-[var(--radius-card)]"
-            :style="{ '--project-tint-soft': identityHue(group.projectId).soft }"
-          >
-            <button
-              data-testid="project-group-toggle"
-              class="focus-ring flex min-w-0 flex-1 items-start gap-2.5 rounded-l-[var(--radius-card)] py-2.5 pl-2.5 pr-2 text-left"
-              :aria-expanded="!collapsedProjectIds.has(group.projectId)"
-              @click="toggleCollapsed(group.projectId)"
-            >
-              <svg
-                class="mt-1.5 size-3 shrink-0 text-text-subtle transition-transform"
-                :class="!collapsedProjectIds.has(group.projectId) && 'rotate-90'"
-                viewBox="0 0 24 24"
-                fill="none"
-                aria-hidden="true"
-              >
-                <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
-              <ProjectMark
-                class="mt-px"
-                :project-id="group.projectId"
-                :icon="group.icon"
-                :image-version="group.iconImageVersion"
-                :size="24"
-              />
-              <span class="min-w-0 flex-1">
-                <span class="flex items-center gap-2">
-                  <span class="min-w-0 flex-1 truncate text-[13.5px] font-semibold tracking-[-0.006em] text-text">
-                    {{ group.projectTitle }}
-                  </span>
-                  <AppBadge v-if="group.status !== 'ACTIVE'" :tone="group.status === 'DONE' ? 'safe' : 'neutral'" dot>
-                    {{ PROJECT_STATUS_LABEL[group.status] }}
-                  </AppBadge>
-                  <span
-                    class="shrink-0 rounded-full bg-surface px-1.5 py-px font-mono text-[10px] tabular-nums text-text-subtle"
-                  >
-                    {{ group.tasks.length }}
-                  </span>
-                </span>
-                <span class="mt-1 flex items-center gap-2">
-                  <span
-                    v-if="scopeCompany === null"
-                    class="shrink-0 truncate text-[10px] text-text-subtle"
-                  >
-                    {{ group.companyName }}
-                  </span>
-                  <ProjectTrace :id="group.projectId" size="sm" />
-                </span>
-              </span>
-            </button>
-            <ProjectPageLink :project-id="group.projectId" :project-title="group.projectTitle" />
-          </div>
+          :group="group"
+          :shelves="shelves"
+          :show-company="scopeCompany === null"
+          :running-task-ids="runningTaskIds"
+          @edit="editTask"
+        />
 
-          <div
-            v-show="!collapsedProjectIds.has(group.projectId)"
-            class="ml-[15px] mt-1 flex flex-col gap-0.5 border-l-2 pl-2"
-            :style="{ borderLeftColor: identityHue(group.projectId).line }"
-          >
-            <NavigatorTaskRow
-              v-for="task in group.active"
-              :key="task.id"
-              :task="task"
-              :selected="task.id === selectedTaskId"
-              :running="runningTaskIds.has(task.id)"
-              :show-context="false"
-              :show-company="false"
-              @select="store.selectTask(task.id)"
-              @edit="editTask(task)"
-            />
-
-            <NavigatorFilingDrawer
-              v-if="group.backlog.length"
-              kind="backlog"
-              :count="group.backlog.length"
-              :open="revealedBacklogIds.has(group.projectId)"
-              @toggle="toggleBacklog(group.projectId)"
-            >
-              <NavigatorTaskRow
-                v-for="task in group.backlog"
-                :key="task.id"
-                :task="task"
-                :selected="task.id === selectedTaskId"
-                :running="runningTaskIds.has(task.id)"
-                :show-context="false"
-                :show-company="false"
-                filed
-                @select="store.selectTask(task.id)"
-                @edit="editTask(task)"
-              />
-            </NavigatorFilingDrawer>
-
-            <NavigatorFilingDrawer
-              v-if="group.filed.length"
-              :count="group.filed.length"
-              :open="revealedProjectIds.has(group.projectId)"
-              @toggle="toggleRevealed(group.projectId)"
-            >
-              <NavigatorTaskRow
-                v-for="task in group.filed"
-                :key="task.id"
-                :task="task"
-                :selected="task.id === selectedTaskId"
-                :running="runningTaskIds.has(task.id)"
-                :show-context="false"
-                :show-company="false"
-                filed
-                @select="store.selectTask(task.id)"
-                @edit="editTask(task)"
-              />
-            </NavigatorFilingDrawer>
-          </div>
-        </div>
-
-        <p v-if="!groupedByProject.length" class="px-4 py-3 text-[12.5px] leading-relaxed text-text-subtle">
+        <p v-if="!groupedByProject.length" class="px-4 py-3 text-small leading-relaxed text-text-subtle">
           <template v-if="!projectChoices.length">
             No project here yet. Add one from the picker above, then a task can live in it.
           </template>
@@ -438,167 +184,23 @@ defineExpose({ beginCreate, editSelected })
         </p>
       </template>
 
-      <template v-else-if="navMode === 'tasks'">
-        <div v-for="group in grouped" :key="group.status" class="px-2">
-          <div class="flex items-center gap-2.5 px-1.5 pb-1.5 pt-5">
-            <span class="relative grid size-3 shrink-0 place-items-center" aria-hidden="true">
-              <span class="absolute size-3 rounded-full" :class="TASK_STATUS_RING[group.status]" />
-              <span class="relative size-[7px] rounded-full" :class="TASK_STATUS_COLOR[group.status]" />
-            </span>
-            <span class="section-label flex-1">{{ TASK_STATUS_LABEL[group.status] }}</span>
-            <span
-              class="shrink-0 rounded-full bg-surface-raised px-1.5 py-px font-mono text-[10px] tabular-nums text-text-subtle"
-            >
-              {{ group.tasks.length }}
-            </span>
-          </div>
+      <NavigatorStatusGroups
+        v-else-if="navMode === 'tasks'"
+        :shelves="shelves"
+        :running-task-ids="runningTaskIds"
+        :has-projects="projectChoices.length > 0"
+        @edit="editTask"
+      />
 
-          <div class="flex flex-col gap-0.5">
-            <NavigatorTaskRow
-              v-for="task in group.tasks"
-              :key="task.id"
-              :task="task"
-              :selected="task.id === selectedTaskId"
-              :running="runningTaskIds.has(task.id)"
-              :show-context="true"
-              :show-company="scopeCompany === null"
-              @select="store.selectTask(task.id)"
-              @edit="editTask(task)"
-            />
-          </div>
-        </div>
-
-        <div v-if="backlogInScope.length" class="px-2 pt-2">
-          <NavigatorFilingDrawer
-            kind="backlog"
-            :count="backlogInScope.length"
-            :open="showBacklogInScope"
-            @toggle="showBacklogInScope = !showBacklogInScope"
-          >
-            <NavigatorTaskRow
-              v-for="task in backlogInScope"
-              :key="task.id"
-              :task="task"
-              :selected="task.id === selectedTaskId"
-              :running="runningTaskIds.has(task.id)"
-              :show-context="true"
-              :show-company="scopeCompany === null"
-              filed
-              @select="store.selectTask(task.id)"
-              @edit="editTask(task)"
-            />
-          </NavigatorFilingDrawer>
-        </div>
-
-        <div v-if="filedInScope.length" class="px-2 pt-2">
-          <NavigatorFilingDrawer
-            :count="filedInScope.length"
-            :open="showFiledInScope"
-            @toggle="showFiledInScope = !showFiledInScope"
-          >
-            <NavigatorTaskRow
-              v-for="task in filedInScope"
-              :key="task.id"
-              :task="task"
-              :selected="task.id === selectedTaskId"
-              :running="runningTaskIds.has(task.id)"
-              :show-context="true"
-              :show-company="scopeCompany === null"
-              filed
-              @select="store.selectTask(task.id)"
-              @edit="editTask(task)"
-            />
-          </NavigatorFilingDrawer>
-        </div>
-
-        <p
-          v-if="!grouped.length && !filedInScope.length && !backlogInScope.length"
-          class="px-4 py-3 text-[12.5px] leading-relaxed text-text-subtle"
-        >
-          <template v-if="!projectChoices.length">
-            No project here yet. Add one from the picker above, then a task can live in it.
-          </template>
-          <template v-else>No task here yet.</template>
-        </p>
-      </template>
-
-      <template v-else>
-        <div
-          v-for="group in noteGroups"
-          :key="group.key"
-          class="px-2"
-          data-testid="note-group"
-        >
-          <div class="flex items-center gap-2 px-1.5 pb-1 pt-4">
-            <span
-              v-if="group.scope.kind === 'PROJECT'"
-              class="size-2 shrink-0 rounded-full"
-              :style="{ backgroundColor: identityHue(group.scope.id).base }"
-              aria-hidden="true"
-            />
-            <svg
-              v-else-if="group.scope.kind === 'COMPANY'"
-              class="size-3 shrink-0 text-text-subtle"
-              viewBox="0 0 12 12"
-              fill="none"
-              aria-hidden="true"
-            >
-              <path d="M2 10.5V2.5h5v8M7 5.5h3v5M1 10.5h10M3.6 4.5h1.8M3.6 6.8h1.8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" />
-            </svg>
-            <svg v-else class="size-3 shrink-0 text-text-subtle" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-              <circle cx="6" cy="6" r="4.6" stroke="currentColor" stroke-width="1.1" />
-              <path d="M1.4 6h9.2M6 1.4c1.4 1.3 2 2.8 2 4.6s-.6 3.3-2 4.6c-1.4-1.3-2-2.8-2-4.6s.6-3.3 2-4.6Z" stroke="currentColor" stroke-width="1.1" />
-            </svg>
-            <span class="section-label min-w-0 flex-1 truncate" data-testid="note-group-name">{{ group.name }}</span>
-            <span class="shrink-0 rounded-full bg-surface-raised px-1.5 py-px font-mono text-[10px] tabular-nums text-text-subtle">
-              {{ group.notes.length }}
-            </span>
-          </div>
-          <button
-            v-for="document in group.notes"
-            :key="document.id"
-            data-testid="note-row"
-            class="focus-ring mt-0.5 flex w-full items-center gap-2.5 rounded-[var(--radius-control)] px-2 py-1.5 text-left transition-colors"
-            :class="
-              document.id === selectedDocId && !noteComposerOpen
-                ? 'selected-row text-text'
-                : 'text-text-muted hover:bg-surface-raised hover:text-text'
-            "
-            :aria-current="document.id === selectedDocId"
-            @click="store.selectDocument(document.id)"
-          >
-            <span class="min-w-0 flex-1">
-              <span class="block truncate text-[13px]">{{ document.title }}</span>
-              <span v-if="document.tasks.length" class="block truncate font-mono text-[10.5px] text-anchor/80">
-                {{ document.tasks.map((t) => t.label).join(', ') }}
-              </span>
-              <span v-else class="block truncate text-[10.5px] text-text-subtle">on no task</span>
-            </span>
-            <span
-              v-if="document.tasks.length > 1"
-              class="anchor-chip shrink-0 px-1.5 py-px text-[9.5px]"
-              :title="`On ${document.tasks.length} tasks`"
-            >
-              &#8942; {{ document.tasks.length }}
-            </span>
-          </button>
-        </div>
-
-        <p
-          v-if="!visibleDocuments.length"
-          class="px-4 py-3 text-[12.5px] leading-relaxed text-text-subtle"
-        >
-          No note matches.
-        </p>
-      </template>
+      <NavigatorNoteList v-else />
 
       <button
         v-if="elsewhere"
-        class="focus-ring m-2 flex w-[calc(100%-16px)] flex-wrap items-center gap-2 rounded-[var(--radius-control)] border border-border-strong bg-canvas px-2.5 py-2 text-left text-[12px] text-text-muted transition-colors hover:border-accent hover:text-text"
+        class="focus-ring m-2 flex w-[calc(100%-16px)] flex-wrap items-center gap-2 rounded-control border border-border-strong bg-canvas px-2.5 py-2 text-left text-small text-text-muted transition-colors hover:border-accent hover:text-text"
         @click="store.setScope(null)"
       >
         <span>{{ elsewhere.count }} more in {{ elsewhere.names.join(', ') }}</span>
-        <span class="ml-auto whitespace-nowrap text-[11.5px] text-accent">
+        <span class="ml-auto whitespace-nowrap text-caption text-accent">
           search everywhere &#8594;
         </span>
       </button>

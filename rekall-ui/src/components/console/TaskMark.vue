@@ -74,8 +74,8 @@ onUnmounted(() => {
   >
     <defs>
       <linearGradient :id="`${gradientId}-well`" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#080b10" />
-        <stop offset="1" stop-color="#252d3d" />
+        <stop offset="0" style="stop-color: var(--color-well-top)" />
+        <stop offset="1" style="stop-color: var(--color-well-floor)" />
       </linearGradient>
       <radialGradient :id="`${gradientId}-metal`" cx="0.34" cy="0.26" r="0.95">
         <stop offset="0" style="stop-color: var(--mark-hi)" />
@@ -187,8 +187,8 @@ onUnmounted(() => {
 
 .mark[data-state='ACCEPTED'] {
   --mark: var(--color-safe);
-  --mark-hi: #a6f2cd;
-  --mark-shade: #14804f;
+  --mark-hi: var(--color-seal-hi);
+  --mark-shade: var(--color-seal-shade);
 }
 
 /* No transform here: the ring's rotation is an SVG attribute that changes with the state, and
@@ -196,10 +196,10 @@ onUnmounted(() => {
 .mark circle,
 .mark path {
   transition:
-    fill 220ms ease,
-    stroke 220ms ease,
-    stroke-dasharray 320ms cubic-bezier(0.3, 0.7, 0.2, 1),
-    opacity 200ms ease;
+    fill var(--motion-move) ease,
+    stroke var(--motion-move) ease,
+    stroke-dasharray var(--motion-slow) cubic-bezier(0.3, 0.7, 0.2, 1),
+    opacity var(--motion-move) ease;
 }
 
 .mark-disc,
@@ -353,13 +353,13 @@ onUnmounted(() => {
 
 /* The step seal's done ink: the check is cut into the green, not drawn on top of it. */
 .mark-engrave {
-  stroke: #03200f;
+  stroke: var(--color-seal-ink);
   stroke-width: 0.5;
   opacity: 0.3;
 }
 
 .mark[data-state='ACCEPTED'] .mark-check {
-  stroke: #03200f;
+  stroke: var(--color-seal-ink);
   stroke-width: 1.7;
   filter: drop-shadow(0 0.5px 0 rgb(255 255 255 / 0.45));
 }
