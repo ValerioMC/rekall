@@ -26,7 +26,7 @@ const byReference = computed(() => props.note.contextMode === 'REFERENCE')
   <button
     data-testid="note-row"
     class="focus-ring flex w-full items-start gap-2.5 rounded-control px-2.5 py-2 text-left transition-colors"
-    :class="selected ? 'selected-row text-text' : 'text-text-muted hover:panel-slate hover:text-text'"
+    :class="selected ? 'selected-row text-text' : 'text-text-muted hover:bg-surface-raised hover:text-text'"
     :style="selected && tint ? { '--select-tint': tint.base, '--select-tint-soft': tint.soft } : undefined"
     :aria-current="selected"
     @click="$emit('select')"

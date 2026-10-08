@@ -676,46 +676,28 @@
     drop-shadow(0 0 7px color-mix(in srgb, var(--tag-tint) 45%, transparent));
 }
 
-/* The plate a tag badge sits on: a keycap tinted with its colour, lit lip above, darker
-   underside and a tight neutral shadow. No outline and no coloured glow beneath it. */
+/* The plate a tag badge sits on: the {@link key-quiet} face of the task dialog's tag picker,
+   warmed by its colour, with a tinted hairline and --shadow-key. The colour lives in the glowing
+   icon, not in the plate. */
 @utility tag-chip {
   border: 0;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--tag-tint) 24%, #2a3243) 0%,
-    color-mix(in srgb, var(--tag-tint) 12%, #1d2432) 100%
-  );
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--tag-tint) 7%, var(--color-surface));
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.12),
-    inset 0 -1px 0 rgb(0 0 0 / 0.3),
-    0 1px 2px rgb(0 0 0 / 0.5);
-
-  & svg {
-    filter: drop-shadow(0 -0.5px 0 rgb(255 255 255 / 0.3)) drop-shadow(0 0.8px 0.5px rgb(0 0 0 / 0.6));
-  }
+    inset 0 0 0 1px color-mix(in srgb, var(--tag-tint) 26%, var(--color-border)),
+    var(--shadow-key);
 }
 
-/* A colour swatch as a lit bead: metal highlight top-left, shaded underside, neutral shadow. */
+/* A colour swatch: the colour itself, shaded a touch toward its foot, with --shadow-key's lip. */
 @utility tag-bead {
-  background: radial-gradient(
-    circle at 34% 26%,
-    color-mix(in srgb, var(--tag-tint) 55%, white) 0%,
-    var(--tag-tint) 50%,
-    color-mix(in srgb, var(--tag-tint) 60%, black) 100%
-  );
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.3),
-    0 1px 2px rgb(0 0 0 / 0.55);
+  background: linear-gradient(180deg, var(--tag-tint), color-mix(in srgb, var(--tag-tint) 82%, black));
+  box-shadow: var(--shadow-key);
 }
 
 /*
- * The selected row.
- *
- * Not a flat rail down one edge, which reads as a list turned into a grid of boxes. The row
- * lifts onto its own raised surface, warms by a few percent as if lit from the left, and takes
- * a whisper of an accent outline that holds the whole tile rather than just its side. The focal
- * detail is a short capsule of accent light in the left gutter, glowing, clear of the row's top
- * and bottom: a marker that has been placed, not a border that happens to be there.
+ * The selected row: the raised surface warmed from the left by its tint, a tinted hairline that
+ * holds the whole tile, --shadow-key's relief, and a short solid capsule in the left gutter as the
+ * marker. Keys, tags and project headers share that one relief, so selection never stands taller.
  */
 @utility selected-row {
   /* Defaults to the accent; the task navigator retints per project the same way a field is
@@ -726,11 +708,10 @@
   position: relative;
   background:
     radial-gradient(150px 48px at 10px 50%, var(--select-tint-soft), transparent 72%),
-    linear-gradient(180deg, #252c3b, var(--color-surface-raised));
+    var(--color-surface-raised);
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.06),
-    0 1px 2px rgb(0 0 0 / 0.35),
-    0 0 0 1px color-mix(in srgb, var(--select-tint) 28%, transparent);
+    inset 0 0 0 1px color-mix(in srgb, var(--select-tint) 24%, transparent),
+    var(--shadow-key);
 
   &::before {
     content: '';
@@ -740,15 +721,7 @@
     bottom: 7px;
     width: 3px;
     border-radius: 1px;
-    background: linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--select-tint) 55%, white),
-      var(--select-tint) 45%,
-      color-mix(in srgb, var(--select-tint) 60%, black)
-    );
-    box-shadow:
-      0 0 9px -1px color-mix(in srgb, var(--select-tint) 60%, transparent),
-      0 1px 1px rgb(0 0 0 / 0.5);
+    background: var(--select-tint);
   }
 }
 
@@ -997,9 +970,9 @@
   position: relative;
   background:
     radial-gradient(160px 52px at 18px -8px, var(--project-tint-soft, var(--color-accent-soft)), transparent 70%),
-    linear-gradient(180deg, #232a39, var(--color-surface-raised));
+    var(--color-surface-raised);
   border: 1px solid var(--color-border);
-  box-shadow: var(--shadow-raised);
+  box-shadow: var(--shadow-key);
 }
 
 /* The drawer body arrives rather than appears, the same way a dialog does. */

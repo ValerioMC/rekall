@@ -13,10 +13,7 @@ const props = withDefaults(
   { size: 'sm' }
 )
 
-const style = computed(() => {
-  const palette = tagColor(props.color)
-  return { '--tag-tint': palette.base, color: palette.base }
-})
+const style = computed(() => ({ '--tag-tint': tagColor(props.color).base }))
 </script>
 
 <template>
@@ -26,7 +23,7 @@ const style = computed(() => {
     :style="style"
     :title="name"
   >
-    <TagIcon :icon="icon" :color="color" :size="size === 'sm' ? 11 : 13" :glow="false" />
+    <TagIcon :icon="icon" :color="color" :size="size === 'sm' ? 11 : 13" />
     <span class="truncate">{{ name }}</span>
   </span>
 </template>

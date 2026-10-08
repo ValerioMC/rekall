@@ -560,14 +560,16 @@ navigator is given the width for this rather than made to crush it.
 
 ### The selected surface
 
-Selection was a flat accent rail down the left edge, which turned a list into a column of boxes.
-It is now a surface that has been lifted: the row or card rises onto a raised background, warms
-by a few percent as if lit from its top-left corner, takes a whisper of an accent outline that
-holds the whole shape, and carries one focal detail, a short capsule of accent light in the
-left gutter, clear of the top and bottom edges. A marker that was placed, not a border that
-happens to be there. The status pip of a selected row gains a thin accent ring, so the
-emphasis is spread across the row rather than stacked on one side. `selected-row` and
-`selected-card` in `main.css` are the same idea at two scales.
+A selected row sits on the raised surface, warmed from its left by its tint (the project's
+identity hue in the navigators, the accent elsewhere), held by a tinted hairline, and marked by a
+short solid capsule in the left gutter, clear of the top and bottom edges. Its relief is
+`--shadow-key`, the same as a key, a tag chip and a project header in the navigator, so
+selection reads by colour and outline, never by standing taller than its neighbours. A hovered
+row only takes the raised surface's colour. The status pip of a selected row gains a thin
+accent ring. `selected-row` and `selected-card` in `main.css` are the same idea at two scales.
+
+A tag badge (`tag-chip`) is the tag picker's quiet key: a neutral face warmed a few percent by the
+tag's colour, a tinted hairline, and the colour itself carried by the glowing icon.
 
 ### Labels
 
