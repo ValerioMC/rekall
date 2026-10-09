@@ -34,7 +34,11 @@ const companiesByName = computed(() => [...companies.value].sort((a, b) => compa
 
 const projectsOf = (companyId: CompanyId) =>
   projects.value
-    .filter((project) => project.companyId === companyId)
+    .filter(
+      (project) =>
+        project.companyId === companyId &&
+        (project.status !== 'ARCHIVED' || project.id === scopeProject.value)
+    )
     .sort((a, b) => compareText(a.title, b.title))
 
 const taskTotal = computed(() => tasks.value.length)

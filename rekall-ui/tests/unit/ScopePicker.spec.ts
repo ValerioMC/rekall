@@ -24,10 +24,10 @@ const projects: Project[] = [
 
 let pinia: Pinia
 
-function render(company: CompanyId | null, project: ProjectId | null = null): VueWrapper {
+function render(company: CompanyId | null, project: ProjectId | null = null, catalog: Project[] = projects): VueWrapper {
   const store = useConsoleStore()
   store.companies = companies
-  store.projects = projects
+  store.projects = catalog
   store.setScope(company, project)
   const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: { template: '<div />' } }] })
   return mount(ScopePicker, { global: { plugins: [pinia, router] } })
@@ -67,6 +67,18 @@ describe('ScopePicker trigger', () => {
 })
 
 describe('ScopePicker list', () => {
+  it('leaves an archived project out unless it is the one in scope', async () => {
+    const archived = projects.map((project) => ({ ...project, status: 'ARCHIVED' as const }))
+
+    const widened = render(acme, null, archived)
+    await widened.get('[data-testid="scope-trigger"]').trigger('click')
+    expect(widened.findAll('[data-testid="scope-project"]')).toHaveLength(0)
+
+    const scoped = render(acme, vega, archived)
+    await scoped.get('[data-testid="scope-trigger"]').trigger('click')
+    expect(scoped.findAll('[data-testid="scope-project"]')).toHaveLength(1)
+  })
+
   it('marks every company row, with its logo or its initial', async () => {
     const picker = render(null)
     await picker.get('[data-testid="scope-trigger"]').trigger('click')

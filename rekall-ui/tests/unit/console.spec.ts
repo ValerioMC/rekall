@@ -342,6 +342,15 @@ describe('console store', () => {
     expect(store.scopeName).toBe('All work')
   })
 
+  it('keeps an archived project’s tasks out of the navigator unless the scope names it', () => {
+    store.projects = store.projects.map((project) => (project.id === vega ? { ...project, status: 'ARCHIVED' } : project))
+
+    expect(store.visibleTasks.map((t) => t.label)).toEqual(['wiring'])
+
+    store.setScope(acme, vega)
+    expect(store.visibleTasks).toHaveLength(2)
+  })
+
   it('finds a task by either half of its anchor', () => {
     store.filter = 'vega/retry'
     expect(store.visibleTasks.map((t) => t.label)).toEqual(['retry-policy'])

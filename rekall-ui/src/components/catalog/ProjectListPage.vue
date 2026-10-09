@@ -44,8 +44,9 @@ function matchesOutsideStatus(project: Project): boolean {
   return hay.includes(needle)
 }
 
+/** Archived projects are listed only under their own filter, never among `All`. */
 function matches(project: Project): boolean {
-  if (statusFilter.value && project.status !== statusFilter.value) return false
+  if (statusFilter.value ? project.status !== statusFilter.value : project.status === 'ARCHIVED') return false
   return matchesOutsideStatus(project)
 }
 
@@ -55,7 +56,9 @@ function matches(project: Project): boolean {
  */
 const statusCounts = computed(() => {
   const inScope = store.projects.filter(matchesOutsideStatus)
-  const counts = new Map<ProjectStatus | null, number>([[null, inScope.length]])
+  const counts = new Map<ProjectStatus | null, number>([
+    [null, inScope.filter((project) => project.status !== 'ARCHIVED').length]
+  ])
   for (const status of PROJECT_STATUSES) {
     counts.set(status, inScope.filter((project) => project.status === status).length)
   }

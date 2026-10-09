@@ -17,7 +17,8 @@ const emit = defineEmits<{ 'update:modelValue': [value: string]; 'open-change': 
 const PROJECT_STATUS_TONE: Readonly<Record<ProjectStatus, 'accent' | 'neutral' | 'safe'>> = {
   ACTIVE: 'accent',
   PAUSED: 'neutral',
-  DONE: 'safe'
+  DONE: 'safe',
+  ARCHIVED: 'neutral'
 }
 
 const isOpen = ref(false)

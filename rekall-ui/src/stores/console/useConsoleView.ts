@@ -55,8 +55,18 @@ export function useConsoleView(state: ConsoleState) {
     return projects.value.find((project) => project.id === owner.id)?.companyId === companyInView
   }
 
+  const archivedProjectIds = computed(
+    () => new Set(projects.value.filter((project) => project.status === 'ARCHIVED').map((project) => project.id))
+  )
+
+  /** An archived project's work stays out of the navigator unless the scope names that project. */
+  const isShelved = (task: Task): boolean =>
+    archivedProjectIds.value.has(task.projectId) && scopeProject.value !== task.projectId
+
   const visibleTasks = computed(() =>
-    tasks.value.filter((task) => inScope(task) && matchesTask(task, filter.value)).sort(byTitle)
+    tasks.value
+      .filter((task) => inScope(task) && !isShelved(task) && matchesTask(task, filter.value))
+      .sort(byTitle)
   )
 
   const visibleDocuments = computed(() =>

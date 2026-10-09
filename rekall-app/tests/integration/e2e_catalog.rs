@@ -370,6 +370,17 @@ async fn a_task_label_that_two_projects_share_is_disambiguated_by_the_project_an
     );
 }
 
+#[tokio::test]
+async fn a_project_can_be_archived_and_stays_listed_with_that_status() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    app.a_project(&acme, "attic", "ARCHIVED").await;
+
+    let projects = app.get("/api/projects").await;
+
+    assert_eq!(projects.body[0]["status"], "ARCHIVED");
+}
+
 // Asserted as an exact list so adding a read or write tool breaks a test.
 #[tokio::test]
 async fn the_mcp_endpoint_exposes_one_way_to_read_and_seven_writes() {

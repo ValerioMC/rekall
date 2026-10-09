@@ -12,7 +12,7 @@ import type { NoteScope } from './note-scope'
 
 export const DOCUMENT_KINDS = ['context', 'notes', 'architecture', 'report', 'other'] as const
 
-export const PROJECT_STATUSES = ['ACTIVE', 'PAUSED', 'DONE'] as const
+export const PROJECT_STATUSES = ['ACTIVE', 'PAUSED', 'DONE', 'ARCHIVED'] as const
 export const TASK_STATUSES = ['BACKLOG', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DONE'] as const
 
 export const TASK_STEP_STATES = ['DRAFT', 'OPEN', 'RUNNING', 'CLAIMED', 'DONE'] as const
@@ -32,7 +32,8 @@ export function stepIsDraft(state: TaskStepState): boolean {
 export const PROJECT_STATUS_LABEL: Readonly<Record<ProjectStatus, string>> = {
   ACTIVE: 'Active',
   PAUSED: 'Paused',
-  DONE: 'Done'
+  DONE: 'Done',
+  ARCHIVED: 'Archived'
 }
 
 export const TASK_STATUS_LABEL: Readonly<Record<TaskStatus, string>> = {
@@ -67,7 +68,8 @@ export const TASK_STATUS_RING: Readonly<Record<TaskStatus, string>> = {
 export const PROJECT_STATUS_COLOR: Readonly<Record<ProjectStatus, string>> = {
   ACTIVE: 'bg-accent',
   PAUSED: 'bg-text-subtle',
-  DONE: 'bg-safe'
+  DONE: 'bg-safe',
+  ARCHIVED: 'bg-border-strong'
 }
 
 export interface Company {

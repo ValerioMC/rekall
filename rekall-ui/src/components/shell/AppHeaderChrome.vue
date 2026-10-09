@@ -11,11 +11,13 @@ const isDesktop = isDesktopApp()
 <!-- The one header instance for every screen: mounted once by Bootstrap, above `router-view`, so
      it never unmounts on navigation. Each screen teleports its own content (a search bar, a page
      title, its actions) into `#app-header-extra` rather than rendering a header of its own. One
-     48px row: the mark, history, the screen tabs, then whatever the screen puts there. -->
+     48px row: the mark, history, the screen tabs, then whatever the screen puts there. The slot is
+     `display: contents`, so teleported content lays out as the header's own children. When the
+     screen has a search bar the tabs take the space before it and sit centred in it. -->
 <template>
   <header
     :data-tauri-drag-region="isDesktop ? true : undefined"
-    class="glass sticky top-0 z-(--z-sticky) flex h-(--spacing-header) shrink-0 items-center gap-4 border-b border-border px-3"
+    class="glass group/header sticky top-0 z-(--z-sticky) flex h-(--spacing-header) shrink-0 items-center gap-4 border-b border-border px-3"
   >
     <WindowControls v-if="isDesktop" />
 
@@ -24,8 +26,10 @@ const isDesktop = isDesktopApp()
       <HistoryArrows />
     </div>
 
-    <AppNavSwitcher />
+    <div class="flex shrink-0 self-stretch group-has-[[data-header-search]]/header:flex-1 group-has-[[data-header-search]]/header:justify-center">
+      <AppNavSwitcher />
+    </div>
 
-    <div id="app-header-extra" class="flex min-w-0 flex-1 items-center gap-3"></div>
+    <div id="app-header-extra" class="contents"></div>
   </header>
 </template>

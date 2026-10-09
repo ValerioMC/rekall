@@ -8,7 +8,7 @@ export interface OrderedProject {
 }
 
 // Active projects float to the top so a paused or done one never buries what is live.
-const STATUS_RANK: Readonly<Record<ProjectStatus, number>> = { ACTIVE: 0, PAUSED: 1, DONE: 2 }
+const STATUS_RANK: Readonly<Record<ProjectStatus, number>> = { ACTIVE: 0, PAUSED: 1, DONE: 2, ARCHIVED: 3 }
 
 /**
  * Projects by status, then title. Across companies (`All work`) they are first gathered under

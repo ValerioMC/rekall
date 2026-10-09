@@ -22,6 +22,12 @@ describe('project order in the navigator', () => {
     expect(titles(projects.sort(compareProjects(true)))).toEqual(['Zephyr', 'Mira', 'Atlas'])
   })
 
+  it('puts archived projects after every other status', () => {
+    const projects = [project('Acme', 'Atlas', 'ARCHIVED'), project('Acme', 'Mira', 'DONE'), project('Acme', 'Zephyr')]
+
+    expect(titles(projects.sort(compareProjects(true)))).toEqual(['Zephyr', 'Mira', 'Atlas'])
+  })
+
   it('ignores the company when the view is already narrowed to one', () => {
     const projects = [project('Beta', 'Apollo'), project('Acme', 'Zephyr')]
 

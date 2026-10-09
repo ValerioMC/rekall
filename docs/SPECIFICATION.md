@@ -37,7 +37,7 @@ Something you work on over time, inside one company.
   project's public identifier.
 - **title** — the free-text name people actually call it. Can change at any time without
   affecting the label/identifier.
-- **status** — one of: Active, Paused, Done.
+- **status** — one of: Active, Paused, Done, Archived. An archived project leaves the console's navigator and scope picker and is listed only in the catalog's Archived filter.
 - **description** — a short prose summary of what the project is.
 - **blueprint** — a separate, long-form markdown document: how the project is built, how it's
   organized, and the conventions to follow while working in it — the project's own "how this

@@ -160,7 +160,7 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
 
 <template>
   <Teleport to="#app-header-extra">
-    <div class="relative mx-auto min-w-0 max-w-[620px] flex-1">
+    <div data-header-search class="relative min-w-0 flex-[0_1_620px]">
       <span
         class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 font-mono text-small text-anchor"
         aria-hidden="true"
@@ -234,7 +234,9 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
       </span>
     </div>
 
-    <HeaderStatus />
+    <div class="flex flex-1 justify-center">
+      <HeaderStatus />
+    </div>
 
     <div class="header-capsule" role="group" aria-label="Tools">
       <!-- The dot's colour carries the save state; the word stays for screen readers and as the tooltip. -->
