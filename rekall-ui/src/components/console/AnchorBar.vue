@@ -160,7 +160,7 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
 
 <template>
   <Teleport to="#app-header-extra">
-    <div data-header-search class="relative min-w-0 flex-[0_1_620px]">
+    <div data-header-search class="relative min-w-0">
       <span
         class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 font-mono text-small text-anchor"
         aria-hidden="true"
@@ -234,94 +234,96 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
       </span>
     </div>
 
-    <div class="flex flex-1 justify-center">
-      <HeaderStatus />
-    </div>
+    <div class="flex min-w-0 items-center gap-4">
+      <div class="flex flex-1 justify-center">
+        <HeaderStatus />
+      </div>
 
-    <div class="header-capsule" role="group" aria-label="Tools">
-      <!-- The dot's colour carries the save state; the word stays for screen readers and as the tooltip. -->
-      <p
-        class="grid size-5 place-items-center text-small"
-        :class="saveState === 'unsaved' ? 'text-warn' : 'text-text-subtle'"
-        :title="SAVE_LABEL[saveState]"
-        role="status"
-        aria-live="polite"
-        data-testid="save-state"
-      >
-        <span
-          class="size-1.5 rounded-full transition-colors"
-          :class="[SAVE_DOT[saveState], justSaved && 'settle']"
-          aria-hidden="true"
-        />
-        <span class="sr-only">{{ SAVE_LABEL[saveState] }}</span>
-      </p>
-      <button
-        type="button"
-        class="header-key focus-ring"
-        data-testid="tags-trigger"
-        aria-label="Tags"
-        title="Tags"
-        @click="emit('openTags')"
-      >
-        <!-- Drawn in the chrome's grey like the cog beside it: a lit crimson glyph here was the
-             only coloured icon in the bar, and colour up here means state, not a menu. -->
-        <svg class="size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path
-            d="M3.5 12.1V4.6a1.1 1.1 0 0 1 1.1-1.1h7.5a1.1 1.1 0 0 1 .78.32l7.8 7.8a1.1 1.1 0 0 1 0 1.56l-7.5 7.5a1.1 1.1 0 0 1-1.56 0l-7.8-7.8a1.1 1.1 0 0 1-.32-.78Z"
-            stroke="currentColor"
-            stroke-width="1.6"
-            stroke-linejoin="round"
-          />
-          <circle cx="8.2" cy="8.2" r="1.5" fill="currentColor" />
-        </svg>
-      </button>
-      <button
-        type="button"
-        class="header-key focus-ring"
-        data-testid="settings-trigger"
-        aria-label="Settings"
-        title="Settings"
-        @click="emit('openSettings')"
-      >
-        <svg class="size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path
-            d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"
-            stroke="currentColor"
-            stroke-width="1.6"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-          <path
-            d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"
-            stroke="currentColor"
-            stroke-width="1.6"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
-      </button>
-      <span class="mx-0.5 h-4 w-px bg-border" aria-hidden="true" />
-      <span class="group relative inline-block">
-        <AppButton
-          variant="primary"
-          size="sm"
-          :disabled="needsTaskForNote"
-          data-testid="new-note"
-          title="New note"
-          @click="emit('newNote')"
+      <div class="header-capsule" role="group" aria-label="Tools">
+        <!-- The dot's colour carries the save state; the word stays for screen readers and as the tooltip. -->
+        <p
+          class="grid size-5 place-items-center text-small"
+          :class="saveState === 'unsaved' ? 'text-warn' : 'text-text-subtle'"
+          :title="SAVE_LABEL[saveState]"
+          role="status"
+          aria-live="polite"
+          data-testid="save-state"
         >
-          <svg class="size-3.5 min-[1280px]:hidden" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-            <path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          <span
+            class="size-1.5 rounded-full transition-colors"
+            :class="[SAVE_DOT[saveState], justSaved && 'settle']"
+            aria-hidden="true"
+          />
+          <span class="sr-only">{{ SAVE_LABEL[saveState] }}</span>
+        </p>
+        <button
+          type="button"
+          class="header-key focus-ring"
+          data-testid="tags-trigger"
+          aria-label="Tags"
+          title="Tags"
+          @click="emit('openTags')"
+        >
+          <!-- Drawn in the chrome's grey like the cog beside it: a lit crimson glyph here was the
+               only coloured icon in the bar, and colour up here means state, not a menu. -->
+          <svg class="size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M3.5 12.1V4.6a1.1 1.1 0 0 1 1.1-1.1h7.5a1.1 1.1 0 0 1 .78.32l7.8 7.8a1.1 1.1 0 0 1 0 1.56l-7.5 7.5a1.1 1.1 0 0 1-1.56 0l-7.8-7.8a1.1 1.1 0 0 1-.32-.78Z"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linejoin="round"
+            />
+            <circle cx="8.2" cy="8.2" r="1.5" fill="currentColor" />
           </svg>
-          <span class="max-[1279px]:sr-only">New note</span>
-        </AppButton>
-        <span
-          v-if="needsTaskForNote"
-          class="pointer-events-none absolute right-0 top-full z-(--z-sticky) mt-2 whitespace-nowrap rounded-control border border-border-strong bg-surface-raised px-2.5 py-1.5 text-small text-text opacity-0 shadow-lift transition-opacity duration-(--motion-quick) group-hover:opacity-100"
+        </button>
+        <button
+          type="button"
+          class="header-key focus-ring"
+          data-testid="settings-trigger"
+          aria-label="Settings"
+          title="Settings"
+          @click="emit('openSettings')"
         >
-          Select a task to create a new note on it
+          <svg class="size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+        <span class="mx-0.5 h-4 w-px bg-border" aria-hidden="true" />
+        <span class="group relative inline-block">
+          <AppButton
+            variant="primary"
+            size="sm"
+            :disabled="needsTaskForNote"
+            data-testid="new-note"
+            title="New note"
+            @click="emit('newNote')"
+          >
+            <svg class="size-3.5 min-[1280px]:hidden" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            </svg>
+            <span class="max-[1279px]:sr-only">New note</span>
+          </AppButton>
+          <span
+            v-if="needsTaskForNote"
+            class="pointer-events-none absolute right-0 top-full z-(--z-sticky) mt-2 whitespace-nowrap rounded-control border border-border-strong bg-surface-raised px-2.5 py-1.5 text-small text-text opacity-0 shadow-lift transition-opacity duration-(--motion-quick) group-hover:opacity-100"
+          >
+            Select a task to create a new note on it
+          </span>
         </span>
-      </span>
+      </div>
     </div>
   </Teleport>
 </template>

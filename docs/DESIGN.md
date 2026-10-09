@@ -617,7 +617,7 @@ window both narrow to 272px, so at the desktop shell's 960px minimum the note st
 column of about 420px.
 
 The header is one 48px row (`--spacing-header`, shared by the pane headers so their rules line
-up): the 24px mark, the history arrows, the screen tabs, then what the screen teleports in. A
+up), a four-cell grid: the 24px mark with the history arrows, the screen tabs centred in a flexible cell, a centre cell of at most 620px and a flexible right cell. A screen teleports exactly two children into the last two, so the tabs sit in the same place on every screen; the console puts the `/rk` field in the centre and the readings and tools on the right, the others a title and actions. A
 screen tab is text with an amber rule under the screen you are on (`nav-tab`, `nav-tab-current`).
 On the console the `/rk` field is also the location bar: at rest it shows the open note's or
 task's anchors, or the scope's, as chips, and focused it is the search. Everything right of

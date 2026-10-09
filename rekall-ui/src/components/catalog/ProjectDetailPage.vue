@@ -245,10 +245,11 @@ onUnmounted(() => {
 
     <template v-else-if="!project">
       <Teleport to="#app-header-extra">
-        <span class="h-5 w-px shrink-0 bg-border-strong" aria-hidden="true" />
-        <div class="flex min-w-0 flex-1 items-center gap-3" aria-hidden="true">
+        <div class="flex min-w-0 items-center gap-3" aria-hidden="true">
+          <span class="h-5 w-px shrink-0 bg-border-strong" />
           <div class="skeleton h-4 w-64" />
         </div>
+        <div />
       </Teleport>
       <div class="mx-auto flex w-full max-w-[1800px] flex-col gap-4 px-6 py-6 2xl:px-10" aria-hidden="true">
         <div class="skeleton h-32 rounded-card" />
