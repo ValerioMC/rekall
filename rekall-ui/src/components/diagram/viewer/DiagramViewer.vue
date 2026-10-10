@@ -194,7 +194,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
     </div>
 
     <div class="pointer-events-none absolute bottom-4 right-4 top-[76px] flex flex-col items-end justify-end gap-3">
-      <Transition name="fade-quick">
+      <Transition name="pane" mode="out-in">
         <ElementPanel
           v-if="detail"
           :key="detail.key"
