@@ -58,9 +58,11 @@ export const useDiagramStore = defineStore('diagram', () => {
 
   const current = computed<Diagram | null>(() => (selectedId.value ? cache.value[selectedId.value] ?? null : null))
 
+  /** Also settles generations whose diagram arrived while no stream was listening. */
   async function load(): Promise<void> {
     summaries.value = await fetchDiagrams()
     loaded.value = true
+    settleAnswered(summaries.value)
   }
 
   async function open(id: DiagramId): Promise<void> {
@@ -123,12 +125,18 @@ export const useDiagramStore = defineStore('diagram', () => {
     const summary = event.diagram
     upsertSummary(summary)
     cache.value = without(cache.value, summary.id)
-    const answered = pending.value.find((generation) => generation.projectId === summary.projectId && generation.taskId === summary.taskId)
-    if (answered) {
-      dismissPending(answered.key)
-      arrivedId.value = summary.id
-    }
+    settleAnswered([summary])
     if (selectedId.value === summary.id) await open(summary.id)
+  }
+
+  /** Dismisses every pending generation one of these diagrams answers; the latest generation's answer is marked as arrived. */
+  function settleAnswered(candidates: readonly DiagramSummary[]): void {
+    const answerOf = (generation: PendingGeneration): DiagramSummary | undefined => candidates.find((summary) => answers(summary, generation))
+    const answered = pending.value.filter((generation) => answerOf(generation) !== undefined)
+    const latest = answered[0]
+    if (!latest) return
+    setPending(pending.value.filter((generation) => !answered.includes(generation)))
+    arrivedId.value = answerOf(latest)?.id ?? null
   }
 
   function upsertSummary(summary: DiagramSummary): void {
@@ -160,6 +168,12 @@ export const useDiagramStore = defineStore('diagram', () => {
     applyEvent
   }
 })
+
+/** A generation is answered by a diagram on its project and task written after it started; an older one cannot be its answer. */
+function answers(summary: DiagramSummary, generation: PendingGeneration): boolean {
+  const sameOrigin = summary.projectId === generation.projectId && summary.taskId === generation.taskId
+  return sameOrigin && Date.parse(summary.updatedAt) >= generation.startedAt
+}
 
 function without(cache: Readonly<Record<string, Diagram>>, id: string): Record<string, Diagram> {
   const kept = { ...cache }
