@@ -1,8 +1,10 @@
-use rekall_common::{jstr, Id, RekallError, Result};
+use rekall_common::{jstr, RekallError, Result};
+use rekall_model::{project, task};
+use rekall_repository::repository as repo;
 
 use crate::{in_read, load, Ctx};
 
-use super::TerminalLaunch;
+use super::{TerminalLaunch, TerminalTarget};
 
 #[derive(Clone)]
 pub struct TerminalLaunchService {
@@ -15,23 +17,31 @@ impl TerminalLaunchService {
     }
 
     /// The folder is the project's `repo_folder`; a project without one is refused here.
-    pub async fn resolve(&self, task_id: Id) -> Result<TerminalLaunch> {
+    pub async fn resolve(&self, target: TerminalTarget) -> Result<TerminalLaunch> {
         in_read!(&self.ctx, |tx| {
-            let task = load::task_or_unknown(tx.db(), task_id).await?;
-            let project = load::project_of(tx.db(), &task).await?;
-            let Some(folder) = project.repo_folder.as_deref().filter(|f| !jstr::is_blank(f)) else {
-                return Err(RekallError::illegal(
-                    "Set this project's folder on its page before opening a terminal here.",
-                ));
+            let (project, task) = match target {
+                TerminalTarget::Task(task_id) => {
+                    let task = load::task_or_unknown(tx.db(), task_id).await?;
+                    (load::project_of(tx.db(), &task).await?, Some(task))
+                }
+                TerminalTarget::Project(project_id) => (repo::project::require(tx.db(), project_id).await?, None),
             };
-            Ok(TerminalLaunch {
-                task_id,
-                anchors: task.anchor(&project.label),
-                working_dir: jstr::strip(folder).to_string(),
-                project_label: project.label.clone(),
-                task_label: task.label.clone(),
-                task_title: task.title.clone(),
-            })
+            launch_of(&project, task.as_ref())
         })
     }
+}
+
+fn launch_of(project: &project::Model, task: Option<&task::Model>) -> Result<TerminalLaunch> {
+    let Some(folder) = project.repo_folder.as_deref().filter(|f| !jstr::is_blank(f)) else {
+        return Err(RekallError::illegal("Set this project's folder on its page before opening a terminal here."));
+    };
+    Ok(TerminalLaunch {
+        project_id: project.id,
+        task_id: task.map(|task| task.id),
+        anchors: task.map_or_else(|| project.anchor(), |task| task.anchor(&project.label)),
+        working_dir: jstr::strip(folder).to_string(),
+        project_label: project.label.clone(),
+        task_label: task.map(|task| task.label.clone()),
+        task_title: task.map(|task| task.title.clone()),
+    })
 }

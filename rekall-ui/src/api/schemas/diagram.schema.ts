@@ -1,10 +1,11 @@
 import { z } from 'zod'
 import { asDiagramId, asProjectId, asTaskId } from '@/model/branded'
-import type { GraphEdge, GraphNode, SemanticGraph, SourceLocation } from '@/model/diagram'
+import { DIAGRAM_KINDS, type DiagramSheet, type SourceLocation } from '@/model/diagram'
 
-const provenance = z.enum(['observed', 'inferred', 'documented', 'stated'])
-const metadata = z.record(z.unknown())
+const kind = z.enum(DIAGRAM_KINDS)
 
+// The server omits empty optional fields to keep stored documents small; they are filled in
+// here so every consumer reads one complete shape.
 const SourceLocationSchema: z.ZodType<SourceLocation, z.ZodTypeDef, unknown> = z.object({
   file: z.string(),
   startLine: z.number().int().nullish().transform((value) => value ?? null),
@@ -12,35 +13,11 @@ const SourceLocationSchema: z.ZodType<SourceLocation, z.ZodTypeDef, unknown> = z
   symbol: z.string().nullish().transform((value) => value ?? null)
 })
 
-// The server omits empty optional fields to keep stored graphs small; they are filled in here
-// so every consumer reads one complete shape.
-const GraphNodeSchema: z.ZodType<GraphNode, z.ZodTypeDef, unknown> = z.object({
-  id: z.string(),
-  kind: z.string(),
-  title: z.string(),
-  description: z.string().nullish().transform((value) => value ?? null),
-  sources: z.array(SourceLocationSchema).default([]),
-  provenance: provenance.nullish().transform((value) => value ?? null),
-  confidence: z.number().nullish().transform((value) => value ?? null),
-  metadata: metadata.default({})
-})
-
-const GraphEdgeSchema: z.ZodType<GraphEdge, z.ZodTypeDef, unknown> = z.object({
-  id: z.string(),
-  from: z.string(),
-  to: z.string(),
-  relation: z.string(),
-  label: z.string().nullish().transform((value) => value ?? null),
-  provenance: provenance.nullish().transform((value) => value ?? null),
-  confidence: z.number().nullish().transform((value) => value ?? null),
-  metadata: metadata.default({})
-})
-
-export const SemanticGraphSchema: z.ZodType<SemanticGraph, z.ZodTypeDef, unknown> = z.object({
-  format: z.string(),
-  version: z.number().int(),
-  nodes: z.array(GraphNodeSchema),
-  edges: z.array(GraphEdgeSchema).default([])
+const DiagramSheetSchema: z.ZodType<DiagramSheet, z.ZodTypeDef, unknown> = z.object({
+  kind,
+  title: z.string().nullish().transform((value) => value ?? null),
+  mermaid: z.string(),
+  links: z.record(z.array(SourceLocationSchema)).default({})
 })
 
 const summaryShape = {
@@ -49,8 +26,7 @@ const summaryShape = {
   taskId: z.string().uuid().transform(asTaskId).nullable(),
   title: z.string(),
   question: z.string(),
-  nodeCount: z.number().int(),
-  edgeCount: z.number().int(),
+  kinds: z.array(kind),
   createdAt: z.string(),
   updatedAt: z.string()
 }
@@ -59,7 +35,7 @@ export const DiagramSummarySchema = z.object(summaryShape)
 
 export const DiagramSummaryListSchema = z.array(DiagramSummarySchema)
 
-export const DiagramSchema = z.object({ ...summaryShape, graph: SemanticGraphSchema })
+export const DiagramSchema = z.object({ ...summaryShape, sheets: z.array(DiagramSheetSchema) })
 
 export const SourceExcerptSchema = z.object({
   file: z.string(),

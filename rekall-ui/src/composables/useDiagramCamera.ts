@@ -16,7 +16,7 @@ export interface DiagramCamera {
 const KEY: InjectionKey<DiagramCamera> = Symbol('diagram-camera')
 const DURATION_MS = 260
 /** What the floating title card, toolbar and corner panels cover, kept clear when fitting. */
-const FIT_INSETS = { top: 132, right: 48, bottom: 48, left: 48 }
+const FIT_INSETS = { top: 184, right: 48, bottom: 48, left: 48 }
 
 export function provideDiagramCamera(): DiagramCamera {
   const camera = ref<Camera>({ x: 0, y: 0, k: 1 })

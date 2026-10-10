@@ -1,6 +1,6 @@
-//! A stored Semantic Graph: what a session was asked, and the graph it answered with, kept as
-//! the JSON text `rekall-diagram` reads. It belongs to a project, whose folder its source paths
-//! are relative to, and remembers the task it was generated from while that task exists.
+//! A stored diagram: what a session was asked, and the Mermaid sheets it answered with, kept as
+//! the JSON document `rekall-diagram` reads. It belongs to a project, whose folder its source
+//! paths are relative to, and remembers the task it was generated from while that task exists.
 
 use rekall_common::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;
@@ -9,6 +9,7 @@ use crate::constraints::Violations;
 
 pub const TITLE_MAX_CHARACTERS: usize = 200;
 pub const QUESTION_MAX_CHARACTERS: usize = 4000;
+pub const KINDS_MAX_CHARACTERS: usize = 400;
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
 #[sea_orm(table_name = "diagram")]
@@ -20,9 +21,9 @@ pub struct Model {
     pub title: String,
     /// The request or context the graph answers, in the words it was asked in.
     pub question: String,
-    pub graph_json: String,
-    pub node_count: i32,
-    pub edge_count: i32,
+    /// Each sheet's Mermaid type, comma-separated in sheet order, so a list needs no document.
+    pub kinds: String,
+    pub document_json: String,
     pub created_at: Instant,
     pub updated_at: Instant,
 }
@@ -55,7 +56,9 @@ impl Model {
             .not_blank("title", Some(&self.title))
             .max_length("title", Some(&self.title), TITLE_MAX_CHARACTERS)
             .max_length("question", Some(&self.question), QUESTION_MAX_CHARACTERS)
-            .not_blank("graphJson", Some(&self.graph_json))
+            .not_blank("kinds", Some(&self.kinds))
+            .max_length("kinds", Some(&self.kinds), KINDS_MAX_CHARACTERS)
+            .not_blank("documentJson", Some(&self.document_json))
             .finish()
     }
 }

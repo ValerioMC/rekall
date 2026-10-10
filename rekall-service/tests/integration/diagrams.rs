@@ -1,46 +1,53 @@
 //! Diagrams through the service: written whole, read back, replaced in place, generated for a
-//! task with their spans held against the project folder, traced from code back to their
-//! elements, and gone with their project.
+//! project or a task with their spans held against the project folder, and gone with their
+//! project.
 
 mod support;
 
 use rekall_common::RekallError;
+use rekall_diagram::DiagramKind;
 use rekall_model::prelude::*;
-use rekall_service::diagram::{DiagramDraft, DiagramService, GeneratedDiagram};
+use rekall_service::diagram::{DiagramDraft, DiagramService, DiagramTarget, GeneratedDiagram};
 use rekall_service::DomainEvent;
 use sea_orm::EntityTrait;
 use serde_json::json;
 use support::world;
 
+const CHECKOUT: &str = "sequenceDiagram
+  participant S as OrderService
+  participant P as Payments
+  S->>P: charge(card)
+  P-->>S: receipt";
+
 fn order_flow() -> serde_json::Value {
     json!({
-        "format": "rekall.semantic-graph",
-        "version": 1,
-        "nodes": [
-            {"id": "process", "kind": "code", "title": "process_order()", "sources": [{"file": "src/order.rs", "startLine": 10, "endLine": 120, "symbol": "process_order"}]},
-            {"id": "validate", "kind": "action", "title": "Validate order", "sources": [{"file": "src/order.rs", "startLine": 12, "endLine": 30}], "provenance": "inferred", "confidence": 0.9},
-            {"id": "paid", "kind": "decision", "title": "Payment accepted?"}
-        ],
-        "edges": [
-            {"from": "process", "to": "validate", "relation": "contains"},
-            {"from": "validate", "to": "paid", "relation": "leads_to"}
+        "sheets": [
+            {
+                "title": "Checkout",
+                "mermaid": CHECKOUT,
+                "links": {
+                    "S": [{"file": "src/order.rs", "startLine": 10, "endLine": 120, "symbol": "OrderService"}],
+                    "#1": [{"file": "src/order.rs", "startLine": 12, "endLine": 30, "symbol": "charge"}]
+                }
+            },
+            { "mermaid": "stateDiagram-v2\n  [*] --> Pending\n  Pending --> Paid: pay" }
         ]
     })
 }
 
-fn draft(project_id: rekall_common::Id, graph: serde_json::Value) -> DiagramDraft {
+fn draft(project_id: rekall_common::Id, document: serde_json::Value) -> DiagramDraft {
     DiagramDraft {
         id: None,
         project_id,
         task_id: None,
         title: " Order flow ".into(),
         question: "How is an order processed?".into(),
-        graph: DiagramService::read_graph(graph).unwrap(),
+        document: DiagramService::read_document(document).unwrap(),
     }
 }
 
 #[tokio::test]
-async fn a_diagram_is_written_whole_listed_without_its_graph_and_read_back_in_full() {
+async fn a_diagram_is_written_whole_listed_with_its_kinds_and_read_back_in_full() {
     let world = world().await;
     let project = world.project("shop", None, false).await;
     let mut events = world.services.ctx.events.subscribe();
@@ -48,12 +55,13 @@ async fn a_diagram_is_written_whole_listed_without_its_graph_and_read_back_in_fu
     let written = world.services.diagrams.write(draft(project.id, order_flow())).await.unwrap();
 
     assert_eq!(written.summary.title, "Order flow");
-    assert_eq!((written.summary.node_count, written.summary.edge_count), (3, 2));
+    assert_eq!(written.summary.kinds, vec![DiagramKind::Sequence, DiagramKind::State]);
     let listed = world.services.diagrams.list().await.unwrap();
     assert_eq!(listed, vec![written.summary.clone()]);
     let read = world.services.diagrams.get(written.summary.id).await.unwrap();
-    assert_eq!(read.graph, written.graph);
-    assert_eq!(read.graph.edges[1].id, "e2");
+    assert_eq!(read, written);
+    assert_eq!(read.sheets[0].kind, DiagramKind::Sequence);
+    assert_eq!(read.sheets[0].links["#1"][0].symbol.as_deref(), Some("charge"));
     assert!(matches!(events.try_recv().unwrap(), DomainEvent::Diagram(event) if event.diagram_id == written.summary.id && !event.deleted));
 }
 
@@ -90,32 +98,17 @@ async fn the_originating_task_has_to_be_on_the_same_project() {
 }
 
 #[tokio::test]
-async fn a_graph_breaking_the_rules_is_refused_with_every_reason() {
+async fn a_document_breaking_the_rules_is_refused_with_every_reason() {
     let mut broken = order_flow();
-    broken["edges"][1]["to"] = json!("ghost");
-    broken["nodes"][2]["confidence"] = json!(3);
+    broken["sheets"][0]["links"]["Ghost"] = json!([{"file": "src/order.rs"}]);
+    broken["sheets"][1]["mermaid"] = json!("A --> B");
 
-    let refused = DiagramService::read_graph(broken).unwrap_err();
-    assert!(refused.message().contains("nodes[2].confidence"), "{refused}");
-    assert!(refused.message().contains("edges[1].to"), "{refused}");
+    let refused = DiagramService::read_document(broken).unwrap_err();
+    assert!(refused.message().contains(r#"sheets[0].links["Ghost"]"#), "{refused}");
+    assert!(refused.message().contains("sheets[1].mermaid"), "{refused}");
 
-    let foreign = json!({"format": "mermaid", "version": 1, "nodes": []});
-    assert!(DiagramService::read_graph(foreign).unwrap_err().message().contains("Unknown format"));
-}
-
-#[tokio::test]
-async fn a_line_of_code_traces_back_to_the_elements_that_cover_it() {
-    let world = world().await;
-    let project = world.project("shop", None, false).await;
-    let written = world.services.diagrams.write(draft(project.id, order_flow())).await.unwrap();
-
-    let traces = world.services.diagrams.trace(project.id, "./src/order.rs", 20).await.unwrap();
-    assert_eq!(traces.len(), 1);
-    assert_eq!(traces[0].diagram_id, written.summary.id);
-    let ids: Vec<&str> = traces[0].hits.iter().map(|hit| hit.node_id.as_str()).collect();
-    assert_eq!(ids, vec!["validate", "process"]);
-
-    assert!(world.services.diagrams.trace(project.id, "src/order.rs", 500).await.unwrap().is_empty());
+    let foreign = json!({"format": "rekall.semantic-graph", "nodes": []});
+    assert!(DiagramService::read_document(foreign).unwrap_err().message().contains("Not a diagram document"));
 }
 
 #[tokio::test]
@@ -143,14 +136,13 @@ fn order_folder() -> tempfile::TempDir {
     folder
 }
 
-fn generated(graph: serde_json::Value) -> GeneratedDiagram {
+fn on_task(document: serde_json::Value) -> GeneratedDiagram {
     GeneratedDiagram {
-        project_label: Some("shop".into()),
-        task_label: "orders".into(),
+        target: DiagramTarget::Task { project_label: Some("shop".into()), task_label: "orders".into() },
         diagram_id: None,
         title: "Order flow".into(),
         question: "How is an order processed?".into(),
-        graph: DiagramService::read_graph(graph).unwrap(),
+        document: DiagramService::read_document(document).unwrap(),
     }
 }
 
@@ -161,18 +153,36 @@ async fn a_generated_diagram_lands_on_the_anchored_task_and_its_project() {
     let project = world.project("shop", Some(&folder.path().to_string_lossy()), false).await;
     let task = world.task(&project, "orders").await;
 
-    let written = world.services.diagrams.write_generated(generated(order_flow())).await.unwrap();
+    let written = world.services.diagrams.write_generated(on_task(order_flow())).await.unwrap();
 
     assert_eq!(written.diagram.summary.project_id, project.id);
     assert_eq!(written.diagram.summary.task_id, Some(task.id));
-    assert_eq!(written.task_anchor, "project:shop task:orders");
+    assert_eq!(written.anchors, "project:shop task:orders");
     assert!(written.sources_checked && !written.replaced);
 
-    let mut again = generated(order_flow());
+    let mut again = on_task(order_flow());
     again.diagram_id = Some(written.diagram.summary.id);
     let replaced = world.services.diagrams.write_generated(again).await.unwrap();
     assert!(replaced.replaced);
     assert_eq!(world.services.diagrams.list().await.unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn a_generated_diagram_can_belong_to_the_project_alone() {
+    let world = world().await;
+    let project = world.project("shop", None, false).await;
+    let mut generated = on_task(order_flow());
+    generated.target = DiagramTarget::Project { label: "shop".into() };
+
+    let written = world.services.diagrams.write_generated(generated).await.unwrap();
+
+    assert_eq!(written.diagram.summary.project_id, project.id);
+    assert_eq!(written.diagram.summary.task_id, None);
+    assert_eq!(written.anchors, "project:shop");
+
+    let mut unknown = on_task(order_flow());
+    unknown.target = DiagramTarget::Project { label: "warehouse".into() };
+    assert!(matches!(world.services.diagrams.write_generated(unknown).await, Err(RekallError::UnknownAnchor(_))));
 }
 
 #[tokio::test]
@@ -182,14 +192,14 @@ async fn a_generated_diagram_citing_code_that_is_not_there_is_refused_and_not_st
     let project = world.project("shop", Some(&folder.path().to_string_lossy()), false).await;
     world.task(&project, "orders").await;
     let mut guessed = order_flow();
-    guessed["nodes"][0]["sources"][0]["endLine"] = json!(400);
-    guessed["nodes"][1]["sources"][0]["file"] = json!("src/checkout.rs");
+    guessed["sheets"][0]["links"]["S"][0]["endLine"] = json!(400);
+    guessed["sheets"][0]["links"]["#1"][0]["file"] = json!("src/checkout.rs");
 
-    let refused = world.services.diagrams.write_generated(generated(guessed)).await.unwrap_err();
+    let refused = world.services.diagrams.write_generated(on_task(guessed)).await.unwrap_err();
 
     assert!(matches!(refused, RekallError::IllegalArgument(_)));
-    assert!(refused.message().contains("nodes[0].sources[0].endLine"), "{refused}");
-    assert!(refused.message().contains("nodes[1].sources[0].file"), "{refused}");
+    assert!(refused.message().contains(r#"sheets[0].links["S"][0].endLine"#), "{refused}");
+    assert!(refused.message().contains(r##"sheets[0].links["#1"][0].file"##), "{refused}");
     assert!(world.services.diagrams.list().await.unwrap().is_empty());
 }
 
@@ -199,10 +209,10 @@ async fn without_a_project_folder_a_generated_diagram_is_stored_unchecked() {
     let project = world.project("shop", None, false).await;
     world.task(&project, "orders").await;
 
-    let written = world.services.diagrams.write_generated(generated(order_flow())).await.unwrap();
+    let written = world.services.diagrams.write_generated(on_task(order_flow())).await.unwrap();
     assert!(!written.sources_checked);
 
-    let mut unknown = generated(order_flow());
-    unknown.task_label = "billing".into();
+    let mut unknown = on_task(order_flow());
+    unknown.target = DiagramTarget::Task { project_label: Some("shop".into()), task_label: "billing".into() };
     assert!(matches!(world.services.diagrams.write_generated(unknown).await, Err(RekallError::UnknownAnchor(_))));
 }

@@ -2,14 +2,14 @@
 /** The Claude sessions open right now, each one click from its terminal, and what the run queue starts next. */
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/stores/terminal.store'
 import { useRunQueueStore } from '@/stores/runQueue.store'
 import { useNow } from '@/composables/useNow'
 import { formatDuration } from '@/common/format/duration'
+import { sessionTitle } from '@/common/format/session-title'
+import { useOpenSession } from '@/composables/useOpenSession'
 import type { Terminal } from '@/model/terminal'
 
-const store = useConsoleStore()
 const terminals = useTerminalStore()
 const runQueue = useRunQueueStore()
 const { terminals: allTerminals } = storeToRefs(terminals)
@@ -19,11 +19,7 @@ const now = useNow(30_000)
 const live = computed(() => allTerminals.value.filter((terminal) => terminal.live))
 const nextQueued = computed(() => queue.value.items.find((item) => item.state === 'QUEUED') ?? null)
 
-function openSession(terminal: Terminal): void {
-  store.selectTask(terminal.taskId)
-  store.openTerminal()
-  terminals.select(terminal.id)
-}
+const openSession = useOpenSession()
 
 function elapsed(terminal: Terminal): string {
   return formatDuration((now.value - Date.parse(terminal.startedAt)) / 1000)
@@ -51,7 +47,7 @@ function elapsed(terminal: Terminal): string {
         >
           <span class="mx-1.5 size-2 shrink-0 rounded-full bg-safe shadow-[0_0_0_4px_var(--color-safe-soft)]" aria-hidden="true" />
           <span class="min-w-0 flex-1">
-            <span class="block truncate text-body text-text">{{ terminal.taskTitle }}</span>
+            <span class="block truncate text-body text-text">{{ sessionTitle(terminal) }}</span>
             <span class="mt-0.5 block truncate font-mono text-caption text-anchor">{{ terminal.anchors }}</span>
           </span>
           <span class="shrink-0 font-mono text-caption tabular-nums text-safe">{{ elapsed(terminal) }}</span>

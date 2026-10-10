@@ -103,6 +103,7 @@ const task: Task = {
 function terminal(over: Partial<Terminal> = {}): Terminal {
   return {
     id: 'term-1' as TerminalId,
+    projectId: 'p-1' as ProjectId,
     taskId: TASK,
     stepId: null as TaskStepId | null,
     anchors: task.anchor,

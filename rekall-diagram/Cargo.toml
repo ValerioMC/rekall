@@ -1,10 +1,9 @@
 [package]
 name = "rekall-diagram"
-description = "The Semantic Graph: the structured language a session describes a system's behaviour in, its validation and its code traceability"
+description = "A diagram as a session writes it: Mermaid sheets, the code links on their elements, and the rules both satisfy"
 version.workspace = true
 edition.workspace = true
 
 [dependencies]
 serde.workspace = true
 serde_json.workspace = true
-regex.workspace = true

@@ -546,23 +546,24 @@ async fn a_diagram_goes_in_whole_is_listed_read_back_shows_its_code_and_is_delet
     std::fs::write(folder.path().join("src/order.rs"), "fn a() {}\nfn process_order() {\n    validate();\n}\n").unwrap();
     let company = app.a_company("Acme").await;
     let project = app.a_project_in(&company, "shop", folder.path()).await;
-    let graph = json!({
-        "format": "rekall.semantic-graph", "version": 1,
-        "nodes": [
-            {"id": "process", "kind": "code", "title": "process_order()", "sources": [{"file": "src/order.rs", "startLine": 2, "endLine": 4}]},
-            {"id": "validate", "kind": "action", "title": "Validate", "sources": [{"file": "src/order.rs", "startLine": 3}]}
-        ],
-        "edges": [{"from": "process", "to": "validate", "relation": "contains"}]
-    });
+    let sheets = json!([{
+        "title": "Orders",
+        "mermaid": "flowchart LR\n  process[process_order] --> validate[Validate]",
+        "links": {
+            "process": [{"file": "src/order.rs", "startLine": 2, "endLine": 4}],
+            "validate": [{"file": "src/order.rs", "startLine": 3}]
+        }
+    }]);
 
-    let created = app.post("/api/diagrams", json!({ "projectId": project, "title": "Orders", "question": "How?", "graph": graph })).await;
+    let created = app.post("/api/diagrams", json!({ "projectId": project, "title": "Orders", "question": "How?", "sheets": sheets })).await;
     assert_eq!(created.status, 201, "{}", created.text);
     let diagram = created.str("id");
-    assert_eq!(created.body.pointer("/graph/edges/0/id"), Some(&json!("e1")));
+    assert_eq!(created.body.pointer("/sheets/0/kind"), Some(&json!("flowchart")));
+    assert_eq!(created.body.pointer("/kinds"), Some(&json!(["flowchart"])));
 
     let listed = app.get("/api/diagrams").await;
     assert_eq!(listed.list().len(), 1);
-    assert!(listed.list()[0].get("graph").is_none(), "a list carries no graph");
+    assert!(listed.list()[0].get("sheets").is_none(), "a list carries no sheets");
 
     let excerpt = app.get(&format!("/api/diagrams/{diagram}/source?file=src/order.rs&start=3")).await;
     assert_eq!(excerpt.status, 200, "{}", excerpt.text);
@@ -571,12 +572,9 @@ async fn a_diagram_goes_in_whole_is_listed_read_back_shows_its_code_and_is_delet
     let escaping = app.get(&format!("/api/diagrams/{diagram}/source?file=../../etc/hosts")).await;
     assert!(escaping.status == 400 || escaping.status == 404, "{}", escaping.text);
 
-    let traced = app.get(&format!("/api/projects/{project}/diagram-trace?file=src/order.rs&line=3")).await;
-    assert_eq!(traced.list()[0].pointer("/hits/0/nodeId"), Some(&json!("validate")));
-
-    let refused = app.post("/api/diagrams", json!({ "projectId": project, "title": "Bad", "graph": {"format": "rekall.semantic-graph", "version": 1, "nodes": []} })).await;
+    let refused = app.post("/api/diagrams", json!({ "projectId": project, "title": "Bad", "sheets": [] })).await;
     assert_eq!(refused.status, 400);
-    assert!(refused.detail().contains("nodes: a graph needs at least one node"), "{}", refused.detail());
+    assert!(refused.detail().contains("sheets: a diagram needs at least one sheet"), "{}", refused.detail());
 
     assert_eq!(app.delete(&format!("/api/diagrams/{diagram}")).await.status, 204);
     assert_eq!(app.get(&format!("/api/diagrams/{diagram}")).await.status, 404);
@@ -591,38 +589,44 @@ async fn a_session_stores_a_generated_diagram_through_mcp_only_when_its_spans_ar
     let company = app.a_company("Acme").await;
     let project = app.a_project_in(&company, "shop", folder.path()).await;
     let task = app.a_task(&project, "orders").await;
-    let graph = |end_line: u32| {
-        json!({
-            "format": "rekall.semantic-graph", "version": 1,
-            "nodes": [
-                {"id": "process", "kind": "code", "title": "process_order()", "sources": [{"file": "src/order.rs", "startLine": 2, "endLine": end_line}]},
-                {"id": "validate", "kind": "action", "title": "Validate", "provenance": "observed", "sources": [{"file": "src/order.rs", "startLine": 3}]},
-                {"id": "idea", "kind": "concept", "title": "Orders are checked first", "provenance": "inferred"}
-            ],
-            "edges": [{"from": "process", "to": "validate", "relation": "contains"}]
-        })
+    let sheets = |end_line: u32| {
+        json!([
+            {
+                "mermaid": "sequenceDiagram\n  participant O as Orders\n  participant V as Validator\n  O->>+V: validate()\n  V-->>-O: ok",
+                "links": {
+                    "O": [{"file": "src/order.rs", "startLine": 2, "endLine": end_line, "symbol": "process_order"}],
+                    "#1": [{"file": "src/order.rs", "startLine": 3}]
+                }
+            },
+            { "mermaid": "stateDiagram-v2\n  [*] --> Checked" }
+        ])
     };
-    let arguments = |graph: serde_json::Value| {
-        json!({ "anchors": "project:shop task:orders", "title": "Orders", "question": "How is an order processed?", "graph": graph })
+    let arguments = |anchors: &str, sheets: serde_json::Value| {
+        json!({ "anchors": anchors, "title": "Orders", "question": "How is an order processed?", "sheets": sheets })
     };
 
-    let refused = app.call_tool("rekall_diagram", arguments(graph(90))).await;
-    assert!(refused.contains("nodes[0].sources[0].endLine: line 90 is past the end of src/order.rs (4 lines)"), "{refused}");
+    let refused = app.call_tool("rekall_diagram", arguments("project:shop task:orders", sheets(90))).await;
+    assert!(refused.contains(r#"sheets[0].links["O"][0].endLine: line 90 is past the end of src/order.rs (4 lines)"#), "{refused}");
     assert!(app.get("/api/diagrams").await.list().is_empty());
 
-    let answer = app.call_tool("rekall_diagram", arguments(graph(4))).await;
-    assert!(answer.contains("3 nodes (2 traced to code) and 1 edge"), "{answer}");
+    let answer = app.call_tool("rekall_diagram", arguments("project:shop task:orders", sheets(4))).await;
+    assert!(answer.contains("2 sheets (sequence, state), 2 elements linked to code"), "{answer}");
     let stored = &app.get("/api/diagrams").await.list()[0];
     assert_eq!((stored["projectId"].as_str(), stored["taskId"].as_str()), (Some(project.as_str()), Some(task.as_str())));
     assert_eq!(stored["question"], json!("How is an order processed?"));
 
     let diagram = stored["id"].as_str().unwrap().to_string();
-    let mut revised = arguments(graph(4).to_string().into());
+    let mut revised = arguments("project:shop task:orders", sheets(4).to_string().into());
     revised["diagram"] = json!(diagram);
     revised["title"] = json!("Orders, revised");
     assert!(app.call_tool("rekall_diagram", revised).await.contains("replaced"));
     let listed = app.get("/api/diagrams").await.list();
     assert_eq!((listed.len(), listed[0]["title"].as_str()), (1, Some("Orders, revised")));
+
+    let on_project = app.call_tool("rekall_diagram", arguments("project:shop", sheets(4))).await;
+    assert!(on_project.contains("written on `project:shop`"), "{on_project}");
+    let newest = &app.get("/api/diagrams").await.list()[0];
+    assert_eq!(newest["taskId"], json!(null));
 }
 
 struct FixedFeed(Release);

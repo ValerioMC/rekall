@@ -133,7 +133,7 @@ One terminal per task, the way one terminal window is. A second **Run here** on 
 
 **Run here** starts the session without leaving the pane. Pressed on a whole task with nothing left to execute (every checklist step claimed or done with only drafts remaining, or a task with no checklist whose review is claimed and only drafts remain), it starts nothing and shows a "Nothing to run" message; a press on one chosen step always launches. The play mark runs out of the button, the amber step seal stamps in with its check drawn, as a step's does when it is completed, and the button then reads **Working** beside a running step's own seal (the comet orbiting its bezel, the ticks lighting as it passes, the core breathing) for as long as Claude is on that work. On a step, that lasts while the step is `RUNNING`. On a task with no checklist, it lasts while the task's review line is `RUNNING`. On a checklist task launched from its description, it lasts while a step runs, or while the task's terminal is live and a step is still open. **Working** takes no press. The button returns to **Run here** once the work is claimed or the session ends.
 
-Live work sits in one bar in the bottom right corner of every screen: a segment for running timers (with the newest timer's clock) and a segment for live terminals, each shown only while it has something to count. A segment opens its sheet above the bar, one sheet at a time; pressing the other segment switches, and pressing the same one again, Escape, or a click anywhere else closes it. From the sheet a row jumps to its task (the terminal one also opens the terminal pane), stops the timer or terminal, and, for a terminal, logs the latest commit against the task and step it was opened on. The bar reports the room it takes so nothing else in that corner sits under it, whichever segments are present; the terminal segment steps aside while the terminal pane is on screen, and the bar leaves entirely when nothing is live.
+Live work sits in one bar in the bottom right corner of every screen: a segment for running timers (with the newest timer's clock) and a segment for live terminals, each shown only while it has something to count. A segment opens its sheet above the bar, one sheet at a time; pressing the other segment switches, and pressing the same one again, Escape, or a click anywhere else closes it. From the sheet a row jumps to its task (the terminal one also opens the terminal pane; a session generating a diagram for a project alone opens on the Diagrams screen instead), stops the timer or terminal, and, for a terminal on a task, logs the latest commit against the task and step it was opened on. The bar reports the room it takes so nothing else in that corner sits under it, whichever segments are present; the terminal segment steps aside while the terminal pane is on screen, and the bar leaves entirely when nothing is live.
 
 **Settings > Claude Code** picks the model and effort a new terminal starts with, and the **skip permissions** switch:
 
@@ -183,7 +183,7 @@ An anchor is `entity:value`, where the entity is `company`, `project` or `task` 
 | `/rk task:"report builder"` | Quote a value containing spaces |
 | `/rk project:vega task:report-builder wrapup` | Write the task's wrapup instead of loading it |
 | `/rk project:vega task:report-builder plan` | Propose the task's checklist as drafts, then stop |
-| `/rk project:vega task:report-builder generate "how checkout charges"` | Read the code and store a diagram answering the request, then stop (see [Diagrams](#diagrams)) |
+| `/rk project:vega generate kinds:sequence,state "how checkout charges"` | Read the code and store a diagram answering the request, one sheet per type, then stop. A `task:` anchor ties it to that task too (see [Diagrams](#diagrams)) |
 | `/rk note:3f2a9c1e` | A note sent by reference, loaded in full (see [Context size](#context-size-and-reference-notes)) |
 
 An anchor brings back the record, everything it references resolved in full with their notes, what references it as anchors, and its own markdown. A note can be attached to several tasks and arrives with each. If a bare term matches more than one record, the candidates come back and nothing loads. `project:` disambiguates a label two projects share.
@@ -199,7 +199,7 @@ An anchor brings back the record, everything it references resolved in full with
 | `rekall_propose_step` | write | Add one step as a draft, for a person to promote |
 | `rekall_note` | write | Write a note on one task, or rewrite one it carries by title with `replace` |
 | `rekall_project_section` | write | Write a titled markdown section on a task's project, or rewrite one by title with `replace` |
-| `rekall_diagram` | write | Store a Semantic Graph generated for one task, or replace one by id with `diagram` |
+| `rekall_diagram` | write | Store Mermaid sheets generated for a project or one of its tasks, or replace a diagram by id with `diagram` |
 
 There is no query, get or schema tool. `rekall_note` adds a note, or with `replace: true` rewrites the body of the note the task already carries under that title (ignoring case); without `replace` that title is refused, and nothing it does detaches or deletes a note. `rekall_project_section` works the same way on a project's sections: it adds one, or with `replace: true` rewrites the body of the section with that title, and it can never rename, reorder or delete one. `rekall_step` refuses `done`; that state is set by hand in the console. `rekall_step` (on `claimed`) and `rekall_wrapup` take an optional `commit_message`, used only on a project that commits on claim (see [Commit on claim](#commit-on-claim)).
 
@@ -354,30 +354,24 @@ The screen is built from the sessions the timer recorded. A session counts on th
 
 ## Diagrams
 
-**Diagrams** draws what the code does rather than how it is laid out. A diagram is a Semantic Graph: concepts, actions, decisions, states, events, data, external systems and code, joined by typed relations (`leads_to`, `conditionally_leads_to`, `calls`, `reads`, `writes`, `contains`, …). An element can stand for something no function names on its own, such as one of the steps a 200-line function performs, and each one points at the lines that implement it. A session writes the graph and the console draws it. The drawing is decided by code, never by the session. The format and its rules are in [docs/SEMANTIC-GRAPH.md](docs/SEMANTIC-GRAPH.md).
+**Diagrams** draws what the code does as Mermaid. A diagram answers one request with one sheet per type asked for (sequence, flowchart, state, class, ER, or any other Mermaid type), and each element of a sheet can point at the lines that implement it. A session writes the Mermaid and the links; the console decides how they look. The format and its rules are in [docs/DIAGRAMS.md](docs/DIAGRAMS.md).
 
-The screen has three columns. On the left is the library, grouped by project. In the middle is the canvas, laid out by dagre. On the right is the inspector.
+The screen opens on a **gallery**: the diagrams of the projects in the top bar's scope, one section per project, newest first, each card sketching its first sheet and naming its types. Above them, **Being drawn** shows each generation still running, with its elapsed time and **Watch session**, which opens the live terminal in a sheet over the bottom of the screen (`Alt+Esc` hides it; the session keeps running). Opening a card gives the whole screen to that diagram; the open diagram is `?diagram=<id>` and a watched session `?session=<id>`, so a reload keeps them and the back button returns to the gallery.
 
-- **Canvas.** The shape of a node is its kind and its colour repeats it. The ring on its corner is the trace mark: the outer ring is the provenance (solid when observed in the code, dashed when inferred, dotted when it comes from docs, doubled when a person stated it), the arc is the confidence, and a filled core means the element points at code. Flow edges are solid, conditions are dashed and carry their condition, data flow is dotted, and dependencies are faint. Selecting a node lights everything one relation away and dims the rest.
-- **Lens.** **Concept** hides the code nodes, so the conceptual pieces of a function stand on their own. **Code** draws each function as a frame around the pieces it implements. A frame folds into one node that takes over its relations, and unfolds again.
-- **Direction.** A diagram opens left to right or top to bottom, whichever fits the canvas at the larger scale. The button next to the lens overrides it.
-- **CONCEPT → CODE.** The inspector lists a node's sources and opens each one in place, showing the span with a few lines around it, read from the project folder.
-- **CODE → CONCEPT.** With nothing selected, the inspector lists the files the diagram points at. Picking one lights the elements it implements. `GET /api/projects/{id}/diagram-trace?file=&line=` answers the same question across every diagram of a project.
-- **Keys.** `f` fit, `+` `-` `0` zoom, `/` find, `l` lens, `d` direction, `esc` clear. The wheel pans; pinch or `⌘`-wheel zooms.
+- **Sheets.** One tab per sheet, named by its title or its type. Sequence, flowchart, state, class and ER sheets are read with Mermaid's own parser and drawn with the console's components: the same cards for every box, Mermaid's arrows, cardinalities and blocks, dagre for the graph types and a sequence layout of its own. Every other type is drawn by Mermaid in the console's palette.
+- **Elements.** A box carrying `</>` opens its code. Clicking a participant, a message, a node or a state lights what it touches, dims the rest, and opens a floating panel with its source (read from the project folder, the span marked) and, in a sequence, the **call tree** through it: the calls a participant receives, or the calls made under a message, each row selecting its message. Other sheets list the element's connections instead.
+- **Keys.** `f` fit, `+` `-` `0` zoom, `/` find, `[` `]` previous and next sheet, `esc` clear the selection, `Backspace` back to the gallery. The wheel pans; pinch or `⌘`-wheel zooms.
 
-The library on the left lists tasks, grouped by project, not diagrams. A task carries a tag for its diagrams (**Generating** with a moving ring while a session draws one, **Diagram** with a count once one exists, nothing otherwise). Picking a task opens its latest diagram, picking a generating one goes to its terminal, and picking one with no diagram asks for one: the dialog only asks what to show. **All tasks / With a diagram** narrows the list, and diagrams tied to no task (imports) sit under *Not tied to a task*.
-
-**Generate** opens a terminal on the task you pick with `/rk project:<p> task:<t> generate "<request>"` as its first line (`mode: GENERATE` on `POST /api/tasks/{id}/terminals`). The task is marked **Generating** until a diagram for that task arrives on the event stream (`diagram` frames); a generation survives a reload within the tab and stops counting once its terminal is known to have ended. The session finds and reads the code on its own, from the project's folder, and never asks where it is or what to read. It describes the behaviour the request is about, splitting monolithic functions into the pieces they perform, and calls `rekall_diagram`. That tool carries the whole of [docs/SEMANTIC-GRAPH.md](docs/SEMANTIC-GRAPH.md) in its description. It stores the diagram on the task's project with the task as its origin, but only after the graph passes every rule and every source span is held against the project folder: the file has to exist and the lines have to be inside it. A refusal lists each broken rule with its path, and nothing is stored until the graph passes. `diagram` replaces an existing diagram in place. **Import** stores a graph written elsewhere, checked against the same rules but not against the folder.
+**Generate** asks what the diagram should make clear, as which types, on which project, and optionally for which of its tasks. It opens a terminal on the task, or on the project alone (`POST /api/projects/{id}/terminals`, generate only), with `/rk <anchors> generate kinds:<types> "<request>"` as its first line. The session finds and reads the code on its own from the project's folder, writes one sheet per type, links what it can to the code, and calls `rekall_diagram`. That tool carries the whole of [docs/DIAGRAMS.md](docs/DIAGRAMS.md) in its description. It stores the diagram on the project, with the task as its origin when one is named, but only after every sheet passes the rules and every linked span is held against the project folder. A refusal lists each broken rule with its path, and nothing is stored until it passes. `diagram` replaces an existing diagram in place. **Import** stores one sheet of Mermaid written elsewhere, checked against the same rules but not against the folder.
 
 | Route | Effect |
 |---|---|
-| `GET /api/diagrams` | Every diagram, without its graph, newest first |
-| `GET /api/diagrams/{id}` | One diagram with its graph |
-| `POST /api/diagrams` | Create one: `projectId`, `taskId` (optional), `title`, `question`, `graph` |
-| `PUT /api/diagrams/{id}` | Replace its title, question and graph. It stays on its project |
+| `GET /api/diagrams` | Every diagram, without its sheets, newest first, with each sheet's type |
+| `GET /api/diagrams/{id}` | One diagram with its sheets |
+| `POST /api/diagrams` | Create one: `projectId`, `taskId` (optional), `title`, `question`, `sheets` |
+| `PUT /api/diagrams/{id}` | Replace its title, question and sheets. It stays on its project |
 | `DELETE /api/diagrams/{id}` | Delete it. Console only |
 | `GET /api/diagrams/{id}/source?file=&start=&end=` | The lines of a span in the project folder. A path that leaves the folder is refused |
-| `GET /api/projects/{id}/diagram-trace?file=&line=` | Every element, per diagram, covering that line, narrowest span first |
 
 ## Model
 
@@ -399,7 +393,7 @@ Company ──< Project ──< Task >──< Document
 | `TaskStep` | through its task | title, optional detail, state, position |
 | `Wrapup` | through its task | markdown body, who wrote it last. One per task |
 | `Tag` | `name`, unique | icon key, glow-colour key, the tasks currently wearing it |
-| `Diagram` | id | title, the question it answers, the Semantic Graph as JSON, node and edge counts. Goes with its project; loses its task when the task is deleted |
+| `Diagram` | id | title, the question it answers, its sheets' types, and its Mermaid sheets with their code links as JSON. Goes with its project; loses its task when the task is deleted |
 
 `label` is what an anchor resolves: lowercase letters, digits, `-`, `_`, `.`, no spaces, normalised on write. `title` is free text and changing it never breaks an anchor. Renaming a label moves the anchor, and the editor says so before saving.
 
@@ -486,7 +480,7 @@ A Cargo workspace, one crate per layer, each depending only on the ones above it
 ```
 rekall-common/     RekallError, Id, Instant and the string helpers every layer shares
 rekall-model/      SeaORM entities and their state rules
-rekall-diagram/    the Semantic Graph: its types, JSON format, validation and CODE → CONCEPT index. No database, no UI
+rekall-diagram/    the diagram format: Mermaid sheets and their code links, JSON form and validation. No database, no UI
 rekall-repository/ queries, one function per lookup, and the SQLite migrations
 rekall-service/    business logic: context assembly, the step and review lines, wrapups, notes, time entries
 rekall-api/        Axum REST API for the UI, the folder listing and the step event stream

@@ -1,24 +1,50 @@
 use serde_json::json;
 
-use super::{diagram_id, graph_document};
+use super::{diagram_id, sheets_argument, target_of};
 use crate::protocol::ToolError;
+use crate::tool::Anchor;
+use rekall_service::diagram::DiagramTarget;
 
-#[test]
-fn a_graph_sent_as_an_object_is_taken_as_it_is() {
-    let graph = json!({"format": "rekall.semantic-graph", "version": 1, "nodes": []});
-    assert_eq!(graph_document(Some(&graph)).unwrap(), graph);
+fn anchors(raw: &str) -> Vec<Anchor> {
+    Anchor::parse_all(Some(raw)).unwrap()
 }
 
 #[test]
-fn a_graph_serialised_into_a_string_is_read_back_into_a_document() {
-    let text = json!(r#"{"format":"rekall.semantic-graph","version":1,"nodes":[]}"#);
-    assert_eq!(graph_document(Some(&text)).unwrap()["version"], json!(1));
+fn a_project_alone_is_a_project_target() {
+    assert_eq!(target_of(&anchors("project:vega")).unwrap(), DiagramTarget::Project { label: "vega".into() });
+}
+
+#[test]
+fn a_task_puts_the_diagram_on_its_project() {
+    assert_eq!(
+        target_of(&anchors("project:vega task:report")).unwrap(),
+        DiagramTarget::Task { project_label: Some("vega".into()), task_label: "report".into() }
+    );
+    assert_eq!(target_of(&anchors("report")).unwrap(), DiagramTarget::Task { project_label: None, task_label: "report".into() });
+}
+
+#[test]
+fn anything_but_one_project_or_a_task_is_refused() {
+    assert!(matches!(target_of(&anchors("project:vega project:orion")), Err(ToolError::Failure(_))));
+    assert!(matches!(target_of(&anchors("company:acme")), Err(ToolError::Failure(_))));
+}
+
+#[test]
+fn sheets_sent_as_an_array_are_taken_as_they_are() {
+    let sheets = json!([{"mermaid": "pie\n \"a\": 1"}]);
+    assert_eq!(sheets_argument(Some(&sheets)).unwrap(), sheets);
+}
+
+#[test]
+fn sheets_serialised_into_a_string_are_read_back_into_an_array() {
+    let text = json!(r#"[{"mermaid":"pie"}]"#);
+    assert_eq!(sheets_argument(Some(&text)).unwrap()[0]["mermaid"], json!("pie"));
 }
 
 #[test]
 fn a_string_that_is_not_json_is_refused_as_an_argument() {
-    assert!(matches!(graph_document(Some(&json!("nodes: []"))), Err(ToolError::Illegal(_))));
-    assert!(matches!(graph_document(None), Err(ToolError::Illegal(_))));
+    assert!(matches!(sheets_argument(Some(&json!("sheets: []"))), Err(ToolError::Illegal(_))));
+    assert!(matches!(sheets_argument(None), Err(ToolError::Illegal(_))));
 }
 
 #[test]

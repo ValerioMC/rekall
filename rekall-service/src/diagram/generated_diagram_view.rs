@@ -5,7 +5,8 @@ use super::DiagramView;
 #[derive(Clone, Debug, PartialEq)]
 pub struct GeneratedDiagramView {
     pub diagram: DiagramView,
-    pub task_anchor: String,
+    /// The project, or the project and task, it was stored on.
+    pub anchors: String,
     pub replaced: bool,
     pub sources_checked: bool,
 }

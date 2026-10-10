@@ -46,6 +46,7 @@ impl Terminal {
     pub(super) fn view(&self) -> TerminalView {
         TerminalView {
             id: self.id,
+            project_id: self.launch.project_id,
             task_id: self.launch.task_id,
             step_id: self.step_id(),
             anchors: self.launch.anchors.clone(),

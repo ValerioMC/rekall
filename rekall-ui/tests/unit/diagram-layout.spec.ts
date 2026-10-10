@@ -1,68 +1,109 @@
 import { describe, expect, it } from 'vitest'
-import { project } from '@/common/diagram/graph-projection'
-import { borderPoint, layoutProjection, NODE_WIDTH, preferredDirection } from '@/common/diagram/graph-layout'
-import { SemanticGraphSchema } from '@/api/schemas/diagram.schema'
-import { orderGraph } from './diagram-graph.fixture'
-import terminalOpen from './diagram-terminal-open.graph.json'
+import { layoutGraph } from '@/common/diagram/layout/graph-layout'
+import { layoutSequence } from '@/common/diagram/layout/sequence-layout'
+import type { GraphEdge, GraphNode, GraphScene } from '@/common/diagram/scene/graph-scene'
+import type { SequenceScene } from '@/common/diagram/scene/sequence-scene'
+import type { Box } from '@/common/diagram/viewport'
 
-describe('graph layout', () => {
-  it('places every node, frames every cluster around its members and routes every edge', () => {
-    const projection = project(orderGraph(), { lens: 'code', collapsed: new Set() })
-    const layout = layoutProjection(projection, 'LR')
+function node(id: string, parentId: string | null = null): GraphNode {
+  return { id, linkKey: id, label: id.toUpperCase(), role: 'state', outline: 'rounded', parentId, annotations: [], compartments: [] }
+}
 
-    expect([...layout.nodes.keys()].sort()).toEqual(['capture', 'done', 'orders', 'paid', 'receive', 'validate'])
-    expect([...layout.clusters.keys()].sort()).toEqual(['charge', 'process'])
-    const frame = layout.clusters.get('process')!
-    for (const id of ['receive', 'validate', 'paid']) {
-      const box = layout.nodes.get(id)!
-      expect(box.width).toBe(NODE_WIDTH)
-      expect(box.x).toBeGreaterThanOrEqual(frame.x)
-      expect(box.y).toBeGreaterThan(frame.y)
-      expect(box.x + box.width).toBeLessThanOrEqual(frame.x + frame.width)
-      expect(box.y + box.height).toBeLessThanOrEqual(frame.y + frame.height)
-    }
-    expect(layout.edges).toHaveLength(projection.edges.length)
-    expect(layout.edges.every((edge) => edge.points.length >= 2)).toBe(true)
+function edge(from: string, to: string): GraphEdge {
+  return { key: `${from}-${to}`, from, to, label: null, line: 'solid', startEnd: 'none', endEnd: 'arrow', startLabel: null, endLabel: null }
+}
+
+function inside(inner: Box, outer: Box): boolean {
+  return inner.x >= outer.x && inner.y >= outer.y && inner.x + inner.width <= outer.x + outer.width && inner.y + inner.height <= outer.y + outer.height
+}
+
+describe('layoutGraph', () => {
+  const scene: GraphScene = {
+    kind: 'state',
+    direction: 'TB',
+    nodes: [node('asked'), node('reading', 'drawing'), node('writing', 'drawing'), node('stored')],
+    groups: [{ id: 'drawing', label: 'Drawing', parentId: null }],
+    edges: [edge('asked', 'drawing'), edge('reading', 'writing'), edge('drawing', 'stored')]
+  }
+  const layout = layoutGraph(scene)
+
+  it('frames a group around its members', () => {
+    const group = layout.groups.get('drawing')!
+    expect(inside(layout.nodes.get('reading')!, group)).toBe(true)
+    expect(inside(layout.nodes.get('writing')!, group)).toBe(true)
   })
 
-  it('is the same layout every time for the same graph', () => {
-    const projection = project(orderGraph(), { lens: 'concept', collapsed: new Set() })
-    expect(layoutProjection(projection, 'TB')).toEqual(layoutProjection(projection, 'TB'))
+  it('ranks what flows into and out of a group around it', () => {
+    const group = layout.groups.get('drawing')!
+    expect(layout.nodes.get('asked')!.y).toBeLessThan(group.y)
+    expect(layout.nodes.get('stored')!.y).toBeGreaterThan(group.y + group.height)
   })
 
-  it('reads left to right when asked to', () => {
-    const projection = project(orderGraph(), { lens: 'concept', collapsed: new Set() })
-    const layout = layoutProjection(projection, 'LR')
-    expect(layout.nodes.get('receive')!.x).toBeLessThan(layout.nodes.get('done')!.x)
+  it('routes every edge, those touching a group from border to border', () => {
+    expect(layout.edges.map((placed) => placed.key).sort()).toEqual(['asked-drawing', 'drawing-stored', 'reading-writing'])
+    const into = layout.edges.find((placed) => placed.key === 'asked-drawing')!
+    expect(into.points.at(-1)!.y).toBeCloseTo(layout.groups.get('drawing')!.y, 0)
   })
 
-  it('a border point lies on the box edge facing the target', () => {
-    expect(borderPoint({ x: 0, y: 0, width: 100, height: 40 }, { x: 500, y: 20 })).toEqual({ x: 100, y: 20 })
-    expect(borderPoint({ x: 0, y: 0, width: 100, height: 40 }, { x: 50, y: -300 })).toEqual({ x: 50, y: 0 })
+  it('is the same every time for the same sheet', () => {
+    expect(layoutGraph(scene)).toEqual(layout)
+  })
+})
+
+describe('layoutSequence', () => {
+  const scene: SequenceScene = {
+    participants: [
+      { id: 'U', label: 'User', isActor: true },
+      { id: 'S', label: 'OrderService', isActor: false },
+      { id: 'P', label: 'Payments', isActor: false }
+    ],
+    boxes: [{ label: 'Backend', participantIds: ['S', 'P'] }],
+    autonumber: true,
+    steps: [
+      { type: 'message', number: 1, from: 'U', to: 'S', text: 'place', line: 'solid', head: 'arrow' },
+      { type: 'activate', participantId: 'S' },
+      { type: 'fragment-start', kind: 'alt', label: 'card' },
+      { type: 'message', number: 2, from: 'S', to: 'P', text: 'charge the card with a long label', line: 'solid', head: 'arrow' },
+      { type: 'fragment-section', label: 'cash' },
+      { type: 'message', number: 3, from: 'S', to: 'S', text: 'record', line: 'solid', head: 'arrow' },
+      { type: 'fragment-end' },
+      { type: 'note', placement: 'over', participantIds: ['S', 'P'], text: 'stored' },
+      { type: 'message', number: 4, from: 'S', to: 'U', text: 'done', line: 'dashed', head: 'arrow' },
+      { type: 'deactivate', participantId: 'S' }
+    ]
+  }
+  const layout = layoutSequence(scene)
+
+  it('puts participants left to right in order, with room for the labels between them', () => {
+    const [u, s, p] = ['U', 'S', 'P'].map((id) => layout.participants.get(id)!)
+    expect(u!.centre).toBeLessThan(s!.centre)
+    expect(p!.centre - s!.centre).toBeGreaterThan(200)
   })
 
-  it('keeps every element outside a frame clear of it, title band included, in both directions', () => {
-    const graph = SemanticGraphSchema.parse(terminalOpen)
-    const projection = project(graph, { lens: 'code', collapsed: new Set() })
-    for (const direction of ['LR', 'TB'] as const) {
-      const layout = layoutProjection(projection, direction)
-      for (const frame of layout.clusters.values()) {
-        const members = new Set(projection.nodes.filter((node) => node.parentId === frame.id).map((node) => node.id))
-        const intruders = [...layout.nodes.values()].filter(
-          (box) =>
-            !members.has(box.id) &&
-            box.x < frame.x + frame.width &&
-            box.x + box.width > frame.x &&
-            box.y < frame.y + frame.height &&
-            box.y + box.height > frame.y
-        )
-        expect(intruders.map((box) => `${direction}:${box.id}`)).toEqual([])
-      }
-    }
+  it('places messages top to bottom, a self-call on its own lifeline', () => {
+    const ys = [1, 2, 3, 4].map((number) => layout.messages.get(number)!.y)
+    expect([...ys].sort((a, b) => a - b)).toEqual(ys)
+    expect(layout.messages.get(3)!.self).toBe(true)
   })
 
-  it('reads a long single flow top to bottom when that is what fits a screen', () => {
-    const graph = SemanticGraphSchema.parse(terminalOpen)
-    expect(preferredDirection(project(graph, { lens: 'concept', collapsed: new Set() }))).toBe('TB')
+  it('starts an activation at the message that opens it and leaves from its bar', () => {
+    const bar = layout.activations.find((activation) => activation.participantId === 'S')!
+    expect(bar.y).toBe(layout.messages.get(1)!.y)
+    expect(layout.messages.get(2)!.fromX).toBeGreaterThan(layout.participants.get('S')!.centre)
+  })
+
+  it('frames a fragment around its messages with a rule per section', () => {
+    const [fragment] = layout.fragments
+    expect(fragment!.kind).toBe('alt')
+    expect(fragment!.sections.map((section) => section.label)).toEqual(['cash'])
+    expect(fragment!.y).toBeLessThan(layout.messages.get(2)!.y)
+    expect(fragment!.y + fragment!.height).toBeGreaterThan(layout.messages.get(3)!.y)
+  })
+
+  it('draws a note over two participants across both, and a box around its participants', () => {
+    const [note] = layout.notes
+    expect(note!.x).toBeLessThan(layout.participants.get('S')!.centre)
+    expect(note!.x + note!.width).toBeGreaterThan(layout.participants.get('P')!.centre)
+    expect(inside(layout.participants.get('P')!, layout.boxes[0]!)).toBe(true)
   })
 })

@@ -1,4 +1,5 @@
-//! Reads the services share: a task by id or by its anchors, and what hangs off a task.
+//! Reads the services share: a task by id or by its anchors, a project by its label, and what
+//! hangs off a task.
 
 use rekall_common::{Id, InternalFailure, RekallError, Result};
 use rekall_model::{project, task, task_step, wrapup};
@@ -54,4 +55,15 @@ pub async fn resolve_task(db: &impl ConnectionTrait, project_label: Option<&str>
         return Err(RekallError::ambiguous(task_label, candidates));
     }
     Ok(found.remove(0))
+}
+
+/// The project `project:<label>` names. Labels are unique within a company only, so a label two
+/// companies share is ambiguous, and the candidates say which is which.
+pub async fn resolve_project(db: &impl ConnectionTrait, label: &str) -> Result<project::Model> {
+    let mut found = repo::project::find_by_label(db, label).await?;
+    match found.len() {
+        0 => Err(RekallError::unknown_anchor(format!("No project matches '{label}'"))),
+        1 => Ok(found.remove(0)),
+        _ => Err(RekallError::ambiguous(label, found.iter().map(|project| format!("{} ({})", project.anchor(), project.title)).collect())),
+    }
 }

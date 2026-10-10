@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
+import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import HomeReviewCard from '@/components/console/home/HomeReviewCard.vue'
 import HomeSessionsCard from '@/components/console/home/HomeSessionsCard.vue'
 import HomeSituation from '@/components/console/home/HomeSituation.vue'
@@ -57,6 +58,7 @@ const claimedStep: TaskStep = {
 
 const session: Terminal = {
   id: 'term1' as TerminalId,
+  projectId: 'p-1' as ProjectId,
   taskId: report.id,
   stepId: null,
   anchors: 'project:vega task:report-builder',
@@ -120,7 +122,7 @@ describe('the console home', () => {
     store.selectTask = vi.fn()
     store.openTerminal = vi.fn()
 
-    const wrapper = mount(HomeSessionsCard)
+    const wrapper = mount(HomeSessionsCard, { global: { plugins: [consoleRouter()] } })
     const rows = wrapper.findAll('[data-testid="home-session"]')
     expect(rows).toHaveLength(1)
     expect(rows[0]!.text()).toContain('10m')
@@ -130,4 +132,32 @@ describe('the console home', () => {
     expect(store.openTerminal).toHaveBeenCalled()
     expect(terminals.activeTerminalId).toBe('term1')
   })
+
+  it('opens a session generating a diagram for a project alone on the Diagrams screen', async () => {
+    const store = useConsoleStore()
+    const terminals = useTerminalStore()
+    terminals.terminals = [{ ...session, taskId: null, taskLabel: null, taskTitle: null, anchors: 'project:vega' }]
+    store.selectTask = vi.fn()
+    const router = consoleRouter()
+
+    const wrapper = mount(HomeSessionsCard, { global: { plugins: [router] } })
+    expect(wrapper.text()).toContain('Diagram for vega')
+    await wrapper.find('[data-testid="home-session"]').trigger('click')
+    await flushPromises()
+
+    expect(store.selectTask).not.toHaveBeenCalled()
+    expect(router.currentRoute.value.name).toBe('diagrams')
+    expect(router.currentRoute.value.query.session).toBe('term1')
+  })
 })
+
+function consoleRouter(): Router {
+  const page = { template: '<div />' }
+  return createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/', name: 'console', component: page },
+      { path: '/diagrams', name: 'diagrams', component: page }
+    ]
+  })
+}

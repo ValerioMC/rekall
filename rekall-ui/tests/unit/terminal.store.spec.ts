@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useTerminalStore } from '@/stores/terminal.store'
 import type { Terminal } from '@/model/terminal'
-import type { TaskId, TaskStepId, TerminalId } from '@/model/branded'
+import type { ProjectId, TaskId, TaskStepId, TerminalId } from '@/model/branded'
 
 const api = {
   fetchTerminals: vi.fn(),
@@ -23,6 +23,7 @@ const TASK = 't-1' as TaskId
 function terminal(over: Partial<Terminal> = {}): Terminal {
   return {
     id: 'term-1' as TerminalId,
+    projectId: 'p-1' as ProjectId,
     taskId: TASK,
     stepId: null as TaskStepId | null,
     anchors: 'project:vega task:report-builder',
@@ -69,7 +70,7 @@ describe('the terminal store', () => {
     const again = await store.openForTask(TASK, { skipPermissions: true })
 
     expect(again.id).toBe('term-1')
-    expect(api.openTerminal).toHaveBeenCalledWith(TASK, { skipPermissions: true })
+    expect(api.openTerminal).toHaveBeenCalledWith({ taskId: TASK }, { skipPermissions: true })
     expect(store.terminals).toHaveLength(1)
     expect(store.activeTerminalId).toBe('term-1')
   })
@@ -80,7 +81,7 @@ describe('the terminal store', () => {
 
     const planning = await store.planForTask(TASK, 'project:vega task:report-builder', { skipPermissions: true })
 
-    expect(api.openTerminal).toHaveBeenCalledWith(TASK, { skipPermissions: true, mode: 'PLAN' })
+    expect(api.openTerminal).toHaveBeenCalledWith({ taskId: TASK }, { skipPermissions: true, mode: 'PLAN' })
     expect(api.sendTerminalInput).not.toHaveBeenCalled()
     expect(planning.id).toBe('term-1')
     expect(store.activeTerminalId).toBe('term-1')

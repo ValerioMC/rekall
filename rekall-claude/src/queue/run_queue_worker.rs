@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use rekall_common::{Id, RekallError, Result};
 use rekall_model::{RunQueueItemState, RunQueueState};
-use rekall_service::claude::{Remaining, TaskWork, TaskWorkService};
+use rekall_service::claude::{Remaining, TaskWork, TaskWorkService, TerminalTarget};
 use rekall_service::step::TaskStepService;
 use rekall_service::Clock;
 use tokio::sync::{mpsc, oneshot};
@@ -208,7 +208,7 @@ impl Worker {
         let opened = match self
             .terminals
             .open(
-                item.task_id,
+                TerminalTarget::Task(item.task_id),
                 None,
                 snapshot.skip_permissions,
                 snapshot.model.as_deref(),

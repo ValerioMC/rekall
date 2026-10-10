@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useRouter } from 'vue-router'
-import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/stores/terminal.store'
 import { useToastStore } from '@/stores/toast.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
+import { useOpenSession } from '@/composables/useOpenSession'
+import { sessionTitle } from '@/common/format/session-title'
 import { identityHue } from '@/common/identity'
 import { recordLatestCommit } from '@/api/commitReference.api'
 import DockPanel from './DockPanel.vue'
@@ -14,27 +14,19 @@ import type { TerminalId } from '@/model/branded'
 
 const emit = defineEmits<{ close: [] }>()
 
-const store = useConsoleStore()
 const terminals = useTerminalStore()
 const toast = useToastStore()
 const { terminals: allTerminals } = storeToRefs(terminals)
 const { run } = useAsyncAction()
-const router = useRouter()
+const openSession = useOpenSession()
 
 const live = computed(() => allTerminals.value.filter((terminal) => terminal.live))
 
 const sorted = computed(() => [...live.value].sort((a, b) => b.startedAt.localeCompare(a.startedAt)))
 
-function projectIdOf(terminal: Terminal): string {
-  return store.tasks.find((task) => task.id === terminal.taskId)?.projectId ?? terminal.taskId
-}
-
 function jumpTo(terminal: Terminal): void {
-  store.selectTask(terminal.taskId)
-  store.openTerminal()
-  terminals.select(terminal.id)
+  openSession(terminal)
   emit('close')
-  if (router.currentRoute.value.name !== 'console') void router.push({ name: 'console' })
 }
 
 async function stop(id: TerminalId): Promise<void> {
@@ -44,7 +36,9 @@ async function stop(id: TerminalId): Promise<void> {
 // The commit's own subject line is the comment: same lookup `rekall_record_commit` uses from
 // inside the session, triggered here instead of after a `git commit` the console never sees.
 async function logCommit(terminal: Terminal): Promise<void> {
-  const logged = await run(() => recordLatestCommit(terminal.taskId, terminal.stepId))
+  const taskId = terminal.taskId
+  if (!taskId) return
+  const logged = await run(() => recordLatestCommit(taskId, terminal.stepId))
   if (logged) toast.notify(`Logged “${logged.comment}”.`)
 }
 </script>
@@ -63,18 +57,18 @@ async function logCommit(terminal: Terminal): Promise<void> {
       >
         <button
           class="focus-ring flex min-w-0 flex-1 items-center gap-2.5 rounded-control text-left"
-          :title="`Jump to ${terminal.taskTitle}`"
+          :title="`Jump to ${sessionTitle(terminal)}`"
           data-testid="terminal-dock-jump"
           @click="jumpTo(terminal)"
         >
           <span class="min-w-0 flex-1">
             <span class="block truncate text-small font-medium text-text">
-              {{ terminal.taskTitle }}
+              {{ sessionTitle(terminal) }}
             </span>
             <span class="mt-0.5 flex items-center gap-1.5 truncate font-mono text-micro text-anchor/80">
               <span
                 class="size-1 shrink-0 rounded-full"
-                :style="{ backgroundColor: identityHue(projectIdOf(terminal)).base }"
+                :style="{ backgroundColor: identityHue(terminal.projectId).base }"
                 aria-hidden="true"
               />
               <span class="min-w-0 truncate">{{ terminal.anchors }}</span>
@@ -85,8 +79,9 @@ async function logCommit(terminal: Terminal): Promise<void> {
           {{ terminal.skipPermissions ? 'skip perms' : 'live' }}
         </span>
         <button
+          v-if="terminal.taskId"
           class="focus-ring grid size-6 shrink-0 place-items-center rounded-full text-text-subtle transition-colors hover:bg-surface-raised hover:text-anchor"
-          :aria-label="`Log the latest commit for ${terminal.taskTitle}`"
+          :aria-label="`Log the latest commit for ${sessionTitle(terminal)}`"
           title="Log the latest commit"
           data-testid="terminal-dock-log-commit"
           @click="logCommit(terminal)"
@@ -105,7 +100,7 @@ async function logCommit(terminal: Terminal): Promise<void> {
         </button>
         <button
           class="focus-ring grid size-6 shrink-0 place-items-center rounded-full text-text-subtle transition-colors hover:bg-danger-soft hover:text-danger"
-          :aria-label="`Stop ${terminal.taskTitle}`"
+          :aria-label="`Stop ${sessionTitle(terminal)}`"
           data-testid="terminal-dock-stop"
           @click="stop(terminal.id)"
         >

@@ -1,37 +1,33 @@
 use std::collections::HashMap;
 
 use rekall_common::Result;
-use rekall_diagram::{GraphViolation, GraphViolations, SemanticGraph, SourceLocation};
+use rekall_diagram::{DiagramDocument, DocumentViolation, DocumentViolations, SourceLocation};
 
 use super::ProjectFolder;
 
 /// Source files larger than this are not what a span points into.
 const MAX_FILE_BYTES: u64 = 4 * 1024 * 1024;
-/// The same cap the graph validator puts on its own report.
-const MAX_REPORTED: usize = 50;
 
-/// Holds a generated graph's traceability to the code on disk: every cited file has to be in the
+/// Holds a generated diagram's links to the code on disk: every cited file has to be in the
 /// project folder, and every cited line inside that file. The validator cannot see the disk, so a
 /// session that guessed a path or a line range is caught here rather than in the console.
 pub struct SourceAudit<'a> {
     folder: &'a ProjectFolder,
     line_counts: HashMap<String, std::result::Result<u32, String>>,
-    violations: Vec<GraphViolation>,
+    violations: Vec<DocumentViolation>,
 }
 
 impl<'a> SourceAudit<'a> {
-    pub fn check(folder: &'a ProjectFolder, graph: &SemanticGraph) -> std::result::Result<(), GraphViolations> {
+    pub fn check(folder: &'a ProjectFolder, document: &DiagramDocument) -> std::result::Result<(), DocumentViolations> {
         let mut audit = Self { folder, line_counts: HashMap::new(), violations: Vec::new() };
-        for (node_index, node) in graph.nodes.iter().enumerate() {
-            for (source_index, source) in node.sources.iter().enumerate() {
-                audit.check_source(&format!("nodes[{node_index}].sources[{source_index}]"), source);
+        for (sheet_index, sheet) in document.sheets.iter().enumerate() {
+            for (key, sources) in &sheet.links {
+                for (source_index, source) in sources.iter().enumerate() {
+                    audit.check_source(&format!("sheets[{sheet_index}].links[{key:?}][{source_index}]"), source);
+                }
             }
         }
-        if audit.violations.is_empty() {
-            return Ok(());
-        }
-        audit.violations.truncate(MAX_REPORTED);
-        Err(GraphViolations(audit.violations))
+        DocumentViolations::into_result(audit.violations)
     }
 
     fn check_source(&mut self, path: &str, source: &SourceLocation) {
@@ -57,7 +53,7 @@ impl<'a> SourceAudit<'a> {
     }
 
     fn refuse(&mut self, path: &str, message: &str) {
-        self.violations.push(GraphViolation { path: path.to_string(), message: message.to_string() });
+        self.violations.push(DocumentViolation::new(path, message));
     }
 }
 

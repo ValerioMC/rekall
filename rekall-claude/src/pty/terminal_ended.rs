@@ -4,5 +4,5 @@ use rekall_common::Id;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TerminalEnded {
     pub terminal_id: Id,
-    pub task_id: Id,
+    pub task_id: Option<Id>,
 }

@@ -1,4 +1,4 @@
-//! Every live terminal: opened on a task, attached to by panes, written to, resized, closed, and
+//! Every live terminal: opened on a task or a project, attached to by panes, written to, resized, closed, and
 //! swept when idle. The process inside each is `pty_process`'s; the command it runs is
 //! `claude_command`'s.
 
@@ -12,7 +12,7 @@ use std::time::Duration;
 use chrono::TimeDelta;
 use portable_pty::CommandBuilder;
 use rekall_common::{Id, Instant, RekallError, Result};
-use rekall_service::claude::{TerminalLaunch, TerminalLaunchService};
+use rekall_service::claude::{TerminalLaunch, TerminalLaunchService, TerminalTarget};
 use rekall_service::review::TaskReviewService;
 use rekall_service::step::TaskStepService;
 use tokio::sync::broadcast;
@@ -98,26 +98,26 @@ impl PtyTerminalManager {
 
     // ---------------------------------------------------------------- commands
 
-    /// Start a `claude` PTY for this task in its project's folder, with the `/rk` line of `mode`
+    /// Start a `claude` PTY for this target in its project's folder, with the `/rk` line of `mode`
     /// typed first. A missing folder or CLI is a retriable conflict. A step id is marked
     /// `RUNNING` while the terminal is on it; none means the task itself. A plan or a generate is
-    /// always on the task, so every mode but [`TerminalMode::Work`] drops the step id. A second
-    /// open on a task that already has a terminal reuses it: a work open is retargeted, and every
-    /// mode has its line typed into that session so it reloads the task as it stands.
+    /// never on a step, so every mode but [`TerminalMode::Work`] drops the step id. A second open
+    /// on a target that already has a terminal reuses it: a work open is retargeted, and every
+    /// mode has its line typed into that session so it reloads what it is on as it stands.
     #[allow(clippy::too_many_arguments)]
     pub async fn open(
         self: &Arc<Self>,
-        task_id: Id,
+        target: TerminalTarget,
         step_id: Option<Id>,
         skip_permissions: bool,
         model: Option<&str>,
         effort: Option<&str>,
         mode: TerminalMode,
     ) -> Result<TerminalView> {
-        let launch = self.launch_service.resolve(task_id).await?;
+        let launch = self.launch_service.resolve(target).await?;
         let step_id = if mode.follows_steps() { step_id } else { None };
 
-        if let Some(existing) = self.live_terminal_for_task(task_id) {
+        if let Some(existing) = self.live_terminal_on(target) {
             let view = if mode.follows_steps() { self.retarget(&existing, step_id).await } else { existing.view() };
             self.write(existing.id, format!("{}\r", mode.first_line(&launch.anchors)).as_bytes())?;
             return Ok(view);
@@ -132,7 +132,7 @@ impl PtyTerminalManager {
         let id = Id::random();
         let terminal = self.register(id, launch.clone(), step_id, options, command).await?;
 
-        self.mark_running(task_id, step_id).await;
+        self.mark_running(launch.task_id, step_id).await;
         info!(terminal_id = %id, %mode, anchors = %launch.anchors, working_dir = %launch.working_dir, "Opened terminal");
         Ok(terminal.view())
     }
@@ -187,7 +187,9 @@ impl PtyTerminalManager {
         terminal.view()
     }
 
-    async fn mark_running(&self, task_id: Id, step_id: Option<Id>) {
+    /// A terminal on a project alone has no task to mark.
+    async fn mark_running(&self, task_id: Option<Id>, step_id: Option<Id>) {
+        let Some(task_id) = task_id else { return };
         let result = match step_id {
             Some(step_id) => self.task_steps.mark_running(Some(step_id)).await,
             None => self.task_review.session_running(task_id, true).await,
@@ -197,7 +199,8 @@ impl PtyTerminalManager {
         }
     }
 
-    async fn release_running(&self, task_id: Id, step_id: Option<Id>) {
+    async fn release_running(&self, task_id: Option<Id>, step_id: Option<Id>) {
+        let Some(task_id) = task_id else { return };
         let result = match step_id {
             Some(step_id) => self.task_steps.release_running(Some(step_id)).await,
             None => self.task_review.session_running(task_id, false).await,
@@ -296,7 +299,7 @@ impl PtyTerminalManager {
 
     /// True while some live terminal is on this task, whoever opened it.
     pub fn has_live_terminal_for(&self, task_id: Id) -> bool {
-        self.live_terminal_for_task(task_id).is_some_and(|t| t.alive())
+        self.live_terminal_on(TerminalTarget::Task(task_id)).is_some_and(|t| t.alive())
     }
 
     /// Kill every PTY and close its socket as the application closes. Idempotent.
@@ -354,8 +357,8 @@ impl PtyTerminalManager {
             .ok_or_else(|| RekallError::conflict("This terminal has closed. Open a new one to keep going."))
     }
 
-    fn live_terminal_for_task(&self, task_id: Id) -> Option<Arc<Terminal>> {
-        self.live_map().values().find(|t| t.launch.task_id == task_id).cloned()
+    fn live_terminal_on(&self, target: TerminalTarget) -> Option<Arc<Terminal>> {
+        self.live_map().values().find(|t| t.launch.target() == target).cloned()
     }
 }
 

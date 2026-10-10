@@ -6,7 +6,7 @@ import { useConsoleStore } from '@/stores/console.store'
 import { useToastStore } from '@/stores/toast.store'
 import type { Task, TaskStep } from '@/model/catalog'
 import type { Terminal } from '@/model/terminal'
-import type { TaskId, TaskStepId, TerminalId } from '@/model/branded'
+import type { ProjectId, TaskId, TaskStepId, TerminalId } from '@/model/branded'
 
 const openTerminal = vi.fn()
 
@@ -32,6 +32,7 @@ function step(state: TaskStep['state']): TaskStep {
 function terminal(): Terminal {
   return {
     id: 'term-1' as TerminalId,
+    projectId: 'p-1' as ProjectId,
     taskId: TASK,
     stepId: null as TaskStepId | null,
     anchors: 'project:vega task:report-builder',
@@ -69,7 +70,7 @@ describe('the Run here button', () => {
     await wrapper.get('[data-testid="open-terminal"]').trigger('click')
     await flushPromises()
 
-    expect(openTerminal).toHaveBeenCalledWith(TASK, expect.objectContaining({ stepId: null }))
+    expect(openTerminal).toHaveBeenCalledWith({ taskId: TASK }, expect.objectContaining({ stepId: null }))
     expect(openPane).not.toHaveBeenCalled()
   })
 

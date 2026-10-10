@@ -1,53 +1,52 @@
-import type { NodeShape } from './kind-style'
+import type { NodeOutline } from './scene/graph-scene'
 
 /**
- * The outline of each node shape in a `width × height` box at the origin, and the one inner
- * detail some shapes carry (a state's second ring, a data store's rim, a subsystem's bars).
- * Pure strings, so the canvas and the legend draw the same outline.
+ * The outline of each card in a `width × height` box at the origin, and the one inner detail
+ * some outlines carry (a subroutine's bars, a data store's rim, a note's fold). Every outline
+ * keeps the card's footprint, so a decision still reads as a card with pointed ends.
  */
 
-const LOZENGE_POINT = 16
-const SIGNAL_POINT = 16
+const POINT = 16
 const CYLINDER_RIM = 7
-const SUBSYSTEM_BAR = 10
+const SUBROUTINE_BAR = 9
+const FOLD = 12
 
-export function shapePath(shape: NodeShape, width: number, height: number): string {
-  switch (shape) {
-    case 'soft':
-      return roundedRect(0, 0, width, height, 18)
+export function shapePath(outline: NodeOutline, width: number, height: number): string {
+  switch (outline) {
     case 'rounded':
-      return roundedRect(0, 0, width, height, 10)
-    case 'block':
-      return roundedRect(0, 0, width, height, 6)
+      return roundedRect(0, 0, width, height, 12)
     case 'stadium':
+    case 'circle':
       return roundedRect(0, 0, width, height, height / 2)
-    case 'subsystem':
-      return roundedRect(0, 0, width, height, 6)
-    case 'lozenge': {
-      const p = LOZENGE_POINT
-      return `M${p},0H${width - p}L${width},${height / 2}L${width - p},${height}H${p}L0,${height / 2}Z`
-    }
-    case 'signal': {
-      const r = 8
-      const p = SIGNAL_POINT
-      return `M${r},0H${width - p}L${width},${height / 2}L${width - p},${height}H${r}Q0,${height} 0,${height - r}V${r}Q0,0 ${r},0Z`
-    }
+    case 'diamond':
+      return `M${POINT},0H${width - POINT}L${width},${height / 2}L${width - POINT},${height}H${POINT}L0,${height / 2}Z`
+    case 'hexagon':
+      return `M${POINT / 2},0H${width - POINT / 2}L${width},${height / 2}L${width - POINT / 2},${height}H${POINT / 2}L0,${height / 2}Z`
+    case 'slant':
+      return `M${POINT},0H${width}L${width - POINT},${height}H0Z`
+    case 'flag':
+      return `M0,0H${width - 8}Q${width},0 ${width},8V${height - 8}Q${width},${height} ${width - 8},${height}H0L${POINT},${height / 2}Z`
     case 'cylinder': {
-      const e = CYLINDER_RIM
       const rx = width / 2
-      return `M0,${e}A${rx},${e} 0 0 1 ${width},${e}V${height - e}A${rx},${e} 0 0 1 0,${height - e}Z`
+      return `M0,${CYLINDER_RIM}A${rx},${CYLINDER_RIM} 0 0 1 ${width},${CYLINDER_RIM}V${height - CYLINDER_RIM}A${rx},${CYLINDER_RIM} 0 0 1 0,${height - CYLINDER_RIM}Z`
     }
+    case 'note':
+      return `M0,0H${width - FOLD}L${width},${FOLD}V${height}H0Z`
+    default:
+      return roundedRect(0, 0, width, height, 6)
   }
 }
 
-export function detailPath(shape: NodeShape, width: number, height: number): string | null {
-  switch (shape) {
-    case 'stadium':
+export function detailPath(outline: NodeOutline, width: number, height: number): string | null {
+  switch (outline) {
+    case 'circle':
       return roundedRect(3.5, 3.5, width - 7, height - 7, (height - 7) / 2)
     case 'cylinder':
       return `M0,${CYLINDER_RIM}A${width / 2},${CYLINDER_RIM} 0 0 0 ${width},${CYLINDER_RIM}`
-    case 'subsystem':
-      return `M${SUBSYSTEM_BAR},0V${height}M${width - SUBSYSTEM_BAR},0V${height}`
+    case 'subroutine':
+      return `M${SUBROUTINE_BAR},0V${height}M${width - SUBROUTINE_BAR},0V${height}`
+    case 'note':
+      return `M${width - FOLD},0V${FOLD}H${width}`
     default:
       return null
   }

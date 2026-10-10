@@ -1,8 +1,7 @@
-//! The wire form of a [`crate::SemanticGraph`]: JSON with a format marker and a version, so a
-//! stored graph says which reader it needs.
+//! The JSON form of a diagram document: how a session sends it and how it is stored.
 
-mod graph_codec;
-mod graph_format_error;
+mod document_codec;
+mod document_format_error;
 
-pub use graph_codec::{GraphCodec, CURRENT_VERSION, FORMAT};
-pub use graph_format_error::GraphFormatError;
+pub use document_codec::DocumentCodec;
+pub use document_format_error::DocumentFormatError;

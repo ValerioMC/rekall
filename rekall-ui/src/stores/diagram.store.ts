@@ -1,28 +1,27 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import {
-  createDiagram,
-  deleteDiagram,
-  fetchDiagram,
-  fetchDiagrams
-} from '@/api/diagrams.api'
+import { createDiagram, deleteDiagram, fetchDiagram, fetchDiagrams } from '@/api/diagrams.api'
 import { preferredEffort, preferredModel, skipsPermissions } from '@/common/config/claude-launch'
-import { diagramsByTask as groupByTask } from '@/common/diagram/task-diagrams'
 import { useTerminalStore } from '@/stores/terminal.store'
-import type { Diagram, DiagramDraft, DiagramStreamEvent, DiagramSummary } from '@/model/diagram'
+import type { Diagram, DiagramDraft, DiagramKind, DiagramStreamEvent, DiagramSummary } from '@/model/diagram'
 import type { DiagramId, ProjectId, TaskId, TerminalId } from '@/model/branded'
 
-/** A generation asked for and not yet answered: a session is working on it in a terminal. */
-export interface PendingGeneration {
-  readonly key: number
+/** What to generate: a project, optionally one of its tasks, the request and the types asked for. */
+export interface GenerationRequest {
   readonly projectId: ProjectId
-  readonly taskId: TaskId
+  readonly taskId: TaskId | null
   readonly request: string
+  readonly kinds: readonly DiagramKind[]
+}
+
+/** A generation asked for and not yet answered: a session is working on it in a terminal. */
+export interface PendingGeneration extends GenerationRequest {
+  readonly key: number
   readonly terminalId: TerminalId
   readonly startedAt: number
 }
 
-const PENDING_STORAGE_KEY = 'rekall.diagram.pending'
+const PENDING_STORAGE_KEY = 'rekall.diagram.pending.v2'
 
 /** Pending generations outlive a reload within the tab; storage may be blocked, then they simply do not. */
 function readPending(): PendingGeneration[] {
@@ -43,8 +42,8 @@ function writePending(pending: readonly PendingGeneration[]): void {
 }
 
 /**
- * The diagram library and the one diagram on screen. Summaries are the list; a full diagram
- * is fetched when opened and kept, since a graph does not change unless an event says so.
+ * The gallery and the one diagram open. Summaries are the gallery; a full diagram is fetched
+ * when opened and kept, since its sheets do not change unless an event says so.
  */
 export const useDiagramStore = defineStore('diagram', () => {
   const summaries = ref<DiagramSummary[]>([])
@@ -53,29 +52,18 @@ export const useDiagramStore = defineStore('diagram', () => {
   const loaded = ref(false)
   const opening = ref(false)
   const pending = ref<PendingGeneration[]>(readPending())
-  /** The last diagram a session delivered, so the library can mark its arrival once. */
+  /** The last diagram a session delivered, so the gallery can mark its arrival once. */
   const arrivedId = ref<DiagramId | null>(null)
   let nextPendingKey = pending.value.reduce((highest, generation) => Math.max(highest, generation.key + 1), 0)
 
   const current = computed<Diagram | null>(() => (selectedId.value ? cache.value[selectedId.value] ?? null : null))
 
-  const byTask = computed(() => groupByTask(summaries.value))
-
-  /** Tasks a session is drawing for now: a generation whose terminal is known to have ended is not. */
-  const generatingTaskIds = computed<ReadonlySet<TaskId>>(() => {
-    const terminals = useTerminalStore().terminals
-    const ended = new Set(terminals.filter((terminal) => !terminal.live).map((terminal) => terminal.id))
-    return new Set(pending.value.filter((generation) => !ended.has(generation.terminalId)).map((generation) => generation.taskId))
-  })
-
   async function load(): Promise<void> {
     summaries.value = await fetchDiagrams()
     loaded.value = true
-    const first = summaries.value[0]
-    if (selectedId.value === null && first) await select(first.id)
   }
 
-  async function select(id: DiagramId): Promise<void> {
+  async function open(id: DiagramId): Promise<void> {
     selectedId.value = id
     if (cache.value[id]) return
     opening.value = true
@@ -85,6 +73,10 @@ export const useDiagramStore = defineStore('diagram', () => {
     } finally {
       opening.value = false
     }
+  }
+
+  function close(): void {
+    selectedId.value = null
   }
 
   async function remove(id: DiagramId): Promise<void> {
@@ -101,26 +93,15 @@ export const useDiagramStore = defineStore('diagram', () => {
   }
 
   /**
-   * Starts the generation workflow: a terminal on the task, opened on
-   * `/rk <anchors> generate "<request>"`. The diagram comes back through the event stream.
+   * Starts the generation workflow: a terminal on the task, or on the project alone, opened on
+   * `/rk <anchors> generate kinds:… "<request>"`. The diagram comes back through the event stream.
    */
-  async function generate(projectId: ProjectId, taskId: TaskId, request: string): Promise<PendingGeneration> {
-    const terminal = await useTerminalStore().openForTask(taskId, {
-      skipPermissions: skipsPermissions(),
-      model: preferredModel(),
-      effort: preferredEffort(),
-      mode: 'GENERATE',
-      request
-    })
-    const generation: PendingGeneration = {
-      key: nextPendingKey++,
-      projectId,
-      taskId,
-      request,
-      terminalId: terminal.id,
-      startedAt: Date.now()
-    }
-    setPending([generation, ...pending.value.filter((known) => known.taskId !== taskId)])
+  async function generate(asked: GenerationRequest): Promise<PendingGeneration> {
+    const terminals = useTerminalStore()
+    const launch = { skipPermissions: skipsPermissions(), model: preferredModel(), effort: preferredEffort(), mode: 'GENERATE' as const, request: asked.request, kinds: asked.kinds }
+    const terminal = asked.taskId ? await terminals.openForTask(asked.taskId, launch) : await terminals.openForProject(asked.projectId, launch)
+    const generation: PendingGeneration = { ...asked, key: nextPendingKey++, terminalId: terminal.id, startedAt: Date.now() }
+    setPending([generation, ...pending.value.filter((known) => known.terminalId !== terminal.id)])
     return generation
   }
 
@@ -140,17 +121,14 @@ export const useDiagramStore = defineStore('diagram', () => {
       return
     }
     const summary = event.diagram
-    const isNew = !summaries.value.some((known) => known.id === summary.id)
     upsertSummary(summary)
     cache.value = without(cache.value, summary.id)
-    const answered = pending.value.find((generation) =>
-      summary.taskId ? generation.taskId === summary.taskId : generation.projectId === summary.projectId
-    )
+    const answered = pending.value.find((generation) => generation.projectId === summary.projectId && generation.taskId === summary.taskId)
     if (answered) {
       dismissPending(answered.key)
       arrivedId.value = summary.id
     }
-    if (selectedId.value === summary.id || (isNew && answered)) await select(summary.id)
+    if (selectedId.value === summary.id) await open(summary.id)
   }
 
   function upsertSummary(summary: DiagramSummary): void {
@@ -161,17 +139,11 @@ export const useDiagramStore = defineStore('diagram', () => {
   function forget(id: DiagramId): void {
     summaries.value = summaries.value.filter((known) => known.id !== id)
     cache.value = without(cache.value, id)
-    if (selectedId.value === id) {
-      selectedId.value = null
-      const next = summaries.value[0]
-      if (next) void select(next.id)
-    }
+    if (selectedId.value === id) selectedId.value = null
   }
 
   return {
     summaries,
-    byTask,
-    generatingTaskIds,
     selectedId,
     current,
     loaded,
@@ -179,7 +151,8 @@ export const useDiagramStore = defineStore('diagram', () => {
     pending,
     arrivedId,
     load,
-    select,
+    open,
+    close,
     remove,
     importDiagram,
     generate,
@@ -201,8 +174,7 @@ function toSummary(diagram: DiagramSummary): DiagramSummary {
     taskId: diagram.taskId,
     title: diagram.title,
     question: diagram.question,
-    nodeCount: diagram.nodeCount,
-    edgeCount: diagram.edgeCount,
+    kinds: diagram.kinds,
     createdAt: diagram.createdAt,
     updatedAt: diagram.updatedAt
   }

@@ -1,6 +1,6 @@
 # The backend: one crate per layer, and the dependency direction the crates enforce:
 # rekall-common <- rekall-model <- rekall-repository <- rekall-service <- rekall-api,
-# rekall-mcp, rekall-claude <- rekall-app. rekall-diagram, the Semantic Graph, depends on nothing
+# rekall-mcp, rekall-claude <- rekall-app. rekall-diagram, the diagram format, depends on nothing
 # of Rekall's own and is read from rekall-service upwards.
 #
 # The Tauri shell (rekall-app/desktop) is a member but not a default one: it needs the platform

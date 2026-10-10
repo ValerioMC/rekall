@@ -1,49 +1,35 @@
 import type { DiagramId, ProjectId, TaskId } from '@/model/branded'
 
 /**
- * The Semantic Graph as the server stores it: what a system does, as typed nodes and typed
- * relations, each traceable to the code that implements it. The console only ever draws it;
- * nothing here is written by hand.
+ * A diagram as the server stores it: Mermaid sheets a session wrote, each tying the elements it
+ * draws to the code that implements them. The console only ever draws it.
  */
 
-/** The kinds the console draws a dedicated shape for. Any other snake_case kind is drawn generically. */
-export const KNOWN_NODE_KINDS = [
-  'concept',
-  'action',
-  'decision',
+export const DIAGRAM_KINDS = [
+  'sequence',
+  'flowchart',
   'state',
-  'event',
-  'data',
-  'external_system',
-  'code'
+  'class',
+  'er',
+  'gantt',
+  'pie',
+  'mindmap',
+  'timeline',
+  'journey',
+  'quadrant',
+  'gitgraph',
+  'requirement',
+  'c4',
+  'sankey',
+  'xychart',
+  'block',
+  'packet',
+  'architecture',
+  'kanban',
+  'radar'
 ] as const
 
-export type KnownNodeKind = (typeof KNOWN_NODE_KINDS)[number]
-
-/** A known kind, or a custom one a session introduced. */
-export type NodeKind = KnownNodeKind | (string & { readonly __custom?: never })
-
-export const KNOWN_RELATIONS = [
-  'leads_to',
-  'conditionally_leads_to',
-  'transitions_to',
-  'triggers',
-  'calls',
-  'reads',
-  'writes',
-  'produces',
-  'consumes',
-  'depends_on',
-  'contains'
-] as const
-
-export type KnownRelation = (typeof KNOWN_RELATIONS)[number]
-
-export type RelationKind = KnownRelation | (string & { readonly __custom?: never })
-
-export type Provenance = 'observed' | 'inferred' | 'documented' | 'stated'
-
-export type Metadata = Readonly<Record<string, unknown>>
+export type DiagramKind = (typeof DIAGRAM_KINDS)[number]
 
 export interface SourceLocation {
   readonly file: string
@@ -52,50 +38,30 @@ export interface SourceLocation {
   readonly symbol: string | null
 }
 
-export interface GraphNode {
-  readonly id: string
-  readonly kind: NodeKind
-  readonly title: string
-  readonly description: string | null
-  readonly sources: readonly SourceLocation[]
-  readonly provenance: Provenance | null
-  readonly confidence: number | null
-  readonly metadata: Metadata
+/** Element key (a Mermaid id, or `#n` for a sequence's n-th message) to where it lives. */
+export type CodeLinks = Readonly<Record<string, readonly SourceLocation[]>>
+
+export interface DiagramSheet {
+  readonly kind: DiagramKind
+  readonly title: string | null
+  readonly mermaid: string
+  readonly links: CodeLinks
 }
 
-export interface GraphEdge {
-  readonly id: string
-  readonly from: string
-  readonly to: string
-  readonly relation: RelationKind
-  readonly label: string | null
-  readonly provenance: Provenance | null
-  readonly confidence: number | null
-  readonly metadata: Metadata
-}
-
-export interface SemanticGraph {
-  readonly format: string
-  readonly version: number
-  readonly nodes: readonly GraphNode[]
-  readonly edges: readonly GraphEdge[]
-}
-
-/** A diagram as the library lists it: everything but the graph. */
+/** A diagram as the gallery lists it: everything but its sheets. */
 export interface DiagramSummary {
   readonly id: DiagramId
   readonly projectId: ProjectId
   readonly taskId: TaskId | null
   readonly title: string
   readonly question: string
-  readonly nodeCount: number
-  readonly edgeCount: number
+  readonly kinds: readonly DiagramKind[]
   readonly createdAt: string
   readonly updatedAt: string
 }
 
 export interface Diagram extends DiagramSummary {
-  readonly graph: SemanticGraph
+  readonly sheets: readonly DiagramSheet[]
 }
 
 export interface SourceLine {
@@ -120,11 +86,11 @@ export interface DiagramStreamEvent {
   readonly deleted: boolean
 }
 
-/** What the console sends to store a graph it was handed (an import). */
+/** What the console sends to store Mermaid it was handed (an import). */
 export interface DiagramDraft {
   readonly projectId: ProjectId
   readonly taskId: TaskId | null
   readonly title: string
   readonly question: string
-  readonly graph: unknown
+  readonly sheets: readonly { readonly title: string | null; readonly mermaid: string }[]
 }

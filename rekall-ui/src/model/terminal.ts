@@ -1,4 +1,4 @@
-import type { TaskId, TaskStepId, TerminalId } from '@/model/branded'
+import type { ProjectId, TaskId, TaskStepId, TerminalId } from '@/model/branded'
 
 /**
  * What a terminal is opened to do: `WORK` types `/rk <anchor>`, `PLAN` types `/rk <anchor> plan`,
@@ -6,16 +6,23 @@ import type { TaskId, TaskStepId, TerminalId } from '@/model/branded'
  */
 export type TerminalMode = 'WORK' | 'PLAN' | 'GENERATE'
 
-/** A live in-app terminal: a real PTY running the interactive `claude` TUI. Not persisted. */
+/** What a terminal is opened on: a task, or a project alone, which only generates a diagram. */
+export type TerminalTarget = { readonly taskId: TaskId } | { readonly projectId: ProjectId }
+
+/**
+ * A live in-app terminal: a real PTY running the interactive `claude` TUI. Not persisted. The
+ * task fields are null on one opened on a project alone.
+ */
 export interface Terminal {
   readonly id: TerminalId
-  readonly taskId: TaskId
+  readonly projectId: ProjectId
+  readonly taskId: TaskId | null
   readonly stepId: TaskStepId | null
   readonly anchors: string
   readonly workingDir: string
   readonly projectLabel: string
-  readonly taskLabel: string
-  readonly taskTitle: string
+  readonly taskLabel: string | null
+  readonly taskTitle: string | null
   readonly skipPermissions: boolean
   readonly model: string | null
   readonly effort: string | null

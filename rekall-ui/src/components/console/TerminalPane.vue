@@ -1,43 +1,23 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import CopyGlyph from '@/components/ui/CopyGlyph.vue'
+import TerminalScreen from '@/components/claude/TerminalScreen.vue'
 import { storeToRefs } from 'pinia'
-import { Terminal as Xterm } from '@xterm/xterm'
-import { FitAddon } from '@xterm/addon-fit'
-import '@xterm/xterm/css/xterm.css'
 import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/stores/terminal.store'
-import { useTerminalSocket } from '@/composables/useTerminalSocket'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { identityHue } from '@/common/identity'
 import { rkCommand } from '@/common/format/rk-command'
 import { preferredEffort, preferredModel, skipsPermissions } from '@/common/config/claude-launch'
-import type { Terminal } from '@/model/terminal'
-import type { TerminalId } from '@/model/branded'
-
-const TERMINAL_THEME = {
-  background: '#0b0b0d',
-  foreground: '#d6d6d6',
-  cursor: '#d6d6d6',
-  selectionBackground: '#3a3a44',
-  black: '#1c1c22',
-  red: '#e0708a',
-  green: '#8fcf9d',
-  yellow: '#d9b57a',
-  blue: '#7aa2d9',
-  magenta: '#b78ad9',
-  cyan: '#79c7c7',
-  white: '#c9c9c9',
-  brightBlack: '#5a5a66'
-}
+import type { Terminal, TerminalEndedFrame } from '@/model/terminal'
 
 const store = useConsoleStore()
 const terminals = useTerminalStore()
-const { selectedTask, tasks } = storeToRefs(store)
+const { selectedTask } = storeToRefs(store)
 const { terminals: allTerminals, activeTerminal, activeTerminalId } = storeToRefs(terminals)
 const { run, isRunning } = useAsyncAction()
 
-const host = ref<HTMLElement | null>(null)
+const connected = ref(false)
 const ended = ref<{ exitCode: number; detail: string } | null>(null)
 const switcherOpen = ref(false)
 
@@ -45,18 +25,16 @@ const hue = computed(() => identityHue(selectedTask.value?.projectId ?? ''))
 const folder = computed(() => selectedTask.value?.projectRepoFolder ?? null)
 const taskTerminal = computed(() => terminals.terminalForTask(selectedTask.value?.id ?? null))
 
+/** Only sessions on a task can be shown here; one on a project alone lives on the Diagrams screen. */
 const otherSessions = computed(() =>
   allTerminals.value
-    .filter((terminal) => terminal.live && terminal.id !== activeTerminalId.value)
+    .filter((terminal) => terminal.live && terminal.taskId !== null && terminal.id !== activeTerminalId.value)
     .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
 )
 
-function projectIdOf(terminal: Terminal): string {
-  return tasks.value.find((task) => task.id === terminal.taskId)?.projectId ?? terminal.taskId
-}
-
 /** Switch the pane to another live session without leaving the terminal view. */
 function switchTo(terminal: Terminal): void {
+  if (!terminal.taskId) return
   store.selectTask(terminal.taskId)
   store.openTerminal()
   terminals.select(terminal.id)
@@ -70,94 +48,12 @@ function onSwitcherKeydown(event: KeyboardEvent): void {
   }
 }
 
-let xterm: Xterm | null = null
-let fit: FitAddon | null = null
-let resizeObserver: ResizeObserver | null = null
-let dataBinding: { dispose: () => void } | null = null
-let resizeBinding: { dispose: () => void } | null = null
-let connectedId: TerminalId | null = null
-
-const socket = useTerminalSocket({
-  onOutput: (bytes) => xterm?.write(bytes),
-  onReady: () => refitWhenReady(),
-  onEnded: (frame) => {
-    ended.value = { exitCode: frame.exitCode, detail: frame.detail }
-    if (activeTerminalId.value) terminals.markEnded(activeTerminalId.value)
-    xterm?.write(`\r\n\x1b[2m[ ${frame.detail || 'session ended'} ]\x1b[0m\r\n`)
-  },
-  onClose: () => {}
-})
-
-const { connected } = socket
-
-function ensureXterm(): Xterm {
-  if (!xterm) {
-    const term = new Xterm({
-      fontFamily: "'Fira Code Variable', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, monospace",
-      fontSize: 12.5,
-      lineHeight: 1.25,
-      cursorBlink: true,
-      theme: TERMINAL_THEME,
-      scrollback: 5000
-    })
-    fit = new FitAddon()
-    term.loadAddon(fit)
-    dataBinding = term.onData((data) => socket.sendInput(data))
-    resizeBinding = term.onResize(({ cols, rows }) => socket.sendResize(cols, rows))
-    xterm = term
-  }
-  if (!xterm.element && host.value) xterm.open(host.value)
-  return xterm
+function onEnded(frame: TerminalEndedFrame): void {
+  ended.value = { exitCode: frame.exitCode, detail: frame.detail }
+  if (activeTerminalId.value) terminals.markEnded(activeTerminalId.value)
 }
 
-/** Re-measure xterm against its host on the next frame, once layout has settled. */
-function refit(): void {
-  requestAnimationFrame(() => {
-    if (!fit || !xterm) return
-    try {
-      fit.fit()
-    } catch {
-      // The host has no size yet; the ResizeObserver will catch the next layout.
-      return
-    }
-    socket.sendResize(xterm.cols, xterm.rows)
-  })
-}
-
-/**
- * The first fit on a fresh terminal runs before the Fira Code web font has
- * loaded, so xterm sizes its cell against fallback metrics and the grid lands a
- * few cols/rows short until the next resize nudges it. Fit now for layout, then
- * again once the real font is in.
- */
-function refitWhenReady(): void {
-  refit()
-  document.fonts?.ready.then(() => refit())
-}
-
-/** Wire xterm + the socket to `id`. No-ops until the DOM is ready; `syncConnection` retries on mount. */
-function connectTo(id: TerminalId): void {
-  if (!host.value) return
-  ended.value = null
-  const term = ensureXterm()
-  term.reset()
-  socket.connect(id)
-  connectedId = id
-  refitWhenReady()
-  term.focus()
-}
-
-/** Bring the live connection in line with `activeTerminalId`. The single place the pane (re)connects. */
-function syncConnection(): void {
-  const id = activeTerminalId.value
-  if (id) {
-    if (id !== connectedId) connectTo(id)
-  } else if (connectedId) {
-    socket.disconnect()
-    connectedId = null
-    xterm?.reset()
-  }
-}
+watch(activeTerminalId, () => (ended.value = null))
 
 async function openHere(): Promise<void> {
   const task = selectedTask.value
@@ -171,7 +67,6 @@ async function openHere(): Promise<void> {
       }),
     'Terminal opened'
   )
-  syncConnection()
 }
 
 async function restart(): Promise<void> {
@@ -179,8 +74,6 @@ async function restart(): Promise<void> {
   const current = activeTerminalId.value
   if (!task || !current) return
   await run(async () => {
-    socket.disconnect()
-    connectedId = null
     await terminals.close(current)
     await terminals.openForTask(task.id, {
       skipPermissions: skipsPermissions(),
@@ -188,14 +81,11 @@ async function restart(): Promise<void> {
       effort: preferredEffort()
     })
   }, 'Terminal restarted')
-  syncConnection()
 }
 
 async function closeActive(): Promise<void> {
   const current = activeTerminalId.value
   if (!current) return
-  socket.disconnect()
-  connectedId = null
   await run(() => terminals.close(current))
 }
 
@@ -216,38 +106,15 @@ async function copyAnchor(): Promise<void> {
 onMounted(async () => {
   await run(() => terminals.load())
   pickForTask()
-  syncConnection()
-  resizeObserver = new ResizeObserver(() => refit())
-  if (host.value) resizeObserver.observe(host.value)
 })
 
 watch(
   () => selectedTask.value?.id ?? null,
   async (taskId) => {
-    if (!taskId) {
-      pickForTask()
-      syncConnection()
-      return
-    }
-    await run(() => terminals.load())
+    if (taskId) await run(() => terminals.load())
     pickForTask()
-    syncConnection()
   }
 )
-
-watch(activeTerminalId, () => syncConnection())
-
-onBeforeUnmount(() => {
-  resizeObserver?.disconnect()
-  resizeObserver = null
-  dataBinding?.dispose()
-  resizeBinding?.dispose()
-  socket.disconnect()
-  fit?.dispose()
-  xterm?.dispose()
-  xterm = null
-  fit = null
-})
 </script>
 
 <template>
@@ -341,7 +208,7 @@ onBeforeUnmount(() => {
                         <span class="mt-0.5 flex items-center gap-1.5 truncate font-mono text-[10px] text-anchor/80">
                           <span
                             class="size-1 shrink-0 rounded-full"
-                            :style="{ backgroundColor: identityHue(projectIdOf(terminal)).base }"
+                            :style="{ backgroundColor: identityHue(terminal.projectId).base }"
                             aria-hidden="true"
                           />
                           <span class="min-w-0 truncate">{{ terminal.anchors }}</span>
@@ -450,17 +317,10 @@ onBeforeUnmount(() => {
             </RouterLink>
           </div>
         </div>
-        <div ref="host" class="absolute inset-0 px-3 py-2" data-testid="terminal-host" />
+        <div class="absolute inset-0 px-3 py-2">
+          <TerminalScreen :terminal-id="activeTerminalId" @ended="onEnded" @connection="connected = $event" />
+        </div>
       </div>
     </template>
   </section>
 </template>
-
-<style scoped>
-:deep(.xterm) {
-  height: 100%;
-}
-:deep(.xterm-viewport) {
-  background-color: transparent !important;
-}
-</style>

@@ -4179,6 +4179,7 @@ dependencies = [
  "regex",
  "rekall-api",
  "rekall-common",
+ "rekall-diagram",
  "rekall-model",
  "rekall-repository",
  "rekall-service",
@@ -4232,7 +4233,6 @@ dependencies = [
 name = "rekall-diagram"
 version = "0.1.0"
 dependencies = [
- "regex",
  "serde",
  "serde_json",
 ]

@@ -3,10 +3,11 @@ use axum::response::Response;
 use axum::routing::get;
 use axum::{Json, Router};
 use rekall_common::{jstr, RekallError};
-use rekall_service::diagram::{DiagramDraft, DiagramService, DiagramSummaryView, DiagramTraceView, DiagramView};
+use rekall_service::diagram::{DiagramDraft, DiagramService, DiagramSummaryView, DiagramView};
+use serde_json::json;
 
 use super::{created, no_content};
-use crate::dto::{DiagramRequest, DiagramTraceQuery, SourceExcerptQuery, SourceExcerptResponse};
+use crate::dto::{DiagramRequest, SourceExcerptQuery, SourceExcerptResponse};
 use crate::error::ApiResult;
 use crate::extract::{optional_uuid, required, uuid, JsonBody, Validator};
 use crate::ApiState;
@@ -16,7 +17,6 @@ pub fn routes() -> Router<ApiState> {
         .route("/api/diagrams", get(list).post(create))
         .route("/api/diagrams/{id}", get(get_one).put(replace).delete(delete))
         .route("/api/diagrams/{id}/source", get(source))
-        .route("/api/projects/{id}/diagram-trace", get(trace))
 }
 
 async fn list(State(state): State<ApiState>) -> ApiResult<Json<Vec<DiagramSummaryView>>> {
@@ -47,24 +47,18 @@ async fn source(State(state): State<ApiState>, Path(id): Path<String>, Query(que
     Ok(Json(state.sources.excerpt(uuid("id", &id)?, &file, query.start, query.end).await?))
 }
 
-async fn trace(State(state): State<ApiState>, Path(id): Path<String>, Query(query): Query<DiagramTraceQuery>) -> ApiResult<Json<Vec<DiagramTraceView>>> {
-    let file = required(query.file.filter(|file| !jstr::is_blank(file)))?;
-    let line = required(query.line)?;
-    Ok(Json(state.diagrams.trace(uuid("id", &id)?, &file, line).await?))
-}
-
 fn draft_of(id: Option<rekall_common::Id>, request: DiagramRequest) -> ApiResult<DiagramDraft> {
     Validator::new()
         .not_blank("projectId", request.project_id.as_deref())
         .not_blank("title", request.title.as_deref())
         .finish()?;
-    let graph = request.graph.ok_or_else(|| RekallError::illegal("A diagram needs a graph."))?;
+    let sheets = request.sheets.ok_or_else(|| RekallError::illegal("A diagram needs at least one sheet."))?;
     Ok(DiagramDraft {
         id,
         project_id: uuid("projectId", request.project_id.as_deref().unwrap_or_default())?,
         task_id: optional_uuid("taskId", request.task_id.as_deref())?,
         title: request.title.unwrap_or_default(),
         question: request.question.unwrap_or_default(),
-        graph: DiagramService::read_graph(graph)?,
+        document: DiagramService::read_document(json!({ "sheets": sheets }))?,
     })
 }

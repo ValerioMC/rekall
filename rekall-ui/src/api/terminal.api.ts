@@ -1,9 +1,10 @@
 import { apiClient, request } from './client'
 import { TerminalListSchema, TerminalSchema } from './schemas/terminal.schema'
 import { env } from '@/common/config/env'
-import type { Terminal, TerminalMode } from '@/model/terminal'
+import type { Terminal, TerminalMode, TerminalTarget } from '@/model/terminal'
+import type { DiagramKind } from '@/model/diagram'
 import type { ClaudeEffortChoice, ClaudeModelChoice } from '@/model/claude'
-import type { TaskId, TaskStepId, TerminalId } from '@/model/branded'
+import type { TaskStepId, TerminalId } from '@/model/branded'
 
 export interface OpenTerminalInput {
   stepId?: TaskStepId | null
@@ -11,18 +12,23 @@ export interface OpenTerminalInput {
   model?: ClaudeModelChoice
   effort?: ClaudeEffortChoice
   mode?: TerminalMode
-  /** What a `GENERATE` terminal asks the session to draw. */
+  /** What a `GENERATE` terminal asks the session to draw, and as which diagram types. */
   request?: string
+  kinds?: readonly DiagramKind[]
+}
+
+function terminalsPath(target: TerminalTarget): string {
+  return 'taskId' in target ? `/api/tasks/${target.taskId}/terminals` : `/api/projects/${target.projectId}/terminals`
 }
 
 export async function fetchTerminals(): Promise<Terminal[]> {
   return request(async () => TerminalListSchema.parse(await apiClient('/api/terminals')))
 }
 
-export async function openTerminal(taskId: TaskId, input: OpenTerminalInput): Promise<Terminal> {
+export async function openTerminal(target: TerminalTarget, input: OpenTerminalInput): Promise<Terminal> {
   return request(async () =>
     TerminalSchema.parse(
-      await apiClient(`/api/tasks/${taskId}/terminals`, {
+      await apiClient(terminalsPath(target), {
         method: 'POST',
         body: {
           stepId: input.stepId ?? null,
@@ -30,7 +36,8 @@ export async function openTerminal(taskId: TaskId, input: OpenTerminalInput): Pr
           model: input.model && input.model !== 'default' ? input.model : null,
           effort: input.effort && input.effort !== 'default' ? input.effort : null,
           mode: input.mode ?? 'WORK',
-          request: input.request ?? null
+          request: input.request ?? null,
+          kinds: input.kinds ?? null
         }
       })
     )

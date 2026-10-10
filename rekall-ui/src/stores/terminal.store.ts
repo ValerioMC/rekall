@@ -9,7 +9,7 @@ import {
 } from '@/api/terminal.api'
 import { rkPlanCommand } from '@/common/format/rk-command'
 import type { Terminal } from '@/model/terminal'
-import type { TaskId, TerminalId } from '@/model/branded'
+import type { ProjectId, TaskId, TerminalId } from '@/model/branded'
 
 /**
  * In-app terminals: real PTYs running the interactive `claude` TUI, one active at a time. Never
@@ -42,9 +42,16 @@ export const useTerminalStore = defineStore('terminal', () => {
   // One live terminal per task: the server reuses a live one, retargets it and types the `/rk`
   // line into it, so the session reloads the task's latest steps instead of sitting idle.
   async function openForTask(taskId: TaskId, input: OpenTerminalInput): Promise<Terminal> {
-    const opened = await openTerminal(taskId, input)
+    const opened = await openTerminal({ taskId }, input)
     upsert(opened)
     activeTerminalId.value = opened.id
+    return opened
+  }
+
+  /** A terminal on a project alone, which only generates a diagram; the server reuses a live one. */
+  async function openForProject(projectId: ProjectId, input: OpenTerminalInput): Promise<Terminal> {
+    const opened = await openTerminal({ projectId }, input)
+    upsert(opened)
     return opened
   }
 
@@ -64,7 +71,7 @@ export const useTerminalStore = defineStore('terminal', () => {
       activeTerminalId.value = live.id
       return live
     }
-    const opened = await openTerminal(taskId, { ...input, mode: 'PLAN' })
+    const opened = await openTerminal({ taskId }, { ...input, mode: 'PLAN' })
     upsert(opened)
     activeTerminalId.value = opened.id
     return opened
@@ -101,6 +108,7 @@ export const useTerminalStore = defineStore('terminal', () => {
     terminalForTask,
     load,
     openForTask,
+    openForProject,
     planForTask,
     select,
     markEnded,

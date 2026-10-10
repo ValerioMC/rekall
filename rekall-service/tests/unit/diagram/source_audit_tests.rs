@@ -1,6 +1,6 @@
 use std::fs;
 
-use rekall_diagram::GraphCodec;
+use rekall_diagram::DocumentCodec;
 use serde_json::json;
 
 use super::*;
@@ -13,17 +13,15 @@ fn project() -> tempfile::TempDir {
     folder
 }
 
-fn graph(sources: serde_json::Value) -> SemanticGraph {
-    GraphCodec::from_value(json!({
-        "format": "rekall.semantic-graph",
-        "version": 1,
-        "nodes": [{"id": "validate", "kind": "action", "title": "Validate order", "sources": sources}]
+fn document(sources: serde_json::Value) -> DiagramDocument {
+    DocumentCodec::from_value(json!({
+        "sheets": [{ "mermaid": "flowchart LR\n  validate[Validate order]", "links": { "validate": sources } }]
     }))
     .unwrap()
 }
 
-fn audit(folder: &tempfile::TempDir, sources: serde_json::Value) -> std::result::Result<(), GraphViolations> {
-    SourceAudit::check(&ProjectFolder::open(folder.path()).unwrap(), &graph(sources))
+fn audit(folder: &tempfile::TempDir, sources: serde_json::Value) -> std::result::Result<(), DocumentViolations> {
+    SourceAudit::check(&ProjectFolder::open(folder.path()).unwrap(), &document(sources))
 }
 
 #[test]
@@ -38,7 +36,7 @@ fn a_file_that_is_not_there_is_refused_at_its_path() {
     let folder = project();
     let violations = audit(&folder, json!([{"file": "src/ghost.rs", "startLine": 3}])).unwrap_err();
     assert_eq!(violations.0.len(), 1);
-    assert_eq!(violations.0[0].path, "nodes[0].sources[0].file");
+    assert_eq!(violations.0[0].path, r#"sheets[0].links["validate"][0].file"#);
     assert!(violations.0[0].message.contains("src/ghost.rs"), "{}", violations.0[0].message);
 }
 
@@ -47,7 +45,7 @@ fn lines_past_the_end_of_the_file_are_refused_each() {
     let folder = project();
     let violations = audit(&folder, json!([{"file": "src/order.rs", "startLine": 31, "endLine": 40}])).unwrap_err();
     let paths: Vec<&str> = violations.0.iter().map(|violation| violation.path.as_str()).collect();
-    assert_eq!(paths, ["nodes[0].sources[0].startLine", "nodes[0].sources[0].endLine"]);
+    assert_eq!(paths, [r#"sheets[0].links["validate"][0].startLine"#, r#"sheets[0].links["validate"][0].endLine"#]);
     assert!(violations.0[1].message.contains("(30 lines)"), "{}", violations.0[1].message);
 }
 

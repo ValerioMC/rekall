@@ -2,12 +2,13 @@ import type { Point } from './viewport'
 
 /**
  * An SVG path through an edge's route points, smoothed as a Catmull-Rom spline so a layered
- * route reads as one gesture rather than a polyline with kinks. It stops short of the last
- * point by `inset` so the arrowhead, drawn separately, sits on the target's border.
+ * route reads as one gesture rather than a polyline with kinks. It stops short of each end by
+ * its inset so a marker, drawn separately, sits on the border.
  */
-export function smoothPath(points: readonly Point[], inset = 0): string {
+export function smoothPath(points: readonly Point[], endInset = 0, startInset = 0): string {
   if (points.length < 2) return ''
-  const route = inset > 0 ? shortenEnd(points, inset) : [...points]
+  const shortened = endInset > 0 ? shortenEnd(points, endInset) : [...points]
+  const route = startInset > 0 ? shortenEnd([...shortened].reverse(), startInset).reverse() : shortened
   const [first] = route
   if (!first) return ''
   if (route.length === 2) return `M${fmt(first)}L${fmt(route[1]!)}`
@@ -22,6 +23,11 @@ export function smoothPath(points: readonly Point[], inset = 0): string {
     path += `C${fmt(c1)} ${fmt(c2)} ${fmt(p2)}`
   }
   return path
+}
+
+/** The angle, in degrees, the route leaves its first point with, turned to point back out. */
+export function departureAngle(points: readonly Point[]): number {
+  return arrivalAngle([...points].reverse())
 }
 
 /** The angle, in degrees, the route arrives at its last point with. */

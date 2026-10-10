@@ -5,7 +5,7 @@ import PlanHereButton from '@/components/console/PlanHereButton.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/stores/terminal.store'
 import type { Terminal } from '@/model/terminal'
-import type { TaskId, TaskStepId, TerminalId } from '@/model/branded'
+import type { ProjectId, TaskId, TaskStepId, TerminalId } from '@/model/branded'
 
 const sendTerminalInput = vi.fn()
 const openTerminal = vi.fn()
@@ -23,6 +23,7 @@ const ANCHOR = 'project:vega task:report-builder'
 function terminal(over: Partial<Terminal> = {}): Terminal {
   return {
     id: 'term-1' as TerminalId,
+    projectId: 'p-1' as ProjectId,
     taskId: TASK,
     stepId: null as TaskStepId | null,
     anchors: ANCHOR,
@@ -60,7 +61,7 @@ describe('the Plan here button', () => {
     await mountButton().get('[data-testid="plan-here"]').trigger('click')
     await flushPromises()
 
-    expect(openTerminal).toHaveBeenCalledWith(TASK, expect.objectContaining({ mode: 'PLAN' }))
+    expect(openTerminal).toHaveBeenCalledWith({ taskId: TASK }, expect.objectContaining({ mode: 'PLAN' }))
     expect(sendTerminalInput).not.toHaveBeenCalled()
     expect(openPane).toHaveBeenCalled()
     expect(terminals.activeTerminalId).toBe('term-2')

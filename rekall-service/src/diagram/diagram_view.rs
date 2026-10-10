@@ -1,13 +1,12 @@
-use rekall_diagram::SemanticGraph;
 use serde::Serialize;
 
-use super::DiagramSummaryView;
+use super::{DiagramSheetView, DiagramSummaryView};
 
-/// A diagram in full: its summary and the graph.
-#[derive(Clone, Debug, PartialEq, Serialize)]
+/// A diagram in full: its summary and its sheets.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiagramView {
     #[serde(flatten)]
     pub summary: DiagramSummaryView,
-    pub graph: SemanticGraph,
+    pub sheets: Vec<DiagramSheetView>,
 }
