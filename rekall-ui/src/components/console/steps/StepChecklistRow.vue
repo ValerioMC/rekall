@@ -3,8 +3,10 @@ import { computed } from 'vue'
 import CommitReferenceList from '@/components/console/CommitReferenceList.vue'
 import StepPassHistory from '@/components/console/StepPassHistory.vue'
 import StepSeal from '@/components/console/StepSeal.vue'
+import TokenCount from '@/components/ui/TokenCount.vue'
 import { useStepEditor } from '@/composables/useStepEditor'
 import { useConsoleStore } from '@/stores/console.store'
+import { useTokenUsageStore } from '@/stores/tokenUsage.store'
 import { relativeTime } from '@/common/format/relative-time'
 import { stepIsComplete, type Task, type TaskStep } from '@/model/catalog'
 import StepDetailEditor from './StepDetailEditor.vue'
@@ -41,6 +43,8 @@ const { expandedId, toggle } = useStepEditor()
 
 const expanded = computed(() => expandedId.value === props.step.id)
 const commits = computed(() => store.stepCommitReferences(props.step.id))
+const tokenUsage = useTokenUsageStore()
+const tokens = computed(() => tokenUsage.ofStep(props.step.id))
 
 const checkboxLabel = computed(() => {
   if (props.step.state === 'DONE') return `${props.step.title} is done. Reopen it from its detail.`
@@ -142,6 +146,7 @@ const panelClass = computed(() => {
               detail
             </span>
             <span v-else-if="!stepIsComplete(step.state)" class="text-text-subtle">no detail yet</span>
+            <TokenCount :totals="tokens" />
           </span>
         </button>
 

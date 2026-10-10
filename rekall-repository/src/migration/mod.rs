@@ -11,6 +11,7 @@ mod m032_project_icon_image;
 mod m033_project_component;
 mod m034_company_logo_image;
 mod m035_mermaid_diagram;
+mod m036_token_usage;
 mod migration_support;
 mod migrator;
 

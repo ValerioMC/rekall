@@ -1,4 +1,4 @@
-use crate::{claude, commit, context, diagram, note, review, revision, search, section, step, timeentry, wrapup, Ctx};
+use crate::{claude, commit, context, diagram, note, review, revision, search, section, step, timeentry, token, wrapup, Ctx};
 
 /// Every service, built once over one context: what a controller or a tool is handed.
 #[derive(Clone)]
@@ -12,6 +12,7 @@ pub struct Services {
     pub diagrams: diagram::DiagramService,
     pub sections: section::ProjectSectionService,
     pub time_entries: timeentry::TimeEntryService,
+    pub token_usage: token::TokenUsageService,
     pub context: context::ContextService,
     pub renderer: context::ContextRenderer,
     pub context_size: context::ContextSizeService,
@@ -43,6 +44,7 @@ impl Services {
             repositories: commit::GitRepositoryInspector,
             task_work: claude::TaskWorkService::new(ctx.clone()),
             terminal_launch: claude::TerminalLaunchService::new(ctx.clone()),
+            token_usage: token::TokenUsageService::new(ctx.clone()),
             context,
             commit_references,
             review,

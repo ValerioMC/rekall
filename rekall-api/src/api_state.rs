@@ -9,6 +9,7 @@ use rekall_service::search::SearchService;
 use rekall_service::section::ProjectSectionService;
 use rekall_service::step::TaskStepService;
 use rekall_service::timeentry::TimeEntryService;
+use rekall_service::token::TokenUsageService;
 use rekall_service::wrapup::WrapupService;
 use rekall_service::Services;
 
@@ -20,6 +21,7 @@ pub struct ApiState {
     pub steps: TaskStepService,
     pub wrapups: WrapupService,
     pub time_entries: TimeEntryService,
+    pub token_usage: TokenUsageService,
     pub revisions: TaskRevisionService,
     pub commit_references: CommitReferenceService,
     pub context_size: ContextSizeService,
@@ -76,6 +78,7 @@ impl ApiState {
             steps: services.steps,
             wrapups: services.wrapups,
             time_entries: services.time_entries,
+            token_usage: services.token_usage,
             revisions: services.revisions,
             commit_references: services.commit_references,
             context_size: services.context_size,

@@ -1,7 +1,10 @@
-//! Reads the services share: a task by id or by its anchors, a project by its label, and what
-//! hangs off a task.
+//! Reads the services share: a task by id or by its anchors, a project by its label, a step by its
+//! number or title, and what hangs off a task.
 
-use rekall_common::{Id, InternalFailure, RekallError, Result};
+use std::sync::LazyLock;
+
+use regex::Regex;
+use rekall_common::{jstr, Id, InternalFailure, RekallError, Result};
 use rekall_model::{project, task, task_step, wrapup};
 use rekall_repository::repository as repo;
 use sea_orm::ConnectionTrait;
@@ -65,5 +68,44 @@ pub async fn resolve_project(db: &impl ConnectionTrait, label: &str) -> Result<p
         0 => Err(RekallError::unknown_anchor(format!("No project matches '{label}'"))),
         1 => Ok(found.remove(0)),
         _ => Err(RekallError::ambiguous(label, found.iter().map(|project| format!("{} ({})", project.anchor(), project.title)).collect())),
+    }
+}
+
+/// A step by its one-based number in the checklist, or by its exact title.
+pub async fn resolve_step(db: &impl ConnectionTrait, task_id: Id, reference: Option<&str>) -> Result<task_step::Model> {
+    static DIGITS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\d+$").expect("a valid pattern"));
+    let ordered = steps_of(db, task_id).await?;
+    if ordered.is_empty() {
+        return Err(RekallError::illegal("That task has no steps to move."));
+    }
+    let trimmed = reference.map(jstr::strip).unwrap_or("");
+    if DIGITS.is_match(trimmed) {
+        return step_by_number(ordered, trimmed);
+    }
+    let by_title: Vec<&task_step::Model> = ordered
+        .iter()
+        .filter(|step| jstr::equals_ignore_case(jstr::strip(&step.title), trimmed))
+        .collect();
+    if by_title.len() == 1 {
+        return Ok(by_title[0].clone());
+    }
+    let titles: Vec<String> = ordered
+        .iter()
+        .enumerate()
+        .map(|(at, step)| format!("{}. {}", at + 1, step.title))
+        .collect();
+    Err(RekallError::illegal(format!(
+        "No step matches '{}'. Pass its number or its exact title:\n{}",
+        reference.unwrap_or("null"),
+        titles.join("\n")
+    )))
+}
+
+/// `number` is all digits; one too large to parse is out of range like any other.
+fn step_by_number(mut ordered: Vec<task_step::Model>, number: &str) -> Result<task_step::Model> {
+    let count = ordered.len();
+    match number.parse::<usize>() {
+        Ok(one_based) if (1..=count).contains(&one_based) => Ok(ordered.swap_remove(one_based - 1)),
+        _ => Err(RekallError::illegal(format!("There is no step {number}. The checklist has {count}."))),
     }
 }

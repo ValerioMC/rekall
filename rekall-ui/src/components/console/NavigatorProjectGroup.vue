@@ -3,21 +3,23 @@
  * One project in the grouped navigator: a card that folds the project away, and under it the live
  * tasks with the backlog and the filed ones on their own shelves.
  */
+import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import NavigatorTaskRow from '@/components/console/NavigatorTaskRow.vue'
 import NavigatorFilingDrawer from '@/components/console/NavigatorFilingDrawer.vue'
 import ProjectPageLink from '@/components/console/ProjectPageLink.vue'
-import ProjectTrace from '@/components/ui/ProjectTrace.vue'
+import TokenCount from '@/components/ui/TokenCount.vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import ProjectMark from '@/components/ui/ProjectMark.vue'
 import { identityHue } from '@/common/identity'
 import { useConsoleStore } from '@/stores/console.store'
+import { useTokenUsageStore } from '@/stores/tokenUsage.store'
 import { PROJECT_STATUS_LABEL, type Task } from '@/model/catalog'
 import type { ProjectTaskGroup } from '@/common/catalog/project-task-groups'
 import type { NavigatorShelves } from '@/composables/useNavigatorShelves'
 import type { TaskId } from '@/model/branded'
 
-defineProps<{
+const props = defineProps<{
   group: ProjectTaskGroup
   shelves: NavigatorShelves
   showCompany: boolean
@@ -27,7 +29,10 @@ defineProps<{
 defineEmits<{ edit: [task: Task] }>()
 
 const store = useConsoleStore()
-const { selectedTaskId } = storeToRefs(store)
+const { selectedTaskId, tasks } = storeToRefs(store)
+const tokenUsage = useTokenUsageStore()
+// Every task of the project counts, not only the ones the navigator's filter leaves in the group.
+const tokens = computed(() => tokenUsage.ofProject(props.group.projectId, tasks.value))
 </script>
 
 <template>
@@ -63,7 +68,7 @@ const { selectedTaskId } = storeToRefs(store)
           </span>
           <span class="mt-1 flex items-center gap-2">
             <span v-if="showCompany" class="shrink-0 truncate text-micro text-text-subtle">{{ group.companyName }}</span>
-            <ProjectTrace :id="group.projectId" size="sm" />
+            <TokenCount :totals="tokens" :hue-of="group.projectId" />
           </span>
         </span>
       </button>

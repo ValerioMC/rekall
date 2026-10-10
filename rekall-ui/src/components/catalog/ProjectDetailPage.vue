@@ -15,14 +15,14 @@ import ProjectDocsRail from '@/components/project/ProjectDocsRail.vue'
 import ProjectSectionPane from '@/components/project/ProjectSectionPane.vue'
 import ProjectTasksDrawer from '@/components/project/ProjectTasksDrawer.vue'
 import ProjectMark from '@/components/ui/ProjectMark.vue'
-import ProjectTrace from '@/components/ui/ProjectTrace.vue'
+import TokenCount from '@/components/ui/TokenCount.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useProjectSectionsStore } from '@/stores/projectSections.store'
 import { useProjectSectionStream } from '@/composables/useProjectSectionStream'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { canMove, type Direction } from '@/common/project/section-order'
 import { identityHue } from '@/common/identity'
-import { hasActivity, projectActivitySeries } from '@/common/trace/activity-series'
+import { useTokenUsageStore } from '@/stores/tokenUsage.store'
 import { projectDraft } from '@/model/record-draft'
 import { PROJECT_STATUS_LABEL } from '@/model/catalog'
 import { asProjectId } from '@/model/branded'
@@ -81,11 +81,8 @@ async function confirmDeleteSection(): Promise<void> {
   if (removed && selection.value === target.id) selection.value = 'blueprint'
 }
 
-const activitySeries = computed(() => {
-  if (!project.value) return undefined
-  const series = projectActivitySeries(project.value.id, store.tasks, store.timeEntries, Date.now())
-  return hasActivity(series) ? series : undefined
-})
+const tokenUsage = useTokenUsageStore()
+const tokens = computed(() => tokenUsage.ofProject(projectId.value, store.tasks))
 
 const editing = ref<RecordDraft | null>(null)
 
@@ -263,7 +260,7 @@ onUnmounted(() => {
           <ProjectMark :project-id="project.id" :icon="project.icon" :image-version="project.iconImageVersion" :size="24" />
         </template>
         <template #title-suffix>
-          <ProjectTrace :id="project.id" size="md" :series="activitySeries" />
+          <TokenCount :totals="tokens" :hue-of="project.id" />
           <AppBadge
             :tone="project.status === 'ACTIVE' ? 'accent' : project.status === 'DONE' ? 'safe' : 'neutral'"
             dot

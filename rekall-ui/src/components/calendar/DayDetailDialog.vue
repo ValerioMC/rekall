@@ -5,15 +5,17 @@ import { useConsoleStore } from '@/stores/console.store'
 import { formatDuration } from '@/common/format/duration'
 import AppDialog from '@/components/ui/AppDialog.vue'
 import { identityHue } from '@/common/identity'
-import ProjectTrace from '@/components/ui/ProjectTrace.vue'
+import TokenCount from '@/components/ui/TokenCount.vue'
+import { useTokenUsageStore } from '@/stores/tokenUsage.store'
 import CloseGlyph from '@/components/ui/CloseGlyph.vue'
 import type { DaySummaryRow } from '@/common/calendar/day-summary'
-import type { TaskId } from '@/model/branded'
+import type { ProjectId, TaskId } from '@/model/branded'
 
 const props = defineProps<{ date: Date; rows: readonly DaySummaryRow[] }>()
 const emit = defineEmits<{ close: [] }>()
 
 const store = useConsoleStore()
+const tokenUsage = useTokenUsageStore()
 const router = useRouter()
 
 const heading = computed(() =>
@@ -24,7 +26,7 @@ const totalSeconds = computed(() => props.rows.reduce((sum, row) => sum + row.to
 
 interface DayGroup {
   readonly key: string
-  readonly projectId: string | null
+  readonly projectId: ProjectId | null
   readonly projectLabel: string
   readonly rows: DaySummaryRow[]
   totalSeconds: number
@@ -83,7 +85,7 @@ onMounted(async () => {
 
       <template v-for="group in groups" :key="group.key">
         <div class="mb-1.5 mt-3 flex items-center gap-2 px-0.5 first:mt-0">
-          <ProjectTrace v-if="group.projectId" :id="group.projectId" size="xs" />
+          <TokenCount v-if="group.projectId" :totals="tokenUsage.ofProject(group.projectId, store.tasks)" :hue-of="group.projectId" />
           <span class="eyebrow min-w-0 flex-1 truncate text-caption">
             {{ group.projectLabel }}
           </span>

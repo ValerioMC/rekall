@@ -1,10 +1,8 @@
-use regex::Regex;
 use rekall_common::{jstr, Id, RekallError, Result};
 use rekall_model::task_step::{self, MAX_CHARACTERS, TITLE_MAX_CHARACTERS};
 use rekall_model::TaskStepState;
 use rekall_repository::repository as repo;
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
-use std::sync::LazyLock;
 
 use super::{StepStreamEvent, TaskStepView};
 use crate::timeentry::TimeEntryService;
@@ -171,7 +169,7 @@ impl TaskStepService {
                 ));
             }
             let task = load::resolve_task(tx.db(), project_label, task_label).await?;
-            let before = resolve_step(tx.db(), task.id, step_ref).await?;
+            let before = load::resolve_step(tx.db(), task.id, step_ref).await?;
             if before.state == TaskStepState::Draft {
                 return Err(RekallError::illegal(format!(
                     "'{}' is still a draft. It is promoted to a workable step in the console, not from a session.",
@@ -304,45 +302,6 @@ fn apply_draft(step: &mut task_step::Model, draft: bool) -> Result<()> {
         )));
     }
     Ok(())
-}
-
-/// A step by its one-based number in the checklist, or by its exact title.
-async fn resolve_step(db: &impl sea_orm::ConnectionTrait, task_id: Id, reference: Option<&str>) -> Result<task_step::Model> {
-    static DIGITS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\d+$").expect("a valid pattern"));
-    let ordered = load::steps_of(db, task_id).await?;
-    if ordered.is_empty() {
-        return Err(RekallError::illegal("That task has no steps to move."));
-    }
-    let trimmed = reference.map(jstr::strip).unwrap_or("");
-    if DIGITS.is_match(trimmed) {
-        return step_by_number(ordered, trimmed);
-    }
-    let by_title: Vec<&task_step::Model> = ordered
-        .iter()
-        .filter(|step| jstr::equals_ignore_case(jstr::strip(&step.title), trimmed))
-        .collect();
-    if by_title.len() == 1 {
-        return Ok(by_title[0].clone());
-    }
-    let titles: Vec<String> = ordered
-        .iter()
-        .enumerate()
-        .map(|(at, step)| format!("{}. {}", at + 1, step.title))
-        .collect();
-    Err(RekallError::illegal(format!(
-        "No step matches '{}'. Pass its number or its exact title:\n{}",
-        reference.unwrap_or("null"),
-        titles.join("\n")
-    )))
-}
-
-/// `number` is all digits; one too large to parse is out of range like any other.
-fn step_by_number(mut ordered: Vec<task_step::Model>, number: &str) -> Result<task_step::Model> {
-    let count = ordered.len();
-    match number.parse::<usize>() {
-        Ok(one_based) if (1..=count).contains(&one_based) => Ok(ordered.swap_remove(one_based - 1)),
-        _ => Err(RekallError::illegal(format!("There is no step {number}. The checklist has {count}."))),
-    }
 }
 
 fn validated_title(title: Option<&str>) -> Result<String> {

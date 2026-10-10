@@ -171,6 +171,26 @@ How each task runs: the queue opens a terminal on it, and the session works the 
 
 `/api/run-queue` holds the queue: `GET`, `PUT /settings`, `POST /items`, `DELETE /items/{id}`, `PUT /items/{id}/position`, `POST /clear`, `POST /start` (`startAt` null starts now), `POST /stop`. Each answers with the whole queue, and every change is pushed on the console's event stream as a `run-queue` frame.
 
+## Token usage
+
+Every task and every step shows the tokens Claude Code generated while working on it: on the task's row in the navigator and on each step of its checklist. A project shows the sum of its tasks wherever it is drawn: its heading in the navigator, its card and page in the catalog, and its group in a calendar day. The figure is output tokens; the tooltip adds the input, cache-write and cache-read tokens read to produce them. A task's figure includes its steps'.
+
+The counts come from Claude Code's own session transcripts (`~/.claude/projects/<folder>/<session>.jsonl`, and `<session>/subagents/` for its subagents), read in the background every minute. Only sessions started in a project's folder, or a folder under it, are read, and a transcript is read again only once it has grown. Each model call is charged to what the session was working on when it made it:
+
+- an `/rk` line, or a `rekall_context` call naming one task, puts the session on that task;
+- `rekall_step` with `running` puts it on that step, and with `claimed` or `open` back on the task;
+- a subagent's calls go to what the session was on at the moment they were made;
+- calls before any of these are not Rekall work and are not counted.
+
+The tokens follow the anchors, not the folder: a session in one project's folder working another project's task counts for that task. A task that no longer resolves is not counted; a step that no longer resolves, or is deleted, leaves its tokens on the task. Sessions run in any terminal count, not only those opened from Rekall.
+
+`GET /api/token-usage` returns one tally per task and step, and the console's event stream carries a task's tallies as a `token-usage` frame whenever a read changes them.
+
+| Property | Default | Meaning |
+|---|---|---|
+| `rekall.claude.transcripts-dir` | `~/.claude/projects` | Where Claude Code keeps its session transcripts |
+| `rekall.claude.transcript-scan-seconds` | `60` | How often they are read |
+
 ## Anchor syntax
 
 An anchor is `entity:value`, where the entity is `company`, `project` or `task` and the value is the record's **label** (its `name` for a company). Label rules are under [Model](#model).
@@ -380,6 +400,7 @@ Company ──< Project ──< Task >──< Document
                │         │       via document_task
                │         ├──< TaskStep
                │         ├──1 Wrapup
+               │         ├──< TokenUsage ──> TaskStep (optional)
                │         └──> Tag (optional)
                └──< Diagram ──> Task (the one it was generated from, optional)
 ```
@@ -393,6 +414,7 @@ Company ──< Project ──< Task >──< Document
 | `TaskStep` | through its task | title, optional detail, state, position |
 | `Wrapup` | through its task | markdown body, who wrote it last. One per task |
 | `Tag` | `name`, unique | icon key, glow-colour key, the tasks currently wearing it |
+| `TokenUsage` | through its task | the input, output, cache-write and cache-read tokens one Claude Code session spent on the task or one of its steps. Rewritten whole each time that session's transcript is read; `transcript_scan` remembers how much of each transcript was read |
 | `Diagram` | id | title, the question it answers, its sheets' types, and its Mermaid sheets with their code links as JSON. Goes with its project; loses its task when the task is deleted |
 
 `label` is what an anchor resolves: lowercase letters, digits, `-`, `_`, `.`, no spaces, normalised on write. `title` is free text and changing it never breaks an anchor. Renaming a label moves the anchor, and the editor says so before saving.
@@ -482,10 +504,10 @@ rekall-common/     RekallError, Id, Instant and the string helpers every layer s
 rekall-model/      SeaORM entities and their state rules
 rekall-diagram/    the diagram format: Mermaid sheets and their code links, JSON form and validation. No database, no UI
 rekall-repository/ queries, one function per lookup, and the SQLite migrations
-rekall-service/    business logic: context assembly, the step and review lines, wrapups, notes, time entries
+rekall-service/    business logic: context assembly, the step and review lines, wrapups, notes, time entries, token usage
 rekall-api/        Axum REST API for the UI, the folder listing and the step event stream
 rekall-mcp/        MCP server, on rekall-service and never rekall-api: one tool reads, five write
-rekall-claude/     the in-app terminal (portable-pty over one WebSocket), the Claude Code usage meter and the run queue
+rekall-claude/     the in-app terminal (portable-pty over one WebSocket), the Claude Code usage meter, the run queue and the transcript reader for token usage
 rekall-app/        rekall-server: settings, backups, the local-access guard, serves everything
 rekall-app/desktop the Tauri desktop app over the same server
 rekall-ui/         Vue 3 + Vite frontend

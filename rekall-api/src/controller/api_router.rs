@@ -21,6 +21,7 @@ use super::{
     task_revision_controller,
     task_step_controller,
     time_entry_controller,
+    token_usage_controller,
     wrapup_controller,
 };
 
@@ -51,5 +52,6 @@ pub fn routes() -> Router<ApiState> {
         .merge(task_revision_controller::routes())
         .merge(task_step_controller::routes())
         .merge(time_entry_controller::routes())
+        .merge(token_usage_controller::routes())
         .merge(wrapup_controller::routes())
 }

@@ -20,6 +20,7 @@ mod task_controller;
 mod task_revision_controller;
 mod task_step_controller;
 mod time_entry_controller;
+mod token_usage_controller;
 mod wrapup_controller;
 
 pub use api_router::{router, routes};

@@ -53,10 +53,10 @@ rekall/
   rekall-model/      SeaORM entities and their state rules
   rekall-diagram/    the diagram format: Mermaid sheets, code links, JSON form, validation; depends on nothing of Rekall's
   rekall-repository/ queries and the SQLite migrations for their schema
-  rekall-service/    context assembly, the step and review lines, wrapups, notes, time entries
+  rekall-service/    context assembly, the step and review lines, wrapups, notes, time entries, token usage
   rekall-api/        Axum REST routes for the UI
   rekall-mcp/        MCP server: one tool reads, five write (a wrapup, a step's state, a commit log entry, a draft step, a new note)
-  rekall-claude/     the in-app terminal (portable-pty PTYs over one WebSocket), the Claude Code usage meter, the run queue
+  rekall-claude/     the in-app terminal (portable-pty PTYs over one WebSocket), the Claude Code usage meter, the run queue, the transcript reader
   rekall-app/        rekall-server: serves the built frontend, embedded at compile time
   rekall-app/desktop the Tauri desktop app over the same server, in-process
   rekall-ui/         Vue 3 + Vite (built into rekall-ui/dist, embedded by rekall-app)
@@ -107,6 +107,7 @@ Two things keep their shape on purpose. A SeaORM entity is one file with `Model`
 Company ──< Project ──< Task >──< Document
                          │      (document_task)
                          ├──< TaskStep
+                         ├──< TokenUsage
                          └──1 Wrapup
 ```
 
@@ -120,6 +121,8 @@ Company ──< Project ──< Task >──< Document
 | `task_step` | through its task | `task_id`, `title`, `body_markdown`, `done`, `done_at`, `position` |
 | `wrapup` | through its task | `task_id` unique, `body_markdown`, `written_by` |
 | `project_component` | through its project | `project_id`, `name`, `folder`, `description`, `position` |
+| `token_usage` | through its task | `session_id`, `task_id`, `step_id`, the four token counts |
+| `transcript_scan` | `session_id` | `scanned_bytes`, `scanned_at` |
 
 `task.project_id` and `project.company_id` are both `ON DELETE CASCADE`: a project's tasks have
 no meaning without it, and neither do a company's projects. The blast radius of deleting a
@@ -509,6 +512,31 @@ and searches that `PATH` for `claude`. Windows skips the shell and uses the proc
 
 ---
 
+### Token usage
+
+A task and each of its steps carry the tokens Claude Code generated on them, and a project the sum
+of its tasks. Nothing a session sends says what it cost, and the in-app terminal is a TUI, not a
+stream-json process, so the figures are read from where Claude Code already writes them: the
+session transcripts under `~/.claude/projects`, where every model call carries its `usage`.
+
+| Piece | What it decides |
+|---|---|
+| `TranscriptFolder` (rekall-claude) | Which transcripts belong to a project: the folder Claude Code names after the project's `repo_folder` (every non-alphanumeric character becomes `-`), and the folders of subfolders under it. A session's subagents are in `<session>/subagents/` |
+| `SessionLedger` (rekall-claude) | What each call is charged to. `/rk` or a `rekall_context` naming one task moves the session to that task; `rekall_step` `running` to the step, `claimed` or `open` back to the task, after charging the call that moved it. A task named again without a step keeps the running step, so a wrapup written mid-step costs the step. Subagent calls go to what the session was on at their timestamp. A message spread over several lines is charged once, by its id. Calls before any Rekall work are not counted |
+| `TranscriptScanner` (rekall-claude) | Reads, every `rekall.claude.transcript-scan-seconds`, each session whose files have grown since `transcript_scan` last saw them; an unchanged transcript is never read twice. A line that does not parse is skipped, and a field in a shape the reader does not know reads as empty rather than losing the line's tokens |
+| `TokenUsageService` (rekall-service) | Resolves the anchors and replaces the session's `token_usage` rows whole, so a reread never double counts. A task that no longer resolves is dropped; a step that does not resolve leaves its tokens on the task, and deleting a step sets its rows' `step_id` to null for the same reason. A read that changes a task's tallies publishes a `token-usage` frame with all of them |
+
+The figure the console shows is output tokens, what the model generated; input, cache write and
+cache read are kept beside it and shown in the tooltip. `GET /api/token-usage` returns one tally per
+task and step, and `useTokenUsageStore` sums a project from its tasks in the browser, so no total
+is stored that could disagree with its parts. The tokens follow the anchors, not the folder, and
+any session counts, whether Rekall opened its terminal or not.
+
+Sharp edges: a session started outside every project's folder is never read, and a step named by
+number in an old transcript resolves against the checklist as it is when the transcript is reread.
+
+---
+
 ### The report
 
 The weekly and monthly report is a regrouping of the sessions the timer writes, and it is built
@@ -555,7 +583,7 @@ you reach for it is a number you stop trusting, so edit rides in as its own chip
 instead of displacing them.
 
 A project heading is also two lines: the title and task count on top, the company name and the
-activity trace below, so none of the three is fighting the others for the same 12 pixels. The
+project's token total below, so none of the three is fighting the others for the same 12 pixels. The
 navigator is given the width for this rather than made to crush it.
 
 ### The selected surface

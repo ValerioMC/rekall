@@ -9,13 +9,13 @@ import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import ProjectMark from '@/components/ui/ProjectMark.vue'
-import ProjectTrace from '@/components/ui/ProjectTrace.vue'
+import TokenCount from '@/components/ui/TokenCount.vue'
 import StatusMixBar from '@/components/ui/StatusMixBar.vue'
 import CloseGlyph from '@/components/ui/CloseGlyph.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { relativeTime } from '@/common/format/relative-time'
 import { useConsoleStore } from '@/stores/console.store'
-import { hasActivity, projectActivitySeries } from '@/common/trace/activity-series'
+import { useTokenUsageStore } from '@/stores/tokenUsage.store'
 import { projectDraft } from '@/model/record-draft'
 import { identityHue } from '@/common/identity'
 import { PROJECT_STATUSES, PROJECT_STATUS_LABEL } from '@/model/catalog'
@@ -108,10 +108,7 @@ function tasksOf(projectId: ProjectId): Task[] {
   return store.tasks.filter((t) => t.projectId === projectId)
 }
 
-function activitySeries(projectId: ProjectId): number[] | undefined {
-  const series = projectActivitySeries(projectId, store.tasks, store.timeEntries, Date.now())
-  return hasActivity(series) ? series : undefined
-}
+const tokenUsage = useTokenUsageStore()
 
 async function confirmDelete(): Promise<void> {
   const project = deleting.value
@@ -237,7 +234,7 @@ async function confirmDelete(): Promise<void> {
               />
 
               <div class="pointer-events-none flex items-center justify-between gap-2">
-                <ProjectTrace :id="project.id" size="md" :series="activitySeries(project.id)" />
+                <TokenCount :totals="tokenUsage.ofProject(project.id, store.tasks)" :hue-of="project.id" />
                 <AppBadge
                   class="shrink-0"
                   :tone="project.status === 'ACTIVE' ? 'accent' : project.status === 'DONE' ? 'safe' : 'neutral'"

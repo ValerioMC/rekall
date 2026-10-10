@@ -11,6 +11,7 @@ use rekall_claude::credentials::ClaudeCredentials;
 use rekall_claude::login_shell::LoginShellEnvironment;
 use rekall_claude::pty::PtyTerminalManager;
 use rekall_claude::queue::{RunQueueRunner, RunQueueService};
+use rekall_claude::transcript::{TranscriptFolder, TranscriptScanner};
 use rekall_claude::usage::{ClaudeUsageService, UsageReader};
 use rekall_claude::ClaudeState;
 use rekall_repository::Database;
@@ -49,6 +50,9 @@ pub struct Instance {
     login_shell: Arc<LoginShellEnvironment>,
     sweep_minutes: u64,
     idle_sweep: Mutex<Option<tokio::task::JoinHandle<()>>>,
+    transcripts: Arc<TranscriptScanner>,
+    transcript_scan_every: Duration,
+    transcript_scan: Mutex<Option<tokio::task::JoinHandle<()>>>,
 }
 
 impl Instance {
@@ -101,6 +105,10 @@ impl Instance {
             clock.clone(),
             claude_config.run_queue_tick,
             claude_config.run_queue_settle_grace,
+        );
+        let transcripts = TranscriptScanner::new(
+            TranscriptFolder::new(claude_config.transcripts_dir.clone()),
+            services.token_usage.clone(),
         );
         let claude = ClaudeState { api: api.clone(), terminals: terminals.clone(), usage: usage.clone(), queue, runner: runner.clone() };
 
@@ -158,6 +166,9 @@ impl Instance {
             login_shell,
             sweep_minutes: claude_config.sweep_minutes,
             idle_sweep: Mutex::new(None),
+            transcripts,
+            transcript_scan_every: claude_config.transcript_scan_every,
+            transcript_scan: Mutex::new(None),
         }
     }
 
@@ -171,6 +182,7 @@ impl Instance {
         self.terminals.start_reaper(self.sweep_minutes);
         self.backups.start_schedule();
         self.start_idle_sweep();
+        *self.transcript_scan.lock().expect("never poisoned") = Some(self.transcripts.start(self.transcript_scan_every));
     }
 
     fn start_idle_sweep(&self) {
@@ -196,6 +208,9 @@ impl Instance {
         self.backups.stop_schedule();
         if let Some(sweep) = self.idle_sweep.lock().expect("never poisoned").take() {
             sweep.abort();
+        }
+        if let Some(scan) = self.transcript_scan.lock().expect("never poisoned").take() {
+            scan.abort();
         }
         if let Err(failed) = self.services.time_entries.stop_all_on_shutdown().await {
             warn!(%failed, "Stopping open timers on shutdown failed");

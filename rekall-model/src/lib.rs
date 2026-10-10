@@ -31,6 +31,8 @@ pub mod task;
 pub mod task_revision;
 pub mod task_step;
 pub mod time_entry;
+pub mod token_usage;
+pub mod transcript_scan;
 pub mod wrapup;
 
 pub use enums::*;
@@ -55,6 +57,8 @@ pub mod prelude {
     pub use super::task_revision::{Entity as TaskRevision, Model as TaskRevisionModel};
     pub use super::task_step::{Entity as TaskStep, Model as TaskStepModel};
     pub use super::time_entry::{Entity as TimeEntry, Model as TimeEntryModel};
+    pub use super::token_usage::{Entity as TokenUsage, Model as TokenUsageModel};
+    pub use super::transcript_scan::{Entity as TranscriptScan, Model as TranscriptScanModel};
     pub use super::wrapup::{Entity as Wrapup, Model as WrapupModel};
     pub use super::enums::*;
 }

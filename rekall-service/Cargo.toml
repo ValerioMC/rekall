@@ -34,3 +34,7 @@ path = "tests/integration/services.rs"
 [[test]]
 name = "diagrams"
 path = "tests/integration/diagrams.rs"
+
+[[test]]
+name = "token_usage"
+path = "tests/integration/token_usage.rs"

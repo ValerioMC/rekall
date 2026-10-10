@@ -12,6 +12,7 @@ import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/stores/terminal.store'
 import { useUpdateStore } from '@/stores/update.store'
 import { useToastStore } from '@/stores/toast.store'
+import { useTokenUsageStore } from '@/stores/tokenUsage.store'
 import type { DatabaseStatus } from '@/model/settings'
 
 const store = useConsoleStore()
@@ -28,7 +29,7 @@ async function refreshWhatChangedElsewhere(): Promise<void> {
   if (document.visibilityState !== 'visible' || store.saveState !== 'saved') return
   refreshing = true
   try {
-    await Promise.all([store.refreshEverything(), terminals.load()])
+    await Promise.all([store.refreshEverything(), terminals.load(), useTokenUsageStore().load()])
   } catch (caught) {
     toast.notifyError(caught)
   } finally {
@@ -42,6 +43,8 @@ onMounted(async () => {
     if (status.value.status === 'READY') {
       await store.load()
       void terminals.load()
+      // Opened only once the database is there: the store's stream would otherwise retry forever.
+      void useTokenUsageStore().load().catch((caught: unknown) => toast.notifyError(caught))
       void update.checkAtStartup()
     }
   } catch {

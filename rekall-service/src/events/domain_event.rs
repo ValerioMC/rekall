@@ -6,6 +6,7 @@ use crate::note::NoteStreamEvent;
 use crate::review::TaskReviewEvent;
 use crate::section::SectionStreamEvent;
 use crate::step::StepStreamEvent;
+use crate::token::TokenUsageStreamEvent;
 use crate::wrapup::WrapupStreamEvent;
 
 #[derive(Clone, Debug)]
@@ -17,6 +18,7 @@ pub enum DomainEvent {
     Note(NoteStreamEvent),
     Diagram(DiagramStreamEvent),
     ProjectSection(SectionStreamEvent),
+    TokenUsage(TokenUsageStreamEvent),
     /// A named frame from a module this one cannot see (the run queue's `run-queue`), already
     /// serialised; the caller has already waited for its commit.
     Broadcast { name: String, payload: serde_json::Value },
@@ -33,6 +35,7 @@ impl DomainEvent {
             Self::Note(_) => "note",
             Self::Diagram(_) => "diagram",
             Self::ProjectSection(_) => "project-section",
+            Self::TokenUsage(_) => "token-usage",
             Self::Broadcast { name, .. } => name,
         }
     }
@@ -49,6 +52,7 @@ impl DomainEvent {
             Self::Note(event) => json(event),
             Self::Diagram(event) => json(event),
             Self::ProjectSection(event) => json(event),
+            Self::TokenUsage(event) => json(event),
             Self::Broadcast { payload, .. } => payload.clone(),
         }
     }

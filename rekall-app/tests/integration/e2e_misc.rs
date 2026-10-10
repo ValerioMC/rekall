@@ -662,3 +662,44 @@ async fn with_the_check_switched_off_the_version_endpoint_still_names_this_build
     assert_eq!(version.str("check"), "DISABLED");
     assert!(version.get("latest").is_null());
 }
+
+#[tokio::test]
+async fn a_sessions_transcript_in_a_projects_folder_reaches_the_token_tallies_of_its_task_and_step() {
+    let app = app_with(&[("rekall.claude.transcript-scan-seconds", "1")], StartOptions { no_restart: true, ..StartOptions::default() }).await;
+    let repo = app.folder.path().join("repo");
+    std::fs::create_dir_all(&repo).unwrap();
+    let company = app.a_company("Acme").await;
+    let project = app.a_project_in(&company, "vega", &repo).await;
+    let task = app.a_task(&project, "report").await;
+    let step = app.a_step(&task, "Draft", None).await;
+    assert_eq!(app.get("/api/token-usage").await.list(), Vec::<serde_json::Value>::new());
+
+    let encoded: String = repo.to_string_lossy().chars().map(|c| if c.is_ascii_alphanumeric() { c } else { '-' }).collect();
+    let transcripts = app.folder.path().join("home/.claude/projects").join(encoded);
+    std::fs::create_dir_all(&transcripts).unwrap();
+    let call = |id: &str, output: u32| {
+        format!(r#"{{"type":"assistant","timestamp":"2026-10-01T10:00:0{output}Z","message":{{"id":"{id}","content":[],"usage":{{"input_tokens":1,"output_tokens":{output},"cache_creation_input_tokens":0,"cache_read_input_tokens":0}}}}}}"#)
+    };
+    let lines = [
+        r#"{"type":"user","timestamp":"2026-10-01T10:00:00Z","message":{"content":"/rk project:vega task:report step:1 start"}}"#.to_string(),
+        call("m1", 3),
+        r#"{"type":"user","timestamp":"2026-10-01T10:00:04Z","message":{"content":"/rk project:other task:elsewhere"}}"#.to_string(),
+        call("m2", 5),
+    ];
+    std::fs::write(transcripts.join("s1.jsonl"), lines.join("\n")).unwrap();
+
+    let mut tallies = Vec::new();
+    for _ in 0..50 {
+        tallies = app.get("/api/token-usage").await.list();
+        if !tallies.is_empty() {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+
+    assert_eq!(tallies.len(), 1, "{tallies:?}");
+    assert_eq!(tallies[0]["taskId"], json!(task));
+    assert_eq!(tallies[0]["stepId"], json!(step));
+    assert_eq!(tallies[0]["outputTokens"], json!(3));
+    app.stop().await;
+}

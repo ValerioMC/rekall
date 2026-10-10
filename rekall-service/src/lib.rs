@@ -18,6 +18,7 @@ pub mod search;
 pub mod section;
 pub mod step;
 pub mod timeentry;
+pub mod token;
 pub mod tx;
 pub mod wrapup;
 

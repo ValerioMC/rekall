@@ -19,6 +19,8 @@ pub mod task;
 pub mod task_revision;
 pub mod task_step;
 pub mod time_entry;
+pub mod token_usage;
+pub mod transcript_scan;
 pub mod wrapup;
 
 mod query_support;
