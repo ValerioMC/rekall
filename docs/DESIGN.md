@@ -56,7 +56,7 @@ rekall/
   rekall-service/    context assembly, the step and review lines, wrapups, notes, time entries, token usage
   rekall-api/        Axum REST routes for the UI
   rekall-mcp/        MCP server: one tool reads, five write (a wrapup, a step's state, a commit log entry, a draft step, a new note)
-  rekall-claude/     the in-app terminal (portable-pty PTYs over one WebSocket), the Claude Code usage meter, the run queue, the transcript reader
+  rekall-claude/     the in-app terminal (portable-pty PTYs over one WebSocket), the Claude Code usage meter, the run queue, the transcript reader, the Claude folder editor
   rekall-app/        rekall-server: serves the built frontend, embedded at compile time
   rekall-app/desktop the Tauri desktop app over the same server, in-process
   rekall-ui/         Vue 3 + Vite (built into rekall-ui/dist, embedded by rekall-app)
@@ -509,6 +509,37 @@ refresh. Failure, no markers or the timeout keep the last good copy, falling bac
 environment. `ClaudeCli` adds `HOME` and the usual install directories to it, strips
 `CLAUDECODE`/`CLAUDE_CODE_ENTRYPOINT` so a Rekall started from a Claude session can still open one,
 and searches that `PATH` for `claude`. Windows skips the shell and uses the process environment.
+
+---
+
+### The Claude folder
+
+The Claude screen edits the files Claude Code itself loads: `~/.claude/CLAUDE.md`, skills, commands,
+agents and each project's memories. It lives in `rekall-claude` (`resources/`) and has no table: the
+disk is the record, a session may rewrite a file at any moment, and a copy in a database would only
+be a second answer that drifts. The module is `rekall-claude` and not `rekall-api` because it
+belongs with the other pieces that serve Claude Code's own state (the usage meter, the transcripts),
+and it sits beside the console's write services, out of `rekall-mcp`'s reach.
+
+| Piece | What it decides |
+|---|---|
+| `ResourcePath` | The only way to name a file. Parsing is the guard: a path is one of five known places (`CLAUDE.md`, `skills/`, `commands/`, `agents/`, `memory/` or `projects/<folder>/memory/`), all `.md`, with no `..`, hidden or separator-bearing segment. It classifies the file (`ResourceKind`), says whether it is editable (not under `skills/synced/`) and where its `MEMORY.md` is |
+| `ClaudeHome` | The disk under the root: read whole (UTF-8, capped at 1 MB), head, version (modification time), write, remove. A write goes to a temporary file beside the target and is renamed over it, so a session never reads half a file; a symlink is resolved first, so the link survives. Removing a skill's last file removes its folder |
+| `Frontmatter` | The `name`, `description` and `type` of a leading `---` block, read line by line (a folded description takes its indented lines; `type` may sit under `metadata`). Not a YAML parser, and not meant to become one |
+| `ResourceScanner` | Builds the catalog: skills are flat files and folders holding a `SKILL.md` (a folder without one is a bucket and is searched), commands and agents nest. A file that cannot be described is logged and left out |
+| `WorkingDirectory` | A project folder's real path. Its name flattens every non-alphanumeric character to `-`, which cannot be reversed by reading it. The first `cwd` in a session transcript that flattens back to the folder's name wins; with no transcript the disk is walked from `/` for a folder that flattens to it (backtracking when `mlf` and `mlf-pf` both fit); with neither, the path is a guess (`-` as `/`) and the group is `resolved: false` and `folderExists: false` |
+| `ClaudeResourceService` | The rules. A save names the version it was opened from: an existing file is rewritten only from that version, a new file only where none exists, and anything else is a 409. A new memory gets its line in the index beside it and a deleted one loses it (`memory_index`); the instructions and the indexes cannot be deleted; synced skills can be neither written nor deleted |
+
+The console side is `ClaudeResourcesPage` (route `/claude`) over `claudeResources.store`: `ResourceRail`
+(library, tabs, filter), `MemoryGroupSection` (a project's memories, matched to a Rekall project by
+repo folder, deepest folder first) and `ResourceEditor` (header, conflict bar, markdown editor).
+`useDiscardGuard` stands between unsaved text and a change of file or route. A save the server
+refuses as stale keeps the draft and raises the conflict; **Overwrite it** re-reads the version now
+on disk and saves the draft over it.
+
+Sharp edges: there is no live feed, so the screen shows what the disk held when it last loaded or
+saved; a project with no memory yet has no group to add one to (create it from the project's own
+folder in a session); plugin skills under `~/.claude/plugins` are not listed.
 
 ---
 

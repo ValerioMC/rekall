@@ -30,6 +30,9 @@ pub struct ClaudeConfig {
     pub transcripts_dir: PathBuf,
     /// `rekall.claude.transcript-scan-seconds`: how often they are read for token usage.
     pub transcript_scan_every: Duration,
+    /// `rekall.claude.home`: Claude Code's own folder, where its instructions, skills and
+    /// memories are kept.
+    pub claude_home: PathBuf,
     /// The user's home.
     pub home: PathBuf,
 }
@@ -50,6 +53,7 @@ impl Default for ClaudeConfig {
             run_queue_settle_grace: Duration::from_secs(8),
             transcripts_dir: transcripts_under(&home),
             transcript_scan_every: Duration::from_secs(60),
+            claude_home: claude_home_under(&home),
             home,
         }
     }
@@ -58,4 +62,9 @@ impl Default for ClaudeConfig {
 /// Claude Code's own default for its session transcripts.
 pub fn transcripts_under(home: &std::path::Path) -> PathBuf {
     home.join(".claude").join("projects")
+}
+
+/// Claude Code's own default for its configuration folder.
+pub fn claude_home_under(home: &std::path::Path) -> PathBuf {
+    home.join(".claude")
 }

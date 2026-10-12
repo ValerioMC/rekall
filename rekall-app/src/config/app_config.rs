@@ -69,6 +69,11 @@ impl AppConfig {
                 .map(PathBuf::from)
                 .unwrap_or_else(|| rekall_claude::config::transcripts_under(&user_home)),
             transcript_scan_every: Duration::from_secs(properties.number("rekall.claude.transcript-scan-seconds", 60u64)),
+            claude_home: properties
+                .get("rekall.claude.home")
+                .filter(|dir| !dir.trim().is_empty())
+                .map(PathBuf::from)
+                .unwrap_or_else(|| rekall_claude::config::claude_home_under(&user_home)),
             home: user_home.clone(),
         };
         let database = database_url(properties).and_then(|url| DatabaseOverride::parse(&url));

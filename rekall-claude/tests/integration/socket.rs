@@ -9,6 +9,7 @@ use base64::Engine;
 use futures::{SinkExt, StreamExt};
 use rekall_api::{ApiState, StepEventStream};
 use rekall_claude::queue::{RunQueueRunner, RunQueueService};
+use rekall_claude::resources::ClaudeResourceService;
 use rekall_claude::usage::{ClaudeUsageView, UsageReader};
 use rekall_claude::ClaudeState;
 use rekall_model::TaskStepState;
@@ -51,7 +52,8 @@ async fn serve(world: &World) -> String {
         Arc::new(StepEventStream::new(world.events.clone())),
         world.folder.path().to_path_buf(),
     );
-    let state = ClaudeState { api, terminals, usage, queue, runner };
+    let resources = ClaudeResourceService::new(world.folder.path().join(".claude"));
+    let state = ClaudeState { api, terminals, usage, queue, runner, resources };
     let app = rekall_claude::router(state);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();

@@ -33,6 +33,7 @@ export const NAV_ENTRIES: readonly NavEntry[] = [
     ]
   }),
   screen({ to: '/diagrams', label: 'Diagrams', hint: 'Generated diagrams', routes: ['diagrams'] }),
+  screen({ to: '/claude', label: 'Claude', hint: 'Instructions, memories and skills', routes: ['claude'] }),
   group({
     label: 'Time',
     screens: [

@@ -31,6 +31,11 @@ export const router = createRouter({
       component: () => import('@/components/diagram/DiagramsPage.vue')
     },
     {
+      path: '/claude',
+      name: 'claude',
+      component: () => import('@/components/claude-resources/ClaudeResourcesPage.vue')
+    },
+    {
       path: '/calendar',
       name: 'calendar',
       component: () => import('@/components/calendar/CalendarPage.vue')

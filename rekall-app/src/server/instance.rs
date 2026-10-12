@@ -11,6 +11,7 @@ use rekall_claude::credentials::ClaudeCredentials;
 use rekall_claude::login_shell::LoginShellEnvironment;
 use rekall_claude::pty::PtyTerminalManager;
 use rekall_claude::queue::{RunQueueRunner, RunQueueService};
+use rekall_claude::resources::ClaudeResourceService;
 use rekall_claude::transcript::{TranscriptFolder, TranscriptScanner};
 use rekall_claude::usage::{ClaudeUsageService, UsageReader};
 use rekall_claude::ClaudeState;
@@ -110,7 +111,8 @@ impl Instance {
             TranscriptFolder::new(claude_config.transcripts_dir.clone()),
             services.token_usage.clone(),
         );
-        let claude = ClaudeState { api: api.clone(), terminals: terminals.clone(), usage: usage.clone(), queue, runner: runner.clone() };
+        let resources = ClaudeResourceService::new(claude_config.claude_home.clone());
+        let claude = ClaudeState { api: api.clone(), terminals: terminals.clone(), usage: usage.clone(), queue, runner: runner.clone(), resources };
 
         let location = database.path.as_deref().and_then(DatabaseLocation::of);
         let backups = DatabaseBackupService::new(

@@ -42,9 +42,13 @@ impl TranscriptFolder {
 
 /// The name Claude Code gives a working directory's folder: every character but a letter or a
 /// digit becomes `-`.
-fn folder_name(project_folder: &Path) -> String {
-    let path = project_folder.to_string_lossy();
-    path.trim_end_matches(['/', '\\']).chars().map(|c| if c.is_ascii_alphanumeric() { c } else { '-' }).collect()
+pub(crate) fn folder_name(project_folder: &Path) -> String {
+    flatten(project_folder.to_string_lossy().trim_end_matches(['/', '\\']))
+}
+
+/// One path segment, or a whole path, the way a folder name flattens it.
+pub(crate) fn flatten(text: &str) -> String {
+    text.chars().map(|c| if c.is_ascii_alphanumeric() { c } else { '-' }).collect()
 }
 
 /// The project's folder or one under it. A sibling such as `vega-old` passes too, which costs a

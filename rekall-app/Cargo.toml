@@ -58,6 +58,10 @@ name = "e2e_catalog"
 path = "tests/integration/e2e_catalog.rs"
 
 [[test]]
+name = "e2e_claude_resources"
+path = "tests/integration/e2e_claude_resources.rs"
+
+[[test]]
 name = "e2e_commits"
 path = "tests/integration/e2e_commits.rs"
 

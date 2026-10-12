@@ -143,7 +143,7 @@ Live work sits in one bar in the bottom right corner of every screen: a segment 
 
 All three are stored on the machine, not in the database.
 
-The top bar is a four-cell grid, so the screen tabs sit centred between the history arrows and the centre cell at the same place on every screen (Console, Catalog, Diagrams, Time). In the console the centre cell holds the search bar and the live readings (usage, queue, review) sit centred between it and the tools; on the other screens it holds the title and the actions sit at the right. Both keep their centre as the window resizes. The top bar carries a usage meter: the current 5-hour session as a ring with its percentage and time to reset, and, on hover, a bar per window including the weekly per-model limits. The figures are the ones Claude Code's own `/usage` shows, read with the OAuth token Claude Code stores (every `Claude Code-credentials` item in the macOS keychain, else `~/.claude/.credentials.json`; the token expiring last wins, and an expired one counts as no token). With no valid token the meter asks you to open a Claude Code terminal, which signs in or refreshes the token; when Anthropic cannot be reached it holds the last figures. Readings are not real time: one when the console opens, one every five minutes while it is on screen, one when the window comes back to the front after a minute away, and one whenever you click the blank meter or **Check again** in its popover (`GET /api/claude/usage?refresh=true`, past the server's cache). If Anthropic answers 429 the meter shows **Wait** with the time left and takes nothing, not even a manual check, until that `Retry-After` has passed: asking again is what extends the block.
+The top bar is a four-cell grid, so the screen tabs sit centred between the history arrows and the centre cell at the same place on every screen (Console, Catalog, Diagrams, Claude, Time). In the console the centre cell holds the search bar and the live readings (usage, queue, review) sit centred between it and the tools; on the other screens it holds the title and the actions sit at the right. Both keep their centre as the window resizes. The top bar carries a usage meter: the current 5-hour session as a ring with its percentage and time to reset, and, on hover, a bar per window including the weekly per-model limits. The figures are the ones Claude Code's own `/usage` shows, read with the OAuth token Claude Code stores (every `Claude Code-credentials` item in the macOS keychain, else `~/.claude/.credentials.json`; the token expiring last wins, and an expired one counts as no token). With no valid token the meter asks you to open a Claude Code terminal, which signs in or refreshes the token; when Anthropic cannot be reached it holds the last figures. Readings are not real time: one when the console opens, one every five minutes while it is on screen, one when the window comes back to the front after a minute away, and one whenever you click the blank meter or **Check again** in its popover (`GET /api/claude/usage?refresh=true`, past the server's cache). If Anthropic answers 429 the meter shows **Wait** with the time left and takes nothing, not even a manual check, until that `Retry-After` has passed: asking again is what extends the block.
 
 | Property | Default | Meaning |
 |---|---|---|
@@ -190,6 +190,7 @@ The tokens follow the anchors, not the folder: a session in one project's folder
 |---|---|---|
 | `rekall.claude.transcripts-dir` | `~/.claude/projects` | Where Claude Code keeps its session transcripts |
 | `rekall.claude.transcript-scan-seconds` | `60` | How often they are read |
+| `rekall.claude.home` | `~/.claude` | Claude Code's own folder, which the Claude screen reads and edits |
 
 ## Anchor syntax
 
@@ -372,6 +373,25 @@ Every task row opens on the steps it closed inside the period, oldest first, wit
 
 The screen is built from the sessions the timer recorded. A session counts on the day it started; one still running counts up to now.
 
+## Claude resources
+
+**Claude** (top bar, `/claude`) reads Claude Code's own folder, `~/.claude`, and lets you edit what a session loads from it. Nothing is stored in the database: the files are the record, and a change is written straight to disk where the next session reads it.
+
+- **Global instructions**, pinned at the top of the library: `~/.claude/CLAUDE.md`.
+- **Memories**, grouped by the project they were written for. Claude Code names a project's folder after its path with every non-alphanumeric character flattened to `-`, so `-Users-me-Projects-vega` cannot be read back as a path. Rekall takes the real path from a session transcript inside the folder, or else finds the folder on disk whose name flattens to it. A group whose folder matches a Rekall project (its repo folder, or one above the session's folder) wears that project's icon and title; one whose folder no longer exists is badged **gone**, so the memories of deleted projects are easy to find and delete. Each memory shows its `type` (feedback, user, project, reference) and its description; each group's `MEMORY.md` index is the first row. Creating a memory adds its line to that index and deleting one removes the line, so the index never points at a file that is not there.
+- **Skills** (`skills/<name>/SKILL.md` or a flat `skills/<name>.md`), **commands** (`commands/**/*.md`, nested folders read as `folder:name`) and **agents** (`agents/**/*.md`). Skills under `skills/synced/` come from claude.ai and are rewritten on every sync, so they open read only.
+
+The library filters by name, description and path, and opens every group that matches. The editor is the same markdown editor as the notes, in write or read mode; **Save** (or `⌘S`) is explicit, because a running session may be writing the same file. Every save names the version it was opened from: if the file changed on disk meanwhile, the editor keeps your text, says so, and offers **Load the disk version** or **Overwrite it**. Leaving a file or the screen with unsaved edits asks first. `CLAUDE.md` and the `MEMORY.md` indexes can be edited but not deleted. A file that is a symlink (a `CLAUDE.md` kept in a dotfiles repository) is written where it really lives.
+
+Only five kinds of file are reachable, by path under the Claude folder: `CLAUDE.md`, `skills/`, `commands/`, `agents/`, and `memory/` (global) or `projects/<folder>/memory/`, all `.md`. A path that climbs, hides itself or names anything else is refused with a 400. Writes are capped at 1 MB.
+
+| Route | Effect |
+|---|---|
+| `GET /api/claude/resources` | The catalog: the instructions, skills, commands, agents and the memory groups, each file with its name, description, size and version |
+| `GET /api/claude/resources/file?path=` | One file with its text |
+| `PUT /api/claude/resources/file` | `path`, `body`, and `expectedModifiedAt`: the version opened, or null to create a file that must not exist. 409 when the file changed or already exists |
+| `DELETE /api/claude/resources/file?path=` | Delete a file (and its index line, for a memory). 409 for `CLAUDE.md`, an index or a synced skill |
+
 ## Diagrams
 
 **Diagrams** draws what the code does as Mermaid. A diagram answers one request with one sheet per type asked for (sequence, flowchart, state, class, ER, or any other Mermaid type), and each element of a sheet can point at the lines that implement it. A session writes the Mermaid and the links; the console decides how they look. The format and its rules are in [docs/DIAGRAMS.md](docs/DIAGRAMS.md).
@@ -507,7 +527,7 @@ rekall-repository/ queries, one function per lookup, and the SQLite migrations
 rekall-service/    business logic: context assembly, the step and review lines, wrapups, notes, time entries, token usage
 rekall-api/        Axum REST API for the UI, the folder listing and the step event stream
 rekall-mcp/        MCP server, on rekall-service and never rekall-api: one tool reads, five write
-rekall-claude/     the in-app terminal (portable-pty over one WebSocket), the Claude Code usage meter, the run queue and the transcript reader for token usage
+rekall-claude/     the in-app terminal (portable-pty over one WebSocket), the Claude Code usage meter, the run queue, the transcript reader for token usage and the editor for Claude Code's own files (`~/.claude`)
 rekall-app/        rekall-server: settings, backups, the local-access guard, serves everything
 rekall-app/desktop the Tauri desktop app over the same server
 rekall-ui/         Vue 3 + Vite frontend
