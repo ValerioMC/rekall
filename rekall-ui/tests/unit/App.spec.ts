@@ -230,6 +230,9 @@ const patchStep = vi.fn(async (id: TaskStepId, patch: { done?: boolean }) => ({
   ...patch
 }))
 
+// The console loads the selected project's components for its [[Name]] chips.
+vi.mock('@/api/project-components.api', () => ({ fetchProjectComponents: vi.fn(async () => []) }))
+
 vi.mock('@/api/steps.api', () => ({
   fetchSteps: vi.fn(async () => steps),
   createStep: vi.fn(),

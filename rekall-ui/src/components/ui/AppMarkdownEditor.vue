@@ -6,6 +6,7 @@ import PathPicker from '@/components/ui/PathPicker.vue'
 import ReadModeSettings from '@/components/ui/ReadModeSettings.vue'
 import ReadSearchBar from '@/components/ui/ReadSearchBar.vue'
 import TableContextMenu from '@/components/ui/TableContextMenu.vue'
+import { componentCompletion } from '@/common/markdown/component-completion'
 import { useComponentReferenceChips } from '@/composables/useComponentReferenceChips'
 import { useEditorPathPicker } from '@/composables/useEditorPathPicker'
 import { useFittedEditorHeight } from '@/composables/useFittedEditorHeight'
@@ -36,7 +37,8 @@ const props = withDefaults(
     /**
      * The project's components, when the text belongs to one: a `[[Name]]` in the read view is
      * drawn as a chip for the component, or as a broken reference. `null` (a note with no
-     * project) leaves every reference as plain text. Write mode shows the source as written.
+     * project) leaves every reference as plain text. Write mode shows the source as written and
+     * offers these names after `[[`.
      */
     components?: readonly ProjectComponent[] | null
   }>(),
@@ -79,6 +81,9 @@ const {
 const tableMenu = useTableContextMenu(editor)
 
 const chips = useComponentReferenceChips(root, () => props.components)
+
+// One source for the editor's life; it reads the prop when asked, so a new list needs no reconfigure.
+const completions = [componentCompletion(() => props.components)]
 
 // A card-sized read view has no room for a bar; ⌘F there is left to the page.
 const search = useReadModeSearch(root, { enabled: () => props.readonly && !props.compact })
@@ -167,6 +172,7 @@ const TOOLBARS: ToolbarNames[] = [
       preview-theme="github"
       code-theme="atom"
       :toolbars="TOOLBARS"
+      :completions="completions"
       :preview="false"
       :footers="['markdownTotal']"
       :style="{ height: editorHeight }"

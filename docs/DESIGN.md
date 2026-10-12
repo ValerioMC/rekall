@@ -380,7 +380,12 @@ never offers it code spans or fences. The project is not known to the global ren
 (found with a folder and description title, missing, or plain for text with no project) after every render
 and whenever the list changes. `useSelectedProjectComponents` loads the selected task's project into
 `useProjectComponentsStore` and answers `null` until the list has arrived, so nothing is called broken
-early. Write mode stays plain text.
+early. Write mode stays plain text, apart from the completion: `componentCompletion`
+(`common/markdown/component-completion.ts`) is a CodeMirror completion source handed to `MdEditor` through
+its `completions` prop. It matches `[[` plus what was typed, filters the project's components itself
+(`filter: false`, name contains the text), skips code and fences through the syntax tree, and applies
+`Name]]` through `view.dispatch`, replacing a closing `]]` already after the caret. `common/config/markdown-editor.ts`
+adds `Tab` as `acceptCompletion`, which does nothing when no list is open.
 
 A note can travel by reference. It then arrives as its title, its first line and an anchor such
 as `note:3f2a9c1e` (the first eight characters of its id), with `loaded="on request"`, and

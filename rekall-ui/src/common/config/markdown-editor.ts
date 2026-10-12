@@ -1,6 +1,9 @@
 import hljs from 'highlight.js/lib/common'
 import mermaid from 'mermaid'
 import { config } from 'md-editor-v3'
+import { acceptCompletion } from '@codemirror/autocomplete'
+import { Prec } from '@codemirror/state'
+import { keymap } from '@codemirror/view'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { languages } from '@codemirror/language-data'
 import 'md-editor-v3/lib/style.css'
@@ -30,6 +33,8 @@ config({
           ? { ...extension, extension: markdown({ base: markdownLanguage, codeLanguages: languages }) }
           : extension
       ),
-    { type: 'livePreview', extension: livePreview() }
+    { type: 'livePreview', extension: livePreview() },
+    // Tab accepts an open suggestion (Enter already does); with none open it falls through to the editor's own Tab.
+    { type: 'acceptCompletion', extension: Prec.highest(keymap.of([{ key: 'Tab', run: acceptCompletion }])) }
   ]
 })
