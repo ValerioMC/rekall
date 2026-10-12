@@ -46,6 +46,7 @@ const projectComponents = useSelectedProjectComponents()
             v-model="body"
             height="100%"
             :path-root="pathRoot"
+            :components="projectComponents"
             :placeholder="placeholder"
             :data-testid="`${testidPrefix}-detail-field`"
             @update:model-value="scheduleSave"

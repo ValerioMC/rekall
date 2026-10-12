@@ -2,14 +2,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import DescriptionPane from '@/components/console/DescriptionPane.vue'
+import DescriptionEmptyState from '@/components/console/DescriptionEmptyState.vue'
+import * as componentsApi from '@/api/project-components.api'
 import { useConsoleStore } from '@/stores/console.store'
 import type { Task, TaskStepState } from '@/model/catalog'
-import type { ProjectId, TaskId } from '@/model/branded'
+import type { ProjectComponent } from '@/model/project-component'
+import type { ProjectComponentId, ProjectId, TaskId } from '@/model/branded'
 
 /** The size chip measures on its own; here it only has to not reach the network. */
 vi.mock('@/api/context.api', () => ({
   fetchContextSize: vi.fn(async () => ({ characters: 3500, estimatedTokens: 1000, parts: [] }))
 }))
+
+vi.mock('@/api/project-components.api')
 
 /**
  * The description's own review bar, shown only while the task has no checklist. It has to give
@@ -110,5 +115,34 @@ describe('DescriptionPane review bar', () => {
     await flushPromises()
 
     expect(wrapper.find('[data-testid="description-review-bar"]').exists()).toBe(false)
+  })
+})
+
+describe('DescriptionPane component completion', () => {
+  beforeEach(() => {
+    pinia = createPinia()
+    setActivePinia(pinia)
+  })
+
+  it("hands the project's components to the editor being written in, so [[ has names to offer", async () => {
+    const auth: ProjectComponent = {
+      id: 'c1' as ProjectComponentId,
+      projectId: rekall,
+      name: 'auth-service',
+      folder: '/work/auth',
+      description: 'Sessions',
+      position: 0,
+      createdAt: '2026-10-08T10:00:00Z',
+      updatedAt: '2026-10-08T10:00:00Z'
+    }
+    vi.mocked(componentsApi.fetchProjectComponents).mockResolvedValue([auth])
+    seed('OPEN')
+    const wrapper = render()
+    await flushPromises()
+
+    wrapper.getComponent(DescriptionEmptyState).vm.$emit('write')
+    await flushPromises()
+
+    expect(wrapper.getComponent({ name: 'AppMarkdownEditor' }).props('components')).toEqual([auth])
   })
 })

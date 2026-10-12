@@ -240,6 +240,7 @@ onUnmounted(() => {
             v-model="draft"
             height="100%"
             :path-root="selectedTask?.projectRepoFolder"
+            :components="projectComponents"
             @update:model-value="scheduleSave"
           />
           <AppMarkdownEditor v-else key="read" :model-value="draft" :components="projectComponents" readonly />
