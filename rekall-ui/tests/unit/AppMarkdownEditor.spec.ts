@@ -194,4 +194,31 @@ describe('AppMarkdownEditor', () => {
     )
     expect(document.getElementById(HLJS_SCRIPT_ID)).toBeNull()
   })
+
+  it('draws a [[Name]] as a chip for a component of the project and flags one it does not have', async () => {
+    const component = {
+      id: 'c-1', projectId: 'p-1', name: 'Auth Service', folder: 'services/auth', description: 'Issues tokens.',
+      position: 0, createdAt: '', updatedAt: ''
+    }
+    const wrapper = mount(AppMarkdownEditor, {
+      props: { modelValue: 'See [[auth service]] and [[Billing]].', readonly: true, components: [component] as never }
+    })
+    await flushPromises()
+    await nextTick()
+
+    const chips = wrapper.findAll('.rk-component-ref').map((chip) => chip.attributes('data-state'))
+    expect(chips).toEqual(['found', 'missing'])
+
+    await wrapper.setProps({ components: [{ ...component, name: 'Identity' }] as never })
+    await flushPromises()
+    expect(wrapper.findAll('.rk-component-ref').map((chip) => chip.attributes('data-state'))).toEqual(['missing', 'missing'])
+  })
+
+  it('leaves a [[Name]] plain when the text belongs to no project', async () => {
+    const wrapper = mount(AppMarkdownEditor, { props: { modelValue: 'See [[Auth Service]].', readonly: true } })
+    await flushPromises()
+    await nextTick()
+
+    expect(wrapper.find('.rk-component-ref').attributes('data-state')).toBe('plain')
+  })
 })

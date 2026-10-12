@@ -24,6 +24,11 @@ export const useProjectComponentsStore = defineStore('projectComponents', () => 
     return byProject.value[projectId] ?? []
   }
 
+  /** Whether a list has arrived, so an empty project is told from one not fetched yet. */
+  function isLoaded(projectId: ProjectId): boolean {
+    return projectId in byProject.value
+  }
+
   function isLoading(projectId: ProjectId): boolean {
     return loading.value.has(projectId)
   }
@@ -41,6 +46,10 @@ export const useProjectComponentsStore = defineStore('projectComponents', () => 
       rest.delete(projectId)
       loading.value = rest
     }
+  }
+
+  async function ensureLoaded(projectId: ProjectId): Promise<void> {
+    if (!isLoaded(projectId) && !isLoading(projectId)) await load(projectId)
   }
 
   async function create(projectId: ProjectId, input: ProjectComponentInput): Promise<ProjectComponent> {
@@ -76,5 +85,5 @@ export const useProjectComponentsStore = defineStore('projectComponents', () => 
     put(projectId, componentsOf(projectId).filter((component) => component.id !== id))
   }
 
-  return { componentsOf, isLoading, load, create, update, move, remove }
+  return { componentsOf, isLoaded, isLoading, load, ensureLoaded, create, update, move, remove }
 })

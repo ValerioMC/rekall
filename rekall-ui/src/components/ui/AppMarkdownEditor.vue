@@ -6,10 +6,12 @@ import PathPicker from '@/components/ui/PathPicker.vue'
 import ReadModeSettings from '@/components/ui/ReadModeSettings.vue'
 import ReadSearchBar from '@/components/ui/ReadSearchBar.vue'
 import TableContextMenu from '@/components/ui/TableContextMenu.vue'
+import { useComponentReferenceChips } from '@/composables/useComponentReferenceChips'
 import { useEditorPathPicker } from '@/composables/useEditorPathPicker'
 import { useFittedEditorHeight } from '@/composables/useFittedEditorHeight'
 import { useReadModeSearch } from '@/composables/useReadModeSearch'
 import { useTableContextMenu } from '@/composables/useTableContextMenu'
+import type { ProjectComponent } from '@/model/project-component'
 import { readModeAlign, readModeWidth, setReadModeAlign, setReadModeWidth } from '@/common/config/read-mode'
 
 const props = withDefaults(
@@ -31,6 +33,12 @@ const props = withDefaults(
      * it the picker opens in the home folder, and it can reach anywhere on the machine either way.
      */
     pathRoot?: string | null
+    /**
+     * The project's components, when the text belongs to one: a `[[Name]]` in the read view is
+     * drawn as a chip for the component, or as a broken reference. `null` (a note with no
+     * project) leaves every reference as plain text. Write mode shows the source as written.
+     */
+    components?: readonly ProjectComponent[] | null
   }>(),
   {
     readonly: false,
@@ -38,7 +46,8 @@ const props = withDefaults(
     grow: false,
     placeholder: '# Contesto',
     compact: false,
-    pathRoot: null
+    pathRoot: null,
+    components: null
   }
 )
 
@@ -68,6 +77,8 @@ const {
 } = useEditorPathPicker(editor, { readonly: () => props.readonly, pathRoot: () => props.pathRoot })
 
 const tableMenu = useTableContextMenu(editor)
+
+const chips = useComponentReferenceChips(root, () => props.components)
 
 // A card-sized read view has no room for a bar; ⌘F there is left to the page.
 const search = useReadModeSearch(root, { enabled: () => props.readonly && !props.compact })
@@ -144,6 +155,7 @@ const TOOLBARS: ToolbarNames[] = [
       no-katex
       no-echarts
       no-img-zoom-in
+      @on-html-changed="chips.paint"
     />
     <MdEditor
       v-else

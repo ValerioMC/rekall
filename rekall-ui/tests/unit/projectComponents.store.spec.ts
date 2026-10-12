@@ -88,4 +88,16 @@ describe('the project components store', () => {
   it('holds nothing for a project it has not opened', () => {
     expect(useProjectComponentsStore().componentsOf('other' as ProjectId)).toEqual([])
   })
+
+  it('tells a project with no components from one it has not fetched', async () => {
+    vi.mocked(api.fetchProjectComponents).mockResolvedValue([])
+    const store = useProjectComponentsStore()
+
+    expect(store.isLoaded(PROJECT)).toBe(false)
+    await store.ensureLoaded(PROJECT)
+    await store.ensureLoaded(PROJECT)
+
+    expect(store.isLoaded(PROJECT)).toBe(true)
+    expect(api.fetchProjectComponents).toHaveBeenCalledTimes(1)
+  })
 })

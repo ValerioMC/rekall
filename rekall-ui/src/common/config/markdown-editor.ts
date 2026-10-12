@@ -8,6 +8,7 @@ import 'highlight.js/styles/github-dark.css'
 import '@/assets/markdown-editor.css'
 import '@/assets/live-preview.css'
 import { markAnchorCode } from '@/common/config/anchor-code'
+import { markComponentReferences } from '@/common/markdown/component-reference'
 import { livePreview } from '@/common/live-preview/live-preview'
 
 config({
@@ -17,6 +18,7 @@ config({
     // Off, or every source newline in a hard-wrapped brief renders as a permanent <br>.
     md.set({ breaks: false })
     markAnchorCode(md)
+    markComponentReferences(md)
   },
   // linkShortener turns long slash-prefixed runs into an uneditable widget, which eats file paths.
   // The library parses CommonMark only; live preview needs GFM to see tables, tasks and strikethrough.

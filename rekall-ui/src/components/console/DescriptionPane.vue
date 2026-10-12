@@ -7,6 +7,7 @@ import CopyGlyph from '@/components/ui/CopyGlyph.vue'
 import DescriptionEmptyState from '@/components/console/DescriptionEmptyState.vue'
 import DescriptionReviewBar from '@/components/console/DescriptionReviewBar.vue'
 import { useConsoleStore } from '@/stores/console.store'
+import { useSelectedProjectComponents } from '@/composables/useSelectedProjectComponents'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { identityHue } from '@/common/identity'
 import { rkCommand } from '@/common/format/rk-command'
@@ -30,6 +31,8 @@ const mode = ref<'write' | 'read'>('read')
 const showEditor = ref(false)
 const draft = ref('')
 let saveTimer: ReturnType<typeof setTimeout> | null = null
+
+const projectComponents = useSelectedProjectComponents()
 
 const hue = computed(() => identityHue(selectedTask.value?.projectId ?? ''))
 
@@ -239,7 +242,7 @@ onUnmounted(() => {
             :path-root="selectedTask?.projectRepoFolder"
             @update:model-value="scheduleSave"
           />
-          <AppMarkdownEditor v-else key="read" :model-value="draft" readonly />
+          <AppMarkdownEditor v-else key="read" :model-value="draft" :components="projectComponents" readonly />
         </Transition>
       </div>
     </template>

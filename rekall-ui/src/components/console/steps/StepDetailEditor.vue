@@ -2,6 +2,7 @@
 import AppInput from '@/components/ui/AppInput.vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import AppModeToggle from '@/components/ui/AppModeToggle.vue'
+import { useSelectedProjectComponents } from '@/composables/useSelectedProjectComponents'
 import { useStepEditor } from '@/composables/useStepEditor'
 
 /**
@@ -21,6 +22,7 @@ defineProps<{
 }>()
 
 const { mode, title, body, scheduleSave } = useStepEditor()
+const projectComponents = useSelectedProjectComponents()
 </script>
 
 <template>
@@ -52,7 +54,7 @@ const { mode, title, body, scheduleSave } = useStepEditor()
       </div>
 
       <div v-else-if="body.trim()" key="read" class="step-detail min-w-0 overflow-x-auto">
-        <AppMarkdownEditor :model-value="body" readonly compact :data-testid="`${testidPrefix}-detail-read`" />
+        <AppMarkdownEditor :model-value="body" :components="projectComponents" readonly compact :data-testid="`${testidPrefix}-detail-read`" />
       </div>
 
       <p v-else key="empty" class="py-1 text-small text-text-subtle">

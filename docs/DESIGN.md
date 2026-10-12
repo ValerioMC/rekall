@@ -372,6 +372,16 @@ description (cut at `COMPONENT_REFERENCE_MAX`), later ones its name and folder; 
 blocks are left as written; a name that matches no component of the task's project becomes
 `[[Name]] (component not found in this project)`. `ContextSizeService` measures the expanded text.
 
+The console draws the same syntax in read mode. `markComponentReferences`
+(`rekall-ui/src/common/markdown/component-reference.ts`, registered in `common/config/markdown-editor.ts`)
+turns `[[Name]]` into a chip that knows only the written name, with the backend's edge cases; markdown-it
+never offers it code spans or fences. The project is not known to the global renderer, so
+`AppMarkdownEditor` takes the project's `components` and `useComponentReferenceChips` settles each chip
+(found with a folder and description title, missing, or plain for text with no project) after every render
+and whenever the list changes. `useSelectedProjectComponents` loads the selected task's project into
+`useProjectComponentsStore` and answers `null` until the list has arrived, so nothing is called broken
+early. Write mode stays plain text.
+
 A note can travel by reference. It then arrives as its title, its first line and an anchor such
 as `note:3f2a9c1e` (the first eight characters of its id), with `loaded="on request"`, and
 `rekall_context` loads it in full by that anchor. `ContextRenderer`, which writes every context,

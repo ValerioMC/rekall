@@ -510,3 +510,44 @@
   background-color: var(--color-accent);
   color: var(--color-accent-ink);
 }
+
+/* A `[[Name]]` in the read view: a component of the project, or a reference that matches none. */
+.rekall-md .md-editor-preview .rk-component-ref {
+  display: inline-block;
+  padding: 0 0.45em;
+  border: 1px solid var(--color-anchor-line);
+  border-radius: 999px;
+  color: var(--color-anchor);
+  background: var(--color-anchor-soft);
+  font-size: 0.92em;
+  line-height: 1.5;
+  cursor: help;
+}
+
+.rekall-md .md-editor-preview .rk-component-ref[data-state='missing'] {
+  color: var(--color-danger);
+  background: var(--color-danger-soft);
+  border-color: var(--color-danger);
+  border-style: dashed;
+  text-decoration: line-through;
+}
+
+/* Text with no project behind it keeps the brackets and looks like text. */
+.rekall-md .md-editor-preview .rk-component-ref[data-state='plain'] {
+  display: inline;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: inherit;
+  background: none;
+  font-size: inherit;
+  cursor: auto;
+}
+
+.rekall-md .md-editor-preview .rk-component-ref[data-state='plain']::before {
+  content: '[[';
+}
+
+.rekall-md .md-editor-preview .rk-component-ref[data-state='plain']::after {
+  content: ']]';
+}
