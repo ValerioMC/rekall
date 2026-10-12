@@ -6,12 +6,14 @@ const MARKDOWN: &str = ".md";
 const MEMORY_INDEX: &str = "MEMORY.md";
 const SKILL_FILE: &str = "SKILL.md";
 const INSTRUCTIONS: &str = "CLAUDE.md";
-const MANAGED_SKILLS: &str = "skills/synced/";
-const MAX_SEGMENTS: usize = 8;
+const PROVIDED_BY_OTHERS: [&str; 2] = ["skills/synced/", "plugins/"];
+const PLUGIN_CACHE: &str = "plugins/cache/";
+const CLAUDE_FOLDER: &str = ".claude";
+const MAX_SEGMENTS: usize = 9;
 
 /// A file of Claude Code's home folder the console may touch, named by its `/`-separated path
-/// under that folder. Parsing is the whole guard: a path that is not one of the five known
-/// places, or that climbs, hides or carries a separator, is refused before any disk is read.
+/// under it. Parsing is the whole guard: a path outside the known places, or that climbs, hides
+/// or carries a separator, is refused before any disk is read.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ResourcePath {
     relative: String,
@@ -22,7 +24,9 @@ impl ResourcePath {
     pub fn parse(raw: &str) -> Result<Self> {
         let relative = raw.trim();
         let segments: Vec<&str> = relative.split('/').collect();
-        if relative.is_empty() || segments.len() > MAX_SEGMENTS || !segments.iter().all(|s| is_plain_segment(s)) {
+        let in_plugin_cache = relative.starts_with(PLUGIN_CACHE);
+        let plain = |segment: &&str| is_plain_segment(segment) || (in_plugin_cache && *segment == CLAUDE_FOLDER);
+        if relative.is_empty() || segments.len() > MAX_SEGMENTS || !segments.iter().all(plain) {
             return Err(refused(raw));
         }
         let kind = classify(&segments).ok_or_else(|| refused(raw))?;
@@ -37,9 +41,10 @@ impl ResourcePath {
         self.kind
     }
 
-    /// Skills synced from claude.ai are rewritten on the next sync, so an edit would be lost.
+    /// Skills synced from claude.ai or shipped by a plugin are rewritten by their provider, so an
+    /// edit would be lost.
     pub fn is_editable(&self) -> bool {
-        !self.relative.starts_with(MANAGED_SKILLS)
+        !PROVIDED_BY_OTHERS.iter().any(|prefix| self.relative.starts_with(prefix))
     }
 
     pub fn file_name(&self) -> &str {
@@ -78,9 +83,15 @@ fn classify(segments: &[&str]) -> Option<ResourceKind> {
         ["skills", .., _] if *file == SKILL_FILE => Some(ResourceKind::Skill),
         ["commands", ..] => Some(ResourceKind::Command),
         ["agents", ..] => Some(ResourceKind::Agent),
+        ["plugins", "cache", _, _, _, rest @ ..] if *file == SKILL_FILE && is_plugin_skill_folder(rest) => Some(ResourceKind::Skill),
         ["memory"] | ["projects", _, "memory"] => Some(memory_kind(file)),
         _ => None,
     }
+}
+
+/// `skills/<name>` or `.claude/skills/<name>` inside an installed plugin.
+fn is_plugin_skill_folder(folders: &[&str]) -> bool {
+    matches!(folders, ["skills", _] | [".claude", "skills", _])
 }
 
 fn memory_kind(file: &str) -> ResourceKind {

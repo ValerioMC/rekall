@@ -10,17 +10,24 @@ use rekall_common::{InternalFailure, RekallError, Result};
 use crate::ClaudeState;
 
 use super::resource_query::ResourceQuery;
-use super::{ResourceCatalog, ResourceFile, SaveRequest};
+use super::{MemoryAnalysis, ResourceCatalog, ResourceFile, SaveRequest};
 
 pub fn routes() -> Router<ClaudeState> {
     Router::new()
         .route("/api/claude/resources", get(catalog))
+        .route("/api/claude/resources/analysis", get(analysis))
         .route("/api/claude/resources/file", get(open).put(save).delete(remove))
+        .merge(super::skill_group_controller::routes())
 }
 
 async fn catalog(State(state): State<ClaudeState>) -> ApiResult<Json<ResourceCatalog>> {
     let resources = state.resources.clone();
     Ok(Json(blocking(move || Ok(resources.catalog())).await?))
+}
+
+async fn analysis(State(state): State<ClaudeState>) -> ApiResult<Json<MemoryAnalysis>> {
+    let resources = state.resources.clone();
+    Ok(Json(blocking(move || Ok(resources.analyze())).await?))
 }
 
 async fn open(State(state): State<ClaudeState>, Query(query): Query<ResourceQuery>) -> ApiResult<Json<ResourceFile>> {

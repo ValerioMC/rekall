@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use rekall_api::ApiState;
 
-use crate::resources::ClaudeResourceService;
+use crate::resources::{ClaudeResourceService, SkillGroupService};
 use crate::{pty, queue, usage};
 
 /// Everything this module serves, built over the shared services.
@@ -14,4 +14,5 @@ pub struct ClaudeState {
     pub queue: queue::RunQueueService,
     pub runner: queue::RunQueueRunner,
     pub resources: ClaudeResourceService,
+    pub skill_groups: SkillGroupService,
 }

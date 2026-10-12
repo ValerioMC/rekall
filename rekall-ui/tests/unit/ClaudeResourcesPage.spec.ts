@@ -7,11 +7,16 @@ import ClaudeResourcesPage from '@/components/claude-resources/ClaudeResourcesPa
 import { useConsoleStore } from '@/stores/console.store'
 import { catalog, file, group, summary } from './claude-resources.fixtures'
 
+
 const api = vi.hoisted(() => ({
   fetchResourceCatalog: vi.fn(),
   fetchResourceFile: vi.fn(),
   saveResourceFile: vi.fn(),
-  deleteResourceFile: vi.fn()
+  deleteResourceFile: vi.fn(),
+  fetchSkillPlacements: vi.fn(),
+  placeSkill: vi.fn(),
+  renameSkillGroup: vi.fn(),
+  fetchMemoryAnalysis: vi.fn()
 }))
 vi.mock('@/api/claudeResources.api', () => api)
 
@@ -48,6 +53,7 @@ describe('the Claude resources page', () => {
     vi.resetAllMocks()
     document.body.innerHTML = ''
     api.fetchResourceCatalog.mockResolvedValue(CATALOG)
+    api.fetchSkillPlacements.mockResolvedValue([])
     useConsoleStore().projects = []
   })
 
@@ -160,5 +166,121 @@ describe('the Claude resources page', () => {
     await flushPromises()
 
     expect(api.saveResourceFile).toHaveBeenCalledWith('skills/my-skill/SKILL.md', expect.stringContaining('name: my-skill'), null)
+  })
+
+  it('nests a project inside the one whose folder it sits in', async () => {
+    api.fetchResourceCatalog.mockResolvedValue(
+      catalog({
+        memoryGroups: [
+          group('-work-esa', '/work/esa', [summary('projects/-work-esa/memory/a.md', { name: 'Parent rule' })]),
+          group('-work-esa-core', '/work/esa/core', [summary('projects/-work-esa-core/memory/b.md', { name: 'Child rule' })])
+        ]
+      })
+    )
+    const wrapper = await page()
+
+    const top = wrapper.findAll('[data-testid="memory-group"]')[0]!
+    expect(wrapper.findAll('[data-testid="memory-group"]')).toHaveLength(2)
+    expect(top.find('[data-testid="memory-group"]').exists()).toBe(true)
+    expect(top.find('[data-testid="memory-group"]').text()).toContain('core')
+    expect(top.find('button').text()).toContain('+1')
+  })
+
+  it('shelves read-only skills by who provides them, folded, and keeps the persons own open', async () => {
+    api.fetchResourceCatalog.mockResolvedValue(
+      catalog({
+        skills: [
+          summary('skills/mine/SKILL.md', { kind: 'skill', name: 'mine', source: { kind: 'own', name: 'You', detail: null } }),
+          summary('skills/synced/b/pdf/SKILL.md', { kind: 'skill', name: 'pdf', editable: false, source: { kind: 'synced', name: 'claude.ai', detail: 'anthropic' } })
+        ]
+      })
+    )
+    const wrapper = await page()
+    await wrapper.find('[data-testid="resource-tab-skills"]').trigger('click')
+
+    const own = wrapper.find('[data-testid="skill-shelf-own"]')
+    const locked = wrapper.find('[data-testid="skill-shelf-locked"]')
+    expect(own.text()).toContain('mine')
+    expect(locked.text()).toContain('claude.ai')
+    expect(locked.text()).toContain('Made by Anthropic')
+    expect(locked.find('[aria-expanded]').attributes('aria-expanded')).toBe('false')
+    expect(own.find('[data-testid="skill-group-trigger"]').exists()).toBe(true)
+    expect(locked.find('[data-testid="skill-group-trigger"]').exists()).toBe(false)
+  })
+
+  it('files a skill into a new group without writing to the disk', async () => {
+    api.fetchResourceCatalog.mockResolvedValue(
+      catalog({ skills: [summary('skills/mine/SKILL.md', { kind: 'skill', name: 'mine', source: { kind: 'own', name: 'You', detail: null } })] })
+    )
+    api.placeSkill.mockResolvedValue([{ skillPath: 'skills/mine/SKILL.md', group: 'Languages' }])
+    const wrapper = await page()
+    await wrapper.find('[data-testid="resource-tab-skills"]').trigger('click')
+
+    await wrapper.find('[data-testid="skill-group-trigger"]').trigger('click')
+    document.querySelector<HTMLButtonElement>('[data-testid="skill-group-new"]')!.click()
+    await flushPromises()
+    const name = document.querySelector<HTMLInputElement>('[data-testid="skill-group-name"]')!
+    name.value = 'Languages'
+    name.dispatchEvent(new Event('input'))
+    name.form!.dispatchEvent(new Event('submit', { cancelable: true }))
+    await flushPromises()
+
+    expect(api.placeSkill).toHaveBeenCalledWith('skills/mine/SKILL.md', 'Languages')
+    expect(api.saveResourceFile).not.toHaveBeenCalled()
+    expect(wrapper.find('[data-testid="skill-shelf-own"]').text()).toContain('Languages')
+  })
+
+  it('opens the review, lists what it found and opens a memory from it', async () => {
+    api.fetchMemoryAnalysis.mockResolvedValue({
+      memoriesRead: 4,
+      documentsRead: 2,
+      promotions: [
+        {
+          topic: ['dash', 'comment'],
+          memories: [
+            { path: 'projects/-work-vega/memory/lean.md', name: 'No em dashes', groupId: '-work-vega', memoryType: 'feedback' },
+            { path: 'projects/-gone/memory/old.md', name: 'No dashes', groupId: '-gone', memoryType: 'feedback' }
+          ],
+          groupCount: 2,
+          target: 'instructions',
+          reason: 'Short and the same everywhere.'
+        }
+      ],
+      obsolete: [
+        {
+          memory: { path: 'projects/-work-vega/memory/lean.md', name: 'Makefile style', groupId: '-work-vega', memoryType: null },
+          coveredBy: { kind: 'globalInstructions', label: 'CLAUDE.md', location: '/home/me/.claude/CLAUDE.md', resourcePath: 'CLAUDE.md' },
+          overlapPercent: 82,
+          sharedPhrases: ['phony target']
+        }
+      ]
+    })
+    api.fetchResourceFile.mockResolvedValue(file('projects/-work-vega/memory/lean.md', 'x', { name: 'Lean visual' }))
+    const wrapper = await page()
+
+    await wrapper.find('[data-testid="review-entry"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="review-count"]').text()).toBe('2')
+    expect(wrapper.find('[data-testid="promotion-card"]').text()).toContain('Add to CLAUDE.md')
+    expect(wrapper.find('[data-testid="promotion-card"]').text()).toContain('in 2 projects')
+    expect(wrapper.find('[data-testid="obsolete-card"]').text()).toContain('82%')
+    expect(wrapper.find('[data-testid="obsolete-card"]').text()).toContain('phony target')
+
+    await wrapper.find('[data-testid="review-open-memory"]').trigger('click')
+    await flushPromises()
+    expect(api.fetchResourceFile).toHaveBeenCalledWith('projects/-work-vega/memory/lean.md')
+    expect(wrapper.find('[data-testid="resource-title"]').text()).toBe('Lean visual')
+    expect(wrapper.find('[data-testid="resource-tab-memories"]').attributes('aria-selected')).toBe('true')
+  })
+
+  it('says so when the review finds nothing', async () => {
+    api.fetchMemoryAnalysis.mockResolvedValue({ memoriesRead: 4, documentsRead: 2, promotions: [], obsolete: [] })
+    const wrapper = await page()
+
+    await wrapper.find('[data-testid="review-entry"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="review-empty"]').exists()).toBe(true)
   })
 })

@@ -3,6 +3,22 @@ import type { Project } from '@/model/catalog'
 export const RESOURCE_KINDS = ['instructions', 'skill', 'command', 'agent', 'memory', 'memoryIndex'] as const
 export type ResourceKind = (typeof RESOURCE_KINDS)[number]
 
+export type SkillSourceKind = 'own' | 'synced' | 'plugin'
+
+/** Who provides a skill: the person, claude.ai's sync, or an installed plugin. */
+export interface SkillSource {
+  readonly kind: SkillSourceKind
+  /** The plugin's name, `claude.ai` for a synced skill, `You` for the person's own. */
+  readonly name: string
+  readonly detail: string | null
+}
+
+/** One of the person's skills and the Rekall-only group it is shown under. */
+export interface SkillPlacement {
+  readonly skillPath: string
+  readonly group: string
+}
+
 export interface ResourceSummary {
   /** The identity: the file's path under Claude Code's home folder. */
   readonly path: string
@@ -13,6 +29,8 @@ export interface ResourceSummary {
   readonly bytes: number
   readonly modifiedAt: string
   readonly editable: boolean
+  /** Where a skill comes from; null for every other kind of file. */
+  readonly source: SkillSource | null
 }
 
 export interface ResourceFile {
@@ -158,4 +176,13 @@ export function newResource(
       return { path: `${folder}/${slug}.md`, body: front }
     }
   }
+}
+
+/** The section a file is listed under, so opening it from elsewhere shows it in its place. */
+export function sectionOfPath(path: string): ResourceSection | null {
+  if (path.startsWith('skills/') || path.startsWith('plugins/')) return 'skills'
+  if (path.startsWith('commands/')) return 'commands'
+  if (path.startsWith('agents/')) return 'agents'
+  if (path.startsWith('memory/') || path.startsWith('projects/')) return 'memories'
+  return null
 }

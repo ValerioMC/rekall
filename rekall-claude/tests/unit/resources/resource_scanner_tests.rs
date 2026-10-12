@@ -1,4 +1,5 @@
 use super::*;
+use crate::resources::SkillSourceKind;
 
 fn put(root: &Path, relative: &str, body: &str) {
     let target = root.join(relative);
@@ -87,4 +88,28 @@ fn memories_are_grouped_per_project_with_the_index_apart() {
     let orphan = &groups[1];
     assert!(!orphan.resolved && !orphan.folder_exists);
     assert!(groups[0].global && groups[0].working_directory.is_none());
+}
+
+#[test]
+fn every_skill_says_whether_it_is_yours_claude_ais_or_a_plugins() {
+    let dir = tempfile::tempdir().unwrap();
+    put(dir.path(), "skills/mine.md", "text");
+    put(dir.path(), "skills/synced/bucket/pdf/SKILL.md", "text");
+    put(dir.path(), "skills/synced/bucket/manifest.json", r#"{"skills":[{"name":"pdf","source":"anthropic"}]}"#);
+    put(dir.path(), "plugins/cache/official/design/2.0/skills/palette/SKILL.md", "text");
+    let record = format!(
+        r#"{{"version":2,"plugins":{{"design@official":[{{"installPath":"{}","version":"2.0"}}]}}}}"#,
+        dir.path().join("plugins/cache/official/design/2.0").display()
+    );
+    put(dir.path(), "plugins/installed_plugins.json", &record);
+
+    let found = catalog(dir.path());
+
+    let source = |name: &str| found.skills.iter().find(|skill| skill.name == name).unwrap().source.clone().unwrap();
+    assert_eq!(source("mine").kind, SkillSourceKind::Own);
+    let synced = source("pdf");
+    assert_eq!((synced.kind, synced.name.as_str(), synced.detail.as_deref()), (SkillSourceKind::Synced, "claude.ai", Some("anthropic")));
+    let plugin = source("palette");
+    assert_eq!((plugin.kind, plugin.name.as_str(), plugin.detail.as_deref()), (SkillSourceKind::Plugin, "design", Some("official · v2.0")));
+    assert!(found.skills.iter().filter(|skill| !skill.editable).count() == 2);
 }

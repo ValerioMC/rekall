@@ -1,6 +1,6 @@
 use sea_orm_migration::prelude::*;
 
-use super::{baseline, m031_project_section, m032_project_icon_image, m033_project_component, m034_company_logo_image, m035_mermaid_diagram, m036_token_usage};
+use super::{baseline, m031_project_section, m032_project_icon_image, m033_project_component, m034_company_logo_image, m035_mermaid_diagram, m036_token_usage, m037_skill_placement};
 
 /// Every migration, in the order it is applied.
 pub struct Migrator;
@@ -16,6 +16,7 @@ impl MigratorTrait for Migrator {
             Box::new(m034_company_logo_image::CompanyLogoImage),
             Box::new(m035_mermaid_diagram::MermaidDiagram),
             Box::new(m036_token_usage::TokenUsage),
+            Box::new(m037_skill_placement::SkillPlacement),
         ]
     }
 }

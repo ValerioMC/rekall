@@ -12,6 +12,7 @@ mod m033_project_component;
 mod m034_company_logo_image;
 mod m035_mermaid_diagram;
 mod m036_token_usage;
+mod m037_skill_placement;
 mod migration_support;
 mod migrator;
 

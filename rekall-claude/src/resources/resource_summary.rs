@@ -2,7 +2,7 @@ use rekall_common::{Instant, Result};
 use serde::Serialize;
 
 use super::claude_home::modified_of;
-use super::{ClaudeHome, Frontmatter, ResourceKind, ResourcePath};
+use super::{ClaudeHome, Frontmatter, ResourceKind, ResourcePath, SkillSource};
 
 const HEAD_BYTES: u64 = 8 * 1024;
 const BLURB_CHARS: usize = 160;
@@ -21,6 +21,8 @@ pub struct ResourceSummary {
     pub bytes: u64,
     pub modified_at: Instant,
     pub editable: bool,
+    /// Who provides a skill; none for every other kind of file.
+    pub source: Option<SkillSource>,
 }
 
 impl ResourceSummary {
@@ -39,6 +41,7 @@ impl ResourceSummary {
             bytes: metadata.len(),
             modified_at: modified_of(&metadata),
             editable: path.is_editable(),
+            source: None,
         })
     }
 }

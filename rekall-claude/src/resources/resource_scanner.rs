@@ -3,7 +3,8 @@ use std::path::{Path, PathBuf};
 
 use tracing::warn;
 
-use super::{ClaudeHome, MemoryGroup, ResourceCatalog, ResourceKind, ResourcePath, ResourceSummary, WorkingDirectory};
+use super::plugin_skills::plugin_skill_files;
+use super::{ClaudeHome, MemoryGroup, ResourceCatalog, ResourceKind, ResourcePath, ResourceSummary, SkillSource, SyncedSources, WorkingDirectory};
 
 const INSTRUCTIONS: &str = "CLAUDE.md";
 const SKILL_FILE: &str = "SKILL.md";
@@ -25,11 +26,30 @@ impl<'a> ResourceScanner<'a> {
         ResourceCatalog {
             root: root.to_string_lossy().into_owned(),
             instructions: self.describe_all([root.join(INSTRUCTIONS)]).pop(),
-            skills: self.describe_all(skill_files(&root.join("skills"), 0)),
+            skills: self.skills(),
             commands: self.describe_all(markdown_files(&root.join("commands"))),
             agents: self.describe_all(markdown_files(&root.join("agents"))),
             memory_groups: self.memory_groups(),
         }
+    }
+
+    /// The person's own skills, those claude.ai synced, and those installed plugins ship; each
+    /// carries where it comes from.
+    fn skills(&self) -> Vec<ResourceSummary> {
+        let root = self.home.root();
+        let synced = SyncedSources::read(&root.join("skills").join("synced"));
+        let mut skills: Vec<ResourceSummary> = self
+            .describe_all(skill_files(&root.join("skills"), 0))
+            .into_iter()
+            .map(|skill| with_source(skill, &synced))
+            .collect();
+        for plugin in plugin_skill_files(root) {
+            if let Some(skill) = self.describe(&plugin.file) {
+                skills.push(ResourceSummary { source: Some(plugin.source), ..skill });
+            }
+        }
+        skills.sort_by_cached_key(|skill| (skill.name.to_lowercase(), skill.path.clone()));
+        skills
     }
 
     fn memory_groups(&self) -> Vec<MemoryGroup> {
@@ -81,6 +101,16 @@ impl<'a> ResourceScanner<'a> {
             }
         }
     }
+}
+
+/// A skill under `skills/synced/<bucket>/` is claude.ai's; any other is the person's.
+fn with_source(skill: ResourceSummary, synced: &SyncedSources) -> ResourceSummary {
+    let segments: Vec<&str> = skill.path.split('/').collect();
+    let source = match segments.as_slice() {
+        ["skills", "synced", bucket, name, _] => SkillSource::synced(synced.source_of(bucket, name)),
+        _ => SkillSource::own(),
+    };
+    ResourceSummary { source: Some(source), ..skill }
 }
 
 fn relative_path(root: &Path, file: &Path) -> Option<String> {

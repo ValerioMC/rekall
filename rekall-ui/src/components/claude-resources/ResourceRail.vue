@@ -3,20 +3,22 @@ import { computed, ref, watch } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
 import AppSkeleton from '@/components/ui/AppSkeleton.vue'
-import MemoryGroupSection from './MemoryGroupSection.vue'
+import MemoryTree from './MemoryTree.vue'
 import ResourceRow from './ResourceRow.vue'
+import ReviewEntry from './ReviewEntry.vue'
+import SkillShelves from './SkillShelves.vue'
 import {
   RESOURCE_SECTIONS,
   SECTION_LABEL,
-  groupName,
   matchesQuery,
-  projectOfGroup,
   sectionCount,
-  type MemoryGroup,
   type ResourceCatalog,
   type ResourceSection,
-  type ResourceSummary
+  type SkillPlacement
 } from '@/model/claude-resources'
+import { buildMemoryTree, trailTo } from '@/model/memory-tree'
+import { buildSkillShelves } from '@/model/skill-shelves'
+import type { MemoryAnalysis } from '@/model/memory-analysis'
 import type { Project } from '@/model/catalog'
 
 const props = defineProps<{
@@ -25,6 +27,9 @@ const props = defineProps<{
   query: string
   selectedPath: string | null
   projects: readonly Project[]
+  placements: readonly SkillPlacement[]
+  analysis: MemoryAnalysis | null
+  reviewing: boolean
 }>()
 
 const emit = defineEmits<{
@@ -32,43 +37,28 @@ const emit = defineEmits<{
   'update:query': [query: string]
   select: [path: string]
   create: []
+  review: []
+  'move-skill': [path: string, group: string | null]
+  'rename-group': [from: string, to: string]
 }>()
 
 const expanded = ref<ReadonlySet<string>>(new Set())
 
-interface VisibleGroup {
-  readonly group: MemoryGroup
-  readonly project: Project | null
-  readonly memories: readonly ResourceSummary[]
-}
+const memoryTree = computed(() => buildMemoryTree(props.catalog?.memoryGroups ?? [], props.projects, props.query))
+const shelves = computed(() => buildSkillShelves(props.catalog?.skills ?? [], props.placements, props.query))
 
-/** The everywhere group, then groups that are Rekall projects, then the rest by name; gone folders last. */
-function rank(visible: VisibleGroup): number {
-  if (visible.group.global) return 0
-  if (!visible.group.folderExists) return 3
-  return visible.project ? 1 : 2
-}
-
-const visibleGroups = computed<readonly VisibleGroup[]>(() => {
-  const groups = props.catalog?.memoryGroups ?? []
-  return groups
-    .map((group) => ({
-      group,
-      project: projectOfGroup(group, props.projects),
-      memories: group.memories.filter((memory) => matchesQuery(memory, props.query))
-    }))
-    .filter((visible) => visible.memories.length > 0)
-    .sort((a, b) => rank(a) - rank(b) || groupName(a.group).localeCompare(groupName(b.group)))
-})
-
-const flat = computed<readonly ResourceSummary[]>(() => {
-  if (!props.catalog || props.section === 'memories') return []
+const flat = computed(() => {
+  if (!props.catalog || props.section === 'memories' || props.section === 'skills') return []
   return props.catalog[props.section].filter((entry) => matchesQuery(entry, props.query))
 })
 
 const instructions = computed(() => props.catalog?.instructions ?? null)
 const searching = computed(() => props.query.trim() !== '')
-const nothingShown = computed(() => (props.section === 'memories' ? visibleGroups.value.length === 0 : flat.value.length === 0))
+const nothingShown = computed(() => {
+  if (props.section === 'memories') return memoryTree.value.length === 0
+  if (props.section === 'skills') return shelves.value.length === 0
+  return flat.value.length === 0
+})
 
 function isOpen(id: string): boolean {
   return searching.value || expanded.value.has(id)
@@ -80,12 +70,12 @@ function toggle(id: string): void {
   expanded.value = next
 }
 
-/** The group holding the open memory is shown open, so the selection is never hidden in a fold. */
+/** The groups holding the open memory, and those above them, are shown open: the selection is never hidden in a fold. */
 watch(
-  () => props.selectedPath,
-  (path) => {
-    const owner = props.catalog?.memoryGroups.find((group) => group.memories.some((m) => m.path === path) || group.index?.path === path)
-    if (owner && !expanded.value.has(owner.id)) expanded.value = new Set(expanded.value).add(owner.id)
+  [() => props.selectedPath, memoryTree],
+  ([path]) => {
+    const trail = trailTo(path, memoryTree.value)
+    if (trail.some((id) => !expanded.value.has(id))) expanded.value = new Set([...expanded.value, ...trail])
   },
   { immediate: true }
 )
@@ -113,6 +103,8 @@ function moveTab(event: KeyboardEvent): void {
         No CLAUDE.md yet.
         <button class="focus-ring text-accent hover:underline" @click="emit('select', 'CLAUDE.md')">Write one</button>
       </div>
+
+      <ReviewEntry class="mt-1.5" :analysis="analysis" :active="reviewing" @open="emit('review')" />
 
       <div class="mt-3 flex gap-px rounded-control bg-canvas p-0.5 shadow-(--shadow-well)" role="tablist" aria-label="Kind of resource" @keydown="moveTab">
         <button
@@ -156,28 +148,28 @@ function moveTab(event: KeyboardEvent): void {
     >
       <AppSkeleton v-if="!catalog" variant="list" :rows="6" />
 
-      <template v-else-if="section === 'memories'">
-        <MemoryGroupSection
-          v-for="visible in visibleGroups"
-          :key="visible.group.id"
-          :group="visible.group"
-          :project="visible.project"
-          :memories="visible.memories"
-          :expanded="isOpen(visible.group.id)"
-          :selected-path="selectedPath"
-          @toggle="toggle(visible.group.id)"
-          @select="emit('select', $event)"
-        />
-      </template>
+      <MemoryTree
+        v-else-if="section === 'memories'"
+        :nodes="memoryTree"
+        :expanded="isOpen"
+        :selected-path="selectedPath"
+        @toggle="toggle"
+        @select="emit('select', $event)"
+      />
+
+      <SkillShelves
+        v-else-if="section === 'skills'"
+        :shelves="shelves"
+        :placements="placements"
+        :selected-path="selectedPath"
+        :searching="searching"
+        @select="emit('select', $event)"
+        @move="(path, group) => emit('move-skill', path, group)"
+        @rename="(from, to) => emit('rename-group', from, to)"
+      />
 
       <template v-else>
-        <ResourceRow
-          v-for="entry in flat"
-          :key="entry.path"
-          :summary="entry"
-          :selected="selectedPath === entry.path"
-          @select="emit('select', entry.path)"
-        />
+        <ResourceRow v-for="entry in flat" :key="entry.path" :summary="entry" :selected="selectedPath === entry.path" @select="emit('select', entry.path)" />
       </template>
 
       <AppEmptyState

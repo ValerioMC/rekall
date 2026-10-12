@@ -25,6 +25,7 @@ pub mod project_icon_image;
 pub mod project_section;
 pub mod run_queue;
 pub mod run_queue_item;
+pub mod skill_placement;
 pub mod step_pass;
 pub mod tag;
 pub mod task;
@@ -52,6 +53,7 @@ pub mod prelude {
     pub use super::project_section::{Entity as ProjectSection, Model as ProjectSectionModel};
     pub use super::run_queue::{Entity as RunQueue, Model as RunQueueModel};
     pub use super::run_queue_item::{Entity as RunQueueItem, Model as RunQueueItemModel};
+    pub use super::skill_placement::{Entity as SkillPlacement, Model as SkillPlacementModel};
     pub use super::tag::{Entity as Tag, Model as TagModel};
     pub use super::task::{Entity as Task, Model as TaskModel};
     pub use super::task_revision::{Entity as TaskRevision, Model as TaskRevisionModel};

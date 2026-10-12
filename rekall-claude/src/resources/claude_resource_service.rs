@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use rekall_common::{Instant, RekallError, Result};
 
-use super::{memory_index, ClaudeHome, Frontmatter, ResourceCatalog, ResourceFile, ResourcePath, ResourceScanner, ResourceSummary, SaveRequest};
+use super::{memory_index, ClaudeHome, Frontmatter, MemoryAnalysis, MemoryAnalyzer, ResourceCatalog, ResourceFile, ResourcePath, ResourceScanner, ResourceSummary, SaveRequest};
 
 /// The most a file written from the console may hold.
 pub const MAX_BODY_BYTES: usize = 1024 * 1024;
@@ -22,6 +22,11 @@ impl ClaudeResourceService {
 
     pub fn catalog(&self) -> ResourceCatalog {
         ResourceScanner::new(&self.home).catalog()
+    }
+
+    /// Which memories keep coming back across projects and which a `CLAUDE.md` or skill repeats.
+    pub fn analyze(&self) -> MemoryAnalysis {
+        MemoryAnalyzer::new(&self.home).analyze(&self.catalog())
     }
 
     pub fn read(&self, raw_path: &str) -> Result<ResourceFile> {
@@ -95,7 +100,7 @@ fn ensure_editable(path: &ResourcePath) -> Result<()> {
     if path.is_editable() {
         return Ok(());
     }
-    Err(RekallError::conflict(format!("{} is synced from claude.ai and would be overwritten on the next sync.", path.as_str())))
+    Err(RekallError::conflict(format!("{} is provided by claude.ai or a plugin and is overwritten when it updates.", path.as_str())))
 }
 
 fn ensure_fits(body: &str) -> Result<()> {

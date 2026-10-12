@@ -14,6 +14,7 @@ pub mod project_icon_image;
 pub mod project_component;
 pub mod project_section;
 pub mod run_queue;
+pub mod skill_placement;
 pub mod tag;
 pub mod task;
 pub mod task_revision;

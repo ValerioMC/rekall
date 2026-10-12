@@ -11,6 +11,7 @@ export function summary(path: string, overrides: Partial<ResourceSummary> = {}):
     bytes: 10,
     modifiedAt: '2026-10-12T09:00:00.000Z',
     editable: true,
+    source: null,
     ...overrides
   }
 }

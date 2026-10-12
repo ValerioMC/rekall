@@ -5,6 +5,7 @@ import { storeToRefs } from 'pinia'
 import AppCatalogHeader from '@/components/catalog/AppCatalogHeader.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
+import MemoryReviewPanel from './MemoryReviewPanel.vue'
 import NewResourceDialog from './NewResourceDialog.vue'
 import ResourceEditor from './ResourceEditor.vue'
 import ResourceRail from './ResourceRail.vue'
@@ -13,14 +14,14 @@ import { useDiscardGuard } from '@/composables/useDiscardGuard'
 import { useClaudeResourcesStore } from '@/stores/claudeResources.store'
 import { useConsoleStore } from '@/stores/console.store'
 import { useToastStore } from '@/stores/toast.store'
-import type { ResourceSection } from '@/model/claude-resources'
+import { sectionOfPath, type ResourceSection } from '@/model/claude-resources'
 
 /**
  * The Claude screen: the library of `~/.claude` on the left, the open file on the right. Saving is
  * explicit and names the version opened, because a running session may write the same file.
  */
 const store = useClaudeResourcesStore()
-const { catalog, section, query, file, draft, dirty, saving, conflict, selectedPath, loaded } = storeToRefs(store)
+const { catalog, section, query, file, draft, dirty, saving, conflict, selectedPath, loaded, placements, analysis, analysing, reviewing } = storeToRefs(store)
 const console_ = useConsoleStore()
 const toast = useToastStore()
 const { run, isRunning } = useAsyncAction()
@@ -40,8 +41,25 @@ const deleteBlast = computed(() => {
 })
 
 function select(path: string): void {
-  if (path === selectedPath.value) return
-  guard(() => void run(() => store.open(path)))
+  if (path === selectedPath.value && !reviewing.value) return
+  guard(() => {
+    const owner = sectionOfPath(path)
+    if (owner) section.value = owner
+    void run(() => store.open(path))
+  })
+}
+
+function openReview(): void {
+  if (reviewing.value) return
+  guard(() => void run(() => store.openReview()))
+}
+
+function moveSkill(path: string, group: string | null): void {
+  void run(() => store.moveSkill(path, group), group === null ? 'Taken out of its group.' : `Moved to ${group}.`)
+}
+
+function renameGroup(from: string, to: string): void {
+  void run(() => store.renameGroup(from, to), 'Group renamed.')
 }
 
 function chooseSection(next: ResourceSection): void {
@@ -97,15 +115,30 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
         :query="query"
         :selected-path="selectedPath"
         :projects="console_.projects"
+        :placements="placements"
+        :analysis="analysis"
+        :reviewing="reviewing"
         @update:section="chooseSection"
         @update:query="query = $event"
         @select="select"
         @create="creating = true"
+        @review="openReview"
+        @move-skill="moveSkill"
+        @rename-group="renameGroup"
       />
 
       <Transition name="pane" mode="out-in">
+        <MemoryReviewPanel
+          v-if="reviewing"
+          key="review"
+          :analysis="analysis"
+          :analysing="analysing"
+          :groups="catalog?.memoryGroups ?? []"
+          @open="select"
+          @rerun="run(() => store.analyse())"
+        />
         <ResourceEditor
-          v-if="file"
+          v-else-if="file"
           :key="file.summary.path"
           :file="file"
           :draft="draft"

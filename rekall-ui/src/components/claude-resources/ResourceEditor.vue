@@ -27,6 +27,12 @@ const emit = defineEmits<{
 const mode = ref<'write' | 'read'>('write')
 const summary = computed(() => props.file.summary)
 const readOnly = computed(() => !summary.value.editable)
+/** Who owns a read-only file, so the lock says more than "no". */
+const sourceLabel = computed(() => {
+  const source = summary.value.source
+  if (!source || source.kind === 'own') return null
+  return `Provided by ${source.name}${source.detail ? ` · ${source.detail}` : ''}`
+})
 const deletable = computed(() => summary.value.editable && summary.value.kind !== 'instructions' && summary.value.kind !== 'memoryIndex')
 </script>
 
@@ -38,9 +44,10 @@ const deletable = computed(() => summary.value.editable && summary.value.kind !=
           <h2 class="truncate text-heading font-semibold tracking-[-0.015em] text-text" data-testid="resource-title">{{ summary.name }}</h2>
           <AppBadge tone="neutral">{{ resourceKindLabel(summary.kind) }}</AppBadge>
           <MemoryTypeChip :type="summary.memoryType" />
-          <AppBadge v-if="readOnly" tone="filed">read only</AppBadge>
+          <AppBadge v-if="readOnly" tone="filed" :title="sourceLabel ?? undefined">read only</AppBadge>
         </div>
         <p class="mt-1 truncate font-mono text-caption text-text-subtle" :title="summary.path">~/.claude/{{ summary.path }}</p>
+        <p v-if="sourceLabel" class="mt-0.5 truncate text-caption text-text-subtle" data-testid="resource-source">{{ sourceLabel }}. It is rewritten when the provider updates, so it cannot be edited here.</p>
       </div>
 
       <div class="flex shrink-0 items-center gap-2">

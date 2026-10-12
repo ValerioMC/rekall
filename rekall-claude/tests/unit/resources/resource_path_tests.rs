@@ -74,3 +74,26 @@ fn a_memory_knows_the_index_beside_it() {
 fn the_file_name_is_the_last_segment() {
     assert_eq!(ResourcePath::parse("commands/team/review.md").unwrap().file_name(), "review.md");
 }
+
+#[test]
+fn an_installed_plugins_skills_are_known_places_and_read_only() {
+    for raw in ["plugins/cache/official/design/2.0/skills/palette/SKILL.md", "plugins/cache/official/design/2.0/.claude/skills/fonts/SKILL.md"] {
+        let path = ResourcePath::parse(raw).unwrap();
+        assert_eq!(path.kind(), ResourceKind::Skill);
+        assert!(!path.is_editable(), "{raw}");
+    }
+}
+
+#[test]
+fn the_plugin_cache_opens_no_other_door() {
+    for raw in [
+        "plugins/installed_plugins.json",
+        "plugins/cache/official/design/2.0/README.md",
+        "plugins/cache/official/design/2.0/skills/palette/references/guide.md",
+        "plugins/cache/official/design/2.0/.git/skills/x/SKILL.md",
+        "skills/.claude/SKILL.md",
+        "plugins/marketplaces/m/skills/x/SKILL.md",
+    ] {
+        assert!(ResourcePath::parse(raw).is_err(), "{raw}");
+    }
+}

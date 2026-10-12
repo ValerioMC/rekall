@@ -8,7 +8,11 @@ const api = vi.hoisted(() => ({
   fetchResourceCatalog: vi.fn(),
   fetchResourceFile: vi.fn(),
   saveResourceFile: vi.fn(),
-  deleteResourceFile: vi.fn()
+  deleteResourceFile: vi.fn(),
+  fetchSkillPlacements: vi.fn(),
+  placeSkill: vi.fn(),
+  renameSkillGroup: vi.fn(),
+  fetchMemoryAnalysis: vi.fn()
 }))
 vi.mock('@/api/claudeResources.api', () => api)
 
@@ -17,6 +21,7 @@ describe('the Claude resources store', () => {
     setActivePinia(createPinia())
     vi.resetAllMocks()
     api.fetchResourceCatalog.mockResolvedValue(catalog())
+    api.fetchSkillPlacements.mockResolvedValue([])
   })
 
   it('opens a file into an editable draft that is not dirty until it is typed in', async () => {
@@ -136,5 +141,57 @@ describe('the Claude resources store', () => {
     await store.remove('memory/b.md')
 
     expect(store.selectedPath).toBe('memory/a.md')
+  })
+
+  it('reads the skill groups with the catalog and moves a skill through the API alone', async () => {
+    api.fetchSkillPlacements.mockResolvedValue([{ skillPath: 'skills/a.md', group: 'Old' }])
+    api.placeSkill.mockResolvedValue([{ skillPath: 'skills/a.md', group: 'New' }])
+    const store = useClaudeResourcesStore()
+
+    await store.load()
+    expect(store.placements).toEqual([{ skillPath: 'skills/a.md', group: 'Old' }])
+
+    await store.moveSkill('skills/a.md', 'New')
+    expect(api.placeSkill).toHaveBeenCalledWith('skills/a.md', 'New')
+    expect(store.placements).toEqual([{ skillPath: 'skills/a.md', group: 'New' }])
+    expect(api.saveResourceFile).not.toHaveBeenCalled()
+  })
+
+  it('renames a group for every skill in it', async () => {
+    api.renameSkillGroup.mockResolvedValue([{ skillPath: 'skills/a.md', group: 'Renamed' }])
+    const store = useClaudeResourcesStore()
+
+    await store.renameGroup('Old', 'Renamed')
+
+    expect(api.renameSkillGroup).toHaveBeenCalledWith('Old', 'Renamed')
+    expect(store.placements[0]?.group).toBe('Renamed')
+  })
+
+  it('opens the review in place of the open file and reads the memories again each time', async () => {
+    api.fetchResourceFile.mockResolvedValue(file('CLAUDE.md', 'one'))
+    api.fetchMemoryAnalysis.mockResolvedValue({ memoriesRead: 3, documentsRead: 2, promotions: [], obsolete: [] })
+    const store = useClaudeResourcesStore()
+    await store.open('CLAUDE.md')
+
+    await store.openReview()
+    expect(store.reviewing).toBe(true)
+    expect(store.file).toBeNull()
+    expect(store.analysis?.memoriesRead).toBe(3)
+
+    await store.open('CLAUDE.md')
+    expect(store.reviewing).toBe(false)
+    await store.openReview()
+    expect(api.fetchMemoryAnalysis).toHaveBeenCalledTimes(2)
+  })
+
+  it('forgets the review once a file is saved, because it was read from the old text', async () => {
+    api.fetchMemoryAnalysis.mockResolvedValue({ memoriesRead: 1, documentsRead: 1, promotions: [], obsolete: [] })
+    api.saveResourceFile.mockResolvedValue(file('memory/x.md', 'y'))
+    const store = useClaudeResourcesStore()
+    await store.analyse()
+
+    await store.create('memory/x.md', 'y')
+
+    expect(store.analysis).toBeNull()
   })
 })
