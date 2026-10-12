@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref } from 'vue'
+import SkillMark from '@/components/skills/SkillMark.vue'
+import TagSkillsField from '@/components/settings/TagSkillsField.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import TagBadge from '@/components/ui/TagBadge.vue'
@@ -16,6 +18,7 @@ import {
   type TagColorKey,
   type TagIconKey
 } from '@/model/tag'
+import { skillsOfTag } from '@/model/skill-assignment'
 import type { Tag } from '@/model/catalog'
 import type { TagId } from '@/model/branded'
 
@@ -31,6 +34,7 @@ const isNew = ref(false)
 const name = ref('')
 const icon = ref<TagIconKey>('star')
 const color = ref<TagColorKey>('crimson')
+const skills = ref<readonly string[]>([])
 const submitting = ref(false)
 const error = ref<string | null>(null)
 const deleting = ref<Tag | null>(null)
@@ -43,6 +47,7 @@ function openCreate(): void {
   name.value = ''
   icon.value = 'star'
   color.value = 'crimson'
+  skills.value = []
   error.value = null
   focusName()
 }
@@ -53,6 +58,7 @@ function openEdit(tag: Tag): void {
   name.value = tag.name
   icon.value = TAG_ICON_KEYS.includes(tag.icon as TagIconKey) ? (tag.icon as TagIconKey) : 'star'
   color.value = TAG_COLOR_KEYS.includes(tag.color as TagColorKey) ? (tag.color as TagColorKey) : 'crimson'
+  skills.value = skillsOfTag(tag.id, store.tagSkills).map((skill) => skill.name)
   error.value = null
   focusName()
 }
@@ -78,8 +84,10 @@ async function save(): Promise<void> {
   error.value = null
   try {
     const input = { name: name.value.trim(), icon: icon.value, color: color.value }
-    if (editingId.value) await store.updateTag(editingId.value, input)
-    else await store.createTag(input)
+    let tagId = editingId.value
+    if (tagId) await store.updateTag(tagId, input)
+    else tagId = (await store.createTag(input)).id
+    await store.assignTagSkills(tagId, skills.value)
     closeForm()
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : 'Could not save the tag.'
@@ -153,6 +161,7 @@ onMounted(async () => {
           data-testid="tag-row"
         >
           <TagBadge size="md" :name="tag.name" :icon="tag.icon" :color="tag.color" />
+          <SkillMark :skills="skillsOfTag(tag.id, store.tagSkills)" class="ml-1" />
           <span class="ml-auto shrink-0 text-caption text-text-subtle">
             {{ taskCount(tag.id) }} task{{ taskCount(tag.id) === 1 ? '' : 's' }}
           </span>
@@ -218,6 +227,8 @@ onMounted(async () => {
             />
           </div>
 
+          <TagSkillsField v-model="skills" />
+
           <p v-if="error" class="mt-3 text-small text-danger" role="alert">{{ error }}</p>
 
           <div class="mt-4 flex items-center justify-end gap-2">
@@ -234,7 +245,7 @@ onMounted(async () => {
         <AppConfirm
           v-if="deleting"
           :title="`Delete ${deleting.name}?`"
-          body="Every task wearing this tag loses its badge. The tasks themselves are untouched."
+          body="Every task wearing this tag loses its badge and the skills the tag brought. The tasks themselves are untouched."
           :blast="`${taskCount(deleting.id)} task${taskCount(deleting.id) === 1 ? '' : 's'} lose this badge`"
           confirm-label="Delete tag"
           @cancel="deleting = null"

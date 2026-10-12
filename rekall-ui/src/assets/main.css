@@ -162,12 +162,14 @@
   --spacing-inspector: 392px;
 
   /*
-   * One z-index scale, four steps. Arbitrary values like z-[9999] are what produce the bug
-   * where an overlay is behind the thing it covers.
+   * One z-index scale, five steps. A popover is the panel a control inside a modal opens.
+   * Arbitrary values like z-[9999] are what produce the bug where an overlay is behind the thing
+   * it covers.
    */
   --z-sticky: 20;
   --z-overlay: 30;
   --z-modal: 40;
+  --z-popover: 45;
   --z-toast: 50;
 }
 

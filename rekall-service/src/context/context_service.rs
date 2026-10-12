@@ -9,7 +9,7 @@ use rekall_model::document::ANCHOR_ID_LENGTH;
 use rekall_model::{company, project, task, TaskStepState};
 use rekall_repository::repository as repo;
 
-use super::{ContextCommitView, ContextRecord, DocumentView};
+use super::{ContextCommitView, ContextRecord, ContextSkillScope, ContextSkillView, DocumentView};
 use crate::component::ProjectComponentView;
 use crate::step::TaskStepView;
 use crate::wrapup::WrapupView;
@@ -229,6 +229,7 @@ impl ContextService {
             fields.push(("drafts".into(), format!("{drafts} not yet promoted to the checklist")));
         }
 
+        let components = repo::project_component::list_of_project(db, project.id).await?;
         let documents = repo::document::documents_of_task(db, task.id).await?;
         let wrapup = load::wrapup_of(db, task.id).await?.map(|found| WrapupView::of(&found, task, &project));
         Ok(ContextRecord {
@@ -239,13 +240,46 @@ impl ContextService {
             references: vec![self.referenced_project(tx, &project).await?],
             related: Vec::new(),
             documents: documents.iter().map(DocumentView::of).collect(),
+            skills: self.skills_of(tx, task, &steps).await?,
             steps,
             commits: self.commits_of(tx, task).await?,
             wrapup,
             components: Vec::new(),
+            component_lookup: Some(components.iter().map(ProjectComponentView::of).collect()),
             blueprint: None,
             description: task.description.clone(),
         })
+    }
+
+    /// The task's own skills, then its tag's, then those of the steps still to be worked. A skill
+    /// already listed at a wider scope is not listed again.
+    async fn skills_of(&self, tx: &Tx, task: &task::Model, steps: &[TaskStepView]) -> Result<Vec<ContextSkillView>> {
+        let assigned = repo::task_skill::list_of_task(tx.db(), task.id).await?;
+        let mut skills: Vec<ContextSkillView> = assigned
+            .iter()
+            .filter(|skill| skill.step_id.is_none())
+            .map(|skill| ContextSkillView { name: skill.skill_name.clone(), scope: ContextSkillScope::Task })
+            .collect();
+        if let Some(tag) = self.tag_of(tx, task).await? {
+            for skill in repo::tag_skill::list_of_tag(tx.db(), tag.id).await? {
+                skills.push(ContextSkillView { name: skill.skill_name, scope: ContextSkillScope::Tag(tag.name.clone()) });
+            }
+        }
+        let mut seen = std::collections::HashSet::new();
+        skills.retain(|skill| seen.insert(skill.name.clone()));
+        for step in steps.iter().filter(|step| !step.state.draft() && !step.state.complete()) {
+            for skill in assigned.iter().filter(|skill| skill.step_id == Some(step.id) && !seen.contains(&skill.skill_name)) {
+                skills.push(ContextSkillView { name: skill.skill_name.clone(), scope: ContextSkillScope::Step(step.title.clone()) });
+            }
+        }
+        Ok(skills)
+    }
+
+    async fn tag_of(&self, tx: &Tx, task: &task::Model) -> Result<Option<rekall_model::tag::Model>> {
+        match task.tag_id {
+            Some(tag_id) => repo::tag::find_by_id(tx.db(), tag_id).await,
+            None => Ok(None),
+        }
     }
 
     /// A project reached from one of its tasks: in full, but with no list of the tasks around it.

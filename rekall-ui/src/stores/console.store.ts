@@ -8,6 +8,7 @@ import { useConsoleView } from './console/useConsoleView'
 import { useNoteWrites } from './console/useNoteWrites'
 import { useProjectWrites } from './console/useProjectWrites'
 import { useSelectedTask } from './console/useSelectedTask'
+import { useSkillAssignments } from './console/useSkillAssignments'
 import { useStepWrites } from './console/useStepWrites'
 import { useTagWrites } from './console/useTagWrites'
 import { useTaskWrites } from './console/useTaskWrites'
@@ -37,6 +38,7 @@ export const useConsoleStore = defineStore('console', () => {
   const steps = useStepWrites(state, timers)
   const wrapups = useWrapupWrites(state, refreshes, timers)
   const commitReferences = useCommitReferences(state)
+  const skills = useSkillAssignments(state)
 
   return {
     ...state,
@@ -68,6 +70,7 @@ export const useConsoleStore = defineStore('console', () => {
     ...notes,
     ...steps,
     ...wrapups,
-    ...commitReferences
+    ...commitReferences,
+    ...skills
   }
 })

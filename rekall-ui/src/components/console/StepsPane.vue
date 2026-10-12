@@ -166,13 +166,20 @@ async function remove(): Promise<void> {
 }
 
 const newTitle = ref('')
+const newSkills = ref<readonly string[]>([])
 
 /** A new step starts as a draft, opened for writing its detail. */
 async function add(): Promise<void> {
   const title = newTitle.value.trim()
   if (!title || !selectedTask.value) return
+  const skills = newSkills.value
   newTitle.value = ''
-  const created = await run(() => store.addStep(selectedTask.value!.id, title, STEP_DETAIL_TEMPLATE))
+  newSkills.value = []
+  const created = await run(async () => {
+    const step = await store.addStep(selectedTask.value!.id, title, STEP_DETAIL_TEMPLATE)
+    if (skills.length) await store.assignStepSkills(step.id, skills)
+    return step
+  })
   if (!created) return
   editor.flush()
   editor.open(created)
@@ -290,7 +297,7 @@ onUnmounted(editor.flush)
         </template>
       </div>
 
-      <StepAddForm v-model="newTitle" @submit="add" />
+      <StepAddForm v-model="newTitle" v-model:skills="newSkills" @submit="add" />
     </template>
 
     <Transition name="dialog">

@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, toRef } from 'vue'
 import StepSeal from '@/components/console/StepSeal.vue'
+import SkillMark from '@/components/skills/SkillMark.vue'
 import { useStepEditor } from '@/composables/useStepEditor'
+import { useStepSkills } from '@/composables/useStepSkills'
 import type { Task, TaskStep } from '@/model/catalog'
 import StepDetailEditor from './StepDetailEditor.vue'
 import StepRowControls from './StepRowControls.vue'
+import StepSkillsField from './StepSkillsField.vue'
 
 /** One draft on the shelf below the checklist: still being worded, promoted when it is ready. */
 const props = defineProps<{
@@ -19,6 +22,7 @@ defineEmits<{ promote: []; move: [by: number]; remove: [] }>()
 
 const { expandedId, toggle } = useStepEditor()
 const expanded = computed(() => expandedId.value === props.step.id)
+const { effective: skills } = useStepSkills(toRef(props, 'step'), toRef(props, 'task'))
 </script>
 
 <template>
@@ -47,6 +51,7 @@ const expanded = computed(() => expandedId.value === props.step.id)
               detail
             </span>
             <span v-else class="text-text-subtle">no detail yet</span>
+            <SkillMark :skills="skills" />
           </span>
         </button>
 
@@ -92,19 +97,20 @@ const expanded = computed(() => expandedId.value === props.step.id)
       </div>
 
       <Transition name="detail">
-        <StepDetailEditor
-          v-if="expanded"
-          class="mt-2.5"
-          data-testid="draft-detail"
-          :step-title="step.title"
-          testid-prefix="draft"
-          label="Detail"
-          editor-height="260px"
-          placeholder="What this step has to do, once it is promoted. Markdown."
-          empty-text="Nothing written under this draft yet."
-          write-prompt="Write the detail"
-          :path-root="task.projectRepoFolder"
-        />
+        <div v-if="expanded" class="mt-2.5">
+          <StepSkillsField :step="step" :task="task" />
+          <StepDetailEditor
+            data-testid="draft-detail"
+            :step-title="step.title"
+            testid-prefix="draft"
+            label="Detail"
+            editor-height="260px"
+            placeholder="What this step has to do, once it is promoted. Markdown."
+            empty-text="Nothing written under this draft yet."
+            write-prompt="Write the detail"
+            :path-root="task.projectRepoFolder"
+          />
+        </div>
       </Transition>
     </div>
   </li>

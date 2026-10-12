@@ -17,6 +17,7 @@ import NotesButton from '@/components/console/NotesButton.vue'
 import CommitReferenceRail from '@/components/console/CommitReferenceRail.vue'
 import RevisionHistoryButton from '@/components/console/RevisionHistoryButton.vue'
 import ContextSizeChip from '@/components/console/ContextSizeChip.vue'
+import TaskLabelsStrip from '@/components/console/TaskLabelsStrip.vue'
 import { TASK_DESCRIPTION_TEMPLATE, isUntouchedTemplate } from '@/model/templates'
 import type { TaskId } from '@/model/branded'
 
@@ -182,6 +183,7 @@ onUnmounted(() => {
               </button>
               <ContextSizeChip :task-id="selectedTask.id" />
             </div>
+            <TaskLabelsStrip :task="selectedTask" />
           </div>
 
           <div class="flex shrink-0 items-center gap-1.5">

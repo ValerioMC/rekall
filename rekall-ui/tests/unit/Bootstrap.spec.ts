@@ -28,6 +28,13 @@ vi.mock('@/api/terminal.api', () => ({ fetchTerminals: vi.fn(async () => []) }))
 vi.mock('@/api/wrapups.api', () => ({ fetchWrapups: vi.fn(async () => []) }))
 vi.mock('@/api/steps.api', () => ({ fetchSteps: vi.fn(async () => []) }))
 vi.mock('@/api/time-entries.api', () => ({ fetchTimeEntries: vi.fn(async () => []) }))
+vi.mock('@/api/skill-assignments.api', () => ({
+  fetchSkillAssignments: vi.fn(async () => ({ taskSkills: [], tagSkills: [] })),
+  setTaskSkills: vi.fn(),
+  setStepSkills: vi.fn(),
+  setTagSkills: vi.fn()
+}))
+
 vi.mock('@/api/commitReference.api', () => ({
   fetchCommitReferences: vi.fn(async () => []),
   fetchCommitReferenceDiff: vi.fn()

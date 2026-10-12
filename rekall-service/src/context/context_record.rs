@@ -2,7 +2,7 @@ use crate::component::ProjectComponentView;
 use crate::step::TaskStepView;
 use crate::wrapup::WrapupView;
 
-use super::{ContextCommitView, DocumentView};
+use super::{ContextCommitView, ContextSkillView, DocumentView};
 
 /// One record of a loaded context, materialised so it renders with no database behind it.
 ///
@@ -17,9 +17,12 @@ pub struct ContextRecord {
     pub related: Vec<String>,
     pub documents: Vec<DocumentView>,
     pub steps: Vec<TaskStepView>,
+    pub skills: Vec<ContextSkillView>,
     pub commits: Vec<ContextCommitView>,
     pub wrapup: Option<WrapupView>,
     pub components: Vec<ProjectComponentView>,
+    /// The project's components, for resolving `[[Name]]` in a task's text only; `None` leaves text untouched.
+    pub component_lookup: Option<Vec<ProjectComponentView>>,
     pub blueprint: Option<String>,
     pub description: Option<String>,
 }

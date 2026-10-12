@@ -26,6 +26,9 @@ Call `rekall_context` with `anchors` set to exactly the arguments above, unchang
   A label is lowercase and has no spaces. If I gave you a title, say so and stop rather than guessing
   the label from it.
 - If a term matched more than one record, show me the candidates and stop. Do not choose.
+- A `<skills>` block lists the Claude skills assigned to the task, to its tag or to one of its steps.
+  Invoke each one with the Skill tool before you start working and follow it. A skill scoped to a step
+  applies only while you work that step.
 
 On success, summarise in no more than ten lines: what the task is, its status, what its wrapup says
 the implementation currently is, which steps are still open, and anything in its notes that changes

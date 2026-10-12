@@ -123,6 +123,8 @@ Company ──< Project ──< Task >──< Document
 | `project_component` | through its project | `project_id`, `name`, `folder`, `description`, `position` |
 | `token_usage` | through its task | `session_id`, `task_id`, `step_id`, the four token counts |
 | `transcript_scan` | `session_id` | `scanned_bytes`, `scanned_at` |
+| `task_skill` | through its task | `task_id`, `step_id` (null for the task's own), `skill_name`, `position`; deleted with its task or step |
+| `tag_skill` | through its tag | `tag_id`, `skill_name`, `position`; deleted with its tag |
 | `skill_placement` | `skill_path` | `group_label`, `placed_at`; no foreign key: the skill is a file under `~/.claude` |
 
 `task.project_id` and `project.company_id` are both `ON DELETE CASCADE`: a project's tasks have
@@ -278,6 +280,15 @@ The walk distinguishes by direction, not by depth:
 | Inverse (`@OneToMany`) | Labels only, printed as anchors | What points back at this. Unbounded fan-out: a project has forty tasks |
 | One-to-one (`wrapup`) | In full, in a tag of its own, ahead of the notes | Exactly one, so there is no fan-out to bound. Ahead of the notes because a session that opens on a task is asking what it does now, and the notes are the background to that answer |
 | Owned collection (`task_step`) | Open and running ones in full, finished ones as a title | Bounded by the task and ordered, so it is not fan-out. Rendered between the description and the wrapup, which is the order the three are asked in: what is this, what is left, what did it become |
+| Assigned skills (`task_skill`, `tag_skill`) | A `<skills>` block after the description: the task's, its tag's, then those of the steps still to be worked, each with its scope | Short (20 per owner) and invoked by name, so only the name travels |
+
+Skills follow three rules. A tag's skills are read when the context loads and never copied onto its
+tasks, so editing a tag changes every task under it. A skill already listed at a wider scope is not
+listed again, and a finished step's skills are dropped. The name is checked for its shape only
+(`rekall_model::skill_name`): `rekall-api` cannot see `~/.claude`, which `rekall-claude` reads, so the
+picker offers only what exists and a skill that later vanishes stays assigned and is flagged in the
+console. The writes are `SkillAssignmentService` in `rekall-api`, each replacing one owner's whole
+list; `rekall-mcp` can read the skills through the context and never write them.
 
 Scalars are rendered as bullets and bodies as tags, which is why a description is a `<description>` block rather than a `description` bullet. It is a document, with headings, lists and a scope section, and a document inlined into a list item stops being one: every line after the first falls outside the bullet, and its own headings outrank the record's.
 
@@ -351,6 +362,15 @@ reads them with the project and `ContextRenderer.render_components` writes a `<c
 project's own anchor and every task of it carry them once, and `ContextSizeService` counts them as their
 own part. They are read-only to a session, no MCP tool writes them; the console's
 `ProjectComponentCatalogService` in rekall-api lists, adds, edits, orders and deletes them.
+
+A task's description and its step details can name a component as `[[Name]]`. The stored text never
+changes: `ComponentReferences` (rekall-service, `component/`) expands each reference while the context
+is rendered, from the components `ContextService` puts on the task record as `component_lookup`
+(resolution only, the `<components>` block stays on the project). The name matches ignoring case and
+surrounding spaces. The first reference to a component in a rendered task becomes its name, folder and
+description (cut at `COMPONENT_REFERENCE_MAX`), later ones its name and folder; code spans and fenced
+blocks are left as written; a name that matches no component of the task's project becomes
+`[[Name]] (component not found in this project)`. `ContextSizeService` measures the expanded text.
 
 A note can travel by reference. It then arrives as its title, its first line and an anchor such
 as `note:3f2a9c1e` (the first eight characters of its id), with `loaded="on request"`, and

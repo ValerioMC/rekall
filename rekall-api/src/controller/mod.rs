@@ -14,6 +14,7 @@ mod project_icon_controller;
 mod project_section_controller;
 mod responses;
 mod search_controller;
+mod skill_assignment_controller;
 mod step_event_controller;
 mod tag_controller;
 mod task_controller;

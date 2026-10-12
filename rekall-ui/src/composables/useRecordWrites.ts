@@ -57,8 +57,9 @@ export function useRecordWrites() {
       projectId: draft.projectId,
       tagId: draft.tagId
     }
-    if (draft.id === null) await store.createTask(input)
-    else await store.updateTask(draft.id, input)
+    if (draft.id !== null) return store.updateTask(draft.id, input)
+    const created = await store.createTask(input)
+    if (draft.skills.length) await store.assignTaskSkills(created.id, draft.skills)
   }
 
   /** Creates or updates the record, then runs `after` for a company or a project. */

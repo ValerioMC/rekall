@@ -28,6 +28,8 @@ export type RecordDraft =
       status: TaskStatus
       projectId: ProjectId
       tagId: TagId | null
+      /** The skills a new task starts with; an existing task's are changed on its own pane. */
+      skills: string[]
     }
 
 export function companyDraft(company?: Company): RecordDraft {
@@ -61,6 +63,7 @@ export function taskDraft(projectId: ProjectId, task?: Task): RecordDraft {
     description: task ? (task.description ?? '') : TASK_DESCRIPTION_TEMPLATE,
     status: task?.status ?? 'TODO',
     projectId: task?.projectId ?? projectId,
-    tagId: task?.tagId ?? null
+    tagId: task?.tagId ?? null,
+    skills: []
   }
 }

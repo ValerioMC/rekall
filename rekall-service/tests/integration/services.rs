@@ -10,6 +10,7 @@ use chrono::TimeDelta;
 use rekall_common::{Id, Instant};
 use rekall_model::{task_revision, RevisionKind, TaskStepState, WrapupAuthor};
 use rekall_service::commit::AutoCommitStatus;
+use rekall_service::component::ComponentReferences;
 use rekall_service::timeentry::IDLE_AFTER;
 use rekall_service::revision::{RevisionTrigger, KEPT_PER_KIND};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
@@ -536,7 +537,7 @@ async fn a_step_sent_back_hands_the_next_session_its_earlier_pass_and_the_feedba
 
     steps.edit(step.id, None, Some("Group by week instead"), None, None).await.unwrap();
     let record = world.services.context.load_task("vega", "report-builder").await.unwrap();
-    let rendered = world.services.renderer.render_steps(&record.steps, None);
+    let rendered = world.services.renderer.render_steps(&record.steps, None, &mut ComponentReferences::new(None));
 
     assert!(rendered.contains("Previously you have executed this:"), "{rendered}");
     assert!(rendered.contains("<previous-pass number=\"1\""), "{rendered}");
@@ -553,4 +554,47 @@ async fn only_a_claimed_step_can_be_sent_back() {
     let step = world.step(&task, "Aggregate the rows", 0, TaskStepState::Open).await;
 
     assert!(world.services.steps.send_back(step.id).await.is_err());
+}
+
+// ------------------------------------------------------------------------------ component references
+
+#[tokio::test]
+async fn a_component_named_in_a_task_text_is_expanded_in_the_context_but_not_in_the_database() {
+    use rekall_model::project_component;
+    use sea_orm::{ActiveModelTrait, ActiveValue};
+
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let task = world.task(&project, "report-builder").await;
+    let now = Instant::now();
+    project_component::Model {
+        id: Id::random(),
+        project_id: project.id,
+        name: "Auth Service".into(),
+        folder: "services/auth".into(),
+        description: "Issues tokens.".into(),
+        position: 0,
+        created_at: now,
+        updated_at: now,
+    }
+    .into_active_model()
+    .insert(world.db())
+    .await
+    .unwrap();
+    let mut row = task.clone().into_active_model();
+    row.description = ActiveValue::Set(Some("Call [[auth service]] and [[Billing]].".into()));
+    row.update(world.db()).await.unwrap();
+    let step = world.step(&task, "Check the tokens", 0, TaskStepState::Open).await;
+    world.services.steps.edit(step.id, None, Some("Again [[Auth Service]]"), None, None).await.unwrap();
+
+    let records = world.services.context.for_task(task.id).await.unwrap();
+    let rendered = world.services.renderer.render(&records);
+
+    assert!(rendered.contains("Call **Auth Service** (component, folder `services/auth`): Issues tokens. and [[Billing]] (component not found in this project)."), "{rendered}");
+    assert!(rendered.contains("Again **Auth Service** (component, folder `services/auth`)\n"), "{rendered}");
+    let stored = world.services.context.for_task(task.id).await.unwrap();
+    assert_eq!(stored[1].description.as_deref(), Some("Call [[auth service]] and [[Billing]]."));
+    let size = world.services.context_size.measure(task.id).await.unwrap();
+    let description = size.parts.iter().find(|part| part.label == "Description").unwrap();
+    assert!(description.characters > "Call [[auth service]] and [[Billing]].".len(), "{description:?}");
 }

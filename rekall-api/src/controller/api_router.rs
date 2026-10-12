@@ -15,6 +15,7 @@ use super::{
     project_icon_controller,
     project_section_controller,
     search_controller,
+    skill_assignment_controller,
     step_event_controller,
     tag_controller,
     task_controller,
@@ -46,6 +47,7 @@ pub fn routes() -> Router<ApiState> {
         .merge(project_icon_controller::routes())
         .merge(project_section_controller::routes())
         .merge(search_controller::routes())
+        .merge(skill_assignment_controller::routes())
         .merge(step_event_controller::routes())
         .merge(tag_controller::routes())
         .merge(task_controller::routes())

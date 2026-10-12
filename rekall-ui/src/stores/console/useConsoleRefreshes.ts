@@ -1,6 +1,7 @@
 import { fetchCompanies, fetchProjects, fetchTags, fetchTasks } from '@/api/catalog.api'
 import { fetchCommitReferences } from '@/api/commitReference.api'
 import { fetchAllDocuments } from '@/api/documents.api'
+import { fetchSkillAssignments } from '@/api/skill-assignments.api'
 import { fetchSteps } from '@/api/steps.api'
 import { fetchTimeEntries } from '@/api/time-entries.api'
 import { fetchWrapups } from '@/api/wrapups.api'
@@ -8,7 +9,19 @@ import type { ConsoleState } from './console-state'
 
 /** Reads every kind of row again from the server, one kind at a time or all at once. */
 export function useConsoleRefreshes(state: ConsoleState) {
-  const { companies, projects, tasks, tags, documents, wrapups, steps, timeEntries, commitReferences } = state
+  const {
+    companies,
+    projects,
+    tasks,
+    tags,
+    documents,
+    wrapups,
+    steps,
+    timeEntries,
+    commitReferences,
+    taskSkills,
+    tagSkills
+  } = state
 
   async function refreshCompanies(): Promise<void> {
     companies.value = await fetchCompanies()
@@ -46,6 +59,12 @@ export function useConsoleRefreshes(state: ConsoleState) {
     commitReferences.value = await fetchCommitReferences()
   }
 
+  async function refreshSkillAssignments(): Promise<void> {
+    const assignments = await fetchSkillAssignments()
+    taskSkills.value = assignments.taskSkills
+    tagSkills.value = assignments.tagSkills
+  }
+
   async function refreshEverything(): Promise<void> {
     await Promise.all([
       refreshCompanies(),
@@ -56,7 +75,8 @@ export function useConsoleRefreshes(state: ConsoleState) {
       refreshWrapups(),
       refreshSteps(),
       refreshTimeEntries(),
-      refreshCommitReferences()
+      refreshCommitReferences(),
+      refreshSkillAssignments()
     ])
   }
 
@@ -73,7 +93,8 @@ export function useConsoleRefreshes(state: ConsoleState) {
         loadedWrapups,
         loadedSteps,
         loadedTimeEntries,
-        loadedCommitReferences
+        loadedCommitReferences,
+        loadedSkillAssignments
       ] = await Promise.all([
         fetchCompanies(),
         fetchProjects(),
@@ -83,7 +104,8 @@ export function useConsoleRefreshes(state: ConsoleState) {
         fetchWrapups(),
         fetchSteps(),
         fetchTimeEntries(),
-        fetchCommitReferences()
+        fetchCommitReferences(),
+        fetchSkillAssignments()
       ])
       companies.value = loadedCompanies
       projects.value = loadedProjects
@@ -94,6 +116,8 @@ export function useConsoleRefreshes(state: ConsoleState) {
       steps.value = loadedSteps
       timeEntries.value = loadedTimeEntries
       commitReferences.value = loadedCommitReferences
+      taskSkills.value = loadedSkillAssignments.taskSkills
+      tagSkills.value = loadedSkillAssignments.tagSkills
     } finally {
       state.isLoading.value = false
     }
@@ -109,6 +133,7 @@ export function useConsoleRefreshes(state: ConsoleState) {
     refreshDocuments,
     refreshWrapups,
     refreshTimeEntries,
-    refreshCommitReferences
+    refreshCommitReferences,
+    refreshSkillAssignments
   }
 }

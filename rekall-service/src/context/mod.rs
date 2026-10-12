@@ -10,6 +10,7 @@ mod context_service;
 mod context_size;
 mod context_size_part;
 mod context_size_service;
+mod context_skill_view;
 mod document_view;
 
 pub use context_commit_view::ContextCommitView;
@@ -18,5 +19,6 @@ pub use context_renderer::{ContextRenderer, MAX_DIFF_CHARACTERS, MAX_DOCUMENT_CH
 pub use context_service::{ContextService, ENTITY_NAMES};
 pub use context_size::ContextSize;
 pub use context_size_part::ContextSizePart;
+pub use context_skill_view::{ContextSkillScope, ContextSkillView};
 pub use context_size_service::{estimate_tokens, ContextSizeService, CHARACTERS_PER_TOKEN};
 pub use document_view::DocumentView;

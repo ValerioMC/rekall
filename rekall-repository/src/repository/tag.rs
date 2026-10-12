@@ -8,6 +8,11 @@ pub async fn find_by_id(db: &impl ConnectionTrait, id: Id) -> Result<Option<Mode
     Ok(Entity::find_by_id(id).one(db).await?)
 }
 
+/// The tag by id, or `NotFound` when there is none.
+pub async fn require(db: &impl ConnectionTrait, id: Id) -> Result<Model, RekallError> {
+    find_by_id(db, id).await?.ok_or_else(|| RekallError::not_found("Tag", id))
+}
+
 pub async fn list_by_name(db: &impl ConnectionTrait) -> Result<Vec<Model>, RekallError> {
     Ok(Entity::find().order_by_asc(Column::Name).all(db).await?)
 }

@@ -2,6 +2,7 @@ use rekall_common::{jstr, Id, Result};
 use rekall_model::DocumentContextMode;
 
 use super::{ContextRenderer, ContextService};
+use crate::component::ComponentReferences;
 use crate::{in_read, Ctx};
 
 use super::{ContextSize, ContextSizePart};
@@ -27,10 +28,11 @@ impl ContextSizeService {
             let project = records.first().expect("for_task returns the project and the task");
             let task = records.last().expect("for_task returns the project and the task");
 
+            let mut references = ComponentReferences::new(task.component_lookup.as_deref());
             let mut parts = Vec::new();
             add_part(&mut parts, "Components", &renderer.render_components(&project.components), false);
-            add_part(&mut parts, "Description", &renderer.render_description(task.description.as_deref()), false);
-            add_part(&mut parts, "Steps", &renderer.render_steps(&task.steps, task.wrapup.as_ref()), false);
+            add_part(&mut parts, "Description", &renderer.render_description(task.description.as_deref(), &mut references), false);
+            add_part(&mut parts, "Steps", &renderer.render_steps(&task.steps, task.wrapup.as_ref(), &mut references), false);
             add_part(&mut parts, "Wrapup", &renderer.render_wrapup(task.wrapup.as_ref()), false);
             add_part(&mut parts, "Commits", &renderer.render_commits(&task.commits), false);
             for document in &task.documents {

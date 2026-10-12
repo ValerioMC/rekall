@@ -10,6 +10,7 @@ import type {
   TimeEntry,
   Wrapup
 } from '@/model/catalog'
+import type { TagSkill, TaskSkill } from '@/model/skill-assignment'
 import type { CompanyId, DocumentId, ProjectId, TaskId, TaskStepId } from '@/model/branded'
 import type { NavMode, PaneFocus } from '@/model/console-location'
 
@@ -27,6 +28,8 @@ export function createConsoleState() {
     steps: ref<TaskStep[]>([]),
     timeEntries: ref<TimeEntry[]>([]),
     commitReferences: ref<CommitReference[]>([]),
+    taskSkills: ref<TaskSkill[]>([]),
+    tagSkills: ref<TagSkill[]>([]),
 
     isLoading: ref(true),
     saveState: ref<SaveState>('saved'),

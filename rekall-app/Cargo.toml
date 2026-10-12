@@ -82,6 +82,10 @@ name = "e2e_sections"
 path = "tests/integration/e2e_sections.rs"
 
 [[test]]
+name = "e2e_skills"
+path = "tests/integration/e2e_skills.rs"
+
+[[test]]
 name = "e2e_steps"
 path = "tests/integration/e2e_steps.rs"
 

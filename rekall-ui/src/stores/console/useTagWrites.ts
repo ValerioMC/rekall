@@ -29,7 +29,7 @@ export function useTagWrites(state: ConsoleState, refreshes: ReturnType<typeof u
   async function deleteTag(id: TagId): Promise<void> {
     await apiDeleteTag(id)
     tags.value = tags.value.filter((tag) => tag.id !== id)
-    await refreshes.refreshTasks()
+    await Promise.all([refreshes.refreshTasks(), refreshes.refreshSkillAssignments()])
   }
 
   return { createTag, updateTag, deleteTag }

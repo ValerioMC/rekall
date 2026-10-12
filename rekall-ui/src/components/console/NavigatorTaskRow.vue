@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
+import SkillMark from '@/components/skills/SkillMark.vue'
 import TagBadge from '@/components/ui/TagBadge.vue'
 import TaskMark from '@/components/console/TaskMark.vue'
 import TokenCount from '@/components/ui/TokenCount.vue'
 import { identityHue } from '@/common/identity'
 import { TASK_STATUS_LABEL } from '@/model/catalog'
 import type { Task } from '@/model/catalog'
+import { taskSkills } from '@/model/skill-assignment'
 import { TASK_MARK_LABEL, taskMark } from '@/model/task-mark'
 import { useConsoleStore } from '@/stores/console.store'
 import { useTokenUsageStore } from '@/stores/tokenUsage.store'
@@ -25,10 +27,11 @@ const props = withDefaults(
 
 defineEmits<{ select: []; edit: [] }>()
 
-const { steps } = storeToRefs(useConsoleStore())
+const { steps, taskSkills: ownedSkills, tagSkills } = storeToRefs(useConsoleStore())
 const tokenUsage = useTokenUsageStore()
 const tokens = computed(() => tokenUsage.ofTask(props.task.id))
 
+const skills = computed(() => taskSkills(props.task.id, props.task.tagId, ownedSkills.value, tagSkills.value))
 const mark = computed(() => taskMark(props.task, steps.value, props.running))
 
 // The selected row's line and gradient wash take the task's own project colour, so a row
@@ -149,6 +152,7 @@ watch(
               </svg>
               {{ task.documentCount }}
             </span>
+            <SkillMark :skills="skills" />
             <TokenCount :totals="tokens" />
           </span>
         </span>

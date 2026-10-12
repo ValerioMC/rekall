@@ -5,8 +5,8 @@ use std::collections::HashSet;
 use rekall_common::jstr;
 use rekall_model::{DocumentContextMode, TaskStepState};
 
-use super::{ContextCommitView, ContextRecord, DocumentView};
-use crate::component::ProjectComponentView;
+use super::{ContextCommitView, ContextRecord, ContextSkillScope, ContextSkillView, DocumentView};
+use crate::component::{ComponentReferences, ProjectComponentView};
 use crate::step::TaskStepView;
 use crate::wrapup::WrapupView;
 
@@ -53,10 +53,12 @@ impl ContextRenderer {
                 out.push_str(&format!("  - `{anchor}`\n"));
             }
         }
-        out.push_str(&self.render_description(record.description.as_deref()));
+        let mut references = ComponentReferences::new(record.component_lookup.as_deref());
+        out.push_str(&self.render_description(record.description.as_deref(), &mut references));
+        out.push_str(&self.render_skills(&record.skills));
         out.push_str(&self.render_components(&record.components));
         out.push_str(&self.render_blueprint(record.blueprint.as_deref()));
-        out.push_str(&self.render_steps(&record.steps, record.wrapup.as_ref()));
+        out.push_str(&self.render_steps(&record.steps, record.wrapup.as_ref(), &mut references));
         out.push_str(&self.render_commits(&record.commits));
         out.push_str(&self.render_wrapup(record.wrapup.as_ref()));
         out.push_str(&self.render_documents(&record.documents));
@@ -70,7 +72,12 @@ impl ContextRenderer {
         out
     }
 
-    pub fn render_steps(&self, all_steps: &[TaskStepView], wrapup: Option<&WrapupView>) -> String {
+    pub fn render_steps(
+        &self,
+        all_steps: &[TaskStepView],
+        wrapup: Option<&WrapupView>,
+        references: &mut ComponentReferences,
+    ) -> String {
         let drafts = all_steps.iter().filter(|s| s.state.draft()).count();
         let steps: Vec<&TaskStepView> = all_steps.iter().filter(|s| !s.state.draft()).collect();
         if steps.is_empty() {
@@ -78,7 +85,7 @@ impl ContextRenderer {
         }
         let mut out = format!("\n<steps {}>\n", steps_attributes(&steps, drafts, wrapup));
         for step in &steps {
-            out.push_str(&render_step(step, wrapup));
+            out.push_str(&render_step(step, wrapup, references));
         }
         if drafts > 0 {
             out.push_str(&format!(
@@ -88,6 +95,28 @@ impl ContextRenderer {
             ));
         }
         out.push_str("</steps>\n");
+        out
+    }
+
+    /// The skills a session invokes before it works, each with the scope that decides when.
+    pub fn render_skills(&self, skills: &[ContextSkillView]) -> String {
+        if skills.is_empty() {
+            return String::new();
+        }
+        let mut out = format!(
+            "\n<skills count=\"{}\">\nInvoke each skill below with the Skill tool before you start working, and follow \
+             it for the whole task. One scoped to a step applies only while you work that step.\n",
+            skills.len()
+        );
+        for skill in skills {
+            let scope = match &skill.scope {
+                ContextSkillScope::Task => "task".to_string(),
+                ContextSkillScope::Tag(name) => format!("tag: {}", attribute(name)),
+                ContextSkillScope::Step(title) => format!("step: {}", attribute(title)),
+            };
+            out.push_str(&format!("- `{}` ({scope})\n", skill.name));
+        }
+        out.push_str("</skills>\n");
         out
     }
 
@@ -130,10 +159,11 @@ impl ContextRenderer {
         out
     }
 
-    pub fn render_description(&self, description: Option<&str>) -> String {
+    pub fn render_description(&self, description: Option<&str>, references: &mut ComponentReferences) -> String {
         match description {
             Some(text) if !jstr::is_blank(text) => {
-                format!("\n<description>\n{}\n</description>\n", truncate(Some(text), MAX_DOCUMENT_CHARACTERS))
+                let expanded = references.expand(text);
+                format!("\n<description>\n{}\n</description>\n", truncate(Some(&expanded), MAX_DOCUMENT_CHARACTERS))
             }
             _ => String::new(),
         }
@@ -205,19 +235,19 @@ impl ContextRenderer {
 
 /// A step sent back after review: what each earlier pass worked from, then the feedback this
 /// pass acts on, so a session builds on its work instead of reading the feedback as a new brief.
-fn render_passes(step: &TaskStepView) -> String {
+fn render_passes(step: &TaskStepView, references: &mut ComponentReferences) -> String {
     let mut out = String::from("Sent back after review. Previously you have executed this:\n");
     for (at, pass) in step.passes.iter().enumerate() {
         out.push_str(&format!("\n<previous-pass number=\"{}\" sent-back=\"{}\">\n", at + 1, pass.sent_back_at));
         match pass.detail_markdown.as_deref().filter(|body| !jstr::is_blank(body)) {
-            Some(body) => out.push_str(&truncate(Some(body), MAX_DOCUMENT_CHARACTERS)),
+            Some(body) => out.push_str(&truncate(Some(&references.expand(body)), MAX_DOCUMENT_CHARACTERS)),
             None => out.push_str("(no detail beyond the title)"),
         }
         out.push_str("\n</previous-pass>\n");
     }
     out.push_str("\nBut the user's feedback is this, and it is what this pass has to do:\n\n<feedback>\n");
     match step.body_markdown.as_deref().filter(|body| !jstr::is_blank(body)) {
-        Some(body) => out.push_str(&truncate(Some(body), MAX_DOCUMENT_CHARACTERS)),
+        Some(body) => out.push_str(&truncate(Some(&references.expand(body)), MAX_DOCUMENT_CHARACTERS)),
         None => out.push_str("(not written yet: ask the user what the pass should change)"),
     }
     out.push_str("\n</feedback>");
@@ -290,7 +320,7 @@ fn steps_attributes(steps: &[&TaskStepView], drafts: usize, wrapup: Option<&Wrap
 }
 
 /// A closed step is its title alone, unless the wrapup predates it: then, like an open one, it carries its detail.
-fn render_step(step: &TaskStepView, wrapup: Option<&WrapupView>) -> String {
+fn render_step(step: &TaskStepView, wrapup: Option<&WrapupView>, references: &mut ComponentReferences) -> String {
     let unwritten = is_unwritten(step, wrapup);
     let mut out = String::from(if step.state.complete() { "- [x] " } else { "- [ ] " });
     out.push_str(&step.title);
@@ -307,11 +337,15 @@ fn render_step(step: &TaskStepView, wrapup: Option<&WrapupView>) -> String {
         return out;
     }
     if !step.passes.is_empty() {
-        out.push_str(&indent(&render_passes(step)));
+        out.push_str(&indent(&render_passes(step, references)));
         out.push('\n');
     } else if let Some(body) = step.body_markdown.as_deref().filter(|body| !jstr::is_blank(body)) {
-        out.push_str(&indent(&truncate(Some(body), MAX_DOCUMENT_CHARACTERS)));
+        out.push_str(&indent(&truncate(Some(&references.expand(body)), MAX_DOCUMENT_CHARACTERS)));
         out.push('\n');
     }
     out
 }
+
+#[cfg(test)]
+#[path = "../../tests/unit/context/context_renderer_skills_tests.rs"]
+mod skills_tests;

@@ -300,6 +300,13 @@ vi.mock('@/api/time-entries.api', () => ({
   deleteTimeEntry: vi.fn()
 }))
 
+vi.mock('@/api/skill-assignments.api', () => ({
+  fetchSkillAssignments: vi.fn(async () => ({ taskSkills: [], tagSkills: [] })),
+  setTaskSkills: vi.fn(),
+  setStepSkills: vi.fn(),
+  setTagSkills: vi.fn()
+}))
+
 vi.mock('@/api/commitReference.api', () => ({
   fetchCommitReferences: vi.fn(async () => []),
   recordLatestCommit: vi.fn(),

@@ -8,6 +8,7 @@ import ProjectPicker from '@/components/console/ProjectPicker.vue'
 import CompanyLogoField from '@/components/console/record/CompanyLogoField.vue'
 import ProjectIconField from '@/components/console/record/ProjectIconField.vue'
 import RecordIdentityFields from '@/components/console/record/RecordIdentityFields.vue'
+import TaskSkillsField from '@/components/console/record/TaskSkillsField.vue'
 import TaskTagField from '@/components/console/record/TaskTagField.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
@@ -123,6 +124,13 @@ const tagId = computed<TagId | null>({
   get: () => (form.value.kind === 'task' ? form.value.tagId : null),
   set: (value) => {
     if (form.value.kind === 'task') form.value.tagId = value
+  }
+})
+
+const skills = computed<readonly string[]>({
+  get: () => (form.value.kind === 'task' ? form.value.skills : []),
+  set: (value) => {
+    if (form.value.kind === 'task') form.value.skills = [...value]
   }
 })
 
@@ -300,6 +308,8 @@ onUnmounted(() => window.removeEventListener('keydown', saveOnModEnter, true))
       <CompanyLogoField v-if="form.kind === 'company'" ref="logoField" :company-id="form.id" :name="titleValue" />
 
       <TaskTagField v-if="kind === 'task'" v-model="tagId" />
+
+      <TaskSkillsField v-if="kind === 'task' && form.id === null" v-model="skills" :tag-id="tagId" />
 
       <template v-if="asksForDescription">
         <label
