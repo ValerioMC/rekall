@@ -15,6 +15,7 @@ import LogCommitButton from '@/components/console/LogCommitButton.vue'
 import NotesButton from '@/components/console/NotesButton.vue'
 import CommitReferenceRail from '@/components/console/CommitReferenceRail.vue'
 import RevisionHistoryButton from '@/components/console/RevisionHistoryButton.vue'
+import ContextSizeChip from '@/components/console/ContextSizeChip.vue'
 import TaskTitleRow from '@/components/console/TaskTitleRow.vue'
 import TaskLabelsStrip from '@/components/console/TaskLabelsStrip.vue'
 import { TASK_DESCRIPTION_TEMPLATE, isUntouchedTemplate } from '@/model/templates'
@@ -159,6 +160,9 @@ onUnmounted(() => {
               >
                 Accepted
               </span>
+              </template>
+              <template #trailing>
+                <ContextSizeChip :task-id="selectedTask.id" />
               </template>
             </TaskTitleRow>
             <TaskLabelsStrip :task="selectedTask" />

@@ -51,12 +51,10 @@ describe('TaskLabelsStrip', () => {
     expect(wrapper.get('[data-testid="skill-add"]').text()).toBe('Add a skill')
   })
 
-  it('leads with the context size chip, to the left of the tag control', () => {
+  it('leaves the context size chip to the title row', () => {
     const wrapper = mount(TaskLabelsStrip, { props: { task: taskWith() } })
 
-    const order = wrapper.findAll('[data-testid="context-size"], [data-testid="task-tag-control"]')
-
-    expect(order.map((element) => element.attributes('data-testid'))).toEqual(['context-size', 'task-tag-control'])
+    expect(wrapper.find('[data-testid="context-size"]').exists()).toBe(false)
   })
 
   it("shows the task's own skills removable and the tag's dashed", () => {

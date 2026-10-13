@@ -5,7 +5,8 @@ import type { Task } from '@/model/catalog'
 
 /**
  * The task's name with what used to take a second line beside it: its status (`flags`), a button
- * that copies its `/rk` command, and its generated tokens with their trend.
+ * that copies its `/rk` command, its generated tokens with their trend, and any `trailing` chip
+ * to the right of them.
  */
 defineProps<{ task: Task; copyTestid: string }>()
 </script>
@@ -18,5 +19,6 @@ defineProps<{ task: Task; copyTestid: string }>()
     <slot name="flags" />
     <CopyAnchorButton :anchor="task.anchor" :data-testid="copyTestid" />
     <TaskTokenChip :task="task" />
+    <slot name="trailing" />
   </div>
 </template>
