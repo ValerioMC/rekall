@@ -11,6 +11,7 @@ use support::world;
 fn spent(project: Option<&str>, task: &str, step: Option<&str>, output: u64) -> UnitUsage {
     UnitUsage {
         unit: WorkUnit::task(project, task).on_step(step),
+        at: None,
         tokens: TokenCount { input: 10, output, cache_creation: 100, cache_read: 1000 },
     }
 }
@@ -120,4 +121,44 @@ async fn only_the_folders_set_on_projects_are_watched_once_each() {
     let folders = world.services.token_usage.watched_folders().await.unwrap();
 
     assert_eq!(folders, [std::path::PathBuf::from("/work/vega")]);
+}
+
+fn spent_at(task: &str, at: &str, output: u64) -> UnitUsage {
+    UnitUsage { at: Some(at.parse().unwrap()), ..spent(None, task, None, output) }
+}
+
+#[tokio::test]
+async fn a_tasks_spend_is_told_day_by_day_oldest_first_across_its_steps() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let task = world.task(&project, "report-builder").await;
+    world.step(&task, "Draft", 0, TaskStepState::Open).await;
+
+    let session = [
+        spent_at("report-builder", "2026-10-02T09:00:00Z", 4),
+        UnitUsage { unit: WorkUnit::task(None, "report-builder").on_step(Some("1")), ..spent_at("report-builder", "2026-10-02T23:30:00Z", 6) },
+        spent_at("report-builder", "2026-10-01T22:00:00Z", 3),
+    ];
+    world.services.token_usage.record_session("s-1", 10, &session).await.unwrap();
+
+    let days = world.services.token_usage.days().await.unwrap();
+    let shown: Vec<(String, i64)> = days.iter().map(|d| (d.day.to_string(), d.output_tokens)).collect();
+    assert_eq!(shown, [("2026-10-01T00:00:00Z".to_string(), 3), ("2026-10-02T00:00:00Z".to_string(), 10)]);
+    assert!(days.iter().all(|d| d.task_id == task.id));
+}
+
+#[tokio::test]
+async fn a_read_that_finds_the_same_tokens_on_another_day_replaces_the_rows_and_announces_it() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    world.task(&project, "report-builder").await;
+    world.services.token_usage.record_session("s-1", 10, &[spent_at("report-builder", "2026-10-01T10:00:00Z", 5)]).await.unwrap();
+    let mut feed = world.services.ctx.events.subscribe();
+
+    world.services.token_usage.record_session("s-1", 20, &[spent_at("report-builder", "2026-10-03T10:00:00Z", 5)]).await.unwrap();
+
+    let days = world.services.token_usage.days().await.unwrap();
+    assert_eq!(days.len(), 1);
+    assert_eq!(days[0].day.to_string(), "2026-10-03T00:00:00Z");
+    assert!(matches!(feed.try_recv(), Ok(DomainEvent::TokenUsage(event)) if event.days.len() == 1));
 }

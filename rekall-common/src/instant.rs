@@ -11,7 +11,7 @@
 use std::fmt;
 use std::str::FromStr;
 
-use chrono::{DateTime, NaiveDateTime, SecondsFormat, TimeDelta, TimeZone, Timelike, Utc};
+use chrono::{DateTime, NaiveDateTime, NaiveTime, SecondsFormat, TimeDelta, TimeZone, Timelike, Utc};
 use sea_orm::DeriveValueType;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -70,6 +70,11 @@ impl Instant {
 
     pub fn is_before(&self, other: &Instant) -> bool {
         self < other
+    }
+
+    /// Midnight UTC of the day this instant falls on, the key a day's figures are grouped under.
+    pub fn start_of_day(&self) -> Self {
+        Self(self.0.date_naive().and_time(NaiveTime::MIN).and_utc())
     }
 
     /// The time from `self` to `later`, negative when `later` is earlier.

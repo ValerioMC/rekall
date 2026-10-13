@@ -3,14 +3,12 @@ import { computed, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import AppModeToggle from '@/components/ui/AppModeToggle.vue'
-import CopyGlyph from '@/components/ui/CopyGlyph.vue'
 import DescriptionEmptyState from '@/components/console/DescriptionEmptyState.vue'
 import DescriptionReviewBar from '@/components/console/DescriptionReviewBar.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useSelectedProjectComponents } from '@/composables/useSelectedProjectComponents'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { identityHue } from '@/common/identity'
-import { rkCommand } from '@/common/format/rk-command'
 import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.vue'
 import OpenTerminalButton from '@/components/claude/OpenTerminalButton.vue'
 import LogCommitButton from '@/components/console/LogCommitButton.vue'
@@ -18,6 +16,7 @@ import NotesButton from '@/components/console/NotesButton.vue'
 import CommitReferenceRail from '@/components/console/CommitReferenceRail.vue'
 import RevisionHistoryButton from '@/components/console/RevisionHistoryButton.vue'
 import ContextSizeChip from '@/components/console/ContextSizeChip.vue'
+import TaskTitleRow from '@/components/console/TaskTitleRow.vue'
 import TaskLabelsStrip from '@/components/console/TaskLabelsStrip.vue'
 import { TASK_DESCRIPTION_TEMPLATE, isUntouchedTemplate } from '@/model/templates'
 import type { TaskId } from '@/model/branded'
@@ -86,21 +85,11 @@ function adoptRestored(): void {
   store.saveState = 'saved'
 }
 
-const anchor = computed(() => selectedTask.value?.anchor ?? '')
-
 // The task-scoped review line, shown only while the task has no checklist.
 const reviewState = computed(() => {
   const task = selectedTask.value
   return task && task.reviewActive && task.stepCount === 0 ? task.reviewState : null
 })
-
-const copied = ref(false)
-
-async function copyAnchor(): Promise<void> {
-  await navigator.clipboard?.writeText(rkCommand(anchor.value))
-  copied.value = true
-  setTimeout(() => (copied.value = false), 1400)
-}
 
 function beginWriting(): void {
   showEditor.value = true
@@ -144,8 +133,8 @@ onUnmounted(() => {
               <span class="h-2.5 w-[3px] shrink-0 rounded-full bg-accent" aria-hidden="true" />
               Description
             </p>
-            <h2 class="flex items-center gap-2 text-heading font-semibold tracking-[-0.015em] text-text">
-              <span class="truncate">{{ selectedTask.title }}</span>
+            <TaskTitleRow :task="selectedTask" copy-testid="copy-description-anchor" :show-tokens="false">
+              <template #flags>
               <span
                 v-if="reviewState === 'RUNNING'"
                 class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-accent-soft px-2 py-0.5 text-micro font-semibold tracking-[0.02em] text-accent"
@@ -171,21 +160,11 @@ onUnmounted(() => {
               >
                 Accepted
               </span>
-            </h2>
-            <div class="mt-1.5 flex flex-wrap items-center gap-2">
-              <button
-                class="anchor-chip focus-ring inline-flex items-center gap-2 px-2.5 py-1 text-caption transition-colors hover:border-anchor"
-                :class="copied && 'flash'"
-                :title="copied ? 'Copied' : `Copy ${rkCommand(anchor)}`"
-                data-testid="copy-description-anchor"
-                @click="copyAnchor"
-              >
-                <span class="opacity-60">/rk</span>
-                <span>{{ selectedTask.anchor }}</span>
-                <CopyGlyph :copied="copied" />
-              </button>
-              <ContextSizeChip :task-id="selectedTask.id" />
-            </div>
+              </template>
+              <template #trailing>
+                <ContextSizeChip :task-id="selectedTask.id" />
+              </template>
+            </TaskTitleRow>
             <TaskLabelsStrip :task="selectedTask" />
           </div>
 

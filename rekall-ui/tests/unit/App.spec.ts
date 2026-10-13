@@ -883,10 +883,10 @@ describe('the console', () => {
       // The note editor's controls are absent rather than disabled: a wrapup has no kind and
       // no second task it could belong to.
       expect(wrapper.find('[data-testid="assign-open"]').exists()).toBe(false)
-      // Only one way to copy the anchor once a wrapup exists: the header chip, not a second
+      // Only one way to copy the anchor once a wrapup exists: the header button, not a second
       // one duplicating it next to the metadata.
-      expect(wrapper.find('[data-testid="copy-wrapup-anchor"]').text())
-        .toContain('project:vega task:report-builder')
+      expect(wrapper.find('[data-testid="copy-wrapup-anchor"]').attributes('aria-label'))
+        .toBe('Copy /rk project:vega task:report-builder')
       expect(wrapper.find('[data-testid="copy-wrapup-command"]').exists()).toBe(false)
     })
 
@@ -916,8 +916,8 @@ describe('the console', () => {
       await flushPromises()
 
       expect(wrapper.text()).toContain('Nobody has said what this is yet')
-      expect(wrapper.find('[data-testid="copy-wrapup-anchor"]').text())
-        .toContain('project:vega task:retry-policy')
+      expect(wrapper.find('[data-testid="copy-wrapup-anchor"]').attributes('aria-label'))
+        .toBe('Copy /rk project:vega task:retry-policy')
       expect(wrapper.find('[data-testid="copy-wrapup-command"]').exists()).toBe(false)
 
       await wrapper.find('[data-testid="write-wrapup-by-hand"]').trigger('click')

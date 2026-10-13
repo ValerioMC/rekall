@@ -1,12 +1,12 @@
 use std::collections::BTreeSet;
 use std::path::PathBuf;
 
-use rekall_common::{jstr, Id, RekallError, Result};
+use rekall_common::{jstr, Id, Instant, RekallError, Result};
 use rekall_model::{token_usage, transcript_scan};
 use rekall_repository::repository as repo;
 use tracing::debug;
 
-use super::{TokenCount, TokenTallyView, TokenUsageStreamEvent, UnitUsage, WorkUnit};
+use super::{TokenCount, TokenDayView, TokenTallyView, TokenUsageStreamEvent, UnitUsage, WorkUnit};
 use crate::{in_read, in_write, load, Ctx, DomainEvent, Tx};
 
 /// The one writer of `token_usage` and `transcript_scan`. A session's rows are replaced whole,
@@ -23,6 +23,10 @@ impl TokenUsageService {
 
     pub async fn tallies(&self) -> Result<Vec<TokenTallyView>> {
         in_read!(&self.ctx, |tx| Ok(TokenTallyView::summed(&repo::token_usage::list_all(tx.db()).await?)))
+    }
+
+    pub async fn days(&self) -> Result<Vec<TokenDayView>> {
+        in_read!(&self.ctx, |tx| Ok(TokenDayView::summed(&repo::token_usage::list_all(tx.db()).await?)))
     }
 
     /// The project folders whose sessions are worth reading: every one set on a project.
@@ -70,18 +74,19 @@ impl TokenUsageService {
     }
 
     async fn resolved_rows(&self, tx: &Tx, session_id: &str, spent: &[UnitUsage]) -> Result<Vec<token_usage::Model>> {
-        let mut merged: Vec<((Id, Option<Id>), TokenCount)> = Vec::new();
+        let now = self.ctx.now();
+        let mut merged: Vec<(SpendKey, TokenCount)> = Vec::new();
         for usage in spent.iter().filter(|usage| !usage.tokens.is_empty()) {
-            let Some(key) = resolve_unit(tx, &usage.unit).await? else { continue };
+            let Some((task_id, step_id)) = resolve_unit(tx, &usage.unit).await? else { continue };
+            let key = (task_id, step_id, usage.at.unwrap_or(now).start_of_day());
             match merged.iter_mut().find(|(known, _)| *known == key) {
                 Some((_, tokens)) => *tokens += usage.tokens,
                 None => merged.push((key, usage.tokens)),
             }
         }
-        let now = self.ctx.now();
         Ok(merged
             .into_iter()
-            .map(|((task_id, step_id), tokens)| token_usage::Model {
+            .map(|((task_id, step_id, spent_on), tokens)| token_usage::Model {
                 id: Id::random(),
                 session_id: session_id.to_string(),
                 task_id,
@@ -91,16 +96,24 @@ impl TokenUsageService {
                 cache_creation_tokens: stored(tokens.cache_creation),
                 cache_read_tokens: stored(tokens.cache_read),
                 recorded_at: now,
+                spent_on,
             })
             .collect())
     }
 
     async fn publish(&self, tx: &mut Tx, task_id: Id) -> Result<()> {
         let rows = repo::token_usage::list_of_task(tx.db(), task_id).await?;
-        tx.publish(DomainEvent::TokenUsage(TokenUsageStreamEvent { task_id, tallies: TokenTallyView::summed(&rows) }));
+        tx.publish(DomainEvent::TokenUsage(TokenUsageStreamEvent {
+            task_id,
+            tallies: TokenTallyView::summed(&rows),
+            days: TokenDayView::summed(&rows),
+        }));
         Ok(())
     }
 }
+
+/// What a row is kept per: a task, optionally a step, and a day.
+type SpendKey = (Id, Option<Id>, Instant);
 
 /// The task and step ids a unit names, or nothing when its task is gone or was never Rekall's.
 async fn resolve_unit(tx: &Tx, unit: &WorkUnit) -> Result<Option<(Id, Option<Id>)>> {
@@ -125,8 +138,9 @@ async fn resolve_unit(tx: &Tx, unit: &WorkUnit) -> Result<Option<(Id, Option<Id>
 
 /// Whether a fresh read found what the stored rows already say, ignoring their ids and stamps.
 fn same_spend(before: &[token_usage::Model], after: &[token_usage::Model]) -> bool {
-    fn key(row: &token_usage::Model) -> (Id, Option<Id>, i64, i64, i64, i64) {
-        (row.task_id, row.step_id, row.input_tokens, row.output_tokens, row.cache_creation_tokens, row.cache_read_tokens)
+    type Spend = (Id, Option<Id>, Instant, i64, i64, i64, i64);
+    fn key(row: &token_usage::Model) -> Spend {
+        (row.task_id, row.step_id, row.spent_on, row.input_tokens, row.output_tokens, row.cache_creation_tokens, row.cache_read_tokens)
     }
     let mut before: Vec<_> = before.iter().map(key).collect();
     let mut after: Vec<_> = after.iter().map(key).collect();

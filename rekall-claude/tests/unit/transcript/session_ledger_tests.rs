@@ -19,7 +19,12 @@ fn tool(id: &str, at: &str, name: &str, input: &str) -> String {
 }
 
 fn output_of(spent: &[UnitUsage], task: &str, step: Option<&str>) -> Option<u64> {
-    spent.iter().find(|usage| usage.unit.task_label == task && usage.unit.step.as_deref() == step).map(|usage| usage.tokens.output)
+    let of_unit: Vec<u64> = spent
+        .iter()
+        .filter(|usage| usage.unit.task_label == task && usage.unit.step.as_deref() == step)
+        .map(|usage| usage.tokens.output)
+        .collect();
+    (!of_unit.is_empty()).then(|| of_unit.iter().sum())
 }
 
 #[test]
@@ -107,4 +112,18 @@ fn a_line_that_is_not_json_or_has_an_unexpected_shape_costs_nothing_else() {
     ledger.read_line(&tool("m3", "10:00:01", "Bash", r#"{"anchors":["odd"],"step":{"x":1}}"#));
 
     assert_eq!(output_of(&ledger.spent(), "report", None), Some(3 + 1));
+}
+
+#[test]
+fn calls_on_different_days_are_charged_to_the_day_they_were_made() {
+    let on = |id: &str, stamp: &str| call(id, "10:00:01", 10).replace("2026-10-01T10:00:01.000Z", stamp);
+    let mut ledger = SessionLedger::new();
+    ledger.read_line(&slash("task:report", "10:00:00"));
+    ledger.read_line(&on("m1", "2026-10-01T23:59:00.000Z"));
+    ledger.read_line(&on("m2", "2026-10-02T00:01:00.000Z"));
+    ledger.read_line(&on("m3", "2026-10-02T18:00:00.000Z"));
+
+    let spent = ledger.spent();
+    let per_day: Vec<(String, u64)> = spent.iter().map(|usage| (usage.at.unwrap().to_string(), usage.tokens.output)).collect();
+    assert_eq!(per_day, [("2026-10-01T00:00:00Z".to_string(), 10), ("2026-10-02T00:00:00Z".to_string(), 20)]);
 }

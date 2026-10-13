@@ -15,9 +15,12 @@ pub struct SessionLedger {
     /// When the session moved onto each unit, for subagents' calls, which carry only their time.
     moves: Vec<(Instant, WorkUnit)>,
     /// A message is written on several lines, each repeating its usage, so it is charged once.
-    messages: HashMap<String, (Option<WorkUnit>, TokenCount)>,
-    unnamed: Vec<(Option<WorkUnit>, TokenCount)>,
+    messages: HashMap<String, Charge>,
+    unnamed: Vec<Charge>,
 }
+
+/// Tokens charged to a unit, at the time of the line that reported them.
+type Charge = (Option<WorkUnit>, Option<Instant>, TokenCount);
 
 impl SessionLedger {
     pub fn new() -> Self {
@@ -57,18 +60,19 @@ impl SessionLedger {
         }
     }
 
-    /// The tokens charged to each unit, one entry per unit.
+    /// The tokens charged to each unit, one entry per unit and day.
     pub fn spent(self) -> Vec<UnitUsage> {
         let mut spent: Vec<UnitUsage> = Vec::new();
         let charged = self.messages.into_values().chain(self.unnamed);
-        for (unit, tokens) in charged {
+        for (unit, at, tokens) in charged {
             let Some(unit) = unit else { continue };
-            match spent.iter_mut().find(|usage| usage.unit == unit) {
+            let day = at.map(|at| at.start_of_day());
+            match spent.iter_mut().find(|usage| usage.unit == unit && usage.at == day) {
                 Some(usage) => usage.tokens += tokens,
-                None => spent.push(UnitUsage { unit, tokens }),
+                None => spent.push(UnitUsage { unit, at: day, tokens }),
             }
         }
-        spent.sort_by(|a, b| (&a.unit.task_label, &a.unit.step).cmp(&(&b.unit.task_label, &b.unit.step)));
+        spent.sort_by(|a, b| (&a.unit.task_label, &a.unit.step, a.at).cmp(&(&b.unit.task_label, &b.unit.step, b.at)));
         spent
     }
 
@@ -77,13 +81,13 @@ impl SessionLedger {
         let Some(usage) = &message.usage else { return };
         let tokens = usage.count();
         let Some(id) = &message.id else {
-            self.unnamed.push((unit, tokens));
+            self.unnamed.push((unit, entry.at(), tokens));
             return;
         };
         self.messages
             .entry(id.clone())
-            .and_modify(|(_, known)| *known = largest(*known, tokens))
-            .or_insert((unit, tokens));
+            .and_modify(|(_, _, known)| *known = largest(*known, tokens))
+            .or_insert((unit, entry.at(), tokens));
     }
 
     /// Where a Rekall tool call moves the session, if anywhere.

@@ -1,6 +1,6 @@
 import type { ProjectId, TaskId, TaskStepId } from '@/model/branded'
 import type { Task } from '@/model/catalog'
-import { NO_TOKENS, type TokenTally, type TokenTotals } from '@/model/token-usage'
+import { NO_TOKENS, type TokenDay, type TokenTally, type TokenTotals } from '@/model/token-usage'
 
 function summed(tallies: Iterable<TokenTally>): TokenTotals {
   let totals = NO_TOKENS
@@ -41,4 +41,9 @@ export function withTaskTallies(
   replacement: readonly TokenTally[]
 ): TokenTally[] {
   return [...tallies.filter((tally) => tally.taskId !== taskId), ...replacement]
+}
+
+/** The days held, with one task's swapped for the ones a stream event carries. */
+export function withTaskDays(days: readonly TokenDay[], taskId: TaskId, replacement: readonly TokenDay[]): TokenDay[] {
+  return [...days.filter((day) => day.taskId !== taskId), ...replacement]
 }

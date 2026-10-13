@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import CopyGlyph from '@/components/ui/CopyGlyph.vue'
+import TaskTitleRow from '@/components/console/TaskTitleRow.vue'
 import TerminalScreen from '@/components/claude/TerminalScreen.vue'
 import { storeToRefs } from 'pinia'
 import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/stores/terminal.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { identityHue } from '@/common/identity'
-import { rkCommand } from '@/common/format/rk-command'
 import { preferredEffort, preferredModel, skipsPermissions } from '@/common/config/claude-launch'
 import type { Terminal, TerminalEndedFrame } from '@/model/terminal'
 
@@ -94,15 +93,6 @@ function pickForTask(): void {
   terminals.select(live ? live.id : null)
 }
 
-const copied = ref(false)
-
-async function copyAnchor(): Promise<void> {
-  if (!selectedTask.value) return
-  await navigator.clipboard?.writeText(rkCommand(selectedTask.value.anchor))
-  copied.value = true
-  setTimeout(() => (copied.value = false), 1400)
-}
-
 onMounted(async () => {
   await run(() => terminals.load())
   pickForTask()
@@ -141,8 +131,8 @@ watch(
               <span class="h-2.5 w-[3px] shrink-0 rounded-full bg-accent" aria-hidden="true" />
               Terminal
             </p>
-            <h2 class="flex items-center gap-2 truncate text-[19px] font-semibold tracking-[-0.015em] text-text">
-              <span class="truncate">{{ selectedTask.title }}</span>
+            <TaskTitleRow :task="selectedTask" copy-testid="copy-terminal-anchor">
+              <template #flags>
               <span
                 v-if="activeTerminal"
                 class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-surface-raised px-2 py-0.5 text-[10.5px] font-semibold tracking-[0.02em]"
@@ -159,18 +149,8 @@ watch(
                 </span>
                 {{ connected ? 'connected' : ended ? 'ended' : 'connecting' }}
               </span>
-            </h2>
-            <button
-              class="anchor-chip focus-ring mt-1.5 inline-flex items-center gap-2 px-2.5 py-1 text-[11.5px] transition-colors hover:border-anchor"
-              :class="copied && 'flash'"
-              :title="copied ? 'Copied' : `Copy ${rkCommand(selectedTask.anchor)}`"
-              data-testid="copy-terminal-anchor"
-              @click="copyAnchor"
-            >
-              <span class="opacity-60">/rk</span>
-              <span>{{ selectedTask.anchor }}</span>
-              <CopyGlyph :copied="copied" />
-            </button>
+              </template>
+            </TaskTitleRow>
           </div>
 
           <div class="flex shrink-0 items-center gap-1.5">

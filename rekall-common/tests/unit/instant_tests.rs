@@ -29,3 +29,9 @@ fn the_stored_text_sorts_in_time_order() {
     assert_eq!(earlier, "2024-05-01T10:15:30.000000Z");
     assert!(earlier < later);
 }
+
+#[test]
+fn the_start_of_a_day_is_its_midnight_in_utc() {
+    assert_eq!(at("2024-05-01T23:59:59.999999Z").start_of_day(), at("2024-05-01T00:00:00Z"));
+    assert_eq!(at("2024-05-01T01:30:00+02:00").start_of_day(), at("2024-04-30T00:00:00Z"));
+}

@@ -3,23 +3,21 @@
  * One project in the grouped navigator: a card that folds the project away, and under it the live
  * tasks with the backlog and the filed ones on their own shelves.
  */
-import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import NavigatorTaskRow from '@/components/console/NavigatorTaskRow.vue'
 import NavigatorFilingDrawer from '@/components/console/NavigatorFilingDrawer.vue'
 import ProjectPageLink from '@/components/console/ProjectPageLink.vue'
-import TokenCount from '@/components/ui/TokenCount.vue'
+import ProjectTokenChip from '@/components/console/ProjectTokenChip.vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import ProjectMark from '@/components/ui/ProjectMark.vue'
 import { identityHue } from '@/common/identity'
 import { useConsoleStore } from '@/stores/console.store'
-import { useTokenUsageStore } from '@/stores/tokenUsage.store'
 import { PROJECT_STATUS_LABEL, type Task } from '@/model/catalog'
 import type { ProjectTaskGroup } from '@/common/catalog/project-task-groups'
 import type { NavigatorShelves } from '@/composables/useNavigatorShelves'
 import type { TaskId } from '@/model/branded'
 
-const props = defineProps<{
+defineProps<{
   group: ProjectTaskGroup
   shelves: NavigatorShelves
   showCompany: boolean
@@ -29,50 +27,72 @@ const props = defineProps<{
 defineEmits<{ edit: [task: Task] }>()
 
 const store = useConsoleStore()
-const { selectedTaskId, tasks } = storeToRefs(store)
-const tokenUsage = useTokenUsageStore()
-// Every task of the project counts, not only the ones the navigator's filter leaves in the group.
-const tokens = computed(() => tokenUsage.ofProject(props.group.projectId, tasks.value))
+const { selectedTaskId } = storeToRefs(store)
 </script>
 
 <template>
   <div class="px-2 pt-2.5 first:pt-1" :class="group.status !== 'ACTIVE' && 'filed-row'">
-    <div class="project-header-card flex items-stretch rounded-card" :style="{ '--project-tint-soft': identityHue(group.projectId).soft }">
-      <button
-        data-testid="project-group-toggle"
-        class="focus-ring flex min-w-0 flex-1 items-start gap-2.5 rounded-l-card py-2.5 pl-2.5 pr-2 text-left"
-        :aria-expanded="!shelves.collapsedProjects.has(group.projectId)"
-        @click="shelves.toggleCollapsed(group.projectId)"
-      >
-        <svg
-          class="mt-1.5 size-3 shrink-0 text-text-subtle transition-transform"
-          :class="!shelves.collapsedProjects.has(group.projectId) && 'rotate-90'"
-          viewBox="0 0 24 24"
-          fill="none"
-          aria-hidden="true"
+    <div
+      class="project-header-card flex flex-col rounded-card"
+      :style="{ '--project-tint-soft': identityHue(group.projectId).soft }"
+    >
+      <div class="flex items-stretch">
+        <button
+          data-testid="project-group-toggle"
+          class="focus-ring flex min-w-0 flex-1 items-start gap-2.5 rounded-tl-card py-2.5 pl-2.5 pr-2 text-left"
+          :aria-expanded="!shelves.collapsedProjects.has(group.projectId)"
+          @click="shelves.toggleCollapsed(group.projectId)"
         >
-          <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
-        <ProjectMark class="mt-px" :project-id="group.projectId" :icon="group.icon" :image-version="group.iconImageVersion" :size="24" />
-        <span class="min-w-0 flex-1">
-          <span class="flex items-center gap-2">
-            <span class="min-w-0 flex-1 truncate text-body font-semibold tracking-[-0.006em] text-text">
-              {{ group.projectTitle }}
-            </span>
-            <AppBadge v-if="group.status !== 'ACTIVE'" :tone="group.status === 'DONE' ? 'safe' : 'neutral'" dot>
-              {{ PROJECT_STATUS_LABEL[group.status] }}
-            </AppBadge>
-            <span class="shrink-0 rounded-full bg-surface px-1.5 py-px font-mono text-micro tabular-nums text-text-subtle">
-              {{ group.tasks.length }}
+          <svg
+            class="mt-1.5 size-3 shrink-0 text-text-subtle transition-transform"
+            :class="!shelves.collapsedProjects.has(group.projectId) && 'rotate-90'"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="M9 6l6 6-6 6"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <ProjectMark
+            class="mt-px"
+            :project-id="group.projectId"
+            :icon="group.icon"
+            :image-version="group.iconImageVersion"
+            :size="24"
+          />
+          <span class="min-w-0 flex-1">
+            <span class="flex items-center gap-2">
+              <span class="min-w-0 flex-1 truncate text-body font-semibold tracking-[-0.006em] text-text">
+                {{ group.projectTitle }}
+              </span>
+              <AppBadge
+                v-if="group.status !== 'ACTIVE'"
+                :tone="group.status === 'DONE' ? 'safe' : 'neutral'"
+                dot
+              >
+                {{ PROJECT_STATUS_LABEL[group.status] }}
+              </AppBadge>
+              <span
+                class="shrink-0 rounded-full bg-surface px-1.5 py-px font-mono text-micro tabular-nums text-text-subtle"
+              >
+                {{ group.tasks.length }}
+              </span>
             </span>
           </span>
-          <span class="mt-1 flex items-center gap-2">
-            <span v-if="showCompany" class="shrink-0 truncate text-micro text-text-subtle">{{ group.companyName }}</span>
-            <TokenCount :totals="tokens" :hue-of="group.projectId" />
-          </span>
-        </span>
-      </button>
-      <ProjectPageLink :project-id="group.projectId" :project-title="group.projectTitle" />
+        </button>
+        <ProjectPageLink :project-id="group.projectId" :project-title="group.projectTitle" />
+      </div>
+      <div class="-mt-1 flex min-w-0 items-center gap-2 pb-2 pl-[66px] pr-2">
+        <span v-if="showCompany" class="min-w-0 truncate text-micro text-text-subtle">{{
+          group.companyName
+        }}</span>
+        <ProjectTokenChip class="ml-auto" :project-id="group.projectId" />
+      </div>
     </div>
 
     <div

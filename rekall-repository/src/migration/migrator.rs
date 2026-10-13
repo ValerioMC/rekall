@@ -1,6 +1,6 @@
 use sea_orm_migration::prelude::*;
 
-use super::{baseline, m031_project_section, m032_project_icon_image, m033_project_component, m034_company_logo_image, m035_mermaid_diagram, m036_token_usage, m037_skill_placement, m038_skill_assignment, m039_step_flow, m040_flow_start_end};
+use super::{baseline, m031_project_section, m032_project_icon_image, m033_project_component, m034_company_logo_image, m035_mermaid_diagram, m036_token_usage, m037_skill_placement, m038_skill_assignment, m039_step_flow, m040_flow_start_end, m041_token_usage_day};
 
 /// Every migration, in the order it is applied.
 pub struct Migrator;
@@ -20,6 +20,7 @@ impl MigratorTrait for Migrator {
             Box::new(m038_skill_assignment::SkillAssignment),
             Box::new(m039_step_flow::StepFlow),
             Box::new(m040_flow_start_end::FlowStartEnd),
+            Box::new(m041_token_usage_day::TokenUsageDay),
         ]
     }
 }

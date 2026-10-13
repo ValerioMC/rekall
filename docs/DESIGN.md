@@ -124,7 +124,7 @@ Company ──< Project ──< Task >──< Document
 | `step_visit` | through its task | `task_id`, `step_id`, `ordinal` unique per task, `entered_at`, `left_at`, `outcome`; deleted with its step |
 | `wrapup` | through its task | `task_id` unique, `body_markdown`, `written_by` |
 | `project_component` | through its project | `project_id`, `name`, `folder`, `description`, `position` |
-| `token_usage` | through its task | `session_id`, `task_id`, `step_id`, the four token counts |
+| `token_usage` | through its task | `session_id`, `task_id`, `step_id`, the four token counts, `spent_on` |
 | `transcript_scan` | `session_id` | `scanned_bytes`, `scanned_at` |
 | `task_skill` | through its task | `task_id`, `step_id` (null for the task's own), `skill_name`, `position`; deleted with its task or step |
 | `tag_skill` | through its tag | `tag_id`, `skill_name`, `position`; deleted with its tag |
@@ -636,14 +636,20 @@ session transcripts under `~/.claude/projects`, where every model call carries i
 | Piece | What it decides |
 |---|---|
 | `TranscriptFolder` (rekall-claude) | Which transcripts belong to a project: the folder Claude Code names after the project's `repo_folder` (every non-alphanumeric character becomes `-`), and the folders of subfolders under it. A session's subagents are in `<session>/subagents/` |
-| `SessionLedger` (rekall-claude) | What each call is charged to. `/rk` or a `rekall_context` naming one task moves the session to that task; `rekall_step` `running` to the step, `claimed` or `open` back to the task, after charging the call that moved it. A task named again without a step keeps the running step, so a wrapup written mid-step costs the step. Subagent calls go to what the session was on at their timestamp. A message spread over several lines is charged once, by its id. Calls before any Rekall work are not counted |
+| `SessionLedger` (rekall-claude) | What each call is charged to, and on which UTC day, by the line's own timestamp; a line with none takes the day it is read. `/rk` or a `rekall_context` naming one task moves the session to that task; `rekall_step` `running` to the step, `claimed` or `open` back to the task, after charging the call that moved it. A task named again without a step keeps the running step, so a wrapup written mid-step costs the step. Subagent calls go to what the session was on at their timestamp. A message spread over several lines is charged once, by its id. Calls before any Rekall work are not counted |
 | `TranscriptScanner` (rekall-claude) | Reads, every `rekall.claude.transcript-scan-seconds`, each session whose files have grown since `transcript_scan` last saw them; an unchanged transcript is never read twice. A line that does not parse is skipped, and a field in a shape the reader does not know reads as empty rather than losing the line's tokens |
-| `TokenUsageService` (rekall-service) | Resolves the anchors and replaces the session's `token_usage` rows whole, so a reread never double counts. A task that no longer resolves is dropped; a step that does not resolve leaves its tokens on the task, and deleting a step sets its rows' `step_id` to null for the same reason. A read that changes a task's tallies publishes a `token-usage` frame with all of them |
+| `TokenUsageService` (rekall-service) | Resolves the anchors and replaces the session's `token_usage` rows whole, so a reread never double counts. A task that no longer resolves is dropped; a step that does not resolve leaves its tokens on the task, and deleting a step sets its rows' `step_id` to null for the same reason. A row is a session's spend on one task or step on one day (`spent_on`, midnight UTC), so a task's spend can be told day by day; migration `041` stamps old rows with the day they were read and clears `transcript_scan` so every transcript is read again with real days. A read that changes a task's tallies or days publishes a `token-usage` frame with all of them |
 
 The figure the console shows is output tokens, what the model generated; input, cache write and
 cache read are kept beside it and shown in the tooltip. `GET /api/token-usage` returns one tally per
-task and step, and `useTokenUsageStore` sums a project from its tasks in the browser, so no total
-is stored that could disagree with its parts. The tokens follow the anchors, not the folder, and
+task and step, `GET /api/token-usage/daily` one entry per task and day, and `useTokenUsageStore`
+sums a project from its tasks in the browser, so no total is stored that could disagree with its
+parts. A task's header (`TaskTitleRow`) holds the name, its status flags and `CopyAnchorButton`; the
+description pane moves the token chip into its tag and skills line (`TaskLabelsStrip`), the other
+panes keep it on the title line. `TokenTrendChip` is the chip for any set of tasks (`TaskTokenChip`
+for one, `ProjectTokenChip` for a project in the navigator header); its sparkline and popover chart
+(`TokenTrendPanel`, `TokenTrendChart`) are drawn from the store's days by `trendOf`, a running total
+with one point per calendar day. `TaskTagControl` and `TagPicker` change a task's tag in place. The tokens follow the anchors, not the folder, and
 any session counts, whether Rekall opened its terminal or not.
 
 Sharp edges: a session started outside every project's folder is never read, and a step named by

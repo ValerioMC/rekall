@@ -701,5 +701,10 @@ async fn a_sessions_transcript_in_a_projects_folder_reaches_the_token_tallies_of
     assert_eq!(tallies[0]["taskId"], json!(task));
     assert_eq!(tallies[0]["stepId"], json!(step));
     assert_eq!(tallies[0]["outputTokens"], json!(3));
+    let days = app.get("/api/token-usage/daily").await.list();
+    assert_eq!(days.len(), 1, "{days:?}");
+    assert_eq!(days[0]["taskId"], json!(task));
+    assert_eq!(days[0]["day"], json!("2026-10-01T00:00:00Z"));
+    assert_eq!(days[0]["outputTokens"], json!(3));
     app.stop().await;
 }

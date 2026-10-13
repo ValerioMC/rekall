@@ -1,6 +1,7 @@
 //! The tokens one Claude Code session spent on one task, or on one of its steps. A session that
 //! worked several steps has a row per step, plus one for the task when it did work outside them.
-//! The rows of a session are rewritten whole each time its transcript is read again.
+//! A row also has a day, so a task's spend can be told day by day. The rows of a session are
+//! rewritten whole each time its transcript is read again.
 
 use rekall_common::{Id, Instant};
 use sea_orm::entity::prelude::*;
@@ -21,6 +22,8 @@ pub struct Model {
     pub cache_creation_tokens: i64,
     pub cache_read_tokens: i64,
     pub recorded_at: Instant,
+    /// Midnight UTC of the day the tokens were generated, not of the read that found them.
+    pub spent_on: Instant,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

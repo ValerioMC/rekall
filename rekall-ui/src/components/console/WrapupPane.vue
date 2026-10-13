@@ -2,18 +2,18 @@
 import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import AppButton from '@/components/ui/AppButton.vue'
-import CopyGlyph from '@/components/ui/CopyGlyph.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import AppModeToggle from '@/components/ui/AppModeToggle.vue'
 import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.vue'
 import WrapupHereDialog from '@/components/console/WrapupHereDialog.vue'
 import RevisionHistoryButton from '@/components/console/RevisionHistoryButton.vue'
+import TaskTitleRow from '@/components/console/TaskTitleRow.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/stores/terminal.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { relativeTime } from '@/common/format/relative-time'
-import { rkCommand, rkWrapupCommand } from '@/common/format/rk-command'
+import { rkWrapupCommand } from '@/common/format/rk-command'
 import { WRAPUP_AUTHOR_LABEL } from '@/model/catalog'
 
 const store = useConsoleStore()
@@ -56,14 +56,6 @@ watch(
 const writtenBy = computed(() =>
   selectedWrapup.value ? WRAPUP_AUTHOR_LABEL[selectedWrapup.value.writtenBy] : ''
 )
-
-const copied = ref<'anchor' | null>(null)
-
-async function copy(what: 'anchor', text: string): Promise<void> {
-  await navigator.clipboard?.writeText(text)
-  copied.value = what
-  setTimeout(() => (copied.value = null), 1400)
-}
 
 function scheduleSave(): void {
   const task = selectedTask.value
@@ -130,20 +122,7 @@ async function sendWrapupHere(message: string): Promise<void> {
             <span class="h-2.5 w-[3px] shrink-0 rounded-full bg-accent" aria-hidden="true" />
             Wrapup
           </p>
-          <h2 class="truncate text-heading font-semibold tracking-[-0.015em] text-text">
-            {{ selectedTask.title }}
-          </h2>
-          <button
-            class="anchor-chip focus-ring mt-1.5 inline-flex items-center gap-2 px-2.5 py-1 text-caption transition-colors hover:border-anchor"
-            :class="copied === 'anchor' && 'flash'"
-            :title="copied === 'anchor' ? 'Copied' : `Copy ${rkCommand(selectedTask.anchor)}`"
-            data-testid="copy-wrapup-anchor"
-            @click="copy('anchor', rkCommand(selectedTask.anchor))"
-          >
-            <span class="opacity-60">/rk</span>
-            <span>{{ selectedTask.anchor }}</span>
-            <CopyGlyph :copied="copied === 'anchor'" />
-          </button>
+          <TaskTitleRow :task="selectedTask" copy-testid="copy-wrapup-anchor" />
         </div>
 
         <LaunchClaudeCodeButton

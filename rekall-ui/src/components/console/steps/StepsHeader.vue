@@ -1,17 +1,16 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import CopyGlyph from '@/components/ui/CopyGlyph.vue'
+import { computed } from 'vue'
 import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.vue'
 import OpenTerminalButton from '@/components/claude/OpenTerminalButton.vue'
 import NotesButton from '@/components/console/NotesButton.vue'
 import PlanHereButton from '@/components/console/PlanHereButton.vue'
+import TaskTitleRow from '@/components/console/TaskTitleRow.vue'
 import { identityHue } from '@/common/identity'
-import { rkCommand } from '@/common/format/rk-command'
 import type { Task, TaskStep } from '@/model/catalog'
 import type { TaskStepId } from '@/model/branded'
 
 /**
- * The top of the checklist: the task, its `/rk` anchor, the session buttons, and the ledger, one
+ * The top of the checklist: the task, the session buttons, and the ledger, one
  * segment per step so a long checklist still reads at a glance, with the tally, the list or flow
  * switch and the view toggles on the same line.
  */
@@ -46,13 +45,6 @@ function segmentClass(step: TaskStep): string {
   return step.id === props.currentId ? 'tube-next' : 'bg-transparent'
 }
 
-const copied = ref(false)
-
-async function copyAnchor(): Promise<void> {
-  await navigator.clipboard?.writeText(rkCommand(props.task.anchor))
-  copied.value = true
-  setTimeout(() => (copied.value = false), 1400)
-}
 </script>
 
 <template>
@@ -70,8 +62,8 @@ async function copyAnchor(): Promise<void> {
           <span class="h-2.5 w-[3px] shrink-0 rounded-full bg-accent" aria-hidden="true" />
           Steps
         </p>
-        <h2 class="flex items-center gap-2 truncate text-heading font-semibold tracking-[-0.015em] text-text">
-          <span class="truncate">{{ task.title }}</span>
+        <TaskTitleRow :task="task" copy-testid="copy-steps-anchor">
+          <template #flags>
           <span
             v-if="running"
             class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-accent-soft px-2 py-0.5 text-micro font-semibold tracking-[0.02em] text-accent"
@@ -83,18 +75,8 @@ async function copyAnchor(): Promise<void> {
             </span>
             running
           </span>
-        </h2>
-        <button
-          class="anchor-chip focus-ring mt-1.5 inline-flex items-center gap-2 px-2.5 py-1 text-caption transition-colors hover:border-anchor"
-          :class="copied && 'flash'"
-          :title="copied ? 'Copied' : `Copy ${rkCommand(task.anchor)}`"
-          data-testid="copy-steps-anchor"
-          @click="copyAnchor"
-        >
-          <span class="opacity-60">/rk</span>
-          <span>{{ task.anchor }}</span>
-          <CopyGlyph :copied="copied" />
-        </button>
+          </template>
+        </TaskTitleRow>
       </div>
 
       <div class="flex shrink-0 items-center gap-1.5">

@@ -10,10 +10,21 @@ export interface TokenTally {
   readonly cacheReadTokens: number
 }
 
-/** A task's tallies after a transcript read changed them: all of them, replacing what was held. */
+/** A task's tokens on one UTC day, `YYYY-MM-DD`, over all its steps and sessions. */
+export interface TokenDay {
+  readonly taskId: TaskId
+  readonly day: string
+  readonly inputTokens: number
+  readonly outputTokens: number
+  readonly cacheCreationTokens: number
+  readonly cacheReadTokens: number
+}
+
+/** A task's tallies and days after a transcript read changed them: all of them, replacing what was held. */
 export interface TokenUsageStreamEvent {
   readonly taskId: TaskId
   readonly tallies: readonly TokenTally[]
+  readonly days: readonly TokenDay[]
 }
 
 /**
