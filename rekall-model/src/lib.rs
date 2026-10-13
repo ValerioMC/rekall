@@ -27,7 +27,9 @@ pub mod run_queue;
 pub mod run_queue_item;
 pub mod skill_name;
 pub mod skill_placement;
+pub mod step_link;
 pub mod step_pass;
+pub mod step_visit;
 pub mod tag;
 pub mod tag_skill;
 pub mod task;
@@ -57,6 +59,8 @@ pub mod prelude {
     pub use super::run_queue::{Entity as RunQueue, Model as RunQueueModel};
     pub use super::run_queue_item::{Entity as RunQueueItem, Model as RunQueueItemModel};
     pub use super::skill_placement::{Entity as SkillPlacement, Model as SkillPlacementModel};
+    pub use super::step_link::{Entity as StepLink, Model as StepLinkModel};
+    pub use super::step_visit::{Entity as StepVisit, Model as StepVisitModel};
     pub use super::tag::{Entity as Tag, Model as TagModel};
     pub use super::tag_skill::{Entity as TagSkill, Model as TagSkillModel};
     pub use super::task::{Entity as Task, Model as TaskModel};

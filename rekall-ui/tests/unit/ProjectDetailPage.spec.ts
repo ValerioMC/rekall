@@ -112,11 +112,15 @@ describe('the project page', () => {
     expect(page.find('[data-testid="tasks-drawer"]').exists()).toBe(false)
   })
 
-  it('offers the project’s components above its pages', async () => {
+  it('shows the blueprint beside the project’s settings, components among them', async () => {
     const page = await render()
+    const inspector = page.get('[data-testid="project-inspector"]')
 
     expect(componentsApi.fetchProjectComponents).toHaveBeenCalledWith(PROJECT)
-    expect(page.find('[data-testid="project-components"]').exists()).toBe(true)
+    expect(page.get('[data-testid="project-workspace"]').find('[data-testid="blueprint-pane"]').exists()).toBe(true)
+    expect(inspector.find('[data-testid="project-components"]').exists()).toBe(true)
+    expect(inspector.find('[data-testid="project-description"]').exists()).toBe(true)
+    expect(inspector.find('[data-testid="project-repo-folder"]').exists()).toBe(true)
   })
 
   it('lists the sections in the rail and opens one in place of the blueprint', async () => {

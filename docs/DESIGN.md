@@ -2,7 +2,7 @@
 
 Status: label, title and description on projects and tasks; notes shared across tasks; one
 wrapup per task, written by Claude and corrected by hand; a step checklist a session moves along
-and a person ticks done
+and a person ticks done, optionally routed into a flow
 
 Rekall stores the structure and the working context of the projects and tasks you work on, and
 hands them to Claude Code over MCP. Claude reads all of it and writes two things: the wrapup of
@@ -33,7 +33,7 @@ loaded in one call, including every note the task shares with its neighbours.
 | # | Decision | Rationale |
 |---|---|---|
 | D1 | Real tables with real foreign keys | A note can never point at a deleted task. On an app whose only job is to be a reliable memory, silent dangling references are the failure mode that matters. |
-| D2 | Claude reads everything and writes a few narrow things | `rekall-mcp` depends on `rekall-service` and never on `rekall-api`, so no controller and none of the console's catalog services are on its classpath, and every read runs in a read-only transaction. The exceptions are `rekall_wrapup`, which replaces one task's wrapup; `rekall_step`, which moves a step from `open` to `running` to `claimed` and cannot reach `done`; `rekall_record_commit`, which logs a commit against a task; `rekall_propose_step`, which can only add a draft a person has to promote; `rekall_note`, which can only add a new note to one task; and `rekall_project_section`, which can only add a section to a task's project or rewrite the body of one that already has that title. See §7. |
+| D2 | Claude reads everything and writes a few narrow things | `rekall-mcp` depends on `rekall-service` and never on `rekall-api`, so no controller and none of the console's catalog services are on its classpath, and every read runs in a read-only transaction. The exceptions are `rekall_wrapup`, which replaces one task's wrapup; `rekall_step`, which moves a step from `open` to `running` to `claimed`, follows a flow's route on a claim, and cannot reach `done`; `rekall_record_commit`, which logs a commit against a task; `rekall_propose_step`, which can only add a draft a person has to promote; `rekall_note`, which can only add a new note to one task; and `rekall_project_section`, which can only add a section to a task's project or rewrite the body of one that already has that title. See §7. |
 | D3 | Markdown content lives in the database | One backup target, reachable through MCP, searchable. |
 | D4 | One entry point, and it is a slash command | A session begins with `/rk project:vega task:report-builder`, not with a question. Reaching a record through a natural-language query costs several turns and a few thousand tokens before any work starts, and it is the part that fails when the model guesses the wrong entity. An explicit anchor removes both. |
 | D5 | The model is fixed at compile time | There is no runtime meta-model and no DDL engine. Company, project, task and document are fixed SeaORM entities; adding a new kind of record is a model and a migration, not a screen. |
@@ -53,7 +53,7 @@ rekall/
   rekall-model/      SeaORM entities and their state rules
   rekall-diagram/    the diagram format: Mermaid sheets, code links, JSON form, validation; depends on nothing of Rekall's
   rekall-repository/ queries and the SQLite migrations for their schema
-  rekall-service/    context assembly, the step and review lines, wrapups, notes, time entries, token usage
+  rekall-service/    context assembly, the step and review lines, flows, wrapups, notes, time entries, token usage
   rekall-api/        Axum REST routes for the UI
   rekall-mcp/        MCP server: one tool reads, five write (a wrapup, a step's state, a commit log entry, a draft step, a new note)
   rekall-claude/     the in-app terminal (portable-pty PTYs over one WebSocket), the Claude Code usage meter, the run queue, the transcript reader, the Claude folder editor
@@ -106,7 +106,8 @@ Two things keep their shape on purpose. A SeaORM entity is one file with `Model`
 ```
 Company ──< Project ──< Task >──< Document
                          │      (document_task)
-                         ├──< TaskStep
+                         ├──< TaskStep ──< StepLink
+                         ├──< StepVisit
                          ├──< TokenUsage
                          └──1 Wrapup
 ```
@@ -119,6 +120,8 @@ Company ──< Project ──< Task >──< Document
 | `document` | — | `title`, `kind`, `body_markdown` |
 | `document_task` | — | `document_id`, `task_id`, `position` |
 | `task_step` | through its task | `task_id`, `title`, `body_markdown`, `done`, `done_at`, `position` |
+| `step_link` | through its task | `task_id`, `from_step_id`, `to_step_id`, `outcome` unique per `from_step_id`, `position`; deleted with either step |
+| `step_visit` | through its task | `task_id`, `step_id`, `ordinal` unique per task, `entered_at`, `left_at`, `outcome`; deleted with its step |
 | `wrapup` | through its task | `task_id` unique, `body_markdown`, `written_by` |
 | `project_component` | through its project | `project_id`, `name`, `folder`, `description`, `position` |
 | `token_usage` | through its task | `session_id`, `task_id`, `step_id`, the four token counts |
@@ -261,6 +264,36 @@ in one terminal window. A task with no checklist takes the same path at task sco
 `(taskId, false)` on close, so the review line runs while the terminal is open on the task and
 no step. A wrapup written from a terminal-run session (over MCP) or by an MCP call lands in the
 pane with the claim it triggers rather than on the next reload.
+
+### 4.3 The flow
+
+A checklist is an order, and some work is not: build, deploy, test, and a failed test goes to a
+fix that goes back to deploy. A **route** (`step_link`) says that when one step ends with an
+outcome the work moves to another step of the same task, and a task whose steps carry any route
+is a **flow**. A **visit** (`step_visit`) is one entry of the flow into a step, numbered across
+the task, closed with the outcome it left by. The visit left open is where the flow stands.
+
+| Decision | Why |
+|---|---|
+| Routes on the steps, not a second kind of record | A flow is the checklist with its order made explicit. Every rule of §4.2 still holds per step (draft, claim, a person's tick), so a flow needs no new state line and a task can become one by drawing a single route |
+| The outcome is a slug, unique per step it leaves | The session names it and the console shows it, so both read `app-error`. One outcome naming two routes would leave the session unable to say which it took. `step_link::normalise_outcome` folds what was typed the way `Slug.of` folds a label |
+| A claim follows the route; a person draws it | `FlowService::transition` is the only move that routes, and it runs inside the claim's transaction: refused routing rolls the claim back. Routes are written by `StepLinkService` for the console alone; `rekall-mcp` reads them in the context and follows them, never edits them |
+| Arriving reopens finished work | A route back to a claimed or done step means another pass, so `TaskStepService::reopen_for_route_in` returns it to `OPEN`. That is the one way a session's move can undo a tick, and only along a route a person drew. A route into a draft is refused when the flow reaches it |
+| One open visit per task | Entering a step leaves the current one without an outcome (`StepVisitService::enter_in`), so "where the work stands" is one row, never a guess between two. A claim on a step never started enters it first, so every pass is counted |
+| Visits travel on the step views | `TaskStepView` carries its routes and visits, so the `steps` frame and `/api/steps` already redraw the graph live and the console derives the trail, the counts and the current step itself (`common/flow/step-flow.ts`) |
+| Reset forgets the visits, not the states | The states are a person's review; the trail is a count. `FlowService::reset` clears one, never the other |
+
+A claim chooses its route by one rule (`flow::choose_route`): the outcome it names; with no
+outcome, the step's only route, or the end of the flow when it has none; several routes and no
+outcome is refused with their names, because only the session knows what happened. An outcome on
+a plain checklist, or on a move that is not a claim, is refused rather than ignored.
+
+The context marks a flow as `flow="true"`, `current` and `moves` on `<steps>`, `(current, visit N)`
+on the step, a `Routes:` line under every step (finished ones too, since a route can return to
+them) and a `flow` field naming the step to work. The console draws it in `StepFlowView`: dagre
+lays the steps out top to bottom in checklist order (`common/flow/flow-layout.ts`, with unseen
+edges keeping the spine), walked routes solid and the rest dotted, the route the last move came
+in by animated toward the lit current step, the trail of moves above it.
 
 ---
 

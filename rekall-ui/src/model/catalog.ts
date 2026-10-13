@@ -2,6 +2,8 @@ import type {
   CompanyId,
   DocumentId,
   ProjectId,
+  StepLinkId,
+  StepVisitId,
   TagId,
   TaskId,
   TaskStepId,
@@ -167,6 +169,25 @@ export interface StepPass {
   readonly sentBackAt: string
 }
 
+/** A route out of a step: when it ends with `outcome`, the work moves to `toStepId`. */
+export interface StepLink {
+  readonly id: StepLinkId
+  readonly fromStepId: TaskStepId
+  readonly toStepId: TaskStepId
+  readonly outcome: string
+  readonly position: number
+}
+
+/** One entry of the flow into a step; `ordinal` is its move number across the task. */
+export interface StepVisit {
+  readonly id: StepVisitId
+  readonly stepId: TaskStepId
+  readonly ordinal: number
+  readonly enteredAt: string
+  readonly leftAt: string | null
+  readonly outcome: string | null
+}
+
 export interface TaskStep {
   readonly id: TaskStepId
   readonly taskId: TaskId
@@ -179,6 +200,10 @@ export interface TaskStep {
   readonly doneAt: string | null
   readonly position: number
   readonly passes: readonly StepPass[]
+  /** Routes leaving this step; a task whose steps carry any is a flow. */
+  readonly links: readonly StepLink[]
+  /** Every entry of the flow into this step, oldest first; an open one is where it stands. */
+  readonly visits: readonly StepVisit[]
   readonly createdAt: string
   readonly updatedAt: string
 }

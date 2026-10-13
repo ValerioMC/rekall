@@ -3,13 +3,13 @@ import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import StepAddForm from '@/components/console/steps/StepAddForm.vue'
-import StepChecklistRow from '@/components/console/steps/StepChecklistRow.vue'
-import StepDraftRow from '@/components/console/steps/StepDraftRow.vue'
+import StepChecklist from '@/components/console/steps/StepChecklist.vue'
+import StepDraftShelf from '@/components/console/steps/StepDraftShelf.vue'
 import StepsEmptyState from '@/components/console/steps/StepsEmptyState.vue'
 import StepsHeader from '@/components/console/steps/StepsHeader.vue'
+import StepFlowView from '@/components/console/flow/StepFlowView.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
-import { useEnergyStream } from '@/composables/useEnergyStream'
 import { provideStepEditor } from '@/composables/useStepEditor'
 import { stepIsComplete, type TaskStep } from '@/model/catalog'
 import { STEP_DETAIL_TEMPLATE } from '@/model/templates'
@@ -38,21 +38,12 @@ const visibleSteps = computed(() =>
   hideDone.value ? checklistSteps.value.filter((step) => !step.done) : checklistSteps.value
 )
 
-const listEl = ref<HTMLElement | null>(null)
-const draftsEl = ref<HTMLElement | null>(null)
-const stream = useEnergyStream(listEl, [visibleSteps, editor.expandedId, editor.mode, editor.body])
+// A task whose steps carry routes opens on its flow; any other on the list.
+const view = ref<'list' | 'flow'>('list')
+const isFlow = computed(() => checklistSteps.value.some((step) => step.links.length > 0))
 
-/** The rail beside row `index`: from its node down, up to its node, or both ways. */
-function railStyle(index: number): Record<string, string> {
-  const isFirst = index === 0
-  const isLast = index === visibleSteps.value.length - 1
-  const isRunning = visibleSteps.value[index]?.state === 'RUNNING'
-  if (isFirst && isLast) return { display: 'none' }
-  if (isRunning && !isFirst) return isLast ? { display: 'none' } : { top: '18px', bottom: '0' }
-  if (isFirst) return { top: '18px', bottom: '0' }
-  if (isLast) return { top: '0', height: '18px' }
-  return { top: '0', bottom: '0' }
-}
+const checklistEl = ref<InstanceType<typeof StepChecklist> | null>(null)
+const draftsEl = ref<InstanceType<typeof StepDraftShelf> | null>(null)
 
 /** The first step still to finish, or the first draft when every step is done. */
 function openFirstUnfinished(): void {
@@ -65,6 +56,7 @@ watch(
   () => {
     editor.flush()
     hideDone.value = false
+    view.value = isFlow.value ? 'flow' : 'list'
     editor.close()
     openFirstUnfinished()
   },
@@ -123,9 +115,7 @@ async function reviewFirst(): Promise<void> {
   if (!step) return
   editor.open(step)
   await nextTick()
-  listEl.value
-    ?.querySelector<HTMLElement>(`li[data-step-id="${step.id}"]`)
-    ?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  checklistEl.value?.reveal(step.id)
 }
 
 async function move(step: TaskStep, by: number): Promise<void> {
@@ -193,8 +183,20 @@ async function focusAdd(): Promise<void> {
 }
 
 async function scrollToDrafts(): Promise<void> {
+  view.value = 'list'
   await nextTick()
-  draftsEl.value?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  ;(draftsEl.value?.$el as HTMLElement | undefined)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+}
+
+/** The flow's "Detail" opens that step on the list, where its detail is written. */
+async function openFromFlow(id: TaskStepId): Promise<void> {
+  const step = selectedTaskSteps.value.find((candidate) => candidate.id === id)
+  if (!step) return
+  view.value = 'list'
+  if (step.done) hideDone.value = false
+  editor.open(step)
+  await nextTick()
+  checklistEl.value?.reveal(id, 'auto')
 }
 
 onUnmounted(editor.flush)
@@ -209,6 +211,7 @@ onUnmounted(editor.flush)
     <template v-else>
       <StepsHeader
         v-model:hide-done="hideDone"
+        v-model:view="view"
         :task="selectedTask"
         :checklist-steps="checklistSteps"
         :draft-count="draftSteps.length"
@@ -218,7 +221,14 @@ onUnmounted(editor.flush)
         @show-drafts="scrollToDrafts"
       />
 
-      <div class="min-h-0 min-w-0 flex-1 overflow-y-auto px-5 py-4">
+      <StepFlowView
+        v-if="view === 'flow' && checklistSteps.length"
+        :task="selectedTask"
+        :steps="checklistSteps"
+        @open-detail="openFromFlow"
+      />
+
+      <div v-else class="min-h-0 min-w-0 flex-1 overflow-y-auto px-5 py-4">
         <StepsEmptyState
           v-if="!checklistSteps.length && !draftSteps.length"
           :anchor="selectedTask.anchor"
@@ -231,73 +241,38 @@ onUnmounted(editor.flush)
               Every step is done. Show them again to correct one.
             </p>
 
-            <ol
+            <StepChecklist
               v-else
-              ref="listEl"
-              class="relative min-w-0"
-              :style="allDone ? { '--rail-tint': 'var(--color-safe)' } : undefined"
-            >
-              <span
-                v-if="stream"
-                class="energy-stream"
-                :style="{ top: `${stream.top}px`, height: `${stream.height}px` }"
-                data-testid="energy-stream"
-                aria-hidden="true"
-              />
-              <StepChecklistRow
-                v-for="(step, index) in visibleSteps"
-                :key="step.id"
-                :step="step"
-                :task="selectedTask"
-                :rail-style="railStyle(index)"
-                :rail-spent="stepIsComplete(step.state)"
-                :is-next="step.id === currentId"
-                :all-done="allDone"
-                :is-last="step.position === checklistSteps.length - 1"
-                :reopen-armed="reopenArmed === step.id"
-                @mark-forward="markForward(step)"
-                @to-draft="returnToDraft(step)"
-                @move="(by) => move(step, by)"
-                @remove="deleting = step"
-                @send-back="sendBack(step)"
-                @reopen="reopen(step)"
-              />
-            </ol>
+              ref="checklistEl"
+              :steps="visibleSteps"
+              :task="selectedTask"
+              :checklist-length="checklistSteps.length"
+              :current-id="currentId"
+              :all-done="allDone"
+              :reopen-armed="reopenArmed"
+              @mark-forward="markForward"
+              @to-draft="returnToDraft"
+              @move="move"
+              @remove="(step) => (deleting = step)"
+              @send-back="sendBack"
+              @reopen="reopen"
+            />
           </template>
 
-          <section
+          <StepDraftShelf
             v-if="draftSteps.length"
             ref="draftsEl"
-            class="mt-5 first:mt-0"
-            data-testid="drafts"
-            aria-label="Drafts"
-          >
-            <div class="mb-2.5 flex items-center gap-2">
-              <span class="eyebrow">Drafts</span>
-              <span class="font-mono text-micro tabular-nums text-text-subtle">{{ draftSteps.length }}</span>
-              <span class="h-px flex-1 bg-border" aria-hidden="true" />
-              <span class="text-micro text-text-subtle">still being worded, not on the list</span>
-            </div>
-
-            <TransitionGroup tag="ul" name="step-list" class="relative min-w-0 space-y-1.5">
-              <StepDraftRow
-                v-for="(step, index) in draftSteps"
-                :key="step.id"
-                :step="step"
-                :task="selectedTask"
-                :is-first="index === 0"
-                :is-last="index === draftSteps.length - 1"
-                :promoting="promoting === step.id"
-                @promote="promote(step)"
-                @move="(by) => move(step, by)"
-                @remove="deleting = step"
-              />
-            </TransitionGroup>
-          </section>
+            :steps="draftSteps"
+            :task="selectedTask"
+            :promoting="promoting"
+            @promote="promote"
+            @move="move"
+            @remove="(step) => (deleting = step)"
+          />
         </template>
       </div>
 
-      <StepAddForm v-model="newTitle" v-model:skills="newSkills" @submit="add" />
+      <StepAddForm v-if="view === 'list'" v-model="newTitle" v-model:skills="newSkills" @submit="add" />
     </template>
 
     <Transition name="dialog">

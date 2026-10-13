@@ -17,6 +17,7 @@ use super::{
     search_controller,
     skill_assignment_controller,
     step_event_controller,
+    step_flow_controller,
     tag_controller,
     task_controller,
     task_revision_controller,
@@ -53,6 +54,7 @@ pub fn routes() -> Router<ApiState> {
         .merge(task_controller::routes())
         .merge(task_revision_controller::routes())
         .merge(task_step_controller::routes())
+        .merge(step_flow_controller::routes())
         .merge(time_entry_controller::routes())
         .merge(token_usage_controller::routes())
         .merge(wrapup_controller::routes())

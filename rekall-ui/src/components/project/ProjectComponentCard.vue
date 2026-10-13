@@ -2,14 +2,13 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import FolderPickerButton from '@/components/project/FolderPickerButton.vue'
 import AppButton from '@/components/ui/AppButton.vue'
-import AppCard from '@/components/ui/AppCard.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { identityHue } from '@/common/identity'
 import { useProjectComponentsStore } from '@/stores/projectComponents.store'
 import type { ProjectComponent, ProjectComponentInput } from '@/model/project-component'
 
 /**
- * One component, edited where it is read. Each field saves on its own: a pause in typing or
+ * One component, edited in place of its row, laid out for the inspector's narrow column. Each field saves on its own: a pause in typing or
  * leaving the field. A save the server refuses (a name already taken) keeps the draft on screen,
  * marked invalid, until the next keystroke, so what was typed is never silently put back.
  */
@@ -103,115 +102,110 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <AppCard
-    :padded="false"
-    class="group relative flex gap-4 p-4 pl-5"
-    :style="{ '--component-hue': hue.base, '--component-hue-soft': hue.soft, '--component-hue-line': hue.line }"
+  <div
+    class="editor relative rounded-control border border-border-strong bg-canvas p-3 pl-3.5"
+    :style="{ '--component-hue': hue.base, '--component-hue-line': hue.line }"
     :data-testid="`component-${component.id}`"
   >
     <span class="component-rail" aria-hidden="true" />
 
-    <span class="component-index mt-0.5 shrink-0 font-mono text-caption tabular-nums" aria-hidden="true">
-      {{ String(position + 1).padStart(2, '0') }}
-    </span>
-
-    <div class="min-w-0 flex-1">
-      <div class="flex items-center gap-2">
-        <label class="sr-only" :for="`component-name-${component.id}`">Component name</label>
-        <input
-          :id="`component-name-${component.id}`"
-          v-model="nameDraft"
-          class="quiet-field min-w-0 flex-1 text-title font-semibold tracking-[-0.01em] text-text"
-          :aria-invalid="rejected || undefined"
-          maxlength="200"
-          autocomplete="off"
-          spellcheck="false"
-          data-testid="component-name"
-          @input="edited"
-          @blur="save"
-        />
-        <div class="flex shrink-0 items-center gap-0.5 opacity-60 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-          <AppButton
-            variant="quiet"
-            size="icon"
-            class="disabled:opacity-30"
-            :disabled="!canMoveUp"
-            aria-label="Move up"
-            title="Move up"
-            data-testid="component-up"
-            @click="emit('move', 'up')"
-          >
-            <svg class="size-3.5" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-              <path d="M3.5 8.5 7 5l3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </AppButton>
-          <AppButton
-            variant="quiet"
-            size="icon"
-            class="disabled:opacity-30"
-            :disabled="!canMoveDown"
-            aria-label="Move down"
-            title="Move down"
-            data-testid="component-down"
-            @click="emit('move', 'down')"
-          >
-            <svg class="size-3.5" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-              <path d="M3.5 5.5 7 9l3.5-3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </AppButton>
-          <AppButton variant="danger-quiet" size="sm" aria-label="Delete component" data-testid="component-delete" @click="emit('delete')">
-            Delete
-          </AppButton>
-          <AppButton variant="secondary" size="sm" data-testid="component-close" @click="close">Done</AppButton>
-        </div>
-      </div>
-
-      <div class="mt-2 flex items-center gap-2">
-        <svg class="size-4 shrink-0 text-[var(--component-hue)]" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-          <path d="M2 4.5A1.5 1.5 0 0 1 3.5 3h2.6l1.4 1.5h5A1.5 1.5 0 0 1 14 6v5.5a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 11.5v-7Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" />
-        </svg>
-        <label class="sr-only" :for="`component-folder-${component.id}`">Component folder</label>
-        <input
-          :id="`component-folder-${component.id}`"
-          v-model="folderDraft"
-          class="field text-text h-8 min-w-0 flex-1 rounded-control px-2.5 font-mono text-small"
-          :aria-invalid="rejected || undefined"
-          maxlength="1000"
-          autocomplete="off"
-          spellcheck="false"
-          placeholder="/path/to/the/component"
-          data-testid="component-folder"
-          @input="edited"
-          @blur="save"
-        />
-        <FolderPickerButton :root="root" :current="folderDraft" data-testid="component-browse" @pick="folderChosen" />
-      </div>
-
-      <label class="sr-only" :for="`component-description-${component.id}`">What this component is</label>
-      <textarea
-        :id="`component-description-${component.id}`"
-        ref="descriptionArea"
-        v-model="descriptionDraft"
-        rows="2"
-        class="field text-text mt-3 block min-h-[56px] w-full resize-none overflow-hidden rounded-control p-3 text-body leading-relaxed"
-        placeholder="What this component is and what it owns, so a session knows when you mean it."
-        data-testid="component-description"
+    <div class="flex items-center gap-1.5">
+      <span class="component-index shrink-0 font-mono text-micro tabular-nums" aria-hidden="true">
+        {{ String(position + 1).padStart(2, '0') }}
+      </span>
+      <label class="sr-only" :for="`component-name-${component.id}`">Component name</label>
+      <input
+        :id="`component-name-${component.id}`"
+        v-model="nameDraft"
+        class="quiet-field min-w-0 flex-1 text-body font-semibold text-text"
+        :aria-invalid="rejected || undefined"
+        maxlength="200"
+        autocomplete="off"
+        spellcheck="false"
+        data-testid="component-name"
         @input="edited"
         @blur="save"
       />
     </div>
-  </AppCard>
+
+    <label class="sr-only" :for="`component-folder-${component.id}`">Component folder</label>
+    <div class="mt-2 flex items-center gap-1.5">
+      <input
+        :id="`component-folder-${component.id}`"
+        v-model="folderDraft"
+        class="field text-text h-8 min-w-0 flex-1 rounded-control px-2 font-mono text-caption"
+        :aria-invalid="rejected || undefined"
+        maxlength="1000"
+        autocomplete="off"
+        spellcheck="false"
+        placeholder="/path/to/the/component"
+        data-testid="component-folder"
+        @input="edited"
+        @blur="save"
+      />
+      <FolderPickerButton :root="root" :current="folderDraft" data-testid="component-browse" @pick="folderChosen" />
+    </div>
+
+    <label class="sr-only" :for="`component-description-${component.id}`">What this component is</label>
+    <textarea
+      :id="`component-description-${component.id}`"
+      ref="descriptionArea"
+      v-model="descriptionDraft"
+      rows="2"
+      class="field text-text mt-2 block min-h-[52px] w-full resize-none overflow-hidden rounded-control p-2 text-small leading-relaxed"
+      placeholder="What this component is and what it owns, so a session knows when you mean it."
+      data-testid="component-description"
+      @input="edited"
+      @blur="save"
+    />
+
+    <div class="mt-2 flex items-center gap-0.5">
+      <AppButton
+        variant="quiet"
+        size="icon"
+        class="disabled:opacity-30"
+        :disabled="!canMoveUp"
+        aria-label="Move up"
+        title="Move up"
+        data-testid="component-up"
+        @click="emit('move', 'up')"
+      >
+        <svg class="size-3.5" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+          <path d="M3.5 8.5 7 5l3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </AppButton>
+      <AppButton
+        variant="quiet"
+        size="icon"
+        class="disabled:opacity-30"
+        :disabled="!canMoveDown"
+        aria-label="Move down"
+        title="Move down"
+        data-testid="component-down"
+        @click="emit('move', 'down')"
+      >
+        <svg class="size-3.5" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+          <path d="M3.5 5.5 7 9l3.5-3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </AppButton>
+      <span class="flex-1" />
+      <AppButton variant="danger-quiet" size="sm" aria-label="Delete component" data-testid="component-delete" @click="emit('delete')">
+        Delete
+      </AppButton>
+      <AppButton variant="secondary" size="sm" data-testid="component-close" @click="close">Done</AppButton>
+    </div>
+  </div>
 </template>
 
 <style scoped>
-/* The component's own hue runs down the card's edge: the one thing that tells two cards apart at a glance. */
+/* The component's own hue runs down the editor's edge, the same mark its row carries. */
 .component-rail {
   position: absolute;
-  inset: 12px auto 12px 0;
-  width: 3px;
-  border-radius: 0 3px 3px 0;
+  inset: 10px auto 10px -1px;
+  width: 2px;
+  border-radius: 0 2px 2px 0;
   background: var(--component-hue);
-  box-shadow: 0 0 14px -2px var(--component-hue-line);
+  box-shadow: 0 0 12px -2px var(--component-hue-line);
 }
 
 .component-index {
@@ -221,12 +215,11 @@ onBeforeUnmount(() => {
 
 /* Reads as a title until touched: no border at rest, the field's own recess on hover and focus. */
 .quiet-field {
-  height: 30px;
+  height: 28px;
   border: 1px solid transparent;
   border-radius: var(--radius-control);
   background: transparent;
-  padding: 0 8px;
-  margin-left: -8px;
+  padding: 0 6px;
   transition:
     border-color var(--motion-quick) ease,
     background-color var(--motion-quick) ease,
@@ -239,11 +232,9 @@ onBeforeUnmount(() => {
 
 .quiet-field:focus {
   outline: none;
-  background: var(--color-canvas);
+  background: var(--color-surface);
   border-color: color-mix(in srgb, var(--color-accent) 62%, transparent);
-  box-shadow:
-    inset 0 1px 2px rgb(0 0 0 / 0.38),
-    0 0 0 3px color-mix(in srgb, var(--color-accent) 14%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 14%, transparent);
 }
 
 .quiet-field[aria-invalid='true'] {

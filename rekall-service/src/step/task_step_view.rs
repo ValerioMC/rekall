@@ -4,6 +4,8 @@ use rekall_model::task_step;
 use rekall_model::TaskStepState;
 use serde::Serialize;
 
+use super::{StepFlowRows, StepLinkView, StepVisitView};
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskStepView {
@@ -19,12 +21,16 @@ pub struct TaskStepView {
     pub position: i32,
     /// The passes it was sent back from, oldest first; empty for a step on its first pass.
     pub passes: Vec<StepPass>,
+    /// The routes leaving this step; a task whose steps carry any is a flow.
+    pub links: Vec<StepLinkView>,
+    /// Every entry of the flow into this step, oldest first; the open one is where it stands.
+    pub visits: Vec<StepVisitView>,
     pub created_at: Instant,
     pub updated_at: Instant,
 }
 
 impl TaskStepView {
-    pub fn of(step: &task_step::Model) -> Result<Self> {
+    pub fn of(step: &task_step::Model, flow: &StepFlowRows) -> Result<Self> {
         Ok(Self {
             id: step.id,
             task_id: step.task_id,
@@ -37,6 +43,8 @@ impl TaskStepView {
             done_at: step.done_at,
             position: step.position,
             passes: step.passes()?,
+            links: flow.links_from(step.id).map(StepLinkView::of).collect(),
+            visits: flow.visits_of(step.id).map(StepVisitView::of).collect(),
             created_at: step.created_at,
             updated_at: step.updated_at,
         })
@@ -44,5 +52,10 @@ impl TaskStepView {
 
     pub fn completed_at(&self) -> Option<Instant> {
         self.claimed_at.or(self.done_at)
+    }
+
+    /// Whether the flow stands on this step now.
+    pub fn is_current(&self) -> bool {
+        self.visits.iter().any(StepVisitView::is_open)
     }
 }

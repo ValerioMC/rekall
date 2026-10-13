@@ -1,6 +1,6 @@
 ---
 description: Load a Rekall working context by anchor, e.g. /rk project:vega task:report-builder
-argument-hint: "company:|project:|task: <label> ...  [wrapup [\"how to write it\"]] | [note \"what to keep\"] | [plan] | [generate [kinds:sequence,state] \"what to diagram\"] | [step:N start|done]   (labels, not titles)"
+argument-hint: "company:|project:|task: <label> ...  [wrapup [\"how to write it\"]] | [note \"what to keep\"] | [plan] | [generate [kinds:sequence,state] \"what to diagram\"] | [step:N start|done [outcome:<name>]]   (labels, not titles)"
 allowed-tools: mcp__rekall__rekall_context, mcp__rekall__rekall_wrapup, mcp__rekall__rekall_step, mcp__rekall__rekall_propose_step, mcp__rekall__rekall_record_commit, mcp__rekall__rekall_note, mcp__rekall__rekall_diagram, Read, Grep, Glob
 ---
 
@@ -82,6 +82,21 @@ looked at the work. What you can do, while you work a checklist, is move a step 
 then **claimed** with `/rk ... step:N start` and `/rk ... step:N done` (see **Stepping**). When you
 claim one, say which, in the words the step uses.
 
+### The flow
+
+If the `<steps>` tag carries `flow="true"`, the steps are a graph, not a list: each one names its
+routes (`app-error` -> step 4), and the order they are listed in is not the order they are worked.
+
+- Work the step the tag names as `current`. If none is current, start where the `flow` field says the
+  flow begins.
+- When it ends, claim it with what happened: `/rk ... step:N done outcome:app-error`. Rekall follows
+  that route, opens the step it leads to (again, if it was finished) and makes it current. The answer
+  names it: start that one next, and keep going until a claim answers that the flow is finished.
+- A step with one route needs no outcome, and a step with no routes ends the flow. A claim whose
+  outcome names no route is refused with the routes there are: pick the one that happened, never
+  invent one.
+- A step reached again is another pass. Read its detail again and build on what the last pass left.
+
 Anchors that name a project and no task have no brief in them. Summarise what is there and wait.
 
 ### What the work produces
@@ -100,6 +115,8 @@ done` are how a session drives its own checklist as it works. `step:` takes the 
 - `start` marks that step **running**: call `rekall_step` with `state` `running`.
 - `done` marks it **claimed**: call `rekall_step` with `state` `claimed`. It does not tick the box.
   Only I do that, in the console, once I have looked at the work.
+- `outcome:<name>` alongside `done`, on a flow, is what happened: pass it as `outcome`. Rekall routes
+  by it to the next step (see **The flow**).
 
 The loop, once you are working a checklist:
 
@@ -109,7 +126,8 @@ The loop, once you are working a checklist:
    in **Wrapping up**. One state, rewritten whole, never a section per step.
 4. `/rk project:x task:y step:N done`, to claim it.
 5. If a later step is still open, `/rk project:x task:y step:M start` and go again. When none is,
-   stop and tell me the checklist is claimed and waiting for my review.
+   stop and tell me the checklist is claimed and waiting for my review. On a flow, the next step is
+   the one the claim's answer names, and the loop ends when it says the flow is finished.
 
 `rekall_step` refuses `done` as a state, and refuses a step I have already accepted. If it comes
 back with either, say so and stop.

@@ -121,7 +121,7 @@ cp .claude/commands/rk.md ~/.claude/commands/rk.md
 /rk project:vega task:report-builder
 ```
 
-**Open in terminal**, on a task, hands the session to your own terminal app in the project's folder with `/rk` already running. Set the folder in the **Folder** field on the project page. The terminal is iTerm2 when installed, Terminal.app otherwise. A switch in **Settings > Claude Code** adds `--dangerously-skip-permissions`; it is stored on the machine, not in the database. This button works only inside the desktop app.
+**Open in terminal**, on a task, hands the session to your own terminal app in the project's folder with `/rk` already running. Set the folder in the **Folder** field of the project page's **Repository** group. The terminal is iTerm2 when installed, Terminal.app otherwise. A switch in **Settings > Claude Code** adds `--dangerously-skip-permissions`; it is stored on the machine, not in the database. This button works only inside the desktop app.
 
 ## Terminal in Rekall
 
@@ -215,7 +215,7 @@ An anchor brings back the record, everything it references resolved in full with
 |------|--------|--------|
 | `rekall_context` | read | Resolve anchors, return markdown |
 | `rekall_wrapup` | write | Replace one task's wrapup |
-| `rekall_step` | write | Move one step: `open` to `running` to `claimed` |
+| `rekall_step` | write | Move one step: `open` to `running` to `claimed`; on a flow, a claim's `outcome` follows that route |
 | `rekall_record_commit` | write | Log a commit of the project's repo folder against one task or step |
 | `rekall_propose_step` | write | Add one step as a draft, for a person to promote |
 | `rekall_note` | write | Write a note on one task, or rewrite one it carries by title with `replace` |
@@ -226,7 +226,7 @@ There is no query, get or schema tool. `rekall_note` adds a note, or with `repla
 
 ## Project page
 
-From the console, the open-page button on the right end of any project header in the navigator (shown while browsing **All work** or a company) goes straight to that project's page; the rest of the header still folds its tasks. The project page keeps what the project is on one screen. **Description** and **Folder** (with **Commit on claim**) sit on top. Under them, **Components** lists the folders of the project that are parts of it: a name, a folder and a description each, added from **Add component** (the name starts as the folder's own name, and **Browse** opens the editor's path picker, listing folders only, to choose it), shown as a grid of compact tiles (the first six, then **Show all**) that fills the page's width, opened one at a time into an editor with autosave, moved up or down, or deleted behind a confirm. The heading folds the whole list down to a one-line summary, and the browser remembers it. Names are unique on a project, ignoring case. Every context that loads the project, from its own anchor or through one of its tasks, carries them in a `<components>` block, so a session told "the billing module" knows which folder that is and what it does; only the console writes them. A task description or a step detail can name one as `[[Component name]]` (matched ignoring case): the text stays as written, and the context a session reads carries the component's name, folder and description at the first mention, name and folder after, and a `component not found in this project` line for a name that matches nothing. References inside code spans and fenced blocks are left alone. In the console the markdown stays as written; read mode draws a reference in a task description or a step detail as a chip whose hover shows the component's folder and description, and a name the project does not have as a struck-through red chip (the chips follow a rename without a reload). Write mode shows the source as typed, and text with no project, such as a note, keeps its brackets. Below, a rail lists the project's pages: the **Blueprint**, pinned and marked as what every `/rk` hands to Claude, then the **Sections**. A section is a title and markdown, written from the **+** in the rail, edited in place with autosave, moved up or down, or deleted behind a confirm. Titles are unique on a project, ignoring case. Sections are never part of any context, so they cost no tokens and a session reads them only if you paste one in; a session adds one with `rekall_project_section`, starting from the task it works, and it appears in the rail without a reload.
+From the console, the open-page button on the right end of any project header in the navigator (shown while browsing **All work** or a company) goes straight to that project's page; the rest of the header still folds its tasks. The project page keeps what the project is on one screen, in three areas that each scroll on their own, so the blueprint is read without scrolling the page: the rail of the project's pages on the left, the page that is open in the middle, and the project's settings on the right (under the rail when the window is narrower). The settings are three groups, **About** (the description), **Components** and **Repository** (the **Folder** and **Commit on claim**); each heading folds its group down to a one-line summary, and the browser remembers it. **Components** lists the folders of the project that are parts of it: a name, a folder and a description each, added from the **+** on its heading (the name starts as the folder's own name, and **Browse** opens the editor's path picker, listing folders only, to choose it), shown as a dense numbered list, opened one at a time into an editor with autosave, moved up or down, or deleted behind a confirm. Names are unique on a project, ignoring case. Every context that loads the project, from its own anchor or through one of its tasks, carries them in a `<components>` block, so a session told "the billing module" knows which folder that is and what it does; only the console writes them. A task description or a step detail can name one as `[[Component name]]` (matched ignoring case): the text stays as written, and the context a session reads carries the component's name, folder and description at the first mention, name and folder after, and a `component not found in this project` line for a name that matches nothing. References inside code spans and fenced blocks are left alone. In the console the markdown stays as written; read mode draws a reference in a task description or a step detail as a chip whose hover shows the component's folder and description, and a name the project does not have as a struck-through red chip (the chips follow a rename without a reload). Write mode shows the source as typed, and text with no project, such as a note, keeps its brackets. The rail lists the project's pages: the **Blueprint**, pinned and marked as what every `/rk` hands to Claude, then the **Sections**. A section is a title and markdown, written from the **+** in the rail, edited in place with autosave, moved up or down, or deleted behind a confirm. Titles are unique on a project, ignoring case. Sections are never part of any context, so they cost no tokens and a session reads them only if you paste one in; a session adds one with `rekall_project_section`, starting from the task it works, and it appears in the rail without a reload.
 
 A project wears an **icon**: one of the fixed glyphs, or a picture of your own, both set in the project's edit dialog (**Upload image** takes a PNG, JPEG, WebP or GIF up to 10 MB). Whatever its shape, a picture is cropped to the centred square and shown with the rounded corners of a macOS icon, in the project cards and header, the console's task column and the project picker of the New task dialog. The server keeps one 512 px PNG master per project (`project_icon_image`; a smaller upload is not enlarged) and resizes it with Lanczos3 on premultiplied alpha to exactly the device pixels each spot asks for (`GET /api/projects/{id}/icon-image?size=N&v=<version>`, 8 to 512; with `v` the answer is cached for good, and `iconImageVersion` on the project changes with every upload). `PUT` takes the image file as the body and answers the project; `DELETE` takes the picture off and the glyph returns.
 
@@ -273,6 +273,7 @@ A session drives its own checklist over `/rk`:
 ```
 /rk project:vega task:report-builder step:3 start   # step 3 -> running
 /rk project:vega task:report-builder step:3 done    # step 3 -> claimed
+/rk project:vega task:release step:3 done outcome:app-error   # on a flow, follow that route (see Flows)
 ```
 
 The console holds one `text/event-stream` connection (`GET /api/steps/stream`) carrying six frames: `steps` for a checklist, `task-review` for a stepless task's review line, `wrapup` for a wrapup write or delete, `commit-reference` for a commit logged against a task or step, `run-queue` for the run queue, and `note` for a note a session wrote or rewrote. A step moved from an in-app terminal, a box ticked in another window, a wrapup or a note written over MCP, or a commit logged by a session all land without a reload.
@@ -284,6 +285,20 @@ With steps on a task, the open steps are the work and the description becomes th
 Only you set a step to **done**. `rekall_step` stops at `claimed`. The navigator's progress count is built on `done`.
 
 The mark in front of each navigator row says where an in-progress task's work stands. A hollow amber ring around a small light means nothing is handed in yet, and a green arc on that ring is the share of the checklist already accepted. An orbiting comet means a session or a timer is on the task now; it is the only mark that moves. When the timer runs, no session is at work and a claim is waiting for you, the comet keeps orbiting but an amber check replaces the light at its centre: something is running, and it needs your review to go on. A session still working a step keeps the plain comet, whatever it already claimed. An amber check in an open ring means work is claimed and waiting for your review. A filled green seal means every piece of work is accepted and the task is ready to move to Done. Tasks in any other status keep a plain dot in their status colour. Hover the mark to see its meaning in words. The selected row scrolls to the middle of the list when it is out of sight, and a gold comet circles its edge, brightest at the head and fading along its tail, so it is easy to find; with reduced motion set the comet is hidden.
+
+### Flows
+
+A checklist runs top to bottom. When the work branches or loops (build, deploy, test; a failed test goes to a fix that goes back to deploy), give the steps **routes**: each says that when one step ends with an outcome, the work moves to another. A task whose steps carry at least one route is a **flow**.
+
+Switch the Steps pane to **Flow** in its header; a task with routes opens on it. The graph draws every step laid out by dagre, top to bottom in checklist order, and every route labelled with its outcome. A route the work has taken is solid, one not yet taken is dotted, and the route the last move came in by carries a light toward the step the work stands on, which is lit and tagged **here**. Each step shows how many times the work entered it (`×3`), and **start** and **end** mark where the flow begins and where it finishes. The strip above the graph is the trail: every move in order with its number and the outcome it left by, the open one last. Pick a step on the graph or the trail to open it beside the graph: its routes out, edited in place (an outcome renamed on blur, a target picked from the list, **Add**, the cross to remove), the routes that lead into it, and every visit with how it left. **Detail** opens it on the list to write its detail. **Reset moves** forgets the trail and the counts; the steps keep their states and routes.
+
+A session works a flow over the same `/rk` lines, adding what happened when it claims:
+
+```
+/rk project:vega task:release step:3 done outcome:app-error   # step 3 -> claimed, the work -> the app-error route
+```
+
+`rekall_step` with `claimed` and an `outcome` closes the visit on that step, follows the route that outcome names, opens the step it leads to (again, if it was finished) and makes it current; the answer names it and the line that starts it. A step with one route needs no outcome, a step with no routes ends the flow, and an outcome that names no route is refused with the routes there are. Starting another step leaves the current one without an outcome. An outcome is a slug, so `App error` is stored and matched as `app-error`; one outcome names one route per step, a route never leads back to its own step, and a step holds at most eight. The context marks a flow with `flow="true"`, the current step and the move count on `<steps>`, `(current, visit N)` on that step, and a `Routes:` line under every step, finished ones included. Routes are written only from the console (`POST /api/steps/{id}/links`, `PATCH` and `DELETE /api/step-links/{id}`, each answering the task's whole checklist); `DELETE /api/tasks/{id}/visits` is the reset. Both travel on the step views, so the `steps` frame redraws the graph live.
 
 ### Planning
 
@@ -313,7 +328,7 @@ The REST side is `GET /api/commit-references`, `POST /api/tasks/{id}/commit-refe
 
 ### Commit on claim
 
-A project can commit for the session instead of waiting for it to. The **Commit on claim** switch sits under the **Folder** field on the project page and only arms when that folder is a git repository: the strip under it says which branch is checked out and whom git would commit as there (`user.name` / `user.email` as `git config` resolves them in that folder, so the global identity unless the repo overrides it). Outside a repository the switch stays off and says why; on a repository with no `user.email` it arms but warns that the commit will fail until one is set. The setting is saved on the project (`autoCommit` on `PUT /api/projects/{id}`; the server keeps it off whenever the folder is not a repository) and `GET /api/projects/{id}/repository` is what the strip reads.
+A project can commit for the session instead of waiting for it to. The **Commit on claim** switch sits under the **Folder** field in the project page's **Repository** group and only arms when that folder is a git repository: the strip under it says which branch is checked out and whom git would commit as there (`user.name` / `user.email` as `git config` resolves them in that folder, so the global identity unless the repo overrides it). Outside a repository the switch stays off and says why; on a repository with no `user.email` it arms but warns that the commit will fail until one is set. The setting is saved on the project (`autoCommit` on `PUT /api/projects/{id}`; the server keeps it off whenever the folder is not a repository) and `GET /api/projects/{id}/repository` is what the strip reads.
 
 With it on, a claim commits: `rekall_step … state="claimed"` stages everything in the folder (`git add -A`), commits it, and logs that commit against the step; on a task with no checklist, the Claude-authored `rekall_wrapup` that claims the task does the same against the task. A task with a checklist never commits on its wrapup.
 
@@ -439,7 +454,8 @@ The screen opens on a **gallery**: the diagrams of the projects in the top bar's
 ```
 Company ──< Project ──< Task >──< Document
                │         │       via document_task
-               │         ├──< TaskStep
+               │         ├──< TaskStep ──< StepLink (a route to another step of the task)
+               │         ├──< StepVisit ──> TaskStep (one entry of the flow into it)
                │         ├──1 Wrapup
                │         ├──< TokenUsage ──> TaskStep (optional)
                │         └──> Tag (optional)
@@ -453,6 +469,8 @@ Company ──< Project ──< Task >──< Document
 | `Task` | `label`, unique per project | title, status, markdown description, a standing wrapup directive, its notes, steps, wrapup, an optional tag |
 | `Document` | none | title, kind, markdown body, the tasks it is on |
 | `TaskStep` | through its task | title, optional detail, state, position |
+| `StepLink` | through its task | the step it leaves, the step it leads to, its outcome (a slug, unique per step), position. Deleted with either step |
+| `StepVisit` | through its task | the step entered, its move number in the task, when it was entered and left, the outcome it left by. The open one is where the flow stands |
 | `Wrapup` | through its task | markdown body, who wrote it last. One per task |
 | `Tag` | `name`, unique | icon key, glow-colour key, the tasks currently wearing it |
 | `TokenUsage` | through its task | the input, output, cache-write and cache-read tokens one Claude Code session spent on the task or one of its steps. Rewritten whole each time that session's transcript is read; `transcript_scan` remembers how much of each transcript was read |
@@ -545,7 +563,7 @@ rekall-common/     RekallError, Id, Instant and the string helpers every layer s
 rekall-model/      SeaORM entities and their state rules
 rekall-diagram/    the diagram format: Mermaid sheets and their code links, JSON form and validation. No database, no UI
 rekall-repository/ queries, one function per lookup, and the SQLite migrations
-rekall-service/    business logic: context assembly, the step and review lines, wrapups, notes, time entries, token usage
+rekall-service/    business logic: context assembly, the step and review lines, flows (routes and visits), wrapups, notes, time entries, token usage
 rekall-api/        Axum REST API for the UI, the folder listing and the step event stream
 rekall-mcp/        MCP server, on rekall-service and never rekall-api: one tool reads, five write
 rekall-claude/     the in-app terminal (portable-pty over one WebSocket), the Claude Code usage meter, the run queue, the transcript reader for token usage and the editor for Claude Code's own files (`~/.claude`)

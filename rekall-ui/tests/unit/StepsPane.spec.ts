@@ -58,6 +58,8 @@ function makeStep(id: string, position: number, state: TaskStepState, body: stri
     doneAt: state === 'DONE' ? '2026-10-01T08:00:00Z' : null,
     position,
     passes: [],
+    links: [],
+    visits: [],
     createdAt: '2026-10-01T07:00:00Z',
     updatedAt: '2026-10-01T07:00:00Z'
   }

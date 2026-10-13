@@ -16,6 +16,7 @@ mod responses;
 mod search_controller;
 mod skill_assignment_controller;
 mod step_event_controller;
+mod step_flow_controller;
 mod tag_controller;
 mod task_controller;
 mod task_revision_controller;

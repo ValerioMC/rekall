@@ -205,6 +205,8 @@ const steps: TaskStep[] = [
     doneAt: '2026-08-12T13:30:00Z',
     position: 0,
     passes: [],
+    links: [],
+    visits: [],
     createdAt: '2026-08-12T10:00:00Z',
     updatedAt: '2026-08-12T11:00:00Z'
   },
@@ -220,6 +222,8 @@ const steps: TaskStep[] = [
     doneAt: null,
     position: 1,
     passes: [],
+    links: [],
+    visits: [],
     createdAt: '2026-08-12T10:00:00Z',
     updatedAt: '2026-08-12T10:00:00Z'
   }

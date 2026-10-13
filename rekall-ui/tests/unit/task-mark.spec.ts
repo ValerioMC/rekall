@@ -50,6 +50,8 @@ function step(id: string, state: TaskStepState, taskId = 't1'): TaskStep {
     doneAt: null,
     position: 0,
     passes: [],
+    links: [],
+    visits: [],
     createdAt: '2026-09-20T09:00:00Z',
     updatedAt: '2026-09-20T09:00:00Z'
   }

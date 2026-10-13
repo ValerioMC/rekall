@@ -86,6 +86,7 @@ impl ContextRenderer {
         let mut out = format!("\n<steps {}>\n", steps_attributes(&steps, drafts, wrapup));
         for step in &steps {
             out.push_str(&render_step(step, wrapup, references));
+            out.push_str(&render_routes(step, &steps));
         }
         if drafts > 0 {
             out.push_str(&format!(
@@ -310,6 +311,9 @@ fn steps_attributes(steps: &[&TaskStepView], drafts: usize, wrapup: Option<&Wrap
     let awaiting = steps.iter().filter(|s| s.state == TaskStepState::Claimed).count();
     let unwritten = steps.iter().filter(|s| is_unwritten(s, wrapup)).count();
     let mut attributes = format!("done=\"{done}\" open=\"{}\"", steps.len() - done);
+    if is_flow(steps) {
+        attributes.push_str(&flow_attributes(steps));
+    }
     let optional = [("running", running), ("awaiting-review", awaiting), ("finished-since-wrapup", unwritten), ("draft", drafts)];
     for (name, count) in optional {
         if count > 0 {
@@ -324,6 +328,9 @@ fn render_step(step: &TaskStepView, wrapup: Option<&WrapupView>, references: &mu
     let unwritten = is_unwritten(step, wrapup);
     let mut out = String::from(if step.state.complete() { "- [x] " } else { "- [ ] " });
     out.push_str(&step.title);
+    if step.is_current() {
+        out.push_str(&format!("  (current, visit {})", step.visits.len()));
+    }
     if step.state.running() {
         out.push_str("  (in progress)");
     } else if step.state == TaskStepState::Claimed {
@@ -345,6 +352,45 @@ fn render_step(step: &TaskStepView, wrapup: Option<&WrapupView>, references: &mu
     }
     out
 }
+
+fn is_flow(steps: &[&TaskStepView]) -> bool {
+    steps.iter().any(|step| !step.links.is_empty())
+}
+
+/// `flow`, the step the work stands on (one-based, as `rekall_step` takes it) and how many moves it took.
+fn flow_attributes(steps: &[&TaskStepView]) -> String {
+    let moves: usize = steps.iter().map(|step| step.visits.len()).sum();
+    let mut attributes = String::from(" flow=\"true\"");
+    if let Some(current) = steps.iter().find(|step| step.is_current()) {
+        attributes.push_str(&format!(" current=\"{}\"", current.position + 1));
+    }
+    attributes.push_str(&format!(" moves=\"{moves}\""));
+    attributes
+}
+
+/// A step's routes, each naming its target by number and title. Finished steps get them too: a
+/// route can bring the work back.
+fn render_routes(step: &TaskStepView, steps: &[&TaskStepView]) -> String {
+    if step.links.is_empty() {
+        return String::new();
+    }
+    let routes: Vec<String> = step
+        .links
+        .iter()
+        .filter_map(|link| {
+            let target = steps.iter().find(|candidate| candidate.id == link.to_step_id)?;
+            Some(format!("`{}` -> step {} \"{}\"", link.outcome, target.position + 1, attribute(&target.title)))
+        })
+        .collect();
+    if routes.is_empty() {
+        return String::new();
+    }
+    format!("  Routes: {}\n", routes.join("; "))
+}
+
+#[cfg(test)]
+#[path = "../../tests/unit/context/context_renderer_flow_tests.rs"]
+mod flow_tests;
 
 #[cfg(test)]
 #[path = "../../tests/unit/context/context_renderer_skills_tests.rs"]

@@ -35,11 +35,11 @@ async function render(): Promise<VueWrapper> {
   return wrapper
 }
 
-/** Each listed component's name, whether it is shown as a tile or open in its editor. */
+/** Each listed component's name, whether it is shown as a row or open in its editor. */
 const names = (page: VueWrapper): string[] =>
   page.findAll('li').map((item) => {
     const editor = item.find<HTMLInputElement>('[data-testid="component-name"]')
-    return editor.exists() ? editor.element.value : item.get('[data-testid="component-tile-name"]').text()
+    return editor.exists() ? editor.element.value : item.get('[data-testid="component-row-name"]').text()
   })
 
 function installStorage(): void {
@@ -54,7 +54,7 @@ function installStorage(): void {
 }
 
 async function openEditor(page: VueWrapper, id: string): Promise<void> {
-  await page.get(`[data-testid="component-tile-${id}"]`).trigger('click')
+  await page.get(`[data-testid="component-row-${id}"]`).trigger('click')
 }
 
 beforeEach(() => {
@@ -183,7 +183,7 @@ describe('the components section', () => {
     expect(names(page)).toEqual(['ui'])
   })
 
-  it('shows each component as a tile and opens one editor at a time', async () => {
+  it('shows each component as a row and opens one editor at a time', async () => {
     const page = await render()
 
     expect(page.findAll('[data-testid="component-name"]')).toHaveLength(0)
@@ -194,6 +194,25 @@ describe('the components section', () => {
     expect((page.get('[data-testid="component-name"]').element as HTMLInputElement).value).toBe('ui')
   })
 
+  it('lists every component, however many there are', async () => {
+    vi.mocked(api.fetchProjectComponents).mockResolvedValue(
+      Array.from({ length: 8 }, (_, position) => component(`c${position}`, position))
+    )
+    const page = await render()
+
+    expect(names(page)).toHaveLength(8)
+  })
+
+  it('unfolds a folded list when a component is added', async () => {
+    const page = await render()
+    await page.get('[data-testid="components-toggle"]').trigger('click')
+
+    await page.get('[data-testid="add-component"]').trigger('click')
+
+    expect(page.get('#components-body').attributes('style') ?? '').not.toContain('display: none')
+    expect(page.find('[data-testid="component-composer"]').exists()).toBe(true)
+  })
+
   it('folds the list to its summary and remembers the choice', async () => {
     const page = await render()
 
@@ -201,21 +220,9 @@ describe('the components section', () => {
 
     expect(page.get('#components-body').attributes('style')).toContain('display: none')
     expect(page.get('[data-testid="components-summary"]').text()).toBe('api · ui')
-    expect(window.localStorage.getItem('rekall.projectComponents.collapsed')).toBe('true')
+    expect(window.localStorage.getItem('rekall.projectInspector.components.collapsed')).toBe('true')
     await page.get('[data-testid="components-toggle"]').trigger('click')
     expect(page.find('[data-testid="components-summary"]').exists()).toBe(false)
   })
 
-  it('keeps the first six tiles and offers the rest on request', async () => {
-    vi.mocked(api.fetchProjectComponents).mockResolvedValue(
-      Array.from({ length: 8 }, (_, position) => component(`c${position}`, position))
-    )
-    const page = await render()
-
-    expect(names(page)).toHaveLength(6)
-    await page.get('[data-testid="components-fold"]').trigger('click')
-    expect(names(page)).toHaveLength(8)
-    await page.get('[data-testid="components-fold"]').trigger('click')
-    expect(names(page)).toHaveLength(6)
-  })
 })

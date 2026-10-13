@@ -90,6 +90,10 @@ name = "e2e_steps"
 path = "tests/integration/e2e_steps.rs"
 
 [[test]]
+name = "e2e_flows"
+path = "tests/integration/e2e_flows.rs"
+
+[[test]]
 name = "e2e_wrapup_time"
 path = "tests/integration/e2e_wrapup_time.rs"
 

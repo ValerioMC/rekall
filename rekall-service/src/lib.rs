@@ -11,6 +11,7 @@ pub mod component;
 pub mod context;
 pub mod diagram;
 pub mod events;
+pub mod flow;
 pub mod note;
 pub mod review;
 pub mod revision;

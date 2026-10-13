@@ -3,6 +3,8 @@ import {
   asCompanyId,
   asDocumentId,
   asProjectId,
+  asStepLinkId,
+  asStepVisitId,
   asTagId,
   asTaskId,
   asTaskStepId,
@@ -15,6 +17,8 @@ const companyId = z.string().uuid().transform(asCompanyId)
 const projectId = z.string().uuid().transform(asProjectId)
 const taskId = z.string().uuid().transform(asTaskId)
 const taskStepId = z.string().uuid().transform(asTaskStepId)
+const stepLinkId = z.string().uuid().transform(asStepLinkId)
+const stepVisitId = z.string().uuid().transform(asStepVisitId)
 const documentId = z.string().uuid().transform(asDocumentId)
 const wrapupId = z.string().uuid().transform(asWrapupId)
 const timeEntryId = z.string().uuid().transform(asTimeEntryId)
@@ -95,6 +99,23 @@ export const TagSchema = z.object({
   updatedAt: z.string()
 })
 
+export const StepLinkSchema = z.object({
+  id: stepLinkId,
+  fromStepId: taskStepId,
+  toStepId: taskStepId,
+  outcome: z.string(),
+  position: z.number().int()
+})
+
+export const StepVisitSchema = z.object({
+  id: stepVisitId,
+  stepId: taskStepId,
+  ordinal: z.number().int(),
+  enteredAt: z.string(),
+  leftAt: z.string().nullable(),
+  outcome: z.string().nullable()
+})
+
 export const TaskStepSchema = z.object({
   id: taskStepId,
   taskId,
@@ -107,6 +128,8 @@ export const TaskStepSchema = z.object({
   doneAt: z.string().nullable(),
   position: z.number().int(),
   passes: z.array(z.object({ detailMarkdown: z.string().nullable(), sentBackAt: z.string() })),
+  links: z.array(StepLinkSchema),
+  visits: z.array(StepVisitSchema),
   createdAt: z.string(),
   updatedAt: z.string()
 })

@@ -35,61 +35,54 @@ onMounted(() => folderInput.value?.focus())
 
 <template>
   <form
-    class="composer rounded-card border border-dashed border-accent/40 bg-accent-soft p-4"
+    class="rounded-control border border-dashed border-accent/40 bg-accent-soft p-3"
     data-testid="component-composer"
     @submit.prevent="submit"
     @keydown.esc.stop.prevent="emit('cancel')"
   >
-    <p class="eyebrow text-caption">New component</p>
-
-    <div class="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-      <div>
-        <label class="mb-1 block text-small text-text-muted" for="new-component-folder">Folder</label>
-        <div class="flex items-center gap-2">
-          <input
-            id="new-component-folder"
-            ref="folderInput"
-            v-model="folder"
-            class="field text-text h-9 min-w-0 flex-1 rounded-control px-3 font-mono text-small"
-            maxlength="1000"
-            autocomplete="off"
-            spellcheck="false"
-            placeholder="/Users/you/Projects/thing/module"
-            data-testid="new-component-folder"
-          />
-          <FolderPickerButton :root="root" :current="folder" data-testid="new-component-browse" @pick="folder = $event" />
-        </div>
-      </div>
-      <div>
-        <label class="mb-1 block text-small text-text-muted" for="new-component-name">Name</label>
-        <input
-          id="new-component-name"
-          v-model="name"
-          class="field text-text h-9 w-full rounded-control px-3 text-body"
-          maxlength="200"
-          autocomplete="off"
-          :placeholder="suggestedName || 'The folder’s name'"
-          data-testid="new-component-name"
-        />
-      </div>
+    <label class="mb-1 block text-caption text-text-muted" for="new-component-folder">Folder</label>
+    <div class="flex items-center gap-1.5">
+      <input
+        id="new-component-folder"
+        ref="folderInput"
+        v-model="folder"
+        class="field text-text h-8 min-w-0 flex-1 rounded-control px-2 font-mono text-caption"
+        maxlength="1000"
+        autocomplete="off"
+        spellcheck="false"
+        placeholder="/Users/you/Projects/thing/module"
+        data-testid="new-component-folder"
+      />
+      <FolderPickerButton :root="root" :current="folder" data-testid="new-component-browse" @pick="folder = $event" />
     </div>
 
-    <label class="mb-1 mt-3 block text-small text-text-muted" for="new-component-description">Description</label>
+    <label class="mb-1 mt-2 block text-caption text-text-muted" for="new-component-name">Name</label>
+    <input
+      id="new-component-name"
+      v-model="name"
+      class="field text-text h-8 w-full rounded-control px-2 text-small"
+      maxlength="200"
+      autocomplete="off"
+      :placeholder="suggestedName || 'The folder’s name'"
+      data-testid="new-component-name"
+    />
+
+    <label class="mb-1 mt-2 block text-caption text-text-muted" for="new-component-description">Description</label>
     <textarea
       id="new-component-description"
       v-model="description"
       rows="2"
-      class="field text-text block w-full resize-y rounded-control p-3 text-body leading-relaxed"
+      class="field text-text block w-full resize-y rounded-control p-2 text-small leading-relaxed"
       placeholder="What this component is and what it owns."
       data-testid="new-component-description"
       @keydown.meta.enter.prevent="submit"
       @keydown.ctrl.enter.prevent="submit"
     />
 
-    <div class="mt-3 flex items-center justify-end gap-2">
+    <div class="mt-2.5 flex items-center justify-end gap-2">
       <AppButton variant="ghost" size="sm" data-testid="new-component-cancel" @click="emit('cancel')">Cancel</AppButton>
       <AppButton type="submit" variant="primary" size="sm" :disabled="!canSubmit" :loading="creating" data-testid="new-component-submit">
-        Add component
+        Add
       </AppButton>
     </div>
   </form>

@@ -12,8 +12,8 @@ import type { TaskStepId } from '@/model/branded'
 
 /**
  * The top of the checklist: the task, its `/rk` anchor, the session buttons, and the ledger, one
- * segment per step so a long checklist still reads at a glance, with the tally and the view
- * toggles on the same line.
+ * segment per step so a long checklist still reads at a glance, with the tally, the list or flow
+ * switch and the view toggles on the same line.
  */
 const props = defineProps<{
   task: Task
@@ -24,6 +24,10 @@ const props = defineProps<{
 }>()
 
 const hideDone = defineModel<boolean>('hideDone', { required: true })
+/** The checklist as a list, or as the flow its routes draw. */
+const view = defineModel<'list' | 'flow'>('view', { required: true })
+
+const VIEWS = ['list', 'flow'] as const
 
 defineEmits<{
   'review-first': []
@@ -116,6 +120,20 @@ async function copyAnchor(): Promise<void> {
           :class="segmentClass(step)"
         />
       </span>
+      <div class="flex shrink-0 gap-0.5 rounded-control bg-surface p-0.5" role="group" aria-label="Show the steps as">
+        <button
+          v-for="option in VIEWS"
+          :key="option"
+          type="button"
+          class="focus-ring h-6 cursor-pointer rounded-control px-2.5 text-caption capitalize transition-colors duration-(--motion-quick)"
+          :class="view === option ? 'bg-surface-raised text-text shadow-[0_1px_2px_rgb(0_0_0/0.4)]' : 'text-text-subtle hover:text-text'"
+          :aria-pressed="view === option"
+          :data-testid="`steps-view-${option}`"
+          @click="view = option"
+        >
+          {{ option }}
+        </button>
+      </div>
       <div v-if="done > 0 || claimed > 0 || draftCount > 0" class="flex shrink-0 items-center gap-2.5 text-caption">
         <button
           v-if="claimed > 0"
@@ -135,12 +153,12 @@ async function copyAnchor(): Promise<void> {
           {{ draftCount }} in draft
         </button>
         <span
-          v-if="(claimed > 0 || draftCount > 0) && (done > 0 || claimed > 0)"
+          v-if="view === 'list' && (claimed > 0 || draftCount > 0) && (done > 0 || claimed > 0)"
           class="h-3 w-px bg-border-strong"
           aria-hidden="true"
         />
         <button
-          v-if="done > 0 || claimed > 0"
+          v-if="view === 'list' && (done > 0 || claimed > 0)"
           class="focus-ring rounded-key text-text-subtle transition-colors hover:text-text"
           :aria-pressed="hideDone"
           data-testid="toggle-hide-done"

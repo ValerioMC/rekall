@@ -1,17 +1,17 @@
 <script setup lang="ts">
-import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import AppCatalogHeader from '@/components/catalog/AppCatalogHeader.vue'
-import AutoCommitSwitch from '@/components/catalog/AutoCommitSwitch.vue'
 import RecordDialog from '@/components/console/RecordDialog.vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
-import AppCard from '@/components/ui/AppCard.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
+import ProjectAboutGroup from '@/components/project/ProjectAboutGroup.vue'
 import ProjectBlueprintPane from '@/components/project/ProjectBlueprintPane.vue'
 import ProjectComponentsSection from '@/components/project/ProjectComponentsSection.vue'
 import ProjectDocsRail from '@/components/project/ProjectDocsRail.vue'
+import ProjectRepositoryGroup from '@/components/project/ProjectRepositoryGroup.vue'
 import ProjectSectionPane from '@/components/project/ProjectSectionPane.vue'
 import ProjectTasksDrawer from '@/components/project/ProjectTasksDrawer.vue'
 import ProjectMark from '@/components/ui/ProjectMark.vue'
@@ -26,9 +26,6 @@ import { useTokenUsageStore } from '@/stores/tokenUsage.store'
 import { projectDraft } from '@/model/record-draft'
 import { PROJECT_STATUS_LABEL } from '@/model/catalog'
 import { asProjectId } from '@/model/branded'
-import { desktopHost, pickFolder } from '@/common/native/desktop'
-import { fetchProjectRepository } from '@/api/catalog.api'
-import type { ProjectRepository } from '@/model/catalog'
 import type { RecordDraft } from '@/model/record-draft'
 import type { RailSelection } from '@/components/project/ProjectDocsRail.vue'
 import type { ProjectSection } from '@/model/project-section'
@@ -118,97 +115,12 @@ watch(
   }
 )
 
-const descriptionDraft = ref('')
-const descriptionArea = ref<HTMLTextAreaElement | null>(null)
-let descriptionTimer: ReturnType<typeof setTimeout> | null = null
-
-function resize(el: HTMLTextAreaElement | null): void {
-  if (!el) return
-  el.style.height = 'auto'
-  el.style.height = `${el.scrollHeight}px`
-}
-
-function onDescriptionInput(event: Event): void {
-  descriptionDraft.value = (event.target as HTMLTextAreaElement).value
-  resize(event.target as HTMLTextAreaElement)
-  if (descriptionTimer) clearTimeout(descriptionTimer)
-  descriptionTimer = setTimeout(() => {
-    if (project.value) void store.saveProjectDescription(project.value.id, descriptionDraft.value)
-  }, 700)
-}
-
-const folderDraft = ref('')
-let folderTimer: ReturnType<typeof setTimeout> | null = null
-
-const canBrowse = desktopHost() !== null
-
-// What git makes of the folder: read once per project and again after every folder save,
-// since the switch below is only offered on a repository.
-const repository = ref<ProjectRepository | null>(null)
-const repositoryPending = ref(false)
-const autoCommitSaving = ref(false)
-
-async function readRepository(): Promise<void> {
-  const id = project.value?.id
-  if (!id) return
-  repositoryPending.value = true
-  try {
-    const status = await fetchProjectRepository(id)
-    if (project.value?.id === id) repository.value = status
-  } catch {
-    if (project.value?.id === id) repository.value = null
-  } finally {
-    if (project.value?.id === id) repositoryPending.value = false
-  }
-}
-
-async function saveFolder(): Promise<void> {
-  if (!project.value) return
-  await store.saveProjectRepoFolder(project.value.id, folderDraft.value)
-  await readRepository()
-}
-
-function scheduleFolderSave(): void {
-  if (folderTimer) clearTimeout(folderTimer)
-  folderTimer = setTimeout(() => void saveFolder(), 700)
-}
-
-async function setAutoCommit(enabled: boolean): Promise<void> {
-  if (!project.value) return
-  autoCommitSaving.value = true
-  try {
-    await store.saveProjectAutoCommit(project.value.id, enabled)
-  } finally {
-    autoCommitSaving.value = false
-  }
-}
-
-function onFolderInput(event: Event): void {
-  folderDraft.value = (event.target as HTMLInputElement).value
-  scheduleFolderSave()
-}
-
-async function browseFolder(): Promise<void> {
-  const chosen = await pickFolder(folderDraft.value)
-  if (!chosen) return
-  folderDraft.value = chosen
-  scheduleFolderSave()
-}
-
 watch(
   () => project.value?.id ?? null,
-  async () => {
-    if (descriptionTimer) clearTimeout(descriptionTimer)
-    if (folderTimer) clearTimeout(folderTimer)
-    descriptionDraft.value = project.value?.description ?? ''
-    folderDraft.value = project.value?.repoFolder ?? ''
+  () => {
     selection.value = 'blueprint'
     showingTasks.value = false
     if (project.value) void run(() => sectionsStore.load(project.value!.id))
-    repository.value = null
-    void readRepository()
-    await nextTick()
-    resize(descriptionArea.value)
   },
   { immediate: true }
 )
@@ -216,21 +128,10 @@ watch(
 watch(sections, (list) => {
   if (selection.value !== 'blueprint' && !list.some((section) => section.id === selection.value)) selection.value = 'blueprint'
 })
-
-onUnmounted(() => {
-  if (descriptionTimer) {
-    clearTimeout(descriptionTimer)
-    if (project.value) void store.saveProjectDescription(project.value.id, descriptionDraft.value)
-  }
-  if (folderTimer) {
-    clearTimeout(folderTimer)
-    if (project.value) void store.saveProjectRepoFolder(project.value.id, folderDraft.value)
-  }
-})
 </script>
 
 <template>
-  <div class="flex-1 min-h-0 overflow-y-auto bg-canvas">
+  <div class="flex min-h-0 flex-1 flex-col overflow-y-auto bg-canvas">
     <template v-if="!store.isLoading && !project">
       <AppCatalogHeader title="Project" />
       <div class="mx-auto w-full max-w-[1800px] px-6 py-6 2xl:px-10">
@@ -292,70 +193,21 @@ onUnmounted(() => {
         </template>
       </AppCatalogHeader>
 
-      <div class="mx-auto flex w-full max-w-[1800px] flex-col gap-5 px-6 py-6 2xl:px-10">
-        <div class="grid gap-5 lg:grid-cols-2">
-          <AppCard :style="{ borderTop: `2px solid ${identityHue(project.id).line}` }">
-            <p class="mb-2 eyebrow text-caption">
-              Description
-            </p>
-            <textarea
-              ref="descriptionArea"
-              :value="descriptionDraft"
-              data-testid="project-description"
-              rows="3"
-              class="field text-text block w-full resize-none overflow-hidden rounded-control p-3 text-body leading-relaxed"
-              placeholder="What this is, in a few sentences. Travels into every context that loads this project."
-              @input="onDescriptionInput"
-            />
-          </AppCard>
+      <!-- Three areas, each about one thing: the pages, the page open, and the project's settings.
+           From lg up the workspace fills the window and each area scrolls on its own, so the
+           blueprint is read without scrolling the page. -->
+      <div class="workspace mx-auto w-full max-w-[1800px] px-6 py-5 2xl:px-10" data-testid="project-workspace">
+        <ProjectDocsRail
+          class="workspace-nav"
+          :sections="sections"
+          :selected="selection"
+          :loading="sectionsStore.isLoading(project.id)"
+          :creating="creatingSection"
+          @select="selection = $event"
+          @create="createSection"
+        />
 
-          <AppCard>
-            <p class="mb-2 eyebrow text-caption">
-              Folder
-            </p>
-            <div class="flex items-center gap-2">
-              <input
-                :value="folderDraft"
-                data-testid="project-repo-folder"
-                spellcheck="false"
-                autocomplete="off"
-                class="field text-text h-9 min-w-0 flex-1 rounded-control px-3 font-mono text-small"
-                placeholder="/Users/you/Projects/thing"
-                @input="onFolderInput"
-              />
-              <AppButton v-if="canBrowse" size="sm" variant="secondary" @click="browseFolder">
-                Browse
-              </AppButton>
-            </div>
-            <p class="mt-2 text-small text-text-subtle">
-              Where <span class="text-text-muted">Open in terminal</span> starts the session. Claude
-              Code keeps the folder it was launched from for the whole session, so this is what decides
-              which repository the work happens in.
-            </p>
-            <div class="mt-4">
-              <AutoCommitSwitch
-                :model-value="project.autoCommit"
-                :repository="repository"
-                :pending="repositoryPending"
-                :saving="autoCommitSaving"
-                @update:model-value="setAutoCommit"
-              />
-            </div>
-          </AppCard>
-        </div>
-
-        <ProjectComponentsSection :project-id="project.id" :project-title="project.title" :repo-folder="project.repoFolder" />
-
-        <div class="grid items-start gap-5 lg:grid-cols-[264px_minmax(0,1fr)]">
-          <ProjectDocsRail
-            class="lg:sticky lg:top-4"
-            :sections="sections"
-            :selected="selection"
-            :loading="sectionsStore.isLoading(project.id)"
-            :creating="creatingSection"
-            @select="selection = $event"
-            @create="createSection"
-          />
+        <div class="workspace-doc">
           <Transition name="fade-quick" mode="out-in">
             <ProjectSectionPane
               v-if="selectedSection"
@@ -370,6 +222,17 @@ onUnmounted(() => {
             <ProjectBlueprintPane v-else key="blueprint" :project="project" />
           </Transition>
         </div>
+
+        <aside
+          class="workspace-inspect divide-y divide-border overflow-y-auto rounded-card border border-border bg-surface shadow-[var(--shadow-raised)]"
+          :style="{ borderTop: `2px solid ${identityHue(project.id).line}` }"
+          aria-label="Project settings"
+          data-testid="project-inspector"
+        >
+          <ProjectAboutGroup :project="project" />
+          <ProjectComponentsSection :project-id="project.id" :project-title="project.title" :repo-folder="project.repoFolder" />
+          <ProjectRepositoryGroup :project="project" />
+        </aside>
       </div>
     </template>
 
@@ -394,3 +257,63 @@ onUnmounted(() => {
     </Transition>
   </div>
 </template>
+
+<style scoped>
+.workspace {
+  display: grid;
+  gap: 16px;
+  grid-template-areas: 'nav' 'doc' 'inspect';
+}
+
+.workspace-nav {
+  grid-area: nav;
+}
+
+.workspace-doc {
+  grid-area: doc;
+  height: calc(100dvh - var(--spacing-header) - 40px);
+  min-height: 480px;
+}
+
+.workspace-inspect {
+  grid-area: inspect;
+  min-height: 0;
+}
+
+/* From lg the workspace stops scrolling as a page: it takes the window, and the pages and the
+   settings share the left column under one another. */
+@media (width >= 64rem) {
+  .workspace {
+    flex: 1 1 0;
+    min-height: 0;
+    grid-template-columns: 248px minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas:
+      'nav doc'
+      'inspect doc';
+  }
+
+  .workspace-nav {
+    max-height: 40vh;
+    overflow-y: auto;
+  }
+
+  .workspace-doc {
+    height: auto;
+    min-height: 0;
+  }
+}
+
+/* Wide enough for the settings to get a column of their own beside the page. */
+@media (width >= 80rem) {
+  .workspace {
+    grid-template-columns: 232px minmax(0, 1fr) 340px;
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-areas: 'nav doc inspect';
+  }
+
+  .workspace-nav {
+    max-height: none;
+  }
+}
+</style>

@@ -99,6 +99,8 @@ const steps: TaskStep[] = [
     doneAt: new Date(2026, 8, 1, 17, 0).toISOString(),
     position: 0,
     passes: [],
+    links: [],
+    visits: [],
     createdAt: '',
     updatedAt: ''
   },
@@ -114,6 +116,8 @@ const steps: TaskStep[] = [
     doneAt: null,
     position: 1,
     passes: [],
+    links: [],
+    visits: [],
     createdAt: '',
     updatedAt: ''
   }

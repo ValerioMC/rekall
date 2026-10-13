@@ -1,10 +1,12 @@
-use crate::{claude, commit, context, diagram, note, review, revision, search, section, step, timeentry, token, wrapup, Ctx};
+use crate::{claude, commit, context, diagram, flow, note, review, revision, search, section, step, timeentry, token, wrapup, Ctx};
 
 /// Every service, built once over one context: what a controller or a tool is handed.
 #[derive(Clone)]
 pub struct Services {
     pub ctx: Ctx,
     pub steps: step::TaskStepService,
+    pub step_links: flow::StepLinkService,
+    pub flow: flow::FlowService,
     pub review: review::TaskReviewService,
     pub revisions: revision::TaskRevisionService,
     pub wrapups: wrapup::WrapupService,
@@ -31,8 +33,13 @@ impl Services {
         let review = review::TaskReviewService::new(ctx.clone(), time_entries.clone());
         let commit_references = commit::CommitReferenceService::new(ctx.clone());
         let context = context::ContextService::new(ctx.clone());
+        let steps = step::TaskStepService::new(ctx.clone(), time_entries.clone());
+        let step_links = flow::StepLinkService::new(ctx.clone(), steps.clone());
+        let flow = flow::FlowService::new(ctx.clone(), steps.clone(), step_links.clone(), flow::StepVisitService::new(ctx.clone()));
         Self {
-            steps: step::TaskStepService::new(ctx.clone(), time_entries.clone()),
+            steps,
+            step_links,
+            flow,
             wrapups: wrapup::WrapupService::new(ctx.clone(), review.clone(), revisions.clone()),
             notes: note::NoteService::new(ctx.clone()),
             diagrams: diagram::DiagramService::new(ctx.clone()),

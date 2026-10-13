@@ -4,6 +4,7 @@ use std::sync::Arc;
 use rekall_service::commit::CommitReferenceService;
 use rekall_service::context::ContextSizeService;
 use rekall_service::diagram::DiagramService;
+use rekall_service::flow::{FlowService, StepLinkService};
 use rekall_service::revision::TaskRevisionService;
 use rekall_service::search::SearchService;
 use rekall_service::section::ProjectSectionService;
@@ -19,6 +20,8 @@ use crate::{service, StepEventStream};
 #[derive(Clone)]
 pub struct ApiState {
     pub steps: TaskStepService,
+    pub step_links: StepLinkService,
+    pub flow: FlowService,
     pub wrapups: WrapupService,
     pub time_entries: TimeEntryService,
     pub token_usage: TokenUsageService,
@@ -78,6 +81,8 @@ impl ApiState {
             restorer,
             directories: service::DirectoryListingService::new(user_home),
             steps: services.steps,
+            step_links: services.step_links,
+            flow: services.flow,
             wrapups: services.wrapups,
             time_entries: services.time_entries,
             token_usage: services.token_usage,

@@ -2,9 +2,10 @@ use rekall_common::{jstr, Id, RekallError, Result};
 use rekall_model::task_step::{self, MAX_CHARACTERS, TITLE_MAX_CHARACTERS};
 use rekall_model::TaskStepState;
 use rekall_repository::repository as repo;
+use rekall_model::task;
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
-use super::{StepStreamEvent, TaskStepView};
+use super::{StepFlowRows, StepStreamEvent, TaskStepView};
 use crate::timeentry::TimeEntryService;
 use crate::{in_read, in_write, load, text_rule, Ctx, DomainEvent, Tx};
 
@@ -27,7 +28,8 @@ impl TaskStepService {
     pub async fn find_all(&self) -> Result<Vec<TaskStepView>> {
         in_read!(&self.ctx, |tx| {
             let steps = repo::task_step::list_all_in_order(tx.db()).await?;
-            steps.iter().map(TaskStepView::of).collect::<Result<Vec<_>>>()
+            let flow = StepFlowRows::of_every_task(tx.db()).await?;
+            steps.iter().map(|step| TaskStepView::of(step, &flow)).collect::<Result<Vec<_>>>()
         })
     }
 
@@ -37,7 +39,8 @@ impl TaskStepService {
 
     pub async fn find_by_task_in(&self, tx: &mut Tx, task_id: Id) -> Result<Vec<TaskStepView>> {
         let steps = load::steps_of(tx.db(), task_id).await?;
-        steps.iter().map(TaskStepView::of).collect()
+        let flow = StepFlowRows::of_task(tx.db(), task_id).await?;
+        steps.iter().map(|step| TaskStepView::of(step, &flow)).collect()
     }
 
     pub async fn add(&self, task_id: Id, title: Option<&str>, body_markdown: Option<&str>) -> Result<TaskStepView> {
@@ -57,8 +60,8 @@ impl TaskStepService {
         step.body_markdown = validated_body(body_markdown)?;
         step.validate()?;
         let saved = step.into_active_model().insert(tx.db()).await?;
-        let view = TaskStepView::of(&saved)?;
-        self.publish(tx, task_id).await?;
+        let view = self.view_in(tx, &saved).await?;
+        self.publish_in(tx, task_id).await?;
         Ok(view)
     }
 
@@ -134,8 +137,8 @@ impl TaskStepService {
                 let ordered = load::steps_of(tx.db(), task_id).await?;
                 self.settle_drafts_at_tail(&tx, ordered).await?;
             }
-            let saved = TaskStepView::of(&self.require(&tx, id).await?)?;
-            self.publish(&mut tx, task_id).await?;
+            let saved = self.view_in(&tx, &self.require(&tx, id).await?).await?;
+            self.publish_in(&mut tx, task_id).await?;
             Ok(saved)
         })
     }
@@ -148,8 +151,8 @@ impl TaskStepService {
             let mut step = before.clone();
             step.send_back(self.ctx.now())?;
             let saved = repo::update_if_changed(tx.db(), &before, step, self.ctx.now()).await?;
-            let view = TaskStepView::of(&saved)?;
-            self.publish(&mut tx, saved.task_id).await?;
+            let view = self.view_in(&tx, &saved).await?;
+            self.publish_in(&mut tx, saved.task_id).await?;
             Ok(view)
         })
     }
@@ -162,33 +165,63 @@ impl TaskStepService {
         target: TaskStepState,
     ) -> Result<TaskStepView> {
         in_write!(&self.ctx, |tx| {
-            if target == TaskStepState::Done {
-                return Err(RekallError::illegal(
-                    "A step is marked done in the console, by the person who reviewed the work. \
-                     A session can take it as far as `claimed`.",
-                ));
-            }
             let task = load::resolve_task(tx.db(), project_label, task_label).await?;
-            let before = load::resolve_step(tx.db(), task.id, step_ref).await?;
-            if before.state == TaskStepState::Draft {
-                return Err(RekallError::illegal(format!(
-                    "'{}' is still a draft. It is promoted to a workable step in the console, not from a session.",
-                    before.title
-                )));
-            }
-            if before.state == TaskStepState::Done {
-                return Err(RekallError::illegal(format!(
-                    "'{}' is already done. Reopen it in the console if that was wrong.",
-                    before.title
-                )));
-            }
-            let mut step = before.clone();
-            step.mark_state(target);
-            let saved = repo::update_if_changed(tx.db(), &before, step, self.ctx.now()).await?;
-            let view = TaskStepView::of(&saved)?;
-            self.publish(&mut tx, task.id).await?;
+            let saved = self.transition_in(&tx, &task, step_ref, target).await?;
+            let view = self.view_in(&tx, &saved).await?;
+            self.publish_in(&mut tx, task.id).await?;
             Ok(view)
         })
+    }
+
+    /// The move a session asks for, without announcing it: the caller publishes once its own
+    /// writes are in. `DONE` and drafts are refused, and so is a step already accepted.
+    pub async fn transition_in(
+        &self,
+        tx: &Tx,
+        task: &task::Model,
+        step_ref: Option<&str>,
+        target: TaskStepState,
+    ) -> Result<task_step::Model> {
+        if target == TaskStepState::Done {
+            return Err(RekallError::illegal(
+                "A step is marked done in the console, by the person who reviewed the work. \
+                 A session can take it as far as `claimed`.",
+            ));
+        }
+        let before = load::resolve_step(tx.db(), task.id, step_ref).await?;
+        if before.state == TaskStepState::Draft {
+            return Err(RekallError::illegal(format!(
+                "'{}' is still a draft. It is promoted to a workable step in the console, not from a session.",
+                before.title
+            )));
+        }
+        if before.state == TaskStepState::Done {
+            return Err(RekallError::illegal(format!(
+                "'{}' is already done. Reopen it in the console if that was wrong.",
+                before.title
+            )));
+        }
+        let mut step = before.clone();
+        step.mark_state(target);
+        repo::update_if_changed(tx.db(), &before, step, self.ctx.now()).await
+    }
+
+    /// A route arriving at a step: finished work there opens again for another pass. A draft is
+    /// refused, since a person has not released it.
+    pub async fn reopen_for_route_in(&self, tx: &Tx, step_id: Id) -> Result<task_step::Model> {
+        let before = repo::task_step::require(tx.db(), step_id).await?;
+        if before.state == TaskStepState::Draft {
+            return Err(RekallError::illegal(format!(
+                "The route leads to '{}', which is still a draft. Promote it in the console before the flow can reach it.",
+                before.title
+            )));
+        }
+        if !before.state.complete() {
+            return Ok(before);
+        }
+        let mut step = before.clone();
+        step.mark_state(TaskStepState::Open);
+        repo::update_if_changed(tx.db(), &before, step, self.ctx.now()).await
     }
 
     pub async fn title_of(&self, step_id: Option<Id>) -> Result<Option<String>> {
@@ -220,7 +253,7 @@ impl TaskStepService {
                     let mut step = before.clone();
                     step.mark_state(to);
                     repo::update_if_changed(tx.db(), &before, step, self.ctx.now()).await?;
-                    self.publish(&mut tx, before.task_id).await?;
+                    self.publish_in(&mut tx, before.task_id).await?;
                 }
             }
             Ok::<_, RekallError>(())
@@ -235,8 +268,9 @@ impl TaskStepService {
             ordered.retain(|candidate| candidate.id != id);
             let at = position.clamp(0, ordered.len() as i32) as usize;
             ordered.insert(at, step);
-            let settled = self.settle_drafts_at_tail(&tx, ordered).await?;
-            self.publish(&mut tx, task_id).await?;
+            self.settle_drafts_at_tail(&tx, ordered).await?;
+            let settled = self.find_by_task_in(&mut tx, task_id).await?;
+            self.publish_in(&mut tx, task_id).await?;
             Ok(settled)
         })
     }
@@ -247,19 +281,19 @@ impl TaskStepService {
                 task_step::Entity::delete_by_id(id).exec(tx.db()).await?;
                 let remaining = load::steps_of(tx.db(), step.task_id).await?;
                 self.renumber(&tx, remaining).await?;
-                self.publish(&mut tx, step.task_id).await?;
+                self.publish_in(&mut tx, step.task_id).await?;
             }
             Ok::<_, RekallError>(())
         })
     }
 
     /// Keep every draft after every non-draft, the order within each group kept, and renumber.
-    async fn settle_drafts_at_tail(&self, tx: &Tx, ordered: Vec<task_step::Model>) -> Result<Vec<TaskStepView>> {
+    async fn settle_drafts_at_tail(&self, tx: &Tx, ordered: Vec<task_step::Model>) -> Result<()> {
         let (drafts, work): (Vec<_>, Vec<_>) = ordered.into_iter().partition(|step| step.state.draft());
         let mut settled = work;
         settled.extend(drafts);
-        let renumbered = self.renumber(tx, settled).await?;
-        renumbered.iter().map(TaskStepView::of).collect()
+        self.renumber(tx, settled).await?;
+        Ok(())
     }
 
     /// Dense positions from zero. Only a step whose position actually moves is written and stamped.
@@ -273,10 +307,16 @@ impl TaskStepService {
         Ok(out)
     }
 
-    async fn publish(&self, tx: &mut Tx, task_id: Id) -> Result<()> {
+    /// Announces the task's whole checklist once the transaction commits. Route and visit writes
+    /// call it too, since both travel on the step views.
+    pub async fn publish_in(&self, tx: &mut Tx, task_id: Id) -> Result<()> {
         let current = self.find_by_task_in(tx, task_id).await?;
         tx.publish(DomainEvent::Steps(StepStreamEvent { task_id, steps: current }));
         Ok(())
+    }
+
+    pub async fn view_in(&self, tx: &Tx, step: &task_step::Model) -> Result<TaskStepView> {
+        TaskStepView::of(step, &StepFlowRows::of_task(tx.db(), step.task_id).await?)
     }
 
     async fn require(&self, tx: &Tx, id: Id) -> Result<task_step::Model> {

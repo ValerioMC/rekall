@@ -9,7 +9,7 @@ export function fittedEditorHeight(contentHeight: number, chromeHeight: number, 
   return Math.max(minimum, Math.ceil(contentHeight + chromeHeight))
 }
 
-/** The editor's least height as the window allows it: what is left under the page's own chrome, never below `floor`. */
-export function viewportEditorHeight(viewportHeight: number, chromeHeight: number, floor: number): string {
-  return `${Math.max(floor, Math.floor(viewportHeight - chromeHeight))}px`
+/** The height an element offers its content: its inner height less its vertical padding, never below `floor`. */
+export function contentBoxHeight(clientHeight: number, paddingTop: number, paddingBottom: number, floor: number): string {
+  return `${Math.max(floor, Math.floor(clientHeight - paddingTop - paddingBottom))}px`
 }

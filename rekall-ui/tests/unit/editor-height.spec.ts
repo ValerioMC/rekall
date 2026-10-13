@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fittedEditorHeight, pixelsOf, viewportEditorHeight } from '@/common/config/editor-height'
+import { contentBoxHeight, fittedEditorHeight, pixelsOf } from '@/common/config/editor-height'
 
 describe('pixelsOf', () => {
   it('reads a pixel length', () => {
@@ -27,16 +27,16 @@ describe('fittedEditorHeight', () => {
   })
 })
 
-describe('viewportEditorHeight', () => {
-  it('takes what the window leaves under the page chrome', () => {
-    expect(viewportEditorHeight(1440, 230, 360)).toBe('1210px')
+describe('contentBoxHeight', () => {
+  it('takes the padding off the element’s inner height', () => {
+    expect(contentBoxHeight(700, 16, 16, 240)).toBe('668px')
   })
 
-  it('holds the floor on a short window', () => {
-    expect(viewportEditorHeight(500, 230, 360)).toBe('360px')
+  it('rounds down so the content never overflows by a fraction', () => {
+    expect(contentBoxHeight(700.8, 16, 16, 240)).toBe('668px')
   })
 
-  it('rounds a fractional window height down', () => {
-    expect(viewportEditorHeight(900.7, 230, 360)).toBe('670px')
+  it('never goes below the floor', () => {
+    expect(contentBoxHeight(120, 16, 16, 240)).toBe('240px')
   })
 })

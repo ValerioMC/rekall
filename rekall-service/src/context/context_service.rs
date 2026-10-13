@@ -11,7 +11,7 @@ use rekall_repository::repository as repo;
 
 use super::{ContextCommitView, ContextRecord, ContextSkillScope, ContextSkillView, DocumentView};
 use crate::component::ProjectComponentView;
-use crate::step::TaskStepView;
+use crate::step::{StepFlowRows, TaskStepView};
 use crate::wrapup::WrapupView;
 use crate::{in_read, load, Ctx, Tx};
 
@@ -202,8 +202,9 @@ impl ContextService {
 
     async fn render_task(&self, tx: &Tx, task: &task::Model) -> Result<ContextRecord> {
         let db = tx.db();
+        let flow = StepFlowRows::of_task(db, task.id).await?;
         let steps: Vec<TaskStepView> =
-            load::steps_of(db, task.id).await?.iter().map(TaskStepView::of).collect::<Result<_>>()?;
+            load::steps_of(db, task.id).await?.iter().map(|step| TaskStepView::of(step, &flow)).collect::<Result<_>>()?;
         let project = load::project_of(db, task).await?;
 
         let mut fields = vec![("status".to_string(), task.status.name().to_string())];
@@ -227,6 +228,9 @@ impl ContextService {
         }
         if drafts > 0 {
             fields.push(("drafts".into(), format!("{drafts} not yet promoted to the checklist")));
+        }
+        if let Some(summary) = flow_summary(&steps) {
+            fields.push(("flow".into(), summary));
         }
 
         let components = repo::project_component::list_of_project(db, project.id).await?;
@@ -314,4 +318,27 @@ async fn company_of(tx: &Tx, project: &project::Model) -> Result<company::Model>
     repo::company::find_by_id(tx.db(), project.company_id)
         .await?
         .ok_or_else(|| RekallError::internal(InternalFailure::Integrity, format!("Project {} has no company", project.id)))
+}
+
+/// Where a flow stands, for the field list: the step to work and the moves so far. `None` on a
+/// plain checklist.
+fn flow_summary(steps: &[TaskStepView]) -> Option<String> {
+    let routed: Vec<&TaskStepView> = steps.iter().filter(|step| !step.state.draft()).collect();
+    if routed.iter().all(|step| step.links.is_empty()) {
+        return None;
+    }
+    let moves: usize = routed.iter().map(|step| step.visits.len()).sum();
+    let summary = match (routed.iter().find(|step| step.is_current()), routed.first()) {
+        (Some(current), _) => format!(
+            "the steps are routed; the work stands on step {} \"{}\" after {moves} move{}. Claim it with the `outcome` that happened",
+            current.position + 1,
+            current.title,
+            if moves == 1 { "" } else { "s" }
+        ),
+        (None, Some(first)) if moves == 0 => {
+            format!("the steps are routed and not started: the flow begins at step 1 \"{}\"", first.title)
+        }
+        _ => format!("the steps are routed; no step is current after {moves} moves"),
+    };
+    Some(summary)
 }

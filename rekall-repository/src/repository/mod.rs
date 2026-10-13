@@ -15,6 +15,8 @@ pub mod project_component;
 pub mod project_section;
 pub mod run_queue;
 pub mod skill_placement;
+pub mod step_link;
+pub mod step_visit;
 pub mod tag;
 pub mod tag_skill;
 pub mod task;

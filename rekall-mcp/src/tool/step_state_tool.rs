@@ -1,7 +1,8 @@
 use async_trait::async_trait;
 use rekall_model::TaskStepState;
 use rekall_service::commit::{AutoCommitOutcome, AutoCommitService};
-use rekall_service::step::{TaskStepService, TaskStepView};
+use rekall_service::flow::{FlowMove, FlowRoute, FlowService};
+use rekall_service::step::TaskStepService;
 use serde_json::Value;
 
 use super::{told, Anchor, AnchoredTask, Arguments, QUALIFY_WITH_PROJECT};
@@ -11,20 +12,22 @@ use crate::texts;
 pub struct StepStateTool {
     auto_commit: AutoCommitService,
     steps: TaskStepService,
+    flow: FlowService,
 }
 
 impl StepStateTool {
-    pub fn new(auto_commit: AutoCommitService, steps: TaskStepService) -> Self {
-        Self { auto_commit, steps }
+    pub fn new(auto_commit: AutoCommitService, steps: TaskStepService, flow: FlowService) -> Self {
+        Self { auto_commit, steps, flow }
     }
 
     async fn report(
         &self,
         target: &AnchoredTask,
-        moved: &TaskStepView,
+        flow_move: &FlowMove,
         raw_state: &str,
         committed: Option<&AutoCommitOutcome>,
     ) -> Result<String, ToolError> {
+        let moved = &flow_move.step;
         let anchor = target.anchor();
         let all = self.steps.find_by_task(moved.task_id).await?;
         let one_based = moved.position + 1;
@@ -46,6 +49,14 @@ impl StepStateTool {
                 out.push('\n');
             }
         }
+        if let Some(route) = &flow_move.route {
+            out.push_str(&describe_route(&anchor, route));
+            return Ok(out);
+        }
+        // On a flow the next step is the one a claim routes to, never the next in list order.
+        if all.iter().any(|step| !step.links.is_empty()) {
+            return Ok(out);
+        }
         match all.iter().find(|step| step.state == TaskStepState::Open) {
             Some(next) => out.push_str(&format!(
                 "\nNext open step: {} \"{}\". Start it with `/rk {anchor} step:{} start`.",
@@ -60,6 +71,20 @@ impl StepStateTool {
             }
         }
         Ok(out)
+    }
+}
+
+/// Where a claim on a flow sent the work, and the line that starts it.
+fn describe_route(anchor: &str, route: &FlowRoute) -> String {
+    match route {
+        FlowRoute::Followed { outcome, next } => format!(
+            "\nRouted by `{outcome}` to step {number} \"{}\", now open and current (visit {}). Start it with \
+             `/rk {anchor} step:{number} start`.",
+            next.title,
+            next.visits.len(),
+            number = next.position + 1
+        ),
+        FlowRoute::Ended => "\nThat step has no routes out: the flow is finished bar the review.".to_string(),
     }
 }
 
@@ -106,6 +131,12 @@ impl McpTool for StepStateTool {
                  `done`: the console ticks that.",
             )
             .optional_string(
+                "outcome",
+                "Only with `claimed`, on a task whose steps carry routes: what happened, as the route names it \
+                 (`passed`, `app-error`). Rekall follows that route to the next step. Not needed when the step has \
+                 one route or none.",
+            )
+            .optional_string(
                 "commit_message",
                 "Only with `claimed`, and only read on an auto-commit project: the commit message. First line a \
                  Conventional Commits subject (`feat: …`, `fix: …`), under 72 characters. Then a blank line and a body \
@@ -120,19 +151,21 @@ impl McpTool for StepStateTool {
         let step_ref = args.required_string("step")?;
         let raw_state = args.required_string("state")?;
         let commit_message = args.optional_string("commit_message");
+        let outcome = args.optional_string("outcome");
         let requested = parse_state(&raw_state)?;
 
-        let moved = self
-            .steps
-            .transition(target.project_label.as_deref(), &target.task_label, Some(&step_ref), requested)
+        let flow_move = self
+            .flow
+            .transition(target.project_label.as_deref(), &target.task_label, Some(&step_ref), requested, outcome.as_deref())
             .await
             .map_err(|e| told(e, QUALIFY_WITH_PROJECT))?;
 
+        let moved = &flow_move.step;
         let committed = if moved.state == TaskStepState::Claimed {
             Some(self.auto_commit.after_step_claim(moved.task_id, moved.id, commit_message.as_deref()).await?)
         } else {
             None
         };
-        self.report(&target, &moved, &raw_state, committed.as_ref()).await
+        self.report(&target, &flow_move, &raw_state, committed.as_ref()).await
     }
 }

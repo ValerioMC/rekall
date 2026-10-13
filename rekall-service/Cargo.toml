@@ -32,6 +32,10 @@ name = "services"
 path = "tests/integration/services.rs"
 
 [[test]]
+name = "flows"
+path = "tests/integration/flows.rs"
+
+[[test]]
 name = "diagrams"
 path = "tests/integration/diagrams.rs"
 
