@@ -88,7 +88,7 @@ function renameOutcome(link: StepLink, event: Event): void {
         </div>
         <button
           type="button"
-          class="focus-ring hit-target grid size-8 shrink-0 cursor-pointer place-items-center rounded-control text-text-subtle transition-colors hover:bg-danger-soft hover:text-danger"
+          class="focus-ring grid size-8 shrink-0 cursor-pointer place-items-center rounded-control text-text-subtle transition-colors hover:bg-danger-soft hover:text-danger"
           :aria-label="`Remove the route ${link.outcome}`"
           :disabled="busy"
           @click="emit('remove', link.id)"

@@ -55,6 +55,24 @@ describe('FlowRouteEditor', () => {
     expect(editor.emitted('edit')).toEqual([['test-app-error', { toStepId: 'build' }]])
   })
 
+  it('removes only the route whose cross is pressed', async () => {
+    const editor = render()
+
+    await editor.findAll('[data-testid="flow-route-row"] button')[1]!.trigger('click')
+
+    expect(editor.emitted('remove')).toEqual([['test-passed']])
+  })
+
+  it('keeps the remove cross from growing a hit area over the panel', () => {
+    // `hit-target` paints an absolutely positioned ::after; on an unpositioned button it
+    // covers the whole inspector, so any click removed the first route.
+    const crosses = render().findAll('[data-testid="flow-route-row"] button')
+
+    for (const cross of crosses) {
+      expect(cross.classes()).not.toContain('hit-target')
+    }
+  })
+
   it('keeps Add disabled until both an outcome and a target are given', async () => {
     const editor = render()
     const add = editor.get('[data-testid="flow-route-add"] button[type="submit"]')
