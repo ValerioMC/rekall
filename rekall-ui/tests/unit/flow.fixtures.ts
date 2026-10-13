@@ -22,6 +22,8 @@ export function flowStep(
     claimedAt: null,
     doneAt: null,
     position,
+    flowX: null,
+    flowY: null,
     passes: [],
     links,
     visits,
@@ -30,11 +32,12 @@ export function flowStep(
   }
 }
 
-export function route(from: string, to: string, outcome: string): StepLink {
+/** A route to a step, or to the end of the flow when `to` is null. */
+export function route(from: string, to: string | null, outcome: string): StepLink {
   return {
     id: `${from}-${outcome}` as StepLinkId,
     fromStepId: from as TaskStepId,
-    toStepId: to as TaskStepId,
+    toStepId: to as TaskStepId | null,
     outcome,
     position: 0
   }
@@ -72,6 +75,32 @@ export function releaseFlow(): TaskStep[] {
     flowStep('fix', 3, 'CLAIMED', [route('fix', 'deploy', 'fixed')], [visit('fix', 4, 'fixed')]),
     flowStep('ship', 4)
   ]
+}
+
+/** The release flow with its last step routed to the end and the work finished there. */
+export function finishedFlow(): TaskStep[] {
+  return releaseFlow().map((step) => {
+    if (step.id === 'deploy') {
+      return {
+        ...step,
+        state: 'CLAIMED' as const,
+        visits: step.visits.map((v) => ({
+          ...v,
+          leftAt: v.leftAt ?? '2026-10-01T09:06:00Z',
+          outcome: v.outcome ?? 'deployed'
+        }))
+      }
+    }
+    if (step.id === 'ship') {
+      return {
+        ...step,
+        state: 'CLAIMED' as const,
+        links: [route('ship', null, 'shipped')],
+        visits: [visit('ship', 6, 'shipped')]
+      }
+    }
+    return step
+  })
 }
 
 export function releaseTask(): Task {

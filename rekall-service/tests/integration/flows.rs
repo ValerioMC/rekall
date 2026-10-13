@@ -4,7 +4,8 @@
 mod support;
 
 use rekall_model::{task, task_step, TaskStepState};
-use rekall_service::flow::FlowRoute;
+use rekall_service::flow::{FlowRoute, RouteTarget};
+use rekall_service::step::FlowPlace;
 use rekall_service::step::TaskStepView;
 use support::{world, World};
 
@@ -27,12 +28,12 @@ async fn pipeline(world: &World) -> Pipeline {
     let fix_app = world.step(&task, "Fix the application", 3, TaskStepState::Open).await;
     let fix_pipeline = world.step(&task, "Fix the pipeline", 4, TaskStepState::Open).await;
     let links = &world.services.step_links;
-    links.add(build.id, deploy.id, Some("built")).await.unwrap();
-    links.add(deploy.id, test.id, Some("deployed")).await.unwrap();
-    links.add(deploy.id, fix_pipeline.id, Some("pipeline-error")).await.unwrap();
-    links.add(test.id, fix_app.id, Some("app-error")).await.unwrap();
-    links.add(fix_app.id, deploy.id, Some("fixed")).await.unwrap();
-    links.add(fix_pipeline.id, deploy.id, Some("fixed")).await.unwrap();
+    links.add(build.id, RouteTarget::Step(deploy.id), Some("built")).await.unwrap();
+    links.add(deploy.id, RouteTarget::Step(test.id), Some("deployed")).await.unwrap();
+    links.add(deploy.id, RouteTarget::Step(fix_pipeline.id), Some("pipeline-error")).await.unwrap();
+    links.add(test.id, RouteTarget::Step(fix_app.id), Some("app-error")).await.unwrap();
+    links.add(fix_app.id, RouteTarget::Step(deploy.id), Some("fixed")).await.unwrap();
+    links.add(fix_pipeline.id, RouteTarget::Step(deploy.id), Some("fixed")).await.unwrap();
     Pipeline { task, build, deploy, test, fix_app, fix_pipeline }
 }
 
@@ -106,16 +107,16 @@ async fn a_step_with_several_routes_refuses_a_claim_without_an_outcome_and_moves
 async fn a_step_with_no_routes_out_ends_the_flow() {
     let world = world().await;
     let pipeline = pipeline(&world).await;
-    world.services.step_links.add(pipeline.test.id, pipeline.build.id, Some("passed")).await.unwrap();
+    world.services.step_links.add(pipeline.test.id, RouteTarget::Step(pipeline.build.id), Some("passed")).await.unwrap();
     let ship = world.step(&pipeline.task, "Ship", 5, TaskStepState::Open).await;
     let passed = views(&world, &pipeline).await;
     let route_id = view(&passed, &pipeline.test).links.iter().find(|link| link.outcome == "passed").unwrap().id;
-    world.services.step_links.edit(route_id, Some(ship.id), None).await.unwrap();
+    world.services.step_links.edit(route_id, Some(RouteTarget::Step(ship.id)), None).await.unwrap();
 
     claim(&world, "Test", Some("passed")).await;
     let ended = claim(&world, "Ship", None).await;
 
-    assert!(matches!(ended.route, Some(FlowRoute::Ended)));
+    assert!(matches!(ended.route, Some(FlowRoute::Ended { .. })));
     assert!(views(&world, &pipeline).await.iter().all(|step| !step.is_current()));
 }
 
@@ -178,9 +179,9 @@ async fn a_route_needs_two_steps_of_one_task_and_a_free_outcome() {
     let stranger = world.step(&other_task, "Elsewhere", 0, TaskStepState::Open).await;
     let links = &world.services.step_links;
 
-    assert!(links.add(pipeline.build.id, stranger.id, Some("x")).await.is_err(), "across tasks");
-    assert!(links.add(pipeline.build.id, pipeline.build.id, Some("again")).await.is_err(), "onto itself");
-    let taken = links.add(pipeline.deploy.id, pipeline.build.id, Some("Deployed")).await.unwrap_err();
+    assert!(links.add(pipeline.build.id, RouteTarget::Step(stranger.id), Some("x")).await.is_err(), "across tasks");
+    assert!(links.add(pipeline.build.id, RouteTarget::Step(pipeline.build.id), Some("again")).await.is_err(), "onto itself");
+    let taken = links.add(pipeline.deploy.id, RouteTarget::Step(pipeline.build.id), Some("Deployed")).await.unwrap_err();
     assert!(taken.to_string().contains("already routes by `deployed`"), "{taken}");
 }
 
@@ -204,4 +205,38 @@ async fn a_route_into_a_draft_is_refused_when_the_flow_reaches_it() {
     let refused = world.services.flow.transition(Some("vega"), "release", Some("Build"), TaskStepState::Claimed, None).await;
 
     assert!(refused.unwrap_err().to_string().contains("still a draft"));
+}
+
+#[tokio::test]
+async fn a_route_to_the_end_finishes_the_flow_with_its_outcome() {
+    let world = world().await;
+    let pipeline = pipeline(&world).await;
+    world.services.step_links.add(pipeline.test.id, RouteTarget::End, Some("passed")).await.unwrap();
+
+    claim(&world, "Test", Some("passed")).await;
+    let finished = claim(&world, "Test", Some("passed")).await;
+
+    let Some(FlowRoute::Ended { outcome }) = finished.route else { panic!("expected the flow to end") };
+    assert_eq!(outcome.as_deref(), Some("passed"));
+    let all = views(&world, &pipeline).await;
+    assert!(all.iter().all(|step| !step.is_current()));
+    let route = view(&all, &pipeline.test).links.iter().find(|link| link.outcome == "passed").unwrap();
+    assert_eq!(route.to_step_id, None);
+}
+
+#[tokio::test]
+async fn a_dragged_step_keeps_its_place_until_the_layout_is_cleared() {
+    let world = world().await;
+    let pipeline = pipeline(&world).await;
+
+    let placed = world.services.steps.place_in_flow(pipeline.test.id, Some(FlowPlace::new(120, -40).unwrap())).await.unwrap();
+    assert_eq!((view(&placed, &pipeline.test).flow_x, view(&placed, &pipeline.test).flow_y), (Some(120), Some(-40)));
+
+    let cleared = world.services.steps.clear_flow_places(pipeline.task.id).await.unwrap();
+    assert_eq!((view(&cleared, &pipeline.test).flow_x, view(&cleared, &pipeline.test).flow_y), (None, None));
+}
+
+#[test]
+fn a_place_far_from_the_origin_is_refused() {
+    assert!(FlowPlace::new(1_000_000, 0).is_err());
 }

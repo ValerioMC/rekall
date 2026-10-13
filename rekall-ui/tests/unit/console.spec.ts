@@ -173,6 +173,8 @@ const steps: TaskStep[] = [
     // not been rewritten since" is the state the console has to be able to report.
     doneAt: '2026-08-12T13:30:00Z',
     position: 0,
+    flowX: null,
+    flowY: null,
     passes: [],
     links: [],
     visits: [],
@@ -190,6 +192,8 @@ const steps: TaskStep[] = [
     claimedAt: null,
     doneAt: null,
     position: 1,
+    flowX: null,
+    flowY: null,
     passes: [],
     links: [],
     visits: [],

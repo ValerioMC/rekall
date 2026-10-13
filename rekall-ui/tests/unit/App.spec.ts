@@ -204,6 +204,8 @@ const steps: TaskStep[] = [
     // After the wrapup's timestamp, so the card has a reason to say it is behind.
     doneAt: '2026-08-12T13:30:00Z',
     position: 0,
+    flowX: null,
+    flowY: null,
     passes: [],
     links: [],
     visits: [],
@@ -221,6 +223,8 @@ const steps: TaskStep[] = [
     claimedAt: null,
     doneAt: null,
     position: 1,
+    flowX: null,
+    flowY: null,
     passes: [],
     links: [],
     visits: [],

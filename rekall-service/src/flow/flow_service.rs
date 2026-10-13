@@ -63,14 +63,17 @@ impl FlowService {
         let outgoing = self.links.routes_from_in(tx, claimed.id).await?;
         let Some(link) = choose_route(&claimed.title, &outgoing, outcome)? else {
             self.visits.leave_in(tx, claimed.task_id, claimed.id, None).await?;
-            return Ok(FlowRoute::Ended);
+            return Ok(FlowRoute::Ended { outcome: None });
         };
         self.visits.leave_in(tx, claimed.task_id, claimed.id, Some(link.outcome.clone())).await?;
-        Ok(FlowRoute::Followed { outcome: link.outcome.clone(), next: Box::new(self.enter_route_target(tx, link).await?) })
+        let Some(next_step_id) = link.to_step_id else {
+            return Ok(FlowRoute::Ended { outcome: Some(link.outcome.clone()) });
+        };
+        Ok(FlowRoute::Followed { outcome: link.outcome.clone(), next: Box::new(self.enter_step(tx, next_step_id).await?) })
     }
 
-    async fn enter_route_target(&self, tx: &Tx, link: &step_link::Model) -> Result<TaskStepView> {
-        let next = self.steps.reopen_for_route_in(tx, link.to_step_id).await?;
+    async fn enter_step(&self, tx: &Tx, step_id: Id) -> Result<TaskStepView> {
+        let next = self.steps.reopen_for_route_in(tx, step_id).await?;
         self.visits.enter_in(tx, next.task_id, next.id).await?;
         self.steps.view_in(tx, &next).await
     }

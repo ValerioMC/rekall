@@ -92,7 +92,9 @@ routes (`app-error` -> step 4), and the order they are listed in is not the orde
 - When it ends, claim it with what happened: `/rk ... step:N done outcome:app-error`. Rekall follows
   that route, opens the step it leads to (again, if it was finished) and makes it current. The answer
   names it: start that one next, and keep going until a claim answers that the flow is finished.
-- A step with one route needs no outcome, and a step with no routes ends the flow. A claim whose
+- A step with one route needs no outcome, and a step with no routes ends the flow. A route that reads
+  `-> end of the flow` ends it too: claim with that outcome and the answer says the flow is finished,
+  with nothing left current. A claim whose
   outcome names no route is refused with the routes there are: pick the one that happened, never
   invent one.
 - A step reached again is another pass. Read its detail again and build on what the last pass left.

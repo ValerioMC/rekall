@@ -8,7 +8,8 @@ use serde::Serialize;
 pub struct StepLinkView {
     pub id: Id,
     pub from_step_id: Id,
-    pub to_step_id: Id,
+    /// `None` when the route ends the flow.
+    pub to_step_id: Option<Id>,
     pub outcome: String,
     pub position: i32,
 }

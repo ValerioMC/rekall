@@ -119,8 +119,8 @@ Company ──< Project ──< Task >──< Document
 | `task` | `label`, unique per project | `title`, `status`, `description`, `project_id` |
 | `document` | — | `title`, `kind`, `body_markdown` |
 | `document_task` | — | `document_id`, `task_id`, `position` |
-| `task_step` | through its task | `task_id`, `title`, `body_markdown`, `done`, `done_at`, `position` |
-| `step_link` | through its task | `task_id`, `from_step_id`, `to_step_id`, `outcome` unique per `from_step_id`, `position`; deleted with either step |
+| `task_step` | through its task | `task_id`, `title`, `body_markdown`, `done`, `done_at`, `position`, `flow_x`/`flow_y` (where it was dragged on the flow canvas, null for the automatic layout) |
+| `step_link` | through its task | `task_id`, `from_step_id`, `to_step_id` (null: the route ends the flow), `outcome` unique per `from_step_id`, `position`; deleted with either step |
 | `step_visit` | through its task | `task_id`, `step_id`, `ordinal` unique per task, `entered_at`, `left_at`, `outcome`; deleted with its step |
 | `wrapup` | through its task | `task_id` unique, `body_markdown`, `written_by` |
 | `project_component` | through its project | `project_id`, `name`, `folder`, `description`, `position` |
@@ -281,6 +281,8 @@ the task, closed with the outcome it left by. The visit left open is where the f
 | Arriving reopens finished work | A route back to a claimed or done step means another pass, so `TaskStepService::reopen_for_route_in` returns it to `OPEN`. That is the one way a session's move can undo a tick, and only along a route a person drew. A route into a draft is refused when the flow reaches it |
 | One open visit per task | Entering a step leaves the current one without an outcome (`StepVisitService::enter_in`), so "where the work stands" is one row, never a guess between two. A claim on a step never started enters it first, so every pass is counted |
 | Visits travel on the step views | `TaskStepView` carries its routes and visits, so the `steps` frame and `/api/steps` already redraw the graph live and the console derives the trail, the counts and the current step itself (`common/flow/step-flow.ts`) |
+| Start and End are not records | Start always leads to the first step on the checklist and is drawn by the console alone. End is a route whose `to_step_id` is null (`RouteTarget::End`), so it needs no step and no state: a claim by that route closes the visit and opens none, `FlowRoute::Ended` carries the outcome, and the flow reads as finished because no visit is open. A step with no routes on a flow is drawn joined to End without a stored route |
+| Where a step was dragged is stored on the step | `task_step.flow_x` and `flow_y` (`PATCH /api/steps/{id}/flow-place`, `DELETE /api/tasks/{id}/flow-places`) are pure layout: nothing reads them but the canvas, and clearing them hands the steps back to dagre. `FlowPlace` refuses a place beyond 20,000 pixels |
 | Reset forgets the visits, not the states | The states are a person's review; the trail is a count. `FlowService::reset` clears one, never the other |
 
 A claim chooses its route by one rule (`flow::choose_route`): the outcome it names; with no
@@ -293,7 +295,10 @@ on the step, a `Routes:` line under every step (finished ones too, since a route
 them) and a `flow` field naming the step to work. The console draws it in `StepFlowView`: dagre
 lays the steps out top to bottom in checklist order (`common/flow/flow-layout.ts`, with unseen
 edges keeping the spine), walked routes solid and the rest dotted, the route the last move came
-in by animated toward the lit current step, the trail of moves above it.
+in by animated toward the lit current step, the trail of moves above it. Start and End are drawn
+at both ends, a dragged step overrides its dagre place (`placeSteps` redraws only the routes that
+touch it between the boxes), and `composables/useFlowDrag.ts` owns the pointer work: moving a
+step, and drawing a route from a step's handle onto another step or End.
 
 ---
 

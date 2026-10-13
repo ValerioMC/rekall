@@ -102,7 +102,7 @@ export const TagSchema = z.object({
 export const StepLinkSchema = z.object({
   id: stepLinkId,
   fromStepId: taskStepId,
-  toStepId: taskStepId,
+  toStepId: taskStepId.nullable(),
   outcome: z.string(),
   position: z.number().int()
 })
@@ -127,6 +127,8 @@ export const TaskStepSchema = z.object({
   claimedAt: z.string().nullable(),
   doneAt: z.string().nullable(),
   position: z.number().int(),
+  flowX: z.number().int().nullable(),
+  flowY: z.number().int().nullable(),
   passes: z.array(z.object({ detailMarkdown: z.string().nullable(), sentBackAt: z.string() })),
   links: z.array(StepLinkSchema),
   visits: z.array(StepVisitSchema),

@@ -4,6 +4,7 @@ import StepSeal from '@/components/console/StepSeal.vue'
 import { relativeTime } from '@/common/format/relative-time'
 import { routesInto } from '@/common/flow/step-flow'
 import type { TaskStep } from '@/model/catalog'
+import type { RouteTarget } from '@/common/flow/route-target'
 import type { StepLinkId, TaskStepId } from '@/model/branded'
 import FlowRouteEditor from './FlowRouteEditor.vue'
 
@@ -16,13 +17,14 @@ const props = defineProps<{
   steps: readonly TaskStep[]
   current: boolean
   busy: boolean
+  drawn?: { to: RouteTarget; nonce: number } | null
 }>()
 
 const emit = defineEmits<{
   select: [id: TaskStepId]
   'open-detail': []
-  'add-route': [to: TaskStepId, outcome: string]
-  'edit-route': [id: StepLinkId, patch: { toStepId?: TaskStepId; outcome?: string }]
+  'add-route': [to: RouteTarget, outcome: string]
+  'edit-route': [id: StepLinkId, patch: { toStepId?: TaskStepId; endsFlow?: boolean; outcome?: string }]
   'remove-route': [id: StepLinkId]
 }>()
 
@@ -62,6 +64,7 @@ const stateLabel = computed(() => (props.current ? 'the work stands here' : prop
       :step="step"
       :steps="steps"
       :busy="busy"
+      :drawn="drawn"
       @add="(to, outcome) => emit('add-route', to, outcome)"
       @edit="(id, patch) => emit('edit-route', id, patch)"
       @remove="(id) => emit('remove-route', id)"

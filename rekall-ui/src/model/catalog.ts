@@ -169,11 +169,11 @@ export interface StepPass {
   readonly sentBackAt: string
 }
 
-/** A route out of a step: when it ends with `outcome`, the work moves to `toStepId`. */
+/** A route out of a step: when it ends with `outcome`, the work moves to `toStepId`, or ends when it is null. */
 export interface StepLink {
   readonly id: StepLinkId
   readonly fromStepId: TaskStepId
-  readonly toStepId: TaskStepId
+  readonly toStepId: TaskStepId | null
   readonly outcome: string
   readonly position: number
 }
@@ -199,6 +199,9 @@ export interface TaskStep {
   readonly claimedAt: string | null
   readonly doneAt: string | null
   readonly position: number
+  /** Where the step was dragged to on the flow canvas; null leaves it to the automatic layout. */
+  readonly flowX: number | null
+  readonly flowY: number | null
   readonly passes: readonly StepPass[]
   /** Routes leaving this step; a task whose steps carry any is a flow. */
   readonly links: readonly StepLink[]

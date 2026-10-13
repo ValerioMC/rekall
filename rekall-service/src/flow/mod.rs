@@ -4,11 +4,13 @@
 mod flow_move;
 mod flow_service;
 mod route_choice;
+mod route_target;
 mod step_link_service;
 mod step_visit_service;
 
 pub use flow_move::{FlowMove, FlowRoute};
 pub use flow_service::FlowService;
 pub use route_choice::choose_route;
+pub use route_target::RouteTarget;
 pub use step_link_service::StepLinkService;
 pub use step_visit_service::StepVisitService;

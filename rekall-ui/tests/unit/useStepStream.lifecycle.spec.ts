@@ -61,6 +61,8 @@ const frame = () => ({
         claimedAt: null,
         doneAt: null,
         position: 0,
+        flowX: null,
+        flowY: null,
         passes: [],
     links: [],
     visits: [],

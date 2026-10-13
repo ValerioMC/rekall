@@ -7,7 +7,7 @@ fn routes(outcomes: &[&str]) -> Vec<step_link::Model> {
     outcomes
         .iter()
         .enumerate()
-        .map(|(at, outcome)| step_link::Model::new(Id::random(), from, Id::random(), (*outcome).into(), at as i32, Instant::now()))
+        .map(|(at, outcome)| step_link::Model::new(Id::random(), from, Some(Id::random()), (*outcome).into(), at as i32, Instant::now()))
         .collect()
 }
 

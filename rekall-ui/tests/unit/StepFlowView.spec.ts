@@ -4,7 +4,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import StepsPane from '@/components/console/StepsPane.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import type { TaskStep } from '@/model/catalog'
-import { flowStep, releaseFlow, releaseTask, TASK } from './flow.fixtures'
+import { finishedFlow, flowStep, releaseFlow, releaseTask, TASK } from './flow.fixtures'
 
 /**
  * The steps pane showing a flow: it opens on the graph when the steps carry routes, lights the
@@ -23,6 +23,8 @@ function seed(steps: TaskStep[]) {
   store.editRoute = vi.fn().mockResolvedValue(undefined)
   store.removeRoute = vi.fn().mockResolvedValue(undefined)
   store.resetFlow = vi.fn().mockResolvedValue(undefined)
+  store.placeStep = vi.fn().mockResolvedValue(undefined)
+  store.tidyFlow = vi.fn().mockResolvedValue(undefined)
   return store
 }
 
@@ -86,7 +88,6 @@ describe('the flow view', () => {
     expect(current.attributes('data-step-id')).toBe('deploy')
     expect(current.get('[data-testid="flow-node-visits"]').text()).toBe('×2')
     expect(pane.get('[data-step-id="ship"] [data-testid="flow-node-visits"]').text()).toBe('not reached')
-    expect(pane.get('[data-step-id="ship"]').attributes('aria-label')).toContain('the flow ends here')
   })
 
   it('shows the moves in order with the outcome each one left by', () => {
@@ -178,5 +179,73 @@ describe('the flow view', () => {
 
     expect(pane.find('[data-testid="step-flow-view"]').exists()).toBe(false)
     expect(pane.find('li[data-step-id="test"]').exists()).toBe(true)
+  })
+
+  it('always draws Start and End, lit only when the work has been through them', () => {
+    seed(releaseFlow())
+    const pane = render()
+
+    expect(pane.get('[data-testid="flow-start"]').classes()).toContain('flow-terminal-reached')
+    expect(pane.get('[data-testid="flow-end"]').classes()).toContain('flow-terminal-idle')
+  })
+
+  it('lights End and leaves no step current once a route to the end was taken', () => {
+    seed(finishedFlow())
+    const pane = render()
+
+    expect(pane.get('[data-testid="flow-end"]').classes()).toContain('flow-terminal-reached')
+    expect(pane.find('[data-current="true"]').exists()).toBe(false)
+  })
+
+  it('shows a start and an end even on a plain checklist', async () => {
+    seed([flowStep('one', 0), flowStep('two', 1)])
+    const pane = render()
+    await pane.get('[data-testid="steps-view-flow"]').trigger('click')
+
+    expect(pane.find('[data-testid="flow-start"]').exists()).toBe(true)
+    expect(pane.find('[data-testid="flow-end"]').exists()).toBe(true)
+  })
+
+  it('adds a route that ends the flow when End is picked as its target', async () => {
+    const store = seed(releaseFlow())
+    const pane = render()
+    await pane.get('[data-step-id="ship"]').trigger('click')
+
+    const form = pane.get('[data-testid="flow-route-add"]')
+    await form.get('input').setValue('shipped')
+    await form.get('select').setValue('flow:end')
+    await form.trigger('submit')
+    await flushPromises()
+
+    expect(store.addRoute).toHaveBeenCalledWith(TASK, 'ship', 'flow:end', 'shipped')
+  })
+
+  it('saves where a step was nudged to with the keyboard', async () => {
+    const store = seed(releaseFlow())
+    const pane = render()
+
+    await pane.get('[data-step-id="ship"]').trigger('keydown', { key: 'ArrowRight', altKey: true })
+    await flushPromises()
+
+    expect(store.placeStep).toHaveBeenCalledWith(
+      TASK,
+      'ship',
+      expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) })
+    )
+  })
+
+  it('offers to tidy the layout only once a step has been placed', async () => {
+    const store = seed(releaseFlow())
+    const pane = render()
+    expect(pane.find('[data-testid="flow-tidy"]').exists()).toBe(false)
+
+    store.applyStepEvent(
+      TASK,
+      releaseFlow().map((step) => (step.id === 'ship' ? { ...step, flowX: 400, flowY: 300 } : step))
+    )
+    await flushPromises()
+    await pane.get('[data-testid="flow-tidy"]').trigger('click')
+
+    expect(store.tidyFlow).toHaveBeenCalledWith(TASK)
   })
 })

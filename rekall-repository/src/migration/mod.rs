@@ -15,6 +15,7 @@ mod m036_token_usage;
 mod m037_skill_placement;
 mod m038_skill_assignment;
 mod m039_step_flow;
+mod m040_flow_start_end;
 mod migration_support;
 mod migrator;
 

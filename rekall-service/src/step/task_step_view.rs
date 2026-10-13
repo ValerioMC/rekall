@@ -19,6 +19,9 @@ pub struct TaskStepView {
     pub claimed_at: Option<Instant>,
     pub done_at: Option<Instant>,
     pub position: i32,
+    /// Where the step was dragged to on the flow canvas, in canvas pixels.
+    pub flow_x: Option<i32>,
+    pub flow_y: Option<i32>,
     /// The passes it was sent back from, oldest first; empty for a step on its first pass.
     pub passes: Vec<StepPass>,
     /// The routes leaving this step; a task whose steps carry any is a flow.
@@ -42,6 +45,8 @@ impl TaskStepView {
             claimed_at: step.claimed_at,
             done_at: step.done_at,
             position: step.position,
+            flow_x: step.flow_x,
+            flow_y: step.flow_y,
             passes: step.passes()?,
             links: flow.links_from(step.id).map(StepLinkView::of).collect(),
             visits: flow.visits_of(step.id).map(StepVisitView::of).collect(),

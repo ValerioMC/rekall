@@ -84,7 +84,10 @@ fn describe_route(anchor: &str, route: &FlowRoute) -> String {
             next.visits.len(),
             number = next.position + 1
         ),
-        FlowRoute::Ended => "\nThat step has no routes out: the flow is finished bar the review.".to_string(),
+        FlowRoute::Ended { outcome: Some(outcome) } => {
+            format!("\nRouted by `{outcome}` to the end of the flow: it is finished bar the review.")
+        }
+        FlowRoute::Ended { outcome: None } => "\nThat step has no routes out: the flow is finished bar the review.".to_string(),
     }
 }
 

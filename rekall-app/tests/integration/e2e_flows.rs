@@ -113,3 +113,43 @@ async fn a_route_with_no_outcome_is_refused_before_it_reaches_the_service() {
 
     assert_eq!(answer.status, 400);
 }
+
+#[tokio::test]
+async fn a_route_to_the_end_finishes_the_flow_for_a_session_and_shows_in_the_context() {
+    let app = app().await;
+    let (task_id, [_, _, test, _]) = release(&app).await;
+    let ended = app.post(&format!("/api/steps/{test}/links"), json!({ "endsFlow": true, "outcome": "Passed" })).await;
+    assert_eq!(ended.status, 201, "{}", ended.text);
+    let view = ended.list().into_iter().find(|candidate| candidate["id"] == json!(test)).unwrap();
+    assert!(view["links"].as_array().unwrap().iter().any(|link| link["toStepId"].is_null() && link["outcome"] == json!("passed")));
+
+    step(&app, "3", "running", None).await;
+    let answer = step(&app, "3", "claimed", Some("passed")).await;
+
+    assert_contains!(answer, "Routed by `passed` to the end of the flow");
+    let context = app.call_tool("rekall_context", json!({ "anchors": TASK })).await;
+    assert_contains!(context, "`passed` -> end of the flow");
+    assert_lacks!(context, " current=\"");
+    let steps = app.get(&format!("/api/tasks/{task_id}/steps")).await.list();
+    assert!(steps.iter().all(|view| view["visits"].as_array().unwrap().iter().all(|visit| !visit["leftAt"].is_null())));
+}
+
+#[tokio::test]
+async fn a_step_dragged_on_the_canvas_keeps_its_place_until_the_layout_is_tidied() {
+    let app = app().await;
+    let (task_id, [build, ..]) = release(&app).await;
+
+    let placed = app.patch(&format!("/api/steps/{build}/flow-place"), json!({ "x": 320, "y": 140 })).await;
+    assert_eq!(placed.status, 200, "{}", placed.text);
+    let view = placed.list().into_iter().find(|candidate| candidate["id"] == json!(build)).unwrap();
+    assert_eq!((view["flowX"].clone(), view["flowY"].clone()), (json!(320), json!(140)));
+
+    let half = app.patch(&format!("/api/steps/{build}/flow-place"), json!({ "x": 10 })).await;
+    assert_eq!(half.status, 400, "a place needs both coordinates");
+    let far = app.patch(&format!("/api/steps/{build}/flow-place"), json!({ "x": 900000, "y": 0 })).await;
+    assert_eq!(far.status, 400);
+
+    let tidied = app.delete(&format!("/api/tasks/{task_id}/flow-places")).await;
+    assert_eq!(tidied.status, 200);
+    assert!(tidied.list().iter().all(|view| view["flowX"].is_null() && view["flowY"].is_null()));
+}

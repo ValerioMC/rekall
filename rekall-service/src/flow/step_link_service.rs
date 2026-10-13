@@ -4,6 +4,7 @@ use rekall_model::task_step;
 use rekall_repository::repository as repo;
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
 
+use super::RouteTarget;
 use crate::step::{TaskStepService, TaskStepView};
 use crate::{in_write, Ctx, Tx};
 
@@ -20,11 +21,12 @@ impl StepLinkService {
         Self { ctx, steps }
     }
 
-    /// A route from `from_step_id` to `to_step_id` when the first ends with `outcome`. Answers
+    /// A route from `from_step_id` to `target` when the first ends with `outcome`. Answers
     /// the task's whole checklist, since a route changes how the flow reads.
-    pub async fn add(&self, from_step_id: Id, to_step_id: Id, outcome: Option<&str>) -> Result<Vec<TaskStepView>> {
+    pub async fn add(&self, from_step_id: Id, target: RouteTarget, outcome: Option<&str>) -> Result<Vec<TaskStepView>> {
         in_write!(&self.ctx, |tx| {
-            let (from, to) = self.endpoints(&tx, from_step_id, to_step_id).await?;
+            let from = repo::task_step::require(tx.db(), from_step_id).await?;
+            let to_step_id = self.target_step(&tx, &from, target).await?;
             let outcome = step_link::normalise_outcome(outcome)?;
             let outgoing = repo::step_link::list_from(tx.db(), from.id).await?;
             if outgoing.len() >= ROUTES_PER_STEP_MAX {
@@ -34,20 +36,21 @@ impl StepLinkService {
                 )));
             }
             refuse_taken_outcome(&from, &outgoing, &outcome, None)?;
-            let link = step_link::Model::new(from.task_id, from.id, to.id, outcome, outgoing.len() as i32, self.ctx.now());
+            let link = step_link::Model::new(from.task_id, from.id, to_step_id, outcome, outgoing.len() as i32, self.ctx.now());
             link.validate()?;
             link.into_active_model().insert(tx.db()).await?;
             self.answer(&mut tx, from.task_id).await
         })
     }
 
-    /// Points a route at another step, renames its outcome, or both.
-    pub async fn edit(&self, id: Id, to_step_id: Option<Id>, outcome: Option<&str>) -> Result<Vec<TaskStepView>> {
+    /// Points a route at another step or the end, renames its outcome, or both.
+    pub async fn edit(&self, id: Id, target: Option<RouteTarget>, outcome: Option<&str>) -> Result<Vec<TaskStepView>> {
         in_write!(&self.ctx, |tx| {
             let before = repo::step_link::require(tx.db(), id).await?;
             let mut link = before.clone();
-            if let Some(to_step_id) = to_step_id {
-                link.to_step_id = self.endpoints(&tx, before.from_step_id, to_step_id).await?.1.id;
+            if let Some(target) = target {
+                let from = repo::task_step::require(tx.db(), before.from_step_id).await?;
+                link.to_step_id = self.target_step(&tx, &from, target).await?;
             }
             if outcome.is_some() {
                 link.outcome = step_link::normalise_outcome(outcome)?;
@@ -78,9 +81,11 @@ impl StepLinkService {
         Ok(!repo::step_link::list_of_task(tx.db(), task_id).await?.is_empty())
     }
 
-    /// Both ends of a route: two steps of one task.
-    async fn endpoints(&self, tx: &Tx, from_step_id: Id, to_step_id: Id) -> Result<(task_step::Model, task_step::Model)> {
-        let from = repo::task_step::require(tx.db(), from_step_id).await?;
+    /// The step id a route stores for `target`: the step must be on the same task as `from`.
+    async fn target_step(&self, tx: &Tx, from: &task_step::Model, target: RouteTarget) -> Result<Option<Id>> {
+        let Some(to_step_id) = target.step_id() else {
+            return Ok(None);
+        };
         let to = repo::task_step::require(tx.db(), to_step_id).await?;
         if from.task_id != to.task_id {
             return Err(RekallError::illegal(format!(
@@ -88,7 +93,7 @@ impl StepLinkService {
                 from.title, to.title
             )));
         }
-        Ok((from, to))
+        Ok(Some(to.id))
     }
 
     async fn answer(&self, tx: &mut Tx, task_id: Id) -> Result<Vec<TaskStepView>> {

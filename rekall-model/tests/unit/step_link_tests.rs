@@ -1,7 +1,7 @@
 use super::*;
 
 fn route(outcome: &str) -> Model {
-    Model::new(Id::random(), Id::random(), Id::random(), outcome.into(), 0, Instant::now())
+    Model::new(Id::random(), Id::random(), Some(Id::random()), outcome.into(), 0, Instant::now())
 }
 
 #[test]
@@ -12,9 +12,16 @@ fn a_route_between_two_steps_with_a_slug_outcome_is_valid() {
 #[test]
 fn a_route_onto_its_own_step_is_refused() {
     let mut looped = route("retry");
-    looped.to_step_id = looped.from_step_id;
+    looped.to_step_id = Some(looped.from_step_id);
     let error = looped.validate().unwrap_err();
     assert!(error.to_string().contains("cannot route to itself"));
+}
+
+#[test]
+fn a_route_to_the_end_of_the_flow_is_valid() {
+    let mut finishing = route("passed");
+    finishing.to_step_id = None;
+    assert!(finishing.validate().is_ok());
 }
 
 #[test]

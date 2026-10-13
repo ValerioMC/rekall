@@ -52,6 +52,8 @@ function step(id: string, taskId: string, state: TaskStepState, claimedAt: strin
     claimedAt,
     doneAt: null,
     position: 0,
+    flowX: null,
+    flowY: null,
     passes: [],
     links: [],
     visits: [],

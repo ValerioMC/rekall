@@ -46,6 +46,8 @@ const claimedStep: TaskStep = {
   claimedAt: '2026-09-22T09:00:00Z',
   doneAt: null,
   position: 0,
+  flowX: null,
+  flowY: null,
   passes: [],
     links: [],
     visits: [],

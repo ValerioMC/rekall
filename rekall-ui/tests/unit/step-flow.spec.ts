@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { readFlow, routesInto, routeTargets } from '@/common/flow/step-flow'
-import { flowStep, releaseFlow } from './flow.fixtures'
+import { finishedFlow, flowStep, releaseFlow } from './flow.fixtures'
 
 describe('a checklist read as a flow', () => {
   it('stands on the step with the open visit and lists every move in order', () => {
@@ -43,5 +43,28 @@ describe('a checklist read as a flow', () => {
       'passed->ship'
     ])
     expect(routesInto(deploy!, steps).map(({ source }) => source.id)).toEqual(['build', 'fix'])
+  })
+
+  it('is finished once the work leaves a step by a route to the end', () => {
+    const flow = readFlow(finishedFlow())
+
+    expect(flow.finished).toBe(true)
+    expect(flow.currentId).toBeNull()
+    expect(flow.endedFromId).toBe('ship')
+    expect(flow.lastRouteId).toBe('ship-shipped')
+  })
+
+  it('is not finished while a step is current, or before the work has moved', () => {
+    expect(readFlow(releaseFlow()).finished).toBe(false)
+    expect(readFlow([flowStep('one', 0)]).finished).toBe(false)
+  })
+
+  it('names no target for a route to the end of the flow', () => {
+    const steps = finishedFlow()
+    const ship = steps.find((step) => step.id === 'ship')!
+
+    expect(routeTargets(ship, steps).map(({ link, target }) => `${link.outcome}->${target}`)).toEqual([
+      'shipped->null'
+    ])
   })
 })

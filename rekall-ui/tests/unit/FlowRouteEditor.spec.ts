@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import FlowRouteEditor from '@/components/console/flow/FlowRouteEditor.vue'
+import type { TaskStepId } from '@/model/branded'
 import { releaseFlow } from './flow.fixtures'
 
 /** The routes out of one step: renamed on blur, retargeted on pick, the step itself never offered. */
@@ -17,6 +18,37 @@ describe('FlowRouteEditor', () => {
       'app-error',
       'passed'
     ])
+  })
+
+  it('offers the end of the flow among the targets', () => {
+    const options = render().get('[data-testid="flow-route-add"] select').findAll('option')
+
+    expect(options.map((option) => option.attributes('value'))).toContain('flow:end')
+  })
+
+  it('points a route at the end of the flow when End is picked', async () => {
+    const editor = render()
+
+    await editor.get('[data-testid="flow-route-row"] select').setValue('flow:end')
+
+    expect(editor.emitted('edit')).toEqual([['test-app-error', { endsFlow: true }]])
+  })
+
+  it('fills the target and focuses the outcome when a route was drawn on the canvas', async () => {
+    const steps = releaseFlow()
+    const editor = mount(FlowRouteEditor, {
+      attachTo: document.body,
+      props: { step: steps[2]!, steps, busy: false, drawn: null }
+    })
+
+    await editor.setProps({ drawn: { to: 'fix' as TaskStepId, nonce: 1 } })
+    await flushPromises()
+
+    expect((editor.get('[data-testid="flow-route-add"] select').element as HTMLSelectElement).value).toBe(
+      'fix'
+    )
+    expect(document.activeElement).toBe(editor.get('[data-testid="flow-route-add"] input').element)
+    editor.unmount()
   })
 
   it('never offers the step as its own target', () => {

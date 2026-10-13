@@ -17,12 +17,16 @@ export interface StepFlow {
   readonly isFlow: boolean
   readonly steps: readonly TaskStep[]
   readonly currentId: TaskStepId | null
-  /** Where the flow begins: the first step on the checklist. */
+  /** Where the flow begins: the first step on the checklist, the one Start leads to. */
   readonly entryId: TaskStepId | null
+  /** The work has left its last step and nothing is current: it reached the end. */
+  readonly finished: boolean
+  /** The step the work left last when the flow has ended, which the route into End is drawn from. */
+  readonly endedFromId: TaskStepId | null
   readonly trail: readonly FlowMove[]
   /** Routes the work has left by at least once. */
   readonly walked: ReadonlySet<StepLinkId>
-  /** The route the last move came in by, the one a live view animates. */
+  /** The route the last move came in by, or the one that ended the flow: the one a live view animates. */
   readonly lastRouteId: StepLinkId | null
 }
 
@@ -35,12 +39,15 @@ export function readFlow(all: readonly TaskStep[]): StepFlow {
     steps,
     currentId: current?.id ?? null,
     entryId: steps[0]?.id ?? null,
+    finished: trail.length > 0 && current === null,
+    endedFromId: current === null ? (trail[trail.length - 1]?.step.id ?? null) : null,
     trail,
     walked: walkedRoutes(trail),
     lastRouteId: lastRoute(trail)
   }
 }
 
+/** Where each route of `step` leads: the step, or null for the end of the flow or a step that is gone. */
 export function routeTargets(
   step: TaskStep,
   steps: readonly TaskStep[]
@@ -88,11 +95,15 @@ function walkedRoutes(trail: readonly FlowMove[]): Set<StepLinkId> {
   return walked
 }
 
-/** The route into the step the flow stands on, when the move before it was left by one. */
+/**
+ * The route into the step the flow stands on, when the move before it was left by one; once the
+ * flow has ended, the route the last move left by.
+ */
 function lastRoute(trail: readonly FlowMove[]): StepLinkId | null {
   const last = trail[trail.length - 1]
+  if (last && !last.open) return routeTaken(last)?.id ?? null
   const before = trail[trail.length - 2]
-  if (!last?.open || !before) return null
+  if (!last || !before) return null
   const link = routeTaken(before)
   return link?.toStepId === last.step.id ? link.id : null
 }

@@ -5,7 +5,7 @@ use rekall_repository::repository as repo;
 use rekall_model::task;
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
-use super::{StepFlowRows, StepStreamEvent, TaskStepView};
+use super::{FlowPlace, StepFlowRows, StepStreamEvent, TaskStepView};
 use crate::timeentry::TimeEntryService;
 use crate::{in_read, in_write, load, text_rule, Ctx, DomainEvent, Tx};
 
@@ -272,6 +272,35 @@ impl TaskStepService {
             let settled = self.find_by_task_in(&mut tx, task_id).await?;
             self.publish_in(&mut tx, task_id).await?;
             Ok(settled)
+        })
+    }
+
+    /// Remembers where the person dragged a step on the flow canvas. `None` hands it back to the
+    /// automatic layout. Answers the task's whole checklist, like a route does.
+    pub async fn place_in_flow(&self, id: Id, place: Option<FlowPlace>) -> Result<Vec<TaskStepView>> {
+        in_write!(&self.ctx, |tx| {
+            let before = self.require(&tx, id).await?;
+            let mut step = before.clone();
+            step.flow_x = place.map(|at| at.x);
+            step.flow_y = place.map(|at| at.y);
+            repo::update_if_changed(tx.db(), &before, step, self.ctx.now()).await?;
+            self.publish_in(&mut tx, before.task_id).await?;
+            self.find_by_task_in(&mut tx, before.task_id).await
+        })
+    }
+
+    /// Hands every step of the task back to the automatic layout.
+    pub async fn clear_flow_places(&self, task_id: Id) -> Result<Vec<TaskStepView>> {
+        in_write!(&self.ctx, |tx| {
+            load::task_or_unknown(tx.db(), task_id).await?;
+            for before in load::steps_of(tx.db(), task_id).await? {
+                let mut step = before.clone();
+                step.flow_x = None;
+                step.flow_y = None;
+                repo::update_if_changed(tx.db(), &before, step, self.ctx.now()).await?;
+            }
+            self.publish_in(&mut tx, task_id).await?;
+            self.find_by_task_in(&mut tx, task_id).await
         })
     }
 

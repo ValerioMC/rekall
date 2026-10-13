@@ -57,6 +57,8 @@ function makeStep(id: string, position: number, state: TaskStepState, body: stri
     claimedAt: state === 'CLAIMED' ? '2026-10-01T09:00:00Z' : null,
     doneAt: state === 'DONE' ? '2026-10-01T08:00:00Z' : null,
     position,
+    flowX: null,
+    flowY: null,
     passes: [],
     links: [],
     visits: [],

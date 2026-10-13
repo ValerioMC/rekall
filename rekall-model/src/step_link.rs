@@ -19,7 +19,8 @@ pub struct Model {
     pub id: Id,
     pub task_id: Id,
     pub from_step_id: Id,
-    pub to_step_id: Id,
+    /// The step the route leads to; `None` ends the flow there.
+    pub to_step_id: Option<Id>,
     /// A slug, so a session names it the way the console shows it: `app-error`.
     pub outcome: String,
     pub position: i32,
@@ -47,14 +48,14 @@ impl Related<super::task::Entity> for Entity {
 impl ActiveModelBehavior for ActiveModel {}
 
 impl Model {
-    pub fn new(task_id: Id, from_step_id: Id, to_step_id: Id, outcome: String, position: i32, now: Instant) -> Self {
+    pub fn new(task_id: Id, from_step_id: Id, to_step_id: Option<Id>, outcome: String, position: i32, now: Instant) -> Self {
         Self { id: Id::random(), task_id, from_step_id, to_step_id, outcome, position, created_at: now, updated_at: now }
     }
 
     /// A step that repeats is reached again through another step; a route onto itself would
     /// loop without anything in between deciding to.
     pub fn validate(&self) -> Result<(), RekallError> {
-        if self.from_step_id == self.to_step_id {
+        if self.to_step_id == Some(self.from_step_id) {
             return Err(RekallError::illegal("A route has to lead to another step. A step cannot route to itself."));
         }
         Violations::new("StepLink")

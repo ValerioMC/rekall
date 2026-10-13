@@ -4,6 +4,8 @@ import AppConfirm from '@/components/ui/AppConfirm.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { readFlow } from '@/common/flow/step-flow'
+import type { Point } from '@/common/diagram/viewport'
+import type { RouteTarget } from '@/common/flow/route-target'
 import type { Task, TaskStep } from '@/model/catalog'
 import type { StepLinkId, TaskStepId } from '@/model/branded'
 import FlowCanvas from './FlowCanvas.vue'
@@ -38,17 +40,36 @@ watch(
   { immediate: true }
 )
 
-function addRoute(to: TaskStepId, outcome: string): void {
+function addRoute(to: RouteTarget, outcome: string): void {
   if (!selectedId.value) return
   void run(() => store.addRoute(props.task.id, selectedId.value!, to, outcome))
 }
 
-function editRoute(id: StepLinkId, patch: { toStepId?: TaskStepId; outcome?: string }): void {
+function editRoute(
+  id: StepLinkId,
+  patch: { toStepId?: TaskStepId; endsFlow?: boolean; outcome?: string }
+): void {
   void run(() => store.editRoute(props.task.id, id, patch))
 }
 
 function removeRoute(id: StepLinkId): void {
   void run(() => store.removeRoute(props.task.id, id))
+}
+
+// A route drawn on the canvas fills the picked step's route form and waits for its outcome.
+const drawn = ref<{ to: RouteTarget; nonce: number } | null>(null)
+
+function drawRoute(from: TaskStepId, to: RouteTarget): void {
+  selectedId.value = from
+  drawn.value = { to, nonce: (drawn.value?.nonce ?? 0) + 1 }
+}
+
+async function placeStep(id: TaskStepId, at: Point): Promise<void> {
+  await run(() => store.placeStep(props.task.id, id, at))
+}
+
+function tidy(): void {
+  void run(() => store.tidyFlow(props.task.id))
 }
 
 const confirmingReset = ref(false)
@@ -77,7 +98,14 @@ async function reset(): Promise<void> {
     </p>
 
     <div class="flex min-h-0 flex-1 flex-col @3xl:flex-row">
-      <FlowCanvas :flow="flow" :selected-id="selectedId" @select="(id) => (selectedId = id)" />
+      <FlowCanvas
+        :flow="flow"
+        :selected-id="selectedId"
+        @select="(id) => (selectedId = id)"
+        @place="placeStep"
+        @connect="drawRoute"
+        @tidy="tidy"
+      />
       <FlowInspector
         v-if="selected"
         class="max-h-[48%] shrink-0 border-t border-border bg-surface @3xl:max-h-none @3xl:w-[340px] @3xl:border-t-0 @3xl:border-l"
@@ -85,6 +113,7 @@ async function reset(): Promise<void> {
         :steps="flow.steps"
         :current="selected.id === flow.currentId"
         :busy="isRunning"
+        :drawn="drawn"
         @select="(id) => (selectedId = id)"
         @open-detail="emit('open-detail', selected.id)"
         @add-route="addRoute"

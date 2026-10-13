@@ -7,4 +7,6 @@ use serde::Deserialize;
 pub struct StepLinkRequest {
     pub to_step_id: Option<String>,
     pub outcome: Option<String>,
+    /// The route leads to the end of the flow instead of to `toStepId`.
+    pub ends_flow: bool,
 }

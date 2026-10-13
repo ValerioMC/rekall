@@ -1,51 +1,116 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { smoothPath } from '@/common/diagram/edge-path'
-import { layoutFlow, type PlacedRoute } from '@/common/flow/flow-layout'
+import type { Point } from '@/common/diagram/viewport'
+import { layoutFlow, placeSteps, type PlacedRoute } from '@/common/flow/flow-layout'
+import { FLOW_END, type RouteTarget } from '@/common/flow/route-target'
 import type { StepFlow } from '@/common/flow/step-flow'
+import { useFlowDrag } from '@/composables/useFlowDrag'
+import { useFlowPan } from '@/composables/useFlowPan'
 import type { StepLink } from '@/model/catalog'
 import type { StepLinkId, TaskStepId } from '@/model/branded'
 import FlowNode from './FlowNode.vue'
+import FlowTerminal from './FlowTerminal.vue'
 
 /**
- * The flow drawn as a graph: steps laid out by dagre, routes between them labelled with their
- * outcome. Walked routes are solid, routes not yet taken dotted, and the route the work last
- * came in by carries a light toward the step it stands on.
+ * The flow drawn as a graph: Start, the steps laid out by dagre and End, with the routes between
+ * them labelled by outcome. Walked routes are solid, routes not yet taken dotted, and the route the
+ * work last came in by carries a light toward the step it stands on. Steps drag to where the person
+ * wants them; the handle under a step draws a route to another step or to End. A press on the empty
+ * canvas pans the graph.
  */
 const props = defineProps<{
   flow: StepFlow
   selectedId: TaskStepId | null
 }>()
 
-defineEmits<{ select: [id: TaskStepId] }>()
+const emit = defineEmits<{
+  select: [id: TaskStepId]
+  place: [id: TaskStepId, at: Point]
+  connect: [from: TaskStepId, to: RouteTarget]
+  tidy: []
+}>()
 
-const layout = computed(() => layoutFlow(props.flow.steps))
+const base = computed(() => layoutFlow(props.flow.steps))
+const savedPlaces = computed(() => {
+  const places = new Map<TaskStepId, Point>()
+  for (const step of props.flow.steps) {
+    if (step.flowX !== null && step.flowY !== null) places.set(step.id, { x: step.flowX, y: step.flowY })
+  }
+  return places
+})
+
+const surface = ref<HTMLElement | null>(null)
+const drag = useFlowDrag({
+  surface,
+  boxes: () => layout.value.nodes,
+  endBox: () => layout.value.end,
+  place: async (id, at) => emit('place', id, at),
+  connect: (from, to) => emit('connect', from, to),
+  select: (id) => emit('select', id)
+})
+
+const layout = computed(() => placeSteps(base.value, new Map([...savedPlaces.value, ...drag.live.value])))
 const linkById = computed(() => {
   const all = new Map<StepLinkId, StepLink>()
   for (const step of props.flow.steps) for (const link of step.links) all.set(link.id, link)
   return all
 })
+const labelled = computed(() => layout.value.routes.filter((placed) => placed.kind === 'route'))
+const tidyable = computed(() => savedPlaces.value.size > 0)
 
 const reducedMotion =
   typeof window !== 'undefined' && (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false)
 
+function isWalked(placed: PlacedRoute): boolean {
+  if (placed.kind === 'entry') return props.flow.trail.length > 0
+  if (placed.kind === 'exit') return props.flow.endedFromId === placed.from
+  return placed.linkId !== null && props.flow.walked.has(placed.linkId)
+}
+
+function isLive(placed: PlacedRoute): boolean {
+  if (placed.kind === 'exit') return props.flow.endedFromId === placed.from
+  if (placed.kind === 'entry') return false
+  return placed.linkId !== null && placed.linkId === props.flow.lastRouteId
+}
+
 function routeClass(placed: PlacedRoute): string {
-  if (placed.id === props.flow.lastRouteId) return 'flow-route-live'
-  if (props.flow.walked.has(placed.id)) return 'flow-route-walked'
+  if (isLive(placed)) return 'flow-route-live'
+  if (isWalked(placed)) return 'flow-route-walked'
   return 'flow-route-pending'
 }
 
 function touchesSelection(placed: PlacedRoute): boolean {
-  const link = linkById.value.get(placed.id)
-  return link !== undefined && (link.fromStepId === props.selectedId || link.toStepId === props.selectedId)
+  return placed.from === props.selectedId || placed.to === props.selectedId
 }
 
-function isTerminal(id: TaskStepId): boolean {
-  const step = props.flow.steps.find((candidate) => candidate.id === id)
-  return props.flow.isFlow && step !== undefined && step.links.length === 0
+/** Each arrowhead is its own marker, because a marker cannot take the colour of the path that uses it. */
+type ArrowKind = 'pending' | 'walked' | 'live' | 'focus'
+const arrowKinds: readonly ArrowKind[] = ['pending', 'walked', 'live', 'focus']
+
+function arrowKind(placed: PlacedRoute): ArrowKind {
+  if (touchesSelection(placed)) return 'focus'
+  if (isLive(placed)) return 'live'
+  return isWalked(placed) ? 'walked' : 'pending'
+}
+
+/** The path the pointer draws from the handle of the step a route leaves. */
+const pendingPath = computed(() => {
+  const connecting = drag.connecting.value
+  const from = connecting ? layout.value.nodes.get(connecting.from) : undefined
+  if (!connecting || !from) return ''
+  const start = { x: from.x + from.width / 2, y: from.y + from.height }
+  const end = connecting.over === null ? connecting.at : snapPoint(connecting.over)
+  return `M${start.x},${start.y}L${end.x},${end.y}`
+})
+
+function snapPoint(target: RouteTarget): Point {
+  const box = target === FLOW_END ? layout.value.end : layout.value.nodes.get(target)!
+  return { x: box.x + box.width / 2, y: box.y }
 }
 
 const scroller = ref<HTMLElement | null>(null)
+const pan = useFlowPan(scroller, surface)
 
 /** Keeps the step the work stands on in view as the flow moves. */
 async function revealCurrent(): Promise<void> {
@@ -63,75 +128,105 @@ onMounted(revealCurrent)
 </script>
 
 <template>
-  <div
-    ref="scroller"
-    class="texture-dots relative min-h-0 min-w-0 flex-1 overflow-auto"
-    data-testid="flow-canvas"
-  >
-    <div class="relative mx-auto" :style="{ width: `${layout.width}px`, height: `${layout.height}px` }">
-      <svg
-        class="pointer-events-none absolute inset-0 overflow-visible"
-        :width="layout.width"
-        :height="layout.height"
-        aria-hidden="true"
+  <div class="relative min-h-0 min-w-0 flex-1">
+    <button
+      v-if="tidyable"
+      type="button"
+      class="key-quiet focus-ring absolute right-3 top-3 z-20 cursor-pointer rounded-control px-2.5 py-1 text-caption"
+      data-testid="flow-tidy"
+      @click="emit('tidy')"
+    >
+      Tidy layout
+    </button>
+    <div
+      ref="scroller"
+      class="texture-dots size-full overflow-auto"
+      data-testid="flow-canvas"
+      @pointerdown="pan.startPan($event)"
+    >
+      <div
+        ref="surface"
+        class="relative mx-auto"
+        :style="{ width: `${layout.width}px`, height: `${layout.height}px` }"
       >
-        <defs>
-          <marker
-            id="flow-arrow"
-            viewBox="-10 -5 10 10"
-            refX="0"
-            refY="0"
-            markerWidth="9"
-            markerHeight="9"
-            orient="auto"
-          >
-            <path d="M0,0L-8.5,-4.4L-6.4,0L-8.5,4.4Z" fill="context-stroke" />
-          </marker>
-        </defs>
-        <g
-          v-for="placed in layout.routes"
-          :key="placed.id"
-          :class="[routeClass(placed), touchesSelection(placed) && 'flow-route-focus']"
+        <svg
+          class="pointer-events-none absolute inset-0 overflow-visible"
+          :width="layout.width"
+          :height="layout.height"
+          aria-hidden="true"
         >
-          <path
-            :id="`flow-route-${placed.id}`"
-            class="flow-route"
-            :d="smoothPath(placed.points, 7)"
-            marker-end="url(#flow-arrow)"
-          />
-          <circle
-            v-if="placed.id === flow.lastRouteId && !reducedMotion"
-            :key="flow.trail.length"
-            r="4"
-            class="flow-spark"
+          <defs>
+            <marker
+              v-for="kind in arrowKinds"
+              :id="`flow-arrow-${kind}`"
+              :key="kind"
+              viewBox="-10 -5 10 10"
+              refX="0"
+              refY="0"
+              markerWidth="9"
+              markerHeight="9"
+              orient="auto"
+            >
+              <path d="M0,0L-8.5,-4.4L-6.4,0L-8.5,4.4Z" :class="`flow-arrowhead flow-arrowhead-${kind}`" />
+            </marker>
+          </defs>
+          <g
+            v-for="placed in layout.routes"
+            :key="placed.key"
+            :class="[routeClass(placed), touchesSelection(placed) && 'flow-route-focus']"
           >
-            <animateMotion dur="1.7s" repeatCount="indefinite" :path="smoothPath(placed.points, 7)" />
-          </circle>
-        </g>
-      </svg>
+            <path
+              :id="`flow-route-${placed.key}`"
+              class="flow-route"
+              :d="smoothPath(placed.points, 7)"
+              :marker-end="`url(#flow-arrow-${arrowKind(placed)})`"
+            />
+            <circle v-if="isLive(placed) && !reducedMotion" :key="flow.trail.length" r="4" class="flow-spark">
+              <animateMotion dur="1.7s" repeatCount="indefinite" :path="smoothPath(placed.points, 7)" />
+            </circle>
+          </g>
+          <path
+            v-if="pendingPath"
+            :d="pendingPath"
+            class="flow-pending"
+            marker-end="url(#flow-arrow-focus)"
+          />
+        </svg>
 
-      <span
-        v-for="placed in layout.routes"
-        :key="`label-${placed.id}`"
-        class="flow-outcome pointer-events-none absolute -translate-x-1/2 -translate-y-1/2"
-        :class="[routeClass(placed), touchesSelection(placed) && 'flow-route-focus']"
-        :style="{ left: `${placed.labelAt.x}px`, top: `${placed.labelAt.y}px` }"
-        data-testid="flow-outcome"
-      >
-        {{ linkById.get(placed.id)?.outcome }}
-      </span>
+        <span
+          v-for="placed in labelled"
+          :key="`label-${placed.key}`"
+          class="flow-outcome pointer-events-none absolute -translate-x-1/2 -translate-y-1/2"
+          :class="[routeClass(placed), touchesSelection(placed) && 'flow-route-focus']"
+          :style="{ left: `${placed.labelAt.x}px`, top: `${placed.labelAt.y}px` }"
+          data-testid="flow-outcome"
+        >
+          {{ placed.linkId ? linkById.get(placed.linkId)?.outcome : '' }}
+        </span>
 
-      <FlowNode
-        v-for="step in flow.steps"
-        :key="step.id"
-        :step="step"
-        :box="layout.nodes.get(step.id)!"
-        :current="step.id === flow.currentId"
-        :selected="step.id === selectedId"
-        :entry="step.id === flow.entryId"
-        :terminal="isTerminal(step.id)"
-        @select="$emit('select', step.id)"
-      />
+        <FlowTerminal kind="start" :box="layout.start" :reached="flow.trail.length > 0" />
+        <FlowTerminal
+          kind="end"
+          :box="layout.end"
+          :reached="flow.finished"
+          :aimed="drag.connecting.value?.over === FLOW_END"
+        />
+
+        <FlowNode
+          v-for="step in flow.steps"
+          :key="step.id"
+          :step="step"
+          :box="layout.nodes.get(step.id)!"
+          :current="step.id === flow.currentId"
+          :selected="step.id === selectedId"
+          :aimed="drag.connecting.value?.over === step.id"
+          :dragging="drag.live.value.has(step.id)"
+          @select="$emit('select', step.id)"
+          @move-start="drag.startMove(step.id, $event)"
+          @connect-start="drag.startConnect(step.id, $event)"
+          @nudge="(dx, dy) => drag.nudge(step.id, dx, dy)"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -163,6 +258,29 @@ onMounted(revealCurrent)
 .flow-route-focus .flow-route {
   stroke: var(--color-anchor);
   stroke-dasharray: none;
+}
+
+.flow-arrowhead {
+  fill: var(--color-border-strong);
+}
+
+.flow-arrowhead-walked {
+  fill: color-mix(in srgb, var(--color-accent) 55%, var(--color-border-strong));
+}
+
+.flow-arrowhead-live {
+  fill: var(--color-accent);
+}
+
+.flow-arrowhead-focus {
+  fill: var(--color-anchor);
+}
+
+.flow-pending {
+  fill: none;
+  stroke: var(--color-anchor);
+  stroke-width: 1.75;
+  stroke-dasharray: 5 4;
 }
 
 .flow-spark {

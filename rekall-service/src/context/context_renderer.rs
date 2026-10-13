@@ -7,7 +7,7 @@ use rekall_model::{DocumentContextMode, TaskStepState};
 
 use super::{ContextCommitView, ContextRecord, ContextSkillScope, ContextSkillView, DocumentView};
 use crate::component::{ComponentReferences, ProjectComponentView};
-use crate::step::TaskStepView;
+use crate::step::{StepLinkView, TaskStepView};
 use crate::wrapup::WrapupView;
 
 pub const MAX_DOCUMENT_CHARACTERS: usize = 20_000;
@@ -374,18 +374,21 @@ fn render_routes(step: &TaskStepView, steps: &[&TaskStepView]) -> String {
     if step.links.is_empty() {
         return String::new();
     }
-    let routes: Vec<String> = step
-        .links
-        .iter()
-        .filter_map(|link| {
-            let target = steps.iter().find(|candidate| candidate.id == link.to_step_id)?;
-            Some(format!("`{}` -> step {} \"{}\"", link.outcome, target.position + 1, attribute(&target.title)))
-        })
-        .collect();
+    let routes: Vec<String> = step.links.iter().filter_map(|link| render_route(link, steps)).collect();
     if routes.is_empty() {
         return String::new();
     }
     format!("  Routes: {}\n", routes.join("; "))
+}
+
+/// One route: `outcome` -> a step by number and title, or the end of the flow. A route to a step
+/// that is gone is left out.
+fn render_route(link: &StepLinkView, steps: &[&TaskStepView]) -> Option<String> {
+    let Some(to_step_id) = link.to_step_id else {
+        return Some(format!("`{}` -> end of the flow", link.outcome));
+    };
+    let target = steps.iter().find(|candidate| candidate.id == to_step_id)?;
+    Some(format!("`{}` -> step {} \"{}\"", link.outcome, target.position + 1, attribute(&target.title)))
 }
 
 #[cfg(test)]

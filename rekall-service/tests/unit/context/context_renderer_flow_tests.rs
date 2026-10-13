@@ -28,9 +28,9 @@ fn a_flow_names_its_current_step_its_moves_and_every_route() {
     left.leave(Some("deployed".into()), now);
     let flow = StepFlowRows {
         links: vec![
-            step_link::Model::new(task_id, deploy.id, test.id, "deployed".into(), 0, now),
-            step_link::Model::new(task_id, test.id, fix.id, "app-error".into(), 0, now),
-            step_link::Model::new(task_id, fix.id, deploy.id, "fixed".into(), 0, now),
+            step_link::Model::new(task_id, deploy.id, Some(test.id), "deployed".into(), 0, now),
+            step_link::Model::new(task_id, test.id, Some(fix.id), "app-error".into(), 0, now),
+            step_link::Model::new(task_id, fix.id, Some(deploy.id), "fixed".into(), 0, now),
         ],
         visits: vec![left, step_visit::Model::enter(task_id, test.id, 2, now)],
     };
@@ -50,4 +50,23 @@ fn a_plain_checklist_carries_no_flow_attributes_or_routes() {
 
     assert!(!rendered.contains("flow="), "{rendered}");
     assert!(!rendered.contains("Routes:"), "{rendered}");
+}
+
+#[test]
+fn a_route_to_the_end_of_the_flow_is_named_as_such() {
+    let task_id = Id::random();
+    let test = step(task_id, "Test", 0, TaskStepState::Open);
+    let fix = step(task_id, "Fix", 1, TaskStepState::Open);
+    let now = Instant::now();
+    let flow = StepFlowRows {
+        links: vec![
+            step_link::Model::new(task_id, test.id, None, "passed".into(), 0, now),
+            step_link::Model::new(task_id, test.id, Some(fix.id), "app-error".into(), 1, now),
+        ],
+        visits: vec![],
+    };
+
+    let rendered = render(&[test, fix], &flow);
+
+    assert!(rendered.contains("Routes: `passed` -> end of the flow; `app-error` -> step 2 \"Fix\""), "{rendered}");
 }

@@ -27,6 +27,9 @@ pub struct Model {
     pub position: i32,
     /// The earlier passes, oldest first, as a JSON array of `StepPass`.
     pub passes_json: String,
+    /// Where the person dragged the step on the flow canvas; `None` leaves it to the automatic layout.
+    pub flow_x: Option<i32>,
+    pub flow_y: Option<i32>,
     pub created_at: Instant,
     pub updated_at: Instant,
 }
@@ -64,6 +67,8 @@ impl Model {
             done_at: None,
             position,
             passes_json: "[]".to_string(),
+            flow_x: None,
+            flow_y: None,
             created_at: now,
             updated_at: now,
         }
