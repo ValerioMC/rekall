@@ -49,6 +49,14 @@ describe('TaskLabelsStrip', () => {
     expect(wrapper.get('[data-testid="skill-add"]').text()).toBe('Add a skill')
   })
 
+  it('leads with the token chip, to the left of the tag control', () => {
+    const wrapper = mount(TaskLabelsStrip, { props: { task: taskWith() } })
+
+    const order = wrapper.findAll('[data-testid="token-chip"], [data-testid="task-tag-control"]')
+
+    expect(order.map((element) => element.attributes('data-testid'))).toEqual(['token-chip', 'task-tag-control'])
+  })
+
   it("shows the task's own skills removable and the tag's dashed", () => {
     const store = useConsoleStore()
     store.taskSkills = [{ taskId: id, stepId: null, skillName: 'rust-standards' }]

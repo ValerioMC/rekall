@@ -645,7 +645,7 @@ cache read are kept beside it and shown in the tooltip. `GET /api/token-usage` r
 task and step, `GET /api/token-usage/daily` one entry per task and day, and `useTokenUsageStore`
 sums a project from its tasks in the browser, so no total is stored that could disagree with its
 parts. A task's header (`TaskTitleRow`) holds the name, its status flags and `CopyAnchorButton`; the
-description pane moves the token chip into its tag and skills line (`TaskLabelsStrip`), the other
+description pane moves the token chip into its tag and skills line (`TaskLabelsStrip`), where it leads, left of the tag control, so wrapping never moves it; the other
 panes keep it on the title line. `TokenTrendChip` is the chip for any set of tasks (`TaskTokenChip`
 for one, `ProjectTokenChip` for a project in the navigator header); its sparkline and popover chart
 (`TokenTrendPanel`, `TokenTrendChart`) are drawn from the store's days by `trendOf`, a running total

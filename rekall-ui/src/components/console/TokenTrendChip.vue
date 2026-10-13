@@ -77,9 +77,9 @@ onBeforeUnmount(close)
     <button
       ref="chip"
       type="button"
-      class="focus-ring inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-control px-1.5 font-mono text-caption tabular-nums transition-colors duration-(--motion-quick) hover:bg-surface-raised hover:text-text"
+      class="focus-ring inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-full border border-border bg-surface-raised/40 px-2.5 font-mono text-caption tabular-nums transition-colors duration-(--motion-quick) hover:border-border-strong hover:bg-surface-raised hover:text-text"
       :class="[
-        open ? 'bg-surface-raised text-text' : '',
+        open ? 'border-border-strong bg-surface-raised text-text' : '',
         totals.generated > 0 ? 'text-text-muted' : 'text-text-subtle'
       ]"
       :title="describeTokens(totals)"

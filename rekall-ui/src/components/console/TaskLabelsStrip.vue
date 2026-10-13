@@ -10,7 +10,7 @@ import { skillsOfTag } from '@/model/skill-assignment'
 import type { Task } from '@/model/catalog'
 
 /**
- * The task's tag, its skills and its token trend, in the description's header. The tag and the
+ * The task's token trend, tag and skills, in the description's header. The chip leads, so it keeps its place as the line wraps. The tag and the
  * task's own skills are changed in place; the tag's skills arrive dashed, since they are the tag's.
  */
 const props = defineProps<{ task: Task }>()
@@ -33,9 +33,9 @@ function save(names: readonly string[]): void {
 
 <template>
   <div class="mt-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5" data-testid="task-labels">
+    <TaskTokenChip :task="task" />
     <TaskTagControl :task="task" />
     <span class="h-4 w-px bg-border" aria-hidden="true" />
     <SkillField :model-value="own" :inherited="fromTag" owner="task" @update:model-value="save" />
-    <TaskTokenChip class="ml-auto" :task="task" />
   </div>
 </template>
