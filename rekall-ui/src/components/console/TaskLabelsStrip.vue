@@ -3,14 +3,14 @@ import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import SkillField from '@/components/skills/SkillField.vue'
 import TaskTagControl from '@/components/console/TaskTagControl.vue'
-import TaskTokenChip from '@/components/console/TaskTokenChip.vue'
+import ContextSizeChip from '@/components/console/ContextSizeChip.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useConsoleStore } from '@/stores/console.store'
 import { skillsOfTag } from '@/model/skill-assignment'
 import type { Task } from '@/model/catalog'
 
 /**
- * The task's token trend, tag and skills, in the description's header. The chip leads, so it keeps its place as the line wraps. The tag and the
+ * The task's context size, tag and skills, in the description's header. The size chip leads, so it keeps its place as the line wraps. The tag and the
  * task's own skills are changed in place; the tag's skills arrive dashed, since they are the tag's.
  */
 const props = defineProps<{ task: Task }>()
@@ -33,7 +33,7 @@ function save(names: readonly string[]): void {
 
 <template>
   <div class="mt-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5" data-testid="task-labels">
-    <TaskTokenChip :task="task" />
+    <ContextSizeChip :task-id="task.id" />
     <TaskTagControl :task="task" />
     <span class="h-4 w-px bg-border" aria-hidden="true" />
     <SkillField :model-value="own" :inherited="fromTag" owner="task" @update:model-value="save" />

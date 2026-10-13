@@ -11,6 +11,8 @@ import type { TagId, TaskId } from '@/model/branded'
 const api = vi.hoisted(() => ({ setTaskSkills: vi.fn(), setStepSkills: vi.fn(), setTagSkills: vi.fn(), fetchSkillAssignments: vi.fn() }))
 vi.mock('@/api/skill-assignments.api', () => api)
 
+vi.mock('@/api/context.api', () => ({ fetchContextSize: vi.fn(() => new Promise(() => undefined)) }))
+
 const catalogApi = vi.hoisted(() => ({ updateTask: vi.fn() }))
 vi.mock('@/api/catalog.api', async (original) => ({ ...(await original<object>()), updateTask: catalogApi.updateTask }))
 
@@ -49,12 +51,12 @@ describe('TaskLabelsStrip', () => {
     expect(wrapper.get('[data-testid="skill-add"]').text()).toBe('Add a skill')
   })
 
-  it('leads with the token chip, to the left of the tag control', () => {
+  it('leads with the context size chip, to the left of the tag control', () => {
     const wrapper = mount(TaskLabelsStrip, { props: { task: taskWith() } })
 
-    const order = wrapper.findAll('[data-testid="token-chip"], [data-testid="task-tag-control"]')
+    const order = wrapper.findAll('[data-testid="context-size"], [data-testid="task-tag-control"]')
 
-    expect(order.map((element) => element.attributes('data-testid'))).toEqual(['token-chip', 'task-tag-control'])
+    expect(order.map((element) => element.attributes('data-testid'))).toEqual(['context-size', 'task-tag-control'])
   })
 
   it("shows the task's own skills removable and the tag's dashed", () => {

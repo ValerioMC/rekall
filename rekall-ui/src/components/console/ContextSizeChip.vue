@@ -88,7 +88,7 @@ const heaviestNote = computed(() =>
     <button
       ref="chip"
       type="button"
-      class="focus-ring inline-flex h-[26px] items-center gap-1.5 rounded-full border border-border px-2.5 font-mono text-caption text-text-muted transition-colors hover:border-border-strong hover:text-text"
+      class="focus-ring inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-key border border-border bg-surface-raised/40 px-2 font-mono text-caption tabular-nums text-text-muted transition-colors duration-(--motion-quick) hover:border-border-strong hover:bg-surface-raised hover:text-text"
       :title="failed ? 'Could not measure this task\'s context' : 'What /rk hands a session for this task'"
       :aria-expanded="open"
       data-testid="context-size"

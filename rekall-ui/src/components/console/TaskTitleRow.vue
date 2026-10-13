@@ -5,10 +5,9 @@ import type { Task } from '@/model/catalog'
 
 /**
  * The task's name with what used to take a second line beside it: its status (`flags`), a button
- * that copies its `/rk` command, its token count and trend (unless `showTokens` is off, for a
- * header that shows them elsewhere), and any `trailing` chip.
+ * that copies its `/rk` command, and its generated tokens with their trend.
  */
-withDefaults(defineProps<{ task: Task; copyTestid: string; showTokens?: boolean }>(), { showTokens: true })
+defineProps<{ task: Task; copyTestid: string }>()
 </script>
 
 <template>
@@ -18,7 +17,6 @@ withDefaults(defineProps<{ task: Task; copyTestid: string; showTokens?: boolean 
     </h2>
     <slot name="flags" />
     <CopyAnchorButton :anchor="task.anchor" :data-testid="copyTestid" />
-    <TaskTokenChip v-if="showTokens" :task="task" />
-    <slot name="trailing" />
+    <TaskTokenChip :task="task" />
   </div>
 </template>
