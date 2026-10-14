@@ -29,6 +29,11 @@ impl ToolSchema {
         self
     }
 
+    pub fn optional_object_array(mut self, name: &str, description: &str) -> Self {
+        self.properties.insert(name.into(), json!({ "type": "array", "items": { "type": "object" }, "description": description }));
+        self
+    }
+
     pub fn optional_boolean(mut self, name: &str, description: &str) -> Self {
         self.properties.insert(name.into(), json!({ "type": "boolean", "description": description }));
         self

@@ -6,12 +6,14 @@ use crate::note::NoteStreamEvent;
 use crate::review::TaskReviewEvent;
 use crate::section::SectionStreamEvent;
 use crate::step::StepStreamEvent;
+use crate::task::TaskStreamEvent;
 use crate::token::TokenUsageStreamEvent;
 use crate::wrapup::WrapupStreamEvent;
 
 #[derive(Clone, Debug)]
 pub enum DomainEvent {
     Steps(StepStreamEvent),
+    TaskCreated(TaskStreamEvent),
     TaskReview(TaskReviewEvent),
     Wrapup(WrapupStreamEvent),
     CommitReference(CommitReferenceStreamEvent),
@@ -29,6 +31,7 @@ impl DomainEvent {
     pub fn name(&self) -> &str {
         match self {
             Self::Steps(_) => "steps",
+            Self::TaskCreated(_) => "task-created",
             Self::TaskReview(_) => "task-review",
             Self::Wrapup(_) => "wrapup",
             Self::CommitReference(_) => "commit-reference",
@@ -46,6 +49,7 @@ impl DomainEvent {
         }
         match self {
             Self::Steps(event) => json(event),
+            Self::TaskCreated(event) => json(event),
             Self::TaskReview(event) => json(event),
             Self::Wrapup(event) => json(event),
             Self::CommitReference(event) => json(event),

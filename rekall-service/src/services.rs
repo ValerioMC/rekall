@@ -1,10 +1,11 @@
-use crate::{claude, commit, context, diagram, flow, note, review, revision, search, section, step, timeentry, token, wrapup, Ctx};
+use crate::{claude, commit, context, diagram, flow, note, review, revision, search, section, step, task, timeentry, token, wrapup, Ctx};
 
 /// Every service, built once over one context: what a controller or a tool is handed.
 #[derive(Clone)]
 pub struct Services {
     pub ctx: Ctx,
     pub steps: step::TaskStepService,
+    pub task_authoring: task::TaskAuthoringService,
     pub step_links: flow::StepLinkService,
     pub flow: flow::FlowService,
     pub review: review::TaskReviewService,
@@ -37,6 +38,7 @@ impl Services {
         let step_links = flow::StepLinkService::new(ctx.clone(), steps.clone());
         let flow = flow::FlowService::new(ctx.clone(), steps.clone(), step_links.clone(), flow::StepVisitService::new(ctx.clone()));
         Self {
+            task_authoring: task::TaskAuthoringService::new(ctx.clone(), steps.clone()),
             steps,
             step_links,
             flow,

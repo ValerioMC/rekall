@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { removeCompanyLogoImage, updateProject, uploadCompanyLogoImage } from '@/api/catalog.api'
+import { fetchTasks, removeCompanyLogoImage, updateProject, uploadCompanyLogoImage } from '@/api/catalog.api'
 import { createDocument, fetchAllDocuments, updateDocument } from '@/api/documents.api'
 import { fetchTimeEntries, startTimeEntry } from '@/api/time-entries.api'
 import { setActivePinia, createPinia } from 'pinia'
@@ -745,6 +745,17 @@ describe('console store', () => {
 
         expect(store.selectedWrapup?.bodyMarkdown).toBe('## Stato\n\nRiscritto da Claude.')
         expect(store.selectedWrapup?.writtenBy).toBe('CLAUDE')
+      })
+
+      it('lists a task a session created without moving the selection', async () => {
+        store.selectTask(validator)
+        const created = { ...tasks[0]!, id: 'tCreated' as TaskId, label: 'created', title: 'Created' }
+        vi.mocked(fetchTasks).mockResolvedValueOnce([created, ...tasks])
+
+        await store.applyTaskCreated()
+
+        expect(store.tasks.map((task) => task.id)).toContain('tCreated')
+        expect(store.selectedTaskId).toBe(validator)
       })
 
       it('drops a deleted wrapup without moving the pane', () => {

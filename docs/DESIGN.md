@@ -33,7 +33,7 @@ loaded in one call, including every note the task shares with its neighbours.
 | # | Decision | Rationale |
 |---|---|---|
 | D1 | Real tables with real foreign keys | A note can never point at a deleted task. On an app whose only job is to be a reliable memory, silent dangling references are the failure mode that matters. |
-| D2 | Claude reads everything and writes a few narrow things | `rekall-mcp` depends on `rekall-service` and never on `rekall-api`, so no controller and none of the console's catalog services are on its classpath, and every read runs in a read-only transaction. The exceptions are `rekall_wrapup`, which replaces one task's wrapup; `rekall_step`, which moves a step from `open` to `running` to `claimed`, follows a flow's route on a claim, and cannot reach `done`; `rekall_record_commit`, which logs a commit against a task; `rekall_propose_step`, which can only add a draft a person has to promote; `rekall_note`, which can only add a new note to one task; and `rekall_project_section`, which can only add a section to a task's project or rewrite the body of one that already has that title. See §7. |
+| D2 | Claude reads everything and writes a few narrow things | `rekall-mcp` depends on `rekall-service` and never on `rekall-api`, so no controller and none of the console's catalog services are on its classpath, and every read runs in a read-only transaction. The exceptions are `rekall_wrapup`, which replaces one task's wrapup; `rekall_step`, which moves a step from `open` to `running` to `claimed`, follows a flow's route on a claim, and cannot reach `done`; `rekall_record_commit`, which logs a commit against a task; `rekall_propose_step`, which can only add a draft a person has to promote; `rekall_create_task`, which can only add a `TODO` task whose steps are drafts; `rekall_note`, which can only add a new note to one task; and `rekall_project_section`, which can only add a section to a task's project or rewrite the body of one that already has that title. See §7. |
 | D3 | Markdown content lives in the database | One backup target, reachable through MCP, searchable. |
 | D4 | One entry point, and it is a slash command | A session begins with `/rk project:vega task:report-builder`, not with a question. Reaching a record through a natural-language query costs several turns and a few thousand tokens before any work starts, and it is the part that fails when the model guesses the wrong entity. An explicit anchor removes both. |
 | D5 | The model is fixed at compile time | There is no runtime meta-model and no DDL engine. Company, project, task and document are fixed SeaORM entities; adding a new kind of record is a model and a migration, not a screen. |
@@ -381,6 +381,17 @@ No commit message lists files.
 A draft is not work: it stays off the checklist a session reads until a person promotes it, a
 title the task already has is refused so a second plan does not double the shelf, and a task
 holds at most twenty drafts.
+
+`rekall_create_task` creates a task in the project its anchor names, with an optional description and
+up to twenty steps, in one transaction. `TaskAuthoringService` in rekall-service is its only path: the
+console's `TaskService` in rekall-api stays the one that edits, reviews and deletes. The task starts
+`TODO` and each step is a draft, so the same promotion gate as `rekall_propose_step` applies. A label
+the project already uses is refused rather than suffixed, so an anchor never changes under the session.
+It publishes `task-created` on the event stream and the console reloads its task list.
+
+`rekall_read_sections` is the read side of `rekall_project_section`: sections are in no context, so
+this is the only way a session sees them. `ProjectSectionService::read` lists the titles, or returns one
+section by title ignoring case; a title the project lacks is refused with the titles it has.
 
 `rekall_note` writes a new note onto one task, taking the anchors, a `title` and the `body`.
 It is what a session uses for output worth keeping that is not the state of the implementation:

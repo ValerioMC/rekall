@@ -132,6 +132,11 @@ export function useTaskWrites(
     storeTask(await apiReviewTask(id, 'OPEN', note ?? null))
   }
 
+  /** A session created a task. Nothing is selected: the reader stays where they were. */
+  async function applyTaskCreated(): Promise<void> {
+    await Promise.all([refreshes.refreshTasks(), refreshes.refreshProjects(), refreshes.refreshCompanies()])
+  }
+
   return {
     createTask,
     updateTask,
@@ -140,6 +145,7 @@ export function useTaskWrites(
     setTaskTag,
     saveTaskDescription,
     applyTaskReview,
+    applyTaskCreated,
     acceptTask,
     sendBackTask
   }

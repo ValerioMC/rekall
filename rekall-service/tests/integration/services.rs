@@ -598,3 +598,79 @@ async fn a_component_named_in_a_task_text_is_expanded_in_the_context_but_not_in_
     let description = size.parts.iter().find(|part| part.label == "Description").unwrap();
     assert!(description.characters > "Call [[auth service]] and [[Billing]].".len(), "{description:?}");
 }
+
+// ------------------------------------------------------------------------------ task creation
+
+fn draft(title: &str) -> rekall_service::task::StepDraft {
+    rekall_service::task::StepDraft { title: title.into(), detail: Some(format!("Detail of {title}")) }
+}
+
+#[tokio::test]
+async fn a_created_task_starts_todo_with_its_description_and_its_steps_as_drafts_in_order() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+
+    let created = world
+        .services
+        .task_authoring
+        .create("vega", Some("  Task creation "), None, Some("Let the llm open tasks."), &[draft("First"), draft("Second")])
+        .await
+        .unwrap();
+
+    assert_eq!(created.task_anchor, "project:vega task:task-creation");
+    assert_eq!(created.drafts, 2);
+    let task = rekall_repository::repository::task::find_by_anchor(world.db(), "vega", "task-creation").await.unwrap().unwrap();
+    assert_eq!(task.project_id, project.id);
+    assert_eq!(task.title, "Task creation");
+    assert_eq!(task.status, rekall_model::TaskStatus::Todo);
+    assert_eq!(task.description.as_deref(), Some("Let the llm open tasks."));
+    let steps = world.services.steps.find_by_task(task.id).await.unwrap();
+    let titles: Vec<&str> = steps.iter().map(|step| step.title.as_str()).collect();
+    assert_eq!(titles, ["First", "Second"]);
+    assert!(steps.iter().all(|step| step.state == TaskStepState::Draft));
+}
+
+#[tokio::test]
+async fn a_label_the_project_already_uses_is_refused_and_creates_nothing() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    world.task(&project, "report-builder").await;
+
+    let refused = world
+        .services
+        .task_authoring
+        .create("vega", Some("Report builder"), None, None, &[draft("First")])
+        .await
+        .unwrap_err();
+
+    assert!(refused.to_string().contains("already uses the label 'report-builder'"), "{refused}");
+    assert_eq!(rekall_repository::repository::task::list_of_project(world.db(), project.id).await.unwrap().len(), 1);
+    assert!(world.services.steps.find_all().await.unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn a_step_title_sent_twice_or_past_the_draft_cap_is_refused_before_anything_is_written() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let twice = [draft("Same"), draft("same")];
+    let too_many: Vec<_> = (0..21).map(|at| draft(&format!("Step {at}"))).collect();
+
+    for drafts in [&twice[..], &too_many[..]] {
+        let result = world.services.task_authoring.create("vega", Some("New"), None, None, drafts).await;
+        assert!(result.is_err());
+    }
+
+    assert!(rekall_repository::repository::task::list_of_project(world.db(), project.id).await.unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn a_task_needs_a_title_and_a_project_that_exists() {
+    let world = world().await;
+    world.project("vega", None, false).await;
+
+    let untitled = world.services.task_authoring.create("vega", Some("   "), None, None, &[]).await.unwrap_err();
+    let unknown = world.services.task_authoring.create("nowhere", Some("New"), None, None, &[]).await.unwrap_err();
+
+    assert!(untitled.to_string().contains("needs a title"), "{untitled}");
+    assert!(unknown.to_string().contains("No project matches 'nowhere'"), "{unknown}");
+}

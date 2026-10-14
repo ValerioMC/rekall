@@ -144,6 +144,64 @@ async fn a_session_can_propose_a_step_which_lands_as_a_draft_no_session_reads_an
     );
 }
 
+// --- Tasks created by a session
+
+#[tokio::test]
+async fn a_session_creates_a_task_whose_steps_are_drafts_and_the_console_lists_it() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
+
+    let answer = app
+        .call_tool(
+            "rekall_create_task",
+            json!({
+                "anchors": "project:vega",
+                "title": "Report builder",
+                "description": "Let people export a report.",
+                "steps": [{ "title": "Expose the report as a download", "detail": "Stream it." }, { "title": "Add the button" }]
+            }),
+        )
+        .await;
+
+    assert_contains!(answer, "Task \"Report builder\" created as `project:vega task:report-builder`", "2 draft steps");
+    let tasks = app.get(&format!("/api/tasks?projectId={project_id}")).await.list();
+    assert_eq!(tasks[0]["description"], "Let people export a report.");
+    let steps = app.get(&format!("/api/tasks/{}/steps", tasks[0]["id"].as_str().unwrap())).await.list();
+    assert_eq!(steps.len(), 2);
+    assert!(steps.iter().all(|step| step["state"] == "DRAFT"));
+    assert_contains!(
+        app.call_tool("rekall_create_task", json!({ "anchors": "project:vega", "title": "Report builder" })).await,
+        "already uses the label 'report-builder'"
+    );
+}
+
+// --- Sections read by a session
+
+#[tokio::test]
+async fn a_session_reads_the_sections_of_a_project_listed_by_title_or_one_whole_while_no_context_carries_them() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
+    app.a_task(&project_id, "report-builder").await;
+    let anchors = "project:vega task:report-builder";
+    assert_contains!(app.call_tool("rekall_read_sections", json!({ "anchors": "project:vega" })).await, "has no sections");
+    app.call_tool("rekall_project_section", json!({ "anchors": anchors, "title": "Deployment", "body": "Push a tag." })).await;
+
+    let listed = app.call_tool("rekall_read_sections", json!({ "anchors": anchors })).await;
+    let one = app.call_tool("rekall_read_sections", json!({ "anchors": "project:vega", "title": "deployment" })).await;
+
+    assert_contains!(listed, "1 section", "- Deployment (11 characters)");
+    assert_lacks!(listed, "Push a tag.");
+    assert_contains!(one, "Section \"Deployment\" of `project:vega`", "Push a tag.");
+    assert_lacks!(app.call_tool("rekall_context", json!({ "anchors": anchors })).await, "Push a tag.");
+    assert_contains!(
+        app.call_tool("rekall_read_sections", json!({ "anchors": "project:vega", "title": "Glossary" })).await,
+        "has no section titled 'Glossary'",
+        "has: Deployment"
+    );
+}
+
 // --- Notes written by a session
 
 #[tokio::test]

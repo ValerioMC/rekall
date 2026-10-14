@@ -134,6 +134,21 @@ describe('useStepStream lifecycle', () => {
     scope.stop()
   })
 
+  it('tells its callback a task was created by a session', () => {
+    const onTaskCreated = vi.fn()
+    const scope = effectScope()
+    scope.run(() =>
+      useStepStream(vi.fn(), undefined, undefined, undefined, undefined, undefined, onTaskCreated)
+    )
+    const source = FakeEventSource.instances[0]!
+
+    source.emit('task-created', { data: '{}' })
+
+    expect(onTaskCreated).toHaveBeenCalledTimes(1)
+
+    scope.stop()
+  })
+
   it('stops handing frames to the callback once the scope is disposed', () => {
     const onEvent = vi.fn<(taskId: TaskId, steps: unknown[]) => void>()
     const scope = effectScope()

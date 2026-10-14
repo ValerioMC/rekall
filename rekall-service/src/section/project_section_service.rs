@@ -1,12 +1,12 @@
-use rekall_common::{Id, RekallError, Result};
+use rekall_common::{jstr, Id, RekallError, Result};
 use rekall_model::{project, project_section};
 use rekall_repository::repository as repo;
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
 
 use crate::note::OnTitleClash;
-use crate::{in_read, in_write, load, Ctx, DomainEvent, Tx};
+use crate::{in_read, in_write, load, text_rule, Ctx, DomainEvent, Tx};
 
-use super::{rules, ProjectSectionView, SectionStreamEvent, SectionWritten};
+use super::{rules, ProjectSectionView, SectionStreamEvent, SectionWritten, SectionsRead};
 
 /// Reads a project's sections and writes a session's, starting from the task it is working on.
 #[derive(Clone)]
@@ -24,6 +24,41 @@ impl ProjectSectionService {
             repo::project::require(tx.db(), project_id).await?;
             let rows = repo::project_section::list_of_project(tx.db(), project_id).await?;
             Ok::<_, RekallError>(rows.iter().map(ProjectSectionView::of).collect())
+        })
+    }
+
+    /// A session reads the sections of the project it names, or of a task's project when a task
+    /// label comes. With a title, only that section (ignoring case); one the project lacks is
+    /// refused with the titles it has.
+    pub async fn read(
+        &self,
+        project_label: Option<&str>,
+        task_label: Option<&str>,
+        title: Option<&str>,
+    ) -> Result<SectionsRead> {
+        in_read!(&self.ctx, |tx| {
+            let project = match (task_label, project_label) {
+                (Some(task_label), _) => {
+                    let task = load::resolve_task(tx.db(), project_label, task_label).await?;
+                    load::project_of(tx.db(), &task).await?
+                }
+                (None, Some(project_label)) => load::resolve_project(tx.db(), project_label).await?,
+                (None, None) => return Err(RekallError::illegal("Name a project to read the sections of.")),
+            };
+            let rows = repo::project_section::list_of_project(tx.db(), project.id).await?;
+            let Some(wanted) = text_rule::present(title) else {
+                let sections = rows.iter().map(ProjectSectionView::of).collect();
+                return Ok(SectionsRead { project_anchor: project.anchor(), sections, asked_for_one: false });
+            };
+            let found = rows.iter().find(|section| jstr::equals_ignore_case(jstr::strip(&section.title), wanted));
+            match found {
+                Some(section) => Ok(SectionsRead {
+                    project_anchor: project.anchor(),
+                    sections: vec![ProjectSectionView::of(section)],
+                    asked_for_one: true,
+                }),
+                None => Err(no_such_section(&project, wanted, &rows)),
+            }
         })
     }
 
@@ -90,4 +125,10 @@ impl ProjectSectionService {
         tx.publish(DomainEvent::ProjectSection(SectionStreamEvent { project_id: project.id }));
         Ok(SectionWritten { title: section.title, project_anchor: project.anchor(), sections_on_project: existing.len() + 1, replaced: false })
     }
+}
+
+fn no_such_section(project: &project::Model, wanted: &str, rows: &[project_section::Model]) -> RekallError {
+    let titles: Vec<&str> = rows.iter().map(|section| section.title.as_str()).collect();
+    let held = if titles.is_empty() { "has no sections".to_string() } else { format!("has: {}", titles.join(", ")) };
+    RekallError::illegal(format!("`{}` has no section titled '{wanted}'. It {held}.", project.anchor()))
 }

@@ -14,8 +14,8 @@ import type { RunQueue } from '@/model/runQueue'
 import type { TaskId } from '@/model/branded'
 
 /**
- * One SSE connection carrying six console feeds: `steps`, `task-review`, `wrapup`,
- * `commit-reference`, `run-queue` and `note`.
+ * One SSE connection carrying seven console feeds: `steps`, `task-review`, `wrapup`,
+ * `commit-reference`, `run-queue`, `note` and `task-created`.
  */
 export function useStepStream(
   onSteps: (taskId: TaskId, steps: TaskStep[]) => void,
@@ -23,7 +23,8 @@ export function useStepStream(
   onWrapup?: (event: WrapupStreamEvent) => void,
   onCommit?: (reference: CommitReference) => void,
   onRunQueue?: (queue: RunQueue) => void,
-  onNote?: (event: NoteStreamEvent) => void
+  onNote?: (event: NoteStreamEvent) => void,
+  onTaskCreated?: () => void
 ): { connected: Ref<boolean>; stop: () => void } {
   const connected = ref(false)
   let source: EventSource | null = null
@@ -104,6 +105,11 @@ export function useStepStream(
         }
       } catch {
       }
+    })
+
+    // A task a session created is listed without a reload; the frame names it, the lists are read again.
+    source.addEventListener('task-created', () => {
+      onTaskCreated?.()
     })
 
     // A note a session wrote onto a task shows up in its list without a reload.

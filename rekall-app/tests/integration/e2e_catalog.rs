@@ -383,7 +383,7 @@ async fn a_project_can_be_archived_and_stays_listed_with_that_status() {
 
 // Asserted as an exact list so adding a read or write tool breaks a test.
 #[tokio::test]
-async fn the_mcp_endpoint_exposes_one_way_to_read_and_seven_writes() {
+async fn the_mcp_endpoint_exposes_two_ways_to_read_and_eight_writes() {
     let app = app().await;
     let answer = app.rpc("tools/list", json!({})).await;
     let mut names: Vec<String> = answer["result"]["tools"]
@@ -397,10 +397,12 @@ async fn the_mcp_endpoint_exposes_one_way_to_read_and_seven_writes() {
         names,
         [
             "rekall_context",
+            "rekall_create_task",
             "rekall_diagram",
             "rekall_note",
             "rekall_project_section",
             "rekall_propose_step",
+            "rekall_read_sections",
             "rekall_record_commit",
             "rekall_step",
             "rekall_wrapup"
