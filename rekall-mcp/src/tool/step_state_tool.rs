@@ -37,12 +37,7 @@ impl StepStateTool {
             moved.state.name().to_lowercase()
         );
         if moved.state == TaskStepState::Claimed {
-            if meant_done(raw_state) {
-                out.push_str("\nMarked `claimed`, not done: a session cannot tick the last box. ");
-            } else {
-                out.push_str("\nThe work is finished and waiting for the console to accept it. ");
-            }
-            out.push_str("Write the wrapup for this task now if you have not, folding in what this step built.\n");
+            out.push_str(&claim_note(raw_state, flow_move.route.as_ref()));
             if let Some(committed) = committed.filter(|c| !c.off()) {
                 out.push('\n');
                 out.push_str(&committed.describe());
@@ -74,12 +69,32 @@ impl StepStateTool {
     }
 }
 
+/// What a claim means for the session. Mid-flow nobody reviews before the next step starts, so the
+/// answer must not read as a hand-off.
+fn claim_note(raw_state: &str, route: Option<&FlowRoute>) -> String {
+    match route {
+        Some(FlowRoute::Followed { .. }) => {
+            "\nClaimed. The flow does not wait for the review: carry on with the next step, and write the wrapup once the flow is finished.\n"
+                .to_string()
+        }
+        Some(FlowRoute::Ended { .. }) => "\nClaimed. Write the wrapup for this task now, describing the whole flow.\n".to_string(),
+        None => {
+            let lead = if meant_done(raw_state) {
+                "Marked `claimed`, not done: a session cannot tick the last box. "
+            } else {
+                "The work is finished and waiting for the console to accept it. "
+            };
+            format!("\n{lead}Write the wrapup for this task now if you have not, folding in what this step built.\n")
+        }
+    }
+}
+
 /// Where a claim on a flow sent the work, and the line that starts it.
 fn describe_route(anchor: &str, route: &FlowRoute) -> String {
     match route {
         FlowRoute::Followed { outcome, next } => format!(
-            "\nRouted by `{outcome}` to step {number} \"{}\", now open and current (visit {}). Start it with \
-             `/rk {anchor} step:{number} start`.",
+            "\nRouted by `{outcome}` to step {number} \"{}\", now open and current (visit {}). Start it now with \
+             `/rk {anchor} step:{number} start`, without waiting for anyone.",
             next.title,
             next.visits.len(),
             number = next.position + 1

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { defineAsyncComponent, onMounted, onUnmounted, ref } from 'vue'
+import { defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import AnchorBar from '@/components/console/AnchorBar.vue'
 import DescriptionPane from '@/components/console/DescriptionPane.vue'
@@ -15,6 +15,7 @@ import TagsPanel from '@/components/settings/TagsPanel.vue'
 import RunQueuePanel from '@/components/queue/RunQueuePanel.vue'
 import AppToaster from '@/components/ui/AppToaster.vue'
 import { useConsoleStore } from '@/stores/console.store'
+import { useClaudeConnectionStore } from '@/stores/claudeConnection.store'
 import { useRunQueueStore } from '@/stores/runQueue.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useModalGate } from '@/composables/useModalGate'
@@ -59,6 +60,7 @@ const navigator = ref<InstanceType<typeof NavigatorPane> | null>(null)
 const descriptionPane = ref<InstanceType<typeof DescriptionPane> | null>(null)
 const notePane = ref<InstanceType<typeof NotePane> | null>(null)
 const settingsOpen = ref(false)
+const claudeConnection = useClaudeConnectionStore()
 const tagsOpen = ref(false)
 
 /**
@@ -168,10 +170,20 @@ function onKeydown(event: KeyboardEvent): void {
   }
 }
 
+/** The warning on the Settings key is a hint: a registration that cannot be read stays silent. */
+async function refreshClaudeConnection(): Promise<void> {
+  await claudeConnection.load().catch(() => undefined)
+}
+
 onMounted(() => {
   window.addEventListener('keydown', onKeydown)
   // The beacon needs the queue from the first paint; the SSE feed only carries changes.
   void runQueue.load().catch(() => undefined)
+  void refreshClaudeConnection()
+})
+// Settings is where the registration gets repaired or changed by hand, so read it again on leaving.
+watch(settingsOpen, (open) => {
+  if (!open) void refreshClaudeConnection()
 })
 onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 </script>

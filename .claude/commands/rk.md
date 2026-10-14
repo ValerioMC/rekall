@@ -100,6 +100,14 @@ routes (`app-error` -> step 4), and the order they are listed in is not the orde
   invent one.
 - A step reached again is another pass. Read its detail again and build on what the last pass left.
 
+**A flow runs to its end without me.** Claiming a step on a flow is not a hand-off: Rekall has already
+opened the next one. Do not ask me to tick, review or accept anything between steps, do not stop to say
+a step is waiting for the console, and do not write a wrapup in between. Start the step the claim names
+right away, in the same session. Stop only when a claim answers that the flow is finished, or when a
+step cannot be completed and none of its routes describes why: say what blocks it and stop there. When
+the flow is finished, write the wrapup once (see **Wrapping up**) and tell me the claimed steps are
+waiting for my review.
+
 Anchors that name a project and no task have no brief in them. Summarise what is there and wait.
 
 ### What the work produces
@@ -130,11 +138,13 @@ The loop, once you are working a checklist:
 1. `/rk project:x task:y step:N start`, before you touch the code for step N.
 2. Do the work the step's detail describes.
 3. `/rk project:x task:y wrapup`, to fold what that step built into the task's wrapup, by the rules
-   in **Wrapping up**. One state, rewritten whole, never a section per step.
+   in **Wrapping up**. One state, rewritten whole, never a section per step. On a flow, skip this
+   until the flow is finished.
 4. `/rk project:x task:y step:N done`, to claim it.
 5. If a later step is still open, `/rk project:x task:y step:M start` and go again. When none is,
    stop and tell me the checklist is claimed and waiting for my review. On a flow, the next step is
-   the one the claim's answer names, and the loop ends when it says the flow is finished.
+   the one the claim's answer names and you start it without stopping; the loop ends when the answer
+   says the flow is finished, and only then do you write the wrapup.
 
 `rekall_step` refuses `done` as a state, and refuses a step I have already accepted. If it comes
 back with either, say so and stop.
@@ -283,7 +293,9 @@ words, not an anchor. `/rk project:vega task:report-builder wrapup "solo il modu
    string never carries the directive.
 3. Say in one line what you wrote and that it replaced what was there. If a directive left something
    out that the previous wrapup had, say what. If the task has a checklist, name the open steps this
-   session finished, so I can tick them: nothing you can call will do it for you. Then stop.
+   session finished, so I can tick them: nothing you can call will do it for you. Then stop. On a
+   flow, do not ask me to tick anything: say the flow is finished and its claimed steps are waiting
+   for review.
 
 ### The directive
 

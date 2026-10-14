@@ -3,7 +3,8 @@ import { computed, onMounted, ref } from 'vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import CopyGlyph from '@/components/ui/CopyGlyph.vue'
 import AppButton from '@/components/ui/AppButton.vue'
-import { fetchClaudeInstallation, installClaudeIntegration } from '@/api/claude.api'
+import { storeToRefs } from 'pinia'
+import { useClaudeConnectionStore } from '@/stores/claudeConnection.store'
 import { useToastStore } from '@/stores/toast.store'
 import { canLaunchClaudeCode } from '@/common/native/desktop'
 import {
@@ -20,16 +21,12 @@ import {
   claudeEffortChoiceLabel,
   claudeModelChoiceLabel
 } from '@/model/claude'
-import type {
-  ClaudeConnectionStatus,
-  ClaudeEffortChoice,
-  ClaudeInstallation,
-  ClaudeModelChoice
-} from '@/model/claude'
+import type { ClaudeConnectionStatus, ClaudeEffortChoice, ClaudeModelChoice } from '@/model/claude'
 
 const toast = useToastStore()
 
-const installation = ref<ClaudeInstallation | null>(null)
+const connection = useClaudeConnectionStore()
+const { installation } = storeToRefs(connection)
 const loading = ref(true)
 const installing = ref(false)
 const installed = ref(false)
@@ -79,7 +76,7 @@ const explanation = computed<string>(() => {
 async function load(): Promise<void> {
   loading.value = true
   try {
-    installation.value = await fetchClaudeInstallation()
+    await connection.load()
   } catch (caught) {
     toast.notifyError(caught)
   } finally {
@@ -90,7 +87,7 @@ async function load(): Promise<void> {
 async function install(): Promise<void> {
   installing.value = true
   try {
-    installation.value = await installClaudeIntegration()
+    await connection.install()
     installed.value = true
     toast.notify('Registered. A session started from now on will find it.')
   } catch (caught) {

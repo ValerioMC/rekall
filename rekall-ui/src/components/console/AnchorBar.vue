@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia'
 import AppButton from '@/components/ui/AppButton.vue'
 import HeaderStatus from '@/components/console/HeaderStatus.vue'
 import SearchHitList from '@/components/console/SearchHitList.vue'
+import SettingsTrigger from '@/components/console/SettingsTrigger.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { searchText } from '@/api/search.api'
 import { isTextQuery } from '@/model/search'
@@ -276,31 +277,7 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
             <circle cx="8.2" cy="8.2" r="1.5" fill="currentColor" />
           </svg>
         </button>
-        <button
-          type="button"
-          class="header-key focus-ring"
-          data-testid="settings-trigger"
-          aria-label="Settings"
-          title="Settings"
-          @click="emit('openSettings')"
-        >
-          <svg class="size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path
-              d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"
-              stroke="currentColor"
-              stroke-width="1.6"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-            <path
-              d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"
-              stroke="currentColor"
-              stroke-width="1.6"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-        </button>
+        <SettingsTrigger @open="emit('openSettings')" />
         <span class="mx-0.5 h-4 w-px bg-border" aria-hidden="true" />
         <span class="group relative inline-block">
           <AppButton

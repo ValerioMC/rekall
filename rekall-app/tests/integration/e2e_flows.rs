@@ -50,7 +50,9 @@ async fn a_session_follows_the_routes_and_reads_where_it_stands() {
     release(&app).await;
 
     assert_lacks!(step(&app, "1", "running", None).await, "Next open step");
-    assert_contains!(step(&app, "1", "claimed", None).await, "Routed by `built` to step 2 \"Deploy\"", "step:2 start");
+    let claimed = step(&app, "1", "claimed", None).await;
+    assert_contains!(claimed, "Routed by `built` to step 2 \"Deploy\"", "step:2 start", "without waiting for anyone");
+    assert_lacks!(claimed, "waiting for the console");
     step(&app, "2", "claimed", None).await;
     assert_contains!(
         step(&app, "Test in the cluster", "claimed", Some("app-error")).await,
@@ -126,7 +128,7 @@ async fn a_route_to_the_end_finishes_the_flow_for_a_session_and_shows_in_the_con
     step(&app, "3", "running", None).await;
     let answer = step(&app, "3", "claimed", Some("passed")).await;
 
-    assert_contains!(answer, "Routed by `passed` to the end of the flow");
+    assert_contains!(answer, "Routed by `passed` to the end of the flow", "Write the wrapup for this task now");
     let context = app.call_tool("rekall_context", json!({ "anchors": TASK })).await;
     assert_contains!(context, "`passed` -> end of the flow");
     assert_lacks!(context, " current=\"");
