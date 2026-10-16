@@ -90,9 +90,9 @@ convention are in `docs/DESIGN.md` §3 ("Layout inside a crate") and are not rep
   what no feature owns stays in `components/ui`, `components/shell`, `common/` and `stores/console/`.
   The console store is one slice per concern, each in its feature's `store/` and wired in
   `stores/console.store.ts`; a new concern is a new slice, not more lines there.
-- Past ~300 lines a component is doing several jobs: split the one you are changing
-  (`RecordDialog`, `NoteComposerPane`, `NoteListPane`, `NoteQuickPicker` are past it) instead
-  of growing it further.
+- Split a component when it does several jobs or serves several entities, not because of its
+  length. A long component that is one cohesive thing stays whole; a very long one is a prompt to
+  ask what its separate jobs are.
 
 ## Commits and docs
 
