@@ -8,3 +8,7 @@ pub struct TaskStreamEvent {
     pub task_id: Id,
     pub project_id: Id,
 }
+
+impl crate::StreamEvent for TaskStreamEvent {
+    const FRAME: &'static str = "task-created";
+}

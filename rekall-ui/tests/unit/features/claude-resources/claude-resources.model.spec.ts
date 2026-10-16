@@ -73,7 +73,7 @@ describe('starting a new file', () => {
 
   it('turns a name into a slug', () => {
     expect(slugOf('  My Great Rule!  ')).toBe('my-great-rule')
-    expect(slugOf('../escape')).toBe('escape')
+    expect(slugOf('../../../escape')).toBe('escape')
     expect(slugOf('???')).toBe('')
   })
 

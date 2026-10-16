@@ -40,7 +40,7 @@ pub async fn install_update<R: Runtime>(app: AppHandle<R>) -> Result<bool, Strin
 fn relaunch_in_foreground<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
     let executable = std::env::current_exe().map_err(|failure| failure.to_string())?;
     let bundle =
-        rekall_app::version::app_bundle_of(&executable).map_err(|failure| failure.to_string())?;
+        rekall_platform::version::app_bundle_of(&executable).map_err(|failure| failure.to_string())?;
     std::process::Command::new("/bin/sh")
         .args(["-c", WAIT_THEN_OPEN, "sh", &std::process::id().to_string()])
         .arg(&bundle)
@@ -54,7 +54,7 @@ fn relaunch_in_foreground<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> 
 }
 
 async fn install() -> Result<String, String> {
-    use rekall_app::version::{self, DiskImageInstaller, GithubReleaseFeed, UpdateTarget};
+    use rekall_platform::version::{self, DiskImageInstaller, GithubReleaseFeed, UpdateTarget};
 
     let feed = GithubReleaseFeed::new(&server_config().update_check.url);
     let running_executable = std::env::current_exe().map_err(|failure| failure.to_string())?;

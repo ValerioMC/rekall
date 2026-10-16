@@ -10,3 +10,7 @@ pub struct StepStreamEvent {
     pub task_id: Id,
     pub steps: Vec<TaskStepView>,
 }
+
+impl crate::StreamEvent for StepStreamEvent {
+    const FRAME: &'static str = "steps";
+}

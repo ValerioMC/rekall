@@ -20,17 +20,17 @@ use rekall_service::timeentry::IDLE_AFTER;
 use rekall_service::{Ctx, EventBus, Services};
 use tracing::warn;
 
-use crate::backup::{self, DatabaseBackupService, DatabaseLocation, DatabaseRestoreService};
-use crate::bootstrap::installer::{self, ClaudeCodeInstaller};
-use crate::bootstrap::location::SetupStatus;
-use crate::bootstrap::registry::DatabaseRegistryStore;
-use crate::bootstrap::settings::{self, SettingsState};
+use rekall_platform::backup::{self, DatabaseBackupService, DatabaseLocation, DatabaseRestoreService};
+use rekall_claude::installer::{self, ClaudeCodeInstaller};
+use rekall_platform::bootstrap::location::SetupStatus;
+use rekall_platform::bootstrap::registry::DatabaseRegistryStore;
+use rekall_platform::bootstrap::settings::{self, SettingsState};
 use crate::config::AppConfig;
-use crate::restart::Restarter;
+use rekall_platform::restart::Restarter;
 use crate::security::{self, LocalAccess};
 use crate::spa::{self, Assets};
 use crate::actuator;
-use crate::version::{self, GithubReleaseFeed, ReleaseFeed, UpdateChecker, RUNNING_VERSION};
+use rekall_platform::version::{self, GithubReleaseFeed, ReleaseFeed, UpdateChecker, RUNNING_VERSION};
 
 use super::StartOptions;
 

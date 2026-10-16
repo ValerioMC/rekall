@@ -5,7 +5,7 @@ mod support;
 
 use rekall_model::TaskStepState;
 use rekall_service::token::{TokenCount, UnitUsage, WorkUnit};
-use rekall_service::DomainEvent;
+use rekall_service::token::TokenUsageStreamEvent;
 use support::world;
 
 fn spent(project: Option<&str>, task: &str, step: Option<&str>, output: u64) -> UnitUsage {
@@ -86,7 +86,7 @@ async fn a_change_is_announced_for_each_task_it_touches_and_an_unchanged_read_an
 
     let mut announced = Vec::new();
     while let Ok(event) = feed.try_recv() {
-        if let DomainEvent::TokenUsage(event) = event {
+        if let Some(event) = event.downcast::<TokenUsageStreamEvent>() {
             announced.push((event.task_id, event.tallies.len()));
         }
     }
@@ -160,5 +160,5 @@ async fn a_read_that_finds_the_same_tokens_on_another_day_replaces_the_rows_and_
     let days = world.services.token_usage.days().await.unwrap();
     assert_eq!(days.len(), 1);
     assert_eq!(days[0].day.to_string(), "2026-10-03T00:00:00Z");
-    assert!(matches!(feed.try_recv(), Ok(DomainEvent::TokenUsage(event)) if event.days.len() == 1));
+    assert!(matches!(feed.try_recv(), Ok(event) if event.downcast::<TokenUsageStreamEvent>().is_some_and(|event| event.days.len() == 1)));
 }

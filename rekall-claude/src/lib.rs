@@ -9,6 +9,7 @@ mod claude_state;
 pub mod cli;
 pub mod config;
 pub mod credentials;
+pub mod installer;
 pub mod login_shell;
 pub mod pty;
 pub mod queue;

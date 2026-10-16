@@ -4,7 +4,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import AppDialog from '@/components/ui/AppDialog.vue'
 import SkillPicker from '@/features/skills/components/SkillPicker.vue'
 import { useClaudeResourcesStore } from '@/features/claude-resources/store/claudeResources.store'
-import { catalog, summary } from './claude-resources.fixtures'
+import { catalog, summary } from '../claude-resources/claude-resources.fixtures'
 
 /** The catalogue panel: skills from the store, ticked into the list the owner holds. It is teleported, so the DOM is read from the body. */
 const skill = (name: string, description: string | null = null) =>

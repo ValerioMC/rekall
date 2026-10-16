@@ -6,8 +6,9 @@ convention are in `docs/DESIGN.md` §3 ("Layout inside a crate") and are not rep
 ## Architecture
 
 - **Layers are crates.** `rekall-common <- rekall-model <- rekall-repository <- rekall-service <-
-  rekall-api / rekall-mcp / rekall-claude <- rekall-app`, with `rekall-web` (error body, extractors,
-  response helpers) under both HTTP routers. `rekall-claude` never depends on `rekall-api`. A
+  rekall-api / rekall-mcp / rekall-claude / rekall-platform <- rekall-app`, with `rekall-web` (error
+  body, extractors, response helpers) under every HTTP router. `rekall-claude` never depends on
+  `rekall-api`, and `rekall-app` holds wiring only. A
   dependency that points the other way is a design error, not a missing `use`.
 - **Code is cut by domain.** `catalog`, `step`, `flow`, `note`, `wrapup`, `diagram`... name a folder
   in every layer crate and a feature in the console. A new use of one domain by another is added
@@ -90,7 +91,7 @@ convention are in `docs/DESIGN.md` §3 ("Layout inside a crate") and are not rep
   The console store is one slice per concern, each in its feature's `store/` and wired in
   `stores/console.store.ts`; a new concern is a new slice, not more lines there.
 - Past ~300 lines a component is doing several jobs: split the one you are changing
-  (`RunQueuePanel`, `NavigatorPane`, `StepSeal`, `NoteAssignmentDialog` are well past it) instead
+  (`RecordDialog`, `NoteComposerPane`, `NoteListPane`, `NoteQuickPicker` are past it) instead
   of growing it further.
 
 ## Commits and docs

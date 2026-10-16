@@ -2,9 +2,10 @@ use chrono::TimeDelta;
 use rekall_common::{jstr, Id, Instant, InternalFailure, RekallError, Result};
 use rekall_model::{run_queue, run_queue_item, RunQueueItemState, RunQueueState};
 use rekall_repository::repository as repo;
-use rekall_service::{in_read, in_write, Ctx, DomainEvent, Tx};
+use rekall_service::{in_read, in_write, Ctx, Tx};
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, IntoActiveModel, QueryFilter};
 
+use super::RunQueueFrame;
 use super::{RunQueueItemView, RunQueueView};
 use crate::pty::{EFFORT_LEVELS, MODEL_ALIASES};
 
@@ -306,10 +307,7 @@ impl RunQueueService {
         queue.validate()?;
         queue.clone().into_active_model().reset_all().update(tx.db()).await?;
         let view = view_of(tx, &queue).await?;
-        tx.publish(DomainEvent::Broadcast {
-            name: "run-queue".into(),
-            payload: serde_json::to_value(&view).unwrap_or_default(),
-        });
+        tx.publish(RunQueueFrame(view.clone()));
         Ok(view)
     }
 }

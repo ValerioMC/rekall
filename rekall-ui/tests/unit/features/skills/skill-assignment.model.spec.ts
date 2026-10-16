@@ -8,7 +8,7 @@ import {
   type TagSkill,
   type TaskSkill
 } from '@/features/skills/model/skill-assignment'
-import { summary } from './claude-resources.fixtures'
+import { summary } from '../claude-resources/claude-resources.fixtures'
 import type { TagId, TaskId, TaskStepId } from '@/model/branded'
 
 const task = 't1' as TaskId

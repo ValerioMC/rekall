@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { defineComponent, h } from 'vue'
 import AppCatalogHeader from '@/features/catalog/components/AppCatalogHeader.vue'
-import { mountWithHeaderChrome } from './support/mountWithHeaderChrome'
+import { mountWithHeaderChrome } from '../../support/mountWithHeaderChrome'
 
 const Host = defineComponent({ render: () => h(AppCatalogHeader, { title: 'Diagrams' }) })
 

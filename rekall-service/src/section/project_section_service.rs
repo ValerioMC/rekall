@@ -4,7 +4,7 @@ use rekall_repository::repository as repo;
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
 
 use crate::note::OnTitleClash;
-use crate::{in_read, in_write, load, text_rule, Ctx, DomainEvent, Tx};
+use crate::{in_read, in_write, load, text_rule, Ctx, Tx};
 
 use super::{rules, ProjectSectionView, SectionStreamEvent, SectionWritten, SectionsRead};
 
@@ -97,7 +97,7 @@ impl ProjectSectionService {
         let mut rewritten = clash.clone();
         rewritten.body_markdown = text;
         let rewritten = repo::update_if_changed(tx.db(), &clash, rewritten, self.ctx.now()).await?;
-        tx.publish(DomainEvent::ProjectSection(SectionStreamEvent { project_id: project.id }));
+        tx.publish(SectionStreamEvent { project_id: project.id });
         Ok(SectionWritten { title: rewritten.title, project_anchor: project.anchor(), sections_on_project: existing.len(), replaced: true })
     }
 
@@ -122,7 +122,7 @@ impl ProjectSectionService {
         };
         section.validate()?;
         section.clone().into_active_model().insert(tx.db()).await?;
-        tx.publish(DomainEvent::ProjectSection(SectionStreamEvent { project_id: project.id }));
+        tx.publish(SectionStreamEvent { project_id: project.id });
         Ok(SectionWritten { title: section.title, project_anchor: project.anchor(), sections_on_project: existing.len() + 1, replaced: false })
     }
 }

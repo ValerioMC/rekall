@@ -8,3 +8,7 @@ pub struct NoteStreamEvent {
     pub task_id: Id,
     pub document_id: Id,
 }
+
+impl crate::StreamEvent for NoteStreamEvent {
+    const FRAME: &'static str = "note";
+}

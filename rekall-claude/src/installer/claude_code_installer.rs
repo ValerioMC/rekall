@@ -20,7 +20,7 @@ pub const CLI_MISSING: &str = "CLI_MISSING";
 
 const COMMAND_FILE: &str = "rk.md";
 /// The slash command this build ships: the repository's own `.claude/commands/rk.md`.
-pub const PACKAGED_COMMAND: &str = include_str!("../../../../.claude/commands/rk.md");
+pub const PACKAGED_COMMAND: &str = include_str!("../../../.claude/commands/rk.md");
 const HOME_RELATIVE_BINARIES: [&str; 3] = [".local/bin/claude", ".claude/local/claude", "bin/claude"];
 const KNOWN_DIRECTORIES: &str = "/opt/homebrew/bin:/usr/local/bin:/usr/bin";
 const COMMAND_TIMEOUT: Duration = Duration::from_secs(20);
@@ -175,7 +175,7 @@ impl ClaudeCodeInstaller {
     fn locate_cli(&self) -> Option<String> {
         for candidate in HOME_RELATIVE_BINARIES {
             let path = self.home.join(candidate);
-            if rekall_claude::login_shell::is_executable(&path) {
+            if crate::login_shell::is_executable(&path) {
                 return Some(path.to_string_lossy().into_owned());
             }
         }
@@ -185,7 +185,7 @@ impl ClaudeCodeInstaller {
                 continue;
             }
             let candidate = Path::new(directory).join("claude");
-            if rekall_claude::login_shell::is_executable(&candidate) {
+            if crate::login_shell::is_executable(&candidate) {
                 return Some(candidate.to_string_lossy().into_owned());
             }
         }
@@ -260,5 +260,5 @@ fn drain(mut pipe: impl Read) -> String {
 }
 
 #[cfg(test)]
-#[path = "../../../tests/unit/bootstrap/installer/claude_code_installer_tests.rs"]
+#[path = "../../tests/unit/installer/claude_code_installer_tests.rs"]
 mod tests;

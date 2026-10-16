@@ -9,7 +9,7 @@ use rekall_common::{Id, RekallError, Result};
 use rekall_model::project_section;
 use rekall_repository::repository as repo;
 use rekall_service::section::{rules, ProjectSectionView, SectionStreamEvent};
-use rekall_service::{in_write, DomainEvent, Tx};
+use rekall_service::{in_write, Tx};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
 use crate::section::{ProjectSectionOrderRequest, ProjectSectionRequest};
@@ -43,7 +43,7 @@ impl ProjectSectionCatalogService {
             };
             section.validate()?;
             section.clone().into_active_model().insert(tx.db()).await?;
-            tx.publish(DomainEvent::ProjectSection(SectionStreamEvent { project_id }));
+            tx.publish(SectionStreamEvent { project_id });
             Ok::<_, RekallError>(ProjectSectionView::of(&section))
         })
     }
@@ -60,7 +60,7 @@ impl ProjectSectionCatalogService {
                 section.body_markdown = body.clone();
             }
             if section != before {
-                tx.publish(DomainEvent::ProjectSection(SectionStreamEvent { project_id: section.project_id }));
+                tx.publish(SectionStreamEvent { project_id: section.project_id });
             }
             let section = repo::update_if_changed(tx.db(), &before, section, self.ctx.now()).await?;
             Ok::<_, RekallError>(ProjectSectionView::of(&section))
@@ -94,7 +94,7 @@ impl ProjectSectionCatalogService {
                 }
                 ordered.push(ProjectSectionView::of(&section));
             }
-            tx.publish(DomainEvent::ProjectSection(SectionStreamEvent { project_id }));
+            tx.publish(SectionStreamEvent { project_id });
             Ok::<_, RekallError>(ordered)
         })
     }
@@ -103,7 +103,7 @@ impl ProjectSectionCatalogService {
         in_write!(&self.ctx, |tx| {
             let section = require(&tx, id).await?;
             project_section::Entity::delete_by_id(section.id).exec(tx.db()).await?;
-            tx.publish(DomainEvent::ProjectSection(SectionStreamEvent { project_id: section.project_id }));
+            tx.publish(SectionStreamEvent { project_id: section.project_id });
             Ok::<_, RekallError>(())
         })
     }

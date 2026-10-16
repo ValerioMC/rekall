@@ -4,7 +4,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import TaskLabelsStrip from '@/features/catalog/components/TaskLabelsStrip.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useClaudeResourcesStore } from '@/features/claude-resources/store/claudeResources.store'
-import { catalog } from './claude-resources.fixtures'
+import { catalog } from '../claude-resources/claude-resources.fixtures'
 import type { Task } from '@/features/catalog/model/catalog'
 import type { TagId, TaskId } from '@/model/branded'
 

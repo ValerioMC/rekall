@@ -4,7 +4,7 @@ use rekall_model::TaskStepState;
 use rekall_repository::repository as repo;
 
 use crate::timeentry::TimeEntryService;
-use crate::{in_write, load, Ctx, DomainEvent, Tx};
+use crate::{in_write, load, Ctx, Tx};
 
 use super::{TaskReviewEvent, TaskReviewView};
 
@@ -91,7 +91,7 @@ impl TaskReviewService {
     async fn save_and_publish(&self, tx: &mut Tx, before: &task::Model, task: task::Model) -> Result<TaskReviewView> {
         let task = repo::update_if_changed(tx.db(), before, task, self.ctx.now()).await?;
         let view = TaskReviewView::of(&task, load::review_active(tx.db(), task.id).await?);
-        tx.publish(DomainEvent::TaskReview(TaskReviewEvent { task_id: task.id, review: view.clone() }));
+        tx.publish(TaskReviewEvent { task_id: task.id, review: view.clone() });
         Ok(view)
     }
 }

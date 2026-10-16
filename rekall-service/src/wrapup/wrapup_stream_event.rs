@@ -11,3 +11,7 @@ pub struct WrapupStreamEvent {
     pub wrapup: Option<WrapupView>,
     pub deleted: bool,
 }
+
+impl crate::StreamEvent for WrapupStreamEvent {
+    const FRAME: &'static str = "wrapup";
+}

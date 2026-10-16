@@ -6,7 +6,7 @@ use rekall_model::{diagram, project, task};
 use rekall_repository::repository as repo;
 use sea_orm::{ActiveModelTrait, ConnectionTrait, IntoActiveModel};
 
-use crate::{in_read, in_write, load, Ctx, DomainEvent};
+use crate::{in_read, in_write, load, Ctx};
 
 use super::{
     DiagramDraft, DiagramSheetView, DiagramStreamEvent, DiagramSummaryView, DiagramTarget, DiagramView, GeneratedDiagram,
@@ -66,7 +66,7 @@ impl DiagramService {
                 None => row.clone().into_active_model().insert(tx.db()).await?,
             };
             let view = view_of(&row, &draft.document)?;
-            tx.publish(DomainEvent::Diagram(DiagramStreamEvent { diagram_id: row.id, diagram: Some(view.summary.clone()), deleted: false }));
+            tx.publish(DiagramStreamEvent { diagram_id: row.id, diagram: Some(view.summary.clone()), deleted: false });
             Ok::<_, RekallError>(view)
         })
     }

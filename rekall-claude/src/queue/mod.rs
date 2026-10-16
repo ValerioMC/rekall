@@ -4,6 +4,7 @@
 mod add_request;
 mod move_request;
 mod queue_controller;
+mod run_queue_frame;
 mod run_queue_item_view;
 mod run_queue_runner;
 mod run_queue_worker;
@@ -15,6 +16,7 @@ mod start_request;
 pub mod usage_ceiling;
 
 pub use queue_controller::routes;
+pub use run_queue_frame::RunQueueFrame;
 pub use run_queue_item_view::RunQueueItemView;
 pub use run_queue_runner::RunQueueRunner;
 pub use run_queue_service::{RunQueueService, CEILING_MAX, CEILING_MIN};

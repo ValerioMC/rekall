@@ -3,7 +3,6 @@
 //! change it, and the Claude Code registration.
 
 pub mod folder;
-pub mod installer;
 pub mod location;
 pub mod registry;
 pub mod settings;

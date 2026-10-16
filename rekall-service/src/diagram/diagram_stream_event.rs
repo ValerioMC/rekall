@@ -12,3 +12,7 @@ pub struct DiagramStreamEvent {
     pub diagram: Option<DiagramSummaryView>,
     pub deleted: bool,
 }
+
+impl crate::StreamEvent for DiagramStreamEvent {
+    const FRAME: &'static str = "diagram";
+}

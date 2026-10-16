@@ -10,3 +10,7 @@ pub struct CommitReferenceStreamEvent {
     pub task_id: Id,
     pub reference: CommitReferenceView,
 }
+
+impl crate::StreamEvent for CommitReferenceStreamEvent {
+    const FRAME: &'static str = "commit-reference";
+}

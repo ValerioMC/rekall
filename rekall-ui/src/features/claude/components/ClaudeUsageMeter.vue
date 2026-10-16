@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import AppButton from '@/components/ui/AppButton.vue'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { fetchClaudeUsage } from '@/features/claude/api/claude.api'
+import { computed, ref } from 'vue'
+import { useClaudeUsageReading } from '@/features/claude/composables/useClaudeUsageReading'
 import { formatResetIn } from '@/common/format/countdown'
 import { relativeTime } from '@/common/format/relative-time'
 import { useNow } from '@/composables/useNow'
 import {
   claudeSessionUsage,
-  type ClaudeUsage,
   type ClaudeUsageLimit,
   type ClaudeUsageSeverity
 } from '@/features/claude/model/claude'
@@ -19,101 +18,18 @@ import {
  * its way. Dashed, there is no reading to draw, and the meter's one job becomes getting one:
  * the trigger itself checks again, and so does the button in the popover, because a token that
  * was not readable when the app opened (a keychain still locked, a login that happened after
- * launch) is the usual way this meter goes blank.
- *
- * Readings are deliberately not real time. One is taken when the console opens, one every few
- * minutes while it is on screen, one when the window comes back to the front after being away,
- * and one whenever the person asks. Nothing retries faster than that, blank or not: Anthropic
- * rate limits a client that keeps asking, and a rate limit is the one thing that makes the meter
- * unfixable from here. When it happens, the server says until when, and the meter waits it out.
+ * launch) is the usual way this meter goes blank. When readings happen is `useClaudeUsageReading`.
  */
 
-/** How old a reading may get on screen, and how old it may be when the window comes back. */
-const POLL_MS = 5 * 60_000
-const STALE_ON_RETURN_MS = 60_000
-/** How often the meter looks at the clock; not how often it reads. */
-const TICK_MS = 30_000
 const RING_RADIUS = 8
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS
 /** How much of the ring the sweep draws while a reading is in flight. */
 const SWEEP_ARC = RING_CIRCUMFERENCE * 0.28
 
-const usage = ref<ClaudeUsage | null>(null)
-const reachable = ref(true)
-const reading = ref(false)
-const lastReadAt = ref<string | null>(null)
 const open = ref(false)
 
 const now = useNow(15_000)
-let timer: ReturnType<typeof setInterval> | undefined
-
-async function load(refresh = false): Promise<void> {
-  if (reading.value) return
-  reading.value = true
-  try {
-    usage.value = await fetchClaudeUsage(refresh)
-    reachable.value = true
-  } catch {
-    reachable.value = false
-  } finally {
-    reading.value = false
-    lastReadAt.value = new Date().toISOString()
-  }
-}
-
-const state = computed<'ok' | 'reading' | 'signed-out' | 'rate-limited' | 'offline'>(() => {
-  const current = usage.value
-  if (!current && reading.value) return 'reading'
-  if (!reachable.value || !current) return 'offline'
-  if (current.status === 'UNAUTHENTICATED') return 'signed-out'
-  if (current.status === 'RATE_LIMITED') return 'rate-limited'
-  if (current.status === 'OK' && current.limits.length > 0) return 'ok'
-  return 'offline'
-})
-
-const blank = computed(
-  () => state.value === 'signed-out' || state.value === 'rate-limited' || state.value === 'offline'
-)
-
-/** Until when Anthropic has asked this machine to wait, if the server is holding a reading back. */
-const retryAt = computed<string | null>(() => usage.value?.retryAt ?? null)
-const waiting = computed(() => {
-  const until = retryAt.value
-  return until !== null && Date.parse(until) > now.value
-})
-const waitLabel = computed(() => (retryAt.value ? formatResetIn(retryAt.value, now.value) : ''))
-
-function readingAge(): number {
-  return lastReadAt.value ? Date.now() - Date.parse(lastReadAt.value) : Number.POSITIVE_INFINITY
-}
-
-function readIfOlderThan(maxAge: number): void {
-  if (document.hidden || waiting.value) return
-  if (readingAge() >= maxAge) void load()
-}
-
-/** A hold that has just lapsed on a blank meter is read at once; everything else waits its turn. */
-function tick(): void {
-  readIfOlderThan(state.value === 'rate-limited' ? 0 : POLL_MS)
-}
-
-/** A window brought back to the front has been away; a reading older than a minute is replaced. */
-function onVisibilityChange(): void {
-  if (!document.hidden) readIfOlderThan(STALE_ON_RETURN_MS)
-}
-
-onMounted(() => {
-  void load()
-  timer = setInterval(tick, TICK_MS)
-  document.addEventListener('visibilitychange', onVisibilityChange)
-  window.addEventListener('focus', onVisibilityChange)
-})
-
-onBeforeUnmount(() => {
-  clearInterval(timer)
-  document.removeEventListener('visibilitychange', onVisibilityChange)
-  window.removeEventListener('focus', onVisibilityChange)
-})
+const { usage, lastReadAt, reading, state, blank, waiting, waitLabel, load } = useClaudeUsageReading(now)
 
 const limits = computed<readonly ClaudeUsageLimit[]>(() => usage.value?.limits ?? [])
 const session = computed<ClaudeUsageLimit | null>(() =>

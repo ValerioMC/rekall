@@ -38,11 +38,11 @@ impl Properties {
         self.environment.get(&relaxed(name)).cloned()
     }
 
-    pub(super) fn number<T: std::str::FromStr>(&self, name: &str, default: T) -> T {
+    pub fn number<T: std::str::FromStr>(&self, name: &str, default: T) -> T {
         self.get(name).and_then(|v| v.trim().parse().ok()).unwrap_or(default)
     }
 
-    pub(super) fn flag(&self, name: &str, default: bool) -> bool {
+    pub fn flag(&self, name: &str, default: bool) -> bool {
         match self.get(name).map(|v| v.trim().to_lowercase()) {
             Some(v) if matches!(v.as_str(), "true" | "on" | "yes" | "1") => true,
             Some(v) if matches!(v.as_str(), "false" | "off" | "no" | "0") => false,

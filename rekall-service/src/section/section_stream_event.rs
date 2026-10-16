@@ -8,3 +8,7 @@ use serde::Serialize;
 pub struct SectionStreamEvent {
     pub project_id: Id,
 }
+
+impl crate::StreamEvent for SectionStreamEvent {
+    const FRAME: &'static str = "project-section";
+}

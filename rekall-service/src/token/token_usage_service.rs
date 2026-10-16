@@ -7,7 +7,7 @@ use rekall_repository::repository as repo;
 use tracing::debug;
 
 use super::{TokenCount, TokenDayView, TokenTallyView, TokenUsageStreamEvent, UnitUsage, WorkUnit};
-use crate::{in_read, in_write, load, Ctx, DomainEvent, Tx};
+use crate::{in_read, in_write, load, Ctx, Tx};
 
 /// The one writer of `token_usage` and `transcript_scan`. A session's rows are replaced whole,
 /// so reading a transcript twice never counts it twice.
@@ -103,11 +103,11 @@ impl TokenUsageService {
 
     async fn publish(&self, tx: &mut Tx, task_id: Id) -> Result<()> {
         let rows = repo::token_usage::list_of_task(tx.db(), task_id).await?;
-        tx.publish(DomainEvent::TokenUsage(TokenUsageStreamEvent {
+        tx.publish(TokenUsageStreamEvent {
             task_id,
             tallies: TokenTallyView::summed(&rows),
             days: TokenDayView::summed(&rows),
-        }));
+        });
         Ok(())
     }
 }

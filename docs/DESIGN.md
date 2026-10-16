@@ -58,7 +58,8 @@ rekall/
   rekall-api/        Axum REST routes for the UI, one folder per domain: its controller, request shapes and console service
   rekall-mcp/        MCP server: one tool reads, five write (a wrapup, a step's state, a commit log entry, a draft step, a new note); a folder per domain holds its tools
   rekall-claude/     the in-app terminal (portable-pty PTYs over one WebSocket), the Claude Code usage meter, the run queue, the transcript reader, the Claude folder editor
-  rekall-app/        rekall-server: serves the built frontend, embedded at compile time
+  rekall-platform/   the database registry, backups and restores, the restart handle, the release check; what the application does around the catalog
+  rekall-app/        rekall-server: wires every module, the local-access guard, serves the built frontend, embedded at compile time
   rekall-app/desktop the Tauri desktop app over the same server, in-process
   rekall-ui/         Vue 3 + Vite (built into rekall-ui/dist, embedded by rekall-app)
 ```
@@ -127,6 +128,17 @@ domain that uses another one it is not listed for, and on two domains that use e
 decision: change the table and the test together, or change the code.
 
 `rekall-claude` does not depend on `rekall-api`. What the two routers share is in `rekall-web`.
+
+`claude` exists twice on purpose. `rekall-service/src/claude/` reads the entities a launch needs (the
+launch target of a task or project, the work left in a task) so `rekall-claude` never touches a
+repository; `rekall-claude` owns everything with a process, a file or a socket behind it: the
+terminals, the run queue, the usage meter, the transcripts, `~/.claude`, the Claude Code installer.
+A rule that needs the database goes in the first, one that needs the machine in the second.
+
+**Events.** A domain announces a change by implementing `StreamEvent` for its own type (a frame
+name and a serialisable payload) and publishing it on its transaction. `events` imports no domain, so
+adding an event touches the domain only; a subscriber that acts on one kind reads it with
+`downcast::<E>()`.
 
 ### Stack
 

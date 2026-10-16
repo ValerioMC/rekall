@@ -3,7 +3,7 @@ use rekall_model::{document, document_task, task, DocumentContextMode};
 use rekall_repository::repository as repo;
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
 
-use crate::{in_write, load, text_rule, Ctx, DomainEvent, Tx};
+use crate::{in_write, load, text_rule, Ctx, Tx};
 
 use super::{NoteStreamEvent, OnTitleClash, Written};
 
@@ -54,7 +54,7 @@ impl NoteService {
         rewritten.body_markdown = text;
         let rewritten = repo::update_if_changed(tx.db(), clash, rewritten, self.ctx.now()).await?;
         let readers = repo::document::links_of_document(tx.db(), rewritten.id).await?;
-        tx.publish(DomainEvent::Note(NoteStreamEvent { task_id: target.task.id, document_id: rewritten.id }));
+        tx.publish(NoteStreamEvent { task_id: target.task.id, document_id: rewritten.id });
         Ok(Written {
             note_anchor: rewritten.anchor(),
             title: rewritten.title,
@@ -86,7 +86,7 @@ impl NoteService {
             .into_active_model()
             .insert(tx.db())
             .await?;
-        tx.publish(DomainEvent::Note(NoteStreamEvent { task_id: target.task.id, document_id: note.id }));
+        tx.publish(NoteStreamEvent { task_id: target.task.id, document_id: note.id });
         Ok(Written {
             note_anchor: note.anchor(),
             title: note.title,

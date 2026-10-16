@@ -4,7 +4,7 @@
 use rekall_common::{Id, RekallError, Result};
 use rekall_model::diagram;
 use rekall_repository::repository as repo;
-use rekall_service::{diagram::DiagramStreamEvent, in_write, Ctx, DomainEvent};
+use rekall_service::{diagram::DiagramStreamEvent, in_write, Ctx};
 use sea_orm::EntityTrait;
 
 #[derive(Clone)]
@@ -21,7 +21,7 @@ impl DiagramCatalogService {
         in_write!(&self.ctx, |tx| {
             repo::diagram::find_by_id(tx.db(), id).await?.ok_or_else(|| RekallError::not_found("Diagram", id))?;
             diagram::Entity::delete_by_id(id).exec(tx.db()).await?;
-            tx.publish(DomainEvent::Diagram(DiagramStreamEvent { diagram_id: id, diagram: None, deleted: true }));
+            tx.publish(DiagramStreamEvent { diagram_id: id, diagram: None, deleted: true });
             Ok::<_, RekallError>(())
         })
     }

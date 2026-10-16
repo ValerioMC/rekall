@@ -10,3 +10,7 @@ pub struct TaskReviewEvent {
     pub task_id: Id,
     pub review: TaskReviewView,
 }
+
+impl crate::StreamEvent for TaskReviewEvent {
+    const FRAME: &'static str = "task-review";
+}

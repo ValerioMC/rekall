@@ -4,9 +4,9 @@ use std::time::Duration;
 
 use rekall_claude::ClaudeConfig;
 
-use crate::version::DEFAULT_RELEASE_URL;
+use rekall_platform::version::DEFAULT_RELEASE_URL;
 
-use super::{BackupConfig, DatabaseOverride, Properties, UpdateCheckConfig};
+use rekall_platform::config::{BackupConfig, DatabaseOverride, Properties, UpdateCheckConfig};
 
 /// Not 8080: the MCP endpoint is registered with Claude Code as a fixed URL, so a clash on a
 /// common port is a broken registration, not a retry.

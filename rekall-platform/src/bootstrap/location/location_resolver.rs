@@ -5,20 +5,22 @@ use rekall_repository::DATA_FILE_NAME;
 
 use super::super::folder::absolute_normalised;
 use super::super::registry::{DatabaseEntry, DatabaseRegistry, DatabaseRegistryStore};
-use crate::config::{AppConfig, DatabaseOverride};
+use crate::config::DatabaseOverride;
 
 use super::{Resolved, SetupStatus};
 
-pub fn resolve(config: &AppConfig) -> Result<Resolved, String> {
-    let store = DatabaseRegistryStore::new(&config.home);
+/// Where the database is: the registry under `home` decides, `database` (an explicit override)
+/// wins over it, and `working_dir/data` is adopted when no registry exists yet.
+pub fn resolve(home: &Path, database: Option<&DatabaseOverride>, working_dir: &Path) -> Result<Resolved, String> {
+    let store = DatabaseRegistryStore::new(home);
     let registry = store.read()?;
-    let (database, status) = match &registry {
+    let (resolved_database, status) = match &registry {
         Some(registry) if reachable(registry.active()) => {
             let active = registry.active().expect("reachable implies present");
             (DatabaseOverride::File(data_file_in(Path::new(&active.path))), SetupStatus::Ready)
         }
-        None if data_folder_beside_the_app_has_a_database(config) => {
-            let adopted = adopt_data_folder_beside_the_app(config);
+        None if data_folder_beside_the_app_has_a_database(working_dir) => {
+            let adopted = adopt_data_folder_beside_the_app(working_dir);
             store.write(&adopted)?;
             let active = adopted.active().expect("adopted with itself active");
             (DatabaseOverride::File(data_file_in(Path::new(&active.path))), SetupStatus::Ready)
@@ -26,7 +28,7 @@ pub fn resolve(config: &AppConfig) -> Result<Resolved, String> {
         Some(_) => (DatabaseOverride::Memory, SetupStatus::Unreachable),
         None => (DatabaseOverride::Memory, SetupStatus::SetupNeeded),
     };
-    Ok(Resolved { database: config.database.clone().unwrap_or(database), status })
+    Ok(Resolved { database: database.cloned().unwrap_or(resolved_database), status })
 }
 
 /// The SQLite file of a registered folder.
@@ -39,18 +41,18 @@ fn reachable(entry: Option<&DatabaseEntry>) -> bool {
 }
 
 /// `./data` under the working directory: where a database lived before folders were registered.
-fn data_folder_beside_the_app(config: &AppConfig) -> PathBuf {
-    config.working_dir.join("data")
+fn data_folder_beside_the_app(working_dir: &Path) -> PathBuf {
+    working_dir.join("data")
 }
 
-fn data_folder_beside_the_app_has_a_database(config: &AppConfig) -> bool {
-    data_file_in(&data_folder_beside_the_app(config)).is_file()
+fn data_folder_beside_the_app_has_a_database(working_dir: &Path) -> bool {
+    data_file_in(&data_folder_beside_the_app(working_dir)).is_file()
 }
 
 /// With no registry yet, a database already in `./data` becomes the registered, active one.
-fn adopt_data_folder_beside_the_app(config: &AppConfig) -> DatabaseRegistry {
+fn adopt_data_folder_beside_the_app(working_dir: &Path) -> DatabaseRegistry {
     let id = Id::random().to_string();
-    let path = absolute_normalised(&data_folder_beside_the_app(config)).to_string_lossy().into_owned();
+    let path = absolute_normalised(&data_folder_beside_the_app(working_dir)).to_string_lossy().into_owned();
     let now = Instant::now().to_string();
     DatabaseRegistry {
         active_id: Some(id.clone()),

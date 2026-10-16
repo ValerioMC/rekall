@@ -3,11 +3,11 @@
 use rekall_common::{RekallError, Result};
 use sea_orm::{DatabaseTransaction, SqliteTransactionMode, TransactionOptions, TransactionTrait};
 
-use crate::{Ctx, DomainEvent, EventBus};
+use crate::{Ctx, DomainEvent, EventBus, PublishedEvent};
 
 pub struct Tx {
     txn: DatabaseTransaction,
-    events: Vec<DomainEvent>,
+    events: Vec<PublishedEvent>,
     bus: EventBus,
 }
 
@@ -42,14 +42,14 @@ impl Tx {
     }
 
     /// Record an event to announce after the commit.
-    pub fn publish(&mut self, event: DomainEvent) {
-        self.events.push(event);
+    pub fn publish(&mut self, event: impl DomainEvent) {
+        self.events.push(std::sync::Arc::new(event));
     }
 
     pub async fn commit(self) -> Result<()> {
         self.txn.commit().await.map_err(RekallError::from)?;
         for event in self.events {
-            self.bus.publish(event);
+            self.bus.announce(event);
         }
         Ok(())
     }

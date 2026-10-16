@@ -9,7 +9,7 @@ use rekall_repository::repository as repo;
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
 use super::git::GitLogReader;
-use crate::{in_read, in_write, load, Ctx, DomainEvent, Tx};
+use crate::{in_read, in_write, load, Ctx, Tx};
 
 use super::{CommitReferenceStreamEvent, CommitReferenceView, RecentCommitView};
 
@@ -123,10 +123,10 @@ impl CommitReferenceService {
         reference.validate()?;
         reference.clone().into_active_model().insert(tx.db()).await?;
         let logged = CommitReferenceView::of(&reference, step.as_ref());
-        tx.publish(DomainEvent::CommitReference(CommitReferenceStreamEvent {
+        tx.publish(CommitReferenceStreamEvent {
             task_id: logged.task_id,
             reference: logged.clone(),
-        }));
+        });
         Ok(logged)
     }
 

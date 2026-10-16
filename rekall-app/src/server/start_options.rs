@@ -3,7 +3,7 @@ use std::sync::Arc;
 use rekall_claude::usage::UsageReader;
 use rekall_service::Clock;
 
-use crate::version::ReleaseFeed;
+use rekall_platform::version::ReleaseFeed;
 
 /// What a caller, usually a test, can swap in for the real collaborators.
 #[derive(Clone, Default)]

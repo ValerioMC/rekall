@@ -6,7 +6,7 @@ use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
 use crate::review::TaskReviewService;
 use crate::revision::{RevisionTrigger, TaskRevisionService};
-use crate::{in_read, in_write, load, text_rule, Ctx, DomainEvent, Tx};
+use crate::{in_read, in_write, load, text_rule, Ctx, Tx};
 
 use super::{WrapupStreamEvent, WrapupView, Written};
 
@@ -102,11 +102,11 @@ impl WrapupService {
         if author == WrapupAuthor::Claude {
             self.review.claimed_by_wrapup_in(tx, task.id).await?;
         }
-        tx.publish(DomainEvent::Wrapup(WrapupStreamEvent {
+        tx.publish(WrapupStreamEvent {
             task_id: task.id,
             wrapup: Some(written.wrapup.clone()),
             deleted: false,
-        }));
+        });
         Ok(written)
     }
 
@@ -147,7 +147,7 @@ impl WrapupService {
                              Some(found.updated_at), RevisionTrigger::Deletion)
                     .await?;
                 wrapup::Entity::delete_by_id(found.id).exec(tx.db()).await?;
-                tx.publish(DomainEvent::Wrapup(WrapupStreamEvent { task_id, wrapup: None, deleted: true }));
+                tx.publish(WrapupStreamEvent { task_id, wrapup: None, deleted: true });
             }
             Ok::<_, RekallError>(())
         })

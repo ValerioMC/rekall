@@ -6,9 +6,10 @@ use rekall_service::Services;
 use tokio::sync::{oneshot, watch};
 use tracing::{error, info, warn};
 
-use crate::bootstrap::location;
-use crate::config::{AppConfig, DatabaseOverride};
-use crate::restart::{self, Restarter, RESTART_DELAY};
+use rekall_platform::bootstrap::location;
+use crate::config::AppConfig;
+use rekall_platform::config::DatabaseOverride;
+use rekall_platform::restart::{self, Restarter, RESTART_DELAY};
 
 use super::{Instance, Running, StartOptions};
 
@@ -121,7 +122,7 @@ async fn open_instance(
     options: &StartOptions,
     port: u16,
 ) -> Result<(Instance, tokio::sync::mpsc::UnboundedReceiver<restart::RestartRequest>), String> {
-    let resolved = location::resolve(config)?;
+    let resolved = location::resolve(&config.home, config.database.as_ref(), &config.working_dir)?;
     let database = open_database(&resolved.database).await?;
     let (restarter, requests) = Restarter::channel();
     let restarter = if options.no_restart { Restarter::disabled() } else { restarter };

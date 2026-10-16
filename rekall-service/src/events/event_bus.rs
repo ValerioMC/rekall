@@ -1,10 +1,10 @@
 use tokio::sync::broadcast;
 
-use super::DomainEvent;
+use super::{DomainEvent, PublishedEvent};
 
 #[derive(Clone)]
 pub struct EventBus {
-    sender: broadcast::Sender<DomainEvent>,
+    sender: broadcast::Sender<PublishedEvent>,
 }
 
 impl Default for EventBus {
@@ -19,12 +19,17 @@ impl EventBus {
         Self { sender }
     }
 
-    pub fn publish(&self, event: DomainEvent) {
+    pub fn publish(&self, event: impl DomainEvent) {
+        self.announce(std::sync::Arc::new(event));
+    }
+
+    /// Announce an event already behind its `Arc`, as a committed transaction holds it.
+    pub fn announce(&self, event: PublishedEvent) {
         // No subscriber is not an error: nobody is watching yet.
         let _ = self.sender.send(event);
     }
 
-    pub fn subscribe(&self) -> broadcast::Receiver<DomainEvent> {
+    pub fn subscribe(&self) -> broadcast::Receiver<PublishedEvent> {
         self.sender.subscribe()
     }
 }

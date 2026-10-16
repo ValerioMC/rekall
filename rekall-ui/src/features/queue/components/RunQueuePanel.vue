@@ -3,11 +3,6 @@
  * Where the run queue is set up and watched: the order on the left, how and when it runs on the
  * right, and one action at the foot that says exactly what will happen.
  *
- * The order is a relay: a numbered line of beads joined by a rail, the part already run drawn
- * solid and the part still to run in hairline, so where the run has got to reads without a word.
- * Only waiting tasks move or come off; the running one is stopped, not removed, and a finished
- * one stays until cleared, as the record of the run.
- *
  * Settings save as they change and apply from the next session opened and the next ceiling
  * check, so they can be adjusted while a queue runs. The start, the schedule and the stop are
  * the only things that wait for a button.
@@ -18,10 +13,9 @@ import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppDialog from '@/components/ui/AppDialog.vue'
 import CloseGlyph from '@/components/ui/CloseGlyph.vue'
-import QueueOrderRow from '@/features/queue/components/QueueOrderRow.vue'
+import QueueOrderSection from '@/features/queue/components/QueueOrderSection.vue'
 import QueueSettingsAside from '@/features/queue/components/QueueSettingsAside.vue'
 import QueueStatusLine from '@/features/queue/components/QueueStatusLine.vue'
-import QueueTaskPicker from '@/features/queue/components/QueueTaskPicker.vue'
 import { useRunQueueStore } from '@/features/queue/store/runQueue.store'
 import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
@@ -31,7 +25,6 @@ import { useQueueSettingsDraft } from '@/features/queue/composables/useQueueSett
 import {
   clockLabel,
   fromLocalInputValue,
-  isSettled,
   suggestedStart,
   toLocalInputValue,
   type RunQueueItem
@@ -70,17 +63,6 @@ const startInPast = computed(
 
 // ---------------------------------------------------------------- the order
 
-const items = computed(() => queue.value.items)
-const waitingIds = computed(() => items.value.filter((item) => item.state === 'QUEUED').map((item) => item.id))
-const excluded = computed<ReadonlySet<TaskId>>(
-  () => new Set(items.value.filter((item) => !isSettled(item.state)).map((item) => item.taskId))
-)
-const hasSettled = computed(() => items.value.some((item) => isSettled(item.state)))
-
-function waitingIndex(item: RunQueueItem): number {
-  return waitingIds.value.indexOf(item.id)
-}
-
 async function act(action: () => Promise<void>): Promise<void> {
   if (busy.value) return
   busy.value = true
@@ -97,9 +79,7 @@ function add(taskId: TaskId): void {
   void act(() => store.add(taskId))
 }
 
-function moveBy(item: RunQueueItem, delta: number): void {
-  const index = waitingIndex(item) + delta
-  if (index < 0 || index >= waitingIds.value.length) return
+function moveTo(item: RunQueueItem, index: number): void {
   void act(() => store.move(item.id, index))
 }
 
@@ -213,61 +193,16 @@ onMounted(async () => {
     <QueueStatusLine :queue="queue" :progress="progress" :now="now" />
 
     <div class="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[minmax(0,1fr)_300px]">
-      <!-- The order -->
-      <section class="flex min-h-0 flex-col" aria-labelledby="queue-order-heading">
-        <div class="flex items-center gap-2 px-6 pb-2 pt-4">
-          <h3 id="queue-order-heading" class="section-label">Order</h3>
-          <span class="font-mono text-caption tabular-nums text-text-subtle">
-            {{ progress.waiting }} waiting<template v-if="progress.settled">, {{ progress.settled }} run</template>
-          </span>
-          <AppButton
-            v-if="hasSettled"
-            class="ml-auto"
-            variant="ghost"
-            size="sm"
-            :disabled="busy"
-            data-testid="run-queue-clear"
-            @click="clearSettled"
-          >
-            Clear finished
-          </AppButton>
-        </div>
-
-        <div class="min-h-[180px] flex-1 overflow-y-auto px-6 pb-3">
-          <div
-            v-if="items.length === 0"
-            class="flex flex-col items-start gap-1.5 rounded-card border border-dashed border-border px-5 py-8"
-            data-testid="run-queue-empty"
-          >
-            <p class="text-body font-medium text-text">Nothing queued</p>
-            <p class="max-w-[46ch] text-small leading-relaxed text-text-muted">
-              Add the tasks you want run, in the order you want them. Each one gets a Claude
-              session that works its open steps and claims them, then the next one starts.
-            </p>
-          </div>
-
-          <TransitionGroup v-else tag="ol" name="step-list" class="relative flex flex-col" data-testid="run-queue-list">
-            <QueueOrderRow
-              v-for="(item, index) in items"
-              :key="item.id"
-              :item="item"
-              :position="index + 1"
-              :last="index === items.length - 1"
-              :live="queue.state === 'RUNNING'"
-              :busy="busy"
-              :can-move-earlier="waitingIndex(item) > 0"
-              :can-move-later="waitingIndex(item) < waitingIds.length - 1"
-              @move="moveBy(item, $event)"
-              @remove="remove(item)"
-              @watch="watchSession(item)"
-            />
-          </TransitionGroup>
-        </div>
-
-        <div class="border-t border-border px-6 py-3">
-          <QueueTaskPicker :excluded="excluded" :disabled="busy" @pick="add" />
-        </div>
-      </section>
+      <QueueOrderSection
+        :queue="queue"
+        :progress="progress"
+        :busy="busy"
+        @add="add"
+        @move="moveTo"
+        @remove="remove"
+        @clear="clearSettled"
+        @watch="watchSession"
+      />
 
       <QueueSettingsAside
         v-model:when="when"

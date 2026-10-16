@@ -65,7 +65,7 @@ The header shows no version. The desktop app checks once when it starts and, whe
 | `rekall.update-check.enabled` | `true` | `false` never contacts GitHub; Settings says checks are off |
 | `rekall.update-check.url` | the repository's `releases/latest` API | The endpoint answering with the latest release |
 
-In the macOS app **Install** puts the new version in place itself (`rekall-app/src/version/update_installer.rs`, called by the `installUpdate()` bridge in `rekall-app/desktop/src/update_install.rs`):
+In the macOS app **Install** puts the new version in place itself (`rekall-platform/src/version/update_installer.rs`, called by the `installUpdate()` bridge in `rekall-app/desktop/src/update_install.rs`):
 
 1. It downloads the release's `.dmg` from inside the app, and only from `github.com/ValerioMC/rekall/releases/download/`.
 2. It mounts the image with `hdiutil`, copies `Rekall.app` with `ditto` beside the running one as `.Rekall.app.new`, and swaps the two. The old bundle is kept as `.Rekall.app.old` until the new one is in place, and is put back if the swap fails.
@@ -575,7 +575,8 @@ rekall-service/    business logic: context assembly, the step and review lines, 
 rekall-api/        Axum REST API for the UI, one folder per domain, with the folder listing and the step event stream
 rekall-mcp/        MCP server, on rekall-service and never rekall-api: one tool reads, five write
 rekall-claude/     the in-app terminal (portable-pty over one WebSocket), the Claude Code usage meter, the run queue, the transcript reader for token usage and the editor for Claude Code's own files (`~/.claude`)
-rekall-app/        rekall-server: settings, backups, the local-access guard, serves everything
+rekall-platform/   the database registry, backups and restores, the restart handle and the release check
+rekall-app/        rekall-server: the local-access guard, the console bundle, the supervisor; wires every module and serves everything
 rekall-app/desktop the Tauri desktop app over the same server
 rekall-ui/         Vue 3 + Vite frontend
 ```

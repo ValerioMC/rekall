@@ -12,3 +12,7 @@ pub struct TokenUsageStreamEvent {
     pub tallies: Vec<TokenTallyView>,
     pub days: Vec<TokenDayView>,
 }
+
+impl crate::StreamEvent for TokenUsageStreamEvent {
+    const FRAME: &'static str = "token-usage";
+}

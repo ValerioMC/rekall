@@ -8,7 +8,7 @@ use rekall_common::RekallError;
 use rekall_diagram::DiagramKind;
 use rekall_model::prelude::*;
 use rekall_service::diagram::{DiagramDraft, DiagramService, DiagramTarget, GeneratedDiagram};
-use rekall_service::DomainEvent;
+use rekall_service::diagram::DiagramStreamEvent;
 use sea_orm::EntityTrait;
 use serde_json::json;
 use support::world;
@@ -62,7 +62,8 @@ async fn a_diagram_is_written_whole_listed_with_its_kinds_and_read_back_in_full(
     assert_eq!(read, written);
     assert_eq!(read.sheets[0].kind, DiagramKind::Sequence);
     assert_eq!(read.sheets[0].links["#1"][0].symbol.as_deref(), Some("charge"));
-    assert!(matches!(events.try_recv().unwrap(), DomainEvent::Diagram(event) if event.diagram_id == written.summary.id && !event.deleted));
+    let announced = events.try_recv().unwrap();
+    assert!(announced.downcast::<DiagramStreamEvent>().is_some_and(|event| event.diagram_id == written.summary.id && !event.deleted));
 }
 
 #[tokio::test]

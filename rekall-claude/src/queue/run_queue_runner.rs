@@ -23,7 +23,9 @@ use std::time::Duration;
 use rekall_common::{RekallError, Result};
 use rekall_service::claude::TaskWorkService;
 use rekall_service::step::TaskStepService;
-use rekall_service::{Clock, DomainEvent, EventBus};
+use rekall_service::step::StepStreamEvent;
+use rekall_service::review::TaskReviewEvent;
+use rekall_service::{Clock, EventBus, PublishedEvent};
 use tokio::sync::broadcast::{self, error::RecvError};
 use tokio::sync::{mpsc, oneshot};
 
@@ -111,13 +113,15 @@ fn spawn_clock(commands: mpsc::UnboundedSender<Command>, tick: Duration) {
 }
 
 /// Every committed step or review move becomes a look at that task.
-fn forward_step_and_review_moves(commands: mpsc::UnboundedSender<Command>, mut bus: broadcast::Receiver<DomainEvent>) {
+fn forward_step_and_review_moves(commands: mpsc::UnboundedSender<Command>, mut bus: broadcast::Receiver<PublishedEvent>) {
     tokio::spawn(async move {
         loop {
             let task_id = match bus.recv().await {
-                Ok(DomainEvent::Steps(event)) => event.task_id,
-                Ok(DomainEvent::TaskReview(event)) => event.task_id,
-                Ok(_) | Err(RecvError::Lagged(_)) => continue,
+                Ok(event) => match task_moved_by(&event) {
+                    Some(task_id) => task_id,
+                    None => continue,
+                },
+                Err(RecvError::Lagged(_)) => continue,
                 Err(RecvError::Closed) => return,
             };
             if commands.send(Command::Review(task_id)).is_err() {
@@ -125,6 +129,14 @@ fn forward_step_and_review_moves(commands: mpsc::UnboundedSender<Command>, mut b
             }
         }
     });
+}
+
+/// The task a committed step or review move belongs to; any other event moves nothing.
+fn task_moved_by(event: &PublishedEvent) -> Option<rekall_common::Id> {
+    if let Some(steps) = event.downcast::<StepStreamEvent>() {
+        return Some(steps.task_id);
+    }
+    event.downcast::<TaskReviewEvent>().map(|review| review.task_id)
 }
 
 /// Every terminal that ends becomes a look at whether it was the one the runner had open.

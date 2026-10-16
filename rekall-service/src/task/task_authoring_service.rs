@@ -6,7 +6,7 @@ use sea_orm::{ActiveModelTrait, IntoActiveModel};
 
 use super::{Created, StepDraft, TaskStreamEvent};
 use crate::step::{TaskStepService, PROPOSED_DRAFTS_MAX};
-use crate::{in_write, load, text_rule, Ctx, DomainEvent, Tx};
+use crate::{in_write, load, text_rule, Ctx, Tx};
 
 /// Creates a task for a session. The task starts `TODO` and its steps start as drafts: nothing a
 /// session writes here is work until a person promotes it in the console.
@@ -40,7 +40,7 @@ impl TaskAuthoringService {
             task.validate()?;
             require_label_free(&tx, &task).await?;
             task.clone().into_active_model().insert(tx.db()).await?;
-            tx.publish(DomainEvent::TaskCreated(TaskStreamEvent { task_id: task.id, project_id: project.id }));
+            tx.publish(TaskStreamEvent { task_id: task.id, project_id: project.id });
             self.add_drafts(&mut tx, &task, drafts).await?;
             Ok(Created { task_anchor: task.anchor(&project.label), title: task.title, drafts: drafts.len() })
         })

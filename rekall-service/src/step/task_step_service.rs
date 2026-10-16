@@ -7,7 +7,7 @@ use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
 use super::{FlowPlace, StepFlowRows, StepStreamEvent, TaskStepView};
 use crate::timeentry::TimeEntryService;
-use crate::{in_read, in_write, load, text_rule, Ctx, DomainEvent, Tx};
+use crate::{in_read, in_write, load, text_rule, Ctx, Tx};
 
 use super::Proposed;
 
@@ -340,7 +340,7 @@ impl TaskStepService {
     /// call it too, since both travel on the step views.
     pub async fn publish_in(&self, tx: &mut Tx, task_id: Id) -> Result<()> {
         let current = self.find_by_task_in(tx, task_id).await?;
-        tx.publish(DomainEvent::Steps(StepStreamEvent { task_id, steps: current }));
+        tx.publish(StepStreamEvent { task_id, steps: current });
         Ok(())
     }
 
