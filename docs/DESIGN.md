@@ -50,12 +50,13 @@ Non-goals: multi-user, authentication, remote deployment, vector search.
 ```
 rekall/
   rekall-common/     RekallError, Id, Instant: the vocabulary shared by every layer
-  rekall-model/      SeaORM entities and their state rules
+  rekall-web/        the HTTP vocabulary two routers share: the error body, request extractors, response helpers; knows no service
+  rekall-model/      SeaORM entities and their state rules, one folder per domain
   rekall-diagram/    the diagram format: Mermaid sheets, code links, JSON form, validation; depends on nothing of Rekall's
-  rekall-repository/ queries and the SQLite migrations for their schema
+  rekall-repository/ queries, one folder per domain, and the SQLite migrations for their schema
   rekall-service/    context assembly, the step and review lines, flows, wrapups, notes, time entries, token usage
-  rekall-api/        Axum REST routes for the UI
-  rekall-mcp/        MCP server: one tool reads, five write (a wrapup, a step's state, a commit log entry, a draft step, a new note)
+  rekall-api/        Axum REST routes for the UI, one folder per domain: its controller, request shapes and console service
+  rekall-mcp/        MCP server: one tool reads, five write (a wrapup, a step's state, a commit log entry, a draft step, a new note); a folder per domain holds its tools
   rekall-claude/     the in-app terminal (portable-pty PTYs over one WebSocket), the Claude Code usage meter, the run queue, the transcript reader, the Claude folder editor
   rekall-app/        rekall-server: serves the built frontend, embedded at compile time
   rekall-app/desktop the Tauri desktop app over the same server, in-process
@@ -75,14 +76,57 @@ but no route, none of `CompanyService`, `ProjectService`, `TaskService` or `Docu
 
 The crates are the layers; inside one, the code is laid out the way a Java project is.
 
-- **A folder per concept or layer, one public type per file.** A folder is a package: `rekall-api` is split by layer (`controller/`, `service/`, `dto/`), `rekall-service` by concept (`note/`, `step/`, `wrapup/`, `commit/` with `commit/git/` under it). A file holds one public type and is named after it: `NoteService` lives in `note/note_service.rs`, `CompanyResponse` in `dto/company_response.rs`.
+- **A folder per domain, one public type per file.** A folder is a package, and every layer crate cuts its code the same way (see Domains below): `rekall-service/src/note/`, `rekall-api/src/note/`, `rekall-model/src/note/`, `rekall-repository/src/repository/note/`, `rekall-mcp/src/note/`. A file holds one public type and is named after it: `NoteService` lives in `note/note_service.rs`, `CompanyResponse` in `catalog/company_response.rs`. Inside `rekall-api` a domain folder holds its controllers, request and response shapes, console services and a `routes.rs` that merges its controllers, so `router.rs` only merges the domains.
 - **`mod.rs` and `lib.rs` hold no logic.** They declare the files and re-export the public types, so a caller writes `rekall_service::note::NoteService` and never the file's name. Moving a type between files changes no caller.
 - **Privacy is per file, so what siblings share is `pub(super)`.** Rust's privacy boundary is the module, which is the file, not the type. A helper two files of one folder use is `pub(super)`, visible to that package and nowhere else: Java's package-private.
 - **Private helpers stay beside the one type that uses them.** A small private struct that only one file reads (`ScratchDir` beside `Database`, `Active` beside `Worker`) stays in that file. A private type that carries most of a module's logic gets a file of its own, visible as `pub(super)`: the run queue's `Worker` sits in `run_queue_worker.rs`, beside the `RunQueueRunner` handle that starts it.
 - **A module of free functions is one file named for what it does.** `repository/task.rs` is the task repository, `jstr.rs` the string helpers, `usage_ceiling.rs` the ceiling rule: Rust's counterpart of a class of static methods.
-- **Tests live under `tests/`, split in two.** `tests/unit/` mirrors `src/`: the tests of `rekall-api/src/service/directory_listing_service.rs` are `rekall-api/tests/unit/service/directory_listing_service_tests.rs`, attached from the implementation with `#[cfg(test)] #[path = "../../tests/unit/service/directory_listing_service_tests.rs"] mod tests;`, so the file is still a child module of the code it tests and reads private items with `use super::*`. `tests/integration/` holds the integration and end-to-end suites, which see only the public API, with their `support/` helpers and fixtures. Cargo discovers only files directly in `tests/`, so it finds neither folder by itself: unit files are compiled through their `#[path]`, and every integration suite is declared as a `[[test]]` in its crate's `Cargo.toml`. A suite missing from that list never runs, and nothing warns about it. `autotests` stays on, since nothing sits in `tests/` itself for it to pick up.
+- **Tests live under `tests/`, split in two.** `tests/unit/` mirrors `src/`: the tests of `rekall-api/src/filesystem/directory_listing_service.rs` are `rekall-api/tests/unit/filesystem/directory_listing_service_tests.rs`, attached from the implementation with `#[cfg(test)] #[path = "../../tests/unit/filesystem/directory_listing_service_tests.rs"] mod tests;`, so the file is still a child module of the code it tests and reads private items with `use super::*`. `tests/integration/` holds the integration and end-to-end suites, which see only the public API, with their `support/` helpers and fixtures. Cargo discovers only files directly in `tests/`, so it finds neither folder by itself: unit files are compiled through their `#[path]`, and every integration suite is declared as a `[[test]]` in its crate's `Cargo.toml`. A suite missing from that list never runs, and nothing warns about it. `autotests` stays on, since nothing sits in `tests/` itself for it to pick up.
 
 Two things keep their shape on purpose. A SeaORM entity is one file with `Model`, `Relation` and the `Entity` and `ActiveModel` its derive generates: the derive requires them in one module, and the file is the entity, as a JPA entity is one class. The migrations are one file each, starting from `baseline.sql`, the schema as v0.2.x left it; a file once released is frozen history. In the desktop app, the modules holding `#[tauri::command]` functions are `pub`, because `generate_handler!` resolves each command's generated companion by path and a re-export does not carry it.
+
+### Domains
+
+A domain is the unit a change lands in. The same name cuts every layer, so the code of one domain
+is found by opening one folder per crate:
+
+| Domain | Holds |
+|---|---|
+| `catalog` | companies and projects with their logos and icons; in `rekall-api` and the console also the tasks |
+| `component`, `section` | a project's components and its titled pages |
+| `step`, `flow` | the checklist, and the routes and visits that turn it into a flow |
+| `note` | documents, their attachment to tasks, the scope that decides how they load |
+| `wrapup`, `revision`, `review`, `timeentry` | the wrapup, saved states of a task, the review line, logged time |
+| `commit`, `diagram`, `token`, `search`, `context` | logged commits, stored diagrams, token usage, search, context assembly and its size |
+| `skill`, `tag`, `queue`, `claude` | skill assignments, tags, the run queue, what a session launch needs |
+
+`diagram` also has `rekall-diagram`, the one domain with a crate of its own, because the format
+depends on nothing of Rekall's. A domain gets a crate only on that condition.
+
+A domain with a single entity named like itself (`task`, `tag`, `wrapup`, `diagram` in `rekall-model` and `rekall-repository`) stays one flat file, since a folder `task/task.rs` would only repeat the name.
+
+Entity modules keep their flat path at the crate root (`rekall_model::task_step`,
+`rekall_repository::repository::task_step`): the folder is where the file lives and the root
+re-export is how a caller names it, so a move between folders changes no caller.
+
+**Allowed edges between domains.** `rekall-service/tests/integration/domain_edges.rs` fails on a
+domain that uses another one it is not listed for, and on two domains that use each other:
+
+| Domain | May use |
+|---|---|
+| `context` | `component`, `step`, `wrapup` |
+| `flow` | `step` |
+| `review` | `timeentry` |
+| `section` | `note` |
+| `step` | `timeentry` |
+| `task` | `step` |
+| `wrapup` | `review`, `revision` |
+| every other | nothing |
+
+`events`, `tx`, `ctx` and `load` are foundations every domain may use. A new edge is a design
+decision: change the table and the test together, or change the code.
+
+`rekall-claude` does not depend on `rekall-api`. What the two routers share is in `rekall-web`.
 
 ### Stack
 

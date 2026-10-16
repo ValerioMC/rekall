@@ -1,0 +1,51 @@
+import { apiClient, request } from '../../../api/client'
+import { DocumentListSchema, DocumentSchema } from '../../catalog/api/schemas/catalog.schema'
+import type { DocumentContextMode, RekallDocument } from '@/features/catalog/model/catalog'
+import type { NoteScope } from '@/features/notes/model/note-scope'
+import type { DocumentId, TaskId } from '@/model/branded'
+
+export interface DocumentInput {
+  title: string
+  kind: string
+  bodyMarkdown: string
+  taskIds: readonly TaskId[]
+  /** Left out, a new note is sent in full and an existing one keeps its mode. */
+  contextMode?: DocumentContextMode
+  /** Left out, an existing note keeps its scope and a new one takes the narrowest its tasks share. */
+  scope?: NoteScope
+}
+
+export async function fetchDocuments(taskId: TaskId): Promise<RekallDocument[]> {
+  return request(async () =>
+    DocumentListSchema.parse(await apiClient('/api/documents', { query: { taskId } }))
+  )
+}
+
+export async function fetchAllDocuments(): Promise<RekallDocument[]> {
+  return request(async () => DocumentListSchema.parse(await apiClient('/api/documents')))
+}
+
+export async function createDocument(input: DocumentInput): Promise<RekallDocument> {
+  return request(async () =>
+    DocumentSchema.parse(await apiClient('/api/documents', { method: 'POST', body: input }))
+  )
+}
+
+export async function updateDocument(
+  id: DocumentId,
+  input: DocumentInput
+): Promise<RekallDocument> {
+  return request(async () =>
+    DocumentSchema.parse(await apiClient(`/api/documents/${id}`, { method: 'PUT', body: input }))
+  )
+}
+
+export async function deleteDocument(id: DocumentId): Promise<void> {
+  await request(() => apiClient(`/api/documents/${id}`, { method: 'DELETE' }))
+}
+
+export async function searchDocuments(query: string): Promise<RekallDocument[]> {
+  return request(async () =>
+    DocumentListSchema.parse(await apiClient('/api/documents/search', { query: { query } }))
+  )
+}

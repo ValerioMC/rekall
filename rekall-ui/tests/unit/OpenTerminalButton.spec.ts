@@ -1,16 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
-import OpenTerminalButton from '@/components/claude/OpenTerminalButton.vue'
+import OpenTerminalButton from '@/features/claude/components/OpenTerminalButton.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useToastStore } from '@/stores/toast.store'
-import type { Task, TaskStep } from '@/model/catalog'
-import type { Terminal } from '@/model/terminal'
+import type { Task, TaskStep } from '@/features/catalog/model/catalog'
+import type { Terminal } from '@/features/claude/model/terminal'
 import type { ProjectId, TaskId, TaskStepId, TerminalId } from '@/model/branded'
 
 const openTerminal = vi.fn()
 
-vi.mock('@/api/terminal.api', () => ({
+vi.mock('@/features/claude/api/terminal.api', () => ({
   fetchTerminals: vi.fn(),
   openTerminal: (...args: unknown[]) => openTerminal(...args),
   closeTerminal: vi.fn(),

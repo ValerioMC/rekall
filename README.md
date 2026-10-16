@@ -524,7 +524,7 @@ The `/rk` command the app installs is `.claude/commands/rk.md`, compiled into th
 | Build | Vite 5 |
 | Styling | Tailwind CSS 4, semantic tokens in `src/assets/main.css` |
 | Fonts | Fira Sans and Fira Code, bundled |
-| State | Pinia setup stores; `console.store` holds the working set, one slice per concern under `stores/console/` |
+| State | Pinia setup stores; `console.store` holds the working set, one slice per concern, each in its feature (`features/<feature>/store/`) |
 | HTTP | `ofetch`, timeout, retry on 5xx only, correlation id per request |
 | Validation | Zod on every response |
 | Markdown | `md-editor-v3` wrapped by `AppMarkdownEditor`, highlight.js and mermaid passed in as local instances. Write mode is a CodeMirror live preview (`common/live-preview/`) on md-editor-v3's editor, with no side preview; read mode is md-editor-v3's preview. A ```` ```mermaid ```` fence is drawn as a diagram in both |
@@ -567,11 +567,12 @@ A Cargo workspace, one crate per layer, each depending only on the ones above it
 
 ```
 rekall-common/     RekallError, Id, Instant and the string helpers every layer shares
+rekall-web/        what the HTTP routers share: the error body, request extractors and response helpers
 rekall-model/      SeaORM entities and their state rules
 rekall-diagram/    the diagram format: Mermaid sheets and their code links, JSON form and validation. No database, no UI
 rekall-repository/ queries, one function per lookup, and the SQLite migrations
 rekall-service/    business logic: context assembly, the step and review lines, flows (routes and visits), wrapups, notes, time entries, token usage
-rekall-api/        Axum REST API for the UI, the folder listing and the step event stream
+rekall-api/        Axum REST API for the UI, one folder per domain, with the folder listing and the step event stream
 rekall-mcp/        MCP server, on rekall-service and never rekall-api: one tool reads, five write
 rekall-claude/     the in-app terminal (portable-pty over one WebSocket), the Claude Code usage meter, the run queue, the transcript reader for token usage and the editor for Claude Code's own files (`~/.claude`)
 rekall-app/        rekall-server: settings, backups, the local-access guard, serves everything
@@ -579,7 +580,7 @@ rekall-app/desktop the Tauri desktop app over the same server
 rekall-ui/         Vue 3 + Vite frontend
 ```
 
-Inside a crate the code is laid out by package: a folder per concept or layer (`controller/`, `service/`, `dto/`, `note/`, `step/`), one public type per file named after it (`NoteService` in `note_service.rs`), and a `mod.rs` that only declares the files and re-exports their types. The rules and their exceptions are in [docs/DESIGN.md](docs/DESIGN.md#layout-inside-a-crate).
+Inside a crate the code is laid out by package: a folder per domain (`note/`, `step/`, `catalog/`), the same names in every layer crate, one public type per file named after it (`NoteService` in `note_service.rs`), and a `mod.rs` that only declares the files and re-exports their types. The rules and their exceptions are in [docs/DESIGN.md](docs/DESIGN.md#layout-inside-a-crate).
 
 The crate boundary is what keeps the MCP server off the write paths: `CompanyService`, `ProjectService`, `TaskService`, `DocumentService` and `RevisionRestoreService` live in `rekall-api` and not in `rekall-service` because they write the catalog, and `rekall-mcp` cannot reach them. Read-only services (search, context size) and the narrow writes a session is allowed are in `rekall-service`.
 

@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest'
  * terminal pane is exempt, because it frames a real terminal and is left as it is.
  */
 const SOURCE = join(__dirname, '../../src')
-const EXEMPT = new Set(['components/console/TerminalPane.vue'])
+const EXEMPT = new Set(['features/claude/components/TerminalPane.vue'])
 
 const RULES: ReadonlyArray<{ readonly name: string; readonly pattern: RegExp }> = [
   { name: 'a bracketed font size instead of text-micro…text-hero', pattern: /\btext-\[\d+(\.\d+)?px\]/ },

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canMove, movedOne } from '@/common/project/section-order'
+import { canMove, movedOne } from '@/features/project/lib/section-order'
 import { asProjectSectionId } from '@/model/branded'
 
 const a = asProjectSectionId('a')

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { ApiError } from '@/api/client'
-import { useClaudeResourcesStore } from '@/stores/claudeResources.store'
+import { useClaudeResourcesStore } from '@/features/claude-resources/store/claudeResources.store'
 import { catalog, file } from './claude-resources.fixtures'
 
 const api = vi.hoisted(() => ({
@@ -14,7 +14,7 @@ const api = vi.hoisted(() => ({
   renameSkillGroup: vi.fn(),
   fetchMemoryAnalysis: vi.fn()
 }))
-vi.mock('@/api/claudeResources.api', () => api)
+vi.mock('@/features/claude-resources/api/claudeResources.api', () => api)
 
 describe('the Claude resources store', () => {
   beforeEach(() => {

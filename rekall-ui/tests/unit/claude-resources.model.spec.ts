@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { groupName, groupParent, matchesQuery, memoryTone, newResource, projectOfGroup, sectionCount, slugOf } from '@/model/claude-resources'
+import { groupName, groupParent, matchesQuery, memoryTone, newResource, projectOfGroup, sectionCount, slugOf } from '@/features/claude-resources/model/claude-resources'
 import { catalog, group, summary } from './claude-resources.fixtures'
-import type { Project } from '@/model/catalog'
+import type { Project } from '@/features/catalog/model/catalog'
 
 const project = (id: string, repoFolder: string | null): Project => ({ id, repoFolder, title: id }) as unknown as Project
 

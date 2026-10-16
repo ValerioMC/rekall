@@ -1,0 +1,41 @@
+import { apiClient, request } from '../../../api/client'
+import { TimeEntryListSchema, TimeEntrySchema } from '../../catalog/api/schemas/catalog.schema'
+import type { TimeEntry } from '@/features/catalog/model/catalog'
+import type { TaskId, TimeEntryId } from '@/model/branded'
+
+export interface TimeEntryEdit {
+  startedAt: string
+  stoppedAt: string | null
+}
+
+export async function fetchTimeEntries(): Promise<TimeEntry[]> {
+  return request(async () => TimeEntryListSchema.parse(await apiClient('/api/time-entries')))
+}
+
+export async function startTimeEntry(taskId: TaskId): Promise<TimeEntry> {
+  return request(async () =>
+    TimeEntrySchema.parse(
+      await apiClient(`/api/tasks/${taskId}/time-entries/start`, { method: 'POST' })
+    )
+  )
+}
+
+export async function stopTimeEntry(taskId: TaskId): Promise<TimeEntry> {
+  return request(async () =>
+    TimeEntrySchema.parse(
+      await apiClient(`/api/tasks/${taskId}/time-entries/stop`, { method: 'POST' })
+    )
+  )
+}
+
+export async function editTimeEntry(id: TimeEntryId, input: TimeEntryEdit): Promise<TimeEntry> {
+  return request(async () =>
+    TimeEntrySchema.parse(
+      await apiClient(`/api/time-entries/${id}`, { method: 'PATCH', body: input })
+    )
+  )
+}
+
+export async function deleteTimeEntry(id: TimeEntryId): Promise<void> {
+  await request(() => apiClient(`/api/time-entries/${id}`, { method: 'DELETE' }))
+}

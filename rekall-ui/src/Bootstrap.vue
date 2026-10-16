@@ -1,19 +1,19 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
-import FirstRunSetup from '@/components/setup/FirstRunSetup.vue'
-import DatabaseUnreachable from '@/components/setup/DatabaseUnreachable.vue'
+import FirstRunSetup from '@/features/settings/components/FirstRunSetup.vue'
+import DatabaseUnreachable from '@/features/settings/components/DatabaseUnreachable.vue'
 import ShellDock from '@/components/shell/ShellDock.vue'
 import AppHeaderChrome from '@/components/shell/AppHeaderChrome.vue'
 import LeaveDialog from '@/components/shell/LeaveDialog.vue'
 import UpdateDialog from '@/components/shell/UpdateDialog.vue'
 import AppLogo from '@/components/ui/AppLogo.vue'
-import { fetchDatabaseStatus } from '@/api/settings.api'
+import { fetchDatabaseStatus } from '@/features/settings/api/settings.api'
 import { useConsoleStore } from '@/stores/console.store'
-import { useTerminalStore } from '@/stores/terminal.store'
-import { useUpdateStore } from '@/stores/update.store'
+import { useTerminalStore } from '@/features/claude/store/terminal.store'
+import { useUpdateStore } from '@/features/settings/store/update.store'
 import { useToastStore } from '@/stores/toast.store'
-import { useTokenUsageStore } from '@/stores/tokenUsage.store'
-import type { DatabaseStatus } from '@/model/settings'
+import { useTokenUsageStore } from '@/features/tokens/store/tokenUsage.store'
+import type { DatabaseStatus } from '@/features/settings/model/settings'
 
 const store = useConsoleStore()
 const terminals = useTerminalStore()

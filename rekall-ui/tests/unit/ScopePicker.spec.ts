@@ -2,9 +2,9 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
-import ScopePicker from '@/components/console/ScopePicker.vue'
+import ScopePicker from '@/features/catalog/components/ScopePicker.vue'
 import { useConsoleStore } from '@/stores/console.store'
-import type { Company, Project } from '@/model/catalog'
+import type { Company, Project } from '@/features/catalog/model/catalog'
 import type { CompanyId, ProjectId } from '@/model/branded'
 
 /** The first column's scope picker: which marks its trigger and its company rows wear. */

@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
-import NoteComposerPane from '@/components/console/NoteComposerPane.vue'
+import NoteComposerPane from '@/features/notes/components/NoteComposerPane.vue'
 import { useConsoleStore } from '@/stores/console.store'
-import type { Company, Project, Task } from '@/model/catalog'
+import type { Company, Project, Task } from '@/features/catalog/model/catalog'
 import type { CompanyId, ProjectId, TaskId } from '@/model/branded'
 
 /**

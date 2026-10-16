@@ -1,35 +1,40 @@
-//! One module of query functions per entity. Every function takes any connection or
+//! One module of query functions per entity, in a folder per domain and re-exported here. Every function takes any connection or
 //! transaction, so a service reads inside the transaction it writes in.
 //!
 //! Case-insensitive comparisons are made in Rust rather than in SQL: SQLite's `LOWER`/`UPPER` and
 //! `LIKE` fold ASCII only, and a company called "Ärzte" has to be found as "ärzte".
 
-pub mod commit_reference;
-pub mod company;
-pub mod company_logo_image;
+pub mod catalog;
+pub mod commit;
+pub mod component;
 pub mod diagram;
-pub mod document;
-pub mod project;
-pub mod project_icon_image;
-pub mod project_component;
-pub mod project_section;
-pub mod run_queue;
-pub mod skill_placement;
-pub mod step_link;
-pub mod step_visit;
+pub mod flow;
+pub mod note;
+pub mod queue;
+pub mod revision;
+pub mod section;
+pub mod skill;
+pub mod step;
 pub mod tag;
-pub mod tag_skill;
 pub mod task;
-pub mod task_revision;
-pub mod task_skill;
-pub mod task_step;
-pub mod time_entry;
-pub mod token_usage;
-pub mod transcript_scan;
+pub mod timeentry;
+pub mod token;
 pub mod wrapup;
 
 mod query_support;
 mod stamped_update;
 
+pub use catalog::{company, company_logo_image, project, project_icon_image};
+pub use commit::commit_reference;
+pub use component::project_component;
+pub use flow::{step_link, step_visit};
+pub use note::document;
+pub use queue::run_queue;
+pub use revision::task_revision;
+pub use section::project_section;
+pub use skill::{skill_placement, tag_skill, task_skill};
+pub use step::task_step;
+pub use timeentry::time_entry;
+pub use token::{token_usage, transcript_scan};
 pub use query_support::{at_most_one, contains_ignore_case, equals_ignore_case};
 pub use stamped_update::update_if_changed;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { FULL_DAY_SECONDS, dayLoad, projectShares, totalSeconds } from '@/common/calendar/day-shares'
-import type { DaySummaryRow } from '@/common/calendar/day-summary'
+import { FULL_DAY_SECONDS, dayLoad, projectShares, totalSeconds } from '@/features/time/lib/day-shares'
+import type { DaySummaryRow } from '@/features/time/lib/day-summary'
 import type { ProjectId, TaskId } from '@/model/branded'
 
 function row(taskId: string, projectId: string | null, seconds: number): DaySummaryRow {

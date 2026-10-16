@@ -6,7 +6,7 @@
 import { nextTick, onMounted, ref } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppDialog from '@/components/ui/AppDialog.vue'
-import { useUpdateStore } from '@/stores/update.store'
+import { useUpdateStore } from '@/features/settings/store/update.store'
 
 const update = useUpdateStore()
 const installButton = ref<InstanceType<typeof AppButton> | null>(null)

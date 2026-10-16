@@ -1,4 +1,4 @@
-import type { TokenTotals } from '@/model/token-usage'
+import type { TokenTotals } from '@/features/tokens/model/token-usage'
 
 const UNITS: readonly [number, string][] = [
   [1_000_000_000, 'B'],

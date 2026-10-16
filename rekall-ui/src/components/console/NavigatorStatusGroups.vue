@@ -15,7 +15,7 @@ import {
   TASK_STATUS_ORDER,
   TASK_STATUS_RING,
   type Task
-} from '@/model/catalog'
+} from '@/features/catalog/model/catalog'
 import type { NavigatorShelves } from '@/composables/useNavigatorShelves'
 import type { TaskId } from '@/model/branded'
 

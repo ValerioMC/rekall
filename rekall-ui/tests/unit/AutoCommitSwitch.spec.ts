@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
-import AutoCommitSwitch from '@/components/catalog/AutoCommitSwitch.vue'
-import type { ProjectRepository } from '@/model/catalog'
+import AutoCommitSwitch from '@/features/catalog/components/AutoCommitSwitch.vue'
+import type { ProjectRepository } from '@/features/catalog/model/catalog'
 
 /**
  * The switch only arms on a folder git recognises as a repository. Everything else it says

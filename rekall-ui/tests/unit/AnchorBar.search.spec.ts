@@ -4,11 +4,11 @@ import { flushPromises } from '@vue/test-utils'
 import AnchorBar from '@/components/console/AnchorBar.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { mountWithHeaderChrome } from './support/mountWithHeaderChrome'
-import type { SearchHit } from '@/model/search'
+import type { SearchHit } from '@/features/search/model/search'
 import type { TaskId, TaskStepId } from '@/model/branded'
 
 const searchText = vi.fn<(term: string) => Promise<SearchHit[]>>()
-vi.mock('@/api/search.api', () => ({ searchText: (term: string) => searchText(term) }))
+vi.mock('@/features/search/api/search.api', () => ({ searchText: (term: string) => searchText(term) }))
 
 const hits: SearchHit[] = [
   {

@@ -3,7 +3,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import AnchorBar from '@/components/console/AnchorBar.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { mountWithHeaderChrome } from './support/mountWithHeaderChrome'
-import type { Task } from '@/model/catalog'
+import type { Task } from '@/features/catalog/model/catalog'
 import type { ProjectId, TaskId } from '@/model/branded'
 
 const task = {

@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
-import RunQueuePanel from '@/components/queue/RunQueuePanel.vue'
-import { useRunQueueStore } from '@/stores/runQueue.store'
+import RunQueuePanel from '@/features/queue/components/RunQueuePanel.vue'
+import { useRunQueueStore } from '@/features/queue/store/runQueue.store'
 import { useConsoleStore } from '@/stores/console.store'
 import {
   EMPTY_RUN_QUEUE,
@@ -10,9 +10,9 @@ import {
   type RunQueue,
   type RunQueueItem,
   type RunQueueItemState
-} from '@/model/runQueue'
+} from '@/features/queue/model/runQueue'
 import { asTaskId } from '@/model/branded'
-import type { Task } from '@/model/catalog'
+import type { Task } from '@/features/catalog/model/catalog'
 
 const api = vi.hoisted(() => ({
   fetchRunQueue: vi.fn(),
@@ -25,9 +25,9 @@ const api = vi.hoisted(() => ({
   stopRunQueue: vi.fn()
 }))
 
-vi.mock('@/api/runQueue.api', () => api)
+vi.mock('@/features/queue/api/runQueue.api', () => api)
 
-vi.mock('@/api/claude.api', () => ({
+vi.mock('@/features/claude/api/claude.api', () => ({
   fetchClaudeUsage: vi.fn(async () => ({
     status: 'OK',
     limits: [{ key: 'session', label: 'Session', percent: 40, severity: 'NORMAL', resetsAt: null }],

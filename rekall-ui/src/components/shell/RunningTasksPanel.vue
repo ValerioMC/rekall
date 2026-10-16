@@ -8,7 +8,7 @@ import { useNow } from '@/composables/useNow'
 import { formatClock } from '@/common/format/duration'
 import { identityHue } from '@/common/identity'
 import DockPanel from './DockPanel.vue'
-import type { TimeEntry } from '@/model/catalog'
+import type { TimeEntry } from '@/features/catalog/model/catalog'
 import type { TaskId } from '@/model/branded'
 
 const emit = defineEmits<{ close: [] }>()

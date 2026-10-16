@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
-import InspectorGroup from '@/components/project/InspectorGroup.vue'
+import InspectorGroup from '@/features/project/components/InspectorGroup.vue'
 
 function installStorage(): void {
   const values = new Map<string, string>()

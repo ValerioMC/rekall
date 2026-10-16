@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { mount, type VueWrapper } from '@vue/test-utils'
-import ProjectAboutGroup from '@/components/project/ProjectAboutGroup.vue'
+import ProjectAboutGroup from '@/features/project/components/ProjectAboutGroup.vue'
 import { useConsoleStore } from '@/stores/console.store'
-import type { Project } from '@/model/catalog'
+import type { Project } from '@/features/catalog/model/catalog'
 import type { ProjectId } from '@/model/branded'
 
 const project = (id: string, description: string | null): Project =>

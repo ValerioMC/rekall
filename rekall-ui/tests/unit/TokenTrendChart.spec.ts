@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
-import TokenTrendChart from '@/components/console/TokenTrendChart.vue'
-import type { TrendPoint } from '@/common/token/token-trend'
+import TokenTrendChart from '@/features/tokens/components/TokenTrendChart.vue'
+import type { TrendPoint } from '@/features/tokens/lib/token-trend'
 
 const POINTS: TrendPoint[] = [
   { day: '2026-10-10', generated: 0, cumulative: 0 },

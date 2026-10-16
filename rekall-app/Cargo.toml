@@ -17,6 +17,7 @@ rekall-model.workspace = true
 rekall-repository.workspace = true
 rekall-service.workspace = true
 rekall-api.workspace = true
+rekall-web.workspace = true
 rekall-mcp.workspace = true
 rekall-claude.workspace = true
 sea-orm.workspace = true

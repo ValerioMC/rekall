@@ -1,7 +1,7 @@
 import { watch } from 'vue'
 import type { Ref } from 'vue'
 import { postNotice } from '@/common/native/notify'
-import type { ReviewItem } from '@/model/review'
+import type { ReviewItem } from '@/features/catalog/model/review'
 
 /**
  * Posts a system notification when something joins the review queue while nobody is looking at

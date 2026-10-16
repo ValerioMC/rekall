@@ -1,5 +1,5 @@
 import { useConsoleStore } from '@/stores/console.store'
-import type { RecordDraft } from '@/model/record-draft'
+import type { RecordDraft } from '@/features/catalog/model/record-draft'
 import type { CompanyId, ProjectId } from '@/model/branded'
 
 type Draft<Kind extends RecordDraft['kind']> = Extract<RecordDraft, { kind: Kind }>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
-import SkillMark from '@/components/skills/SkillMark.vue'
+import SkillMark from '@/features/skills/components/SkillMark.vue'
 
 describe('SkillMark', () => {
   it('renders nothing for no skills', () => {

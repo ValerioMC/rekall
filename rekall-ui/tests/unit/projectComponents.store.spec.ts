@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import * as api from '@/api/project-components.api'
-import { useProjectComponentsStore } from '@/stores/projectComponents.store'
-import type { ProjectComponent } from '@/model/project-component'
+import * as api from '@/features/project/api/project-components.api'
+import { useProjectComponentsStore } from '@/features/project/store/projectComponents.store'
+import type { ProjectComponent } from '@/features/project/model/project-component'
 import type { ProjectComponentId, ProjectId } from '@/model/branded'
 
-vi.mock('@/api/project-components.api')
+vi.mock('@/features/project/api/project-components.api')
 
 const PROJECT = 'p-1' as ProjectId
 

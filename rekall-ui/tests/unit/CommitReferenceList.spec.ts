@@ -1,14 +1,14 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
-import CommitReferenceList from '@/components/console/CommitReferenceList.vue'
+import CommitReferenceList from '@/features/commits/components/CommitReferenceList.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
-import { fetchCommitReferenceDiff } from '@/api/commitReference.api'
+import { fetchCommitReferenceDiff } from '@/features/commits/api/commitReference.api'
 import { useConsoleStore } from '@/stores/console.store'
-import type { CommitReference } from '@/model/commitReference'
+import type { CommitReference } from '@/features/commits/model/commitReference'
 import type { TaskId, TaskStepId } from '@/model/branded'
 
-vi.mock('@/api/commitReference.api', () => ({
+vi.mock('@/features/commits/api/commitReference.api', () => ({
   fetchCommitReferenceDiff: vi.fn()
 }))
 

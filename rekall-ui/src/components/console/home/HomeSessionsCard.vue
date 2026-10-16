@@ -2,13 +2,13 @@
 /** The Claude sessions open right now, each one click from its terminal, and what the run queue starts next. */
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useTerminalStore } from '@/stores/terminal.store'
-import { useRunQueueStore } from '@/stores/runQueue.store'
+import { useTerminalStore } from '@/features/claude/store/terminal.store'
+import { useRunQueueStore } from '@/features/queue/store/runQueue.store'
 import { useNow } from '@/composables/useNow'
 import { formatDuration } from '@/common/format/duration'
 import { sessionTitle } from '@/common/format/session-title'
-import { useOpenSession } from '@/composables/useOpenSession'
-import type { Terminal } from '@/model/terminal'
+import { useOpenSession } from '@/features/claude/composables/useOpenSession'
+import type { Terminal } from '@/features/claude/model/terminal'
 
 const terminals = useTerminalStore()
 const runQueue = useRunQueueStore()

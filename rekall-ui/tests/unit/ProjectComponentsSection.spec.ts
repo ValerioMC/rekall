@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
-import ProjectComponentsSection from '@/components/project/ProjectComponentsSection.vue'
-import * as api from '@/api/project-components.api'
-import type { ProjectComponent } from '@/model/project-component'
+import ProjectComponentsSection from '@/features/project/components/ProjectComponentsSection.vue'
+import * as api from '@/features/project/api/project-components.api'
+import type { ProjectComponent } from '@/features/project/model/project-component'
 import type { ProjectComponentId, ProjectId } from '@/model/branded'
 
-vi.mock('@/api/project-components.api')
+vi.mock('@/features/project/api/project-components.api')
 
 const PROJECT = 'p-1' as ProjectId
 

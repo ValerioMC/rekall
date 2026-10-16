@@ -1,0 +1,275 @@
+<script setup lang="ts">
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useConsoleStore } from '@/stores/console.store'
+import { useTerminalStore } from '@/features/claude/store/terminal.store'
+import { useAsyncAction } from '@/composables/useAsyncAction'
+import { preferredEffort, preferredModel, skipsPermissions } from '@/common/config/claude-launch'
+import { useToastStore } from '@/stores/toast.store'
+import { sessionAtWork } from '@/model/session-at-work'
+import { NOTHING_TO_RUN_MESSAGE, nothingToRun } from '@/model/nothing-to-run'
+import StepSeal from '@/features/steps/components/StepSeal.vue'
+import type { TaskId, TaskStepId } from '@/model/branded'
+
+/**
+ * Starts the task's session without leaving the pane it was pressed on; the sessions dock is the
+ * way back to it. One glyph that changes: `idle` a play mark, `launching` the mark runs out
+ * through the edge, `waiting` an open ring turning while the server answers, `done` the amber
+ * seal stamped in as a completed step's is, `working` the running step's own seal turning until
+ * the session claims the work or ends. `done` and `working` share the pressed key. Only `idle` takes a press.
+ */
+const props = withDefaults(
+  defineProps<{
+    taskId: TaskId
+    folder: string | null
+    stepId?: TaskStepId | null
+    missingHint?: string
+  }>(),
+  { stepId: null, missingHint: "Set this project's folder on its page to open a terminal from it" }
+)
+
+type LaunchPhase = 'idle' | 'launching' | 'waiting' | 'done'
+type ButtonPhase = LaunchPhase | 'working'
+
+/** Long enough for the play mark to clear the button before the ring takes its place. */
+const TRAVEL_MS = 380
+const DONE_HOLD_MS = 1200
+/** How long `working` holds after a launch while the server's RUNNING mark is still on its way. */
+const HANDOFF_MS = 8000
+
+const console_ = useConsoleStore()
+const terminals = useTerminalStore()
+const toast = useToastStore()
+const { run } = useAsyncAction()
+const { tasks, steps } = storeToRefs(console_)
+const { terminals: openTerminals } = storeToRefs(terminals)
+
+const launchPhase = ref<LaunchPhase>('idle')
+const handingOff = ref(false)
+const returning = ref(false)
+const pendingTimers = new Set<number>()
+
+const ready = computed(() => Boolean(props.folder))
+const atWork = computed(() =>
+  sessionAtWork(
+    tasks.value.find((task) => task.id === props.taskId) ?? null,
+    steps.value,
+    openTerminals.value,
+    props.stepId
+  )
+)
+const phase = computed<ButtonPhase>(() => {
+  if (launchPhase.value !== 'idle') return launchPhase.value
+  return atWork.value || handingOff.value ? 'working' : 'idle'
+})
+const busy = computed(() => phase.value !== 'idle')
+/** The key sits pressed in while the seal stamps and for as long as Claude works. */
+const pressed = computed(() => phase.value === 'done' || phase.value === 'working')
+
+watch(atWork, (working) => {
+  if (working) handingOff.value = false
+})
+
+watch(phase, (next, previous) => {
+  returning.value = next === 'idle' && previous !== 'idle'
+})
+
+function pause(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => {
+    const timer = window.setTimeout(() => {
+      pendingTimers.delete(timer)
+      resolve()
+    }, milliseconds)
+    pendingTimers.add(timer)
+  })
+}
+
+async function launch(): Promise<void> {
+  if (busy.value) return
+  if (!ready.value) {
+    toast.notifyError(new Error(props.missingHint))
+    return
+  }
+  const task = tasks.value.find((candidate) => candidate.id === props.taskId) ?? null
+  if (nothingToRun(task, steps.value, props.stepId)) {
+    toast.notifyError(new Error(NOTHING_TO_RUN_MESSAGE))
+    return
+  }
+  launchPhase.value = 'launching'
+  const opening = run(() =>
+    terminals.openForTask(props.taskId, {
+      stepId: props.stepId,
+      skipPermissions: skipsPermissions(),
+      model: preferredModel(),
+      effort: preferredEffort()
+    })
+  )
+  await pause(TRAVEL_MS)
+  // Painted only if the server is still answering: a settled `opening` moves on in the same tick.
+  launchPhase.value = 'waiting'
+  const opened = await opening
+  if (opened === null) {
+    launchPhase.value = 'idle'
+    return
+  }
+  launchPhase.value = 'done'
+  await pause(DONE_HOLD_MS)
+  handingOff.value = !atWork.value
+  launchPhase.value = 'idle'
+  if (handingOff.value) {
+    await pause(HANDOFF_MS)
+    handingOff.value = false
+  }
+}
+
+onBeforeUnmount(() => {
+  pendingTimers.forEach((timer) => window.clearTimeout(timer))
+  pendingTimers.clear()
+})
+</script>
+
+<template>
+  <button
+    type="button"
+    class="focus-ring relative inline-flex h-7 shrink-0 items-center gap-1.5 overflow-hidden rounded-key px-2.5 text-small font-medium"
+    :class="[
+      ready
+        ? pressed
+          ? 'key-lit'
+          : 'key-gold font-semibold'
+        : 'bg-transparent text-text-subtle transition-colors hover:bg-surface-raised hover:text-text-muted',
+      busy && 'cursor-default'
+    ]"
+    :aria-busy="busy"
+    :aria-disabled="busy"
+    :title="phase === 'working' ? 'Claude is working on this. It returns once the work is claimed or the session ends.' : undefined"
+    :data-phase="phase"
+    data-testid="open-terminal"
+    @click="launch"
+  >
+    <span class="grid size-3.5 [&>*]:[grid-area:1/1]">
+      <svg
+        class="size-3.5"
+        :class="{
+          'run-play-return': phase === 'idle' && returning,
+          'run-play-away': phase !== 'idle' && phase !== 'working',
+          invisible: phase === 'working'
+        }"
+        viewBox="0 0 12 12"
+        aria-hidden="true"
+      >
+        <path
+          d="M3.4 1.9c0-.6.66-.97 1.17-.65l5.9 3.75c.47.3.47.99 0 1.29l-5.9 3.76c-.51.32-1.17-.05-1.17-.65Z"
+          fill="currentColor"
+        />
+      </svg>
+      <span v-if="phase === 'working'" class="run-working block size-4 place-self-center" aria-hidden="true">
+        <StepSeal state="RUNNING" />
+      </span>
+    </span>
+    <span class="grid [&>*]:[grid-area:1/1]">
+      <span
+        :class="{
+          'run-label-return': phase === 'idle' && returning,
+          'run-label-away': phase !== 'idle' && phase !== 'working',
+          invisible: phase === 'working'
+        }"
+        >Run here</span
+      >
+      <span :class="phase === 'working' ? 'run-label-in' : 'invisible'" aria-hidden="true">Working</span>
+    </span>
+
+    <span
+      v-if="phase === 'waiting' || phase === 'done'"
+      class="absolute inset-0 grid place-items-center"
+      aria-hidden="true"
+    >
+      <span v-if="phase === 'done'" class="run-seal block size-[18px]">
+        <StepSeal state="DONE" arriving />
+      </span>
+      <svg v-else class="size-4" viewBox="0 0 16 16" fill="none">
+        <circle
+          class="run-ring run-ring-open"
+          cx="8"
+          cy="8"
+          r="6.4"
+          pathLength="100"
+          stroke="currentColor"
+          stroke-width="1.4"
+          stroke-linecap="round"
+        />
+      </svg>
+    </span>
+
+    <span class="sr-only" aria-live="polite">{{
+      phase === 'done' ? 'Session started' : phase === 'working' ? 'Claude is working' : ''
+    }}</span>
+  </button>
+</template>
+
+<style scoped>
+/* Accelerating, like something leaving: the mark eases out of rest and is gone past the edge. */
+.run-play-away {
+  animation: run-play-away 380ms cubic-bezier(0.55, 0, 0.75, 0.2) forwards;
+}
+
+.run-label-away {
+  animation: run-label-away 180ms ease-out forwards;
+}
+
+.run-play-return,
+.run-label-return {
+  animation: fade-in 220ms ease-out;
+}
+
+/* The ring rotates about its own centre, not the SVG origin. */
+.run-ring {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.run-ring-open {
+  stroke-dasharray: 28 72;
+  opacity: 0.8;
+  animation: dial-sweep 800ms linear infinite;
+}
+
+/* The bezel fades in under the seal's own stamp, so only the disc and the check carry the motion. */
+.run-seal {
+  animation: fade-in 140ms ease-out both;
+}
+
+/* The key clips its overflow for the play mark's exit, so a seal's light must fade within the
+   5px between seal and key edge, or it is cut into a band. */
+.run-seal :deep(.seal[data-state]),
+.run-working :deep(.seal[data-state]) {
+  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.6))
+    drop-shadow(0 0 3px color-mix(in srgb, var(--seal) 45%, transparent));
+}
+
+.run-working,
+.run-label-in {
+  animation: fade-in 260ms ease-out both;
+}
+
+@keyframes run-play-away {
+  0% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(72px);
+    opacity: 0;
+  }
+}
+
+@keyframes run-label-away {
+  to {
+    opacity: 0;
+    transform: translateX(6px);
+  }
+}
+</style>

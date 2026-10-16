@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import ProjectIcon from '@/components/ui/ProjectIcon.vue'
 import { identityHue } from '@/common/identity'
-import { projectIconImageSrcset, projectIconImageUrl } from '@/common/project/icon-image-url'
+import { projectIconImageSrcset, projectIconImageUrl } from '@/features/project/lib/icon-image-url'
 
 /** The macOS icon corner, as a share of the side, so it holds at every size. */
 const CORNER = '22.37%'

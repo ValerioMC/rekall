@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
-import SkillChip from '@/components/skills/SkillChip.vue'
+import SkillChip from '@/features/skills/components/SkillChip.vue'
 
 describe('SkillChip', () => {
   it('can be removed when it was assigned on the owner itself', async () => {

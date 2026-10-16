@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { identityHue } from '@/common/identity'
-import { companyInitial, companyLogoImageSrcset, companyLogoImageUrl } from '@/common/company/logo-image-url'
+import { companyInitial, companyLogoImageSrcset, companyLogoImageUrl } from '@/features/catalog/lib/logo-image-url'
 
 /** Squarer than a project's icon corner, so a company and its project read apart when stacked. */
 const CORNER = '16%'

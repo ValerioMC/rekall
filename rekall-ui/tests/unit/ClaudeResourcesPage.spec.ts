@@ -3,7 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { defineComponent } from 'vue'
-import ClaudeResourcesPage from '@/components/claude-resources/ClaudeResourcesPage.vue'
+import ClaudeResourcesPage from '@/features/claude-resources/components/ClaudeResourcesPage.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { catalog, file, group, summary } from './claude-resources.fixtures'
 
@@ -18,7 +18,7 @@ const api = vi.hoisted(() => ({
   renameSkillGroup: vi.fn(),
   fetchMemoryAnalysis: vi.fn()
 }))
-vi.mock('@/api/claudeResources.api', () => api)
+vi.mock('@/features/claude-resources/api/claudeResources.api', () => api)
 
 // The editor is a CodeMirror instance: the page is what is under test, not md-editor-v3.
 const EditorStub = defineComponent({

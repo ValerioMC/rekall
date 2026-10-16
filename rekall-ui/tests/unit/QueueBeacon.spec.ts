@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { mount } from '@vue/test-utils'
-import QueueBeacon from '@/components/queue/QueueBeacon.vue'
-import RunDial from '@/components/queue/RunDial.vue'
-import { useRunQueueStore } from '@/stores/runQueue.store'
-import { EMPTY_RUN_QUEUE, asRunQueueItemId, type RunQueueItem, type RunQueueItemState } from '@/model/runQueue'
+import QueueBeacon from '@/features/queue/components/QueueBeacon.vue'
+import RunDial from '@/features/queue/components/RunDial.vue'
+import { useRunQueueStore } from '@/features/queue/store/runQueue.store'
+import { EMPTY_RUN_QUEUE, asRunQueueItemId, type RunQueueItem, type RunQueueItemState } from '@/features/queue/model/runQueue'
 import { asTaskId } from '@/model/branded'
 
 function item(id: string, state: RunQueueItemState): RunQueueItem {

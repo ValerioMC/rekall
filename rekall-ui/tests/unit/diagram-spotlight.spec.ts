@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { callTreeOf } from '@/common/diagram/call-tree'
-import { callsFor, graphSpotlight, sequenceSpotlight } from '@/common/diagram/spotlight'
-import type { SequenceScene } from '@/common/diagram/scene/sequence-scene'
-import type { GraphScene } from '@/common/diagram/scene/graph-scene'
+import { callTreeOf } from '@/features/diagram/lib/call-tree'
+import { callsFor, graphSpotlight, sequenceSpotlight } from '@/features/diagram/lib/spotlight'
+import type { SequenceScene } from '@/features/diagram/lib/scene/sequence-scene'
+import type { GraphScene } from '@/features/diagram/lib/scene/graph-scene'
 
 const SCENE: SequenceScene = {
   participants: [

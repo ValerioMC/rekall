@@ -1,15 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
-import type { ClaudeUsage } from '@/model/claude'
+import type { ClaudeUsage } from '@/features/claude/model/claude'
 
 const fetchClaudeUsage = vi.fn<(refresh?: boolean) => Promise<ClaudeUsage>>()
 
-vi.mock('@/api/claude.api', () => ({
+vi.mock('@/features/claude/api/claude.api', () => ({
   fetchClaudeUsage: (refresh?: boolean) => fetchClaudeUsage(refresh)
 }))
 
-import ClaudeUsageMeter from '@/components/console/ClaudeUsageMeter.vue'
+import ClaudeUsageMeter from '@/features/claude/components/ClaudeUsageMeter.vue'
 
 const OK: ClaudeUsage = {
   status: 'OK',

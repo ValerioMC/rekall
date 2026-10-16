@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { defineComponent, nextTick } from 'vue'
-import QueueOrderRow from '@/components/queue/QueueOrderRow.vue'
-import QueueStatusLine from '@/components/queue/QueueStatusLine.vue'
-import { useQueueSettingsDraft, type QueueSettingsDraft } from '@/composables/useQueueSettingsDraft'
+import QueueOrderRow from '@/features/queue/components/QueueOrderRow.vue'
+import QueueStatusLine from '@/features/queue/components/QueueStatusLine.vue'
+import { useQueueSettingsDraft, type QueueSettingsDraft } from '@/features/queue/composables/useQueueSettingsDraft'
 import {
   EMPTY_RUN_QUEUE,
   asRunQueueItemId,
@@ -12,7 +12,7 @@ import {
   type RunQueueItem,
   type RunQueueItemState,
   type RunQueueSettings
-} from '@/model/runQueue'
+} from '@/features/queue/model/runQueue'
 import { asTaskId } from '@/model/branded'
 
 function item(id: string, state: RunQueueItemState): RunQueueItem {

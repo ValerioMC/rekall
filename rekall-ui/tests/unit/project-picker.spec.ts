@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { groupProjectsByCompany, matchesProjectQuery } from '@/common/catalog/project-picker'
-import type { Project } from '@/model/catalog'
+import { groupProjectsByCompany, matchesProjectQuery } from '@/features/catalog/lib/project-picker'
+import type { Project } from '@/features/catalog/model/catalog'
 import type { CompanyId, ProjectId } from '@/model/branded'
 
 function project(id: string, title: string, companyName: string, status: Project['status'] = 'ACTIVE'): Project {

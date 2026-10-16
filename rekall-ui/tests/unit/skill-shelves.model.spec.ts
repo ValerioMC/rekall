@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { buildSkillShelves, groupLabels } from '@/model/skill-shelves'
-import type { SkillSource } from '@/model/claude-resources'
+import { buildSkillShelves, groupLabels } from '@/features/skills/model/skill-shelves'
+import type { SkillSource } from '@/features/claude-resources/model/claude-resources'
 import { summary } from './claude-resources.fixtures'
 
 const own: SkillSource = { kind: 'own', name: 'You', detail: null }

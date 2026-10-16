@@ -1,20 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
-import DescriptionPane from '@/components/console/DescriptionPane.vue'
-import DescriptionEmptyState from '@/components/console/DescriptionEmptyState.vue'
-import * as componentsApi from '@/api/project-components.api'
+import DescriptionPane from '@/features/catalog/components/DescriptionPane.vue'
+import DescriptionEmptyState from '@/features/catalog/components/DescriptionEmptyState.vue'
+import * as componentsApi from '@/features/project/api/project-components.api'
 import { useConsoleStore } from '@/stores/console.store'
-import type { Task, TaskStepState } from '@/model/catalog'
-import type { ProjectComponent } from '@/model/project-component'
+import type { Task, TaskStepState } from '@/features/catalog/model/catalog'
+import type { ProjectComponent } from '@/features/project/model/project-component'
 import type { ProjectComponentId, ProjectId, TaskId } from '@/model/branded'
 
 /** The size chip measures on its own; here it only has to not reach the network. */
-vi.mock('@/api/context.api', () => ({
+vi.mock('@/features/context/api/context.api', () => ({
   fetchContextSize: vi.fn(async () => ({ characters: 3500, estimatedTokens: 1000, parts: [] }))
 }))
 
-vi.mock('@/api/project-components.api')
+vi.mock('@/features/project/api/project-components.api')
 
 /**
  * The description's own review bar, shown only while the task has no checklist. It has to give

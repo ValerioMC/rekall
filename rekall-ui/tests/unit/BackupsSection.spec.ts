@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
-import BackupsSection from '@/components/settings/BackupsSection.vue'
-import type { BackupFile, BackupStatus } from '@/model/backup'
+import BackupsSection from '@/features/settings/components/BackupsSection.vue'
+import type { BackupFile, BackupStatus } from '@/features/settings/model/backup'
 
 const fetchBackupStatus = vi.fn<() => Promise<BackupStatus>>()
 const takeBackup = vi.fn<() => Promise<BackupFile>>()
 const restoreBackup = vi.fn<(name: string) => Promise<BackupFile>>()
-vi.mock('@/api/backups.api', () => ({
+vi.mock('@/features/settings/api/backups.api', () => ({
   fetchBackupStatus: () => fetchBackupStatus(),
   takeBackup: () => takeBackup(),
   restoreBackup: (name: string) => restoreBackup(name),
@@ -16,7 +16,7 @@ vi.mock('@/api/backups.api', () => ({
 }))
 
 const reloadWhenBack = vi.fn(async () => true)
-vi.mock('@/composables/useDatabaseSetup', () => ({ reloadWhenBack: () => reloadWhenBack() }))
+vi.mock('@/features/settings/composables/useDatabaseSetup', () => ({ reloadWhenBack: () => reloadWhenBack() }))
 
 const backup = (name: string, reason: BackupFile['reason']): BackupFile => ({
   name,

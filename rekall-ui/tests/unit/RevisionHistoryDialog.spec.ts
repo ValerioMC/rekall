@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
-import RevisionHistoryDialog from '@/components/console/RevisionHistoryDialog.vue'
+import RevisionHistoryDialog from '@/features/revisions/components/RevisionHistoryDialog.vue'
 import { useConsoleStore } from '@/stores/console.store'
-import type { TaskRevision } from '@/model/revision'
+import type { TaskRevision } from '@/features/revisions/model/revision'
 import type { TaskId } from '@/model/branded'
 
 const fetchRevisions = vi.fn<() => Promise<TaskRevision[]>>()
-vi.mock('@/api/revisions.api', () => ({
+vi.mock('@/features/revisions/api/revisions.api', () => ({
   fetchRevisions: () => fetchRevisions(),
   restoreRevision: vi.fn()
 }))

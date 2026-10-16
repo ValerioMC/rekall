@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { readSheet } from '@/common/diagram/mermaid/sheet-reader'
-import { messagesOf } from '@/common/diagram/scene/sequence-scene'
-import type { DiagramKind, DiagramSheet } from '@/model/diagram'
+import { readSheet } from '@/features/diagram/lib/mermaid/sheet-reader'
+import { messagesOf } from '@/features/diagram/lib/scene/sequence-scene'
+import type { DiagramKind, DiagramSheet } from '@/features/diagram/model/diagram'
 
 function sheet(kind: DiagramKind, mermaid: string): DiagramSheet {
   return { kind, title: null, mermaid, links: {} }

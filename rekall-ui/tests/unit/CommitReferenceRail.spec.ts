@@ -1,12 +1,12 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { mount } from '@vue/test-utils'
-import CommitReferenceRail from '@/components/console/CommitReferenceRail.vue'
-import { fetchCommitReferenceDiff } from '@/api/commitReference.api'
-import type { CommitReference } from '@/model/commitReference'
+import CommitReferenceRail from '@/features/commits/components/CommitReferenceRail.vue'
+import { fetchCommitReferenceDiff } from '@/features/commits/api/commitReference.api'
+import type { CommitReference } from '@/features/commits/model/commitReference'
 import type { TaskId } from '@/model/branded'
 
-vi.mock('@/api/commitReference.api', () => ({
+vi.mock('@/features/commits/api/commitReference.api', () => ({
   fetchCommitReferenceDiff: vi.fn()
 }))
 

@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
-import NotePane from '@/components/console/NotePane.vue'
+import NotePane from '@/features/notes/components/NotePane.vue'
 import { useConsoleStore } from '@/stores/console.store'
-import type { RekallDocument, Task, TaskStatus } from '@/model/catalog'
+import type { RekallDocument, Task, TaskStatus } from '@/features/catalog/model/catalog'
 import type { DocumentId, ProjectId, TaskId } from '@/model/branded'
 
 /**

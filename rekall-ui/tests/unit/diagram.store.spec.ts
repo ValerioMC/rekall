@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import { useDiagramStore } from '@/stores/diagram.store'
-import { useTerminalStore } from '@/stores/terminal.store'
+import { useDiagramStore } from '@/features/diagram/store/diagram.store'
+import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { REPORT, VEGA, summary } from './diagram.fixtures'
-import type { Terminal } from '@/model/terminal'
+import type { Terminal } from '@/features/claude/model/terminal'
 import type { DiagramId, TerminalId } from '@/model/branded'
 
 const api = { fetchDiagrams: vi.fn(), fetchDiagram: vi.fn(), createDiagram: vi.fn(), deleteDiagram: vi.fn() }
 
-vi.mock('@/api/diagrams.api', () => ({
+vi.mock('@/features/diagram/api/diagrams.api', () => ({
   fetchDiagrams: (...a: unknown[]) => api.fetchDiagrams(...a),
   fetchDiagram: (...a: unknown[]) => api.fetchDiagram(...a),
   createDiagram: (...a: unknown[]) => api.createDiagram(...a),

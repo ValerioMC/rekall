@@ -7,7 +7,7 @@ import {
   taskSkills,
   type TagSkill,
   type TaskSkill
-} from '@/model/skill-assignment'
+} from '@/features/skills/model/skill-assignment'
 import { summary } from './claude-resources.fixtures'
 import type { TagId, TaskId, TaskStepId } from '@/model/branded'
 

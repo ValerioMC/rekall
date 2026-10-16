@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
-import ProjectPicker from '@/components/console/ProjectPicker.vue'
-import type { Project } from '@/model/catalog'
+import ProjectPicker from '@/features/catalog/components/ProjectPicker.vue'
+import type { Project } from '@/features/catalog/model/catalog'
 import type { CompanyId, ProjectId } from '@/model/branded'
 
 function project(id: string, title: string, companyName: string, status: Project['status'] = 'ACTIVE'): Project {

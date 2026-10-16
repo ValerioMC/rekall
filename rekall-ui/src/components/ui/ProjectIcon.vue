@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { projectIconKey } from '@/model/project-icon'
+import { projectIconKey } from '@/features/project/model/project-icon'
 
 const props = withDefaults(defineProps<{ icon: string; size?: number }>(), { size: 14 })
 

@@ -1,0 +1,94 @@
+use async_trait::async_trait;
+use rekall_service::note::{NoteService, OnTitleClash};
+use serde_json::Value;
+
+use crate::tool::{told, Anchor, AnchoredTask, Arguments, QUALIFY_WITH_PROJECT};
+use crate::protocol::{McpTool, ToolError, ToolSchema};
+use crate::texts;
+
+/// Lets a session keep what it produced as a note on the task it is working, rather than folding
+/// it into a wrapup that is not the place for it. It adds a note, or with `replace` rewrites the
+/// body of the one that task carries under the same title; nothing can be detached or deleted.
+pub struct NoteTool {
+    notes: NoteService,
+}
+
+impl NoteTool {
+    pub fn new(notes: NoteService) -> Self {
+        Self { notes }
+    }
+}
+
+#[async_trait]
+impl McpTool for NoteTool {
+    fn name(&self) -> &'static str {
+        "rekall_note"
+    }
+
+    fn writes(&self) -> bool {
+        true
+    }
+
+    fn description(&self) -> &'static str {
+        texts::NOTE
+    }
+
+    fn input_schema(&self) -> Value {
+        ToolSchema::object()
+            .required_string(
+                "anchors",
+                "The task to attach the note to, e.g. `project:vega task:report-builder`. Labels, never titles, and \
+                 it has to name exactly one task.",
+            )
+            .required_string("title", "What the note is, short, like a file name.")
+            .required_string("body", "The complete note, in markdown.")
+            .optional_boolean(
+                "replace",
+                "`true` rewrites the note this task already carries under the same title (compared ignoring case) \
+                 with this body, or adds it if there is none. Omitted, a title the task already carries is refused.",
+            )
+            .build()
+    }
+
+    async fn execute(&self, arguments: Option<&Value>) -> Result<String, ToolError> {
+        let args = Arguments::of(arguments);
+        let target = AnchoredTask::from(&Anchor::parse_all(Some(&args.required_string("anchors")?))?)?;
+        let title = args.required_string("title")?;
+        let body = args.required_string("body")?;
+        let on_clash = if args.flag("replace") { OnTitleClash::Replace } else { OnTitleClash::Refuse };
+        let written = self
+            .notes
+            .write(target.project_label.as_deref(), &target.task_label, Some(&title), Some(&body), on_clash)
+            .await
+            .map_err(|e| told(e, QUALIFY_WITH_PROJECT))?;
+        if written.replaced {
+            return Ok(replaced_report(&written));
+        }
+        let count = written.notes_on_task;
+        Ok(format!(
+            "Note \"{}\" written on `{}` as `{}`. The task carries {count} note{}, and `/rk {}` loads this one with it \
+             from now on.",
+            written.title,
+            written.task_anchor,
+            written.note_anchor,
+            if count == 1 { "" } else { "s" },
+            written.task_anchor
+        ))
+    }
+}
+
+fn replaced_report(written: &rekall_service::note::Written) -> String {
+    let mut out = format!(
+        "Note \"{}\" on `{}` rewritten as `{}`. Its earlier body is gone: no history keeps a note's text.",
+        written.title, written.task_anchor, written.note_anchor
+    );
+    if written.other_tasks > 0 {
+        out.push_str(&format!(
+            " It is also attached to {} other task{}, which load{} the new body too.",
+            written.other_tasks,
+            if written.other_tasks == 1 { "" } else { "s" },
+            if written.other_tasks == 1 { "s" } else { "" }
+        ));
+    }
+    out
+}

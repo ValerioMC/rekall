@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compareText } from '@/common/catalog/compare-text'
+import { compareText } from '@/features/catalog/lib/compare-text'
 
 describe('compareText', () => {
   it('ignores case', () => {

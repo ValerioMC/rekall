@@ -1,4 +1,4 @@
-import type { Task } from '@/model/catalog'
+import type { Task } from '@/features/catalog/model/catalog'
 import type { ProjectId, TaskId } from '@/model/branded'
 
 /** A task on project `vega` whose label is its id, for specs that only care that it exists. */

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import StepSeal from '@/components/console/StepSeal.vue'
+import StepSeal from '@/features/steps/components/StepSeal.vue'
 
 describe('StepSeal', () => {
   afterEach(() => {

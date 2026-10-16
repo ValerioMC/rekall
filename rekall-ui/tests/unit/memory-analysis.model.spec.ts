@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { findingCount, type MemoryAnalysis } from '@/model/memory-analysis'
-import { sectionOfPath } from '@/model/claude-resources'
+import { findingCount, type MemoryAnalysis } from '@/features/claude-resources/model/memory-analysis'
+import { sectionOfPath } from '@/features/claude-resources/model/claude-resources'
 
 describe('the memory analysis', () => {
   it('counts every suggestion, promotions and obsolete memories alike', () => {

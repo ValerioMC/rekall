@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
-import CeilingGauge from '@/components/queue/CeilingGauge.vue'
-import type { ClaudeUsageLimit } from '@/model/claude'
+import CeilingGauge from '@/features/queue/components/CeilingGauge.vue'
+import type { ClaudeUsageLimit } from '@/features/claude/model/claude'
 
 const windows: ClaudeUsageLimit[] = [
   { key: 'session', label: 'Session', percent: 88, severity: 'WARNING', resetsAt: null },

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { tagColor } from '@/model/tag'
+import { tagColor } from '@/features/tags/model/tag'
 
 const props = withDefaults(
   defineProps<{

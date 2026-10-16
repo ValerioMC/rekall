@@ -1,4 +1,4 @@
-import type { StepLink, StepVisit, Task, TaskStep, TaskStepState } from '@/model/catalog'
+import type { StepLink, StepVisit, Task, TaskStep, TaskStepState } from '@/features/catalog/model/catalog'
 import type { ProjectId, StepLinkId, StepVisitId, TaskId, TaskStepId } from '@/model/branded'
 
 /** A release flow: build, deploy, test, a fix that loops back to deploy. */

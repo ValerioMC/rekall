@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import * as api from '@/api/project-sections.api'
-import { useProjectSectionsStore } from '@/stores/projectSections.store'
-import type { ProjectSection } from '@/model/project-section'
+import * as api from '@/features/project/api/project-sections.api'
+import { useProjectSectionsStore } from '@/features/project/store/projectSections.store'
+import type { ProjectSection } from '@/features/project/model/project-section'
 import type { ProjectId, ProjectSectionId } from '@/model/branded'
 
-vi.mock('@/api/project-sections.api')
+vi.mock('@/features/project/api/project-sections.api')
 
 const PROJECT = 'p-1' as ProjectId
 

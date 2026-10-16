@@ -1,9 +1,9 @@
 import { computed } from 'vue'
-import type { CommitReference } from '@/model/commitReference'
-import { stepCompletedAt, stepIsComplete, type TaskReview } from '@/model/catalog'
+import type { CommitReference } from '@/features/commits/model/commitReference'
+import { stepCompletedAt, stepIsComplete, type TaskReview } from '@/features/catalog/model/catalog'
 import type { TaskStepId } from '@/model/branded'
-import { reviewQueue as buildReviewQueue } from '@/model/review'
-import type { ReviewItem } from '@/model/review'
+import { reviewQueue as buildReviewQueue } from '@/features/catalog/model/review'
+import type { ReviewItem } from '@/features/catalog/model/review'
 import type { ConsoleState } from './console-state'
 
 /** What the panes show about the task and note in view, and how far the task's wrapup lags behind its work. */

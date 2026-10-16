@@ -1,20 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
-import TaskLabelsStrip from '@/components/console/TaskLabelsStrip.vue'
+import TaskLabelsStrip from '@/features/catalog/components/TaskLabelsStrip.vue'
 import { useConsoleStore } from '@/stores/console.store'
-import { useClaudeResourcesStore } from '@/stores/claudeResources.store'
+import { useClaudeResourcesStore } from '@/features/claude-resources/store/claudeResources.store'
 import { catalog } from './claude-resources.fixtures'
-import type { Task } from '@/model/catalog'
+import type { Task } from '@/features/catalog/model/catalog'
 import type { TagId, TaskId } from '@/model/branded'
 
 const api = vi.hoisted(() => ({ setTaskSkills: vi.fn(), setStepSkills: vi.fn(), setTagSkills: vi.fn(), fetchSkillAssignments: vi.fn() }))
-vi.mock('@/api/skill-assignments.api', () => api)
+vi.mock('@/features/skills/api/skill-assignments.api', () => api)
 
-vi.mock('@/api/context.api', () => ({ fetchContextSize: vi.fn(() => new Promise(() => undefined)) }))
+vi.mock('@/features/context/api/context.api', () => ({ fetchContextSize: vi.fn(() => new Promise(() => undefined)) }))
 
 const catalogApi = vi.hoisted(() => ({ updateTask: vi.fn() }))
-vi.mock('@/api/catalog.api', async (original) => ({ ...(await original<object>()), updateTask: catalogApi.updateTask }))
+vi.mock('@/features/catalog/api/catalog.api', async (original) => ({ ...(await original<object>()), updateTask: catalogApi.updateTask }))
 
 const id = 't1' as TaskId
 const tagId = 'g1' as TagId

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { layoutGraph } from '@/common/diagram/layout/graph-layout'
-import { layoutSequence } from '@/common/diagram/layout/sequence-layout'
-import type { GraphEdge, GraphNode, GraphScene } from '@/common/diagram/scene/graph-scene'
-import type { SequenceScene } from '@/common/diagram/scene/sequence-scene'
-import type { Box } from '@/common/diagram/viewport'
+import { layoutGraph } from '@/features/diagram/lib/layout/graph-layout'
+import { layoutSequence } from '@/features/diagram/lib/layout/sequence-layout'
+import type { GraphEdge, GraphNode, GraphScene } from '@/features/diagram/lib/scene/graph-scene'
+import type { SequenceScene } from '@/features/diagram/lib/scene/sequence-scene'
+import type { Box } from '@/features/diagram/lib/viewport'
 
 function node(id: string, parentId: string | null = null): GraphNode {
   return { id, linkKey: id, label: id.toUpperCase(), role: 'state', outline: 'rounded', parentId, annotations: [], compartments: [] }

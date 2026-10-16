@@ -1,14 +1,14 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
-import LogCommitButton from '@/components/console/LogCommitButton.vue'
-import { fetchRecentCommits, recordCommit, recordLatestCommit } from '@/api/commitReference.api'
+import LogCommitButton from '@/features/commits/components/LogCommitButton.vue'
+import { fetchRecentCommits, recordCommit, recordLatestCommit } from '@/features/commits/api/commitReference.api'
 import { useConsoleStore } from '@/stores/console.store'
 import { useToastStore } from '@/stores/toast.store'
-import type { CommitReference, RecentCommit } from '@/model/commitReference'
+import type { CommitReference, RecentCommit } from '@/features/commits/model/commitReference'
 import type { TaskId, TaskStepId } from '@/model/branded'
 
-vi.mock('@/api/commitReference.api', () => ({
+vi.mock('@/features/commits/api/commitReference.api', () => ({
   fetchRecentCommits: vi.fn(),
   recordCommit: vi.fn(),
   recordLatestCommit: vi.fn()

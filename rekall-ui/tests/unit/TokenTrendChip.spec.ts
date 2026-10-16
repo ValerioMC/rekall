@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
-import TaskTokenChip from '@/components/console/TaskTokenChip.vue'
-import ProjectTokenChip from '@/components/console/ProjectTokenChip.vue'
+import TaskTokenChip from '@/features/tokens/components/TaskTokenChip.vue'
+import ProjectTokenChip from '@/features/tokens/components/ProjectTokenChip.vue'
 import { useConsoleStore } from '@/stores/console.store'
-import { useTokenUsageStore } from '@/stores/tokenUsage.store'
+import { useTokenUsageStore } from '@/features/tokens/store/tokenUsage.store'
 import type { ProjectId, TaskId } from '@/model/branded'
-import type { Task } from '@/model/catalog'
-import type { TokenDay, TokenTally } from '@/model/token-usage'
+import type { Task } from '@/features/catalog/model/catalog'
+import type { TokenDay, TokenTally } from '@/features/tokens/model/token-usage'
 
 const TASK = { id: 't1' as TaskId, projectId: 'p1' as ProjectId } as unknown as Task
 

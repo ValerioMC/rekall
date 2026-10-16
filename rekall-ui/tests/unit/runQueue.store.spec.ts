@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import { useRunQueueStore } from '@/stores/runQueue.store'
-import { EMPTY_RUN_QUEUE } from '@/model/runQueue'
+import { useRunQueueStore } from '@/features/queue/store/runQueue.store'
+import { EMPTY_RUN_QUEUE } from '@/features/queue/model/runQueue'
 
 describe('the run queue store', () => {
   beforeEach(() => setActivePinia(createPinia()))

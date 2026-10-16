@@ -3,11 +3,11 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import ShellDock from '@/components/shell/ShellDock.vue'
 import { useConsoleStore } from '@/stores/console.store'
-import { useTerminalStore } from '@/stores/terminal.store'
+import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useToastStore } from '@/stores/toast.store'
-import type { Terminal } from '@/model/terminal'
+import type { Terminal } from '@/features/claude/model/terminal'
 import type { ProjectId, TaskId, TaskStepId, TerminalId, TimeEntryId } from '@/model/branded'
-import type { Task, TimeEntry } from '@/model/catalog'
+import type { Task, TimeEntry } from '@/features/catalog/model/catalog'
 
 const terminalApi = {
   fetchTerminals: vi.fn(),
@@ -15,7 +15,7 @@ const terminalApi = {
   closeTerminal: vi.fn()
 }
 
-vi.mock('@/api/terminal.api', () => ({
+vi.mock('@/features/claude/api/terminal.api', () => ({
   fetchTerminals: (...a: unknown[]) => terminalApi.fetchTerminals(...a),
   openTerminal: (...a: unknown[]) => terminalApi.openTerminal(...a),
   closeTerminal: (...a: unknown[]) => terminalApi.closeTerminal(...a)
@@ -23,7 +23,7 @@ vi.mock('@/api/terminal.api', () => ({
 
 const stopTimeEntry = vi.fn()
 
-vi.mock('@/api/time-entries.api', () => ({
+vi.mock('@/features/time/api/time-entries.api', () => ({
   fetchTimeEntries: vi.fn(),
   startTimeEntry: vi.fn(),
   stopTimeEntry: (...a: unknown[]) => stopTimeEntry(...a),
@@ -33,7 +33,7 @@ vi.mock('@/api/time-entries.api', () => ({
 
 const recordLatestCommit = vi.fn()
 
-vi.mock('@/api/commitReference.api', () => ({
+vi.mock('@/features/commits/api/commitReference.api', () => ({
   recordLatestCommit: (...a: unknown[]) => recordLatestCommit(...a)
 }))
 

@@ -9,7 +9,7 @@ pub fn router(state: ClaudeState) -> Router {
         .merge(usage::routes())
         .merge(queue::routes())
         .merge(resources::routes())
-        .route_layer(axum::middleware::from_fn(rekall_api::extract::uuid_path_params))
+        .route_layer(axum::middleware::from_fn(rekall_web::extract::uuid_path_params))
         // The socket reads its own id: a bad one closes the socket, as the handshake handler did.
         .merge(socket::routes())
         .with_state(state)

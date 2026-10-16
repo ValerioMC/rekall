@@ -1,6 +1,6 @@
 //! The entities and the state rules that live on them.
 //!
-//! One module per table, each a SeaORM entity, with the state rules of that row as methods on
+//! One module per table, each a SeaORM entity, grouped in a folder per domain and re-exported here, with the state rules of that row as methods on
 //! its `Model` (`task_step::Model::mark_state`, `task::Model::mark_review_state`, the run queue's
 //! moves) and its limits as a `validate` beside them.
 //!
@@ -12,35 +12,35 @@ pub mod enums;
 pub mod slug;
 pub mod stamped;
 
-pub mod commit_reference;
-pub mod company;
-pub mod company_logo_image;
+pub mod catalog;
+pub mod commit;
+pub mod component;
 pub mod diagram;
-pub mod document;
-pub mod document_task;
-pub mod note_scope;
-pub mod project;
-pub mod project_component;
-pub mod project_icon_image;
-pub mod project_section;
-pub mod run_queue;
-pub mod run_queue_item;
-pub mod skill_name;
-pub mod skill_placement;
-pub mod step_link;
-pub mod step_pass;
-pub mod step_visit;
+pub mod flow;
+pub mod note;
+pub mod queue;
+pub mod revision;
+pub mod section;
+pub mod skill;
+pub mod step;
 pub mod tag;
-pub mod tag_skill;
 pub mod task;
-pub mod task_revision;
-pub mod task_skill;
-pub mod task_step;
-pub mod time_entry;
-pub mod token_usage;
-pub mod transcript_scan;
+pub mod timeentry;
+pub mod token;
 pub mod wrapup;
 
+pub use catalog::{company, company_logo_image, project, project_icon_image};
+pub use commit::commit_reference;
+pub use component::project_component;
+pub use flow::{step_link, step_visit};
+pub use note::{document, document_task, note_scope};
+pub use queue::{run_queue, run_queue_item};
+pub use revision::task_revision;
+pub use section::project_section;
+pub use skill::{skill_name, skill_placement, tag_skill, task_skill};
+pub use step::{step_pass, task_step};
+pub use timeentry::time_entry;
+pub use token::{token_usage, transcript_scan};
 pub use enums::*;
 pub use slug::Slug;
 pub use stamped::Stamped;

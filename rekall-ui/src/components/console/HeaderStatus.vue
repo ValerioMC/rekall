@@ -5,9 +5,9 @@
  * the only amber segment, because it is the only one asking you to act.
  */
 import { storeToRefs } from 'pinia'
-import ClaudeUsageMeter from '@/components/console/ClaudeUsageMeter.vue'
-import QueueBeacon from '@/components/queue/QueueBeacon.vue'
-import ReviewQueueButton from '@/components/console/ReviewQueueButton.vue'
+import ClaudeUsageMeter from '@/features/claude/components/ClaudeUsageMeter.vue'
+import QueueBeacon from '@/features/queue/components/QueueBeacon.vue'
+import ReviewQueueButton from '@/features/catalog/components/ReviewQueueButton.vue'
 import { useConsoleStore } from '@/stores/console.store'
 
 const { reviewQueue } = storeToRefs(useConsoleStore())

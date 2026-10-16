@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
-import NoteQuickPicker from '@/components/console/NoteQuickPicker.vue'
-import NotesButton from '@/components/console/NotesButton.vue'
+import NoteQuickPicker from '@/features/notes/components/NoteQuickPicker.vue'
+import NotesButton from '@/features/notes/components/NotesButton.vue'
 import { useConsoleStore } from '@/stores/console.store'
-import type { Project, RekallDocument, Task, TaskRef } from '@/model/catalog'
-import type { NoteScope } from '@/model/note-scope'
+import type { Project, RekallDocument, Task, TaskRef } from '@/features/catalog/model/catalog'
+import type { NoteScope } from '@/features/notes/model/note-scope'
 import type { CompanyId, DocumentId, ProjectId, TaskId } from '@/model/branded'
 
 /**

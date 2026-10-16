@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import type { CommitReference } from '@/model/commitReference'
+import type { CommitReference } from '@/features/commits/model/commitReference'
 import type {
   Company,
   Project,
@@ -9,8 +9,8 @@ import type {
   TaskStep,
   TimeEntry,
   Wrapup
-} from '@/model/catalog'
-import type { TagSkill, TaskSkill } from '@/model/skill-assignment'
+} from '@/features/catalog/model/catalog'
+import type { TagSkill, TaskSkill } from '@/features/skills/model/skill-assignment'
 import type { CompanyId, DocumentId, ProjectId, TaskId, TaskStepId } from '@/model/branded'
 import type { NavMode, PaneFocus } from '@/model/console-location'
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { chartGeometry, niceCeiling, shortDay, taskTrend, trendOf, utcToday } from '@/common/token/token-trend'
+import { chartGeometry, niceCeiling, shortDay, taskTrend, trendOf, utcToday } from '@/features/tokens/lib/token-trend'
 import type { TaskId } from '@/model/branded'
-import type { TokenDay } from '@/model/token-usage'
+import type { TokenDay } from '@/features/tokens/model/token-usage'
 
 const day = (taskId: string, on: string, outputTokens: number): TokenDay => ({
   taskId: taskId as TaskId,

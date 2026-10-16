@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildMemoryTree, memoriesBelow, relativeDirectory, trailTo } from '@/model/memory-tree'
+import { buildMemoryTree, memoriesBelow, relativeDirectory, trailTo } from '@/features/claude-resources/model/memory-tree'
 import { group, summary } from './claude-resources.fixtures'
 
 const memory = (project: string, name: string) => summary(`projects/${project}/memory/${name}.md`, { name })

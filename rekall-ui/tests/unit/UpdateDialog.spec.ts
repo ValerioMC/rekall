@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import UpdateDialog from '@/components/shell/UpdateDialog.vue'
-import { useUpdateStore } from '@/stores/update.store'
-import type { VersionStatus } from '@/model/version'
+import { useUpdateStore } from '@/features/settings/store/update.store'
+import type { VersionStatus } from '@/features/settings/model/version'
 
 const DMG = 'https://github.com/ValerioMC/rekall/releases/download/v0.2.0/Rekall-macos-arm64.dmg'
 
-vi.mock('@/api/version.api', () => ({ fetchVersionStatus: vi.fn() }))
+vi.mock('@/features/settings/api/version.api', () => ({ fetchVersionStatus: vi.fn() }))
 
 const available: VersionStatus = {
   current: '0.1.0',

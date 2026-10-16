@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
-import ProjectDocsRail from '@/components/project/ProjectDocsRail.vue'
-import type { ProjectSection } from '@/model/project-section'
+import ProjectDocsRail from '@/features/project/components/ProjectDocsRail.vue'
+import type { ProjectSection } from '@/features/project/model/project-section'
 import type { ProjectId, ProjectSectionId } from '@/model/branded'
 
 function section(id: string, title: string, body = 'text'): ProjectSection {

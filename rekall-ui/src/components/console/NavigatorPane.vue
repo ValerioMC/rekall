@@ -1,18 +1,18 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import ScopePicker from '@/components/console/ScopePicker.vue'
-import RecordDialog from '@/components/console/RecordDialog.vue'
+import ScopePicker from '@/features/catalog/components/ScopePicker.vue'
+import RecordDialog from '@/features/catalog/components/RecordDialog.vue'
 import NavigatorProjectGroup from '@/components/console/NavigatorProjectGroup.vue'
 import NavigatorStatusGroups from '@/components/console/NavigatorStatusGroups.vue'
-import NavigatorNoteList from '@/components/console/NavigatorNoteList.vue'
-import { groupTasksByProject } from '@/common/catalog/project-task-groups'
+import NavigatorNoteList from '@/features/notes/components/NavigatorNoteList.vue'
+import { groupTasksByProject } from '@/features/catalog/lib/project-task-groups'
 import { revealOffset } from '@/common/scroll/reveal-offset'
 import { useNavigatorShelves } from '@/composables/useNavigatorShelves'
 import { useConsoleStore } from '@/stores/console.store'
-import { taskDraft } from '@/model/record-draft'
-import type { RecordDraft } from '@/model/record-draft'
-import type { Task } from '@/model/catalog'
+import { taskDraft } from '@/features/catalog/model/record-draft'
+import type { RecordDraft } from '@/features/catalog/model/record-draft'
+import type { Task } from '@/features/catalog/model/catalog'
 
 const store = useConsoleStore()
 const {

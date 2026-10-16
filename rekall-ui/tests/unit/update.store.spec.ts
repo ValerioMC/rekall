@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import { useUpdateStore } from '@/stores/update.store'
-import { fetchVersionStatus } from '@/api/version.api'
-import type { VersionStatus } from '@/model/version'
+import { useUpdateStore } from '@/features/settings/store/update.store'
+import { fetchVersionStatus } from '@/features/settings/api/version.api'
+import type { VersionStatus } from '@/features/settings/model/version'
 
-vi.mock('@/api/version.api', () => ({ fetchVersionStatus: vi.fn() }))
+vi.mock('@/features/settings/api/version.api', () => ({ fetchVersionStatus: vi.fn() }))
 
 const available: VersionStatus = {
   current: '0.1.0',

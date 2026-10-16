@@ -2,9 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import { useToastStore } from '@/stores/toast.store'
-import NotePlacementsPane from '@/components/console/NotePlacementsPane.vue'
+import NotePlacementsPane from '@/features/notes/components/NotePlacementsPane.vue'
 import { useConsoleStore } from '@/stores/console.store'
-import type { Company, RekallDocument, Task, TaskRef } from '@/model/catalog'
+import type { Company, RekallDocument, Task, TaskRef } from '@/features/catalog/model/catalog'
 import type { CompanyId, DocumentId, ProjectId, TaskId } from '@/model/branded'
 
 /**

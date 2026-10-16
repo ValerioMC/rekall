@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { identityHue } from '@/common/identity'
 import { describeTokens, formatTokens } from '@/common/format/token-count'
-import type { TokenTotals } from '@/model/token-usage'
+import type { TokenTotals } from '@/features/tokens/model/token-usage'
 
 /**
  * The tokens generated for a step, a task or a project, with what was read to generate them in

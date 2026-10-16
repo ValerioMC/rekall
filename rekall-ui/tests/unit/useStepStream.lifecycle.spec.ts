@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { effectScope } from 'vue'
-import { useStepStream } from '@/composables/useStepStream'
+import { useStepStream } from '@/features/steps/composables/useStepStream'
 import type { TaskId } from '@/model/branded'
 
 /**

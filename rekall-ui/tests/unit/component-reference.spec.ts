@@ -1,7 +1,7 @@
 import MarkdownIt from 'markdown-it'
 import { describe, expect, it } from 'vitest'
 import { componentNameKey, markComponentReferences, paintComponentReferences } from '@/common/markdown/component-reference'
-import type { ProjectComponent } from '@/model/project-component'
+import type { ProjectComponent } from '@/features/project/model/project-component'
 import type { ProjectComponentId, ProjectId } from '@/model/branded'
 
 /** The page draws `[[Name]]` as a chip and settles it against the project's components. */

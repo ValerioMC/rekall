@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import type { Box } from '@/common/diagram/viewport'
-import { FLOW_END } from '@/common/flow/route-target'
-import { targetAt } from '@/composables/useFlowDrag'
+import type { Box } from '@/features/diagram/lib/viewport'
+import { FLOW_END } from '@/features/flow/lib/route-target'
+import { targetAt } from '@/features/flow/composables/useFlowDrag'
 import type { TaskStepId } from '@/model/branded'
 
 const boxes = new Map<TaskStepId, Box>([

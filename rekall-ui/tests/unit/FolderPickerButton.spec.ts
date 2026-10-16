@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
-import FolderPickerButton from '@/components/project/FolderPickerButton.vue'
+import FolderPickerButton from '@/features/project/components/FolderPickerButton.vue'
 import type { DirectoryListing } from '@/model/filesystem'
 
 vi.mock('@/api/filesystem.api', () => ({ fetchDirectory: vi.fn() }))

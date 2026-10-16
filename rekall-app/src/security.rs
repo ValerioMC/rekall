@@ -25,7 +25,7 @@ use axum::http::{header, StatusCode};
 use axum::middleware::Next;
 use axum::response::Response;
 use regex::Regex;
-use rekall_api::error::framework;
+use rekall_web::error::framework;
 use tracing::warn;
 
 const LOOPBACK_NAMES: [&str; 4] = ["localhost", "127.0.0.1", "::1", "[::1]"];

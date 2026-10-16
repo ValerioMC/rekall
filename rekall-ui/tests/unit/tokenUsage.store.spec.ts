@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import * as api from '@/api/token-usage.api'
-import { useTokenUsageStore } from '@/stores/tokenUsage.store'
+import * as api from '@/features/tokens/api/token-usage.api'
+import { useTokenUsageStore } from '@/features/tokens/store/tokenUsage.store'
 import type { TaskId, TaskStepId } from '@/model/branded'
-import type { TokenDay, TokenTally } from '@/model/token-usage'
+import type { TokenDay, TokenTally } from '@/features/tokens/model/token-usage'
 
-vi.mock('@/api/token-usage.api')
+vi.mock('@/features/tokens/api/token-usage.api')
 
 function tally(taskId: string, stepId: string | null, outputTokens: number): TokenTally {
   return {

@@ -12,7 +12,7 @@ import {
   type RunQueue,
   type RunQueueItem,
   type RunQueueItemState
-} from '@/model/runQueue'
+} from '@/features/queue/model/runQueue'
 import { asTaskId } from '@/model/branded'
 
 function item(id: string, state: RunQueueItemState): RunQueueItem {

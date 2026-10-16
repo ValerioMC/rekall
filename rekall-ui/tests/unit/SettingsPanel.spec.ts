@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import SettingsPanel from '@/components/settings/SettingsPanel.vue'
+import SettingsPanel from '@/features/settings/components/SettingsPanel.vue'
 
 /**
  * SettingsPanel registers a capture-phase `window` keydown listener on mount, removed only on
@@ -28,7 +28,7 @@ const forgetDatabase = vi.fn()
 const renameDatabase = vi.fn()
 const activateDatabase = vi.fn()
 
-vi.mock('@/api/settings.api', () => ({
+vi.mock('@/features/settings/api/settings.api', () => ({
   fetchDatabaseStatus: () => fetchDatabaseStatus(),
   forgetDatabase: (...args: unknown[]) => forgetDatabase(...args),
   renameDatabase: (...args: unknown[]) => renameDatabase(...args),
@@ -38,7 +38,7 @@ vi.mock('@/api/settings.api', () => ({
 }))
 
 /** The backups section has its own spec; here it only has to not reach the network. */
-vi.mock('@/api/backups.api', () => ({
+vi.mock('@/features/settings/api/backups.api', () => ({
   fetchBackupStatus: vi.fn(async () => ({
     available: true,
     folder: '/data/rekall/backups',
@@ -54,12 +54,12 @@ vi.mock('@/api/backups.api', () => ({
 }))
 
 /** The version section has its own spec; here it only has to not reach the network. */
-vi.mock('@/api/version.api', () => ({
+vi.mock('@/features/settings/api/version.api', () => ({
   fetchVersionStatus: vi.fn(async () => ({ current: '0.1.0', check: 'UP_TO_DATE', latest: null }))
 }))
 
 /** The Claude Code section has its own spec; here it only has to not reach the network. */
-vi.mock('@/api/claude.api', () => ({
+vi.mock('@/features/claude/api/claude.api', () => ({
   fetchClaudeInstallation: () =>
     Promise.resolve({
       status: 'NOT_CONNECTED',

@@ -5,8 +5,8 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, patch, post};
 use axum::{Json, Router};
-use rekall_api::error::{framework, ApiResult};
-use rekall_api::extract::JsonBody;
+use rekall_web::error::{framework, ApiResult};
+use rekall_web::extract::JsonBody;
 use rekall_common::{Id, Instant, InternalFailure, RekallError};
 
 use super::super::folder::inspect;

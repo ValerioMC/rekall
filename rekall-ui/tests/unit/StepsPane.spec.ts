@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
-import StepsPane from '@/components/console/StepsPane.vue'
+import StepsPane from '@/features/steps/components/StepsPane.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { STEP_DETAIL_TEMPLATE } from '@/model/templates'
-import type { Task, TaskStep, TaskStepState } from '@/model/catalog'
+import type { Task, TaskStep, TaskStepState } from '@/features/catalog/model/catalog'
 import type { ProjectId, TaskId, TaskStepId } from '@/model/branded'
 
 /**

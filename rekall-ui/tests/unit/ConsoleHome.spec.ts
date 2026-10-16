@@ -6,9 +6,9 @@ import HomeReviewCard from '@/components/console/home/HomeReviewCard.vue'
 import HomeSessionsCard from '@/components/console/home/HomeSessionsCard.vue'
 import HomeSituation from '@/components/console/home/HomeSituation.vue'
 import { useConsoleStore } from '@/stores/console.store'
-import { useTerminalStore } from '@/stores/terminal.store'
-import type { Task, TaskStep } from '@/model/catalog'
-import type { Terminal } from '@/model/terminal'
+import { useTerminalStore } from '@/features/claude/store/terminal.store'
+import type { Task, TaskStep } from '@/features/catalog/model/catalog'
+import type { Terminal } from '@/features/claude/model/terminal'
 import type { ProjectId, TaskId, TaskStepId, TerminalId } from '@/model/branded'
 
 const report: Task = {

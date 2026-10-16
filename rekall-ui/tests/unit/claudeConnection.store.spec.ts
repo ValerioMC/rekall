@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import { useClaudeConnectionStore } from '@/stores/claudeConnection.store'
-import type { ClaudeConnectionStatus, ClaudeInstallation } from '@/model/claude'
+import { useClaudeConnectionStore } from '@/features/claude/store/claudeConnection.store'
+import type { ClaudeConnectionStatus, ClaudeInstallation } from '@/features/claude/model/claude'
 
 const fetchClaudeInstallation = vi.fn()
 const installClaudeIntegration = vi.fn()
 
-vi.mock('@/api/claude.api', () => ({
+vi.mock('@/features/claude/api/claude.api', () => ({
   fetchClaudeInstallation: () => fetchClaudeInstallation(),
   installClaudeIntegration: () => installClaudeIntegration()
 }))

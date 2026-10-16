@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import { useClaudeConnectionStore } from '@/stores/claudeConnection.store'
+import { useClaudeConnectionStore } from '@/features/claude/store/claudeConnection.store'
 
 defineEmits<{ open: [] }>()
 

@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { connectionsOf, graphElement, sequenceElement } from '@/common/diagram/element-detail'
-import { mix, nativeThemeVariables } from '@/common/diagram/mermaid/native-theme'
-import { placeNativeSvg } from '@/common/diagram/mermaid/native-svg'
-import { plainLabel } from '@/common/diagram/mermaid/mermaid-text'
-import { baseOf, folderOf, spanLabel } from '@/common/diagram/source-label'
-import type { GraphScene } from '@/common/diagram/scene/graph-scene'
-import type { SequenceScene } from '@/common/diagram/scene/sequence-scene'
+import { connectionsOf, graphElement, sequenceElement } from '@/features/diagram/lib/element-detail'
+import { mix, nativeThemeVariables } from '@/features/diagram/lib/mermaid/native-theme'
+import { placeNativeSvg } from '@/features/diagram/lib/mermaid/native-svg'
+import { plainLabel } from '@/features/diagram/lib/mermaid/mermaid-text'
+import { baseOf, folderOf, spanLabel } from '@/features/diagram/lib/source-label'
+import type { GraphScene } from '@/features/diagram/lib/scene/graph-scene'
+import type { SequenceScene } from '@/features/diagram/lib/scene/sequence-scene'
 
 const SEQUENCE: SequenceScene = {
   participants: [

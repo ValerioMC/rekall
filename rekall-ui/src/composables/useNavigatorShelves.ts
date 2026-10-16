@@ -1,5 +1,5 @@
 import { reactive, ref, watch, type Ref } from 'vue'
-import type { Task } from '@/model/catalog'
+import type { Task } from '@/features/catalog/model/catalog'
 import type { ProjectId } from '@/model/branded'
 import { loadPersistedSet, savePersistedSet, toggledSet } from '@/common/config/persisted-set'
 

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import LaunchClaudeCodeButton from '@/components/claude/LaunchClaudeCodeButton.vue'
+import LaunchClaudeCodeButton from '@/features/claude/components/LaunchClaudeCodeButton.vue'
 import { useToastStore } from '@/stores/toast.store'
 
 /**

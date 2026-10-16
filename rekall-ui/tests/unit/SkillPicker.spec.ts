@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import AppDialog from '@/components/ui/AppDialog.vue'
-import SkillPicker from '@/components/skills/SkillPicker.vue'
-import { useClaudeResourcesStore } from '@/stores/claudeResources.store'
+import SkillPicker from '@/features/skills/components/SkillPicker.vue'
+import { useClaudeResourcesStore } from '@/features/claude-resources/store/claudeResources.store'
 import { catalog, summary } from './claude-resources.fixtures'
 
 /** The catalogue panel: skills from the store, ticked into the list the owner holds. It is teleported, so the DOM is read from the body. */

@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useConsoleStore } from '@/stores/console.store'
-import type { RekallDocument, TaskRef } from '@/model/catalog'
-import type { SearchHit } from '@/model/search'
-import type { ReviewItem } from '@/model/review'
+import type { RekallDocument, TaskRef } from '@/features/catalog/model/catalog'
+import type { SearchHit } from '@/features/search/model/search'
+import type { ReviewItem } from '@/features/catalog/model/review'
 import type { DocumentId, TaskId, TaskStepId } from '@/model/branded'
 import { taskFixture } from './support/taskFixture'
 

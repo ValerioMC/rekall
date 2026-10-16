@@ -5,7 +5,7 @@ use axum::http::{header, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use rekall_api::error::{framework, ApiResult};
+use rekall_web::error::{framework, ApiResult};
 use rekall_common::{InternalFailure, RekallError};
 
 use super::{BackupFile, BackupReason, BackupStatus, DatabaseBackupService, DatabaseRestoreService};

@@ -5,7 +5,7 @@ import { EditorState } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 import { describe, expect, it } from 'vitest'
 import { componentCompletion, componentOptions } from '@/common/markdown/component-completion'
-import type { ProjectComponent } from '@/model/project-component'
+import type { ProjectComponent } from '@/features/project/model/project-component'
 import type { ProjectComponentId, ProjectId } from '@/model/branded'
 
 /** Typing `[[` offers the project's components, and choosing one writes `[[Name]]`. */

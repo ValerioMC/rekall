@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { projectTokens, stepTokens, taskTokens, withTaskTallies } from '@/common/token/token-totals'
+import { projectTokens, stepTokens, taskTokens, withTaskTallies } from '@/features/tokens/lib/token-totals'
 import type { ProjectId, TaskId, TaskStepId } from '@/model/branded'
-import type { Task } from '@/model/catalog'
-import type { TokenTally } from '@/model/token-usage'
+import type { Task } from '@/features/catalog/model/catalog'
+import type { TokenTally } from '@/features/tokens/model/token-usage'
 
 function tally(taskId: string, stepId: string | null, outputTokens: number): TokenTally {
   return {

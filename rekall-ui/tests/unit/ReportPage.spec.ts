@@ -2,18 +2,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises } from '@vue/test-utils'
 import type { DOMWrapper, VueWrapper } from '@vue/test-utils'
-import ReportPage from '@/components/report/ReportPage.vue'
+import ReportPage from '@/features/time/components/ReportPage.vue'
 import { router } from '@/router'
 import { useConsoleStore } from '@/stores/console.store'
 import { mountWithHeaderChrome } from './support/mountWithHeaderChrome'
-import type { Company, Task, TaskStep, TimeEntry } from '@/model/catalog'
+import type { Company, Task, TaskStep, TimeEntry } from '@/features/catalog/model/catalog'
 import type { CompanyId, ProjectId, TaskId, TaskStepId, TimeEntryId } from '@/model/branded'
 
 /**
  * The report as a screen: the frame it opens on, what a company filter does to it, and what it
  * says when a week is empty. The arithmetic is `time-report.spec`; this is the reading of it.
  */
-vi.mock('@/api/catalog.api', () => ({
+vi.mock('@/features/catalog/api/catalog.api', () => ({
   fetchCompanies: vi.fn(async () => []),
   fetchProjects: vi.fn(async () => []),
   fetchTasks: vi.fn(async () => []),
@@ -31,10 +31,10 @@ vi.mock('@/api/catalog.api', () => ({
   updateTask: vi.fn(),
   deleteTask: vi.fn()
 }))
-vi.mock('@/api/documents.api', () => ({ fetchAllDocuments: vi.fn(async () => []) }))
-vi.mock('@/api/wrapups.api', () => ({ fetchWrapups: vi.fn(async () => []) }))
-vi.mock('@/api/steps.api', () => ({ fetchSteps: vi.fn(async () => []) }))
-vi.mock('@/api/time-entries.api', () => ({ fetchTimeEntries: vi.fn(async () => []) }))
+vi.mock('@/features/notes/api/documents.api', () => ({ fetchAllDocuments: vi.fn(async () => []) }))
+vi.mock('@/features/wrapup/api/wrapups.api', () => ({ fetchWrapups: vi.fn(async () => []) }))
+vi.mock('@/features/steps/api/steps.api', () => ({ fetchSteps: vi.fn(async () => []) }))
+vi.mock('@/features/time/api/time-entries.api', () => ({ fetchTimeEntries: vi.fn(async () => []) }))
 
 const acme = 'c1' as CompanyId
 const globex = 'c2' as CompanyId

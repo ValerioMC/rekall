@@ -14,7 +14,7 @@ use rekall_service::token::TokenUsageService;
 use rekall_service::wrapup::WrapupService;
 use rekall_service::Services;
 
-use crate::{service, StepEventStream};
+use crate::{catalog, diagram, filesystem, note, revision, section, component, skill, tag, StepEventStream};
 
 /// What the handlers share: each service a controller calls, and nothing it does not.
 #[derive(Clone)]
@@ -31,20 +31,20 @@ pub struct ApiState {
     pub search: SearchService,
     pub diagrams: DiagramService,
     pub sections: ProjectSectionService,
-    pub companies: service::CompanyService,
-    pub logos: service::CompanyLogoService,
-    pub projects: service::ProjectService,
-    pub tasks: service::TaskService,
-    pub documents: service::DocumentService,
-    pub tags: service::TagService,
-    pub skill_assignments: service::SkillAssignmentService,
-    pub diagram_catalog: service::DiagramCatalogService,
-    pub sources: service::SourceExcerptService,
-    pub section_catalog: service::ProjectSectionCatalogService,
-    pub component_catalog: service::ProjectComponentCatalogService,
-    pub icons: service::ProjectIconService,
-    pub restorer: service::RevisionRestoreService,
-    pub directories: service::DirectoryListingService,
+    pub companies: catalog::CompanyService,
+    pub logos: catalog::CompanyLogoService,
+    pub projects: catalog::ProjectService,
+    pub tasks: catalog::TaskService,
+    pub documents: note::DocumentService,
+    pub tags: tag::TagService,
+    pub skill_assignments: skill::SkillAssignmentService,
+    pub diagram_catalog: diagram::DiagramCatalogService,
+    pub sources: diagram::SourceExcerptService,
+    pub section_catalog: section::ProjectSectionCatalogService,
+    pub component_catalog: component::ProjectComponentCatalogService,
+    pub icons: catalog::ProjectIconService,
+    pub restorer: revision::RevisionRestoreService,
+    pub directories: filesystem::DirectoryListingService,
     pub stream: Arc<StepEventStream>,
 }
 
@@ -53,33 +53,33 @@ impl ApiState {
     /// reaches only the services it calls. `user_home` is where the path picker starts.
     pub fn new(services: Services, stream: Arc<StepEventStream>, user_home: PathBuf) -> Self {
         let ctx = services.ctx.clone();
-        let tasks = service::TaskService::new(
+        let tasks = catalog::TaskService::new(
             ctx.clone(),
             services.review.clone(),
             services.revisions.clone(),
             services.time_entries.clone(),
         );
-        let restorer = service::RevisionRestoreService::new(
+        let restorer = revision::RevisionRestoreService::new(
             ctx.clone(),
             services.revisions.clone(),
             services.wrapups.clone(),
             tasks.clone(),
         );
         Self {
-            companies: service::CompanyService::new(ctx.clone()),
-            logos: service::CompanyLogoService::new(ctx.clone()),
-            projects: service::ProjectService::new(ctx.clone(), services.repositories),
+            companies: catalog::CompanyService::new(ctx.clone()),
+            logos: catalog::CompanyLogoService::new(ctx.clone()),
+            projects: catalog::ProjectService::new(ctx.clone(), services.repositories),
             tasks,
-            documents: service::DocumentService::new(ctx.clone()),
-            tags: service::TagService::new(ctx.clone()),
-            skill_assignments: service::SkillAssignmentService::new(ctx.clone()),
-            diagram_catalog: service::DiagramCatalogService::new(ctx.clone()),
-            sources: service::SourceExcerptService::new(ctx.clone()),
-            section_catalog: service::ProjectSectionCatalogService::new(ctx.clone()),
-            component_catalog: service::ProjectComponentCatalogService::new(ctx.clone()),
-            icons: service::ProjectIconService::new(ctx),
+            documents: note::DocumentService::new(ctx.clone()),
+            tags: tag::TagService::new(ctx.clone()),
+            skill_assignments: skill::SkillAssignmentService::new(ctx.clone()),
+            diagram_catalog: diagram::DiagramCatalogService::new(ctx.clone()),
+            sources: diagram::SourceExcerptService::new(ctx.clone()),
+            section_catalog: section::ProjectSectionCatalogService::new(ctx.clone()),
+            component_catalog: component::ProjectComponentCatalogService::new(ctx.clone()),
+            icons: catalog::ProjectIconService::new(ctx),
             restorer,
-            directories: service::DirectoryListingService::new(user_home),
+            directories: filesystem::DirectoryListingService::new(user_home),
             steps: services.steps,
             step_links: services.step_links,
             flow: services.flow,

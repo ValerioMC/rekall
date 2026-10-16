@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compareProjects, type OrderedProject } from '@/common/catalog/project-group-order'
+import { compareProjects, type OrderedProject } from '@/features/catalog/lib/project-group-order'
 
 const project = (companyName: string, projectTitle: string, status: OrderedProject['status'] = 'ACTIVE'): OrderedProject => ({
   companyName,

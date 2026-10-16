@@ -2,7 +2,7 @@ import type { Completion, CompletionContext, CompletionResult, CompletionSource 
 import { syntaxTree } from '@codemirror/language'
 import type { SyntaxNode } from '@lezer/common'
 import { componentNameKey } from '@/common/markdown/component-reference'
-import type { ProjectComponent } from '@/model/project-component'
+import type { ProjectComponent } from '@/features/project/model/project-component'
 
 const OPENING = /\[\[[^[\]\n]*$/
 const CODE_NODES = new Set(['FencedCode', 'CodeBlock', 'InlineCode'])

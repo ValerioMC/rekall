@@ -1,5 +1,5 @@
-import type { DiagramSummary } from '@/model/diagram'
-import type { Project, Task } from '@/model/catalog'
+import type { DiagramSummary } from '@/features/diagram/model/diagram'
+import type { Project, Task } from '@/features/catalog/model/catalog'
 import type { CompanyId, DiagramId, ProjectId, TaskId } from '@/model/branded'
 
 /** Catalog and diagram records the diagram screen's tests share. */

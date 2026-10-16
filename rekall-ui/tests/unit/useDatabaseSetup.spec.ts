@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { useDatabaseSetup } from '@/composables/useDatabaseSetup'
+import { useDatabaseSetup } from '@/features/settings/composables/useDatabaseSetup'
 
 /**
  * The shared machinery behind the folder field, the unreachable-database screen and Settings:
@@ -11,7 +11,7 @@ const addDatabase = vi.fn()
 const activateDatabase = vi.fn()
 const checkFolder = vi.fn()
 
-vi.mock('@/api/settings.api', () => ({
+vi.mock('@/features/settings/api/settings.api', () => ({
   addDatabase: (...args: unknown[]) => addDatabase(...args),
   activateDatabase: (...args: unknown[]) => activateDatabase(...args),
   checkFolder: (...args: unknown[]) => checkFolder(...args)

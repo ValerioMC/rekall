@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { partitionTasks } from '@/common/catalog/partition-tasks'
-import type { Task, TaskStatus } from '@/model/catalog'
+import { partitionTasks } from '@/features/catalog/lib/partition-tasks'
+import type { Task, TaskStatus } from '@/features/catalog/model/catalog'
 import type { ProjectId, TaskId } from '@/model/branded'
 
 const task = (id: string, status: TaskStatus): Task => ({

@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { mount } from '@vue/test-utils'
-import ReviewQueueButton from '@/components/console/ReviewQueueButton.vue'
+import ReviewQueueButton from '@/features/catalog/components/ReviewQueueButton.vue'
 import { useConsoleStore } from '@/stores/console.store'
-import type { Task, TaskStep } from '@/model/catalog'
+import type { Task, TaskStep } from '@/features/catalog/model/catalog'
 import type { ProjectId, TaskId, TaskStepId } from '@/model/branded'
 
 const report: Task = {

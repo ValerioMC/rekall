@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
-import ElementPanel from '@/components/diagram/viewer/ElementPanel.vue'
-import SheetTabs from '@/components/diagram/viewer/SheetTabs.vue'
-import { callTreeOf } from '@/common/diagram/call-tree'
-import { sequenceElement } from '@/common/diagram/element-detail'
-import type { SequenceScene } from '@/common/diagram/scene/sequence-scene'
-import type { DiagramSheet } from '@/model/diagram'
+import ElementPanel from '@/features/diagram/components/viewer/ElementPanel.vue'
+import SheetTabs from '@/features/diagram/components/viewer/SheetTabs.vue'
+import { callTreeOf } from '@/features/diagram/lib/call-tree'
+import { sequenceElement } from '@/features/diagram/lib/element-detail'
+import type { SequenceScene } from '@/features/diagram/lib/scene/sequence-scene'
+import type { DiagramSheet } from '@/features/diagram/model/diagram'
 import type { DiagramId } from '@/model/branded'
 
 const SHEETS: DiagramSheet[] = [

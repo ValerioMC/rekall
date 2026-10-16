@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
-import StepsPane from '@/components/console/StepsPane.vue'
+import StepsPane from '@/features/steps/components/StepsPane.vue'
 import { useConsoleStore } from '@/stores/console.store'
-import type { TaskStep } from '@/model/catalog'
+import type { TaskStep } from '@/features/catalog/model/catalog'
 import { finishedFlow, flowStep, releaseFlow, releaseTask, TASK } from './flow.fixtures'
 
 /**

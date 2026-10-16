@@ -1,6 +1,7 @@
 # The backend: one crate per layer, and the dependency direction the crates enforce:
 # rekall-common <- rekall-model <- rekall-repository <- rekall-service <- rekall-api,
-# rekall-mcp, rekall-claude <- rekall-app. rekall-diagram, the diagram format, depends on nothing
+# rekall-mcp, rekall-claude <- rekall-app. rekall-web, the error body and extractors both routers
+# use, depends on rekall-common only. rekall-diagram, the diagram format, depends on nothing
 # of Rekall's own and is read from rekall-service upwards.
 #
 # The Tauri shell (rekall-app/desktop) is a member but not a default one: it needs the platform
@@ -11,6 +12,7 @@
 resolver = "2"
 members = [
     "rekall-common",
+    "rekall-web",
     "rekall-model",
     "rekall-diagram",
     "rekall-repository",
@@ -23,6 +25,7 @@ members = [
 ]
 default-members = [
     "rekall-common",
+    "rekall-web",
     "rekall-model",
     "rekall-diagram",
     "rekall-repository",
@@ -41,6 +44,7 @@ rust-version = "1.85"
 
 [workspace.dependencies]
 rekall-common = { path = "rekall-common" }
+rekall-web = { path = "rekall-web" }
 rekall-model = { path = "rekall-model" }
 rekall-diagram = { path = "rekall-diagram" }
 rekall-repository = { path = "rekall-repository" }

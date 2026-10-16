@@ -3,10 +3,10 @@
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useConsoleStore } from '@/stores/console.store'
-import { useTerminalStore } from '@/stores/terminal.store'
+import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useNow } from '@/composables/useNow'
 import { situationOf } from '@/common/home/situation'
-import { trackedLastDays } from '@/common/calendar/tracked-days'
+import { trackedLastDays } from '@/features/time/lib/tracked-days'
 import { formatDuration } from '@/common/format/duration'
 
 const BAR_MAX_PX = 40

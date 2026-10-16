@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import CompanyMark from '@/components/ui/CompanyMark.vue'
-import { companyInitial } from '@/common/company/logo-image-url'
+import { companyInitial } from '@/features/catalog/lib/logo-image-url'
 
 const COMPANY = '9f1c2d3e-4b5a-4c6d-8e7f-001122334455'
 

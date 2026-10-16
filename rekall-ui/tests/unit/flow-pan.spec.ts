@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isCanvasBackground } from '@/composables/useFlowPan'
+import { isCanvasBackground } from '@/features/flow/composables/useFlowPan'
 
 describe('where a press starts a canvas pan', () => {
   const scroller = document.createElement('div')

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import { useTerminalStore } from '@/stores/terminal.store'
-import type { Terminal } from '@/model/terminal'
+import { useTerminalStore } from '@/features/claude/store/terminal.store'
+import type { Terminal } from '@/features/claude/model/terminal'
 import type { ProjectId, TaskId, TaskStepId, TerminalId } from '@/model/branded'
 
 const api = {
@@ -11,7 +11,7 @@ const api = {
   sendTerminalInput: vi.fn()
 }
 
-vi.mock('@/api/terminal.api', () => ({
+vi.mock('@/features/claude/api/terminal.api', () => ({
   fetchTerminals: (...a: unknown[]) => api.fetchTerminals(...a),
   openTerminal: (...a: unknown[]) => api.openTerminal(...a),
   closeTerminal: (...a: unknown[]) => api.closeTerminal(...a),

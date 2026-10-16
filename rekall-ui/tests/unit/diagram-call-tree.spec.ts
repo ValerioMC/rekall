@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { callOf, callsInto, callTreeOf, messageNumbersIn, type CallNode } from '@/common/diagram/call-tree'
-import type { MessageLine, SequenceScene, SequenceStep } from '@/common/diagram/scene/sequence-scene'
+import { callOf, callsInto, callTreeOf, messageNumbersIn, type CallNode } from '@/features/diagram/lib/call-tree'
+import type { MessageLine, SequenceScene, SequenceStep } from '@/features/diagram/lib/scene/sequence-scene'
 
 function sequence(...messages: [from: string, to: string, text: string, line?: MessageLine][]): SequenceScene {
   const steps: SequenceStep[] = messages.map(([from, to, text, line], index) => ({

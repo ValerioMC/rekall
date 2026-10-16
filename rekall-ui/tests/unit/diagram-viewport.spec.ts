@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { fitCamera, isInView, MAX_SCALE, zoomAt } from '@/common/diagram/viewport'
-import { arrivalAngle, midpointAlong, smoothPath } from '@/common/diagram/edge-path'
-import { wrapText } from '@/common/diagram/text-wrap'
+import { fitCamera, isInView, MAX_SCALE, zoomAt } from '@/features/diagram/lib/viewport'
+import { arrivalAngle, midpointAlong, smoothPath } from '@/features/diagram/lib/edge-path'
+import { wrapText } from '@/features/diagram/lib/text-wrap'
 
 describe('camera', () => {
   it('zooming keeps the point under the pointer still', () => {

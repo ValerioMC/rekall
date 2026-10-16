@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { periodRange, shiftAnchor } from '@/common/report/period'
+import { periodRange, shiftAnchor } from '@/features/time/lib/period'
 
 /**
  * The frame every number on the report page is counted inside. Off by one here and the hours

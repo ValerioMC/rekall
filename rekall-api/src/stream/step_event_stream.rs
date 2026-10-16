@@ -1,0 +1,104 @@
+//! `GET /api/steps/stream`: the console's one Server-Sent Events feed. Every committed step,
+//! review, wrapup and commit-reference change, and every run queue change, reaches every open
+//! console under its frame name. A console that falls too far behind loses the frames it missed,
+//! which is what a failed `SseEmitter.send` dropped too.
+//!
+//! Frames are written the way `SseEmitter` wrote them, `event:<name>` and `data:<payload>` with
+//! no space after the colon, rather than through Axum's `Sse`, which adds one.
+
+use std::collections::HashSet;
+use std::convert::Infallible;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
+
+use axum::body::{Body, Bytes};
+use axum::http::{header, HeaderValue};
+use axum::response::{IntoResponse, Response};
+use futures::stream::{self, StreamExt};
+use rekall_service::EventBus;
+use tokio::sync::watch;
+use tokio_stream::wrappers::errors::BroadcastStreamRecvError;
+use tokio_stream::wrappers::BroadcastStream;
+
+pub struct StepEventStream {
+    bus: EventBus,
+    clients: Arc<Mutex<HashSet<u64>>>,
+    next: AtomicU64,
+    closing: watch::Sender<bool>,
+}
+
+/// Takes its feed off the list when the connection goes, whichever end closed it.
+struct ClientGuard(Arc<Mutex<HashSet<u64>>>, u64);
+
+impl Drop for ClientGuard {
+    fn drop(&mut self) {
+        if let Ok(mut clients) = self.0.lock() {
+            clients.remove(&self.1);
+        }
+    }
+}
+
+impl StepEventStream {
+    pub fn new(bus: EventBus) -> Self {
+        let (closing, _) = watch::channel(false);
+        Self { bus, clients: Arc::new(Mutex::new(HashSet::new())), next: AtomicU64::new(0), closing }
+    }
+
+    /// A new feed: an `open` frame saying `ready`, then every event as it commits.
+    pub fn open(&self) -> Response {
+        let id = self.next.fetch_add(1, Ordering::SeqCst);
+        if let Ok(mut clients) = self.clients.lock() {
+            clients.insert(id);
+        }
+        let guard = ClientGuard(self.clients.clone(), id);
+        let mut closing = self.closing.subscribe();
+        let events = BroadcastStream::new(self.bus.subscribe()).filter_map(|received| async move {
+            match received {
+                Ok(event) => Some(frame(event.name(), &event.payload().to_string())),
+                Err(BroadcastStreamRecvError::Lagged(_)) => None,
+            }
+        });
+        let ended = async move {
+            let _ = closing.wait_for(|closed| *closed).await;
+        };
+        let feed = stream::once(async { frame("open", "ready") })
+            .chain(events)
+            .take_until(ended)
+            .map(move |event| {
+                let _keep = &guard;
+                Ok::<_, Infallible>(event)
+            });
+        let mut response = Body::from_stream(feed).into_response();
+        response.headers_mut().insert(header::CONTENT_TYPE, HeaderValue::from_static("text/event-stream"));
+        response
+    }
+
+    /// Complete every open feed: graceful shutdown would otherwise wait on each of them.
+    pub fn release_on_shutdown(&self) {
+        self.closing.send_replace(true);
+        if let Ok(mut clients) = self.clients.lock() {
+            clients.clear();
+        }
+    }
+
+    pub fn client_count(&self) -> usize {
+        self.clients.lock().map(|c| c.len()).unwrap_or(0)
+    }
+}
+
+/// One server-sent event: a line per field, a line of data per line of payload, and a blank line
+/// to end the frame.
+fn frame(name: &str, data: &str) -> Bytes {
+    let mut text = format!("event:{name}\n");
+    for line in data.split('\n') {
+        text.push_str("data:");
+        text.push_str(line);
+        text.push('\n');
+    }
+    text.push('\n');
+    Bytes::from(text)
+}
+
+#[cfg(test)]
+#[path = "../../tests/unit/stream/step_event_stream_tests.rs"]
+mod tests;

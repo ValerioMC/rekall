@@ -1,5 +1,5 @@
-import { stepIsComplete, stepIsDraft } from '@/model/catalog'
-import type { Task, TaskStep } from '@/model/catalog'
+import { stepIsComplete, stepIsDraft } from '@/features/catalog/model/catalog'
+import type { Task, TaskStep } from '@/features/catalog/model/catalog'
 import type { TaskStepId } from '@/model/branded'
 
 export const NOTHING_TO_RUN_MESSAGE =

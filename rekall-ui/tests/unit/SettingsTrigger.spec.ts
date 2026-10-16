@@ -2,10 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import SettingsTrigger from '@/components/console/SettingsTrigger.vue'
-import { useClaudeConnectionStore } from '@/stores/claudeConnection.store'
-import type { ClaudeConnectionStatus } from '@/model/claude'
+import { useClaudeConnectionStore } from '@/features/claude/store/claudeConnection.store'
+import type { ClaudeConnectionStatus } from '@/features/claude/model/claude'
 
-vi.mock('@/api/claude.api', () => ({ fetchClaudeInstallation: vi.fn(), installClaudeIntegration: vi.fn() }))
+vi.mock('@/features/claude/api/claude.api', () => ({ fetchClaudeInstallation: vi.fn(), installClaudeIntegration: vi.fn() }))
 
 function mountWith(status: ClaudeConnectionStatus | null) {
   const connection = useClaudeConnectionStore()

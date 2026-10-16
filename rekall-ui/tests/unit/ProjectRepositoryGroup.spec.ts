@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
-import ProjectRepositoryGroup from '@/components/project/ProjectRepositoryGroup.vue'
-import * as catalogApi from '@/api/catalog.api'
+import ProjectRepositoryGroup from '@/features/project/components/ProjectRepositoryGroup.vue'
+import * as catalogApi from '@/features/catalog/api/catalog.api'
 import { useConsoleStore } from '@/stores/console.store'
-import type { Project } from '@/model/catalog'
+import type { Project } from '@/features/catalog/model/catalog'
 import type { ProjectId } from '@/model/branded'
 
-vi.mock('@/api/catalog.api', () => ({ fetchProjectRepository: vi.fn() }))
+vi.mock('@/features/catalog/api/catalog.api', () => ({ fetchProjectRepository: vi.fn() }))
 
 const project = (id: string, repoFolder: string | null, autoCommit = false): Project =>
   ({ id: id as ProjectId, title: id, repoFolder, autoCommit }) as unknown as Project

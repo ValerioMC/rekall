@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
-import NoteListPane from '@/components/console/NoteListPane.vue'
+import NoteListPane from '@/features/notes/components/NoteListPane.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useToastStore } from '@/stores/toast.store'
-import type { RekallDocument, Task, TaskRef } from '@/model/catalog'
+import type { RekallDocument, Task, TaskRef } from '@/features/catalog/model/catalog'
 import type { DocumentId, ProjectId, TaskId } from '@/model/branded'
 
 /**

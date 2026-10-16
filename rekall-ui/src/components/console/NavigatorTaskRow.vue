@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import SkillMark from '@/components/skills/SkillMark.vue'
+import SkillMark from '@/features/skills/components/SkillMark.vue'
 import TagBadge from '@/components/ui/TagBadge.vue'
-import TaskMark from '@/components/console/TaskMark.vue'
+import TaskMark from '@/features/catalog/components/TaskMark.vue'
 import TokenCount from '@/components/ui/TokenCount.vue'
 import { identityHue } from '@/common/identity'
-import { TASK_STATUS_LABEL } from '@/model/catalog'
-import type { Task } from '@/model/catalog'
-import { taskSkills } from '@/model/skill-assignment'
-import { TASK_MARK_LABEL, taskMark } from '@/model/task-mark'
+import { TASK_STATUS_LABEL } from '@/features/catalog/model/catalog'
+import type { Task } from '@/features/catalog/model/catalog'
+import { taskSkills } from '@/features/skills/model/skill-assignment'
+import { TASK_MARK_LABEL, taskMark } from '@/features/catalog/model/task-mark'
 import { useConsoleStore } from '@/stores/console.store'
-import { useTokenUsageStore } from '@/stores/tokenUsage.store'
+import { useTokenUsageStore } from '@/features/tokens/store/tokenUsage.store'
 
 const props = withDefaults(
   defineProps<{

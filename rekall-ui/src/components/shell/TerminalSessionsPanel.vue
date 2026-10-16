@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useTerminalStore } from '@/stores/terminal.store'
+import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useToastStore } from '@/stores/toast.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
-import { useOpenSession } from '@/composables/useOpenSession'
+import { useOpenSession } from '@/features/claude/composables/useOpenSession'
 import { sessionTitle } from '@/common/format/session-title'
 import { identityHue } from '@/common/identity'
-import { recordLatestCommit } from '@/api/commitReference.api'
+import { recordLatestCommit } from '@/features/commits/api/commitReference.api'
 import DockPanel from './DockPanel.vue'
-import type { Terminal } from '@/model/terminal'
+import type { Terminal } from '@/features/claude/model/terminal'
 import type { TerminalId } from '@/model/branded'
 
 const emit = defineEmits<{ close: [] }>()

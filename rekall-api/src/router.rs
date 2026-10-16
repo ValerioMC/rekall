@@ -1,0 +1,32 @@
+use axum::Router;
+
+use crate::{catalog, commit, component, context, diagram, filesystem, flow, note, revision, search, section, skill, step, stream, tag, timeentry, token, wrapup, ApiState};
+
+/// Every `/api` route this module owns.
+pub fn router(state: ApiState) -> Router {
+    routes()
+        .route_layer(axum::middleware::from_fn(rekall_web::extract::uuid_path_params))
+        .with_state(state)
+}
+
+pub fn routes() -> Router<ApiState> {
+    Router::new()
+        .merge(catalog::routes())
+        .merge(commit::routes())
+        .merge(component::routes())
+        .merge(context::routes())
+        .merge(diagram::routes())
+        .merge(filesystem::routes())
+        .merge(flow::routes())
+        .merge(note::routes())
+        .merge(revision::routes())
+        .merge(search::routes())
+        .merge(section::routes())
+        .merge(skill::routes())
+        .merge(step::routes())
+        .merge(stream::routes())
+        .merge(tag::routes())
+        .merge(timeentry::routes())
+        .merge(token::routes())
+        .merge(wrapup::routes())
+}

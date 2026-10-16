@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
-import CommitDiffView from '@/components/console/CommitDiffView.vue'
+import CommitDiffView from '@/features/commits/components/CommitDiffView.vue'
 
 describe('CommitDiffView', () => {
   it('says nothing is recorded when there is no diff', () => {

@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
-import ContextSizeChip from '@/components/console/ContextSizeChip.vue'
-import type { ContextSize } from '@/model/context'
+import ContextSizeChip from '@/features/context/components/ContextSizeChip.vue'
+import type { ContextSize } from '@/features/context/model/context'
 import type { TaskId } from '@/model/branded'
 
 const fetchContextSize = vi.fn<(taskId: TaskId) => Promise<ContextSize>>()
-vi.mock('@/api/context.api', () => ({ fetchContextSize: (taskId: TaskId) => fetchContextSize(taskId) }))
+vi.mock('@/features/context/api/context.api', () => ({ fetchContextSize: (taskId: TaskId) => fetchContextSize(taskId) }))
 
 const measured: ContextSize = {
   characters: 43_400,

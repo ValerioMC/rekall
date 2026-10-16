@@ -3,7 +3,7 @@ import {
   CLAUDE_MODEL_CHOICES,
   type ClaudeEffortChoice,
   type ClaudeModelChoice
-} from '@/model/claude'
+} from '@/features/claude/model/claude'
 
 const STORAGE_KEY = 'rekall.claude.skip-permissions'
 const MODEL_KEY = 'rekall.claude.model'

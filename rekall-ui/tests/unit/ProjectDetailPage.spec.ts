@@ -2,19 +2,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, type VueWrapper } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
-import ProjectDetailPage from '@/components/catalog/ProjectDetailPage.vue'
-import * as sectionsApi from '@/api/project-sections.api'
-import * as componentsApi from '@/api/project-components.api'
-import * as catalogApi from '@/api/catalog.api'
+import ProjectDetailPage from '@/features/catalog/components/ProjectDetailPage.vue'
+import * as sectionsApi from '@/features/project/api/project-sections.api'
+import * as componentsApi from '@/features/project/api/project-components.api'
+import * as catalogApi from '@/features/catalog/api/catalog.api'
 import { useConsoleStore } from '@/stores/console.store'
 import { mountWithHeaderChrome } from './support/mountWithHeaderChrome'
-import type { Company, Project, Task } from '@/model/catalog'
-import type { ProjectSection } from '@/model/project-section'
+import type { Company, Project, Task } from '@/features/catalog/model/catalog'
+import type { ProjectSection } from '@/features/project/model/project-section'
 import type { CompanyId, ProjectId, ProjectSectionId, TaskId } from '@/model/branded'
 
-vi.mock('@/api/project-sections.api')
-vi.mock('@/api/project-components.api')
-vi.mock('@/api/catalog.api', () => ({ fetchProjectRepository: vi.fn().mockResolvedValue({ isRepository: false }) }))
+vi.mock('@/features/project/api/project-sections.api')
+vi.mock('@/features/project/api/project-components.api')
+vi.mock('@/features/catalog/api/catalog.api', () => ({ fetchProjectRepository: vi.fn().mockResolvedValue({ isRepository: false }) }))
 
 const PROJECT = 'p-1' as ProjectId
 

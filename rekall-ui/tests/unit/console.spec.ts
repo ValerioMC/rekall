@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fetchTasks, removeCompanyLogoImage, updateProject, uploadCompanyLogoImage } from '@/api/catalog.api'
-import { createDocument, fetchAllDocuments, updateDocument } from '@/api/documents.api'
-import { fetchTimeEntries, startTimeEntry } from '@/api/time-entries.api'
+import { fetchTasks, removeCompanyLogoImage, updateProject, uploadCompanyLogoImage } from '@/features/catalog/api/catalog.api'
+import { createDocument, fetchAllDocuments, updateDocument } from '@/features/notes/api/documents.api'
+import { fetchTimeEntries, startTimeEntry } from '@/features/time/api/time-entries.api'
 import { setActivePinia, createPinia } from 'pinia'
 import { useConsoleStore } from '@/stores/console.store'
-import type { TaskInput } from '@/api/catalog.api'
-import type { Company, Project, RekallDocument, Task, TaskStep, TimeEntry, Wrapup } from '@/model/catalog'
+import type { TaskInput } from '@/features/catalog/api/catalog.api'
+import type { Company, Project, RekallDocument, Task, TaskStep, TimeEntry, Wrapup } from '@/features/catalog/model/catalog'
 import type {
   CompanyId,
   DocumentId,
@@ -245,7 +245,7 @@ const updateTask = vi.fn(async (id: TaskId, input: TaskInput) => ({
   ...input
 }))
 
-vi.mock('@/api/catalog.api', () => ({
+vi.mock('@/features/catalog/api/catalog.api', () => ({
   fetchCompanies: vi.fn(async () => companies),
   fetchProjects: vi.fn(async () => projects),
   createCompany: vi.fn(),
@@ -266,20 +266,20 @@ vi.mock('@/api/catalog.api', () => ({
   deleteTask: vi.fn()
 }))
 
-vi.mock('@/api/documents.api', () => ({
+vi.mock('@/features/notes/api/documents.api', () => ({
   fetchAllDocuments: vi.fn(async () => documents),
   createDocument: vi.fn(),
   updateDocument: vi.fn(),
   deleteDocument: vi.fn()
 }))
 
-vi.mock('@/api/wrapups.api', () => ({
+vi.mock('@/features/wrapup/api/wrapups.api', () => ({
   fetchWrapups: vi.fn(async () => wrapups),
   saveWrapup: (...args: unknown[]) => saveWrapup(...(args as [TaskId, string])),
   deleteWrapup: (...args: unknown[]) => deleteWrapup(...(args as []))
 }))
 
-vi.mock('@/api/steps.api', () => ({
+vi.mock('@/features/steps/api/steps.api', () => ({
   fetchSteps: vi.fn(async () => steps),
   createStep: (...args: unknown[]) => createStep(...(args as [TaskId, string])),
   patchStep: (...args: unknown[]) => patchStep(...(args as [TaskStepId, Partial<TaskStep>])),
@@ -300,7 +300,7 @@ const runningEntry = (taskId: TaskId): TimeEntry => ({
   updatedAt: '2026-08-12T15:00:00Z'
 })
 
-vi.mock('@/api/time-entries.api', () => ({
+vi.mock('@/features/time/api/time-entries.api', () => ({
   fetchTimeEntries: vi.fn(async () => []),
   startTimeEntry: vi.fn(async (taskId: TaskId) => runningEntry(taskId)),
   stopTimeEntry: vi.fn(),
@@ -308,14 +308,14 @@ vi.mock('@/api/time-entries.api', () => ({
   deleteTimeEntry: vi.fn()
 }))
 
-vi.mock('@/api/skill-assignments.api', () => ({
+vi.mock('@/features/skills/api/skill-assignments.api', () => ({
   fetchSkillAssignments: vi.fn(async () => ({ taskSkills: [], tagSkills: [] })),
   setTaskSkills: vi.fn(),
   setStepSkills: vi.fn(),
   setTagSkills: vi.fn()
 }))
 
-vi.mock('@/api/commitReference.api', () => ({
+vi.mock('@/features/commits/api/commitReference.api', () => ({
   fetchCommitReferences: vi.fn(async () => []),
   recordLatestCommit: vi.fn(),
   fetchCommitReferenceDiff: vi.fn()

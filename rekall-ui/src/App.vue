@@ -2,31 +2,31 @@
 import { defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import AnchorBar from '@/components/console/AnchorBar.vue'
-import DescriptionPane from '@/components/console/DescriptionPane.vue'
+import DescriptionPane from '@/features/catalog/components/DescriptionPane.vue'
 import NavigatorPane from '@/components/console/NavigatorPane.vue'
-import NoteListPane from '@/components/console/NoteListPane.vue'
-import NotePane from '@/components/console/NotePane.vue'
-import NoteComposerPane from '@/components/console/NoteComposerPane.vue'
-import NotePlacementsPane from '@/components/console/NotePlacementsPane.vue'
-import StepsPane from '@/components/console/StepsPane.vue'
-import WrapupPane from '@/components/console/WrapupPane.vue'
-import SettingsPanel from '@/components/settings/SettingsPanel.vue'
-import TagsPanel from '@/components/settings/TagsPanel.vue'
-import RunQueuePanel from '@/components/queue/RunQueuePanel.vue'
+import NoteListPane from '@/features/notes/components/NoteListPane.vue'
+import NotePane from '@/features/notes/components/NotePane.vue'
+import NoteComposerPane from '@/features/notes/components/NoteComposerPane.vue'
+import NotePlacementsPane from '@/features/notes/components/NotePlacementsPane.vue'
+import StepsPane from '@/features/steps/components/StepsPane.vue'
+import WrapupPane from '@/features/wrapup/components/WrapupPane.vue'
+import SettingsPanel from '@/features/settings/components/SettingsPanel.vue'
+import TagsPanel from '@/features/tags/components/TagsPanel.vue'
+import RunQueuePanel from '@/features/queue/components/RunQueuePanel.vue'
 import AppToaster from '@/components/ui/AppToaster.vue'
 import { useConsoleStore } from '@/stores/console.store'
-import { useClaudeConnectionStore } from '@/stores/claudeConnection.store'
-import { useRunQueueStore } from '@/stores/runQueue.store'
+import { useClaudeConnectionStore } from '@/features/claude/store/claudeConnection.store'
+import { useRunQueueStore } from '@/features/queue/store/runQueue.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useModalGate } from '@/composables/useModalGate'
-import { useStepStream } from '@/composables/useStepStream'
+import { useStepStream } from '@/features/steps/composables/useStepStream'
 import { useClaimNotifications } from '@/composables/useClaimNotifications'
 import { useConsoleLocation } from '@/composables/useConsoleLocation'
-import type { TaskStatus } from '@/model/catalog'
+import type { TaskStatus } from '@/features/catalog/model/catalog'
 
 // xterm and its stylesheet are only parsed once a terminal is opened: most sessions never do,
 // and the console's first paint should not pay for them.
-const TerminalPane = defineAsyncComponent(() => import('@/components/console/TerminalPane.vue'))
+const TerminalPane = defineAsyncComponent(() => import('@/features/claude/components/TerminalPane.vue'))
 
 const store = useConsoleStore()
 const { selectedTaskId, navMode, paneFocus, noteComposerOpen, reviewQueue, isLoading } = storeToRefs(store)

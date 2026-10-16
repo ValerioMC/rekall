@@ -3,7 +3,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { mount } from '@vue/test-utils'
 import NavigatorTaskRow from '@/components/console/NavigatorTaskRow.vue'
 import { useConsoleStore } from '@/stores/console.store'
-import type { Task } from '@/model/catalog'
+import type { Task } from '@/features/catalog/model/catalog'
 import type { TagId, TaskId } from '@/model/branded'
 
 /** The mark on a task's row in the navigator: its own skills and its tag's, counted. */

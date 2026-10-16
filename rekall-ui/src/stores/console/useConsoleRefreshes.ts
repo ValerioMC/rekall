@@ -1,10 +1,10 @@
-import { fetchCompanies, fetchProjects, fetchTags, fetchTasks } from '@/api/catalog.api'
-import { fetchCommitReferences } from '@/api/commitReference.api'
-import { fetchAllDocuments } from '@/api/documents.api'
-import { fetchSkillAssignments } from '@/api/skill-assignments.api'
-import { fetchSteps } from '@/api/steps.api'
-import { fetchTimeEntries } from '@/api/time-entries.api'
-import { fetchWrapups } from '@/api/wrapups.api'
+import { fetchCompanies, fetchProjects, fetchTags, fetchTasks } from '@/features/catalog/api/catalog.api'
+import { fetchCommitReferences } from '@/features/commits/api/commitReference.api'
+import { fetchAllDocuments } from '@/features/notes/api/documents.api'
+import { fetchSkillAssignments } from '@/features/skills/api/skill-assignments.api'
+import { fetchSteps } from '@/features/steps/api/steps.api'
+import { fetchTimeEntries } from '@/features/time/api/time-entries.api'
+import { fetchWrapups } from '@/features/wrapup/api/wrapups.api'
 import type { ConsoleState } from './console-state'
 
 /** Reads every kind of row again from the server, one kind at a time or all at once. */

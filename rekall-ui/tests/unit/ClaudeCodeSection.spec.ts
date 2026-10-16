@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import ClaudeCodeSection from '@/components/settings/ClaudeCodeSection.vue'
-import type { ClaudeInstallation } from '@/model/claude'
+import ClaudeCodeSection from '@/features/settings/components/ClaudeCodeSection.vue'
+import type { ClaudeInstallation } from '@/features/claude/model/claude'
 
 /**
  * The Claude Code section, whose whole job is to tell the truth about a registration nobody can
@@ -12,7 +12,7 @@ import type { ClaudeInstallation } from '@/model/claude'
 const fetchClaudeInstallation = vi.fn()
 const installClaudeIntegration = vi.fn()
 
-vi.mock('@/api/claude.api', () => ({
+vi.mock('@/features/claude/api/claude.api', () => ({
   fetchClaudeInstallation: () => fetchClaudeInstallation(),
   installClaudeIntegration: () => installClaudeIntegration()
 }))

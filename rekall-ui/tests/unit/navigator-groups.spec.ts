@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { nextTick, ref } from 'vue'
-import { groupTasksByProject } from '@/common/catalog/project-task-groups'
+import { groupTasksByProject } from '@/features/catalog/lib/project-task-groups'
 import { useNavigatorShelves } from '@/composables/useNavigatorShelves'
 import { taskFixture } from './support/taskFixture'
-import type { Project, Task, TaskStatus } from '@/model/catalog'
+import type { Project, Task, TaskStatus } from '@/features/catalog/model/catalog'
 import type { CompanyId, ProjectId, TaskId } from '@/model/branded'
 
 function task(id: string, projectId: string, status: TaskStatus = 'TODO', projectTitle = projectId, companyName = 'acme'): Task {

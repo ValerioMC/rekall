@@ -1,4 +1,4 @@
-import type { MemoryGroup, ResourceCatalog, ResourceFile, ResourceKind, ResourceSummary } from '@/model/claude-resources'
+import type { MemoryGroup, ResourceCatalog, ResourceFile, ResourceKind, ResourceSummary } from '@/features/claude-resources/model/claude-resources'
 
 export function summary(path: string, overrides: Partial<ResourceSummary> = {}): ResourceSummary {
   const kind: ResourceKind = overrides.kind ?? 'memory'

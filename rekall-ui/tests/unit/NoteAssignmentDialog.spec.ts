@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
-import NoteAssignmentDialog from '@/components/console/NoteAssignmentDialog.vue'
+import NoteAssignmentDialog from '@/features/notes/components/NoteAssignmentDialog.vue'
 import { useConsoleStore } from '@/stores/console.store'
-import type { Company, Project, RekallDocument, Task, TaskStatus } from '@/model/catalog'
+import type { Company, Project, RekallDocument, Task, TaskStatus } from '@/features/catalog/model/catalog'
 import type { CompanyId, DocumentId, ProjectId, TaskId } from '@/model/branded'
 
 /**

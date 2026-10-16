@@ -1,16 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
-import PlanHereButton from '@/components/console/PlanHereButton.vue'
+import PlanHereButton from '@/features/claude/components/PlanHereButton.vue'
 import { useConsoleStore } from '@/stores/console.store'
-import { useTerminalStore } from '@/stores/terminal.store'
-import type { Terminal } from '@/model/terminal'
+import { useTerminalStore } from '@/features/claude/store/terminal.store'
+import type { Terminal } from '@/features/claude/model/terminal'
 import type { ProjectId, TaskId, TaskStepId, TerminalId } from '@/model/branded'
 
 const sendTerminalInput = vi.fn()
 const openTerminal = vi.fn()
 
-vi.mock('@/api/terminal.api', () => ({
+vi.mock('@/features/claude/api/terminal.api', () => ({
   fetchTerminals: vi.fn(),
   openTerminal: (...args: unknown[]) => openTerminal(...args),
   closeTerminal: vi.fn(),

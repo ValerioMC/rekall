@@ -1,8 +1,8 @@
 use axum::extract::State;
 use axum::routing::{get, put};
 use axum::{Json, Router};
-use rekall_api::error::ApiResult;
-use rekall_api::extract::{present, JsonBody};
+use rekall_web::error::ApiResult;
+use rekall_web::extract::{present, JsonBody};
 
 use crate::ClaudeState;
 

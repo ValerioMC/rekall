@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
-import FlowRouteEditor from '@/components/console/flow/FlowRouteEditor.vue'
+import FlowRouteEditor from '@/features/flow/components/FlowRouteEditor.vue'
 import type { TaskStepId } from '@/model/branded'
 import { releaseFlow } from './flow.fixtures'
 

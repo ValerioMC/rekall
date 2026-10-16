@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
-import NoteAttachPicker from '@/components/console/NoteAttachPicker.vue'
+import NoteAttachPicker from '@/features/notes/components/NoteAttachPicker.vue'
 import { useConsoleStore } from '@/stores/console.store'
-import type { Project, RekallDocument, Task, TaskRef } from '@/model/catalog'
-import type { NoteScope } from '@/model/note-scope'
+import type { Project, RekallDocument, Task, TaskRef } from '@/features/catalog/model/catalog'
+import type { NoteScope } from '@/features/notes/model/note-scope'
 import type { CompanyId, DocumentId, ProjectId, TaskId } from '@/model/branded'
 
 /**

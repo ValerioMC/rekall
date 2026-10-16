@@ -1,13 +1,19 @@
-//! The MCP server Claude Code talks to, hand-rolled: MCP over HTTP is a few
-//! JSON-RPC methods on one POST endpoint, and a library in between would be one more place for the
-//! wire shapes to drift from the ones the registered clients already speak.
-//!
-//! It depends on `rekall-service` and never on `rekall-api`: the catalog services, the controllers
-//! and the document writes are not reachable from here.
+//! The hand-rolled MCP server Claude Code talks to: JSON-RPC over one POST endpoint. A folder per
+//! domain holds its tools, `tool` the kit they share. It depends on `rekall-service` and never on
+//! `rekall-api`, so no console write is reachable from here.
 
+pub mod commit;
+pub mod context;
 pub mod controller;
+pub mod diagram;
+pub mod note;
 pub mod protocol;
+pub mod section;
+pub mod step;
+pub mod task;
 mod texts;
 pub mod tool;
+pub mod tool_registry;
+pub mod wrapup;
 
 pub use controller::{router, McpController};

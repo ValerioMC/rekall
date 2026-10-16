@@ -6,8 +6,8 @@ import { router } from '@/router'
 import { useConsoleStore } from '@/stores/console.store'
 import { mountWithHeaderChrome } from './support/mountWithHeaderChrome'
 import { TASK_DESCRIPTION_TEMPLATE } from '@/model/templates'
-import type { Company, Project, RekallDocument, Task, TaskStep, Wrapup } from '@/model/catalog'
-import type { DocumentInput } from '@/api/documents.api'
+import type { Company, Project, RekallDocument, Task, TaskStep, Wrapup } from '@/features/catalog/model/catalog'
+import type { DocumentInput } from '@/features/notes/api/documents.api'
 import type {
   CompanyId,
   DocumentId,
@@ -86,7 +86,7 @@ const createTask = vi.fn(async () => ({ ...tasks[0]!, id: 't9' as TaskId }))
 const deleteTask = vi.fn(async () => undefined)
 const updateProject = vi.fn(async () => projects[0]!)
 
-vi.mock('@/api/catalog.api', () => ({
+vi.mock('@/features/catalog/api/catalog.api', () => ({
   fetchCompanies: vi.fn(async () => companies),
   fetchProjects: vi.fn(async () => projects),
   createCompany: vi.fn(),
@@ -117,7 +117,7 @@ const createDocument = vi.fn(async (input: DocumentInput) => ({
   updatedAt: '2026-08-12T15:00:00Z'
 }))
 
-vi.mock('@/api/documents.api', () => ({
+vi.mock('@/features/notes/api/documents.api', () => ({
   fetchAllDocuments: vi.fn(async () => [shared]),
   createDocument: (...args: unknown[]) => createDocument(...(args as [DocumentInput])),
   // Answers with the saved note, as the server does: an editor's autosave lands in the store.
@@ -131,15 +131,15 @@ vi.mock('@/api/documents.api', () => ({
 }))
 
 /** The panes measure and search on their own; here they only have to not reach the network. */
-vi.mock('@/api/context.api', () => ({
+vi.mock('@/features/context/api/context.api', () => ({
   fetchContextSize: vi.fn(async () => ({ characters: 3500, estimatedTokens: 1000, parts: [] }))
 }))
 
-vi.mock('@/api/search.api', () => ({
+vi.mock('@/features/search/api/search.api', () => ({
   searchText: vi.fn(async () => [])
 }))
 
-vi.mock('@/api/claude.api', async (importOriginal) => {
+vi.mock('@/features/claude/api/claude.api', async (importOriginal) => {
   const actual = (await importOriginal()) as Record<string, unknown>
   return {
     ...actual,
@@ -152,7 +152,7 @@ vi.mock('@/api/claude.api', async (importOriginal) => {
   }
 })
 
-vi.mock('@/api/terminal.api', () => ({
+vi.mock('@/features/claude/api/terminal.api', () => ({
   fetchTerminals: vi.fn(async () => []),
   openTerminal: vi.fn(),
   closeTerminal: vi.fn()
@@ -181,7 +181,7 @@ vi.mock('@xterm/addon-fit', () => ({
   }
 }))
 
-vi.mock('@/api/wrapups.api', () => ({
+vi.mock('@/features/wrapup/api/wrapups.api', () => ({
   fetchWrapups: vi.fn(async () => [wrapup]),
   saveWrapup: (...args: unknown[]) => saveWrapup(...(args as [])),
   deleteWrapup: (...args: unknown[]) => deleteWrapup(...(args as []))
@@ -239,9 +239,9 @@ const patchStep = vi.fn(async (id: TaskStepId, patch: { done?: boolean }) => ({
 }))
 
 // The console loads the selected project's components for its [[Name]] chips.
-vi.mock('@/api/project-components.api', () => ({ fetchProjectComponents: vi.fn(async () => []) }))
+vi.mock('@/features/project/api/project-components.api', () => ({ fetchProjectComponents: vi.fn(async () => []) }))
 
-vi.mock('@/api/steps.api', () => ({
+vi.mock('@/features/steps/api/steps.api', () => ({
   fetchSteps: vi.fn(async () => steps),
   createStep: vi.fn(),
   patchStep: (...args: unknown[]) => patchStep(...(args as [TaskStepId, { done?: boolean }])),
@@ -262,7 +262,7 @@ const startTimeEntry = vi.fn(async (taskId: TaskId) => ({
   updatedAt: '2026-08-12T15:00:00Z'
 }))
 
-vi.mock('@/api/time-entries.api', () => ({
+vi.mock('@/features/time/api/time-entries.api', () => ({
   fetchTimeEntries: vi.fn(async () => []),
   startTimeEntry: (...args: unknown[]) => startTimeEntry(...(args as [TaskId])),
   stopTimeEntry: vi.fn(),
@@ -270,7 +270,7 @@ vi.mock('@/api/time-entries.api', () => ({
   deleteTimeEntry: vi.fn()
 }))
 
-vi.mock('@/api/runQueue.api', () => {
+vi.mock('@/features/queue/api/runQueue.api', () => {
   const idle = {
     state: 'IDLE',
     startAt: null,
@@ -295,14 +295,14 @@ vi.mock('@/api/runQueue.api', () => {
   }
 })
 
-vi.mock('@/api/skill-assignments.api', () => ({
+vi.mock('@/features/skills/api/skill-assignments.api', () => ({
   fetchSkillAssignments: vi.fn(async () => ({ taskSkills: [], tagSkills: [] })),
   setTaskSkills: vi.fn(),
   setStepSkills: vi.fn(),
   setTagSkills: vi.fn()
 }))
 
-vi.mock('@/api/commitReference.api', () => ({
+vi.mock('@/features/commits/api/commitReference.api', () => ({
   fetchCommitReferences: vi.fn(async () => []),
   recordLatestCommit: vi.fn(),
   fetchCommitReferenceDiff: vi.fn()

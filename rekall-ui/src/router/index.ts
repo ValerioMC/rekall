@@ -7,38 +7,38 @@ export const router = createRouter({
     {
       path: '/projects',
       name: 'projects',
-      component: () => import('@/components/catalog/ProjectListPage.vue')
+      component: () => import('@/features/catalog/components/ProjectListPage.vue')
     },
     {
       path: '/projects/:id',
       name: 'project-detail',
-      component: () => import('@/components/catalog/ProjectDetailPage.vue'),
+      component: () => import('@/features/catalog/components/ProjectDetailPage.vue'),
       props: true
     },
     {
       path: '/companies',
       name: 'companies',
-      component: () => import('@/components/catalog/CompanyListPage.vue')
+      component: () => import('@/features/catalog/components/CompanyListPage.vue')
     },
     {
       path: '/report',
       name: 'report',
-      component: () => import('@/components/report/ReportPage.vue')
+      component: () => import('@/features/time/components/ReportPage.vue')
     },
     {
       path: '/diagrams',
       name: 'diagrams',
-      component: () => import('@/components/diagram/DiagramsPage.vue')
+      component: () => import('@/features/diagram/components/DiagramsPage.vue')
     },
     {
       path: '/claude',
       name: 'claude',
-      component: () => import('@/components/claude-resources/ClaudeResourcesPage.vue')
+      component: () => import('@/features/claude-resources/components/ClaudeResourcesPage.vue')
     },
     {
       path: '/calendar',
       name: 'calendar',
-      component: () => import('@/components/calendar/CalendarPage.vue')
+      component: () => import('@/features/time/components/CalendarPage.vue')
     }
   ]
 })

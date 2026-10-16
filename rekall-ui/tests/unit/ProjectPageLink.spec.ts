@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { defineComponent } from 'vue'
-import ProjectPageLink from '@/components/console/ProjectPageLink.vue'
+import ProjectPageLink from '@/features/catalog/components/ProjectPageLink.vue'
 import type { ProjectId } from '@/model/branded'
 
 const Blank = defineComponent({ template: '<div />' })

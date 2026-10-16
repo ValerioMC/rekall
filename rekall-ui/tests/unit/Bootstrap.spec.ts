@@ -3,7 +3,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import Bootstrap from '@/Bootstrap.vue'
 import { router } from '@/router'
-import { fetchWrapups } from '@/api/wrapups.api'
+import { fetchWrapups } from '@/features/wrapup/api/wrapups.api'
 import { useConsoleStore } from '@/stores/console.store'
 
 /**
@@ -15,27 +15,27 @@ import { useConsoleStore } from '@/stores/console.store'
  */
 const fetchDatabaseStatus = vi.fn()
 
-vi.mock('@/api/settings.api', () => ({ fetchDatabaseStatus: () => fetchDatabaseStatus() }))
+vi.mock('@/features/settings/api/settings.api', () => ({ fetchDatabaseStatus: () => fetchDatabaseStatus() }))
 
-vi.mock('@/api/catalog.api', () => ({
+vi.mock('@/features/catalog/api/catalog.api', () => ({
   fetchCompanies: vi.fn(async () => []),
   fetchProjects: vi.fn(async () => []),
   fetchTasks: vi.fn(async () => []),
   fetchTags: vi.fn(async () => [])
 }))
-vi.mock('@/api/documents.api', () => ({ fetchAllDocuments: vi.fn(async () => []) }))
-vi.mock('@/api/terminal.api', () => ({ fetchTerminals: vi.fn(async () => []) }))
-vi.mock('@/api/wrapups.api', () => ({ fetchWrapups: vi.fn(async () => []) }))
-vi.mock('@/api/steps.api', () => ({ fetchSteps: vi.fn(async () => []) }))
-vi.mock('@/api/time-entries.api', () => ({ fetchTimeEntries: vi.fn(async () => []) }))
-vi.mock('@/api/skill-assignments.api', () => ({
+vi.mock('@/features/notes/api/documents.api', () => ({ fetchAllDocuments: vi.fn(async () => []) }))
+vi.mock('@/features/claude/api/terminal.api', () => ({ fetchTerminals: vi.fn(async () => []) }))
+vi.mock('@/features/wrapup/api/wrapups.api', () => ({ fetchWrapups: vi.fn(async () => []) }))
+vi.mock('@/features/steps/api/steps.api', () => ({ fetchSteps: vi.fn(async () => []) }))
+vi.mock('@/features/time/api/time-entries.api', () => ({ fetchTimeEntries: vi.fn(async () => []) }))
+vi.mock('@/features/skills/api/skill-assignments.api', () => ({
   fetchSkillAssignments: vi.fn(async () => ({ taskSkills: [], tagSkills: [] })),
   setTaskSkills: vi.fn(),
   setStepSkills: vi.fn(),
   setTagSkills: vi.fn()
 }))
 
-vi.mock('@/api/commitReference.api', () => ({
+vi.mock('@/features/commits/api/commitReference.api', () => ({
   fetchCommitReferences: vi.fn(async () => []),
   fetchCommitReferenceDiff: vi.fn()
 }))
@@ -43,10 +43,10 @@ vi.mock('@/api/commitReference.api', () => ({
 vi.mock('@/App.vue', () => ({
   default: { name: 'AppStub', template: '<div data-testid="app-stub" />' }
 }))
-vi.mock('@/components/setup/FirstRunSetup.vue', () => ({
+vi.mock('@/features/settings/components/FirstRunSetup.vue', () => ({
   default: { name: 'FirstRunSetupStub', template: '<div data-testid="first-run-stub" />' }
 }))
-vi.mock('@/components/setup/DatabaseUnreachable.vue', () => ({
+vi.mock('@/features/settings/components/DatabaseUnreachable.vue', () => ({
   default: {
     name: 'DatabaseUnreachableStub',
     props: ['status'],

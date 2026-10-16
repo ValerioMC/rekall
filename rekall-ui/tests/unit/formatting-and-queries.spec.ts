@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { compactCount, tokensOf } from '@/model/context'
-import { readableSize } from '@/model/backup'
-import { isTextQuery } from '@/model/search'
+import { compactCount, tokensOf } from '@/features/context/model/context'
+import { readableSize } from '@/features/settings/model/backup'
+import { isTextQuery } from '@/features/search/model/search'
 
 describe('the context size figures', () => {
   it('shows a count under a thousand as it is, and thousands with one decimal at most', () => {

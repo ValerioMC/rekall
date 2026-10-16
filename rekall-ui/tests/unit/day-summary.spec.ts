@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { summarizeByDay } from '@/common/calendar/day-summary'
-import type { Task, TimeEntry } from '@/model/catalog'
+import { summarizeByDay } from '@/features/time/lib/day-summary'
+import type { Task, TimeEntry } from '@/features/catalog/model/catalog'
 import type { ProjectId, TaskId } from '@/model/branded'
 
 function entry(overrides: Partial<TimeEntry>): TimeEntry {

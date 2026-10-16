@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { layoutFlow, NODE_HEIGHT, NODE_WIDTH, placeSteps } from '@/common/flow/flow-layout'
+import { layoutFlow, NODE_HEIGHT, NODE_WIDTH, placeSteps } from '@/features/flow/lib/flow-layout'
 import { flowStep, releaseFlow, route } from './flow.fixtures'
 
 describe('the flow layout', () => {

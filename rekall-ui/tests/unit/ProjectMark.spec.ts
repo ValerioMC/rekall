@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import ProjectMark from '@/components/ui/ProjectMark.vue'
-import { projectIconImageSrcset, projectIconImageUrl } from '@/common/project/icon-image-url'
+import { projectIconImageSrcset, projectIconImageUrl } from '@/features/project/lib/icon-image-url'
 
 const PROJECT = '2758126a-6182-4945-9e1d-8738907b3031'
 

@@ -4,7 +4,7 @@ import {
   claudeEffortLabel,
   claudeModelChoiceLabel,
   claudeModelLabel
-} from '@/model/claude'
+} from '@/features/claude/model/claude'
 
 describe('claudeModelLabel', () => {
   it('reads a concrete Claude Code model id as a family and version, whatever the generation', () => {

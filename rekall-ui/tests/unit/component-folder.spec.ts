@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { folderName } from '@/common/project/component-folder'
+import { folderName } from '@/features/project/lib/component-folder'
 
 describe('the name a component starts with', () => {
   it('is the last segment of the folder', () => {

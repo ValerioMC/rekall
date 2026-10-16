@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createConsoleState } from '@/stores/console/console-state'
-import { useSkillAssignments } from '@/stores/console/useSkillAssignments'
+import { useSkillAssignments } from '@/features/skills/store/useSkillAssignments'
 import type { TagId, TaskId, TaskStepId } from '@/model/branded'
 
 const api = vi.hoisted(() => ({ setTaskSkills: vi.fn(), setStepSkills: vi.fn(), setTagSkills: vi.fn() }))
-vi.mock('@/api/skill-assignments.api', () => api)
+vi.mock('@/features/skills/api/skill-assignments.api', () => api)
 
 const task = 't1' as TaskId
 const step = 's1' as TaskStepId

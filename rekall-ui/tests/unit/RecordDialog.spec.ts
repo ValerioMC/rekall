@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
-import RecordDialog from '@/components/console/RecordDialog.vue'
+import RecordDialog from '@/features/catalog/components/RecordDialog.vue'
 import { useConsoleStore } from '@/stores/console.store'
-import { companyDraft, projectDraft, taskDraft, type RecordDraft } from '@/model/record-draft'
-import type { Company, Project, Task } from '@/model/catalog'
+import { companyDraft, projectDraft, taskDraft, type RecordDraft } from '@/features/catalog/model/record-draft'
+import type { Company, Project, Task } from '@/features/catalog/model/catalog'
 import type { CompanyId, ProjectId } from '@/model/branded'
 
 /**

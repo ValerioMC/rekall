@@ -4,7 +4,7 @@ use std::time::Duration;
 use axum::extract::DefaultBodyLimit;
 use axum::http::StatusCode;
 use axum::{middleware, Router};
-use rekall_api::error::{framework, render_errors};
+use rekall_web::error::{framework, render_errors};
 use rekall_api::{ApiState, StepEventStream};
 use rekall_claude::cli::ClaudeCli;
 use rekall_claude::credentials::ClaudeCredentials;
@@ -75,7 +75,7 @@ impl Instance {
 
         let stream = Arc::new(StepEventStream::new(events.clone()));
         let api = ApiState::new(services.clone(), stream.clone(), config.user_home.clone());
-        let mcp = rekall_mcp::McpController::new(rekall_mcp::tool::all(&services));
+        let mcp = rekall_mcp::McpController::new(rekall_mcp::tool_registry::all(&services));
 
         let claude_config = &config.claude;
         let login_shell = LoginShellEnvironment::new(claude_config.shell.as_deref(), claude_config.shell_environment_timeout);
@@ -113,7 +113,7 @@ impl Instance {
         );
         let resources = ClaudeResourceService::new(claude_config.claude_home.clone());
         let skill_groups = SkillGroupService::new(ctx.clone());
-        let claude = ClaudeState { api: api.clone(), terminals: terminals.clone(), usage: usage.clone(), queue, runner: runner.clone(), resources, skill_groups };
+        let claude = ClaudeState { terminals: terminals.clone(), usage: usage.clone(), queue, runner: runner.clone(), resources, skill_groups };
 
         let location = database.path.as_deref().and_then(DatabaseLocation::of);
         let backups = DatabaseBackupService::new(

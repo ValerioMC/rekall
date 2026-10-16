@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
-import DatabaseFolderField from '@/components/setup/DatabaseFolderField.vue'
+import DatabaseFolderField from '@/features/settings/components/DatabaseFolderField.vue'
 
 /**
  * The one control every database-location flow is built on. What matters here is that the
@@ -10,7 +10,7 @@ import DatabaseFolderField from '@/components/setup/DatabaseFolderField.vue'
 const addDatabase = vi.fn()
 const checkFolder = vi.fn()
 
-vi.mock('@/api/settings.api', () => ({
+vi.mock('@/features/settings/api/settings.api', () => ({
   addDatabase: (...args: unknown[]) => addDatabase(...args),
   activateDatabase: vi.fn(),
   checkFolder: (...args: unknown[]) => checkFolder(...args)

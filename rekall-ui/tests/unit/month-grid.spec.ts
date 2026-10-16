@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { capitalised, dateKey, isSameDay, isSameMonth, monthGridDays, weekdayLabels } from '@/common/calendar/month-grid'
+import { capitalised, dateKey, isSameDay, isSameMonth, monthGridDays, weekdayLabels } from '@/features/time/lib/month-grid'
 
 describe('monthGridDays', () => {
   it('always returns six full weeks', () => {

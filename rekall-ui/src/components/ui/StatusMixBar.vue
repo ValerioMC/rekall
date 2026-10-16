@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { TASK_STATUS_LABEL, TASK_STATUS_ORDER } from '@/model/catalog'
-import type { Task, TaskStatus } from '@/model/catalog'
+import { TASK_STATUS_LABEL, TASK_STATUS_ORDER } from '@/features/catalog/model/catalog'
+import type { Task, TaskStatus } from '@/features/catalog/model/catalog'
 
 const props = withDefaults(defineProps<{ tasks: readonly Task[]; size?: 'sm' | 'md' }>(), {
   size: 'sm'

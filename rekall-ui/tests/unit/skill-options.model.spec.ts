@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { filterSkillOptions, groupSkillOptions, skillOptions } from '@/model/skill-options'
+import { filterSkillOptions, groupSkillOptions, skillOptions } from '@/features/skills/model/skill-options'
 import { summary } from './claude-resources.fixtures'
 
 const own = (name: string, description: string | null = null) =>

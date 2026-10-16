@@ -1,5 +1,5 @@
 import type { config } from 'md-editor-v3'
-import type { ProjectComponent } from '@/model/project-component'
+import type { ProjectComponent } from '@/features/project/model/project-component'
 
 type MarkdownIt = Parameters<NonNullable<Parameters<typeof config>[0]['markdownItConfig']>>[0]
 type InlineRule = Parameters<MarkdownIt['inline']['ruler']['before']>[2]

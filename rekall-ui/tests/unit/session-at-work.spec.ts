@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { sessionAtWork } from '@/model/session-at-work'
-import type { TaskStepState } from '@/model/catalog'
+import type { TaskStepState } from '@/features/catalog/model/catalog'
 import type { TaskId, TaskStepId } from '@/model/branded'
 
 const TASK = 't-1' as TaskId

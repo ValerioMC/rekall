@@ -4116,6 +4116,7 @@ dependencies = [
  "rekall-model",
  "rekall-repository",
  "rekall-service",
+ "rekall-web",
  "sea-orm",
  "serde",
  "serde_json",
@@ -4146,6 +4147,7 @@ dependencies = [
  "rekall-model",
  "rekall-repository",
  "rekall-service",
+ "rekall-web",
  "reqwest 0.12.28",
  "rust-embed",
  "sea-orm",
@@ -4177,12 +4179,12 @@ dependencies = [
  "libc",
  "portable-pty",
  "regex",
- "rekall-api",
  "rekall-common",
  "rekall-diagram",
  "rekall-model",
  "rekall-repository",
  "rekall-service",
+ "rekall-web",
  "reqwest 0.12.28",
  "sea-orm",
  "serde",
@@ -4298,6 +4300,17 @@ dependencies = [
  "serde_json",
  "tempfile",
  "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "rekall-web"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "rekall-common",
+ "serde",
+ "serde_json",
  "tracing",
 ]
 

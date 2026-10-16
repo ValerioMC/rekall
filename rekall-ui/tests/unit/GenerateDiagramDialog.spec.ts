@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
-import GenerateDiagramDialog from '@/components/diagram/dialogs/GenerateDiagramDialog.vue'
+import GenerateDiagramDialog from '@/features/diagram/components/dialogs/GenerateDiagramDialog.vue'
 import { ORION, REPORT, VEGA, project, task } from './diagram.fixtures'
-import type { GenerationRequest } from '@/stores/diagram.store'
+import type { GenerationRequest } from '@/features/diagram/store/diagram.store'
 
 function dialog(initialTaskId: typeof REPORT | null = null) {
   return mount(GenerateDiagramDialog, {

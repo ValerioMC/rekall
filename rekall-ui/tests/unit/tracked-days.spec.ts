@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { trackedLastDays } from '@/common/calendar/tracked-days'
-import type { TimeEntry } from '@/model/catalog'
+import { trackedLastDays } from '@/features/time/lib/tracked-days'
+import type { TimeEntry } from '@/features/catalog/model/catalog'
 
 const NOW = new Date(2026, 9, 9, 15, 0).getTime()
 

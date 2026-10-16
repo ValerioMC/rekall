@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readFlow, routesInto, routeTargets } from '@/common/flow/step-flow'
+import { readFlow, routesInto, routeTargets } from '@/features/flow/lib/step-flow'
 import { finishedFlow, flowStep, releaseFlow } from './flow.fixtures'
 
 describe('a checklist read as a flow', () => {

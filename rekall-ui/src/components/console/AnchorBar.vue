@@ -3,12 +3,12 @@ import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import AppButton from '@/components/ui/AppButton.vue'
 import HeaderStatus from '@/components/console/HeaderStatus.vue'
-import SearchHitList from '@/components/console/SearchHitList.vue'
+import SearchHitList from '@/features/search/components/SearchHitList.vue'
 import SettingsTrigger from '@/components/console/SettingsTrigger.vue'
 import { useConsoleStore } from '@/stores/console.store'
-import { searchText } from '@/api/search.api'
-import { isTextQuery } from '@/model/search'
-import type { SearchHit } from '@/model/search'
+import { searchText } from '@/features/search/api/search.api'
+import { isTextQuery } from '@/features/search/model/search'
+import type { SearchHit } from '@/features/search/model/search'
 
 const emit = defineEmits<{ newNote: []; openSettings: []; openTags: [] }>()
 

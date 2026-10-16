@@ -3,8 +3,8 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Json, Router};
-use rekall_api::extract::{uuid, OptionalJsonBody};
-use rekall_api::ApiResult;
+use rekall_web::extract::{uuid, OptionalJsonBody};
+use rekall_web::ApiResult;
 use rekall_common::RekallError;
 use rekall_service::claude::TerminalTarget;
 
