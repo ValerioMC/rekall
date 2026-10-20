@@ -263,6 +263,7 @@ onUnmounted(editor.flush)
             v-if="draftSteps.length"
             ref="draftsEl"
             :steps="draftSteps"
+            :task-steps="selectedTaskSteps"
             :task="selectedTask"
             :promoting="promoting"
             @promote="promote"

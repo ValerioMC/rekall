@@ -401,6 +401,7 @@ async fn the_mcp_endpoint_exposes_two_ways_to_read_and_eight_writes() {
             "rekall_diagram",
             "rekall_note",
             "rekall_project_section",
+            "rekall_propose_flow",
             "rekall_propose_step",
             "rekall_read_sections",
             "rekall_record_commit",

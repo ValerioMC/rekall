@@ -1,5 +1,5 @@
 //! Steps as a flow, end to end: routes drawn in the console, a session following them over MCP,
-//! the context it reads back, and the console's reset.
+//! the context it reads back, the console's reset, and a flow a session proposes as drafts.
 
 mod support;
 
@@ -154,4 +154,57 @@ async fn a_step_dragged_on_the_canvas_keeps_its_place_until_the_layout_is_tidied
     let tidied = app.delete(&format!("/api/tasks/{task_id}/flow-places")).await;
     assert_eq!(tidied.status, 200);
     assert!(tidied.list().iter().all(|view| view["flowX"].is_null() && view["flowY"].is_null()));
+}
+
+#[tokio::test]
+async fn a_session_proposes_a_flow_that_waits_as_routed_drafts_until_the_console_promotes_them() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
+    let task_id = app.a_task(&project_id, "release").await;
+    let steps = json!([
+        { "title": "Deploy", "detail": "helm upgrade", "routes": [{ "outcome": "deployed", "to": 2 }] },
+        { "title": "Test in the cluster", "routes": [{ "outcome": "passed", "to": "end" }, { "outcome": "App error", "to": 3 }] },
+        { "title": "Fix the application", "routes": [{ "outcome": "fixed", "to": 1 }] }
+    ]);
+
+    let answer = app.call_tool("rekall_propose_flow", json!({ "anchors": TASK, "steps": steps })).await;
+
+    assert_contains!(answer, "3 drafts joined by 4 routes");
+    let drafts = app.get(&format!("/api/tasks/{task_id}/steps")).await.list();
+    assert!(drafts.iter().all(|draft| draft["state"] == json!("DRAFT")));
+    assert_eq!(drafts[1]["links"][1]["outcome"], json!("app-error"));
+    assert_eq!(drafts[1]["links"][1]["toStepId"], drafts[2]["id"]);
+    assert_lacks!(app.call_tool("rekall_context", json!({ "anchors": TASK })).await, "flow=\"true\"", "Deploy");
+    assert_contains!(
+        app.call_tool("rekall_propose_flow", json!({ "anchors": TASK, "steps": steps })).await,
+        "onto a task with no steps"
+    );
+
+    for draft in &drafts {
+        let promoted = app.patch(&format!("/api/steps/{}", draft["id"].as_str().unwrap()), json!({ "draft": false })).await;
+        assert_eq!(promoted.status, 200, "{}", promoted.text);
+    }
+    assert_contains!(
+        app.call_tool("rekall_context", json!({ "anchors": TASK })).await,
+        "flow=\"true\"",
+        "`app-error` -> step 3 \"Fix the application\""
+    );
+}
+
+#[tokio::test]
+async fn a_proposed_flow_with_a_loop_that_never_ends_is_refused_and_nothing_lands() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
+    let task_id = app.a_task(&project_id, "release").await;
+    let steps = json!([
+        { "title": "Deploy", "routes": [{ "outcome": "deployed", "to": 2 }] },
+        { "title": "Test", "routes": [{ "outcome": "app-error", "to": 1 }] }
+    ]);
+
+    let answer = app.call_tool("rekall_propose_flow", json!({ "anchors": TASK, "steps": steps })).await;
+
+    assert_contains!(answer, "loop forever through 'Deploy', 'Test'");
+    assert!(app.get(&format!("/api/tasks/{task_id}/steps")).await.list().is_empty());
 }

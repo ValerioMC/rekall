@@ -33,7 +33,7 @@ loaded in one call, including every note the task shares with its neighbours.
 | # | Decision | Rationale |
 |---|---|---|
 | D1 | Real tables with real foreign keys | A note can never point at a deleted task. On an app whose only job is to be a reliable memory, silent dangling references are the failure mode that matters. |
-| D2 | Claude reads everything and writes a few narrow things | `rekall-mcp` depends on `rekall-service` and never on `rekall-api`, so no controller and none of the console's catalog services are on its classpath, and every read runs in a read-only transaction. The exceptions are `rekall_wrapup`, which replaces one task's wrapup; `rekall_step`, which moves a step from `open` to `running` to `claimed`, follows a flow's route on a claim, and cannot reach `done`; `rekall_record_commit`, which logs a commit against a task; `rekall_propose_step`, which can only add a draft a person has to promote; `rekall_create_task`, which can only add a `TODO` task whose steps are drafts; `rekall_note`, which can only add a new note to one task; and `rekall_project_section`, which can only add a section to a task's project or rewrite the body of one that already has that title. See §7. |
+| D2 | Claude reads everything and writes a few narrow things | `rekall-mcp` depends on `rekall-service` and never on `rekall-api`, so no controller and none of the console's catalog services are on its classpath, and every read runs in a read-only transaction. The exceptions are `rekall_wrapup`, which replaces one task's wrapup; `rekall_step`, which moves a step from `open` to `running` to `claimed`, follows a flow's route on a claim, and cannot reach `done`; `rekall_record_commit`, which logs a commit against a task; `rekall_propose_step`, which can only add a draft a person has to promote; `rekall_propose_flow`, which can only lay drafts and the routes between them onto a task with no steps; `rekall_create_task`, which can only add a `TODO` task whose steps are drafts; `rekall_note`, which can only add a new note to one task; and `rekall_project_section`, which can only add a section to a task's project or rewrite the body of one that already has that title. See §7. |
 | D3 | Markdown content lives in the database | One backup target, reachable through MCP, searchable. |
 | D4 | One entry point, and it is a slash command | A session begins with `/rk project:vega task:report-builder`, not with a question. Reaching a record through a natural-language query costs several turns and a few thousand tokens before any work starts, and it is the part that fails when the model guesses the wrong entity. An explicit anchor removes both. |
 | D5 | The model is fixed at compile time | There is no runtime meta-model and no DDL engine. Company, project, task and document are fixed SeaORM entities; adding a new kind of record is a model and a migration, not a screen. |
@@ -333,7 +333,8 @@ the task, closed with the outcome it left by. The visit left open is where the f
 |---|---|
 | Routes on the steps, not a second kind of record | A flow is the checklist with its order made explicit. Every rule of §4.2 still holds per step (draft, claim, a person's tick), so a flow needs no new state line and a task can become one by drawing a single route |
 | The outcome is a slug, unique per step it leaves | The session names it and the console shows it, so both read `app-error`. One outcome naming two routes would leave the session unable to say which it took. `step_link::normalise_outcome` folds what was typed the way `Slug.of` folds a label |
-| A claim follows the route; a person draws it | `FlowService::transition` is the only move that routes, and it runs inside the claim's transaction: refused routing rolls the claim back. Routes are written by `StepLinkService` for the console alone; `rekall-mcp` reads them in the context and follows them, never edits them |
+| A claim follows the route; a person draws it | `FlowService::transition` is the only move that routes, and it runs inside the claim's transaction: refused routing rolls the claim back. Routes are written by `StepLinkService`: the console draws them on any step, and a session can only propose them between drafts (`propose_in`, refusing a released step at either end). `rekall-mcp` reads released routes in the context and follows them, never edits one |
+| A flow is planned whole, as drafts | `rekall_propose_flow` hands `FlowProposalService` a `FlowPlan` (drafts in order, routes by position or to End), and `FlowPlan::check` refuses it before anything is written when a step is unreachable from the first, a loop has no way out to End, a step routes to itself, an outcome repeats on a step or a step has more than eight routes. It lands only on a task with no steps, because Start leads to the first step and unrouted steps already there would end the flow. Routes leaving a draft do not make a flow: `StepLinkService::is_flow_in`, the context and `readFlow` count released steps only, and the shelf names each draft's routes (`StepDraftRow`) for review before promotion |
 | Arriving reopens finished work | A route back to a claimed or done step means another pass, so `TaskStepService::reopen_for_route_in` returns it to `OPEN`. That is the one way a session's move can undo a tick, and only along a route a person drew. A route into a draft is refused when the flow reaches it |
 | One open visit per task | Entering a step leaves the current one without an outcome (`StepVisitService::enter_in`), so "where the work stands" is one row, never a guess between two. A claim on a step never started enters it first, so every pass is counted |
 | Visits travel on the step views | `TaskStepView` carries its routes and visits, so the `steps` frame and `/api/steps` already redraw the graph live and the console derives the trail, the counts and the current step itself (`common/flow/step-flow.ts`) |
@@ -437,6 +438,10 @@ No commit message lists files.
 A draft is not work: it stays off the checklist a session reads until a person promotes it, a
 title the task already has is refused so a second plan does not double the shelf, and a task
 holds at most twenty drafts.
+
+`rekall_propose_flow` is the same gate for a task whose work branches or loops: `/rk … plan` calls it
+once, with every step and its routes, when a step's outcome decides what comes next. The plan is
+checked whole and written in one transaction, so a refused plan leaves nothing on the shelf (§4.3).
 
 `rekall_create_task` creates a task in the project its anchor names, with an optional description and
 up to twenty steps, in one transaction. `TaskAuthoringService` in rekall-service is its only path: the
@@ -554,7 +559,9 @@ renamed or deleted, no note touched. `TaskStepService.transition` takes a task, 
 target state, and refuses `DONE` and any step a person has already accepted; it cannot add,
 reorder or remove a step, and the console's `edit` is still the only path to `DONE`.
 `TaskStepService.propose` can only append a draft, which no session reads until a person promotes
-it. `NoteService` (rekall-service) can only create a note and attach it to the one task it was
+it. `FlowProposalService.propose` can only lay drafts onto a task with no steps, and the routes it
+asks `StepLinkService.propose_in` for are refused unless both ends are drafts, so no released
+step's routes change. `NoteService` (rekall-service) can only create a note and attach it to the one task it was
 written for: it never loads a note by id, so it cannot edit, detach or delete one, and
 `DocumentService`, which can, stays in `rekall-api`. `CommitReferenceService` and `AutoCommitService` log and make commits in the project's own
 folder. Every read runs in a

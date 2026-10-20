@@ -6,6 +6,8 @@ import StepDraftRow from './StepDraftRow.vue'
 /** The staging shelf under the checklist: steps still being worded, not yet on the list. */
 defineProps<{
   steps: readonly TaskStep[]
+  /** Every step of the task, drafts included: what a draft's routes are named against. */
+  taskSteps: readonly TaskStep[]
   task: Task
   promoting: TaskStepId | null
 }>()
@@ -32,6 +34,7 @@ defineEmits<{
         :key="step.id"
         :step="step"
         :task="task"
+        :task-steps="taskSteps"
         :is-first="index === 0"
         :is-last="index === steps.length - 1"
         :promoting="promoting === step.id"

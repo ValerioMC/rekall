@@ -1,7 +1,7 @@
 ---
 description: Load a Rekall working context by anchor, e.g. /rk project:vega task:report-builder
-argument-hint: "company:|project:|task: <label> ...  [wrapup [\"how to write it\"]] | [note \"what to keep\"] | [section \"Title\" [\"what it holds\"]] | [plan] | [generate [kinds:sequence,state] \"what to diagram\"] | [step:N start|done [outcome:<name>]]   (labels, not titles)"
-allowed-tools: mcp__rekall__rekall_context, mcp__rekall__rekall_wrapup, mcp__rekall__rekall_step, mcp__rekall__rekall_propose_step, mcp__rekall__rekall_record_commit, mcp__rekall__rekall_note, mcp__rekall__rekall_project_section, mcp__rekall__rekall_diagram, Read, Grep, Glob
+argument-hint: "company:|project:|task: <label> ...  [wrapup [\"how to write it\"]] | [note \"what to keep\"] | [section \"Title\" [\"what it holds\"]] | [plan [flow]] | [generate [kinds:sequence,state] \"what to diagram\"] | [step:N start|done [outcome:<name>]]   (labels, not titles)"
+allowed-tools: mcp__rekall__rekall_context, mcp__rekall__rekall_wrapup, mcp__rekall__rekall_step, mcp__rekall__rekall_propose_step, mcp__rekall__rekall_propose_flow, mcp__rekall__rekall_record_commit, mcp__rekall__rekall_note, mcp__rekall__rekall_project_section, mcp__rekall__rekall_diagram, Read, Grep, Glob
 ---
 
 The arguments are:
@@ -221,18 +221,29 @@ renames, reorders or deletes a section, and writing one does not claim the task 
 
 `/rk project:vega task:report-builder plan` means: turn the task into a checklist I can review.
 
-1. Drop the `plan` term and call `rekall_context` with the anchors that are left.
+1. Drop the `plan` term, and `flow` after it, and call `rekall_context` with the anchors that are left.
 2. Read what it gives you: the description says what the work is for and what it has to satisfy,
    the wrapup what already exists, the done steps what is finished. Then read the code the task
    touches, enough to know where each piece will go.
-3. Call `rekall_propose_step` once per step, in the order the work should be done. A title says
-   what the step delivers; the detail says what to build, where, what it must satisfy and how I can
-   tell it is done, enough for a session that never saw this one to do it alone. Propose only what
-   is still missing, and nothing the description rules out.
-4. Stop. Say in a few lines how many drafts you proposed and anything you left out on purpose.
-   Build nothing: the drafts are not work until I promote them in the console.
+3. Decide whether the work is a checklist or a flow. It is a flow when a step's outcome decides
+   what comes next: tests that can fail and send the work to a fix, a deploy that can break, a
+   review that can reject. Work that only goes from one step to the next is a checklist, however
+   long. The bare word `flow` after `plan` (`/rk ... plan flow`) asks for a flow outright.
+4. For a checklist, call `rekall_propose_step` once per step, in the order the work should be done.
+   For a flow, call `rekall_propose_flow` once with every step in order, the first where it begins,
+   and each step's routes: `{"outcome": "app-error", "to": 3}`, or `"to": "end"`. Name outcomes for
+   what happened (`passed`, `app-error`), give a step that simply leads on one route to the next,
+   leave the steps that finish the work without routes, and give every loop a way out. Either way, a
+   title says what the step delivers; the detail says what to build, where, what it must satisfy
+   and how I can tell it is done, enough for a session that never saw this one to do it alone.
+   Propose only what is still missing, and nothing the description rules out.
+5. Stop. Say in a few lines how many drafts (and, for a flow, routes) you proposed and anything
+   you left out on purpose. Build nothing: the drafts are not work until I promote them in the
+   console.
 
-A title the task already has is refused, so a second `plan` adds only what the first one missed.
+A title the task already has is refused, so a second `plan` adds only what the first one missed. A
+flow is proposed only onto a task with no steps; on one that has some, plan a checklist and say the
+routes are mine to draw.
 
 ## Generating
 

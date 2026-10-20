@@ -8,6 +8,7 @@ pub struct Services {
     pub task_authoring: task::TaskAuthoringService,
     pub step_links: flow::StepLinkService,
     pub flow: flow::FlowService,
+    pub flow_proposals: flow::FlowProposalService,
     pub review: review::TaskReviewService,
     pub revisions: revision::TaskRevisionService,
     pub wrapups: wrapup::WrapupService,
@@ -37,11 +38,13 @@ impl Services {
         let steps = step::TaskStepService::new(ctx.clone(), time_entries.clone());
         let step_links = flow::StepLinkService::new(ctx.clone(), steps.clone());
         let flow = flow::FlowService::new(ctx.clone(), steps.clone(), step_links.clone(), flow::StepVisitService::new(ctx.clone()));
+        let flow_proposals = flow::FlowProposalService::new(ctx.clone(), steps.clone(), step_links.clone());
         Self {
             task_authoring: task::TaskAuthoringService::new(ctx.clone(), steps.clone()),
             steps,
             step_links,
             flow,
+            flow_proposals,
             wrapups: wrapup::WrapupService::new(ctx.clone(), review.clone(), revisions.clone()),
             notes: note::NoteService::new(ctx.clone()),
             diagrams: diagram::DiagramService::new(ctx.clone()),

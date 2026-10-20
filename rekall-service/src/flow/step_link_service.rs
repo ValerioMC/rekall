@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use rekall_common::{Id, RekallError, Result};
 use rekall_model::step_link::{self, ROUTES_PER_STEP_MAX};
 use rekall_model::task_step;
@@ -6,10 +8,10 @@ use sea_orm::{ActiveModelTrait, IntoActiveModel};
 
 use super::RouteTarget;
 use crate::step::{TaskStepService, TaskStepView};
-use crate::{in_write, Ctx, Tx};
+use crate::{in_write, load, Ctx, Tx};
 
-/// The routes between a task's steps. Written from the console only; a session reads them in the
-/// context and follows them through `FlowService`, never edits them.
+/// The routes between a task's steps. Written from the console; a session follows them through
+/// `FlowService` and can only propose new ones between drafts, through `FlowProposalService`.
 #[derive(Clone)]
 pub struct StepLinkService {
     ctx: Ctx,
@@ -26,21 +28,22 @@ impl StepLinkService {
     pub async fn add(&self, from_step_id: Id, target: RouteTarget, outcome: Option<&str>) -> Result<Vec<TaskStepView>> {
         in_write!(&self.ctx, |tx| {
             let from = repo::task_step::require(tx.db(), from_step_id).await?;
-            let to_step_id = self.target_step(&tx, &from, target).await?;
-            let outcome = step_link::normalise_outcome(outcome)?;
-            let outgoing = repo::step_link::list_from(tx.db(), from.id).await?;
-            if outgoing.len() >= ROUTES_PER_STEP_MAX {
-                return Err(RekallError::illegal(format!(
-                    "'{}' already has {ROUTES_PER_STEP_MAX} routes out, the most one step can decide between. Split it.",
-                    from.title
-                )));
-            }
-            refuse_taken_outcome(&from, &outgoing, &outcome, None)?;
-            let link = step_link::Model::new(from.task_id, from.id, to_step_id, outcome, outgoing.len() as i32, self.ctx.now());
-            link.validate()?;
-            link.into_active_model().insert(tx.db()).await?;
+            let to = self.target_step(&tx, &from, target).await?;
+            self.insert_in(&tx, &from, to.map(|to| to.id), outcome).await?;
             self.answer(&mut tx, from.task_id).await
         })
+    }
+
+    /// A route a planning session proposes. Both ends must be drafts: a step a person released is
+    /// routed from the console alone. The caller publishes once the whole plan is in.
+    pub async fn propose_in(&self, tx: &Tx, from_step_id: Id, target: RouteTarget, outcome: &str) -> Result<()> {
+        let from = repo::task_step::require(tx.db(), from_step_id).await?;
+        let to = self.target_step(tx, &from, target).await?;
+        refuse_released(&from)?;
+        if let Some(to) = &to {
+            refuse_released(to)?;
+        }
+        self.insert_in(tx, &from, to.map(|to| to.id), Some(outcome)).await
     }
 
     /// Points a route at another step or the end, renames its outcome, or both.
@@ -50,7 +53,7 @@ impl StepLinkService {
             let mut link = before.clone();
             if let Some(target) = target {
                 let from = repo::task_step::require(tx.db(), before.from_step_id).await?;
-                link.to_step_id = self.target_step(&tx, &from, target).await?;
+                link.to_step_id = self.target_step(&tx, &from, target).await?.map(|to| to.id);
             }
             if outcome.is_some() {
                 link.outcome = step_link::normalise_outcome(outcome)?;
@@ -76,13 +79,37 @@ impl StepLinkService {
         repo::step_link::list_from(tx.db(), step_id).await
     }
 
-    /// Whether any of the task's steps carries a route, which is what makes its checklist a flow.
+    /// Whether a step a person released carries a route, which is what makes its checklist a flow.
+    /// Routes a plan proposed between drafts count only once those drafts are promoted.
     pub async fn is_flow_in(&self, tx: &Tx, task_id: Id) -> Result<bool> {
-        Ok(!repo::step_link::list_of_task(tx.db(), task_id).await?.is_empty())
+        let links = repo::step_link::list_of_task(tx.db(), task_id).await?;
+        if links.is_empty() {
+            return Ok(false);
+        }
+        let released: HashSet<Id> =
+            load::steps_of(tx.db(), task_id).await?.into_iter().filter(|step| !step.state.draft()).map(|step| step.id).collect();
+        Ok(links.iter().any(|link| released.contains(&link.from_step_id)))
     }
 
-    /// The step id a route stores for `target`: the step must be on the same task as `from`.
-    async fn target_step(&self, tx: &Tx, from: &task_step::Model, target: RouteTarget) -> Result<Option<Id>> {
+    /// One more route out of `from`, within the per-step cap and under a free outcome.
+    async fn insert_in(&self, tx: &Tx, from: &task_step::Model, to_step_id: Option<Id>, outcome: Option<&str>) -> Result<()> {
+        let outcome = step_link::normalise_outcome(outcome)?;
+        let outgoing = repo::step_link::list_from(tx.db(), from.id).await?;
+        if outgoing.len() >= ROUTES_PER_STEP_MAX {
+            return Err(RekallError::illegal(format!(
+                "'{}' already has {ROUTES_PER_STEP_MAX} routes out, the most one step can decide between. Split it.",
+                from.title
+            )));
+        }
+        refuse_taken_outcome(from, &outgoing, &outcome, None)?;
+        let link = step_link::Model::new(from.task_id, from.id, to_step_id, outcome, outgoing.len() as i32, self.ctx.now());
+        link.validate()?;
+        link.into_active_model().insert(tx.db()).await?;
+        Ok(())
+    }
+
+    /// The step `target` names, which must be on the same task as `from`; `None` for the end.
+    async fn target_step(&self, tx: &Tx, from: &task_step::Model, target: RouteTarget) -> Result<Option<task_step::Model>> {
         let Some(to_step_id) = target.step_id() else {
             return Ok(None);
         };
@@ -93,13 +120,24 @@ impl StepLinkService {
                 from.title, to.title
             )));
         }
-        Ok(Some(to.id))
+        Ok(Some(to))
     }
 
     async fn answer(&self, tx: &mut Tx, task_id: Id) -> Result<Vec<TaskStepView>> {
         self.steps.publish_in(tx, task_id).await?;
         self.steps.find_by_task_in(tx, task_id).await
     }
+}
+
+/// A session routes only drafts; a released step's routes are a person's call in the console.
+fn refuse_released(step: &task_step::Model) -> Result<()> {
+    if step.state.draft() {
+        return Ok(());
+    }
+    Err(RekallError::illegal(format!(
+        "'{}' is on the checklist already. A session proposes routes between drafts only; route it in the console.",
+        step.title
+    )))
 }
 
 /// One outcome names one route out of a step, or a session could not say which it took.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { readFlow, routesInto, routeTargets } from '@/features/flow/lib/step-flow'
-import { finishedFlow, flowStep, releaseFlow } from './flow.fixtures'
+import { readFlow, routeDestination, routesInto, routeTargets } from '@/features/flow/lib/step-flow'
+import { finishedFlow, flowStep, releaseFlow, route } from './flow.fixtures'
 
 describe('a checklist read as a flow', () => {
   it('stands on the step with the open visit and lists every move in order', () => {
@@ -66,5 +66,15 @@ describe('a checklist read as a flow', () => {
     expect(routeTargets(ship, steps).map(({ link, target }) => `${link.outcome}->${target}`)).toEqual([
       'shipped->null'
     ])
+  })
+})
+
+describe('where a route leads, in words', () => {
+  it('names the step by its title, the end as end, and a step no longer there as gone', () => {
+    const steps = [flowStep('test', 0, 'DRAFT'), flowStep('fix', 1, 'DRAFT')]
+
+    expect(routeDestination(route('test', 'fix', 'app-error'), steps)).toBe('Fix')
+    expect(routeDestination(route('test', null, 'passed'), steps)).toBe('end')
+    expect(routeDestination(route('test', 'deploy', 'deployed'), steps)).toBe('a step that is gone')
   })
 })

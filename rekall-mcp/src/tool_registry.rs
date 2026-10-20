@@ -7,6 +7,7 @@ use crate::protocol::McpTool;
 use crate::commit::CommitReferenceTool;
 use crate::context::ContextTool;
 use crate::diagram::DiagramTool;
+use crate::flow::FlowProposalTool;
 use crate::note::NoteTool;
 use crate::section::{ProjectSectionTool, SectionReadTool};
 use crate::step::{StepProposalTool, StepStateTool};
@@ -21,6 +22,7 @@ pub fn all(services: &Services) -> Vec<Arc<dyn McpTool>> {
         Arc::new(TaskCreationTool::new(services.task_authoring.clone())),
         Arc::new(NoteTool::new(services.notes.clone())),
         Arc::new(StepProposalTool::new(services.steps.clone())),
+        Arc::new(FlowProposalTool::new(services.flow_proposals.clone())),
         Arc::new(StepStateTool::new(services.auto_commit.clone(), services.steps.clone(), services.flow.clone())),
         Arc::new(WrapupTool::new(services.auto_commit.clone(), services.wrapups.clone())),
         Arc::new(DiagramTool::new(services.diagrams.clone())),

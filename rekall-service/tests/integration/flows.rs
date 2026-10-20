@@ -1,10 +1,10 @@
 //! Steps as a flow against a real database: routes set from the console, a session moving
-//! through them, and the visits that record where it went.
+//! through them, the visits that record where it went, and a flow a session proposes as drafts.
 
 mod support;
 
 use rekall_model::{task, task_step, TaskStepState};
-use rekall_service::flow::{FlowRoute, RouteTarget};
+use rekall_service::flow::{FlowPlan, FlowRoute, PlannedRoute, PlannedStep, RouteTarget};
 use rekall_service::step::FlowPlace;
 use rekall_service::step::TaskStepView;
 use support::{world, World};
@@ -234,6 +234,97 @@ async fn a_dragged_step_keeps_its_place_until_the_layout_is_cleared() {
 
     let cleared = world.services.steps.clear_flow_places(pipeline.task.id).await.unwrap();
     assert_eq!((view(&cleared, &pipeline.test).flow_x, view(&cleared, &pipeline.test).flow_y), (None, None));
+}
+
+// --- A flow a session proposes
+
+fn planned(title: &str, routes: &[(&str, Option<usize>)]) -> PlannedStep {
+    PlannedStep {
+        title: title.into(),
+        detail: Some(format!("What {title} does.")),
+        routes: routes.iter().map(|(outcome, to)| PlannedRoute { outcome: (*outcome).into(), to: *to }).collect(),
+    }
+}
+
+/// Deploy, test; a failed test goes to a fix that goes back to deploy, a pass ends the flow.
+fn deploy_test_fix() -> FlowPlan {
+    FlowPlan::new(vec![
+        planned("Deploy", &[("deployed", Some(1))]),
+        planned("Test", &[("passed", None), ("app-error", Some(2))]),
+        planned("Fix", &[("fixed", Some(0))]),
+    ])
+}
+
+async fn promote_all(world: &World, task: &task::Model) {
+    for step in world.services.steps.find_by_task(task.id).await.unwrap() {
+        world.services.steps.edit(step.id, None, None, None, Some(false)).await.unwrap();
+    }
+}
+
+#[tokio::test]
+async fn a_proposed_flow_lands_as_drafts_joined_by_their_routes_and_runs_once_promoted() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let task = world.task(&project, "release").await;
+
+    let proposed = world.services.flow_proposals.propose(Some("vega"), "release", &deploy_test_fix()).await.unwrap();
+
+    assert_eq!((proposed.steps, proposed.routes), (3, 4));
+    let drafts = world.services.steps.find_by_task(task.id).await.unwrap();
+    assert!(drafts.iter().all(|step| step.state == TaskStepState::Draft));
+    let fix = drafts.iter().find(|step| step.title == "Fix").unwrap();
+    assert_eq!(fix.links[0].to_step_id, Some(drafts[0].id), "the fix routes back to deploy");
+    assert_eq!(fix.body_markdown.as_deref(), Some("What Fix does."));
+
+    promote_all(&world, &task).await;
+    world.services.flow.transition(Some("vega"), "release", Some("Deploy"), TaskStepState::Claimed, None).await.unwrap();
+    let failed =
+        world.services.flow.transition(Some("vega"), "release", Some("Test"), TaskStepState::Claimed, Some("app-error")).await.unwrap();
+    let Some(FlowRoute::Followed { next, .. }) = failed.route else { panic!("expected the app-error route") };
+    assert_eq!(next.title, "Fix");
+}
+
+#[tokio::test]
+async fn routes_between_drafts_do_not_make_the_checklist_a_flow_until_they_are_promoted() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let task = world.task(&project, "release").await;
+    world.services.flow_proposals.propose(Some("vega"), "release", &deploy_test_fix()).await.unwrap();
+    world.step(&task, "Write the notes", 3, TaskStepState::Open).await;
+
+    let refused =
+        world.services.flow.transition(Some("vega"), "release", Some("Write the notes"), TaskStepState::Claimed, Some("done")).await;
+
+    assert!(refused.unwrap_err().to_string().contains("carry no routes"));
+}
+
+#[tokio::test]
+async fn a_flow_is_not_proposed_onto_a_task_that_has_steps_and_nothing_is_written() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let task = world.task(&project, "release").await;
+    world.step(&task, "Build", 0, TaskStepState::Open).await;
+
+    let refused = world.services.flow_proposals.propose(Some("vega"), "release", &deploy_test_fix()).await;
+
+    assert!(refused.unwrap_err().to_string().contains("onto a task with no steps"));
+    assert_eq!(world.services.steps.find_by_task(task.id).await.unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn a_session_proposes_routes_between_drafts_only() {
+    let world = world().await;
+    let pipeline = pipeline(&world).await;
+    let draft = world.step(&pipeline.task, "Draft", 5, TaskStepState::Draft).await;
+    let tx = rekall_service::Tx::write(&world.services.ctx).await.unwrap();
+
+    let from_released = world.services.step_links.propose_in(&tx, pipeline.test.id, RouteTarget::Step(draft.id), "next").await;
+    let into_released = world.services.step_links.propose_in(&tx, draft.id, RouteTarget::Step(pipeline.test.id), "next").await;
+
+    assert!(from_released.unwrap_err().to_string().contains("between drafts only"));
+    assert!(into_released.unwrap_err().to_string().contains("between drafts only"));
+    world.services.step_links.propose_in(&tx, draft.id, RouteTarget::End, "done").await.unwrap();
+    tx.rollback().await.unwrap();
 }
 
 #[test]

@@ -58,6 +58,12 @@ export function routeTargets(
   }))
 }
 
+/** Where a route leads, in words: the step's title, or the end of the flow. */
+export function routeDestination(link: StepLink, steps: readonly TaskStep[]): string {
+  if (link.toStepId === null) return 'end'
+  return steps.find((candidate) => candidate.id === link.toStepId)?.title ?? 'a step that is gone'
+}
+
 /** Routes arriving at `step`, with the step each one leaves from. */
 export function routesInto(
   step: TaskStep,

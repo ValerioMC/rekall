@@ -4,15 +4,20 @@ import StepSeal from '@/features/steps/components/StepSeal.vue'
 import SkillMark from '@/features/skills/components/SkillMark.vue'
 import { useStepEditor } from '@/features/steps/composables/useStepEditor'
 import { useStepSkills } from '@/features/skills/composables/useStepSkills'
+import { routeDestination } from '@/features/flow/lib/step-flow'
 import type { Task, TaskStep } from '@/features/catalog/model/catalog'
 import StepDetailEditor from './StepDetailEditor.vue'
 import StepRowControls from './StepRowControls.vue'
 import StepSkillsField from './StepSkillsField.vue'
 
-/** One draft on the shelf below the checklist: still being worded, promoted when it is ready. */
+/**
+ * One draft on the shelf below the checklist: still being worded, promoted when it is ready. A
+ * draft from a proposed flow shows its routes, named against `taskSteps`, so they are reviewed too.
+ */
 const props = defineProps<{
   step: TaskStep
   task: Task
+  taskSteps: readonly TaskStep[]
   isFirst: boolean
   isLast: boolean
   promoting: boolean
@@ -52,6 +57,17 @@ const { effective: skills } = useStepSkills(toRef(props, 'step'), toRef(props, '
             </span>
             <span v-else class="text-text-subtle">no detail yet</span>
             <SkillMark :skills="skills" />
+          </span>
+          <span
+            v-if="step.links.length"
+            class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-micro text-text-subtle"
+            data-testid="draft-routes"
+          >
+            <span v-for="link in step.links" :key="link.id" class="inline-flex min-w-0 items-center gap-1">
+              <span class="font-mono text-text-muted">{{ link.outcome }}</span>
+              <span aria-hidden="true">→</span>
+              <span class="truncate">{{ routeDestination(link, taskSteps) }}</span>
+            </span>
           </span>
         </button>
 

@@ -6,6 +6,7 @@ pub mod commit;
 pub mod context;
 pub mod controller;
 pub mod diagram;
+pub mod flow;
 pub mod note;
 pub mod protocol;
 pub mod section;
