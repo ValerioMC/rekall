@@ -49,19 +49,30 @@ describe('the diagram store', () => {
     terminals.openForTask = vi.fn().mockResolvedValue(opened('term-t'))
     const store = useDiagramStore()
 
-    await store.generate({ projectId: VEGA, taskId: null, request: 'checkout', kinds: ['sequence'] })
+    await store.generate({ projectId: VEGA, taskId: null, request: 'checkout', kinds: ['sequence'], walkthrough: false })
     expect(terminals.openForProject).toHaveBeenCalledWith(VEGA, expect.objectContaining({ mode: 'GENERATE', request: 'checkout', kinds: ['sequence'] }))
 
-    await store.generate({ projectId: VEGA, taskId: REPORT, request: 'report', kinds: ['state'] })
+    await store.generate({ projectId: VEGA, taskId: REPORT, request: 'report', kinds: ['state'], walkthrough: false })
     expect(terminals.openForTask).toHaveBeenCalledWith(REPORT, expect.objectContaining({ kinds: ['state'] }))
     expect(store.pending.map((generation) => generation.terminalId)).toEqual(['term-t', 'term-p'])
+  })
+
+  it('asks for a walkthrough with the explain mode and no kinds', async () => {
+    const terminals = useTerminalStore()
+    terminals.openForProject = vi.fn().mockResolvedValue(opened('term-e'))
+    const store = useDiagramStore()
+
+    const started = await store.generate({ projectId: VEGA, taskId: null, request: 'checkout', kinds: ['sequence'], walkthrough: true })
+
+    expect(terminals.openForProject).toHaveBeenCalledWith(VEGA, expect.objectContaining({ mode: 'EXPLAIN', request: 'checkout', kinds: [] }))
+    expect(started.walkthrough).toBe(true)
   })
 
   it('a diagram arriving for a pending generation answers it and is marked as arrived', async () => {
     const terminals = useTerminalStore()
     terminals.openForProject = vi.fn().mockResolvedValue(opened('term-p'))
     const store = useDiagramStore()
-    await store.generate({ projectId: VEGA, taskId: null, request: 'checkout', kinds: ['sequence'] })
+    await store.generate({ projectId: VEGA, taskId: null, request: 'checkout', kinds: ['sequence'], walkthrough: false })
 
     await store.applyEvent({ diagramId: 'd9' as DiagramId, diagram: summary('d9', VEGA), deleted: false })
 
@@ -74,7 +85,7 @@ describe('the diagram store', () => {
     const terminals = useTerminalStore()
     terminals.openForTask = vi.fn().mockResolvedValue(opened('term-t'))
     const store = useDiagramStore()
-    await store.generate({ projectId: VEGA, taskId: REPORT, request: 'report', kinds: ['state'] })
+    await store.generate({ projectId: VEGA, taskId: REPORT, request: 'report', kinds: ['state'], walkthrough: false })
     api.fetchDiagrams.mockResolvedValue([summary('d9', VEGA, REPORT)])
 
     await store.load()
@@ -88,7 +99,7 @@ describe('the diagram store', () => {
     const terminals = useTerminalStore()
     terminals.openForProject = vi.fn().mockResolvedValue(opened('term-p'))
     const store = useDiagramStore()
-    await store.generate({ projectId: VEGA, taskId: null, request: 'checkout', kinds: ['sequence'] })
+    await store.generate({ projectId: VEGA, taskId: null, request: 'checkout', kinds: ['sequence'], walkthrough: false })
     api.fetchDiagrams.mockResolvedValue([summary('d1', VEGA)])
 
     await store.load()
@@ -101,7 +112,7 @@ describe('the diagram store', () => {
     const terminals = useTerminalStore()
     terminals.openForProject = vi.fn().mockResolvedValue(opened('term-p'))
     const store = useDiagramStore()
-    await store.generate({ projectId: VEGA, taskId: null, request: 'checkout', kinds: ['sequence'] })
+    await store.generate({ projectId: VEGA, taskId: null, request: 'checkout', kinds: ['sequence'], walkthrough: false })
 
     await store.applyEvent({ diagramId: 'd9' as DiagramId, diagram: summary('d9', VEGA, REPORT), deleted: false })
 

@@ -1,4 +1,5 @@
 use rekall_service::flow::{PlannedRoute, PlannedStep};
+use rekall_service::step::VisitBudget;
 use serde_json::json;
 
 use super::plan_of;
@@ -7,7 +8,7 @@ use super::plan_of;
 fn routes_name_a_step_by_its_number_or_the_end() {
     let steps = json!([
         { "title": "Test", "detail": "Run them", "routes": [{ "outcome": "passed", "to": "end" }, { "outcome": "app-error", "to": 2 }] },
-        { "title": "Fix", "routes": [{ "outcome": "fixed", "to": "1" }] }
+        { "title": "Fix", "max_visits": 3, "routes": [{ "outcome": "fixed", "to": "1" }] }
     ]);
 
     let plan = plan_of(Some(&steps)).unwrap();
@@ -22,8 +23,14 @@ fn routes_name_a_step_by_its_number_or_the_end() {
                     PlannedRoute { outcome: "passed".into(), to: None },
                     PlannedRoute { outcome: "app-error".into(), to: Some(1) },
                 ],
+                max_visits: None,
             },
-            PlannedStep { title: "Fix".into(), detail: None, routes: vec![PlannedRoute { outcome: "fixed".into(), to: Some(0) }] },
+            PlannedStep {
+                title: "Fix".into(),
+                detail: None,
+                routes: vec![PlannedRoute { outcome: "fixed".into(), to: Some(0) }],
+                max_visits: Some(VisitBudget::new(3).unwrap()),
+            },
         ]
     );
 }
@@ -47,4 +54,11 @@ fn a_target_that_is_neither_a_number_nor_end_is_refused() {
 #[test]
 fn missing_steps_are_refused() {
     assert!(plan_of(None).is_err());
+}
+
+#[test]
+fn a_visit_budget_outside_its_range_is_refused() {
+    let steps = json!([{ "title": "Fix", "max_visits": 0, "routes": [{ "outcome": "fixed", "to": "end" }] }]);
+
+    assert!(format!("{:?}", plan_of(Some(&steps)).unwrap_err()).contains("runs from 1"));
 }

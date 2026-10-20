@@ -30,6 +30,8 @@ pub struct Model {
     /// Where the person dragged the step on the flow canvas; `None` leaves it to the automatic layout.
     pub flow_x: Option<i32>,
     pub flow_y: Option<i32>,
+    /// How many times a flow may enter the step; `None` sets no limit.
+    pub max_visits: Option<i32>,
     pub created_at: Instant,
     pub updated_at: Instant,
 }
@@ -69,9 +71,15 @@ impl Model {
             passes_json: "[]".to_string(),
             flow_x: None,
             flow_y: None,
+            max_visits: None,
             created_at: now,
             updated_at: now,
         }
+    }
+
+    /// Whether the flow may enter the step again after `entered` visits.
+    pub fn admits_visit(&self, entered: usize) -> bool {
+        self.max_visits.is_none_or(|max| entered < max as usize)
     }
 
     pub fn is_done(&self) -> bool {

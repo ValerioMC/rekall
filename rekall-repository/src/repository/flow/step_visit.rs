@@ -1,6 +1,6 @@
 use rekall_common::{Id, RekallError};
 use rekall_model::step_visit::{Column, Entity, Model};
-use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QueryOrder};
+use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder};
 
 /// A task's visits in the order the flow made them.
 pub async fn list_of_task(db: &impl ConnectionTrait, task_id: Id) -> Result<Vec<Model>, RekallError> {
@@ -19,6 +19,11 @@ pub async fn find_open(db: &impl ConnectionTrait, task_id: Id) -> Result<Option<
         .order_by_desc(Column::Ordinal)
         .one(db)
         .await?)
+}
+
+/// How many times the flow has entered one step, the open visit included.
+pub async fn count_of_step(db: &impl ConnectionTrait, step_id: Id) -> Result<u64, RekallError> {
+    Ok(Entity::find().filter(Column::StepId.eq(step_id)).count(db).await?)
 }
 
 /// The highest move number the task has used, zero before its first.

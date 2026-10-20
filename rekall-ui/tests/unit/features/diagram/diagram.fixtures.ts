@@ -67,6 +67,7 @@ export function summary(id: string, projectId: ProjectId, taskId: TaskId | null 
     title: `Diagram ${id}`,
     question: 'How does it work?',
     kinds: ['sequence', 'state'],
+    walkthrough: false,
     createdAt: '2026-10-01T10:00:00Z',
     updatedAt: '2026-10-01T10:00:00Z'
   }

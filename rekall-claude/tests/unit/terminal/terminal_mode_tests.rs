@@ -52,3 +52,19 @@ fn generate_kinds_are_read_in_order_once_each_and_an_unknown_one_is_refused() {
     let unknown: OpenTerminalRequest = serde_json::from_str(r#"{"mode":"GENERATE","request":"x","kinds":["uml"]}"#).unwrap();
     assert!(unknown.mode().is_err());
 }
+
+#[test]
+fn an_explain_terminal_asks_for_a_walkthrough_of_the_request() {
+    let mode = TerminalMode::Explain { request: "How an order\nis \"placed\"".into() };
+    assert_eq!(mode.first_line("project:vega"), "/rk project:vega explain \"How an order is 'placed'\"");
+    assert!(mode.draws_a_diagram());
+    assert!(!TerminalMode::Plan.draws_a_diagram());
+}
+
+#[test]
+fn an_explain_request_needs_something_to_explain() {
+    let blank: OpenTerminalRequest = serde_json::from_str(r#"{"mode":"EXPLAIN"}"#).unwrap();
+    assert!(blank.mode().is_err());
+    let asked: OpenTerminalRequest = serde_json::from_str(r#"{"mode":"EXPLAIN","request":"checkout"}"#).unwrap();
+    assert_eq!(asked.mode().unwrap(), TerminalMode::Explain { request: "checkout".into() });
+}

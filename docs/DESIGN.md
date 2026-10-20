@@ -175,7 +175,7 @@ Company ──< Project ──< Task >──< Document
 | `task` | `label`, unique per project | `title`, `status`, `description`, `project_id` |
 | `document` | — | `title`, `kind`, `body_markdown` |
 | `document_task` | — | `document_id`, `task_id`, `position` |
-| `task_step` | through its task | `task_id`, `title`, `body_markdown`, `done`, `done_at`, `position`, `flow_x`/`flow_y` (where it was dragged on the flow canvas, null for the automatic layout) |
+| `task_step` | through its task | `task_id`, `title`, `body_markdown`, `done`, `done_at`, `position`, `flow_x`/`flow_y` (where it was dragged on the flow canvas, null for the automatic layout), `max_visits` (how many times a flow may enter it, null for no limit) |
 | `step_link` | through its task | `task_id`, `from_step_id`, `to_step_id` (null: the route ends the flow), `outcome` unique per `from_step_id`, `position`; deleted with either step |
 | `step_visit` | through its task | `task_id`, `step_id`, `ordinal` unique per task, `entered_at`, `left_at`, `outcome`; deleted with its step |
 | `wrapup` | through its task | `task_id` unique, `body_markdown`, `written_by` |
@@ -341,6 +341,7 @@ the task, closed with the outcome it left by. The visit left open is where the f
 | Start and End are not records | Start always leads to the first step on the checklist and is drawn by the console alone. End is a route whose `to_step_id` is null (`RouteTarget::End`), so it needs no step and no state: a claim by that route closes the visit and opens none, `FlowRoute::Ended` carries the outcome, and the flow reads as finished because no visit is open. A step with no routes on a flow is drawn joined to End without a stored route |
 | Where a step was dragged is stored on the step | `task_step.flow_x` and `flow_y` (`PATCH /api/steps/{id}/flow-place`, `DELETE /api/tasks/{id}/flow-places`) are pure layout: nothing reads them but the canvas, and clearing them hands the steps back to dagre. `FlowPlace` refuses a place beyond 20,000 pixels |
 | A flow runs unattended | A claim that follows a route answers with the step to start and says no review is awaited; the wrapup is asked for only when the flow ends. `.claude/commands/rk.md` carries the same rule, so a session never stops between moves to ask for a tick |
+| A spent visit budget stops the flow | `StepVisitService::enter_in` is the one place a new visit is made, so it refuses one past `task_step.max_visits` (`admits_visit`). The refusal rolls back the claim that routed there: nothing moves, the session is told to stop and report. Re-entering the step the flow already stands on is not a visit. Raising the budget (`TaskStepService::limit_visits`, `VisitBudget` 1 to 99) or a reset lets it go on |
 | Reset forgets the visits, not the states | The states are a person's review; the trail is a count. `FlowService::reset` clears one, never the other |
 
 A claim chooses its route by one rule (`flow::choose_route`): the outcome it names; with no
@@ -618,7 +619,8 @@ answer along with it.
 The in-app session is a real terminal, `C` in the console. `PtyTerminalManager` in
 `rekall-claude` starts the interactive `claude` TUI in a pseudo-terminal (`portable-pty`) in the task's
 folder, with `/rk` as the first line (`/rk … plan` for a terminal opened in `TerminalMode.PLAN`,
-which the Steps pane's **Plan here** asks for), and pumps its raw bytes to whoever is watching. The reason
+which the Steps pane's **Plan here** asks for; `/rk … generate` and `/rk … explain` for the Diagrams
+screen's **Generate** and **Explain code**, the only modes a terminal on a project alone takes), and pumps its raw bytes to whoever is watching. The reason
 it is a PTY and not `claude -p` is token cost: a hand-run `claude` keeps its own cache warm,
 compacts its own context and shows its own `/context` and cost read-outs, and a PTY running the
 same binary the same way inherits all of that, where a headless stream-json process reassembled

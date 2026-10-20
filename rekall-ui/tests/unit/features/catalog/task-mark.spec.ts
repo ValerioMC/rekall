@@ -51,6 +51,7 @@ function step(id: string, state: TaskStepState, taskId = 't1'): TaskStep {
     position: 0,
     flowX: null,
     flowY: null,
+    maxVisits: null,
     passes: [],
     links: [],
     visits: [],

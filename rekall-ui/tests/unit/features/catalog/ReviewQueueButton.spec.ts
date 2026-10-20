@@ -48,6 +48,7 @@ const claimedStep: TaskStep = {
   position: 0,
   flowX: null,
   flowY: null,
+  maxVisits: null,
   passes: [],
     links: [],
     visits: [],

@@ -117,6 +117,23 @@ async fn a_generate_terminal_on_a_project_alone_carries_no_task_and_marks_nothin
 }
 
 #[tokio::test]
+async fn an_explain_terminal_on_a_project_alone_asks_for_a_walkthrough() {
+    let world = world().await;
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let terminals = world.terminals(8);
+    let mode = TerminalMode::Explain { request: "how an order is placed".into() };
+
+    let view = terminals.open(TerminalTarget::Project(project.id), None, false, None, None, mode).await.unwrap();
+    assert_eq!((view.task_id, view.anchors.as_str()), (None, "project:alpha"));
+
+    let recorder = Arc::new(Recorder::default());
+    let (_, token) = terminals.attach(view.id, recorder.clone()).unwrap();
+    eventually("the explain line", || async { recorder.text().contains("ARGS:/rk project:alpha explain \"how an order is placed\"") }).await;
+    terminals.detach(view.id, token);
+    terminals.close(view.id, "done").await;
+}
+
+#[tokio::test]
 async fn closing_a_terminal_kills_it_announces_the_end_and_releases_the_task() {
     let world = world().await;
     let project = world.project("alpha", Some(world.folder.path())).await;

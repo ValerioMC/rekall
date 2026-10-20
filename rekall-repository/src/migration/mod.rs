@@ -17,6 +17,8 @@ mod m038_skill_assignment;
 mod m039_step_flow;
 mod m040_flow_start_end;
 mod m041_token_usage_day;
+mod m042_step_max_visits;
+mod m043_diagram_walkthrough;
 mod migration_support;
 mod migrator;
 

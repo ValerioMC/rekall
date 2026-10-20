@@ -24,6 +24,7 @@ export function flowStep(
     position,
     flowX: null,
     flowY: null,
+    maxVisits: null,
     passes: [],
     links,
     visits,

@@ -41,11 +41,26 @@ export interface SourceLocation {
 /** Element key (a Mermaid id, or `#n` for a sequence's n-th message) to where it lives. */
 export type CodeLinks = Readonly<Record<string, readonly SourceLocation[]>>
 
+/** What the reader is told at one message of a walkthrough; `opens` is the index of the sheet that details the call. */
+export interface WalkthroughMessage {
+  readonly explain: string | null
+  readonly input: string | null
+  readonly output: string | null
+  readonly opens: number | null
+}
+
+/** How a sequence sheet plays step by step: the participants outside the code, and words per `#n`. */
+export interface Walkthrough {
+  readonly external: readonly string[]
+  readonly messages: Readonly<Record<string, WalkthroughMessage>>
+}
+
 export interface DiagramSheet {
   readonly kind: DiagramKind
   readonly title: string | null
   readonly mermaid: string
   readonly links: CodeLinks
+  readonly walkthrough: Walkthrough | null
 }
 
 /** A diagram as the gallery lists it: everything but its sheets. */
@@ -56,6 +71,8 @@ export interface DiagramSummary {
   readonly title: string
   readonly question: string
   readonly kinds: readonly DiagramKind[]
+  /** One of its sheets plays as a walkthrough. */
+  readonly walkthrough: boolean
   readonly createdAt: string
   readonly updatedAt: string
 }

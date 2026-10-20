@@ -14,7 +14,7 @@ pub async fn require(db: &impl ConnectionTrait, id: Id) -> Result<Model, RekallE
 pub async fn list_summaries_newest_first(db: &impl ConnectionTrait) -> Result<Vec<Model>, RekallError> {
     let rows = Entity::find()
         .select_only()
-        .columns([Column::Id, Column::ProjectId, Column::TaskId, Column::Title, Column::Question, Column::Kinds, Column::CreatedAt, Column::UpdatedAt])
+        .columns([Column::Id, Column::ProjectId, Column::TaskId, Column::Title, Column::Question, Column::Kinds, Column::Walkthrough, Column::CreatedAt, Column::UpdatedAt])
         .expr_as(sea_orm::sea_query::Expr::val(""), "document_json")
         .order_by_desc(Column::UpdatedAt)
         .into_model::<Model>()

@@ -4,7 +4,7 @@ import ElementCard from '@/features/diagram/components/canvas/ElementCard.vue'
 import CanvasNote from '@/features/diagram/components/canvas/CanvasNote.vue'
 import SequenceFragment from './SequenceFragment.vue'
 import SequenceMessage from './SequenceMessage.vue'
-import { roleStyle } from '@/features/diagram/lib/element-style'
+import { participantStyle } from '@/features/diagram/lib/element-style'
 import { edgeEmphasis, nodeEmphasis, type Emphasis, type Spotlight } from '@/features/diagram/lib/emphasis'
 import { wrapText } from '@/features/diagram/lib/text-wrap'
 import { PARTICIPANT_HEIGHT, type SequenceLayout } from '@/features/diagram/lib/layout/sequence-layout'
@@ -16,7 +16,10 @@ import type { CodeLinks } from '@/features/diagram/model/diagram'
  * a lifeline down from each, the messages in order, with activations, blocks and notes. The
  * participants are the same cards every other sheet draws its elements with.
  */
-const props = defineProps<{ scene: SequenceScene; layout: SequenceLayout; links: CodeLinks; spotlight: Spotlight | null }>()
+const props = withDefaults(
+  defineProps<{ scene: SequenceScene; layout: SequenceLayout; links: CodeLinks; spotlight: Spotlight | null; external?: ReadonlySet<string> }>(),
+  { external: () => new Set<string>() }
+)
 
 const emit = defineEmits<{ select: [key: string] }>()
 
@@ -24,7 +27,7 @@ const participants = computed(() =>
   props.scene.participants.flatMap((participant) => {
     const placed = props.layout.participants.get(participant.id)
     if (!placed) return []
-    const look = roleStyle(participant.isActor ? 'actor' : 'participant')
+    const look = participantStyle(participant.isActor, props.external.has(participant.id))
     return [{ participant, placed, look, lines: wrapText(participant.label, placed.width - 76, 12.5, 1) }]
   })
 )

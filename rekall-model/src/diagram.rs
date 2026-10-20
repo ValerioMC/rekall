@@ -23,6 +23,8 @@ pub struct Model {
     pub question: String,
     /// Each sheet's Mermaid type, comma-separated in sheet order, so a list needs no document.
     pub kinds: String,
+    /// Whether a sheet of the document plays as a walkthrough, so a list needs no document.
+    pub walkthrough: bool,
     pub document_json: String,
     pub created_at: Instant,
     pub updated_at: Instant,

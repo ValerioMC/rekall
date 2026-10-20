@@ -106,6 +106,7 @@ impl DiagramService {
             title: draft.title.trim().to_string(),
             question: draft.question.trim().to_string(),
             kinds: DiagramSummaryView::column_of(&draft.document.kinds()),
+            walkthrough: draft.document.has_walkthrough(),
             document_json: DocumentCodec::write(&draft.document),
             created_at: existing.map_or(now, |row| row.created_at),
             updated_at: now,

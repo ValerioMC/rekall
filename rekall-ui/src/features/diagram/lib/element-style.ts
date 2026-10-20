@@ -4,7 +4,7 @@ import type { ElementRole } from './scene/graph-scene'
  * How each element is drawn. The tint comes from the `--color-kind-*` tokens, none of which is
  * amber, cyan or a status colour; the glyph repeats it for a reader who ignores colour.
  */
-export type ElementGlyph = ElementRole | 'message'
+export type ElementGlyph = ElementRole | 'message' | 'external'
 
 export interface ElementStyle {
   readonly label: string
@@ -31,3 +31,12 @@ export function roleStyle(role: ElementRole): ElementStyle {
 }
 
 export const MESSAGE_STYLE: ElementStyle = { label: 'Message', tint: 'var(--color-kind-external)', glyph: 'message' }
+
+/** A participant outside the project's code (a client, a database, an HTTP API), as a walkthrough names it. */
+export const EXTERNAL_STYLE: ElementStyle = { label: 'External system', tint: 'var(--color-kind-external)', glyph: 'external' }
+
+/** A participant a walkthrough names as `external` is drawn and described as an external system. */
+export function participantStyle(isActor: boolean, external: boolean): ElementStyle {
+  if (external) return EXTERNAL_STYLE
+  return roleStyle(isActor ? 'actor' : 'participant')
+}

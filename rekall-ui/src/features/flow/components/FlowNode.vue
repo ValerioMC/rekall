@@ -43,6 +43,7 @@ function nudge(event: KeyboardEvent): void {
 }
 
 const visits = computed(() => props.step.visits.length)
+const spent = computed(() => props.step.maxVisits !== null && visits.value >= props.step.maxVisits)
 const number = computed(() => String(props.step.position + 1).padStart(2, '0'))
 
 const plateClass = computed(() => {
@@ -56,6 +57,7 @@ const label = computed(() => {
   const parts = [`Step ${props.step.position + 1}, ${props.step.title}`, props.step.state.toLowerCase()]
   if (props.current) parts.push('the work stands here')
   parts.push(visits.value === 1 ? 'entered once' : `entered ${visits.value} times`)
+  if (props.step.maxVisits !== null) parts.push(`at most ${props.step.maxVisits}`)
   return parts.join(', ')
 })
 </script>
@@ -105,10 +107,11 @@ const label = computed(() => {
         <span v-if="current" class="flow-tag text-accent" data-testid="flow-node-current">here</span>
         <span
           class="ml-auto font-mono tabular-nums"
-          :class="visits > 1 ? 'text-accent' : 'text-text-subtle'"
+          :class="spent ? 'text-danger' : visits > 1 ? 'text-accent' : 'text-text-subtle'"
           data-testid="flow-node-visits"
         >
-          <template v-if="visits > 0">×{{ visits }}</template>
+          <template v-if="step.maxVisits !== null">×{{ visits }}/{{ step.maxVisits }}</template>
+          <template v-else-if="visits > 0">×{{ visits }}</template>
           <template v-else>not reached</template>
         </span>
       </span>

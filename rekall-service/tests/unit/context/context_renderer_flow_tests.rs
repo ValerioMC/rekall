@@ -70,3 +70,22 @@ fn a_route_to_the_end_of_the_flow_is_named_as_such() {
 
     assert!(rendered.contains("Routes: `passed` -> end of the flow; `app-error` -> step 2 \"Fix\""), "{rendered}");
 }
+
+#[test]
+fn a_budget_shows_against_the_visits_on_the_current_step_and_the_others() {
+    let task_id = Id::random();
+    let mut deploy = step(task_id, "Deploy", 0, TaskStepState::Open);
+    deploy.max_visits = Some(3);
+    let mut test = step(task_id, "Test", 1, TaskStepState::Open);
+    test.max_visits = Some(2);
+    let now = Instant::now();
+    let flow = StepFlowRows {
+        links: vec![step_link::Model::new(task_id, deploy.id, Some(test.id), "deployed".into(), 0, now)],
+        visits: vec![step_visit::Model::enter(task_id, deploy.id, 1, now)],
+    };
+
+    let rendered = render(&[deploy, test], &flow);
+
+    assert!(rendered.contains("- [ ] Deploy  (current, visit 1 of 3)"), "{rendered}");
+    assert!(rendered.contains("- [ ] Test  (entered 0 of at most 2 times)"), "{rendered}");
+}

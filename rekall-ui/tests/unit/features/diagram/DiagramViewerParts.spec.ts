@@ -9,8 +9,8 @@ import type { DiagramSheet } from '@/features/diagram/model/diagram'
 import type { DiagramId } from '@/model/branded'
 
 const SHEETS: DiagramSheet[] = [
-  { kind: 'sequence', title: 'Checkout', mermaid: 'sequenceDiagram', links: {} },
-  { kind: 'state', title: null, mermaid: 'stateDiagram-v2', links: {} }
+  { kind: 'sequence', title: 'Checkout', mermaid: 'sequenceDiagram', links: {}, walkthrough: null },
+  { kind: 'state', title: null, mermaid: 'stateDiagram-v2', links: {}, walkthrough: null }
 ]
 
 const SCENE: SequenceScene = {

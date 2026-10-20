@@ -202,6 +202,8 @@ export interface TaskStep {
   /** Where the step was dragged to on the flow canvas; null leaves it to the automatic layout. */
   readonly flowX: number | null
   readonly flowY: number | null
+  /** How many times a flow may enter the step; null sets no limit. */
+  readonly maxVisits: number | null
   readonly passes: readonly StepPass[]
   /** Routes leaving this step; a task whose steps carry any is a flow. */
   readonly links: readonly StepLink[]

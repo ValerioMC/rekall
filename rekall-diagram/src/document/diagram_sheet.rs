@@ -2,11 +2,12 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use super::{DiagramKind, SourceLocation};
+use super::{DiagramKind, SourceLocation, Walkthrough};
 use crate::mermaid::MermaidText;
 
 /// One Mermaid diagram and the code its elements are implemented by. A `links` key is an
-/// element's Mermaid id (`OrderService`, `validate`), or `#n` for a sequence's n-th message.
+/// element's Mermaid id (`OrderService`, `validate`), or `#n` for a sequence's n-th message. A
+/// sequence may also carry a `walkthrough`, which the console plays step by step.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct DiagramSheet {
@@ -15,6 +16,8 @@ pub struct DiagramSheet {
     pub mermaid: String,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub links: BTreeMap<String, Vec<SourceLocation>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub walkthrough: Option<Walkthrough>,
 }
 
 impl DiagramSheet {

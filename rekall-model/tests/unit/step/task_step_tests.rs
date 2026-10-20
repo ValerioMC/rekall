@@ -116,3 +116,14 @@ fn only_a_claimed_step_is_sent_back() {
     assert!(step.send_back(Instant::now()).is_err());
     assert!(step.passes().unwrap().is_empty());
 }
+
+#[test]
+fn a_step_admits_visits_up_to_its_budget_and_without_one_any_number() {
+    let mut step = new_step();
+    assert!(step.admits_visit(1_000));
+
+    step.max_visits = Some(2);
+
+    assert!(step.admits_visit(1));
+    assert!(!step.admits_visit(2));
+}

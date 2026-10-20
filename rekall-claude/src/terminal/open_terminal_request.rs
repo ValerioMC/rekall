@@ -6,7 +6,8 @@ use super::{TerminalMode, TerminalModeName};
 
 /// What the console sends to open a terminal. `stepId`, `model` and `effort` are optional; an
 /// unknown or blank model or effort leaves the account default. A missing `mode` is
-/// [`TerminalMode::Work`]; `GENERATE` needs a `request`, and `kinds` names the diagram types.
+/// [`TerminalMode::Work`]; `GENERATE` and `EXPLAIN` need a `request`, and `kinds` names the
+/// diagram types a generation draws.
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct OpenTerminalRequest {
@@ -24,15 +25,16 @@ impl OpenTerminalRequest {
         match self.mode {
             None | Some(TerminalModeName::Work) => Ok(TerminalMode::Work),
             Some(TerminalModeName::Plan) => Ok(TerminalMode::Plan),
-            Some(TerminalModeName::Generate) => self.generate_mode(),
+            Some(TerminalModeName::Generate) => Ok(TerminalMode::Generate { request: self.diagram_request()?, kinds: self.diagram_kinds()? }),
+            Some(TerminalModeName::Explain) => Ok(TerminalMode::Explain { request: self.diagram_request()? }),
         }
     }
 
-    fn generate_mode(&self) -> Result<TerminalMode, RekallError> {
-        let Some(request) = self.request.as_deref().filter(|request| !jstr::is_blank(request)) else {
-            return Err(RekallError::illegal("Say what the diagram should show before generating it."));
-        };
-        Ok(TerminalMode::Generate { request: request.to_string(), kinds: self.diagram_kinds()? })
+    fn diagram_request(&self) -> Result<String, RekallError> {
+        match self.request.as_deref().filter(|request| !jstr::is_blank(request)) {
+            Some(request) => Ok(request.to_string()),
+            None => Err(RekallError::illegal("Say what the diagram should show before generating it.")),
+        }
     }
 
     /// The types asked for, in order and without repeats.

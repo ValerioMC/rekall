@@ -6,6 +6,7 @@ import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import DiagramGallery from './gallery/DiagramGallery.vue'
 import DiagramViewer from './viewer/DiagramViewer.vue'
+import ExplainCodeDialog from './dialogs/ExplainCodeDialog.vue'
 import GenerateDiagramDialog from './dialogs/GenerateDiagramDialog.vue'
 import ImportDiagramDialog from './dialogs/ImportDiagramDialog.vue'
 import SessionDrawer from './dialogs/SessionDrawer.vue'
@@ -21,6 +22,7 @@ import type { DiagramId, TerminalId } from '@/model/branded'
 
 /**
  * The Diagrams screen: the gallery of the projects in scope, or one diagram on the whole screen.
+ * New ones come from a generation, a walkthrough asked with Explain code, or an import.
  * The open diagram is `?diagram=` and a watched session `?session=`, so both survive a reload
  * and the back button returns to the gallery.
  */
@@ -35,6 +37,7 @@ const { run, isRunning } = useAsyncAction()
 useDiagramStream((event) => void store.applyEvent(event))
 
 const showGenerate = ref(false)
+const showExplain = ref(false)
 const showImport = ref(false)
 const generating = ref(false)
 const importing = ref(false)
@@ -76,8 +79,10 @@ async function generate(asked: GenerationRequest): Promise<void> {
   generating.value = false
   if (!started) return
   showGenerate.value = false
+  showExplain.value = false
   show(null)
-  toast.notify('A session is drawing it. It appears here when it is done.', { label: 'Watch', run: () => watchGeneration(started) })
+  const told = asked.walkthrough ? 'A session is following the code. The walkthrough appears here when it is done.' : 'A session is drawing it. It appears here when it is done.'
+  toast.notify(told, { label: 'Watch', run: () => watchGeneration(started) })
 }
 
 function watchGeneration(generation: PendingGeneration): void {
@@ -130,6 +135,10 @@ const blast = computed(() =>
       <AppCatalogHeader title="Diagrams">
         <template #actions>
           <AppButton size="sm" variant="secondary" data-testid="diagram-import-open" @click="showImport = true">Import</AppButton>
+          <AppButton size="sm" variant="secondary" data-testid="diagram-explain-open" @click="showExplain = true">
+            <svg viewBox="0 0 16 16" class="size-3.5" fill="currentColor" aria-hidden="true"><path d="M5 3.3v9.4c0 .5.5.8.9.5l7-4.7c.4-.3.4-.8 0-1.1l-7-4.6c-.4-.3-.9 0-.9.5Z" /></svg>
+            Explain code
+          </AppButton>
           <AppButton size="sm" variant="primary" data-testid="diagram-generate-open" @click="showGenerate = true">
             <svg viewBox="0 0 16 16" class="size-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.2 9.5 6.5 13.8 8 9.5 9.5 8 13.8 6.5 9.5 2.2 8 6.5 6.5Z" /></svg>
             Generate
@@ -186,6 +195,18 @@ const blast = computed(() =>
         :sending="generating || isRunning"
         @cancel="showGenerate = false"
         @generate="generate"
+      />
+    </Transition>
+    <Transition name="dialog">
+      <ExplainCodeDialog
+        v-if="showExplain"
+        :projects="console_.scopedProjects.length > 0 ? console_.scopedProjects : console_.projects"
+        :tasks="console_.tasks"
+        :initial-project-id="diagram?.projectId ?? console_.scopedProject?.id ?? null"
+        :initial-task-id="diagram?.taskId ?? null"
+        :sending="generating || isRunning"
+        @cancel="showExplain = false"
+        @explain="generate"
       />
     </Transition>
     <Transition name="dialog">

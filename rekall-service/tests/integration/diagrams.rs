@@ -67,6 +67,27 @@ async fn a_diagram_is_written_whole_listed_with_its_kinds_and_read_back_in_full(
 }
 
 #[tokio::test]
+async fn a_walkthrough_is_kept_on_its_sheet_and_marked_on_the_summary() {
+    let world = world().await;
+    let project = world.project("shop", None, false).await;
+    let plain = world.services.diagrams.write(draft(project.id, order_flow())).await.unwrap();
+    let mut walked = order_flow();
+    walked["sheets"][0]["walkthrough"] = json!({ "external": ["P"], "messages": { "#1": { "input": "card", "output": "receipt" } } });
+
+    let written = world.services.diagrams.write(draft(project.id, walked)).await.unwrap();
+
+    assert!(!plain.summary.walkthrough);
+    assert!(written.summary.walkthrough);
+    let listed = world.services.diagrams.list().await.unwrap();
+    assert!(listed.iter().any(|summary| summary.id == written.summary.id && summary.walkthrough));
+    let read = world.services.diagrams.get(written.summary.id).await.unwrap();
+    let walkthrough = read.sheets[0].walkthrough.as_ref().unwrap();
+    assert_eq!(walkthrough.external, vec!["P"]);
+    assert_eq!(walkthrough.messages["#1"].output.as_deref(), Some("receipt"));
+    assert!(read.sheets[1].walkthrough.is_none());
+}
+
+#[tokio::test]
 async fn replacing_keeps_the_id_and_creation_time_and_the_project() {
     let world = world().await;
     let project = world.project("shop", None, false).await;

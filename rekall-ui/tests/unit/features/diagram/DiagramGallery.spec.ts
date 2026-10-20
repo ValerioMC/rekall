@@ -5,7 +5,7 @@ import { ORION, REPORT, VEGA, project, summary, task } from './diagram.fixtures'
 import type { PendingGeneration } from '@/features/diagram/store/diagram.store'
 import type { TerminalId } from '@/model/branded'
 
-const PENDING: PendingGeneration = { key: 1, projectId: VEGA, taskId: null, request: 'checkout', kinds: ['sequence'], terminalId: 'term-1' as TerminalId, startedAt: Date.now() }
+const PENDING: PendingGeneration = { key: 1, projectId: VEGA, taskId: null, request: 'checkout', kinds: ['sequence'], walkthrough: false, terminalId: 'term-1' as TerminalId, startedAt: Date.now() }
 
 function gallery(props: Partial<InstanceType<typeof DiagramGallery>['$props']> = {}) {
   return mount(DiagramGallery, {

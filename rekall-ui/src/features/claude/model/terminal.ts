@@ -4,7 +4,7 @@ import type { ProjectId, TaskId, TaskStepId, TerminalId } from '@/model/branded'
  * What a terminal is opened to do: `WORK` types `/rk <anchor>`, `PLAN` types `/rk <anchor> plan`,
  * `GENERATE` types `/rk <anchor> generate "<request>"`.
  */
-export type TerminalMode = 'WORK' | 'PLAN' | 'GENERATE'
+export type TerminalMode = 'WORK' | 'PLAN' | 'GENERATE' | 'EXPLAIN'
 
 /** What a terminal is opened on: a task, or a project alone, which only generates a diagram. */
 export type TerminalTarget = { readonly taskId: TaskId } | { readonly projectId: ProjectId }

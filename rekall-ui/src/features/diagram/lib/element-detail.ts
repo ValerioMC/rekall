@@ -1,4 +1,4 @@
-import { MESSAGE_STYLE, roleStyle, type ElementStyle } from './element-style'
+import { MESSAGE_STYLE, participantStyle, roleStyle, type ElementStyle } from './element-style'
 import { messagesOf, type SequenceScene } from './scene/sequence-scene'
 import type { GraphScene } from './scene/graph-scene'
 
@@ -14,7 +14,7 @@ export interface ElementDetail {
   readonly look: ElementStyle
 }
 
-export function sequenceElement(scene: SequenceScene, key: string): ElementDetail | null {
+export function sequenceElement(scene: SequenceScene, key: string, external: ReadonlySet<string> = new Set()): ElementDetail | null {
   const labels = new Map(scene.participants.map((participant) => [participant.id, participant.label]))
   if (key.startsWith('#')) {
     const message = messagesOf(scene).find((candidate) => `#${candidate.number}` === key)
@@ -26,7 +26,7 @@ export function sequenceElement(scene: SequenceScene, key: string): ElementDetai
   const participant = scene.participants.find((candidate) => candidate.id === key)
   if (!participant) return null
   const subtitle = participant.label === participant.id ? null : participant.id
-  return { key, linkKey: key, title: participant.label, subtitle, look: roleStyle(participant.isActor ? 'actor' : 'participant') }
+  return { key, linkKey: key, title: participant.label, subtitle, look: participantStyle(participant.isActor, external.has(participant.id)) }
 }
 
 export function graphElement(scene: GraphScene, key: string): ElementDetail | null {

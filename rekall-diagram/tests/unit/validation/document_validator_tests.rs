@@ -86,3 +86,75 @@ fn spans_are_checked_where_they_sit() {
         ]
     );
 }
+
+const ORDER_FLOW: &str = "sequenceDiagram\n  participant C as OrderController\n  participant S as OrderService\n  participant P as Stripe\n  C->>+S: place(order)\n  S->>+P: charge(card)\n  P-->>-S: receipt\n  S-->>-C: order";
+
+#[test]
+fn a_walkthrough_naming_its_external_systems_and_opening_another_sequence_passes() {
+    let valid = document(json!([
+        {
+            "mermaid": ORDER_FLOW,
+            "walkthrough": {
+                "external": ["P"],
+                "messages": {
+                    "#1": { "explain": "The controller hands the order on.", "input": "{ \"sku\": 7 }", "opens": 1 },
+                    "#4": { "output": "201 Created" }
+                }
+            }
+        },
+        { "mermaid": "sequenceDiagram\n  S->>S: validate" }
+    ]));
+    assert_eq!(DocumentValidator::validate(&valid), Ok(()));
+    assert!(valid.has_walkthrough());
+}
+
+#[test]
+fn only_a_sequence_plays_as_a_walkthrough() {
+    let broken = document(json!([{ "mermaid": "flowchart LR\n A-->B", "walkthrough": {} }]));
+    assert_eq!(paths(DocumentValidator::validate(&broken)), vec!["sheets[0].walkthrough"]);
+}
+
+#[test]
+fn a_walkthrough_speaks_of_participants_and_messages_the_sequence_has() {
+    let broken = document(json!([{
+        "mermaid": ORDER_FLOW,
+        "walkthrough": {
+            "external": ["Ghost"],
+            "messages": { "#9": { "explain": "x" }, "C": { "explain": "x" }, "#2": {} }
+        }
+    }]));
+    assert_eq!(
+        paths(DocumentValidator::validate(&broken)),
+        vec![
+            "sheets[0].walkthrough.external[0]",
+            r##"sheets[0].walkthrough.messages["#2"]"##,
+            r##"sheets[0].walkthrough.messages["#9"]"##,
+            r#"sheets[0].walkthrough.messages["C"]"#
+        ]
+    );
+}
+
+#[test]
+fn a_message_opens_another_sequence_sheet_that_exists() {
+    let opening = |target: usize| {
+        document(json!([
+            { "mermaid": ORDER_FLOW, "walkthrough": { "messages": { "#1": { "opens": target } } } },
+            { "mermaid": "pie\n \"a\": 1" }
+        ]))
+    };
+    for target in [0, 1, 2] {
+        assert_eq!(paths(DocumentValidator::validate(&opening(target))), vec![r##"sheets[0].walkthrough.messages["#1"].opens"##], "opens {target}");
+    }
+}
+
+#[test]
+fn walkthrough_texts_have_a_ceiling() {
+    let broken = document(json!([{
+        "mermaid": ORDER_FLOW,
+        "walkthrough": { "messages": { "#1": { "explain": "x".repeat(1_001), "output": "y".repeat(2_001) } } }
+    }]));
+    assert_eq!(
+        paths(DocumentValidator::validate(&broken)),
+        vec![r##"sheets[0].walkthrough.messages["#1"].explain"##, r##"sheets[0].walkthrough.messages["#1"].output"##]
+    );
+}

@@ -6,7 +6,7 @@ import { KIND_INFO } from '@/features/diagram/lib/kinds'
 import { relativeTime } from '@/common/format/relative-time'
 import type { DiagramSummary } from '@/features/diagram/model/diagram'
 
-/** One diagram in the gallery: a sketch of its first sheet, what it answers, and its sheets' types. */
+/** One diagram in the gallery: a sketch of its first sheet, what it answers, its sheets' types, and whether it plays as a walkthrough. */
 const props = defineProps<{ summary: DiagramSummary; taskAnchor: string | null; arrived: boolean }>()
 
 const emit = defineEmits<{ open: [] }>()
@@ -23,6 +23,10 @@ const firstKind = computed(() => props.summary.kinds[0] ?? 'flowchart')
   >
     <span class="diagram-card-sketch relative block h-[92px] border-b border-border bg-canvas px-2 pt-1.5">
       <KindSketch :kind="firstKind" />
+      <span v-if="summary.walkthrough" class="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full border border-accent/40 bg-canvas px-2 py-0.5 text-micro font-semibold text-accent" data-testid="diagram-card-walkthrough">
+        <svg viewBox="0 0 16 16" class="size-2.5" fill="currentColor" aria-hidden="true"><path d="M5 3.3v9.4c0 .5.5.8.9.5l7-4.7c.4-.3.4-.8 0-1.1l-7-4.6c-.4-.3-.9 0-.9.5Z" /></svg>
+        Walkthrough
+      </span>
       <span v-if="arrived" class="absolute right-2 top-2 rounded-full bg-accent-soft px-2 py-0.5 text-micro font-semibold text-accent" role="status">New</span>
     </span>
     <span class="flex flex-1 flex-col gap-1.5 px-3.5 pb-3 pt-3">

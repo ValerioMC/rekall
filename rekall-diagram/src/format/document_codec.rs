@@ -1,11 +1,11 @@
 use std::collections::BTreeMap;
 
-use crate::document::{DiagramDocument, DiagramSheet};
+use crate::document::{DiagramDocument, DiagramSheet, Walkthrough, WalkthroughMessage};
 
 use super::DocumentFormatError;
 
-/// Reads and writes the JSON form. Reading also normalises: titles and keys are trimmed, a blank
-/// title is no title, and the Mermaid loses the blank lines around it.
+/// Reads and writes the JSON form. Reading also normalises: titles, keys and walkthrough texts are
+/// trimmed, a blank one is none, and the Mermaid loses the blank lines around it.
 pub struct DocumentCodec;
 
 impl DocumentCodec {
@@ -29,10 +29,36 @@ impl DocumentCodec {
     }
 
     fn normalise_sheet(sheet: DiagramSheet) -> DiagramSheet {
-        let title = sheet.title.map(|title| title.trim().to_string()).filter(|title| !title.is_empty());
         let links: BTreeMap<String, _> = sheet.links.into_iter().map(|(key, sources)| (key.trim().to_string(), sources)).collect();
-        DiagramSheet { title, mermaid: sheet.mermaid.trim_matches(['\n', '\r']).to_string(), links }
+        DiagramSheet {
+            title: present(sheet.title),
+            mermaid: sheet.mermaid.trim_matches(['\n', '\r']).to_string(),
+            links,
+            walkthrough: sheet.walkthrough.map(Self::normalise_walkthrough),
+        }
     }
+
+    fn normalise_walkthrough(walkthrough: Walkthrough) -> Walkthrough {
+        let messages = walkthrough
+            .messages
+            .into_iter()
+            .map(|(key, message)| {
+                let normalised = WalkthroughMessage {
+                    explain: present(message.explain),
+                    input: present(message.input),
+                    output: present(message.output),
+                    opens: message.opens,
+                };
+                (key.trim().to_string(), normalised)
+            })
+            .collect();
+        Walkthrough { external: walkthrough.external.iter().map(|id| id.trim().to_string()).collect(), messages }
+    }
+}
+
+/// Trimmed, and none when nothing is left.
+fn present(text: Option<String>) -> Option<String> {
+    text.map(|text| text.trim().to_string()).filter(|text| !text.is_empty())
 }
 
 #[cfg(test)]

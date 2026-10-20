@@ -4,7 +4,7 @@ import { messagesOf } from '@/features/diagram/lib/scene/sequence-scene'
 import type { DiagramKind, DiagramSheet } from '@/features/diagram/model/diagram'
 
 function sheet(kind: DiagramKind, mermaid: string): DiagramSheet {
-  return { kind, title: null, mermaid, links: {} }
+  return { kind, title: null, mermaid, links: {}, walkthrough: null }
 }
 
 const CHECKOUT = `sequenceDiagram

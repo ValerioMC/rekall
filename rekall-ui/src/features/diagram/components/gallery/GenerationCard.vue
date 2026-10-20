@@ -7,8 +7,8 @@ import { useNow } from '@/composables/useNow'
 import type { PendingGeneration } from '@/features/diagram/store/diagram.store'
 
 /**
- * A diagram a session is drawing now: what was asked, as which types, for how long, and the
- * session itself one click away. Once the session ends without delivering, it says so.
+ * A diagram a session is drawing now: what was asked, as which types or as a walkthrough, for how
+ * long, and the session itself one click away. Once the session ends without delivering, it says so.
  */
 const props = defineProps<{ generation: PendingGeneration; anchors: string; ended: boolean }>()
 
@@ -34,7 +34,8 @@ const elapsed = computed(() => formatDuration(Math.max(0, (now.value - props.gen
     </header>
     <p class="line-clamp-3 text-small leading-snug text-text">{{ generation.request }}</p>
     <div class="flex flex-wrap items-center gap-1.5">
-      <span v-for="kind in generation.kinds" :key="kind" class="inline-flex items-center gap-1 rounded-full border border-border bg-canvas px-1.5 py-0.5 text-micro text-text-muted">
+      <span v-if="generation.walkthrough" class="inline-flex items-center gap-1 rounded-full border border-accent/40 bg-canvas px-1.5 py-0.5 text-micro font-semibold text-accent">Walkthrough</span>
+      <span v-for="kind in generation.walkthrough ? [] : generation.kinds" :key="kind" class="inline-flex items-center gap-1 rounded-full border border-border bg-canvas px-1.5 py-0.5 text-micro text-text-muted">
         <KindGlyph :kind="kind" :size="12" />
         {{ KIND_INFO[kind].label }}
       </span>

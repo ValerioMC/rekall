@@ -3,7 +3,8 @@ use rekall_diagram::DiagramKind;
 use rekall_model::diagram;
 use serde::Serialize;
 
-/// A diagram as a list shows it: everything but its sheets, and each sheet's type.
+/// A diagram as a list shows it: everything but its sheets, each sheet's type, and whether one of
+/// them plays as a walkthrough.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiagramSummaryView {
@@ -13,6 +14,7 @@ pub struct DiagramSummaryView {
     pub title: String,
     pub question: String,
     pub kinds: Vec<DiagramKind>,
+    pub walkthrough: bool,
     pub created_at: Instant,
     pub updated_at: Instant,
 }
@@ -26,6 +28,7 @@ impl DiagramSummaryView {
             title: row.title.clone(),
             question: row.question.clone(),
             kinds: stored_kinds(row)?,
+            walkthrough: row.walkthrough,
             created_at: row.created_at,
             updated_at: row.updated_at,
         })

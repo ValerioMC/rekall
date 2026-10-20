@@ -3,10 +3,10 @@ use axum::response::Response;
 use axum::routing::{delete, patch, post};
 use axum::{Json, Router};
 use rekall_service::flow::RouteTarget;
-use rekall_service::step::{FlowPlace, TaskStepView};
+use rekall_service::step::{FlowPlace, TaskStepView, VisitBudget};
 
 use rekall_web::created;
-use crate::flow::{StepFlowPlaceRequest, StepLinkRequest};
+use crate::flow::{StepFlowPlaceRequest, StepLinkRequest, StepMaxVisitsRequest};
 use rekall_web::error::ApiResult;
 use rekall_web::extract::{optional_uuid, uuid, JsonBody, Validator};
 use crate::ApiState;
@@ -19,6 +19,7 @@ pub fn routes() -> Router<ApiState> {
         .route("/api/step-links/{id}", patch(edit).delete(remove))
         .route("/api/tasks/{task_id}/visits", delete(reset))
         .route("/api/steps/{id}/flow-place", patch(place))
+        .route("/api/steps/{id}/max-visits", patch(limit_visits))
         .route("/api/tasks/{task_id}/flow-places", delete(clear_places))
 }
 
@@ -64,6 +65,16 @@ async fn place(State(state): State<ApiState>, Path(id): Path<String>, JsonBody(r
         }
     };
     Ok(Json(state.steps.place_in_flow(id, place).await?))
+}
+
+async fn limit_visits(
+    State(state): State<ApiState>,
+    Path(id): Path<String>,
+    JsonBody(request): JsonBody<StepMaxVisitsRequest>,
+) -> ApiResult<Json<Vec<TaskStepView>>> {
+    let id = uuid("id", &id)?;
+    let budget = request.max_visits.map(VisitBudget::new).transpose()?;
+    Ok(Json(state.steps.limit_visits(id, budget).await?))
 }
 
 async fn clear_places(State(state): State<ApiState>, Path(task_id): Path<String>) -> ApiResult<Json<Vec<TaskStepView>>> {

@@ -5,15 +5,16 @@ use serde::Deserialize;
 pub const REQUEST_MAX_CHARACTERS: usize = 2000;
 
 /// What a terminal is opened to do, which decides the `/rk` line typed into it first. `Work`
-/// loads the task and works it; `Plan` has the session propose the task's checklist as drafts
-/// and build nothing; `Generate` has it draw the code as Mermaid sheets of the `kinds` asked
-/// for, answering `request`. Only `Work` follows a step.
+/// loads the task and works it; `Plan` has the session propose the task's checklist as drafts;
+/// `Generate` has it draw `request` as Mermaid sheets of the `kinds` asked for; `Explain` has it
+/// write a walkthrough of `request`. Only `Work` follows a step.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub enum TerminalMode {
     #[default]
     Work,
     Plan,
     Generate { request: String, kinds: Vec<DiagramKind> },
+    Explain { request: String },
 }
 
 /// The mode's name as the console sends it; a generate request and its kinds travel beside it.
@@ -23,6 +24,7 @@ pub enum TerminalModeName {
     Work,
     Plan,
     Generate,
+    Explain,
 }
 
 impl TerminalMode {
@@ -34,7 +36,13 @@ impl TerminalMode {
             TerminalMode::Generate { request, kinds } => {
                 format!("/rk {anchors} generate{} \"{}\"", kinds_term(kinds), one_line(request))
             }
+            TerminalMode::Explain { request } => format!("/rk {anchors} explain \"{}\"", one_line(request)),
         }
+    }
+
+    /// Whether the session answers with a diagram, the only work a terminal on a project alone has.
+    pub fn draws_a_diagram(&self) -> bool {
+        matches!(self, TerminalMode::Generate { .. } | TerminalMode::Explain { .. })
     }
 
     pub fn follows_steps(&self) -> bool {
@@ -64,6 +72,7 @@ impl std::fmt::Display for TerminalMode {
             TerminalMode::Work => "WORK",
             TerminalMode::Plan => "PLAN",
             TerminalMode::Generate { .. } => "GENERATE",
+            TerminalMode::Explain { .. } => "EXPLAIN",
         })
     }
 }

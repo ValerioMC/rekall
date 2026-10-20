@@ -63,7 +63,7 @@ const taskOptions = computed(() => [
 function submit(): void {
   const chosen = project.value
   if (!ready.value || !chosen) return
-  emit('generate', { projectId: chosen.id, taskId: task.value?.id ?? null, request: request.value.trim(), kinds: kinds.value })
+  emit('generate', { projectId: chosen.id, taskId: task.value?.id ?? null, request: request.value.trim(), kinds: kinds.value, walkthrough: false })
 }
 
 function submitOnModEnter(event: KeyboardEvent): void {

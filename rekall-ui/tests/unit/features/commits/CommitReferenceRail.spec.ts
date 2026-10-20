@@ -104,7 +104,8 @@ describe('CommitReferenceRail', () => {
     const wrapper = mount(CommitReferenceRail, { props: { references: manyReferences(3) } })
 
     expect(wrapper.find('[data-testid="commit-rail-context-count"]').exists()).toBe(false)
-    expect(wrapper.text()).toContain('3 commits')
-    expect(wrapper.text()).not.toContain(',')
+    const header = wrapper.get('[data-testid="commit-rail-toggle"]').text()
+    expect(header).toContain('3 commits')
+    expect(header).not.toContain(',')
   })
 })

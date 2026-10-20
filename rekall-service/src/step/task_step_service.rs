@@ -5,7 +5,7 @@ use rekall_repository::repository as repo;
 use rekall_model::task;
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
-use super::{FlowPlace, StepFlowRows, StepStreamEvent, TaskStepView};
+use super::{FlowPlace, StepFlowRows, StepStreamEvent, TaskStepView, VisitBudget};
 use crate::timeentry::TimeEntryService;
 use crate::{in_read, in_write, load, text_rule, Ctx, Tx};
 
@@ -287,6 +287,23 @@ impl TaskStepService {
             self.publish_in(&mut tx, before.task_id).await?;
             self.find_by_task_in(&mut tx, before.task_id).await
         })
+    }
+
+    /// Caps how many times a flow may enter the step; `None` lifts the cap. Answers the task's
+    /// whole checklist, like a route does.
+    pub async fn limit_visits(&self, id: Id, budget: Option<VisitBudget>) -> Result<Vec<TaskStepView>> {
+        in_write!(&self.ctx, |tx| {
+            let saved = self.limit_visits_in(&tx, id, budget).await?;
+            self.publish_in(&mut tx, saved.task_id).await?;
+            self.find_by_task_in(&mut tx, saved.task_id).await
+        })
+    }
+
+    pub async fn limit_visits_in(&self, tx: &Tx, id: Id, budget: Option<VisitBudget>) -> Result<task_step::Model> {
+        let before = self.require(tx, id).await?;
+        let mut step = before.clone();
+        step.max_visits = budget.map(VisitBudget::visits);
+        repo::update_if_changed(tx.db(), &before, step, self.ctx.now()).await
     }
 
     /// Hands every step of the task back to the automatic layout.

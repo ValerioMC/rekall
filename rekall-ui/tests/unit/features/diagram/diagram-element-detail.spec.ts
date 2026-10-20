@@ -18,6 +18,11 @@ const SEQUENCE: SequenceScene = {
 }
 
 describe('element details', () => {
+  it('describes a participant a walkthrough names as external as an external system', () => {
+    expect(sequenceElement(SEQUENCE, 'P', new Set(['P']))?.look.label).toBe('External system')
+    expect(sequenceElement(SEQUENCE, 'S', new Set(['P']))?.look.label).toBe('Participant')
+  })
+
   it('names a participant by its label and keeps its id when they differ', () => {
     expect(sequenceElement(SEQUENCE, 'S')).toMatchObject({ title: 'OrderService', subtitle: 'S', linkKey: 'S' })
     expect(sequenceElement(SEQUENCE, 'P')?.subtitle).toBeNull()

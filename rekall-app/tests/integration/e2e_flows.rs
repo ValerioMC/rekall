@@ -208,3 +208,23 @@ async fn a_proposed_flow_with_a_loop_that_never_ends_is_refused_and_nothing_land
     assert_contains!(answer, "loop forever through 'Deploy', 'Test'");
     assert!(app.get(&format!("/api/tasks/{task_id}/steps")).await.list().is_empty());
 }
+
+#[tokio::test]
+async fn a_visit_budget_set_in_the_console_stops_a_session_going_round_the_loop_again() {
+    let app = app().await;
+    let (_, [_, deploy, _, _]) = release(&app).await;
+
+    let limited = app.patch(&format!("/api/steps/{deploy}/max-visits"), json!({ "maxVisits": 1 })).await;
+    assert_eq!(limited.status, 200, "{}", limited.text);
+    assert_eq!(app.patch(&format!("/api/steps/{deploy}/max-visits"), json!({ "maxVisits": 0 })).await.status, 400);
+
+    step(&app, "1", "claimed", None).await;
+    assert_contains!(app.call_tool("rekall_context", json!({ "anchors": TASK })).await, "- [ ] Deploy  (current, visit 1 of 1)");
+    step(&app, "2", "claimed", None).await;
+    step(&app, "3", "claimed", Some("app-error")).await;
+    assert_contains!(step(&app, "4", "claimed", None).await, "its whole visit budget", "Nothing was moved");
+
+    let lifted = app.patch(&format!("/api/steps/{deploy}/max-visits"), json!({ "maxVisits": null })).await;
+    assert_eq!(lifted.status, 200, "{}", lifted.text);
+    assert_contains!(step(&app, "4", "claimed", None).await, "to step 2 \"Deploy\", now open and current (visit 2)");
+}

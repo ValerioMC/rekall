@@ -5,7 +5,7 @@ mod support;
 
 use rekall_model::{task, task_step, TaskStepState};
 use rekall_service::flow::{FlowPlan, FlowRoute, PlannedRoute, PlannedStep, RouteTarget};
-use rekall_service::step::FlowPlace;
+use rekall_service::step::{FlowPlace, VisitBudget};
 use rekall_service::step::TaskStepView;
 use support::{world, World};
 
@@ -236,6 +236,72 @@ async fn a_dragged_step_keeps_its_place_until_the_layout_is_cleared() {
     assert_eq!((view(&cleared, &pipeline.test).flow_x, view(&cleared, &pipeline.test).flow_y), (None, None));
 }
 
+// --- Visit budgets
+
+async fn budget(world: &World, step: &task_step::Model, visits: i32) {
+    world.services.steps.limit_visits(step.id, Some(VisitBudget::new(visits).unwrap())).await.unwrap();
+}
+
+/// Goes round deploy, test, fix once: deploy is entered twice.
+async fn go_round_once(world: &World) {
+    claim(world, "Build", None).await;
+    claim(world, "Deploy", Some("deployed")).await;
+    claim(world, "Test", Some("app-error")).await;
+    claim(world, "Fix the application", None).await;
+}
+
+#[tokio::test]
+async fn a_route_into_a_step_whose_budget_is_spent_is_refused_and_the_claim_rolls_back() {
+    let world = world().await;
+    let pipeline = pipeline(&world).await;
+    budget(&world, &pipeline.deploy, 2).await;
+    go_round_once(&world).await;
+    claim(&world, "Deploy", Some("deployed")).await;
+    claim(&world, "Test", Some("app-error")).await;
+
+    let refused =
+        world.services.flow.transition(Some("vega"), "release", Some("Fix the application"), TaskStepState::Claimed, None).await;
+
+    assert!(refused.unwrap_err().to_string().contains("entered 2 times, its whole visit budget"));
+    let all = views(&world, &pipeline).await;
+    assert!(view(&all, &pipeline.fix_app).is_current(), "the fix keeps its open visit");
+    assert_ne!(view(&all, &pipeline.fix_app).state, TaskStepState::Claimed, "the claim was rolled back");
+    assert_eq!(view(&all, &pipeline.deploy).visits.len(), 2);
+}
+
+#[tokio::test]
+async fn standing_on_a_step_does_not_spend_its_budget_and_a_reset_renews_it() {
+    let world = world().await;
+    let pipeline = pipeline(&world).await;
+    budget(&world, &pipeline.deploy, 1).await;
+    start(&world, "Deploy").await;
+    start(&world, "Deploy").await;
+    claim(&world, "Deploy", Some("deployed")).await;
+    claim(&world, "Test", Some("app-error")).await;
+    assert!(world.services.flow.transition(Some("vega"), "release", Some("Fix the application"), TaskStepState::Claimed, None).await.is_err());
+
+    world.services.flow.reset(pipeline.task.id).await.unwrap();
+    let back = claim(&world, "Fix the application", None).await;
+
+    let Some(FlowRoute::Followed { next, .. }) = back.route else { panic!("expected the route back to deploy") };
+    assert_eq!(next.id, pipeline.deploy.id);
+}
+
+#[tokio::test]
+async fn lifting_the_budget_lets_the_flow_go_round_again() {
+    let world = world().await;
+    let pipeline = pipeline(&world).await;
+    budget(&world, &pipeline.deploy, 1).await;
+    claim(&world, "Build", None).await;
+    claim(&world, "Deploy", Some("deployed")).await;
+    claim(&world, "Test", Some("app-error")).await;
+
+    world.services.steps.limit_visits(pipeline.deploy.id, None).await.unwrap();
+
+    assert!(claim(&world, "Fix the application", None).await.route.is_some());
+    assert_eq!(view(&views(&world, &pipeline).await, &pipeline.deploy).max_visits, None);
+}
+
 // --- A flow a session proposes
 
 fn planned(title: &str, routes: &[(&str, Option<usize>)]) -> PlannedStep {
@@ -243,6 +309,7 @@ fn planned(title: &str, routes: &[(&str, Option<usize>)]) -> PlannedStep {
         title: title.into(),
         detail: Some(format!("What {title} does.")),
         routes: routes.iter().map(|(outcome, to)| PlannedRoute { outcome: (*outcome).into(), to: *to }).collect(),
+        max_visits: None,
     }
 }
 
@@ -251,7 +318,7 @@ fn deploy_test_fix() -> FlowPlan {
     FlowPlan::new(vec![
         planned("Deploy", &[("deployed", Some(1))]),
         planned("Test", &[("passed", None), ("app-error", Some(2))]),
-        planned("Fix", &[("fixed", Some(0))]),
+        PlannedStep { max_visits: Some(VisitBudget::new(3).unwrap()), ..planned("Fix", &[("fixed", Some(0))]) },
     ])
 }
 
@@ -275,6 +342,7 @@ async fn a_proposed_flow_lands_as_drafts_joined_by_their_routes_and_runs_once_pr
     let fix = drafts.iter().find(|step| step.title == "Fix").unwrap();
     assert_eq!(fix.links[0].to_step_id, Some(drafts[0].id), "the fix routes back to deploy");
     assert_eq!(fix.body_markdown.as_deref(), Some("What Fix does."));
+    assert_eq!(fix.max_visits, Some(3));
 
     promote_all(&world, &task).await;
     world.services.flow.transition(Some("vega"), "release", Some("Deploy"), TaskStepState::Claimed, None).await.unwrap();

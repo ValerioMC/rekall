@@ -7,10 +7,11 @@ import type { TaskStep } from '@/features/catalog/model/catalog'
 import type { RouteTarget } from '@/features/flow/lib/route-target'
 import type { StepLinkId, TaskStepId } from '@/model/branded'
 import FlowRouteEditor from './FlowRouteEditor.vue'
+import FlowVisitBudget from './FlowVisitBudget.vue'
 
 /**
  * The step picked on the canvas: where it stands, every time the work entered it and how it
- * left, the routes that lead into it, and the editor for the routes out of it.
+ * left, the routes that lead into it, the editor for the routes out of it and its visit budget.
  */
 const props = defineProps<{
   step: TaskStep
@@ -26,6 +27,7 @@ const emit = defineEmits<{
   'add-route': [to: RouteTarget, outcome: string]
   'edit-route': [id: StepLinkId, patch: { toStepId?: TaskStepId; endsFlow?: boolean; outcome?: string }]
   'remove-route': [id: StepLinkId]
+  'limit-visits': [maxVisits: number | null]
 }>()
 
 const incoming = computed(() => routesInto(props.step, props.steps))
@@ -69,6 +71,8 @@ const stateLabel = computed(() => (props.current ? 'the work stands here' : prop
       @edit="(id, patch) => emit('edit-route', id, patch)"
       @remove="(id) => emit('remove-route', id)"
     />
+
+    <FlowVisitBudget :step="step" :busy="busy" @limit="(max) => emit('limit-visits', max)" />
 
     <section aria-labelledby="flow-routes-in">
       <h4 id="flow-routes-in" class="eyebrow mb-2">Reached from</h4>

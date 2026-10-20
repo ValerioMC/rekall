@@ -60,6 +60,15 @@ export async function placeStepInFlow(id: TaskStepId, at: FlowPoint | null): Pro
   )
 }
 
+/** Caps how many times a flow may enter the step; null lifts the cap. */
+export async function limitStepVisits(id: TaskStepId, maxVisits: number | null): Promise<TaskStep[]> {
+  return request(async () =>
+    TaskStepListSchema.parse(
+      await apiClient(`/api/steps/${id}/max-visits`, { method: 'PATCH', body: { maxVisits } })
+    )
+  )
+}
+
 /** Hands every step of the task back to the automatic layout. */
 export async function clearFlowPlaces(taskId: TaskId): Promise<TaskStep[]> {
   return request(async () =>

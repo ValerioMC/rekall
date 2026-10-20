@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { asDiagramId, asProjectId, asTaskId } from '@/model/branded'
-import { DIAGRAM_KINDS, type DiagramSheet, type SourceLocation } from '@/features/diagram/model/diagram'
+import { DIAGRAM_KINDS, type DiagramSheet, type SourceLocation, type Walkthrough } from '@/features/diagram/model/diagram'
 
 const kind = z.enum(DIAGRAM_KINDS)
 
@@ -13,11 +13,28 @@ const SourceLocationSchema: z.ZodType<SourceLocation, z.ZodTypeDef, unknown> = z
   symbol: z.string().nullish().transform((value) => value ?? null)
 })
 
+const optionalText = z.string().nullish().transform((value) => value ?? null)
+
+const WalkthroughSchema: z.ZodType<Walkthrough, z.ZodTypeDef, unknown> = z.object({
+  external: z.array(z.string()).default([]),
+  messages: z
+    .record(
+      z.object({
+        explain: optionalText,
+        input: optionalText,
+        output: optionalText,
+        opens: z.number().int().nullish().transform((value) => value ?? null)
+      })
+    )
+    .default({})
+})
+
 const DiagramSheetSchema: z.ZodType<DiagramSheet, z.ZodTypeDef, unknown> = z.object({
   kind,
-  title: z.string().nullish().transform((value) => value ?? null),
+  title: optionalText,
   mermaid: z.string(),
-  links: z.record(z.array(SourceLocationSchema)).default({})
+  links: z.record(z.array(SourceLocationSchema)).default({}),
+  walkthrough: WalkthroughSchema.nullish().transform((value) => value ?? null)
 })
 
 const summaryShape = {
@@ -27,6 +44,7 @@ const summaryShape = {
   title: z.string(),
   question: z.string(),
   kinds: z.array(kind),
+  walkthrough: z.boolean().default(false),
   createdAt: z.string(),
   updatedAt: z.string()
 }

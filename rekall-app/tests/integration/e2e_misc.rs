@@ -687,6 +687,48 @@ async fn a_session_stores_a_generated_diagram_through_mcp_only_when_its_spans_ar
     assert_eq!(newest["taskId"], json!(null));
 }
 
+#[tokio::test]
+async fn a_session_stores_a_walkthrough_through_mcp_which_the_console_reads_back_and_the_gallery_marks() {
+    let app = app().await;
+    let folder = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(folder.path().join("src")).unwrap();
+    std::fs::write(folder.path().join("src/order.rs"), "fn a() {}\nfn place() {\n    insert();\n}\n").unwrap();
+    let company = app.a_company("Acme").await;
+    app.a_project_in(&company, "shop", folder.path()).await;
+    let entry = "sequenceDiagram\n  participant C as OrderController\n  participant S as OrderService\n  participant DB as Postgres\n  C->>+S: place(order)\n  S->>+DB: insert(order)\n  DB-->>-S: id\n  S-->>-C: Order";
+    let walkthrough = |opens: usize| {
+        json!({
+            "anchors": "project:shop",
+            "title": "Place an order",
+            "question": "What happens when an order is placed?",
+            "sheets": [
+                {
+                    "mermaid": entry,
+                    "links": { "#1": [{"file": "src/order.rs", "startLine": 2, "endLine": 4, "symbol": "place"}] },
+                    "walkthrough": {
+                        "external": ["DB"],
+                        "messages": { "#1": { "explain": "The service stores the order.", "input": "Order", "output": "Order with its id", "opens": opens } }
+                    }
+                },
+                { "title": "Inside place", "mermaid": "sequenceDiagram\n  S->>S: validate(order)" }
+            ]
+        })
+    };
+
+    let refused = app.call_tool("rekall_diagram", walkthrough(5)).await;
+    assert!(refused.contains(r##"sheets[0].walkthrough.messages["#1"].opens: there is no sheet 5"##), "{refused}");
+    assert!(app.get("/api/diagrams").await.list().is_empty());
+
+    let answer = app.call_tool("rekall_diagram", walkthrough(1)).await;
+    assert!(answer.contains("2 sheets (sequence, sequence)"), "{answer}");
+    let stored = &app.get("/api/diagrams").await.list()[0];
+    assert_eq!(stored["walkthrough"], json!(true));
+    let read = app.get(&format!("/api/diagrams/{}", stored["id"].as_str().unwrap())).await.body;
+    assert_eq!(read["sheets"][0]["walkthrough"]["external"], json!(["DB"]));
+    assert_eq!(read["sheets"][0]["walkthrough"]["messages"]["#1"]["opens"], json!(1));
+    assert_eq!(read["sheets"][1]["walkthrough"], json!(null));
+}
+
 struct FixedFeed(Release);
 
 #[async_trait]

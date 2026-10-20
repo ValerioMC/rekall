@@ -56,6 +56,11 @@ function removeRoute(id: StepLinkId): void {
   void run(() => store.removeRoute(props.task.id, id))
 }
 
+function limitVisits(maxVisits: number | null): void {
+  if (!selectedId.value) return
+  void run(() => store.limitVisits(props.task.id, selectedId.value!, maxVisits))
+}
+
 // A route drawn on the canvas fills the picked step's route form and waits for its outcome.
 const drawn = ref<{ to: RouteTarget; nonce: number } | null>(null)
 
@@ -119,6 +124,7 @@ async function reset(): Promise<void> {
         @add-route="addRoute"
         @edit-route="editRoute"
         @remove-route="removeRoute"
+        @limit-visits="limitVisits"
       />
     </div>
 

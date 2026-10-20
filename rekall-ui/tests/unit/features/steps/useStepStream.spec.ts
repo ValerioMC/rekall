@@ -54,6 +54,7 @@ const step = (over: Record<string, unknown> = {}) => ({
   position: 0,
   flowX: null,
   flowY: null,
+  maxVisits: null,
   passes: [],
     links: [],
     visits: [],

@@ -329,7 +329,9 @@ fn render_step(step: &TaskStepView, wrapup: Option<&WrapupView>, references: &mu
     let mut out = String::from(if step.state.complete() { "- [x] " } else { "- [ ] " });
     out.push_str(&step.title);
     if step.is_current() {
-        out.push_str(&format!("  (current, visit {})", step.visits.len()));
+        out.push_str(&format!("  (current, {})", step.visit_label()));
+    } else if let Some(max) = step.max_visits {
+        out.push_str(&format!("  (entered {} of at most {max} times)", step.visits.len()));
     }
     if step.state.running() {
         out.push_str("  (in progress)");

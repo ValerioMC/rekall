@@ -46,6 +46,10 @@ withDefaults(defineProps<{ glyph: ElementGlyph; size?: number; x?: number; y?: n
       <path d="M3 2.4h7l3 3v8.2H3Z" />
       <path d="M10 2.4v3h3M5.4 8.4h5.2M5.4 11h3.6" />
     </template>
+    <template v-else-if="glyph === 'external'">
+      <circle cx="8" cy="8" r="5.6" />
+      <path d="M2.4 8h11.2M8 2.4c1.6 1.6 2.3 3.5 2.3 5.6S9.6 12 8 13.6M8 2.4C6.4 4 5.7 5.9 5.7 8s.7 4 2.3 5.6" />
+    </template>
     <path v-else d="M2.4 8h10M9.4 5 12.4 8l-3 3" />
   </svg>
 </template>

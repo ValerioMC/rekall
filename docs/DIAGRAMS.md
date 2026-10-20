@@ -35,6 +35,7 @@ marked as guidance.
 | `mermaid` | yes | The Mermaid source, at most 100 000 characters. Its first line declares the type |
 | `title` | no | The sheet's tab label, at most 120 characters. Without one the tab shows the type |
 | `links` | no | Which elements open which code. See Links |
+| `walkthrough` | no | On a sequence only: how the console plays it step by step. See Walkthroughs |
 
 ## Types
 
@@ -98,6 +99,46 @@ In the console, clicking a linked element opens its code. In a sequence it also 
 3. A dashed arrow (`-->>`, `-->`, `--x`, `--)`) is a reply. It closes the call it answers and every
    call opened inside it.
 
+## Walkthroughs
+
+A sequence sheet can carry a `walkthrough`. The console then plays it one message at a time: the
+participants it reaches light up, the current call travels along its arrow, and a card shows the
+method called, its code (the message's `#n` link), what goes in and what comes back. The reader goes
+back and forth, plays it, and steps into a call that has a sheet of its own. Any sequence can be
+played; a walkthrough is what gives the steps their words.
+
+```json
+{
+  "title": "Place an order",
+  "mermaid": "sequenceDiagram\n  actor U as Client\n  participant C as OrderController\n  participant S as OrderService\n  participant DB as Postgres\n  U->>+C: POST /orders\n  C->>+S: place(order)\n  S->>+DB: insert(order)\n  DB-->>-S: id\n  S-->>-C: Order\n  C-->>-U: 201 Created",
+  "links": { "#2": [{ "file": "src/order/service.rs", "startLine": 40, "endLine": 72, "symbol": "OrderService::place" }] },
+  "walkthrough": {
+    "external": ["U", "DB"],
+    "messages": {
+      "#1": { "explain": "The handler validates the body before anything is stored.", "input": "{ \"sku\": \"A-7\", \"qty\": 2 }" },
+      "#2": { "explain": "The service owns the transaction.", "input": "Order { lines: [..] }", "output": "Order with its id", "opens": 1 }
+    }
+  }
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `external` | Ids of the participants that live outside the project's code (a client, a database, an HTTP API). Each has to be a participant of the sheet |
+| `messages` | `#n` to what the reader is told at that message. Only messages, by number, never participant ids |
+
+A message entry holds at least one of:
+
+| Field | Meaning |
+|---|---|
+| `explain` | What happens at this step and why, at most 1 000 characters |
+| `input` | What the call receives, at most 2 000 characters |
+| `output` | What comes back, or the error raised, at most 2 000 characters |
+| `opens` | The index in `sheets` (counted from 0, as `sheets[n]` in a refusal) of another sequence sheet that walks through this call. Never the sheet itself |
+
+The playing order is the messages' order. The first sheet is where a walkthrough starts, and its
+first message is the entry point: the call into a controller, a command or a triggered job.
+
 ## Writing a good diagram (guidance)
 
 - Answer the question that was asked, with one sheet for each type requested. About 6 to 12
@@ -136,7 +177,8 @@ whole, never patched.
 
 A diagram belongs to a project, whose folder its paths are relative to, and optionally names the
 task it was generated for. It keeps the question it answers. The document is one JSON column
-(`diagram.document_json`) beside the sheets' types (`diagram.kinds`), written whole by
+(`diagram.document_json`) beside the sheets' types (`diagram.kinds`) and whether one of them plays as
+a walkthrough (`diagram.walkthrough`), written whole by
 `DiagramService::write` after validation. `POST`/`PUT /api/diagrams` call it directly.
 `rekall_diagram` goes through `DiagramService::write_generated`, which resolves the anchors (a
 project, or a task and its project), audits the spans against the folder, and stores the diagram.

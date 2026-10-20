@@ -6,6 +6,7 @@ fn step(title: &str, routes: &[(&str, Option<usize>)]) -> PlannedStep {
         title: title.into(),
         detail: None,
         routes: routes.iter().map(|(outcome, to)| PlannedRoute { outcome: (*outcome).into(), to: *to }).collect(),
+        max_visits: None,
     }
 }
 

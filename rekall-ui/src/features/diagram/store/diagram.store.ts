@@ -6,12 +6,16 @@ import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import type { Diagram, DiagramDraft, DiagramKind, DiagramStreamEvent, DiagramSummary } from '@/features/diagram/model/diagram'
 import type { DiagramId, ProjectId, TaskId, TerminalId } from '@/model/branded'
 
-/** What to generate: a project, optionally one of its tasks, the request and the types asked for. */
+/**
+ * What to generate: a project, optionally one of its tasks, the request and the types asked for.
+ * A walkthrough is always sequences, so its kinds are `sequence` and a session chooses how many.
+ */
 export interface GenerationRequest {
   readonly projectId: ProjectId
   readonly taskId: TaskId | null
   readonly request: string
   readonly kinds: readonly DiagramKind[]
+  readonly walkthrough: boolean
 }
 
 /** A generation asked for and not yet answered: a session is working on it in a terminal. */
@@ -96,11 +100,13 @@ export const useDiagramStore = defineStore('diagram', () => {
 
   /**
    * Starts the generation workflow: a terminal on the task, or on the project alone, opened on
-   * `/rk <anchors> generate kinds:… "<request>"`. The diagram comes back through the event stream.
+   * `/rk <anchors> generate kinds:… "<request>"`, or `explain "<request>"` for a walkthrough. The
+   * diagram comes back through the event stream.
    */
   async function generate(asked: GenerationRequest): Promise<PendingGeneration> {
     const terminals = useTerminalStore()
-    const launch = { skipPermissions: skipsPermissions(), model: preferredModel(), effort: preferredEffort(), mode: 'GENERATE' as const, request: asked.request, kinds: asked.kinds }
+    const mode = asked.walkthrough ? ('EXPLAIN' as const) : ('GENERATE' as const)
+    const launch = { skipPermissions: skipsPermissions(), model: preferredModel(), effort: preferredEffort(), mode, request: asked.request, kinds: asked.walkthrough ? [] : asked.kinds }
     const terminal = asked.taskId ? await terminals.openForTask(asked.taskId, launch) : await terminals.openForProject(asked.projectId, launch)
     const generation: PendingGeneration = { ...asked, key: nextPendingKey++, terminalId: terminal.id, startedAt: Date.now() }
     setPending([generation, ...pending.value.filter((known) => known.terminalId !== terminal.id)])
@@ -189,6 +195,7 @@ function toSummary(diagram: DiagramSummary): DiagramSummary {
     title: diagram.title,
     question: diagram.question,
     kinds: diagram.kinds,
+    walkthrough: diagram.walkthrough,
     createdAt: diagram.createdAt,
     updatedAt: diagram.updatedAt
   }

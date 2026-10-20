@@ -23,7 +23,7 @@ describe('the generate dialog', () => {
     expect(document.querySelector('[data-testid="generate-preview"]')?.textContent).toContain('/rk project:vega generate kinds:sequence,state "How does checkout charge?"')
     await wrapper.find('[data-testid="generate-submit"]').trigger('click')
     const [[asked]] = wrapper.emitted('generate') as [[GenerationRequest]]
-    expect(asked).toEqual({ projectId: VEGA, taskId: null, request: 'How does checkout charge?', kinds: ['sequence', 'state'] })
+    expect(asked).toEqual({ projectId: VEGA, taskId: null, request: 'How does checkout charge?', kinds: ['sequence', 'state'], walkthrough: false })
     wrapper.unmount()
   })
 

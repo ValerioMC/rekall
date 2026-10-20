@@ -9,6 +9,7 @@ mod step_stream_event;
 mod step_visit_view;
 mod task_step_service;
 mod task_step_view;
+mod visit_budget;
 
 pub use flow_place::FlowPlace;
 pub use proposed::Proposed;
@@ -18,3 +19,4 @@ pub use step_stream_event::StepStreamEvent;
 pub use step_visit_view::StepVisitView;
 pub use task_step_service::{TaskStepService, PROPOSED_DRAFTS_MAX};
 pub use task_step_view::TaskStepView;
+pub use visit_budget::VisitBudget;

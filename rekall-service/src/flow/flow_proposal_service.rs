@@ -27,7 +27,11 @@ impl FlowProposalService {
             require_no_steps(&self.steps.find_by_task_in(&mut tx, task.id).await?)?;
             let mut drafts = Vec::with_capacity(plan.steps.len());
             for planned in &plan.steps {
-                drafts.push(self.steps.add_in(&mut tx, task.id, Some(&planned.title), planned.detail.as_deref()).await?);
+                let draft = self.steps.add_in(&mut tx, task.id, Some(&planned.title), planned.detail.as_deref()).await?;
+                if planned.max_visits.is_some() {
+                    self.steps.limit_visits_in(&tx, draft.id, planned.max_visits).await?;
+                }
+                drafts.push(draft);
             }
             for (planned, draft) in plan.steps.iter().zip(&drafts) {
                 for route in &planned.routes {

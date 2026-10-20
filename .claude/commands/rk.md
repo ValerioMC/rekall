@@ -1,6 +1,6 @@
 ---
 description: Load a Rekall working context by anchor, e.g. /rk project:vega task:report-builder
-argument-hint: "company:|project:|task: <label> ...  [wrapup [\"how to write it\"]] | [note \"what to keep\"] | [section \"Title\" [\"what it holds\"]] | [plan [flow]] | [generate [kinds:sequence,state] \"what to diagram\"] | [step:N start|done [outcome:<name>]]   (labels, not titles)"
+argument-hint: "company:|project:|task: <label> ...  [wrapup [\"how to write it\"]] | [note \"what to keep\"] | [section \"Title\" [\"what it holds\"]] | [plan [flow]] | [generate [kinds:sequence,state] \"what to diagram\"] | [explain \"what to walk through\"] | [step:N start|done [outcome:<name>]]   (labels, not titles)"
 allowed-tools: mcp__rekall__rekall_context, mcp__rekall__rekall_wrapup, mcp__rekall__rekall_step, mcp__rekall__rekall_propose_step, mcp__rekall__rekall_propose_flow, mcp__rekall__rekall_record_commit, mcp__rekall__rekall_note, mcp__rekall__rekall_project_section, mcp__rekall__rekall_diagram, Read, Grep, Glob
 ---
 
@@ -9,6 +9,7 @@ The arguments are:
 $ARGUMENTS
 
 If the terms include the bare word `generate`, follow **Generating**. If they include the bare word
+`explain`, follow **Explaining**. If they include the bare word
 `wrapup`, follow **Wrapping up**. If they include the bare word `note`, follow **Noting**. If they
 include the bare word `section`, follow **Sectioning**. If they include the bare word `plan`, follow
 **Planning**. If they include a `step:` term alongside `start`
@@ -104,8 +105,9 @@ routes (`app-error` -> step 4), and the order they are listed in is not the orde
 opened the next one. Do not ask me to tick, review or accept anything between steps, do not stop to say
 a step is waiting for the console, and do not write a wrapup in between. Start the step the claim names
 right away, in the same session. Stop only when a claim answers that the flow is finished, or when a
-step cannot be completed and none of its routes describes why: say what blocks it and stop there. When
-the flow is finished, write the wrapup once (see **Wrapping up**) and tell me the claimed steps are
+step cannot be completed and none of its routes describes why: say what blocks it and stop there. A
+claim refused because the next step's visit budget is spent is such a stop: the loop has gone round as
+often as I allowed, so tell me what keeps sending the work back and stop. When the flow is finished, write the wrapup once (see **Wrapping up**) and tell me the claimed steps are
 waiting for my review.
 
 Anchors that name a project and no task have no brief in them. Summarise what is there and wait.
@@ -233,7 +235,9 @@ renames, reorders or deletes a section, and writing one does not claim the task 
    For a flow, call `rekall_propose_flow` once with every step in order, the first where it begins,
    and each step's routes: `{"outcome": "app-error", "to": 3}`, or `"to": "end"`. Name outcomes for
    what happened (`passed`, `app-error`), give a step that simply leads on one route to the next,
-   leave the steps that finish the work without routes, and give every loop a way out. Either way, a
+   leave the steps that finish the work without routes, and give every loop a way out. Give the
+   step a loop returns to a `max_visits` (3 is a sensible start), so the flow stops instead of
+   going round forever. Either way, a
    title says what the step delivers; the detail says what to build, where, what it must satisfy
    and how I can tell it is done, enough for a session that never saw this one to do it alone.
    Propose only what is still missing, and nothing the description rules out.
@@ -287,6 +291,44 @@ anchor either.
 The sheets are the whole output. Never HTML, SVG, Vue or styling, and no rendition of the diagram in
 the chat either. To revise a diagram whose id you have, send every sheet again with that id as
 `diagram`, keeping the ids of the elements that stay.
+
+## Explaining
+
+`/rk project:vega explain "how an order is placed"` means: walk through the code that answers the
+request as a **walkthrough**, a diagram the console plays one message at a time, showing the method
+called, its code, what goes in and what comes back, and store it with `rekall_diagram`. A `task:`
+anchor may come too, as in **Generating**.
+
+The text in double quotes is the request, in my words: the functionality I want to understand. It is
+not an anchor. A walkthrough exists because a static diagram or a written explanation was not enough,
+so it follows the code concretely, call by call.
+
+1. Drop the `explain` term and the request, and call `rekall_context` with the anchors that are left.
+   As in **Generating**, you build nothing and no checklist changes.
+2. Find the entry point the request starts from: the controller handler, the command, the scheduled
+   job or the listener that is triggered first. Follow the calls from there through the layers, and
+   read every method you are going to show.
+3. Sheet 0 is the entry. It is a `sequenceDiagram` whose first message is the call into the entry
+   point, from an `actor` or the external caller, and whose participants follow the call through the
+   layers in order (controller, service, repository...). Every system outside the project's code (a
+   database, an HTTP API, a queue, the filesystem) is a participant of its own, and its id goes in
+   `walkthrough.external`.
+4. Each call is a message labelled with the method and its arguments (`place(order)`), linked by `#n`
+   to the method's body, with a dashed reply carrying what comes back. Give each call an entry in
+   `walkthrough.messages` under the same `#n`: `explain` says what the step does and why, in one or
+   two sentences drawn from the code; `input` what the method receives; `output` what it returns, or
+   the error it raises. A reply needs an entry only when it says something its call does not.
+5. A call whose own implementation is worth walking through gets a sequence sheet of its own, which
+   starts at that call's receiver and whose title names the call. The call's entry points at it with
+   `opens`, the sheet's index in `sheets`, counted from 0. The console opens it when the reader steps
+   into the call and comes back when it ends. Nest as deep as the code needs, within 8 sheets.
+6. Keep to what the code supports. `input` and `output` are values of the types the code declares: a
+   short example when the code makes it concrete (`{ sku: "A-7", qty: 2 }`), the type's shape when it
+   does not (`Order { lines: Vec<Line> }`). Never show a call, a value or a branch you did not see.
+7. Call `rekall_diagram` with the anchors, a short `title`, the request as `question` and every sheet.
+   If the answer is a refusal, fix every line it lists and send every sheet again.
+8. Say in two or three lines what the walkthrough covers, how many messages and sheets it plays, and
+   its id. Then stop: no wrapup, no step, no commit.
 
 ## Wrapping up
 

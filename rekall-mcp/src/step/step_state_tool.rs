@@ -93,10 +93,10 @@ fn claim_note(raw_state: &str, route: Option<&FlowRoute>) -> String {
 fn describe_route(anchor: &str, route: &FlowRoute) -> String {
     match route {
         FlowRoute::Followed { outcome, next } => format!(
-            "\nRouted by `{outcome}` to step {number} \"{}\", now open and current (visit {}). Start it now with \
+            "\nRouted by `{outcome}` to step {number} \"{}\", now open and current ({}). Start it now with \
              `/rk {anchor} step:{number} start`, without waiting for anyone.",
             next.title,
-            next.visits.len(),
+            next.visit_label(),
             number = next.position + 1
         ),
         FlowRoute::Ended { outcome: Some(outcome) } => {

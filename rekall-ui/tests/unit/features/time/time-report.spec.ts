@@ -96,6 +96,7 @@ function step(taskId: TaskId, title: string, doneAt: Date | null): TaskStep {
     position: nextStep,
     flowX: null,
     flowY: null,
+    maxVisits: null,
     passes: [],
     links: [],
     visits: [],
