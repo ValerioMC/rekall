@@ -58,7 +58,7 @@ rekall/
   rekall-api/        Axum REST routes for the UI, one folder per domain: its controller, request shapes and console service
   rekall-mcp/        MCP server: one tool reads, five write (a wrapup, a step's state, a commit log entry, a draft step, a new note); a folder per domain holds its tools
   rekall-claude/     the in-app terminal (portable-pty PTYs over one WebSocket), the Claude Code usage meter, the run queue, the transcript reader, the Claude folder editor
-  rekall-platform/   the database registry, backups and restores, the restart handle, the release check; what the application does around the catalog
+  rekall-platform/   the database registry, backups and restores, the restart handle, the release check, the OS credential store; what the application does around the catalog
   rekall-app/        rekall-server: wires every module, the local-access guard, serves the built frontend, embedded at compile time
   rekall-app/desktop the Tauri desktop app over the same server, in-process
   rekall-ui/         Vue 3 + Vite (built into rekall-ui/dist, embedded by rekall-app)
@@ -577,6 +577,20 @@ written for: it never loads a note by id, so it cannot edit, detach or delete on
 folder. Every read runs in a
 read-only transaction. `McpTool.writes()` is declared
 rather than inferred, and the startup log names the write surface out loud.
+
+Connection credentials never reach `rekall-mcp`. A GitLab token or a Kubernetes kubeconfig lives in
+the OS credential store (`KeychainSecretStore` in `rekall-platform`, over `keyring`, service
+`Rekall-connections`, one account per connection's `secret_ref`), behind the `SecretStore` trait in
+`rekall-service/src/connection/`. `rekall-app` builds the store and hands it to `ApiState` and
+`ClaudeState` only: it is not part of `Services`, which is what the MCP tools are built from, and
+`rekall-mcp/tests/integration/credential_isolation.rs` fails if `rekall-mcp` or `Services` ever names
+it or a type that carries a credential. A credential in memory is a `Secret`: it prints as `***`, has
+no `Serialize` and is wiped on drop. A kubeconfig is parsed by `Kubeconfig`, which refuses a user
+that runs a command (`exec`, `auth-provider`), a username and password, a server that is not
+`https://` or skips TLS verification, and a file path that is relative or unreadable, and whose
+parse errors name a line, never the text. The chosen context is kept as `KubeAccess::to_kubeconfig`:
+that context alone with every referenced file inlined. On Linux the store is the kernel keyring,
+which forgets its entries when the session ends.
 
 The residual risk is real and small: Claude can overwrite one task's wrapup with something
 wrong, or with something that replaces a correction made by hand, and it can mark a step running

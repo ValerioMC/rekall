@@ -48,7 +48,8 @@ async fn serve(world: &World) -> String {
     );
     let resources = ClaudeResourceService::new(world.folder.path().join(".claude"));
     let skill_groups = rekall_claude::resources::SkillGroupService::new(world.services.ctx.clone());
-    let state = ClaudeState { terminals, usage, queue, runner, resources, skill_groups };
+    let secrets = Arc::new(rekall_service::connection::InMemorySecretStore::new());
+    let state = ClaudeState { terminals, usage, queue, runner, resources, skill_groups, secrets };
     let app = rekall_claude::router(state);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();

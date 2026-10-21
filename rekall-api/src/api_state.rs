@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use rekall_service::commit::CommitReferenceService;
+use rekall_service::connection::SecretStore;
 use rekall_service::context::ContextSizeService;
 use rekall_service::diagram::DiagramService;
 use rekall_service::flow::{FlowService, StepLinkService};
@@ -46,12 +47,14 @@ pub struct ApiState {
     pub restorer: revision::RevisionRestoreService,
     pub directories: filesystem::DirectoryListingService,
     pub stream: Arc<StepEventStream>,
+    /// Connection credentials; handed in by `rekall-app`, never part of `Services`.
+    pub secrets: Arc<dyn SecretStore>,
 }
 
 impl ApiState {
     /// The composition root of the API: `services` is taken apart here, so each controller
     /// reaches only the services it calls. `user_home` is where the path picker starts.
-    pub fn new(services: Services, stream: Arc<StepEventStream>, user_home: PathBuf) -> Self {
+    pub fn new(services: Services, stream: Arc<StepEventStream>, user_home: PathBuf, secrets: Arc<dyn SecretStore>) -> Self {
         let ctx = services.ctx.clone();
         let tasks = catalog::TaskService::new(
             ctx.clone(),
@@ -93,6 +96,7 @@ impl ApiState {
             diagrams: services.diagrams,
             sections: services.sections,
             stream,
+            secrets,
         }
     }
 }

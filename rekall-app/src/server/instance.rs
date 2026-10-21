@@ -16,6 +16,7 @@ use rekall_claude::transcript::{TranscriptFolder, TranscriptScanner};
 use rekall_claude::usage::{ClaudeUsageService, UsageReader};
 use rekall_claude::ClaudeState;
 use rekall_repository::Database;
+use rekall_service::connection::SecretStore;
 use rekall_service::timeentry::IDLE_AFTER;
 use rekall_service::{Ctx, EventBus, Services};
 use tracing::warn;
@@ -27,6 +28,7 @@ use rekall_platform::bootstrap::registry::DatabaseRegistryStore;
 use rekall_platform::bootstrap::settings::{self, SettingsState};
 use crate::config::AppConfig;
 use rekall_platform::restart::Restarter;
+use rekall_platform::secret::KeychainSecretStore;
 use crate::security::{self, LocalAccess};
 use crate::spa::{self, Assets};
 use crate::actuator;
@@ -73,8 +75,12 @@ impl Instance {
         let clock = ctx.clock.clone();
         let services = Services::new(ctx.clone());
 
+        let secrets: Arc<dyn SecretStore> = match &options.secrets {
+            Some(secrets) => secrets.clone(),
+            None => Arc::new(KeychainSecretStore::new()),
+        };
         let stream = Arc::new(StepEventStream::new(events.clone()));
-        let api = ApiState::new(services.clone(), stream.clone(), config.user_home.clone());
+        let api = ApiState::new(services.clone(), stream.clone(), config.user_home.clone(), secrets.clone());
         let mcp = rekall_mcp::McpController::new(rekall_mcp::tool_registry::all(&services));
 
         let claude_config = &config.claude;
@@ -113,7 +119,7 @@ impl Instance {
         );
         let resources = ClaudeResourceService::new(claude_config.claude_home.clone());
         let skill_groups = SkillGroupService::new(ctx.clone());
-        let claude = ClaudeState { terminals: terminals.clone(), usage: usage.clone(), queue, runner: runner.clone(), resources, skill_groups };
+        let claude = ClaudeState { terminals: terminals.clone(), usage: usage.clone(), queue, runner: runner.clone(), resources, skill_groups, secrets };
 
         let location = database.path.as_deref().and_then(DatabaseLocation::of);
         let backups = DatabaseBackupService::new(

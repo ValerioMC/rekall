@@ -28,3 +28,7 @@ http-body-util.workspace = true
 [[test]]
 name = "protocol"
 path = "tests/integration/protocol.rs"
+
+[[test]]
+name = "credential_isolation"
+path = "tests/integration/credential_isolation.rs"

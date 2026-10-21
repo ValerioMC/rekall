@@ -22,9 +22,20 @@ tempfile.workspace = true
 thiserror.workspace = true
 async-trait.workspace = true
 reqwest.workspace = true
+keyring.workspace = true
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
+
+# keyring reaches no real store without a backend feature, so each platform turns on its own.
+[target.'cfg(target_os = "macos")'.dependencies]
+keyring = { workspace = true, features = ["apple-native"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+keyring = { workspace = true, features = ["windows-native"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+keyring = { workspace = true, features = ["linux-native"] }
 
 [dev-dependencies]
 tempfile.workspace = true

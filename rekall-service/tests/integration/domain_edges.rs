@@ -11,10 +11,11 @@ use regex::Regex;
 const FOUNDATIONS: [&str; 6] = ["ctx", "events", "load", "services", "text_rule", "tx"];
 
 /// Each domain and the domains it may use.
-const ALLOWED: [(&str, &[&str]); 16] = [
+const ALLOWED: [(&str, &[&str]); 17] = [
     ("claude", &["connection"]),
     ("commit", &[]),
     ("component", &[]),
+    ("connection", &[]),
     ("context", &["component", "connection", "step", "wrapup"]),
     ("diagram", &[]),
     ("flow", &["step"]),

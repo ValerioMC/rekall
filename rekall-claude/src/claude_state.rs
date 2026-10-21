@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use rekall_service::connection::SecretStore;
+
 use crate::resources::{ClaudeResourceService, SkillGroupService};
 use crate::{pty, queue, usage};
 
@@ -12,4 +14,6 @@ pub struct ClaudeState {
     pub runner: queue::RunQueueRunner,
     pub resources: ClaudeResourceService,
     pub skill_groups: SkillGroupService,
+    /// Connection credentials, read only to hand them to a terminal's helpers.
+    pub secrets: Arc<dyn SecretStore>,
 }
