@@ -9,15 +9,17 @@ import type {
   ConnectionInput,
   ConnectionRemoved,
   CredentialDraft,
-  KubeContextOption
+  KubeContextOption,
+  ProjectConnection
 } from '@/features/connection/model/connection'
-import type { CompanyId, ConnectionId } from '@/model/branded'
+import type { CompanyId, ConnectionId, ProjectId } from '@/model/branded'
 
 const ACCESS_PAGE = 50
 
 /**
  * The connections of the companies the console has opened, with each one's projects, last check
- * and access log. A credential passes through on its way to the server and is never kept here.
+ * and access log, and the bindings of the projects it has opened. A credential passes through on
+ * its way to the server and is never kept here.
  */
 export const useConnectionsStore = defineStore('connections', () => {
   const byCompany = ref<Readonly<Record<string, readonly Connection[]>>>({})
@@ -26,6 +28,7 @@ export const useConnectionsStore = defineStore('connections', () => {
   const accessLogs = ref<Readonly<Record<string, readonly ConnectionAccess[]>>>({})
   const accessEnded = ref<ReadonlySet<string>>(new Set())
   const loading = ref<ReadonlySet<string>>(new Set())
+  const byProject = ref<Readonly<Record<string, readonly ProjectConnection[]>>>({})
 
   function connectionsOf(companyId: CompanyId): readonly Connection[] {
     return byCompany.value[companyId] ?? []
@@ -170,6 +173,53 @@ export const useConnectionsStore = defineStore('connections', () => {
     accessEnded.value = next
   }
 
+  function projectConnectionsOf(projectId: ProjectId): readonly ProjectConnection[] {
+    return byProject.value[projectId] ?? []
+  }
+
+  function isProjectLoaded(projectId: ProjectId): boolean {
+    return projectId in byProject.value
+  }
+
+  async function loadProject(projectId: ProjectId): Promise<void> {
+    byProject.value = { ...byProject.value, [projectId]: await api.fetchProjectConnections(projectId) }
+  }
+
+  /** Binds, or sets the target of a binding the project has; the company's counts follow from the server. */
+  async function bind(
+    projectId: ProjectId,
+    companyId: CompanyId,
+    connectionId: ConnectionId,
+    target: string | null
+  ): Promise<ProjectConnection> {
+    const bound = await api.bindConnection(projectId, connectionId, target)
+    const rest = projectConnectionsOf(projectId).filter((known) => known.connectionId !== connectionId)
+    byProject.value = {
+      ...byProject.value,
+      [projectId]: [...rest, bound].sort((a, b) => a.label.localeCompare(b.label))
+    }
+    await refreshCompany(companyId)
+    return bound
+  }
+
+  async function unbind(
+    projectId: ProjectId,
+    companyId: CompanyId,
+    connectionId: ConnectionId
+  ): Promise<void> {
+    await api.unbindConnection(projectId, connectionId)
+    byProject.value = {
+      ...byProject.value,
+      [projectId]: projectConnectionsOf(projectId).filter((known) => known.connectionId !== connectionId)
+    }
+    await refreshCompany(companyId)
+  }
+
+  /** A company list already read is read again, since a binding changes its project counts. */
+  async function refreshCompany(companyId: CompanyId): Promise<void> {
+    if (isLoaded(companyId)) await load(companyId)
+  }
+
   async function previewKubeconfig(kubeconfig: string): Promise<KubeContextOption[]> {
     return await api.previewKubeconfig(kubeconfig)
   }
@@ -193,7 +243,12 @@ export const useConnectionsStore = defineStore('connections', () => {
     check,
     loadAccess,
     loadMoreAccess,
-    previewKubeconfig
+    previewKubeconfig,
+    projectConnectionsOf,
+    isProjectLoaded,
+    loadProject,
+    bind,
+    unbind
   }
 })
 

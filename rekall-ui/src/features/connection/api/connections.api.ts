@@ -6,7 +6,9 @@ import {
   ConnectionListSchema,
   ConnectionRemovedSchema,
   ConnectionSchema,
-  KubeContextListSchema
+  KubeContextListSchema,
+  ProjectConnectionListSchema,
+  ProjectConnectionSchema
 } from './schemas/connection.schema'
 import type {
   Connection,
@@ -16,9 +18,10 @@ import type {
   ConnectionInput,
   ConnectionRemoved,
   CredentialDraft,
-  KubeContextOption
+  KubeContextOption,
+  ProjectConnection
 } from '@/features/connection/model/connection'
-import type { CompanyId, ConnectionId } from '@/model/branded'
+import type { CompanyId, ConnectionId, ProjectId } from '@/model/branded'
 
 export async function fetchCompanyConnections(companyId: CompanyId): Promise<Connection[]> {
   return request(async () =>
@@ -97,5 +100,33 @@ export async function fetchConnectionAccess(
     ConnectionAccessListSchema.parse(
       await apiClient(`/api/connections/${id}/access`, { query: { offset, limit } })
     )
+  )
+}
+
+export async function fetchProjectConnections(projectId: ProjectId): Promise<ProjectConnection[]> {
+  return request(async () =>
+    ProjectConnectionListSchema.parse(await apiClient(`/api/projects/${projectId}/connections`))
+  )
+}
+
+/** Binds the connection to the project, or sets the target of a binding it already has. */
+export async function bindConnection(
+  projectId: ProjectId,
+  connectionId: ConnectionId,
+  target: string | null
+): Promise<ProjectConnection> {
+  return request(async () =>
+    ProjectConnectionSchema.parse(
+      await apiClient(`/api/projects/${projectId}/connections/${connectionId}`, {
+        method: 'PUT',
+        body: { target }
+      })
+    )
+  )
+}
+
+export async function unbindConnection(projectId: ProjectId, connectionId: ConnectionId): Promise<void> {
+  await request(() =>
+    apiClient(`/api/projects/${projectId}/connections/${connectionId}`, { method: 'DELETE' })
   )
 }

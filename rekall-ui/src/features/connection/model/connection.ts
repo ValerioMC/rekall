@@ -39,6 +39,20 @@ export interface ConnectionDetail extends Connection {
   readonly projects: readonly ConnectionProject[]
 }
 
+/** A connection a project binds, as its page shows it. */
+export interface ProjectConnection {
+  readonly connectionId: ConnectionId
+  readonly projectId: ProjectId
+  readonly kind: ConnectionKind
+  readonly label: string
+  readonly title: string
+  readonly baseUrl: string | null
+  readonly kubeContext: string | null
+  /** The GitLab project path or the Kubernetes namespace this project uses it for. */
+  readonly target: string | null
+  readonly credentialSetAt: string | null
+}
+
 /** A field left out on an edit keeps what the connection has; the kind is fixed once created. */
 export interface ConnectionInput {
   readonly kind?: ConnectionKind

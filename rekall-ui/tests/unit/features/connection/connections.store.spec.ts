@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import * as api from '@/features/connection/api/connections.api'
 import { useConnectionsStore } from '@/features/connection/store/connections.store'
-import type { Connection } from '@/features/connection/model/connection'
-import type { CompanyId, ConnectionId } from '@/model/branded'
+import type { Connection, ProjectConnection } from '@/features/connection/model/connection'
+import type { CompanyId, ConnectionId, ProjectId } from '@/model/branded'
 
 vi.mock('@/features/connection/api/connections.api')
 
@@ -133,5 +133,57 @@ describe('the connections store', () => {
     expect(store.accessOf('prod' as ConnectionId)).toHaveLength(51)
     expect(api.fetchConnectionAccess).toHaveBeenLastCalledWith('prod', 50, 50)
     expect(store.hasMoreAccess('prod' as ConnectionId)).toBe(false)
+  })
+})
+
+describe('a project in the connections store', () => {
+  const PROJECT = 'p-1' as ProjectId
+
+  function binding(id: string, target: string | null = null): ProjectConnection {
+    return {
+      connectionId: id as ConnectionId,
+      projectId: PROJECT,
+      kind: 'KUBERNETES',
+      label: id,
+      title: id,
+      baseUrl: null,
+      kubeContext: null,
+      target,
+      credentialSetAt: null
+    }
+  }
+
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.resetAllMocks()
+  })
+
+  it('binds a connection, sets its target in place and reads the company counts again', async () => {
+    vi.mocked(api.fetchCompanyConnections).mockResolvedValue([connection('prod', { projectCount: 1 })])
+    vi.mocked(api.fetchProjectConnections).mockResolvedValue([])
+    vi.mocked(api.bindConnection)
+      .mockResolvedValueOnce(binding('prod'))
+      .mockResolvedValueOnce(binding('prod', 'apps'))
+    const store = useConnectionsStore()
+    await store.load(COMPANY)
+    await store.loadProject(PROJECT)
+
+    await store.bind(PROJECT, COMPANY, 'prod' as ConnectionId, null)
+    await store.bind(PROJECT, COMPANY, 'prod' as ConnectionId, 'apps')
+
+    expect(store.projectConnectionsOf(PROJECT)).toEqual([binding('prod', 'apps')])
+    expect(api.fetchCompanyConnections).toHaveBeenCalledTimes(3)
+  })
+
+  it('unbinds a connection from the project only', async () => {
+    vi.mocked(api.fetchProjectConnections).mockResolvedValue([binding('prod'), binding('staging')])
+    vi.mocked(api.unbindConnection).mockResolvedValue()
+    const store = useConnectionsStore()
+    await store.loadProject(PROJECT)
+
+    await store.unbind(PROJECT, COMPANY, 'prod' as ConnectionId)
+
+    expect(store.projectConnectionsOf(PROJECT).map((b) => b.label)).toEqual(['staging'])
+    expect(api.fetchCompanyConnections).not.toHaveBeenCalled()
   })
 })

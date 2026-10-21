@@ -62,3 +62,17 @@ export const ConnectionAccessListSchema = z.array(
 export const ConnectionRemovedSchema = z.object({ unboundProjects: z.number().int() })
 
 export const ConnectionStreamEventSchema = z.object({ companyId: z.string().uuid().transform(asCompanyId) })
+
+export const ProjectConnectionSchema = z.object({
+  connectionId: z.string().uuid().transform(asConnectionId),
+  projectId: z.string().uuid().transform(asProjectId),
+  kind: KindSchema,
+  label: z.string(),
+  title: z.string(),
+  baseUrl: z.string().nullable(),
+  kubeContext: z.string().nullable(),
+  target: z.string().nullable(),
+  credentialSetAt: z.string().nullable()
+})
+
+export const ProjectConnectionListSchema = z.array(ProjectConnectionSchema)

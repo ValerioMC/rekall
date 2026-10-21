@@ -12,6 +12,7 @@ import ProjectBlueprintPane from '@/features/project/components/ProjectBlueprint
 import ProjectComponentsSection from '@/features/project/components/ProjectComponentsSection.vue'
 import ProjectDocsRail from '@/features/project/components/ProjectDocsRail.vue'
 import ProjectRepositoryGroup from '@/features/project/components/ProjectRepositoryGroup.vue'
+import ProjectConnectionsGroup from '@/features/connection/components/ProjectConnectionsGroup.vue'
 import ProjectSectionPane from '@/features/project/components/ProjectSectionPane.vue'
 import ProjectTasksDrawer from '@/features/project/components/ProjectTasksDrawer.vue'
 import ProjectMark from '@/components/ui/ProjectMark.vue'
@@ -232,6 +233,7 @@ watch(sections, (list) => {
           <ProjectAboutGroup :project="project" />
           <ProjectComponentsSection :project-id="project.id" :project-title="project.title" :repo-folder="project.repoFolder" />
           <ProjectRepositoryGroup :project="project" />
+          <ProjectConnectionsGroup :project="project" />
         </aside>
       </div>
     </template>

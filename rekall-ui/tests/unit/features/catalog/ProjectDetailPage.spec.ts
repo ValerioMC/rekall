@@ -14,6 +14,7 @@ import type { CompanyId, ProjectId, ProjectSectionId, TaskId } from '@/model/bra
 
 vi.mock('@/features/project/api/project-sections.api')
 vi.mock('@/features/project/api/project-components.api')
+vi.mock('@/features/connection/api/connections.api')
 vi.mock('@/features/catalog/api/catalog.api', () => ({ fetchProjectRepository: vi.fn().mockResolvedValue({ isRepository: false }) }))
 
 const PROJECT = 'p-1' as ProjectId

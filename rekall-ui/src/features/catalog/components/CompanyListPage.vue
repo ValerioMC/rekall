@@ -36,7 +36,7 @@ function openProjectsOf(company: Company): void {
 }
 
 function openConnectionsOf(company: Company): void {
-  router.push({ name: 'company-connections', params: { id: company.id } })
+  router.push(`/companies/${company.id}/connections`)
 }
 
 function edit(company: Company): void {
