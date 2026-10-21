@@ -14,6 +14,7 @@ export type TagId = Brand<string, 'TagId'>
 export type DiagramId = Brand<string, 'DiagramId'>
 export type ProjectSectionId = Brand<string, 'ProjectSectionId'>
 export type ProjectComponentId = Brand<string, 'ProjectComponentId'>
+export type ConnectionId = Brand<string, 'ConnectionId'>
 
 export const asCompanyId = (value: string): CompanyId => value as CompanyId
 export const asProjectId = (value: string): ProjectId => value as ProjectId
@@ -29,3 +30,4 @@ export const asTagId = (value: string): TagId => value as TagId
 export const asDiagramId = (value: string): DiagramId => value as DiagramId
 export const asProjectSectionId = (value: string): ProjectSectionId => value as ProjectSectionId
 export const asProjectComponentId = (value: string): ProjectComponentId => value as ProjectComponentId
+export const asConnectionId = (value: string): ConnectionId => value as ConnectionId

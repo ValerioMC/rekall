@@ -35,6 +35,10 @@ function openProjectsOf(company: Company): void {
   router.push({ path: '/projects', query: { company: company.id } })
 }
 
+function openConnectionsOf(company: Company): void {
+  router.push({ name: 'company-connections', params: { id: company.id } })
+}
+
 function edit(company: Company): void {
   editing.value = companyDraft(company)
 }
@@ -136,6 +140,23 @@ async function confirmDelete(): Promise<void> {
           </span>
 
           <span class="flex shrink-0 gap-1 opacity-0 transition focus-within:opacity-100 group-hover/row:opacity-100">
+            <button
+              class="focus-ring grid size-7 place-items-center rounded-key text-text-subtle hover:bg-surface-hover hover:text-accent"
+              :aria-label="`Connections of ${company.name}`"
+              title="Connections"
+              data-testid="company-connections"
+              @click.stop="openConnectionsOf(company)"
+            >
+              <svg class="size-3.5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M9 7V3m6 4V3M7 7h10v4a5 5 0 0 1-10 0V7zm5 9v5"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
             <button
               class="focus-ring grid size-7 place-items-center rounded-key text-text-subtle hover:bg-surface-hover hover:text-accent"
               :aria-label="`Edit ${company.name}`"

@@ -21,6 +21,12 @@ export const router = createRouter({
       component: () => import('@/features/catalog/components/CompanyListPage.vue')
     },
     {
+      path: '/companies/:id/connections',
+      name: 'company-connections',
+      component: () => import('@/features/connection/components/CompanyConnectionsPage.vue'),
+      props: true
+    },
+    {
       path: '/report',
       name: 'report',
       component: () => import('@/features/time/components/ReportPage.vue')
