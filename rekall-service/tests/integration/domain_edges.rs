@@ -12,10 +12,10 @@ const FOUNDATIONS: [&str; 6] = ["ctx", "events", "load", "services", "text_rule"
 
 /// Each domain and the domains it may use.
 const ALLOWED: [(&str, &[&str]); 16] = [
-    ("claude", &[]),
+    ("claude", &["connection"]),
     ("commit", &[]),
     ("component", &[]),
-    ("context", &["component", "step", "wrapup"]),
+    ("context", &["component", "connection", "step", "wrapup"]),
     ("diagram", &[]),
     ("flow", &["step"]),
     ("note", &[]),

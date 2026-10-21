@@ -3,6 +3,7 @@
 #[macro_use]
 mod string_enum;
 
+mod connection_kind;
 mod document_context_mode;
 mod project_status;
 mod revision_kind;
@@ -12,6 +13,7 @@ mod task_status;
 mod task_step_state;
 mod wrapup_author;
 
+pub use connection_kind::ConnectionKind;
 pub use document_context_mode::DocumentContextMode;
 pub use project_status::ProjectStatus;
 pub use revision_kind::RevisionKind;

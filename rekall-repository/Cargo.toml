@@ -31,3 +31,7 @@ path = "tests/integration/stamped_update.rs"
 [[test]]
 name = "queries"
 path = "tests/integration/queries.rs"
+
+[[test]]
+name = "connections"
+path = "tests/integration/connections.rs"

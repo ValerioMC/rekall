@@ -95,6 +95,7 @@ is found by opening one folder per crate:
 |---|---|
 | `catalog` | companies and projects with their logos and icons; in `rekall-api` and the console also the tasks |
 | `component`, `section` | a project's components and its titled pages |
+| `connection` | the GitLab instances and Kubernetes clusters a company's projects reach, the projects that bind each, and the log of every credential a terminal asked for |
 | `step`, `flow` | the checklist, and the routes and visits that turn it into a flow |
 | `note` | documents, their attachment to tasks, the scope that decides how they load |
 | `wrapup`, `revision`, `review`, `timeentry` | the wrapup, saved states of a task, the review line, logged time |
@@ -115,7 +116,8 @@ domain that uses another one it is not listed for, and on two domains that use e
 
 | Domain | May use |
 |---|---|
-| `context` | `component`, `step`, `wrapup` |
+| `claude` | `connection` |
+| `context` | `component`, `connection`, `step`, `wrapup` |
 | `flow` | `step` |
 | `review` | `timeentry` |
 | `section` | `note` |
@@ -166,6 +168,10 @@ Company ──< Project ──< Task >──< Document
                          ├──< StepVisit
                          ├──< TokenUsage
                          └──1 Wrapup
+
+Company ──< ExternalConnection ──< ConnectionAccess
+                    │
+Project ──< ProjectConnection >──┘
 ```
 
 | Table | Anchored by | Columns of note |
@@ -180,6 +186,9 @@ Company ──< Project ──< Task >──< Document
 | `step_visit` | through its task | `task_id`, `step_id`, `ordinal` unique per task, `entered_at`, `left_at`, `outcome`; deleted with its step |
 | `wrapup` | through its task | `task_id` unique, `body_markdown`, `written_by` |
 | `project_component` | through its project | `project_id`, `name`, `folder`, `description`, `position` |
+| `external_connection` | `label`, unique per company | `company_id`, `title`, `kind` (`GITLAB`, `KUBERNETES`), `base_url` (the GitLab instance, or the server read from an imported kubeconfig), `kube_context`, `secret_ref` (the OS keychain account holding the credential, generated, unique), `secret_set_at` (null while no credential is stored). No column holds a credential |
+| `project_connection` | through its project | `project_id`, `connection_id` unique together, `target` (GitLab project path or Kubernetes namespace); deleted with either side |
+| `connection_access` | through its connection | `connection_id`, `task_id` (set null when the task goes), `terminal_id`, `accessed_at`, `granted`, `reason` (why the request was refused); append-only, never a credential |
 | `token_usage` | through its task | `session_id`, `task_id`, `step_id`, the four token counts, `spent_on` |
 | `transcript_scan` | `session_id` | `scanned_bytes`, `scanned_at` |
 | `task_skill` | through its task | `task_id`, `step_id` (null for the task's own), `skill_name`, `position`; deleted with its task or step |

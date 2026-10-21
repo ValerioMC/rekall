@@ -7,6 +7,7 @@
 pub mod catalog;
 pub mod commit;
 pub mod component;
+pub mod connection;
 pub mod diagram;
 pub mod flow;
 pub mod note;
@@ -27,6 +28,7 @@ mod stamped_update;
 pub use catalog::{company, company_logo_image, project, project_icon_image};
 pub use commit::commit_reference;
 pub use component::project_component;
+pub use connection::{connection_access, external_connection, project_connection};
 pub use flow::{step_link, step_visit};
 pub use note::document;
 pub use queue::run_queue;
