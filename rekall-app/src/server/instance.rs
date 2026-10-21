@@ -28,6 +28,7 @@ use rekall_platform::bootstrap::registry::DatabaseRegistryStore;
 use rekall_platform::bootstrap::settings::{self, SettingsState};
 use crate::config::AppConfig;
 use rekall_platform::restart::Restarter;
+use rekall_platform::connection::{self, ConnectionCheckService, ConnectionProbe, HttpConnectionProbe};
 use rekall_platform::secret::KeychainSecretStore;
 use crate::security::{self, LocalAccess};
 use crate::spa::{self, Assets};
@@ -119,7 +120,7 @@ impl Instance {
         );
         let resources = ClaudeResourceService::new(claude_config.claude_home.clone());
         let skill_groups = SkillGroupService::new(ctx.clone());
-        let claude = ClaudeState { terminals: terminals.clone(), usage: usage.clone(), queue, runner: runner.clone(), resources, skill_groups, secrets };
+        let claude = ClaudeState { terminals: terminals.clone(), usage: usage.clone(), queue, runner: runner.clone(), resources, skill_groups, secrets: secrets.clone() };
 
         let location = database.path.as_deref().and_then(DatabaseLocation::of);
         let backups = DatabaseBackupService::new(
@@ -143,6 +144,11 @@ impl Instance {
             None => Arc::new(GithubReleaseFeed::new(&config.update_check.url)),
         };
         let update_checker = Arc::new(UpdateChecker::new(RUNNING_VERSION, config.update_check.enabled, release_feed));
+        let connection_probe: Arc<dyn ConnectionProbe> = match &options.connection_probe {
+            Some(probe) => probe.clone(),
+            None => Arc::new(HttpConnectionProbe::new()),
+        };
+        let connection_checks = ConnectionCheckService::new(ctx.clone(), secrets.clone(), connection_probe);
 
         let routes = Router::new()
             .merge(rekall_api::router(api))
@@ -153,6 +159,7 @@ impl Instance {
             .merge(backup::routes(backups.clone(), restorer))
             .merge(actuator::routes(database.conn.clone()))
             .merge(version::routes(update_checker))
+            .merge(connection::routes(connection_checks))
             .merge(spa::routes(Assets::new(config.ui_dist.clone())))
             .method_not_allowed_fallback(|| async { framework(StatusCode::METHOD_NOT_ALLOWED) });
         // The routes sit behind a fallback so the layers below see each response whole.

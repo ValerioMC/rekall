@@ -4308,11 +4308,13 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "axum",
+ "base64 0.22.1",
  "chrono",
  "keyring",
  "libc",
  "regex",
  "rekall-common",
+ "rekall-model",
  "rekall-repository",
  "rekall-service",
  "rekall-web",

@@ -611,6 +611,17 @@ the projects that bind it, `DELETE` answers `unboundProjects`), `PUT`/`DELETE
 /api/projects/{id}/connections/{connectionId}` (`PUT` binds, or sets the `target` of a binding the
 project has). Every change publishes a `connection` frame naming the company.
 
+`POST /api/connections/{id}/check` asks the connection's server whether its stored credential still
+works, before a session finds out mid-deploy. It lives in `rekall-platform/src/connection/` because
+it is HTTP to the outside: `ConnectionCheckService` reads the credential through the store and hands
+it to a `ConnectionProbe` (`HttpConnectionProbe`, or a fake through `StartOptions::connection_probe`).
+GitLab is asked `GET /api/v4/user` with the token; a cluster is asked `/version` and a
+`SelfSubjectReview`, trusted through the kubeconfig's CA and with a client certificate as the TLS
+identity, falling back to an authenticated `GET /api` on a cluster too old for the review. The
+answer (`ok`, a sentence naming the identity, the rejection status or why the server could not be
+asked) is shown and never stored, and a connection with no credential is answered without asking
+anyone.
+
 The residual risk is real and small: Claude can overwrite one task's wrapup with something
 wrong, or with something that replaces a correction made by hand, and it can mark a step running
 or claimed when it is not. The first two are repaired from the wrapup's history in the console:

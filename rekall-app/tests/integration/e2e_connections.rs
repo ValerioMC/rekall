@@ -132,3 +132,16 @@ async fn labels_kinds_and_urls_are_checked() {
     assert_eq!(app.put(&format!("/api/connections/{first}"), json!({ "title": "Production" })).await.str("title"), "Production");
     assert!(app.get(&format!("/api/connections/{first}/access")).await.list().is_empty());
 }
+
+#[tokio::test]
+async fn a_check_on_a_connection_without_a_credential_says_so_without_asking_anyone() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let gitlab = id(&app.post(&format!("/api/companies/{acme}/connections"), json!({ "kind": "GITLAB", "title": "GitLab", "baseUrl": "https://gitlab.example.com" })).await);
+
+    let check = app.post_empty(&format!("/api/connections/{gitlab}/check")).await;
+
+    assert_eq!((check.status, check.get("ok").as_bool()), (200, Some(false)), "{}", check.text);
+    assert!(check.str("detail").contains("No credential"));
+    assert_eq!(app.post_empty("/api/connections/00000000-0000-0000-0000-000000000000/check").await.status, 404);
+}
