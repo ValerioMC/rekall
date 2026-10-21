@@ -9,6 +9,7 @@ import { sessionTitle } from '@/common/format/session-title'
 import { identityHue } from '@/common/identity'
 import { recordLatestCommit } from '@/features/commits/api/commitReference.api'
 import DockPanel from './DockPanel.vue'
+import TerminalConnectionChips from '@/features/connection/components/TerminalConnectionChips.vue'
 import type { Terminal } from '@/features/claude/model/terminal'
 import type { TerminalId } from '@/model/branded'
 
@@ -109,6 +110,13 @@ async function logCommit(terminal: Terminal): Promise<void> {
           </svg>
         </button>
       </div>
+      <TerminalConnectionChips
+        v-if="terminal.connections.length"
+        class="px-2 pb-1.5"
+        :terminal-id="terminal.id"
+        :project-id="terminal.projectId"
+        :connections="terminal.connections"
+      />
     </li>
   </DockPanel>
 </template>

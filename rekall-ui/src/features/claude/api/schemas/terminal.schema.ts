@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { asProjectId, asTaskId, asTaskStepId, asTerminalId } from '@/model/branded'
+import { asConnectionId, asProjectId, asTaskId, asTaskStepId, asTerminalId } from '@/model/branded'
 
 export const TerminalSchema = z.object({
   id: z.string().uuid().transform(asTerminalId),
@@ -16,7 +16,17 @@ export const TerminalSchema = z.object({
   effort: z.string().nullable(),
   live: z.boolean(),
   startedAt: z.string(),
-  lastActivityAt: z.string()
+  lastActivityAt: z.string(),
+  connections: z
+    .array(
+      z.object({
+        connectionId: z.string().uuid().transform(asConnectionId),
+        label: z.string(),
+        kind: z.enum(['GITLAB', 'KUBERNETES']),
+        credentialSet: z.boolean()
+      })
+    )
+    .default([])
 })
 
 export const TerminalListSchema = z.array(TerminalSchema)

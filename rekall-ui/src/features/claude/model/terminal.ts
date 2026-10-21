@@ -1,4 +1,5 @@
-import type { ProjectId, TaskId, TaskStepId, TerminalId } from '@/model/branded'
+import type { ConnectionKind } from '@/features/connection/model/connection'
+import type { ConnectionId, ProjectId, TaskId, TaskStepId, TerminalId } from '@/model/branded'
 
 /**
  * What a terminal is opened to do: `WORK` types `/rk <anchor>`, `PLAN` types `/rk <anchor> plan`,
@@ -29,6 +30,16 @@ export interface Terminal {
   readonly live: boolean
   readonly startedAt: string
   readonly lastActivityAt: string
+  /** What the terminal's project reaches outside Rekall; never a credential. */
+  readonly connections: readonly TerminalConnection[]
+}
+
+/** A connection a terminal's helpers can reach, or cannot when no credential is stored. */
+export interface TerminalConnection {
+  readonly connectionId: ConnectionId
+  readonly label: string
+  readonly kind: ConnectionKind
+  readonly credentialSet: boolean
 }
 
 /** The `{"type":"ended",...}` frame the socket sends once the PTY process exits. */

@@ -45,7 +45,8 @@ function terminal(): Terminal {
     effort: null,
     live: true,
     startedAt: '2026-09-22T10:00:00Z',
-    lastActivityAt: '2026-09-22T10:00:00Z'
+    lastActivityAt: '2026-09-22T10:00:00Z',
+    connections: []
   }
 }
 

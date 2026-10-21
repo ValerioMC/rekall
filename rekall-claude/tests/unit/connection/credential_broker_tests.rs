@@ -189,3 +189,25 @@ async fn folders_left_by_an_earlier_run_are_removed_at_start() {
 
     assert!(!leftover.exists());
 }
+
+#[tokio::test]
+async fn every_logged_request_is_announced_without_its_credential() {
+    let world = world().await;
+    let mut events = world.ctx.events.subscribe();
+    let terminal_id = Id::random();
+    let token = world.broker.open(terminal_id, &world.launch).await.unwrap().unwrap().token.unwrap();
+
+    world.broker.hand_out(terminal_id, Some(&token), "gitlab", CredentialPurpose::Git).await;
+    world.broker.hand_out(terminal_id, Some("guess"), "gitlab", CredentialPurpose::Git).await;
+
+    let mut announced = Vec::new();
+    while let Ok(event) = events.try_recv() {
+        if event.name() == "credential-access" {
+            announced.push(event.payload());
+        }
+    }
+    assert_eq!(announced.len(), 2);
+    assert_eq!(announced[0]["terminalId"], terminal_id.to_string());
+    assert_eq!((announced[0]["granted"].as_bool(), announced[1]["granted"].as_bool()), (Some(true), Some(false)));
+    assert!(announced.iter().all(|payload| !payload.to_string().contains("glpat-secret")));
+}

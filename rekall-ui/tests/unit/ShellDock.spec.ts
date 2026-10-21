@@ -117,6 +117,7 @@ function terminal(over: Partial<Terminal> = {}): Terminal {
     live: true,
     startedAt: '2026-09-10T10:00:00Z',
     lastActivityAt: '2026-09-10T10:00:00Z',
+    connections: [],
     ...over
   }
 }

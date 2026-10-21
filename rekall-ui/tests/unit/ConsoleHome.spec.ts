@@ -76,7 +76,8 @@ const session: Terminal = {
   effort: null,
   live: true,
   startedAt: new Date(Date.now() - 600_000).toISOString(),
-  lastActivityAt: new Date().toISOString()
+  lastActivityAt: new Date().toISOString(),
+  connections: []
 }
 
 describe('the console home', () => {

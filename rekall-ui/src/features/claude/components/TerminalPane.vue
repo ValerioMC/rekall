@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import TerminalConnectionChips from '@/features/connection/components/TerminalConnectionChips.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import TaskTitleRow from '@/features/catalog/components/TaskTitleRow.vue'
 import TerminalScreen from '@/features/claude/components/TerminalScreen.vue'
@@ -149,6 +150,12 @@ watch(
                 </span>
                 {{ connected ? 'connected' : ended ? 'ended' : 'connecting' }}
               </span>
+              <TerminalConnectionChips
+                v-if="activeTerminal"
+                :terminal-id="activeTerminal.id"
+                :project-id="activeTerminal.projectId"
+                :connections="activeTerminal.connections"
+              />
               </template>
             </TaskTitleRow>
           </div>

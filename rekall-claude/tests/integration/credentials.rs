@@ -281,6 +281,9 @@ async fn a_terminal_on_a_project_with_connections_has_a_session_exactly_as_long_
 
     let view = terminals.open(TerminalTarget::Project(launch.project_id), None, false, None, None, TerminalMode::Explain { request: "how".into() }).await.unwrap();
     assert!(broker.has_session(view.id));
+    let named: Vec<(String, bool)> = view.connections.iter().map(|connection| (connection.label.clone(), connection.credential_set)).collect();
+    assert_eq!(named, [("gitlab".to_string(), true), ("prod".to_string(), true)]);
+    assert!(!serde_json::to_string(&view).unwrap().contains("connection-"), "the view names no keychain account");
 
     terminals.close(view.id, "test").await;
     assert!(!broker.has_session(view.id));

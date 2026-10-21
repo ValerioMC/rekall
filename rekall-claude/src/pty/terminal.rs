@@ -9,7 +9,7 @@ use rekall_service::claude::TerminalLaunch;
 use tokio::sync::watch;
 use tracing::debug;
 
-use super::{Listener, TerminalView};
+use super::{Listener, TerminalConnectionView, TerminalView};
 use super::scrollback::Scrollback;
 
 pub(super) struct Terminal {
@@ -60,6 +60,7 @@ impl Terminal {
             live: self.alive() && !self.closing.load(Ordering::SeqCst),
             started_at: self.started_at,
             last_activity_at: *self.last_activity_at.lock().expect("never poisoned"),
+            connections: self.launch.connections.iter().map(TerminalConnectionView::of).collect(),
         }
     }
 

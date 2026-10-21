@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { asCompanyId, asConnectionId, asProjectId, asTaskId } from '@/model/branded'
+import { asCompanyId, asConnectionId, asProjectId, asTaskId, asTerminalId } from '@/model/branded'
 
 const KindSchema = z.enum(['GITLAB', 'KUBERNETES'])
 
@@ -76,3 +76,9 @@ export const ProjectConnectionSchema = z.object({
 })
 
 export const ProjectConnectionListSchema = z.array(ProjectConnectionSchema)
+
+export const CredentialAccessEventSchema = z.object({
+  terminalId: z.string().uuid().transform(asTerminalId),
+  connectionId: z.string().uuid().transform(asConnectionId),
+  granted: z.boolean()
+})

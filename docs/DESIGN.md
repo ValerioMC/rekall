@@ -771,6 +771,15 @@ folder goes. A cluster whose stored kubeconfig no longer reads is left out of th
 logged. The helpers are shell scripts using `curl`, so a Windows terminal gets no session, and the
 external **Open in terminal** gets none either.
 
+`TerminalView` carries the project's connections (`TerminalConnectionView`: id, label, kind, whether
+a credential is stored), and every access line is published as a `credential-access` frame (terminal,
+connection, granted) in the same transaction as the line, so the pane never shows an access the log
+lacks. `TerminalConnectionChips` draws a chip per connection on the terminal pane's header and on each
+row of the sessions panel: idle, green with a count once the helpers were handed the credential
+(pulsing once per hand-out), amber when none is stored or a request was refused, each linking to the
+company's Connections screen. The counts are `credentialAccess.store`'s, read from one subscription
+and kept only for the console's lifetime; the access log is the record.
+
 ### The Claude folder
 
 The Claude screen edits the files Claude Code itself loads: `~/.claude/CLAUDE.md`, skills, commands,

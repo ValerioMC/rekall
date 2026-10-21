@@ -1,6 +1,8 @@
 use rekall_common::{Id, Instant};
 use serde::Serialize;
 
+use super::TerminalConnectionView;
+
 /// A live terminal as the console sees it. The task fields are empty on one opened on a project.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -20,4 +22,6 @@ pub struct TerminalView {
     pub live: bool,
     pub started_at: Instant,
     pub last_activity_at: Instant,
+    /// What the terminal's project reaches outside Rekall.
+    pub connections: Vec<TerminalConnectionView>,
 }

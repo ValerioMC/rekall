@@ -11,11 +11,13 @@ mod pty_process;
 mod pty_terminal_manager;
 mod scrollback;
 mod terminal;
+mod terminal_connection_view;
 mod terminal_ended;
 mod terminal_view;
 
 pub use claude_command::{EFFORT_LEVELS, MODEL_ALIASES};
 pub use listener::Listener;
 pub use pty_terminal_manager::PtyTerminalManager;
+pub use terminal_connection_view::TerminalConnectionView;
 pub use terminal_ended::TerminalEnded;
 pub use terminal_view::TerminalView;

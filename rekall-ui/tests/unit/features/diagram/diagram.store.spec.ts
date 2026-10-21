@@ -20,7 +20,7 @@ const BEFORE_FIXTURES = Date.parse('2026-10-01T09:00:00Z')
 const AFTER_FIXTURES = Date.parse('2026-10-01T11:00:00Z')
 
 function opened(id: string): Terminal {
-  return { id: id as TerminalId, projectId: VEGA, taskId: null, stepId: null, anchors: 'project:vega', workingDir: '/code/vega', projectLabel: 'vega', taskLabel: null, taskTitle: null, skipPermissions: false, model: null, effort: null, live: true, startedAt: '', lastActivityAt: '' }
+  return { id: id as TerminalId, projectId: VEGA, taskId: null, stepId: null, anchors: 'project:vega', workingDir: '/code/vega', projectLabel: 'vega', taskLabel: null, taskTitle: null, skipPermissions: false, model: null, effort: null, live: true, startedAt: '', lastActivityAt: '', connections: [] }
 }
 
 describe('the diagram store', () => {

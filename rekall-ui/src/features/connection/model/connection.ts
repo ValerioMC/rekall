@@ -1,4 +1,4 @@
-import type { CompanyId, ConnectionId, ProjectId, TaskId } from '@/model/branded'
+import type { CompanyId, ConnectionId, ProjectId, TaskId, TerminalId } from '@/model/branded'
 
 export type ConnectionKind = 'GITLAB' | 'KUBERNETES'
 
@@ -118,4 +118,19 @@ export interface ConnectionRemoved {
 /** The `connection` frame of the console's event stream. */
 export interface ConnectionStreamEvent {
   readonly companyId: CompanyId
+}
+
+/** The `credential-access` frame: a terminal's helper asked for a connection's credential. */
+export interface CredentialAccessEvent {
+  readonly terminalId: TerminalId
+  readonly connectionId: ConnectionId
+  readonly granted: boolean
+}
+
+/** What one terminal did with one connection since the console opened. */
+export interface CredentialAccessTally {
+  readonly granted: number
+  readonly refused: number
+  /** Changes with every access, so a chip can replay its pulse. */
+  readonly last: number
 }

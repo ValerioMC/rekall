@@ -5,6 +5,7 @@
 mod connection_access_service;
 mod connection_stream_event;
 mod connection_view;
+mod credential_access_stream_event;
 mod in_memory_secret_store;
 mod kube_access;
 mod kube_context_summary;
@@ -18,6 +19,7 @@ mod secret_store;
 pub use connection_access_service::ConnectionAccessService;
 pub use connection_stream_event::ConnectionStreamEvent;
 pub use connection_view::ConnectionView;
+pub use credential_access_stream_event::CredentialAccessStreamEvent;
 pub use in_memory_secret_store::InMemorySecretStore;
 pub use kube_access::KubeAccess;
 pub use kube_context_summary::KubeContextSummary;
