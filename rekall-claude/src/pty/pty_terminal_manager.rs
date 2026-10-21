@@ -19,6 +19,7 @@ use tokio::sync::broadcast;
 use tracing::{info, warn};
 
 use crate::cli::ClaudeCli;
+use crate::connection::CredentialBroker;
 use crate::config::ClaudeConfig;
 use crate::terminal::TerminalMode;
 
@@ -34,6 +35,7 @@ pub struct PtyTerminalManager {
     cli: ClaudeCli,
     task_steps: TaskStepService,
     task_review: TaskReviewService,
+    broker: Arc<CredentialBroker>,
     ended: broadcast::Sender<TerminalEnded>,
     max_live: usize,
     idle_minutes: u64,
@@ -51,6 +53,7 @@ impl PtyTerminalManager {
         cli: ClaudeCli,
         task_steps: TaskStepService,
         task_review: TaskReviewService,
+        broker: Arc<CredentialBroker>,
         config: &ClaudeConfig,
     ) -> Arc<Self> {
         let (ended, _) = broadcast::channel(256);
@@ -59,6 +62,7 @@ impl PtyTerminalManager {
             cli,
             task_steps,
             task_review,
+            broker,
             ended,
             max_live: config.max_sessions,
             idle_minutes: config.idle_minutes,
@@ -126,11 +130,20 @@ impl PtyTerminalManager {
         let directory = require_folder(&launch)?;
         let binary = self.require_cli().await?;
         let options = ClaudeOptions::chosen(skip_permissions, model, effort);
-        let environment = self.cli.environment().await;
+        let id = Id::random();
+        let mut environment = self.cli.environment().await;
+        if let Some(session) = self.broker.open(id, &launch).await? {
+            session.apply(&mut environment);
+        }
         let command = claude_command(&binary, &options, &mode.first_line(&launch.anchors), environment, directory);
 
-        let id = Id::random();
-        let terminal = self.register(id, launch.clone(), step_id, options, command).await?;
+        let terminal = match self.register(id, launch.clone(), step_id, options, command).await {
+            Ok(terminal) => terminal,
+            Err(refused) => {
+                self.broker.close(id);
+                return Err(refused);
+            }
+        };
 
         self.mark_running(launch.task_id, step_id).await;
         info!(terminal_id = %id, %mode, anchors = %launch.anchors, working_dir = %launch.working_dir, "Opened terminal");
@@ -273,6 +286,7 @@ impl PtyTerminalManager {
             terminal.destroy_forcibly();
         }
         terminal.notify_ended(terminal.safe_exit_value(), reason);
+        self.broker.close(id);
         self.release_running(terminal.launch.task_id, terminal.step_id()).await;
         self.announce_ended(&terminal);
         info!(terminal_id = %id, %reason, "Closed terminal");
@@ -316,6 +330,7 @@ impl PtyTerminalManager {
             }
             let code = if terminal.alive() { 0 } else { terminal.safe_exit_value() };
             terminal.notify_ended(code, "The app was shutting down.");
+            self.broker.close(terminal.id);
             self.release_running(terminal.launch.task_id, terminal.step_id()).await;
             self.announce_ended(terminal);
         }
@@ -328,6 +343,7 @@ impl PtyTerminalManager {
         let code = terminal.safe_exit_value();
         let detail = if code == 0 { "The terminal ended.".to_string() } else { format!("claude exited with code {code}") };
         terminal.notify_ended(code, &detail);
+        self.broker.close(id);
         self.release_running(terminal.launch.task_id, terminal.step_id()).await;
         self.announce_ended(&terminal);
         info!(terminal_id = %id, code, "Terminal exited");

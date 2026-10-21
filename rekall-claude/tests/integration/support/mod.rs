@@ -10,11 +10,13 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use rekall_claude::cli::{ClaudeCli, EnvironmentSource};
+use rekall_claude::connection::CredentialBroker;
 use rekall_claude::pty::{Listener, PtyTerminalManager};
 use rekall_claude::ClaudeConfig;
 use rekall_common::{Id, Instant};
 use rekall_model::{company, project, task, task_step, ProjectStatus, TaskStepState};
 use rekall_repository::Database;
+use rekall_service::connection::{ConnectionAccessService, InMemorySecretStore};
 use rekall_service::{Ctx, EventBus, Services};
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
 use tempfile::TempDir;
@@ -52,6 +54,7 @@ pub struct World {
     pub folder: TempDir,
     pub home: TempDir,
     pub claude: PathBuf,
+    pub secrets: Arc<InMemorySecretStore>,
 }
 
 pub async fn world() -> World {
@@ -63,7 +66,7 @@ pub async fn world() -> World {
     let claude = home.path().join("stub-claude");
     std::fs::write(&claude, STUB_CLAUDE).unwrap();
     std::fs::set_permissions(&claude, std::fs::Permissions::from_mode(0o755)).unwrap();
-    World { database, services, events, folder, home, claude }
+    World { database, services, events, folder, home, claude, secrets: Arc::new(InMemorySecretStore::new()) }
 }
 
 impl World {
@@ -71,7 +74,21 @@ impl World {
         &self.database.conn
     }
 
+    /// A broker whose helpers ask `endpoint`, over this world's in-memory credential store.
+    pub fn broker(&self, endpoint: &str) -> Arc<CredentialBroker> {
+        Arc::new(CredentialBroker::new(
+            self.secrets.clone(),
+            ConnectionAccessService::new(self.services.ctx.clone()),
+            endpoint.to_string(),
+            self.home.path().join("terminal-credentials"),
+        ))
+    }
+
     pub fn terminals(&self, max_sessions: usize) -> Arc<PtyTerminalManager> {
+        self.terminals_with(max_sessions, self.broker("http://127.0.0.1:0"))
+    }
+
+    pub fn terminals_with(&self, max_sessions: usize, broker: Arc<CredentialBroker>) -> Arc<PtyTerminalManager> {
         let config = ClaudeConfig { max_sessions, home: self.home.path().to_path_buf(), ..ClaudeConfig::default() };
         let cli = ClaudeCli::new(self.claude.to_str(), self.home.path().to_path_buf(), Arc::new(FixedEnvironment));
         PtyTerminalManager::new(
@@ -79,6 +96,7 @@ impl World {
             cli,
             self.services.steps.clone(),
             self.services.review.clone(),
+            broker,
             &config,
         )
     }

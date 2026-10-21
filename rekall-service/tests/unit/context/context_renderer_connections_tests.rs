@@ -35,7 +35,7 @@ fn a_gitlab_connection_names_its_instance_project_and_how_to_push_and_call_it() 
     let rendered = ContextRenderer.render_connections(&[connection(ConnectionKind::Gitlab, "gitlab", Some("group/app"), true)]);
     assert!(rendered.contains("GitLab at https://gitlab.example.com, project `group/app`"));
     assert!(rendered.contains("configured credential helper"));
-    assert!(rendered.contains("`rekall-gitlab <METHOD> <path>`"));
+    assert!(rendered.contains("`rekall-gitlab --connection gitlab <METHOD> <path>`"));
 }
 
 #[test]

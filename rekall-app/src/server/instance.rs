@@ -7,6 +7,7 @@ use axum::{middleware, Router};
 use rekall_web::error::{framework, render_errors};
 use rekall_api::{ApiState, StepEventStream};
 use rekall_claude::cli::ClaudeCli;
+use rekall_claude::connection::CredentialBroker;
 use rekall_claude::credentials::ClaudeCredentials;
 use rekall_claude::login_shell::LoginShellEnvironment;
 use rekall_claude::pty::PtyTerminalManager;
@@ -16,7 +17,7 @@ use rekall_claude::transcript::{TranscriptFolder, TranscriptScanner};
 use rekall_claude::usage::{ClaudeUsageService, UsageReader};
 use rekall_claude::ClaudeState;
 use rekall_repository::Database;
-use rekall_service::connection::SecretStore;
+use rekall_service::connection::{ConnectionAccessService, SecretStore};
 use rekall_service::timeentry::IDLE_AFTER;
 use rekall_service::{Ctx, EventBus, Services};
 use tracing::warn;
@@ -36,6 +37,9 @@ use crate::actuator;
 use rekall_platform::version::{self, GithubReleaseFeed, ReleaseFeed, UpdateChecker, RUNNING_VERSION};
 
 use super::StartOptions;
+
+/// Under `rekall.home`: one folder of credential helpers per live terminal, emptied at every start.
+const CREDENTIAL_SESSIONS_FOLDER: &str = "terminal-credentials";
 
 /// How often open timers are checked against [`IDLE_AFTER`].
 const IDLE_SWEEP_EVERY: Duration = Duration::from_secs(60);
@@ -87,11 +91,18 @@ impl Instance {
         let claude_config = &config.claude;
         let login_shell = LoginShellEnvironment::new(claude_config.shell.as_deref(), claude_config.shell_environment_timeout);
         let cli = ClaudeCli::new(claude_config.cli_path.as_deref(), claude_config.home.clone(), Arc::new(login_shell.clone()));
+        let broker = Arc::new(CredentialBroker::new(
+            secrets.clone(),
+            ConnectionAccessService::new(ctx.clone()),
+            format!("http://127.0.0.1:{served_port}"),
+            config.home.join(CREDENTIAL_SESSIONS_FOLDER),
+        ));
         let terminals = PtyTerminalManager::new(
             services.terminal_launch.clone(),
             cli,
             services.steps.clone(),
             services.review.clone(),
+            broker.clone(),
             claude_config,
         );
         let usage: Arc<dyn UsageReader> = match &options.usage {
@@ -120,7 +131,7 @@ impl Instance {
         );
         let resources = ClaudeResourceService::new(claude_config.claude_home.clone());
         let skill_groups = SkillGroupService::new(ctx.clone());
-        let claude = ClaudeState { terminals: terminals.clone(), usage: usage.clone(), queue, runner: runner.clone(), resources, skill_groups, secrets: secrets.clone() };
+        let claude = ClaudeState { terminals: terminals.clone(), usage: usage.clone(), queue, runner: runner.clone(), resources, skill_groups, broker };
 
         let location = database.path.as_deref().and_then(DatabaseLocation::of);
         let backups = DatabaseBackupService::new(

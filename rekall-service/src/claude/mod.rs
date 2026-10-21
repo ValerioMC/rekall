@@ -4,6 +4,7 @@
 mod remaining;
 mod task_work;
 mod task_work_service;
+mod terminal_connection;
 mod terminal_launch;
 mod terminal_launch_service;
 mod terminal_target;
@@ -11,6 +12,7 @@ mod terminal_target;
 pub use remaining::Remaining;
 pub use task_work::TaskWork;
 pub use task_work_service::TaskWorkService;
+pub use terminal_connection::TerminalConnection;
 pub use terminal_launch::TerminalLaunch;
 pub use terminal_launch_service::TerminalLaunchService;
 pub use terminal_target::TerminalTarget;

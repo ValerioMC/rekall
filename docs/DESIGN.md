@@ -399,7 +399,7 @@ list; `rekall-mcp` can read the skills through the context and never write them.
 A project's connections arrive as a `<connections>` block after its components, one line per
 binding: the label, the title and how to reach it. A cluster is `kubectl --context <label>` with the
 binding's namespace; a GitLab instance is its URL and project path, pushed to over HTTPS through the
-configured credential helper and called through `rekall-gitlab`. A connection with no credential
+configured credential helper and called through `rekall-gitlab --connection <label>`. A connection with no credential
 says so, so the session reports it. `ConnectionView` carries no field that could hold a credential,
 the keychain account, a cluster's server or its CA, and the block says these work only in a terminal
 Rekall opened and forbids handling a credential directly; `/rk` repeats that rule.
@@ -723,6 +723,39 @@ environment. `ClaudeCli` adds `HOME` and the usual install directories to it, st
 and searches that `PATH` for `claude`. Windows skips the shell and uses the process environment.
 
 ---
+
+**Credential sessions.** A terminal opened on a project that binds a connection with a stored
+credential gets a credential session from `CredentialBroker` (`rekall-claude/src/connection/`), so
+git and kubectl can use the credential without it entering the session. `TerminalLaunchService`
+hands over the project's bindings (`TerminalConnection`: label, kind, target, instance URL, keychain
+account; never the credential). The broker writes a folder under `rekall.home/terminal-credentials/`
+(0700, files 0600, scripts 0700; emptied at every start), holding:
+
+| File | What it does |
+|---|---|
+| `kubeconfig` | One context per cluster, named by its label: the server, CA and TLS name read from the stored kubeconfig, the binding's namespace, and a user that is the exec plugin (`interactiveMode: Never`) |
+| `rekall-kube-credential` | kubectl's exec plugin: prints the `ExecCredential` (a token, or a client certificate and key as PEM) |
+| `rekall-git-credential` | git's credential helper: answers `get` with `username=oauth2` and the token |
+| `rekall-gitlab` | `rekall-gitlab --connection <label> <METHOD> <path> [curl options]`: a GitLab API call with the `PRIVATE-TOKEN` header, `:project` standing for the binding's project path, URL-encoded |
+
+None holds a credential. `SessionEnvironment` adds the folder first on `PATH`, `KUBECONFIG` (only
+Rekall's clusters, so the session uses the credential you provided), a `GIT_CONFIG_KEY_n`/`VALUE_n`
+pair per GitLab host (an empty `credential.<url>.helper` that drops helpers configured elsewhere,
+then Rekall's, after any entries the shell already set) and `REKALL_CREDENTIAL_TOKEN`, 244 random bits
+for this terminal. The helpers send the token as a header read from stdin, so it never appears in a
+process listing, to `GET /api/terminal/{id}/credentials/{label}?for=kubectl|git|gitlab`. That route
+sits outside the router's UUID check, answers only a loopback peer even with
+`rekall.security.remote-access` on, and answers in plain text the helpers print as they are: 403
+for a token that is not the terminal's (compared in constant time) or a peer that is not this
+machine, 404 for an ended terminal, an unbound label or a missing credential, 400 for a shape the
+connection's kind does not have. Every request about a bound connection is a line in
+`connection_access` through `ConnectionAccessService` (granted, or refused with why); a credential is
+handed out only once its line is written. A request from an ended terminal or for an unbound label
+names no connection to log against and is only logged by `tracing`. The session ends with the
+terminal on every path (`close`, exit, the idle sweep, shutdown): the token stops working and the
+folder goes. A cluster whose stored kubeconfig no longer reads is left out of the session and
+logged. The helpers are shell scripts using `curl`, so a Windows terminal gets no session, and the
+external **Open in terminal** gets none either.
 
 ### The Claude folder
 

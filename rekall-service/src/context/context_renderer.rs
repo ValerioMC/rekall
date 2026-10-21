@@ -302,7 +302,7 @@ fn connection_usage(connection: &ConnectionView) -> String {
         ConnectionKind::Gitlab => {
             let instance = connection.instance_url.as_deref().unwrap_or("its GitLab instance");
             let project = connection.target.as_deref().map_or_else(String::new, |path| format!(", project `{path}` (`:project` in an API path)"));
-            format!("GitLab at {instance}{project}. `git push` to it over HTTPS uses the configured credential helper; call its API with `rekall-gitlab <METHOD> <path>`")
+            format!("GitLab at {instance}{project}. `git push` to it over HTTPS uses the configured credential helper; call its API with `rekall-gitlab --connection {} <METHOD> <path>`", connection.label)
         }
     }
 }

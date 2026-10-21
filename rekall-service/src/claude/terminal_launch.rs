@@ -1,6 +1,6 @@
 use rekall_common::Id;
 
-use super::TerminalTarget;
+use super::{TerminalConnection, TerminalTarget};
 
 /// What the PTY needs to start: the folder to start `claude` in and the `/rk` anchors to load.
 /// The task fields are empty on a terminal opened on a project alone.
@@ -13,6 +13,8 @@ pub struct TerminalLaunch {
     pub project_label: String,
     pub task_label: Option<String>,
     pub task_title: Option<String>,
+    /// What the project reaches outside Rekall, for the terminal's credential helpers.
+    pub connections: Vec<TerminalConnection>,
 }
 
 impl TerminalLaunch {

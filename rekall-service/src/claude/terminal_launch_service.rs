@@ -4,7 +4,7 @@ use rekall_repository::repository as repo;
 
 use crate::{in_read, load, Ctx};
 
-use super::{TerminalLaunch, TerminalTarget};
+use super::{TerminalConnection, TerminalLaunch, TerminalTarget};
 
 #[derive(Clone)]
 pub struct TerminalLaunchService {
@@ -26,12 +26,14 @@ impl TerminalLaunchService {
                 }
                 TerminalTarget::Project(project_id) => (repo::project::require(tx.db(), project_id).await?, None),
             };
-            launch_of(&project, task.as_ref())
+            let bindings = repo::project_connection::list_of_project(tx.db(), project.id).await?;
+            let connections = bindings.iter().map(|(binding, connection)| TerminalConnection::of(binding, connection)).collect();
+            launch_of(&project, task.as_ref(), connections)
         })
     }
 }
 
-fn launch_of(project: &project::Model, task: Option<&task::Model>) -> Result<TerminalLaunch> {
+fn launch_of(project: &project::Model, task: Option<&task::Model>, connections: Vec<TerminalConnection>) -> Result<TerminalLaunch> {
     let Some(folder) = project.repo_folder.as_deref().filter(|f| !jstr::is_blank(f)) else {
         return Err(RekallError::illegal("Set this project's folder on its page before opening a terminal here."));
     };
@@ -43,5 +45,6 @@ fn launch_of(project: &project::Model, task: Option<&task::Model>) -> Result<Ter
         project_label: project.label.clone(),
         task_label: task.map(|task| task.label.clone()),
         task_title: task.map(|task| task.title.clone()),
+        connections,
     })
 }

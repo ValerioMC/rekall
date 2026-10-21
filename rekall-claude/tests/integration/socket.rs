@@ -32,7 +32,8 @@ impl UsageReader for NoUsage {
 }
 
 async fn serve(world: &World) -> String {
-    let terminals = world.terminals(8);
+    let broker = world.broker("http://127.0.0.1:0");
+    let terminals = world.terminals_with(8, broker.clone());
     let usage: Arc<dyn UsageReader> = Arc::new(NoUsage(Mutex::new(())));
     let queue = RunQueueService::new(world.services.ctx.clone());
     let runner = RunQueueRunner::start(
@@ -48,8 +49,7 @@ async fn serve(world: &World) -> String {
     );
     let resources = ClaudeResourceService::new(world.folder.path().join(".claude"));
     let skill_groups = rekall_claude::resources::SkillGroupService::new(world.services.ctx.clone());
-    let secrets = Arc::new(rekall_service::connection::InMemorySecretStore::new());
-    let state = ClaudeState { terminals, usage, queue, runner, resources, skill_groups, secrets };
+    let state = ClaudeState { terminals, usage, queue, runner, resources, skill_groups, broker };
     let app = rekall_claude::router(state);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();

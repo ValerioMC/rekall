@@ -8,6 +8,7 @@ mod claude_router;
 mod claude_state;
 pub mod cli;
 pub mod config;
+pub mod connection;
 pub mod credentials;
 pub mod installer;
 pub mod login_shell;

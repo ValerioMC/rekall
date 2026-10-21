@@ -43,5 +43,9 @@ name = "socket"
 path = "tests/integration/socket.rs"
 
 [[test]]
+name = "credentials"
+path = "tests/integration/credentials.rs"
+
+[[test]]
 name = "terminal"
 path = "tests/integration/terminal.rs"
