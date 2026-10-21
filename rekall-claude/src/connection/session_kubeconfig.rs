@@ -40,6 +40,8 @@ struct ClusterFields<'a> {
     certificate_authority_data: Option<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     tls_server_name: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    proxy_url: Option<&'a str>,
 }
 
 #[derive(Serialize)]
@@ -97,6 +99,7 @@ pub(super) fn session_kubeconfig(clusters: &[SessionCluster<'_>], plugin: &Path)
                         server: &cluster.access.server,
                         certificate_authority_data: cluster.access.certificate_authority.as_deref(),
                         tls_server_name: cluster.access.tls_server_name.as_deref(),
+                        proxy_url: cluster.access.proxy_url.as_deref(),
                     },
                 },
             })

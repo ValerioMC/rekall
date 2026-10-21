@@ -4,13 +4,14 @@ use super::kubeconfig_document::{Cluster, Context, KubeconfigDocument, NamedClus
 use super::{KubeCredential, Kubeconfig, Secret};
 
 /// One kubeconfig context resolved to what reaching its cluster takes: the server, the CA that
-/// proves it, the namespace and the credential. Certificate data is base64 of the PEM, as in a kubeconfig.
+/// proves it, the proxy in front of it, the namespace and the credential. Certificate data is base64 of the PEM, as in a kubeconfig.
 #[derive(Debug)]
 pub struct KubeAccess {
     pub context: String,
     pub server: String,
     pub certificate_authority: Option<String>,
     pub tls_server_name: Option<String>,
+    pub proxy_url: Option<String>,
     pub namespace: Option<String>,
     pub credential: KubeCredential,
 }
@@ -50,6 +51,7 @@ impl KubeAccess {
             server: Some(self.server.clone()),
             certificate_authority_data: self.certificate_authority.clone(),
             tls_server_name: self.tls_server_name.clone(),
+            proxy_url: self.proxy_url.clone(),
             ..Cluster::default()
         }
     }

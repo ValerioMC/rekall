@@ -53,11 +53,13 @@ impl Kubeconfig {
         let server = verified_server(cluster).map_err(|why| refused(&why))?;
         let credential = credential_of(user).map_err(|why| refused(&why))?;
         let certificate_authority = certificate_authority_of(cluster).map_err(|why| refused(&why))?;
+        let proxy_url = proxy_of(cluster).map_err(|why| refused(&why))?;
         Ok(KubeAccess {
             context: name.to_string(),
             server,
             certificate_authority,
             tls_server_name: cluster.tls_server_name.clone(),
+            proxy_url,
             namespace: context.namespace.clone(),
             credential,
         })
@@ -90,6 +92,21 @@ fn verified_server(cluster: &Cluster) -> std::result::Result<String, String> {
         return Err("its cluster skips TLS verification, so the server could not be trusted with the credential".into());
     }
     Ok(server.to_string())
+}
+
+/// The check and the session's kubectl both go through it, so it has to be a scheme both speak, and
+/// it is written into the session folder, where no credential may sit.
+fn proxy_of(cluster: &Cluster) -> std::result::Result<Option<String>, String> {
+    let Some(proxy) = cluster.proxy_url.as_deref().map(str::trim).filter(|proxy| !proxy.is_empty()) else {
+        return Ok(None);
+    };
+    let Some(authority) = proxy.strip_prefix("http://").or_else(|| proxy.strip_prefix("https://")) else {
+        return Err(format!("its proxy-url '{proxy}' is not an http:// or https:// address"));
+    };
+    if authority.split('/').next().is_some_and(|host| host.contains('@')) {
+        return Err("its proxy-url carries a username or password, which would be written where the session can read it".into());
+    }
+    Ok(Some(proxy.to_string()))
 }
 
 fn user_kind(user: &User) -> KubeUserKind {

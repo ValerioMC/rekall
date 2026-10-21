@@ -39,6 +39,8 @@ pub(super) struct Cluster {
     pub insecure_skip_tls_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tls_server_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub proxy_url: Option<String>,
 }
 
 #[derive(Deserialize, Serialize)]

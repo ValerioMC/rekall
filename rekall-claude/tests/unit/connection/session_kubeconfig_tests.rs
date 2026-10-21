@@ -10,6 +10,7 @@ fn access(credential: KubeCredential) -> KubeAccess {
         server: "https://k8s.example.com:6443".into(),
         certificate_authority: Some("Q0E=".into()),
         tls_server_name: None,
+        proxy_url: Some("http://10.250.0.1:33128".into()),
         namespace: Some("default-ns".into()),
         credential,
     }
@@ -23,6 +24,7 @@ fn the_session_kubeconfig_names_the_cluster_by_label_and_holds_no_credential() {
     assert_eq!(document["current-context"], "prod");
     assert_eq!(document["clusters"][0]["cluster"]["server"], "https://k8s.example.com:6443");
     assert_eq!(document["clusters"][0]["cluster"]["certificate-authority-data"], "Q0E=");
+    assert_eq!(document["clusters"][0]["cluster"]["proxy-url"], "http://10.250.0.1:33128");
     assert_eq!(document["contexts"][0]["context"]["namespace"], "apps");
     assert_eq!(document["users"][0]["user"]["exec"]["command"], "/s/t1/rekall-kube-credential");
     assert_eq!(document["users"][0]["user"]["exec"]["args"][0], "prod");

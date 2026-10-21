@@ -45,7 +45,7 @@ fn cluster() -> Router {
 }
 
 fn access(server: String, token: &str) -> KubeAccess {
-    KubeAccess { context: "prod".into(), server, certificate_authority: None, tls_server_name: None, namespace: None, credential: KubeCredential::Token(Secret::new(token)) }
+    KubeAccess { context: "prod".into(), server, certificate_authority: None, tls_server_name: None, proxy_url: None, namespace: None, credential: KubeCredential::Token(Secret::new(token)) }
 }
 
 #[tokio::test]
@@ -77,10 +77,23 @@ async fn an_older_cluster_still_proves_the_token_through_its_api_root() {
     assert_eq!(probe.kubernetes(&access(server, "sa-bad")).await, ProbeOutcome::Rejected { status: 403 });
 }
 
+/// The fake cluster answers the absolute-form requests a proxy receives, so it stands in for the proxy:
+/// the server's own host does not resolve, and only a request sent through the proxy gets an answer.
 #[tokio::test]
-async fn a_server_that_is_not_there_is_unreachable() {
+async fn a_cluster_behind_a_proxy_is_asked_through_it() {
+    let proxy = serve(cluster()).await;
+    let mut behind = access("http://cluster.invalid".into(), "sa-good");
+    behind.proxy_url = Some(proxy);
+    let outcome = HttpConnectionProbe::new().kubernetes(&behind).await;
+    assert_eq!(outcome, ProbeOutcome::Accepted { identity: Some("system:serviceaccount:apps:deployer".into()), version: Some("v1.30.2".into()) });
+}
+
+#[tokio::test]
+async fn a_server_that_is_not_there_is_unreachable_and_says_why() {
     let outcome = HttpConnectionProbe::new().gitlab("http://127.0.0.1:9", &Secret::new("glpat-good")).await;
-    assert!(matches!(outcome, ProbeOutcome::Unreachable { ref reason } if !reason.contains("glpat-good")));
+    let ProbeOutcome::Unreachable { reason } = outcome else { panic!("an unreachable outcome was expected") };
+    assert!(!reason.contains("glpat-good"));
+    assert!(reason.to_lowercase().contains("refused"), "the cause is missing from: {reason}");
 }
 
 #[tokio::test]

@@ -6,6 +6,7 @@ clusters:
   cluster:
     server: https://k8s.example.com:6443
     certificate-authority-data: Q0E=
+    proxy-url: http://proxy.example.com:3128
 - name: other-cluster
   cluster:
     server: https://other.example.com
@@ -28,6 +29,7 @@ fn the_stored_document_reads_back_as_the_same_access() {
     assert_eq!(back.context, "prod");
     assert_eq!(back.server, "https://k8s.example.com:6443");
     assert_eq!(back.certificate_authority.as_deref(), Some("Q0E="));
+    assert_eq!(back.proxy_url.as_deref(), Some("http://proxy.example.com:3128"));
     assert_eq!(back.namespace.as_deref(), Some("apps"));
     assert!(matches!(back.credential, KubeCredential::Token(ref token) if token.expose() == "sa-token-123"));
 }

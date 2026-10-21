@@ -595,9 +595,10 @@ the OS credential store (`KeychainSecretStore` in `rekall-platform`, over `keyri
 it or a type that carries a credential. A credential in memory is a `Secret`: it prints as `***`, has
 no `Serialize` and is wiped on drop. A kubeconfig is parsed by `Kubeconfig`, which refuses a user
 that runs a command (`exec`, `auth-provider`), a username and password, a server that is not
-`https://` or skips TLS verification, and a file path that is relative or unreadable, and whose
-parse errors name a line, never the text. The chosen context is kept as `KubeAccess::to_kubeconfig`:
-that context alone with every referenced file inlined. On Linux the store is the kernel keyring,
+`https://` or skips TLS verification, a `proxy-url` that is not `http://` or `https://` or carries a
+username or password, and a file path that is relative or unreadable, and whose parse errors name a
+line, never the text. The chosen context is kept as `KubeAccess::to_kubeconfig`: that context alone,
+its `proxy-url` kept, with every referenced file inlined. On Linux the store is the kernel keyring,
 which forgets its entries when the session ends.
 
 The console's write path for connections is `rekall-api/src/connection/`, one service per entity:
@@ -624,10 +625,10 @@ works, before a session finds out mid-deploy. It lives in `rekall-platform/src/c
 it is HTTP to the outside: `ConnectionCheckService` reads the credential through the store and hands
 it to a `ConnectionProbe` (`HttpConnectionProbe`, or a fake through `StartOptions::connection_probe`).
 GitLab is asked `GET /api/v4/user` with the token; a cluster is asked `/version` and a
-`SelfSubjectReview`, trusted through the kubeconfig's CA and with a client certificate as the TLS
-identity, falling back to an authenticated `GET /api` on a cluster too old for the review. The
+`SelfSubjectReview`, through the kubeconfig's `proxy-url` when it has one, trusted through its CA
+and with a client certificate as the TLS identity, falling back to an authenticated `GET /api` on a cluster too old for the review. The
 answer (`ok`, a sentence naming the identity, the rejection status or why the server could not be
-asked) is shown and never stored, and a connection with no credential is answered without asking
+asked, with the underlying cause such as a timeout) is shown and never stored, and a connection with no credential is answered without asking
 anyone.
 
 A terminal with a credential session also starts `claude` with `--settings` pointing at the
@@ -747,7 +748,7 @@ account; never the credential). The broker writes a folder under `rekall.home/te
 
 | File | What it does |
 |---|---|
-| `kubeconfig` | One context per cluster, named by its label: the server, CA and TLS name read from the stored kubeconfig, the binding's namespace, and a user that is the exec plugin (`interactiveMode: Never`) |
+| `kubeconfig` | One context per cluster, named by its label: the server, CA, TLS name and proxy read from the stored kubeconfig, the binding's namespace, and a user that is the exec plugin (`interactiveMode: Never`) |
 | `rekall-kube-credential` | kubectl's exec plugin: prints the `ExecCredential` (a token, or a client certificate and key as PEM) |
 | `rekall-git-credential` | git's credential helper: answers `get` with `username=oauth2` and the token |
 | `rekall-gitlab` | `rekall-gitlab --connection <label> <METHOD> <path> [curl options]`: a GitLab API call with the `PRIVATE-TOKEN` header, `:project` standing for the binding's project path, URL-encoded |

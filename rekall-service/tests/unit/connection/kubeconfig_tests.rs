@@ -139,6 +139,25 @@ fn a_server_without_tls_or_skipping_verification_is_refused() {
     assert!(refusal_of(insecure).contains("skips TLS verification"));
 }
 
+fn with_proxy(proxy: &str) -> String {
+    format!("clusters:\n- name: c\n  cluster:\n    server: https://10.0.0.1:6443\n    proxy-url: {proxy}\ncontexts:\n- name: ctx\n  context: {{cluster: c, user: u}}\nusers:\n- name: u\n  user: {{token: t}}\n")
+}
+
+#[test]
+fn a_cluster_behind_a_proxy_keeps_its_proxy_url() {
+    let access = kubeconfig(&with_proxy("http://10.250.0.1:33128")).select("ctx").unwrap();
+    assert_eq!(access.proxy_url.as_deref(), Some("http://10.250.0.1:33128"));
+    assert_eq!(kubeconfig(TOKEN_CONFIG).select("prod").unwrap().proxy_url, None);
+}
+
+#[test]
+fn a_proxy_the_check_cannot_use_or_that_carries_a_password_is_refused() {
+    assert!(refusal_of(&with_proxy("socks5://10.250.0.1:1080")).contains("not an http:// or https://"));
+    let with_password = refusal_of(&with_proxy("http://admin:hunter2@10.250.0.1:33128"));
+    assert!(with_password.contains("username or password"));
+    assert!(!with_password.contains("hunter2"));
+}
+
 #[test]
 fn a_broken_document_is_refused_without_quoting_it() {
     let error = Kubeconfig::parse(&Secret::new("users:\n- name: u\n  user:\n    token: [sa-token-xyz\n")).err().unwrap();

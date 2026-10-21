@@ -42,7 +42,7 @@ struct UserInfo {
 }
 
 /// The probe over HTTPS with `reqwest`. A cluster is trusted through the CA its kubeconfig names,
-/// and a client certificate is presented as the TLS identity.
+/// reached through its `proxy-url` when it has one, and a client certificate is the TLS identity.
 pub struct HttpConnectionProbe {
     timeout: Duration,
 }
@@ -116,6 +116,9 @@ async fn identity(client: &Client, access: &KubeAccess) -> Result<Option<String>
 
 fn kube_client(access: &KubeAccess, timeout: Duration) -> Result<Client, String> {
     let mut builder = Client::builder().timeout(timeout);
+    if let Some(proxy) = &access.proxy_url {
+        builder = builder.proxy(reqwest::Proxy::all(proxy).map_err(|_| "the stored proxy-url is not a usable proxy address".to_string())?);
+    }
     if let Some(authority) = &access.certificate_authority {
         let pem = decoded(authority, "certificate authority")?;
         let certificate = reqwest::Certificate::from_pem(&pem).map_err(|_| "the stored certificate authority is not a PEM certificate".to_string())?;
@@ -151,8 +154,17 @@ async fn accepted(answer: reqwest::Result<Response>) -> Result<Response, ProbeOu
     }
 }
 
+/// reqwest's own message says only that sending failed; the cause (a timeout, a refused connection, a
+/// certificate) is in its sources.
 fn unreachable(failure: &reqwest::Error) -> ProbeOutcome {
-    ProbeOutcome::Unreachable { reason: failure.to_string() }
+    let mut reason = failure.to_string();
+    let mut source = std::error::Error::source(failure);
+    while let Some(cause) = source {
+        reason.push_str(": ");
+        reason.push_str(&cause.to_string());
+        source = cause.source();
+    }
+    ProbeOutcome::Unreachable { reason }
 }
 
 #[cfg(test)]
