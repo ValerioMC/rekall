@@ -145,3 +145,29 @@ async fn a_check_on_a_connection_without_a_credential_says_so_without_asking_any
     assert!(check.str("detail").contains("No credential"));
     assert_eq!(app.post_empty("/api/connections/00000000-0000-0000-0000-000000000000/check").await.status, 404);
 }
+
+#[tokio::test]
+async fn the_context_names_a_projects_connections_and_never_their_credential_or_config() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let vega = app.a_project(&acme, "vega", "ACTIVE").await;
+    app.a_task(&vega, "deploy").await;
+    let cluster = id(&app.post(&format!("/api/companies/{acme}/connections"), json!({ "kind": "KUBERNETES", "title": "Production" })).await);
+    let gitlab = id(&app.post(&format!("/api/companies/{acme}/connections"), json!({ "kind": "GITLAB", "title": "GitLab", "baseUrl": "https://gitlab.example.com" })).await);
+    let staging = id(&app.post(&format!("/api/companies/{acme}/connections"), json!({ "kind": "KUBERNETES", "title": "Staging" })).await);
+    app.put(&format!("/api/connections/{cluster}/credential"), json!({ "kubeconfig": KUBECONFIG, "context": "prod" })).await;
+    app.put(&format!("/api/connections/{gitlab}/credential"), json!({ "token": "glpat-secret" })).await;
+    app.put(&format!("/api/projects/{vega}/connections/{cluster}"), json!({ "target": "apps" })).await;
+    app.put(&format!("/api/projects/{vega}/connections/{gitlab}"), json!({ "target": "acme/vega" })).await;
+    app.put(&format!("/api/projects/{vega}/connections/{staging}"), json!({})).await;
+
+    let context = app.call_tool("rekall_context", json!({ "anchors": "project:vega task:deploy" })).await;
+
+    assert!(context.contains("<connections count=\"3\">"), "{context}");
+    assert!(context.contains("`kubectl --context production`, namespace `apps`"));
+    assert!(context.contains("GitLab at https://gitlab.example.com, project `acme/vega`"));
+    assert!(context.contains("- `staging` (Staging): no credential is stored"));
+    for leaked in ["sa-token-123", "glpat-secret", "k8s.example.com", "Q0E=", &format!("connection-{cluster}")] {
+        assert!(!context.contains(leaked), "the context carries {leaked}");
+    }
+}

@@ -31,6 +31,11 @@ Call `rekall_context` with `anchors` set to exactly the arguments above, unchang
 - A `<skills>` block lists the Claude skills assigned to the task, to its tag or to one of its steps.
   Invoke each one with the Skill tool before you start working and follow it. A skill scoped to a step
   applies only while you work that step.
+- A `<connections>` block lists the systems the project reaches (a Kubernetes cluster, a GitLab
+  instance) and the one way to reach each. Use only what its lines say, and only in a terminal Rekall
+  opened. Never print, echo or write a credential or a kubeconfig, never read the files or environment
+  variables behind Rekall's helpers, and never call a credential helper or Rekall's credentials endpoint
+  yourself. A connection with no credential is reported to me, not worked around.
 
 On success, summarise in no more than ten lines: what the task is, its status, what its wrapup says
 the implementation currently is, which steps are still open, and anything in its notes that changes

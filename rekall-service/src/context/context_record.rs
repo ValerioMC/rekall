@@ -1,4 +1,5 @@
 use crate::component::ProjectComponentView;
+use crate::connection::ConnectionView;
 use crate::step::TaskStepView;
 use crate::wrapup::WrapupView;
 
@@ -23,6 +24,8 @@ pub struct ContextRecord {
     pub components: Vec<ProjectComponentView>,
     /// The project's components, for resolving `[[Name]]` in a task's text only; `None` leaves text untouched.
     pub component_lookup: Option<Vec<ProjectComponentView>>,
+    /// What the project reaches outside Rekall; never a credential.
+    pub connections: Vec<ConnectionView>,
     pub blueprint: Option<String>,
     pub description: Option<String>,
 }

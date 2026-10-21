@@ -1,7 +1,9 @@
-//! Credentials of a company's connections: the value type that never prints, the store that keeps
-//! it outside the database, and the kubeconfig a Kubernetes credential arrives as.
+//! A company's connections as Rekall's services see them: the view a context names them by, the
+//! credential type that never prints, the store that keeps it outside the database, and the
+//! kubeconfig a Kubernetes credential arrives as.
 
 mod connection_stream_event;
+mod connection_view;
 mod in_memory_secret_store;
 mod kube_access;
 mod kube_context_summary;
@@ -13,6 +15,7 @@ mod secret;
 mod secret_store;
 
 pub use connection_stream_event::ConnectionStreamEvent;
+pub use connection_view::ConnectionView;
 pub use in_memory_secret_store::InMemorySecretStore;
 pub use kube_access::KubeAccess;
 pub use kube_context_summary::KubeContextSummary;

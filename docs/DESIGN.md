@@ -396,6 +396,14 @@ picker offers only what exists and a skill that later vanishes stays assigned an
 console. The writes are `SkillAssignmentService` in `rekall-api`, each replacing one owner's whole
 list; `rekall-mcp` can read the skills through the context and never write them.
 
+A project's connections arrive as a `<connections>` block after its components, one line per
+binding: the label, the title and how to reach it. A cluster is `kubectl --context <label>` with the
+binding's namespace; a GitLab instance is its URL and project path, pushed to over HTTPS through the
+configured credential helper and called through `rekall-gitlab`. A connection with no credential
+says so, so the session reports it. `ConnectionView` carries no field that could hold a credential,
+the keychain account, a cluster's server or its CA, and the block says these work only in a terminal
+Rekall opened and forbids handling a credential directly; `/rk` repeats that rule.
+
 Scalars are rendered as bullets and bodies as tags, which is why a description is a `<description>` block rather than a `description` bullet. It is a document, with headings, lists and a scope section, and a document inlined into a list item stops being one: every line after the first falls outside the bullet, and its own headings outrank the record's.
 
 That distinction is why the two-anchor form exists. `/rk project:vega` loads the project and

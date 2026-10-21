@@ -3,10 +3,11 @@
 use std::collections::HashSet;
 
 use rekall_common::jstr;
-use rekall_model::{DocumentContextMode, TaskStepState};
+use rekall_model::{ConnectionKind, DocumentContextMode, TaskStepState};
 
 use super::{ContextCommitView, ContextRecord, ContextSkillScope, ContextSkillView, DocumentView};
 use crate::component::{ComponentReferences, ProjectComponentView};
+use crate::connection::ConnectionView;
 use crate::step::{StepLinkView, TaskStepView};
 use crate::wrapup::WrapupView;
 
@@ -57,6 +58,7 @@ impl ContextRenderer {
         out.push_str(&self.render_description(record.description.as_deref(), &mut references));
         out.push_str(&self.render_skills(&record.skills));
         out.push_str(&self.render_components(&record.components));
+        out.push_str(&self.render_connections(&record.connections));
         out.push_str(&self.render_blueprint(record.blueprint.as_deref()));
         out.push_str(&self.render_steps(&record.steps, record.wrapup.as_ref(), &mut references));
         out.push_str(&self.render_commits(&record.commits));
@@ -170,6 +172,25 @@ impl ContextRenderer {
         }
     }
 
+    /// What the project reaches outside Rekall and how a session uses it. The credentials stay with
+    /// Rekall: a session only ever names a connection by its label.
+    pub fn render_connections(&self, connections: &[ConnectionView]) -> String {
+        if connections.is_empty() {
+            return String::new();
+        }
+        let mut out = format!(
+            "\n<connections count=\"{}\">\nThese work only in a terminal Rekall opened on this project. Never print, echo or \
+             write a credential or a kubeconfig, never call a credential helper or Rekall's credentials endpoint yourself, \
+             and reach each system only the way its line says.\n",
+            connections.len()
+        );
+        for connection in connections {
+            out.push_str(&format!("- `{}` ({}): {}\n", connection.label, attribute(&connection.title), connection_usage(connection)));
+        }
+        out.push_str("</connections>\n");
+        out
+    }
+
     /// The project's parts: each folder a session can open to find that part, with what it is.
     pub fn render_components(&self, components: &[ProjectComponentView]) -> String {
         if components.is_empty() {
@@ -265,6 +286,24 @@ fn is_unwritten(step: &TaskStepView, wrapup: Option<&WrapupView>) -> bool {
     match wrapup {
         None => true,
         Some(wrapup) => completed.is_after(&wrapup.updated_at),
+    }
+}
+
+/// How a session reaches one connection, or why it cannot.
+fn connection_usage(connection: &ConnectionView) -> String {
+    if !connection.credential_set {
+        return "no credential is stored for it. Tell the person instead of looking for another way in".into();
+    }
+    match connection.kind {
+        ConnectionKind::Kubernetes => {
+            let namespace = connection.target.as_deref().map_or_else(|| " in its default namespace".to_string(), |namespace| format!(", namespace `{namespace}`"));
+            format!("Kubernetes, `kubectl --context {}`{namespace}", connection.label)
+        }
+        ConnectionKind::Gitlab => {
+            let instance = connection.instance_url.as_deref().unwrap_or("its GitLab instance");
+            let project = connection.target.as_deref().map_or_else(String::new, |path| format!(", project `{path}` (`:project` in an API path)"));
+            format!("GitLab at {instance}{project}. `git push` to it over HTTPS uses the configured credential helper; call its API with `rekall-gitlab <METHOD> <path>`")
+        }
     }
 }
 
@@ -400,3 +439,7 @@ mod flow_tests;
 #[cfg(test)]
 #[path = "../../tests/unit/context/context_renderer_skills_tests.rs"]
 mod skills_tests;
+
+#[cfg(test)]
+#[path = "../../tests/unit/context/context_renderer_connections_tests.rs"]
+mod connections_tests;

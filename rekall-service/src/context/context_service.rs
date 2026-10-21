@@ -11,6 +11,7 @@ use rekall_repository::repository as repo;
 
 use super::{ContextCommitView, ContextRecord, ContextSkillScope, ContextSkillView, DocumentView};
 use crate::component::ProjectComponentView;
+use crate::connection::ConnectionView;
 use crate::step::{StepFlowRows, TaskStepView};
 use crate::wrapup::WrapupView;
 use crate::{in_read, load, Ctx, Tx};
@@ -186,6 +187,7 @@ impl ContextService {
         let company = company_of(tx, project).await?;
         let tasks = repo::task::list_of_project(tx.db(), project.id).await?;
         let components = repo::project_component::list_of_project(tx.db(), project.id).await?;
+        let connections = repo::project_connection::list_of_project(tx.db(), project.id).await?;
         Ok(ContextRecord {
             kind: "Project".into(),
             label: project.title.clone(),
@@ -194,6 +196,7 @@ impl ContextService {
             references: vec![self.referenced_company(tx, &company).await?],
             related: tasks.iter().map(|t| format!("task:{}", t.label)).collect(),
             components: components.iter().map(ProjectComponentView::of).collect(),
+            connections: connections.iter().map(|(binding, connection)| ConnectionView::of(binding, connection)).collect(),
             blueprint: project.blueprint_markdown.clone(),
             description: project.description.clone(),
             ..Default::default()
@@ -250,6 +253,7 @@ impl ContextService {
             wrapup,
             components: Vec::new(),
             component_lookup: Some(components.iter().map(ProjectComponentView::of).collect()),
+            connections: Vec::new(),
             blueprint: None,
             description: task.description.clone(),
         })
