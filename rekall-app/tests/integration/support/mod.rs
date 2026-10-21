@@ -5,10 +5,12 @@
 #![allow(dead_code)]
 
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::process::Command;
 use std::time::Duration;
 
 use rekall_app::{AppConfig, Properties, Running, StartOptions};
+use rekall_service::connection::InMemorySecretStore;
 use rekall_service::Services;
 use sea_orm::{ConnectionTrait, DbBackend, Statement, Value as DbValue};
 use serde_json::{json, Value};
@@ -53,7 +55,16 @@ pub async fn app() -> App {
     app_with(&[], StartOptions { no_restart: true, ..StartOptions::default() }).await
 }
 
-pub async fn app_with(properties: &[(&str, &str)], options: StartOptions) -> App {
+/// The application over the given credential store, so a test can look at what was kept.
+pub async fn app_with_secrets(secrets: Arc<InMemorySecretStore>) -> App {
+    app_with(&[], StartOptions { no_restart: true, secrets: Some(secrets), ..StartOptions::default() }).await
+}
+
+/// Unless a test hands one in, credentials go to a store in memory: no test touches the real keychain.
+pub async fn app_with(properties: &[(&str, &str)], mut options: StartOptions) -> App {
+    if options.secrets.is_none() {
+        options.secrets = Some(Arc::new(InMemorySecretStore::new()));
+    }
     let folder = tempfile::tempdir().unwrap();
     let ui = folder.path().join("ui");
     std::fs::create_dir_all(&ui).unwrap();

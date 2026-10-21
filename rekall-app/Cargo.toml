@@ -65,6 +65,10 @@ name = "e2e_components"
 path = "tests/integration/e2e_components.rs"
 
 [[test]]
+name = "e2e_connections"
+path = "tests/integration/e2e_connections.rs"
+
+[[test]]
 name = "e2e_icon_image"
 path = "tests/integration/e2e_icon_image.rs"
 

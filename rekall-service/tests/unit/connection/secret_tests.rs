@@ -17,3 +17,14 @@ fn whitespace_only_is_blank() {
     assert!(Secret::new("  \n").is_blank());
     assert!(!Secret::new("x").is_blank());
 }
+
+#[test]
+fn a_secret_arrives_in_a_request_body_and_still_prints_as_stars() {
+    #[derive(serde::Deserialize, Debug)]
+    struct Body {
+        token: Secret,
+    }
+    let body: Body = serde_json::from_str(r#"{ "token": "glpat-abc123" }"#).unwrap();
+    assert_eq!(body.token.expose(), "glpat-abc123");
+    assert!(!format!("{body:?}").contains("glpat"));
+}

@@ -1,9 +1,11 @@
 use std::fmt;
 
+use serde::{Deserialize, Deserializer};
 use zeroize::Zeroize;
 
 /// A credential in memory. It prints as `***`, cannot be serialised and is wiped on drop, so no
 /// log line, response body or error can carry one by accident; `expose` is the one way to read it.
+/// It deserialises, so a request body can carry one in.
 pub struct Secret(String);
 
 impl Secret {
@@ -23,6 +25,12 @@ impl Secret {
 impl Drop for Secret {
     fn drop(&mut self) {
         self.0.zeroize();
+    }
+}
+
+impl<'de> Deserialize<'de> for Secret {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        String::deserialize(deserializer).map(Self)
     }
 }
 

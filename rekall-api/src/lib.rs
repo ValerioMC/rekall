@@ -9,6 +9,7 @@ mod router;
 pub mod catalog;
 pub mod commit;
 pub mod component;
+pub mod connection;
 pub mod context;
 pub mod diagram;
 pub mod filesystem;

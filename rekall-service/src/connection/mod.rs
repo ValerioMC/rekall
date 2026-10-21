@@ -1,6 +1,7 @@
 //! Credentials of a company's connections: the value type that never prints, the store that keeps
 //! it outside the database, and the kubeconfig a Kubernetes credential arrives as.
 
+mod connection_stream_event;
 mod in_memory_secret_store;
 mod kube_access;
 mod kube_context_summary;
@@ -11,6 +12,7 @@ mod kubeconfig_document;
 mod secret;
 mod secret_store;
 
+pub use connection_stream_event::ConnectionStreamEvent;
 pub use in_memory_secret_store::InMemorySecretStore;
 pub use kube_access::KubeAccess;
 pub use kube_context_summary::KubeContextSummary;

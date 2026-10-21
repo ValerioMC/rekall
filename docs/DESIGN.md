@@ -592,6 +592,25 @@ parse errors name a line, never the text. The chosen context is kept as `KubeAcc
 that context alone with every referenced file inlined. On Linux the store is the kernel keyring,
 which forgets its entries when the session ends.
 
+The console's write path for connections is `rekall-api/src/connection/`, one service per entity:
+`ConnectionService` (a company's connections; deleting one removes its credential from the store
+after the row is gone, logging a failure), `ConnectionCredentialService` (the only code that stores,
+replaces or clears a credential), `ProjectConnectionService` (bindings; a project binds only a
+connection of its own company), `ConnectionAccessQueryService` (the access log, newest first) and
+`KubeconfigPreviewService` (a kubeconfig's contexts with why each can or cannot be imported, storing
+nothing). Credentials are write-only: `PUT /api/connections/{id}/credential` takes `token` (GitLab)
+or `kubeconfig` and `context` (Kubernetes) and answers the connection with `credentialSetAt`, and no
+endpoint returns a credential. The store is written before the row, so a failed write leaves the row
+saying no credential is set; clearing empties the store before the row, so the row never claims less
+than the store holds. A Kubernetes connection takes its server and context from the imported
+kubeconfig and refuses a typed URL; a connection's kind is fixed once created. The routes are
+`GET`/`POST /api/companies/{id}/connections`, `GET`/`PUT`/`DELETE /api/connections/{id}` (`GET` lists
+the projects that bind it, `DELETE` answers `unboundProjects`), `PUT`/`DELETE
+/api/connections/{id}/credential`, `POST /api/connections/kubeconfig/contexts`, `GET
+/api/connections/{id}/access?offset=&limit=`, `GET /api/projects/{id}/connections` and `PUT`/`DELETE
+/api/projects/{id}/connections/{connectionId}` (`PUT` binds, or sets the `target` of a binding the
+project has). Every change publishes a `connection` frame naming the company.
+
 The residual risk is real and small: Claude can overwrite one task's wrapup with something
 wrong, or with something that replaces a correction made by hand, and it can mark a step running
 or claimed when it is not. The first two are repaired from the wrapup's history in the console:

@@ -15,7 +15,7 @@ use rekall_service::token::TokenUsageService;
 use rekall_service::wrapup::WrapupService;
 use rekall_service::Services;
 
-use crate::{catalog, diagram, filesystem, note, revision, section, component, skill, tag, StepEventStream};
+use crate::{catalog, connection, diagram, filesystem, note, revision, section, component, skill, tag, StepEventStream};
 
 /// What the handlers share: each service a controller calls, and nothing it does not.
 #[derive(Clone)]
@@ -43,12 +43,15 @@ pub struct ApiState {
     pub sources: diagram::SourceExcerptService,
     pub section_catalog: section::ProjectSectionCatalogService,
     pub component_catalog: component::ProjectComponentCatalogService,
+    pub connections: connection::ConnectionService,
+    pub connection_credentials: connection::ConnectionCredentialService,
+    pub kubeconfig_preview: connection::KubeconfigPreviewService,
+    pub project_connections: connection::ProjectConnectionService,
+    pub connection_access: connection::ConnectionAccessQueryService,
     pub icons: catalog::ProjectIconService,
     pub restorer: revision::RevisionRestoreService,
     pub directories: filesystem::DirectoryListingService,
     pub stream: Arc<StepEventStream>,
-    /// Connection credentials; handed in by `rekall-app`, never part of `Services`.
-    pub secrets: Arc<dyn SecretStore>,
 }
 
 impl ApiState {
@@ -80,6 +83,11 @@ impl ApiState {
             sources: diagram::SourceExcerptService::new(ctx.clone()),
             section_catalog: section::ProjectSectionCatalogService::new(ctx.clone()),
             component_catalog: component::ProjectComponentCatalogService::new(ctx.clone()),
+            connections: connection::ConnectionService::new(ctx.clone(), secrets.clone()),
+            connection_credentials: connection::ConnectionCredentialService::new(ctx.clone(), secrets),
+            kubeconfig_preview: connection::KubeconfigPreviewService::new(),
+            project_connections: connection::ProjectConnectionService::new(ctx.clone()),
+            connection_access: connection::ConnectionAccessQueryService::new(ctx.clone()),
             icons: catalog::ProjectIconService::new(ctx),
             restorer,
             directories: filesystem::DirectoryListingService::new(user_home),
@@ -96,7 +104,6 @@ impl ApiState {
             diagrams: services.diagrams,
             sections: services.sections,
             stream,
-            secrets,
         }
     }
 }
