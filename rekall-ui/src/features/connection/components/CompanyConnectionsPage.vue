@@ -1,18 +1,18 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
 import AppCatalogHeader from '@/features/catalog/components/AppCatalogHeader.vue'
 import ConnectionDetailPane from '@/features/connection/components/ConnectionDetailPane.vue'
 import ConnectionDialog from '@/features/connection/components/ConnectionDialog.vue'
+import ConnectionKindGroup from '@/features/connection/components/ConnectionKindGroup.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useConnectionStream } from '@/features/connection/composables/useConnectionStream'
-import { CONNECTION_KIND_LABEL } from '@/features/connection/model/connection'
+import { CONNECTION_KINDS } from '@/features/connection/model/connection'
 import { useConnectionsStore } from '@/features/connection/store/connections.store'
 import { useConsoleStore } from '@/stores/console.store'
-import type { Connection } from '@/features/connection/model/connection'
+import type { Connection, ConnectionKind } from '@/features/connection/model/connection'
 import { asCompanyId, type ConnectionId } from '@/model/branded'
 
 /** A company's connections: the GitLab instances and clusters its projects reach, managed in one place. */
@@ -31,7 +31,7 @@ const selectedId = ref<ConnectionId | null>(null)
 const selected = computed(
   () => connections.value.find((connection) => connection.id === selectedId.value) ?? null
 )
-const dialog = ref<{ connection: Connection | null } | null>(null)
+const dialog = ref<{ connection: Connection | null; kind: ConnectionKind | null } | null>(null)
 const deleting = ref<Connection | null>(null)
 const detailPane = ref<InstanceType<typeof ConnectionDetailPane> | null>(null)
 
@@ -70,7 +70,7 @@ async function confirmDelete(): Promise<void> {
           variant="primary"
           size="sm"
           data-testid="new-connection"
-          @click="dialog = { connection: null }"
+          @click="dialog = { connection: null, kind: null }"
           >+ New connection</AppButton
         >
       </template>
@@ -90,60 +90,29 @@ async function confirmDelete(): Promise<void> {
         title="No connection yet"
         description="A connection is a GitLab instance or a Kubernetes cluster this company's projects reach. Its credential stays on this machine and never reaches a session."
       >
-        <AppButton variant="secondary" size="sm" @click="dialog = { connection: null }"
+        <AppButton variant="secondary" size="sm" @click="dialog = { connection: null, kind: null }"
           >+ New connection</AppButton
         >
       </AppEmptyState>
 
       <div v-else class="grid gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-        <ul
-          class="h-fit overflow-hidden rounded-card border border-border bg-surface"
-          data-testid="connection-list"
-        >
-          <li
-            v-for="(connection, index) in connections"
-            :key="connection.id"
-            :class="index > 0 ? 'border-t border-border' : ''"
-          >
-            <button
-              class="focus-ring flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-raised"
-              :class="connection.id === selectedId ? 'bg-surface-raised' : ''"
-              :aria-current="connection.id === selectedId"
-              data-testid="connection-row"
-              @click="selectedId = connection.id"
-            >
-              <span
-                class="grid size-9 shrink-0 place-items-center rounded-card border border-border-strong font-mono text-caption font-semibold text-accent"
-                aria-hidden="true"
-              >
-                {{ connection.kind === 'GITLAB' ? 'GL' : 'K8s' }}
-              </span>
-              <span class="min-w-0 flex-1">
-                <span class="block truncate text-body font-semibold text-text">{{ connection.title }}</span>
-                <span class="block truncate font-mono text-caption text-text-subtle">
-                  {{ connection.label
-                  }}<template v-if="connection.baseUrl"> · {{ connection.baseUrl }}</template>
-                </span>
-              </span>
-              <span class="flex shrink-0 flex-col items-end gap-1">
-                <AppBadge :tone="connection.credentialSetAt ? 'safe' : 'warn'" dot>
-                  {{ connection.credentialSetAt ? 'Credential' : 'No credential' }}
-                </AppBadge>
-                <span class="text-caption text-text-subtle">
-                  <span class="font-mono tabular-nums text-text-muted">{{ connection.projectCount }}</span>
-                  project{{ connection.projectCount === 1 ? '' : 's' }} ·
-                  {{ CONNECTION_KIND_LABEL[connection.kind] }}
-                </span>
-              </span>
-            </button>
-          </li>
-        </ul>
+        <div class="flex h-fit flex-col gap-4">
+          <ConnectionKindGroup
+            v-for="kind in CONNECTION_KINDS"
+            :key="kind"
+            :kind="kind"
+            :connections="connections"
+            :selected-id="selectedId"
+            @select="selectedId = $event"
+            @add="dialog = { connection: null, kind }"
+          />
+        </div>
 
         <ConnectionDetailPane
           v-if="selected"
           ref="detailPane"
           :connection="selected"
-          @edit="dialog = { connection: selected }"
+          @edit="dialog = { connection: selected, kind: null }"
           @delete="deleting = selected"
         />
       </div>
@@ -154,6 +123,7 @@ async function confirmDelete(): Promise<void> {
         v-if="dialog"
         :company-id="companyId"
         :connection="dialog.connection"
+        :initial-kind="dialog.kind"
         @close="dialog = null"
         @saved="selectedId = $event.id"
       />

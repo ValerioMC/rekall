@@ -4,6 +4,7 @@ import { RouterLink } from 'vue-router'
 import AppButton from '@/components/ui/AppButton.vue'
 import ConnectionAccessLog from '@/features/connection/components/ConnectionAccessLog.vue'
 import ConnectionCredentialField from '@/features/connection/components/ConnectionCredentialField.vue'
+import ConnectionKindIcon from '@/features/connection/components/ConnectionKindIcon.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { relativeTime } from '@/common/format/relative-time'
 import { CONNECTION_KIND_LABEL } from '@/features/connection/model/connection'
@@ -50,6 +51,12 @@ defineExpose({
     data-testid="connection-detail"
   >
     <header class="flex items-start gap-3">
+      <span
+        class="grid size-10 shrink-0 place-items-center rounded-card border border-border-strong bg-surface-raised"
+        data-testid="connection-detail-kind"
+      >
+        <ConnectionKindIcon :kind="connection.kind" :size="22" />
+      </span>
       <span class="min-w-0 flex-1">
         <span class="block text-caption text-text-subtle">{{ CONNECTION_KIND_LABEL[connection.kind] }}</span>
         <span class="block truncate text-title font-semibold text-text">{{ connection.title }}</span>

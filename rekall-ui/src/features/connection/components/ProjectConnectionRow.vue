@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
+import ConnectionKindIcon from '@/features/connection/components/ConnectionKindIcon.vue'
 import type { ProjectConnection } from '@/features/connection/model/connection'
 
 /** One connection the project uses: its target edited in place, and a way to stop using it. */
@@ -25,9 +26,7 @@ function commit(): void {
 <template>
   <li class="flex flex-col gap-1.5 py-2" data-testid="project-connection">
     <div class="flex items-center gap-2">
-      <span class="font-mono text-micro font-semibold text-accent" aria-hidden="true">{{
-        binding.kind === 'GITLAB' ? 'GL' : 'K8s'
-      }}</span>
+      <ConnectionKindIcon :kind="binding.kind" :size="14" />
       <span class="min-w-0 flex-1 truncate text-small text-text">{{ binding.title }}</span>
       <AppBadge v-if="!binding.credentialSetAt" tone="warn" dot data-testid="project-connection-missing"
         >No credential</AppBadge

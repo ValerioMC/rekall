@@ -9,6 +9,12 @@ export const CONNECTION_KIND_LABEL: Readonly<Record<ConnectionKind, string>> = {
   KUBERNETES: 'Kubernetes'
 }
 
+/** What one connection of a kind is called, as a group's add button and empty line name it. */
+export const CONNECTION_KIND_NOUN: Readonly<Record<ConnectionKind, string>> = {
+  GITLAB: 'GitLab instance',
+  KUBERNETES: 'cluster'
+}
+
 /**
  * A system outside Rekall a company's projects reach. The console never holds its credential:
  * it only learns when one was stored, from `credentialSetAt`.

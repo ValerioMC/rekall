@@ -6,6 +6,7 @@ import AppField from '@/components/ui/AppField.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import CloseGlyph from '@/components/ui/CloseGlyph.vue'
 import ConnectionCredentialInput from '@/features/connection/components/ConnectionCredentialInput.vue'
+import ConnectionKindIcon from '@/features/connection/components/ConnectionKindIcon.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { slugify } from '@/features/catalog/model/catalog'
 import { emptyDraft, isComplete, isStarted } from '@/features/connection/lib/credential-draft'
@@ -20,14 +21,18 @@ import type {
 import type { CompanyId } from '@/model/branded'
 
 /** Creates a company's connection, with its credential if one is given, or edits one's name and URL. */
-const props = defineProps<{ companyId: CompanyId; connection: Connection | null }>()
+const props = defineProps<{
+  companyId: CompanyId
+  connection: Connection | null
+  initialKind?: ConnectionKind | null
+}>()
 const emit = defineEmits<{ close: []; saved: [connection: Connection] }>()
 
 const store = useConnectionsStore()
 const { run, isRunning } = useAsyncAction()
 const isNew = props.connection === null
 
-const kind = ref<ConnectionKind>(props.connection?.kind ?? 'KUBERNETES')
+const kind = ref<ConnectionKind>(props.connection?.kind ?? props.initialKind ?? 'KUBERNETES')
 const title = ref(props.connection?.title ?? '')
 const label = ref(props.connection?.label ?? '')
 const baseUrl = ref(props.connection?.baseUrl ?? '')
@@ -113,7 +118,7 @@ onMounted(async () => {
             v-for="option in CONNECTION_KINDS"
             :key="option"
             type="button"
-            class="focus-ring h-8 rounded-control border px-3 text-small transition-colors"
+            class="focus-ring inline-flex h-9 cursor-pointer items-center gap-2 rounded-control border px-3 text-small transition-colors"
             :class="
               kind === option
                 ? 'border-accent bg-accent-soft text-accent'
@@ -123,6 +128,7 @@ onMounted(async () => {
             :data-testid="`kind-${option}`"
             @click="kind = option"
           >
+            <ConnectionKindIcon :kind="option" :size="16" />
             {{ CONNECTION_KIND_LABEL[option] }}
           </button>
         </div>

@@ -103,6 +103,11 @@
   --color-kind-code: #a3acba;
   --color-kind-custom: #b8a98a;
 
+  /* Brand marks of the systems a connection reaches, in their owners' colours. They live only
+     inside the logo glyph, never on text or chrome, so the three roles above stay unshared. */
+  --color-brand-gitlab: #fc6d26;
+  --color-brand-kubernetes: #326ce5;
+
   --font-sans: 'Fira Sans', ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'Fira Code Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
+import ConnectionKindIcon from '@/features/connection/components/ConnectionKindIcon.vue'
 import { useCredentialAccessStore } from '@/features/connection/store/credentialAccess.store'
 import { useConsoleStore } from '@/stores/console.store'
 import type { TerminalConnection } from '@/features/claude/model/terminal'
@@ -68,7 +69,7 @@ onMounted(access.listen)
       :data-testid="`terminal-connection-${chip.connection.label}`"
       :data-tone="chip.tone"
     >
-      <span aria-hidden="true">{{ chip.connection.kind === 'GITLAB' ? 'GL' : 'K8s' }}</span>
+      <ConnectionKindIcon :kind="chip.connection.kind" :size="11" />
       {{ chip.connection.label }}
       <span v-if="chip.tally" class="tabular-nums"
         >·{{ chip.tally.granted
