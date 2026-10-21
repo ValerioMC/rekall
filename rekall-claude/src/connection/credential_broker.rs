@@ -9,11 +9,13 @@ use rekall_service::connection::{ConnectionAccessService, KubeAccess, Secret, Se
 use tracing::{info, warn};
 
 use super::credential_session::CredentialSession;
+use super::guard_rails::settings_document;
 use super::helper_scripts::{git_helper, gitlab_wrapper, kube_plugin, GITLAB_WRAPPER, GIT_HELPER, KUBE_PLUGIN};
 use super::session_kubeconfig::{exec_credential, session_kubeconfig, SessionCluster};
 use super::{CredentialPurpose, HandOut, Refusal, SessionEnvironment};
 
 const KUBECONFIG_FILE: &str = "kubeconfig";
+const SETTINGS_FILE: &str = "claude-settings.json";
 
 /// Opens a credential session for every terminal whose project binds a connection with a stored
 /// credential, answers its helpers, and closes it with the terminal. The only reader of credentials
@@ -43,6 +45,8 @@ impl CredentialBroker {
         }
         let folder = self.root.join(terminal_id.to_string());
         create_private_folder(&folder)?;
+        // Claude Code matches its deny rules against the real path, so a symlinked root is resolved.
+        let folder = folder.canonicalize().unwrap_or(folder);
         let environment = match self.write_helpers(terminal_id, &folder, &usable).await {
             Ok(environment) => environment,
             Err(failure) => {
@@ -126,7 +130,14 @@ impl CredentialBroker {
     /// Writes the helpers into `folder` and answers the environment that points at them.
     async fn write_helpers(&self, terminal_id: Id, folder: &Path, connections: &[TerminalConnection]) -> Result<SessionEnvironment> {
         let endpoint = format!("{}/api/terminal/{terminal_id}/credentials", self.endpoint);
-        let mut environment = SessionEnvironment { path_prefix: Some(folder.to_path_buf()), token: Some(new_token()), ..SessionEnvironment::default() };
+        let settings = folder.join(SETTINGS_FILE);
+        write_private(&settings, &settings_document(folder, &endpoint))?;
+        let mut environment = SessionEnvironment {
+            path_prefix: Some(folder.to_path_buf()),
+            token: Some(new_token()),
+            claude_settings: Some(settings),
+            ..SessionEnvironment::default()
+        };
         let clusters = self.clusters_of(connections).await;
         if !clusters.is_empty() {
             let plugin = folder.join(KUBE_PLUGIN);

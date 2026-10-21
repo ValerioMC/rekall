@@ -6,6 +6,7 @@ mod credential_broker;
 mod credential_controller;
 mod credential_purpose;
 mod credential_session;
+mod guard_rails;
 mod hand_out;
 mod helper_scripts;
 mod session_environment;

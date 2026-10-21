@@ -108,11 +108,12 @@ async fn a_session_writes_private_helpers_that_hold_no_credential() {
     let folder = environment.path_prefix.clone().unwrap();
     assert_eq!(std::fs::metadata(&folder).unwrap().permissions().mode() & 0o777, 0o700);
     let files = every_file_in(&folder);
-    assert_eq!(files.len(), 4, "kubeconfig, the exec plugin, the git helper and the GitLab wrapper");
+    assert_eq!(files.len(), 5, "kubeconfig, the exec plugin, the git helper, the GitLab wrapper and the Claude Code settings");
     for (path, text) in &files {
         assert!(!text.contains("glpat-secret") && !text.contains("sa-token-123"), "{} holds a credential", path.display());
     }
     assert_eq!(environment.kubeconfig, Some(folder.join("kubeconfig")));
+    assert_eq!(environment.claude_settings, Some(folder.join("claude-settings.json")));
     assert!(environment.git_config.iter().any(|(key, value)| key == "credential.https://gitlab.example.com.helper" && value.ends_with(" gitlab")));
     assert!(environment.token.as_deref().is_some_and(|token| token.len() == 64));
 }

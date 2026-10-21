@@ -630,6 +630,20 @@ answer (`ok`, a sentence naming the identity, the rejection status or why the se
 asked) is shown and never stored, and a connection with no credential is answered without asking
 anyone.
 
+A terminal with a credential session also starts `claude` with `--settings` pointing at the
+session's `claude-settings.json`, whose `permissions.deny` (`rekall-claude/src/connection/guard_rails.rs`)
+closes the session folder to the file tools (`Read`/`Edit` with an absolute `//` rule on the folder's
+real path) and denies dumping the environment (`env`, `printenv`, `export -p`, `set`), `git
+credential`, `kubectl config view --raw`, running the plugin or helper by hand, `cat`/`head`/`tail`/
+`less`/`more` on the folder, `curl`/`wget` to the credentials endpoint, and the `security` keychain
+commands. They add to the person's own settings rather than replacing them, and they hold under
+`--dangerously-skip-permissions`: checked against Claude Code 2.1.306, where a `--settings` deny on
+`printenv` was refused in bypass mode while the same call ran without the rule, and an absolute
+`Read(//<folder>/**)` rule was refused too. They are prefix matches against an accidental read, not
+a sandbox: a command shaped differently (`kubectl config view --minify --raw`, a script that calls
+the endpoint) is not caught, and a session set on extracting a credential can still read
+`REKALL_CREDENTIAL_TOKEN` through a command the rules do not name.
+
 The residual risk is real and small: Claude can overwrite one task's wrapup with something
 wrong, or with something that replaces a correction made by hand, and it can mark a step running
 or claimed when it is not. The first two are repaired from the wrapup's history in the console:

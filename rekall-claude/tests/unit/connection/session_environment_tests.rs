@@ -6,6 +6,7 @@ fn session() -> SessionEnvironment {
         kubeconfig: Some(PathBuf::from("/s/t1/kubeconfig")),
         git_config: vec![("credential.https://gitlab.example.com.helper".into(), String::new()), ("credential.https://gitlab.example.com.helper".into(), "!h gitlab".into())],
         token: Some("abc".into()),
+        claude_settings: Some(PathBuf::from("/s/t1/claude-settings.json")),
     }
 }
 

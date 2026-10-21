@@ -2,7 +2,7 @@
 //! the person's own shell around it.
 
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use portable_pty::CommandBuilder;
 use rekall_common::jstr;
@@ -17,11 +17,13 @@ pub(super) struct ClaudeOptions {
     pub skip_permissions: bool,
     pub model: Option<String>,
     pub effort: Option<String>,
+    /// A credential session's settings, whose deny rules guard its helpers.
+    pub settings: Option<PathBuf>,
 }
 
 impl ClaudeOptions {
     pub(super) fn chosen(skip_permissions: bool, model: Option<&str>, effort: Option<&str>) -> Self {
-        Self { skip_permissions, model: normalise(model, &MODEL_ALIASES), effort: normalise(effort, &EFFORT_LEVELS) }
+        Self { skip_permissions, model: normalise(model, &MODEL_ALIASES), effort: normalise(effort, &EFFORT_LEVELS), settings: None }
     }
 }
 
@@ -43,6 +45,10 @@ pub(super) fn claude_command(
     }
     if let Some(effort) = &options.effort {
         command.args(["--effort", effort]);
+    }
+    if let Some(settings) = &options.settings {
+        command.arg("--settings");
+        command.arg(settings);
     }
     command.arg(first_line);
     command.env_clear();

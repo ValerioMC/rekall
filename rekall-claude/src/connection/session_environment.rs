@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-/// What a credential session adds to a terminal's environment: its folder first on `PATH`, the
-/// kubeconfig, git's credential helpers and the terminal's token. None of it is a credential.
+/// What a credential session adds to the terminal it runs in: its folder first on `PATH`, the
+/// kubeconfig, git's credential helpers, the terminal's token, and the Claude Code settings `claude`
+/// starts with. None of it is a credential.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct SessionEnvironment {
     pub path_prefix: Option<PathBuf>,
@@ -10,6 +11,8 @@ pub struct SessionEnvironment {
     /// `git config` entries, as `GIT_CONFIG_KEY_n` / `GIT_CONFIG_VALUE_n` carry them.
     pub git_config: Vec<(String, String)>,
     pub token: Option<String>,
+    /// Passed to `claude` as `--settings`: the session's deny rules.
+    pub claude_settings: Option<PathBuf>,
 }
 
 impl SessionEnvironment {

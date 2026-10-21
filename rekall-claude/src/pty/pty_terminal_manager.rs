@@ -129,11 +129,12 @@ impl PtyTerminalManager {
 
         let directory = require_folder(&launch)?;
         let binary = self.require_cli().await?;
-        let options = ClaudeOptions::chosen(skip_permissions, model, effort);
+        let mut options = ClaudeOptions::chosen(skip_permissions, model, effort);
         let id = Id::random();
         let mut environment = self.cli.environment().await;
         if let Some(session) = self.broker.open(id, &launch).await? {
             session.apply(&mut environment);
+            options.settings = session.claude_settings.clone();
         }
         let command = claude_command(&binary, &options, &mode.first_line(&launch.anchors), environment, directory);
 
