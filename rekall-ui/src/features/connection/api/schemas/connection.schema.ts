@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { asCompanyId, asConnectionId, asProjectId, asTaskId, asTerminalId } from '@/model/branded'
 
-const KindSchema = z.enum(['GITLAB', 'KUBERNETES'])
+const KindSchema = z.enum(['GITLAB', 'KUBERNETES', 'JIRA'])
 
 export const ConnectionSchema = z.object({
   id: z.string().uuid().transform(asConnectionId),
@@ -56,6 +56,17 @@ export const ConnectionAccessListSchema = z.array(
     taskId: z.string().uuid().transform(asTaskId).nullable(),
     taskLabel: z.string().nullable(),
     taskTitle: z.string().nullable()
+  })
+)
+
+export const JiraIssueListSchema = z.array(
+  z.object({
+    key: z.string(),
+    summary: z.string(),
+    status: z.string().nullable(),
+    issueType: z.string().nullable(),
+    url: z.string(),
+    taskId: z.string().uuid().transform(asTaskId).nullable()
   })
 )
 

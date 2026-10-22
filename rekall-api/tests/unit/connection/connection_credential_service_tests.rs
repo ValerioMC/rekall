@@ -42,7 +42,7 @@ async fn world() -> World {
 
 impl World {
     async fn connection(&self, kind: ConnectionKind) -> external_connection::Model {
-        let base_url = (kind == ConnectionKind::Gitlab).then(|| "https://gitlab.example.com".to_string());
+        let base_url = kind.reached_at_typed_url().then(|| "https://example.com".to_string());
         let connection = external_connection::Model::new(self.company_id, format!("{kind}").to_lowercase(), "Conn".into(), kind, base_url, Instant::now());
         connection.clone().into_active_model().insert(&self.ctx.db).await.unwrap();
         connection
@@ -116,4 +116,29 @@ async fn clearing_empties_the_store_and_the_row_says_no_credential() {
 
     assert!(answer.credential_set_at.is_none());
     assert!(!world.secrets.contains(&gitlab.secret_ref));
+}
+
+fn jira_pair(email: &str, value: &str) -> ConnectionCredentialRequest {
+    ConnectionCredentialRequest { email: Some(email.into()), token: Some(Secret::new(value)), ..ConnectionCredentialRequest::default() }
+}
+
+#[tokio::test]
+async fn a_jira_email_and_token_are_stored_as_one_pair() {
+    let world = world().await;
+    let jira = world.connection(ConnectionKind::Jira).await;
+
+    let answer = world.credentials.set(jira.id, jira_pair("ada@example.com", "atl-secret")).await.unwrap();
+
+    assert!(answer.credential_set_at.is_some());
+    assert_eq!(world.secrets.read(&jira.secret_ref).unwrap().expose(), "ada@example.com:atl-secret");
+}
+
+#[tokio::test]
+async fn a_jira_connection_refuses_a_token_without_its_email_or_a_kubeconfig() {
+    let world = world().await;
+    let jira = world.connection(ConnectionKind::Jira).await;
+
+    assert!(world.credentials.set(jira.id, token("atl-secret")).await.unwrap_err().is_illegal_argument());
+    assert!(world.credentials.set(jira.id, kubeconfig("prod")).await.unwrap_err().is_illegal_argument());
+    assert!(!world.secrets.contains(&jira.secret_ref));
 }

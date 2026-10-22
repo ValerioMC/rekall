@@ -5,9 +5,11 @@ mod support;
 
 use std::sync::Arc;
 
-use rekall_service::connection::{InMemorySecretStore, SecretStore};
+use async_trait::async_trait;
+use rekall_app::server::StartOptions;
+use rekall_service::connection::{InMemorySecretStore, JiraCredential, JiraFailure, JiraIssue, JiraIssues, SecretStore};
 use serde_json::json;
-use support::{app, app_with_secrets, id};
+use support::{app, app_with, app_with_secrets, id};
 
 const KUBECONFIG: &str = "
 clusters:
@@ -170,4 +172,43 @@ async fn the_context_names_a_projects_connections_and_never_their_credential_or_
     for leaked in ["sa-token-123", "glpat-secret", "k8s.example.com", "Q0E=", &format!("connection-{cluster}")] {
         assert!(!context.contains(leaked), "the context carries {leaked}");
     }
+}
+
+/// A Jira site with two open issues, which answers only the credential the test stores.
+struct FakeJira;
+
+#[async_trait]
+impl JiraIssues for FakeJira {
+    async fn search(&self, site: &str, credential: &JiraCredential, _jql: &str, _limit: u16) -> Result<Vec<JiraIssue>, JiraFailure> {
+        assert_eq!((site, credential.email()), ("https://example.atlassian.net", "ada@example.com"));
+        let issue = |key: &str, summary: &str| JiraIssue { key: key.into(), summary: summary.into(), status: Some("To Do".into()), issue_type: Some("Story".into()), description: Some("Steps.".into()) };
+        Ok(vec![issue("ENG-1", "Fix login"), issue("ENG-2", "Add export")])
+    }
+}
+
+#[tokio::test]
+async fn a_jira_connection_imports_the_issues_a_project_picks_as_its_tasks() {
+    let secrets = Arc::new(InMemorySecretStore::new());
+    let options = StartOptions { no_restart: true, secrets: Some(secrets.clone()), jira_issues: Some(Arc::new(FakeJira)), ..StartOptions::default() };
+    let app = app_with(&[], options).await;
+    let acme = app.a_company("Acme").await;
+    let vega = app.a_project(&acme, "vega", "ACTIVE").await;
+    let jira = id(&app.post(&format!("/api/companies/{acme}/connections"), json!({ "kind": "JIRA", "title": "Jira", "baseUrl": "https://example.atlassian.net" })).await);
+    let set = app.put(&format!("/api/connections/{jira}/credential"), json!({ "email": "ada@example.com", "token": "atl-secret" })).await;
+    assert_eq!(set.status, 200, "{}", set.text);
+    assert!(!set.text.contains("atl-secret"));
+    app.put(&format!("/api/projects/{vega}/connections/{jira}"), json!({ "target": "eng" })).await;
+    let issues = format!("/api/projects/{vega}/connections/{jira}/jira-issues");
+
+    let listed = app.get(&issues).await;
+    assert_eq!(listed.status, 200, "{}", listed.text);
+    assert_eq!((listed.list()[0]["url"].as_str(), listed.list()[0]["taskId"].is_null()), (Some("https://example.atlassian.net/browse/ENG-1"), true));
+
+    let imported = app.post(&format!("{issues}/import"), json!({ "keys": ["eng-1"] })).await;
+    assert_eq!(imported.status, 200, "{}", imported.text);
+    assert_eq!((imported.list()[0]["label"].as_str(), imported.list()[0]["title"].as_str()), (Some("eng-1"), Some("Fix login")));
+    assert!(imported.list()[0]["description"].as_str().unwrap().contains("[ENG-1](https://example.atlassian.net/browse/ENG-1)"));
+    assert!(!app.get(&issues).await.list()[0]["taskId"].is_null(), "an imported issue names its task");
+
+    assert_eq!(app.post(&format!("{issues}/import"), json!({ "keys": ["OPS-1"] })).await.status, 400);
 }

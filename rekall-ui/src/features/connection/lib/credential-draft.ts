@@ -2,17 +2,48 @@ import type { ConnectionKind, CredentialDraft } from '@/features/connection/mode
 
 /** An empty credential of the kind the connection takes. */
 export function emptyDraft(kind: ConnectionKind): CredentialDraft {
-  return kind === 'GITLAB' ? { kind, token: '' } : { kind, kubeconfig: '', context: null }
+  switch (kind) {
+    case 'GITLAB':
+      return { kind, token: '' }
+    case 'KUBERNETES':
+      return { kind, kubeconfig: '', context: null }
+    case 'JIRA':
+      return { kind, email: '', token: '' }
+  }
 }
 
-/** Whether the draft holds enough to send: a token, or a kubeconfig with a context chosen. */
+/** Whether the draft holds enough to send: a token, a kubeconfig with a context chosen, or an email and a token. */
 export function isComplete(draft: CredentialDraft): boolean {
-  return draft.kind === 'GITLAB'
-    ? draft.token.trim().length > 0
-    : draft.kubeconfig.trim().length > 0 && draft.context !== null
+  switch (draft.kind) {
+    case 'GITLAB':
+      return draft.token.trim().length > 0
+    case 'KUBERNETES':
+      return draft.kubeconfig.trim().length > 0 && draft.context !== null
+    case 'JIRA':
+      return draft.email.trim().includes('@') && draft.token.trim().length > 0
+  }
 }
 
 /** Whether anything at all was typed, so an untouched field is not sent. */
 export function isStarted(draft: CredentialDraft): boolean {
-  return draft.kind === 'GITLAB' ? draft.token.length > 0 : draft.kubeconfig.length > 0
+  switch (draft.kind) {
+    case 'GITLAB':
+      return draft.token.length > 0
+    case 'KUBERNETES':
+      return draft.kubeconfig.length > 0
+    case 'JIRA':
+      return draft.email.length > 0 || draft.token.length > 0
+  }
+}
+
+/** What the credential is called in a button or a toast. */
+export function credentialNoun(kind: ConnectionKind): string {
+  switch (kind) {
+    case 'GITLAB':
+      return 'token'
+    case 'KUBERNETES':
+      return 'kubeconfig'
+    case 'JIRA':
+      return 'API token'
+  }
 }

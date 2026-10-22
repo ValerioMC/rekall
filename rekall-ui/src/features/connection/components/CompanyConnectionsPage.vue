@@ -15,7 +15,7 @@ import { useConsoleStore } from '@/stores/console.store'
 import type { Connection, ConnectionKind } from '@/features/connection/model/connection'
 import { asCompanyId, type ConnectionId } from '@/model/branded'
 
-/** A company's connections: the GitLab instances and clusters its projects reach, managed in one place. */
+/** A company's connections: the GitLab instances, clusters and Jira sites its projects reach, managed in one place. */
 const props = defineProps<{ id: string }>()
 
 const consoleStore = useConsoleStore()
@@ -88,7 +88,7 @@ async function confirmDelete(): Promise<void> {
       <AppEmptyState
         v-else-if="!connections.length"
         title="No connection yet"
-        description="A connection is a GitLab instance or a Kubernetes cluster this company's projects reach. Its credential stays on this machine and never reaches a session."
+        description="A connection is a GitLab instance, a Kubernetes cluster or a Jira site this company's projects reach. Its credential stays on this machine and never reaches a session."
       >
         <AppButton variant="secondary" size="sm" @click="dialog = { connection: null, kind: null }"
           >+ New connection</AppButton

@@ -6,7 +6,6 @@ use rekall_service::claude::TerminalConnection;
 
 pub(super) const KUBE_PLUGIN: &str = "rekall-kube-credential";
 pub(super) const GIT_HELPER: &str = "rekall-git-credential";
-pub(super) const GITLAB_WRAPPER: &str = "rekall-gitlab";
 
 /// Fetches `$1` with the token as a header read from stdin; prints the body, or exits non-zero.
 const FETCH: &str = r#"rekall_fetch() {
@@ -33,26 +32,49 @@ pub(super) fn git_helper(endpoint: &str) -> String {
     )
 }
 
-/// `rekall-gitlab --connection <label> <METHOD> <path> [curl options]`: a GitLab API call with the
-/// token's header, `:project` in the path standing for the binding's project path.
-pub(super) fn gitlab_wrapper(endpoint: &str, connections: &[&TerminalConnection]) -> String {
+/// What tells one API wrapper from another. Each is `<name> --connection <label> <METHOD> <path>
+/// [curl options]`: a call under `api_root` with the credential's header, `:project` in the path
+/// standing for the binding's target, URL-encoded.
+pub(super) struct ApiWrapper {
+    pub(super) name: &'static str,
+    system: &'static str,
+    api_root: &'static str,
+    purpose: &'static str,
+    /// Further curl options every call carries, each followed by a space.
+    headers: &'static str,
+}
+
+/// GitLab's API with the `PRIVATE-TOKEN` header, `:project` the project path.
+pub(super) const GITLAB_API: ApiWrapper = ApiWrapper { name: "rekall-gitlab", system: "GitLab", api_root: "/api/v4", purpose: "gitlab", headers: "" };
+
+/// Jira's REST API with the Basic header and JSON both ways, `:project` the project key.
+pub(super) const JIRA_API: ApiWrapper = ApiWrapper {
+    name: "rekall-jira",
+    system: "Jira",
+    api_root: "/rest/api/3",
+    purpose: "jira",
+    headers: "-H 'Accept: application/json' -H 'Content-Type: application/json' ",
+};
+
+pub(super) fn api_wrapper(wrapper: &ApiWrapper, endpoint: &str, connections: &[&TerminalConnection]) -> String {
+    let ApiWrapper { name, system, api_root, purpose, headers } = wrapper;
     let mut cases = String::new();
     for connection in connections {
-        let base = format!("{}/api/v4", connection.instance_url.as_deref().unwrap_or_default().trim_end_matches('/'));
+        let base = format!("{}{api_root}", connection.instance_url.as_deref().unwrap_or_default().trim_end_matches('/'));
         let project = connection.target.as_deref().map(percent_encoded).unwrap_or_default();
         cases.push_str(&format!("  {}) base={}; project={} ;;\n", quoted(&connection.label), quoted(&base), quoted(&project)));
     }
     format!(
-        "{HEADER}{FETCH}usage() {{ echo 'usage: rekall-gitlab --connection <label> <METHOD> <path> [curl options]' >&2; exit 2; }}
+        "{HEADER}{FETCH}usage() {{ echo 'usage: {name} --connection <label> <METHOD> <path> [curl options]' >&2; exit 2; }}
 [ \"$1\" = --connection ] && [ $# -ge 4 ] || usage
 label=$2; method=$3; path=$4; shift 4
 case \"$label\" in
-{cases}  *) echo \"rekall-gitlab: this terminal has no GitLab connection labelled $label\" >&2; exit 2 ;;
+{cases}  *) echo \"{name}: this terminal has no {system} connection labelled $label\" >&2; exit 2 ;;
 esac
 case \"$path\" in /*) ;; *) path=\"/$path\" ;; esac
 [ -n \"$project\" ] && path=$(printf '%s' \"$path\" | sed \"s|:project|$project|g\")
-header=$(rekall_fetch {}\"$label?for=gitlab\") || {{ printf 'rekall-gitlab: %s\\n' \"$header\" >&2; exit 1; }}
-printf '%s\\n' \"$header\" | curl --silent --show-error -X \"$method\" -H @- \"$base$path\" \"$@\"
+header=$(rekall_fetch {}\"$label?for={purpose}\") || {{ printf '{name}: %s\\n' \"$header\" >&2; exit 1; }}
+printf '%s\\n' \"$header\" | curl --silent --show-error -X \"$method\" -H @- {headers}\"$base$path\" \"$@\"
 ",
         quoted(&format!("{endpoint}/"))
     )
@@ -63,7 +85,7 @@ fn quoted(text: &str) -> String {
     format!("'{}'", text.replace('\'', r"'\''"))
 }
 
-/// A project path as GitLab's API takes it in place of an id: every byte but the unreserved ones escaped.
+/// A target as an API path takes it, a GitLab project path in place of an id: every byte but the unreserved ones escaped.
 fn percent_encoded(text: &str) -> String {
     text.bytes()
         .map(|byte| match byte {

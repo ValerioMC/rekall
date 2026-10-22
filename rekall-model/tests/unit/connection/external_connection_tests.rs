@@ -62,3 +62,21 @@ fn the_keychain_account_is_generated_from_the_id_and_no_credential_is_stored_yet
     assert_eq!(connection.secret_ref, format!("connection-{}", connection.id));
     assert!(!connection.has_credential());
 }
+
+fn jira(base_url: Option<&str>) -> Model {
+    Model::new(Id::random(), "jira".into(), "Jira".into(), ConnectionKind::Jira, base_url.map(str::to_string), Instant::now())
+}
+
+#[test]
+fn a_jira_connection_without_its_site_url_is_refused() {
+    let error = jira(None).validate().unwrap_err();
+    assert!(error.to_string().contains("site URL"));
+    assert!(jira(Some("https://example.atlassian.net")).validate().is_ok());
+}
+
+#[test]
+fn a_kubeconfig_context_on_a_jira_connection_is_refused() {
+    let mut connection = jira(Some("https://example.atlassian.net"));
+    connection.kube_context = Some("prod".into());
+    assert!(connection.validate().is_err());
+}

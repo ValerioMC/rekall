@@ -1,14 +1,23 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
+import AppButton from '@/components/ui/AppButton.vue'
 import ConnectionKindIcon from '@/features/connection/components/ConnectionKindIcon.vue'
+import { TARGET_FIELD } from '@/features/connection/lib/connection-fields'
 import type { ProjectConnection } from '@/features/connection/model/connection'
 
-/** One connection the project uses: its target edited in place, and a way to stop using it. */
+/**
+ * One connection the project uses: its target edited in place, and a way to stop using it. A Jira
+ * one with a credential and a project key also opens the import of its issues.
+ */
 const props = defineProps<{ binding: ProjectConnection }>()
-const emit = defineEmits<{ target: [target: string | null]; unbind: [] }>()
+const emit = defineEmits<{ target: [target: string | null]; unbind: []; importIssues: [] }>()
 
 const draft = ref(props.binding.target ?? '')
+const targetField = computed(() => TARGET_FIELD[props.binding.kind])
+const canImport = computed(
+  () => props.binding.kind === 'JIRA' && !!props.binding.credentialSetAt && !!props.binding.target
+)
 
 watch(
   () => props.binding.target,
@@ -48,17 +57,18 @@ function commit(): void {
         v-model="draft"
         spellcheck="false"
         autocomplete="off"
-        :aria-label="
-          binding.kind === 'GITLAB'
-            ? `GitLab project path for ${binding.title}`
-            : `Namespace for ${binding.title}`
-        "
+        :aria-label="`${targetField.name} for ${binding.title}`"
         data-testid="connection-target"
         class="field text-text h-7 min-w-0 flex-1 rounded-control px-2 font-mono text-caption"
-        :placeholder="binding.kind === 'GITLAB' ? 'group/project' : 'namespace'"
+        :placeholder="targetField.placeholder"
         @blur="commit"
         @keydown.enter.prevent="commit"
       />
+    </div>
+    <div v-if="canImport" class="flex justify-end">
+      <AppButton size="sm" variant="ghost" data-testid="import-jira-issues" @click="emit('importIssues')"
+        >Import issues as tasks</AppButton
+      >
     </div>
   </li>
 </template>

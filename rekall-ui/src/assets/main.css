@@ -107,6 +107,7 @@
      inside the logo glyph, never on text or chrome, so the three roles above stay unshared. */
   --color-brand-gitlab: #fc6d26;
   --color-brand-kubernetes: #326ce5;
+  --color-brand-jira: #2684ff;
 
   --font-sans: 'Fira Sans', ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'Fira Code Variable', ui-monospace, SFMono-Regular, Menlo, monospace;

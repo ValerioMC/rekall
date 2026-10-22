@@ -46,16 +46,18 @@ impl TaskService {
     }
 
     pub async fn create(&self, request: TaskRequest) -> Result<TaskResponse> {
-        in_write!(&self.ctx, |tx| {
-            let label = Slug::of(request.label.as_deref())?;
-            let project = require_owning_project(&tx, request.project_id).await?;
-            let mut task = task::Model::new(label, trimmed_title(&request), project.id, self.ctx.now());
-            apply_request(&tx, &mut task, &request).await?;
-            task.validate()?;
-            require_label_free(&tx, &task, None).await?;
-            task.clone().into_active_model().insert(tx.db()).await?;
-            response(&tx, &task).await
-        })
+        in_write!(&self.ctx, |tx| self.create_in(&tx, request).await)
+    }
+
+    pub async fn create_in(&self, tx: &Tx, request: TaskRequest) -> Result<TaskResponse> {
+        let label = Slug::of(request.label.as_deref())?;
+        let project = require_owning_project(tx, request.project_id).await?;
+        let mut task = task::Model::new(label, trimmed_title(&request), project.id, self.ctx.now());
+        apply_request(tx, &mut task, &request).await?;
+        task.validate()?;
+        require_label_free(tx, &task, None).await?;
+        task.clone().into_active_model().insert(tx.db()).await?;
+        response(tx, &task).await
     }
 
     pub async fn update(&self, id: Id, request: TaskRequest) -> Result<TaskResponse> {

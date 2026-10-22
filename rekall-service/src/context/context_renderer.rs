@@ -304,6 +304,15 @@ fn connection_usage(connection: &ConnectionView) -> String {
             let project = connection.target.as_deref().map_or_else(String::new, |path| format!(", project `{path}` (`:project` in an API path)"));
             format!("GitLab at {instance}{project}. `git push` to it over HTTPS uses the configured credential helper; call its API with `rekall-gitlab --connection {} <METHOD> <path>`", connection.label)
         }
+        ConnectionKind::Jira => {
+            let site = connection.instance_url.as_deref().unwrap_or("its Jira site");
+            let project = connection.target.as_deref().map_or_else(String::new, |key| format!(", project `{key}` (`:project` in an API path)"));
+            format!(
+                "Jira at {site}{project}. Read and create its issues with `rekall-jira --connection {} <METHOD> <path> [curl options]`, \
+                 a path under `/rest/api/3` such as `POST /issue` with the JSON body as `-d`",
+                connection.label
+            )
+        }
     }
 }
 

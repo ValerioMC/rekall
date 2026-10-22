@@ -7,6 +7,7 @@ import ConnectionCredentialField from '@/features/connection/components/Connecti
 import ConnectionKindIcon from '@/features/connection/components/ConnectionKindIcon.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { relativeTime } from '@/common/format/relative-time'
+import { ADDRESS_TERM } from '@/features/connection/lib/connection-fields'
 import { CONNECTION_KIND_LABEL } from '@/features/connection/model/connection'
 import { useConnectionsStore } from '@/features/connection/store/connections.store'
 import type { Connection } from '@/features/connection/model/connection'
@@ -72,7 +73,7 @@ defineExpose({
 
     <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-small">
       <template v-if="connection.baseUrl">
-        <dt class="text-text-subtle">{{ connection.kind === 'GITLAB' ? 'Instance' : 'Server' }}</dt>
+        <dt class="text-text-subtle">{{ ADDRESS_TERM[connection.kind] }}</dt>
         <dd class="truncate font-mono text-text">{{ connection.baseUrl }}</dd>
       </template>
       <template v-if="connection.kubeContext">

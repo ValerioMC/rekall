@@ -1,5 +1,5 @@
 //! A project's use of one of its company's connections. The target narrows it to this project:
-//! the GitLab project path, or the Kubernetes namespace its work goes to.
+//! the GitLab project path, the Kubernetes namespace its work goes to, or the Jira project key.
 
 use rekall_common::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;

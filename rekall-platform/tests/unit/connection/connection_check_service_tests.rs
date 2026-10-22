@@ -39,6 +39,11 @@ impl ConnectionProbe for FakeProbe {
         self.asked.lock().unwrap().push(access.server.clone());
         self.outcome.clone()
     }
+
+    async fn jira(&self, site: &str, credential: &JiraCredential) -> ProbeOutcome {
+        self.asked.lock().unwrap().push(format!("{site} as {}", credential.email()));
+        self.outcome.clone()
+    }
 }
 
 struct World {
@@ -62,7 +67,11 @@ async fn world(outcome: ProbeOutcome) -> World {
 
 impl World {
     async fn connection(&self, kind: ConnectionKind, credential: Option<&str>) -> Id {
-        let base_url = (kind == ConnectionKind::Gitlab).then(|| "https://gitlab.example.com".to_string());
+        let base_url = match kind {
+            ConnectionKind::Gitlab => Some("https://gitlab.example.com".to_string()),
+            ConnectionKind::Jira => Some("https://example.atlassian.net".to_string()),
+            ConnectionKind::Kubernetes => None,
+        };
         let mut connection = external_connection::Model::new(self.company_id, "conn".into(), "Conn".into(), kind, base_url, Instant::now());
         if let Some(credential) = credential {
             self.secrets.put(&connection.secret_ref, &Secret::new(credential)).unwrap();
@@ -127,4 +136,16 @@ async fn a_rejection_says_to_replace_the_credential() {
     let world = world(ProbeOutcome::Rejected { status: 403 }).await;
     let id = world.connection(ConnectionKind::Gitlab, Some("glpat-secret")).await;
     assert!(world.checks.check(id).await.unwrap().detail.contains("HTTP 403"));
+}
+
+#[tokio::test]
+async fn a_jira_check_asks_the_site_with_the_stored_email_and_token() {
+    let world = world(ProbeOutcome::Accepted { identity: Some("Ada Lovelace".into()), version: None }).await;
+    let id = world.connection(ConnectionKind::Jira, Some("ada@example.com:atl-secret")).await;
+
+    let check = world.checks.check(id).await.unwrap();
+
+    assert!(check.ok);
+    assert_eq!(check.detail, "Signed in as Ada Lovelace.");
+    assert_eq!(*world.probe.asked.lock().unwrap(), ["https://example.atlassian.net as ada@example.com"]);
 }

@@ -95,7 +95,7 @@ is found by opening one folder per crate:
 |---|---|
 | `catalog` | companies and projects with their logos and icons; in `rekall-api` and the console also the tasks |
 | `component`, `section` | a project's components and its titled pages |
-| `connection` | the GitLab instances and Kubernetes clusters a company's projects reach, the projects that bind each, and the log of every credential a terminal asked for |
+| `connection` | the GitLab instances, Kubernetes clusters and Jira sites a company's projects reach, the projects that bind each, the log of every credential a terminal asked for, and the Jira issues a project imports as tasks |
 | `step`, `flow` | the checklist, and the routes and visits that turn it into a flow |
 | `note` | documents, their attachment to tasks, the scope that decides how they load |
 | `wrapup`, `revision`, `review`, `timeentry` | the wrapup, saved states of a task, the review line, logged time |
@@ -186,8 +186,8 @@ Project ──< ProjectConnection >──┘
 | `step_visit` | through its task | `task_id`, `step_id`, `ordinal` unique per task, `entered_at`, `left_at`, `outcome`; deleted with its step |
 | `wrapup` | through its task | `task_id` unique, `body_markdown`, `written_by` |
 | `project_component` | through its project | `project_id`, `name`, `folder`, `description`, `position` |
-| `external_connection` | `label`, unique per company | `company_id`, `title`, `kind` (`GITLAB`, `KUBERNETES`), `base_url` (the GitLab instance, or the server read from an imported kubeconfig), `kube_context`, `secret_ref` (the OS keychain account holding the credential, generated, unique), `secret_set_at` (null while no credential is stored). No column holds a credential |
-| `project_connection` | through its project | `project_id`, `connection_id` unique together, `target` (GitLab project path or Kubernetes namespace); deleted with either side |
+| `external_connection` | `label`, unique per company | `company_id`, `title`, `kind` (`GITLAB`, `KUBERNETES`, `JIRA`), `base_url` (the GitLab instance or Jira site, or the server read from an imported kubeconfig), `kube_context`, `secret_ref` (the OS keychain account holding the credential, generated, unique), `secret_set_at` (null while no credential is stored). No column holds a credential |
+| `project_connection` | through its project | `project_id`, `connection_id` unique together, `target` (GitLab project path, Kubernetes namespace or Jira project key); deleted with either side |
 | `connection_access` | through its connection | `connection_id`, `task_id` (set null when the task goes), `terminal_id`, `accessed_at`, `granted`, `reason` (why the request was refused); append-only, never a credential |
 | `token_usage` | through its task | `session_id`, `task_id`, `step_id`, the four token counts, `spent_on` |
 | `transcript_scan` | `session_id` | `scanned_bytes`, `scanned_at` |
@@ -399,7 +399,8 @@ list; `rekall-mcp` can read the skills through the context and never write them.
 A project's connections arrive as a `<connections>` block after its components, one line per
 binding: the label, the title and how to reach it. A cluster is `kubectl --context <label>` with the
 binding's namespace; a GitLab instance is its URL and project path, pushed to over HTTPS through the
-configured credential helper and called through `rekall-gitlab --connection <label>`. A connection with no credential
+configured credential helper and called through `rekall-gitlab --connection <label>`; a Jira site is its
+URL and project key, called through `rekall-jira --connection <label>` under `/rest/api/3`. A connection with no credential
 says so, so the session reports it. `ConnectionView` carries no field that could hold a credential,
 the keychain account, a cluster's server or its CA, and the block says these work only in a terminal
 Rekall opened and forbids handling a credential directly; `/rk` repeats that rule.
@@ -586,7 +587,8 @@ folder. Every read runs in a
 read-only transaction. `McpTool.writes()` is declared
 rather than inferred, and the startup log names the write surface out loud.
 
-Connection credentials never reach `rekall-mcp`. A GitLab token or a Kubernetes kubeconfig lives in
+Connection credentials never reach `rekall-mcp`. A GitLab token, a Kubernetes kubeconfig or a Jira
+email and API token (`JiraCredential`, kept as the `email:token` pair Basic authentication sends) lives in
 the OS credential store (`KeychainSecretStore` in `rekall-platform`, over `keyring`, service
 `Rekall-connections`, one account per connection's `secret_ref`), behind the `SecretStore` trait in
 `rekall-service/src/connection/`. `rekall-app` builds the store and hands it to `ApiState` and
@@ -607,12 +609,12 @@ after the row is gone, logging a failure), `ConnectionCredentialService` (the on
 replaces or clears a credential), `ProjectConnectionService` (bindings; a project binds only a
 connection of its own company), `ConnectionAccessQueryService` (the access log, newest first) and
 `KubeconfigPreviewService` (a kubeconfig's contexts with why each can or cannot be imported, storing
-nothing). Credentials are write-only: `PUT /api/connections/{id}/credential` takes `token` (GitLab)
-or `kubeconfig` and `context` (Kubernetes) and answers the connection with `credentialSetAt`, and no
+nothing). Credentials are write-only: `PUT /api/connections/{id}/credential` takes `token` (GitLab),
+`kubeconfig` and `context` (Kubernetes) or `email` and `token` (Jira) and answers the connection with `credentialSetAt`, and no
 endpoint returns a credential. The store is written before the row, so a failed write leaves the row
 saying no credential is set; clearing empties the store before the row, so the row never claims less
 than the store holds. A Kubernetes connection takes its server and context from the imported
-kubeconfig and refuses a typed URL; a connection's kind is fixed once created. The routes are
+kubeconfig and refuses a typed URL; GitLab and Jira need theirs; a connection's kind is fixed once created. The routes are
 `GET`/`POST /api/companies/{id}/connections`, `GET`/`PUT`/`DELETE /api/connections/{id}` (`GET` lists
 the projects that bind it, `DELETE` answers `unboundProjects`), `PUT`/`DELETE
 /api/connections/{id}/credential`, `POST /api/connections/kubeconfig/contexts`, `GET
@@ -620,11 +622,33 @@ the projects that bind it, `DELETE` answers `unboundProjects`), `PUT`/`DELETE
 /api/projects/{id}/connections/{connectionId}` (`PUT` binds, or sets the `target` of a binding the
 project has). Every change publishes a `connection` frame naming the company.
 
+`JiraIssueService` (`rekall-api/src/connection/`) is how a project turns Jira issues into tasks, through
+its binding of a Jira connection whose target is the Jira project key. `GET
+/api/projects/{id}/connections/{connectionId}/jira-issues` lists the project's 50 most recently updated
+issues not yet done, each with its link and the task it was imported as; `POST .../jira-issues/import`
+takes `keys` and creates one task per issue in one transaction (`TaskService::create_in`). The rules are
+in `jira_rules.rs`:
+
+- An issue's task is labelled with its key lower-cased (`eng-12`), which is also how an imported issue is
+  recognised: importing it again adds nothing, and a hand-made task already holding that label counts as
+  its import.
+- The title is the summary (cut to 200 characters, the key when blank); the description is a link back to
+  the issue followed by its description, read from Atlassian's document format as markdown
+  (`rekall-platform/src/connection/atlassian_document.rs`).
+- A key that is not `<PROJECT>-<number>` of the bound project, more than 50 keys, a binding with no project
+  key, a connection of another kind or one with no credential is refused (400) before Jira is asked.
+- Jira rejecting the credential (401/403) or not answering is a 409 naming why, with Jira's own message
+  when it gave one.
+
+Jira is reached through the `JiraIssues` trait in `rekall-service/src/connection/`, implemented by
+`HttpJiraIssues` in `rekall-platform` (`POST /rest/api/3/search/jql`, the first page only), or a fake
+through `StartOptions::jira_issues`. It is asked before any transaction opens.
+
 `POST /api/connections/{id}/check` asks the connection's server whether its stored credential still
 works, before a session finds out mid-deploy. It lives in `rekall-platform/src/connection/` because
 it is HTTP to the outside: `ConnectionCheckService` reads the credential through the store and hands
 it to a `ConnectionProbe` (`HttpConnectionProbe`, or a fake through `StartOptions::connection_probe`).
-GitLab is asked `GET /api/v4/user` with the token; a cluster is asked `/version` and a
+GitLab is asked `GET /api/v4/user` with the token, Jira `GET /rest/api/3/myself` with the Basic header; a cluster is asked `/version` and a
 `SelfSubjectReview`, through the kubeconfig's `proxy-url` when it has one, trusted through its CA
 and with a client certificate as the TLS identity, falling back to an authenticated `GET /api` on a cluster too old for the review. The
 answer (`ok`, a sentence naming the identity, the rejection status or why the server could not be
@@ -753,13 +777,14 @@ account; never the credential). The broker writes a folder under `rekall.home/te
 | `rekall-kube-credential` | kubectl's exec plugin: prints the `ExecCredential` (a token, or a client certificate and key as PEM) |
 | `rekall-git-credential` | git's credential helper: answers `get` with `username=oauth2` and the token |
 | `rekall-gitlab` | `rekall-gitlab --connection <label> <METHOD> <path> [curl options]`: a GitLab API call with the `PRIVATE-TOKEN` header, `:project` standing for the binding's project path, URL-encoded |
+| `rekall-jira` | `rekall-jira --connection <label> <METHOD> <path> [curl options]`: a Jira call under `/rest/api/3` with the `Authorization: Basic` header and JSON both ways, `:project` standing for the binding's project key |
 
 None holds a credential. `SessionEnvironment` adds the folder first on `PATH`, `KUBECONFIG` (only
 Rekall's clusters, so the session uses the credential you provided), a `GIT_CONFIG_KEY_n`/`VALUE_n`
 pair per GitLab host (an empty `credential.<url>.helper` that drops helpers configured elsewhere,
 then Rekall's, after any entries the shell already set) and `REKALL_CREDENTIAL_TOKEN`, 244 random bits
 for this terminal. The helpers send the token as a header read from stdin, so it never appears in a
-process listing, to `GET /api/terminal/{id}/credentials/{label}?for=kubectl|git|gitlab`. That route
+process listing, to `GET /api/terminal/{id}/credentials/{label}?for=kubectl|git|gitlab|jira`. That route
 sits outside the router's UUID check, answers only a loopback peer even with
 `rekall.security.remote-access` on, and answers in plain text the helpers print as they are: 403
 for a token that is not the terminal's (compared in constant time) or a peer that is not this

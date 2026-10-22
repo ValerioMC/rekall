@@ -5,12 +5,12 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use rekall_common::{cleanup, Id, InternalFailure, RekallError, Result};
 use rekall_model::ConnectionKind;
 use rekall_service::claude::{TerminalConnection, TerminalLaunch};
-use rekall_service::connection::{ConnectionAccessService, KubeAccess, Secret, SecretStore};
+use rekall_service::connection::{ConnectionAccessService, JiraCredential, KubeAccess, Secret, SecretStore};
 use tracing::{info, warn};
 
 use super::credential_session::CredentialSession;
 use super::guard_rails::settings_document;
-use super::helper_scripts::{git_helper, gitlab_wrapper, kube_plugin, GITLAB_WRAPPER, GIT_HELPER, KUBE_PLUGIN};
+use super::helper_scripts::{api_wrapper, git_helper, kube_plugin, GITLAB_API, GIT_HELPER, JIRA_API, KUBE_PLUGIN};
 use super::session_kubeconfig::{exec_credential, session_kubeconfig, SessionCluster};
 use super::{CredentialPurpose, HandOut, Refusal, SessionEnvironment};
 
@@ -124,6 +124,10 @@ impl CredentialBroker {
             }
             CredentialPurpose::Git => Ok(Secret::new(format!("username=oauth2\npassword={}\n", stored.expose()))),
             CredentialPurpose::Gitlab => Ok(Secret::new(format!("PRIVATE-TOKEN: {}\n", stored.expose()))),
+            CredentialPurpose::Jira => {
+                let credential = JiraCredential::from_stored(&stored).map_err(|failure| (Refusal::Failed, failure.message().to_string()))?;
+                Ok(Secret::new(format!("Authorization: {}\n", credential.authorization().expose())))
+            }
         }
     }
 
@@ -152,8 +156,12 @@ impl CredentialBroker {
         if !gitlabs.is_empty() {
             let helper = folder.join(GIT_HELPER);
             write_script(&helper, &git_helper(&endpoint))?;
-            write_script(&folder.join(GITLAB_WRAPPER), &gitlab_wrapper(&endpoint, &gitlabs))?;
+            write_script(&folder.join(GITLAB_API.name), &api_wrapper(&GITLAB_API, &endpoint, &gitlabs))?;
             environment.git_config = git_config(&gitlabs, &helper);
+        }
+        let jiras: Vec<&TerminalConnection> = connections.iter().filter(|connection| connection.kind == ConnectionKind::Jira).collect();
+        if !jiras.is_empty() {
+            write_script(&folder.join(JIRA_API.name), &api_wrapper(&JIRA_API, &endpoint, &jiras))?;
         }
         Ok(environment)
     }

@@ -10,6 +10,7 @@ import ConnectionKindIcon from '@/features/connection/components/ConnectionKindI
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { slugify } from '@/features/catalog/model/catalog'
 import { emptyDraft, isComplete, isStarted } from '@/features/connection/lib/credential-draft'
+import { CREDENTIAL_FIELD, URL_FIELD } from '@/features/connection/lib/connection-fields'
 import { CONNECTION_KINDS, CONNECTION_KIND_LABEL } from '@/features/connection/model/connection'
 import { useConnectionsStore } from '@/features/connection/store/connections.store'
 import type {
@@ -47,23 +48,22 @@ watch(kind, (next) => {
 const heading = isNew ? 'New connection' : `Edit ${props.connection?.title}`
 const slug = computed(() => slugify(label.value || title.value))
 const titleError = computed(() => (submitted.value && !title.value.trim() ? 'A title is required.' : null))
+const urlField = computed(() => URL_FIELD[kind.value])
+const credentialField = computed(() => CREDENTIAL_FIELD[kind.value])
+const urlMissing = computed(() => urlField.value !== null && !baseUrl.value.trim())
 const urlError = computed(() =>
-  submitted.value && kind.value === 'GITLAB' && !baseUrl.value.trim()
-    ? 'The GitLab instance URL is required.'
-    : null
+  submitted.value && urlMissing.value ? `The ${urlField.value?.label} is required.` : null
 )
 const credentialError = computed(() =>
   submitted.value && isStarted(credential.value) && !isComplete(credential.value)
-    ? 'Read the kubeconfig and choose a context, or leave it empty to set it later.'
+    ? credentialField.value.incomplete
     : null
 )
-const canSave = computed(
-  () => !!title.value.trim() && !!slug.value && !(kind.value === 'GITLAB' && !baseUrl.value.trim())
-)
+const canSave = computed(() => !!title.value.trim() && !!slug.value && !urlMissing.value)
 
 function input(): ConnectionInput {
   const typed = { title: title.value.trim(), label: slug.value }
-  const withUrl = kind.value === 'GITLAB' ? { ...typed, baseUrl: baseUrl.value.trim() } : typed
+  const withUrl = urlField.value ? { ...typed, baseUrl: baseUrl.value.trim() } : typed
   return isNew ? { ...withUrl, kind: kind.value } : withUrl
 }
 
@@ -149,7 +149,7 @@ onMounted(async () => {
       <AppField
         v-slot="{ fieldId, describedBy }"
         label="Label"
-        hint="What a session names it by: kubectl --context and rekall-gitlab --connection."
+        hint="What a session names it by: kubectl --context, rekall-gitlab --connection and rekall-jira --connection."
       >
         <AppInput
           :id="fieldId"
@@ -162,9 +162,9 @@ onMounted(async () => {
       </AppField>
 
       <AppField
-        v-if="kind === 'GITLAB'"
+        v-if="urlField"
         v-slot="{ fieldId, describedBy }"
-        label="Instance URL"
+        :label="urlField.title"
         required
         :error="urlError"
       >
@@ -174,18 +174,14 @@ onMounted(async () => {
           :described-by="describedBy"
           mono
           data-testid="connection-url"
-          placeholder="https://gitlab.example.com"
+          :placeholder="urlField.placeholder"
         />
       </AppField>
 
       <AppField
         v-if="isNew"
-        :label="kind === 'GITLAB' ? 'Personal access token' : 'Kubeconfig'"
-        :hint="
-          kind === 'GITLAB'
-            ? 'Optional now; stored in this machine\'s credential store.'
-            : 'Optional now. A user that runs a command or a password is refused.'
-        "
+        :label="credentialField.title"
+        :hint="credentialField.hint"
         :error="credentialError"
       >
         <template #default="{ fieldId }">

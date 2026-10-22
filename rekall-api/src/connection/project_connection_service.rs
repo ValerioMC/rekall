@@ -28,6 +28,15 @@ impl ProjectConnectionService {
         })
     }
 
+    /// The project's binding of the connection, with the connection it binds.
+    pub async fn binding(&self, project_id: Id, connection_id: Id) -> Result<(project_connection::Model, external_connection::Model)> {
+        in_read!(&self.ctx, |tx| {
+            let binding = repo::project_connection::require(tx.db(), project_id, connection_id).await?;
+            let connection = repo::external_connection::require(tx.db(), connection_id).await?;
+            Ok::<_, RekallError>((binding, connection))
+        })
+    }
+
     /// Binds the connection, or sets the target of a binding the project already has.
     pub async fn bind(&self, project_id: Id, connection_id: Id, request: ProjectConnectionRequest) -> Result<ProjectConnectionResponse> {
         in_write!(&self.ctx, |tx| {

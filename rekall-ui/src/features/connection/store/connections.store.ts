@@ -9,6 +9,7 @@ import type {
   ConnectionInput,
   ConnectionRemoved,
   CredentialDraft,
+  JiraIssue,
   KubeContextOption,
   ProjectConnection
 } from '@/features/connection/model/connection'
@@ -141,6 +142,11 @@ export const useConnectionsStore = defineStore('connections', () => {
     return removed
   }
 
+  /** The open issues a project's Jira binding reaches; read fresh each time, never kept. */
+  async function jiraIssues(projectId: ProjectId, connectionId: ConnectionId): Promise<JiraIssue[]> {
+    return await api.fetchJiraIssues(projectId, connectionId)
+  }
+
   async function check(id: ConnectionId): Promise<ConnectionCheck> {
     const result = await api.checkConnection(id)
     checks.value = { ...checks.value, [id]: result }
@@ -241,6 +247,7 @@ export const useConnectionsStore = defineStore('connections', () => {
     clearCredential,
     remove,
     check,
+    jiraIssues,
     loadAccess,
     loadMoreAccess,
     previewKubeconfig,

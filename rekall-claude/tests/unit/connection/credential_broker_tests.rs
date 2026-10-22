@@ -38,14 +38,15 @@ async fn world() -> World {
     let gitlab = stored(&ctx, &secrets, &company, ConnectionKind::Gitlab, "gitlab", Some("glpat-secret")).await;
     let cluster = stored(&ctx, &secrets, &company, ConnectionKind::Kubernetes, "prod", Some(KUBECONFIG)).await;
     let empty = stored(&ctx, &secrets, &company, ConnectionKind::Kubernetes, "staging", None).await;
+    let jira = stored(&ctx, &secrets, &company, ConnectionKind::Jira, "jira", Some("ada@example.com:atl-secret")).await;
     let root = tempfile::tempdir().unwrap();
     let broker = CredentialBroker::new(secrets, ConnectionAccessService::new(ctx.clone()), "http://127.0.0.1:47355".into(), root.path().join("sessions"));
-    let launch = launch_with(vec![terminal(&gitlab, Some("acme/vega")), terminal(&cluster, Some("apps")), terminal(&empty, None)]);
+    let launch = launch_with(vec![terminal(&gitlab, Some("acme/vega")), terminal(&cluster, Some("apps")), terminal(&empty, None), terminal(&jira, Some("ENG"))]);
     World { broker, ctx, root, launch }
 }
 
 async fn stored(ctx: &Ctx, secrets: &InMemorySecretStore, company: &company::Model, kind: ConnectionKind, label: &str, credential: Option<&str>) -> external_connection::Model {
-    let base_url = (kind == ConnectionKind::Gitlab).then(|| "https://gitlab.example.com".to_string());
+    let base_url = kind.reached_at_typed_url().then(|| "https://gitlab.example.com".to_string());
     let mut connection = external_connection::Model::new(company.id, label.into(), label.into(), kind, base_url, Instant::now());
     if let Some(credential) = credential {
         secrets.put(&connection.secret_ref, &Secret::new(credential)).unwrap();
@@ -61,7 +62,7 @@ fn terminal(connection: &external_connection::Model, target: Option<&str>) -> Te
         kind: connection.kind,
         label: connection.label.clone(),
         target: target.map(str::to_string),
-        instance_url: connection.base_url.clone().filter(|_| connection.kind == ConnectionKind::Gitlab),
+        instance_url: connection.base_url.clone().filter(|_| connection.kind.reached_at_typed_url()),
         secret_ref: connection.secret_ref.clone(),
         credential_set: connection.has_credential(),
     }
@@ -108,9 +109,9 @@ async fn a_session_writes_private_helpers_that_hold_no_credential() {
     let folder = environment.path_prefix.clone().unwrap();
     assert_eq!(std::fs::metadata(&folder).unwrap().permissions().mode() & 0o777, 0o700);
     let files = every_file_in(&folder);
-    assert_eq!(files.len(), 5, "kubeconfig, the exec plugin, the git helper, the GitLab wrapper and the Claude Code settings");
+    assert_eq!(files.len(), 6, "kubeconfig, the exec plugin, the git helper, the GitLab and Jira wrappers and the Claude Code settings");
     for (path, text) in &files {
-        assert!(!text.contains("glpat-secret") && !text.contains("sa-token-123"), "{} holds a credential", path.display());
+        assert!(!text.contains("glpat-secret") && !text.contains("sa-token-123") && !text.contains("atl-secret"), "{} holds a credential", path.display());
     }
     assert_eq!(environment.kubeconfig, Some(folder.join("kubeconfig")));
     assert_eq!(environment.claude_settings, Some(folder.join("claude-settings.json")));
@@ -127,11 +128,13 @@ async fn the_terminals_token_gets_the_credential_in_the_shape_each_helper_reads_
     let git = world.broker.hand_out(terminal_id, Some(&token), "gitlab", CredentialPurpose::Git).await;
     let api = world.broker.hand_out(terminal_id, Some(&token), "gitlab", CredentialPurpose::Gitlab).await;
     let kubectl = world.broker.hand_out(terminal_id, Some(&token), "prod", CredentialPurpose::Kubectl).await;
+    let jira = world.broker.hand_out(terminal_id, Some(&token), "jira", CredentialPurpose::Jira).await;
 
     assert!(matches!(git, HandOut::Granted { ref body, .. } if body.expose() == "username=oauth2\npassword=glpat-secret\n"));
     assert!(matches!(api, HandOut::Granted { ref body, .. } if body.expose() == "PRIVATE-TOKEN: glpat-secret\n"));
     assert!(matches!(kubectl, HandOut::Granted { ref body, content_type: "application/json" } if body.expose().contains("\"token\":\"sa-token-123\"")));
-    assert_eq!(log(&world).await.iter().filter(|access| access.granted).count(), 3);
+    assert!(matches!(jira, HandOut::Granted { ref body, .. } if body.expose() == "Authorization: Basic YWRhQGV4YW1wbGUuY29tOmF0bC1zZWNyZXQ=\n"));
+    assert_eq!(log(&world).await.iter().filter(|access| access.granted).count(), 4);
 }
 
 #[tokio::test]

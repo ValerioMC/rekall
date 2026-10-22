@@ -6,7 +6,7 @@ use std::sync::Arc;
 use rekall_common::{Id, RekallError, Result};
 use rekall_model::{external_connection, ConnectionKind};
 use rekall_repository::repository as repo;
-use rekall_service::connection::{ConnectionStreamEvent, KubeAccess, Kubeconfig, Secret, SecretStore};
+use rekall_service::connection::{ConnectionStreamEvent, JiraCredential, KubeAccess, Kubeconfig, Secret, SecretStore};
 use rekall_service::{in_read, in_write, Ctx};
 
 use super::credential_keeping::{blocking, forget, keep};
@@ -73,7 +73,16 @@ async fn prepare(kind: ConnectionKind, request: ConnectionCredentialRequest) -> 
     match kind {
         ConnectionKind::Gitlab => gitlab_token(request).map(|token| PreparedCredential { stored: token, kube: None }),
         ConnectionKind::Kubernetes => kube_credential(request).await,
+        ConnectionKind::Jira => jira_credential(request).map(|credential| PreparedCredential { stored: credential.to_stored(), kube: None }),
     }
+}
+
+fn jira_credential(request: ConnectionCredentialRequest) -> Result<JiraCredential> {
+    if request.kubeconfig.is_some() {
+        return Err(RekallError::illegal("A Jira connection takes an email and an API token, not a kubeconfig."));
+    }
+    let token = request.token.ok_or_else(|| RekallError::illegal("A Jira connection needs an API token of that account."))?;
+    JiraCredential::new(request.email.as_deref().unwrap_or_default(), token)
 }
 
 fn gitlab_token(request: ConnectionCredentialRequest) -> Result<Secret> {

@@ -1,5 +1,5 @@
-//! A system outside Rekall that a company's projects reach: a GitLab instance or a Kubernetes
-//! cluster. The row holds only what the console shows; the credential lives in the OS keychain
+//! A system outside Rekall that a company's projects reach: a GitLab instance, a Kubernetes
+//! cluster or a Jira site. The row holds only what the console shows; the credential lives in the OS keychain
 //! under `secret_ref`, so no query, export or context can carry it.
 
 use rekall_common::{Id, Instant, RekallError};
@@ -25,7 +25,7 @@ pub struct Model {
     pub label: String,
     pub title: String,
     pub kind: ConnectionKind,
-    /// The GitLab instance, or the Kubernetes server read from the imported kubeconfig.
+    /// The GitLab instance or Jira site, or the Kubernetes server read from the imported kubeconfig.
     pub base_url: Option<String>,
     /// The kubeconfig context chosen on import.
     pub kube_context: Option<String>,
@@ -89,13 +89,16 @@ impl Model {
             .finish()
     }
 
-    /// A GitLab connection is reached at its instance URL; a context only means something to a kubeconfig.
+    /// GitLab and Jira are reached at a typed URL; a context only means something to a kubeconfig.
     fn check_kind_fields(&self) -> Result<(), RekallError> {
         match self.kind {
             ConnectionKind::Gitlab if self.base_url.is_none() => {
                 Err(RekallError::illegal("A GitLab connection needs the instance URL, such as https://gitlab.example.com."))
             }
-            ConnectionKind::Gitlab if self.kube_context.is_some() => {
+            ConnectionKind::Jira if self.base_url.is_none() => {
+                Err(RekallError::illegal("A Jira connection needs the site URL, such as https://example.atlassian.net."))
+            }
+            ConnectionKind::Gitlab | ConnectionKind::Jira if self.kube_context.is_some() => {
                 Err(RekallError::illegal("Only a Kubernetes connection has a kubeconfig context."))
             }
             _ => Ok(()),

@@ -51,3 +51,12 @@ fn the_block_forbids_handling_credentials_directly() {
     assert!(rendered.contains("Never print, echo or write a credential or a kubeconfig"));
     assert!(rendered.contains("only in a terminal Rekall opened"));
 }
+
+#[test]
+fn a_jira_connection_names_its_site_project_and_how_to_call_it() {
+    let jira = ConnectionView { instance_url: Some("https://example.atlassian.net".into()), ..connection(ConnectionKind::Jira, "jira", Some("ENG"), true) };
+    let rendered = ContextRenderer.render_connections(&[jira]);
+    assert!(rendered.contains("Jira at https://example.atlassian.net, project `ENG`"));
+    assert!(rendered.contains("`rekall-jira --connection jira <METHOD> <path> [curl options]`"));
+    assert!(rendered.contains("`POST /issue`"));
+}

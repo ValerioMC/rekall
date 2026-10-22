@@ -4,6 +4,7 @@ import { RouterLink } from 'vue-router'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
 import ConnectionDialog from '@/features/connection/components/ConnectionDialog.vue'
+import JiraImportDialog from '@/features/connection/components/JiraImportDialog.vue'
 import ProjectConnectionRow from '@/features/connection/components/ProjectConnectionRow.vue'
 import InspectorGroup from '@/features/project/components/InspectorGroup.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
@@ -15,7 +16,7 @@ import { asConnectionId } from '@/model/branded'
 
 /**
  * The connections this project's sessions reach: which of its company's it uses, and the GitLab
- * project path or namespace each is narrowed to. A missing credential is flagged here, since a
+ * project path, namespace or Jira project key each is narrowed to. A missing credential is flagged here, since a
  * session on this project is told the same.
  */
 const props = defineProps<{ project: Project }>()
@@ -24,6 +25,7 @@ const store = useConnectionsStore()
 const { run } = useAsyncAction()
 const chosen = ref<string | null>(null)
 const creating = ref(false)
+const importing = ref<ProjectConnection | null>(null)
 const group = ref<InstanceType<typeof InspectorGroup> | null>(null)
 
 const bindings = computed(() => store.projectConnectionsOf(props.project.id))
@@ -101,10 +103,11 @@ function startCreating(): void {
         :binding="binding"
         @target="setTarget(binding, $event)"
         @unbind="unbind(binding)"
+        @import-issues="importing = binding"
       />
     </ul>
     <p v-else class="text-caption text-text-subtle">
-      No connection yet. A session on this project reaches only the clusters and GitLab instances added here.
+      No connection yet. A session on this project reaches only the clusters, GitLab instances and Jira sites added here.
     </p>
 
     <div v-if="options.length" class="mt-2 flex items-center gap-2">
@@ -142,6 +145,9 @@ function startCreating(): void {
         @close="creating = false"
         @saved="bindCreated"
       />
+    </Transition>
+    <Transition name="dialog">
+      <JiraImportDialog v-if="importing" :binding="importing" @close="importing = null" />
     </Transition>
   </InspectorGroup>
 </template>

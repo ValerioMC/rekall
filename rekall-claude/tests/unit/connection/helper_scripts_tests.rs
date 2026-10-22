@@ -17,9 +17,18 @@ fn gitlab(label: &str, target: Option<&str>) -> TerminalConnection {
     }
 }
 
+fn jira() -> TerminalConnection {
+    TerminalConnection {
+        kind: ConnectionKind::Jira,
+        target: Some("ENG".into()),
+        instance_url: Some("https://example.atlassian.net".into()),
+        ..gitlab("jira", None)
+    }
+}
+
 #[test]
 fn every_helper_sends_the_token_on_stdin_never_as_an_argument() {
-    for script in [kube_plugin(ENDPOINT), git_helper(ENDPOINT), gitlab_wrapper(ENDPOINT, &[&gitlab("gitlab", None)])] {
+    for script in [kube_plugin(ENDPOINT), git_helper(ENDPOINT), api_wrapper(&GITLAB_API, ENDPOINT, &[&gitlab("gitlab", None)]), api_wrapper(&JIRA_API, ENDPOINT, &[&jira()])] {
         assert!(script.starts_with("#!/bin/sh\n"));
         assert!(script.contains("printf 'X-Rekall-Credential-Token: %s\\n' \"$REKALL_CREDENTIAL_TOKEN\" |"));
         assert!(script.contains("-H @-"));
@@ -40,9 +49,25 @@ fn the_git_helper_answers_get_only() {
 
 #[test]
 fn the_gitlab_wrapper_knows_each_instance_and_project_path() {
-    let script = gitlab_wrapper(ENDPOINT, &[&gitlab("gitlab", Some("acme/vega app"))]);
+    let script = api_wrapper(&GITLAB_API, ENDPOINT, &[&gitlab("gitlab", Some("acme/vega app"))]);
     assert!(script.contains("  'gitlab') base='https://gitlab.example.com/api/v4'; project='acme%2Fvega%20app' ;;"));
     assert!(script.contains("\"$label?for=gitlab\""));
+}
+
+#[test]
+fn the_gitlab_wrapper_sends_only_the_token_header() {
+    let script = api_wrapper(&GITLAB_API, ENDPOINT, &[&gitlab("gitlab", None)]);
+    assert!(script.contains("curl --silent --show-error -X \"$method\" -H @- \"$base$path\" \"$@\""));
+}
+
+#[test]
+fn the_jira_wrapper_calls_the_rest_api_of_each_site_with_json_both_ways() {
+    let script = api_wrapper(&JIRA_API, ENDPOINT, &[&jira()]);
+    assert!(script.contains("usage: rekall-jira --connection <label> <METHOD> <path> [curl options]"));
+    assert!(script.contains("  'jira') base='https://example.atlassian.net/rest/api/3'; project='ENG' ;;"));
+    assert!(script.contains("\"$label?for=jira\""));
+    assert!(script.contains("-H @- -H 'Accept: application/json' -H 'Content-Type: application/json' \"$base$path\""));
+    assert!(script.contains("this terminal has no Jira connection labelled"));
 }
 
 #[test]

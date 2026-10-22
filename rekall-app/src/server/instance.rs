@@ -17,7 +17,7 @@ use rekall_claude::transcript::{TranscriptFolder, TranscriptScanner};
 use rekall_claude::usage::{ClaudeUsageService, UsageReader};
 use rekall_claude::ClaudeState;
 use rekall_repository::Database;
-use rekall_service::connection::{ConnectionAccessService, SecretStore};
+use rekall_service::connection::{ConnectionAccessService, JiraIssues, SecretStore};
 use rekall_service::timeentry::IDLE_AFTER;
 use rekall_service::{Ctx, EventBus, Services};
 use tracing::warn;
@@ -29,7 +29,7 @@ use rekall_platform::bootstrap::registry::DatabaseRegistryStore;
 use rekall_platform::bootstrap::settings::{self, SettingsState};
 use crate::config::AppConfig;
 use rekall_platform::restart::Restarter;
-use rekall_platform::connection::{self, ConnectionCheckService, ConnectionProbe, HttpConnectionProbe};
+use rekall_platform::connection::{self, ConnectionCheckService, ConnectionProbe, HttpConnectionProbe, HttpJiraIssues};
 use rekall_platform::secret::KeychainSecretStore;
 use crate::security::{self, LocalAccess};
 use crate::spa::{self, Assets};
@@ -85,7 +85,11 @@ impl Instance {
             None => Arc::new(KeychainSecretStore::new()),
         };
         let stream = Arc::new(StepEventStream::new(events.clone()));
-        let api = ApiState::new(services.clone(), stream.clone(), config.user_home.clone(), secrets.clone());
+        let jira_issues: Arc<dyn JiraIssues> = match &options.jira_issues {
+            Some(jira) => jira.clone(),
+            None => Arc::new(HttpJiraIssues::new()),
+        };
+        let api = ApiState::new(services.clone(), stream.clone(), config.user_home.clone(), secrets.clone(), jira_issues);
         let mcp = rekall_mcp::McpController::new(rekall_mcp::tool_registry::all(&services));
 
         let claude_config = &config.claude;

@@ -10,6 +10,10 @@ pub(super) async fn keep(secrets: Arc<dyn SecretStore>, account: String, secret:
     blocking(move || secrets.put(&account, &secret)).await
 }
 
+pub(super) async fn recall(secrets: Arc<dyn SecretStore>, account: String) -> Result<Secret> {
+    blocking(move || secrets.read(&account)).await
+}
+
 pub(super) async fn forget(secrets: Arc<dyn SecretStore>, account: String) -> Result<()> {
     blocking(move || secrets.remove(&account)).await
 }

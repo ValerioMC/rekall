@@ -6,6 +6,7 @@ import {
   ConnectionListSchema,
   ConnectionRemovedSchema,
   ConnectionSchema,
+  JiraIssueListSchema,
   KubeContextListSchema,
   ProjectConnectionListSchema,
   ProjectConnectionSchema
@@ -18,9 +19,12 @@ import type {
   ConnectionInput,
   ConnectionRemoved,
   CredentialDraft,
+  JiraIssue,
   KubeContextOption,
   ProjectConnection
 } from '@/features/connection/model/connection'
+import { TaskListSchema } from '@/features/catalog/api/schemas/catalog.schema'
+import type { Task } from '@/features/catalog/model/catalog'
 import type { CompanyId, ConnectionId, ProjectId } from '@/model/branded'
 
 export async function fetchCompanyConnections(companyId: CompanyId): Promise<Connection[]> {
@@ -55,15 +59,22 @@ export async function deleteConnection(id: ConnectionId): Promise<ConnectionRemo
 
 /** Sends the credential once; the answer only says when it was stored. */
 export async function setCredential(id: ConnectionId, draft: CredentialDraft): Promise<Connection> {
-  const body =
-    draft.kind === 'GITLAB'
-      ? { token: draft.token }
-      : { kubeconfig: draft.kubeconfig, context: draft.context }
   return request(async () =>
     ConnectionSchema.parse(
-      await apiClient(`/api/connections/${id}/credential`, { method: 'PUT', body, retry: 0 })
+      await apiClient(`/api/connections/${id}/credential`, { method: 'PUT', body: credentialBody(draft), retry: 0 })
     )
   )
+}
+
+function credentialBody(draft: CredentialDraft): Record<string, string | null> {
+  switch (draft.kind) {
+    case 'GITLAB':
+      return { token: draft.token }
+    case 'KUBERNETES':
+      return { kubeconfig: draft.kubeconfig, context: draft.context }
+    case 'JIRA':
+      return { email: draft.email.trim(), token: draft.token }
+  }
 }
 
 export async function clearCredential(id: ConnectionId): Promise<Connection> {
@@ -128,5 +139,31 @@ export async function bindConnection(
 export async function unbindConnection(projectId: ProjectId, connectionId: ConnectionId): Promise<void> {
   await request(() =>
     apiClient(`/api/projects/${projectId}/connections/${connectionId}`, { method: 'DELETE' })
+  )
+}
+
+/** The open issues of the Jira project the binding names, the most recently updated first. */
+export async function fetchJiraIssues(projectId: ProjectId, connectionId: ConnectionId): Promise<JiraIssue[]> {
+  return request(async () =>
+    JiraIssueListSchema.parse(
+      await apiClient(`/api/projects/${projectId}/connections/${connectionId}/jira-issues`, { retry: 0 })
+    )
+  )
+}
+
+/** Imports the chosen issues as the project's tasks; the ones already imported are passed over. */
+export async function importJiraIssues(
+  projectId: ProjectId,
+  connectionId: ConnectionId,
+  keys: readonly string[]
+): Promise<Task[]> {
+  return request(async () =>
+    TaskListSchema.parse(
+      await apiClient(`/api/projects/${projectId}/connections/${connectionId}/jira-issues/import`, {
+        method: 'POST',
+        body: { keys },
+        retry: 0
+      })
+    )
   )
 }

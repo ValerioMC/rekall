@@ -5,7 +5,7 @@ import AppButton from '@/components/ui/AppButton.vue'
 import ConnectionCredentialInput from '@/features/connection/components/ConnectionCredentialInput.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { relativeTime } from '@/common/format/relative-time'
-import { emptyDraft, isComplete } from '@/features/connection/lib/credential-draft'
+import { credentialNoun, emptyDraft, isComplete } from '@/features/connection/lib/credential-draft'
 import { useConnectionsStore } from '@/features/connection/store/connections.store'
 import type { Connection, CredentialDraft } from '@/features/connection/model/connection'
 
@@ -16,7 +16,7 @@ const { run, isRunning } = useAsyncAction()
 const editing = ref(false)
 const draft = ref<CredentialDraft>(emptyDraft(props.connection.kind))
 
-const noun = computed(() => (props.connection.kind === 'GITLAB' ? 'token' : 'kubeconfig'))
+const noun = computed(() => credentialNoun(props.connection.kind))
 
 function start(): void {
   draft.value = emptyDraft(props.connection.kind)

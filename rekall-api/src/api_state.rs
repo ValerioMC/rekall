@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use rekall_service::commit::CommitReferenceService;
-use rekall_service::connection::SecretStore;
+use rekall_service::connection::{JiraIssues, SecretStore};
 use rekall_service::context::ContextSizeService;
 use rekall_service::diagram::DiagramService;
 use rekall_service::flow::{FlowService, StepLinkService};
@@ -48,6 +48,7 @@ pub struct ApiState {
     pub kubeconfig_preview: connection::KubeconfigPreviewService,
     pub project_connections: connection::ProjectConnectionService,
     pub connection_access: connection::ConnectionAccessQueryService,
+    pub jira_issues: connection::JiraIssueService,
     pub icons: catalog::ProjectIconService,
     pub restorer: revision::RevisionRestoreService,
     pub directories: filesystem::DirectoryListingService,
@@ -57,7 +58,7 @@ pub struct ApiState {
 impl ApiState {
     /// The composition root of the API: `services` is taken apart here, so each controller
     /// reaches only the services it calls. `user_home` is where the path picker starts.
-    pub fn new(services: Services, stream: Arc<StepEventStream>, user_home: PathBuf, secrets: Arc<dyn SecretStore>) -> Self {
+    pub fn new(services: Services, stream: Arc<StepEventStream>, user_home: PathBuf, secrets: Arc<dyn SecretStore>, jira: Arc<dyn JiraIssues>) -> Self {
         let ctx = services.ctx.clone();
         let tasks = catalog::TaskService::new(
             ctx.clone(),
@@ -71,6 +72,8 @@ impl ApiState {
             services.wrapups.clone(),
             tasks.clone(),
         );
+        let project_connections = connection::ProjectConnectionService::new(ctx.clone());
+        let jira_issues = connection::JiraIssueService::new(ctx.clone(), project_connections.clone(), tasks.clone(), secrets.clone(), jira);
         Self {
             companies: catalog::CompanyService::new(ctx.clone()),
             logos: catalog::CompanyLogoService::new(ctx.clone()),
@@ -86,8 +89,9 @@ impl ApiState {
             connections: connection::ConnectionService::new(ctx.clone(), secrets.clone()),
             connection_credentials: connection::ConnectionCredentialService::new(ctx.clone(), secrets),
             kubeconfig_preview: connection::KubeconfigPreviewService::new(),
-            project_connections: connection::ProjectConnectionService::new(ctx.clone()),
+            project_connections,
             connection_access: connection::ConnectionAccessQueryService::new(ctx.clone()),
+            jira_issues,
             icons: catalog::ProjectIconService::new(ctx),
             restorer,
             directories: filesystem::DirectoryListingService::new(user_home),

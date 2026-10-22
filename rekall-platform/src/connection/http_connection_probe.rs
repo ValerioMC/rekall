@@ -3,20 +3,30 @@ use std::time::Duration;
 use async_trait::async_trait;
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
-use reqwest::header::{HeaderValue, CONTENT_TYPE};
+use reqwest::header::{HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use reqwest::{Client, RequestBuilder, Response, StatusCode};
-use rekall_service::connection::{KubeAccess, KubeCredential, Secret};
+use rekall_service::connection::{JiraCredential, KubeAccess, KubeCredential, Secret};
 use serde::Deserialize;
 use serde_json::json;
 
+use super::http_jira_issues::authorization;
 use super::{ConnectionProbe, ProbeOutcome};
 
 const TIMEOUT: Duration = Duration::from_secs(8);
 const SELF_SUBJECT_REVIEW: &str = "/apis/authentication.k8s.io/v1/selfsubjectreviews";
+const JIRA_MYSELF: &str = "/rest/api/3/myself";
 
 #[derive(Deserialize)]
 struct GitlabUser {
     username: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct JiraUser {
+    #[serde(rename = "displayName")]
+    display_name: Option<String>,
+    #[serde(rename = "emailAddress")]
+    email_address: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -74,6 +84,25 @@ impl ConnectionProbe for HttpConnectionProbe {
         let answer = client.get(format!("{base_url}/api/v4/user")).header("PRIVATE-TOKEN", header).send().await;
         match accepted(answer).await {
             Ok(response) => ProbeOutcome::Accepted { identity: response.json::<GitlabUser>().await.ok().and_then(|user| user.username), version: None },
+            Err(outcome) => outcome,
+        }
+    }
+
+    async fn jira(&self, site: &str, credential: &JiraCredential) -> ProbeOutcome {
+        let client = match Client::builder().timeout(self.timeout).build() {
+            Ok(client) => client,
+            Err(failure) => return unreachable(&failure),
+        };
+        let header = match authorization(credential) {
+            Ok(header) => header,
+            Err(_) => return ProbeOutcome::Unreachable { reason: "the stored credential holds characters a header cannot carry".into() },
+        };
+        let answer = client.get(format!("{}{JIRA_MYSELF}", site.trim_end_matches('/'))).header(AUTHORIZATION, header).send().await;
+        match accepted(answer).await {
+            Ok(response) => {
+                let user = response.json::<JiraUser>().await.ok();
+                ProbeOutcome::Accepted { identity: user.and_then(|user| user.display_name.or(user.email_address)), version: None }
+            }
             Err(outcome) => outcome,
         }
     }
@@ -154,9 +183,13 @@ async fn accepted(answer: reqwest::Result<Response>) -> Result<Response, ProbeOu
     }
 }
 
+fn unreachable(failure: &reqwest::Error) -> ProbeOutcome {
+    ProbeOutcome::Unreachable { reason: failure_chain(failure) }
+}
+
 /// reqwest's own message says only that sending failed; the cause (a timeout, a refused connection, a
 /// certificate) is in its sources.
-fn unreachable(failure: &reqwest::Error) -> ProbeOutcome {
+pub(super) fn failure_chain(failure: &reqwest::Error) -> String {
     let mut reason = failure.to_string();
     let mut source = std::error::Error::source(failure);
     while let Some(cause) = source {
@@ -164,7 +197,7 @@ fn unreachable(failure: &reqwest::Error) -> ProbeOutcome {
         reason.push_str(&cause.to_string());
         source = cause.source();
     }
-    ProbeOutcome::Unreachable { reason }
+    reason
 }
 
 #[cfg(test)]

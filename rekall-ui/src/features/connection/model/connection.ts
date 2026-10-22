@@ -1,18 +1,20 @@
 import type { CompanyId, ConnectionId, ProjectId, TaskId, TerminalId } from '@/model/branded'
 
-export type ConnectionKind = 'GITLAB' | 'KUBERNETES'
+export type ConnectionKind = 'GITLAB' | 'KUBERNETES' | 'JIRA'
 
-export const CONNECTION_KINDS: readonly ConnectionKind[] = ['GITLAB', 'KUBERNETES']
+export const CONNECTION_KINDS: readonly ConnectionKind[] = ['GITLAB', 'KUBERNETES', 'JIRA']
 
 export const CONNECTION_KIND_LABEL: Readonly<Record<ConnectionKind, string>> = {
   GITLAB: 'GitLab',
-  KUBERNETES: 'Kubernetes'
+  KUBERNETES: 'Kubernetes',
+  JIRA: 'Jira'
 }
 
 /** What one connection of a kind is called, as a group's add button and empty line name it. */
 export const CONNECTION_KIND_NOUN: Readonly<Record<ConnectionKind, string>> = {
   GITLAB: 'GitLab instance',
-  KUBERNETES: 'cluster'
+  KUBERNETES: 'cluster',
+  JIRA: 'Jira site'
 }
 
 /**
@@ -25,7 +27,7 @@ export interface Connection {
   readonly kind: ConnectionKind
   readonly label: string
   readonly title: string
-  /** The GitLab instance, or the server the imported kubeconfig names. */
+  /** The GitLab instance or Jira site, or the server the imported kubeconfig names. */
   readonly baseUrl: string | null
   readonly kubeContext: string | null
   readonly credentialSetAt: string | null
@@ -54,7 +56,7 @@ export interface ProjectConnection {
   readonly title: string
   readonly baseUrl: string | null
   readonly kubeContext: string | null
-  /** The GitLab project path or the Kubernetes namespace this project uses it for. */
+  /** The GitLab project path, the Kubernetes namespace or the Jira project key this project uses it for. */
   readonly target: string | null
   readonly credentialSetAt: string | null
 }
@@ -74,6 +76,7 @@ export interface ConnectionInput {
 export type CredentialDraft =
   | { readonly kind: 'GITLAB'; readonly token: string }
   | { readonly kind: 'KUBERNETES'; readonly kubeconfig: string; readonly context: string | null }
+  | { readonly kind: 'JIRA'; readonly email: string; readonly token: string }
 
 export type KubeUserKind =
   'token' | 'client-certificate' | 'exec' | 'auth-provider' | 'basic-auth' | 'nothing'
@@ -114,6 +117,16 @@ export interface ConnectionAccess {
   readonly taskId: TaskId | null
   readonly taskLabel: string | null
   readonly taskTitle: string | null
+}
+
+/** An issue of a project's Jira project, and the task it was imported as, if it was. */
+export interface JiraIssue {
+  readonly key: string
+  readonly summary: string
+  readonly status: string | null
+  readonly issueType: string | null
+  readonly url: string
+  readonly taskId: TaskId | null
 }
 
 /** What deleting a connection took with it. */

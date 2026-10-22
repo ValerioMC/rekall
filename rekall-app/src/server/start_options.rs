@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use rekall_claude::usage::UsageReader;
-use rekall_service::connection::SecretStore;
+use rekall_service::connection::{JiraIssues, SecretStore};
 use rekall_service::Clock;
 
 use rekall_platform::connection::ConnectionProbe;
@@ -18,8 +18,10 @@ pub struct StartOptions {
     pub release_feed: Option<Arc<dyn ReleaseFeed>>,
     /// Stands in for the OS credential store, so a test never touches the real keychain.
     pub secrets: Option<Arc<dyn SecretStore>>,
-    /// Stands in for GitLab and the clusters a connection check asks.
+    /// Stands in for GitLab, the clusters and the Jira sites a connection check asks.
     pub connection_probe: Option<Arc<dyn ConnectionProbe>>,
+    /// Stands in for the Jira sites issues are imported from.
+    pub jira_issues: Option<Arc<dyn JiraIssues>>,
     /// Hand the instance a restarter nothing listens to: a database switch is recorded but the
     /// application stays on the database it has.
     pub no_restart: bool,

@@ -4,6 +4,7 @@ use super::*;
 fn a_kind_is_read_whatever_its_case() {
     assert_eq!(kind_of(Some(" gitlab ")).unwrap(), ConnectionKind::Gitlab);
     assert_eq!(kind_of(Some("KUBERNETES")).unwrap(), ConnectionKind::Kubernetes);
+    assert_eq!(kind_of(Some("jira")).unwrap(), ConnectionKind::Jira);
     assert!(kind_of(Some("ssh")).is_err());
     assert!(kind_of(None).is_err());
 }

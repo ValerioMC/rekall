@@ -5,6 +5,7 @@ import { useCompanyWrites } from '../features/catalog/store/useCompanyWrites'
 import { useConsoleNavigation } from './console/useConsoleNavigation'
 import { useConsoleRefreshes } from './console/useConsoleRefreshes'
 import { useConsoleView } from './console/useConsoleView'
+import { useJiraImport } from '../features/connection/store/useJiraImport'
 import { useNoteWrites } from '../features/notes/store/useNoteWrites'
 import { useProjectWrites } from '../features/catalog/store/useProjectWrites'
 import { useSelectedTask } from './console/useSelectedTask'
@@ -41,6 +42,7 @@ export const useConsoleStore = defineStore('console', () => {
   const wrapups = useWrapupWrites(state, refreshes, timers)
   const commitReferences = useCommitReferences(state)
   const skills = useSkillAssignments(state)
+  const jiraImport = useJiraImport(state, refreshes)
 
   return {
     ...state,
@@ -74,6 +76,7 @@ export const useConsoleStore = defineStore('console', () => {
     ...stepFlow,
     ...wrapups,
     ...commitReferences,
-    ...skills
+    ...skills,
+    ...jiraImport
   }
 })

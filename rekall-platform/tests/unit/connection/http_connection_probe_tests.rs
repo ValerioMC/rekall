@@ -103,3 +103,28 @@ async fn stored_certificate_data_that_is_not_base64_is_said_plainly() {
     let outcome = HttpConnectionProbe::new().kubernetes(&broken).await;
     assert_eq!(outcome, ProbeOutcome::Unreachable { reason: "the stored certificate authority is not base64".into() });
 }
+
+fn jira_site() -> Router {
+    Router::new().route(
+        JIRA_MYSELF,
+        get(|headers: HeaderMap| async move {
+            let expected = format!("Basic {}", STANDARD.encode("ada@example.com:atl-good"));
+            if bearer(&headers) == Some(expected) { Ok(Json(json!({ "displayName": "Ada Lovelace" }))) } else { Err(AxumStatus::UNAUTHORIZED) }
+        }),
+    )
+}
+
+#[tokio::test]
+async fn a_good_jira_credential_is_accepted_and_names_its_account() {
+    let site = serve(jira_site()).await;
+    let credential = JiraCredential::new("ada@example.com", Secret::new("atl-good")).unwrap();
+    let outcome = HttpConnectionProbe::new().jira(&site, &credential).await;
+    assert_eq!(outcome, ProbeOutcome::Accepted { identity: Some("Ada Lovelace".into()), version: None });
+}
+
+#[tokio::test]
+async fn a_bad_jira_credential_is_rejected() {
+    let site = serve(jira_site()).await;
+    let credential = JiraCredential::new("ada@example.com", Secret::new("atl-bad")).unwrap();
+    assert_eq!(HttpConnectionProbe::new().jira(&site, &credential).await, ProbeOutcome::Rejected { status: 401 });
+}

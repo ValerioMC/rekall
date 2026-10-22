@@ -118,3 +118,36 @@ describe('ProjectConnectionsGroup', () => {
     expect(wrapper.findAll('[data-testid="project-connection"]')).toHaveLength(0)
   })
 })
+
+describe('ProjectConnectionsGroup with a Jira connection', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.resetAllMocks()
+    vi.mocked(api.fetchCompanyConnections).mockResolvedValue([])
+  })
+
+  function jira(target: string | null, credentialSetAt: string | null): ProjectConnection {
+    return { ...binding('jira', credentialSetAt), kind: 'JIRA', baseUrl: 'https://example.atlassian.net', target }
+  }
+
+  it('offers the import once the binding has a credential and a project key', async () => {
+    vi.mocked(api.fetchProjectConnections).mockResolvedValue([jira('ENG', '2026-10-21T10:00:00Z')])
+    const wrapper = mountGroup()
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="connection-target"]').attributes('aria-label')).toBe('Jira project key for The jira')
+    expect(wrapper.find('[data-testid="import-jira-issues"]').exists()).toBe(true)
+  })
+
+  it('offers no import without a project key or a credential', async () => {
+    vi.mocked(api.fetchProjectConnections).mockResolvedValue([jira(null, '2026-10-21T10:00:00Z')])
+    const withoutKey = mountGroup()
+    await flushPromises()
+    expect(withoutKey.find('[data-testid="import-jira-issues"]').exists()).toBe(false)
+
+    vi.mocked(api.fetchProjectConnections).mockResolvedValue([jira('ENG', null)])
+    const withoutCredential = mountGroup()
+    await flushPromises()
+    expect(withoutCredential.find('[data-testid="import-jira-issues"]').exists()).toBe(false)
+  })
+})

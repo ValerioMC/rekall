@@ -7,9 +7,9 @@ pub struct ConnectionView {
     pub kind: ConnectionKind,
     pub label: String,
     pub title: String,
-    /// The GitLab project path or the Kubernetes namespace the project uses it for.
+    /// The GitLab project path, the Kubernetes namespace or the Jira project key the project uses it for.
     pub target: Option<String>,
-    /// GitLab only: the instance a push or an API call goes to.
+    /// GitLab and Jira only: the instance or site an API call goes to.
     pub instance_url: Option<String>,
     pub credential_set: bool,
 }
@@ -21,7 +21,7 @@ impl ConnectionView {
             label: connection.label.clone(),
             title: connection.title.clone(),
             target: binding.target.clone(),
-            instance_url: (connection.kind == ConnectionKind::Gitlab).then(|| connection.base_url.clone()).flatten(),
+            instance_url: connection.kind.reached_at_typed_url().then(|| connection.base_url.clone()).flatten(),
             credential_set: connection.has_credential(),
         }
     }
