@@ -1,9 +1,9 @@
 <script setup lang="ts">
 /**
- * Has a session propose this task's checklist as drafts, which land on the Steps pane's shelf and
- * are nothing until promoted there. With a session already live on the task, `/rk <anchor> plan` is
- * typed into it; without one, a terminal is opened that starts on that line instead of the plain
- * `/rk`, so it plans the task rather than working it. Either way the planning terminal comes forward.
+ * Has a session propose this task's checklist, or with `mode` `PLAN_FLOW` its flow, as drafts,
+ * which land on the Steps pane's shelf and are nothing until promoted there. With a session already
+ * live on the task, the plan line is typed into it; without one, a terminal is opened that starts on
+ * that line instead of the plain `/rk`. Either way the planning terminal comes forward.
  */
 import { computed } from 'vue'
 import { useConsoleStore } from '@/stores/console.store'
@@ -11,6 +11,7 @@ import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useToastStore } from '@/stores/toast.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { preferredEffort, preferredModel, skipsPermissions } from '@/common/config/claude-launch'
+import type { PlanMode } from '@/features/claude/model/terminal'
 import type { TaskId } from '@/model/branded'
 
 const props = withDefaults(
@@ -18,9 +19,10 @@ const props = withDefaults(
     taskId: TaskId
     anchor: string
     folder: string | null
+    mode?: PlanMode
     missingHint?: string
   }>(),
-  { missingHint: "Set this project's folder on its page to plan from it" }
+  { mode: 'PLAN', missingHint: "Set this project's folder on its page to plan from it" }
 )
 
 const console_ = useConsoleStore()
@@ -30,11 +32,15 @@ const { run, isRunning } = useAsyncAction()
 
 const liveTerminal = computed(() => terminals.terminalForTask(props.taskId))
 const ready = computed(() => Boolean(liveTerminal.value) || Boolean(props.folder))
+const plansAFlow = computed(() => props.mode === 'PLAN_FLOW')
+const proposal = computed(() =>
+  plansAFlow.value ? 'this task’s flow, steps and routes,' : 'this task’s steps'
+)
 
 const tooltip = computed(() =>
   liveTerminal.value
-    ? 'Have the session running here propose this task’s steps as drafts'
-    : 'Open a session that proposes this task’s steps as drafts'
+    ? `Have the session running here propose ${proposal.value} as drafts`
+    : `Open a session that proposes ${proposal.value} as drafts`
 )
 
 async function plan(): Promise<void> {
@@ -44,11 +50,12 @@ async function plan(): Promise<void> {
   }
   const planning = await run(
     () =>
-      terminals.planForTask(props.taskId, props.anchor, {
-        skipPermissions: skipsPermissions(),
-        model: preferredModel(),
-        effort: preferredEffort()
-      }),
+      terminals.planForTask(
+        props.taskId,
+        props.anchor,
+        { skipPermissions: skipsPermissions(), model: preferredModel(), effort: preferredEffort() },
+        props.mode
+      ),
     'Planning. Its proposals land here as drafts.'
   )
   if (planning === null) return
@@ -66,7 +73,7 @@ async function plan(): Promise<void> {
         : 'border border-transparent text-text-subtle transition-colors hover:bg-surface-raised hover:text-text-muted'
     "
     :disabled="isRunning"
-    data-testid="plan-here"
+    :data-testid="plansAFlow ? 'plan-flow-here' : 'plan-here'"
     :title="tooltip"
     @click="plan"
   >
@@ -75,6 +82,6 @@ async function plan(): Promise<void> {
       :class="isRunning && 'session-caret-busy'"
       aria-hidden="true"
     />
-    Plan here
+    {{ plansAFlow ? 'Plan a flow' : 'Plan here' }}
   </button>
 </template>

@@ -2,20 +2,28 @@
 import AppButton from '@/components/ui/AppButton.vue'
 import { ref } from 'vue'
 import CopyGlyph from '@/components/ui/CopyGlyph.vue'
-import { rkPlanCommand } from '@/common/format/rk-command'
+import { rkPlanCommand, rkPlanFlowCommand } from '@/common/format/rk-command'
 
 /** What a task with no steps shows: why a checklist helps, and the two ways to start one. */
 const props = defineProps<{ anchor: string }>()
 
 defineEmits<{ 'draft-first': [] }>()
 
-const GHOST_WIDTHS = [62, 45, 54]
-const copiedPlan = ref(false)
+type PlanChip = 'plan' | 'flow'
 
-async function copyPlan(): Promise<void> {
-  await navigator.clipboard?.writeText(rkPlanCommand(props.anchor))
-  copiedPlan.value = true
-  setTimeout(() => (copiedPlan.value = false), 1400)
+const GHOST_WIDTHS = [62, 45, 54]
+const PLAN_CHIPS: readonly PlanChip[] = ['plan', 'flow']
+
+const copied = ref<PlanChip | null>(null)
+
+function planLine(chip: PlanChip): string {
+  return chip === 'flow' ? rkPlanFlowCommand(props.anchor) : rkPlanCommand(props.anchor)
+}
+
+async function copyPlan(chip: PlanChip): Promise<void> {
+  await navigator.clipboard?.writeText(planLine(chip))
+  copied.value = chip
+  setTimeout(() => (copied.value = null), 1400)
 }
 </script>
 
@@ -53,18 +61,24 @@ async function copyPlan(): Promise<void> {
       Or have Claude propose them: <strong class="font-medium text-text">Plan here</strong> above
       opens a session on it, or give this to one you have. It reads the description, the wrapup and
       the code, and puts each step it suggests on a Drafts shelf here, for you to reword and promote.
-      It builds nothing.
+      It builds nothing. When what a step finds decides what comes next (tests that can fail, a
+      review that can reject), <strong class="font-medium text-text">Plan a flow</strong> has it
+      propose the steps and the routes between them instead.
     </p>
-    <button
-      class="anchor-chip focus-ring mt-2 inline-flex items-center gap-2 px-2.5 py-1 text-caption transition-colors hover:border-anchor"
-      :class="copiedPlan && 'flash'"
-      :title="copiedPlan ? 'Copied' : `Copy ${rkPlanCommand(anchor)}`"
-      data-testid="copy-plan-command"
-      @click="copyPlan"
-    >
-      <span class="opacity-60">/rk</span>
-      <span>{{ anchor }} plan</span>
-      <CopyGlyph :copied="copiedPlan" />
-    </button>
+    <div class="mt-2 flex flex-wrap gap-2">
+      <button
+        v-for="chip in PLAN_CHIPS"
+        :key="chip"
+        class="anchor-chip focus-ring inline-flex items-center gap-2 px-2.5 py-1 text-caption transition-colors hover:border-anchor"
+        :class="copied === chip && 'flash'"
+        :title="copied === chip ? 'Copied' : `Copy ${planLine(chip)}`"
+        :data-testid="chip === 'flow' ? 'copy-plan-flow-command' : 'copy-plan-command'"
+        @click="copyPlan(chip)"
+      >
+        <span class="opacity-60">/rk</span>
+        <span>{{ anchor }} {{ chip === 'flow' ? 'plan flow' : 'plan' }}</span>
+        <CopyGlyph :copied="copied === chip" />
+      </button>
+    </div>
   </div>
 </template>

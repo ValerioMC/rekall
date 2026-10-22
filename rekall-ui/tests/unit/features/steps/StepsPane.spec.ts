@@ -109,6 +109,10 @@ function render() {
   })
 }
 
+function planModes(pane: ReturnType<typeof render>): (string | undefined)[] {
+  return pane.findAll('plan-here-button-stub').map((button) => button.attributes('mode'))
+}
+
 describe('StepsPane', () => {
   beforeEach(() => {
     pinia = createPinia()
@@ -131,6 +135,17 @@ describe('StepsPane', () => {
     expect(pane.find('[data-testid="write-first-step"]').exists()).toBe(true)
     expect(pane.get('[data-testid="copy-plan-command"]').text()).toContain('project:vega task:report-builder plan')
     expect(pane.find('[data-testid="steps-ledger"]').exists()).toBe(false)
+  })
+
+  it('offers to plan a flow only while the task has no steps and no drafts', () => {
+    seed([])
+    const empty = render()
+    expect(empty.get('[data-testid="copy-plan-flow-command"]').text()).toContain('project:vega task:report-builder plan flow')
+    expect(planModes(empty)).toEqual(['PLAN', 'PLAN_FLOW'])
+    empty.unmount()
+
+    seed([makeStep('d', 0, 'DRAFT')])
+    expect(planModes(render())).toEqual(['PLAN'])
   })
 
   it('counts done, claimed and draft steps on the ledger', () => {

@@ -16,6 +16,14 @@ fn a_plan_terminal_asks_the_session_to_plan_the_task() {
 }
 
 #[test]
+fn a_plan_flow_terminal_asks_the_session_for_a_flow_and_follows_no_step() {
+    assert_eq!(TerminalMode::PlanFlow.first_line(ANCHORS), "/rk project:vega task:report-builder plan flow");
+    assert!(!TerminalMode::PlanFlow.follows_steps());
+    let request: OpenTerminalRequest = serde_json::from_str(r#"{"mode":"PLAN_FLOW"}"#).unwrap();
+    assert_eq!(request.mode().unwrap(), TerminalMode::PlanFlow);
+}
+
+#[test]
 fn a_generate_terminal_carries_the_request_as_one_quoted_line() {
     let mode = TerminalMode::Generate { request: "How does an order\nget \"paid\"?  ".into(), kinds: vec![] };
     assert_eq!(mode.first_line(ANCHORS), "/rk project:vega task:report-builder generate \"How does an order get 'paid'?\"");

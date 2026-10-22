@@ -37,6 +37,8 @@ const hue = computed(() => identityHue(props.task.projectId))
 const done = computed(() => props.checklistSteps.filter((step) => step.done).length)
 const claimed = computed(() => props.checklistSteps.filter((step) => step.state === 'CLAIMED').length)
 const allDone = computed(() => done.value === props.checklistSteps.length)
+/** A flow begins at the first step, so one is proposed only onto a task with no steps or drafts. */
+const acceptsAFlow = computed(() => props.checklistSteps.length === 0 && props.draftCount === 0)
 
 function segmentClass(step: TaskStep): string {
   if (step.state === 'DONE') return allDone.value ? 'tube-gold tube-safe' : 'tube-gold'
@@ -82,6 +84,13 @@ function segmentClass(step: TaskStep): string {
       <div class="flex shrink-0 items-center gap-1.5">
         <NotesButton :task-id="task.id" />
         <PlanHereButton :task-id="task.id" :anchor="task.anchor" :folder="task.projectRepoFolder" />
+        <PlanHereButton
+          v-if="acceptsAFlow"
+          :task-id="task.id"
+          :anchor="task.anchor"
+          :folder="task.projectRepoFolder"
+          mode="PLAN_FLOW"
+        />
         <OpenTerminalButton :task-id="task.id" :step-id="currentId" :folder="task.projectRepoFolder" />
         <LaunchClaudeCodeButton
           :anchors="task.anchor"

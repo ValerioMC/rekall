@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { rkCommand, rkPlanCommand, rkWrapupCommand } from '@/common/format/rk-command'
+import { rkCommand, rkPlanCommand, rkPlanFlowCommand, rkWrapupCommand } from '@/common/format/rk-command'
 
 /**
  * What the anchor chips put on the clipboard. Four chips read from one function, because four
@@ -28,6 +28,18 @@ describe('rkPlanCommand', () => {
 
   it('stays empty when there is no anchor, rather than a bare plan', () => {
     expect(rkPlanCommand('')).toBe('')
+  })
+})
+
+describe('rkPlanFlowCommand', () => {
+  it('asks for a flow after the plan term', () => {
+    expect(rkPlanFlowCommand('project:stvv task:env-vars-cv')).toBe(
+      '/rk project:stvv task:env-vars-cv plan flow'
+    )
+  })
+
+  it('stays empty when there is no anchor', () => {
+    expect(rkPlanFlowCommand('')).toBe('')
   })
 })
 

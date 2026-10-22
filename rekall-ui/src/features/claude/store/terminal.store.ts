@@ -7,8 +7,8 @@ import {
   sendTerminalInput,
   type OpenTerminalInput
 } from '@/features/claude/api/terminal.api'
-import { rkPlanCommand } from '@/common/format/rk-command'
-import type { Terminal } from '@/features/claude/model/terminal'
+import { rkPlanCommand, rkPlanFlowCommand } from '@/common/format/rk-command'
+import type { PlanMode, Terminal } from '@/features/claude/model/terminal'
 import type { ProjectId, TaskId, TerminalId } from '@/model/branded'
 
 /**
@@ -56,25 +56,30 @@ export const useTerminalStore = defineStore('terminal', () => {
   }
 
   /**
-   * Have a session propose this task's checklist as drafts. A live session on the task gets the
-   * plan line typed into it; without one, a terminal is opened that starts on that line, so a plan
-   * never needs a session already running. Either way the planning terminal becomes the active one.
+   * Have a session propose this task's checklist, or its flow, as drafts. A live session on the
+   * task gets the plan line typed into it; without one, a terminal is opened that starts on that
+   * line, so a plan never needs a session already running. Either way it becomes the active one.
    */
   async function planForTask(
     taskId: TaskId,
     anchor: string,
-    input: Omit<OpenTerminalInput, 'stepId' | 'mode'>
+    input: Omit<OpenTerminalInput, 'stepId' | 'mode'>,
+    mode: PlanMode = 'PLAN'
   ): Promise<Terminal> {
     const live = terminalForTask(taskId)
     if (live) {
-      await sendCommand(live.id, rkPlanCommand(anchor))
+      await sendCommand(live.id, planLine(mode, anchor))
       activeTerminalId.value = live.id
       return live
     }
-    const opened = await openTerminal({ taskId }, { ...input, mode: 'PLAN' })
+    const opened = await openTerminal({ taskId }, { ...input, mode })
     upsert(opened)
     activeTerminalId.value = opened.id
     return opened
+  }
+
+  function planLine(mode: PlanMode, anchor: string): string {
+    return mode === 'PLAN_FLOW' ? rkPlanFlowCommand(anchor) : rkPlanCommand(anchor)
   }
 
   function select(id: TerminalId | null): void {

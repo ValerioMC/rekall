@@ -68,6 +68,19 @@ describe('the Plan here button', () => {
     expect(terminals.activeTerminalId).toBe('term-2')
   })
 
+  it('opens a session in flow mode when it plans a flow', async () => {
+    openTerminal.mockResolvedValue(terminal({ id: 'term-2' as TerminalId }))
+    const wrapper = mount(PlanHereButton, {
+      props: { taskId: TASK, anchor: ANCHOR, folder: '/code/vega', mode: 'PLAN_FLOW' }
+    })
+
+    expect(wrapper.text()).toContain('Plan a flow')
+    await wrapper.get('[data-testid="plan-flow-here"]').trigger('click')
+    await flushPromises()
+
+    expect(openTerminal).toHaveBeenCalledWith({ taskId: TASK }, expect.objectContaining({ mode: 'PLAN_FLOW' }))
+  })
+
   it('asks for the project folder instead of planning when there is neither a folder nor a session', async () => {
     await mountButton(null).get('[data-testid="plan-here"]').trigger('click')
     await flushPromises()

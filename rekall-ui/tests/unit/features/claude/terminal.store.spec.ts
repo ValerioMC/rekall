@@ -101,6 +101,18 @@ describe('the terminal store', () => {
     expect(store.activeTerminalId).toBe('term-1')
   })
 
+  it('plans a flow in a new terminal opened in flow mode, or types the flow line into the live one', async () => {
+    api.openTerminal.mockResolvedValue(terminal())
+    api.sendTerminalInput.mockResolvedValue(undefined)
+    const store = useTerminalStore()
+
+    await store.planForTask(TASK, 'project:vega task:report-builder', { skipPermissions: true }, 'PLAN_FLOW')
+    expect(api.openTerminal).toHaveBeenCalledWith({ taskId: TASK }, { skipPermissions: true, mode: 'PLAN_FLOW' })
+
+    await store.planForTask(TASK, 'project:vega task:report-builder', { skipPermissions: true }, 'PLAN_FLOW')
+    expect(api.sendTerminalInput).toHaveBeenCalledWith('term-1', '/rk project:vega task:report-builder plan flow\r')
+  })
+
   it('markEnded drops the terminal out of the live set without removing it', () => {
     const store = useTerminalStore()
     store.terminals = [terminal()]

@@ -6,8 +6,8 @@ use super::{TerminalMode, TerminalModeName};
 
 /// What the console sends to open a terminal. `stepId`, `model` and `effort` are optional; an
 /// unknown or blank model or effort leaves the account default. A missing `mode` is
-/// [`TerminalMode::Work`]; `GENERATE` and `EXPLAIN` need a `request`, and `kinds` names the
-/// diagram types a generation draws.
+/// [`TerminalMode::Work`]; `PLAN_FLOW` asks for a flow rather than a checklist; `GENERATE` and
+/// `EXPLAIN` need a `request`, and `kinds` names the diagram types a generation draws.
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct OpenTerminalRequest {
@@ -25,6 +25,7 @@ impl OpenTerminalRequest {
         match self.mode {
             None | Some(TerminalModeName::Work) => Ok(TerminalMode::Work),
             Some(TerminalModeName::Plan) => Ok(TerminalMode::Plan),
+            Some(TerminalModeName::PlanFlow) => Ok(TerminalMode::PlanFlow),
             Some(TerminalModeName::Generate) => Ok(TerminalMode::Generate { request: self.diagram_request()?, kinds: self.diagram_kinds()? }),
             Some(TerminalModeName::Explain) => Ok(TerminalMode::Explain { request: self.diagram_request()? }),
         }

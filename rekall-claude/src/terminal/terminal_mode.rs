@@ -6,13 +6,15 @@ pub const REQUEST_MAX_CHARACTERS: usize = 2000;
 
 /// What a terminal is opened to do, which decides the `/rk` line typed into it first. `Work`
 /// loads the task and works it; `Plan` has the session propose the task's checklist as drafts;
-/// `Generate` has it draw `request` as Mermaid sheets of the `kinds` asked for; `Explain` has it
-/// write a walkthrough of `request`. Only `Work` follows a step.
+/// `PlanFlow` has it propose a flow, steps and routes, as drafts; `Generate` has it draw `request`
+/// as Mermaid sheets of the `kinds` asked for; `Explain` has it write a walkthrough of `request`.
+/// Only `Work` follows a step.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub enum TerminalMode {
     #[default]
     Work,
     Plan,
+    PlanFlow,
     Generate { request: String, kinds: Vec<DiagramKind> },
     Explain { request: String },
 }
@@ -23,6 +25,8 @@ pub enum TerminalMode {
 pub enum TerminalModeName {
     Work,
     Plan,
+    #[serde(rename = "PLAN_FLOW")]
+    PlanFlow,
     Generate,
     Explain,
 }
@@ -33,6 +37,7 @@ impl TerminalMode {
         match self {
             TerminalMode::Work => format!("/rk {anchors}"),
             TerminalMode::Plan => format!("/rk {anchors} plan"),
+            TerminalMode::PlanFlow => format!("/rk {anchors} plan flow"),
             TerminalMode::Generate { request, kinds } => {
                 format!("/rk {anchors} generate{} \"{}\"", kinds_term(kinds), one_line(request))
             }
@@ -71,6 +76,7 @@ impl std::fmt::Display for TerminalMode {
         f.write_str(match self {
             TerminalMode::Work => "WORK",
             TerminalMode::Plan => "PLAN",
+            TerminalMode::PlanFlow => "PLAN_FLOW",
             TerminalMode::Generate { .. } => "GENERATE",
             TerminalMode::Explain { .. } => "EXPLAIN",
         })

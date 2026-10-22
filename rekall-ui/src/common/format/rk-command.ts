@@ -12,6 +12,15 @@ export function rkPlanCommand(anchor: string): string {
 }
 
 /**
+ * The flow planning line: the session proposes the steps and the routes between them as drafts,
+ * which only a task with no steps, drafts included, accepts.
+ */
+export function rkPlanFlowCommand(anchor: string): string {
+  const base = rkPlanCommand(anchor)
+  return base ? `${base} flow` : ''
+}
+
+/**
  * The wrapup line, with an optional directive folded in. A directive is one line: newlines are
  * collapsed to spaces so it cannot submit the terminal line early, and `\`/`"` are escaped so it
  * cannot close the quote it sits in.
