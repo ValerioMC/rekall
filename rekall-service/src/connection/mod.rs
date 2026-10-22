@@ -19,6 +19,7 @@ mod kube_credential;
 mod kube_user_kind;
 mod kubeconfig;
 mod kubeconfig_document;
+mod remembering_secret_store;
 mod secret;
 mod secret_store;
 
@@ -38,5 +39,6 @@ pub use kube_context_summary::KubeContextSummary;
 pub use kube_credential::KubeCredential;
 pub use kube_user_kind::KubeUserKind;
 pub use kubeconfig::Kubeconfig;
+pub use remembering_secret_store::RememberingSecretStore;
 pub use secret::Secret;
 pub use secret_store::SecretStore;

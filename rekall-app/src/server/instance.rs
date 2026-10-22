@@ -17,7 +17,7 @@ use rekall_claude::transcript::{TranscriptFolder, TranscriptScanner};
 use rekall_claude::usage::{ClaudeUsageService, UsageReader};
 use rekall_claude::ClaudeState;
 use rekall_repository::Database;
-use rekall_service::connection::{ConnectionAccessService, JiraIssues, SecretStore};
+use rekall_service::connection::{ConnectionAccessService, JiraIssues, RememberingSecretStore, SecretStore};
 use rekall_service::timeentry::IDLE_AFTER;
 use rekall_service::{Ctx, EventBus, Services};
 use tracing::warn;
@@ -82,7 +82,7 @@ impl Instance {
 
         let secrets: Arc<dyn SecretStore> = match &options.secrets {
             Some(secrets) => secrets.clone(),
-            None => Arc::new(KeychainSecretStore::new()),
+            None => Arc::new(RememberingSecretStore::new(Arc::new(KeychainSecretStore::new()))),
         };
         let stream = Arc::new(StepEventStream::new(events.clone()));
         let jira_issues: Arc<dyn JiraIssues> = match &options.jira_issues {

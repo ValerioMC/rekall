@@ -594,7 +594,10 @@ authentication sends, or a Data Center personal access token sent as Bearer, kep
 one it is decides the site's `JiraDeployment`) lives in
 the OS credential store (`KeychainSecretStore` in `rekall-platform`, over `keyring`, service
 `Rekall-connections`, one account per connection's `secret_ref`), behind the `SecretStore` trait in
-`rekall-service/src/connection/`. `rekall-app` builds the store and hands it to `ApiState` and
+`rekall-service/src/connection/`. `rekall-app` wraps it in a `RememberingSecretStore`, which reads each account from the keychain
+once and answers later reads from memory until the account is written or removed: the Keychain may
+prompt on every read, and a terminal's helpers read on every `kubectl`, `git` or API call. An edit made
+in Keychain Access is seen after a restart. `rekall-app` builds the store and hands it to `ApiState` and
 `ClaudeState` only: it is not part of `Services`, which is what the MCP tools are built from, and
 `rekall-mcp/tests/integration/credential_isolation.rs` fails if `rekall-mcp` or `Services` ever names
 it or a type that carries a credential. A credential in memory is a `Secret`: it prints as `***`, has
