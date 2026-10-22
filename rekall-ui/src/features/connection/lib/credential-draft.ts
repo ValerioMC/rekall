@@ -8,11 +8,11 @@ export function emptyDraft(kind: ConnectionKind): CredentialDraft {
     case 'KUBERNETES':
       return { kind, kubeconfig: '', context: null }
     case 'JIRA':
-      return { kind, email: '', token: '' }
+      return { kind, deployment: 'CLOUD', email: '', token: '' }
   }
 }
 
-/** Whether the draft holds enough to send: a token, a kubeconfig with a context chosen, or an email and a token. */
+/** Whether the draft holds enough to send: a token, a kubeconfig with a context chosen, or on Jira Cloud an email and a token. */
 export function isComplete(draft: CredentialDraft): boolean {
   switch (draft.kind) {
     case 'GITLAB':
@@ -20,7 +20,7 @@ export function isComplete(draft: CredentialDraft): boolean {
     case 'KUBERNETES':
       return draft.kubeconfig.trim().length > 0 && draft.context !== null
     case 'JIRA':
-      return draft.email.trim().includes('@') && draft.token.trim().length > 0
+      return draft.token.trim().length > 0 && (draft.deployment === 'DATA_CENTER' || draft.email.trim().includes('@'))
   }
 }
 
@@ -32,7 +32,7 @@ export function isStarted(draft: CredentialDraft): boolean {
     case 'KUBERNETES':
       return draft.kubeconfig.length > 0
     case 'JIRA':
-      return draft.email.length > 0 || draft.token.length > 0
+      return draft.token.length > 0 || (draft.deployment === 'CLOUD' && draft.email.length > 0)
   }
 }
 
@@ -44,6 +44,6 @@ export function credentialNoun(kind: ConnectionKind): string {
     case 'KUBERNETES':
       return 'kubeconfig'
     case 'JIRA':
-      return 'API token'
+      return 'token'
   }
 }

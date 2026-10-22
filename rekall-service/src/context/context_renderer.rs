@@ -309,7 +309,8 @@ fn connection_usage(connection: &ConnectionView) -> String {
             let project = connection.target.as_deref().map_or_else(String::new, |key| format!(", project `{key}` (`:project` in an API path)"));
             format!(
                 "Jira at {site}{project}. Read and create its issues with `rekall-jira --connection {} <METHOD> <path> [curl options]`, \
-                 a path under `/rest/api/3` such as `POST /issue` with the JSON body as `-d`",
+                 a path under `/rest/api/2` such as `POST /issue` with the JSON body as `-d`; search is `GET /search/jql?jql=…` on Jira Cloud \
+                 (`*.atlassian.net`) and `GET /search?jql=…` on Data Center",
                 connection.label
             )
         }

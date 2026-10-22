@@ -41,9 +41,9 @@ export const CREDENTIAL_FIELD: Readonly<Record<ConnectionKind, CredentialField>>
     incomplete: 'Read the kubeconfig and choose a context, or leave it empty to set it later.'
   },
   JIRA: {
-    title: 'Account email and API token',
-    hint: "Optional now. An API token of the Atlassian account, stored in this machine's credential store.",
-    incomplete: 'Type both the email and the API token, or leave them empty to set them later.'
+    title: 'Sign-in',
+    hint: "Optional now. Jira Cloud takes the account's email and an API token, Data Center a personal access token; stored in this machine's credential store.",
+    incomplete: 'Type the email and the API token, or the personal access token, or leave them empty to set them later.'
   }
 }
 

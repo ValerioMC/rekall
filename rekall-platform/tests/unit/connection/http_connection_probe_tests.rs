@@ -106,7 +106,7 @@ async fn stored_certificate_data_that_is_not_base64_is_said_plainly() {
 
 fn jira_site() -> Router {
     Router::new().route(
-        JIRA_MYSELF,
+        JIRA_CLOUD_MYSELF,
         get(|headers: HeaderMap| async move {
             let expected = format!("Basic {}", STANDARD.encode("ada@example.com:atl-good"));
             if bearer(&headers) == Some(expected) { Ok(Json(json!({ "displayName": "Ada Lovelace" }))) } else { Err(AxumStatus::UNAUTHORIZED) }
@@ -121,7 +121,7 @@ fn direct(url: String) -> JiraSite {
 #[tokio::test]
 async fn a_good_jira_credential_is_accepted_and_names_its_account() {
     let site = direct(serve(jira_site()).await);
-    let credential = JiraCredential::new("ada@example.com", Secret::new("atl-good")).unwrap();
+    let credential = JiraCredential::cloud("ada@example.com", Secret::new("atl-good")).unwrap();
     let outcome = HttpConnectionProbe::new().jira(&site, &credential).await;
     assert_eq!(outcome, ProbeOutcome::Accepted { identity: Some("Ada Lovelace".into()), version: None });
 }
@@ -129,14 +129,31 @@ async fn a_good_jira_credential_is_accepted_and_names_its_account() {
 #[tokio::test]
 async fn a_bad_jira_credential_is_rejected() {
     let site = direct(serve(jira_site()).await);
-    let credential = JiraCredential::new("ada@example.com", Secret::new("atl-bad")).unwrap();
+    let credential = JiraCredential::cloud("ada@example.com", Secret::new("atl-bad")).unwrap();
     assert_eq!(HttpConnectionProbe::new().jira(&site, &credential).await, ProbeOutcome::Rejected { status: 401 });
 }
 
 #[tokio::test]
 async fn a_jira_site_behind_a_proxy_is_asked_through_it() {
     let site = JiraSite { url: "http://jira.invalid".into(), proxy_url: Some(serve(jira_site()).await) };
-    let credential = JiraCredential::new("ada@example.com", Secret::new("atl-good")).unwrap();
+    let credential = JiraCredential::cloud("ada@example.com", Secret::new("atl-good")).unwrap();
     let outcome = HttpConnectionProbe::new().jira(&site, &credential).await;
     assert_eq!(outcome, ProbeOutcome::Accepted { identity: Some("Ada Lovelace".into()), version: None });
+}
+
+/// A Data Center site knows only v2 and a personal access token, and names its user by username.
+#[tokio::test]
+async fn a_data_center_personal_access_token_is_checked_through_v2_and_names_its_username() {
+    let site = direct(
+        serve(Router::new().route(
+            JIRA_DATA_CENTER_MYSELF,
+            get(|headers: HeaderMap| async move {
+                if bearer(&headers) == Some("Bearer NjQ0Mj".to_string()) { Ok(Json(json!({ "name": "vcasale" }))) } else { Err(AxumStatus::UNAUTHORIZED) }
+            }),
+        ))
+        .await,
+    );
+    let credential = JiraCredential::data_center(Secret::new("NjQ0Mj")).unwrap();
+    let outcome = HttpConnectionProbe::new().jira(&site, &credential).await;
+    assert_eq!(outcome, ProbeOutcome::Accepted { identity: Some("vcasale".into()), version: None });
 }

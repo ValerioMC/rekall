@@ -5,7 +5,7 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use reqwest::header::{HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use reqwest::{Client, RequestBuilder, Response, StatusCode};
-use rekall_service::connection::{JiraCredential, JiraSite, KubeAccess, KubeCredential, Secret};
+use rekall_service::connection::{JiraCredential, JiraDeployment, JiraSite, KubeAccess, KubeCredential, Secret};
 use serde::Deserialize;
 use serde_json::json;
 
@@ -14,7 +14,8 @@ use super::{ConnectionProbe, ProbeOutcome};
 
 const TIMEOUT: Duration = Duration::from_secs(8);
 const SELF_SUBJECT_REVIEW: &str = "/apis/authentication.k8s.io/v1/selfsubjectreviews";
-const JIRA_MYSELF: &str = "/rest/api/3/myself";
+const JIRA_CLOUD_MYSELF: &str = "/rest/api/3/myself";
+const JIRA_DATA_CENTER_MYSELF: &str = "/rest/api/2/myself";
 
 #[derive(Deserialize)]
 struct GitlabUser {
@@ -27,6 +28,8 @@ struct JiraUser {
     display_name: Option<String>,
     #[serde(rename = "emailAddress")]
     email_address: Option<String>,
+    /// Data Center only: the username.
+    name: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -98,11 +101,11 @@ impl ConnectionProbe for HttpConnectionProbe {
             Ok(header) => header,
             Err(_) => return ProbeOutcome::Unreachable { reason: "the stored credential holds characters a header cannot carry".into() },
         };
-        let answer = client.get(format!("{}{JIRA_MYSELF}", site.url.trim_end_matches('/'))).header(AUTHORIZATION, header).send().await;
+        let answer = client.get(format!("{}{}", site.url.trim_end_matches('/'), jira_myself(credential.deployment()))).header(AUTHORIZATION, header).send().await;
         match accepted(answer).await {
             Ok(response) => {
                 let user = response.json::<JiraUser>().await.ok();
-                ProbeOutcome::Accepted { identity: user.and_then(|user| user.display_name.or(user.email_address)), version: None }
+                ProbeOutcome::Accepted { identity: user.and_then(|user| user.display_name.or(user.email_address).or(user.name)), version: None }
             }
             Err(outcome) => outcome,
         }
@@ -121,6 +124,13 @@ impl ConnectionProbe for HttpConnectionProbe {
             Ok(identity) => ProbeOutcome::Accepted { identity, version },
             Err(outcome) => outcome,
         }
+    }
+}
+
+fn jira_myself(deployment: JiraDeployment) -> &'static str {
+    match deployment {
+        JiraDeployment::Cloud => JIRA_CLOUD_MYSELF,
+        JiraDeployment::DataCenter => JIRA_DATA_CENTER_MYSELF,
     }
 }
 

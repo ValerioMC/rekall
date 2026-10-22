@@ -180,7 +180,7 @@ struct FakeJira;
 #[async_trait]
 impl JiraIssues for FakeJira {
     async fn search(&self, site: &JiraSite, credential: &JiraCredential, _jql: &str, _limit: u16) -> Result<Vec<JiraIssue>, JiraFailure> {
-        assert_eq!((site.url.as_str(), site.proxy_url.as_deref(), credential.email()), ("https://example.atlassian.net", Some("http://proxy.example.com:8080"), "ada@example.com"));
+        assert_eq!((site.url.as_str(), site.proxy_url.as_deref(), credential.email()), ("https://example.atlassian.net", Some("http://proxy.example.com:8080"), Some("ada@example.com")));
         let issue = |key: &str, summary: &str| JiraIssue { key: key.into(), summary: summary.into(), status: Some("To Do".into()), issue_type: Some("Story".into()), description: Some("Steps.".into()) };
         Ok(vec![issue("ENG-1", "Fix login"), issue("ENG-2", "Add export")])
     }

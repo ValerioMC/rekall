@@ -65,7 +65,7 @@ fn the_gitlab_wrapper_sends_only_the_token_header() {
 fn the_jira_wrapper_calls_the_rest_api_of_each_site_with_json_both_ways() {
     let script = api_wrapper(&JIRA_API, ENDPOINT, &[&jira()]);
     assert!(script.contains("usage: rekall-jira --connection <label> <METHOD> <path> [curl options]"));
-    assert!(script.contains("  'jira') base='https://example.atlassian.net/rest/api/3'; project='ENG'; proxy='' ;;"));
+    assert!(script.contains("  'jira') base='https://example.atlassian.net/rest/api/2'; project='ENG'; proxy='' ;;"));
     assert!(script.contains("\"$label?for=jira\""));
     assert!(script.contains("-H @- -H 'Accept: application/json' -H 'Content-Type: application/json' \"$base$path\""));
     assert!(script.contains("this terminal has no Jira connection labelled"));

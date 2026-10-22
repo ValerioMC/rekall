@@ -2,7 +2,8 @@ use rekall_service::connection::Secret;
 use serde::Deserialize;
 
 /// The credential of one connection: a GitLab `token`, a Kubernetes `kubeconfig` with the
-/// `context` to keep, or a Jira `email` with its API `token`. Its `Debug` prints the credentials as `***`.
+/// `context` to keep, or a Jira Cloud `email` with its API `token` (a Jira `token` without an email is
+/// a Data Center personal access token). Its `Debug` prints the credentials as `***`.
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct ConnectionCredentialRequest {

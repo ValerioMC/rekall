@@ -134,11 +134,21 @@ async fn a_jira_email_and_token_are_stored_as_one_pair() {
 }
 
 #[tokio::test]
-async fn a_jira_connection_refuses_a_token_without_its_email_or_a_kubeconfig() {
+async fn a_jira_token_without_an_email_is_stored_as_a_personal_access_token() {
     let world = world().await;
     let jira = world.connection(ConnectionKind::Jira).await;
 
-    assert!(world.credentials.set(jira.id, token("atl-secret")).await.unwrap_err().is_illegal_argument());
+    world.credentials.set(jira.id, jira_pair("  ", "NjQ0Mj")).await.unwrap();
+
+    assert_eq!(world.secrets.read(&jira.secret_ref).unwrap().expose(), "pat:NjQ0Mj");
+}
+
+#[tokio::test]
+async fn a_jira_connection_refuses_a_username_in_place_of_an_email_or_a_kubeconfig() {
+    let world = world().await;
+    let jira = world.connection(ConnectionKind::Jira).await;
+
+    assert!(world.credentials.set(jira.id, jira_pair("vcasale", "atl-secret")).await.unwrap_err().is_illegal_argument());
     assert!(world.credentials.set(jira.id, kubeconfig("prod")).await.unwrap_err().is_illegal_argument());
     assert!(!world.secrets.contains(&jira.secret_ref));
 }

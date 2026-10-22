@@ -42,7 +42,7 @@ impl ConnectionProbe for FakeProbe {
 
     async fn jira(&self, site: &JiraSite, credential: &JiraCredential) -> ProbeOutcome {
         let proxy = site.proxy_url.as_deref().unwrap_or("no proxy");
-        self.asked.lock().unwrap().push(format!("{} via {proxy} as {}", site.url, credential.email()));
+        self.asked.lock().unwrap().push(format!("{} via {proxy} as {}", site.url, credential.email().unwrap_or("a personal access token")));
         self.outcome.clone()
     }
 }

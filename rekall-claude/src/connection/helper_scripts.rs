@@ -47,11 +47,12 @@ pub(super) struct ApiWrapper {
 /// GitLab's API with the `PRIVATE-TOKEN` header, `:project` the project path.
 pub(super) const GITLAB_API: ApiWrapper = ApiWrapper { name: "rekall-gitlab", system: "GitLab", api_root: "/api/v4", purpose: "gitlab", headers: "" };
 
-/// Jira's REST API with the Basic header and JSON both ways, `:project` the project key.
+/// Jira's REST API v2, which Cloud and Data Center both serve, with the credential's header and JSON
+/// both ways, `:project` the project key.
 pub(super) const JIRA_API: ApiWrapper = ApiWrapper {
     name: "rekall-jira",
     system: "Jira",
-    api_root: "/rest/api/3",
+    api_root: "/rest/api/2",
     purpose: "jira",
     headers: "-H 'Accept: application/json' -H 'Content-Type: application/json' ",
 };

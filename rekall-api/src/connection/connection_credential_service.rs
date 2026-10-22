@@ -77,12 +77,16 @@ async fn prepare(kind: ConnectionKind, request: ConnectionCredentialRequest) -> 
     }
 }
 
+/// An email makes it a Jira Cloud API token; without one, the token is a Data Center personal access token.
 fn jira_credential(request: ConnectionCredentialRequest) -> Result<JiraCredential> {
     if request.kubeconfig.is_some() {
-        return Err(RekallError::illegal("A Jira connection takes an email and an API token, not a kubeconfig."));
+        return Err(RekallError::illegal("A Jira connection takes a token, not a kubeconfig."));
     }
-    let token = request.token.ok_or_else(|| RekallError::illegal("A Jira connection needs an API token of that account."))?;
-    JiraCredential::new(request.email.as_deref().unwrap_or_default(), token)
+    let token = request.token.ok_or_else(|| RekallError::illegal("A Jira connection needs an API token, or a personal access token on Data Center."))?;
+    match request.email.as_deref().map(str::trim).filter(|email| !email.is_empty()) {
+        Some(email) => JiraCredential::cloud(email, token),
+        None => JiraCredential::data_center(token),
+    }
 }
 
 fn gitlab_token(request: ConnectionCredentialRequest) -> Result<Secret> {

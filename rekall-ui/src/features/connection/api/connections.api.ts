@@ -73,7 +73,7 @@ function credentialBody(draft: CredentialDraft): Record<string, string | null> {
     case 'KUBERNETES':
       return { kubeconfig: draft.kubeconfig, context: draft.context }
     case 'JIRA':
-      return { email: draft.email.trim(), token: draft.token }
+      return draft.deployment === 'CLOUD' ? { email: draft.email.trim(), token: draft.token } : { token: draft.token }
   }
 }
 

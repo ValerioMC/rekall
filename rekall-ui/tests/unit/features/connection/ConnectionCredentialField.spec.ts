@@ -54,4 +54,19 @@ describe('ConnectionCredentialField', () => {
 
     expect((wrapper.get('[data-testid="gitlab-token"]').element as HTMLInputElement).value).toBe('')
   })
+
+  it('sends a Jira Data Center personal access token without asking for an email', async () => {
+    const jira: Connection = { ...GITLAB, id: 'jira' as ConnectionId, kind: 'JIRA', label: 'jira', title: 'Jira' }
+    vi.mocked(api.setCredential).mockResolvedValue({ ...jira, credentialSetAt: '2026-10-21T10:01:00Z' })
+    const wrapper = mount(ConnectionCredentialField, { props: { connection: jira } })
+
+    await wrapper.get('[data-testid="replace-credential"]').trigger('click')
+    await wrapper.get('[data-testid="jira-deployment-DATA_CENTER"]').trigger('click')
+    expect(wrapper.find('[data-testid="jira-email"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="jira-token"]').setValue('NjQ0Mj')
+    await wrapper.get('[data-testid="save-credential"]').trigger('click')
+    await flushPromises()
+
+    expect(api.setCredential).toHaveBeenCalledWith('jira', { kind: 'JIRA', deployment: 'DATA_CENTER', email: '', token: 'NjQ0Mj' })
+  })
 })

@@ -3,7 +3,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use reqwest::header::{HeaderValue, ACCEPT, AUTHORIZATION};
 use reqwest::{Client, Response, StatusCode};
-use rekall_service::connection::{JiraCredential, JiraFailure, JiraIssue, JiraIssues, JiraSite};
+use rekall_service::connection::{JiraCredential, JiraDeployment, JiraFailure, JiraIssue, JiraIssues, JiraSite};
 use serde::Deserialize;
 use serde_json::json;
 
@@ -11,7 +11,8 @@ use super::atlassian_document::AdfNode;
 use super::http_connection_probe::failure_chain;
 
 const TIMEOUT: Duration = Duration::from_secs(15);
-const SEARCH: &str = "/rest/api/3/search/jql";
+const CLOUD_SEARCH: &str = "/rest/api/3/search/jql";
+const DATA_CENTER_SEARCH: &str = "/rest/api/2/search";
 const FIELDS: [&str; 4] = ["summary", "status", "issuetype", "description"];
 
 #[derive(Deserialize)]
@@ -32,7 +33,15 @@ struct IssueFields {
     summary: String,
     status: Option<Named>,
     issuetype: Option<Named>,
-    description: Option<AdfNode>,
+    description: Option<Description>,
+}
+
+/// Cloud's v3 API answers a description as Atlassian's document tree; Data Center's v2 as its text.
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum Description {
+    Text(String),
+    Document(AdfNode),
 }
 
 #[derive(Deserialize)]
@@ -47,8 +56,8 @@ struct JiraErrors {
     error_messages: Vec<String>,
 }
 
-/// Jira Cloud's REST API over HTTPS with `reqwest`, through the connection's proxy when it names
-/// one: one search, the first page only.
+/// Jira's REST API over HTTPS with `reqwest`, Cloud's v3 or Data Center's v2 as the credential says,
+/// through the connection's proxy when it names one: one search, the first page only.
 pub struct HttpJiraIssues {
     timeout: Duration,
 }
@@ -71,7 +80,7 @@ impl JiraIssues for HttpJiraIssues {
         let client = jira_client(site, self.timeout).map_err(|reason| JiraFailure::Failed { reason })?;
         let body = json!({ "jql": jql, "maxResults": limit, "fields": FIELDS });
         let answer = client
-            .post(format!("{}{SEARCH}", site.url.trim_end_matches('/')))
+            .post(format!("{}{}", site.url.trim_end_matches('/'), search_path(credential.deployment())))
             .header(AUTHORIZATION, authorization(credential)?)
             .header(ACCEPT, "application/json")
             .json(&body)
@@ -98,14 +107,28 @@ pub(super) fn authorization(credential: &JiraCredential) -> Result<HeaderValue, 
     Ok(header)
 }
 
+fn search_path(deployment: JiraDeployment) -> &'static str {
+    match deployment {
+        JiraDeployment::Cloud => CLOUD_SEARCH,
+        JiraDeployment::DataCenter => DATA_CENTER_SEARCH,
+    }
+}
+
 fn issue_of(found: FoundIssue) -> JiraIssue {
-    let description = found.fields.description.map(|document| document.to_markdown()).filter(|text| !text.is_empty());
+    let description = found.fields.description.map(markdown_of).filter(|text| !text.is_empty());
     JiraIssue {
         key: found.key,
         summary: found.fields.summary,
         status: found.fields.status.and_then(|status| status.name),
         issue_type: found.fields.issuetype.and_then(|kind| kind.name),
         description,
+    }
+}
+
+fn markdown_of(description: Description) -> String {
+    match description {
+        Description::Text(text) => text.trim().to_string(),
+        Description::Document(document) => document.to_markdown(),
     }
 }
 

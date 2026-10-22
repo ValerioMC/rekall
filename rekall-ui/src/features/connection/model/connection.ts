@@ -73,6 +73,9 @@ export interface ConnectionInput {
   readonly proxyUrl?: string
 }
 
+/** Jira Cloud signs in with an email and an API token, Data Center with a personal access token. */
+export type JiraDeployment = 'CLOUD' | 'DATA_CENTER'
+
 /**
  * What the person typed or pasted as a credential, held only until it is sent. Never kept in a
  * store: a component drops it as soon as the request returns.
@@ -80,7 +83,7 @@ export interface ConnectionInput {
 export type CredentialDraft =
   | { readonly kind: 'GITLAB'; readonly token: string }
   | { readonly kind: 'KUBERNETES'; readonly kubeconfig: string; readonly context: string | null }
-  | { readonly kind: 'JIRA'; readonly email: string; readonly token: string }
+  | { readonly kind: 'JIRA'; readonly deployment: JiraDeployment; readonly email: string; readonly token: string }
 
 export type KubeUserKind =
   'token' | 'client-certificate' | 'exec' | 'auth-provider' | 'basic-auth' | 'nothing'

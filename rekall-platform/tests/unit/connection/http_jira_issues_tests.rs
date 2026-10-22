@@ -15,7 +15,7 @@ async fn serve(router: Router) -> String {
 /// Answers a search with the good credential with one issue, echoing the JQL it was sent as its summary.
 fn jira_site() -> Router {
     Router::new().route(
-        SEARCH,
+        CLOUD_SEARCH,
         post(|headers: HeaderMap, Json(body): Json<serde_json::Value>| async move {
             let signed = headers.get("authorization").and_then(|value| value.to_str().ok()) == Some("Basic YWRhQGV4YW1wbGUuY29tOmF0bC1nb29k");
             if !signed {
@@ -40,12 +40,37 @@ fn jira_site() -> Router {
     )
 }
 
+/// A Data Center site: v2's search, a personal access token as Bearer, the description as text.
+fn data_center_site() -> Router {
+    Router::new().route(
+        DATA_CENTER_SEARCH,
+        post(|headers: HeaderMap| async move {
+            if headers.get("authorization").and_then(|value| value.to_str().ok()) != Some("Bearer NjQ0Mj") {
+                return Err(AxumStatus::UNAUTHORIZED);
+            }
+            Ok(Json(json!({ "issues": [{ "key": "OPS-7", "fields": { "summary": "Rotate keys", "description": " h2. Steps \n" } }] })))
+        }),
+    )
+}
+
 fn direct(url: String) -> JiraSite {
     JiraSite { url, proxy_url: None }
 }
 
 fn credential(token: &str) -> JiraCredential {
-    JiraCredential::new("ada@example.com", Secret::new(token)).unwrap()
+    JiraCredential::cloud("ada@example.com", Secret::new(token)).unwrap()
+}
+
+#[tokio::test]
+async fn a_data_center_site_is_searched_through_v2_with_its_description_as_text() {
+    let site = direct(serve(data_center_site()).await);
+
+    let issues = HttpJiraIssues::new().search(&site, &JiraCredential::data_center(Secret::new("NjQ0Mj")).unwrap(), "project = \"OPS\"", 50).await.unwrap();
+
+    assert_eq!(
+        issues,
+        [JiraIssue { key: "OPS-7".into(), summary: "Rotate keys".into(), status: None, issue_type: None, description: Some("h2. Steps".into()) }]
+    );
 }
 
 #[tokio::test]
