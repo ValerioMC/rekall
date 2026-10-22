@@ -18,7 +18,7 @@ convention are in `docs/DESIGN.md` §3 ("Layout inside a crate") and are not rep
   console service.
 - **One service per entity.** `CompanyService`, `ProjectService`, `TaskService`, `TagService`,
   `TaskStepService`, `WrapupService`… A service that answers for two entities is split. A
-  cross-entity flow (restoring a revision, auto-commit) is its own small service that depends on
+  cross-entity flow (auto-commit, importing Jira issues) is its own small service that depends on
   the entity services and holds no queries of its own.
 - **Controllers stay thin.** A handler parses the path and body, validates the request shape
   with `Validator` / `present`, calls one service method and maps the result. No queries, no

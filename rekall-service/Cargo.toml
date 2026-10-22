@@ -1,6 +1,6 @@
 [package]
 name = "rekall-service"
-description = "Context assembly, the step and review lines, wrapups, revisions, time entries, search and commits"
+description = "Context assembly, the step and review lines, wrapups, time entries, search and commits"
 version.workspace = true
 edition.workspace = true
 

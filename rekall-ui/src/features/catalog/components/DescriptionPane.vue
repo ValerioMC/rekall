@@ -14,11 +14,9 @@ import OpenTerminalButton from '@/features/claude/components/OpenTerminalButton.
 import LogCommitButton from '@/features/commits/components/LogCommitButton.vue'
 import NotesButton from '@/features/notes/components/NotesButton.vue'
 import CommitReferenceRail from '@/features/commits/components/CommitReferenceRail.vue'
-import RevisionHistoryButton from '@/features/revisions/components/RevisionHistoryButton.vue'
 import ContextSizeChip from '@/features/context/components/ContextSizeChip.vue'
 import TaskTitleRow from '@/features/catalog/components/TaskTitleRow.vue'
 import TaskLabelsStrip from '@/features/catalog/components/TaskLabelsStrip.vue'
-import { TASK_DESCRIPTION_TEMPLATE, isUntouchedTemplate } from '@/model/templates'
 import type { TaskId } from '@/model/branded'
 
 const store = useConsoleStore()
@@ -59,8 +57,7 @@ watch(
     if (previousId) flush(previousId)
     draft.value = selectedTask.value?.description ?? ''
     showEditor.value = draft.value.trim().length > 0
-    const blank = !showEditor.value || isUntouchedTemplate(draft.value, TASK_DESCRIPTION_TEMPLATE)
-    mode.value = blank ? 'write' : 'read'
+    mode.value = showEditor.value ? 'read' : 'write'
   },
   { immediate: true }
 )
@@ -73,17 +70,6 @@ watch(
     if (value.trim()) showEditor.value = true
   }
 )
-
-// A restore rewrote the description on the server: drop any pending save of the old buffer and
-// show what was restored.
-function adoptRestored(): void {
-  if (saveTimer) clearTimeout(saveTimer)
-  saveTimer = null
-  draft.value = selectedTask.value?.description ?? ''
-  showEditor.value = draft.value.trim().length > 0
-  mode.value = 'read'
-  store.saveState = 'saved'
-}
 
 // The task-scoped review line, shown only while the task has no checklist.
 const reviewState = computed(() => {
@@ -170,12 +156,6 @@ onUnmounted(() => {
 
           <div class="flex shrink-0 items-center gap-1.5">
             <NotesButton :task-id="selectedTask.id" />
-            <RevisionHistoryButton
-              :task-id="selectedTask.id"
-              :task-title="selectedTask.title"
-              kind="DESCRIPTION"
-              @restored="adoptRestored"
-            />
             <LogCommitButton
               :task-id="selectedTask.id"
               :folder="selectedTask.projectRepoFolder"

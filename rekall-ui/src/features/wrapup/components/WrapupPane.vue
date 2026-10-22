@@ -7,7 +7,6 @@ import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import AppModeToggle from '@/components/ui/AppModeToggle.vue'
 import LaunchClaudeCodeButton from '@/features/claude/components/LaunchClaudeCodeButton.vue'
 import WrapupHereDialog from '@/features/wrapup/components/WrapupHereDialog.vue'
-import RevisionHistoryButton from '@/features/revisions/components/RevisionHistoryButton.vue'
 import TaskTitleRow from '@/features/catalog/components/TaskTitleRow.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
@@ -69,17 +68,6 @@ function scheduleSave(): void {
   saveTimer = setTimeout(() => {
     void run(() => store.saveWrapupBody(task.id, draft.value))
   }, 700)
-}
-
-// A restore rewrote the wrapup on the server: drop any pending save of the old buffer and show
-// what was restored.
-function adoptRestored(): void {
-  if (saveTimer) clearTimeout(saveTimer)
-  saveTimer = null
-  draft.value = selectedWrapup.value?.bodyMarkdown ?? ''
-  isDrafting.value = false
-  mode.value = 'read'
-  store.saveState = 'saved'
 }
 
 function beginWriting(): void {
@@ -147,13 +135,6 @@ async function sendWrapupHere(message: string): Promise<void> {
           />
           Wrapup here
         </AppButton>
-
-        <RevisionHistoryButton
-          :task-id="selectedTask.id"
-          :task-title="selectedTask.title"
-          kind="WRAPUP"
-          @restored="adoptRestored"
-        />
 
         <div v-if="selectedWrapup" class="flex shrink-0 items-center gap-2">
           <AppModeToggle v-model="mode" />
@@ -261,7 +242,7 @@ async function sendWrapupHere(message: string): Promise<void> {
         v-if="isConfirmingDelete && selectedTask"
         :title="`Delete the wrapup on ${selectedTask.title}?`"
         body="The task and its notes stay. What goes is the description of where the implementation currently stands."
-        blast="kept in History · the next `/rk … wrapup` starts from nothing"
+        blast="not kept anywhere · the next `/rk … wrapup` starts from nothing"
         confirm-label="Delete wrapup"
         @cancel="isConfirmingDelete = false"
         @confirm="confirmDelete"

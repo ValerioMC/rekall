@@ -98,7 +98,7 @@ is found by opening one folder per crate:
 | `connection` | the GitLab instances, Kubernetes clusters and Jira sites a company's projects reach, the projects that bind each, the log of every credential a terminal asked for, and the Jira issues a project imports as tasks |
 | `step`, `flow` | the checklist, and the routes and visits that turn it into a flow |
 | `note` | documents, their attachment to tasks, the scope that decides how they load |
-| `wrapup`, `revision`, `review`, `timeentry` | the wrapup, saved states of a task, the review line, logged time |
+| `wrapup`, `review`, `timeentry` | the wrapup, the review line, logged time |
 | `commit`, `diagram`, `token`, `search`, `context` | logged commits, stored diagrams, token usage, search, context assembly and its size |
 | `skill`, `tag`, `queue`, `claude` | skill assignments, tags, the run queue, what a session launch needs |
 
@@ -123,7 +123,7 @@ domain that uses another one it is not listed for, and on two domains that use e
 | `section` | `note` |
 | `step` | `timeentry` |
 | `task` | `step` |
-| `wrapup` | `review`, `revision` |
+| `wrapup` | `review` |
 | every other | nothing |
 
 `events`, `tx`, `ctx` and `load` are foundations every domain may use. A new edge is a design
@@ -571,8 +571,8 @@ the exception that hides this, because its own schema defaults both annotations.
 
 ## 7. Write safety
 
-`rekall-mcp` has no controller, no `CompanyService`, `ProjectService` or `TaskService`, no `DocumentService` and no
-`RevisionRestoreService` on its classpath: they live in `rekall-api` for exactly that reason, and
+`rekall-mcp` has no controller, no `CompanyService`, `ProjectService` or `TaskService` and no
+`DocumentService` on its classpath: they live in `rekall-api` for exactly that reason, and
 anything that writes the catalog belongs there. The write services it can reach are narrow by
 construction. `WrapupService` takes a task and a body and can do nothing else: no record created,
 renamed or deleted, no note touched. `TaskStepService.transition` takes a task, a step and a
@@ -684,11 +684,8 @@ the endpoint) is not caught, and a session set on extracting a credential can st
 
 The residual risk is real and small: Claude can overwrite one task's wrapup with something
 wrong, or with something that replaces a correction made by hand, and it can mark a step running
-or claimed when it is not. The first two are repaired from the wrapup's history in the console:
-`TaskRevisionService` keeps what every write, delete and restore replaces (a hand edit typed over
-hand-written text is kept once per ten minutes, so the history is versions rather than
-keystrokes), and the tool's answer still announces a replaced hand edit, because no session reads
-that history. The third a person corrects with one tick in the console. It can also add a note
+or claimed when it is not. Nothing keeps the text a wrapup replaces, so the tool's answer announces
+a replaced hand edit and the session tells the person, who writes the correction again. The third a person corrects with one tick in the console. It can also add a note
 nobody wanted, which a person deletes from the note's pane. What it cannot do is tick a step
 done, change or lose a note, move a task or delete anything.
 

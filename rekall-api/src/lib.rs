@@ -15,7 +15,6 @@ pub mod diagram;
 pub mod filesystem;
 pub mod flow;
 pub mod note;
-pub mod revision;
 pub mod search;
 pub mod section;
 pub mod skill;

@@ -395,8 +395,7 @@ still marked, and it goes in too. Do not stop at the piece you just built.
 If the step's work made something the wrapup already said untrue, the old sentence goes. Keeping
 both is how a wrapup starts contradicting itself.
 
-**Write it fresh.** A wrapup does not grow. It is rewritten from the code every time, and the history
-in the console keeps every earlier version, so dropping a sentence loses nothing. Read the current
+**Write it fresh.** A wrapup does not grow. It is rewritten from the code every time. Read the current
 wrapup as a list of claims to check, not as a text to extend: a sentence stays only if the code
 still makes it true and the next session needs it to start work. Open points that are closed,
 decisions nobody will revisit and detail about finished, stable pieces all go. The new text still
@@ -422,7 +421,7 @@ A line or two on each piece, what it is there for and what it decides.
   directory tree. That is in the code, it is longer than the wrapup, and it is wrong a week later.
 - Where there is a rule, the rule is the point. What it decides, on what, what happens at the edges,
   what is refused and why. A class name says there is a service; only the wrapup says that
-  overwriting a wrapup edited by hand is announced because no session reads the history it went to.
+  overwriting a wrapup edited by hand is announced because nothing keeps the text it replaced.
 
 **Shape it to be scanned.** The kind of information chooses the form:
 
@@ -440,4 +439,4 @@ It fits on one screen: about 300 words suits most tasks. Past 600 the tool says 
 text is carrying history or detail that belongs in a note.
 
 If the tool answers that the version you replaced had been edited by hand, tell me: those were my
-words, and only the wrapup's History in the console still has them.
+words, and nothing keeps them any more.

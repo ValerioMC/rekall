@@ -3,7 +3,6 @@ import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import StepsPane from '@/features/steps/components/StepsPane.vue'
 import { useConsoleStore } from '@/stores/console.store'
-import { STEP_DETAIL_TEMPLATE } from '@/model/templates'
 import type { Task, TaskStep, TaskStepState } from '@/features/catalog/model/catalog'
 import type { ProjectId, TaskId, TaskStepId } from '@/model/branded'
 
@@ -243,7 +242,7 @@ describe('StepsPane', () => {
     expect(store.removeStep).toHaveBeenCalledWith('a')
   })
 
-  it('adds a draft with the detail template', async () => {
+  it('adds a draft with an empty detail', async () => {
     const store = seed([makeStep('a', 0, 'OPEN')])
     const pane = render()
 
@@ -251,7 +250,7 @@ describe('StepsPane', () => {
     await pane.get('form').trigger('submit')
     await flushPromises()
 
-    expect(store.addStep).toHaveBeenCalledWith(taskId, 'Export the report', STEP_DETAIL_TEMPLATE)
+    expect(store.addStep).toHaveBeenCalledWith(taskId, 'Export the report')
   })
 
   it('saves an edited title a moment after the typing stops', async () => {

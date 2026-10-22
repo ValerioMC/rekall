@@ -67,7 +67,7 @@ async fn world(kind: ConnectionKind, target: Option<&str>, failure: Option<JiraF
     let secrets = Arc::new(InMemorySecretStore::new());
     secrets.put(&connection.secret_ref, &Secret::new("ada@example.com:atl-secret")).unwrap();
     let services = Services::new(ctx.clone());
-    let tasks = TaskService::new(ctx.clone(), services.review.clone(), services.revisions.clone(), services.time_entries.clone());
+    let tasks = TaskService::new(ctx.clone(), services.review.clone(), services.time_entries.clone());
     let jira = Arc::new(FakeJira { issues: vec![issue("ENG-1", "Fix login"), issue("ENG-2", "Add export")], failure, asked: Mutex::new(Vec::new()) });
     let service = JiraIssueService::new(ctx.clone(), ProjectConnectionService::new(ctx), tasks, secrets, jira.clone());
     World { service, jira, project_id: project.id, connection_id: connection.id }

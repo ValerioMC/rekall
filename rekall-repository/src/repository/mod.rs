@@ -12,7 +12,6 @@ pub mod diagram;
 pub mod flow;
 pub mod note;
 pub mod queue;
-pub mod revision;
 pub mod section;
 pub mod skill;
 pub mod step;
@@ -32,7 +31,6 @@ pub use connection::{connection_access, external_connection, project_connection}
 pub use flow::{step_link, step_visit};
 pub use note::document;
 pub use queue::run_queue;
-pub use revision::task_revision;
 pub use section::project_section;
 pub use skill::{skill_placement, tag_skill, task_skill};
 pub use step::task_step;

@@ -1,4 +1,4 @@
-//! `RekallEndToEndTest`, part five: companies, revisions, proposed steps, notes a
+//! `RekallEndToEndTest`, part five: companies, proposed steps, notes a
 //! session writes, the path picker's folder listing, search, context size, the stateless MCP era over real HTTP, the console's routes, and local access.
 
 mod support;
@@ -63,49 +63,6 @@ async fn a_project_cannot_exist_without_a_company() {
     let app = app().await;
     let refused = app.post("/api/projects", json!({ "label": "orphan", "title": "Orphan", "status": "ACTIVE" })).await;
     assert_eq!(refused.status, 404);
-}
-
-// --- Revisions
-
-#[tokio::test]
-async fn what_a_sessions_wrapup_replaces_and_what_a_delete_removes_stays_in_the_history_and_comes_back_on_restore() {
-    let app = app().await;
-    let acme = app.a_company("Acme").await;
-    let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
-    let task_id = app.a_task(&project_id, "report-builder").await;
-    app.put(&format!("/api/tasks/{task_id}/wrapup"), json!({ "bodyMarkdown": "Written by hand." })).await;
-
-    app.call_tool("rekall_wrapup", json!({ "anchors": "project:vega task:report-builder", "body": "Written by Claude." })).await;
-    app.delete(&format!("/api/tasks/{task_id}/wrapup")).await;
-
-    let revisions = app.get(&format!("/api/tasks/{task_id}/revisions?kind=WRAPUP")).await.list();
-    let bodies: Vec<&str> = revisions.iter().map(|r| r["bodyMarkdown"].as_str().unwrap()).collect();
-    assert_eq!(bodies, ["Written by Claude.", "Written by hand."]);
-
-    let hand_written = revisions[1]["id"].as_str().unwrap();
-    let restored = app.post(&format!("/api/tasks/{task_id}/revisions/{hand_written}/restore"), json!({})).await;
-
-    assert_eq!(restored.str("kind"), "WRAPUP");
-    assert_contains!(app.call_tool("rekall_context", json!({ "anchors": "project:vega task:report-builder" })).await, "Written by hand.");
-}
-
-#[tokio::test]
-async fn a_description_edited_as_it_is_typed_keeps_the_version_from_before_the_editing_not_every_keystroke() {
-    let app = app().await;
-    let acme = app.a_company("Acme").await;
-    let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
-    let task_id = app.a_task(&project_id, "report-builder").await;
-    for text in ["First brief.", "First brief, ed", "First brief, edited."] {
-        app.put(
-            &format!("/api/tasks/{task_id}"),
-            json!({ "label": "report-builder", "title": "report-builder", "status": "TODO", "description": text, "projectId": project_id }),
-        )
-        .await;
-    }
-
-    let revisions = app.get(&format!("/api/tasks/{task_id}/revisions?kind=DESCRIPTION")).await.list();
-    let bodies: Vec<&str> = revisions.iter().map(|r| r["bodyMarkdown"].as_str().unwrap()).collect();
-    assert_eq!(bodies, ["First brief."]);
 }
 
 // --- Proposed steps

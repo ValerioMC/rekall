@@ -83,6 +83,17 @@ async fn a_file_from(path: &std::path::Path, script: &'static str) {
     pool.close().await;
 }
 
+async fn table_exists(db: &impl ConnectionTrait, name: &str) -> bool {
+    db.query_one_raw(sea_orm::Statement::from_sql_and_values(
+        db.get_database_backend(),
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",
+        [name.into()],
+    ))
+    .await
+    .unwrap()
+    .is_some()
+}
+
 async fn applied_versions(db: &impl ConnectionTrait) -> Vec<String> {
     db.query_all_raw(sea_orm::Statement::from_string(
         db.get_database_backend(),
@@ -104,12 +115,13 @@ async fn a_database_written_by_v0_2_moves_onto_the_baseline_with_its_rows() {
     let database = rekall_repository::open(&path).await.unwrap();
     let db = &database.conn;
 
-    assert_eq!(applied_versions(db).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy"]);
+    assert_eq!(applied_versions(db).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision"]);
     let task = Task::find().one(db).await.unwrap().unwrap();
     assert_eq!((task.label.as_str(), task.title.as_str()), ("report", "Report"));
     let wrapup = Wrapup::find().one(db).await.unwrap().unwrap();
     assert_eq!(wrapup.body_markdown, "The report renders.");
     assert_eq!(wrapup.task_id, task.id);
+    assert!(!table_exists(db, "task_revision").await, "earlier versions of a text are no longer kept");
 }
 
 #[tokio::test]
@@ -120,7 +132,7 @@ async fn a_database_on_the_baseline_opens_again_unchanged() {
 
     let database = rekall_repository::open(&path).await.unwrap();
 
-    assert_eq!(applied_versions(&database.conn).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy"]);
+    assert_eq!(applied_versions(&database.conn).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision"]);
 }
 
 #[tokio::test]

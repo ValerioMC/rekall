@@ -1,8 +1,6 @@
-import { restoreRevision as apiRestoreRevision } from '@/features/revisions/api/revisions.api'
 import { deleteWrapup as apiDeleteWrapup, saveWrapup as apiSaveWrapup } from '@/features/wrapup/api/wrapups.api'
 import type { WrapupStreamEvent } from '@/features/catalog/model/catalog'
 import type { TaskId } from '@/model/branded'
-import type { RevisionKind } from '@/features/revisions/model/revision'
 import type { ConsoleState } from '../../../stores/console/console-state'
 import type { useConsoleRefreshes } from '../../../stores/console/useConsoleRefreshes'
 import type { useTimers } from '../../time/store/useTimers'
@@ -45,13 +43,5 @@ export function useWrapupWrites(
     )
   }
 
-  /** Writes a kept revision back as the current text, and reloads whatever showed the old one. */
-  async function restoreRevision(taskId: TaskId, revisionId: string): Promise<RevisionKind> {
-    const restored = await apiRestoreRevision(taskId, revisionId)
-    if (restored.kind === 'WRAPUP') await refreshes.refreshWrapups()
-    await refreshes.refreshTasks()
-    return restored.kind
-  }
-
-  return { saveWrapupBody, removeWrapup, applyWrapupEvent, restoreRevision }
+  return { saveWrapupBody, removeWrapup, applyWrapupEvent }
 }

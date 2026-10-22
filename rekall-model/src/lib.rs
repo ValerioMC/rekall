@@ -20,7 +20,6 @@ pub mod diagram;
 pub mod flow;
 pub mod note;
 pub mod queue;
-pub mod revision;
 pub mod section;
 pub mod skill;
 pub mod step;
@@ -37,7 +36,6 @@ pub use connection::{connection_access, external_connection, project_connection}
 pub use flow::{step_link, step_visit};
 pub use note::{document, document_task, note_scope};
 pub use queue::{run_queue, run_queue_item};
-pub use revision::task_revision;
 pub use section::project_section;
 pub use skill::{skill_name, skill_placement, tag_skill, task_skill};
 pub use step::{step_pass, task_step};
@@ -69,7 +67,6 @@ pub mod prelude {
     pub use super::tag::{Entity as Tag, Model as TagModel};
     pub use super::tag_skill::{Entity as TagSkill, Model as TagSkillModel};
     pub use super::task::{Entity as Task, Model as TaskModel};
-    pub use super::task_revision::{Entity as TaskRevision, Model as TaskRevisionModel};
     pub use super::task_skill::{Entity as TaskSkill, Model as TaskSkillModel};
     pub use super::task_step::{Entity as TaskStep, Model as TaskStepModel};
     pub use super::time_entry::{Entity as TimeEntry, Model as TimeEntryModel};

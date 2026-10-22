@@ -6,7 +6,6 @@ use rekall_service::connection::{JiraIssues, SecretStore};
 use rekall_service::context::ContextSizeService;
 use rekall_service::diagram::DiagramService;
 use rekall_service::flow::{FlowService, StepLinkService};
-use rekall_service::revision::TaskRevisionService;
 use rekall_service::search::SearchService;
 use rekall_service::section::ProjectSectionService;
 use rekall_service::step::TaskStepService;
@@ -15,7 +14,7 @@ use rekall_service::token::TokenUsageService;
 use rekall_service::wrapup::WrapupService;
 use rekall_service::Services;
 
-use crate::{catalog, connection, diagram, filesystem, note, revision, section, component, skill, tag, StepEventStream};
+use crate::{catalog, connection, diagram, filesystem, note, section, component, skill, tag, StepEventStream};
 
 /// What the handlers share: each service a controller calls, and nothing it does not.
 #[derive(Clone)]
@@ -26,7 +25,6 @@ pub struct ApiState {
     pub wrapups: WrapupService,
     pub time_entries: TimeEntryService,
     pub token_usage: TokenUsageService,
-    pub revisions: TaskRevisionService,
     pub commit_references: CommitReferenceService,
     pub context_size: ContextSizeService,
     pub search: SearchService,
@@ -50,7 +48,6 @@ pub struct ApiState {
     pub connection_access: connection::ConnectionAccessQueryService,
     pub jira_issues: connection::JiraIssueService,
     pub icons: catalog::ProjectIconService,
-    pub restorer: revision::RevisionRestoreService,
     pub directories: filesystem::DirectoryListingService,
     pub stream: Arc<StepEventStream>,
 }
@@ -60,18 +57,7 @@ impl ApiState {
     /// reaches only the services it calls. `user_home` is where the path picker starts.
     pub fn new(services: Services, stream: Arc<StepEventStream>, user_home: PathBuf, secrets: Arc<dyn SecretStore>, jira: Arc<dyn JiraIssues>) -> Self {
         let ctx = services.ctx.clone();
-        let tasks = catalog::TaskService::new(
-            ctx.clone(),
-            services.review.clone(),
-            services.revisions.clone(),
-            services.time_entries.clone(),
-        );
-        let restorer = revision::RevisionRestoreService::new(
-            ctx.clone(),
-            services.revisions.clone(),
-            services.wrapups.clone(),
-            tasks.clone(),
-        );
+        let tasks = catalog::TaskService::new(ctx.clone(), services.review.clone(), services.time_entries.clone());
         let project_connections = connection::ProjectConnectionService::new(ctx.clone());
         let jira_issues = connection::JiraIssueService::new(ctx.clone(), project_connections.clone(), tasks.clone(), secrets.clone(), jira);
         Self {
@@ -93,7 +79,6 @@ impl ApiState {
             connection_access: connection::ConnectionAccessQueryService::new(ctx.clone()),
             jira_issues,
             icons: catalog::ProjectIconService::new(ctx),
-            restorer,
             directories: filesystem::DirectoryListingService::new(user_home),
             steps: services.steps,
             step_links: services.step_links,
@@ -101,7 +86,6 @@ impl ApiState {
             wrapups: services.wrapups,
             time_entries: services.time_entries,
             token_usage: services.token_usage,
-            revisions: services.revisions,
             commit_references: services.commit_references,
             context_size: services.context_size,
             search: services.search,

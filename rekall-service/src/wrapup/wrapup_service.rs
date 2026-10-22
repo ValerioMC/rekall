@@ -1,11 +1,10 @@
 use rekall_common::{Id, RekallError, Result};
 use rekall_model::wrapup::{self, MAX_CHARACTERS};
-use rekall_model::{task, RevisionKind, WrapupAuthor};
+use rekall_model::{task, WrapupAuthor};
 use rekall_repository::repository as repo;
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
 use crate::review::TaskReviewService;
-use crate::revision::{RevisionTrigger, TaskRevisionService};
 use crate::{in_read, in_write, load, text_rule, Ctx, Tx};
 
 use super::{WrapupStreamEvent, WrapupView, Written};
@@ -14,12 +13,11 @@ use super::{WrapupStreamEvent, WrapupView, Written};
 pub struct WrapupService {
     ctx: Ctx,
     review: TaskReviewService,
-    revisions: TaskRevisionService,
 }
 
 impl WrapupService {
-    pub fn new(ctx: Ctx, review: TaskReviewService, revisions: TaskRevisionService) -> Self {
-        Self { ctx, review, revisions }
+    pub fn new(ctx: Ctx, review: TaskReviewService) -> Self {
+        Self { ctx, review }
     }
 
     pub async fn find(&self, task_id: Id) -> Result<Option<WrapupView>> {
@@ -61,7 +59,7 @@ impl WrapupService {
     ) -> Result<Written> {
         in_write!(&self.ctx, |tx| {
             let task = load::resolve_task(tx.db(), project_label, task_label).await?;
-            self.write_in(&mut tx, task, body, author, trigger_of(author)).await
+            self.write_in(&mut tx, task, body, author).await
         })
     }
 
@@ -69,31 +67,18 @@ impl WrapupService {
     pub async fn write(&self, task_id: Id, body: Option<&str>, author: WrapupAuthor) -> Result<Written> {
         in_write!(&self.ctx, |tx| {
             let task = load::task_or_unknown(tx.db(), task_id).await?;
-            self.write_in(&mut tx, task, body, author, trigger_of(author)).await
+            self.write_in(&mut tx, task, body, author).await
         })
     }
 
-    /// Writes an earlier revision back as the current wrapup, keeping the one it replaces.
-    pub async fn restore_in(&self, tx: &mut Tx, task_id: Id, body: &str) -> Result<Written> {
-        let task = load::task_or_unknown(tx.db(), task_id).await?;
-        self.write_in(tx, task, Some(body), WrapupAuthor::Hand, RevisionTrigger::Restore).await
-    }
-
-    async fn write_in(
-        &self,
-        tx: &mut Tx,
-        task: task::Model,
-        body: Option<&str>,
-        author: WrapupAuthor,
-        trigger: RevisionTrigger,
-    ) -> Result<Written> {
+    async fn write_in(&self, tx: &mut Tx, task: task::Model, body: Option<&str>, author: WrapupAuthor) -> Result<Written> {
         let text = validated(body)?;
         let project = load::project_of(tx.db(), &task).await?;
         let (current, replaced) = match repo::wrapup::find_of_task(tx.db(), task.id).await? {
             None => (self.create(tx, task.id, text, author).await?, None),
             Some(before) => {
                 let previous = before.written_by;
-                (self.replace(tx, before, text, author, trigger).await?, Some(previous))
+                (self.replace(tx, before, text, author).await?, Some(previous))
             }
         };
         let written = Written { wrapup: WrapupView::of(&current, &task, &project), created: replaced.is_none(), replaced };
@@ -118,21 +103,7 @@ impl WrapupService {
         Ok(created)
     }
 
-    /// The text it replaces goes to the task's revisions first, unless it is the same text.
-    async fn replace(
-        &self,
-        tx: &mut Tx,
-        before: wrapup::Model,
-        text: String,
-        author: WrapupAuthor,
-        trigger: RevisionTrigger,
-    ) -> Result<wrapup::Model> {
-        if before.body_markdown != text {
-            self.revisions
-                .keep_in(tx, before.task_id, RevisionKind::Wrapup, Some(&before.body_markdown), Some(before.written_by),
-                         Some(before.updated_at), trigger)
-                .await?;
-        }
+    async fn replace(&self, tx: &mut Tx, before: wrapup::Model, text: String, author: WrapupAuthor) -> Result<wrapup::Model> {
         let mut after = before.clone();
         after.body_markdown = text;
         after.written_by = author;
@@ -142,23 +113,11 @@ impl WrapupService {
     pub async fn delete(&self, task_id: Id) -> Result<()> {
         in_write!(&self.ctx, |tx| {
             if let Some(found) = repo::wrapup::find_of_task(tx.db(), task_id).await? {
-                self.revisions
-                    .keep_in(&mut tx, task_id, RevisionKind::Wrapup, Some(&found.body_markdown), Some(found.written_by),
-                             Some(found.updated_at), RevisionTrigger::Deletion)
-                    .await?;
                 wrapup::Entity::delete_by_id(found.id).exec(tx.db()).await?;
                 tx.publish(WrapupStreamEvent { task_id, wrapup: None, deleted: true });
             }
             Ok::<_, RekallError>(())
         })
-    }
-}
-
-fn trigger_of(author: WrapupAuthor) -> RevisionTrigger {
-    if author == WrapupAuthor::Claude {
-        RevisionTrigger::ClaudeWrite
-    } else {
-        RevisionTrigger::HandEdit
     }
 }
 

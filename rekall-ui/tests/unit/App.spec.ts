@@ -5,7 +5,6 @@ import App from '@/App.vue'
 import { router } from '@/router'
 import { useConsoleStore } from '@/stores/console.store'
 import { mountWithHeaderChrome } from './support/mountWithHeaderChrome'
-import { TASK_DESCRIPTION_TEMPLATE } from '@/model/templates'
 import type { Company, Project, RekallDocument, Task, TaskStep, Wrapup } from '@/features/catalog/model/catalog'
 import type { DocumentInput } from '@/features/notes/api/documents.api'
 import type {
@@ -702,7 +701,7 @@ describe('the console', () => {
         label: 'retry-policy',
         title: 'Retry policy',
         status: 'TODO',
-        description: TASK_DESCRIPTION_TEMPLATE.trim(),
+        description: null,
         projectId: vega,
         tagId: null
       })

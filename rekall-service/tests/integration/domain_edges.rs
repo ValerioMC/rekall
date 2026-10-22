@@ -11,7 +11,7 @@ use regex::Regex;
 const FOUNDATIONS: [&str; 6] = ["ctx", "events", "load", "services", "text_rule", "tx"];
 
 /// Each domain and the domains it may use.
-const ALLOWED: [(&str, &[&str]); 17] = [
+const ALLOWED: [(&str, &[&str]); 16] = [
     ("claude", &["connection"]),
     ("commit", &[]),
     ("component", &[]),
@@ -21,14 +21,13 @@ const ALLOWED: [(&str, &[&str]); 17] = [
     ("flow", &["step"]),
     ("note", &[]),
     ("review", &["timeentry"]),
-    ("revision", &[]),
     ("search", &[]),
     ("section", &["note"]),
     ("step", &["timeentry"]),
     ("task", &["step"]),
     ("timeentry", &[]),
     ("token", &[]),
-    ("wrapup", &["review", "revision"]),
+    ("wrapup", &["review"]),
 ];
 
 fn rust_files(folder: &Path) -> Vec<PathBuf> {

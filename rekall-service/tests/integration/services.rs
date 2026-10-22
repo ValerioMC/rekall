@@ -8,11 +8,10 @@ use std::fs;
 
 use chrono::TimeDelta;
 use rekall_common::{Id, Instant};
-use rekall_model::{task_revision, RevisionKind, TaskStepState, WrapupAuthor};
+use rekall_model::TaskStepState;
 use rekall_service::commit::AutoCommitStatus;
 use rekall_service::component::ComponentReferences;
 use rekall_service::timeentry::IDLE_AFTER;
-use rekall_service::revision::{RevisionTrigger, KEPT_PER_KIND};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 use support::{commit, git, init_with_identity, world, world_at};
 
@@ -235,101 +234,6 @@ async fn a_logged_commit_is_chosen_for_the_context_and_a_missing_flag_reads_as_o
     references.delete(logged.id).await.unwrap();
     assert!(references.find_all().await.unwrap().is_empty());
     let _ = task;
-}
-
-// ------------------------------------------------------------------------------ revisions
-
-async fn revision(world: &support::World, task_id: Id, body: &str, created_at: Instant) {
-    task_revision::Model {
-        id: Id::random(),
-        task_id,
-        kind: RevisionKind::Wrapup,
-        body_markdown: body.into(),
-        written_by: Some(WrapupAuthor::Hand),
-        written_at: None,
-        created_at,
-    }
-    .into_active_model()
-    .insert(world.db())
-    .await
-    .unwrap();
-}
-
-async fn keep(world: &support::World, task_id: Id, text: &str, author: Option<WrapupAuthor>, written_at: Option<Instant>, trigger: RevisionTrigger) -> bool {
-    let mut tx = world.services.ctx.write().await.unwrap();
-    let kept = world.services.revisions.keep_in(&mut tx, task_id, RevisionKind::Wrapup, Some(text), author, written_at, trigger).await;
-    tx.finish(kept).await.unwrap()
-}
-
-#[tokio::test]
-async fn the_text_a_sessions_write_replaces_is_kept_with_who_wrote_it_and_when() {
-    let now = Instant::parse("2026-09-22T10:00:00Z").unwrap();
-    let world = world_at(now).await;
-    let project = world.project("vega", None, false).await;
-    let task = world.task(&project, "t").await;
-    let written_at = now.minus(TimeDelta::days(1));
-
-    assert!(keep(&world, task.id, "old wrapup", Some(WrapupAuthor::Hand), Some(written_at), RevisionTrigger::ClaudeWrite).await);
-
-    let kept = world.services.revisions.list(task.id, RevisionKind::Wrapup).await.unwrap();
-    assert_eq!(kept.len(), 1);
-    assert_eq!(kept[0].body_markdown, "old wrapup");
-    assert_eq!(kept[0].written_by, Some(WrapupAuthor::Hand));
-    assert_eq!(kept[0].written_at, Some(written_at));
-}
-
-#[tokio::test]
-async fn blank_text_or_text_the_newest_revision_already_holds_is_not_kept() {
-    let now = Instant::parse("2026-09-22T10:00:00Z").unwrap();
-    let world = world_at(now).await;
-    let project = world.project("vega", None, false).await;
-    let task = world.task(&project, "t").await;
-    assert!(!keep(&world, task.id, "  ", None, None, RevisionTrigger::Deletion).await);
-    revision(&world, task.id, "same text", now.minus(TimeDelta::days(3))).await;
-    assert!(!keep(&world, task.id, "same text", None, None, RevisionTrigger::ClaudeWrite).await);
-}
-
-#[tokio::test]
-async fn hand_edits_over_hand_written_text_keep_one_revision_per_ten_minute_window() {
-    let now = Instant::parse("2026-09-22T10:00:00Z").unwrap();
-    let world = world_at(now).await;
-    let project = world.project("vega", None, false).await;
-    let task = world.task(&project, "t").await;
-    revision(&world, task.id, "before typing", now.minus(TimeDelta::minutes(3))).await;
-    assert!(!keep(&world, task.id, "half typed", Some(WrapupAuthor::Hand), None, RevisionTrigger::HandEdit).await);
-
-    let later = world.project("later", None, false).await;
-    let other = world.task(&later, "t").await;
-    revision(&world, other.id, "before typing", now.minus(TimeDelta::minutes(11))).await;
-    assert!(keep(&world, other.id, "an hour later", Some(WrapupAuthor::Hand), None, RevisionTrigger::HandEdit).await);
-}
-
-#[tokio::test]
-async fn a_hand_edit_over_a_sessions_text_and_a_deletion_or_restore_are_always_kept() {
-    let now = Instant::parse("2026-09-22T10:00:00Z").unwrap();
-    let world = world_at(now).await;
-    let project = world.project("vega", None, false).await;
-    let task = world.task(&project, "t").await;
-    revision(&world, task.id, "older", now.minus(TimeDelta::minutes(1))).await;
-    assert!(keep(&world, task.id, "claude's version", Some(WrapupAuthor::Claude), None, RevisionTrigger::HandEdit).await);
-    assert!(keep(&world, task.id, "deleted", Some(WrapupAuthor::Hand), None, RevisionTrigger::Deletion).await);
-    assert!(keep(&world, task.id, "restored over", Some(WrapupAuthor::Hand), None, RevisionTrigger::Restore).await);
-}
-
-#[tokio::test]
-async fn past_thirty_revisions_of_one_text_the_oldest_are_dropped() {
-    let now = Instant::parse("2026-09-22T10:00:00Z").unwrap();
-    let world = world_at(now).await;
-    let project = world.project("vega", None, false).await;
-    let task = world.task(&project, "t").await;
-    for at in 0..(KEPT_PER_KIND + 1) {
-        revision(&world, task.id, &format!("revision {at}"), now.minus(TimeDelta::hours(100 - at as i64))).await;
-    }
-    keep(&world, task.id, "one more", None, None, RevisionTrigger::ClaudeWrite).await;
-    let kept = world.services.revisions.list(task.id, RevisionKind::Wrapup).await.unwrap();
-    assert_eq!(kept.len(), KEPT_PER_KIND);
-    assert_eq!(kept[0].body_markdown, "one more");
-    assert!(kept.iter().all(|r| r.body_markdown != "revision 0" && r.body_markdown != "revision 1"));
 }
 
 // ------------------------------------------------------------------------------ time entries

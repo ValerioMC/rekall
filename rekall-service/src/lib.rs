@@ -15,7 +15,6 @@ pub mod events;
 pub mod flow;
 pub mod note;
 pub mod review;
-pub mod revision;
 pub mod search;
 pub mod section;
 pub mod step;

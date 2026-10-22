@@ -1,6 +1,6 @@
 use axum::Router;
 
-use crate::{catalog, commit, component, connection, context, diagram, filesystem, flow, note, revision, search, section, skill, step, stream, tag, timeentry, token, wrapup, ApiState};
+use crate::{catalog, commit, component, connection, context, diagram, filesystem, flow, note, search, section, skill, step, stream, tag, timeentry, token, wrapup, ApiState};
 
 /// Every `/api` route this module owns.
 pub fn router(state: ApiState) -> Router {
@@ -20,7 +20,6 @@ pub fn routes() -> Router<ApiState> {
         .merge(filesystem::routes())
         .merge(flow::routes())
         .merge(note::routes())
-        .merge(revision::routes())
         .merge(search::routes())
         .merge(section::routes())
         .merge(skill::routes())

@@ -12,7 +12,6 @@ import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { provideStepEditor } from '@/features/steps/composables/useStepEditor'
 import { stepIsComplete, type TaskStep } from '@/features/catalog/model/catalog'
-import { STEP_DETAIL_TEMPLATE } from '@/model/templates'
 import type { TaskStepId } from '@/model/branded'
 
 const store = useConsoleStore()
@@ -166,7 +165,7 @@ async function add(): Promise<void> {
   newTitle.value = ''
   newSkills.value = []
   const created = await run(async () => {
-    const step = await store.addStep(selectedTask.value!.id, title, STEP_DETAIL_TEMPLATE)
+    const step = await store.addStep(selectedTask.value!.id, title)
     if (skills.length) await store.assignStepSkills(step.id, skills)
     return step
   })

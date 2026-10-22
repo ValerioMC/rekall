@@ -1,12 +1,10 @@
-//! Tasks: listed, created, edited, reviewed and deleted from the console. Every change to a
-//! description keeps the text it replaces as a revision, and moving a task to `DONE` stops its
-//! timer.
+//! Tasks: listed, created, edited, reviewed and deleted from the console. Moving a task to `DONE`
+//! stops its timer.
 
 use rekall_common::{jstr, Id, RekallError, Result};
-use rekall_model::{project, task, RevisionKind, Slug, TaskStatus, TaskStepState};
+use rekall_model::{project, task, Slug, TaskStatus, TaskStepState};
 use rekall_repository::repository as repo;
 use rekall_service::review::TaskReviewService;
-use rekall_service::revision::{RevisionTrigger, TaskRevisionService};
 use rekall_service::timeentry::TimeEntryService;
 use rekall_service::{in_read, in_write, Ctx, Tx};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
@@ -18,13 +16,12 @@ use crate::catalog::{TaskRequest, TaskResponse};
 pub struct TaskService {
     ctx: Ctx,
     review: TaskReviewService,
-    revisions: TaskRevisionService,
     time_entries: TimeEntryService,
 }
 
 impl TaskService {
-    pub fn new(ctx: Ctx, review: TaskReviewService, revisions: TaskRevisionService, time_entries: TimeEntryService) -> Self {
-        Self { ctx, review, revisions, time_entries }
+    pub fn new(ctx: Ctx, review: TaskReviewService, time_entries: TimeEntryService) -> Self {
+        Self { ctx, review, time_entries }
     }
 
     pub async fn list(&self, project_id: Option<Id>) -> Result<Vec<TaskResponse>> {
@@ -63,8 +60,6 @@ impl TaskService {
     pub async fn update(&self, id: Id, request: TaskRequest) -> Result<TaskResponse> {
         in_write!(&self.ctx, |tx| {
             let before = repo::task::require(tx.db(), id).await?;
-            self.keep_description_if_replaced(&mut tx, &before, request.description.as_deref(), RevisionTrigger::HandEdit)
-                .await?;
             let mut task = before.clone();
             task.label = Slug::of(request.label.as_deref())?;
             task.title = trimmed_title(&request);
@@ -78,16 +73,6 @@ impl TaskService {
             }
             Ok(response)
         })
-    }
-
-    /// Writes an earlier revision back as the task's description, keeping the one it replaces.
-    pub async fn restore_description_in(&self, tx: &mut Tx, id: Id, description: &str) -> Result<TaskResponse> {
-        let before = repo::task::require(tx.db(), id).await?;
-        self.keep_description_if_replaced(tx, &before, Some(description), RevisionTrigger::Restore).await?;
-        let mut task = before.clone();
-        task.description = Some(description.to_string());
-        let task = repo::update_if_changed(tx.db(), &before, task, self.ctx.now()).await?;
-        response(tx, &task).await
     }
 
     /// `DONE` accepts a stepless task, `OPEN` sends it back; other states are refused.
@@ -119,22 +104,6 @@ impl TaskService {
             task::Entity::delete_by_id(task.id).exec(tx.db()).await?;
             Ok::<_, RekallError>(())
         })
-    }
-
-    async fn keep_description_if_replaced(
-        &self,
-        tx: &mut Tx,
-        task: &task::Model,
-        incoming: Option<&str>,
-        trigger: RevisionTrigger,
-    ) -> Result<()> {
-        if task.description.as_deref() == incoming {
-            return Ok(());
-        }
-        self.revisions
-            .keep_in(tx, task.id, RevisionKind::Description, task.description.as_deref(), None, None, trigger)
-            .await?;
-        Ok(())
     }
 }
 
