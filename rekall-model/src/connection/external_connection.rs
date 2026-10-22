@@ -11,6 +11,7 @@ use crate::enums::ConnectionKind;
 pub const LABEL_MAX_CHARACTERS: usize = 120;
 pub const TITLE_MAX_CHARACTERS: usize = 200;
 pub const BASE_URL_MAX_CHARACTERS: usize = 1_000;
+pub const PROXY_URL_MAX_CHARACTERS: usize = 1_000;
 pub const KUBE_CONTEXT_MAX_CHARACTERS: usize = 253;
 pub const SECRET_REF_MAX_CHARACTERS: usize = 80;
 
@@ -29,6 +30,8 @@ pub struct Model {
     pub base_url: Option<String>,
     /// The kubeconfig context chosen on import.
     pub kube_context: Option<String>,
+    /// Jira only: the proxy every call to the site goes through; none goes direct.
+    pub proxy_url: Option<String>,
     /// The keychain account holding the credential, generated with the row.
     pub secret_ref: String,
     /// When a credential was stored; none means the keychain holds nothing for this row.
@@ -62,6 +65,7 @@ impl Model {
             kind,
             base_url,
             kube_context: None,
+            proxy_url: None,
             secret_ref: format!("connection-{id}"),
             secret_set_at: None,
             created_at: now,
@@ -76,6 +80,7 @@ impl Model {
     pub fn validate(&self) -> Result<(), RekallError> {
         self.check_kind_fields()?;
         self.check_base_url()?;
+        self.check_proxy_url()?;
         Violations::new("Connection")
             .not_blank("label", Some(&self.label))
             .max_length("label", Some(&self.label), LABEL_MAX_CHARACTERS)
@@ -84,6 +89,7 @@ impl Model {
             .max_length("title", Some(&self.title), TITLE_MAX_CHARACTERS)
             .max_length("baseUrl", self.base_url.as_deref(), BASE_URL_MAX_CHARACTERS)
             .max_length("kubeContext", self.kube_context.as_deref(), KUBE_CONTEXT_MAX_CHARACTERS)
+            .max_length("proxyUrl", self.proxy_url.as_deref(), PROXY_URL_MAX_CHARACTERS)
             .not_blank("secretRef", Some(&self.secret_ref))
             .max_length("secretRef", Some(&self.secret_ref), SECRET_REF_MAX_CHARACTERS)
             .finish()
@@ -101,6 +107,9 @@ impl Model {
             ConnectionKind::Gitlab | ConnectionKind::Jira if self.kube_context.is_some() => {
                 Err(RekallError::illegal("Only a Kubernetes connection has a kubeconfig context."))
             }
+            ConnectionKind::Gitlab | ConnectionKind::Kubernetes if self.proxy_url.is_some() => {
+                Err(RekallError::illegal("Only a Jira connection takes a proxy. A cluster is reached through its kubeconfig's proxy-url."))
+            }
             _ => Ok(()),
         }
     }
@@ -114,6 +123,24 @@ impl Model {
             _ => Ok(()),
         }
     }
+
+    /// The address is stored and shown as typed, so a user or password in it is refused rather than echoed.
+    fn check_proxy_url(&self) -> Result<(), RekallError> {
+        match self.proxy_url.as_deref() {
+            Some(url) if !is_usable_proxy_url(url) => Err(RekallError::illegal(
+                "A proxy has to be an http:// or https:// address, such as http://proxy.example.com:8080, with no user or password in it.",
+            )),
+            _ => Ok(()),
+        }
+    }
+}
+
+fn is_usable_proxy_url(url: &str) -> bool {
+    let Some(rest) = url.strip_prefix("http://").or_else(|| url.strip_prefix("https://")) else {
+        return false;
+    };
+    let authority = rest.split(['/', '?', '#']).next().unwrap_or("");
+    !authority.contains('@') && !host_of(rest).is_empty()
 }
 
 fn is_allowed_base_url(url: &str) -> bool {

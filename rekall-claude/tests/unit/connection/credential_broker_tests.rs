@@ -63,6 +63,7 @@ fn terminal(connection: &external_connection::Model, target: Option<&str>) -> Te
         label: connection.label.clone(),
         target: target.map(str::to_string),
         instance_url: connection.base_url.clone().filter(|_| connection.kind.reached_at_typed_url()),
+        proxy_url: connection.proxy_url.clone(),
         secret_ref: connection.secret_ref.clone(),
         credential_set: connection.has_credential(),
     }

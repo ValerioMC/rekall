@@ -11,6 +11,7 @@ export const ConnectionSchema = z.object({
   title: z.string(),
   baseUrl: z.string().nullable(),
   kubeContext: z.string().nullable(),
+  proxyUrl: z.string().nullable(),
   credentialSetAt: z.string().nullable(),
   projectCount: z.number().int(),
   updatedAt: z.string()

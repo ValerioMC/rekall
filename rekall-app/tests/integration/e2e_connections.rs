@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use rekall_app::server::StartOptions;
-use rekall_service::connection::{InMemorySecretStore, JiraCredential, JiraFailure, JiraIssue, JiraIssues, SecretStore};
+use rekall_service::connection::{InMemorySecretStore, JiraCredential, JiraFailure, JiraIssue, JiraIssues, JiraSite, SecretStore};
 use serde_json::json;
 use support::{app, app_with, app_with_secrets, id};
 
@@ -174,13 +174,13 @@ async fn the_context_names_a_projects_connections_and_never_their_credential_or_
     }
 }
 
-/// A Jira site with two open issues, which answers only the credential the test stores.
+/// A Jira site behind a proxy with two open issues, which answers only the credential the test stores.
 struct FakeJira;
 
 #[async_trait]
 impl JiraIssues for FakeJira {
-    async fn search(&self, site: &str, credential: &JiraCredential, _jql: &str, _limit: u16) -> Result<Vec<JiraIssue>, JiraFailure> {
-        assert_eq!((site, credential.email()), ("https://example.atlassian.net", "ada@example.com"));
+    async fn search(&self, site: &JiraSite, credential: &JiraCredential, _jql: &str, _limit: u16) -> Result<Vec<JiraIssue>, JiraFailure> {
+        assert_eq!((site.url.as_str(), site.proxy_url.as_deref(), credential.email()), ("https://example.atlassian.net", Some("http://proxy.example.com:8080"), "ada@example.com"));
         let issue = |key: &str, summary: &str| JiraIssue { key: key.into(), summary: summary.into(), status: Some("To Do".into()), issue_type: Some("Story".into()), description: Some("Steps.".into()) };
         Ok(vec![issue("ENG-1", "Fix login"), issue("ENG-2", "Add export")])
     }
@@ -193,7 +193,9 @@ async fn a_jira_connection_imports_the_issues_a_project_picks_as_its_tasks() {
     let app = app_with(&[], options).await;
     let acme = app.a_company("Acme").await;
     let vega = app.a_project(&acme, "vega", "ACTIVE").await;
-    let jira = id(&app.post(&format!("/api/companies/{acme}/connections"), json!({ "kind": "JIRA", "title": "Jira", "baseUrl": "https://example.atlassian.net" })).await);
+    let created = app.post(&format!("/api/companies/{acme}/connections"), json!({ "kind": "JIRA", "title": "Jira", "baseUrl": "https://example.atlassian.net", "proxyUrl": " http://proxy.example.com:8080 " })).await;
+    assert_eq!(created.str("proxyUrl"), "http://proxy.example.com:8080");
+    let jira = id(&created);
     let set = app.put(&format!("/api/connections/{jira}/credential"), json!({ "email": "ada@example.com", "token": "atl-secret" })).await;
     assert_eq!(set.status, 200, "{}", set.text);
     assert!(!set.text.contains("atl-secret"));
@@ -211,4 +213,18 @@ async fn a_jira_connection_imports_the_issues_a_project_picks_as_its_tasks() {
     assert!(!app.get(&issues).await.list()[0]["taskId"].is_null(), "an imported issue names its task");
 
     assert_eq!(app.post(&format!("{issues}/import"), json!({ "keys": ["OPS-1"] })).await.status, 400);
+}
+
+#[tokio::test]
+async fn only_a_jira_connection_takes_a_proxy_and_a_blank_one_clears_it() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let url = format!("/api/companies/{acme}/connections");
+    let jira = id(&app.post(&url, json!({ "kind": "JIRA", "title": "Jira", "baseUrl": "https://example.atlassian.net", "proxyUrl": "http://proxy.example.com:8080" })).await);
+
+    assert_eq!(app.post(&url, json!({ "kind": "GITLAB", "title": "GitLab", "baseUrl": "https://gitlab.example.com", "proxyUrl": "http://proxy.example.com:8080" })).await.status, 400);
+    let with_password = app.put(&format!("/api/connections/{jira}"), json!({ "proxyUrl": "http://ada:s3cret@proxy.example.com:8080" })).await;
+    assert_eq!(with_password.status, 400);
+    assert!(!with_password.text.contains("s3cret"));
+    assert!(app.put(&format!("/api/connections/{jira}"), json!({ "proxyUrl": "" })).await.get("proxyUrl").is_null());
 }

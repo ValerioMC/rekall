@@ -34,3 +34,9 @@ fn a_blank_target_means_none() {
     assert_eq!(target_of(Some("  ")), None);
     assert_eq!(target_of(Some(" group/app ")).as_deref(), Some("group/app"));
 }
+
+#[test]
+fn a_blank_proxy_means_the_site_is_reached_direct() {
+    assert_eq!(proxy_url_of(Some("  ")), None);
+    assert_eq!(proxy_url_of(Some(" http://proxy.example.com:8080 ")).as_deref(), Some("http://proxy.example.com:8080"));
+}

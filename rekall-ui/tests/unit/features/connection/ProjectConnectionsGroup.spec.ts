@@ -37,6 +37,7 @@ function connection(id: string): Connection {
     title: `The ${id}`,
     baseUrl: null,
     kubeContext: null,
+    proxyUrl: null,
     credentialSetAt: null,
     projectCount: 0,
     updatedAt: '2026-10-21T10:00:00Z'

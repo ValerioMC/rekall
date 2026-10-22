@@ -10,7 +10,7 @@ import ConnectionKindIcon from '@/features/connection/components/ConnectionKindI
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { slugify } from '@/features/catalog/model/catalog'
 import { emptyDraft, isComplete, isStarted } from '@/features/connection/lib/credential-draft'
-import { CREDENTIAL_FIELD, URL_FIELD } from '@/features/connection/lib/connection-fields'
+import { CREDENTIAL_FIELD, TAKES_PROXY, URL_FIELD } from '@/features/connection/lib/connection-fields'
 import { CONNECTION_KINDS, CONNECTION_KIND_LABEL } from '@/features/connection/model/connection'
 import { useConnectionsStore } from '@/features/connection/store/connections.store'
 import type {
@@ -21,7 +21,7 @@ import type {
 } from '@/features/connection/model/connection'
 import type { CompanyId } from '@/model/branded'
 
-/** Creates a company's connection, with its credential if one is given, or edits one's name and URL. */
+/** Creates a company's connection, with its credential if one is given, or edits one's name, URL and proxy. */
 const props = defineProps<{
   companyId: CompanyId
   connection: Connection | null
@@ -37,6 +37,7 @@ const kind = ref<ConnectionKind>(props.connection?.kind ?? props.initialKind ?? 
 const title = ref(props.connection?.title ?? '')
 const label = ref(props.connection?.label ?? '')
 const baseUrl = ref(props.connection?.baseUrl ?? '')
+const proxyUrl = ref(props.connection?.proxyUrl ?? '')
 const credential = ref<CredentialDraft>(emptyDraft(kind.value))
 const submitted = ref(false)
 const titleInput = ref<HTMLElement | null>(null)
@@ -50,6 +51,7 @@ const slug = computed(() => slugify(label.value || title.value))
 const titleError = computed(() => (submitted.value && !title.value.trim() ? 'A title is required.' : null))
 const urlField = computed(() => URL_FIELD[kind.value])
 const credentialField = computed(() => CREDENTIAL_FIELD[kind.value])
+const takesProxy = computed(() => TAKES_PROXY[kind.value])
 const urlMissing = computed(() => urlField.value !== null && !baseUrl.value.trim())
 const urlError = computed(() =>
   submitted.value && urlMissing.value ? `The ${urlField.value?.label} is required.` : null
@@ -64,7 +66,8 @@ const canSave = computed(() => !!title.value.trim() && !!slug.value && !urlMissi
 function input(): ConnectionInput {
   const typed = { title: title.value.trim(), label: slug.value }
   const withUrl = urlField.value ? { ...typed, baseUrl: baseUrl.value.trim() } : typed
-  return isNew ? { ...withUrl, kind: kind.value } : withUrl
+  const withProxy = takesProxy.value ? { ...withUrl, proxyUrl: proxyUrl.value.trim() } : withUrl
+  return isNew ? { ...withProxy, kind: kind.value } : withProxy
 }
 
 async function save(): Promise<void> {
@@ -175,6 +178,22 @@ onMounted(async () => {
           mono
           data-testid="connection-url"
           :placeholder="urlField.placeholder"
+        />
+      </AppField>
+
+      <AppField
+        v-if="takesProxy"
+        v-slot="{ fieldId, describedBy }"
+        label="Proxy URL"
+        hint="Optional. Check now, the issue import and rekall-jira all reach the site through it."
+      >
+        <AppInput
+          :id="fieldId"
+          v-model="proxyUrl"
+          :described-by="describedBy"
+          mono
+          data-testid="connection-proxy"
+          placeholder="http://proxy.example.com:8080"
         />
       </AppField>
 

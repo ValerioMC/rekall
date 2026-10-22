@@ -26,6 +26,11 @@ pub(super) fn base_url_of(kind: ConnectionKind, raw: Option<&str>) -> Result<Opt
     Ok(url)
 }
 
+/// A blank proxy means the site is reached direct.
+pub(super) fn proxy_url_of(raw: Option<&str>) -> Option<String> {
+    raw.map(jstr::strip).filter(|url| !url.is_empty()).map(str::to_string)
+}
+
 /// A blank target means the project uses the connection as a whole.
 pub(super) fn target_of(raw: Option<&str>) -> Option<String> {
     raw.map(jstr::strip).filter(|target| !target.is_empty()).map(str::to_string)

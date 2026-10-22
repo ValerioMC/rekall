@@ -3,7 +3,7 @@ use std::sync::Arc;
 use rekall_common::{Id, InternalFailure, RekallError, Result};
 use rekall_model::{external_connection, ConnectionKind};
 use rekall_repository::repository as repo;
-use rekall_service::connection::{JiraCredential, KubeAccess, Secret, SecretStore};
+use rekall_service::connection::{JiraCredential, JiraSite, KubeAccess, Secret, SecretStore};
 use rekall_service::{in_read, Ctx};
 
 use super::{ConnectionCheck, ConnectionProbe, ProbeOutcome};
@@ -30,7 +30,7 @@ impl ConnectionCheckService {
         let outcome = match connection.kind {
             ConnectionKind::Gitlab => self.probe.gitlab(connection.base_url.as_deref().unwrap_or_default(), &stored).await,
             ConnectionKind::Kubernetes => self.probe.kubernetes(&KubeAccess::from_stored(&stored)?).await,
-            ConnectionKind::Jira => self.probe.jira(connection.base_url.as_deref().unwrap_or_default(), &JiraCredential::from_stored(&stored)?).await,
+            ConnectionKind::Jira => self.probe.jira(&JiraSite::of(&connection), &JiraCredential::from_stored(&stored)?).await,
         };
         Ok(self.answer(matches!(outcome, ProbeOutcome::Accepted { .. }), described(&outcome)))
     }

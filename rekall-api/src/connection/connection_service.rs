@@ -10,7 +10,7 @@ use rekall_service::connection::{ConnectionStreamEvent, SecretStore};
 use rekall_service::{in_read, in_write, Ctx, Tx};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
-use super::connection_rules::{base_url_of, kind_of, label_of, title_of};
+use super::connection_rules::{base_url_of, kind_of, label_of, proxy_url_of, title_of};
 use super::credential_keeping::forget_leftover;
 use super::{ConnectionDetailResponse, ConnectionRemovedResponse, ConnectionRequest, ConnectionResponse};
 
@@ -53,7 +53,8 @@ impl ConnectionService {
             let label = label_of(request.label.as_deref(), &title)?;
             require_label_free(&tx, company_id, &label, None).await?;
             let base_url = base_url_of(kind, request.base_url.as_deref())?;
-            let connection = external_connection::Model::new(company_id, label, title, kind, base_url, self.ctx.now());
+            let mut connection = external_connection::Model::new(company_id, label, title, kind, base_url, self.ctx.now());
+            connection.proxy_url = proxy_url_of(request.proxy_url.as_deref());
             connection.validate()?;
             connection.clone().into_active_model().insert(tx.db()).await?;
             tx.publish(ConnectionStreamEvent { company_id });
@@ -77,6 +78,9 @@ impl ConnectionService {
             }
             if request.base_url.is_some() {
                 connection.base_url = base_url_of(connection.kind, request.base_url.as_deref())?;
+            }
+            if request.proxy_url.is_some() {
+                connection.proxy_url = proxy_url_of(request.proxy_url.as_deref());
             }
             if connection != before {
                 tx.publish(ConnectionStreamEvent { company_id: connection.company_id });

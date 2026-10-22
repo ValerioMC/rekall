@@ -40,8 +40,9 @@ impl ConnectionProbe for FakeProbe {
         self.outcome.clone()
     }
 
-    async fn jira(&self, site: &str, credential: &JiraCredential) -> ProbeOutcome {
-        self.asked.lock().unwrap().push(format!("{site} as {}", credential.email()));
+    async fn jira(&self, site: &JiraSite, credential: &JiraCredential) -> ProbeOutcome {
+        let proxy = site.proxy_url.as_deref().unwrap_or("no proxy");
+        self.asked.lock().unwrap().push(format!("{} via {proxy} as {}", site.url, credential.email()));
         self.outcome.clone()
     }
 }
@@ -73,6 +74,7 @@ impl World {
             ConnectionKind::Kubernetes => None,
         };
         let mut connection = external_connection::Model::new(self.company_id, "conn".into(), "Conn".into(), kind, base_url, Instant::now());
+        connection.proxy_url = (kind == ConnectionKind::Jira).then(|| "http://proxy.example.com:8080".to_string());
         if let Some(credential) = credential {
             self.secrets.put(&connection.secret_ref, &Secret::new(credential)).unwrap();
             connection.secret_set_at = Some(Instant::now());
@@ -139,7 +141,7 @@ async fn a_rejection_says_to_replace_the_credential() {
 }
 
 #[tokio::test]
-async fn a_jira_check_asks_the_site_with_the_stored_email_and_token() {
+async fn a_jira_check_asks_the_site_through_its_proxy_with_the_stored_email_and_token() {
     let world = world(ProbeOutcome::Accepted { identity: Some("Ada Lovelace".into()), version: None }).await;
     let id = world.connection(ConnectionKind::Jira, Some("ada@example.com:atl-secret")).await;
 
@@ -147,5 +149,5 @@ async fn a_jira_check_asks_the_site_with_the_stored_email_and_token() {
 
     assert!(check.ok);
     assert_eq!(check.detail, "Signed in as Ada Lovelace.");
-    assert_eq!(*world.probe.asked.lock().unwrap(), ["https://example.atlassian.net as ada@example.com"]);
+    assert_eq!(*world.probe.asked.lock().unwrap(), ["https://example.atlassian.net via http://proxy.example.com:8080 as ada@example.com"]);
 }

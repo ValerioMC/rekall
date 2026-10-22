@@ -12,6 +12,7 @@ fn gitlab(label: &str, target: Option<&str>) -> TerminalConnection {
         label: label.into(),
         target: target.map(str::to_string),
         instance_url: Some("https://gitlab.example.com/".into()),
+        proxy_url: None,
         secret_ref: "connection-x".into(),
         credential_set: true,
     }
@@ -50,7 +51,7 @@ fn the_git_helper_answers_get_only() {
 #[test]
 fn the_gitlab_wrapper_knows_each_instance_and_project_path() {
     let script = api_wrapper(&GITLAB_API, ENDPOINT, &[&gitlab("gitlab", Some("acme/vega app"))]);
-    assert!(script.contains("  'gitlab') base='https://gitlab.example.com/api/v4'; project='acme%2Fvega%20app' ;;"));
+    assert!(script.contains("  'gitlab') base='https://gitlab.example.com/api/v4'; project='acme%2Fvega%20app'; proxy='' ;;"));
     assert!(script.contains("\"$label?for=gitlab\""));
 }
 
@@ -64,10 +65,18 @@ fn the_gitlab_wrapper_sends_only_the_token_header() {
 fn the_jira_wrapper_calls_the_rest_api_of_each_site_with_json_both_ways() {
     let script = api_wrapper(&JIRA_API, ENDPOINT, &[&jira()]);
     assert!(script.contains("usage: rekall-jira --connection <label> <METHOD> <path> [curl options]"));
-    assert!(script.contains("  'jira') base='https://example.atlassian.net/rest/api/3'; project='ENG' ;;"));
+    assert!(script.contains("  'jira') base='https://example.atlassian.net/rest/api/3'; project='ENG'; proxy='' ;;"));
     assert!(script.contains("\"$label?for=jira\""));
     assert!(script.contains("-H @- -H 'Accept: application/json' -H 'Content-Type: application/json' \"$base$path\""));
     assert!(script.contains("this terminal has no Jira connection labelled"));
+}
+
+#[test]
+fn the_jira_wrapper_sends_its_calls_through_the_connections_proxy() {
+    let behind = TerminalConnection { proxy_url: Some("http://proxy.example.com:8080".into()), ..jira() };
+    let script = api_wrapper(&JIRA_API, ENDPOINT, &[&behind]);
+    assert!(script.contains("project='ENG'; proxy='http://proxy.example.com:8080' ;;"));
+    assert!(script.contains("[ -n \"$proxy\" ] && set -- --proxy \"$proxy\" \"$@\""));
 }
 
 #[test]

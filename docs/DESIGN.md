@@ -186,7 +186,7 @@ Project ──< ProjectConnection >──┘
 | `step_visit` | through its task | `task_id`, `step_id`, `ordinal` unique per task, `entered_at`, `left_at`, `outcome`; deleted with its step |
 | `wrapup` | through its task | `task_id` unique, `body_markdown`, `written_by` |
 | `project_component` | through its project | `project_id`, `name`, `folder`, `description`, `position` |
-| `external_connection` | `label`, unique per company | `company_id`, `title`, `kind` (`GITLAB`, `KUBERNETES`, `JIRA`), `base_url` (the GitLab instance or Jira site, or the server read from an imported kubeconfig), `kube_context`, `secret_ref` (the OS keychain account holding the credential, generated, unique), `secret_set_at` (null while no credential is stored). No column holds a credential |
+| `external_connection` | `label`, unique per company | `company_id`, `title`, `kind` (`GITLAB`, `KUBERNETES`, `JIRA`), `base_url` (the GitLab instance or Jira site, or the server read from an imported kubeconfig), `kube_context`, `proxy_url` (Jira only: the proxy its calls go through), `secret_ref` (the OS keychain account holding the credential, generated, unique), `secret_set_at` (null while no credential is stored). No column holds a credential |
 | `project_connection` | through its project | `project_id`, `connection_id` unique together, `target` (GitLab project path, Kubernetes namespace or Jira project key); deleted with either side |
 | `connection_access` | through its connection | `connection_id`, `task_id` (set null when the task goes), `terminal_id`, `accessed_at`, `granted`, `reason` (why the request was refused); append-only, never a credential |
 | `token_usage` | through its task | `session_id`, `task_id`, `step_id`, the four token counts, `spent_on` |
@@ -614,7 +614,10 @@ nothing). Credentials are write-only: `PUT /api/connections/{id}/credential` tak
 endpoint returns a credential. The store is written before the row, so a failed write leaves the row
 saying no credential is set; clearing empties the store before the row, so the row never claims less
 than the store holds. A Kubernetes connection takes its server and context from the imported
-kubeconfig and refuses a typed URL; GitLab and Jira need theirs; a connection's kind is fixed once created. The routes are
+kubeconfig and refuses a typed URL; GitLab and Jira need theirs; a connection's kind is fixed once created.
+Only a Jira connection takes a `proxyUrl`: an `http://` or `https://` address with no user or password in
+it (it is stored in the row and shown, not kept in the keychain), refused without being echoed; a blank
+one clears it. The routes are
 `GET`/`POST /api/companies/{id}/connections`, `GET`/`PUT`/`DELETE /api/connections/{id}` (`GET` lists
 the projects that bind it, `DELETE` answers `unboundProjects`), `PUT`/`DELETE
 /api/connections/{id}/credential`, `POST /api/connections/kubeconfig/contexts`, `GET
@@ -642,7 +645,8 @@ in `jira_rules.rs`:
 
 Jira is reached through the `JiraIssues` trait in `rekall-service/src/connection/`, implemented by
 `HttpJiraIssues` in `rekall-platform` (`POST /rest/api/3/search/jql`, the first page only), or a fake
-through `StartOptions::jira_issues`. It is asked before any transaction opens.
+through `StartOptions::jira_issues`. It is asked before any transaction opens. Both it and the check
+take a `JiraSite`, the site URL and the connection's proxy, and go through the proxy when there is one.
 
 `POST /api/connections/{id}/check` asks the connection's server whether its stored credential still
 works, before a session finds out mid-deploy. It lives in `rekall-platform/src/connection/` because
@@ -777,7 +781,7 @@ account; never the credential). The broker writes a folder under `rekall.home/te
 | `rekall-kube-credential` | kubectl's exec plugin: prints the `ExecCredential` (a token, or a client certificate and key as PEM) |
 | `rekall-git-credential` | git's credential helper: answers `get` with `username=oauth2` and the token |
 | `rekall-gitlab` | `rekall-gitlab --connection <label> <METHOD> <path> [curl options]`: a GitLab API call with the `PRIVATE-TOKEN` header, `:project` standing for the binding's project path, URL-encoded |
-| `rekall-jira` | `rekall-jira --connection <label> <METHOD> <path> [curl options]`: a Jira call under `/rest/api/3` with the `Authorization: Basic` header and JSON both ways, `:project` standing for the binding's project key |
+| `rekall-jira` | `rekall-jira --connection <label> <METHOD> <path> [curl options]`: a Jira call under `/rest/api/3` with the `Authorization: Basic` header and JSON both ways, `:project` standing for the binding's project key, through the connection's proxy (`curl --proxy`) when it names one |
 
 None holds a credential. `SessionEnvironment` adds the folder first on `PATH`, `KUBECONFIG` (only
 Rekall's clusters, so the session uses the credential you provided), a `GIT_CONFIG_KEY_n`/`VALUE_n`

@@ -13,6 +13,7 @@ function connection(id: string, kind: ConnectionKind, credentialSetAt: string | 
     title: `The ${id}`,
     baseUrl: kind === 'GITLAB' ? 'https://gitlab.example.com' : 'https://10.0.0.14:6443',
     kubeContext: kind === 'KUBERNETES' ? id : null,
+    proxyUrl: null,
     credentialSetAt,
     projectCount: 1,
     updatedAt: '2026-10-21T10:00:00Z'

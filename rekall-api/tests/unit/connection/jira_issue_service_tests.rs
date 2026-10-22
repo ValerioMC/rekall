@@ -18,7 +18,7 @@ struct FakeJira {
 
 #[async_trait]
 impl JiraIssues for FakeJira {
-    async fn search(&self, _site: &str, credential: &JiraCredential, jql: &str, _limit: u16) -> std::result::Result<Vec<JiraIssue>, JiraFailure> {
+    async fn search(&self, _site: &JiraSite, credential: &JiraCredential, jql: &str, _limit: u16) -> std::result::Result<Vec<JiraIssue>, JiraFailure> {
         assert_eq!(credential.email(), "ada@example.com");
         self.asked.lock().unwrap().push(jql.to_string());
         match &self.failure {

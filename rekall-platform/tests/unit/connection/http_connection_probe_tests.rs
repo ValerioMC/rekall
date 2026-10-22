@@ -114,9 +114,13 @@ fn jira_site() -> Router {
     )
 }
 
+fn direct(url: String) -> JiraSite {
+    JiraSite { url, proxy_url: None }
+}
+
 #[tokio::test]
 async fn a_good_jira_credential_is_accepted_and_names_its_account() {
-    let site = serve(jira_site()).await;
+    let site = direct(serve(jira_site()).await);
     let credential = JiraCredential::new("ada@example.com", Secret::new("atl-good")).unwrap();
     let outcome = HttpConnectionProbe::new().jira(&site, &credential).await;
     assert_eq!(outcome, ProbeOutcome::Accepted { identity: Some("Ada Lovelace".into()), version: None });
@@ -124,7 +128,15 @@ async fn a_good_jira_credential_is_accepted_and_names_its_account() {
 
 #[tokio::test]
 async fn a_bad_jira_credential_is_rejected() {
-    let site = serve(jira_site()).await;
+    let site = direct(serve(jira_site()).await);
     let credential = JiraCredential::new("ada@example.com", Secret::new("atl-bad")).unwrap();
     assert_eq!(HttpConnectionProbe::new().jira(&site, &credential).await, ProbeOutcome::Rejected { status: 401 });
+}
+
+#[tokio::test]
+async fn a_jira_site_behind_a_proxy_is_asked_through_it() {
+    let site = JiraSite { url: "http://jira.invalid".into(), proxy_url: Some(serve(jira_site()).await) };
+    let credential = JiraCredential::new("ada@example.com", Secret::new("atl-good")).unwrap();
+    let outcome = HttpConnectionProbe::new().jira(&site, &credential).await;
+    assert_eq!(outcome, ProbeOutcome::Accepted { identity: Some("Ada Lovelace".into()), version: None });
 }

@@ -3,7 +3,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use reqwest::header::{HeaderValue, ACCEPT, AUTHORIZATION};
 use reqwest::{Client, Response, StatusCode};
-use rekall_service::connection::{JiraCredential, JiraFailure, JiraIssue, JiraIssues};
+use rekall_service::connection::{JiraCredential, JiraFailure, JiraIssue, JiraIssues, JiraSite};
 use serde::Deserialize;
 use serde_json::json;
 
@@ -47,7 +47,8 @@ struct JiraErrors {
     error_messages: Vec<String>,
 }
 
-/// Jira Cloud's REST API over HTTPS with `reqwest`: one search, the first page only.
+/// Jira Cloud's REST API over HTTPS with `reqwest`, through the connection's proxy when it names
+/// one: one search, the first page only.
 pub struct HttpJiraIssues {
     timeout: Duration,
 }
@@ -66,11 +67,11 @@ impl Default for HttpJiraIssues {
 
 #[async_trait]
 impl JiraIssues for HttpJiraIssues {
-    async fn search(&self, site: &str, credential: &JiraCredential, jql: &str, limit: u16) -> Result<Vec<JiraIssue>, JiraFailure> {
-        let client = Client::builder().timeout(self.timeout).build().map_err(|failure| JiraFailure::Failed { reason: failure_chain(&failure) })?;
+    async fn search(&self, site: &JiraSite, credential: &JiraCredential, jql: &str, limit: u16) -> Result<Vec<JiraIssue>, JiraFailure> {
+        let client = jira_client(site, self.timeout).map_err(|reason| JiraFailure::Failed { reason })?;
         let body = json!({ "jql": jql, "maxResults": limit, "fields": FIELDS });
         let answer = client
-            .post(format!("{}{SEARCH}", site.trim_end_matches('/')))
+            .post(format!("{}{SEARCH}", site.url.trim_end_matches('/')))
             .header(AUTHORIZATION, authorization(credential)?)
             .header(ACCEPT, "application/json")
             .json(&body)
@@ -80,6 +81,14 @@ impl JiraIssues for HttpJiraIssues {
         let found = response.json::<SearchAnswer>().await.map_err(|failure| JiraFailure::Failed { reason: format!("its answer did not read as a search result ({failure})") })?;
         Ok(found.issues.into_iter().map(issue_of).collect())
     }
+}
+
+pub(super) fn jira_client(site: &JiraSite, timeout: Duration) -> Result<Client, String> {
+    let mut builder = Client::builder().timeout(timeout);
+    if let Some(proxy) = &site.proxy_url {
+        builder = builder.proxy(reqwest::Proxy::all(proxy).map_err(|_| "the connection's proxy is not a usable proxy address".to_string())?);
+    }
+    builder.build().map_err(|failure| failure_chain(&failure))
 }
 
 pub(super) fn authorization(credential: &JiraCredential) -> Result<HeaderValue, JiraFailure> {

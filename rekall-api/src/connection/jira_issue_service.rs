@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use rekall_common::{Id, RekallError, Result};
 use rekall_model::ConnectionKind;
-use rekall_service::connection::{JiraCredential, JiraFailure, JiraIssue, JiraIssues, SecretStore};
+use rekall_service::connection::{JiraCredential, JiraFailure, JiraIssue, JiraIssues, JiraSite, SecretStore};
 use rekall_service::{in_write, Ctx};
 
 use super::credential_keeping::recall;
@@ -25,7 +25,7 @@ pub struct JiraIssueService {
 
 /// Where a binding's issues are read: the site, the project key and the credential that opens it.
 struct JiraSource {
-    site: String,
+    site: JiraSite,
     project_key: String,
     credential: JiraCredential,
 }
@@ -39,7 +39,7 @@ impl JiraIssueService {
         let source = self.source(project_id, connection_id).await?;
         let issues = self.search(&source, &open_issues_query(&source.project_key), ISSUE_LIMIT).await?;
         let imported = self.imported_tasks(project_id).await?;
-        Ok(issues.iter().map(|issue| JiraIssueResponse::of(issue, &source.site, imported.get(&task_label(&issue.key)).copied())).collect())
+        Ok(issues.iter().map(|issue| JiraIssueResponse::of(issue, &source.site.url, imported.get(&task_label(&issue.key)).copied())).collect())
     }
 
     /// Issues already imported are passed over, so importing twice adds nothing.
@@ -52,7 +52,7 @@ impl JiraIssueService {
         in_write!(&self.ctx, |tx| {
             let mut created = Vec::with_capacity(fresh.len());
             for issue in &fresh {
-                created.push(self.tasks.create_in(&tx, task_request(project_id, &source.site, issue)).await?);
+                created.push(self.tasks.create_in(&tx, task_request(project_id, &source.site.url, issue)).await?);
             }
             Ok(created)
         })
@@ -68,7 +68,7 @@ impl JiraIssueService {
         }
         let project_key = project_key_of(binding.target.as_deref())?;
         let stored = recall(self.secrets.clone(), connection.secret_ref.clone()).await?;
-        Ok(JiraSource { site: connection.base_url.unwrap_or_default(), project_key, credential: JiraCredential::from_stored(&stored)? })
+        Ok(JiraSource { site: JiraSite::of(&connection), project_key, credential: JiraCredential::from_stored(&stored)? })
     }
 
     async fn search(&self, source: &JiraSource, jql: &str, limit: u16) -> Result<Vec<JiraIssue>> {

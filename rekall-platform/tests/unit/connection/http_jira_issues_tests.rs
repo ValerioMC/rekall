@@ -40,13 +40,17 @@ fn jira_site() -> Router {
     )
 }
 
+fn direct(url: String) -> JiraSite {
+    JiraSite { url, proxy_url: None }
+}
+
 fn credential(token: &str) -> JiraCredential {
     JiraCredential::new("ada@example.com", Secret::new(token)).unwrap()
 }
 
 #[tokio::test]
 async fn a_search_reads_each_issue_with_its_description_as_markdown() {
-    let site = serve(jira_site()).await;
+    let site = direct(serve(jira_site()).await);
 
     let issues = HttpJiraIssues::new().search(&site, &credential("atl-good"), "project = \"ENG\"", 50).await.unwrap();
 
@@ -64,11 +68,31 @@ async fn a_search_reads_each_issue_with_its_description_as_markdown() {
 
 #[tokio::test]
 async fn a_rejected_credential_is_told_apart_from_a_refused_search() {
-    let site = serve(jira_site()).await;
+    let site = direct(serve(jira_site()).await);
 
     let rejected = HttpJiraIssues::new().search(&site, &credential("atl-bad"), "project = \"ENG\"", 50).await.unwrap_err();
     let refused = HttpJiraIssues::new().search(&site, &credential("atl-good"), "broken", 50).await.unwrap_err();
 
     assert_eq!(rejected, JiraFailure::Rejected { status: 401 });
     assert_eq!(refused, JiraFailure::Failed { reason: "it answered HTTP 400: The value 'NOPE' does not exist for the field 'project'.".into() });
+}
+
+/// The fake site answers the absolute-form requests a proxy receives, so it stands in for the proxy:
+/// the site's own host does not resolve, and only a search sent through the proxy gets an answer.
+#[tokio::test]
+async fn a_site_behind_a_proxy_is_searched_through_it() {
+    let site = JiraSite { url: "http://jira.invalid".into(), proxy_url: Some(serve(jira_site()).await) };
+
+    let issues = HttpJiraIssues::new().search(&site, &credential("atl-good"), "project = \"ENG\"", 50).await.unwrap();
+
+    assert_eq!(issues[0].key, "ENG-1");
+}
+
+#[tokio::test]
+async fn a_proxy_reqwest_cannot_use_is_said_plainly() {
+    let site = JiraSite { url: "https://example.atlassian.net".into(), proxy_url: Some("not a proxy".into()) };
+
+    let failure = HttpJiraIssues::new().search(&site, &credential("atl-good"), "project = \"ENG\"", 50).await.unwrap_err();
+
+    assert_eq!(failure, JiraFailure::Failed { reason: "the connection's proxy is not a usable proxy address".into() });
 }

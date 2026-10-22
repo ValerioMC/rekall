@@ -80,3 +80,30 @@ fn a_kubeconfig_context_on_a_jira_connection_is_refused() {
     connection.kube_context = Some("prod".into());
     assert!(connection.validate().is_err());
 }
+
+fn jira_behind(proxy_url: &str) -> Model {
+    let mut connection = jira(Some("https://example.atlassian.net"));
+    connection.proxy_url = Some(proxy_url.into());
+    connection
+}
+
+#[test]
+fn a_jira_connection_takes_an_http_or_https_proxy() {
+    assert!(jira_behind("http://proxy.example.com:8080").validate().is_ok());
+    assert!(jira_behind("https://proxy.example.com").validate().is_ok());
+    assert!(jira_behind("socks5://proxy.example.com:1080").validate().is_err());
+    assert!(jira_behind("http://").validate().is_err());
+}
+
+#[test]
+fn a_proxy_with_a_user_or_password_is_refused_without_echoing_it() {
+    let error = jira_behind("http://ada:s3cret@proxy.example.com:8080").validate().unwrap_err();
+    assert!(!error.to_string().contains("s3cret"));
+}
+
+#[test]
+fn only_a_jira_connection_takes_a_proxy() {
+    let mut connection = gitlab(Some("https://gitlab.example.com"));
+    connection.proxy_url = Some("http://proxy.example.com:8080".into());
+    assert!(connection.validate().is_err());
+}

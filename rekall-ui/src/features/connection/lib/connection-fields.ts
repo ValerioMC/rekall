@@ -14,6 +14,13 @@ export const URL_FIELD: Readonly<Record<ConnectionKind, UrlField | null>> = {
   JIRA: { title: 'Site URL', label: 'Jira site URL', placeholder: 'https://example.atlassian.net' }
 }
 
+/** Only a Jira site is reached through a proxy typed in; a cluster's comes from its kubeconfig. */
+export const TAKES_PROXY: Readonly<Record<ConnectionKind, boolean>> = {
+  GITLAB: false,
+  KUBERNETES: false,
+  JIRA: true
+}
+
 /** How a kind's credential is asked for when a connection is created. */
 export interface CredentialField {
   readonly title: string

@@ -9,4 +9,6 @@ pub struct ConnectionRequest {
     pub label: Option<String>,
     pub title: Option<String>,
     pub base_url: Option<String>,
+    /// Jira only; blank clears it.
+    pub proxy_url: Option<String>,
 }

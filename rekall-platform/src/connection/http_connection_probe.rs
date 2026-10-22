@@ -5,11 +5,11 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use reqwest::header::{HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use reqwest::{Client, RequestBuilder, Response, StatusCode};
-use rekall_service::connection::{JiraCredential, KubeAccess, KubeCredential, Secret};
+use rekall_service::connection::{JiraCredential, JiraSite, KubeAccess, KubeCredential, Secret};
 use serde::Deserialize;
 use serde_json::json;
 
-use super::http_jira_issues::authorization;
+use super::http_jira_issues::{authorization, jira_client};
 use super::{ConnectionProbe, ProbeOutcome};
 
 const TIMEOUT: Duration = Duration::from_secs(8);
@@ -52,7 +52,8 @@ struct UserInfo {
 }
 
 /// The probe over HTTPS with `reqwest`. A cluster is trusted through the CA its kubeconfig names,
-/// reached through its `proxy-url` when it has one, and a client certificate is the TLS identity.
+/// reached through its `proxy-url` when it has one, and a client certificate is the TLS identity. A
+/// Jira site is reached through the connection's proxy when it names one.
 pub struct HttpConnectionProbe {
     timeout: Duration,
 }
@@ -88,16 +89,16 @@ impl ConnectionProbe for HttpConnectionProbe {
         }
     }
 
-    async fn jira(&self, site: &str, credential: &JiraCredential) -> ProbeOutcome {
-        let client = match Client::builder().timeout(self.timeout).build() {
+    async fn jira(&self, site: &JiraSite, credential: &JiraCredential) -> ProbeOutcome {
+        let client = match jira_client(site, self.timeout) {
             Ok(client) => client,
-            Err(failure) => return unreachable(&failure),
+            Err(reason) => return ProbeOutcome::Unreachable { reason },
         };
         let header = match authorization(credential) {
             Ok(header) => header,
             Err(_) => return ProbeOutcome::Unreachable { reason: "the stored credential holds characters a header cannot carry".into() },
         };
-        let answer = client.get(format!("{}{JIRA_MYSELF}", site.trim_end_matches('/'))).header(AUTHORIZATION, header).send().await;
+        let answer = client.get(format!("{}{JIRA_MYSELF}", site.url.trim_end_matches('/'))).header(AUTHORIZATION, header).send().await;
         match accepted(answer).await {
             Ok(response) => {
                 let user = response.json::<JiraUser>().await.ok();

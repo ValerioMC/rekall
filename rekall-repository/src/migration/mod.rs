@@ -20,6 +20,7 @@ mod m041_token_usage_day;
 mod m042_step_max_visits;
 mod m043_diagram_walkthrough;
 mod m044_connection;
+mod m045_connection_proxy;
 mod migration_support;
 mod migrator;
 

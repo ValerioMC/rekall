@@ -12,6 +12,8 @@ pub struct TerminalConnection {
     pub target: Option<String>,
     /// GitLab and Jira only: the instance or site pushes and API calls go to.
     pub instance_url: Option<String>,
+    /// Jira only: the proxy API calls go through.
+    pub proxy_url: Option<String>,
     pub secret_ref: String,
     pub credential_set: bool,
 }
@@ -24,6 +26,7 @@ impl TerminalConnection {
             label: connection.label.clone(),
             target: binding.target.clone(),
             instance_url: connection.kind.reached_at_typed_url().then(|| connection.base_url.clone()).flatten(),
+            proxy_url: connection.proxy_url.clone(),
             secret_ref: connection.secret_ref.clone(),
             credential_set: connection.has_credential(),
         }

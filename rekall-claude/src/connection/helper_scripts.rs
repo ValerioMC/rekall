@@ -34,7 +34,7 @@ pub(super) fn git_helper(endpoint: &str) -> String {
 
 /// What tells one API wrapper from another. Each is `<name> --connection <label> <METHOD> <path>
 /// [curl options]`: a call under `api_root` with the credential's header, `:project` in the path
-/// standing for the binding's target, URL-encoded.
+/// standing for the binding's target, URL-encoded, through the connection's proxy when it names one.
 pub(super) struct ApiWrapper {
     pub(super) name: &'static str,
     system: &'static str,
@@ -62,7 +62,8 @@ pub(super) fn api_wrapper(wrapper: &ApiWrapper, endpoint: &str, connections: &[&
     for connection in connections {
         let base = format!("{}{api_root}", connection.instance_url.as_deref().unwrap_or_default().trim_end_matches('/'));
         let project = connection.target.as_deref().map(percent_encoded).unwrap_or_default();
-        cases.push_str(&format!("  {}) base={}; project={} ;;\n", quoted(&connection.label), quoted(&base), quoted(&project)));
+        let proxy = connection.proxy_url.as_deref().unwrap_or_default();
+        cases.push_str(&format!("  {}) base={}; project={}; proxy={} ;;\n", quoted(&connection.label), quoted(&base), quoted(&project), quoted(proxy)));
     }
     format!(
         "{HEADER}{FETCH}usage() {{ echo 'usage: {name} --connection <label> <METHOD> <path> [curl options]' >&2; exit 2; }}
@@ -74,6 +75,7 @@ esac
 case \"$path\" in /*) ;; *) path=\"/$path\" ;; esac
 [ -n \"$project\" ] && path=$(printf '%s' \"$path\" | sed \"s|:project|$project|g\")
 header=$(rekall_fetch {}\"$label?for={purpose}\") || {{ printf '{name}: %s\\n' \"$header\" >&2; exit 1; }}
+[ -n \"$proxy\" ] && set -- --proxy \"$proxy\" \"$@\"
 printf '%s\\n' \"$header\" | curl --silent --show-error -X \"$method\" -H @- {headers}\"$base$path\" \"$@\"
 ",
         quoted(&format!("{endpoint}/"))

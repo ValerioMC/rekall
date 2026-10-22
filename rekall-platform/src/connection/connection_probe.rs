@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use rekall_service::connection::{JiraCredential, KubeAccess, Secret};
+use rekall_service::connection::{JiraCredential, JiraSite, KubeAccess, Secret};
 
 use super::ProbeOutcome;
 
@@ -10,5 +10,5 @@ pub trait ConnectionProbe: Send + Sync {
 
     async fn kubernetes(&self, access: &KubeAccess) -> ProbeOutcome;
 
-    async fn jira(&self, site: &str, credential: &JiraCredential) -> ProbeOutcome;
+    async fn jira(&self, site: &JiraSite, credential: &JiraCredential) -> ProbeOutcome;
 }

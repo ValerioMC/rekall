@@ -30,6 +30,8 @@ export interface Connection {
   /** The GitLab instance or Jira site, or the server the imported kubeconfig names. */
   readonly baseUrl: string | null
   readonly kubeContext: string | null
+  /** Jira only: the proxy every call to the site goes through. */
+  readonly proxyUrl: string | null
   readonly credentialSetAt: string | null
   readonly projectCount: number
   readonly updatedAt: string
@@ -67,6 +69,8 @@ export interface ConnectionInput {
   readonly title?: string
   readonly label?: string
   readonly baseUrl?: string
+  /** Blank clears it. */
+  readonly proxyUrl?: string
 }
 
 /**

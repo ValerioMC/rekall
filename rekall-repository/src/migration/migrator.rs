@@ -1,6 +1,6 @@
 use sea_orm_migration::prelude::*;
 
-use super::{baseline, m031_project_section, m032_project_icon_image, m033_project_component, m034_company_logo_image, m035_mermaid_diagram, m036_token_usage, m037_skill_placement, m038_skill_assignment, m039_step_flow, m040_flow_start_end, m041_token_usage_day, m042_step_max_visits, m043_diagram_walkthrough, m044_connection};
+use super::{baseline, m031_project_section, m032_project_icon_image, m033_project_component, m034_company_logo_image, m035_mermaid_diagram, m036_token_usage, m037_skill_placement, m038_skill_assignment, m039_step_flow, m040_flow_start_end, m041_token_usage_day, m042_step_max_visits, m043_diagram_walkthrough, m044_connection, m045_connection_proxy};
 
 /// Every migration, in the order it is applied.
 pub struct Migrator;
@@ -24,6 +24,7 @@ impl MigratorTrait for Migrator {
             Box::new(m042_step_max_visits::StepMaxVisits),
             Box::new(m043_diagram_walkthrough::DiagramWalkthrough),
             Box::new(m044_connection::Connection),
+            Box::new(m045_connection_proxy::ConnectionProxy),
         ]
     }
 }

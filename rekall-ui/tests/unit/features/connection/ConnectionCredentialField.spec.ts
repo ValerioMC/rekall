@@ -16,6 +16,7 @@ const GITLAB: Connection = {
   title: 'GitLab',
   baseUrl: 'https://gitlab.example.com',
   kubeContext: null,
+  proxyUrl: null,
   credentialSetAt: null,
   projectCount: 0,
   updatedAt: '2026-10-21T10:00:00Z'
