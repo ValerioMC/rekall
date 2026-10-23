@@ -476,7 +476,7 @@ An exposure is a **warning** until it is judged not affected or a task fixes it.
 
 A rail on the left lists the projects in scope, the most urgent first (open warnings, then no inventory, then clear), beside three views kept in the address (`?project=`, `?view=advisories`), so Back returns to them:
 
-- **Overview**: the posture in one sentence, four figures (open warnings, projects reached, scan coverage, dependencies watched), every open warning across projects to triage, the projects no scan covers with their **Collect**, and the newest advisories.
+- **Overview**: the posture in one sentence, four figures (open warnings, projects reached, scan coverage, dependencies watched), every open warning across projects to triage, the projects no scan covers with their **Collect**, and the newest advisories as one row of tiles across the bottom, as many as the width holds (two to four), each saying whether it reaches a project, with **Browse all** leading to the feed.
 - **Critical advisories**: the feed, searched by GHSA, CVE, package or summary, narrowed by ecosystem or to those reaching a project, with the one picked read beside it: its affected ranges, the safe version, the projects it reaches and its description. **Open on GitHub** opens the advisory in the browser.
 - **A project**: its posture and what it is built from, then two tabs. **Exposures** shows each advisory reaching it as a card with its way out (`4.17.15 → 4.17.21`) and a track of where it stands (found, judged, fixed). **Dependencies** lists the whole inventory however long, drawn a window at a time: searched by package or manifest path, narrowed by ecosystem or to the flagged packages, which sort first and name their advisory.
 
