@@ -13,6 +13,7 @@ import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useUpdateStore } from '@/features/settings/store/update.store'
 import { useToastStore } from '@/stores/toast.store'
 import { useTokenUsageStore } from '@/features/tokens/store/tokenUsage.store'
+import { useVulnerabilityStore } from '@/features/vulnerability/store/vulnerability.store'
 import type { DatabaseStatus } from '@/features/settings/model/settings'
 
 const store = useConsoleStore()
@@ -45,6 +46,7 @@ onMounted(async () => {
       void terminals.load()
       // Opened only once the database is there: the store's stream would otherwise retry forever.
       void useTokenUsageStore().load().catch((caught: unknown) => toast.notifyError(caught))
+      void useVulnerabilityStore().load().catch((caught: unknown) => toast.notifyError(caught))
       void update.checkAtStartup()
     }
   } catch {

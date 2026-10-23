@@ -1,4 +1,4 @@
-use crate::{claude, commit, context, diagram, flow, note, review, search, section, step, task, timeentry, token, wrapup, Ctx};
+use crate::{claude, commit, context, diagram, flow, inventory, note, review, search, section, step, task, timeentry, token, vulnerability, wrapup, Ctx};
 
 /// Every service, built once over one context: what a controller or a tool is handed.
 #[derive(Clone)]
@@ -25,6 +25,10 @@ pub struct Services {
     pub repositories: commit::GitRepositoryInspector,
     pub task_work: claude::TaskWorkService,
     pub terminal_launch: claude::TerminalLaunchService,
+    pub inventory: inventory::DependencyInventoryService,
+    pub inventory_recording: vulnerability::InventoryRecordingService,
+    pub advisories: vulnerability::SecurityAdvisoryService,
+    pub exposures: vulnerability::VulnerabilityExposureService,
 }
 
 impl Services {
@@ -37,6 +41,8 @@ impl Services {
         let step_links = flow::StepLinkService::new(ctx.clone(), steps.clone());
         let flow = flow::FlowService::new(ctx.clone(), steps.clone(), step_links.clone(), flow::StepVisitService::new(ctx.clone()));
         let flow_proposals = flow::FlowProposalService::new(ctx.clone(), steps.clone(), step_links.clone());
+        let inventory = inventory::DependencyInventoryService::new(ctx.clone());
+        let exposures = vulnerability::VulnerabilityExposureService::new(ctx.clone());
         Self {
             task_authoring: task::TaskAuthoringService::new(ctx.clone(), steps.clone()),
             steps,
@@ -55,6 +61,10 @@ impl Services {
             task_work: claude::TaskWorkService::new(ctx.clone()),
             terminal_launch: claude::TerminalLaunchService::new(ctx.clone()),
             token_usage: token::TokenUsageService::new(ctx.clone()),
+            inventory_recording: vulnerability::InventoryRecordingService::new(ctx.clone(), inventory.clone(), exposures.clone()),
+            advisories: vulnerability::SecurityAdvisoryService::new(ctx.clone()),
+            inventory,
+            exposures,
             context,
             commit_references,
             review,

@@ -14,6 +14,7 @@ pub mod context;
 pub mod diagram;
 pub mod filesystem;
 pub mod flow;
+pub mod inventory;
 pub mod note;
 pub mod search;
 pub mod section;
@@ -23,6 +24,7 @@ pub mod stream;
 pub mod tag;
 pub mod timeentry;
 pub mod token;
+pub mod vulnerability;
 pub mod wrapup;
 
 pub use api_state::ApiState;

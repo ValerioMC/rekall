@@ -92,7 +92,7 @@ onBeforeUnmount(() => window.removeEventListener('pointerdown', onPointerDown, t
     <button
       ref="trigger"
       type="button"
-      class="nav-tab focus-ring pr-2.5 max-[1099px]:pl-2.5"
+      class="nav-tab focus-ring pr-2.5"
       :class="current ? 'nav-tab-current' : open && 'text-text'"
       aria-haspopup="menu"
       :aria-expanded="open"

@@ -13,6 +13,7 @@ pub mod context;
 pub mod diagram;
 pub mod events;
 pub mod flow;
+pub mod inventory;
 pub mod note;
 pub mod review;
 pub mod search;
@@ -22,6 +23,7 @@ pub mod task;
 pub mod timeentry;
 pub mod token;
 pub mod tx;
+pub mod vulnerability;
 pub mod wrapup;
 
 mod ctx;

@@ -1,5 +1,6 @@
 use rekall_common::{jstr, Id, RekallError};
 use rekall_diagram::DiagramKind;
+use rekall_service::vulnerability::rules;
 use serde::Deserialize;
 
 use super::{TerminalMode, TerminalModeName};
@@ -7,7 +8,8 @@ use super::{TerminalMode, TerminalModeName};
 /// What the console sends to open a terminal. `stepId`, `model` and `effort` are optional; an
 /// unknown or blank model or effort leaves the account default. A missing `mode` is
 /// [`TerminalMode::Work`]; `PLAN_FLOW` asks for a flow rather than a checklist; `GENERATE` and
-/// `EXPLAIN` need a `request`, and `kinds` names the diagram types a generation draws.
+/// `EXPLAIN` need a `request`, and `kinds` names the diagram types a generation draws; `ASSESS`
+/// needs the GHSA id of the `advisory` to judge.
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct OpenTerminalRequest {
@@ -18,6 +20,7 @@ pub struct OpenTerminalRequest {
     pub mode: Option<TerminalModeName>,
     pub request: Option<String>,
     pub kinds: Option<Vec<String>>,
+    pub advisory: Option<String>,
 }
 
 impl OpenTerminalRequest {
@@ -28,6 +31,8 @@ impl OpenTerminalRequest {
             Some(TerminalModeName::PlanFlow) => Ok(TerminalMode::PlanFlow),
             Some(TerminalModeName::Generate) => Ok(TerminalMode::Generate { request: self.diagram_request()?, kinds: self.diagram_kinds()? }),
             Some(TerminalModeName::Explain) => Ok(TerminalMode::Explain { request: self.diagram_request()? }),
+            Some(TerminalModeName::Inventory) => Ok(TerminalMode::Inventory),
+            Some(TerminalModeName::Assess) => Ok(TerminalMode::Assess { advisory: rules::ghsa_id(self.advisory.as_deref())? }),
         }
     }
 

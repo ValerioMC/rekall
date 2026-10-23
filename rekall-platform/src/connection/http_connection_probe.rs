@@ -200,7 +200,7 @@ fn unreachable(failure: &reqwest::Error) -> ProbeOutcome {
 
 /// reqwest's own message says only that sending failed; the cause (a timeout, a refused connection, a
 /// certificate) is in its sources.
-pub(super) fn failure_chain(failure: &reqwest::Error) -> String {
+pub(crate) fn failure_chain(failure: &reqwest::Error) -> String {
     let mut reason = failure.to_string();
     let mut source = std::error::Error::source(failure);
     while let Some(cause) = source {

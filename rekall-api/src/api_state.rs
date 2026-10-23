@@ -6,15 +6,17 @@ use rekall_service::connection::{JiraIssues, SecretStore};
 use rekall_service::context::ContextSizeService;
 use rekall_service::diagram::DiagramService;
 use rekall_service::flow::{FlowService, StepLinkService};
+use rekall_service::inventory::DependencyInventoryService;
 use rekall_service::search::SearchService;
 use rekall_service::section::ProjectSectionService;
 use rekall_service::step::TaskStepService;
 use rekall_service::timeentry::TimeEntryService;
 use rekall_service::token::TokenUsageService;
+use rekall_service::vulnerability::{SecurityAdvisoryService, VulnerabilityExposureService, VulnerabilityScanService};
 use rekall_service::wrapup::WrapupService;
 use rekall_service::Services;
 
-use crate::{catalog, connection, diagram, filesystem, note, section, component, skill, tag, StepEventStream};
+use crate::{catalog, connection, diagram, filesystem, note, section, component, skill, tag, vulnerability, StepEventStream};
 
 /// What the handlers share: each service a controller calls, and nothing it does not.
 #[derive(Clone)]
@@ -30,6 +32,11 @@ pub struct ApiState {
     pub search: SearchService,
     pub diagrams: DiagramService,
     pub sections: ProjectSectionService,
+    pub inventory: DependencyInventoryService,
+    pub advisories: SecurityAdvisoryService,
+    pub exposures: VulnerabilityExposureService,
+    pub scans: VulnerabilityScanService,
+    pub vulnerability_fixes: vulnerability::VulnerabilityFixService,
     pub companies: catalog::CompanyService,
     pub logos: catalog::CompanyLogoService,
     pub projects: catalog::ProjectService,
@@ -54,12 +61,21 @@ pub struct ApiState {
 
 impl ApiState {
     /// The composition root of the API: `services` is taken apart here, so each controller
-    /// reaches only the services it calls. `user_home` is where the path picker starts.
-    pub fn new(services: Services, stream: Arc<StepEventStream>, user_home: PathBuf, secrets: Arc<dyn SecretStore>, jira: Arc<dyn JiraIssues>) -> Self {
+    /// reaches only the services it calls. `user_home` is where the path picker starts; `scans`
+    /// is built by the caller, which also runs it on a schedule.
+    pub fn new(
+        services: Services,
+        stream: Arc<StepEventStream>,
+        user_home: PathBuf,
+        secrets: Arc<dyn SecretStore>,
+        jira: Arc<dyn JiraIssues>,
+        scans: VulnerabilityScanService,
+    ) -> Self {
         let ctx = services.ctx.clone();
         let tasks = catalog::TaskService::new(ctx.clone(), services.review.clone(), services.time_entries.clone());
         let project_connections = connection::ProjectConnectionService::new(ctx.clone());
         let jira_issues = connection::JiraIssueService::new(ctx.clone(), project_connections.clone(), tasks.clone(), secrets.clone(), jira);
+        let vulnerability_fixes = vulnerability::VulnerabilityFixService::new(ctx.clone(), services.exposures.clone(), tasks.clone());
         Self {
             companies: catalog::CompanyService::new(ctx.clone()),
             logos: catalog::CompanyLogoService::new(ctx.clone()),
@@ -91,6 +107,11 @@ impl ApiState {
             search: services.search,
             diagrams: services.diagrams,
             sections: services.sections,
+            inventory: services.inventory,
+            advisories: services.advisories,
+            exposures: services.exposures,
+            scans,
+            vulnerability_fixes,
             stream,
         }
     }

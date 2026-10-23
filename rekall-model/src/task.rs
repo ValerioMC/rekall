@@ -8,6 +8,8 @@ use sea_orm::entity::prelude::*;
 use crate::constraints::Violations;
 use crate::enums::{TaskStatus, TaskStepState};
 
+pub const TITLE_MAX_CHARACTERS: usize = 200;
+
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
 #[sea_orm(table_name = "task")]
 pub struct Model {
@@ -157,7 +159,7 @@ impl Model {
             .max_length("label", Some(&self.label), 160)
             .slug("label", Some(&self.label))
             .not_blank("title", Some(&self.title))
-            .max_length("title", Some(&self.title), 200)
+            .max_length("title", Some(&self.title), TITLE_MAX_CHARACTERS)
             .max_length("reviewNote", self.review_note.as_deref(), 2_000)
             .max_length("description", self.description.as_deref(), 100_000)
             .finish()

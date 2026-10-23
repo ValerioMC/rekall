@@ -42,6 +42,7 @@ socket2 = { version = "0.5", features = ["all"] }
 
 [dev-dependencies]
 image.workspace = true
+rekall-model.workspace = true
 reqwest = { workspace = true, features = ["multipart"] }
 tokio-tungstenite = "0.29"
 
@@ -91,6 +92,10 @@ path = "tests/integration/e2e_steps.rs"
 [[test]]
 name = "e2e_flows"
 path = "tests/integration/e2e_flows.rs"
+
+[[test]]
+name = "e2e_vulnerabilities"
+path = "tests/integration/e2e_vulnerabilities.rs"
 
 [[test]]
 name = "e2e_wrapup_time"

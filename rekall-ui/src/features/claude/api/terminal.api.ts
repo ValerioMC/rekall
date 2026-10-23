@@ -15,6 +15,8 @@ export interface OpenTerminalInput {
   /** What a `GENERATE` terminal asks the session to draw, and as which diagram types. */
   request?: string
   kinds?: readonly DiagramKind[]
+  /** The GHSA id an `ASSESS` terminal asks the session to judge. */
+  advisory?: string
 }
 
 function terminalsPath(target: TerminalTarget): string {
@@ -37,7 +39,8 @@ export async function openTerminal(target: TerminalTarget, input: OpenTerminalIn
           effort: input.effort && input.effort !== 'default' ? input.effort : null,
           mode: input.mode ?? 'WORK',
           request: input.request ?? null,
-          kinds: input.kinds ?? null
+          kinds: input.kinds ?? null,
+          advisory: input.advisory ?? null
         }
       })
     )

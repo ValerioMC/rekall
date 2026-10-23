@@ -10,7 +10,10 @@ use std::process::Command;
 use std::time::Duration;
 
 use rekall_app::{AppConfig, Properties, Running, StartOptions};
+use async_trait::async_trait;
+use rekall_model::Ecosystem;
 use rekall_service::connection::InMemorySecretStore;
+use rekall_service::vulnerability::{AdvisoryFeed, AdvisoryFeedFailure, PackageVersion, PublishedAdvisory};
 use rekall_service::Services;
 use sea_orm::{ConnectionTrait, DbBackend, Statement, Value as DbValue};
 use serde_json::{json, Value};
@@ -60,10 +63,28 @@ pub async fn app_with_secrets(secrets: Arc<InMemorySecretStore>) -> App {
     app_with(&[], StartOptions { no_restart: true, secrets: Some(secrets), ..StartOptions::default() }).await
 }
 
-/// Unless a test hands one in, credentials go to a store in memory: no test touches the real keychain.
+/// An advisory database with nothing in it.
+struct SilentFeed;
+
+#[async_trait]
+impl AdvisoryFeed for SilentFeed {
+    async fn latest_critical(&self, _limit: u16) -> Result<Vec<PublishedAdvisory>, AdvisoryFeedFailure> {
+        Ok(Vec::new())
+    }
+
+    async fn critical_affecting(&self, _ecosystem: Ecosystem, _packages: &[PackageVersion]) -> Result<Vec<PublishedAdvisory>, AdvisoryFeedFailure> {
+        Ok(Vec::new())
+    }
+}
+
+/// Unless a test hands one in, credentials go to a store in memory and advisories come from a feed
+/// with nothing in it: no test touches the real keychain or GitHub.
 pub async fn app_with(properties: &[(&str, &str)], mut options: StartOptions) -> App {
     if options.secrets.is_none() {
         options.secrets = Some(Arc::new(InMemorySecretStore::new()));
+    }
+    if options.advisory_feed.is_none() {
+        options.advisory_feed = Some(Arc::new(SilentFeed));
     }
     let folder = tempfile::tempdir().unwrap();
     let ui = folder.path().join("ui");

@@ -65,8 +65,8 @@ fn generate_kinds_are_read_in_order_once_each_and_an_unknown_one_is_refused() {
 fn an_explain_terminal_asks_for_a_walkthrough_of_the_request() {
     let mode = TerminalMode::Explain { request: "How an order\nis \"placed\"".into() };
     assert_eq!(mode.first_line("project:vega"), "/rk project:vega explain \"How an order is 'placed'\"");
-    assert!(mode.draws_a_diagram());
-    assert!(!TerminalMode::Plan.draws_a_diagram());
+    assert!(mode.works_on_a_project());
+    assert!(!TerminalMode::Plan.works_on_a_project());
 }
 
 #[test]
@@ -75,4 +75,24 @@ fn an_explain_request_needs_something_to_explain() {
     assert!(blank.mode().is_err());
     let asked: OpenTerminalRequest = serde_json::from_str(r#"{"mode":"EXPLAIN","request":"checkout"}"#).unwrap();
     assert_eq!(asked.mode().unwrap(), TerminalMode::Explain { request: "checkout".into() });
+}
+
+#[test]
+fn an_inventory_terminal_asks_the_session_to_record_the_projects_dependencies() {
+    let request: OpenTerminalRequest = serde_json::from_str(r#"{"mode":"INVENTORY"}"#).unwrap();
+    let mode = request.mode().unwrap();
+    assert_eq!(mode.first_line("project:vega"), "/rk project:vega inventory");
+    assert!(mode.works_on_a_project() && !mode.follows_steps());
+}
+
+#[test]
+fn an_assess_terminal_names_the_advisory_by_its_ghsa_id() {
+    let request: OpenTerminalRequest = serde_json::from_str(r#"{"mode":"ASSESS","advisory":"ghsa-JFH8-c2jp-5v3q"}"#).unwrap();
+    let mode = request.mode().unwrap();
+    assert_eq!(mode.first_line("project:vega"), "/rk project:vega assess advisory:GHSA-jfh8-c2jp-5v3q");
+    assert!(mode.works_on_a_project());
+    let missing: OpenTerminalRequest = serde_json::from_str(r#"{"mode":"ASSESS"}"#).unwrap();
+    assert!(missing.mode().is_err());
+    let typed_into_the_line: OpenTerminalRequest = serde_json::from_str(r#"{"mode":"ASSESS","advisory":"GHSA-aaaa-aaaa-aaaa\r/exit"}"#).unwrap();
+    assert!(typed_into_the_line.mode().is_err(), "only a GHSA id reaches the prompt");
 }

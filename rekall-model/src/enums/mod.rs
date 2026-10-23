@@ -5,6 +5,8 @@ mod string_enum;
 
 mod connection_kind;
 mod document_context_mode;
+mod ecosystem;
+mod exposure_verdict;
 mod project_status;
 mod run_queue_item_state;
 mod run_queue_state;
@@ -14,6 +16,8 @@ mod wrapup_author;
 
 pub use connection_kind::ConnectionKind;
 pub use document_context_mode::DocumentContextMode;
+pub use ecosystem::Ecosystem;
+pub use exposure_verdict::ExposureVerdict;
 pub use project_status::ProjectStatus;
 pub use run_queue_item_state::RunQueueItemState;
 pub use run_queue_state::RunQueueState;

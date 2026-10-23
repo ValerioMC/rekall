@@ -37,6 +37,11 @@ export const router = createRouter({
       component: () => import('@/features/diagram/components/DiagramsPage.vue')
     },
     {
+      path: '/security',
+      name: 'security',
+      component: () => import('@/features/vulnerability/components/SecurityPage.vue')
+    },
+    {
       path: '/claude',
       name: 'claude',
       component: () => import('@/features/claude-resources/components/ClaudeResourcesPage.vue')

@@ -48,7 +48,7 @@ export const useTerminalStore = defineStore('terminal', () => {
     return opened
   }
 
-  /** A terminal on a project alone, which only generates a diagram; the server reuses a live one. */
+  /** A terminal on a project alone, which draws a diagram, inventories or assesses; the server reuses a live one. */
   async function openForProject(projectId: ProjectId, input: OpenTerminalInput): Promise<Terminal> {
     const opened = await openTerminal({ projectId }, input)
     upsert(opened)

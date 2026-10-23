@@ -19,6 +19,7 @@ use rekall_claude::ClaudeState;
 use rekall_repository::Database;
 use rekall_service::connection::{ConnectionAccessService, JiraIssues, RememberingSecretStore, SecretStore};
 use rekall_service::timeentry::IDLE_AFTER;
+use rekall_service::vulnerability::{AdvisoryFeed, VulnerabilityScanService};
 use rekall_service::{Ctx, EventBus, Services};
 use tracing::warn;
 
@@ -35,6 +36,7 @@ use crate::security::{self, LocalAccess};
 use crate::spa::{self, Assets};
 use crate::actuator;
 use rekall_platform::version::{self, GithubReleaseFeed, ReleaseFeed, UpdateChecker, RUNNING_VERSION};
+use rekall_platform::vulnerability::GithubAdvisoryFeed;
 
 use super::StartOptions;
 
@@ -43,6 +45,12 @@ const CREDENTIAL_SESSIONS_FOLDER: &str = "terminal-credentials";
 
 /// How often open timers are checked against [`IDLE_AFTER`].
 const IDLE_SWEEP_EVERY: Duration = Duration::from_secs(60);
+
+/// When the first scheduled vulnerability scan runs after a start, and how often after that: soon
+/// enough that a critical advisory published overnight is a warning by the morning, rarely enough to
+/// stay inside GitHub's hourly allowance for requests without a token.
+const VULNERABILITY_SCAN_AFTER: Duration = Duration::from_secs(5 * 60);
+const VULNERABILITY_SCAN_EVERY: Duration = Duration::from_secs(6 * 60 * 60);
 
 /// One start of the application on one database.
 pub struct Instance {
@@ -61,6 +69,8 @@ pub struct Instance {
     transcripts: Arc<TranscriptScanner>,
     transcript_scan_every: Duration,
     transcript_scan: Mutex<Option<tokio::task::JoinHandle<()>>>,
+    vulnerability_scans: VulnerabilityScanService,
+    vulnerability_scan: Mutex<Option<tokio::task::JoinHandle<()>>>,
 }
 
 impl Instance {
@@ -89,7 +99,18 @@ impl Instance {
             Some(jira) => jira.clone(),
             None => Arc::new(HttpJiraIssues::new()),
         };
-        let api = ApiState::new(services.clone(), stream.clone(), config.user_home.clone(), secrets.clone(), jira_issues);
+        let advisory_feed: Arc<dyn AdvisoryFeed> = match &options.advisory_feed {
+            Some(feed) => feed.clone(),
+            None => Arc::new(GithubAdvisoryFeed::new()),
+        };
+        let vulnerability_scans = VulnerabilityScanService::new(
+            ctx.clone(),
+            advisory_feed,
+            services.inventory.clone(),
+            services.advisories.clone(),
+            services.exposures.clone(),
+        );
+        let api = ApiState::new(services.clone(), stream.clone(), config.user_home.clone(), secrets.clone(), jira_issues, vulnerability_scans.clone());
         let mcp = rekall_mcp::McpController::new(rekall_mcp::tool_registry::all(&services));
 
         let claude_config = &config.claude;
@@ -200,6 +221,8 @@ impl Instance {
             transcripts,
             transcript_scan_every: claude_config.transcript_scan_every,
             transcript_scan: Mutex::new(None),
+            vulnerability_scans,
+            vulnerability_scan: Mutex::new(None),
         }
     }
 
@@ -214,6 +237,21 @@ impl Instance {
         self.backups.start_schedule();
         self.start_idle_sweep();
         *self.transcript_scan.lock().expect("never poisoned") = Some(self.transcripts.start(self.transcript_scan_every));
+        self.start_vulnerability_scans();
+    }
+
+    fn start_vulnerability_scans(&self) {
+        let scans = self.vulnerability_scans.clone();
+        let handle = tokio::spawn(async move {
+            let mut interval = tokio::time::interval_at(tokio::time::Instant::now() + VULNERABILITY_SCAN_AFTER, VULNERABILITY_SCAN_EVERY);
+            loop {
+                interval.tick().await;
+                if let Err(failed) = scans.scan().await {
+                    warn!(%failed, "The scheduled vulnerability scan failed");
+                }
+            }
+        });
+        *self.vulnerability_scan.lock().expect("never poisoned") = Some(handle);
     }
 
     fn start_idle_sweep(&self) {
@@ -241,6 +279,9 @@ impl Instance {
             sweep.abort();
         }
         if let Some(scan) = self.transcript_scan.lock().expect("never poisoned").take() {
+            scan.abort();
+        }
+        if let Some(scan) = self.vulnerability_scan.lock().expect("never poisoned").take() {
             scan.abort();
         }
         if let Err(failed) = self.services.time_entries.stop_all_on_shutdown().await {

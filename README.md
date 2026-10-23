@@ -143,7 +143,7 @@ Live work sits in one bar in the bottom right corner of every screen: a segment 
 
 All three are stored on the machine, not in the database.
 
-The top bar is a four-cell grid, so the screen tabs sit centred between the history arrows and the centre cell at the same place on every screen (Console, Catalog, Diagrams, Claude, Time). In the console the centre cell holds the search bar and the live readings (usage, queue, review) sit centred between it and the tools; on the other screens it holds the title and the actions sit at the right. Both keep their centre as the window resizes. The top bar carries a usage meter: the current 5-hour session as a ring with its percentage and time to reset, and, on hover, a bar per window including the weekly per-model limits. The figures are the ones Claude Code's own `/usage` shows, read with the OAuth token Claude Code stores (every `Claude Code-credentials` item in the macOS keychain, else `~/.claude/.credentials.json`; the token expiring last wins, and an expired one counts as no token). With no valid token the meter asks you to open a Claude Code terminal, which signs in or refreshes the token; when Anthropic cannot be reached it holds the last figures. Readings are not real time: one when the console opens, one every five minutes while it is on screen, one when the window comes back to the front after a minute away, and one whenever you click the blank meter or **Check again** in its popover (`GET /api/claude/usage?refresh=true`, past the server's cache). If Anthropic answers 429 the meter shows **Wait** with the time left and takes nothing, not even a manual check, until that `Retry-After` has passed: asking again is what extends the block.
+The top bar is a four-cell grid, so the screen tabs sit centred between the history arrows and the centre cell at the same place on every screen (Console, Catalog, Diagrams, Security, Claude, Time). Under a 1280px window they fold into one key showing the screen you are on, which opens every screen as a vertical menu, a group's screens under its name; a tab's alert (Security's count of open critical advisories) rides on that key too, so folding never hides a warning. In the console the centre cell holds the search bar and the live readings (usage, queue, review) sit centred between it and the tools; on the other screens it holds the title and the actions sit at the right. Both keep their centre as the window resizes. The top bar carries a usage meter: the current 5-hour session as a ring with its percentage and time to reset, and, on hover, a bar per window including the weekly per-model limits. The figures are the ones Claude Code's own `/usage` shows, read with the OAuth token Claude Code stores (every `Claude Code-credentials` item in the macOS keychain, else `~/.claude/.credentials.json`; the token expiring last wins, and an expired one counts as no token). With no valid token the meter asks you to open a Claude Code terminal, which signs in or refreshes the token; when Anthropic cannot be reached it holds the last figures. Readings are not real time: one when the console opens, one every five minutes while it is on screen, one when the window comes back to the front after a minute away, and one whenever you click the blank meter or **Check again** in its popover (`GET /api/claude/usage?refresh=true`, past the server's cache). If Anthropic answers 429 the meter shows **Wait** with the time left and takes nothing, not even a manual check, until that `Retry-After` has passed: asking again is what extends the block.
 
 | Property | Default | Meaning |
 |---|---|---|
@@ -209,6 +209,8 @@ An anchor is `entity:value`, where the entity is `company`, `project` or `task` 
 | `/rk project:vega task:report-builder plan` | Propose the task's checklist as drafts, then stop |
 | `/rk project:vega generate kinds:sequence,state "how checkout charges"` | Read the code and store a diagram answering the request, one sheet per type, then stop. A `task:` anchor ties it to that task too (see [Diagrams](#diagrams)) |
 | `/rk project:vega explain "how an order is placed"` | Follow the functionality from its entry point and store it as a walkthrough the console plays step by step, then stop (see [Diagrams](#diagrams)) |
+| `/rk project:vega inventory` | Read the project's manifests and lockfiles and record every dependency at its exact version, then stop (see [Security](#security)) |
+| `/rk project:vega assess advisory:GHSA-xxxx-xxxx-xxxx` | Read the code and record whether that critical advisory's vulnerable code is really reached, then stop (see [Security](#security)) |
 | `/rk note:3f2a9c1e` | A note sent by reference, loaded in full (see [Context size](#context-size-and-reference-notes)) |
 
 An anchor brings back the record, everything it references resolved in full with their notes, what references it as anchors, and its own markdown. A note can be attached to several tasks and arrives with each. If a bare term matches more than one record, the candidates come back and nothing loads. `project:` disambiguates a label two projects share.
@@ -228,6 +230,9 @@ An anchor brings back the record, everything it references resolved in full with
 | `rekall_project_section` | write | Write a titled markdown section on a task's project, or rewrite one by title with `replace` |
 | `rekall_read_sections` | read | List a project's sections by title, or read one whole with `title` |
 | `rekall_diagram` | write | Store Mermaid sheets generated for a project or one of its tasks, or replace a diagram by id with `diagram` |
+| `rekall_inventory` | write | Replace a project's dependency inventory whole: ecosystem, name, exact version and declaring file per entry |
+| `rekall_vulnerabilities` | read | List the critical advisories that reach a project, or read one whole with `advisory` |
+| `rekall_assess_vulnerability` | write | Record whether a critical advisory really reaches a project: `affected` or `not_affected`, with the reasoning |
 
 There is no query, get or schema tool. `rekall_create_task` takes a project anchor, a `title`, an optional `label` (the title as a label when omitted; one the project already uses is refused), an optional `description` and optional `steps` (`[{title, detail}]`). The task starts `TODO` and every step starts as a draft on the staging shelf, exactly as with `rekall_propose_step`, so nothing the session creates is work until you promote it; a request with a repeated step title or more than 20 steps is refused and creates nothing, and an open console lists the new task without a reload. Sections are loaded into no context, so `rekall_read_sections` is how a session reads them: with a project (or a task and its project) it lists the titles with their size, with `title` it returns that section whole, and it changes nothing. `rekall_note` adds a note, or with `replace: true` rewrites the body of the note the task already carries under that title (ignoring case); without `replace` that title is refused, and nothing it does detaches or deletes a note. `rekall_project_section` works the same way on a project's sections: it adds one, or with `replace: true` rewrites the body of the section with that title, and it can never rename, reorder or delete one. `rekall_step` refuses `done`; that state is set by hand in the console. `rekall_step` (on `claimed`) and `rekall_wrapup` take an optional `commit_message`, used only on a project that commits on claim (see [Commit on claim](#commit-on-claim)).
 
@@ -459,6 +464,27 @@ The screen opens on a **gallery**: the diagrams of the projects in the top bar's
 | `DELETE /api/diagrams/{id}` | Delete it. Console only |
 | `GET /api/diagrams/{id}/source?file=&start=&end=` | The lines of a span in the project folder. A path that leaves the folder is refused |
 
+## Security
+
+**Security** says which critical vulnerabilities reach your projects, and whether they really do. It works from three things:
+
+- **The inventory.** What each project is built from: every library and framework its manifests and lockfiles declare, at the exact version it resolves to, one row per package with the file that declares it. **Collect** on a project opens a terminal on it with `/rk project:<label> inventory`; the session reads the manifests itself and writes the whole list with `rekall_inventory` (ecosystems by the GitHub Advisory Database's names: `npm`, `pip`, `maven`, `rust`, `go`, `nuget`, `rubygems`, `composer`, `pub`, `swift`, `erlang`, `actions`). A range instead of a version, a path outside the project's folder, or an unknown ecosystem is refused with the entry's position. Collecting again replaces the list, and an exposure whose package the new list no longer holds at that version stops being a warning at once. A project without a folder cannot be collected.
+- **The advisories.** The reviewed, critical advisories of the GitHub Advisory Database, read without a token. A scan records the newest hundred, the zero-day feed listed on the right of the screen, and asks GitHub which critical advisories affect each inventoried project's exact `package@version` (one question per ecosystem and eighty packages), so the version matching is GitHub's. What it finds is an **exposure**: an advisory reaching a project through one of its packages, with the vulnerable range, the first safe version and the vulnerable functions when GitHub names them. A scan runs five minutes after start and every six hours after that, and whenever you press **Scan now**; one runs at a time. An exposure no longer found is dropped; a project the feed could not answer for keeps the ones it had, and once GitHub's hourly allowance (60 requests) is spent the remaining projects wait for the next scan. Failures are listed under the screen's banner.
+- **The assessment.** A vulnerable version is not yet an exploitable project: the flaw may be in a function the code never calls. **Assess** opens a terminal with `/rk project:<label> assess advisory:<GHSA id>`; the session reads the advisory with `rekall_vulnerabilities`, follows the package's use through the code and records `affected` or `not_affected` with its reasoning through `rekall_assess_vulnerability`. The verdict and its reasoning show on the exposure; `not_affected` takes it off the warnings.
+
+An exposure is a **warning** until it is judged not affected or a task fixes it. Open warnings are counted on the **Security** tab from every screen, and the banner names how many reach how many projects. **Fix** creates a task in the project, `fix-<ghsa id>` (numbered when that label is taken), whose description is the brief: the package, version and declaring files, the advisory, the safe version, the verdict and its reasoning, and the steps (upgrade, adapt, test, collect the inventory again). A session opens on it straight away in the console's terminal pane, and the exposure is tied to the task. Each exposure gets one fix task; afterwards the row opens it.
+
+The screen follows the top bar's scope. Inventory and assessment sessions open in a sheet over the bottom of the screen (`?session=`); from the live-work bar they open on the Diagrams screen, which shows any session on a project alone.
+
+| Route | Effect |
+|---|---|
+| `GET /api/vulnerabilities/advisories` | The latest critical advisories, newest first |
+| `GET /api/vulnerabilities/exposures` | Every project's exposures with their advisory, verdict and fix task |
+| `POST /api/vulnerabilities/scan` | Scan now; answers what it recorded, found new, left open and could not do. 409 while one runs |
+| `POST /api/vulnerability-exposures/{id}/fix` | Create the fix task and tie the exposure to it; 409 when it has one |
+| `GET /api/inventories` | Each inventoried project's dependency count per ecosystem and when it was recorded |
+| `GET /api/projects/{id}/dependencies` | One project's inventory |
+
 ## Model
 
 ```
@@ -469,7 +495,9 @@ Company ──< Project ──< Task >──< Document
                │         ├──1 Wrapup
                │         ├──< TokenUsage ──> TaskStep (optional)
                │         └──> Tag (optional)
-               └──< Diagram ──> Task (the one it was generated from, optional)
+               ├──< Diagram ──> Task (the one it was generated from, optional)
+               ├──< ProjectDependency
+               └──< VulnerabilityExposure ──> SecurityAdvisory, Task (the fix, optional)
 ```
 
 | Entity | Anchored by | Holds |
@@ -484,6 +512,9 @@ Company ──< Project ──< Task >──< Document
 | `Wrapup` | through its task | markdown body, who wrote it last. One per task |
 | `Tag` | `name`, unique | icon key, glow-colour key, the tasks currently wearing it |
 | `TokenUsage` | through its task | the input, output, cache-write and cache-read tokens one Claude Code session spent on the task or one of its steps on one UTC day. Rewritten whole each time that session's transcript is read; `transcript_scan` remembers how much of each transcript was read |
+| `ProjectDependency` | through its project | ecosystem, name, exact version, the file that declares it. Unique per project, ecosystem, name and version; replaced whole by `rekall_inventory` |
+| `SecurityAdvisory` | its GHSA id, unique | CVE id, summary, description, link, publication date, the packages it affects as JSON. Recorded by a scan; never deleted |
+| `VulnerabilityExposure` | through its project | the advisory, the package and version it reached the project through, a session's verdict and reasoning, the fix task. One per project and advisory; deleted with either |
 | `Diagram` | id | title, the question it answers, its sheets' types, whether one plays as a walkthrough, and its Mermaid sheets with their code links and walkthroughs as JSON. Goes with its project; loses its task when the task is deleted |
 
 `label` is what an anchor resolves: lowercase letters, digits, `-`, `_`, `.`, no spaces, normalised on write. `title` is free text and changing it never breaks an anchor. Renaming a label moves the anchor, and the editor says so before saving.
@@ -576,9 +607,9 @@ rekall-diagram/    the diagram format: Mermaid sheets and their code links, JSON
 rekall-repository/ queries, one function per lookup, and the SQLite migrations
 rekall-service/    business logic: context assembly, the step and review lines, flows (routes and visits), wrapups, notes, time entries, token usage
 rekall-api/        Axum REST API for the UI, one folder per domain, with the folder listing and the step event stream
-rekall-mcp/        MCP server, on rekall-service and never rekall-api: one tool reads, five write
+rekall-mcp/        MCP server, on rekall-service and never rekall-api: three tools read, ten write
 rekall-claude/     the in-app terminal (portable-pty over one WebSocket), the Claude Code usage meter, the run queue, the transcript reader for token usage and the editor for Claude Code's own files (`~/.claude`)
-rekall-platform/   the database registry, backups and restores, the restart handle and the release check
+rekall-platform/   the database registry, backups and restores, the restart handle, the release check and the GitHub Advisory Database client
 rekall-app/        rekall-server: the local-access guard, the console bundle, the supervisor; wires every module and serves everything
 rekall-app/desktop the Tauri desktop app over the same server
 rekall-ui/         Vue 3 + Vite frontend

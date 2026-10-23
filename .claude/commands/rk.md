@@ -1,7 +1,7 @@
 ---
 description: Load a Rekall working context by anchor, e.g. /rk project:vega task:report-builder
-argument-hint: "company:|project:|task: <label> ...  [wrapup [\"how to write it\"]] | [note \"what to keep\"] | [section \"Title\" [\"what it holds\"]] | [plan [flow]] | [generate [kinds:sequence,state] \"what to diagram\"] | [explain \"what to walk through\"] | [step:N start|done [outcome:<name>]]   (labels, not titles)"
-allowed-tools: mcp__rekall__rekall_context, mcp__rekall__rekall_wrapup, mcp__rekall__rekall_step, mcp__rekall__rekall_propose_step, mcp__rekall__rekall_propose_flow, mcp__rekall__rekall_record_commit, mcp__rekall__rekall_note, mcp__rekall__rekall_project_section, mcp__rekall__rekall_diagram, Read, Grep, Glob
+argument-hint: "company:|project:|task: <label> ...  [wrapup [\"how to write it\"]] | [note \"what to keep\"] | [section \"Title\" [\"what it holds\"]] | [plan [flow]] | [generate [kinds:sequence,state] \"what to diagram\"] | [explain \"what to walk through\"] | [inventory] | [assess advisory:GHSA-xxxx-xxxx-xxxx] | [step:N start|done [outcome:<name>]]   (labels, not titles)"
+allowed-tools: mcp__rekall__rekall_context, mcp__rekall__rekall_wrapup, mcp__rekall__rekall_step, mcp__rekall__rekall_propose_step, mcp__rekall__rekall_propose_flow, mcp__rekall__rekall_record_commit, mcp__rekall__rekall_note, mcp__rekall__rekall_project_section, mcp__rekall__rekall_diagram, mcp__rekall__rekall_inventory, mcp__rekall__rekall_vulnerabilities, mcp__rekall__rekall_assess_vulnerability, Read, Grep, Glob
 ---
 
 The arguments are:
@@ -9,7 +9,8 @@ The arguments are:
 $ARGUMENTS
 
 If the terms include the bare word `generate`, follow **Generating**. If they include the bare word
-`explain`, follow **Explaining**. If they include the bare word
+`explain`, follow **Explaining**. If they include the bare word `inventory`, follow **Inventorying**.
+If they include the bare word `assess`, follow **Assessing**. If they include the bare word
 `wrapup`, follow **Wrapping up**. If they include the bare word `note`, follow **Noting**. If they
 include the bare word `section`, follow **Sectioning**. If they include the bare word `plan`, follow
 **Planning**. If they include a `step:` term alongside `start`
@@ -334,6 +335,52 @@ so it follows the code concretely, call by call.
    If the answer is a refusal, fix every line it lists and send every sheet again.
 8. Say in two or three lines what the walkthrough covers, how many messages and sheets it plays, and
    its id. Then stop: no wrapup, no step, no commit.
+
+## Inventorying
+
+`/rk project:vega inventory` means: record what the project is built from, every library and
+framework at the exact version it uses, with `rekall_inventory`. Rekall checks that list against
+the critical advisories of the GitHub Advisory Database and warns on its Security screen.
+
+1. Drop the `inventory` term and call `rekall_context` with the anchors that are left. You build
+   nothing and no checklist changes.
+2. Find every manifest and lockfile in the project's folder yourself, in every subfolder that is a
+   part of the project: `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `Cargo.lock`,
+   `requirements*.txt`, `poetry.lock`, `uv.lock`, `Pipfile.lock`, `pom.xml`, `build.gradle(.kts)`,
+   `gradle.lockfile`, `go.mod`/`go.sum`, `composer.lock`, `Gemfile.lock`, `*.csproj`,
+   `packages.lock.json`, `pubspec.lock`, `Package.resolved`, `mix.lock`, the workflow files under
+   `.github/workflows`. Skip `node_modules`, `target`, `vendor`, build output and anything ignored.
+3. Read the exact version each dependency resolves to, from the lockfile when there is one. Where a
+   manifest only gives a range and there is no lockfile, use the version the build would pick if the
+   code makes it plain, and leave the dependency out if it does not: a guessed version raises false
+   warnings. Include what a lockfile pins transitively.
+4. Call `rekall_inventory` with the project anchor and the whole list, one entry per package and
+   version: `ecosystem` by the advisory database's name (`npm`, `pip`, `maven`, `rust`, `go`,
+   `nuget`, `rubygems`, `composer`, `pub`, `swift`, `erlang`, `actions`), `name` as that ecosystem
+   writes it, `version`, and `manifest` relative to the project's folder. If the answer is a refusal,
+   fix what it names and send the whole list again.
+5. Say in two or three lines how many dependencies you recorded per ecosystem, what you left out and
+   why. Then stop: no wrapup, no step, no commit.
+
+## Assessing
+
+`/rk project:vega assess advisory:GHSA-xxxx-xxxx-xxxx` means: decide whether that critical advisory
+really affects the project, and record the verdict with `rekall_assess_vulnerability`. A scan only
+knows the project declares a vulnerable version; whether the flaw can be reached is in the code.
+
+1. Drop the `assess` term and the `advisory:` term, and call `rekall_context` with the anchors that
+   are left. You change no code and no checklist.
+2. Call `rekall_vulnerabilities` with the project anchor and `advisory` set to the GHSA id. It gives
+   the package and version, the vulnerable versions, the first safe one, the functions that carry the
+   flaw when GitHub names them, the advisory's own description and any earlier reasoning.
+3. Find where the project uses the package: its imports, the calls into it, the configuration that
+   turns a vulnerable feature on, and the inputs that reach those calls. Follow them far enough to say
+   whether the vulnerable code runs, and on what.
+4. Call `rekall_assess_vulnerability` with the project anchor, the advisory, a `verdict` and the
+   `reasoning`. `not_affected` only when the code shows the vulnerable path is never taken (the
+   function is never called, the feature is off, no input reaches it); `affected` when it is, or when
+   you cannot show it is not. The reasoning names the files and functions that decide it.
+5. Say in two or three lines what you concluded and why. Then stop: fixing is a task the console opens.
 
 ## Wrapping up
 

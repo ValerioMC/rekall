@@ -36,7 +36,8 @@ async fn open_on_task(
     open(&state, target, safe, mode).await
 }
 
-/// A project alone has nothing to work or plan, so a terminal on it only draws a diagram.
+/// A project alone has nothing to work or plan, so a terminal on it draws a diagram, records the
+/// inventory or assesses an advisory.
 async fn open_on_project(
     State(state): State<ClaudeState>,
     Path(project_id): Path<String>,
@@ -45,8 +46,8 @@ async fn open_on_project(
     let target = TerminalTarget::Project(uuid("projectId", &project_id)?);
     let safe = request.unwrap_or_default();
     let mode = safe.mode()?;
-    if !mode.draws_a_diagram() {
-        return Err(RekallError::illegal("A terminal on a project only generates a diagram. Open one on a task to work or plan.").into());
+    if !mode.works_on_a_project() {
+        return Err(RekallError::illegal("A terminal on a project only generates a diagram, records the inventory or assesses an advisory. Open one on a task to work or plan.").into());
     }
     open(&state, target, safe, mode).await
 }

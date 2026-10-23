@@ -15,6 +15,7 @@ import { useStepWrites } from '../features/steps/store/useStepWrites'
 import { useTagWrites } from '../features/tags/store/useTagWrites'
 import { useTaskWrites } from '../features/catalog/store/useTaskWrites'
 import { useTimers } from '../features/time/store/useTimers'
+import { useVulnerabilityFix } from '../features/vulnerability/store/useVulnerabilityFix'
 import { useWrapupWrites } from '../features/wrapup/store/useWrapupWrites'
 
 export type { SaveState } from './console/console-state'
@@ -43,6 +44,7 @@ export const useConsoleStore = defineStore('console', () => {
   const commitReferences = useCommitReferences(state)
   const skills = useSkillAssignments(state)
   const jiraImport = useJiraImport(state, refreshes)
+  const vulnerabilityFix = useVulnerabilityFix(state, refreshes)
 
   return {
     ...state,
@@ -77,6 +79,7 @@ export const useConsoleStore = defineStore('console', () => {
     ...wrapups,
     ...commitReferences,
     ...skills,
-    ...jiraImport
+    ...jiraImport,
+    ...vulnerabilityFix
   }
 })

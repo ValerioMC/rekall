@@ -11,7 +11,7 @@ use regex::Regex;
 const FOUNDATIONS: [&str; 6] = ["ctx", "events", "load", "services", "text_rule", "tx"];
 
 /// Each domain and the domains it may use.
-const ALLOWED: [(&str, &[&str]); 16] = [
+const ALLOWED: [(&str, &[&str]); 18] = [
     ("claude", &["connection"]),
     ("commit", &[]),
     ("component", &[]),
@@ -19,6 +19,7 @@ const ALLOWED: [(&str, &[&str]); 16] = [
     ("context", &["component", "connection", "step", "wrapup"]),
     ("diagram", &[]),
     ("flow", &["step"]),
+    ("inventory", &[]),
     ("note", &[]),
     ("review", &["timeentry"]),
     ("search", &[]),
@@ -27,6 +28,7 @@ const ALLOWED: [(&str, &[&str]); 16] = [
     ("task", &["step"]),
     ("timeentry", &[]),
     ("token", &[]),
+    ("vulnerability", &["inventory"]),
     ("wrapup", &["review"]),
 ];
 

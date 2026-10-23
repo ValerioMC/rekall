@@ -33,7 +33,7 @@ loaded in one call, including every note the task shares with its neighbours.
 | # | Decision | Rationale |
 |---|---|---|
 | D1 | Real tables with real foreign keys | A note can never point at a deleted task. On an app whose only job is to be a reliable memory, silent dangling references are the failure mode that matters. |
-| D2 | Claude reads everything and writes a few narrow things | `rekall-mcp` depends on `rekall-service` and never on `rekall-api`, so no controller and none of the console's catalog services are on its classpath, and every read runs in a read-only transaction. The exceptions are `rekall_wrapup`, which replaces one task's wrapup; `rekall_step`, which moves a step from `open` to `running` to `claimed`, follows a flow's route on a claim, and cannot reach `done`; `rekall_record_commit`, which logs a commit against a task; `rekall_propose_step`, which can only add a draft a person has to promote; `rekall_propose_flow`, which can only lay drafts and the routes between them onto a task with no steps; `rekall_create_task`, which can only add a `TODO` task whose steps are drafts; `rekall_note`, which can only add a new note to one task; and `rekall_project_section`, which can only add a section to a task's project or rewrite the body of one that already has that title. See §7. |
+| D2 | Claude reads everything and writes a few narrow things | `rekall-mcp` depends on `rekall-service` and never on `rekall-api`, so no controller and none of the console's catalog services are on its classpath, and every read runs in a read-only transaction. The exceptions are `rekall_wrapup`, which replaces one task's wrapup; `rekall_step`, which moves a step from `open` to `running` to `claimed`, follows a flow's route on a claim, and cannot reach `done`; `rekall_record_commit`, which logs a commit against a task; `rekall_propose_step`, which can only add a draft a person has to promote; `rekall_propose_flow`, which can only lay drafts and the routes between them onto a task with no steps; `rekall_create_task`, which can only add a `TODO` task whose steps are drafts; `rekall_note`, which can only add a new note to one task; `rekall_project_section`, which can only add a section to a task's project or rewrite the body of one that already has that title; `rekall_inventory`, which can only replace one project's dependency list; and `rekall_assess_vulnerability`, which can only write a verdict on one exposure the project already has. See §7. |
 | D3 | Markdown content lives in the database | One backup target, reachable through MCP, searchable. |
 | D4 | One entry point, and it is a slash command | A session begins with `/rk project:vega task:report-builder`, not with a question. Reaching a record through a natural-language query costs several turns and a few thousand tokens before any work starts, and it is the part that fails when the model guesses the wrong entity. An explicit anchor removes both. |
 | D5 | The model is fixed at compile time | There is no runtime meta-model and no DDL engine. Company, project, task and document are fixed SeaORM entities; adding a new kind of record is a model and a migration, not a screen. |
@@ -56,9 +56,9 @@ rekall/
   rekall-repository/ queries, one folder per domain, and the SQLite migrations for their schema
   rekall-service/    context assembly, the step and review lines, flows, wrapups, notes, time entries, token usage
   rekall-api/        Axum REST routes for the UI, one folder per domain: its controller, request shapes and console service
-  rekall-mcp/        MCP server: one tool reads, five write (a wrapup, a step's state, a commit log entry, a draft step, a new note); a folder per domain holds its tools
+  rekall-mcp/        MCP server: three tools read, ten write; a folder per domain holds its tools
   rekall-claude/     the in-app terminal (portable-pty PTYs over one WebSocket), the Claude Code usage meter, the run queue, the transcript reader, the Claude folder editor
-  rekall-platform/   the database registry, backups and restores, the restart handle, the release check, the OS credential store; what the application does around the catalog
+  rekall-platform/   the database registry, backups and restores, the restart handle, the release check, the OS credential store, the GitHub Advisory Database client; what the application does around the catalog
   rekall-app/        rekall-server: wires every module, the local-access guard, serves the built frontend, embedded at compile time
   rekall-app/desktop the Tauri desktop app over the same server, in-process
   rekall-ui/         Vue 3 + Vite (built into rekall-ui/dist, embedded by rekall-app)
@@ -101,6 +101,8 @@ is found by opening one folder per crate:
 | `wrapup`, `review`, `timeentry` | the wrapup, the review line, logged time |
 | `commit`, `diagram`, `token`, `search`, `context` | logged commits, stored diagrams, token usage, search, context assembly and its size |
 | `skill`, `tag`, `queue`, `claude` | skill assignments, tags, the run queue, what a session launch needs |
+| `inventory` | what each project is built from: its dependencies at the version each resolves to |
+| `vulnerability` | the critical advisories, the projects they reach, the scan that finds them, a session's verdict and the fix task |
 
 `diagram` also has `rekall-diagram`, the one domain with a crate of its own, because the format
 depends on nothing of Rekall's. A domain gets a crate only on that condition.
@@ -123,6 +125,7 @@ domain that uses another one it is not listed for, and on two domains that use e
 | `section` | `note` |
 | `step` | `timeentry` |
 | `task` | `step` |
+| `vulnerability` | `inventory` |
 | `wrapup` | `review` |
 | every other | nothing |
 
@@ -172,6 +175,10 @@ Company ──< Project ──< Task >──< Document
 Company ──< ExternalConnection ──< ConnectionAccess
                     │
 Project ──< ProjectConnection >──┘
+
+Project ──< ProjectDependency
+Project ──< VulnerabilityExposure >── SecurityAdvisory
+                    └──> Task (the fix, optional)
 ```
 
 | Table | Anchored by | Columns of note |
@@ -189,6 +196,9 @@ Project ──< ProjectConnection >──┘
 | `external_connection` | `label`, unique per company | `company_id`, `title`, `kind` (`GITLAB`, `KUBERNETES`, `JIRA`), `base_url` (the GitLab instance or Jira site, or the server read from an imported kubeconfig), `kube_context`, `proxy_url` (Jira only: the proxy its calls go through), `secret_ref` (the OS keychain account holding the credential, generated, unique), `secret_set_at` (null while no credential is stored). No column holds a credential |
 | `project_connection` | through its project | `project_id`, `connection_id` unique together, `target` (GitLab project path, Kubernetes namespace or Jira project key); deleted with either side |
 | `connection_access` | through its connection | `connection_id`, `task_id` (set null when the task goes), `terminal_id`, `accessed_at`, `granted`, `reason` (why the request was refused); append-only, never a credential |
+| `project_dependency` | through its project | `project_id`, `ecosystem`, `name`, `version`, `manifest` (the declaring file, relative to the project's folder), `created_at`; unique per project, ecosystem, name and version; replaced whole |
+| `security_advisory` | `ghsa_id`, unique | `cve_id`, `summary`, `description`, `url`, `published_at`, `affected_json` (the packages it affects: ecosystem, name, vulnerable range, first patched version, vulnerable functions) |
+| `vulnerability_exposure` | through its project | `project_id`, `advisory_id` unique together, the `ecosystem`, `package_name` and `package_version` it reached the project through, `verdict` (`AFFECTED`, `NOT_AFFECTED`, null until judged), `reasoning`, `assessed_at`, `fix_task_id` (set null when the task goes); deleted with its project or advisory |
 | `token_usage` | through its task | `session_id`, `task_id`, `step_id`, the four token counts, `spent_on` |
 | `transcript_scan` | `session_id` | `scanned_bytes`, `scanned_at` |
 | `task_skill` | through its task | `task_id`, `step_id` (null for the task's own), `skill_name`, `position`; deleted with its task or step |
@@ -480,6 +490,11 @@ what a step asks to keep, or the note a task exists to write. `/rk … note "…
 explicitly. It creates, and does nothing else: a title the task's notes already carry is refused
 rather than overwritten, and the note is `FULL` with kind `notes` until a person changes it.
 
+`rekall_inventory` replaces a project's dependency list whole, taking a `project:` anchor and `dependencies`
+(`[{ecosystem, name, version, manifest}]`); `rekall_vulnerabilities` reads the exposures of a project, or
+one by its GHSA id; `rekall_assess_vulnerability` records a verdict and its reasoning on one exposure. See
+Vulnerabilities below.
+
 `rekall_project_section` is `rekall_note` for a project: the anchors name a task, the section lands on that
 task's project, and `replace` rewrites the body of the section with the same title (ignoring case) instead
 of refusing. Sections live in their own table, `project_section`, not in `document`, because a note is
@@ -584,7 +599,11 @@ asks `StepLinkService.propose_in` for are refused unless both ends are drafts, s
 step's routes change. `NoteService` (rekall-service) can only create a note and attach it to the one task it was
 written for: it never loads a note by id, so it cannot edit, detach or delete one, and
 `DocumentService`, which can, stays in `rekall-api`. `CommitReferenceService` and `AutoCommitService` log and make commits in the project's own
-folder. Every read runs in a
+folder. `InventoryRecordingService` replaces one project's dependency rows and drops the exposures they
+no longer declare; `VulnerabilityExposureService.assess` writes a verdict on an exposure a scan already
+found and refuses an advisory that does not reach the project. Neither reaches the advisory database:
+the scan, which does, is not part of `Services` and is built in `rekall-app` for the console and the
+schedule, and the fix task is created by `VulnerabilityFixService` in `rekall-api`. Every read runs in a
 read-only transaction. `McpTool.writes()` is declared
 rather than inferred, and the startup log names the write surface out loud.
 
@@ -691,6 +710,32 @@ done, change or lose a note, move a task or delete anything.
 
 ---
 
+
+### Vulnerabilities
+
+The Security screen answers two questions about a project: does a critical vulnerability reach a
+library it uses, and is the vulnerable code actually reached. The first is a lookup Rekall makes; the
+second needs the code read, so a session makes it.
+
+| Piece | What it decides |
+|---|---|
+| `DependencyInventoryService` (rekall-service, `inventory/`) | A project's dependencies, written whole by `write_in` and read by the console and the scan. `inventory::rules` refuses an empty list, more than 5,000 entries, an unknown ecosystem, a version that is a range (`^`, `~`, `>`, `<`, `=`, `*`, `\|`, a space or a comma), and a manifest path that is absolute or climbs out with `..`; a leading `v` before a digit is dropped, and an entry repeating an ecosystem, name and version is kept once |
+| `InventoryRecordingService` | The session's write: the inventory and, in the same transaction, `forget_missing_in`, which drops the exposures whose package the new list no longer holds at that version |
+| `AdvisoryFeed` | The seam to the advisory database: the latest critical advisories, and the critical ones affecting a list of `package@version` in one ecosystem. `GithubAdvisoryFeed` in rekall-platform reads `GET /advisories?type=reviewed&severity=critical` without a token, the second form with `ecosystem` and `affects`, first page only; a withdrawn advisory, one whose id does not read and a package in an ecosystem Rekall does not inventory are dropped. A 429, or a 403 with no allowance left, is `RateLimited`. `StartOptions::advisory_feed` stands in for it, and the test harness hands every app a silent one |
+| `VulnerabilityScanService` | One scan: the 100 newest critical advisories, then per inventoried project and ecosystem a question of at most 80 packages. GitHub decides which version is affected; Rekall attributes an advisory to the first package of the question it names (`rules::same_package`: ignoring case, and pip's separators folded). Everything is recorded in one transaction: advisories upserted by GHSA id, each answered project's exposures replaced by what was found. A project whose question failed keeps its exposures; once rate limited, the rest are skipped and reported. A mutex lets one scan run at a time; a second is a 409 |
+| `VulnerabilityExposureService` | The exposures. `replace_found_in` adds new ones unjudged, keeps a known one with its verdict, clears the verdict when the advisory is found again through another version, and deletes the rest. `assess` refuses an advisory not exposed on the project, naming the ones that are. An exposure is open (a warning) until it is `NOT_AFFECTED` or has a fix task |
+| `VulnerabilityFixService` (rekall-api) | Creates the fix task through `TaskService::create_in` and ties it to the exposure, in one transaction. The label is `fix-<ghsa id>`, numbered when taken; the description (`fix_task_rules`) is the brief a session works from |
+
+A scan runs five minutes after the application starts and every six hours (`Instance::start_vulnerability_scans`),
+and on `POST /api/vulnerabilities/scan`. Every write publishes `vulnerability` (with how many exposures
+a scan found for the first time) or `inventory` on the event stream; the console's `useVulnerabilityStore`
+is loaded by the shell and kept current by them, so the Security tab carries the count of open warnings
+from any screen.
+
+Sharp edges: matching is by GitHub's own version semantics, so a version written differently from how
+the ecosystem spells it is missed rather than misjudged; the scan reads only the first page of each
+answer (100 advisories), which a question of 80 packages stays well inside; a session on a project alone,
+reopened from the live-work bar, lands on the Diagrams screen whatever it was started for.
 
 ### Opening a session from a button
 
@@ -998,7 +1043,11 @@ column of about 420px.
 
 The header is one 48px row (`--spacing-header`, shared by the pane headers so their rules line
 up), a four-cell grid: the 24px mark with the history arrows, the screen tabs centred in a flexible cell, a centre cell of at most 620px and a flexible right cell. A screen teleports exactly two children into the last two, so the tabs sit in the same place on every screen; the console puts the `/rk` field in the centre and the readings and tools on the right, the others a title and actions. A
-screen tab is text with an amber rule under the screen you are on (`nav-tab`, `nav-tab-current`).
+screen tab is text with an amber rule under the screen you are on (`nav-tab`, `nav-tab-current`), and a
+tab whose screen counts something that needs the reader wears it (`NavAlertCount`, from `useNavAlerts`).
+Under a 1280px window the tabs fold into one key (`AppNavMenu`) naming the screen on display, which opens
+every screen as a vertical menu, a group's screens under its name; the sum of the tabs' alerts rides on
+the key, so folding never hides a warning.
 On the console the `/rk` field is also the location bar: at rest it shows the open note's or
 task's anchors, or the scope's, as chips, and focused it is the search. Everything right of
 the tabs is the same piece, a 36px `header-capsule` with the field's corner: usage, the run queue

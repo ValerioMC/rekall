@@ -7,6 +7,7 @@ pub mod context;
 pub mod controller;
 pub mod diagram;
 pub mod flow;
+pub mod inventory;
 pub mod note;
 pub mod protocol;
 pub mod section;
@@ -15,6 +16,7 @@ pub mod task;
 mod texts;
 pub mod tool;
 pub mod tool_registry;
+pub mod vulnerability;
 pub mod wrapup;
 
 pub use controller::{router, McpController};

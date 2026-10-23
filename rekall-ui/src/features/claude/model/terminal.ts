@@ -3,14 +3,15 @@ import type { ConnectionId, ProjectId, TaskId, TaskStepId, TerminalId } from '@/
 
 /**
  * What a terminal is opened to do: `WORK` types `/rk <anchor>`, `PLAN` types `/rk <anchor> plan`,
- * `PLAN_FLOW` types `/rk <anchor> plan flow`, `GENERATE` types `/rk <anchor> generate "<request>"`.
+ * `PLAN_FLOW` types `/rk <anchor> plan flow`, `GENERATE` types `/rk <anchor> generate "<request>"`,
+ * `INVENTORY` types `/rk <anchor> inventory`, `ASSESS` types `/rk <anchor> assess advisory:<id>`.
  */
-export type TerminalMode = 'WORK' | 'PLAN' | 'PLAN_FLOW' | 'GENERATE' | 'EXPLAIN'
+export type TerminalMode = 'WORK' | 'PLAN' | 'PLAN_FLOW' | 'GENERATE' | 'EXPLAIN' | 'INVENTORY' | 'ASSESS'
 
 /** A planning terminal: a checklist of drafts, or a flow, drafts joined by their routes. */
 export type PlanMode = Extract<TerminalMode, 'PLAN' | 'PLAN_FLOW'>
 
-/** What a terminal is opened on: a task, or a project alone, which only generates a diagram. */
+/** What a terminal is opened on: a task, or a project alone, which draws a diagram, inventories or assesses. */
 export type TerminalTarget = { readonly taskId: TaskId } | { readonly projectId: ProjectId }
 
 /**

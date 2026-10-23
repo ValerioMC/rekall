@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use rekall_claude::usage::UsageReader;
 use rekall_service::connection::{JiraIssues, SecretStore};
+use rekall_service::vulnerability::AdvisoryFeed;
 use rekall_service::Clock;
 
 use rekall_platform::connection::ConnectionProbe;
@@ -22,6 +23,8 @@ pub struct StartOptions {
     pub connection_probe: Option<Arc<dyn ConnectionProbe>>,
     /// Stands in for the Jira sites issues are imported from.
     pub jira_issues: Option<Arc<dyn JiraIssues>>,
+    /// Stands in for the GitHub Advisory Database a vulnerability scan reads.
+    pub advisory_feed: Option<Arc<dyn AdvisoryFeed>>,
     /// Hand the instance a restarter nothing listens to: a database switch is recorded but the
     /// application stays on the database it has.
     pub no_restart: bool,

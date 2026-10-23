@@ -50,3 +50,7 @@ path = "tests/integration/token_usage.rs"
 [[test]]
 name = "domain_edges"
 path = "tests/integration/domain_edges.rs"
+
+[[test]]
+name = "vulnerabilities"
+path = "tests/integration/vulnerabilities.rs"

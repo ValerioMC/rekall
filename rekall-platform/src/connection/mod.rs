@@ -18,3 +18,5 @@ pub use connection_probe::ConnectionProbe;
 pub use http_connection_probe::HttpConnectionProbe;
 pub use http_jira_issues::HttpJiraIssues;
 pub use probe_outcome::ProbeOutcome;
+
+pub(crate) use http_connection_probe::failure_chain;

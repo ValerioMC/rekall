@@ -24,4 +24,4 @@ macro_rules! stamped {
     )+};
 }
 
-stamped!(company, project, task, task_step, document, wrapup, tag, project_section, project_component, step_link, external_connection, project_connection);
+stamped!(company, project, task, task_step, document, wrapup, tag, project_section, project_component, step_link, external_connection, project_connection, security_advisory, vulnerability_exposure);
