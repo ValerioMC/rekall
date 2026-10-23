@@ -75,7 +75,7 @@ impl ApiState {
         let tasks = catalog::TaskService::new(ctx.clone(), services.review.clone(), services.time_entries.clone());
         let project_connections = connection::ProjectConnectionService::new(ctx.clone());
         let jira_issues = connection::JiraIssueService::new(ctx.clone(), project_connections.clone(), tasks.clone(), secrets.clone(), jira);
-        let vulnerability_fixes = vulnerability::VulnerabilityFixService::new(ctx.clone(), services.exposures.clone(), tasks.clone());
+        let vulnerability_fixes = vulnerability::VulnerabilityFixService::new(ctx.clone(), services.exposures.clone(), tasks.clone(), services.steps.clone());
         Self {
             companies: catalog::CompanyService::new(ctx.clone()),
             logos: catalog::CompanyLogoService::new(ctx.clone()),

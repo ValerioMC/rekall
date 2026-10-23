@@ -46,8 +46,37 @@ impl AdvisoryFeed for LodashFeed {
     }
 }
 
+/// Knows the lodash advisory and a second one on the same package, and answers with both for any lodash.
+struct TwoLodashFeed;
+
+fn command_injection_advisory() -> PublishedAdvisory {
+    PublishedAdvisory {
+        ghsa_id: "GHSA-35jh-r3h4-6jhm".into(),
+        cve_id: Some("CVE-2021-23337".into()),
+        summary: "Command injection in lodash".into(),
+        description: "`template` runs code from its options.".into(),
+        ..lodash_advisory()
+    }
+}
+
+#[async_trait]
+impl AdvisoryFeed for TwoLodashFeed {
+    async fn latest_critical(&self, _limit: u16) -> Result<Vec<PublishedAdvisory>, AdvisoryFeedFailure> {
+        Ok(vec![lodash_advisory(), command_injection_advisory()])
+    }
+
+    async fn critical_affecting(&self, ecosystem: Ecosystem, packages: &[PackageVersion]) -> Result<Vec<PublishedAdvisory>, AdvisoryFeedFailure> {
+        let reached = ecosystem == Ecosystem::Npm && packages.iter().any(|package| package.name == "lodash");
+        Ok(if reached { vec![lodash_advisory(), command_injection_advisory()] } else { Vec::new() })
+    }
+}
+
 async fn vega() -> (App, String) {
-    let app = app_with(&[], StartOptions { no_restart: true, advisory_feed: Some(Arc::new(LodashFeed)), ..StartOptions::default() }).await;
+    vega_with(Arc::new(LodashFeed)).await
+}
+
+async fn vega_with(feed: Arc<dyn AdvisoryFeed>) -> (App, String) {
+    let app = app_with(&[], StartOptions { no_restart: true, advisory_feed: Some(feed), ..StartOptions::default() }).await;
     let acme = app.a_company("Acme").await;
     let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
     (app, project_id)
@@ -137,5 +166,28 @@ async fn fixing_an_exposure_opens_a_briefed_task_once() {
     assert_eq!((fixed.get("exposure")["open"].as_bool(), fixed.get("exposure")["fixTaskId"].as_str()), (Some(false), task["id"].as_str()));
 
     let again = app.post_empty(&format!("/api/vulnerability-exposures/{exposure_id}/fix")).await;
+    assert_eq!(again.status, 409, "{}", again.text);
+}
+
+#[tokio::test]
+async fn fixing_a_project_opens_one_task_with_a_step_per_open_exposure_once() {
+    let (app, project_id) = vega_with(Arc::new(TwoLodashFeed)).await;
+    inventory(&app, "4.17.15").await;
+    app.post_empty("/api/vulnerabilities/scan").await;
+
+    let fixed = app.post_empty(&format!("/api/projects/{project_id}/vulnerabilities/fix")).await;
+
+    assert_eq!(fixed.status, 200, "{}", fixed.text);
+    let task = fixed.get("task");
+    assert_eq!((task["label"].as_str(), task["title"].as_str()), (Some("fix-vulnerabilities"), Some("Fix 2 critical advisories in vega")));
+    let steps = app.get(&format!("/api/tasks/{}/steps", task["id"].as_str().unwrap())).await.list();
+    let mut titles: Vec<&str> = steps.iter().map(|step| step["title"].as_str().unwrap()).collect();
+    titles.sort_unstable();
+    assert_eq!(titles, ["Fix GHSA-35jh-r3h4-6jhm in lodash 4.17.15", "Fix GHSA-p6mc-m468-83gw in lodash 4.17.15"]);
+    assert!(steps[0]["bodyMarkdown"].as_str().unwrap().contains("Upgrade `lodash` to 4.17.21 or later"), "{}", steps[0]);
+    let exposures = fixed.get("exposures").as_array().unwrap().clone();
+    assert!(exposures.iter().all(|exposure| exposure["fixTaskId"] == task["id"] && exposure["open"] == false), "{exposures:?}");
+
+    let again = app.post_empty(&format!("/api/projects/{project_id}/vulnerabilities/fix")).await;
     assert_eq!(again.status, 409, "{}", again.text);
 }
