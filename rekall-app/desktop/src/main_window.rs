@@ -1,11 +1,12 @@
 //! The one window: hidden until it fades in at its splash size, with navigation outside the local
-//! instance sent to the browser and downloads saved to the Downloads folder.
+//! instance and every new-window request (a `target="_blank"` link) sent to the browser, and
+//! downloads saved to the Downloads folder.
 
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
-use tauri::webview::DownloadEvent;
+use tauri::webview::{DownloadEvent, NewWindowResponse};
 use tauri::{AppHandle, LogicalSize, Manager, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 use tauri_plugin_opener::OpenerExt;
 use tracing::{error, warn};
@@ -17,6 +18,7 @@ use crate::splash::replay_splash;
 
 pub(crate) fn build_window(handle: &AppHandle) -> tauri::Result<WebviewWindow> {
     let opener = handle.clone();
+    let new_window_opener = handle.clone();
     let downloads = handle.clone();
     let tracker = DownloadTracker::default();
     let splash = splash_window_size(handle);
@@ -36,10 +38,14 @@ pub(crate) fn build_window(handle: &AppHandle) -> tauri::Result<WebviewWindow> {
             if is_local(url) {
                 return true;
             }
-            if let Err(failed) = opener.opener().open_url(url.as_str(), None::<&str>) {
-                warn!(%failed, %url, "Could not open the link in the browser");
-            }
+            open_in_browser(&opener, url);
             false
+        })
+        // A link that asks for a window of its own would otherwise be dropped without a word: the
+        // webview opens no second window, so the click does nothing.
+        .on_new_window(move |url, _| {
+            open_in_browser(&new_window_opener, &url);
+            NewWindowResponse::Deny
         })
         // A download is a plain link (a backup's zip): saved to Downloads under a name not yet taken,
         // and shown in the file manager once it is there.
@@ -113,6 +119,12 @@ fn splash_window_size(handle: &AppHandle) -> LogicalSize<f64> {
     match handle.primary_monitor() {
         Ok(Some(monitor)) => bridges::splash_size(monitor.work_area().size.width, monitor.scale_factor()),
         _ => LogicalSize::new(768.0, 429.0),
+    }
+}
+
+fn open_in_browser(handle: &AppHandle, url: &Url) {
+    if let Err(failed) = handle.opener().open_url(url.as_str(), None::<&str>) {
+        warn!(%failed, %url, "Could not open the link in the browser");
     }
 }
 

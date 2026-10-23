@@ -732,6 +732,13 @@ a scan found for the first time) or `inventory` on the event stream; the console
 is loaded by the shell and kept current by them, so the Security tab carries the count of open warnings
 from any screen.
 
+The console's `features/vulnerability` is one screen cut by view. `lib/security-view` reads the view from
+the query (overview, advisories with the one picked, a project and its tab); `lib/project-posture` orders
+the rail (`exposed`, `uncovered`, `unreadable`, `clear`); `lib/dependency-filter` ties each dependency to the
+exposures on its package and version, with the scan's own name folding, and filters it; `useVirtualRows`
+keeps only the visible rows of a long inventory in the DOM. An advisory's description is reporter-written
+markdown, so `lib/advisory-description` cuts it into text blocks and nothing renders it as HTML.
+
 Sharp edges: matching is by GitHub's own version semantics, so a version written differently from how
 the ecosystem spells it is missed rather than misjudged; the scan reads only the first page of each
 answer (100 advisories), which a question of 80 packages stays well inside; a session on a project alone,
