@@ -96,3 +96,12 @@ fn an_assess_terminal_names_the_advisory_by_its_ghsa_id() {
     let typed_into_the_line: OpenTerminalRequest = serde_json::from_str(r#"{"mode":"ASSESS","advisory":"GHSA-aaaa-aaaa-aaaa\r/exit"}"#).unwrap();
     assert!(typed_into_the_line.mode().is_err(), "only a GHSA id reaches the prompt");
 }
+
+#[test]
+fn an_assess_all_terminal_asks_for_every_advisory_of_the_project_without_naming_one() {
+    let request: OpenTerminalRequest = serde_json::from_str(r#"{"mode":"ASSESS_ALL","advisory":"GHSA-aaaa-aaaa-aaaa"}"#).unwrap();
+    let mode = request.mode().unwrap();
+    assert_eq!(mode.first_line("project:vega"), "/rk project:vega assess");
+    assert!(mode.works_on_a_project() && !mode.follows_steps());
+    assert_eq!(mode.to_string(), "ASSESS_ALL");
+}

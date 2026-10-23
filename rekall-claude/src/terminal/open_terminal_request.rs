@@ -9,7 +9,7 @@ use super::{TerminalMode, TerminalModeName};
 /// unknown or blank model or effort leaves the account default. A missing `mode` is
 /// [`TerminalMode::Work`]; `PLAN_FLOW` asks for a flow rather than a checklist; `GENERATE` and
 /// `EXPLAIN` need a `request`, and `kinds` names the diagram types a generation draws; `ASSESS`
-/// needs the GHSA id of the `advisory` to judge.
+/// needs the GHSA id of the `advisory` to judge, and `ASSESS_ALL` judges every one not judged yet.
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct OpenTerminalRequest {
@@ -33,6 +33,7 @@ impl OpenTerminalRequest {
             Some(TerminalModeName::Explain) => Ok(TerminalMode::Explain { request: self.diagram_request()? }),
             Some(TerminalModeName::Inventory) => Ok(TerminalMode::Inventory),
             Some(TerminalModeName::Assess) => Ok(TerminalMode::Assess { advisory: rules::ghsa_id(self.advisory.as_deref())? }),
+            Some(TerminalModeName::AssessAll) => Ok(TerminalMode::AssessAll),
         }
     }
 

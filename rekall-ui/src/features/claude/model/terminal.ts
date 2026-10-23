@@ -4,9 +4,10 @@ import type { ConnectionId, ProjectId, TaskId, TaskStepId, TerminalId } from '@/
 /**
  * What a terminal is opened to do: `WORK` types `/rk <anchor>`, `PLAN` types `/rk <anchor> plan`,
  * `PLAN_FLOW` types `/rk <anchor> plan flow`, `GENERATE` types `/rk <anchor> generate "<request>"`,
- * `INVENTORY` types `/rk <anchor> inventory`, `ASSESS` types `/rk <anchor> assess advisory:<id>`.
+ * `INVENTORY` types `/rk <anchor> inventory`, `ASSESS` types `/rk <anchor> assess advisory:<id>`,
+ * `ASSESS_ALL` types `/rk <anchor> assess` to judge every advisory not assessed yet.
  */
-export type TerminalMode = 'WORK' | 'PLAN' | 'PLAN_FLOW' | 'GENERATE' | 'EXPLAIN' | 'INVENTORY' | 'ASSESS'
+export type TerminalMode = 'WORK' | 'PLAN' | 'PLAN_FLOW' | 'GENERATE' | 'EXPLAIN' | 'INVENTORY' | 'ASSESS' | 'ASSESS_ALL'
 
 /** A planning terminal: a checklist of drafts, or a flow, drafts joined by their routes. */
 export type PlanMode = Extract<TerminalMode, 'PLAN' | 'PLAN_FLOW'>

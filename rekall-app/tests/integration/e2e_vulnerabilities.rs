@@ -191,3 +191,26 @@ async fn fixing_a_project_opens_one_task_with_a_step_per_open_exposure_once() {
     let again = app.post_empty(&format!("/api/projects/{project_id}/vulnerabilities/fix")).await;
     assert_eq!(again.status, 409, "{}", again.text);
 }
+
+#[tokio::test]
+async fn a_project_fix_of_the_affected_leaves_the_not_affected_and_a_fix_of_all_takes_them() {
+    let (app, project_id) = vega_with(Arc::new(TwoLodashFeed)).await;
+    inventory(&app, "4.17.15").await;
+    app.post_empty("/api/vulnerabilities/scan").await;
+    app.call_tool("rekall_assess_vulnerability", json!({ "anchors": "project:vega", "advisory": "GHSA-35jh-r3h4-6jhm", "verdict": "not_affected", "reasoning": "`template` is never called." }))
+        .await;
+    let path = format!("/api/projects/{project_id}/vulnerabilities/fix");
+
+    let affected = app.post(&path, json!({ "scope": "AFFECTED" })).await;
+    assert_eq!(affected.status, 200, "{}", affected.text);
+    let taken: Vec<&str> = affected.get("exposures").as_array().unwrap().iter().map(|exposure| exposure["advisory"]["ghsaId"].as_str().unwrap()).collect();
+    assert_eq!(taken, ["GHSA-p6mc-m468-83gw"]);
+    assert_eq!(app.post(&path, json!({ "scope": "AFFECTED" })).await.status, 409, "nothing is left a warning");
+
+    let all = app.post(&path, json!({ "scope": "ALL" })).await;
+    assert_eq!(all.status, 200, "{}", all.text);
+    let taken: Vec<&str> = all.get("exposures").as_array().unwrap().iter().map(|exposure| exposure["advisory"]["ghsaId"].as_str().unwrap()).collect();
+    assert_eq!(taken, ["GHSA-35jh-r3h4-6jhm"], "what the first fix took is not taken twice");
+    assert!(all.get("task")["description"].as_str().unwrap().contains("(judged not affected)"), "{}", all.text);
+    assert_eq!(app.post(&path, json!({ "scope": "ALL" })).await.status, 409);
+}

@@ -9,7 +9,7 @@ pub const REQUEST_MAX_CHARACTERS: usize = 2000;
 /// `PlanFlow` has it propose a flow, steps and routes, as drafts; `Generate` has it draw `request`
 /// as Mermaid sheets of the `kinds` asked for; `Explain` has it write a walkthrough of `request`;
 /// `Inventory` has it record the project's dependencies; `Assess` has it judge whether `advisory`
-/// really reaches the project. Only `Work` follows a step.
+/// really reaches the project, `AssessAll` every advisory not judged yet. Only `Work` follows a step.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub enum TerminalMode {
     #[default]
@@ -20,6 +20,7 @@ pub enum TerminalMode {
     Explain { request: String },
     Inventory,
     Assess { advisory: String },
+    AssessAll,
 }
 
 /// The mode's name as the console sends it; a generate request and its kinds travel beside it.
@@ -34,6 +35,8 @@ pub enum TerminalModeName {
     Explain,
     Inventory,
     Assess,
+    #[serde(rename = "ASSESS_ALL")]
+    AssessAll,
 }
 
 impl TerminalMode {
@@ -49,13 +52,14 @@ impl TerminalMode {
             TerminalMode::Explain { request } => format!("/rk {anchors} explain \"{}\"", one_line(request)),
             TerminalMode::Inventory => format!("/rk {anchors} inventory"),
             TerminalMode::Assess { advisory } => format!("/rk {anchors} assess advisory:{advisory}"),
+            TerminalMode::AssessAll => format!("/rk {anchors} assess"),
         }
     }
 
     /// Whether the work is the project's as a whole: a diagram, its inventory or an assessment, the
     /// only work a terminal on a project alone has.
     pub fn works_on_a_project(&self) -> bool {
-        matches!(self, TerminalMode::Generate { .. } | TerminalMode::Explain { .. } | TerminalMode::Inventory | TerminalMode::Assess { .. })
+        matches!(self, TerminalMode::Generate { .. } | TerminalMode::Explain { .. } | TerminalMode::Inventory | TerminalMode::Assess { .. } | TerminalMode::AssessAll)
     }
 
     pub fn follows_steps(&self) -> bool {
@@ -89,6 +93,7 @@ impl std::fmt::Display for TerminalMode {
             TerminalMode::Explain { .. } => "EXPLAIN",
             TerminalMode::Inventory => "INVENTORY",
             TerminalMode::Assess { .. } => "ASSESS",
+            TerminalMode::AssessAll => "ASSESS_ALL",
         })
     }
 }
