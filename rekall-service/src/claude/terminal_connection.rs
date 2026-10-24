@@ -23,7 +23,7 @@ impl TerminalConnection {
         Self {
             connection_id: connection.id,
             kind: connection.kind,
-            label: connection.label.clone(),
+            label: binding.label.clone(),
             target: binding.target.clone(),
             instance_url: connection.kind.reached_at_typed_url().then(|| connection.base_url.clone()).flatten(),
             proxy_url: connection.proxy_url.clone(),

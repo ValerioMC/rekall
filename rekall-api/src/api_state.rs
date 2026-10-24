@@ -54,6 +54,7 @@ pub struct ApiState {
     pub connection_credentials: connection::ConnectionCredentialService,
     pub kubeconfig_preview: connection::KubeconfigPreviewService,
     pub project_connections: connection::ProjectConnectionService,
+    pub repository_discovery: connection::RepositoryDiscoveryService,
     pub connection_access: connection::ConnectionAccessQueryService,
     pub jira_issues: connection::JiraIssueService,
     pub icons: catalog::ProjectIconService,
@@ -76,6 +77,17 @@ impl ApiState {
         let ctx = services.ctx.clone();
         let tasks = catalog::TaskService::new(ctx.clone(), services.review.clone(), services.time_entries.clone());
         let project_connections = connection::ProjectConnectionService::new(ctx.clone());
+        let projects = catalog::ProjectService::new(ctx.clone(), services.repositories);
+        let connections = connection::ConnectionService::new(ctx.clone(), secrets.clone());
+        let component_catalog = component::ProjectComponentCatalogService::new(ctx.clone());
+        let repository_discovery = connection::RepositoryDiscoveryService::new(
+            ctx.clone(),
+            services.repositories,
+            projects.clone(),
+            connections.clone(),
+            project_connections.clone(),
+            component_catalog.clone(),
+        );
         let jira_issues = connection::JiraIssueService::new(ctx.clone(), project_connections.clone(), tasks.clone(), secrets.clone(), jira);
         let vulnerability_fixes = vulnerability::VulnerabilityFixService::new(ctx.clone(), services.exposures.clone(), tasks.clone(), services.steps.clone());
         let graphs = graph::DeploymentGraphService::new(ctx.clone());
@@ -83,7 +95,7 @@ impl ApiState {
         Self {
             companies: catalog::CompanyService::new(ctx.clone()),
             logos: catalog::CompanyLogoService::new(ctx.clone()),
-            projects: catalog::ProjectService::new(ctx.clone(), services.repositories),
+            projects,
             tasks,
             documents: note::DocumentService::new(ctx.clone()),
             tags: tag::TagService::new(ctx.clone()),
@@ -91,13 +103,14 @@ impl ApiState {
             diagram_catalog: diagram::DiagramCatalogService::new(ctx.clone()),
             sources: diagram::SourceExcerptService::new(ctx.clone()),
             section_catalog: section::ProjectSectionCatalogService::new(ctx.clone()),
-            component_catalog: component::ProjectComponentCatalogService::new(ctx.clone()),
+            component_catalog,
             graphs,
             graph_attach,
-            connections: connection::ConnectionService::new(ctx.clone(), secrets.clone()),
+            connections,
             connection_credentials: connection::ConnectionCredentialService::new(ctx.clone(), secrets),
             kubeconfig_preview: connection::KubeconfigPreviewService::new(),
             project_connections,
+            repository_discovery,
             connection_access: connection::ConnectionAccessQueryService::new(ctx.clone()),
             jira_issues,
             icons: catalog::ProjectIconService::new(ctx),

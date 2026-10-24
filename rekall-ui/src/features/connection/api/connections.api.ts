@@ -9,7 +9,8 @@ import {
   JiraIssueListSchema,
   KubeContextListSchema,
   ProjectConnectionListSchema,
-  ProjectConnectionSchema
+  ProjectConnectionSchema,
+  RepositoryDiscoverySchema
 } from './schemas/connection.schema'
 import type {
   Connection,
@@ -21,11 +22,13 @@ import type {
   CredentialDraft,
   JiraIssue,
   KubeContextOption,
-  ProjectConnection
+  ProjectConnection,
+  ProjectConnectionInput,
+  RepositoryDiscovery
 } from '@/features/connection/model/connection'
 import { TaskListSchema } from '@/features/catalog/api/schemas/catalog.schema'
 import type { Task } from '@/features/catalog/model/catalog'
-import type { CompanyId, ConnectionId, ProjectId } from '@/model/branded'
+import type { CompanyId, ConnectionId, ProjectConnectionId, ProjectId } from '@/model/branded'
 
 export async function fetchCompanyConnections(companyId: CompanyId): Promise<Connection[]> {
   return request(async () =>
@@ -120,33 +123,54 @@ export async function fetchProjectConnections(projectId: ProjectId): Promise<Pro
   )
 }
 
-/** Binds the connection to the project, or sets the target of a binding it already has. */
+/** Binds the connection to the project once more, under the label given or the connection's own. */
 export async function bindConnection(
   projectId: ProjectId,
   connectionId: ConnectionId,
-  target: string | null
+  input: ProjectConnectionInput
 ): Promise<ProjectConnection> {
   return request(async () =>
     ProjectConnectionSchema.parse(
-      await apiClient(`/api/projects/${projectId}/connections/${connectionId}`, {
-        method: 'PUT',
-        body: { target }
+      await apiClient(`/api/projects/${projectId}/connections`, {
+        method: 'POST',
+        body: { connectionId, ...input }
       })
     )
   )
 }
 
-export async function unbindConnection(projectId: ProjectId, connectionId: ConnectionId): Promise<void> {
+export async function updateBinding(
+  projectId: ProjectId,
+  bindingId: ProjectConnectionId,
+  input: ProjectConnectionInput
+): Promise<ProjectConnection> {
+  return request(async () =>
+    ProjectConnectionSchema.parse(
+      await apiClient(`/api/projects/${projectId}/connections/${bindingId}`, { method: 'PUT', body: input })
+    )
+  )
+}
+
+export async function unbindConnection(projectId: ProjectId, bindingId: ProjectConnectionId): Promise<void> {
   await request(() =>
-    apiClient(`/api/projects/${projectId}/connections/${connectionId}`, { method: 'DELETE' })
+    apiClient(`/api/projects/${projectId}/connections/${bindingId}`, { method: 'DELETE' })
+  )
+}
+
+/** Binds every repository under the project's folder whose origin is on a GitLab with a credential. */
+export async function discoverRepositories(projectId: ProjectId): Promise<RepositoryDiscovery> {
+  return request(async () =>
+    RepositoryDiscoverySchema.parse(
+      await apiClient(`/api/projects/${projectId}/connections/discover`, { method: 'POST', retry: 0 })
+    )
   )
 }
 
 /** The open issues of the Jira project the binding names, the most recently updated first. */
-export async function fetchJiraIssues(projectId: ProjectId, connectionId: ConnectionId): Promise<JiraIssue[]> {
+export async function fetchJiraIssues(projectId: ProjectId, bindingId: ProjectConnectionId): Promise<JiraIssue[]> {
   return request(async () =>
     JiraIssueListSchema.parse(
-      await apiClient(`/api/projects/${projectId}/connections/${connectionId}/jira-issues`, { retry: 0 })
+      await apiClient(`/api/projects/${projectId}/connections/${bindingId}/jira-issues`, { retry: 0 })
     )
   )
 }
@@ -154,12 +178,12 @@ export async function fetchJiraIssues(projectId: ProjectId, connectionId: Connec
 /** Imports the chosen issues as the project's tasks; the ones already imported are passed over. */
 export async function importJiraIssues(
   projectId: ProjectId,
-  connectionId: ConnectionId,
+  bindingId: ProjectConnectionId,
   keys: readonly string[]
 ): Promise<Task[]> {
   return request(async () =>
     TaskListSchema.parse(
-      await apiClient(`/api/projects/${projectId}/connections/${connectionId}/jira-issues/import`, {
+      await apiClient(`/api/projects/${projectId}/connections/${bindingId}/jira-issues/import`, {
         method: 'POST',
         body: { keys },
         retry: 0

@@ -1,5 +1,6 @@
 //! A company's connections to GitLab, Kubernetes and Jira, their write-only credentials, the
-//! projects that bind them, their access log, and the Jira issues a project imports as tasks. Console-only: a session sees a project's connections
+//! projects that bind them, the repositories a project binds by discovery, their access log, and
+//! the Jira issues a project imports as tasks. Console-only: a session sees a project's connections
 //! through its context and never reaches these services.
 
 mod connection_access_query;
@@ -17,6 +18,8 @@ mod connection_response;
 mod connection_rules;
 mod connection_service;
 mod credential_keeping;
+mod discovered_repository_response;
+mod discovery_outcome;
 mod jira_import_request;
 mod jira_issue_controller;
 mod jira_issue_response;
@@ -29,6 +32,10 @@ mod project_connection_controller;
 mod project_connection_request;
 mod project_connection_response;
 mod project_connection_service;
+mod repository_discovery_response;
+mod repository_discovery_service;
+mod repository_folders;
+mod repository_origin;
 mod routes;
 
 pub use connection_access_query::ConnectionAccessQuery;
@@ -42,6 +49,8 @@ pub use connection_removed_response::ConnectionRemovedResponse;
 pub use connection_request::ConnectionRequest;
 pub use connection_response::ConnectionResponse;
 pub use connection_service::ConnectionService;
+pub use discovered_repository_response::DiscoveredRepositoryResponse;
+pub use discovery_outcome::DiscoveryOutcome;
 pub use jira_import_request::JiraImportRequest;
 pub use jira_issue_response::JiraIssueResponse;
 pub use jira_issue_service::JiraIssueService;
@@ -51,4 +60,6 @@ pub use kubeconfig_preview_service::KubeconfigPreviewService;
 pub use project_connection_request::ProjectConnectionRequest;
 pub use project_connection_response::ProjectConnectionResponse;
 pub use project_connection_service::ProjectConnectionService;
+pub use repository_discovery_response::RepositoryDiscoveryResponse;
+pub use repository_discovery_service::RepositoryDiscoveryService;
 pub(crate) use routes::routes;

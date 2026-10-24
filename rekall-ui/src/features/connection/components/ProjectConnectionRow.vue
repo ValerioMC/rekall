@@ -4,16 +4,17 @@ import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import ConnectionKindIcon from '@/features/connection/components/ConnectionKindIcon.vue'
 import { TARGET_FIELD } from '@/features/connection/lib/connection-fields'
-import type { ProjectConnection } from '@/features/connection/model/connection'
+import type { ProjectConnection, ProjectConnectionInput } from '@/features/connection/model/connection'
 
 /**
- * One connection the project uses: its target edited in place, and a way to stop using it. A Jira
- * one with a credential and a project key also opens the import of its issues.
+ * One connection the project uses: its label and target edited in place, and a way to stop using
+ * it. A Jira one with a credential and a project key also opens the import of its issues.
  */
 const props = defineProps<{ binding: ProjectConnection }>()
-const emit = defineEmits<{ target: [target: string | null]; unbind: []; importIssues: [] }>()
+const emit = defineEmits<{ save: [input: ProjectConnectionInput]; unbind: []; importIssues: [] }>()
 
 const draft = ref(props.binding.target ?? '')
+const labelDraft = ref(props.binding.label)
 const targetField = computed(() => TARGET_FIELD[props.binding.kind])
 const canImport = computed(
   () => props.binding.kind === 'JIRA' && !!props.binding.credentialSetAt && !!props.binding.target
@@ -26,9 +27,26 @@ watch(
   }
 )
 
+watch(
+  () => props.binding.label,
+  (label) => {
+    labelDraft.value = label
+  }
+)
+
 function commit(): void {
   const target = draft.value.trim() || null
-  if (target !== props.binding.target) emit('target', target)
+  if (target !== props.binding.target) emit('save', { label: props.binding.label, target })
+}
+
+/** A blank label goes back to the one the binding has; the server makes a typed one a slug. */
+function commitLabel(): void {
+  const label = labelDraft.value.trim()
+  if (!label) {
+    labelDraft.value = props.binding.label
+    return
+  }
+  if (label !== props.binding.label) emit('save', { label, target: props.binding.target })
 }
 </script>
 
@@ -52,7 +70,16 @@ function commit(): void {
       </button>
     </div>
     <div class="flex items-center gap-2">
-      <span class="shrink-0 font-mono text-caption text-anchor/80">{{ binding.label }}</span>
+      <input
+        v-model="labelDraft"
+        spellcheck="false"
+        autocomplete="off"
+        :aria-label="`Label a session names ${binding.title} by`"
+        data-testid="connection-label"
+        class="field h-7 w-32 shrink-0 rounded-control px-2 font-mono text-caption text-anchor/80"
+        @blur="commitLabel"
+        @keydown.enter.prevent="commitLabel"
+      />
       <input
         v-model="draft"
         spellcheck="false"

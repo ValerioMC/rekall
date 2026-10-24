@@ -120,7 +120,7 @@ async fn launch_with_cluster(world: &World, gitlab_url: &str, kubeconfig: &'stat
         world.secrets.put(&connection.secret_ref, &Secret::new(credential)).unwrap();
         connection.secret_set_at = Some(Instant::now());
         connection.clone().into_active_model().insert(world.db()).await.unwrap();
-        project_connection::Model::new(project.id, connection.id, target.map(str::to_string), Instant::now()).into_active_model().insert(world.db()).await.unwrap();
+        project_connection::Model::new(project.id, connection.id, label.into(), target.map(str::to_string), Instant::now()).into_active_model().insert(world.db()).await.unwrap();
     }
     world.services.terminal_launch.resolve(TerminalTarget::Project(project.id)).await.unwrap()
 }

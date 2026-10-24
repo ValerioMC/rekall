@@ -13,6 +13,7 @@ struct World {
     project_id: String,
     gitlab: String,
     cluster: String,
+    cluster_binding: String,
 }
 
 /// A project binding a GitLab instance and a cluster.
@@ -22,9 +23,9 @@ async fn world() -> World {
     let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
     let gitlab = id(&app.post(&format!("/api/companies/{acme}/connections"), json!({ "kind": "GITLAB", "title": "GitLab", "baseUrl": "https://gitlab.example.com" })).await);
     let cluster = id(&app.post(&format!("/api/companies/{acme}/connections"), json!({ "kind": "KUBERNETES", "title": "Prod" })).await);
-    app.put(&format!("/api/projects/{project_id}/connections/{gitlab}"), json!({ "target": "acme/vega" })).await;
-    app.put(&format!("/api/projects/{project_id}/connections/{cluster}"), json!({ "target": "apps" })).await;
-    World { app, project_id, gitlab, cluster }
+    app.post(&format!("/api/projects/{project_id}/connections"), json!({ "connectionId": gitlab, "target": "acme/vega" })).await;
+    let cluster_binding = id(&app.post(&format!("/api/projects/{project_id}/connections"), json!({ "connectionId": cluster, "target": "apps" })).await);
+    World { app, project_id, gitlab, cluster, cluster_binding }
 }
 
 /// Push, build, deploy, check: a failed build, deploy or check goes back to the push.
@@ -185,7 +186,7 @@ async fn a_connection_the_project_stops_using_is_reported_and_one_deleted_is_dro
     let graph = id(&world.app.post(&format!("/api/projects/{}/graphs", world.project_id), release(&world)).await);
     world.app.post(&format!("/api/tasks/{task_id}/graph"), json!({ "graphId": graph })).await;
 
-    world.app.delete(&format!("/api/projects/{}/connections/{}", world.project_id, world.cluster)).await;
+    world.app.delete(&format!("/api/projects/{}/connections/{}", world.project_id, world.cluster_binding)).await;
     assert_contains!(world.app.call_tool("rekall_context", json!({ "anchors": ANCHORS })).await, "`prod`, which this project no longer uses");
 
     world.app.delete(&format!("/api/connections/{}", world.gitlab)).await;

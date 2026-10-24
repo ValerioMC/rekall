@@ -31,7 +31,11 @@ async fn a_cluster(db: &impl ConnectionTrait, company: &company::Model, label: &
 }
 
 async fn a_binding(db: &impl ConnectionTrait, project: &project::Model, connection: &external_connection::Model) -> project_connection::Model {
-    repo::project_connection::bind(db, project_connection::Model::new(project.id, connection.id, Some("apps".into()), Instant::now()))
+    a_labelled_binding(db, project, connection, &connection.label).await
+}
+
+async fn a_labelled_binding(db: &impl ConnectionTrait, project: &project::Model, connection: &external_connection::Model, label: &str) -> project_connection::Model {
+    repo::project_connection::bind(db, project_connection::Model::new(project.id, connection.id, label.into(), Some("apps".into()), Instant::now()))
         .await
         .unwrap()
 }
@@ -54,17 +58,20 @@ async fn deleting_a_company_takes_its_connections_their_bindings_and_their_log()
 }
 
 #[tokio::test]
-async fn a_project_binds_a_connection_once() {
+async fn a_project_binds_a_connection_once_per_label() {
     let database = rekall_repository::open_temporary().await.unwrap();
     let db = &database.conn;
     let acme = a_company(db, "Acme").await;
     let vega = a_project(db, &acme, "vega").await;
     let prod = a_cluster(db, &acme, "prod").await;
     a_binding(db, &vega, &prod).await;
+    a_labelled_binding(db, &vega, &prod, "billing").await;
 
-    let again = repo::project_connection::bind(db, project_connection::Model::new(vega.id, prod.id, None, Instant::now())).await;
+    let again = repo::project_connection::bind(db, project_connection::Model::new(vega.id, prod.id, "billing".into(), None, Instant::now())).await;
 
     assert!(again.is_err());
+    assert_eq!(repo::project_connection::list_of_project_connection(db, vega.id, prod.id).await.unwrap().len(), 2);
+    assert!(repo::project_connection::is_bound(db, vega.id, prod.id).await.unwrap());
 }
 
 #[tokio::test]
@@ -107,10 +114,12 @@ async fn unbinding_removes_only_that_binding() {
     let acme = a_company(db, "Acme").await;
     let vega = a_project(db, &acme, "vega").await;
     let prod = a_cluster(db, &acme, "prod").await;
-    a_binding(db, &vega, &prod).await;
+    let binding = a_binding(db, &vega, &prod).await;
+    let kept = a_labelled_binding(db, &vega, &prod, "billing").await;
 
-    assert!(repo::project_connection::unbind(db, vega.id, prod.id).await.unwrap());
-    assert!(!repo::project_connection::unbind(db, vega.id, prod.id).await.unwrap());
+    assert!(repo::project_connection::unbind(db, vega.id, binding.id).await.unwrap());
+    assert!(!repo::project_connection::unbind(db, vega.id, binding.id).await.unwrap());
+    assert!(repo::project_connection::find(db, vega.id, kept.id).await.unwrap().is_some());
     assert!(repo::external_connection::find_by_id(db, prod.id).await.unwrap().is_some());
 }
 

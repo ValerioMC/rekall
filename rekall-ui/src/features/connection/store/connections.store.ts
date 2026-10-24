@@ -11,9 +11,11 @@ import type {
   CredentialDraft,
   JiraIssue,
   KubeContextOption,
-  ProjectConnection
+  ProjectConnection,
+  ProjectConnectionInput,
+  RepositoryDiscovery
 } from '@/features/connection/model/connection'
-import type { CompanyId, ConnectionId, ProjectId } from '@/model/branded'
+import type { CompanyId, ConnectionId, ProjectConnectionId, ProjectId } from '@/model/branded'
 
 const ACCESS_PAGE = 50
 
@@ -152,8 +154,8 @@ export const useConnectionsStore = defineStore('connections', () => {
   }
 
   /** The open issues a project's Jira binding reaches; read fresh each time, never kept. */
-  async function jiraIssues(projectId: ProjectId, connectionId: ConnectionId): Promise<JiraIssue[]> {
-    return await api.fetchJiraIssues(projectId, connectionId)
+  async function jiraIssues(projectId: ProjectId, bindingId: ProjectConnectionId): Promise<JiraIssue[]> {
+    return await api.fetchJiraIssues(projectId, bindingId)
   }
 
   async function check(id: ConnectionId): Promise<ConnectionCheck> {
@@ -200,34 +202,55 @@ export const useConnectionsStore = defineStore('connections', () => {
     byProject.value = { ...byProject.value, [projectId]: await api.fetchProjectConnections(projectId) }
   }
 
-  /** Binds, or sets the target of a binding the project has; the company's counts follow from the server. */
+  /** Binds the connection once more; the company's counts follow from the server. */
   async function bind(
     projectId: ProjectId,
     companyId: CompanyId,
     connectionId: ConnectionId,
-    target: string | null
+    input: ProjectConnectionInput
   ): Promise<ProjectConnection> {
-    const bound = await api.bindConnection(projectId, connectionId, target)
-    const rest = projectConnectionsOf(projectId).filter((known) => known.connectionId !== connectionId)
-    byProject.value = {
-      ...byProject.value,
-      [projectId]: [...rest, bound].sort((a, b) => a.label.localeCompare(b.label))
-    }
+    const bound = await api.bindConnection(projectId, connectionId, input)
+    putBinding(projectId, bound)
     await refreshCompany(companyId)
     return bound
+  }
+
+  async function updateBinding(
+    projectId: ProjectId,
+    bindingId: ProjectConnectionId,
+    input: ProjectConnectionInput
+  ): Promise<ProjectConnection> {
+    const saved = await api.updateBinding(projectId, bindingId, input)
+    putBinding(projectId, saved)
+    return saved
+  }
+
+  function putBinding(projectId: ProjectId, binding: ProjectConnection): void {
+    const rest = projectConnectionsOf(projectId).filter((known) => known.id !== binding.id)
+    byProject.value = {
+      ...byProject.value,
+      [projectId]: [...rest, binding].sort((a, b) => a.label.localeCompare(b.label))
+    }
   }
 
   async function unbind(
     projectId: ProjectId,
     companyId: CompanyId,
-    connectionId: ConnectionId
+    bindingId: ProjectConnectionId
   ): Promise<void> {
-    await api.unbindConnection(projectId, connectionId)
+    await api.unbindConnection(projectId, bindingId)
     byProject.value = {
       ...byProject.value,
-      [projectId]: projectConnectionsOf(projectId).filter((known) => known.connectionId !== connectionId)
+      [projectId]: projectConnectionsOf(projectId).filter((known) => known.id !== bindingId)
     }
     await refreshCompany(companyId)
+  }
+
+  /** Binds the repositories under the project's folder, then reads its bindings and the company's counts again. */
+  async function discover(projectId: ProjectId, companyId: CompanyId): Promise<RepositoryDiscovery> {
+    const discovery = await api.discoverRepositories(projectId)
+    await Promise.all([loadProject(projectId), refreshCompany(companyId)])
+    return discovery
   }
 
   /** A company list already read is read again, since a binding changes its project counts. */
@@ -265,7 +288,9 @@ export const useConnectionsStore = defineStore('connections', () => {
     isProjectLoaded,
     loadProject,
     bind,
-    unbind
+    updateBinding,
+    unbind,
+    discover
   }
 })
 

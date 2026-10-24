@@ -36,6 +36,14 @@ pub(super) fn target_of(raw: Option<&str>) -> Option<String> {
     raw.map(jstr::strip).filter(|target| !target.is_empty()).map(str::to_string)
 }
 
+/// `wanted`, or the first of `wanted-2`, `wanted-3`... that no binding of the project uses yet.
+pub(super) fn first_free_label(wanted: &str, taken: &[String]) -> String {
+    if !taken.iter().any(|label| label == wanted) {
+        return wanted.to_string();
+    }
+    (2..).map(|suffix| format!("{wanted}-{suffix}")).find(|label| !taken.contains(label)).expect("an unbounded range always finds a free label")
+}
+
 #[cfg(test)]
 #[path = "../../tests/unit/connection/connection_rules_tests.rs"]
 mod tests;

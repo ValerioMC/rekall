@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { blankGraph, freeTitle, releaseLoop } from '@/features/graph/lib/graph-presets'
 import { chainOf, loopsBack } from '@/features/graph/lib/graph-chain'
 import type { ProjectConnection } from '@/features/connection/model/connection'
-import type { ConnectionId, ProjectId } from '@/model/branded'
+import type { ConnectionId, ProjectConnectionId, ProjectId } from '@/model/branded'
 
 function binding(id: string, kind: ProjectConnection['kind']): ProjectConnection {
   return {
+    id: `b-${id}` as ProjectConnectionId,
     connectionId: id as ConnectionId,
     projectId: 'p' as ProjectId,
     kind,

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { asCompanyId, asConnectionId, asProjectId, asTaskId, asTerminalId } from '@/model/branded'
+import { asCompanyId, asConnectionId, asProjectConnectionId, asProjectId, asTaskId, asTerminalId } from '@/model/branded'
 
 const KindSchema = z.enum(['GITLAB', 'KUBERNETES', 'JIRA'])
 
@@ -25,6 +25,7 @@ export const ConnectionDetailSchema = ConnectionSchema.extend({
       projectId: z.string().uuid().transform(asProjectId),
       label: z.string(),
       title: z.string(),
+      bindingLabel: z.string(),
       target: z.string().nullable()
     })
   )
@@ -76,6 +77,7 @@ export const ConnectionRemovedSchema = z.object({ unboundProjects: z.number().in
 export const ConnectionStreamEventSchema = z.object({ companyId: z.string().uuid().transform(asCompanyId) })
 
 export const ProjectConnectionSchema = z.object({
+  id: z.string().uuid().transform(asProjectConnectionId),
   connectionId: z.string().uuid().transform(asConnectionId),
   projectId: z.string().uuid().transform(asProjectId),
   kind: KindSchema,
@@ -88,6 +90,22 @@ export const ProjectConnectionSchema = z.object({
 })
 
 export const ProjectConnectionListSchema = z.array(ProjectConnectionSchema)
+
+export const RepositoryDiscoverySchema = z.object({
+  folder: z.string(),
+  repositories: z.array(
+    z.object({
+      folder: z.string(),
+      origin: z.string().nullable(),
+      outcome: z.enum(['BOUND', 'ALREADY_BOUND', 'NO_ORIGIN', 'NO_CONNECTION', 'NO_CREDENTIAL']),
+      connectionLabel: z.string().nullable(),
+      bindingId: z.string().uuid().transform(asProjectConnectionId).nullable(),
+      label: z.string().nullable(),
+      target: z.string().nullable(),
+      component: z.string().nullable()
+    })
+  )
+})
 
 export const CredentialAccessEventSchema = z.object({
   terminalId: z.string().uuid().transform(asTerminalId),

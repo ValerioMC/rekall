@@ -98,7 +98,7 @@ fn render_reaching(step: &task_step::Model, connection: StepConnectionView) -> S
 #[test]
 fn an_open_step_names_the_connection_it_reaches() {
     let deploy = step(Id::random(), "Deploy", 0, TaskStepState::Open);
-    let connection = StepConnectionView { step_id: deploy.id, label: "kmaster2".into(), bound: true };
+    let connection = StepConnectionView { step_id: deploy.id, label: "kmaster2".into(), bound_as: vec!["kmaster2".into()] };
 
     let rendered = render_reaching(&deploy, connection);
 
@@ -106,9 +106,19 @@ fn an_open_step_names_the_connection_it_reaches() {
 }
 
 #[test]
+fn a_connection_the_project_binds_twice_names_both_bindings() {
+    let deploy = step(Id::random(), "Deploy", 0, TaskStepState::Open);
+    let connection = StepConnectionView { step_id: deploy.id, label: "gitlab".into(), bound_as: vec!["billing".into(), "orders".into()] };
+
+    let rendered = render_reaching(&deploy, connection);
+
+    assert!(rendered.contains("  Connection: `billing` or `orders`, reached as its line in `<connections>` says."), "{rendered}");
+}
+
+#[test]
 fn a_connection_the_project_no_longer_binds_is_to_be_reported() {
     let deploy = step(Id::random(), "Deploy", 0, TaskStepState::Open);
-    let connection = StepConnectionView { step_id: deploy.id, label: "kmaster2".into(), bound: false };
+    let connection = StepConnectionView { step_id: deploy.id, label: "kmaster2".into(), bound_as: Vec::new() };
 
     let rendered = render_reaching(&deploy, connection);
 
@@ -119,7 +129,7 @@ fn a_connection_the_project_no_longer_binds_is_to_be_reported() {
 #[test]
 fn a_finished_step_stays_its_title_alone_with_no_connection() {
     let deploy = step(Id::random(), "Deploy", 0, TaskStepState::Done);
-    let connection = StepConnectionView { step_id: deploy.id, label: "kmaster2".into(), bound: true };
+    let connection = StepConnectionView { step_id: deploy.id, label: "kmaster2".into(), bound_as: vec!["kmaster2".into()] };
 
     let rendered = render_reaching(&deploy, connection);
 

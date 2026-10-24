@@ -57,7 +57,7 @@ onMounted(access.listen)
     <component
       :is="companyId ? RouterLink : 'span'"
       v-for="chip in chips"
-      :key="`${chip.connection.connectionId}-${chip.tally?.last ?? 0}`"
+      :key="`${chip.connection.label}-${chip.tally?.last ?? 0}`"
       :to="companyId ? `/companies/${companyId}/connections` : undefined"
       class="focus-ring inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-micro ring-1 ring-inset"
       :class="{

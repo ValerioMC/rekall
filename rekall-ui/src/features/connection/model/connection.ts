@@ -1,4 +1,4 @@
-import type { CompanyId, ConnectionId, ProjectId, TaskId, TerminalId } from '@/model/branded'
+import type { CompanyId, ConnectionId, ProjectConnectionId, ProjectId, TaskId, TerminalId } from '@/model/branded'
 
 export type ConnectionKind = 'GITLAB' | 'KUBERNETES' | 'JIRA'
 
@@ -37,11 +37,12 @@ export interface Connection {
   readonly updatedAt: string
 }
 
-/** A project that binds a connection, and what it uses it for. */
+/** A project that binds a connection, and what it uses it for: one per binding. */
 export interface ConnectionProject {
   readonly projectId: ProjectId
   readonly label: string
   readonly title: string
+  readonly bindingLabel: string
   readonly target: string | null
 }
 
@@ -49,11 +50,16 @@ export interface ConnectionDetail extends Connection {
   readonly projects: readonly ConnectionProject[]
 }
 
-/** A connection a project binds, as its page shows it. */
+/**
+ * A connection a project binds, as its page shows it. A project may bind one connection several
+ * times, one target each, so the binding has its own id and label.
+ */
 export interface ProjectConnection {
+  readonly id: ProjectConnectionId
   readonly connectionId: ConnectionId
   readonly projectId: ProjectId
   readonly kind: ConnectionKind
+  /** The binding's own label, which a session names it by. */
   readonly label: string
   readonly title: string
   readonly baseUrl: string | null
@@ -61,6 +67,33 @@ export interface ProjectConnection {
   /** The GitLab project path, the Kubernetes namespace or the Jira project key this project uses it for. */
   readonly target: string | null
   readonly credentialSetAt: string | null
+}
+
+/** A binding as it is sent: a label left out keeps the one it has, or starts as the connection's. */
+export interface ProjectConnectionInput {
+  readonly label?: string
+  readonly target: string | null
+}
+
+export type DiscoveryOutcome = 'BOUND' | 'ALREADY_BOUND' | 'NO_ORIGIN' | 'NO_CONNECTION' | 'NO_CREDENTIAL'
+
+/** One repository found under a project's folder, and what discovering it did. */
+export interface DiscoveredRepository {
+  readonly folder: string
+  /** `host/group/name`, never the remote's URL. */
+  readonly origin: string | null
+  readonly outcome: DiscoveryOutcome
+  readonly connectionLabel: string | null
+  readonly bindingId: ProjectConnectionId | null
+  readonly label: string | null
+  readonly target: string | null
+  /** The component made for its folder, when one was. */
+  readonly component: string | null
+}
+
+export interface RepositoryDiscovery {
+  readonly folder: string
+  readonly repositories: readonly DiscoveredRepository[]
 }
 
 /** A field left out on an edit keeps what the connection has; the kind is fixed once created. */

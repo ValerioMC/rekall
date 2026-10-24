@@ -127,7 +127,7 @@ defineExpose({
       <ul v-else-if="detail" class="flex flex-col gap-1">
         <li
           v-for="project in detail.projects"
-          :key="project.projectId"
+          :key="`${project.projectId}-${project.bindingLabel}`"
           class="flex items-baseline gap-2 text-small"
         >
           <RouterLink
@@ -136,6 +136,7 @@ defineExpose({
             >{{ project.title }}</RouterLink
           >
           <span class="font-mono text-caption text-text-subtle">project:{{ project.label }}</span>
+          <span class="font-mono text-caption text-anchor/80">{{ project.bindingLabel }}</span>
           <span v-if="project.target" class="ml-auto font-mono text-caption text-text-muted">{{
             project.target
           }}</span>

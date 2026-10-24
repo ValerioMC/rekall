@@ -121,6 +121,25 @@ async fn a_session_writes_private_helpers_that_hold_no_credential() {
 }
 
 #[tokio::test]
+async fn two_bindings_of_one_gitlab_reach_its_token_by_either_label_through_one_git_helper() {
+    let world = world().await;
+    let gitlab = world.launch.connections.iter().find(|c| c.kind == ConnectionKind::Gitlab).cloned().unwrap();
+    let billing = TerminalConnection { label: "billing".into(), target: Some("acme/billing".into()), ..gitlab.clone() };
+    let orders = TerminalConnection { label: "orders".into(), target: Some("acme/orders".into()), ..gitlab };
+    let terminal_id = Id::random();
+
+    let environment = world.broker.open(terminal_id, &launch_with(vec![billing, orders])).await.unwrap().unwrap();
+    let token = environment.token.clone().unwrap();
+
+    let helpers: Vec<&(String, String)> = environment.git_config.iter().filter(|(key, _)| key == "credential.https://gitlab.example.com.helper").collect();
+    assert_eq!(helpers.len(), 2, "one reset and one helper for the host: {helpers:?}");
+    for label in ["billing", "orders"] {
+        let api = world.broker.hand_out(terminal_id, Some(&token), label, CredentialPurpose::Gitlab).await;
+        assert!(matches!(api, HandOut::Granted { ref body, .. } if body.expose() == "PRIVATE-TOKEN: glpat-secret\n"), "{label}");
+    }
+}
+
+#[tokio::test]
 async fn the_terminals_token_gets_the_credential_in_the_shape_each_helper_reads_and_each_is_logged() {
     let world = world().await;
     let terminal_id = Id::random();

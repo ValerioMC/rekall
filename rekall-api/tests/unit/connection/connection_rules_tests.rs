@@ -40,3 +40,10 @@ fn a_blank_proxy_means_the_site_is_reached_direct() {
     assert_eq!(proxy_url_of(Some("  ")), None);
     assert_eq!(proxy_url_of(Some(" http://proxy.example.com:8080 ")).as_deref(), Some("http://proxy.example.com:8080"));
 }
+
+#[test]
+fn a_label_a_binding_already_uses_takes_the_first_free_number() {
+    let taken = vec!["gitlab".to_string(), "gitlab-2".to_string()];
+    assert_eq!(first_free_label("billing", &taken), "billing");
+    assert_eq!(first_free_label("gitlab", &taken), "gitlab-3");
+}

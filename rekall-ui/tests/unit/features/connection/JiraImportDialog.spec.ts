@@ -7,12 +7,13 @@ import JiraImportDialog from '@/features/connection/components/JiraImportDialog.
 import { useConsoleStore } from '@/stores/console.store'
 import type { Task } from '@/features/catalog/model/catalog'
 import type { JiraIssue, ProjectConnection } from '@/features/connection/model/connection'
-import type { ConnectionId, ProjectId, TaskId } from '@/model/branded'
+import type { ConnectionId, ProjectConnectionId, ProjectId, TaskId } from '@/model/branded'
 
 vi.mock('@/features/connection/api/connections.api')
 vi.mock('@/features/catalog/api/catalog.api')
 
 const BINDING: ProjectConnection = {
+  id: 'b-jira' as ProjectConnectionId,
   connectionId: 'jira' as ConnectionId,
   projectId: 'p-1' as ProjectId,
   kind: 'JIRA',
@@ -52,7 +53,7 @@ describe('JiraImportDialog', () => {
     const wrapper = mountDialog()
     await flushPromises()
 
-    expect(api.fetchJiraIssues).toHaveBeenCalledWith('p-1', 'jira')
+    expect(api.fetchJiraIssues).toHaveBeenCalledWith('p-1', 'b-jira')
     expect(wrapper.findAll('[data-testid="jira-issue"]')).toHaveLength(2)
     expect(wrapper.findAll('[data-testid="jira-issue-imported"]')).toHaveLength(1)
     expect(wrapper.find('[data-testid="pick-ENG-1"]').exists()).toBe(false)
@@ -71,7 +72,7 @@ describe('JiraImportDialog', () => {
     await wrapper.get('[data-testid="import-chosen-issues"]').trigger('click')
     await flushPromises()
 
-    expect(api.importJiraIssues).toHaveBeenCalledWith('p-1', 'jira', ['ENG-2'])
+    expect(api.importJiraIssues).toHaveBeenCalledWith('p-1', 'b-jira', ['ENG-2'])
     expect(useConsoleStore().tasks.map((task) => task.id)).toEqual(['t-2'])
     expect(wrapper.emitted('close')).toHaveLength(1)
     wrapper.unmount()

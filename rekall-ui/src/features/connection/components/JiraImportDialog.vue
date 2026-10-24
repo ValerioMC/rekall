@@ -36,14 +36,14 @@ function toggle(key: string, picked: boolean): void {
 }
 
 async function loadIssues(): Promise<void> {
-  issues.value = await load(() => connections.jiraIssues(props.binding.projectId, props.binding.connectionId))
+  issues.value = await load(() => connections.jiraIssues(props.binding.projectId, props.binding.id))
 }
 
 async function importChosen(): Promise<void> {
   if (!chosen.value.size || isRunning.value) return
   const keys = [...chosen.value]
   const created = await run(
-    () => consoleStore.importJiraIssues(props.binding.projectId, props.binding.connectionId, keys),
+    () => consoleStore.importJiraIssues(props.binding.projectId, props.binding.id, keys),
     `Imported ${keys.length} Jira ${keys.length === 1 ? 'issue' : 'issues'} as tasks`
   )
   if (created) emit('close')

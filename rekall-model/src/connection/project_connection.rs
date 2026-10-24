@@ -1,11 +1,14 @@
 //! A project's use of one of its company's connections. The target narrows it to this project:
 //! the GitLab project path, the Kubernetes namespace its work goes to, or the Jira project key.
+//! A project may bind one connection several times, one target each, so a session names a binding
+//! by its own label.
 
 use rekall_common::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;
 
 use crate::constraints::Violations;
 
+pub const LABEL_MAX_CHARACTERS: usize = 120;
 pub const TARGET_MAX_CHARACTERS: usize = 500;
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
@@ -15,6 +18,8 @@ pub struct Model {
     pub id: Id,
     pub project_id: Id,
     pub connection_id: Id,
+    /// Unique in the project: what `<connections>`, `kubectl --context` and the API helpers name.
+    pub label: String,
     pub target: Option<String>,
     pub created_at: Instant,
     pub updated_at: Instant,
@@ -48,11 +53,16 @@ impl Related<crate::external_connection::Entity> for Entity {
 impl ActiveModelBehavior for ActiveModel {}
 
 impl Model {
-    pub fn new(project_id: Id, connection_id: Id, target: Option<String>, now: Instant) -> Self {
-        Self { id: Id::random(), project_id, connection_id, target, created_at: now, updated_at: now }
+    pub fn new(project_id: Id, connection_id: Id, label: String, target: Option<String>, now: Instant) -> Self {
+        Self { id: Id::random(), project_id, connection_id, label, target, created_at: now, updated_at: now }
     }
 
     pub fn validate(&self) -> Result<(), RekallError> {
-        Violations::new("ProjectConnection").max_length("target", self.target.as_deref(), TARGET_MAX_CHARACTERS).finish()
+        Violations::new("ProjectConnection")
+            .not_blank("label", Some(&self.label))
+            .max_length("label", Some(&self.label), LABEL_MAX_CHARACTERS)
+            .slug("label", Some(&self.label))
+            .max_length("target", self.target.as_deref(), TARGET_MAX_CHARACTERS)
+            .finish()
     }
 }

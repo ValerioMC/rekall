@@ -2,12 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import * as api from '@/features/connection/api/connections.api'
+import * as componentsApi from '@/features/project/api/project-components.api'
 import ProjectConnectionsGroup from '@/features/connection/components/ProjectConnectionsGroup.vue'
 import type { Project } from '@/features/catalog/model/catalog'
-import type { Connection, ProjectConnection } from '@/features/connection/model/connection'
-import type { CompanyId, ConnectionId, ProjectId } from '@/model/branded'
+import type { Connection, ProjectConnection, RepositoryDiscovery } from '@/features/connection/model/connection'
+import type { CompanyId, ConnectionId, ProjectConnectionId, ProjectId } from '@/model/branded'
 
 vi.mock('@/features/connection/api/connections.api')
+vi.mock('@/features/project/api/project-components.api')
 
 const COMPANY = 'c-1' as CompanyId
 const PROJECT = {
@@ -46,6 +48,7 @@ function connection(id: string): Connection {
 
 function binding(id: string, credentialSetAt: string | null): ProjectConnection {
   return {
+    id: `b-${id}` as ProjectConnectionId,
     connectionId: id as ConnectionId,
     projectId: PROJECT.id,
     kind: 'KUBERNETES',
@@ -58,9 +61,9 @@ function binding(id: string, credentialSetAt: string | null): ProjectConnection 
   }
 }
 
-function mountGroup() {
+function mountGroup(project: Project = PROJECT) {
   return mount(ProjectConnectionsGroup, {
-    props: { project: PROJECT },
+    props: { project },
     global: { stubs: { RouterLink: { template: '<a><slot /></a>' } } }
   })
 }
@@ -72,7 +75,7 @@ describe('ProjectConnectionsGroup', () => {
     vi.mocked(api.fetchCompanyConnections).mockResolvedValue([connection('prod'), connection('staging')])
   })
 
-  it('flags a used connection that has no credential and offers only the unused ones', async () => {
+  it('flags a used connection that has no credential and still offers it for another target', async () => {
     vi.mocked(api.fetchProjectConnections).mockResolvedValue([binding('prod', null)])
     const wrapper = mountGroup()
     await flushPromises()
@@ -80,7 +83,7 @@ describe('ProjectConnectionsGroup', () => {
     expect(wrapper.find('[data-testid="project-connection-missing"]').exists()).toBe(true)
     const options = wrapper.findAll('[data-testid="connection-picker"] option').map((option) => option.text())
     expect(options.some((text) => text.includes('staging'))).toBe(true)
-    expect(options.some((text) => text.includes('The prod'))).toBe(false)
+    expect(options.some((text) => text.includes('The prod'))).toBe(true)
   })
 
   it('binds the connection chosen in the picker', async () => {
@@ -93,16 +96,15 @@ describe('ProjectConnectionsGroup', () => {
     await wrapper.get('[data-testid="bind-connection"]').trigger('click')
     await flushPromises()
 
-    expect(api.bindConnection).toHaveBeenCalledWith('p-1', 'staging', null)
+    expect(api.bindConnection).toHaveBeenCalledWith('p-1', 'staging', { target: null })
     expect(wrapper.findAll('[data-testid="project-connection"]')).toHaveLength(1)
   })
 
-  it('saves a target typed in place and unbinds on request', async () => {
+  it('saves a target and a label typed in place and unbinds on request', async () => {
     vi.mocked(api.fetchProjectConnections).mockResolvedValue([binding('prod', '2026-10-21T10:00:00Z')])
-    vi.mocked(api.bindConnection).mockResolvedValue({
-      ...binding('prod', '2026-10-21T10:00:00Z'),
-      target: 'apps'
-    })
+    vi.mocked(api.updateBinding)
+      .mockResolvedValueOnce({ ...binding('prod', '2026-10-21T10:00:00Z'), target: 'apps' })
+      .mockResolvedValueOnce({ ...binding('prod', '2026-10-21T10:00:00Z'), target: 'apps', label: 'prod-apps' })
     vi.mocked(api.unbindConnection).mockResolvedValue()
     const wrapper = mountGroup()
     await flushPromises()
@@ -111,12 +113,52 @@ describe('ProjectConnectionsGroup', () => {
     await target.setValue(' apps ')
     await target.trigger('blur')
     await flushPromises()
-    expect(api.bindConnection).toHaveBeenCalledWith('p-1', 'prod', 'apps')
+    expect(api.updateBinding).toHaveBeenCalledWith('p-1', 'b-prod', { label: 'prod', target: 'apps' })
+
+    const label = wrapper.get('[data-testid="connection-label"]')
+    await label.setValue('prod-apps')
+    await label.trigger('blur')
+    await flushPromises()
+    expect(api.updateBinding).toHaveBeenLastCalledWith('p-1', 'b-prod', { label: 'prod-apps', target: 'apps' })
 
     await wrapper.get('[data-testid="unbind-connection"]').trigger('click')
     await flushPromises()
-    expect(api.unbindConnection).toHaveBeenCalledWith('p-1', 'prod')
+    expect(api.unbindConnection).toHaveBeenCalledWith('p-1', 'b-prod')
     expect(wrapper.findAll('[data-testid="project-connection"]')).toHaveLength(0)
+  })
+
+  it('offers to find repositories only for a project with a folder', async () => {
+    vi.mocked(api.fetchProjectConnections).mockResolvedValue([])
+    const withoutFolder = mountGroup()
+    await flushPromises()
+
+    expect(withoutFolder.find('[data-testid="discover-repositories"]').exists()).toBe(false)
+  })
+
+  it('finds the repositories under the folder and shows what each became', async () => {
+    const discovery: RepositoryDiscovery = {
+      folder: '/work/vega',
+      repositories: [
+        { folder: '/work/vega/billing', origin: 'gitlab.example.com/acme/billing', outcome: 'BOUND', connectionLabel: 'gitlab', bindingId: 'b-billing' as ProjectConnectionId, label: 'billing', target: 'acme/billing', component: 'billing' },
+        { folder: '/work/vega/group/tools', origin: 'github.com/acme/tools', outcome: 'NO_CONNECTION', connectionLabel: null, bindingId: null, label: null, target: null, component: null }
+      ]
+    }
+    vi.mocked(api.fetchProjectConnections).mockResolvedValue([])
+    vi.mocked(api.discoverRepositories).mockResolvedValue(discovery)
+    vi.mocked(componentsApi.fetchProjectComponents).mockResolvedValue([])
+    const wrapper = mountGroup({ ...PROJECT, repoFolder: '/work/vega' })
+    await flushPromises()
+
+    await wrapper.get('[data-testid="discover-repositories"]').trigger('click')
+    await flushPromises()
+
+    expect(api.discoverRepositories).toHaveBeenCalledWith('p-1')
+    expect(componentsApi.fetchProjectComponents).toHaveBeenCalledWith('p-1')
+    const rows = wrapper.findAll('[data-testid="discovered-repository"]').map((row) => row.text())
+    expect(rows[0]).toContain('billing')
+    expect(rows[0]).toContain('Connected')
+    expect(rows[1]).toContain('group/tools')
+    expect(rows[1]).toContain('No GitLab connection for its host')
   })
 })
 

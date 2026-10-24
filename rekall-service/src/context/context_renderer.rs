@@ -417,8 +417,9 @@ fn render_step(
 /// The connection a step works through. One the project no longer binds has no line in
 /// `<connections>`, so the session is told to report it rather than reach it some other way.
 fn render_step_connection(connection: &StepConnectionView) -> String {
-    if connection.bound {
-        return format!("  Connection: `{}`, reached as its line in `<connections>` says.\n", connection.label);
+    if !connection.bound_as.is_empty() {
+        let labels = connection.bound_as.iter().map(|label| format!("`{label}`")).collect::<Vec<_>>().join(" or ");
+        return format!("  Connection: {labels}, reached as its line in `<connections>` says.\n");
     }
     format!(
         "  Connection: `{}`, which this project no longer uses, so `<connections>` does not list it. Report it; \

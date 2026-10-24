@@ -284,7 +284,7 @@ impl ContextService {
         Ok(skills)
     }
 
-    /// The connection each step reaches, and whether the project still binds it.
+    /// The connection each step reaches, and the project's bindings of it.
     async fn step_connections_of(&self, tx: &Tx, project: &project::Model, steps: &[TaskStepView]) -> Result<Vec<StepConnectionView>> {
         let mut found = Vec::new();
         for step in steps {
@@ -294,8 +294,9 @@ impl ContextService {
             let Some(connection) = repo::external_connection::find_by_id(tx.db(), connection_id).await? else {
                 continue;
             };
-            let bound = repo::project_connection::find(tx.db(), project.id, connection_id).await?.is_some();
-            found.push(StepConnectionView { step_id: step.id, label: connection.label, bound });
+            let bindings = repo::project_connection::list_of_project_connection(tx.db(), project.id, connection_id).await?;
+            let bound_as = bindings.into_iter().map(|binding| binding.label).collect();
+            found.push(StepConnectionView { step_id: step.id, label: connection.label, bound_as });
         }
         Ok(found)
     }

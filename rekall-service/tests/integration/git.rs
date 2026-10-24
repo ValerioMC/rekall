@@ -230,3 +230,14 @@ async fn a_repository_with_no_commit_yet_still_names_its_branch() {
     let status = GitRepositoryInspector.inspect(Some(&repo.path().to_string_lossy())).await;
     assert_eq!(status.branch.as_deref(), Some("trunk"));
 }
+
+#[tokio::test]
+async fn the_inspector_reads_where_origin_points_and_nothing_without_one() {
+    let repo = tempfile::tempdir().unwrap();
+    git(repo.path(), &["init", "-q", "-b", "main"]);
+    assert_eq!(GitRepositoryInspector.origin_url(repo.path()).await, None);
+
+    git(repo.path(), &["remote", "add", "origin", "git@gitlab.example.com:acme/billing.git"]);
+
+    assert_eq!(GitRepositoryInspector.origin_url(repo.path()).await.as_deref(), Some("git@gitlab.example.com:acme/billing.git"));
+}

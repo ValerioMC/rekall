@@ -6,35 +6,43 @@ import AppSelect from '@/components/ui/AppSelect.vue'
 import ConnectionDialog from '@/features/connection/components/ConnectionDialog.vue'
 import JiraImportDialog from '@/features/connection/components/JiraImportDialog.vue'
 import ProjectConnectionRow from '@/features/connection/components/ProjectConnectionRow.vue'
+import RepositoryDiscoveryResult from '@/features/connection/components/RepositoryDiscoveryResult.vue'
 import InspectorGroup from '@/features/project/components/InspectorGroup.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useConnectionStream } from '@/features/connection/composables/useConnectionStream'
 import { useConnectionsStore } from '@/features/connection/store/connections.store'
+import { useProjectComponentsStore } from '@/features/project/store/projectComponents.store'
 import type { Project } from '@/features/catalog/model/catalog'
-import type { Connection, ProjectConnection } from '@/features/connection/model/connection'
+import type {
+  Connection,
+  ProjectConnection,
+  ProjectConnectionInput,
+  RepositoryDiscovery
+} from '@/features/connection/model/connection'
 import { asConnectionId } from '@/model/branded'
 
 /**
- * The connections this project's sessions reach: which of its company's it uses, and the GitLab
- * project path, namespace or Jira project key each is narrowed to. A missing credential is flagged here, since a
- * session on this project is told the same.
+ * The connections this project's sessions reach: which of its company's it uses, under which
+ * label, and the GitLab project path, namespace or Jira project key each is narrowed to. One
+ * connection may be used several times, once per target; the repositories under the project's
+ * folder can be bound in one go. A missing credential is flagged here, since a session on this
+ * project is told the same.
  */
 const props = defineProps<{ project: Project }>()
 
 const store = useConnectionsStore()
+const components = useProjectComponentsStore()
 const { run } = useAsyncAction()
+const { run: runDiscovery, isRunning: isDiscovering } = useAsyncAction()
+const discovery = ref<RepositoryDiscovery | null>(null)
 const chosen = ref<string | null>(null)
 const creating = ref(false)
 const importing = ref<ProjectConnection | null>(null)
 const group = ref<InstanceType<typeof InspectorGroup> | null>(null)
 
 const bindings = computed(() => store.projectConnectionsOf(props.project.id))
-const unbound = computed(() => {
-  const used = new Set(bindings.value.map((binding) => binding.connectionId))
-  return store.connectionsOf(props.project.companyId).filter((connection) => !used.has(connection.id))
-})
 const options = computed(() =>
-  unbound.value.map((connection) => ({
+  store.connectionsOf(props.project.companyId).map((connection) => ({
     value: connection.id as string,
     label: `${connection.title} · ${connection.label}`
   }))
@@ -56,20 +64,31 @@ useConnectionStream(async (event) => {
   if (event.companyId === props.project.companyId) await load()
 })
 
-async function bind(connectionId: string, target: string | null = null): Promise<void> {
-  await run(() => store.bind(props.project.id, props.project.companyId, asConnectionId(connectionId), target))
+async function bind(connectionId: string): Promise<void> {
+  await run(() => store.bind(props.project.id, props.project.companyId, asConnectionId(connectionId), { target: null }))
   chosen.value = null
 }
 
-async function setTarget(binding: ProjectConnection, target: string | null): Promise<void> {
-  await run(() => store.bind(props.project.id, props.project.companyId, binding.connectionId, target))
+async function save(binding: ProjectConnection, input: ProjectConnectionInput): Promise<void> {
+  await run(() => store.updateBinding(props.project.id, binding.id, input))
 }
 
 async function unbind(binding: ProjectConnection): Promise<void> {
   await run(
-    () => store.unbind(props.project.id, props.project.companyId, binding.connectionId),
-    `${props.project.title} no longer uses ${binding.title}`
+    () => store.unbind(props.project.id, props.project.companyId, binding.id),
+    `${props.project.title} no longer uses ${binding.label}`
   )
+}
+
+/** The components list is read again too, since discovery adds a component per repository. */
+async function discover(): Promise<void> {
+  group.value?.expand()
+  const found = await runDiscovery(async () => {
+    const result = await store.discover(props.project.id, props.project.companyId)
+    await components.load(props.project.id)
+    return result
+  })
+  if (found) discovery.value = found
 }
 
 async function bindCreated(connection: Connection): Promise<void> {
@@ -91,6 +110,16 @@ function startCreating(): void {
     :summary="summary"
   >
     <template #actions>
+      <AppButton
+        v-if="project.repoFolder"
+        size="sm"
+        variant="ghost"
+        :disabled="isDiscovering"
+        title="Connect every git repository under the project folder whose origin is on a GitLab with a token"
+        data-testid="discover-repositories"
+        @click="discover"
+        >{{ isDiscovering ? 'Finding…' : 'Find repositories' }}</AppButton
+      >
       <AppButton size="sm" variant="ghost" data-testid="new-project-connection" @click="startCreating"
         >+ New</AppButton
       >
@@ -99,9 +128,9 @@ function startCreating(): void {
     <ul v-if="bindings.length" class="divide-y divide-border">
       <ProjectConnectionRow
         v-for="binding in bindings"
-        :key="binding.connectionId"
+        :key="binding.id"
         :binding="binding"
-        @target="setTarget(binding, $event)"
+        @save="save(binding, $event)"
         @unbind="unbind(binding)"
         @import-issues="importing = binding"
       />
@@ -109,6 +138,8 @@ function startCreating(): void {
     <p v-else class="text-caption text-text-subtle">
       No connection yet. A session on this project reaches only the clusters, GitLab instances and Jira sites added here.
     </p>
+
+    <RepositoryDiscoveryResult v-if="discovery" :discovery="discovery" @dismiss="discovery = null" />
 
     <div v-if="options.length" class="mt-2 flex items-center gap-2">
       <div class="min-w-0 flex-1">

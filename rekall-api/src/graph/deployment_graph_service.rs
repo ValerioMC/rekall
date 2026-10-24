@@ -137,7 +137,7 @@ async fn require_title_free(tx: &Tx, project_id: Id, title: &str, except: Option
 /// session's context, and another company's connection is never the project's to use.
 async fn require_connections_bound(tx: &Tx, project_id: Id, draft: &GraphDraft) -> Result<()> {
     for (step, connection_id) in draft.reaching() {
-        if repo::project_connection::find(tx.db(), project_id, connection_id).await?.is_none() {
+        if !repo::project_connection::is_bound(tx.db(), project_id, connection_id).await? {
             return Err(RekallError::illegal(format!(
                 "'{}' reaches a connection this project does not use. Bind the connection to the project first.",
                 step.title

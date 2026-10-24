@@ -201,7 +201,7 @@ Project ──< VulnerabilityExposure >── SecurityAdvisory
 | `graph_step` | through its graph | `graph_id`, `position` (0 is where the flow begins), `title`, `body_markdown`, `connection_id` (null when it reaches nothing or the connection is deleted), `max_visits`, `flow_x`/`flow_y` (where it was dragged on the graph's canvas, null for the automatic layout; migration `050-graph-step-place`); rewritten whole with its graph |
 | `graph_route` | through its graph | `graph_id`, `from_step_id`, `to_step_id` (null: the route ends the flow), `outcome` unique per `from_step_id`, `position`; deleted with either step |
 | `external_connection` | `label`, unique per company | `company_id`, `title`, `kind` (`GITLAB`, `KUBERNETES`, `JIRA`), `base_url` (the GitLab instance or Jira site, or the server read from an imported kubeconfig), `kube_context`, `proxy_url` (Jira only: the proxy its calls go through), `secret_ref` (the OS keychain account holding the credential, generated, unique), `secret_set_at` (null while no credential is stored). No column holds a credential |
-| `project_connection` | through its project | `project_id`, `connection_id` unique together, `target` (GitLab project path, Kubernetes namespace or Jira project key); deleted with either side |
+| `project_connection` | `label`, unique per project | `project_id`, `connection_id`, `target` (GitLab project path, Kubernetes namespace or Jira project key). A project may bind one connection several times, one target each; the label starts as the connection's and is what a session names the binding by (migration `051-binding-label`). Deleted with either side |
 | `connection_access` | through its connection | `connection_id`, `task_id` (set null when the task goes), `terminal_id`, `accessed_at`, `granted`, `reason` (why the request was refused); append-only, never a credential |
 | `project_dependency` | through its project | `project_id`, `ecosystem`, `name`, `version`, `manifest` (the declaring file, relative to the project's folder), `created_at`; unique per project, ecosystem, name and version; replaced whole |
 | `security_advisory` | `ghsa_id`, unique | `cve_id`, `summary`, `description`, `url`, `published_at`, `affected_json` (the packages it affects: ecosystem, name, vulnerable range, first patched version, vulnerable functions) |
@@ -430,7 +430,7 @@ console. The writes are `SkillAssignmentService` in `rekall-api`, each replacing
 list; `rekall-mcp` can read the skills through the context and never write them.
 
 A project's connections arrive as a `<connections>` block after its components, one line per
-binding: the label, the title and how to reach it. A cluster is `kubectl --context <label>` with the
+binding: the binding's own label, the connection's title and how to reach it. A cluster is `kubectl --context <label>` with the
 binding's namespace; a GitLab instance is its URL and project path, pushed to over HTTPS through the
 configured credential helper and called through `rekall-gitlab --connection <label>`; a Jira site is its
 URL and project key, called through `rekall-jira --connection <label>` under `/rest/api/2`, which Jira Cloud
@@ -438,8 +438,9 @@ and Data Center both serve, its search named for each. A connection with no cred
 says so, so the session reports it. `ConnectionView` carries no field that could hold a credential,
 the keychain account, a cluster's server or its CA, and the block says these work only in a terminal
 Rekall opened and forbids handling a credential directly; `/rk` repeats that rule. A step laid from a
-deployment graph names the connection it works through on a `Connection:` line by label alone (see
-§4.4), and says to report one the project no longer binds.
+deployment graph names the connection it works through on a `Connection:` line by the labels of the
+project's bindings of it (`a` or `b` when it binds it twice; see §4.4), and says to report one the
+project no longer binds.
 
 Scalars are rendered as bullets and bodies as tags, which is why a description is a `<description>` block rather than a `description` bullet. It is a document, with headings, lists and a scope section, and a document inlined into a list item stops being one: every line after the first falls outside the bullet, and its own headings outrank the record's.
 
@@ -657,7 +658,9 @@ The console's write path for connections is `rekall-api/src/connection/`, one se
 `ConnectionService` (a company's connections; deleting one removes its credential from the store
 after the row is gone, logging a failure), `ConnectionCredentialService` (the only code that stores,
 replaces or clears a credential), `ProjectConnectionService` (bindings; a project binds only a
-connection of its own company), `ConnectionAccessQueryService` (the access log, newest first) and
+connection of its own company, the same connection and target twice is a 409, a typed label already
+used in the project is a 409, and without one the connection's label takes the first free `-2`, `-3`),
+`RepositoryDiscoveryService` (below), `ConnectionAccessQueryService` (the access log, newest first) and
 `KubeconfigPreviewService` (a kubeconfig's contexts with why each can or cannot be imported, storing
 nothing). Credentials are write-only: `PUT /api/connections/{id}/credential` takes `token` (GitLab),
 `kubeconfig` and `context` (Kubernetes) or `token` with an `email` on Jira Cloud and without one on Jira
@@ -672,9 +675,33 @@ one clears it. The routes are
 `GET`/`POST /api/companies/{id}/connections`, `GET`/`PUT`/`DELETE /api/connections/{id}` (`GET` lists
 the projects that bind it, `DELETE` answers `unboundProjects`), `PUT`/`DELETE
 /api/connections/{id}/credential`, `POST /api/connections/kubeconfig/contexts`, `GET
-/api/connections/{id}/access?offset=&limit=`, `GET /api/projects/{id}/connections` and `PUT`/`DELETE
-/api/projects/{id}/connections/{connectionId}` (`PUT` binds, or sets the `target` of a binding the
-project has). Every change publishes a `connection` frame naming the company.
+/api/connections/{id}/access?offset=&limit=`, `GET`/`POST /api/projects/{id}/connections` (`POST` binds
+`connectionId` with an optional `label` and `target`), `PUT`/`DELETE
+/api/projects/{id}/connections/{bindingId}` (`PUT` sets the binding's `target`, and its `label` when one
+is sent) and `POST /api/projects/{id}/connections/discover`. A connection's `projectCount` counts each
+project once; its detail lists a row per binding. Every change publishes a `connection` frame naming
+the company.
+
+`RepositoryDiscoveryService` (`rekall-api/src/connection/`) binds a project's repositories in one go.
+It walks the project's folder (`repository_folders.rs`: a folder holding `.git` is a repository and is
+not searched further, hidden folders and `node_modules` are passed over, four levels deep), reads each
+one's `origin` through `GitRepositoryInspector::origin_url`, all before its transaction opens, then
+settles each repository in path order:
+
+- `RepositoryOrigin` reads `https://`, `ssh://` and `git@host:path` origins as a host and a project path,
+  dropping any user or token, and matches a GitLab connection of the company on the host (port ignored;
+  an instance under a sub-path drops it from an HTTPS origin). One with a credential is preferred.
+- No origin is `NO_ORIGIN`, no GitLab connection at the host `NO_CONNECTION`, one with no credential
+  `NO_CREDENTIAL`: nothing is bound for those, since the token is what the binding reaches.
+- A project path the project already binds on that connection is `ALREADY_BOUND`, whether by hand, by an
+  earlier run or by a second clone found earlier in the same run. Otherwise it is `BOUND` under the
+  folder's name as a label (the first free `-2`, `-3`; the connection's label when the name leaves no slug).
+- The first folder of each project path in a run gets a component through
+  `ProjectComponentCatalogService::add_for_folder_in`, named after the folder (the first free `-2`
+  ignoring case), unless a component already has that folder. A second clone gets none.
+
+The answer lists every repository with its outcome, `host/path` (never the remote URL), the binding and
+the component made, and a project with no folder, or one that is not on this machine, is a 400.
 
 `JiraIssueService` (`rekall-api/src/connection/`) is how a project turns Jira issues into tasks, through
 its binding of a Jira connection whose target is the Jira project key. `GET
@@ -854,8 +881,8 @@ and searches that `PATH` for `claude`. Windows skips the shell and uses the proc
 **Credential sessions.** A terminal opened on a project that binds a connection with a stored
 credential gets a credential session from `CredentialBroker` (`rekall-claude/src/connection/`), so
 git and kubectl can use the credential without it entering the session. `TerminalLaunchService`
-hands over the project's bindings (`TerminalConnection`: label, kind, target, instance URL, keychain
-account; never the credential). The broker writes a folder under `rekall.home/terminal-credentials/`
+hands over the project's bindings (`TerminalConnection`: the binding's label, kind, target, instance URL,
+keychain account; never the credential), so a connection bound twice is reached by either label. The broker writes a folder under `rekall.home/terminal-credentials/`
 (0700, files 0600, scripts 0700; emptied at every start), holding:
 
 | File | What it does |
@@ -869,7 +896,8 @@ account; never the credential). The broker writes a folder under `rekall.home/te
 None holds a credential. `SessionEnvironment` adds the folder first on `PATH`, `KUBECONFIG` (only
 Rekall's clusters, so the session uses the credential you provided), a `GIT_CONFIG_KEY_n`/`VALUE_n`
 pair per GitLab host (an empty `credential.<url>.helper` that drops helpers configured elsewhere,
-then Rekall's, after any entries the shell already set) and `REKALL_CREDENTIAL_TOKEN`, 244 random bits
+then Rekall's, after any entries the shell already set; bindings of one instance share its token, so
+the first answers for the host) and `REKALL_CREDENTIAL_TOKEN`, 244 random bits
 for this terminal. The helpers send the token as a header read from stdin, so it never appears in a
 process listing, to `GET /api/terminal/{id}/credentials/{label}?for=kubectl|git|gitlab|jira`. That route
 sits outside the router's UUID check, answers only a loopback peer even with

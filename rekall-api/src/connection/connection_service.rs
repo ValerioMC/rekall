@@ -37,11 +37,17 @@ impl ConnectionService {
         })
     }
 
+    /// The company's connections, by label.
+    pub async fn list_in(&self, tx: &Tx, company_id: Id) -> Result<Vec<external_connection::Model>> {
+        repo::external_connection::list_of_company(tx.db(), company_id).await
+    }
+
     pub async fn get(&self, id: Id) -> Result<ConnectionDetailResponse> {
         in_read!(&self.ctx, |tx| {
             let connection = repo::external_connection::require(tx.db(), id).await?;
             let projects = repo::project_connection::list_of_connection(tx.db(), id).await?;
-            Ok::<_, RekallError>(ConnectionDetailResponse::of(&connection, &projects))
+            let project_count = repo::project_connection::project_count(tx.db(), id).await?;
+            Ok::<_, RekallError>(ConnectionDetailResponse::of(&connection, &projects, project_count))
         })
     }
 
@@ -104,7 +110,7 @@ impl ConnectionService {
 }
 
 async fn project_count(tx: &Tx, connection_id: Id) -> Result<usize> {
-    Ok(repo::project_connection::list_of_connection(tx.db(), connection_id).await?.len())
+    repo::project_connection::project_count(tx.db(), connection_id).await
 }
 
 async fn require_label_free(tx: &Tx, company_id: Id, label: &str, except: Option<Id>) -> Result<()> {

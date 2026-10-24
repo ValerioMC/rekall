@@ -37,22 +37,39 @@ impl ProjectComponentCatalogService {
             let folder = folder_of(request.folder.as_deref())?;
             let name = request.name.as_deref().filter(|name| !jstr::is_blank(name)).map_or_else(|| folder_name(&folder), |name| jstr::strip(name).to_string());
             require_name_free(&tx, project_id, &name, None).await?;
-            let existing = repo::project_component::list_of_project(tx.db(), project_id).await?;
-            let now = self.ctx.now();
-            let component = project_component::Model {
-                id: Id::random(),
-                project_id,
-                name,
-                folder,
-                description: request.description.as_deref().map(|text| jstr::strip(text).to_string()).unwrap_or_default(),
-                position: existing.iter().map(|component| component.position + 1).max().unwrap_or(0),
-                created_at: now,
-                updated_at: now,
-            };
-            component.validate()?;
-            component.clone().into_active_model().insert(tx.db()).await?;
-            Ok::<_, RekallError>(ProjectComponentView::of(&component))
+            let description = request.description.as_deref().map(|text| jstr::strip(text).to_string()).unwrap_or_default();
+            self.insert_in(&tx, project_id, name, folder, description).await
         })
+    }
+
+    /// A component for `folder`, named after it, unless one already has that folder. A name another
+    /// component holds takes the first free number.
+    pub async fn add_for_folder_in(&self, tx: &Tx, project_id: Id, folder: &str) -> Result<Option<ProjectComponentView>> {
+        let folder = folder_of(Some(folder))?;
+        let existing = repo::project_component::list_of_project(tx.db(), project_id).await?;
+        if existing.iter().any(|component| component.folder == folder) {
+            return Ok(None);
+        }
+        let name = first_free_name(&folder_name(&folder), &existing);
+        Ok(Some(self.insert_in(tx, project_id, name, folder, String::new()).await?))
+    }
+
+    async fn insert_in(&self, tx: &Tx, project_id: Id, name: String, folder: String, description: String) -> Result<ProjectComponentView> {
+        let existing = repo::project_component::list_of_project(tx.db(), project_id).await?;
+        let now = self.ctx.now();
+        let component = project_component::Model {
+            id: Id::random(),
+            project_id,
+            name,
+            folder,
+            description,
+            position: existing.iter().map(|component| component.position + 1).max().unwrap_or(0),
+            created_at: now,
+            updated_at: now,
+        };
+        component.validate()?;
+        component.clone().into_active_model().insert(tx.db()).await?;
+        Ok(ProjectComponentView::of(&component))
     }
 
     pub async fn update(&self, id: Id, request: ProjectComponentRequest) -> Result<ProjectComponentView> {
@@ -122,8 +139,17 @@ fn folder_of(folder: Option<&str>) -> Result<String> {
 }
 
 /// What the folder is called: its last path segment, the name a component starts with.
-fn folder_name(folder: &str) -> String {
+pub(crate) fn folder_name(folder: &str) -> String {
     folder.rsplit(['/', '\\']).find(|segment| !segment.is_empty()).unwrap_or(folder).to_string()
+}
+
+/// `wanted`, or the first of `wanted-2`, `wanted-3`... no component of the project is named, ignoring case.
+fn first_free_name(wanted: &str, components: &[project_component::Model]) -> String {
+    let is_free = |name: &str| !components.iter().any(|component| jstr::equals_ignore_case(&component.name, name));
+    if is_free(wanted) {
+        return wanted.to_string();
+    }
+    (2..).map(|suffix| format!("{wanted}-{suffix}")).find(|name| is_free(name)).expect("an unbounded range always finds a free name")
 }
 
 async fn require_name_free(tx: &Tx, project_id: Id, name: &str, except: Option<Id>) -> Result<()> {

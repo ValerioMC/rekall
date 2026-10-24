@@ -35,16 +35,16 @@ impl JiraIssueService {
         Self { ctx, bindings, tasks, secrets, jira }
     }
 
-    pub async fn list(&self, project_id: Id, connection_id: Id) -> Result<Vec<JiraIssueResponse>> {
-        let source = self.source(project_id, connection_id).await?;
+    pub async fn list(&self, project_id: Id, binding_id: Id) -> Result<Vec<JiraIssueResponse>> {
+        let source = self.source(project_id, binding_id).await?;
         let issues = self.search(&source, &open_issues_query(&source.project_key), ISSUE_LIMIT).await?;
         let imported = self.imported_tasks(project_id).await?;
         Ok(issues.iter().map(|issue| JiraIssueResponse::of(issue, &source.site.url, imported.get(&task_label(&issue.key)).copied())).collect())
     }
 
     /// Issues already imported are passed over, so importing twice adds nothing.
-    pub async fn import(&self, project_id: Id, connection_id: Id, request: JiraImportRequest) -> Result<Vec<TaskResponse>> {
-        let source = self.source(project_id, connection_id).await?;
+    pub async fn import(&self, project_id: Id, binding_id: Id, request: JiraImportRequest) -> Result<Vec<TaskResponse>> {
+        let source = self.source(project_id, binding_id).await?;
         let query = chosen_issues_query(&source.project_key, &request.keys)?;
         let issues = self.search(&source, &query, ISSUE_LIMIT).await?;
         let imported = self.imported_tasks(project_id).await?;
@@ -58,8 +58,8 @@ impl JiraIssueService {
         })
     }
 
-    async fn source(&self, project_id: Id, connection_id: Id) -> Result<JiraSource> {
-        let (binding, connection) = self.bindings.binding(project_id, connection_id).await?;
+    async fn source(&self, project_id: Id, binding_id: Id) -> Result<JiraSource> {
+        let (binding, connection) = self.bindings.binding(project_id, binding_id).await?;
         if connection.kind != ConnectionKind::Jira {
             return Err(RekallError::illegal("Only a Jira connection has issues to import."));
         }

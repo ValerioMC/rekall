@@ -44,7 +44,7 @@ impl ConnectionCredentialService {
             }
             let after = repo::update_if_changed(tx.db(), &before, after, self.ctx.now()).await?;
             tx.publish(ConnectionStreamEvent { company_id: after.company_id });
-            let projects = repo::project_connection::list_of_connection(tx.db(), id).await?.len();
+            let projects = repo::project_connection::project_count(tx.db(), id).await?;
             Ok::<_, RekallError>(ConnectionResponse::of(&after, projects))
         })
     }
@@ -59,7 +59,7 @@ impl ConnectionCredentialService {
             after.secret_set_at = None;
             let after = repo::update_if_changed(tx.db(), &before, after, self.ctx.now()).await?;
             tx.publish(ConnectionStreamEvent { company_id: after.company_id });
-            let projects = repo::project_connection::list_of_connection(tx.db(), id).await?.len();
+            let projects = repo::project_connection::project_count(tx.db(), id).await?;
             Ok::<_, RekallError>(ConnectionResponse::of(&after, projects))
         })
     }

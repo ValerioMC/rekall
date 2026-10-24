@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use rekall_app::server::StartOptions;
 use rekall_service::connection::{InMemorySecretStore, JiraCredential, JiraFailure, JiraIssue, JiraIssues, JiraSite, SecretStore};
 use serde_json::json;
-use support::{app, app_with, app_with_secrets, id};
+use support::{app, app_with, app_with_secrets, id, run_git};
 
 const KUBECONFIG: &str = "
 clusters:
@@ -86,18 +86,42 @@ async fn a_project_binds_only_its_own_companys_connections_and_sets_a_target() {
     let vega = app.a_project(&acme, "vega", "ACTIVE").await;
     let theirs = app.a_project(&globex, "orion", "ACTIVE").await;
     let cluster = id(&app.post(&format!("/api/companies/{acme}/connections"), json!({ "kind": "KUBERNETES", "title": "Prod" })).await);
+    let bindings = format!("/api/projects/{vega}/connections");
 
-    let bound = app.put(&format!("/api/projects/{vega}/connections/{cluster}"), json!({ "target": " apps " })).await;
-    assert_eq!((bound.status, bound.str("target"), bound.str("label")), (200, "apps".into(), "prod".into()));
-    let retargeted = app.put(&format!("/api/projects/{vega}/connections/{cluster}"), json!({ "target": "billing" })).await;
-    assert_eq!(retargeted.str("target"), "billing", "binding again sets the target");
-    assert_eq!(app.get(&format!("/api/projects/{vega}/connections")).await.list().len(), 1);
+    let bound = app.post(&bindings, json!({ "connectionId": cluster, "target": " apps " })).await;
+    assert_eq!((bound.status, bound.str("target"), bound.str("label")), (201, "apps".into(), "prod".into()));
+    let binding = id(&bound);
+    let retargeted = app.put(&format!("{bindings}/{binding}"), json!({ "target": "billing" })).await;
+    assert_eq!((retargeted.str("target"), retargeted.str("label")), ("billing".into(), "prod".into()));
+    let relabelled = app.put(&format!("{bindings}/{binding}"), json!({ "label": "Prod Billing", "target": "billing" })).await;
+    assert_eq!(relabelled.str("label"), "prod-billing");
+    assert_eq!(app.get(&bindings).await.list().len(), 1);
     assert_eq!(app.get(&format!("/api/connections/{cluster}")).await.get("projects")[0]["label"], "vega");
 
-    assert_eq!(app.put(&format!("/api/projects/{theirs}/connections/{cluster}"), json!({})).await.status, 400);
+    assert_eq!(app.post(&format!("/api/projects/{theirs}/connections"), json!({ "connectionId": cluster })).await.status, 400);
+    assert_eq!(app.post(&bindings, json!({})).await.status, 400);
 
-    assert_eq!(app.delete(&format!("/api/projects/{vega}/connections/{cluster}")).await.status, 204);
-    assert_eq!(app.delete(&format!("/api/projects/{vega}/connections/{cluster}")).await.status, 404);
+    assert_eq!(app.delete(&format!("{bindings}/{binding}")).await.status, 204);
+    assert_eq!(app.delete(&format!("{bindings}/{binding}")).await.status, 404);
+}
+
+#[tokio::test]
+async fn a_project_binds_one_connection_once_per_target_each_under_its_own_label() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let vega = app.a_project(&acme, "vega", "ACTIVE").await;
+    let gitlab = id(&app.post(&format!("/api/companies/{acme}/connections"), json!({ "kind": "GITLAB", "title": "GitLab", "baseUrl": "https://gitlab.example.com" })).await);
+    let bindings = format!("/api/projects/{vega}/connections");
+
+    let first = app.post(&bindings, json!({ "connectionId": gitlab, "target": "acme/billing" })).await;
+    let second = app.post(&bindings, json!({ "connectionId": gitlab, "target": "acme/orders" })).await;
+    let named = app.post(&bindings, json!({ "connectionId": gitlab, "label": "payments", "target": "acme/payments" })).await;
+
+    assert_eq!((first.str("label"), second.str("label"), named.str("label")), ("gitlab".into(), "gitlab-2".into(), "payments".into()));
+    assert_eq!(app.post(&bindings, json!({ "connectionId": gitlab, "target": "acme/orders" })).await.status, 409, "the same target twice");
+    assert_eq!(app.post(&bindings, json!({ "connectionId": gitlab, "label": "payments", "target": "acme/other" })).await.status, 409, "a typed label already used");
+    let detail = app.get(&format!("/api/connections/{gitlab}")).await;
+    assert_eq!((detail.get("projectCount").as_u64(), detail.get("projects").as_array().unwrap().len()), (Some(1), 3));
 }
 
 #[tokio::test]
@@ -108,7 +132,7 @@ async fn deleting_a_connection_unbinds_its_projects_and_forgets_its_credential()
     let vega = app.a_project(&acme, "vega", "ACTIVE").await;
     let gitlab = id(&app.post(&format!("/api/companies/{acme}/connections"), json!({ "kind": "GITLAB", "title": "GitLab", "baseUrl": "https://gitlab.example.com" })).await);
     app.put(&format!("/api/connections/{gitlab}/credential"), json!({ "token": "glpat-secret" })).await;
-    app.put(&format!("/api/projects/{vega}/connections/{gitlab}"), json!({})).await;
+    app.post(&format!("/api/projects/{vega}/connections"), json!({ "connectionId": gitlab })).await;
 
     let removed = app.delete(&format!("/api/connections/{gitlab}")).await;
 
@@ -159,9 +183,9 @@ async fn the_context_names_a_projects_connections_and_never_their_credential_or_
     let staging = id(&app.post(&format!("/api/companies/{acme}/connections"), json!({ "kind": "KUBERNETES", "title": "Staging" })).await);
     app.put(&format!("/api/connections/{cluster}/credential"), json!({ "kubeconfig": KUBECONFIG, "context": "prod" })).await;
     app.put(&format!("/api/connections/{gitlab}/credential"), json!({ "token": "glpat-secret" })).await;
-    app.put(&format!("/api/projects/{vega}/connections/{cluster}"), json!({ "target": "apps" })).await;
-    app.put(&format!("/api/projects/{vega}/connections/{gitlab}"), json!({ "target": "acme/vega" })).await;
-    app.put(&format!("/api/projects/{vega}/connections/{staging}"), json!({})).await;
+    app.post(&format!("/api/projects/{vega}/connections"), json!({ "connectionId": cluster, "target": "apps" })).await;
+    app.post(&format!("/api/projects/{vega}/connections"), json!({ "connectionId": gitlab, "target": "acme/vega" })).await;
+    app.post(&format!("/api/projects/{vega}/connections"), json!({ "connectionId": staging })).await;
 
     let context = app.call_tool("rekall_context", json!({ "anchors": "project:vega task:deploy" })).await;
 
@@ -172,6 +196,88 @@ async fn the_context_names_a_projects_connections_and_never_their_credential_or_
     for leaked in ["sa-token-123", "glpat-secret", "k8s.example.com", "Q0E=", &format!("connection-{cluster}")] {
         assert!(!context.contains(leaked), "the context carries {leaked}");
     }
+}
+
+/// A folder holding repositories the way a multi-service product does: some side by side, some
+/// grouped in a plain folder, one cloned twice, one with no origin and one hosted elsewhere.
+fn a_product_folder() -> tempfile::TempDir {
+    let root = tempfile::tempdir().unwrap();
+    for (folder, origin) in [
+        ("billing", Some("https://gitlab.example.com/acme/billing.git")),
+        ("group/orders", Some("git@gitlab.example.com:acme/group/orders.git")),
+        ("group/payments", Some("ssh://git@gitlab.example.com:2222/acme/group/payments.git")),
+        ("group/tools", Some("https://github.com/acme/tools.git")),
+        ("billing-copy", Some("git@gitlab.example.com:acme/billing.git")),
+        ("scratch", None),
+        ("legacy", Some("https://gitlab.legacy.com/acme/legacy.git")),
+    ] {
+        let repository = root.path().join(folder);
+        std::fs::create_dir_all(&repository).unwrap();
+        run_git(&repository, &["init", "-q"]);
+        if let Some(origin) = origin {
+            run_git(&repository, &["remote", "add", "origin", origin]);
+        }
+    }
+    std::fs::create_dir_all(root.path().join("notes")).unwrap();
+    root
+}
+
+#[tokio::test]
+async fn discovering_a_projects_repositories_binds_each_on_a_gitlab_with_a_token_and_makes_it_a_component() {
+    let secrets = Arc::new(InMemorySecretStore::new());
+    let app = app_with_secrets(secrets).await;
+    let acme = app.a_company("Acme").await;
+    let folder = a_product_folder();
+    let vega = app.a_project_in(&acme, "vega", folder.path()).await;
+    let gitlab = id(&app.post(&format!("/api/companies/{acme}/connections"), json!({ "kind": "GITLAB", "title": "GitLab", "baseUrl": "https://gitlab.example.com" })).await);
+    app.put(&format!("/api/connections/{gitlab}/credential"), json!({ "token": "glpat-secret" })).await;
+    app.post(&format!("/api/companies/{acme}/connections"), json!({ "kind": "GITLAB", "title": "Legacy", "baseUrl": "https://gitlab.legacy.com" })).await;
+    app.post(&format!("/api/projects/{vega}/connections"), json!({ "connectionId": gitlab, "label": "orders-api", "target": "acme/group/orders" })).await;
+
+    let discovered = app.post_empty(&format!("/api/projects/{vega}/connections/discover")).await;
+
+    assert_eq!(discovered.status, 200, "{}", discovered.text);
+    let rows: Vec<(String, String, String, String)> = discovered.get("repositories").as_array().unwrap().iter().map(|row| {
+        let text = |key: &str| row[key].as_str().unwrap_or("-").to_string();
+        (text("folder").rsplit_once(&*folder.path().file_name().unwrap().to_string_lossy()).unwrap().1.to_string(), text("outcome"), text("label"), text("component"))
+    }).collect();
+    let expected = [
+        ("/billing", "BOUND", "billing", "billing"),
+        ("/billing-copy", "ALREADY_BOUND", "billing", "-"),
+        ("/group/orders", "ALREADY_BOUND", "orders-api", "orders"),
+        ("/group/payments", "BOUND", "payments", "payments"),
+        ("/group/tools", "NO_CONNECTION", "-", "-"),
+        ("/legacy", "NO_CREDENTIAL", "-", "-"),
+        ("/scratch", "NO_ORIGIN", "-", "-"),
+    ];
+    assert_eq!(rows, expected.map(|(a, b, c, d)| (a.to_string(), b.to_string(), c.to_string(), d.to_string())));
+    assert!(!discovered.text.contains("glpat-secret"));
+
+    let bindings: Vec<(String, String)> = app.get(&format!("/api/projects/{vega}/connections")).await.list().iter()
+        .map(|binding| (binding["label"].as_str().unwrap().to_string(), binding["target"].as_str().unwrap().to_string()))
+        .collect();
+    assert_eq!(bindings, [("billing", "acme/billing"), ("orders-api", "acme/group/orders"), ("payments", "acme/group/payments")].map(|(l, t)| (l.to_string(), t.to_string())));
+    let components: Vec<String> = app.get(&format!("/api/projects/{vega}/components")).await.list().iter().map(|c| c["name"].as_str().unwrap().to_string()).collect();
+    assert_eq!(components, ["billing", "orders", "payments"]);
+
+    let again = app.post_empty(&format!("/api/projects/{vega}/connections/discover")).await;
+    assert!(again.get("repositories").as_array().unwrap().iter().all(|row| row["outcome"] != "BOUND" && row["component"].is_null()), "{}", again.text);
+    assert_eq!(app.get(&format!("/api/projects/{vega}/connections")).await.list().len(), 3);
+
+    let context = app.call_tool("rekall_context", json!({ "anchors": "project:vega" })).await;
+    assert!(context.contains("- `payments` (GitLab): GitLab at https://gitlab.example.com, project `acme/group/payments`"), "{context}");
+    assert!(context.contains("rekall-gitlab --connection payments"), "{context}");
+}
+
+#[tokio::test]
+async fn discovering_needs_the_projects_folder() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let vega = app.a_project(&acme, "vega", "ACTIVE").await;
+
+    let refused = app.post_empty(&format!("/api/projects/{vega}/connections/discover")).await;
+
+    assert_eq!(refused.status, 400, "{}", refused.text);
 }
 
 /// A Jira site behind a proxy with two open issues, which answers only the credential the test stores.
@@ -199,8 +305,8 @@ async fn a_jira_connection_imports_the_issues_a_project_picks_as_its_tasks() {
     let set = app.put(&format!("/api/connections/{jira}/credential"), json!({ "email": "ada@example.com", "token": "atl-secret" })).await;
     assert_eq!(set.status, 200, "{}", set.text);
     assert!(!set.text.contains("atl-secret"));
-    app.put(&format!("/api/projects/{vega}/connections/{jira}"), json!({ "target": "eng" })).await;
-    let issues = format!("/api/projects/{vega}/connections/{jira}/jira-issues");
+    let binding = id(&app.post(&format!("/api/projects/{vega}/connections"), json!({ "connectionId": jira, "target": "eng" })).await);
+    let issues = format!("/api/projects/{vega}/connections/{binding}/jira-issues");
 
     let listed = app.get(&issues).await;
     assert_eq!(listed.status, 200, "{}", listed.text);

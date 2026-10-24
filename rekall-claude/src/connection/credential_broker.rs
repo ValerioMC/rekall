@@ -191,12 +191,16 @@ impl CredentialBroker {
     }
 }
 
-/// For each GitLab host: an empty helper that drops any configured elsewhere, then Rekall's.
+/// For each GitLab host: an empty helper that drops any configured elsewhere, then Rekall's. Several
+/// bindings of one instance share its token, so the first one answers for the host.
 fn git_config(gitlabs: &[&TerminalConnection], helper: &Path) -> Vec<(String, String)> {
     let mut entries = Vec::new();
     for connection in gitlabs {
         let Some(instance) = connection.instance_url.as_deref() else { continue };
         let key = format!("credential.{}.helper", instance.trim_end_matches('/'));
+        if entries.iter().any(|(known, _)| *known == key) {
+            continue;
+        }
         entries.push((key.clone(), String::new()));
         entries.push((key, format!("!'{}' {}", helper.display(), connection.label)));
     }

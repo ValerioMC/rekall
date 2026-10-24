@@ -6,13 +6,18 @@ use super::{RepositoryStatus, run};
 use super::git_command::COMMAND_TIMEOUT;
 
 /// Read-only questions about a folder: is it a repository, which branch is checked out, who
-/// would git commit as (what `git config` resolves inside the folder).
+/// would git commit as (what `git config` resolves inside the folder), where its `origin` points.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct GitRepositoryInspector;
 
 impl GitRepositoryInspector {
     pub async fn is_repository(&self, folder: Option<&str>) -> bool {
         self.inspect(folder).await.repository
+    }
+
+    /// The URL of the folder's `origin` remote; none when it has no such remote or is no repository.
+    pub async fn origin_url(&self, folder: &Path) -> Option<String> {
+        answer(folder, &["config", "--get", "remote.origin.url"]).await
     }
 
     pub async fn inspect(&self, folder: Option<&str>) -> RepositoryStatus {

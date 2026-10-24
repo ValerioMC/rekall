@@ -25,7 +25,7 @@ function pick(value: ConnectionId | null): void {
   <div role="radiogroup" :aria-label="`Connection for ${name}`" class="flex flex-col gap-1.5" data-testid="graph-connection-picker">
     <button
       v-for="binding in bindings"
-      :key="binding.connectionId"
+      :key="binding.id"
       type="button"
       role="radio"
       :aria-checked="modelValue === binding.connectionId"
