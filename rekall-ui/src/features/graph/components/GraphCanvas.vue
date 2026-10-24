@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { smoothPath } from '@/features/diagram/lib/edge-path'
-import { layoutFlow, placeSteps, type FlowLayout, type FlowShapeStep, type PlacedRoute } from '@/features/flow/lib/flow-layout'
+import {
+  layoutFlow,
+  placeSteps,
+  type FlowLayout,
+  type FlowShapeStep,
+  type PlacedRoute
+} from '@/features/flow/lib/flow-layout'
 import { FLOW_END, type RouteTarget } from '@/features/flow/lib/route-target'
 import { useFlowDrag } from '@/features/flow/composables/useFlowDrag'
 import { useFlowPan } from '@/features/flow/composables/useFlowPan'
@@ -27,6 +33,7 @@ const emit = defineEmits<{
   select: [key: string]
   connect: [from: string, to: RouteTarget<string>]
   place: [key: string, at: Point]
+  tidy: []
 }>()
 
 /** A route's id on the canvas: the step it leaves and its place among that step's routes. */
@@ -37,7 +44,11 @@ function routeId(step: DraftStep, index: number): string {
 const shapes = computed<FlowShapeStep<string, string>[]>(() =>
   props.steps.map((step) => ({
     id: step.key,
-    links: step.routes.map((route, index) => ({ id: routeId(step, index), outcome: route.outcome, toStepId: route.toKey }))
+    links: step.routes.map((route, index) => ({
+      id: routeId(step, index),
+      outcome: route.outcome,
+      toStepId: route.toKey
+    }))
   }))
 )
 const base = computed((): FlowLayout<string, string> => layoutFlow(shapes.value))
@@ -50,15 +61,21 @@ const savedPlaces = computed(() => {
 })
 const outcomes = computed(() => {
   const all = new Map<string, string>()
-  for (const step of props.steps) step.routes.forEach((route, index) => all.set(routeId(step, index), route.outcome))
+  for (const step of props.steps)
+    step.routes.forEach((route, index) => all.set(routeId(step, index), route.outcome))
   return all
 })
 const labelled = computed(() => layout.value.routes.filter((placed) => placed.kind === 'route'))
-const bindingOf = computed(() => new Map<ConnectionId, ProjectConnection>(props.bindings.map((binding) => [binding.connectionId, binding])))
+const bindingOf = computed(
+  () =>
+    new Map<ConnectionId, ProjectConnection>(props.bindings.map((binding) => [binding.connectionId, binding]))
+)
 
 const surface = ref<HTMLElement | null>(null)
 const scroller = ref<HTMLElement | null>(null)
 const pan = useFlowPan(scroller, surface)
+const tidyable = computed(() => savedPlaces.value.size > 0)
+
 const drag = useFlowDrag<string>({
   surface,
   boxes: () => layout.value.nodes,
@@ -67,8 +84,8 @@ const drag = useFlowDrag<string>({
   connect: (from, to) => emit('connect', from, to),
   select: (key) => emit('select', key)
 })
-const layout = computed(
-  (): FlowLayout<string, string> => placeSteps(base.value, new Map([...savedPlaces.value, ...drag.live.value]))
+const layout = computed((): FlowLayout<string, string> =>
+  placeSteps(base.value, new Map([...savedPlaces.value, ...drag.live.value]))
 )
 
 function touchesSelection(placed: PlacedRoute<string, string>): boolean {
@@ -87,81 +104,115 @@ const pendingPath = computed(() => {
   const from = connecting ? layout.value.nodes.get(connecting.from) : undefined
   if (!connecting || !from) return ''
   const start = { x: from.x + from.width / 2, y: from.y + from.height }
-  const box = connecting.over === null ? null : connecting.over === FLOW_END ? layout.value.end : layout.value.nodes.get(connecting.over)
+  const box =
+    connecting.over === null
+      ? null
+      : connecting.over === FLOW_END
+        ? layout.value.end
+        : layout.value.nodes.get(connecting.over)
   const end = box ? { x: box.x + box.width / 2, y: box.y } : connecting.at
   return `M${start.x},${start.y}L${end.x},${end.y}`
 })
 </script>
 
 <template>
-  <div
-    ref="scroller"
-    class="texture-dots size-full min-h-0 overflow-auto"
-    data-testid="graph-canvas"
-    @pointerdown="pan.startPan($event)"
-  >
-    <div ref="surface" class="relative mx-auto" :style="{ width: `${layout.width}px`, height: `${layout.height}px` }">
-      <svg
-        class="pointer-events-none absolute inset-0 overflow-visible"
-        :width="layout.width"
-        :height="layout.height"
-        aria-hidden="true"
+  <div class="relative min-h-0 min-w-0">
+    <button
+      v-if="tidyable"
+      type="button"
+      class="key-quiet focus-ring absolute right-3 top-3 z-20 cursor-pointer rounded-control px-2.5 py-1 text-caption"
+      title="Hand every step back to the automatic layout"
+      data-testid="graph-tidy"
+      @click="emit('tidy')"
+    >
+      Tidy layout
+    </button>
+    <div
+      ref="scroller"
+      class="texture-dots size-full min-h-0 overflow-auto"
+      data-testid="graph-canvas"
+      @pointerdown="pan.startPan($event)"
+    >
+      <div
+        ref="surface"
+        class="relative mx-auto"
+        :style="{ width: `${layout.width}px`, height: `${layout.height}px` }"
       >
-        <defs>
-          <marker
-            v-for="kind in ['rest', 'loop', 'focus']"
-            :id="`graph-arrow-${kind}`"
-            :key="kind"
-            viewBox="-10 -5 10 10"
-            refX="0"
-            refY="0"
-            markerWidth="9"
-            markerHeight="9"
-            orient="auto"
-          >
-            <path d="M0,0L-8.5,-4.4L-6.4,0L-8.5,4.4Z" :class="`graph-arrowhead-${kind}`" />
-          </marker>
-        </defs>
-        <path
-          v-for="placed in layout.routes"
-          :key="placed.key"
-          class="graph-route"
+        <svg
+          class="pointer-events-none absolute inset-0 overflow-visible"
+          :width="layout.width"
+          :height="layout.height"
+          aria-hidden="true"
+        >
+          <defs>
+            <marker
+              v-for="kind in ['rest', 'loop', 'focus']"
+              :id="`graph-arrow-${kind}`"
+              :key="kind"
+              viewBox="-10 -5 10 10"
+              refX="0"
+              refY="0"
+              markerWidth="9"
+              markerHeight="9"
+              orient="auto"
+            >
+              <path d="M0,0L-8.5,-4.4L-6.4,0L-8.5,4.4Z" :class="`graph-arrowhead-${kind}`" />
+            </marker>
+          </defs>
+          <path
+            v-for="placed in layout.routes"
+            :key="placed.key"
+            class="graph-route"
+            :class="[
+              touchesSelection(placed) && 'graph-route-focus',
+              loopsBack(placed) && 'graph-route-loop'
+            ]"
+            :d="smoothPath(placed.points, 7)"
+            :marker-end="`url(#graph-arrow-${touchesSelection(placed) ? 'focus' : loopsBack(placed) ? 'loop' : 'rest'})`"
+          />
+          <path
+            v-if="pendingPath"
+            :d="pendingPath"
+            class="graph-pending"
+            marker-end="url(#graph-arrow-focus)"
+          />
+        </svg>
+
+        <span
+          v-for="placed in labelled"
+          :key="`label-${placed.key}`"
+          class="graph-outcome pointer-events-none absolute -translate-x-1/2 -translate-y-1/2"
           :class="[touchesSelection(placed) && 'graph-route-focus', loopsBack(placed) && 'graph-route-loop']"
-          :d="smoothPath(placed.points, 7)"
-          :marker-end="`url(#graph-arrow-${touchesSelection(placed) ? 'focus' : loopsBack(placed) ? 'loop' : 'rest'})`"
+          :style="{ left: `${placed.labelAt.x}px`, top: `${placed.labelAt.y}px` }"
+          data-testid="graph-outcome"
+        >
+          {{ placed.linkId ? outcomes.get(placed.linkId) : '' }}
+        </span>
+
+        <FlowTerminal kind="start" :box="layout.start" :reached="false" />
+        <FlowTerminal
+          kind="end"
+          :box="layout.end"
+          :reached="false"
+          :aimed="drag.connecting.value?.over === FLOW_END"
         />
-        <path v-if="pendingPath" :d="pendingPath" class="graph-pending" marker-end="url(#graph-arrow-focus)" />
-      </svg>
 
-      <span
-        v-for="placed in labelled"
-        :key="`label-${placed.key}`"
-        class="graph-outcome pointer-events-none absolute -translate-x-1/2 -translate-y-1/2"
-        :class="[touchesSelection(placed) && 'graph-route-focus', loopsBack(placed) && 'graph-route-loop']"
-        :style="{ left: `${placed.labelAt.x}px`, top: `${placed.labelAt.y}px` }"
-        data-testid="graph-outcome"
-      >
-        {{ placed.linkId ? outcomes.get(placed.linkId) : '' }}
-      </span>
-
-      <FlowTerminal kind="start" :box="layout.start" :reached="false" />
-      <FlowTerminal kind="end" :box="layout.end" :reached="false" :aimed="drag.connecting.value?.over === FLOW_END" />
-
-      <GraphNode
-        v-for="(step, position) in steps"
-        :key="step.key"
-        :step="step"
-        :position="position"
-        :box="layout.nodes.get(step.key)!"
-        :binding="step.connectionId ? (bindingOf.get(step.connectionId) ?? null) : null"
-        :selected="step.key === selectedKey"
-        :aimed="drag.connecting.value?.over === step.key"
-        :dragging="drag.live.value.has(step.key)"
-        @select="emit('select', step.key)"
-        @move-start="drag.startMove(step.key, $event)"
-        @connect-start="drag.startConnect(step.key, $event)"
-        @nudge="(dx, dy) => drag.nudge(step.key, dx, dy)"
-      />
+        <GraphNode
+          v-for="(step, position) in steps"
+          :key="step.key"
+          :step="step"
+          :position="position"
+          :box="layout.nodes.get(step.key)!"
+          :binding="step.connectionId ? (bindingOf.get(step.connectionId) ?? null) : null"
+          :selected="step.key === selectedKey"
+          :aimed="drag.connecting.value?.over === step.key"
+          :dragging="drag.live.value.has(step.key)"
+          @select="emit('select', step.key)"
+          @move-start="drag.startMove(step.key, $event)"
+          @connect-start="drag.startConnect(step.key, $event)"
+          @nudge="(dx, dy) => drag.nudge(step.key, dx, dy)"
+        />
+      </div>
     </div>
   </div>
 </template>

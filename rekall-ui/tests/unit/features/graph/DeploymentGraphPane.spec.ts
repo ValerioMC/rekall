@@ -127,4 +127,23 @@ describe('DeploymentGraphPane', () => {
     expect(draft.steps[1]).toMatchObject({ flowX: origin.left + 120, flowY: origin.top + 60 })
     expect(draft.steps[0]).toMatchObject({ flowX: null, flowY: null })
   })
+
+  it('offers to tidy the layout only once a step was moved, and saves every step back on it', async () => {
+    vi.mocked(graphsApi.replaceDeploymentGraph).mockImplementation(async () => aGraph())
+    expect((await pane()).find('[data-testid="graph-tidy"]').exists()).toBe(false)
+    wrapper!.unmount()
+
+    const base = aGraph()
+    const view = await pane(aGraph({ steps: [base.steps[0]!, { ...base.steps[1]!, flowX: 600, flowY: 500 }] }))
+    await view.find('[data-testid="graph-tidy"]').trigger('click')
+    await vi.advanceTimersByTimeAsync(800)
+    await flushPromises()
+
+    const [, draft] = vi.mocked(graphsApi.replaceDeploymentGraph).mock.calls[0]!
+    expect(draft.steps.map((step) => [step.flowX, step.flowY])).toEqual([
+      [null, null],
+      [null, null]
+    ])
+    expect(view.find('[data-testid="graph-tidy"]').exists()).toBe(false)
+  })
 })

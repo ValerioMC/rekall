@@ -50,6 +50,11 @@ export function updateStep(draft: GraphDraft, key: string, patch: Partial<Omit<D
   return { ...draft, steps: draft.steps.map((step) => (step.key === key ? { ...step, ...patch } : step)) }
 }
 
+/** Hands every step back to the automatic layout. */
+export function clearPlaces(draft: GraphDraft): GraphDraft {
+  return { ...draft, steps: draft.steps.map((step) => ({ ...step, flowX: null, flowY: null })) }
+}
+
 /** Removes the step and every route that led to it. */
 export function removeStep(draft: GraphDraft, key: string): GraphDraft {
   return {

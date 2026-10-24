@@ -6,6 +6,7 @@ import { useDeploymentGraphsStore } from '@/features/graph/store/deploymentGraph
 import { isFlowEnd, type RouteTarget } from '@/features/flow/lib/route-target'
 import {
   addRoute,
+  clearPlaces,
   draftOf,
   freeOutcome,
   insertStep,
@@ -265,6 +266,7 @@ const focusIndex = computed(() =>
         @select="selectedKey = $event"
         @connect="connect"
         @place="place"
+        @tidy="change(clearPlaces(draft))"
       />
       <aside class="min-h-0 overflow-y-auto border-t border-border md:border-l md:border-t-0" aria-label="Picked step">
         <GraphStepInspector

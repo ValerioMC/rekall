@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  clearPlaces,
   draftOf,
   freeOutcome,
   insertStep,
@@ -83,5 +84,14 @@ describe('graph-draft', () => {
   it('tells two drafts apart only by what they would save', () => {
     expect(sameDraft(graphOf(step('a')), graphOf(step('a')))).toBe(true)
     expect(sameDraft(graphOf(step('a')), graphOf(step('b')))).toBe(false)
+  })
+
+  it('hands every step back to the automatic layout', () => {
+    const placed = { ...step('a'), flowX: 40, flowY: 80 }
+
+    expect(clearPlaces(graphOf(placed, step('b'))).steps.map((s) => [s.flowX, s.flowY])).toEqual([
+      [null, null],
+      [null, null]
+    ])
   })
 })
