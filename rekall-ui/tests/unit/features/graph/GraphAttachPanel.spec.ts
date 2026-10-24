@@ -38,6 +38,18 @@ describe('GraphAttachPanel', () => {
     await flushPromises()
 
     expect(graphsApi.attachDeploymentGraph).toHaveBeenCalledWith('t-1', 'g-1')
+    expect(wrapper.emitted('attached')).toHaveLength(1)
+  })
+
+  it('announces nothing when the attach is refused', async () => {
+    vi.mocked(graphsApi.fetchDeploymentGraphs).mockResolvedValue([aGraph()])
+    vi.mocked(graphsApi.attachDeploymentGraph).mockRejectedValue(new Error('This task already has 2 steps.'))
+    const wrapper = await panel()
+
+    await wrapper.find('[data-testid="graph-attach-run"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.emitted('attached')).toBeUndefined()
   })
 
   it('offers a graph that cannot run, without letting it be used', async () => {

@@ -189,6 +189,11 @@ async function scrollToDrafts(): Promise<void> {
 }
 
 /** The flow's "Detail" opens that step on the list, where its detail is written. */
+/** A graph just laid on the task is shown as the flow it is; one without routes stays a list. */
+function showAttachedGraph(): void {
+  view.value = isFlow.value ? 'flow' : 'list'
+}
+
 async function openFromFlow(id: TaskStepId): Promise<void> {
   const step = selectedTaskSteps.value.find((candidate) => candidate.id === id)
   if (!step) return
@@ -230,7 +235,7 @@ onUnmounted(editor.flush)
 
       <div v-else class="min-h-0 min-w-0 flex-1 overflow-y-auto px-5 py-4">
         <template v-if="!checklistSteps.length && !draftSteps.length">
-          <GraphAttachPanel :task="selectedTask" />
+          <GraphAttachPanel :task="selectedTask" @attached="showAttachedGraph" />
           <StepsEmptyState :anchor="selectedTask.anchor" @draft-first="focusAdd" />
         </template>
 

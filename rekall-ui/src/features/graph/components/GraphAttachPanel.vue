@@ -20,6 +20,8 @@ import GraphStepChain from './GraphStepChain.vue'
  */
 const props = defineProps<{ task: Task }>()
 
+const emit = defineEmits<{ attached: [] }>()
+
 const store = useConsoleStore()
 const graphs = useDeploymentGraphsStore()
 const connections = useConnectionsStore()
@@ -48,7 +50,8 @@ function chain(graph: DeploymentGraph) {
 }
 
 async function attach(graph: DeploymentGraph): Promise<void> {
-  await run(() => store.attachGraph(props.task.id, graph.id), `${graph.title} laid on the task`)
+  const laid = await run(() => store.attachGraph(props.task.id, graph.id).then(() => true), `${graph.title} laid on the task`)
+  if (laid) emit('attached')
 }
 </script>
 

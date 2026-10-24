@@ -4,7 +4,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import StepsPane from '@/features/steps/components/StepsPane.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import type { Task, TaskStep, TaskStepState } from '@/features/catalog/model/catalog'
-import type { ProjectId, TaskId, TaskStepId } from '@/model/branded'
+import type { ProjectId, StepLinkId, TaskId, TaskStepId } from '@/model/branded'
 
 /**
  * The checklist pane as a person drives it: the ledger and its counts, the step that opens on
@@ -135,6 +135,40 @@ describe('StepsPane', () => {
     expect(pane.find('[data-testid="write-first-step"]').exists()).toBe(true)
     expect(pane.get('[data-testid="copy-plan-command"]').text()).toContain('project:vega task:report-builder plan')
     expect(pane.find('[data-testid="steps-ledger"]').exists()).toBe(false)
+  })
+
+  it('opens on the flow once a routed graph is laid on the task, and on the list for one without routes', async () => {
+    for (const routed of [true, false]) {
+      const store = seed([])
+      const pane = mount(StepsPane, {
+        attachTo: document.body,
+        global: {
+          plugins: [pinia],
+          stubs: {
+            AppMarkdownEditor: true,
+            NotesButton: true,
+            PlanHereButton: true,
+            OpenTerminalButton: true,
+            LaunchClaudeCodeButton: true,
+            LogCommitButton: true,
+            CommitReferenceList: true,
+            StepFlowView: true,
+            GraphAttachPanel: { template: '<button data-testid="attach" @click="$emit(\'attached\')" />' }
+          }
+        }
+      })
+      const push = makeStep('s1', 0, 'OPEN')
+      const check = makeStep('s2', 1, 'OPEN')
+      const laid = routed
+        ? [{ ...push, links: [{ id: 'l1' as StepLinkId, fromStepId: push.id, toStepId: check.id, outcome: 'pushed', position: 0 }] }, check]
+        : [push, check]
+
+      store.steps = laid
+      await pane.find('[data-testid="attach"]').trigger('click')
+
+      expect(pane.find('step-flow-view-stub').exists()).toBe(routed)
+      pane.unmount()
+    }
   })
 
   it('offers to plan a flow only while the task has no steps and no drafts', () => {
