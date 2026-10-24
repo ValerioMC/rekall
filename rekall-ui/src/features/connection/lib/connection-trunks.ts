@@ -15,6 +15,14 @@ export interface ConnectionTrunk {
   readonly bindings: readonly ProjectConnection[]
 }
 
+/** The trunks of one kind of system, as the project's Connections page sets them apart. */
+export interface ConnectionKindGroup {
+  readonly kind: ConnectionKind
+  readonly trunks: readonly ConnectionTrunk[]
+}
+
+const KIND_ORDER: readonly ConnectionKind[] = ['KUBERNETES', 'GITLAB', 'JIRA']
+
 function trunkOf(bindings: readonly ProjectConnection[], connection: Connection | undefined): ConnectionTrunk {
   const first = bindings[0]!
   const source = connection ?? first
@@ -36,6 +44,13 @@ export function connectionTrunks(
   const grouped = new Map<ConnectionId, ProjectConnection[]>()
   for (const binding of bindings) grouped.set(binding.connectionId, [...(grouped.get(binding.connectionId) ?? []), binding])
   return [...grouped].map(([id, members]) => trunkOf(members, connections.find((connection) => connection.id === id)))
+}
+
+/** The trunks by kind, clusters first, then GitLab, then Jira; each kind keeps its trunks' order and an empty kind is left out. */
+export function trunksByKind(trunks: readonly ConnectionTrunk[]): ConnectionKindGroup[] {
+  return KIND_ORDER.map((kind) => ({ kind, trunks: trunks.filter((trunk) => trunk.kind === kind) })).filter(
+    (group) => group.trunks.length > 0
+  )
 }
 
 /** The company's connections this project binds nowhere. */

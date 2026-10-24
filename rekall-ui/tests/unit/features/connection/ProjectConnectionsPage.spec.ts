@@ -6,7 +6,7 @@ import * as componentsApi from '@/features/project/api/project-components.api'
 import ProjectConnectionsPage from '@/features/connection/components/ProjectConnectionsPage.vue'
 import { useConnectionsStore } from '@/features/connection/store/connections.store'
 import type { Project } from '@/features/catalog/model/catalog'
-import type { Connection, ProjectConnection, RepositoryDiscovery } from '@/features/connection/model/connection'
+import type { Connection, ConnectionKind, ProjectConnection, RepositoryDiscovery } from '@/features/connection/model/connection'
 import type { CompanyId, ConnectionId, ProjectConnectionId, ProjectId } from '@/model/branded'
 
 vi.mock('@/features/connection/api/connections.api')
@@ -47,12 +47,12 @@ function connection(id: string): Connection {
   }
 }
 
-function binding(id: string, credentialSetAt: string | null): ProjectConnection {
+function binding(id: string, credentialSetAt: string | null, kind: ConnectionKind = 'KUBERNETES'): ProjectConnection {
   return {
     id: `b-${id}` as ProjectConnectionId,
     connectionId: id as ConnectionId,
     projectId: PROJECT.id,
-    kind: 'KUBERNETES',
+    kind,
     label: id,
     title: `The ${id}`,
     baseUrl: null,
@@ -77,6 +77,23 @@ describe('ProjectConnectionsPage', () => {
     setActivePinia(createPinia())
     vi.resetAllMocks()
     vi.mocked(api.fetchCompanyConnections).mockResolvedValue([connection('prod'), connection('staging')])
+  })
+
+  it('lists the clusters together before the repositories, whatever order the bindings come in', async () => {
+    vi.mocked(api.fetchProjectConnections).mockResolvedValue([
+      binding('prod', null),
+      binding('gitlab', null, 'GITLAB'),
+      binding('staging', null)
+    ])
+    const wrapper = await mountPage()
+    await flushPromises()
+
+    const kinds = wrapper.findAll('[data-testid^="connection-kind-"]')
+    expect(kinds.map((kind) => kind.attributes('data-testid'))).toEqual(['connection-kind-KUBERNETES', 'connection-kind-GITLAB'])
+    expect(kinds[0]!.findAll('[data-testid^="trunk-"]').map((trunk) => trunk.attributes('data-testid'))).toEqual([
+      'trunk-prod',
+      'trunk-staging'
+    ])
   })
 
   it('flags a used connection that has no credential and offers it again for another target', async () => {

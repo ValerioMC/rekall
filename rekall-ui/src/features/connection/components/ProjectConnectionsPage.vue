@@ -9,10 +9,11 @@ import JiraImportDialog from '@/features/connection/components/JiraImportDialog.
 import RepositoryDiscoveryResult from '@/features/connection/components/RepositoryDiscoveryResult.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { endpointOf } from '@/features/connection/lib/connection-endpoint'
-import { connectionTrunks, trunkMatching, unusedConnections } from '@/features/connection/lib/connection-trunks'
+import { connectionTrunks, trunkMatching, trunksByKind, unusedConnections } from '@/features/connection/lib/connection-trunks'
 import { useConnectionsStore } from '@/features/connection/store/connections.store'
 import { useProjectComponentsStore } from '@/features/project/store/projectComponents.store'
 import type { Project } from '@/features/catalog/model/catalog'
+import { CONNECTION_KIND_LABEL, CONNECTION_KIND_NOUN } from '@/features/connection/model/connection'
 import type {
   Connection,
   ProjectConnection,
@@ -40,10 +41,12 @@ const importing = ref<ProjectConnection | null>(null)
 
 const bindings = computed(() => store.projectConnectionsOf(props.project.id))
 const companyConnections = computed(() => store.connectionsOf(props.project.companyId))
-const trunks = computed(() =>
-  connectionTrunks(bindings.value, companyConnections.value)
-    .map((trunk) => trunkMatching(trunk, query.value))
-    .filter((trunk) => trunk !== null)
+const kindGroups = computed(() =>
+  trunksByKind(
+    connectionTrunks(bindings.value, companyConnections.value)
+      .map((trunk) => trunkMatching(trunk, query.value))
+      .filter((trunk) => trunk !== null)
+  )
 )
 const unused = computed(() => unusedConnections(bindings.value, companyConnections.value))
 
@@ -127,16 +130,32 @@ watch(
     <div class="min-h-0 flex-1 overflow-y-auto px-5 py-4">
       <RepositoryDiscoveryResult v-if="discovery" class="mb-5" :discovery="discovery" @dismiss="discovery = null" />
 
-      <div v-if="trunks.length" class="flex flex-col gap-5">
-        <ConnectionTrunk
-          v-for="trunk in trunks"
-          :key="trunk.connectionId"
-          :trunk="trunk"
-          @add-target="bind(trunk.connectionId)"
-          @save="save"
-          @unbind="unbind"
-          @import-issues="importing = $event"
-        />
+      <div v-if="kindGroups.length" class="flex flex-col gap-8">
+        <section
+          v-for="group in kindGroups"
+          :key="group.kind"
+          :aria-label="CONNECTION_KIND_LABEL[group.kind]"
+          :data-testid="`connection-kind-${group.kind}`"
+        >
+          <h3 class="section-label mb-3 flex items-center gap-2 border-b border-border pb-1.5">
+            <ConnectionKindIcon :kind="group.kind" :size="12" />
+            {{ CONNECTION_KIND_LABEL[group.kind] }}
+            <span class="font-mono tabular-nums text-text-subtle">
+              {{ group.trunks.length }} {{ CONNECTION_KIND_NOUN[group.kind] }}{{ group.trunks.length === 1 ? '' : 's' }}
+            </span>
+          </h3>
+          <div class="flex flex-col gap-5">
+            <ConnectionTrunk
+              v-for="trunk in group.trunks"
+              :key="trunk.connectionId"
+              :trunk="trunk"
+              @add-target="bind(trunk.connectionId)"
+              @save="save"
+              @unbind="unbind"
+              @import-issues="importing = $event"
+            />
+          </div>
+        </section>
       </div>
       <p v-else-if="bindings.length" class="text-small text-text-subtle" data-testid="connections-no-match">
         No binding matches “{{ query.trim() }}”.
