@@ -122,7 +122,8 @@ export function layoutFlow<StepId extends string, LinkId extends string>(
 
 /**
  * The layout with some steps where the person put them. A route touching a moved step is drawn
- * between the boxes themselves, since dagre routed it around the place the step used to be.
+ * between the boxes themselves, since dagre routed it around the place the step used to be. The
+ * canvas grows to hold the boxes and the routes, a loop reaching out past the step it leaves.
  */
 export function placeSteps<StepId extends string, LinkId extends string>(
   layout: FlowLayout<StepId, LinkId>,
@@ -144,12 +145,21 @@ export function placeSteps<StepId extends string, LinkId extends string>(
     return { ...route, points, labelAt: midpoint(points) }
   })
   const boxes = [...nodes.values(), layout.start, layout.end]
+  const points = routes.flatMap((route) => route.points)
   return {
     ...layout,
     nodes,
     routes,
-    width: Math.max(layout.width, ...boxes.map((box) => box.x + box.width + MARGIN)),
-    height: Math.max(layout.height, ...boxes.map((box) => box.y + box.height + MARGIN))
+    width: Math.max(
+      layout.width,
+      ...boxes.map((box) => box.x + box.width + MARGIN),
+      ...points.map((point) => point.x + MARGIN)
+    ),
+    height: Math.max(
+      layout.height,
+      ...boxes.map((box) => box.y + box.height + MARGIN),
+      ...points.map((point) => point.y + MARGIN)
+    )
   }
 }
 

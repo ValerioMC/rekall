@@ -105,6 +105,19 @@ describe('steps dragged to a place', () => {
     expect(placed.width).toBeGreaterThan(layout.width + 300)
   })
 
+  it('grows the canvas to hold the loop of a step dragged to its edge', () => {
+    const layout = layoutFlow(releaseFlow())
+
+    const placed = placeSteps(layout, new Map([['fix' as never, { x: layout.width, y: layout.height }]]))
+
+    const loop = placed.routes.find((r) => r.key === 'fix-fixed')!
+    expect(loop.points[1]!.x).toBeGreaterThan(layout.width + NODE_WIDTH)
+    for (const point of loop.points) {
+      expect(point.x).toBeLessThanOrEqual(placed.width)
+      expect(point.y).toBeLessThanOrEqual(placed.height)
+    }
+  })
+
   it('returns the same layout when nothing was moved', () => {
     const layout = layoutFlow(releaseFlow())
 
