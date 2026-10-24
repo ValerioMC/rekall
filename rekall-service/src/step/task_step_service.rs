@@ -54,9 +54,33 @@ impl TaskStepService {
         title: Option<&str>,
         body_markdown: Option<&str>,
     ) -> Result<TaskStepView> {
+        self.insert_in(tx, task_id, title, body_markdown, TaskStepState::Draft).await
+    }
+
+    /// Adds a step already promoted to work, for a task the console starts a session on as soon
+    /// as it exists: a draft there would leave that session with nothing it may work.
+    pub async fn add_open_in(
+        &self,
+        tx: &mut Tx,
+        task_id: Id,
+        title: Option<&str>,
+        body_markdown: Option<&str>,
+    ) -> Result<TaskStepView> {
+        self.insert_in(tx, task_id, title, body_markdown, TaskStepState::Open).await
+    }
+
+    async fn insert_in(
+        &self,
+        tx: &mut Tx,
+        task_id: Id,
+        title: Option<&str>,
+        body_markdown: Option<&str>,
+        state: TaskStepState,
+    ) -> Result<TaskStepView> {
         load::task_or_unknown(tx.db(), task_id).await?;
         let siblings = load::steps_of(tx.db(), task_id).await?;
         let mut step = task_step::Model::new(task_id, validated_title(title)?, siblings.len() as i32, self.ctx.now());
+        step.mark_state(state);
         step.body_markdown = validated_body(body_markdown)?;
         step.validate()?;
         let saved = step.into_active_model().insert(tx.db()).await?;

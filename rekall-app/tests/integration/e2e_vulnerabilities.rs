@@ -186,6 +186,7 @@ async fn fixing_a_project_opens_one_task_with_a_step_per_open_exposure_once() {
     titles.sort_unstable();
     assert_eq!(titles, ["Fix GHSA-35jh-r3h4-6jhm in lodash 4.17.15", "Fix GHSA-p6mc-m468-83gw in lodash 4.17.15"]);
     assert!(steps[0]["bodyMarkdown"].as_str().unwrap().contains("Upgrade `lodash` to 4.17.21 or later"), "{}", steps[0]);
+    assert!(steps.iter().all(|step| step["state"] == "OPEN"), "the session the fix starts works them at once: {steps:?}");
     let exposures = fixed.get("exposures").as_array().unwrap().clone();
     assert!(exposures.iter().all(|exposure| exposure["fixTaskId"] == task["id"] && exposure["open"] == false), "{exposures:?}");
 
