@@ -198,7 +198,7 @@ Project ──< VulnerabilityExposure >── SecurityAdvisory
 | `connection_access` | through its connection | `connection_id`, `task_id` (set null when the task goes), `terminal_id`, `accessed_at`, `granted`, `reason` (why the request was refused); append-only, never a credential |
 | `project_dependency` | through its project | `project_id`, `ecosystem`, `name`, `version`, `manifest` (the declaring file, relative to the project's folder), `created_at`; unique per project, ecosystem, name and version; replaced whole |
 | `security_advisory` | `ghsa_id`, unique | `cve_id`, `summary`, `description`, `url`, `published_at`, `affected_json` (the packages it affects: ecosystem, name, vulnerable range, first patched version, vulnerable functions) |
-| `vulnerability_exposure` | through its project | `project_id`, `advisory_id` unique together, the `ecosystem`, `package_name` and `package_version` it reached the project through, `verdict` (`AFFECTED`, `NOT_AFFECTED`, null until judged), `reasoning`, `assessed_at`, `fix_task_id` (set null when the task goes); deleted with its project or advisory |
+| `vulnerability_exposure` | through its project | `project_id`, `advisory_id` unique together, the `ecosystem`, `package_name` and `package_version` it reached the project through, `verdict` (`AFFECTED`, `NOT_AFFECTED`, null until judged), `reasoning`, `conclusion` (why the project is or is not affected, in plain words; null on verdicts given before it), `assessed_at`, `fix_task_id` (set null when the task goes); deleted with its project or advisory |
 | `token_usage` | through its task | `session_id`, `task_id`, `step_id`, the four token counts, `spent_on` |
 | `transcript_scan` | `session_id` | `scanned_bytes`, `scanned_at` |
 | `task_skill` | through its task | `task_id`, `step_id` (null for the task's own), `skill_name`, `position`; deleted with its task or step |
@@ -492,7 +492,7 @@ rather than overwritten, and the note is `FULL` with kind `notes` until a person
 
 `rekall_inventory` replaces a project's dependency list whole, taking a `project:` anchor and `dependencies`
 (`[{ecosystem, name, version, manifest}]`); `rekall_vulnerabilities` reads the exposures of a project, or
-one by its GHSA id; `rekall_assess_vulnerability` records a verdict and its reasoning on one exposure. See
+one by its GHSA id; `rekall_assess_vulnerability` records a verdict, its reasoning and its conclusion on one exposure. See
 Vulnerabilities below.
 
 `rekall_project_section` is `rekall_note` for a project: the anchors name a task, the section lands on that

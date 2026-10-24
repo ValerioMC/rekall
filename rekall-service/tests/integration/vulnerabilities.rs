@@ -106,7 +106,7 @@ async fn a_scan_keeps_a_verdict_on_an_exposure_found_again_and_drops_one_no_long
     let feed = Arc::new(FakeFeed::answering(Ecosystem::Npm, Ok(vec![advisory("GHSA-bbbb-bbbb-bbbb", Ecosystem::Npm, "left-pad")])));
     let scan = scanner(&world, feed.clone());
     scan.scan().await.unwrap();
-    world.services.exposures.assess("vega", Some("ghsa-bbbb-bbbb-bbbb"), Some("not_affected"), Some("Only `pad` is called, never `parse`.")).await.unwrap();
+    world.services.exposures.assess("vega", Some("ghsa-bbbb-bbbb-bbbb"), Some("not_affected"), Some("Only `pad` is called, never `parse`."), Some("Vega pads strings and parses none.")).await.unwrap();
 
     let again = scan.scan().await.unwrap();
     assert_eq!((again.new_exposures, again.open_exposures), (0, 0));
@@ -164,16 +164,17 @@ async fn an_assessment_names_an_advisory_that_reaches_the_project() {
     let feed = Arc::new(FakeFeed::answering(Ecosystem::Npm, Ok(vec![advisory("GHSA-bbbb-bbbb-bbbb", Ecosystem::Npm, "left-pad")])));
     scanner(&world, feed).scan().await.unwrap();
 
-    let refused = world.services.exposures.assess("vega", Some("GHSA-cccc-cccc-cccc"), Some("affected"), Some("It is called.")).await.unwrap_err();
+    let refused = world.services.exposures.assess("vega", Some("GHSA-cccc-cccc-cccc"), Some("affected"), Some("It is called."), Some("Vega parses input.")).await.unwrap_err();
     assert!(refused.message().contains("GHSA-cccc-cccc-cccc does not reach `project:vega`") && refused.message().contains("GHSA-bbbb-bbbb-bbbb"), "{}", refused.message());
 
-    let first = world.services.exposures.assess("vega", Some("GHSA-bbbb-bbbb-bbbb"), Some("affected"), Some("`parse` runs on every request body.")).await.unwrap();
+    let first = world.services.exposures.assess("vega", Some("GHSA-bbbb-bbbb-bbbb"), Some("affected"), Some("`parse` runs on every request body."), Some("Vega parses every request.")).await.unwrap();
     assert!(!first.replaced);
-    let second = world.services.exposures.assess("vega", Some("GHSA-bbbb-bbbb-bbbb"), Some("affected"), Some("Still reached.")).await.unwrap();
+    let second = world.services.exposures.assess("vega", Some("GHSA-bbbb-bbbb-bbbb"), Some("affected"), Some("Still reached."), Some("Vega still parses every request.")).await.unwrap();
     assert!(second.replaced);
 
     let read = world.services.exposures.read("vega", Some("GHSA-bbbb-bbbb-bbbb")).await.unwrap();
     assert!(read.asked_for_one && read.inventoried);
     assert_eq!(read.exposures[0].reasoning.as_deref(), Some("Still reached."));
+    assert_eq!(read.exposures[0].conclusion.as_deref(), Some("Vega still parses every request."));
     assert!(read.exposures[0].open, "an affected exposure stays a warning until a task fixes it");
 }

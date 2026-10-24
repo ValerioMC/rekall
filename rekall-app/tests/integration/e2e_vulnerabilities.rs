@@ -130,18 +130,19 @@ async fn a_verdict_of_not_affected_takes_the_warning_off_and_affected_leaves_it_
     inventory(&app, "4.17.15").await;
     app.post_empty("/api/vulnerabilities/scan").await;
 
-    let refused = app.call_tool("rekall_assess_vulnerability", json!({ "anchors": "project:vega", "advisory": "GHSA-xxxx-xxxx-xxxx", "verdict": "affected", "reasoning": "Called." })).await;
+    let refused = app.call_tool("rekall_assess_vulnerability", json!({ "anchors": "project:vega", "advisory": "GHSA-xxxx-xxxx-xxxx", "verdict": "affected", "reasoning": "Called.", "conclusion": "Vega calls it." })).await;
     assert!(refused.contains("does not reach `project:vega`"), "{refused}");
 
     let judged = app
-        .call_tool("rekall_assess_vulnerability", json!({ "anchors": "project:vega", "advisory": "GHSA-p6mc-m468-83gw", "verdict": "not_affected", "reasoning": "`zipObjectDeep` is never imported." }))
+        .call_tool("rekall_assess_vulnerability", json!({ "anchors": "project:vega", "advisory": "GHSA-p6mc-m468-83gw", "verdict": "not_affected", "reasoning": "`zipObjectDeep` is never imported.", "conclusion": "Vega never builds objects from paths." }))
         .await;
     assert!(judged.contains("recorded as not affected. It is off the project's warnings."), "{judged}");
     let exposure = &app.get("/api/vulnerabilities/exposures").await.list()[0];
     assert_eq!((exposure["verdict"].as_str(), exposure["open"].as_bool()), (Some("NOT_AFFECTED"), Some(false)));
+    assert_eq!(exposure["conclusion"].as_str(), Some("Vega never builds objects from paths."));
 
     let changed = app
-        .call_tool("rekall_assess_vulnerability", json!({ "anchors": "project:vega", "advisory": "GHSA-p6mc-m468-83gw", "verdict": "affected", "reasoning": "`settings.ts` calls it on user input." }))
+        .call_tool("rekall_assess_vulnerability", json!({ "anchors": "project:vega", "advisory": "GHSA-p6mc-m468-83gw", "verdict": "affected", "reasoning": "`settings.ts` calls it on user input.", "conclusion": "Settings typed by a user reach it." }))
         .await;
     assert!(changed.contains("It replaces the earlier verdict.") && changed.contains("stays on the project's warnings"), "{changed}");
 }
@@ -197,7 +198,7 @@ async fn a_project_fix_of_the_affected_leaves_the_not_affected_and_a_fix_of_all_
     let (app, project_id) = vega_with(Arc::new(TwoLodashFeed)).await;
     inventory(&app, "4.17.15").await;
     app.post_empty("/api/vulnerabilities/scan").await;
-    app.call_tool("rekall_assess_vulnerability", json!({ "anchors": "project:vega", "advisory": "GHSA-35jh-r3h4-6jhm", "verdict": "not_affected", "reasoning": "`template` is never called." }))
+    app.call_tool("rekall_assess_vulnerability", json!({ "anchors": "project:vega", "advisory": "GHSA-35jh-r3h4-6jhm", "verdict": "not_affected", "reasoning": "`template` is never called.", "conclusion": "Vega renders no templates." }))
         .await;
     let path = format!("/api/projects/{project_id}/vulnerabilities/fix");
 

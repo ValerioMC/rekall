@@ -23,6 +23,7 @@ mod m044_connection;
 mod m045_connection_proxy;
 mod m046_drop_task_revision;
 mod m047_vulnerability;
+mod m048_exposure_conclusion;
 mod migration_support;
 mod migrator;
 
