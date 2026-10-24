@@ -330,6 +330,13 @@ impl TaskStepService {
         repo::update_if_changed(tx.db(), &before, step, self.ctx.now()).await
     }
 
+    /// Sets the connection the step reaches, as a deployment graph laid on the task says.
+    pub async fn reach_connection_in(&self, tx: &Tx, id: Id, connection_id: Option<Id>) -> Result<task_step::Model> {
+        let before = self.require(tx, id).await?;
+        let step = task_step::Model { connection_id, ..before.clone() };
+        repo::update_if_changed(tx.db(), &before, step, self.ctx.now()).await
+    }
+
     /// Hands every step of the task back to the automatic layout.
     pub async fn clear_flow_places(&self, task_id: Id) -> Result<Vec<TaskStepView>> {
         in_write!(&self.ctx, |tx| {

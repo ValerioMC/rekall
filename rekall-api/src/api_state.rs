@@ -16,7 +16,7 @@ use rekall_service::vulnerability::{SecurityAdvisoryService, VulnerabilityExposu
 use rekall_service::wrapup::WrapupService;
 use rekall_service::Services;
 
-use crate::{catalog, connection, diagram, filesystem, note, section, component, skill, tag, vulnerability, StepEventStream};
+use crate::{catalog, connection, diagram, filesystem, graph, note, section, component, skill, tag, vulnerability, StepEventStream};
 
 /// What the handlers share: each service a controller calls, and nothing it does not.
 #[derive(Clone)]
@@ -48,6 +48,8 @@ pub struct ApiState {
     pub sources: diagram::SourceExcerptService,
     pub section_catalog: section::ProjectSectionCatalogService,
     pub component_catalog: component::ProjectComponentCatalogService,
+    pub graphs: graph::DeploymentGraphService,
+    pub graph_attach: graph::GraphAttachService,
     pub connections: connection::ConnectionService,
     pub connection_credentials: connection::ConnectionCredentialService,
     pub kubeconfig_preview: connection::KubeconfigPreviewService,
@@ -76,6 +78,8 @@ impl ApiState {
         let project_connections = connection::ProjectConnectionService::new(ctx.clone());
         let jira_issues = connection::JiraIssueService::new(ctx.clone(), project_connections.clone(), tasks.clone(), secrets.clone(), jira);
         let vulnerability_fixes = vulnerability::VulnerabilityFixService::new(ctx.clone(), services.exposures.clone(), tasks.clone(), services.steps.clone());
+        let graphs = graph::DeploymentGraphService::new(ctx.clone());
+        let graph_attach = graph::GraphAttachService::new(ctx.clone(), graphs.clone(), services.steps.clone(), services.step_links.clone());
         Self {
             companies: catalog::CompanyService::new(ctx.clone()),
             logos: catalog::CompanyLogoService::new(ctx.clone()),
@@ -88,6 +92,8 @@ impl ApiState {
             sources: diagram::SourceExcerptService::new(ctx.clone()),
             section_catalog: section::ProjectSectionCatalogService::new(ctx.clone()),
             component_catalog: component::ProjectComponentCatalogService::new(ctx.clone()),
+            graphs,
+            graph_attach,
             connections: connection::ConnectionService::new(ctx.clone(), secrets.clone()),
             connection_credentials: connection::ConnectionCredentialService::new(ctx.clone(), secrets),
             kubeconfig_preview: connection::KubeconfigPreviewService::new(),

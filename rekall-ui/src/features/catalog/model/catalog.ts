@@ -1,5 +1,6 @@
 import type {
   CompanyId,
+  ConnectionId,
   DocumentId,
   ProjectId,
   StepLinkId,
@@ -204,6 +205,8 @@ export interface TaskStep {
   readonly flowY: number | null
   /** How many times a flow may enter the step; null sets no limit. */
   readonly maxVisits: number | null
+  /** The company connection the step reaches, carried over from a deployment graph. */
+  readonly connectionId: ConnectionId | null
   readonly passes: readonly StepPass[]
   /** Routes leaving this step; a task whose steps carry any is a flow. */
   readonly links: readonly StepLink[]

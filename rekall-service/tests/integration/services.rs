@@ -441,7 +441,7 @@ async fn a_step_sent_back_hands_the_next_session_its_earlier_pass_and_the_feedba
 
     steps.edit(step.id, None, Some("Group by week instead"), None, None).await.unwrap();
     let record = world.services.context.load_task("vega", "report-builder").await.unwrap();
-    let rendered = world.services.renderer.render_steps(&record.steps, None, &mut ComponentReferences::new(None));
+    let rendered = world.services.renderer.render_steps(&record.steps, &record.step_connections, None, &mut ComponentReferences::new(None));
 
     assert!(rendered.contains("Previously you have executed this:"), "{rendered}");
     assert!(rendered.contains("<previous-pass number=\"1\""), "{rendered}");

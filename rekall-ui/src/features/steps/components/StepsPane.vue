@@ -8,6 +8,7 @@ import StepDraftShelf from '@/features/steps/components/StepDraftShelf.vue'
 import StepsEmptyState from '@/features/steps/components/StepsEmptyState.vue'
 import StepsHeader from '@/features/steps/components/StepsHeader.vue'
 import StepFlowView from '@/features/flow/components/StepFlowView.vue'
+import GraphAttachPanel from '@/features/graph/components/GraphAttachPanel.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { provideStepEditor } from '@/features/steps/composables/useStepEditor'
@@ -228,11 +229,10 @@ onUnmounted(editor.flush)
       />
 
       <div v-else class="min-h-0 min-w-0 flex-1 overflow-y-auto px-5 py-4">
-        <StepsEmptyState
-          v-if="!checklistSteps.length && !draftSteps.length"
-          :anchor="selectedTask.anchor"
-          @draft-first="focusAdd"
-        />
+        <template v-if="!checklistSteps.length && !draftSteps.length">
+          <GraphAttachPanel :task="selectedTask" />
+          <StepsEmptyState :anchor="selectedTask.anchor" @draft-first="focusAdd" />
+        </template>
 
         <template v-else>
           <template v-if="checklistSteps.length">

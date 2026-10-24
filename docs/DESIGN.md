@@ -97,6 +97,7 @@ is found by opening one folder per crate:
 | `component`, `section` | a project's components and its titled pages |
 | `connection` | the GitLab instances, Kubernetes clusters and Jira sites a company's projects reach, the projects that bind each, the log of every credential a terminal asked for, and the Jira issues a project imports as tasks |
 | `step`, `flow` | the checklist, and the routes and visits that turn it into a flow |
+| `graph` | a project's deployment graphs and laying one on a task; console-only, so it has no folder in `rekall-service` and no edge to allow |
 | `note` | documents, their attachment to tasks, the scope that decides how they load |
 | `wrapup`, `review`, `timeentry` | the wrapup, the review line, logged time |
 | `commit`, `diagram`, `token`, `search`, `context` | logged commits, stored diagrams, token usage, search, context assembly and its size |
@@ -176,6 +177,9 @@ Company ──< ExternalConnection ──< ConnectionAccess
                     │
 Project ──< ProjectConnection >──┘
 
+Project ──< DeploymentGraph ──< GraphStep ──< GraphRoute
+                                    └──> ExternalConnection (optional)
+
 Project ──< ProjectDependency
 Project ──< VulnerabilityExposure >── SecurityAdvisory
                     └──> Task (the fix, optional)
@@ -188,11 +192,14 @@ Project ──< VulnerabilityExposure >── SecurityAdvisory
 | `task` | `label`, unique per project | `title`, `status`, `description`, `project_id` |
 | `document` | — | `title`, `kind`, `body_markdown` |
 | `document_task` | — | `document_id`, `task_id`, `position` |
-| `task_step` | through its task | `task_id`, `title`, `body_markdown`, `done`, `done_at`, `position`, `flow_x`/`flow_y` (where it was dragged on the flow canvas, null for the automatic layout), `max_visits` (how many times a flow may enter it, null for no limit) |
+| `task_step` | through its task | `task_id`, `title`, `body_markdown`, `done`, `done_at`, `position`, `flow_x`/`flow_y` (where it was dragged on the flow canvas, null for the automatic layout), `max_visits` (how many times a flow may enter it, null for no limit), `connection_id` (the company connection it reaches, set when a deployment graph laid it; null when the connection is deleted) |
 | `step_link` | through its task | `task_id`, `from_step_id`, `to_step_id` (null: the route ends the flow), `outcome` unique per `from_step_id`, `position`; deleted with either step |
 | `step_visit` | through its task | `task_id`, `step_id`, `ordinal` unique per task, `entered_at`, `left_at`, `outcome`; deleted with its step |
 | `wrapup` | through its task | `task_id` unique, `body_markdown`, `written_by` |
 | `project_component` | through its project | `project_id`, `name`, `folder`, `description`, `position` |
+| `deployment_graph` | through its project | `project_id`, `title` (unique per project, ignoring case), `description`; deleted with its project |
+| `graph_step` | through its graph | `graph_id`, `position` (0 is where the flow begins), `title`, `body_markdown`, `connection_id` (null when it reaches nothing or the connection is deleted), `max_visits`; rewritten whole with its graph |
+| `graph_route` | through its graph | `graph_id`, `from_step_id`, `to_step_id` (null: the route ends the flow), `outcome` unique per `from_step_id`, `position`; deleted with either step |
 | `external_connection` | `label`, unique per company | `company_id`, `title`, `kind` (`GITLAB`, `KUBERNETES`, `JIRA`), `base_url` (the GitLab instance or Jira site, or the server read from an imported kubeconfig), `kube_context`, `proxy_url` (Jira only: the proxy its calls go through), `secret_ref` (the OS keychain account holding the credential, generated, unique), `secret_set_at` (null while no credential is stored). No column holds a credential |
 | `project_connection` | through its project | `project_id`, `connection_id` unique together, `target` (GitLab project path, Kubernetes namespace or Jira project key); deleted with either side |
 | `connection_access` | through its connection | `connection_id`, `task_id` (set null when the task goes), `terminal_id`, `accessed_at`, `granted`, `reason` (why the request was refused); append-only, never a credential |
@@ -378,6 +385,21 @@ at both ends, a dragged step overrides its dagre place (`placeSteps` redraws onl
 touch it between the boxes), and `composables/useFlowDrag.ts` owns the pointer work: moving a
 step, and drawing a route from a step's handle onto another step or End.
 
+### 4.4 Deployment graphs
+
+A flow drawn on one task is drawn again on the next release. A **deployment graph** is that flow kept
+on the project instead: steps routed by outcome, each reaching one of the project's connections,
+copied onto a task when the task is to be released that way.
+
+| Decision | Why |
+|---|---|
+| Its own three tables, not template steps on a task | A graph belongs to the project and outlives every task it is laid on; a step row carries a task's states and visits, which a template has none of |
+| Written whole, by `DeploymentGraphService` in `rekall-api` | The editor holds the graph as one draft and a route names its target by the caller's `key`, so a step needs no id before it is saved. `GraphDraft::of` resolves the keys, folds outcomes to slugs and runs `FlowPlan::check_shape`; `replace` deletes the steps (their routes cascade) and writes the draft again. It is a catalog write, so `rekall-mcp` cannot reach it |
+| Shape on save, the rest on attach | `FlowPlan::check` is split: `check_shape` (size, distinct titles, routes that fit) refuses a save, while reachability and a way out of every loop only decide whether the graph can run. `StoredGraph::problem` names the first reason it cannot, the console shows it, and a graph with no routes runs as a checklist |
+| A step reaches only what its project binds | The binding is what lists the connection in `<connections>`, so a step on another connection would name something the session cannot reach. A connection unbound later is kept on the step and reported, a deleted one is set null |
+| Attaching copies | `GraphAttachService::attach` lays each graph step as an `OPEN` step of the task (`add_open_in`, `limit_visits_in`, `reach_connection_in`) and each route through `StepLinkService::add_in`, in one transaction, onto a task of the same project with no steps. The task then owns its flow: editing the graph changes no task already laid, and a run's states and visits stay on the task |
+| The step names its connection in the context | `ContextService` resolves each step's `connection_id` to a `StepConnectionView` (label, still bound or not), and the renderer writes a `Connection:` line under every step it renders with its detail. How to reach it stays in `<connections>`, so the credential rule is written once |
+
 ---
 
 ## 5. Loading a context
@@ -414,7 +436,9 @@ URL and project key, called through `rekall-jira --connection <label>` under `/r
 and Data Center both serve, its search named for each. A connection with no credential
 says so, so the session reports it. `ConnectionView` carries no field that could hold a credential,
 the keychain account, a cluster's server or its CA, and the block says these work only in a terminal
-Rekall opened and forbids handling a credential directly; `/rk` repeats that rule.
+Rekall opened and forbids handling a credential directly; `/rk` repeats that rule. A step laid from a
+deployment graph names the connection it works through on a `Connection:` line by label alone (see
+§4.4), and says to report one the project no longer binds.
 
 Scalars are rendered as bullets and bodies as tags, which is why a description is a `<description>` block rather than a `description` bullet. It is a document, with headings, lists and a scope section, and a document inlined into a list item stops being one: every line after the first falls outside the bullet, and its own headings outrank the record's.
 

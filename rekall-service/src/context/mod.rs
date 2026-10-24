@@ -12,6 +12,7 @@ mod context_size_part;
 mod context_size_service;
 mod context_skill_view;
 mod document_view;
+mod step_connection_view;
 
 pub use context_commit_view::ContextCommitView;
 pub use context_record::ContextRecord;
@@ -22,3 +23,4 @@ pub use context_size_part::ContextSizePart;
 pub use context_skill_view::{ContextSkillScope, ContextSkillView};
 pub use context_size_service::{estimate_tokens, ContextSizeService, CHARACTERS_PER_TOKEN};
 pub use document_view::DocumentView;
+pub use step_connection_view::StepConnectionView;

@@ -32,6 +32,8 @@ pub struct Model {
     pub flow_y: Option<i32>,
     /// How many times a flow may enter the step; `None` sets no limit.
     pub max_visits: Option<i32>,
+    /// The company connection the step reaches, carried over from the deployment graph it came from.
+    pub connection_id: Option<Id>,
     pub created_at: Instant,
     pub updated_at: Instant,
 }
@@ -72,6 +74,7 @@ impl Model {
             flow_x: None,
             flow_y: None,
             max_visits: None,
+            connection_id: None,
             created_at: now,
             updated_at: now,
         }

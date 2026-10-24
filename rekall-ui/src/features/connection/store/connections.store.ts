@@ -43,6 +43,15 @@ export const useConnectionsStore = defineStore('connections', () => {
     return loading.value.has(companyId)
   }
 
+  /** A connection of any company the console has loaded, by id. */
+  function connectionById(id: ConnectionId): Connection | null {
+    for (const connections of Object.values(byCompany.value)) {
+      const found = connections.find((connection) => connection.id === id)
+      if (found) return found
+    }
+    return null
+  }
+
   function detailOf(id: ConnectionId): ConnectionDetail | null {
     return details.value[id] ?? null
   }
@@ -232,6 +241,7 @@ export const useConnectionsStore = defineStore('connections', () => {
 
   return {
     connectionsOf,
+    connectionById,
     isLoaded,
     isLoading,
     detailOf,

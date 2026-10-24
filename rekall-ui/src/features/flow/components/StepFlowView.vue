@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import { useConsoleStore } from '@/stores/console.store'
+import { useConnectionsStore } from '@/features/connection/store/connections.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { readFlow } from '@/features/flow/lib/step-flow'
 import type { Point } from '@/features/diagram/lib/viewport'
@@ -25,6 +26,18 @@ const emit = defineEmits<{ 'open-detail': [id: TaskStepId] }>()
 
 const store = useConsoleStore()
 const { run, isRunning } = useAsyncAction()
+
+const connections = useConnectionsStore()
+const companyId = computed(() => store.projects.find((project) => project.id === props.task.projectId)?.companyId ?? null)
+
+// A step laid from a deployment graph names the connection it reaches, which its node shows.
+watch(
+  companyId,
+  (current) => {
+    if (current && props.steps.some((step) => step.connectionId !== null)) void run(() => connections.ensureLoaded(current))
+  },
+  { immediate: true }
+)
 
 const flow = computed(() => readFlow(props.steps))
 const selectedId = ref<TaskStepId | null>(null)

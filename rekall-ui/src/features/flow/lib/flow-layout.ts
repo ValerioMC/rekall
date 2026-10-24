@@ -1,7 +1,6 @@
 import { graphlib, layout as runDagre } from '@dagrejs/dagre'
 import { textWidth } from '@/features/diagram/lib/text-wrap'
 import type { Box, Point } from '@/features/diagram/lib/viewport'
-import type { TaskStep } from '@/features/catalog/model/catalog'
 import type { StepLinkId, TaskStepId } from '@/model/branded'
 
 export const NODE_WIDTH = 232
@@ -18,34 +17,48 @@ const END = 'flow:end'
 
 export type PlacedRouteKind = 'entry' | 'route' | 'exit'
 
-export interface PlacedRoute {
+/** A route as the layout needs it: a task's step link, or a deployment graph's route. */
+export interface FlowShapeLink<StepId extends string, LinkId extends string> {
+  readonly id: LinkId
+  readonly outcome: string
+  readonly toStepId: StepId | null
+}
+
+/** A step as the layout needs it: what it is called by, and the routes that leave it. */
+export interface FlowShapeStep<StepId extends string, LinkId extends string> {
+  readonly id: StepId
+  readonly links: readonly FlowShapeLink<StepId, LinkId>[]
+}
+
+export interface PlacedRoute<StepId extends string = TaskStepId, LinkId extends string = StepLinkId> {
   /** The route's id for a real one, `entry` for Start's, `exit:<step>` for a step that ends the flow unrouted. */
   readonly key: string
   readonly kind: PlacedRouteKind
-  readonly linkId: StepLinkId | null
-  readonly from: TaskStepId | typeof START
-  readonly to: TaskStepId | typeof END
+  readonly linkId: LinkId | null
+  readonly from: StepId | typeof START
+  readonly to: StepId | typeof END
   readonly points: readonly Point[]
   readonly labelAt: Point
 }
 
-export interface FlowLayout {
-  readonly nodes: ReadonlyMap<TaskStepId, Box>
+export interface FlowLayout<StepId extends string = TaskStepId, LinkId extends string = StepLinkId> {
+  readonly nodes: ReadonlyMap<StepId, Box>
   readonly start: Box
   readonly end: Box
-  readonly routes: readonly PlacedRoute[]
+  readonly routes: readonly PlacedRoute<StepId, LinkId>[]
   readonly width: number
   readonly height: number
 }
-
-type Endpoint = TaskStepId | typeof START | typeof END
 
 /**
  * Where each step, Start, End and route sits, top to bottom. dagre breaks the loops itself and is
  * deterministic, so the drawing holds still while the work moves. Start leads to the first step;
  * End collects the routes that finish the flow and, on a flow, the steps that have none.
  */
-export function layoutFlow(steps: readonly TaskStep[]): FlowLayout {
+export function layoutFlow<StepId extends string, LinkId extends string>(
+  steps: readonly FlowShapeStep<StepId, LinkId>[]
+): FlowLayout<StepId, LinkId> {
+  type Endpoint = StepId | typeof START | typeof END
   const graph = new graphlib.Graph({ multigraph: true })
   graph.setGraph({ rankdir: 'TB', nodesep: 56, ranksep: 72, edgesep: 24, marginx: MARGIN, marginy: MARGIN })
   graph.setDefaultEdgeLabel(() => ({}))
@@ -55,13 +68,13 @@ export function layoutFlow(steps: readonly TaskStep[]): FlowLayout {
   graph.setNode(END, { width: TERMINAL_WIDTH, height: TERMINAL_HEIGHT })
   for (const step of steps) graph.setNode(step.id, { width: NODE_WIDTH, height: NODE_HEIGHT })
 
-  const drawn: Array<Omit<PlacedRoute, 'points' | 'labelAt'> & { edge: graphlib.Edge }> = []
+  const drawn: Array<Omit<PlacedRoute<StepId, LinkId>, 'points' | 'labelAt'> & { edge: graphlib.Edge }> = []
   const connect = (
     from: Endpoint,
     to: Endpoint,
     key: string,
     kind: PlacedRouteKind,
-    linkId: StepLinkId | null,
+    linkId: LinkId | null,
     label = { width: 0, height: 0 }
   ): void => {
     graph.setEdge(from, to, { minlen: 1, ...label, labelpos: 'c' }, key)
@@ -69,8 +82,8 @@ export function layoutFlow(steps: readonly TaskStep[]): FlowLayout {
       key,
       kind,
       linkId,
-      from: from as PlacedRoute['from'],
-      to: to as PlacedRoute['to'],
+      from: from as PlacedRoute<StepId, LinkId>['from'],
+      to: to as PlacedRoute<StepId, LinkId>['to'],
       edge: { v: from, w: to, name: key }
     })
   }
@@ -89,9 +102,9 @@ export function layoutFlow(steps: readonly TaskStep[]): FlowLayout {
   }
   runDagre(graph)
 
-  const nodes = new Map<TaskStepId, Box>()
+  const nodes = new Map<StepId, Box>()
   for (const step of steps) nodes.set(step.id, boxAt(graph.node(step.id), NODE_WIDTH, NODE_HEIGHT))
-  const routes: PlacedRoute[] = drawn.map(({ edge, ...route }) => {
+  const routes: PlacedRoute<StepId, LinkId>[] = drawn.map(({ edge, ...route }) => {
     const at = graph.edge(edge)
     const points = at.points ?? []
     return { ...route, points, labelAt: { x: at.x ?? points[0]?.x ?? 0, y: at.y ?? points[0]?.y ?? 0 } }
@@ -111,9 +124,13 @@ export function layoutFlow(steps: readonly TaskStep[]): FlowLayout {
  * The layout with some steps where the person put them. A route touching a moved step is drawn
  * between the boxes themselves, since dagre routed it around the place the step used to be.
  */
-export function placeSteps(layout: FlowLayout, places: ReadonlyMap<TaskStepId, Point>): FlowLayout {
+export function placeSteps<StepId extends string, LinkId extends string>(
+  layout: FlowLayout<StepId, LinkId>,
+  places: ReadonlyMap<StepId, Point>
+): FlowLayout<StepId, LinkId> {
+  type Endpoint = StepId | typeof START | typeof END
   if (places.size === 0) return layout
-  const nodes = new Map<TaskStepId, Box>()
+  const nodes = new Map<StepId, Box>()
   for (const [id, box] of layout.nodes) {
     const at = places.get(id)
     nodes.set(id, at ? { ...box, x: at.x, y: at.y } : box)
@@ -121,7 +138,7 @@ export function placeSteps(layout: FlowLayout, places: ReadonlyMap<TaskStepId, P
   const boxOf = (endpoint: Endpoint): Box =>
     endpoint === START ? layout.start : endpoint === END ? layout.end : nodes.get(endpoint)!
   const routes = layout.routes.map((route) => {
-    const moved = places.has(route.from as TaskStepId) || places.has(route.to as TaskStepId)
+    const moved = places.has(route.from as StepId) || places.has(route.to as StepId)
     if (!moved) return route
     const points = routeBetween(boxOf(route.from), boxOf(route.to))
     return { ...route, points, labelAt: midpoint(points) }
@@ -166,7 +183,7 @@ function boxAt(at: { x?: number; y?: number }, width: number, height: number): B
  * Unseen edges between consecutive steps keep the spine in checklist order, so steps with no
  * routes yet stack like the list instead of lining up.
  */
-function chainInChecklistOrder(graph: graphlib.Graph, steps: readonly TaskStep[]): void {
+function chainInChecklistOrder(graph: graphlib.Graph, steps: readonly { readonly id: string }[]): void {
   steps.slice(1).forEach((step, index) => {
     graph.setEdge(
       steps[index]!.id,

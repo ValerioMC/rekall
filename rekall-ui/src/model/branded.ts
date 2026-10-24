@@ -18,6 +18,8 @@ export type ConnectionId = Brand<string, 'ConnectionId'>
 export type AdvisoryId = Brand<string, 'AdvisoryId'>
 export type ExposureId = Brand<string, 'ExposureId'>
 export type DependencyId = Brand<string, 'DependencyId'>
+export type DeploymentGraphId = Brand<string, 'DeploymentGraphId'>
+export type GraphStepId = Brand<string, 'GraphStepId'>
 
 export const asCompanyId = (value: string): CompanyId => value as CompanyId
 export const asProjectId = (value: string): ProjectId => value as ProjectId
@@ -37,3 +39,5 @@ export const asConnectionId = (value: string): ConnectionId => value as Connecti
 export const asAdvisoryId = (value: string): AdvisoryId => value as AdvisoryId
 export const asExposureId = (value: string): ExposureId => value as ExposureId
 export const asDependencyId = (value: string): DependencyId => value as DependencyId
+export const asDeploymentGraphId = (value: string): DeploymentGraphId => value as DeploymentGraphId
+export const asGraphStepId = (value: string): GraphStepId => value as GraphStepId

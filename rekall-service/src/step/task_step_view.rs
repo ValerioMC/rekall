@@ -24,6 +24,8 @@ pub struct TaskStepView {
     pub flow_y: Option<i32>,
     /// How many times the flow may enter the step; `None` sets no limit.
     pub max_visits: Option<i32>,
+    /// The company connection the step reaches, carried over from a deployment graph.
+    pub connection_id: Option<Id>,
     /// The passes it was sent back from, oldest first; empty for a step on its first pass.
     pub passes: Vec<StepPass>,
     /// The routes leaving this step; a task whose steps carry any is a flow.
@@ -50,6 +52,7 @@ impl TaskStepView {
             flow_x: step.flow_x,
             flow_y: step.flow_y,
             max_visits: step.max_visits,
+            connection_id: step.connection_id,
             passes: step.passes()?,
             links: flow.links_from(step.id).map(StepLinkView::of).collect(),
             visits: flow.visits_of(step.id).map(StepVisitView::of).collect(),

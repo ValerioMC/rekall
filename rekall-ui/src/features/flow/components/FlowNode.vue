@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import StepSeal from '@/features/steps/components/StepSeal.vue'
+import ConnectionKindIcon from '@/features/connection/components/ConnectionKindIcon.vue'
+import { useConnectionsStore } from '@/features/connection/store/connections.store'
 import type { Box } from '@/features/diagram/lib/viewport'
 import type { TaskStep } from '@/features/catalog/model/catalog'
 
@@ -41,6 +43,9 @@ function nudge(event: KeyboardEvent): void {
   event.preventDefault()
   emit('nudge', delta[0], delta[1])
 }
+
+const connections = useConnectionsStore()
+const connection = computed(() => (props.step.connectionId ? connections.connectionById(props.step.connectionId) : null))
 
 const visits = computed(() => props.step.visits.length)
 const spent = computed(() => props.step.maxVisits !== null && visits.value >= props.step.maxVisits)
@@ -105,6 +110,15 @@ const label = computed(() => {
 
       <span class="flex items-center gap-1.5 text-micro">
         <span v-if="current" class="flow-tag text-accent" data-testid="flow-node-current">here</span>
+        <span
+          v-if="connection"
+          class="flex min-w-0 items-center gap-1 font-mono text-text-muted"
+          :title="`Reaches ${connection.title}`"
+          data-testid="flow-node-connection"
+        >
+          <ConnectionKindIcon :kind="connection.kind" :size="11" />
+          <span class="truncate">{{ connection.label }}</span>
+        </span>
         <span
           class="ml-auto font-mono tabular-nums"
           :class="spent ? 'text-danger' : visits > 1 ? 'text-accent' : 'text-text-subtle'"

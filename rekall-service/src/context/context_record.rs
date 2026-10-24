@@ -3,7 +3,7 @@ use crate::connection::ConnectionView;
 use crate::step::TaskStepView;
 use crate::wrapup::WrapupView;
 
-use super::{ContextCommitView, ContextSkillView, DocumentView};
+use super::{ContextCommitView, ContextSkillView, DocumentView, StepConnectionView};
 
 /// One record of a loaded context, materialised so it renders with no database behind it.
 ///
@@ -18,6 +18,8 @@ pub struct ContextRecord {
     pub related: Vec<String>,
     pub documents: Vec<DocumentView>,
     pub steps: Vec<TaskStepView>,
+    /// The connection each step that reaches one names, by step.
+    pub step_connections: Vec<StepConnectionView>,
     pub skills: Vec<ContextSkillView>,
     pub commits: Vec<ContextCommitView>,
     pub wrapup: Option<WrapupView>,

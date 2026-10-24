@@ -27,14 +27,21 @@ impl FlowPlan {
     /// Refuses a plan that could not run unattended: a step the flow never reaches, or a loop with
     /// no way out, would stall a session that follows the routes.
     pub fn check(&self) -> Result<()> {
+        self.check_shape()?;
+        self.require_a_route()?;
+        self.require_every_step_reached()?;
+        self.require_every_step_can_end()
+    }
+
+    /// Refuses what no flow could hold: no steps or too many, a title twice, a route that leaves
+    /// its step badly. A plan that passes can be stored, even if it cannot run yet.
+    pub fn check_shape(&self) -> Result<()> {
         self.require_size()?;
         self.require_distinct_titles()?;
         for (at, step) in self.steps.iter().enumerate() {
             self.require_routes_fit(at, step)?;
         }
-        self.require_a_route()?;
-        self.require_every_step_reached()?;
-        self.require_every_step_can_end()
+        Ok(())
     }
 
     fn require_size(&self) -> Result<()> {

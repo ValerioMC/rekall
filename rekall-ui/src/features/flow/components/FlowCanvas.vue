@@ -2,7 +2,7 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { smoothPath } from '@/features/diagram/lib/edge-path'
 import type { Point } from '@/features/diagram/lib/viewport'
-import { layoutFlow, placeSteps, type PlacedRoute } from '@/features/flow/lib/flow-layout'
+import { layoutFlow, placeSteps, type FlowLayout, type PlacedRoute } from '@/features/flow/lib/flow-layout'
 import { FLOW_END, type RouteTarget } from '@/features/flow/lib/route-target'
 import type { StepFlow } from '@/features/flow/lib/step-flow'
 import { useFlowDrag } from '@/features/flow/composables/useFlowDrag'
@@ -41,7 +41,7 @@ const savedPlaces = computed(() => {
 })
 
 const surface = ref<HTMLElement | null>(null)
-const drag = useFlowDrag({
+const drag = useFlowDrag<TaskStepId>({
   surface,
   boxes: () => layout.value.nodes,
   endBox: () => layout.value.end,
@@ -50,7 +50,7 @@ const drag = useFlowDrag({
   select: (id) => emit('select', id)
 })
 
-const layout = computed(() => placeSteps(base.value, new Map([...savedPlaces.value, ...drag.live.value])))
+const layout = computed((): FlowLayout => placeSteps(base.value, new Map([...savedPlaces.value, ...drag.live.value])))
 const linkById = computed(() => {
   const all = new Map<StepLinkId, StepLink>()
   for (const step of props.flow.steps) for (const link of step.links) all.set(link.id, link)

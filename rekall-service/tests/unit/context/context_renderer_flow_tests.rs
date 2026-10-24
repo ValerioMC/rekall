@@ -14,7 +14,7 @@ fn step(task_id: Id, title: &str, position: i32, state: TaskStepState) -> task_s
 
 fn render(steps: &[task_step::Model], flow: &StepFlowRows) -> String {
     let views: Vec<TaskStepView> = steps.iter().map(|step| TaskStepView::of(step, flow).unwrap()).collect();
-    ContextRenderer.render_steps(&views, None, &mut ComponentReferences::new(None))
+    ContextRenderer.render_steps(&views, &[], None, &mut ComponentReferences::new(None))
 }
 
 #[test]
@@ -88,4 +88,40 @@ fn a_budget_shows_against_the_visits_on_the_current_step_and_the_others() {
 
     assert!(rendered.contains("- [ ] Deploy  (current, visit 1 of 3)"), "{rendered}");
     assert!(rendered.contains("- [ ] Test  (entered 0 of at most 2 times)"), "{rendered}");
+}
+
+fn render_reaching(step: &task_step::Model, connection: StepConnectionView) -> String {
+    let view = TaskStepView::of(step, &StepFlowRows::default()).unwrap();
+    ContextRenderer.render_steps(&[view], &[connection], None, &mut ComponentReferences::new(None))
+}
+
+#[test]
+fn an_open_step_names_the_connection_it_reaches() {
+    let deploy = step(Id::random(), "Deploy", 0, TaskStepState::Open);
+    let connection = StepConnectionView { step_id: deploy.id, label: "kmaster2".into(), bound: true };
+
+    let rendered = render_reaching(&deploy, connection);
+
+    assert!(rendered.contains("- [ ] Deploy\n  Connection: `kmaster2`, reached as its line in `<connections>` says."), "{rendered}");
+}
+
+#[test]
+fn a_connection_the_project_no_longer_binds_is_to_be_reported() {
+    let deploy = step(Id::random(), "Deploy", 0, TaskStepState::Open);
+    let connection = StepConnectionView { step_id: deploy.id, label: "kmaster2".into(), bound: false };
+
+    let rendered = render_reaching(&deploy, connection);
+
+    assert!(rendered.contains("no longer uses"), "{rendered}");
+    assert!(rendered.contains("Report it"), "{rendered}");
+}
+
+#[test]
+fn a_finished_step_stays_its_title_alone_with_no_connection() {
+    let deploy = step(Id::random(), "Deploy", 0, TaskStepState::Done);
+    let connection = StepConnectionView { step_id: deploy.id, label: "kmaster2".into(), bound: true };
+
+    let rendered = render_reaching(&deploy, connection);
+
+    assert!(!rendered.contains("Connection:"), "{rendered}");
 }

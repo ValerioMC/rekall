@@ -6,6 +6,7 @@ import ProjectDetailPage from '@/features/catalog/components/ProjectDetailPage.v
 import * as sectionsApi from '@/features/project/api/project-sections.api'
 import * as componentsApi from '@/features/project/api/project-components.api'
 import * as catalogApi from '@/features/catalog/api/catalog.api'
+import * as graphsApi from '@/features/graph/api/deployment-graphs.api'
 import { useConsoleStore } from '@/stores/console.store'
 import { mountWithHeaderChrome } from '../../support/mountWithHeaderChrome'
 import type { Company, Project, Task } from '@/features/catalog/model/catalog'
@@ -15,6 +16,7 @@ import type { CompanyId, ProjectId, ProjectSectionId, TaskId } from '@/model/bra
 vi.mock('@/features/project/api/project-sections.api')
 vi.mock('@/features/project/api/project-components.api')
 vi.mock('@/features/connection/api/connections.api')
+vi.mock('@/features/graph/api/deployment-graphs.api')
 vi.mock('@/features/catalog/api/catalog.api', () => ({ fetchProjectRepository: vi.fn().mockResolvedValue({ isRepository: false }) }))
 
 const PROJECT = 'p-1' as ProjectId
@@ -78,6 +80,7 @@ beforeEach(() => {
   vi.resetAllMocks()
   vi.mocked(sectionsApi.fetchProjectSections).mockResolvedValue([deployment])
   vi.mocked(componentsApi.fetchProjectComponents).mockResolvedValue([])
+  vi.mocked(graphsApi.fetchDeploymentGraphs).mockResolvedValue([])
   vi.mocked(catalogApi.fetchProjectRepository).mockResolvedValue({ isRepository: false } as never)
 })
 

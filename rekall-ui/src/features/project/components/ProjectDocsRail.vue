@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { nextTick, ref } from 'vue'
 import { relativeTime } from '@/common/format/relative-time'
+import { BLUEPRINT, isSection, type RailSelection } from '@/features/project/model/rail-selection'
 import type { ProjectSection } from '@/features/project/model/project-section'
-import type { ProjectSectionId } from '@/model/branded'
-
-export type RailSelection = 'blueprint' | ProjectSectionId
 
 /**
  * The project's pages as an index: the blueprint, pinned and lit in the anchor colour because
- * `/rk` hands it to Claude, then the sections, plain because no context loads them.
+ * `/rk` hands it to Claude, what the `pages` slot holds (the deployment graphs), then the
+ * sections, plain because no context loads them.
  */
 const props = defineProps<{
   sections: readonly ProjectSection[]
@@ -47,11 +46,11 @@ function submit(): void {
     <button
       type="button"
       class="focus-ring group flex items-center gap-3 rounded-control py-2.5 pl-4 pr-3 text-left transition-colors"
-      :class="selected === 'blueprint' ? 'selected-row' : 'hover:bg-surface-raised'"
+      :class="selected.kind === 'blueprint' ? 'selected-row' : 'hover:bg-surface-raised'"
       :style="{ '--select-tint': 'var(--color-anchor)', '--select-tint-soft': 'var(--color-anchor-soft)' }"
-      :aria-current="selected === 'blueprint' ? 'page' : undefined"
+      :aria-current="selected.kind === 'blueprint' ? 'page' : undefined"
       data-testid="rail-blueprint"
-      @click="emit('select', 'blueprint')"
+      @click="emit('select', BLUEPRINT)"
     >
       <svg class="size-4 shrink-0 text-anchor" viewBox="0 0 16 16" fill="none" aria-hidden="true">
         <rect x="2.5" y="2.5" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.3" />
@@ -62,6 +61,8 @@ function submit(): void {
         <span class="block truncate text-caption text-anchor/80">Loaded by every /rk</span>
       </span>
     </button>
+
+    <slot name="pages" />
 
     <div class="mt-3 flex items-center justify-between pl-4 pr-1">
       <p class="eyebrow">Sections<span v-if="sections.length" class="ml-1.5 text-text-subtle">{{ sections.length }}</span></p>
@@ -108,10 +109,10 @@ function submit(): void {
         <button
           type="button"
           class="focus-ring flex w-full items-center rounded-control py-2 pl-4 pr-3 text-left transition-colors"
-          :class="selected === section.id ? 'selected-row' : 'hover:bg-surface-raised'"
-          :aria-current="selected === section.id ? 'page' : undefined"
+          :class="isSection(selected, section.id) ? 'selected-row' : 'hover:bg-surface-raised'"
+          :aria-current="isSection(selected, section.id) ? 'page' : undefined"
           :data-testid="`rail-section-${section.id}`"
-          @click="emit('select', section.id)"
+          @click="emit('select', { kind: 'section', id: section.id })"
         >
           <span class="min-w-0 flex-1">
             <span class="block truncate text-body text-text">{{ section.title }}</span>

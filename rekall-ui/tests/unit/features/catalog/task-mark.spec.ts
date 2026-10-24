@@ -52,6 +52,7 @@ function step(id: string, state: TaskStepState, taskId = 't1'): TaskStep {
     flowX: null,
     flowY: null,
     maxVisits: null,
+    connectionId: null,
     passes: [],
     links: [],
     visits: [],

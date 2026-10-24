@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { createConsoleState } from './console/console-state'
 import { useCommitReferences } from '../features/commits/store/useCommitReferences'
 import { useCompanyWrites } from '../features/catalog/store/useCompanyWrites'
+import { useGraphAttach } from '../features/graph/store/useGraphAttach'
 import { useConsoleNavigation } from './console/useConsoleNavigation'
 import { useConsoleRefreshes } from './console/useConsoleRefreshes'
 import { useConsoleView } from './console/useConsoleView'
@@ -40,6 +41,7 @@ export const useConsoleStore = defineStore('console', () => {
   const notes = useNoteWrites(state, selected, refreshes, timers)
   const steps = useStepWrites(state, timers)
   const stepFlow = useStepFlowWrites(steps)
+  const graphAttach = useGraphAttach(steps)
   const wrapups = useWrapupWrites(state, refreshes, timers)
   const commitReferences = useCommitReferences(state)
   const skills = useSkillAssignments(state)
@@ -76,6 +78,7 @@ export const useConsoleStore = defineStore('console', () => {
     ...notes,
     ...steps,
     ...stepFlow,
+    ...graphAttach,
     ...wrapups,
     ...commitReferences,
     ...skills,

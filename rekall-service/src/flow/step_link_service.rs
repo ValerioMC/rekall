@@ -27,11 +27,18 @@ impl StepLinkService {
     /// the task's whole checklist, since a route changes how the flow reads.
     pub async fn add(&self, from_step_id: Id, target: RouteTarget, outcome: Option<&str>) -> Result<Vec<TaskStepView>> {
         in_write!(&self.ctx, |tx| {
-            let from = repo::task_step::require(tx.db(), from_step_id).await?;
-            let to = self.target_step(&tx, &from, target).await?;
-            self.insert_in(&tx, &from, to.map(|to| to.id), outcome).await?;
-            self.answer(&mut tx, from.task_id).await
+            let task_id = self.add_in(&tx, from_step_id, target, outcome).await?;
+            self.answer(&mut tx, task_id).await
         })
+    }
+
+    /// The same route inside a transaction the caller holds, which also publishes. Answers the
+    /// task the route is on.
+    pub async fn add_in(&self, tx: &Tx, from_step_id: Id, target: RouteTarget, outcome: Option<&str>) -> Result<Id> {
+        let from = repo::task_step::require(tx.db(), from_step_id).await?;
+        let to = self.target_step(tx, &from, target).await?;
+        self.insert_in(tx, &from, to.map(|to| to.id), outcome).await?;
+        Ok(from.task_id)
     }
 
     /// A route a planning session proposes. Both ends must be drafts: a step a person released is

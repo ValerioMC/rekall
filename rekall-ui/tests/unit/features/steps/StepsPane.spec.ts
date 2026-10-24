@@ -59,6 +59,7 @@ function makeStep(id: string, position: number, state: TaskStepState, body: stri
     flowX: null,
     flowY: null,
     maxVisits: null,
+    connectionId: null,
     passes: [],
     links: [],
     visits: [],

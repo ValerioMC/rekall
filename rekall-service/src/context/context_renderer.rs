@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use rekall_common::jstr;
 use rekall_model::{ConnectionKind, DocumentContextMode, TaskStepState};
 
-use super::{ContextCommitView, ContextRecord, ContextSkillScope, ContextSkillView, DocumentView};
+use super::{ContextCommitView, ContextRecord, ContextSkillScope, ContextSkillView, DocumentView, StepConnectionView};
 use crate::component::{ComponentReferences, ProjectComponentView};
 use crate::connection::ConnectionView;
 use crate::step::{StepLinkView, TaskStepView};
@@ -60,7 +60,7 @@ impl ContextRenderer {
         out.push_str(&self.render_components(&record.components));
         out.push_str(&self.render_connections(&record.connections));
         out.push_str(&self.render_blueprint(record.blueprint.as_deref()));
-        out.push_str(&self.render_steps(&record.steps, record.wrapup.as_ref(), &mut references));
+        out.push_str(&self.render_steps(&record.steps, &record.step_connections, record.wrapup.as_ref(), &mut references));
         out.push_str(&self.render_commits(&record.commits));
         out.push_str(&self.render_wrapup(record.wrapup.as_ref()));
         out.push_str(&self.render_documents(&record.documents));
@@ -77,6 +77,7 @@ impl ContextRenderer {
     pub fn render_steps(
         &self,
         all_steps: &[TaskStepView],
+        connections: &[StepConnectionView],
         wrapup: Option<&WrapupView>,
         references: &mut ComponentReferences,
     ) -> String {
@@ -87,7 +88,8 @@ impl ContextRenderer {
         }
         let mut out = format!("\n<steps {}>\n", steps_attributes(&steps, drafts, wrapup));
         for step in &steps {
-            out.push_str(&render_step(step, wrapup, references));
+            let connection = connections.iter().find(|connection| connection.step_id == step.id);
+            out.push_str(&render_step(step, connection, wrapup, references));
             out.push_str(&render_routes(step, &steps));
         }
         if drafts > 0 {
@@ -373,7 +375,12 @@ fn steps_attributes(steps: &[&TaskStepView], drafts: usize, wrapup: Option<&Wrap
 }
 
 /// A closed step is its title alone, unless the wrapup predates it: then, like an open one, it carries its detail.
-fn render_step(step: &TaskStepView, wrapup: Option<&WrapupView>, references: &mut ComponentReferences) -> String {
+fn render_step(
+    step: &TaskStepView,
+    connection: Option<&StepConnectionView>,
+    wrapup: Option<&WrapupView>,
+    references: &mut ComponentReferences,
+) -> String {
     let unwritten = is_unwritten(step, wrapup);
     let mut out = String::from(if step.state.complete() { "- [x] " } else { "- [ ] " });
     out.push_str(&step.title);
@@ -394,6 +401,9 @@ fn render_step(step: &TaskStepView, wrapup: Option<&WrapupView>, references: &mu
     if step.state.complete() && !unwritten {
         return out;
     }
+    if let Some(connection) = connection {
+        out.push_str(&render_step_connection(connection));
+    }
     if !step.passes.is_empty() {
         out.push_str(&indent(&render_passes(step, references)));
         out.push('\n');
@@ -402,6 +412,19 @@ fn render_step(step: &TaskStepView, wrapup: Option<&WrapupView>, references: &mu
         out.push('\n');
     }
     out
+}
+
+/// The connection a step works through. One the project no longer binds has no line in
+/// `<connections>`, so the session is told to report it rather than reach it some other way.
+fn render_step_connection(connection: &StepConnectionView) -> String {
+    if connection.bound {
+        return format!("  Connection: `{}`, reached as its line in `<connections>` says.\n", connection.label);
+    }
+    format!(
+        "  Connection: `{}`, which this project no longer uses, so `<connections>` does not list it. Report it; \
+         do not reach the system another way.\n",
+        connection.label
+    )
 }
 
 fn is_flow(steps: &[&TaskStepView]) -> bool {

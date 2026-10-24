@@ -9,30 +9,30 @@ const DRAG_THRESHOLD = 4
 const EDGE = 8
 
 /** A route being drawn: the step it leaves, where the pointer is, and what it would land on. */
-export interface Connecting {
-  readonly from: TaskStepId
+export interface Connecting<StepId extends string = TaskStepId> {
+  readonly from: StepId
   readonly at: Point
-  readonly over: RouteTarget | null
+  readonly over: RouteTarget<StepId> | null
 }
 
-export interface FlowDragOptions {
+export interface FlowDragOptions<StepId extends string = TaskStepId> {
   /** The element the canvas content is drawn in, which pointer positions are measured against. */
   surface: Ref<HTMLElement | null>
-  boxes: () => ReadonlyMap<TaskStepId, Box>
+  boxes: () => ReadonlyMap<StepId, Box>
   endBox: () => Box
   /** Saves a dropped step; the live position is kept until it settles. */
-  place: (id: TaskStepId, at: Point) => Promise<void>
-  connect: (from: TaskStepId, to: RouteTarget) => void
-  select: (id: TaskStepId) => void
+  place: (id: StepId, at: Point) => Promise<void>
+  connect: (from: StepId, to: RouteTarget<StepId>) => void
+  select: (id: StepId) => void
 }
 
 /** The target whose box holds `at`, steps before End, never the step the route leaves. */
-export function targetAt(
+export function targetAt<StepId extends string>(
   at: Point,
-  from: TaskStepId,
-  boxes: ReadonlyMap<TaskStepId, Box>,
+  from: StepId,
+  boxes: ReadonlyMap<StepId, Box>,
   end: Box
-): RouteTarget | null {
+): RouteTarget<StepId> | null {
   for (const [id, box] of boxes) if (id !== from && holds(box, at)) return id
   return holds(end, at) ? FLOW_END : null
 }
@@ -45,9 +45,9 @@ function holds(box: Box, at: Point): boolean {
  * Dragging on the flow canvas: a step by its body to move it, from its handle to draw a route to
  * another step or to End. Positions in canvas pixels; the page scrolls, it is not scaled.
  */
-export function useFlowDrag(options: FlowDragOptions) {
-  const live = ref(new Map<TaskStepId, Point>())
-  const connecting = ref<Connecting | null>(null)
+export function useFlowDrag<StepId extends string = TaskStepId>(options: FlowDragOptions<StepId>) {
+  const live = ref(new Map<StepId, Point>()) as Ref<Map<StepId, Point>>
+  const connecting = ref<Connecting<StepId> | null>(null) as Ref<Connecting<StepId> | null>
   let stop: (() => void) | null = null
 
   function track(onMove: (event: PointerEvent) => void, onEnd: (event: PointerEvent) => void): void {
@@ -67,7 +67,7 @@ export function useFlowDrag(options: FlowDragOptions) {
     }
   }
 
-  function startMove(id: TaskStepId, press: PointerEvent): void {
+  function startMove(id: StepId, press: PointerEvent): void {
     const origin = options.boxes().get(id)
     if (!origin || press.button !== 0) return
     options.select(id)
@@ -95,14 +95,14 @@ export function useFlowDrag(options: FlowDragOptions) {
     )
   }
 
-  function startConnect(from: TaskStepId, press: PointerEvent): void {
+  function startConnect(from: StepId, press: PointerEvent): void {
     if (press.button !== 0) return
     options.select(from)
     const pointAt = (event: PointerEvent): Point => {
       const rect = options.surface.value?.getBoundingClientRect()
       return { x: event.clientX - (rect?.left ?? 0), y: event.clientY - (rect?.top ?? 0) }
     }
-    const aim = (event: PointerEvent): Connecting => {
+    const aim = (event: PointerEvent): Connecting<StepId> => {
       const at = pointAt(event)
       return { from, at, over: targetAt(at, from, options.boxes(), options.endBox()) }
     }
@@ -118,7 +118,7 @@ export function useFlowDrag(options: FlowDragOptions) {
   }
 
   /** Moves a step by a keyboard nudge, from where it stands now. */
-  function nudge(id: TaskStepId, dx: number, dy: number): Promise<void> {
+  function nudge(id: StepId, dx: number, dy: number): Promise<void> {
     const box = options.boxes().get(id)
     if (!box) return Promise.resolve()
     return options.place(id, { x: Math.max(EDGE, box.x + dx), y: Math.max(EDGE, box.y + dy) })

@@ -1,0 +1,56 @@
+import { describe, expect, it } from 'vitest'
+import { blankGraph, freeTitle, releaseLoop } from '@/features/graph/lib/graph-presets'
+import { chainOf, loopsBack } from '@/features/graph/lib/graph-chain'
+import type { ProjectConnection } from '@/features/connection/model/connection'
+import type { ConnectionId, ProjectId } from '@/model/branded'
+
+function binding(id: string, kind: ProjectConnection['kind']): ProjectConnection {
+  return {
+    connectionId: id as ConnectionId,
+    projectId: 'p' as ProjectId,
+    kind,
+    label: id,
+    title: id,
+    baseUrl: null,
+    kubeContext: null,
+    target: null,
+    credentialSetAt: null
+  }
+}
+
+describe('graph-presets', () => {
+  it('builds the release loop on the first connection of each kind, failures back to the push', () => {
+    const loop = releaseLoop('Release', [binding('jira', 'JIRA'), binding('gitlab', 'GITLAB'), binding('prod', 'KUBERNETES')])
+
+    expect(loop.steps.map((step) => [step.title, step.connectionId])).toEqual([
+      ['Push commit', 'gitlab'],
+      ['Pipeline build', 'gitlab'],
+      ['Deploy', 'prod'],
+      ['Check', 'prod']
+    ])
+    expect(loop.steps[3]!.routes).toEqual([{ outcome: 'healthy', toKey: null }, { outcome: 'error', toKey: 'push' }])
+    expect(loop.steps[0]!.maxVisits).toBe(3)
+    expect(loopsBack(loop.steps)).toBe(true)
+  })
+
+  it('leaves a step without a connection when the project binds none of its kind', () => {
+    const loop = releaseLoop('Release', [binding('gitlab', 'GITLAB')])
+
+    expect(loop.steps.filter((step) => step.connectionId === null).map((step) => step.title)).toEqual(['Deploy', 'Check'])
+    expect(chainOf(loop.steps, () => 'GITLAB').map((link) => link.kind)).toEqual(['GITLAB', 'GITLAB', null, null])
+  })
+
+  it('starts a blank graph with one step that loops nowhere', () => {
+    const blank = blankGraph('Hotfix')
+
+    expect(blank.steps).toHaveLength(1)
+    expect(loopsBack(blank.steps)).toBe(false)
+  })
+
+  it('numbers a title the graph already uses', () => {
+    const steps = releaseLoop('Release', []).steps
+
+    expect(freeTitle('Deploy', steps)).toBe('Deploy 2')
+    expect(freeTitle('Smoke test', steps)).toBe('Smoke test')
+  })
+})

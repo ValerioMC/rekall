@@ -15,6 +15,10 @@ import ProjectRepositoryGroup from '@/features/project/components/ProjectReposit
 import ProjectConnectionsGroup from '@/features/connection/components/ProjectConnectionsGroup.vue'
 import ProjectSectionPane from '@/features/project/components/ProjectSectionPane.vue'
 import ProjectTasksDrawer from '@/features/project/components/ProjectTasksDrawer.vue'
+import DeploymentGraphPane from '@/features/graph/components/DeploymentGraphPane.vue'
+import GraphRailGroup from '@/features/graph/components/GraphRailGroup.vue'
+import GraphSetupPane from '@/features/graph/components/GraphSetupPane.vue'
+import { useDeploymentGraphsStore } from '@/features/graph/store/deploymentGraphs.store'
 import ProjectMark from '@/components/ui/ProjectMark.vue'
 import TokenCount from '@/components/ui/TokenCount.vue'
 import { useConsoleStore } from '@/stores/console.store'
@@ -28,8 +32,9 @@ import { projectDraft } from '@/features/catalog/model/record-draft'
 import { PROJECT_STATUS_LABEL } from '@/features/catalog/model/catalog'
 import { asProjectId } from '@/model/branded'
 import type { RecordDraft } from '@/features/catalog/model/record-draft'
-import type { RailSelection } from '@/features/project/components/ProjectDocsRail.vue'
+import { BLUEPRINT, isSection, type RailSelection } from '@/features/project/model/rail-selection'
 import type { ProjectSection } from '@/features/project/model/project-section'
+import type { DeploymentGraph } from '@/features/graph/model/deployment-graph'
 
 const props = defineProps<{ id: string }>()
 
@@ -49,10 +54,18 @@ const sectionsStore = useProjectSectionsStore()
 const { run } = useAsyncAction()
 
 const sections = computed(() => sectionsStore.sectionsOf(projectId.value))
-const selection = ref<RailSelection>('blueprint')
-const selectedSection = computed<ProjectSection | null>(() =>
-  selection.value === 'blueprint' ? null : (sections.value.find((section) => section.id === selection.value) ?? null)
-)
+const selection = ref<RailSelection>(BLUEPRINT)
+const selectedSection = computed<ProjectSection | null>(() => {
+  const picked = selection.value
+  return picked.kind === 'section' ? (sections.value.find((section) => section.id === picked.id) ?? null) : null
+})
+const graphsStore = useDeploymentGraphsStore()
+const graphs = computed(() => graphsStore.graphsOf(projectId.value))
+const selectedGraph = computed<DeploymentGraph | null>(() => {
+  const picked = selection.value
+  return picked.kind === 'graph' ? (graphs.value.find((graph) => graph.id === picked.id) ?? null) : null
+})
+const deletingGraph = ref<DeploymentGraph | null>(null)
 const sectionIds = computed(() => sections.value.map((section) => section.id))
 const showingTasks = ref(false)
 const creatingSection = ref(false)
@@ -64,7 +77,19 @@ async function createSection(title: string): Promise<void> {
   creatingSection.value = true
   const created = await run(() => sectionsStore.create(projectId.value, title))
   creatingSection.value = false
-  if (created) selection.value = created.id
+  if (created) selection.value = { kind: 'section', id: created.id }
+}
+
+function openGraph(graph: DeploymentGraph): void {
+  selection.value = { kind: 'graph', id: graph.id }
+}
+
+async function confirmDeleteGraph(): Promise<void> {
+  const target = deletingGraph.value
+  deletingGraph.value = null
+  if (!target) return
+  const removed = await run(() => graphsStore.remove(projectId.value, target.id).then(() => true), `Deleted ${target.title}`)
+  if (removed && selectedGraph.value?.id === target.id) selection.value = BLUEPRINT
 }
 
 async function moveSection(direction: Direction): Promise<void> {
@@ -76,7 +101,7 @@ async function confirmDeleteSection(): Promise<void> {
   deletingSection.value = null
   if (!target) return
   const removed = await run(() => sectionsStore.remove(projectId.value, target.id).then(() => true), `Deleted ${target.title}`)
-  if (removed && selection.value === target.id) selection.value = 'blueprint'
+  if (removed && isSection(selection.value, target.id)) selection.value = BLUEPRINT
 }
 
 const tokenUsage = useTokenUsageStore()
@@ -119,15 +144,19 @@ watch(
 watch(
   () => project.value?.id ?? null,
   () => {
-    selection.value = 'blueprint'
+    selection.value = BLUEPRINT
     showingTasks.value = false
     if (project.value) void run(() => sectionsStore.load(project.value!.id))
+    if (project.value) void run(() => graphsStore.load(project.value!.id))
   },
   { immediate: true }
 )
 
-watch(sections, (list) => {
-  if (selection.value !== 'blueprint' && !list.some((section) => section.id === selection.value)) selection.value = 'blueprint'
+watch([sections, graphs], () => {
+  const picked = selection.value
+  const gone =
+    (picked.kind === 'section' && !selectedSection.value) || (picked.kind === 'graph' && !selectedGraph.value)
+  if (gone) selection.value = BLUEPRINT
 })
 </script>
 
@@ -206,12 +235,37 @@ watch(sections, (list) => {
           :creating="creatingSection"
           @select="selection = $event"
           @create="createSection"
-        />
+        >
+          <template #pages>
+            <GraphRailGroup
+              :project-id="project.id"
+              :graphs="graphs"
+              :selected-id="selectedGraph?.id ?? null"
+              :setting-up="selection.kind === 'graph-setup'"
+              :loading="graphsStore.isLoading(project.id)"
+              @select="selection = { kind: 'graph', id: $event }"
+              @setup="selection = { kind: 'graph-setup' }"
+            />
+          </template>
+        </ProjectDocsRail>
 
         <div class="workspace-doc">
           <Transition name="fade-quick" mode="out-in">
+            <GraphSetupPane
+              v-if="selection.kind === 'graph-setup'"
+              key="graph-setup"
+              :project="project"
+              @created="openGraph"
+            />
+            <DeploymentGraphPane
+              v-else-if="selectedGraph"
+              :key="selectedGraph.id"
+              :graph="selectedGraph"
+              :project="project"
+              @delete="deletingGraph = selectedGraph"
+            />
             <ProjectSectionPane
-              v-if="selectedSection"
+              v-else-if="selectedSection"
               :key="selectedSection.id"
               :section="selectedSection"
               :repo-folder="project.repoFolder"
@@ -251,6 +305,18 @@ watch(sections, (list) => {
         confirm-label="Delete section"
         @cancel="deletingSection = null"
         @confirm="confirmDeleteSection"
+      />
+    </Transition>
+
+    <Transition name="dialog">
+      <AppConfirm
+        v-if="deletingGraph"
+        :title="`Delete ${deletingGraph.title}?`"
+        body="The graph, its steps and its routes are removed. Tasks it was attached to keep the steps it laid on them."
+        :blast="`Deletes the deployment graph \u201c${deletingGraph.title}\u201d from ${project?.title ?? 'this project'}.`"
+        confirm-label="Delete graph"
+        @cancel="deletingGraph = null"
+        @confirm="confirmDeleteGraph"
       />
     </Transition>
 

@@ -54,6 +54,7 @@ const claimedStep: TaskStep = {
   flowX: null,
   flowY: null,
   maxVisits: null,
+  connectionId: null,
   passes: [],
     links: [],
     visits: [],

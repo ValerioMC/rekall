@@ -101,3 +101,17 @@ fn too_many_routes_out_of_one_step_is_refused() {
 
     assert!(refusal(FlowPlan::new(vec![step("Decide", &routes)])).contains("Split it"));
 }
+
+#[test]
+fn the_shape_holds_for_a_graph_that_cannot_run_yet() {
+    let unfinished = FlowPlan::new(vec![step("Build", &[("built", None)]), step("Orphan", &[])]);
+
+    unfinished.check_shape().unwrap();
+    assert!(unfinished.check().is_err());
+}
+
+#[test]
+fn the_shape_still_refuses_what_no_flow_could_hold() {
+    assert!(FlowPlan::new(vec![step("Test", &[("again", Some(0))])]).check_shape().is_err());
+    assert!(FlowPlan::new(vec![step("Test", &[]), step("test", &[])]).check_shape().is_err());
+}

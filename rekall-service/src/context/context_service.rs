@@ -9,7 +9,7 @@ use rekall_model::document::ANCHOR_ID_LENGTH;
 use rekall_model::{company, project, task, TaskStepState};
 use rekall_repository::repository as repo;
 
-use super::{ContextCommitView, ContextRecord, ContextSkillScope, ContextSkillView, DocumentView};
+use super::{ContextCommitView, ContextRecord, ContextSkillScope, ContextSkillView, DocumentView, StepConnectionView};
 use crate::component::ProjectComponentView;
 use crate::connection::ConnectionView;
 use crate::step::{StepFlowRows, TaskStepView};
@@ -248,6 +248,7 @@ impl ContextService {
             related: Vec::new(),
             documents: documents.iter().map(DocumentView::of).collect(),
             skills: self.skills_of(tx, task, &steps).await?,
+            step_connections: self.step_connections_of(tx, &project, &steps).await?,
             steps,
             commits: self.commits_of(tx, task).await?,
             wrapup,
@@ -281,6 +282,22 @@ impl ContextService {
             }
         }
         Ok(skills)
+    }
+
+    /// The connection each step reaches, and whether the project still binds it.
+    async fn step_connections_of(&self, tx: &Tx, project: &project::Model, steps: &[TaskStepView]) -> Result<Vec<StepConnectionView>> {
+        let mut found = Vec::new();
+        for step in steps {
+            let Some(connection_id) = step.connection_id else {
+                continue;
+            };
+            let Some(connection) = repo::external_connection::find_by_id(tx.db(), connection_id).await? else {
+                continue;
+            };
+            let bound = repo::project_connection::find(tx.db(), project.id, connection_id).await?.is_some();
+            found.push(StepConnectionView { step_id: step.id, label: connection.label, bound });
+        }
+        Ok(found)
     }
 
     async fn tag_of(&self, tx: &Tx, task: &task::Model) -> Result<Option<rekall_model::tag::Model>> {
