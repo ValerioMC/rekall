@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
-import ProjectComponentsSection from '@/features/project/components/ProjectComponentsSection.vue'
+import ProjectComponentsPage from '@/features/project/components/ProjectComponentsPage.vue'
 import * as api from '@/features/project/api/project-components.api'
+import { useProjectComponentsStore } from '@/features/project/store/projectComponents.store'
 import type { ProjectComponent } from '@/features/project/model/project-component'
 import type { ProjectComponentId, ProjectId } from '@/model/branded'
 
@@ -26,39 +27,25 @@ function component(id: string, position: number, name = id): ProjectComponent {
 let pinia: Pinia
 let wrapper: VueWrapper | null = null
 
-async function render(): Promise<VueWrapper> {
-  wrapper = mount(ProjectComponentsSection, {
-    props: { projectId: PROJECT, projectTitle: 'Vega', repoFolder: null },
+async function render(repoFolder: string | null = null): Promise<VueWrapper> {
+  await useProjectComponentsStore().load(PROJECT)
+  wrapper = mount(ProjectComponentsPage, {
+    props: { projectId: PROJECT, projectTitle: 'Vega', repoFolder },
     global: { plugins: [pinia] }
   })
   await flushPromises()
   return wrapper
 }
 
-/** Each listed component's name, whether it is shown as a row or open in its editor. */
+/** Each component in the tree, top to bottom. */
 const names = (page: VueWrapper): string[] =>
-  page.findAll('li').map((item) => {
-    const editor = item.find<HTMLInputElement>('[data-testid="component-name"]')
-    return editor.exists() ? editor.element.value : item.get('[data-testid="component-row-name"]').text()
-  })
-
-function installStorage(): void {
-  const values = new Map<string, string>()
-  Object.defineProperty(window, 'localStorage', {
-    configurable: true,
-    value: {
-      getItem: (key: string) => values.get(key) ?? null,
-      setItem: (key: string, value: string) => void values.set(key, value)
-    }
-  })
-}
+  page.findAll('[data-testid="component-row-name"]').map((name) => name.text())
 
 async function openEditor(page: VueWrapper, id: string): Promise<void> {
   await page.get(`[data-testid="component-row-${id}"]`).trigger('click')
 }
 
 beforeEach(() => {
-  installStorage()
   pinia = createPinia()
   setActivePinia(pinia)
   vi.resetAllMocks()
@@ -70,13 +57,35 @@ afterEach(() => {
   wrapper = null
 })
 
-describe('the components section', () => {
-  it('lists the project’s components in order with their count', async () => {
+describe('the components page', () => {
+  it('lists the project’s components in order', async () => {
     const page = await render()
 
     expect(names(page)).toEqual(['api', 'ui'])
-    expect(page.get('[data-testid="components-count"]').text()).toBe('2')
-    expect(api.fetchProjectComponents).toHaveBeenCalledWith(PROJECT)
+  })
+
+  it('draws the components as the tree their folders form under the project folder', async () => {
+    vi.mocked(api.fetchProjectComponents).mockResolvedValue([
+      { ...component('gateway', 0), folder: '/work/vega/gateway' },
+      { ...component('ledger', 1), folder: '/work/vega/billing/ledger' },
+      { ...component('payouts', 2), folder: '/work/vega/billing/payouts' }
+    ])
+    const page = await render('/work/vega')
+
+    expect(page.get('[data-testid="components-root"]').text()).toBe('vega/')
+    expect(page.findAll('[data-testid="components-folder"]').map((folder) => folder.text())).toEqual(['billing/ 2'])
+    expect(names(page)).toEqual(['gateway', 'ledger', 'payouts'])
+  })
+
+  it('narrows the tree to the components a filter matches, and says when none does', async () => {
+    const page = await render()
+
+    await page.get('[data-testid="components-filter"]').setValue('UI')
+    expect(names(page)).toEqual(['ui'])
+
+    await page.get('[data-testid="components-filter"]').setValue('nothing like it')
+    expect(names(page)).toEqual([])
+    expect(page.get('[data-testid="components-no-match"]').text()).toContain('nothing like it')
   })
 
   it('explains itself and offers the first add when the project has none', async () => {
@@ -84,7 +93,7 @@ describe('the components section', () => {
     const page = await render()
 
     expect(page.find('[data-testid="components-empty"]').exists()).toBe(true)
-    expect(page.find('[data-testid="components-count"]').exists()).toBe(false)
+    expect(page.find('[data-testid="components-filter"]').exists()).toBe(false)
     expect(page.find('[data-testid="add-component"]').exists()).toBe(true)
   })
 
@@ -202,27 +211,4 @@ describe('the components section', () => {
 
     expect(names(page)).toHaveLength(8)
   })
-
-  it('unfolds a folded list when a component is added', async () => {
-    const page = await render()
-    await page.get('[data-testid="components-toggle"]').trigger('click')
-
-    await page.get('[data-testid="add-component"]').trigger('click')
-
-    expect(page.get('#components-body').attributes('style') ?? '').not.toContain('display: none')
-    expect(page.find('[data-testid="component-composer"]').exists()).toBe(true)
-  })
-
-  it('folds the list to its summary and remembers the choice', async () => {
-    const page = await render()
-
-    await page.get('[data-testid="components-toggle"]').trigger('click')
-
-    expect(page.get('#components-body').attributes('style')).toContain('display: none')
-    expect(page.get('[data-testid="components-summary"]').text()).toBe('api · ui')
-    expect(window.localStorage.getItem('rekall.projectInspector.components.collapsed')).toBe('true')
-    await page.get('[data-testid="components-toggle"]').trigger('click')
-    expect(page.find('[data-testid="components-summary"]').exists()).toBe(false)
-  })
-
 })

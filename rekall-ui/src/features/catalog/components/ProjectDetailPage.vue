@@ -6,35 +6,31 @@ import RecordDialog from '@/features/catalog/components/RecordDialog.vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
-import AppConfirm from '@/components/ui/AppConfirm.vue'
-import ProjectAboutGroup from '@/features/project/components/ProjectAboutGroup.vue'
 import ProjectBlueprintPane from '@/features/project/components/ProjectBlueprintPane.vue'
-import ProjectComponentsSection from '@/features/project/components/ProjectComponentsSection.vue'
-import ProjectDocsRail from '@/features/project/components/ProjectDocsRail.vue'
-import ProjectRepositoryGroup from '@/features/project/components/ProjectRepositoryGroup.vue'
-import ProjectConnectionsGroup from '@/features/connection/components/ProjectConnectionsGroup.vue'
-import ProjectSectionPane from '@/features/project/components/ProjectSectionPane.vue'
+import ProjectComponentsPage from '@/features/project/components/ProjectComponentsPage.vue'
+import ProjectPageTabs from '@/features/project/components/ProjectPageTabs.vue'
+import ProjectSectionsPage from '@/features/project/components/ProjectSectionsPage.vue'
+import ProjectSettingsPage from '@/features/project/components/ProjectSettingsPage.vue'
+import ProjectConnectionsPage from '@/features/connection/components/ProjectConnectionsPage.vue'
 import ProjectTasksDrawer from '@/features/project/components/ProjectTasksDrawer.vue'
-import DeploymentGraphPane from '@/features/graph/components/DeploymentGraphPane.vue'
-import GraphRailGroup from '@/features/graph/components/GraphRailGroup.vue'
-import GraphSetupPane from '@/features/graph/components/GraphSetupPane.vue'
+import ProjectGraphsPage from '@/features/graph/components/ProjectGraphsPage.vue'
 import { useDeploymentGraphsStore } from '@/features/graph/store/deploymentGraphs.store'
 import ProjectMark from '@/components/ui/ProjectMark.vue'
 import TokenCount from '@/components/ui/TokenCount.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useProjectSectionsStore } from '@/features/project/store/projectSections.store'
+import { useProjectComponentsStore } from '@/features/project/store/projectComponents.store'
+import { useConnectionsStore } from '@/features/connection/store/connections.store'
+import { useConnectionStream } from '@/features/connection/composables/useConnectionStream'
 import { useProjectSectionStream } from '@/features/project/composables/useProjectSectionStream'
 import { useAsyncAction } from '@/composables/useAsyncAction'
-import { canMove, type Direction } from '@/features/project/lib/section-order'
-import { identityHue } from '@/common/identity'
 import { useTokenUsageStore } from '@/features/tokens/store/tokenUsage.store'
 import { projectDraft } from '@/features/catalog/model/record-draft'
 import { PROJECT_STATUS_LABEL } from '@/features/catalog/model/catalog'
 import { asProjectId } from '@/model/branded'
 import type { RecordDraft } from '@/features/catalog/model/record-draft'
-import { BLUEPRINT, isSection, type RailSelection } from '@/features/project/model/rail-selection'
-import type { ProjectSection } from '@/features/project/model/project-section'
-import type { DeploymentGraph } from '@/features/graph/model/deployment-graph'
+import { BLUEPRINT, tabOf, type ProjectPage, type ProjectTab } from '@/features/project/model/project-page'
+import type { DeploymentGraphId, ProjectSectionId } from '@/model/branded'
 
 const props = defineProps<{ id: string }>()
 
@@ -51,57 +47,53 @@ const projectTasks = computed(() =>
 )
 
 const sectionsStore = useProjectSectionsStore()
+const graphsStore = useDeploymentGraphsStore()
+const componentsStore = useProjectComponentsStore()
+const connectionsStore = useConnectionsStore()
 const { run } = useAsyncAction()
 
 const sections = computed(() => sectionsStore.sectionsOf(projectId.value))
-const selection = ref<RailSelection>(BLUEPRINT)
-const selectedSection = computed<ProjectSection | null>(() => {
-  const picked = selection.value
-  return picked.kind === 'section' ? (sections.value.find((section) => section.id === picked.id) ?? null) : null
-})
-const graphsStore = useDeploymentGraphsStore()
 const graphs = computed(() => graphsStore.graphsOf(projectId.value))
-const selectedGraph = computed<DeploymentGraph | null>(() => {
-  const picked = selection.value
-  return picked.kind === 'graph' ? (graphs.value.find((graph) => graph.id === picked.id) ?? null) : null
-})
-const deletingGraph = ref<DeploymentGraph | null>(null)
-const sectionIds = computed(() => sections.value.map((section) => section.id))
+const bindings = computed(() => connectionsStore.projectConnectionsOf(projectId.value))
+const page = ref<ProjectPage>(BLUEPRINT)
 const showingTasks = ref(false)
-const creatingSection = ref(false)
-const deletingSection = ref<ProjectSection | null>(null)
+
+const counts = computed<Partial<Record<ProjectTab, number>>>(() => ({
+  sections: sections.value.length,
+  graphs: graphs.value.length,
+  components: componentsStore.componentsOf(projectId.value).length,
+  connections: bindings.value.length
+}))
+const warnings = computed<Partial<Record<ProjectTab, string>>>(() => {
+  const missing = bindings.value.filter((binding) => !binding.credentialSetAt).length
+  return missing ? { connections: missing === 1 ? '1 binding without a credential' : `${missing} bindings without a credential` } : {}
+})
 
 useProjectSectionStream((event) => void sectionsStore.applyEvent(event.projectId))
+useConnectionStream((event) => {
+  if (project.value && event.companyId === project.value.companyId) void loadConnections()
+})
 
-async function createSection(title: string): Promise<void> {
-  creatingSection.value = true
-  const created = await run(() => sectionsStore.create(projectId.value, title))
-  creatingSection.value = false
-  if (created) selection.value = { kind: 'section', id: created.id }
+async function loadConnections(): Promise<void> {
+  const shown = project.value
+  if (!shown) return
+  await run(() => Promise.all([connectionsStore.loadProject(shown.id), connectionsStore.load(shown.companyId)]))
 }
 
-function openGraph(graph: DeploymentGraph): void {
-  selection.value = { kind: 'graph', id: graph.id }
+/** A tab opens its first section or graph; pages with nothing to pick open as they are. */
+function openTab(tab: ProjectTab): void {
+  if (tab === tabOf(page.value)) return
+  if (tab === 'sections') page.value = { kind: 'section', id: sections.value[0]?.id ?? null }
+  else if (tab === 'graphs') page.value = { kind: 'graph', id: graphs.value[0]?.id ?? null }
+  else page.value = { kind: tab }
 }
 
-async function confirmDeleteGraph(): Promise<void> {
-  const target = deletingGraph.value
-  deletingGraph.value = null
-  if (!target) return
-  const removed = await run(() => graphsStore.remove(projectId.value, target.id).then(() => true), `Deleted ${target.title}`)
-  if (removed && selectedGraph.value?.id === target.id) selection.value = BLUEPRINT
+function openSection(id: ProjectSectionId | null): void {
+  page.value = { kind: 'section', id }
 }
 
-async function moveSection(direction: Direction): Promise<void> {
-  if (selectedSection.value) await run(() => sectionsStore.move(projectId.value, selectedSection.value!.id, direction))
-}
-
-async function confirmDeleteSection(): Promise<void> {
-  const target = deletingSection.value
-  deletingSection.value = null
-  if (!target) return
-  const removed = await run(() => sectionsStore.remove(projectId.value, target.id).then(() => true), `Deleted ${target.title}`)
-  if (removed && isSection(selection.value, target.id)) selection.value = BLUEPRINT
+function openGraph(id: DeploymentGraphId | null): void {
+  page.value = { kind: 'graph', id }
 }
 
 const tokenUsage = useTokenUsageStore()
@@ -144,19 +136,22 @@ watch(
 watch(
   () => project.value?.id ?? null,
   () => {
-    selection.value = BLUEPRINT
+    page.value = BLUEPRINT
     showingTasks.value = false
-    if (project.value) void run(() => sectionsStore.load(project.value!.id))
-    if (project.value) void run(() => graphsStore.load(project.value!.id))
+    if (!project.value) return
+    const id = project.value.id
+    void run(() => sectionsStore.load(id))
+    void run(() => graphsStore.load(id))
+    void run(() => componentsStore.load(id))
+    void loadConnections()
   },
   { immediate: true }
 )
 
 watch([sections, graphs], () => {
-  const picked = selection.value
-  const gone =
-    (picked.kind === 'section' && !selectedSection.value) || (picked.kind === 'graph' && !selectedGraph.value)
-  if (gone) selection.value = BLUEPRINT
+  const open = page.value
+  if (open.kind === 'section' && open.id && !sections.value.some((section) => section.id === open.id)) openSection(null)
+  if (open.kind === 'graph' && open.id && !graphs.value.some((graph) => graph.id === open.id)) openGraph(null)
 })
 </script>
 
@@ -223,72 +218,47 @@ watch([sections, graphs], () => {
         </template>
       </AppCatalogHeader>
 
-      <!-- Three areas, each about one thing: the pages, the page open, and the project's settings.
-           From lg up the workspace fills the window and each area scrolls on its own, so the
-           blueprint is read without scrolling the page. -->
-      <div class="workspace mx-auto w-full max-w-[1800px] px-6 py-5 2xl:px-10" data-testid="project-workspace">
-        <ProjectDocsRail
-          class="workspace-nav"
-          :sections="sections"
-          :selected="selection"
-          :loading="sectionsStore.isLoading(project.id)"
-          :creating="creatingSection"
-          @select="selection = $event"
-          @create="createSection"
-        >
-          <template #pages>
-            <GraphRailGroup
-              :project-id="project.id"
-              :graphs="graphs"
-              :selected-id="selectedGraph?.id ?? null"
-              :setting-up="selection.kind === 'graph-setup'"
-              :loading="graphsStore.isLoading(project.id)"
-              @select="selection = { kind: 'graph', id: $event }"
-              @setup="selection = { kind: 'graph-setup' }"
-            />
-          </template>
-        </ProjectDocsRail>
-
-        <div class="workspace-doc">
+      <div
+        class="mx-auto flex min-h-[540px] w-full max-w-[1800px] flex-1 basis-0 flex-col px-6 2xl:px-10"
+        data-testid="project-workspace"
+      >
+        <ProjectPageTabs
+          class="shrink-0 border-b border-border"
+          :selected="tabOf(page)"
+          :counts="counts"
+          :warnings="warnings"
+          @select="openTab"
+        />
+        <div class="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] py-4">
           <Transition name="fade-quick" mode="out-in">
-            <GraphSetupPane
-              v-if="selection.kind === 'graph-setup'"
-              key="graph-setup"
+            <ProjectSectionsPage
+              v-if="page.kind === 'section'"
+              key="sections"
               :project="project"
-              @created="openGraph"
+              :selected-id="page.id"
+              @open="openSection"
             />
-            <DeploymentGraphPane
-              v-else-if="selectedGraph"
-              :key="selectedGraph.id"
-              :graph="selectedGraph"
+            <ProjectGraphsPage
+              v-else-if="page.kind === 'graph' || page.kind === 'graph-setup'"
+              key="graphs"
               :project="project"
-              @delete="deletingGraph = selectedGraph"
+              :selected-id="page.kind === 'graph' ? page.id : null"
+              :setting-up="page.kind === 'graph-setup'"
+              @open="openGraph"
+              @setup="page = { kind: 'graph-setup' }"
             />
-            <ProjectSectionPane
-              v-else-if="selectedSection"
-              :key="selectedSection.id"
-              :section="selectedSection"
+            <ProjectComponentsPage
+              v-else-if="page.kind === 'components'"
+              key="components"
+              :project-id="project.id"
+              :project-title="project.title"
               :repo-folder="project.repoFolder"
-              :can-move-up="canMove(sectionIds, selectedSection.id, 'up')"
-              :can-move-down="canMove(sectionIds, selectedSection.id, 'down')"
-              @move="moveSection"
-              @delete="deletingSection = selectedSection"
             />
+            <ProjectConnectionsPage v-else-if="page.kind === 'connections'" key="connections" :project="project" />
+            <ProjectSettingsPage v-else-if="page.kind === 'settings'" key="settings" :project="project" />
             <ProjectBlueprintPane v-else key="blueprint" :project="project" />
           </Transition>
         </div>
-
-        <aside
-          class="workspace-inspect divide-y divide-border overflow-y-auto rounded-card border border-border bg-surface shadow-[var(--shadow-raised)]"
-          :style="{ borderTop: `2px solid ${identityHue(project.id).line}` }"
-          aria-label="Project settings"
-          data-testid="project-inspector"
-        >
-          <ProjectAboutGroup :project="project" />
-          <ProjectComponentsSection :project-id="project.id" :project-title="project.title" :repo-folder="project.repoFolder" />
-          <ProjectRepositoryGroup :project="project" />
-          <ProjectConnectionsGroup :project="project" />
-        </aside>
       </div>
     </template>
 
@@ -297,91 +267,7 @@ watch([sections, graphs], () => {
     </Transition>
 
     <Transition name="dialog">
-      <AppConfirm
-        v-if="deletingSection"
-        :title="`Delete ${deletingSection.title}?`"
-        body="The section and everything written in it is removed. No history keeps it."
-        :blast="`Deletes the section \u201c${deletingSection.title}\u201d from ${project?.title ?? 'this project'}.`"
-        confirm-label="Delete section"
-        @cancel="deletingSection = null"
-        @confirm="confirmDeleteSection"
-      />
-    </Transition>
-
-    <Transition name="dialog">
-      <AppConfirm
-        v-if="deletingGraph"
-        :title="`Delete ${deletingGraph.title}?`"
-        body="The graph, its steps and its routes are removed. Tasks it was attached to keep the steps it laid on them."
-        :blast="`Deletes the deployment graph \u201c${deletingGraph.title}\u201d from ${project?.title ?? 'this project'}.`"
-        confirm-label="Delete graph"
-        @cancel="deletingGraph = null"
-        @confirm="confirmDeleteGraph"
-      />
-    </Transition>
-
-    <Transition name="dialog">
       <RecordDialog v-if="editing" :draft="editing" @close="editing = null" @saved="onDialogSaved" />
     </Transition>
   </div>
 </template>
-
-<style scoped>
-.workspace {
-  display: grid;
-  gap: 16px;
-  grid-template-areas: 'nav' 'doc' 'inspect';
-}
-
-.workspace-nav {
-  grid-area: nav;
-}
-
-.workspace-doc {
-  grid-area: doc;
-  height: calc(100dvh - var(--spacing-header) - 40px);
-  min-height: 480px;
-}
-
-.workspace-inspect {
-  grid-area: inspect;
-  min-height: 0;
-}
-
-/* From lg the workspace stops scrolling as a page: it takes the window, and the pages and the
-   settings share the left column under one another. */
-@media (width >= 64rem) {
-  .workspace {
-    flex: 1 1 0;
-    min-height: 0;
-    grid-template-columns: 248px minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
-    grid-template-areas:
-      'nav doc'
-      'inspect doc';
-  }
-
-  .workspace-nav {
-    max-height: 40vh;
-    overflow-y: auto;
-  }
-
-  .workspace-doc {
-    height: auto;
-    min-height: 0;
-  }
-}
-
-/* Wide enough for the settings to get a column of their own beside the page. */
-@media (width >= 80rem) {
-  .workspace {
-    grid-template-columns: 232px minmax(0, 1fr) 340px;
-    grid-template-rows: minmax(0, 1fr);
-    grid-template-areas: 'nav doc inspect';
-  }
-
-  .workspace-nav {
-    max-height: none;
-  }
-}
-</style>

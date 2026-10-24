@@ -8,7 +8,7 @@ import { useProjectComponentsStore } from '@/features/project/store/projectCompo
 import type { ProjectComponent, ProjectComponentInput } from '@/features/project/model/project-component'
 
 /**
- * One component, edited in place of its row, laid out for the inspector's narrow column. Each field saves on its own: a pause in typing or
+ * One component, edited in the column beside the components tree. Each field saves on its own: a pause in typing or
  * leaving the field. A save the server refuses (a name already taken) keeps the draft on screen,
  * marked invalid, until the next keystroke, so what was typed is never silently put back.
  */

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { nextTick, onUnmounted, ref, watch } from 'vue'
-import InspectorGroup from '@/features/project/components/InspectorGroup.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import type { Project } from '@/features/catalog/model/catalog'
 import type { ProjectId } from '@/model/branded'
@@ -52,7 +51,9 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <InspectorGroup group="about" title="About" :summary="draft.trim() || 'No description yet'">
+  <section aria-labelledby="project-description-heading" data-testid="settings-about">
+    <h3 id="project-description-heading" class="text-body font-semibold text-text">Description</h3>
+    <p class="mb-2 mt-0.5 text-small text-text-subtle">A few sentences on what this is. It travels into every context that loads the project.</p>
     <label class="sr-only" for="project-description">Project description</label>
     <textarea
       id="project-description"
@@ -61,8 +62,8 @@ onUnmounted(() => {
       data-testid="project-description"
       rows="3"
       class="field text-text block max-h-[280px] w-full resize-none overflow-y-auto rounded-control p-2.5 text-small leading-relaxed"
-      placeholder="What this is, in a few sentences. Travels into every context that loads this project."
+      placeholder="What this is, in a few sentences."
       @input="onInput"
     />
-  </InspectorGroup>
+  </section>
 </template>

@@ -7,11 +7,13 @@ import * as sectionsApi from '@/features/project/api/project-sections.api'
 import * as componentsApi from '@/features/project/api/project-components.api'
 import * as catalogApi from '@/features/catalog/api/catalog.api'
 import * as graphsApi from '@/features/graph/api/deployment-graphs.api'
+import * as connectionsApi from '@/features/connection/api/connections.api'
 import { useConsoleStore } from '@/stores/console.store'
 import { mountWithHeaderChrome } from '../../support/mountWithHeaderChrome'
 import type { Company, Project, Task } from '@/features/catalog/model/catalog'
 import type { ProjectSection } from '@/features/project/model/project-section'
-import type { CompanyId, ProjectId, ProjectSectionId, TaskId } from '@/model/branded'
+import type { ProjectConnection } from '@/features/connection/model/connection'
+import type { CompanyId, ConnectionId, ProjectConnectionId, ProjectId, ProjectSectionId, TaskId } from '@/model/branded'
 
 vi.mock('@/features/project/api/project-sections.api')
 vi.mock('@/features/project/api/project-components.api')
@@ -81,6 +83,8 @@ beforeEach(() => {
   vi.mocked(sectionsApi.fetchProjectSections).mockResolvedValue([deployment])
   vi.mocked(componentsApi.fetchProjectComponents).mockResolvedValue([])
   vi.mocked(graphsApi.fetchDeploymentGraphs).mockResolvedValue([])
+  vi.mocked(connectionsApi.fetchProjectConnections).mockResolvedValue([])
+  vi.mocked(connectionsApi.fetchCompanyConnections).mockResolvedValue([])
   vi.mocked(catalogApi.fetchProjectRepository).mockResolvedValue({ isRepository: false } as never)
 })
 
@@ -116,33 +120,73 @@ describe('the project page', () => {
     expect(page.find('[data-testid="tasks-drawer"]').exists()).toBe(false)
   })
 
-  it('shows the blueprint beside the project’s settings, components among them', async () => {
+  it('opens each tab’s page in place of the blueprint', async () => {
     const page = await render()
-    const inspector = page.get('[data-testid="project-inspector"]')
+    const workspace = page.get('[data-testid="project-workspace"]')
 
-    expect(componentsApi.fetchProjectComponents).toHaveBeenCalledWith(PROJECT)
-    expect(page.get('[data-testid="project-workspace"]').find('[data-testid="blueprint-pane"]').exists()).toBe(true)
-    expect(inspector.find('[data-testid="project-components"]').exists()).toBe(true)
-    expect(inspector.find('[data-testid="project-description"]').exists()).toBe(true)
-    expect(inspector.find('[data-testid="project-repo-folder"]').exists()).toBe(true)
+    await page.get('[data-testid="tab-components"]').trigger('click')
+    await flushPromises()
+    expect(workspace.find('[data-testid="project-components"]').exists()).toBe(true)
+    expect(workspace.find('[data-testid="blueprint-pane"]').exists()).toBe(false)
+
+    await page.get('[data-testid="tab-connections"]').trigger('click')
+    await flushPromises()
+    expect(workspace.find('[data-testid="project-connections"]').exists()).toBe(true)
+
+    await page.get('[data-testid="tab-settings"]').trigger('click')
+    await flushPromises()
+    expect(workspace.find('[data-testid="project-description"]').exists()).toBe(true)
+    expect(workspace.find('[data-testid="project-repo-folder"]').exists()).toBe(true)
+
+    await page.get('[data-testid="tab-blueprint"]').trigger('click')
+    await flushPromises()
+    expect(workspace.find('[data-testid="blueprint-pane"]').exists()).toBe(true)
   })
 
-  it('lists the sections in the rail and opens one in place of the blueprint', async () => {
+  it('loads what the tabs count, and marks connections that lack a credential', async () => {
+    const unsigned = {
+      id: 'b-1' as ProjectConnectionId,
+      connectionId: 'k-1' as ConnectionId,
+      projectId: PROJECT,
+      kind: 'GITLAB',
+      label: 'billing',
+      title: 'GitLab',
+      baseUrl: 'https://gitlab.example.com',
+      kubeContext: null,
+      target: 'acme/billing',
+      credentialSetAt: null
+    } satisfies ProjectConnection
+    vi.mocked(connectionsApi.fetchProjectConnections).mockResolvedValue([unsigned])
     const page = await render()
-    expect(page.find('[data-testid="rail-section-s-1"]').text()).toContain('Deployment')
 
-    await page.find('[data-testid="rail-section-s-1"]').trigger('click')
+    expect(componentsApi.fetchProjectComponents).toHaveBeenCalledWith(PROJECT)
+    expect(page.get('[data-testid="tab-sections-count"]').text()).toBe('1')
+    expect(page.get('[data-testid="tab-connections-count"]').text()).toBe('1')
+    expect(page.get('[data-testid="tab-connections-warning"]').text()).toBe('1 binding without a credential')
+    expect(page.find('[data-testid="tab-components-count"]').exists()).toBe(false)
+  })
+
+  it('opens the first section from its tab and another from the rail', async () => {
+    const glossary = { ...deployment, id: 's-2' as ProjectSectionId, title: 'Glossary', position: 1 }
+    vi.mocked(sectionsApi.fetchProjectSections).mockResolvedValue([deployment, glossary])
+    const page = await render()
+
+    await page.get('[data-testid="tab-sections"]').trigger('click')
     await flushPromises()
-
-    expect(page.find('[data-testid="section-pane"]').exists()).toBe(true)
+    expect((page.get('[data-testid="section-title"]').element as HTMLInputElement).value).toBe('Deployment')
     expect(page.find('[data-testid="blueprint-pane"]').exists()).toBe(false)
-    expect((page.find('[data-testid="section-title"]').element as HTMLInputElement).value).toBe('Deployment')
+
+    await page.get('[data-testid="rail-section-s-2"]').trigger('click')
+    await flushPromises()
+    expect((page.get('[data-testid="section-title"]').element as HTMLInputElement).value).toBe('Glossary')
   })
 
   it('creates a section from the rail and opens it', async () => {
     const created = { ...deployment, id: 's-2' as ProjectSectionId, title: 'Glossary', bodyMarkdown: '', position: 1 }
     vi.mocked(sectionsApi.createProjectSection).mockResolvedValue(created)
     const page = await render()
+    await page.get('[data-testid="tab-sections"]').trigger('click')
+    await flushPromises()
 
     await page.find('[data-testid="rail-new-section"]').trigger('click')
     await page.find('[data-testid="rail-new-title"]').setValue('Glossary')
@@ -153,10 +197,10 @@ describe('the project page', () => {
     expect((page.find('[data-testid="section-title"]').element as HTMLInputElement).value).toBe('Glossary')
   })
 
-  it('asks before deleting a section, then returns to the blueprint', async () => {
+  it('asks before deleting a section, then stays on the sections with none open', async () => {
     vi.mocked(sectionsApi.deleteProjectSection).mockResolvedValue()
     const page = await render()
-    await page.find('[data-testid="rail-section-s-1"]').trigger('click')
+    await page.get('[data-testid="tab-sections"]').trigger('click')
     await flushPromises()
 
     await page.find('[data-testid="section-delete"]').trigger('click')
@@ -167,6 +211,7 @@ describe('the project page', () => {
     await flushPromises()
 
     expect(sectionsApi.deleteProjectSection).toHaveBeenCalledWith('s-1')
-    expect(page.find('[data-testid="blueprint-pane"]').exists()).toBe(true)
+    expect(page.find('[data-testid="sections-none"]').exists()).toBe(true)
+    expect(page.get('[data-testid="tab-sections"]').attributes('aria-current')).toBe('page')
   })
 })

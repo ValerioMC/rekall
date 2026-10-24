@@ -926,6 +926,43 @@
 }
 
 /*
+ * A list hung off one line, the way a folder holds its folders or a connection its bindings.
+ * Each item draws its stretch of the line and a tick to its first row; the last stops at its
+ * tick, so the line ends where the list does. An inherited --branch-line colours it.
+ */
+@utility branch-list {
+  & > li {
+    position: relative;
+    padding-left: 26px;
+  }
+
+  & > li::before {
+    content: '';
+    position: absolute;
+    left: var(--branch-x, 11px);
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--branch-line, var(--color-border-strong));
+  }
+
+  & > li:last-child::before {
+    bottom: auto;
+    height: var(--branch-tick, 17px);
+  }
+
+  & > li::after {
+    content: '';
+    position: absolute;
+    left: var(--branch-x, 11px);
+    top: var(--branch-tick, 17px);
+    width: 10px;
+    height: 1px;
+    background: var(--branch-line, var(--color-border-strong));
+  }
+}
+
+/*
  * A group heading in the navigator's index: the status name, a project name, the filing
  * drawer's label. Ordinary case in the interface face rather than tracked-out capitals, so the
  * pane reads as a set of named shelves and not a stack of shouted tags. Sits one weight above

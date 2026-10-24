@@ -70,12 +70,4 @@ describe('the repository group', () => {
     expect(saveFolder).toHaveBeenCalledWith('p-1', '/work/one')
     expect((group.get('[data-testid="project-repo-folder"]').element as HTMLInputElement).value).toBe('/work/two')
   })
-
-  it('folds to the folder and whether a claim commits it', async () => {
-    const group = render(project('p-1', '/work/vega', true))
-
-    await group.get('[data-testid="repository-toggle"]').trigger('click')
-
-    expect(group.get('[data-testid="repository-summary"]').text()).toBe('/work/vega · commits on claim')
-  })
 })

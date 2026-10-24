@@ -1,22 +1,18 @@
 <script setup lang="ts">
 import { nextTick, ref } from 'vue'
 import { relativeTime } from '@/common/format/relative-time'
-import { BLUEPRINT, isSection, type RailSelection } from '@/features/project/model/rail-selection'
 import type { ProjectSection } from '@/features/project/model/project-section'
+import type { ProjectSectionId } from '@/model/branded'
 
-/**
- * The project's pages as an index: the blueprint, pinned and lit in the anchor colour because
- * `/rk` hands it to Claude, what the `pages` slot holds (the deployment graphs), then the
- * sections, plain because no context loads them.
- */
+/** The project's sections as an index beside the one open, with a field to start another. */
 const props = defineProps<{
   sections: readonly ProjectSection[]
-  selected: RailSelection
+  selectedId: ProjectSectionId | null
   loading: boolean
   creating: boolean
 }>()
 
-const emit = defineEmits<{ select: [selection: RailSelection]; create: [title: string] }>()
+const emit = defineEmits<{ select: [id: ProjectSectionId]; create: [title: string] }>()
 
 const composing = ref(false)
 const title = ref('')
@@ -42,29 +38,8 @@ function submit(): void {
 </script>
 
 <template>
-  <nav class="flex flex-col gap-1" aria-label="Project pages" data-testid="project-docs-rail">
-    <button
-      type="button"
-      class="focus-ring group flex items-center gap-3 rounded-control py-2.5 pl-4 pr-3 text-left transition-colors"
-      :class="selected.kind === 'blueprint' ? 'selected-row' : 'hover:bg-surface-raised'"
-      :style="{ '--select-tint': 'var(--color-anchor)', '--select-tint-soft': 'var(--color-anchor-soft)' }"
-      :aria-current="selected.kind === 'blueprint' ? 'page' : undefined"
-      data-testid="rail-blueprint"
-      @click="emit('select', BLUEPRINT)"
-    >
-      <svg class="size-4 shrink-0 text-anchor" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-        <rect x="2.5" y="2.5" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.3" />
-        <path d="M5.5 6h5M5.5 8.5h5M5.5 11h2.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
-      </svg>
-      <span class="min-w-0 flex-1">
-        <span class="block truncate text-body font-medium text-text">Blueprint</span>
-        <span class="block truncate text-caption text-anchor/80">Loaded by every /rk</span>
-      </span>
-    </button>
-
-    <slot name="pages" />
-
-    <div class="mt-3 flex items-center justify-between pl-4 pr-1">
+  <nav class="flex min-h-0 flex-col gap-1 overflow-y-auto" aria-label="Sections" data-testid="project-section-rail">
+    <div class="flex items-center justify-between pl-4 pr-1">
       <p class="eyebrow">Sections<span v-if="sections.length" class="ml-1.5 text-text-subtle">{{ sections.length }}</span></p>
       <button
         v-if="!composing"
@@ -109,10 +84,10 @@ function submit(): void {
         <button
           type="button"
           class="focus-ring flex w-full items-center rounded-control py-2 pl-4 pr-3 text-left transition-colors"
-          :class="isSection(selected, section.id) ? 'selected-row' : 'hover:bg-surface-raised'"
-          :aria-current="isSection(selected, section.id) ? 'page' : undefined"
+          :class="selectedId === section.id ? 'selected-row' : 'hover:bg-surface-raised'"
+          :aria-current="selectedId === section.id ? 'page' : undefined"
           :data-testid="`rail-section-${section.id}`"
-          @click="emit('select', { kind: 'section', id: section.id })"
+          @click="emit('select', section.id)"
         >
           <span class="min-w-0 flex-1">
             <span class="block truncate text-body text-text">{{ section.title }}</span>
@@ -132,7 +107,7 @@ function submit(): void {
       Keep what the blueprint doesn't hold: deployment, conventions, a glossary.
     </p>
 
-    <p class="mt-3 border-t border-border px-4 pt-3 text-caption leading-relaxed text-text-subtle">
+    <p class="mt-auto border-t border-border px-4 pt-3 text-caption leading-relaxed text-text-subtle">
       Sections stay out of Claude's context. A session adds one with
       <code class="text-text-muted">rekall_project_section</code>.
     </p>

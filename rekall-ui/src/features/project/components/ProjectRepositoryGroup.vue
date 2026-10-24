@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { computed, onUnmounted, ref, watch } from 'vue'
+import { onUnmounted, ref, watch } from 'vue'
 import AutoCommitSwitch from '@/features/catalog/components/AutoCommitSwitch.vue'
-import InspectorGroup from '@/features/project/components/InspectorGroup.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import { fetchProjectRepository } from '@/features/catalog/api/catalog.api'
 import { desktopHost, pickFolder } from '@/common/native/desktop'
@@ -26,11 +25,6 @@ const repository = ref<ProjectRepository | null>(null)
 const repositoryPending = ref(false)
 const autoCommitSaving = ref(false)
 let timer: ReturnType<typeof setTimeout> | null = null
-
-const summary = computed(() => {
-  const folder = props.project.repoFolder ?? 'No folder yet'
-  return props.project.autoCommit ? `${folder} · commits on claim` : folder
-})
 
 async function readRepository(id: ProjectId): Promise<void> {
   repositoryPending.value = true
@@ -95,8 +89,13 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <InspectorGroup group="repository" title="Repository" :summary="summary">
-    <label class="mb-1 block text-caption text-text-muted" for="project-repo-folder">Folder</label>
+  <section aria-labelledby="project-repo-folder-heading" data-testid="settings-repository">
+    <h3 id="project-repo-folder-heading" class="text-body font-semibold text-text">Folder</h3>
+    <p class="mb-2 mt-0.5 text-small text-text-subtle">
+      Where <span class="text-text-muted">Open in terminal</span> starts the session, so it decides which repository
+      the work happens in.
+    </p>
+    <label class="sr-only" for="project-repo-folder">Folder</label>
     <div class="flex items-center gap-2">
       <input
         id="project-repo-folder"
@@ -110,11 +109,7 @@ onUnmounted(() => {
       />
       <AppButton v-if="canBrowse" size="sm" variant="secondary" @click="browse">Browse</AppButton>
     </div>
-    <p class="mt-1.5 text-caption leading-relaxed text-text-subtle">
-      Where <span class="text-text-muted">Open in terminal</span> starts the session, so it decides which repository
-      the work happens in.
-    </p>
-    <div class="mt-3">
+    <div class="mt-4">
       <AutoCommitSwitch
         :model-value="project.autoCommit"
         :repository="repository"
@@ -123,5 +118,5 @@ onUnmounted(() => {
         @update:model-value="setAutoCommit"
       />
     </div>
-  </InspectorGroup>
+  </section>
 </template>

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
-import ProjectDocsRail from '@/features/project/components/ProjectDocsRail.vue'
-import { BLUEPRINT } from '@/features/project/model/rail-selection'
+import ProjectSectionRail from '@/features/project/components/ProjectSectionRail.vue'
 import type { ProjectSection } from '@/features/project/model/project-section'
 import type { ProjectId, ProjectSectionId } from '@/model/branded'
 
@@ -17,20 +16,19 @@ function section(id: string, title: string, body = 'text'): ProjectSection {
   }
 }
 
-function rail(props: Partial<InstanceType<typeof ProjectDocsRail>['$props']> = {}) {
-  return mount(ProjectDocsRail, {
-    props: { sections: [], selected: BLUEPRINT, loading: false, creating: false, ...props },
+function rail(props: Partial<InstanceType<typeof ProjectSectionRail>['$props']> = {}) {
+  return mount(ProjectSectionRail, {
+    props: { sections: [], selectedId: null, loading: false, creating: false, ...props },
     attachTo: document.body
   })
 }
 
-describe('ProjectDocsRail', () => {
-  it('pins the blueprint and lists the sections under it, marking the one on screen', () => {
-    const wrapper = rail({ sections: [section('s1', 'Deployment'), section('s2', 'Glossary', '')], selected: { kind: 'section', id: 's1' as ProjectSectionId } })
+describe('ProjectSectionRail', () => {
+  it('lists the sections, marking the one on screen and the empty ones', () => {
+    const wrapper = rail({ sections: [section('s1', 'Deployment'), section('s2', 'Glossary', '')], selectedId: 's1' as ProjectSectionId })
 
-    expect(wrapper.find('[data-testid="rail-blueprint"]').text()).toContain('Loaded by every /rk')
     expect(wrapper.find('[data-testid="rail-section-s1"]').attributes('aria-current')).toBe('page')
-    expect(wrapper.find('[data-testid="rail-blueprint"]').attributes('aria-current')).toBeUndefined()
+    expect(wrapper.find('[data-testid="rail-section-s2"]').attributes('aria-current')).toBeUndefined()
     expect(wrapper.find('[data-testid="rail-section-s2"]').text()).toContain('Empty')
     wrapper.unmount()
   })
@@ -42,13 +40,12 @@ describe('ProjectDocsRail', () => {
     wrapper.unmount()
   })
 
-  it('emits what was picked', async () => {
+  it('emits the section picked', async () => {
     const wrapper = rail({ sections: [section('s1', 'Deployment')] })
 
     await wrapper.find('[data-testid="rail-section-s1"]').trigger('click')
-    await wrapper.find('[data-testid="rail-blueprint"]').trigger('click')
 
-    expect(wrapper.emitted('select')).toEqual([[{ kind: 'section', id: 's1' }], [BLUEPRINT]])
+    expect(wrapper.emitted('select')).toEqual([['s1']])
     wrapper.unmount()
   })
 

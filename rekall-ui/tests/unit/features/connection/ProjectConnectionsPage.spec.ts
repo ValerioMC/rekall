@@ -3,7 +3,8 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import * as api from '@/features/connection/api/connections.api'
 import * as componentsApi from '@/features/project/api/project-components.api'
-import ProjectConnectionsGroup from '@/features/connection/components/ProjectConnectionsGroup.vue'
+import ProjectConnectionsPage from '@/features/connection/components/ProjectConnectionsPage.vue'
+import { useConnectionsStore } from '@/features/connection/store/connections.store'
 import type { Project } from '@/features/catalog/model/catalog'
 import type { Connection, ProjectConnection, RepositoryDiscovery } from '@/features/connection/model/connection'
 import type { CompanyId, ConnectionId, ProjectConnectionId, ProjectId } from '@/model/branded'
@@ -61,43 +62,77 @@ function binding(id: string, credentialSetAt: string | null): ProjectConnection 
   }
 }
 
-function mountGroup(project: Project = PROJECT) {
-  return mount(ProjectConnectionsGroup, {
+/** The project page loads the connections before it shows this tab, so the test does too. */
+async function mountPage(project: Project = PROJECT) {
+  const store = useConnectionsStore()
+  await Promise.all([store.loadProject(project.id), store.load(project.companyId)])
+  return mount(ProjectConnectionsPage, {
     props: { project },
     global: { stubs: { RouterLink: { template: '<a><slot /></a>' } } }
   })
 }
 
-describe('ProjectConnectionsGroup', () => {
+describe('ProjectConnectionsPage', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.resetAllMocks()
     vi.mocked(api.fetchCompanyConnections).mockResolvedValue([connection('prod'), connection('staging')])
   })
 
-  it('flags a used connection that has no credential and still offers it for another target', async () => {
+  it('flags a used connection that has no credential and offers it again for another target', async () => {
     vi.mocked(api.fetchProjectConnections).mockResolvedValue([binding('prod', null)])
-    const wrapper = mountGroup()
+    const wrapper = await mountPage()
     await flushPromises()
 
-    expect(wrapper.find('[data-testid="project-connection-missing"]').exists()).toBe(true)
-    const options = wrapper.findAll('[data-testid="connection-picker"] option').map((option) => option.text())
-    expect(options.some((text) => text.includes('staging'))).toBe(true)
-    expect(options.some((text) => text.includes('The prod'))).toBe(true)
+    const trunk = wrapper.get('[data-testid="trunk-prod"]')
+    expect(trunk.find('[data-testid="project-connection-missing"]').exists()).toBe(true)
+    expect(trunk.find('[data-testid="add-target"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="use-connection-prod"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="use-connection-staging"]').exists()).toBe(true)
   })
 
-  it('binds the connection chosen in the picker', async () => {
+  it('uses a connection of the company the project binds nowhere yet', async () => {
     vi.mocked(api.fetchProjectConnections).mockResolvedValue([])
     vi.mocked(api.bindConnection).mockResolvedValue(binding('staging', '2026-10-21T10:00:00Z'))
-    const wrapper = mountGroup()
+    const wrapper = await mountPage()
     await flushPromises()
 
-    await wrapper.get('[data-testid="connection-picker"] select').setValue('staging')
-    await wrapper.get('[data-testid="bind-connection"]').trigger('click')
+    await wrapper.get('[data-testid="use-connection-staging"]').trigger('click')
     await flushPromises()
 
     expect(api.bindConnection).toHaveBeenCalledWith('p-1', 'staging', { target: null })
-    expect(wrapper.findAll('[data-testid="project-connection"]')).toHaveLength(1)
+    expect(wrapper.get('[data-testid="trunk-staging"]').findAll('[data-testid="project-connection"]')).toHaveLength(1)
+  })
+
+  it('binds a used connection once more, hanging the new binding under it', async () => {
+    vi.mocked(api.fetchProjectConnections).mockResolvedValue([binding('prod', '2026-10-21T10:00:00Z')])
+    vi.mocked(api.bindConnection).mockResolvedValue({
+      ...binding('prod', '2026-10-21T10:00:00Z'),
+      id: 'b-prod-2' as ProjectConnectionId,
+      label: 'prod-2'
+    })
+    const wrapper = await mountPage()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="trunk-prod"] [data-testid="add-target"]').trigger('click')
+    await flushPromises()
+
+    expect(api.bindConnection).toHaveBeenCalledWith('p-1', 'prod', { target: null })
+    expect(wrapper.get('[data-testid="trunk-prod"]').findAll('[data-testid="project-connection"]')).toHaveLength(2)
+  })
+
+  it('narrows the bindings to those whose label or target matches the filter', async () => {
+    vi.mocked(api.fetchProjectConnections).mockResolvedValue([
+      { ...binding('prod', null), target: 'apps' },
+      { ...binding('staging', null), target: 'web' }
+    ])
+    const wrapper = await mountPage()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="connections-filter"]').setValue('web')
+
+    expect(wrapper.find('[data-testid="trunk-prod"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="trunk-staging"]').exists()).toBe(true)
   })
 
   it('saves a target and a label typed in place and unbinds on request', async () => {
@@ -106,7 +141,7 @@ describe('ProjectConnectionsGroup', () => {
       .mockResolvedValueOnce({ ...binding('prod', '2026-10-21T10:00:00Z'), target: 'apps' })
       .mockResolvedValueOnce({ ...binding('prod', '2026-10-21T10:00:00Z'), target: 'apps', label: 'prod-apps' })
     vi.mocked(api.unbindConnection).mockResolvedValue()
-    const wrapper = mountGroup()
+    const wrapper = await mountPage()
     await flushPromises()
 
     const target = wrapper.get('[data-testid="connection-target"]')
@@ -129,7 +164,7 @@ describe('ProjectConnectionsGroup', () => {
 
   it('offers to find repositories only for a project with a folder', async () => {
     vi.mocked(api.fetchProjectConnections).mockResolvedValue([])
-    const withoutFolder = mountGroup()
+    const withoutFolder = await mountPage()
     await flushPromises()
 
     expect(withoutFolder.find('[data-testid="discover-repositories"]').exists()).toBe(false)
@@ -146,7 +181,7 @@ describe('ProjectConnectionsGroup', () => {
     vi.mocked(api.fetchProjectConnections).mockResolvedValue([])
     vi.mocked(api.discoverRepositories).mockResolvedValue(discovery)
     vi.mocked(componentsApi.fetchProjectComponents).mockResolvedValue([])
-    const wrapper = mountGroup({ ...PROJECT, repoFolder: '/work/vega' })
+    const wrapper = await mountPage({ ...PROJECT, repoFolder: '/work/vega' })
     await flushPromises()
 
     await wrapper.get('[data-testid="discover-repositories"]').trigger('click')
@@ -162,7 +197,7 @@ describe('ProjectConnectionsGroup', () => {
   })
 })
 
-describe('ProjectConnectionsGroup with a Jira connection', () => {
+describe('ProjectConnectionsPage with a Jira connection', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.resetAllMocks()
@@ -175,7 +210,7 @@ describe('ProjectConnectionsGroup with a Jira connection', () => {
 
   it('offers the import once the binding has a credential and a project key', async () => {
     vi.mocked(api.fetchProjectConnections).mockResolvedValue([jira('ENG', '2026-10-21T10:00:00Z')])
-    const wrapper = mountGroup()
+    const wrapper = await mountPage()
     await flushPromises()
 
     expect(wrapper.get('[data-testid="connection-target"]').attributes('aria-label')).toBe('Jira project key for The jira')
@@ -184,12 +219,12 @@ describe('ProjectConnectionsGroup with a Jira connection', () => {
 
   it('offers no import without a project key or a credential', async () => {
     vi.mocked(api.fetchProjectConnections).mockResolvedValue([jira(null, '2026-10-21T10:00:00Z')])
-    const withoutKey = mountGroup()
+    const withoutKey = await mountPage()
     await flushPromises()
     expect(withoutKey.find('[data-testid="import-jira-issues"]').exists()).toBe(false)
 
     vi.mocked(api.fetchProjectConnections).mockResolvedValue([jira('ENG', null)])
-    const withoutCredential = mountGroup()
+    const withoutCredential = await mountPage()
     await flushPromises()
     expect(withoutCredential.find('[data-testid="import-jira-issues"]').exists()).toBe(false)
   })

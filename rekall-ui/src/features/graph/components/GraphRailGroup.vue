@@ -6,7 +6,7 @@ import type { DeploymentGraph } from '@/features/graph/model/deployment-graph'
 import type { DeploymentGraphId, ProjectId } from '@/model/branded'
 
 /**
- * The project's deployment graphs in its pages rail. A project without one is asked whether to set
+ * The project's deployment graphs, listed beside the one open. A project without one is asked whether to set
  * one up; declining folds the question away for this project, in this browser.
  */
 const props = defineProps<{
@@ -43,7 +43,7 @@ function caption(graph: DeploymentGraph): string {
 </script>
 
 <template>
-  <div class="mt-3 flex flex-col gap-1" data-testid="rail-graphs">
+  <div class="flex flex-col gap-1" data-testid="rail-graphs">
     <div class="flex items-center justify-between pl-4 pr-1">
       <p class="eyebrow">
         Deployment graphs<span v-if="graphs.length" class="ml-1.5 text-text-subtle">{{ graphs.length }}</span>
