@@ -17,6 +17,9 @@ export interface GraphStep {
   readonly detail: string | null
   readonly connectionId: ConnectionId | null
   readonly maxVisits: number | null
+  /** Where the step was dragged on the graph's canvas; null leaves it to the automatic layout. */
+  readonly flowX: number | null
+  readonly flowY: number | null
   readonly routes: readonly GraphRoute[]
 }
 
@@ -49,6 +52,8 @@ export interface DraftStep {
   readonly detail: string
   readonly connectionId: ConnectionId | null
   readonly maxVisits: number | null
+  readonly flowX: number | null
+  readonly flowY: number | null
   readonly routes: readonly DraftRoute[]
 }
 

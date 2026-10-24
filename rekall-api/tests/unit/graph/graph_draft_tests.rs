@@ -62,3 +62,16 @@ fn only_steps_that_reach_a_connection_are_listed_as_reaching_one() {
     let reaching: Vec<(String, Id)> = draft.reaching().map(|(step, id)| (step.title.clone(), id)).collect();
     assert_eq!(reaching, vec![("Deploy".to_string(), cluster)]);
 }
+
+#[test]
+fn a_place_takes_both_coordinates_or_neither() {
+    let placed = GraphStepRequest { flow_x: Some(120), flow_y: Some(-40), ..step("push", "Push", vec![]) };
+    let half = GraphStepRequest { flow_x: Some(120), ..step("push", "Push", vec![]) };
+    let beyond = GraphStepRequest { flow_x: Some(90_000), flow_y: Some(0), ..step("push", "Push", vec![]) };
+
+    let draft = GraphDraft::of(&[placed, step("check", "Check", vec![])]).unwrap();
+
+    assert_eq!(draft.places, vec![Some(FlowPlace::new(120, -40).unwrap()), None]);
+    assert!(GraphDraft::of(&[half]).unwrap_err().to_string().contains("only one coordinate"));
+    assert!(GraphDraft::of(&[beyond]).is_err(), "a place out of reach");
+}

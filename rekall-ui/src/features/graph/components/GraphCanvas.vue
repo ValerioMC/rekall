@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { smoothPath } from '@/features/diagram/lib/edge-path'
-import { layoutFlow, type FlowLayout, type FlowShapeStep, type PlacedRoute } from '@/features/flow/lib/flow-layout'
+import { layoutFlow, placeSteps, type FlowLayout, type FlowShapeStep, type PlacedRoute } from '@/features/flow/lib/flow-layout'
 import { FLOW_END, type RouteTarget } from '@/features/flow/lib/route-target'
 import { useFlowDrag } from '@/features/flow/composables/useFlowDrag'
 import { useFlowPan } from '@/features/flow/composables/useFlowPan'
 import FlowTerminal from '@/features/flow/components/FlowTerminal.vue'
+import type { Point } from '@/features/diagram/lib/viewport'
 import type { ProjectConnection } from '@/features/connection/model/connection'
 import type { DraftStep } from '@/features/graph/model/deployment-graph'
 import type { ConnectionId } from '@/model/branded'
@@ -13,8 +14,8 @@ import GraphNode from './GraphNode.vue'
 
 /**
  * A deployment graph drawn as it will run: Start, the steps top to bottom, End, and every route
- * labelled with its outcome. Picking a step lights the routes that touch it; the handle under a
- * step draws a new route. The empty canvas pans.
+ * labelled with its outcome. A step drags to where the person wants it, its routes following it;
+ * picking one lights the routes that touch it, and its handle draws a new route. The empty canvas pans.
  */
 const props = defineProps<{
   steps: readonly DraftStep[]
@@ -25,6 +26,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   select: [key: string]
   connect: [from: string, to: RouteTarget<string>]
+  place: [key: string, at: Point]
 }>()
 
 /** A route's id on the canvas: the step it leaves and its place among that step's routes. */
@@ -38,7 +40,14 @@ const shapes = computed<FlowShapeStep<string, string>[]>(() =>
     links: step.routes.map((route, index) => ({ id: routeId(step, index), outcome: route.outcome, toStepId: route.toKey }))
   }))
 )
-const layout = computed((): FlowLayout<string, string> => layoutFlow(shapes.value))
+const base = computed((): FlowLayout<string, string> => layoutFlow(shapes.value))
+const savedPlaces = computed(() => {
+  const places = new Map<string, Point>()
+  for (const step of props.steps) {
+    if (step.flowX !== null && step.flowY !== null) places.set(step.key, { x: step.flowX, y: step.flowY })
+  }
+  return places
+})
 const outcomes = computed(() => {
   const all = new Map<string, string>()
   for (const step of props.steps) step.routes.forEach((route, index) => all.set(routeId(step, index), route.outcome))
@@ -54,10 +63,13 @@ const drag = useFlowDrag<string>({
   surface,
   boxes: () => layout.value.nodes,
   endBox: () => layout.value.end,
-  place: async () => undefined,
+  place: async (key, at) => emit('place', key, at),
   connect: (from, to) => emit('connect', from, to),
   select: (key) => emit('select', key)
 })
+const layout = computed(
+  (): FlowLayout<string, string> => placeSteps(base.value, new Map([...savedPlaces.value, ...drag.live.value]))
+)
 
 function touchesSelection(placed: PlacedRoute<string, string>): boolean {
   return props.selectedKey !== null && (placed.from === props.selectedKey || placed.to === props.selectedKey)
@@ -144,8 +156,11 @@ const pendingPath = computed(() => {
         :binding="step.connectionId ? (bindingOf.get(step.connectionId) ?? null) : null"
         :selected="step.key === selectedKey"
         :aimed="drag.connecting.value?.over === step.key"
+        :dragging="drag.live.value.has(step.key)"
         @select="emit('select', step.key)"
+        @move-start="drag.startMove(step.key, $event)"
         @connect-start="drag.startConnect(step.key, $event)"
+        @nudge="(dx, dy) => drag.nudge(step.key, dx, dy)"
       />
     </div>
   </div>

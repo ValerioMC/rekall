@@ -19,6 +19,7 @@ import {
 } from '@/features/graph/lib/graph-draft'
 import { freeTitle, stepFrom, type StepPreset } from '@/features/graph/lib/graph-presets'
 import { GRAPH_STEPS_MAX, type DeploymentGraph, type DraftRoute, type DraftStep, type GraphDraft } from '@/features/graph/model/deployment-graph'
+import type { Point } from '@/features/diagram/lib/viewport'
 import type { Project } from '@/features/catalog/model/catalog'
 import GraphCanvas from './GraphCanvas.vue'
 import GraphStepInspector from './GraphStepInspector.vue'
@@ -129,6 +130,11 @@ function connect(from: string, to: RouteTarget<string>): void {
   change(addRoute(draft.value, from, route))
   selectedKey.value = from
   focusRoute.value = { key: from, index: step.routes.length }
+}
+
+/** Where a dragged step was dropped; it stays there until it is dragged again. */
+function place(key: string, at: Point): void {
+  change(updateStep(draft.value, key, { flowX: Math.round(at.x), flowY: Math.round(at.y) }))
 }
 
 function addEmptyRoute(): void {
@@ -247,7 +253,7 @@ const focusIndex = computed(() =>
 
     <div class="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-2">
       <GraphStepPalette :disabled="draft.steps.length >= GRAPH_STEPS_MAX" @add="addPreset" />
-      <span class="hidden text-caption text-text-subtle xl:inline">Drag a step's handle onto another to route it</span>
+      <span class="hidden text-caption text-text-subtle xl:inline">Drag a step to move it, its handle onto another to route it</span>
     </div>
 
     <div class="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[minmax(0,1fr)_340px]">
@@ -258,6 +264,7 @@ const focusIndex = computed(() =>
         :selected-key="selectedKey"
         @select="selectedKey = $event"
         @connect="connect"
+        @place="place"
       />
       <aside class="min-h-0 overflow-y-auto border-t border-border md:border-l md:border-t-0" aria-label="Picked step">
         <GraphStepInspector

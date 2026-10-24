@@ -77,6 +77,25 @@ async fn a_graph_is_written_whole_listed_rewritten_and_deleted() {
 }
 
 #[tokio::test]
+async fn a_step_keeps_where_it_was_dragged_until_it_is_handed_back_to_the_layout() {
+    let world = world().await;
+    let mut placed = release(&world);
+    placed["steps"][2]["flowX"] = json!(480);
+    placed["steps"][2]["flowY"] = json!(260);
+
+    let graph = world.app.post(&format!("/api/projects/{}/graphs", world.project_id), placed.clone()).await;
+    assert_eq!(graph.status, 201, "{}", graph.text);
+    let deploy = &graph.get("steps")[2];
+    assert_eq!((deploy["flowX"].as_i64(), deploy["flowY"].as_i64()), (Some(480), Some(260)));
+    assert_eq!(graph.get("steps")[0]["flowX"], Value::Null, "an undragged step is left to the layout");
+
+    placed["steps"][2]["flowX"] = Value::Null;
+    placed["steps"][2]["flowY"] = Value::Null;
+    let tidied = world.app.put(&format!("/api/graphs/{}", id(&graph)), placed).await;
+    assert_eq!(tidied.get("steps")[2]["flowX"], Value::Null);
+}
+
+#[tokio::test]
 async fn a_graph_that_cannot_run_is_kept_and_says_why() {
     let world = world().await;
     let unfinished = json!({ "title": "Draft", "steps": [

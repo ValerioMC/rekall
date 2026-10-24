@@ -21,6 +21,9 @@ pub struct Model {
     pub connection_id: Option<Id>,
     /// How many times a flow may enter the step; `None` sets no limit.
     pub max_visits: Option<i32>,
+    /// Where the person dragged the step on the graph's canvas; `None` leaves it to the automatic layout.
+    pub flow_x: Option<i32>,
+    pub flow_y: Option<i32>,
     pub created_at: Instant,
 }
 

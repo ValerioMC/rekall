@@ -18,6 +18,8 @@ export function draftOf(graph: DeploymentGraph): GraphDraft {
       detail: step.detail ?? '',
       connectionId: step.connectionId,
       maxVisits: step.maxVisits,
+      flowX: step.flowX,
+      flowY: step.flowY,
       routes: step.routes.map((route) => ({ outcome: route.outcome, toKey: route.toStepId }))
     }))
   }

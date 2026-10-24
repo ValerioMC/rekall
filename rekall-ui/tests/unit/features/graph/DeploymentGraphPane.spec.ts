@@ -14,13 +14,29 @@ const project = { id: PROJECT, companyId: 'c-1', title: 'Vega' } as unknown as P
 
 let wrapper: VueWrapper | null = null
 
-async function pane(): Promise<VueWrapper> {
+async function pane(graph = aGraph()): Promise<VueWrapper> {
   const store = useDeploymentGraphsStore()
-  vi.mocked(graphsApi.fetchDeploymentGraphs).mockResolvedValue([aGraph()])
+  vi.mocked(graphsApi.fetchDeploymentGraphs).mockResolvedValue([graph])
   await store.load(PROJECT)
-  wrapper = mount(DeploymentGraphPane, { props: { graph: aGraph(), project }, attachTo: document.body })
+  wrapper = mount(DeploymentGraphPane, { props: { graph, project }, attachTo: document.body })
   return wrapper
 }
+
+/** Where an absolutely placed element sits on the canvas, from its inline style. */
+function at(element: Element): { left: number; top: number } {
+  const style = element.getAttribute('style') ?? ''
+  return {
+    left: Number(/left:\s*(-?[\d.]+)px/.exec(style)?.[1]),
+    top: Number(/top:\s*(-?[\d.]+)px/.exec(style)?.[1])
+  }
+}
+
+/** A step's box: the element its node button sits in. */
+function boxOf(node: { element: Element }): { left: number; top: number } {
+  return at(node.element.parentElement!)
+}
+
+const HALF_NODE = 116
 
 beforeEach(() => {
   setActivePinia(createPinia())
@@ -82,5 +98,33 @@ describe('DeploymentGraphPane', () => {
     expect(titles).toHaveLength(3)
     expect(titles[2]).toContain('Deploy')
     expect((view.find('[data-testid="graph-step-title"]').element as HTMLInputElement).value).toBe('Deploy')
+  })
+
+  it('draws a step where it was dragged, with the routes that touch it following it', async () => {
+    const base = aGraph()
+    const placed = aGraph({ steps: [base.steps[0]!, { ...base.steps[1]!, flowX: 600, flowY: 500 }] })
+    const view = await pane(placed)
+
+    const [push, check] = view.findAll('[data-testid="graph-node"]').map(boxOf)
+    expect(check).toEqual({ left: 600, top: 500 })
+    const pushed = view.findAll('[data-testid="graph-outcome"]').find((label) => label.text() === 'pushed')!
+    expect(at(pushed.element).left).toBe((push!.left + HALF_NODE + 600 + HALF_NODE) / 2)
+  })
+
+  it('saves where a dragged step was dropped', async () => {
+    vi.mocked(graphsApi.replaceDeploymentGraph).mockImplementation(async () => aGraph())
+    const view = await pane()
+    const node = view.findAll('[data-testid="graph-node"]')[1]!
+    const origin = boxOf(node)
+
+    await node.trigger('pointerdown', { button: 0, clientX: 100, clientY: 100 })
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 220, clientY: 160 }))
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: 220, clientY: 160 }))
+    await vi.advanceTimersByTimeAsync(800)
+    await flushPromises()
+
+    const [, draft] = vi.mocked(graphsApi.replaceDeploymentGraph).mock.calls[0]!
+    expect(draft.steps[1]).toMatchObject({ flowX: origin.left + 120, flowY: origin.top + 60 })
+    expect(draft.steps[0]).toMatchObject({ flowX: null, flowY: null })
   })
 })

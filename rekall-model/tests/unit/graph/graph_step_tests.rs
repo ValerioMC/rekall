@@ -9,6 +9,8 @@ fn step(title: &str, body: Option<&str>) -> Model {
         body_markdown: body.map(str::to_string),
         connection_id: None,
         max_visits: None,
+        flow_x: None,
+        flow_y: None,
         created_at: Instant::now(),
     }
 }

@@ -89,7 +89,7 @@ impl DeploymentGraphService {
     async fn write_steps_in(&self, tx: &Tx, graph: &deployment_graph::Model, draft: &GraphDraft) -> Result<()> {
         let now = self.ctx.now();
         let mut ids = Vec::with_capacity(draft.plan.steps.len());
-        for (position, (planned, connection_id)) in draft.plan.steps.iter().zip(&draft.connections).enumerate() {
+        for (position, ((planned, connection_id), place)) in draft.plan.steps.iter().zip(&draft.connections).zip(&draft.places).enumerate() {
             let step = graph_step::Model {
                 id: Id::random(),
                 graph_id: graph.id,
@@ -98,6 +98,8 @@ impl DeploymentGraphService {
                 body_markdown: planned.detail.clone(),
                 connection_id: *connection_id,
                 max_visits: planned.max_visits.map(|budget| budget.visits()),
+                flow_x: place.map(|at| at.x),
+                flow_y: place.map(|at| at.y),
                 created_at: now,
             };
             step.validate()?;

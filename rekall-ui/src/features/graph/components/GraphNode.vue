@@ -7,7 +7,8 @@ import type { DraftStep } from '@/features/graph/model/deployment-graph'
 
 /**
  * One step of a deployment graph on the canvas: its number, title and the connection it reaches.
- * A click picks it for the inspector; its handle draws a route to another step or to End.
+ * A click picks it for the inspector, a drag of its body moves it (Alt with an arrow from the
+ * keyboard), and its handle draws a route to another step or to End.
  */
 const props = defineProps<{
   step: DraftStep
@@ -17,9 +18,32 @@ const props = defineProps<{
   binding: ProjectConnection | null
   selected: boolean
   aimed?: boolean
+  /** The step is being dragged, so it floats above the others. */
+  dragging?: boolean
 }>()
 
-const emit = defineEmits<{ select: []; 'connect-start': [event: PointerEvent] }>()
+const emit = defineEmits<{
+  select: []
+  'move-start': [event: PointerEvent]
+  'connect-start': [event: PointerEvent]
+  nudge: [dx: number, dy: number]
+}>()
+
+const NUDGE = 8
+const ARROWS: Record<string, readonly [number, number]> = {
+  ArrowLeft: [-NUDGE, 0],
+  ArrowRight: [NUDGE, 0],
+  ArrowUp: [0, -NUDGE],
+  ArrowDown: [0, NUDGE]
+}
+
+/** Alt with an arrow moves the step, so plain arrows keep scrolling the canvas. */
+function nudge(event: KeyboardEvent): void {
+  const delta = event.altKey ? ARROWS[event.key] : undefined
+  if (!delta) return
+  event.preventDefault()
+  emit('nudge', delta[0], delta[1])
+}
 
 const number = computed(() => String(props.position + 1).padStart(2, '0'))
 const unbound = computed(() => props.step.connectionId !== null && props.binding === null)
@@ -34,18 +58,22 @@ const label = computed(() => `Step ${props.position + 1}, ${props.step.title || 
 
 <template>
   <div
-    class="group/node absolute z-[1]"
+    class="group/node absolute"
+    :class="dragging ? 'z-10' : 'z-[1]'"
     :style="{ left: `${box.x}px`, top: `${box.y}px`, width: `${box.width}px`, height: `${box.height}px` }"
   >
     <button
       type="button"
-      class="focus-ring panel-slate flex size-full cursor-pointer select-none items-stretch gap-2.5 rounded-card border px-2.5 py-2 text-left transition-[border-color,box-shadow] duration-(--motion-quick)"
-      :class="[selected && 'graph-node-selected', aimed && 'graph-node-aimed']"
+      class="focus-ring panel-slate flex size-full touch-none cursor-grab select-none items-stretch gap-2.5 rounded-card border px-2.5 py-2 text-left transition-[border-color,box-shadow] duration-(--motion-quick) active:cursor-grabbing"
+      :class="[selected && 'graph-node-selected', aimed && 'graph-node-aimed', dragging && 'graph-node-dragging']"
       :aria-label="label"
       :aria-pressed="selected"
+      aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown Alt+ArrowLeft Alt+ArrowRight"
       data-testid="graph-node"
       :data-step-key="step.key"
       @click="emit('select')"
+      @pointerdown="emit('move-start', $event)"
+      @keydown="nudge"
     >
       <span
         class="grid w-9 shrink-0 place-items-center rounded-control border border-border bg-canvas/60"
@@ -110,6 +138,10 @@ const label = computed(() => `Step ${props.position + 1}, ${props.step.title || 
   box-shadow:
     0 0 0 2px var(--color-canvas),
     0 0 0 3.5px var(--color-anchor);
+}
+
+.graph-node-dragging {
+  box-shadow: 0 10px 28px color-mix(in srgb, black 28%, transparent);
 }
 
 .graph-handle {

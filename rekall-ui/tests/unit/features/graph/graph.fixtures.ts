@@ -14,13 +14,13 @@ export function aGraph(overrides: Partial<DeploymentGraph> = {}): DeploymentGrap
     createdAt: '2026-10-24T10:00:00Z',
     updatedAt: '2026-10-24T10:00:00Z',
     steps: [
-      { id: 's-1' as GraphStepId, title: 'Push commit', detail: null, connectionId: null, maxVisits: 3, routes: [{ outcome: 'pushed', toStepId: 's-2' as GraphStepId }] },
+      { id: 's-1' as GraphStepId, title: 'Push commit', detail: null, connectionId: null, maxVisits: 3, flowX: null, flowY: null, routes: [{ outcome: 'pushed', toStepId: 's-2' as GraphStepId }] },
       {
         id: 's-2' as GraphStepId,
         title: 'Check',
         detail: null,
         connectionId: null,
-        maxVisits: null,
+        maxVisits: null, flowX: null, flowY: null,
         routes: [
           { outcome: 'healthy', toStepId: null },
           { outcome: 'error', toStepId: 's-1' as GraphStepId }

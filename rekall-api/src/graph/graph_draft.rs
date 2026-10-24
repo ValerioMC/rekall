@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use rekall_common::{jstr, Id, RekallError, Result};
 use rekall_model::step_link;
 use rekall_service::flow::{FlowPlan, PlannedRoute, PlannedStep};
-use rekall_service::step::VisitBudget;
+use rekall_service::step::{FlowPlace, VisitBudget};
 
 use super::{GraphRouteRequest, GraphStepRequest};
 
@@ -15,6 +15,8 @@ pub struct GraphDraft {
     pub plan: FlowPlan,
     /// The connection each step of `plan` reaches, by position.
     pub connections: Vec<Option<Id>>,
+    /// Where each step of `plan` was dragged on the canvas, by position.
+    pub places: Vec<Option<FlowPlace>>,
 }
 
 impl GraphDraft {
@@ -31,7 +33,11 @@ impl GraphDraft {
         }
         let plan = FlowPlan::new(planned);
         plan.check_shape()?;
-        Ok(Self { plan, connections: steps.iter().map(|step| step.connection_id).collect() })
+        Ok(Self {
+            plan,
+            connections: steps.iter().map(|step| step.connection_id).collect(),
+            places: steps.iter().map(place_of).collect::<Result<_>>()?,
+        })
     }
 
     /// Each step with the connection it reaches, for the steps that reach one.
@@ -52,6 +58,18 @@ fn positions_by_key(steps: &[GraphStepRequest]) -> Result<HashMap<&str, usize>> 
         }
     }
     Ok(positions)
+}
+
+/// Where the step sits on the canvas: both coordinates or neither, which leaves it to the layout.
+fn place_of(step: &GraphStepRequest) -> Result<Option<FlowPlace>> {
+    match (step.flow_x, step.flow_y) {
+        (None, None) => Ok(None),
+        (Some(x), Some(y)) => FlowPlace::new(x, y).map(Some),
+        _ => Err(RekallError::illegal(format!(
+            "'{}' has only one coordinate. A step's place takes both, or neither for the automatic layout.",
+            step.title.as_deref().unwrap_or_default()
+        ))),
+    }
 }
 
 fn routes_of(step: &GraphStepRequest, positions: &HashMap<&str, usize>) -> Result<Vec<PlannedRoute>> {

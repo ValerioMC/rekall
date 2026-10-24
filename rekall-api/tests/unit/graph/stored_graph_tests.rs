@@ -15,6 +15,8 @@ fn step(graph: &deployment_graph::Model, position: i32, title: &str) -> graph_st
         body_markdown: None,
         connection_id: None,
         max_visits: None,
+        flow_x: None,
+        flow_y: None,
         created_at: Instant::now(),
     }
 }

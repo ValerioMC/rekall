@@ -15,6 +15,8 @@ export const DeploymentGraphSchema = z.object({
       detail: z.string().nullable(),
       connectionId: z.string().uuid().transform(asConnectionId).nullable(),
       maxVisits: z.number().int().nullable(),
+      flowX: z.number().int().nullable(),
+      flowY: z.number().int().nullable(),
       routes: z.array(z.object({ outcome: z.string(), toStepId: graphStepId.nullable() }))
     })
   ),

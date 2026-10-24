@@ -25,6 +25,7 @@ mod m046_drop_task_revision;
 mod m047_vulnerability;
 mod m048_exposure_conclusion;
 mod m049_deployment_graph;
+mod m050_graph_step_place;
 mod migration_support;
 mod migrator;
 

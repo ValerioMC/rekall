@@ -12,6 +12,8 @@ pub struct GraphStepResponse {
     pub detail: Option<String>,
     pub connection_id: Option<Id>,
     pub max_visits: Option<i32>,
+    pub flow_x: Option<i32>,
+    pub flow_y: Option<i32>,
     pub routes: Vec<GraphRouteResponse>,
 }
 
@@ -24,6 +26,8 @@ impl GraphStepResponse {
             detail: step.body_markdown.clone(),
             connection_id: step.connection_id,
             max_visits: step.max_visits,
+            flow_x: step.flow_x,
+            flow_y: step.flow_y,
             routes: routes.iter().filter(|route| route.from_step_id == step.id).map(GraphRouteResponse::of).collect(),
         }
     }

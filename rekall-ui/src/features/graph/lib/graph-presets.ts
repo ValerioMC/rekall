@@ -69,6 +69,8 @@ export function stepFrom(preset: StepPreset, key: string, bindings: readonly Pro
     detail: preset.detail,
     connectionId: connectionFor(preset.kind, bindings),
     maxVisits: null,
+    flowX: null,
+    flowY: null,
     routes: []
   }
 }

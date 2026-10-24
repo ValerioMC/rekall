@@ -12,7 +12,7 @@ import type { DeploymentGraph, DraftStep, GraphDraft } from '@/features/graph/mo
 import type { DeploymentGraphId, GraphStepId, ProjectId } from '@/model/branded'
 
 function step(key: string, routes: DraftStep['routes'] = []): DraftStep {
-  return { key, title: key, detail: '', connectionId: null, maxVisits: null, routes }
+  return { key, title: key, detail: '', connectionId: null, maxVisits: null, flowX: null, flowY: null, routes }
 }
 
 function graphOf(...steps: DraftStep[]): GraphDraft {
@@ -30,8 +30,8 @@ describe('graph-draft', () => {
       createdAt: '',
       updatedAt: '',
       steps: [
-        { id: 's1' as GraphStepId, title: 'Push', detail: null, connectionId: null, maxVisits: 3, routes: [{ outcome: 'pushed', toStepId: 's2' as GraphStepId }] },
-        { id: 's2' as GraphStepId, title: 'Check', detail: 'Look.', connectionId: null, maxVisits: null, routes: [{ outcome: 'healthy', toStepId: null }] }
+        { id: 's1' as GraphStepId, title: 'Push', detail: null, connectionId: null, maxVisits: 3, flowX: null, flowY: null, routes: [{ outcome: 'pushed', toStepId: 's2' as GraphStepId }] },
+        { id: 's2' as GraphStepId, title: 'Check', detail: 'Look.', connectionId: null, maxVisits: null, flowX: null, flowY: null, routes: [{ outcome: 'healthy', toStepId: null }] }
       ]
     }
 
