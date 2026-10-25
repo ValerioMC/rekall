@@ -96,6 +96,8 @@ const task: Task = {
   tagName: null,
   tagIcon: null,
   tagColor: null,
+  graphLaidAt: null,
+  releaseSkipped: false,
   anchor: 'project:vega task:report-builder',
   updatedAt: '2026-09-10T10:00:00Z'
 }

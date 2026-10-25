@@ -1,8 +1,12 @@
 //! One entry into a step of a flow, numbered in the order the flow moved. The open visit (no
-//! `left_at`) is where the flow stands; `outcome` is the route it left by.
+//! `left_at`) is where the flow stands; `outcome` is the route it left by, `report` what the
+//! session saw there.
 
 use rekall_common::{Id, Instant};
 use sea_orm::entity::prelude::*;
+
+/// What a session may report when it leaves a step: enough for a failing job's log excerpt.
+pub const REPORT_MAX_CHARACTERS: usize = 4_000;
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
 #[sea_orm(table_name = "step_visit")]
@@ -16,6 +20,7 @@ pub struct Model {
     pub entered_at: Instant,
     pub left_at: Option<Instant>,
     pub outcome: Option<String>,
+    pub report: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -52,7 +57,7 @@ impl ActiveModelBehavior for ActiveModel {}
 
 impl Model {
     pub fn enter(task_id: Id, step_id: Id, ordinal: i32, now: Instant) -> Self {
-        Self { id: Id::random(), task_id, step_id, ordinal, entered_at: now, left_at: None, outcome: None }
+        Self { id: Id::random(), task_id, step_id, ordinal, entered_at: now, left_at: None, outcome: None, report: None }
     }
 
     pub fn is_open(&self) -> bool {
@@ -60,12 +65,13 @@ impl Model {
     }
 
     /// Closing a visit twice keeps the first close: the route it left by is history.
-    pub fn leave(&mut self, outcome: Option<String>, now: Instant) {
+    pub fn leave(&mut self, outcome: Option<String>, report: Option<String>, now: Instant) {
         if !self.is_open() {
             return;
         }
         self.left_at = Some(now);
         self.outcome = outcome;
+        self.report = report;
     }
 }
 

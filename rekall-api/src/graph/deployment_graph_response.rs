@@ -14,6 +14,8 @@ pub struct DeploymentGraphResponse {
     pub steps: Vec<GraphStepResponse>,
     /// Why the graph cannot run unattended yet, so it cannot be attached; `None` when it can.
     pub problem: Option<String>,
+    /// Laid on every task of the project the console runs.
+    pub release_default: bool,
     pub created_at: Instant,
     pub updated_at: Instant,
 }
@@ -27,6 +29,7 @@ impl DeploymentGraphResponse {
             description: graph.description.clone(),
             steps,
             problem,
+            release_default: graph.release_default,
             created_at: graph.created_at,
             updated_at: graph.updated_at,
         }

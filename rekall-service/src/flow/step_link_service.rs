@@ -73,6 +73,17 @@ impl StepLinkService {
         })
     }
 
+    /// Points a route at another step or the end inside a transaction the caller holds, which
+    /// also publishes.
+    pub async fn retarget_in(&self, tx: &Tx, id: Id, target: RouteTarget) -> Result<()> {
+        let before = repo::step_link::require(tx.db(), id).await?;
+        let from = repo::task_step::require(tx.db(), before.from_step_id).await?;
+        let mut link = before.clone();
+        link.to_step_id = self.target_step(tx, &from, target).await?.map(|to| to.id);
+        repo::update_if_changed(tx.db(), &before, link, self.ctx.now()).await?;
+        Ok(())
+    }
+
     pub async fn delete(&self, id: Id) -> Result<Vec<TaskStepView>> {
         in_write!(&self.ctx, |tx| {
             let link = repo::step_link::require(tx.db(), id).await?;

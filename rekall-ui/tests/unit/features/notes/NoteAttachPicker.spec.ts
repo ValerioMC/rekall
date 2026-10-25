@@ -77,6 +77,8 @@ const taskHere: Task = {
   tagName: null,
   tagIcon: null,
   tagColor: null,
+  graphLaidAt: null,
+  releaseSkipped: false,
   anchor: 'project:rekall task:note-improvement',
   updatedAt: '2026-09-01T10:00:00Z'
 }

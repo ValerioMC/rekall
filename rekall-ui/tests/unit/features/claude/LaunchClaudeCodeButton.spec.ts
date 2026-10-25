@@ -3,6 +3,8 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import LaunchClaudeCodeButton from '@/features/claude/components/LaunchClaudeCodeButton.vue'
 import { useToastStore } from '@/stores/toast.store'
+import { useConsoleStore } from '@/stores/console.store'
+import type { TaskId } from '@/model/branded'
 
 /**
  * The button that opens a session. Everything it can get wrong is silent: a browser tab where it
@@ -51,6 +53,18 @@ describe('LaunchClaudeCodeButton', () => {
 
   afterEach(() => {
     delete window.rekallDesktop
+  })
+
+  it("lays the task's release graph before it opens the session", async () => {
+    const releaseOnRun = vi.fn().mockResolvedValue('Release')
+    useConsoleStore().releaseOnRun = releaseOnRun
+    const wrapper = mount(LaunchClaudeCodeButton, { props: { anchors: ANCHORS, folder: FOLDER, taskId: 't-1' as TaskId } })
+
+    await wrapper.get('[data-testid="launch-claude-code"]').trigger('click')
+    await flushPromises()
+
+    expect(releaseOnRun).toHaveBeenCalledWith('t-1')
+    expect(releaseOnRun.mock.invocationCallOrder[0]!).toBeLessThan(openInClaudeCode.mock.invocationCallOrder[0]!)
   })
 
   it('is not there at all in a browser, where no terminal can be opened', () => {

@@ -4,7 +4,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import StepsPane from '@/features/steps/components/StepsPane.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import type { TaskStep } from '@/features/catalog/model/catalog'
-import { finishedFlow, flowStep, releaseFlow, releaseTask, TASK } from './flow.fixtures'
+import { finishedFlow, flowStep, releaseFlow, releaseTask, TASK, visit } from './flow.fixtures'
 
 /**
  * The steps pane showing a flow: it opens on the graph when the steps carry routes, lights the
@@ -101,6 +101,22 @@ describe('the flow view', () => {
     expect(pane.get('[data-testid="flow-trail"]').text()).toContain('app-error ›')
   })
 
+  it('shows on the trail what a move reported when it left its step', () => {
+    seed(
+      releaseFlow().map((step) =>
+        step.id === 'test' ? { ...step, visits: [visit('test', 3, 'app-error', false, 'GET /health answers 500')] } : step
+      )
+    )
+    const pane = render()
+
+    const outcomes = pane.findAll('[data-testid="flow-move-outcome"]')
+    expect(outcomes[2]!.attributes('title')).toBe('GET /health answers 500')
+    expect(outcomes[0]!.attributes('title')).toBeUndefined()
+    expect(pane.findAll('[data-testid="flow-move"]')[2]!.attributes('title')).toBe(
+      'Move 3: Test, left by app-error: GET /health answers 500'
+    )
+  })
+
   it('follows a move a session makes, with no reload', async () => {
     const store = seed(releaseFlow())
     const pane = render()
@@ -127,7 +143,8 @@ describe('the flow view', () => {
               ordinal: 6,
               enteredAt: '2026-10-01T09:06:00Z',
               leftAt: null,
-              outcome: null
+              outcome: null,
+              report: null
             }
           ]
         }

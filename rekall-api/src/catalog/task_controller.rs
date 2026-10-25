@@ -1,10 +1,10 @@
 use axum::extract::{Path, Query, State};
 use axum::response::Response;
-use axum::routing::{get, patch};
+use axum::routing::{get, patch, put};
 use axum::{Json, Router};
 
 use rekall_web::{created, no_content};
-use crate::catalog::{TaskQuery, TaskRequest, TaskResponse, TaskReviewRequest};
+use crate::catalog::{TaskQuery, TaskReleaseRequest, TaskRequest, TaskResponse, TaskReviewRequest};
 use rekall_web::error::ApiResult;
 use rekall_web::extract::{optional_uuid, present, uuid, JsonBody, Validator};
 use crate::ApiState;
@@ -14,6 +14,7 @@ pub fn routes() -> Router<ApiState> {
         .route("/api/tasks", get(list).post(create))
         .route("/api/tasks/{id}", get(get_one).put(update).delete(delete))
         .route("/api/tasks/{id}/review", patch(review))
+        .route("/api/tasks/{id}/release-skipped", put(skip_release))
 }
 
 fn validate(request: &TaskRequest) -> ApiResult<()> {
@@ -55,6 +56,16 @@ async fn review(
     let id = uuid("id", &id)?;
     let target = present("reviewState", request.review_state)?;
     Ok(Json(state.tasks.review(id, target, request.note.as_deref()).await?))
+}
+
+async fn skip_release(
+    State(state): State<ApiState>,
+    Path(id): Path<String>,
+    JsonBody(request): JsonBody<TaskReleaseRequest>,
+) -> ApiResult<Json<TaskResponse>> {
+    let id = uuid("id", &id)?;
+    let skipped = present("skipped", request.skipped)?;
+    Ok(Json(state.tasks.skip_release(id, skipped).await?))
 }
 
 async fn delete(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Response> {

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import {
   createDeploymentGraph,
+  chooseReleaseGraph,
   deleteDeploymentGraph,
   fetchDeploymentGraphs,
   replaceDeploymentGraph
@@ -62,5 +63,14 @@ export const useDeploymentGraphsStore = defineStore('deploymentGraphs', () => {
     put(projectId, graphsOf(projectId).filter((graph) => graph.id !== id))
   }
 
-  return { graphsOf, isLoaded, isLoading, load, ensureLoaded, create, replace, remove }
+  /** The graph the project releases every task it runs with, if it chose one. */
+  function releaseOf(projectId: ProjectId): DeploymentGraph | null {
+    return graphsOf(projectId).find((graph) => graph.releaseDefault) ?? null
+  }
+
+  async function chooseRelease(projectId: ProjectId, id: DeploymentGraphId | null): Promise<void> {
+    put(projectId, await chooseReleaseGraph(projectId, id))
+  }
+
+  return { graphsOf, isLoaded, isLoading, load, ensureLoaded, create, replace, remove, releaseOf, chooseRelease }
 })

@@ -1,11 +1,12 @@
 import type { StepLink, TaskStep } from '@/features/catalog/model/catalog'
 import type { StepLinkId, TaskStepId } from '@/model/branded'
 
-/** One move of the flow, in order: the step it entered and the route it left by. */
+/** One move of the flow, in order: the step it entered, the route it left by and what it reported. */
 export interface FlowMove {
   readonly ordinal: number
   readonly step: TaskStep
   readonly outcome: string | null
+  readonly report: string | null
   readonly open: boolean
 }
 
@@ -81,6 +82,7 @@ function movesOf(steps: readonly TaskStep[]): FlowMove[] {
         ordinal: visit.ordinal,
         step,
         outcome: visit.outcome,
+        report: visit.report,
         open: visit.leftAt === null
       }))
     )

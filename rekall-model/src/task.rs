@@ -25,6 +25,10 @@ pub struct Model {
     pub review_note: Option<String>,
     pub project_id: Id,
     pub tag_id: Option<Id>,
+    /// When a deployment graph was laid on the task; a task is laid once.
+    pub graph_laid_at: Option<Instant>,
+    /// The project's release graph is not laid when the console runs this task.
+    pub release_skipped: bool,
     pub created_at: Instant,
     pub updated_at: Instant,
 }
@@ -111,6 +115,8 @@ impl Model {
             review_note: None,
             project_id,
             tag_id: None,
+            graph_laid_at: None,
+            release_skipped: false,
             created_at: now,
             updated_at: now,
         }

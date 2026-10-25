@@ -31,6 +31,8 @@ pub struct TaskResponse {
     pub tag_name: Option<String>,
     pub tag_icon: Option<String>,
     pub tag_color: Option<String>,
+    pub graph_laid_at: Option<Instant>,
+    pub release_skipped: bool,
     pub anchor: String,
     pub updated_at: Instant,
 }
@@ -64,6 +66,8 @@ impl TaskResponse {
             tag_name: graph.tag.map(|t| t.name.clone()),
             tag_icon: graph.tag.map(|t| t.icon.clone()),
             tag_color: graph.tag.map(|t| t.color.clone()),
+            graph_laid_at: task.graph_laid_at,
+            release_skipped: task.release_skipped,
             anchor: task.anchor(&project.label),
             updated_at: task.updated_at,
         }

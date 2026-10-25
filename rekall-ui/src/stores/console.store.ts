@@ -41,7 +41,7 @@ export const useConsoleStore = defineStore('console', () => {
   const notes = useNoteWrites(state, selected, refreshes, timers)
   const steps = useStepWrites(state, timers)
   const stepFlow = useStepFlowWrites(steps)
-  const graphAttach = useGraphAttach(steps)
+  const graphAttach = useGraphAttach(state, steps)
   const wrapups = useWrapupWrites(state, refreshes, timers)
   const commitReferences = useCommitReferences(state)
   const skills = useSkillAssignments(state)

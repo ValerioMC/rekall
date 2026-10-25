@@ -20,6 +20,8 @@ pub struct Model {
     pub project_id: Id,
     pub title: String,
     pub description: String,
+    /// Laid on every task of the project the console runs; at most one graph of a project is.
+    pub release_default: bool,
     pub created_at: Instant,
     pub updated_at: Instant,
 }
@@ -40,7 +42,7 @@ impl ActiveModelBehavior for ActiveModel {}
 
 impl Model {
     pub fn new(project_id: Id, title: String, description: String, now: Instant) -> Self {
-        Self { id: Id::random(), project_id, title, description, created_at: now, updated_at: now }
+        Self { id: Id::random(), project_id, title, description, release_default: false, created_at: now, updated_at: now }
     }
 
     pub fn validate(&self) -> Result<(), RekallError> {

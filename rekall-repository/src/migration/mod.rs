@@ -28,6 +28,8 @@ mod m049_deployment_graph;
 mod m050_graph_step_place;
 mod m051_binding_label;
 mod m052_advisory_reach;
+mod m053_visit_report;
+mod m054_release_on_run;
 mod migration_support;
 mod migrator;
 

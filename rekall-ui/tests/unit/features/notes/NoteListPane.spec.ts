@@ -42,6 +42,8 @@ const task = (id: TaskId, label: string, title: string): Task => ({
   tagName: null,
   tagIcon: null,
   tagColor: null,
+  graphLaidAt: null,
+  releaseSkipped: false,
   anchor: `project:vega task:${label}`,
   updatedAt: '2026-09-01T10:00:00Z'
 })

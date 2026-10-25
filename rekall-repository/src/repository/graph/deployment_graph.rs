@@ -17,6 +17,11 @@ pub async fn list_of_project(db: &impl ConnectionTrait, project_id: Id) -> Resul
         .await?)
 }
 
+/// The graph the project releases every task it runs with, if it chose one.
+pub async fn release_default_of_project(db: &impl ConnectionTrait, project_id: Id) -> Result<Option<Model>, RekallError> {
+    Ok(Entity::find().filter(Column::ProjectId.eq(project_id)).filter(Column::ReleaseDefault.eq(true)).one(db).await?)
+}
+
 pub async fn delete(db: &impl ConnectionTrait, id: Id) -> Result<(), RekallError> {
     Entity::delete_by_id(id).exec(db).await?;
     Ok(())

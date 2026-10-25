@@ -12,7 +12,8 @@ function visit(ordinal: number): StepVisit {
     ordinal,
     enteredAt: '2026-10-01T09:00:00Z',
     leftAt: '2026-10-01T09:05:00Z',
-    outcome: 'deployed'
+    outcome: 'deployed',
+    report: null
   }
 }
 

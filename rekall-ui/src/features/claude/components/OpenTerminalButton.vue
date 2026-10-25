@@ -9,6 +9,7 @@ import { useToastStore } from '@/stores/toast.store'
 import { sessionAtWork } from '@/model/session-at-work'
 import { NOTHING_TO_RUN_MESSAGE, nothingToRun } from '@/model/nothing-to-run'
 import StepSeal from '@/features/steps/components/StepSeal.vue'
+import { useReleaseOnRun } from '@/features/graph/composables/useReleaseOnRun'
 import type { TaskId, TaskStepId } from '@/model/branded'
 
 /**
@@ -41,6 +42,7 @@ const console_ = useConsoleStore()
 const terminals = useTerminalStore()
 const toast = useToastStore()
 const { run } = useAsyncAction()
+const { releaseBeforeRun } = useReleaseOnRun()
 const { tasks, steps } = storeToRefs(console_)
 const { terminals: openTerminals } = storeToRefs(terminals)
 
@@ -90,6 +92,7 @@ async function launch(): Promise<void> {
     toast.notifyError(new Error(props.missingHint))
     return
   }
+  await releaseBeforeRun(props.taskId)
   const task = tasks.value.find((candidate) => candidate.id === props.taskId) ?? null
   if (nothingToRun(task, steps.value, props.stepId)) {
     toast.notifyError(new Error(NOTHING_TO_RUN_MESSAGE))

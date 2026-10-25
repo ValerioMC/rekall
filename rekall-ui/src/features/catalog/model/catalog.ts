@@ -142,6 +142,10 @@ export interface Task {
   readonly tagName: string | null
   readonly tagIcon: string | null
   readonly tagColor: string | null
+  /** When a deployment graph was laid on the task; a task is laid once. */
+  readonly graphLaidAt: string | null
+  /** The project's release graph is not laid when the console runs this task. */
+  readonly releaseSkipped: boolean
   readonly anchor: string
   readonly updatedAt: string
 }
@@ -187,6 +191,8 @@ export interface StepVisit {
   readonly enteredAt: string
   readonly leftAt: string | null
   readonly outcome: string | null
+  /** What the session saw when it left the step, read by the step the flow went to next. */
+  readonly report: string | null
 }
 
 export interface TaskStep {

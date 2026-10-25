@@ -42,6 +42,9 @@ const visibleSteps = computed(() =>
 const view = ref<'list' | 'flow'>('list')
 const isFlow = computed(() => checklistSteps.value.some((step) => step.links.length > 0))
 
+// A task is laid once, and a graph waits for drafts to be promoted or deleted.
+const canLayGraph = computed(() => !draftSteps.value.length && selectedTask.value?.graphLaidAt === null)
+
 const checklistEl = ref<InstanceType<typeof StepChecklist> | null>(null)
 const draftsEl = ref<InstanceType<typeof StepDraftShelf> | null>(null)
 
@@ -235,7 +238,7 @@ onUnmounted(editor.flush)
 
       <div v-else class="min-h-0 min-w-0 flex-1 overflow-y-auto px-5 py-4">
         <template v-if="!checklistSteps.length && !draftSteps.length">
-          <GraphAttachPanel :task="selectedTask" @attached="showAttachedGraph" />
+          <GraphAttachPanel :task="selectedTask" :has-steps="false" @attached="showAttachedGraph" />
           <StepsEmptyState :anchor="selectedTask.anchor" @draft-first="focusAdd" />
         </template>
 
@@ -261,6 +264,8 @@ onUnmounted(editor.flush)
               @send-back="sendBack"
               @reopen="reopen"
             />
+
+            <GraphAttachPanel v-if="canLayGraph" class="mt-6" :task="selectedTask" has-steps @attached="showAttachedGraph" />
           </template>
 
           <StepDraftShelf

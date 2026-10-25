@@ -6,13 +6,23 @@ use rekall_web::error::ApiResult;
 use rekall_web::extract::{uuid, JsonBody, Validator};
 use rekall_web::{created, no_content};
 
-use crate::graph::{DeploymentGraphRequest, DeploymentGraphResponse};
+use crate::graph::{DeploymentGraphRequest, DeploymentGraphResponse, ReleaseGraphRequest};
 use crate::ApiState;
 
 pub fn routes() -> Router<ApiState> {
     Router::new()
         .route("/api/projects/{id}/graphs", get(list).post(create))
         .route("/api/graphs/{id}", put(replace).delete(delete))
+        .route("/api/projects/{id}/release-graph", put(choose_release))
+}
+
+/// The answer is the project's graphs, since choosing one clears the others.
+async fn choose_release(
+    State(state): State<ApiState>,
+    Path(id): Path<String>,
+    JsonBody(request): JsonBody<ReleaseGraphRequest>,
+) -> ApiResult<Json<Vec<DeploymentGraphResponse>>> {
+    Ok(Json(state.graphs.choose_release(uuid("id", &id)?, request.graph_id).await?))
 }
 
 async fn list(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Json<Vec<DeploymentGraphResponse>>> {

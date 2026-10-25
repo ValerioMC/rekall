@@ -1,6 +1,6 @@
 ---
 description: Load a Rekall working context by anchor, e.g. /rk project:vega task:report-builder
-argument-hint: "company:|project:|task: <label> ...  [wrapup [\"how to write it\"]] | [note \"what to keep\"] | [section \"Title\" [\"what it holds\"]] | [plan [flow]] | [generate [kinds:sequence,state] \"what to diagram\"] | [explain \"what to walk through\"] | [inventory] | [assess [advisory:GHSA-xxxx-xxxx-xxxx]] | [step:N start|done [outcome:<name>]]   (labels, not titles)"
+argument-hint: "company:|project:|task: <label> ...  [wrapup [\"how to write it\"]] | [note \"what to keep\"] | [section \"Title\" [\"what it holds\"]] | [plan [flow]] | [generate [kinds:sequence,state] \"what to diagram\"] | [explain \"what to walk through\"] | [inventory] | [assess [advisory:GHSA-xxxx-xxxx-xxxx]] | [step:N start|done [outcome:<name>] [report:\"what you saw\"]]   (labels, not titles)"
 allowed-tools: mcp__rekall__rekall_context, mcp__rekall__rekall_wrapup, mcp__rekall__rekall_step, mcp__rekall__rekall_propose_step, mcp__rekall__rekall_propose_flow, mcp__rekall__rekall_record_commit, mcp__rekall__rekall_note, mcp__rekall__rekall_project_section, mcp__rekall__rekall_diagram, mcp__rekall__rekall_inventory, mcp__rekall__rekall_vulnerabilities, mcp__rekall__rekall_assess_vulnerability, Read, Grep, Glob
 ---
 
@@ -105,7 +105,13 @@ routes (`app-error` -> step 4), and the order they are listed in is not the orde
   with nothing left current. A claim whose
   outcome names no route is refused with the routes there are: pick the one that happened, never
   invent one.
+- When the outcome is a failure, say what you saw: `/rk ... step:N done outcome:failed report:"job
+  test: expected 1.2, got 1.3"`, passed as `report`. Name the failing job or check, the error and where
+  it points. The step the flow goes to shows it in an `<arrived-from>` block: that block, not your
+  memory of this session, is what the next pass works from.
 - A step reached again is another pass. Read its detail again and build on what the last pass left.
+- When the flow met failures, the wrapup written at its end records them as results: one row per
+  failure, what fixed it and where the fix lives.
 
 **A flow runs to its end without me.** Claiming a step on a flow is not a hand-off: Rekall has already
 opened the next one. Do not ask me to tick, review or accept anything between steps, do not stop to say
@@ -140,6 +146,8 @@ done` are how a session drives its own checklist as it works. `step:` takes the 
   Only I do that, in the console, once I have looked at the work.
 - `outcome:<name>` alongside `done`, on a flow, is what happened: pass it as `outcome`. Rekall routes
   by it to the next step (see **The flow**).
+- `report:"..."` alongside `done`, on a flow, is what you saw there: pass it as `report`. Give one with
+  every failure.
 
 The loop, once you are working a checklist:
 

@@ -93,7 +93,14 @@ impl ApiState {
         let jira_issues = connection::JiraIssueService::new(ctx.clone(), project_connections.clone(), tasks.clone(), secrets.clone(), jira);
         let vulnerability_fixes = vulnerability::VulnerabilityFixService::new(ctx.clone(), services.exposures.clone(), tasks.clone(), services.steps.clone());
         let graphs = graph::DeploymentGraphService::new(ctx.clone());
-        let graph_attach = graph::GraphAttachService::new(ctx.clone(), graphs.clone(), services.steps.clone(), services.step_links.clone());
+        let graph_attach = graph::GraphAttachService::new(
+            ctx.clone(),
+            graphs.clone(),
+            tasks.clone(),
+            services.steps.clone(),
+            services.step_links.clone(),
+            rekall_service::flow::StepVisitService::new(ctx.clone()),
+        );
         Self {
             companies: catalog::CompanyService::new(ctx.clone()),
             logos: catalog::CompanyLogoService::new(ctx.clone()),

@@ -2,7 +2,7 @@ import type { ConnectionKind, ProjectConnection } from '@/features/connection/mo
 import type { DraftStep, GraphDraft } from '@/features/graph/model/deployment-graph'
 import type { ConnectionId } from '@/model/branded'
 
-export type StepPresetId = 'push' | 'build' | 'deploy' | 'check' | 'blank'
+export type StepPresetId = 'push' | 'build' | 'deploy' | 'check' | 'fix' | 'blank'
 
 /** A kind of step the editor adds in one click: its words, and the connection kind it reaches. */
 export interface StepPreset {
@@ -19,9 +19,7 @@ export const STEP_PRESETS: readonly StepPreset[] = [
     label: 'Push commit',
     title: 'Push commit',
     kind: 'GITLAB',
-    detail: `Commit the work on this task and push it to the project's repository through this step's connection.
-
-When the flow comes back here, a later step reported a failure: read what it found, fix the code, then commit and push the fix.
+    detail: `Push what is committed on this task to the project's repository through this step's connection. The steps before this one committed it when they were claimed, on a project that commits on claim; on one that does not, commit it first.
 
 Claim \`pushed\` once the push is accepted.`
   },
@@ -32,7 +30,7 @@ Claim \`pushed\` once the push is accepted.`
     kind: 'GITLAB',
     detail: `Follow the pipeline the push started on this step's connection until it finishes.
 
-Claim \`passed\` when every job succeeds. Claim \`failed\` when one fails, naming the job and why: the flow goes back to the push to fix it.`
+Claim \`passed\` when every job succeeds. Claim \`failed\` when one fails, naming the job and why: the flow goes to the fix.`
   },
   {
     id: 'deploy',
@@ -41,7 +39,7 @@ Claim \`passed\` when every job succeeds. Claim \`failed\` when one fails, namin
     kind: 'KUBERNETES',
     detail: `Roll the build the pipeline produced out to this step's cluster and namespace, and wait for the rollout to complete.
 
-Claim \`deployed\` once it is complete, or \`failed\` with what stopped it.`
+Claim \`deployed\` once it is complete, or \`failed\` with what stopped it: the flow goes to the fix.`
   },
   {
     id: 'check',
@@ -50,7 +48,18 @@ Claim \`deployed\` once it is complete, or \`failed\` with what stopped it.`
     kind: 'KUBERNETES',
     detail: `Check the deployment on this step's cluster: pods ready and not restarting, logs free of errors, the application answering.
 
-Claim \`healthy\` when it is, which ends the flow. Claim \`error\` with what you saw: the flow goes back to the push to fix it.`
+Claim \`healthy\` when it is, which ends the flow. Claim \`error\` with what you saw: the flow goes to the fix.`
+  },
+  {
+    id: 'fix',
+    label: 'Fix',
+    title: 'Fix',
+    kind: null,
+    detail: `A later step failed. Read what it reported, find the cause and fix it in the repository: the application code, its tests, the Dockerfile, the manifests or the pipeline definition. Keep the fix to what the failure needs.
+
+Claim \`fixed\` once the fix is in: the flow goes back to the push. Claim \`blocked\`, saying what you saw, when the repository cannot fix it (the cluster is down, a credential is missing, the runner is broken) or the fix belongs to another task, which you open with \`rekall_create_task\`: the flow ends there for a person to decide.
+
+Never change the cluster or the pipeline's settings by hand: a fix that is not in git is lost on the next deploy.`
   },
   { id: 'blank', label: 'Blank step', title: 'New step', kind: null, detail: '' }
 ]
@@ -88,25 +97,27 @@ function preset(id: StepPresetId): StepPreset {
   return STEP_PRESETS.find((candidate) => candidate.id === id)!
 }
 
-/** How many times the loop may come back to the push before the flow stops to report. */
+/** How many times the loop may enter the fix before the flow stops to report. */
 const RELEASE_RETRIES = 3
 
 /**
  * Push, build, deploy, check, each on the project's first connection of its kind. A failed build
- * or deploy and an unhealthy check go back to the push, which may be entered three times.
+ * or deploy and an unhealthy check go to the fix, which may be entered three times and goes back
+ * to the push.
  */
 export function releaseLoop(title: string, bindings: readonly ProjectConnection[]): GraphDraft {
-  const [push, build, deploy, check] = (['push', 'build', 'deploy', 'check'] as const).map((id) =>
+  const [push, build, deploy, check, fix] = (['push', 'build', 'deploy', 'check', 'fix'] as const).map((id) =>
     stepFrom(preset(id), id, bindings)
   )
   return {
     title,
-    description: 'Push, build, deploy and check; a failure goes back to the push to be fixed.',
+    description: 'Push, build, deploy and check; a failure goes to the fix, then back to the push.',
     steps: [
-      { ...push!, maxVisits: RELEASE_RETRIES, routes: [{ outcome: 'pushed', toKey: 'build' }] },
-      { ...build!, routes: [{ outcome: 'passed', toKey: 'deploy' }, { outcome: 'failed', toKey: 'push' }] },
-      { ...deploy!, routes: [{ outcome: 'deployed', toKey: 'check' }, { outcome: 'failed', toKey: 'push' }] },
-      { ...check!, routes: [{ outcome: 'healthy', toKey: null }, { outcome: 'error', toKey: 'push' }] }
+      { ...push!, routes: [{ outcome: 'pushed', toKey: 'build' }] },
+      { ...build!, routes: [{ outcome: 'passed', toKey: 'deploy' }, { outcome: 'failed', toKey: 'fix' }] },
+      { ...deploy!, routes: [{ outcome: 'deployed', toKey: 'check' }, { outcome: 'failed', toKey: 'fix' }] },
+      { ...check!, routes: [{ outcome: 'healthy', toKey: null }, { outcome: 'error', toKey: 'fix' }] },
+      { ...fix!, maxVisits: RELEASE_RETRIES, routes: [{ outcome: 'fixed', toKey: 'push' }, { outcome: 'blocked', toKey: null }] }
     ]
   }
 }

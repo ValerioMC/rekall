@@ -51,6 +51,17 @@ afterEach(() => {
 })
 
 describe('DeploymentGraphPane', () => {
+  it('makes the graph the one laid on every task the console runs', async () => {
+    vi.mocked(graphsApi.chooseReleaseGraph).mockResolvedValue([aGraph({ releaseDefault: true })])
+    const view = await pane()
+
+    await view.get('[data-testid="graph-release-default"] input').setValue(true)
+    await flushPromises()
+
+    expect(graphsApi.chooseReleaseGraph).toHaveBeenCalledWith(PROJECT, 'g-1')
+    expect(useDeploymentGraphsStore().releaseOf(PROJECT)?.id).toBe('g-1')
+  })
+
   it('draws every step and opens the first in the inspector', async () => {
     const view = await pane()
 

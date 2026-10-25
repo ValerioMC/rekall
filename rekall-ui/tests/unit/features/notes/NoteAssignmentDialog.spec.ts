@@ -84,6 +84,8 @@ const task = (
   tagName: null,
   tagIcon: null,
   tagColor: null,
+  graphLaidAt: null,
+  releaseSkipped: false,
   anchor: `project:${projectLabel} task:${label}`,
   updatedAt: '2026-09-01T10:00:00Z'
 })

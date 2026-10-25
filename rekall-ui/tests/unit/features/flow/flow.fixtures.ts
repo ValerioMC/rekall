@@ -45,14 +45,15 @@ export function route(from: string, to: string | null, outcome: string): StepLin
   }
 }
 
-export function visit(step: string, ordinal: number, outcome: string | null, open = false): StepVisit {
+export function visit(step: string, ordinal: number, outcome: string | null, open = false, report: string | null = null): StepVisit {
   return {
     id: `${step}-${ordinal}` as StepVisitId,
     stepId: step as TaskStepId,
     ordinal,
     enteredAt: `2026-10-01T09:0${ordinal}:00Z`,
     leftAt: open ? null : `2026-10-01T09:0${ordinal}:30Z`,
-    outcome
+    outcome,
+    report
   }
 }
 
@@ -131,6 +132,8 @@ export function releaseTask(): Task {
     tagName: null,
     tagIcon: null,
     tagColor: null,
+    graphLaidAt: null,
+    releaseSkipped: false,
     anchor: 'project:vega task:release',
     updatedAt: '2026-10-01T10:00:00Z'
   }

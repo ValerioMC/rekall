@@ -38,11 +38,11 @@ async fn pipeline(world: &World) -> Pipeline {
 }
 
 async fn claim(world: &World, step: &str, outcome: Option<&str>) -> rekall_service::flow::FlowMove {
-    world.services.flow.transition(Some("vega"), "release", Some(step), TaskStepState::Claimed, outcome).await.unwrap()
+    world.services.flow.transition(Some("vega"), "release", Some(step), TaskStepState::Claimed, outcome, None).await.unwrap()
 }
 
 async fn start(world: &World, step: &str) {
-    world.services.flow.transition(Some("vega"), "release", Some(step), TaskStepState::Running, None).await.unwrap();
+    world.services.flow.transition(Some("vega"), "release", Some(step), TaskStepState::Running, None, None).await.unwrap();
 }
 
 async fn views(world: &World, pipeline: &Pipeline) -> Vec<TaskStepView> {
@@ -96,7 +96,7 @@ async fn a_step_with_several_routes_refuses_a_claim_without_an_outcome_and_moves
     let pipeline = pipeline(&world).await;
 
     let refused =
-        world.services.flow.transition(Some("vega"), "release", Some("Deploy"), TaskStepState::Claimed, None).await;
+        world.services.flow.transition(Some("vega"), "release", Some("Deploy"), TaskStepState::Claimed, None, None).await;
 
     assert!(refused.unwrap_err().to_string().contains("`deployed`, `pipeline-error`"));
     let all = views(&world, &pipeline).await;
@@ -135,13 +135,53 @@ async fn starting_another_step_leaves_the_current_one_without_a_route() {
 }
 
 #[tokio::test]
+async fn a_claim_keeps_its_report_on_the_visit_it_leaves() {
+    let world = world().await;
+    let pipeline = pipeline(&world).await;
+    claim(&world, "Build", None).await;
+    claim(&world, "Deploy", Some("deployed")).await;
+
+    world.services.flow.transition(Some("vega"), "release", Some("Test"), TaskStepState::Claimed, Some("app-error"), Some("  `GET /health` answers 500.  ")).await.unwrap();
+
+    let all = views(&world, &pipeline).await;
+    let left = &view(&all, &pipeline.test).visits[0];
+    assert_eq!(left.outcome.as_deref(), Some("app-error"));
+    assert_eq!(left.report.as_deref(), Some("`GET /health` answers 500."), "kept stripped");
+}
+
+#[tokio::test]
+async fn a_report_is_refused_off_a_claim_on_a_flow_or_past_its_length() {
+    let world = world().await;
+    pipeline(&world).await;
+    let flow = &world.services.flow;
+
+    let on_a_start = flow.transition(Some("vega"), "release", Some("Build"), TaskStepState::Running, None, Some("early")).await;
+    let too_long = flow.transition(Some("vega"), "release", Some("Build"), TaskStepState::Claimed, None, Some(&"x".repeat(4_001))).await;
+
+    assert!(on_a_start.is_err(), "a report belongs to the claim that leaves a step");
+    assert!(too_long.unwrap_err().to_string().contains("keep it to 4000"));
+}
+
+#[tokio::test]
+async fn a_report_on_a_plain_checklist_is_refused() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let task = world.task(&project, "release").await;
+    world.step(&task, "Only", 0, TaskStepState::Open).await;
+
+    let refused = world.services.flow.transition(Some("vega"), "release", Some("1"), TaskStepState::Claimed, None, Some("it broke")).await;
+
+    assert!(refused.is_err());
+}
+
+#[tokio::test]
 async fn an_outcome_on_a_plain_checklist_is_refused() {
     let world = world().await;
     let project = world.project("vega", None, false).await;
     let task = world.task(&project, "release").await;
     world.step(&task, "Only", 0, TaskStepState::Open).await;
 
-    let refused = world.services.flow.transition(Some("vega"), "release", Some("1"), TaskStepState::Claimed, Some("passed")).await;
+    let refused = world.services.flow.transition(Some("vega"), "release", Some("1"), TaskStepState::Claimed, Some("passed"), None).await;
 
     assert!(refused.is_err());
 }
@@ -153,7 +193,7 @@ async fn a_plain_checklist_moves_without_recording_visits() {
     let task = world.task(&project, "release").await;
     world.step(&task, "Only", 0, TaskStepState::Open).await;
 
-    let moved = world.services.flow.transition(Some("vega"), "release", Some("1"), TaskStepState::Claimed, None).await.unwrap();
+    let moved = world.services.flow.transition(Some("vega"), "release", Some("1"), TaskStepState::Claimed, None, None).await.unwrap();
 
     assert!(moved.route.is_none());
     assert!(moved.step.visits.is_empty());
@@ -202,7 +242,7 @@ async fn a_route_into_a_draft_is_refused_when_the_flow_reaches_it() {
     let pipeline = pipeline(&world).await;
     world.services.steps.edit(pipeline.deploy.id, None, None, None, Some(true)).await.unwrap();
 
-    let refused = world.services.flow.transition(Some("vega"), "release", Some("Build"), TaskStepState::Claimed, None).await;
+    let refused = world.services.flow.transition(Some("vega"), "release", Some("Build"), TaskStepState::Claimed, None, None).await;
 
     assert!(refused.unwrap_err().to_string().contains("still a draft"));
 }
@@ -260,7 +300,7 @@ async fn a_route_into_a_step_whose_budget_is_spent_is_refused_and_the_claim_roll
     claim(&world, "Test", Some("app-error")).await;
 
     let refused =
-        world.services.flow.transition(Some("vega"), "release", Some("Fix the application"), TaskStepState::Claimed, None).await;
+        world.services.flow.transition(Some("vega"), "release", Some("Fix the application"), TaskStepState::Claimed, None, None).await;
 
     assert!(refused.unwrap_err().to_string().contains("entered 2 times, its whole visit budget"));
     let all = views(&world, &pipeline).await;
@@ -278,7 +318,7 @@ async fn standing_on_a_step_does_not_spend_its_budget_and_a_reset_renews_it() {
     start(&world, "Deploy").await;
     claim(&world, "Deploy", Some("deployed")).await;
     claim(&world, "Test", Some("app-error")).await;
-    assert!(world.services.flow.transition(Some("vega"), "release", Some("Fix the application"), TaskStepState::Claimed, None).await.is_err());
+    assert!(world.services.flow.transition(Some("vega"), "release", Some("Fix the application"), TaskStepState::Claimed, None, None).await.is_err());
 
     world.services.flow.reset(pipeline.task.id).await.unwrap();
     let back = claim(&world, "Fix the application", None).await;
@@ -345,9 +385,9 @@ async fn a_proposed_flow_lands_as_drafts_joined_by_their_routes_and_runs_once_pr
     assert_eq!(fix.max_visits, Some(3));
 
     promote_all(&world, &task).await;
-    world.services.flow.transition(Some("vega"), "release", Some("Deploy"), TaskStepState::Claimed, None).await.unwrap();
+    world.services.flow.transition(Some("vega"), "release", Some("Deploy"), TaskStepState::Claimed, None, None).await.unwrap();
     let failed =
-        world.services.flow.transition(Some("vega"), "release", Some("Test"), TaskStepState::Claimed, Some("app-error")).await.unwrap();
+        world.services.flow.transition(Some("vega"), "release", Some("Test"), TaskStepState::Claimed, Some("app-error"), None).await.unwrap();
     let Some(FlowRoute::Followed { next, .. }) = failed.route else { panic!("expected the app-error route") };
     assert_eq!(next.title, "Fix");
 }
@@ -361,7 +401,7 @@ async fn routes_between_drafts_do_not_make_the_checklist_a_flow_until_they_are_p
     world.step(&task, "Write the notes", 3, TaskStepState::Open).await;
 
     let refused =
-        world.services.flow.transition(Some("vega"), "release", Some("Write the notes"), TaskStepState::Claimed, Some("done")).await;
+        world.services.flow.transition(Some("vega"), "release", Some("Write the notes"), TaskStepState::Claimed, Some("done"), None).await;
 
     assert!(refused.unwrap_err().to_string().contains("carry no routes"));
 }

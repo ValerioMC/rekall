@@ -1,9 +1,9 @@
 use rekall_common::{Id, RekallError, Result};
-use rekall_model::{step_link, task_step, TaskStepState};
+use rekall_model::{step_link, step_visit, task_step, TaskStepState};
 
 use super::{choose_route, FlowMove, FlowRoute, StepLinkService, StepVisitService};
 use crate::step::{TaskStepService, TaskStepView};
-use crate::{in_write, load, Ctx, Tx};
+use crate::{in_write, load, text_rule, Ctx, Tx};
 
 /// A session's move through a task's steps, routed when the task is a flow: a start enters the
 /// step, a claim leaves it by its outcome and opens the step that outcome leads to. On a plain
@@ -28,18 +28,20 @@ impl FlowService {
         step_ref: Option<&str>,
         target: TaskStepState,
         outcome: Option<&str>,
+        report: Option<&str>,
     ) -> Result<FlowMove> {
         in_write!(&self.ctx, |tx| {
             let task = load::resolve_task(tx.db(), project_label, task_label).await?;
             let is_flow = self.links.is_flow_in(&tx, task.id).await?;
             let outcome = outcome_for(is_flow, target, outcome)?;
+            let report = report_for(is_flow, target, report)?;
             let moved = self.steps.transition_in(&tx, &task, step_ref, target).await?;
             let route = match (is_flow, target) {
                 (true, TaskStepState::Running) => {
                     self.visits.enter_in(&tx, &moved).await?;
                     None
                 }
-                (true, TaskStepState::Claimed) => Some(self.leave_by(&tx, &moved, outcome.as_deref()).await?),
+                (true, TaskStepState::Claimed) => Some(self.leave_by(&tx, &moved, outcome.as_deref(), report).await?),
                 _ => None,
             };
             self.steps.publish_in(&mut tx, task.id).await?;
@@ -59,13 +61,13 @@ impl FlowService {
     }
 
     /// Closes the visit on `claimed` by the route its outcome names and enters that route's step.
-    async fn leave_by(&self, tx: &Tx, claimed: &task_step::Model, outcome: Option<&str>) -> Result<FlowRoute> {
+    async fn leave_by(&self, tx: &Tx, claimed: &task_step::Model, outcome: Option<&str>, report: Option<String>) -> Result<FlowRoute> {
         let outgoing = self.links.routes_from_in(tx, claimed.id).await?;
         let Some(link) = choose_route(&claimed.title, &outgoing, outcome)? else {
-            self.visits.leave_in(tx, claimed, None).await?;
+            self.visits.leave_in(tx, claimed, None, report).await?;
             return Ok(FlowRoute::Ended { outcome: None });
         };
-        self.visits.leave_in(tx, claimed, Some(link.outcome.clone())).await?;
+        self.visits.leave_in(tx, claimed, Some(link.outcome.clone()), report).await?;
         let Some(next_step_id) = link.to_step_id else {
             return Ok(FlowRoute::Ended { outcome: Some(link.outcome.clone()) });
         };
@@ -94,6 +96,23 @@ fn outcome_for(is_flow: bool, target: TaskStepState, outcome: Option<&str>) -> R
         return Err(RekallError::illegal("An outcome is passed with `claimed`, when the step ends. Nothing was moved."));
     }
     step_link::normalise_outcome(Some(raw)).map(Some)
+}
+
+/// What the session saw at the step, kept on the visit it leaves. Like an outcome, it belongs to a
+/// claim on a flow, where the next step reads it.
+fn report_for(is_flow: bool, target: TaskStepState, report: Option<&str>) -> Result<Option<String>> {
+    let Some(text) = text_rule::present(report) else {
+        return Ok(None);
+    };
+    if !is_flow || target != TaskStepState::Claimed {
+        return Err(RekallError::illegal(
+            "A report is passed with `claimed` on a task whose steps carry routes, for the step the flow goes to next. Nothing was moved.",
+        ));
+    }
+    let kept = text_rule::within(text, step_visit::REPORT_MAX_CHARACTERS, |length| {
+        format!("The report is {length} characters; keep it to {}: the failing job, the error and where it points.", step_visit::REPORT_MAX_CHARACTERS)
+    })?;
+    Ok(Some(kept))
 }
 
 #[cfg(test)]

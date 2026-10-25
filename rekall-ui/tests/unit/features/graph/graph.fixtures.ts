@@ -11,6 +11,7 @@ export function aGraph(overrides: Partial<DeploymentGraph> = {}): DeploymentGrap
     title: 'Release',
     description: 'How it ships.',
     problem: null,
+    releaseDefault: false,
     createdAt: '2026-10-24T10:00:00Z',
     updatedAt: '2026-10-24T10:00:00Z',
     steps: [

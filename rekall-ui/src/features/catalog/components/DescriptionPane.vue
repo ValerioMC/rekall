@@ -165,6 +165,7 @@ onUnmounted(() => {
               :folder="selectedTask.projectRepoFolder"
             />
             <LaunchClaudeCodeButton
+              :task-id="selectedTask.id"
               :anchors="selectedTask.anchor"
               :folder="selectedTask.projectRepoFolder"
               missing-hint="Set this project's folder on its page to open a session from it"

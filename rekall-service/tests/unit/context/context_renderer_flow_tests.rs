@@ -25,7 +25,7 @@ fn a_flow_names_its_current_step_its_moves_and_every_route() {
     let fix = step(task_id, "Fix the \"app\"", 2, TaskStepState::Open);
     let now = Instant::now();
     let mut left = step_visit::Model::enter(task_id, deploy.id, 1, now);
-    left.leave(Some("deployed".into()), now);
+    left.leave(Some("deployed".into()), None, now);
     let flow = StepFlowRows {
         links: vec![
             step_link::Model::new(task_id, deploy.id, Some(test.id), "deployed".into(), 0, now),

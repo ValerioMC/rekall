@@ -9,6 +9,7 @@ import type { Terminal } from '@/features/claude/model/terminal'
 import type { ProjectId, TaskId, TaskStepId, TerminalId } from '@/model/branded'
 
 const openTerminal = vi.fn()
+const releaseOnRun = vi.fn()
 
 vi.mock('@/features/claude/api/terminal.api', () => ({
   fetchTerminals: vi.fn(),
@@ -51,6 +52,7 @@ function terminal(): Terminal {
 }
 
 function mountButton(folder: string | null = '/code/vega', stepId: TaskStepId | null = null) {
+  useConsoleStore().releaseOnRun = releaseOnRun
   return mount(OpenTerminalButton, { props: { taskId: TASK, folder, stepId } })
 }
 
@@ -58,6 +60,7 @@ describe('the Run here button', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     openTerminal.mockReset()
+    releaseOnRun.mockReset().mockResolvedValue(null)
     vi.useFakeTimers()
   })
 
@@ -192,6 +195,29 @@ describe('the Run here button', () => {
 
     expect(button.attributes('data-phase')).toBe('idle')
     expect(useToastStore().toasts.map((toast) => toast.message)).toContain('no folder on disk')
+  })
+
+  it("lays the project's release graph before the session starts, and says so", async () => {
+    openTerminal.mockResolvedValue(terminal())
+    releaseOnRun.mockResolvedValue('Release')
+
+    await mountButton().get('[data-testid="open-terminal"]').trigger('click')
+    await flushPromises()
+
+    expect(releaseOnRun).toHaveBeenCalledWith(TASK)
+    expect(releaseOnRun.mock.invocationCallOrder[0]!).toBeLessThan(openTerminal.mock.invocationCallOrder[0]!)
+    expect(useToastStore().toasts.map((toast) => toast.message)).toContain('Release laid on the task before it runs.')
+  })
+
+  it('starts the session anyway when the release graph cannot be laid, saying why', async () => {
+    openTerminal.mockResolvedValue(terminal())
+    releaseOnRun.mockRejectedValue(new Error('This task has 1 draft steps.'))
+
+    await mountButton().get('[data-testid="open-terminal"]').trigger('click')
+    await flushPromises()
+
+    expect(openTerminal).toHaveBeenCalled()
+    expect(useToastStore().toasts.map((toast) => toast.message)).toContain('This task has 1 draft steps.')
   })
 
   it('asks for the project folder instead of launching when there is none', async () => {

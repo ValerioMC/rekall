@@ -26,7 +26,7 @@ impl StepVisitService {
             if open.step_id == step.id {
                 return Ok(open);
             }
-            self.close(tx, open, None).await?;
+            self.close(tx, open, None, None).await?;
         }
         let entered = repo::step_visit::count_of_step(tx.db(), step.id).await? as usize;
         refuse_spent_budget(step, entered)?;
@@ -37,9 +37,9 @@ impl StepVisitService {
 
     /// Leaves `step_id` by `outcome`. A step claimed without being started is entered first, so
     /// every pass through it is counted.
-    pub async fn leave_in(&self, tx: &Tx, step: &task_step::Model, outcome: Option<String>) -> Result<step_visit::Model> {
+    pub async fn leave_in(&self, tx: &Tx, step: &task_step::Model, outcome: Option<String>, report: Option<String>) -> Result<step_visit::Model> {
         let open = self.enter_in(tx, step).await?;
-        self.close(tx, open, outcome).await
+        self.close(tx, open, outcome, report).await
     }
 
     /// Forgets every visit of the task: the next start enters the flow afresh.
@@ -47,9 +47,9 @@ impl StepVisitService {
         repo::step_visit::delete_of_task(tx.db(), task_id).await
     }
 
-    async fn close(&self, tx: &Tx, visit: step_visit::Model, outcome: Option<String>) -> Result<step_visit::Model> {
+    async fn close(&self, tx: &Tx, visit: step_visit::Model, outcome: Option<String>, report: Option<String>) -> Result<step_visit::Model> {
         let mut closed = visit;
-        closed.leave(outcome, self.ctx.now());
+        closed.leave(outcome, report, self.ctx.now());
         Ok(closed.into_active_model().reset_all().update(tx.db()).await?)
     }
 }

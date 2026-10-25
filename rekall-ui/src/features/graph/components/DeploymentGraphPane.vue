@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from 'vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
+import AppCheckbox from '@/components/ui/AppCheckbox.vue'
+import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useConnectionsStore } from '@/features/connection/store/connections.store'
 import { useDeploymentGraphsStore } from '@/features/graph/store/deploymentGraphs.store'
 import { isFlowEnd, type RouteTarget } from '@/features/flow/lib/route-target'
@@ -27,9 +29,10 @@ import GraphStepInspector from './GraphStepInspector.vue'
 import GraphStepPalette from './GraphStepPalette.vue'
 
 /**
- * A deployment graph being edited: its name, the canvas the steps are drawn on and the picked
- * step's inspector. Every change is saved on its own a moment later; a change the server refuses
- * stays here with the reason beside the title, and the next edit tries again.
+ * A deployment graph being edited: its name, whether it releases every task the console runs, the
+ * canvas the steps are drawn on and the picked step's inspector. Every change is saved on its own
+ * a moment later; a change the server refuses stays here with the reason beside the title, and the
+ * next edit tries again.
  */
 const props = defineProps<{ graph: DeploymentGraph; project: Project }>()
 
@@ -41,6 +44,7 @@ type SaveState = 'saved' | 'pending' | 'saving' | 'refused'
 
 const graphs = useDeploymentGraphsStore()
 const connections = useConnectionsStore()
+const { run } = useAsyncAction()
 const bindings = computed(() => connections.projectConnectionsOf(props.project.id))
 
 const draft = ref<GraphDraft>(draftOf(props.graph))
@@ -171,6 +175,11 @@ function dropStep(): void {
 const focusIndex = computed(() =>
   focusRoute.value && focusRoute.value.key === selectedKey.value ? focusRoute.value.index : null
 )
+
+/** At most one graph of a project releases its tasks, so choosing this one clears the others. */
+function chooseRelease(on: boolean): void {
+  void run(() => graphs.chooseRelease(props.project.id, on ? props.graph.id : null))
+}
 </script>
 
 <template>
@@ -201,6 +210,13 @@ const focusIndex = computed(() =>
             placeholder="What this graph is for"
             class="focus-ring mt-0.5 w-full rounded-control bg-transparent text-small text-text-muted outline-none placeholder:text-text-subtle"
             data-testid="graph-description"
+          />
+          <AppCheckbox
+            class="mt-2 !text-small !text-text-muted"
+            :model-value="graph.releaseDefault"
+            label="Lay on every task the console runs"
+            data-testid="graph-release-default"
+            @update:model-value="chooseRelease"
           />
         </div>
         <div class="flex shrink-0 items-center gap-2">

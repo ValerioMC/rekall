@@ -21,6 +21,7 @@ export const DeploymentGraphSchema = z.object({
     })
   ),
   problem: z.string().nullable(),
+  releaseDefault: z.boolean(),
   createdAt: z.string(),
   updatedAt: z.string()
 })

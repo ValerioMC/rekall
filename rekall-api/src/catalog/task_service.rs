@@ -98,6 +98,24 @@ impl TaskService {
         })
     }
 
+    /// Leaves the task unreleased when the console runs it, or lets the project's release graph be laid again.
+    pub async fn skip_release(&self, id: Id, skipped: bool) -> Result<TaskResponse> {
+        in_write!(&self.ctx, |tx| {
+            let before = repo::task::require(tx.db(), id).await?;
+            let task = task::Model { release_skipped: skipped, ..before.clone() };
+            let task = repo::update_if_changed(tx.db(), &before, task, self.ctx.now()).await?;
+            response(&tx, &task).await
+        })
+    }
+
+    /// Records that a deployment graph was laid on the task, inside a transaction the caller holds.
+    pub async fn mark_graph_laid_in(&self, tx: &Tx, id: Id) -> Result<()> {
+        let before = repo::task::require(tx.db(), id).await?;
+        let task = task::Model { graph_laid_at: Some(self.ctx.now()), ..before.clone() };
+        repo::update_if_changed(tx.db(), &before, task, self.ctx.now()).await?;
+        Ok(())
+    }
+
     pub async fn delete(&self, id: Id) -> Result<()> {
         in_write!(&self.ctx, |tx| {
             let task = repo::task::require(tx.db(), id).await?;

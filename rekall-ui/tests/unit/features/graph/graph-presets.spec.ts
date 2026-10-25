@@ -20,25 +20,27 @@ function binding(id: string, kind: ProjectConnection['kind']): ProjectConnection
 }
 
 describe('graph-presets', () => {
-  it('builds the release loop on the first connection of each kind, failures back to the push', () => {
+  it('builds the release loop on the first connection of each kind, failures to the fix and back to the push', () => {
     const loop = releaseLoop('Release', [binding('jira', 'JIRA'), binding('gitlab', 'GITLAB'), binding('prod', 'KUBERNETES')])
 
     expect(loop.steps.map((step) => [step.title, step.connectionId])).toEqual([
       ['Push commit', 'gitlab'],
       ['Pipeline build', 'gitlab'],
       ['Deploy', 'prod'],
-      ['Check', 'prod']
+      ['Check', 'prod'],
+      ['Fix', null]
     ])
-    expect(loop.steps[3]!.routes).toEqual([{ outcome: 'healthy', toKey: null }, { outcome: 'error', toKey: 'push' }])
-    expect(loop.steps[0]!.maxVisits).toBe(3)
+    expect(loop.steps[3]!.routes).toEqual([{ outcome: 'healthy', toKey: null }, { outcome: 'error', toKey: 'fix' }])
+    expect(loop.steps[4]!.routes).toEqual([{ outcome: 'fixed', toKey: 'push' }, { outcome: 'blocked', toKey: null }])
+    expect(loop.steps.map((step) => step.maxVisits)).toEqual([null, null, null, null, 3])
     expect(loopsBack(loop.steps)).toBe(true)
   })
 
   it('leaves a step without a connection when the project binds none of its kind', () => {
     const loop = releaseLoop('Release', [binding('gitlab', 'GITLAB')])
 
-    expect(loop.steps.filter((step) => step.connectionId === null).map((step) => step.title)).toEqual(['Deploy', 'Check'])
-    expect(chainOf(loop.steps, () => 'GITLAB').map((link) => link.kind)).toEqual(['GITLAB', 'GITLAB', null, null])
+    expect(loop.steps.filter((step) => step.connectionId === null).map((step) => step.title)).toEqual(['Deploy', 'Check', 'Fix'])
+    expect(chainOf(loop.steps, () => 'GITLAB').map((link) => link.kind)).toEqual(['GITLAB', 'GITLAB', null, null, null])
   })
 
   it('starts a blank graph with one step that loops nowhere', () => {

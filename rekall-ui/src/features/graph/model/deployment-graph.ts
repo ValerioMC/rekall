@@ -35,6 +35,8 @@ export interface DeploymentGraph {
   readonly steps: readonly GraphStep[]
   /** Why the graph cannot run unattended yet, so no task can be attached to it; null when it can. */
   readonly problem: string | null
+  /** Laid on every task of the project the console runs; at most one graph of a project is. */
+  readonly releaseDefault: boolean
   readonly createdAt: string
   readonly updatedAt: string
 }

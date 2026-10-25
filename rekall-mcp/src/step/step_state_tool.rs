@@ -155,6 +155,12 @@ impl McpTool for StepStateTool {
                  one route or none.",
             )
             .optional_string(
+                "report",
+                "Only with `claimed`, on a flow: what you saw, in markdown, kept with this move for the step the \
+                 flow goes to next. Give one whenever the outcome is a failure: the failing job or check, the error \
+                 and where it points. The step that fixes it reads it from there, not from your memory.",
+            )
+            .optional_string(
                 "commit_message",
                 "Only with `claimed`, and only read on an auto-commit project: the commit message. First line a \
                  Conventional Commits subject (`feat: …`, `fix: …`), under 72 characters. Then a blank line and a body \
@@ -170,11 +176,12 @@ impl McpTool for StepStateTool {
         let raw_state = args.required_string("state")?;
         let commit_message = args.optional_string("commit_message");
         let outcome = args.optional_string("outcome");
+        let report = args.optional_string("report");
         let requested = parse_state(&raw_state)?;
 
         let flow_move = self
             .flow
-            .transition(target.project_label.as_deref(), &target.task_label, Some(&step_ref), requested, outcome.as_deref())
+            .transition(target.project_label.as_deref(), &target.task_label, Some(&step_ref), requested, outcome.as_deref(), report.as_deref())
             .await
             .map_err(|e| told(e, QUALIFY_WITH_PROJECT))?;
 

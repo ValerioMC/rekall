@@ -12,6 +12,7 @@ pub struct StepVisitView {
     pub entered_at: Instant,
     pub left_at: Option<Instant>,
     pub outcome: Option<String>,
+    pub report: Option<String>,
 }
 
 impl StepVisitView {
@@ -23,6 +24,7 @@ impl StepVisitView {
             entered_at: visit.entered_at,
             left_at: visit.left_at,
             outcome: visit.outcome.clone(),
+            report: visit.report.clone(),
         }
     }
 

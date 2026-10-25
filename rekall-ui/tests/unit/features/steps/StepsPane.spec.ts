@@ -39,6 +39,8 @@ function makeTask(): Task {
     tagName: null,
     tagIcon: null,
     tagColor: null,
+    graphLaidAt: null,
+    releaseSkipped: false,
     anchor: 'project:vega task:report-builder',
     updatedAt: '2026-10-01T10:00:00Z'
   }
@@ -101,6 +103,7 @@ function render() {
         LaunchClaudeCodeButton: true,
         LogCommitButton: true,
         CommitReferenceList: true,
+        GraphAttachPanel: { template: '<section data-testid="graph-attach" />' },
         AppConfirm: {
           template: '<div data-testid="confirm"><button data-testid="confirm-yes" @click="$emit(\'confirm\')" /></div>'
         }
@@ -167,6 +170,22 @@ describe('StepsPane', () => {
       await pane.find('[data-testid="attach"]').trigger('click')
 
       expect(pane.find('step-flow-view-stub').exists()).toBe(routed)
+      pane.unmount()
+    }
+  })
+
+  it('offers a graph after a checklist not yet released, and not once one was laid or while drafts wait', () => {
+    const cases: [TaskStep[], string | null, boolean][] = [
+      [[makeStep('s1', 0, 'OPEN')], null, true],
+      [[makeStep('s1', 0, 'OPEN')], '2026-10-01T08:00:00Z', false],
+      [[makeStep('s1', 0, 'OPEN'), makeStep('s2', 1, 'DRAFT')], null, false]
+    ]
+    for (const [steps, graphLaidAt, offered] of cases) {
+      const store = seed(steps)
+      store.tasks = [{ ...makeTask(), graphLaidAt }]
+      const pane = render()
+
+      expect(pane.find('[data-testid="graph-attach"]').exists()).toBe(offered)
       pane.unmount()
     }
   })

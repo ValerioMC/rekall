@@ -93,6 +93,7 @@ function segmentClass(step: TaskStep): string {
         />
         <OpenTerminalButton :task-id="task.id" :step-id="currentId" :folder="task.projectRepoFolder" />
         <LaunchClaudeCodeButton
+          :task-id="task.id"
           :anchors="task.anchor"
           :folder="task.projectRepoFolder"
           missing-hint="Set this project's folder on its page to open a session from it"

@@ -44,6 +44,8 @@ function taskStub(id: TaskId, projectId: ProjectId): Task {
     tagName: null,
     tagIcon: null,
     tagColor: null,
+    graphLaidAt: null,
+    releaseSkipped: false,
     anchor: 'project:vega task:report-builder',
     updatedAt: '2026-08-29T10:00:00.000Z'
   }

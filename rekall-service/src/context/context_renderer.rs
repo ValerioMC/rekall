@@ -90,6 +90,7 @@ impl ContextRenderer {
         for step in &steps {
             let connection = connections.iter().find(|connection| connection.step_id == step.id);
             out.push_str(&render_step(step, connection, wrapup, references));
+            out.push_str(&render_arrival(step, &steps));
             out.push_str(&render_routes(step, &steps));
         }
         if drafts > 0 {
@@ -412,6 +413,32 @@ fn render_step(
         out.push('\n');
     }
     out
+}
+
+/// On the current step, what the step the flow came from reported as it left, so a pass sent here
+/// to fix something works from what was seen rather than from a session's memory.
+fn render_arrival(step: &TaskStepView, steps: &[&TaskStepView]) -> String {
+    let Some(open) = step.visits.iter().find(|visit| visit.is_open()) else {
+        return String::new();
+    };
+    let Some((from, left)) = steps
+        .iter()
+        .find_map(|candidate| candidate.visits.iter().find(|visit| visit.ordinal == open.ordinal - 1).map(|visit| (candidate, visit)))
+    else {
+        return String::new();
+    };
+    let Some(report) = left.report.as_deref() else {
+        return String::new();
+    };
+    let outcome = left.outcome.as_deref().unwrap_or("its only route");
+    let arrival = format!(
+        "The flow came here from step {number} \"{}\", which ended `{outcome}` and reported this. It is what this pass works from:\n\n\
+         <arrived-from step=\"{number}\" outcome=\"{outcome}\">\n{}\n</arrived-from>",
+        from.title,
+        truncate(Some(report), MAX_DOCUMENT_CHARACTERS),
+        number = from.position + 1
+    );
+    format!("{}\n", indent(&arrival))
 }
 
 /// The connection a step works through. One the project no longer binds has no line in

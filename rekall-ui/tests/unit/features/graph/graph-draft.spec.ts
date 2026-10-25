@@ -28,6 +28,7 @@ describe('graph-draft', () => {
       title: 'Release',
       description: '',
       problem: null,
+      releaseDefault: false,
       createdAt: '',
       updatedAt: '',
       steps: [

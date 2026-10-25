@@ -88,6 +88,8 @@ export const TaskSchema = z.object({
   tagName: z.string().nullable(),
   tagIcon: z.string().nullable(),
   tagColor: z.string().nullable(),
+  graphLaidAt: z.string().nullable(),
+  releaseSkipped: z.boolean(),
   anchor: z.string(),
   updatedAt: z.string()
 })
@@ -114,7 +116,8 @@ export const StepVisitSchema = z.object({
   ordinal: z.number().int(),
   enteredAt: z.string(),
   leftAt: z.string().nullable(),
-  outcome: z.string().nullable()
+  outcome: z.string().nullable(),
+  report: z.string().nullable()
 })
 
 export const TaskStepSchema = z.object({

@@ -74,6 +74,32 @@ impl DeploymentGraphService {
         })
     }
 
+    /// Makes `graph_id` the one graph the project releases every task it runs with, or none.
+    pub async fn choose_release(&self, project_id: Id, graph_id: Option<Id>) -> Result<Vec<DeploymentGraphResponse>> {
+        in_write!(&self.ctx, |tx| {
+            repo::project::require(tx.db(), project_id).await?;
+            let graphs = repo::deployment_graph::list_of_project(tx.db(), project_id).await?;
+            if let Some(chosen) = graph_id {
+                require_of_project(&tx, chosen, project_id).await?;
+            }
+            let mut answered = Vec::with_capacity(graphs.len());
+            for before in graphs {
+                let graph = deployment_graph::Model { release_default: Some(before.id) == graph_id, ..before.clone() };
+                let graph = repo::update_if_changed(tx.db(), &before, graph, self.ctx.now()).await?;
+                answered.push(self.stored_of(&tx, graph).await?.response()?);
+            }
+            Ok::<_, RekallError>(answered)
+        })
+    }
+
+    /// The project's release graph with its steps and routes, inside a transaction the caller holds.
+    pub async fn release_default_in(&self, tx: &Tx, project_id: Id) -> Result<Option<StoredGraph>> {
+        match repo::deployment_graph::release_default_of_project(tx.db(), project_id).await? {
+            Some(graph) => Ok(Some(self.stored_of(tx, graph).await?)),
+            None => Ok(None),
+        }
+    }
+
     /// The graph with its steps and routes, inside a transaction the caller holds.
     pub async fn stored_in(&self, tx: &Tx, id: Id) -> Result<StoredGraph> {
         let graph = repo::deployment_graph::require(tx.db(), id).await?;
@@ -115,6 +141,14 @@ impl DeploymentGraphService {
         }
         Ok(())
     }
+}
+
+async fn require_of_project(tx: &Tx, graph_id: Id, project_id: Id) -> Result<()> {
+    let graph = repo::deployment_graph::require(tx.db(), graph_id).await?;
+    if graph.project_id == project_id {
+        return Ok(());
+    }
+    Err(RekallError::illegal(format!("'{}' belongs to another project. A project releases with its own graphs.", graph.title)))
 }
 
 fn title_of(raw: Option<&str>) -> Result<String> {

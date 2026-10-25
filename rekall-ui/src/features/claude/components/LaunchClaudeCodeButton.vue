@@ -4,6 +4,8 @@ import { canLaunchClaudeCode, launchClaudeCode } from '@/common/native/desktop'
 import { skipsPermissions } from '@/common/config/claude-launch'
 import { useToastStore } from '@/stores/toast.store'
 import StepSeal from '@/features/steps/components/StepSeal.vue'
+import { useReleaseOnRun } from '@/features/graph/composables/useReleaseOnRun'
+import type { TaskId } from '@/model/branded'
 
 defineOptions({ inheritAttrs: false })
 
@@ -11,9 +13,12 @@ const props = defineProps<{
   anchors: string
   folder: string | null
   missingHint?: string
+  /** The task the session runs, whose project's release graph is laid first. */
+  taskId?: TaskId
 }>()
 
 const toast = useToastStore()
+const { releaseBeforeRun } = useReleaseOnRun()
 
 const available = canLaunchClaudeCode()
 const descriptionId = useId()
@@ -71,6 +76,7 @@ async function launch(): Promise<void> {
     return
   }
   phase.value = 'launching'
+  if (props.taskId) await releaseBeforeRun(props.taskId)
   try {
     const terminal = await launchClaudeCode({
       directory: props.folder,

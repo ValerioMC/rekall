@@ -5,7 +5,8 @@ import type { TaskStepId } from '@/model/branded'
 
 /**
  * The way the work went, move by move: each step it entered with its move number and the
- * outcome it left by, the open one last. The move count leads; reset forgets the trail.
+ * outcome it left by, the open one last. An outcome left with a report is underlined and shows
+ * it on hover. The move count leads; reset forgets the trail.
  */
 const props = defineProps<{
   trail: readonly FlowMove[]
@@ -18,6 +19,11 @@ defineEmits<{
 }>()
 
 const strip = ref<HTMLElement | null>(null)
+
+function moveTitle(move: FlowMove): string {
+  const entered = `Move ${move.ordinal}: ${move.step.title}`
+  return move.report ? `${entered}, left by ${move.outcome ?? 'its only route'}: ${move.report}` : entered
+}
 
 // A new move lands at the end of the strip; keep it in view.
 watch(
@@ -58,14 +64,20 @@ watch(
             move.step.id === selectedId && 'outline outline-1 outline-anchor'
           ]"
           :aria-current="move.open ? 'step' : undefined"
-          :title="`Move ${move.ordinal}: ${move.step.title}`"
+          :title="moveTitle(move)"
           data-testid="flow-move"
           @click="$emit('select', move.step.id)"
         >
           <span class="font-mono text-micro tabular-nums opacity-70">{{ move.ordinal }}</span>
           <span class="max-w-[14ch] truncate">{{ move.step.title }}</span>
         </button>
-        <span v-if="move.outcome" class="font-mono text-micro text-text-subtle" aria-hidden="true"
+        <span
+          v-if="move.outcome"
+          class="font-mono text-micro text-text-subtle"
+          :class="move.report && 'cursor-help underline decoration-dotted underline-offset-2'"
+          :title="move.report ?? undefined"
+          aria-hidden="true"
+          data-testid="flow-move-outcome"
           >{{ move.outcome }} ›</span
         >
         <span v-else-if="!move.open" class="text-micro text-text-subtle" aria-hidden="true">›</span>
