@@ -8,6 +8,7 @@ mod dependency_inventory_service;
 mod inventory_stream_event;
 mod inventory_summary_view;
 mod inventory_written;
+mod manifest_freshness;
 mod project_dependency_view;
 
 pub mod rules;

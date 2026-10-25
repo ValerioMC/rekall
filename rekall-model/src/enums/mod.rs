@@ -3,6 +3,7 @@
 #[macro_use]
 mod string_enum;
 
+mod advisory_severity;
 mod connection_kind;
 mod document_context_mode;
 mod ecosystem;
@@ -15,6 +16,7 @@ mod task_status;
 mod task_step_state;
 mod wrapup_author;
 
+pub use advisory_severity::AdvisorySeverity;
 pub use connection_kind::ConnectionKind;
 pub use document_context_mode::DocumentContextMode;
 pub use ecosystem::Ecosystem;

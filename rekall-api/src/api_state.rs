@@ -12,7 +12,7 @@ use rekall_service::section::ProjectSectionService;
 use rekall_service::step::TaskStepService;
 use rekall_service::timeentry::TimeEntryService;
 use rekall_service::token::TokenUsageService;
-use rekall_service::vulnerability::{SecurityAdvisoryService, VulnerabilityExposureService, VulnerabilityScanService};
+use rekall_service::vulnerability::{ScanSettingsService, SecurityAdvisoryService, VulnerabilityExposureService, VulnerabilityScanService};
 use rekall_service::wrapup::WrapupService;
 use rekall_service::Services;
 
@@ -36,6 +36,7 @@ pub struct ApiState {
     pub advisories: SecurityAdvisoryService,
     pub exposures: VulnerabilityExposureService,
     pub scans: VulnerabilityScanService,
+    pub scan_settings: ScanSettingsService,
     pub vulnerability_fixes: vulnerability::VulnerabilityFixService,
     pub companies: catalog::CompanyService,
     pub logos: catalog::CompanyLogoService,
@@ -65,7 +66,7 @@ pub struct ApiState {
 impl ApiState {
     /// The composition root of the API: `services` is taken apart here, so each controller
     /// reaches only the services it calls. `user_home` is where the path picker starts; `scans`
-    /// is built by the caller, which also runs it on a schedule.
+    /// is built by the caller, which also runs it on a schedule, over the same `scan_settings`.
     pub fn new(
         services: Services,
         stream: Arc<StepEventStream>,
@@ -73,6 +74,7 @@ impl ApiState {
         secrets: Arc<dyn SecretStore>,
         jira: Arc<dyn JiraIssues>,
         scans: VulnerabilityScanService,
+        scan_settings: ScanSettingsService,
     ) -> Self {
         let ctx = services.ctx.clone();
         let tasks = catalog::TaskService::new(ctx.clone(), services.review.clone(), services.time_entries.clone());
@@ -130,6 +132,7 @@ impl ApiState {
             advisories: services.advisories,
             exposures: services.exposures,
             scans,
+            scan_settings,
             vulnerability_fixes,
             stream,
         }

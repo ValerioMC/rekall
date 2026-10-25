@@ -42,7 +42,7 @@ impl Services {
         let flow = flow::FlowService::new(ctx.clone(), steps.clone(), step_links.clone(), flow::StepVisitService::new(ctx.clone()));
         let flow_proposals = flow::FlowProposalService::new(ctx.clone(), steps.clone(), step_links.clone());
         let inventory = inventory::DependencyInventoryService::new(ctx.clone());
-        let exposures = vulnerability::VulnerabilityExposureService::new(ctx.clone());
+        let exposures = vulnerability::VulnerabilityExposureService::new(ctx.clone(), commit::GitRepositoryInspector);
         Self {
             task_authoring: task::TaskAuthoringService::new(ctx.clone(), steps.clone()),
             steps,

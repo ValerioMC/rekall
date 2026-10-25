@@ -364,7 +364,7 @@ the critical advisories of the GitHub Advisory Database and warns on its Securit
 
 ## Assessing
 
-`/rk project:vega assess advisory:GHSA-xxxx-xxxx-xxxx` means: decide whether that critical advisory
+`/rk project:vega assess advisory:GHSA-xxxx-xxxx-xxxx` means: decide whether that advisory
 really affects the project, and record the verdict with `rekall_assess_vulnerability`. A scan only
 knows the project declares a vulnerable version; whether the flaw can be reached is in the code.
 

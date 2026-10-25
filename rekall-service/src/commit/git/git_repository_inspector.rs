@@ -20,6 +20,16 @@ impl GitRepositoryInspector {
         answer(folder, &["config", "--get", "remote.origin.url"]).await
     }
 
+    /// The commit `HEAD` points at; none when the folder is no repository or has no commit yet.
+    pub async fn head(&self, folder: &Path) -> Option<String> {
+        answer(folder, &["rev-parse", "HEAD"]).await
+    }
+
+    /// How many commits `HEAD` has that `commit` does not; none when git does not know `commit`.
+    pub async fn commits_since(&self, folder: &Path, commit: &str) -> Option<u32> {
+        answer(folder, &["rev-list", "--count", &format!("{commit}..HEAD")]).await?.parse().ok()
+    }
+
     pub async fn inspect(&self, folder: Option<&str>) -> RepositoryStatus {
         let Some(folder) = folder.filter(|f| !jstr::is_blank(f)) else {
             return RepositoryStatus::unset();

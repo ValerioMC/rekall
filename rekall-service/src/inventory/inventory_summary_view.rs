@@ -4,7 +4,8 @@ use rekall_common::{Id, Instant};
 use rekall_model::{project_dependency, Ecosystem};
 use serde::Serialize;
 
-/// A project's inventory at a glance: how many dependencies, per ecosystem, and when it was recorded.
+/// A project's inventory at a glance: how many dependencies, per ecosystem, when it was recorded,
+/// and which of the manifests it was read from changed since.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InventorySummaryView {
@@ -12,6 +13,7 @@ pub struct InventorySummaryView {
     pub dependency_count: usize,
     pub ecosystems: BTreeMap<&'static str, usize>,
     pub recorded_at: Instant,
+    pub changed_manifests: Vec<String>,
 }
 
 impl InventorySummaryView {
@@ -22,6 +24,6 @@ impl InventorySummaryView {
         for row in rows {
             *ecosystems.entry(Ecosystem::name(&row.ecosystem)).or_insert(0) += 1;
         }
-        Some(Self { project_id, dependency_count: rows.len(), ecosystems, recorded_at })
+        Some(Self { project_id, dependency_count: rows.len(), ecosystems, recorded_at, changed_manifests: Vec::new() })
     }
 }

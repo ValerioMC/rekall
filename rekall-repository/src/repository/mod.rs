@@ -41,6 +41,6 @@ pub use skill::{skill_placement, tag_skill, task_skill};
 pub use step::task_step;
 pub use timeentry::time_entry;
 pub use token::{token_usage, transcript_scan};
-pub use vulnerability::{security_advisory, vulnerability_exposure};
+pub use vulnerability::{scan_scope, security_advisory, vulnerability_exposure};
 pub use query_support::{at_most_one, contains_ignore_case, equals_ignore_case};
 pub use stamped_update::update_if_changed;

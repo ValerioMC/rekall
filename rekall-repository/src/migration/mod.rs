@@ -27,6 +27,7 @@ mod m048_exposure_conclusion;
 mod m049_deployment_graph;
 mod m050_graph_step_place;
 mod m051_binding_label;
+mod m052_advisory_reach;
 mod migration_support;
 mod migrator;
 

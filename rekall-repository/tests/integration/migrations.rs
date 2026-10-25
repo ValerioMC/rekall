@@ -115,7 +115,7 @@ async fn a_database_written_by_v0_2_moves_onto_the_baseline_with_its_rows() {
     let database = rekall_repository::open(&path).await.unwrap();
     let db = &database.conn;
 
-    assert_eq!(applied_versions(db).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision", "047-vulnerability", "048-exposure-conclusion", "049-deployment-graph", "050-graph-step-place", "051-binding-label"]);
+    assert_eq!(applied_versions(db).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision", "047-vulnerability", "048-exposure-conclusion", "049-deployment-graph", "050-graph-step-place", "051-binding-label", "052-advisory-reach"]);
     let task = Task::find().one(db).await.unwrap().unwrap();
     assert_eq!((task.label.as_str(), task.title.as_str()), ("report", "Report"));
     let wrapup = Wrapup::find().one(db).await.unwrap().unwrap();
@@ -132,7 +132,7 @@ async fn a_database_on_the_baseline_opens_again_unchanged() {
 
     let database = rekall_repository::open(&path).await.unwrap();
 
-    assert_eq!(applied_versions(&database.conn).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision", "047-vulnerability", "048-exposure-conclusion", "049-deployment-graph", "050-graph-step-place", "051-binding-label"]);
+    assert_eq!(applied_versions(&database.conn).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision", "047-vulnerability", "048-exposure-conclusion", "049-deployment-graph", "050-graph-step-place", "051-binding-label", "052-advisory-reach"]);
 }
 
 #[tokio::test]
@@ -205,6 +205,42 @@ async fn a_binding_made_before_051_takes_its_connections_label_and_a_project_may
         .unwrap();
     assert!(db
         .execute_unprepared("INSERT INTO project_connection (id, project_id, connection_id, label, created_at, updated_at) VALUES ('b3', 'p', 'g', 'billing', 't', 't')")
+        .await
+        .is_err());
+}
+
+#[tokio::test]
+async fn an_exposure_judged_before_052_keeps_its_verdict_and_a_second_version_of_its_package_may_join_it() {
+    use sea_orm_migration::MigratorTrait;
+    let options = SqliteConnectOptions::new().filename(":memory:").foreign_keys(false);
+    let pool = SqlitePoolOptions::new().max_connections(1).connect_with(options).await.unwrap();
+    let db = SqlxSqliteConnector::from_sqlx_sqlite_pool(pool);
+    let before_052 = rekall_repository::migration::Migrator::migrations().iter().position(|migration| migration.name() == "052-advisory-reach").unwrap() as u32;
+    rekall_repository::migration::Migrator::up(&db, Some(before_052)).await.unwrap();
+    for statement in [
+        "INSERT INTO company (id, name, created_at, updated_at) VALUES ('c', 'Acme', 't', 't')",
+        "INSERT INTO project (id, label, title, status, icon, auto_commit, company_id, created_at, updated_at) VALUES ('p', 'vega', 'Vega', 'ACTIVE', 'folder', 0, 'c', 't', 't')",
+        "INSERT INTO security_advisory (id, ghsa_id, summary, description, url, published_at, affected_json, created_at, updated_at) VALUES ('a', 'GHSA-aaaa-aaaa-aaaa', 'RCE', '', 'u', 't', '[]', 't', 't')",
+        "INSERT INTO vulnerability_exposure (id, project_id, advisory_id, ecosystem, package_name, package_version, verdict, reasoning, conclusion, assessed_at, created_at, updated_at) VALUES ('e', 'p', 'a', 'RUST', 'hashbrown', '0.12.3', 'NOT_AFFECTED', 'never called', 'Vega never hashes input.', 't', 't', 't')",
+    ] {
+        db.execute_unprepared(statement).await.unwrap();
+    }
+
+    rekall_repository::migration::Migrator::up(&db, None).await.unwrap();
+
+    let kept = db
+        .query_one_raw(sea_orm::Statement::from_string(db.get_database_backend(), "SELECT verdict || '|' || conclusion || '|' || severity FROM vulnerability_exposure JOIN security_advisory ON security_advisory.id = advisory_id WHERE vulnerability_exposure.id = 'e'"))
+        .await
+        .unwrap()
+        .unwrap()
+        .try_get_by_index::<String>(0)
+        .unwrap();
+    assert_eq!(kept, "NOT_AFFECTED|Vega never hashes input.|CRITICAL");
+    db.execute_unprepared("INSERT INTO vulnerability_exposure (id, project_id, advisory_id, ecosystem, package_name, package_version, created_at, updated_at) VALUES ('e2', 'p', 'a', 'RUST', 'hashbrown', '0.14.5', 't', 't')")
+        .await
+        .unwrap();
+    assert!(db
+        .execute_unprepared("INSERT INTO vulnerability_exposure (id, project_id, advisory_id, ecosystem, package_name, package_version, created_at, updated_at) VALUES ('e3', 'p', 'a', 'RUST', 'hashbrown', '0.14.5', 't', 't')")
         .await
         .is_err());
 }

@@ -19,6 +19,7 @@ pub async fn list_all(db: &impl ConnectionTrait) -> Result<Vec<Model>, RekallErr
         .order_by_asc(Column::ProjectId)
         .order_by_asc(Column::Ecosystem)
         .order_by_asc(Column::Name)
+        .order_by_asc(Column::Version)
         .all(db)
         .await?)
 }

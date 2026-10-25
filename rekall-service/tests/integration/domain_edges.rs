@@ -28,7 +28,7 @@ const ALLOWED: [(&str, &[&str]); 18] = [
     ("task", &["step"]),
     ("timeentry", &[]),
     ("token", &[]),
-    ("vulnerability", &["inventory"]),
+    ("vulnerability", &["commit", "connection", "inventory"]),
     ("wrapup", &["review"]),
 ];
 

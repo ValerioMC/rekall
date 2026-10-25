@@ -19,7 +19,7 @@ use rekall_claude::ClaudeState;
 use rekall_repository::Database;
 use rekall_service::connection::{ConnectionAccessService, JiraIssues, RememberingSecretStore, SecretStore};
 use rekall_service::timeentry::IDLE_AFTER;
-use rekall_service::vulnerability::{AdvisoryFeed, VulnerabilityScanService};
+use rekall_service::vulnerability::{AdvisoryFeed, ScanSettingsService, VulnerabilityScanService};
 use rekall_service::{Ctx, EventBus, Services};
 use tracing::warn;
 
@@ -101,16 +101,18 @@ impl Instance {
         };
         let advisory_feed: Arc<dyn AdvisoryFeed> = match &options.advisory_feed {
             Some(feed) => feed.clone(),
-            None => Arc::new(GithubAdvisoryFeed::new()),
+            None => Arc::new(GithubAdvisoryFeed::new(secrets.clone())),
         };
+        let scan_settings = ScanSettingsService::new(ctx.clone(), secrets.clone());
         let vulnerability_scans = VulnerabilityScanService::new(
             ctx.clone(),
             advisory_feed,
             services.inventory.clone(),
             services.advisories.clone(),
             services.exposures.clone(),
+            scan_settings.clone(),
         );
-        let api = ApiState::new(services.clone(), stream.clone(), config.user_home.clone(), secrets.clone(), jira_issues, vulnerability_scans.clone());
+        let api = ApiState::new(services.clone(), stream.clone(), config.user_home.clone(), secrets.clone(), jira_issues, vulnerability_scans.clone(), scan_settings);
         let mcp = rekall_mcp::McpController::new(rekall_mcp::tool_registry::all(&services));
 
         let claude_config = &config.claude;

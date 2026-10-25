@@ -13,7 +13,7 @@ use rekall_app::{AppConfig, Properties, Running, StartOptions};
 use async_trait::async_trait;
 use rekall_model::Ecosystem;
 use rekall_service::connection::InMemorySecretStore;
-use rekall_service::vulnerability::{AdvisoryFeed, AdvisoryFeedFailure, PackageVersion, PublishedAdvisory};
+use rekall_service::vulnerability::{AdvisoryFeed, AdvisoryFeedFailure, PackageVersion, PublishedAdvisory, ScanScope};
 use rekall_service::Services;
 use sea_orm::{ConnectionTrait, DbBackend, Statement, Value as DbValue};
 use serde_json::{json, Value};
@@ -72,7 +72,7 @@ impl AdvisoryFeed for SilentFeed {
         Ok(Vec::new())
     }
 
-    async fn critical_affecting(&self, _ecosystem: Ecosystem, _packages: &[PackageVersion]) -> Result<Vec<PublishedAdvisory>, AdvisoryFeedFailure> {
+    async fn affecting(&self, _ecosystem: Ecosystem, _packages: &[PackageVersion], _scope: ScanScope) -> Result<Vec<PublishedAdvisory>, AdvisoryFeedFailure> {
         Ok(Vec::new())
     }
 }

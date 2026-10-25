@@ -6,7 +6,7 @@ use rekall_repository::repository as repo;
 
 use crate::{in_read, load, Ctx, Tx};
 
-use super::{rules, DeclaredDependency, InventoryStreamEvent, InventorySummaryView, InventoryWritten, ProjectDependencyView};
+use super::{manifest_freshness, rules, DeclaredDependency, InventoryStreamEvent, InventorySummaryView, InventoryWritten, ProjectDependencyView};
 
 /// The dependencies each project declares: listed for the console and a scan, written whole by a session.
 #[derive(Clone)]
@@ -27,9 +27,10 @@ impl DependencyInventoryService {
         })
     }
 
-    /// Every project's inventory at a glance; a project without one is not listed.
+    /// Every project's inventory at a glance, with the manifests changed since it was recorded; a
+    /// project without one is not listed.
     pub async fn summaries(&self) -> Result<Vec<InventorySummaryView>> {
-        Ok(self.inventoried_projects().await?.iter().filter_map(|(project, rows)| InventorySummaryView::of(project.id, rows)).collect())
+        Ok(self.inventoried_projects().await?.iter().filter_map(|(project, rows)| summary_of(project, rows)).collect())
     }
 
     /// Every project that holds an inventory, with its dependencies, by project label.
@@ -54,4 +55,10 @@ impl DependencyInventoryService {
         tx.publish(InventoryStreamEvent { project_id: project.id });
         Ok(written)
     }
+}
+
+fn summary_of(project: &project::Model, rows: &[project_dependency::Model]) -> Option<InventorySummaryView> {
+    let summary = InventorySummaryView::of(project.id, rows)?;
+    let changed_manifests = manifest_freshness::changed_since(project.repo_folder.as_deref(), rows, summary.recorded_at);
+    Some(InventorySummaryView { changed_manifests, ..summary })
 }

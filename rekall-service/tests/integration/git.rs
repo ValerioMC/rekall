@@ -241,3 +241,25 @@ async fn the_inspector_reads_where_origin_points_and_nothing_without_one() {
 
     assert_eq!(GitRepositoryInspector.origin_url(repo.path()).await.as_deref(), Some("git@gitlab.example.com:acme/billing.git"));
 }
+
+#[tokio::test]
+async fn the_inspector_counts_the_commits_made_since_a_given_one() {
+    let repo = tempfile::tempdir().unwrap();
+    let repo = repo.path();
+    init_with_identity(repo);
+    assert_eq!(GitRepositoryInspector.head(repo).await, None, "a repository with no commit has no head");
+    fs::write(repo.join("a.txt"), "a").unwrap();
+    git(repo, &["add", "-A"]);
+    commit(repo, "seed");
+    let seed = GitRepositoryInspector.head(repo).await.unwrap();
+    assert_eq!(GitRepositoryInspector.commits_since(repo, &seed).await, Some(0));
+
+    for content in ["b", "c"] {
+        fs::write(repo.join("a.txt"), content).unwrap();
+        git(repo, &["add", "-A"]);
+        commit(repo, content);
+    }
+
+    assert_eq!(GitRepositoryInspector.commits_since(repo, &seed).await, Some(2));
+    assert_eq!(GitRepositoryInspector.commits_since(repo, "0123456789abcdef0123456789abcdef01234567").await, None, "a commit git does not know");
+}

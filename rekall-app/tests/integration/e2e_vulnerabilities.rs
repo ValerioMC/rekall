@@ -8,8 +8,8 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use rekall_app::StartOptions;
 use rekall_common::Instant;
-use rekall_model::Ecosystem;
-use rekall_service::vulnerability::{AdvisoryFeed, AdvisoryFeedFailure, AffectedPackage, PackageVersion, PublishedAdvisory};
+use rekall_model::{AdvisorySeverity, Ecosystem};
+use rekall_service::vulnerability::{AdvisoryFeed, AdvisoryFeedFailure, AffectedPackage, PackageVersion, PublishedAdvisory, ScanScope};
 use serde_json::json;
 use support::{app_with, App};
 
@@ -24,6 +24,8 @@ fn lodash_advisory() -> PublishedAdvisory {
         description: "`zipObjectDeep` lets an attacker set properties on Object.prototype.".into(),
         url: "https://github.com/advisories/GHSA-p6mc-m468-83gw".into(),
         published_at: Instant::now(),
+        severity: AdvisorySeverity::Critical,
+        malware: false,
         packages: vec![AffectedPackage {
             ecosystem: Ecosystem::Npm,
             name: "lodash".into(),
@@ -40,7 +42,7 @@ impl AdvisoryFeed for LodashFeed {
         Ok(vec![lodash_advisory()])
     }
 
-    async fn critical_affecting(&self, ecosystem: Ecosystem, packages: &[PackageVersion]) -> Result<Vec<PublishedAdvisory>, AdvisoryFeedFailure> {
+    async fn affecting(&self, ecosystem: Ecosystem, packages: &[PackageVersion], _scope: ScanScope) -> Result<Vec<PublishedAdvisory>, AdvisoryFeedFailure> {
         let reached = ecosystem == Ecosystem::Npm && packages.iter().any(|package| package.name == "lodash" && package.version != "4.17.21");
         Ok(if reached { vec![lodash_advisory()] } else { Vec::new() })
     }
@@ -65,7 +67,7 @@ impl AdvisoryFeed for TwoLodashFeed {
         Ok(vec![lodash_advisory(), command_injection_advisory()])
     }
 
-    async fn critical_affecting(&self, ecosystem: Ecosystem, packages: &[PackageVersion]) -> Result<Vec<PublishedAdvisory>, AdvisoryFeedFailure> {
+    async fn affecting(&self, ecosystem: Ecosystem, packages: &[PackageVersion], _scope: ScanScope) -> Result<Vec<PublishedAdvisory>, AdvisoryFeedFailure> {
         let reached = ecosystem == Ecosystem::Npm && packages.iter().any(|package| package.name == "lodash");
         Ok(if reached { vec![lodash_advisory(), command_injection_advisory()] } else { Vec::new() })
     }
@@ -215,4 +217,22 @@ async fn a_project_fix_of_the_affected_leaves_the_not_affected_and_a_fix_of_all_
     assert_eq!(taken, ["GHSA-35jh-r3h4-6jhm"], "what the first fix took is not taken twice");
     assert!(all.get("task")["description"].as_str().unwrap().contains("(judged not affected)"), "{}", all.text);
     assert_eq!(app.post(&path, json!({ "scope": "ALL" })).await.status, 409);
+}
+
+#[tokio::test]
+async fn what_a_scan_looks_for_and_its_github_token_are_set_over_the_api_and_the_token_never_comes_back() {
+    let (app, _) = vega().await;
+    let settings = app.get("/api/vulnerabilities/settings").await;
+    assert_eq!(settings.body, json!({ "includeHigh": false, "includeMalware": false, "tokenSaved": false }));
+
+    let widened = app.patch("/api/vulnerabilities/settings", json!({ "includeMalware": true })).await;
+    assert_eq!(widened.body, json!({ "includeHigh": false, "includeMalware": true, "tokenSaved": false }));
+
+    let refused = app.put("/api/vulnerabilities/settings/token", json!({ "token": "two words" })).await;
+    assert_eq!(refused.status, 400, "{}", refused.text);
+    let saved = app.put("/api/vulnerabilities/settings/token", json!({ "token": "ghp_0123456789" })).await;
+    assert_eq!(saved.status, 200, "{}", saved.text);
+    assert!(saved.get("tokenSaved").as_bool().unwrap() && !saved.text.contains("ghp_0123456789"), "{}", saved.text);
+    let forgotten = app.delete("/api/vulnerabilities/settings/token").await;
+    assert_eq!(forgotten.get("tokenSaved"), &json!(false), "{}", forgotten.text);
 }

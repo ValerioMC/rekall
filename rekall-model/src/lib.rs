@@ -46,7 +46,7 @@ pub use skill::{skill_name, skill_placement, tag_skill, task_skill};
 pub use step::{step_pass, task_step};
 pub use timeentry::time_entry;
 pub use token::{token_usage, transcript_scan};
-pub use vulnerability::{security_advisory, vulnerability_exposure};
+pub use vulnerability::{scan_scope, security_advisory, vulnerability_exposure};
 pub use enums::*;
 pub use slug::Slug;
 pub use stamped::Stamped;

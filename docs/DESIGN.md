@@ -103,7 +103,7 @@ is found by opening one folder per crate:
 | `commit`, `diagram`, `token`, `search`, `context` | logged commits, stored diagrams, token usage, search, context assembly and its size |
 | `skill`, `tag`, `queue`, `claude` | skill assignments, tags, the run queue, what a session launch needs |
 | `inventory` | what each project is built from: its dependencies at the version each resolves to |
-| `vulnerability` | the critical advisories, the projects they reach, the scan that finds them, a session's verdict and the fix task |
+| `vulnerability` | the advisories, the projects they reach, the scan that finds them and what it looks for, a session's verdict and the fix task |
 
 `diagram` also has `rekall-diagram`, the one domain with a crate of its own, because the format
 depends on nothing of Rekall's. A domain gets a crate only on that condition.
@@ -126,7 +126,7 @@ domain that uses another one it is not listed for, and on two domains that use e
 | `section` | `note` |
 | `step` | `timeentry` |
 | `task` | `step` |
-| `vulnerability` | `inventory` |
+| `vulnerability` | `commit`, `connection`, `inventory` |
 | `wrapup` | `review` |
 | every other | nothing |
 
@@ -204,8 +204,9 @@ Project ──< VulnerabilityExposure >── SecurityAdvisory
 | `project_connection` | `label`, unique per project | `project_id`, `connection_id`, `target` (GitLab project path, Kubernetes namespace or Jira project key). A project may bind one connection several times, one target each; the label starts as the connection's and is what a session names the binding by (migration `051-binding-label`). Deleted with either side |
 | `connection_access` | through its connection | `connection_id`, `task_id` (set null when the task goes), `terminal_id`, `accessed_at`, `granted`, `reason` (why the request was refused); append-only, never a credential |
 | `project_dependency` | through its project | `project_id`, `ecosystem`, `name`, `version`, `manifest` (the declaring file, relative to the project's folder), `created_at`; unique per project, ecosystem, name and version; replaced whole |
-| `security_advisory` | `ghsa_id`, unique | `cve_id`, `summary`, `description`, `url`, `published_at`, `affected_json` (the packages it affects: ecosystem, name, vulnerable range, first patched version, vulnerable functions) |
-| `vulnerability_exposure` | through its project | `project_id`, `advisory_id` unique together, the `ecosystem`, `package_name` and `package_version` it reached the project through, `verdict` (`AFFECTED`, `NOT_AFFECTED`, null until judged), `reasoning`, `conclusion` (why the project is or is not affected, in plain words; null on verdicts given before it), `assessed_at`, `fix_task_id` (set null when the task goes); deleted with its project or advisory |
+| `security_advisory` | `ghsa_id`, unique | `cve_id`, `summary`, `description`, `url`, `published_at`, `severity` (GitHub's, upper-cased; `CRITICAL` on advisories recorded before it), `malware`, `affected_json` (the packages it affects, one entry per release line: ecosystem, name, vulnerable range, first patched version, vulnerable functions) |
+| `vulnerability_exposure` | through its project | `project_id`, `advisory_id`, `ecosystem`, `package_name` and `package_version` unique together (one exposure per package version an advisory reaches), `verdict` (`AFFECTED`, `NOT_AFFECTED`, null until judged), `reasoning`, `conclusion` (why the project is or is not affected, in plain words; null on verdicts given before it), `assessed_at`, `assessed_commit` (the project's `HEAD` at the verdict), `fix_task_id` (set null when the task goes); deleted with its project or advisory |
+| `scan_scope` | one row | `include_high`, `include_malware`; absent until first changed, which reads as both off |
 | `token_usage` | through its task | `session_id`, `task_id`, `step_id`, the four token counts, `spent_on` |
 | `transcript_scan` | `session_id` | `scanned_bytes`, `scanned_at` |
 | `task_skill` | through its task | `task_id`, `step_id` (null for the task's own), `skill_name`, `position`; deleted with its task or step |
@@ -765,18 +766,21 @@ done, change or lose a note, move a task or delete anything.
 
 ### Vulnerabilities
 
-The Security screen answers two questions about a project: does a critical vulnerability reach a
-library it uses, and is the vulnerable code actually reached. The first is a lookup Rekall makes; the
+The Security screen answers two questions about a project: does a critical vulnerability (or a high
+one, or malware, when the scan is set to look for them) reach a library it uses, and is the
+vulnerable code actually reached. The first is a lookup Rekall makes; the
 second needs the code read, so a session makes it.
 
 | Piece | What it decides |
 |---|---|
-| `DependencyInventoryService` (rekall-service, `inventory/`) | A project's dependencies, written whole by `write_in` and read by the console and the scan. `inventory::rules` refuses an empty list, more than 5,000 entries, an unknown ecosystem, a version that is a range (`^`, `~`, `>`, `<`, `=`, `*`, `\|`, a space or a comma), and a manifest path that is absolute or climbs out with `..`; a leading `v` before a digit is dropped, and an entry repeating an ecosystem, name and version is kept once |
+| `DependencyInventoryService` (rekall-service, `inventory/`) | A project's dependencies, written whole by `write_in` and read by the console and the scan. `summaries` adds the manifests `manifest_freshness::changed_since` finds modified after the inventory was recorded, or gone, in the project's folder. `inventory::rules` refuses an empty list, more than 5,000 entries, an unknown ecosystem, a version that is a range (`^`, `~`, `>`, `<`, `=`, `*`, `\|`, a space or a comma), and a manifest path that is absolute or climbs out with `..`; a leading `v` before a digit is dropped, and an entry repeating an ecosystem, name and version is kept once |
 | `InventoryRecordingService` | The session's write: the inventory and, in the same transaction, `forget_missing_in`, which drops the exposures whose package the new list no longer holds at that version |
-| `AdvisoryFeed` | The seam to the advisory database: the latest critical advisories, and the critical ones affecting a list of `package@version` in one ecosystem. `GithubAdvisoryFeed` in rekall-platform reads `GET /advisories?type=reviewed&severity=critical` without a token, the second form with `ecosystem` and `affects`, first page only; a withdrawn advisory, one whose id does not read and a package in an ecosystem Rekall does not inventory are dropped. A 429, or a 403 with no allowance left, is `RateLimited`. `StartOptions::advisory_feed` stands in for it, and the test harness hands every app a silent one |
-| `VulnerabilityScanService` | One scan: the 100 newest critical advisories, then per inventoried project and ecosystem a question of at most 80 packages. GitHub decides which version is affected; Rekall attributes an advisory to the first package of the question it names (`rules::same_package`: ignoring case, and pip's separators folded). Everything is recorded in one transaction: advisories upserted by GHSA id, each answered project's exposures replaced by what was found. A project whose question failed keeps its exposures; once rate limited, the rest are skipped and reported. A mutex lets one scan run at a time; a second is a 409 |
-| `VulnerabilityExposureService` | The exposures. `replace_found_in` adds new ones unjudged, keeps a known one with its verdict, clears the verdict when the advisory is found again through another version, and deletes the rest. `assess` refuses an advisory not exposed on the project, naming the ones that are. An exposure is open (a warning) until it is `NOT_AFFECTED` or has a fix task |
-| `VulnerabilityFixService` (rekall-api) | Creates the fix task through `TaskService::create_in` and ties it to the exposure, in one transaction. The label is `fix-<ghsa id>`, numbered when taken; the description (`fix_task_rules`) is the brief a session works from. `fix_project` takes every exposure of a project its `FixScope` takes (`fix_briefs_of_project_in`, a 409 when none): `AFFECTED`, the open ones, or `ALL`, every one without a fix task, the ones judged not affected included, which the description marks. It gathers them into one `fix-vulnerabilities` task, adding an open step per exposure through `TaskStepService::add_open_in` (not a draft: the console starts a session on the task at once, and a session may not work a draft) whose detail is that exposure's brief, the advisory's text cut to fit the step's 20,000 characters, and ties each exposure to it |
+| `AdvisoryFeed` | The seam to the advisory database: the latest critical advisories, and the ones affecting a list of `package@version` in one ecosystem within a `ScanScope`. `GithubAdvisoryFeed` in rekall-platform reads `GET /advisories?type=reviewed&severity=critical`, the second form with `ecosystem` and `affects`; with `include_high` it drops the severity and keeps critical and high itself (GitHub filters one severity at a time), and with `include_malware` it asks `type=malware` too. It follows the `Link` header's `next` for up to ten pages, and signs every request with the token in the credential store under `ADVISORY_TOKEN_ACCOUNT` when there is one. A withdrawn advisory, one whose id does not read and a package in an ecosystem Rekall does not inventory are dropped. A 429, or a 403 with no allowance left, is `RateLimited`. `StartOptions::advisory_feed` stands in for it, and the test harness hands every app a silent one |
+| `ScanSettingsService` | What a scan looks for (the `scan_scope` row) and the GitHub token, which goes to the OS credential store and is only ever reported as saved or not. A token blank, with spaces or past 255 characters is a 400 |
+| `VulnerabilityScanService` | One scan: the 100 newest critical advisories, then per inventoried project and ecosystem the questions `questions` cuts: at most 80 packages, each name once (`rules::package_key`: ignoring case, and pip's separators folded), a second version of a package going to a later question, because GitHub answers which advisories reach any of them and not which version. `reached_in` ties an answer to every package of the question the advisory names whose version its range holds or cannot be read for (`version_range`), or to every one it names when GitHub and the range disagree. Everything is recorded in one transaction: advisories upserted by GHSA id, each answered project's exposures replaced by what was found. A project whose question failed keeps its exposures; once rate limited, the rest are skipped and reported. A mutex lets one scan run at a time; a second is a 409 |
+| `version_range` | Whether a version is inside a GitHub range (`>= 4.0.0, < 4.1.0`): release numbers compared as numbers, a pre-release before its release, a post-release after it; anything unreadable is undecided. `AffectedPackage::find` uses it to pick, of the entries an advisory lists for one package, the release line the project's version is on, which is where an exposure's range, first safe version and vulnerable functions come from |
+| `VulnerabilityExposureService` | The exposures, one per advisory and package version. `replace_found_in` adds new ones unjudged, keeps a known one with its verdict, and deletes the rest, so a package moved to another version is a new, unjudged exposure. `assess` writes the verdict on every exposure of the advisory in the project, with the project's `HEAD` (`GitRepositoryInspector::head`), and refuses an advisory not exposed on the project, naming the ones that are. `list` and `read` add the commits gained since (`commits_since`, once per project and commit). An exposure is open (a warning) until it is `NOT_AFFECTED` or a fix task is at work on it: a fix task that is `DONE` while the exposure is still found leaves it open and lets it take a new fix |
+| `VulnerabilityFixService` (rekall-api) | Creates the fix task through `TaskService::create_in` and ties it to the exposure, in one transaction; a malware exposure's brief asks for removal and for whatever installed it to be treated as compromised. The label is `fix-<ghsa id>`, numbered when taken; the description (`fix_task_rules`) is the brief a session works from. `fix_project` takes every exposure of a project its `FixScope` takes (`fix_briefs_of_project_in`, a 409 when none): `AFFECTED`, the open ones, or `ALL`, every one without a fix task, the ones judged not affected included, which the description marks. It gathers them into one `fix-vulnerabilities` task, adding an open step per exposure through `TaskStepService::add_open_in` (not a draft: the console starts a session on the task at once, and a session may not work a draft) whose detail is that exposure's brief, the advisory's text cut to fit the step's 20,000 characters, and ties each exposure to it |
 
 A scan runs five minutes after the application starts and every six hours (`Instance::start_vulnerability_scans`),
 and on `POST /api/vulnerabilities/scan`. Every write publishes `vulnerability` (with how many exposures
@@ -792,9 +796,11 @@ keeps only the visible rows of a long inventory in the DOM. An advisory's descri
 markdown, so `lib/advisory-description` cuts it into text blocks and nothing renders it as HTML.
 
 Sharp edges: matching is by GitHub's own version semantics, so a version written differently from how
-the ecosystem spells it is missed rather than misjudged; the scan reads only the first page of each
-answer (100 advisories), which a question of 80 packages stays well inside; a session on a project alone,
-reopened from the live-work bar, lands on the Diagrams screen whatever it was started for.
+the ecosystem spells it is missed rather than misjudged; `version_range` only picks which release line
+to show, and where it cannot read a range the advisory's first entry for the package answers; staleness
+is by modification time, so a branch switch that rewrites a lockfile marks the inventory changed even
+when its content is not; a session on a project alone, reopened from the live-work bar, lands on the
+Diagrams screen whatever it was started for.
 
 ### Opening a session from a button
 
