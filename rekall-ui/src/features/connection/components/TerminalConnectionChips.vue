@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import ConnectionKindIcon from '@/features/connection/components/ConnectionKindIcon.vue'
+import { sortedByKind } from '@/features/connection/lib/connection-order'
 import { useCredentialAccessStore } from '@/features/connection/store/credentialAccess.store'
 import { useConsoleStore } from '@/stores/console.store'
 import type { TerminalConnection } from '@/features/claude/model/terminal'
 import type { ProjectId, TerminalId } from '@/model/branded'
 
 /**
- * What a running terminal can reach outside Rekall: a chip per connection, counting the times its
- * helpers were handed the credential and warning when one was refused or none is stored.
+ * What a running terminal reached outside Rekall: a chip per connection its helpers asked for,
+ * counting the hand-outs and warning on a refusal. The ones never asked for fold into one
+ * "unused" chip that opens to list them; a connection leaves it the first time it is asked for.
  */
 const props = defineProps<{
   terminalId: TerminalId
@@ -24,8 +26,10 @@ const companyId = computed(
   () => consoleStore.projects.find((project) => project.id === props.projectId)?.companyId ?? null
 )
 
+const unusedOpen = ref(false)
+
 const chips = computed(() =>
-  props.connections.map((connection) => {
+  sortedByKind(props.connections).map((connection) => {
     const tally = access.tallyOf(props.terminalId, connection.connectionId)
     const tone =
       !connection.credentialSet || (tally?.refused ?? 0) > 0
@@ -36,6 +40,10 @@ const chips = computed(() =>
     return { connection, tally, tone }
   })
 )
+
+const usedChips = computed(() => chips.value.filter((chip) => chip.tally !== null))
+const unusedChips = computed(() => chips.value.filter((chip) => chip.tally === null))
+const shownChips = computed(() => (unusedOpen.value ? [...usedChips.value, ...unusedChips.value] : usedChips.value))
 
 function describe(connection: TerminalConnection, granted: number, refused: number): string {
   if (!connection.credentialSet)
@@ -56,7 +64,7 @@ onMounted(access.listen)
   >
     <component
       :is="companyId ? RouterLink : 'span'"
-      v-for="chip in chips"
+      v-for="chip in shownChips"
       :key="`${chip.connection.label}-${chip.tally?.last ?? 0}`"
       :to="companyId ? `/companies/${companyId}/connections` : undefined"
       class="focus-ring inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-micro ring-1 ring-inset"
@@ -76,6 +84,17 @@ onMounted(access.listen)
         }}<template v-if="chip.tally.refused">/{{ chip.tally.refused }}✕</template></span
       >
     </component>
+    <button
+      v-if="unusedChips.length"
+      type="button"
+      class="focus-ring inline-flex items-center gap-1 rounded-full bg-surface-raised px-2 py-0.5 font-mono text-micro text-text-subtle ring-1 ring-inset ring-border hover:text-text-muted"
+      :aria-expanded="unusedOpen"
+      :title="unusedChips.map((chip) => chip.connection.label).join(', ')"
+      data-testid="terminal-connections-unused"
+      @click="unusedOpen = !unusedOpen"
+    >
+      {{ unusedOpen ? 'hide unused' : `${unusedChips.length} unused` }}
+    </button>
   </span>
 </template>
 

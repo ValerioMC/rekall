@@ -22,6 +22,18 @@ const STAGING: TerminalConnection = {
   kind: 'KUBERNETES',
   credentialSet: false
 }
+const REPO: TerminalConnection = {
+  connectionId: 'repo' as ConnectionId,
+  label: 'api-repo',
+  kind: 'GITLAB',
+  credentialSet: true
+}
+const BOARD: TerminalConnection = {
+  connectionId: 'board' as ConnectionId,
+  label: 'board',
+  kind: 'JIRA',
+  credentialSet: true
+}
 
 function mountChips(connections: readonly TerminalConnection[]) {
   return mount(TerminalConnectionChips, {
@@ -40,8 +52,44 @@ describe('TerminalConnectionChips', () => {
     expect(mountChips([]).find('[data-testid="terminal-connections"]').exists()).toBe(false)
   })
 
-  it('warns about a connection without a credential and links each to its company screen', () => {
+  it('folds the connections never asked for into one unused chip', () => {
     const wrapper = mountChips([PROD, STAGING])
+
+    expect(wrapper.find('[data-testid="terminal-connection-prod"]').exists()).toBe(false)
+    const unused = wrapper.get('[data-testid="terminal-connections-unused"]')
+    expect(unused.text()).toBe('2 unused')
+    expect(unused.attributes('title')).toBe('prod, staging')
+  })
+
+  it('shows a connection on its own, with its count, from the first time it is asked for', async () => {
+    const wrapper = mountChips([PROD, STAGING])
+
+    useCredentialAccessStore().record({ terminalId: TERMINAL, connectionId: PROD.connectionId, granted: true })
+    await wrapper.vm.$nextTick()
+
+    const chip = wrapper.get('[data-testid="terminal-connection-prod"]')
+    expect(chip.attributes('data-tone')).toBe('used')
+    expect(chip.text()).toContain('·1')
+    expect(wrapper.get('[data-testid="terminal-connections-unused"]').text()).toBe('1 unused')
+  })
+
+  it('orders the connections by kind, clusters first, then GitLab, then Jira', async () => {
+    const wrapper = mountChips([BOARD, REPO, STAGING, PROD])
+
+    await wrapper.get('[data-testid="terminal-connections-unused"]').trigger('click')
+
+    const order = wrapper.findAll('[data-tone]').map((chip) => chip.attributes('data-testid'))
+    expect(order).toEqual([
+      'terminal-connection-prod',
+      'terminal-connection-staging',
+      'terminal-connection-api-repo',
+      'terminal-connection-board'
+    ])
+  })
+
+  it('warns about a connection without a credential and links each to its company screen', async () => {
+    const wrapper = mountChips([PROD, STAGING])
+    await wrapper.get('[data-testid="terminal-connections-unused"]').trigger('click')
 
     expect(wrapper.get('[data-testid="terminal-connection-prod"]').attributes('data-tone')).toBe('idle')
     const staging = wrapper.get('[data-testid="terminal-connection-staging"]')

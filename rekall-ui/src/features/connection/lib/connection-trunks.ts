@@ -1,4 +1,5 @@
 import { endpointOf } from '@/features/connection/lib/connection-endpoint'
+import { KIND_ORDER } from '@/features/connection/lib/connection-order'
 import type { Connection, ConnectionKind, ProjectConnection } from '@/features/connection/model/connection'
 import type { ConnectionId } from '@/model/branded'
 
@@ -20,8 +21,6 @@ export interface ConnectionKindGroup {
   readonly kind: ConnectionKind
   readonly trunks: readonly ConnectionTrunk[]
 }
-
-const KIND_ORDER: readonly ConnectionKind[] = ['KUBERNETES', 'GITLAB', 'JIRA']
 
 function trunkOf(bindings: readonly ProjectConnection[], connection: Connection | undefined): ConnectionTrunk {
   const first = bindings[0]!

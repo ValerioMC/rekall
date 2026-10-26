@@ -14,7 +14,7 @@ const FOUNDATIONS: [&str; 6] = ["ctx", "events", "load", "services", "text_rule"
 const ALLOWED: [(&str, &[&str]); 18] = [
     ("claude", &["connection"]),
     ("commit", &[]),
-    ("component", &[]),
+    ("component", &["connection"]),
     ("connection", &[]),
     ("context", &["component", "connection", "step", "wrapup"]),
     ("diagram", &[]),

@@ -1,5 +1,6 @@
 import type { config } from 'md-editor-v3'
 import type { ProjectComponent } from '@/features/project/model/project-component'
+import { connectionChipHtml, connectionReferenceLabel } from '@/common/markdown/connection-reference'
 
 type MarkdownIt = Parameters<NonNullable<Parameters<typeof config>[0]['markdownItConfig']>>[0]
 type InlineRule = Parameters<MarkdownIt['inline']['ruler']['before']>[2]
@@ -31,13 +32,17 @@ const referenceRule: InlineRule = (state, silent) => {
 }
 
 /**
- * Renders a reference as a chip carrying the written name. The page does not know which project
- * the text belongs to, so `paintComponentReferences` settles each chip once it does.
+ * Renders a reference as a chip carrying the written name, or the label of a `[[connection:label]]`.
+ * The page does not know which project the text belongs to, so `paintComponentReferences` and
+ * `paintConnectionReferences` settle each chip once it does.
  */
 export function markComponentReferences(md: MarkdownIt): void {
   md.inline.ruler.before('link', TOKEN, referenceRule)
   md.renderer.rules[TOKEN] = (tokens, index) => {
-    const name = md.utils.escapeHtml(tokens[index]?.content ?? '')
+    const written = tokens[index]?.content ?? ''
+    const label = connectionReferenceLabel(written)
+    if (label !== null) return connectionChipHtml(md.utils.escapeHtml(label))
+    const name = md.utils.escapeHtml(written)
     return `<span class="${CHIP_CLASS}" data-component="${name}" data-state="plain">${name}</span>`
   }
 }

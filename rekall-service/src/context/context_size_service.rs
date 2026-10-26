@@ -28,7 +28,7 @@ impl ContextSizeService {
             let project = records.first().expect("for_task returns the project and the task");
             let task = records.last().expect("for_task returns the project and the task");
 
-            let mut references = ComponentReferences::new(task.component_lookup.as_deref());
+            let mut references = ComponentReferences::new(task.component_lookup.as_deref()).with_connections(&task.connection_lookup);
             let mut parts = Vec::new();
             add_part(&mut parts, "Components", &renderer.render_components(&project.components), false);
             add_part(&mut parts, "Connections", &renderer.render_connections(&project.connections), false);

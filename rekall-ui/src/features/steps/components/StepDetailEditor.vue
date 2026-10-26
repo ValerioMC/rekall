@@ -3,6 +3,7 @@ import AppInput from '@/components/ui/AppInput.vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import AppModeToggle from '@/components/ui/AppModeToggle.vue'
 import { useSelectedProjectComponents } from '@/features/project/composables/useSelectedProjectComponents'
+import { useSelectedProjectConnections } from '@/features/connection/composables/useSelectedProjectConnections'
 import { useStepEditor } from '@/features/steps/composables/useStepEditor'
 
 /**
@@ -23,6 +24,7 @@ defineProps<{
 
 const { mode, title, body, scheduleSave } = useStepEditor()
 const projectComponents = useSelectedProjectComponents()
+const projectConnections = useSelectedProjectConnections()
 </script>
 
 <template>
@@ -47,6 +49,7 @@ const projectComponents = useSelectedProjectComponents()
             height="100%"
             :path-root="pathRoot"
             :components="projectComponents"
+            :connections="projectConnections"
             :placeholder="placeholder"
             :data-testid="`${testidPrefix}-detail-field`"
             @update:model-value="scheduleSave"
@@ -55,7 +58,7 @@ const projectComponents = useSelectedProjectComponents()
       </div>
 
       <div v-else-if="body.trim()" key="read" class="step-detail min-w-0 overflow-x-auto">
-        <AppMarkdownEditor :model-value="body" :components="projectComponents" readonly compact :data-testid="`${testidPrefix}-detail-read`" />
+        <AppMarkdownEditor :model-value="body" :components="projectComponents" :connections="projectConnections" readonly compact :data-testid="`${testidPrefix}-detail-read`" />
       </div>
 
       <p v-else key="empty" class="py-1 text-small text-text-subtle">

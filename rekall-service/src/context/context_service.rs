@@ -237,6 +237,7 @@ impl ContextService {
         }
 
         let components = repo::project_component::list_of_project(db, project.id).await?;
+        let connections = repo::project_connection::list_of_project(db, project.id).await?;
         let documents = repo::document::documents_of_task(db, task.id).await?;
         let wrapup = load::wrapup_of(db, task.id).await?.map(|found| WrapupView::of(&found, task, &project));
         Ok(ContextRecord {
@@ -254,6 +255,7 @@ impl ContextService {
             wrapup,
             components: Vec::new(),
             component_lookup: Some(components.iter().map(ProjectComponentView::of).collect()),
+            connection_lookup: connections.iter().map(|(binding, connection)| ConnectionView::of(binding, connection)).collect(),
             connections: Vec::new(),
             blueprint: None,
             description: task.description.clone(),

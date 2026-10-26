@@ -4,11 +4,11 @@ import type { SyntaxNode } from '@lezer/common'
 import { componentNameKey } from '@/common/markdown/component-reference'
 import type { ProjectComponent } from '@/features/project/model/project-component'
 
-const OPENING = /\[\[[^[\]\n]*$/
+export const OPENING = /\[\[[^[\]\n]*$/
 const CODE_NODES = new Set(['FencedCode', 'CodeBlock', 'InlineCode'])
 const DETAIL_MAX = 60
 
-function isInsideCode(context: CompletionContext): boolean {
+export function isInsideCode(context: CompletionContext): boolean {
   for (let node: SyntaxNode | null = syntaxTree(context.state).resolveInner(context.pos, -1); node; node = node.parent) {
     if (CODE_NODES.has(node.name)) return true
   }

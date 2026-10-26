@@ -511,8 +511,9 @@
   color: var(--color-accent-ink);
 }
 
-/* A `[[Name]]` in the read view: a component of the project, or a reference that matches none. */
-.rekall-md .md-editor-preview .rk-component-ref {
+/* A `[[Name]]` or `[[connection:label]]` in the read view: a component or connection of the project, or a reference that matches none. */
+.rekall-md .md-editor-preview .rk-component-ref,
+.rekall-md .md-editor-preview .rk-connection-ref {
   display: inline-block;
   padding: 0 0.45em;
   border: 1px solid var(--color-anchor-line);
@@ -524,7 +525,8 @@
   cursor: help;
 }
 
-.rekall-md .md-editor-preview .rk-component-ref[data-state='missing'] {
+.rekall-md .md-editor-preview .rk-component-ref[data-state='missing'],
+.rekall-md .md-editor-preview .rk-connection-ref[data-state='missing'] {
   color: var(--color-danger);
   background: var(--color-danger-soft);
   border-color: var(--color-danger);
@@ -533,7 +535,8 @@
 }
 
 /* Text with no project behind it keeps the brackets and looks like text. */
-.rekall-md .md-editor-preview .rk-component-ref[data-state='plain'] {
+.rekall-md .md-editor-preview .rk-component-ref[data-state='plain'],
+.rekall-md .md-editor-preview .rk-connection-ref[data-state='plain'] {
   display: inline;
   padding: 0;
   border: 0;
@@ -548,6 +551,11 @@
   content: '[[';
 }
 
-.rekall-md .md-editor-preview .rk-component-ref[data-state='plain']::after {
+.rekall-md .md-editor-preview .rk-connection-ref[data-state='plain']::before {
+  content: '[[connection:';
+}
+
+.rekall-md .md-editor-preview .rk-component-ref[data-state='plain']::after,
+.rekall-md .md-editor-preview .rk-connection-ref[data-state='plain']::after {
   content: ']]';
 }

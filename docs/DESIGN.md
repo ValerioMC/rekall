@@ -120,6 +120,7 @@ domain that uses another one it is not listed for, and on two domains that use e
 | Domain | May use |
 |---|---|
 | `claude` | `connection` |
+| `component` | `connection` |
 | `context` | `component`, `connection`, `step`, `wrapup` |
 | `flow` | `step` |
 | `review` | `timeentry` |
@@ -548,6 +549,14 @@ description (cut at `COMPONENT_REFERENCE_MAX`), later ones its name and folder; 
 blocks are left as written; a name that matches no component of the task's project becomes
 `[[Name]] (component not found in this project)`. `ContextSizeService` measures the expanded text.
 
+The same scan resolves `[[connection:label]]` against the project's bindings, which `ContextService` puts
+on the task record as `connection_lookup` (handed in through `ComponentReferences::with_connections`, the
+reason `component` may use `connection`). The label matches ignoring case and surrounding spaces and
+becomes `**label** (connection "Title", reached as its line in `<connections>` says)`, so how to reach it
+is still written once; a label the project does not bind becomes `[[connection:label]] (connection not
+found in this project)`. The prefix decides: a component cannot be referenced by a name starting
+`connection:`.
+
 The console draws the same syntax in read mode. `markComponentReferences`
 (`rekall-ui/src/common/markdown/component-reference.ts`, registered in `common/config/markdown-editor.ts`)
 turns `[[Name]]` into a chip that knows only the written name, with the backend's edge cases; markdown-it
@@ -562,6 +571,14 @@ its `completions` prop. It matches `[[` plus what was typed, filters the project
 (`filter: false`, name contains the text), skips code and fences through the syntax tree, and applies
 `Name]]` through `view.dispatch`, replacing a closing `]]` already after the caret. `common/config/markdown-editor.ts`
 adds `Tab` as `acceptCompletion`, which does nothing when no list is open.
+
+Connections follow the same path. `markComponentReferences` renders a reference whose name starts with
+`connection:` as a connection chip (`common/markdown/connection-reference.ts`), `AppMarkdownEditor` takes
+the project's `connections` (`useSelectedProjectConnections`, `null` until the bindings have arrived) and
+`useConnectionReferenceChips` settles each chip (found with kind, title and target, missing, or plain).
+`connectionCompletion` is a second completion source on the same `[[` trigger: it lists the bindings after
+the components, by kind (`sortedByKind`), labelled `connection:label` so typing either the prefix or the
+label filters them, and applies `connection:label]]`.
 
 A note can travel by reference. It then arrives as its title, its first line and an anchor such
 as `note:3f2a9c1e` (the first eight characters of its id), with `loaded="on request"`, and
@@ -925,10 +942,13 @@ external **Open in terminal** gets none either.
 `TerminalView` carries the project's connections (`TerminalConnectionView`: id, label, kind, whether
 a credential is stored), and every access line is published as a `credential-access` frame (terminal,
 connection, granted) in the same transaction as the line, so the pane never shows an access the log
-lacks. `TerminalConnectionChips` draws a chip per connection on the terminal pane's header and on each
-row of the sessions panel: idle, green with a count once the helpers were handed the credential
-(pulsing once per hand-out), amber when none is stored or a request was refused, each linking to the
-company's Connections screen. The counts are `credentialAccess.store`'s, read from one subscription
+lacks. `TerminalConnectionChips` draws, on the terminal pane's header and on each row of the sessions
+panel, a chip per connection the session's helpers asked for: green with a count once they were handed
+the credential (pulsing once per hand-out), amber when a request was refused, each linking to the
+company's Connections screen. The connections never asked for fold into one `N unused` chip that opens
+to list them (idle, or amber when no credential is stored); a connection leaves it at its first request.
+Both lists follow `sortedByKind` (`features/connection/lib/connection-order.ts`): clusters, then GitLab,
+then Jira, by label within a kind, the order of the project's Connections tab. The counts are `credentialAccess.store`'s, read from one subscription
 and kept only for the console's lifetime; the access log is the record.
 
 ### The Claude folder

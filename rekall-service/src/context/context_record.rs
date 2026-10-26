@@ -26,6 +26,8 @@ pub struct ContextRecord {
     pub components: Vec<ProjectComponentView>,
     /// The project's components, for resolving `[[Name]]` in a task's text only; `None` leaves text untouched.
     pub component_lookup: Option<Vec<ProjectComponentView>>,
+    /// The project's bindings, for resolving `[[connection:label]]` in a task's text only.
+    pub connection_lookup: Vec<ConnectionView>,
     /// What the project reaches outside Rekall; never a credential.
     pub connections: Vec<ConnectionView>,
     pub blueprint: Option<String>,

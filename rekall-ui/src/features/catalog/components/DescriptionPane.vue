@@ -7,6 +7,7 @@ import DescriptionEmptyState from '@/features/catalog/components/DescriptionEmpt
 import DescriptionReviewBar from '@/features/catalog/components/DescriptionReviewBar.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useSelectedProjectComponents } from '@/features/project/composables/useSelectedProjectComponents'
+import { useSelectedProjectConnections } from '@/features/connection/composables/useSelectedProjectConnections'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { identityHue } from '@/common/identity'
 import LaunchClaudeCodeButton from '@/features/claude/components/LaunchClaudeCodeButton.vue'
@@ -30,6 +31,7 @@ const draft = ref('')
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
 const projectComponents = useSelectedProjectComponents()
+const projectConnections = useSelectedProjectConnections()
 
 const hue = computed(() => identityHue(selectedTask.value?.projectId ?? ''))
 
@@ -201,9 +203,10 @@ onUnmounted(() => {
             height="100%"
             :path-root="selectedTask?.projectRepoFolder"
             :components="projectComponents"
+            :connections="projectConnections"
             @update:model-value="scheduleSave"
           />
-          <AppMarkdownEditor v-else key="read" :model-value="draft" :components="projectComponents" readonly />
+          <AppMarkdownEditor v-else key="read" :model-value="draft" :components="projectComponents" :connections="projectConnections" readonly />
         </Transition>
       </div>
     </template>

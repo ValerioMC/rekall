@@ -1,4 +1,5 @@
 use rekall_common::{Id, Instant};
+use rekall_model::ConnectionKind;
 
 use super::*;
 
@@ -18,6 +19,21 @@ fn component(name: &str, folder: &str, description: &str) -> ProjectComponentVie
 
 fn expand(components: &[ProjectComponentView], text: &str) -> String {
     ComponentReferences::new(Some(components)).expand(text)
+}
+
+fn connection(label: &str, title: &str) -> ConnectionView {
+    ConnectionView {
+        kind: ConnectionKind::Kubernetes,
+        label: label.into(),
+        title: title.into(),
+        target: None,
+        instance_url: None,
+        credential_set: true,
+    }
+}
+
+fn expand_with_connections(connections: &[ConnectionView], text: &str) -> String {
+    ComponentReferences::new(Some(&[])).with_connections(connections).expand(text)
 }
 
 fn auth() -> Vec<ProjectComponentView> {
@@ -160,4 +176,34 @@ fn accented_text_around_a_reference_survives() {
     let out = expand(&auth(), "è [[Auth Service]] à");
 
     assert!(out.starts_with("è **Auth Service**") && out.ends_with(" à"), "{out}");
+}
+
+#[test]
+fn a_connection_reference_names_the_binding_and_points_at_its_line() {
+    let out = expand_with_connections(&[connection("prod", "Production cluster")], "Deploy on [[connection:prod]].");
+
+    assert_eq!(out, "Deploy on **prod** (connection \"Production cluster\", reached as its line in `<connections>` says).");
+}
+
+#[test]
+fn a_connection_reference_ignores_case_and_surrounding_spaces() {
+    let out = expand_with_connections(&[connection("prod", "Production cluster")], "[[ connection: PROD ]]");
+
+    assert!(out.starts_with("**prod** (connection"), "{out}");
+}
+
+#[test]
+fn an_unknown_connection_is_flagged_not_dropped() {
+    let out = expand_with_connections(&[connection("prod", "Production cluster")], "[[connection:staging]]");
+
+    assert_eq!(out, "[[connection:staging]] (connection not found in this project)");
+}
+
+#[test]
+fn a_connection_reference_is_never_read_as_a_component() {
+    let components = vec![component("connection:prod", "x", "")];
+
+    let out = ComponentReferences::new(Some(&components)).expand("[[connection:prod]]");
+
+    assert_eq!(out, "[[connection:prod]] (connection not found in this project)");
 }

@@ -7,12 +7,15 @@ import ReadModeSettings from '@/components/ui/ReadModeSettings.vue'
 import ReadSearchBar from '@/components/ui/ReadSearchBar.vue'
 import TableContextMenu from '@/components/ui/TableContextMenu.vue'
 import { componentCompletion } from '@/common/markdown/component-completion'
+import { connectionCompletion } from '@/common/markdown/connection-completion'
 import { useComponentReferenceChips } from '@/features/project/composables/useComponentReferenceChips'
+import { useConnectionReferenceChips } from '@/features/connection/composables/useConnectionReferenceChips'
 import { useEditorPathPicker } from '@/composables/useEditorPathPicker'
 import { useFittedEditorHeight } from '@/composables/useFittedEditorHeight'
 import { useReadModeSearch } from '@/composables/useReadModeSearch'
 import { useTableContextMenu } from '@/composables/useTableContextMenu'
 import type { ProjectComponent } from '@/features/project/model/project-component'
+import type { ProjectConnection } from '@/features/connection/model/connection'
 import { readModeAlign, readModeWidth, setReadModeAlign, setReadModeWidth } from '@/common/config/read-mode'
 
 const props = withDefaults(
@@ -41,6 +44,8 @@ const props = withDefaults(
      * offers these names after `[[`.
      */
     components?: readonly ProjectComponent[] | null
+    /** The project's connection bindings, for `[[connection:label]]` the way `components` serves `[[Name]]`. */
+    connections?: readonly ProjectConnection[] | null
   }>(),
   {
     readonly: false,
@@ -49,7 +54,8 @@ const props = withDefaults(
     placeholder: '# Contesto',
     compact: false,
     pathRoot: null,
-    components: null
+    components: null,
+    connections: null
   }
 )
 
@@ -80,10 +86,16 @@ const {
 
 const tableMenu = useTableContextMenu(editor)
 
-const chips = useComponentReferenceChips(root, () => props.components)
+const componentChips = useComponentReferenceChips(root, () => props.components)
+const connectionChips = useConnectionReferenceChips(root, () => props.connections)
 
-// One source for the editor's life; it reads the prop when asked, so a new list needs no reconfigure.
-const completions = [componentCompletion(() => props.components)]
+function paintChips(): void {
+  componentChips.paint()
+  connectionChips.paint()
+}
+
+// One source each for the editor's life; they read the props when asked, so a new list needs no reconfigure.
+const completions = [componentCompletion(() => props.components), connectionCompletion(() => props.connections)]
 
 // A card-sized read view has no room for a bar; ⌘F there is left to the page.
 const search = useReadModeSearch(root, { enabled: () => props.readonly && !props.compact })
@@ -160,7 +172,7 @@ const TOOLBARS: ToolbarNames[] = [
       no-katex
       no-echarts
       no-img-zoom-in
-      @on-html-changed="chips.paint"
+      @on-html-changed="paintChips"
     />
     <MdEditor
       v-else
