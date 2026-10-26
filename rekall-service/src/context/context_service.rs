@@ -10,9 +10,10 @@ use rekall_model::{company, project, task, TaskStepState};
 use rekall_repository::repository as repo;
 
 use super::{ContextCommitView, ContextRecord, ContextSkillScope, ContextSkillView, DocumentView, StepConnectionView};
-use crate::component::ProjectComponentView;
+use crate::component::{referenced_task_labels, ProjectComponentView};
 use crate::connection::ConnectionView;
 use crate::step::{StepFlowRows, TaskStepView};
+use crate::task::TaskReferenceView;
 use crate::wrapup::WrapupView;
 use crate::{in_read, load, Ctx, Tx};
 
@@ -203,12 +204,36 @@ impl ContextService {
         })
     }
 
+    /// The task in full, then each task its description or steps name as `[[task:label]]`.
     async fn render_task(&self, tx: &Tx, task: &task::Model) -> Result<ContextRecord> {
+        let project = load::project_of(tx.db(), task).await?;
+        let siblings = repo::task::list_of_project(tx.db(), project.id).await?;
+        let mut record = self.task_record(tx, task, &project, &siblings).await?;
+        record.references.insert(0, self.referenced_project(tx, &project).await?);
+        for referenced in referenced_tasks(&record, task, &siblings) {
+            record.references.push(self.referenced_task(tx, referenced, &project, &siblings).await?);
+        }
+        Ok(record)
+    }
+
+    /// A task named from another task's text: what it is and where it stands, as background. Its
+    /// checklist stays out, so its open steps are never read as the work, and its own references are not followed.
+    async fn referenced_task(&self, tx: &Tx, task: &task::Model, project: &project::Model, siblings: &[task::Model]) -> Result<ContextRecord> {
+        let full = self.task_record(tx, task, project, siblings).await?;
+        let mut fields = full.fields;
+        fields.retain(|(name, _)| name != "flow" && name != "drafts");
+        fields.push((
+            "referenced".into(),
+            "named in the text of the task above. Read it as background for that task's work; its own steps are not that work.".into(),
+        ));
+        Ok(ContextRecord { fields, steps: Vec::new(), step_connections: Vec::new(), skills: Vec::new(), commits: Vec::new(), ..full })
+    }
+
+    async fn task_record(&self, tx: &Tx, task: &task::Model, project: &project::Model, siblings: &[task::Model]) -> Result<ContextRecord> {
         let db = tx.db();
         let flow = StepFlowRows::of_task(db, task.id).await?;
         let steps: Vec<TaskStepView> =
             load::steps_of(db, task.id).await?.iter().map(|step| TaskStepView::of(step, &flow)).collect::<Result<_>>()?;
-        let project = load::project_of(db, task).await?;
 
         let mut fields = vec![("status".to_string(), task.status.name().to_string())];
         if let Some(note) = task.review_note.as_deref().filter(|n| !jstr::is_blank(n)) {
@@ -239,23 +264,24 @@ impl ContextService {
         let components = repo::project_component::list_of_project(db, project.id).await?;
         let connections = repo::project_connection::list_of_project(db, project.id).await?;
         let documents = repo::document::documents_of_task(db, task.id).await?;
-        let wrapup = load::wrapup_of(db, task.id).await?.map(|found| WrapupView::of(&found, task, &project));
+        let wrapup = load::wrapup_of(db, task.id).await?.map(|found| WrapupView::of(&found, task, project));
         Ok(ContextRecord {
             kind: "Task".into(),
             label: task.title.clone(),
             anchor: format!("task:{}", task.label),
             fields,
-            references: vec![self.referenced_project(tx, &project).await?],
+            references: Vec::new(),
             related: Vec::new(),
             documents: documents.iter().map(DocumentView::of).collect(),
             skills: self.skills_of(tx, task, &steps).await?,
-            step_connections: self.step_connections_of(tx, &project, &steps).await?,
+            step_connections: self.step_connections_of(tx, project, &steps).await?,
             steps,
             commits: self.commits_of(tx, task).await?,
             wrapup,
             components: Vec::new(),
             component_lookup: Some(components.iter().map(ProjectComponentView::of).collect()),
             connection_lookup: connections.iter().map(|(binding, connection)| ConnectionView::of(binding, connection)).collect(),
+            task_lookup: siblings.iter().map(TaskReferenceView::of).collect(),
             connections: Vec::new(),
             blueprint: None,
             description: task.description.clone(),
@@ -336,6 +362,20 @@ impl ContextService {
         }
         Ok(out)
     }
+}
+
+/// The other tasks of the project the record's description and checklist name, once each, in the
+/// order first named. A label that names no task is left to the text, which flags it.
+fn referenced_tasks<'a>(record: &ContextRecord, task: &task::Model, siblings: &'a [task::Model]) -> Vec<&'a task::Model> {
+    let texts = record.description.iter().chain(record.steps.iter().filter(|step| !step.state.draft()).filter_map(|step| step.body_markdown.as_ref()));
+    let mut found: Vec<&task::Model> = Vec::new();
+    for label in texts.flat_map(|text| referenced_task_labels(text)) {
+        let named = siblings.iter().find(|sibling| jstr::lower(&sibling.label) == label && sibling.id != task.id);
+        if let Some(named) = named.filter(|named| found.iter().all(|seen| seen.id != named.id)) {
+            found.push(named);
+        }
+    }
+    found
 }
 
 async fn company_of(tx: &Tx, project: &project::Model) -> Result<company::Model> {

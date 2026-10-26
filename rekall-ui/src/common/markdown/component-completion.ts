@@ -1,7 +1,9 @@
 import type { Completion, CompletionContext, CompletionResult, CompletionSource } from '@codemirror/autocomplete'
+import type { EditorView } from '@codemirror/view'
 import { syntaxTree } from '@codemirror/language'
 import type { SyntaxNode } from '@lezer/common'
 import { componentNameKey } from '@/common/markdown/component-reference'
+import { referenceCompletionType } from '@/common/markdown/reference-completion-icon'
 import type { ProjectComponent } from '@/features/project/model/project-component'
 
 export const OPENING = /\[\[[^[\]\n]*$/
@@ -13,6 +15,18 @@ export function isInsideCode(context: CompletionContext): boolean {
     if (CODE_NODES.has(node.name)) return true
   }
   return false
+}
+
+/** Writes `inserted` (the name and its closing `]]`) and leaves the caret after it. A `]]` already after the caret is replaced, not doubled. */
+export function insertReference(inserted: string): (view: EditorView, completion: Completion, from: number, to: number) => void {
+  return (view, _completion, from, to) => {
+    const closed = view.state.sliceDoc(to, to + 2) === ']]'
+    view.dispatch({
+      changes: { from, to: closed ? to + 2 : to, insert: inserted },
+      selection: { anchor: from + inserted.length },
+      userEvent: 'input.complete'
+    })
+  }
 }
 
 function firstLine(description: string): string {
@@ -28,17 +42,9 @@ export function componentOptions(components: readonly ProjectComponent[], typed:
     .map((component) => ({
       label: component.name,
       detail: firstLine(component.description),
-      type: 'class',
-      apply: (view, _completion, from, to) => {
-        // A closing `]]` already sitting after the caret is replaced, not doubled.
-        const closed = view.state.sliceDoc(to, to + 2) === ']]'
-        const insert = `${component.name}]]`
-        view.dispatch({
-          changes: { from, to: closed ? to + 2 : to, insert },
-          selection: { anchor: from + insert.length },
-          userEvent: 'input.complete'
-        })
-      }
+      type: referenceCompletionType('component'),
+      section: { name: 'Components', rank: 0 },
+      apply: insertReference(`${component.name}]]`)
     }))
 }
 

@@ -511,9 +511,10 @@
   color: var(--color-accent-ink);
 }
 
-/* A `[[Name]]` or `[[connection:label]]` in the read view: a component or connection of the project, or a reference that matches none. */
+/* A `[[Name]]`, `[[connection:label]]` or `[[task:label]]` in the read view: a component, connection or task of the project, or a reference that matches none. */
 .rekall-md .md-editor-preview .rk-component-ref,
-.rekall-md .md-editor-preview .rk-connection-ref {
+.rekall-md .md-editor-preview .rk-connection-ref,
+.rekall-md .md-editor-preview .rk-task-ref {
   display: inline-block;
   padding: 0 0.45em;
   border: 1px solid var(--color-anchor-line);
@@ -526,7 +527,8 @@
 }
 
 .rekall-md .md-editor-preview .rk-component-ref[data-state='missing'],
-.rekall-md .md-editor-preview .rk-connection-ref[data-state='missing'] {
+.rekall-md .md-editor-preview .rk-connection-ref[data-state='missing'],
+.rekall-md .md-editor-preview .rk-task-ref[data-state='missing'] {
   color: var(--color-danger);
   background: var(--color-danger-soft);
   border-color: var(--color-danger);
@@ -536,7 +538,8 @@
 
 /* Text with no project behind it keeps the brackets and looks like text. */
 .rekall-md .md-editor-preview .rk-component-ref[data-state='plain'],
-.rekall-md .md-editor-preview .rk-connection-ref[data-state='plain'] {
+.rekall-md .md-editor-preview .rk-connection-ref[data-state='plain'],
+.rekall-md .md-editor-preview .rk-task-ref[data-state='plain'] {
   display: inline;
   padding: 0;
   border: 0;
@@ -555,7 +558,123 @@
   content: '[[connection:';
 }
 
+.rekall-md .md-editor-preview .rk-task-ref[data-state='plain']::before {
+  content: '[[task:';
+}
+
 .rekall-md .md-editor-preview .rk-component-ref[data-state='plain']::after,
-.rekall-md .md-editor-preview .rk-connection-ref[data-state='plain']::after {
+.rekall-md .md-editor-preview .rk-connection-ref[data-state='plain']::after,
+.rekall-md .md-editor-preview .rk-task-ref[data-state='plain']::after {
   content: ']]';
+}
+
+/* A task reference reads as work, not as a part of the code: the accent, where components and connections take the anchor colour. */
+.rekall-md .md-editor-preview .rk-task-ref[data-state='found'] {
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent-deep);
+}
+
+/* The `[[` suggestions: a raised card of rows, each a glyph, the reference in mono and what it is, muted, on the right. */
+.rekall-md .md-editor .cm-editor .cm-tooltip.cm-tooltip-autocomplete {
+  overflow: hidden;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-raised);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 45%);
+}
+
+.rekall-md .md-editor .cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul {
+  min-width: 300px;
+  max-width: min(560px, 80vw);
+  max-height: 18rem;
+  padding: 4px;
+  border-radius: var(--radius-card);
+  font-family: var(--font-sans);
+}
+
+.rekall-md .md-editor .cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul > completion-section {
+  display: block;
+  padding: 8px 8px 4px;
+  border: 0;
+  color: var(--color-text-subtle);
+  font-size: var(--text-micro);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.rekall-md .md-editor .cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--color-text);
+  line-height: 18px;
+}
+
+.rekall-md .md-editor .cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul li[aria-selected] {
+  background: var(--color-accent-soft);
+  color: var(--color-text);
+}
+
+.rekall-md .md-editor .cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul li .cm-completionIcon[class*='cm-completionIcon-rk-ref-'] {
+  display: none;
+}
+
+.rekall-md .md-editor .cm-editor .cm-tooltip.cm-tooltip-autocomplete .cm-completionLabel {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+}
+
+.rekall-md .md-editor .cm-editor .cm-tooltip.cm-tooltip-autocomplete .cm-completionDetail {
+  overflow: hidden;
+  flex: 1;
+  min-width: 0;
+  margin-left: 12px;
+  color: var(--color-text-muted);
+  font-size: var(--text-small);
+  font-style: normal;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rk-completion-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-control);
+  background: var(--color-surface-hover);
+}
+
+.rk-completion-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.rk-completion-icon[data-icon='component'] {
+  color: var(--color-anchor);
+}
+
+.rk-completion-icon[data-icon='task'] {
+  color: var(--color-accent);
+}
+
+.rk-completion-icon[data-icon='gitlab'] {
+  color: var(--color-brand-gitlab);
+}
+
+.rk-completion-icon[data-icon='kubernetes'] {
+  color: var(--color-brand-kubernetes);
+}
+
+.rk-completion-icon[data-icon='jira'] {
+  color: var(--color-brand-jira);
 }

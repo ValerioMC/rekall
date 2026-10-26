@@ -7,15 +7,19 @@ import ReadModeSettings from '@/components/ui/ReadModeSettings.vue'
 import ReadSearchBar from '@/components/ui/ReadSearchBar.vue'
 import TableContextMenu from '@/components/ui/TableContextMenu.vue'
 import { componentCompletion } from '@/common/markdown/component-completion'
+import { paintComponentReferences } from '@/common/markdown/component-reference'
 import { connectionCompletion } from '@/common/markdown/connection-completion'
-import { useComponentReferenceChips } from '@/features/project/composables/useComponentReferenceChips'
-import { useConnectionReferenceChips } from '@/features/connection/composables/useConnectionReferenceChips'
+import { paintConnectionReferences } from '@/common/markdown/connection-reference'
+import { taskCompletion } from '@/common/markdown/task-completion'
+import { paintTaskReferences } from '@/common/markdown/task-reference'
+import { useReferenceChips } from '@/composables/useReferenceChips'
 import { useEditorPathPicker } from '@/composables/useEditorPathPicker'
 import { useFittedEditorHeight } from '@/composables/useFittedEditorHeight'
 import { useReadModeSearch } from '@/composables/useReadModeSearch'
 import { useTableContextMenu } from '@/composables/useTableContextMenu'
 import type { ProjectComponent } from '@/features/project/model/project-component'
 import type { ProjectConnection } from '@/features/connection/model/connection'
+import type { Task } from '@/features/catalog/model/catalog'
 import { readModeAlign, readModeWidth, setReadModeAlign, setReadModeWidth } from '@/common/config/read-mode'
 
 const props = withDefaults(
@@ -46,6 +50,8 @@ const props = withDefaults(
     components?: readonly ProjectComponent[] | null
     /** The project's connection bindings, for `[[connection:label]]` the way `components` serves `[[Name]]`. */
     connections?: readonly ProjectConnection[] | null
+    /** The project's other tasks, for `[[task:label]]`; offered only once `[[task:` is typed. */
+    tasks?: readonly Task[] | null
   }>(),
   {
     readonly: false,
@@ -55,7 +61,8 @@ const props = withDefaults(
     compact: false,
     pathRoot: null,
     components: null,
-    connections: null
+    connections: null,
+    tasks: null
   }
 )
 
@@ -86,16 +93,22 @@ const {
 
 const tableMenu = useTableContextMenu(editor)
 
-const componentChips = useComponentReferenceChips(root, () => props.components)
-const connectionChips = useConnectionReferenceChips(root, () => props.connections)
+const componentChips = useReferenceChips(root, () => props.components, paintComponentReferences)
+const connectionChips = useReferenceChips(root, () => props.connections, paintConnectionReferences)
+const taskChips = useReferenceChips(root, () => props.tasks, paintTaskReferences)
 
 function paintChips(): void {
   componentChips.paint()
   connectionChips.paint()
+  taskChips.paint()
 }
 
 // One source each for the editor's life; they read the props when asked, so a new list needs no reconfigure.
-const completions = [componentCompletion(() => props.components), connectionCompletion(() => props.connections)]
+const completions = [
+  componentCompletion(() => props.components),
+  connectionCompletion(() => props.connections),
+  taskCompletion(() => props.tasks)
+]
 
 // A card-sized read view has no room for a bar; ⌘F there is left to the page.
 const search = useReadModeSearch(root, { enabled: () => props.readonly && !props.compact })

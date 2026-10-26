@@ -120,8 +120,8 @@ domain that uses another one it is not listed for, and on two domains that use e
 | Domain | May use |
 |---|---|
 | `claude` | `connection` |
-| `component` | `connection` |
-| `context` | `component`, `connection`, `step`, `wrapup` |
+| `component` | `connection`, `task` |
+| `context` | `component`, `connection`, `step`, `task`, `wrapup` |
 | `flow` | `step` |
 | `review` | `timeentry` |
 | `section` | `note` |
@@ -555,7 +555,19 @@ reason `component` may use `connection`). The label matches ignoring case and su
 becomes `**label** (connection "Title", reached as its line in `<connections>` says)`, so how to reach it
 is still written once; a label the project does not bind becomes `[[connection:label]] (connection not
 found in this project)`. The prefix decides: a component cannot be referenced by a name starting
-`connection:`.
+`connection:` or `task:`.
+
+`[[task:label]]` names another task of the same project, resolved against `task_lookup` (the project's
+tasks as `TaskReferenceView`, the reason `component` and `context` may use `task`). It becomes
+`**Title** (task `task:label`)`, or `[[task:label]] (task not found in this project)`. The reference
+also loads that task: `ContextService::render_task` collects the labels with `referenced_task_labels`
+from the description and every checklist step's detail, and appends each named task once, in the order
+first named, after the project in the record's `references`, so it renders as a nested `Task` record.
+That record (`referenced_task`) carries the task's description, wrapup, notes and status, with a
+`referenced` field saying it is background for the task above. Its checklist, flow, skills and commits
+stay out, so its open steps are never read as the work, and its own `[[task:...]]` are expanded but not
+followed: one level, no cycles. A task naming itself loads nothing more. `ContextSizeService` counts each
+as a `Referenced task: Title` part.
 
 The console draws the same syntax in read mode. `markComponentReferences`
 (`rekall-ui/src/common/markdown/component-reference.ts`, registered in `common/config/markdown-editor.ts`)
@@ -579,6 +591,23 @@ the project's `connections` (`useSelectedProjectConnections`, `null` until the b
 `connectionCompletion` is a second completion source on the same `[[` trigger: it lists the bindings after
 the components, by kind (`sortedByKind`), labelled `connection:label` so typing either the prefix or the
 label filters them, and applies `connection:label]]`.
+
+Tasks follow it too, except for when the list opens: a project holds too many tasks to offer after a bare
+`[[`, so `taskCompletion` (`common/markdown/task-completion.ts`) answers only once `[[task:` is typed,
+filters the project's other tasks by label or title, and shows the title and status beside each.
+`useSelectedProjectTasks` reads them from the console store, which already holds every task.
+`markComponentReferences` renders `[[task:label]]` as a task chip (`common/markdown/task-reference.ts`),
+painted in the accent colour with the title and status on hover. All three chip kinds are kept painted by
+`useReferenceChips`, and all three completions write through `insertReference`.
+
+The suggestion list is grouped into `Components`, `Connections` and `Tasks` sections (each option's
+`section`), and each row starts with a glyph: `referenceCompletionIcons`
+(`common/markdown/reference-completion-icon.ts`, added in `common/config/markdown-editor.ts`) merges an
+`addToOptions` renderer into the editor's completion config, which draws the glyph named by the option's
+`type` (`referenceCompletionType`): an outline cube for a component, an outline checkbox for a task, and
+the connection's logo (`CONNECTION_KIND_PATH`, shared with `ConnectionKindIcon`) in its brand colour.
+The editor's other suggestions keep CodeMirror's own icon. The card itself is styled in
+`assets/markdown-editor.css`.
 
 A note can travel by reference. It then arrives as its title, its first line and an anchor such
 as `note:3f2a9c1e` (the first eight characters of its id), with `loaded="on request"`, and

@@ -12,6 +12,7 @@ import '@/assets/markdown-editor.css'
 import '@/assets/live-preview.css'
 import { markAnchorCode } from '@/common/config/anchor-code'
 import { markComponentReferences } from '@/common/markdown/component-reference'
+import { referenceCompletionIcons } from '@/common/markdown/reference-completion-icon'
 import { livePreview } from '@/common/live-preview/live-preview'
 
 config({
@@ -34,6 +35,7 @@ config({
           : extension
       ),
     { type: 'livePreview', extension: livePreview() },
+    { type: 'referenceIcons', extension: referenceCompletionIcons() },
     // Tab accepts an open suggestion (Enter already does); with none open it falls through to the editor's own Tab.
     { type: 'acceptCompletion', extension: Prec.highest(keymap.of([{ key: 'Tab', run: acceptCompletion }])) }
   ]

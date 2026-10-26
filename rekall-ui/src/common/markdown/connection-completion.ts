@@ -1,6 +1,7 @@
 import type { Completion, CompletionContext, CompletionResult, CompletionSource } from '@codemirror/autocomplete'
-import { isInsideCode, OPENING } from '@/common/markdown/component-completion'
+import { insertReference, isInsideCode, OPENING } from '@/common/markdown/component-completion'
 import { CONNECTION_REFERENCE_PREFIX } from '@/common/markdown/connection-reference'
+import { referenceCompletionType } from '@/common/markdown/reference-completion-icon'
 import { sortedByKind } from '@/features/connection/lib/connection-order'
 import { CONNECTION_KIND_LABEL, type ProjectConnection } from '@/features/connection/model/connection'
 
@@ -22,16 +23,9 @@ export function connectionOptions(connections: readonly ProjectConnection[], typ
     .map((binding) => ({
       label: `${CONNECTION_REFERENCE_PREFIX}${binding.label}`,
       detail: detailOf(binding),
-      type: 'variable',
-      apply: (view, _completion, from, to) => {
-        const closed = view.state.sliceDoc(to, to + 2) === ']]'
-        const insert = `${CONNECTION_REFERENCE_PREFIX}${binding.label}]]`
-        view.dispatch({
-          changes: { from, to: closed ? to + 2 : to, insert },
-          selection: { anchor: from + insert.length },
-          userEvent: 'input.complete'
-        })
-      }
+      type: referenceCompletionType(binding.kind),
+      section: { name: 'Connections', rank: 1 },
+      apply: insertReference(`${CONNECTION_REFERENCE_PREFIX}${binding.label}]]`)
     }))
 }
 

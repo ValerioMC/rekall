@@ -2,6 +2,7 @@ use rekall_common::{Id, Instant};
 use rekall_model::ConnectionKind;
 
 use super::*;
+use crate::task::TaskReferenceView;
 
 fn component(name: &str, folder: &str, description: &str) -> ProjectComponentView {
     let now = Instant::now();
@@ -34,6 +35,14 @@ fn connection(label: &str, title: &str) -> ConnectionView {
 
 fn expand_with_connections(connections: &[ConnectionView], text: &str) -> String {
     ComponentReferences::new(Some(&[])).with_connections(connections).expand(text)
+}
+
+fn task(label: &str, title: &str) -> TaskReferenceView {
+    TaskReferenceView { label: label.into(), title: title.into() }
+}
+
+fn expand_with_tasks(tasks: &[TaskReferenceView], text: &str) -> String {
+    ComponentReferences::new(Some(&[])).with_tasks(tasks).expand(text)
 }
 
 fn auth() -> Vec<ProjectComponentView> {
@@ -206,4 +215,39 @@ fn a_connection_reference_is_never_read_as_a_component() {
     let out = ComponentReferences::new(Some(&components)).expand("[[connection:prod]]");
 
     assert_eq!(out, "[[connection:prod]] (connection not found in this project)");
+}
+
+#[test]
+fn a_task_reference_names_the_task_by_title_and_anchor() {
+    let out = expand_with_tasks(&[task("export", "Export the report")], "Build on [[task:export]].");
+
+    assert_eq!(out, "Build on **Export the report** (task `task:export`).");
+}
+
+#[test]
+fn a_task_reference_ignores_case_and_surrounding_spaces() {
+    let out = expand_with_tasks(&[task("export", "Export the report")], "[[ task: EXPORT ]]");
+
+    assert_eq!(out, "**Export the report** (task `task:export`)");
+}
+
+#[test]
+fn an_unknown_task_is_flagged_not_dropped() {
+    let out = expand_with_tasks(&[task("export", "Export the report")], "[[task:import]]");
+
+    assert_eq!(out, "[[task:import]] (task not found in this project)");
+}
+
+#[test]
+fn the_task_labels_named_are_collected_lowercased_in_order() {
+    let labels = referenced_task_labels("[[task:Second]] then [[Auth Service]] and [[ task:first ]]");
+
+    assert_eq!(labels, vec!["second".to_string(), "first".to_string()]);
+}
+
+#[test]
+fn a_task_named_inside_code_is_not_collected() {
+    let labels = referenced_task_labels("`[[task:inline]]`\n```\n[[task:fenced]]\n```\n");
+
+    assert!(labels.is_empty(), "{labels:?}");
 }

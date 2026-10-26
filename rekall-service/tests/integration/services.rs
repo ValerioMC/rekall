@@ -503,6 +503,37 @@ async fn a_component_named_in_a_task_text_is_expanded_in_the_context_but_not_in_
     assert!(description.characters > "Call [[auth service]] and [[Billing]].".len(), "{description:?}");
 }
 
+#[tokio::test]
+async fn a_task_named_in_a_task_text_is_loaded_once_as_background_without_its_checklist() {
+    use sea_orm::{ActiveModelTrait, ActiveValue};
+
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let task = world.task(&project, "report-builder").await;
+    let export = world.task(&project, "export").await;
+    let mut row = export.clone().into_active_model();
+    row.description = ActiveValue::Set(Some("Writes the CSV export.".into()));
+    row.update(world.db()).await.unwrap();
+    world.step(&export, "Stream the rows", 0, TaskStepState::Open).await;
+    let mut row = task.clone().into_active_model();
+    row.description = ActiveValue::Set(Some("Reuse [[task:export]] and [[task:missing]].".into()));
+    row.update(world.db()).await.unwrap();
+    let step = world.step(&task, "Wire the button", 0, TaskStepState::Open).await;
+    world.services.steps.edit(step.id, None, Some("Like [[task:export]]"), None, None).await.unwrap();
+
+    let records = world.services.context.for_task(task.id).await.unwrap();
+    let rendered = world.services.renderer.render(&records);
+
+    assert!(rendered.contains("Reuse **Title of export** (task `task:export`) and [[task:missing]] (task not found in this project)."), "{rendered}");
+    assert_eq!(rendered.matches("### Task: Title of export").count(), 1, "{rendered}");
+    assert!(rendered.contains("Writes the CSV export."), "{rendered}");
+    assert!(rendered.contains("- `referenced`: named in the text of the task above."), "{rendered}");
+    assert!(rendered.contains("- `steps`: 0 of 1 done, 1 open"), "{rendered}");
+    assert!(!rendered.contains("Stream the rows"), "{rendered}");
+    let size = world.services.context_size.measure(task.id).await.unwrap();
+    assert!(size.parts.iter().any(|part| part.label == "Referenced task: Title of export"), "{size:?}");
+}
+
 // ------------------------------------------------------------------------------ task creation
 
 fn draft(title: &str) -> rekall_service::task::StepDraft {

@@ -54,7 +54,9 @@ impl ContextRenderer {
                 out.push_str(&format!("  - `{anchor}`\n"));
             }
         }
-        let mut references = ComponentReferences::new(record.component_lookup.as_deref()).with_connections(&record.connection_lookup);
+        let mut references = ComponentReferences::new(record.component_lookup.as_deref())
+            .with_connections(&record.connection_lookup)
+            .with_tasks(&record.task_lookup);
         out.push_str(&self.render_description(record.description.as_deref(), &mut references));
         out.push_str(&self.render_skills(&record.skills));
         out.push_str(&self.render_components(&record.components));

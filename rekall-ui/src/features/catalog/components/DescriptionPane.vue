@@ -8,6 +8,7 @@ import DescriptionReviewBar from '@/features/catalog/components/DescriptionRevie
 import { useConsoleStore } from '@/stores/console.store'
 import { useSelectedProjectComponents } from '@/features/project/composables/useSelectedProjectComponents'
 import { useSelectedProjectConnections } from '@/features/connection/composables/useSelectedProjectConnections'
+import { useSelectedProjectTasks } from '@/features/catalog/composables/useSelectedProjectTasks'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { identityHue } from '@/common/identity'
 import LaunchClaudeCodeButton from '@/features/claude/components/LaunchClaudeCodeButton.vue'
@@ -32,6 +33,7 @@ let saveTimer: ReturnType<typeof setTimeout> | null = null
 
 const projectComponents = useSelectedProjectComponents()
 const projectConnections = useSelectedProjectConnections()
+const projectTasks = useSelectedProjectTasks()
 
 const hue = computed(() => identityHue(selectedTask.value?.projectId ?? ''))
 
@@ -204,9 +206,10 @@ onUnmounted(() => {
             :path-root="selectedTask?.projectRepoFolder"
             :components="projectComponents"
             :connections="projectConnections"
+            :tasks="projectTasks"
             @update:model-value="scheduleSave"
           />
-          <AppMarkdownEditor v-else key="read" :model-value="draft" :components="projectComponents" :connections="projectConnections" readonly />
+          <AppMarkdownEditor v-else key="read" :model-value="draft" :components="projectComponents" :connections="projectConnections" :tasks="projectTasks" readonly />
         </Transition>
       </div>
     </template>

@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use rekall_common::{jstr, Id, Result};
 use rekall_model::DocumentContextMode;
 
@@ -28,7 +30,9 @@ impl ContextSizeService {
             let project = records.first().expect("for_task returns the project and the task");
             let task = records.last().expect("for_task returns the project and the task");
 
-            let mut references = ComponentReferences::new(task.component_lookup.as_deref()).with_connections(&task.connection_lookup);
+            let mut references = ComponentReferences::new(task.component_lookup.as_deref())
+                .with_connections(&task.connection_lookup)
+                .with_tasks(&task.task_lookup);
             let mut parts = Vec::new();
             add_part(&mut parts, "Components", &renderer.render_components(&project.components), false);
             add_part(&mut parts, "Connections", &renderer.render_connections(&project.connections), false);
@@ -43,6 +47,9 @@ impl ContextSizeService {
                     &renderer.render_documents(std::slice::from_ref(document)),
                     document.context_mode == DocumentContextMode::Reference,
                 );
+            }
+            for referenced in task.references.iter().filter(|record| record.kind == "Task") {
+                add_part(&mut parts, &format!("Referenced task: {}", referenced.label), &renderer.render_record(referenced, 3, &mut HashSet::new()), false);
             }
             let measured: usize = parts.iter().map(|p| p.characters).sum();
             if total > measured {
