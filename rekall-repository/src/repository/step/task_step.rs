@@ -21,17 +21,6 @@ pub async fn list_of_task(db: &impl ConnectionTrait, task_id: Id) -> Result<Vec<
         .await?)
 }
 
-pub async fn list_of_tasks(db: &impl ConnectionTrait, task_ids: Vec<Id>) -> Result<Vec<Model>, RekallError> {
-    if task_ids.is_empty() {
-        return Ok(Vec::new());
-    }
-    Ok(Entity::find()
-        .filter(Column::TaskId.is_in(task_ids))
-        .order_by_asc(Column::Position)
-        .all(db)
-        .await?)
-}
-
 pub async fn list_all_in_order(db: &impl ConnectionTrait) -> Result<Vec<Model>, RekallError> {
     Ok(Entity::find()
         .order_by_asc(Column::TaskId)
