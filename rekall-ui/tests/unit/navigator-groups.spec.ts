@@ -112,14 +112,31 @@ describe('the navigator shelves', () => {
     expect(shelves.openFiled.has('vega' as ProjectId)).toBe(true)
   })
 
+  it('keeps the epics shelf closed until an epic is picked from elsewhere, even a finished one', async () => {
+    const selected = ref<Task | null>(null)
+    const shelves = useNavigatorShelves(selected)
+    expect(shelves.epicsOpen).toBe(false)
+    expect(shelves.openEpics.size).toBe(0)
+
+    selected.value = { ...task('e', 'vega', 'DONE'), kind: 'EPIC' }
+    await nextTick()
+
+    expect(shelves.epicsOpen).toBe(true)
+    expect(shelves.openEpics.has('vega' as ProjectId)).toBe(true)
+    expect(shelves.openFiled.size).toBe(0)
+  })
+
   it('toggles the list-wide shelves on their own, without touching a project’s', () => {
     const shelves = useNavigatorShelves(ref(null))
 
+    shelves.toggleListEpics()
     shelves.toggleListFiled()
     shelves.toggleListBacklog()
 
+    expect(shelves.epicsOpen).toBe(true)
     expect(shelves.filedOpen).toBe(true)
     expect(shelves.backlogOpen).toBe(true)
+    expect(shelves.openEpics.size).toBe(0)
     expect(shelves.openFiled.size).toBe(0)
   })
 })

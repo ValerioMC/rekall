@@ -1,17 +1,26 @@
 <script setup lang="ts">
 import { useId } from 'vue'
+import EpicGlyph from '@/features/catalog/components/epic/EpicGlyph.vue'
 
 /**
- * A shelf under a card's live rows. `filed` holds finished tasks on a verdigris rail; `backlog`
- * holds parked tasks, and `loose` notes on no task, both on a dashed grey rail: present, not in play.
+ * A shelf beside a card's live rows. `epics` holds the epics on a violet rail; `filed` holds finished
+ * tasks on a verdigris one; `backlog` parked tasks and `loose` notes on no task, on a dashed grey rail.
  */
-type ShelfKind = 'filed' | 'backlog' | 'loose'
+type ShelfKind = 'epics' | 'filed' | 'backlog' | 'loose'
+
+const SHELF_CLASS: Readonly<Record<ShelfKind, string>> = {
+  epics: 'epic-shelf',
+  filed: 'filed-shelf',
+  backlog: 'backlog-shelf',
+  loose: 'backlog-shelf'
+}
 
 withDefaults(defineProps<{ count: number; open: boolean; kind?: ShelfKind }>(), {
   kind: 'filed'
 })
 
 const SHELF_LABEL: Readonly<Record<ShelfKind, string>> = {
+  epics: 'epics',
   filed: 'filed',
   backlog: 'in backlog',
   loose: 'on no task'
@@ -48,8 +57,11 @@ const bodyId = useId()
         />
       </svg>
 
+      <span v-if="kind === 'epics'" class="grid size-3.5 shrink-0 place-items-center" aria-hidden="true">
+        <EpicGlyph :size="13" />
+      </span>
       <svg
-        v-if="kind === 'filed'"
+        v-else-if="kind === 'filed'"
         class="size-3.5 shrink-0 text-filed"
         viewBox="0 0 24 24"
         fill="none"
@@ -104,7 +116,7 @@ const bodyId = useId()
       v-if="open"
       :id="bodyId"
       class="drawer-open mt-0.5 flex flex-col gap-0.5"
-      :class="kind === 'filed' ? 'filed-shelf' : 'backlog-shelf'"
+      :class="SHELF_CLASS[kind]"
     >
       <slot />
     </div>

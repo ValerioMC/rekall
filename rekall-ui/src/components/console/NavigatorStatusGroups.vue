@@ -1,13 +1,12 @@
 <script setup lang="ts">
 /**
- * The navigator inside one project: its epics first, then tasks under their status, live ones
- * first, with the backlog and the filed tasks on shelves at the foot.
+ * The navigator inside one project: its epics on a shelf that starts closed, then tasks under their
+ * status, live ones first, with the backlog and the filed tasks on shelves at the foot.
  */
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import NavigatorTaskRow from '@/components/console/NavigatorTaskRow.vue'
 import NavigatorFilingDrawer from '@/components/console/NavigatorFilingDrawer.vue'
-import EpicGlyph from '@/features/catalog/components/epic/EpicGlyph.vue'
 import NavigatorEpicRow from '@/features/catalog/components/epic/NavigatorEpicRow.vue'
 import { partitionTasks } from '@/features/catalog/lib/partition-tasks'
 import { useConsoleStore } from '@/stores/console.store'
@@ -43,18 +42,8 @@ const filed = computed(() => partitioned.value.filed)
 </script>
 
 <template>
-  <div v-if="epics.length" class="px-2">
-    <div class="flex items-center gap-2.5 px-1.5 pb-1.5 pt-5">
-      <span class="grid size-3 shrink-0 place-items-center" aria-hidden="true">
-        <EpicGlyph :size="12" />
-      </span>
-      <span class="section-label flex-1">Epics</span>
-      <span class="shrink-0 rounded-full bg-surface-raised px-1.5 py-px font-mono text-micro tabular-nums text-text-subtle">
-        {{ epics.length }}
-      </span>
-    </div>
-
-    <div class="flex flex-col gap-0.5">
+  <div v-if="epics.length" class="px-2 pt-2">
+    <NavigatorFilingDrawer kind="epics" :count="epics.length" :open="shelves.epicsOpen" @toggle="shelves.toggleListEpics()">
       <NavigatorEpicRow
         v-for="epic in epics"
         :key="epic.id"
@@ -63,7 +52,7 @@ const filed = computed(() => partitioned.value.filed)
         :filed="epic.status === 'DONE'"
         @select="store.selectTask(epic.id)"
       />
-    </div>
+    </NavigatorFilingDrawer>
   </div>
 
   <div v-for="group in grouped" :key="group.status" class="px-2">

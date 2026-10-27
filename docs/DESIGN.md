@@ -426,8 +426,9 @@ In the console an epic is selected like a task and opens on `EpicPane`, which ta
 description pane's place for it: its tasks' progress, the tasks (filed, created or taken out
 through `setTaskEpic` on the ordinary task update, so no endpoint of its own) and its description,
 written with the same autosave as a task's (`useDescriptionDraft`). The dossier shows one
-`EpicDossierCard` in place of the description and steps cards. The navigator lists epics ahead of
-the status groups (`NavigatorEpicRow`, from `partitionTasks`), each with the status mix of its tasks;
+`EpicDossierCard` in place of the description and steps cards. The navigator keeps epics on an `epics`
+`NavigatorFilingDrawer` ahead of the status groups (`NavigatorEpicRow`, from `partitionTasks`), closed
+until opened by hand or by selecting an epic (`useNavigatorShelves`), each with the status mix of its tasks;
 a task in an epic wears an `EpicChip` beside its anchor, on a row whose third line carries what the
 task holds, and its dossier opens with an `EpicMembershipCard` that selects the epic.
 

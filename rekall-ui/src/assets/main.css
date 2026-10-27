@@ -1014,6 +1014,13 @@
   padding-left: 3px;
 }
 
+/* The epics a project gathers its features under: a rail in the epic tone, apart from the work itself. */
+@utility epic-shelf {
+  margin-left: 7px;
+  border-left: 2px solid var(--color-epic-line);
+  padding-left: 3px;
+}
+
 /* Parked work: a dashed rail in the border tone, so it reads as not started rather than as done. */
 @utility backlog-shelf {
   margin-left: 7px;

@@ -39,6 +39,17 @@ describe('NavigatorFilingDrawer', () => {
     expect(wrapper.find('.filed-shelf').exists()).toBe(false)
   })
 
+  it('names an epics shelf as one and hangs it on the epic rail', () => {
+    const wrapper = mount(NavigatorFilingDrawer, {
+      props: { count: 4, open: true, kind: 'epics' },
+      slots: { default: '<span class="row">row</span>' }
+    })
+
+    expect(wrapper.get('[data-testid="filing-drawer-toggle"]').text()).toContain('4 epics')
+    expect(wrapper.find('.epic-shelf').exists()).toBe(true)
+    expect(wrapper.find('.backlog-shelf').exists()).toBe(false)
+  })
+
   it('emits toggle when the disclosure row is clicked', async () => {
     const wrapper = mount(NavigatorFilingDrawer, { props: { count: 1, open: false } })
 

@@ -341,8 +341,8 @@ concept a feature shares, as a description and notes, and gathers the tasks of i
 name it in their **Epic** field. Each of those tasks inherits it: `/rk` on one of them loads the
 epic after it, in full, marked `inherited`, with its description and notes as part of the brief.
 
-- The navigator lists a project's epics first, each with the status mix of its tasks; a task in an
-  epic wears the epic's name next to its anchor, and the card above its dossier opens the epic.
+- The navigator keeps a project's epics on a shelf above its tasks that starts closed, each with the
+  status mix of its tasks, and opens it when an epic is selected elsewhere; a task in an epic wears the epic's name next to its anchor, and the card above its dossier opens the epic.
 - Selecting an epic opens it in the console: how far its tasks are, the tasks themselves and its
   description, written in place. **Add existing task** files a task of the project under it (one in
   another epic moves here), **New task** creates one already filed, and a row's cross takes a task
