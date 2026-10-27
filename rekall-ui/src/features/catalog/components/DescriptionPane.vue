@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onUnmounted, ref, watch } from 'vue'
+import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import AppModeToggle from '@/components/ui/AppModeToggle.vue'
@@ -9,7 +9,7 @@ import { useConsoleStore } from '@/stores/console.store'
 import { useSelectedProjectComponents } from '@/features/project/composables/useSelectedProjectComponents'
 import { useSelectedProjectConnections } from '@/features/connection/composables/useSelectedProjectConnections'
 import { useSelectedProjectTasks } from '@/features/catalog/composables/useSelectedProjectTasks'
-import { useAsyncAction } from '@/composables/useAsyncAction'
+import { useDescriptionDraft } from '@/features/catalog/composables/useDescriptionDraft'
 import { identityHue } from '@/common/identity'
 import LaunchClaudeCodeButton from '@/features/claude/components/LaunchClaudeCodeButton.vue'
 import OpenTerminalButton from '@/features/claude/components/OpenTerminalButton.vue'
@@ -19,18 +19,11 @@ import CommitReferenceRail from '@/features/commits/components/CommitReferenceRa
 import ContextSizeChip from '@/features/context/components/ContextSizeChip.vue'
 import TaskTitleRow from '@/features/catalog/components/TaskTitleRow.vue'
 import TaskLabelsStrip from '@/features/catalog/components/TaskLabelsStrip.vue'
-import { isEpic } from '@/features/catalog/model/catalog'
-import type { TaskId } from '@/model/branded'
 
 const store = useConsoleStore()
 const { selectedTask, selectedTaskCommitReferences } = storeToRefs(store)
-const { run } = useAsyncAction()
 
-const mode = ref<'write' | 'read'>('read')
-
-const showEditor = ref(false)
-const draft = ref('')
-let saveTimer: ReturnType<typeof setTimeout> | null = null
+const { draft, showEditor, mode, scheduleSave, beginWriting, toggleMode } = useDescriptionDraft()
 
 const projectComponents = useSelectedProjectComponents()
 const projectConnections = useSelectedProjectConnections()
@@ -38,65 +31,13 @@ const projectTasks = useSelectedProjectTasks()
 
 const hue = computed(() => identityHue(selectedTask.value?.projectId ?? ''))
 
-function flush(taskId: TaskId): void {
-  if (!saveTimer) return
-  clearTimeout(saveTimer)
-  saveTimer = null
-  void run(() => store.saveTaskDescription(taskId, draft.value))
-}
-
-function scheduleSave(): void {
-  const task = selectedTask.value
-  if (!task) return
-  store.saveState = 'unsaved'
-  if (saveTimer) clearTimeout(saveTimer)
-  saveTimer = setTimeout(() => {
-    saveTimer = null
-    void run(() => store.saveTaskDescription(task.id, draft.value))
-  }, 700)
-}
-
-watch(
-  () => selectedTask.value?.id ?? null,
-  (_id, previousId) => {
-    if (previousId) flush(previousId)
-    draft.value = selectedTask.value?.description ?? ''
-    showEditor.value = draft.value.trim().length > 0
-    mode.value = showEditor.value ? 'read' : 'write'
-  },
-  { immediate: true }
-)
-
-watch(
-  () => selectedTask.value?.description ?? '',
-  (value) => {
-    if (saveTimer || value === draft.value) return
-    draft.value = value
-    if (value.trim()) showEditor.value = true
-  }
-)
-
 // The task-scoped review line, shown only while the task has no checklist.
 const reviewState = computed(() => {
   const task = selectedTask.value
   return task && task.reviewActive && task.stepCount === 0 ? task.reviewState : null
 })
 
-function beginWriting(): void {
-  showEditor.value = true
-  mode.value = 'write'
-}
-
-function toggleMode(): void {
-  if (!showEditor.value) return
-  mode.value = mode.value === 'write' ? 'read' : 'write'
-}
-
 defineExpose({ toggleMode })
-
-onUnmounted(() => {
-  if (selectedTask.value) flush(selectedTask.value.id)
-})
 </script>
 
 <template>
@@ -165,7 +106,6 @@ onUnmounted(() => {
               :task-id="selectedTask.id"
               :folder="selectedTask.projectRepoFolder"
             />
-            <template v-if="!isEpic(selectedTask)">
             <OpenTerminalButton
               :task-id="selectedTask.id"
               :folder="selectedTask.projectRepoFolder"
@@ -176,7 +116,6 @@ onUnmounted(() => {
               :folder="selectedTask.projectRepoFolder"
               missing-hint="Set this project's folder on its page to open a session from it"
             />
-            </template>
           </div>
 
           <AppModeToggle v-if="showEditor" v-model="mode" />

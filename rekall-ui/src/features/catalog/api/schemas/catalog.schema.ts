@@ -13,7 +13,6 @@ import {
   asWrapupId
 } from '@/model/branded'
 import { PROJECT_STATUSES, TASK_KINDS, TASK_STATUSES, TASK_STEP_STATES } from '@/features/catalog/model/catalog'
-import { EPIC_ACTIVITY_KINDS } from '@/features/catalog/model/epic'
 
 const companyId = z.string().uuid().transform(asCompanyId)
 const projectId = z.string().uuid().transform(asProjectId)
@@ -234,15 +233,6 @@ export const ProjectRepositorySchema = z.object({
 export const CompanyListSchema = z.array(CompanySchema)
 export const ProjectListSchema = z.array(ProjectSchema)
 export const TaskListSchema = z.array(TaskSchema)
-
-export const EpicActivitySchema = z.object({
-  taskId,
-  kind: z.enum(EPIC_ACTIVITY_KINDS),
-  subject: z.string().nullable(),
-  at: z.string()
-})
-
-export const EpicActivityListSchema = z.array(EpicActivitySchema)
 export const TagListSchema = z.array(TagSchema)
 export const TaskStepListSchema = z.array(TaskStepSchema)
 export const DocumentListSchema = z.array(DocumentSchema)

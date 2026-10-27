@@ -136,3 +136,20 @@ describe('going back to a location', () => {
     expect(shown).toEqual({ mode: 'tasks', taskId: null, documentId: null, pane: 'note' })
   })
 })
+
+describe('selecting an epic', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+
+  /** An epic has no checklist to work: what it is for is its tasks and the description they share. */
+  it('opens the epic on its own pane, and a task on its note', () => {
+    const store = useConsoleStore()
+    const epic = 'e1' as TaskId
+    store.tasks = [{ ...taskFixture(epic), kind: 'EPIC' }, taskFixture(report)]
+
+    store.selectTask(epic)
+    expect(store.paneFocus).toBe('description')
+
+    store.selectTask(report)
+    expect(store.paneFocus).toBe('note')
+  })
+})

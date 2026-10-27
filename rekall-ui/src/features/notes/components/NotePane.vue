@@ -15,6 +15,7 @@ import NoteContextModeSwitch from '@/features/notes/components/NoteContextModeSw
 import NoteMembershipStrip from '@/features/notes/components/NoteMembershipStrip.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
+import { useEditorMode } from '@/composables/useEditorMode'
 import { rkCommand } from '@/common/format/rk-command'
 import { DOCUMENT_KINDS } from '@/features/catalog/model/catalog'
 import type { NoteScope } from '@/features/notes/model/note-scope'
@@ -33,7 +34,7 @@ const KIND_OPTIONS = DOCUMENT_KINDS.map((kind) => ({
   label: kind.charAt(0).toUpperCase() + kind.slice(1)
 }))
 
-const mode = ref<'write' | 'read'>('write')
+const { mode, openFor } = useEditorMode('write')
 const isAssigning = ref(false)
 const isConfirmingDelete = ref(false)
 
@@ -76,6 +77,12 @@ watch(
       bodyMarkdown: document.bodyMarkdown
     }
   },
+  { immediate: true }
+)
+
+watch(
+  () => selectedDocument.value?.id ?? null,
+  () => openFor(selectedDocument.value?.bodyMarkdown ?? ''),
   { immediate: true }
 )
 

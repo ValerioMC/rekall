@@ -16,12 +16,6 @@ export const router = createRouter({
       props: true
     },
     {
-      path: '/epics/:id',
-      name: 'epic',
-      component: () => import('@/features/catalog/components/epic/EpicPage.vue'),
-      props: true
-    },
-    {
       path: '/companies',
       name: 'companies',
       component: () => import('@/features/catalog/components/CompanyListPage.vue')

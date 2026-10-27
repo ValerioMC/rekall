@@ -1,4 +1,5 @@
 import { inject, provide, ref, type InjectionKey, type Ref } from 'vue'
+import { useEditorMode } from '@/composables/useEditorMode'
 import type { TaskStep } from '@/features/catalog/model/catalog'
 import type { TaskStepId } from '@/model/branded'
 
@@ -31,7 +32,7 @@ const SAVE_DELAY_MS = 700
 
 export function provideStepEditor(wiring: StepEditorWiring): StepEditor {
   const expandedId = ref<TaskStepId | null>(null)
-  const mode = ref<'write' | 'read'>('read')
+  const { mode, openFor } = useEditorMode('read')
   const title = ref('')
   const body = ref('')
   let saveTimer: ReturnType<typeof setTimeout> | null = null
@@ -66,7 +67,7 @@ export function provideStepEditor(wiring: StepEditorWiring): StepEditor {
     expandedId.value = step.id
     title.value = step.title
     body.value = step.bodyMarkdown ?? ''
-    mode.value = step.bodyMarkdown?.trim() ? 'read' : 'write'
+    openFor(step.bodyMarkdown ?? '')
   }
 
   function toggle(step: TaskStep): void {

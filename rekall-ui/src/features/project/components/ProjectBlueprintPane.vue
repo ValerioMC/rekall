@@ -5,6 +5,7 @@ import AppModeToggle from '@/components/ui/AppModeToggle.vue'
 import ProjectPaneFrame from '@/features/project/components/ProjectPaneFrame.vue'
 import { identityHue } from '@/common/identity'
 import { useConsoleStore } from '@/stores/console.store'
+import { useEditorMode } from '@/composables/useEditorMode'
 import type { Project } from '@/features/catalog/model/catalog'
 
 const SAVE_DELAY_MS = 700
@@ -13,7 +14,7 @@ const props = defineProps<{ project: Project }>()
 
 const store = useConsoleStore()
 const draft = ref('')
-const mode = ref<'write' | 'read'>('read')
+const { mode, openFor } = useEditorMode('read')
 let timer: ReturnType<typeof setTimeout> | null = null
 
 function schedule(): void {
@@ -36,7 +37,7 @@ watch(
   (_, previous) => {
     if (previous !== undefined) flush()
     draft.value = props.project.blueprintMarkdown ?? ''
-    mode.value = draft.value.trim() ? 'read' : 'write'
+    openFor(draft.value)
   },
   { immediate: true }
 )

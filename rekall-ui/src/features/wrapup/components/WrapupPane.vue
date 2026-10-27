@@ -11,6 +11,7 @@ import TaskTitleRow from '@/features/catalog/components/TaskTitleRow.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
+import { useEditorMode } from '@/composables/useEditorMode'
 import { relativeTime } from '@/common/format/relative-time'
 import { rkWrapupCommand } from '@/common/format/rk-command'
 import { WRAPUP_AUTHOR_LABEL, isEpic } from '@/features/catalog/model/catalog'
@@ -24,7 +25,7 @@ const { run: runSend, isRunning: sendingWrapupHere } = useAsyncAction()
 const liveTerminal = computed(() => terminals.terminalForTask(selectedTask.value?.id ?? null))
 const wrapupHereOpen = ref(false)
 
-const mode = ref<'write' | 'read'>('read')
+const { mode, openFor } = useEditorMode('read')
 const isConfirmingDelete = ref(false)
 
 const isDrafting = ref(false)
@@ -37,7 +38,7 @@ watch(
     if (saveTimer) clearTimeout(saveTimer)
     draft.value = selectedWrapup.value?.bodyMarkdown ?? ''
     isDrafting.value = false
-    mode.value = selectedWrapup.value ? 'read' : 'write'
+    openFor(selectedWrapup.value?.bodyMarkdown ?? '')
   },
   { immediate: true }
 )

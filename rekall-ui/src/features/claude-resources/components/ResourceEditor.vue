@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import AppModeToggle from '@/components/ui/AppModeToggle.vue'
 import MemoryTypeChip from './MemoryTypeChip.vue'
+import { useEditorMode } from '@/composables/useEditorMode'
 import { resourceKindLabel, type ResourceFile } from '@/features/claude-resources/model/claude-resources'
 
 const props = defineProps<{
@@ -24,7 +25,7 @@ const emit = defineEmits<{
   overwrite: []
 }>()
 
-const mode = ref<'write' | 'read'>('write')
+const { mode } = useEditorMode('write')
 const summary = computed(() => props.file.summary)
 const readOnly = computed(() => !summary.value.editable)
 /** Who owns a read-only file, so the lock says more than "no". */

@@ -6,6 +6,7 @@ import AppModeToggle from '@/components/ui/AppModeToggle.vue'
 import ProjectPaneFrame from '@/features/project/components/ProjectPaneFrame.vue'
 import { relativeTime } from '@/common/format/relative-time'
 import { useAsyncAction } from '@/composables/useAsyncAction'
+import { useEditorMode } from '@/composables/useEditorMode'
 import { useProjectSectionsStore } from '@/features/project/store/projectSections.store'
 import type { Direction } from '@/features/project/lib/section-order'
 import type { ProjectSection } from '@/features/project/model/project-section'
@@ -26,7 +27,7 @@ const { run } = useAsyncAction()
 
 const titleDraft = ref('')
 const bodyDraft = ref('')
-const mode = ref<'write' | 'read'>('read')
+const { mode, openFor } = useEditorMode('read')
 const saveState = ref<'saved' | 'unsaved' | 'saving'>('saved')
 let timer: ReturnType<typeof setTimeout> | null = null
 
@@ -70,7 +71,7 @@ watch(
 watch(
   () => props.section.id,
   () => {
-    mode.value = props.section.bodyMarkdown.trim() ? 'read' : 'write'
+    openFor(props.section.bodyMarkdown)
   },
   { immediate: true }
 )

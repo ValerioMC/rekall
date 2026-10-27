@@ -18,13 +18,6 @@ pub async fn list_newest_first(db: &impl ConnectionTrait) -> Result<Vec<Model>, 
     Ok(Entity::find().order_by_desc(Column::CreatedAt).all(db).await?)
 }
 
-pub async fn list_of_tasks(db: &impl ConnectionTrait, task_ids: Vec<Id>) -> Result<Vec<Model>, RekallError> {
-    if task_ids.is_empty() {
-        return Ok(Vec::new());
-    }
-    Ok(Entity::find().filter(Column::TaskId.is_in(task_ids)).order_by_desc(Column::CreatedAt).all(db).await?)
-}
-
 /// The rows a task hands to `rekall_context`, in the order they were logged.
 pub async fn list_in_context_of_task(
     db: &impl ConnectionTrait,

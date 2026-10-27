@@ -2,36 +2,6 @@ import { TASK_STATUS_ORDER, isEpic } from './catalog'
 import type { Task } from './catalog'
 import type { TaskId } from '../../../model/branded'
 
-export const EPIC_ACTIVITY_KINDS = [
-  'STEP_STARTED',
-  'STEP_CLAIMED',
-  'STEP_ACCEPTED',
-  'TASK_CLAIMED',
-  'TASK_ACCEPTED',
-  'WRAPUP_WRITTEN',
-  'COMMIT_LOGGED'
-] as const
-
-export type EpicActivityKind = (typeof EPIC_ACTIVITY_KINDS)[number]
-
-/** One recorded moment on a task of an epic; `subject` is the step's title or the commit's subject. */
-export interface EpicActivity {
-  readonly taskId: TaskId
-  readonly kind: EpicActivityKind
-  readonly subject: string | null
-  readonly at: string
-}
-
-export const EPIC_ACTIVITY_LABEL: Readonly<Record<EpicActivityKind, string>> = {
-  STEP_STARTED: 'Step started',
-  STEP_CLAIMED: 'Step claimed',
-  STEP_ACCEPTED: 'Step accepted',
-  TASK_CLAIMED: 'Work claimed',
-  TASK_ACCEPTED: 'Work accepted',
-  WRAPUP_WRITTEN: 'Wrapup written',
-  COMMIT_LOGGED: 'Commit logged'
-}
-
 /** How far an epic is, read from the tasks that belong to it. */
 export interface EpicProgress {
   readonly total: number

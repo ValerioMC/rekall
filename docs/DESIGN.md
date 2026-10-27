@@ -421,13 +421,15 @@ project whose `epic_id` names it.
 | Its kind and project are kept while tasks belong to it | `TaskService` refuses turning an epic with tasks back into a task, or moving it to another project, as a 409: either would leave tasks pointing at a plain task or across projects. A task that already has steps cannot become an epic |
 | Deleting it frees its tasks | `ON DELETE SET NULL` on `epic_id`: the tasks are the work and outlive the container |
 | Inherited in the context, not copied | `ContextService::render_task` adds an `epic` field to a task that belongs to one and appends the epic as a reference (`inherited_epic`) with its description and notes in full and its other tasks as anchors, without its skills, commits or wrapup. An epic loaded by its own anchor renders as `## Epic:`, with a `kind` field counting its tasks. Nothing is written into the child, so editing the epic reaches every task at once |
-| The dashboard reads moments the rows already carry | `EpicService::activity` (`GET /api/epics/{id}/activity`) builds the feed from the tasks' claim and accept moments, their steps' `running_at`/`claimed_at`/`done_at`, their wrapups and their logged commits (`EpicActivityResponse::feed`, newest first, at most `ACTIVITY_MAX`). No event log is kept for it |
 
-In the console an epic is selected like a task, so its description and notes are edited where any
-task's are, and the dossier shows its tasks' progress in place of the steps card. The navigator
-lists epics ahead of the status groups (`NavigatorEpicRow`, from `partitionTasks`), each with the
-status mix of its tasks and a link to its dashboard (`EpicPage`, route `/epics/:id`); a task in an
-epic wears an `EpicChip` beside its anchor, on a row whose third line carries what the task holds.
+In the console an epic is selected like a task and opens on `EpicPane`, which takes the
+description pane's place for it: its tasks' progress, the tasks (filed, created or taken out
+through `setTaskEpic` on the ordinary task update, so no endpoint of its own) and its description,
+written with the same autosave as a task's (`useDescriptionDraft`). The dossier shows one
+`EpicDossierCard` in place of the description and steps cards. The navigator lists epics ahead of
+the status groups (`NavigatorEpicRow`, from `partitionTasks`), each with the status mix of its tasks;
+a task in an epic wears an `EpicChip` beside its anchor, on a row whose third line carries what the
+task holds, and its dossier opens with an `EpicMembershipCard` that selects the epic.
 
 ---
 

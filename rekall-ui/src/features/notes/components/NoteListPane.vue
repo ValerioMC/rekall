@@ -171,9 +171,17 @@ async function detach(note: RekallDocument): Promise<void> {
           @pause="pauseTimer"
           @open-log="showTimeLog = true"
         />
-        <EpicMembershipCard v-if="epicOfSelected" :epic="epicOfSelected" />
+        <EpicMembershipCard v-if="epicOfSelected" :epic="epicOfSelected" @open="store.selectTask(epicOfSelected.id)" />
         <div class="dossier" data-testid="dossier">
+          <EpicDossierCard
+            v-if="isEpic(selectedTask)"
+            :epic="selectedTask"
+            :children="selectedEpicChildren"
+            :selected="paneFocus === 'description'"
+            @open="store.openDescription()"
+          />
           <DescriptionCard
+            v-else
             :description="selectedTask.description"
             :selected="paneFocus === 'description'"
             :review-state="
@@ -183,14 +191,8 @@ async function detach(note: RekallDocument): Promise<void> {
             "
             @open="store.openDescription()"
           />
-          <EpicDossierCard
-            v-if="isEpic(selectedTask)"
-            class="dossier-seam"
-            :epic="selectedTask"
-            :children="selectedEpicChildren"
-          />
           <StepsCard
-            v-else
+            v-if="!isEpic(selectedTask)"
             class="dossier-seam"
             :steps="selectedTaskSteps"
             :selected="paneFocus === 'steps'"

@@ -3,6 +3,7 @@ import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import DescriptionPane from '@/features/catalog/components/DescriptionPane.vue'
 import DescriptionEmptyState from '@/features/catalog/components/DescriptionEmptyState.vue'
+import AppModeToggle from '@/components/ui/AppModeToggle.vue'
 import * as componentsApi from '@/features/project/api/project-components.api'
 import { useConsoleStore } from '@/stores/console.store'
 import type { Task, TaskStepState } from '@/features/catalog/model/catalog'
@@ -151,23 +152,24 @@ describe('DescriptionPane component completion', () => {
   })
 })
 
-describe('DescriptionPane on an epic', () => {
+describe('DescriptionPane mode', () => {
   beforeEach(() => {
     pinia = createPinia()
     setActivePinia(pinia)
   })
 
-  it('offers no way to run an epic, and keeps it for a task', async () => {
-    seed('OPEN')
-    const task = render()
+  it('opens the next task in Write when the reader left the description in Write', async () => {
+    const store = seed('OPEN', { description: 'The first brief.' })
+    const wrapper = render()
     await flushPromises()
-    expect(task.findComponent({ name: 'OpenTerminalButton' }).exists()).toBe(true)
-    expect(task.findComponent({ name: 'LaunchClaudeCodeButton' }).exists()).toBe(true)
+    expect(wrapper.getComponent(AppModeToggle).props('modelValue')).toBe('read')
 
-    seed('OPEN', { kind: 'EPIC' })
-    const epic = render()
+    wrapper.getComponent(AppModeToggle).vm.$emit('update:modelValue', 'write')
+    const other = { ...makeTask('OPEN'), id: 't2' as TaskId, description: 'The second brief.' }
+    store.tasks = [...store.tasks, other]
+    store.selectedTaskId = other.id
     await flushPromises()
-    expect(epic.findComponent({ name: 'OpenTerminalButton' }).exists()).toBe(false)
-    expect(epic.findComponent({ name: 'LaunchClaudeCodeButton' }).exists()).toBe(false)
+
+    expect(wrapper.getComponent(AppModeToggle).props('modelValue')).toBe('write')
   })
 })

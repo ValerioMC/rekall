@@ -176,7 +176,6 @@ async function add(): Promise<void> {
   if (!created) return
   editor.flush()
   editor.open(created)
-  editor.mode.value = 'write'
   await scrollToDrafts()
 }
 

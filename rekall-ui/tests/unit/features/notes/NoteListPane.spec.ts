@@ -248,3 +248,45 @@ describe('NoteListPane', () => {
     wrapper.unmount()
   })
 })
+
+describe('NoteListPane on an epic', () => {
+  const epic = 'e1' as TaskId
+
+  beforeEach(() => {
+    document.body.innerHTML = ''
+    pinia = createPinia()
+    setActivePinia(pinia)
+  })
+
+  /** Its tasks and its description are one section in the console, so the dossier offers one way in. */
+  it('shows one card for its tasks and description, with how many are done, and opens the epic pane', async () => {
+    const store = seed([])
+    store.tasks = [
+      { ...task(epic, 'epics', 'Epics'), kind: 'EPIC' },
+      { ...task(builder, 'report-builder', 'Report builder'), epicId: epic, status: 'DONE' },
+      { ...task(retry, 'retry-policy', 'Retry policy'), epicId: epic }
+    ]
+    store.selectedTaskId = epic
+    const wrapper = render()
+
+    expect(wrapper.find('[data-testid="description-card"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="steps-card"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="epic-dossier-progress"]').text()).toBe('1/2')
+
+    await wrapper.get('[data-testid="epic-dossier-card"]').trigger('click')
+    expect(store.paneFocus).toBe('description')
+    wrapper.unmount()
+  })
+
+  it("opens a task's epic from the card above its dossier", async () => {
+    const store = seed([])
+    store.tasks = [{ ...task(epic, 'epics', 'Epics'), kind: 'EPIC' }, { ...task(builder, 'report-builder', 'Report builder'), epicId: epic }]
+    const wrapper = render()
+
+    await wrapper.get('[data-testid="epic-membership"]').trigger('click')
+
+    expect(store.selectedTaskId).toBe(epic)
+    expect(store.paneFocus).toBe('description')
+    wrapper.unmount()
+  })
+})

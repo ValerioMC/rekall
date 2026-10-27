@@ -1,7 +1,6 @@
 import { apiClient, request } from '../../../api/client'
 import {
   CompanyListSchema,
-  EpicActivityListSchema,
   CompanySchema,
   ProjectListSchema,
   ProjectRepositorySchema,
@@ -22,7 +21,6 @@ import type {
   TaskStatus,
   TaskStepState
 } from '@/features/catalog/model/catalog'
-import type { EpicActivity } from '@/features/catalog/model/epic'
 import type { CompanyId, ProjectId, TagId, TaskId } from '@/model/branded'
 
 export interface CompanyInput {
@@ -201,9 +199,4 @@ export async function updateTag(id: TagId, input: TagInput): Promise<Tag> {
 
 export async function deleteTag(id: TagId): Promise<void> {
   await request(() => apiClient(`/api/tags/${id}`, { method: 'DELETE' }))
-}
-
-/** What moved lately on the tasks of an epic, newest first. */
-export async function fetchEpicActivity(id: TaskId): Promise<EpicActivity[]> {
-  return request(async () => EpicActivityListSchema.parse(await apiClient(`/api/epics/${id}/activity`)))
 }

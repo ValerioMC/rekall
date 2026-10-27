@@ -2,7 +2,6 @@
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import EpicGlyph from '@/features/catalog/components/epic/EpicGlyph.vue'
-import EpicPageLink from '@/features/catalog/components/epic/EpicPageLink.vue'
 import StatusMixBar from '@/components/ui/StatusMixBar.vue'
 import { tasksOfEpic } from '@/features/catalog/model/epic'
 import type { Task } from '@/features/catalog/model/catalog'
@@ -10,7 +9,7 @@ import { useConsoleStore } from '@/stores/console.store'
 
 /**
  * An epic in the navigator: its title over the status mix of the tasks it gathers. The row selects
- * it like a task, so its description and notes open in the console; the end cap opens its dashboard.
+ * it like a task, and the console opens on its tasks and description.
  */
 const props = withDefaults(defineProps<{ epic: Task; selected: boolean; filed?: boolean }>(), { filed: false })
 
@@ -22,9 +21,9 @@ const done = computed(() => children.value.filter((task) => task.status === 'DON
 </script>
 
 <template>
-  <div class="relative" :class="filed && 'filed-row'" data-testid="epic-row">
+  <div :class="filed && 'filed-row'" data-testid="epic-row">
     <button
-      class="epic-row focus-ring flex w-full items-start gap-2.5 rounded-control py-2 pl-2.5 pr-10 text-left transition-colors"
+      class="epic-row focus-ring flex w-full items-start gap-2.5 rounded-control px-2.5 py-2 text-left transition-colors"
       :class="selected ? 'selected-row text-text' : 'text-text-muted hover:text-text'"
       :style="selected ? { '--select-tint': 'var(--color-epic)', '--select-tint-soft': 'var(--color-epic-soft)' } : undefined"
       :aria-current="selected"
@@ -52,7 +51,6 @@ const done = computed(() => children.value.filter((task) => task.status === 'DON
         </span>
       </span>
     </button>
-    <EpicPageLink class="absolute right-1.5 top-1.5" :epic-id="epic.id" :epic-title="epic.title" />
   </div>
 </template>
 

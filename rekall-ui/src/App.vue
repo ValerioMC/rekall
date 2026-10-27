@@ -3,6 +3,7 @@ import { defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import AnchorBar from '@/components/console/AnchorBar.vue'
 import DescriptionPane from '@/features/catalog/components/DescriptionPane.vue'
+import EpicPane from '@/features/catalog/components/epic/EpicPane.vue'
 import NavigatorPane from '@/components/console/NavigatorPane.vue'
 import NoteListPane from '@/features/notes/components/NoteListPane.vue'
 import NotePane from '@/features/notes/components/NotePane.vue'
@@ -59,6 +60,7 @@ const STATUS_BY_KEY: Record<string, TaskStatus> = {
 const anchorBar = ref<InstanceType<typeof AnchorBar> | null>(null)
 const navigator = ref<InstanceType<typeof NavigatorPane> | null>(null)
 const descriptionPane = ref<InstanceType<typeof DescriptionPane> | null>(null)
+const epicPane = ref<InstanceType<typeof EpicPane> | null>(null)
 const notePane = ref<InstanceType<typeof NotePane> | null>(null)
 const settingsOpen = ref(false)
 const claudeConnection = useClaudeConnectionStore()
@@ -116,7 +118,7 @@ function onKeydown(event: KeyboardEvent): void {
 
   if (key === 'r') {
     event.preventDefault()
-    if (paneFocus.value === 'description') descriptionPane.value?.toggleMode()
+    if (paneFocus.value === 'description') (epicPane.value ?? descriptionPane.value)?.toggleMode()
     else if (paneFocus.value === 'note') notePane.value?.toggleMode()
     return
   }
@@ -217,6 +219,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
       <div id="note" class="flex min-h-0 min-w-0 flex-1 outline-none" tabindex="-1">
         <Transition name="pane" mode="out-in">
           <WrapupPane v-if="paneFocus === 'wrapup'" />
+          <EpicPane v-else-if="paneFocus === 'description' && selectedTask && isEpic(selectedTask)" ref="epicPane" />
           <DescriptionPane v-else-if="paneFocus === 'description'" ref="descriptionPane" />
           <StepsPane v-else-if="paneFocus === 'steps' && !(selectedTask && isEpic(selectedTask))" />
           <TerminalPane v-else-if="paneFocus === 'terminal' && !(selectedTask && isEpic(selectedTask))" />

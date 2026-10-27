@@ -1,6 +1,7 @@
 import { computed } from 'vue'
 import type { CompanyId, DocumentId, ProjectId, TaskId, TaskStepId } from '@/model/branded'
 import type { ConsoleLocation, NavMode, PaneFocus } from '@/model/console-location'
+import { isEpic } from '@/features/catalog/model/catalog'
 import type { ReviewItem } from '@/features/catalog/model/review'
 import type { SearchHit } from '@/features/search/model/search'
 import type { ConsoleState } from './console-state'
@@ -30,7 +31,13 @@ export function useConsoleNavigation(
     selectedTaskId.value = id
     const first = documents.value.find((document) => document.tasks.some((ref) => ref.id === id))
     selectedDocId.value = first?.id ?? null
-    paneFocus.value = 'note'
+    paneFocus.value = openingPaneOf(id)
+  }
+
+  /** An epic opens on its own pane, where its tasks and description are; a task on its first note. */
+  function openingPaneOf(id: TaskId): PaneFocus {
+    const task = tasks.value.find((candidate) => candidate.id === id)
+    return task && isEpic(task) ? 'description' : 'note'
   }
 
   /**

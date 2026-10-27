@@ -16,7 +16,7 @@ import { blankToNull, replaceById, trackSave } from '../../../stores/console/row
 /** The task as stored, with one field changed, in the shape its update takes. */
 function taskInput(
   task: Task,
-  change: Partial<Pick<TaskInput, 'status' | 'description' | 'tagId'>>
+  change: Partial<Pick<TaskInput, 'status' | 'description' | 'tagId' | 'epicId'>>
 ): TaskInput {
   return {
     label: task.label,
@@ -99,6 +99,13 @@ export function useTaskWrites(
     storeTask(await apiUpdateTask(id, taskInput(task, { tagId })))
   }
 
+  /** Files the task under an epic, or takes it out of the one it is in with `null`. */
+  async function setTaskEpic(id: TaskId, epicId: TaskId | null): Promise<void> {
+    const task = tasks.value.find((candidate) => candidate.id === id)
+    if (!task || task.epicId === epicId) return
+    storeTask(await apiUpdateTask(id, taskInput(task, { epicId })))
+  }
+
   async function saveTaskDescription(id: TaskId, description: string): Promise<void> {
     const task = tasks.value.find((candidate) => candidate.id === id)
     if (!task) return
@@ -145,6 +152,7 @@ export function useTaskWrites(
     deleteTask,
     setTaskStatus,
     setTaskTag,
+    setTaskEpic,
     saveTaskDescription,
     applyTaskReview,
     applyTaskCreated,

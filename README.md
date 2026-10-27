@@ -341,12 +341,13 @@ concept a feature shares, as a description and notes, and gathers the tasks of i
 name it in their **Epic** field. Each of those tasks inherits it: `/rk` on one of them loads the
 epic after it, in full, marked `inherited`, with its description and notes as part of the brief.
 
-- The navigator lists a project's epics first, each with the status mix of its tasks and a link to
-  its dashboard; a task in an epic wears the epic's name next to its anchor. Selecting an epic
-  opens its description and notes in the console like any task.
-- The dashboard (`/epics/{id}`) shows how far its tasks are, the tasks themselves, what moved on
-  them lately (steps started, claimed and accepted, wrapups, commits), and the epic's description
-  and notes.
+- The navigator lists a project's epics first, each with the status mix of its tasks; a task in an
+  epic wears the epic's name next to its anchor, and the card above its dossier opens the epic.
+- Selecting an epic opens it in the console: how far its tasks are, the tasks themselves and its
+  description, written in place. **Add existing task** files a task of the project under it (one in
+  another epic moves here), **New task** creates one already filed, and a row's cross takes a task
+  out, with an Undo. In its dossier one **Epic tasks** card, with how many are done, stands where a
+  task has its description and steps; its notes are listed below as on any task.
 - A session creates one with `rekall_create_task` and `kind: "epic"`, creates tasks under it with
   `epic`, and files an existing task under it with `rekall_join_epic`.
 - An epic belongs to no epic, takes no step, has no flow, is never run (no terminal, no Claude
@@ -413,6 +414,8 @@ The timer follows the work. Writing on a task whose timer is paused starts it: i
 A timer stops by itself when its task has seen no write for 30 minutes: the task, its steps, wrapup or notes. It stops at the time of that last write, so the idle stretch is not counted. A task with a step a session is running is never idle, and every open timer stops when the application shuts down. The check runs every minute.
 
 A markdown editor in write mode is one pane drawn the way read mode draws the page, with no preview beside it (`common/live-preview/`, CodeMirror decorations on md-editor-v3's editor). The text stays the markdown that is saved, byte for byte: the line holding the caret shows its markup, every other line hides it, and the toolbar inserts markup as before. A fenced block is drawn highlighted and a ```` ```mermaid ```` fence as its diagram; clicking one, or moving the caret into it, shows its source until the caret leaves. Bullets are drawn as dashes and `[ ]` as a checkbox that writes `[x]` when ticked. A table is drawn as a table whose cells are written in place: click a cell to see its markdown, `↵` goes down, `Tab` and `⇧Tab` across, `esc` drops the edit, and only that cell's text changes. Right-click a cell to insert or delete rows and columns, align a column, or **Edit as markdown**; those rewrite only that table, compact and unpadded.
+
+Every markdown editor opens in the mode you last picked on any of them: leave one in **Write** and the next description, note, wrapup, step or section opens in Write too, until you pick **Read**. An empty text always opens to write.
 
 Every markdown editor puts a path in the text without a trip to Finder. `⌘⇧P`, or the folder button in the toolbar next to link, opens a file browser under the caret, in the project's folder (for a note, the folder of the task it was opened from), or wherever it was left the last time in that editor. `↑` `↓` move, `→` or `Tab` opens a folder, `⌫` or `←` on an empty filter goes up, and the breadcrumb and the project and home buttons jump. The filter also takes a path: `src/comp` lists `src` and keeps what matches `comp`, `~/` goes home, `/` goes to the root. `↵` inserts the highlighted entry, `⌘↵` the folder in view, and the footer shows exactly what will land: the absolute path, a folder ending in `/`, wrapped in backticks so `_` and `*` survive the preview, bare when the caret is already inside code. Dotfiles stay out until `⌘⇧.`, or until the filter starts with a dot. The first `esc` clears the filter and the second closes. `GET /api/filesystem/directory?base=&path=` lists one folder by name only, never its contents: `~`, absolute and relative paths are resolved on the server, a folder macOS keeps private comes back empty and marked unreadable, and a folder bigger than 2,000 entries is cut off after sorting.
 

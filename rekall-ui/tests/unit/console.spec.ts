@@ -929,6 +929,25 @@ describe('console store', () => {
     })
   })
 
+  describe('the epic a task is in', () => {
+    it('files the task under an epic and takes it out again, sending the rest of it unchanged', async () => {
+      const epic = 'e1' as TaskId
+
+      await store.setTaskEpic(validator, epic)
+      expect(updateTask).toHaveBeenLastCalledWith(validator, expect.objectContaining({ epicId: epic, kind: 'TASK', status: 'IN_PROGRESS' }))
+      expect(store.tasks.find((task) => task.id === validator)?.epicId).toBe(epic)
+
+      await store.setTaskEpic(validator, null)
+      expect(updateTask).toHaveBeenLastCalledWith(validator, expect.objectContaining({ epicId: null }))
+    })
+
+    it('sends nothing when the task is already where it is asked to be', async () => {
+      await store.setTaskEpic(validator, null)
+
+      expect(updateTask).not.toHaveBeenCalled()
+    })
+  })
+
   /**
    * The question the description and the wrapup could not answer between them. A brief says what
    * the work is and grows as it is redefined; a wrapup says what it became. What is left was
