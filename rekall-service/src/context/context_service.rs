@@ -6,7 +6,7 @@ use std::sync::LazyLock;
 use regex::Regex;
 use rekall_common::{jstr, Id, InternalFailure, RekallError, Result};
 use rekall_model::document::ANCHOR_ID_LENGTH;
-use rekall_model::{company, project, task, TaskStepState};
+use rekall_model::{company, project, task, TaskStatus, TaskStepState};
 use rekall_repository::repository as repo;
 
 use super::{ContextCommitView, ContextRecord, ContextSkillScope, ContextSkillView, DocumentView, StepConnectionView};
@@ -210,6 +210,13 @@ impl ContextService {
         let siblings = repo::task::list_of_project(tx.db(), project.id).await?;
         let mut record = self.task_record(tx, task, &project, &siblings).await?;
         record.references.insert(0, self.referenced_project(tx, &project).await?);
+        if let Some(epic) = epic_of(task, &siblings) {
+            record.fields.push((
+                "epic".into(),
+                format!("belongs to the epic `task:{}` below, and inherits its description and notes.", epic.label),
+            ));
+            record.references.push(self.inherited_epic(tx, epic, &project, &siblings).await?);
+        }
         for referenced in referenced_tasks(&record, task, &siblings) {
             record.references.push(self.referenced_task(tx, referenced, &project, &siblings).await?);
         }
@@ -229,6 +236,20 @@ impl ContextService {
         Ok(ContextRecord { fields, steps: Vec::new(), step_connections: Vec::new(), skills: Vec::new(), commits: Vec::new(), ..full })
     }
 
+    /// The epic a task belongs to: its description and notes in full, as part of that task's brief,
+    /// and the tasks gathered under it as anchors.
+    async fn inherited_epic(&self, tx: &Tx, epic: &task::Model, project: &project::Model, siblings: &[task::Model]) -> Result<ContextRecord> {
+        let full = self.task_record(tx, epic, project, siblings).await?;
+        let mut fields = full.fields;
+        fields.push((
+            "inherited".into(),
+            "the epic the task above belongs to. Its description and notes are that task's brief too; the tasks it lists are \
+             its siblings, not its work."
+                .into(),
+        ));
+        Ok(ContextRecord { fields, skills: Vec::new(), commits: Vec::new(), wrapup: None, ..full })
+    }
+
     async fn task_record(&self, tx: &Tx, task: &task::Model, project: &project::Model, siblings: &[task::Model]) -> Result<ContextRecord> {
         let db = tx.db();
         let flow = StepFlowRows::of_task(db, task.id).await?;
@@ -236,6 +257,10 @@ impl ContextService {
             load::steps_of(db, task.id).await?.iter().map(|step| TaskStepView::of(step, &flow)).collect::<Result<_>>()?;
 
         let mut fields = vec![("status".to_string(), task.status.name().to_string())];
+        let children: Vec<&task::Model> = siblings.iter().filter(|sibling| sibling.epic_id == Some(task.id)).collect();
+        if task.is_epic() {
+            fields.push(("kind".into(), epic_summary(&children)));
+        }
         if let Some(note) = task.review_note.as_deref().filter(|n| !jstr::is_blank(n)) {
             fields.push(("review".into(), format!("sent back — \"{note}\"")));
         }
@@ -266,12 +291,12 @@ impl ContextService {
         let documents = repo::document::documents_of_task(db, task.id).await?;
         let wrapup = load::wrapup_of(db, task.id).await?.map(|found| WrapupView::of(&found, task, project));
         Ok(ContextRecord {
-            kind: "Task".into(),
+            kind: if task.is_epic() { "Epic" } else { "Task" }.into(),
             label: task.title.clone(),
             anchor: format!("task:{}", task.label),
             fields,
             references: Vec::new(),
-            related: Vec::new(),
+            related: children.iter().map(|child| format!("task:{}", child.label)).collect(),
             documents: documents.iter().map(DocumentView::of).collect(),
             skills: self.skills_of(tx, task, &steps).await?,
             step_connections: self.step_connections_of(tx, project, &steps).await?,
@@ -376,6 +401,21 @@ fn referenced_tasks<'a>(record: &ContextRecord, task: &task::Model, siblings: &'
         }
     }
     found
+}
+
+fn epic_of<'a>(task: &task::Model, siblings: &'a [task::Model]) -> Option<&'a task::Model> {
+    let epic_id = task.epic_id?;
+    siblings.iter().find(|sibling| sibling.id == epic_id)
+}
+
+/// What an epic is, for its field list: no steps of its own, and how far the tasks under it are.
+fn epic_summary(children: &[&task::Model]) -> String {
+    let done = children.iter().filter(|child| child.status == TaskStatus::Done).count();
+    format!(
+        "epic. It holds no steps: {} belong{} to it ({done} done), each inheriting its description and notes.",
+        if children.len() == 1 { "1 task".to_string() } else { format!("{} tasks", children.len()) },
+        if children.len() == 1 { "s" } else { "" }
+    )
 }
 
 async fn company_of(tx: &Tx, project: &project::Model) -> Result<company::Model> {

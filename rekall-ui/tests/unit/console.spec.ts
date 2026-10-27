@@ -78,6 +78,8 @@ const task = (
   tagColor: null,
   graphLaidAt: null,
   releaseSkipped: false,
+  kind: 'TASK',
+  epicId: null,
   anchor: `project:${projectLabel} task:${label}`,
   updatedAt: '2026-08-12T10:00:00Z'
 })
@@ -884,7 +886,9 @@ describe('console store', () => {
         status: 'IN_PROGRESS',
         description: 'Builds the weekly report from the pipeline runs.',
         projectId: vega,
-        tagId: null
+        tagId: null,
+        kind: 'TASK',
+        epicId: null
       })
       expect(store.tasks.find((task) => task.id === validator)?.description).toBe(
         'Builds the weekly report from the pipeline runs.'

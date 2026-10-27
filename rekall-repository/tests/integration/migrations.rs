@@ -115,7 +115,7 @@ async fn a_database_written_by_v0_2_moves_onto_the_baseline_with_its_rows() {
     let database = rekall_repository::open(&path).await.unwrap();
     let db = &database.conn;
 
-    assert_eq!(applied_versions(db).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision", "047-vulnerability", "048-exposure-conclusion", "049-deployment-graph", "050-graph-step-place", "051-binding-label", "052-advisory-reach", "053-visit-report", "054-release-on-run"]);
+    assert_eq!(applied_versions(db).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision", "047-vulnerability", "048-exposure-conclusion", "049-deployment-graph", "050-graph-step-place", "051-binding-label", "052-advisory-reach", "053-visit-report", "054-release-on-run", "055-epic"]);
     let task = Task::find().one(db).await.unwrap().unwrap();
     assert_eq!((task.label.as_str(), task.title.as_str()), ("report", "Report"));
     let wrapup = Wrapup::find().one(db).await.unwrap().unwrap();
@@ -132,7 +132,7 @@ async fn a_database_on_the_baseline_opens_again_unchanged() {
 
     let database = rekall_repository::open(&path).await.unwrap();
 
-    assert_eq!(applied_versions(&database.conn).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision", "047-vulnerability", "048-exposure-conclusion", "049-deployment-graph", "050-graph-step-place", "051-binding-label", "052-advisory-reach", "053-visit-report", "054-release-on-run"]);
+    assert_eq!(applied_versions(&database.conn).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision", "047-vulnerability", "048-exposure-conclusion", "049-deployment-graph", "050-graph-step-place", "051-binding-label", "052-advisory-reach", "053-visit-report", "054-release-on-run", "055-epic"]);
 }
 
 #[tokio::test]

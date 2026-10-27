@@ -1,12 +1,13 @@
 //! A unit of work inside a project. `label` is unique per project and is the anchor; `title` is
 //! free text. A task with no checklist (or only draft steps) carries its own review line in
-//! `review_state`, `claimed_at`, `accepted_at` and `review_note`.
+//! `review_state`, `claimed_at`, `accepted_at` and `review_note`. An epic (`kind`) holds no steps
+//! and gathers the tasks of its project whose `epic_id` names it.
 
 use rekall_common::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;
 
 use crate::constraints::Violations;
-use crate::enums::{TaskStatus, TaskStepState};
+use crate::enums::{TaskKind, TaskStatus, TaskStepState};
 
 pub const TITLE_MAX_CHARACTERS: usize = 200;
 
@@ -29,6 +30,8 @@ pub struct Model {
     pub graph_laid_at: Option<Instant>,
     /// The project's release graph is not laid when the console runs this task.
     pub release_skipped: bool,
+    pub kind: TaskKind,
+    pub epic_id: Option<Id>,
     pub created_at: Instant,
     pub updated_at: Instant,
 }
@@ -117,6 +120,8 @@ impl Model {
             tag_id: None,
             graph_laid_at: None,
             release_skipped: false,
+            kind: TaskKind::Task,
+            epic_id: None,
             created_at: now,
             updated_at: now,
         }
@@ -153,6 +158,31 @@ impl Model {
             // DRAFT is a step's state, never the task's.
             TaskStepState::Draft => {}
         }
+    }
+
+    pub fn is_epic(&self) -> bool {
+        self.kind == TaskKind::Epic
+    }
+
+    /// An epic gathers plain tasks of its own project, one level deep: an epic never sits under
+    /// another, and a task is never its own epic.
+    pub fn require_joinable(&self, epic: &Model) -> Result<(), RekallError> {
+        if !epic.is_epic() {
+            return Err(RekallError::illegal(format!("'{}' is not an epic, so no task can belong to it.", epic.label)));
+        }
+        if self.is_epic() {
+            return Err(RekallError::illegal("An epic cannot belong to another epic."));
+        }
+        if epic.id == self.id {
+            return Err(RekallError::illegal("A task cannot be its own epic."));
+        }
+        if epic.project_id != self.project_id {
+            return Err(RekallError::illegal(format!(
+                "The epic '{}' is in another project. A task belongs to an epic of its own project.",
+                epic.label
+            )));
+        }
+        Ok(())
     }
 
     pub fn anchor(&self, project_label: &str) -> String {

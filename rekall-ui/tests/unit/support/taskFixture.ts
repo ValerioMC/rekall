@@ -30,6 +30,8 @@ export function taskFixture(id: TaskId): Task {
     tagColor: null,
     graphLaidAt: null,
     releaseSkipped: false,
+    kind: 'TASK',
+    epicId: null,
     anchor: `project:vega task:${id}`,
     updatedAt: '2026-08-12T10:00:00Z'
   }

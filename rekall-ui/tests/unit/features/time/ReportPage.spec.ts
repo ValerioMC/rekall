@@ -57,6 +57,8 @@ const tasks: Task[] = [
     description: null, projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform',
     companyName: 'acme', projectRepoFolder: null, documentCount: 0, stepCount: 0, stepsDone: 0, draftStepCount: 0, hasWrapup: false, reviewState: 'OPEN', reviewActive: true, claimedAt: null, acceptedAt: null, reviewNote: null,
     tagId: null, tagName: null, tagIcon: null, tagColor: null, graphLaidAt: null, releaseSkipped: false,
+    kind: 'TASK',
+    epicId: null,
     anchor: 'project:vega task:report-builder', updatedAt: ''
   },
   {
@@ -64,6 +66,8 @@ const tasks: Task[] = [
     description: null, projectId: beacon, projectLabel: 'beacon', projectTitle: 'Beacon',
     companyName: 'globex', projectRepoFolder: null, documentCount: 0, stepCount: 0, stepsDone: 0, draftStepCount: 0, hasWrapup: false, reviewState: 'OPEN', reviewActive: true, claimedAt: null, acceptedAt: null, reviewNote: null,
     tagId: null, tagName: null, tagIcon: null, tagColor: null, graphLaidAt: null, releaseSkipped: false,
+    kind: 'TASK',
+    epicId: null,
     anchor: 'project:beacon task:signal-ingest', updatedAt: ''
   }
 ]

@@ -60,12 +60,12 @@ impl GraphAttachService {
     }
 
     /// The project's release graph laid as `attach` would, unless the task already has a graph,
-    /// is left unreleased or the project chose none: then nothing changes.
+    /// is left unreleased, is an epic or the project chose none: then nothing changes.
     pub async fn release_on_run(&self, task_id: Id) -> Result<ReleaseOnRunResponse> {
         in_write!(&self.ctx, |tx| {
             let task = repo::task::require(tx.db(), task_id).await?;
             let release = match (task.graph_laid_at, task.release_skipped) {
-                (None, false) => self.graphs.release_default_in(&tx, task.project_id).await?,
+                (None, false) if !task.is_epic() => self.graphs.release_default_in(&tx, task.project_id).await?,
                 _ => None,
             };
             let Some(stored) = release else {

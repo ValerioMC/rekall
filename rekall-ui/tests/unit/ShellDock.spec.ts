@@ -98,6 +98,8 @@ const task: Task = {
   tagColor: null,
   graphLaidAt: null,
   releaseSkipped: false,
+  kind: 'TASK',
+  epicId: null,
   anchor: 'project:vega task:report-builder',
   updatedAt: '2026-09-10T10:00:00Z'
 }

@@ -57,6 +57,11 @@ pub async fn list_of_project(db: &impl ConnectionTrait, project_id: Id) -> Resul
         .await?)
 }
 
+/// The tasks gathered under an epic, by label.
+pub async fn list_children_of(db: &impl ConnectionTrait, epic_id: Id) -> Result<Vec<Model>, RekallError> {
+    Ok(Entity::find().filter(Column::EpicId.eq(epic_id)).order_by_asc(Column::Label).all(db).await?)
+}
+
 /// By project label, then by label: the order the catalog lists tasks in.
 pub async fn list_in_catalog_order(db: &impl ConnectionTrait) -> Result<Vec<Model>, RekallError> {
     Ok(Entity::find()

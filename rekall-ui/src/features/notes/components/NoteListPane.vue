@@ -5,6 +5,10 @@ import DescriptionCard from '@/features/catalog/components/DescriptionCard.vue'
 import NoteAttachPicker from '@/features/notes/components/NoteAttachPicker.vue'
 import TimeLogDialog from '@/features/time/components/TimeLogDialog.vue'
 import StepsCard from '@/features/steps/components/StepsCard.vue'
+import EpicDossierCard from '@/features/catalog/components/epic/EpicDossierCard.vue'
+import EpicMembershipCard from '@/features/catalog/components/epic/EpicMembershipCard.vue'
+import { tasksOfEpic } from '@/features/catalog/model/epic'
+import { isEpic } from '@/features/catalog/model/catalog'
 import TimerCard from '@/features/time/components/TimerCard.vue'
 import WrapupCard from '@/features/wrapup/components/WrapupCard.vue'
 import { useConsoleStore } from '@/stores/console.store'
@@ -29,10 +33,19 @@ const {
   runningEntries,
   documents,
   projects,
+  tasks,
   isLoading
 } = storeToRefs(store)
 const { run } = useAsyncAction()
 const toast = useToastStore()
+
+const epicOfSelected = computed(() => {
+  const epicId = selectedTask.value?.epicId
+  return epicId ? tasks.value.find((task) => task.id === epicId) ?? null : null
+})
+const selectedEpicChildren = computed(() =>
+  selectedTask.value && isEpic(selectedTask.value) ? tasksOfEpic(selectedTask.value.id, tasks.value) : []
+)
 
 const showTimeLog = ref(false)
 const isAttaching = ref(false)
@@ -158,6 +171,7 @@ async function detach(note: RekallDocument): Promise<void> {
           @pause="pauseTimer"
           @open-log="showTimeLog = true"
         />
+        <EpicMembershipCard v-if="epicOfSelected" :epic="epicOfSelected" />
         <div class="dossier" data-testid="dossier">
           <DescriptionCard
             :description="selectedTask.description"
@@ -169,7 +183,14 @@ async function detach(note: RekallDocument): Promise<void> {
             "
             @open="store.openDescription()"
           />
+          <EpicDossierCard
+            v-if="isEpic(selectedTask)"
+            class="dossier-seam"
+            :epic="selectedTask"
+            :children="selectedEpicChildren"
+          />
           <StepsCard
+            v-else
             class="dossier-seam"
             :steps="selectedTaskSteps"
             :selected="paneFocus === 'steps'"

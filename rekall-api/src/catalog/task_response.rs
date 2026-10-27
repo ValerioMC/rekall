@@ -1,5 +1,5 @@
 use rekall_common::{Id, Instant};
-use rekall_model::{TaskStatus, TaskStepState};
+use rekall_model::{TaskKind, TaskStatus, TaskStepState};
 use serde::Serialize;
 
 use crate::catalog::TaskGraph;
@@ -33,6 +33,8 @@ pub struct TaskResponse {
     pub tag_color: Option<String>,
     pub graph_laid_at: Option<Instant>,
     pub release_skipped: bool,
+    pub kind: TaskKind,
+    pub epic_id: Option<Id>,
     pub anchor: String,
     pub updated_at: Instant,
 }
@@ -68,6 +70,8 @@ impl TaskResponse {
             tag_color: graph.tag.map(|t| t.color.clone()),
             graph_laid_at: task.graph_laid_at,
             release_skipped: task.release_skipped,
+            kind: task.kind,
+            epic_id: task.epic_id,
             anchor: task.anchor(&project.label),
             updated_at: task.updated_at,
         }

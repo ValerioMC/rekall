@@ -20,9 +20,13 @@ export const TASK_STATUSES = ['BACKLOG', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DONE
 
 export const TASK_STEP_STATES = ['DRAFT', 'OPEN', 'RUNNING', 'CLAIMED', 'DONE'] as const
 
+/** An epic holds no steps: it gathers the tasks of its project that name it as their epic. */
+export const TASK_KINDS = ['TASK', 'EPIC'] as const
+
 export type ProjectStatus = (typeof PROJECT_STATUSES)[number]
 export type TaskStatus = (typeof TASK_STATUSES)[number]
 export type TaskStepState = (typeof TASK_STEP_STATES)[number]
+export type TaskKind = (typeof TASK_KINDS)[number]
 
 export function stepIsComplete(state: TaskStepState): boolean {
   return state === 'CLAIMED' || state === 'DONE'
@@ -146,8 +150,15 @@ export interface Task {
   readonly graphLaidAt: string | null
   /** The project's release graph is not laid when the console runs this task. */
   readonly releaseSkipped: boolean
+  readonly kind: TaskKind
+  /** The epic of the same project this task belongs to, and inherits description and notes from. */
+  readonly epicId: TaskId | null
   readonly anchor: string
   readonly updatedAt: string
+}
+
+export function isEpic(task: Pick<Task, 'kind'>): boolean {
+  return task.kind === 'EPIC'
 }
 
 export interface Tag {

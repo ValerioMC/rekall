@@ -37,6 +37,8 @@ function task(id: string, title: string, review: Partial<Pick<Task, 'reviewState
     tagColor: null,
     graphLaidAt: null,
     releaseSkipped: false,
+    kind: 'TASK',
+    epicId: null,
     anchor: `project:vega task:${id}`,
     updatedAt: '2026-09-20T10:00:00Z'
   }

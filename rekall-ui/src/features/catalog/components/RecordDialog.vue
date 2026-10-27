@@ -10,6 +10,9 @@ import ProjectIconField from '@/features/catalog/components/record/ProjectIconFi
 import RecordIdentityFields from '@/features/catalog/components/record/RecordIdentityFields.vue'
 import TaskSkillsField from '@/features/catalog/components/record/TaskSkillsField.vue'
 import TaskTagField from '@/features/catalog/components/record/TaskTagField.vue'
+import TaskKindField from '@/features/catalog/components/record/TaskKindField.vue'
+import TaskEpicField from '@/features/catalog/components/record/TaskEpicField.vue'
+import { epicChoices } from '@/features/catalog/model/epic'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useRecordWrites } from '@/composables/useRecordWrites'
@@ -22,9 +25,9 @@ import {
   TASK_STATUS_LABEL,
   slugify
 } from '@/features/catalog/model/catalog'
-import type { ProjectStatus, TaskStatus } from '@/features/catalog/model/catalog'
+import type { ProjectStatus, TaskKind, TaskStatus } from '@/features/catalog/model/catalog'
 import type { RecordDraft } from '@/features/catalog/model/record-draft'
-import type { TagId } from '@/model/branded'
+import type { TagId, TaskId } from '@/model/branded'
 
 const props = defineProps<{ draft: RecordDraft }>()
 const emit = defineEmits<{ close: []; saved: [] }>()
@@ -49,7 +52,8 @@ const originalLabel = props.draft.kind === 'company' ? '' : props.draft.label
 const asksForDescription = kind !== 'task'
 
 const KIND_NOUN = { company: 'company', project: 'project', task: 'task' } as const
-const heading = `${isNew ? 'New' : 'Edit'} ${KIND_NOUN[kind]}`
+const noun = props.draft.kind === 'task' && props.draft.taskKind === 'EPIC' ? 'epic' : KIND_NOUN[kind]
+const heading = `${isNew ? 'New' : 'Edit'} ${noun}`
 
 const titleValue = computed<string>({
   get: () => (form.value.kind === 'company' ? form.value.name : form.value.title),
@@ -100,7 +104,10 @@ const parentId = computed<string>({
   set: (value) => {
     const current = form.value
     if (current.kind === 'project') current.companyId = value as typeof current.companyId
-    else if (current.kind === 'task') current.projectId = value as typeof current.projectId
+    else if (current.kind === 'task') {
+      if (current.projectId !== value) current.epicId = null
+      current.projectId = value as typeof current.projectId
+    }
   }
 })
 
@@ -126,6 +133,24 @@ const tagId = computed<TagId | null>({
     if (form.value.kind === 'task') form.value.tagId = value
   }
 })
+
+const taskKind = computed<TaskKind>({
+  get: () => (form.value.kind === 'task' ? form.value.taskKind : 'TASK'),
+  set: (value) => {
+    if (form.value.kind === 'task') form.value.taskKind = value
+  }
+})
+
+const epicId = computed<TaskId | null>({
+  get: () => (form.value.kind === 'task' ? form.value.epicId : null),
+  set: (value) => {
+    if (form.value.kind === 'task') form.value.epicId = value
+  }
+})
+
+const epics = computed(() =>
+  form.value.kind === 'task' ? epicChoices(form.value.projectId, store.tasks, form.value.id) : []
+)
 
 const skills = computed<readonly string[]>({
   get: () => (form.value.kind === 'task' ? form.value.skills : []),
@@ -307,6 +332,10 @@ onUnmounted(() => window.removeEventListener('keydown', saveOnModEnter, true))
 
       <CompanyLogoField v-if="form.kind === 'company'" ref="logoField" :company-id="form.id" :name="titleValue" />
 
+      <TaskKindField v-if="kind === 'task'" v-model="taskKind" />
+
+      <TaskEpicField v-if="kind === 'task' && taskKind === 'TASK'" v-model="epicId" :epics="epics" />
+
       <TaskTagField v-if="kind === 'task'" v-model="tagId" />
 
       <TaskSkillsField v-if="kind === 'task' && form.id === null" v-model="skills" :tag-id="tagId" />
@@ -368,7 +397,7 @@ onUnmounted(() => window.removeEventListener('keydown', saveOnModEnter, true))
               : 'Everything underneath goes with it. This is not recoverable.'
           "
           :blast="blast"
-          :confirm-label="`Delete ${KIND_NOUN[kind]}`"
+          :confirm-label="`Delete ${noun}`"
           @cancel="isConfirmingDelete = false"
           @confirm="remove"
         />

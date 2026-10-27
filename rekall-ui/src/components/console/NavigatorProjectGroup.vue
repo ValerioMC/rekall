@@ -1,11 +1,12 @@
 <script setup lang="ts">
 /**
- * One project in the grouped navigator: a card that folds the project away, and under it the live
- * tasks with the backlog and the filed ones on their own shelves.
+ * One project in the grouped navigator: a card that folds the project away, and under it its epics,
+ * the live tasks, and the backlog and the filed ones on their own shelves.
  */
 import { storeToRefs } from 'pinia'
 import NavigatorTaskRow from '@/components/console/NavigatorTaskRow.vue'
 import NavigatorFilingDrawer from '@/components/console/NavigatorFilingDrawer.vue'
+import NavigatorEpicRow from '@/features/catalog/components/epic/NavigatorEpicRow.vue'
 import ProjectPageLink from '@/features/catalog/components/ProjectPageLink.vue'
 import ProjectTokenChip from '@/features/tokens/components/ProjectTokenChip.vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
@@ -100,6 +101,15 @@ const { selectedTaskId } = storeToRefs(store)
       class="ml-[15px] mt-1 flex flex-col gap-0.5 border-l-2 pl-2"
       :style="{ borderLeftColor: identityHue(group.projectId).line }"
     >
+      <NavigatorEpicRow
+        v-for="epic in group.epics"
+        :key="epic.id"
+        :epic="epic"
+        :selected="epic.id === selectedTaskId"
+        :filed="epic.status === 'DONE'"
+        @select="store.selectTask(epic.id)"
+      />
+
       <NavigatorTaskRow
         v-for="task in group.active"
         :key="task.id"

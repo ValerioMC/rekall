@@ -29,6 +29,8 @@ const task = (id: string, status: TaskStatus): Task => ({
   tagColor: null,
   graphLaidAt: null,
   releaseSkipped: false,
+  kind: 'TASK',
+  epicId: null,
   anchor: `project:vega task:${id}`,
   updatedAt: '2026-09-04T10:00:00Z'
 })
@@ -55,7 +57,19 @@ describe('partitionTasks', () => {
     expect(filed.map((t) => t.id)).toEqual(['z', 'a'])
   })
 
-  it('returns three empty lists for no tasks', () => {
-    expect(partitionTasks([])).toEqual({ active: [], backlog: [], filed: [] })
+  it('sets the epics apart whatever their status', () => {
+    const { epics, active, filed } = partitionTasks([
+      { ...task('a', 'IN_PROGRESS'), kind: 'EPIC' },
+      { ...task('b', 'DONE'), kind: 'EPIC' },
+      task('c', 'TODO')
+    ])
+
+    expect(epics.map((t) => t.id)).toEqual(['a', 'b'])
+    expect(active.map((t) => t.id)).toEqual(['c'])
+    expect(filed).toEqual([])
+  })
+
+  it('returns four empty lists for no tasks', () => {
+    expect(partitionTasks([])).toEqual({ epics: [], active: [], backlog: [], filed: [] })
   })
 })

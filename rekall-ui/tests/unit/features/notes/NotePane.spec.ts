@@ -44,6 +44,8 @@ const task = (id: TaskId, label: string, title: string, status: TaskStatus): Tas
   tagColor: null,
   graphLaidAt: null,
   releaseSkipped: false,
+  kind: 'TASK',
+  epicId: null,
   anchor: `project:rekall task:${label}`,
   updatedAt: '2026-09-01T10:00:00Z'
 })

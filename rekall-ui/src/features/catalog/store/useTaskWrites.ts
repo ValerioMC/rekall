@@ -25,6 +25,8 @@ function taskInput(
     description: task.description,
     projectId: task.projectId,
     tagId: task.tagId,
+    kind: task.kind,
+    epicId: task.epicId,
     ...change
   }
 }

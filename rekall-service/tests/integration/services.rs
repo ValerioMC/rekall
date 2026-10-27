@@ -534,6 +534,37 @@ async fn a_task_named_in_a_task_text_is_loaded_once_as_background_without_its_ch
     assert!(size.parts.iter().any(|part| part.label == "Referenced task: Title of export"), "{size:?}");
 }
 
+#[tokio::test]
+async fn a_task_of_an_epic_inherits_its_description_and_notes_and_the_epic_lists_its_tasks() {
+    use rekall_model::TaskKind;
+    use rekall_service::note::OnTitleClash;
+    use sea_orm::ActiveValue;
+
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let epic = world.task(&project, "checkout").await;
+    let mut row = epic.clone().into_active_model();
+    row.kind = ActiveValue::Set(TaskKind::Epic);
+    row.description = ActiveValue::Set(Some("Every payment goes through one ledger.".into()));
+    row.update(world.db()).await.unwrap();
+    world.services.notes.write(Some("vega"), "checkout", Some("ledger.md"), Some("The ledger rules."), OnTitleClash::Refuse).await.unwrap();
+    let task = world.task(&project, "pay").await;
+    let mut row = task.clone().into_active_model();
+    row.epic_id = ActiveValue::Set(Some(epic.id));
+    row.update(world.db()).await.unwrap();
+
+    let rendered = world.services.renderer.render(&world.services.context.for_task(task.id).await.unwrap());
+    assert!(rendered.contains("- `epic`: belongs to the epic `task:checkout` below"), "{rendered}");
+    assert!(rendered.contains("### Epic: Title of checkout"), "{rendered}");
+    assert!(rendered.contains("Every payment goes through one ledger."), "{rendered}");
+    assert!(rendered.contains("The ledger rules."), "{rendered}");
+
+    let rendered = world.services.renderer.render(&world.services.context.for_task(epic.id).await.unwrap());
+    assert!(rendered.contains("## Epic: Title of checkout"), "{rendered}");
+    assert!(rendered.contains("1 task belongs to it (0 done)"), "{rendered}");
+    assert!(rendered.contains("  - `task:pay`"), "{rendered}");
+}
+
 // ------------------------------------------------------------------------------ task creation
 
 fn draft(title: &str) -> rekall_service::task::StepDraft {

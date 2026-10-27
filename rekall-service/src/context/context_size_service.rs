@@ -51,6 +51,9 @@ impl ContextSizeService {
             for referenced in task.references.iter().filter(|record| record.kind == "Task") {
                 add_part(&mut parts, &format!("Referenced task: {}", referenced.label), &renderer.render_record(referenced, 3, &mut HashSet::new()), false);
             }
+            for epic in task.references.iter().filter(|record| record.kind == "Epic") {
+                add_part(&mut parts, &format!("Epic: {}", epic.label), &renderer.render_record(epic, 3, &mut HashSet::new()), false);
+            }
             let measured: usize = parts.iter().map(|p| p.characters).sum();
             if total > measured {
                 parts.push(ContextSizePart {

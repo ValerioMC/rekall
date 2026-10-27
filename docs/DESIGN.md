@@ -172,6 +172,7 @@ Company ──< Project ──< Task >──< Document
                          ├──< TaskStep ──< StepLink
                          ├──< StepVisit
                          ├──< TokenUsage
+                         ├──> Task (its epic, optional)
                          └──1 Wrapup
 
 Company ──< ExternalConnection ──< ConnectionAccess
@@ -190,7 +191,7 @@ Project ──< VulnerabilityExposure >── SecurityAdvisory
 |---|---|---|
 | `company` | `name`, unique | `description` |
 | `project` | `label`, unique per company | `title`, `status`, `description`, `company_id` |
-| `task` | `label`, unique per project | `title`, `status`, `description`, `project_id`, `graph_laid_at` (when a deployment graph was laid on it), `release_skipped` (the project's release graph is not laid when the console runs it; migration `054-release-on-run`) |
+| `task` | `label`, unique per project | `title`, `status`, `description`, `project_id`, `graph_laid_at` (when a deployment graph was laid on it), `release_skipped` (the project's release graph is not laid when the console runs it; migration `054-release-on-run`), `kind` (`TASK` or `EPIC`), `epic_id` (the epic of the same project it belongs to, set null when the epic is deleted; migration `055-epic`) |
 | `document` | — | `title`, `kind`, `body_markdown` |
 | `document_task` | — | `document_id`, `task_id`, `position` |
 | `task_step` | through its task | `task_id`, `title`, `body_markdown`, `done`, `done_at`, `position`, `flow_x`/`flow_y` (where it was dragged on the flow canvas, null for the automatic layout), `max_visits` (how many times a flow may enter it, null for no limit), `connection_id` (the company connection it reaches, set when a deployment graph laid it; null when the connection is deleted) |
@@ -405,6 +406,28 @@ copied onto a task when the task is to be released that way.
 | The release graph is laid when the console runs the task | A project marks at most one graph `release_default` (`DeploymentGraphService::choose_release`, which clears the others). `GraphAttachService::release_on_run` lays it as `attach` would, unless the task already carries `graph_laid_at` (set by every lay, by hand or not, so a task is laid once) or `release_skipped`. The console calls it from **Run here** and the open-in-terminal button before the session starts (`useReleaseOnRun`), and a refusal is told without stopping the run. A session started outside the console never lays it: the graph is a catalog write, which `rekall-mcp` cannot reach, so laying stays a console act |
 | A step's place is saved with the graph | The editor's canvas is the task flow's (`layoutFlow`, `placeSteps`, `useFlowDrag`), so a dragged step keeps its place and the routes touching it are redrawn between the boxes. The place travels in the whole-graph write as `flowX`/`flowY`, both or neither, within `FlowPlace`'s reach, and **Tidy layout** clears them all in the next write. It stays on the graph: attaching lays the task's steps out afresh |
 | The step names its connection in the context | `ContextService` resolves each step's `connection_id` to a `StepConnectionView` (label, still bound or not), and the renderer writes a `Connection:` line under every step it renders with its detail. How to reach it stays in `<connections>`, so the credential rule is written once |
+
+### 4.5 Epics
+
+A feature often outgrows the task planned for it, and its tasks multiply. An **epic** is the task
+they share: `kind = EPIC`, a description and notes that hold the concept, and the tasks of its
+project whose `epic_id` names it.
+
+| Decision | Why |
+|---|---|
+| A kind of task, not a table of its own | An epic needs exactly what a task has (label, anchor, status, description, notes) and none of a second record's plumbing. `epic_id` points at a `task` row, so the anchor grammar, the note links and the console's selection all serve it unchanged |
+| One level, one project | `task::Model::require_joinable` refuses an epic under an epic, a task as its own epic, a plain task as an epic and an epic of another project. Two levels would make "what does this task inherit" a walk, and a cross-project epic would hand one project's notes to another's sessions |
+| An epic holds no steps | It is a container for a description. `TaskStepService::insert_in` refuses a step on one, so the console, `rekall_propose_step`, `rekall_propose_flow` and a laid graph are all stopped there; `GraphAttachService::release_on_run` skips epics rather than failing; the console hides the steps pane |
+| Its kind and project are kept while tasks belong to it | `TaskService` refuses turning an epic with tasks back into a task, or moving it to another project, as a 409: either would leave tasks pointing at a plain task or across projects. A task that already has steps cannot become an epic |
+| Deleting it frees its tasks | `ON DELETE SET NULL` on `epic_id`: the tasks are the work and outlive the container |
+| Inherited in the context, not copied | `ContextService::render_task` adds an `epic` field to a task that belongs to one and appends the epic as a reference (`inherited_epic`) with its description and notes in full and its other tasks as anchors, without its skills, commits or wrapup. An epic loaded by its own anchor renders as `## Epic:`, with a `kind` field counting its tasks. Nothing is written into the child, so editing the epic reaches every task at once |
+| The dashboard reads moments the rows already carry | `EpicService::activity` (`GET /api/epics/{id}/activity`) builds the feed from the tasks' claim and accept moments, their steps' `running_at`/`claimed_at`/`done_at`, their wrapups and their logged commits (`EpicActivityResponse::feed`, newest first, at most `ACTIVITY_MAX`). No event log is kept for it |
+
+In the console an epic is selected like a task, so its description and notes are edited where any
+task's are, and the dossier shows its tasks' progress in place of the steps card. The navigator
+lists epics ahead of the status groups (`NavigatorEpicRow`, from `partitionTasks`), each with the
+status mix of its tasks and a link to its dashboard (`EpicPage`, route `/epics/:id`); a task in an
+epic wears an `EpicChip` beside its anchor, on a row whose third line carries what the task holds.
 
 ---
 

@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import SkillMark from '@/features/skills/components/SkillMark.vue'
 import TagBadge from '@/components/ui/TagBadge.vue'
+import EpicChip from '@/features/catalog/components/epic/EpicChip.vue'
 import TaskMark from '@/features/catalog/components/TaskMark.vue'
 import TokenCount from '@/components/ui/TokenCount.vue'
 import { identityHue } from '@/common/identity'
@@ -27,9 +28,11 @@ const props = withDefaults(
 
 defineEmits<{ select: []; edit: [] }>()
 
-const { steps, taskSkills: ownedSkills, tagSkills } = storeToRefs(useConsoleStore())
+const { steps, tasks, taskSkills: ownedSkills, tagSkills } = storeToRefs(useConsoleStore())
 const tokenUsage = useTokenUsageStore()
 const tokens = computed(() => tokenUsage.ofTask(props.task.id))
+
+const epic = computed(() => (props.task.epicId ? tasks.value.find((task) => task.id === props.task.epicId) ?? null : null))
 
 const skills = computed(() => taskSkills(props.task.id, props.task.tagId, ownedSkills.value, tagSkills.value))
 const mark = computed(() => taskMark(props.task, steps.value, props.running))
@@ -108,53 +111,52 @@ watch(
           <span class="anchor-chip min-w-0 truncate px-1.5 py-px text-micro leading-[15px]">
             {{ task.label }}
           </span>
+          <EpicChip v-if="epic" :title="epic.title" />
+        </span>
 
-          <!-- What the task carries, on the anchor's line so the title keeps the whole width above.
-               It steps aside for the edit control under the pointer rather than sitting beneath it. -->
+        <!-- What the task carries, on a line of its own so the anchor and the epic share the one
+             above. It stops short of the edit control that appears in the corner under the pointer. -->
+        <span class="mt-1.5 flex min-w-0 items-center gap-2.5 pr-7 font-mono text-micro text-text-subtle">
           <span
-            class="ml-auto flex shrink-0 items-center gap-2 pl-1 font-mono text-micro text-text-subtle transition-opacity duration-(--motion-quick) group-hover/task:opacity-0 group-focus-within/task:opacity-0"
+            v-if="task.stepCount > 0"
+            class="tabular-nums"
+            :class="task.stepsDone === task.stepCount ? 'text-safe' : 'text-text-muted'"
+            :title="`${task.stepsDone} of ${task.stepCount} steps done`"
+            data-testid="task-steps"
           >
-            <span
-              v-if="task.stepCount > 0"
-              class="tabular-nums"
-              :class="task.stepsDone === task.stepCount ? 'text-safe' : 'text-text-muted'"
-              :title="`${task.stepsDone} of ${task.stepCount} steps done`"
-              data-testid="task-steps"
-            >
-              {{ task.stepsDone }}/{{ task.stepCount }}
-            </span>
-            <span
-              v-if="task.draftStepCount > 0"
-              class="inline-flex items-center gap-[3px] tabular-nums"
-              :title="`${task.draftStepCount} step${task.draftStepCount > 1 ? 's' : ''} in draft`"
-              data-testid="task-drafts"
-            >
-              <span class="size-[7px] rounded-key border border-dashed border-current" aria-hidden="true" />
-              {{ task.draftStepCount }}
-            </span>
-            <span
-              v-if="awaitingReview && task.draftStepCount === 0"
-              class="size-1.5 rounded-full bg-accent"
-              title="Awaiting your review"
-              data-testid="task-review-dot"
-            />
-            <svg v-if="task.hasWrapup" class="size-2 text-text-muted" viewBox="0 0 12 12" role="img">
-              <title>Has a wrapup</title>
-              <path d="M6 1.2 10.8 6 6 10.8 1.2 6z" fill="currentColor" />
-            </svg>
-            <span
-              v-if="task.documentCount > 0"
-              class="inline-flex items-center gap-[3px] tabular-nums"
-              :title="`${task.documentCount} note${task.documentCount > 1 ? 's' : ''}`"
-            >
-              <svg class="size-2" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                <path d="M3 1.5h6v9H3z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
-              </svg>
-              {{ task.documentCount }}
-            </span>
-            <SkillMark :skills="skills" />
-            <TokenCount :totals="tokens" />
+            {{ task.stepsDone }}/{{ task.stepCount }}
           </span>
+          <span
+            v-if="task.draftStepCount > 0"
+            class="inline-flex items-center gap-[3px] tabular-nums"
+            :title="`${task.draftStepCount} step${task.draftStepCount > 1 ? 's' : ''} in draft`"
+            data-testid="task-drafts"
+          >
+            <span class="size-[7px] rounded-key border border-dashed border-current" aria-hidden="true" />
+            {{ task.draftStepCount }}
+          </span>
+          <span
+            v-if="awaitingReview && task.draftStepCount === 0"
+            class="size-1.5 rounded-full bg-accent"
+            title="Awaiting your review"
+            data-testid="task-review-dot"
+          />
+          <svg v-if="task.hasWrapup" class="size-2 text-text-muted" viewBox="0 0 12 12" role="img">
+            <title>Has a wrapup</title>
+            <path d="M6 1.2 10.8 6 6 10.8 1.2 6z" fill="currentColor" />
+          </svg>
+          <span
+            v-if="task.documentCount > 0"
+            class="inline-flex items-center gap-[3px] tabular-nums"
+            :title="`${task.documentCount} note${task.documentCount > 1 ? 's' : ''}`"
+          >
+            <svg class="size-2" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <path d="M3 1.5h6v9H3z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+            </svg>
+            {{ task.documentCount }}
+          </span>
+          <SkillMark :skills="skills" />
+          <TokenCount :totals="tokens" />
         </span>
       </span>
     </button>

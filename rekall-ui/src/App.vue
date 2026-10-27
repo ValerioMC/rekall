@@ -22,14 +22,14 @@ import { useModalGate } from '@/composables/useModalGate'
 import { useStepStream } from '@/features/steps/composables/useStepStream'
 import { useClaimNotifications } from '@/composables/useClaimNotifications'
 import { useConsoleLocation } from '@/composables/useConsoleLocation'
-import type { TaskStatus } from '@/features/catalog/model/catalog'
+import { isEpic, type TaskStatus } from '@/features/catalog/model/catalog'
 
 // xterm and its stylesheet are only parsed once a terminal is opened: most sessions never do,
 // and the console's first paint should not pay for them.
 const TerminalPane = defineAsyncComponent(() => import('@/features/claude/components/TerminalPane.vue'))
 
 const store = useConsoleStore()
-const { selectedTaskId, navMode, paneFocus, noteComposerOpen, reviewQueue, isLoading } = storeToRefs(store)
+const { selectedTaskId, selectedTask, navMode, paneFocus, noteComposerOpen, reviewQueue, isLoading } = storeToRefs(store)
 const runQueue = useRunQueueStore()
 const { panelOpen: runQueueOpen } = storeToRefs(runQueue)
 const { run } = useAsyncAction()
@@ -218,7 +218,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
         <Transition name="pane" mode="out-in">
           <WrapupPane v-if="paneFocus === 'wrapup'" />
           <DescriptionPane v-else-if="paneFocus === 'description'" ref="descriptionPane" />
-          <StepsPane v-else-if="paneFocus === 'steps'" />
+          <StepsPane v-else-if="paneFocus === 'steps' && !(selectedTask && isEpic(selectedTask))" />
           <TerminalPane v-else-if="paneFocus === 'terminal'" />
           <NotePane v-else ref="notePane" />
         </Transition>

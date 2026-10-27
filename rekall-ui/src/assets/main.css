@@ -80,6 +80,15 @@
   --color-filed-line: #8fa89d33;
 
   /*
+   * Epics: the tasks that gather other tasks. A periwinkle a step lighter and bluer than the tag
+   * violet, always drawn with the stacked glyph, so an epic never reads as a tag or a status.
+   * 8.0:1 on canvas.
+   */
+  --color-epic: #a99bff;
+  --color-epic-soft: #a99bff1c;
+  --color-epic-line: #a99bff45;
+
+  /*
    * Diagram kinds: the second channel of a node's kind, after its shape. Drawn from the same
    * jewel ring as the tag tones and kept off the three roles, so a diagram's colours never read
    * as "selected", "anchor" or a status. Selection on the canvas stays amber.

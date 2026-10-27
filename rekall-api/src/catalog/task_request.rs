@@ -1,5 +1,5 @@
 use rekall_common::Id;
-use rekall_model::TaskStatus;
+use rekall_model::{TaskKind, TaskStatus};
 use serde::Deserialize;
 
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -11,4 +11,6 @@ pub struct TaskRequest {
     pub description: Option<String>,
     pub project_id: Option<Id>,
     pub tag_id: Option<Id>,
+    pub kind: Option<TaskKind>,
+    pub epic_id: Option<Id>,
 }

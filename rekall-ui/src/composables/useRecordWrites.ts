@@ -55,7 +55,9 @@ export function useRecordWrites() {
       status: draft.status,
       description: descriptionOf(draft),
       projectId: draft.projectId,
-      tagId: draft.tagId
+      tagId: draft.tagId,
+      kind: draft.taskKind,
+      epicId: draft.taskKind === 'EPIC' ? null : draft.epicId
     }
     if (draft.id !== null) return store.updateTask(draft.id, input)
     const created = await store.createTask(input)

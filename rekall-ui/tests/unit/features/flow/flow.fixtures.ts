@@ -134,6 +134,8 @@ export function releaseTask(): Task {
     tagColor: null,
     graphLaidAt: null,
     releaseSkipped: false,
+    kind: 'TASK',
+    epicId: null,
     anchor: 'project:vega task:release',
     updatedAt: '2026-10-01T10:00:00Z'
   }

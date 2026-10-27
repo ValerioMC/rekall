@@ -1,8 +1,9 @@
 //! Tasks: listed, created, edited, reviewed and deleted from the console. Moving a task to `DONE`
-//! stops its timer.
+//! stops its timer. An epic is a task of kind `EPIC`: it holds no steps, and keeps its kind and
+//! its project while tasks belong to it.
 
 use rekall_common::{jstr, Id, RekallError, Result};
-use rekall_model::{project, task, Slug, TaskStatus, TaskStepState};
+use rekall_model::{project, task, Slug, TaskKind, TaskStatus, TaskStepState};
 use rekall_repository::repository as repo;
 use rekall_service::review::TaskReviewService;
 use rekall_service::timeentry::TimeEntryService;
@@ -66,6 +67,8 @@ impl TaskService {
             task.project_id = require_owning_project(&tx, request.project_id).await?.id;
             apply_request(&tx, &mut task, &request).await?;
             require_label_free(&tx, &task, Some(id)).await?;
+            require_epic_kept_whole(&tx, &before, &task).await?;
+            require_epic_stepless(&tx, &task).await?;
             let task = repo::update_if_changed(tx.db(), &before, task, self.ctx.now()).await?;
             let response = response(&tx, &task).await?;
             if before.status != TaskStatus::Done && task.status == TaskStatus::Done {
@@ -129,6 +132,11 @@ impl TaskService {
 async fn apply_request(tx: &Tx, task: &mut task::Model, request: &TaskRequest) -> Result<()> {
     task.description = request.description.clone();
     task.status = request.status.unwrap_or(TaskStatus::Todo);
+    task.kind = request.kind.unwrap_or(TaskKind::Task);
+    task.epic_id = match request.epic_id {
+        None => None,
+        Some(epic_id) => Some(require_joinable_epic(tx, task, epic_id).await?.id),
+    };
     task.tag_id = match request.tag_id {
         None => None,
         Some(tag_id) => Some(
@@ -156,6 +164,35 @@ async fn require_owning_project(tx: &Tx, id: Option<Id>) -> Result<project::Mode
     repo::project::require(tx.db(), id).await
 }
 
+async fn require_joinable_epic(tx: &Tx, task: &task::Model, epic_id: Id) -> Result<task::Model> {
+    let epic = repo::task::require(tx.db(), epic_id).await?;
+    task.require_joinable(&epic)?;
+    Ok(epic)
+}
+
+/// An epic that tasks belong to stays an epic and stays in their project, or they would point at
+/// a plain task or across projects.
+async fn require_epic_kept_whole(tx: &Tx, before: &task::Model, task: &task::Model) -> Result<()> {
+    let regrouped = !task.is_epic() || task.project_id != before.project_id;
+    if !before.is_epic() || !regrouped {
+        return Ok(());
+    }
+    if repo::task::list_children_of(tx.db(), before.id).await?.is_empty() {
+        return Ok(());
+    }
+    Err(RekallError::conflict(
+        "Tasks belong to this epic. Take them out of it before turning it into a task or moving it to another project.",
+    ))
+}
+
+/// An epic is a container for a description and its tasks, never a checklist of its own.
+async fn require_epic_stepless(tx: &Tx, task: &task::Model) -> Result<()> {
+    if !task.is_epic() || repo::task_step::list_of_task(tx.db(), task.id).await?.is_empty() {
+        return Ok(());
+    }
+    Err(RekallError::conflict("This task has steps, and an epic holds none. Delete its steps before turning it into an epic."))
+}
+
 /// A label names one task within its project, or a `task:` anchor would be ambiguous.
 async fn require_label_free(tx: &Tx, task: &task::Model, except: Option<Id>) -> Result<()> {
     if repo::task::label_taken(tx.db(), task.project_id, &task.label, except).await? {
@@ -165,3 +202,7 @@ async fn require_label_free(tx: &Tx, task: &task::Model, except: Option<Id>) -> 
     }
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "../../tests/unit/catalog/task_service_tests.rs"]
+mod tests;

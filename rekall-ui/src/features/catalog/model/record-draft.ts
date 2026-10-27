@@ -1,5 +1,5 @@
 import type { CompanyId, ProjectId, TagId, TaskId } from '../../../model/branded'
-import type { Company, Project, ProjectStatus, Task, TaskStatus } from './catalog'
+import type { Company, Project, ProjectStatus, Task, TaskKind, TaskStatus } from './catalog'
 
 export type RecordDraft =
   | {
@@ -27,6 +27,9 @@ export type RecordDraft =
       status: TaskStatus
       projectId: ProjectId
       tagId: TagId | null
+      taskKind: TaskKind
+      /** The epic of the same project the task belongs to; always null on an epic. */
+      epicId: TaskId | null
       /** The skills a new task starts with; an existing task's are changed on its own pane. */
       skills: string[]
     }
@@ -53,7 +56,7 @@ export function projectDraft(companyId: CompanyId, project?: Project): RecordDra
   }
 }
 
-export function taskDraft(projectId: ProjectId, task?: Task): RecordDraft {
+export function taskDraft(projectId: ProjectId, task?: Task, epicId: TaskId | null = null): RecordDraft {
   return {
     kind: 'task',
     id: task?.id ?? null,
@@ -63,6 +66,8 @@ export function taskDraft(projectId: ProjectId, task?: Task): RecordDraft {
     status: task?.status ?? 'TODO',
     projectId: task?.projectId ?? projectId,
     tagId: task?.tagId ?? null,
+    taskKind: task?.kind ?? 'TASK',
+    epicId: task ? task.epicId : epicId,
     skills: []
   }
 }

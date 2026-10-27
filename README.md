@@ -333,6 +333,23 @@ The Steps pane starts it from **Plan here** in its header, with or without a ses
 
 A claimed step is reviewed from its detail: **Accept** ticks it to done, **Send back** returns it to open for another pass. Sending back seals the detail that pass worked from above the editor (`POST /api/steps/{id}/send-back`), and the detail starts empty for the feedback. `/rk` hands the next session each earlier pass in a `<previous-pass>` and the feedback in a `<feedback>`, so it builds on what was done instead of reading the feedback as a new brief. The **N awaiting review** count in the pane header jumps to the first one. The step node itself only moves a step forward, so a stray click never walks it back; reopening an accepted step is a separate **Reopen** button that arms before it fires.
 
+## Epics
+
+An epic is a task of kind **Epic**, chosen in the task dialog. It holds no steps: it carries the
+concept a feature shares, as a description and notes, and gathers the tasks of its project that
+name it in their **Epic** field. Each of those tasks inherits it: `/rk` on one of them loads the
+epic after it, in full, marked `inherited`, with its description and notes as part of the brief.
+
+- The navigator lists a project's epics first, each with the status mix of its tasks and a link to
+  its dashboard; a task in an epic wears the epic's name next to its anchor. Selecting an epic
+  opens its description and notes in the console like any task.
+- The dashboard (`/epics/{id}`) shows how far its tasks are, the tasks themselves, what moved on
+  them lately (steps started, claimed and accepted, wrapups, commits), and the epic's description
+  and notes.
+- An epic belongs to no epic, takes no step and is never released by a deployment graph. A task
+  with steps cannot become one, and an epic with tasks cannot turn back into a task or move to
+  another project. Deleting an epic leaves its tasks on their own.
+
 ## Commits
 
 A task, or one of its steps, keeps a ledger of the commits that built it: the hash, the commit's own subject line as the comment, and the diff it introduced, read from the project's **repo folder** (set on the project's page). The console shows the ledger under the description as a collapsible rail, and under each step's detail; a row opens to its diff, and can be deleted by hand.
@@ -518,6 +535,7 @@ Company ──< Project ──< Task >──< Document
                │         ├──< StepVisit ──> TaskStep (one entry of the flow into it)
                │         ├──1 Wrapup
                │         ├──< TokenUsage ──> TaskStep (optional)
+               │         ├──> Task (its epic, optional)
                │         └──> Tag (optional)
                ├──< DeploymentGraph ──< GraphStep ──< GraphRoute
                ├──< Diagram ──> Task (the one it was generated from, optional)
@@ -529,7 +547,7 @@ Company ──< Project ──< Task >──< Document
 |--------|-------------|-------|
 | `Company` | `name` | description, its projects |
 | `Project` | `label`, unique per company | title, status, description, its tasks |
-| `Task` | `label`, unique per project | title, status, markdown description, a standing wrapup directive, its notes, steps, wrapup, an optional tag, when a deployment graph was laid on it and whether it is left unreleased |
+| `Task` | `label`, unique per project | title, status, kind (a task or an epic), the epic it belongs to, markdown description, a standing wrapup directive, its notes, steps, wrapup, an optional tag, when a deployment graph was laid on it and whether it is left unreleased |
 | `Document` | none | title, kind, markdown body, the tasks it is on |
 | `TaskStep` | through its task | title, optional detail, state, position, the connection it reaches when a deployment graph laid it |
 | `StepLink` | through its task | the step it leaves, the step it leads to, its outcome (a slug, unique per step), position. Deleted with either step |
