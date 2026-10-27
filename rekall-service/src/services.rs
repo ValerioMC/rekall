@@ -6,6 +6,7 @@ pub struct Services {
     pub ctx: Ctx,
     pub steps: step::TaskStepService,
     pub task_authoring: task::TaskAuthoringService,
+    pub epic_membership: task::EpicMembershipService,
     pub step_links: flow::StepLinkService,
     pub flow: flow::FlowService,
     pub flow_proposals: flow::FlowProposalService,
@@ -45,6 +46,7 @@ impl Services {
         let exposures = vulnerability::VulnerabilityExposureService::new(ctx.clone(), commit::GitRepositoryInspector);
         Self {
             task_authoring: task::TaskAuthoringService::new(ctx.clone(), steps.clone()),
+            epic_membership: task::EpicMembershipService::new(ctx.clone()),
             steps,
             step_links,
             flow,

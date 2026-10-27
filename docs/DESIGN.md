@@ -33,7 +33,7 @@ loaded in one call, including every note the task shares with its neighbours.
 | # | Decision | Rationale |
 |---|---|---|
 | D1 | Real tables with real foreign keys | A note can never point at a deleted task. On an app whose only job is to be a reliable memory, silent dangling references are the failure mode that matters. |
-| D2 | Claude reads everything and writes a few narrow things | `rekall-mcp` depends on `rekall-service` and never on `rekall-api`, so no controller and none of the console's catalog services are on its classpath, and every read runs in a read-only transaction. The exceptions are `rekall_wrapup`, which replaces one task's wrapup; `rekall_step`, which moves a step from `open` to `running` to `claimed`, follows a flow's route on a claim, and cannot reach `done`; `rekall_record_commit`, which logs a commit against a task; `rekall_propose_step`, which can only add a draft a person has to promote; `rekall_propose_flow`, which can only lay drafts and the routes between them onto a task with no steps; `rekall_create_task`, which can only add a `TODO` task whose steps are drafts; `rekall_note`, which can only add a new note to one task; `rekall_project_section`, which can only add a section to a task's project or rewrite the body of one that already has that title; `rekall_inventory`, which can only replace one project's dependency list; and `rekall_assess_vulnerability`, which can only write a verdict on one exposure the project already has. See §7. |
+| D2 | Claude reads everything and writes a few narrow things | `rekall-mcp` depends on `rekall-service` and never on `rekall-api`, so no controller and none of the console's catalog services are on its classpath, and every read runs in a read-only transaction. The exceptions are `rekall_wrapup`, which replaces one task's wrapup; `rekall_step`, which moves a step from `open` to `running` to `claimed`, follows a flow's route on a claim, and cannot reach `done`; `rekall_record_commit`, which logs a commit against a task; `rekall_propose_step`, which can only add a draft a person has to promote; `rekall_propose_flow`, which can only lay drafts and the routes between them onto a task with no steps; `rekall_create_task`, which can only add a `TODO` task or epic whose steps are drafts; `rekall_join_epic`, which can only file one task under an epic of its project; `rekall_note`, which can only add a new note to one task; `rekall_project_section`, which can only add a section to a task's project or rewrite the body of one that already has that title; `rekall_inventory`, which can only replace one project's dependency list; and `rekall_assess_vulnerability`, which can only write a verdict on one exposure the project already has. See §7. |
 | D3 | Markdown content lives in the database | One backup target, reachable through MCP, searchable. |
 | D4 | One entry point, and it is a slash command | A session begins with `/rk project:vega task:report-builder`, not with a question. Reaching a record through a natural-language query costs several turns and a few thousand tokens before any work starts, and it is the part that fails when the model guesses the wrong entity. An explicit anchor removes both. |
 | D5 | The model is fixed at compile time | There is no runtime meta-model and no DDL engine. Company, project, task and document are fixed SeaORM entities; adding a new kind of record is a model and a migration, not a screen. |
@@ -56,7 +56,7 @@ rekall/
   rekall-repository/ queries, one folder per domain, and the SQLite migrations for their schema
   rekall-service/    context assembly, the step and review lines, flows, wrapups, notes, time entries, token usage
   rekall-api/        Axum REST routes for the UI, one folder per domain: its controller, request shapes and console service
-  rekall-mcp/        MCP server: three tools read, ten write; a folder per domain holds its tools
+  rekall-mcp/        MCP server: three tools read, twelve write; a folder per domain holds its tools
   rekall-claude/     the in-app terminal (portable-pty PTYs over one WebSocket), the Claude Code usage meter, the run queue, the transcript reader, the Claude folder editor
   rekall-platform/   the database registry, backups and restores, the restart handle, the release check, the OS credential store, the GitHub Advisory Database client; what the application does around the catalog
   rekall-app/        rekall-server: wires every module, the local-access guard, serves the built frontend, embedded at compile time
@@ -417,7 +417,7 @@ project whose `epic_id` names it.
 |---|---|
 | A kind of task, not a table of its own | An epic needs exactly what a task has (label, anchor, status, description, notes) and none of a second record's plumbing. `epic_id` points at a `task` row, so the anchor grammar, the note links and the console's selection all serve it unchanged |
 | One level, one project | `task::Model::require_joinable` refuses an epic under an epic, a task as its own epic, a plain task as an epic and an epic of another project. Two levels would make "what does this task inherit" a walk, and a cross-project epic would hand one project's notes to another's sessions |
-| An epic holds no steps | It is a container for a description. `TaskStepService::insert_in` refuses a step on one, so the console, `rekall_propose_step`, `rekall_propose_flow` and a laid graph are all stopped there; `GraphAttachService::release_on_run` skips epics rather than failing; the console hides the steps pane |
+| An epic is never worked | It is a container for a description. `task::Model::require_workable` is the one rule, checked where work starts: `TaskStepService::insert_in` (no step, so no checklist and no flow: the console, `rekall_propose_step` and `rekall_propose_flow` are all stopped there), `GraphAttachService::lay_in` (no deployment graph, attached or released on run), `TerminalLaunchService::resolve` (no terminal) and `RunQueueService::add` (no queued run). The console hides the steps pane, the terminal pane, the run and Claude Code launch buttons and leaves epics out of the queue picker |
 | Its kind and project are kept while tasks belong to it | `TaskService` refuses turning an epic with tasks back into a task, or moving it to another project, as a 409: either would leave tasks pointing at a plain task or across projects. A task that already has steps cannot become an epic |
 | Deleting it frees its tasks | `ON DELETE SET NULL` on `epic_id`: the tasks are the work and outlive the container |
 | Inherited in the context, not copied | `ContextService::render_task` adds an `epic` field to a task that belongs to one and appends the epic as a reference (`inherited_epic`) with its description and notes in full and its other tasks as anchors, without its skills, commits or wrapup. An epic loaded by its own anchor renders as `## Epic:`, with a `kind` field counting its tasks. Nothing is written into the child, so editing the epic reaches every task at once |
@@ -532,7 +532,14 @@ up to twenty steps, in one transaction. `TaskAuthoringService` in rekall-service
 console's `TaskService` in rekall-api stays the one that edits, reviews and deletes. The task starts
 `TODO` and each step is a draft, so the same promotion gate as `rekall_propose_step` applies. A label
 the project already uses is refused rather than suffixed, so an anchor never changes under the session.
-It publishes `task-created` on the event stream and the console reloads its task list.
+It publishes `task-created` on the event stream and the console reloads its task list. `kind: "epic"`
+creates an epic, refused with steps before anything is written, and `epic` files the new task under an
+epic of the same project (`TaskBrief`).
+
+`rekall_join_epic` files an existing task under an epic: `EpicMembershipService::join` in
+rekall-service, the one write a session makes on a task it did not just create. It checks
+`require_joinable`, moves a task between epics and names the one it left, never takes a task out of an
+epic and never changes a kind, and publishes `task-created` so the console reads its lists again.
 
 `rekall_read_sections` is the read side of `rekall_project_section`: sections are in no context, so
 this is the only way a session sees them. `ProjectSectionService::read` lists the titles, or returns one

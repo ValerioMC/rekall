@@ -34,3 +34,27 @@ fn only_a_lone_project_anchor_names_where_the_task_goes() {
     assert!(project_label(&Anchor::parse_all(Some("project:vega task:report")).unwrap()).is_err());
     assert!(project_label(&Anchor::parse_all(Some("vega")).unwrap()).is_err());
 }
+
+#[test]
+fn the_kind_is_a_task_unless_an_epic_is_asked_for_in_any_case() {
+    use rekall_model::TaskKind;
+
+    assert_eq!(super::kind_of(None).unwrap(), TaskKind::Task);
+    assert_eq!(super::kind_of(Some("Epic")).unwrap(), TaskKind::Epic);
+    assert!(super::kind_of(Some("story")).is_err());
+}
+
+#[test]
+fn an_epic_created_is_answered_with_how_to_file_tasks_under_it() {
+    let created = rekall_service::task::Created {
+        title: "Checkout".into(),
+        kind: rekall_model::TaskKind::Epic,
+        task_anchor: "project:vega task:checkout".into(),
+        drafts: 0,
+    };
+
+    let answer = super::report(&created);
+
+    assert!(answer.starts_with("Epic \"Checkout\" created as `project:vega task:checkout`."), "{answer}");
+    assert!(answer.contains("`rekall_join_epic` and the anchor `project:vega task:checkout`"), "{answer}");
+}

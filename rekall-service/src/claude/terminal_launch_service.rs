@@ -22,6 +22,7 @@ impl TerminalLaunchService {
             let (project, task) = match target {
                 TerminalTarget::Task(task_id) => {
                     let task = load::task_or_unknown(tx.db(), task_id).await?;
+                    task.require_workable("is never run")?;
                     (load::project_of(tx.db(), &task).await?, Some(task))
                 }
                 TerminalTarget::Project(project_id) => (repo::project::require(tx.db(), project_id).await?, None),

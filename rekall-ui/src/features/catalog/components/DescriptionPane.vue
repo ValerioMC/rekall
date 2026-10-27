@@ -19,6 +19,7 @@ import CommitReferenceRail from '@/features/commits/components/CommitReferenceRa
 import ContextSizeChip from '@/features/context/components/ContextSizeChip.vue'
 import TaskTitleRow from '@/features/catalog/components/TaskTitleRow.vue'
 import TaskLabelsStrip from '@/features/catalog/components/TaskLabelsStrip.vue'
+import { isEpic } from '@/features/catalog/model/catalog'
 import type { TaskId } from '@/model/branded'
 
 const store = useConsoleStore()
@@ -164,6 +165,7 @@ onUnmounted(() => {
               :task-id="selectedTask.id"
               :folder="selectedTask.projectRepoFolder"
             />
+            <template v-if="!isEpic(selectedTask)">
             <OpenTerminalButton
               :task-id="selectedTask.id"
               :folder="selectedTask.projectRepoFolder"
@@ -174,6 +176,7 @@ onUnmounted(() => {
               :folder="selectedTask.projectRepoFolder"
               missing-hint="Set this project's folder on its page to open a session from it"
             />
+            </template>
           </div>
 
           <AppModeToggle v-if="showEditor" v-model="mode" />

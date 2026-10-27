@@ -78,7 +78,7 @@ impl TaskStepService {
         state: TaskStepState,
     ) -> Result<TaskStepView> {
         let task = load::task_or_unknown(tx.db(), task_id).await?;
-        require_not_epic(&task)?;
+        task.require_workable("holds no steps")?;
         let siblings = load::steps_of(tx.db(), task_id).await?;
         let mut step = task_step::Model::new(task_id, validated_title(title)?, siblings.len() as i32, self.ctx.now());
         step.mark_state(state);
@@ -417,17 +417,6 @@ fn apply_draft(step: &mut task_step::Model, draft: bool) -> Result<()> {
             "'{}' is {} and cannot change its draft state. Only a step that is still draft or open moves between the two.",
             step.title,
             current.name().to_lowercase()
-        )));
-    }
-    Ok(())
-}
-
-/// An epic gathers tasks and holds no checklist; its tasks carry the steps.
-fn require_not_epic(task: &task::Model) -> Result<()> {
-    if task.is_epic() {
-        return Err(RekallError::illegal(format!(
-            "'{}' is an epic, and an epic holds no steps. Add the step to one of the tasks that belong to it.",
-            task.label
         )));
     }
     Ok(())

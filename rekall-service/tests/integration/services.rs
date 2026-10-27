@@ -571,6 +571,84 @@ fn draft(title: &str) -> rekall_service::task::StepDraft {
     rekall_service::task::StepDraft { title: title.into(), detail: Some(format!("Detail of {title}")) }
 }
 
+fn brief(title: &str, description: Option<&str>) -> rekall_service::task::TaskBrief {
+    rekall_service::task::TaskBrief {
+        title: Some(title.into()),
+        label: None,
+        description: description.map(str::to_string),
+        kind: rekall_model::TaskKind::Task,
+        epic: None,
+    }
+}
+
+fn epic_brief(title: &str) -> rekall_service::task::TaskBrief {
+    rekall_service::task::TaskBrief { kind: rekall_model::TaskKind::Epic, ..brief(title, None) }
+}
+
+fn brief_under(title: &str, epic: &str) -> rekall_service::task::TaskBrief {
+    rekall_service::task::TaskBrief { epic: Some(epic.into()), ..brief(title, None) }
+}
+
+#[tokio::test]
+async fn a_session_creates_an_epic_and_files_a_new_task_under_it() {
+    let world = world().await;
+    world.project("vega", None, false).await;
+
+    let epic = world.services.task_authoring.create("vega", &epic_brief("Checkout"), &[]).await.unwrap();
+    world.services.task_authoring.create("vega", &brief_under("Pay", "checkout"), &[draft("Charge")]).await.unwrap();
+
+    assert_eq!(epic.kind, rekall_model::TaskKind::Epic);
+    let epic = rekall_repository::repository::task::find_by_anchor(world.db(), "vega", "checkout").await.unwrap().unwrap();
+    let pay = rekall_repository::repository::task::find_by_anchor(world.db(), "vega", "pay").await.unwrap().unwrap();
+    assert!(epic.is_epic());
+    assert_eq!(pay.epic_id, Some(epic.id));
+}
+
+#[tokio::test]
+async fn an_epic_created_with_steps_or_under_a_plain_task_is_refused_and_creates_nothing() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    world.task(&project, "report").await;
+
+    let with_steps = world.services.task_authoring.create("vega", &epic_brief("Checkout"), &[draft("First")]).await.unwrap_err();
+    let under_plain = world.services.task_authoring.create("vega", &brief_under("Pay", "report"), &[]).await.unwrap_err();
+
+    assert!(with_steps.to_string().contains("An epic holds no steps"), "{with_steps}");
+    assert!(under_plain.to_string().contains("is not an epic"), "{under_plain}");
+    assert_eq!(rekall_repository::repository::task::list_of_project(world.db(), project.id).await.unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn a_session_files_an_existing_task_under_an_epic_and_moves_it_between_epics() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    world.services.task_authoring.create("vega", &epic_brief("Checkout"), &[]).await.unwrap();
+    world.services.task_authoring.create("vega", &epic_brief("Billing"), &[]).await.unwrap();
+    world.task(&project, "pay").await;
+
+    let joined = world.services.epic_membership.join(Some("vega"), "pay", "checkout").await.unwrap();
+    let moved = world.services.epic_membership.join(Some("vega"), "pay", "billing").await.unwrap();
+
+    assert_eq!(joined.epic_anchor, "project:vega task:checkout");
+    assert_eq!(joined.left, None);
+    assert_eq!(moved.left.as_deref(), Some("checkout"));
+    let pay = rekall_repository::repository::task::find_by_anchor(world.db(), "vega", "pay").await.unwrap().unwrap();
+    let billing = rekall_repository::repository::task::find_by_anchor(world.db(), "vega", "billing").await.unwrap().unwrap();
+    assert_eq!(pay.epic_id, Some(billing.id));
+}
+
+#[tokio::test]
+async fn an_epic_is_never_run() {
+    let world = world().await;
+    world.project("vega", Some("/tmp"), false).await;
+    world.services.task_authoring.create("vega", &epic_brief("Checkout"), &[]).await.unwrap();
+    let epic = rekall_repository::repository::task::find_by_anchor(world.db(), "vega", "checkout").await.unwrap().unwrap();
+
+    let refused = world.services.terminal_launch.resolve(rekall_service::claude::TerminalTarget::Task(epic.id)).await.unwrap_err();
+
+    assert!(refused.to_string().contains("an epic is never run"), "{refused}");
+}
+
 #[tokio::test]
 async fn a_created_task_starts_todo_with_its_description_and_its_steps_as_drafts_in_order() {
     let world = world().await;
@@ -579,7 +657,7 @@ async fn a_created_task_starts_todo_with_its_description_and_its_steps_as_drafts
     let created = world
         .services
         .task_authoring
-        .create("vega", Some("  Task creation "), None, Some("Let the llm open tasks."), &[draft("First"), draft("Second")])
+        .create("vega", &brief("  Task creation ", Some("Let the llm open tasks.")), &[draft("First"), draft("Second")])
         .await
         .unwrap();
 
@@ -605,7 +683,7 @@ async fn a_label_the_project_already_uses_is_refused_and_creates_nothing() {
     let refused = world
         .services
         .task_authoring
-        .create("vega", Some("Report builder"), None, None, &[draft("First")])
+        .create("vega", &brief("Report builder", None), &[draft("First")])
         .await
         .unwrap_err();
 
@@ -622,7 +700,7 @@ async fn a_step_title_sent_twice_or_past_the_draft_cap_is_refused_before_anythin
     let too_many: Vec<_> = (0..21).map(|at| draft(&format!("Step {at}"))).collect();
 
     for drafts in [&twice[..], &too_many[..]] {
-        let result = world.services.task_authoring.create("vega", Some("New"), None, None, drafts).await;
+        let result = world.services.task_authoring.create("vega", &brief("New", None), drafts).await;
         assert!(result.is_err());
     }
 
@@ -634,8 +712,8 @@ async fn a_task_needs_a_title_and_a_project_that_exists() {
     let world = world().await;
     world.project("vega", None, false).await;
 
-    let untitled = world.services.task_authoring.create("vega", Some("   "), None, None, &[]).await.unwrap_err();
-    let unknown = world.services.task_authoring.create("nowhere", Some("New"), None, None, &[]).await.unwrap_err();
+    let untitled = world.services.task_authoring.create("vega", &brief("   ", None), &[]).await.unwrap_err();
+    let unknown = world.services.task_authoring.create("nowhere", &brief("New", None), &[]).await.unwrap_err();
 
     assert!(untitled.to_string().contains("needs a title"), "{untitled}");
     assert!(unknown.to_string().contains("No project matches 'nowhere'"), "{unknown}");

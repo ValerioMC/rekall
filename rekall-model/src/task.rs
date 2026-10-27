@@ -164,6 +164,17 @@ impl Model {
         self.kind == TaskKind::Epic
     }
 
+    /// An epic gathers tasks and is never worked itself; `refused` says what it was asked to do.
+    pub fn require_workable(&self, refused: &str) -> Result<(), RekallError> {
+        if self.is_epic() {
+            return Err(RekallError::illegal(format!(
+                "'{}' is an epic, and an epic {refused}. Work one of the tasks that belong to it instead.",
+                self.label
+            )));
+        }
+        Ok(())
+    }
+
     /// An epic gathers plain tasks of its own project, one level deep: an epic never sits under
     /// another, and a task is never its own epic.
     pub fn require_joinable(&self, epic: &Model) -> Result<(), RekallError> {

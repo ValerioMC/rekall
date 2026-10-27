@@ -401,6 +401,7 @@ async fn the_mcp_endpoint_exposes_three_ways_to_read_and_ten_writes() {
             "rekall_create_task",
             "rekall_diagram",
             "rekall_inventory",
+            "rekall_join_epic",
             "rekall_note",
             "rekall_project_section",
             "rekall_propose_flow",

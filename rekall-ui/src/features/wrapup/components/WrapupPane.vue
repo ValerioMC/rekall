@@ -13,7 +13,7 @@ import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { relativeTime } from '@/common/format/relative-time'
 import { rkWrapupCommand } from '@/common/format/rk-command'
-import { WRAPUP_AUTHOR_LABEL } from '@/features/catalog/model/catalog'
+import { WRAPUP_AUTHOR_LABEL, isEpic } from '@/features/catalog/model/catalog'
 
 const store = useConsoleStore()
 const terminals = useTerminalStore()
@@ -114,6 +114,7 @@ async function sendWrapupHere(message: string): Promise<void> {
         </div>
 
         <LaunchClaudeCodeButton
+          v-if="!isEpic(selectedTask)"
           class="shrink-0"
           :anchors="selectedTask.anchor"
           :folder="selectedTask.projectRepoFolder"

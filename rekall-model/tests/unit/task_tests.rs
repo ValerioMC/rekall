@@ -115,3 +115,10 @@ fn a_task_cannot_be_its_own_epic() {
     task.kind = TaskKind::Task;
     assert!(task.require_joinable(&epic).is_err());
 }
+
+#[test]
+fn an_epic_is_never_worked_and_a_task_is() {
+    assert!(new_task().require_workable("is never run").is_ok());
+    let refused = new_epic(Id::random()).require_workable("is never run").unwrap_err();
+    assert!(refused.to_string().contains("is an epic, and an epic is never run"), "{refused}");
+}

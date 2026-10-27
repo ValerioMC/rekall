@@ -133,6 +133,32 @@ async fn a_session_creates_a_task_whose_steps_are_drafts_and_the_console_lists_i
     );
 }
 
+#[tokio::test]
+async fn a_session_creates_an_epic_and_files_tasks_under_it_and_the_console_lists_them() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
+    app.a_task(&project_id, "login").await;
+
+    let epic = app.call_tool("rekall_create_task", json!({ "anchors": "project:vega", "title": "Checkout", "kind": "epic" })).await;
+    app.call_tool("rekall_create_task", json!({ "anchors": "project:vega", "title": "Pay", "epic": "checkout" })).await;
+    let joined = app.call_tool("rekall_join_epic", json!({ "anchors": "project:vega task:login", "epic": "checkout" })).await;
+
+    assert_contains!(epic, "Epic \"Checkout\" created as `project:vega task:checkout`");
+    assert_contains!(joined, "`project:vega task:login` is filed under the epic \"Checkout\"");
+    let tasks = app.get(&format!("/api/tasks?projectId={project_id}")).await.list();
+    let checkout = tasks.iter().find(|task| task["label"] == "checkout").unwrap();
+    assert_eq!(checkout["kind"], "EPIC");
+    for label in ["login", "pay"] {
+        let task = tasks.iter().find(|task| task["label"] == label).unwrap();
+        assert_eq!(task["epicId"], checkout["id"], "{label}");
+    }
+    assert_contains!(
+        app.call_tool("rekall_create_task", json!({ "anchors": "project:vega", "title": "Billing", "kind": "epic", "steps": [{ "title": "One" }] })).await,
+        "An epic holds no steps"
+    );
+}
+
 // --- Sections read by a session
 
 #[tokio::test]

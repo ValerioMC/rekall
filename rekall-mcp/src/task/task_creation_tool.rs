@@ -1,5 +1,6 @@
 use async_trait::async_trait;
-use rekall_service::task::{StepDraft, TaskAuthoringService};
+use rekall_model::TaskKind;
+use rekall_service::task::{Created, StepDraft, TaskAuthoringService, TaskBrief};
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -7,8 +8,9 @@ use crate::tool::{told, Anchor, Arguments};
 use crate::protocol::{McpTool, ToolError, ToolSchema};
 use crate::texts;
 
-/// Lets a session create a task in a project, with a description and a first checklist. The task
-/// starts `TODO` and every step starts as a draft a person has to promote: it can create, nothing else.
+/// Lets a session create a task or an epic in a project, with a description and a first checklist,
+/// optionally under an epic. The task starts `TODO` and every step starts as a draft a person has to
+/// promote: it can create, nothing else.
 pub struct TaskCreationTool {
     tasks: TaskAuthoringService,
 }
@@ -51,6 +53,8 @@ impl McpTool for TaskCreationTool {
                 "description",
                 "Markdown: what the work is for, what it has to satisfy, what is out of scope.",
             )
+            .optional_string("kind", "`task` (the default) or `epic`: a task that holds no steps and gathers other tasks.")
+            .optional_string("epic", "The label of an epic of the same project to file the new task under: `checkout`.")
             .optional_object_array(
                 "steps",
                 "Up to 20 drafts, in order: `[{\"title\":\"Expose the report as a download\",\"detail\":\"markdown\"}]`. \
@@ -63,23 +67,36 @@ impl McpTool for TaskCreationTool {
         let args = Arguments::of(arguments);
         let project = project_label(&Anchor::parse_all(Some(&args.required_string("anchors")?))?)?;
         let drafts = drafts_of(args.value("steps"))?;
-        let created = self
-            .tasks
-            .create(
-                &project,
-                Some(&args.required_string("title")?),
-                args.optional_string("label").as_deref(),
-                args.optional_string("description").as_deref(),
-                &drafts,
-            )
-            .await
-            .map_err(|e| told(e, ""))?;
-        Ok(texts::TASK_CREATED_REPORT
-            .replacen("%s", &created.title, 1)
-            .replacen("%s", &created.task_anchor, 1)
-            .replacen("%d", &created.drafts.to_string(), 1)
-            .replacen("%s", if created.drafts == 1 { "" } else { "s" }, 1)
-            .replacen("%s", &created.task_anchor, 1))
+        let brief = TaskBrief {
+            title: Some(args.required_string("title")?),
+            label: args.optional_string("label"),
+            description: args.optional_string("description"),
+            kind: kind_of(args.optional_string("kind").as_deref())?,
+            epic: args.optional_string("epic"),
+        };
+        let created = self.tasks.create(&project, &brief, &drafts).await.map_err(|e| told(e, ""))?;
+        Ok(report(&created))
+    }
+}
+
+fn report(created: &Created) -> String {
+    if created.kind == TaskKind::Epic {
+        return texts::EPIC_CREATED_REPORT.replacen("%s", &created.title, 1).replacen("%s", &created.task_anchor, 2);
+    }
+    texts::TASK_CREATED_REPORT
+        .replacen("%s", &created.title, 1)
+        .replacen("%s", &created.task_anchor, 1)
+        .replacen("%d", &created.drafts.to_string(), 1)
+        .replacen("%s", if created.drafts == 1 { "" } else { "s" }, 1)
+        .replacen("%s", &created.task_anchor, 1)
+}
+
+/// `task` or `epic`, in any case; omitted, a task.
+fn kind_of(argument: Option<&str>) -> Result<TaskKind, ToolError> {
+    match argument.map(|kind| kind.trim().to_ascii_uppercase()) {
+        None => Ok(TaskKind::Task),
+        Some(kind) => TaskKind::value_of(&kind)
+            .ok_or_else(|| ToolError::Illegal(format!("'kind' is `task` or `epic`, not '{}'.", kind.to_lowercase()))),
     }
 }
 

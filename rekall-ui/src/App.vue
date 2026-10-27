@@ -219,7 +219,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
           <WrapupPane v-if="paneFocus === 'wrapup'" />
           <DescriptionPane v-else-if="paneFocus === 'description'" ref="descriptionPane" />
           <StepsPane v-else-if="paneFocus === 'steps' && !(selectedTask && isEpic(selectedTask))" />
-          <TerminalPane v-else-if="paneFocus === 'terminal'" />
+          <TerminalPane v-else-if="paneFocus === 'terminal' && !(selectedTask && isEpic(selectedTask))" />
           <NotePane v-else ref="notePane" />
         </Transition>
       </div>

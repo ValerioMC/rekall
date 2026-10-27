@@ -67,6 +67,7 @@ impl RunQueueService {
             let task = repo::task::find_by_id(tx.db(), task_id)
                 .await?
                 .ok_or_else(|| RekallError::unknown_anchor(format!("No task with id {task_id}")))?;
+            task.require_workable("is never queued to run")?;
             let current = ordered(&tx).await?;
             let waiting = current.iter().any(|item| item.task_id == task_id && !item.state.settled());
             if waiting {

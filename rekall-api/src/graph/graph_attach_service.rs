@@ -60,12 +60,12 @@ impl GraphAttachService {
     }
 
     /// The project's release graph laid as `attach` would, unless the task already has a graph,
-    /// is left unreleased, is an epic or the project chose none: then nothing changes.
+    /// is left unreleased or the project chose none: then nothing changes.
     pub async fn release_on_run(&self, task_id: Id) -> Result<ReleaseOnRunResponse> {
         in_write!(&self.ctx, |tx| {
             let task = repo::task::require(tx.db(), task_id).await?;
             let release = match (task.graph_laid_at, task.release_skipped) {
-                (None, false) if !task.is_epic() => self.graphs.release_default_in(&tx, task.project_id).await?,
+                (None, false) => self.graphs.release_default_in(&tx, task.project_id).await?,
                 _ => None,
             };
             let Some(stored) = release else {
@@ -78,6 +78,7 @@ impl GraphAttachService {
     }
 
     async fn lay_in(&self, tx: &mut Tx, task: &task::Model, stored: &StoredGraph) -> Result<Vec<TaskStepView>> {
+        task.require_workable("is never laid on a deployment graph")?;
         require_same_project(task, &stored.graph)?;
         require_runnable(stored)?;
         let mut work = self.steps.find_by_task_in(tx, task.id).await?;

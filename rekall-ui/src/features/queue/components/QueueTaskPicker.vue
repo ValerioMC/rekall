@@ -8,7 +8,7 @@
 import { computed, ref, useId } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useConsoleStore } from '@/stores/console.store'
-import type { Task } from '@/features/catalog/model/catalog'
+import { isEpic, type Task } from '@/features/catalog/model/catalog'
 import type { TaskId } from '@/model/branded'
 
 const props = defineProps<{ excluded: ReadonlySet<TaskId>; disabled?: boolean }>()
@@ -22,12 +22,12 @@ const active = ref(0)
 const open = ref(false)
 const listId = useId()
 
-/** Finished tasks sink to the bottom: queueing one is allowed, rarely meant. */
+/** Finished tasks sink to the bottom: queueing one is allowed, rarely meant. An epic is never run. */
 const matches = computed<Task[]>(() => {
   const term = query.value.trim().toLowerCase()
   if (!term) return []
   return tasks.value
-    .filter((task) => !props.excluded.has(task.id))
+    .filter((task) => !props.excluded.has(task.id) && !isEpic(task))
     .filter(
       (task) =>
         task.title.toLowerCase().includes(term) ||

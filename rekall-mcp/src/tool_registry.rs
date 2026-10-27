@@ -12,7 +12,7 @@ use crate::inventory::InventoryTool;
 use crate::note::NoteTool;
 use crate::section::{ProjectSectionTool, SectionReadTool};
 use crate::step::{StepProposalTool, StepStateTool};
-use crate::task::TaskCreationTool;
+use crate::task::{EpicMembershipTool, TaskCreationTool};
 use crate::vulnerability::{AssessmentTool, VulnerabilityReadTool};
 use crate::wrapup::WrapupTool;
 
@@ -22,6 +22,7 @@ pub fn all(services: &Services) -> Vec<Arc<dyn McpTool>> {
         Arc::new(CommitReferenceTool::new(services.commit_references.clone())),
         Arc::new(ContextTool::new(services.context.clone())),
         Arc::new(TaskCreationTool::new(services.task_authoring.clone())),
+        Arc::new(EpicMembershipTool::new(services.epic_membership.clone())),
         Arc::new(NoteTool::new(services.notes.clone())),
         Arc::new(StepProposalTool::new(services.steps.clone())),
         Arc::new(FlowProposalTool::new(services.flow_proposals.clone())),

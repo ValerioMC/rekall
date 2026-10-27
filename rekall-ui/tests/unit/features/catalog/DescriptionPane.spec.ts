@@ -150,3 +150,24 @@ describe('DescriptionPane component completion', () => {
     expect(wrapper.getComponent({ name: 'AppMarkdownEditor' }).props('components')).toEqual([auth])
   })
 })
+
+describe('DescriptionPane on an epic', () => {
+  beforeEach(() => {
+    pinia = createPinia()
+    setActivePinia(pinia)
+  })
+
+  it('offers no way to run an epic, and keeps it for a task', async () => {
+    seed('OPEN')
+    const task = render()
+    await flushPromises()
+    expect(task.findComponent({ name: 'OpenTerminalButton' }).exists()).toBe(true)
+    expect(task.findComponent({ name: 'LaunchClaudeCodeButton' }).exists()).toBe(true)
+
+    seed('OPEN', { kind: 'EPIC' })
+    const epic = render()
+    await flushPromises()
+    expect(epic.findComponent({ name: 'OpenTerminalButton' }).exists()).toBe(false)
+    expect(epic.findComponent({ name: 'LaunchClaudeCodeButton' }).exists()).toBe(false)
+  })
+})
