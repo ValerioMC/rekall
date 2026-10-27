@@ -44,3 +44,13 @@ export function epicChoices(projectId: string, tasks: readonly Task[], except: T
     .filter((task) => isEpic(task) && task.projectId === projectId && task.id !== except)
     .sort((left, right) => left.title.localeCompare(right.title))
 }
+
+/** Every whitespace-separated part of the needle must appear in the epic's title, label or anchor. */
+export function matchesEpicQuery(epic: Task, needle: string): boolean {
+  const hay = `${epic.title} ${epic.label} ${epic.anchor}`.toLowerCase()
+  return needle
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .every((part) => hay.includes(part))
+}

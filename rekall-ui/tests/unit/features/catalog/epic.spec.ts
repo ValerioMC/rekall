@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { epicChoices, epicProgress, tasksOfEpic } from '@/features/catalog/model/epic'
+import { epicChoices, epicProgress, matchesEpicQuery, tasksOfEpic } from '@/features/catalog/model/epic'
 import { taskFixture } from '../../support/taskFixture'
 import type { Task } from '@/features/catalog/model/catalog'
 import type { ProjectId, TaskId } from '@/model/branded'
@@ -51,5 +51,19 @@ describe('the epics a task can belong to', () => {
     ]
 
     expect(epicChoices('p1', tasks, 'e1' as TaskId).map((entry) => entry.id)).toEqual(['e2'])
+  })
+})
+
+describe('finding an epic by what was typed', () => {
+  const epic = task('e1', { kind: 'EPIC', title: 'Report builder', label: 'report-builder', anchor: 'task:report-builder' })
+
+  it('matches every typed word against the title, label or anchor, ignoring case', () => {
+    expect(matchesEpicQuery(epic, '  REPORT build ')).toBe(true)
+    expect(matchesEpicQuery(epic, 'task:report')).toBe(true)
+    expect(matchesEpicQuery(epic, '')).toBe(true)
+  })
+
+  it('refuses the epic when one word appears nowhere', () => {
+    expect(matchesEpicQuery(epic, 'report export')).toBe(false)
   })
 })

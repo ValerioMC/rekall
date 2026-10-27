@@ -42,6 +42,7 @@ const logoField = ref<InstanceType<typeof CompanyLogoField> | null>(null)
 const isConfirmingDelete = ref(false)
 const submitted = ref(false)
 const isPickingProject = ref(false)
+const isPickingEpic = ref(false)
 
 const kind = props.draft.kind
 const isNew = props.draft.id === null
@@ -234,7 +235,7 @@ onUnmounted(() => window.removeEventListener('keydown', saveOnModEnter, true))
     :label="heading"
     panel-class="max-w-[560px]"
     panel-testid="record-dialog"
-    :dismissible="!isPickingProject"
+    :dismissible="!isPickingProject && !isPickingEpic"
     @dismiss="emit('close')"
   >
     <header class="flex items-center gap-3 border-b border-border px-6 py-4">
@@ -334,7 +335,12 @@ onUnmounted(() => window.removeEventListener('keydown', saveOnModEnter, true))
 
       <TaskKindField v-if="kind === 'task'" v-model="taskKind" />
 
-      <TaskEpicField v-if="kind === 'task' && taskKind === 'TASK'" v-model="epicId" :epics="epics" />
+      <TaskEpicField
+        v-if="kind === 'task' && taskKind === 'TASK'"
+        v-model="epicId"
+        :epics="epics"
+        @open-change="isPickingEpic = $event"
+      />
 
       <TaskTagField v-if="kind === 'task'" v-model="tagId" />
 
