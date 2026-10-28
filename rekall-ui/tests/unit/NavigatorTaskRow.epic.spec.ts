@@ -31,4 +31,21 @@ describe('NavigatorTaskRow epic', () => {
 
     expect(mountRow(taskFixture('login' as TaskId)).find('[data-testid="task-epic"]').exists()).toBe(false)
   })
+
+  it('gives the anchor and the epic the same share of the line', () => {
+    useConsoleStore().tasks = [epic, member]
+    const row = mountRow(member)
+
+    for (const testId of ['task-anchor', 'task-epic']) {
+      expect(row.get(`[data-testid="${testId}"]`).classes()).toEqual(
+        expect.arrayContaining(['max-w-[50%]', 'flex-1', 'basis-0'])
+      )
+    }
+  })
+
+  it('leaves the anchor at its own width on a task with no epic', () => {
+    useConsoleStore().tasks = [epic, member]
+
+    expect(mountRow(taskFixture('login' as TaskId)).get('[data-testid="task-anchor"]').classes()).not.toContain('flex-1')
+  })
 })

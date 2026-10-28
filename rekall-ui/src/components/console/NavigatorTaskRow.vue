@@ -108,7 +108,11 @@ watch(
             <span class="shrink-0 truncate text-micro text-text-subtle">{{ task.companyName }}</span>
             <span class="shrink-0 text-micro text-text-subtle" aria-hidden="true">/</span>
           </template>
-          <span class="anchor-chip min-w-0 truncate px-1.5 py-px text-micro leading-[15px]">
+          <span
+            class="anchor-chip min-w-0 truncate px-1.5 py-px text-micro leading-[15px]"
+            :class="epic && 'max-w-[50%] flex-1 basis-0'"
+            data-testid="task-anchor"
+          >
             {{ task.label }}
           </span>
           <EpicChip v-if="epic" :title="epic.title" />

@@ -36,6 +36,8 @@ const props = withDefaults(
      * width and alignment they set belong to a pane-sized page, not to a card.
      */
     compact?: boolean
+    /** Whether the toolbar offers the page full screen, for text whose pane already gives it the room it needs. */
+    pageFullscreen?: boolean
     /**
      * The folder the path picker opens in: the project's, when the text belongs to one. Without
      * it the picker opens in the home folder, and it can reach anywhere on the machine either way.
@@ -59,6 +61,7 @@ const props = withDefaults(
     grow: false,
     placeholder: '# Contesto',
     compact: false,
+    pageFullscreen: true,
     pathRoot: null,
     components: null,
     connections: null,
@@ -147,6 +150,8 @@ const TOOLBARS: ToolbarNames[] = [
   'pageFullscreen',
   'catalog'
 ]
+
+const toolbars = computed(() => (props.pageFullscreen ? TOOLBARS : TOOLBARS.filter((name) => name !== 'pageFullscreen')))
 </script>
 
 <template>
@@ -196,7 +201,7 @@ const TOOLBARS: ToolbarNames[] = [
       theme="dark"
       preview-theme="github"
       code-theme="atom"
-      :toolbars="TOOLBARS"
+      :toolbars="toolbars"
       :completions="completions"
       :preview="false"
       :footers="['markdownTotal']"

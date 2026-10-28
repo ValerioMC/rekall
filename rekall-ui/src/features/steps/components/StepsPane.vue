@@ -210,7 +210,7 @@ onUnmounted(editor.flush)
 </script>
 
 <template>
-  <section class="flex min-h-0 w-full min-w-0 flex-1 flex-col bg-canvas" aria-label="Steps">
+  <section class="steps-pane flex min-h-0 w-full min-w-0 flex-1 flex-col bg-canvas" aria-label="Steps">
     <p v-if="!selectedTask" class="px-9 py-12 text-body text-text-muted">
       Pick a task to see what is left on it.
     </p>

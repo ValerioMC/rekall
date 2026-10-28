@@ -110,6 +110,20 @@ describe('AppMarkdownEditor', () => {
     expect(wrapper.find('.cm-content[contenteditable]').exists()).toBe(true)
   })
 
+  it('offers the page full screen unless the pane already gives the text its room', async () => {
+    const fullscreenTitles = async (pageFullscreen: boolean): Promise<string[]> => {
+      const wrapper = mount(AppMarkdownEditor, { props: { modelValue: '', pageFullscreen } })
+      await flushPromises()
+      return wrapper
+        .findAll('.md-editor-toolbar-item')
+        .map((item) => item.attributes('title') ?? '')
+        .filter((title) => title.toLowerCase().includes('fullscreen'))
+    }
+
+    expect(await fullscreenTitles(true)).toHaveLength(1)
+    expect(await fullscreenTitles(false)).toHaveLength(0)
+  })
+
   it('puts the path picker in the toolbar, next to link', async () => {
     const wrapper = mount(AppMarkdownEditor, { props: { modelValue: '', pathRoot: '/work/app' } })
     await flushPromises()

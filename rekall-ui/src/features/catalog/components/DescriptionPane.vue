@@ -145,6 +145,7 @@ defineExpose({ toggleMode })
             key="write"
             v-model="draft"
             height="100%"
+            :page-fullscreen="false"
             :path-root="selectedTask?.projectRepoFolder"
             :components="projectComponents"
             :connections="projectConnections"
