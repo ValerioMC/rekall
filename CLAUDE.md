@@ -10,8 +10,7 @@ convention are in `docs/DESIGN.md` §3 ("Layout inside a crate") and are not rep
   only) and `rekall-infra` (implements the traits of `rekall-core`) beside them, and
   `rekall-app` wiring everything. `rekall-http` never depends on `rekall-infra`. A dependency that
   points the other way is a design error, not a missing `use`. Until `task:layered-crates-refactor`
-  is finished the workspace still has `rekall-api` and `rekall-web`, and `rekall-infra` still holds
-  controllers: new code goes where the target puts it, and a change in an old crate does not widen
+  is finished the workspace still has `rekall-api` and `rekall-web`: new code goes where the target puts it, and a change in an old crate does not widen
   its role.
 - **Code is cut by domain.** `catalog`, `step`, `flow`, `note`, `wrapup`, `diagram`... name a folder
   in every layer crate and a feature in the console. A new use of one domain by another is added

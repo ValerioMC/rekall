@@ -24,21 +24,22 @@ use rekall_core::vulnerability::{AdvisoryFeed, ScanSettingsService, Vulnerabilit
 use rekall_core::{Ctx, EventBus, Services};
 use tracing::warn;
 
-use rekall_infra::backup::{self, DatabaseBackupService, DatabaseLocation, DatabaseRestoreService};
+use rekall_infra::backup::{DatabaseBackupService, DatabaseLocation, DatabaseRestoreService};
 use rekall_infra::installer::ClaudeCodeInstaller;
-use rekall_infra::bootstrap::location::SetupStatus;
+use rekall_core::settings::SetupStatus;
 use rekall_infra::bootstrap::registry::DatabaseRegistryStore;
-use rekall_infra::bootstrap::settings::{self, SettingsState};
+use rekall_infra::bootstrap::DatabaseFolderRegistry;
 use crate::config::AppConfig;
 use rekall_infra::restart::Restarter;
-use rekall_core::connection::{ConnectionCheckService, ConnectionProbe};
+use rekall_core::connection::ConnectionProbe;
 use rekall_infra::jira::HttpJiraIssues;
-use rekall_infra::probes::{self, HttpConnectionProbe};
+use rekall_infra::probes::HttpConnectionProbe;
 use rekall_infra::secret::KeychainSecretStore;
 use crate::security::{self, LocalAccess};
 use crate::spa::{self, Assets};
 use crate::actuator;
-use rekall_infra::version::{self, GithubReleaseFeed, ReleaseFeed, UpdateChecker, RUNNING_VERSION};
+use rekall_core::version::ReleaseFeed;
+use rekall_infra::version::GithubReleaseFeed;
 use rekall_infra::vulnerability::GithubAdvisoryFeed;
 
 use super::StartOptions;
@@ -160,19 +161,6 @@ impl Instance {
         );
         let installer = ClaudeCodeInstaller::new(config.user_home.clone(), config.mcp_endpoint(served_port));
         let pty_terminals = Arc::new(PtyTerminals::new(terminals.clone()));
-        let ports = ApiPorts {
-            secrets: secrets.clone(),
-            jira: jira_issues,
-            terminals: pty_terminals.clone(),
-            terminal_pipe: pty_terminals,
-            queue_runner: Arc::new(runner.clone()),
-            usage: usage.clone(),
-            claude_folder: Arc::new(ClaudeResourceService::new(claude_config.claude_home.clone())),
-            claude_setup: Arc::new(installer),
-            credential_desk: broker,
-        };
-        let api = ApiState::new(services.clone(), stream.clone(), config.user_home.clone(), vulnerability_scans.clone(), scan_settings, ports);
-
         let location = database.path.as_deref().and_then(DatabaseLocation::of);
         let backups = DatabaseBackupService::new(
             database.conn.clone(),
@@ -183,31 +171,38 @@ impl Instance {
             clock,
         );
         let restorer = DatabaseRestoreService::new(backups.clone(), restarter.clone());
-        let settings = SettingsState {
-            store: DatabaseRegistryStore::new(&config.home),
-            user_home: config.user_home.clone(),
-            restarter,
-        };
-
         let release_feed: Arc<dyn ReleaseFeed> = match &options.release_feed {
             Some(feed) => feed.clone(),
             None => Arc::new(GithubReleaseFeed::new(&config.update_check.url)),
         };
-        let update_checker = Arc::new(UpdateChecker::new(RUNNING_VERSION, config.update_check.enabled, release_feed));
         let connection_probe: Arc<dyn ConnectionProbe> = match &options.connection_probe {
             Some(probe) => probe.clone(),
             None => Arc::new(HttpConnectionProbe::new()),
         };
-        let connection_checks = ConnectionCheckService::new(ctx.clone(), secrets.clone(), connection_probe);
+        let ports = ApiPorts {
+            secrets: secrets.clone(),
+            jira: jira_issues,
+            terminals: pty_terminals.clone(),
+            terminal_pipe: pty_terminals,
+            queue_runner: Arc::new(runner.clone()),
+            usage: usage.clone(),
+            claude_folder: Arc::new(ClaudeResourceService::new(claude_config.claude_home.clone())),
+            claude_setup: Arc::new(installer),
+            credential_desk: broker,
+            connection_probe,
+            backups: Arc::new(backups.clone()),
+            restore: Arc::new(restorer),
+            database_folders: Arc::new(DatabaseFolderRegistry::new(DatabaseRegistryStore::new(&config.home), config.user_home.clone())),
+            restart: Arc::new(restarter),
+            release_feed: config.update_check.enabled.then_some(release_feed),
+        };
+        let api = ApiState::new(services.clone(), stream.clone(), config.user_home.clone(), vulnerability_scans.clone(), scan_settings, ports);
+
 
         let routes = Router::new()
             .merge(rekall_api::router(api))
             .merge(rekall_mcp::router(mcp))
-            .merge(settings::routes(settings))
-            .merge(backup::routes(backups.clone(), restorer))
             .merge(actuator::routes(database.conn.clone()))
-            .merge(version::routes(update_checker))
-            .merge(probes::routes(connection_checks))
             .merge(spa::routes(Assets::new(config.ui_dist.clone())))
             .method_not_allowed_fallback(|| async { framework(StatusCode::METHOD_NOT_ALLOWED) });
         // The routes sit behind a fallback so the layers below see each response whole.

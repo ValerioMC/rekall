@@ -5,6 +5,7 @@
 //! A service records events on the transaction it runs in, and they reach the bus only once that
 //! transaction commits. A write that rolls back announces nothing.
 
+pub mod backup;
 pub mod claude;
 pub mod commit;
 pub mod component;
@@ -19,12 +20,14 @@ pub mod queue;
 pub mod review;
 pub mod search;
 pub mod section;
+pub mod settings;
 pub mod skill;
 pub mod step;
 pub mod task;
 pub mod timeentry;
 pub mod token;
 pub mod tx;
+pub mod version;
 pub mod vulnerability;
 pub mod wrapup;
 

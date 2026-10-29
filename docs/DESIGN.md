@@ -57,7 +57,7 @@ rekall/
   rekall-console/    the services only the console calls, one folder per domain: commands in, views out, no HTTP types
   rekall-api/        Axum REST routes for the UI, one folder per domain: its controllers, request and response shapes and routes
   rekall-mcp/        MCP server: three tools read, twelve write; a folder per domain holds its tools
-  rekall-infra/      everything with a process, a file, a socket or outbound HTTP behind it, a folder per capability: the in-app terminal (`pty`, `socket`, `terminal`), the run queue's worker, the usage meter, the transcript reader, the Claude folder editor, the database registry (`bootstrap`), backups and restores, the restart handle, the release check, the OS credential store (`secret`), the connection probes, the Jira search, the GitHub Advisory Database client; their controllers still sit beside them
+  rekall-infra/      everything with a process, a file, a socket or outbound HTTP behind it, a folder per capability: the in-app terminal (`pty`, `socket`, `terminal`), the run queue's worker, the usage meter, the transcript reader, the Claude folder editor, the database registry (`bootstrap`), backups and restores, the restart handle, the release check, the OS credential store (`secret`), the connection probes, the Jira search, the GitHub Advisory Database client; it serves no route, each capability implements a port of `rekall-core`
   rekall-app/        rekall-server: wires every module, the local-access guard, serves the built frontend, embedded at compile time
   rekall-app/desktop the Tauri desktop app over the same server, in-process
   rekall-ui/         Vue 3 + Vite (built into rekall-ui/dist, embedded by rekall-app)
@@ -104,6 +104,7 @@ is found by opening one folder per crate:
 | `wrapup`, `review`, `timeentry` | the wrapup, the review line, logged time |
 | `commit`, `diagram`, `token`, `search`, `context` | logged commits, stored diagrams, token usage, search, context assembly and its size |
 | `skill`, `tag`, `queue`, `claude` | skill assignments, tags, the run queue, what a session launch needs |
+| `backup`, `settings`, `version` | the backups of the open database and restoring one, the registered database folders and the restart onto another, the update check; no table behind them, so no folder in `rekall-store` |
 | `inventory` | what each project is built from: its dependencies at the version each resolves to |
 | `vulnerability` | the advisories, the projects they reach, the scan that finds them and what it looks for, a session's verdict and the fix task |
 
@@ -135,7 +136,7 @@ from its table:
 | `rekall-console` | `rekall-core`, `rekall-kernel`, `rekall-store` |
 | `rekall-api` | `rekall-console`, `rekall-core`, `rekall-diagram`, `rekall-kernel`, `rekall-store`, `rekall-web` |
 | `rekall-mcp` | `rekall-core`, `rekall-kernel` |
-| `rekall-infra` | `rekall-core`, `rekall-diagram`, `rekall-kernel`, `rekall-store`, `rekall-web` |
+| `rekall-infra` | `rekall-core`, `rekall-diagram`, `rekall-kernel`, `rekall-store` |
 | `rekall-app` | `rekall-api`, `rekall-core`, `rekall-infra`, `rekall-kernel`, `rekall-mcp`, `rekall-store`, `rekall-web` |
 | `rekall-app/desktop` | `rekall-app`, `rekall-infra` |
 
@@ -147,6 +148,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 
 | Domain | `rekall-store` | `rekall-core` | `rekall-console` | `rekall-api` | `rekall-mcp` |
 |---|---|---|---|---|---|
+| `backup` | - | nothing | nothing | nothing | - |
 | `catalog` | `task` | - | `commit`, `note`, `review`, `step`, `tag`, `task`, `timeentry`, `wrapup` | nothing | - |
 | `claude` | - | `catalog`, `connection`, `task` | nothing | `skill` | - |
 | `commit` | `step`, `task` | `catalog`, `step`, `task` | - | nothing | nothing |
@@ -163,6 +165,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `review` | - | `task`, `timeentry` | - | - | - |
 | `search` | - | `task` | - | nothing | - |
 | `section` | `catalog` | `catalog`, `note` | nothing | nothing | `note` |
+| `settings` | - | nothing | nothing | nothing | - |
 | `skill` | `step`, `tag`, `task` | `claude` | nothing | nothing | - |
 | `step` | `task` | `flow`, `task`, `timeentry` | - | nothing | `commit`, `flow` |
 | `stream` | - | - | - | nothing | - |
@@ -171,6 +174,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `terminal` | - | - | `claude` | `claude`, `vulnerability` | - |
 | `timeentry` | `task` | `catalog`, `task` | - | nothing | - |
 | `token` | `step`, `task` | nothing | - | nothing | - |
+| `version` | - | nothing | nothing | nothing | - |
 | `vulnerability` | `catalog`, `task` | `catalog`, `commit`, `connection`, `inventory` | `catalog`, `step`, `task` | `catalog` | nothing |
 | `wrapup` | `task` | `catalog`, `review`, `task` | - | nothing | `commit` |
 
@@ -181,7 +185,11 @@ Each crate's foundations are modules every domain may use and are no domain: `ct
 `tool` and `tool_registry` in `rekall-mcp`. A new edge is a design decision: change the table and
 the test together, or change the code.
 
-`rekall-infra` does not depend on `rekall-api`. What the two routers share is in `rekall-web`.
+`rekall-infra` serves no route and depends on neither `rekall-api` nor `rekall-web`: every controller
+is in `rekall-api`, which reaches the machine only through the ports `rekall-app` hands it in
+`ApiPorts`. The backups, the registry of database folders, the restart and the release feed are ports
+of `rekall-core` (`backup`, `settings`, `version`) like the Claude capabilities; the rules over them
+(which database is active, when the update check asks again) are console services.
 
 `claude` exists twice on purpose. `rekall-core/src/claude/` reads the entities a launch needs (the
 launch target of a task or project, the work left in a task), the models and efforts a session may

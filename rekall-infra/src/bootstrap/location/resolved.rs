@@ -1,6 +1,6 @@
 use crate::config::DatabaseOverride;
 
-use super::SetupStatus;
+use rekall_core::settings::SetupStatus;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Resolved {

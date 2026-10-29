@@ -1,12 +1,13 @@
 //! The REST API the console calls, one folder per domain: each holds its routes, its request and
 //! response shapes and the console services that write the catalog. `rekall-mcp` never sees any
 //! of it, which keeps the MCP write surface narrow. The error body, extractors and response
-//! helpers every router shares are in `rekall-web`.
+//! helpers are in `rekall-web`.
 
 mod api_ports;
 mod api_state;
 mod router;
 
+pub mod backup;
 pub mod catalog;
 pub mod claude;
 pub mod commit;
@@ -22,6 +23,7 @@ pub mod note;
 pub mod queue;
 pub mod search;
 pub mod section;
+pub mod settings;
 pub mod skill;
 pub mod step;
 pub mod stream;
@@ -29,6 +31,7 @@ pub mod tag;
 pub mod terminal;
 pub mod timeentry;
 pub mod token;
+pub mod version;
 pub mod vulnerability;
 pub mod wrapup;
 

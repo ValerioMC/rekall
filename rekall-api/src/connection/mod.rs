@@ -4,6 +4,7 @@
 
 mod connection_access_query;
 mod connection_access_response;
+mod connection_check_controller;
 mod connection_controller;
 mod connection_credential_controller;
 mod connection_credential_request;

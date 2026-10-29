@@ -1,10 +1,13 @@
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
+use async_trait::async_trait;
+use futures::StreamExt;
+use rekall_core::backup::{BackupFile, BackupReason, DatabaseRestore, UploadChunks};
 use rekall_kernel::{InternalFailure, RekallError, Result};
 use tracing::{error, info, warn};
 
-use super::{BackupFile, BackupReason, DatabaseBackupService, DatabaseLocation};
+use super::{DatabaseBackupService, DatabaseLocation};
 use crate::restart::Restarter;
 
 /// The first bytes of every SQLite database file.
@@ -29,7 +32,7 @@ impl DatabaseRestoreService {
     }
 
     /// Keeps an uploaded backup in the folder as `…-uploaded.zip`, then restores it.
-    pub async fn restore_upload(&self, upload: &Path) -> Result<BackupFile> {
+    async fn restore_file(&self, upload: &Path) -> Result<BackupFile> {
         let location = self.require_location()?;
         let failed = || RekallError::internal(InternalFailure::Io, "Could not keep the uploaded backup");
         std::fs::create_dir_all(location.backups()).map_err(|_| failed())?;
@@ -86,6 +89,35 @@ impl DatabaseRestoreService {
             .cloned()
             .ok_or_else(|| RekallError::conflict("This database is not a file on disk, so it cannot be restored."))
     }
+}
+
+#[async_trait]
+impl DatabaseRestore for DatabaseRestoreService {
+    async fn restore(&self, name: &str) -> Result<BackupFile> {
+        DatabaseRestoreService::restore(self, name).await
+    }
+
+    async fn restore_upload(&self, upload: UploadChunks<'_>) -> Result<BackupFile> {
+        let staged = staged(upload).await?;
+        self.restore_file(staged.path()).await
+    }
+}
+
+/// The upload written to a temporary file, deleted when it is dropped.
+async fn staged(mut upload: UploadChunks<'_>) -> Result<tempfile::NamedTempFile> {
+    let unreadable = || RekallError::internal(InternalFailure::Io, "Could not read the uploaded file");
+    let mut temp = tempfile::NamedTempFile::new().map_err(|_| unreadable())?;
+    let mut size = 0u64;
+    while let Some(chunk) = upload.next().await {
+        let chunk = chunk?;
+        size += chunk.len() as u64;
+        temp.write_all(&chunk).map_err(|_| unreadable())?;
+    }
+    temp.flush().map_err(|_| unreadable())?;
+    if size == 0 {
+        return Err(RekallError::illegal("The uploaded file is empty. Nothing was restored."));
+    }
+    Ok(temp)
 }
 
 /// Writes the database file out of the zip, refusing a zip that does not hold one. A file with

@@ -4,7 +4,8 @@
 //! transcripts read for the tokens each task and step cost; Claude Code's own home folder the
 //! console edits. Around the catalog: which database to open (`bootstrap`), backups and restores,
 //! restarting onto another database, the release check, the OS credential store, the probes that
-//! check a stored credential, the Jira search and the advisory database. `rekall-app` wires it.
+//! check a stored credential, the Jira search and the advisory database. It serves no route: each
+//! capability implements a port of `rekall-core`, and `rekall-app` injects it.
 
 pub mod backup;
 pub mod bootstrap;

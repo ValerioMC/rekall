@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use rekall_core::commit::CommitReferenceService;
+use rekall_core::connection::ConnectionCheckService;
 use rekall_core::context::ContextSizeService;
 use rekall_core::diagram::DiagramService;
 use rekall_core::flow::{FlowService, StepLinkService};
@@ -10,6 +11,7 @@ use rekall_core::search::SearchService;
 use rekall_core::section::ProjectSectionService;
 use rekall_core::step::TaskStepService;
 use rekall_core::timeentry::TimeEntryService;
+use rekall_core::version::RUNNING_VERSION;
 use rekall_core::token::TokenUsageService;
 use rekall_core::vulnerability::{ScanSettingsService, SecurityAdvisoryService, VulnerabilityExposureService, VulnerabilityScanService};
 use rekall_core::wrapup::WrapupService;
@@ -17,7 +19,7 @@ use rekall_core::queue::RunQueueService;
 use rekall_core::skill::SkillGroupService;
 use rekall_core::Services;
 
-use rekall_console::{catalog, claude, component, connection, diagram, filesystem, graph, note, queue, section, skill, tag, terminal, vulnerability};
+use rekall_console::{backup, catalog, claude, component, connection, diagram, filesystem, graph, note, queue, section, settings, skill, tag, terminal, version, vulnerability};
 
 use crate::{ApiPorts, StepEventStream};
 
@@ -71,6 +73,10 @@ pub struct ApiState {
     pub claude_install: claude::ClaudeInstallService,
     pub skill_groups: SkillGroupService,
     pub credential_hand_out: connection::CredentialHandOutService,
+    pub connection_checks: ConnectionCheckService,
+    pub backups: backup::BackupService,
+    pub database_folders: settings::DatabaseFolderService,
+    pub update_check: version::UpdateCheckService,
     pub stream: Arc<StepEventStream>,
 }
 
@@ -126,7 +132,7 @@ impl ApiState {
             graphs,
             graph_attach,
             connections,
-            connection_credentials: connection::ConnectionCredentialService::new(ctx.clone(), ports.secrets),
+            connection_credentials: connection::ConnectionCredentialService::new(ctx.clone(), ports.secrets.clone()),
             kubeconfig_preview: connection::KubeconfigPreviewService::new(),
             project_connections,
             repository_discovery,
@@ -157,8 +163,12 @@ impl ApiState {
             usage_meter: claude::UsageMeterService::new(ports.usage),
             claude_folder: claude::ClaudeFolderService::new(ports.claude_folder),
             claude_install: claude::ClaudeInstallService::new(ports.claude_setup),
+            connection_checks: ConnectionCheckService::new(ctx.clone(), ports.secrets, ports.connection_probe),
             skill_groups: SkillGroupService::new(ctx),
             credential_hand_out: connection::CredentialHandOutService::new(ports.credential_desk),
+            backups: backup::BackupService::new(ports.backups, ports.restore),
+            database_folders: settings::DatabaseFolderService::new(ports.database_folders, ports.restart),
+            update_check: version::UpdateCheckService::new(RUNNING_VERSION, ports.release_feed),
             stream,
         }
     }

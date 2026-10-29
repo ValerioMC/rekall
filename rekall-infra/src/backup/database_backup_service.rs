@@ -3,15 +3,17 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock, Mutex};
 use std::time::Duration;
 
+use async_trait::async_trait;
 use chrono::{NaiveDateTime, TimeDelta};
 use regex::Regex;
 use rekall_kernel::{cleanup, Instant, InternalFailure, RekallError, Result};
+use rekall_core::backup::{BackupFile, BackupReason, BackupStatus, DatabaseBackups};
 use rekall_core::Clock;
 use sea_orm::{ConnectionTrait, DatabaseConnection};
 use tokio::task::JoinHandle;
 use tracing::{info, warn};
 
-use super::{BackupFile, BackupReason, BackupStatus, DatabaseLocation};
+use super::DatabaseLocation;
 
 /// The only names this folder hands out or accepts back, which is what keeps a name from being a path.
 pub static NAME: LazyLock<Regex> = LazyLock::new(|| {
@@ -221,6 +223,24 @@ impl DatabaseBackupService {
         warn!(failure = %message, "Backup failed");
         *self.inner.last_failure.lock().expect("never poisoned") = Some(message);
         failure
+    }
+}
+
+#[async_trait]
+impl DatabaseBackups for DatabaseBackupService {
+    fn status(&self) -> Result<BackupStatus> {
+        DatabaseBackupService::status(self)
+    }
+
+    async fn back_up_now(&self) -> Result<BackupFile> {
+        self.back_up(BackupReason::Manual).await
+    }
+
+    async fn read(&self, name: &str) -> Result<Vec<u8>> {
+        let file = self.resolve(name)?;
+        tokio::fs::read(&file)
+            .await
+            .map_err(|_| RekallError::internal(InternalFailure::Io, format!("Could not read {}", file.display())))
     }
 }
 

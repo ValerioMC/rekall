@@ -1,6 +1,5 @@
+use rekall_core::backup::BackupFile;
 use serde::Serialize;
-
-use super::BackupFile;
 
 /// A restore that was accepted: the application is restarting, and this backup holds what was there.
 #[derive(Serialize)]

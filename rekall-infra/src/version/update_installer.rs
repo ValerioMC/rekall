@@ -4,12 +4,10 @@
 
 use std::path::{Path, PathBuf};
 
+use rekall_core::version::{InvalidVersion, Release, ReleaseFeed, ReleaseFeedError, ReleaseVersion};
 use tracing::{info, warn};
 
-use super::{
-    bundle_files, BundleError, BundleInstaller, InvalidVersion, Release, ReleaseDownloadError, ReleaseDownloader,
-    ReleaseFeed, ReleaseFeedError, ReleaseVersion,
-};
+use super::{bundle_files, BundleError, BundleInstaller, ReleaseDownloadError, ReleaseDownloader};
 
 /// Only files of this repository's releases are ever installed.
 pub const DOWNLOAD_PREFIX: &str = "https://github.com/ValerioMC/rekall/releases/download/";

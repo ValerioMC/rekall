@@ -6,7 +6,7 @@ use rekall_core::vulnerability::AdvisoryFeed;
 use rekall_core::Clock;
 
 use rekall_core::connection::ConnectionProbe;
-use rekall_infra::version::ReleaseFeed;
+use rekall_core::version::ReleaseFeed;
 
 /// What a caller, usually a test, can swap in for the real collaborators.
 #[derive(Clone, Default)]

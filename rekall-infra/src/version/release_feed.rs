@@ -2,6 +2,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use async_trait::async_trait;
+use rekall_core::version::{Release, ReleaseAsset, ReleaseFeed, ReleaseFeedError};
 use serde::Deserialize;
 use tokio::io::AsyncWriteExt;
 
@@ -11,29 +12,6 @@ const HTTP_TIMEOUT: Duration = Duration::from_secs(8);
 /// A disk image is tens of megabytes: generous for a slow line, still bounded.
 const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(600);
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ReleaseAsset {
-    pub name: String,
-    pub download_url: String,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Release {
-    pub tag: String,
-    pub page_url: String,
-    pub assets: Vec<ReleaseAsset>,
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum ReleaseFeedError {
-    #[error("the release feed could not be reached: {0}")]
-    Unreachable(String),
-    #[error("the release feed answered {0}")]
-    Refused(u16),
-    #[error("the release feed answered something that is not a release: {0}")]
-    Malformed(String),
-}
-
 #[derive(Debug, thiserror::Error)]
 pub enum ReleaseDownloadError {
     #[error("the download could not be reached: {0}")]
@@ -42,12 +20,6 @@ pub enum ReleaseDownloadError {
     Refused(u16),
     #[error("the download could not be saved to {path}: {cause}")]
     Unwritable { path: String, cause: String },
-}
-
-#[async_trait]
-pub trait ReleaseFeed: Send + Sync {
-    /// The newest published release, or `None` when nothing has been published yet.
-    async fn latest(&self) -> Result<Option<Release>, ReleaseFeedError>;
 }
 
 /// Fetches a release's asset into a local file.

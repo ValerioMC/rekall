@@ -20,7 +20,7 @@ impl BackupReason {
         }
     }
 
-    pub(super) fn of_slug(slug: &str) -> Option<Self> {
+    pub fn of_slug(slug: &str) -> Option<Self> {
         [Self::Auto, Self::Manual, Self::BeforeRestore, Self::Uploaded].into_iter().find(|r| r.slug() == slug)
     }
 }

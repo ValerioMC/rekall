@@ -9,13 +9,11 @@ rekall-kernel.workspace = true
 rekall-store.workspace = true
 rekall-diagram.workspace = true
 rekall-core.workspace = true
-rekall-web.workspace = true
 sea-orm.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
 futures.workspace = true
-axum.workspace = true
 tracing.workspace = true
 chrono.workspace = true
 regex.workspace = true
@@ -41,6 +39,7 @@ keyring = { workspace = true, features = ["windows-native"] }
 keyring = { workspace = true, features = ["linux-native"] }
 
 [dev-dependencies]
+axum.workspace = true
 tokio-tungstenite = "0.29"
 
 # Integration suites live in tests/integration and unit tests in tests/unit, so Cargo discovers

@@ -1,4 +1,4 @@
-use crate::bootstrap::registry::DatabaseEntry;
+use rekall_core::settings::DatabaseEntry;
 
 use super::*;
 

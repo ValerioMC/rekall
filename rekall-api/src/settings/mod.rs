@@ -1,20 +1,19 @@
-//! `SettingsController`: the database folders, as the setup screen and the Settings panel manage
-//! them. Adding or switching one rewrites `config.json` and restarts onto it.
+//! The database folders, as the setup screen and the Settings panel manage them, served by
+//! `rekall_console::settings`. Adding or switching one restarts the application onto it.
 
 mod add_request;
 mod add_response;
 mod check_query;
 mod check_response;
-mod database_view;
+mod database_response;
 mod rename_request;
+mod routes;
 mod settings_controller;
-mod settings_state;
 mod status_response;
 
-pub use database_view::DatabaseView;
-pub use settings_controller::routes;
-pub use settings_state::SettingsState;
+pub use database_response::DatabaseResponse;
 pub use status_response::StatusResponse;
+pub(crate) use routes::routes;
 
 use add_request::AddRequest;
 use add_response::AddResponse;

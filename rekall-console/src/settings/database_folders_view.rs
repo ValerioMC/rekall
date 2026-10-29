@@ -1,10 +1,9 @@
-use serde::Serialize;
+use rekall_core::settings::SetupStatus;
 
 use super::DatabaseView;
 
-#[derive(Serialize)]
-pub struct StatusResponse {
-    pub status: &'static str,
+pub struct DatabaseFoldersView {
+    pub status: SetupStatus,
     pub active: Option<DatabaseView>,
     pub databases: Vec<DatabaseView>,
 }

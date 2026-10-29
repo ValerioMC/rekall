@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use super::DatabaseRegistry;
+use rekall_core::settings::DatabaseRegistry;
 
 #[derive(Clone, Debug)]
 pub struct DatabaseRegistryStore {

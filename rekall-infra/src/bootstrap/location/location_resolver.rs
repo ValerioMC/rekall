@@ -1,13 +1,14 @@
 use std::path::{Path, PathBuf};
 
+use rekall_core::settings::{DatabaseEntry, DatabaseRegistry, SetupStatus};
 use rekall_kernel::{Id, Instant};
 use rekall_store::DATA_FILE_NAME;
 
 use super::super::folder::absolute_normalised;
-use super::super::registry::{DatabaseEntry, DatabaseRegistry, DatabaseRegistryStore};
+use super::super::registry::DatabaseRegistryStore;
 use crate::config::DatabaseOverride;
 
-use super::{Resolved, SetupStatus};
+use super::Resolved;
 
 /// Where the database is: the registry under `home` decides, `database` (an explicit override)
 /// wins over it, and `working_dir/data` is adopted when no registry exists yet.

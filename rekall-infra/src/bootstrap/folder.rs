@@ -3,34 +3,20 @@
 
 use std::path::{Component, Path, PathBuf};
 
+use rekall_core::settings::FolderInspection;
 use rekall_store::DATA_FILE_NAME;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Inspection {
-    pub resolved_path: String,
-    pub exists: bool,
-    pub is_directory: bool,
-    pub writable: bool,
-    pub has_database: bool,
-}
-
-impl Inspection {
-    pub fn usable(&self) -> bool {
-        self.exists && self.is_directory && self.writable
-    }
-}
-
-pub fn inspect(raw_path: Option<&str>, user_home: &Path) -> Inspection {
+pub fn inspect(raw_path: Option<&str>, user_home: &Path) -> FolderInspection {
     let trimmed = raw_path.map(str::trim).unwrap_or("");
     if trimmed.is_empty() {
-        return Inspection { resolved_path: String::new(), exists: false, is_directory: false, writable: false, has_database: false };
+        return FolderInspection { resolved_path: String::new(), exists: false, is_directory: false, writable: false, has_database: false };
     }
     let path = expand(trimmed, user_home);
     let exists = path.exists() || path.symlink_metadata().is_ok();
     let is_directory = exists && path.is_dir();
     let writable = is_directory && is_writable(&path);
     let has_database = is_directory && path.join(DATA_FILE_NAME).is_file();
-    Inspection { resolved_path: path.to_string_lossy().into_owned(), exists, is_directory, writable, has_database }
+    FolderInspection { resolved_path: path.to_string_lossy().into_owned(), exists, is_directory, writable, has_database }
 }
 
 /// `~` and `~/...` are the user's home; the rest is made absolute against the working directory

@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use async_trait::async_trait;
 
 use super::*;
-use crate::version::{ReleaseAsset, ReleaseFeedError};
+use rekall_core::version::{ReleaseAsset, ReleaseFeedError};
 
 struct FakeFeed {
     answer: Result<Option<Release>, u16>,
@@ -35,8 +35,8 @@ fn release(tag: &str) -> Release {
     }
 }
 
-fn checker(running: &str, feed: Arc<FakeFeed>) -> UpdateChecker {
-    UpdateChecker::new(running, true, feed)
+fn checker(running: &str, feed: Arc<FakeFeed>) -> UpdateCheckService {
+    UpdateCheckService::new(running, Some(feed))
 }
 
 #[tokio::test]
@@ -83,9 +83,7 @@ async fn the_answer_is_remembered_until_a_refresh_asks_again() {
 }
 
 #[tokio::test]
-async fn a_disabled_check_never_reaches_the_feed() {
-    let feed = FakeFeed::answering(Ok(Some(release("v9.9.9"))));
-    let status = UpdateChecker::new("0.1.0", false, feed.clone()).status(false).await;
-    assert_eq!(status.check, UpdateCheck::Disabled);
-    assert_eq!(feed.asked.load(Ordering::SeqCst), 0);
+async fn without_a_feed_the_check_is_disabled() {
+    let status = UpdateCheckService::new("0.1.0", None).status(false).await;
+    assert_eq!((status.check, status.current.as_str()), (UpdateCheck::Disabled, "0.1.0"));
 }

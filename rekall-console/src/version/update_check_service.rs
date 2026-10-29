@@ -1,12 +1,9 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use rekall_core::version::{LatestRelease, Release, ReleaseFeed, ReleaseVersion, UpdateCheck, VersionStatus};
 use tokio::sync::Mutex;
 use tracing::warn;
-
-use super::{
-    LatestRelease, Release, ReleaseFeed, ReleaseVersion, UpdateCheck, VersionStatus,
-};
 
 const ANSWER_KEPT: Duration = Duration::from_secs(6 * 60 * 60);
 const FAILURE_KEPT: Duration = Duration::from_secs(5 * 60);
@@ -28,34 +25,35 @@ struct Remembered {
 
 /// Compares the running version with the newest release. The answer is remembered, so opening
 /// the console repeatedly asks GitHub once; a restart forgets it, which is the check at startup.
-pub struct UpdateChecker {
+#[derive(Clone)]
+pub struct UpdateCheckService {
     running: String,
-    enabled: bool,
-    feed: Arc<dyn ReleaseFeed>,
-    remembered: Mutex<Option<Remembered>>,
+    feed: Option<Arc<dyn ReleaseFeed>>,
+    remembered: Arc<Mutex<Option<Remembered>>>,
 }
 
-impl UpdateChecker {
-    pub fn new(running: &str, enabled: bool, feed: Arc<dyn ReleaseFeed>) -> Self {
-        Self { running: running.to_string(), enabled, feed, remembered: Mutex::new(None) }
+impl UpdateCheckService {
+    /// Without a feed the check is turned off and never reaches the network.
+    pub fn new(running: &str, feed: Option<Arc<dyn ReleaseFeed>>) -> Self {
+        Self { running: running.to_string(), feed, remembered: Arc::new(Mutex::new(None)) }
     }
 
     /// `refresh` ignores what is remembered: the person asked, not the console loading.
     pub async fn status(&self, refresh: bool) -> VersionStatus {
-        if !self.enabled {
+        let Some(feed) = &self.feed else {
             return self.answer(UpdateCheck::Disabled, None);
-        }
+        };
         let mut remembered = self.remembered.lock().await;
         if let Some(kept) = remembered.as_ref().filter(|kept| !refresh && kept.at.elapsed() < kept.kept_for) {
             return kept.status.clone();
         }
-        let (status, kept_for) = self.ask_feed().await;
+        let (status, kept_for) = self.ask(feed.as_ref()).await;
         *remembered = Some(Remembered { at: Instant::now(), kept_for, status: status.clone() });
         status
     }
 
-    async fn ask_feed(&self) -> (VersionStatus, Duration) {
-        match self.feed.latest().await {
+    async fn ask(&self, feed: &dyn ReleaseFeed) -> (VersionStatus, Duration) {
+        match feed.latest().await {
             Ok(None) => (self.answer(UpdateCheck::UpToDate, None), ANSWER_KEPT),
             Ok(Some(release)) => match self.compare(&release) {
                 Some(check) => (self.answer(check, Some(latest_of(&release))), ANSWER_KEPT),
@@ -92,5 +90,5 @@ fn latest_of(release: &Release) -> LatestRelease {
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/version/update_checker_tests.rs"]
+#[path = "../../tests/unit/version/update_check_service_tests.rs"]
 mod tests;

@@ -2,10 +2,6 @@
 //! use. Its shape is fixed, since files written by every earlier release are read as they are:
 //! `{"activeId": ..., "databases": [{"id", "label", "path", "addedAt", "lastUsedAt"}]}`.
 
-mod database_entry;
-mod database_registry;
 mod database_registry_store;
 
-pub use database_entry::DatabaseEntry;
-pub use database_registry::DatabaseRegistry;
 pub use database_registry_store::DatabaseRegistryStore;

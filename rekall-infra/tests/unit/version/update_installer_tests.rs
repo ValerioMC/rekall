@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use async_trait::async_trait;
 
 use super::*;
-use crate::version::ReleaseAsset;
+use rekall_core::version::ReleaseAsset;
 
 const DMG_URL: &str = "https://github.com/ValerioMC/rekall/releases/download/v0.2.0/Rekall-macos-arm64.dmg";
 

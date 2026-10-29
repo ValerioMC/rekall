@@ -12,8 +12,6 @@
 
 mod location_resolver;
 mod resolved;
-mod setup_status;
 
 pub use location_resolver::{resolve, data_file_in};
 pub use resolved::Resolved;
-pub use setup_status::SetupStatus;

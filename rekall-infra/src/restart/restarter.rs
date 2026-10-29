@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use rekall_core::settings::ApplicationRestart;
 use tokio::sync::mpsc;
 use tracing::{error, info, warn};
 
@@ -44,6 +45,12 @@ impl Restarter {
             return false;
         };
         sender.send(RestartRequest { before_close, after_close }).is_ok()
+    }
+}
+
+impl ApplicationRestart for Restarter {
+    fn restart(&self) -> bool {
+        Restarter::restart(self)
     }
 }
 
