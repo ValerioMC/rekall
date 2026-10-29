@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use tracing::warn;
 
 use super::plugin_skills::plugin_skill_files;
+use super::read_summary;
 use super::{ClaudeHome, MemoryGroup, ResourceCatalog, ResourceKind, ResourcePath, ResourceSummary, SkillSource, SyncedSources, WorkingDirectory};
 
 const INSTRUCTIONS: &str = "CLAUDE.md";
@@ -92,7 +93,7 @@ impl<'a> ResourceScanner<'a> {
     fn describe(&self, file: &Path) -> Option<ResourceSummary> {
         let relative = relative_path(self.home.root(), file)?;
         let path = ResourcePath::parse(&relative).ok()?;
-        match ResourceSummary::read(self.home, &path) {
+        match read_summary(self.home, &path) {
             Ok(summary) => Some(summary),
             Err(rekall_kernel::RekallError::NotFound(_)) => None,
             Err(failure) => {

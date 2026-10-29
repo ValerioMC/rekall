@@ -5,6 +5,7 @@ use std::process::{Command, Stdio};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use rekall_core::claude::ClaudeCodeSetup;
 use rekall_kernel::{cleanup, InternalFailure, RekallError};
 use serde_json::Value;
 use tracing::{debug, info, warn};
@@ -251,6 +252,16 @@ fn run_process(command: &[String], environment: &HashMap<String, String>, direct
 }
 
 /// What the pipe held until it closed; a read that fails part-way keeps what it had and logs why.
+impl ClaudeCodeSetup for ClaudeCodeInstaller {
+    fn status(&self) -> Installation {
+        ClaudeCodeInstaller::status(self)
+    }
+
+    fn install(&self) -> Result<Installation, RekallError> {
+        ClaudeCodeInstaller::install(self)
+    }
+}
+
 fn drain(mut pipe: impl Read) -> String {
     let mut text = String::new();
     if let Err(failed) = pipe.read_to_string(&mut text) {

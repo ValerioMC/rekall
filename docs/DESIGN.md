@@ -148,7 +148,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | Domain | `rekall-store` | `rekall-core` | `rekall-console` | `rekall-api` | `rekall-mcp` |
 |---|---|---|---|---|---|
 | `catalog` | `task` | - | `commit`, `note`, `review`, `step`, `tag`, `task`, `timeentry`, `wrapup` | nothing | - |
-| `claude` | - | `catalog`, `connection`, `task` | - | - | - |
+| `claude` | - | `catalog`, `connection`, `task` | nothing | `skill` | - |
 | `commit` | `step`, `task` | `catalog`, `step`, `task` | - | nothing | nothing |
 | `component` | `catalog` | `connection`, `task` | nothing | nothing | - |
 | `connection` | `catalog`, `task` | nothing | `catalog`, `commit`, `component`, `task` | `catalog` | - |
@@ -775,8 +775,8 @@ the OS credential store (`KeychainSecretStore` in `rekall-infra`, over `keyring`
 `rekall-core/src/connection/`. `rekall-app` wraps it in a `RememberingSecretStore`, which reads each account from the keychain
 once and answers later reads from memory until the account is written or removed: the Keychain may
 prompt on every read, and a terminal's helpers read on every `kubectl`, `git` or API call. An edit made
-in Keychain Access is seen after a restart. `rekall-app` builds the store and hands it to `ApiState` (through `ApiPorts`) and
-`ClaudeState` only: it is not part of `Services`, which is what the MCP tools are built from, and
+in Keychain Access is seen after a restart. `rekall-app` builds the store and hands it to `ApiState` (through `ApiPorts`) and the
+`CredentialBroker` only: it is not part of `Services`, which is what the MCP tools are built from, and
 `rekall-mcp/tests/integration/credential_isolation.rs` fails if `rekall-mcp` or `Services` ever names
 it or a type that carries a credential. A credential in memory is a `Secret`: it prints as `***`, has
 no `Serialize` and is wiped on drop. A kubeconfig is parsed by `Kubeconfig`, which refuses a user
@@ -1075,12 +1075,18 @@ and kept only for the console's lifetime; the access log is the record.
 ### The Claude folder
 
 The Claude screen edits the files Claude Code itself loads: `~/.claude/CLAUDE.md`, skills, commands,
-agents and each project's memories. It lives in `rekall-infra` (`resources/`). The files have no
+agents and each project's memories. The disk side lives in `rekall-infra` (`resources/`), behind the
+`ClaudeResources` port of `rekall-core`; `ClaudeFolderService` in `rekall-console` runs each call off
+the async workers, and the routes are in `rekall-api/src/claude/`. The files have no
 table: the disk is the record, a session may rewrite a file at any moment, and a copy in a database
 would only be a second answer that drifts. The one table, `skill_placement`, holds how the person
-groups their own skills, which is Rekall's own preference and no part of the files. The module is `rekall-infra` and not `rekall-console` because it
-belongs with the other pieces that serve Claude Code's own state (the usage meter, the transcripts),
-and it sits beside the console's write services, out of `rekall-mcp`'s reach.
+groups their own skills, which is Rekall's own preference and no part of the files; it is written by
+`SkillGroupService` in `rekall-core/src/skill/`. The usage meter (`UsageReader`, read through
+`UsageMeterService`), the install check (`ClaudeCodeSetup`, through `ClaudeInstallService`) and the
+terminals' credential helpers (`CredentialDesk`, through `CredentialHandOutService`) follow the same
+pattern: the port in `rekall-core`, the implementation in `rekall-infra`, the thin service in
+`rekall-console`, the route in `rekall-api`. Claude Code's own token (`credentials`) and the
+transcript reader (`transcript`) have no port: no route reaches them, and only `rekall-infra` uses them.
 
 | Piece | What it decides |
 |---|---|

@@ -2,6 +2,7 @@
 //! returns a view, both defined beside it; the HTTP layer maps its requests and responses onto them.
 
 pub mod catalog;
+pub mod claude;
 pub mod component;
 pub mod connection;
 pub mod diagram;

@@ -5,50 +5,26 @@
 mod claude_home;
 mod claude_resource_service;
 mod frontmatter;
-mod covering_document;
-mod memory_analysis;
 mod memory_analyzer;
-mod memory_group;
 mod memory_index;
-mod memory_ref;
-mod obsolete_memory;
-mod promotion_candidate;
-mod promotion_target;
 mod reference_library;
-mod resource_catalog;
-mod resource_controller;
-mod resource_file;
-mod resource_query;
 mod resource_scanner;
-mod resource_summary;
+mod resource_summary_reader;
 mod plugin_skills;
-mod save_request;
-mod skill_group_controller;
-mod skill_group_requests;
-mod skill_source;
 mod synced_sources;
 mod text_fingerprint;
 mod working_directory;
 
 pub use claude_home::ClaudeHome;
-pub use covering_document::{CoveringDocument, CoveringKind};
-pub use memory_analysis::MemoryAnalysis;
-pub use memory_ref::MemoryRef;
-pub use obsolete_memory::ObsoleteMemory;
-pub use promotion_candidate::PromotionCandidate;
-pub use promotion_target::PromotionTarget;
 pub use claude_resource_service::ClaudeResourceService;
 pub use frontmatter::Frontmatter;
-pub use memory_group::MemoryGroup;
-pub use resource_catalog::ResourceCatalog;
-pub use resource_controller::routes;
-pub use resource_file::ResourceFile;
-pub use resource_summary::ResourceSummary;
-pub use save_request::SaveRequest;
-pub use skill_source::{SkillSource, SkillSourceKind};
 
 use memory_analyzer::MemoryAnalyzer;
-use rekall_core::claude::{ResourceKind, ResourcePath};
+use rekall_core::claude::{
+    CoveringDocument, CoveringKind, MemoryAnalysis, MemoryGroup, MemoryRef, ObsoleteMemory, PromotionCandidate, PromotionTarget, ResourceCatalog,
+    ResourceFile, ResourceKind, ResourcePath, ResourceSave, ResourceSummary, SkillSource,
+};
+use resource_summary_reader::read_summary;
 use reference_library::ReferenceLibrary;
 use resource_scanner::ResourceScanner;
 use synced_sources::SyncedSources;

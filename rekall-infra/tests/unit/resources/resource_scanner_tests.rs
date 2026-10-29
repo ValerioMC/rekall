@@ -1,5 +1,5 @@
 use super::*;
-use crate::resources::SkillSourceKind;
+use rekall_core::claude::SkillSourceKind;
 
 fn put(root: &Path, relative: &str, body: &str) {
     let target = root.join(relative);

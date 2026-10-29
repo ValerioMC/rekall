@@ -17,7 +17,7 @@ use super::usage_ceiling::{self, Verdict};
 use rekall_core::queue::{RunQueueItemView, RunQueueService, RunQueueView, Snapshot};
 use crate::pty::PtyTerminalManager;
 use rekall_core::claude::TerminalMode;
-use crate::usage::UsageReader;
+use rekall_core::claude::UsageReader;
 
 /// The item a session is working now.
 #[derive(Clone, Debug)]

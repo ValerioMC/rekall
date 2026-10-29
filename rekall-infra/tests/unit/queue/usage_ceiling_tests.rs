@@ -1,5 +1,5 @@
 use super::*;
-use crate::usage::Severity;
+use rekall_core::claude::Severity;
 
 fn now() -> Instant {
     Instant::parse("2026-09-23T10:00:00Z").unwrap()

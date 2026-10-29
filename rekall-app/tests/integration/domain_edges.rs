@@ -88,6 +88,7 @@ const CONSOLE: LayeredCrate = LayeredCrate {
     facades: &[],
     allowed: &[
         ("catalog", &["commit", "note", "review", "step", "tag", "task", "timeentry", "wrapup"]),
+        ("claude", &[]),
         ("component", &[]),
         ("connection", &["catalog", "commit", "component", "task"]),
         ("diagram", &[]),
@@ -111,6 +112,7 @@ const API: LayeredCrate = LayeredCrate {
     facades: &[],
     allowed: &[
         ("catalog", &[]),
+        ("claude", &["skill"]),
         ("commit", &[]),
         ("component", &[]),
         ("connection", &["catalog"]),

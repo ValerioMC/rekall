@@ -6,8 +6,6 @@
 //! restarting onto another database, the release check, the OS credential store, the probes that
 //! check a stored credential, the Jira search and the advisory database. `rekall-app` wires it.
 
-mod claude_router;
-mod claude_state;
 pub mod backup;
 pub mod bootstrap;
 pub mod cli;
@@ -28,6 +26,4 @@ pub mod usage;
 pub mod version;
 pub mod vulnerability;
 
-pub use claude_router::router;
-pub use claude_state::ClaudeState;
 pub use config::ClaudeConfig;

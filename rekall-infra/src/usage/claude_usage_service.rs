@@ -9,7 +9,9 @@ use serde_json::Value;
 use tokio::sync::{Mutex, Notify};
 use tracing::{debug, info};
 
-use super::{ClaudeUsageView, Limit, Severity, TokenSource, UsageReader, UsageStatus};
+use rekall_core::claude::{ClaudeUsageView, Limit, Severity, UsageReader, UsageStatus};
+
+use super::TokenSource;
 
 const CACHE_TTL: TimeDelta = TimeDelta::seconds(60);
 const DEGRADED_TTL: TimeDelta = TimeDelta::seconds(10);

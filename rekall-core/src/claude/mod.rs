@@ -1,12 +1,32 @@
-//! What the terminal and the run queue in `rekall-infra` need from the entities, read here so
+//! What the terminals and the run queue in `rekall-infra` need from the entities, read here so
 //! that crate never touches a repository; the models and efforts a session may start with;
-//! `ResourcePath`, the only way to name a file of Claude Code's home folder; and the ports the
-//! terminals are reached through, `TerminalHost` for their lifecycle and `TerminalPipe` for bytes.
+//! `ResourcePath`, the only way to name a file of Claude Code's home folder, and what the console
+//! is shown of that folder and of the account's usage; and the ports the machine is reached
+//! through: `TerminalHost` and `TerminalPipe` for the terminals, `UsageReader` for the usage
+//! meter, `ClaudeResources` for the home folder and `ClaudeCodeSetup` for the install.
 
+mod claude_code_setup;
+mod claude_resources;
+mod claude_usage_view;
+mod covering_document;
+mod installation;
 mod launch_choices;
+mod limit;
+mod memory_analysis;
+mod memory_group;
+mod memory_ref;
+mod obsolete_memory;
+mod promotion_candidate;
+mod promotion_target;
 mod remaining;
+mod resource_catalog;
+mod resource_file;
 mod resource_kind;
 mod resource_path;
+mod resource_save;
+mod resource_summary;
+mod severity;
+mod skill_source;
 mod task_work;
 mod task_work_service;
 mod terminal_connection;
@@ -20,11 +40,31 @@ mod terminal_opening;
 mod terminal_pipe;
 mod terminal_target;
 mod terminal_view;
+mod usage_reader;
+mod usage_status;
 
+pub use claude_code_setup::ClaudeCodeSetup;
+pub use claude_resources::ClaudeResources;
+pub use claude_usage_view::ClaudeUsageView;
+pub use covering_document::{CoveringDocument, CoveringKind};
+pub use installation::Installation;
 pub use launch_choices::{EFFORT_LEVELS, MODEL_ALIASES};
+pub use limit::Limit;
+pub use memory_analysis::MemoryAnalysis;
+pub use memory_group::MemoryGroup;
+pub use memory_ref::MemoryRef;
+pub use obsolete_memory::ObsoleteMemory;
+pub use promotion_candidate::PromotionCandidate;
+pub use promotion_target::PromotionTarget;
 pub use remaining::Remaining;
+pub use resource_catalog::ResourceCatalog;
+pub use resource_file::ResourceFile;
 pub use resource_kind::ResourceKind;
 pub use resource_path::ResourcePath;
+pub use resource_save::ResourceSave;
+pub use resource_summary::ResourceSummary;
+pub use severity::Severity;
+pub use skill_source::{SkillSource, SkillSourceKind};
 pub use task_work::TaskWork;
 pub use task_work_service::TaskWorkService;
 pub use terminal_connection::TerminalConnection;
@@ -38,3 +78,5 @@ pub use terminal_opening::TerminalOpening;
 pub use terminal_pipe::TerminalPipe;
 pub use terminal_target::TerminalTarget;
 pub use terminal_view::TerminalView;
+pub use usage_reader::UsageReader;
+pub use usage_status::UsageStatus;

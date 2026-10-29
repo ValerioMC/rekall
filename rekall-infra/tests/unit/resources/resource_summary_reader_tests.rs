@@ -1,3 +1,5 @@
+use rekall_kernel::Instant;
+
 use super::*;
 
 fn summarize(raw: &str, body: &str) -> ResourceSummary {
@@ -5,7 +7,7 @@ fn summarize(raw: &str, body: &str) -> ResourceSummary {
     let home = ClaudeHome::new(dir.path().to_path_buf());
     let path = ResourcePath::parse(raw).unwrap();
     home.write(&path, body).unwrap();
-    ResourceSummary::read(&home, &path).unwrap()
+    read_summary(&home, &path).unwrap()
 }
 
 #[test]
@@ -53,6 +55,6 @@ fn the_size_and_a_version_are_reported() {
 fn a_file_that_is_not_there_is_not_found() {
     let dir = tempfile::tempdir().unwrap();
     let home = ClaudeHome::new(dir.path().to_path_buf());
-    let error = ResourceSummary::read(&home, &ResourcePath::parse("CLAUDE.md").unwrap()).unwrap_err();
+    let error = read_summary(&home, &ResourcePath::parse("CLAUDE.md").unwrap()).unwrap_err();
     assert!(matches!(error, rekall_kernel::RekallError::NotFound(_)));
 }

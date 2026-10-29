@@ -1,4 +1,4 @@
-use rekall_core::connection::Secret;
+use super::Secret;
 
 /// Why a helper's request was refused, which decides the status the endpoint answers with.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

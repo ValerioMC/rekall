@@ -13,11 +13,10 @@ use rekall_infra::login_shell::LoginShellEnvironment;
 use rekall_infra::pty::{PtyTerminalManager, PtyTerminals};
 use rekall_core::queue::RunQueueService;
 use rekall_infra::queue::RunQueueRunner;
-use rekall_core::skill::SkillGroupService;
 use rekall_infra::resources::ClaudeResourceService;
 use rekall_infra::transcript::{TranscriptFolder, TranscriptScanner};
-use rekall_infra::usage::{ClaudeUsageService, UsageReader};
-use rekall_infra::ClaudeState;
+use rekall_core::claude::UsageReader;
+use rekall_infra::usage::ClaudeUsageService;
 use rekall_store::Database;
 use rekall_core::connection::{ConnectionAccessService, JiraIssues, RememberingSecretStore, SecretStore};
 use rekall_core::timeentry::IDLE_AFTER;
@@ -26,7 +25,7 @@ use rekall_core::{Ctx, EventBus, Services};
 use tracing::warn;
 
 use rekall_infra::backup::{self, DatabaseBackupService, DatabaseLocation, DatabaseRestoreService};
-use rekall_infra::installer::{self, ClaudeCodeInstaller};
+use rekall_infra::installer::ClaudeCodeInstaller;
 use rekall_infra::bootstrap::location::SetupStatus;
 use rekall_infra::bootstrap::registry::DatabaseRegistryStore;
 use rekall_infra::bootstrap::settings::{self, SettingsState};
@@ -159,9 +158,7 @@ impl Instance {
             TranscriptFolder::new(claude_config.transcripts_dir.clone()),
             services.token_usage.clone(),
         );
-        let resources = ClaudeResourceService::new(claude_config.claude_home.clone());
-        let skill_groups = SkillGroupService::new(ctx.clone());
-        let claude = ClaudeState { usage: usage.clone(), resources, skill_groups, broker };
+        let installer = ClaudeCodeInstaller::new(config.user_home.clone(), config.mcp_endpoint(served_port));
         let pty_terminals = Arc::new(PtyTerminals::new(terminals.clone()));
         let ports = ApiPorts {
             secrets: secrets.clone(),
@@ -169,6 +166,10 @@ impl Instance {
             terminals: pty_terminals.clone(),
             terminal_pipe: pty_terminals,
             queue_runner: Arc::new(runner.clone()),
+            usage: usage.clone(),
+            claude_folder: Arc::new(ClaudeResourceService::new(claude_config.claude_home.clone())),
+            claude_setup: Arc::new(installer),
+            credential_desk: broker,
         };
         let api = ApiState::new(services.clone(), stream.clone(), config.user_home.clone(), vulnerability_scans.clone(), scan_settings, ports);
 
@@ -187,7 +188,6 @@ impl Instance {
             user_home: config.user_home.clone(),
             restarter,
         };
-        let installer = ClaudeCodeInstaller::new(config.user_home.clone(), config.mcp_endpoint(served_port));
 
         let release_feed: Arc<dyn ReleaseFeed> = match &options.release_feed {
             Some(feed) => feed.clone(),
@@ -203,9 +203,7 @@ impl Instance {
         let routes = Router::new()
             .merge(rekall_api::router(api))
             .merge(rekall_mcp::router(mcp))
-            .merge(rekall_infra::router(claude))
             .merge(settings::routes(settings))
-            .merge(installer::routes(installer))
             .merge(backup::routes(backups.clone(), restorer))
             .merge(actuator::routes(database.conn.clone()))
             .merge(version::routes(update_checker))

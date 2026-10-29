@@ -1,38 +1,19 @@
-use rekall_kernel::{Instant, Result};
-use serde::Serialize;
+use rekall_kernel::Result;
 
 use super::claude_home::modified_of;
-use super::{ClaudeHome, Frontmatter, ResourceKind, ResourcePath, SkillSource};
+use super::{ClaudeHome, Frontmatter, ResourceKind, ResourcePath, ResourceSummary};
 
 const HEAD_BYTES: u64 = 8 * 1024;
 const BLURB_CHARS: usize = 160;
 
-/// What the console lists about a file without opening it.
-#[derive(Clone, Debug, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ResourceSummary {
-    /// The identity: the file's path under the Claude folder.
-    pub path: String,
-    pub kind: ResourceKind,
-    pub name: String,
-    pub description: Option<String>,
-    /// A memory's own `type` (`feedback`, `project`...), when its front matter names one.
-    pub memory_type: Option<String>,
-    pub bytes: u64,
-    pub modified_at: Instant,
-    pub editable: bool,
-    /// Who provides a skill; none for every other kind of file.
-    pub source: Option<SkillSource>,
-}
-
-impl ResourceSummary {
-    pub fn read(home: &ClaudeHome, path: &ResourcePath) -> Result<Self> {
+/// What the console lists about a file, read from its metadata and the head of its text.
+pub(crate) fn read_summary(home: &ClaudeHome, path: &ResourcePath) -> Result<ResourceSummary> {
         let metadata = home.metadata(path)?;
         let head = home.head(path, HEAD_BYTES)?;
         let front = Frontmatter::parse(&head);
         let description = front.description.or_else(|| first_prose_line(&head));
         let memory_type = if path.kind() == ResourceKind::Memory { front.kind } else { None };
-        Ok(Self {
+        Ok(ResourceSummary {
             path: path.as_str().to_string(),
             kind: path.kind(),
             name: front.name.unwrap_or_else(|| display_name(path)),
@@ -43,7 +24,6 @@ impl ResourceSummary {
             editable: path.is_editable(),
             source: None,
         })
-    }
 }
 
 /// The name a person knows it by: a command is `/folder:name`, a skill its folder.
@@ -76,5 +56,5 @@ fn first_prose_line(text: &str) -> Option<String> {
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/resources/resource_summary_tests.rs"]
+#[path = "../../tests/unit/resources/resource_summary_reader_tests.rs"]
 mod tests;

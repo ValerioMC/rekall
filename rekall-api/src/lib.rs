@@ -8,6 +8,7 @@ mod api_state;
 mod router;
 
 pub mod catalog;
+pub mod claude;
 pub mod commit;
 pub mod component;
 pub mod connection;

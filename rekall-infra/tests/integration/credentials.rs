@@ -7,25 +7,22 @@ mod support;
 
 use std::collections::HashMap;
 use std::io::Write;
-use std::net::SocketAddr;
 use std::path::Path;
 use std::process::{Command, Output, Stdio};
 use std::sync::Arc;
 
-use axum::http::HeaderMap;
+use axum::extract::{Path as UrlPath, Query, State};
+use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
+use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Json, Router};
 use rekall_infra::connection::{CredentialBroker, SessionEnvironment};
 use rekall_infra::pty::PtyTerminalManager;
 use rekall_core::claude::TerminalMode;
-use rekall_core::skill::SkillGroupService;
-use rekall_infra::resources::ClaudeResourceService;
-use rekall_infra::usage::{ClaudeUsageView, UsageReader};
-use rekall_infra::ClaudeState;
 use rekall_kernel::{Id, Instant};
 use rekall_store::{connection_access, external_connection, project_connection, ConnectionKind};
 use rekall_core::claude::{TerminalLaunch, TerminalTarget};
-use rekall_core::connection::{Secret, SecretStore};
+use rekall_core::connection::{CredentialPurpose, HandOut, Refusal, Secret, SecretStore};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 use serde_json::{json, Value};
 use support::{world, World};
@@ -43,16 +40,39 @@ users:
   user: {token: sa-token-123}
 ";
 
-struct NoUsage;
+#[derive(serde::Deserialize)]
+struct CredentialQuery {
+    #[serde(rename = "for")]
+    purpose: CredentialPurpose,
+}
 
-#[async_trait::async_trait]
-impl UsageReader for NoUsage {
-    async fn current(&self) -> ClaudeUsageView {
-        ClaudeUsageView::unauthenticated()
-    }
-
-    async fn refresh(&self) -> ClaudeUsageView {
-        ClaudeUsageView::unauthenticated()
+/// The credential endpoint the helpers ask, answering the way Rekall's API does: the credential in
+/// plain text with its content type, or the refusal's message with its status.
+async fn hand_out(
+    State(broker): State<Arc<CredentialBroker>>,
+    UrlPath((id, label)): UrlPath<(String, String)>,
+    Query(query): Query<CredentialQuery>,
+    headers: HeaderMap,
+) -> Response {
+    let presented = headers.get("x-rekall-credential-token").and_then(|value| value.to_str().ok());
+    let Ok(terminal_id) = id.parse::<Id>() else {
+        return (StatusCode::NOT_FOUND, "This is not a terminal Rekall knows.").into_response();
+    };
+    match broker.hand_out(terminal_id, presented, &label, query.purpose).await {
+        HandOut::Granted { body, content_type } => {
+            let mut response = (StatusCode::OK, body.expose().to_string()).into_response();
+            response.headers_mut().insert(header::CONTENT_TYPE, HeaderValue::from_static(content_type));
+            response
+        }
+        HandOut::Refused { refusal, message } => {
+            let status = match refusal {
+                Refusal::Forbidden => StatusCode::FORBIDDEN,
+                Refusal::Missing => StatusCode::NOT_FOUND,
+                Refusal::WrongPurpose => StatusCode::BAD_REQUEST,
+                Refusal::Failed => StatusCode::INTERNAL_SERVER_ERROR,
+            };
+            (status, message).into_response()
+        }
     }
 }
 
@@ -73,7 +93,7 @@ async fn fake_gitlab() -> String {
     format!("http://{address}")
 }
 
-/// Rekall's terminal routes on a live listener; the broker's helpers ask that listener.
+/// The credential endpoint on a live listener; the broker's helpers ask that listener.
 async fn serve(world: &World) -> Arc<CredentialBroker> {
     serve_terminals(world).await.0
 }
@@ -83,11 +103,7 @@ async fn serve_terminals(world: &World) -> (Arc<CredentialBroker>, Arc<PtyTermin
     let address = listener.local_addr().unwrap();
     let broker = world.broker(&format!("http://{address}"));
     let terminals = world.terminals_with(8, broker.clone());
-    let usage: Arc<dyn UsageReader> = Arc::new(NoUsage);
-    let resources = ClaudeResourceService::new(world.folder.path().join(".claude"));
-    let skill_groups = SkillGroupService::new(world.services.ctx.clone());
-    let state = ClaudeState { usage, resources, skill_groups, broker: broker.clone() };
-    let app = rekall_infra::router(state).into_make_service_with_connect_info::<SocketAddr>();
+    let app = Router::new().route("/api/terminal/{id}/credentials/{label}", get(hand_out)).with_state(broker.clone());
     tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
     (broker, terminals)
 }

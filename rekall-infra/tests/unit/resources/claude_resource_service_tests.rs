@@ -6,12 +6,12 @@ fn service() -> (tempfile::TempDir, ClaudeResourceService) {
     (dir, service)
 }
 
-fn create(path: &str, body: &str) -> SaveRequest {
-    SaveRequest { path: Some(path.into()), body: Some(body.into()), expected_modified_at: None }
+fn create(path: &str, body: &str) -> ResourceSave {
+    ResourceSave { path: Some(path.into()), body: Some(body.into()), expected_modified_at: None }
 }
 
-fn rewrite(opened: &ResourceFile, body: &str) -> SaveRequest {
-    SaveRequest { path: Some(opened.summary.path.clone()), body: Some(body.into()), expected_modified_at: Some(opened.summary.modified_at) }
+fn rewrite(opened: &ResourceFile, body: &str) -> ResourceSave {
+    ResourceSave { path: Some(opened.summary.path.clone()), body: Some(body.into()), expected_modified_at: Some(opened.summary.modified_at) }
 }
 
 #[test]

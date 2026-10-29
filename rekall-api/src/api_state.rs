@@ -14,9 +14,10 @@ use rekall_core::token::TokenUsageService;
 use rekall_core::vulnerability::{ScanSettingsService, SecurityAdvisoryService, VulnerabilityExposureService, VulnerabilityScanService};
 use rekall_core::wrapup::WrapupService;
 use rekall_core::queue::RunQueueService;
+use rekall_core::skill::SkillGroupService;
 use rekall_core::Services;
 
-use rekall_console::{catalog, component, connection, diagram, filesystem, graph, note, queue, section, skill, tag, terminal, vulnerability};
+use rekall_console::{catalog, claude, component, connection, diagram, filesystem, graph, note, queue, section, skill, tag, terminal, vulnerability};
 
 use crate::{ApiPorts, StepEventStream};
 
@@ -65,6 +66,11 @@ pub struct ApiState {
     pub terminals: terminal::TerminalService,
     pub terminal_pipe: terminal::TerminalPipeService,
     pub run_queue: queue::RunQueueControlService,
+    pub usage_meter: claude::UsageMeterService,
+    pub claude_folder: claude::ClaudeFolderService,
+    pub claude_install: claude::ClaudeInstallService,
+    pub skill_groups: SkillGroupService,
+    pub credential_hand_out: connection::CredentialHandOutService,
     pub stream: Arc<StepEventStream>,
 }
 
@@ -147,7 +153,12 @@ impl ApiState {
             vulnerability_fixes,
             terminals: terminal::TerminalService::new(ports.terminals),
             terminal_pipe: terminal::TerminalPipeService::new(ports.terminal_pipe),
-            run_queue: queue::RunQueueControlService::new(RunQueueService::new(ctx), ports.queue_runner),
+            run_queue: queue::RunQueueControlService::new(RunQueueService::new(ctx.clone()), ports.queue_runner),
+            usage_meter: claude::UsageMeterService::new(ports.usage),
+            claude_folder: claude::ClaudeFolderService::new(ports.claude_folder),
+            claude_install: claude::ClaudeInstallService::new(ports.claude_setup),
+            skill_groups: SkillGroupService::new(ctx),
+            credential_hand_out: connection::CredentialHandOutService::new(ports.credential_desk),
             stream,
         }
     }

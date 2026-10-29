@@ -1,8 +1,10 @@
 use std::path::PathBuf;
 
+use rekall_core::claude::ClaudeResources;
 use rekall_kernel::{Instant, RekallError, Result};
 
-use super::{memory_index, ClaudeHome, Frontmatter, MemoryAnalysis, MemoryAnalyzer, ResourceCatalog, ResourceFile, ResourcePath, ResourceScanner, ResourceSummary, SaveRequest};
+use super::{memory_index, ClaudeHome, Frontmatter, MemoryAnalysis, MemoryAnalyzer, ResourceCatalog, ResourceFile, ResourcePath, ResourceSave, ResourceScanner};
+use super::read_summary;
 
 /// The most a file written from the console may hold.
 pub const MAX_BODY_BYTES: usize = 1024 * 1024;
@@ -34,13 +36,13 @@ impl ClaudeResourceService {
         self.open(&path)
     }
 
-    pub fn save(&self, request: SaveRequest) -> Result<ResourceFile> {
-        let path = ResourcePath::parse(request.path.as_deref().unwrap_or_default())?;
-        let body = request.body.unwrap_or_default();
+    pub fn save(&self, save: ResourceSave) -> Result<ResourceFile> {
+        let path = ResourcePath::parse(save.path.as_deref().unwrap_or_default())?;
+        let body = save.body.unwrap_or_default();
         ensure_editable(&path)?;
         ensure_fits(&body)?;
         let current = self.home.modified_at(&path)?;
-        ensure_same_version(&path, current, request.expected_modified_at)?;
+        ensure_same_version(&path, current, save.expected_modified_at)?;
         self.home.write(&path, &body)?;
         if current.is_none() {
             self.index_new_memory(&path, &body)?;
@@ -60,7 +62,7 @@ impl ClaudeResourceService {
 
     fn open(&self, path: &ResourcePath) -> Result<ResourceFile> {
         let body = self.home.read(path)?;
-        Ok(ResourceFile { summary: ResourceSummary::read(&self.home, path)?, body })
+        Ok(ResourceFile { summary: read_summary(&self.home, path)?, body })
     }
 
     /// A new memory gets a line in the project's `MEMORY.md`, the file Claude loads to find it.
@@ -93,6 +95,28 @@ impl ClaudeResourceService {
             return Ok(());
         }
         self.home.write(index, &updated)
+    }
+}
+
+impl ClaudeResources for ClaudeResourceService {
+    fn catalog(&self) -> ResourceCatalog {
+        ClaudeResourceService::catalog(self)
+    }
+
+    fn analyze(&self) -> MemoryAnalysis {
+        ClaudeResourceService::analyze(self)
+    }
+
+    fn read(&self, path: &str) -> Result<ResourceFile> {
+        ClaudeResourceService::read(self, path)
+    }
+
+    fn save(&self, save: ResourceSave) -> Result<ResourceFile> {
+        ClaudeResourceService::save(self, save)
+    }
+
+    fn delete(&self, path: &str) -> Result<()> {
+        ClaudeResourceService::delete(self, path)
     }
 }
 

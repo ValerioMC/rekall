@@ -10,7 +10,7 @@
 use chrono::TimeDelta;
 use rekall_kernel::Instant;
 
-use crate::usage::{ClaudeUsageView, Limit, UsageStatus};
+use rekall_core::claude::{ClaudeUsageView, Limit, UsageStatus};
 
 pub const RESET_GRACE: TimeDelta = TimeDelta::minutes(1);
 pub const NO_RESET_RECHECK: TimeDelta = TimeDelta::minutes(15);

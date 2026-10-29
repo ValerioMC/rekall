@@ -33,7 +33,7 @@ use tokio::sync::{mpsc, oneshot};
 use super::run_queue_worker::{Command, Worker, WorkerParts};
 use rekall_core::queue::{QueueRunner, RunQueueService, RunQueueView};
 use crate::pty::{PtyTerminalManager, TerminalEnded};
-use crate::usage::UsageReader;
+use rekall_core::claude::UsageReader;
 
 /// The handle the rest of the application drives the queue through. Every call is a command to
 /// the worker, which decides on one at a time.

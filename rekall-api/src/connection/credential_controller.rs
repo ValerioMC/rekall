@@ -5,11 +5,11 @@ use axum::http::{header, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::Router;
+use rekall_core::connection::{CredentialPurpose, HandOut, Refusal};
 use rekall_kernel::Id;
 use serde::Deserialize;
 
-use super::{CredentialPurpose, HandOut, Refusal};
-use crate::ClaudeState;
+use crate::ApiState;
 
 const TOKEN_HEADER: &str = "x-rekall-credential-token";
 
@@ -20,13 +20,13 @@ struct CredentialQuery {
 }
 
 /// Outside the router's UUID check: the label in the path is a slug, not an id.
-pub fn routes() -> Router<ClaudeState> {
+pub fn routes() -> Router<ApiState> {
     Router::new().route("/api/terminal/{id}/credentials/{label}", get(hand_out))
 }
 
 /// Answers in plain text, which the helpers print as they are. Only this machine is answered, even
 /// when Rekall is served to others: a credential never crosses the network from here.
-async fn hand_out(State(state): State<ClaudeState>, Path((id, label)): Path<(String, String)>, Query(query): Query<CredentialQuery>, request: Request) -> Response {
+async fn hand_out(State(state): State<ApiState>, Path((id, label)): Path<(String, String)>, Query(query): Query<CredentialQuery>, request: Request) -> Response {
     let from_this_machine = request.extensions().get::<ConnectInfo<SocketAddr>>().is_some_and(|info| info.0.ip().to_canonical().is_loopback());
     if !from_this_machine {
         return refused(Refusal::Forbidden, "Credentials are only handed to this machine.");
@@ -35,7 +35,7 @@ async fn hand_out(State(state): State<ClaudeState>, Path((id, label)): Path<(Str
         return refused(Refusal::Missing, "This is not a terminal Rekall knows.");
     };
     let presented = request.headers().get(TOKEN_HEADER).and_then(|value| value.to_str().ok());
-    match state.broker.hand_out(terminal_id, presented, &label, query.purpose).await {
+    match state.credential_hand_out.hand_out(terminal_id, presented, &label, query.purpose).await {
         HandOut::Granted { body, content_type } => {
             let mut response = (StatusCode::OK, body.expose().to_string()).into_response();
             response.headers_mut().insert(header::CONTENT_TYPE, HeaderValue::from_static(content_type));

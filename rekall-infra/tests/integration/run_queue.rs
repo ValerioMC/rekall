@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use rekall_core::queue::{QueueRunner, RunQueueService};
 use rekall_infra::queue::RunQueueRunner;
-use rekall_infra::usage::{ClaudeUsageView, Limit, Severity, UsageReader};
+use rekall_core::claude::{ClaudeUsageView, Limit, Severity, UsageReader};
 use rekall_kernel::Instant;
 use rekall_store::{RunQueueItemState, RunQueueState, TaskStepState};
 use support::{eventually, world, World};

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use rekall_infra::usage::UsageReader;
+use rekall_core::claude::UsageReader;
 use rekall_core::connection::{JiraIssues, SecretStore};
 use rekall_core::vulnerability::AdvisoryFeed;
 use rekall_core::Clock;
