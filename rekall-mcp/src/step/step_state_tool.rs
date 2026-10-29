@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use rekall_model::TaskStepState;
+use rekall_service::step::TaskStepState;
 use rekall_service::commit::{AutoCommitOutcome, AutoCommitService};
 use rekall_service::flow::{FlowMove, FlowRoute, FlowService};
 use rekall_service::step::TaskStepService;

@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use rekall_model::TaskKind;
+use rekall_service::task::TaskKind;
 use rekall_service::task::{Created, StepDraft, TaskAuthoringService, TaskBrief};
 use serde::Deserialize;
 use serde_json::Value;

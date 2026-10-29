@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use rekall_model::WrapupAuthor;
+use rekall_service::wrapup::WrapupAuthor;
 use rekall_service::{commit::AutoCommitService, wrapup::WrapupService};
 use serde_json::Value;
 

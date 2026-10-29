@@ -6,7 +6,6 @@ edition.workspace = true
 
 [dependencies]
 rekall-common.workspace = true
-rekall-model.workspace = true
 rekall-service.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -18,7 +17,6 @@ base64.workspace = true
 async-trait.workspace = true
 
 [dev-dependencies]
-rekall-repository.workspace = true
 tower.workspace = true
 http-body-util.workspace = true
 

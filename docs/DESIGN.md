@@ -69,7 +69,10 @@ The layers are separate crates in one Cargo workspace so the dependency directio
 the compiler, not by convention: `rekall-repository` cannot see `rekall-api`, and `rekall-service`
 cannot see any route. The crate boundary carries the guarantee.
 
-`rekall-mcp` depends on `rekall-service` and must not depend on `rekall-api`. The two are
+`rekall-mcp` lists `rekall-common` and `rekall-service` and no other Rekall crate: no entity,
+repository, console service or route is in its reach, and the few `rekall-model` enums its tools
+read (`TaskKind`, `TaskStepState`, `WrapupAuthor`, `ExposureVerdict`, `AdvisorySeverity`) come
+re-exported from the `rekall-service` domain that owns them. It and `rekall-api` are
 independent consumers of the same services, which is what keeps the boundary structural rather
 than accidental: `rekall-mcp` can reach `ContextService`, `TaskStepService` and `WrapupService`,
 but no route, none of `CompanyService`, `ProjectService`, `TaskService` or `DocumentService` is among its dependencies.
@@ -130,7 +133,7 @@ from its table:
 | `rekall-service` | `rekall-common`, `rekall-diagram`, `rekall-model`, `rekall-repository` |
 | `rekall-console` | `rekall-common`, `rekall-model`, `rekall-repository`, `rekall-service` |
 | `rekall-api` | `rekall-common`, `rekall-console`, `rekall-model`, `rekall-repository`, `rekall-service`, `rekall-web` |
-| `rekall-mcp` | `rekall-common`, `rekall-model`, `rekall-repository`, `rekall-service` |
+| `rekall-mcp` | `rekall-common`, `rekall-service` |
 | `rekall-claude` | `rekall-common`, `rekall-diagram`, `rekall-model`, `rekall-repository`, `rekall-service`, `rekall-web` |
 | `rekall-platform` | `rekall-common`, `rekall-model`, `rekall-repository`, `rekall-service`, `rekall-web` |
 | `rekall-app` | `rekall-api`, `rekall-claude`, `rekall-common`, `rekall-mcp`, `rekall-model`, `rekall-platform`, `rekall-repository`, `rekall-service`, `rekall-web` |
