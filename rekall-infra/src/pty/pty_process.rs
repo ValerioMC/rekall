@@ -26,10 +26,12 @@ const KICK_SETTLE: Duration = Duration::from_millis(150);
 
 /// Starts `command` in a fresh PTY. `on_exit` runs on the waiting thread once the process has
 /// ended and its exit code is recorded.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn spawn_terminal(
     id: Id,
     launch: TerminalLaunch,
     step_id: Option<Id>,
+    follows_steps: bool,
     options: ClaudeOptions,
     command: CommandBuilder,
     scrollback_bytes: usize,
@@ -52,6 +54,7 @@ pub(super) fn spawn_terminal(
         launch,
         step_id: Mutex::new(step_id),
         size: Mutex::new((DEFAULT_COLUMNS, DEFAULT_ROWS)),
+        follows_steps,
         skip_permissions: options.skip_permissions,
         model: options.model,
         effort: options.effort,

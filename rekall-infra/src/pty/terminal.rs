@@ -19,6 +19,8 @@ pub(super) struct Terminal {
     /// The last size the pane asked for, as (columns, rows). Its lock also serialises every
     /// resize, so the kick's delayed restore cannot undo a resize that landed meanwhile.
     pub(super) size: Mutex<(u16, u16)>,
+    /// Whether it works a task's steps, the only terminal a new session can follow.
+    pub(super) follows_steps: bool,
     pub(super) skip_permissions: bool,
     pub(super) model: Option<String>,
     pub(super) effort: Option<String>,

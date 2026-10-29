@@ -31,6 +31,9 @@ impl FlowProposalService {
                 if planned.max_visits.is_some() {
                     self.steps.limit_visits_in(&tx, draft.id, planned.max_visits).await?;
                 }
+                if planned.starts_session {
+                    self.steps.begin_session_in(&tx, draft.id, true).await?;
+                }
                 drafts.push(draft);
             }
             for (planned, draft) in plan.steps.iter().zip(&drafts) {

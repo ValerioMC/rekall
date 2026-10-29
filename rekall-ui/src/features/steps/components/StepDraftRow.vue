@@ -23,7 +23,7 @@ const props = defineProps<{
   promoting: boolean
 }>()
 
-defineEmits<{ promote: []; move: [by: number]; remove: [] }>()
+defineEmits<{ promote: []; move: [by: number]; remove: []; session: [startsSession: boolean] }>()
 
 const { expandedId, toggle } = useStepEditor()
 const expanded = computed(() => expandedId.value === props.step.id)
@@ -56,6 +56,13 @@ const { effective: skills } = useStepSkills(toRef(props, 'step'), toRef(props, '
               detail
             </span>
             <span v-else class="text-text-subtle">no detail yet</span>
+            <span
+              v-if="step.startsSession"
+              class="rounded-full border border-accent/40 px-1.5 py-px text-micro font-semibold tracking-[0.02em] text-accent"
+              data-testid="draft-new-session"
+            >
+              new session
+            </span>
             <SkillMark :skills="skills" />
           </span>
           <span
@@ -99,6 +106,18 @@ const { effective: skills } = useStepSkills(toRef(props, 'step'), toRef(props, '
             Promote
           </button>
           <div class="flex items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover/draft:opacity-100">
+            <button
+              class="focus-ring mr-0.5 grid h-6 place-items-center rounded-key px-1.5 text-micro font-medium text-text-subtle transition-colors hover:bg-surface-hover hover:text-text"
+              :aria-label="
+                step.startsSession
+                  ? `Run ${step.title} in the session above`
+                  : `Open a new session on ${step.title}`
+              "
+              data-testid="draft-session"
+              @click="$emit('session', !step.startsSession)"
+            >
+              {{ step.startsSession ? 'Join session above' : 'New session' }}
+            </button>
             <StepRowControls
               :title="step.title"
               :can-move-up="!isFirst"

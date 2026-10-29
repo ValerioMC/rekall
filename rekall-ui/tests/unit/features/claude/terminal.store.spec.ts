@@ -147,4 +147,51 @@ describe('the terminal store', () => {
       '/rk project:vega task:report-builder wrapup\r'
     )
   })
+  it('switches to the session the server opened on the task after the active one ended', async () => {
+    vi.useFakeTimers()
+    api.fetchTerminals.mockResolvedValue([terminal({ id: 'term-2' as TerminalId })])
+    const store = useTerminalStore()
+    store.terminals = [terminal({ live: false })]
+    store.activeTerminalId = 'term-1' as TerminalId
+
+    const following = store.followNextSession(TASK, 'term-1' as TerminalId)
+    await vi.runAllTimersAsync()
+    await following
+
+    expect(store.activeTerminalId).toBe('term-2')
+    expect(store.terminalForTask(TASK)?.id).toBe('term-2')
+    vi.useRealTimers()
+  })
+
+  it('leaves the ended session in place when no next one opens', async () => {
+    vi.useFakeTimers()
+    api.fetchTerminals.mockResolvedValue([])
+    const store = useTerminalStore()
+    store.terminals = [terminal({ live: false })]
+    store.activeTerminalId = 'term-1' as TerminalId
+
+    const following = store.followNextSession(TASK, 'term-1' as TerminalId)
+    await vi.runAllTimersAsync()
+    await following
+
+    expect(store.activeTerminalId).toBe('term-1')
+    expect(store.terminals).toHaveLength(1)
+    expect(api.fetchTerminals).toHaveBeenCalledTimes(6)
+    vi.useRealTimers()
+  })
+
+  it('does not take the pane from a session the person moved to meanwhile', async () => {
+    vi.useFakeTimers()
+    api.fetchTerminals.mockResolvedValue([terminal({ id: 'term-2' as TerminalId })])
+    const store = useTerminalStore()
+    store.terminals = [terminal({ live: false })]
+    store.activeTerminalId = 'other' as TerminalId
+
+    const following = store.followNextSession(TASK, 'term-1' as TerminalId)
+    await vi.runAllTimersAsync()
+    await following
+
+    expect(store.activeTerminalId).toBe('other')
+    vi.useRealTimers()
+  })
 })

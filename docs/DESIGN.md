@@ -302,7 +302,7 @@ Project ──< VulnerabilityExposure >── SecurityAdvisory
 | `task` | `label`, unique per project | `title`, `status`, `description`, `project_id`, `graph_laid_at` (when a deployment graph was laid on it), `release_skipped` (the project's release graph is not laid when the console runs it; migration `054-release-on-run`), `kind` (`TASK` or `EPIC`), `epic_id` (the epic of the same project it belongs to, set null when the epic is deleted; migration `055-epic`) |
 | `document` | — | `title`, `kind`, `body_markdown` |
 | `document_task` | — | `document_id`, `task_id`, `position` |
-| `task_step` | through its task | `task_id`, `title`, `body_markdown`, `done`, `done_at`, `position`, `flow_x`/`flow_y` (where it was dragged on the flow canvas, null for the automatic layout), `max_visits` (how many times a flow may enter it, null for no limit), `connection_id` (the company connection it reaches, set when a deployment graph laid it; null when the connection is deleted) |
+| `task_step` | through its task | `task_id`, `title`, `body_markdown`, `done`, `done_at`, `position`, `flow_x`/`flow_y` (where it was dragged on the flow canvas, null for the automatic layout), `max_visits` (how many times a flow may enter it, null for no limit), `starts_session` (whether it opens a fresh Claude session instead of joining the one the step before it ran in), `connection_id` (the company connection it reaches, set when a deployment graph laid it; null when the connection is deleted) |
 | `step_link` | through its task | `task_id`, `from_step_id`, `to_step_id` (null: the route ends the flow), `outcome` unique per `from_step_id`, `position`; deleted with either step |
 | `step_visit` | through its task | `task_id`, `step_id`, `ordinal` unique per task, `entered_at`, `left_at`, `outcome`, `report` (what the claim that closed it reported; migration `053-visit-report`); deleted with its step |
 | `wrapup` | through its task | `task_id` unique, `body_markdown`, `written_by` |
@@ -480,6 +480,7 @@ the task, closed with the outcome it left by. The visit left open is where the f
 | Where a step was dragged is stored on the step | `task_step.flow_x` and `flow_y` (`PATCH /api/steps/{id}/flow-place`, `DELETE /api/tasks/{id}/flow-places`) are pure layout: nothing reads them but the canvas, and clearing them hands the steps back to dagre. `FlowPlace` refuses a place beyond 20,000 pixels |
 | A flow runs unattended | A claim that follows a route answers with the step to start and says no review is awaited; the wrapup is asked for only when the flow ends. `.claude/commands/rk.md` carries the same rule, so a session never stops between moves to ask for a tick |
 | A spent visit budget stops the flow | `StepVisitService::enter_in` is the one place a new visit is made, so it refuses one past `task_step.max_visits` (`admits_visit`). The refusal rolls back the claim that routed there: nothing moves, the session is told to stop and report. Re-entering the step the flow already stands on is not a visit. Raising the budget (`TaskStepService::limit_visits`, `VisitBudget` 1 to 99) or a reset lets it go on |
+| A session ends where a step opens a new one | `task_step.starts_session` marks a step as the first of a session; the first step of a checklist opens the first whatever it says, so a checklist with none marked is one session. `TaskWorkService::read` answers `next_opens_session` (the step to work next, by the flow's open visit or else the first open one, is marked and not first) and `last_settled_at`, and `TaskWork::session_is_spent(started_at)` is the one rule: work is left, nothing runs, the next step opens a session and a claim came after this terminal started. Both consumers apply it after the settle grace: `Worker::review` for an item the run queue runs (after its usage ceiling), and `SessionRelay` for a terminal opened by hand, which leaves a task the queue is running to the queue. Either calls `PtyTerminalManager::renew_session`, which closes the terminal and opens a `Work` one on the task with the same choices; only a terminal that follows steps can be renewed. A session that starts the next step itself is left alone, because the rule is read again after the grace. `rekall_context` renders the boundary and `.claude/commands/rk.md` tells the session to stop at it. Marks are set by `rekall_propose_step` / `rekall_propose_flow` (`new_session`) and by the console (`TaskStepService::begin_session`, `PATCH /api/steps/{id}/session`) |
 | Reset forgets the visits, not the states | The states are a person's review; the trail is a count. `FlowService::reset` clears one, never the other |
 
 A claim chooses its route by one rule (`flow::choose_route`): the outcome it names; with no
@@ -1054,6 +1055,11 @@ stdin and stdout, a `{"resize":[cols,rows]}` text frame sets the window size, an
 `{"type":"ended",...}` frame closes it out. Sends go through one bounded
 queue per socket, so a pane that stops reading is dropped rather than left to back up memory. `useTerminalSocket` is the client half,
 `TerminalPane.vue` wires it to an `xterm.js` instance.
+
+A terminal that follows steps can be renewed (`PtyTerminalManager::renew_session`): it is closed and
+another is opened on the same task with the same model, effort and permissions, which is how a
+session boundary (§4) gives the next step a clean context. The pane switches to the new terminal
+once the old one's end reaches it (`terminal.store`'s `followNextSession`).
 
 One terminal per task. Opening again on a task that already has one is routed to it; opening on
 a different step releases the step it was on and marks the new (see §4). A plan open is always on

@@ -275,6 +275,70 @@ async fn runs_each_task_in_its_own_terminal_one_after_the_other_and_goes_idle_at
     q.tear_down().await;
 }
 
+/// A step as the console leaves it once promoted, set to open a session of its own.
+async fn open_step_in_new_session(app: &App, task_id: &str, title: &str) {
+    let step_id = app.a_step(task_id, title, None).await;
+    let opened = app.patch(&format!("/api/steps/{step_id}/session"), json!({ "startsSession": true })).await;
+    assert_eq!(opened.status, 200);
+}
+
+#[tokio::test]
+async fn a_queued_task_goes_on_in_a_fresh_terminal_when_the_next_step_opens_a_session() {
+    let q = queue_app().await;
+    let checklist = q.task("report-builder", "Report builder").await;
+    q.open_step(&checklist, "Build the export").await;
+    q.open_step(&checklist, "Expose the download").await;
+    open_step_in_new_session(&q.app, &checklist, "Document it").await;
+    q.enqueue(&checklist).await;
+    q.app.post("/api/run-queue/start", json!({})).await;
+    await_until(15, || async { q.item_state(0).await == "RUNNING" && q.terminal_on(&checklist).await.is_some() }).await;
+    let first = q.terminal_on(&checklist).await.unwrap();
+
+    q.claim("report-builder", "1").await;
+    q.claim("report-builder", "2").await;
+
+    await_until(15, || async { q.terminal_on(&checklist).await.is_some_and(|now| now != first) }).await;
+    assert_eq!(q.item_state(0).await, "RUNNING", "the item goes on in the new session");
+    let second = q.terminal_on(&checklist).await.unwrap();
+    assert_eq!(q.app.get("/api/terminals").await.list().len(), 1, "the first session is closed");
+
+    q.claim("report-builder", "3").await;
+    await_until(15, || async { q.item_state(0).await == "FINISHED" && q.queue_state().await == "IDLE" }).await;
+    assert_eq!(q.terminal_on(&checklist).await, None);
+    assert_ne!(first, second);
+    q.tear_down().await;
+}
+
+#[tokio::test]
+async fn a_task_run_by_hand_goes_on_in_a_fresh_terminal_when_the_next_step_opens_a_session() {
+    let stubs = tempfile::tempdir().unwrap();
+    let stub = write_stub(stubs.path(), BANNER);
+    let app = app_with(
+        &[
+            ("rekall.claude.cli-path", stub.to_str().unwrap()),
+            ("rekall.terminal.sweep-minutes", "60"),
+            ("rekall.run-queue.settle-grace-seconds", "0"),
+        ],
+        StartOptions { no_restart: true, ..StartOptions::default() },
+    )
+    .await;
+    let folder = tempfile::tempdir().unwrap();
+    let task_id = a_task_with_folder(&app, folder.path()).await;
+    app.a_step(&task_id, "Build the export", None).await;
+    open_step_in_new_session(&app, &task_id, "Document it").await;
+    let first = app.post(&format!("/api/tasks/{task_id}/terminals"), json!({ "skipPermissions": true })).await.str("id");
+
+    app.call_tool("rekall_step", json!({ "anchors": "task:report-builder", "step": "1", "state": "claimed" })).await;
+
+    await_until(15, || async {
+        let live = app.get("/api/terminals").await.list();
+        live.len() == 1 && live[0]["id"].as_str() != Some(first.as_str())
+    })
+    .await;
+    close_live_terminals(&app).await;
+    app.stop().await;
+}
+
 #[tokio::test]
 async fn a_task_with_nothing_open_is_skipped_and_a_session_that_ends_early_fails_its_item() {
     let q = queue_app().await;

@@ -27,6 +27,8 @@ struct StepArgument {
     #[serde(default)]
     routes: Vec<RouteArgument>,
     max_visits: Option<i32>,
+    #[serde(default)]
+    new_session: bool,
 }
 
 #[derive(Deserialize)]
@@ -68,7 +70,7 @@ impl McpTool for FlowProposalTool {
                 "steps",
                 "The flow's steps in order, the first where it begins: `[{\"title\":\"Run the tests\",\"detail\":\"markdown\",\
                  \"max_visits\":3,\"routes\":[{\"outcome\":\"passed\",\"to\":\"end\"},{\"outcome\":\"app-error\",\"to\":3}]}]`. \
-                 `to` is a step's one-based number in this list, or `end`; `max_visits` (1 to 99) is optional.",
+                 `to` is a step's one-based number in this list, or `end`; `max_visits` (1 to 99) and `new_session` (true opens a fresh session) are optional.",
             )
             .build()
     }
@@ -113,7 +115,7 @@ fn planned_step(step: StepArgument) -> Result<PlannedStep, ToolError> {
         .map(|route| Ok(PlannedRoute { to: target_index(&step.title, &route.to)?, outcome: route.outcome }))
         .collect::<Result<Vec<_>, ToolError>>()?;
     let max_visits = step.max_visits.map(VisitBudget::new).transpose().map_err(|e| told(e, ""))?;
-    Ok(PlannedStep { title: step.title, detail: step.detail, routes, max_visits })
+    Ok(PlannedStep { title: step.title, detail: step.detail, routes, max_visits, starts_session: step.new_session })
 }
 
 /// The zero-based step a route's `to` names, or `None` for the end of the flow.

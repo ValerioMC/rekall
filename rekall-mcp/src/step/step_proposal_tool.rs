@@ -44,6 +44,10 @@ impl McpTool for StepProposalTool {
                 "detail",
                 "Markdown: what to build, where, what it must satisfy, and how a reviewer can tell it is done.",
             )
+            .optional_boolean(
+                "new_session",
+                "True makes this step open a fresh Claude session; left out, it joins the session the step before it runs in.",
+            )
             .build()
     }
 
@@ -54,7 +58,7 @@ impl McpTool for StepProposalTool {
         let detail = args.optional_string("detail");
         let proposed = self
             .steps
-            .propose(target.project_label.as_deref(), &target.task_label, Some(&title), detail.as_deref())
+            .propose(target.project_label.as_deref(), &target.task_label, Some(&title), detail.as_deref(), args.flag("new_session"))
             .await
             .map_err(|e| told(e, QUALIFY_WITH_PROJECT))?;
         let count = proposed.draft_count;

@@ -89,9 +89,9 @@ impl ContextRenderer {
             return String::new();
         }
         let mut out = format!("\n<steps {}>\n", steps_attributes(&steps, drafts, wrapup));
-        for step in &steps {
+        for (index, step) in steps.iter().enumerate() {
             let connection = connections.iter().find(|connection| connection.step_id == step.id);
-            out.push_str(&render_step(step, connection, wrapup, references));
+            out.push_str(&render_step(step, connection, wrapup, references, index > 0 && step.starts_session));
             out.push_str(&render_arrival(step, &steps));
             out.push_str(&render_routes(step, &steps));
         }
@@ -368,6 +368,10 @@ fn steps_attributes(steps: &[&TaskStepView], drafts: usize, wrapup: Option<&Wrap
     if is_flow(steps) {
         attributes.push_str(&flow_attributes(steps));
     }
+    let sessions = 1 + steps.iter().skip(1).filter(|s| s.starts_session).count();
+    if sessions > 1 {
+        attributes.push_str(&format!(" sessions=\"{sessions}\""));
+    }
     let optional = [("running", running), ("awaiting-review", awaiting), ("finished-since-wrapup", unwritten), ("draft", drafts)];
     for (name, count) in optional {
         if count > 0 {
@@ -383,6 +387,7 @@ fn render_step(
     connection: Option<&StepConnectionView>,
     wrapup: Option<&WrapupView>,
     references: &mut ComponentReferences,
+    opens_session: bool,
 ) -> String {
     let unwritten = is_unwritten(step, wrapup);
     let mut out = String::from(if step.state.complete() { "- [x] " } else { "- [ ] " });
@@ -399,6 +404,9 @@ fn render_step(
     }
     if unwritten {
         out.push_str("  (finished since the wrapup was written)");
+    }
+    if opens_session {
+        out.push_str("  (opens a new session)");
     }
     out.push('\n');
     if step.state.complete() && !unwritten {
@@ -506,3 +514,7 @@ mod skills_tests;
 #[cfg(test)]
 #[path = "../../tests/unit/context/context_renderer_connections_tests.rs"]
 mod connections_tests;
+
+#[cfg(test)]
+#[path = "../../tests/unit/context/context_renderer_sessions_tests.rs"]
+mod sessions_tests;

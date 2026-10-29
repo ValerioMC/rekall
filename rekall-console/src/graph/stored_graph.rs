@@ -51,6 +51,7 @@ impl StoredGraph {
             detail: step.body_markdown.clone(),
             routes,
             max_visits: step.max_visits.map(VisitBudget::new).transpose()?,
+            starts_session: false,
         })
     }
 }

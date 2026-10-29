@@ -12,6 +12,7 @@ import GraphAttachPanel from '@/features/graph/components/GraphAttachPanel.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { provideStepEditor } from '@/features/steps/composables/useStepEditor'
+import { groupBySession } from '@/features/steps/lib/step-sessions'
 import { stepIsComplete, type TaskStep } from '@/features/catalog/model/catalog'
 import type { TaskStepId } from '@/model/branded'
 
@@ -28,6 +29,7 @@ const editor = provideStepEditor({
 // Draft steps sit on a staging shelf below the checklist until they are promoted.
 const checklistSteps = computed(() => selectedTaskSteps.value.filter((step) => step.state !== 'DRAFT'))
 const draftSteps = computed(() => selectedTaskSteps.value.filter((step) => step.state === 'DRAFT'))
+const sessions = computed(() => groupBySession(checklistSteps.value))
 const allDone = computed(() => checklistSteps.value.every((step) => step.done))
 const currentId = computed(() => checklistSteps.value.find((step) => step.state === 'OPEN')?.id ?? null)
 const running = computed(() => checklistSteps.value.some((step) => step.state === 'RUNNING'))
@@ -96,6 +98,11 @@ async function markForward(step: TaskStep): Promise<void> {
   else editor.close()
 }
 
+async function chooseSession(step: TaskStep, startsSession: boolean): Promise<void> {
+  editor.flush()
+  await run(() => store.beginStepSession(step.id, startsSession))
+}
+
 async function sendBack(step: TaskStep): Promise<void> {
   editor.flush()
   await run(() => store.sendBackStep(step.id))
@@ -160,17 +167,21 @@ async function remove(): Promise<void> {
 
 const newTitle = ref('')
 const newSkills = ref<readonly string[]>([])
+const newSession = ref(false)
 
 /** A new step starts as a draft, opened for writing its detail. */
 async function add(): Promise<void> {
   const title = newTitle.value.trim()
   if (!title || !selectedTask.value) return
   const skills = newSkills.value
+  const opensSession = newSession.value
   newTitle.value = ''
   newSkills.value = []
+  newSession.value = false
   const created = await run(async () => {
     const step = await store.addStep(selectedTask.value!.id, title)
     if (skills.length) await store.assignStepSkills(step.id, skills)
+    if (opensSession) await store.beginStepSession(step.id, true)
     return step
   })
   if (!created) return
@@ -256,6 +267,8 @@ onUnmounted(editor.flush)
               :current-id="currentId"
               :all-done="allDone"
               :reopen-armed="reopenArmed"
+              :sessions="sessions"
+              @session="chooseSession"
               @mark-forward="markForward"
               @to-draft="returnToDraft"
               @move="move"
@@ -277,11 +290,18 @@ onUnmounted(editor.flush)
             @promote="promote"
             @move="move"
             @remove="(step) => (deleting = step)"
+            @session="chooseSession"
           />
         </template>
       </div>
 
-      <StepAddForm v-if="view === 'list'" v-model="newTitle" v-model:skills="newSkills" @submit="add" />
+      <StepAddForm
+        v-if="view === 'list'"
+        v-model="newTitle"
+        v-model:skills="newSkills"
+        v-model:new-session="newSession"
+        @submit="add"
+      />
     </template>
 
     <Transition name="dialog">

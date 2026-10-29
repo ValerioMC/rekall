@@ -30,6 +30,8 @@ const props = defineProps<{
   allDone: boolean
   isLast: boolean
   reopenArmed: boolean
+  /** False for the first step of the checklist, which always opens the first session. */
+  canChooseSession: boolean
 }>()
 
 defineEmits<{
@@ -39,6 +41,7 @@ defineEmits<{
   remove: []
   'send-back': []
   reopen: []
+  session: [startsSession: boolean]
 }>()
 
 const store = useConsoleStore()
@@ -156,6 +159,19 @@ const panelClass = computed(() => {
         </button>
 
         <div class="flex shrink-0 items-center gap-0.5 opacity-0 focus-within:opacity-100 group-hover/step:opacity-100">
+          <button
+            v-if="canChooseSession && !stepIsComplete(step.state)"
+            class="focus-ring mr-0.5 grid h-6 place-items-center rounded-key px-1.5 text-micro font-medium text-text-subtle transition-colors hover:bg-surface-hover hover:text-text"
+            :aria-label="
+              step.startsSession
+                ? `Run ${step.title} in the session above`
+                : `Open a new session on ${step.title}`
+            "
+            data-testid="step-session"
+            @click="$emit('session', !step.startsSession)"
+          >
+            {{ step.startsSession ? 'Join session above' : 'New session' }}
+          </button>
           <button
             v-if="step.state === 'OPEN'"
             class="focus-ring mr-0.5 grid h-6 place-items-center rounded-key px-1.5 text-micro font-medium text-text-subtle transition-colors hover:bg-surface-hover hover:text-text"

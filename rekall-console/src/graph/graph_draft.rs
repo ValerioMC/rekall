@@ -29,6 +29,7 @@ impl GraphDraft {
                 detail: step.detail.as_deref().filter(|detail| !jstr::is_blank(detail)).map(str::to_string),
                 routes: routes_of(step, &positions)?,
                 max_visits: step.max_visits.map(VisitBudget::new).transpose()?,
+                starts_session: false,
             });
         }
         let plan = FlowPlan::new(planned);

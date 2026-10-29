@@ -139,7 +139,7 @@ impl PtyTerminalManager {
         }
         let command = claude_command(&binary, &options, &mode.first_line(&launch.anchors), environment, directory);
 
-        let terminal = match self.register(id, launch.clone(), step_id, options, command).await {
+        let terminal = match self.register(id, launch.clone(), step_id, mode.follows_steps(), options, command).await {
             Ok(terminal) => terminal,
             Err(refused) => {
                 self.broker.close(id);
@@ -159,6 +159,7 @@ impl PtyTerminalManager {
         id: Id,
         launch: TerminalLaunch,
         step_id: Option<Id>,
+        follows_steps: bool,
         options: ClaudeOptions,
         command: CommandBuilder,
     ) -> Result<Arc<Terminal>> {
@@ -176,7 +177,7 @@ impl PtyTerminalManager {
                 runtime.spawn(async move { manager.on_exit(id).await });
             }
         };
-        let terminal = spawn_terminal(id, launch, step_id, options, command, self.scrollback_bytes, on_exit)
+        let terminal = spawn_terminal(id, launch, step_id, follows_steps, options, command, self.scrollback_bytes, on_exit)
             .map_err(|failed| RekallError::conflict(format!("Could not start claude: {failed}")))?;
         self.live_map().insert(id, terminal.clone());
         Ok(terminal)
@@ -223,6 +224,27 @@ impl PtyTerminalManager {
         if let Err(failed) = result {
             warn!(%failed, %task_id, "Could not release terminal work");
         }
+    }
+
+    /// Ends a terminal that has claimed the last step of its session and opens another on the
+    /// same task with the same choices, so the next step starts from a clean context. Only a
+    /// terminal working a task's steps can be renewed.
+    pub async fn renew_session(self: &Arc<Self>, id: Id) -> Result<TerminalView> {
+        let terminal = self.require(id)?;
+        if !terminal.follows_steps {
+            return Err(RekallError::illegal("Only a terminal working a task's steps starts a new session."));
+        }
+        let view = terminal.view();
+        self.close(id, "The next step opens a new session.").await;
+        self.open(
+            terminal.launch.target(),
+            None,
+            view.skip_permissions,
+            view.model.as_deref(),
+            view.effort.as_deref(),
+            TerminalMode::Work,
+        )
+        .await
     }
 
     /// Attach a pane: replay the scrollback, then follow live output. A closed terminal is a
@@ -316,6 +338,13 @@ impl PtyTerminalManager {
     /// True while some live terminal is on this task, whoever opened it.
     pub fn has_live_terminal_for(&self, task_id: Id) -> bool {
         self.live_terminal_on(TerminalTarget::Task(task_id)).is_some_and(|t| t.alive())
+    }
+
+    /// The live terminal working this task's steps, if one is.
+    pub fn work_terminal_for(&self, task_id: Id) -> Option<TerminalView> {
+        self.live_terminal_on(TerminalTarget::Task(task_id))
+            .filter(|terminal| terminal.alive() && terminal.follows_steps)
+            .map(|terminal| terminal.view())
     }
 
     /// Kill every PTY and close its socket as the application closes. Idempotent.

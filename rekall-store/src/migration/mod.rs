@@ -31,6 +31,7 @@ mod m052_advisory_reach;
 mod m053_visit_report;
 mod m054_release_on_run;
 mod m055_epic;
+mod m056_step_session;
 mod migration_support;
 mod migrator;
 

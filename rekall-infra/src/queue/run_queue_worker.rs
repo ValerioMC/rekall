@@ -36,6 +36,8 @@ pub(super) enum Command {
     Review(Id),
     SessionEnded(Id),
     Settle { generation: u64, outcome: RunQueueItemState, reason: String },
+    /// The step claimed last was the end of its session: continue the item in a fresh one.
+    Renew { generation: u64 },
     Pause { generation: u64, verdict: Verdict },
     Stop(oneshot::Sender<Result<RunQueueView>>),
     /// The application is closing: stop deciding. The terminals are closed by their manager.
@@ -112,6 +114,10 @@ impl Worker {
             Command::Settle { generation, outcome, reason } => {
                 let result = self.settle(generation, outcome, &reason).await;
                 guarded("settle", result);
+            }
+            Command::Renew { generation } => {
+                let result = self.renew(generation).await;
+                guarded("renew", result);
             }
             Command::Pause { generation, verdict } => {
                 let result = self.pause(generation, verdict).await;
@@ -270,9 +276,54 @@ impl Worker {
             if !verdict.clear {
                 self.mark_closing();
                 self.later(Command::Pause { generation: current.generation, verdict });
+                return Ok(());
             }
         }
+        if self.is_spent(current.terminal_id, &now) {
+            self.later(Command::Renew { generation: current.generation });
+        }
         Ok(())
+    }
+
+    fn is_spent(&self, terminal_id: Id, work: &TaskWork) -> bool {
+        self.terminals.get(terminal_id).is_some_and(|terminal| work.session_is_spent(&terminal.started_at))
+    }
+
+    /// Close the terminal that ended its session and open another on the same item, which stays
+    /// `Running`. Decided again here, after the grace: a session that went on to the next step
+    /// by itself keeps its terminal.
+    async fn renew(&mut self, generation: u64) -> Result<()> {
+        if !self.is_current(generation) {
+            return Ok(());
+        }
+        let current = self.active.clone().expect("checked above");
+        if current.closing {
+            return Ok(());
+        }
+        let work = self.work.read(current.task_id).await?;
+        if !self.is_spent(current.terminal_id, &work) {
+            return Ok(());
+        }
+        self.mark_closing();
+        match self.terminals.renew_session(current.terminal_id).await {
+            Ok(renewed) => {
+                if let Some(active) = self.active.as_mut() {
+                    active.terminal_id = renewed.id;
+                    active.closing = false;
+                }
+                info!(terminal_id = %renewed.id, "Run queue: a new session opened on the next step");
+                Ok(())
+            }
+            Err(failure) => {
+                warn!(%failure, task_id = %current.task_id, "Run queue: the next session could not open");
+                self.active = None;
+                self.release_running_steps(current.task_id).await;
+                self.queue
+                    .mark_item(current.item_id, RunQueueItemState::Failed, Some("The next session could not be opened."))
+                    .await?;
+                self.advance().await
+            }
+        }
     }
 
     fn mark_closing(&mut self) {

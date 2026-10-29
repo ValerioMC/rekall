@@ -708,6 +708,34 @@ async fn a_step_title_sent_twice_or_past_the_draft_cap_is_refused_before_anythin
 }
 
 #[tokio::test]
+async fn a_proposed_step_joins_the_running_session_unless_it_asks_for_a_new_one() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let task = world.task(&project, "report-builder").await;
+
+    let joining = world.services.steps.propose(Some("vega"), "report-builder", Some("Wire"), None, false).await.unwrap();
+    let opening = world.services.steps.propose(Some("vega"), "report-builder", Some("Docs"), None, true).await.unwrap();
+
+    assert!(!joining.step.starts_session);
+    assert!(opening.step.starts_session);
+    let stored = world.services.steps.find_by_task(task.id).await.unwrap();
+    assert_eq!(stored.iter().map(|step| step.starts_session).collect::<Vec<_>>(), [false, true]);
+}
+
+#[tokio::test]
+async fn a_step_can_be_made_to_open_a_session_and_made_to_join_one_again() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let task = world.task(&project, "report-builder").await;
+    let step = world.step(&task, "Docs", 0, TaskStepState::Open).await;
+
+    let opened = world.services.steps.begin_session(step.id, true).await.unwrap();
+    assert!(opened[0].starts_session);
+    let joined = world.services.steps.begin_session(step.id, false).await.unwrap();
+    assert!(!joined[0].starts_session);
+}
+
+#[tokio::test]
 async fn a_task_needs_a_title_and_a_project_that_exists() {
     let world = world().await;
     world.project("vega", None, false).await;
@@ -717,4 +745,40 @@ async fn a_task_needs_a_title_and_a_project_that_exists() {
 
     assert!(untitled.to_string().contains("needs a title"), "{untitled}");
     assert!(unknown.to_string().contains("No project matches 'nowhere'"), "{unknown}");
+}
+
+// --- Sessions
+
+async fn claimed_step(world: &support::World, task: &rekall_store::task::Model, title: &str, position: i32) {
+    let mut step = world.step(task, title, position, TaskStepState::Claimed).await;
+    step.claimed_at = Some(Instant::now());
+    step.clone().into_active_model().reset_all().update(world.db()).await.unwrap();
+}
+
+#[tokio::test]
+async fn a_task_reads_as_spent_when_the_next_open_step_opens_a_session_of_its_own() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let task = world.task(&project, "report-builder").await;
+    claimed_step(&world, &task, "Move", 0).await;
+    let next = world.step(&task, "Docs", 1, TaskStepState::Open).await;
+
+    assert!(!world.services.task_work.read(task.id).await.unwrap().next_opens_session);
+    world.services.steps.begin_session(next.id, true).await.unwrap();
+
+    let work = world.services.task_work.read(task.id).await.unwrap();
+    assert!(work.next_opens_session);
+    assert!(work.last_settled_at.is_some());
+    assert!(work.session_is_spent(&Instant::now().minus(TimeDelta::minutes(5))));
+}
+
+#[tokio::test]
+async fn the_first_step_opening_a_session_is_no_boundary() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let task = world.task(&project, "report-builder").await;
+    let first = world.step(&task, "Move", 0, TaskStepState::Open).await;
+    world.services.steps.begin_session(first.id, true).await.unwrap();
+
+    assert!(!world.services.task_work.read(task.id).await.unwrap().next_opens_session);
 }

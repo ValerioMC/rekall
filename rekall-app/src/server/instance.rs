@@ -10,7 +10,7 @@ use rekall_infra::cli::ClaudeCli;
 use rekall_infra::connection::CredentialBroker;
 use rekall_infra::credentials::ClaudeCredentials;
 use rekall_infra::login_shell::LoginShellEnvironment;
-use rekall_infra::pty::{PtyTerminalManager, PtyTerminals};
+use rekall_infra::pty::{PtyTerminalManager, PtyTerminals, SessionRelay};
 use rekall_core::queue::RunQueueService;
 use rekall_infra::queue::RunQueueRunner;
 use rekall_infra::resources::ClaudeResourceService;
@@ -153,6 +153,13 @@ impl Instance {
             &events,
             clock.clone(),
             claude_config.run_queue_tick,
+            claude_config.run_queue_settle_grace,
+        );
+        SessionRelay::start(
+            terminals.clone(),
+            services.task_work.clone(),
+            queue.clone(),
+            &events,
             claude_config.run_queue_settle_grace,
         );
         let transcripts = TranscriptScanner::new(

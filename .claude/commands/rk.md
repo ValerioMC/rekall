@@ -157,10 +157,20 @@ The loop, once you are working a checklist:
    in **Wrapping up**. One state, rewritten whole, never a section per step. On a flow, skip this
    until the flow is finished.
 4. `/rk project:x task:y step:N done`, to claim it.
-5. If a later step is still open, `/rk project:x task:y step:M start` and go again. When none is,
-   stop and tell me the checklist is claimed and waiting for my review. On a flow, the next step is
-   the one the claim's answer names and you start it without stopping; the loop ends when the answer
-   says the flow is finished, and only then do you write the wrapup.
+5. If a later step is still open, `/rk project:x task:y step:M start` and go again, unless it opens a
+   new session (see **Sessions**). When none is, stop and tell me the checklist is claimed and waiting
+   for my review. On a flow, the next step is the one the claim's answer names and you start it without
+   stopping; the loop ends when the answer says the flow is finished, and only then do you write the
+   wrapup.
+
+**Sessions.** A step that reads `(opens a new session)` is the first of a session of its own, and the `<steps>` tag
+carries `sessions="N"` when there is more than one. A step without it belongs to the session the step
+before it ran in. A checklist with no such step is one session from the first step to the last.
+
+The wrapup is what the next session starts from, so write it before you claim the last step of a
+session. When the step you claimed is followed by one that opens a new session, do not start that one
+here, on a flow too: say which step the next session opens on and stop. Rekall closes this terminal and
+opens a new one on that step. The `step:M start` of that next step is the new session's to make.
 
 `rekall_step` refuses `done` as a state, and refuses a step I have already accepted. If it comes
 back with either, say so and stop.

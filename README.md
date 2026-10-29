@@ -156,7 +156,7 @@ The top bar is a four-cell grid, so the screen tabs sit centred between the hist
 | `rekall.terminal.sweep-minutes` | `5` | How often the idle sweep runs |
 | `rekall.terminal.scrollback-bytes` | `131072` | Bytes of output replayed to a pane that reopens |
 | `rekall.run-queue.tick-seconds` | `20` | How often the run queue looks at its clock, schedule and hold |
-| `rekall.run-queue.settle-grace-seconds` | `8` | How long a finished session keeps its terminal before the queue closes it |
+| `rekall.run-queue.settle-grace-seconds` | `8` | How long a finished session keeps its terminal before Rekall closes it, or hands the task on to a fresh session |
 
 ## Run queue
 
@@ -168,6 +168,8 @@ The run queue works through a list of tasks without you: each one in its own ter
 - **Sessions.** Model, effort and **Skip permission prompts** for the terminals the queue opens. They are stored with the queue, separately from **Settings > Claude Code**. Without skip, an unattended session stops at its first permission prompt.
 
 How each task runs: the queue opens a terminal on it, and the session works the open steps in order, claiming each (or writes the wrapup on a task with no checklist). When nothing is left open, the queue closes the terminal and starts the next task. If the ceiling is reached at a claim, it closes the terminal, puts the task back at the head of the queue, sends any step the session had started back to open, and holds; the next session picks up at the first open step. A task with nothing open is skipped. A task fails, and the queue moves on, when the session can't open (no folder, no CLI, a terminal already open on it) or ends before its work is claimed. **Stop the queue** closes the running session after a confirmation. The queue survives a restart: a task that was running goes back to waiting, and an armed queue picks it up again.
+
+**Sessions in a multi-step task.** By default one session works the whole checklist. A step can instead open a fresh Claude session: set `new_session` when a session proposes it (`rekall_propose_step`, `rekall_propose_flow`, where it picks the grouping it judges cheapest), or switch it by hand with **New session** on a step or a draft, or when adding a draft. The first step always opens the first session, and the steps up to the next one that opens a session share one. The checklist draws a header over each session when there is more than one. A session claims the last step of its group, writes its wrapup and stops; Rekall closes that terminal and opens another on the same task, with the same model, effort and permissions, and the pane switches to it. A queued task stays running across its sessions, and the usage ceiling is checked before the next one opens. The choice is stored per step (`PATCH /api/steps/{id}/session` with `startsSession`) and `rekall_context` shows it as `(opens a new session)` and `sessions="N"` on `<steps>`.
 
 `/api/run-queue` holds the queue: `GET`, `PUT /settings`, `POST /items`, `DELETE /items/{id}`, `PUT /items/{id}/position`, `POST /clear`, `POST /start` (`startAt` null starts now), `POST /stop`. Each answers with the whole queue, and every change is pushed on the console's event stream as a `run-queue` frame.
 
@@ -224,8 +226,8 @@ An anchor brings back the record, everything it references resolved in full with
 | `rekall_wrapup` | write | Replace one task's wrapup |
 | `rekall_step` | write | Move one step: `open` to `running` to `claimed`; on a flow, a claim's `outcome` follows that route and its `report` reaches the step it leads to |
 | `rekall_record_commit` | write | Log a commit of the project's repo folder against one task or step |
-| `rekall_propose_step` | write | Add one step as a draft, for a person to promote |
-| `rekall_propose_flow` | write | Add a whole flow to a task with no steps: its steps as drafts and the routes between them |
+| `rekall_propose_step` | write | Add one step as a draft, for a person to promote; `new_session` makes it open a fresh Claude session |
+| `rekall_propose_flow` | write | Add a whole flow to a task with no steps: its steps as drafts and the routes between them, each optionally opening a fresh session with `new_session` |
 | `rekall_create_task` | write | Create a task or an epic in a project with a description and up to 20 draft steps (none on an epic), optionally filed under an epic |
 | `rekall_join_epic` | write | File an existing task under an epic of its project, or move it from another epic |
 | `rekall_note` | write | Write a note on one task, or rewrite one it carries by title with `replace` |

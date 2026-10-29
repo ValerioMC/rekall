@@ -222,6 +222,8 @@ export interface TaskStep {
   readonly flowY: number | null
   /** How many times a flow may enter the step; null sets no limit. */
   readonly maxVisits: number | null
+  /** Whether the step opens a fresh Claude session; false joins the one the step before it runs in. */
+  readonly startsSession: boolean
   /** The company connection the step reaches, carried over from a deployment graph. */
   readonly connectionId: ConnectionId | null
   readonly passes: readonly StepPass[]

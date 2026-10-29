@@ -8,10 +8,12 @@ import AppInput from '@/components/ui/AppInput.vue'
 
 /**
  * The line at the foot of the checklist that names a new step, which starts as a draft. The
- * spark beside it picks the skills the step starts with; they show as chips under the line.
+ * spark beside it picks the skills the step starts with; they show as chips under the line. The
+ * session toggle makes the step open a fresh Claude session instead of joining the running one.
  */
 const title = defineModel<string>({ required: true })
 const skills = defineModel<readonly string[]>('skills', { default: () => [] })
+const newSession = defineModel<boolean>('newSession', { default: false })
 
 defineEmits<{ submit: [] }>()
 
@@ -60,6 +62,21 @@ function remove(name: string): void {
       >
         <SkillGlyph :size="12" />
         <span v-if="skills.length" class="tabular-nums">{{ skills.length }}</span>
+      </button>
+      <button
+        type="button"
+        class="focus-ring inline-flex h-8 shrink-0 items-center rounded-key border px-2 text-caption transition-colors"
+        :class="
+          newSession
+            ? 'border-anchor-line bg-anchor-soft text-anchor'
+            : 'border-border-strong text-text-muted hover:border-anchor hover:text-anchor'
+        "
+        :aria-pressed="newSession"
+        aria-label="Open a new session on the new step"
+        data-testid="new-step-session"
+        @click="newSession = !newSession"
+      >
+        New session
       </button>
       <AppButton variant="primary" type="submit" :disabled="!title.trim()" data-testid="add-step">
         Add draft

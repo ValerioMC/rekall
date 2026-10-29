@@ -63,6 +63,7 @@ function makeStep(id: string, position: number, state: TaskStepState, body: stri
     flowX: null,
     flowY: null,
     maxVisits: null,
+    startsSession: false,
     connectionId: null,
     passes: [],
     links: [],
@@ -87,6 +88,7 @@ function seed(steps: TaskStep[], withTask = true) {
   store.promoteStep = vi.fn().mockResolvedValue(undefined)
   store.removeStep = vi.fn().mockResolvedValue(undefined)
   store.moveStep = vi.fn().mockResolvedValue(undefined)
+  store.beginStepSession = vi.fn().mockResolvedValue(undefined)
   store.saveStep = vi.fn().mockResolvedValue(undefined)
   store.addStep = vi.fn().mockResolvedValue(null)
   return store
@@ -307,6 +309,74 @@ describe('StepsPane', () => {
     await flushPromises()
 
     expect(store.addStep).toHaveBeenCalledWith(taskId, 'Export the report')
+  })
+
+  it('draws no session header while every step runs in one session', () => {
+    seed([makeStep('a', 0, 'OPEN'), makeStep('b', 1, 'OPEN')])
+    const pane = render()
+
+    expect(pane.findAll('[data-testid="session-header"]')).toHaveLength(0)
+  })
+
+  it('opens a header on each session once a step starts a new one', () => {
+    seed([
+      makeStep('a', 0, 'OPEN'),
+      makeStep('b', 1, 'OPEN'),
+      { ...makeStep('c', 2, 'OPEN'), startsSession: true }
+    ])
+    const pane = render()
+
+    const headers = pane.findAll('[data-testid="session-header"]')
+    expect(headers.map((header) => header.text())).toEqual([
+      expect.stringContaining('Session 1'),
+      expect.stringContaining('Session 2')
+    ])
+    expect(headers[0]!.text()).toContain('2 steps')
+    expect(headers[1]!.text()).toContain('1 step')
+  })
+
+  it('offers the session choice on every step but the first, and sends the opposite of what it is', async () => {
+    const store = seed([makeStep('a', 0, 'OPEN'), { ...makeStep('b', 1, 'OPEN'), startsSession: true }, makeStep('c', 2, 'OPEN')])
+    const pane = render()
+
+    const buttons = pane.findAll('[data-testid="step-session"]')
+    expect(buttons).toHaveLength(2)
+    await buttons[0]!.trigger('click')
+    await buttons[1]!.trigger('click')
+    await flushPromises()
+
+    expect(store.beginStepSession).toHaveBeenNthCalledWith(1, 'b', false)
+    expect(store.beginStepSession).toHaveBeenNthCalledWith(2, 'c', true)
+  })
+
+  it('offers no session choice on a step already finished', () => {
+    seed([makeStep('a', 0, 'OPEN'), makeStep('b', 1, 'DONE')])
+    const pane = render()
+
+    expect(pane.findAll('[data-testid="step-session"]')).toHaveLength(0)
+  })
+
+  it('adds a draft that opens a new session when the toggle is on', async () => {
+    const store = seed([makeStep('a', 0, 'OPEN')])
+    store.addStep = vi.fn().mockResolvedValue(makeStep('n', 1, 'DRAFT'))
+    const pane = render()
+
+    await pane.get('[data-testid="new-step"]').setValue('Document it')
+    await pane.get('[data-testid="new-step-session"]').trigger('click')
+    await pane.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(store.beginStepSession).toHaveBeenCalledWith('n', true)
+  })
+
+  it('marks a draft that will open a new session and lets it be switched', async () => {
+    const store = seed([makeStep('a', 0, 'OPEN'), { ...makeStep('d', 1, 'DRAFT'), startsSession: true }])
+    const pane = render()
+
+    expect(pane.find('[data-testid="draft-new-session"]').exists()).toBe(true)
+    await pane.get('[data-testid="draft-session"]').trigger('click')
+
+    expect(store.beginStepSession).toHaveBeenCalledWith('d', false)
   })
 
   it('saves an edited title a moment after the typing stops', async () => {

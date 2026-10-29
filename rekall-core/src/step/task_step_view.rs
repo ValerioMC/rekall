@@ -24,6 +24,8 @@ pub struct TaskStepView {
     pub flow_y: Option<i32>,
     /// How many times the flow may enter the step; `None` sets no limit.
     pub max_visits: Option<i32>,
+    /// Whether the step opens a fresh session; false joins the one the step before it ran in.
+    pub starts_session: bool,
     /// The company connection the step reaches, carried over from a deployment graph.
     pub connection_id: Option<Id>,
     /// The passes it was sent back from, oldest first; empty for a step on its first pass.
@@ -52,6 +54,7 @@ impl TaskStepView {
             flow_x: step.flow_x,
             flow_y: step.flow_y,
             max_visits: step.max_visits,
+            starts_session: step.starts_session,
             connection_id: step.connection_id,
             passes: step.passes()?,
             links: flow.links_from(step.id).map(StepLinkView::of).collect(),

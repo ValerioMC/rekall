@@ -16,6 +16,7 @@ defineEmits<{
   promote: [step: TaskStep]
   move: [step: TaskStep, by: number]
   remove: [step: TaskStep]
+  session: [step: TaskStep, startsSession: boolean]
 }>()
 </script>
 
@@ -41,6 +42,7 @@ defineEmits<{
         @promote="$emit('promote', step)"
         @move="(by) => $emit('move', step, by)"
         @remove="$emit('remove', step)"
+        @session="(startsSession) => $emit('session', step, startsSession)"
       />
     </TransitionGroup>
   </section>

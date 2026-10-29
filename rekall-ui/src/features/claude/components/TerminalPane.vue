@@ -50,7 +50,10 @@ function onSwitcherKeydown(event: KeyboardEvent): void {
 
 function onEnded(frame: TerminalEndedFrame): void {
   ended.value = { exitCode: frame.exitCode, detail: frame.detail }
+  const endedTerminal = activeTerminal.value
   if (activeTerminalId.value) terminals.markEnded(activeTerminalId.value)
+  if (endedTerminal?.taskId)
+    void run(() => terminals.followNextSession(endedTerminal.taskId!, endedTerminal.id))
 }
 
 watch(activeTerminalId, () => (ended.value = null))

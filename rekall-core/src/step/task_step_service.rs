@@ -100,6 +100,7 @@ impl TaskStepService {
         task_label: &str,
         title: Option<&str>,
         body_markdown: Option<&str>,
+        starts_session: bool,
     ) -> Result<Proposed> {
         in_write!(&self.ctx, |tx| {
             let task = load::resolve_task(tx.db(), project_label, task_label).await?;
@@ -123,7 +124,11 @@ impl TaskStepService {
                 )));
             }
             let added = self.add_in(&mut tx, task.id, Some(&wanted), body_markdown).await?;
-            Ok(Proposed { step: added, draft_count: drafts + 1 })
+            if starts_session {
+                self.begin_session_in(&tx, added.id, true).await?;
+            }
+            let step = self.view_in(&tx, &self.require(&tx, added.id).await?).await?;
+            Ok(Proposed { step, draft_count: drafts + 1 })
         })
     }
 
@@ -328,6 +333,22 @@ impl TaskStepService {
         let before = self.require(tx, id).await?;
         let mut step = before.clone();
         step.max_visits = budget.map(VisitBudget::visits);
+        repo::update_if_changed(tx.db(), &before, step, self.ctx.now()).await
+    }
+
+    /// Makes the step open a fresh session, or join the one running. Answers the task's whole
+    /// checklist, because the sessions group the steps around it.
+    pub async fn begin_session(&self, id: Id, starts_session: bool) -> Result<Vec<TaskStepView>> {
+        in_write!(&self.ctx, |tx| {
+            let saved = self.begin_session_in(&tx, id, starts_session).await?;
+            self.publish_in(&mut tx, saved.task_id).await?;
+            self.find_by_task_in(&mut tx, saved.task_id).await
+        })
+    }
+
+    pub async fn begin_session_in(&self, tx: &Tx, id: Id, starts_session: bool) -> Result<task_step::Model> {
+        let before = self.require(tx, id).await?;
+        let step = task_step::Model { starts_session, ..before.clone() };
         repo::update_if_changed(tx.db(), &before, step, self.ctx.now()).await
     }
 

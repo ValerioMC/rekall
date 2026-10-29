@@ -136,6 +136,7 @@ export const TaskStepSchema = z.object({
   flowX: z.number().int().nullable(),
   flowY: z.number().int().nullable(),
   maxVisits: z.number().int().nullable(),
+  startsSession: z.boolean(),
   connectionId: z.string().uuid().transform(asConnectionId).nullable(),
   passes: z.array(z.object({ detailMarkdown: z.string().nullable(), sentBackAt: z.string() })),
   links: z.array(StepLinkSchema),

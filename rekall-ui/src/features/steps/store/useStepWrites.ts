@@ -3,7 +3,8 @@ import {
   deleteStep as apiDeleteStep,
   moveStep as apiMoveStep,
   patchStep as apiPatchStep,
-  sendBackStep as apiSendBackStep
+  sendBackStep as apiSendBackStep,
+  setStepSession as apiSetStepSession
 } from '@/features/steps/api/steps.api'
 import type { TaskStepPatch } from '@/features/steps/api/steps.api'
 import type { TaskStep } from '@/features/catalog/model/catalog'
@@ -80,6 +81,13 @@ export function useStepWrites(state: ConsoleState, timers: ReturnType<typeof use
     steps.value = [...steps.value.filter((candidate) => candidate.taskId !== step.taskId), ...reordered]
   }
 
+  async function beginStepSession(id: TaskStepId, startsSession: boolean): Promise<void> {
+    const step = steps.value.find((candidate) => candidate.id === id)
+    if (!step) return
+    const regrouped = await apiSetStepSession(id, startsSession)
+    steps.value = [...steps.value.filter((candidate) => candidate.taskId !== step.taskId), ...regrouped]
+  }
+
   async function removeStep(id: TaskStepId): Promise<void> {
     const step = steps.value.find((candidate) => candidate.id === id)
     if (!step) return
@@ -99,6 +107,7 @@ export function useStepWrites(state: ConsoleState, timers: ReturnType<typeof use
     promoteStep: (id: TaskStepId) => saveStep(id, { draft: false }),
     returnStepToDraft: (id: TaskStepId) => saveStep(id, { draft: true }),
     moveStep,
+    beginStepSession,
     removeStep
   }
 }

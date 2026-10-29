@@ -50,6 +50,15 @@ export async function sendBackStep(id: TaskStepId): Promise<TaskStep> {
   )
 }
 
+/** Makes a step open a fresh session, or join the one running; answers the task's whole checklist. */
+export async function setStepSession(id: TaskStepId, startsSession: boolean): Promise<TaskStep[]> {
+  return request(async () =>
+    TaskStepListSchema.parse(
+      await apiClient(`/api/steps/${id}/session`, { method: 'PATCH', body: { startsSession } })
+    )
+  )
+}
+
 export async function deleteStep(id: TaskStepId): Promise<void> {
   await request(() => apiClient(`/api/steps/${id}`, { method: 'DELETE' }))
 }

@@ -24,12 +24,14 @@ fn routes_name_a_step_by_its_number_or_the_end() {
                     PlannedRoute { outcome: "app-error".into(), to: Some(1) },
                 ],
                 max_visits: None,
+                starts_session: false,
             },
             PlannedStep {
                 title: "Fix".into(),
                 detail: None,
                 routes: vec![PlannedRoute { outcome: "fixed".into(), to: Some(0) }],
                 max_visits: Some(VisitBudget::new(3).unwrap()),
+                starts_session: false,
             },
         ]
     );
@@ -61,4 +63,16 @@ fn a_visit_budget_outside_its_range_is_refused() {
     let steps = json!([{ "title": "Fix", "max_visits": 0, "routes": [{ "outcome": "fixed", "to": "end" }] }]);
 
     assert!(format!("{:?}", plan_of(Some(&steps)).unwrap_err()).contains("runs from 1"));
+}
+
+#[test]
+fn a_step_asks_for_a_fresh_session_and_otherwise_joins_the_running_one() {
+    let steps = json!([
+        { "title": "Move", "routes": [{ "outcome": "done", "to": 2 }] },
+        { "title": "Docs", "new_session": true, "routes": [{ "outcome": "done", "to": "end" }] }
+    ]);
+
+    let plan = plan_of(Some(&steps)).unwrap();
+
+    assert_eq!(plan.steps.iter().map(|step| step.starts_session).collect::<Vec<_>>(), [false, true]);
 }

@@ -350,6 +350,7 @@ fn planned(title: &str, routes: &[(&str, Option<usize>)]) -> PlannedStep {
         detail: Some(format!("What {title} does.")),
         routes: routes.iter().map(|(outcome, to)| PlannedRoute { outcome: (*outcome).into(), to: *to }).collect(),
         max_visits: None,
+        starts_session: false,
     }
 }
 
