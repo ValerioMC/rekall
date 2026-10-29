@@ -11,10 +11,10 @@ use std::time::Duration;
 
 use chrono::TimeDelta;
 use portable_pty::CommandBuilder;
-use rekall_common::{Id, Instant, RekallError, Result};
-use rekall_service::claude::{TerminalLaunch, TerminalLaunchService, TerminalTarget};
-use rekall_service::review::TaskReviewService;
-use rekall_service::step::TaskStepService;
+use rekall_kernel::{Id, Instant, RekallError, Result};
+use rekall_core::claude::{TerminalLaunch, TerminalLaunchService, TerminalTarget};
+use rekall_core::review::TaskReviewService;
+use rekall_core::step::TaskStepService;
 use tokio::sync::broadcast;
 use tracing::{info, warn};
 

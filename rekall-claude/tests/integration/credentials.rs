@@ -23,10 +23,10 @@ use rekall_claude::queue::{RunQueueRunner, RunQueueService};
 use rekall_claude::resources::{ClaudeResourceService, SkillGroupService};
 use rekall_claude::usage::{ClaudeUsageView, UsageReader};
 use rekall_claude::ClaudeState;
-use rekall_common::{Id, Instant};
+use rekall_kernel::{Id, Instant};
 use rekall_store::{connection_access, external_connection, project_connection, ConnectionKind};
-use rekall_service::claude::{TerminalLaunch, TerminalTarget};
-use rekall_service::connection::{Secret, SecretStore};
+use rekall_core::claude::{TerminalLaunch, TerminalTarget};
+use rekall_core::connection::{Secret, SecretStore};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 use serde_json::{json, Value};
 use support::{world, World};
@@ -93,7 +93,7 @@ async fn serve_terminals(world: &World) -> (Arc<CredentialBroker>, Arc<PtyTermin
         world.services.task_work.clone(),
         world.services.steps.clone(),
         &world.events,
-        rekall_service::system_clock(),
+        rekall_core::system_clock(),
         Duration::from_secs(60),
         Duration::from_secs(1),
     );

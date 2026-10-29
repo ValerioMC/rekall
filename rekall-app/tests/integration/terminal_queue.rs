@@ -11,13 +11,13 @@ use std::time::Duration;
 use futures::{SinkExt, StreamExt};
 use rekall_app::StartOptions;
 use rekall_claude::usage::{ClaudeUsageView, Limit, Severity, UsageReader};
-use rekall_common::Instant;
+use rekall_kernel::Instant;
 use serde_json::{json, Value};
 use support::{app_with, await_until, id, App};
 use tokio_tungstenite::tungstenite::Message;
 
 fn write_stub(folder: &std::path::Path, banner: &str) -> std::path::PathBuf {
-    let stub = folder.join(format!("fake-claude-{}.sh", rekall_common::Id::random()));
+    let stub = folder.join(format!("fake-claude-{}.sh", rekall_kernel::Id::random()));
     std::fs::write(&stub, format!("#!/bin/sh\necho \"{banner}\"\nwhile IFS= read -r line; do\n  echo \"got:$line\"\ndone\n")).unwrap();
     std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).unwrap();
     stub
@@ -108,7 +108,7 @@ async fn a_task_whose_project_has_no_folder_is_refused() {
 async fn connecting_to_an_unknown_terminal_id_closes_the_socket_instead_of_hanging() {
     let stubs = tempfile::tempdir().unwrap();
     let app = terminal_app(&stubs).await;
-    let url = format!("ws://localhost:{}/api/terminal/{}/io", app.running.as_ref().unwrap().port, rekall_common::Id::random());
+    let url = format!("ws://localhost:{}/api/terminal/{}/io", app.running.as_ref().unwrap().port, rekall_kernel::Id::random());
     let (mut socket, _) = tokio_tungstenite::connect_async(url).await.unwrap();
 
     let closed = tokio::time::timeout(Duration::from_secs(10), async {

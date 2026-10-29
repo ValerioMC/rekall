@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use rekall_claude::queue::{RunQueueRunner, RunQueueService};
 use rekall_claude::usage::{ClaudeUsageView, Limit, Severity, UsageReader};
-use rekall_common::Instant;
+use rekall_kernel::Instant;
 use rekall_store::{RunQueueItemState, RunQueueState, TaskStepState};
 use support::{eventually, world, World};
 
@@ -56,7 +56,7 @@ fn harness(world: &World, usage: ClaudeUsageView) -> Harness {
         world.services.task_work.clone(),
         world.services.steps.clone(),
         &world.events,
-        rekall_service::system_clock(),
+        rekall_core::system_clock(),
         Duration::from_millis(100),
         Duration::from_millis(50),
     );

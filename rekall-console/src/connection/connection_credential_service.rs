@@ -3,11 +3,11 @@
 
 use std::sync::Arc;
 
-use rekall_common::{Id, RekallError, Result};
+use rekall_kernel::{Id, RekallError, Result};
 use rekall_store::{external_connection, ConnectionKind};
 use rekall_store::repository as repo;
-use rekall_service::connection::{ConnectionStreamEvent, JiraCredential, KubeAccess, Kubeconfig, Secret, SecretStore};
-use rekall_service::{in_read, in_write, Ctx};
+use rekall_core::connection::{ConnectionStreamEvent, JiraCredential, KubeAccess, Kubeconfig, Secret, SecretStore};
+use rekall_core::{in_read, in_write, Ctx};
 
 use super::credential_keeping::{blocking, forget, keep};
 use super::{ConnectionCredentialCommand, ConnectionView};

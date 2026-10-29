@@ -1,6 +1,6 @@
 //! One task in the run queue, at a dense `position`, with what happened when its turn came.
 
-use rekall_common::{jstr, Id, Instant};
+use rekall_kernel::{jstr, Id, Instant};
 use sea_orm::entity::prelude::*;
 
 use crate::enums::RunQueueItemState;

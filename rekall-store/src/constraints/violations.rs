@@ -1,4 +1,4 @@
-use rekall_common::{jstr, RekallError};
+use rekall_kernel::{jstr, RekallError};
 
 use crate::slug::Slug;
 

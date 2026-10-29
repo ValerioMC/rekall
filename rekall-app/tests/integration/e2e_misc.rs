@@ -520,7 +520,7 @@ async fn every_task_unscoped_comes_back_grouped_by_project_and_then_by_label() {
 #[tokio::test]
 async fn a_refresh_on_any_ui_route_serves_the_application_and_an_unknown_api_path_still_fails() {
     let app = app().await;
-    let random = rekall_common::Id::random();
+    let random = rekall_kernel::Id::random();
     for path in [
         "/".to_string(),
         "/projects".into(),

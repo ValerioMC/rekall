@@ -1,4 +1,4 @@
-use rekall_service::connection::Secret;
+use rekall_core::connection::Secret;
 use serde::Deserialize;
 
 /// A kubeconfig to list the contexts of, without storing it.

@@ -5,7 +5,7 @@ use std::process::{Command, Stdio};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use rekall_common::{cleanup, InternalFailure, RekallError};
+use rekall_kernel::{cleanup, InternalFailure, RekallError};
 use serde_json::Value;
 use tracing::{debug, info, warn};
 

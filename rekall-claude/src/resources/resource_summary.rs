@@ -1,4 +1,4 @@
-use rekall_common::{Instant, Result};
+use rekall_kernel::{Instant, Result};
 use serde::Serialize;
 
 use super::claude_home::modified_of;

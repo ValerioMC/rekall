@@ -1,4 +1,4 @@
-use rekall_common::Instant;
+use rekall_kernel::Instant;
 use serde::Deserialize;
 
 /// A file's whole new text. `expected_modified_at` is the version the editor opened: null creates

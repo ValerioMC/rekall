@@ -1,7 +1,7 @@
 use axum::extract::{Query, State};
 use axum::routing::get;
 use axum::{Json, Router};
-use rekall_service::search::SearchHit;
+use rekall_core::search::SearchHit;
 
 use rekall_web::error::ApiResult;
 use crate::ApiState;

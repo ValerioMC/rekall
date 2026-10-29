@@ -5,7 +5,7 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use reqwest::header::{HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use reqwest::{Client, RequestBuilder, Response, StatusCode};
-use rekall_service::connection::{JiraCredential, JiraDeployment, JiraSite, KubeAccess, KubeCredential, Secret};
+use rekall_core::connection::{JiraCredential, JiraDeployment, JiraSite, KubeAccess, KubeCredential, Secret};
 use serde::Deserialize;
 use serde_json::json;
 

@@ -1,4 +1,4 @@
-use rekall_service::step::TaskStepView;
+use rekall_core::step::TaskStepView;
 
 /// What running the task laid: the release graph's title, or none when nothing was laid, and the
 /// task's whole checklist either way.

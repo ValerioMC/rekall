@@ -1,7 +1,7 @@
 //! A graph a project keeps for releasing its work: its steps and routes are rows of their own,
 //! written whole with it, and copied onto a task when the graph is attached there.
 
-use rekall_common::{Id, Instant, RekallError};
+use rekall_kernel::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;
 
 use crate::constraints::Violations;

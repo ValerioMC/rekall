@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
-use rekall_common::Id;
-use rekall_service::inventory::InventoryWritten;
+use rekall_kernel::Id;
+use rekall_core::inventory::InventoryWritten;
 use serde_json::json;
 
 use super::*;

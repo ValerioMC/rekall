@@ -2,7 +2,7 @@
 //! cluster or a Jira site. The row holds only what the console shows; the credential lives in the OS keychain
 //! under `secret_ref`, so no query, export or context can carry it.
 
-use rekall_common::{Id, Instant, RekallError};
+use rekall_kernel::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;
 
 use crate::constraints::Violations;

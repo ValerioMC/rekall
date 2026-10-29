@@ -1,4 +1,4 @@
-use rekall_common::RekallError;
+use rekall_kernel::RekallError;
 use crate::{run_queue, run_queue_item};
 use sea_orm::{ConnectionTrait, EntityTrait, QueryOrder};
 

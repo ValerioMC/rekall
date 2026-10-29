@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use rekall_common::{Id, Instant};
+use rekall_kernel::{Id, Instant};
 use rekall_store::DATA_FILE_NAME;
 
 use super::super::folder::absolute_normalised;

@@ -1,6 +1,6 @@
 use async_trait::async_trait;
-use rekall_service::task::TaskKind;
-use rekall_service::task::{Created, StepDraft, TaskAuthoringService, TaskBrief};
+use rekall_core::task::TaskKind;
+use rekall_core::task::{Created, StepDraft, TaskAuthoringService, TaskBrief};
 use serde::Deserialize;
 use serde_json::Value;
 

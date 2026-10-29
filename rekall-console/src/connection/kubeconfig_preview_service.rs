@@ -1,5 +1,5 @@
-use rekall_common::{RekallError, Result};
-use rekall_service::connection::{Kubeconfig, Secret};
+use rekall_kernel::{RekallError, Result};
+use rekall_core::connection::{Kubeconfig, Secret};
 
 use super::credential_keeping::blocking;
 use super::KubeContextView;

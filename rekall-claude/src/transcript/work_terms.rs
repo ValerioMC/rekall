@@ -4,7 +4,7 @@
 use std::sync::LazyLock;
 
 use regex::Regex;
-use rekall_service::token::WorkUnit;
+use rekall_core::token::WorkUnit;
 
 /// The unit an `/rk` prompt is about, when the prompt is one and names a task. Text in double
 /// quotes is a request or a directive, never a term.

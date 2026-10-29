@@ -1,4 +1,4 @@
-use rekall_common::Instant;
+use rekall_kernel::Instant;
 use serde::Serialize;
 
 use super::{Limit, UsageStatus};

@@ -1,10 +1,10 @@
 //! What a person does to a project's deployment graphs: list them, write one whole, rewrite it,
 //! delete it. Console-only: a session meets a graph only as the steps it lays on a task.
 
-use rekall_common::{jstr, Id, RekallError, Result};
+use rekall_kernel::{jstr, Id, RekallError, Result};
 use rekall_store::{deployment_graph, graph_route, graph_step};
 use rekall_store::repository as repo;
-use rekall_service::{in_read, in_write, Ctx, Tx};
+use rekall_core::{in_read, in_write, Ctx, Tx};
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
 
 use super::{DeploymentGraphCommand, DeploymentGraphView, GraphDraft, StoredGraph};

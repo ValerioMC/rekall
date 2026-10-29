@@ -1,6 +1,6 @@
 use async_trait::async_trait;
-use rekall_common::RekallError;
-use rekall_service::{context::ContextService, context::{ContextRecord, ContextRenderer}};
+use rekall_kernel::RekallError;
+use rekall_core::{context::ContextService, context::{ContextRecord, ContextRenderer}};
 use serde_json::Value;
 
 use crate::tool::{Anchor, Arguments};

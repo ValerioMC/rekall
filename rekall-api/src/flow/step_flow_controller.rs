@@ -2,8 +2,8 @@ use axum::extract::{Path, State};
 use axum::response::Response;
 use axum::routing::{delete, patch, post};
 use axum::{Json, Router};
-use rekall_service::flow::RouteTarget;
-use rekall_service::step::{FlowPlace, TaskStepView, VisitBudget};
+use rekall_core::flow::RouteTarget;
+use rekall_core::step::{FlowPlace, TaskStepView, VisitBudget};
 
 use rekall_web::created;
 use crate::flow::{StepFlowPlaceRequest, StepLinkRequest, StepMaxVisitsRequest};

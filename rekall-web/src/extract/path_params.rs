@@ -1,5 +1,5 @@
 use axum::http::StatusCode;
-use rekall_common::{Id, RekallError};
+use rekall_kernel::{Id, RekallError};
 
 use crate::error::{ApiError, ApiResult};
 

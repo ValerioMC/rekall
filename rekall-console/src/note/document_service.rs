@@ -1,10 +1,10 @@
 //! Notes: written, scoped, attached to and detached from tasks, and deleted, from the console.
 
-use rekall_common::{Id, RekallError, Result};
+use rekall_kernel::{Id, RekallError, Result};
 use rekall_store::note_scope::NoteScope;
 use rekall_store::{document, document_task, DocumentContextMode};
 use rekall_store::repository as repo;
-use rekall_service::{in_read, in_write, Ctx, Tx};
+use rekall_core::{in_read, in_write, Ctx, Tx};
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, IntoActiveModel, QueryFilter};
 
 use crate::catalog::Snapshot;
@@ -34,11 +34,11 @@ impl DocumentService {
     }
 
     pub async fn search(&self, term: Option<&str>) -> Result<Vec<DocumentView>> {
-        let Some(term) = term.filter(|t| !rekall_common::jstr::is_blank(t)) else {
+        let Some(term) = term.filter(|t| !rekall_kernel::jstr::is_blank(t)) else {
             return Ok(Vec::new());
         };
         in_read!(&self.ctx, |tx| {
-            let found = repo::document::search_by_title(tx.db(), rekall_common::jstr::trim(term)).await?;
+            let found = repo::document::search_by_title(tx.db(), rekall_kernel::jstr::trim(term)).await?;
             responses(&tx, &found).await
         })
     }

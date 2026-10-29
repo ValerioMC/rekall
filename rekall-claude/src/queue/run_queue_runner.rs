@@ -20,12 +20,12 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use rekall_common::{RekallError, Result};
-use rekall_service::claude::TaskWorkService;
-use rekall_service::step::TaskStepService;
-use rekall_service::step::StepStreamEvent;
-use rekall_service::review::TaskReviewEvent;
-use rekall_service::{Clock, EventBus, PublishedEvent};
+use rekall_kernel::{RekallError, Result};
+use rekall_core::claude::TaskWorkService;
+use rekall_core::step::TaskStepService;
+use rekall_core::step::StepStreamEvent;
+use rekall_core::review::TaskReviewEvent;
+use rekall_core::{Clock, EventBus, PublishedEvent};
 use tokio::sync::broadcast::{self, error::RecvError};
 use tokio::sync::{mpsc, oneshot};
 
@@ -67,7 +67,7 @@ impl RunQueueRunner {
     }
 
     /// Arm the queue and look at it at once rather than on the next tick.
-    pub async fn start_queue(&self, queue: &RunQueueService, start_at: Option<rekall_common::Instant>) -> Result<RunQueueView> {
+    pub async fn start_queue(&self, queue: &RunQueueService, start_at: Option<rekall_kernel::Instant>) -> Result<RunQueueView> {
         let started = queue.start(start_at).await?;
         self.nudge();
         Ok(started)
@@ -132,7 +132,7 @@ fn forward_step_and_review_moves(commands: mpsc::UnboundedSender<Command>, mut b
 }
 
 /// The task a committed step or review move belongs to; any other event moves nothing.
-fn task_moved_by(event: &PublishedEvent) -> Option<rekall_common::Id> {
+fn task_moved_by(event: &PublishedEvent) -> Option<rekall_kernel::Id> {
     if let Some(steps) = event.downcast::<StepStreamEvent>() {
         return Some(steps.task_id);
     }

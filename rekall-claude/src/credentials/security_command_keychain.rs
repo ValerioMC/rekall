@@ -93,7 +93,7 @@ fn run(command: &[&str]) -> Option<String> {
             Ok(None) if std::time::Instant::now() < deadline => std::thread::sleep(Duration::from_millis(20)),
             _ => {
                 debug!(command = command[1], "Keychain command timed out");
-                rekall_common::cleanup::kill(&mut child);
+                rekall_kernel::cleanup::kill(&mut child);
                 return None;
             }
         }

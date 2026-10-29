@@ -1,4 +1,4 @@
-use rekall_common::{Id, Instant, RekallError};
+use rekall_kernel::{Id, Instant, RekallError};
 use crate::project_icon_image::{Column, Entity, Model};
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QuerySelect};
 

@@ -3,7 +3,7 @@ use serde_json::json;
 use super::{diagram_id, sheets_argument, target_of};
 use crate::protocol::ToolError;
 use crate::tool::Anchor;
-use rekall_service::diagram::DiagramTarget;
+use rekall_core::diagram::DiagramTarget;
 
 fn anchors(raw: &str) -> Vec<Anchor> {
     Anchor::parse_all(Some(raw)).unwrap()
@@ -50,7 +50,7 @@ fn a_string_that_is_not_json_is_refused_as_an_argument() {
 #[test]
 fn a_diagram_reference_has_to_be_an_id() {
     assert_eq!(diagram_id(None).unwrap(), None);
-    let id = rekall_common::Id::random();
+    let id = rekall_kernel::Id::random();
     assert_eq!(diagram_id(Some(format!(" {id} "))).unwrap(), Some(id));
     assert!(matches!(diagram_id(Some("order-flow".into())), Err(ToolError::Illegal(_))));
 }

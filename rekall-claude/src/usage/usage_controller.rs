@@ -2,7 +2,7 @@ use axum::extract::{Query, State};
 use axum::routing::get;
 use axum::{Json, Router};
 use rekall_web::ApiError;
-use rekall_common::RekallError;
+use rekall_kernel::RekallError;
 
 use crate::ClaudeState;
 

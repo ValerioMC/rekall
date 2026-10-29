@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use chrono::TimeDelta;
-use rekall_common::Instant;
+use rekall_kernel::Instant;
 use serde_json::Value;
 use tokio::sync::{Mutex, Notify};
 use tracing::{debug, info};
@@ -36,14 +36,14 @@ pub struct ClaudeUsageService {
     credentials: Arc<dyn TokenSource>,
     http: reqwest::Client,
     usage_url: String,
-    clock: rekall_service::Clock,
+    clock: rekall_core::Clock,
     state: Mutex<State_>,
     stopped: AtomicBool,
     shutdown: Notify,
 }
 
 impl ClaudeUsageService {
-    pub fn new(credentials: Arc<dyn TokenSource>, usage_url: &str, clock: rekall_service::Clock) -> Self {
+    pub fn new(credentials: Arc<dyn TokenSource>, usage_url: &str, clock: rekall_core::Clock) -> Self {
         Self {
             credentials,
             http: reqwest::Client::builder().connect_timeout(HTTP_TIMEOUT).build().expect("an HTTP client"),

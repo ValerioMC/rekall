@@ -1,20 +1,20 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use rekall_service::commit::CommitReferenceService;
-use rekall_service::connection::{JiraIssues, SecretStore};
-use rekall_service::context::ContextSizeService;
-use rekall_service::diagram::DiagramService;
-use rekall_service::flow::{FlowService, StepLinkService};
-use rekall_service::inventory::DependencyInventoryService;
-use rekall_service::search::SearchService;
-use rekall_service::section::ProjectSectionService;
-use rekall_service::step::TaskStepService;
-use rekall_service::timeentry::TimeEntryService;
-use rekall_service::token::TokenUsageService;
-use rekall_service::vulnerability::{ScanSettingsService, SecurityAdvisoryService, VulnerabilityExposureService, VulnerabilityScanService};
-use rekall_service::wrapup::WrapupService;
-use rekall_service::Services;
+use rekall_core::commit::CommitReferenceService;
+use rekall_core::connection::{JiraIssues, SecretStore};
+use rekall_core::context::ContextSizeService;
+use rekall_core::diagram::DiagramService;
+use rekall_core::flow::{FlowService, StepLinkService};
+use rekall_core::inventory::DependencyInventoryService;
+use rekall_core::search::SearchService;
+use rekall_core::section::ProjectSectionService;
+use rekall_core::step::TaskStepService;
+use rekall_core::timeentry::TimeEntryService;
+use rekall_core::token::TokenUsageService;
+use rekall_core::vulnerability::{ScanSettingsService, SecurityAdvisoryService, VulnerabilityExposureService, VulnerabilityScanService};
+use rekall_core::wrapup::WrapupService;
+use rekall_core::Services;
 
 use rekall_console::{catalog, component, connection, diagram, filesystem, graph, note, section, skill, tag, vulnerability};
 
@@ -101,7 +101,7 @@ impl ApiState {
             tasks.clone(),
             services.steps.clone(),
             services.step_links.clone(),
-            rekall_service::flow::StepVisitService::new(ctx.clone()),
+            rekall_core::flow::StepVisitService::new(ctx.clone()),
         );
         Self {
             companies: catalog::CompanyService::new(ctx.clone()),

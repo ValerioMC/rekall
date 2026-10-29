@@ -7,9 +7,9 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use rekall_app::StartOptions;
-use rekall_common::Instant;
+use rekall_kernel::Instant;
 use rekall_store::{AdvisorySeverity, Ecosystem};
-use rekall_service::vulnerability::{AdvisoryFeed, AdvisoryFeedFailure, AffectedPackage, PackageVersion, PublishedAdvisory, ScanScope};
+use rekall_core::vulnerability::{AdvisoryFeed, AdvisoryFeedFailure, AffectedPackage, PackageVersion, PublishedAdvisory, ScanScope};
 use serde_json::json;
 use support::{app_with, App};
 

@@ -1,4 +1,4 @@
-use rekall_common::RekallError;
+use rekall_kernel::RekallError;
 
 use crate::protocol::ToolError;
 

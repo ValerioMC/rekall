@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use rekall_service::connection::Secret;
+use rekall_core::connection::Secret;
 
 use super::*;
 

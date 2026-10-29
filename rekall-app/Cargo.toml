@@ -12,9 +12,9 @@ name = "rekall-server"
 path = "src/main.rs"
 
 [dependencies]
-rekall-common.workspace = true
+rekall-kernel.workspace = true
 rekall-store.workspace = true
-rekall-service.workspace = true
+rekall-core.workspace = true
 rekall-api.workspace = true
 rekall-web.workspace = true
 rekall-mcp.workspace = true

@@ -3,11 +3,11 @@
 
 use std::sync::Arc;
 
-use rekall_common::{Id, RekallError, Result};
+use rekall_kernel::{Id, RekallError, Result};
 use rekall_store::external_connection;
 use rekall_store::repository as repo;
-use rekall_service::connection::{ConnectionStreamEvent, SecretStore};
-use rekall_service::{in_read, in_write, Ctx, Tx};
+use rekall_core::connection::{ConnectionStreamEvent, SecretStore};
+use rekall_core::{in_read, in_write, Ctx, Tx};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
 use super::connection_rules::{base_url_of, kind_of, label_of, proxy_url_of, title_of};

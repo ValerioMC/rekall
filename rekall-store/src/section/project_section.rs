@@ -1,7 +1,7 @@
 //! A titled markdown section on a project, for what the blueprint does not hold. Sections are
 //! never part of any context: a person or a session writes them, and only the console reads them.
 
-use rekall_common::{Id, Instant, RekallError};
+use rekall_kernel::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;
 
 use crate::constraints::Violations;

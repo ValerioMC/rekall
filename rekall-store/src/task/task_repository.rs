@@ -1,4 +1,4 @@
-use rekall_common::{Id, RekallError};
+use rekall_kernel::{Id, RekallError};
 use crate::project;
 use crate::task::{Column, Entity, Model};
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QueryOrder};

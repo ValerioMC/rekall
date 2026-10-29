@@ -1,7 +1,7 @@
 //! A row whose `updated_at` moves only when one of its values does, and that is validated before
 //! every update. `crate::repository::update_if_changed` is the one write that uses it.
 
-use rekall_common::{Instant, RekallError};
+use rekall_kernel::{Instant, RekallError};
 
 pub trait Stamped {
     fn stamp(&mut self, now: Instant);

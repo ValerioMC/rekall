@@ -5,7 +5,7 @@ use axum::http::{header, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::Router;
-use rekall_common::Id;
+use rekall_kernel::Id;
 use serde::Deserialize;
 
 use super::{CredentialPurpose, HandOut, Refusal};

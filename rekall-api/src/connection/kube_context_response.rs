@@ -1,5 +1,5 @@
 use rekall_console::connection::KubeContextView;
-use rekall_service::connection::KubeUserKind;
+use rekall_core::connection::KubeUserKind;
 use serde::Serialize;
 
 /// One context of a kubeconfig being imported, for the person to choose from.

@@ -1,5 +1,5 @@
 use rekall_console::graph::ReleaseOnRunView;
-use rekall_service::step::TaskStepView;
+use rekall_core::step::TaskStepView;
 use serde::Serialize;
 
 /// What running the task laid: the release graph's title, or none when nothing was laid, and the

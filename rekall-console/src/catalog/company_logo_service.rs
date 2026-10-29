@@ -1,9 +1,9 @@
 //! A company's uploaded logo: normalised once when it is stored, resized to the exact size on each
 //! request. Console-only, like the catalog it decorates.
 
-use rekall_common::{Id, RekallError, Result};
+use rekall_kernel::{Id, RekallError, Result};
 use rekall_store::repository as repo;
-use rekall_service::{in_read, in_write, Ctx};
+use rekall_core::{in_read, in_write, Ctx};
 
 use super::icon_raster;
 

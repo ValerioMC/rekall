@@ -1,4 +1,4 @@
-use rekall_common::{Id, Instant};
+use rekall_kernel::{Id, Instant};
 use rekall_store::{external_connection, project_connection, ConnectionKind};
 
 /// A connection a project binds, as the project page shows it.

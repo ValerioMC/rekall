@@ -17,10 +17,10 @@ use rekall_claude::transcript::{TranscriptFolder, TranscriptScanner};
 use rekall_claude::usage::{ClaudeUsageService, UsageReader};
 use rekall_claude::ClaudeState;
 use rekall_store::Database;
-use rekall_service::connection::{ConnectionAccessService, JiraIssues, RememberingSecretStore, SecretStore};
-use rekall_service::timeentry::IDLE_AFTER;
-use rekall_service::vulnerability::{AdvisoryFeed, ScanSettingsService, VulnerabilityScanService};
-use rekall_service::{Ctx, EventBus, Services};
+use rekall_core::connection::{ConnectionAccessService, JiraIssues, RememberingSecretStore, SecretStore};
+use rekall_core::timeentry::IDLE_AFTER;
+use rekall_core::vulnerability::{AdvisoryFeed, ScanSettingsService, VulnerabilityScanService};
+use rekall_core::{Ctx, EventBus, Services};
 use tracing::warn;
 
 use rekall_platform::backup::{self, DatabaseBackupService, DatabaseLocation, DatabaseRestoreService};

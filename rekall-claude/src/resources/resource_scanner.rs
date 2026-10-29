@@ -94,7 +94,7 @@ impl<'a> ResourceScanner<'a> {
         let path = ResourcePath::parse(&relative).ok()?;
         match ResourceSummary::read(self.home, &path) {
             Ok(summary) => Some(summary),
-            Err(rekall_common::RekallError::NotFound(_)) => None,
+            Err(rekall_kernel::RekallError::NotFound(_)) => None,
             Err(failure) => {
                 warn!(%failure, path = %relative, "Skipped a Claude file that could not be read");
                 None

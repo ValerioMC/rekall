@@ -1,7 +1,7 @@
 //! A route between two steps of one deployment graph, by outcome, or from a step to the end. It
 //! becomes a route between the task's steps when the graph is attached.
 
-use rekall_common::{Id, RekallError};
+use rekall_kernel::{Id, RekallError};
 use sea_orm::entity::prelude::*;
 
 use crate::constraints::Violations;

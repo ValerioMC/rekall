@@ -10,19 +10,19 @@ use regex::Regex;
 
 /// Each workspace member, by its folder, and the Rekall crates it may depend on.
 const ALLOWED: [(&str, &[&str]); 12] = [
-    ("rekall-common", &[]),
-    ("rekall-web", &["rekall-common"]),
+    ("rekall-kernel", &[]),
+    ("rekall-web", &["rekall-kernel"]),
     ("rekall-diagram", &[]),
-    ("rekall-store", &["rekall-common"]),
-    ("rekall-service", &["rekall-common", "rekall-diagram", "rekall-store"]),
-    ("rekall-console", &["rekall-common", "rekall-service", "rekall-store"]),
-    ("rekall-api", &["rekall-common", "rekall-console", "rekall-service", "rekall-store", "rekall-web"]),
-    ("rekall-mcp", &["rekall-common", "rekall-service"]),
-    ("rekall-claude", &["rekall-common", "rekall-diagram", "rekall-service", "rekall-store", "rekall-web"]),
-    ("rekall-platform", &["rekall-common", "rekall-service", "rekall-store", "rekall-web"]),
+    ("rekall-store", &["rekall-kernel"]),
+    ("rekall-core", &["rekall-diagram", "rekall-kernel", "rekall-store"]),
+    ("rekall-console", &["rekall-core", "rekall-kernel", "rekall-store"]),
+    ("rekall-api", &["rekall-console", "rekall-core", "rekall-kernel", "rekall-store", "rekall-web"]),
+    ("rekall-mcp", &["rekall-core", "rekall-kernel"]),
+    ("rekall-claude", &["rekall-core", "rekall-diagram", "rekall-kernel", "rekall-store", "rekall-web"]),
+    ("rekall-platform", &["rekall-core", "rekall-kernel", "rekall-store", "rekall-web"]),
     (
         "rekall-app",
-        &["rekall-api", "rekall-claude", "rekall-common", "rekall-mcp", "rekall-platform", "rekall-service", "rekall-store", "rekall-web"],
+        &["rekall-api", "rekall-claude", "rekall-core", "rekall-kernel", "rekall-mcp", "rekall-platform", "rekall-store", "rekall-web"],
     ),
     ("rekall-app/desktop", &["rekall-app", "rekall-platform"]),
 ];

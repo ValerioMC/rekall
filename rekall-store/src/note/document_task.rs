@@ -1,7 +1,7 @@
 //! The link between a note and a task. `position` is the note's place on that task: dense from
 //! zero, per task, so one note can sit first on one task and last on another.
 
-use rekall_common::Id;
+use rekall_kernel::Id;
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]

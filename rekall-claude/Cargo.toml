@@ -5,10 +5,10 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-rekall-common.workspace = true
+rekall-kernel.workspace = true
 rekall-store.workspace = true
 rekall-diagram.workspace = true
-rekall-service.workspace = true
+rekall-core.workspace = true
 rekall-web.workspace = true
 sea-orm.workspace = true
 serde.workspace = true

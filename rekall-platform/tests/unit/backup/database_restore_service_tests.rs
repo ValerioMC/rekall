@@ -3,7 +3,7 @@ use std::io::Write;
 use super::*;
 
 fn zip(folder: &Path, entries: &[(&str, &[u8])]) -> PathBuf {
-    let path = folder.join(format!("backup-{}.zip", rekall_common::Id::random()));
+    let path = folder.join(format!("backup-{}.zip", rekall_kernel::Id::random()));
     let mut writer = zip::ZipWriter::new(std::fs::File::create(&path).unwrap());
     for (name, content) in entries {
         writer.start_file(*name, zip::write::SimpleFileOptions::default()).unwrap();

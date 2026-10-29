@@ -7,8 +7,8 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use portable_pty::{native_pty_system, CommandBuilder, PtySize};
-use rekall_common::{Id, Instant};
-use rekall_service::claude::TerminalLaunch;
+use rekall_kernel::{Id, Instant};
+use rekall_core::claude::TerminalLaunch;
 use tokio::sync::watch;
 use tracing::{debug, warn};
 

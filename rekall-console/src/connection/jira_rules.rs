@@ -1,9 +1,9 @@
 //! What turns a project's Jira binding into a search, and a Jira issue into the task it is imported
 //! as. An issue is imported once: its task is labelled with the issue key.
 
-use rekall_common::{Id, RekallError, Result};
+use rekall_kernel::{Id, RekallError, Result};
 use rekall_store::Slug;
-use rekall_service::connection::JiraIssue;
+use rekall_core::connection::JiraIssue;
 
 use crate::catalog::TaskCommand;
 

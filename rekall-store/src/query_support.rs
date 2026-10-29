@@ -1,4 +1,4 @@
-use rekall_common::{InternalFailure, RekallError};
+use rekall_kernel::{InternalFailure, RekallError};
 
 /// Equal once both sides are upper-cased, across all of Unicode.
 pub fn equals_ignore_case(a: &str, b: &str) -> bool {

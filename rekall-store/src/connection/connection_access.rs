@@ -1,7 +1,7 @@
 //! One request a terminal made for a connection's credential, granted or refused. Append-only, and
 //! it never holds the credential: it is what the console shows a person about what a session reached.
 
-use rekall_common::{Id, Instant, RekallError};
+use rekall_kernel::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;
 
 use crate::constraints::Violations;

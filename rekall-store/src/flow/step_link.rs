@@ -1,7 +1,7 @@
 //! A route between two steps of one task: when the `from` step ends with `outcome`, the work
 //! moves to the `to` step. A task whose steps carry routes is a flow, not a list.
 
-use rekall_common::{Id, Instant, RekallError};
+use rekall_kernel::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;
 
 use crate::constraints::Violations;

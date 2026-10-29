@@ -1,4 +1,4 @@
-use rekall_common::Id;
+use rekall_kernel::Id;
 use rekall_console::skill::{TaskSkillView, TagSkillView, SkillAssignmentsView};
 use serde::Serialize;
 

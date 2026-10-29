@@ -3,7 +3,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use reqwest::header::{HeaderValue, ACCEPT, AUTHORIZATION};
 use reqwest::{Client, Response, StatusCode};
-use rekall_service::connection::{JiraCredential, JiraDeployment, JiraFailure, JiraIssue, JiraIssues, JiraSite};
+use rekall_core::connection::{JiraCredential, JiraDeployment, JiraFailure, JiraIssue, JiraIssues, JiraSite};
 use serde::Deserialize;
 use serde_json::json;
 

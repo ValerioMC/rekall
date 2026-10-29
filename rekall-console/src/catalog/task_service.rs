@@ -2,12 +2,12 @@
 //! stops its timer. An epic is a task of kind `EPIC`: it holds no steps, and keeps its kind and
 //! its project while tasks belong to it.
 
-use rekall_common::{jstr, Id, RekallError, Result};
+use rekall_kernel::{jstr, Id, RekallError, Result};
 use rekall_store::{project, task, Slug, TaskKind, TaskStatus, TaskStepState};
 use rekall_store::repository as repo;
-use rekall_service::review::TaskReviewService;
-use rekall_service::timeentry::TimeEntryService;
-use rekall_service::{in_read, in_write, Ctx, Tx};
+use rekall_core::review::TaskReviewService;
+use rekall_core::timeentry::TimeEntryService;
+use rekall_core::{in_read, in_write, Ctx, Tx};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
 use crate::catalog::Snapshot;

@@ -1,6 +1,6 @@
 //! `update_if_changed`: the one write path every service uses to save an edited row.
 
-use rekall_common::{Id, Instant};
+use rekall_kernel::{Id, Instant};
 use rekall_store::company;
 use rekall_store::repository as repo;
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
@@ -58,5 +58,5 @@ async fn require_reports_a_missing_row_as_not_found() {
 
     let refused = repo::company::require(&database.conn, missing).await.unwrap_err();
 
-    assert_eq!(refused, rekall_common::RekallError::not_found("Company", missing));
+    assert_eq!(refused, rekall_kernel::RekallError::not_found("Company", missing));
 }

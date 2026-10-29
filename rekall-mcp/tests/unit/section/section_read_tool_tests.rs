@@ -1,5 +1,5 @@
-use rekall_common::{Id, Instant};
-use rekall_service::section::{ProjectSectionView, SectionsRead};
+use rekall_kernel::{Id, Instant};
+use rekall_core::section::{ProjectSectionView, SectionsRead};
 
 use super::{report, target_of};
 use crate::tool::Anchor;

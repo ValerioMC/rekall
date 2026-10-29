@@ -1,7 +1,7 @@
-use rekall_common::{RekallError, Result};
+use rekall_kernel::{RekallError, Result};
 use rekall_store::skill_placement::Model;
 use rekall_store::repository as repo;
-use rekall_service::{in_read, in_write, Ctx};
+use rekall_core::{in_read, in_write, Ctx};
 
 use super::{ResourceKind, ResourcePath, SkillPlacementView};
 
@@ -50,7 +50,7 @@ impl SkillGroupService {
     }
 }
 
-async fn list(tx: &rekall_service::Tx) -> Result<Vec<SkillPlacementView>> {
+async fn list(tx: &rekall_core::Tx) -> Result<Vec<SkillPlacementView>> {
     Ok(repo::skill_placement::list_all(tx.db()).await?.into_iter().map(SkillPlacementView::from).collect())
 }
 

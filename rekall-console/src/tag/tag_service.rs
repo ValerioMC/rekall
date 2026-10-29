@@ -1,9 +1,9 @@
 //! The badges a task can carry.
 
-use rekall_common::{jstr, Id, RekallError, Result};
+use rekall_kernel::{jstr, Id, RekallError, Result};
 use rekall_store::tag;
 use rekall_store::repository as repo;
-use rekall_service::{in_read, in_write, Ctx, Tx};
+use rekall_core::{in_read, in_write, Ctx, Tx};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
 use crate::tag::{TagCommand, TagView};

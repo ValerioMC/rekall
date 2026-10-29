@@ -1,4 +1,4 @@
-use rekall_service::StreamEvent;
+use rekall_core::StreamEvent;
 use serde::Serialize;
 
 use super::RunQueueView;

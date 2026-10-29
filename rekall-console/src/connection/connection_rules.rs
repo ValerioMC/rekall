@@ -1,6 +1,6 @@
 //! The rules on what a person types into a connection, shared by the services that write one.
 
-use rekall_common::{jstr, RekallError, Result};
+use rekall_kernel::{jstr, RekallError, Result};
 use rekall_store::{ConnectionKind, Slug};
 
 pub(super) fn kind_of(raw: Option<&str>) -> Result<ConnectionKind> {

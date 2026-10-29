@@ -1,4 +1,4 @@
-use rekall_common::Id;
+use rekall_kernel::Id;
 use rekall_store::{company, project, task};
 
 #[derive(Clone, Debug)]

@@ -2,7 +2,7 @@ use std::net::{Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use std::time::Duration;
 
 use rekall_store::Database;
-use rekall_service::Services;
+use rekall_core::Services;
 use tokio::sync::{oneshot, watch};
 use tracing::{error, info, warn};
 

@@ -1,4 +1,4 @@
-use rekall_common::{Id, Instant};
+use rekall_kernel::{Id, Instant};
 use rekall_console::catalog::ProjectView;
 use rekall_store::ProjectStatus;
 use serde::Serialize;

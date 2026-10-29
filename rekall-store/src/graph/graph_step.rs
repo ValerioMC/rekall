@@ -1,7 +1,7 @@
 //! One step of a deployment graph: what a session does there and the connection it reaches. It
 //! becomes a task's step when the graph is attached, so it keeps a task step's limits.
 
-use rekall_common::{Id, Instant, RekallError};
+use rekall_kernel::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;
 
 use crate::constraints::Violations;

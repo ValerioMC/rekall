@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use rekall_service::{note::OnTitleClash, section::ProjectSectionService};
+use rekall_core::{note::OnTitleClash, section::ProjectSectionService};
 use serde_json::Value;
 
 use crate::tool::{told, Anchor, AnchoredTask, Arguments, QUALIFY_WITH_PROJECT};

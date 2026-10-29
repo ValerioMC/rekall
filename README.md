@@ -653,14 +653,14 @@ The schema starts from a baseline: the tables as release v0.2.x left them. A `re
 A Cargo workspace, one crate per layer, each depending only on the ones above it:
 
 ```
-rekall-common/     RekallError, Id, Instant and the string helpers every layer shares
+rekall-kernel/     RekallError, Id, Instant and the string helpers every layer shares
 rekall-web/        what the HTTP routers share: the error body, request extractors and response helpers
 rekall-store/      SeaORM entities and their state rules, the queries over them and the SQLite migrations, one folder per domain
 rekall-diagram/    the diagram format: Mermaid sheets and their code links, JSON form and validation. No database, no UI
-rekall-service/    business logic: context assembly, the step and review lines, flows (routes and visits), wrapups, notes, time entries, token usage
+rekall-core/       business logic: context assembly, the step and review lines, flows (routes and visits), wrapups, notes, time entries, token usage
 rekall-console/    the services only the console calls, commands in and views out with no HTTP types: the catalog, notes, tags, connections, graphs, the folder listing
 rekall-api/        Axum REST API for the UI, one folder per domain: controllers, request and response shapes, and the step event stream
-rekall-mcp/        MCP server, on rekall-service and never rekall-api: three tools read, ten write
+rekall-mcp/        MCP server, on rekall-core and never rekall-api: three tools read, ten write
 rekall-claude/     the in-app terminal (portable-pty over one WebSocket), the Claude Code usage meter, the run queue, the transcript reader for token usage and the editor for Claude Code's own files (`~/.claude`)
 rekall-platform/   the database registry, backups and restores, the restart handle, the release check and the GitHub Advisory Database client
 rekall-app/        rekall-server: the local-access guard, the console bundle, the supervisor; wires every module and serves everything
@@ -670,7 +670,7 @@ rekall-ui/         Vue 3 + Vite frontend
 
 Inside a crate the code is laid out by package: a folder per domain (`note/`, `step/`, `catalog/`), the same names in every layer crate, one public type per file named after it (`NoteService` in `note_service.rs`), and a `mod.rs` that only declares the files and re-exports their types. The rules and their exceptions are in [docs/DESIGN.md](docs/DESIGN.md#layout-inside-a-crate).
 
-The crate boundary is what keeps the MCP server off the write paths: `CompanyService`, `ProjectService`, `TaskService` and `DocumentService` live in `rekall-console` and not in `rekall-service` because they write the catalog, and `rekall-mcp` cannot reach them. Read-only services (search, context size) and the narrow writes a session is allowed are in `rekall-service`.
+The crate boundary is what keeps the MCP server off the write paths: `CompanyService`, `ProjectService`, `TaskService` and `DocumentService` live in `rekall-console` and not in `rekall-core` because they write the catalog, and `rekall-mcp` cannot reach them. Read-only services (search, context size) and the narrow writes a session is allowed are in `rekall-core`.
 
 ## Run tests
 
@@ -679,7 +679,7 @@ cargo test                                            # every crate but the desk
 cd rekall-ui && pnpm lint && pnpm typecheck && pnpm test
 ```
 
-Each crate keeps its tests under `tests/`: `tests/unit/` mirrors `src/` (`rekall-service/src/search/search_service.rs` is tested by `rekall-service/tests/unit/search/search_service_tests.rs`, attached with `#[cfg(test)] #[path = "…"] mod tests;` so it can test private functions) and `tests/integration/` holds the integration suites. A new integration suite has to be declared as a `[[test]]` in the crate's `Cargo.toml`, or it never runs. The end-to-end suites in `rekall-app/tests/integration` start the whole application on a real port with a file database and drive the HTTP API, the MCP endpoint and the event stream; a stub stands in for the `claude` TUI in the terminal and run-queue tests.
+Each crate keeps its tests under `tests/`: `tests/unit/` mirrors `src/` (`rekall-core/src/search/search_service.rs` is tested by `rekall-core/tests/unit/search/search_service_tests.rs`, attached with `#[cfg(test)] #[path = "…"] mod tests;` so it can test private functions) and `tests/integration/` holds the integration suites. A new integration suite has to be declared as a `[[test]]` in the crate's `Cargo.toml`, or it never runs. The end-to-end suites in `rekall-app/tests/integration` start the whole application on a real port with a file database and drive the HTTP API, the MCP endpoint and the event stream; a stub stands in for the `claude` TUI in the terminal and run-queue tests.
 
 `.github/workflows/check.yml` runs all of it on every pull request and every push to a branch other than `main`: clippy and `cargo test`, eslint, vue-tsc, vitest, a production build of the UI, and a build of the desktop app. `release.yml` runs only on a `v*` tag on `main`, and builds and publishes that release.
 

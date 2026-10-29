@@ -3,12 +3,12 @@
 
 use std::path::{Path, PathBuf};
 
-use rekall_service::Ctx;
+use rekall_core::Ctx;
 
-use rekall_common::{jstr, Id, InternalFailure, RekallError, Result};
+use rekall_kernel::{jstr, Id, InternalFailure, RekallError, Result};
 use rekall_store::repository as repo;
-use rekall_service::diagram::ProjectFolder;
-use rekall_service::in_read;
+use rekall_core::diagram::ProjectFolder;
+use rekall_core::in_read;
 
 use crate::diagram::{SourceExcerptView, SourceLineView};
 

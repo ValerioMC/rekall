@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use rekall_common::{Instant, RekallError, Result};
+use rekall_kernel::{Instant, RekallError, Result};
 
 use super::{memory_index, ClaudeHome, Frontmatter, MemoryAnalysis, MemoryAnalyzer, ResourceCatalog, ResourceFile, ResourcePath, ResourceScanner, ResourceSummary, SaveRequest};
 

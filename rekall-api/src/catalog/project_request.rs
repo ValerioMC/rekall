@@ -1,4 +1,4 @@
-use rekall_common::Id;
+use rekall_kernel::Id;
 use rekall_console::catalog::ProjectCommand;
 use rekall_store::ProjectStatus;
 use serde::Deserialize;

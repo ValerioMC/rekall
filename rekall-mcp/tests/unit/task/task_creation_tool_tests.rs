@@ -1,4 +1,4 @@
-use rekall_service::task::StepDraft;
+use rekall_core::task::StepDraft;
 use serde_json::json;
 
 use super::{drafts_of, project_label};
@@ -37,7 +37,7 @@ fn only_a_lone_project_anchor_names_where_the_task_goes() {
 
 #[test]
 fn the_kind_is_a_task_unless_an_epic_is_asked_for_in_any_case() {
-    use rekall_service::task::TaskKind;
+    use rekall_core::task::TaskKind;
 
     assert_eq!(super::kind_of(None).unwrap(), TaskKind::Task);
     assert_eq!(super::kind_of(Some("Epic")).unwrap(), TaskKind::Epic);
@@ -46,9 +46,9 @@ fn the_kind_is_a_task_unless_an_epic_is_asked_for_in_any_case() {
 
 #[test]
 fn an_epic_created_is_answered_with_how_to_file_tasks_under_it() {
-    let created = rekall_service::task::Created {
+    let created = rekall_core::task::Created {
         title: "Checkout".into(),
-        kind: rekall_service::task::TaskKind::Epic,
+        kind: rekall_core::task::TaskKind::Epic,
         task_anchor: "project:vega task:checkout".into(),
         drafts: 0,
     };

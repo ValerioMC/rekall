@@ -1,4 +1,4 @@
-use rekall_common::Id;
+use rekall_kernel::Id;
 
 use super::DiscoveryOutcome;
 

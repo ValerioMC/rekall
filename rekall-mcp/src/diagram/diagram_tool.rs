@@ -1,6 +1,6 @@
 use async_trait::async_trait;
-use rekall_common::Id;
-use rekall_service::diagram::{DiagramService, DiagramTarget, GeneratedDiagram, GeneratedDiagramView};
+use rekall_kernel::Id;
+use rekall_core::diagram::{DiagramService, DiagramTarget, GeneratedDiagram, GeneratedDiagramView};
 use serde_json::{json, Value};
 
 use crate::tool::{told, Anchor, AnchoredTask, Arguments, QUALIFY_WITH_PROJECT};

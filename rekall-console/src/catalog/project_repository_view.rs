@@ -1,4 +1,4 @@
-use rekall_service::commit::RepositoryStatus;
+use rekall_core::commit::RepositoryStatus;
 
 /// What the project's folder is, git-wise, plus whether it auto-commits there.
 #[derive(Clone, Debug)]

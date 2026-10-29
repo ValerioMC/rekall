@@ -3,7 +3,7 @@ use axum::routing::{delete, get, post, put};
 use axum::{Json, Router};
 use rekall_web::error::ApiResult;
 use rekall_web::extract::{uuid, JsonBody, OptionalJsonBody};
-use rekall_common::RekallError;
+use rekall_kernel::RekallError;
 
 use super::RunQueueView;
 use crate::ClaudeState;

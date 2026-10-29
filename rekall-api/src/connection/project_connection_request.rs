@@ -1,4 +1,4 @@
-use rekall_common::{Id, RekallError};
+use rekall_kernel::{Id, RekallError};
 use rekall_console::connection::ProjectConnectionCommand;
 use rekall_web::error::{ApiError, ApiResult};
 use rekall_web::extract::uuid;

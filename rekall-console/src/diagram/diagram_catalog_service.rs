@@ -1,10 +1,10 @@
 //! Removes a diagram. Console-only, like every other delete, so a session can write a diagram
 //! but never take one away.
 
-use rekall_common::{Id, RekallError, Result};
+use rekall_kernel::{Id, RekallError, Result};
 use rekall_store::diagram;
 use rekall_store::repository as repo;
-use rekall_service::{diagram::DiagramStreamEvent, in_write, Ctx};
+use rekall_core::{diagram::DiagramStreamEvent, in_write, Ctx};
 use sea_orm::EntityTrait;
 
 #[derive(Clone)]

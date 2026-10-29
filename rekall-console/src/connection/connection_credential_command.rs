@@ -1,4 +1,4 @@
-use rekall_service::connection::Secret;
+use rekall_core::connection::Secret;
 
 /// The credential of one connection: a GitLab `token`, a Kubernetes `kubeconfig` with the
 /// `context` to keep, or a Jira Cloud `email` with its API `token` (a Jira `token` without an email is

@@ -1,4 +1,4 @@
-use rekall_service::Services;
+use rekall_core::Services;
 use tokio::sync::{oneshot, watch};
 use tracing::error;
 

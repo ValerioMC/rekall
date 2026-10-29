@@ -3,7 +3,7 @@
 //! A row also has a day, so a task's spend can be told day by day. The rows of a session are
 //! rewritten whole each time its transcript is read again.
 
-use rekall_common::{Id, Instant};
+use rekall_kernel::{Id, Instant};
 use sea_orm::entity::prelude::*;
 
 pub const SESSION_ID_MAX: usize = 100;

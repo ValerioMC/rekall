@@ -3,7 +3,7 @@
 
 use std::path::Path;
 
-use rekall_service::connection::{KubeAccess, KubeCredential};
+use rekall_core::connection::{KubeAccess, KubeCredential};
 use serde::Serialize;
 
 const EXEC_API_VERSION: &str = "client.authentication.k8s.io/v1";

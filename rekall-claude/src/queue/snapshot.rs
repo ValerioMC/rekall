@@ -1,4 +1,4 @@
-use rekall_common::Instant;
+use rekall_kernel::Instant;
 use rekall_store::RunQueueState;
 
 /// Settings and state as the runner reads them at a decision.

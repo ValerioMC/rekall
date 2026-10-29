@@ -1,7 +1,7 @@
 //! A Claude skill every task carrying the tag uses by default. Resolved when a task is read, never
 //! copied onto the task, so editing a tag changes every task under it.
 
-use rekall_common::{Id, Instant, RekallError};
+use rekall_kernel::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;
 
 use crate::skill_name;

@@ -5,11 +5,11 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use rekall_common::{Id, RekallError, Result};
+use rekall_kernel::{Id, RekallError, Result};
 use rekall_store::{RunQueueItemState, RunQueueState};
-use rekall_service::claude::{Remaining, TaskWork, TaskWorkService, TerminalTarget};
-use rekall_service::step::TaskStepService;
-use rekall_service::Clock;
+use rekall_core::claude::{Remaining, TaskWork, TaskWorkService, TerminalTarget};
+use rekall_core::step::TaskStepService;
+use rekall_core::Clock;
 use tokio::sync::{mpsc, oneshot};
 use tracing::{info, warn};
 

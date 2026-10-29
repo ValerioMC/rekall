@@ -1,7 +1,7 @@
 //! The migrations, run the ways a database meets them: from nothing, from a file a v0.2.x
 //! release wrote, and from a file too old to carry forward.
 
-use rekall_common::{Id, Instant};
+use rekall_kernel::{Id, Instant};
 use rekall_store::prelude::*;
 use rekall_store::{company, project, task, task_step, wrapup};
 use sea_orm::sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
@@ -71,7 +71,7 @@ async fn a_second_task_with_the_same_label_on_a_project_is_refused_by_the_schema
         .insert(db)
         .await
         .unwrap_err();
-    let mapped = rekall_common::RekallError::from(error);
+    let mapped = rekall_kernel::RekallError::from(error);
     assert!(mapped.message().contains("task.project_id, task.label"), "{mapped:?}");
 }
 

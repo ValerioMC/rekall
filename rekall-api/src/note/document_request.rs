@@ -1,4 +1,4 @@
-use rekall_common::Id;
+use rekall_kernel::Id;
 use rekall_console::note::DocumentCommand;
 use rekall_store::DocumentContextMode;
 use rekall_store::note_scope::NoteScope;

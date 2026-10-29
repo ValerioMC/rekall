@@ -3,10 +3,10 @@
 
 use std::collections::HashMap;
 
-use rekall_common::{jstr, Id, RekallError, Result};
+use rekall_kernel::{jstr, Id, RekallError, Result};
 use rekall_store::step_link;
-use rekall_service::flow::{FlowPlan, PlannedRoute, PlannedStep};
-use rekall_service::step::{FlowPlace, VisitBudget};
+use rekall_core::flow::{FlowPlan, PlannedRoute, PlannedStep};
+use rekall_core::step::{FlowPlace, VisitBudget};
 
 use super::{GraphRouteCommand, GraphStepCommand};
 

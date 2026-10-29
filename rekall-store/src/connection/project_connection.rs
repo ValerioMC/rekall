@@ -3,7 +3,7 @@
 //! A project may bind one connection several times, one target each, so a session names a binding
 //! by its own label.
 
-use rekall_common::{Id, Instant, RekallError};
+use rekall_kernel::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;
 
 use crate::constraints::Violations;

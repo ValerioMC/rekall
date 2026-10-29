@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use rekall_common::Instant;
+use rekall_kernel::Instant;
 
 use crate::credentials::ClaudeCredentials;
 

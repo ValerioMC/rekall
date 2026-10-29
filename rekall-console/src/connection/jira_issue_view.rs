@@ -1,5 +1,5 @@
-use rekall_common::Id;
-use rekall_service::connection::JiraIssue;
+use rekall_kernel::Id;
+use rekall_core::connection::JiraIssue;
 
 use super::jira_rules::issue_url;
 

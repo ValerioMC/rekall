@@ -2,7 +2,7 @@
 //! Components travel into every context that loads the project, so a session knows where each
 //! part lives and what it is.
 
-use rekall_common::{Id, Instant, RekallError};
+use rekall_kernel::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;
 
 use crate::constraints::Violations;

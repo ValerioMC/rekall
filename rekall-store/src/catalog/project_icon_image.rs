@@ -1,7 +1,7 @@
 //! The square PNG a project shows as its icon, already normalised by the server (see
 //! `ProjectIconService`). One row per project; absent means the project wears its icon key.
 
-use rekall_common::{Id, Instant};
+use rekall_kernel::{Id, Instant};
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]

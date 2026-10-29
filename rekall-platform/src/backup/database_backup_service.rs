@@ -5,8 +5,8 @@ use std::time::Duration;
 
 use chrono::{NaiveDateTime, TimeDelta};
 use regex::Regex;
-use rekall_common::{cleanup, Instant, InternalFailure, RekallError, Result};
-use rekall_service::Clock;
+use rekall_kernel::{cleanup, Instant, InternalFailure, RekallError, Result};
+use rekall_core::Clock;
 use sea_orm::{ConnectionTrait, DatabaseConnection};
 use tokio::task::JoinHandle;
 use tracing::{info, warn};

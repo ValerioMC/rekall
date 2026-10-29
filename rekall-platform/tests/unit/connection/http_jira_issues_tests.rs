@@ -1,7 +1,7 @@
 use axum::http::{HeaderMap, StatusCode as AxumStatus};
 use axum::routing::post;
 use axum::{Json, Router};
-use rekall_service::connection::Secret;
+use rekall_core::connection::Secret;
 
 use super::*;
 

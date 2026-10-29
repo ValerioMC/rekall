@@ -1,4 +1,4 @@
-use rekall_service::{Ctx, EventBus};
+use rekall_core::{Ctx, EventBus};
 
 use super::*;
 

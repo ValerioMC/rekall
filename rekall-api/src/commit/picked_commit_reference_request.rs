@@ -1,4 +1,4 @@
-use rekall_common::Id;
+use rekall_kernel::Id;
 use serde::Deserialize;
 
 /// A commit named by hand: the hash the picker chose or the person pasted; the step is optional.

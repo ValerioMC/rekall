@@ -1,4 +1,4 @@
-use rekall_service::connection::{KubeContextSummary, KubeUserKind};
+use rekall_core::connection::{KubeContextSummary, KubeUserKind};
 
 /// One context of a kubeconfig being imported, for the person to choose from.
 #[derive(Clone, Debug)]

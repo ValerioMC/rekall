@@ -3,11 +3,11 @@
 
 use std::collections::HashSet;
 
-use rekall_common::{jstr, Id, RekallError, Result};
+use rekall_kernel::{jstr, Id, RekallError, Result};
 use rekall_store::project_component;
 use rekall_store::repository as repo;
-use rekall_service::component::ProjectComponentView;
-use rekall_service::{in_read, in_write, Ctx, Tx};
+use rekall_core::component::ProjectComponentView;
+use rekall_core::{in_read, in_write, Ctx, Tx};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
 use crate::component::{ProjectComponentOrderCommand, ProjectComponentCommand};

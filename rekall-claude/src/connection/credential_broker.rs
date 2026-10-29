@@ -2,10 +2,10 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use rekall_common::{cleanup, Id, InternalFailure, RekallError, Result};
+use rekall_kernel::{cleanup, Id, InternalFailure, RekallError, Result};
 use rekall_store::ConnectionKind;
-use rekall_service::claude::{TerminalConnection, TerminalLaunch};
-use rekall_service::connection::{ConnectionAccessService, JiraCredential, KubeAccess, Secret, SecretStore};
+use rekall_core::claude::{TerminalConnection, TerminalLaunch};
+use rekall_core::connection::{ConnectionAccessService, JiraCredential, KubeAccess, Secret, SecretStore};
 use tracing::{info, warn};
 
 use super::credential_session::CredentialSession;

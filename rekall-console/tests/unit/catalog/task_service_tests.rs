@@ -1,13 +1,13 @@
-use rekall_common::Instant;
+use rekall_kernel::Instant;
 use rekall_store::{company, ProjectStatus, TaskKind};
-use rekall_service::{EventBus, Services};
+use rekall_core::{EventBus, Services};
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
 
 use super::*;
 
 struct World {
     service: TaskService,
-    steps: rekall_service::step::TaskStepService,
+    steps: rekall_core::step::TaskStepService,
     project_id: Id,
     other_project_id: Id,
 }

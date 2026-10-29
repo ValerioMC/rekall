@@ -1,7 +1,7 @@
 //! One library a project declares, at the version it resolves to. A session reads the project's
 //! manifests and writes the whole list at once; nothing edits one row.
 
-use rekall_common::{Id, Instant, RekallError};
+use rekall_kernel::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;
 
 use crate::constraints::Violations;

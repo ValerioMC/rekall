@@ -1,4 +1,4 @@
-use rekall_common::Id;
+use rekall_kernel::Id;
 use serde::Deserialize;
 
 /// `stepId` is optional: omitted logs the commit against the task itself.

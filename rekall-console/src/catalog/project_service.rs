@@ -1,11 +1,11 @@
 //! Projects: listed, created, edited and deleted from the console, and the git status of the
 //! folder a project points at. Deleting one cascades to its tasks.
 
-use rekall_common::{jstr, Id, RekallError, Result};
+use rekall_kernel::{jstr, Id, RekallError, Result};
 use rekall_store::{company, project, ProjectStatus, Slug};
 use rekall_store::repository as repo;
-use rekall_service::commit::GitRepositoryInspector;
-use rekall_service::{in_read, in_write, Ctx, Tx};
+use rekall_core::commit::GitRepositoryInspector;
+use rekall_core::{in_read, in_write, Ctx, Tx};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
 use crate::catalog::Snapshot;

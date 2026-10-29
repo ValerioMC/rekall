@@ -1,4 +1,4 @@
-use rekall_common::Instant;
+use rekall_kernel::Instant;
 use rekall_store::{run_queue, RunQueueState};
 use serde::Serialize;
 

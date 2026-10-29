@@ -4144,9 +4144,9 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "futures",
- "rekall-common",
  "rekall-console",
- "rekall-service",
+ "rekall-core",
+ "rekall-kernel",
  "rekall-store",
  "rekall-web",
  "serde",
@@ -4169,10 +4169,10 @@ dependencies = [
  "regex",
  "rekall-api",
  "rekall-claude",
- "rekall-common",
+ "rekall-core",
+ "rekall-kernel",
  "rekall-mcp",
  "rekall-platform",
- "rekall-service",
  "rekall-store",
  "rekall-web",
  "reqwest 0.12.28",
@@ -4203,9 +4203,9 @@ dependencies = [
  "libc",
  "portable-pty",
  "regex",
- "rekall-common",
+ "rekall-core",
  "rekall-diagram",
- "rekall-service",
+ "rekall-kernel",
  "rekall-store",
  "rekall-web",
  "reqwest 0.12.28",
@@ -4219,32 +4219,39 @@ dependencies = [
 ]
 
 [[package]]
-name = "rekall-common"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "regex",
- "sea-orm",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
- "tracing",
- "uuid",
-]
-
-[[package]]
 name = "rekall-console"
 version = "0.1.0"
 dependencies = [
  "async-trait",
  "image",
- "rekall-common",
- "rekall-service",
+ "rekall-core",
+ "rekall-kernel",
  "rekall-store",
  "sea-orm",
  "tempfile",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "rekall-core"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "base64 0.22.1",
+ "chrono",
+ "regex",
+ "rekall-diagram",
+ "rekall-kernel",
+ "rekall-store",
+ "sea-orm",
+ "serde",
+ "serde_json",
+ "serde_norway",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "zeroize",
 ]
 
 [[package]]
@@ -4279,6 +4286,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "rekall-kernel"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "regex",
+ "sea-orm",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "rekall-mcp"
 version = "0.1.0"
 dependencies = [
@@ -4287,8 +4308,8 @@ dependencies = [
  "base64 0.22.1",
  "http-body-util",
  "regex",
- "rekall-common",
- "rekall-service",
+ "rekall-core",
+ "rekall-kernel",
  "serde",
  "serde_json",
  "tokio",
@@ -4307,8 +4328,8 @@ dependencies = [
  "keyring",
  "libc",
  "regex",
- "rekall-common",
- "rekall-service",
+ "rekall-core",
+ "rekall-kernel",
  "rekall-store",
  "rekall-web",
  "reqwest 0.12.28",
@@ -4323,33 +4344,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "rekall-service"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "base64 0.22.1",
- "chrono",
- "regex",
- "rekall-common",
- "rekall-diagram",
- "rekall-store",
- "sea-orm",
- "serde",
- "serde_json",
- "serde_norway",
- "tempfile",
- "tokio",
- "tracing",
- "zeroize",
-]
-
-[[package]]
 name = "rekall-store"
 version = "0.1.0"
 dependencies = [
  "async-trait",
  "regex",
- "rekall-common",
+ "rekall-kernel",
  "sea-orm",
  "sea-orm-migration",
  "serde",
@@ -4364,7 +4364,7 @@ name = "rekall-web"
 version = "0.1.0"
 dependencies = [
  "axum",
- "rekall-common",
+ "rekall-kernel",
  "serde",
  "serde_json",
  "tracing",

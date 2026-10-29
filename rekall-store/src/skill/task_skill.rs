@@ -1,7 +1,7 @@
 //! A Claude skill assigned to a task, or to one of its steps when `step_id` is set. A task's own
 //! skills apply to every step of it; a step's apply to that step alone.
 
-use rekall_common::{Id, Instant, RekallError};
+use rekall_kernel::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;
 
 use crate::skill_name;

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use rekall_common::Instant;
-use rekall_service::token::{TokenCount, UnitUsage, WorkUnit};
+use rekall_kernel::Instant;
+use rekall_core::token::{TokenCount, UnitUsage, WorkUnit};
 
 use super::transcript_entry::{ToolInput, TranscriptEntry};
 use super::work_terms::{unit_of_anchors, unit_of_prompt};

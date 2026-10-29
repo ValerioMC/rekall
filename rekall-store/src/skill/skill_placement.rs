@@ -1,7 +1,7 @@
 //! The group a person put one of their own Claude skills under, kept in Rekall alone: the skill's
 //! file never moves. The skill is named by its path under `~/.claude`.
 
-use rekall_common::{Instant, RekallError};
+use rekall_kernel::{Instant, RekallError};
 use sea_orm::entity::prelude::*;
 
 use crate::constraints::Violations;

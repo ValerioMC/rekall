@@ -1,7 +1,7 @@
 //! One earlier pass at a step: the detail a session worked from, kept when the console sent the
 //! claim back, so the next pass reads what was done before and the feedback apart.
 
-use rekall_common::Instant;
+use rekall_kernel::Instant;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

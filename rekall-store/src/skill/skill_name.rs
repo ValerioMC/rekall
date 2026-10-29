@@ -1,7 +1,7 @@
 //! The name a Claude skill is invoked by (`code-review`, `plugin:skill`). Rekall keeps only the
 //! name: the skill itself is a file under `~/.claude` that the session resolves.
 
-use rekall_common::RekallError;
+use rekall_kernel::RekallError;
 
 pub const SKILL_NAME_MAX: usize = 120;
 

@@ -1,6 +1,6 @@
-use rekall_common::{jstr, Id, RekallError};
+use rekall_kernel::{jstr, Id, RekallError};
 use rekall_diagram::DiagramKind;
-use rekall_service::vulnerability::rules;
+use rekall_core::vulnerability::rules;
 use serde::Deserialize;
 
 use super::{TerminalMode, TerminalModeName};

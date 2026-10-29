@@ -1,6 +1,6 @@
 use async_trait::async_trait;
-use rekall_service::flow::{FlowPlan, FlowProposalService, PlannedRoute, PlannedStep};
-use rekall_service::step::VisitBudget;
+use rekall_core::flow::{FlowPlan, FlowProposalService, PlannedRoute, PlannedStep};
+use rekall_core::step::VisitBudget;
 use serde::Deserialize;
 use serde_json::Value;
 

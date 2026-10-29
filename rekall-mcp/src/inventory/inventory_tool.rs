@@ -1,6 +1,6 @@
 use async_trait::async_trait;
-use rekall_service::inventory::DeclaredDependency;
-use rekall_service::vulnerability::{InventoryRecorded, InventoryRecordingService};
+use rekall_core::inventory::DeclaredDependency;
+use rekall_core::vulnerability::{InventoryRecorded, InventoryRecordingService};
 use serde_json::Value;
 
 use crate::protocol::{McpTool, ToolError, ToolSchema};

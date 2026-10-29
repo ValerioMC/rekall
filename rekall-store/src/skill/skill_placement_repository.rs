@@ -1,4 +1,4 @@
-use rekall_common::RekallError;
+use rekall_kernel::RekallError;
 use crate::skill_placement::{ActiveModel, Column, Entity, Model};
 use sea_orm::sea_query::OnConflict;
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, IntoActiveModel, QueryFilter, QueryOrder};

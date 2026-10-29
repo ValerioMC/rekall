@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use rekall_common::Instant;
+use rekall_kernel::Instant;
 use serde_json::Value;
 use tracing::debug;
 
@@ -21,17 +21,17 @@ struct StoredToken {
 pub struct ClaudeCredentials {
     home: PathBuf,
     keychain: Arc<dyn KeychainSource>,
-    clock: rekall_service::Clock,
+    clock: rekall_core::Clock,
 }
 
 impl ClaudeCredentials {
     pub fn new(home: PathBuf) -> Self {
         let keychain: Arc<dyn KeychainSource> =
             if cfg!(target_os = "macos") { Arc::new(SecurityCommandKeychain) } else { Arc::new(NoKeychain) };
-        Self::with(home, keychain, rekall_service::system_clock())
+        Self::with(home, keychain, rekall_core::system_clock())
     }
 
-    pub fn with(home: PathBuf, keychain: Arc<dyn KeychainSource>, clock: rekall_service::Clock) -> Self {
+    pub fn with(home: PathBuf, keychain: Arc<dyn KeychainSource>, clock: rekall_core::Clock) -> Self {
         Self { home, keychain, clock }
     }
 

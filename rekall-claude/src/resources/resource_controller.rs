@@ -5,7 +5,7 @@ use axum::{Json, Router};
 use rekall_web::no_content;
 use rekall_web::error::{ApiError, ApiResult};
 use rekall_web::extract::{present, JsonBody};
-use rekall_common::{InternalFailure, RekallError, Result};
+use rekall_kernel::{InternalFailure, RekallError, Result};
 
 use crate::ClaudeState;
 

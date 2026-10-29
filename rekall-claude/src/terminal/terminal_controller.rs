@@ -5,8 +5,8 @@ use axum::routing::get;
 use axum::{Json, Router};
 use rekall_web::extract::{uuid, OptionalJsonBody};
 use rekall_web::ApiResult;
-use rekall_common::RekallError;
-use rekall_service::claude::TerminalTarget;
+use rekall_kernel::RekallError;
+use rekall_core::claude::TerminalTarget;
 
 use crate::pty::TerminalView;
 use crate::ClaudeState;

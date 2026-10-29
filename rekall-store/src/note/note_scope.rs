@@ -2,7 +2,7 @@
 //! note, so taking it off its last task leaves it there instead of deleting it, and every task
 //! it sits on has to be inside it. Sessions still read a note only through the tasks it is on.
 
-use rekall_common::Id;
+use rekall_kernel::Id;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]

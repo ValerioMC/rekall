@@ -16,19 +16,19 @@ impl<'a> Arguments<'a> {
     /// Present, not null and not blank, or a `ToolError::Illegal` naming the argument.
     pub fn required_string(&self, name: &str) -> Result<String, ToolError> {
         match self.text(name) {
-            Some(value) if !rekall_common::jstr::is_blank(&value) => Ok(value),
+            Some(value) if !rekall_kernel::jstr::is_blank(&value) => Ok(value),
             _ => Err(ToolError::Illegal(format!("'{name}' is required"))),
         }
     }
 
     /// Absent, null and blank all read as absent.
     pub fn optional_string(&self, name: &str) -> Option<String> {
-        self.text(name).filter(|value| !rekall_common::jstr::is_blank(value))
+        self.text(name).filter(|value| !rekall_kernel::jstr::is_blank(value))
     }
 
     /// True only for `true` or `"true"`, any case; absent, null and anything else read as false.
     pub fn flag(&self, name: &str) -> bool {
-        self.text(name).is_some_and(|value| rekall_common::jstr::strip(&value).eq_ignore_ascii_case("true"))
+        self.text(name).is_some_and(|value| rekall_kernel::jstr::strip(&value).eq_ignore_ascii_case("true"))
     }
 
     /// The argument as it arrived, for one that is a JSON document rather than text. Null reads as absent.

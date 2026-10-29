@@ -1,6 +1,6 @@
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use rekall_common::RekallError;
+use rekall_kernel::RekallError;
 use tracing::error;
 
 use super::{Problem, framework};

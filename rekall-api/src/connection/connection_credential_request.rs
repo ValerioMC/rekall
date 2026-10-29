@@ -1,5 +1,5 @@
 use rekall_console::connection::ConnectionCredentialCommand;
-use rekall_service::connection::Secret;
+use rekall_core::connection::Secret;
 use serde::Deserialize;
 
 /// The credential of one connection: a GitLab `token`, a Kubernetes `kubeconfig` with the

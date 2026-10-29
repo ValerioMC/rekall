@@ -12,7 +12,7 @@
 use std::io;
 use std::path::{Component, Path, PathBuf};
 
-use rekall_common::{jstr, RekallError, Result};
+use rekall_kernel::{jstr, RekallError, Result};
 use tracing::{info, warn};
 
 use crate::filesystem::{DirectoryEntryView, DirectoryListingView, PathSegmentView};

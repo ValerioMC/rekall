@@ -54,5 +54,5 @@ fn a_file_that_is_not_there_is_not_found() {
     let dir = tempfile::tempdir().unwrap();
     let home = ClaudeHome::new(dir.path().to_path_buf());
     let error = ResourceSummary::read(&home, &ResourcePath::parse("CLAUDE.md").unwrap()).unwrap_err();
-    assert!(matches!(error, rekall_common::RekallError::NotFound(_)));
+    assert!(matches!(error, rekall_kernel::RekallError::NotFound(_)));
 }

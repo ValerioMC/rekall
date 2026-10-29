@@ -1,0 +1,51 @@
+[package]
+name = "rekall-core"
+description = "Context assembly, the step and review lines, wrapups, time entries, search and commits"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+rekall-kernel.workspace = true
+rekall-store.workspace = true
+rekall-diagram.workspace = true
+sea-orm.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+regex.workspace = true
+chrono.workspace = true
+base64.workspace = true
+zeroize.workspace = true
+serde_norway.workspace = true
+async-trait.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+# Integration suites live in tests/integration and unit tests in tests/unit, so Cargo discovers
+# neither by itself: each suite is declared here, and a suite left out of this list never runs.
+
+[[test]]
+name = "git"
+path = "tests/integration/git.rs"
+
+[[test]]
+name = "services"
+path = "tests/integration/services.rs"
+
+[[test]]
+name = "flows"
+path = "tests/integration/flows.rs"
+
+[[test]]
+name = "diagrams"
+path = "tests/integration/diagrams.rs"
+
+[[test]]
+name = "token_usage"
+path = "tests/integration/token_usage.rs"
+
+[[test]]
+name = "vulnerabilities"
+path = "tests/integration/vulnerabilities.rs"

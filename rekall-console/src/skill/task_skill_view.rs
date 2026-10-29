@@ -1,4 +1,4 @@
-use rekall_common::Id;
+use rekall_kernel::Id;
 use rekall_store::task_skill;
 
 /// One skill on a task (`stepId` null) or on one of its steps.

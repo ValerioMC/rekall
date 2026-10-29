@@ -1,4 +1,4 @@
-use rekall_common::{Id, Instant};
+use rekall_kernel::{Id, Instant};
 use rekall_store::{connection_access, task};
 
 /// One request a terminal made for the credential: when, from which terminal and task, and whether it was handed out.

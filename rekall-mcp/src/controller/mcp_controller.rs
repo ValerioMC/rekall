@@ -56,7 +56,7 @@ impl McpController {
         if request.jsonrpc.as_deref() != Some(VERSION) {
             return Answer::ok(RpcResponse::failure(request.response_id(), INVALID_REQUEST, "Expected jsonrpc 2.0"));
         }
-        if request.method.as_deref().is_none_or(rekall_common::jstr::is_blank) {
+        if request.method.as_deref().is_none_or(rekall_kernel::jstr::is_blank) {
             return Answer::ok(RpcResponse::failure(request.response_id(), INVALID_REQUEST, "Request has no method"));
         }
 

@@ -1,4 +1,4 @@
-use rekall_common::Instant;
+use rekall_kernel::Instant;
 use serde::Deserialize;
 
 #[derive(Clone, Debug, Default, Deserialize)]

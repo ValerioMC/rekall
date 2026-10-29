@@ -1,7 +1,7 @@
 //! One line of a task's checklist, on its line `DRAFT -> OPEN -> RUNNING -> CLAIMED -> DONE`,
 //! with the moment of each move beside the state.
 
-use rekall_common::{Id, Instant, RekallError};
+use rekall_kernel::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;
 
 use crate::constraints::Violations;

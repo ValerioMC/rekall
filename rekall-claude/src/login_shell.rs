@@ -90,7 +90,7 @@ impl LoginShellEnvironment {
     /// One run of the login shell. `None` on any failure, which is logged with its reason.
     pub fn resolve(&self) -> Option<Environment> {
         let shell = self.shell.as_ref()?;
-        let marker = format!("rekall-{}", rekall_common::Id::random());
+        let marker = format!("rekall-{}", rekall_kernel::Id::random());
         let script = format!("printf '%s' '{marker}'; /usr/bin/env -0; printf '%s' '{marker}'");
         let output = tempfile::NamedTempFile::with_prefix("rekall-shell-environment").ok()?;
         let stdout = output.reopen().ok()?;
@@ -151,7 +151,7 @@ fn kill_group(child: &mut std::process::Child) {
     unsafe {
         libc::kill(-(child.id() as i32), libc::SIGKILL);
     }
-    rekall_common::cleanup::kill(child);
+    rekall_kernel::cleanup::kill(child);
 }
 
 /// The `env -0` block between the two markers, minus the resolving shell's own variables.

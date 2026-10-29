@@ -1,10 +1,10 @@
 use std::sync::Mutex;
 
 use async_trait::async_trait;
-use rekall_common::Instant;
+use rekall_kernel::Instant;
 use rekall_store::{company, external_connection, project, project_connection, ProjectStatus};
-use rekall_service::connection::{InMemorySecretStore, Secret};
-use rekall_service::{EventBus, Services};
+use rekall_core::connection::{InMemorySecretStore, Secret};
+use rekall_core::{EventBus, Services};
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
 
 use super::*;

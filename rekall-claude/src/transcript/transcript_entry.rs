@@ -1,8 +1,8 @@
 //! The part of a transcript line the ledger reads. Claude Code writes far more on each line; what
 //! is not named here is skipped by the parser.
 
-use rekall_common::Instant;
-use rekall_service::token::TokenCount;
+use rekall_kernel::Instant;
+use rekall_core::token::TokenCount;
 use serde::{Deserialize, Deserializer};
 
 #[derive(Debug, Deserialize)]

@@ -1,4 +1,4 @@
-use rekall_common::Id;
+use rekall_kernel::Id;
 use rekall_store::graph_route;
 
 #[derive(Clone, Debug, PartialEq, Eq)]

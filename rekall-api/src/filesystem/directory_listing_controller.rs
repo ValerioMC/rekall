@@ -4,7 +4,7 @@
 use axum::extract::{Query, State};
 use axum::routing::get;
 use axum::{Json, Router};
-use rekall_common::{InternalFailure, RekallError};
+use rekall_kernel::{InternalFailure, RekallError};
 
 use crate::filesystem::DirectoryListingResponse;
 use rekall_web::error::ApiResult;

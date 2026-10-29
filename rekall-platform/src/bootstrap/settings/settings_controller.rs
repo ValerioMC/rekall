@@ -7,7 +7,7 @@ use axum::routing::{get, patch, post};
 use axum::{Json, Router};
 use rekall_web::error::{framework, ApiResult};
 use rekall_web::extract::JsonBody;
-use rekall_common::{Id, Instant, InternalFailure, RekallError};
+use rekall_kernel::{Id, Instant, InternalFailure, RekallError};
 
 use super::super::folder::inspect;
 use super::super::registry::{DatabaseEntry, DatabaseRegistry};

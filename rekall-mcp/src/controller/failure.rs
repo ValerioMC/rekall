@@ -1,4 +1,4 @@
-use rekall_common::RekallError;
+use rekall_kernel::RekallError;
 
 /// A method's handler failed: a broken rule is `-32602` (invalid params), anything else `-32603`.
 pub(super) enum Failure {

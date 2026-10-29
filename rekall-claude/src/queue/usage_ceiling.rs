@@ -8,7 +8,7 @@
 //! ceiling set and no usable reading, the queue holds and looks again after five.
 
 use chrono::TimeDelta;
-use rekall_common::Instant;
+use rekall_kernel::Instant;
 
 use crate::usage::{ClaudeUsageView, Limit, UsageStatus};
 

@@ -1,4 +1,4 @@
-use rekall_common::Instant;
+use rekall_kernel::Instant;
 use serde::Serialize;
 
 /// The answer the console shows beside a connection: whether its credential works, and in words.

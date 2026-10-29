@@ -2,8 +2,8 @@
 
 use std::sync::Arc;
 
-use rekall_common::{InternalFailure, RekallError, Result};
-use rekall_service::connection::{Secret, SecretStore};
+use rekall_kernel::{InternalFailure, RekallError, Result};
+use rekall_core::connection::{Secret, SecretStore};
 use tracing::warn;
 
 pub(super) async fn keep(secrets: Arc<dyn SecretStore>, account: String, secret: Secret) -> Result<()> {

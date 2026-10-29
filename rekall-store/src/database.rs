@@ -8,7 +8,7 @@
 //!
 //! The pool uses WAL, so a read never waits for a write, and a busy timeout, so a write that
 //! finds another one in progress waits for it instead of failing. Writes are serialised by
-//! `BEGIN IMMEDIATE` (see `rekall-service`'s transaction wrapper).
+//! `BEGIN IMMEDIATE` (see `rekall-core`'s transaction wrapper).
 
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -40,7 +40,7 @@ struct ScratchDir(PathBuf);
 
 impl Drop for ScratchDir {
     fn drop(&mut self) {
-        rekall_common::cleanup::remove_dir_all(&self.0);
+        rekall_kernel::cleanup::remove_dir_all(&self.0);
     }
 }
 
@@ -127,7 +127,7 @@ pub async fn open_temporary() -> Result<Database, DbErr> {
 }
 
 fn uuid_like() -> String {
-    rekall_common::Id::random().to_string()
+    rekall_kernel::Id::random().to_string()
 }
 
 async fn migrate(options: SqliteConnectOptions) -> Result<(), DbErr> {

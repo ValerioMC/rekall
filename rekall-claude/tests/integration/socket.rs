@@ -43,7 +43,7 @@ async fn serve(world: &World) -> String {
         world.services.task_work.clone(),
         world.services.steps.clone(),
         &world.events,
-        rekall_service::system_clock(),
+        rekall_core::system_clock(),
         Duration::from_secs(60),
         Duration::from_secs(1),
     );
@@ -126,7 +126,7 @@ async fn a_handshake_from_a_foreign_origin_is_refused() {
 }
 
 fn uuid_like() -> String {
-    rekall_common::Id::random().to_string()
+    rekall_kernel::Id::random().to_string()
 }
 
 async fn next_text<S>(socket: &mut S) -> Value

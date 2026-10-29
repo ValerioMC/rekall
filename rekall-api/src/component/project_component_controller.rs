@@ -2,7 +2,7 @@ use axum::extract::{Path, State};
 use axum::response::Response;
 use axum::routing::{get, put};
 use axum::{Json, Router};
-use rekall_service::component::ProjectComponentView;
+use rekall_core::component::ProjectComponentView;
 
 use rekall_web::{created, no_content};
 use crate::component::{ProjectComponentOrderRequest, ProjectComponentRequest};

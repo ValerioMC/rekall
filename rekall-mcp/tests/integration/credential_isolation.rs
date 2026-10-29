@@ -40,7 +40,7 @@ fn the_mcp_server_never_names_the_credential_store() {
 
 #[test]
 fn the_services_the_mcp_server_is_built_from_hold_no_credential_store() {
-    let services = Path::new(env!("CARGO_MANIFEST_DIR")).join("../rekall-service/src/services.rs");
+    let services = Path::new(env!("CARGO_MANIFEST_DIR")).join("../rekall-core/src/services.rs");
     let mentions = mentions_of_credentials(&[services]);
     assert!(mentions.is_empty(), "Services carries connection credentials: {mentions:?}");
 }

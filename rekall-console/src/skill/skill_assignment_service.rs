@@ -4,10 +4,10 @@
 
 use std::collections::HashSet;
 
-use rekall_common::{Id, RekallError, Result};
+use rekall_kernel::{Id, RekallError, Result};
 use rekall_store::{skill_name, tag_skill, task_skill};
 use rekall_store::repository as repo;
-use rekall_service::{in_read, in_write, Ctx};
+use rekall_core::{in_read, in_write, Ctx};
 
 use crate::skill::{SkillAssignmentsView, TagSkillView, TaskSkillView};
 
@@ -68,7 +68,7 @@ impl SkillAssignmentService {
 
     async fn replace_task_skills(
         &self,
-        tx: &rekall_service::Tx,
+        tx: &rekall_core::Tx,
         task_id: Id,
         step_id: Option<Id>,
         names: Vec<String>,

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use rekall_service::Services;
+use rekall_core::Services;
 
 use crate::protocol::McpTool;
 

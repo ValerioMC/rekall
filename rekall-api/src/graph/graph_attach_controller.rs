@@ -1,7 +1,7 @@
 use axum::extract::{Path, State};
 use axum::routing::post;
 use axum::{Json, Router};
-use rekall_service::step::TaskStepView;
+use rekall_core::step::TaskStepView;
 use rekall_web::error::ApiResult;
 use rekall_web::extract::{present, uuid, JsonBody};
 

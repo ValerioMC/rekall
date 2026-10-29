@@ -1,4 +1,4 @@
-use rekall_common::{Id, RekallError};
+use rekall_kernel::{Id, RekallError};
 use crate::token_usage::{ActiveModel, Column, Entity, Model};
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, IntoActiveModel, QueryFilter};
 

@@ -1,7 +1,7 @@
 //! The one run queue: when it starts, the usage ceiling it stops at, and how the sessions it
 //! opens are launched. There is a single row; the queued tasks are run queue items.
 
-use rekall_common::{Id, Instant, RekallError};
+use rekall_kernel::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;
 
 use crate::constraints::Violations;

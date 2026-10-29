@@ -1,4 +1,4 @@
-use rekall_common::{RekallError, Result};
+use rekall_kernel::{RekallError, Result};
 
 use super::ResourceKind;
 

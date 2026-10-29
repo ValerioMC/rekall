@@ -5,11 +5,11 @@ mod support;
 
 use std::sync::Arc;
 
-use rekall_common::RekallError;
+use rekall_kernel::RekallError;
 use rekall_store::TaskStepState;
 use rekall_claude::terminal::TerminalMode;
 use rekall_diagram::DiagramKind;
-use rekall_service::claude::TerminalTarget;
+use rekall_core::claude::TerminalTarget;
 use support::{eventually, world, Recorder};
 
 #[tokio::test]

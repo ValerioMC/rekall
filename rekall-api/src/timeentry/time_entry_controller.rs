@@ -2,7 +2,7 @@ use axum::extract::{Path, State};
 use axum::response::Response;
 use axum::routing::{get, patch, post};
 use axum::{Json, Router};
-use rekall_service::timeentry::TimeEntryView;
+use rekall_core::timeentry::TimeEntryView;
 
 use rekall_web::no_content;
 use crate::timeentry::TimeEntryEditRequest;

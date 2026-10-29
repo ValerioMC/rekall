@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use rekall_service::connection::{JiraCredential, JiraSite, KubeAccess, Secret};
+use rekall_core::connection::{JiraCredential, JiraSite, KubeAccess, Secret};
 
 use super::ProbeOutcome;
 

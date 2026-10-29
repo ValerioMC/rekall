@@ -10,7 +10,7 @@ use axum::Router;
 use base64::Engine;
 use futures::{SinkExt, StreamExt};
 use regex::Regex;
-use rekall_common::{Id, RekallError};
+use rekall_kernel::{Id, RekallError};
 use serde_json::{json, Value};
 use tokio::sync::mpsc;
 use tracing::debug;

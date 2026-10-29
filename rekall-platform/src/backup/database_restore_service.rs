@@ -1,7 +1,7 @@
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-use rekall_common::{InternalFailure, RekallError, Result};
+use rekall_kernel::{InternalFailure, RekallError, Result};
 use tracing::{error, info, warn};
 
 use super::{BackupFile, BackupReason, DatabaseBackupService, DatabaseLocation};

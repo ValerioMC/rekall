@@ -5,8 +5,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-use rekall_common::{InternalFailure, RekallError, Result};
-use rekall_service::token::{TokenUsageService, UnitUsage};
+use rekall_kernel::{InternalFailure, RekallError, Result};
+use rekall_core::token::{TokenUsageService, UnitUsage};
 use tokio::time::MissedTickBehavior;
 use tracing::{info, warn};
 

@@ -1,4 +1,4 @@
-use rekall_common::Id;
+use rekall_kernel::Id;
 
 /// A terminal has gone, whether it exited, was closed, idled out or went down with the app.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -4,7 +4,7 @@
 use axum::extract::{Path, State};
 use axum::routing::{get, patch, post};
 use axum::{Json, Router};
-use rekall_service::commit::{CommitReferenceView, RecentCommitView};
+use rekall_core::commit::{CommitReferenceView, RecentCommitView};
 
 use crate::commit::{CommitReferenceContextRequest, CommitReferenceDiffResponse, CommitReferenceRequest, PickedCommitReferenceRequest};
 use rekall_web::error::ApiResult;

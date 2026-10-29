@@ -4,7 +4,7 @@
 use std::sync::LazyLock;
 
 use regex::Regex;
-use rekall_common::{jstr, RekallError};
+use rekall_kernel::{jstr, RekallError};
 
 pub struct Slug;
 

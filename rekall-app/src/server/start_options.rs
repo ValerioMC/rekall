@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use rekall_claude::usage::UsageReader;
-use rekall_service::connection::{JiraIssues, SecretStore};
-use rekall_service::vulnerability::AdvisoryFeed;
-use rekall_service::Clock;
+use rekall_core::connection::{JiraIssues, SecretStore};
+use rekall_core::vulnerability::AdvisoryFeed;
+use rekall_core::Clock;
 
 use rekall_platform::connection::ConnectionProbe;
 use rekall_platform::version::ReleaseFeed;

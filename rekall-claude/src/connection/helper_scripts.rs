@@ -2,7 +2,7 @@
 //! with the terminal's token, sent on stdin so it never shows in a process listing, and hands the
 //! answer straight to the tool that asked. None holds a credential.
 
-use rekall_service::claude::TerminalConnection;
+use rekall_core::claude::TerminalConnection;
 
 pub(super) const KUBE_PLUGIN: &str = "rekall-kube-credential";
 pub(super) const GIT_HELPER: &str = "rekall-git-credential";

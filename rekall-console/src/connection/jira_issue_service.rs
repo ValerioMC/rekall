@@ -4,10 +4,10 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use rekall_common::{Id, RekallError, Result};
+use rekall_kernel::{Id, RekallError, Result};
 use rekall_store::ConnectionKind;
-use rekall_service::connection::{JiraCredential, JiraFailure, JiraIssue, JiraIssues, JiraSite, SecretStore};
-use rekall_service::{in_write, Ctx};
+use rekall_core::connection::{JiraCredential, JiraFailure, JiraIssue, JiraIssues, JiraSite, SecretStore};
+use rekall_core::{in_write, Ctx};
 
 use super::credential_keeping::recall;
 use super::jira_rules::{chosen_issues_query, open_issues_query, project_key_of, task_label, task_request, ISSUE_LIMIT};

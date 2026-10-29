@@ -1,4 +1,4 @@
-use rekall_common::{Id, Instant};
+use rekall_kernel::{Id, Instant};
 use rekall_store::document;
 use rekall_store::DocumentContextMode;
 use rekall_store::note_scope::NoteScope;

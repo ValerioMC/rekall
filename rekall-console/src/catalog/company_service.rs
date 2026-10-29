@@ -1,10 +1,10 @@
 //! Companies: listed, created, renamed and deleted from the console. Deleting one cascades to its
 //! projects and their tasks.
 
-use rekall_common::{Id, RekallError, Result};
+use rekall_kernel::{Id, RekallError, Result};
 use rekall_store::company;
 use rekall_store::repository as repo;
-use rekall_service::{in_read, in_write, Ctx, Tx};
+use rekall_core::{in_read, in_write, Ctx, Tx};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
 use crate::catalog::Snapshot;

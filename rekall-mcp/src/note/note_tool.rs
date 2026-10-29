@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use rekall_service::note::{NoteService, OnTitleClash};
+use rekall_core::note::{NoteService, OnTitleClash};
 use serde_json::Value;
 
 use crate::tool::{told, Anchor, AnchoredTask, Arguments, QUALIFY_WITH_PROJECT};
@@ -77,7 +77,7 @@ impl McpTool for NoteTool {
     }
 }
 
-fn replaced_report(written: &rekall_service::note::Written) -> String {
+fn replaced_report(written: &rekall_core::note::Written) -> String {
     let mut out = format!(
         "Note \"{}\" on `{}` rewritten as `{}`. Its earlier body is gone: no history keeps a note's text.",
         written.title, written.task_anchor, written.note_anchor

@@ -6,7 +6,7 @@ use std::io::Cursor;
 
 use image::imageops::{self, FilterType};
 use image::{ImageFormat, ImageReader, Limits, RgbaImage};
-use rekall_common::{InternalFailure, RekallError, Result};
+use rekall_kernel::{InternalFailure, RekallError, Result};
 
 /// The master's side; a smaller upload keeps its own size rather than being enlarged.
 pub const MASTER_SIDE: u32 = 512;

@@ -10,9 +10,9 @@ convention are in `docs/DESIGN.md` §3 ("Layout inside a crate") and are not rep
   only) and `rekall-infra` (implements the traits of `rekall-core`) beside them, and
   `rekall-app` wiring everything. `rekall-http` never depends on `rekall-infra`. A dependency that
   points the other way is a design error, not a missing `use`. Until `task:layered-crates-refactor`
-  is finished the workspace still has `rekall-common`,
-  `rekall-service`, `rekall-api`, `rekall-web`, `rekall-claude` and `rekall-platform`: new code goes
-  where the target puts it, and a change in an old crate does not widen its role.
+  is finished the workspace still has `rekall-api`, `rekall-web`, `rekall-claude` and
+  `rekall-platform`: new code goes where the target puts it, and a change in an old crate does not
+  widen its role.
 - **Code is cut by domain.** `catalog`, `step`, `flow`, `note`, `wrapup`, `diagram`... name a folder
   in every layer crate and a feature in the console. A new use of one domain by another is added
   to the table in `docs/DESIGN.md` and to `domain_edges.rs`, or not written.
@@ -57,7 +57,7 @@ convention are in `docs/DESIGN.md` §3 ("Layout inside a crate") and are not rep
 - **No duplication.** Before writing a pattern a third time, look for the helper. Existing
   shared pieces: `repo::update_if_changed` (stamp, validate, write only when a value changed),
   `repo::<entity>::require`, `load::resolve_task`, `jstr` for text rules, `text_rule` for a
-  writer's capped free text, `task.anchor(..)` / `project.anchor()`, `rekall_common::cleanup` for
+  writer's capped free text, `task.anchor(..)` / `project.anchor()`, `rekall_kernel::cleanup` for
   logged best-effort deletes and kills, `Snapshot` for view assembly; in the console,
   `stores/console/rows` (`upsertById`, `replaceById`, `trackSave`).
 - **No useless abstraction.** No trait, generic or builder without a second implementation or

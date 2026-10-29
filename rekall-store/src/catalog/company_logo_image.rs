@@ -1,7 +1,7 @@
 //! The square PNG a company shows as its logo, already normalised by the server (see
 //! `CompanyLogoService`). One row per company; absent means the company wears its initial.
 
-use rekall_common::{Id, Instant};
+use rekall_kernel::{Id, Instant};
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]

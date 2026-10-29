@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use rekall_app::server::StartOptions;
-use rekall_service::connection::{InMemorySecretStore, JiraCredential, JiraFailure, JiraIssue, JiraIssues, JiraSite, SecretStore};
+use rekall_core::connection::{InMemorySecretStore, JiraCredential, JiraFailure, JiraIssue, JiraIssues, JiraSite, SecretStore};
 use serde_json::json;
 use support::{app, app_with, app_with_secrets, id, run_git};
 

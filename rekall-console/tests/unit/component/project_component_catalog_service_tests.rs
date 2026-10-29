@@ -26,7 +26,7 @@ fn a_component_starts_out_named_after_its_folder() {
 
 #[test]
 fn a_name_another_component_holds_takes_the_first_free_number_ignoring_case() {
-    let now = rekall_common::Instant::now();
+    let now = rekall_kernel::Instant::now();
     let named = |name: &str| project_component::Model {
         id: Id::random(),
         project_id: Id::random(),

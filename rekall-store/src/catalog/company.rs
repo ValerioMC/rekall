@@ -1,6 +1,6 @@
 //! Who the work is for. `name` is unique and is also the company's anchor.
 
-use rekall_common::{Id, Instant, RekallError};
+use rekall_kernel::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;
 
 use crate::constraints::Violations;

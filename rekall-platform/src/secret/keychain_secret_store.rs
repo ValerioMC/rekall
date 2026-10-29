@@ -1,6 +1,6 @@
 use keyring::Entry;
-use rekall_common::{InternalFailure, RekallError, Result};
-use rekall_service::connection::{Secret, SecretStore};
+use rekall_kernel::{InternalFailure, RekallError, Result};
+use rekall_core::connection::{Secret, SecretStore};
 use tracing::error;
 
 pub const KEYCHAIN_SERVICE: &str = "Rekall-connections";

@@ -13,11 +13,11 @@ use rekall_claude::cli::{ClaudeCli, EnvironmentSource};
 use rekall_claude::connection::CredentialBroker;
 use rekall_claude::pty::{Listener, PtyTerminalManager};
 use rekall_claude::ClaudeConfig;
-use rekall_common::{Id, Instant};
+use rekall_kernel::{Id, Instant};
 use rekall_store::{company, project, task, task_step, ProjectStatus, TaskStepState};
 use rekall_store::Database;
-use rekall_service::connection::{ConnectionAccessService, InMemorySecretStore};
-use rekall_service::{Ctx, EventBus, Services};
+use rekall_core::connection::{ConnectionAccessService, InMemorySecretStore};
+use rekall_core::{Ctx, EventBus, Services};
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
 use tempfile::TempDir;
 

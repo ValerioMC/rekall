@@ -1,6 +1,6 @@
 //! The queries whose rules live in SQL: label lookups, catalog order, and note search.
 
-use rekall_common::{Id, Instant};
+use rekall_kernel::{Id, Instant};
 use rekall_store::{company, document, document_task, project, task, DocumentContextMode, ProjectStatus};
 use rekall_store::repository as repo;
 use sea_orm::{ActiveModelTrait, ConnectionTrait, IntoActiveModel};

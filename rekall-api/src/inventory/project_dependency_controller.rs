@@ -1,7 +1,7 @@
 use axum::extract::{Path, State};
 use axum::routing::get;
 use axum::{Json, Router};
-use rekall_service::inventory::{InventorySummaryView, ProjectDependencyView};
+use rekall_core::inventory::{InventorySummaryView, ProjectDependencyView};
 use rekall_web::error::ApiResult;
 use rekall_web::extract::uuid;
 

@@ -1,7 +1,7 @@
 //! A commit of the project's folder logged against a task, or one of its steps, with the diff it
 //! introduced so the change can be reread without a checkout.
 
-use rekall_common::{Id, Instant, RekallError};
+use rekall_kernel::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;
 
 use crate::constraints::Violations;

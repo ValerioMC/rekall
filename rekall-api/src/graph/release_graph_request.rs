@@ -1,4 +1,4 @@
-use rekall_common::Id;
+use rekall_kernel::Id;
 use serde::Deserialize;
 
 /// The graph a project releases every task it runs with; none clears the choice.

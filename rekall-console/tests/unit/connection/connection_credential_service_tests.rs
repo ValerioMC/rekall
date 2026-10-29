@@ -1,7 +1,7 @@
-use rekall_common::Instant;
+use rekall_kernel::Instant;
 use rekall_store::company;
-use rekall_service::connection::InMemorySecretStore;
-use rekall_service::EventBus;
+use rekall_core::connection::InMemorySecretStore;
+use rekall_core::EventBus;
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
 
 use super::*;

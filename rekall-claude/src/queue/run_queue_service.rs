@@ -1,8 +1,8 @@
 use chrono::TimeDelta;
-use rekall_common::{jstr, Id, Instant, InternalFailure, RekallError, Result};
+use rekall_kernel::{jstr, Id, Instant, InternalFailure, RekallError, Result};
 use rekall_store::{run_queue, run_queue_item, RunQueueItemState, RunQueueState};
 use rekall_store::repository as repo;
-use rekall_service::{in_read, in_write, Ctx, Tx};
+use rekall_core::{in_read, in_write, Ctx, Tx};
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, IntoActiveModel, QueryFilter};
 
 use super::RunQueueFrame;

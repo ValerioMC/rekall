@@ -1,11 +1,11 @@
 //! Which of its company's connections a project uses, and for what. A project binds only a
 //! connection of its own company, and may bind one several times, once per target.
 
-use rekall_common::{Id, RekallError, Result};
+use rekall_kernel::{Id, RekallError, Result};
 use rekall_store::{external_connection, project, project_connection, Slug};
 use rekall_store::repository as repo;
-use rekall_service::connection::ConnectionStreamEvent;
-use rekall_service::{in_read, in_write, Ctx, Tx};
+use rekall_core::connection::ConnectionStreamEvent;
+use rekall_core::{in_read, in_write, Ctx, Tx};
 
 use super::connection_rules::{first_free_label, target_of};
 use super::{ProjectConnectionCommand, ProjectConnectionView};

@@ -80,7 +80,7 @@ impl Stepping {
     fn now(&self) -> Instant {
         *self.0.lock().unwrap()
     }
-    fn clock(&self) -> rekall_service::Clock {
+    fn clock(&self) -> rekall_core::Clock {
         let this = self.clone();
         Arc::new(move || this.now())
     }
@@ -89,7 +89,7 @@ impl Stepping {
 #[tokio::test]
 async fn a_200_turns_each_present_window_into_a_row_and_grades_severity() {
     let endpoint = endpoint(200, SAMPLE, None).await;
-    let view = ClaudeUsageService::new(token(&[Some("sk-token")]), &endpoint.url, rekall_service::system_clock()).current().await;
+    let view = ClaudeUsageService::new(token(&[Some("sk-token")]), &endpoint.url, rekall_core::system_clock()).current().await;
     assert_eq!(view.status, UsageStatus::Ok);
     let keys: Vec<&str> = view.limits.iter().map(|l| l.key.as_str()).collect();
     assert_eq!(keys, ["session", "weekly_all", "weekly_opus"]);
@@ -103,11 +103,11 @@ async fn a_200_turns_each_present_window_into_a_row_and_grades_severity() {
 #[tokio::test]
 async fn no_token_a_401_and_a_500_are_unauthenticated_unauthenticated_and_unavailable() {
     let ok = endpoint(200, SAMPLE, None).await;
-    assert_eq!(ClaudeUsageService::new(token(&[None]), &ok.url, rekall_service::system_clock()).current().await.status, UsageStatus::Unauthenticated);
+    assert_eq!(ClaudeUsageService::new(token(&[None]), &ok.url, rekall_core::system_clock()).current().await.status, UsageStatus::Unauthenticated);
     let rejected = endpoint(401, "", None).await;
-    assert_eq!(ClaudeUsageService::new(token(&[Some("stale")]), &rejected.url, rekall_service::system_clock()).current().await.status, UsageStatus::Unauthenticated);
+    assert_eq!(ClaudeUsageService::new(token(&[Some("stale")]), &rejected.url, rekall_core::system_clock()).current().await.status, UsageStatus::Unauthenticated);
     let down = endpoint(500, "", None).await;
-    assert_eq!(ClaudeUsageService::new(token(&[Some("sk")]), &down.url, rekall_service::system_clock()).current().await.status, UsageStatus::Unavailable);
+    assert_eq!(ClaudeUsageService::new(token(&[Some("sk")]), &down.url, rekall_core::system_clock()).current().await.status, UsageStatus::Unavailable);
 }
 
 #[tokio::test]
@@ -156,7 +156,7 @@ async fn a_rate_limit_after_a_good_read_keeps_the_figures_and_says_when_they_ref
 #[tokio::test]
 async fn the_cache_holds_a_good_read_for_a_minute_and_a_refresh_skips_it() {
     let endpoint = endpoint(200, SAMPLE, None).await;
-    let service = ClaudeUsageService::new(token(&[Some("sk")]), &endpoint.url, rekall_service::system_clock());
+    let service = ClaudeUsageService::new(token(&[Some("sk")]), &endpoint.url, rekall_core::system_clock());
     service.current().await;
     service.current().await;
     assert_eq!(endpoint.hits.load(Ordering::SeqCst), 1);
@@ -198,7 +198,7 @@ async fn a_poll_in_flight_at_shutdown_is_cut_loose() {
         ""
     }));
     tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
-    let service = Arc::new(ClaudeUsageService::new(token(&[Some("sk")]), &format!("http://127.0.0.1:{port}/usage"), rekall_service::system_clock()));
+    let service = Arc::new(ClaudeUsageService::new(token(&[Some("sk")]), &format!("http://127.0.0.1:{port}/usage"), rekall_core::system_clock()));
     let polling = service.clone();
     let poll = tokio::spawn(async move { polling.current().await });
     tokio::time::sleep(Duration::from_millis(300)).await;
@@ -210,7 +210,7 @@ async fn a_poll_in_flight_at_shutdown_is_cut_loose() {
 #[tokio::test]
 async fn after_shutdown_no_further_call_reaches_the_endpoint() {
     let endpoint = endpoint(200, SAMPLE, None).await;
-    let service = ClaudeUsageService::new(token(&[Some("sk")]), &endpoint.url, rekall_service::system_clock());
+    let service = ClaudeUsageService::new(token(&[Some("sk")]), &endpoint.url, rekall_core::system_clock());
     service.current().await;
     service.release_on_shutdown();
     let after = service.current().await;

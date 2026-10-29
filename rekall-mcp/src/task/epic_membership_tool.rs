@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use rekall_service::task::{EpicJoined, EpicMembershipService};
+use rekall_core::task::{EpicJoined, EpicMembershipService};
 use serde_json::Value;
 
 use crate::protocol::{McpTool, ToolError, ToolSchema};

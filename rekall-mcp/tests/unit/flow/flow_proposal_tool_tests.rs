@@ -1,5 +1,5 @@
-use rekall_service::flow::{PlannedRoute, PlannedStep};
-use rekall_service::step::VisitBudget;
+use rekall_core::flow::{PlannedRoute, PlannedStep};
+use rekall_core::step::VisitBudget;
 use serde_json::json;
 
 use super::plan_of;

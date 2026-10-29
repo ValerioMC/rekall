@@ -1,7 +1,7 @@
 //! How much of a Claude Code session's transcript has been read into `token_usage`. A transcript
 //! only grows, so one whose size has not moved since is not read again.
 
-use rekall_common::Instant;
+use rekall_kernel::Instant;
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]

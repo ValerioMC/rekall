@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
-use rekall_common::Id;
-use rekall_service::claude::TerminalConnection;
-use rekall_service::connection::Secret;
+use rekall_kernel::Id;
+use rekall_core::claude::TerminalConnection;
+use rekall_core::connection::Secret;
 
 /// One terminal's access to its project's connections: the token its helpers present, the folder
 /// they live in, and the connections they may ask for. It lives exactly as long as the terminal.

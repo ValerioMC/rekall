@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use portable_pty::CommandBuilder;
-use rekall_common::jstr;
+use rekall_kernel::jstr;
 
 /// Only the aliases the settings offer are accepted; anything else leaves the account default.
 pub const MODEL_ALIASES: [&str; 4] = ["opus", "sonnet", "haiku", "fable"];

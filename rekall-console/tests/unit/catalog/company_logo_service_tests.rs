@@ -3,8 +3,8 @@ use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::Arc;
 
 use image::{ImageFormat, Rgba, RgbaImage};
-use rekall_common::Instant;
-use rekall_service::EventBus;
+use rekall_kernel::Instant;
+use rekall_core::EventBus;
 
 use super::*;
 use crate::catalog::CompanyCommand;

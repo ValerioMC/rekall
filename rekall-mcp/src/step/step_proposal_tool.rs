@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use rekall_service::step::TaskStepService;
+use rekall_core::step::TaskStepService;
 use serde_json::Value;
 
 use crate::tool::{told, Anchor, AnchoredTask, Arguments, QUALIFY_WITH_PROJECT};

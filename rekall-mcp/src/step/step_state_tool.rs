@@ -1,8 +1,8 @@
 use async_trait::async_trait;
-use rekall_service::step::TaskStepState;
-use rekall_service::commit::{AutoCommitOutcome, AutoCommitService};
-use rekall_service::flow::{FlowMove, FlowRoute, FlowService};
-use rekall_service::step::TaskStepService;
+use rekall_core::step::TaskStepState;
+use rekall_core::commit::{AutoCommitOutcome, AutoCommitService};
+use rekall_core::flow::{FlowMove, FlowRoute, FlowService};
+use rekall_core::step::TaskStepService;
 use serde_json::Value;
 
 use crate::tool::{told, Anchor, AnchoredTask, Arguments, QUALIFY_WITH_PROJECT};
@@ -107,7 +107,7 @@ fn describe_route(anchor: &str, route: &FlowRoute) -> String {
 }
 
 fn parse_state(raw: &str) -> Result<TaskStepState, ToolError> {
-    let value = rekall_common::jstr::strip(raw).to_lowercase().replace(['-', ' '], "_");
+    let value = rekall_kernel::jstr::strip(raw).to_lowercase().replace(['-', ' '], "_");
     match value.as_str() {
         "running" | "run" | "start" | "started" | "starting" | "begin" | "in_progress" | "progress" => Ok(TaskStepState::Running),
         "claimed" | "claim" | "done" | "complete" | "completed" | "finish" | "finished" => Ok(TaskStepState::Claimed),
@@ -117,7 +117,7 @@ fn parse_state(raw: &str) -> Result<TaskStepState, ToolError> {
 }
 
 fn meant_done(raw: &str) -> bool {
-    let value = rekall_common::jstr::strip(raw).to_lowercase();
+    let value = rekall_kernel::jstr::strip(raw).to_lowercase();
     value == "done" || value == "complete" || value == "completed"
 }
 

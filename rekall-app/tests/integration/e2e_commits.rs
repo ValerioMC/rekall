@@ -238,7 +238,7 @@ async fn the_diff_introduced_by_a_logged_commit_can_be_fetched_by_the_rows_own_i
 #[tokio::test]
 async fn the_diff_of_a_commit_reference_that_does_not_exist_is_a_404_not_an_empty_body() {
     let app = app().await;
-    let response = app.get(&format!("/api/commit-references/{}/diff", rekall_common::Id::random())).await;
+    let response = app.get(&format!("/api/commit-references/{}/diff", rekall_kernel::Id::random())).await;
     assert_eq!(response.status, 404);
 }
 
@@ -261,7 +261,7 @@ async fn a_logged_commit_can_be_deleted_removing_its_row_entirely() {
 #[tokio::test]
 async fn deleting_a_commit_reference_that_does_not_exist_is_a_404_not_a_silent_no_op() {
     let app = app().await;
-    let response = app.delete(&format!("/api/commit-references/{}", rekall_common::Id::random())).await;
+    let response = app.delete(&format!("/api/commit-references/{}", rekall_kernel::Id::random())).await;
     assert_eq!(response.status, 404);
 }
 
@@ -416,6 +416,6 @@ async fn a_commit_chosen_on_a_step_names_that_step_in_the_context_so_the_session
 #[tokio::test]
 async fn choosing_a_commit_reference_that_does_not_exist_for_the_context_is_a_404() {
     let app = app().await;
-    let response = app.patch(&format!("/api/commit-references/{}", rekall_common::Id::random()), json!({ "inContext": true })).await;
+    let response = app.patch(&format!("/api/commit-references/{}", rekall_kernel::Id::random()), json!({ "inContext": true })).await;
     assert_eq!(response.status, 404);
 }

@@ -1,4 +1,4 @@
-use rekall_common::jstr;
+use rekall_kernel::jstr;
 
 use crate::error::{ApiError, ApiResult};
 

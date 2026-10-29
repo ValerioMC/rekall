@@ -2,7 +2,7 @@
 //! `left_at`) is where the flow stands; `outcome` is the route it left by, `report` what the
 //! session saw there.
 
-use rekall_common::{Id, Instant};
+use rekall_kernel::{Id, Instant};
 use sea_orm::entity::prelude::*;
 
 /// What a session may report when it leaves a step: enough for a failing job's log excerpt.

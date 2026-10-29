@@ -1,7 +1,7 @@
 //! Something worked on over time, inside one company. `label` is unique per company and is the
 //! anchor; `title` is free text.
 
-use rekall_common::{Id, Instant, RekallError};
+use rekall_kernel::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;
 
 use crate::constraints::Violations;

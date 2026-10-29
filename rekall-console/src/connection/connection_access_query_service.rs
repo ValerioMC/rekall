@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use rekall_common::{Id, RekallError, Result};
+use rekall_kernel::{Id, RekallError, Result};
 use rekall_store::repository as repo;
-use rekall_service::{in_read, Ctx};
+use rekall_core::{in_read, Ctx};
 
 use super::{ConnectionAccessPageCommand, ConnectionAccessView};
 

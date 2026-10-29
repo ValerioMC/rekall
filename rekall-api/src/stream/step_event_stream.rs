@@ -15,7 +15,7 @@ use axum::body::{Body, Bytes};
 use axum::http::{header, HeaderValue};
 use axum::response::{IntoResponse, Response};
 use futures::stream::{self, StreamExt};
-use rekall_service::EventBus;
+use rekall_core::EventBus;
 use tokio::sync::watch;
 use tokio_stream::wrappers::errors::BroadcastStreamRecvError;
 use tokio_stream::wrappers::BroadcastStream;

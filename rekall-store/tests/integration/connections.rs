@@ -1,6 +1,6 @@
 //! A company's connections, the projects that bind them and their access log, against the schema.
 
-use rekall_common::{Id, Instant};
+use rekall_kernel::{Id, Instant};
 use rekall_store::prelude::*;
 use rekall_store::{company, connection_access, external_connection, project, project_connection, task};
 use rekall_store::repository as repo;

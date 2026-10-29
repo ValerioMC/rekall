@@ -1,6 +1,6 @@
 //! One session of work on a task: started, and stopped once it is over.
 
-use rekall_common::{Id, Instant};
+use rekall_kernel::{Id, Instant};
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]

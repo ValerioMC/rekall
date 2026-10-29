@@ -4,7 +4,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use rekall_common::{Id, Instant, InternalFailure, RekallError, Result};
+use rekall_kernel::{Id, Instant, InternalFailure, RekallError, Result};
 use rekall_store::prelude::*;
 use rekall_store::{company, document_task, project, tag, task, task_step, wrapup};
 use rekall_store::repository as repo;

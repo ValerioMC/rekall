@@ -1,6 +1,6 @@
 //! A note: freeform markdown attached to one or more tasks through `document_task`.
 
-use rekall_common::{Id, Instant, RekallError};
+use rekall_kernel::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;
 
 use crate::constraints::Violations;

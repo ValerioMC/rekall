@@ -1,4 +1,4 @@
-use rekall_common::{Instant, RekallError};
+use rekall_kernel::{Instant, RekallError};
 use crate::Stamped;
 use sea_orm::{ActiveModelBehavior, ActiveModelTrait, ConnectionTrait, EntityTrait, IntoActiveModel};
 

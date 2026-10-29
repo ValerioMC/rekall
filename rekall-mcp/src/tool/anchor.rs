@@ -44,8 +44,8 @@ impl Anchor {
         let Some(separator) = qualified else {
             return Ok(Anchor { entity_name: None, value: unquote(term) });
         };
-        let entity_name = rekall_common::jstr::trim(&term[..separator]);
-        let value = unquote(rekall_common::jstr::trim(&term[separator + 1..]));
+        let entity_name = rekall_kernel::jstr::trim(&term[..separator]);
+        let value = unquote(rekall_kernel::jstr::trim(&term[separator + 1..]));
         if entity_name.is_empty() || value.is_empty() {
             return Err(ToolError::Failure(format!(
                 "'{term}' is not a valid anchor. Use `entity:value`, or a bare value."
@@ -59,7 +59,7 @@ impl Anchor {
     }
 
     pub fn is(&self, entity: &str) -> bool {
-        self.entity_name.as_deref().is_some_and(|name| rekall_common::jstr::equals_ignore_case(name, entity))
+        self.entity_name.as_deref().is_some_and(|name| rekall_kernel::jstr::equals_ignore_case(name, entity))
     }
 }
 
@@ -74,7 +74,7 @@ impl std::fmt::Display for Anchor {
 
 fn unquote(value: &str) -> String {
     if value.len() >= 2 && value.starts_with('"') && value.ends_with('"') {
-        return rekall_common::jstr::trim(&value[1..value.len() - 1]).to_string();
+        return rekall_kernel::jstr::trim(&value[1..value.len() - 1]).to_string();
     }
     value.to_string()
 }

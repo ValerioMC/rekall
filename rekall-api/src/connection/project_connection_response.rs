@@ -1,4 +1,4 @@
-use rekall_common::{Id, Instant};
+use rekall_kernel::{Id, Instant};
 use rekall_console::connection::ProjectConnectionView;
 use rekall_store::ConnectionKind;
 use serde::Serialize;

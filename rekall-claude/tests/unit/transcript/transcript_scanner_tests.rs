@@ -1,8 +1,8 @@
 use std::fs;
 
-use rekall_common::{Id, Instant};
+use rekall_kernel::{Id, Instant};
 use rekall_store::{company, project, task, ProjectStatus};
-use rekall_service::{Ctx, EventBus, Services};
+use rekall_core::{Ctx, EventBus, Services};
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
 
 use super::*;

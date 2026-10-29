@@ -1,6 +1,6 @@
-use rekall_common::Id;
+use rekall_kernel::Id;
 use rekall_store::ConnectionKind;
-use rekall_service::claude::TerminalConnection;
+use rekall_core::claude::TerminalConnection;
 use serde::Serialize;
 
 /// A connection a terminal's project binds, as the terminal pane names it: never its credential.

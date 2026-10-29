@@ -1,4 +1,4 @@
-use rekall_common::{Id, Instant};
+use rekall_kernel::{Id, Instant};
 use rekall_console::graph::DeploymentGraphView;
 use serde::Serialize;
 

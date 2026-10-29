@@ -2,8 +2,8 @@ use axum::extract::{Path, Query, State};
 use axum::response::Response;
 use axum::routing::get;
 use axum::{Json, Router};
-use rekall_common::{jstr, RekallError};
-use rekall_service::diagram::{DiagramDraft, DiagramService, DiagramSummaryView, DiagramView};
+use rekall_kernel::{jstr, RekallError};
+use rekall_core::diagram::{DiagramDraft, DiagramService, DiagramSummaryView, DiagramView};
 use serde_json::json;
 
 use rekall_web::{created, no_content};
@@ -47,7 +47,7 @@ async fn source(State(state): State<ApiState>, Path(id): Path<String>, Query(que
     Ok(Json(state.sources.excerpt(uuid("id", &id)?, &file, query.start, query.end).await?.into()))
 }
 
-fn draft_of(id: Option<rekall_common::Id>, request: DiagramRequest) -> ApiResult<DiagramDraft> {
+fn draft_of(id: Option<rekall_kernel::Id>, request: DiagramRequest) -> ApiResult<DiagramDraft> {
     Validator::new()
         .not_blank("projectId", request.project_id.as_deref())
         .not_blank("title", request.title.as_deref())

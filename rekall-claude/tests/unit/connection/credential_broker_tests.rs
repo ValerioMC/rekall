@@ -1,9 +1,9 @@
 use std::os::unix::fs::PermissionsExt;
 
-use rekall_common::Instant;
+use rekall_kernel::Instant;
 use rekall_store::{company, connection_access, external_connection};
-use rekall_service::connection::InMemorySecretStore;
-use rekall_service::{Ctx, EventBus};
+use rekall_core::connection::InMemorySecretStore;
+use rekall_core::{Ctx, EventBus};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
 use super::*;

@@ -1,7 +1,7 @@
 use axum::extract::State;
 use axum::routing::get;
 use axum::{Json, Router};
-use rekall_service::token::{TokenDayView, TokenTallyView};
+use rekall_core::token::{TokenDayView, TokenTallyView};
 
 use rekall_web::error::ApiResult;
 use crate::ApiState;

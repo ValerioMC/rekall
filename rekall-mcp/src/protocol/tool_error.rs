@@ -1,4 +1,4 @@
-use rekall_common::RekallError;
+use rekall_kernel::RekallError;
 
 /// Why a tool call did not produce its answer.
 #[derive(Debug)]

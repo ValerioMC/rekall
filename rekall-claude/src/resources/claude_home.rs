@@ -2,7 +2,7 @@ use std::fs;
 use std::io::{ErrorKind, Read, Write};
 use std::path::{Path, PathBuf};
 
-use rekall_common::{Instant, InternalFailure, RekallError, Result};
+use rekall_kernel::{Instant, InternalFailure, RekallError, Result};
 use tracing::warn;
 
 use super::{ResourceKind, ResourcePath};

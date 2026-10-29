@@ -1,4 +1,4 @@
-use rekall_common::{Id, Instant};
+use rekall_kernel::{Id, Instant};
 use rekall_store::{project, run_queue_item, task, RunQueueItemState};
 use serde::Serialize;
 
