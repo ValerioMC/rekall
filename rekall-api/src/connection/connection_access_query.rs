@@ -1,3 +1,4 @@
+use rekall_console::connection::ConnectionAccessPageCommand;
 use serde::Deserialize;
 
 /// Which page of a connection's access log, newest first.
@@ -6,4 +7,10 @@ use serde::Deserialize;
 pub struct ConnectionAccessQuery {
     pub offset: Option<u64>,
     pub limit: Option<u64>,
+}
+
+impl From<ConnectionAccessQuery> for ConnectionAccessPageCommand {
+    fn from(query: ConnectionAccessQuery) -> Self {
+        Self { offset: query.offset, limit: query.limit }
+    }
 }

@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use rekall_console::connection::{ConnectionAccessQueryService, ConnectionCredentialService, ConnectionService, KubeconfigPreviewService, ProjectConnectionService};
 use rekall_service::commit::CommitReferenceService;
 use rekall_service::connection::{JiraIssues, SecretStore};
 use rekall_service::context::ContextSizeService;
@@ -51,12 +52,12 @@ pub struct ApiState {
     pub component_catalog: component::ProjectComponentCatalogService,
     pub graphs: graph::DeploymentGraphService,
     pub graph_attach: graph::GraphAttachService,
-    pub connections: connection::ConnectionService,
-    pub connection_credentials: connection::ConnectionCredentialService,
-    pub kubeconfig_preview: connection::KubeconfigPreviewService,
-    pub project_connections: connection::ProjectConnectionService,
+    pub connections: ConnectionService,
+    pub connection_credentials: ConnectionCredentialService,
+    pub kubeconfig_preview: KubeconfigPreviewService,
+    pub project_connections: ProjectConnectionService,
     pub repository_discovery: connection::RepositoryDiscoveryService,
-    pub connection_access: connection::ConnectionAccessQueryService,
+    pub connection_access: ConnectionAccessQueryService,
     pub jira_issues: connection::JiraIssueService,
     pub icons: catalog::ProjectIconService,
     pub directories: filesystem::DirectoryListingService,
@@ -78,9 +79,9 @@ impl ApiState {
     ) -> Self {
         let ctx = services.ctx.clone();
         let tasks = catalog::TaskService::new(ctx.clone(), services.review.clone(), services.time_entries.clone());
-        let project_connections = connection::ProjectConnectionService::new(ctx.clone());
+        let project_connections = ProjectConnectionService::new(ctx.clone());
         let projects = catalog::ProjectService::new(ctx.clone(), services.repositories);
-        let connections = connection::ConnectionService::new(ctx.clone(), secrets.clone());
+        let connections = ConnectionService::new(ctx.clone(), secrets.clone());
         let component_catalog = component::ProjectComponentCatalogService::new(ctx.clone());
         let repository_discovery = connection::RepositoryDiscoveryService::new(
             ctx.clone(),
@@ -116,11 +117,11 @@ impl ApiState {
             graphs,
             graph_attach,
             connections,
-            connection_credentials: connection::ConnectionCredentialService::new(ctx.clone(), secrets),
-            kubeconfig_preview: connection::KubeconfigPreviewService::new(),
+            connection_credentials: ConnectionCredentialService::new(ctx.clone(), secrets),
+            kubeconfig_preview: KubeconfigPreviewService::new(),
             project_connections,
             repository_discovery,
-            connection_access: connection::ConnectionAccessQueryService::new(ctx.clone()),
+            connection_access: ConnectionAccessQueryService::new(ctx.clone()),
             jira_issues,
             icons: catalog::ProjectIconService::new(ctx),
             directories: filesystem::DirectoryListingService::new(user_home),

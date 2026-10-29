@@ -5,13 +5,13 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use rekall_common::{Id, RekallError, Result};
+use rekall_console::connection::{recall, ProjectConnectionService};
 use rekall_model::ConnectionKind;
 use rekall_service::connection::{JiraCredential, JiraFailure, JiraIssue, JiraIssues, JiraSite, SecretStore};
 use rekall_service::{in_write, Ctx};
 
-use super::credential_keeping::recall;
 use super::jira_rules::{chosen_issues_query, open_issues_query, project_key_of, task_label, task_request, ISSUE_LIMIT};
-use super::{JiraImportRequest, JiraIssueResponse, ProjectConnectionService};
+use super::{JiraImportRequest, JiraIssueResponse};
 use crate::catalog::{TaskResponse, TaskService};
 
 #[derive(Clone)]

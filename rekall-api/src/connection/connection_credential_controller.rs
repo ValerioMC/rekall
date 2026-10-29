@@ -15,13 +15,13 @@ pub fn routes() -> Router<ApiState> {
 }
 
 async fn set(State(state): State<ApiState>, Path(id): Path<String>, JsonBody(request): JsonBody<ConnectionCredentialRequest>) -> ApiResult<Json<ConnectionResponse>> {
-    Ok(Json(state.connection_credentials.set(uuid("id", &id)?, request).await?))
+    Ok(Json(state.connection_credentials.set(uuid("id", &id)?, request.into()).await?.into()))
 }
 
 async fn clear(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Json<ConnectionResponse>> {
-    Ok(Json(state.connection_credentials.clear(uuid("id", &id)?).await?))
+    Ok(Json(state.connection_credentials.clear(uuid("id", &id)?).await?.into()))
 }
 
 async fn preview(State(state): State<ApiState>, JsonBody(request): JsonBody<KubeconfigPreviewRequest>) -> ApiResult<Json<Vec<KubeContextResponse>>> {
-    Ok(Json(state.kubeconfig_preview.contexts(request.kubeconfig).await?))
+    Ok(Json(state.kubeconfig_preview.contexts(request.kubeconfig).await?.into_iter().map(KubeContextResponse::from).collect()))
 }

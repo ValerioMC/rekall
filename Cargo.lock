@@ -4149,6 +4149,7 @@ dependencies = [
  "http-body-util",
  "image",
  "rekall-common",
+ "rekall-console",
  "rekall-model",
  "rekall-repository",
  "rekall-service",
@@ -4240,6 +4241,19 @@ dependencies = [
  "thiserror 2.0.21",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "rekall-console"
+version = "0.1.0"
+dependencies = [
+ "rekall-common",
+ "rekall-model",
+ "rekall-repository",
+ "rekall-service",
+ "sea-orm",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

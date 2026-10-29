@@ -1,5 +1,6 @@
 use rekall_common::{Id, Instant};
-use rekall_model::{external_connection, project_connection, ConnectionKind};
+use rekall_console::connection::ProjectConnectionView;
+use rekall_model::ConnectionKind;
 use serde::Serialize;
 
 /// A connection a project binds, as the project page shows it.
@@ -19,19 +20,19 @@ pub struct ProjectConnectionResponse {
     pub credential_set_at: Option<Instant>,
 }
 
-impl ProjectConnectionResponse {
-    pub fn of(binding: &project_connection::Model, connection: &external_connection::Model) -> Self {
+impl From<ProjectConnectionView> for ProjectConnectionResponse {
+    fn from(view: ProjectConnectionView) -> Self {
         Self {
-            id: binding.id,
-            connection_id: connection.id,
-            project_id: binding.project_id,
-            kind: connection.kind,
-            label: binding.label.clone(),
-            title: connection.title.clone(),
-            base_url: connection.base_url.clone(),
-            kube_context: connection.kube_context.clone(),
-            target: binding.target.clone(),
-            credential_set_at: connection.secret_set_at,
+            id: view.id,
+            connection_id: view.connection_id,
+            project_id: view.project_id,
+            kind: view.kind,
+            label: view.label,
+            title: view.title,
+            base_url: view.base_url,
+            kube_context: view.kube_context,
+            target: view.target,
+            credential_set_at: view.credential_set_at,
         }
     }
 }

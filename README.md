@@ -659,6 +659,7 @@ rekall-model/      SeaORM entities and their state rules
 rekall-diagram/    the diagram format: Mermaid sheets and their code links, JSON form and validation. No database, no UI
 rekall-repository/ queries, one function per lookup, and the SQLite migrations
 rekall-service/    business logic: context assembly, the step and review lines, flows (routes and visits), wrapups, notes, time entries, token usage
+rekall-console/    the services only the console calls, commands in and views out with no HTTP types; the connections so far
 rekall-api/        Axum REST API for the UI, one folder per domain, with the folder listing and the step event stream
 rekall-mcp/        MCP server, on rekall-service and never rekall-api: three tools read, ten write
 rekall-claude/     the in-app terminal (portable-pty over one WebSocket), the Claude Code usage meter, the run queue, the transcript reader for token usage and the editor for Claude Code's own files (`~/.claude`)

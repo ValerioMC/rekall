@@ -1,3 +1,4 @@
+use rekall_console::connection::ConnectionCredentialCommand;
 use rekall_service::connection::Secret;
 use serde::Deserialize;
 
@@ -11,4 +12,10 @@ pub struct ConnectionCredentialRequest {
     pub kubeconfig: Option<Secret>,
     pub context: Option<String>,
     pub email: Option<String>,
+}
+
+impl From<ConnectionCredentialRequest> for ConnectionCredentialCommand {
+    fn from(request: ConnectionCredentialRequest) -> Self {
+        Self { token: request.token, kubeconfig: request.kubeconfig, context: request.context, email: request.email }
+    }
 }

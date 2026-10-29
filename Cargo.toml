@@ -1,6 +1,6 @@
 # The backend: one crate per layer, and the dependency direction the crates enforce:
-# rekall-common <- rekall-model <- rekall-repository <- rekall-service <- rekall-api,
-# rekall-mcp, rekall-claude, rekall-platform <- rekall-app. rekall-web, the error body and extractors both routers
+# rekall-common <- rekall-model <- rekall-repository <- rekall-service <- rekall-console <- rekall-api,
+# with rekall-mcp, rekall-claude and rekall-platform on rekall-service, all <- rekall-app. rekall-web, the error body and extractors both routers
 # use, depends on rekall-common only. rekall-diagram, the diagram format, depends on nothing
 # of Rekall's own and is read from rekall-service upwards.
 #
@@ -17,6 +17,7 @@ members = [
     "rekall-diagram",
     "rekall-repository",
     "rekall-service",
+    "rekall-console",
     "rekall-api",
     "rekall-mcp",
     "rekall-claude",
@@ -31,6 +32,7 @@ default-members = [
     "rekall-diagram",
     "rekall-repository",
     "rekall-service",
+    "rekall-console",
     "rekall-api",
     "rekall-mcp",
     "rekall-claude",
@@ -51,6 +53,7 @@ rekall-model = { path = "rekall-model" }
 rekall-diagram = { path = "rekall-diagram" }
 rekall-repository = { path = "rekall-repository" }
 rekall-service = { path = "rekall-service" }
+rekall-console = { path = "rekall-console" }
 rekall-api = { path = "rekall-api" }
 rekall-mcp = { path = "rekall-mcp" }
 rekall-claude = { path = "rekall-claude" }

@@ -49,12 +49,12 @@ impl World {
     }
 }
 
-fn token(value: &str) -> ConnectionCredentialRequest {
-    ConnectionCredentialRequest { token: Some(Secret::new(value)), ..ConnectionCredentialRequest::default() }
+fn token(value: &str) -> ConnectionCredentialCommand {
+    ConnectionCredentialCommand { token: Some(Secret::new(value)), ..ConnectionCredentialCommand::default() }
 }
 
-fn kubeconfig(context: &str) -> ConnectionCredentialRequest {
-    ConnectionCredentialRequest { kubeconfig: Some(Secret::new(KUBECONFIG)), context: Some(context.into()), ..ConnectionCredentialRequest::default() }
+fn kubeconfig(context: &str) -> ConnectionCredentialCommand {
+    ConnectionCredentialCommand { kubeconfig: Some(Secret::new(KUBECONFIG)), context: Some(context.into()), ..ConnectionCredentialCommand::default() }
 }
 
 #[tokio::test]
@@ -66,7 +66,7 @@ async fn a_gitlab_token_goes_to_the_store_and_the_answer_only_says_when() {
 
     assert_eq!(world.secrets.read(&gitlab.secret_ref).unwrap().expose(), "glpat-secret");
     assert!(answer.credential_set_at.is_some());
-    assert!(!serde_json::to_string(&answer).unwrap().contains("glpat-secret"));
+    assert!(!format!("{answer:?}").contains("glpat-secret"));
 }
 
 #[tokio::test]
@@ -81,7 +81,7 @@ async fn a_kubeconfig_is_stored_as_its_chosen_context_and_the_row_learns_the_ser
     assert!(!stored.expose().contains("cloud"));
     assert_eq!(answer.base_url.as_deref(), Some("https://k8s.example.com:6443"));
     assert_eq!(answer.kube_context.as_deref(), Some("prod"));
-    assert!(!serde_json::to_string(&answer).unwrap().contains("sa-token-123"));
+    assert!(!format!("{answer:?}").contains("sa-token-123"));
 }
 
 #[tokio::test]
@@ -118,8 +118,8 @@ async fn clearing_empties_the_store_and_the_row_says_no_credential() {
     assert!(!world.secrets.contains(&gitlab.secret_ref));
 }
 
-fn jira_pair(email: &str, value: &str) -> ConnectionCredentialRequest {
-    ConnectionCredentialRequest { email: Some(email.into()), token: Some(Secret::new(value)), ..ConnectionCredentialRequest::default() }
+fn jira_pair(email: &str, value: &str) -> ConnectionCredentialCommand {
+    ConnectionCredentialCommand { email: Some(email.into()), token: Some(Secret::new(value)), ..ConnectionCredentialCommand::default() }
 }
 
 #[tokio::test]

@@ -103,6 +103,14 @@ const SERVICE: LayeredCrate = LayeredCrate {
     refuses_mutual_use: true,
 };
 
+const CONSOLE: LayeredCrate = LayeredCrate {
+    folder: "rekall-console",
+    domain_root: &[],
+    foundations: &[],
+    allowed: &[("connection", &["catalog", "task"])],
+    refuses_mutual_use: true,
+};
+
 const API: LayeredCrate = LayeredCrate {
     folder: "rekall-api",
     domain_root: &[],
@@ -153,7 +161,7 @@ const MCP: LayeredCrate = LayeredCrate {
     refuses_mutual_use: true,
 };
 
-const CRATES: [&LayeredCrate; 5] = [&MODEL, &REPOSITORY, &SERVICE, &API, &MCP];
+const CRATES: [&LayeredCrate; 6] = [&MODEL, &REPOSITORY, &SERVICE, &CONSOLE, &API, &MCP];
 
 /// A domain one file names, and the crate whose code it names it in.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]

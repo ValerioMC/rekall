@@ -8,8 +8,7 @@ use rekall_service::connection::ConnectionStreamEvent;
 use rekall_service::{in_read, in_write, Ctx, Tx};
 
 use super::connection_rules::{first_free_label, target_of};
-use super::{ProjectConnectionRequest, ProjectConnectionResponse};
-use rekall_web::extract::uuid;
+use super::{ProjectConnectionCommand, ProjectConnectionView};
 
 #[derive(Clone)]
 pub struct ProjectConnectionService {
@@ -21,10 +20,10 @@ impl ProjectConnectionService {
         Self { ctx }
     }
 
-    pub async fn list(&self, project_id: Id) -> Result<Vec<ProjectConnectionResponse>> {
+    pub async fn list(&self, project_id: Id) -> Result<Vec<ProjectConnectionView>> {
         in_read!(&self.ctx, |tx| {
             let rows = self.list_in(&tx, project_id).await?;
-            Ok::<_, RekallError>(rows.iter().map(|(binding, connection)| ProjectConnectionResponse::of(binding, connection)).collect())
+            Ok::<_, RekallError>(rows.iter().map(|(binding, connection)| ProjectConnectionView::of(binding, connection)).collect())
         })
     }
 
@@ -43,12 +42,10 @@ impl ProjectConnectionService {
         })
     }
 
-    pub async fn bind(&self, project_id: Id, request: ProjectConnectionRequest) -> Result<ProjectConnectionResponse> {
-        let connection_id = uuid("connectionId", request.connection_id.as_deref().unwrap_or(""))
-            .map_err(|_| RekallError::illegal("A binding names the connection it uses as connectionId."))?;
+    pub async fn bind(&self, project_id: Id, connection_id: Id, command: ProjectConnectionCommand) -> Result<ProjectConnectionView> {
         in_write!(&self.ctx, |tx| {
-            let (binding, connection) = self.bind_in(&mut tx, project_id, connection_id, request.label.as_deref(), target_of(request.target.as_deref())).await?;
-            Ok::<_, RekallError>(ProjectConnectionResponse::of(&binding, &connection))
+            let (binding, connection) = self.bind_in(&mut tx, project_id, connection_id, command.label.as_deref(), target_of(command.target.as_deref())).await?;
+            Ok::<_, RekallError>(ProjectConnectionView::of(&binding, &connection))
         })
     }
 
@@ -78,23 +75,23 @@ impl ProjectConnectionService {
     }
 
     /// Sets the binding's target, and its label when one is given.
-    pub async fn update(&self, project_id: Id, binding_id: Id, request: ProjectConnectionRequest) -> Result<ProjectConnectionResponse> {
+    pub async fn update(&self, project_id: Id, binding_id: Id, command: ProjectConnectionCommand) -> Result<ProjectConnectionView> {
         in_write!(&self.ctx, |tx| {
             let project = repo::project::require(tx.db(), project_id).await?;
             let before = repo::project_connection::require(tx.db(), project_id, binding_id).await?;
             let connection = repo::external_connection::require(tx.db(), before.connection_id).await?;
             let others: Vec<(project_connection::Model, external_connection::Model)> =
                 repo::project_connection::list_of_project(tx.db(), project_id).await?.into_iter().filter(|(binding, _)| binding.id != binding_id).collect();
-            let target = target_of(request.target.as_deref());
+            let target = target_of(command.target.as_deref());
             require_target_unbound(&others, &connection, target.as_deref())?;
-            let label = match request.label.as_deref() {
+            let label = match command.label.as_deref() {
                 Some(typed) => free_typed_label(typed, &others.iter().map(|(binding, _)| binding.label.clone()).collect::<Vec<_>>())?,
                 None => before.label.clone(),
             };
             let after = project_connection::Model { label, target, ..before.clone() };
             let binding = repo::update_if_changed(tx.db(), &before, after, self.ctx.now()).await?;
             tx.publish(ConnectionStreamEvent { company_id: project.company_id });
-            Ok::<_, RekallError>(ProjectConnectionResponse::of(&binding, &connection))
+            Ok::<_, RekallError>(ProjectConnectionView::of(&binding, &connection))
         })
     }
 

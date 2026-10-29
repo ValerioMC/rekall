@@ -6,14 +6,14 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use rekall_common::{jstr, Id, InternalFailure, RekallError, Result};
+use rekall_console::connection::{first_free_label, ConnectionService, ProjectConnectionService};
 use rekall_model::{external_connection, project_connection, ConnectionKind, Slug};
 use rekall_service::commit::GitRepositoryInspector;
 use rekall_service::{in_write, Ctx, Tx};
 
-use super::connection_rules::first_free_label;
 use super::repository_folders::repositories_under;
 use super::repository_origin::RepositoryOrigin;
-use super::{ConnectionService, DiscoveredRepositoryResponse, DiscoveryOutcome, ProjectConnectionService, RepositoryDiscoveryResponse};
+use super::{DiscoveredRepositoryResponse, DiscoveryOutcome, RepositoryDiscoveryResponse};
 use crate::catalog::ProjectService;
 use crate::component::{folder_name, ProjectComponentCatalogService};
 

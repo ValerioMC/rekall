@@ -4,7 +4,7 @@ use rekall_common::{Id, RekallError, Result};
 use rekall_repository::repository as repo;
 use rekall_service::{in_read, Ctx};
 
-use super::{ConnectionAccessQuery, ConnectionAccessResponse};
+use super::{ConnectionAccessPageCommand, ConnectionAccessView};
 
 const DEFAULT_PAGE: u64 = 50;
 const LARGEST_PAGE: u64 = 200;
@@ -20,14 +20,14 @@ impl ConnectionAccessQueryService {
         Self { ctx }
     }
 
-    pub async fn page(&self, connection_id: Id, query: ConnectionAccessQuery) -> Result<Vec<ConnectionAccessResponse>> {
-        let limit = query.limit.unwrap_or(DEFAULT_PAGE).clamp(1, LARGEST_PAGE);
+    pub async fn page(&self, connection_id: Id, command: ConnectionAccessPageCommand) -> Result<Vec<ConnectionAccessView>> {
+        let limit = command.limit.unwrap_or(DEFAULT_PAGE).clamp(1, LARGEST_PAGE);
         in_read!(&self.ctx, |tx| {
             repo::external_connection::require(tx.db(), connection_id).await?;
-            let accesses = repo::connection_access::list_of_connection(tx.db(), connection_id, query.offset.unwrap_or(0), limit).await?;
+            let accesses = repo::connection_access::list_of_connection(tx.db(), connection_id, command.offset.unwrap_or(0), limit).await?;
             let task_ids: Vec<Id> = accesses.iter().filter_map(|access| access.task_id).collect();
             let tasks: HashMap<Id, _> = repo::task::find_by_ids(tx.db(), task_ids).await?.into_iter().map(|task| (task.id, task)).collect();
-            Ok::<_, RekallError>(accesses.iter().map(|access| ConnectionAccessResponse::of(access, access.task_id.and_then(|id| tasks.get(&id)))).collect())
+            Ok::<_, RekallError>(accesses.iter().map(|access| ConnectionAccessView::of(access, access.task_id.and_then(|id| tasks.get(&id)))).collect())
         })
     }
 }

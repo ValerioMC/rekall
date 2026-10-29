@@ -37,7 +37,7 @@ pub(super) fn target_of(raw: Option<&str>) -> Option<String> {
 }
 
 /// `wanted`, or the first of `wanted-2`, `wanted-3`... that no binding of the project uses yet.
-pub(super) fn first_free_label(wanted: &str, taken: &[String]) -> String {
+pub fn first_free_label(wanted: &str, taken: &[String]) -> String {
     if !taken.iter().any(|label| label == wanted) {
         return wanted.to_string();
     }

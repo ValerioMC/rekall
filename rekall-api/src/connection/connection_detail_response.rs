@@ -1,4 +1,4 @@
-use rekall_model::{external_connection, project, project_connection};
+use rekall_console::connection::ConnectionDetailView;
 use serde::Serialize;
 
 use super::{ConnectionProjectResponse, ConnectionResponse};
@@ -12,11 +12,8 @@ pub struct ConnectionDetailResponse {
     pub projects: Vec<ConnectionProjectResponse>,
 }
 
-impl ConnectionDetailResponse {
-    pub fn of(connection: &external_connection::Model, projects: &[(project_connection::Model, project::Model)], project_count: usize) -> Self {
-        Self {
-            connection: ConnectionResponse::of(connection, project_count),
-            projects: projects.iter().map(|(binding, project)| ConnectionProjectResponse::of(binding, project)).collect(),
-        }
+impl From<ConnectionDetailView> for ConnectionDetailResponse {
+    fn from(view: ConnectionDetailView) -> Self {
+        Self { connection: view.connection.into(), projects: view.projects.into_iter().map(ConnectionProjectResponse::from).collect() }
     }
 }

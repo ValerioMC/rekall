@@ -55,6 +55,7 @@ rekall/
   rekall-diagram/    the diagram format: Mermaid sheets, code links, JSON form, validation; depends on nothing of Rekall's
   rekall-repository/ queries, one folder per domain, and the SQLite migrations for their schema
   rekall-service/    context assembly, the step and review lines, flows, wrapups, notes, time entries, token usage
+  rekall-console/    the services only the console calls, one folder per domain: commands in, views out, no HTTP types; holds `connection` so far
   rekall-api/        Axum REST routes for the UI, one folder per domain: its controller, request shapes and console service
   rekall-mcp/        MCP server: three tools read, twelve write; a folder per domain holds its tools
   rekall-claude/     the in-app terminal (portable-pty PTYs over one WebSocket), the Claude Code usage meter, the run queue, the transcript reader, the Claude folder editor
@@ -77,7 +78,7 @@ but no route, none of `CompanyService`, `ProjectService`, `TaskService` or `Docu
 
 The crates are the layers; inside one, the code is laid out the way a Java project is.
 
-- **A folder per domain, one public type per file.** A folder is a package, and every layer crate cuts its code the same way (see Domains below): `rekall-service/src/note/`, `rekall-api/src/note/`, `rekall-model/src/note/`, `rekall-repository/src/repository/note/`, `rekall-mcp/src/note/`. A file holds one public type and is named after it: `NoteService` lives in `note/note_service.rs`, `CompanyResponse` in `catalog/company_response.rs`. Inside `rekall-api` a domain folder holds its controllers, request and response shapes, console services and a `routes.rs` that merges its controllers, so `router.rs` only merges the domains.
+- **A folder per domain, one public type per file.** A folder is a package, and every layer crate cuts its code the same way (see Domains below): `rekall-service/src/note/`, `rekall-api/src/note/`, `rekall-model/src/note/`, `rekall-repository/src/repository/note/`, `rekall-mcp/src/note/`. A file holds one public type and is named after it: `NoteService` lives in `note/note_service.rs`, `CompanyResponse` in `catalog/company_response.rs`. Inside `rekall-api` a domain folder holds its controllers, request and response shapes, the console services not yet in `rekall-console` and a `routes.rs` that merges its controllers, so `router.rs` only merges the domains. A service in `rekall-console` takes a command and returns a view, both in files beside it; the controller converts the request into the command and the view into the response (`From` impls in the request and response files).
 - **`mod.rs` and `lib.rs` hold no logic.** They declare the files and re-export the public types, so a caller writes `rekall_service::note::NoteService` and never the file's name. Moving a type between files changes no caller.
 - **Privacy is per file, so what siblings share is `pub(super)`.** Rust's privacy boundary is the module, which is the file, not the type. A helper two files of one folder use is `pub(super)`, visible to that package and nowhere else: Java's package-private.
 - **Private helpers stay beside the one type that uses them.** A small private struct that only one file reads (`ScratchDir` beside `Database`, `Active` beside `Worker`) stays in that file. A private type that carries most of a module's logic gets a file of its own, visible as `pub(super)`: the run queue's `Worker` sits in `run_queue_worker.rs`, beside the `RunQueueRunner` handle that starts it.
@@ -127,7 +128,8 @@ from its table:
 | `rekall-diagram` | nothing |
 | `rekall-repository` | `rekall-common`, `rekall-model` |
 | `rekall-service` | `rekall-common`, `rekall-diagram`, `rekall-model`, `rekall-repository` |
-| `rekall-api` | `rekall-common`, `rekall-model`, `rekall-repository`, `rekall-service`, `rekall-web` |
+| `rekall-console` | `rekall-common`, `rekall-model`, `rekall-repository`, `rekall-service` |
+| `rekall-api` | `rekall-common`, `rekall-console`, `rekall-model`, `rekall-repository`, `rekall-service`, `rekall-web` |
 | `rekall-mcp` | `rekall-common`, `rekall-model`, `rekall-repository`, `rekall-service` |
 | `rekall-claude` | `rekall-common`, `rekall-diagram`, `rekall-model`, `rekall-repository`, `rekall-service`, `rekall-web` |
 | `rekall-platform` | `rekall-common`, `rekall-model`, `rekall-repository`, `rekall-service`, `rekall-web` |
@@ -140,33 +142,33 @@ file is `note -> task`). It also fails on a domain missing from its crate's tabl
 domains of one crate whose own code uses each other; `rekall-model` is exempt from that last rule,
 because SeaORM declares a relation from both ends. A dash means the crate has no such domain:
 
-| Domain | `rekall-model` | `rekall-repository` | `rekall-service` | `rekall-api` | `rekall-mcp` |
-|---|---|---|---|---|---|
-| `catalog` | `task` | nothing | - | `commit`, `note`, `review`, `step`, `tag`, `task`, `timeentry`, `wrapup` | - |
-| `claude` | - | - | `catalog`, `connection`, `task` | - | - |
-| `commit` | `step`, `task` | nothing | `catalog`, `step`, `task` | nothing | nothing |
-| `component` | `catalog` | nothing | `connection`, `task` | nothing | - |
-| `connection` | `catalog`, `task` | `catalog` | nothing | `catalog`, `commit`, `component`, `task` | - |
-| `context` | - | - | `catalog`, `commit`, `component`, `connection`, `note`, `step`, `tag`, `task`, `wrapup` | nothing | nothing |
-| `diagram` | `catalog`, `task` | nothing | `catalog`, `task` | nothing | nothing |
-| `filesystem` | - | - | - | nothing | - |
-| `flow` | `step`, `task` | nothing | `step` | `step` | `step` |
-| `graph` | `catalog`, `flow`, `step` | nothing | - | `catalog`, `flow`, `step`, `task` | - |
-| `inventory` | `catalog` | nothing | `catalog` | nothing | `vulnerability` |
-| `note` | `task` | `task` | `task` | `catalog` | nothing |
-| `queue` | `task` | nothing | - | - | - |
-| `review` | - | - | `task`, `timeentry` | - | - |
-| `search` | - | - | `task` | nothing | - |
-| `section` | `catalog` | nothing | `catalog`, `note` | nothing | `note` |
-| `skill` | `step`, `tag`, `task` | nothing | - | nothing | - |
-| `step` | `task` | nothing | `flow`, `task`, `timeentry` | nothing | `commit`, `flow` |
-| `stream` | - | - | - | nothing | - |
-| `tag` | `task` | nothing | - | nothing | - |
-| `task` | `catalog`, `note`, `step`, `tag`, `wrapup` | `catalog` | `step` | - | nothing |
-| `timeentry` | `task` | nothing | `catalog`, `task` | nothing | - |
-| `token` | `step`, `task` | nothing | nothing | nothing | - |
-| `vulnerability` | `catalog`, `task` | nothing | `catalog`, `commit`, `connection`, `inventory` | `catalog`, `step`, `task` | nothing |
-| `wrapup` | `task` | nothing | `catalog`, `review`, `task` | nothing | `commit` |
+| Domain | `rekall-model` | `rekall-repository` | `rekall-service` | `rekall-console` | `rekall-api` | `rekall-mcp` |
+|---|---|---|---|---|---|---|
+| `catalog` | `task` | nothing | - | - | `commit`, `note`, `review`, `step`, `tag`, `task`, `timeentry`, `wrapup` | - |
+| `claude` | - | - | `catalog`, `connection`, `task` | - | - | - |
+| `commit` | `step`, `task` | nothing | `catalog`, `step`, `task` | - | nothing | nothing |
+| `component` | `catalog` | nothing | `connection`, `task` | - | nothing | - |
+| `connection` | `catalog`, `task` | `catalog` | nothing | `catalog`, `task` | `catalog`, `commit`, `component`, `task` | - |
+| `context` | - | - | `catalog`, `commit`, `component`, `connection`, `note`, `step`, `tag`, `task`, `wrapup` | - | nothing | nothing |
+| `diagram` | `catalog`, `task` | nothing | `catalog`, `task` | - | nothing | nothing |
+| `filesystem` | - | - | - | - | nothing | - |
+| `flow` | `step`, `task` | nothing | `step` | - | `step` | `step` |
+| `graph` | `catalog`, `flow`, `step` | nothing | - | - | `catalog`, `flow`, `step`, `task` | - |
+| `inventory` | `catalog` | nothing | `catalog` | - | nothing | `vulnerability` |
+| `note` | `task` | `task` | `task` | - | `catalog` | nothing |
+| `queue` | `task` | nothing | - | - | - | - |
+| `review` | - | - | `task`, `timeentry` | - | - | - |
+| `search` | - | - | `task` | - | nothing | - |
+| `section` | `catalog` | nothing | `catalog`, `note` | - | nothing | `note` |
+| `skill` | `step`, `tag`, `task` | nothing | - | - | nothing | - |
+| `step` | `task` | nothing | `flow`, `task`, `timeentry` | - | nothing | `commit`, `flow` |
+| `stream` | - | - | - | - | nothing | - |
+| `tag` | `task` | nothing | - | - | nothing | - |
+| `task` | `catalog`, `note`, `step`, `tag`, `wrapup` | `catalog` | `step` | - | - | nothing |
+| `timeentry` | `task` | nothing | `catalog`, `task` | - | nothing | - |
+| `token` | `step`, `task` | nothing | nothing | - | nothing | - |
+| `vulnerability` | `catalog`, `task` | nothing | `catalog`, `commit`, `connection`, `inventory` | - | `catalog`, `step`, `task` | nothing |
+| `wrapup` | `task` | nothing | `catalog`, `review`, `task` | - | nothing | `commit` |
 
 Each crate's foundations are modules every domain may use and are no domain: `ctx`, `events`,
 `load`, `services`, `text_rule` and `tx` in `rekall-service`; `constraints`, `enums`, `prelude`,
@@ -778,15 +780,18 @@ line, never the text. The chosen context is kept as `KubeAccess::to_kubeconfig`:
 its `proxy-url` kept, with every referenced file inlined. On Linux the store is the kernel keyring,
 which forgets its entries when the session ends.
 
-The console's write path for connections is `rekall-api/src/connection/`, one service per entity:
+The console's write path for connections is `rekall-console/src/connection/`, one service per entity,
+each taking a command and answering a view that the controllers in `rekall-api/src/connection/` map
+from the request and to the response:
 `ConnectionService` (a company's connections; deleting one removes its credential from the store
 after the row is gone, logging a failure), `ConnectionCredentialService` (the only code that stores,
 replaces or clears a credential), `ProjectConnectionService` (bindings; a project binds only a
 connection of its own company, the same connection and target twice is a 409, a typed label already
 used in the project is a 409, and without one the connection's label takes the first free `-2`, `-3`),
-`RepositoryDiscoveryService` (below), `ConnectionAccessQueryService` (the access log, newest first) and
+`ConnectionAccessQueryService` (the access log, newest first) and
 `KubeconfigPreviewService` (a kubeconfig's contexts with why each can or cannot be imported, storing
-nothing). Credentials are write-only: `PUT /api/connections/{id}/credential` takes `token` (GitLab),
+nothing). `RepositoryDiscoveryService` and `JiraIssueService` (below) stay in `rekall-api` while the
+catalog services they create projects' tasks and components with are there. Credentials are write-only: `PUT /api/connections/{id}/credential` takes `token` (GitLab),
 `kubeconfig` and `context` (Kubernetes) or `token` with an `email` on Jira Cloud and without one on Jira
 Data Center, and answers the connection with `credentialSetAt`, and no
 endpoint returns a credential. The store is written before the row, so a failed write leaves the row
