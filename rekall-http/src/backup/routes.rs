@@ -1,6 +1,6 @@
 use axum::Router;
 
-use super::backup_controller;
+use super::controller::backup_controller;
 use crate::ApiState;
 
 /// Every route of this domain. A backup is addressed by its file name, so these sit outside the

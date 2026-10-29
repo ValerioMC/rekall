@@ -1,11 +1,9 @@
 //! Claude skills assigned to tasks, steps and tags.
 
-mod skill_assignment_service;
-mod skill_assignments_view;
-mod tag_skill_view;
-mod task_skill_view;
+mod service;
+mod view;
 
-pub use skill_assignment_service::SkillAssignmentService;
-pub use skill_assignments_view::SkillAssignmentsView;
-pub use tag_skill_view::TagSkillView;
-pub use task_skill_view::TaskSkillView;
+pub use service::skill_assignment_service::SkillAssignmentService;
+pub use view::skill_assignments_view::SkillAssignmentsView;
+pub use view::tag_skill_view::TagSkillView;
+pub use view::task_skill_view::TaskSkillView;

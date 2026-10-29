@@ -1,9 +1,9 @@
 //! Notes and the tasks they are attached to.
 
-mod document_command;
-mod document_service;
-mod document_view;
+mod command;
+mod service;
+mod view;
 
-pub use document_command::DocumentCommand;
-pub use document_service::DocumentService;
-pub use document_view::DocumentView;
+pub use command::document_command::DocumentCommand;
+pub use service::document_service::DocumentService;
+pub use view::document_view::DocumentView;

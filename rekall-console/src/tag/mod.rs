@@ -1,9 +1,9 @@
 //! Tags.
 
-mod tag_command;
-mod tag_service;
-mod tag_view;
+mod command;
+mod service;
+mod view;
 
-pub use tag_command::TagCommand;
-pub use tag_service::TagService;
-pub use tag_view::TagView;
+pub use command::tag_command::TagCommand;
+pub use service::tag_service::TagService;
+pub use view::tag_view::TagView;

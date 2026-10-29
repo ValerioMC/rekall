@@ -1,10 +1,9 @@
 //! A project's sections.
 
-mod project_section_controller;
-mod project_section_order_request;
-mod project_section_request;
+mod controller;
+mod request;
 mod routes;
 
-pub use project_section_order_request::ProjectSectionOrderRequest;
-pub use project_section_request::ProjectSectionRequest;
+pub use request::project_section_order_request::ProjectSectionOrderRequest;
+pub use request::project_section_request::ProjectSectionRequest;
 pub(crate) use routes::routes;

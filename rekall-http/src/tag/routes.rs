@@ -1,6 +1,6 @@
 use axum::Router;
 
-use super::{tag_controller};
+use super::{controller::tag_controller};
 use crate::ApiState;
 
 /// Every route of this domain.

@@ -3,21 +3,17 @@
 //! service in rekall-console stays the only path that edits, reviews or deletes one, and the only one
 //! that can create a task with real steps. Also the view another task's `[[task:label]]` names a task by.
 
-mod created;
-mod epic_joined;
-mod epic_membership_service;
-mod step_draft;
-mod task_authoring_service;
-mod task_brief;
-mod task_reference_view;
-mod task_stream_event;
+mod event;
+mod model;
+mod service;
+mod view;
 
-pub use created::Created;
-pub use epic_joined::EpicJoined;
-pub use epic_membership_service::EpicMembershipService;
-pub use step_draft::StepDraft;
-pub use task_authoring_service::TaskAuthoringService;
-pub use task_brief::TaskBrief;
-pub use task_reference_view::TaskReferenceView;
-pub use task_stream_event::TaskStreamEvent;
+pub use model::created::Created;
+pub use model::epic_joined::EpicJoined;
+pub use service::epic_membership_service::EpicMembershipService;
+pub use model::step_draft::StepDraft;
+pub use service::task_authoring_service::TaskAuthoringService;
+pub use model::task_brief::TaskBrief;
+pub use view::task_reference_view::TaskReferenceView;
+pub use event::task_stream_event::TaskStreamEvent;
 pub use rekall_store::TaskKind;

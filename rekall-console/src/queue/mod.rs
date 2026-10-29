@@ -1,8 +1,8 @@
 //! The run queue as the console drives it: its rows through `RunQueueService`, its worker through
 //! `QueueRunner`.
 
-mod run_queue_control_service;
-mod run_queue_settings_command;
+mod command;
+mod service;
 
-pub use run_queue_control_service::RunQueueControlService;
-pub use run_queue_settings_command::RunQueueSettingsCommand;
+pub use service::run_queue_control_service::RunQueueControlService;
+pub use command::run_queue_settings_command::RunQueueSettingsCommand;

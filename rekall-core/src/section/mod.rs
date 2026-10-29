@@ -4,16 +4,15 @@
 //! read of them, which is the only way a session sees them. Everything else a
 //! person does to them (rename, reorder, delete) is the console's, in rekall-console.
 
-mod project_section_service;
-mod project_section_view;
-mod section_stream_event;
-mod section_written;
-mod sections_read;
+mod event;
+mod model;
+pub mod rule;
+mod service;
+mod view;
 
-pub mod rules;
 
-pub use project_section_service::ProjectSectionService;
-pub use project_section_view::ProjectSectionView;
-pub use section_stream_event::SectionStreamEvent;
-pub use section_written::SectionWritten;
-pub use sections_read::SectionsRead;
+pub use service::project_section_service::ProjectSectionService;
+pub use view::project_section_view::ProjectSectionView;
+pub use event::section_stream_event::SectionStreamEvent;
+pub use model::section_written::SectionWritten;
+pub use model::sections_read::SectionsRead;

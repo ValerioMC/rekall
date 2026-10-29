@@ -1,6 +1,6 @@
 use axum::Router;
 
-use super::{socket_controller, terminal_controller};
+use super::{controller::socket_controller, controller::terminal_controller};
 use crate::ApiState;
 
 pub(crate) fn routes() -> Router<ApiState> {

@@ -1,6 +1,6 @@
 use axum::Router;
 
-use super::{installer_controller, resource_controller, skill_group_controller, usage_controller};
+use super::{controller::installer_controller, controller::resource_controller, controller::skill_group_controller, controller::usage_controller};
 use crate::ApiState;
 
 pub(crate) fn routes() -> Router<ApiState> {

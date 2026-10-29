@@ -1,6 +1,6 @@
 use axum::Router;
 
-use super::{company_controller, company_logo_controller, project_controller, project_icon_controller, task_controller};
+use super::{controller::company_controller, controller::company_logo_controller, controller::project_controller, controller::project_icon_controller, controller::task_controller};
 use crate::ApiState;
 
 /// Every route of this domain.

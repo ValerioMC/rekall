@@ -1,6 +1,6 @@
 use axum::Router;
 
-use super::{commit_reference_controller};
+use super::{controller::commit_reference_controller};
 use crate::ApiState;
 
 /// Every route of this domain.

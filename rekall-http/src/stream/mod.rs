@@ -1,8 +1,8 @@
 //! The Server-Sent Events feed the console listens to.
 
-mod step_event_controller;
+mod controller;
+mod support;
 mod routes;
-mod step_event_stream;
 
-pub use step_event_stream::StepEventStream;
+pub use support::step_event_stream::StepEventStream;
 pub(crate) use routes::routes;

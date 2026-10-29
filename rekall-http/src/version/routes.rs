@@ -1,6 +1,6 @@
 use axum::Router;
 
-use super::version_controller;
+use super::controller::version_controller;
 use crate::ApiState;
 
 /// Every route of this domain.

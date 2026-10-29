@@ -1,6 +1,6 @@
 use axum::Router;
 
-use super::{document_controller};
+use super::{controller::document_controller};
 use crate::ApiState;
 
 /// Every route of this domain.

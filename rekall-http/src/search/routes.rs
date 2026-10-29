@@ -1,6 +1,6 @@
 use axum::Router;
 
-use super::{search_controller};
+use super::{controller::search_controller};
 use crate::ApiState;
 
 /// Every route of this domain.

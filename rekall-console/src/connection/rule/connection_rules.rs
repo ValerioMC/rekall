@@ -1,0 +1,49 @@
+//! The rules on what a person types into a connection, shared by the services that write one.
+
+use rekall_kernel::{jstr, RekallError, Result};
+use rekall_store::{ConnectionKind, Slug};
+
+pub(in crate::connection) fn kind_of(raw: Option<&str>) -> Result<ConnectionKind> {
+    let raw = raw.map(jstr::strip).unwrap_or("");
+    ConnectionKind::value_of(&raw.to_uppercase()).ok_or_else(|| RekallError::illegal(format!("'{raw}' is not a connection kind. Use GITLAB, KUBERNETES or JIRA.")))
+}
+
+pub(in crate::connection) fn title_of(raw: Option<&str>) -> Result<String> {
+    raw.map(jstr::strip).filter(|title| !title.is_empty()).map(str::to_string).ok_or_else(|| RekallError::illegal("A connection needs a title."))
+}
+
+/// The label typed, or the title made into one.
+pub(in crate::connection) fn label_of(label: Option<&str>, title: &str) -> Result<String> {
+    Slug::of(Some(label.filter(|label| !jstr::is_blank(label)).unwrap_or(title)))
+}
+
+/// A Kubernetes connection reads its server from the kubeconfig, so only GitLab and Jira take a URL typed in.
+pub(in crate::connection) fn base_url_of(kind: ConnectionKind, raw: Option<&str>) -> Result<Option<String>> {
+    let url = raw.map(jstr::strip).filter(|url| !url.is_empty()).map(|url| url.trim_end_matches('/').to_string());
+    if kind == ConnectionKind::Kubernetes && url.is_some() {
+        return Err(RekallError::illegal("A Kubernetes connection takes its server from the kubeconfig, not from a typed URL."));
+    }
+    Ok(url)
+}
+
+/// A blank proxy means the site is reached direct.
+pub(in crate::connection) fn proxy_url_of(raw: Option<&str>) -> Option<String> {
+    raw.map(jstr::strip).filter(|url| !url.is_empty()).map(str::to_string)
+}
+
+/// A blank target means the project uses the connection as a whole.
+pub(in crate::connection) fn target_of(raw: Option<&str>) -> Option<String> {
+    raw.map(jstr::strip).filter(|target| !target.is_empty()).map(str::to_string)
+}
+
+/// `wanted`, or the first of `wanted-2`, `wanted-3`... that no binding of the project uses yet.
+pub(in crate::connection) fn first_free_label(wanted: &str, taken: &[String]) -> String {
+    if !taken.iter().any(|label| label == wanted) {
+        return wanted.to_string();
+    }
+    (2..).map(|suffix| format!("{wanted}-{suffix}")).find(|label| !taken.contains(label)).expect("an unbounded range always finds a free label")
+}
+
+#[cfg(test)]
+#[path = "../../../tests/unit/connection/rule/connection_rules_tests.rs"]
+mod tests;

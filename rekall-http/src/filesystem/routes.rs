@@ -1,6 +1,6 @@
 use axum::Router;
 
-use super::{directory_listing_controller};
+use super::{controller::directory_listing_controller};
 use crate::ApiState;
 
 /// Every route of this domain.

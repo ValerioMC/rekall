@@ -3,26 +3,19 @@
 //! project or a task after holding its spans against the project folder. Deleting one is the
 //! console's, in rekall-console.
 
-mod diagram_draft;
-mod diagram_service;
-mod diagram_sheet_view;
-mod diagram_stream_event;
-mod diagram_summary_view;
-mod diagram_target;
-mod diagram_view;
-mod generated_diagram;
-mod generated_diagram_view;
-mod project_folder;
-mod source_audit;
+mod event;
+mod model;
+mod service;
+mod view;
 
-pub use diagram_draft::DiagramDraft;
-pub use diagram_service::DiagramService;
-pub use diagram_sheet_view::DiagramSheetView;
-pub use diagram_stream_event::DiagramStreamEvent;
-pub use diagram_summary_view::DiagramSummaryView;
-pub use diagram_target::DiagramTarget;
-pub use diagram_view::DiagramView;
-pub use generated_diagram::GeneratedDiagram;
-pub use generated_diagram_view::GeneratedDiagramView;
-pub use project_folder::ProjectFolder;
-pub use source_audit::SourceAudit;
+pub use model::diagram_draft::DiagramDraft;
+pub use service::diagram_service::DiagramService;
+pub use view::diagram_sheet_view::DiagramSheetView;
+pub use event::diagram_stream_event::DiagramStreamEvent;
+pub use view::diagram_summary_view::DiagramSummaryView;
+pub use model::diagram_target::DiagramTarget;
+pub use view::diagram_view::DiagramView;
+pub use model::generated_diagram::GeneratedDiagram;
+pub use view::generated_diagram_view::GeneratedDiagramView;
+pub use model::project_folder::ProjectFolder;
+pub use model::source_audit::SourceAudit;

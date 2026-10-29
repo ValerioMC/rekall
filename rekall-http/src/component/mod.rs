@@ -1,10 +1,9 @@
 //! A project's components.
 
-mod project_component_controller;
-mod project_component_order_request;
-mod project_component_request;
+mod controller;
+mod request;
 mod routes;
 
-pub use project_component_order_request::ProjectComponentOrderRequest;
-pub use project_component_request::ProjectComponentRequest;
+pub use request::project_component_order_request::ProjectComponentOrderRequest;
+pub use request::project_component_request::ProjectComponentRequest;
 pub(crate) use routes::routes;

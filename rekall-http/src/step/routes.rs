@@ -1,6 +1,6 @@
 use axum::Router;
 
-use super::{task_step_controller};
+use super::{controller::task_step_controller};
 use crate::ApiState;
 
 /// Every route of this domain.

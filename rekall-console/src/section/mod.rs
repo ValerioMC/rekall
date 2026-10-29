@@ -1,9 +1,8 @@
 //! A project's sections.
 
-mod project_section_catalog_service;
-mod project_section_command;
-mod project_section_order_command;
+mod command;
+mod service;
 
-pub use project_section_catalog_service::ProjectSectionCatalogService;
-pub use project_section_command::ProjectSectionCommand;
-pub use project_section_order_command::ProjectSectionOrderCommand;
+pub use service::project_section_catalog_service::ProjectSectionCatalogService;
+pub use command::project_section_command::ProjectSectionCommand;
+pub use command::project_section_order_command::ProjectSectionOrderCommand;

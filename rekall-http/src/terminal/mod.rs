@@ -9,15 +9,12 @@
 //! none). Outbound frames are queued with a cap: a pane that stops reading is dropped rather than
 //! left to back up memory.
 
-mod open_terminal_request;
-mod outbound;
+mod controller;
+mod request;
+mod support;
 mod routes;
-mod socket_controller;
-mod socket_listener;
-mod terminal_controller;
-mod terminal_mode_name;
 
-pub use open_terminal_request::OpenTerminalRequest;
-pub use socket_controller::is_allowed_origin;
-pub use terminal_mode_name::TerminalModeName;
+pub use request::open_terminal_request::OpenTerminalRequest;
+pub use controller::socket_controller::is_allowed_origin;
+pub use request::terminal_mode_name::TerminalModeName;
 pub(crate) use routes::{routes, socket_routes};

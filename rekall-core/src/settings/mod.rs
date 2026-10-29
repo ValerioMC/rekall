@@ -2,16 +2,12 @@
 //! restart that moves the application onto another. The registry file, a folder's inspection and
 //! the restart are ports that `rekall-infra` implements.
 
-mod application_restart;
-mod database_entry;
-mod database_folders;
-mod database_registry;
-mod folder_inspection;
-mod setup_status;
+mod model;
+mod port;
 
-pub use application_restart::ApplicationRestart;
-pub use database_entry::DatabaseEntry;
-pub use database_folders::DatabaseFolders;
-pub use database_registry::DatabaseRegistry;
-pub use folder_inspection::FolderInspection;
-pub use setup_status::SetupStatus;
+pub use port::application_restart::ApplicationRestart;
+pub use model::database_entry::DatabaseEntry;
+pub use port::database_folders::DatabaseFolders;
+pub use model::database_registry::DatabaseRegistry;
+pub use model::folder_inspection::FolderInspection;
+pub use model::setup_status::SetupStatus;

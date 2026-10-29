@@ -3,19 +3,16 @@
 //! (`DependencyInventoryService::write_in`); the console reads it. It is what a vulnerability scan
 //! asks the advisory database about.
 
-mod declared_dependency;
-mod dependency_inventory_service;
-mod inventory_stream_event;
-mod inventory_summary_view;
-mod inventory_written;
-mod manifest_freshness;
-mod project_dependency_view;
+mod event;
+mod model;
+pub mod rule;
+mod service;
+mod view;
 
-pub mod rules;
 
-pub use declared_dependency::DeclaredDependency;
-pub use dependency_inventory_service::DependencyInventoryService;
-pub use inventory_stream_event::InventoryStreamEvent;
-pub use inventory_summary_view::InventorySummaryView;
-pub use inventory_written::InventoryWritten;
-pub use project_dependency_view::ProjectDependencyView;
+pub use model::declared_dependency::DeclaredDependency;
+pub use service::dependency_inventory_service::DependencyInventoryService;
+pub use event::inventory_stream_event::InventoryStreamEvent;
+pub use view::inventory_summary_view::InventorySummaryView;
+pub use model::inventory_written::InventoryWritten;
+pub use view::project_dependency_view::ProjectDependencyView;

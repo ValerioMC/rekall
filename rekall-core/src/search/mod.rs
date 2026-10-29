@@ -4,10 +4,9 @@
 //! there is no search. Each kind returns at most eight hits, newest first, and within those a hit
 //! on a title comes before a hit in the body.
 
-mod search_hit;
-mod search_hit_kind;
-mod search_service;
+mod model;
+mod service;
 
-pub use search_hit::SearchHit;
-pub use search_hit_kind::SearchHitKind;
-pub use search_service::{TERM_MIN, SearchService, excerpt};
+pub use model::search_hit::SearchHit;
+pub use model::search_hit_kind::SearchHitKind;
+pub use service::search_service::{TERM_MIN, SearchService, excerpt};

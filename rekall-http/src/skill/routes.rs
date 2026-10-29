@@ -1,6 +1,6 @@
 use axum::Router;
 
-use super::{skill_assignment_controller};
+use super::{controller::skill_assignment_controller};
 use crate::ApiState;
 
 /// Every route of this domain.

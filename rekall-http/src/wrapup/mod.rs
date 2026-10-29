@@ -1,8 +1,8 @@
 //! A task's wrapup.
 
-mod wrapup_controller;
-mod wrapup_request;
+mod controller;
+mod request;
 mod routes;
 
-pub use wrapup_request::WrapupRequest;
+pub use request::wrapup_request::WrapupRequest;
 pub(crate) use routes::routes;

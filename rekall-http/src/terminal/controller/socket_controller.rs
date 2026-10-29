@@ -1,0 +1,207 @@
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::{Arc, LazyLock};
+
+use axum::extract::ws::{CloseFrame, Message, WebSocket, WebSocketUpgrade};
+use axum::extract::{Path, State};
+use axum::http::{HeaderMap, StatusCode};
+use axum::response::{IntoResponse, Response};
+use axum::routing::get;
+use axum::Router;
+use base64::Engine;
+use futures::{SinkExt, StreamExt};
+use regex::Regex;
+use rekall_kernel::{Id, RekallError};
+use serde_json::{json, Value};
+use tokio::sync::mpsc;
+use tracing::debug;
+
+use crate::terminal::support::outbound::Outbound;
+use crate::terminal::support::socket_listener::SocketListener;
+use crate::ApiState;
+
+const MAX_BINARY_FRAME_BYTES: usize = 524_288;
+const MAX_TEXT_FRAME_BYTES: usize = 65_536;
+pub(in crate::terminal) const SEND_BUFFER_LIMIT_BYTES: usize = 1_048_576;
+
+/// The RFC 6455 close codes the terminal socket sends.
+pub(in crate::terminal) const NORMAL: u16 = 1000;
+const NOT_ACCEPTABLE: u16 = 1003;
+const BAD_DATA: u16 = 1007;
+const TOO_BIG: u16 = 1009;
+const SERVER_ERROR: u16 = 1011;
+pub(in crate::terminal) const SESSION_NOT_RELIABLE: u16 = 4500;
+
+pub fn routes() -> Router<ApiState> {
+    Router::new().route("/api/terminal/{id}/io", get(upgrade))
+}
+
+/// `setAllowedOriginPatterns`: `http://localhost`, `http://127.0.0.1` and `http://[::1]`, with
+/// or without a port.
+pub fn is_allowed_origin(origin: &str) -> bool {
+    static LOOPBACK: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"^http://(localhost|127\.0\.0\.1|\[::1\])(:[0-9]*)?$").expect("a valid pattern"));
+    LOOPBACK.is_match(&origin.to_lowercase())
+}
+
+async fn upgrade(
+    State(state): State<ApiState>,
+    Path(raw): Path<String>,
+    headers: HeaderMap,
+    socket: WebSocketUpgrade,
+) -> Response {
+    if let Some(origin) = headers.get("origin").and_then(|o| o.to_str().ok()) {
+        if !is_allowed_origin(origin) {
+            return StatusCode::FORBIDDEN.into_response();
+        }
+    }
+    socket
+        .max_message_size(MAX_BINARY_FRAME_BYTES)
+        .max_frame_size(MAX_BINARY_FRAME_BYTES)
+        .on_upgrade(move |socket| serve(state, raw, socket))
+        .into_response()
+}
+
+fn terminal_id_of(raw: &str) -> Option<Id> {
+    static ID: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[0-9a-fA-F-]{36}$").expect("a valid pattern"));
+    if !ID.is_match(raw) {
+        return None;
+    }
+    raw.parse().ok()
+}
+
+async fn close_with(socket: &mut WebSocket, code: u16, reason: &str) {
+    let _ = socket
+        .send(Message::Close(Some(CloseFrame { code, reason: truncate_reason(reason).into() })))
+        .await;
+}
+
+/// A close reason travels in a control frame, which holds 123 bytes of it at most.
+fn truncate_reason(reason: &str) -> String {
+    let mut out = String::new();
+    for c in reason.chars() {
+        if out.len() + c.len_utf8() > 123 {
+            break;
+        }
+        out.push(c);
+    }
+    out
+}
+
+async fn serve(state: ApiState, raw: String, mut socket: WebSocket) {
+    let Some(terminal_id) = terminal_id_of(&raw) else {
+        close_with(&mut socket, BAD_DATA, "Malformed terminal path.").await;
+        return;
+    };
+
+    let (sender, mut outbound) = mpsc::unbounded_channel();
+    let pending = Arc::new(AtomicUsize::new(0));
+    let closed = Arc::new(AtomicBool::new(false));
+    let listener = Arc::new(SocketListener { sender: sender.clone(), pending: pending.clone(), closed: closed.clone() });
+
+    let (view, token) = match state.terminal_pipe.attach(terminal_id, listener.clone()) {
+        Ok(attached) => attached,
+        Err(gone) => {
+            close_with(&mut socket, NOT_ACCEPTABLE, gone.message()).await;
+            return;
+        }
+    };
+
+    let ready = json!({
+        "type": "ready",
+        "id": view.id.to_string(),
+        "anchors": view.anchors,
+        "workingDir": view.working_dir,
+    })
+    .to_string();
+    let (mut sink, mut stream) = socket.split();
+    if sink.send(Message::Text(ready.into())).await.is_err() {
+        state.terminal_pipe.detach(terminal_id, token);
+        return;
+    }
+
+    let writer_pending = pending.clone();
+    let writer = tokio::spawn(async move {
+        while let Some(message) = outbound.recv().await {
+            match message {
+                Outbound::Frame(frame) => {
+                    let size = match &frame {
+                        Message::Binary(bytes) => bytes.len(),
+                        Message::Text(text) => text.len(),
+                        _ => 0,
+                    };
+                    let sent = sink.send(frame).await;
+                    writer_pending.fetch_sub(size, Ordering::SeqCst);
+                    if sent.is_err() {
+                        break;
+                    }
+                }
+                Outbound::Close(code, reason) => {
+                    let _ = sink.send(Message::Close(Some(CloseFrame { code, reason: reason.into() }))).await;
+                    break;
+                }
+            }
+        }
+    });
+
+    while let Some(received) = stream.next().await {
+        let message = match received {
+            Ok(message) => message,
+            Err(failure) => {
+                debug!(%failure, %terminal_id, "Terminal socket transport error");
+                let _ = sender.send(Outbound::Close(SERVER_ERROR, String::new()));
+                break;
+            }
+        };
+        match message {
+            Message::Binary(bytes) => feed(&state, terminal_id, &bytes, &sender),
+            Message::Text(text) => {
+                if text.len() > MAX_TEXT_FRAME_BYTES {
+                    let _ = sender.send(Outbound::Close(TOO_BIG, String::new()));
+                    break;
+                }
+                let Ok(node) = serde_json::from_str::<Value>(&text) else { continue };
+                if let Some(resize) = node.get("resize").and_then(Value::as_array).filter(|r| r.len() == 2) {
+                    state.terminal_pipe.resize(terminal_id, as_int(&resize[0]), as_int(&resize[1]));
+                    continue;
+                }
+                if let Some(input) = node.get("in").and_then(Value::as_str) {
+                    if let Ok(bytes) = base64::engine::general_purpose::STANDARD.decode(input) {
+                        feed(&state, terminal_id, &bytes, &sender);
+                    }
+                }
+            }
+            Message::Close(_) => break,
+            _ => {}
+        }
+        if closed.load(Ordering::SeqCst) && writer.is_finished() {
+            break;
+        }
+    }
+    state.terminal_pipe.detach(terminal_id, token);
+    drop(sender);
+    drop(listener);
+    let _ = writer.await;
+}
+
+/// Lenient on purpose: a number's integer part, a numeric string parsed, anything else 0.
+fn as_int(value: &Value) -> i64 {
+    match value {
+        Value::Number(n) => n.as_i64().or_else(|| n.as_f64().map(|f| f as i64)).unwrap_or(0),
+        Value::String(s) => s.trim().parse().unwrap_or(0),
+        Value::Bool(b) => i64::from(*b),
+        _ => 0,
+    }
+}
+
+fn feed(state: &ApiState, terminal_id: Id, bytes: &[u8], sender: &mpsc::UnboundedSender<Outbound>) {
+    if bytes.is_empty() {
+        return;
+    }
+    if let Err(RekallError::Conflict(reason)) = state.terminal_pipe.write(terminal_id, bytes) {
+        let _ = sender.send(Outbound::Close(NORMAL, truncate_reason(&reason)));
+    }
+}
+
+#[cfg(test)]
+#[path = "../../../tests/unit/terminal/controller/socket_controller_tests.rs"]
+mod tests;

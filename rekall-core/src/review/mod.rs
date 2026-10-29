@@ -4,10 +4,10 @@
 //! `accept` and `send_back` are the console's alone, with no MCP tool. Every method is inert once
 //! the task has a checklist.
 
-mod task_review_event;
-mod task_review_service;
-mod task_review_view;
+mod event;
+mod service;
+mod view;
 
-pub use task_review_event::TaskReviewEvent;
-pub use task_review_service::TaskReviewService;
-pub use task_review_view::TaskReviewView;
+pub use event::task_review_event::TaskReviewEvent;
+pub use service::task_review_service::TaskReviewService;
+pub use view::task_review_view::TaskReviewView;

@@ -1,13 +1,13 @@
 //! The one write path for a task's wrapup. A write replaces the text outright and a delete removes
 //! it: no earlier version is kept.
 
-mod wrapup_service;
-mod wrapup_stream_event;
-mod wrapup_view;
-mod written;
+mod event;
+mod model;
+mod service;
+mod view;
 
-pub use wrapup_service::WrapupService;
-pub use wrapup_stream_event::WrapupStreamEvent;
-pub use wrapup_view::WrapupView;
-pub use written::Written;
+pub use service::wrapup_service::WrapupService;
+pub use event::wrapup_stream_event::WrapupStreamEvent;
+pub use view::wrapup_view::WrapupView;
+pub use model::written::Written;
 pub use rekall_store::WrapupAuthor;

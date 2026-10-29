@@ -1,6 +1,6 @@
 use axum::Router;
 
-use super::{time_entry_controller};
+use super::{controller::time_entry_controller};
 use crate::ApiState;
 
 /// Every route of this domain.

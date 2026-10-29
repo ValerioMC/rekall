@@ -1,6 +1,6 @@
 use axum::Router;
 
-use super::{deployment_graph_controller, graph_attach_controller};
+use super::{controller::deployment_graph_controller, controller::graph_attach_controller};
 use crate::ApiState;
 
 /// Every route of this domain.

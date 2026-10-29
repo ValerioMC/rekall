@@ -1,14 +1,12 @@
 //! Notes and the tasks they are attached to.
 
-mod document_controller;
-mod document_list_query;
-mod document_request;
-mod document_response;
-mod document_search_query;
+mod controller;
+mod request;
+mod response;
 mod routes;
 
-pub use document_list_query::DocumentListQuery;
-pub use document_request::DocumentRequest;
-pub use document_response::DocumentResponse;
-pub use document_search_query::DocumentSearchQuery;
+pub use request::document_list_query::DocumentListQuery;
+pub use request::document_request::DocumentRequest;
+pub use response::document_response::DocumentResponse;
+pub use request::document_search_query::DocumentSearchQuery;
 pub(crate) use routes::routes;

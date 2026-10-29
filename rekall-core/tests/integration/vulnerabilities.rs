@@ -12,7 +12,7 @@ use rekall_store::{AdvisorySeverity, Ecosystem, ExposureVerdict, FixScope};
 use rekall_core::connection::InMemorySecretStore;
 use rekall_core::inventory::DeclaredDependency;
 use rekall_core::vulnerability::{
-    version_range, AdvisoryFeed, AdvisoryFeedFailure, AffectedPackage, PackageVersion, PublishedAdvisory, ScanScope, ScanSettingsService, VulnerabilityScanService,
+    model::version_range, AdvisoryFeed, AdvisoryFeedFailure, AffectedPackage, PackageVersion, PublishedAdvisory, ScanScope, ScanSettingsService, VulnerabilityScanService,
 };
 use rekall_core::Tx;
 use sea_orm::ConnectionTrait;
