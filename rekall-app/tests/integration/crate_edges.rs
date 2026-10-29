@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use regex::Regex;
 
 /// Each workspace member, by its folder, and the Rekall crates it may depend on.
-const ALLOWED: [(&str, &[&str]); 12] = [
+const ALLOWED: [(&str, &[&str]); 11] = [
     ("rekall-kernel", &[]),
     ("rekall-web", &["rekall-kernel"]),
     ("rekall-diagram", &[]),
@@ -18,13 +18,12 @@ const ALLOWED: [(&str, &[&str]); 12] = [
     ("rekall-console", &["rekall-core", "rekall-kernel", "rekall-store"]),
     ("rekall-api", &["rekall-console", "rekall-core", "rekall-kernel", "rekall-store", "rekall-web"]),
     ("rekall-mcp", &["rekall-core", "rekall-kernel"]),
-    ("rekall-claude", &["rekall-core", "rekall-diagram", "rekall-kernel", "rekall-store", "rekall-web"]),
-    ("rekall-platform", &["rekall-core", "rekall-kernel", "rekall-store", "rekall-web"]),
+    ("rekall-infra", &["rekall-core", "rekall-diagram", "rekall-kernel", "rekall-store", "rekall-web"]),
     (
         "rekall-app",
-        &["rekall-api", "rekall-claude", "rekall-core", "rekall-kernel", "rekall-mcp", "rekall-platform", "rekall-store", "rekall-web"],
+        &["rekall-api", "rekall-core", "rekall-infra", "rekall-kernel", "rekall-mcp", "rekall-store", "rekall-web"],
     ),
-    ("rekall-app/desktop", &["rekall-app", "rekall-platform"]),
+    ("rekall-app/desktop", &["rekall-app", "rekall-infra"]),
 ];
 
 fn workspace_root() -> PathBuf {

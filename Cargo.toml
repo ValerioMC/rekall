@@ -1,6 +1,6 @@
 # The backend: one crate per layer, and the dependency direction the crates enforce:
 # rekall-kernel <- rekall-store <- rekall-core <- rekall-console <- rekall-api,
-# with rekall-mcp, rekall-claude and rekall-platform on rekall-core, all <- rekall-app.
+# with rekall-mcp on rekall-core and rekall-infra implementing its traits, all <- rekall-app.
 # rekall-web, the error body and extractors both routers use, depends on rekall-kernel only.
 # rekall-diagram, the diagram format, depends on nothing of Rekall's own and is read from
 # rekall-core upwards.
@@ -20,8 +20,7 @@ members = [
     "rekall-console",
     "rekall-api",
     "rekall-mcp",
-    "rekall-claude",
-    "rekall-platform",
+    "rekall-infra",
     "rekall-app",
     "rekall-app/desktop",
 ]
@@ -34,8 +33,7 @@ default-members = [
     "rekall-console",
     "rekall-api",
     "rekall-mcp",
-    "rekall-claude",
-    "rekall-platform",
+    "rekall-infra",
     "rekall-app",
 ]
 
@@ -54,8 +52,7 @@ rekall-core = { path = "rekall-core" }
 rekall-console = { path = "rekall-console" }
 rekall-api = { path = "rekall-api" }
 rekall-mcp = { path = "rekall-mcp" }
-rekall-claude = { path = "rekall-claude" }
-rekall-platform = { path = "rekall-platform" }
+rekall-infra = { path = "rekall-infra" }
 rekall-app = { path = "rekall-app" }
 
 sea-orm = { version = "2.0", default-features = false, features = ["sqlx-sqlite", "runtime-tokio-rustls", "macros", "with-uuid"] }

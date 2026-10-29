@@ -6,16 +6,18 @@ use axum::http::StatusCode;
 use axum::{middleware, Router};
 use rekall_web::error::{framework, render_errors};
 use rekall_api::{ApiState, StepEventStream};
-use rekall_claude::cli::ClaudeCli;
-use rekall_claude::connection::CredentialBroker;
-use rekall_claude::credentials::ClaudeCredentials;
-use rekall_claude::login_shell::LoginShellEnvironment;
-use rekall_claude::pty::PtyTerminalManager;
-use rekall_claude::queue::{RunQueueRunner, RunQueueService};
-use rekall_claude::resources::{ClaudeResourceService, SkillGroupService};
-use rekall_claude::transcript::{TranscriptFolder, TranscriptScanner};
-use rekall_claude::usage::{ClaudeUsageService, UsageReader};
-use rekall_claude::ClaudeState;
+use rekall_infra::cli::ClaudeCli;
+use rekall_infra::connection::CredentialBroker;
+use rekall_infra::credentials::ClaudeCredentials;
+use rekall_infra::login_shell::LoginShellEnvironment;
+use rekall_infra::pty::PtyTerminalManager;
+use rekall_core::queue::RunQueueService;
+use rekall_infra::queue::RunQueueRunner;
+use rekall_core::skill::SkillGroupService;
+use rekall_infra::resources::ClaudeResourceService;
+use rekall_infra::transcript::{TranscriptFolder, TranscriptScanner};
+use rekall_infra::usage::{ClaudeUsageService, UsageReader};
+use rekall_infra::ClaudeState;
 use rekall_store::Database;
 use rekall_core::connection::{ConnectionAccessService, JiraIssues, RememberingSecretStore, SecretStore};
 use rekall_core::timeentry::IDLE_AFTER;
@@ -23,20 +25,22 @@ use rekall_core::vulnerability::{AdvisoryFeed, ScanSettingsService, Vulnerabilit
 use rekall_core::{Ctx, EventBus, Services};
 use tracing::warn;
 
-use rekall_platform::backup::{self, DatabaseBackupService, DatabaseLocation, DatabaseRestoreService};
-use rekall_claude::installer::{self, ClaudeCodeInstaller};
-use rekall_platform::bootstrap::location::SetupStatus;
-use rekall_platform::bootstrap::registry::DatabaseRegistryStore;
-use rekall_platform::bootstrap::settings::{self, SettingsState};
+use rekall_infra::backup::{self, DatabaseBackupService, DatabaseLocation, DatabaseRestoreService};
+use rekall_infra::installer::{self, ClaudeCodeInstaller};
+use rekall_infra::bootstrap::location::SetupStatus;
+use rekall_infra::bootstrap::registry::DatabaseRegistryStore;
+use rekall_infra::bootstrap::settings::{self, SettingsState};
 use crate::config::AppConfig;
-use rekall_platform::restart::Restarter;
-use rekall_platform::connection::{self, ConnectionCheckService, ConnectionProbe, HttpConnectionProbe, HttpJiraIssues};
-use rekall_platform::secret::KeychainSecretStore;
+use rekall_infra::restart::Restarter;
+use rekall_core::connection::{ConnectionCheckService, ConnectionProbe};
+use rekall_infra::jira::HttpJiraIssues;
+use rekall_infra::probes::{self, HttpConnectionProbe};
+use rekall_infra::secret::KeychainSecretStore;
 use crate::security::{self, LocalAccess};
 use crate::spa::{self, Assets};
 use crate::actuator;
-use rekall_platform::version::{self, GithubReleaseFeed, ReleaseFeed, UpdateChecker, RUNNING_VERSION};
-use rekall_platform::vulnerability::GithubAdvisoryFeed;
+use rekall_infra::version::{self, GithubReleaseFeed, ReleaseFeed, UpdateChecker, RUNNING_VERSION};
+use rekall_infra::vulnerability::GithubAdvisoryFeed;
 
 use super::StartOptions;
 
@@ -191,13 +195,13 @@ impl Instance {
         let routes = Router::new()
             .merge(rekall_api::router(api))
             .merge(rekall_mcp::router(mcp))
-            .merge(rekall_claude::router(claude))
+            .merge(rekall_infra::router(claude))
             .merge(settings::routes(settings))
             .merge(installer::routes(installer))
             .merge(backup::routes(backups.clone(), restorer))
             .merge(actuator::routes(database.conn.clone()))
             .merge(version::routes(update_checker))
-            .merge(connection::routes(connection_checks))
+            .merge(probes::routes(connection_checks))
             .merge(spa::routes(Assets::new(config.ui_dist.clone())))
             .method_not_allowed_fallback(|| async { framework(StatusCode::METHOD_NOT_ALLOWED) });
         // The routes sit behind a fallback so the layers below see each response whole.

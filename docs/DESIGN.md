@@ -57,8 +57,7 @@ rekall/
   rekall-console/    the services only the console calls, one folder per domain: commands in, views out, no HTTP types
   rekall-api/        Axum REST routes for the UI, one folder per domain: its controllers, request and response shapes and routes
   rekall-mcp/        MCP server: three tools read, twelve write; a folder per domain holds its tools
-  rekall-claude/     the in-app terminal (portable-pty PTYs over one WebSocket), the Claude Code usage meter, the run queue, the transcript reader, the Claude folder editor
-  rekall-platform/   the database registry, backups and restores, the restart handle, the release check, the OS credential store, the GitHub Advisory Database client; what the application does around the catalog
+  rekall-infra/      everything with a process, a file, a socket or outbound HTTP behind it, a folder per capability: the in-app terminal (`pty`, `socket`, `terminal`), the run queue's worker, the usage meter, the transcript reader, the Claude folder editor, the database registry (`bootstrap`), backups and restores, the restart handle, the release check, the OS credential store (`secret`), the connection probes, the Jira search, the GitHub Advisory Database client; their controllers still sit beside them
   rekall-app/        rekall-server: wires every module, the local-access guard, serves the built frontend, embedded at compile time
   rekall-app/desktop the Tauri desktop app over the same server, in-process
   rekall-ui/         Vue 3 + Vite (built into rekall-ui/dist, embedded by rekall-app)
@@ -132,14 +131,13 @@ from its table:
 | `rekall-web` | `rekall-kernel` |
 | `rekall-diagram` | nothing |
 | `rekall-store` | `rekall-kernel` |
-| `rekall-core` | `rekall-kernel`, `rekall-diagram`, `rekall-store` |
-| `rekall-console` | `rekall-kernel`, `rekall-core`, `rekall-store` |
-| `rekall-api` | `rekall-kernel`, `rekall-console`, `rekall-core`, `rekall-store`, `rekall-web` |
-| `rekall-mcp` | `rekall-kernel`, `rekall-core` |
-| `rekall-claude` | `rekall-kernel`, `rekall-diagram`, `rekall-core`, `rekall-store`, `rekall-web` |
-| `rekall-platform` | `rekall-kernel`, `rekall-core`, `rekall-store`, `rekall-web` |
-| `rekall-app` | `rekall-api`, `rekall-claude`, `rekall-kernel`, `rekall-mcp`, `rekall-platform`, `rekall-core`, `rekall-store`, `rekall-web` |
-| `rekall-app/desktop` | `rekall-app`, `rekall-platform` |
+| `rekall-core` | `rekall-diagram`, `rekall-kernel`, `rekall-store` |
+| `rekall-console` | `rekall-core`, `rekall-kernel`, `rekall-store` |
+| `rekall-api` | `rekall-console`, `rekall-core`, `rekall-kernel`, `rekall-store`, `rekall-web` |
+| `rekall-mcp` | `rekall-core`, `rekall-kernel` |
+| `rekall-infra` | `rekall-core`, `rekall-diagram`, `rekall-kernel`, `rekall-store`, `rekall-web` |
+| `rekall-app` | `rekall-api`, `rekall-core`, `rekall-infra`, `rekall-kernel`, `rekall-mcp`, `rekall-store`, `rekall-web` |
+| `rekall-app/desktop` | `rekall-app`, `rekall-infra` |
 
 `domain_edges.rs` fails on a domain that names another one it is not listed for, wherever the path
 points: into its own crate or into another Rekall crate's domain (`rekall_store::task` in a `note`
@@ -161,11 +159,11 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `graph` | `catalog`, `flow`, `step` | - | `catalog`, `flow`, `step`, `task` | `step` | - |
 | `inventory` | `catalog` | `catalog` | - | nothing | `vulnerability` |
 | `note` | `task` | `task` | `catalog` | `catalog` | nothing |
-| `queue` | `task` | - | - | - | - |
+| `queue` | `task` | `catalog`, `claude`, `task` | - | - | - |
 | `review` | - | `task`, `timeentry` | - | - | - |
 | `search` | - | `task` | - | nothing | - |
 | `section` | `catalog` | `catalog`, `note` | nothing | nothing | `note` |
-| `skill` | `step`, `tag`, `task` | - | nothing | nothing | - |
+| `skill` | `step`, `tag`, `task` | `claude` | nothing | nothing | - |
 | `step` | `task` | `flow`, `task`, `timeentry` | - | nothing | `commit`, `flow` |
 | `stream` | - | - | - | nothing | - |
 | `tag` | `task` | - | nothing | nothing | - |
@@ -182,13 +180,16 @@ Each crate's foundations are modules every domain may use and are no domain: `ct
 `tool` and `tool_registry` in `rekall-mcp`. A new edge is a design decision: change the table and
 the test together, or change the code.
 
-`rekall-claude` does not depend on `rekall-api`. What the two routers share is in `rekall-web`.
+`rekall-infra` does not depend on `rekall-api`. What the two routers share is in `rekall-web`.
 
 `claude` exists twice on purpose. `rekall-core/src/claude/` reads the entities a launch needs (the
-launch target of a task or project, the work left in a task) so `rekall-claude` never touches a
-repository; `rekall-claude` owns everything with a process, a file or a socket behind it: the
-terminals, the run queue, the usage meter, the transcripts, `~/.claude`, the Claude Code installer.
-A rule that needs the database goes in the first, one that needs the machine in the second.
+launch target of a task or project, the work left in a task), the models and efforts a session may
+start with, and `ResourcePath`, so `rekall-infra` never touches a repository; `rekall-infra` owns
+everything with a process, a file or a socket behind it: the terminals, the run queue's worker, the
+usage meter, the transcripts, `~/.claude`, the Claude Code installer. A rule that needs the database
+goes in the first, one that needs the machine in the second. The run queue's rows and moves are
+`RunQueueService` in `rekall-core/src/queue/`, and how skills are grouped is `SkillGroupService` in
+`rekall-core/src/skill/`.
 
 **Events.** A domain announces a change by implementing `StreamEvent` for its own type (a frame
 name and a serialisable payload) and publishing it on its transaction. `events` imports no domain, so
@@ -503,7 +504,7 @@ The walk distinguishes by direction, not by depth:
 Skills follow three rules. A tag's skills are read when the context loads and never copied onto its
 tasks, so editing a tag changes every task under it. A skill already listed at a wider scope is not
 listed again, and a finished step's skills are dropped. The name is checked for its shape only
-(`rekall_store::skill_name`): `rekall-console` cannot see `~/.claude`, which `rekall-claude` reads, so the
+(`rekall_store::skill_name`): `rekall-console` cannot see `~/.claude`, which `rekall-infra` reads, so the
 picker offers only what exists and a skill that later vanishes stays assigned and is flagged in the
 console. The writes are `SkillAssignmentService` in `rekall-console`, each replacing one owner's whole
 list; `rekall-mcp` can read the skills through the context and never write them.
@@ -768,7 +769,7 @@ Connection credentials never reach `rekall-mcp`. A GitLab token, a Kubernetes ku
 credential (`JiraCredential`: a Jira Cloud email and API token, kept as the `email:token` pair Basic
 authentication sends, or a Data Center personal access token sent as Bearer, kept as `pat:token`; which
 one it is decides the site's `JiraDeployment`) lives in
-the OS credential store (`KeychainSecretStore` in `rekall-platform`, over `keyring`, service
+the OS credential store (`KeychainSecretStore` in `rekall-infra`, over `keyring`, service
 `Rekall-connections`, one account per connection's `secret_ref`), behind the `SecretStore` trait in
 `rekall-core/src/connection/`. `rekall-app` wraps it in a `RememberingSecretStore`, which reads each account from the keychain
 once and answers later reads from memory until the account is written or removed: the Keychain may
@@ -848,7 +849,7 @@ in `jira_rules.rs`:
   its import.
 - The title is the summary (cut to 200 characters, the key when blank); the description is a link back to
   the issue followed by its description, read from Atlassian's document format as markdown
-  (`rekall-platform/src/connection/atlassian_document.rs`) on Jira Cloud and kept as Jira wrote it on
+  (`rekall-infra/src/jira/atlassian_document.rs`) on Jira Cloud and kept as Jira wrote it on
   Data Center, whose v2 API answers it as text.
 - A key that is not `<PROJECT>-<number>` of the bound project, more than 50 keys, a binding with no project
   key, a connection of another kind or one with no credential is refused (400) before Jira is asked.
@@ -856,15 +857,16 @@ in `jira_rules.rs`:
   when it gave one.
 
 Jira is reached through the `JiraIssues` trait in `rekall-core/src/connection/`, implemented by
-`HttpJiraIssues` in `rekall-platform` (`POST /rest/api/3/search/jql` on Jira Cloud, `POST
+`HttpJiraIssues` in `rekall-infra` (`POST /rest/api/3/search/jql` on Jira Cloud, `POST
 /rest/api/2/search` on Data Center, the first page only), or a fake
 through `StartOptions::jira_issues`. It is asked before any transaction opens. Both it and the check
 take a `JiraSite`, the site URL and the connection's proxy, and go through the proxy when there is one.
 
 `POST /api/connections/{id}/check` asks the connection's server whether its stored credential still
-works, before a session finds out mid-deploy. It lives in `rekall-platform/src/connection/` because
-it is HTTP to the outside: `ConnectionCheckService` reads the credential through the store and hands
-it to a `ConnectionProbe` (`HttpConnectionProbe`, or a fake through `StartOptions::connection_probe`).
+works, before a session finds out mid-deploy. `ConnectionCheckService` (`rekall-core/src/connection/`)
+reads the credential through the store and hands it to a `ConnectionProbe`: `HttpConnectionProbe` in
+`rekall-infra/src/probes/`, because asking is HTTP to the outside, or a fake through
+`StartOptions::connection_probe`.
 GitLab is asked `GET /api/v4/user` with the token, Jira `GET /rest/api/3/myself` (Cloud) or `GET /rest/api/2/myself` (Data Center) with the credential's header; a cluster is asked `/version` and a
 `SelfSubjectReview`, through the kubeconfig's `proxy-url` when it has one, trusted through its CA
 and with a client certificate as the TLS identity, falling back to an authenticated `GET /api` on a cluster too old for the review. The
@@ -873,7 +875,7 @@ asked, with the underlying cause such as a timeout) is shown and never stored, a
 anyone.
 
 A terminal with a credential session also starts `claude` with `--settings` pointing at the
-session's `claude-settings.json`, whose `permissions.deny` (`rekall-claude/src/connection/guard_rails.rs`)
+session's `claude-settings.json`, whose `permissions.deny` (`rekall-infra/src/connection/guard_rails.rs`)
 closes the session folder to the file tools (`Read`/`Edit` with an absolute `//` rule on the folder's
 real path) and denies dumping the environment (`env`, `printenv`, `export -p`, `set`), `git
 credential`, `kubectl config view --raw`, running the plugin or helper by hand, `cat`/`head`/`tail`/
@@ -907,7 +909,7 @@ second needs the code read, so a session makes it.
 |---|---|
 | `DependencyInventoryService` (rekall-core, `inventory/`) | A project's dependencies, written whole by `write_in` and read by the console and the scan. `summaries` adds the manifests `manifest_freshness::changed_since` finds modified after the inventory was recorded, or gone, in the project's folder. `inventory::rules` refuses an empty list, more than 5,000 entries, an unknown ecosystem, a version that is a range (`^`, `~`, `>`, `<`, `=`, `*`, `\|`, a space or a comma), and a manifest path that is absolute or climbs out with `..`; a leading `v` before a digit is dropped, and an entry repeating an ecosystem, name and version is kept once |
 | `InventoryRecordingService` | The session's write: the inventory and, in the same transaction, `forget_missing_in`, which drops the exposures whose package the new list no longer holds at that version |
-| `AdvisoryFeed` | The seam to the advisory database: the latest critical advisories, and the ones affecting a list of `package@version` in one ecosystem within a `ScanScope`. `GithubAdvisoryFeed` in rekall-platform reads `GET /advisories?type=reviewed&severity=critical`, the second form with `ecosystem` and `affects`; with `include_high` it drops the severity and keeps critical and high itself (GitHub filters one severity at a time), and with `include_malware` it asks `type=malware` too. It follows the `Link` header's `next` for up to ten pages, and signs every request with the token in the credential store under `ADVISORY_TOKEN_ACCOUNT` when there is one. A withdrawn advisory, one whose id does not read and a package in an ecosystem Rekall does not inventory are dropped. A 429, or a 403 with no allowance left, is `RateLimited`. `StartOptions::advisory_feed` stands in for it, and the test harness hands every app a silent one |
+| `AdvisoryFeed` | The seam to the advisory database: the latest critical advisories, and the ones affecting a list of `package@version` in one ecosystem within a `ScanScope`. `GithubAdvisoryFeed` in rekall-infra reads `GET /advisories?type=reviewed&severity=critical`, the second form with `ecosystem` and `affects`; with `include_high` it drops the severity and keeps critical and high itself (GitHub filters one severity at a time), and with `include_malware` it asks `type=malware` too. It follows the `Link` header's `next` for up to ten pages, and signs every request with the token in the credential store under `ADVISORY_TOKEN_ACCOUNT` when there is one. A withdrawn advisory, one whose id does not read and a package in an ecosystem Rekall does not inventory are dropped. A 429, or a 403 with no allowance left, is `RateLimited`. `StartOptions::advisory_feed` stands in for it, and the test harness hands every app a silent one |
 | `ScanSettingsService` | What a scan looks for (the `scan_scope` row) and the GitHub token, which goes to the OS credential store and is only ever reported as saved or not. A token blank, with spaces or past 255 characters is a 400 |
 | `VulnerabilityScanService` | One scan: the 100 newest critical advisories, then per inventoried project and ecosystem the questions `questions` cuts: at most 80 packages, each name once (`rules::package_key`: ignoring case, and pip's separators folded), a second version of a package going to a later question, because GitHub answers which advisories reach any of them and not which version. `reached_in` ties an answer to every package of the question the advisory names whose version its range holds or cannot be read for (`version_range`), or to every one it names when GitHub and the range disagree. Everything is recorded in one transaction: advisories upserted by GHSA id, each answered project's exposures replaced by what was found. A project whose question failed keeps its exposures; once rate limited, the rest are skipped and reported. A mutex lets one scan run at a time; a second is a 409 |
 | `version_range` | Whether a version is inside a GitHub range (`>= 4.0.0, < 4.1.0`): release numbers compared as numbers, a pre-release before its release, a post-release after it; anything unreadable is undecided. `AffectedPackage::find` uses it to pick, of the entries an advisory lists for one package, the release line the project's version is on, which is where an exposure's range, first safe version and vulnerable functions come from |
@@ -969,7 +971,7 @@ answer along with it.
 ### The terminal pane
 
 The in-app session is a real terminal, `C` in the console. `PtyTerminalManager` in
-`rekall-claude` starts the interactive `claude` TUI in a pseudo-terminal (`portable-pty`) in the task's
+`rekall-infra` starts the interactive `claude` TUI in a pseudo-terminal (`portable-pty`) in the task's
 folder, with `/rk` as the first line (`/rk … plan` for a terminal opened in `TerminalMode.PLAN`,
 which the Steps pane's **Plan here** asks for, and `/rk … plan flow` for `TerminalMode.PLAN_FLOW`,
 which its **Plan a flow** asks for; `/rk … generate` and `/rk … explain` for the Diagrams
@@ -1017,7 +1019,7 @@ and searches that `PATH` for `claude`. Windows skips the shell and uses the proc
 ---
 
 **Credential sessions.** A terminal opened on a project that binds a connection with a stored
-credential gets a credential session from `CredentialBroker` (`rekall-claude/src/connection/`), so
+credential gets a credential session from `CredentialBroker` (`rekall-infra/src/connection/`), so
 git and kubectl can use the credential without it entering the session. `TerminalLaunchService`
 hands over the project's bindings (`TerminalConnection`: the binding's label, kind, target, instance URL,
 keychain account; never the credential), so a connection bound twice is reached by either label. The broker writes a folder under `rekall.home/terminal-credentials/`
@@ -1066,10 +1068,10 @@ and kept only for the console's lifetime; the access log is the record.
 ### The Claude folder
 
 The Claude screen edits the files Claude Code itself loads: `~/.claude/CLAUDE.md`, skills, commands,
-agents and each project's memories. It lives in `rekall-claude` (`resources/`). The files have no
+agents and each project's memories. It lives in `rekall-infra` (`resources/`). The files have no
 table: the disk is the record, a session may rewrite a file at any moment, and a copy in a database
 would only be a second answer that drifts. The one table, `skill_placement`, holds how the person
-groups their own skills, which is Rekall's own preference and no part of the files. The module is `rekall-claude` and not `rekall-api` because it
+groups their own skills, which is Rekall's own preference and no part of the files. The module is `rekall-infra` and not `rekall-console` because it
 belongs with the other pieces that serve Claude Code's own state (the usage meter, the transcripts),
 and it sits beside the console's write services, out of `rekall-mcp`'s reach.
 
@@ -1112,9 +1114,9 @@ session transcripts under `~/.claude/projects`, where every model call carries i
 
 | Piece | What it decides |
 |---|---|
-| `TranscriptFolder` (rekall-claude) | Which transcripts belong to a project: the folder Claude Code names after the project's `repo_folder` (every non-alphanumeric character becomes `-`), and the folders of subfolders under it. A session's subagents are in `<session>/subagents/` |
-| `SessionLedger` (rekall-claude) | What each call is charged to, and on which UTC day, by the line's own timestamp; a line with none takes the day it is read. `/rk` or a `rekall_context` naming one task moves the session to that task; `rekall_step` `running` to the step, `claimed` or `open` back to the task, after charging the call that moved it. A task named again without a step keeps the running step, so a wrapup written mid-step costs the step. Subagent calls go to what the session was on at their timestamp. A message spread over several lines is charged once, by its id. Calls before any Rekall work are not counted |
-| `TranscriptScanner` (rekall-claude) | Reads, every `rekall.claude.transcript-scan-seconds`, each session whose files have grown since `transcript_scan` last saw them; an unchanged transcript is never read twice. A line that does not parse is skipped, and a field in a shape the reader does not know reads as empty rather than losing the line's tokens |
+| `TranscriptFolder` (rekall-infra) | Which transcripts belong to a project: the folder Claude Code names after the project's `repo_folder` (every non-alphanumeric character becomes `-`), and the folders of subfolders under it. A session's subagents are in `<session>/subagents/` |
+| `SessionLedger` (rekall-infra) | What each call is charged to, and on which UTC day, by the line's own timestamp; a line with none takes the day it is read. `/rk` or a `rekall_context` naming one task moves the session to that task; `rekall_step` `running` to the step, `claimed` or `open` back to the task, after charging the call that moved it. A task named again without a step keeps the running step, so a wrapup written mid-step costs the step. Subagent calls go to what the session was on at their timestamp. A message spread over several lines is charged once, by its id. Calls before any Rekall work are not counted |
+| `TranscriptScanner` (rekall-infra) | Reads, every `rekall.claude.transcript-scan-seconds`, each session whose files have grown since `transcript_scan` last saw them; an unchanged transcript is never read twice. A line that does not parse is skipped, and a field in a shape the reader does not know reads as empty rather than losing the line's tokens |
 | `TokenUsageService` (rekall-core) | Resolves the anchors and replaces the session's `token_usage` rows whole, so a reread never double counts. A task that no longer resolves is dropped; a step that does not resolve leaves its tokens on the task, and deleting a step sets its rows' `step_id` to null for the same reason. A row is a session's spend on one task or step on one day (`spent_on`, midnight UTC), so a task's spend can be told day by day; migration `041` stamps old rows with the day they were read and clears `transcript_scan` so every transcript is read again with real days. A read that changes a task's tallies or days publishes a `token-usage` frame with all of them |
 
 The figure the console shows is output tokens, what the model generated; input, cache write and

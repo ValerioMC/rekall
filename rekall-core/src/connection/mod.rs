@@ -3,6 +3,9 @@
 //! a Kubernetes credential arrives as, and the Jira credential and issues a Jira connection reads.
 
 mod connection_access_service;
+mod connection_check;
+mod connection_check_service;
+mod connection_probe;
 mod connection_stream_event;
 mod connection_view;
 mod credential_access_stream_event;
@@ -19,11 +22,15 @@ mod kube_credential;
 mod kube_user_kind;
 mod kubeconfig;
 mod kubeconfig_document;
+mod probe_outcome;
 mod remembering_secret_store;
 mod secret;
 mod secret_store;
 
 pub use connection_access_service::ConnectionAccessService;
+pub use connection_check::ConnectionCheck;
+pub use connection_check_service::ConnectionCheckService;
+pub use connection_probe::ConnectionProbe;
 pub use connection_stream_event::ConnectionStreamEvent;
 pub use connection_view::ConnectionView;
 pub use credential_access_stream_event::CredentialAccessStreamEvent;
@@ -39,6 +46,7 @@ pub use kube_context_summary::KubeContextSummary;
 pub use kube_credential::KubeCredential;
 pub use kube_user_kind::KubeUserKind;
 pub use kubeconfig::Kubeconfig;
+pub use probe_outcome::ProbeOutcome;
 pub use remembering_secret_store::RememberingSecretStore;
 pub use secret::Secret;
 pub use secret_store::SecretStore;

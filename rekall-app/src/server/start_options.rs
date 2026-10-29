@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
-use rekall_claude::usage::UsageReader;
+use rekall_infra::usage::UsageReader;
 use rekall_core::connection::{JiraIssues, SecretStore};
 use rekall_core::vulnerability::AdvisoryFeed;
 use rekall_core::Clock;
 
-use rekall_platform::connection::ConnectionProbe;
-use rekall_platform::version::ReleaseFeed;
+use rekall_core::connection::ConnectionProbe;
+use rekall_infra::version::ReleaseFeed;
 
 /// What a caller, usually a test, can swap in for the real collaborators.
 #[derive(Clone, Default)]

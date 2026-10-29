@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use futures::{SinkExt, StreamExt};
 use rekall_app::StartOptions;
-use rekall_claude::usage::{ClaudeUsageView, Limit, Severity, UsageReader};
+use rekall_infra::usage::{ClaudeUsageView, Limit, Severity, UsageReader};
 use rekall_kernel::Instant;
 use serde_json::{json, Value};
 use support::{app_with, await_until, id, App};

@@ -4168,11 +4168,10 @@ dependencies = [
  "mime_guess",
  "regex",
  "rekall-api",
- "rekall-claude",
  "rekall-core",
+ "rekall-infra",
  "rekall-kernel",
  "rekall-mcp",
- "rekall-platform",
  "rekall-store",
  "rekall-web",
  "reqwest 0.12.28",
@@ -4188,34 +4187,6 @@ dependencies = [
  "tracing-subscriber",
  "uuid",
  "zip",
-]
-
-[[package]]
-name = "rekall-claude"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "axum",
- "base64 0.22.1",
- "chrono",
- "dirs",
- "futures",
- "libc",
- "portable-pty",
- "regex",
- "rekall-core",
- "rekall-diagram",
- "rekall-kernel",
- "rekall-store",
- "rekall-web",
- "reqwest 0.12.28",
- "sea-orm",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
- "tokio-tungstenite",
- "tracing",
 ]
 
 [[package]]
@@ -4262,7 +4233,7 @@ dependencies = [
  "objc2",
  "objc2-app-kit",
  "rekall-app",
- "rekall-platform",
+ "rekall-infra",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
@@ -4283,6 +4254,37 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "rekall-infra"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "axum",
+ "base64 0.22.1",
+ "chrono",
+ "dirs",
+ "futures",
+ "keyring",
+ "libc",
+ "portable-pty",
+ "regex",
+ "rekall-core",
+ "rekall-diagram",
+ "rekall-kernel",
+ "rekall-store",
+ "rekall-web",
+ "reqwest 0.12.28",
+ "sea-orm",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "tokio-tungstenite",
+ "tracing",
+ "zip",
 ]
 
 [[package]]
@@ -4315,32 +4317,6 @@ dependencies = [
  "tokio",
  "tower",
  "tracing",
-]
-
-[[package]]
-name = "rekall-platform"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "axum",
- "base64 0.22.1",
- "chrono",
- "keyring",
- "libc",
- "regex",
- "rekall-core",
- "rekall-kernel",
- "rekall-store",
- "rekall-web",
- "reqwest 0.12.28",
- "sea-orm",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.21",
- "tokio",
- "tracing",
- "zip",
 ]
 
 [[package]]

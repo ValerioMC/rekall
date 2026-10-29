@@ -6,10 +6,10 @@ use rekall_core::Services;
 use tokio::sync::{oneshot, watch};
 use tracing::{error, info, warn};
 
-use rekall_platform::bootstrap::location;
+use rekall_infra::bootstrap::location;
 use crate::config::AppConfig;
-use rekall_platform::config::DatabaseOverride;
-use rekall_platform::restart::{self, Restarter, RESTART_DELAY};
+use rekall_infra::config::DatabaseOverride;
+use rekall_infra::restart::{self, Restarter, RESTART_DELAY};
 
 use super::{Instance, Running, StartOptions};
 

@@ -2,11 +2,11 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use rekall_claude::ClaudeConfig;
+use rekall_infra::ClaudeConfig;
 
-use rekall_platform::version::DEFAULT_RELEASE_URL;
+use rekall_infra::version::DEFAULT_RELEASE_URL;
 
-use rekall_platform::config::{BackupConfig, DatabaseOverride, Properties, UpdateCheckConfig};
+use rekall_infra::config::{BackupConfig, DatabaseOverride, Properties, UpdateCheckConfig};
 
 /// Not 8080: the MCP endpoint is registered with Claude Code as a fixed URL, so a clash on a
 /// common port is a broken registration, not a retry.
@@ -67,13 +67,13 @@ impl AppConfig {
                 .get("rekall.claude.transcripts-dir")
                 .filter(|dir| !dir.trim().is_empty())
                 .map(PathBuf::from)
-                .unwrap_or_else(|| rekall_claude::config::transcripts_under(&user_home)),
+                .unwrap_or_else(|| rekall_infra::config::transcripts_under(&user_home)),
             transcript_scan_every: Duration::from_secs(properties.number("rekall.claude.transcript-scan-seconds", 60u64)),
             claude_home: properties
                 .get("rekall.claude.home")
                 .filter(|dir| !dir.trim().is_empty())
                 .map(PathBuf::from)
-                .unwrap_or_else(|| rekall_claude::config::claude_home_under(&user_home)),
+                .unwrap_or_else(|| rekall_infra::config::claude_home_under(&user_home)),
             home: user_home.clone(),
         };
         let database = database_url(properties).and_then(|url| DatabaseOverride::parse(&url));

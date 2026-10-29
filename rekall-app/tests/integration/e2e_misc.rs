@@ -6,7 +6,7 @@ mod support;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use rekall_platform::version::{Release, ReleaseFeed, ReleaseFeedError};
+use rekall_infra::version::{Release, ReleaseFeed, ReleaseFeedError};
 use rekall_app::StartOptions;
 use serde_json::json;
 use support::{app, app_with, id, App};
@@ -730,7 +730,7 @@ async fn the_version_endpoint_reports_this_build_and_the_newer_release_the_feed_
     let version = app.get("/api/version").await;
 
     assert_eq!(version.status, 200);
-    assert_eq!(version.str("current"), rekall_platform::version::RUNNING_VERSION);
+    assert_eq!(version.str("current"), rekall_infra::version::RUNNING_VERSION);
     assert_eq!(version.str("check"), "UPDATE_AVAILABLE");
     assert_eq!(version.get("latest")["version"], "999.0.0");
     assert_eq!(version.get("latest")["releaseUrl"], "https://example.test/release");

@@ -1,4 +1,4 @@
-//! The HTTP vocabulary `rekall-api` and `rekall-claude` share: `ApiError` and its problem body,
+//! The HTTP vocabulary `rekall-api` and `rekall-infra` share: `ApiError` and its problem body,
 //! the request extractors (`JsonBody`, `Validator`, path ids) and the `created` / `no_content`
 //! response helpers. It knows no service, so neither router depends on the other.
 
