@@ -1,0 +1,75 @@
+# Terminals, the run queue and token usage
+
+## Terminal in Rekall
+
+**Run here**, next to **Open in terminal** on the description and steps panes, or `c` from any task, runs a real terminal inside the app. The backend starts the interactive `claude` in a pseudo-terminal (`portable-pty`) in the project's folder, types `/rk <anchors>` as the first line, and hands it to you; the pane renders it with `xterm.js` and the bytes travel both ways over one WebSocket at `/api/terminal/{id}/io`. Because it is the same binary run the same way as in your own terminal, its prompt caching, context compaction and `/context` read-outs behave identically, and a permission prompt actually renders and can be answered. Works in a plain browser, not only the desktop app.
+
+The terminal gets the environment a new window of your own terminal would: Rekall asks your login shell (`$SHELL -i -l -c`) for its variables once it starts, so whatever your profile adds to `PATH` (`~/.cargo/bin`, nvm, pyenv, sdkman) and exports is there, along with `SSH_AUTH_SOCK`. The answer is cached and refreshed in the background every time a terminal opens, so a tool installed while Rekall runs reaches the next terminal but one. A shell that prints nothing usable within the timeout leaves the last good answer in place, or Rekall's own environment when there is none. The shell runs with `REKALL_RESOLVING_ENVIRONMENT=1`, so a slow profile can skip work with `[[ -n $REKALL_RESOLVING_ENVIRONMENT ]] && return`.
+
+One terminal per task, the way one terminal window is. A second **Run here** on a task that already has one refocuses it and types `/rk <anchors>` into the live session, so it reloads the task with any steps written since; opening on a different step also moves the checklist marker (the old step back to open, the new one to running) without restarting the process. **Restart** kills the `claude` process and starts a fresh one on the same task; **Close** ends it. Opening on a step marks that step `RUNNING` while the terminal is on it; on a task with no checklist the review line goes `RUNNING` instead, and both are released when the terminal closes. Nothing is persisted: a restart of Rekall clears every terminal and releases any step it left running, and reopening the pane replays a bounded scrollback so it repaints.
+
+**Run here** starts the session without leaving the pane. Pressed on a whole task with nothing left to execute (every checklist step claimed or done with only drafts remaining, or a task with no checklist whose review is claimed and only drafts remain), it starts nothing and shows a "Nothing to run" message; a press on one chosen step always launches. The play mark runs out of the button, the amber step seal stamps in with its check drawn, as a step's does when it is completed, and the button then reads **Working** beside a running step's own seal (the comet orbiting its bezel, the ticks lighting as it passes, the core breathing) for as long as Claude is on that work. On a step, that lasts while the step is `RUNNING`. On a task with no checklist, it lasts while the task's review line is `RUNNING`. On a checklist task launched from its description, it lasts while a step runs, or while the task's terminal is live and a step is still open. **Working** takes no press. The button returns to **Run here** once the work is claimed or the session ends.
+
+Live work sits in one bar in the bottom right corner of every screen: a segment for running timers (with the newest timer's clock) and a segment for live terminals, each shown only while it has something to count. A segment opens its sheet above the bar, one sheet at a time; pressing the other segment switches, and pressing the same one again, Escape, or a click anywhere else closes it. From the sheet a row jumps to its task (the terminal one also opens the terminal pane; a session generating a diagram for a project alone opens on the Diagrams screen instead), stops the timer or terminal, and, for a terminal on a task, logs the latest commit against the task and step it was opened on. The bar reports the room it takes so nothing else in that corner sits under it, whichever segments are present; the terminal segment steps aside while the terminal pane is on screen, and the bar leaves entirely when nothing is live.
+
+**Settings > Claude Code** picks the model and effort a new terminal starts with, and the **skip permissions** switch:
+
+- **Model** (`Account default`, `Sonnet`, `Fable`, `Opus`, `Haiku`): anything but the default adds `--model <alias>`. Each alias is Claude Code's own name for the latest model of that family, so no version is pinned.
+- **Reasoning effort** (`Account default`, `Low`, `Medium`, `High`, `Extra-high`, `Max`): anything but the default adds `--effort <level>`.
+- **Skip permissions** adds `--dangerously-skip-permissions`; with it off, an interactive permission prompt in the terminal is yours to answer.
+
+All three are stored on the machine, not in the database.
+
+The top bar is a four-cell grid, so the screen tabs sit centred between the history arrows and the centre cell at the same place on every screen (Console, Catalog, Diagrams, Security, Claude, Time). Under a 1280px window they fold into one key showing the screen you are on, which opens every screen as a vertical menu, a group's screens under its name; a tab's alert (Security's count of open critical advisories) rides on that key too, so folding never hides a warning. In the console the centre cell holds the search bar and the live readings (usage, queue, review) sit centred between it and the tools; on the other screens it holds the title and the actions sit at the right. Both keep their centre as the window resizes. The top bar carries a usage meter: the current 5-hour session as a ring with its percentage and time to reset, and, on hover, a bar per window including the weekly per-model limits. The figures are the ones Claude Code's own `/usage` shows, read with the OAuth token Claude Code stores (every `Claude Code-credentials` item in the macOS keychain, else `~/.claude/.credentials.json`; the token expiring last wins, and an expired one counts as no token). With no valid token the meter asks you to open a Claude Code terminal, which signs in or refreshes the token; when Anthropic cannot be reached it holds the last figures. Readings are not real time: one when the console opens, one every five minutes while it is on screen, one when the window comes back to the front after a minute away, and one whenever you click the blank meter or **Check again** in its popover (`GET /api/claude/usage?refresh=true`, past the server's cache). If Anthropic answers 429 the meter shows **Wait** with the time left and takes nothing, not even a manual check, until that `Retry-After` has passed: asking again is what extends the block.
+
+| Property | Default | Meaning |
+|---|---|---|
+| `rekall.claude.cli-path` | search the login shell's `PATH` and the usual install dirs | Absolute path to `claude`, overriding discovery |
+| `rekall.terminal.shell` | `$SHELL`, else `/bin/zsh` | Login shell asked for the terminal's environment |
+| `rekall.terminal.shell-environment-timeout-seconds` | `10` | How long that shell gets to print its environment |
+| `rekall.claude.usage-url` | `https://api.anthropic.com/api/oauth/usage` | Where the usage meter reads session and weekly limits |
+| `rekall.terminal.max-sessions` | `8` | Terminals allowed at once |
+| `rekall.terminal.idle-minutes` | `120` | A terminal untouched this long is closed by the sweep |
+| `rekall.terminal.sweep-minutes` | `5` | How often the idle sweep runs |
+| `rekall.terminal.scrollback-bytes` | `131072` | Bytes of output replayed to a pane that reopens |
+| `rekall.run-queue.tick-seconds` | `20` | How often the run queue looks at its clock, schedule and hold |
+| `rekall.run-queue.settle-grace-seconds` | `8` | How long a finished session keeps its terminal before Rekall closes it, or hands the task on to a fresh session |
+
+## Run queue
+
+The run queue works through a list of tasks without you: each one in its own terminal, one after another, until everything on it is claimed. It opens from the dial next to the usage meter in the top bar, or `q`. The dial is also its status: three bars when idle, a clock hand at the start time when scheduled, an orbiting comet with `2/5` while running, and a ring stopped at the ceiling with the time it resumes while holding. A strand of beads shows each task in the run.
+
+- **Order.** Add tasks by typing a title, label or anchor. Waiting tasks move up and down or come off. The running one stays until you stop the queue, and finished ones stay as the record of the run until **Clear finished**.
+- **When.** **Start now**, or **At a time** for a schedule. Rekall has to be running then: the queue runs inside it.
+- **Usage ceiling.** With it on, no new task or step starts once a usage window reaches the line: the 5-hour session and the weekly total always, plus the weekly Opus or Sonnet window when the queue runs that model. The queue then holds until the latest reset among the windows over the line, plus a minute, and carries on from there. It checks before every task and at every step claim, never mid-step, so a step that is under way finishes. Set the line below 100 to leave room for it. With a ceiling set and no usage reading available, the queue holds and looks again every five minutes.
+- **Sessions.** Model, effort and **Skip permission prompts** for the terminals the queue opens. They are stored with the queue, separately from **Settings > Claude Code**. Without skip, an unattended session stops at its first permission prompt.
+
+How each task runs: the queue opens a terminal on it, and the session works the open steps in order, claiming each (or writes the wrapup on a task with no checklist). When nothing is left open, the queue closes the terminal and starts the next task. If the ceiling is reached at a claim, it closes the terminal, puts the task back at the head of the queue, sends any step the session had started back to open, and holds; the next session picks up at the first open step. A task with nothing open is skipped. A task fails, and the queue moves on, when the session can't open (no folder, no CLI, a terminal already open on it) or ends before its work is claimed. **Stop the queue** closes the running session after a confirmation. The queue survives a restart: a task that was running goes back to waiting, and an armed queue picks it up again.
+
+**Sessions in a multi-step task.** By default one session works the whole checklist. A step can instead open a fresh Claude session: set `new_session` when a session proposes it (`rekall_propose_step`, `rekall_propose_flow`, where it picks the grouping it judges cheapest), or switch it by hand with **New session** on a step or a draft, or when adding a draft. The first step always opens the first session, and the steps up to the next one that opens a session share one. The checklist draws a header over each session when there is more than one. A session claims the last step of its group, writes its wrapup and stops; Rekall closes that terminal and opens another on the same task, with the same model, effort and permissions, and the pane switches to it. A queued task stays running across its sessions, and the usage ceiling is checked before the next one opens. The choice is stored per step (`PATCH /api/steps/{id}/session` with `startsSession`) and `rekall_context` shows it as `(opens a new session)` and `sessions="N"` on `<steps>`.
+
+`/api/run-queue` holds the queue: `GET`, `PUT /settings`, `POST /items`, `DELETE /items/{id}`, `PUT /items/{id}/position`, `POST /clear`, `POST /start` (`startAt` null starts now), `POST /stop`. Each answers with the whole queue, and every change is pushed on the console's event stream as a `run-queue` frame.
+
+## Token usage
+
+Every task and every step shows the tokens Claude Code generated while working on it: on the task's row in the navigator and on each step of its checklist. A project shows the sum of its tasks wherever it is drawn: its heading in the navigator, its card and page in the catalog, and its group in a calendar day. The figure is output tokens; the tooltip adds the input, cache-write and cache-read tokens read to produce them. A task's figure includes its steps'.
+
+Beside the name of a task in its steps, wrapup and terminal panes, and at the right end of the tag and skills line in its description pane, the figure sits with a small sparkline of the last month. A project's heading in the navigator carries the same chip for the sum of its tasks. Click it for the daily trend: the running total of generated tokens, one point per day, over **1 month**, **3 months** or **All**. Move over the chart, or use the arrow keys, to read a day's total and what that day added. The task's title line holds a copy button that puts the task's `/rk project:… task:…` command on the clipboard (the command is in its tooltip). Days are UTC days, as the server cuts them. The tag on a task's description is a badge that opens the list of tags to change it; a task with none shows a dashed **New tag** button, the way skills show **Add a skill**.
+
+The counts come from Claude Code's own session transcripts (`~/.claude/projects/<folder>/<session>.jsonl`, and `<session>/subagents/` for its subagents), read in the background every minute. Only sessions started in a project's folder, or a folder under it, are read, and a transcript is read again only once it has grown. Each model call is charged to what the session was working on when it made it:
+
+- an `/rk` line, or a `rekall_context` call naming one task, puts the session on that task;
+- `rekall_step` with `running` puts it on that step, and with `claimed` or `open` back on the task;
+- a subagent's calls go to what the session was on at the moment they were made;
+- calls before any of these are not Rekall work and are not counted.
+
+The tokens follow the anchors, not the folder: a session in one project's folder working another project's task counts for that task. A task that no longer resolves is not counted; a step that no longer resolves, or is deleted, leaves its tokens on the task. Sessions run in any terminal count, not only those opened from Rekall.
+
+`GET /api/token-usage` returns one tally per task and step, `GET /api/token-usage/daily` one entry per task and day, and the console's event stream carries a task's tallies and days as a `token-usage` frame whenever a read changes them.
+
+| Property | Default | Meaning |
+|---|---|---|
+| `rekall.claude.transcripts-dir` | `~/.claude/projects` | Where Claude Code keeps its session transcripts |
+| `rekall.claude.transcript-scan-seconds` | `60` | How often they are read |
+| `rekall.claude.home` | `~/.claude` | Claude Code's own folder, which the Claude screen reads and edits |
+

@@ -52,56 +52,11 @@ A disk image for Apple Silicon is published with every `v*` tag pushed on a comm
 | Needs | macOS 13 or later, Apple Silicon |
 | Install | Drag Rekall onto Applications, then run the `xattr` command below once |
 
-The link always resolves to the newest tagged release. A push to `main` builds nothing; a release is cut with `git tag v0.1.1 && git push origin v0.1.1`, and a tag on a commit that is not on `main` fails before anything is built. It builds on a `macos-14` runner from `.github/workflows/release.yml`. The same release carries `rekall-server` for Linux and Windows, with the console embedded.
-
-### Version and updates
-
-A release build carries the tag it was built from (`v0.1.1` shows as `v0.1.1`; the workflow compiles it in as `REKALL_VERSION`); a local build shows the crate's version. `GET /api/version` asks GitHub for the latest release and reports whether its tag is newer than the running version, with the file for the platform the build runs on (the disk image on macOS) or the release page when the release has none; `?refresh=true` skips the remembered answer. The answer is remembered for six hours (five minutes after a failure) and a restart forgets it. Only `MAJOR.MINOR.PATCH` tags are compared.
-
-The header shows no version. The desktop app checks once when it starts and, when a newer release exists, opens an update dialog (**Later** / **Install**); nothing is shown when GitHub cannot be reached. **Settings → Version** shows the running version, checks again on request and carries the same **Install** button, in a browser tab too (there it links the download).
-
-| Property | Default | Meaning |
-|---|---|---|
-| `rekall.update-check.enabled` | `true` | `false` never contacts GitHub; Settings says checks are off |
-| `rekall.update-check.url` | the repository's `releases/latest` API | The endpoint answering with the latest release |
-
-In the macOS app **Install** puts the new version in place itself (`rekall-infra/src/version/update_installer.rs`, called by the `installUpdate()` bridge in `rekall-app/desktop/src/update_install.rs`):
-
-1. It downloads the release's `.dmg` from inside the app, and only from `github.com/ValerioMC/rekall/releases/download/`.
-2. It mounts the image with `hdiutil`, copies `Rekall.app` with `ditto` beside the running one as `.Rekall.app.new`, and swaps the two. The old bundle is kept as `.Rekall.app.old` until the new one is in place, and is put back if the swap fails.
-3. It restarts into the new version, stopping the server cleanly first and reopening the app through the system so the new window comes to the front, not behind other apps. When a Claude session is live it asks first, in the console's own dialog, as quitting does (the system dialog only stands in when the console cannot show one).
-
-The file never passes through a browser, so it gets no `com.apple.quarantine` and the new version opens without `xattr`. When the install fails (the app runs from the mounted disk image, `/Applications` is not writable, the release has no disk image), the dialog says why and its button opens the download in the browser. A browser tab, and the desktop app on other platforms, keep the plain download link. The first install from a browser download still needs the `xattr` command below once: only a Developer ID signature with notarization removes that.
-
-A real install of the published release into a temporary folder (network, macOS only): `cargo test -p rekall-app live_ -- --ignored`.
-
-### Build locally
-
-```bash
-cargo install tauri-cli --version "^2" --locked   # once
-
-make dmg      # Rekall.app and its disk image, under target/release/bundle
-make app      # the above, then mount the disk image and run Rekall from it
-make install  # the above, then copy Rekall.app into /Applications
-```
-
-The app is a Tauri v2 window (`rekall-app/desktop`) over the same server `rekall-server` runs, started in the same process. `make app` installs nothing: it quits a running Rekall, ejects a Rekall disk image left mounted by an earlier build, mounts the new one and opens `Rekall.app` from the mounted volume (`scripts/macos-app.sh`), so what you try is exactly what another machine gets and a copy in `/Applications`, if there is one, is left alone. Eject the volume in Finder when you are done. To install it, drag it onto Applications from that window as anyone else would, or run `make install`, which does the same drag-and-drop by quitting any running Rekall, mounting the disk image, replacing `/Applications/Rekall.app` and ejecting the image (`scripts/macos-install.sh`).
-
-`make desktop` builds the app's binary alone, on any platform with the WebView SDK (WebKitGTK on Linux); it is not a default workspace member, so `cargo build` and `cargo test` work on a machine without one.
-
-The dock icon is `rekall-app/desktop/icons/icon@2x.png`, a 1024 master on Apple's icon grid (named `@2x` so Tauri's bundler reads its pixel size as retina density). It, the PWA icons, `apple-touch-icon.png` and `rekall-ui/public/favicon.svg` (a 256 copy wrapped in an SVG, which the console also shows as its logo) are all rendered from `scripts/icon-master.png`, a 1024 plate with transparent rounded corners: replace the master, run `make icons` (needs Google Chrome), and commit what it writes. The bundle build only reads them, so it needs neither Chrome nor the SVG.
-
-### Running the app
-
-The window fades in as a centered splash card (`rekall-app/desktop/splash/`, artwork `splash_screen.png`) sized at 40% of the screen's width, between 640 and 960 points, in the artwork's proportions, while the server boots; once port 47355 answers and the splash has been up for at least 1.5 s, the window fades out, grows to fill the screen unseen, waits for the console to finish loading (up to 5 s) and fades back in on it. Fades need macOS window opacity; elsewhere the window is simply shown and resized. Quitting stops the server and closes the database cleanly. When a Claude session is still live (a terminal started with **Run here** or by the run queue), `⌘Q`, the console's close button and the window's own close first ask whether to quit, since the session ends with the server; **Keep working** returns to the app. `rekall-app/desktop/src/exit_guard.rs` does the asking, in the console's own dialog (`LeaveDialog.vue`, answered through the `answerLeave()` bridge) and in a system dialog only when the console is not there to show it. Nothing is asked when no session is live, when the app attached to a server it did not start (the sessions outlive the window), or on `kill` and logout; Dock > Quit bypasses the question, because macOS ends the process there without telling the app. Server output goes to `~/Library/Logs/Rekall/server.log` (View > Open Server Log).
-
-The app uses the same port, the same `~/.rekall/config.json` and the same MCP endpoint as `make run`. If a Rekall server already answers on 47355, the app attaches to it instead of starting a second one, and leaves it running on quit. The folder icon in the database field opens the system folder chooser, which a browser tab cannot do; in a browser that field stays a typed input.
-
-The bundle is signed ad hoc, which is enough for the machine that built it. A disk image downloaded through a browser on another machine is quarantined and needs one command before it opens the first time (updates installed from the app do not, see *Version and updates*):
-
 ```bash
 xattr -dr com.apple.quarantine /Applications/Rekall.app
 ```
+
+The app is a Tauri v2 window over the same server `rekall-server` runs, on the same port, config and MCP endpoint. It checks for a newer release when it starts and installs it in place. `make dmg`, `make app` and `make install` build it locally. The release process, update flow, splash, quit guard and icons are in [docs/guide/desktop.md](docs/guide/desktop.md).
 
 ## Connect Claude Code
 
@@ -121,84 +76,11 @@ cp .claude/commands/rk.md ~/.claude/commands/rk.md
 /rk project:vega task:report-builder
 ```
 
-**Open in terminal**, on a task, hands the session to your own terminal app in the project's folder with `/rk` already running. Set the folder in the **Folder** field of the project page's **Settings** tab. The terminal is iTerm2 when installed, Terminal.app otherwise. A switch in **Settings > Claude Code** adds `--dangerously-skip-permissions`; it is stored on the machine, not in the database. This button works only inside the desktop app.
-
-## Terminal in Rekall
-
-**Run here**, next to **Open in terminal** on the description and steps panes, or `c` from any task, runs a real terminal inside the app. The backend starts the interactive `claude` in a pseudo-terminal (`portable-pty`) in the project's folder, types `/rk <anchors>` as the first line, and hands it to you; the pane renders it with `xterm.js` and the bytes travel both ways over one WebSocket at `/api/terminal/{id}/io`. Because it is the same binary run the same way as in your own terminal, its prompt caching, context compaction and `/context` read-outs behave identically, and a permission prompt actually renders and can be answered. Works in a plain browser, not only the desktop app.
-
-The terminal gets the environment a new window of your own terminal would: Rekall asks your login shell (`$SHELL -i -l -c`) for its variables once it starts, so whatever your profile adds to `PATH` (`~/.cargo/bin`, nvm, pyenv, sdkman) and exports is there, along with `SSH_AUTH_SOCK`. The answer is cached and refreshed in the background every time a terminal opens, so a tool installed while Rekall runs reaches the next terminal but one. A shell that prints nothing usable within the timeout leaves the last good answer in place, or Rekall's own environment when there is none. The shell runs with `REKALL_RESOLVING_ENVIRONMENT=1`, so a slow profile can skip work with `[[ -n $REKALL_RESOLVING_ENVIRONMENT ]] && return`.
-
-One terminal per task, the way one terminal window is. A second **Run here** on a task that already has one refocuses it and types `/rk <anchors>` into the live session, so it reloads the task with any steps written since; opening on a different step also moves the checklist marker (the old step back to open, the new one to running) without restarting the process. **Restart** kills the `claude` process and starts a fresh one on the same task; **Close** ends it. Opening on a step marks that step `RUNNING` while the terminal is on it; on a task with no checklist the review line goes `RUNNING` instead, and both are released when the terminal closes. Nothing is persisted: a restart of Rekall clears every terminal and releases any step it left running, and reopening the pane replays a bounded scrollback so it repaints.
-
-**Run here** starts the session without leaving the pane. Pressed on a whole task with nothing left to execute (every checklist step claimed or done with only drafts remaining, or a task with no checklist whose review is claimed and only drafts remain), it starts nothing and shows a "Nothing to run" message; a press on one chosen step always launches. The play mark runs out of the button, the amber step seal stamps in with its check drawn, as a step's does when it is completed, and the button then reads **Working** beside a running step's own seal (the comet orbiting its bezel, the ticks lighting as it passes, the core breathing) for as long as Claude is on that work. On a step, that lasts while the step is `RUNNING`. On a task with no checklist, it lasts while the task's review line is `RUNNING`. On a checklist task launched from its description, it lasts while a step runs, or while the task's terminal is live and a step is still open. **Working** takes no press. The button returns to **Run here** once the work is claimed or the session ends.
-
-Live work sits in one bar in the bottom right corner of every screen: a segment for running timers (with the newest timer's clock) and a segment for live terminals, each shown only while it has something to count. A segment opens its sheet above the bar, one sheet at a time; pressing the other segment switches, and pressing the same one again, Escape, or a click anywhere else closes it. From the sheet a row jumps to its task (the terminal one also opens the terminal pane; a session generating a diagram for a project alone opens on the Diagrams screen instead), stops the timer or terminal, and, for a terminal on a task, logs the latest commit against the task and step it was opened on. The bar reports the room it takes so nothing else in that corner sits under it, whichever segments are present; the terminal segment steps aside while the terminal pane is on screen, and the bar leaves entirely when nothing is live.
-
-**Settings > Claude Code** picks the model and effort a new terminal starts with, and the **skip permissions** switch:
-
-- **Model** (`Account default`, `Sonnet`, `Fable`, `Opus`, `Haiku`): anything but the default adds `--model <alias>`. Each alias is Claude Code's own name for the latest model of that family, so no version is pinned.
-- **Reasoning effort** (`Account default`, `Low`, `Medium`, `High`, `Extra-high`, `Max`): anything but the default adds `--effort <level>`.
-- **Skip permissions** adds `--dangerously-skip-permissions`; with it off, an interactive permission prompt in the terminal is yours to answer.
-
-All three are stored on the machine, not in the database.
-
-The top bar is a four-cell grid, so the screen tabs sit centred between the history arrows and the centre cell at the same place on every screen (Console, Catalog, Diagrams, Security, Claude, Time). Under a 1280px window they fold into one key showing the screen you are on, which opens every screen as a vertical menu, a group's screens under its name; a tab's alert (Security's count of open critical advisories) rides on that key too, so folding never hides a warning. In the console the centre cell holds the search bar and the live readings (usage, queue, review) sit centred between it and the tools; on the other screens it holds the title and the actions sit at the right. Both keep their centre as the window resizes. The top bar carries a usage meter: the current 5-hour session as a ring with its percentage and time to reset, and, on hover, a bar per window including the weekly per-model limits. The figures are the ones Claude Code's own `/usage` shows, read with the OAuth token Claude Code stores (every `Claude Code-credentials` item in the macOS keychain, else `~/.claude/.credentials.json`; the token expiring last wins, and an expired one counts as no token). With no valid token the meter asks you to open a Claude Code terminal, which signs in or refreshes the token; when Anthropic cannot be reached it holds the last figures. Readings are not real time: one when the console opens, one every five minutes while it is on screen, one when the window comes back to the front after a minute away, and one whenever you click the blank meter or **Check again** in its popover (`GET /api/claude/usage?refresh=true`, past the server's cache). If Anthropic answers 429 the meter shows **Wait** with the time left and takes nothing, not even a manual check, until that `Retry-After` has passed: asking again is what extends the block.
-
-| Property | Default | Meaning |
-|---|---|---|
-| `rekall.claude.cli-path` | search the login shell's `PATH` and the usual install dirs | Absolute path to `claude`, overriding discovery |
-| `rekall.terminal.shell` | `$SHELL`, else `/bin/zsh` | Login shell asked for the terminal's environment |
-| `rekall.terminal.shell-environment-timeout-seconds` | `10` | How long that shell gets to print its environment |
-| `rekall.claude.usage-url` | `https://api.anthropic.com/api/oauth/usage` | Where the usage meter reads session and weekly limits |
-| `rekall.terminal.max-sessions` | `8` | Terminals allowed at once |
-| `rekall.terminal.idle-minutes` | `120` | A terminal untouched this long is closed by the sweep |
-| `rekall.terminal.sweep-minutes` | `5` | How often the idle sweep runs |
-| `rekall.terminal.scrollback-bytes` | `131072` | Bytes of output replayed to a pane that reopens |
-| `rekall.run-queue.tick-seconds` | `20` | How often the run queue looks at its clock, schedule and hold |
-| `rekall.run-queue.settle-grace-seconds` | `8` | How long a finished session keeps its terminal before Rekall closes it, or hands the task on to a fresh session |
-
-## Run queue
-
-The run queue works through a list of tasks without you: each one in its own terminal, one after another, until everything on it is claimed. It opens from the dial next to the usage meter in the top bar, or `q`. The dial is also its status: three bars when idle, a clock hand at the start time when scheduled, an orbiting comet with `2/5` while running, and a ring stopped at the ceiling with the time it resumes while holding. A strand of beads shows each task in the run.
-
-- **Order.** Add tasks by typing a title, label or anchor. Waiting tasks move up and down or come off. The running one stays until you stop the queue, and finished ones stay as the record of the run until **Clear finished**.
-- **When.** **Start now**, or **At a time** for a schedule. Rekall has to be running then: the queue runs inside it.
-- **Usage ceiling.** With it on, no new task or step starts once a usage window reaches the line: the 5-hour session and the weekly total always, plus the weekly Opus or Sonnet window when the queue runs that model. The queue then holds until the latest reset among the windows over the line, plus a minute, and carries on from there. It checks before every task and at every step claim, never mid-step, so a step that is under way finishes. Set the line below 100 to leave room for it. With a ceiling set and no usage reading available, the queue holds and looks again every five minutes.
-- **Sessions.** Model, effort and **Skip permission prompts** for the terminals the queue opens. They are stored with the queue, separately from **Settings > Claude Code**. Without skip, an unattended session stops at its first permission prompt.
-
-How each task runs: the queue opens a terminal on it, and the session works the open steps in order, claiming each (or writes the wrapup on a task with no checklist). When nothing is left open, the queue closes the terminal and starts the next task. If the ceiling is reached at a claim, it closes the terminal, puts the task back at the head of the queue, sends any step the session had started back to open, and holds; the next session picks up at the first open step. A task with nothing open is skipped. A task fails, and the queue moves on, when the session can't open (no folder, no CLI, a terminal already open on it) or ends before its work is claimed. **Stop the queue** closes the running session after a confirmation. The queue survives a restart: a task that was running goes back to waiting, and an armed queue picks it up again.
-
-**Sessions in a multi-step task.** By default one session works the whole checklist. A step can instead open a fresh Claude session: set `new_session` when a session proposes it (`rekall_propose_step`, `rekall_propose_flow`, where it picks the grouping it judges cheapest), or switch it by hand with **New session** on a step or a draft, or when adding a draft. The first step always opens the first session, and the steps up to the next one that opens a session share one. The checklist draws a header over each session when there is more than one. A session claims the last step of its group, writes its wrapup and stops; Rekall closes that terminal and opens another on the same task, with the same model, effort and permissions, and the pane switches to it. A queued task stays running across its sessions, and the usage ceiling is checked before the next one opens. The choice is stored per step (`PATCH /api/steps/{id}/session` with `startsSession`) and `rekall_context` shows it as `(opens a new session)` and `sessions="N"` on `<steps>`.
-
-`/api/run-queue` holds the queue: `GET`, `PUT /settings`, `POST /items`, `DELETE /items/{id}`, `PUT /items/{id}/position`, `POST /clear`, `POST /start` (`startAt` null starts now), `POST /stop`. Each answers with the whole queue, and every change is pushed on the console's event stream as a `run-queue` frame.
-
-## Token usage
-
-Every task and every step shows the tokens Claude Code generated while working on it: on the task's row in the navigator and on each step of its checklist. A project shows the sum of its tasks wherever it is drawn: its heading in the navigator, its card and page in the catalog, and its group in a calendar day. The figure is output tokens; the tooltip adds the input, cache-write and cache-read tokens read to produce them. A task's figure includes its steps'.
-
-Beside the name of a task in its steps, wrapup and terminal panes, and at the right end of the tag and skills line in its description pane, the figure sits with a small sparkline of the last month. A project's heading in the navigator carries the same chip for the sum of its tasks. Click it for the daily trend: the running total of generated tokens, one point per day, over **1 month**, **3 months** or **All**. Move over the chart, or use the arrow keys, to read a day's total and what that day added. The task's title line holds a copy button that puts the task's `/rk project:… task:…` command on the clipboard (the command is in its tooltip). Days are UTC days, as the server cuts them. The tag on a task's description is a badge that opens the list of tags to change it; a task with none shows a dashed **New tag** button, the way skills show **Add a skill**.
-
-The counts come from Claude Code's own session transcripts (`~/.claude/projects/<folder>/<session>.jsonl`, and `<session>/subagents/` for its subagents), read in the background every minute. Only sessions started in a project's folder, or a folder under it, are read, and a transcript is read again only once it has grown. Each model call is charged to what the session was working on when it made it:
-
-- an `/rk` line, or a `rekall_context` call naming one task, puts the session on that task;
-- `rekall_step` with `running` puts it on that step, and with `claimed` or `open` back on the task;
-- a subagent's calls go to what the session was on at the moment they were made;
-- calls before any of these are not Rekall work and are not counted.
-
-The tokens follow the anchors, not the folder: a session in one project's folder working another project's task counts for that task. A task that no longer resolves is not counted; a step that no longer resolves, or is deleted, leaves its tokens on the task. Sessions run in any terminal count, not only those opened from Rekall.
-
-`GET /api/token-usage` returns one tally per task and step, `GET /api/token-usage/daily` one entry per task and day, and the console's event stream carries a task's tallies and days as a `token-usage` frame whenever a read changes them.
-
-| Property | Default | Meaning |
-|---|---|---|
-| `rekall.claude.transcripts-dir` | `~/.claude/projects` | Where Claude Code keeps its session transcripts |
-| `rekall.claude.transcript-scan-seconds` | `60` | How often they are read |
-| `rekall.claude.home` | `~/.claude` | Claude Code's own folder, which the Claude screen reads and edits |
+**Open in terminal**, on a task, hands the session to your own terminal app in the project's folder with `/rk` already running. Set the folder in the **Folder** field of the project page's **Settings** tab. The terminal is iTerm2 when installed, Terminal.app otherwise. A switch in **Settings > Claude Code** adds `--dangerously-skip-permissions`; it is stored on the machine, not in the database. This button works only inside the desktop app. **Run here** runs a real terminal inside the app instead, see [Terminals](docs/guide/sessions.md).
 
 ## Anchor syntax
 
-An anchor is `entity:value`, where the entity is `company`, `project` or `task` and the value is the record's **label** (its `name` for a company). Label rules are under [Model](#model).
+An anchor is `entity:value`, where the entity is `company`, `project` or `task` and the value is the record's **label** (its `name` for a company). Label rules are in [Data](docs/guide/data.md#model).
 
 | Form | Meaning |
 |------|---------|
@@ -206,15 +88,16 @@ An anchor is `entity:value`, where the entity is `company`, `project` or `task` 
 | `/rk project:vega` | The project, plus its tasks as a list of anchors |
 | `/rk vega report-builder` | Positional. Works while each term matches one record |
 | `/rk task:"report builder"` | Quote a value containing spaces |
-| `/rk project:vega task:report-builder wrapup` | Write the task's wrapup instead of loading it |
-| `/rk project:vega task:report-builder section "Deployment" "how we ship"` | Write a titled section on the task's project, or rewrite the one with that title, then stop (see [Project page](#project-page)) |
-| `/rk project:vega task:report-builder plan` | Propose the task's checklist as drafts, then stop |
-| `/rk project:vega generate kinds:sequence,state "how checkout charges"` | Read the code and store a diagram answering the request, one sheet per type, then stop. A `task:` anchor ties it to that task too (see [Diagrams](#diagrams)) |
-| `/rk project:vega explain "how an order is placed"` | Follow the functionality from its entry point and store it as a walkthrough the console plays step by step, then stop (see [Diagrams](#diagrams)) |
-| `/rk project:vega inventory` | Read the project's manifests and lockfiles and record every dependency at its exact version, then stop (see [Security](#security)) |
-| `/rk project:vega assess advisory:GHSA-xxxx-xxxx-xxxx` | Read the code and record whether that advisory's vulnerable code is really reached, then stop (see [Security](#security)) |
-| `/rk project:vega assess` | The same for every advisory reaching the project that is not assessed yet, one verdict each |
-| `/rk note:3f2a9c1e` | A note sent by reference, loaded in full (see [Context size](#context-size-and-reference-notes)) |
+| `/rk … wrapup` | Write the task's wrapup instead of loading it |
+| `/rk … note "what to keep"` | Write a note on the task, then stop |
+| `/rk … section "Deployment" "how we ship"` | Write a titled section on the task's project, or rewrite the one with that title |
+| `/rk … plan` | Propose the task's checklist as drafts, then stop; `plan flow` proposes a flow |
+| `/rk … step:3 start` / `step:3 done` | Move a step to running / claimed; on a flow `done outcome:<name>` follows that route |
+| `/rk project:vega generate kinds:sequence,state "how checkout charges"` | Store a diagram answering the request, one sheet per type |
+| `/rk project:vega explain "how an order is placed"` | Store a walkthrough the console plays step by step |
+| `/rk project:vega inventory` | Record every dependency at its exact version |
+| `/rk project:vega assess advisory:GHSA-xxxx-xxxx-xxxx` | Record whether that advisory's vulnerable code is really reached; without `advisory:`, every one not assessed yet |
+| `/rk note:3f2a9c1e` | A note sent by reference, loaded in full |
 
 An anchor brings back the record, everything it references resolved in full with their notes, what references it as anchors, and its own markdown. A note can be attached to several tasks and arrives with each. If a bare term matches more than one record, the candidates come back and nothing loads. `project:` disambiguates a label two projects share.
 
@@ -227,372 +110,52 @@ An anchor brings back the record, everything it references resolved in full with
 | `rekall_step` | write | Move one step: `open` to `running` to `claimed`; on a flow, a claim's `outcome` follows that route and its `report` reaches the step it leads to |
 | `rekall_record_commit` | write | Log a commit of the project's repo folder against one task or step |
 | `rekall_propose_step` | write | Add one step as a draft, for a person to promote; `new_session` makes it open a fresh Claude session |
-| `rekall_propose_flow` | write | Add a whole flow to a task with no steps: its steps as drafts and the routes between them, each optionally opening a fresh session with `new_session` |
+| `rekall_propose_flow` | write | Add a whole flow to a task with no steps: its steps as drafts and the routes between them |
 | `rekall_create_task` | write | Create a task or an epic in a project with a description and up to 20 draft steps (none on an epic), optionally filed under an epic |
 | `rekall_join_epic` | write | File an existing task under an epic of its project, or move it from another epic |
 | `rekall_note` | write | Write a note on one task, or rewrite one it carries by title with `replace` |
 | `rekall_project_section` | write | Write a titled markdown section on a task's project, or rewrite one by title with `replace` |
 | `rekall_read_sections` | read | List a project's sections by title, or read one whole with `title` |
-| `rekall_diagram` | write | Store Mermaid sheets generated for a project or one of its tasks, or replace a diagram by id with `diagram` |
-| `rekall_inventory` | write | Replace a project's dependency inventory whole: ecosystem, name, exact version and declaring file per entry |
-| `rekall_vulnerabilities` | read | List the advisories that reach a project, or read one whole with `advisory`, with how many commits the project gained since its verdict |
-| `rekall_assess_vulnerability` | write | Record whether an advisory really reaches a project: `affected` or `not_affected`, with the reasoning and a plain-words conclusion, on every version of the package it reaches there |
+| `rekall_diagram` | write | Store Mermaid sheets generated for a project or one of its tasks, or replace a diagram by id |
+| `rekall_inventory` | write | Replace a project's dependency inventory whole |
+| `rekall_vulnerabilities` | read | List the advisories that reach a project, or read one whole with `advisory` |
+| `rekall_assess_vulnerability` | write | Record whether an advisory really reaches a project: `affected` or `not_affected`, with reasoning and a conclusion |
 
-There is no query, get or schema tool. `rekall_create_task` takes a project anchor, a `title`, an optional `label` (the title as a label when omitted; one the project already uses is refused), an optional `description`, an optional `kind` (`task` or `epic`; an epic takes no `steps`), an optional `epic` (the label of an epic of the project to file the task under) and optional `steps` (`[{title, detail}]`). The task starts `TODO` and every step starts as a draft on the staging shelf, exactly as with `rekall_propose_step`, so nothing the session creates is work until you promote it; a request with a repeated step title or more than 20 steps is refused and creates nothing, and an open console lists the new task without a reload. Sections are loaded into no context, so `rekall_read_sections` is how a session reads them: with a project (or a task and its project) it lists the titles with their size, with `title` it returns that section whole, and it changes nothing. `rekall_note` adds a note, or with `replace: true` rewrites the body of the note the task already carries under that title (ignoring case); without `replace` that title is refused, and nothing it does detaches or deletes a note. `rekall_project_section` works the same way on a project's sections: it adds one, or with `replace: true` rewrites the body of the section with that title, and it can never rename, reorder or delete one. `rekall_step` refuses `done`; that state is set by hand in the console. `rekall_step` (on `claimed`) and `rekall_wrapup` take an optional `commit_message`, used only on a project that commits on claim (see [Commit on claim](#commit-on-claim)).
+There is no query, get or schema tool. Nothing a session creates is work until you promote it: proposed steps and flows land as drafts, and a created task starts `TODO`. `rekall_step` refuses `done`; that state is set by hand in the console. `rekall_note` and `rekall_project_section` refuse a title already used unless `replace: true`, and neither can rename, reorder or delete. `rekall_step` (on `claimed`) and `rekall_wrapup` take an optional `commit_message`, used only on a project that commits on claim. Every parameter is in [docs/guide/mcp-tools.md](docs/guide/mcp-tools.md), the reasons in [docs/design/mcp.md](docs/design/mcp.md) and [docs/design/write-safety.md](docs/design/write-safety.md).
 
-## Project page
+## What Rekall does
 
-From the console, the open-page button on the right end of any project header in the navigator (shown while browsing **All work** or a company) goes straight to that project's page; the rest of the header still folds its tasks. The project page is one row of tabs over a page that fills the window and scrolls on its own: **Blueprint**, **Sections** and **Deployment graphs** (what is written about the project), **Components** and **Connections** (what it is made of and what it reaches), and **Settings** (the **Description**, the **Folder** and **Commit on claim**). A tab shows how many its page holds, and **Connections** carries an amber dot while a binding has no credential. **Components** lists the folders of the project that are parts of it: a name, a folder and a description each, added from **Add component** (the name starts as the folder's own name, and **Browse** opens the editor's path picker, listing folders only, to choose it). They are drawn as the tree their folders form under the project's folder, one line each, grouped under their parent folder (`billing/`), with the ones outside it under their own heading; a filter narrows the tree by name, folder or description. One opens at a time in an editor beside the tree, with autosave, moved up or down, or deleted behind a confirm. Names are unique on a project, ignoring case. Every context that loads the project, from its own anchor or through one of its tasks, carries them in a `<components>` block, so a session told "the billing module" knows which folder that is and what it does; only the console writes them. A task description or a step detail can name one as `[[Component name]]` (matched ignoring case): the text stays as written, and the context a session reads carries the component's name, folder and description at the first mention, name and folder after, and a `component not found in this project` line for a name that matches nothing. References inside code spans and fenced blocks are left alone. In the console the markdown stays as written; read mode draws a reference in a task description or a step detail as a chip whose hover shows the component's folder and description, and a name the project does not have as a struck-through red chip (the chips follow a rename without a reload). Write mode shows the source as typed, and text with no project, such as a note, keeps its brackets. The **Blueprint** tab holds what every `/rk` hands to Claude; the **Sections** tab lists the project's sections beside the one open. A section is a title and markdown, written from the **+** above that list, edited in place with autosave, moved up or down, or deleted behind a confirm. Titles are unique on a project, ignoring case. Sections are never part of any context, so they cost no tokens and a session reads them only with `rekall_read_sections` (a list of titles, then one section by title) or if you paste one in; a session adds one with `rekall_project_section`, starting from the task it works (`/rk project:vega task:report-builder section "Deployment" "how we ship"` asks for exactly that, and so does a step such as "document X in a section named Y"), and it appears in the list without a reload.
+The guides describe each area as it behaves today, with its REST routes and properties.
 
-A project wears an **icon**: one of the fixed glyphs, or a picture of your own, both set in the project's edit dialog (**Upload image** takes a PNG, JPEG, WebP or GIF up to 10 MB). Whatever its shape, a picture is cropped to the centred square and shown with the rounded corners of a macOS icon, in the project cards and header, the console's task column and the project picker of the New task dialog. The server keeps one 512 px PNG master per project (`project_icon_image`; a smaller upload is not enlarged) and resizes it with Lanczos3 on premultiplied alpha to exactly the device pixels each spot asks for (`GET /api/projects/{id}/icon-image?size=N&v=<version>`, 8 to 512; with `v` the answer is cached for good, and `iconImageVersion` on the project changes with every upload). `PUT` takes the image file as the body and answers the project; `DELETE` takes the picture off and the glyph returns.
-
-A company wears a **logo** the same way, uploaded from the company's edit dialog (**Logo**, same formats and limit). The console's scope picker shows it on its closed trigger whenever that company or one of its projects is in scope (with a project, the project's icon sits on the logo's corner), and beside each company in the open list; **All work** keeps its own glyph. Without a logo a company wears its initial on its identity colour. The server stores and renders it exactly like a project picture (`company_logo_image`; `GET`, `PUT` and `DELETE /api/companies/{id}/logo-image`, with `logoImageVersion` on the company).
-
-The project's tasks are not listed on the page: **Tasks** in the header opens them in a panel from the right, each with an **Open** that takes you to it in the console. The REST side is `GET` and `POST /api/projects/{id}/sections`, `PUT /api/projects/{id}/sections/order` (every section id once, in the order to show) and `PUT` and `DELETE /api/project-sections/{id}`. Components are `GET` and `POST /api/projects/{id}/components`, `PUT /api/projects/{id}/components/order` (every component id once) and `PUT` and `DELETE /api/project-components/{id}`.
-
-A company holds **connections**: the GitLab instances, Kubernetes clusters and Jira sites its projects reach. They live on the company's **Connections** screen (`/companies/:id/connections`, the plug button on each company in the company list): a GitLab, a Kubernetes and a Jira group, each under its system's logo with its count, how many lack a credential and its own **+ Add**, listing each connection's label, address (the instance host, or the cluster's context and server) and whether a credential is stored, and beside them the selected connection in full. There you create one (kind, title, label, the instance URL for GitLab or the site URL for Jira and, for a network that reaches Jira only through one, the proxy its calls go through, and optionally its credential), replace or clear its credential, **Check now**, see which projects use it, read its access log (every request a terminal made for the credential, handed out or refused and why) and delete it, which says how many projects lose it. A kubeconfig is pasted or picked as a file, its contexts are listed with how each logs in, the ones Rekall cannot use are shown with why, and you choose the one to keep. A connection's credential (a GitLab personal access token, a kubeconfig reduced to the one context you choose, or for Jira, a Cloud account's email and API token or a Data Center personal access token) is kept in the operating system's credential store (the macOS Keychain, the Windows Credential Manager, or on Linux the kernel keyring, which forgets it when you log out), never in the database, and nothing ever sends it back: the console only learns when it was set. Rekall reads each credential from that store once per launch and keeps it in memory, so the macOS Keychain asks for your password at most once per connection each time Rekall starts. Answering **Always Allow** stops even that, until the app is rebuilt: a build signed ad hoc is a new application to the Keychain. A kubeconfig whose user logs in by running a command (cloud CLIs), with a username and password, against a server that is not `https://` or skips TLS verification, or through a `proxy-url` that is not `http://`/`https://` or carries a password is refused on import; a cluster's `proxy-url` is kept, and both the check and the terminal's `kubectl` go through it. A project binds the connections it uses, each with a label and an optional target (the GitLab project path, the namespace or the Jira project key), from the **Connections** tab of its page. There each company connection the project uses heads a line, in its system's colour, with its host and whether a credential is stored, and every binding hangs off that line as a label and a target edited in place, with a cross to stop using it. **+ Target** binds the same connection once more, the company's other connections wait below with **Use**, **New connection** creates one and binds it, and a filter narrows the bindings by label or target. One connection can be bound several times, once per target, so a GitLab token configured once reaches every repository of a multi-repository project, each under its own label. **Find repositories**, on a project with a folder, does that in one go: it looks for git repositories under the folder (a repository is not searched further, so a submodule is not listed), reads each one's `origin`, binds every one whose origin is on a GitLab connection of the company with a token, labelled after its folder, and adds a component named after the folder when none has it. A second clone of the same GitLab project is recognised as already connected. The result lists each repository with what became of it, including the ones left out: no origin, no GitLab connection for its host, or a connection with no token. A used connection without a credential is flagged, since a session on that project is told the same. A **check** asks GitLab, the cluster or Jira whether the stored credential still works and says who it signs in as, or why it does not. A terminal opened with **Run here** on a project that binds connections can use them without ever holding the credential: `kubectl --context <label>` reaches the cluster, `git push` to the GitLab host over HTTPS is authenticated, `rekall-gitlab --connection <label> GET /projects/:project/pipelines` calls the GitLab API (the label is the binding's, and `:project` its project path), and `rekall-jira --connection <label> POST /issue -d '{…}'` creates a Jira issue. Each asks Rekall for the credential through a helper that only works while that terminal is open, and every request is logged against the connection. The terminal pane and the sessions panel show a chip per connection the session has used, counting each hand-out as it happens and turning amber when a request was refused; the ones it has not used yet fold into one **N unused** chip that opens to list them (amber when no credential is stored), and a connection leaves it the first time it is used. Connections are listed by kind, clusters first, then GitLab, then Jira. A task description or a step detail can name a binding as `[[connection:label]]`, offered by the same `[[` completion as components: read mode draws it as a chip whose hover shows the connection's kind, title and target (struck through in red when the project binds no such label), and the context a session reads names the binding and points it at its line in `<connections>`. This needs `curl` and a Unix shell, so it is not available on Windows, and a terminal opened with **Open in terminal** gets none of it. A Jira connection a project binds with its project key and a credential also offers **Import issues as tasks** on the project's page: it lists the project's 50 most recently updated open issues, and each one you pick becomes a task labelled with its key (`eng-12`), titled with its summary, its description carried over below a link back to the issue. An issue already imported is shown as such and is not imported twice. The REST side is described in [docs/DESIGN.md](docs/DESIGN.md#7-write-safety).
-
-## Wrapup
-
-A task has at most one wrapup: what its implementation currently is, not a changelog. A session writes it fresh every time from the code, keeping only what is still true and needed to start work. The kind of information picks the form: an opening sentence on what the task delivers, a table for the pieces of the implementation, a bullet per rule, a table for results of checks, a numbered list for a flow, open points last. It names code by the code's own names (class, file, endpoint, table) and does not transcribe field lists or signatures. It aims at about 300 words; past 600 the tool's answer asks for a shorter rewrite, though the write still lands. It is capped at 20,000 characters, against 100,000 for a note.
-
-A quoted term after `wrapup` is a directive on what to write. It can narrow the subject, dictate the wording, or set the language or length.
-
-```
-/rk project:vega task:report-builder wrapup "export module only"
-```
-
-The description pane and the steps pane both carry a **Generate the wrapup every session** toggle under the header, so it is set from whichever surface the work is driven from. Turning it on reveals an optional directive field. Set once on the task, the toggle stands in for the quoted term: the context load then tells the session a wrapup is expected every time without being asked, and the words it should follow. Turning the toggle off drops the directive with it.
-
-A wrapup written after a step finishes folds that step's work into the same description. The console counts steps ticked and notes added since the wrapup was last written. You can edit the wrapup in the console; the next `/rk … wrapup` replaces it and the tool reports when it overwrites a hand edit, because nothing keeps the text it replaces. Neither the wrapup nor the description keeps earlier versions: a write replaces the text outright and a delete removes it.
-
-### Notes written by a session
-
-A session can keep what it produced as a note on the task, rather than in the wrapup. Ask for it with a quoted term after `note`, saying what the note has to hold:
-
-```
-/rk project:vega task:report-builder note "the export formats we settled on"
-```
-
-The session writes the note and calls `rekall_note`, which creates it on that task, in full, with kind `notes`. It then travels with the task's context and shows up in the console without a reload. A step or a description that asks for its output to be kept as a note, or a task whose whole point is to write one, gets the same without the `note` term. A title the task's notes already carry is refused, unless the session passes `replace`: then that note's body is rewritten in place, its title and placements kept, so a runbook or a table of results stays one current note instead of piling up versions. The old body is not kept anywhere, and a note on several tasks changes on all of them; the tool's answer says how many. Sharing, detaching or deleting a note stays in the console. Writing a note does not claim the task or a step.
-
-## Steps
-
-A step sits on a line: **draft** while you are still wording it, **open** once you promote it and it is ready to work, **running** while a session works it, **claimed** when the session reports it finished, **done** when you accept it. Each step is a title and an optional markdown detail. The pane opens on the first step whose work is not finished.
-
-A new step is created as a draft and sits on a staging shelf below the checklist, off the rail. **Promote** moves it onto the list; an open step not yet started can go back with **To draft**. A draft is not work: it stays out of the checklist a session reads, `rekall_step` will not move it, and the navigator's step count ignores it. A task that holds only drafts is still treated as having no checklist.
-
-A session drives its own checklist over `/rk`:
-
-```
-/rk project:vega task:report-builder step:3 start   # step 3 -> running
-/rk project:vega task:report-builder step:3 done    # step 3 -> claimed
-/rk project:vega task:release step:3 done outcome:app-error   # on a flow, follow that route (see Flows)
-```
-
-The console holds one `text/event-stream` connection (`GET /api/steps/stream`) carrying six frames: `steps` for a checklist, `task-review` for a stepless task's review line, `wrapup` for a wrapup write or delete, `commit-reference` for a commit logged against a task or step, `run-queue` for the run queue, and `note` for a note a session wrote or rewrote. A step moved from an in-app terminal, a box ticked in another window, a wrapup or a note written over MCP, or a commit logged by a session all land without a reload.
-
-Claude receives an open or running step with its detail, tagged `(in progress)` or `(claimed, …)`. A finished step arrives as its title alone. A draft step is not sent at all, only counted as `draft="N"` on the `<steps>` tag. A step ticked without a following wrapup is marked `(finished since the wrapup was written)` and handed back with its detail until the next wrapup folds it in.
-
-With steps on a task, the open steps are the work and the description becomes the constraints the steps are built against. Anything the description asks for that no open step covers is not built; `/rk` flags it and asks for the step.
-
-Only you set a step to **done**. `rekall_step` stops at `claimed`. The navigator's progress count is built on `done`.
-
-The mark in front of each navigator row says where an in-progress task's work stands. A hollow amber ring around a small light means nothing is handed in yet, and a green arc on that ring is the share of the checklist already accepted. An orbiting comet means a session or a timer is on the task now; it is the only mark that moves. When the timer runs, no session is at work and a claim is waiting for you, the comet keeps orbiting but an amber check replaces the light at its centre: something is running, and it needs your review to go on. A session still working a step keeps the plain comet, whatever it already claimed. An amber check in an open ring means work is claimed and waiting for your review. A filled green seal means every piece of work is accepted and the task is ready to move to Done. Tasks in any other status keep a plain dot in their status colour. Hover the mark to see its meaning in words. The selected row scrolls to the middle of the list when it is out of sight, and a gold comet circles its edge, brightest at the head and fading along its tail, so it is easy to find; with reduced motion set the comet is hidden.
-
-### Flows
-
-A checklist runs top to bottom. When the work branches or loops (build, deploy, test; a failed test goes to a fix that goes back to deploy), give the steps **routes**: each says that when one step ends with an outcome, the work moves to another. A task whose steps carry at least one route is a **flow**.
-
-Switch the Steps pane to **Flow** in its header; a task with routes opens on it. The graph draws every step laid out by dagre, top to bottom in checklist order, and every route labelled with its outcome. A route the work has taken is solid, one not yet taken is dotted, and the route the last move came in by carries a light toward the step the work stands on, which is lit and tagged **here**. Each step shows how many times the work entered it (`×3`). **Start** always leads to the first step; **End** is where the work finishes, and it lights when it gets there. Point a route at End (pick *End of the flow* as its target) and a claim by that outcome finishes the flow, leaving no step current. A step with no routes on a flow is drawn joined to End too.
-
-Steps **drag** on the graph: press a step and move it, and the place is kept (**Alt** with an arrow nudges the selected step from the keyboard). **Tidy layout**, shown once a step has been moved, hands every step back to the automatic layout. To add a route without the form, drag from the handle under a step onto another step or onto End; the route form opens with that target filled in and asks for the outcome. The strip above the graph is the trail: every move in order with its number and the outcome it left by, the open one last; an outcome left with a report is underlined and shows it on hover. Pick a step on the graph or the trail to open it beside the graph: its routes out, edited in place (an outcome renamed on blur, a target picked from the list, **Add**, the cross to remove), the routes that lead into it, every visit with how it left, and its **visit budget**: how many times the flow may enter it (1 to 99, empty for no limit). The node shows the count against it (`×2/3`), in red once it is spent. **Detail** opens it on the list to write its detail. **Reset moves** forgets the trail and the counts; the steps keep their states and routes. A press on the empty canvas and a drag pans the graph.
-
-A session works a flow over the same `/rk` lines, adding what happened when it claims:
-
-```
-/rk project:vega task:release step:3 done outcome:app-error   # step 3 -> claimed, the work -> the app-error route
-```
-
-`rekall_step` with `claimed` and an `outcome` closes the visit on that step, follows the route that outcome names, opens the step it leads to (again, if it was finished) and makes it current; the answer names it and the line that starts it. A flow runs unattended: that answer tells the session to start the next step at once and to write the wrapup only when the flow is finished, and `/rk` says the same, so no step waits for a tick between moves. A move into a step whose visit budget is spent is refused and rolls the claim back: the flow stops where it stands, the session reports what keeps sending the work back, and you raise the budget or **Reset moves** to let it go on. A step with one route needs no outcome, a step with no routes ends the flow, a route to End ends it with its outcome, and an outcome that names no route is refused with the routes there are. A claim can carry a `report` (markdown, up to 4,000 characters) of what the session saw: it is kept on the visit the claim closes, and the step the flow goes to shows it in its context in an `<arrived-from>` block naming the step and outcome it came from, so a fix works from what failed rather than from a session's memory. A report off a claim on a flow is refused. Starting another step leaves the current one without an outcome. An outcome is a slug, so `App error` is stored and matched as `app-error`; one outcome names one route per step, a route never leads back to its own step, and a step holds at most eight. The context marks a flow with `flow="true"`, the current step and the move count on `<steps>`, `(current, visit N)` on that step (`visit N of M` with a budget, and `(entered N of at most M times)` on the others), and a `Routes:` line under every step, finished ones included. A person writes routes from the console (a session can only propose them between drafts, see [Planning](#planning)): `POST /api/steps/{id}/links`, `PATCH` and `DELETE /api/step-links/{id}`, each answering the task's whole checklist; `POST` and `PATCH` take `endsFlow: true` in place of `toStepId` for a route to End. `PATCH /api/steps/{id}/max-visits` (`maxVisits`, 1 to 99; null lifts it) sets the budget. `PATCH /api/steps/{id}/flow-place` (`x`, `y`; both null clears it) keeps where a step was dragged and `DELETE /api/tasks/{id}/flow-places` clears them all. `DELETE /api/tasks/{id}/visits` is the reset. Both travel on the step views, so the `steps` frame redraws the graph live.
-
-### Deployment graphs
-
-A project keeps **deployment graphs**: the route its work takes from a commit to a running application, written once and run on any task. Each is a flow kept on the project instead of on a task: steps routed by outcome, each reaching one of the project's connections. They are listed on the project page's **Deployment graphs** tab, beside the one open. A project without one asks there whether to set one up, and **Not now** folds the question away for that project in this browser.
-
-**Set it up** (or the **+**) offers two starts. The **full release loop** is Push commit, Pipeline build, Deploy, Check and Fix, each with its instructions written, the first four on the project's first connection of its kind (GitLab for the first two, Kubernetes for the others). Push only pushes what the work already committed. A failed build or deploy and an unhealthy check go to Fix, which repairs the cause in the repository and goes back to the push (`fixed`), or ends the flow for you to decide when the repository cannot fix it (`blocked`); Fix may be entered three times. A **blank graph** is one step to draw from. Either opens in the editor: the graph on a canvas, Start to End with every route labelled by its outcome and the routes that loop back drawn dashed in amber, and beside it the picked step: its title, the connection it reaches (only the project's bindings are offered, a missing credential flagged), what the session does there, its routes out and its visit budget. **Add** inserts a preset step after the picked one, routed from it by `done` when it routed nowhere. A step drags to where you want it (**Alt** with an arrow nudges the picked one from the keyboard), its routes redrawn to follow it, and the place is saved with the graph; a step never dragged is laid out automatically, and **Tidy layout**, shown once a step has been moved, hands every step back to it. Dragging from a step's handle onto another step or End adds a route with a free outcome, focused to be named. Every edit is saved on its own a moment later. A refused one stays on screen with the reason. A graph the flow rules would refuse (a step never reached, a loop with no way out) is still saved and says why it **can't run yet**; one with no routes runs as a checklist.
-
-A task lists its project's graphs above its empty checklist, or below its checklist while no step of it reaches a connection and no draft waits. **Use this graph** lays one after the task's own work: each graph step becomes an open step of the task with its detail, its visit budget and its connection, and each route a route between them. A plain checklist is chained in its order by `done` routes and its last step leads into the graph's first; a flow you drew has every route that ended it, and every step with no route out, lead there instead. A task with only its description gets an **Implement the task** step first, whose detail makes the description its brief. When the checklist's first step is already finished, the flow stands on the first unfinished one, so a task worked as a checklist is released from the push. The task is then a flow a session starts at once.
-
-A project can make one graph its **release graph** with **Lay on every task the console runs** in the graph's editor; ticking it on another graph moves the choice there. Then **Run here** and the open-in-terminal button lay it on the task, as **Use this graph** would, before the session starts, and say so. A task is laid once, by hand or this way, so running it again lays nothing. Above its checklist the task says the graph will be laid when it runs, and **Don't release this task** leaves it unreleased (**Release it when run** undoes that). A graph that cannot be laid (drafts still waiting, a graph that cannot run) is reported and the session starts without it. A session started outside the console never lays it: laying a graph is a console act. `PUT /api/projects/{id}/release-graph` (`graphId`, null for none) chooses it and answers the project's graphs, with `releaseDefault` on each; `POST /api/tasks/{id}/release` lays it when it should and answers `laid` (the graph's title, or null) and the task's checklist; `PUT /api/tasks/{id}/release-skipped` (`skipped`) answers the task, which carries `graphLaidAt` and `releaseSkipped`. The task keeps its copy: editing the graph later changes no task it was laid on. In the session's context each such step names its connection (``Connection: `prod`, reached as its line in `<connections>` says.``), or, when the project no longer binds it, says to report it rather than reach the system another way; the flow canvas shows it on the step. `GET` and `POST /api/projects/{id}/graphs`, `PUT` and `DELETE /api/graphs/{id}` write a graph whole: `title`, `description` and `steps`, each with a `key` its routes name in `toKey` (none for the end of the flow), `connectionId`, `maxVisits` and its canvas place in `flowX` and `flowY` (both or neither); the answer carries `problem` while the graph cannot run. `POST /api/tasks/{id}/graph` (`graphId`) lays it on the task and answers its checklist: refused with 409 while the task has drafts or a step under one of the graph's titles (which is also how a graph laid twice is refused), and with 400 for another project's graph or one that cannot run. No MCP tool writes a graph.
-
-### Planning
-
-`/rk project:vega task:report-builder plan` has a session turn the task into a checklist for you to review. It reads the description, the wrapup, the finished steps and the code the task touches, then calls `rekall_propose_step` once per step, in order: a title saying what the step delivers, a detail saying what to build, where, what it must satisfy and how you can tell it is done. Every proposal lands as a draft on the staging shelf, so nothing is work until you promote it, and the session builds nothing. A title the task already has is refused, so a second `plan` adds only what the first one missed; a task holds at most 20 drafts.
-
-When a step's outcome decides what comes next (tests that can fail, a deploy that can break, a review that can reject), the session plans a flow instead: one `rekall_propose_flow` call with every step in order and its routes, each `{outcome, to}` naming another step of the plan by number or `end`, and an optional `max_visits` per step. Type `/rk … plan flow` to ask for a flow outright. The plan is checked whole before anything lands: every step reachable from the first, no loop without a way out to End, no step routing to itself, one route per outcome and at most eight per step, no title twice. A refusal names what to change and leaves the shelf empty. A flow is proposed only onto a task with no steps, drafts included, since the flow begins at the first one. Each draft on the shelf lists its routes (`app-error → Fix the application`); the task is not a flow, and no session follows those routes, until you promote the drafts.
-
-The Steps pane starts it from **Plan here** in its header, with or without a session already running. While one runs on the task in the console's terminal, the button types the command into it. Without one, it opens a terminal in the project's folder that starts on `/rk … plan` instead of the plain `/rk`, so the session plans the task rather than working it; the project needs its folder set, as for **Run here**. Either way the drafts land on the shelf for you to reword, promote and then run. While the task has no steps and no drafts, the only state a flow can land on, **Plan a flow** sits beside it and does the same with `/rk … plan flow`. An empty checklist also shows the `/rk … plan` and `/rk … plan flow` chips, to copy into a session outside the console.
-
-A claimed step is reviewed from its detail: **Accept** ticks it to done, **Send back** returns it to open for another pass. Sending back seals the detail that pass worked from above the editor (`POST /api/steps/{id}/send-back`), and the detail starts empty for the feedback. `/rk` hands the next session each earlier pass in a `<previous-pass>` and the feedback in a `<feedback>`, so it builds on what was done instead of reading the feedback as a new brief. The **N awaiting review** count in the pane header jumps to the first one. The step node itself only moves a step forward, so a stray click never walks it back; reopening an accepted step is a separate **Reopen** button that arms before it fires.
-
-## Epics
-
-An epic is a task of kind **Epic**, chosen in the task dialog. It holds no steps: it carries the
-concept a feature shares, as a description and notes, and gathers the tasks of its project that
-name it in their **Epic** field. Each of those tasks inherits it: `/rk` on one of them loads the
-epic after it, in full, marked `inherited`, with its description and notes as part of the brief.
-
-- The navigator keeps a project's epics on a shelf above its tasks that starts closed, each with the
-  status mix of its tasks, and opens it when an epic is selected elsewhere; a task in an epic wears the epic's name next to its anchor, and the card above its dossier opens the epic.
-- Selecting an epic opens it in the console: how far its tasks are, the tasks themselves and its
-  description, written in place. **Add existing task** files a task of the project under it (one in
-  another epic moves here), **New task** creates one already filed, and a row's cross takes a task
-  out, with an Undo. In its dossier one **Epic tasks** card, with how many are done, stands where a
-  task has its description and steps; its notes are listed below as on any task.
-- A session creates one with `rekall_create_task` and `kind: "epic"`, creates tasks under it with
-  `epic`, and files an existing task under it with `rekall_join_epic`.
-- An epic belongs to no epic, takes no step, has no flow, is never run (no terminal, no Claude
-  Code launch, no run queue) and is never laid on a deployment graph. A task with steps cannot
-  become one, and an epic with tasks cannot turn back into a task or move to another project.
-  Deleting an epic leaves its tasks on their own.
-
-## Commits
-
-A task, or one of its steps, keeps a ledger of the commits that built it: the hash, the commit's own subject line as the comment, and the diff it introduced, read from the project's **repo folder** (set on the project's page). The console shows the ledger under the description as a collapsible rail, and under each step's detail; a row opens to its diff, and can be deleted by hand.
-
-**Log commit** on the description, or inside a running or claimed step, logs the tip of the repo. The chevron next to it opens a picker over the last 30 commits, newest first, with their subject and age, so an earlier commit can be logged against the task or step instead; rows already logged there are marked. A hash the log does not reach can be pasted in the same panel, abbreviated or full. A hash that names no commit is refused and nothing is written. Logging the same commit against the same task and step twice is a no-op.
-
-A session does the same over MCP right after `git commit`:
-
-```
-rekall_record_commit  anchors="project:vega task:report-builder"                 # the tip
-rekall_record_commit  anchors="project:vega task:report-builder" step="3"        # against step 3
-rekall_record_commit  anchors="project:vega task:report-builder" commit="a0fd5cc" # an earlier commit
-```
-
-A logged commit stays out of `rekall_context` until it is chosen for it. Each row carries an **add to context** toggle (shown on hover; **in context** once on) and the rail fills the node of every chosen commit and counts them. A chosen commit travels with the task's context as a `<commit hash="…" step="…">` element inside `<commits>`: its subject, then its diff (capped at 60,000 characters), oldest logged first. Choosing is console-only; `rekall_record_commit` logs but never chooses.
-
-The REST side is `GET /api/commit-references`, `POST /api/tasks/{id}/commit-references/latest`, `POST /api/tasks/{id}/commit-references` (body `commitHash`, optional `stepId`), `GET /api/tasks/{id}/recent-commits`, `GET /api/commit-references/{id}/diff`, `PATCH /api/commit-references/{id}` (body `inContext`) and `DELETE /api/commit-references/{id}`.
-
-### Commit on claim
-
-A project can commit for the session instead of waiting for it to. The **Commit on claim** switch sits under the **Folder** field on the project page's **Settings** tab and only arms when that folder is a git repository: the strip under it says which branch is checked out and whom git would commit as there (`user.name` / `user.email` as `git config` resolves them in that folder, so the global identity unless the repo overrides it). Outside a repository the switch stays off and says why; on a repository with no `user.email` it arms but warns that the commit will fail until one is set. The setting is saved on the project (`autoCommit` on `PUT /api/projects/{id}`; the server keeps it off whenever the folder is not a repository) and `GET /api/projects/{id}/repository` is what the strip reads.
-
-With it on, a claim commits: `rekall_step … state="claimed"` stages everything in the folder (`git add -A`), commits it, and logs that commit against the step; on a task with no checklist, the Claude-authored `rekall_wrapup` that claims the task does the same against the task. A task with a checklist never commits on its wrapup.
-
-The message says what the work does, never which files it touched. The session that claims writes it, as `commit_message` on `rekall_step` or `rekall_wrapup`: a Conventional Commits subject under 72 characters, a blank line, and a few sentences of body. Without one, Rekall derives it: the subject is the step or task title, typed `fix:` or `refactor:` when the title says so, `docs:` when every file is documentation, `test:` when every file is a test and `feat:` otherwise; the body is the opening of the step's detail (or of the wrapup, for a task with no checklist) as plain prose, headings, emphasis and code dropped, cut at a sentence. Either way the body is wrapped at 72 columns and ends with a `Refs: project:… task:…, step N` line. A clean tree commits nothing and says so; a git refusal (no identity, a hook, a folder that stopped being a repository) is reported in the tool's answer and the claim stands either way. `rekall_context` marks such a project with an `auto-commit` field telling the session not to `git commit` itself.
-
-## Description review
-
-A task with no checklist walks the same line at task scope: **open**, **running** while a terminal is open on it with no step target, **claimed** when a Claude-authored wrapup lands, **accepted** when you accept it in the console. Nothing new is typed for it: running follows the terminal and claimed follows the wrapup write. The description pane shows the running pill and a review bar: on **running** it carries **Accept** and a link to the wrapup, so a session driven by hand still has a console exit; on **claimed** it adds **Send back** (with an optional note the next session sees); accepting offers to also mark the task done. A note left on send back rides in `rekall_context` as a `review` field on the task (`sent back — "…"`), so the next session opened on that anchor reads why, not just that it was. It arrives on the same `GET /api/steps/stream` connection as a `task-review` frame, the wrapup that claims it rides the same connection as a `wrapup` frame so the pane shows the new text with the claim rather than on the next reload, and `PATCH /api/tasks/{id}/review` is the console-only Accept / Send back. Adding a first step retires the task-level line and the checklist takes over.
-
-## Review queue and notifications
-
-**Review** (the checklist icon with a count, in the top bar) counts everything a session claimed and you have not reviewed, across every task: claimed steps, and tasks with no checklist whose wrapup claimed them. It lists them longest-waiting first, and a row opens the step on its steps pane, or the task on its description's review bar. It is built in the console from the same step and review frames the event stream already carries, so it moves as sessions claim and you accept, and it is not there while nothing waits.
-
-When something joins the queue while the console is hidden or another app has the focus, Rekall posts a system notification: through the native bridge in the desktop app (`rekall-app/desktop/src/bridges/notifier.rs`, the system asks for permission the first time), through the browser's Notification API elsewhere. What was already waiting when the console loaded never notifies. **Settings > Notifications** turns it off; the choice is stored on the machine, and in a browser that is also where permission is asked, since a browser grants it only from a click.
-
-## Console
-
-One surface, three panes: pick a task on the left, pick its checklist, its wrapup, a note or a session in the middle, write on the right. The field at the top takes the same grammar as `/rk`. At rest it shows where you are, as the anchors of the open task or note (or of the scope), and clicking it turns it back into the search. Next to it one capsule carries the Claude usage meter, the run queue and the count of work waiting for your review.
-
-With nothing open, the right pane is the home: a line on how many sessions are working and how much waits for review, the time tracked on each of the last seven days, the claimed steps waiting for you (a click opens one), the sessions running now (a click opens its terminal) with the next task in the run queue, the four notes touched last, and the keys.
-
-The header is the same on every screen: the Rekall mark, then a pair of back and forward arrows, then the screen tabs, the one you are on underlined in amber. The arrows walk the screens you visited in this window, the same history the mouse's back button uses (`useNavigationHistory` reads it from the router), and a side with nowhere to go is dimmed. `⌘⌥←` and `⌘⌥→` (`Alt+←` and `Alt+→` outside macOS) walk the same history from the keyboard, on every screen and while typing, except behind a dialog. On the console every move is an entry too: picking a task or a note, switching between Tasks and Notes, opening the description, steps, wrapup or terminal. `useConsoleLocation` writes them into the URL (`/?mode=tasks&task=…&pane=steps`), so going back returns to them and a reload reopens them. An entry whose task or note was deleted since opens without it.
-
-That field filters the navigator by titles and labels as you type. For a phrase of three characters or more that is not an anchor, it also searches the text behind them and lists the hits under the bar: task descriptions, steps (title and detail), wrapups and notes, each with the words around the match. `↑` `↓` choose, `↵` opens the hit on the pane that shows that text (a step opens expanded on its steps pane). `GET /api/search?q=` answers it: at most 8 hits per kind, newest first, the phrase matched whole and case-insensitively, `%` and `_` literal.
-
-The description, steps, wrapup and terminal are pinned above the notes. Each opens in the writing pane; a task missing one shows an empty card. `c` opens the terminal pane, the same way `s`, `w` and `d` open steps, wrapup and description; `q` opens the run queue; `r` toggles read/write on whichever of the description or a note is open. Companies, projects and tasks are created, edited and deleted from one editor, opened on the parent record. Title and label sit together with the anchor assembled live as you type. A task's project picker shows the chosen project's status (Active, Paused, Done, Archived) at the right of the field, and each project in the list carries it too. An archived project drops out of the navigator and the scope picker and is listed only under the catalog's **Archived** filter, never under **All**. Deleting states what goes with it.
-
-A task optionally wears one **tag**: a name, a glowing icon and a glow colour, both picked from a fixed set the console already knows how to draw. Tags are configured in their own panel, opened from the star button in the header next to Settings — add, rename, re-colour or delete one there, with a live count of the tasks currently wearing it. A tag is assigned to a task from that task's edit dialog, and shows as a small glowing badge next to the title wherever the task is listed.
-
-**Skills.** A Claude skill (any under `~/.claude`: your own, claude.ai's or a plugin's) can be assigned to a task, to one of its steps or to a tag, from the same catalogue the Claude screen shows. On a task they sit in the description's header, beside its tag: the task's own skills are chips you can remove, the tag's are dashed and belong to the tag, and **Add a skill** opens a searchable picker where any number can be ticked. A new task asks for its skills in the create dialog, a new step through the spark beside **Add draft**, an existing step in its detail, and a tag in the tags panel (changing a tag's skills changes every task under it). Every step inherits the skills of its task and of the task's tag. A small spark mark with a count shows on the navigator row, on a step and on a tag, and its tooltip says where each skill comes from. A session gets them as a `<skills>` block in the context `/rk` loads, each with its scope, and invokes them with the Skill tool before it works, so **Run here**, the run queue and a terminal outside Rekall all behave the same. A skill that has left `~/.claude` stays assigned and is shown in red until it is removed. `PUT /api/tasks/{id}/skills`, `/api/steps/{id}/skills` and `/api/tags/{id}/skills` replace one owner's whole list (at most 20, names of letters, digits and `- _ : .`); `GET /api/skill-assignments` returns every list.
-
-Finished tasks are folded into a "filed" drawer, and **Backlog** tasks into a backlog drawer of their own, both closed on every load. Creating a task in the backlog does not start its timer. A new task is created without a description and opens on its empty description pane; a new step is created with an empty detail. Writing autosaves; a note has no Save button.
-
-The timer follows the work. Writing on a task whose timer is paused starts it: its description, its wrapup, a step's title or detail, a new step, a note, or an edit from the task's dialog. A note on several tasks starts the timer of the task in view, or of its only task. Ticking, promoting or reordering steps does not count as writing. Accepting a claim stops it, whether that is a claimed step ticked done or a claimed stepless task accepted. Ticking an open step by hand leaves it running. Opening a note, or a save that changes nothing, is not writing. Only the console starts a timer this way; a session's writes over MCP never do.
-
-A timer stops by itself when its task has seen no write for 30 minutes: the task, its steps, wrapup or notes. It stops at the time of that last write, so the idle stretch is not counted. A task with a step a session is running is never idle, and every open timer stops when the application shuts down. The check runs every minute.
-
-A markdown editor in write mode is one pane drawn the way read mode draws the page, with no preview beside it (`common/live-preview/`, CodeMirror decorations on md-editor-v3's editor). The text stays the markdown that is saved, byte for byte: the line holding the caret shows its markup, every other line hides it, and the toolbar inserts markup as before. A fenced block is drawn highlighted and a ```` ```mermaid ```` fence as its diagram; clicking one, or moving the caret into it, shows its source until the caret leaves. Bullets are drawn as dashes and `[ ]` as a checkbox that writes `[x]` when ticked. A table is drawn as a table whose cells are written in place: click a cell to see its markdown, `↵` goes down, `Tab` and `⇧Tab` across, `esc` drops the edit, and only that cell's text changes. Right-click a cell to insert or delete rows and columns, align a column, or **Edit as markdown**; those rewrite only that table, compact and unpadded. A `[[Name]]`, `[[connection:label]]` or `[[task:label]]` that the project knows is drawn as the read view's chip with the glyph its suggestion carries (component, task, or the connection's system); one it does not know is drawn as a broken reference, and text with no project keeps the brackets. Click a chip, or step into it with the caret, to see and edit the source; a reference just completed is drawn at once.
-
-Every markdown editor opens in the mode you last picked on any of them: leave one in **Write** and the next description, note, wrapup, step or section opens in Write too, until you pick **Read**. An empty text always opens to write.
-
-Every markdown editor puts a path in the text without a trip to Finder. `⌘⇧P`, or the folder button in the toolbar next to link, opens a file browser under the caret, in the project's folder (for a note, the folder of the task it was opened from), or wherever it was left the last time in that editor. `↑` `↓` move, `→` or `Tab` opens a folder, `⌫` or `←` on an empty filter goes up, and the breadcrumb and the project and home buttons jump. The filter also takes a path: `src/comp` lists `src` and keeps what matches `comp`, `~/` goes home, `/` goes to the root. `↵` inserts the highlighted entry, `⌘↵` the folder in view, and the footer shows exactly what will land: the absolute path, a folder ending in `/`, wrapped in backticks so `_` and `*` survive the preview, bare when the caret is already inside code. Dotfiles stay out until `⌘⇧.`, or until the filter starts with a dot. The first `esc` clears the filter and the second closes. `GET /api/filesystem/directory?base=&path=` lists one folder by name only, never its contents: `~`, absolute and relative paths are resolved on the server, a folder macOS keeps private comes back empty and marked unreadable, and a folder bigger than 2,000 entries is cut off after sorting.
-
-In the editor of a task description or a step detail, typing `[[` opens the project's components, filtered as you type by any part of the name (case ignored) with the first line of each description beside it. `↑` `↓` move, `↵` or `Tab` insert `[[Name]]` and leave the caret after it, `esc` closes. Nothing opens in a note with no project, in a project with no components, or inside a code span or fenced block; a component whose name holds `]]` is not offered.
-
-The same list offers the project's connections as `[[connection:label]]`, under their own heading, and each row starts with what it names: a cube for a component, the GitLab, Kubernetes or Jira logo for a connection. Another task of the project is written `[[task:label]]`. Its suggestions open only once `[[task:` is typed, because a project has too many tasks to list after a bare `[[`. They filter by label or title, show each task's title and status, and start with a checkbox. In read mode the reference is a chip with the title and status on hover. In the session's context it names the task, and that task's description, wrapup and notes are loaded under the one that names it, as background. Its checklist is left out, so its steps are never taken for the work.
-
-A markdown page in read mode has its own find: `⌘F` (or `Ctrl+F`) opens a bar in the page's top-right corner, matches light up as you type (case ignored, across bold and links), `↵` and `⇧↵` step through them and `esc` closes it. In write mode `⌘F` is the editor's own search; the small read views inside a step's card leave `⌘F` to the browser.
-
-A note lives in a **scope**: one project, one company, or **Global**. The scope owns it: the Notes list groups notes by it, a note can only be put on tasks inside it, and a note taken off its last task stays there. Sessions still read a note only through the tasks it is on. **Lives in** on the note's toolbar moves it; a scope that would leave out one of its tasks is disabled. A note written by a session with `rekall_note` lives in that task's project.
-
-A note is put on a task from either side. From the note, the task chips on its pane open a picker that walks company, project and task, limited to the note's scope. From the task, the **Notes** button in the description and steps headers drops a list of the notes whose scope admits the task, the ones on this task first: one click, or `↑` `↓` and `↵`, adds a note or takes it off, without leaving the pane. A tick never moves a row while the list is open.
-
-The note cards in the task's column take a note off the task too. The right end of a card says where else the note lives; under the pointer, or once the card has focus, it becomes a `×` that takes the note off this task without asking, and `⌫` on a focused card does the same. The toast that follows offers **Undo** for a few seconds, which puts the note back and reopens it if it was the one in the editor. **+ New note** under the last card writes a note in the task's project, already on the task. **Add existing note** just below it opens a picker of the notes this task's scope admits and does not carry yet, newest first, each with an excerpt and where it lives. Typing filters, `↑↓` moves, a click or `↵` puts the note on the task and opens it, `esc` closes. The button is disabled when nothing is left to add.
-
-`b` switches the left column between tasks and notes. Everything in that column is ordered by name, ignoring case and reading numbers by value: companies, then each company's projects, then the tasks and notes within each group. Browsing tasks under **All work**, a company's projects sit together, the live ones before the paused and done ones; inside one company the same order applies. Browsing notes, each project, company or the global scope is a card like a project card on the tasks side, folded away with a click and remembered across restarts: the notes on a task sit on its rail, each with its kind, the first task it is on and `ref` when sessions load it only on request, and the notes on no task wait on a closed **on no task** shelf under them, which opens by itself when one of them is picked. Picking a note leaves the task in view alone: the middle column becomes the note's placements, headed by how many tasks it is on and where it lives, one card per project. **Put it on a task** at the top opens the same company → project → task picker the note's "+ task" chip opens on the tasks side. Each task carries two keys: **Detach** takes the note off that task at once, with **Undo** in the toast it raises, and **Open task** is the only thing that opens that task on the tasks side; the row itself does nothing on a click. Switching back to tasks brings the task up to date with the note.
-
-A note starts from either side too. Browsing tasks, **New note** (or `n`) writes one on the task in view. Browsing notes, the same button, `n`, or **+ New note** at the top of the list turns the middle column into a composer: a name, where it lives (starting in the project of the task in view), and optionally the tasks of that scope to put it on. Typing finds any task in the scope, `↵` ticks it, `⌘↵` or **Create note** makes the note and opens it in the editor; `esc` walks away. **Delete** on the editor header removes the note from every task it is on.
-
-## Report
-
-**Report** shows what went to which client and for how long. The frame is a week or a month, stepped with the arrows either side. One column per day is stacked in each company's colour against a dashed line at eight hours. Below it, a section per company, its projects and its tasks, with the hours and the days each ran on.
-
-Every task row opens on the steps it closed inside the period, oldest first, with the day each was ticked and a count of those still open. A step ticked outside the period is counted but not named. The chips narrow the report to the companies you pick. **Copy as markdown** puts the whole report on the clipboard with every task's anchor and its closed steps.
-
-The screen is built from the sessions the timer recorded. A session counts on the day it started; one still running counts up to now.
-
-## Claude resources
-
-**Claude** (top bar, `/claude`) reads Claude Code's own folder, `~/.claude`, and lets you edit what a session loads from it. The files are the record, and a change is written straight to disk where the next session reads it. The one thing Rekall keeps itself is how you group your own skills (below), and that never touches a file.
-
-- **Global instructions**, pinned at the top of the library: `~/.claude/CLAUDE.md`.
-- **Memories**, grouped by the project they were written for. Claude Code names a project's folder after its path with every non-alphanumeric character flattened to `-`, so `-Users-me-Projects-vega` cannot be read back as a path. Rekall takes the real path from a session transcript inside the folder, or else finds the folder on disk whose name flattens to it. A group whose folder matches a Rekall project (its repo folder, or one above the session's folder) wears that project's icon and title; one whose folder no longer exists is badged **gone**, so the memories of deleted projects are easy to find and delete. A project that sits inside another one's folder (`ESA/stvv-core-backend/apps/validator` inside `ESA/stvv-core-backend`) is nested under it, showing only the part of the path after the parent, and its count is added to the parent's (`3 +5`). A folder that is gone, or whose path was only guessed, stays at the top. Each memory shows its `type` (feedback, user, project, reference) and its description; each group's `MEMORY.md` index is the first row. Creating a memory adds its line to that index and deleting one removes the line, so the index never points at a file that is not there.
-- **Skills** (`skills/<name>/SKILL.md` or a flat `skills/<name>.md`), **commands** (`commands/**/*.md`, nested folders read as `folder:name`) and **agents** (`agents/**/*.md`).
-- **Skills are shelved by who provides them.** **Yours** is open and holds the skills you can edit. Below it, a locked shelf per read-only source, folded until you open it: **claude.ai** (the skills under `skills/synced/`, which the sync rewrites; its manifest says whether Anthropic made them, they are Anthropic examples, or they came from a plugin) and one shelf per installed plugin, named for the plugin with its marketplace and version (the skills each plugin in `~/.claude/plugins/installed_plugins.json` ships under `skills/` or `.claude/skills/`). A locked row's lock says who provides it, and so does the header of its open file. They open read only.
-- **Your own skills can be grouped, in Rekall only.** The folder icon on a row (shown on hover or focus) moves the skill into an existing group, a new one, or out of its group; the pencil on a group renames it for every skill in it. The groups live in Rekall's database (`skill_placement`, keyed by the skill's path), so the skill's file does not move, Claude Code sees exactly what it saw, and a skill deleted on disk simply leaves a placement nothing reads.
-
-The library filters by name, description and path, and opens every group that matches. The editor is the same markdown editor as the notes, in write or read mode; **Save** (or `⌘S`) is explicit, because a running session may be writing the same file. Every save names the version it was opened from: if the file changed on disk meanwhile, the editor keeps your text, says so, and offers **Load the disk version** or **Overwrite it**. Leaving a file or the screen with unsaved edits asks first. `CLAUDE.md` and the `MEMORY.md` indexes can be edited but not deleted. A file that is a symlink (a `CLAUDE.md` kept in a dotfiles repository) is written where it really lives.
-
-Only a few kinds of file are reachable, by path under the Claude folder: `CLAUDE.md`, `skills/`, `commands/`, `agents/`, `memory/` (global) or `projects/<folder>/memory/`, and, read only, the `SKILL.md` of an installed plugin under `plugins/cache/`, all `.md`. A path that climbs, hides itself or names anything else is refused with a 400. Writes are capped at 1 MB.
-
-| Route | Effect |
-|---|---|
-| `GET /api/claude/resources` | The catalog: the instructions, skills, commands, agents and the memory groups, each file with its name, description, size and version |
-| `GET /api/claude/resources/file?path=` | One file with its text |
-| `PUT /api/claude/resources/file` | `path`, `body`, and `expectedModifiedAt`: the version opened, or null to create a file that must not exist. 409 when the file changed or already exists |
-| `DELETE /api/claude/resources/file?path=` | Delete a file (and its index line, for a memory). 409 for `CLAUDE.md`, an index, a synced skill or a plugin's |
-| `GET /api/claude/resources/skill-groups` | Where each grouped skill is filed: `skillPath` and `group` |
-| `PUT /api/claude/resources/skill-groups/placement` | `skillPath` and `group`: file one of your own skills under a group, or out of any with none. 400 for a skill that is synced, a plugin's or not a skill |
-| `PUT /api/claude/resources/skill-groups/rename` | `from` and `to`: rename a group for all its skills; naming an existing group merges the two. 404 for a group that is not there |
-| `GET /api/claude/resources/analysis` | The memory review, read fresh: `promotions`, `obsolete` and how many memories and documents were read |
-
-### Memory review
-
-The **Memory review** row under the global instructions opens a panel in place of the editor. It reads every memory against the others and against what Claude loads anyway, and lists suggestions only: it never writes a file, you open one and decide. **Read again** reads the disk again; saving, creating or deleting any file forgets the last reading.
-
-- **Worth promoting.** Memories in two or more projects that say the same thing, found by the share of the shorter memory's distinctive words that the other also uses (at least 45%, at least five words in common, and 15% of their combined words). The card names the words they share and the projects, and suggests where it belongs: **Add to CLAUDE.md** for a short rule, **Make a skill** when any of them has numbered steps or a code block, or averages over 150 words.
-- **Probably already covered.** A memory at least 80% of whose words appear in one document and at least half of whose consecutive word pairs do, so shared vocabulary alone does not count. The document is the global `CLAUDE.md`, any skill (yours, claude.ai's or a plugin's), or the `CLAUDE.md` and `.claude/CLAUDE.md` of the memory's own project folder and of each folder above it up to your home, which a session started there loads too. The card shows the overlap, the phrases they share and a button to open the memory and the document (a project's `CLAUDE.md` is shown by path; it is outside the Claude folder, so it opens in your editor, not here).
-
-A memory with fewer than six distinctive words is not compared. Common English and Italian words, plurals and markdown front matter are ignored. There is no model behind it, so it finds restatements, not paraphrases: a memory that says the same thing in other words is not caught.
-
-
-
-## Diagrams
-
-**Diagrams** draws what the code does as Mermaid. A diagram answers one request with one sheet per type asked for (sequence, flowchart, state, class, ER, or any other Mermaid type), and each element of a sheet can point at the lines that implement it. A session writes the Mermaid and the links; the console decides how they look. The format and its rules are in [docs/DIAGRAMS.md](docs/DIAGRAMS.md).
-
-The screen opens on a **gallery**: the diagrams of the projects in the top bar's scope, one section per project, newest first, each card sketching its first sheet and naming its types. Above them, **Being drawn** shows each generation still running, with its elapsed time and **Watch session**, until a diagram on its project and task written after it started reaches the gallery, live or on the next visit, which opens the live terminal in a sheet over the bottom of the screen (`Alt+Esc` hides it; the session keeps running). Opening a card gives the whole screen to that diagram; the open diagram is `?diagram=<id>` and a watched session `?session=<id>`, so a reload keeps them and the back button returns to the gallery.
-
-- **Sheets.** One tab per sheet, named by its title or its type. Sequence, flowchart, state, class and ER sheets are read with Mermaid's own parser and drawn with the console's components: the same cards for every box, Mermaid's arrows, cardinalities and blocks, dagre for the graph types and a sequence layout of its own. Every other type is drawn by Mermaid in the console's palette.
-- **Elements.** A box carrying `</>` opens its code. Clicking a participant, a message, a node or a state lights what it touches, dims the rest, and opens a floating panel with its source (read from the project folder, the span marked) and, in a sequence, the **call tree** through it: the calls a participant receives, or the calls made under a message, each row selecting its message. Other sheets list the element's connections instead.
-- **Keys.** `f` fit, `+` `-` `0` zoom, `/` find, `[` `]` previous and next sheet, `esc` clear the selection, `Backspace` back to the gallery. The wheel pans; pinch or `⌘`-wheel zooms.
-- **Walkthrough.** A diagram with a sequence sheet switches between **Diagram** and **Walkthrough**; one whose sheets carry a `walkthrough` opens playing. A walkthrough plays the sequence one message at a time: what has happened stays lit, what is to come is dimmed, the current call travels along its arrow, and a card shows the method called, the caller and callee (an external system is marked as one), why it happens, its input and output, and the method's code in a window. The bar at the foot goes back and forth, plays at 0.5×, 1× or 2×, and has a tick per step, lower the deeper the call is nested. A call with a sheet of its own offers **Step into this call**: its sheet opens and plays, and at its end the walkthrough returns to the caller; the bar's trail backs out to any call stepped into. Clicking a message jumps to it, a participant to the first step that reaches it. Keys while walking: `←` `→` step, `Space` play or pause, `↵` step into, `esc` step out, `Home` `End` first and last step. Any sequence can be played; the walkthrough is what gives its steps their words.
-
-**Generate** asks what the diagram should make clear, as which types, on which project, and optionally for which of its tasks. It opens a terminal on the task, or on the project alone (`POST /api/projects/{id}/terminals`, generate or explain only), with `/rk <anchors> generate kinds:<types> "<request>"` as its first line. The session finds and reads the code on its own from the project's folder, writes one sheet per type, links what it can to the code, and calls `rekall_diagram`. That tool carries the whole of [docs/DIAGRAMS.md](docs/DIAGRAMS.md) in its description. It stores the diagram on the project, with the task as its origin when one is named, but only after every sheet passes the rules and every linked span is held against the project folder. A refusal lists each broken rule with its path, and nothing is stored until it passes. `diagram` replaces an existing diagram in place. **Explain code** asks for a walkthrough instead: a company, one of its projects, optionally a task, and the functionality to follow. Its terminal opens on `/rk <anchors> explain "<request>"`, and the session writes sequence sheets from the entry point down, an entry per call with its explanation, input and output, external systems named as such, and a sheet of its own for a call worth following inside. The gallery marks such a diagram **Walkthrough**. **Import** stores one sheet of Mermaid written elsewhere, checked against the same rules but not against the folder.
-
-| Route | Effect |
-|---|---|
-| `GET /api/diagrams` | Every diagram, without its sheets, newest first, with each sheet's type and whether one plays as a walkthrough |
-| `GET /api/diagrams/{id}` | One diagram with its sheets |
-| `POST /api/diagrams` | Create one: `projectId`, `taskId` (optional), `title`, `question`, `sheets` |
-| `PUT /api/diagrams/{id}` | Replace its title, question and sheets. It stays on its project |
-| `DELETE /api/diagrams/{id}` | Delete it. Console only |
-| `GET /api/diagrams/{id}/source?file=&start=&end=` | The lines of a span in the project folder. A path that leaves the folder is refused |
-
-## Security
-
-**Security** says which critical vulnerabilities (and, if you ask, high ones and malware) reach your projects, and whether they really do. It works from three things:
-
-- **The inventory.** What each project is built from: every library and framework its manifests and lockfiles declare, at the exact version it resolves to, one row per package with the file that declares it. **Collect** on a project opens a terminal on it with `/rk project:<label> inventory`; the session reads the manifests itself and writes the whole list with `rekall_inventory` (ecosystems by the GitHub Advisory Database's names: `npm`, `pip`, `maven`, `rust`, `go`, `nuget`, `rubygems`, `composer`, `pub`, `swift`, `erlang`, `actions`). A range instead of a version, a path outside the project's folder, or an unknown ecosystem is refused with the entry's position. Collecting again replaces the list, and an exposure whose package the new list no longer holds at that version stops being a warning at once. A project without a folder cannot be collected. When a manifest the inventory was read from is modified after it was recorded, or is gone, the project page says which and makes **Collect again** the first move, and the rail marks the project: until then a scan checks the old versions.
-- **The advisories.** The reviewed advisories of the GitHub Advisory Database. A scan records the newest hundred critical ones, the zero-day feed the screen's **Critical advisories** view lists, and asks GitHub which critical advisories affect each inventoried project's exact `package@version`, so the version matching is GitHub's. A question names at most eighty packages of one ecosystem and each package once: a project holding a package at two versions asks about the second in a later question, so every answer points at one version. What it finds is an **exposure**: an advisory reaching a project through one package version (two versions it reaches are two exposures), with the vulnerable range, the first safe version and the vulnerable functions of the release line that version is on. An advisory often lists a package once per release line (`< 3.2.6` and `>= 4.0.0, < 4.1.0`); the line whose range holds the version is the one shown, so the way out is the nearest safe version, not another line's. **Scan settings** in the header adds the high advisories and the malware ones (package versions GitHub flags as malicious, whose only fix is removal), both off by default, and saves a GitHub token in the system keychain: without one GitHub answers 60 requests an hour, with one 5,000. The dialog explains each choice in plain words and links to GitHub's page for creating a token, which needs no permissions. Every page of an answer is read. A scan runs five minutes after start and every six hours after that, and whenever you press **Scan now**; one runs at a time. An exposure no longer found is dropped; a project the feed could not answer for keeps the ones it had, and once the hourly allowance is spent the remaining projects wait for the next scan. Failures are listed under the overview's banner.
-- **The assessment.** A vulnerable version is not yet an exploitable project: the flaw may be in a function the code never calls. **Assess** opens a terminal with `/rk project:<label> assess advisory:<GHSA id>`; the session reads the advisory with `rekall_vulnerabilities`, follows the package's use through the code and records `affected` or `not_affected` through `rekall_assess_vulnerability`, with two texts: the **reasoning**, what the flaw needs to run and the files and functions that decide whether the project gives it that, and the **conclusion**, one or two plain sentences on why this project is or is not affected (`Rekall never unpacks archives; it only reads lockfiles as text.`). For a project left at a vulnerable version, the conclusion names the feature it does not use, so nobody starts using it unawares. A verdict covers every version of the package the advisory reaches in the project and records the commit the project's folder is at. The card shows the conclusion under **Why this project is (not) affected**, says how many commits the project gained since the verdict when there are any, and keeps the reasoning folded beneath it; `not_affected` takes the exposure off the warnings. A verdict stands until the package moves to another version: new commits only make the card ask for a fresh look. **Assess N not assessed**, on a project, opens one terminal with `/rk project:<label> assess`, and the session judges every advisory still without a verdict, one after the other.
-
-An exposure is a **warning** until it is judged not affected or a task is fixing it. A fix task that is done while the scan still finds the package at that version fixed nothing: the exposure warns again as **Still found after its fix**, the card says to collect the inventory if the package was upgraded, and it can take a new fix task. Open warnings are counted on the **Security** tab from every screen, and the banner names how many reach how many projects. **Fix** creates a task in the project, `fix-<ghsa id>` (numbered when that label is taken), whose description is the brief: the package, version and declaring files, the advisory, the safe version, the verdict with its conclusion and reasoning, and the steps (upgrade, adapt, test, collect the inventory again). A session opens on it straight away in the console's terminal pane, and the exposure is tied to the task. Each exposure gets one fix task at a time; afterwards the card opens it. A malware exposure's brief asks to remove the version and to treat whatever installed it as compromised, instead of upgrading. **Fix all**, on a project with open warnings, does the same for all of them at once: one task, `fix-vulnerabilities` (numbered when taken), whose description lists every advisory and whose checklist carries one step per advisory, created open rather than as a draft so the session can work it at once, its detail the brief a single fix task would have (an advisory text too long for a step is cut, with a pointer to the advisory). Every one of those exposures is tied to that task, and a session opens on it to work the steps. Fix all is one split button. While no advisory was judged not affected it takes the open warnings, the ones judged affected and the ones not judged yet, and once every advisory is judged it reads **Fix N affected**. When some were judged not affected, **Fix all** takes those too, and the task says they were judged not affected and are removed by choice; the arrow on the right of the button then offers **Fix only N affected**, the same task without them. An exposure a fix task is still working on is never taken twice.
-
-A rail on the left lists the projects in scope, the most urgent first (open warnings, then no inventory, then clear), beside three views kept in the address (`?project=`, `?view=advisories`), so Back returns to them:
-
-- **Overview**: the posture in one sentence, four figures (open warnings, projects reached, scan coverage, dependencies watched), every open warning across projects to triage, the projects no scan covers with their **Collect**, and the newest advisories as one row of tiles across the bottom, as many as the width holds (two to four), each saying whether it reaches a project, with **Browse all** leading to the feed.
-- **Critical advisories**: the feed, searched by GHSA, CVE, package or summary, narrowed by ecosystem or to those reaching a project, with the one picked read beside it: its affected ranges, the safe version, the projects it reaches and its description. **Open on GitHub** opens the advisory in the browser.
-- **A project**: its posture and what it is built from, then two tabs. **Exposures** shows each advisory reaching it as a card with its way out (`4.17.15 → 4.17.21`) and a track of where it stands (found, judged, fixed). **Dependencies** lists the whole inventory however long, drawn a window at a time: searched by package or manifest path, narrowed by ecosystem or to the flagged packages, which sort first and name their advisory.
-
-Under 768px the rail gives way to a picker. The screen follows the top bar's scope. Inventory and assessment sessions open in a sheet over the bottom of the screen (`?session=`); from the live-work bar they open on the Diagrams screen, which shows any session on a project alone.
-
-| Route | Effect |
-|---|---|
-| `GET /api/vulnerabilities/advisories` | The latest critical advisories, newest first |
-| `GET /api/vulnerabilities/exposures` | Every project's exposures with their advisory, verdict and fix task |
-| `POST /api/vulnerabilities/scan` | Scan now; answers what it recorded, found new, left open and could not do. 409 while one runs |
-| `GET /api/vulnerabilities/settings` | What a scan looks for beyond critical advisories and whether a GitHub token is saved: `{"includeHigh", "includeMalware", "tokenSaved"}` |
-| `PATCH /api/vulnerabilities/settings` | Change `includeHigh` and/or `includeMalware`; a field left out keeps its value |
-| `PUT /api/vulnerabilities/settings/token` | Save `{"token"}` in the system keychain; 400 when blank or with spaces. The token is never sent back |
-| `DELETE /api/vulnerabilities/settings/token` | Remove the saved token |
-| `POST /api/vulnerability-exposures/{id}/fix` | Create the fix task and tie the exposure to it; 409 while a task it has is not done |
-| `POST /api/projects/{id}/vulnerabilities/fix` | Create one fix task with a step per exposure of the project and tie them all to it. Body `{"scope": "AFFECTED"}` (the default: the open warnings) or `{"scope": "ALL"}` (those judged not affected too); 409 when the scope takes none |
-| `GET /api/inventories` | Each inventoried project's dependency count per ecosystem, when it was recorded, and the manifests changed since |
-| `GET /api/projects/{id}/dependencies` | One project's inventory |
-
-## Model
-
-```
-Company ──< Project ──< Task >──< Document
-               │         │       via document_task
-               │         ├──< TaskStep ──< StepLink (a route to another step of the task)
-               │         ├──< StepVisit ──> TaskStep (one entry of the flow into it)
-               │         ├──1 Wrapup
-               │         ├──< TokenUsage ──> TaskStep (optional)
-               │         ├──> Task (its epic, optional)
-               │         └──> Tag (optional)
-               ├──< DeploymentGraph ──< GraphStep ──< GraphRoute
-               ├──< Diagram ──> Task (the one it was generated from, optional)
-               ├──< ProjectDependency
-               └──< VulnerabilityExposure ──> SecurityAdvisory, Task (the fix, optional)
-```
-
-| Entity | Anchored by | Holds |
-|--------|-------------|-------|
-| `Company` | `name` | description, its projects |
-| `Project` | `label`, unique per company | title, status, description, its tasks |
-| `Task` | `label`, unique per project | title, status, kind (a task or an epic), the epic it belongs to, markdown description, a standing wrapup directive, its notes, steps, wrapup, an optional tag, when a deployment graph was laid on it and whether it is left unreleased |
-| `Document` | none | title, kind, markdown body, the tasks it is on |
-| `TaskStep` | through its task | title, optional detail, state, position, the connection it reaches when a deployment graph laid it |
-| `StepLink` | through its task | the step it leaves, the step it leads to, its outcome (a slug, unique per step), position. Deleted with either step |
-| `StepVisit` | through its task | the step entered, its move number in the task, when it was entered and left, the outcome it left by and what it reported. The open one is where the flow stands |
-| `Wrapup` | through its task | markdown body, who wrote it last. One per task |
-| `Tag` | `name`, unique | icon key, glow-colour key, the tasks currently wearing it |
-| `TokenUsage` | through its task | the input, output, cache-write and cache-read tokens one Claude Code session spent on the task or one of its steps on one UTC day. Rewritten whole each time that session's transcript is read; `transcript_scan` remembers how much of each transcript was read |
-| `ProjectDependency` | through its project | ecosystem, name, exact version, the file that declares it. Unique per project, ecosystem, name and version; replaced whole by `rekall_inventory` |
-| `SecurityAdvisory` | its GHSA id, unique | CVE id, summary, description, link, publication date, the packages it affects as JSON. Recorded by a scan; never deleted |
-| `VulnerabilityExposure` | through its project | the advisory, the package and version it reached the project through, a session's verdict, reasoning and conclusion, the fix task. One per project and advisory; deleted with either |
-| `DeploymentGraph` | id | title, description, its steps and routes, whether it is the project's release graph. Written whole; goes with its project |
-| `GraphStep` | through its graph | title, optional detail, position (the first is where the flow begins), the connection it reaches, visit budget, where it was dragged on the canvas |
-| `GraphRoute` | through its graph | the step it leaves, the step it leads to or none for the end, its outcome (a slug, unique per step), position |
-| `Diagram` | id | title, the question it answers, its sheets' types, whether one plays as a walkthrough, and its Mermaid sheets with their code links and walkthroughs as JSON. Goes with its project; loses its task when the task is deleted |
-
-`label` is what an anchor resolves: lowercase letters, digits, `-`, `_`, `.`, no spaces, normalised on write. `title` is free text and changing it never breaks an anchor. Renaming a label moves the anchor, and the editor says so before saving.
-
-A project belongs to one company, a task to one project. A note belongs to a scope (a project, a company, or none for global) and sits on any number of that scope's tasks. Deleting a task unlinks its notes; deleting a project or company deletes the notes it owns. A wrapup and a step belong to exactly one task and are deleted with it. Adding an entity is a SeaORM model and a migration in `rekall-store`, not a UI action.
-
-## Context size and reference notes
-
-On the title line of a task's description, a chip estimates what `/rk project:… task:…` costs a session: the characters of the markdown it hands over and roughly how many tokens that is (3.5 characters to a token, an estimate for comparing tasks, not a bill). Under the pointer it lists the parts heaviest first: the description, the steps, the wrapup, the commits chosen for the context, each note, and the project around them. `GET /api/tasks/{id}/context-size` measures it with the same context renderer that answers `rekall_context`, so the figure is the length of what a session gets.
-
-A note most sessions do not need can go **By reference**, switched on the note's own pane. It then travels as its title, its first line and an anchor such as `note:3f2a9c1e` (`loaded="on request"`), and a session loads the rest with `rekall_context` and that anchor only when the work asks for it. **In full** puts it back. The mode belongs to the note, so it holds on every task the note is on.
-
-## Backups
-
-SQLite's `VACUUM INTO` copies the open database, consistently and without stopping it, into a zip in a `backups` folder beside it. One is taken when Rekall starts and whenever the newest is older than the interval, checked every hour; **Back up now** in **Settings > Backups** takes one on demand, and every restore takes one first. Only the newest are kept.
-
-| Property | Default | Meaning |
+| Area | What it covers | Guide |
 |---|---|---|
-| `rekall.backup.enabled` | `true` | Scheduled backups. **Back up now** and restores work either way |
-| `rekall.backup.interval-hours` | `24` | Age of the newest backup that makes another one due |
-| `rekall.backup.keep` | `10` | Backups kept, of every kind together; the oldest go first |
+| Wrapup | One state per task, rewritten whole each session; notes a session writes | [workflow](docs/guide/workflow.md#wrapup) |
+| Steps and flows | Draft, open, running, claimed, done; routes, visit budgets, sessions that open a fresh Claude session; planning; send back | [workflow](docs/guide/workflow.md#steps) |
+| Deployment graphs | A project's route from commit to running app, laid on a task | [workflow](docs/guide/workflow.md#deployment-graphs) |
+| Epics | A task that gathers other tasks and passes its brief to them | [workflow](docs/guide/workflow.md#epics) |
+| Commits | A ledger of commits per task or step; commit on claim | [workflow](docs/guide/workflow.md#commits) |
+| Review | Accept or send back a claim; the review queue and its notifications | [workflow](docs/guide/workflow.md#description-review) |
+| Terminals | A real `claude` in a pseudo-terminal inside the app; the run queue; the usage meter | [sessions](docs/guide/sessions.md) |
+| Token usage | Tokens Claude Code generated per task and step, read from its transcripts | [sessions](docs/guide/sessions.md#token-usage) |
+| Projects | Page, sections, components, icons; company connections to GitLab, Kubernetes and Jira | [projects](docs/guide/projects.md) |
+| Console | Search, notes and their scopes, tags, skills, the markdown editor, timers | [console](docs/guide/console.md) |
+| Report | Hours per client over a week or a month | [console](docs/guide/console.md#report) |
+| Claude resources | Edit `~/.claude`: instructions, skills, commands, agents, memories, memory review | [claude-resources](docs/guide/claude-resources.md) |
+| Diagrams | Mermaid diagrams linked to code, and walkthroughs the console plays | [diagrams](docs/guide/diagrams.md) |
+| Security | Dependency inventory, critical advisories, assessments, fix tasks | [security](docs/guide/security.md) |
+| Data | The model, context size, notes by reference, backups, older databases | [data](docs/guide/data.md) |
 
-**Restore** on a listed backup, or **Restore from a file…** with a zip from elsewhere, replaces the whole database: the zip has to hold a Rekall SQLite database (`rekall.db`, checked by its header), what is there now is backed up first, and Rekall restarts on the restored file, migrating it forward if it came from an older version. That round trip is also how a database moves to another machine: **Download** a backup here, restore it there. An in-memory database has no backups. The REST side is `GET` and `POST /api/backups`, `GET /api/backups/{name}`, `POST /api/backups/{name}/restore` and `POST /api/backups/restore` (multipart `file`, up to 1 GB).
+## Configuration
+
+Properties are passed as `--name=value` arguments or as environment variables in relaxed form (`rekall.terminal.max-sessions` is `REKALL_TERMINAL_MAXSESSIONS`). All optional. Each guide lists the properties of its area (terminals, run queue, usage, updates, backups, transcripts).
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SERVER_PORT` | `47355` | HTTP port for the UI, the API and MCP |
+| `REKALL_HOME` | `~/.rekall` | Where `config.json` records the database folder |
+| `REKALL_DATABASE_URL` (`rekall.database.url`, or `REKALL_DB_URL`) | the folder in `config.json` | `sqlite:<path>` to a database file, or `sqlite::memory:`, overriding the setup wizard's choice. `spring.datasource.url` is still read, with a deprecation warning |
+
+Notes are stored in plain text in the database file. Credentials kept in them are only as protected as the disk is. A connection's credential is never in the database: it goes to the operating system's credential store.
 
 ## Develop
 
@@ -602,53 +165,7 @@ make test     # every crate's tests, then frontend lint, types and unit tests
 make lint     # clippy, as CI runs it
 ```
 
-The `/rk` command the app installs is `.claude/commands/rk.md`, compiled into the binary.
-
-### Frontend stack
-
-| Concern | Choice |
-|---|---|
-| Framework | Vue 3, Composition API, `<script setup lang="ts">` |
-| Shell | One surface, three panes. No router |
-| Build | Vite 5 |
-| Styling | Tailwind CSS 4, semantic tokens in `src/assets/main.css` |
-| Fonts | Fira Sans and Fira Code, bundled |
-| State | Pinia setup stores; `console.store` holds the working set, one slice per concern, each in its feature (`features/<feature>/store/`) |
-| HTTP | `ofetch`, timeout, retry on 5xx only, correlation id per request |
-| Validation | Zod on every response |
-| Markdown | `md-editor-v3` wrapped by `AppMarkdownEditor`, highlight.js and mermaid passed in as local instances. Write mode is a CodeMirror live preview (`common/live-preview/`) on md-editor-v3's editor, with no side preview; read mode is md-editor-v3's preview. A ```` ```mermaid ```` fence is drawn as a diagram in both |
-| Tests | Vitest + Vue Test Utils |
-
-```
-src/
-├── model/        domain types and branded ids
-├── api/          http calls and Zod schemas, no state
-├── stores/       Pinia
-├── composables/  reusable logic without UI
-└── components/
-    ├── ui/       atomic and presentational
-    └── console/  the three panes, the anchor bar, the editors
-```
-
-### Debugging
-
-`RUST_LOG=rekall=debug make run` turns on debug logging. The server is a plain binary, so any Rust debugger attaches to it (`rust-lldb target/debug/rekall-server`, or the CodeLLDB extension in VS Code).
-
-## Configuration
-
-Properties are passed as `--name=value` arguments or as environment variables in relaxed form (`rekall.terminal.max-sessions` is `REKALL_TERMINAL_MAXSESSIONS`). All optional.
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SERVER_PORT` | `47355` | HTTP port for the UI, the API and MCP |
-| `REKALL_HOME` | `~/.rekall` | Where `config.json` records the database folder |
-| `REKALL_DATABASE_URL` (`rekall.database.url`, or `REKALL_DB_URL`) | the folder in `config.json` | `sqlite:<path>` to a database file, or `sqlite::memory:`, overriding the setup wizard's choice. `spring.datasource.url` is still read, with a deprecation warning |
-
-Notes are stored in plain text in the database file. Credentials kept in them are only as protected as the disk is.
-
-### Older databases
-
-The schema starts from a baseline: the tables as release v0.2.x left them. A `rekall.db` written by v0.2.x is moved onto it the first time it is opened, with every row kept. A file older than v0.2.0 is refused with a message, and so is a backup of one, before it replaces anything. Open such a file once with v0.2.2, then open it here. The H2 file (`rekall.mv.db`) of the first, Java-based versions can no longer be read: import it with v0.2.2, which still has the importer.
+`RUST_LOG=rekall=debug make run` turns on debug logging. The `/rk` command the app installs is `.claude/commands/rk.md`, compiled into the binary. The frontend stack and its folders are in [docs/guide/development.md](docs/guide/development.md).
 
 ## Modules
 
@@ -685,13 +202,11 @@ Each crate keeps its tests under `tests/`: `tests/unit/` mirrors `src/` (`rekall
 
 ## Design
 
-`docs/DESIGN.md` records the decisions and the reasoning, including the ones that were reversed and why.
-
-`CLAUDE.md` holds the code rules every change follows: one service per entity, thin controllers, the shared write helpers, error and logging conventions, and how comments are written.
-
-`docs/MEMORY.md` is the memory soak of the console: what was measured, how, and why the numbers say there is no leak.
-
-`docs/SPECIFICATION.md` describes what the application is and does, entities and rules only, with no visual direction.
+- [docs/DESIGN.md](docs/DESIGN.md) records the decisions and the reasoning, including the ones that were reversed and why, and points to the design notes by topic in `docs/design/`.
+- [CLAUDE.md](CLAUDE.md) holds the code rules every change follows.
+- [docs/SPECIFICATION.md](docs/SPECIFICATION.md) describes what the application is and does, entities and rules only.
+- [docs/DIAGRAMS.md](docs/DIAGRAMS.md) is the diagram format.
+- [docs/MEMORY.md](docs/MEMORY.md) is the memory soak of the console: what was measured, how, and why the numbers say there is no leak.
 
 ## License
 
