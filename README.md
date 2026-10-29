@@ -650,18 +650,18 @@ The schema starts from a baseline: the tables as release v0.2.x left them. A `re
 
 ## Modules
 
-A Cargo workspace, one crate per layer, each depending only on the ones above it:
+A Cargo workspace, one crate per layer: `rekall-kernel <- rekall-store <- rekall-core <- rekall-console <- rekall-http`, with `rekall-mcp` and `rekall-infra` beside them on `rekall-core` and `rekall-app` wiring everything. [docs/DESIGN.md](docs/DESIGN.md#3-module-structure) says where a feature goes and how to add a field or a capability.
 
 ```
-rekall-kernel/     RekallError, Id, Instant and the string helpers every layer shares
+rekall-kernel/     RekallError, Id, Instant, the string helpers and logged best-effort cleanup every layer shares
 rekall-store/      SeaORM entities and their state rules, the queries over them and the SQLite migrations, one folder per domain
 rekall-diagram/    the diagram format: Mermaid sheets and their code links, JSON form and validation. No database, no UI
-rekall-core/       business logic: context assembly, the step and review lines, flows (routes and visits), wrapups, notes, time entries, token usage
-rekall-console/    the services only the console calls, commands in and views out with no HTTP types: the catalog, notes, tags, connections, graphs, the folder listing
+rekall-core/       business logic and every port: context assembly, the step and review lines, flows (routes and visits), wrapups, notes, time entries, token usage, vulnerabilities
+rekall-console/    the services only the console calls, commands in and views out with no HTTP types: the catalog, notes, tags, connections, graphs, the folder listing, and the thin services over core's ports (terminals, run queue, backups, database folders, update check)
 rekall-http/       Axum REST API for the UI, one folder per domain: controllers, request and response shapes, and the step event stream; `shared` holds the error body, request extractors and response helpers
-rekall-mcp/        MCP server, on rekall-core and never rekall-http: three tools read, ten write
-rekall-infra/      everything with a process, a file, a socket or outbound HTTP behind it: the in-app terminal (portable-pty over one WebSocket), the Claude Code usage meter, the run queue's worker, the transcript reader, the editor for Claude Code's own files (`~/.claude`), the database registry, backups and restores, the restart handle, the release check, the OS credential store and the HTTP clients
-rekall-app/        rekall-server: the local-access guard, the console bundle, the supervisor; wires every module and serves everything
+rekall-mcp/        MCP server, on rekall-core and never rekall-http: three tools read, twelve write
+rekall-infra/      everything with a process, a file, a socket or outbound HTTP behind it, each implementing a port of rekall-core and serving no route: the in-app terminal (portable-pty), the Claude Code usage meter, the run queue's worker, the transcript reader, the editor for Claude Code's own files (`~/.claude`), the database registry, backups and restores, the restart handle, the release feed, the OS credential store and the HTTP clients
+rekall-app/        rekall-server: the local-access guard, the console bundle, the supervisor; builds the infrastructure, injects it and serves everything
 rekall-app/desktop the Tauri desktop app over the same server
 rekall-ui/         Vue 3 + Vite frontend
 ```

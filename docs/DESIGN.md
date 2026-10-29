@@ -49,22 +49,32 @@ Non-goals: multi-user, authentication, remote deployment, vector search.
 
 ```
 rekall/
-  rekall-kernel/     RekallError, Id, Instant: the vocabulary shared by every layer
+  rekall-kernel/     RekallError, Id, Instant, the string helpers and logged best-effort cleanup: the vocabulary every layer shares
   rekall-store/      one folder per domain: SeaORM entities with their state rules and the queries over them; the SQLite connection and migrations
   rekall-diagram/    the diagram format: Mermaid sheets, code links, JSON form, validation; depends on nothing of Rekall's
-  rekall-core/       context assembly, the step and review lines, flows, wrapups, notes, time entries, token usage
+  rekall-core/       the services the MCP tools may use and every port, one folder per domain: context assembly, the step and review lines, flows, wrapups, notes, time entries, token usage, vulnerabilities
   rekall-console/    the services only the console calls, one folder per domain: commands in, views out, no HTTP types
-  rekall-http/       Axum REST routes for the UI, one folder per domain: its controllers, request and response shapes and routes; `shared` holds the error body, request extractors and response helpers they all use
+  rekall-http/       Axum REST routes for the UI, one folder per domain: controllers, request and response shapes and routes; `shared` holds the error body, request extractors and response helpers
   rekall-mcp/        MCP server: three tools read, twelve write; a folder per domain holds its tools
-  rekall-infra/      everything with a process, a file, a socket or outbound HTTP behind it, a folder per capability: the in-app terminal (`pty`, `socket`, `terminal`), the run queue's worker, the usage meter, the transcript reader, the Claude folder editor, the database registry (`bootstrap`), backups and restores, the restart handle, the release check, the OS credential store (`secret`), the connection probes, the Jira search, the GitHub Advisory Database client; it serves no route, each capability implements a port of `rekall-core`
-  rekall-app/        rekall-server: wires every module, the local-access guard, serves the built frontend, embedded at compile time
+  rekall-infra/      the implementations of core's ports, a folder per capability: the in-app terminal (`pty`), the run queue's worker, the usage meter, the transcript reader, the Claude folder editor (`resources`), the Claude Code installer, the credential sessions (`connection`), the database registry (`bootstrap`), backups and restores, the restart handle, the release feed and the macOS update installer (`version`), the OS credential store (`secret`), the connection probes, the Jira search, the GitHub Advisory Database client; it serves no route
+  rekall-app/        rekall-server: builds the infrastructure and injects it, mounts the HTTP and MCP routers, the local-access guard, serves the built frontend, embedded at compile time
   rekall-app/desktop the Tauri desktop app over the same server, in-process
   rekall-ui/         Vue 3 + Vite (built into rekall-ui/dist, embedded by rekall-app)
 ```
 
-The layers are separate crates in one Cargo workspace so the dependency direction is enforced by
-the compiler, not by convention: `rekall-store` cannot see `rekall-http`, and `rekall-core`
-cannot see any route. The crate boundary carries the guarantee.
+**A crate is a layer and a folder is a domain.** The layers are separate crates in one Cargo
+workspace, so the dependency direction is enforced by the compiler, not by convention. Inside a
+layer, the same domain names cut every crate (see Domains below), so the code of one domain is one
+folder per crate. The chain:
+
+1. `rekall-kernel` <- `rekall-store` <- `rekall-core` <- `rekall-console` <- `rekall-http`: each layer
+   sees the ones before it, so `rekall-store` cannot see a route and `rekall-core` cannot see a
+   console service.
+2. `rekall-mcp` sits beside the console and sees `rekall-core` only.
+3. `rekall-infra` sits beside them too: it sees `rekall-core` to implement its ports and nothing that
+   serves HTTP, and `rekall-http` never sees it.
+4. `rekall-app` sees everything: it builds the `rekall-infra` implementations, hands them to
+   `rekall-http` in `ApiPorts`, and mounts both routers.
 
 `rekall-mcp` lists `rekall-kernel` and `rekall-core` and no other Rekall crate: no entity,
 repository, console service or route is in its reach, and the few `rekall-store` enums its tools
@@ -97,6 +107,7 @@ is found by opening one folder per crate:
 | `catalog` | companies and projects with their logos and icons; in `rekall-console`, `rekall-http` and the UI also the tasks |
 | `component`, `section` | a project's components and its titled pages |
 | `connection` | the GitLab instances, Kubernetes clusters and Jira sites a company's projects reach, the projects that bind each, the log of every credential a terminal asked for, and the Jira issues a project imports as tasks |
+| `task` | the task row, and in `rekall-core` and `rekall-mcp` a session creating one or filing it under an epic; the console's task service is in `catalog` |
 | `step`, `flow` | the checklist, and the routes and visits that turn it into a flow |
 | `graph` | a project's deployment graphs and laying one on a task; console-only, so it has no folder in `rekall-core` |
 | `note` | documents, their attachment to tasks, the scope that decides how they load |
@@ -105,6 +116,7 @@ is found by opening one folder per crate:
 | `skill`, `tag`, `queue`, `claude` | skill assignments, tags, the run queue, what a session launch needs |
 | `backup`, `settings`, `version` | the backups of the open database and restoring one, the registered database folders and the restart onto another, the update check; no table behind them, so no folder in `rekall-store` |
 | `inventory` | what each project is built from: its dependencies at the version each resolves to |
+| `terminal`, `filesystem`, `stream` | the in-app terminals, the folder listing behind the path picker, the event stream the console listens to; console and HTTP only |
 | `vulnerability` | the advisories, the projects they reach, the scan that finds them and what it looks for, a session's verdict and the fix task |
 
 `diagram` also has `rekall-diagram`, the one domain with a crate of its own, because the format
@@ -183,11 +195,30 @@ Each crate's foundations are modules every domain may use and are no domain: `ct
 `tool` and `tool_registry` in `rekall-mcp`. A new edge is a design decision: change the table and
 the test together, or change the code.
 
-`rekall-infra` serves no route and does not depend on `rekall-http`: every controller is in
-`rekall-http`, which reaches the machine only through the ports `rekall-app` hands it in
-`ApiPorts`. The backups, the registry of database folders, the restart and the release feed are ports
-of `rekall-core` (`backup`, `settings`, `version`) like the Claude capabilities; the rules over them
-(which database is active, when the update check asks again) are console services.
+**Events.** A domain announces a change by implementing `StreamEvent` for its own type (a frame
+name and a serialisable payload) and publishing it on its transaction. `events` imports no domain, so
+adding an event touches the domain only; a subscriber that acts on one kind reads it with
+`downcast::<E>()`.
+
+### Where a feature goes
+
+A new feature is a folder first. What it is decides which kind:
+
+| It is | Where it goes | Examples |
+|---|---|---|
+| Rekall's data and the rules on it | a domain folder in each layer crate it needs: the entities and queries in `rekall-store`, the rules a session may use in `rekall-core`, the console's writes in `rekall-console`, the routes in `rekall-http`, the tools in `rekall-mcp` | `note`, `step`, `wrapup` |
+| Something that knows nothing of Rekall | a crate of its own, depending on no Rekall crate | `rekall-diagram` |
+| A capability that touches the machine: a process, a file, a socket, outbound HTTP | a port: the trait in a `rekall-core` domain, a thin service over it in `rekall-console`, the implementation in a `rekall-infra` folder, injected by `rekall-app` through `ApiPorts` | the terminals, the backups, the database registry, the release feed, the OS credential store |
+
+- **A rule that needs only data never goes in `rekall-infra`.** One that reads the database is a
+  `rekall-core` service (`RunQueueService`, `ConnectionCheckService`); one only the console needs is a
+  `rekall-console` service over the port (`DatabaseFolderService` decides which database is active,
+  `UpdateCheckService` when the release feed is asked again).
+- **A port with one implementation still has a second: the fake in its console service's unit test.**
+  That is the seam. Where an end-to-end test needs to swap it too, `StartOptions` carries it.
+- **A capability that no route reaches and only `rekall-infra` uses gets no port**: the CLI, Claude
+  Code's own token (`credentials`), the transcript reader, the update installer the desktop bridge
+  calls.
 
 `claude` exists twice on purpose. `rekall-core/src/claude/` reads the entities a launch needs (the
 launch target of a task or project, the work left in a task), the models and efforts a session may
@@ -198,10 +229,31 @@ goes in the first, one that needs the machine in the second. The run queue's row
 `RunQueueService` in `rekall-core/src/queue/`, and how skills are grouped is `SkillGroupService` in
 `rekall-core/src/skill/`.
 
-**Events.** A domain announces a change by implementing `StreamEvent` for its own type (a frame
-name and a serialisable payload) and publishing it on its transaction. `events` imports no domain, so
-adding an event touches the domain only; a subscriber that acts on one kind reads it with
-`downcast::<E>()`.
+### Adding a field or a capability
+
+A field on an entity:
+
+1. A migration in `rekall-store/src/migration/` with the next number, declared in `mod.rs` and listed
+   in `migrator.rs`. A released migration is never edited.
+2. The column on the entity in `rekall-store/src/<domain>/`, its length in `constraints` when it has
+   one, and its write through `repo::update_if_changed`.
+3. The service that writes it: its command and view in `rekall-console` for a console write, or the
+   `rekall-core` service when a session reads or writes it.
+4. The request and response in `rekall-http/src/<domain>/`, mapped with `From` impls in their files.
+5. The tool's input and output in `rekall-mcp/src/<domain>/`, when a session reads or writes it.
+6. The type in `rekall-ui/src/features/<feature>/model` and the call in its `api`.
+7. The entity's row in §4, in the same commit.
+
+A capability that touches the machine:
+
+1. The trait and the types it carries in the `rekall-core` domain that uses it, answering
+   `RekallError` through `Result`.
+2. A thin service over it in the same domain of `rekall-console`, with a unit test over a fake.
+3. The implementation in a `rekall-infra` folder, holding no rule that needs only data.
+4. A field on `ApiPorts`, the service built from it in `ApiState::new`, and the implementation
+   built in `rekall-app` (from `StartOptions` when a test swaps it).
+5. The controller in `rekall-http` calls the console service.
+6. A new domain folder goes in its crate's table in `domain_edges.rs` and in the tables above.
 
 ### Stack
 

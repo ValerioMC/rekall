@@ -5,7 +5,7 @@ convention are in `docs/DESIGN.md` §3 ("Layout inside a crate") and are not rep
 
 ## Architecture
 
-- **Layers are crates, and a crate holds one layer.** The target is `rekall-kernel <- rekall-store
+- **Layers are crates, and a crate holds one layer.** The chain is `rekall-kernel <- rekall-store
   <- rekall-core <- rekall-console <- rekall-http`, with `rekall-mcp` (depends on `rekall-core`
   only) and `rekall-infra` (implements the traits of `rekall-core`) beside them, and
   `rekall-app` wiring everything. `rekall-http` never depends on `rekall-infra`. A dependency that
@@ -14,8 +14,9 @@ convention are in `docs/DESIGN.md` §3 ("Layout inside a crate") and are not rep
   in every layer crate and a feature in the console. A new use of one domain by another is added
   to the table in `docs/DESIGN.md` and to `domain_edges.rs`, or not written.
 - **A feature is a folder first.** A new feature is a domain folder in the layer crates it needs.
-  It is a crate of its own only when it knows nothing of Rekall (`rekall-diagram`) or touches the
-  machine (a process, file, socket or HTTP) behind a trait.
+  It is a crate of its own only when it knows nothing of Rekall (`rekall-diagram`). One that touches
+  the machine (a process, file, socket or HTTP) is a port: see below, and the checklists in
+  `docs/DESIGN.md` §3.
 - **Anything that writes the catalog lives in `rekall-console`.** `rekall-mcp` lists `rekall-core`
   as its only Rekall dependency, so it cannot name a repository, an entity write or a console
   service. A new MCP write is a narrow method on a `rekall-core` service, never a reuse of a
