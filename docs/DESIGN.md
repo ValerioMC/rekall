@@ -33,7 +33,7 @@ loaded in one call, including every note the task shares with its neighbours.
 | # | Decision | Rationale |
 |---|---|---|
 | D1 | Real tables with real foreign keys | A note can never point at a deleted task. On an app whose only job is to be a reliable memory, silent dangling references are the failure mode that matters. |
-| D2 | Claude reads everything and writes a few narrow things | `rekall-mcp` depends on `rekall-core` and never on `rekall-api` or `rekall-console`, so no controller and none of the console's catalog services are on its classpath, and every read runs in a read-only transaction. The exceptions are `rekall_wrapup`, which replaces one task's wrapup; `rekall_step`, which moves a step from `open` to `running` to `claimed`, follows a flow's route on a claim, and cannot reach `done`; `rekall_record_commit`, which logs a commit against a task; `rekall_propose_step`, which can only add a draft a person has to promote; `rekall_propose_flow`, which can only lay drafts and the routes between them onto a task with no steps; `rekall_create_task`, which can only add a `TODO` task or epic whose steps are drafts; `rekall_join_epic`, which can only file one task under an epic of its project; `rekall_note`, which can only add a new note to one task; `rekall_project_section`, which can only add a section to a task's project or rewrite the body of one that already has that title; `rekall_inventory`, which can only replace one project's dependency list; and `rekall_assess_vulnerability`, which can only write a verdict on one exposure the project already has. See §7. |
+| D2 | Claude reads everything and writes a few narrow things | `rekall-mcp` depends on `rekall-core` and never on `rekall-http` or `rekall-console`, so no controller and none of the console's catalog services are on its classpath, and every read runs in a read-only transaction. The exceptions are `rekall_wrapup`, which replaces one task's wrapup; `rekall_step`, which moves a step from `open` to `running` to `claimed`, follows a flow's route on a claim, and cannot reach `done`; `rekall_record_commit`, which logs a commit against a task; `rekall_propose_step`, which can only add a draft a person has to promote; `rekall_propose_flow`, which can only lay drafts and the routes between them onto a task with no steps; `rekall_create_task`, which can only add a `TODO` task or epic whose steps are drafts; `rekall_join_epic`, which can only file one task under an epic of its project; `rekall_note`, which can only add a new note to one task; `rekall_project_section`, which can only add a section to a task's project or rewrite the body of one that already has that title; `rekall_inventory`, which can only replace one project's dependency list; and `rekall_assess_vulnerability`, which can only write a verdict on one exposure the project already has. See §7. |
 | D3 | Markdown content lives in the database | One backup target, reachable through MCP, searchable. |
 | D4 | One entry point, and it is a slash command | A session begins with `/rk project:vega task:report-builder`, not with a question. Reaching a record through a natural-language query costs several turns and a few thousand tokens before any work starts, and it is the part that fails when the model guesses the wrong entity. An explicit anchor removes both. |
 | D5 | The model is fixed at compile time | There is no runtime meta-model and no DDL engine. Company, project, task and document are fixed SeaORM entities; adding a new kind of record is a model and a migration, not a screen. |
@@ -50,12 +50,11 @@ Non-goals: multi-user, authentication, remote deployment, vector search.
 ```
 rekall/
   rekall-kernel/     RekallError, Id, Instant: the vocabulary shared by every layer
-  rekall-web/        the HTTP vocabulary two routers share: the error body, request extractors, response helpers; knows no service
   rekall-store/      one folder per domain: SeaORM entities with their state rules and the queries over them; the SQLite connection and migrations
   rekall-diagram/    the diagram format: Mermaid sheets, code links, JSON form, validation; depends on nothing of Rekall's
   rekall-core/       context assembly, the step and review lines, flows, wrapups, notes, time entries, token usage
   rekall-console/    the services only the console calls, one folder per domain: commands in, views out, no HTTP types
-  rekall-api/        Axum REST routes for the UI, one folder per domain: its controllers, request and response shapes and routes
+  rekall-http/       Axum REST routes for the UI, one folder per domain: its controllers, request and response shapes and routes; `shared` holds the error body, request extractors and response helpers they all use
   rekall-mcp/        MCP server: three tools read, twelve write; a folder per domain holds its tools
   rekall-infra/      everything with a process, a file, a socket or outbound HTTP behind it, a folder per capability: the in-app terminal (`pty`, `socket`, `terminal`), the run queue's worker, the usage meter, the transcript reader, the Claude folder editor, the database registry (`bootstrap`), backups and restores, the restart handle, the release check, the OS credential store (`secret`), the connection probes, the Jira search, the GitHub Advisory Database client; it serves no route, each capability implements a port of `rekall-core`
   rekall-app/        rekall-server: wires every module, the local-access guard, serves the built frontend, embedded at compile time
@@ -64,13 +63,13 @@ rekall/
 ```
 
 The layers are separate crates in one Cargo workspace so the dependency direction is enforced by
-the compiler, not by convention: `rekall-store` cannot see `rekall-api`, and `rekall-core`
+the compiler, not by convention: `rekall-store` cannot see `rekall-http`, and `rekall-core`
 cannot see any route. The crate boundary carries the guarantee.
 
 `rekall-mcp` lists `rekall-kernel` and `rekall-core` and no other Rekall crate: no entity,
 repository, console service or route is in its reach, and the few `rekall-store` enums its tools
 read (`TaskKind`, `TaskStepState`, `WrapupAuthor`, `ExposureVerdict`, `AdvisorySeverity`) come
-re-exported from the `rekall-core` domain that owns them. It and `rekall-api` are
+re-exported from the `rekall-core` domain that owns them. It and `rekall-http` are
 independent consumers of the same services, which is what keeps the boundary structural rather
 than accidental: `rekall-mcp` can reach `ContextService`, `TaskStepService` and `WrapupService`,
 but no route, none of `CompanyService`, `ProjectService`, `TaskService` or `DocumentService` is among its dependencies.
@@ -79,7 +78,7 @@ but no route, none of `CompanyService`, `ProjectService`, `TaskService` or `Docu
 
 The crates are the layers; inside one, the code is laid out the way a Java project is.
 
-- **A folder per domain, one public type per file.** A folder is a package, and every layer crate cuts its code the same way (see Domains below): `rekall-core/src/note/`, `rekall-api/src/note/`, `rekall-store/src/note/`, `rekall-console/src/note/`, `rekall-mcp/src/note/`. A file holds one public type and is named after it: `NoteService` lives in `note/note_service.rs`, `CompanyResponse` in `catalog/company_response.rs`. Inside `rekall-api` a domain folder holds its controllers, request and response shapes and a `routes.rs` that merges its controllers, so `router.rs` only merges the domains. A service in `rekall-console` takes a command and returns a view, both in files beside it; the controller converts the request into the command and the view into the response (`From` impls in the request and response files).
+- **A folder per domain, one public type per file.** A folder is a package, and every layer crate cuts its code the same way (see Domains below): `rekall-core/src/note/`, `rekall-http/src/note/`, `rekall-store/src/note/`, `rekall-console/src/note/`, `rekall-mcp/src/note/`. A file holds one public type and is named after it: `NoteService` lives in `note/note_service.rs`, `CompanyResponse` in `catalog/company_response.rs`. Inside `rekall-http` a domain folder holds its controllers, request and response shapes and a `routes.rs` that merges its controllers, so `router.rs` only merges the domains. A service in `rekall-console` takes a command and returns a view, both in files beside it; the controller converts the request into the command and the view into the response (`From` impls in the request and response files).
 - **`mod.rs` and `lib.rs` hold no logic.** They declare the files and re-export the public types, so a caller writes `rekall_core::note::NoteService` and never the file's name. Moving a type between files changes no caller.
 - **Privacy is per file, so what siblings share is `pub(super)`.** Rust's privacy boundary is the module, which is the file, not the type. A helper two files of one folder use is `pub(super)`, visible to that package and nowhere else: Java's package-private.
 - **Private helpers stay beside the one type that uses them.** A small private struct that only one file reads (`ScratchDir` beside `Database`, `Active` beside `Worker`) stays in that file. A private type that carries most of a module's logic gets a file of its own, visible as `pub(super)`: the run queue's `Worker` sits in `run_queue_worker.rs`, beside the `RunQueueRunner` handle that starts it.
@@ -95,7 +94,7 @@ is found by opening one folder per crate:
 
 | Domain | Holds |
 |---|---|
-| `catalog` | companies and projects with their logos and icons; in `rekall-console`, `rekall-api` and the UI also the tasks |
+| `catalog` | companies and projects with their logos and icons; in `rekall-console`, `rekall-http` and the UI also the tasks |
 | `component`, `section` | a project's components and its titled pages |
 | `connection` | the GitLab instances, Kubernetes clusters and Jira sites a company's projects reach, the projects that bind each, the log of every credential a terminal asked for, and the Jira issues a project imports as tasks |
 | `step`, `flow` | the checklist, and the routes and visits that turn it into a flow |
@@ -129,15 +128,14 @@ from its table:
 | Crate | May depend on |
 |---|---|
 | `rekall-kernel` | nothing |
-| `rekall-web` | `rekall-kernel` |
 | `rekall-diagram` | nothing |
 | `rekall-store` | `rekall-kernel` |
 | `rekall-core` | `rekall-diagram`, `rekall-kernel`, `rekall-store` |
 | `rekall-console` | `rekall-core`, `rekall-kernel`, `rekall-store` |
-| `rekall-api` | `rekall-console`, `rekall-core`, `rekall-diagram`, `rekall-kernel`, `rekall-store`, `rekall-web` |
+| `rekall-http` | `rekall-console`, `rekall-core`, `rekall-diagram`, `rekall-kernel`, `rekall-store` |
 | `rekall-mcp` | `rekall-core`, `rekall-kernel` |
 | `rekall-infra` | `rekall-core`, `rekall-diagram`, `rekall-kernel`, `rekall-store` |
-| `rekall-app` | `rekall-api`, `rekall-core`, `rekall-infra`, `rekall-kernel`, `rekall-mcp`, `rekall-store`, `rekall-web` |
+| `rekall-app` | `rekall-core`, `rekall-http`, `rekall-infra`, `rekall-kernel`, `rekall-mcp`, `rekall-store` |
 | `rekall-app/desktop` | `rekall-app`, `rekall-infra` |
 
 `domain_edges.rs` fails on a domain that names another one it is not listed for, wherever the path
@@ -146,7 +144,7 @@ file is `note -> task`). It also fails on a domain missing from its crate's tabl
 domains of one crate whose own code uses each other; `rekall-store` is exempt from that last rule,
 because SeaORM declares a relation from both ends. A dash means the crate has no such domain:
 
-| Domain | `rekall-store` | `rekall-core` | `rekall-console` | `rekall-api` | `rekall-mcp` |
+| Domain | `rekall-store` | `rekall-core` | `rekall-console` | `rekall-http` | `rekall-mcp` |
 |---|---|---|---|---|---|
 | `backup` | - | nothing | nothing | nothing | - |
 | `catalog` | `task` | - | `commit`, `note`, `review`, `step`, `tag`, `task`, `timeentry`, `wrapup` | nothing | - |
@@ -181,12 +179,12 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 Each crate's foundations are modules every domain may use and are no domain: `ctx`, `events`,
 `load`, `services`, `text_rule` and `tx` in `rekall-core`; `constraints`, `enums`, `prelude`,
 `slug` and `stamped` in `rekall-store`, with `database`, `migration`, `query_support`,
-`stamped_update` and `repository`, whose re-exports the test reads back to their domains; `api_ports`, `api_state` and `router` in `rekall-api`; `controller`, `protocol`, `texts`,
+`stamped_update` and `repository`, whose re-exports the test reads back to their domains; `api_ports`, `api_state`, `router` and `shared` in `rekall-http`; `controller`, `protocol`, `texts`,
 `tool` and `tool_registry` in `rekall-mcp`. A new edge is a design decision: change the table and
 the test together, or change the code.
 
-`rekall-infra` serves no route and depends on neither `rekall-api` nor `rekall-web`: every controller
-is in `rekall-api`, which reaches the machine only through the ports `rekall-app` hands it in
+`rekall-infra` serves no route and does not depend on `rekall-http`: every controller is in
+`rekall-http`, which reaches the machine only through the ports `rekall-app` hands it in
 `ApiPorts`. The backups, the registry of database folders, the restart and the release feed are ports
 of `rekall-core` (`backup`, `settings`, `version`) like the Claude capabilities; the rules over them
 (which database is active, when the update check asks again) are console services.
@@ -388,7 +386,7 @@ the block.
 console or from MCP alike, carrying the affected task's whole checklist. `TaskReviewService`
 publishes a `TaskReviewEvent` when a stepless task's review line moves, and `WrapupService` a
 `WrapupStreamEvent` when a wrapup is written or deleted (the latter carrying the new
-`WrapupView`, or a `deleted` flag). `StepEventStream` in `rekall-api` holds each until the
+`WrapupView`, or a `deleted` flag). `StepEventStream` in `rekall-http` holds each until the
 transaction commits and fans it out to every open console over `GET /api/steps/stream` as
 Server-Sent Events under the frame names `steps`, `task-review` and `wrapup`; `useStepStream`
 in the UI applies each to the store. A session moves a step to `RUNNING` over MCP and the
@@ -796,7 +794,7 @@ its `proxy-url` kept, with every referenced file inlined. On Linux the store is 
 which forgets its entries when the session ends.
 
 The console's write path for connections is `rekall-console/src/connection/`, one service per entity,
-each taking a command and answering a view that the controllers in `rekall-api/src/connection/` map
+each taking a command and answering a view that the controllers in `rekall-http/src/connection/` map
 from the request and to the response:
 `ConnectionService` (a company's connections; deleting one removes its credential from the store
 after the row is gone, logging a failure), `ConnectionCredentialService` (the only code that stores,
@@ -991,13 +989,13 @@ same binary the same way inherits all of that, where a headless stream-json proc
 into a transcript could not. It is also the only place an interactive permission prompt actually
 renders and can be answered.
 
-The bytes do not go over HTTP. The terminal controller in `rekall-api/src/terminal/` only opens
+The bytes do not go over HTTP. The terminal controller in `rekall-http/src/terminal/` only opens
 (`POST /api/tasks/{id}/terminals`), lists and closes, through `TerminalService` in `rekall-console`;
 once a terminal exists the pane connects to the socket controller beside it at
 `/api/terminal/{id}/io`, Rekall's one WebSocket, which reaches the bytes through
 `TerminalPipeService`. Both services hold a port of `rekall-core` (`TerminalHost`, `TerminalPipe`)
 that `PtyTerminals` in `rekall-infra` implements over `PtyTerminalManager` and `rekall-app` injects
-through `ApiPorts`, so `rekall-api` never names the PTY. The run queue is driven the same way:
+through `ApiPorts`, so `rekall-http` never names the PTY. The run queue is driven the same way:
 `RunQueueControlService` edits the rows through `RunQueueService` and wakes the worker through the
 `QueueRunner` port, which `RunQueueRunner` implements. Binary frames are
 stdin and stdout, a `{"resize":[cols,rows]}` text frame sets the window size, and a
@@ -1085,7 +1083,7 @@ and kept only for the console's lifetime; the access log is the record.
 The Claude screen edits the files Claude Code itself loads: `~/.claude/CLAUDE.md`, skills, commands,
 agents and each project's memories. The disk side lives in `rekall-infra` (`resources/`), behind the
 `ClaudeResources` port of `rekall-core`; `ClaudeFolderService` in `rekall-console` runs each call off
-the async workers, and the routes are in `rekall-api/src/claude/`. The files have no
+the async workers, and the routes are in `rekall-http/src/claude/`. The files have no
 table: the disk is the record, a session may rewrite a file at any moment, and a copy in a database
 would only be a second answer that drifts. The one table, `skill_placement`, holds how the person
 groups their own skills, which is Rekall's own preference and no part of the files; it is written by
@@ -1093,7 +1091,7 @@ groups their own skills, which is Rekall's own preference and no part of the fil
 `UsageMeterService`), the install check (`ClaudeCodeSetup`, through `ClaudeInstallService`) and the
 terminals' credential helpers (`CredentialDesk`, through `CredentialHandOutService`) follow the same
 pattern: the port in `rekall-core`, the implementation in `rekall-infra`, the thin service in
-`rekall-console`, the route in `rekall-api`. Claude Code's own token (`credentials`) and the
+`rekall-console`, the route in `rekall-http`. Claude Code's own token (`credentials`) and the
 transcript reader (`transcript`) have no port: no route reaches them, and only `rekall-infra` uses them.
 
 | Piece | What it decides |

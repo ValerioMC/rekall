@@ -11,7 +11,7 @@ use axum::http::{header, HeaderValue, Method, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::Router;
-use rekall_web::error::framework;
+use rekall_http::shared::error::framework;
 use rust_embed::RustEmbed;
 
 #[derive(RustEmbed)]

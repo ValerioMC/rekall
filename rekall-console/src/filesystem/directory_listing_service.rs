@@ -1,6 +1,6 @@
 //! Lists one folder on this machine for the path picker in the markdown editor.
 //!
-//! It reads names only, never contents, and it lives in rekall-api so it stays out of the MCP
+//! It reads names only, never contents, and it lives in rekall-console so it stays out of the MCP
 //! tools' reach: browsing the disk is something the console does for the person typing, not
 //! something a session is handed. The server is loopback-only (the local-access guard), so the
 //! reach is the reach of the person already sitting at the machine.

@@ -1,6 +1,6 @@
 //! The one way a session creates a task or an epic: in a project it names, with a description and a
 //! first checklist of drafts; and the one way it files a task under an epic. The console's task
-//! service in rekall-api stays the only path that edits, reviews or deletes one, and the only one
+//! service in rekall-console stays the only path that edits, reviews or deletes one, and the only one
 //! that can create a task with real steps. Also the view another task's `[[task:label]]` names a task by.
 
 mod created;

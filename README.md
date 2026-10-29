@@ -654,13 +654,12 @@ A Cargo workspace, one crate per layer, each depending only on the ones above it
 
 ```
 rekall-kernel/     RekallError, Id, Instant and the string helpers every layer shares
-rekall-web/        what the HTTP routers share: the error body, request extractors and response helpers
 rekall-store/      SeaORM entities and their state rules, the queries over them and the SQLite migrations, one folder per domain
 rekall-diagram/    the diagram format: Mermaid sheets and their code links, JSON form and validation. No database, no UI
 rekall-core/       business logic: context assembly, the step and review lines, flows (routes and visits), wrapups, notes, time entries, token usage
 rekall-console/    the services only the console calls, commands in and views out with no HTTP types: the catalog, notes, tags, connections, graphs, the folder listing
-rekall-api/        Axum REST API for the UI, one folder per domain: controllers, request and response shapes, and the step event stream
-rekall-mcp/        MCP server, on rekall-core and never rekall-api: three tools read, ten write
+rekall-http/       Axum REST API for the UI, one folder per domain: controllers, request and response shapes, and the step event stream; `shared` holds the error body, request extractors and response helpers
+rekall-mcp/        MCP server, on rekall-core and never rekall-http: three tools read, ten write
 rekall-infra/      everything with a process, a file, a socket or outbound HTTP behind it: the in-app terminal (portable-pty over one WebSocket), the Claude Code usage meter, the run queue's worker, the transcript reader, the editor for Claude Code's own files (`~/.claude`), the database registry, backups and restores, the restart handle, the release check, the OS credential store and the HTTP clients
 rekall-app/        rekall-server: the local-access guard, the console bundle, the supervisor; wires every module and serves everything
 rekall-app/desktop the Tauri desktop app over the same server

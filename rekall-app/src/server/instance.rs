@@ -4,8 +4,8 @@ use std::time::Duration;
 use axum::extract::DefaultBodyLimit;
 use axum::http::StatusCode;
 use axum::{middleware, Router};
-use rekall_web::error::{framework, render_errors};
-use rekall_api::{ApiPorts, ApiState, StepEventStream};
+use rekall_http::shared::error::{framework, render_errors};
+use rekall_http::{ApiPorts, ApiState, StepEventStream};
 use rekall_infra::cli::ClaudeCli;
 use rekall_infra::connection::CredentialBroker;
 use rekall_infra::credentials::ClaudeCredentials;
@@ -200,7 +200,7 @@ impl Instance {
 
 
         let routes = Router::new()
-            .merge(rekall_api::router(api))
+            .merge(rekall_http::router(api))
             .merge(rekall_mcp::router(mcp))
             .merge(actuator::routes(database.conn.clone()))
             .merge(spa::routes(Assets::new(config.ui_dist.clone())))

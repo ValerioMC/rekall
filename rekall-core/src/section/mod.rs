@@ -2,7 +2,7 @@
 //! ever loads. `ProjectSectionService` lists them and takes a session's write, which adds a
 //! section or, asked to replace, rewrites the body of the one with that title, and answers a session's
 //! read of them, which is the only way a session sees them. Everything else a
-//! person does to them (rename, reorder, delete) is the console's, in rekall-api.
+//! person does to them (rename, reorder, delete) is the console's, in rekall-console.
 
 mod project_section_service;
 mod project_section_view;

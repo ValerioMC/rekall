@@ -1,6 +1,6 @@
 //! The hand-rolled MCP server Claude Code talks to: JSON-RPC over one POST endpoint. A folder per
 //! domain holds its tools, `tool` the kit they share. It depends on `rekall-core` and never on
-//! `rekall-api`, so no console write is reachable from here.
+//! `rekall-console` or `rekall-http`, so no console write is reachable from here.
 
 pub mod commit;
 pub mod context;

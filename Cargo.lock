@@ -4139,27 +4139,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
-name = "rekall-api"
-version = "0.1.0"
-dependencies = [
- "axum",
- "base64 0.22.1",
- "futures",
- "regex",
- "rekall-console",
- "rekall-core",
- "rekall-diagram",
- "rekall-kernel",
- "rekall-store",
- "rekall-web",
- "serde",
- "serde_json",
- "tokio",
- "tokio-stream",
- "tracing",
-]
-
-[[package]]
 name = "rekall-app"
 version = "0.1.0"
 dependencies = [
@@ -4172,13 +4151,12 @@ dependencies = [
  "image",
  "mime_guess",
  "regex",
- "rekall-api",
  "rekall-core",
+ "rekall-http",
  "rekall-infra",
  "rekall-kernel",
  "rekall-mcp",
  "rekall-store",
- "rekall-web",
  "reqwest 0.12.28",
  "rust-embed",
  "sea-orm",
@@ -4265,6 +4243,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "rekall-http"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "base64 0.22.1",
+ "futures",
+ "regex",
+ "rekall-console",
+ "rekall-core",
+ "rekall-diagram",
+ "rekall-kernel",
+ "rekall-store",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-stream",
+ "tracing",
+]
+
+[[package]]
 name = "rekall-infra"
 version = "0.1.0"
 dependencies = [
@@ -4339,17 +4337,6 @@ dependencies = [
  "serde_json",
  "tempfile",
  "tokio",
- "tracing",
-]
-
-[[package]]
-name = "rekall-web"
-version = "0.1.0"
-dependencies = [
- "axum",
- "rekall-kernel",
- "serde",
- "serde_json",
  "tracing",
 ]
 

@@ -40,7 +40,7 @@ async fn handle_http(State(controller): State<Arc<McpController>>, headers: Head
         .into_response()
 }
 
-/// A body that is not a JSON object is a 400 problem, rendered here because `rekall-mcp` cannot reach `rekall-api`'s renderer.
+/// A body that is not a JSON object is a 400 problem, rendered here because `rekall-mcp` cannot reach `rekall-http`'s renderer.
 fn unreadable(detail: &str) -> Response {
     let body = json!({
         "detail": detail,

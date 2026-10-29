@@ -9,19 +9,18 @@ use std::path::{Path, PathBuf};
 use regex::Regex;
 
 /// Each workspace member, by its folder, and the Rekall crates it may depend on.
-const ALLOWED: [(&str, &[&str]); 11] = [
+const ALLOWED: [(&str, &[&str]); 10] = [
     ("rekall-kernel", &[]),
-    ("rekall-web", &["rekall-kernel"]),
     ("rekall-diagram", &[]),
     ("rekall-store", &["rekall-kernel"]),
     ("rekall-core", &["rekall-diagram", "rekall-kernel", "rekall-store"]),
     ("rekall-console", &["rekall-core", "rekall-kernel", "rekall-store"]),
-    ("rekall-api", &["rekall-console", "rekall-core", "rekall-diagram", "rekall-kernel", "rekall-store", "rekall-web"]),
+    ("rekall-http", &["rekall-console", "rekall-core", "rekall-diagram", "rekall-kernel", "rekall-store"]),
     ("rekall-mcp", &["rekall-core", "rekall-kernel"]),
     ("rekall-infra", &["rekall-core", "rekall-diagram", "rekall-kernel", "rekall-store"]),
     (
         "rekall-app",
-        &["rekall-api", "rekall-core", "rekall-infra", "rekall-kernel", "rekall-mcp", "rekall-store", "rekall-web"],
+        &["rekall-core", "rekall-http", "rekall-infra", "rekall-kernel", "rekall-mcp", "rekall-store"],
     ),
     ("rekall-app/desktop", &["rekall-app", "rekall-infra"]),
 ];
