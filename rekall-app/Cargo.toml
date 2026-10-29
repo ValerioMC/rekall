@@ -98,6 +98,14 @@ name = "e2e_flows"
 path = "tests/integration/e2e_flows.rs"
 
 [[test]]
+name = "crate_edges"
+path = "tests/integration/crate_edges.rs"
+
+[[test]]
+name = "domain_edges"
+path = "tests/integration/domain_edges.rs"
+
+[[test]]
 name = "e2e_vulnerabilities"
 path = "tests/integration/e2e_vulnerabilities.rs"
 

@@ -238,3 +238,44 @@
 .rekall-md .md-editor .cm-rk-table a {
   color: var(--color-accent-strong);
 }
+
+/* A `[[...]]` naming a component, connection or task: the read view's chip, with the glyph of what it names. */
+.rekall-md .md-editor .cm-rk-ref {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  padding: 0 0.45em 0 0.3em;
+  border: 1px solid var(--color-anchor-line);
+  border-radius: 999px;
+  color: var(--color-anchor);
+  background: var(--color-anchor-soft);
+  font-size: 0.92em;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.rekall-md .md-editor .cm-rk-ref .rk-completion-icon {
+  width: 1.15em;
+  height: 1.15em;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.rekall-md .md-editor .cm-rk-ref .rk-completion-icon svg {
+  width: 0.95em;
+  height: 0.95em;
+}
+
+.rekall-md .md-editor .cm-rk-ref--task {
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent-deep);
+}
+
+.rekall-md .md-editor .cm-rk-ref--missing {
+  color: var(--color-danger);
+  background: var(--color-danger-soft);
+  border-color: var(--color-danger);
+  border-style: dashed;
+  text-decoration: line-through;
+}

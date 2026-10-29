@@ -15,8 +15,12 @@ export function connectionChipHtml(escapedLabel: string): string {
   return `<span class="${CONNECTION_CHIP_CLASS}" data-connection="${escapedLabel}" data-state="plain">${escapedLabel}</span>`
 }
 
-function titleOf(binding: ProjectConnection): string {
+export function connectionTitle(binding: ProjectConnection): string {
   return [`${CONNECTION_KIND_LABEL[binding.kind]} · ${binding.title}`, binding.target ?? ''].filter((part) => part !== '').join('\n')
+}
+
+export function missingConnectionTitle(label: string): string {
+  return `This project has no connection named “${label}”.`
 }
 
 /**
@@ -32,10 +36,10 @@ export function paintConnectionReferences(root: ParentNode, connections: readonl
       chip.removeAttribute('title')
     } else if (found) {
       chip.dataset['state'] = 'found'
-      chip.title = titleOf(found)
+      chip.title = connectionTitle(found)
     } else {
       chip.dataset['state'] = 'missing'
-      chip.title = `This project has no connection named “${label}”.`
+      chip.title = missingConnectionTitle(label)
     }
   }
 }

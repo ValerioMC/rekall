@@ -5,17 +5,26 @@ convention are in `docs/DESIGN.md` §3 ("Layout inside a crate") and are not rep
 
 ## Architecture
 
-- **Layers are crates.** `rekall-common <- rekall-model <- rekall-repository <- rekall-service <-
-  rekall-api / rekall-mcp / rekall-claude / rekall-platform <- rekall-app`, with `rekall-web` (error
-  body, extractors, response helpers) under every HTTP router. `rekall-claude` never depends on
-  `rekall-api`, and `rekall-app` holds wiring only. A
-  dependency that points the other way is a design error, not a missing `use`.
+- **Layers are crates, and a crate holds one layer.** The target is `rekall-kernel <- rekall-store
+  <- rekall-core <- rekall-console <- rekall-http`, with `rekall-mcp` (depends on `rekall-core`
+  only) and `rekall-infra` (implements the traits of `rekall-core`) beside them, and
+  `rekall-app` wiring everything. `rekall-http` never depends on `rekall-infra`. A dependency that
+  points the other way is a design error, not a missing `use`. Until `task:layered-crates-refactor`
+  is finished the workspace still has `rekall-common`, `rekall-model`, `rekall-repository`,
+  `rekall-service`, `rekall-api`, `rekall-web`, `rekall-claude` and `rekall-platform`: new code goes
+  where the target puts it, and a change in an old crate does not widen its role.
 - **Code is cut by domain.** `catalog`, `step`, `flow`, `note`, `wrapup`, `diagram`... name a folder
   in every layer crate and a feature in the console. A new use of one domain by another is added
   to the table in `docs/DESIGN.md` and to `domain_edges.rs`, or not written.
-- **Anything that writes the catalog lives in `rekall-api`.** `rekall-mcp` must never be able to
-  reach it. A new MCP write is a narrow method on a `rekall-service` service, never a reuse of a
+- **A feature is a folder first.** A new feature is a domain folder in the layer crates it needs.
+  It is a crate of its own only when it knows nothing of Rekall (`rekall-diagram`) or touches the
+  machine (a process, file, socket or HTTP) behind a trait.
+- **Anything that writes the catalog lives in `rekall-console`.** `rekall-mcp` lists `rekall-core`
+  as its only Rekall dependency, so it cannot name a repository, an entity write or a console
+  service. A new MCP write is a narrow method on a `rekall-core` service, never a reuse of a
   console service.
+- **A console service has no HTTP types.** It takes a command and returns a view, both defined
+  beside it. The controller maps the request to the command and the view to the response.
 - **One service per entity.** `CompanyService`, `ProjectService`, `TaskService`, `TagService`,
   `TaskStepService`, `WrapupService`… A service that answers for two entities is split. A
   cross-entity flow (auto-commit, importing Jira issues) is its own small service that depends on
@@ -32,6 +41,10 @@ convention are in `docs/DESIGN.md` §3 ("Layout inside a crate") and are not rep
 - **Dependency inversion where there is a seam.** Something with an external effect (git, the
   clock, the filesystem, a process, HTTP) is behind a trait or an injected value (`Clock`), so a
   test can replace it. Do not add a trait that has one implementation and no test double.
+- **A capability that touches the machine is a port.** The trait lives in `rekall-core`, a thin
+  service in `rekall-console` uses it, `rekall-infra` implements it and `rekall-app` injects it.
+  `rekall-infra` holds no decision that needs only data: that goes in `rekall-core`, which calls
+  repositories.
 
 ## Code
 

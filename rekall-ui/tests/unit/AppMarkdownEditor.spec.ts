@@ -235,4 +235,27 @@ describe('AppMarkdownEditor', () => {
 
     expect(wrapper.find('.rk-component-ref').attributes('data-state')).toBe('plain')
   })
+
+  it('draws a [[Name]] in write mode as the component chip, and follows the project’s list', async () => {
+    const component = {
+      id: 'c-1', projectId: 'p-1', name: 'Auth Service', folder: 'services/auth', description: 'Issues tokens.',
+      position: 0, createdAt: '', updatedAt: ''
+    }
+    const wrapper = mount(AppMarkdownEditor, {
+      props: { modelValue: 'See [[auth service]].', components: [component] as never },
+      attachTo: document.body
+    })
+    await flushPromises()
+    await nextTick()
+
+    expect(wrapper.find('.cm-rk-ref').text()).toBe('auth service')
+    expect(wrapper.find('.cm-rk-ref').classes()).not.toContain('cm-rk-ref--missing')
+
+    await wrapper.setProps({ components: [{ ...component, name: 'Identity' }] as never })
+    await flushPromises()
+    await nextTick()
+
+    expect(wrapper.find('.cm-rk-ref').classes()).toContain('cm-rk-ref--missing')
+    wrapper.unmount()
+  })
 })

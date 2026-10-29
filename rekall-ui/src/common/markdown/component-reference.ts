@@ -50,10 +50,14 @@ export function markComponentReferences(md: MarkdownIt): void {
   }
 }
 
-function titleOf(component: ProjectComponent): string {
+export function componentTitle(component: ProjectComponent): string {
   const description = component.description.trim()
   const shown = description.length > DESCRIPTION_TITLE_MAX ? `${description.slice(0, DESCRIPTION_TITLE_MAX)}…` : description
   return [component.folder, shown].filter((part) => part !== '').join('\n\n')
+}
+
+export function missingComponentTitle(name: string): string {
+  return `This project has no component named “${name.trim()}”.`
 }
 
 /**
@@ -69,10 +73,10 @@ export function paintComponentReferences(root: ParentNode, components: readonly 
       chip.removeAttribute('title')
     } else if (found) {
       chip.dataset['state'] = 'found'
-      chip.title = titleOf(found)
+      chip.title = componentTitle(found)
     } else {
       chip.dataset['state'] = 'missing'
-      chip.title = `This project has no component named “${name.trim()}”.`
+      chip.title = missingComponentTitle(name)
     }
   }
 }

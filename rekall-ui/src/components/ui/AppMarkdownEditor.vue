@@ -16,6 +16,7 @@ import { useReferenceChips } from '@/composables/useReferenceChips'
 import { useEditorPathPicker } from '@/composables/useEditorPathPicker'
 import { useFittedEditorHeight } from '@/composables/useFittedEditorHeight'
 import { useReadModeSearch } from '@/composables/useReadModeSearch'
+import { useReferenceWidgets } from '@/composables/useReferenceWidgets'
 import { useTableContextMenu } from '@/composables/useTableContextMenu'
 import type { ProjectComponent } from '@/features/project/model/project-component'
 import type { ProjectConnection } from '@/features/connection/model/connection'
@@ -46,8 +47,8 @@ const props = withDefaults(
     /**
      * The project's components, when the text belongs to one: a `[[Name]]` in the read view is
      * drawn as a chip for the component, or as a broken reference. `null` (a note with no
-     * project) leaves every reference as plain text. Write mode shows the source as written and
-     * offers these names after `[[`.
+     * project) leaves every reference as plain text. Write mode draws the same chip, with its glyph,
+     * until the caret enters it, and offers these names after `[[`.
      */
     components?: readonly ProjectComponent[] | null
     /** The project's connection bindings, for `[[connection:label]]` the way `components` serves `[[Name]]`. */
@@ -99,6 +100,12 @@ const tableMenu = useTableContextMenu(editor)
 const componentChips = useReferenceChips(root, () => props.components, paintComponentReferences)
 const connectionChips = useReferenceChips(root, () => props.connections, paintConnectionReferences)
 const taskChips = useReferenceChips(root, () => props.tasks, paintTaskReferences)
+
+useReferenceWidgets(editor, () => ({
+  components: props.components,
+  connections: props.connections,
+  tasks: props.tasks
+}))
 
 function paintChips(): void {
   componentChips.paint()

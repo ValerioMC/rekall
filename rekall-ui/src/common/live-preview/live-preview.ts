@@ -8,20 +8,24 @@ import {
   type Transaction
 } from '@codemirror/state'
 import { Decoration, EditorView, type DecorationSet } from '@codemirror/view'
-import type { SyntaxNode, SyntaxNodeRef } from '@lezer/common'
+import type { SyntaxNode, SyntaxNodeRef, Tree } from '@lezer/common'
 import { isAnchorRun } from '@/common/config/anchor-code'
 import { BulletWidget } from '@/common/live-preview/bullet-widget'
 import { CodeBlockWidget } from '@/common/live-preview/code-block-widget'
 import { editorFocus, focusChanged, trackEditorFocus } from '@/common/live-preview/editor-focus'
 import { ImageWidget } from '@/common/live-preview/image-widget'
 import { MermaidWidget } from '@/common/live-preview/mermaid-widget'
+import { referenceTargets, referenceTargetsChanged } from '@/common/live-preview/reference-targets'
+import { ReferenceWidget } from '@/common/live-preview/reference-widget'
 import { TableWidget } from '@/common/live-preview/table-widget'
 import { TaskCheckboxWidget } from '@/common/live-preview/task-checkbox-widget'
+import { referenceChipFor, NO_REFERENCE_TARGETS } from '@/common/markdown/reference-chip'
 
 /**
  * Live preview: the markdown stays the document, byte for byte, drawn as the read view draws it.
  * Markup shows only on the caret's lines; tables, code, diagrams, images and task boxes become
  * widgets, and a block holding the caret shows its source. Unfocused, nothing shows as source.
+ * A `[[...]]` naming something of the project is drawn as its chip until the caret enters it.
  */
 
 const previewDecorations = StateField.define<DecorationSet>({
@@ -32,7 +36,7 @@ const previewDecorations = StateField.define<DecorationSet>({
 })
 
 export function livePreview(): Extension {
-  return [trackEditorFocus(), previewDecorations]
+  return [trackEditorFocus(), referenceTargets, previewDecorations]
 }
 
 const MARKS_HIDDEN_WITH_SPACE = new Set(['HeaderMark', 'QuoteMark'])
@@ -44,6 +48,8 @@ const INLINE_STYLES: Record<string, string> = {
 }
 // How long to wait for the parser on a rebuild before drawing from the part already parsed.
 const PARSE_BUDGET_MS = 50
+const REFERENCE = /\[\[(?!\[)(.*?)\]\]/g
+const NOT_REFERENCED_IN = new Set(['FencedCode', 'CodeBlock', 'InlineCode', 'Table'])
 
 /** One rebuild's inputs and output: the state, the lines the caret is on, the ranges so far. */
 interface Scan {
@@ -51,21 +57,34 @@ interface Scan {
   focused: boolean
   caretLines: Set<number>
   ranges: Range<Decoration>[]
+  references: ReferenceSpan[]
+}
+
+interface ReferenceSpan {
+  from: number
+  to: number
 }
 
 function needsRedraw(transaction: Transaction): boolean {
   return (
     transaction.docChanged ||
     transaction.selection !== undefined ||
-    transaction.effects.some((effect) => effect.is(focusChanged)) ||
+    transaction.effects.some((effect) => effect.is(focusChanged) || effect.is(referenceTargetsChanged)) ||
     syntaxTree(transaction.state) !== syntaxTree(transaction.startState)
   )
 }
 
 function decorationsFor(state: EditorState): DecorationSet {
   const focused = state.field(editorFocus, false) ?? false
-  const scan: Scan = { state, focused, caretLines: focused ? caretLinesOf(state) : new Set(), ranges: [] }
+  const scan: Scan = {
+    state,
+    focused,
+    caretLines: focused ? caretLinesOf(state) : new Set(),
+    ranges: [],
+    references: []
+  }
   const tree = ensureSyntaxTree(state, state.doc.length, PARSE_BUDGET_MS) ?? syntaxTree(state)
+  collectReferences(scan, tree)
   tree.iterate({ enter: (node) => decorate(scan, node) })
   return Decoration.set(scan.ranges, true)
 }
@@ -79,6 +98,30 @@ function caretLinesOf(state: EditorState): Set<number> {
   return lines
 }
 
+function collectReferences(scan: Scan, tree: Tree): void {
+  const targets = scan.state.field(referenceTargets, false) ?? NO_REFERENCE_TARGETS
+  for (let number = 1; number <= scan.state.doc.lines; number++) {
+    const line = scan.state.doc.line(number)
+    for (const match of line.text.matchAll(REFERENCE)) {
+      const written = match[1] ?? ''
+      const from = line.from + match.index
+      if (written.trim() === '' || isInsideCode(tree, from)) continue
+      const reference = { from, to: from + match[0].length }
+      scan.references.push(reference)
+      const chip = referenceChipFor(written, targets)
+      if (chip && !caretInReference(scan, reference))
+        scan.ranges.push(Decoration.replace({ widget: new ReferenceWidget(match[0], chip) }).range(from, reference.to))
+    }
+  }
+}
+
+function isInsideCode(tree: Tree, position: number): boolean {
+  for (let node: SyntaxNode | null = tree.resolveInner(position, 1); node; node = node.parent) {
+    if (NOT_REFERENCED_IN.has(node.name)) return true
+  }
+  return false
+}
+
 /** Returns false where the node's children must not be decorated: they are inside a widget or shown raw. */
 function decorate(scan: Scan, node: SyntaxNodeRef): boolean | void {
   const name = node.name
@@ -90,6 +133,7 @@ function decorate(scan: Scan, node: SyntaxNodeRef): boolean | void {
   else if (name === 'Blockquote') styleLines(scan, node, 'cm-rk-quote')
   else if (name === 'HorizontalRule') decorateRule(scan, node)
   else if (name === 'InlineCode') styleInlineCode(scan, node)
+  else if ((name === 'Link' || name === 'Autolink') && overlapsReference(scan, node)) return false
   else if (name === 'Link' || name === 'Autolink') decorateLink(scan, node.node)
   else if (name === 'URL' && !isInsideLink(node.node))
     scan.ranges.push(Decoration.mark({ class: 'cm-rk-link' }).range(node.from, node.to))
@@ -200,6 +244,20 @@ function blockLines(scan: Scan, node: SyntaxNodeRef): { first: Line; last: Line 
 
 function holdsCaret(scan: Scan, from: number, to: number): boolean {
   return scan.focused && scan.state.selection.ranges.some((range) => range.from <= to && range.to >= from)
+}
+
+/** Source shows with the caret inside a reference or before it; just after it the chip stays, so one just completed is drawn at once. */
+function caretInReference(scan: Scan, reference: ReferenceSpan): boolean {
+  return (
+    scan.focused &&
+    scan.state.selection.ranges.some(
+      (range) => range.from < reference.to && (range.to > reference.from || range.from === reference.from)
+    )
+  )
+}
+
+function overlapsReference(scan: Scan, node: SyntaxNodeRef): boolean {
+  return scan.references.some((reference) => node.from < reference.to && node.to > reference.from)
 }
 
 function onCaretLine(scan: Scan, position: number): boolean {

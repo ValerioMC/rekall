@@ -15,6 +15,14 @@ export function taskChipHtml(escapedLabel: string): string {
   return `<span class="${TASK_CHIP_CLASS}" data-task="${escapedLabel}" data-state="plain">${escapedLabel}</span>`
 }
 
+export function taskTitle(task: Task): string {
+  return `${task.title}\n${TASK_STATUS_LABEL[task.status]}`
+}
+
+export function missingTaskTitle(label: string): string {
+  return `This project has no task labelled “${label}”.`
+}
+
 /**
  * Settles every task chip under `root` against the project's tasks: found (title and status on
  * hover), missing, or plain when the text has no project (`null`).
@@ -28,10 +36,10 @@ export function paintTaskReferences(root: ParentNode, tasks: readonly Task[] | n
       chip.removeAttribute('title')
     } else if (found) {
       chip.dataset['state'] = 'found'
-      chip.title = `${found.title}\n${TASK_STATUS_LABEL[found.status]}`
+      chip.title = taskTitle(found)
     } else {
       chip.dataset['state'] = 'missing'
-      chip.title = `This project has no task labelled “${label}”.`
+      chip.title = missingTaskTitle(label)
     }
   }
 }

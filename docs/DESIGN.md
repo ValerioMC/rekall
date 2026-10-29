@@ -97,7 +97,7 @@ is found by opening one folder per crate:
 | `component`, `section` | a project's components and its titled pages |
 | `connection` | the GitLab instances, Kubernetes clusters and Jira sites a company's projects reach, the projects that bind each, the log of every credential a terminal asked for, and the Jira issues a project imports as tasks |
 | `step`, `flow` | the checklist, and the routes and visits that turn it into a flow |
-| `graph` | a project's deployment graphs and laying one on a task; console-only, so it has no folder in `rekall-service` and no edge to allow |
+| `graph` | a project's deployment graphs and laying one on a task; console-only, so it has no folder in `rekall-service` |
 | `note` | documents, their attachment to tasks, the scope that decides how they load |
 | `wrapup`, `review`, `timeentry` | the wrapup, the review line, logged time |
 | `commit`, `diagram`, `token`, `search`, `context` | logged commits, stored diagrams, token usage, search, context assembly and its size |
@@ -114,25 +114,66 @@ Entity modules keep their flat path at the crate root (`rekall_model::task_step`
 `rekall_repository::repository::task_step`): the folder is where the file lives and the root
 re-export is how a caller names it, so a move between folders changes no caller.
 
-**Allowed edges between domains.** `rekall-service/tests/integration/domain_edges.rs` fails on a
-domain that uses another one it is not listed for, and on two domains that use each other:
+**Allowed edges.** Two suites in `rekall-app/tests/integration/` read every crate's manifest and
+sources. `crate_edges.rs` fails on a `Cargo.toml` that lists a Rekall crate it is not allowed to, in
+any dependency section (dev and target-specific ones included), and on a workspace member missing
+from its table:
 
-| Domain | May use |
+| Crate | May depend on |
 |---|---|
-| `claude` | `connection` |
-| `component` | `connection`, `task` |
-| `context` | `component`, `connection`, `step`, `task`, `wrapup` |
-| `flow` | `step` |
-| `review` | `timeentry` |
-| `section` | `note` |
-| `step` | `timeentry` |
-| `task` | `step` |
-| `vulnerability` | `commit`, `connection`, `inventory` |
-| `wrapup` | `review` |
-| every other | nothing |
+| `rekall-common` | nothing |
+| `rekall-web` | `rekall-common` |
+| `rekall-model` | `rekall-common` |
+| `rekall-diagram` | nothing |
+| `rekall-repository` | `rekall-common`, `rekall-model` |
+| `rekall-service` | `rekall-common`, `rekall-diagram`, `rekall-model`, `rekall-repository` |
+| `rekall-api` | `rekall-common`, `rekall-model`, `rekall-repository`, `rekall-service`, `rekall-web` |
+| `rekall-mcp` | `rekall-common`, `rekall-model`, `rekall-repository`, `rekall-service` |
+| `rekall-claude` | `rekall-common`, `rekall-diagram`, `rekall-model`, `rekall-repository`, `rekall-service`, `rekall-web` |
+| `rekall-platform` | `rekall-common`, `rekall-model`, `rekall-repository`, `rekall-service`, `rekall-web` |
+| `rekall-app` | `rekall-api`, `rekall-claude`, `rekall-common`, `rekall-mcp`, `rekall-model`, `rekall-platform`, `rekall-repository`, `rekall-service`, `rekall-web` |
+| `rekall-app/desktop` | `rekall-app`, `rekall-platform` |
 
-`events`, `tx`, `ctx` and `load` are foundations every domain may use. A new edge is a design
-decision: change the table and the test together, or change the code.
+`domain_edges.rs` fails on a domain that names another one it is not listed for, wherever the path
+points: into its own crate or into another Rekall crate's domain (`rekall_model::task` in a `note`
+file is `note -> task`). It also fails on a domain missing from its crate's table, and on two
+domains of one crate whose own code uses each other; `rekall-model` is exempt from that last rule,
+because SeaORM declares a relation from both ends. A dash means the crate has no such domain:
+
+| Domain | `rekall-model` | `rekall-repository` | `rekall-service` | `rekall-api` | `rekall-mcp` |
+|---|---|---|---|---|---|
+| `catalog` | `task` | nothing | - | `commit`, `note`, `review`, `step`, `tag`, `task`, `timeentry`, `wrapup` | - |
+| `claude` | - | - | `catalog`, `connection`, `task` | - | - |
+| `commit` | `step`, `task` | nothing | `catalog`, `step`, `task` | nothing | nothing |
+| `component` | `catalog` | nothing | `connection`, `task` | nothing | - |
+| `connection` | `catalog`, `task` | `catalog` | nothing | `catalog`, `commit`, `component`, `task` | - |
+| `context` | - | - | `catalog`, `commit`, `component`, `connection`, `note`, `step`, `tag`, `task`, `wrapup` | nothing | nothing |
+| `diagram` | `catalog`, `task` | nothing | `catalog`, `task` | nothing | nothing |
+| `filesystem` | - | - | - | nothing | - |
+| `flow` | `step`, `task` | nothing | `step` | `step` | `step` |
+| `graph` | `catalog`, `flow`, `step` | nothing | - | `catalog`, `flow`, `step`, `task` | - |
+| `inventory` | `catalog` | nothing | `catalog` | nothing | `vulnerability` |
+| `note` | `task` | `task` | `task` | `catalog` | nothing |
+| `queue` | `task` | nothing | - | - | - |
+| `review` | - | - | `task`, `timeentry` | - | - |
+| `search` | - | - | `task` | nothing | - |
+| `section` | `catalog` | nothing | `catalog`, `note` | nothing | `note` |
+| `skill` | `step`, `tag`, `task` | nothing | - | nothing | - |
+| `step` | `task` | nothing | `flow`, `task`, `timeentry` | nothing | `commit`, `flow` |
+| `stream` | - | - | - | nothing | - |
+| `tag` | `task` | nothing | - | nothing | - |
+| `task` | `catalog`, `note`, `step`, `tag`, `wrapup` | `catalog` | `step` | - | nothing |
+| `timeentry` | `task` | nothing | `catalog`, `task` | nothing | - |
+| `token` | `step`, `task` | nothing | nothing | nothing | - |
+| `vulnerability` | `catalog`, `task` | nothing | `catalog`, `commit`, `connection`, `inventory` | `catalog`, `step`, `task` | nothing |
+| `wrapup` | `task` | nothing | `catalog`, `review`, `task` | nothing | `commit` |
+
+Each crate's foundations are modules every domain may use and are no domain: `ctx`, `events`,
+`load`, `services`, `text_rule` and `tx` in `rekall-service`; `constraints`, `enums`, `prelude`,
+`slug` and `stamped` in `rekall-model`; `query_support` and `stamped_update` in
+`rekall-repository`; `api_state` and `router` in `rekall-api`; `controller`, `protocol`, `texts`,
+`tool` and `tool_registry` in `rekall-mcp`. A new edge is a design decision: change the table and
+the test together, or change the code.
 
 `rekall-claude` does not depend on `rekall-api`. What the two routers share is in `rekall-web`.
 

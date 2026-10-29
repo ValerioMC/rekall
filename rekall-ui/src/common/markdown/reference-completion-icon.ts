@@ -52,15 +52,18 @@ function svgOf(glyph: Glyph): SVGSVGElement {
   return svg
 }
 
-/** The glyph a reference suggestion starts with, or nothing for the editor's other suggestions. */
-export function renderReferenceIcon(completion: Completion): Node | null {
-  const icon = iconOf(completion)
-  if (!icon) return null
+export function referenceIconElement(icon: ReferenceIcon): HTMLElement {
   const holder = document.createElement('span')
   holder.className = 'rk-completion-icon'
   holder.dataset['icon'] = icon.toLowerCase()
   holder.append(svgOf(GLYPH[icon]))
   return holder
+}
+
+/** The glyph a reference suggestion starts with, or nothing for the editor's other suggestions. */
+export function renderReferenceIcon(completion: Completion): Node | null {
+  const icon = iconOf(completion)
+  return icon ? referenceIconElement(icon) : null
 }
 
 /** Adds the glyph to every suggestion row, merged into the editor's own completion setup. */
