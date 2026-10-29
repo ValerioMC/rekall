@@ -1,7 +1,7 @@
 use rekall_common::{Id, Instant};
-use rekall_model::document;
-use rekall_model::note_scope::NoteScope;
+use rekall_console::note::DocumentView;
 use rekall_model::DocumentContextMode;
+use rekall_model::note_scope::NoteScope;
 use serde::Serialize;
 
 use crate::catalog::TaskRef;
@@ -20,18 +20,18 @@ pub struct DocumentResponse {
     pub updated_at: Instant,
 }
 
-impl DocumentResponse {
-    pub fn of(document: &document::Model, tasks: Vec<TaskRef>) -> Self {
+impl From<DocumentView> for DocumentResponse {
+    fn from(view: DocumentView) -> Self {
         Self {
-            id: document.id,
-            title: document.title.clone(),
-            kind: document.kind.clone(),
-            body_markdown: document.body_markdown.clone(),
-            tasks,
-            context_mode: document.context_mode,
-            scope: document.scope(),
-            anchor: document.anchor(),
-            updated_at: document.updated_at,
+            id: view.id,
+            title: view.title,
+            kind: view.kind,
+            body_markdown: view.body_markdown,
+            tasks: view.tasks.into_iter().map(TaskRef::from).collect(),
+            context_mode: view.context_mode,
+            scope: view.scope,
+            anchor: view.anchor,
+            updated_at: view.updated_at,
         }
     }
 }

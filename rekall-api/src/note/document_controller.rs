@@ -28,17 +28,17 @@ fn validate(request: &DocumentRequest) -> ApiResult<()> {
 async fn list(State(state): State<ApiState>, Query(query): Query<DocumentListQuery>) -> ApiResult<Json<Vec<DocumentResponse>>> {
     let task_id = optional_uuid("taskId", query.task_id.as_deref())?;
     let project_id = optional_uuid("projectId", query.project_id.as_deref())?;
-    Ok(Json(state.documents.list(task_id, project_id).await?))
+    Ok(Json(state.documents.list(task_id, project_id).await?.into_iter().map(Into::into).collect()))
 }
 
 async fn search(State(state): State<ApiState>, Query(query): Query<DocumentSearchQuery>) -> ApiResult<Json<Vec<DocumentResponse>>> {
     let term = required(query.query)?;
-    Ok(Json(state.documents.search(Some(&term)).await?))
+    Ok(Json(state.documents.search(Some(&term)).await?.into_iter().map(Into::into).collect()))
 }
 
 async fn create(State(state): State<ApiState>, JsonBody(request): JsonBody<DocumentRequest>) -> ApiResult<Response> {
     validate(&request)?;
-    Ok(created(state.documents.create(request).await?))
+    Ok(created(DocumentResponse::from(state.documents.create(request.into()).await?)))
 }
 
 async fn update(
@@ -48,7 +48,7 @@ async fn update(
 ) -> ApiResult<Json<DocumentResponse>> {
     let id = uuid("id", &id)?;
     validate(&request)?;
-    Ok(Json(state.documents.update(id, request).await?))
+    Ok(Json(state.documents.update(id, request.into()).await?.into()))
 }
 
 async fn delete(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Response> {

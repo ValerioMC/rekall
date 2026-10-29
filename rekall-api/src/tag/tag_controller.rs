@@ -24,18 +24,18 @@ fn validate(request: &TagRequest) -> ApiResult<()> {
 }
 
 async fn list(State(state): State<ApiState>) -> ApiResult<Json<Vec<TagResponse>>> {
-    Ok(Json(state.tags.list().await?))
+    Ok(Json(state.tags.list().await?.into_iter().map(Into::into).collect()))
 }
 
 async fn create(State(state): State<ApiState>, JsonBody(request): JsonBody<TagRequest>) -> ApiResult<Response> {
     validate(&request)?;
-    Ok(created(state.tags.create(request).await?))
+    Ok(created(TagResponse::from(state.tags.create(request.into()).await?)))
 }
 
 async fn update(State(state): State<ApiState>, Path(id): Path<String>, JsonBody(request): JsonBody<TagRequest>) -> ApiResult<Json<TagResponse>> {
     let id = uuid("id", &id)?;
     validate(&request)?;
-    Ok(Json(state.tags.update(id, request).await?))
+    Ok(Json(state.tags.update(id, request.into()).await?.into()))
 }
 
 async fn delete(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Response> {

@@ -1,5 +1,5 @@
 use rekall_common::{Id, Instant};
-use rekall_model::{company, project};
+use rekall_console::catalog::ProjectView;
 use rekall_model::ProjectStatus;
 use serde::Serialize;
 
@@ -24,24 +24,24 @@ pub struct ProjectResponse {
     pub updated_at: Instant,
 }
 
-impl ProjectResponse {
-    pub fn of(project: &project::Model, company: &company::Model, task_count: usize, icon_image_version: Option<Instant>) -> Self {
+impl From<ProjectView> for ProjectResponse {
+    fn from(view: ProjectView) -> Self {
         Self {
-            id: project.id,
-            label: project.label.clone(),
-            title: project.title.clone(),
-            status: project.status,
-            icon: project.icon.clone(),
-            icon_image_version,
-            description: project.description.clone(),
-            blueprint_markdown: project.blueprint_markdown.clone(),
-            repo_folder: project.repo_folder.clone(),
-            auto_commit: project.auto_commit,
-            company_id: company.id,
-            company_name: company.name.clone(),
-            task_count,
-            anchor: project.anchor(),
-            updated_at: project.updated_at,
+            id: view.id,
+            label: view.label,
+            title: view.title,
+            status: view.status,
+            icon: view.icon,
+            icon_image_version: view.icon_image_version,
+            description: view.description,
+            blueprint_markdown: view.blueprint_markdown,
+            repo_folder: view.repo_folder,
+            auto_commit: view.auto_commit,
+            company_id: view.company_id,
+            company_name: view.company_name,
+            task_count: view.task_count,
+            anchor: view.anchor,
+            updated_at: view.updated_at,
         }
     }
 }

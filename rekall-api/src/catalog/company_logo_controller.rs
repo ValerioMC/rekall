@@ -8,7 +8,7 @@ use rekall_web::{no_content, png};
 use crate::catalog::{CompanyResponse, ImageSizeQuery};
 use rekall_web::error::ApiResult;
 use rekall_web::extract::uuid;
-use crate::catalog::{MASTER_SIDE, MAX_UPLOAD_BYTES};
+use rekall_console::catalog::{MASTER_SIDE, MAX_UPLOAD_BYTES};
 use crate::ApiState;
 
 pub fn routes() -> Router<ApiState> {
@@ -26,7 +26,7 @@ async fn read(State(state): State<ApiState>, Path(id): Path<String>, Query(query
 async fn replace(State(state): State<ApiState>, Path(id): Path<String>, body: Bytes) -> ApiResult<Json<CompanyResponse>> {
     let id = uuid("id", &id)?;
     state.logos.store(id, body.to_vec()).await?;
-    Ok(Json(state.companies.get(id).await?))
+    Ok(Json(state.companies.get(id).await?.into()))
 }
 
 async fn remove(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Response> {

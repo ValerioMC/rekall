@@ -1,5 +1,5 @@
 use rekall_common::{Id, Instant};
-use rekall_model::company;
+use rekall_console::catalog::CompanyView;
 use serde::Serialize;
 
 #[derive(Clone, Debug, Serialize)]
@@ -15,16 +15,16 @@ pub struct CompanyResponse {
     pub updated_at: Instant,
 }
 
-impl CompanyResponse {
-    pub fn of(company: &company::Model, project_count: usize, task_count: usize, logo_image_version: Option<Instant>) -> Self {
+impl From<CompanyView> for CompanyResponse {
+    fn from(view: CompanyView) -> Self {
         Self {
-            id: company.id,
-            name: company.name.clone(),
-            description: company.description.clone(),
-            logo_image_version,
-            project_count,
-            task_count,
-            updated_at: company.updated_at,
+            id: view.id,
+            name: view.name,
+            description: view.description,
+            logo_image_version: view.logo_image_version,
+            project_count: view.project_count,
+            task_count: view.task_count,
+            updated_at: view.updated_at,
         }
     }
 }

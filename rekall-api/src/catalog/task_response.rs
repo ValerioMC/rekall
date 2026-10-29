@@ -1,8 +1,7 @@
 use rekall_common::{Id, Instant};
+use rekall_console::catalog::TaskView;
 use rekall_model::{TaskKind, TaskStatus, TaskStepState};
 use serde::Serialize;
-
-use crate::catalog::TaskGraph;
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -39,41 +38,39 @@ pub struct TaskResponse {
     pub updated_at: Instant,
 }
 
-impl TaskResponse {
-    pub fn of(graph: &TaskGraph<'_>) -> Self {
-        let task = graph.task;
-        let project = graph.project;
+impl From<TaskView> for TaskResponse {
+    fn from(view: TaskView) -> Self {
         Self {
-            id: task.id,
-            label: task.label.clone(),
-            title: task.title.clone(),
-            status: task.status,
-            description: task.description.clone(),
-            project_id: project.id,
-            project_label: project.label.clone(),
-            project_title: project.title.clone(),
-            company_name: graph.company.name.clone(),
-            project_repo_folder: project.repo_folder.clone(),
-            document_count: graph.document_count,
-            step_count: graph.steps.iter().filter(|s| !s.state.draft()).count(),
-            steps_done: graph.steps.iter().filter(|s| s.is_done()).count(),
-            draft_step_count: graph.steps.iter().filter(|s| s.state.draft()).count(),
-            has_wrapup: graph.has_wrapup,
-            review_state: task.review_state,
-            review_active: rekall_model::task::review_active(graph.steps.iter().map(|s| &s.state)),
-            claimed_at: task.claimed_at,
-            accepted_at: task.accepted_at,
-            review_note: task.review_note.clone(),
-            tag_id: graph.tag.map(|t| t.id),
-            tag_name: graph.tag.map(|t| t.name.clone()),
-            tag_icon: graph.tag.map(|t| t.icon.clone()),
-            tag_color: graph.tag.map(|t| t.color.clone()),
-            graph_laid_at: task.graph_laid_at,
-            release_skipped: task.release_skipped,
-            kind: task.kind,
-            epic_id: task.epic_id,
-            anchor: task.anchor(&project.label),
-            updated_at: task.updated_at,
+            id: view.id,
+            label: view.label,
+            title: view.title,
+            status: view.status,
+            description: view.description,
+            project_id: view.project_id,
+            project_label: view.project_label,
+            project_title: view.project_title,
+            company_name: view.company_name,
+            project_repo_folder: view.project_repo_folder,
+            document_count: view.document_count,
+            step_count: view.step_count,
+            steps_done: view.steps_done,
+            draft_step_count: view.draft_step_count,
+            has_wrapup: view.has_wrapup,
+            review_state: view.review_state,
+            review_active: view.review_active,
+            claimed_at: view.claimed_at,
+            accepted_at: view.accepted_at,
+            review_note: view.review_note,
+            tag_id: view.tag_id,
+            tag_name: view.tag_name,
+            tag_icon: view.tag_icon,
+            tag_color: view.tag_color,
+            graph_laid_at: view.graph_laid_at,
+            release_skipped: view.release_skipped,
+            kind: view.kind,
+            epic_id: view.epic_id,
+            anchor: view.anchor,
+            updated_at: view.updated_at,
         }
     }
 }

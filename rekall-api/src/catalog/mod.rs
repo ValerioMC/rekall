@@ -1,50 +1,34 @@
-//! Companies, projects and tasks: their routes, request shapes and the console services that write them.
+//! The routes of companies, projects and tasks, their logos and icons, served by `rekall_console::catalog`.
 
 mod company_controller;
 mod company_logo_controller;
-mod company_logo_service;
 mod company_request;
 mod company_response;
-mod company_service;
-mod icon_raster;
 mod image_size_query;
 mod project_controller;
 mod project_icon_controller;
-mod project_icon_service;
 mod project_repository_response;
 mod project_request;
 mod project_response;
-mod project_service;
-mod snapshot;
 mod task_controller;
-mod task_graph;
 mod task_query;
 mod task_ref;
 mod task_release_request;
 mod task_request;
 mod task_response;
 mod task_review_request;
-mod task_service;
 mod routes;
 
-pub use company_logo_service::CompanyLogoService;
 pub use company_request::CompanyRequest;
 pub use company_response::CompanyResponse;
-pub use company_service::CompanyService;
-pub use icon_raster::{MASTER_SIDE, MAX_UPLOAD_BYTES};
 pub use image_size_query::ImageSizeQuery;
-pub use project_icon_service::ProjectIconService;
 pub use project_repository_response::ProjectRepositoryResponse;
 pub use project_request::ProjectRequest;
 pub use project_response::ProjectResponse;
-pub use project_service::ProjectService;
-pub use snapshot::Snapshot;
-pub use task_graph::TaskGraph;
 pub use task_query::TaskQuery;
 pub use task_ref::TaskRef;
 pub use task_release_request::TaskReleaseRequest;
 pub use task_request::TaskRequest;
 pub use task_response::TaskResponse;
 pub use task_review_request::TaskReviewRequest;
-pub use task_service::TaskService;
 pub(crate) use routes::routes;

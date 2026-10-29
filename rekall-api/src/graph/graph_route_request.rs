@@ -1,3 +1,4 @@
+use rekall_console::graph::GraphRouteCommand;
 use serde::Deserialize;
 
 /// A route out of a step being written: the outcome it leaves by, and the key of the step it
@@ -7,4 +8,13 @@ use serde::Deserialize;
 pub struct GraphRouteRequest {
     pub outcome: Option<String>,
     pub to_key: Option<String>,
+}
+
+impl From<GraphRouteRequest> for GraphRouteCommand {
+    fn from(request: GraphRouteRequest) -> Self {
+        Self {
+            outcome: request.outcome,
+            to_key: request.to_key,
+        }
+    }
 }

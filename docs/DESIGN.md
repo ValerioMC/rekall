@@ -33,7 +33,7 @@ loaded in one call, including every note the task shares with its neighbours.
 | # | Decision | Rationale |
 |---|---|---|
 | D1 | Real tables with real foreign keys | A note can never point at a deleted task. On an app whose only job is to be a reliable memory, silent dangling references are the failure mode that matters. |
-| D2 | Claude reads everything and writes a few narrow things | `rekall-mcp` depends on `rekall-service` and never on `rekall-api`, so no controller and none of the console's catalog services are on its classpath, and every read runs in a read-only transaction. The exceptions are `rekall_wrapup`, which replaces one task's wrapup; `rekall_step`, which moves a step from `open` to `running` to `claimed`, follows a flow's route on a claim, and cannot reach `done`; `rekall_record_commit`, which logs a commit against a task; `rekall_propose_step`, which can only add a draft a person has to promote; `rekall_propose_flow`, which can only lay drafts and the routes between them onto a task with no steps; `rekall_create_task`, which can only add a `TODO` task or epic whose steps are drafts; `rekall_join_epic`, which can only file one task under an epic of its project; `rekall_note`, which can only add a new note to one task; `rekall_project_section`, which can only add a section to a task's project or rewrite the body of one that already has that title; `rekall_inventory`, which can only replace one project's dependency list; and `rekall_assess_vulnerability`, which can only write a verdict on one exposure the project already has. See §7. |
+| D2 | Claude reads everything and writes a few narrow things | `rekall-mcp` depends on `rekall-service` and never on `rekall-api` or `rekall-console`, so no controller and none of the console's catalog services are on its classpath, and every read runs in a read-only transaction. The exceptions are `rekall_wrapup`, which replaces one task's wrapup; `rekall_step`, which moves a step from `open` to `running` to `claimed`, follows a flow's route on a claim, and cannot reach `done`; `rekall_record_commit`, which logs a commit against a task; `rekall_propose_step`, which can only add a draft a person has to promote; `rekall_propose_flow`, which can only lay drafts and the routes between them onto a task with no steps; `rekall_create_task`, which can only add a `TODO` task or epic whose steps are drafts; `rekall_join_epic`, which can only file one task under an epic of its project; `rekall_note`, which can only add a new note to one task; `rekall_project_section`, which can only add a section to a task's project or rewrite the body of one that already has that title; `rekall_inventory`, which can only replace one project's dependency list; and `rekall_assess_vulnerability`, which can only write a verdict on one exposure the project already has. See §7. |
 | D3 | Markdown content lives in the database | One backup target, reachable through MCP, searchable. |
 | D4 | One entry point, and it is a slash command | A session begins with `/rk project:vega task:report-builder`, not with a question. Reaching a record through a natural-language query costs several turns and a few thousand tokens before any work starts, and it is the part that fails when the model guesses the wrong entity. An explicit anchor removes both. |
 | D5 | The model is fixed at compile time | There is no runtime meta-model and no DDL engine. Company, project, task and document are fixed SeaORM entities; adding a new kind of record is a model and a migration, not a screen. |
@@ -55,8 +55,8 @@ rekall/
   rekall-diagram/    the diagram format: Mermaid sheets, code links, JSON form, validation; depends on nothing of Rekall's
   rekall-repository/ queries, one folder per domain, and the SQLite migrations for their schema
   rekall-service/    context assembly, the step and review lines, flows, wrapups, notes, time entries, token usage
-  rekall-console/    the services only the console calls, one folder per domain: commands in, views out, no HTTP types; holds `connection` so far
-  rekall-api/        Axum REST routes for the UI, one folder per domain: its controller, request shapes and console service
+  rekall-console/    the services only the console calls, one folder per domain: commands in, views out, no HTTP types
+  rekall-api/        Axum REST routes for the UI, one folder per domain: its controllers, request and response shapes and routes
   rekall-mcp/        MCP server: three tools read, twelve write; a folder per domain holds its tools
   rekall-claude/     the in-app terminal (portable-pty PTYs over one WebSocket), the Claude Code usage meter, the run queue, the transcript reader, the Claude folder editor
   rekall-platform/   the database registry, backups and restores, the restart handle, the release check, the OS credential store, the GitHub Advisory Database client; what the application does around the catalog
@@ -78,12 +78,12 @@ but no route, none of `CompanyService`, `ProjectService`, `TaskService` or `Docu
 
 The crates are the layers; inside one, the code is laid out the way a Java project is.
 
-- **A folder per domain, one public type per file.** A folder is a package, and every layer crate cuts its code the same way (see Domains below): `rekall-service/src/note/`, `rekall-api/src/note/`, `rekall-model/src/note/`, `rekall-repository/src/repository/note/`, `rekall-mcp/src/note/`. A file holds one public type and is named after it: `NoteService` lives in `note/note_service.rs`, `CompanyResponse` in `catalog/company_response.rs`. Inside `rekall-api` a domain folder holds its controllers, request and response shapes, the console services not yet in `rekall-console` and a `routes.rs` that merges its controllers, so `router.rs` only merges the domains. A service in `rekall-console` takes a command and returns a view, both in files beside it; the controller converts the request into the command and the view into the response (`From` impls in the request and response files).
+- **A folder per domain, one public type per file.** A folder is a package, and every layer crate cuts its code the same way (see Domains below): `rekall-service/src/note/`, `rekall-api/src/note/`, `rekall-model/src/note/`, `rekall-repository/src/repository/note/`, `rekall-mcp/src/note/`. A file holds one public type and is named after it: `NoteService` lives in `note/note_service.rs`, `CompanyResponse` in `catalog/company_response.rs`. Inside `rekall-api` a domain folder holds its controllers, request and response shapes and a `routes.rs` that merges its controllers, so `router.rs` only merges the domains. A service in `rekall-console` takes a command and returns a view, both in files beside it; the controller converts the request into the command and the view into the response (`From` impls in the request and response files).
 - **`mod.rs` and `lib.rs` hold no logic.** They declare the files and re-export the public types, so a caller writes `rekall_service::note::NoteService` and never the file's name. Moving a type between files changes no caller.
 - **Privacy is per file, so what siblings share is `pub(super)`.** Rust's privacy boundary is the module, which is the file, not the type. A helper two files of one folder use is `pub(super)`, visible to that package and nowhere else: Java's package-private.
 - **Private helpers stay beside the one type that uses them.** A small private struct that only one file reads (`ScratchDir` beside `Database`, `Active` beside `Worker`) stays in that file. A private type that carries most of a module's logic gets a file of its own, visible as `pub(super)`: the run queue's `Worker` sits in `run_queue_worker.rs`, beside the `RunQueueRunner` handle that starts it.
 - **A module of free functions is one file named for what it does.** `repository/task.rs` is the task repository, `jstr.rs` the string helpers, `usage_ceiling.rs` the ceiling rule: Rust's counterpart of a class of static methods.
-- **Tests live under `tests/`, split in two.** `tests/unit/` mirrors `src/`: the tests of `rekall-api/src/filesystem/directory_listing_service.rs` are `rekall-api/tests/unit/filesystem/directory_listing_service_tests.rs`, attached from the implementation with `#[cfg(test)] #[path = "../../tests/unit/filesystem/directory_listing_service_tests.rs"] mod tests;`, so the file is still a child module of the code it tests and reads private items with `use super::*`. `tests/integration/` holds the integration and end-to-end suites, which see only the public API, with their `support/` helpers and fixtures. Cargo discovers only files directly in `tests/`, so it finds neither folder by itself: unit files are compiled through their `#[path]`, and every integration suite is declared as a `[[test]]` in its crate's `Cargo.toml`. A suite missing from that list never runs, and nothing warns about it. `autotests` stays on, since nothing sits in `tests/` itself for it to pick up.
+- **Tests live under `tests/`, split in two.** `tests/unit/` mirrors `src/`: the tests of `rekall-console/src/filesystem/directory_listing_service.rs` are `rekall-console/tests/unit/filesystem/directory_listing_service_tests.rs`, attached from the implementation with `#[cfg(test)] #[path = "../../tests/unit/filesystem/directory_listing_service_tests.rs"] mod tests;`, so the file is still a child module of the code it tests and reads private items with `use super::*`. `tests/integration/` holds the integration and end-to-end suites, which see only the public API, with their `support/` helpers and fixtures. Cargo discovers only files directly in `tests/`, so it finds neither folder by itself: unit files are compiled through their `#[path]`, and every integration suite is declared as a `[[test]]` in its crate's `Cargo.toml`. A suite missing from that list never runs, and nothing warns about it. `autotests` stays on, since nothing sits in `tests/` itself for it to pick up.
 
 Two things keep their shape on purpose. A SeaORM entity is one file with `Model`, `Relation` and the `Entity` and `ActiveModel` its derive generates: the derive requires them in one module, and the file is the entity, as a JPA entity is one class. The migrations are one file each, starting from `baseline.sql`, the schema as v0.2.x left it; a file once released is frozen history. In the desktop app, the modules holding `#[tauri::command]` functions are `pub`, because `generate_handler!` resolves each command's generated companion by path and a re-export does not carry it.
 
@@ -94,7 +94,7 @@ is found by opening one folder per crate:
 
 | Domain | Holds |
 |---|---|
-| `catalog` | companies and projects with their logos and icons; in `rekall-api` and the console also the tasks |
+| `catalog` | companies and projects with their logos and icons; in `rekall-console`, `rekall-api` and the UI also the tasks |
 | `component`, `section` | a project's components and its titled pages |
 | `connection` | the GitLab instances, Kubernetes clusters and Jira sites a company's projects reach, the projects that bind each, the log of every credential a terminal asked for, and the Jira issues a project imports as tasks |
 | `step`, `flow` | the checklist, and the routes and visits that turn it into a flow |
@@ -144,30 +144,30 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 
 | Domain | `rekall-model` | `rekall-repository` | `rekall-service` | `rekall-console` | `rekall-api` | `rekall-mcp` |
 |---|---|---|---|---|---|---|
-| `catalog` | `task` | nothing | - | - | `commit`, `note`, `review`, `step`, `tag`, `task`, `timeentry`, `wrapup` | - |
+| `catalog` | `task` | nothing | - | `commit`, `note`, `review`, `step`, `tag`, `task`, `timeentry`, `wrapup` | nothing | - |
 | `claude` | - | - | `catalog`, `connection`, `task` | - | - | - |
 | `commit` | `step`, `task` | nothing | `catalog`, `step`, `task` | - | nothing | nothing |
-| `component` | `catalog` | nothing | `connection`, `task` | - | nothing | - |
-| `connection` | `catalog`, `task` | `catalog` | nothing | `catalog`, `task` | `catalog`, `commit`, `component`, `task` | - |
+| `component` | `catalog` | nothing | `connection`, `task` | nothing | nothing | - |
+| `connection` | `catalog`, `task` | `catalog` | nothing | `catalog`, `commit`, `component`, `task` | `catalog` | - |
 | `context` | - | - | `catalog`, `commit`, `component`, `connection`, `note`, `step`, `tag`, `task`, `wrapup` | - | nothing | nothing |
-| `diagram` | `catalog`, `task` | nothing | `catalog`, `task` | - | nothing | nothing |
-| `filesystem` | - | - | - | - | nothing | - |
+| `diagram` | `catalog`, `task` | nothing | `catalog`, `task` | nothing | nothing | nothing |
+| `filesystem` | - | - | - | nothing | nothing | - |
 | `flow` | `step`, `task` | nothing | `step` | - | `step` | `step` |
-| `graph` | `catalog`, `flow`, `step` | nothing | - | - | `catalog`, `flow`, `step`, `task` | - |
+| `graph` | `catalog`, `flow`, `step` | nothing | - | `catalog`, `flow`, `step`, `task` | `step` | - |
 | `inventory` | `catalog` | nothing | `catalog` | - | nothing | `vulnerability` |
-| `note` | `task` | `task` | `task` | - | `catalog` | nothing |
+| `note` | `task` | `task` | `task` | `catalog` | `catalog` | nothing |
 | `queue` | `task` | nothing | - | - | - | - |
 | `review` | - | - | `task`, `timeentry` | - | - | - |
 | `search` | - | - | `task` | - | nothing | - |
-| `section` | `catalog` | nothing | `catalog`, `note` | - | nothing | `note` |
-| `skill` | `step`, `tag`, `task` | nothing | - | - | nothing | - |
+| `section` | `catalog` | nothing | `catalog`, `note` | nothing | nothing | `note` |
+| `skill` | `step`, `tag`, `task` | nothing | - | nothing | nothing | - |
 | `step` | `task` | nothing | `flow`, `task`, `timeentry` | - | nothing | `commit`, `flow` |
 | `stream` | - | - | - | - | nothing | - |
-| `tag` | `task` | nothing | - | - | nothing | - |
+| `tag` | `task` | nothing | - | nothing | nothing | - |
 | `task` | `catalog`, `note`, `step`, `tag`, `wrapup` | `catalog` | `step` | - | - | nothing |
 | `timeentry` | `task` | nothing | `catalog`, `task` | - | nothing | - |
 | `token` | `step`, `task` | nothing | nothing | - | nothing | - |
-| `vulnerability` | `catalog`, `task` | nothing | `catalog`, `commit`, `connection`, `inventory` | - | `catalog`, `step`, `task` | nothing |
+| `vulnerability` | `catalog`, `task` | nothing | `catalog`, `commit`, `connection`, `inventory` | `catalog`, `step`, `task` | `catalog` | nothing |
 | `wrapup` | `task` | nothing | `catalog`, `review`, `task` | - | nothing | `commit` |
 
 Each crate's foundations are modules every domain may use and are no domain: `ctx`, `events`,
@@ -441,7 +441,7 @@ copied onto a task when the task is to be released that way.
 | Decision | Why |
 |---|---|
 | Its own three tables, not template steps on a task | A graph belongs to the project and outlives every task it is laid on; a step row carries a task's states and visits, which a template has none of |
-| Written whole, by `DeploymentGraphService` in `rekall-api` | The editor holds the graph as one draft and a route names its target by the caller's `key`, so a step needs no id before it is saved. `GraphDraft::of` resolves the keys, folds outcomes to slugs and runs `FlowPlan::check_shape`; `replace` deletes the steps (their routes cascade) and writes the draft again. It is a catalog write, so `rekall-mcp` cannot reach it |
+| Written whole, by `DeploymentGraphService` in `rekall-console` | The editor holds the graph as one draft and a route names its target by the caller's `key`, so a step needs no id before it is saved. `GraphDraft::of` resolves the keys, folds outcomes to slugs and runs `FlowPlan::check_shape`; `replace` deletes the steps (their routes cascade) and writes the draft again. It is a catalog write, so `rekall-mcp` cannot reach it |
 | Shape on save, the rest on attach | `FlowPlan::check` is split: `check_shape` (size, distinct titles, routes that fit) refuses a save, while reachability and a way out of every loop only decide whether the graph can run. `StoredGraph::problem` names the first reason it cannot, the console shows it, and a graph with no routes runs as a checklist |
 | A step reaches only what its project binds | The binding is what lists the connection in `<connections>`, so a step on another connection would name something the session cannot reach. A connection unbound later is kept on the step and reported, a deleted one is set null |
 | Attaching copies | `GraphAttachService::attach` lays each graph step as an `OPEN` step of the task (`add_open_in`, `limit_visits_in`, `reach_connection_in`) and each route through `StepLinkService::add_in`, in one transaction, onto a task of the same project. The task then owns its flow: editing the graph changes no task already laid, and a run's states and visits stay on the task |
@@ -498,9 +498,9 @@ The walk distinguishes by direction, not by depth:
 Skills follow three rules. A tag's skills are read when the context loads and never copied onto its
 tasks, so editing a tag changes every task under it. A skill already listed at a wider scope is not
 listed again, and a finished step's skills are dropped. The name is checked for its shape only
-(`rekall_model::skill_name`): `rekall-api` cannot see `~/.claude`, which `rekall-claude` reads, so the
+(`rekall_model::skill_name`): `rekall-console` cannot see `~/.claude`, which `rekall-claude` reads, so the
 picker offers only what exists and a skill that later vanishes stays assigned and is flagged in the
-console. The writes are `SkillAssignmentService` in `rekall-api`, each replacing one owner's whole
+console. The writes are `SkillAssignmentService` in `rekall-console`, each replacing one owner's whole
 list; `rekall-mcp` can read the skills through the context and never write them.
 
 A project's connections arrive as a `<connections>` block after its components, one line per
@@ -575,7 +575,7 @@ checked whole and written in one transaction, so a refused plan leaves nothing o
 
 `rekall_create_task` creates a task in the project its anchor names, with an optional description and
 up to twenty steps, in one transaction. `TaskAuthoringService` in rekall-service is its only path: the
-console's `TaskService` in rekall-api stays the one that edits, reviews and deletes. The task starts
+console's `TaskService` in rekall-console stays the one that edits, reviews and deletes. The task starts
 `TODO` and each step is a draft, so the same promotion gate as `rekall_propose_step` applies. A label
 the project already uses is refused rather than suffixed, so an anchor never changes under the session.
 It publishes `task-created` on the event stream and the console reloads its task list. `kind: "epic"`
@@ -606,7 +606,7 @@ Vulnerabilities below.
 task's project, and `replace` rewrites the body of the section with the same title (ignoring case) instead
 of refusing. Sections live in their own table, `project_section`, not in `document`, because a note is
 reached through tasks and loads into a context and a section does neither. Renaming, reordering and
-deleting are the console's, in `ProjectSectionCatalogService` in rekall-api.
+deleting are the console's, in `ProjectSectionCatalogService` in rekall-console.
 
 A project's components are the folders of it that are parts of it, one row each in `project_component`
 (`name`, `folder`, `description`, `position`; the name is unique per project ignoring case, and starts as
@@ -614,7 +614,7 @@ the folder's last segment when none is given). Unlike a section, they are contex
 reads them with the project and `ContextRenderer.render_components` writes a `<components>` block, so the
 project's own anchor and every task of it carry them once, and `ContextSizeService` counts them as their
 own part. They are read-only to a session, no MCP tool writes them; the console's
-`ProjectComponentCatalogService` in rekall-api lists, adds, edits, orders and deletes them.
+`ProjectComponentCatalogService` in rekall-console lists, adds, edits, orders and deletes them.
 
 A task's description and its step details can name a component as `[[Name]]`. The stored text never
 changes: `ComponentReferences` (rekall-service, `component/`) expands each reference while the context
@@ -739,7 +739,7 @@ the exception that hides this, because its own schema defaults both annotations.
 ## 7. Write safety
 
 `rekall-mcp` has no controller, no `CompanyService`, `ProjectService` or `TaskService` and no
-`DocumentService` on its classpath: they live in `rekall-api` for exactly that reason, and
+`DocumentService` on its classpath: they live in `rekall-console` for exactly that reason, and
 anything that writes the catalog belongs there. The write services it can reach are narrow by
 construction. `WrapupService` takes a task and a body and can do nothing else: no record created,
 renamed or deleted, no note touched. `TaskStepService.transition` takes a task, a step and a
@@ -750,12 +750,12 @@ it. `FlowProposalService.propose` can only lay drafts onto a task with no steps,
 asks `StepLinkService.propose_in` for are refused unless both ends are drafts, so no released
 step's routes change. `NoteService` (rekall-service) can only create a note and attach it to the one task it was
 written for: it never loads a note by id, so it cannot edit, detach or delete one, and
-`DocumentService`, which can, stays in `rekall-api`. `CommitReferenceService` and `AutoCommitService` log and make commits in the project's own
+`DocumentService`, which can, stays in `rekall-console`. `CommitReferenceService` and `AutoCommitService` log and make commits in the project's own
 folder. `InventoryRecordingService` replaces one project's dependency rows and drops the exposures they
 no longer declare; `VulnerabilityExposureService.assess` writes a verdict on an exposure a scan already
 found and refuses an advisory that does not reach the project. Neither reaches the advisory database:
 the scan, which does, is not part of `Services` and is built in `rekall-app` for the console and the
-schedule, and the fix task is created by `VulnerabilityFixService` in `rekall-api`. Every read runs in a
+schedule, and the fix task is created by `VulnerabilityFixService` in `rekall-console`. Every read runs in a
 read-only transaction. `McpTool.writes()` is declared
 rather than inferred, and the startup log names the write surface out loud.
 
@@ -788,10 +788,9 @@ after the row is gone, logging a failure), `ConnectionCredentialService` (the on
 replaces or clears a credential), `ProjectConnectionService` (bindings; a project binds only a
 connection of its own company, the same connection and target twice is a 409, a typed label already
 used in the project is a 409, and without one the connection's label takes the first free `-2`, `-3`),
-`ConnectionAccessQueryService` (the access log, newest first) and
+`RepositoryDiscoveryService` (below), `ConnectionAccessQueryService` (the access log, newest first) and
 `KubeconfigPreviewService` (a kubeconfig's contexts with why each can or cannot be imported, storing
-nothing). `RepositoryDiscoveryService` and `JiraIssueService` (below) stay in `rekall-api` while the
-catalog services they create projects' tasks and components with are there. Credentials are write-only: `PUT /api/connections/{id}/credential` takes `token` (GitLab),
+nothing). Credentials are write-only: `PUT /api/connections/{id}/credential` takes `token` (GitLab),
 `kubeconfig` and `context` (Kubernetes) or `token` with an `email` on Jira Cloud and without one on Jira
 Data Center, and answers the connection with `credentialSetAt`, and no
 endpoint returns a credential. The store is written before the row, so a failed write leaves the row
@@ -811,7 +810,7 @@ is sent) and `POST /api/projects/{id}/connections/discover`. A connection's `pro
 project once; its detail lists a row per binding. Every change publishes a `connection` frame naming
 the company.
 
-`RepositoryDiscoveryService` (`rekall-api/src/connection/`) binds a project's repositories in one go.
+`RepositoryDiscoveryService` (`rekall-console/src/connection/`) binds a project's repositories in one go.
 It walks the project's folder (`repository_folders.rs`: a folder holding `.git` is a repository and is
 not searched further, hidden folders and `node_modules` are passed over, four levels deep), reads each
 one's `origin` through `GitRepositoryInspector::origin_url`, all before its transaction opens, then
@@ -832,7 +831,7 @@ settles each repository in path order:
 The answer lists every repository with its outcome, `host/path` (never the remote URL), the binding and
 the component made, and a project with no folder, or one that is not on this machine, is a 400.
 
-`JiraIssueService` (`rekall-api/src/connection/`) is how a project turns Jira issues into tasks, through
+`JiraIssueService` (`rekall-console/src/connection/`) is how a project turns Jira issues into tasks, through
 its binding of a Jira connection whose target is the Jira project key. `GET
 /api/projects/{id}/connections/{connectionId}/jira-issues` lists the project's 50 most recently updated
 issues not yet done, each with its link and the task it was imported as; `POST .../jira-issues/import`
@@ -908,7 +907,7 @@ second needs the code read, so a session makes it.
 | `VulnerabilityScanService` | One scan: the 100 newest critical advisories, then per inventoried project and ecosystem the questions `questions` cuts: at most 80 packages, each name once (`rules::package_key`: ignoring case, and pip's separators folded), a second version of a package going to a later question, because GitHub answers which advisories reach any of them and not which version. `reached_in` ties an answer to every package of the question the advisory names whose version its range holds or cannot be read for (`version_range`), or to every one it names when GitHub and the range disagree. Everything is recorded in one transaction: advisories upserted by GHSA id, each answered project's exposures replaced by what was found. A project whose question failed keeps its exposures; once rate limited, the rest are skipped and reported. A mutex lets one scan run at a time; a second is a 409 |
 | `version_range` | Whether a version is inside a GitHub range (`>= 4.0.0, < 4.1.0`): release numbers compared as numbers, a pre-release before its release, a post-release after it; anything unreadable is undecided. `AffectedPackage::find` uses it to pick, of the entries an advisory lists for one package, the release line the project's version is on, which is where an exposure's range, first safe version and vulnerable functions come from |
 | `VulnerabilityExposureService` | The exposures, one per advisory and package version. `replace_found_in` adds new ones unjudged, keeps a known one with its verdict, and deletes the rest, so a package moved to another version is a new, unjudged exposure. `assess` writes the verdict on every exposure of the advisory in the project, with the project's `HEAD` (`GitRepositoryInspector::head`), and refuses an advisory not exposed on the project, naming the ones that are. `list` and `read` add the commits gained since (`commits_since`, once per project and commit). An exposure is open (a warning) until it is `NOT_AFFECTED` or a fix task is at work on it: a fix task that is `DONE` while the exposure is still found leaves it open and lets it take a new fix |
-| `VulnerabilityFixService` (rekall-api) | Creates the fix task through `TaskService::create_in` and ties it to the exposure, in one transaction; a malware exposure's brief asks for removal and for whatever installed it to be treated as compromised. The label is `fix-<ghsa id>`, numbered when taken; the description (`fix_task_rules`) is the brief a session works from. `fix_project` takes every exposure of a project its `FixScope` takes (`fix_briefs_of_project_in`, a 409 when none): `AFFECTED`, the open ones, or `ALL`, every one without a fix task, the ones judged not affected included, which the description marks. It gathers them into one `fix-vulnerabilities` task, adding an open step per exposure through `TaskStepService::add_open_in` (not a draft: the console starts a session on the task at once, and a session may not work a draft) whose detail is that exposure's brief, the advisory's text cut to fit the step's 20,000 characters, and ties each exposure to it |
+| `VulnerabilityFixService` (rekall-console) | Creates the fix task through `TaskService::create_in` and ties it to the exposure, in one transaction; a malware exposure's brief asks for removal and for whatever installed it to be treated as compromised. The label is `fix-<ghsa id>`, numbered when taken; the description (`fix_task_rules`) is the brief a session works from. `fix_project` takes every exposure of a project its `FixScope` takes (`fix_briefs_of_project_in`, a 409 when none): `AFFECTED`, the open ones, or `ALL`, every one without a fix task, the ones judged not affected included, which the description marks. It gathers them into one `fix-vulnerabilities` task, adding an open step per exposure through `TaskStepService::add_open_in` (not a draft: the console starts a session on the task at once, and a session may not work a draft) whose detail is that exposure's brief, the advisory's text cut to fit the step's 20,000 characters, and ties each exposure to it |
 
 A scan runs five minutes after the application starts and every six hours (`Instance::start_vulnerability_scans`),
 and on `POST /api/vulnerabilities/scan`. Every write publishes `vulnerability` (with how many exposures

@@ -1,4 +1,5 @@
 use rekall_common::Id;
+use rekall_console::graph::{GraphRouteCommand, GraphStepCommand};
 use serde::Deserialize;
 
 use super::GraphRouteRequest;
@@ -16,4 +17,19 @@ pub struct GraphStepRequest {
     pub flow_x: Option<i32>,
     pub flow_y: Option<i32>,
     pub routes: Option<Vec<GraphRouteRequest>>,
+}
+
+impl From<GraphStepRequest> for GraphStepCommand {
+    fn from(request: GraphStepRequest) -> Self {
+        Self {
+            key: request.key,
+            title: request.title,
+            detail: request.detail,
+            connection_id: request.connection_id,
+            max_visits: request.max_visits,
+            flow_x: request.flow_x,
+            flow_y: request.flow_y,
+            routes: request.routes.map(|routes| routes.into_iter().map(GraphRouteCommand::from).collect()),
+        }
+    }
 }

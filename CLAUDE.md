@@ -58,7 +58,7 @@ convention are in `docs/DESIGN.md` §3 ("Layout inside a crate") and are not rep
   shared pieces: `repo::update_if_changed` (stamp, validate, write only when a value changed),
   `repo::<entity>::require`, `load::resolve_task`, `jstr` for text rules, `text_rule` for a
   writer's capped free text, `task.anchor(..)` / `project.anchor()`, `rekall_common::cleanup` for
-  logged best-effort deletes and kills, `Snapshot` for response assembly; in the console,
+  logged best-effort deletes and kills, `Snapshot` for view assembly; in the console,
   `stores/console/rows` (`upsertById`, `replaceById`, `trackSave`).
 - **No useless abstraction.** No trait, generic or builder without a second implementation or
   a test that needs it. Composition over inheritance: services hold the services they use.

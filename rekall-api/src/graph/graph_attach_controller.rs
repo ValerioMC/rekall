@@ -16,7 +16,7 @@ pub fn routes() -> Router<ApiState> {
 /// Called by the console as it starts a session on the task: lays the project's release graph
 /// unless the task has one or is left unreleased.
 async fn release_on_run(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Json<ReleaseOnRunResponse>> {
-    Ok(Json(state.graph_attach.release_on_run(uuid("id", &id)?).await?))
+    Ok(Json(state.graph_attach.release_on_run(uuid("id", &id)?).await?.into()))
 }
 
 async fn attach(State(state): State<ApiState>, Path(id): Path<String>, JsonBody(request): JsonBody<GraphAttachRequest>) -> ApiResult<Json<Vec<TaskStepView>>> {

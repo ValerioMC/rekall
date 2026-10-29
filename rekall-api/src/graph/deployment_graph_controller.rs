@@ -22,17 +22,17 @@ async fn choose_release(
     Path(id): Path<String>,
     JsonBody(request): JsonBody<ReleaseGraphRequest>,
 ) -> ApiResult<Json<Vec<DeploymentGraphResponse>>> {
-    Ok(Json(state.graphs.choose_release(uuid("id", &id)?, request.graph_id).await?))
+    Ok(Json(state.graphs.choose_release(uuid("id", &id)?, request.graph_id).await?.into_iter().map(Into::into).collect()))
 }
 
 async fn list(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Json<Vec<DeploymentGraphResponse>>> {
-    Ok(Json(state.graphs.list(uuid("id", &id)?).await?))
+    Ok(Json(state.graphs.list(uuid("id", &id)?).await?.into_iter().map(Into::into).collect()))
 }
 
 async fn create(State(state): State<ApiState>, Path(id): Path<String>, JsonBody(request): JsonBody<DeploymentGraphRequest>) -> ApiResult<Response> {
     let project_id = uuid("id", &id)?;
     validate(&request)?;
-    Ok(created(state.graphs.create(project_id, request).await?))
+    Ok(created(DeploymentGraphResponse::from(state.graphs.create(project_id, request.into()).await?)))
 }
 
 async fn replace(
@@ -42,7 +42,7 @@ async fn replace(
 ) -> ApiResult<Json<DeploymentGraphResponse>> {
     let id = uuid("id", &id)?;
     validate(&request)?;
-    Ok(Json(state.graphs.replace(id, request).await?))
+    Ok(Json(state.graphs.replace(id, request.into()).await?.into()))
 }
 
 async fn delete(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Response> {

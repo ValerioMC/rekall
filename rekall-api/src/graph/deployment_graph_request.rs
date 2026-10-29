@@ -1,3 +1,4 @@
+use rekall_console::graph::{DeploymentGraphCommand, GraphStepCommand};
 use serde::Deserialize;
 
 use super::GraphStepRequest;
@@ -10,4 +11,14 @@ pub struct DeploymentGraphRequest {
     pub title: Option<String>,
     pub description: Option<String>,
     pub steps: Option<Vec<GraphStepRequest>>,
+}
+
+impl From<DeploymentGraphRequest> for DeploymentGraphCommand {
+    fn from(request: DeploymentGraphRequest) -> Self {
+        Self {
+            title: request.title,
+            description: request.description,
+            steps: request.steps.map(|steps| steps.into_iter().map(GraphStepCommand::from).collect()),
+        }
+    }
 }

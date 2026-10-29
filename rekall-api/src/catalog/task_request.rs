@@ -1,4 +1,5 @@
 use rekall_common::Id;
+use rekall_console::catalog::TaskCommand;
 use rekall_model::{TaskKind, TaskStatus};
 use serde::Deserialize;
 
@@ -13,4 +14,19 @@ pub struct TaskRequest {
     pub tag_id: Option<Id>,
     pub kind: Option<TaskKind>,
     pub epic_id: Option<Id>,
+}
+
+impl From<TaskRequest> for TaskCommand {
+    fn from(request: TaskRequest) -> Self {
+        Self {
+            label: request.label,
+            title: request.title,
+            status: request.status,
+            description: request.description,
+            project_id: request.project_id,
+            tag_id: request.tag_id,
+            kind: request.kind,
+            epic_id: request.epic_id,
+        }
+    }
 }

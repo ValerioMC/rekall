@@ -20,5 +20,5 @@ async fn list(State(state): State<ApiState>, Query(query): Query<DirectoryListin
     let listing = tokio::task::spawn_blocking(move || listings.list(query.base.as_deref(), query.path.as_deref()))
         .await
         .map_err(|failed| RekallError::internal(InternalFailure::Background, failed))??;
-    Ok(Json(listing))
+    Ok(Json(listing.into()))
 }

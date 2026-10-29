@@ -1,4 +1,4 @@
-use rekall_service::commit::RepositoryStatus;
+use rekall_console::catalog::ProjectRepositoryView;
 use serde::Serialize;
 
 /// What the project's folder is, git-wise, plus whether it auto-commits there.
@@ -14,16 +14,16 @@ pub struct ProjectRepositoryResponse {
     pub auto_commit: bool,
 }
 
-impl ProjectRepositoryResponse {
-    pub fn of(status: RepositoryStatus, auto_commit: bool) -> Self {
+impl From<ProjectRepositoryView> for ProjectRepositoryResponse {
+    fn from(view: ProjectRepositoryView) -> Self {
         Self {
-            folder: status.folder,
-            exists: status.exists,
-            repository: status.repository,
-            branch: status.branch,
-            user_name: status.user_name,
-            user_email: status.user_email,
-            auto_commit,
+            folder: view.folder,
+            exists: view.exists,
+            repository: view.repository,
+            branch: view.branch,
+            user_name: view.user_name,
+            user_email: view.user_email,
+            auto_commit: view.auto_commit,
         }
     }
 }

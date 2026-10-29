@@ -24,7 +24,7 @@ async fn list(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResul
 async fn create(State(state): State<ApiState>, Path(id): Path<String>, JsonBody(request): JsonBody<ProjectSectionRequest>) -> ApiResult<Response> {
     let project_id = uuid("id", &id)?;
     Validator::new().not_blank("title", request.title.as_deref()).finish()?;
-    Ok(created(state.section_catalog.create(project_id, request).await?))
+    Ok(created(state.section_catalog.create(project_id, request.into()).await?))
 }
 
 async fn reorder(
@@ -34,7 +34,7 @@ async fn reorder(
 ) -> ApiResult<Json<Vec<ProjectSectionView>>> {
     let project_id = uuid("id", &id)?;
     Validator::new().not_null("sectionIds", &request.section_ids).finish()?;
-    Ok(Json(state.section_catalog.reorder(project_id, request).await?))
+    Ok(Json(state.section_catalog.reorder(project_id, request.into()).await?))
 }
 
 async fn update(State(state): State<ApiState>, Path(id): Path<String>, JsonBody(request): JsonBody<ProjectSectionRequest>) -> ApiResult<Json<ProjectSectionView>> {
@@ -42,7 +42,7 @@ async fn update(State(state): State<ApiState>, Path(id): Path<String>, JsonBody(
     if request.title.is_some() {
         Validator::new().not_blank("title", request.title.as_deref()).finish()?;
     }
-    Ok(Json(state.section_catalog.update(id, request).await?))
+    Ok(Json(state.section_catalog.update(id, request.into()).await?))
 }
 
 async fn delete(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Response> {

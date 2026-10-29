@@ -16,17 +16,17 @@ pub fn routes() -> Router<ApiState> {
 }
 
 async fn list(State(state): State<ApiState>) -> ApiResult<Json<SkillAssignmentsResponse>> {
-    Ok(Json(state.skill_assignments.list().await?))
+    Ok(Json(state.skill_assignments.list().await?.into()))
 }
 
 async fn set_for_task(State(state): State<ApiState>, Path(id): Path<String>, JsonBody(request): JsonBody<SkillAssignmentRequest>) -> ApiResult<Json<Vec<TaskSkillResponse>>> {
-    Ok(Json(state.skill_assignments.set_for_task(uuid("id", &id)?, request.skills).await?))
+    Ok(Json(state.skill_assignments.set_for_task(uuid("id", &id)?, request.skills).await?.into_iter().map(Into::into).collect()))
 }
 
 async fn set_for_step(State(state): State<ApiState>, Path(id): Path<String>, JsonBody(request): JsonBody<SkillAssignmentRequest>) -> ApiResult<Json<Vec<TaskSkillResponse>>> {
-    Ok(Json(state.skill_assignments.set_for_step(uuid("id", &id)?, request.skills).await?))
+    Ok(Json(state.skill_assignments.set_for_step(uuid("id", &id)?, request.skills).await?.into_iter().map(Into::into).collect()))
 }
 
 async fn set_for_tag(State(state): State<ApiState>, Path(id): Path<String>, JsonBody(request): JsonBody<SkillAssignmentRequest>) -> ApiResult<Json<Vec<TagSkillResponse>>> {
-    Ok(Json(state.skill_assignments.set_for_tag(uuid("id", &id)?, request.skills).await?))
+    Ok(Json(state.skill_assignments.set_for_tag(uuid("id", &id)?, request.skills).await?.into_iter().map(Into::into).collect()))
 }

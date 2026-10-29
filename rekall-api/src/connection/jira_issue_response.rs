@@ -1,8 +1,6 @@
 use rekall_common::Id;
-use rekall_service::connection::JiraIssue;
+use rekall_console::connection::JiraIssueView;
 use serde::Serialize;
-
-use super::jira_rules::issue_url;
 
 /// A Jira issue the console can import, and the task it already became, if it did.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -16,15 +14,15 @@ pub struct JiraIssueResponse {
     pub task_id: Option<Id>,
 }
 
-impl JiraIssueResponse {
-    pub fn of(issue: &JiraIssue, site: &str, task_id: Option<Id>) -> Self {
+impl From<JiraIssueView> for JiraIssueResponse {
+    fn from(view: JiraIssueView) -> Self {
         Self {
-            key: issue.key.clone(),
-            summary: issue.summary.clone(),
-            status: issue.status.clone(),
-            issue_type: issue.issue_type.clone(),
-            url: issue_url(site, &issue.key),
-            task_id,
+            key: view.key,
+            summary: view.summary,
+            status: view.status,
+            issue_type: view.issue_type,
+            url: view.url,
+            task_id: view.task_id,
         }
     }
 }

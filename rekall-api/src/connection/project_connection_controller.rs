@@ -46,5 +46,5 @@ async fn unbind(State(state): State<ApiState>, Path((id, binding_id)): Path<(Str
 }
 
 async fn discover(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Json<RepositoryDiscoveryResponse>> {
-    Ok(Json(state.repository_discovery.discover(uuid("id", &id)?).await?))
+    Ok(Json(state.repository_discovery.discover(uuid("id", &id)?).await?.into()))
 }

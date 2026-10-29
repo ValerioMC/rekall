@@ -2,11 +2,9 @@
 
 mod skill_assignment_controller;
 mod skill_assignment_request;
-mod skill_assignment_service;
 mod skill_assignments_response;
 mod routes;
 
 pub use skill_assignment_request::SkillAssignmentRequest;
-pub use skill_assignment_service::SkillAssignmentService;
 pub use skill_assignments_response::{SkillAssignmentsResponse, TagSkillResponse, TaskSkillResponse};
 pub(crate) use routes::routes;

@@ -44,7 +44,7 @@ async fn delete(State(state): State<ApiState>, Path(id): Path<String>) -> ApiRes
 
 async fn source(State(state): State<ApiState>, Path(id): Path<String>, Query(query): Query<SourceExcerptQuery>) -> ApiResult<Json<SourceExcerptResponse>> {
     let file = required(query.file.filter(|file| !jstr::is_blank(file)))?;
-    Ok(Json(state.sources.excerpt(uuid("id", &id)?, &file, query.start, query.end).await?))
+    Ok(Json(state.sources.excerpt(uuid("id", &id)?, &file, query.start, query.end).await?.into()))
 }
 
 fn draft_of(id: Option<rekall_common::Id>, request: DiagramRequest) -> ApiResult<DiagramDraft> {

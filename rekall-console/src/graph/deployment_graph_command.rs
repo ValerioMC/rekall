@@ -1,0 +1,10 @@
+use super::GraphStepCommand;
+
+/// A deployment graph written whole: its title, what it is for, and every step in order, the
+/// first where it begins.
+#[derive(Clone, Debug, Default)]
+pub struct DeploymentGraphCommand {
+    pub title: Option<String>,
+    pub description: Option<String>,
+    pub steps: Option<Vec<GraphStepCommand>>,
+}

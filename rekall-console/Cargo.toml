@@ -10,5 +10,10 @@ rekall-model.workspace = true
 rekall-repository.workspace = true
 rekall-service.workspace = true
 sea-orm.workspace = true
+image.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+
+[dev-dependencies]
+async-trait.workspace = true
+tempfile.workspace = true

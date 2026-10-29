@@ -1,3 +1,4 @@
+use rekall_console::filesystem::PathSegmentView;
 use serde::Serialize;
 
 /// One crumb of a listing's breadcrumb, from the filesystem root down to the folder itself.
@@ -6,4 +7,13 @@ use serde::Serialize;
 pub struct PathSegmentResponse {
     pub name: String,
     pub path: String,
+}
+
+impl From<PathSegmentView> for PathSegmentResponse {
+    fn from(view: PathSegmentView) -> Self {
+        Self {
+            name: view.name,
+            path: view.path,
+        }
+    }
 }

@@ -1,5 +1,5 @@
 use rekall_common::Id;
-use rekall_model::graph_route;
+use rekall_console::graph::GraphRouteView;
 use serde::Serialize;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -10,8 +10,11 @@ pub struct GraphRouteResponse {
     pub to_step_id: Option<Id>,
 }
 
-impl GraphRouteResponse {
-    pub fn of(route: &graph_route::Model) -> Self {
-        Self { outcome: route.outcome.clone(), to_step_id: route.to_step_id }
+impl From<GraphRouteView> for GraphRouteResponse {
+    fn from(view: GraphRouteView) -> Self {
+        Self {
+            outcome: view.outcome,
+            to_step_id: view.to_step_id,
+        }
     }
 }

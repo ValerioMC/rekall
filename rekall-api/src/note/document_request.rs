@@ -1,6 +1,7 @@
 use rekall_common::Id;
-use rekall_model::note_scope::NoteScope;
+use rekall_console::note::DocumentCommand;
 use rekall_model::DocumentContextMode;
+use rekall_model::note_scope::NoteScope;
 use serde::Deserialize;
 
 /// `contextMode` left out keeps what the note had, or `FULL` for a new one. `scope` left out
@@ -14,4 +15,17 @@ pub struct DocumentRequest {
     pub task_ids: Option<Vec<Id>>,
     pub context_mode: Option<DocumentContextMode>,
     pub scope: Option<NoteScope>,
+}
+
+impl From<DocumentRequest> for DocumentCommand {
+    fn from(request: DocumentRequest) -> Self {
+        Self {
+            title: request.title,
+            kind: request.kind,
+            body_markdown: request.body_markdown,
+            task_ids: request.task_ids,
+            context_mode: request.context_mode,
+            scope: request.scope,
+        }
+    }
 }

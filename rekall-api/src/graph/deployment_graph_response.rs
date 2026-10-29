@@ -1,5 +1,5 @@
 use rekall_common::{Id, Instant};
-use rekall_model::deployment_graph;
+use rekall_console::graph::DeploymentGraphView;
 use serde::Serialize;
 
 use super::GraphStepResponse;
@@ -20,18 +20,18 @@ pub struct DeploymentGraphResponse {
     pub updated_at: Instant,
 }
 
-impl DeploymentGraphResponse {
-    pub fn of(graph: &deployment_graph::Model, steps: Vec<GraphStepResponse>, problem: Option<String>) -> Self {
+impl From<DeploymentGraphView> for DeploymentGraphResponse {
+    fn from(view: DeploymentGraphView) -> Self {
         Self {
-            id: graph.id,
-            project_id: graph.project_id,
-            title: graph.title.clone(),
-            description: graph.description.clone(),
-            steps,
-            problem,
-            release_default: graph.release_default,
-            created_at: graph.created_at,
-            updated_at: graph.updated_at,
+            id: view.id,
+            project_id: view.project_id,
+            title: view.title,
+            description: view.description,
+            steps: view.steps.into_iter().map(GraphStepResponse::from).collect(),
+            problem: view.problem,
+            release_default: view.release_default,
+            created_at: view.created_at,
+            updated_at: view.updated_at,
         }
     }
 }

@@ -1,3 +1,4 @@
+use rekall_console::graph::ReleaseOnRunView;
 use rekall_service::step::TaskStepView;
 use serde::Serialize;
 
@@ -8,4 +9,13 @@ use serde::Serialize;
 pub struct ReleaseOnRunResponse {
     pub laid: Option<String>,
     pub steps: Vec<TaskStepView>,
+}
+
+impl From<ReleaseOnRunView> for ReleaseOnRunResponse {
+    fn from(view: ReleaseOnRunView) -> Self {
+        Self {
+            laid: view.laid,
+            steps: view.steps,
+        }
+    }
 }

@@ -1,3 +1,4 @@
+use rekall_console::diagram::SourceExcerptView;
 use serde::Serialize;
 
 use crate::diagram::SourceLineResponse;
@@ -14,4 +15,18 @@ pub struct SourceExcerptResponse {
     pub total_lines: u32,
     pub lines: Vec<SourceLineResponse>,
     pub truncated: bool,
+}
+
+impl From<SourceExcerptView> for SourceExcerptResponse {
+    fn from(view: SourceExcerptView) -> Self {
+        Self {
+            file: view.file,
+            language: view.language,
+            highlight_start: view.highlight_start,
+            highlight_end: view.highlight_end,
+            total_lines: view.total_lines,
+            lines: view.lines.into_iter().map(SourceLineResponse::from).collect(),
+            truncated: view.truncated,
+        }
+    }
 }

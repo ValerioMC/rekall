@@ -1,5 +1,5 @@
 use rekall_common::{Id, Instant};
-use rekall_model::tag;
+use rekall_console::tag::TagView;
 use serde::Serialize;
 
 #[derive(Clone, Debug, Serialize)]
@@ -12,8 +12,14 @@ pub struct TagResponse {
     pub updated_at: Instant,
 }
 
-impl TagResponse {
-    pub fn of(tag: &tag::Model) -> Self {
-        Self { id: tag.id, name: tag.name.clone(), icon: tag.icon.clone(), color: tag.color.clone(), updated_at: tag.updated_at }
+impl From<TagView> for TagResponse {
+    fn from(view: TagView) -> Self {
+        Self {
+            id: view.id,
+            name: view.name,
+            icon: view.icon,
+            color: view.color,
+            updated_at: view.updated_at,
+        }
     }
 }

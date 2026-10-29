@@ -1,7 +1,8 @@
 use rekall_common::Id;
+use rekall_console::connection::DiscoveredRepositoryView;
 use serde::Serialize;
 
-use super::DiscoveryOutcome;
+use super::DiscoveryOutcomeResponse;
 
 /// One repository found under a project's folder, and what discovering it did.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -10,7 +11,7 @@ pub struct DiscoveredRepositoryResponse {
     pub folder: String,
     /// `host/group/name`, never the remote's URL, which may carry a credential.
     pub origin: Option<String>,
-    pub outcome: DiscoveryOutcome,
+    pub outcome: DiscoveryOutcomeResponse,
     /// The company connection at the origin's host.
     pub connection_label: Option<String>,
     /// The binding that reaches it, made now or found.
@@ -21,8 +22,17 @@ pub struct DiscoveredRepositoryResponse {
     pub component: Option<String>,
 }
 
-impl DiscoveredRepositoryResponse {
-    pub(super) fn unmatched(folder: String, origin: Option<String>, outcome: DiscoveryOutcome, connection_label: Option<String>) -> Self {
-        Self { folder, origin, outcome, connection_label, binding_id: None, label: None, target: None, component: None }
+impl From<DiscoveredRepositoryView> for DiscoveredRepositoryResponse {
+    fn from(view: DiscoveredRepositoryView) -> Self {
+        Self {
+            folder: view.folder,
+            origin: view.origin,
+            outcome: view.outcome.into(),
+            connection_label: view.connection_label,
+            binding_id: view.binding_id,
+            label: view.label,
+            target: view.target,
+            component: view.component,
+        }
     }
 }

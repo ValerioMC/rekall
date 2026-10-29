@@ -24,7 +24,7 @@ async fn list(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResul
 async fn create(State(state): State<ApiState>, Path(id): Path<String>, JsonBody(request): JsonBody<ProjectComponentRequest>) -> ApiResult<Response> {
     let project_id = uuid("id", &id)?;
     Validator::new().not_blank("folder", request.folder.as_deref()).finish()?;
-    Ok(created(state.component_catalog.create(project_id, request).await?))
+    Ok(created(state.component_catalog.create(project_id, request.into()).await?))
 }
 
 async fn reorder(
@@ -34,11 +34,11 @@ async fn reorder(
 ) -> ApiResult<Json<Vec<ProjectComponentView>>> {
     let project_id = uuid("id", &id)?;
     Validator::new().not_null("componentIds", &request.component_ids).finish()?;
-    Ok(Json(state.component_catalog.reorder(project_id, request).await?))
+    Ok(Json(state.component_catalog.reorder(project_id, request.into()).await?))
 }
 
 async fn update(State(state): State<ApiState>, Path(id): Path<String>, JsonBody(request): JsonBody<ProjectComponentRequest>) -> ApiResult<Json<ProjectComponentView>> {
-    Ok(Json(state.component_catalog.update(uuid("id", &id)?, request).await?))
+    Ok(Json(state.component_catalog.update(uuid("id", &id)?, request.into()).await?))
 }
 
 async fn delete(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Response> {

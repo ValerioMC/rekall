@@ -659,8 +659,8 @@ rekall-model/      SeaORM entities and their state rules
 rekall-diagram/    the diagram format: Mermaid sheets and their code links, JSON form and validation. No database, no UI
 rekall-repository/ queries, one function per lookup, and the SQLite migrations
 rekall-service/    business logic: context assembly, the step and review lines, flows (routes and visits), wrapups, notes, time entries, token usage
-rekall-console/    the services only the console calls, commands in and views out with no HTTP types; the connections so far
-rekall-api/        Axum REST API for the UI, one folder per domain, with the folder listing and the step event stream
+rekall-console/    the services only the console calls, commands in and views out with no HTTP types: the catalog, notes, tags, connections, graphs, the folder listing
+rekall-api/        Axum REST API for the UI, one folder per domain: controllers, request and response shapes, and the step event stream
 rekall-mcp/        MCP server, on rekall-service and never rekall-api: three tools read, ten write
 rekall-claude/     the in-app terminal (portable-pty over one WebSocket), the Claude Code usage meter, the run queue, the transcript reader for token usage and the editor for Claude Code's own files (`~/.claude`)
 rekall-platform/   the database registry, backups and restores, the restart handle, the release check and the GitHub Advisory Database client
@@ -671,7 +671,7 @@ rekall-ui/         Vue 3 + Vite frontend
 
 Inside a crate the code is laid out by package: a folder per domain (`note/`, `step/`, `catalog/`), the same names in every layer crate, one public type per file named after it (`NoteService` in `note_service.rs`), and a `mod.rs` that only declares the files and re-exports their types. The rules and their exceptions are in [docs/DESIGN.md](docs/DESIGN.md#layout-inside-a-crate).
 
-The crate boundary is what keeps the MCP server off the write paths: `CompanyService`, `ProjectService`, `TaskService` and `DocumentService` live in `rekall-api` and not in `rekall-service` because they write the catalog, and `rekall-mcp` cannot reach them. Read-only services (search, context size) and the narrow writes a session is allowed are in `rekall-service`.
+The crate boundary is what keeps the MCP server off the write paths: `CompanyService`, `ProjectService`, `TaskService` and `DocumentService` live in `rekall-console` and not in `rekall-service` because they write the catalog, and `rekall-mcp` cannot reach them. Read-only services (search, context size) and the narrow writes a session is allowed are in `rekall-service`.
 
 ## Run tests
 

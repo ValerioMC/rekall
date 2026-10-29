@@ -24,21 +24,21 @@ fn validate(request: &ProjectRequest) -> ApiResult<()> {
 }
 
 async fn list(State(state): State<ApiState>) -> ApiResult<Json<Vec<ProjectResponse>>> {
-    Ok(Json(state.projects.list().await?))
+    Ok(Json(state.projects.list().await?.into_iter().map(Into::into).collect()))
 }
 
 async fn get_one(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Json<ProjectResponse>> {
-    Ok(Json(state.projects.get(uuid("id", &id)?).await?))
+    Ok(Json(state.projects.get(uuid("id", &id)?).await?.into()))
 }
 
 /// What the project page's repository strip shows.
 async fn repository(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Json<ProjectRepositoryResponse>> {
-    Ok(Json(state.projects.repository(uuid("id", &id)?).await?))
+    Ok(Json(state.projects.repository(uuid("id", &id)?).await?.into()))
 }
 
 async fn create(State(state): State<ApiState>, JsonBody(request): JsonBody<ProjectRequest>) -> ApiResult<Response> {
     validate(&request)?;
-    Ok(created(state.projects.create(request).await?))
+    Ok(created(ProjectResponse::from(state.projects.create(request.into()).await?)))
 }
 
 async fn update(
@@ -48,7 +48,7 @@ async fn update(
 ) -> ApiResult<Json<ProjectResponse>> {
     let id = uuid("id", &id)?;
     validate(&request)?;
-    Ok(Json(state.projects.update(id, request).await?))
+    Ok(Json(state.projects.update(id, request.into()).await?.into()))
 }
 
 async fn delete(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Response> {

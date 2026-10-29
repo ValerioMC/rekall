@@ -4142,26 +4142,17 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 name = "rekall-api"
 version = "0.1.0"
 dependencies = [
- "async-trait",
  "axum",
- "chrono",
  "futures",
- "http-body-util",
- "image",
  "rekall-common",
  "rekall-console",
  "rekall-model",
- "rekall-repository",
  "rekall-service",
  "rekall-web",
- "sea-orm",
  "serde",
  "serde_json",
- "tempfile",
  "tokio",
  "tokio-stream",
- "tower",
- "tracing",
 ]
 
 [[package]]
@@ -4247,11 +4238,14 @@ dependencies = [
 name = "rekall-console"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
+ "image",
  "rekall-common",
  "rekall-model",
  "rekall-repository",
  "rekall-service",
  "sea-orm",
+ "tempfile",
  "tokio",
  "tracing",
 ]

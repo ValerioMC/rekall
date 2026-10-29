@@ -1,3 +1,4 @@
+use rekall_console::filesystem::DirectoryListingView;
 use serde::Serialize;
 
 use crate::filesystem::DirectoryEntryResponse;
@@ -18,4 +19,18 @@ pub struct DirectoryListingResponse {
     pub entries: Vec<DirectoryEntryResponse>,
     pub readable: bool,
     pub truncated: bool,
+}
+
+impl From<DirectoryListingView> for DirectoryListingResponse {
+    fn from(view: DirectoryListingView) -> Self {
+        Self {
+            path: view.path,
+            parent: view.parent,
+            home: view.home,
+            segments: view.segments.into_iter().map(PathSegmentResponse::from).collect(),
+            entries: view.entries.into_iter().map(DirectoryEntryResponse::from).collect(),
+            readable: view.readable,
+            truncated: view.truncated,
+        }
+    }
 }
