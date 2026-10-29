@@ -67,6 +67,16 @@ async fn with_no_answer_current_falls_back_to_this_processs_environment() {
 }
 
 #[tokio::test]
+async fn once_an_attempt_has_failed_current_no_longer_waits_for_the_next_one() {
+    let dir = tempfile::tempdir().unwrap();
+    let login = LoginShellEnvironment::new(Some(&fake_shell(dir.path(), "sleep 30")), Duration::from_secs(1));
+    login.current().await;
+    let started = Instant::now();
+    assert_eq!(login.current().await, process_environment());
+    assert!(started.elapsed() < Duration::from_millis(500));
+}
+
+#[tokio::test]
 async fn current_hands_back_the_resolved_environment() {
     let dir = tempfile::tempdir().unwrap();
     let login = LoginShellEnvironment::new(Some(&fake_shell(dir.path(), "export FROM_PROFILE=1")), Duration::from_secs(5));

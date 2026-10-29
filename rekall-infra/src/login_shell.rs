@@ -12,6 +12,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
 
@@ -31,6 +32,7 @@ pub struct LoginShellEnvironment {
     timeout: Duration,
     latest: RwLock<Option<Environment>>,
     inflight: Mutex<Option<watch::Receiver<Option<Environment>>>>,
+    attempted: AtomicBool,
 }
 
 impl LoginShellEnvironment {
@@ -40,6 +42,7 @@ impl LoginShellEnvironment {
             timeout,
             latest: RwLock::new(None),
             inflight: Mutex::new(None),
+            attempted: AtomicBool::new(false),
         })
     }
 
@@ -48,12 +51,16 @@ impl LoginShellEnvironment {
         let _ = self.refresh();
     }
 
-    /// The cached login-shell environment, waiting for the first resolution if none has finished.
+    /// The cached login-shell environment. Only a read made before the first attempt has finished
+    /// waits; after a failed attempt it answers at once with this process's environment.
     pub async fn current(self: &Arc<Self>) -> Environment {
         let known = self.latest.read().ok().and_then(|l| l.clone());
         let mut pending = self.refresh();
         if let Some(known) = known {
             return known;
+        }
+        if self.attempted.load(Ordering::SeqCst) {
+            return process_environment();
         }
         let resolved = match pending.wait_for(Option::is_some).await {
             Ok(value) => value.clone(),
@@ -79,6 +86,7 @@ impl LoginShellEnvironment {
                 }
             }
             let known = this.latest.read().ok().and_then(|l| l.clone());
+            this.attempted.store(true, Ordering::SeqCst);
             if let Ok(mut inflight) = this.inflight.lock() {
                 *inflight = None;
             }
