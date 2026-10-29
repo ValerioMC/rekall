@@ -1,5 +1,5 @@
 //! Everything with a process, a file, a socket or an outbound HTTP call behind it. For Claude Code:
-//! the `claude` TUI in a pseudo-terminal per task, piped to the console over one WebSocket; the
+//! the `claude` TUI in a pseudo-terminal per task, reached through `PtyTerminals`; the
 //! account's usage read for the meter; the worker that runs the queue one terminal at a time; the
 //! transcripts read for the tokens each task and step cost; Claude Code's own home folder the
 //! console edits. Around the catalog: which database to open (`bootstrap`), backups and restores,
@@ -23,8 +23,6 @@ pub mod queue;
 pub mod resources;
 pub mod restart;
 pub mod secret;
-pub mod socket;
-pub mod terminal;
 pub mod transcript;
 pub mod usage;
 pub mod version;

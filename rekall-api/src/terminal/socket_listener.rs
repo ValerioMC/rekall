@@ -5,7 +5,7 @@ use axum::extract::ws::Message;
 use serde_json::json;
 use tokio::sync::mpsc;
 
-use crate::pty::Listener;
+use rekall_core::claude::TerminalListener;
 
 use super::outbound::Outbound;
 use super::socket_controller::{NORMAL, SEND_BUFFER_LIMIT_BYTES, SESSION_NOT_RELIABLE};
@@ -32,7 +32,7 @@ impl SocketListener {
     }
 }
 
-impl Listener for SocketListener {
+impl TerminalListener for SocketListener {
     fn output(&self, data: &[u8]) {
         self.queue(Outbound::Frame(Message::Binary(data.to_vec().into())), data.len());
     }

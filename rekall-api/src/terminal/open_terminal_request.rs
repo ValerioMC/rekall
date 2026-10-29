@@ -1,9 +1,11 @@
-use rekall_kernel::{jstr, Id, RekallError};
-use rekall_diagram::DiagramKind;
+use rekall_console::terminal::OpenTerminalCommand;
+use rekall_core::claude::{TerminalMode, TerminalTarget};
 use rekall_core::vulnerability::rules;
+use rekall_diagram::DiagramKind;
+use rekall_kernel::{jstr, Id, RekallError};
 use serde::Deserialize;
 
-use super::{TerminalMode, TerminalModeName};
+use super::TerminalModeName;
 
 /// What the console sends to open a terminal. `stepId`, `model` and `effort` are optional; an
 /// unknown or blank model or effort leaves the account default. A missing `mode` is
@@ -24,6 +26,12 @@ pub struct OpenTerminalRequest {
 }
 
 impl OpenTerminalRequest {
+    /// The command to open a terminal on `target`, once the mode the request names is read.
+    pub fn command(self, target: TerminalTarget) -> Result<OpenTerminalCommand, RekallError> {
+        let mode = self.mode()?;
+        Ok(OpenTerminalCommand { target, step_id: self.step_id, skip_permissions: self.skip_permissions.unwrap_or(false), model: self.model, effort: self.effort, mode })
+    }
+
     pub fn mode(&self) -> Result<TerminalMode, RekallError> {
         match self.mode {
             None | Some(TerminalModeName::Work) => Ok(TerminalMode::Work),
@@ -56,3 +64,7 @@ impl OpenTerminalRequest {
         Ok(kinds)
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/unit/terminal/open_terminal_request_tests.rs"]
+mod tests;

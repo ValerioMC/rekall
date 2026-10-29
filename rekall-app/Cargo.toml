@@ -44,6 +44,7 @@ rekall-store.workspace = true
 image.workspace = true
 reqwest = { workspace = true, features = ["multipart"] }
 tokio-tungstenite = "0.29"
+base64.workspace = true
 
 # Integration suites live in tests/integration and unit tests in tests/unit, so Cargo discovers
 # neither by itself: each suite is declared here, and a suite left out of this list never runs.
@@ -120,3 +121,7 @@ path = "tests/integration/settings_backups.rs"
 [[test]]
 name = "terminal_queue"
 path = "tests/integration/terminal_queue.rs"
+
+[[test]]
+name = "terminal_socket"
+path = "tests/integration/terminal_socket.rs"

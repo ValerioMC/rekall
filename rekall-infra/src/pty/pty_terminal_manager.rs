@@ -21,12 +21,13 @@ use tracing::{info, warn};
 use crate::cli::ClaudeCli;
 use crate::connection::CredentialBroker;
 use crate::config::ClaudeConfig;
-use crate::terminal::TerminalMode;
 
 use super::claude_command::{claude_command, ClaudeOptions};
 use super::pty_process::{kick_resize, spawn_terminal};
 use super::terminal::Terminal;
-use super::{Listener, TerminalEnded, TerminalView};
+use rekall_core::claude::{TerminalListener as Listener, TerminalMode, TerminalView};
+
+use super::TerminalEnded;
 
 const MAX_DIMENSION: i64 = 1000;
 

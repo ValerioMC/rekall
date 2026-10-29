@@ -133,7 +133,7 @@ from its table:
 | `rekall-store` | `rekall-kernel` |
 | `rekall-core` | `rekall-diagram`, `rekall-kernel`, `rekall-store` |
 | `rekall-console` | `rekall-core`, `rekall-kernel`, `rekall-store` |
-| `rekall-api` | `rekall-console`, `rekall-core`, `rekall-kernel`, `rekall-store`, `rekall-web` |
+| `rekall-api` | `rekall-console`, `rekall-core`, `rekall-diagram`, `rekall-kernel`, `rekall-store`, `rekall-web` |
 | `rekall-mcp` | `rekall-core`, `rekall-kernel` |
 | `rekall-infra` | `rekall-core`, `rekall-diagram`, `rekall-kernel`, `rekall-store`, `rekall-web` |
 | `rekall-app` | `rekall-api`, `rekall-core`, `rekall-infra`, `rekall-kernel`, `rekall-mcp`, `rekall-store`, `rekall-web` |
@@ -159,7 +159,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `graph` | `catalog`, `flow`, `step` | - | `catalog`, `flow`, `step`, `task` | `step` | - |
 | `inventory` | `catalog` | `catalog` | - | nothing | `vulnerability` |
 | `note` | `task` | `task` | `catalog` | `catalog` | nothing |
-| `queue` | `task` | `catalog`, `claude`, `task` | - | - | - |
+| `queue` | `task` | `catalog`, `claude`, `task` | nothing | nothing | - |
 | `review` | - | `task`, `timeentry` | - | - | - |
 | `search` | - | `task` | - | nothing | - |
 | `section` | `catalog` | `catalog`, `note` | nothing | nothing | `note` |
@@ -168,6 +168,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `stream` | - | - | - | nothing | - |
 | `tag` | `task` | - | nothing | nothing | - |
 | `task` | `catalog`, `note`, `step`, `tag`, `wrapup` | `step` | - | - | nothing |
+| `terminal` | - | - | `claude` | `claude`, `vulnerability` | - |
 | `timeentry` | `task` | `catalog`, `task` | - | nothing | - |
 | `token` | `step`, `task` | nothing | - | nothing | - |
 | `vulnerability` | `catalog`, `task` | `catalog`, `commit`, `connection`, `inventory` | `catalog`, `step`, `task` | `catalog` | nothing |
@@ -176,7 +177,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 Each crate's foundations are modules every domain may use and are no domain: `ctx`, `events`,
 `load`, `services`, `text_rule` and `tx` in `rekall-core`; `constraints`, `enums`, `prelude`,
 `slug` and `stamped` in `rekall-store`, with `database`, `migration`, `query_support`,
-`stamped_update` and `repository`, whose re-exports the test reads back to their domains; `api_state` and `router` in `rekall-api`; `controller`, `protocol`, `texts`,
+`stamped_update` and `repository`, whose re-exports the test reads back to their domains; `api_ports`, `api_state` and `router` in `rekall-api`; `controller`, `protocol`, `texts`,
 `tool` and `tool_registry` in `rekall-mcp`. A new edge is a design decision: change the table and
 the test together, or change the code.
 
@@ -774,7 +775,7 @@ the OS credential store (`KeychainSecretStore` in `rekall-infra`, over `keyring`
 `rekall-core/src/connection/`. `rekall-app` wraps it in a `RememberingSecretStore`, which reads each account from the keychain
 once and answers later reads from memory until the account is written or removed: the Keychain may
 prompt on every read, and a terminal's helpers read on every `kubectl`, `git` or API call. An edit made
-in Keychain Access is seen after a restart. `rekall-app` builds the store and hands it to `ApiState` and
+in Keychain Access is seen after a restart. `rekall-app` builds the store and hands it to `ApiState` (through `ApiPorts`) and
 `ClaudeState` only: it is not part of `Services`, which is what the MCP tools are built from, and
 `rekall-mcp/tests/integration/credential_isolation.rs` fails if `rekall-mcp` or `Services` ever names
 it or a type that carries a credential. A credential in memory is a `Secret`: it prints as `***`, has
@@ -982,9 +983,15 @@ same binary the same way inherits all of that, where a headless stream-json proc
 into a transcript could not. It is also the only place an interactive permission prompt actually
 renders and can be answered.
 
-The bytes do not go over HTTP. `TerminalController` only opens (`POST
-/api/tasks/{id}/terminals`), lists and closes; once a terminal exists the pane connects to
-`TerminalSocketHandler` at `/api/terminal/{id}/io`, Rekall's one WebSocket. Binary frames are
+The bytes do not go over HTTP. The terminal controller in `rekall-api/src/terminal/` only opens
+(`POST /api/tasks/{id}/terminals`), lists and closes, through `TerminalService` in `rekall-console`;
+once a terminal exists the pane connects to the socket controller beside it at
+`/api/terminal/{id}/io`, Rekall's one WebSocket, which reaches the bytes through
+`TerminalPipeService`. Both services hold a port of `rekall-core` (`TerminalHost`, `TerminalPipe`)
+that `PtyTerminals` in `rekall-infra` implements over `PtyTerminalManager` and `rekall-app` injects
+through `ApiPorts`, so `rekall-api` never names the PTY. The run queue is driven the same way:
+`RunQueueControlService` edits the rows through `RunQueueService` and wakes the worker through the
+`QueueRunner` port, which `RunQueueRunner` implements. Binary frames are
 stdin and stdout, a `{"resize":[cols,rows]}` text frame sets the window size, and a
 `{"type":"ended",...}` frame closes it out. Sends go through one bounded
 queue per socket, so a pane that stops reading is dropped rather than left to back up memory. `useTerminalSocket` is the client half,

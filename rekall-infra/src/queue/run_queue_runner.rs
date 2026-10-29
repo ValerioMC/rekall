@@ -20,7 +20,8 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use rekall_kernel::{RekallError, Result};
+use async_trait::async_trait;
+use rekall_kernel::{Instant, RekallError, Result};
 use rekall_core::claude::TaskWorkService;
 use rekall_core::step::TaskStepService;
 use rekall_core::step::StepStreamEvent;
@@ -30,7 +31,7 @@ use tokio::sync::broadcast::{self, error::RecvError};
 use tokio::sync::{mpsc, oneshot};
 
 use super::run_queue_worker::{Command, Worker, WorkerParts};
-use rekall_core::queue::{RunQueueService, RunQueueView};
+use rekall_core::queue::{QueueRunner, RunQueueService, RunQueueView};
 use crate::pty::{PtyTerminalManager, TerminalEnded};
 use crate::usage::UsageReader;
 
@@ -67,12 +68,6 @@ impl RunQueueRunner {
     }
 
     /// Arm the queue and look at it at once rather than on the next tick.
-    pub async fn start_queue(&self, queue: &RunQueueService, start_at: Option<rekall_kernel::Instant>) -> Result<RunQueueView> {
-        let started = queue.start(start_at).await?;
-        self.nudge();
-        Ok(started)
-    }
-
     /// Disarm the queue, closing the session it has open. Done on the runner, and waited for.
     pub async fn stop(&self) -> Result<RunQueueView> {
         let (reply, answer) = oneshot::channel();
@@ -153,4 +148,21 @@ fn forward_session_ends(commands: mpsc::UnboundedSender<Command>, mut ended: bro
             }
         }
     });
+}
+
+#[async_trait]
+impl QueueRunner for RunQueueRunner {
+    fn nudge(&self) {
+        RunQueueRunner::nudge(self)
+    }
+
+    async fn start(&self, queue: &RunQueueService, start_at: Option<Instant>) -> Result<RunQueueView> {
+        let started = queue.start(start_at).await?;
+        RunQueueRunner::nudge(self);
+        Ok(started)
+    }
+
+    async fn stop(&self) -> Result<RunQueueView> {
+        RunQueueRunner::stop(self).await
+    }
 }

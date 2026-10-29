@@ -9,7 +9,7 @@ use rekall_core::claude::TerminalLaunch;
 use tokio::sync::watch;
 use tracing::debug;
 
-use super::{Listener, TerminalConnectionView, TerminalView};
+use rekall_core::claude::{TerminalConnectionView, TerminalListener as Listener, TerminalView};
 use super::scrollback::Scrollback;
 
 pub(super) struct Terminal {

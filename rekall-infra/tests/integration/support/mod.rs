@@ -11,7 +11,8 @@ use std::time::Duration;
 
 use rekall_infra::cli::{ClaudeCli, EnvironmentSource};
 use rekall_infra::connection::CredentialBroker;
-use rekall_infra::pty::{Listener, PtyTerminalManager};
+use rekall_core::claude::TerminalListener;
+use rekall_infra::pty::PtyTerminalManager;
 use rekall_infra::ClaudeConfig;
 use rekall_kernel::{Id, Instant};
 use rekall_store::{company, project, task, task_step, ProjectStatus, TaskStepState};
@@ -155,7 +156,7 @@ impl Recorder {
     }
 }
 
-impl Listener for Recorder {
+impl TerminalListener for Recorder {
     fn output(&self, data: &[u8]) {
         self.output.lock().unwrap().extend_from_slice(data);
     }

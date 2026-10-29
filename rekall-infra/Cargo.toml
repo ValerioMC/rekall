@@ -51,10 +51,6 @@ name = "run_queue"
 path = "tests/integration/run_queue.rs"
 
 [[test]]
-name = "socket"
-path = "tests/integration/socket.rs"
-
-[[test]]
 name = "credentials"
 path = "tests/integration/credentials.rs"
 

@@ -5,12 +5,12 @@ use axum::extract::DefaultBodyLimit;
 use axum::http::StatusCode;
 use axum::{middleware, Router};
 use rekall_web::error::{framework, render_errors};
-use rekall_api::{ApiState, StepEventStream};
+use rekall_api::{ApiPorts, ApiState, StepEventStream};
 use rekall_infra::cli::ClaudeCli;
 use rekall_infra::connection::CredentialBroker;
 use rekall_infra::credentials::ClaudeCredentials;
 use rekall_infra::login_shell::LoginShellEnvironment;
-use rekall_infra::pty::PtyTerminalManager;
+use rekall_infra::pty::{PtyTerminalManager, PtyTerminals};
 use rekall_core::queue::RunQueueService;
 use rekall_infra::queue::RunQueueRunner;
 use rekall_core::skill::SkillGroupService;
@@ -116,7 +116,6 @@ impl Instance {
             services.exposures.clone(),
             scan_settings.clone(),
         );
-        let api = ApiState::new(services.clone(), stream.clone(), config.user_home.clone(), secrets.clone(), jira_issues, vulnerability_scans.clone(), scan_settings);
         let mcp = rekall_mcp::McpController::new(rekall_mcp::tool_registry::all(&services));
 
         let claude_config = &config.claude;
@@ -162,7 +161,16 @@ impl Instance {
         );
         let resources = ClaudeResourceService::new(claude_config.claude_home.clone());
         let skill_groups = SkillGroupService::new(ctx.clone());
-        let claude = ClaudeState { terminals: terminals.clone(), usage: usage.clone(), queue, runner: runner.clone(), resources, skill_groups, broker };
+        let claude = ClaudeState { usage: usage.clone(), resources, skill_groups, broker };
+        let pty_terminals = Arc::new(PtyTerminals::new(terminals.clone()));
+        let ports = ApiPorts {
+            secrets: secrets.clone(),
+            jira: jira_issues,
+            terminals: pty_terminals.clone(),
+            terminal_pipe: pty_terminals,
+            queue_runner: Arc::new(runner.clone()),
+        };
+        let api = ApiState::new(services.clone(), stream.clone(), config.user_home.clone(), vulnerability_scans.clone(), scan_settings, ports);
 
         let location = database.path.as_deref().and_then(DatabaseLocation::of);
         let backups = DatabaseBackupService::new(

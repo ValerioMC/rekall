@@ -1,7 +1,8 @@
 use rekall_kernel::Id;
 use rekall_store::ConnectionKind;
-use rekall_core::claude::TerminalConnection;
 use serde::Serialize;
+
+use super::TerminalConnection;
 
 /// A connection a terminal's project binds, as the terminal pane names it: never its credential.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]

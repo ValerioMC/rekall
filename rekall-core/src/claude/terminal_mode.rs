@@ -1,5 +1,4 @@
 use rekall_diagram::DiagramKind;
-use serde::Deserialize;
 
 /// Longest request a generate line carries; the rest is cut so the line stays one prompt.
 pub const REQUEST_MAX_CHARACTERS: usize = 2000;
@@ -20,22 +19,6 @@ pub enum TerminalMode {
     Explain { request: String },
     Inventory,
     Assess { advisory: String },
-    AssessAll,
-}
-
-/// The mode's name as the console sends it; a generate request and its kinds travel beside it.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum TerminalModeName {
-    Work,
-    Plan,
-    #[serde(rename = "PLAN_FLOW")]
-    PlanFlow,
-    Generate,
-    Explain,
-    Inventory,
-    Assess,
-    #[serde(rename = "ASSESS_ALL")]
     AssessAll,
 }
 
@@ -99,5 +82,5 @@ impl std::fmt::Display for TerminalMode {
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/terminal/terminal_mode_tests.rs"]
+#[path = "../../tests/unit/claude/terminal_mode_tests.rs"]
 mod tests;

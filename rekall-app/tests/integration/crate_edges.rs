@@ -16,7 +16,7 @@ const ALLOWED: [(&str, &[&str]); 11] = [
     ("rekall-store", &["rekall-kernel"]),
     ("rekall-core", &["rekall-diagram", "rekall-kernel", "rekall-store"]),
     ("rekall-console", &["rekall-core", "rekall-kernel", "rekall-store"]),
-    ("rekall-api", &["rekall-console", "rekall-core", "rekall-kernel", "rekall-store", "rekall-web"]),
+    ("rekall-api", &["rekall-console", "rekall-core", "rekall-diagram", "rekall-kernel", "rekall-store", "rekall-web"]),
     ("rekall-mcp", &["rekall-core", "rekall-kernel"]),
     ("rekall-infra", &["rekall-core", "rekall-diagram", "rekall-kernel", "rekall-store", "rekall-web"]),
     (

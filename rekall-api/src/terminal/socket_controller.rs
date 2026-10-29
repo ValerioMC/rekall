@@ -15,9 +15,9 @@ use serde_json::{json, Value};
 use tokio::sync::mpsc;
 use tracing::debug;
 
-use crate::ClaudeState;
 use super::outbound::Outbound;
 use super::socket_listener::SocketListener;
+use crate::ApiState;
 
 const MAX_BINARY_FRAME_BYTES: usize = 524_288;
 const MAX_TEXT_FRAME_BYTES: usize = 65_536;
@@ -31,7 +31,7 @@ const TOO_BIG: u16 = 1009;
 const SERVER_ERROR: u16 = 1011;
 pub(super) const SESSION_NOT_RELIABLE: u16 = 4500;
 
-pub fn routes() -> Router<ClaudeState> {
+pub fn routes() -> Router<ApiState> {
     Router::new().route("/api/terminal/{id}/io", get(upgrade))
 }
 
@@ -44,7 +44,7 @@ pub fn is_allowed_origin(origin: &str) -> bool {
 }
 
 async fn upgrade(
-    State(state): State<ClaudeState>,
+    State(state): State<ApiState>,
     Path(raw): Path<String>,
     headers: HeaderMap,
     socket: WebSocketUpgrade,
@@ -87,7 +87,7 @@ fn truncate_reason(reason: &str) -> String {
     out
 }
 
-async fn serve(state: ClaudeState, raw: String, mut socket: WebSocket) {
+async fn serve(state: ApiState, raw: String, mut socket: WebSocket) {
     let Some(terminal_id) = terminal_id_of(&raw) else {
         close_with(&mut socket, BAD_DATA, "Malformed terminal path.").await;
         return;
@@ -98,7 +98,7 @@ async fn serve(state: ClaudeState, raw: String, mut socket: WebSocket) {
     let closed = Arc::new(AtomicBool::new(false));
     let listener = Arc::new(SocketListener { sender: sender.clone(), pending: pending.clone(), closed: closed.clone() });
 
-    let (view, token) = match state.terminals.attach(terminal_id, listener.clone()) {
+    let (view, token) = match state.terminal_pipe.attach(terminal_id, listener.clone()) {
         Ok(attached) => attached,
         Err(gone) => {
             close_with(&mut socket, NOT_ACCEPTABLE, gone.message()).await;
@@ -115,7 +115,7 @@ async fn serve(state: ClaudeState, raw: String, mut socket: WebSocket) {
     .to_string();
     let (mut sink, mut stream) = socket.split();
     if sink.send(Message::Text(ready.into())).await.is_err() {
-        state.terminals.detach(terminal_id, token);
+        state.terminal_pipe.detach(terminal_id, token);
         return;
     }
 
@@ -161,7 +161,7 @@ async fn serve(state: ClaudeState, raw: String, mut socket: WebSocket) {
                 }
                 let Ok(node) = serde_json::from_str::<Value>(&text) else { continue };
                 if let Some(resize) = node.get("resize").and_then(Value::as_array).filter(|r| r.len() == 2) {
-                    state.terminals.resize(terminal_id, as_int(&resize[0]), as_int(&resize[1]));
+                    state.terminal_pipe.resize(terminal_id, as_int(&resize[0]), as_int(&resize[1]));
                     continue;
                 }
                 if let Some(input) = node.get("in").and_then(Value::as_str) {
@@ -177,7 +177,7 @@ async fn serve(state: ClaudeState, raw: String, mut socket: WebSocket) {
             break;
         }
     }
-    state.terminals.detach(terminal_id, token);
+    state.terminal_pipe.detach(terminal_id, token);
     drop(sender);
     drop(listener);
     let _ = writer.await;
@@ -193,15 +193,15 @@ fn as_int(value: &Value) -> i64 {
     }
 }
 
-fn feed(state: &ClaudeState, terminal_id: Id, bytes: &[u8], sender: &mpsc::UnboundedSender<Outbound>) {
+fn feed(state: &ApiState, terminal_id: Id, bytes: &[u8], sender: &mpsc::UnboundedSender<Outbound>) {
     if bytes.is_empty() {
         return;
     }
-    if let Err(RekallError::Conflict(reason)) = state.terminals.write(terminal_id, bytes) {
+    if let Err(RekallError::Conflict(reason)) = state.terminal_pipe.write(terminal_id, bytes) {
         let _ = sender.send(Outbound::Close(NORMAL, truncate_reason(&reason)));
     }
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/socket/socket_controller_tests.rs"]
+#[path = "../../tests/unit/terminal/socket_controller_tests.rs"]
 mod tests;

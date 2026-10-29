@@ -11,16 +11,13 @@ use std::net::SocketAddr;
 use std::path::Path;
 use std::process::{Command, Output, Stdio};
 use std::sync::Arc;
-use std::time::Duration;
 
 use axum::http::HeaderMap;
 use axum::routing::get;
 use axum::{Json, Router};
 use rekall_infra::connection::{CredentialBroker, SessionEnvironment};
 use rekall_infra::pty::PtyTerminalManager;
-use rekall_infra::terminal::TerminalMode;
-use rekall_core::queue::RunQueueService;
-use rekall_infra::queue::RunQueueRunner;
+use rekall_core::claude::TerminalMode;
 use rekall_core::skill::SkillGroupService;
 use rekall_infra::resources::ClaudeResourceService;
 use rekall_infra::usage::{ClaudeUsageView, UsageReader};
@@ -87,21 +84,9 @@ async fn serve_terminals(world: &World) -> (Arc<CredentialBroker>, Arc<PtyTermin
     let broker = world.broker(&format!("http://{address}"));
     let terminals = world.terminals_with(8, broker.clone());
     let usage: Arc<dyn UsageReader> = Arc::new(NoUsage);
-    let queue = RunQueueService::new(world.services.ctx.clone());
-    let runner = RunQueueRunner::start(
-        queue.clone(),
-        terminals.clone(),
-        usage.clone(),
-        world.services.task_work.clone(),
-        world.services.steps.clone(),
-        &world.events,
-        rekall_core::system_clock(),
-        Duration::from_secs(60),
-        Duration::from_secs(1),
-    );
     let resources = ClaudeResourceService::new(world.folder.path().join(".claude"));
     let skill_groups = SkillGroupService::new(world.services.ctx.clone());
-    let state = ClaudeState { terminals: terminals.clone(), usage, queue, runner, resources, skill_groups, broker: broker.clone() };
+    let state = ClaudeState { usage, resources, skill_groups, broker: broker.clone() };
     let app = rekall_infra::router(state).into_make_service_with_connect_info::<SocketAddr>();
     tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
     (broker, terminals)

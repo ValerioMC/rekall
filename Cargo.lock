@@ -4143,9 +4143,12 @@ name = "rekall-api"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "base64 0.22.1",
  "futures",
+ "regex",
  "rekall-console",
  "rekall-core",
+ "rekall-diagram",
  "rekall-kernel",
  "rekall-store",
  "rekall-web",
@@ -4153,6 +4156,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tokio-stream",
+ "tracing",
 ]
 
 [[package]]
@@ -4161,6 +4165,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "axum",
+ "base64 0.22.1",
  "chrono",
  "dirs",
  "futures",

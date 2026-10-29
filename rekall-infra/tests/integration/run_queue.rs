@@ -7,7 +7,7 @@ mod support;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use rekall_core::queue::RunQueueService;
+use rekall_core::queue::{QueueRunner, RunQueueService};
 use rekall_infra::queue::RunQueueRunner;
 use rekall_infra::usage::{ClaudeUsageView, Limit, Severity, UsageReader};
 use rekall_kernel::Instant;
@@ -80,7 +80,7 @@ async fn the_queue_runs_each_task_in_turn_and_moves_on_once_its_work_is_claimed(
 
     harness.queue.add(busy.id).await.unwrap();
     harness.queue.add(accepted.id).await.unwrap();
-    let started = harness.runner.start_queue(&harness.queue, None).await.unwrap();
+    let started = harness.runner.start(&harness.queue, None).await.unwrap();
     assert_eq!(started.state, RunQueueState::Running);
 
     eventually("the first task running in a terminal", || async {
@@ -113,7 +113,7 @@ async fn a_session_that_ends_before_claiming_its_work_fails_the_item() {
     let harness = harness(&world, reading(10.0));
 
     harness.queue.add(task.id).await.unwrap();
-    harness.runner.start_queue(&harness.queue, None).await.unwrap();
+    harness.runner.start(&harness.queue, None).await.unwrap();
     eventually("the terminal", || async { harness.terminals.has_live_terminal_for(task.id) }).await;
     let terminal = harness.terminals.list().into_iter().next().unwrap();
     harness.terminals.write(terminal.id, b"exit\n").unwrap();
@@ -135,7 +135,7 @@ async fn usage_at_the_ceiling_holds_the_queue_before_anything_starts() {
 
     harness.queue.update_settings(Some(80), false, None, None).await.unwrap();
     harness.queue.add(task.id).await.unwrap();
-    harness.runner.start_queue(&harness.queue, None).await.unwrap();
+    harness.runner.start(&harness.queue, None).await.unwrap();
 
     eventually("the hold", || async { harness.queue.view().await.unwrap().state == RunQueueState::Holding }).await;
     let view = harness.queue.view().await.unwrap();
@@ -153,7 +153,7 @@ async fn stopping_closes_the_session_and_puts_the_item_back_at_the_head() {
     let harness = harness(&world, reading(10.0));
 
     harness.queue.add(task.id).await.unwrap();
-    harness.runner.start_queue(&harness.queue, None).await.unwrap();
+    harness.runner.start(&harness.queue, None).await.unwrap();
     eventually("the terminal", || async { harness.terminals.has_live_terminal_for(task.id) }).await;
 
     let stopped = harness.runner.stop().await.unwrap();
@@ -165,6 +165,6 @@ async fn stopping_closes_the_session_and_puts_the_item_back_at_the_head() {
     );
     assert_eq!(harness.terminals.live_count(), 0);
 
-    let refused = harness.runner.start_queue(&harness.queue, Some(Instant::now().minus(chrono::TimeDelta::hours(1)))).await;
+    let refused = harness.runner.start(&harness.queue, Some(Instant::now().minus(chrono::TimeDelta::hours(1)))).await;
     assert_eq!(refused.unwrap_err().message(), "That start time has already passed. Pick a later one, or start now.");
 }
