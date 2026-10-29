@@ -1,6 +1,6 @@
 use rekall_common::Id;
 use rekall_console::catalog::TaskCommand;
-use rekall_model::{TaskKind, TaskStatus};
+use rekall_store::{TaskKind, TaskStatus};
 use serde::Deserialize;
 
 #[derive(Clone, Debug, Default, Deserialize)]

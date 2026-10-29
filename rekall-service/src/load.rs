@@ -5,8 +5,8 @@ use std::sync::LazyLock;
 
 use regex::Regex;
 use rekall_common::{jstr, Id, InternalFailure, RekallError, Result};
-use rekall_model::{project, task, task_step, wrapup};
-use rekall_repository::repository as repo;
+use rekall_store::{project, task, task_step, wrapup};
+use rekall_store::repository as repo;
 use sea_orm::ConnectionTrait;
 
 /// The task by id, or `UnknownAnchor`: the MCP tools report a missing task as an anchor that resolves to nothing.
@@ -33,7 +33,7 @@ pub async fn wrapup_of(db: &impl ConnectionTrait, task_id: Id) -> Result<Option<
 /// Whether the task carries its own review line: only while it has no step past `DRAFT`.
 pub async fn review_active(db: &impl ConnectionTrait, task_id: Id) -> Result<bool> {
     let steps = steps_of(db, task_id).await?;
-    Ok(rekall_model::task::review_active(steps.iter().map(|s| &s.state)))
+    Ok(rekall_store::task::review_active(steps.iter().map(|s| &s.state)))
 }
 
 /// How every write path resolves `project:<label> task:<label>`, or a bare task label that has

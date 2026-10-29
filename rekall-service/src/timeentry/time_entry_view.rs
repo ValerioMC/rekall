@@ -1,5 +1,5 @@
 use rekall_common::{Id, Instant, Result};
-use rekall_model::{project, task, time_entry};
+use rekall_store::{project, task, time_entry};
 use serde::Serialize;
 
 use crate::load;

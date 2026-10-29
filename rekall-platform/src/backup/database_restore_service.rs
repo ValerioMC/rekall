@@ -48,7 +48,7 @@ impl DatabaseRestoreService {
         let location = self.require_location()?;
         let staged = location.folder.join(format!("{}{STAGED_SUFFIX}", location.data_file_name));
         extract_database(zip, &location.data_file_name, &staged)?;
-        if let Err(refused) = rekall_repository::check_openable(&staged).await {
+        if let Err(refused) = rekall_store::check_openable(&staged).await {
             delete_quietly(&staged);
             return Err(RekallError::illegal(format!("{refused} Nothing was restored.")));
         }

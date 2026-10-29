@@ -1,5 +1,5 @@
 use rekall_common::Id;
-use rekall_model::ConnectionKind;
+use rekall_store::ConnectionKind;
 use rekall_service::claude::TerminalConnection;
 use serde::Serialize;
 

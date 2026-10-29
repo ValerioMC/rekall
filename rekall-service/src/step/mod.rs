@@ -20,4 +20,4 @@ pub use step_visit_view::StepVisitView;
 pub use task_step_service::{TaskStepService, PROPOSED_DRAFTS_MAX};
 pub use task_step_view::TaskStepView;
 pub use visit_budget::VisitBudget;
-pub use rekall_model::TaskStepState;
+pub use rekall_store::TaskStepState;

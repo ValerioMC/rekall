@@ -4,8 +4,8 @@
 use std::collections::HashSet;
 
 use rekall_common::{jstr, Id, Instant, RekallError, Result};
-use rekall_model::project_dependency::{self, MANIFEST_MAX_CHARACTERS, NAME_MAX_CHARACTERS, VERSION_MAX_CHARACTERS};
-use rekall_model::Ecosystem;
+use rekall_store::project_dependency::{self, MANIFEST_MAX_CHARACTERS, NAME_MAX_CHARACTERS, VERSION_MAX_CHARACTERS};
+use rekall_store::Ecosystem;
 
 use crate::text_rule;
 

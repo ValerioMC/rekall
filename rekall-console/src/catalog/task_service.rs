@@ -3,8 +3,8 @@
 //! its project while tasks belong to it.
 
 use rekall_common::{jstr, Id, RekallError, Result};
-use rekall_model::{project, task, Slug, TaskKind, TaskStatus, TaskStepState};
-use rekall_repository::repository as repo;
+use rekall_store::{project, task, Slug, TaskKind, TaskStatus, TaskStepState};
+use rekall_store::repository as repo;
 use rekall_service::review::TaskReviewService;
 use rekall_service::timeentry::TimeEntryService;
 use rekall_service::{in_read, in_write, Ctx, Tx};

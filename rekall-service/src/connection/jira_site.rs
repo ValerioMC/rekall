@@ -1,4 +1,4 @@
-use rekall_model::external_connection;
+use rekall_store::external_connection;
 
 /// Where a Jira connection's calls go: the site, through the proxy the connection names when its
 /// network reaches the site only that way.

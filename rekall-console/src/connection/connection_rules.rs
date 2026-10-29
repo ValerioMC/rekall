@@ -1,7 +1,7 @@
 //! The rules on what a person types into a connection, shared by the services that write one.
 
 use rekall_common::{jstr, RekallError, Result};
-use rekall_model::{ConnectionKind, Slug};
+use rekall_store::{ConnectionKind, Slug};
 
 pub(super) fn kind_of(raw: Option<&str>) -> Result<ConnectionKind> {
     let raw = raw.map(jstr::strip).unwrap_or("");

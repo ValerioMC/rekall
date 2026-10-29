@@ -4146,8 +4146,8 @@ dependencies = [
  "futures",
  "rekall-common",
  "rekall-console",
- "rekall-model",
  "rekall-service",
+ "rekall-store",
  "rekall-web",
  "serde",
  "serde_json",
@@ -4171,10 +4171,9 @@ dependencies = [
  "rekall-claude",
  "rekall-common",
  "rekall-mcp",
- "rekall-model",
  "rekall-platform",
- "rekall-repository",
  "rekall-service",
+ "rekall-store",
  "rekall-web",
  "reqwest 0.12.28",
  "rust-embed",
@@ -4206,9 +4205,8 @@ dependencies = [
  "regex",
  "rekall-common",
  "rekall-diagram",
- "rekall-model",
- "rekall-repository",
  "rekall-service",
+ "rekall-store",
  "rekall-web",
  "reqwest 0.12.28",
  "sea-orm",
@@ -4241,9 +4239,8 @@ dependencies = [
  "async-trait",
  "image",
  "rekall-common",
- "rekall-model",
- "rekall-repository",
  "rekall-service",
+ "rekall-store",
  "sea-orm",
  "tempfile",
  "tokio",
@@ -4300,17 +4297,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rekall-model"
-version = "0.1.0"
-dependencies = [
- "regex",
- "rekall-common",
- "sea-orm",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "rekall-platform"
 version = "0.1.0"
 dependencies = [
@@ -4322,9 +4308,8 @@ dependencies = [
  "libc",
  "regex",
  "rekall-common",
- "rekall-model",
- "rekall-repository",
  "rekall-service",
+ "rekall-store",
  "rekall-web",
  "reqwest 0.12.28",
  "sea-orm",
@@ -4338,21 +4323,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rekall-repository"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "regex",
- "rekall-common",
- "rekall-model",
- "sea-orm",
- "sea-orm-migration",
- "tempfile",
- "tokio",
- "tracing",
-]
-
-[[package]]
 name = "rekall-service"
 version = "0.1.0"
 dependencies = [
@@ -4362,8 +4332,7 @@ dependencies = [
  "regex",
  "rekall-common",
  "rekall-diagram",
- "rekall-model",
- "rekall-repository",
+ "rekall-store",
  "sea-orm",
  "serde",
  "serde_json",
@@ -4372,6 +4341,22 @@ dependencies = [
  "tokio",
  "tracing",
  "zeroize",
+]
+
+[[package]]
+name = "rekall-store"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "regex",
+ "rekall-common",
+ "sea-orm",
+ "sea-orm-migration",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

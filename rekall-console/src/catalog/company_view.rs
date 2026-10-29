@@ -1,5 +1,5 @@
 use rekall_common::{Id, Instant};
-use rekall_model::company;
+use rekall_store::company;
 
 #[derive(Clone, Debug)]
 pub struct CompanyView {

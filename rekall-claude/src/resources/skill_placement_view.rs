@@ -1,4 +1,4 @@
-use rekall_model::skill_placement::Model;
+use rekall_store::skill_placement::Model;
 use serde::Serialize;
 
 /// One skill and the Rekall-only group it is shown under.

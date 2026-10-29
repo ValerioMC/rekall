@@ -1,6 +1,6 @@
 use rekall_common::{Id, Instant};
 use rekall_console::connection::ProjectConnectionView;
-use rekall_model::ConnectionKind;
+use rekall_store::ConnectionKind;
 use serde::Serialize;
 
 /// A connection a project binds, as the project page shows it.

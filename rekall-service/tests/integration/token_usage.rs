@@ -3,7 +3,7 @@
 
 mod support;
 
-use rekall_model::TaskStepState;
+use rekall_store::TaskStepState;
 use rekall_service::token::{TokenCount, UnitUsage, WorkUnit};
 use rekall_service::token::TokenUsageStreamEvent;
 use support::world;
@@ -105,7 +105,7 @@ async fn deleting_a_step_leaves_its_tokens_on_the_task() {
     let step = world.step(&task, "Draft", 0, TaskStepState::Open).await;
     world.services.token_usage.record_session("s-1", 10, &[spent(None, "report-builder", Some("1"), 5)]).await.unwrap();
 
-    rekall_model::prelude::TaskStep::delete_by_id(step.id).exec(world.db()).await.unwrap();
+    rekall_store::prelude::TaskStep::delete_by_id(step.id).exec(world.db()).await.unwrap();
 
     let tallies = world.services.token_usage.tallies().await.unwrap();
     assert_eq!((tallies[0].task_id, tallies[0].step_id, tallies[0].output_tokens), (task.id, None, 5));

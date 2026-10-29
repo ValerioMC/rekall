@@ -1,4 +1,4 @@
-use rekall_model::ConnectionKind;
+use rekall_store::ConnectionKind;
 use serde::Deserialize;
 
 /// Which helper is asking, which decides the shape of the answer: an `ExecCredential` for kubectl,

@@ -1,5 +1,5 @@
 use rekall_common::{Id, RekallError, Result};
-use rekall_model::TaskStepState;
+use rekall_store::TaskStepState;
 
 use crate::{in_read, load, Ctx};
 

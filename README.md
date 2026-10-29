@@ -572,7 +572,7 @@ Company ──< Project ──< Task >──< Document
 
 `label` is what an anchor resolves: lowercase letters, digits, `-`, `_`, `.`, no spaces, normalised on write. `title` is free text and changing it never breaks an anchor. Renaming a label moves the anchor, and the editor says so before saving.
 
-A project belongs to one company, a task to one project. A note belongs to a scope (a project, a company, or none for global) and sits on any number of that scope's tasks. Deleting a task unlinks its notes; deleting a project or company deletes the notes it owns. A wrapup and a step belong to exactly one task and are deleted with it. Adding an entity is a SeaORM model in `rekall-model` plus a migration in `rekall-repository`, not a UI action.
+A project belongs to one company, a task to one project. A note belongs to a scope (a project, a company, or none for global) and sits on any number of that scope's tasks. Deleting a task unlinks its notes; deleting a project or company deletes the notes it owns. A wrapup and a step belong to exactly one task and are deleted with it. Adding an entity is a SeaORM model and a migration in `rekall-store`, not a UI action.
 
 ## Context size and reference notes
 
@@ -655,9 +655,8 @@ A Cargo workspace, one crate per layer, each depending only on the ones above it
 ```
 rekall-common/     RekallError, Id, Instant and the string helpers every layer shares
 rekall-web/        what the HTTP routers share: the error body, request extractors and response helpers
-rekall-model/      SeaORM entities and their state rules
+rekall-store/      SeaORM entities and their state rules, the queries over them and the SQLite migrations, one folder per domain
 rekall-diagram/    the diagram format: Mermaid sheets and their code links, JSON form and validation. No database, no UI
-rekall-repository/ queries, one function per lookup, and the SQLite migrations
 rekall-service/    business logic: context assembly, the step and review lines, flows (routes and visits), wrapups, notes, time entries, token usage
 rekall-console/    the services only the console calls, commands in and views out with no HTTP types: the catalog, notes, tags, connections, graphs, the folder listing
 rekall-api/        Axum REST API for the UI, one folder per domain: controllers, request and response shapes, and the step event stream

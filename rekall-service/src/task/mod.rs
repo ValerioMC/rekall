@@ -20,4 +20,4 @@ pub use task_authoring_service::TaskAuthoringService;
 pub use task_brief::TaskBrief;
 pub use task_reference_view::TaskReferenceView;
 pub use task_stream_event::TaskStreamEvent;
-pub use rekall_model::TaskKind;
+pub use rekall_store::TaskKind;

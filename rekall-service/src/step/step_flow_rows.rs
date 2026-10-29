@@ -1,6 +1,6 @@
 use rekall_common::{Id, Result};
-use rekall_model::{step_link, step_visit};
-use rekall_repository::repository as repo;
+use rekall_store::{step_link, step_visit};
+use rekall_store::repository as repo;
 use sea_orm::ConnectionTrait;
 
 /// The routes and visits a set of step views is built from, read once rather than per step.

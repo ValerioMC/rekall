@@ -1,6 +1,6 @@
 use rekall_common::{Id, Instant, InternalFailure, RekallError, Result};
 use rekall_diagram::DiagramKind;
-use rekall_model::diagram;
+use rekall_store::diagram;
 use serde::Serialize;
 
 /// A diagram as a list shows it: everything but its sheets, each sheet's type, and whether one of

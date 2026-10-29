@@ -3,7 +3,7 @@ use axum::response::Response;
 use axum::routing::get;
 use axum::{Json, Router};
 use rekall_common::RekallError;
-use rekall_model::WrapupAuthor;
+use rekall_store::WrapupAuthor;
 use rekall_service::wrapup::WrapupView;
 
 use rekall_web::no_content;

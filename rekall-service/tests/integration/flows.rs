@@ -3,7 +3,7 @@
 
 mod support;
 
-use rekall_model::{task, task_step, TaskStepState};
+use rekall_store::{task, task_step, TaskStepState};
 use rekall_service::flow::{FlowPlan, FlowRoute, PlannedRoute, PlannedStep, RouteTarget};
 use rekall_service::step::{FlowPlace, VisitBudget};
 use rekall_service::step::TaskStepView;

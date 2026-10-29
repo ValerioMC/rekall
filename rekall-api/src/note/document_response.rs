@@ -1,7 +1,7 @@
 use rekall_common::{Id, Instant};
 use rekall_console::note::DocumentView;
-use rekall_model::DocumentContextMode;
-use rekall_model::note_scope::NoteScope;
+use rekall_store::DocumentContextMode;
+use rekall_store::note_scope::NoteScope;
 use serde::Serialize;
 
 use crate::catalog::TaskRef;

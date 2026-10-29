@@ -1,7 +1,7 @@
 use std::os::unix::fs::PermissionsExt;
 
 use rekall_common::Instant;
-use rekall_model::{company, connection_access, external_connection};
+use rekall_store::{company, connection_access, external_connection};
 use rekall_service::connection::InMemorySecretStore;
 use rekall_service::{Ctx, EventBus};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
@@ -29,7 +29,7 @@ struct World {
 }
 
 async fn world() -> World {
-    let database = rekall_repository::open_in_memory().await.unwrap();
+    let database = rekall_store::open_in_memory().await.unwrap();
     let ctx = Ctx::new(database.conn.clone(), EventBus::new());
     let now = Instant::now();
     let company = company::Model { id: Id::random(), name: "Acme".into(), description: None, created_at: now, updated_at: now };

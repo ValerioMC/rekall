@@ -1,6 +1,6 @@
 use rekall_common::{Result, RekallError};
-use rekall_model::task;
-use rekall_repository::repository as repo;
+use rekall_store::task;
+use rekall_store::repository as repo;
 
 use super::{EpicJoined, TaskStreamEvent};
 use crate::{in_write, load, Ctx, Tx};

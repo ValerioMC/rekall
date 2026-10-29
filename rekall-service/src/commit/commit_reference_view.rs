@@ -1,7 +1,7 @@
 use rekall_common::{Id, Instant, Result};
-use rekall_model::commit_reference;
-use rekall_model::task_step;
-use rekall_repository::repository as repo;
+use rekall_store::commit_reference;
+use rekall_store::task_step;
+use rekall_store::repository as repo;
 use serde::Serialize;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]

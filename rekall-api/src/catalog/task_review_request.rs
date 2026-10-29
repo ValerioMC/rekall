@@ -1,4 +1,4 @@
-use rekall_model::TaskStepState;
+use rekall_store::TaskStepState;
 use serde::Deserialize;
 
 /// Accept (`DONE`) or send back (`OPEN`) a stepless task; other states are refused.

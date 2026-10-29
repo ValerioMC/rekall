@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use rekall_common::{Id, RekallError, Result};
-use rekall_model::ConnectionKind;
+use rekall_store::ConnectionKind;
 use rekall_service::connection::{JiraCredential, JiraFailure, JiraIssue, JiraIssues, JiraSite, SecretStore};
 use rekall_service::{in_write, Ctx};
 

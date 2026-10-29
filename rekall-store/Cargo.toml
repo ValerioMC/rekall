@@ -1,0 +1,38 @@
+[package]
+name = "rekall-store"
+description = "The entities and their state rules, the SQLite connection, the migrations and the queries, one folder per domain"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+rekall-common.workspace = true
+sea-orm.workspace = true
+sea-orm-migration.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+regex.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+async-trait.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+# Integration suites live in tests/integration and unit tests in tests/unit, so Cargo discovers
+# neither by itself: each suite is declared here, and a suite left out of this list never runs.
+
+[[test]]
+name = "migrations"
+path = "tests/integration/migrations.rs"
+
+[[test]]
+name = "stamped_update"
+path = "tests/integration/stamped_update.rs"
+
+[[test]]
+name = "queries"
+path = "tests/integration/queries.rs"
+
+[[test]]
+name = "connections"
+path = "tests/integration/connections.rs"

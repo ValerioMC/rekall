@@ -1,4 +1,4 @@
-use rekall_model::WrapupAuthor;
+use rekall_store::WrapupAuthor;
 
 use super::WrapupView;
 

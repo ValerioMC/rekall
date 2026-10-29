@@ -1,6 +1,6 @@
 use rekall_common::Id;
 use rekall_console::catalog::ProjectCommand;
-use rekall_model::ProjectStatus;
+use rekall_store::ProjectStatus;
 use serde::Deserialize;
 
 #[derive(Clone, Debug, Default, Deserialize)]

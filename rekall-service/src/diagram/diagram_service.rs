@@ -2,8 +2,8 @@ use std::path::{Path, PathBuf};
 
 use rekall_common::{jstr, Id, InternalFailure, RekallError, Result};
 use rekall_diagram::{DiagramDocument, DocumentCodec, DocumentValidator};
-use rekall_model::{diagram, project, task};
-use rekall_repository::repository as repo;
+use rekall_store::{diagram, project, task};
+use rekall_store::repository as repo;
 use sea_orm::{ActiveModelTrait, ConnectionTrait, IntoActiveModel};
 
 use crate::{in_read, in_write, load, Ctx};

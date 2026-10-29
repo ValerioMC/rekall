@@ -1,7 +1,7 @@
 use rekall_common::{Id, Instant, Result};
-use rekall_model::step_pass::StepPass;
-use rekall_model::task_step;
-use rekall_model::TaskStepState;
+use rekall_store::step_pass::StepPass;
+use rekall_store::task_step;
+use rekall_store::TaskStepState;
 use serde::Serialize;
 
 use super::{StepFlowRows, StepLinkView, StepVisitView};

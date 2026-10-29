@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use rekall_common::{Id, RekallError, Result};
-use rekall_repository::repository as repo;
+use rekall_store::repository as repo;
 use rekall_service::{in_read, Ctx};
 
 use super::{ConnectionAccessPageCommand, ConnectionAccessView};

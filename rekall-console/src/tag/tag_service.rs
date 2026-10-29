@@ -1,8 +1,8 @@
 //! The badges a task can carry.
 
 use rekall_common::{jstr, Id, RekallError, Result};
-use rekall_model::tag;
-use rekall_repository::repository as repo;
+use rekall_store::tag;
+use rekall_store::repository as repo;
 use rekall_service::{in_read, in_write, Ctx, Tx};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 

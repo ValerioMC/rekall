@@ -13,7 +13,7 @@ path = "src/main.rs"
 
 [dependencies]
 rekall-common.workspace = true
-rekall-repository.workspace = true
+rekall-store.workspace = true
 rekall-service.workspace = true
 rekall-api.workspace = true
 rekall-web.workspace = true
@@ -41,8 +41,8 @@ mime_guess = "2"
 socket2 = { version = "0.5", features = ["all"] }
 
 [dev-dependencies]
+rekall-store.workspace = true
 image.workspace = true
-rekall-model.workspace = true
 reqwest = { workspace = true, features = ["multipart"] }
 tokio-tungstenite = "0.29"
 

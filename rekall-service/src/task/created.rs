@@ -1,4 +1,4 @@
-use rekall_model::TaskKind;
+use rekall_store::TaskKind;
 
 /// What a creation came to: the task, where it landed and how many drafts it carries.
 #[derive(Clone, Debug)]

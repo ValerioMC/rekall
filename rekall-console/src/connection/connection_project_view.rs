@@ -1,5 +1,5 @@
 use rekall_common::Id;
-use rekall_model::{project, project_connection};
+use rekall_store::{project, project_connection};
 
 /// A project that binds a connection, and what it uses it for: once per binding, since a project
 /// may bind one connection for several targets.

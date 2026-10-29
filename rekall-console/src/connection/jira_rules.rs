@@ -2,7 +2,7 @@
 //! as. An issue is imported once: its task is labelled with the issue key.
 
 use rekall_common::{Id, RekallError, Result};
-use rekall_model::Slug;
+use rekall_store::Slug;
 use rekall_service::connection::JiraIssue;
 
 use crate::catalog::TaskCommand;

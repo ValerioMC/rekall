@@ -1,5 +1,5 @@
 use rekall_common::{Id, Instant};
-use rekall_model::{project, run_queue_item, task, RunQueueItemState};
+use rekall_store::{project, run_queue_item, task, RunQueueItemState};
 use serde::Serialize;
 
 /// One queued task, with enough of the task to name it without a second request.

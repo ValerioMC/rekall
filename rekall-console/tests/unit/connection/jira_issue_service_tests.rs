@@ -2,7 +2,7 @@ use std::sync::Mutex;
 
 use async_trait::async_trait;
 use rekall_common::Instant;
-use rekall_model::{company, external_connection, project, project_connection, ProjectStatus};
+use rekall_store::{company, external_connection, project, project_connection, ProjectStatus};
 use rekall_service::connection::{InMemorySecretStore, Secret};
 use rekall_service::{EventBus, Services};
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
@@ -40,7 +40,7 @@ fn issue(key: &str, summary: &str) -> JiraIssue {
 }
 
 async fn world(kind: ConnectionKind, target: Option<&str>, failure: Option<JiraFailure>) -> World {
-    let database = rekall_repository::open_in_memory().await.unwrap();
+    let database = rekall_store::open_in_memory().await.unwrap();
     let ctx = Ctx::new(database.conn.clone(), EventBus::new());
     let now = Instant::now();
     let company = company::Model { id: Id::random(), name: "Acme".into(), description: None, created_at: now, updated_at: now };

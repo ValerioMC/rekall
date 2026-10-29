@@ -1,7 +1,7 @@
 use rekall_common::{Id, RekallError, Result};
-use rekall_model::wrapup::{self, MAX_CHARACTERS};
-use rekall_model::{task, WrapupAuthor};
-use rekall_repository::repository as repo;
+use rekall_store::wrapup::{self, MAX_CHARACTERS};
+use rekall_store::{task, WrapupAuthor};
+use rekall_store::repository as repo;
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
 use crate::review::TaskReviewService;

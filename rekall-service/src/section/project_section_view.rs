@@ -1,5 +1,5 @@
 use rekall_common::{Id, Instant};
-use rekall_model::project_section;
+use rekall_store::project_section;
 use serde::Serialize;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]

@@ -1,8 +1,8 @@
 use rekall_common::{jstr, Id, RekallError, Result};
-use rekall_model::task_step::{self, MAX_CHARACTERS, TITLE_MAX_CHARACTERS};
-use rekall_model::TaskStepState;
-use rekall_repository::repository as repo;
-use rekall_model::task;
+use rekall_store::task_step::{self, MAX_CHARACTERS, TITLE_MAX_CHARACTERS};
+use rekall_store::TaskStepState;
+use rekall_store::repository as repo;
+use rekall_store::task;
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
 use super::{FlowPlace, StepFlowRows, StepStreamEvent, TaskStepView, VisitBudget};

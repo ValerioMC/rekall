@@ -1,9 +1,9 @@
 //! Notes: written, scoped, attached to and detached from tasks, and deleted, from the console.
 
 use rekall_common::{Id, RekallError, Result};
-use rekall_model::note_scope::NoteScope;
-use rekall_model::{document, document_task, DocumentContextMode};
-use rekall_repository::repository as repo;
+use rekall_store::note_scope::NoteScope;
+use rekall_store::{document, document_task, DocumentContextMode};
+use rekall_store::repository as repo;
 use rekall_service::{in_read, in_write, Ctx, Tx};
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, IntoActiveModel, QueryFilter};
 

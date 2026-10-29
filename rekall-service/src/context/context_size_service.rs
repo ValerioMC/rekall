@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use rekall_common::{jstr, Id, Result};
-use rekall_model::DocumentContextMode;
+use rekall_store::DocumentContextMode;
 
 use super::{ContextRenderer, ContextService};
 use crate::component::ComponentReferences;

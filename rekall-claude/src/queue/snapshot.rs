@@ -1,5 +1,5 @@
 use rekall_common::Instant;
-use rekall_model::RunQueueState;
+use rekall_store::RunQueueState;
 
 /// Settings and state as the runner reads them at a decision.
 #[derive(Clone, Debug, PartialEq, Eq)]

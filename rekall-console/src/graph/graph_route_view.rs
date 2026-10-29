@@ -1,5 +1,5 @@
 use rekall_common::Id;
-use rekall_model::graph_route;
+use rekall_store::graph_route;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GraphRouteView {

@@ -5,9 +5,9 @@ use std::sync::LazyLock;
 
 use regex::Regex;
 use rekall_common::{jstr, Id, InternalFailure, RekallError, Result};
-use rekall_model::document::ANCHOR_ID_LENGTH;
-use rekall_model::{company, project, task, TaskStatus, TaskStepState};
-use rekall_repository::repository as repo;
+use rekall_store::document::ANCHOR_ID_LENGTH;
+use rekall_store::{company, project, task, TaskStatus, TaskStepState};
+use rekall_store::repository as repo;
 
 use super::{ContextCommitView, ContextRecord, ContextSkillScope, ContextSkillView, DocumentView, StepConnectionView};
 use crate::component::{referenced_task_labels, ProjectComponentView};
@@ -354,7 +354,7 @@ impl ContextService {
         Ok(found)
     }
 
-    async fn tag_of(&self, tx: &Tx, task: &task::Model) -> Result<Option<rekall_model::tag::Model>> {
+    async fn tag_of(&self, tx: &Tx, task: &task::Model) -> Result<Option<rekall_store::tag::Model>> {
         match task.tag_id {
             Some(tag_id) => repo::tag::find_by_id(tx.db(), tag_id).await,
             None => Ok(None),

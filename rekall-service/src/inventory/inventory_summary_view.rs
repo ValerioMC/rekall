@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use rekall_common::{Id, Instant};
-use rekall_model::{project_dependency, Ecosystem};
+use rekall_store::{project_dependency, Ecosystem};
 use serde::Serialize;
 
 /// A project's inventory at a glance: how many dependencies, per ecosystem, when it was recorded,

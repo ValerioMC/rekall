@@ -1,5 +1,5 @@
 use rekall_common::Id;
-use rekall_model::tag_skill;
+use rekall_store::tag_skill;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TagSkillView {

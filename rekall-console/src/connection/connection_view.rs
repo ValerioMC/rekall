@@ -1,5 +1,5 @@
 use rekall_common::{Id, Instant};
-use rekall_model::{external_connection, ConnectionKind};
+use rekall_store::{external_connection, ConnectionKind};
 
 /// A connection as the console shows it. Never the credential: only when one was stored.
 #[derive(Clone, Debug)]

@@ -1,6 +1,6 @@
 use rekall_common::Id;
-use rekall_model::DocumentContextMode;
-use rekall_model::note_scope::NoteScope;
+use rekall_store::DocumentContextMode;
+use rekall_store::note_scope::NoteScope;
 
 /// `contextMode` left out keeps what the note had, or `FULL` for a new one. `scope` left out
 /// keeps the note's, or for a new one takes the narrowest its tasks share.

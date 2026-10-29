@@ -1,5 +1,5 @@
 use rekall_common::Id;
-use rekall_model::{external_connection, project_connection, ConnectionKind};
+use rekall_store::{external_connection, project_connection, ConnectionKind};
 
 /// A connection the terminal's project binds, as the terminal's credential helpers need it: which
 /// keychain account to ask, and where a GitLab push goes. Never the credential itself.

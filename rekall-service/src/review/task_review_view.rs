@@ -1,6 +1,6 @@
 use rekall_common::{Id, Instant};
-use rekall_model::task;
-use rekall_model::TaskStepState;
+use rekall_store::task;
+use rekall_store::TaskStepState;
 use serde::Serialize;
 
 /// The review line as the console reads it. `review_active` is false once the task has a

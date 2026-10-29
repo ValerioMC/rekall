@@ -1,6 +1,6 @@
 use rekall_common::{RekallError, Result};
-use rekall_model::skill_placement::Model;
-use rekall_repository::repository as repo;
+use rekall_store::skill_placement::Model;
+use rekall_store::repository as repo;
 use rekall_service::{in_read, in_write, Ctx};
 
 use super::{ResourceKind, ResourcePath, SkillPlacementView};

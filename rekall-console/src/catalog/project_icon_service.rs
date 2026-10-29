@@ -2,8 +2,8 @@
 //! request. Console-only, like the catalog it decorates.
 
 use rekall_common::{Id, RekallError, Result};
-use rekall_model::project_icon_image;
-use rekall_repository::repository as repo;
+use rekall_store::project_icon_image;
+use rekall_store::repository as repo;
 use rekall_service::{in_read, in_write, Ctx};
 use sea_orm::sea_query::OnConflict;
 use sea_orm::{EntityTrait, Set};

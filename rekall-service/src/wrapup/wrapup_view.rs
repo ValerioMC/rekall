@@ -1,6 +1,6 @@
 use rekall_common::{Id, Instant, Result};
-use rekall_model::wrapup;
-use rekall_model::{project, task, WrapupAuthor};
+use rekall_store::wrapup;
+use rekall_store::{project, task, WrapupAuthor};
 use serde::Serialize;
 
 use crate::load;

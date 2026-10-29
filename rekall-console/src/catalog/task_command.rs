@@ -1,5 +1,5 @@
 use rekall_common::Id;
-use rekall_model::{TaskKind, TaskStatus};
+use rekall_store::{TaskKind, TaskStatus};
 
 #[derive(Clone, Debug, Default)]
 pub struct TaskCommand {

@@ -7,7 +7,7 @@ use std::path::Path;
 
 use chrono::{DateTime, Utc};
 use rekall_common::{jstr, Instant};
-use rekall_model::project_dependency;
+use rekall_store::project_dependency;
 
 /// The manifests of `rows` whose file in `folder` was modified after `recorded_at`, or is gone; none
 /// without a folder, since then nothing can be read.

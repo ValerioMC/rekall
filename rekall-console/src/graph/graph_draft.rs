@@ -4,7 +4,7 @@
 use std::collections::HashMap;
 
 use rekall_common::{jstr, Id, RekallError, Result};
-use rekall_model::step_link;
+use rekall_store::step_link;
 use rekall_service::flow::{FlowPlan, PlannedRoute, PlannedStep};
 use rekall_service::step::{FlowPlace, VisitBudget};
 

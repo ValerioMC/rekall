@@ -3,7 +3,7 @@
 
 use std::path::{Component, Path, PathBuf};
 
-use rekall_repository::DATA_FILE_NAME;
+use rekall_store::DATA_FILE_NAME;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Inspection {

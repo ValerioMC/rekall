@@ -1,8 +1,8 @@
 //! What every writer of a section holds to, so a session and the console refuse the same things.
 
 use rekall_common::{jstr, Id, RekallError, Result};
-use rekall_model::project_section::{self, BODY_MAX_CHARACTERS, TITLE_MAX_CHARACTERS};
-use rekall_repository::repository as repo;
+use rekall_store::project_section::{self, BODY_MAX_CHARACTERS, TITLE_MAX_CHARACTERS};
+use rekall_store::repository as repo;
 use sea_orm::ConnectionTrait;
 
 use crate::text_rule;

@@ -16,7 +16,7 @@ use rekall_claude::resources::{ClaudeResourceService, SkillGroupService};
 use rekall_claude::transcript::{TranscriptFolder, TranscriptScanner};
 use rekall_claude::usage::{ClaudeUsageService, UsageReader};
 use rekall_claude::ClaudeState;
-use rekall_repository::Database;
+use rekall_store::Database;
 use rekall_service::connection::{ConnectionAccessService, JiraIssues, RememberingSecretStore, SecretStore};
 use rekall_service::timeentry::IDLE_AFTER;
 use rekall_service::vulnerability::{AdvisoryFeed, ScanSettingsService, VulnerabilityScanService};

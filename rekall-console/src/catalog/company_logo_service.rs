@@ -2,7 +2,7 @@
 //! request. Console-only, like the catalog it decorates.
 
 use rekall_common::{Id, RekallError, Result};
-use rekall_repository::repository as repo;
+use rekall_store::repository as repo;
 use rekall_service::{in_read, in_write, Ctx};
 
 use super::icon_raster;

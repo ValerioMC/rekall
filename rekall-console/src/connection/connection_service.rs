@@ -4,8 +4,8 @@
 use std::sync::Arc;
 
 use rekall_common::{Id, RekallError, Result};
-use rekall_model::external_connection;
-use rekall_repository::repository as repo;
+use rekall_store::external_connection;
+use rekall_store::repository as repo;
 use rekall_service::connection::{ConnectionStreamEvent, SecretStore};
 use rekall_service::{in_read, in_write, Ctx, Tx};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};

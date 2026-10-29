@@ -4,7 +4,7 @@
 use std::collections::HashMap;
 
 use rekall_common::{Id, Result};
-use rekall_model::{deployment_graph, graph_route, graph_step};
+use rekall_store::{deployment_graph, graph_route, graph_step};
 use rekall_service::flow::{FlowPlan, PlannedRoute, PlannedStep};
 use rekall_service::step::VisitBudget;
 

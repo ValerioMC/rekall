@@ -1,5 +1,5 @@
 use rekall_common::{Id, Instant};
-use rekall_model::deployment_graph;
+use rekall_store::deployment_graph;
 
 use super::GraphStepView;
 

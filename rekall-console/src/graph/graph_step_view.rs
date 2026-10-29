@@ -1,5 +1,5 @@
 use rekall_common::Id;
-use rekall_model::{graph_route, graph_step};
+use rekall_store::{graph_route, graph_step};
 
 use super::GraphRouteView;
 

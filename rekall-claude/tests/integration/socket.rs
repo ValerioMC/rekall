@@ -11,7 +11,7 @@ use rekall_claude::queue::{RunQueueRunner, RunQueueService};
 use rekall_claude::resources::ClaudeResourceService;
 use rekall_claude::usage::{ClaudeUsageView, UsageReader};
 use rekall_claude::ClaudeState;
-use rekall_model::TaskStepState;
+use rekall_store::TaskStepState;
 use serde_json::Value;
 use support::{world, World};
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;

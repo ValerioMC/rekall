@@ -6,8 +6,7 @@ edition.workspace = true
 
 [dependencies]
 rekall-common.workspace = true
-rekall-model.workspace = true
-rekall-repository.workspace = true
+rekall-store.workspace = true
 rekall-service.workspace = true
 sea-orm.workspace = true
 image.workspace = true

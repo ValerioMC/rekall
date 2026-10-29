@@ -1,4 +1,4 @@
-use rekall_model::{company, project, tag, task, task_step};
+use rekall_store::{company, project, tag, task, task_step};
 
 /// Everything a task row is built from.
 pub struct TaskGraph<'a> {

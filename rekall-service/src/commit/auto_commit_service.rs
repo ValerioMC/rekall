@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use rekall_common::{Id, RekallError, Result};
-use rekall_model::{project, task, task_step};
-use rekall_repository::repository as repo;
+use rekall_store::{project, task, task_step};
+use rekall_store::repository as repo;
 use tracing::{info, warn};
 
 use super::git::{display_path, GitCommitter, GitRepositoryInspector};

@@ -1,5 +1,5 @@
 use rekall_common::Id;
-use rekall_model::ProjectStatus;
+use rekall_store::ProjectStatus;
 
 #[derive(Clone, Debug, Default)]
 pub struct ProjectCommand {

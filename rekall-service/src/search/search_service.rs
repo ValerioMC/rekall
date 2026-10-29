@@ -1,6 +1,6 @@
 use rekall_common::{jstr, RekallError, Result};
-use rekall_model::task;
-use rekall_repository::repository as repo;
+use rekall_store::task;
+use rekall_store::repository as repo;
 
 use crate::{in_read, load, Ctx, Tx};
 

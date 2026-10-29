@@ -1,6 +1,6 @@
 use rekall_common::{jstr, Id, RekallError, Result};
-use rekall_model::{project, project_section};
-use rekall_repository::repository as repo;
+use rekall_store::{project, project_section};
+use rekall_store::repository as repo;
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
 
 use crate::note::OnTitleClash;

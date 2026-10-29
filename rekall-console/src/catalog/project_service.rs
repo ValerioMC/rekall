@@ -2,8 +2,8 @@
 //! folder a project points at. Deleting one cascades to its tasks.
 
 use rekall_common::{jstr, Id, RekallError, Result};
-use rekall_model::{company, project, ProjectStatus, Slug};
-use rekall_repository::repository as repo;
+use rekall_store::{company, project, ProjectStatus, Slug};
+use rekall_store::repository as repo;
 use rekall_service::commit::GitRepositoryInspector;
 use rekall_service::{in_read, in_write, Ctx, Tx};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};

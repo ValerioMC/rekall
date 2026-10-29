@@ -1,7 +1,7 @@
 use std::fs;
 
 use rekall_common::{Id, Instant};
-use rekall_model::{company, project, task, ProjectStatus};
+use rekall_store::{company, project, task, ProjectStatus};
 use rekall_service::{Ctx, EventBus, Services};
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
 
@@ -14,8 +14,8 @@ const SESSION: &str = concat!(
     "\n"
 );
 
-async fn services_with_project(folder: &Path) -> (rekall_repository::Database, Services) {
-    let database = rekall_repository::open_temporary().await.unwrap();
+async fn services_with_project(folder: &Path) -> (rekall_store::Database, Services) {
+    let database = rekall_store::open_temporary().await.unwrap();
     let services = Services::new(Ctx::new(database.conn.clone(), EventBus::new()));
     let now = Instant::now();
     let company = company::Model { id: Id::random(), name: "Acme".into(), description: None, created_at: now, updated_at: now };

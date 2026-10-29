@@ -1,6 +1,6 @@
 use rekall_common::{Id, Instant};
 use rekall_console::catalog::ProjectView;
-use rekall_model::ProjectStatus;
+use rekall_store::ProjectStatus;
 use serde::Serialize;
 
 #[derive(Clone, Debug, Serialize)]

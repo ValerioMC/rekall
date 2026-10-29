@@ -3,7 +3,7 @@
 use std::collections::HashSet;
 
 use rekall_common::jstr;
-use rekall_model::{ConnectionKind, DocumentContextMode, TaskStepState};
+use rekall_store::{ConnectionKind, DocumentContextMode, TaskStepState};
 
 use super::{ContextCommitView, ContextRecord, ContextSkillScope, ContextSkillView, DocumentView, StepConnectionView};
 use crate::component::{ComponentReferences, ProjectComponentView};

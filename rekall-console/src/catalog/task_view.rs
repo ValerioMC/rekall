@@ -1,5 +1,5 @@
 use rekall_common::{Id, Instant};
-use rekall_model::{TaskKind, TaskStatus, TaskStepState};
+use rekall_store::{TaskKind, TaskStatus, TaskStepState};
 
 use crate::catalog::TaskGraph;
 
@@ -58,7 +58,7 @@ impl TaskView {
             draft_step_count: graph.steps.iter().filter(|s| s.state.draft()).count(),
             has_wrapup: graph.has_wrapup,
             review_state: task.review_state,
-            review_active: rekall_model::task::review_active(graph.steps.iter().map(|s| &s.state)),
+            review_active: rekall_store::task::review_active(graph.steps.iter().map(|s| &s.state)),
             claimed_at: task.claimed_at,
             accepted_at: task.accepted_at,
             review_note: task.review_note.clone(),

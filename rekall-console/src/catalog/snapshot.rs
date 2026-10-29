@@ -5,9 +5,9 @@
 use std::collections::{HashMap, HashSet};
 
 use rekall_common::{Id, Instant, InternalFailure, RekallError, Result};
-use rekall_model::prelude::*;
-use rekall_model::{company, document_task, project, tag, task, task_step, wrapup};
-use rekall_repository::repository as repo;
+use rekall_store::prelude::*;
+use rekall_store::{company, document_task, project, tag, task, task_step, wrapup};
+use rekall_store::repository as repo;
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QueryOrder, QuerySelect};
 
 use crate::catalog::{CompanyView, ProjectView, TaskGraph, TaskRefView, TaskView};

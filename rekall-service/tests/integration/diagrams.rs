@@ -6,7 +6,7 @@ mod support;
 
 use rekall_common::RekallError;
 use rekall_diagram::DiagramKind;
-use rekall_model::prelude::*;
+use rekall_store::prelude::*;
 use rekall_service::diagram::{DiagramDraft, DiagramService, DiagramTarget, GeneratedDiagram};
 use rekall_service::diagram::DiagramStreamEvent;
 use sea_orm::EntityTrait;

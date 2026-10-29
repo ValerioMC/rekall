@@ -1,5 +1,5 @@
 use rekall_common::{Id, Instant};
-use rekall_model::{connection_access, task};
+use rekall_store::{connection_access, task};
 
 /// One request a terminal made for the credential: when, from which terminal and task, and whether it was handed out.
 #[derive(Clone, Debug)]

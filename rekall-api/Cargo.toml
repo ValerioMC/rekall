@@ -6,9 +6,9 @@ edition.workspace = true
 
 [dependencies]
 rekall-common.workspace = true
+rekall-store.workspace = true
 rekall-console.workspace = true
 rekall-web.workspace = true
-rekall-model.workspace = true
 rekall-service.workspace = true
 serde.workspace = true
 serde_json.workspace = true

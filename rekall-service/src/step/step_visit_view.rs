@@ -1,5 +1,5 @@
 use rekall_common::{Id, Instant};
-use rekall_model::step_visit;
+use rekall_store::step_visit;
 use serde::Serialize;
 
 /// One entry of the flow into a step; `ordinal` is its move number across the whole task.

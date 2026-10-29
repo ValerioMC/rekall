@@ -2,8 +2,8 @@
 //! projects and their tasks.
 
 use rekall_common::{Id, RekallError, Result};
-use rekall_model::company;
-use rekall_repository::repository as repo;
+use rekall_store::company;
+use rekall_store::repository as repo;
 use rekall_service::{in_read, in_write, Ctx, Tx};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 

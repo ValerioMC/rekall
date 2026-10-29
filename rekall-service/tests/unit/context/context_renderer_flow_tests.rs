@@ -1,7 +1,7 @@
 use rekall_common::{Id, Instant};
-use rekall_model::step_link;
-use rekall_model::step_visit;
-use rekall_model::task_step;
+use rekall_store::step_link;
+use rekall_store::step_visit;
+use rekall_store::task_step;
 
 use super::*;
 use crate::step::StepFlowRows;

@@ -15,15 +15,18 @@ struct LayeredCrate {
     folder: &'static str,
     domain_root: &'static [&'static str],
     foundations: &'static [&'static str],
+    /// Modules that re-export each domain's items under another name, as `repository::task` does.
+    facades: &'static [&'static str],
     allowed: Edges,
     /// False for the entities alone, whose SeaORM relations are declared from both ends.
     refuses_mutual_use: bool,
 }
 
-const MODEL: LayeredCrate = LayeredCrate {
-    folder: "rekall-model",
+const STORE: LayeredCrate = LayeredCrate {
+    folder: "rekall-store",
     domain_root: &[],
-    foundations: &["constraints", "enums", "prelude", "slug", "stamped"],
+    foundations: &["constraints", "database", "enums", "migration", "prelude", "query_support", "repository", "slug", "stamped", "stamped_update"],
+    facades: &["repository"],
     allowed: &[
         ("catalog", &["task"]),
         ("commit", &["step", "task"]),
@@ -48,38 +51,11 @@ const MODEL: LayeredCrate = LayeredCrate {
     refuses_mutual_use: false,
 };
 
-const REPOSITORY: LayeredCrate = LayeredCrate {
-    folder: "rekall-repository",
-    domain_root: &["repository"],
-    foundations: &["query_support", "stamped_update"],
-    allowed: &[
-        ("catalog", &[]),
-        ("commit", &[]),
-        ("component", &[]),
-        ("connection", &["catalog"]),
-        ("diagram", &[]),
-        ("flow", &[]),
-        ("graph", &[]),
-        ("inventory", &[]),
-        ("note", &["task"]),
-        ("queue", &[]),
-        ("section", &[]),
-        ("skill", &[]),
-        ("step", &[]),
-        ("tag", &[]),
-        ("task", &["catalog"]),
-        ("timeentry", &[]),
-        ("token", &[]),
-        ("vulnerability", &[]),
-        ("wrapup", &[]),
-    ],
-    refuses_mutual_use: true,
-};
-
 const SERVICE: LayeredCrate = LayeredCrate {
     folder: "rekall-service",
     domain_root: &[],
     foundations: &["ctx", "events", "load", "services", "text_rule", "tx"],
+    facades: &[],
     allowed: &[
         ("claude", &["catalog", "connection", "task"]),
         ("commit", &["catalog", "step", "task"]),
@@ -107,6 +83,7 @@ const CONSOLE: LayeredCrate = LayeredCrate {
     folder: "rekall-console",
     domain_root: &[],
     foundations: &[],
+    facades: &[],
     allowed: &[
         ("catalog", &["commit", "note", "review", "step", "tag", "task", "timeentry", "wrapup"]),
         ("component", &[]),
@@ -127,6 +104,7 @@ const API: LayeredCrate = LayeredCrate {
     folder: "rekall-api",
     domain_root: &[],
     foundations: &["api_state", "router"],
+    facades: &[],
     allowed: &[
         ("catalog", &[]),
         ("commit", &[]),
@@ -157,6 +135,7 @@ const MCP: LayeredCrate = LayeredCrate {
     folder: "rekall-mcp",
     domain_root: &[],
     foundations: &["controller", "protocol", "texts", "tool", "tool_registry"],
+    facades: &[],
     allowed: &[
         ("commit", &[]),
         ("context", &[]),
@@ -173,7 +152,7 @@ const MCP: LayeredCrate = LayeredCrate {
     refuses_mutual_use: true,
 };
 
-const CRATES: [&LayeredCrate; 6] = [&MODEL, &REPOSITORY, &SERVICE, &CONSOLE, &API, &MCP];
+const CRATES: [&LayeredCrate; 5] = [&STORE, &SERVICE, &CONSOLE, &API, &MCP];
 
 /// A domain one file names, and the crate whose code it names it in.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -186,6 +165,7 @@ struct DomainUse {
 struct DomainIndex {
     domain_root: Vec<String>,
     aliases: BTreeMap<String, String>,
+    facades: BTreeMap<String, BTreeMap<String, String>>,
 }
 
 impl LayeredCrate {
@@ -233,7 +213,23 @@ impl LayeredCrate {
                 }
             }
         }
-        DomainIndex { domain_root: self.domain_root.iter().map(|module| (*module).to_string()).collect(), aliases }
+        let facades = self.facades.iter().map(|facade| ((*facade).to_string(), self.facade_aliases(facade, &domains))).collect();
+        DomainIndex { domain_root: self.domain_root.iter().map(|module| (*module).to_string()).collect(), aliases, facades }
+    }
+
+    fn facade_aliases(&self, facade: &str, domains: &BTreeSet<String>) -> BTreeMap<String, String> {
+        let text = fs::read_to_string(self.source().join(format!("{facade}.rs"))).expect("a facade file is readable");
+        use_items(&strip_comments(&text))
+            .into_iter()
+            .filter_map(|item| {
+                let path = path_of(&item);
+                let segments: Vec<&str> = path.split("::").collect();
+                match segments.as_slice() {
+                    ["crate", domain, ..] if domains.contains(*domain) => Some((name_of(&item), (*domain).to_string())),
+                    _ => None,
+                }
+            })
+            .collect()
     }
 
     fn allowed_uses(&self, domain: &str) -> BTreeSet<&'static str> {
@@ -286,15 +282,30 @@ fn strip_comments(text: &str) -> String {
     text.lines().filter(|line| !line.trim_start().starts_with("//")).collect::<Vec<_>>().join("\n")
 }
 
-fn use_paths(text: &str) -> Vec<String> {
+fn use_items(text: &str) -> Vec<String> {
     let statement = Regex::new(r"\buse\s+([^;]+);").expect("the use pattern is valid");
     statement.captures_iter(text).flat_map(|capture| expand_use_tree(&capture[1])).collect()
+}
+
+fn use_paths(text: &str) -> Vec<String> {
+    use_items(text).iter().map(|item| path_of(item)).collect()
+}
+
+fn path_of(item: &str) -> String {
+    item.split(" as ").next().unwrap_or(item).trim().to_string()
+}
+
+fn name_of(item: &str) -> String {
+    match item.split_once(" as ") {
+        Some((_, name)) => name.trim().to_string(),
+        None => path_of(item).rsplit("::").next().unwrap_or(item).to_string(),
+    }
 }
 
 fn expand_use_tree(tree: &str) -> Vec<String> {
     let tree = tree.trim();
     let (Some(open), Some(close)) = (tree.find('{'), tree.rfind('}')) else {
-        return vec![tree.split(" as ").next().unwrap_or(tree).trim().to_string()];
+        return vec![tree.to_string()];
     };
     if close < open {
         return Vec::new();
@@ -345,8 +356,13 @@ fn resolve(path: &str, module: &[String], own: &str) -> Option<(String, Vec<Stri
 
 fn domain_of(indexes: &BTreeMap<String, DomainIndex>, target: &str, segments: &[String]) -> Option<DomainUse> {
     let index = indexes.get(target)?;
-    let first = segments.strip_prefix(&index.domain_root[..])?.first()?;
-    index.aliases.get(first).map(|domain| DomainUse { crate_name: target.to_string(), domain: domain.clone() })
+    let segments = segments.strip_prefix(&index.domain_root[..])?;
+    let first = segments.first()?;
+    let domain = match index.facades.get(first) {
+        Some(facade) => facade.get(segments.get(1)?)?,
+        None => index.aliases.get(first)?,
+    };
+    Some(DomainUse { crate_name: target.to_string(), domain: domain.clone() })
 }
 
 fn used_domains(text: &str, module: &[String], own: &str, indexes: &BTreeMap<String, DomainIndex>) -> BTreeSet<DomainUse> {

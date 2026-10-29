@@ -1,5 +1,5 @@
 use rekall_common::{Id, Instant};
-use rekall_model::tag;
+use rekall_store::tag;
 
 #[derive(Clone, Debug)]
 pub struct TagView {

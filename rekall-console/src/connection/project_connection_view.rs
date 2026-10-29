@@ -1,5 +1,5 @@
 use rekall_common::{Id, Instant};
-use rekall_model::{external_connection, project_connection, ConnectionKind};
+use rekall_store::{external_connection, project_connection, ConnectionKind};
 
 /// A connection a project binds, as the project page shows it.
 #[derive(Clone, Debug)]

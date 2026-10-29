@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
 use rekall_common::{Id, Result};
-use rekall_model::{project, project_dependency};
-use rekall_repository::repository as repo;
+use rekall_store::{project, project_dependency};
+use rekall_store::repository as repo;
 
 use crate::{in_read, load, Ctx, Tx};
 

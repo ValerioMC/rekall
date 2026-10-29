@@ -2,8 +2,8 @@
 //! delete it. Console-only: a session meets a graph only as the steps it lays on a task.
 
 use rekall_common::{jstr, Id, RekallError, Result};
-use rekall_model::{deployment_graph, graph_route, graph_step};
-use rekall_repository::repository as repo;
+use rekall_store::{deployment_graph, graph_route, graph_step};
+use rekall_store::repository as repo;
 use rekall_service::{in_read, in_write, Ctx, Tx};
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
 

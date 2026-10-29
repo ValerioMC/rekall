@@ -1,6 +1,6 @@
 use rekall_common::{Id, Instant};
 use rekall_console::catalog::TaskView;
-use rekall_model::{TaskKind, TaskStatus, TaskStepState};
+use rekall_store::{TaskKind, TaskStatus, TaskStepState};
 use serde::Serialize;
 
 #[derive(Clone, Debug, Serialize)]

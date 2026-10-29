@@ -51,9 +51,8 @@ Non-goals: multi-user, authentication, remote deployment, vector search.
 rekall/
   rekall-common/     RekallError, Id, Instant: the vocabulary shared by every layer
   rekall-web/        the HTTP vocabulary two routers share: the error body, request extractors, response helpers; knows no service
-  rekall-model/      SeaORM entities and their state rules, one folder per domain
+  rekall-store/      one folder per domain: SeaORM entities with their state rules and the queries over them; the SQLite connection and migrations
   rekall-diagram/    the diagram format: Mermaid sheets, code links, JSON form, validation; depends on nothing of Rekall's
-  rekall-repository/ queries, one folder per domain, and the SQLite migrations for their schema
   rekall-service/    context assembly, the step and review lines, flows, wrapups, notes, time entries, token usage
   rekall-console/    the services only the console calls, one folder per domain: commands in, views out, no HTTP types
   rekall-api/        Axum REST routes for the UI, one folder per domain: its controllers, request and response shapes and routes
@@ -66,11 +65,11 @@ rekall/
 ```
 
 The layers are separate crates in one Cargo workspace so the dependency direction is enforced by
-the compiler, not by convention: `rekall-repository` cannot see `rekall-api`, and `rekall-service`
+the compiler, not by convention: `rekall-store` cannot see `rekall-api`, and `rekall-service`
 cannot see any route. The crate boundary carries the guarantee.
 
 `rekall-mcp` lists `rekall-common` and `rekall-service` and no other Rekall crate: no entity,
-repository, console service or route is in its reach, and the few `rekall-model` enums its tools
+repository, console service or route is in its reach, and the few `rekall-store` enums its tools
 read (`TaskKind`, `TaskStepState`, `WrapupAuthor`, `ExposureVerdict`, `AdvisorySeverity`) come
 re-exported from the `rekall-service` domain that owns them. It and `rekall-api` are
 independent consumers of the same services, which is what keeps the boundary structural rather
@@ -81,7 +80,7 @@ but no route, none of `CompanyService`, `ProjectService`, `TaskService` or `Docu
 
 The crates are the layers; inside one, the code is laid out the way a Java project is.
 
-- **A folder per domain, one public type per file.** A folder is a package, and every layer crate cuts its code the same way (see Domains below): `rekall-service/src/note/`, `rekall-api/src/note/`, `rekall-model/src/note/`, `rekall-repository/src/repository/note/`, `rekall-mcp/src/note/`. A file holds one public type and is named after it: `NoteService` lives in `note/note_service.rs`, `CompanyResponse` in `catalog/company_response.rs`. Inside `rekall-api` a domain folder holds its controllers, request and response shapes and a `routes.rs` that merges its controllers, so `router.rs` only merges the domains. A service in `rekall-console` takes a command and returns a view, both in files beside it; the controller converts the request into the command and the view into the response (`From` impls in the request and response files).
+- **A folder per domain, one public type per file.** A folder is a package, and every layer crate cuts its code the same way (see Domains below): `rekall-service/src/note/`, `rekall-api/src/note/`, `rekall-store/src/note/`, `rekall-console/src/note/`, `rekall-mcp/src/note/`. A file holds one public type and is named after it: `NoteService` lives in `note/note_service.rs`, `CompanyResponse` in `catalog/company_response.rs`. Inside `rekall-api` a domain folder holds its controllers, request and response shapes and a `routes.rs` that merges its controllers, so `router.rs` only merges the domains. A service in `rekall-console` takes a command and returns a view, both in files beside it; the controller converts the request into the command and the view into the response (`From` impls in the request and response files).
 - **`mod.rs` and `lib.rs` hold no logic.** They declare the files and re-export the public types, so a caller writes `rekall_service::note::NoteService` and never the file's name. Moving a type between files changes no caller.
 - **Privacy is per file, so what siblings share is `pub(super)`.** Rust's privacy boundary is the module, which is the file, not the type. A helper two files of one folder use is `pub(super)`, visible to that package and nowhere else: Java's package-private.
 - **Private helpers stay beside the one type that uses them.** A small private struct that only one file reads (`ScratchDir` beside `Database`, `Active` beside `Worker`) stays in that file. A private type that carries most of a module's logic gets a file of its own, visible as `pub(super)`: the run queue's `Worker` sits in `run_queue_worker.rs`, beside the `RunQueueRunner` handle that starts it.
@@ -112,11 +111,15 @@ is found by opening one folder per crate:
 `diagram` also has `rekall-diagram`, the one domain with a crate of its own, because the format
 depends on nothing of Rekall's. A domain gets a crate only on that condition.
 
-A domain with a single entity named like itself (`task`, `tag`, `wrapup`, `diagram` in `rekall-model` and `rekall-repository`) stays one flat file, since a folder `task/task.rs` would only repeat the name.
+In `rekall-store` a domain folder holds each entity (`step/task_step.rs`) and beside it the queries
+over that table (`step/task_step_repository.rs`). A domain with a single entity named like itself
+(`task`, `tag`, `wrapup`, `diagram`) keeps the entity as one flat file, since a folder `task/task.rs`
+would only repeat the name; that file declares its queries, which sit in `task/task_repository.rs`.
 
-Entity modules keep their flat path at the crate root (`rekall_model::task_step`,
-`rekall_repository::repository::task_step`): the folder is where the file lives and the root
-re-export is how a caller names it, so a move between folders changes no caller.
+Entity modules keep their flat path at the crate root (`rekall_store::task_step`), and the
+`repository` module re-exports each query module under its table's name
+(`rekall_store::repository::task_step`, which callers alias as `repo`): the folder is where the file
+lives and the re-export is how a caller names it, so a move between folders changes no caller.
 
 **Allowed edges.** Two suites in `rekall-app/tests/integration/` read every crate's manifest and
 sources. `crate_edges.rs` fails on a `Cargo.toml` that lists a Rekall crate it is not allowed to, in
@@ -127,56 +130,55 @@ from its table:
 |---|---|
 | `rekall-common` | nothing |
 | `rekall-web` | `rekall-common` |
-| `rekall-model` | `rekall-common` |
 | `rekall-diagram` | nothing |
-| `rekall-repository` | `rekall-common`, `rekall-model` |
-| `rekall-service` | `rekall-common`, `rekall-diagram`, `rekall-model`, `rekall-repository` |
-| `rekall-console` | `rekall-common`, `rekall-model`, `rekall-repository`, `rekall-service` |
-| `rekall-api` | `rekall-common`, `rekall-console`, `rekall-model`, `rekall-repository`, `rekall-service`, `rekall-web` |
+| `rekall-store` | `rekall-common` |
+| `rekall-service` | `rekall-common`, `rekall-diagram`, `rekall-store` |
+| `rekall-console` | `rekall-common`, `rekall-service`, `rekall-store` |
+| `rekall-api` | `rekall-common`, `rekall-console`, `rekall-service`, `rekall-store`, `rekall-web` |
 | `rekall-mcp` | `rekall-common`, `rekall-service` |
-| `rekall-claude` | `rekall-common`, `rekall-diagram`, `rekall-model`, `rekall-repository`, `rekall-service`, `rekall-web` |
-| `rekall-platform` | `rekall-common`, `rekall-model`, `rekall-repository`, `rekall-service`, `rekall-web` |
-| `rekall-app` | `rekall-api`, `rekall-claude`, `rekall-common`, `rekall-mcp`, `rekall-model`, `rekall-platform`, `rekall-repository`, `rekall-service`, `rekall-web` |
+| `rekall-claude` | `rekall-common`, `rekall-diagram`, `rekall-service`, `rekall-store`, `rekall-web` |
+| `rekall-platform` | `rekall-common`, `rekall-service`, `rekall-store`, `rekall-web` |
+| `rekall-app` | `rekall-api`, `rekall-claude`, `rekall-common`, `rekall-mcp`, `rekall-platform`, `rekall-service`, `rekall-store`, `rekall-web` |
 | `rekall-app/desktop` | `rekall-app`, `rekall-platform` |
 
 `domain_edges.rs` fails on a domain that names another one it is not listed for, wherever the path
-points: into its own crate or into another Rekall crate's domain (`rekall_model::task` in a `note`
+points: into its own crate or into another Rekall crate's domain (`rekall_store::task` in a `note`
 file is `note -> task`). It also fails on a domain missing from its crate's table, and on two
-domains of one crate whose own code uses each other; `rekall-model` is exempt from that last rule,
+domains of one crate whose own code uses each other; `rekall-store` is exempt from that last rule,
 because SeaORM declares a relation from both ends. A dash means the crate has no such domain:
 
-| Domain | `rekall-model` | `rekall-repository` | `rekall-service` | `rekall-console` | `rekall-api` | `rekall-mcp` |
-|---|---|---|---|---|---|---|
-| `catalog` | `task` | nothing | - | `commit`, `note`, `review`, `step`, `tag`, `task`, `timeentry`, `wrapup` | nothing | - |
-| `claude` | - | - | `catalog`, `connection`, `task` | - | - | - |
-| `commit` | `step`, `task` | nothing | `catalog`, `step`, `task` | - | nothing | nothing |
-| `component` | `catalog` | nothing | `connection`, `task` | nothing | nothing | - |
-| `connection` | `catalog`, `task` | `catalog` | nothing | `catalog`, `commit`, `component`, `task` | `catalog` | - |
-| `context` | - | - | `catalog`, `commit`, `component`, `connection`, `note`, `step`, `tag`, `task`, `wrapup` | - | nothing | nothing |
-| `diagram` | `catalog`, `task` | nothing | `catalog`, `task` | nothing | nothing | nothing |
-| `filesystem` | - | - | - | nothing | nothing | - |
-| `flow` | `step`, `task` | nothing | `step` | - | `step` | `step` |
-| `graph` | `catalog`, `flow`, `step` | nothing | - | `catalog`, `flow`, `step`, `task` | `step` | - |
-| `inventory` | `catalog` | nothing | `catalog` | - | nothing | `vulnerability` |
-| `note` | `task` | `task` | `task` | `catalog` | `catalog` | nothing |
-| `queue` | `task` | nothing | - | - | - | - |
-| `review` | - | - | `task`, `timeentry` | - | - | - |
-| `search` | - | - | `task` | - | nothing | - |
-| `section` | `catalog` | nothing | `catalog`, `note` | nothing | nothing | `note` |
-| `skill` | `step`, `tag`, `task` | nothing | - | nothing | nothing | - |
-| `step` | `task` | nothing | `flow`, `task`, `timeentry` | - | nothing | `commit`, `flow` |
-| `stream` | - | - | - | - | nothing | - |
-| `tag` | `task` | nothing | - | nothing | nothing | - |
-| `task` | `catalog`, `note`, `step`, `tag`, `wrapup` | `catalog` | `step` | - | - | nothing |
-| `timeentry` | `task` | nothing | `catalog`, `task` | - | nothing | - |
-| `token` | `step`, `task` | nothing | nothing | - | nothing | - |
-| `vulnerability` | `catalog`, `task` | nothing | `catalog`, `commit`, `connection`, `inventory` | `catalog`, `step`, `task` | `catalog` | nothing |
-| `wrapup` | `task` | nothing | `catalog`, `review`, `task` | - | nothing | `commit` |
+| Domain | `rekall-store` | `rekall-service` | `rekall-console` | `rekall-api` | `rekall-mcp` |
+|---|---|---|---|---|---|
+| `catalog` | `task` | - | `commit`, `note`, `review`, `step`, `tag`, `task`, `timeentry`, `wrapup` | nothing | - |
+| `claude` | - | `catalog`, `connection`, `task` | - | - | - |
+| `commit` | `step`, `task` | `catalog`, `step`, `task` | - | nothing | nothing |
+| `component` | `catalog` | `connection`, `task` | nothing | nothing | - |
+| `connection` | `catalog`, `task` | nothing | `catalog`, `commit`, `component`, `task` | `catalog` | - |
+| `context` | - | `catalog`, `commit`, `component`, `connection`, `note`, `step`, `tag`, `task`, `wrapup` | - | nothing | nothing |
+| `diagram` | `catalog`, `task` | `catalog`, `task` | nothing | nothing | nothing |
+| `filesystem` | - | - | nothing | nothing | - |
+| `flow` | `step`, `task` | `step` | - | `step` | `step` |
+| `graph` | `catalog`, `flow`, `step` | - | `catalog`, `flow`, `step`, `task` | `step` | - |
+| `inventory` | `catalog` | `catalog` | - | nothing | `vulnerability` |
+| `note` | `task` | `task` | `catalog` | `catalog` | nothing |
+| `queue` | `task` | - | - | - | - |
+| `review` | - | `task`, `timeentry` | - | - | - |
+| `search` | - | `task` | - | nothing | - |
+| `section` | `catalog` | `catalog`, `note` | nothing | nothing | `note` |
+| `skill` | `step`, `tag`, `task` | - | nothing | nothing | - |
+| `step` | `task` | `flow`, `task`, `timeentry` | - | nothing | `commit`, `flow` |
+| `stream` | - | - | - | nothing | - |
+| `tag` | `task` | - | nothing | nothing | - |
+| `task` | `catalog`, `note`, `step`, `tag`, `wrapup` | `step` | - | - | nothing |
+| `timeentry` | `task` | `catalog`, `task` | - | nothing | - |
+| `token` | `step`, `task` | nothing | - | nothing | - |
+| `vulnerability` | `catalog`, `task` | `catalog`, `commit`, `connection`, `inventory` | `catalog`, `step`, `task` | `catalog` | nothing |
+| `wrapup` | `task` | `catalog`, `review`, `task` | - | nothing | `commit` |
 
 Each crate's foundations are modules every domain may use and are no domain: `ctx`, `events`,
 `load`, `services`, `text_rule` and `tx` in `rekall-service`; `constraints`, `enums`, `prelude`,
-`slug` and `stamped` in `rekall-model`; `query_support` and `stamped_update` in
-`rekall-repository`; `api_state` and `router` in `rekall-api`; `controller`, `protocol`, `texts`,
+`slug` and `stamped` in `rekall-store`, with `database`, `migration`, `query_support`,
+`stamped_update` and `repository`, whose re-exports the test reads back to their domains; `api_state` and `router` in `rekall-api`; `controller`, `protocol`, `texts`,
 `tool` and `tool_registry` in `rekall-mcp`. A new edge is a design decision: change the table and
 the test together, or change the code.
 
@@ -501,7 +503,7 @@ The walk distinguishes by direction, not by depth:
 Skills follow three rules. A tag's skills are read when the context loads and never copied onto its
 tasks, so editing a tag changes every task under it. A skill already listed at a wider scope is not
 listed again, and a finished step's skills are dropped. The name is checked for its shape only
-(`rekall_model::skill_name`): `rekall-console` cannot see `~/.claude`, which `rekall-claude` reads, so the
+(`rekall_store::skill_name`): `rekall-console` cannot see `~/.claude`, which `rekall-claude` reads, so the
 picker offers only what exists and a skill that later vanishes stays assigned and is flagged in the
 console. The writes are `SkillAssignmentService` in `rekall-console`, each replacing one owner's whole
 list; `rekall-mcp` can read the skills through the context and never write them.

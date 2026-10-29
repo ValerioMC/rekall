@@ -6,7 +6,7 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use rekall_common::{jstr, Id, InternalFailure, RekallError, Result};
-use rekall_model::{external_connection, project_connection, ConnectionKind, Slug};
+use rekall_store::{external_connection, project_connection, ConnectionKind, Slug};
 use rekall_service::commit::GitRepositoryInspector;
 use rekall_service::{in_write, Ctx, Tx};
 

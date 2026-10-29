@@ -2,8 +2,8 @@
 //! but never take one away.
 
 use rekall_common::{Id, RekallError, Result};
-use rekall_model::diagram;
-use rekall_repository::repository as repo;
+use rekall_store::diagram;
+use rekall_store::repository as repo;
 use rekall_service::{diagram::DiagramStreamEvent, in_write, Ctx};
 use sea_orm::EntityTrait;
 

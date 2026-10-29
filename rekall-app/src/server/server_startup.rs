@@ -1,7 +1,7 @@
 use std::net::{Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use std::time::Duration;
 
-use rekall_repository::Database;
+use rekall_store::Database;
 use rekall_service::Services;
 use tokio::sync::{oneshot, watch};
 use tracing::{error, info, warn};
@@ -132,12 +132,12 @@ async fn open_instance(
 /// The database the configuration names: in memory, or the file, created with its folder if absent.
 pub async fn open_database(target: &DatabaseOverride) -> Result<Database, String> {
     match target {
-        DatabaseOverride::Memory => rekall_repository::open_in_memory().await.map_err(|e| e.to_string()),
+        DatabaseOverride::Memory => rekall_store::open_in_memory().await.map_err(|e| e.to_string()),
         DatabaseOverride::File(path) => {
             if let Some(parent) = path.parent() {
                 std::fs::create_dir_all(parent).map_err(|e| format!("Could not create {}: {e}", parent.display()))?;
             }
-            rekall_repository::open(path).await.map_err(|e| format!("Could not open {}: {e}", path.display()))
+            rekall_store::open(path).await.map_err(|e| format!("Could not open {}: {e}", path.display()))
         }
     }
 }

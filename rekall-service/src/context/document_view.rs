@@ -1,4 +1,4 @@
-use rekall_model::{document, DocumentContextMode};
+use rekall_store::{document, DocumentContextMode};
 
 /// A note as a context hands it over: in full, or as a reference a session loads by its anchor.
 #[derive(Clone, Debug, PartialEq, Eq)]

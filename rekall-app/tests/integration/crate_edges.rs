@@ -9,21 +9,20 @@ use std::path::{Path, PathBuf};
 use regex::Regex;
 
 /// Each workspace member, by its folder, and the Rekall crates it may depend on.
-const ALLOWED: [(&str, &[&str]); 13] = [
+const ALLOWED: [(&str, &[&str]); 12] = [
     ("rekall-common", &[]),
     ("rekall-web", &["rekall-common"]),
-    ("rekall-model", &["rekall-common"]),
     ("rekall-diagram", &[]),
-    ("rekall-repository", &["rekall-common", "rekall-model"]),
-    ("rekall-service", &["rekall-common", "rekall-diagram", "rekall-model", "rekall-repository"]),
-    ("rekall-console", &["rekall-common", "rekall-model", "rekall-repository", "rekall-service"]),
-    ("rekall-api", &["rekall-common", "rekall-console", "rekall-model", "rekall-repository", "rekall-service", "rekall-web"]),
+    ("rekall-store", &["rekall-common"]),
+    ("rekall-service", &["rekall-common", "rekall-diagram", "rekall-store"]),
+    ("rekall-console", &["rekall-common", "rekall-service", "rekall-store"]),
+    ("rekall-api", &["rekall-common", "rekall-console", "rekall-service", "rekall-store", "rekall-web"]),
     ("rekall-mcp", &["rekall-common", "rekall-service"]),
-    ("rekall-claude", &["rekall-common", "rekall-diagram", "rekall-model", "rekall-repository", "rekall-service", "rekall-web"]),
-    ("rekall-platform", &["rekall-common", "rekall-model", "rekall-repository", "rekall-service", "rekall-web"]),
+    ("rekall-claude", &["rekall-common", "rekall-diagram", "rekall-service", "rekall-store", "rekall-web"]),
+    ("rekall-platform", &["rekall-common", "rekall-service", "rekall-store", "rekall-web"]),
     (
         "rekall-app",
-        &["rekall-api", "rekall-claude", "rekall-common", "rekall-mcp", "rekall-model", "rekall-platform", "rekall-repository", "rekall-service", "rekall-web"],
+        &["rekall-api", "rekall-claude", "rekall-common", "rekall-mcp", "rekall-platform", "rekall-service", "rekall-store", "rekall-web"],
     ),
     ("rekall-app/desktop", &["rekall-app", "rekall-platform"]),
 ];

@@ -7,10 +7,10 @@
 use std::collections::HashMap;
 
 use rekall_common::{jstr, Id, RekallError, Result};
-use rekall_model::{deployment_graph, task};
+use rekall_store::{deployment_graph, task};
 use rekall_service::flow::{RouteTarget, StepLinkService, StepVisitService};
 use rekall_service::step::{TaskStepService, TaskStepView, VisitBudget};
-use rekall_repository::repository as repo;
+use rekall_store::repository as repo;
 use rekall_service::{in_write, Ctx, Tx};
 
 use super::{DeploymentGraphService, ReleaseOnRunView, StoredGraph};

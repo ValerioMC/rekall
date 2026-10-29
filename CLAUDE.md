@@ -10,7 +10,7 @@ convention are in `docs/DESIGN.md` §3 ("Layout inside a crate") and are not rep
   only) and `rekall-infra` (implements the traits of `rekall-core`) beside them, and
   `rekall-app` wiring everything. `rekall-http` never depends on `rekall-infra`. A dependency that
   points the other way is a design error, not a missing `use`. Until `task:layered-crates-refactor`
-  is finished the workspace still has `rekall-common`, `rekall-model`, `rekall-repository`,
+  is finished the workspace still has `rekall-common`,
   `rekall-service`, `rekall-api`, `rekall-web`, `rekall-claude` and `rekall-platform`: new code goes
   where the target puts it, and a change in an old crate does not widen its role.
 - **Code is cut by domain.** `catalog`, `step`, `flow`, `note`, `wrapup`, `diagram`... name a folder
@@ -73,7 +73,7 @@ convention are in `docs/DESIGN.md` §3 ("Layout inside a crate") and are not rep
 - **Structured logging only.** `tracing::{info, warn, error}` with fields
   (`error!(%failure, task_id = %id, "...")`). No `println!` / `eprintln!` outside the CLI entry
   point.
-- **Strong types.** `Id`, `Instant`, enums from `rekall-model` instead of `String`/`bool` flags.
+- **Strong types.** `Id`, `Instant`, enums from `rekall-store` instead of `String`/`bool` flags.
   No `serde_json::Value` where a DTO can carry the shape.
 
 ## Comments

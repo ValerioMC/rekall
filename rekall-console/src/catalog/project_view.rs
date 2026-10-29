@@ -1,6 +1,6 @@
 use rekall_common::{Id, Instant};
-use rekall_model::ProjectStatus;
-use rekall_model::{company, project};
+use rekall_store::ProjectStatus;
+use rekall_store::{company, project};
 
 #[derive(Clone, Debug)]
 pub struct ProjectView {

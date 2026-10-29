@@ -2,8 +2,8 @@
 //! connection of its own company, and may bind one several times, once per target.
 
 use rekall_common::{Id, RekallError, Result};
-use rekall_model::{external_connection, project, project_connection, Slug};
-use rekall_repository::repository as repo;
+use rekall_store::{external_connection, project, project_connection, Slug};
+use rekall_store::repository as repo;
 use rekall_service::connection::ConnectionStreamEvent;
 use rekall_service::{in_read, in_write, Ctx, Tx};
 

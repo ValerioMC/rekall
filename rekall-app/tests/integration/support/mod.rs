@@ -11,7 +11,7 @@ use std::time::Duration;
 
 use rekall_app::{AppConfig, Properties, Running, StartOptions};
 use async_trait::async_trait;
-use rekall_model::Ecosystem;
+use rekall_store::Ecosystem;
 use rekall_service::connection::InMemorySecretStore;
 use rekall_service::vulnerability::{AdvisoryFeed, AdvisoryFeedFailure, PackageVersion, PublishedAdvisory, ScanScope};
 use rekall_service::Services;

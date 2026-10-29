@@ -1,5 +1,5 @@
 use rekall_common::Id;
-use rekall_model::{company, project, task};
+use rekall_store::{company, project, task};
 
 #[derive(Clone, Debug)]
 pub struct TaskRefView {

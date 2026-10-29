@@ -1,6 +1,6 @@
 use rekall_common::{Id, Result};
-use rekall_model::connection_access;
-use rekall_repository::repository as repo;
+use rekall_store::connection_access;
+use rekall_store::repository as repo;
 
 use super::CredentialAccessStreamEvent;
 use crate::{in_write, Ctx};

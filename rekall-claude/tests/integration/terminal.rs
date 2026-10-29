@@ -6,7 +6,7 @@ mod support;
 use std::sync::Arc;
 
 use rekall_common::RekallError;
-use rekall_model::TaskStepState;
+use rekall_store::TaskStepState;
 use rekall_claude::terminal::TerminalMode;
 use rekall_diagram::DiagramKind;
 use rekall_service::claude::TerminalTarget;

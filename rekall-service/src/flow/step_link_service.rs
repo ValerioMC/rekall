@@ -1,9 +1,9 @@
 use std::collections::HashSet;
 
 use rekall_common::{Id, RekallError, Result};
-use rekall_model::step_link::{self, ROUTES_PER_STEP_MAX};
-use rekall_model::task_step;
-use rekall_repository::repository as repo;
+use rekall_store::step_link::{self, ROUTES_PER_STEP_MAX};
+use rekall_store::task_step;
+use rekall_store::repository as repo;
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
 
 use super::RouteTarget;

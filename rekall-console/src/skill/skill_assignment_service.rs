@@ -5,8 +5,8 @@
 use std::collections::HashSet;
 
 use rekall_common::{Id, RekallError, Result};
-use rekall_model::{skill_name, tag_skill, task_skill};
-use rekall_repository::repository as repo;
+use rekall_store::{skill_name, tag_skill, task_skill};
+use rekall_store::repository as repo;
 use rekall_service::{in_read, in_write, Ctx};
 
 use crate::skill::{SkillAssignmentsView, TagSkillView, TaskSkillView};

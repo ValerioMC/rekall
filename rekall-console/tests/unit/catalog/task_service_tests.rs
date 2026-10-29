@@ -1,5 +1,5 @@
 use rekall_common::Instant;
-use rekall_model::{company, ProjectStatus, TaskKind};
+use rekall_store::{company, ProjectStatus, TaskKind};
 use rekall_service::{EventBus, Services};
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
 
@@ -13,7 +13,7 @@ struct World {
 }
 
 async fn world() -> World {
-    let database = rekall_repository::open_in_memory().await.unwrap();
+    let database = rekall_store::open_in_memory().await.unwrap();
     let ctx = Ctx::new(database.conn.clone(), EventBus::new());
     let now = Instant::now();
     let company = company::Model { id: Id::random(), name: "Acme".into(), description: None, created_at: now, updated_at: now };

@@ -1,6 +1,6 @@
 use rekall_common::{jstr, Id, RekallError, Result};
-use rekall_model::{document, document_task, task, DocumentContextMode};
-use rekall_repository::repository as repo;
+use rekall_store::{document, document_task, task, DocumentContextMode};
+use rekall_store::repository as repo;
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
 
 use crate::{in_write, load, text_rule, Ctx, Tx};

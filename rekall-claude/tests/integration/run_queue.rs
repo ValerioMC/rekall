@@ -10,7 +10,7 @@ use std::time::Duration;
 use rekall_claude::queue::{RunQueueRunner, RunQueueService};
 use rekall_claude::usage::{ClaudeUsageView, Limit, Severity, UsageReader};
 use rekall_common::Instant;
-use rekall_model::{RunQueueItemState, RunQueueState, TaskStepState};
+use rekall_store::{RunQueueItemState, RunQueueState, TaskStepState};
 use support::{eventually, world, World};
 
 /// A usage reading a test sets.

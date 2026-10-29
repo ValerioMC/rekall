@@ -1,7 +1,7 @@
 use rekall_common::{jstr, Id, RekallError, Result};
-use rekall_model::task;
-use rekall_model::TaskStepState;
-use rekall_repository::repository as repo;
+use rekall_store::task;
+use rekall_store::TaskStepState;
+use rekall_store::repository as repo;
 
 use crate::timeentry::TimeEntryService;
 use crate::{in_write, load, Ctx, Tx};

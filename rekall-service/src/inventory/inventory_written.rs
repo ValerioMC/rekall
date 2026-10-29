@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use rekall_common::Id;
-use rekall_model::{project, project_dependency, Ecosystem};
+use rekall_store::{project, project_dependency, Ecosystem};
 
 /// What a session's inventory came to: the project, how many rows it holds per ecosystem, and how
 /// many entries were folded away as repeats of another.

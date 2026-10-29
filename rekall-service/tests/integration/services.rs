@@ -8,7 +8,7 @@ use std::fs;
 
 use chrono::TimeDelta;
 use rekall_common::{Id, Instant};
-use rekall_model::TaskStepState;
+use rekall_store::TaskStepState;
 use rekall_service::commit::AutoCommitStatus;
 use rekall_service::component::ComponentReferences;
 use rekall_service::timeentry::IDLE_AFTER;
@@ -249,7 +249,7 @@ async fn shutdown_stops_every_open_timer() {
 
     world.services.time_entries.stop_all_on_shutdown().await.unwrap();
 
-    let entries = rekall_model::time_entry::Entity::find().all(world.db()).await.unwrap();
+    let entries = rekall_store::time_entry::Entity::find().all(world.db()).await.unwrap();
     assert_eq!(entries.len(), 2);
     assert!(entries.iter().all(|e| e.stopped_at.is_some()));
 }
@@ -260,7 +260,7 @@ async fn world_hours_ahead(hours: i64) -> support::World {
 }
 
 async fn open_entry_at(world: &support::World, task_id: Id, started_at: Instant) {
-    let entry = rekall_model::time_entry::Model { id: Id::random(), task_id, started_at, stopped_at: None, created_at: started_at, updated_at: started_at };
+    let entry = rekall_store::time_entry::Model { id: Id::random(), task_id, started_at, stopped_at: None, created_at: started_at, updated_at: started_at };
     entry.into_active_model().insert(world.db()).await.unwrap();
 }
 
@@ -276,7 +276,7 @@ async fn an_idle_timer_is_stopped_at_the_tasks_last_write_and_a_busy_one_is_kept
     let stopped = world.services.time_entries.stop_idle(IDLE_AFTER).await.unwrap();
 
     assert_eq!(stopped, 1);
-    let entries = rekall_model::time_entry::Entity::find().all(world.db()).await.unwrap();
+    let entries = rekall_store::time_entry::Entity::find().all(world.db()).await.unwrap();
     let idle_entry = entries.iter().find(|e| e.task_id == idle.id).unwrap();
     assert_eq!(idle_entry.stopped_at, Some(idle.updated_at));
     assert!(entries.iter().find(|e| e.task_id == busy.id).unwrap().stopped_at.is_none());
@@ -297,7 +297,7 @@ async fn a_task_with_a_running_step_is_never_idle() {
 }
 
 async fn running_entries(world: &support::World) -> usize {
-    let entries = rekall_model::time_entry::Entity::find().all(world.db()).await.unwrap();
+    let entries = rekall_store::time_entry::Entity::find().all(world.db()).await.unwrap();
     entries.iter().filter(|e| e.stopped_at.is_none()).count()
 }
 
@@ -344,7 +344,7 @@ async fn accepting_a_claimed_stepless_task_stops_its_timer_and_accepting_an_uncl
     world.services.review.accept_in(&mut tx, open.id).await.unwrap();
     tx.commit().await.unwrap();
 
-    let entries = rekall_model::time_entry::Entity::find().all(world.db()).await.unwrap();
+    let entries = rekall_store::time_entry::Entity::find().all(world.db()).await.unwrap();
     let stopped = |task_id: Id| entries.iter().find(|e| e.task_id == task_id).unwrap().stopped_at.is_some();
     assert!(stopped(claimed.id));
     assert!(!stopped(open.id));
@@ -464,7 +464,7 @@ async fn only_a_claimed_step_can_be_sent_back() {
 
 #[tokio::test]
 async fn a_component_named_in_a_task_text_is_expanded_in_the_context_but_not_in_the_database() {
-    use rekall_model::project_component;
+    use rekall_store::project_component;
     use sea_orm::{ActiveModelTrait, ActiveValue};
 
     let world = world().await;
@@ -536,7 +536,7 @@ async fn a_task_named_in_a_task_text_is_loaded_once_as_background_without_its_ch
 
 #[tokio::test]
 async fn a_task_of_an_epic_inherits_its_description_and_notes_and_the_epic_lists_its_tasks() {
-    use rekall_model::TaskKind;
+    use rekall_store::TaskKind;
     use rekall_service::note::OnTitleClash;
     use sea_orm::ActiveValue;
 
@@ -576,13 +576,13 @@ fn brief(title: &str, description: Option<&str>) -> rekall_service::task::TaskBr
         title: Some(title.into()),
         label: None,
         description: description.map(str::to_string),
-        kind: rekall_model::TaskKind::Task,
+        kind: rekall_store::TaskKind::Task,
         epic: None,
     }
 }
 
 fn epic_brief(title: &str) -> rekall_service::task::TaskBrief {
-    rekall_service::task::TaskBrief { kind: rekall_model::TaskKind::Epic, ..brief(title, None) }
+    rekall_service::task::TaskBrief { kind: rekall_store::TaskKind::Epic, ..brief(title, None) }
 }
 
 fn brief_under(title: &str, epic: &str) -> rekall_service::task::TaskBrief {
@@ -597,9 +597,9 @@ async fn a_session_creates_an_epic_and_files_a_new_task_under_it() {
     let epic = world.services.task_authoring.create("vega", &epic_brief("Checkout"), &[]).await.unwrap();
     world.services.task_authoring.create("vega", &brief_under("Pay", "checkout"), &[draft("Charge")]).await.unwrap();
 
-    assert_eq!(epic.kind, rekall_model::TaskKind::Epic);
-    let epic = rekall_repository::repository::task::find_by_anchor(world.db(), "vega", "checkout").await.unwrap().unwrap();
-    let pay = rekall_repository::repository::task::find_by_anchor(world.db(), "vega", "pay").await.unwrap().unwrap();
+    assert_eq!(epic.kind, rekall_store::TaskKind::Epic);
+    let epic = rekall_store::repository::task::find_by_anchor(world.db(), "vega", "checkout").await.unwrap().unwrap();
+    let pay = rekall_store::repository::task::find_by_anchor(world.db(), "vega", "pay").await.unwrap().unwrap();
     assert!(epic.is_epic());
     assert_eq!(pay.epic_id, Some(epic.id));
 }
@@ -615,7 +615,7 @@ async fn an_epic_created_with_steps_or_under_a_plain_task_is_refused_and_creates
 
     assert!(with_steps.to_string().contains("An epic holds no steps"), "{with_steps}");
     assert!(under_plain.to_string().contains("is not an epic"), "{under_plain}");
-    assert_eq!(rekall_repository::repository::task::list_of_project(world.db(), project.id).await.unwrap().len(), 1);
+    assert_eq!(rekall_store::repository::task::list_of_project(world.db(), project.id).await.unwrap().len(), 1);
 }
 
 #[tokio::test]
@@ -632,8 +632,8 @@ async fn a_session_files_an_existing_task_under_an_epic_and_moves_it_between_epi
     assert_eq!(joined.epic_anchor, "project:vega task:checkout");
     assert_eq!(joined.left, None);
     assert_eq!(moved.left.as_deref(), Some("checkout"));
-    let pay = rekall_repository::repository::task::find_by_anchor(world.db(), "vega", "pay").await.unwrap().unwrap();
-    let billing = rekall_repository::repository::task::find_by_anchor(world.db(), "vega", "billing").await.unwrap().unwrap();
+    let pay = rekall_store::repository::task::find_by_anchor(world.db(), "vega", "pay").await.unwrap().unwrap();
+    let billing = rekall_store::repository::task::find_by_anchor(world.db(), "vega", "billing").await.unwrap().unwrap();
     assert_eq!(pay.epic_id, Some(billing.id));
 }
 
@@ -642,7 +642,7 @@ async fn an_epic_is_never_run() {
     let world = world().await;
     world.project("vega", Some("/tmp"), false).await;
     world.services.task_authoring.create("vega", &epic_brief("Checkout"), &[]).await.unwrap();
-    let epic = rekall_repository::repository::task::find_by_anchor(world.db(), "vega", "checkout").await.unwrap().unwrap();
+    let epic = rekall_store::repository::task::find_by_anchor(world.db(), "vega", "checkout").await.unwrap().unwrap();
 
     let refused = world.services.terminal_launch.resolve(rekall_service::claude::TerminalTarget::Task(epic.id)).await.unwrap_err();
 
@@ -663,10 +663,10 @@ async fn a_created_task_starts_todo_with_its_description_and_its_steps_as_drafts
 
     assert_eq!(created.task_anchor, "project:vega task:task-creation");
     assert_eq!(created.drafts, 2);
-    let task = rekall_repository::repository::task::find_by_anchor(world.db(), "vega", "task-creation").await.unwrap().unwrap();
+    let task = rekall_store::repository::task::find_by_anchor(world.db(), "vega", "task-creation").await.unwrap().unwrap();
     assert_eq!(task.project_id, project.id);
     assert_eq!(task.title, "Task creation");
-    assert_eq!(task.status, rekall_model::TaskStatus::Todo);
+    assert_eq!(task.status, rekall_store::TaskStatus::Todo);
     assert_eq!(task.description.as_deref(), Some("Let the llm open tasks."));
     let steps = world.services.steps.find_by_task(task.id).await.unwrap();
     let titles: Vec<&str> = steps.iter().map(|step| step.title.as_str()).collect();
@@ -688,7 +688,7 @@ async fn a_label_the_project_already_uses_is_refused_and_creates_nothing() {
         .unwrap_err();
 
     assert!(refused.to_string().contains("already uses the label 'report-builder'"), "{refused}");
-    assert_eq!(rekall_repository::repository::task::list_of_project(world.db(), project.id).await.unwrap().len(), 1);
+    assert_eq!(rekall_store::repository::task::list_of_project(world.db(), project.id).await.unwrap().len(), 1);
     assert!(world.services.steps.find_all().await.unwrap().is_empty());
 }
 
@@ -704,7 +704,7 @@ async fn a_step_title_sent_twice_or_past_the_draft_cap_is_refused_before_anythin
         assert!(result.is_err());
     }
 
-    assert!(rekall_repository::repository::task::list_of_project(world.db(), project.id).await.unwrap().is_empty());
+    assert!(rekall_store::repository::task::list_of_project(world.db(), project.id).await.unwrap().is_empty());
 }
 
 #[tokio::test]

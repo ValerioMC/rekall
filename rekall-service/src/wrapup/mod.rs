@@ -10,4 +10,4 @@ pub use wrapup_service::WrapupService;
 pub use wrapup_stream_event::WrapupStreamEvent;
 pub use wrapup_view::WrapupView;
 pub use written::Written;
-pub use rekall_model::WrapupAuthor;
+pub use rekall_store::WrapupAuthor;

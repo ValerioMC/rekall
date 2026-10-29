@@ -1,4 +1,4 @@
-use rekall_model::{commit_reference, task_step};
+use rekall_store::{commit_reference, task_step};
 
 /// One logged commit a task hands to `rekall_context`: the hash, the subject it was committed
 /// with, the step it was logged against, and the diff it introduced.

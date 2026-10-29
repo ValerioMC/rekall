@@ -1,5 +1,5 @@
 use rekall_common::{Id, Instant};
-use rekall_model::token_usage;
+use rekall_store::token_usage;
 use serde::Serialize;
 
 /// Every session's tokens on one task on one day, summed over its steps.

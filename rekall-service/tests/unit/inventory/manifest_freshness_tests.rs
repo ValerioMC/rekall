@@ -1,5 +1,5 @@
 use rekall_common::Id;
-use rekall_model::Ecosystem;
+use rekall_store::Ecosystem;
 
 use super::*;
 

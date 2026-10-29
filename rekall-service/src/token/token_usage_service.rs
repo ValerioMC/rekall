@@ -2,8 +2,8 @@ use std::collections::BTreeSet;
 use std::path::PathBuf;
 
 use rekall_common::{jstr, Id, Instant, RekallError, Result};
-use rekall_model::{token_usage, transcript_scan};
-use rekall_repository::repository as repo;
+use rekall_store::{token_usage, transcript_scan};
+use rekall_store::repository as repo;
 use tracing::debug;
 
 use super::{TokenCount, TokenDayView, TokenTallyView, TokenUsageStreamEvent, UnitUsage, WorkUnit};

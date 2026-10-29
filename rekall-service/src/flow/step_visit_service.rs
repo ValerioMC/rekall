@@ -1,6 +1,6 @@
 use rekall_common::{Id, RekallError, Result};
-use rekall_model::{step_visit, task_step};
-use rekall_repository::repository as repo;
+use rekall_store::{step_visit, task_step};
+use rekall_store::repository as repo;
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
 
 use crate::{Ctx, Tx};

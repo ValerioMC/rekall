@@ -1,4 +1,4 @@
-use rekall_model::{external_connection, project_connection, ConnectionKind};
+use rekall_store::{external_connection, project_connection, ConnectionKind};
 
 /// A connection as a session's context names it. It has no field that could hold a credential,
 /// the keychain account, a cluster's server or its CA: a Kubernetes connection is reached by label.

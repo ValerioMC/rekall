@@ -14,8 +14,8 @@ use rekall_claude::connection::CredentialBroker;
 use rekall_claude::pty::{Listener, PtyTerminalManager};
 use rekall_claude::ClaudeConfig;
 use rekall_common::{Id, Instant};
-use rekall_model::{company, project, task, task_step, ProjectStatus, TaskStepState};
-use rekall_repository::Database;
+use rekall_store::{company, project, task, task_step, ProjectStatus, TaskStepState};
+use rekall_store::Database;
 use rekall_service::connection::{ConnectionAccessService, InMemorySecretStore};
 use rekall_service::{Ctx, EventBus, Services};
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
@@ -58,7 +58,7 @@ pub struct World {
 }
 
 pub async fn world() -> World {
-    let database = rekall_repository::open_temporary().await.unwrap();
+    let database = rekall_store::open_temporary().await.unwrap();
     let events = EventBus::new();
     let services = Services::new(Ctx::new(database.conn.clone(), events.clone()));
     let folder = tempfile::tempdir().unwrap();

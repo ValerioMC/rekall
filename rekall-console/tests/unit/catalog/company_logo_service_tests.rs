@@ -17,7 +17,7 @@ struct Fixture {
 
 /// An in-memory catalog whose clock moves a second on every reading, so two uploads never share a version.
 async fn fixture() -> Fixture {
-    let database = rekall_repository::open_in_memory().await.unwrap();
+    let database = rekall_store::open_in_memory().await.unwrap();
     let mut ctx = Ctx::new(database.conn.clone(), EventBus::new());
     let seconds = Arc::new(AtomicI64::new(1_700_000_000));
     ctx.clock = Arc::new(move || Instant::from_epoch_seconds(seconds.fetch_add(1, Ordering::SeqCst)).unwrap());

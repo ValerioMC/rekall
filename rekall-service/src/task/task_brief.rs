@@ -1,4 +1,4 @@
-use rekall_model::TaskKind;
+use rekall_store::TaskKind;
 
 /// What a session asks a new task to be: its names, its description, a task or an epic, and the
 /// label of the epic it is filed under.

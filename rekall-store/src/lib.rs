@@ -1,0 +1,97 @@
+//! The persistence layer, one folder per domain: each table's SeaORM entity with the state rules
+//! that live on it (`task_step::Model::mark_state`, `task::Model::mark_review_state`, the run queue's
+//! moves) and its limits as a `validate`, and beside it the query functions over that table. The
+//! entities are re-exported here by table name and the queries in `repository` by the same name.
+//!
+//! `updated_at` moves only when a value does: `Stamped` marks the rows that follow that rule, and
+//! `repository::update_if_changed` is the write that applies it. The schema starts from a baseline
+//! (the state release v0.2.x left), with each later change a migration on top; a v0.2.x file is
+//! moved onto the baseline when it is opened.
+
+pub mod constraints;
+pub mod enums;
+pub mod migration;
+pub mod repository;
+pub mod slug;
+pub mod stamped;
+
+mod database;
+mod query_support;
+mod stamped_update;
+
+pub mod catalog;
+pub mod commit;
+pub mod component;
+pub mod connection;
+pub mod diagram;
+pub mod flow;
+pub mod graph;
+pub mod inventory;
+pub mod note;
+pub mod queue;
+pub mod section;
+pub mod skill;
+pub mod step;
+pub mod tag;
+pub mod task;
+pub mod timeentry;
+pub mod token;
+pub mod vulnerability;
+pub mod wrapup;
+
+pub use catalog::{company, company_logo_image, project, project_icon_image};
+pub use commit::commit_reference;
+pub use component::project_component;
+pub use connection::{connection_access, external_connection, project_connection};
+pub use flow::{step_link, step_visit};
+pub use graph::{deployment_graph, graph_route, graph_step};
+pub use inventory::project_dependency;
+pub use note::{document, document_task, note_scope};
+pub use queue::{run_queue, run_queue_item};
+pub use section::project_section;
+pub use skill::{skill_name, skill_placement, tag_skill, task_skill};
+pub use step::{step_pass, task_step};
+pub use timeentry::time_entry;
+pub use token::{token_usage, transcript_scan};
+pub use vulnerability::{scan_scope, security_advisory, vulnerability_exposure};
+pub use enums::*;
+pub use slug::Slug;
+pub use stamped::Stamped;
+pub use database::{check_openable, open, open_in_memory, open_temporary, Database, DATA_FILE_NAME};
+
+pub mod prelude {
+    pub use super::commit_reference::{Entity as CommitReference, Model as CommitReferenceModel};
+    pub use super::company::{Entity as Company, Model as CompanyModel};
+    pub use super::connection_access::{Entity as ConnectionAccess, Model as ConnectionAccessModel};
+    pub use super::company_logo_image::{Entity as CompanyLogoImage, Model as CompanyLogoImageModel};
+    pub use super::deployment_graph::{Entity as DeploymentGraph, Model as DeploymentGraphModel};
+    pub use super::diagram::{Entity as Diagram, Model as DiagramModel};
+    pub use super::document::{Entity as Document, Model as DocumentModel};
+    pub use super::document_task::{Entity as DocumentTask, Model as DocumentTaskModel};
+    pub use super::external_connection::{Entity as ExternalConnection, Model as ExternalConnectionModel};
+    pub use super::graph_route::{Entity as GraphRoute, Model as GraphRouteModel};
+    pub use super::graph_step::{Entity as GraphStep, Model as GraphStepModel};
+    pub use super::project::{Entity as Project, Model as ProjectModel};
+    pub use super::project_component::{Entity as ProjectComponent, Model as ProjectComponentModel};
+    pub use super::project_dependency::{Entity as ProjectDependency, Model as ProjectDependencyModel};
+    pub use super::project_connection::{Entity as ProjectConnection, Model as ProjectConnectionModel};
+    pub use super::project_icon_image::{Entity as ProjectIconImage, Model as ProjectIconImageModel};
+    pub use super::project_section::{Entity as ProjectSection, Model as ProjectSectionModel};
+    pub use super::run_queue::{Entity as RunQueue, Model as RunQueueModel};
+    pub use super::run_queue_item::{Entity as RunQueueItem, Model as RunQueueItemModel};
+    pub use super::security_advisory::{Entity as SecurityAdvisory, Model as SecurityAdvisoryModel};
+    pub use super::skill_placement::{Entity as SkillPlacement, Model as SkillPlacementModel};
+    pub use super::step_link::{Entity as StepLink, Model as StepLinkModel};
+    pub use super::step_visit::{Entity as StepVisit, Model as StepVisitModel};
+    pub use super::tag::{Entity as Tag, Model as TagModel};
+    pub use super::tag_skill::{Entity as TagSkill, Model as TagSkillModel};
+    pub use super::task::{Entity as Task, Model as TaskModel};
+    pub use super::task_skill::{Entity as TaskSkill, Model as TaskSkillModel};
+    pub use super::task_step::{Entity as TaskStep, Model as TaskStepModel};
+    pub use super::time_entry::{Entity as TimeEntry, Model as TimeEntryModel};
+    pub use super::token_usage::{Entity as TokenUsage, Model as TokenUsageModel};
+    pub use super::transcript_scan::{Entity as TranscriptScan, Model as TranscriptScanModel};
+    pub use super::vulnerability_exposure::{Entity as VulnerabilityExposure, Model as VulnerabilityExposureModel};
+    pub use super::wrapup::{Entity as Wrapup, Model as WrapupModel};
+    pub use super::enums::*;
+}

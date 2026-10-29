@@ -1,7 +1,7 @@
 use rekall_common::Id;
 use rekall_console::note::DocumentCommand;
-use rekall_model::DocumentContextMode;
-use rekall_model::note_scope::NoteScope;
+use rekall_store::DocumentContextMode;
+use rekall_store::note_scope::NoteScope;
 use serde::Deserialize;
 
 /// `contextMode` left out keeps what the note had, or `FULL` for a new one. `scope` left out

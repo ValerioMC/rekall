@@ -24,7 +24,7 @@ use rekall_claude::resources::{ClaudeResourceService, SkillGroupService};
 use rekall_claude::usage::{ClaudeUsageView, UsageReader};
 use rekall_claude::ClaudeState;
 use rekall_common::{Id, Instant};
-use rekall_model::{connection_access, external_connection, project_connection, ConnectionKind};
+use rekall_store::{connection_access, external_connection, project_connection, ConnectionKind};
 use rekall_service::claude::{TerminalLaunch, TerminalTarget};
 use rekall_service::connection::{Secret, SecretStore};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};

@@ -1,5 +1,5 @@
 use rekall_common::Id;
-use rekall_model::step_link;
+use rekall_store::step_link;
 use serde::Serialize;
 
 /// A route leaving a step, as the console draws it and the context names it.

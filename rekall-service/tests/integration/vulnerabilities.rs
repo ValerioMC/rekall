@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use rekall_common::Instant;
-use rekall_model::{AdvisorySeverity, Ecosystem, ExposureVerdict, FixScope};
+use rekall_store::{AdvisorySeverity, Ecosystem, ExposureVerdict, FixScope};
 use rekall_service::connection::InMemorySecretStore;
 use rekall_service::inventory::DeclaredDependency;
 use rekall_service::vulnerability::{

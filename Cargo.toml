@@ -1,5 +1,5 @@
 # The backend: one crate per layer, and the dependency direction the crates enforce:
-# rekall-common <- rekall-model <- rekall-repository <- rekall-service <- rekall-console <- rekall-api,
+# rekall-common <- rekall-store <- rekall-service <- rekall-console <- rekall-api,
 # with rekall-mcp, rekall-claude and rekall-platform on rekall-service, all <- rekall-app. rekall-web, the error body and extractors both routers
 # use, depends on rekall-common only. rekall-diagram, the diagram format, depends on nothing
 # of Rekall's own and is read from rekall-service upwards.
@@ -13,9 +13,8 @@ resolver = "2"
 members = [
     "rekall-common",
     "rekall-web",
-    "rekall-model",
     "rekall-diagram",
-    "rekall-repository",
+    "rekall-store",
     "rekall-service",
     "rekall-console",
     "rekall-api",
@@ -28,9 +27,8 @@ members = [
 default-members = [
     "rekall-common",
     "rekall-web",
-    "rekall-model",
     "rekall-diagram",
-    "rekall-repository",
+    "rekall-store",
     "rekall-service",
     "rekall-console",
     "rekall-api",
@@ -49,9 +47,8 @@ rust-version = "1.85"
 [workspace.dependencies]
 rekall-common = { path = "rekall-common" }
 rekall-web = { path = "rekall-web" }
-rekall-model = { path = "rekall-model" }
 rekall-diagram = { path = "rekall-diagram" }
-rekall-repository = { path = "rekall-repository" }
+rekall-store = { path = "rekall-store" }
 rekall-service = { path = "rekall-service" }
 rekall-console = { path = "rekall-console" }
 rekall-api = { path = "rekall-api" }

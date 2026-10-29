@@ -1,7 +1,7 @@
 use chrono::TimeDelta;
 use rekall_common::{Id, Instant, RekallError, Result};
-use rekall_model::time_entry;
-use rekall_repository::repository as repo;
+use rekall_store::time_entry;
+use rekall_store::repository as repo;
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
 use crate::{in_read, in_write, load, Ctx, Tx};

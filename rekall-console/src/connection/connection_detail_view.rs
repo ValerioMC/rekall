@@ -1,4 +1,4 @@
-use rekall_model::{external_connection, project, project_connection};
+use rekall_store::{external_connection, project, project_connection};
 
 use super::{ConnectionProjectView, ConnectionView};
 

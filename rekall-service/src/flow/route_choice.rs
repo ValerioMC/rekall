@@ -2,7 +2,7 @@
 //! it reads and tests on its own.
 
 use rekall_common::{RekallError, Result};
-use rekall_model::step_link;
+use rekall_store::step_link;
 
 /// The route `outcome` names. Without one, the only route is taken and none ends the flow (`None`);
 /// several is refused, since only the session knows what happened.

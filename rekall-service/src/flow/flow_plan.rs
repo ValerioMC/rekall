@@ -5,7 +5,7 @@
 use std::collections::HashSet;
 
 use rekall_common::{jstr, RekallError, Result};
-use rekall_model::step_link::{self, ROUTES_PER_STEP_MAX};
+use rekall_store::step_link::{self, ROUTES_PER_STEP_MAX};
 
 use super::PlannedStep;
 use crate::step::PROPOSED_DRAFTS_MAX;

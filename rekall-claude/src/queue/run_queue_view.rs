@@ -1,5 +1,5 @@
 use rekall_common::Instant;
-use rekall_model::{run_queue, RunQueueState};
+use rekall_store::{run_queue, RunQueueState};
 use serde::Serialize;
 
 use super::RunQueueItemView;

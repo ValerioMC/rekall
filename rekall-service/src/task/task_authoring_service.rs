@@ -1,7 +1,7 @@
 use rekall_common::{jstr, RekallError, Result};
-use rekall_model::task::Model;
-use rekall_model::{Slug, TaskKind};
-use rekall_repository::repository as repo;
+use rekall_store::task::Model;
+use rekall_store::{Slug, TaskKind};
+use rekall_store::repository as repo;
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
 
 use super::{Created, StepDraft, TaskBrief, TaskStreamEvent};

@@ -1,5 +1,5 @@
 use rekall_common::{Id, RekallError, Result};
-use rekall_model::{step_link, step_visit, task_step, TaskStepState};
+use rekall_store::{step_link, step_visit, task_step, TaskStepState};
 
 use super::{choose_route, FlowMove, FlowRoute, StepLinkService, StepVisitService};
 use crate::step::{TaskStepService, TaskStepView};

@@ -1,5 +1,5 @@
 use rekall_common::{Id, Instant};
-use rekall_model::ConnectionKind;
+use rekall_store::ConnectionKind;
 
 use super::*;
 use crate::task::TaskReferenceView;

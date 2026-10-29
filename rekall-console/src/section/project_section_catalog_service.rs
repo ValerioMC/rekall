@@ -6,8 +6,8 @@ use std::collections::HashSet;
 use rekall_service::Ctx;
 
 use rekall_common::{Id, RekallError, Result};
-use rekall_model::project_section;
-use rekall_repository::repository as repo;
+use rekall_store::project_section;
+use rekall_store::repository as repo;
 use rekall_service::section::{rules, ProjectSectionView, SectionStreamEvent};
 use rekall_service::{in_write, Tx};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};

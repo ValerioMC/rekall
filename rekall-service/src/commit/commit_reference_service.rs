@@ -3,9 +3,9 @@ use std::sync::LazyLock;
 
 use regex::Regex;
 use rekall_common::{jstr, Id, RekallError, Result};
-use rekall_model::commit_reference::{self, COMMENT_MAX, DIFF_MAX};
-use rekall_model::{task, task_step};
-use rekall_repository::repository as repo;
+use rekall_store::commit_reference::{self, COMMENT_MAX, DIFF_MAX};
+use rekall_store::{task, task_step};
+use rekall_store::repository as repo;
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
 use super::git::GitLogReader;

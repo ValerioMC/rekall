@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use rekall_common::{Id, Instant};
-use rekall_repository::DATA_FILE_NAME;
+use rekall_store::DATA_FILE_NAME;
 
 use super::super::folder::absolute_normalised;
 use super::super::registry::{DatabaseEntry, DatabaseRegistry, DatabaseRegistryStore};

@@ -2,8 +2,8 @@ use rekall_service::{Ctx, EventBus};
 
 use super::*;
 
-async fn service() -> (SkillGroupService, rekall_repository::Database) {
-    let database = rekall_repository::open_temporary().await.unwrap();
+async fn service() -> (SkillGroupService, rekall_store::Database) {
+    let database = rekall_store::open_temporary().await.unwrap();
     (SkillGroupService::new(Ctx::new(database.conn.clone(), EventBus::new())), database)
 }
 

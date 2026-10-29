@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use rekall_common::{Id, InternalFailure, RekallError, Result};
-use rekall_model::{external_connection, ConnectionKind};
-use rekall_repository::repository as repo;
+use rekall_store::{external_connection, ConnectionKind};
+use rekall_store::repository as repo;
 use rekall_service::connection::{JiraCredential, JiraSite, KubeAccess, Secret, SecretStore};
 use rekall_service::{in_read, Ctx};
 
