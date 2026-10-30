@@ -12,10 +12,10 @@ use rekall_core::claude::TerminalLaunch;
 use tokio::sync::watch;
 use tracing::{debug, warn};
 
-use super::claude_command::ClaudeOptions;
 use super::scrollback::Scrollback;
 use super::terminal::Terminal;
 use rekall_core::claude::TerminalListener as Listener;
+use crate::session::ClaudeOptions;
 
 const DEFAULT_COLUMNS: u16 = 80;
 const DEFAULT_ROWS: u16 = 24;

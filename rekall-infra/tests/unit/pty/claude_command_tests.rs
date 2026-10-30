@@ -1,11 +1,6 @@
-use super::*;
+use std::path::PathBuf;
 
-#[test]
-fn only_the_offered_model_and_effort_values_pass() {
-    assert_eq!(normalise(Some(" Opus "), &MODEL_ALIASES).as_deref(), Some("opus"));
-    assert_eq!(normalise(Some("gpt"), &MODEL_ALIASES), None);
-    assert_eq!(normalise(None, &EFFORT_LEVELS), None);
-}
+use super::*;
 
 fn arguments(options: &ClaudeOptions) -> Vec<String> {
     let command = claude_command(Path::new("/bin/claude"), options, "/rk project:vega", HashMap::new(), Path::new("/work"));

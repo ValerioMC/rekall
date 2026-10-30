@@ -4,7 +4,6 @@
 
 use std::collections::HashMap;
 use std::io::Write;
-use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -17,26 +16,24 @@ use rekall_core::review::TaskReviewService;
 use rekall_core::step::TaskStepService;
 use rekall_core::telemetry::TelemetrySettingsService;
 use tokio::sync::broadcast;
-use tracing::{info, warn};
+use tracing::info;
 
 use crate::cli::ClaudeCli;
 use crate::connection::CredentialBroker;
 use crate::config::ClaudeConfig;
 
-use super::claude_command::{claude_command, ClaudeOptions};
+use super::claude_command::claude_command;
 use super::pty_process::{kick_resize, spawn_terminal};
 use super::terminal::Terminal;
 use rekall_core::claude::{TerminalEnded, TerminalListener as Listener, TerminalMode, TerminalView};
-use crate::session::{spawn_idle_sweep, EndedBus, WorkMarker};
+use crate::session::{require_folder, spawn_idle_sweep, ClaudeOptions, EndedBus, SessionLauncher, WorkMarker};
 
 const MAX_DIMENSION: i64 = 1000;
 
 pub struct PtyTerminalManager {
     launch_service: TerminalLaunchService,
-    cli: ClaudeCli,
+    launcher: SessionLauncher,
     marker: WorkMarker,
-    broker: Arc<CredentialBroker>,
-    telemetry: TelemetrySettingsService,
     ended: EndedBus,
     max_live: usize,
     idle_minutes: u64,
@@ -60,10 +57,8 @@ impl PtyTerminalManager {
     ) -> Arc<Self> {
         Arc::new(Self {
             launch_service,
-            cli,
+            launcher: SessionLauncher::new(cli, broker, telemetry),
             marker: WorkMarker::new(task_steps, task_review),
-            broker,
-            telemetry,
             ended: EndedBus::new(),
             max_live: config.max_sessions,
             idle_minutes: config.idle_minutes,
@@ -124,21 +119,16 @@ impl PtyTerminalManager {
         }
 
         let directory = require_folder(&launch)?;
-        let binary = self.require_cli().await?;
+        let binary = self.launcher.require_cli().await?;
         let mut options = ClaudeOptions::chosen(skip_permissions, model, effort);
         let id = Id::random();
-        let mut environment = self.cli.environment().await;
-        if let Some(session) = self.broker.open(id, &launch).await? {
-            session.apply(&mut environment);
-            options.settings = session.claude_settings.clone();
-        }
-        environment.extend(self.telemetry_variables(id, &launch).await);
+        let environment = self.launcher.environment(id, &launch, &mut options).await?;
         let command = claude_command(&binary, &options, &mode.first_line(&launch.anchors), environment, directory);
 
         let terminal = match self.register(id, launch.clone(), step_id, mode.follows_steps(), options, command).await {
             Ok(terminal) => terminal,
             Err(refused) => {
-                self.broker.close(id);
+                self.launcher.release(id);
                 return Err(refused);
             }
         };
@@ -146,22 +136,6 @@ impl PtyTerminalManager {
         self.marker.mark_running(launch.task_id, step_id).await;
         info!(terminal_id = %id, %mode, anchors = %launch.anchors, working_dir = %launch.working_dir, "Opened terminal");
         Ok(terminal.view())
-    }
-
-    /// A failing settings read costs the session its traces and nothing else.
-    async fn telemetry_variables(&self, terminal_id: Id, launch: &TerminalLaunch) -> HashMap<String, String> {
-        match self.telemetry.launch_variables(launch).await {
-            Ok(variables) => {
-                if let Some(endpoint) = variables.get("OTEL_EXPORTER_OTLP_ENDPOINT") {
-                    info!(%terminal_id, %endpoint, "Tracing the terminal's session");
-                }
-                variables
-            }
-            Err(failure) => {
-                warn!(%failure, %terminal_id, "Could not read the tracing settings; the session starts without traces");
-                HashMap::new()
-            }
-        }
     }
 
     /// Starts the process and records it as live, under the cap. The check and the record are
@@ -193,12 +167,6 @@ impl PtyTerminalManager {
             .map_err(|failed| RekallError::conflict(format!("Could not start claude: {failed}")))?;
         self.live_map().insert(id, terminal.clone());
         Ok(terminal)
-    }
-
-    async fn require_cli(&self) -> Result<PathBuf> {
-        self.cli.locate().await.ok_or_else(|| {
-            RekallError::conflict("Claude Code's command line tool isn't on this machine. Install it, then try again.")
-        })
     }
 
     /// Move the running marker to another step without touching the process.
@@ -299,7 +267,7 @@ impl PtyTerminalManager {
             terminal.destroy_forcibly();
         }
         terminal.notify_ended(terminal.safe_exit_value(), reason);
-        self.broker.close(id);
+        self.launcher.release(id);
         self.marker.release_running(terminal.launch.task_id, terminal.step_id()).await;
         self.announce_ended(&terminal);
         info!(terminal_id = %id, %reason, "Closed terminal");
@@ -346,7 +314,7 @@ impl PtyTerminalManager {
             }
             let code = if terminal.alive() { 0 } else { terminal.safe_exit_value() };
             terminal.notify_ended(code, "The app was shutting down.");
-            self.broker.close(terminal.id);
+            self.launcher.release(terminal.id);
             self.marker.release_running(terminal.launch.task_id, terminal.step_id()).await;
             self.announce_ended(terminal);
         }
@@ -359,7 +327,7 @@ impl PtyTerminalManager {
         let code = terminal.safe_exit_value();
         let detail = if code == 0 { "The terminal ended.".to_string() } else { format!("claude exited with code {code}") };
         terminal.notify_ended(code, &detail);
-        self.broker.close(id);
+        self.launcher.release(id);
         self.marker.release_running(terminal.launch.task_id, terminal.step_id()).await;
         self.announce_ended(&terminal);
         info!(terminal_id = %id, code, "Terminal exited");
@@ -392,18 +360,6 @@ impl PtyTerminalManager {
     fn live_terminal_on(&self, target: TerminalTarget) -> Option<Arc<Terminal>> {
         self.live_map().values().find(|t| t.launch.target() == target).cloned()
     }
-}
-
-/// The project's folder, which has to be there for a session to start in it.
-fn require_folder(launch: &TerminalLaunch) -> Result<&Path> {
-    let directory = Path::new(&launch.working_dir);
-    if !directory.is_dir() {
-        return Err(RekallError::conflict(format!(
-            "This project's folder ({}) is not there. Set it again on the project page.",
-            launch.working_dir
-        )));
-    }
-    Ok(directory)
 }
 
 #[cfg(test)]
