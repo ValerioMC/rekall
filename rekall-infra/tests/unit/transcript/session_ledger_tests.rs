@@ -127,3 +127,27 @@ fn calls_on_different_days_are_charged_to_the_day_they_were_made() {
     let per_day: Vec<(String, u64)> = spent.iter().map(|usage| (usage.at.unwrap().to_string(), usage.tokens.output)).collect();
     assert_eq!(per_day, [("2026-10-01T00:00:00Z".to_string(), 10), ("2026-10-02T00:00:00Z".to_string(), 20)]);
 }
+
+const HEADLESS_TRANSCRIPT: &str = include_str!("../../fixtures/chat/headless_transcript.jsonl");
+
+fn spent_over(transcript: &str) -> Vec<UnitUsage> {
+    let mut ledger = SessionLedger::new();
+    transcript.lines().for_each(|line| ledger.read_line(line));
+    ledger.spent()
+}
+
+#[test]
+fn a_headless_session_is_charged_to_the_task_its_rk_line_names_and_not_before() {
+    let spent = spent_over(HEADLESS_TRANSCRIPT);
+
+    assert_eq!(spent.len(), 1);
+    assert_eq!(spent[0].unit, WorkUnit::task(Some("alpha"), "one"));
+    assert_eq!(spent[0].tokens, TokenCount { input: 6, output: 392, cache_creation: 13_642, cache_read: 65_365 });
+}
+
+#[test]
+fn a_headless_transcript_is_charged_exactly_as_the_same_session_run_in_a_terminal() {
+    let terminal_transcript = HEADLESS_TRANSCRIPT.replace("sdk-cli", "cli");
+
+    assert_eq!(spent_over(&terminal_transcript), spent_over(HEADLESS_TRANSCRIPT));
+}

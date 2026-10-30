@@ -71,6 +71,28 @@ for one, `ProjectTokenChip` for a project in the navigator header); its sparklin
 with one point per calendar day. `TaskTagControl` and `TagPicker` change a task's tag in place. The tokens follow the anchors, not the folder, and
 any session counts, whether Rekall opened its terminal or not.
 
+A chat session (a headless `claude`, see [terminals.md](terminals.md)) writes the same transcript, in the
+same folder, as a terminal one, and its `/rk` line is recorded the same way, so the ledger charges it with no special
+case; its lines carry `entrypoint: sdk-cli` where a terminal's say `cli`, which the ledger ignores and
+`scripts/session_shape.py` uses. `headless_transcript.jsonl` in `rekall-infra/tests/fixtures/chat/` is a sanitised
+real one and `session_ledger_tests` reads it.
+
+**Comparing the two modes.** `scripts/session_shape.py [folder ...]` (standard library, read-only, aggregates only, no
+message text) reads `~/.claude/projects/<folder>/*.jsonl`, counts each message once by its id, keeping the largest
+counts, and prints every figure per `entrypoint`, so terminal and chat sessions are compared on the same days:
+
+- tokens per day: input, cache write, cache read and output, one row per day and entrypoint (`--days`, 14 by default);
+- cold turns: a turn that is not its session's first, whose context is at least 10k tokens and at least half of it
+  written to the cache, as a share of the turns and of all the cache writes;
+- context size at turn 1, 10, 25, 50, 100 and 200, and the median growth per turn;
+- the share of turns that were cold by the idle gap before them: up to 5 minutes, 5 minutes to an hour, over an hour;
+- the share of weighted cost by model.
+
+What to look at: a cold turn is the cache missing, so it is the expensive one. Terminal sessions run cold almost only
+after an hour of idleness, when the cache entry has expired; if chat sessions are cold in the first column too, or write
+much more per turn than their context grew by, the headless mode is not reusing the cache. Compare chat and terminal
+only on similar work: a few short sessions say nothing about a long one.
+
 Sharp edges: a session started outside every project's folder is never read, and a step named by
 number in an old transcript resolves against the checklist as it is when the transcript is reread.
 
