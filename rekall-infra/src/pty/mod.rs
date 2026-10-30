@@ -12,9 +12,7 @@ mod pty_terminals;
 mod scrollback;
 mod session_relay;
 mod terminal;
-mod terminal_ended;
 
 pub use pty_terminal_manager::PtyTerminalManager;
 pub use pty_terminals::PtyTerminals;
 pub use session_relay::SessionRelay;
-pub use terminal_ended::TerminalEnded;

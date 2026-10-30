@@ -1,5 +1,5 @@
 use rekall_console::terminal::OpenTerminalCommand;
-use rekall_core::claude::{TerminalMode, TerminalTarget};
+use rekall_core::claude::{SessionKind, TerminalMode, TerminalTarget};
 use rekall_core::vulnerability::rule::rules;
 use rekall_diagram::DiagramKind;
 use rekall_kernel::{jstr, Id, RekallError};
@@ -9,7 +9,7 @@ use crate::terminal::TerminalModeName;
 
 /// What the console sends to open a terminal. `stepId`, `model` and `effort` are optional; an
 /// unknown or blank model or effort leaves the account default. A missing `mode` is
-/// [`TerminalMode::Work`]; `PLAN_FLOW` asks for a flow rather than a checklist, `REPLAN` for the task's draft and open steps to be redesigned; `GENERATE` and
+/// [`TerminalMode::Work`], and a missing `kind` is a terminal session; `PLAN_FLOW` asks for a flow rather than a checklist, `REPLAN` for the task's draft and open steps to be redesigned; `GENERATE` and
 /// `EXPLAIN` need a `request`, and `kinds` names the diagram types a generation draws; `ASSESS`
 /// needs the GHSA id of the `advisory` to judge, and `ASSESS_ALL` judges every one not judged yet.
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -20,6 +20,7 @@ pub struct OpenTerminalRequest {
     pub model: Option<String>,
     pub effort: Option<String>,
     pub mode: Option<TerminalModeName>,
+    pub kind: Option<SessionKind>,
     pub request: Option<String>,
     pub kinds: Option<Vec<String>>,
     pub advisory: Option<String>,
@@ -29,7 +30,15 @@ impl OpenTerminalRequest {
     /// The command to open a terminal on `target`, once the mode the request names is read.
     pub fn command(self, target: TerminalTarget) -> Result<OpenTerminalCommand, RekallError> {
         let mode = self.mode()?;
-        Ok(OpenTerminalCommand { target, step_id: self.step_id, skip_permissions: self.skip_permissions.unwrap_or(false), model: self.model, effort: self.effort, mode })
+        Ok(OpenTerminalCommand {
+            target,
+            step_id: self.step_id,
+            skip_permissions: self.skip_permissions.unwrap_or(false),
+            model: self.model,
+            effort: self.effort,
+            mode,
+            kind: self.kind.unwrap_or_default(),
+        })
     }
 
     pub fn mode(&self) -> Result<TerminalMode, RekallError> {

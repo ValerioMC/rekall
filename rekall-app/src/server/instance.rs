@@ -145,10 +145,11 @@ impl Instance {
                 clock.clone(),
             )),
         };
+        let pty_terminals = Arc::new(PtyTerminals::new(terminals.clone()));
         let queue = RunQueueService::new(ctx.clone());
         let runner = RunQueueRunner::start(
             queue.clone(),
-            terminals.clone(),
+            pty_terminals.clone(),
             usage.clone(),
             services.task_work.clone(),
             services.steps.clone(),
@@ -158,7 +159,7 @@ impl Instance {
             claude_config.run_queue_settle_grace,
         );
         SessionRelay::start(
-            terminals.clone(),
+            pty_terminals.clone(),
             services.task_work.clone(),
             queue.clone(),
             &events,
@@ -169,7 +170,6 @@ impl Instance {
             services.token_usage.clone(),
         );
         let installer = ClaudeCodeInstaller::new(config.user_home.clone(), config.mcp_endpoint(served_port));
-        let pty_terminals = Arc::new(PtyTerminals::new(terminals.clone()));
         let location = database.path.as_deref().and_then(DatabaseLocation::of);
         let backups = DatabaseBackupService::new(
             database.conn.clone(),

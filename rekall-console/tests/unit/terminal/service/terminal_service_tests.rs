@@ -1,8 +1,9 @@
 use std::sync::Mutex;
 
 use async_trait::async_trait;
-use rekall_core::claude::TerminalMode;
+use rekall_core::claude::{SessionKind, TerminalEnded, TerminalMode};
 use rekall_kernel::Instant;
+use tokio::sync::broadcast;
 
 use super::*;
 
@@ -11,6 +12,7 @@ use super::*;
 struct FakeHost {
     openings: Mutex<Vec<TerminalOpening>>,
     live: Mutex<Vec<TerminalView>>,
+    ended: Mutex<Option<broadcast::Sender<TerminalEnded>>>,
 }
 
 #[async_trait]
@@ -35,6 +37,22 @@ impl TerminalHost for FakeHost {
         let position = live.iter().position(|view| view.id == id)?;
         Some(live.remove(position))
     }
+
+    fn subscribe_ended(&self) -> broadcast::Receiver<TerminalEnded> {
+        self.ended.lock().unwrap().get_or_insert_with(|| broadcast::channel(8).0).subscribe()
+    }
+
+    fn has_live_for(&self, task_id: Id) -> bool {
+        self.live.lock().unwrap().iter().any(|view| view.task_id == Some(task_id))
+    }
+
+    fn work_session_for(&self, task_id: Id) -> Option<TerminalView> {
+        self.live.lock().unwrap().iter().find(|view| view.task_id == Some(task_id)).cloned()
+    }
+
+    async fn renew(&self, id: Id) -> Result<TerminalView> {
+        Err(RekallError::conflict(format!("The fake host does not renew {id}.")))
+    }
 }
 
 fn view_on(target: &TerminalTarget) -> TerminalView {
@@ -56,6 +74,7 @@ fn view_on(target: &TerminalTarget) -> TerminalView {
         skip_permissions: false,
         model: None,
         effort: None,
+        kind: SessionKind::Terminal,
         live: true,
         started_at: now,
         last_activity_at: now,
@@ -64,7 +83,7 @@ fn view_on(target: &TerminalTarget) -> TerminalView {
 }
 
 fn command(target: TerminalTarget, mode: TerminalMode) -> OpenTerminalCommand {
-    OpenTerminalCommand { target, step_id: None, skip_permissions: true, model: Some("sonnet".into()), effort: None, mode }
+    OpenTerminalCommand { target, step_id: None, skip_permissions: true, model: Some("sonnet".into()), effort: None, mode, kind: SessionKind::Terminal }
 }
 
 fn service() -> (TerminalService, Arc<FakeHost>) {
@@ -115,4 +134,17 @@ async fn closing_a_live_terminal_takes_it_off_the_list() {
     service.close(opened.id).await.unwrap();
 
     assert!(service.list().is_empty());
+}
+
+#[tokio::test]
+async fn the_kind_of_session_the_command_asked_for_reaches_the_host() {
+    let (service, host) = service();
+    let mut chat = command(TerminalTarget::Task(Id::random()), TerminalMode::Work);
+    chat.kind = SessionKind::Chat;
+
+    service.open(chat).await.unwrap();
+    service.open(command(TerminalTarget::Task(Id::random()), TerminalMode::Work)).await.unwrap();
+
+    let kinds: Vec<SessionKind> = host.openings.lock().unwrap().iter().map(|opening| opening.kind).collect();
+    assert_eq!(kinds, vec![SessionKind::Chat, SessionKind::Terminal]);
 }

@@ -1,9 +1,10 @@
 use rekall_kernel::Id;
 
-use crate::claude::{TerminalMode, TerminalTarget};
+use crate::claude::{SessionKind, TerminalMode, TerminalTarget};
 
 /// What a terminal is opened on and how: the step it follows, whether it skips permission
-/// prompts, the model and effort asked for, and the work its first line starts.
+/// prompts, the model and effort asked for, the work its first line starts, and the kind of
+/// session it runs in.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TerminalOpening {
     pub target: TerminalTarget,
@@ -12,4 +13,5 @@ pub struct TerminalOpening {
     pub model: Option<String>,
     pub effort: Option<String>,
     pub mode: TerminalMode,
+    pub kind: SessionKind,
 }

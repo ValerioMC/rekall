@@ -63,3 +63,11 @@ fn the_command_carries_the_target_and_reads_a_missing_skip_as_no() {
     assert_eq!(command.model.as_deref(), Some("sonnet"));
     assert_eq!(command.mode, TerminalMode::Work);
 }
+
+#[test]
+fn a_request_without_a_kind_opens_a_terminal_session() {
+    let target = TerminalTarget::Task(Id::random());
+
+    assert_eq!(parsed("{}").command(target).unwrap().kind, SessionKind::Terminal);
+    assert_eq!(parsed(r#"{"kind":"CHAT"}"#).command(target).unwrap().kind, SessionKind::Chat);
+}

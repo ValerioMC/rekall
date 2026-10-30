@@ -26,20 +26,18 @@ use crate::config::ClaudeConfig;
 use super::claude_command::{claude_command, ClaudeOptions};
 use super::pty_process::{kick_resize, spawn_terminal};
 use super::terminal::Terminal;
-use rekall_core::claude::{TerminalListener as Listener, TerminalMode, TerminalView};
-
-use super::TerminalEnded;
+use rekall_core::claude::{TerminalEnded, TerminalListener as Listener, TerminalMode, TerminalView};
+use crate::session::{spawn_idle_sweep, EndedBus, WorkMarker};
 
 const MAX_DIMENSION: i64 = 1000;
 
 pub struct PtyTerminalManager {
     launch_service: TerminalLaunchService,
     cli: ClaudeCli,
-    task_steps: TaskStepService,
-    task_review: TaskReviewService,
+    marker: WorkMarker,
     broker: Arc<CredentialBroker>,
     telemetry: TelemetrySettingsService,
-    ended: broadcast::Sender<TerminalEnded>,
+    ended: EndedBus,
     max_live: usize,
     idle_minutes: u64,
     scrollback_bytes: usize,
@@ -60,15 +58,13 @@ impl PtyTerminalManager {
         telemetry: TelemetrySettingsService,
         config: &ClaudeConfig,
     ) -> Arc<Self> {
-        let (ended, _) = broadcast::channel(256);
         Arc::new(Self {
             launch_service,
             cli,
-            task_steps,
-            task_review,
+            marker: WorkMarker::new(task_steps, task_review),
             broker,
             telemetry,
-            ended,
+            ended: EndedBus::new(),
             max_live: config.max_sessions,
             idle_minutes: config.idle_minutes,
             scrollback_bytes: config.scrollback_bytes,
@@ -86,18 +82,13 @@ impl PtyTerminalManager {
 
     /// Sweep idle terminals every `sweep_minutes`.
     pub fn start_reaper(self: &Arc<Self>, sweep_minutes: u64) {
-        let this = Arc::downgrade(self);
         let every = Duration::from_secs(sweep_minutes.max(1) * 60);
-        tokio::spawn(async move {
-            let mut interval = tokio::time::interval_at(tokio::time::Instant::now() + every, every);
-            loop {
-                interval.tick().await;
-                let Some(manager) = this.upgrade() else { return };
-                if manager.stopped.load(Ordering::SeqCst) {
-                    return;
-                }
-                manager.sweep_idle().await;
+        spawn_idle_sweep(self, every, |manager: Arc<Self>| async move {
+            if manager.stopped.load(Ordering::SeqCst) {
+                return false;
             }
+            manager.sweep_idle().await;
+            true
         });
     }
 
@@ -152,7 +143,7 @@ impl PtyTerminalManager {
             }
         };
 
-        self.mark_running(launch.task_id, step_id).await;
+        self.marker.mark_running(launch.task_id, step_id).await;
         info!(terminal_id = %id, %mode, anchors = %launch.anchors, working_dir = %launch.working_dir, "Opened terminal");
         Ok(terminal.view())
     }
@@ -215,36 +206,13 @@ impl PtyTerminalManager {
         let current = terminal.step_id();
         if let Some(step_id) = step_id {
             if Some(step_id) != current {
-                self.release_running(terminal.launch.task_id, current).await;
+                self.marker.release_running(terminal.launch.task_id, current).await;
                 *terminal.step_id.lock().expect("never poisoned") = Some(step_id);
-                self.mark_running(terminal.launch.task_id, Some(step_id)).await;
+                self.marker.mark_running(terminal.launch.task_id, Some(step_id)).await;
             }
         }
         *terminal.last_activity_at.lock().expect("never poisoned") = Instant::now();
         terminal.view()
-    }
-
-    /// A terminal on a project alone has no task to mark.
-    async fn mark_running(&self, task_id: Option<Id>, step_id: Option<Id>) {
-        let Some(task_id) = task_id else { return };
-        let result = match step_id {
-            Some(step_id) => self.task_steps.mark_running(Some(step_id)).await,
-            None => self.task_review.session_running(task_id, true).await,
-        };
-        if let Err(failed) = result {
-            warn!(%failed, %task_id, "Could not mark terminal work running");
-        }
-    }
-
-    async fn release_running(&self, task_id: Option<Id>, step_id: Option<Id>) {
-        let Some(task_id) = task_id else { return };
-        let result = match step_id {
-            Some(step_id) => self.task_steps.release_running(Some(step_id)).await,
-            None => self.task_review.session_running(task_id, false).await,
-        };
-        if let Err(failed) = result {
-            warn!(%failed, %task_id, "Could not release terminal work");
-        }
     }
 
     /// Ends a terminal that has claimed the last step of its session and opens another on the
@@ -332,7 +300,7 @@ impl PtyTerminalManager {
         }
         terminal.notify_ended(terminal.safe_exit_value(), reason);
         self.broker.close(id);
-        self.release_running(terminal.launch.task_id, terminal.step_id()).await;
+        self.marker.release_running(terminal.launch.task_id, terminal.step_id()).await;
         self.announce_ended(&terminal);
         info!(terminal_id = %id, %reason, "Closed terminal");
         Some(terminal.view())
@@ -346,10 +314,6 @@ impl PtyTerminalManager {
 
     pub fn get(&self, id: Id) -> Option<TerminalView> {
         self.live_map().get(&id).map(|t| t.view())
-    }
-
-    pub fn is_live(&self, id: Id) -> bool {
-        self.live_map().get(&id).is_some_and(|t| t.alive())
     }
 
     pub fn live_count(&self) -> usize {
@@ -383,7 +347,7 @@ impl PtyTerminalManager {
             let code = if terminal.alive() { 0 } else { terminal.safe_exit_value() };
             terminal.notify_ended(code, "The app was shutting down.");
             self.broker.close(terminal.id);
-            self.release_running(terminal.launch.task_id, terminal.step_id()).await;
+            self.marker.release_running(terminal.launch.task_id, terminal.step_id()).await;
             self.announce_ended(terminal);
         }
     }
@@ -396,13 +360,13 @@ impl PtyTerminalManager {
         let detail = if code == 0 { "The terminal ended.".to_string() } else { format!("claude exited with code {code}") };
         terminal.notify_ended(code, &detail);
         self.broker.close(id);
-        self.release_running(terminal.launch.task_id, terminal.step_id()).await;
+        self.marker.release_running(terminal.launch.task_id, terminal.step_id()).await;
         self.announce_ended(&terminal);
         info!(terminal_id = %id, code, "Terminal exited");
     }
 
     fn announce_ended(&self, terminal: &Terminal) {
-        let _ = self.ended.send(TerminalEnded { terminal_id: terminal.id, task_id: terminal.launch.task_id });
+        self.ended.announce(terminal.id, terminal.launch.task_id);
     }
 
     async fn sweep_idle(&self) {

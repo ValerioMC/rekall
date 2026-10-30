@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use rekall_kernel::Id;
-use rekall_core::claude::{TaskWorkService, TerminalView};
+use rekall_core::claude::{TaskWorkService, TerminalHost, TerminalView};
 use rekall_core::queue::RunQueueService;
 use rekall_core::review::TaskReviewEvent;
 use rekall_core::step::StepStreamEvent;
@@ -19,10 +19,8 @@ use rekall_store::{RunQueueItemState, RunQueueState};
 use tokio::sync::broadcast::{self, error::RecvError};
 use tracing::{info, warn};
 
-use super::PtyTerminalManager;
-
 pub struct SessionRelay {
-    terminals: Arc<PtyTerminalManager>,
+    terminals: Arc<dyn TerminalHost>,
     work: TaskWorkService,
     queue: RunQueueService,
     settle_grace: Duration,
@@ -31,7 +29,7 @@ pub struct SessionRelay {
 
 impl SessionRelay {
     pub fn start(
-        terminals: Arc<PtyTerminalManager>,
+        terminals: Arc<dyn TerminalHost>,
         work: TaskWorkService,
         queue: RunQueueService,
         events: &EventBus,
@@ -56,7 +54,7 @@ impl SessionRelay {
     }
 
     async fn check(self: Arc<Self>, task_id: Id) {
-        let Some(terminal) = self.terminals.work_terminal_for(task_id) else { return };
+        let Some(terminal) = self.terminals.work_session_for(task_id) else { return };
         if !self.is_spent(&terminal).await || self.queue_runs(task_id).await {
             return;
         }
@@ -69,13 +67,13 @@ impl SessionRelay {
     }
 
     async fn renew(&self, task_id: Id, terminal_id: Id) {
-        let Some(terminal) = self.terminals.work_terminal_for(task_id).filter(|terminal| terminal.id == terminal_id) else {
+        let Some(terminal) = self.terminals.work_session_for(task_id).filter(|terminal| terminal.id == terminal_id) else {
             return;
         };
         if !self.is_spent(&terminal).await {
             return;
         }
-        match self.terminals.renew_session(terminal_id).await {
+        match self.terminals.renew(terminal_id).await {
             Ok(renewed) => info!(%task_id, from = %terminal_id, to = %renewed.id, "A new session opened on the next step"),
             Err(failure) => warn!(%failure, %task_id, terminal_id = %terminal_id, "Could not open the next session"),
         }

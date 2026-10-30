@@ -52,7 +52,7 @@ fn harness(world: &World, usage: ClaudeUsageView) -> Harness {
     let terminals = world.terminals(8);
     let runner = RunQueueRunner::start(
         queue.clone(),
-        terminals.clone(),
+        Arc::new(rekall_infra::pty::PtyTerminals::new(terminals.clone())),
         Arc::new(FixedUsage(Mutex::new(usage))),
         world.services.task_work.clone(),
         world.services.steps.clone(),

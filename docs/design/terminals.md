@@ -51,7 +51,11 @@ once a terminal exists the pane connects to the socket controller beside it at
 `/api/terminal/{id}/io`, Rekall's one WebSocket, which reaches the bytes through
 `TerminalPipeService`. Both services hold a port of `rekall-core` (`TerminalHost`, `TerminalPipe`)
 that `PtyTerminals` in `rekall-infra` implements over `PtyTerminalManager` and `rekall-app` injects
-through `ApiPorts`, so `rekall-http` never names the PTY. The run queue is driven the same way:
+through `ApiPorts`, so `rekall-http` never names the PTY. `TerminalHost` also announces every end
+(`subscribe_ended`, a `TerminalEnded`), answers whether a task has a live session (`has_live_for`) and which
+one works its steps (`work_session_for`), and renews one (`renew`), so `RunQueueWorker` and
+`SessionRelay` hold it and not the manager. A `TerminalOpening` and a `TerminalView` carry a
+`SessionKind` (`TERMINAL` or `CHAT`, `TERMINAL` when a request names none); `PtyTerminals` always reports `TERMINAL`. The run queue is driven the same way:
 `RunQueueControlService` edits the rows through `RunQueueService` and wakes the worker through the
 `QueueRunner` port, which `RunQueueRunner` implements. Binary frames are
 stdin and stdout, a `{"resize":[cols,rows]}` text frame sets the window size, and a
@@ -59,7 +63,7 @@ stdin and stdout, a `{"resize":[cols,rows]}` text frame sets the window size, an
 queue per socket, so a pane that stops reading is dropped rather than left to back up memory. `useTerminalSocket` is the client half,
 `TerminalPane.vue` wires it to an `xterm.js` instance.
 
-A terminal that follows steps can be renewed (`PtyTerminalManager::renew_session`): it is closed and
+A terminal that follows steps can be renewed (`TerminalHost::renew`, which `PtyTerminals` runs as `PtyTerminalManager::renew_session`): it is closed and
 another is opened on the same task with the same model, effort and permissions, which is how a
 session boundary (4.3 in [workflow.md](workflow.md)) gives the next step a clean context. The pane switches to the new terminal
 once the old one's end reaches it (`terminal.store`'s `followNextSession`).
@@ -67,10 +71,10 @@ once the old one's end reaches it (`terminal.store`'s `followNextSession`).
 One terminal per task. Opening again on a task that already has one is routed to it; opening on
 a different step releases the step it was on and marks the new (see [workflow.md](workflow.md)). A plan open is always on
 the task, never a step, and on a task that already has a terminal it types the plan line into it
-rather than spawning a second. `PtyTerminalManager`
-also carries the checklist marker: `TaskStepService.markRunning` / `releaseRunning` for a step,
-`TaskReviewService.sessionRunning` for a stepless task, on open and on every way the terminal
-ends.
+rather than spawning a second. The checklist marker is `WorkMarker` (`rekall-infra/src/session/`):
+`TaskStepService.markRunning` / `releaseRunning` for a step, `TaskReviewService.sessionRunning` for a
+stepless task, on open and on every way the terminal ends. `EndedBus` there carries the ends and
+`spawn_idle_sweep` runs the idle sweep, both written for any kind of session manager.
 
 Nothing is persisted. There is no row behind a terminal, so `TerminalLaunchService` (in
 `rekall-core`, against the entities) only resolves a task id to its folder and anchors, and a

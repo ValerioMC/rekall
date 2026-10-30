@@ -22,7 +22,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use rekall_kernel::{Instant, RekallError, Result};
-use rekall_core::claude::TaskWorkService;
+use rekall_core::claude::{TaskWorkService, TerminalEnded, TerminalHost};
 use rekall_core::step::TaskStepService;
 use rekall_core::step::StepStreamEvent;
 use rekall_core::review::TaskReviewEvent;
@@ -32,7 +32,6 @@ use tokio::sync::{mpsc, oneshot};
 
 use super::run_queue_worker::{Command, Worker, WorkerParts};
 use rekall_core::queue::{QueueRunner, RunQueueService, RunQueueView};
-use crate::pty::{PtyTerminalManager, TerminalEnded};
 use rekall_core::claude::UsageReader;
 
 /// The handle the rest of the application drives the queue through. Every call is a command to
@@ -48,7 +47,7 @@ impl RunQueueRunner {
     #[allow(clippy::too_many_arguments)]
     pub fn start(
         queue: RunQueueService,
-        terminals: Arc<PtyTerminalManager>,
+        terminals: Arc<dyn TerminalHost>,
         usage: Arc<dyn UsageReader>,
         work: TaskWorkService,
         steps: TaskStepService,

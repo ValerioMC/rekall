@@ -1,9 +1,9 @@
 use rekall_kernel::{Id, Instant};
 use serde::Serialize;
 
-use crate::claude::TerminalConnectionView;
+use crate::claude::{SessionKind, TerminalConnectionView};
 
-/// A live terminal as the console sees it. The task fields are empty on one opened on a project.
+/// A live session as the console sees it. The task fields are empty on one opened on a project.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TerminalView {
@@ -19,6 +19,7 @@ pub struct TerminalView {
     pub skip_permissions: bool,
     pub model: Option<String>,
     pub effort: Option<String>,
+    pub kind: SessionKind,
     pub live: bool,
     pub started_at: Instant,
     pub last_activity_at: Instant,

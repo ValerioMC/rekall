@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use rekall_core::claude::{TerminalHost, TerminalListener, TerminalOpening, TerminalPipe, TerminalView};
+use rekall_core::claude::{TerminalEnded, TerminalHost, TerminalListener, TerminalOpening, TerminalPipe, TerminalView};
 use rekall_kernel::{Id, Result};
+use tokio::sync::broadcast;
 
 use super::PtyTerminalManager;
 
@@ -34,6 +35,22 @@ impl TerminalHost for PtyTerminals {
 
     async fn close(&self, id: Id, reason: &str) -> Option<TerminalView> {
         self.0.close(id, reason).await
+    }
+
+    fn subscribe_ended(&self) -> broadcast::Receiver<TerminalEnded> {
+        self.0.subscribe_ended()
+    }
+
+    fn has_live_for(&self, task_id: Id) -> bool {
+        self.0.has_live_terminal_for(task_id)
+    }
+
+    fn work_session_for(&self, task_id: Id) -> Option<TerminalView> {
+        self.0.work_terminal_for(task_id)
+    }
+
+    async fn renew(&self, id: Id) -> Result<TerminalView> {
+        self.0.renew_session(id).await
     }
 }
 

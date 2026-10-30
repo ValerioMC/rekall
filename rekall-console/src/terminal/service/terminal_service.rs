@@ -52,6 +52,7 @@ fn opening_of(command: OpenTerminalCommand) -> TerminalOpening {
         model: command.model,
         effort: command.effort,
         mode: command.mode,
+        kind: command.kind,
     }
 }
 

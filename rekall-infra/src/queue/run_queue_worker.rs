@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use rekall_kernel::{Id, RekallError, Result};
 use rekall_store::{RunQueueItemState, RunQueueState};
-use rekall_core::claude::{Remaining, TaskWork, TaskWorkService, TerminalTarget};
+use rekall_core::claude::{Remaining, SessionKind, TaskWork, TaskWorkService, TerminalHost, TerminalOpening, TerminalTarget};
 use rekall_core::step::TaskStepService;
 use rekall_core::Clock;
 use tokio::sync::{mpsc, oneshot};
@@ -15,7 +15,6 @@ use tracing::{info, warn};
 
 use super::usage_ceiling::{self, Verdict};
 use rekall_core::queue::{RunQueueItemView, RunQueueService, RunQueueView, Snapshot};
-use crate::pty::PtyTerminalManager;
 use rekall_core::claude::TerminalMode;
 use rekall_core::claude::UsageReader;
 
@@ -46,7 +45,7 @@ pub(super) enum Command {
 
 pub(super) struct Worker {
     queue: RunQueueService,
-    terminals: Arc<PtyTerminalManager>,
+    terminals: Arc<dyn TerminalHost>,
     usage: Arc<dyn UsageReader>,
     work: TaskWorkService,
     steps: TaskStepService,
@@ -60,7 +59,7 @@ pub(super) struct Worker {
 /// What the worker decides with, handed over once by `RunQueueRunner::start`.
 pub(super) struct WorkerParts {
     pub queue: RunQueueService,
-    pub terminals: Arc<PtyTerminalManager>,
+    pub terminals: Arc<dyn TerminalHost>,
     pub usage: Arc<dyn UsageReader>,
     pub work: TaskWorkService,
     pub steps: TaskStepService,
@@ -157,7 +156,7 @@ impl Worker {
             RunQueueState::Running => {}
         }
         if let Some(active) = self.active.clone() {
-            if !active.closing && !self.terminals.is_live(active.terminal_id) {
+            if !active.closing && !self.terminals.get(active.terminal_id).is_some_and(|session| session.live) {
                 self.session_ended(active.terminal_id).await?;
             } else {
                 self.review(active.task_id).await?;
@@ -201,7 +200,7 @@ impl Worker {
         if !before.has_work() {
             return self.queue.mark_item(item.id, RunQueueItemState::Skipped, Some(nothing_open(before.remaining))).await;
         }
-        if self.terminals.has_live_terminal_for(item.task_id) {
+        if self.terminals.has_live_for(item.task_id) {
             return self
                 .queue
                 .mark_item(
@@ -213,14 +212,15 @@ impl Worker {
         }
         let opened = match self
             .terminals
-            .open(
-                TerminalTarget::Task(item.task_id),
-                None,
-                snapshot.skip_permissions,
-                snapshot.model.as_deref(),
-                snapshot.effort.as_deref(),
-                TerminalMode::Work,
-            )
+            .open(TerminalOpening {
+                target: TerminalTarget::Task(item.task_id),
+                step_id: None,
+                skip_permissions: snapshot.skip_permissions,
+                model: snapshot.model.clone(),
+                effort: snapshot.effort.clone(),
+                mode: TerminalMode::Work,
+                kind: SessionKind::Terminal,
+            })
             .await
         {
             Ok(opened) => opened,
@@ -305,7 +305,7 @@ impl Worker {
             return Ok(());
         }
         self.mark_closing();
-        match self.terminals.renew_session(current.terminal_id).await {
+        match self.terminals.renew(current.terminal_id).await {
             Ok(renewed) => {
                 if let Some(active) = self.active.as_mut() {
                     active.terminal_id = renewed.id;

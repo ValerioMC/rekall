@@ -9,7 +9,7 @@ use rekall_core::claude::TerminalLaunch;
 use tokio::sync::watch;
 use tracing::debug;
 
-use rekall_core::claude::{TerminalConnectionView, TerminalListener as Listener, TerminalView};
+use rekall_core::claude::{SessionKind, TerminalConnectionView, TerminalListener as Listener, TerminalView};
 use super::scrollback::Scrollback;
 
 pub(super) struct Terminal {
@@ -59,6 +59,7 @@ impl Terminal {
             skip_permissions: self.skip_permissions,
             model: self.model.clone(),
             effort: self.effort.clone(),
+            kind: SessionKind::Terminal,
             live: self.alive() && !self.closing.load(Ordering::SeqCst),
             started_at: self.started_at,
             last_activity_at: *self.last_activity_at.lock().expect("never poisoned"),
