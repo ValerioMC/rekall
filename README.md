@@ -170,6 +170,8 @@ make lint     # clippy, as CI runs it
 
 `RUST_LOG=rekall=debug make run` turns on debug logging. The `/rk` command the app installs is `.claude/commands/rk.md`, compiled into the binary. The frontend stack and its folders are in [docs/guide/development.md](docs/guide/development.md).
 
+[`deploy/langfuse`](deploy/langfuse/README.md) holds an optional local Langfuse stack on Docker Compose, for looking at Claude Code's LLM traces. Rekall runs without it.
+
 ## Modules
 
 A Cargo workspace, one crate per layer: `rekall-kernel <- rekall-store <- rekall-core <- rekall-console <- rekall-http`, with `rekall-mcp` and `rekall-infra` beside them on `rekall-core` and `rekall-app` wiring everything. [docs/DESIGN.md](docs/DESIGN.md#3-module-structure) says where a feature goes and how to add a field or a capability.
