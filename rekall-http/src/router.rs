@@ -1,12 +1,13 @@
 use axum::Router;
 
-use crate::{backup, catalog, claude, commit, component, connection, context, diagram, filesystem, flow, graph, inventory, note, queue, search, section, settings, skill, step, stream, tag, telemetry, terminal, timeentry, token, version, vulnerability, wrapup, ApiState};
+use crate::{backup, catalog, chat, claude, commit, component, connection, context, diagram, filesystem, flow, graph, inventory, note, queue, search, section, settings, skill, step, stream, tag, telemetry, terminal, timeentry, token, version, vulnerability, wrapup, ApiState};
 
 /// Every `/api` route this module owns.
 pub fn router(state: ApiState) -> Router {
     routes()
         .route_layer(axum::middleware::from_fn(crate::shared::extract::uuid_path_params))
         .merge(terminal::socket_routes())
+        .merge(chat::open_routes())
         .merge(connection::credential_routes())
         .merge(backup::routes())
         .merge(settings::routes())
@@ -16,6 +17,7 @@ pub fn router(state: ApiState) -> Router {
 pub fn routes() -> Router<ApiState> {
     Router::new()
         .merge(catalog::routes())
+        .merge(chat::routes())
         .merge(claude::routes())
         .merge(commit::routes())
         .merge(component::routes())

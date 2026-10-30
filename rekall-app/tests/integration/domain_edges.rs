@@ -95,6 +95,7 @@ const CONSOLE: LayeredCrate = LayeredCrate {
     allowed: &[
         ("backup", &[]),
         ("catalog", &["commit", "note", "review", "step", "tag", "task", "timeentry", "wrapup"]),
+        ("chat", &["claude"]),
         ("claude", &[]),
         ("component", &[]),
         ("connection", &["catalog", "commit", "component", "task"]),
@@ -122,6 +123,7 @@ const HTTP: LayeredCrate = LayeredCrate {
     allowed: &[
         ("backup", &[]),
         ("catalog", &[]),
+        ("chat", &[]),
         ("claude", &["skill"]),
         ("commit", &[]),
         ("component", &[]),

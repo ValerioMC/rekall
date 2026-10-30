@@ -15,6 +15,5 @@ mod support;
 mod routes;
 
 pub use request::open_terminal_request::OpenTerminalRequest;
-pub use controller::socket_controller::is_allowed_origin;
 pub use request::terminal_mode_name::TerminalModeName;
 pub(crate) use routes::{routes, socket_routes};

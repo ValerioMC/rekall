@@ -20,7 +20,7 @@ use rekall_core::queue::RunQueueService;
 use rekall_core::skill::SkillGroupService;
 use rekall_core::Services;
 
-use rekall_console::{backup, catalog, claude, component, connection, diagram, filesystem, graph, note, queue, section, settings, skill, tag, terminal, version, vulnerability};
+use rekall_console::{backup, catalog, chat, claude, component, connection, diagram, filesystem, graph, note, queue, section, settings, skill, tag, terminal, version, vulnerability};
 
 use crate::{ApiPorts, StepEventStream};
 
@@ -67,6 +67,7 @@ pub struct ApiState {
     pub jira_issues: connection::JiraIssueService,
     pub icons: catalog::ProjectIconService,
     pub directories: filesystem::DirectoryListingService,
+    pub chat: chat::ChatService,
     pub terminals: terminal::TerminalService,
     pub terminal_pipe: terminal::TerminalPipeService,
     pub run_queue: queue::RunQueueControlService,
@@ -160,6 +161,7 @@ impl ApiState {
             scan_settings,
             telemetry: TelemetrySettingsService::new(ctx.clone(), ports.secrets.clone()),
             vulnerability_fixes,
+            chat: chat::ChatService::new(ports.terminals.clone(), ports.chat_pipe),
             terminals: terminal::TerminalService::new(ports.terminals),
             terminal_pipe: terminal::TerminalPipeService::new(ports.terminal_pipe),
             run_queue: queue::RunQueueControlService::new(RunQueueService::new(ctx.clone()), ports.queue_runner),

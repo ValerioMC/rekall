@@ -1,7 +1,7 @@
 use rekall_kernel::{Id, Instant};
 use serde::Serialize;
 
-use crate::claude::{SessionKind, TerminalConnectionView};
+use crate::claude::{SessionKind, TerminalConnectionView, TerminalTarget};
 
 /// A live session as the console sees it. The task fields are empty on one opened on a project.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -25,4 +25,13 @@ pub struct TerminalView {
     pub last_activity_at: Instant,
     /// What the terminal's project reaches outside Rekall.
     pub connections: Vec<TerminalConnectionView>,
+}
+
+impl TerminalView {
+    pub fn target(&self) -> TerminalTarget {
+        match self.task_id {
+            Some(task_id) => TerminalTarget::Task(task_id),
+            None => TerminalTarget::Project(self.project_id),
+        }
+    }
 }

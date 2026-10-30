@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use rekall_core::backup::{DatabaseBackups, DatabaseRestore};
+use rekall_core::chat::ChatPipe;
 use rekall_core::claude::{ClaudeCodeSetup, ClaudeResources, TerminalHost, TerminalPipe, UsageReader};
 use rekall_core::connection::{ConnectionProbe, CredentialDesk, JiraIssues, SecretStore};
 use rekall_core::queue::QueueRunner;
@@ -15,6 +16,7 @@ pub struct ApiPorts {
     pub jira: Arc<dyn JiraIssues>,
     pub terminals: Arc<dyn TerminalHost>,
     pub terminal_pipe: Arc<dyn TerminalPipe>,
+    pub chat_pipe: Arc<dyn ChatPipe>,
     pub queue_runner: Arc<dyn QueueRunner>,
     pub usage: Arc<dyn UsageReader>,
     pub claude_folder: Arc<dyn ClaudeResources>,

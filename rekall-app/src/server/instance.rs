@@ -6,11 +6,14 @@ use axum::http::StatusCode;
 use axum::{middleware, Router};
 use rekall_http::shared::error::{framework, render_errors};
 use rekall_http::{ApiPorts, ApiState, StepEventStream};
+use rekall_infra::chat::ChatSessionManager;
 use rekall_infra::cli::ClaudeCli;
 use rekall_infra::connection::CredentialBroker;
 use rekall_infra::credentials::ClaudeCredentials;
 use rekall_infra::login_shell::LoginShellEnvironment;
 use rekall_infra::pty::{PtyTerminalManager, PtyTerminals, SessionRelay};
+use rekall_infra::session::SessionHosts;
+use rekall_core::claude::TerminalHost;
 use rekall_core::queue::RunQueueService;
 use rekall_infra::queue::RunQueueRunner;
 use rekall_infra::resources::ClaudeResourceService;
@@ -65,6 +68,7 @@ pub struct Instance {
     pub(super) router: Router,
     stream: Arc<StepEventStream>,
     terminals: Arc<PtyTerminalManager>,
+    chats: Arc<ChatSessionManager>,
     usage: Arc<dyn UsageReader>,
     runner: RunQueueRunner,
     backups: DatabaseBackupService,
@@ -130,6 +134,15 @@ impl Instance {
         ));
         let terminals = PtyTerminalManager::new(
             services.terminal_launch.clone(),
+            cli.clone(),
+            services.steps.clone(),
+            services.review.clone(),
+            broker.clone(),
+            TelemetrySettingsService::new(ctx.clone(), secrets.clone()),
+            claude_config,
+        );
+        let chats = ChatSessionManager::new(
+            services.terminal_launch.clone(),
             cli,
             services.steps.clone(),
             services.review.clone(),
@@ -146,10 +159,11 @@ impl Instance {
             )),
         };
         let pty_terminals = Arc::new(PtyTerminals::new(terminals.clone()));
+        let sessions: Arc<dyn TerminalHost> = Arc::new(SessionHosts::start(pty_terminals.clone(), chats.clone(), claude_config.max_sessions));
         let queue = RunQueueService::new(ctx.clone());
         let runner = RunQueueRunner::start(
             queue.clone(),
-            pty_terminals.clone(),
+            sessions.clone(),
             usage.clone(),
             services.task_work.clone(),
             services.steps.clone(),
@@ -159,7 +173,7 @@ impl Instance {
             claude_config.run_queue_settle_grace,
         );
         SessionRelay::start(
-            pty_terminals.clone(),
+            sessions.clone(),
             services.task_work.clone(),
             queue.clone(),
             &events,
@@ -191,8 +205,9 @@ impl Instance {
         let ports = ApiPorts {
             secrets: secrets.clone(),
             jira: jira_issues,
-            terminals: pty_terminals.clone(),
+            terminals: sessions,
             terminal_pipe: pty_terminals,
+            chat_pipe: chats.clone(),
             queue_runner: Arc::new(runner.clone()),
             usage: usage.clone(),
             claude_folder: Arc::new(ClaudeResourceService::new(claude_config.claude_home.clone())),
@@ -228,6 +243,7 @@ impl Instance {
             router,
             stream,
             terminals,
+            chats,
             usage,
             runner,
             backups,
@@ -250,6 +266,7 @@ impl Instance {
     pub fn ready(&self) {
         self.login_shell.warm();
         self.terminals.start_reaper(self.sweep_minutes);
+        self.chats.start_reaper(self.sweep_minutes);
         self.backups.start_schedule();
         self.start_idle_sweep();
         *self.transcript_scan.lock().expect("never poisoned") = Some(self.transcripts.start(self.transcript_scan_every));
@@ -290,6 +307,7 @@ impl Instance {
         self.usage.release_on_shutdown();
         self.stream.release_on_shutdown();
         self.terminals.shutdown().await;
+        self.chats.shutdown().await;
         self.backups.stop_schedule();
         if let Some(sweep) = self.idle_sweep.lock().expect("never poisoned").take() {
             sweep.abort();

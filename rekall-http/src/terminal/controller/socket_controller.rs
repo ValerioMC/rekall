@@ -15,6 +15,7 @@ use serde_json::{json, Value};
 use tokio::sync::mpsc;
 use tracing::debug;
 
+use crate::shared::is_allowed_origin;
 use crate::terminal::support::outbound::Outbound;
 use crate::terminal::support::socket_listener::SocketListener;
 use crate::ApiState;
@@ -33,14 +34,6 @@ pub(in crate::terminal) const SESSION_NOT_RELIABLE: u16 = 4500;
 
 pub fn routes() -> Router<ApiState> {
     Router::new().route("/api/terminal/{id}/io", get(upgrade))
-}
-
-/// `setAllowedOriginPatterns`: `http://localhost`, `http://127.0.0.1` and `http://[::1]`, with
-/// or without a port.
-pub fn is_allowed_origin(origin: &str) -> bool {
-    static LOOPBACK: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r"^http://(localhost|127\.0\.0\.1|\[::1\])(:[0-9]*)?$").expect("a valid pattern"));
-    LOOPBACK.is_match(&origin.to_lowercase())
 }
 
 async fn upgrade(

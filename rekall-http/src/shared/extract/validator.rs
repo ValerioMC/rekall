@@ -21,6 +21,14 @@ impl Validator {
         self
     }
 
+    /// Longer than `limit` characters is refused; absent passes.
+    pub fn at_most(mut self, field: &str, value: Option<&str>, limit: usize) -> Self {
+        if value.is_some_and(|text| text.chars().count() > limit) {
+            self.errors.push((field.into(), format!("must be at most {limit} characters")));
+        }
+        self
+    }
+
     /// Absent is refused.
     pub fn not_null<T>(mut self, field: &str, value: &Option<T>) -> Self {
         if value.is_none() {

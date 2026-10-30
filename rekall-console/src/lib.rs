@@ -3,6 +3,7 @@
 
 pub mod backup;
 pub mod catalog;
+pub mod chat;
 pub mod claude;
 pub mod component;
 pub mod connection;

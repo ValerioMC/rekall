@@ -63,6 +63,19 @@ stdin and stdout, a `{"resize":[cols,rows]}` text frame sets the window size, an
 queue per socket, so a pane that stops reading is dropped rather than left to back up memory. `useTerminalSocket` is the client half,
 `TerminalPane.vue` wires it to an `xterm.js` instance.
 
+A chat session is opened, listed and closed through these same routes: the request's `kind` picks the
+host. `SessionHosts` (`rekall-infra/src/session/`) is the one `TerminalHost` that `rekall-app` injects
+for the queue, the relay and `TerminalService`: it sends an opening to the host of its kind, every other call to the
+host that holds the session, merges the lists oldest first and the two end buses into one, and holds the cap
+(`max_sessions`) across both kinds, except for an opening that reuses a session already on its target. Once a chat session
+exists, `rekall-http/src/chat/` serves it through `ChatService` in `rekall-console`, which refuses the id of a terminal:
+`GET /api/chat/{id}/events` streams its events as Server-Sent Events whose `id` is the event's `seq` (an
+`EventSource` that reconnects sends `Last-Event-ID` and gets only what came after, `?after=` asks the same on the first
+connection; a keep-alive comment every 15 s; a reader a megabyte behind is dropped; only a loopback origin or none is
+accepted), and `POST /api/chat/{id}/messages` (`{text}`, trimmed, at most 20,000 characters), `/interrupt` and
+`/permissions/{requestId}` (`{allow}`) write to it. The permission route is outside the layer that reads every path variable as a
+UUID, because the id is the one `claude` gave the prompt. An unknown or closed session is a 404.
+
 A terminal that follows steps can be renewed (`TerminalHost::renew`, which `PtyTerminals` runs as `PtyTerminalManager::renew_session`): it is closed and
 another is opened on the same task with the same model, effort and permissions, which is how a
 session boundary (4.3 in [workflow.md](workflow.md)) gives the next step a clean context. The pane switches to the new terminal

@@ -3,7 +3,9 @@
 
 pub mod error;
 pub mod extract;
+mod origin;
 mod response;
 
 pub use error::{ApiError, ApiResult};
+pub use origin::is_allowed_origin;
 pub use response::{created, no_content, png};
