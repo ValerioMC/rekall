@@ -5,6 +5,9 @@ import App from '@/App.vue'
 import { router } from '@/router'
 import { useConsoleStore } from '@/stores/console.store'
 import { mountWithHeaderChrome } from './support/mountWithHeaderChrome'
+import { useChatDockStore } from '@/features/chat/store/chatDock.store'
+import { useTerminalStore } from '@/features/claude/store/terminal.store'
+import { chatSession } from './features/chat/support'
 import type { Company, Project, RekallDocument, Task, TaskStep, Wrapup } from '@/features/catalog/model/catalog'
 import type { DocumentInput } from '@/features/notes/api/documents.api'
 import type {
@@ -318,7 +321,12 @@ const mounted: Array<{ unmount(): void }> = []
 
 afterEach(() => {
   mounted.splice(0).forEach((wrapper) => wrapper.unmount())
+  vi.unstubAllGlobals()
 })
+
+function chatSessionOn(taskId: TaskId) {
+  return chatSession({ taskId })
+}
 
 async function mountConsole() {
   setActivePinia(createPinia())
@@ -600,6 +608,31 @@ describe('the console', () => {
     await flushPromises()
 
     expect(useConsoleStore().paneFocus).toBe('terminal')
+  })
+
+  /** With a chat session in play the key belongs to the chat window; the terminal pane stays shut. */
+  it('shows and hides the chat window on a bare C when the task has a chat session', async () => {
+    vi.stubGlobal('EventSource', class { addEventListener(): void {} close(): void {} })
+    const wrapper = await mountConsole()
+    await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+    await flushPromises()
+    const dock = useChatDockStore()
+    dock.hide()
+    useTerminalStore().upsert(chatSessionOn(useConsoleStore().selectedTaskId!))
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c' }))
+    await vi.dynamicImportSettled()
+    await flushPromises()
+
+    expect(dock.hidden).toBe(false)
+    expect(useConsoleStore().paneFocus).toBe('note')
+    expect(wrapper.find('[data-testid="chat-window"]').exists()).toBe(true)
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c' }))
+    await flushPromises()
+
+    expect(dock.hidden).toBe(true)
+    expect(wrapper.find('[data-testid="chat-window"]').exists()).toBe(false)
   })
 
   // Clicked rather than pressed: earlier tests leave their consoles mounted, and a window-level Q

@@ -7,6 +7,7 @@ import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { trackSave } from '@/stores/console/rows'
 import type { ChatEvent } from '@/features/chat/model/chat-event'
 import type { Timeline } from '@/features/chat/model/timeline'
+import type { Terminal } from '@/features/claude/model/terminal'
 import type { TaskId, TerminalId } from '@/model/branded'
 
 /**
@@ -25,6 +26,9 @@ export const useChatStore = defineStore('chat', () => {
   const activeTimeline = computed(() =>
     activeChatId.value ? timelineOf(activeChatId.value) : emptyTimeline()
   )
+  const liveChats = computed(() =>
+    terminals.terminals.filter((terminal) => terminal.kind === 'CHAT' && terminal.live)
+  )
   const sending = computed(() => sendState.value === 'saving')
   const answering = computed(() => answerState.value === 'saving')
   const stopping = computed(() => stopState.value === 'saving')
@@ -39,6 +43,17 @@ export const useChatStore = defineStore('chat', () => {
 
   function select(id: TerminalId | null): void {
     activeChatId.value = id
+  }
+
+  function chatForTask(taskId: TaskId | null): Terminal | null {
+    if (!taskId) return null
+    return liveChats.value.find((terminal) => terminal.taskId === taskId) ?? null
+  }
+
+  /** Moves the window to the task's own live chat session; a task with none leaves it where it is. */
+  function showTaskSession(taskId: TaskId | null): void {
+    const own = chatForTask(taskId)
+    if (own) activeChatId.value = own.id
   }
 
   function ingest(id: TerminalId, event: ChatEvent): void {
@@ -104,12 +119,15 @@ export const useChatStore = defineStore('chat', () => {
     timelines,
     activeChatId,
     activeTimeline,
+    liveChats,
     sending,
     answering,
     stopping,
     timelineOf,
     isFollowing,
     select,
+    chatForTask,
+    showTaskSession,
     ingest,
     send,
     stop,

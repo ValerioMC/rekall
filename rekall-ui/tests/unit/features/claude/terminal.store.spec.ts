@@ -64,6 +64,16 @@ describe('the terminal store', () => {
     expect(store.terminalForTask(TASK)?.id).toBe('term-1')
   })
 
+  it('lists a chat session it opens without making it the terminal pane\'s active session', async () => {
+    api.openTerminal.mockResolvedValue(terminal({ id: 'chat-1' as TerminalId, kind: 'CHAT' }))
+    const store = useTerminalStore()
+
+    await store.openForTask(TASK, { skipPermissions: false, kind: 'CHAT' })
+
+    expect(store.terminals.map((session) => session.id)).toEqual(['chat-1'])
+    expect(store.activeTerminalId).toBeNull()
+  })
+
   it('sends a run on a task with a live session to the server, which reuses it', async () => {
     api.openTerminal.mockResolvedValue(terminal())
     const store = useTerminalStore()

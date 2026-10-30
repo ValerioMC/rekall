@@ -23,12 +23,18 @@ const switcherOpen = ref(false)
 
 const hue = computed(() => identityHue(selectedTask.value?.projectId ?? ''))
 const folder = computed(() => selectedTask.value?.projectRepoFolder ?? null)
-const taskTerminal = computed(() => terminals.terminalForTask(selectedTask.value?.id ?? null))
+const taskTerminal = computed(() => {
+  const live = terminals.terminalForTask(selectedTask.value?.id ?? null)
+  return live?.kind === 'TERMINAL' ? live : null
+})
 
 /** Only sessions on a task can be shown here; one on a project alone lives on the Diagrams screen. */
 const otherSessions = computed(() =>
   allTerminals.value
-    .filter((terminal) => terminal.live && terminal.taskId !== null && terminal.id !== activeTerminalId.value)
+    .filter(
+      (terminal) =>
+        terminal.kind === 'TERMINAL' && terminal.live && terminal.taskId !== null && terminal.id !== activeTerminalId.value
+    )
     .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
 )
 

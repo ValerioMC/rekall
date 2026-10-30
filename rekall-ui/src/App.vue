@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import AnchorBar from '@/components/console/AnchorBar.vue'
 import DescriptionPane from '@/features/catalog/components/DescriptionPane.vue'
@@ -17,6 +17,9 @@ import RunQueuePanel from '@/features/queue/components/RunQueuePanel.vue'
 import AppToaster from '@/components/ui/AppToaster.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useClaudeConnectionStore } from '@/features/claude/store/claudeConnection.store'
+import { useChatStore } from '@/features/chat/store/chat.store'
+import { useChatDockStore } from '@/features/chat/store/chatDock.store'
+import { useChatDockArea } from '@/features/chat/composables/useChatDockArea'
 import { useRunQueueStore } from '@/features/queue/store/runQueue.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useModalGate } from '@/composables/useModalGate'
@@ -28,6 +31,8 @@ import { isEpic, type TaskStatus } from '@/features/catalog/model/catalog'
 // xterm and its stylesheet are only parsed once a terminal is opened: most sessions never do,
 // and the console's first paint should not pay for them.
 const TerminalPane = defineAsyncComponent(() => import('@/features/claude/components/TerminalPane.vue'))
+// The chat window loads the same way: nothing of it is fetched before a chat session exists.
+const ChatWindow = defineAsyncComponent(() => import('@/features/chat/components/ChatWindow.vue'))
 
 const store = useConsoleStore()
 const { selectedTaskId, selectedTask, navMode, paneFocus, noteComposerOpen, reviewQueue, isLoading } = storeToRefs(store)
@@ -35,6 +40,17 @@ const runQueue = useRunQueueStore()
 const { panelOpen: runQueueOpen } = storeToRefs(runQueue)
 const { run } = useAsyncAction()
 const { isModalOpen } = useModalGate()
+const chat = useChatStore()
+const chatDock = useChatDockStore()
+const noteArea = ref<HTMLElement | null>(null)
+useChatDockArea(noteArea)
+
+const chatWindowShown = computed(
+  () => !chatDock.hidden && (chat.activeChatId !== null || chat.liveChats.length > 0)
+)
+const chatOwnsTerminalKey = computed(
+  () => chat.activeChatId !== null || chat.chatForTask(selectedTaskId.value) !== null
+)
 
 useStepStream(
   (taskId, steps) => store.applyStepEvent(taskId, steps),
@@ -120,6 +136,16 @@ function onKeydown(event: KeyboardEvent): void {
     event.preventDefault()
     if (paneFocus.value === 'description') (epicPane.value ?? descriptionPane.value)?.toggleMode()
     else if (paneFocus.value === 'note') notePane.value?.toggleMode()
+    return
+  }
+
+  if (key === 'c' && chatOwnsTerminalKey.value) {
+    event.preventDefault()
+    if (!event.shiftKey) chatDock.toggle()
+    else {
+      chatDock.show()
+      chatDock.toggleExpanded()
+    }
     return
   }
 
@@ -216,14 +242,19 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
       </Transition>
       <!-- A place focus is sent to (the skip link, a pane shortcut), never a control, so it
            draws no ring: the pane that appears in it is what says where you are. -->
-      <div id="note" class="flex min-h-0 min-w-0 flex-1 outline-none" tabindex="-1">
-        <Transition name="pane" mode="out-in">
-          <WrapupPane v-if="paneFocus === 'wrapup'" />
-          <EpicPane v-else-if="paneFocus === 'description' && selectedTask && isEpic(selectedTask)" ref="epicPane" />
-          <DescriptionPane v-else-if="paneFocus === 'description'" ref="descriptionPane" />
-          <StepsPane v-else-if="paneFocus === 'steps' && !(selectedTask && isEpic(selectedTask))" />
-          <TerminalPane v-else-if="paneFocus === 'terminal' && !(selectedTask && isEpic(selectedTask))" />
-          <NotePane v-else ref="notePane" />
+      <div ref="noteArea" class="relative flex min-h-0 min-w-0 flex-1">
+        <div id="note" class="flex min-h-0 min-w-0 flex-1 outline-none" tabindex="-1">
+          <Transition name="pane" mode="out-in">
+            <WrapupPane v-if="paneFocus === 'wrapup'" />
+            <EpicPane v-else-if="paneFocus === 'description' && selectedTask && isEpic(selectedTask)" ref="epicPane" />
+            <DescriptionPane v-else-if="paneFocus === 'description'" ref="descriptionPane" />
+            <StepsPane v-else-if="paneFocus === 'steps' && !(selectedTask && isEpic(selectedTask))" />
+            <TerminalPane v-else-if="paneFocus === 'terminal' && !(selectedTask && isEpic(selectedTask))" />
+            <NotePane v-else ref="notePane" />
+          </Transition>
+        </div>
+        <Transition name="pane">
+          <ChatWindow v-if="chatWindowShown" />
         </Transition>
       </div>
     </div>

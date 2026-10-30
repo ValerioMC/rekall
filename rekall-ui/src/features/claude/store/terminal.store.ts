@@ -45,7 +45,7 @@ export const useTerminalStore = defineStore('terminal', () => {
   async function openForTask(taskId: TaskId, input: OpenTerminalInput): Promise<Terminal> {
     const opened = await openTerminal({ taskId }, input)
     upsert(opened)
-    activeTerminalId.value = opened.id
+    activateIfTerminal(opened)
     return opened
   }
 
@@ -76,8 +76,13 @@ export const useTerminalStore = defineStore('terminal', () => {
     }
     const opened = await openTerminal({ taskId }, { ...input, mode })
     upsert(opened)
-    activeTerminalId.value = opened.id
+    activateIfTerminal(opened)
     return opened
+  }
+
+  /** The terminal pane shows PTY sessions only; a chat session is shown by the chat window. */
+  function activateIfTerminal(opened: Terminal): void {
+    if (opened.kind === 'TERMINAL') activeTerminalId.value = opened.id
   }
 
   function planLine(mode: PlanMode, anchor: string): string {
