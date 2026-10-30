@@ -6,6 +6,7 @@
 //! transaction commits. A write that rolls back announces nothing.
 
 pub mod backup;
+pub mod chat;
 pub mod claude;
 pub mod commit;
 pub mod component;

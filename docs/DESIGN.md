@@ -115,6 +115,7 @@ is found by opening one folder per crate:
 | `wrapup`, `review`, `timeentry` | the wrapup, the review line, logged time |
 | `commit`, `diagram`, `token`, `search`, `context` | logged commits, stored diagrams, token usage, search, context assembly and its size |
 | `skill`, `tag`, `queue`, `claude` | skill assignments, tags, the run queue, what a session launch needs |
+| `chat` | the chat view of a session: its events and the ports a client reaches it through; `rekall-core` only so far |
 | `backup`, `settings`, `version` | the backups of the open database and restoring one, the registered database folders and the restart onto another, the update check; no table behind them, so no folder in `rekall-store` |
 | `inventory` | what each project is built from: its dependencies at the version each resolves to |
 | `terminal`, `filesystem`, `stream` | the in-app terminals, the folder listing behind the path picker, the event stream the console listens to; console and HTTP only |
@@ -163,6 +164,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 |---|---|---|---|---|---|
 | `backup` | - | nothing | nothing | nothing | - |
 | `catalog` | `task` | - | `commit`, `note`, `review`, `step`, `tag`, `task`, `timeentry`, `wrapup` | nothing | - |
+| `chat` | - | `claude` | - | - | - |
 | `claude` | - | `catalog`, `connection`, `task` | nothing | `skill` | - |
 | `commit` | `step`, `task` | `catalog`, `step`, `task` | - | nothing | nothing |
 | `component` | `catalog` | `connection`, `task` | nothing | nothing | - |

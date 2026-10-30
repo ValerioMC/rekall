@@ -59,6 +59,7 @@ const CORE: LayeredCrate = LayeredCrate {
     facades: &[],
     allowed: &[
         ("backup", &[]),
+        ("chat", &["claude"]),
         ("claude", &["catalog", "connection", "task"]),
         ("commit", &["catalog", "step", "task"]),
         ("component", &["connection", "task"]),
