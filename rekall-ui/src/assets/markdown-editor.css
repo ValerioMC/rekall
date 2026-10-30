@@ -425,6 +425,16 @@
   line-height: 1.7 !important;
 }
 
+/* Bare: a chat message, flush at both edges, with no margin for the section ticks to hang into. */
+.rekall-md--bare .md-editor-preview {
+  padding: 0 !important;
+}
+
+.rekall-md--bare .md-editor-preview h2::before,
+.rekall-md--bare .md-editor-preview h3::before {
+  display: none;
+}
+
 /*
  * A diagram and its two controls (copy the source, pan and zoom). The library inserts the controls
  * as bare elements after the SVG and ships no rule for them, so on a wide window they sat in the

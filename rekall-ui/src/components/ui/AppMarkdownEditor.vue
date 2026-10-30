@@ -37,6 +37,8 @@ const props = withDefaults(
      * width and alignment they set belong to a pane-sized page, not to a card.
      */
     compact?: boolean
+    /** Read as a message in a log: `compact`, and also without the indent that the section ticks hang into. */
+    bare?: boolean
     /** Whether the toolbar offers the page full screen, for text whose pane already gives it the room it needs. */
     pageFullscreen?: boolean
     /**
@@ -62,6 +64,7 @@ const props = withDefaults(
     grow: false,
     placeholder: '# Contesto',
     compact: false,
+    bare: false,
     pageFullscreen: true,
     pathRoot: null,
     components: null,
@@ -121,7 +124,9 @@ const completions = [
 ]
 
 // A card-sized read view has no room for a bar; ⌘F there is left to the page.
-const search = useReadModeSearch(root, { enabled: () => props.readonly && !props.compact })
+const flush = computed(() => props.compact || props.bare)
+
+const search = useReadModeSearch(root, { enabled: () => props.readonly && !flush.value })
 
 // Unique per instance: the library keys its global event bus on this id, and two previews sharing one clear each other's entries on unmount.
 const editorId = `rekall-md-${useId()}`
@@ -165,13 +170,17 @@ const toolbars = computed(() => (props.pageFullscreen ? TOOLBARS : TOOLBARS.filt
   <div
     ref="root"
     class="rekall-md"
-    :class="{ 'rekall-md--readonly': readonly, 'rekall-md--compact': readonly && compact }"
-    :style="readonly && !compact ? readStyle : undefined"
-    :data-align="readonly && !compact ? readAlign : undefined"
+    :class="{
+      'rekall-md--readonly': readonly,
+      'rekall-md--compact': readonly && flush,
+      'rekall-md--bare': readonly && bare
+    }"
+    :style="readonly && !flush ? readStyle : undefined"
+    :data-align="readonly && !flush ? readAlign : undefined"
     @keydown.capture="onEditorKeydown"
     @rk-table-menu="tableMenu.open"
   >
-    <div v-if="readonly && !compact" class="rekall-read-controls">
+    <div v-if="readonly && !flush" class="rekall-read-controls">
       <div class="flex items-start gap-2">
         <ReadSearchBar
           v-if="search.open.value"
