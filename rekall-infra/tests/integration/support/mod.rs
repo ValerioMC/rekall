@@ -18,6 +18,7 @@ use rekall_kernel::{Id, Instant};
 use rekall_store::{company, project, task, task_step, ProjectStatus, TaskStepState};
 use rekall_store::Database;
 use rekall_core::connection::{ConnectionAccessService, InMemorySecretStore};
+use rekall_core::telemetry::TelemetrySettingsService;
 use rekall_core::{Ctx, EventBus, Services};
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
 use tempfile::TempDir;
@@ -26,6 +27,7 @@ use tempfile::TempDir;
 /// prints the PTY's rows and columns.
 pub const STUB_CLAUDE: &str = r#"#!/bin/sh
 echo "ARGS:$*"
+echo "OTEL:${OTEL_EXPORTER_OTLP_ENDPOINT:-none}:${OTEL_RESOURCE_ATTRIBUTES:-none}"
 while IFS= read -r line; do
   if [ "$line" = "exit" ]; then
     echo "BYE"
@@ -85,6 +87,11 @@ impl World {
         ))
     }
 
+    /// The tracing settings over this world's database and credential store.
+    pub fn telemetry(&self) -> TelemetrySettingsService {
+        TelemetrySettingsService::new(self.services.ctx.clone(), self.secrets.clone())
+    }
+
     pub fn terminals(&self, max_sessions: usize) -> Arc<PtyTerminalManager> {
         self.terminals_with(max_sessions, self.broker("http://127.0.0.1:0"))
     }
@@ -98,6 +105,7 @@ impl World {
             self.services.steps.clone(),
             self.services.review.clone(),
             broker,
+            self.telemetry(),
             &config,
         )
     }

@@ -10,6 +10,7 @@ use rekall_store::TaskStepState;
 use rekall_core::claude::TerminalMode;
 use rekall_diagram::DiagramKind;
 use rekall_core::claude::TerminalTarget;
+use rekall_core::telemetry::TelemetryChange;
 use support::{eventually, world, Recorder};
 
 #[tokio::test]
@@ -244,4 +245,43 @@ async fn opens_past_the_cap_a_missing_folder_or_a_missing_cli_are_refused() {
         refused.message(),
         "Claude Code's command line tool isn't on this machine. Install it, then try again."
     );
+}
+
+#[tokio::test]
+async fn a_terminal_starts_claude_with_the_trace_variables_while_tracing_is_on() {
+    let world = world().await;
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let task = world.task(&project, "one").await;
+    let change = TelemetryChange {
+        enabled: true,
+        host: Some("http://localhost:3000".into()),
+        public_key: Some("pk-lf-one".into()),
+        log_content: false,
+        secret_key: Some("sk-lf-two".into()),
+    };
+    world.telemetry().change(change).await.unwrap();
+    let terminals = world.terminals(8);
+
+    let view = terminals.open(TerminalTarget::Task(task.id), None, false, None, None, TerminalMode::Work).await.unwrap();
+
+    let recorder = Arc::new(Recorder::default());
+    terminals.attach(view.id, recorder.clone()).unwrap();
+    eventually("the trace endpoint and tags", || async {
+        recorder.text().contains("OTEL:http://localhost:3000/api/public/otel:rekall.project=alpha,rekall.task=one")
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn a_terminal_starts_claude_without_trace_variables_until_tracing_is_set_up() {
+    let world = world().await;
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let task = world.task(&project, "one").await;
+    let terminals = world.terminals(8);
+
+    let view = terminals.open(TerminalTarget::Task(task.id), None, false, None, None, TerminalMode::Work).await.unwrap();
+
+    let recorder = Arc::new(Recorder::default());
+    terminals.attach(view.id, recorder.clone()).unwrap();
+    eventually("the empty trace variables", || async { recorder.text().contains("OTEL:none:none") }).await;
 }

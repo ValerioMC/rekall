@@ -124,6 +124,37 @@ async fn connecting_to_an_unknown_terminal_id_closes_the_socket_instead_of_hangi
     app.stop().await;
 }
 
+#[tokio::test]
+async fn a_terminal_opened_after_saving_the_tracing_settings_starts_claude_with_the_trace_variables() {
+    let stubs = tempfile::tempdir().unwrap();
+    let stub = stubs.path().join("fake-claude-tracing.sh");
+    std::fs::write(&stub, "#!/bin/sh\necho \"$OTEL_EXPORTER_OTLP_ENDPOINT $OTEL_RESOURCE_ATTRIBUTES\" > traces.txt\nwhile IFS= read -r line; do :; done\n").unwrap();
+    std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let app = app_with(&[("rekall.claude.cli-path", stub.to_str().unwrap())], StartOptions { no_restart: true, ..StartOptions::default() }).await;
+    let folder = tempfile::tempdir().unwrap();
+    let task_id = a_task_with_folder(&app, folder.path()).await;
+
+    let saved = app
+        .put("/api/telemetry/settings", json!({ "enabled": true, "host": "http://localhost:3000", "publicKey": "pk-lf-one", "secretKey": "sk-lf-two" }))
+        .await;
+    assert_eq!(saved.status, 200);
+    assert_eq!(saved.get("secretSaved"), &json!(true));
+    let read = app.get("/api/telemetry/settings").await;
+    assert_eq!(read.get("publicKey"), &json!("pk-lf-one"));
+    assert!(!read.text.contains("sk-lf-two"), "the secret key is never handed back");
+
+    assert_eq!(app.post(&format!("/api/tasks/{task_id}/terminals"), json!({})).await.status, 201);
+
+    let traces = folder.path().join("traces.txt");
+    await_until(10, || async { traces.exists() && std::fs::read_to_string(&traces).is_ok_and(|text| text.ends_with('\n')) }).await;
+    assert_eq!(
+        std::fs::read_to_string(&traces).unwrap().trim(),
+        "http://localhost:3000/api/public/otel rekall.project=vega,rekall.task=report-builder"
+    );
+    close_live_terminals(&app).await;
+    app.stop().await;
+}
+
 // ---------------------------------------------------------------- RunQueueApiTest
 
 struct SetUsage(Mutex<ClaudeUsageView>);

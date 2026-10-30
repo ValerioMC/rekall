@@ -20,6 +20,7 @@ use rekall_infra::usage::ClaudeUsageService;
 use rekall_store::Database;
 use rekall_core::connection::{ConnectionAccessService, JiraIssues, RememberingSecretStore, SecretStore};
 use rekall_core::timeentry::IDLE_AFTER;
+use rekall_core::telemetry::TelemetrySettingsService;
 use rekall_core::vulnerability::{AdvisoryFeed, ScanSettingsService, VulnerabilityScanService};
 use rekall_core::{Ctx, EventBus, Services};
 use tracing::warn;
@@ -133,6 +134,7 @@ impl Instance {
             services.steps.clone(),
             services.review.clone(),
             broker.clone(),
+            TelemetrySettingsService::new(ctx.clone(), secrets.clone()),
             claude_config,
         );
         let usage: Arc<dyn UsageReader> = match &options.usage {

@@ -15,6 +15,7 @@ use rekall_kernel::{Id, Instant, RekallError, Result};
 use rekall_core::claude::{TerminalLaunch, TerminalLaunchService, TerminalTarget};
 use rekall_core::review::TaskReviewService;
 use rekall_core::step::TaskStepService;
+use rekall_core::telemetry::TelemetrySettingsService;
 use tokio::sync::broadcast;
 use tracing::{info, warn};
 
@@ -37,6 +38,7 @@ pub struct PtyTerminalManager {
     task_steps: TaskStepService,
     task_review: TaskReviewService,
     broker: Arc<CredentialBroker>,
+    telemetry: TelemetrySettingsService,
     ended: broadcast::Sender<TerminalEnded>,
     max_live: usize,
     idle_minutes: u64,
@@ -55,6 +57,7 @@ impl PtyTerminalManager {
         task_steps: TaskStepService,
         task_review: TaskReviewService,
         broker: Arc<CredentialBroker>,
+        telemetry: TelemetrySettingsService,
         config: &ClaudeConfig,
     ) -> Arc<Self> {
         let (ended, _) = broadcast::channel(256);
@@ -64,6 +67,7 @@ impl PtyTerminalManager {
             task_steps,
             task_review,
             broker,
+            telemetry,
             ended,
             max_live: config.max_sessions,
             idle_minutes: config.idle_minutes,
@@ -137,6 +141,7 @@ impl PtyTerminalManager {
             session.apply(&mut environment);
             options.settings = session.claude_settings.clone();
         }
+        environment.extend(self.telemetry_variables(id, &launch).await);
         let command = claude_command(&binary, &options, &mode.first_line(&launch.anchors), environment, directory);
 
         let terminal = match self.register(id, launch.clone(), step_id, mode.follows_steps(), options, command).await {
@@ -150,6 +155,22 @@ impl PtyTerminalManager {
         self.mark_running(launch.task_id, step_id).await;
         info!(terminal_id = %id, %mode, anchors = %launch.anchors, working_dir = %launch.working_dir, "Opened terminal");
         Ok(terminal.view())
+    }
+
+    /// A failing settings read costs the session its traces and nothing else.
+    async fn telemetry_variables(&self, terminal_id: Id, launch: &TerminalLaunch) -> HashMap<String, String> {
+        match self.telemetry.launch_variables(launch).await {
+            Ok(variables) => {
+                if let Some(endpoint) = variables.get("OTEL_EXPORTER_OTLP_ENDPOINT") {
+                    info!(%terminal_id, %endpoint, "Tracing the terminal's session");
+                }
+                variables
+            }
+            Err(failure) => {
+                warn!(%failure, %terminal_id, "Could not read the tracing settings; the session starts without traces");
+                HashMap::new()
+            }
+        }
     }
 
     /// Starts the process and records it as live, under the cap. The check and the record are
