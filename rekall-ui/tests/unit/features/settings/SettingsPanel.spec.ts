@@ -53,6 +53,18 @@ vi.mock('@/features/settings/api/backups.api', () => ({
   backupDownloadUrl: (name: string) => `/api/backups/${name}`
 }))
 
+/** The Langfuse section has its own spec; here it only has to not reach the network. */
+vi.mock('@/features/settings/api/telemetry.api', () => ({
+  fetchTelemetrySettings: vi.fn(async () => ({
+    enabled: false,
+    host: 'http://localhost:3000',
+    publicKey: '',
+    logContent: false,
+    secretSaved: false
+  })),
+  saveTelemetrySettings: vi.fn()
+}))
+
 /** The version section has its own spec; here it only has to not reach the network. */
 vi.mock('@/features/settings/api/version.api', () => ({
   fetchVersionStatus: vi.fn(async () => ({ current: '0.1.0', check: 'UP_TO_DATE', latest: null }))

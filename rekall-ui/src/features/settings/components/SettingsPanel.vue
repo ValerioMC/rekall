@@ -4,6 +4,7 @@ import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import ClaudeCodeSection from '@/features/settings/components/ClaudeCodeSection.vue'
+import LangfuseSection from '@/features/settings/components/LangfuseSection.vue'
 import NotificationsSection from '@/features/settings/components/NotificationsSection.vue'
 import VersionSection from '@/features/settings/components/VersionSection.vue'
 import BackupsSection from '@/features/settings/components/BackupsSection.vue'
@@ -238,6 +239,7 @@ onMounted(async () => {
       </div>
 
       <ClaudeCodeSection class="mt-6 border-t border-border pt-5" />
+      <LangfuseSection class="mt-6 border-t border-border pt-5" />
       <BackupsSection class="mt-6 border-t border-border pt-5" @busy="backupBusy = $event" />
       <NotificationsSection class="mt-6 border-t border-border pt-5" />
       <VersionSection class="mt-6 border-t border-border pt-5" />

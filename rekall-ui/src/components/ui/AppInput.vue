@@ -4,7 +4,7 @@ withDefaults(
     modelValue: string | number | null
     id?: string
     describedBy?: string
-    type?: 'text' | 'number' | 'date' | 'search'
+    type?: 'text' | 'number' | 'date' | 'search' | 'password'
     placeholder?: string
     mono?: boolean
     disabled?: boolean
