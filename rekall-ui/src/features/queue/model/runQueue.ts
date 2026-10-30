@@ -1,3 +1,4 @@
+import type { SessionKind } from '@/features/claude/model/terminal'
 import type { TaskId } from '@/model/branded'
 
 export const RUN_QUEUE_STATES = ['IDLE', 'SCHEDULED', 'RUNNING', 'HOLDING'] as const
@@ -34,6 +35,7 @@ export interface RunQueue {
   readonly skipPermissions: boolean
   readonly model: string | null
   readonly effort: string | null
+  readonly sessionKind: SessionKind
   readonly holdUntil: string | null
   readonly holdReason: string | null
   readonly items: readonly RunQueueItem[]
@@ -45,6 +47,7 @@ export interface RunQueueSettings {
   readonly skipPermissions: boolean
   readonly model: string | null
   readonly effort: string | null
+  readonly sessionKind: SessionKind
 }
 
 /** Where a new ceiling starts: high enough to get work done, low enough to leave room to finish a step. */
@@ -57,6 +60,7 @@ export const EMPTY_RUN_QUEUE: RunQueue = {
   skipPermissions: false,
   model: null,
   effort: null,
+  sessionKind: 'TERMINAL',
   holdUntil: null,
   holdReason: null,
   items: [],

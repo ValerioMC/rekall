@@ -54,6 +54,18 @@ export function claudeModelChoiceLabel(choice: ClaudeModelChoice): string {
 }
 
 /** The `--effort` levels Claude Code defines, plus 'default' for leaving it unset. */
+export const CLAUDE_SESSION_VIEWS = ['terminal', 'chat'] as const
+export type ClaudeSessionView = (typeof CLAUDE_SESSION_VIEWS)[number]
+
+const CLAUDE_SESSION_VIEW_LABEL: Readonly<Record<ClaudeSessionView, string>> = {
+  terminal: 'Terminal',
+  chat: 'Chat (experimental)'
+}
+
+export function claudeSessionViewLabel(view: ClaudeSessionView): string {
+  return CLAUDE_SESSION_VIEW_LABEL[view]
+}
+
 export const CLAUDE_EFFORT_CHOICES = ['default', 'low', 'medium', 'high', 'xhigh', 'max'] as const
 export type ClaudeEffortChoice = (typeof CLAUDE_EFFORT_CHOICES)[number]
 

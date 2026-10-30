@@ -14,7 +14,7 @@ import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useToastStore } from '@/stores/toast.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
-import { preferredEffort, preferredModel, skipsPermissions } from '@/common/config/claude-launch'
+import { preferredEffort, preferredLaunchKind, preferredModel, skipsPermissions } from '@/common/config/claude-launch'
 import type { PlanMode } from '@/features/claude/model/terminal'
 import type { TaskId } from '@/model/branded'
 
@@ -98,12 +98,12 @@ async function plan(mode: PlanMode): Promise<void> {
       terminals.planForTask(
         props.taskId,
         props.anchor,
-        { skipPermissions: skipsPermissions(), model: preferredModel(), effort: preferredEffort() },
+        { skipPermissions: skipsPermissions(), model: preferredModel(), effort: preferredEffort(), kind: preferredLaunchKind() },
         mode
       ),
     mode === 'REPLAN' ? 'Replanning. The new steps land here as drafts.' : 'Planning. Its proposals land here as drafts.'
   )
-  if (planning === null) return
+  if (planning === null || planning.kind === 'CHAT') return
   console_.openTerminal()
 }
 </script>

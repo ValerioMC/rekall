@@ -10,18 +10,27 @@ import { canLaunchClaudeCode } from '@/common/native/desktop'
 import {
   preferredEffort,
   preferredModel,
+  preferredSessionKind,
   setPreferredEffort,
   setPreferredModel,
+  setPreferredSessionKind,
   setSkipsPermissions,
   skipsPermissions
 } from '@/common/config/claude-launch'
 import {
   CLAUDE_EFFORT_CHOICES,
   CLAUDE_MODEL_CHOICES,
+  CLAUDE_SESSION_VIEWS,
   claudeEffortChoiceLabel,
-  claudeModelChoiceLabel
+  claudeModelChoiceLabel,
+  claudeSessionViewLabel
 } from '@/features/claude/model/claude'
-import type { ClaudeConnectionStatus, ClaudeEffortChoice, ClaudeModelChoice } from '@/features/claude/model/claude'
+import type {
+  ClaudeConnectionStatus,
+  ClaudeEffortChoice,
+  ClaudeModelChoice,
+  ClaudeSessionView
+} from '@/features/claude/model/claude'
 
 const toast = useToastStore()
 
@@ -103,6 +112,14 @@ const skipPermissions = ref(skipsPermissions())
 function toggleSkipPermissions(): void {
   skipPermissions.value = !skipPermissions.value
   setSkipsPermissions(skipPermissions.value)
+}
+
+const sessionViews = CLAUDE_SESSION_VIEWS
+const sessionView = ref<ClaudeSessionView>(preferredSessionKind())
+
+function chooseSessionView(choice: ClaudeSessionView): void {
+  sessionView.value = choice
+  setPreferredSessionKind(choice)
 }
 
 const modelChoices = CLAUDE_MODEL_CHOICES
@@ -214,6 +231,34 @@ onMounted(() => void load())
             :class="skipPermissions ? 'translate-x-[18px] bg-danger' : 'translate-x-[2px] bg-text-subtle'"
           />
         </button>
+      </div>
+
+      <div class="mt-3 border-t border-border pt-3" data-testid="claude-session-view">
+        <p class="text-small text-text">Session view</p>
+        <p class="mt-0.5 text-caption leading-relaxed text-text-subtle">
+          <span class="text-text-muted">Chat</span> runs <code class="text-anchor/80">claude</code> without a
+          terminal, in a window beside the task. With permission prompts on, it asks for each tool call there.
+          <span class="text-text-muted">Terminal</span> stays the default.
+        </p>
+        <div class="mt-2 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Session view for a Run here session">
+          <button
+            v-for="choice in sessionViews"
+            :key="choice"
+            type="button"
+            role="radio"
+            :aria-checked="sessionView === choice"
+            class="focus-ring inline-flex items-center rounded-full border px-2.5 py-1 text-caption transition-colors"
+            :class="
+              sessionView === choice
+                ? 'border-accent bg-accent-soft text-accent'
+                : 'border-border text-text-subtle hover:border-border-strong hover:text-text-muted'
+            "
+            :data-testid="`claude-session-view-${choice}`"
+            @click="chooseSessionView(choice)"
+          >
+            {{ claudeSessionViewLabel(choice) }}
+          </button>
+        </div>
       </div>
 
       <div class="mt-3 border-t border-border pt-3" data-testid="claude-model">

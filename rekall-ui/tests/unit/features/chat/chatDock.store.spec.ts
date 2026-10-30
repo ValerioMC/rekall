@@ -48,26 +48,44 @@ describe('the chat dock', () => {
   it('docks inline while the note pane keeps 360 px, and overlays it when it would not', () => {
     const dock = useChatDockStore()
 
-    dock.observe(1200)
+    dock.observe(1200, true)
     expect(dock.mode).toBe('inline')
-    dock.observe(700)
+    dock.observe(700, true)
     expect(dock.mode).toBe('overlay')
     expect(dock.shownWidth).toBe(440)
-    dock.observe(420)
+    dock.observe(420, true)
     expect(dock.shownWidth).toBe(372)
+  })
+
+  it('always overlays on a page with no note pane to share with', () => {
+    const dock = useChatDockStore()
+
+    dock.observe(2400, false)
+
+    expect(dock.mode).toBe('overlay')
+  })
+
+  it('opens with no session when asked, and forgets the request once hidden', () => {
+    const dock = useChatDockStore()
+
+    dock.open()
+    expect(dock.requested).toBe(true)
+    expect(dock.hidden).toBe(false)
+    dock.hide()
+    expect(dock.requested).toBe(false)
   })
 
   it('is hidden, full or docked, and restores from full', () => {
     const dock = useChatDockStore()
-    dock.observe(1200)
+    dock.observe(1200, true)
 
     dock.toggleExpanded()
     expect(dock.mode).toBe('full')
     dock.restore()
     expect(dock.mode).toBe('inline')
-    dock.toggle()
+    dock.hide()
     expect(dock.mode).toBe('hidden')
-    dock.show()
+    dock.open()
     expect(dock.mode).toBe('inline')
   })
 

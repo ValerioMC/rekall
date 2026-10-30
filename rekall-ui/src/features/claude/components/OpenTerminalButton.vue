@@ -4,7 +4,7 @@ import { storeToRefs } from 'pinia'
 import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
-import { preferredEffort, preferredModel, skipsPermissions } from '@/common/config/claude-launch'
+import { preferredEffort, preferredLaunchKind, preferredModel, skipsPermissions } from '@/common/config/claude-launch'
 import { useToastStore } from '@/stores/toast.store'
 import { sessionAtWork } from '@/model/session-at-work'
 import { NOTHING_TO_RUN_MESSAGE, nothingToRun } from '@/model/nothing-to-run'
@@ -104,7 +104,8 @@ async function launch(): Promise<void> {
       stepId: props.stepId,
       skipPermissions: skipsPermissions(),
       model: preferredModel(),
-      effort: preferredEffort()
+      effort: preferredEffort(),
+      kind: preferredLaunchKind()
     })
   )
   await pause(TRAVEL_MS)

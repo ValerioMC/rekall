@@ -151,7 +151,17 @@ describe('the run queue settings draft', () => {
     vi.advanceTimersByTime(1)
 
     expect(save).toHaveBeenCalledTimes(1)
-    expect(save).toHaveBeenCalledWith({ ceilingPercent: 70, skipPermissions: false, model: null, effort: null })
+    expect(save).toHaveBeenCalledWith({ ceilingPercent: 70, skipPermissions: false, model: null, effort: null, sessionKind: 'TERMINAL' })
+  })
+
+  it('sends the queue\'s session view with its settings', async () => {
+    mountDraft(queue({}))
+
+    draft.sessionKind.value = 'CHAT'
+    await nextTick()
+    vi.advanceTimersByTime(350)
+
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({ sessionKind: 'CHAT' }))
   })
 
   it('flushes a change still waiting when the panel closes', async () => {

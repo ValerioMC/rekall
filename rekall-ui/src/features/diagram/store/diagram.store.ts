@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { createDiagram, deleteDiagram, fetchDiagram, fetchDiagrams } from '@/features/diagram/api/diagrams.api'
-import { preferredEffort, preferredModel, skipsPermissions } from '@/common/config/claude-launch'
+import { preferredEffort, preferredLaunchKind, preferredModel, skipsPermissions } from '@/common/config/claude-launch'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import type { Diagram, DiagramDraft, DiagramKind, DiagramStreamEvent, DiagramSummary } from '@/features/diagram/model/diagram'
 import type { DiagramId, ProjectId, TaskId, TerminalId } from '@/model/branded'
@@ -106,7 +106,7 @@ export const useDiagramStore = defineStore('diagram', () => {
   async function generate(asked: GenerationRequest): Promise<PendingGeneration> {
     const terminals = useTerminalStore()
     const mode = asked.walkthrough ? ('EXPLAIN' as const) : ('GENERATE' as const)
-    const launch = { skipPermissions: skipsPermissions(), model: preferredModel(), effort: preferredEffort(), mode, request: asked.request, kinds: asked.walkthrough ? [] : asked.kinds }
+    const launch = { skipPermissions: skipsPermissions(), model: preferredModel(), effort: preferredEffort(), kind: preferredLaunchKind(), mode, request: asked.request, kinds: asked.walkthrough ? [] : asked.kinds }
     const terminal = asked.taskId ? await terminals.openForTask(asked.taskId, launch) : await terminals.openForProject(asked.projectId, launch)
     const generation: PendingGeneration = { ...asked, key: nextPendingKey++, terminalId: terminal.id, startedAt: Date.now() }
     setPending([generation, ...pending.value.filter((known) => known.terminalId !== terminal.id)])

@@ -23,6 +23,7 @@ export const RunQueueSchema = z.object({
   skipPermissions: z.boolean(),
   model: z.string().nullable(),
   effort: z.string().nullable(),
+  sessionKind: z.enum(['TERMINAL', 'CHAT']),
   holdUntil: z.string().nullable(),
   holdReason: z.string().nullable(),
   items: z.array(RunQueueItemSchema),

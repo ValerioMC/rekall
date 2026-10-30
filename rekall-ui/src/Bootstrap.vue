@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import FirstRunSetup from '@/features/settings/components/FirstRunSetup.vue'
 import DatabaseUnreachable from '@/features/settings/components/DatabaseUnreachable.vue'
 import ShellDock from '@/components/shell/ShellDock.vue'
@@ -14,7 +15,13 @@ import { useUpdateStore } from '@/features/settings/store/update.store'
 import { useToastStore } from '@/stores/toast.store'
 import { useTokenUsageStore } from '@/features/tokens/store/tokenUsage.store'
 import { useVulnerabilityStore } from '@/features/vulnerability/store/vulnerability.store'
+import { useChatDockArea } from '@/features/chat/composables/useChatDockArea'
+import { useChatWindowShown } from '@/features/chat/composables/useChatWindowShown'
+import { useRevealOpenedChat } from '@/features/chat/composables/useRevealOpenedChat'
 import type { DatabaseStatus } from '@/features/settings/model/settings'
+
+// Loaded only once a chat session exists, like the terminal pane.
+const ChatWindow = defineAsyncComponent(() => import('@/features/chat/components/ChatWindow.vue'))
 
 const store = useConsoleStore()
 const terminals = useTerminalStore()
@@ -22,6 +29,14 @@ const update = useUpdateStore()
 const toast = useToastStore()
 const status = ref<DatabaseStatus | null>(null)
 const failed = ref(false)
+const route = useRoute()
+const pageArea = ref<HTMLElement | null>(null)
+const chatWindowShown = useChatWindowShown()
+
+// On the console the window docks beside the note pane, which App.vue arranges itself.
+const chatOverPage = computed(() => route.name !== 'console' && chatWindowShown.value)
+useChatDockArea(pageArea, false, () => route.name !== 'console')
+useRevealOpenedChat()
 
 let refreshing = false
 
@@ -68,11 +83,16 @@ onUnmounted(() => {
     <template v-if="status.status === 'READY'">
       <div class="flex h-full flex-col">
         <AppHeaderChrome />
-        <router-view v-slot="{ Component }">
-          <Transition name="pane" mode="out-in">
-            <component :is="Component" />
+        <div ref="pageArea" class="relative flex min-h-0 flex-1 flex-col">
+          <router-view v-slot="{ Component }">
+            <Transition name="pane" mode="out-in">
+              <component :is="Component" />
+            </Transition>
+          </router-view>
+          <Transition name="pane">
+            <ChatWindow v-if="chatOverPage" />
           </Transition>
-        </router-view>
+        </div>
       </div>
       <ShellDock />
       <UpdateDialog v-if="update.promptOpen" />

@@ -37,17 +37,20 @@ function remember(key: string, value: string): void {
 }
 
 /**
- * Where the chat window sits in the console: shown or hidden, how wide, expanded or not. Width and
- * visibility are remembered per viewer. `areaWidth` is the room beside the navigator and note
- * list; the window docks inline while the note pane keeps 360 px, and overlays it otherwise.
+ * Where the chat window sits: shown or hidden, how wide, expanded or not. Width and visibility are
+ * remembered per viewer. `areaWidth` is the room it docks in; on the console it docks inline while
+ * the note pane keeps 360 px, and overlays it otherwise, on any other page it always overlays.
+ * `requested` opens it with no session yet, for its empty state.
  */
 export const useChatDockStore = defineStore('chatDock', () => {
   const hidden = ref(readHidden())
   const width = ref(readWidth())
   const expanded = ref(false)
+  const requested = ref(false)
   const areaWidth = ref(Number.POSITIVE_INFINITY)
+  const inlineAllowed = ref(true)
 
-  const overlays = computed(() => areaWidth.value - width.value < NOTE_MIN_WIDTH)
+  const overlays = computed(() => !inlineAllowed.value || areaWidth.value - width.value < NOTE_MIN_WIDTH)
   const maxWidth = computed(() => {
     const room = overlays.value ? areaWidth.value - OVERLAY_MARGIN : areaWidth.value - NOTE_MIN_WIDTH
     return Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, room))
@@ -64,25 +67,36 @@ export const useChatDockStore = defineStore('chatDock', () => {
     remember(HIDDEN_KEY, String(value))
   }
 
+  function open(): void {
+    requested.value = true
+    setHidden(false)
+  }
+
+  function hide(): void {
+    requested.value = false
+    setHidden(true)
+  }
+
   function setWidth(value: number): void {
     width.value = Math.round(Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, value)))
     remember(WIDTH_KEY, String(width.value))
   }
 
-  function observe(area: number): void {
+  function observe(area: number, inline: boolean): void {
     areaWidth.value = area
+    inlineAllowed.value = inline
   }
 
   return {
     hidden,
     width,
     expanded,
+    requested,
     shownWidth,
     maxWidth,
     mode,
-    show: () => setHidden(false),
-    hide: () => setHidden(true),
-    toggle: () => setHidden(!hidden.value),
+    open,
+    hide,
     setWidth,
     resetWidth: () => setWidth(DEFAULT_WIDTH),
     nudge: (delta: number) => setWidth(shownWidth.value + delta),

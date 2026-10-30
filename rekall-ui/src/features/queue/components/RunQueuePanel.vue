@@ -18,6 +18,7 @@ import QueueSettingsAside from '@/features/queue/components/QueueSettingsAside.v
 import QueueStatusLine from '@/features/queue/components/QueueStatusLine.vue'
 import { useRunQueueStore } from '@/features/queue/store/runQueue.store'
 import { useConsoleStore } from '@/stores/console.store'
+import { useChatStore } from '@/features/chat/store/chat.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useToastStore } from '@/stores/toast.store'
 import { useNow } from '@/composables/useNow'
@@ -36,6 +37,7 @@ const emit = defineEmits<{ close: [] }>()
 const store = useRunQueueStore()
 const consoleStore = useConsoleStore()
 const terminals = useTerminalStore()
+const chat = useChatStore()
 const toast = useToastStore()
 const { queue, progress } = storeToRefs(store)
 const now = useNow(15_000)
@@ -46,7 +48,7 @@ const confirmingStop = ref(false)
 
 // ---------------------------------------------------------------- settings
 
-const { ceilingOn, ceiling, skipPermissions, model, effort, settle } = useQueueSettingsDraft(
+const { ceilingOn, ceiling, skipPermissions, model, effort, sessionKind, settle } = useQueueSettingsDraft(
   queue.value,
   (settings) => store.saveSettings(settings),
   (error) => toast.notifyError(error)
@@ -99,9 +101,13 @@ async function watchSession(item: RunQueueItem): Promise<void> {
     return
   }
   const terminal = terminals.terminalForTask(item.taskId)
-  if (terminal) terminals.select(terminal.id)
   consoleStore.selectTask(item.taskId)
-  consoleStore.openTerminal()
+  if (terminal?.kind === 'CHAT') {
+    chat.reveal(terminal)
+  } else {
+    if (terminal) terminals.select(terminal.id)
+    consoleStore.openTerminal()
+  }
   emit('close')
 }
 
@@ -212,6 +218,7 @@ onMounted(async () => {
         v-model:model="model"
         v-model:effort="effort"
         v-model:skip-permissions="skipPermissions"
+        v-model:session-kind="sessionKind"
         :now="now"
         :start-iso="startIso"
         :start-in-past="startInPast"

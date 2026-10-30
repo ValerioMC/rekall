@@ -26,11 +26,17 @@ const ceiling = defineModel<number>('ceiling', { required: true })
 const model = defineModel<string>('model', { required: true })
 const effort = defineModel<string>('effort', { required: true })
 const skipPermissions = defineModel<boolean>('skipPermissions', { required: true })
+const sessionKind = defineModel<string>('sessionKind', { required: true })
 
 // Two selects share a 300px column, so 'Account default' is shortened to fit; the heading says whose.
 const shortDefault = (value: string, label: string): string => (value === 'default' ? 'Default' : label)
 const MODEL_OPTIONS = CLAUDE_MODEL_CHOICES.map((value) => ({ value, label: shortDefault(value, claudeModelChoiceLabel(value)) }))
 const EFFORT_OPTIONS = CLAUDE_EFFORT_CHOICES.map((value) => ({ value, label: shortDefault(value, claudeEffortChoiceLabel(value)) }))
+
+const SESSION_VIEW_OPTIONS = [
+  { value: 'TERMINAL', label: 'Terminal' },
+  { value: 'CHAT', label: 'Chat (experimental)' }
+]
 
 const usageLimits = ref<readonly ClaudeUsageLimit[]>([])
 
@@ -119,6 +125,10 @@ onMounted(() => void loadUsage())
           <label for="queue-effort" class="mb-1 block text-caption text-text-subtle">Effort</label>
           <AppSelect id="queue-effort" v-model="effort" :options="EFFORT_OPTIONS" />
         </div>
+      </div>
+      <div>
+        <label for="queue-session-view" class="mb-1 block text-caption text-text-subtle">Session view</label>
+        <AppSelect id="queue-session-view" v-model="sessionKind" :options="SESSION_VIEW_OPTIONS" data-testid="run-queue-session-view" />
       </div>
       <div>
         <AppCheckbox v-model="skipPermissions" label="Skip permission prompts" data-testid="run-queue-skip" />

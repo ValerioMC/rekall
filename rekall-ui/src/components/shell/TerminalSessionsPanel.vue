@@ -76,6 +76,14 @@ async function logCommit(terminal: Terminal): Promise<void> {
             </span>
           </span>
         </button>
+        <span
+          v-if="terminal.kind === 'CHAT'"
+          class="shrink-0 rounded-full px-1.5 py-px text-micro font-semibold"
+          :class="terminal.awaitingPermission ? 'bg-warn-soft text-warn' : 'bg-surface-raised text-text-muted'"
+          data-testid="terminal-dock-kind"
+        >
+          {{ terminal.awaitingPermission ? 'approve' : 'chat' }}
+        </span>
         <span class="shrink-0 font-mono text-micro text-text-subtle">
           {{ terminal.skipPermissions ? 'skip perms' : 'live' }}
         </span>

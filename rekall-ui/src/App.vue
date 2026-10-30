@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue'
+import { defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import AnchorBar from '@/components/console/AnchorBar.vue'
 import DescriptionPane from '@/features/catalog/components/DescriptionPane.vue'
@@ -20,6 +20,8 @@ import { useClaudeConnectionStore } from '@/features/claude/store/claudeConnecti
 import { useChatStore } from '@/features/chat/store/chat.store'
 import { useChatDockStore } from '@/features/chat/store/chatDock.store'
 import { useChatDockArea } from '@/features/chat/composables/useChatDockArea'
+import { useChatWindowShown } from '@/features/chat/composables/useChatWindowShown'
+import { preferredSessionKind } from '@/common/config/claude-launch'
 import { useRunQueueStore } from '@/features/queue/store/runQueue.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useModalGate } from '@/composables/useModalGate'
@@ -43,14 +45,17 @@ const { isModalOpen } = useModalGate()
 const chat = useChatStore()
 const chatDock = useChatDockStore()
 const noteArea = ref<HTMLElement | null>(null)
-useChatDockArea(noteArea)
+useChatDockArea(noteArea, true)
 
-const chatWindowShown = computed(
-  () => !chatDock.hidden && (chat.activeChatId !== null || chat.liveChats.length > 0)
-)
-const chatOwnsTerminalKey = computed(
-  () => chat.activeChatId !== null || chat.chatForTask(selectedTaskId.value) !== null
-)
+const chatWindowShown = useChatWindowShown()
+
+function chatOwnsTerminalKey(): boolean {
+  return (
+    chat.activeChatId !== null ||
+    chat.chatForTask(selectedTaskId.value) !== null ||
+    preferredSessionKind() === 'chat'
+  )
+}
 
 useStepStream(
   (taskId, steps) => store.applyStepEvent(taskId, steps),
@@ -139,13 +144,13 @@ function onKeydown(event: KeyboardEvent): void {
     return
   }
 
-  if (key === 'c' && chatOwnsTerminalKey.value) {
+  if (key === 'c' && chatOwnsTerminalKey()) {
     event.preventDefault()
-    if (!event.shiftKey) chatDock.toggle()
-    else {
-      chatDock.show()
+    if (event.shiftKey) {
+      chatDock.open()
       chatDock.toggleExpanded()
-    }
+    } else if (chatWindowShown.value) chatDock.hide()
+    else chatDock.open()
     return
   }
 

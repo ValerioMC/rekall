@@ -13,6 +13,7 @@ import SessionDrawer from './dialogs/SessionDrawer.vue'
 import { ApiError } from '@/api/client'
 import { useConsoleStore } from '@/stores/console.store'
 import { useDiagramStore, type GenerationRequest, type PendingGeneration } from '@/features/diagram/store/diagram.store'
+import { useChatStore } from '@/features/chat/store/chat.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useToastStore } from '@/stores/toast.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
@@ -29,6 +30,7 @@ import type { DiagramId, TerminalId } from '@/model/branded'
 const store = useDiagramStore()
 const console_ = useConsoleStore()
 const terminals = useTerminalStore()
+const chat = useChatStore()
 const toast = useToastStore()
 const route = useRoute()
 const router = useRouter()
@@ -54,9 +56,15 @@ const knownTerminals = computed<ReadonlySet<string>>(() => new Set(terminals.ter
 const finished = computed<ReadonlySet<string>>(() => new Set(store.pending.map((generation) => generation.terminalId).filter((id) => endedTerminals.value.has(id) || !knownTerminals.value.has(id))))
 
 const watchedId = computed(() => (typeof route.query.session === 'string' ? (route.query.session as TerminalId) : null))
-const watched = computed(() => terminals.terminals.find((terminal) => terminal.id === watchedId.value && terminal.live) ?? null)
+/** The drawer shows a terminal; a chat session is watched in the chat window instead. */
+const watched = computed(() => terminals.terminals.find((terminal) => terminal.id === watchedId.value && terminal.live && terminal.kind === 'TERMINAL') ?? null)
 
 function watchSession(id: TerminalId | null): void {
+  const chatSession = terminals.terminals.find((terminal) => terminal.id === id && terminal.kind === 'CHAT')
+  if (chatSession) {
+    chat.reveal(chatSession)
+    return
+  }
   void router.replace({ query: { ...route.query, session: id ?? undefined } })
 }
 

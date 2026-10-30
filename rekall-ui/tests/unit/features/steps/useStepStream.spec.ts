@@ -204,6 +204,7 @@ describe('useStepStream', () => {
         skipPermissions: true,
         model: null,
         effort: null,
+        sessionKind: 'TERMINAL',
         holdUntil: null,
         holdReason: null,
         items: [],

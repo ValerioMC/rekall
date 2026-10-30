@@ -11,6 +11,7 @@ import TaskTitleRow from '@/features/catalog/components/TaskTitleRow.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
+import { useOpenSession } from '@/features/claude/composables/useOpenSession'
 import { useEditorMode } from '@/composables/useEditorMode'
 import { relativeTime } from '@/common/format/relative-time'
 import { rkWrapupCommand } from '@/common/format/rk-command'
@@ -18,6 +19,7 @@ import { WRAPUP_AUTHOR_LABEL, isEpic } from '@/features/catalog/model/catalog'
 
 const store = useConsoleStore()
 const terminals = useTerminalStore()
+const openSession = useOpenSession()
 const { selectedTask, selectedWrapup, wrapupIsBehind } = storeToRefs(store)
 const { run } = useAsyncAction()
 const { run: runSend, isRunning: sendingWrapupHere } = useAsyncAction()
@@ -93,8 +95,7 @@ async function sendWrapupHere(message: string): Promise<void> {
   )
   if (sent === null) return
   wrapupHereOpen.value = false
-  store.openTerminal()
-  terminals.select(terminal.id)
+  openSession(terminal)
 }
 </script>
 

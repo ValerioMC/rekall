@@ -210,7 +210,7 @@ describe('ChatWindow', () => {
   it('resizes from the keyboard by 16 px, 64 with Shift, and remembers the width', async () => {
     openChat()
     const dock = useChatDockStore()
-    dock.observe(1600)
+    dock.observe(1600, true)
     const chat = mountWindow()
     const handle = chat.get('[role=separator]')
 

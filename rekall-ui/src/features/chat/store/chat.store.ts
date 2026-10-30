@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref, shallowRef } from 'vue'
 import { answerPermission, interrupt, sendMessage } from '@/features/chat/api/chat.api'
+import { useChatDockStore } from '@/features/chat/store/chatDock.store'
 import { emptyTimeline, foldEvent } from '@/features/chat/lib/timeline'
 import { awaitRenewedSession } from '@/features/claude/lib/renewed-session'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
@@ -16,6 +17,7 @@ import type { TaskId, TerminalId } from '@/model/branded'
  */
 export const useChatStore = defineStore('chat', () => {
   const terminals = useTerminalStore()
+  const dock = useChatDockStore()
   const timelines = shallowRef<Readonly<Record<string, Timeline>>>({})
   const activeChatId = ref<TerminalId | null>(null)
   const followingIds = ref<readonly TerminalId[]>([])
@@ -43,6 +45,12 @@ export const useChatStore = defineStore('chat', () => {
 
   function select(id: TerminalId | null): void {
     activeChatId.value = id
+  }
+
+  /** Brings a chat session to the screen: the window follows it and opens if it was hidden. */
+  function reveal(session: Terminal): void {
+    activeChatId.value = session.id
+    dock.open()
   }
 
   function chatForTask(taskId: TaskId | null): Terminal | null {
@@ -127,6 +135,7 @@ export const useChatStore = defineStore('chat', () => {
     isFollowing,
     select,
     chatForTask,
+    reveal,
     showTaskSession,
     ingest,
     send,

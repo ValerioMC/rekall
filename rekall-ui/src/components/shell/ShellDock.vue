@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute } from 'vue-router'
 import { useConsoleStore } from '@/stores/console.store'
+import { useChatWindowShown } from '@/features/chat/composables/useChatWindowShown'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useDockLane } from '@/composables/useDockLane'
 import { useNow } from '@/composables/useNow'
@@ -31,16 +32,17 @@ const route = useRoute()
 const now = useNow()
 const bar = useDockLane()
 const root = ref<HTMLElement | null>(null)
+const chatWindowShown = useChatWindowShown()
 
 const open = ref<DockPanel | null>(null)
 
 const liveSessions = computed(() => allTerminals.value.filter((terminal) => terminal.live))
 
-// The sessions segment steps aside while the terminal pane is on screen: it is what the pane shows.
+// The sessions segment steps aside while the terminal pane or the chat window is on screen: they show the sessions.
 const onTerminalPane = computed(() => route.name === 'console' && paneFocus.value === 'terminal')
 
 const showsRunning = computed(() => runningEntries.value.length > 0)
-const showsSessions = computed(() => liveSessions.value.length > 0 && !onTerminalPane.value)
+const showsSessions = computed(() => liveSessions.value.length > 0 && !onTerminalPane.value && !chatWindowShown.value)
 const visible = computed(() => showsRunning.value || showsSessions.value)
 
 const latestRunning = computed(
@@ -51,8 +53,11 @@ const latestClock = computed(() =>
   latestRunning.value ? formatClock((now.value - Date.parse(latestRunning.value.startedAt)) / 1000) : null
 )
 
-const sessionsLabel = computed(
-  () => `${liveSessions.value.length} ${liveSessions.value.length === 1 ? 'session' : 'sessions'}`
+const awaitingApproval = computed(() => liveSessions.value.some((terminal) => terminal.awaitingPermission))
+const sessionsLabel = computed(() =>
+  awaitingApproval.value
+    ? 'approve'
+    : `${liveSessions.value.length} ${liveSessions.value.length === 1 ? 'session' : 'sessions'}`
 )
 
 function toggle(panel: DockPanel): void {
@@ -127,6 +132,7 @@ onUnmounted(() => {
       <button
         v-if="showsSessions"
         class="dock-segment dock-segment-session"
+        :class="awaitingApproval && 'text-warn'"
         :aria-expanded="open === 'sessions'"
         aria-controls="dock-panel-sessions"
         data-testid="terminal-dock-toggle"

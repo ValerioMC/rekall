@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, shallowRef } from 'vue'
 import {
   closeTerminal,
   fetchTerminals,
@@ -7,6 +7,7 @@ import {
   sendTerminalInput,
   type OpenTerminalInput
 } from '@/features/claude/api/terminal.api'
+import { sendMessage } from '@/features/chat/api/chat.api'
 import { awaitRenewedSession } from '@/features/claude/lib/renewed-session'
 import { rkPlanCommand, rkPlanFlowCommand, rkReplanCommand } from '@/common/format/rk-command'
 import type { PlanMode, Terminal } from '@/features/claude/model/terminal'
@@ -19,6 +20,7 @@ import type { ProjectId, TaskId, TerminalId } from '@/model/branded'
 export const useTerminalStore = defineStore('terminal', () => {
   const terminals = ref<Terminal[]>([])
   const activeTerminalId = ref<TerminalId | null>(null)
+  const lastOpened = shallowRef<Terminal | null>(null)
 
   const activeTerminal = computed(
     () => terminals.value.find((terminal) => terminal.id === activeTerminalId.value) ?? null
@@ -43,17 +45,14 @@ export const useTerminalStore = defineStore('terminal', () => {
   // One live terminal per task: the server reuses a live one, retargets it and types the `/rk`
   // line into it, so the session reloads the task's latest steps instead of sitting idle.
   async function openForTask(taskId: TaskId, input: OpenTerminalInput): Promise<Terminal> {
-    const opened = await openTerminal({ taskId }, input)
-    upsert(opened)
-    activateIfTerminal(opened)
+    const opened = settleOpened(await openTerminal({ taskId }, input))
+    showInTerminalPane(opened)
     return opened
   }
 
   /** A terminal on a project alone, which draws a diagram, inventories or assesses; the server reuses a live one. */
   async function openForProject(projectId: ProjectId, input: OpenTerminalInput): Promise<Terminal> {
-    const opened = await openTerminal({ projectId }, input)
-    upsert(opened)
-    return opened
+    return settleOpened(await openTerminal({ projectId }, input))
   }
 
   /**
@@ -71,17 +70,24 @@ export const useTerminalStore = defineStore('terminal', () => {
     const live = terminalForTask(taskId)
     if (live) {
       await sendCommand(live.id, planLine(mode, anchor))
-      activeTerminalId.value = live.id
+      showInTerminalPane(live)
+      lastOpened.value = live
       return live
     }
-    const opened = await openTerminal({ taskId }, { ...input, mode })
-    upsert(opened)
-    activateIfTerminal(opened)
+    const opened = settleOpened(await openTerminal({ taskId }, { ...input, mode }))
+    showInTerminalPane(opened)
     return opened
   }
 
-  /** The terminal pane shows PTY sessions only; a chat session is shown by the chat window. */
-  function activateIfTerminal(opened: Terminal): void {
+  /** Lists a session an open request answered with, and tells the chat window about it. */
+  function settleOpened(opened: Terminal): Terminal {
+    upsert(opened)
+    lastOpened.value = opened
+    return opened
+  }
+
+  /** The terminal pane shows PTY sessions only: a chat session is shown by the chat window. */
+  function showInTerminalPane(opened: Terminal): void {
     if (opened.kind === 'TERMINAL') activeTerminalId.value = opened.id
   }
 
@@ -120,15 +126,18 @@ export const useTerminalStore = defineStore('terminal', () => {
     }
   }
 
-  /** Type a line into a live session's stdin, as if someone had pasted it there and hit enter. */
+  /** Hand a line to a live session: typed into a terminal's stdin as if pasted there, sent as a message to a chat. */
   async function sendCommand(id: TerminalId, line: string): Promise<void> {
-    await sendTerminalInput(id, `${line}\r`)
+    const isChat = terminals.value.some((terminal) => terminal.id === id && terminal.kind === 'CHAT')
+    if (isChat) await sendMessage(id, line)
+    else await sendTerminalInput(id, `${line}\r`)
   }
 
   return {
     terminals,
     activeTerminalId,
     activeTerminal,
+    lastOpened,
     terminalForTask,
     upsert,
     load,
