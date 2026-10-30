@@ -8,6 +8,7 @@ mod view;
 
 pub use model::flow_place::FlowPlace;
 pub use model::proposed::Proposed;
+pub use model::removed::Removed;
 pub use model::staging::Staging;
 pub use model::step_flow_rows::StepFlowRows;
 pub use view::step_link_view::StepLinkView;

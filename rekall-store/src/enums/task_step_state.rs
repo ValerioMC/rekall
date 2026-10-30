@@ -26,6 +26,10 @@ impl TaskStepState {
         *self == Self::Draft
     }
 
+    pub fn unstarted(&self) -> bool {
+        matches!(self, Self::Draft | Self::Open)
+    }
+
     pub fn reachable_by_session(&self) -> bool {
         !matches!(self, Self::Draft | Self::Done)
     }

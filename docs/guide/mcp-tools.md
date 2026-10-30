@@ -7,6 +7,8 @@
 | `rekall_step` | write | Move one step: `open` to `running` to `claimed`; on a flow, a claim's `outcome` follows that route and its `report` reaches the step it leads to |
 | `rekall_record_commit` | write | Log a commit of the project's repo folder against one task or step |
 | `rekall_propose_step` | write | Add one step, open and ready to work (`draft: true` leaves it for a person to promote); `new_session` makes it open a fresh Claude session |
+| `rekall_replan` | write | Replace a task's draft and open steps with a new checklist or flow in one transaction; running, claimed and done steps stay, and a refused plan deletes nothing |
+| `rekall_delete_step` | write | Delete one draft or open step; a running, claimed or done step is refused |
 | `rekall_propose_flow` | write | Add a whole flow to a task with no steps: its steps and the routes between them, open and ready to work (`draft: true` leaves them for a person to promote), each optionally opening a fresh session with `new_session` |
 | `rekall_create_task` | write | Create a task or an epic in a project with a description and up to 20 steps that start open, as a checklist or a flow (none on an epic), optionally filed under an epic |
 | `rekall_join_epic` | write | File an existing task under an epic of its project, or move it from another epic |

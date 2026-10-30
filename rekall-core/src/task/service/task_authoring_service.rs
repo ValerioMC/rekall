@@ -57,16 +57,11 @@ fn required_title(title: Option<&str>) -> Result<String> {
     text_rule::present(title).map(str::to_string).ok_or_else(|| RekallError::illegal("A task needs a title."))
 }
 
-/// Checked before anything is written. A plan with a route must be able to run unattended; one
-/// without is a checklist and needs only to fit.
 fn require_plan_fits(plan: &FlowPlan) -> Result<()> {
     if plan.steps.is_empty() {
         return Ok(());
     }
-    if plan.route_count() == 0 {
-        return plan.check_shape();
-    }
-    plan.check()
+    plan.check_as_written()
 }
 
 /// Refused before anything is written, so the answer names the steps rather than the first one.

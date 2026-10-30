@@ -9,7 +9,7 @@ use crate::step::{FlowPlace, Staging, StepFlowRows, StepStreamEvent, TaskStepVie
 use crate::timeentry::TimeEntryService;
 use crate::{in_read, in_write, load, text_rule, Ctx, Tx};
 
-use crate::step::Proposed;
+use crate::step::{Proposed, Removed};
 
 /// Drafts a session may leave on one task before a person has promoted or deleted some.
 pub const PROPOSED_DRAFTS_MAX: usize = 20;
@@ -407,13 +407,44 @@ impl TaskStepService {
     pub async fn delete(&self, id: Id) -> Result<()> {
         in_write!(&self.ctx, |tx| {
             if let Some(step) = repo::task_step::find_by_id(tx.db(), id).await? {
-                task_step::Entity::delete_by_id(id).exec(tx.db()).await?;
-                let remaining = load::steps_of(tx.db(), step.task_id).await?;
-                self.renumber(&tx, remaining).await?;
+                self.delete_in(&tx, &step).await?;
                 self.publish_in(&mut tx, step.task_id).await?;
             }
             Ok::<_, RekallError>(())
         })
+    }
+
+    /// A session's delete of one step it has not started: a draft or an open step. A step that is
+    /// running, claimed or done carries a run or a review, which only the console may discard.
+    pub async fn remove(&self, project_label: Option<&str>, task_label: &str, step_ref: Option<&str>) -> Result<Removed> {
+        in_write!(&self.ctx, |tx| {
+            let task = load::resolve_task(tx.db(), project_label, task_label).await?;
+            let step = load::resolve_step(tx.db(), task.id, step_ref).await?;
+            require_unstarted(&step)?;
+            self.delete_in(&tx, &step).await?;
+            self.publish_in(&mut tx, task.id).await?;
+            let remaining = load::steps_of(tx.db(), task.id).await?.len();
+            Ok(Removed { title: step.title, remaining })
+        })
+    }
+
+    /// Deletes every draft and open step of a task inside a transaction the caller holds, which
+    /// also publishes. Answers how many it removed; started, claimed and done steps stay.
+    pub async fn clear_unstarted_in(&self, tx: &Tx, task_id: Id) -> Result<usize> {
+        let unstarted: Vec<_> = load::steps_of(tx.db(), task_id).await?.into_iter().filter(|step| step.state.unstarted()).collect();
+        for step in &unstarted {
+            task_step::Entity::delete_by_id(step.id).exec(tx.db()).await?;
+        }
+        let remaining = load::steps_of(tx.db(), task_id).await?;
+        self.renumber(tx, remaining).await?;
+        Ok(unstarted.len())
+    }
+
+    async fn delete_in(&self, tx: &Tx, step: &task_step::Model) -> Result<()> {
+        task_step::Entity::delete_by_id(step.id).exec(tx.db()).await?;
+        let remaining = load::steps_of(tx.db(), step.task_id).await?;
+        self.renumber(tx, remaining).await?;
+        Ok(())
     }
 
     /// Keep every draft after every non-draft, the order within each group kept, and renumber.
@@ -453,6 +484,18 @@ impl TaskStepService {
             .await?
             .ok_or_else(|| RekallError::unknown_anchor(format!("No step with id {id}")))
     }
+}
+
+fn require_unstarted(step: &task_step::Model) -> Result<()> {
+    if step.state.unstarted() {
+        return Ok(());
+    }
+    Err(RekallError::illegal(format!(
+        "'{}' is {}. A session deletes a draft or an open step only; a step that was started, claimed or accepted \
+         is discarded in the console. Nothing was deleted.",
+        step.title,
+        step.state.name().to_lowercase()
+    )))
 }
 
 /// Move a step between `DRAFT` and `OPEN`. Only those two states move; a step a session has

@@ -49,6 +49,16 @@ in [workflow.md](workflow.md)); `FlowProposalService::propose` lays it as drafts
 releases them in the same transaction. The tool text asks the model to choose checklist or flow first and,
 for a flow, to work out each step's arcs: what can end it and where each outcome goes.
 
+`rekall_replan` is how a session redesigns a task that already has steps. `FlowProposalService::replan`
+checks the plan whole (`FlowPlan::check_as_written`: a flow when any step has a route, a checklist
+otherwise), then in one transaction deletes the task's draft and open steps (`TaskStepService::clear_unstarted_in`)
+and lays the plan with `lay_in`. `TaskStepState::unstarted` is the one rule for what a session may delete:
+running, claimed and done steps carry a run, work waiting for review or work a person accepted, so they stay
+and the new steps follow them. A flow begins at the first step, so a flow is refused while any step stays;
+a title a staying step has is refused; either refusal leaves everything as it was. `rekall_delete_step`
+(`TaskStepService::remove`) deletes one draft or open step by number or title under the same rule, renumbers
+the rest and drops the routes that touched it.
+
 `rekall_create_task` creates a task in the project its anchor names, with an optional description and
 up to twenty steps, in one transaction. `TaskAuthoringService` in rekall-core is its only path: the
 console's `TaskService` in rekall-console stays the one that edits, reviews and deletes. The task starts

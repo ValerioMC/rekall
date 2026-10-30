@@ -1,7 +1,7 @@
 ---
 description: Load a Rekall working context by anchor, e.g. /rk project:vega task:report-builder
-argument-hint: "company:|project:|task: <label> ...  [wrapup [\"how to write it\"]] | [note \"what to keep\"] | [section \"Title\" [\"what it holds\"]] | [plan [flow]] | [generate [kinds:sequence,state] \"what to diagram\"] | [explain \"what to walk through\"] | [inventory] | [assess [advisory:GHSA-xxxx-xxxx-xxxx]] | [step:N start|done [outcome:<name>] [report:\"what you saw\"]]   (labels, not titles)"
-allowed-tools: mcp__rekall__rekall_context, mcp__rekall__rekall_wrapup, mcp__rekall__rekall_step, mcp__rekall__rekall_propose_step, mcp__rekall__rekall_propose_flow, mcp__rekall__rekall_record_commit, mcp__rekall__rekall_note, mcp__rekall__rekall_project_section, mcp__rekall__rekall_diagram, mcp__rekall__rekall_inventory, mcp__rekall__rekall_vulnerabilities, mcp__rekall__rekall_assess_vulnerability, Read, Grep, Glob
+argument-hint: "company:|project:|task: <label> ...  [wrapup [\"how to write it\"]] | [note \"what to keep\"] | [section \"Title\" [\"what it holds\"]] | [plan [flow]] | [replan] | [generate [kinds:sequence,state] \"what to diagram\"] | [explain \"what to walk through\"] | [inventory] | [assess [advisory:GHSA-xxxx-xxxx-xxxx]] | [step:N start|done [outcome:<name>] [report:\"what you saw\"]]   (labels, not titles)"
+allowed-tools: mcp__rekall__rekall_context, mcp__rekall__rekall_wrapup, mcp__rekall__rekall_step, mcp__rekall__rekall_propose_step, mcp__rekall__rekall_propose_flow, mcp__rekall__rekall_replan, mcp__rekall__rekall_delete_step, mcp__rekall__rekall_record_commit, mcp__rekall__rekall_note, mcp__rekall__rekall_project_section, mcp__rekall__rekall_diagram, mcp__rekall__rekall_inventory, mcp__rekall__rekall_vulnerabilities, mcp__rekall__rekall_assess_vulnerability, Read, Grep, Glob
 ---
 
 The arguments are:
@@ -13,7 +13,7 @@ If the terms include the bare word `generate`, follow **Generating**. If they in
 If they include the bare word `assess`, follow **Assessing**. If they include the bare word
 `wrapup`, follow **Wrapping up**. If they include the bare word `note`, follow **Noting**. If they
 include the bare word `section`, follow **Sectioning**. If they include the bare word `plan`, follow
-**Planning**. If they include a `step:` term alongside `start`
+**Planning**. If they include the bare word `replan`, follow **Replanning**. If they include a `step:` term alongside `start`
 or `done`, follow **Stepping**. Otherwise follow **Loading**. Words inside double quotes are never
 terms: `generate "how the plan is noted"` is generating, not planning or noting.
 
@@ -275,6 +275,24 @@ renames, reorders or deletes a section, and writing one does not claim the task 
 A title the task already has is refused, so a second `plan` adds only what the first one missed. A
 flow is proposed only onto a task with no steps; on one that has some, plan a checklist and say the
 routes are mine to draw.
+
+## Replanning
+
+`/rk project:vega task:report-builder replan` means: redesign the steps this task already has.
+
+1. Drop the `replan` term and call `rekall_context` with the anchors that are left.
+2. Read what it gives you as in **Planning**, and read the steps that are there: which are done,
+   which are running or claimed, which are open or drafts. Work out what is wrong with the open
+   and draft ones, and what still has to be built.
+3. Decide checklist or flow and work out the arcs as in **Planning**. Steps that are running,
+   claimed or done stay and are not planned again, so the new steps follow them: when any stay,
+   plan a checklist and say the routes are mine to draw.
+4. Call `rekall_replan` once with every new step. It deletes the task's draft and open steps and
+   lays the new ones in a single transaction, and refuses the whole plan when any part is wrong.
+   Pass `draft: true`, as in **Planning**. To drop a single step that belongs on no plan, call
+   `rekall_delete_step`.
+5. Stop. Say in a few lines how many steps were deleted, how many were laid, which steps stayed and
+   anything you left out on purpose. Build nothing.
 
 ## Generating
 

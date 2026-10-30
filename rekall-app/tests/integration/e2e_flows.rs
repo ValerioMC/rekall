@@ -212,6 +212,50 @@ async fn a_session_lays_a_flow_on_a_task_that_is_ready_to_run_unless_it_asks_for
 }
 
 #[tokio::test]
+async fn a_session_replans_a_task_with_a_draft_and_an_open_step_and_the_started_one_stays() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
+    let task_id = app.a_task(&project_id, "release").await;
+    app.call_tool("rekall_propose_step", json!({ "anchors": TASK, "title": "Started" })).await;
+    app.call_tool("rekall_propose_step", json!({ "anchors": TASK, "title": "Old open" })).await;
+    app.call_tool("rekall_propose_step", json!({ "anchors": TASK, "title": "Old draft", "draft": true })).await;
+    step(&app, "1", "running", None).await;
+
+    let answer = app
+        .call_tool("rekall_replan", json!({ "anchors": TASK, "steps": [{ "title": "Deploy" }, { "title": "Check", "new_session": true }] }))
+        .await;
+
+    assert_contains!(answer, "Replanned: 2 draft or open steps deleted, 2 steps laid with 0 routes, ready to work. 1 started or finished step stayed");
+    let steps = app.get(&format!("/api/tasks/{task_id}/steps")).await.list();
+    let titles: Vec<&str> = steps.iter().map(|step| step["title"].as_str().unwrap()).collect();
+    assert_eq!(titles, ["Started", "Deploy", "Check"]);
+    assert_eq!(steps[0]["state"], json!("RUNNING"));
+    assert_contains!(
+        app.call_tool("rekall_replan", json!({ "anchors": TASK, "steps": [{ "title": "started" }] })).await,
+        "already has a step titled 'Started' (running)"
+    );
+}
+
+#[tokio::test]
+async fn a_session_deletes_a_draft_and_is_refused_a_running_step() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
+    let task_id = app.a_task(&project_id, "release").await;
+    app.call_tool("rekall_propose_step", json!({ "anchors": TASK, "title": "Started" })).await;
+    app.call_tool("rekall_propose_step", json!({ "anchors": TASK, "title": "Old draft", "draft": true })).await;
+    step(&app, "1", "running", None).await;
+
+    let deleted = app.call_tool("rekall_delete_step", json!({ "anchors": TASK, "step": "Old draft" })).await;
+    let refused = app.call_tool("rekall_delete_step", json!({ "anchors": TASK, "step": "1" })).await;
+
+    assert_contains!(deleted, "Step \"Old draft\" deleted. The task holds 1 step now.");
+    assert_contains!(refused, "'Started' is running", "Nothing was deleted");
+    assert_eq!(app.get(&format!("/api/tasks/{task_id}/steps")).await.list().len(), 1);
+}
+
+#[tokio::test]
 async fn a_session_creates_a_task_as_a_flow_that_is_ready_to_run_with_its_sessions() {
     let app = app().await;
     let acme = app.a_company("Acme").await;

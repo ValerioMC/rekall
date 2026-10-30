@@ -11,7 +11,11 @@ reorder or remove a step, and the console's `edit` is still the only path to `DO
 only lay a flow onto a task with no steps, and the routes it asks `StepLinkService.propose_in` for are
 refused unless both ends are drafts, so no released step's routes change: a ready flow is laid as
 drafts and released inside the same transaction. `TaskAuthoringService.create` does the same for the
-task it has just created. None of them promotes a draft that was already on a task. `NoteService` (rekall-core) can only create a note and attach it to the one task it was
+task it has just created. None of them promotes a draft that was already on a task. The only deletes a session can make are
+`FlowProposalService.replan` and `TaskStepService.remove`, and both stop at `TaskStepState::unstarted`:
+a draft or an open step. A running, claimed or done step is refused by name, so a session never discards
+a run, work waiting for review or work a person accepted; a replan checks its plan whole before it deletes
+anything and runs in one transaction. `NoteService` (rekall-core) can only create a note and attach it to the one task it was
 written for: it never loads a note by id, so it cannot edit, detach or delete one, and
 `DocumentService`, which can, stays in `rekall-console`. `CommitReferenceService` and `AutoCommitService` log and make commits in the project's own
 folder. `InventoryRecordingService` replaces one project's dependency rows and drops the exposures they

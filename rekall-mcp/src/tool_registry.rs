@@ -7,11 +7,11 @@ use crate::protocol::McpTool;
 use crate::commit::CommitReferenceTool;
 use crate::context::ContextTool;
 use crate::diagram::DiagramTool;
-use crate::flow::FlowProposalTool;
+use crate::flow::{FlowProposalTool, ReplanTool};
 use crate::inventory::InventoryTool;
 use crate::note::NoteTool;
 use crate::section::{ProjectSectionTool, SectionReadTool};
-use crate::step::{StepProposalTool, StepStateTool};
+use crate::step::{StepDeletionTool, StepProposalTool, StepStateTool};
 use crate::task::{EpicMembershipTool, TaskCreationTool};
 use crate::vulnerability::{AssessmentTool, VulnerabilityReadTool};
 use crate::wrapup::WrapupTool;
@@ -26,6 +26,8 @@ pub fn all(services: &Services) -> Vec<Arc<dyn McpTool>> {
         Arc::new(NoteTool::new(services.notes.clone())),
         Arc::new(StepProposalTool::new(services.steps.clone())),
         Arc::new(FlowProposalTool::new(services.flow_proposals.clone())),
+        Arc::new(ReplanTool::new(services.flow_proposals.clone())),
+        Arc::new(StepDeletionTool::new(services.steps.clone())),
         Arc::new(StepStateTool::new(services.auto_commit.clone(), services.steps.clone(), services.flow.clone())),
         Arc::new(WrapupTool::new(services.auto_commit.clone(), services.wrapups.clone())),
         Arc::new(DiagramTool::new(services.diagrams.clone())),

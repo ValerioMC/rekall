@@ -410,6 +410,134 @@ async fn a_flow_laid_ready_is_open_from_the_first_step_and_followed_at_once() {
     assert_eq!(next.title, "Fix");
 }
 
+async fn a_task_with_started_and_unstarted_steps(world: &World) -> rekall_store::task::Model {
+    let project = world.project("vega", None, false).await;
+    let task = world.task(&project, "release").await;
+    world.step(&task, "Built", 0, TaskStepState::Done).await;
+    world.step(&task, "Running one", 1, TaskStepState::Running).await;
+    world.step(&task, "Old open", 2, TaskStepState::Open).await;
+    world.step(&task, "Old draft", 3, TaskStepState::Draft).await;
+    task
+}
+
+fn titled(titles: &[&str]) -> FlowPlan {
+    FlowPlan::new(titles.iter().map(|title| planned(title, &[])).collect())
+}
+
+#[tokio::test]
+async fn a_replan_deletes_the_draft_and_open_steps_and_lays_the_checklist_after_the_ones_that_stay() {
+    let world = world().await;
+    let task = a_task_with_started_and_unstarted_steps(&world).await;
+
+    let replanned =
+        world.services.flow_proposals.replan(Some("vega"), "release", &titled(&["New A", "New B"]), Staging::Ready).await.unwrap();
+
+    assert_eq!((replanned.removed, replanned.laid.steps, replanned.laid.routes, replanned.kept), (2, 2, 0, 2));
+    let steps = world.services.steps.find_by_task(task.id).await.unwrap();
+    assert_eq!(
+        steps.iter().map(|step| (step.title.as_str(), step.state)).collect::<Vec<_>>(),
+        [
+            ("Built", TaskStepState::Done),
+            ("Running one", TaskStepState::Running),
+            ("New A", TaskStepState::Open),
+            ("New B", TaskStepState::Open)
+        ]
+    );
+}
+
+#[tokio::test]
+async fn a_replan_asked_for_drafts_leaves_the_new_steps_on_the_shelf() {
+    let world = world().await;
+    let task = a_task_with_started_and_unstarted_steps(&world).await;
+
+    world.services.flow_proposals.replan(Some("vega"), "release", &titled(&["New A"]), Staging::Draft).await.unwrap();
+
+    let steps = world.services.steps.find_by_task(task.id).await.unwrap();
+    assert_eq!(steps.last().map(|step| (step.title.as_str(), step.state)), Some(("New A", TaskStepState::Draft)));
+}
+
+#[tokio::test]
+async fn a_replan_as_a_flow_replaces_unstarted_steps_and_is_followed_at_once() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let task = world.task(&project, "release").await;
+    world.step(&task, "Old open", 0, TaskStepState::Open).await;
+    world.step(&task, "Old draft", 1, TaskStepState::Draft).await;
+
+    let replanned = world.services.flow_proposals.replan(Some("vega"), "release", &deploy_test_fix(), Staging::Ready).await.unwrap();
+
+    assert_eq!((replanned.removed, replanned.laid.steps, replanned.laid.routes, replanned.kept), (2, 3, 4, 0));
+    let steps = world.services.steps.find_by_task(task.id).await.unwrap();
+    assert_eq!(steps.iter().map(|step| step.title.as_str()).collect::<Vec<_>>(), ["Deploy", "Test", "Fix"]);
+    world.services.flow.transition(Some("vega"), "release", Some("Deploy"), TaskStepState::Claimed, None, None).await.unwrap();
+}
+
+#[tokio::test]
+async fn a_flow_cannot_replan_after_steps_that_stay_and_nothing_is_deleted() {
+    let world = world().await;
+    let task = a_task_with_started_and_unstarted_steps(&world).await;
+
+    let refused = world.services.flow_proposals.replan(Some("vega"), "release", &deploy_test_fix(), Staging::Ready).await.unwrap_err();
+
+    assert!(refused.to_string().contains("'Built' (done), 'Running one' (running)"), "{refused}");
+    assert_eq!(world.services.steps.find_by_task(task.id).await.unwrap().len(), 4);
+}
+
+#[tokio::test]
+async fn a_replan_may_not_reuse_the_title_of_a_step_that_stays_and_nothing_is_deleted() {
+    let world = world().await;
+    let task = a_task_with_started_and_unstarted_steps(&world).await;
+
+    let refused = world.services.flow_proposals.replan(Some("vega"), "release", &titled(&["built"]), Staging::Ready).await.unwrap_err();
+
+    assert!(refused.to_string().contains("already has a step titled 'Built' (done)"), "{refused}");
+    assert_eq!(world.services.steps.find_by_task(task.id).await.unwrap().len(), 4);
+}
+
+#[tokio::test]
+async fn a_replan_that_cannot_run_is_refused_before_anything_is_deleted() {
+    let world = world().await;
+    let task = a_task_with_started_and_unstarted_steps(&world).await;
+    let loop_without_exit = FlowPlan::new(vec![planned("A", &[("again", Some(1))]), planned("B", &[("again", Some(0))])]);
+
+    let refused = world.services.flow_proposals.replan(Some("vega"), "release", &loop_without_exit, Staging::Ready).await.unwrap_err();
+
+    assert!(refused.to_string().contains("can loop forever"), "{refused}");
+    assert_eq!(world.services.steps.find_by_task(task.id).await.unwrap().len(), 4);
+}
+
+#[tokio::test]
+async fn a_session_deletes_a_draft_or_an_open_step_and_the_ones_behind_it_move_up() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let task = world.task(&project, "release").await;
+    world.step(&task, "First", 0, TaskStepState::Open).await;
+    world.step(&task, "Second", 1, TaskStepState::Open).await;
+    world.step(&task, "Shelf", 2, TaskStepState::Draft).await;
+
+    let removed = world.services.steps.remove(Some("vega"), "release", Some("first")).await.unwrap();
+    let shelf = world.services.steps.remove(Some("vega"), "release", Some("2")).await.unwrap();
+
+    assert_eq!((removed.title.as_str(), removed.remaining), ("First", 2));
+    assert_eq!((shelf.title.as_str(), shelf.remaining), ("Shelf", 1));
+    let steps = world.services.steps.find_by_task(task.id).await.unwrap();
+    assert_eq!(steps.iter().map(|step| (step.title.as_str(), step.position)).collect::<Vec<_>>(), [("Second", 0)]);
+}
+
+#[tokio::test]
+async fn a_session_cannot_delete_a_step_that_is_running_claimed_or_done() {
+    let world = world().await;
+    let task = a_task_with_started_and_unstarted_steps(&world).await;
+    world.step(&task, "Waiting", 4, TaskStepState::Claimed).await;
+
+    for title in ["Built", "Running one", "Waiting"] {
+        let refused = world.services.steps.remove(Some("vega"), "release", Some(title)).await.unwrap_err();
+        assert!(refused.to_string().contains("deletes a draft or an open step only"), "{refused}");
+    }
+
+    assert_eq!(world.services.steps.find_by_task(task.id).await.unwrap().len(), 5);
+}
+
 #[tokio::test]
 async fn routes_between_drafts_do_not_make_the_checklist_a_flow_until_they_are_promoted() {
     let world = world().await;

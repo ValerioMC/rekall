@@ -399,6 +399,7 @@ async fn the_mcp_endpoint_exposes_three_ways_to_read_and_ten_writes() {
             "rekall_assess_vulnerability",
             "rekall_context",
             "rekall_create_task",
+            "rekall_delete_step",
             "rekall_diagram",
             "rekall_inventory",
             "rekall_join_epic",
@@ -408,6 +409,7 @@ async fn the_mcp_endpoint_exposes_three_ways_to_read_and_ten_writes() {
             "rekall_propose_step",
             "rekall_read_sections",
             "rekall_record_commit",
+            "rekall_replan",
             "rekall_step",
             "rekall_vulnerabilities",
             "rekall_wrapup"

@@ -12,6 +12,7 @@ pub use service::flow_service::FlowService;
 pub use model::planned_route::PlannedRoute;
 pub use model::planned_step::PlannedStep;
 pub use model::proposed_flow::ProposedFlow;
+pub use model::replanned::Replanned;
 pub use model::route_choice::choose_route;
 pub use model::route_target::RouteTarget;
 pub use service::step_link_service::StepLinkService;

@@ -33,6 +33,15 @@ impl FlowPlan {
         self.require_every_step_can_end()
     }
 
+    /// What a session writes without saying which it means: a plan with a route must run
+    /// unattended, so it is checked as a flow; one without is a checklist and only has to fit.
+    pub fn check_as_written(&self) -> Result<()> {
+        if self.route_count() == 0 {
+            return self.check_shape();
+        }
+        self.check()
+    }
+
     /// Refuses what no flow could hold: no steps or too many, a title twice, a route that leaves
     /// its step badly. A plan that passes can be stored, even if it cannot run yet.
     pub fn check_shape(&self) -> Result<()> {
