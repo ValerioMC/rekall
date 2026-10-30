@@ -56,3 +56,7 @@ path = "tests/integration/credentials.rs"
 [[test]]
 name = "terminal"
 path = "tests/integration/terminal.rs"
+
+[[test]]
+name = "chat_sessions"
+path = "tests/integration/chat_sessions.rs"

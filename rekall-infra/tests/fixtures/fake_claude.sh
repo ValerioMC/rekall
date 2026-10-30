@@ -21,6 +21,7 @@ while IFS= read -r input; do
     exit 0
   fi
   if [ -n "$FAKE_CLAUDE_EXIT_CODE" ]; then
+    [ -n "$FAKE_CLAUDE_EXIT_DELAY" ] && sleep "$FAKE_CLAUDE_EXIT_DELAY"
     exit "$FAKE_CLAUDE_EXIT_CODE"
   fi
 done
