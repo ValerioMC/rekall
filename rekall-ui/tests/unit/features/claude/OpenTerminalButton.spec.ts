@@ -44,7 +44,9 @@ function terminal(): Terminal {
     skipPermissions: true,
     model: null,
     effort: null,
+    kind: 'TERMINAL',
     live: true,
+    awaitingPermission: false,
     startedAt: '2026-09-22T10:00:00Z',
     lastActivityAt: '2026-09-22T10:00:00Z',
     connections: []

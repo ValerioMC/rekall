@@ -14,7 +14,9 @@ export const TerminalSchema = z.object({
   skipPermissions: z.boolean(),
   model: z.string().nullable(),
   effort: z.string().nullable(),
+  kind: z.enum(['TERMINAL', 'CHAT']).default('TERMINAL'),
   live: z.boolean(),
+  awaitingPermission: z.boolean().default(false),
   startedAt: z.string(),
   lastActivityAt: z.string(),
   connections: z

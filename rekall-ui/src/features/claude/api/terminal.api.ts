@@ -1,7 +1,7 @@
 import { apiClient, request } from '../../../api/client'
 import { TerminalListSchema, TerminalSchema } from './schemas/terminal.schema'
 import { env } from '@/common/config/env'
-import type { Terminal, TerminalMode, TerminalTarget } from '@/features/claude/model/terminal'
+import type { SessionKind, Terminal, TerminalMode, TerminalTarget } from '@/features/claude/model/terminal'
 import type { DiagramKind } from '@/features/diagram/model/diagram'
 import type { ClaudeEffortChoice, ClaudeModelChoice } from '@/features/claude/model/claude'
 import type { TaskStepId, TerminalId } from '@/model/branded'
@@ -12,6 +12,7 @@ export interface OpenTerminalInput {
   model?: ClaudeModelChoice
   effort?: ClaudeEffortChoice
   mode?: TerminalMode
+  kind?: SessionKind
   /** What a `GENERATE` terminal asks the session to draw, and as which diagram types. */
   request?: string
   kinds?: readonly DiagramKind[]
@@ -38,6 +39,7 @@ export async function openTerminal(target: TerminalTarget, input: OpenTerminalIn
           model: input.model && input.model !== 'default' ? input.model : null,
           effort: input.effort && input.effort !== 'default' ? input.effort : null,
           mode: input.mode ?? 'WORK',
+          kind: input.kind ?? 'TERMINAL',
           request: input.request ?? null,
           kinds: input.kinds ?? null,
           advisory: input.advisory ?? null

@@ -7,12 +7,10 @@ import {
   sendTerminalInput,
   type OpenTerminalInput
 } from '@/features/claude/api/terminal.api'
+import { awaitRenewedSession } from '@/features/claude/lib/renewed-session'
 import { rkPlanCommand, rkPlanFlowCommand, rkReplanCommand } from '@/common/format/rk-command'
 import type { PlanMode, Terminal } from '@/features/claude/model/terminal'
 import type { ProjectId, TaskId, TerminalId } from '@/model/branded'
-
-const NEXT_SESSION_ATTEMPTS = 6
-const NEXT_SESSION_DELAY_MS = 500
 
 /**
  * In-app terminals: real PTYs running the interactive `claude` TUI, one active at a time. Never
@@ -88,22 +86,14 @@ export const useTerminalStore = defineStore('terminal', () => {
   }
 
   /**
-   * After a session ends, the server may have opened the next one on the same task, when the step
-   * claimed was the last of its session. Looks for it a few times and switches the pane to it when
-   * the ended one was the active one; the ended session stays listed when none appears.
+   * After a session ends, switches the pane to the one the server opened next on the same task,
+   * when the ended one was the active one; the ended session stays listed when none appears.
    */
   async function followNextSession(taskId: TaskId, endedId: TerminalId): Promise<void> {
-    for (let attempt = 0; attempt < NEXT_SESSION_ATTEMPTS; attempt += 1) {
-      await new Promise<void>((resolve) => setTimeout(resolve, NEXT_SESSION_DELAY_MS))
-      const fresh = await fetchTerminals()
-      const next = fresh.find(
-        (terminal) => terminal.taskId === taskId && terminal.live && terminal.id !== endedId
-      )
-      if (!next) continue
-      upsert(next)
-      if (activeTerminalId.value === endedId) activeTerminalId.value = next.id
-      return
-    }
+    const next = await awaitRenewedSession(taskId, endedId)
+    if (!next) return
+    upsert(next)
+    if (activeTerminalId.value === endedId) activeTerminalId.value = next.id
   }
 
   function select(id: TerminalId | null): void {
@@ -135,6 +125,7 @@ export const useTerminalStore = defineStore('terminal', () => {
     activeTerminalId,
     activeTerminal,
     terminalForTask,
+    upsert,
     load,
     openForTask,
     openForProject,

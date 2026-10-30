@@ -80,7 +80,9 @@ const session: Terminal = {
   skipPermissions: false,
   model: null,
   effort: null,
+  kind: 'TERMINAL',
   live: true,
+  awaitingPermission: false,
   startedAt: new Date(Date.now() - 600_000).toISOString(),
   lastActivityAt: new Date().toISOString(),
   connections: []

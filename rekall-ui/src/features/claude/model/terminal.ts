@@ -18,9 +18,12 @@ export type PlanMode = Extract<TerminalMode, 'PLAN' | 'PLAN_FLOW' | 'REPLAN'>
 /** What a terminal is opened on: a task, or a project alone, which draws a diagram, inventories or assesses. */
 export type TerminalTarget = { readonly taskId: TaskId } | { readonly projectId: ProjectId }
 
+/** How a session runs `claude`: the interactive TUI in a PTY, or headless over stream-json with its own window. */
+export type SessionKind = 'TERMINAL' | 'CHAT'
+
 /**
- * A live in-app terminal: a real PTY running the interactive `claude` TUI. Not persisted. The
- * task fields are null on one opened on a project alone.
+ * A live in-app session: a real PTY running the interactive `claude` TUI, or a chat session
+ * running it headless. Not persisted. The task fields are null on one opened on a project alone.
  */
 export interface Terminal {
   readonly id: TerminalId
@@ -35,7 +38,10 @@ export interface Terminal {
   readonly skipPermissions: boolean
   readonly model: string | null
   readonly effort: string | null
+  readonly kind: SessionKind
   readonly live: boolean
+  /** A chat session stopped on a permission prompt nobody has answered; always false for a terminal. */
+  readonly awaitingPermission: boolean
   readonly startedAt: string
   readonly lastActivityAt: string
   /** What the terminal's project reaches outside Rekall; never a credential. */
