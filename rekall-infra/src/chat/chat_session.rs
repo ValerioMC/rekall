@@ -61,6 +61,10 @@ impl ChatSession {
         self.process.alive()
     }
 
+    pub(super) fn awaiting_permission(&self) -> bool {
+        !self.pending().is_empty()
+    }
+
     pub(super) fn step_id(&self) -> Option<Id> {
         *self.step_id.lock().expect("never poisoned")
     }
@@ -81,6 +85,7 @@ impl ChatSession {
             effort: self.effort.clone(),
             kind: SessionKind::Chat,
             live: self.alive() && !self.closing.load(Ordering::SeqCst),
+            awaiting_permission: self.awaiting_permission(),
             started_at: self.started_at,
             last_activity_at: *self.last_activity_at.lock().expect("never poisoned"),
             connections: self.launch.connections.iter().map(TerminalConnectionView::of).collect(),

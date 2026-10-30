@@ -31,7 +31,7 @@ pub use model::resource_kind::ResourceKind;
 pub use model::resource_path::ResourcePath;
 pub use model::resource_save::ResourceSave;
 pub use model::resource_summary::ResourceSummary;
-pub use model::session_kind::SessionKind;
+pub use rekall_store::SessionKind;
 pub use model::severity::Severity;
 pub use model::skill_source::{SkillSource, SkillSourceKind};
 pub use model::task_work::TaskWork;

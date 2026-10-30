@@ -61,6 +61,7 @@ impl Terminal {
             effort: self.effort.clone(),
             kind: SessionKind::Terminal,
             live: self.alive() && !self.closing.load(Ordering::SeqCst),
+            awaiting_permission: false,
             started_at: self.started_at,
             last_activity_at: *self.last_activity_at.lock().expect("never poisoned"),
             connections: self.launch.connections.iter().map(TerminalConnectionView::of).collect(),

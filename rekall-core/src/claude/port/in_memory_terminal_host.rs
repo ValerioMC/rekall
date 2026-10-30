@@ -1,7 +1,7 @@
 use std::sync::{Mutex, MutexGuard};
 
 use async_trait::async_trait;
-use rekall_kernel::{Id, Instant, Result};
+use rekall_kernel::{Id, Instant, RekallError, Result};
 use tokio::sync::broadcast;
 
 use crate::claude::{SessionKind, TerminalEnded, TerminalHost, TerminalOpening, TerminalTarget, TerminalView};
@@ -9,7 +9,7 @@ use crate::claude::{SessionKind, TerminalEnded, TerminalHost, TerminalOpening, T
 const ENDED_CAPACITY: usize = 16;
 
 /// The `TerminalHost` tests use: sessions held in memory, opened as the kind asked for, that keep a
-/// record of every opening and renewal.
+/// record of every opening and renewal. A renewal replaces the session by another of its kind.
 pub struct InMemoryTerminalHost {
     live: Mutex<Vec<TerminalView>>,
     openings: Mutex<Vec<TerminalOpening>>,
@@ -51,6 +51,7 @@ impl InMemoryTerminalHost {
             effort: None,
             kind,
             live: true,
+            awaiting_permission: false,
             started_at: now,
             last_activity_at: now,
             connections: Vec::new(),
@@ -75,6 +76,13 @@ impl InMemoryTerminalHost {
         if let Some(position) = sessions.iter().position(|view| view.id == id) {
             let view = sessions.remove(position);
             let _ = self.ended.send(TerminalEnded { terminal_id: view.id, task_id: view.task_id });
+        }
+    }
+
+    /// Marks the session as stopped on a permission prompt, or as past it.
+    pub fn awaiting_permission(&self, id: Id, waiting: bool) {
+        if let Some(view) = self.sessions().iter_mut().find(|view| view.id == id) {
+            view.awaiting_permission = waiting;
         }
     }
 
@@ -119,8 +127,10 @@ impl TerminalHost for InMemoryTerminalHost {
     }
 
     async fn renew(&self, id: Id) -> Result<TerminalView> {
-        let view = self.get(id).ok_or_else(|| rekall_kernel::RekallError::conflict(format!("No session {id} to renew.")))?;
+        let old = self.close(id, "renewed").await.ok_or_else(|| RekallError::conflict(format!("No session {id} to renew.")))?;
         self.renewed.lock().expect("never poisoned").push(id);
-        Ok(view)
+        let renewed = Self::session_on(old.target(), old.kind);
+        self.sessions().push(renewed.clone());
+        Ok(renewed)
     }
 }

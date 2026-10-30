@@ -15,7 +15,6 @@ pub(super) mod resource_kind;
 pub(super) mod resource_path;
 pub(super) mod resource_save;
 pub(super) mod resource_summary;
-pub(super) mod session_kind;
 pub(super) mod severity;
 pub(super) mod skill_source;
 pub(super) mod task_work;

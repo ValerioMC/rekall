@@ -33,6 +33,7 @@ mod m054_release_on_run;
 mod m055_epic;
 mod m056_step_session;
 mod m057_telemetry_setting;
+mod m058_run_queue_session_kind;
 mod migration_support;
 mod migrator;
 

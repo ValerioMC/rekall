@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use rekall_kernel::{Id, RekallError, Result};
 use rekall_store::{RunQueueItemState, RunQueueState};
-use rekall_core::claude::{Remaining, SessionKind, TaskWork, TaskWorkService, TerminalHost, TerminalOpening, TerminalTarget};
+use rekall_core::claude::{Remaining, TaskWork, TaskWorkService, TerminalHost, TerminalOpening, TerminalTarget};
 use rekall_core::step::TaskStepService;
 use rekall_core::Clock;
 use tokio::sync::{mpsc, oneshot};
@@ -26,6 +26,8 @@ struct Active {
     task_id: Id,
     terminal_id: Id,
     settled_steps: usize,
+    /// Whether the item's detail says the session waits on a permission prompt.
+    waiting_for_permission: bool,
     /// Set once the runner has decided to close this terminal, so a late event changes nothing.
     closing: bool,
 }
@@ -160,6 +162,7 @@ impl Worker {
                 self.session_ended(active.terminal_id).await?;
             } else {
                 self.review(active.task_id).await?;
+                self.note_permission_wait().await?;
             }
             return Ok(());
         }
@@ -219,7 +222,7 @@ impl Worker {
                 model: snapshot.model.clone(),
                 effort: snapshot.effort.clone(),
                 mode: TerminalMode::Work,
-                kind: SessionKind::Terminal,
+                kind: snapshot.session_kind,
             })
             .await
         {
@@ -236,11 +239,25 @@ impl Worker {
             task_id: item.task_id,
             terminal_id: opened.id,
             settled_steps: before.settled_steps,
+            waiting_for_permission: false,
             closing: false,
         });
         self.queue.mark_item(item.id, RunQueueItemState::Running, None).await?;
         info!(anchor = %item.anchor, terminal_id = %opened.id, "Run queue: running");
         Ok(())
+    }
+
+    /// Says on the item in hand that its chat session waits for a person to answer a permission
+    /// prompt, and takes it back once it is answered. The item keeps running meanwhile.
+    async fn note_permission_wait(&mut self) -> Result<()> {
+        let Some(active) = self.active.as_mut() else { return Ok(()) };
+        let waiting = self.terminals.get(active.terminal_id).is_some_and(|session| session.awaiting_permission);
+        if waiting == active.waiting_for_permission {
+            return Ok(());
+        }
+        active.waiting_for_permission = waiting;
+        let item_id = active.item_id;
+        self.queue.mark_item(item_id, RunQueueItemState::Running, waiting.then_some(WAITING_FOR_PERMISSION)).await
     }
 
     /// A step or the review line moved on the task in hand: finished, or a boundary to check.
@@ -423,6 +440,8 @@ impl Worker {
         });
     }
 }
+
+const WAITING_FOR_PERMISSION: &str = "Waiting for you to answer a permission prompt in the chat session.";
 
 fn nothing_open(remaining: Remaining) -> &'static str {
     if remaining == Remaining::Accepted {

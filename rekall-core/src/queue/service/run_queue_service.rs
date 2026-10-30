@@ -7,7 +7,7 @@ use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, IntoActiveModel, Query
 
 use crate::queue::RunQueueFrame;
 use crate::queue::{RunQueueItemView, RunQueueView};
-use crate::claude::{EFFORT_LEVELS, MODEL_ALIASES};
+use crate::claude::{SessionKind, EFFORT_LEVELS, MODEL_ALIASES};
 
 use crate::queue::Snapshot;
 
@@ -46,6 +46,7 @@ impl RunQueueService {
         skip_permissions: bool,
         model: Option<&str>,
         effort: Option<&str>,
+        session_kind: SessionKind,
     ) -> Result<RunQueueView> {
         in_write!(&self.ctx, |tx| {
             if ceiling_percent.is_some_and(|c| !(CEILING_MIN..=CEILING_MAX).contains(&c)) {
@@ -58,6 +59,7 @@ impl RunQueueService {
             queue.skip_permissions = skip_permissions;
             queue.model = choice(model, &MODEL_ALIASES, "model")?;
             queue.effort = choice(effort, &EFFORT_LEVELS, "effort")?;
+            queue.session_kind = session_kind;
             self.publish(&mut tx, queue).await
         })
     }
@@ -192,6 +194,7 @@ impl RunQueueService {
                     skip_permissions: false,
                     model: None,
                     effort: None,
+                    session_kind: SessionKind::Terminal,
                 },
                 Some(queue) => Snapshot {
                     state: queue.state,
@@ -201,6 +204,7 @@ impl RunQueueService {
                     skip_permissions: queue.skip_permissions,
                     model: queue.model,
                     effort: queue.effort,
+                    session_kind: queue.session_kind,
                 },
             })
         })

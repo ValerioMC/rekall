@@ -22,7 +22,7 @@ impl RunQueueControlService {
     }
 
     pub async fn update_settings(&self, command: RunQueueSettingsCommand) -> Result<RunQueueView> {
-        self.queue.update_settings(command.ceiling_percent, command.skip_permissions, command.model.as_deref(), command.effort.as_deref()).await
+        self.queue.update_settings(command.ceiling_percent, command.skip_permissions, command.model.as_deref(), command.effort.as_deref(), command.session_kind).await
     }
 
     pub async fn add(&self, task_id: Id) -> Result<RunQueueView> {

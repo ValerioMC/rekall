@@ -5,7 +5,7 @@ use rekall_kernel::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;
 
 use crate::constraints::Violations;
-use crate::enums::RunQueueState;
+use crate::enums::{RunQueueState, SessionKind};
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
 #[sea_orm(table_name = "run_queue")]
@@ -20,6 +20,8 @@ pub struct Model {
     pub skip_permissions: bool,
     pub model: Option<String>,
     pub effort: Option<String>,
+    /// Whether the sessions the queue opens are terminals or chat sessions.
+    pub session_kind: SessionKind,
     /// While `HOLDING`: when the queue looks at usage again.
     pub hold_until: Option<Instant>,
     pub hold_reason: Option<String>,
@@ -43,6 +45,7 @@ impl Model {
             skip_permissions: false,
             model: None,
             effort: None,
+            session_kind: SessionKind::Terminal,
             hold_until: None,
             hold_reason: None,
             created_at: now,

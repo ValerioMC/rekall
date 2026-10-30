@@ -1,5 +1,5 @@
 use rekall_kernel::Instant;
-use rekall_store::RunQueueState;
+use rekall_store::{RunQueueState, SessionKind};
 
 /// Settings and state as the runner reads them at a decision.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -11,4 +11,5 @@ pub struct Snapshot {
     pub skip_permissions: bool,
     pub model: Option<String>,
     pub effort: Option<String>,
+    pub session_kind: SessionKind,
 }

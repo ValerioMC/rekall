@@ -23,6 +23,7 @@ fn view() -> TerminalView {
         effort: None,
         kind: SessionKind::Chat,
         live: true,
+        awaiting_permission: false,
         started_at: now,
         last_activity_at: now,
         connections: Vec::new(),

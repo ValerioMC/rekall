@@ -87,12 +87,14 @@ impl ChatSessionManager {
         });
     }
 
-    /// Closes every session with no activity for `idle-minutes`.
+    /// Closes every session with no activity for `idle-minutes`, except one waiting on a permission
+    /// prompt: that one is waiting on a person, and closing it would fail the work it is on.
     pub async fn sweep_idle(&self) {
         let cutoff = Instant::now().minus(TimeDelta::minutes(self.idle_minutes as i64));
         let idle: Vec<Id> = self
             .live_map()
             .values()
+            .filter(|session| !session.awaiting_permission())
             .filter(|session| session.last_activity_at.lock().expect("never poisoned").is_before(&cutoff))
             .map(|session| session.id)
             .collect();

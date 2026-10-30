@@ -76,6 +76,7 @@ fn view_on(target: &TerminalTarget) -> TerminalView {
         effort: None,
         kind: SessionKind::Terminal,
         live: true,
+        awaiting_permission: false,
         started_at: now,
         last_activity_at: now,
         connections: Vec::new(),

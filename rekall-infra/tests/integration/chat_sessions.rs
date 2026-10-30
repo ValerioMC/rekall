@@ -209,6 +209,23 @@ async fn the_idle_sweep_closes_a_session_with_no_activity_and_releases_its_step(
 }
 
 #[tokio::test]
+async fn the_idle_sweep_leaves_a_session_waiting_on_a_permission_prompt_open() {
+    let world = world().await;
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let task = world.task(&project, "one").await;
+    let chats = chats(&world, 8, 0, &[("FAKE_CLAUDE_FIXTURE", WAITING_FOR_PERMISSION)]);
+    let view = chats.manager.open(work_on(&task, None)).await.unwrap();
+    let follower = follow(&chats, view.id);
+    eventually("the permission request", || async { follower.requested_permission().is_some() }).await;
+    assert!(chats.manager.get(view.id).unwrap().awaiting_permission);
+    tokio::time::sleep(Duration::from_millis(50)).await;
+
+    chats.manager.sweep_idle().await;
+
+    assert!(chats.manager.get(view.id).is_some());
+}
+
+#[tokio::test]
 async fn shutdown_ends_every_session_tells_its_clients_and_releases_the_markers() {
     let world = world().await;
     let project = world.project("alpha", Some(world.folder.path())).await;

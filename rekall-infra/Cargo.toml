@@ -50,6 +50,10 @@ name = "run_queue"
 path = "tests/integration/run_queue.rs"
 
 [[test]]
+name = "run_queue_chat"
+path = "tests/integration/run_queue_chat.rs"
+
+[[test]]
 name = "credentials"
 path = "tests/integration/credentials.rs"
 

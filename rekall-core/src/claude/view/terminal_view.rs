@@ -21,6 +21,8 @@ pub struct TerminalView {
     pub effort: Option<String>,
     pub kind: SessionKind,
     pub live: bool,
+    /// A chat session stopped on a permission prompt nobody has answered; always false for a terminal.
+    pub awaiting_permission: bool,
     pub started_at: Instant,
     pub last_activity_at: Instant,
     /// What the terminal's project reaches outside Rekall.

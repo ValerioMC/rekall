@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use rekall_core::queue::{QueueRunner, RunQueueService};
 use rekall_infra::queue::RunQueueRunner;
-use rekall_core::claude::{ClaudeUsageView, Limit, Severity, UsageReader};
+use rekall_core::claude::{ClaudeUsageView, Limit, SessionKind, Severity, UsageReader};
 use rekall_kernel::Instant;
 use rekall_store::{RunQueueItemState, RunQueueState, TaskStepState};
 use support::{eventually, world, World};
@@ -133,7 +133,7 @@ async fn usage_at_the_ceiling_holds_the_queue_before_anything_starts() {
     let task = world.task(&project, "one").await;
     let harness = harness(&world, reading(92.4));
 
-    harness.queue.update_settings(Some(80), false, None, None).await.unwrap();
+    harness.queue.update_settings(Some(80), false, None, None, SessionKind::Terminal).await.unwrap();
     harness.queue.add(task.id).await.unwrap();
     harness.runner.start(&harness.queue, None).await.unwrap();
 

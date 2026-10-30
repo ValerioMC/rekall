@@ -1,5 +1,5 @@
 use rekall_kernel::Instant;
-use rekall_store::{run_queue, RunQueueState};
+use rekall_store::{run_queue, RunQueueState, SessionKind};
 use serde::Serialize;
 
 use crate::queue::RunQueueItemView;
@@ -15,6 +15,7 @@ pub struct RunQueueView {
     pub skip_permissions: bool,
     pub model: Option<String>,
     pub effort: Option<String>,
+    pub session_kind: SessionKind,
     pub hold_until: Option<Instant>,
     pub hold_reason: Option<String>,
     pub items: Vec<RunQueueItemView>,
@@ -30,6 +31,7 @@ impl RunQueueView {
             skip_permissions: queue.skip_permissions,
             model: queue.model.clone(),
             effort: queue.effort.clone(),
+            session_kind: queue.session_kind,
             hold_until: queue.hold_until,
             hold_reason: queue.hold_reason.clone(),
             items,

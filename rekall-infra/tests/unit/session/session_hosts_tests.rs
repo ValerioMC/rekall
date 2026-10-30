@@ -76,12 +76,13 @@ async fn a_session_is_found_closed_and_renewed_on_the_host_that_holds_it() {
     let terminal = world.hosts.open(opening(TerminalTarget::Task(Id::random()), SessionKind::Terminal)).await.unwrap();
 
     assert_eq!(world.hosts.get(chat.id), Some(chat.clone()));
-    world.hosts.renew(chat.id).await.unwrap();
+    let renewed_chat = world.hosts.renew(chat.id).await.unwrap();
     world.hosts.renew(terminal.id).await.unwrap();
-    assert!(world.hosts.close(chat.id, "done").await.is_some());
+    assert!(world.hosts.close(renewed_chat.id, "done").await.is_some());
 
     assert_eq!(world.chats.renewed(), vec![chat.id]);
     assert_eq!(world.terminals.renewed(), vec![terminal.id]);
+    assert_eq!(renewed_chat.kind, SessionKind::Chat);
     assert!(world.chats.list().is_empty());
     assert_eq!(world.terminals.list().len(), 1);
 }

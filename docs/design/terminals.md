@@ -76,6 +76,11 @@ accepted), and `POST /api/chat/{id}/messages` (`{text}`, trimmed, at most 20,000
 `/permissions/{requestId}` (`{allow}`) write to it. The permission route is outside the layer that reads every path variable as a
 UUID, because the id is the one `claude` gave the prompt. An unknown or closed session is a 404.
 
+The run queue opens the kind of session its settings name (`run_queue.session_kind`, `TERMINAL` unless set; migration 058).
+A renewal keeps the kind of the session it replaces, so a task carried across the sessions its steps ask for stays in chat
+sessions. A chat session stopped on a permission prompt shows `awaiting_permission` on its `TerminalView`; the worker
+then says so on the running item instead of failing it, and `ChatSessionManager::sweep_idle` does not close it.
+
 A terminal that follows steps can be renewed (`TerminalHost::renew`, which `PtyTerminals` runs as `PtyTerminalManager::renew_session`): it is closed and
 another is opened on the same task with the same model, effort and permissions, which is how a
 session boundary (4.3 in [workflow.md](workflow.md)) gives the next step a clean context. The pane switches to the new terminal
