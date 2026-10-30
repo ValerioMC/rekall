@@ -32,6 +32,7 @@ mod m053_visit_report;
 mod m054_release_on_run;
 mod m055_epic;
 mod m056_step_session;
+mod m057_telemetry_setting;
 mod migration_support;
 mod migrator;
 

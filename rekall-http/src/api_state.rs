@@ -10,6 +10,7 @@ use rekall_core::inventory::DependencyInventoryService;
 use rekall_core::search::SearchService;
 use rekall_core::section::ProjectSectionService;
 use rekall_core::step::TaskStepService;
+use rekall_core::telemetry::TelemetrySettingsService;
 use rekall_core::timeentry::TimeEntryService;
 use rekall_core::version::RUNNING_VERSION;
 use rekall_core::token::TokenUsageService;
@@ -42,6 +43,7 @@ pub struct ApiState {
     pub exposures: VulnerabilityExposureService,
     pub scans: VulnerabilityScanService,
     pub scan_settings: ScanSettingsService,
+    pub telemetry: TelemetrySettingsService,
     pub vulnerability_fixes: vulnerability::VulnerabilityFixService,
     pub companies: catalog::CompanyService,
     pub logos: catalog::CompanyLogoService,
@@ -156,6 +158,7 @@ impl ApiState {
             exposures: services.exposures,
             scans,
             scan_settings,
+            telemetry: TelemetrySettingsService::new(ctx.clone(), ports.secrets.clone()),
             vulnerability_fixes,
             terminals: terminal::TerminalService::new(ports.terminals),
             terminal_pipe: terminal::TerminalPipeService::new(ports.terminal_pipe),

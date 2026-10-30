@@ -119,6 +119,7 @@ is found by opening one folder per crate:
 | `inventory` | what each project is built from: its dependencies at the version each resolves to |
 | `terminal`, `filesystem`, `stream` | the in-app terminals, the folder listing behind the path picker, the event stream the console listens to; console and HTTP only |
 | `vulnerability` | the advisories, the projects they reach, the scan that finds them and what it looks for, a session's verdict and the fix task |
+| `telemetry` | where Claude Code's OpenTelemetry traces are sent (a self-hosted Langfuse), and the variables a terminal's `claude` starts with when they are on |
 
 `diagram` also has `rekall-diagram`, the one domain with a crate of its own, because the format
 depends on nothing of Rekall's. A domain gets a crate only on that condition.
@@ -183,6 +184,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `stream` | - | - | - | nothing | - |
 | `tag` | `task` | - | nothing | nothing | - |
 | `task` | `catalog`, `note`, `step`, `tag`, `wrapup` | `flow`, `step` | - | - | `flow` |
+| `telemetry` | - | `claude`, `connection` | - | nothing | - |
 | `terminal` | - | - | `claude` | `claude`, `vulnerability` | - |
 | `timeentry` | `task` | `catalog`, `task` | - | nothing | - |
 | `token` | `step`, `task` | nothing | - | nothing | - |
@@ -319,6 +321,7 @@ Project ──< VulnerabilityExposure >── SecurityAdvisory
 | `security_advisory` | `ghsa_id`, unique | `cve_id`, `summary`, `description`, `url`, `published_at`, `severity` (GitHub's, upper-cased; `CRITICAL` on advisories recorded before it), `malware`, `affected_json` (the packages it affects, one entry per release line: ecosystem, name, vulnerable range, first patched version, vulnerable functions) |
 | `vulnerability_exposure` | through its project | `project_id`, `advisory_id`, `ecosystem`, `package_name` and `package_version` unique together (one exposure per package version an advisory reaches), `verdict` (`AFFECTED`, `NOT_AFFECTED`, null until judged), `reasoning`, `conclusion` (why the project is or is not affected, in plain words; null on verdicts given before it), `assessed_at`, `assessed_commit` (the project's `HEAD` at the verdict), `fix_task_id` (set null when the task goes); deleted with its project or advisory |
 | `scan_scope` | one row | `include_high`, `include_malware`; absent until first changed, which reads as both off |
+| `telemetry_setting` | one row | `enabled`, `host` (the Langfuse address), `public_key`, `log_content` (whether prompt and command text travel with the traces); absent until first saved, which reads as off. The secret key is in the OS credential store under `langfuse-secret-key`, never in the row |
 | `token_usage` | through its task | `session_id`, `task_id`, `step_id`, the four token counts, `spent_on` |
 | `transcript_scan` | `session_id` | `scanned_bytes`, `scanned_at` |
 | `task_skill` | through its task | `task_id`, `step_id` (null for the task's own), `skill_name`, `position`; deleted with its task or step |

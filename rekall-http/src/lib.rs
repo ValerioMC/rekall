@@ -30,6 +30,7 @@ pub mod skill;
 pub mod step;
 pub mod stream;
 pub mod tag;
+pub mod telemetry;
 pub mod terminal;
 pub mod timeentry;
 pub mod token;

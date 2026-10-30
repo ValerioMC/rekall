@@ -24,6 +24,7 @@ pub mod settings;
 pub mod skill;
 pub mod step;
 pub mod task;
+pub mod telemetry;
 pub mod timeentry;
 pub mod token;
 pub mod tx;

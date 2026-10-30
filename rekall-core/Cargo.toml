@@ -51,3 +51,7 @@ path = "tests/integration/token_usage.rs"
 [[test]]
 name = "vulnerabilities"
 path = "tests/integration/vulnerabilities.rs"
+
+[[test]]
+name = "telemetry"
+path = "tests/integration/telemetry.rs"
