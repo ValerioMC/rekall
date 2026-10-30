@@ -2,7 +2,7 @@
 
 ## Terminal in Rekall
 
-**Run here**, next to **Open in terminal** on the description and steps panes, or `c` from any task, runs a real terminal inside the app. The backend starts the interactive `claude` in a pseudo-terminal (`portable-pty`) in the project's folder, types `/rk <anchors>` as the first line, and hands it to you; the pane renders it with `xterm.js` and the bytes travel both ways over one WebSocket at `/api/terminal/{id}/io`. Because it is the same binary run the same way as in your own terminal, its prompt caching, context compaction and `/context` read-outs behave identically, and a permission prompt actually renders and can be answered. Works in a plain browser, not only the desktop app.
+**Run here**, next to **Open in terminal** on the description and steps panes, or `c` from any task, runs a real terminal inside the app. The backend starts the interactive `claude` in a pseudo-terminal (`portable-pty`) in the project's folder, types `/rk <anchors>` as the first line, and hands it to you; the pane renders it with `xterm.js` and the bytes travel both ways over one WebSocket at `/api/terminal/{id}/io`. It is the same binary run the same way as in your own terminal, so its own screens, `/context` read-outs and permission prompts are the ones you know. The [Chat view](#chat-view) is the alternative. Works in a plain browser, not only the desktop app.
 
 The terminal gets the environment a new window of your own terminal would: Rekall asks your login shell (`$SHELL -i -l -c`) for its variables once it starts, so whatever your profile adds to `PATH` (`~/.cargo/bin`, nvm, pyenv, sdkman) and exports is there, along with `SSH_AUTH_SOCK`. The answer is cached and refreshed in the background every time a terminal opens, so a tool installed while Rekall runs reaches the next terminal but one. A shell that prints nothing usable within the timeout leaves the last good answer in place, or Rekall's own environment when there is none. Only a terminal opened before the first attempt has finished waits for it; after that a terminal never waits, so a profile that takes longer than the timeout costs the `PATH` it adds, not a delay on Run here. The shell runs with `REKALL_RESOLVING_ENVIRONMENT=1`, so a slow profile can skip work with `[[ -n $REKALL_RESOLVING_ENVIRONMENT ]] && return`.
 
@@ -34,6 +34,19 @@ The top bar is a four-cell grid, so the screen tabs sit centred between the hist
 | `rekall.terminal.scrollback-bytes` | `131072` | Bytes of output replayed to a pane that reopens |
 | `rekall.run-queue.tick-seconds` | `20` | How often the run queue looks at its clock, schedule and hold |
 | `rekall.run-queue.settle-grace-seconds` | `8` | How long a finished session keeps its terminal before Rekall closes it, or hands the task on to a fresh session |
+
+## Chat view
+
+A session can also be shown as a chat. It is the same `claude`, started without a terminal (headless, over stream-json), and the app draws what it does in a window docked beside the task: your messages, its replies and reasoning as they stream, and each tool call as a card (an edit with its diff, a command with its output). Pick it in **Settings > Claude Code > Session view**: **Terminal** is the default, **Chat** is marked experimental. The choice applies to **Run here**, **Plan here**, **Plan a flow**, **Replan** and the Generate and Explain actions on Diagrams and Security. The run queue has its own **Session view** in its settings, stored with the queue.
+
+- **Window.** It docks beside the note pane, over the page when there is not room, or full width when expanded; drag its edge or use the arrow keys (Shift for bigger steps) to resize between 360 and 720 px. Its width and whether it is hidden are remembered on this machine. `C` hides or shows it and `Shift+C` expands it; `Esc` gives the keyboard back to the console.
+- **Approvals.** With skip permissions off, a call that needs approval stops the session on a card with **Allow** and **Deny** (`Y` and `N`). Nothing answers it for you and it does not time out; the window, the sessions bar (which reads "approve") and the page title show that it waits. A denied call is reported to the model, which carries on. With skip permissions on, nothing is asked.
+- **Messages and Stop.** Enter sends, Shift+Enter breaks the line, `/` offers the slash commands (not `/clear`, which would change the session behind the window). A message sent while Claude is working is read at its next step. **Stop** ends the turn, not the session: the same process answers the next message.
+- **Steps and sessions.** Opening on a step marks it running, and claiming steps, `new_session` groups and the usage ceiling work as for a terminal. A chat session is replaced by a fresh one when the next step asks for a new session, and the window follows it. Plan and wrapup lines on a live chat go in as a message.
+- **When it ends.** If the `claude` process dies the window says so with its exit code, and the step it held is released. Closing the app releases every marker; nothing is persisted.
+- **What the terminal still does that chat does not.** `/clear` is not offered in the window, and the screens Claude Code draws in its own interface exist only in the terminal. A chat session counts toward the same session cap as terminals.
+
+Tokens are counted from the transcripts either way, and the token chip counts a chat session's work. Whether chat spends more or fewer tokens than a terminal has not been measured; `scripts/session_shape.py` compares them by session type, and a first run on a very small sample, with no cold turn on either side, says nothing about cache expiry (see [claude-and-tokens](../design/claude-and-tokens.md)).
 
 ## Run queue
 

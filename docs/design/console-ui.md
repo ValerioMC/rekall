@@ -138,3 +138,31 @@ tracked time as seven bars (`trackedLastDays`), a review card and a running-sess
 four notes touched last as tiles, and the keys. It lays out on a container query, so the same
 markup is one column in the 420px pane at the window's floor and two to four columns when wide.
 
+
+## The chat window
+
+A chat session (a headless `claude`, see [terminals.md](terminals.md)) is shown in a window docked
+beside the page, not in the terminal pane: there is no terminal to draw, so the window draws the
+session's events. Everything lives in `rekall-ui/src/features/chat/`. The store folds each event into
+a timeline by `seq` (`foldEvent`, idempotent, so a reconnect that replays an event changes nothing),
+and one `EventSource` per followed session (`useChatEvents`) feeds it. A chat never becomes the
+terminal pane's active session; that pane and the Diagrams and Security drawers list terminals only.
+
+The window docks in one of four modes (`chatDock.store`): `inline` beside the note pane while the note
+keeps 360 px, `overlay` when it would not, `full` when expanded, and `hidden`. Its width runs from
+360 to 720 px and is remembered with the hidden flag, per viewer, in `localStorage`. On any page
+but the console it always overlays. It follows the selected task's session, or the active one, and
+shows when a chat exists or was asked for (`useChatWindowShown`); a chat opened from a button brings
+itself to the window (`useRevealOpenedChat`).
+
+An approval is never answered or expired on the user's behalf: `ChatApprovalCard` shows the call
+(with a diff for an edit) and stays until a `permissionResolved` event arrives. Whether the session is
+waiting is read from its own timeline once it is followed, because the flag on the stored session
+list is only refreshed on load and focus and would go stale after the answer. Stop sends the
+interrupt and the session keeps answering.
+
+`C` hides or shows the window when a chat is active, the task has one, or the session view is Chat;
+`Shift+C` shows it expanded; in all other cases `C` keeps opening the terminal pane. In the window,
+`Y` allows and `N` denies the pending call, `Enter` sends, `Shift+Enter` breaks the line, and `Esc`
+returns focus to the note pane. The dock's divider resizes with the arrow keys (16 px, 64 px with
+Shift).

@@ -38,12 +38,13 @@ folder, with `/rk` as the first line (`/rk … plan` for a terminal opened in `T
 which the Steps pane's **Plan here** asks for, and `/rk … plan flow` for `TerminalMode.PLAN_FLOW`,
 which its **Plan a flow** asks for, and `/rk … replan` for `TerminalMode.REPLAN`, which its **Replan**
 asks for after a confirmation; `/rk … generate` and `/rk … explain` for the Diagrams
-screen's **Generate** and **Explain code**, the only modes a terminal on a project alone takes), and pumps its raw bytes to whoever is watching. The reason
-it is a PTY and not `claude -p` is token cost: a hand-run `claude` keeps its own cache warm,
-compacts its own context and shows its own `/context` and cost read-outs, and a PTY running the
-same binary the same way inherits all of that, where a headless stream-json process reassembled
-into a transcript could not. It is also the only place an interactive permission prompt actually
-renders and can be answered.
+screen's **Generate** and **Explain code**, the only modes a terminal on a project alone takes), and pumps its raw bytes to whoever is watching. The terminal is the
+unmodified interactive `claude`: it shows its own `/context` and cost read-outs, renders its own
+permission prompts and answers them, and is the same program a hand-run session is. The chat view
+(below) runs the same binary headless over stream-json. Whether the two spend different amounts of
+tokens has not been measured: `scripts/session_shape.py` groups transcripts by entrypoint (`cli` for a
+terminal, `sdk-cli` for chat) so the two can be compared on the same days, and no difference is
+claimed either way (see [claude-and-tokens.md](claude-and-tokens.md)).
 
 The bytes do not go over HTTP. The terminal controller in `rekall-http/src/terminal/` only opens
 (`POST /api/tasks/{id}/terminals`), lists and closes, through `TerminalService` in `rekall-console`;
@@ -75,6 +76,25 @@ connection; a keep-alive comment every 15 s; a reader a megabyte behind is dropp
 accepted), and `POST /api/chat/{id}/messages` (`{text}`, trimmed, at most 20,000 characters), `/interrupt` and
 `/permissions/{requestId}` (`{allow}`) write to it. The permission route is outside the layer that reads every path variable as a
 UUID, because the id is the one `claude` gave the prompt. An unknown or closed session is a 404.
+
+What a chat session is made of. `ChatProcess` (`rekall-infra/src/chat/`) runs `claude -p --verbose
+--input-format stream-json --output-format stream-json --include-partial-messages` with only the
+shell environment Rekall resolved, and `StreamParser` turns each stdout line into `ChatEvent`s of
+`rekall-core`: a `seq` and a `ChatBody` (`UserMessage`, `AssistantText` and `AssistantThinking` that
+grow until `complete`, `ToolUse` with a typed `ToolInput`, `ToolResult`, `PermissionRequested` and
+`PermissionResolved`, `TurnFinished` with the turn's usage, `Notice` and `Ended`). `EventJournal`
+numbers and keeps them, which is what lets a reader that reconnects resume from `Last-Event-ID`.
+`ChatSessionManager` owns the processes, the journal and the idle sweep; it talks to the rest of
+the application through two ports, `ChatPipe` (what a client does to a session: attach a listener, send a
+message, interrupt, answer a permission) and `ChatListener` (what the session reports to it: an event, the end).
+
+Two rules come from how the headless process behaves, found by running it
+(`rekall-infra/tests/fixtures/chat/` holds the captures). A permission is asked over the same pipes
+(`--permission-prompt-tool stdio`, used when skip-permissions is off): `claude` writes a
+`control_request` and waits, and Rekall answers allow or deny with the matching `request_id`, with no
+time limit. Stop is the control-protocol interrupt and never SIGINT, because SIGINT ends the
+process while the interrupt ends only the turn and the same process answers the next message. A
+message sent while a turn runs is queued by `claude`, not refused.
 
 The run queue opens the kind of session its settings name (`run_queue.session_kind`, `TERMINAL` unless set; migration 058).
 A renewal keeps the kind of the session it replaces, so a task carried across the sessions its steps ask for stays in chat
