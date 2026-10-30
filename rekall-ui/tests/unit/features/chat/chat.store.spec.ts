@@ -138,6 +138,27 @@ describe('the chat store', () => {
     expect(chatApi.answerPermission).toHaveBeenNthCalledWith(2, CHAT, 'req-1', false)
   })
 
+  it('clears the session record awaiting a permission once the answer is folded', () => {
+    const terminals = useTerminalStore()
+    terminals.upsert(session({ awaitingPermission: true }))
+    const store = useChatStore()
+    store.ingest(CHAT, permissionRequested(1))
+
+    store.ingest(CHAT, { seq: 2, type: 'permissionResolved', requestId: 'req-1', allowed: false })
+
+    expect(terminals.terminals.find((terminal) => terminal.id === CHAT)?.awaitingPermission).toBe(false)
+  })
+
+  it('marks the session record awaiting a permission when one is requested', () => {
+    const terminals = useTerminalStore()
+    terminals.upsert(session())
+    const store = useChatStore()
+
+    store.ingest(CHAT, permissionRequested(1))
+
+    expect(terminals.terminals.find((terminal) => terminal.id === CHAT)?.awaitingPermission).toBe(true)
+  })
+
   it('answers nothing when no permission is pending', async () => {
     const store = useChatStore()
 

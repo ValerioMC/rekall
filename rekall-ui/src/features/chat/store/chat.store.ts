@@ -69,7 +69,16 @@ export const useChatStore = defineStore('chat', () => {
     const after = foldEvent(before, event)
     if (after === before) return
     timelines.value = { ...timelines.value, [id]: after }
+    syncAwaitingPermission(id, after)
     if (event.type === 'ended') void endSession(id)
+  }
+
+  /** The session list is fetched on load and on focus only; the event stream is what hears an approval asked or answered. */
+  function syncAwaitingPermission(id: TerminalId, timeline: Timeline): void {
+    const session = terminals.terminals.find((terminal) => terminal.id === id)
+    const awaitingPermission = timeline.pending !== null
+    if (!session || session.awaitingPermission === awaitingPermission) return
+    terminals.upsert({ ...session, awaitingPermission })
   }
 
   async function endSession(id: TerminalId): Promise<void> {
