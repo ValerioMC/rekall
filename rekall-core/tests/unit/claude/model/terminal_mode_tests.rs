@@ -21,6 +21,13 @@ fn a_plan_flow_terminal_asks_the_session_for_a_flow_and_follows_no_step() {
 }
 
 #[test]
+fn a_replan_terminal_asks_the_session_to_redesign_the_steps_and_follows_no_step() {
+    assert_eq!(TerminalMode::Replan.first_line(ANCHORS), "/rk project:vega task:report-builder replan");
+    assert!(!TerminalMode::Replan.follows_steps());
+    assert_eq!(TerminalMode::Replan.to_string(), "REPLAN");
+}
+
+#[test]
 fn a_generate_terminal_carries_the_request_as_one_quoted_line() {
     let mode = TerminalMode::Generate { request: "How does an order\nget \"paid\"?  ".into(), kinds: vec![] };
     assert_eq!(mode.first_line(ANCHORS), "/rk project:vega task:report-builder generate \"How does an order get 'paid'?\"");

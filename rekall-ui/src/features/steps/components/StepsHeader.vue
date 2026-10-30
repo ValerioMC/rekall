@@ -39,6 +39,10 @@ const claimed = computed(() => props.checklistSteps.filter((step) => step.state 
 const allDone = computed(() => done.value === props.checklistSteps.length)
 /** A flow begins at the first step, so one is proposed only onto a task with no steps or drafts. */
 const acceptsAFlow = computed(() => props.checklistSteps.length === 0 && props.draftCount === 0)
+/** The steps a replan deletes: the drafts and the open ones; started, claimed and done stay. */
+const replaceableSteps = computed(
+  () => props.draftCount + props.checklistSteps.filter((step) => step.state === 'OPEN').length
+)
 
 function segmentClass(step: TaskStep): string {
   if (step.state === 'DONE') return allDone.value ? 'tube-gold tube-safe' : 'tube-gold'
@@ -90,6 +94,14 @@ function segmentClass(step: TaskStep): string {
           :anchor="task.anchor"
           :folder="task.projectRepoFolder"
           mode="PLAN_FLOW"
+        />
+        <PlanHereButton
+          v-if="replaceableSteps > 0"
+          :task-id="task.id"
+          :anchor="task.anchor"
+          :folder="task.projectRepoFolder"
+          :replaceable-steps="replaceableSteps"
+          mode="REPLAN"
         />
         <OpenTerminalButton :task-id="task.id" :step-id="currentId" :folder="task.projectRepoFolder" />
         <LaunchClaudeCodeButton

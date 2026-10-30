@@ -9,7 +9,7 @@ use crate::terminal::TerminalModeName;
 
 /// What the console sends to open a terminal. `stepId`, `model` and `effort` are optional; an
 /// unknown or blank model or effort leaves the account default. A missing `mode` is
-/// [`TerminalMode::Work`]; `PLAN_FLOW` asks for a flow rather than a checklist; `GENERATE` and
+/// [`TerminalMode::Work`]; `PLAN_FLOW` asks for a flow rather than a checklist, `REPLAN` for the task's draft and open steps to be redesigned; `GENERATE` and
 /// `EXPLAIN` need a `request`, and `kinds` names the diagram types a generation draws; `ASSESS`
 /// needs the GHSA id of the `advisory` to judge, and `ASSESS_ALL` judges every one not judged yet.
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -37,6 +37,7 @@ impl OpenTerminalRequest {
             None | Some(TerminalModeName::Work) => Ok(TerminalMode::Work),
             Some(TerminalModeName::Plan) => Ok(TerminalMode::Plan),
             Some(TerminalModeName::PlanFlow) => Ok(TerminalMode::PlanFlow),
+            Some(TerminalModeName::Replan) => Ok(TerminalMode::Replan),
             Some(TerminalModeName::Generate) => Ok(TerminalMode::Generate { request: self.diagram_request()?, kinds: self.diagram_kinds()? }),
             Some(TerminalModeName::Explain) => Ok(TerminalMode::Explain { request: self.diagram_request()? }),
             Some(TerminalModeName::Inventory) => Ok(TerminalMode::Inventory),

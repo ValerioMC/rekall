@@ -5,7 +5,8 @@ pub const REQUEST_MAX_CHARACTERS: usize = 2000;
 
 /// What a terminal is opened to do, which decides the `/rk` line typed into it first. `Work`
 /// loads the task and works it; `Plan` has the session propose the task's checklist as drafts;
-/// `PlanFlow` has it propose a flow, steps and routes, as drafts; `Generate` has it draw `request`
+/// `PlanFlow` has it propose a flow, steps and routes, as drafts; `Replan` has it redesign the
+/// task's draft and open steps; `Generate` has it draw `request`
 /// as Mermaid sheets of the `kinds` asked for; `Explain` has it write a walkthrough of `request`;
 /// `Inventory` has it record the project's dependencies; `Assess` has it judge whether `advisory`
 /// really reaches the project, `AssessAll` every advisory not judged yet. Only `Work` follows a step.
@@ -15,6 +16,7 @@ pub enum TerminalMode {
     Work,
     Plan,
     PlanFlow,
+    Replan,
     Generate { request: String, kinds: Vec<DiagramKind> },
     Explain { request: String },
     Inventory,
@@ -29,6 +31,7 @@ impl TerminalMode {
             TerminalMode::Work => format!("/rk {anchors}"),
             TerminalMode::Plan => format!("/rk {anchors} plan"),
             TerminalMode::PlanFlow => format!("/rk {anchors} plan flow"),
+            TerminalMode::Replan => format!("/rk {anchors} replan"),
             TerminalMode::Generate { request, kinds } => {
                 format!("/rk {anchors} generate{} \"{}\"", kinds_term(kinds), one_line(request))
             }
@@ -72,6 +75,7 @@ impl std::fmt::Display for TerminalMode {
             TerminalMode::Work => "WORK",
             TerminalMode::Plan => "PLAN",
             TerminalMode::PlanFlow => "PLAN_FLOW",
+            TerminalMode::Replan => "REPLAN",
             TerminalMode::Generate { .. } => "GENERATE",
             TerminalMode::Explain { .. } => "EXPLAIN",
             TerminalMode::Inventory => "INVENTORY",

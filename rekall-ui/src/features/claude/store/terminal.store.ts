@@ -7,7 +7,7 @@ import {
   sendTerminalInput,
   type OpenTerminalInput
 } from '@/features/claude/api/terminal.api'
-import { rkPlanCommand, rkPlanFlowCommand } from '@/common/format/rk-command'
+import { rkPlanCommand, rkPlanFlowCommand, rkReplanCommand } from '@/common/format/rk-command'
 import type { PlanMode, Terminal } from '@/features/claude/model/terminal'
 import type { ProjectId, TaskId, TerminalId } from '@/model/branded'
 
@@ -59,7 +59,8 @@ export const useTerminalStore = defineStore('terminal', () => {
   }
 
   /**
-   * Have a session propose this task's checklist, or its flow, as drafts. A live session on the
+   * Have a session propose this task's checklist, or its flow, as drafts, or redesign the steps it
+   * has (`REPLAN`). A live session on the
    * task gets the plan line typed into it; without one, a terminal is opened that starts on that
    * line, so a plan never needs a session already running. Either way it becomes the active one.
    */
@@ -82,7 +83,8 @@ export const useTerminalStore = defineStore('terminal', () => {
   }
 
   function planLine(mode: PlanMode, anchor: string): string {
-    return mode === 'PLAN_FLOW' ? rkPlanFlowCommand(anchor) : rkPlanCommand(anchor)
+    if (mode === 'PLAN_FLOW') return rkPlanFlowCommand(anchor)
+    return mode === 'REPLAN' ? rkReplanCommand(anchor) : rkPlanCommand(anchor)
   }
 
   /**

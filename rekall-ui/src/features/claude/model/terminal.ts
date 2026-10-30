@@ -3,14 +3,17 @@ import type { ConnectionId, ProjectId, TaskId, TaskStepId, TerminalId } from '@/
 
 /**
  * What a terminal is opened to do: `WORK` types `/rk <anchor>`, `PLAN` types `/rk <anchor> plan`,
- * `PLAN_FLOW` types `/rk <anchor> plan flow`, `GENERATE` types `/rk <anchor> generate "<request>"`,
+ * `PLAN_FLOW` types `/rk <anchor> plan flow`, `REPLAN` types `/rk <anchor> replan`, `GENERATE` types `/rk <anchor> generate "<request>"`,
  * `INVENTORY` types `/rk <anchor> inventory`, `ASSESS` types `/rk <anchor> assess advisory:<id>`,
  * `ASSESS_ALL` types `/rk <anchor> assess` to judge every advisory not assessed yet.
  */
-export type TerminalMode = 'WORK' | 'PLAN' | 'PLAN_FLOW' | 'GENERATE' | 'EXPLAIN' | 'INVENTORY' | 'ASSESS' | 'ASSESS_ALL'
+export type TerminalMode = 'WORK' | 'PLAN' | 'PLAN_FLOW' | 'REPLAN' | 'GENERATE' | 'EXPLAIN' | 'INVENTORY' | 'ASSESS' | 'ASSESS_ALL'
 
-/** A planning terminal: a checklist of drafts, or a flow, drafts joined by their routes. */
-export type PlanMode = Extract<TerminalMode, 'PLAN' | 'PLAN_FLOW'>
+/**
+ * A planning terminal: a checklist of drafts, a flow, drafts joined by their routes, or a replan
+ * that swaps the task's draft and open steps for a new plan.
+ */
+export type PlanMode = Extract<TerminalMode, 'PLAN' | 'PLAN_FLOW' | 'REPLAN'>
 
 /** What a terminal is opened on: a task, or a project alone, which draws a diagram, inventories or assesses. */
 export type TerminalTarget = { readonly taskId: TaskId } | { readonly projectId: ProjectId }

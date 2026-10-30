@@ -202,7 +202,17 @@ describe('StepsPane', () => {
     empty.unmount()
 
     seed([makeStep('d', 0, 'DRAFT')])
+    expect(planModes(render())).toEqual(['PLAN', 'REPLAN'])
+  })
+
+  it('offers to replan only while the task has a draft or an open step to replace, and counts them', () => {
+    seed([makeStep('a', 0, 'DONE'), makeStep('b', 1, 'RUNNING'), makeStep('c', 2, 'CLAIMED')])
     expect(planModes(render())).toEqual(['PLAN'])
+
+    seed([makeStep('a', 0, 'DONE'), makeStep('b', 1, 'OPEN'), makeStep('c', 2, 'DRAFT')])
+    const pane = render()
+    expect(planModes(pane)).toEqual(['PLAN', 'REPLAN'])
+    expect(pane.findAll('plan-here-button-stub')[1]?.attributes('replaceablesteps')).toBe('2')
   })
 
   it('counts done, claimed and draft steps on the ledger', () => {

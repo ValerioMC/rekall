@@ -9,6 +9,7 @@ fn a_request_without_a_mode_opens_a_work_terminal() {
     assert_eq!(parsed("{}").mode().unwrap(), TerminalMode::Work);
     assert_eq!(parsed(r#"{"mode":"PLAN"}"#).mode().unwrap(), TerminalMode::Plan);
     assert_eq!(parsed(r#"{"mode":"PLAN_FLOW"}"#).mode().unwrap(), TerminalMode::PlanFlow);
+    assert_eq!(parsed(r#"{"mode":"REPLAN"}"#).mode().unwrap(), TerminalMode::Replan);
 }
 
 #[test]

@@ -21,6 +21,15 @@ export function rkPlanFlowCommand(anchor: string): string {
 }
 
 /**
+ * The replanning line: the session redesigns the task's draft and open steps and proposes the new
+ * ones as drafts. Steps that are running, claimed or done stay.
+ */
+export function rkReplanCommand(anchor: string): string {
+  const base = rkCommand(anchor)
+  return base ? `${base} replan` : ''
+}
+
+/**
  * The wrapup line, with an optional directive folded in. A directive is one line: newlines are
  * collapsed to spaces so it cannot submit the terminal line early, and `\`/`"` are escaped so it
  * cannot close the quote it sits in.

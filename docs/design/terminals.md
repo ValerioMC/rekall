@@ -36,7 +36,8 @@ The in-app session is a real terminal, `C` in the console. `PtyTerminalManager` 
 `rekall-infra` starts the interactive `claude` TUI in a pseudo-terminal (`portable-pty`) in the task's
 folder, with `/rk` as the first line (`/rk … plan` for a terminal opened in `TerminalMode.PLAN`,
 which the Steps pane's **Plan here** asks for, and `/rk … plan flow` for `TerminalMode.PLAN_FLOW`,
-which its **Plan a flow** asks for; `/rk … generate` and `/rk … explain` for the Diagrams
+which its **Plan a flow** asks for, and `/rk … replan` for `TerminalMode.REPLAN`, which its **Replan**
+asks for after a confirmation; `/rk … generate` and `/rk … explain` for the Diagrams
 screen's **Generate** and **Explain code**, the only modes a terminal on a project alone takes), and pumps its raw bytes to whoever is watching. The reason
 it is a PTY and not `claude -p` is token cost: a hand-run `claude` keeps its own cache warm,
 compacts its own context and shows its own `/context` and cost read-outs, and a PTY running the
