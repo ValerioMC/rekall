@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use axum::http::StatusCode;
 use base64::Engine;
@@ -181,11 +182,33 @@ impl McpController {
             return Err(Failure::Illegal(format!("Unknown tool '{name}'. Available: {}", available.join(", "))));
         };
         let arguments = params.and_then(|p| p.get("arguments"));
-        match tool.execute(arguments).await {
+        let started = Instant::now();
+        let result = tool.execute(arguments).await;
+        log_call(&name, arguments, started.elapsed(), &result);
+        match result {
             Ok(text) => Ok(content(&text, false)),
             Err(ToolError::Failure(message)) | Err(ToolError::Illegal(message)) => Ok(content(&message, true)),
             Err(ToolError::Other(error)) => Err(Failure::Other(error)),
         }
+    }
+}
+
+fn log_call(name: &str, arguments: Option<&Value>, elapsed: Duration, result: &Result<String, ToolError>) {
+    let anchors = json_rpc_text(arguments, "anchors");
+    info!(
+        tool = %name,
+        anchors = anchors.as_deref(),
+        duration_ms = elapsed.as_millis(),
+        outcome = outcome_of(result),
+        "MCP tool call"
+    );
+}
+
+fn outcome_of(result: &Result<String, ToolError>) -> &'static str {
+    match result {
+        Ok(_) => "ok",
+        Err(ToolError::Failure(_) | ToolError::Illegal(_)) => "tool_failure",
+        Err(ToolError::Other(_)) => "internal_failure",
     }
 }
 
@@ -283,3 +306,6 @@ fn meta_protocol_version(request: &Request) -> Option<String> {
     json_rpc_text(Some(meta), "io.modelcontextprotocol/protocolVersion")
 }
 
+#[cfg(test)]
+#[path = "../../tests/unit/controller/mcp_controller_tests.rs"]
+mod tests;
