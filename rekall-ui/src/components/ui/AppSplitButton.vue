@@ -18,7 +18,7 @@ withDefaults(
     options: readonly SplitButtonOption<Id>[]
     /** What the arrow opens, for assistive tech: "More ways to fix". */
     menuLabel: string
-    variant?: 'primary' | 'secondary'
+    variant?: 'primary' | 'secondary' | 'quiet'
     size?: 'sm' | 'md'
     loading?: boolean
     disabled?: boolean

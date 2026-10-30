@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import PlanHereButton from '@/features/claude/components/PlanHereButton.vue'
@@ -43,8 +43,24 @@ function terminal(over: Partial<Terminal> = {}): Terminal {
   }
 }
 
-function mountButton(folder: string | null = '/code/vega') {
-  return mount(PlanHereButton, { props: { taskId: TASK, anchor: ANCHOR, folder } })
+function mountButton(folder: string | null = '/code/vega', extra: { offersFlow?: boolean; replaceableSteps?: number } = {}) {
+  return mount(PlanHereButton, {
+    props: { taskId: TASK, anchor: ANCHOR, folder, ...extra },
+    global: { stubs: { AppConfirm: true } },
+    attachTo: document.body
+  })
+}
+
+function optionIds(): string[] {
+  return [...document.body.querySelectorAll('[role="menuitem"]')].map((item) =>
+    (item.getAttribute('data-testid') ?? '').replace('split-button-option-', '')
+  )
+}
+
+async function choose(wrapper: ReturnType<typeof mountButton>, id: string): Promise<void> {
+  await wrapper.get('[data-testid="split-button-arrow"]').trigger('click')
+  document.body.querySelector<HTMLElement>(`[data-testid="split-button-option-${id}"]`)?.click()
+  await flushPromises()
 }
 
 describe('the Plan here button', () => {
@@ -52,6 +68,10 @@ describe('the Plan here button', () => {
     setActivePinia(createPinia())
     sendTerminalInput.mockReset()
     openTerminal.mockReset()
+  })
+
+  afterEach(() => {
+    document.body.innerHTML = ''
   })
 
   it('opens a planning session when none is live on the task', async () => {
@@ -69,17 +89,38 @@ describe('the Plan here button', () => {
     expect(terminals.activeTerminalId).toBe('term-2')
   })
 
-  it('opens a session in flow mode when it plans a flow', async () => {
+  it('opens a session in flow mode when the flow is chosen behind the arrow', async () => {
     openTerminal.mockResolvedValue(terminal({ id: 'term-2' as TerminalId }))
-    const wrapper = mount(PlanHereButton, {
-      props: { taskId: TASK, anchor: ANCHOR, folder: '/code/vega', mode: 'PLAN_FLOW' }
-    })
+    const wrapper = mountButton('/code/vega', { offersFlow: true })
 
-    expect(wrapper.text()).toContain('Plan a flow')
-    await wrapper.get('[data-testid="plan-flow-here"]').trigger('click')
-    await flushPromises()
+    await choose(wrapper, 'PLAN_FLOW')
 
     expect(openTerminal).toHaveBeenCalledWith({ taskId: TASK }, expect.objectContaining({ mode: 'PLAN_FLOW' }))
+  })
+
+  it('has no arrow while there is neither a flow to plan nor steps to replan', () => {
+    const wrapper = mountButton()
+
+    expect(wrapper.text()).toContain('Plan here')
+    expect(wrapper.find('[data-testid="split-button-arrow"]').exists()).toBe(false)
+  })
+
+  it('offers the flow only while the task can take one, and the replan only while steps can be replaced', async () => {
+    const flowOnly = mountButton('/code/vega', { offersFlow: true })
+    await flowOnly.get('[data-testid="split-button-arrow"]').trigger('click')
+    expect(optionIds()).toEqual(['PLAN_FLOW'])
+    flowOnly.unmount()
+    document.body.innerHTML = ''
+
+    const replanOnly = mountButton('/code/vega', { replaceableSteps: 2 })
+    await replanOnly.get('[data-testid="split-button-arrow"]').trigger('click')
+    expect(optionIds()).toEqual(['REPLAN'])
+    replanOnly.unmount()
+    document.body.innerHTML = ''
+
+    const both = mountButton('/code/vega', { offersFlow: true, replaceableSteps: 2 })
+    await both.get('[data-testid="split-button-arrow"]').trigger('click')
+    expect(optionIds()).toEqual(['PLAN_FLOW', 'REPLAN'])
   })
 
   it('asks for the project folder instead of planning when there is neither a folder nor a session', async () => {
@@ -140,18 +181,14 @@ describe('the Plan here button', () => {
   })
 
   describe('replanning', () => {
-    function mountReplan(folder: string | null = '/code/vega') {
-      return mount(PlanHereButton, {
-        props: { taskId: TASK, anchor: ANCHOR, folder, mode: 'REPLAN', replaceableSteps: 3 },
-        global: { stubs: { AppConfirm: true } }
-      })
+    function mountReplan(folder: string | null = '/code/vega', replaceableSteps = 3) {
+      return mountButton(folder, { replaceableSteps })
     }
 
     it('asks before anything is deleted, saying how many steps go', async () => {
       const wrapper = mountReplan()
 
-      expect(wrapper.text()).toContain('Replan')
-      await wrapper.get('[data-testid="replan-here"]').trigger('click')
+      await choose(wrapper, 'REPLAN')
 
       const confirm = wrapper.findComponent(AppConfirm)
       expect(confirm.exists()).toBe(true)
@@ -161,12 +198,9 @@ describe('the Plan here button', () => {
     })
 
     it('says one step in the singular', async () => {
-      const wrapper = mount(PlanHereButton, {
-        props: { taskId: TASK, anchor: ANCHOR, folder: '/code/vega', mode: 'REPLAN', replaceableSteps: 1 },
-        global: { stubs: { AppConfirm: true } }
-      })
+      const wrapper = mountReplan('/code/vega', 1)
 
-      await wrapper.get('[data-testid="replan-here"]').trigger('click')
+      await choose(wrapper, 'REPLAN')
 
       expect(wrapper.findComponent(AppConfirm).attributes('blast')).toContain('1 step deleted')
     })
@@ -176,7 +210,7 @@ describe('the Plan here button', () => {
       const openPane = vi.spyOn(useConsoleStore(), 'openTerminal')
       const wrapper = mountReplan()
 
-      await wrapper.get('[data-testid="replan-here"]').trigger('click')
+      await choose(wrapper, 'REPLAN')
       await wrapper.findComponent(AppConfirm).vm.$emit('confirm')
       await flushPromises()
 
@@ -190,7 +224,7 @@ describe('the Plan here button', () => {
       useTerminalStore().terminals = [terminal()]
       const wrapper = mountReplan()
 
-      await wrapper.get('[data-testid="replan-here"]').trigger('click')
+      await choose(wrapper, 'REPLAN')
       await wrapper.findComponent(AppConfirm).vm.$emit('confirm')
       await flushPromises()
 
@@ -200,7 +234,7 @@ describe('the Plan here button', () => {
     it('does nothing when the confirmation is dismissed', async () => {
       const wrapper = mountReplan()
 
-      await wrapper.get('[data-testid="replan-here"]').trigger('click')
+      await choose(wrapper, 'REPLAN')
       await wrapper.findComponent(AppConfirm).vm.$emit('cancel')
       await flushPromises()
 
@@ -212,7 +246,7 @@ describe('the Plan here button', () => {
     it('asks for the project folder instead of confirming when there is neither a folder nor a session', async () => {
       const wrapper = mountReplan(null)
 
-      await wrapper.get('[data-testid="replan-here"]').trigger('click')
+      await choose(wrapper, 'REPLAN')
 
       expect(wrapper.findComponent(AppConfirm).exists()).toBe(false)
       expect(openTerminal).not.toHaveBeenCalled()

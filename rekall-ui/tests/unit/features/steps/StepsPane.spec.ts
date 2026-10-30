@@ -116,8 +116,8 @@ function render() {
   })
 }
 
-function planModes(pane: ReturnType<typeof render>): (string | undefined)[] {
-  return pane.findAll('plan-here-button-stub').map((button) => button.attributes('mode'))
+function planButton(pane: ReturnType<typeof render>) {
+  return pane.get('plan-here-button-stub')
 }
 
 describe('StepsPane', () => {
@@ -198,21 +198,19 @@ describe('StepsPane', () => {
     seed([])
     const empty = render()
     expect(empty.get('[data-testid="copy-plan-flow-command"]').text()).toContain('project:vega task:report-builder plan flow')
-    expect(planModes(empty)).toEqual(['PLAN', 'PLAN_FLOW'])
+    expect(planButton(empty).attributes('offersflow')).toBe('true')
     empty.unmount()
 
     seed([makeStep('d', 0, 'DRAFT')])
-    expect(planModes(render())).toEqual(['PLAN', 'REPLAN'])
+    expect(planButton(render()).attributes('offersflow')).toBe('false')
   })
 
   it('offers to replan only while the task has a draft or an open step to replace, and counts them', () => {
     seed([makeStep('a', 0, 'DONE'), makeStep('b', 1, 'RUNNING'), makeStep('c', 2, 'CLAIMED')])
-    expect(planModes(render())).toEqual(['PLAN'])
+    expect(planButton(render()).attributes('replaceablesteps')).toBe('0')
 
     seed([makeStep('a', 0, 'DONE'), makeStep('b', 1, 'OPEN'), makeStep('c', 2, 'DRAFT')])
-    const pane = render()
-    expect(planModes(pane)).toEqual(['PLAN', 'REPLAN'])
-    expect(pane.findAll('plan-here-button-stub')[1]?.attributes('replaceablesteps')).toBe('2')
+    expect(planButton(render()).attributes('replaceablesteps')).toBe('2')
   })
 
   it('counts done, claimed and draft steps on the ledger', () => {

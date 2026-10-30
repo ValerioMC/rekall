@@ -87,21 +87,12 @@ function segmentClass(step: TaskStep): string {
 
       <div class="flex shrink-0 items-center gap-1.5">
         <NotesButton :task-id="task.id" />
-        <PlanHereButton :task-id="task.id" :anchor="task.anchor" :folder="task.projectRepoFolder" />
         <PlanHereButton
-          v-if="acceptsAFlow"
           :task-id="task.id"
           :anchor="task.anchor"
           :folder="task.projectRepoFolder"
-          mode="PLAN_FLOW"
-        />
-        <PlanHereButton
-          v-if="replaceableSteps > 0"
-          :task-id="task.id"
-          :anchor="task.anchor"
-          :folder="task.projectRepoFolder"
+          :offers-flow="acceptsAFlow"
           :replaceable-steps="replaceableSteps"
-          mode="REPLAN"
         />
         <OpenTerminalButton :task-id="task.id" :step-id="currentId" :folder="task.projectRepoFolder" />
         <LaunchClaudeCodeButton
