@@ -47,7 +47,12 @@ checked whole and written in one transaction, so a refused plan leaves nothing o
 `rekall_create_task` creates a task in the project its anchor names, with an optional description and
 up to twenty steps, in one transaction. `TaskAuthoringService` in rekall-core is its only path: the
 console's `TaskService` in rekall-console stays the one that edits, reviews and deletes. The task starts
-`TODO` and each step is a draft, so the same promotion gate as `rekall_propose_step` applies. A label
+`TODO` and its steps start open: a task asked for in one call is meant to be run, so there is no promotion
+gate here, unlike `rekall_propose_step` and `rekall_propose_flow`. A step carries what a flow step does
+(`routes`, `max_visits`, `new_session`); the service lays the plan as drafts through
+`FlowProposalService::lay_in` and releases them with `TaskStepService::release_drafts_in` in the same
+transaction, so a task with any route is checked as a flow (`FlowPlan::check`) and one without as a
+checklist (`FlowPlan::check_shape`), and a refused plan creates nothing. A label
 the project already uses is refused rather than suffixed, so an anchor never changes under the session.
 It publishes `task-created` on the event stream and the console reloads its task list. `kind: "epic"`
 creates an epic, refused with steps before anything is written, and `epic` files the new task under an

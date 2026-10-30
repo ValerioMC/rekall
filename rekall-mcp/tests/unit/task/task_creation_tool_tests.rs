@@ -1,31 +1,37 @@
-use rekall_core::task::StepDraft;
+use rekall_core::flow::{PlannedRoute, PlannedStep};
 use serde_json::json;
 
-use super::{drafts_of, project_label};
+use super::{plan_or_empty, project_label};
 use crate::tool::Anchor;
 
 #[test]
-fn no_steps_argument_reads_as_no_drafts() {
-    assert_eq!(drafts_of(None).unwrap(), Vec::new());
+fn no_steps_argument_reads_as_an_empty_plan() {
+    assert!(plan_or_empty(None).unwrap().steps.is_empty());
 }
 
 #[test]
-fn steps_arrive_as_a_list_or_as_a_string_holding_one() {
+fn steps_arrive_with_their_sessions_and_routes_as_a_list_or_as_a_string_holding_one() {
     let expected = vec![
-        StepDraft { title: "One".into(), detail: Some("Do it".into()) },
-        StepDraft { title: "Two".into(), detail: None },
+        PlannedStep { title: "One".into(), detail: Some("Do it".into()), routes: vec![], max_visits: None, starts_session: false },
+        PlannedStep {
+            title: "Two".into(),
+            detail: None,
+            routes: vec![PlannedRoute { outcome: "done".into(), to: None }],
+            max_visits: None,
+            starts_session: true,
+        },
     ];
-    let list = json!([{ "title": "One", "detail": "Do it" }, { "title": "Two" }]);
+    let list = json!([{ "title": "One", "detail": "Do it" }, { "title": "Two", "new_session": true, "routes": [{ "outcome": "done", "to": "end" }] }]);
 
-    assert_eq!(drafts_of(Some(&list)).unwrap(), expected);
-    assert_eq!(drafts_of(Some(&json!(list.to_string()))).unwrap(), expected);
+    assert_eq!(plan_or_empty(Some(&list)).unwrap().steps, expected);
+    assert_eq!(plan_or_empty(Some(&json!(list.to_string()))).unwrap().steps, expected);
 }
 
 #[test]
 fn a_step_without_a_title_is_refused_and_says_what_was_expected() {
-    let refused = drafts_of(Some(&json!([{ "detail": "no title" }]))).unwrap_err();
+    let refused = plan_or_empty(Some(&json!([{ "detail": "no title" }]))).unwrap_err();
 
-    assert!(format!("{refused:?}").contains("{title, detail}"), "{refused:?}");
+    assert!(format!("{refused:?}").contains("{title, detail"), "{refused:?}");
 }
 
 #[test]
@@ -50,11 +56,30 @@ fn an_epic_created_is_answered_with_how_to_file_tasks_under_it() {
         title: "Checkout".into(),
         kind: rekall_core::task::TaskKind::Epic,
         task_anchor: "project:vega task:checkout".into(),
-        drafts: 0,
+        steps: 0,
+        routes: 0,
     };
 
     let answer = super::report(&created);
 
     assert!(answer.starts_with("Epic \"Checkout\" created as `project:vega task:checkout`."), "{answer}");
     assert!(answer.contains("`rekall_join_epic` and the anchor `project:vega task:checkout`"), "{answer}");
+}
+
+#[test]
+fn a_checklist_created_is_answered_as_ready_to_work_and_a_flow_with_its_routes() {
+    let checklist = rekall_core::task::Created {
+        title: "Report".into(),
+        kind: rekall_core::task::TaskKind::Task,
+        task_anchor: "project:vega task:report".into(),
+        steps: 2,
+        routes: 0,
+    };
+    let flow = rekall_core::task::Created { steps: 3, routes: 4, ..checklist.clone() };
+
+    assert_eq!(
+        super::report(&checklist),
+        "Task \"Report\" created as `project:vega task:report` with 2 steps ready to work: none is a draft, so a session can start the first at once. `/rk project:vega task:report` loads it."
+    );
+    assert!(super::report(&flow).contains("as a flow of 3 steps joined by 4 routes, ready to work"), "{}", super::report(&flow));
 }

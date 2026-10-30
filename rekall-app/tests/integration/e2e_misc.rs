@@ -104,7 +104,7 @@ async fn a_session_can_propose_a_step_which_lands_as_a_draft_no_session_reads_an
 // --- Tasks created by a session
 
 #[tokio::test]
-async fn a_session_creates_a_task_whose_steps_are_drafts_and_the_console_lists_it() {
+async fn a_session_creates_a_task_whose_steps_are_ready_to_work_and_the_console_lists_it() {
     let app = app().await;
     let acme = app.a_company("Acme").await;
     let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
@@ -121,12 +121,12 @@ async fn a_session_creates_a_task_whose_steps_are_drafts_and_the_console_lists_i
         )
         .await;
 
-    assert_contains!(answer, "Task \"Report builder\" created as `project:vega task:report-builder`", "2 draft steps");
+    assert_contains!(answer, "Task \"Report builder\" created as `project:vega task:report-builder`", "2 steps ready to work");
     let tasks = app.get(&format!("/api/tasks?projectId={project_id}")).await.list();
     assert_eq!(tasks[0]["description"], "Let people export a report.");
     let steps = app.get(&format!("/api/tasks/{}/steps", tasks[0]["id"].as_str().unwrap())).await.list();
     assert_eq!(steps.len(), 2);
-    assert!(steps.iter().all(|step| step["state"] == "DRAFT"));
+    assert!(steps.iter().all(|step| step["state"] == "OPEN"));
     assert_contains!(
         app.call_tool("rekall_create_task", json!({ "anchors": "project:vega", "title": "Report builder" })).await,
         "already uses the label 'report-builder'"

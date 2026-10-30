@@ -3,3 +3,4 @@
 mod flow_proposal_tool;
 
 pub use flow_proposal_tool::FlowProposalTool;
+pub(crate) use flow_proposal_tool::plan_of;

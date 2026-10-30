@@ -111,7 +111,7 @@ An anchor brings back the record, everything it references resolved in full with
 | `rekall_record_commit` | write | Log a commit of the project's repo folder against one task or step |
 | `rekall_propose_step` | write | Add one step as a draft, for a person to promote; `new_session` makes it open a fresh Claude session |
 | `rekall_propose_flow` | write | Add a whole flow to a task with no steps: its steps as drafts and the routes between them |
-| `rekall_create_task` | write | Create a task or an epic in a project with a description and up to 20 draft steps (none on an epic), optionally filed under an epic |
+| `rekall_create_task` | write | Create a task or an epic in a project with a description and up to 20 steps that start open, as a checklist or a flow with its sessions (none on an epic), optionally filed under an epic |
 | `rekall_join_epic` | write | File an existing task under an epic of its project, or move it from another epic |
 | `rekall_note` | write | Write a note on one task, or rewrite one it carries by title with `replace` |
 | `rekall_project_section` | write | Write a titled markdown section on a task's project, or rewrite one by title with `replace` |
@@ -121,7 +121,7 @@ An anchor brings back the record, everything it references resolved in full with
 | `rekall_vulnerabilities` | read | List the advisories that reach a project, or read one whole with `advisory` |
 | `rekall_assess_vulnerability` | write | Record whether an advisory really reaches a project: `affected` or `not_affected`, with reasoning and a conclusion |
 
-There is no query, get or schema tool. Nothing a session creates is work until you promote it: proposed steps and flows land as drafts, and a created task starts `TODO`. `rekall_step` refuses `done`; that state is set by hand in the console. `rekall_note` and `rekall_project_section` refuse a title already used unless `replace: true`, and neither can rename, reorder or delete. `rekall_step` (on `claimed`) and `rekall_wrapup` take an optional `commit_message`, used only on a project that commits on claim. Every parameter is in [docs/guide/mcp-tools.md](docs/guide/mcp-tools.md), the reasons in [docs/design/mcp.md](docs/design/mcp.md) and [docs/design/write-safety.md](docs/design/write-safety.md).
+There is no query, get or schema tool. Nothing a session creates is work until you promote it: proposed steps and flows land as drafts; a created task starts `TODO` with its steps already open, the one write a session makes that is ready to run. `rekall_step` refuses `done`; that state is set by hand in the console. `rekall_note` and `rekall_project_section` refuse a title already used unless `replace: true`, and neither can rename, reorder or delete. `rekall_step` (on `claimed`) and `rekall_wrapup` take an optional `commit_message`, used only on a project that commits on claim. Every parameter is in [docs/guide/mcp-tools.md](docs/guide/mcp-tools.md), the reasons in [docs/design/mcp.md](docs/design/mcp.md) and [docs/design/write-safety.md](docs/design/write-safety.md).
 
 ## What Rekall does
 

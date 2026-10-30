@@ -193,6 +193,29 @@ async fn a_session_proposes_a_flow_that_waits_as_routed_drafts_until_the_console
 }
 
 #[tokio::test]
+async fn a_session_creates_a_task_as_a_flow_that_is_ready_to_run_with_its_sessions() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    app.a_project(&acme, "vega", "ACTIVE").await;
+    let steps = json!([
+        { "title": "Deploy", "routes": [{ "outcome": "deployed", "to": 2 }] },
+        { "title": "Test in the cluster", "new_session": true, "routes": [{ "outcome": "passed", "to": "end" }, { "outcome": "App error", "to": 3 }] },
+        { "title": "Fix the application", "max_visits": 3, "routes": [{ "outcome": "fixed", "to": 1 }] }
+    ]);
+
+    let answer = app.call_tool("rekall_create_task", json!({ "anchors": "project:vega", "title": "Release", "steps": steps })).await;
+
+    assert_contains!(answer, "as a flow of 3 steps joined by 4 routes, ready to work");
+    assert_contains!(
+        app.call_tool("rekall_context", json!({ "anchors": TASK })).await,
+        "flow=\"true\"",
+        "sessions=\"2\"",
+        "`app-error` -> step 3 \"Fix the application\""
+    );
+    assert_contains!(step(&app, "1", "running", None).await, "Deploy");
+}
+
+#[tokio::test]
 async fn a_proposed_flow_with_a_loop_that_never_ends_is_refused_and_nothing_lands() {
     let app = app().await;
     let acme = app.a_company("Acme").await;

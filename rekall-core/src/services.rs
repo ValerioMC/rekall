@@ -45,7 +45,7 @@ impl Services {
         let inventory = inventory::DependencyInventoryService::new(ctx.clone());
         let exposures = vulnerability::VulnerabilityExposureService::new(ctx.clone(), commit::GitRepositoryInspector);
         Self {
-            task_authoring: task::TaskAuthoringService::new(ctx.clone(), steps.clone()),
+            task_authoring: task::TaskAuthoringService::new(ctx.clone(), steps.clone(), flow_proposals.clone()),
             epic_membership: task::EpicMembershipService::new(ctx.clone()),
             steps,
             step_links,

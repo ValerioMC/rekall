@@ -93,7 +93,7 @@ impl McpTool for FlowProposalTool {
 }
 
 /// The steps as an array, or as a string holding one: some clients serialise a nested argument.
-fn plan_of(argument: Option<&Value>) -> Result<FlowPlan, ToolError> {
+pub(crate) fn plan_of(argument: Option<&Value>) -> Result<FlowPlan, ToolError> {
     let steps: Vec<StepArgument> = match argument {
         None => return Err(ToolError::Illegal("A flow needs its `steps`.".into())),
         Some(Value::String(text)) => serde_json::from_str(text),

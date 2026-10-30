@@ -1,8 +1,8 @@
-use rekall_kernel::{RekallError, Result};
+use rekall_kernel::{Id, RekallError, Result};
 
 use crate::flow::{FlowPlan, ProposedFlow, RouteTarget, StepLinkService};
 use crate::step::{TaskStepService, TaskStepView};
-use crate::{in_write, load, Ctx};
+use crate::{in_write, load, Ctx, Tx};
 
 /// Lays a planned flow on a task as drafts and the routes between them, in one transaction. It
 /// holds no queries: drafts go through `TaskStepService`, routes through `StepLinkService`.
@@ -25,28 +25,35 @@ impl FlowProposalService {
         in_write!(&self.ctx, |tx| {
             let task = load::resolve_task(tx.db(), project_label, task_label).await?;
             require_no_steps(&self.steps.find_by_task_in(&mut tx, task.id).await?)?;
-            let mut drafts = Vec::with_capacity(plan.steps.len());
-            for planned in &plan.steps {
-                let draft = self.steps.add_in(&mut tx, task.id, Some(&planned.title), planned.detail.as_deref()).await?;
-                if planned.max_visits.is_some() {
-                    self.steps.limit_visits_in(&tx, draft.id, planned.max_visits).await?;
-                }
-                if planned.starts_session {
-                    self.steps.begin_session_in(&tx, draft.id, true).await?;
-                }
-                drafts.push(draft);
-            }
-            for (planned, draft) in plan.steps.iter().zip(&drafts) {
-                for route in &planned.routes {
-                    let target = route.to.map_or(RouteTarget::End, |to| {
-                        RouteTarget::Step(drafts.get(to).expect("FlowPlan::check keeps every route inside the plan").id)
-                    });
-                    self.links.propose_in(&tx, draft.id, target, &route.outcome).await?;
-                }
-            }
+            let laid = self.lay_in(&mut tx, task.id, plan).await?;
             self.steps.publish_in(&mut tx, task.id).await?;
-            Ok(ProposedFlow { steps: drafts.len(), routes: plan.route_count() })
+            Ok(laid)
         })
+    }
+
+    /// The plan's drafts, sessions, visit budgets and routes, inside a transaction the caller holds.
+    /// The caller has checked the plan and publishes.
+    pub async fn lay_in(&self, tx: &mut Tx, task_id: Id, plan: &FlowPlan) -> Result<ProposedFlow> {
+        let mut drafts = Vec::with_capacity(plan.steps.len());
+        for planned in &plan.steps {
+            let draft = self.steps.add_in(tx, task_id, Some(&planned.title), planned.detail.as_deref()).await?;
+            if planned.max_visits.is_some() {
+                self.steps.limit_visits_in(tx, draft.id, planned.max_visits).await?;
+            }
+            if planned.starts_session {
+                self.steps.begin_session_in(tx, draft.id, true).await?;
+            }
+            drafts.push(draft);
+        }
+        for (planned, draft) in plan.steps.iter().zip(&drafts) {
+            for route in &planned.routes {
+                let target = route.to.map_or(RouteTarget::End, |to| {
+                    RouteTarget::Step(drafts.get(to).expect("FlowPlan::check keeps every route inside the plan").id)
+                });
+                self.links.propose_in(tx, draft.id, target, &route.outcome).await?;
+            }
+        }
+        Ok(ProposedFlow { steps: drafts.len(), routes: plan.route_count() })
     }
 }
 

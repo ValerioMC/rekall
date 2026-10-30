@@ -1,16 +1,17 @@
 use async_trait::async_trait;
+use rekall_core::flow::FlowPlan;
 use rekall_core::task::TaskKind;
-use rekall_core::task::{Created, StepDraft, TaskAuthoringService, TaskBrief};
-use serde::Deserialize;
+use rekall_core::task::{Created, TaskAuthoringService, TaskBrief};
 use serde_json::Value;
 
+use crate::flow::plan_of;
 use crate::tool::{told, Anchor, Arguments};
 use crate::protocol::{McpTool, ToolError, ToolSchema};
 use crate::texts;
 
-/// Lets a session create a task or an epic in a project, with a description and a first checklist,
-/// optionally under an epic. The task starts `TODO` and every step starts as a draft a person has to
-/// promote: it can create, nothing else.
+/// Lets a session create a task or an epic in a project, with a description and a first checklist or
+/// flow, optionally under an epic. The task starts `TODO` and its steps start open, sessions and
+/// routes included: it can create, nothing else.
 pub struct TaskCreationTool {
     tasks: TaskAuthoringService,
 }
@@ -19,12 +20,6 @@ impl TaskCreationTool {
     pub fn new(tasks: TaskAuthoringService) -> Self {
         Self { tasks }
     }
-}
-
-#[derive(Deserialize)]
-struct StepArgument {
-    title: String,
-    detail: Option<String>,
 }
 
 #[async_trait]
@@ -57,8 +52,10 @@ impl McpTool for TaskCreationTool {
             .optional_string("epic", "The label of an epic of the same project to file the new task under: `checkout`.")
             .optional_object_array(
                 "steps",
-                "Up to 20 drafts, in order: `[{\"title\":\"Expose the report as a download\",\"detail\":\"markdown\"}]`. \
-                 `detail` is optional.",
+                "Up to 20 steps, in order: `[{\"title\":\"Expose the report as a download\",\"detail\":\"markdown\",\"new_session\":true}]`. \
+                 `detail` and `new_session` (true opens a fresh session) are optional. Give a step `routes` \
+                 (`[{\"outcome\":\"app-error\",\"to\":3}]`, `to` a step's one-based number or `end`) and optionally \
+                 `max_visits` (1 to 99) to make the task a flow.",
             )
             .build()
     }
@@ -66,7 +63,7 @@ impl McpTool for TaskCreationTool {
     async fn execute(&self, arguments: Option<&Value>) -> Result<String, ToolError> {
         let args = Arguments::of(arguments);
         let project = project_label(&Anchor::parse_all(Some(&args.required_string("anchors")?))?)?;
-        let drafts = drafts_of(args.value("steps"))?;
+        let plan = plan_or_empty(args.value("steps"))?;
         let brief = TaskBrief {
             title: Some(args.required_string("title")?),
             label: args.optional_string("label"),
@@ -74,7 +71,7 @@ impl McpTool for TaskCreationTool {
             kind: kind_of(args.optional_string("kind").as_deref())?,
             epic: args.optional_string("epic"),
         };
-        let created = self.tasks.create(&project, &brief, &drafts).await.map_err(|e| told(e, ""))?;
+        let created = self.tasks.create(&project, &brief, &plan).await.map_err(|e| told(e, ""))?;
         Ok(report(&created))
     }
 }
@@ -83,11 +80,21 @@ fn report(created: &Created) -> String {
     if created.kind == TaskKind::Epic {
         return texts::EPIC_CREATED_REPORT.replacen("%s", &created.title, 1).replacen("%s", &created.task_anchor, 2);
     }
+    if created.routes > 0 {
+        return texts::TASK_CREATED_FLOW_REPORT
+            .replacen("%s", &created.title, 1)
+            .replacen("%s", &created.task_anchor, 1)
+            .replacen("%d", &created.steps.to_string(), 1)
+            .replacen("%s", if created.steps == 1 { "" } else { "s" }, 1)
+            .replacen("%d", &created.routes.to_string(), 1)
+            .replacen("%s", if created.routes == 1 { "" } else { "s" }, 1)
+            .replacen("%s", &created.task_anchor, 1);
+    }
     texts::TASK_CREATED_REPORT
         .replacen("%s", &created.title, 1)
         .replacen("%s", &created.task_anchor, 1)
-        .replacen("%d", &created.drafts.to_string(), 1)
-        .replacen("%s", if created.drafts == 1 { "" } else { "s" }, 1)
+        .replacen("%d", &created.steps.to_string(), 1)
+        .replacen("%s", if created.steps == 1 { "" } else { "s" }, 1)
         .replacen("%s", &created.task_anchor, 1)
 }
 
@@ -107,15 +114,11 @@ fn project_label(anchors: &[Anchor]) -> Result<String, ToolError> {
     }
 }
 
-/// The steps as an array, or as a string holding one: some clients serialise a nested argument.
-fn drafts_of(argument: Option<&Value>) -> Result<Vec<StepDraft>, ToolError> {
-    let steps: Vec<StepArgument> = match argument {
-        None => return Ok(Vec::new()),
-        Some(Value::String(text)) => serde_json::from_str(text),
-        Some(array) => serde_json::from_value(array.clone()),
+fn plan_or_empty(argument: Option<&Value>) -> Result<FlowPlan, ToolError> {
+    match argument {
+        None => Ok(FlowPlan::new(Vec::new())),
+        steps => plan_of(steps),
     }
-    .map_err(|error| ToolError::Illegal(format!("'steps' is not a list of {{title, detail}} objects: {error}")))?;
-    Ok(steps.into_iter().map(|step| StepDraft { title: step.title, detail: step.detail }).collect())
 }
 
 #[cfg(test)]

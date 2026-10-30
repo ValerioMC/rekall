@@ -50,7 +50,7 @@ impl FlowPlan {
         }
         if self.steps.len() > PROPOSED_DRAFTS_MAX {
             return Err(RekallError::illegal(format!(
-                "A task holds at most {PROPOSED_DRAFTS_MAX} drafts and this flow has {} steps. Merge steps that \
+                "A session writes at most {PROPOSED_DRAFTS_MAX} steps at once and {} were sent. Merge steps that \
                  always follow one another.",
                 self.steps.len()
             )));
@@ -64,7 +64,7 @@ impl FlowPlan {
                 .iter()
                 .any(|earlier| jstr::equals_ignore_case(jstr::strip(&earlier.title), jstr::strip(&step.title)));
             if repeated {
-                return Err(RekallError::illegal(format!("The step '{}' appears twice. Nothing was proposed.", step.title)));
+                return Err(RekallError::illegal(format!("The step '{}' appears twice. Nothing was written.", step.title)));
             }
         }
         Ok(())

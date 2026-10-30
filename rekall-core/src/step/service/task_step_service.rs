@@ -132,6 +132,17 @@ impl TaskStepService {
         })
     }
 
+    /// Promotes every draft of a task to open inside a transaction the caller holds, which also
+    /// publishes. For a task whose steps were written by its own creation, not left to review.
+    pub async fn release_drafts_in(&self, tx: &Tx, task_id: Id) -> Result<()> {
+        for before in load::steps_of(tx.db(), task_id).await?.into_iter().filter(|step| step.state.draft()) {
+            let mut step = before.clone();
+            step.mark_state(TaskStepState::Open);
+            repo::update_if_changed(tx.db(), &before, step, self.ctx.now()).await?;
+        }
+        Ok(())
+    }
+
     /// A console edit. Ticking a claimed step done accepts the claim, which also stops the task's
     /// timer; ticking an open step by hand leaves it running.
     pub async fn edit(

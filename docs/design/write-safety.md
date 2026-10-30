@@ -10,7 +10,9 @@ reorder or remove a step, and the console's `edit` is still the only path to `DO
 `TaskStepService.propose` can only append a draft, which no session reads until a person promotes
 it. `FlowProposalService.propose` can only lay drafts onto a task with no steps, and the routes it
 asks `StepLinkService.propose_in` for are refused unless both ends are drafts, so no released
-step's routes change. `NoteService` (rekall-core) can only create a note and attach it to the one task it was
+step's routes change. `TaskAuthoringService.create` is the one write that releases what it lays: the steps
+of a task it has just created start open, and it touches no task that already exists, so it cannot release
+another task's drafts. `NoteService` (rekall-core) can only create a note and attach it to the one task it was
 written for: it never loads a note by id, so it cannot edit, detach or delete one, and
 `DocumentService`, which can, stays in `rekall-console`. `CommitReferenceService` and `AutoCommitService` log and make commits in the project's own
 folder. `InventoryRecordingService` replaces one project's dependency rows and drops the exposures they
