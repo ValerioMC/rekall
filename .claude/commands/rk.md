@@ -257,7 +257,10 @@ renames, reorders or deletes a section, and writing one does not claim the task 
    long. The bare word `flow` after `plan` (`/rk ... plan flow`) asks for a flow outright.
 4. For a checklist, call `rekall_propose_step` once per step, in the order the work should be done.
    For a flow, call `rekall_propose_flow` once with every step in order, the first where it begins,
-   and each step's routes: `{"outcome": "app-error", "to": 3}`, or `"to": "end"`. Name outcomes for
+   and each step's routes: `{"outcome": "app-error", "to": 3}`, or `"to": "end"`. Pass `draft: true`
+   on every call: a plan is for me to review, and without it the steps would land ready to work.
+   Work out the arcs one step at a time: what can end it (it worked, and each way it can fail) and
+   where each of those goes (the next step, back to a fix step, or the end). Name outcomes for
    what happened (`passed`, `app-error`), give a step that simply leads on one route to the next,
    leave the steps that finish the work without routes, and give every loop a way out. Give the
    step a loop returns to a `max_visits` (3 is a sensible start), so the flow stops instead of

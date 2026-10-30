@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use rekall_core::flow::{FlowPlan, FlowProposalService, PlannedRoute, PlannedStep};
-use rekall_core::step::VisitBudget;
+use rekall_core::step::{Staging, VisitBudget};
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -8,8 +8,8 @@ use crate::protocol::{McpTool, ToolError, ToolSchema};
 use crate::texts;
 use crate::tool::{told, Anchor, AnchoredTask, Arguments, QUALIFY_WITH_PROJECT};
 
-/// Lets a planning session propose a flow whole: its steps as drafts and the routes between them.
-/// Nothing it writes is work, and no route of a released step changes, until a person promotes.
+/// Lets a session lay a flow whole on a task with no steps: its steps and the routes between them,
+/// ready to work, or as drafts a person promotes when the session is asked to propose.
 pub struct FlowProposalTool {
     proposals: FlowProposalService,
 }
@@ -72,6 +72,10 @@ impl McpTool for FlowProposalTool {
                  \"max_visits\":3,\"routes\":[{\"outcome\":\"passed\",\"to\":\"end\"},{\"outcome\":\"app-error\",\"to\":3}]}]`. \
                  `to` is a step's one-based number in this list, or `end`; `max_visits` (1 to 99) and `new_session` (true opens a fresh session) are optional.",
             )
+            .optional_boolean(
+                "draft",
+                "True leaves the steps as drafts on the console's staging shelf for a person to promote; left out, the flow is ready to work.",
+            )
             .build()
     }
 
@@ -79,12 +83,14 @@ impl McpTool for FlowProposalTool {
         let args = Arguments::of(arguments);
         let target = AnchoredTask::from(&Anchor::parse_all(Some(&args.required_string("anchors")?))?)?;
         let plan = plan_of(args.value("steps"))?;
+        let staging = if args.flag("draft") { Staging::Draft } else { Staging::Ready };
         let proposed = self
             .proposals
-            .propose(target.project_label.as_deref(), &target.task_label, &plan)
+            .propose(target.project_label.as_deref(), &target.task_label, &plan, staging)
             .await
             .map_err(|e| told(e, QUALIFY_WITH_PROJECT))?;
-        Ok(texts::PROPOSED_FLOW_REPORT
+        let report = if staging == Staging::Ready { texts::FLOW_LAID_REPORT } else { texts::PROPOSED_FLOW_REPORT };
+        Ok(report
             .replacen("%d", &proposed.steps.to_string(), 1)
             .replacen("%s", if proposed.steps == 1 { "" } else { "s" }, 1)
             .replacen("%d", &proposed.routes.to_string(), 1)

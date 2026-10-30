@@ -1,10 +1,10 @@
 use rekall_kernel::{Id, RekallError, Result};
 
 use crate::flow::{FlowPlan, ProposedFlow, RouteTarget, StepLinkService};
-use crate::step::{TaskStepService, TaskStepView};
+use crate::step::{Staging, TaskStepService, TaskStepView};
 use crate::{in_write, load, Ctx, Tx};
 
-/// Lays a planned flow on a task as drafts and the routes between them, in one transaction. It
+/// Lays a planned flow on a task as steps and the routes between them, in one transaction. It
 /// holds no queries: drafts go through `TaskStepService`, routes through `StepLinkService`.
 #[derive(Clone)]
 pub struct FlowProposalService {
@@ -20,12 +20,21 @@ impl FlowProposalService {
 
     /// Only onto a task with no steps: the flow begins at the first one, so a checklist already
     /// there would decide where it starts and end it at its own unrouted steps.
-    pub async fn propose(&self, project_label: Option<&str>, task_label: &str, plan: &FlowPlan) -> Result<ProposedFlow> {
+    pub async fn propose(
+        &self,
+        project_label: Option<&str>,
+        task_label: &str,
+        plan: &FlowPlan,
+        staging: Staging,
+    ) -> Result<ProposedFlow> {
         plan.check()?;
         in_write!(&self.ctx, |tx| {
             let task = load::resolve_task(tx.db(), project_label, task_label).await?;
             require_no_steps(&self.steps.find_by_task_in(&mut tx, task.id).await?)?;
             let laid = self.lay_in(&mut tx, task.id, plan).await?;
+            if staging == Staging::Ready {
+                self.steps.release_drafts_in(&tx, task.id).await?;
+            }
             self.steps.publish_in(&mut tx, task.id).await?;
             Ok(laid)
         })

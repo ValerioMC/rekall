@@ -7,12 +7,11 @@ construction. `WrapupService` takes a task and a body and can do nothing else: n
 renamed or deleted, no note touched. `TaskStepService.transition` takes a task, a step and a
 target state, and refuses `DONE` and any step a person has already accepted; it cannot add,
 reorder or remove a step, and the console's `edit` is still the only path to `DONE`.
-`TaskStepService.propose` can only append a draft, which no session reads until a person promotes
-it. `FlowProposalService.propose` can only lay drafts onto a task with no steps, and the routes it
-asks `StepLinkService.propose_in` for are refused unless both ends are drafts, so no released
-step's routes change. `TaskAuthoringService.create` is the one write that releases what it lays: the steps
-of a task it has just created start open, and it touches no task that already exists, so it cannot release
-another task's drafts. `NoteService` (rekall-core) can only create a note and attach it to the one task it was
+`TaskStepService.propose` can only append one step, open or as a draft. `FlowProposalService.propose` can
+only lay a flow onto a task with no steps, and the routes it asks `StepLinkService.propose_in` for are
+refused unless both ends are drafts, so no released step's routes change: a ready flow is laid as
+drafts and released inside the same transaction. `TaskAuthoringService.create` does the same for the
+task it has just created. None of them promotes a draft that was already on a task. `NoteService` (rekall-core) can only create a note and attach it to the one task it was
 written for: it never loads a note by id, so it cannot edit, detach or delete one, and
 `DocumentService`, which can, stays in `rekall-console`. `CommitReferenceService` and `AutoCommitService` log and make commits in the project's own
 folder. `InventoryRecordingService` replaces one project's dependency rows and drops the exposures they

@@ -5,7 +5,7 @@ use rekall_store::repository as repo;
 use rekall_store::task;
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
-use crate::step::{FlowPlace, StepFlowRows, StepStreamEvent, TaskStepView, VisitBudget};
+use crate::step::{FlowPlace, Staging, StepFlowRows, StepStreamEvent, TaskStepView, VisitBudget};
 use crate::timeentry::TimeEntryService;
 use crate::{in_read, in_write, load, text_rule, Ctx, Tx};
 
@@ -90,10 +90,10 @@ impl TaskStepService {
         Ok(view)
     }
 
-    /// Adds a step a session proposes, as a draft at the tail. A draft is not work: it stays off
-    /// the checklist a session reads until a person promotes it in the console, which is what
-    /// lets a session write one at all. A title the task already has, in any state, is refused,
-    /// so a plan run twice does not double the shelf; so is a draft past the cap.
+    /// Adds a step a session writes at the tail: open and ready to work, or as a draft that stays
+    /// off the checklist a session reads until a person promotes it in the console. A title the
+    /// task already has, in any state, is refused, so a plan run twice does not double the shelf;
+    /// so is a draft past the cap.
     pub async fn propose(
         &self,
         project_label: Option<&str>,
@@ -101,6 +101,7 @@ impl TaskStepService {
         title: Option<&str>,
         body_markdown: Option<&str>,
         starts_session: bool,
+        staging: Staging,
     ) -> Result<Proposed> {
         in_write!(&self.ctx, |tx| {
             let task = load::resolve_task(tx.db(), project_label, task_label).await?;
@@ -117,7 +118,7 @@ impl TaskStepService {
                 )));
             }
             let drafts = siblings.iter().filter(|step| step.state == TaskStepState::Draft).count();
-            if drafts >= PROPOSED_DRAFTS_MAX {
+            if staging == Staging::Draft && drafts >= PROPOSED_DRAFTS_MAX {
                 return Err(RekallError::illegal(format!(
                     "This task already holds {drafts} drafts, the most a session may leave. A person has to promote \
                      or delete some in the console first."
@@ -127,20 +128,38 @@ impl TaskStepService {
             if starts_session {
                 self.begin_session_in(&tx, added.id, true).await?;
             }
+            if staging == Staging::Ready {
+                self.release_in(&tx, added.id).await?;
+                self.publish_in(&mut tx, task.id).await?;
+            }
             let step = self.view_in(&tx, &self.require(&tx, added.id).await?).await?;
-            Ok(Proposed { step, draft_count: drafts + 1 })
+            let waiting = if staging == Staging::Draft { drafts + 1 } else { drafts };
+            Ok(Proposed { step, draft_count: waiting })
         })
     }
 
     /// Promotes every draft of a task to open inside a transaction the caller holds, which also
     /// publishes. For a task whose steps were written by its own creation, not left to review.
     pub async fn release_drafts_in(&self, tx: &Tx, task_id: Id) -> Result<()> {
-        for before in load::steps_of(tx.db(), task_id).await?.into_iter().filter(|step| step.state.draft()) {
-            let mut step = before.clone();
-            step.mark_state(TaskStepState::Open);
-            repo::update_if_changed(tx.db(), &before, step, self.ctx.now()).await?;
+        for draft in load::steps_of(tx.db(), task_id).await?.into_iter().filter(|step| step.state.draft()) {
+            self.open_in(tx, draft).await?;
         }
         Ok(())
+    }
+
+    /// Promotes one draft to open and keeps the drafts left behind it at the tail.
+    async fn release_in(&self, tx: &Tx, id: Id) -> Result<()> {
+        let draft = self.require(tx, id).await?;
+        let task_id = draft.task_id;
+        self.open_in(tx, draft).await?;
+        let ordered = load::steps_of(tx.db(), task_id).await?;
+        self.settle_drafts_at_tail(tx, ordered).await
+    }
+
+    async fn open_in(&self, tx: &Tx, before: task_step::Model) -> Result<task_step::Model> {
+        let mut step = before.clone();
+        step.mark_state(TaskStepState::Open);
+        repo::update_if_changed(tx.db(), &before, step, self.ctx.now()).await
     }
 
     /// A console edit. Ticking a claimed step done accepts the claim, which also stops the task's

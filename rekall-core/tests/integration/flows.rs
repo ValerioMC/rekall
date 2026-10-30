@@ -5,7 +5,7 @@ mod support;
 
 use rekall_store::{task, task_step, TaskStepState};
 use rekall_core::flow::{FlowPlan, FlowRoute, PlannedRoute, PlannedStep, RouteTarget};
-use rekall_core::step::{FlowPlace, VisitBudget};
+use rekall_core::step::{FlowPlace, Staging, VisitBudget};
 use rekall_core::step::TaskStepView;
 use support::{world, World};
 
@@ -375,7 +375,7 @@ async fn a_proposed_flow_lands_as_drafts_joined_by_their_routes_and_runs_once_pr
     let project = world.project("vega", None, false).await;
     let task = world.task(&project, "release").await;
 
-    let proposed = world.services.flow_proposals.propose(Some("vega"), "release", &deploy_test_fix()).await.unwrap();
+    let proposed = world.services.flow_proposals.propose(Some("vega"), "release", &deploy_test_fix(), Staging::Draft).await.unwrap();
 
     assert_eq!((proposed.steps, proposed.routes), (3, 4));
     let drafts = world.services.steps.find_by_task(task.id).await.unwrap();
@@ -394,11 +394,28 @@ async fn a_proposed_flow_lands_as_drafts_joined_by_their_routes_and_runs_once_pr
 }
 
 #[tokio::test]
+async fn a_flow_laid_ready_is_open_from_the_first_step_and_followed_at_once() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let task = world.task(&project, "release").await;
+
+    world.services.flow_proposals.propose(Some("vega"), "release", &deploy_test_fix(), Staging::Ready).await.unwrap();
+
+    let steps = world.services.steps.find_by_task(task.id).await.unwrap();
+    assert!(steps.iter().all(|step| step.state == TaskStepState::Open));
+    world.services.flow.transition(Some("vega"), "release", Some("Deploy"), TaskStepState::Claimed, None, None).await.unwrap();
+    let failed =
+        world.services.flow.transition(Some("vega"), "release", Some("Test"), TaskStepState::Claimed, Some("app-error"), None).await.unwrap();
+    let Some(FlowRoute::Followed { next, .. }) = failed.route else { panic!("expected the app-error route") };
+    assert_eq!(next.title, "Fix");
+}
+
+#[tokio::test]
 async fn routes_between_drafts_do_not_make_the_checklist_a_flow_until_they_are_promoted() {
     let world = world().await;
     let project = world.project("vega", None, false).await;
     let task = world.task(&project, "release").await;
-    world.services.flow_proposals.propose(Some("vega"), "release", &deploy_test_fix()).await.unwrap();
+    world.services.flow_proposals.propose(Some("vega"), "release", &deploy_test_fix(), Staging::Draft).await.unwrap();
     world.step(&task, "Write the notes", 3, TaskStepState::Open).await;
 
     let refused =
@@ -414,7 +431,7 @@ async fn a_flow_is_not_proposed_onto_a_task_that_has_steps_and_nothing_is_writte
     let task = world.task(&project, "release").await;
     world.step(&task, "Build", 0, TaskStepState::Open).await;
 
-    let refused = world.services.flow_proposals.propose(Some("vega"), "release", &deploy_test_fix()).await;
+    let refused = world.services.flow_proposals.propose(Some("vega"), "release", &deploy_test_fix(), Staging::Draft).await;
 
     assert!(refused.unwrap_err().to_string().contains("onto a task with no steps"));
     assert_eq!(world.services.steps.find_by_task(task.id).await.unwrap().len(), 1);

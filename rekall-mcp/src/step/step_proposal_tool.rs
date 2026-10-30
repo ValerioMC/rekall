@@ -1,13 +1,13 @@
 use async_trait::async_trait;
-use rekall_core::step::TaskStepService;
+use rekall_core::step::{Staging, TaskStepService};
 use serde_json::Value;
 
 use crate::tool::{told, Anchor, AnchoredTask, Arguments, QUALIFY_WITH_PROJECT};
 use crate::protocol::{McpTool, ToolError, ToolSchema};
 use crate::texts;
 
-/// Lets a planning session put the checklist it proposes on the task, as drafts. It can only ever
-/// create a draft: nothing it writes is work until a person promotes it in the console.
+/// Lets a session add a step to a task's checklist: open and ready to work, or as a draft a person
+/// promotes in the console when the session is asked to propose rather than build.
 pub struct StepProposalTool {
     steps: TaskStepService,
 }
@@ -48,6 +48,10 @@ impl McpTool for StepProposalTool {
                 "new_session",
                 "True makes this step open a fresh Claude session; left out, it joins the session the step before it runs in.",
             )
+            .optional_boolean(
+                "draft",
+                "True leaves the step as a draft on the console's staging shelf for a person to promote; left out, it is ready to work.",
+            )
             .build()
     }
 
@@ -56,11 +60,15 @@ impl McpTool for StepProposalTool {
         let target = AnchoredTask::from(&Anchor::parse_all(Some(&args.required_string("anchors")?))?)?;
         let title = args.required_string("title")?;
         let detail = args.optional_string("detail");
+        let staging = if args.flag("draft") { Staging::Draft } else { Staging::Ready };
         let proposed = self
             .steps
-            .propose(target.project_label.as_deref(), &target.task_label, Some(&title), detail.as_deref(), args.flag("new_session"))
+            .propose(target.project_label.as_deref(), &target.task_label, Some(&title), detail.as_deref(), args.flag("new_session"), staging)
             .await
             .map_err(|e| told(e, QUALIFY_WITH_PROJECT))?;
+        if staging == Staging::Ready {
+            return Ok(texts::STEP_ADDED_REPORT.replacen("%s", &proposed.step.title, 1));
+        }
         let count = proposed.draft_count;
         Ok(texts::PROPOSED_REPORT
             .replacen("%s", &proposed.step.title, 1)

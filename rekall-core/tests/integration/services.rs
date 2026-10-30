@@ -11,6 +11,7 @@ use rekall_kernel::{Id, Instant};
 use rekall_store::TaskStepState;
 use rekall_core::commit::AutoCommitStatus;
 use rekall_core::component::ComponentReferences;
+use rekall_core::step::Staging;
 use rekall_core::timeentry::IDLE_AFTER;
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 use support::{commit, git, init_with_identity, world, world_at};
@@ -764,13 +765,30 @@ async fn a_proposed_step_joins_the_running_session_unless_it_asks_for_a_new_one(
     let project = world.project("vega", None, false).await;
     let task = world.task(&project, "report-builder").await;
 
-    let joining = world.services.steps.propose(Some("vega"), "report-builder", Some("Wire"), None, false).await.unwrap();
-    let opening = world.services.steps.propose(Some("vega"), "report-builder", Some("Docs"), None, true).await.unwrap();
+    let joining = world.services.steps.propose(Some("vega"), "report-builder", Some("Wire"), None, false, Staging::Draft).await.unwrap();
+    let opening = world.services.steps.propose(Some("vega"), "report-builder", Some("Docs"), None, true, Staging::Draft).await.unwrap();
 
     assert!(!joining.step.starts_session);
     assert!(opening.step.starts_session);
     let stored = world.services.steps.find_by_task(task.id).await.unwrap();
     assert_eq!(stored.iter().map(|step| step.starts_session).collect::<Vec<_>>(), [false, true]);
+}
+
+#[tokio::test]
+async fn a_step_added_ready_is_open_and_sits_ahead_of_the_drafts_left_on_the_shelf() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let task = world.task(&project, "report-builder").await;
+    world.services.steps.propose(Some("vega"), "report-builder", Some("Review me"), None, false, Staging::Draft).await.unwrap();
+
+    let added = world.services.steps.propose(Some("vega"), "report-builder", Some("Wire"), None, false, Staging::Ready).await.unwrap();
+
+    assert_eq!(added.draft_count, 1);
+    let stored = world.services.steps.find_by_task(task.id).await.unwrap();
+    assert_eq!(stored.iter().map(|step| (step.title.as_str(), step.state)).collect::<Vec<_>>(), [
+        ("Wire", TaskStepState::Open),
+        ("Review me", TaskStepState::Draft)
+    ]);
 }
 
 #[tokio::test]

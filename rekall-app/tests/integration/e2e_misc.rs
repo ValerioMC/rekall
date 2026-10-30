@@ -77,7 +77,7 @@ async fn a_session_can_propose_a_step_which_lands_as_a_draft_no_session_reads_an
     let answer = app
         .call_tool(
             "rekall_propose_step",
-            json!({ "anchors": "project:vega task:report-builder", "title": "Expose the report as a download", "detail": "Stream it; do not buffer." }),
+            json!({ "anchors": "project:vega task:report-builder", "title": "Expose the report as a download", "detail": "Stream it; do not buffer.", "draft": true }),
         )
         .await;
 
@@ -98,6 +98,25 @@ async fn a_session_can_propose_a_step_which_lands_as_a_draft_no_session_reads_an
     assert_contains!(
         app.call_tool("rekall_step", json!({ "anchors": "project:vega task:report-builder", "step": "1", "state": "running" })).await,
         "still a draft"
+    );
+}
+
+#[tokio::test]
+async fn a_session_adds_a_step_that_is_ready_to_work_unless_it_asks_for_a_draft() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
+    let task_id = app.a_task(&project_id, "report-builder").await;
+
+    let answer = app
+        .call_tool("rekall_propose_step", json!({ "anchors": "project:vega task:report-builder", "title": "Add the button", "new_session": true }))
+        .await;
+
+    assert_contains!(answer, "Step \"Add the button\" added to the checklist, ready to work.");
+    assert_eq!(app.get(&format!("/api/tasks/{task_id}/steps")).await.list()[0]["state"], "OPEN");
+    assert_contains!(
+        app.call_tool("rekall_step", json!({ "anchors": "project:vega task:report-builder", "step": "1", "state": "running" })).await,
+        "Add the button"
     );
 }
 

@@ -168,7 +168,7 @@ async fn a_session_proposes_a_flow_that_waits_as_routed_drafts_until_the_console
         { "title": "Fix the application", "routes": [{ "outcome": "fixed", "to": 1 }] }
     ]);
 
-    let answer = app.call_tool("rekall_propose_flow", json!({ "anchors": TASK, "steps": steps })).await;
+    let answer = app.call_tool("rekall_propose_flow", json!({ "anchors": TASK, "steps": steps, "draft": true })).await;
 
     assert_contains!(answer, "3 drafts joined by 4 routes");
     let drafts = app.get(&format!("/api/tasks/{task_id}/steps")).await.list();
@@ -190,6 +190,25 @@ async fn a_session_proposes_a_flow_that_waits_as_routed_drafts_until_the_console
         "flow=\"true\"",
         "`app-error` -> step 3 \"Fix the application\""
     );
+}
+
+#[tokio::test]
+async fn a_session_lays_a_flow_on_a_task_that_is_ready_to_run_unless_it_asks_for_drafts() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
+    let task_id = app.a_task(&project_id, "release").await;
+    let steps = json!([
+        { "title": "Deploy", "routes": [{ "outcome": "deployed", "to": 2 }] },
+        { "title": "Test in the cluster", "routes": [{ "outcome": "passed", "to": "end" }, { "outcome": "App error", "to": 1 }] }
+    ]);
+
+    let answer = app.call_tool("rekall_propose_flow", json!({ "anchors": TASK, "steps": steps })).await;
+
+    assert_contains!(answer, "Flow laid: 2 steps joined by 3 routes, ready to work");
+    let laid = app.get(&format!("/api/tasks/{task_id}/steps")).await.list();
+    assert!(laid.iter().all(|step| step["state"] == json!("OPEN")));
+    assert_contains!(app.call_tool("rekall_context", json!({ "anchors": TASK })).await, "flow=\"true\"", "`app-error` -> step 1 \"Deploy\"");
 }
 
 #[tokio::test]

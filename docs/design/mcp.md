@@ -35,20 +35,25 @@ task or one of its steps. On a project set to auto-commit, `rekall_step` with `c
 and without one `CommitMessageGenerator` draws the message from the step's detail or the wrapup.
 No commit message lists files.
 
-`rekall_propose_step` adds one step as a draft, which is what `/rk … plan` calls once per step.
-A draft is not work: it stays off the checklist a session reads until a person promotes it, a
-title the task already has is refused so a second plan does not double the shelf, and a task
-holds at most twenty drafts.
+`rekall_propose_step` adds one step to the tail of the checklist, open and ready to work. With
+`draft: true` (what `/rk … plan` passes, once per step) it stays a draft instead: not work, off the
+checklist a session reads until a person promotes it. A `Staging` value carries the choice into
+`TaskStepService::propose`, which promotes the new step and keeps the drafts behind it. A title the
+task already has is refused so a second plan does not double the shelf, and a task holds at most twenty
+drafts (open steps have no such cap).
 
-`rekall_propose_flow` is the same gate for a task whose work branches or loops: `/rk … plan` calls it
-once, with every step and its routes, when a step's outcome decides what comes next. The plan is
-checked whole and written in one transaction, so a refused plan leaves nothing on the shelf (4.3 in [workflow.md](workflow.md)).
+`rekall_propose_flow` is the same choice for a task whose work branches or loops: `/rk … plan` calls it
+once, with `draft: true`, every step and its routes, when a step's outcome decides what comes next. The
+plan is checked whole and written in one transaction, so a refused plan leaves nothing on the shelf (4.3
+in [workflow.md](workflow.md)); `FlowProposalService::propose` lays it as drafts and, for `Staging::Ready`,
+releases them in the same transaction. The tool text asks the model to choose checklist or flow first and,
+for a flow, to work out each step's arcs: what can end it and where each outcome goes.
 
 `rekall_create_task` creates a task in the project its anchor names, with an optional description and
 up to twenty steps, in one transaction. `TaskAuthoringService` in rekall-core is its only path: the
 console's `TaskService` in rekall-console stays the one that edits, reviews and deletes. The task starts
 `TODO` and its steps start open: a task asked for in one call is meant to be run, so there is no promotion
-gate here, unlike `rekall_propose_step` and `rekall_propose_flow`. A step carries what a flow step does
+gate here, as with `rekall_propose_step` and `rekall_propose_flow` unless they are called with `draft: true`. A step carries what a flow step does
 (`routes`, `max_visits`, `new_session`); the service lays the plan as drafts through
 `FlowProposalService::lay_in` and releases them with `TaskStepService::release_drafts_in` in the same
 transaction, so a task with any route is checked as a flow (`FlowPlan::check`) and one without as a
