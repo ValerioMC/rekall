@@ -20,6 +20,8 @@ use support::{eventually, world, World};
 
 const FAKE_CLAUDE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/fake_claude.sh");
 const PLAIN_REPLY: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/chat/plain_reply.jsonl");
+const WAITING_FOR_PERMISSION: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/chat/permission_waiting.jsonl");
+const PERMISSION_THEN_END_OF_TURN: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/chat/permission_request_allow.jsonl");
 
 struct FakeClaudeEnvironment(HashMap<String, String>);
 
@@ -76,6 +78,23 @@ impl Follower {
 
     fn turn_finished(&self) -> bool {
         self.events().iter().any(|event| matches!(event.body, ChatBody::TurnFinished { .. }))
+    }
+
+    fn requested_permission(&self) -> Option<String> {
+        self.events().into_iter().find_map(|event| match event.body {
+            ChatBody::PermissionRequested { request_id, .. } => Some(request_id),
+            _ => None,
+        })
+    }
+
+    fn resolutions(&self) -> Vec<(String, bool)> {
+        self.events()
+            .into_iter()
+            .filter_map(|event| match event.body {
+                ChatBody::PermissionResolved { request_id, allowed } => Some((request_id, allowed)),
+                _ => None,
+            })
+            .collect()
     }
 }
 
@@ -268,4 +287,87 @@ async fn a_session_past_the_cap_is_refused_and_a_folder_that_is_gone_is_a_confli
     assert!(matches!(capped, RekallError::Conflict(ref said) if said.contains("1 chat sessions")), "{capped:?}");
     assert!(matches!(missing, RekallError::Conflict(ref said) if said.contains("is not there")), "{missing:?}");
     assert_eq!(chats.manager.live_count(), 1);
+}
+
+async fn open_waiting_on_permission(world: &World, fixture: &str) -> (Chats, Id, Follower, String) {
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let task = world.task(&project, "one").await;
+    let chats = chats(world, 8, 120, &[("FAKE_CLAUDE_FIXTURE", fixture)]);
+    let view = chats.manager.open(work_on(&task, None)).await.unwrap();
+    let follower = follow(&chats, view.id);
+    eventually("the permission request", || async { follower.requested_permission().is_some() }).await;
+    let request_id = follower.requested_permission().unwrap();
+    (chats, view.id, follower, request_id)
+}
+
+fn answers_received(chats: &Chats) -> Vec<serde_json::Value> {
+    chats
+        .received_lines()
+        .iter()
+        .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+        .filter(|line| line["type"] == "control_response")
+        .collect()
+}
+
+#[tokio::test]
+async fn allowing_a_waiting_request_reaches_the_process_and_is_shown_as_resolved() {
+    let world = world().await;
+    let (chats, id, follower, request_id) = open_waiting_on_permission(&world, WAITING_FOR_PERMISSION).await;
+
+    chats.manager.answer_permission(id, &request_id, true).unwrap();
+
+    eventually("the answer to reach claude", || async { answers_received(&chats).len() == 1 }).await;
+    let answer = &answers_received(&chats)[0];
+    assert_eq!((answer["response"]["request_id"].as_str(), answer["response"]["response"]["behavior"].as_str()), (Some(request_id.as_str()), Some("allow")));
+    assert_eq!(follower.resolutions(), vec![(request_id.clone(), true)]);
+    let again = chats.manager.answer_permission(id, &request_id, true).unwrap_err();
+    assert!(matches!(again, RekallError::NotFound(_)), "{again:?}");
+}
+
+#[tokio::test]
+async fn denying_a_waiting_request_tells_the_process_to_refuse_the_call() {
+    let world = world().await;
+    let (chats, id, follower, request_id) = open_waiting_on_permission(&world, WAITING_FOR_PERMISSION).await;
+
+    chats.manager.answer_permission(id, &request_id, false).unwrap();
+
+    eventually("the answer to reach claude", || async { answers_received(&chats).len() == 1 }).await;
+    assert_eq!(answers_received(&chats)[0]["response"]["response"]["behavior"], "deny");
+    assert_eq!(follower.resolutions(), vec![(request_id, false)]);
+}
+
+#[tokio::test]
+async fn a_request_nobody_asked_is_not_found() {
+    let world = world().await;
+    let (chats, id, _follower, _request_id) = open_waiting_on_permission(&world, WAITING_FOR_PERMISSION).await;
+
+    let refused = chats.manager.answer_permission(id, "no-such-request", true).unwrap_err();
+
+    assert!(matches!(refused, RekallError::NotFound(_)), "{refused:?}");
+    assert!(answers_received(&chats).is_empty());
+}
+
+#[tokio::test]
+async fn closing_a_session_denies_the_requests_still_waiting() {
+    let world = world().await;
+    let (chats, id, follower, request_id) = open_waiting_on_permission(&world, WAITING_FOR_PERMISSION).await;
+
+    chats.manager.close(id, "Closed from the console.").await.unwrap();
+
+    assert_eq!(follower.resolutions(), vec![(request_id, false)]);
+    let kinds: Vec<bool> = follower.events().iter().map(|event| matches!(event.body, ChatBody::Ended { .. })).collect();
+    assert_eq!(kinds.last(), Some(&true), "the end comes after the denial");
+    assert!(matches!(chats.manager.answer_permission(id, "late", true), Err(RekallError::Conflict(_))));
+}
+
+#[tokio::test]
+async fn a_turn_that_ends_leaves_no_request_waiting() {
+    let world = world().await;
+    let (chats, id, follower, request_id) = open_waiting_on_permission(&world, PERMISSION_THEN_END_OF_TURN).await;
+    eventually("the turn to finish", || async { follower.turn_finished() }).await;
+
+    let late = chats.manager.answer_permission(id, &request_id, true).unwrap_err();
+
+    assert!(matches!(late, RekallError::NotFound(_)), "{late:?}");
+    assert_eq!(follower.resolutions(), vec![(request_id, false)]);
 }

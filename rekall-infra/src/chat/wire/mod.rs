@@ -10,7 +10,7 @@ mod wire_system;
 pub(super) use wire_block::WireBlock;
 pub(super) use wire_blocks::WireBlocks;
 pub(super) use wire_control_request::WireControlRequest;
-pub(super) use wire_input::{interrupt_line, user_message_line};
+pub(super) use wire_input::{interrupt_line, permission_answer_line, user_message_line};
 pub(super) use wire_line::{WireLine, WireMessage};
 pub(super) use wire_result::WireResult;
 pub(super) use wire_stream_event::{WireBlockStart, WireDelta, WireStreamEvent};

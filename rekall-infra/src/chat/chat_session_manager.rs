@@ -340,8 +340,7 @@ impl ChatPipe for ChatSessionManager {
         Ok(())
     }
 
-    fn answer_permission(&self, id: Id, request_id: &str, _allow: bool) -> Result<()> {
-        self.require(id)?;
-        Err(RekallError::not_found("permission request", request_id))
+    fn answer_permission(&self, id: Id, request_id: &str, allow: bool) -> Result<()> {
+        self.require(id)?.answer_permission(request_id, allow)
     }
 }

@@ -6,6 +6,7 @@ use serde::Serialize;
 enum WireInput<'a> {
     User { message: WireUserText<'a> },
     ControlRequest { request_id: &'a str, request: WireInterrupt },
+    ControlResponse { response: WireAnswer<'a> },
 }
 
 #[derive(Serialize)]
@@ -20,6 +21,22 @@ enum WireInterrupt {
     Interrupt,
 }
 
+#[derive(Serialize)]
+struct WireAnswer<'a> {
+    subtype: &'static str,
+    request_id: &'a str,
+    response: WireDecision,
+}
+
+#[derive(Serialize)]
+#[serde(tag = "behavior", rename_all = "snake_case")]
+enum WireDecision {
+    Allow,
+    Deny { message: &'static str },
+}
+
+const DENIED_MESSAGE: &str = "The user denied this tool call.";
+
 /// A user message, which `claude` queues if a turn is running.
 pub(in crate::chat) fn user_message_line(text: &str) -> String {
     line(&WireInput::User { message: WireUserText { role: "user", content: text } })
@@ -29,6 +46,12 @@ pub(in crate::chat) fn user_message_line(text: &str) -> String {
 /// process itself.
 pub(in crate::chat) fn interrupt_line(request_id: &str) -> String {
     line(&WireInput::ControlRequest { request_id, request: WireInterrupt::Interrupt })
+}
+
+/// The answer to a `can_use_tool` request: the call runs as asked, or the model is told it was refused.
+pub(in crate::chat) fn permission_answer_line(request_id: &str, allow: bool) -> String {
+    let response = if allow { WireDecision::Allow } else { WireDecision::Deny { message: DENIED_MESSAGE } };
+    line(&WireInput::ControlResponse { response: WireAnswer { subtype: "success", request_id, response } })
 }
 
 fn line(input: &WireInput) -> String {

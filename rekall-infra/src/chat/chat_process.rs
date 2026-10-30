@@ -14,7 +14,7 @@ use tokio::task::JoinHandle;
 use tracing::{debug, warn};
 
 use super::stream_parser::StreamParser;
-use super::wire::{interrupt_line, user_message_line};
+use super::wire::{interrupt_line, permission_answer_line, user_message_line};
 
 const EVENT_BUFFER: usize = 256;
 /// How long the last events may take to be read once the process is gone. A grandchild holding
@@ -71,6 +71,11 @@ impl ChatProcess {
     pub fn interrupt(&self) -> Result<()> {
         let request_id = format!("interrupt-{}", self.interrupts.fetch_add(1, Ordering::SeqCst) + 1);
         self.write_line(interrupt_line(&request_id))
+    }
+
+    /// Answers the permission request `request_id`, which the process is waiting on.
+    pub fn answer_permission(&self, request_id: &str, allow: bool) -> Result<()> {
+        self.write_line(permission_answer_line(request_id, allow))
     }
 
     /// Asks the process to end, with SIGTERM where there is one.

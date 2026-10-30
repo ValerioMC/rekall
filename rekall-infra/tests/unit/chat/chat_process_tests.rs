@@ -104,6 +104,18 @@ async fn an_interrupt_is_written_as_the_control_request() {
 }
 
 #[tokio::test]
+async fn a_permission_answer_is_written_as_the_control_response_for_its_request() {
+    let fake = start("hello", &[]);
+
+    fake.process.answer_permission("req-9", false).expect("the process accepts an answer");
+
+    let lines = received_lines(&fake.received, 2).await;
+    assert_eq!(lines[1]["type"], "control_response");
+    assert_eq!(lines[1]["response"]["request_id"], "req-9");
+    assert_eq!(lines[1]["response"]["response"]["behavior"], "deny");
+}
+
+#[tokio::test]
 async fn terminate_ends_a_process_that_is_waiting_for_input() {
     let fake = start("hello", &[]);
     received_lines(&fake.received, 1).await;

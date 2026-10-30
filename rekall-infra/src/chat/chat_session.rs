@@ -1,9 +1,10 @@
+use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use rekall_core::chat::{ChatBody, ChatEvent, ChatListener};
 use rekall_core::claude::{SessionKind, TerminalConnectionView, TerminalLaunch, TerminalView};
-use rekall_kernel::{Id, Instant, Result};
+use rekall_kernel::{Id, Instant, RekallError, Result};
 
 use super::chat_process::ChatProcess;
 use super::event_journal::EventJournal;
@@ -23,6 +24,8 @@ pub(super) struct ChatSession {
     pub(super) last_activity_at: Mutex<Instant>,
     pub(super) closing: AtomicBool,
     pub(super) process: ChatProcess,
+    /// Prompts `claude` is waiting on: each is answered once, and none outlives its turn.
+    pending_permissions: Mutex<HashSet<String>>,
     journal: Mutex<EventJournal>,
 }
 
@@ -49,6 +52,7 @@ impl ChatSession {
             last_activity_at: Mutex::new(now),
             closing: AtomicBool::new(false),
             process,
+            pending_permissions: Mutex::new(HashSet::new()),
             journal: Mutex::new(EventJournal::new(backlog_bytes)),
         }
     }
@@ -88,8 +92,26 @@ impl ChatSession {
     }
 
     pub(super) fn publish(&self, body: ChatBody) -> ChatEvent {
+        match &body {
+            ChatBody::PermissionRequested { request_id, .. } => {
+                self.pending().insert(request_id.clone());
+            }
+            ChatBody::TurnFinished { .. } => self.deny_pending_permissions(),
+            _ => {}
+        }
         self.touch();
         self.journal().publish(body)
+    }
+
+    /// Passes the person's answer to the prompt `request_id`. A prompt that is not waiting, because
+    /// it was answered or its turn ended, is not found.
+    pub(super) fn answer_permission(&self, request_id: &str, allow: bool) -> Result<()> {
+        if !self.pending().remove(request_id) {
+            return Err(RekallError::not_found("permission request", request_id));
+        }
+        self.process.answer_permission(request_id, allow)?;
+        self.publish(ChatBody::PermissionResolved { request_id: request_id.to_string(), allowed: allow });
+        Ok(())
     }
 
     /// Writes a user message to the process and shows it in the stream.
@@ -109,11 +131,24 @@ impl ChatSession {
 
     /// Tells every client how the session ended and lets go of them.
     pub(super) fn end(&self, exit_code: i32, detail: &str) {
+        self.deny_pending_permissions();
         self.publish(ChatBody::Ended { exit_code, detail: detail.to_string() });
         let listeners = self.journal().take_listeners();
         for listener in listeners {
             listener.ended(exit_code, detail);
         }
+    }
+
+    fn deny_pending_permissions(&self) {
+        let waiting: Vec<String> = self.pending().drain().collect();
+        for request_id in waiting {
+            self.touch();
+            self.journal().publish(ChatBody::PermissionResolved { request_id, allowed: false });
+        }
+    }
+
+    fn pending(&self) -> MutexGuard<'_, HashSet<String>> {
+        self.pending_permissions.lock().expect("never poisoned")
     }
 
     fn journal(&self) -> MutexGuard<'_, EventJournal> {
