@@ -1,0 +1,7 @@
+{"type":"system","subtype":"init","session_id":"25079f66-ecd8-4d93-914a-32803573c7eb","model":"claude-haiku-5-5","permissionMode":"default","claude_code_version":"2.1.314","uuid":"6bc942fe-697f-4cae-9526-40ef2d3010bb","cwd":"/work/project"}
+{"type":"system","subtype":"status","status":"requesting","session_id":"25079f66-ecd8-4d93-914a-32803573c7eb","uuid":"94f834dd-4e08-40a0-b74b-9dacb67a20b8"}
+{"type":"system","subtype":"api_retry","attempt":1,"max_retries":10,"retry_delay_ms":582,"error_status":null,"error":"unknown","session_id":"25079f66-ecd8-4d93-914a-32803573c7eb","uuid":"065d0438-3c02-497b-90d9-d7f70363e811"}
+{"type":"system","subtype":"api_retry","attempt":2,"max_retries":10,"retry_delay_ms":1100,"error_status":null,"error":"unknown","session_id":"25079f66-ecd8-4d93-914a-32803573c7eb","uuid":"2ebe27dd-f2a3-4e2b-9ba7-96ed78b7eb1b"}
+{"type":"system","subtype":"api_retry","attempt":3,"max_retries":10,"retry_delay_ms":2161,"error_status":null,"error":"unknown","session_id":"25079f66-ecd8-4d93-914a-32803573c7eb","uuid":"c2182df3-b131-4af5-9324-8e652b300b68"}
+{"type":"system","subtype":"api_retry","attempt":4,"max_retries":10,"retry_delay_ms":4623,"error_status":null,"error":"unknown","session_id":"25079f66-ecd8-4d93-914a-32803573c7eb","uuid":"6f92b7f3-b114-43e8-b127-26e600d7811f"}
+{"type":"system","subtype":"api_retry","attempt":5,"max_retries":10,"retry_delay_ms":9744,"error_status":null,"error":"unknown","session_id":"25079f66-ecd8-4d93-914a-32803573c7eb","uuid":"414b4120-f327-4b08-b81d-ae5e66ab63ca"}
