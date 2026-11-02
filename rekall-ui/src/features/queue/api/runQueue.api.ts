@@ -20,6 +20,10 @@ export function enqueueTask(taskId: TaskId): Promise<RunQueue> {
   return queueCall('/items', { method: 'POST', body: { taskId } })
 }
 
+export function runTaskInQueue(taskId: TaskId): Promise<RunQueue> {
+  return queueCall('/runs', { method: 'POST', body: { taskId } })
+}
+
 export function dequeueItem(itemId: RunQueueItemId): Promise<RunQueue> {
   return queueCall(`/items/${itemId}`, { method: 'DELETE' })
 }

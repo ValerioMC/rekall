@@ -6,6 +6,7 @@ import {
   enqueueTask,
   fetchRunQueue,
   moveQueueItem,
+  runTaskInQueue,
   saveRunQueueSettings,
   startRunQueue,
   stopRunQueue
@@ -50,6 +51,10 @@ export const useRunQueueStore = defineStore('runQueue', () => {
     apply(await enqueueTask(taskId))
   }
 
+  async function runInQueue(taskId: TaskId): Promise<void> {
+    apply(await runTaskInQueue(taskId))
+  }
+
   async function remove(itemId: RunQueueItemId): Promise<void> {
     apply(await dequeueItem(itemId))
   }
@@ -87,6 +92,7 @@ export const useRunQueueStore = defineStore('runQueue', () => {
     load,
     saveSettings,
     add,
+    runInQueue,
     remove,
     move,
     clearSettled,
