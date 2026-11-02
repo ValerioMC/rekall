@@ -9,6 +9,9 @@ import { useToastStore } from '@/stores/toast.store'
 import { sessionAtWork } from '@/model/session-at-work'
 import { NOTHING_TO_RUN_MESSAGE, nothingToRun } from '@/model/nothing-to-run'
 import StepSeal from '@/features/steps/components/StepSeal.vue'
+import RunMenuArrow from '@/features/claude/components/RunMenuArrow.vue'
+import { useRunQueueStore } from '@/features/queue/store/runQueue.store'
+import { queuePlacement } from '@/features/queue/model/runQueue'
 import { useReleaseOnRun } from '@/features/graph/composables/useReleaseOnRun'
 import type { TaskId, TaskStepId } from '@/model/branded'
 
@@ -41,6 +44,7 @@ const HANDOFF_MS = 8000
 const console_ = useConsoleStore()
 const terminals = useTerminalStore()
 const toast = useToastStore()
+const runQueue = useRunQueueStore()
 const { run } = useAsyncAction()
 const { releaseBeforeRun } = useReleaseOnRun()
 const { tasks, steps } = storeToRefs(console_)
@@ -126,6 +130,23 @@ async function launch(): Promise<void> {
   }
 }
 
+async function runInQueue(): Promise<void> {
+  if (busy.value) return
+  if (!ready.value) {
+    toast.notifyError(new Error(props.missingHint))
+    return
+  }
+  await releaseBeforeRun(props.taskId)
+  const task = tasks.value.find((candidate) => candidate.id === props.taskId) ?? null
+  if (nothingToRun(task, steps.value, props.stepId)) {
+    toast.notifyError(new Error(NOTHING_TO_RUN_MESSAGE))
+    return
+  }
+  const queued = await run(() => runQueue.runInQueue(props.taskId))
+  if (queued === null) return
+  toast.notify(queuePlacement(runQueue.queue, props.taskId))
+}
+
 onBeforeUnmount(() => {
   pendingTimers.forEach((timer) => window.clearTimeout(timer))
   pendingTimers.clear()
@@ -133,82 +154,93 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <button
-    type="button"
-    class="focus-ring relative inline-flex h-7 shrink-0 items-center gap-1.5 overflow-hidden rounded-key px-2.5 text-small font-medium"
-    :class="[
-      ready
-        ? pressed
-          ? 'key-lit'
-          : 'key-gold font-semibold'
-        : 'bg-transparent text-text-subtle transition-colors hover:bg-surface-raised hover:text-text-muted',
-      busy && 'cursor-default'
-    ]"
-    :aria-busy="busy"
-    :aria-disabled="busy"
-    :title="phase === 'working' ? 'Claude is working on this. It returns once the work is claimed or the session ends.' : undefined"
-    :data-phase="phase"
-    data-testid="open-terminal"
-    @click="launch"
-  >
-    <span class="grid size-3.5 [&>*]:[grid-area:1/1]">
-      <svg
-        class="size-3.5"
-        :class="{
-          'run-play-return': phase === 'idle' && returning,
-          'run-play-away': phase !== 'idle' && phase !== 'working',
-          invisible: phase === 'working'
-        }"
-        viewBox="0 0 12 12"
+  <div class="inline-flex shrink-0 items-stretch gap-px">
+    <button
+      type="button"
+      class="focus-ring relative inline-flex h-7 shrink-0 items-center gap-1.5 overflow-hidden rounded-key rounded-r-none px-2.5 text-small font-medium"
+      :class="[
+        ready
+          ? pressed
+            ? 'key-lit'
+            : 'key-gold font-semibold'
+          : 'bg-transparent text-text-subtle transition-colors hover:bg-surface-raised hover:text-text-muted',
+        busy && 'cursor-default'
+      ]"
+      :aria-busy="busy"
+      :aria-disabled="busy"
+      :title="
+        phase === 'working'
+          ? 'Claude is working on this. It returns once the work is claimed or the session ends.'
+          : undefined
+      "
+      :data-phase="phase"
+      data-testid="open-terminal"
+      @click="launch"
+    >
+      <span class="grid size-3.5 [&>*]:[grid-area:1/1]">
+        <svg
+          class="size-3.5"
+          :class="{
+            'run-play-return': phase === 'idle' && returning,
+            'run-play-away': phase !== 'idle' && phase !== 'working',
+            invisible: phase === 'working'
+          }"
+          viewBox="0 0 12 12"
+          aria-hidden="true"
+        >
+          <path
+            d="M3.4 1.9c0-.6.66-.97 1.17-.65l5.9 3.75c.47.3.47.99 0 1.29l-5.9 3.76c-.51.32-1.17-.05-1.17-.65Z"
+            fill="currentColor"
+          />
+        </svg>
+        <span
+          v-if="phase === 'working'"
+          class="run-working block size-4 place-self-center"
+          aria-hidden="true"
+        >
+          <StepSeal state="RUNNING" />
+        </span>
+      </span>
+      <span class="grid [&>*]:[grid-area:1/1]">
+        <span
+          :class="{
+            'run-label-return': phase === 'idle' && returning,
+            'run-label-away': phase !== 'idle' && phase !== 'working',
+            invisible: phase === 'working'
+          }"
+          >Run here</span
+        >
+        <span :class="phase === 'working' ? 'run-label-in' : 'invisible'" aria-hidden="true">Working</span>
+      </span>
+
+      <span
+        v-if="phase === 'waiting' || phase === 'done'"
+        class="absolute inset-0 grid place-items-center"
         aria-hidden="true"
       >
-        <path
-          d="M3.4 1.9c0-.6.66-.97 1.17-.65l5.9 3.75c.47.3.47.99 0 1.29l-5.9 3.76c-.51.32-1.17-.05-1.17-.65Z"
-          fill="currentColor"
-        />
-      </svg>
-      <span v-if="phase === 'working'" class="run-working block size-4 place-self-center" aria-hidden="true">
-        <StepSeal state="RUNNING" />
+        <span v-if="phase === 'done'" class="run-seal block size-[18px]">
+          <StepSeal state="DONE" arriving />
+        </span>
+        <svg v-else class="size-4" viewBox="0 0 16 16" fill="none">
+          <circle
+            class="run-ring run-ring-open"
+            cx="8"
+            cy="8"
+            r="6.4"
+            pathLength="100"
+            stroke="currentColor"
+            stroke-width="1.4"
+            stroke-linecap="round"
+          />
+        </svg>
       </span>
-    </span>
-    <span class="grid [&>*]:[grid-area:1/1]">
-      <span
-        :class="{
-          'run-label-return': phase === 'idle' && returning,
-          'run-label-away': phase !== 'idle' && phase !== 'working',
-          invisible: phase === 'working'
-        }"
-        >Run here</span
-      >
-      <span :class="phase === 'working' ? 'run-label-in' : 'invisible'" aria-hidden="true">Working</span>
-    </span>
 
-    <span
-      v-if="phase === 'waiting' || phase === 'done'"
-      class="absolute inset-0 grid place-items-center"
-      aria-hidden="true"
-    >
-      <span v-if="phase === 'done'" class="run-seal block size-[18px]">
-        <StepSeal state="DONE" arriving />
-      </span>
-      <svg v-else class="size-4" viewBox="0 0 16 16" fill="none">
-        <circle
-          class="run-ring run-ring-open"
-          cx="8"
-          cy="8"
-          r="6.4"
-          pathLength="100"
-          stroke="currentColor"
-          stroke-width="1.4"
-          stroke-linecap="round"
-        />
-      </svg>
-    </span>
-
-    <span class="sr-only" aria-live="polite">{{
-      phase === 'done' ? 'Session started' : phase === 'working' ? 'Claude is working' : ''
-    }}</span>
-  </button>
+      <span class="sr-only" aria-live="polite">{{
+        phase === 'done' ? 'Session started' : phase === 'working' ? 'Claude is working' : ''
+      }}</span>
+    </button>
+    <RunMenuArrow :ready="ready" :pressed="pressed" :busy="busy" @run-in-queue="runInQueue" />
+  </div>
 </template>
 
 <style scoped>

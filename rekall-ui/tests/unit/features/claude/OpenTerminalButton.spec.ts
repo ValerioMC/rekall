@@ -6,6 +6,7 @@ import { useConsoleStore } from '@/stores/console.store'
 import { useToastStore } from '@/stores/toast.store'
 import type { Task, TaskStep } from '@/features/catalog/model/catalog'
 import type { Terminal } from '@/features/claude/model/terminal'
+import { EMPTY_RUN_QUEUE, asRunQueueItemId, type RunQueue, type RunQueueItem } from '@/features/queue/model/runQueue'
 import type { ProjectId, TaskId, TaskStepId, TerminalId } from '@/model/branded'
 
 const openTerminal = vi.fn()
@@ -16,6 +17,12 @@ vi.mock('@/features/claude/api/terminal.api', () => ({
   openTerminal: (...args: unknown[]) => openTerminal(...args),
   closeTerminal: vi.fn(),
   sendTerminalInput: vi.fn()
+}))
+
+const runTaskInQueue = vi.fn()
+
+vi.mock('@/features/queue/api/runQueue.api', () => ({
+  runTaskInQueue: (...args: unknown[]) => runTaskInQueue(...args)
 }))
 
 const TASK = 't-1' as TaskId
@@ -54,6 +61,32 @@ function terminal(): Terminal {
   }
 }
 
+function queueItem(taskId: TaskId, position: number, state: RunQueueItem['state']): RunQueueItem {
+  return {
+    id: asRunQueueItemId(`item-${position}`),
+    taskId,
+    taskTitle: 'Task',
+    taskLabel: 'task',
+    projectLabel: 'vega',
+    anchor: 'project:vega task:task',
+    position,
+    state,
+    detail: null,
+    startedAt: null,
+    finishedAt: null
+  }
+}
+
+function queueWith(items: RunQueueItem[]): RunQueue {
+  return { ...EMPTY_RUN_QUEUE, state: 'RUNNING', items, updatedAt: '2026-09-23T10:00:05Z' }
+}
+
+async function chooseRunInQueue(wrapper: ReturnType<typeof mountButton>): Promise<void> {
+  await wrapper.get('[data-testid="run-menu-arrow"]').trigger('click')
+  document.body.querySelector<HTMLElement>('[data-testid="run-in-queue"]')?.click()
+  await flushPromises()
+}
+
 function mountButton(folder: string | null = '/code/vega', stepId: TaskStepId | null = null) {
   useConsoleStore().releaseOnRun = releaseOnRun
   return mount(OpenTerminalButton, { props: { taskId: TASK, folder, stepId } })
@@ -64,6 +97,7 @@ describe('the Run here button', () => {
     setActivePinia(createPinia())
     openTerminal.mockReset()
     releaseOnRun.mockReset().mockResolvedValue(null)
+    runTaskInQueue.mockReset()
     vi.useFakeTimers()
   })
 
@@ -230,5 +264,91 @@ describe('the Run here button', () => {
 
     expect(openTerminal).not.toHaveBeenCalled()
     expect(button.attributes('data-phase')).toBe('idle')
+  })
+
+  it('opens a menu from the arrow with Run in queue and its hint', async () => {
+    const wrapper = mountButton()
+
+    await wrapper.get('[data-testid="run-menu-arrow"]').trigger('click')
+
+    const menu = document.body.querySelector('[data-testid="run-menu"]')
+    expect(menu?.textContent).toContain('Run in queue')
+    expect(menu?.textContent).toContain('Runs the whole task after the ones already queued')
+    expect(wrapper.get('[data-testid="run-menu-arrow"]').attributes('aria-haspopup')).toBe('menu')
+    wrapper.unmount()
+  })
+
+  it('queues the task without opening a terminal and says it runs now', async () => {
+    runTaskInQueue.mockResolvedValue(queueWith([queueItem(TASK, 0, 'RUNNING')]))
+    const toast = useToastStore()
+    const wrapper = mountButton()
+
+    await chooseRunInQueue(wrapper)
+
+    expect(runTaskInQueue).toHaveBeenCalledWith(TASK)
+    expect(openTerminal).not.toHaveBeenCalled()
+    expect(toast.toasts[0]?.message).toBe('Running now in the queue')
+    wrapper.unmount()
+  })
+
+  it('says how many places wait ahead of a task that has to wait its turn', async () => {
+    const other = 't-2' as TaskId
+    runTaskInQueue.mockResolvedValue(
+      queueWith([queueItem(other, 0, 'RUNNING'), queueItem(other, 1, 'QUEUED'), queueItem(TASK, 2, 'QUEUED')])
+    )
+    const toast = useToastStore()
+    const wrapper = mountButton()
+
+    await chooseRunInQueue(wrapper)
+
+    expect(toast.toasts[0]?.message).toBe('Queued, 2 ahead')
+    wrapper.unmount()
+  })
+
+  it('shows the refusal as a toast when the task is already queued', async () => {
+    runTaskInQueue.mockRejectedValue(new Error('Already in the queue'))
+    const toast = useToastStore()
+    const wrapper = mountButton()
+
+    await chooseRunInQueue(wrapper)
+
+    expect(toast.toasts[0]?.message).toContain('Already in the queue')
+    wrapper.unmount()
+  })
+
+  it('asks for the project folder and does not queue when there is none', async () => {
+    const toast = useToastStore()
+    const wrapper = mountButton(null)
+
+    await chooseRunInQueue(wrapper)
+
+    expect(runTaskInQueue).not.toHaveBeenCalled()
+    expect(toast.toasts[0]?.message).toContain('folder')
+    wrapper.unmount()
+  })
+
+  it('says nothing will run and does not queue when only drafts are left', async () => {
+    const console_ = useConsoleStore()
+    console_.tasks = [checklistTask()]
+    console_.steps = [step('CLAIMED'), { ...step('DRAFT'), id: 's-2' as TaskStepId }]
+    const toast = useToastStore()
+    const wrapper = mountButton()
+
+    await chooseRunInQueue(wrapper)
+
+    expect(runTaskInQueue).not.toHaveBeenCalled()
+    expect(toast.toasts[0]?.message).toContain('Nothing to run')
+    wrapper.unmount()
+  })
+
+  it('does nothing from the arrow while the key is busy', async () => {
+    openTerminal.mockReturnValue(new Promise<Terminal>(() => undefined))
+    const wrapper = mountButton()
+    await wrapper.get('[data-testid="open-terminal"]').trigger('click')
+
+    await wrapper.get('[data-testid="run-menu-arrow"]').trigger('click')
+
+    expect(document.body.querySelector('[data-testid="run-menu"]')).toBeNull()
+    wrapper.unmount()
   })
 })

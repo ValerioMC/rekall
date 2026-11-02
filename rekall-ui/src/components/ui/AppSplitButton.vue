@@ -1,5 +1,6 @@
 <script setup lang="ts" generic="Id extends string">
-import { nextTick, onUnmounted, ref, type ComponentPublicInstance } from 'vue'
+import { ref, type ComponentPublicInstance } from 'vue'
+import { useAnchoredMenu } from '@/composables/useAnchoredMenu'
 import AppButton from './AppButton.vue'
 
 /** One of the other actions a split button's arrow offers beside its main one. */
@@ -31,69 +32,20 @@ const emit = defineEmits<{ click: []; choose: [id: Id] }>()
 defineOptions({ inheritAttrs: false })
 
 const MENU_WIDTH = 280
-const EDGE = 8
 
-const open = ref(false)
 const arrow = ref<ComponentPublicInstance | null>(null)
-const menu = ref<HTMLElement | null>(null)
-const placement = ref<Record<string, string>>({})
 
 function arrowElement(): HTMLElement | null {
   const element: unknown = arrow.value?.$el
   return element instanceof HTMLElement ? element : null
 }
 
-function place(): void {
-  const box = arrowElement()?.getBoundingClientRect()
-  if (!box) return
-  const left = Math.max(EDGE, Math.min(box.right - MENU_WIDTH, window.innerWidth - MENU_WIDTH - EDGE))
-  placement.value = { left: `${left}px`, top: `${box.bottom + 4}px`, width: `${MENU_WIDTH}px` }
-}
-
-function menuItems(): HTMLElement[] {
-  return [...(menu.value?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])]
-}
-
-function close(returnFocus: boolean): void {
-  open.value = false
-  document.removeEventListener('pointerdown', closeOnOutside, true)
-  if (returnFocus) arrowElement()?.focus()
-}
-
-function closeOnOutside(event: Event): void {
-  if (!(event.target instanceof Node)) return close(false)
-  if (arrowElement()?.contains(event.target) || menu.value?.contains(event.target)) return
-  close(false)
-}
-
-async function toggle(): Promise<void> {
-  if (open.value) return close(true)
-  place()
-  open.value = true
-  document.addEventListener('pointerdown', closeOnOutside, true)
-  await nextTick()
-  menuItems()[0]?.focus()
-}
+const { open, menu, placement, toggle, close, handleKeydown } = useAnchoredMenu(arrowElement, MENU_WIDTH)
 
 function choose(id: Id): void {
   close(true)
   emit('choose', id)
 }
-
-function moveFocus(event: KeyboardEvent): void {
-  if (event.key === 'Escape' || event.key === 'Tab') {
-    event.stopPropagation()
-    return close(event.key === 'Escape')
-  }
-  const step = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0
-  if (step === 0) return
-  event.preventDefault()
-  const items = menuItems()
-  const at = items.indexOf(document.activeElement as HTMLElement)
-  items[(at + step + items.length) % items.length]?.focus()
-}
-
-onUnmounted(() => document.removeEventListener('pointerdown', closeOnOutside, true))
 </script>
 
 <template>
@@ -123,8 +75,20 @@ onUnmounted(() => document.removeEventListener('pointerdown', closeOnOutside, tr
       data-testid="split-button-arrow"
       @click="toggle"
     >
-      <svg class="size-3.5 transition-transform" :class="open ? 'rotate-180' : ''" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-        <path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+      <svg
+        class="size-3.5 transition-transform"
+        :class="open ? 'rotate-180' : ''"
+        viewBox="0 0 16 16"
+        fill="none"
+        aria-hidden="true"
+      >
+        <path
+          d="m4 6 4 4 4-4"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
       </svg>
     </AppButton>
   </div>
@@ -138,7 +102,7 @@ onUnmounted(() => document.removeEventListener('pointerdown', closeOnOutside, tr
       class="fixed z-[var(--z-popover)] rounded-card border border-border-strong bg-surface-raised p-1 shadow-lift"
       :style="placement"
       data-testid="split-button-menu"
-      @keydown="moveFocus"
+      @keydown="handleKeydown"
     >
       <button
         v-for="option in options"

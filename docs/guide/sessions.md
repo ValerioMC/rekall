@@ -63,6 +63,8 @@ How each task runs: the queue opens a terminal on it, and the session works the 
 
 **Run in queue.** `POST /api/run-queue/runs` adds a task and starts the queue in the same step. An idle queue starts at once; a running, holding or scheduled one only gains the task, which runs when its turn comes. A task left waiting by an earlier **Stop the queue** runs ahead of it, because the queue is armed in order. A task already queued or running is refused with 409.
 
+In the console it is the arrow on the right of **Run here**, on a task's description and on its checklist: the arrow opens a menu with **Run in queue**, which asks the same questions as the main key (the project folder, something left to run) and then says either "Running now in the queue" or "Queued, N ahead". The arrow does nothing while the key is working.
+
 `/api/run-queue` holds the queue: `GET`, `PUT /settings` (`ceilingPercent`, `skipPermissions`, `model`, `effort`, `sessionKind`), `POST /items` (adds without starting), `POST /runs` (`taskId`: adds the task and arms the queue), `DELETE /items/{id}`, `PUT /items/{id}/position`, `POST /clear`, `POST /start` (`startAt` null starts now), `POST /stop`. Each answers with the whole queue, and every change is pushed on the console's event stream as a `run-queue` frame.
 
 ## Token usage

@@ -143,3 +143,15 @@ export function suggestedStart(now: number = Date.now()): string {
   at.setHours(at.getHours() + 1)
   return at.toISOString()
 }
+
+/** What the person is told after queueing `taskId`: running at once, or how many places wait ahead of it. */
+export function queuePlacement(queue: RunQueue, taskId: TaskId): string {
+  const item = queue.items.find((candidate) => candidate.taskId === taskId)
+  if (!item) return 'Queued'
+  if (item.state === 'RUNNING') return 'Running now in the queue'
+  const ahead = queue.items.filter(
+    (candidate) =>
+      candidate.position < item.position && (candidate.state === 'QUEUED' || candidate.state === 'RUNNING')
+  ).length
+  return `Queued, ${ahead} ahead`
+}
