@@ -1,12 +1,10 @@
-use std::collections::HashSet;
-
 use rekall_kernel::{Id, RekallError, Result};
 use rekall_store::step_link::{self, ROUTES_PER_STEP_MAX};
 use rekall_store::task_step;
 use rekall_store::repository as repo;
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
 
-use crate::flow::RouteTarget;
+use crate::flow::{carries_routes, RouteTarget};
 use crate::step::{TaskStepService, TaskStepView};
 use crate::{in_write, load, Ctx, Tx};
 
@@ -104,9 +102,9 @@ impl StepLinkService {
         if links.is_empty() {
             return Ok(false);
         }
-        let released: HashSet<Id> =
-            load::steps_of(tx.db(), task_id).await?.into_iter().filter(|step| !step.state.draft()).map(|step| step.id).collect();
-        Ok(links.iter().any(|link| released.contains(&link.from_step_id)))
+        let released: Vec<task_step::Model> =
+            load::steps_of(tx.db(), task_id).await?.into_iter().filter(|step| !step.state.draft()).collect();
+        Ok(carries_routes(&links, &released))
     }
 
     /// One more route out of `from`, within the per-step cap and under a free outcome.

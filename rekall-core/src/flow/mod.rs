@@ -5,6 +5,7 @@
 mod model;
 mod service;
 
+pub use model::flow_end::{carries_routes, flow_has_ended, steps_entered};
 pub use model::flow_move::{FlowMove, FlowRoute};
 pub use model::flow_plan::FlowPlan;
 pub use service::flow_proposal_service::FlowProposalService;

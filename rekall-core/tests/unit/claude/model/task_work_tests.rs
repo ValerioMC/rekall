@@ -9,6 +9,7 @@ fn work(next_opens_session: bool, settled_ago_minutes: Option<i64>) -> TaskWork 
         running_step_ids: Vec::new(),
         last_settled_at: settled_ago_minutes.map(|minutes| Instant::now().minus(TimeDelta::minutes(minutes))),
         next_opens_session,
+        flow_ended: false,
     }
 }
 

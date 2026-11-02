@@ -201,7 +201,7 @@ impl Worker {
             Err(other) => return Err(other),
         };
         if !before.has_work() {
-            return self.queue.mark_item(item.id, RunQueueItemState::Skipped, Some(nothing_open(before.remaining))).await;
+            return self.queue.mark_item(item.id, RunQueueItemState::Skipped, Some(nothing_open(&before))).await;
         }
         if self.terminals.has_live_for(item.task_id) {
             return self
@@ -280,7 +280,7 @@ impl Worker {
             self.later(Command::Settle {
                 generation: current.generation,
                 outcome: RunQueueItemState::Finished,
-                reason: finished(now.remaining).into(),
+                reason: finished(&now).into(),
             });
             return Ok(());
         }
@@ -390,7 +390,7 @@ impl Worker {
         let after = self.read_or_none(current.task_id).await;
         match after {
             Some(after) if !after.has_work() => {
-                self.queue.mark_item(current.item_id, RunQueueItemState::Finished, Some(finished(after.remaining))).await?;
+                self.queue.mark_item(current.item_id, RunQueueItemState::Finished, Some(finished(&after))).await?;
             }
             _ => {
                 self.queue
@@ -443,16 +443,20 @@ impl Worker {
 
 const WAITING_FOR_PERMISSION: &str = "Waiting for you to answer a permission prompt in the chat session.";
 
-fn nothing_open(remaining: Remaining) -> &'static str {
-    if remaining == Remaining::Accepted {
+fn nothing_open(work: &TaskWork) -> &'static str {
+    if work.flow_ended {
+        "Nothing to run: the flow already reached its end."
+    } else if work.remaining == Remaining::Accepted {
         "Nothing to run: all of it is already accepted."
     } else {
         "Nothing to run: all of it is claimed and waiting for review."
     }
 }
 
-fn finished(remaining: Remaining) -> &'static str {
-    if remaining == Remaining::Accepted {
+fn finished(work: &TaskWork) -> &'static str {
+    if work.flow_ended {
+        "Flow finished: the steps it did not need were left unrun."
+    } else if work.remaining == Remaining::Accepted {
         "All of it accepted."
     } else {
         "All of it claimed and waiting for review."

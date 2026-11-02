@@ -585,3 +585,95 @@ async fn a_session_proposes_routes_between_drafts_only() {
 fn a_place_far_from_the_origin_is_refused() {
     assert!(FlowPlace::new(1_000_000, 0).is_err());
 }
+
+// --- Work left on a flow
+
+async fn passing_ends_the_flow(world: &World, pipeline: &Pipeline) {
+    world.services.step_links.add(pipeline.test.id, RouteTarget::End, Some("passed")).await.unwrap();
+}
+
+async fn has_work(world: &World, pipeline: &Pipeline) -> bool {
+    world.services.task_work.read(pipeline.task.id).await.unwrap().has_work()
+}
+
+#[tokio::test]
+async fn a_flow_that_reaches_its_end_has_no_work_left_though_steps_were_never_run() {
+    let world = world().await;
+    let pipeline = pipeline(&world).await;
+    passing_ends_the_flow(&world, &pipeline).await;
+
+    claim(&world, "Build", None).await;
+    claim(&world, "Deploy", Some("deployed")).await;
+    assert!(has_work(&world, &pipeline).await, "standing on Test, the flow has not ended");
+    claim(&world, "Test", Some("passed")).await;
+
+    let work = world.services.task_work.read(pipeline.task.id).await.unwrap();
+    assert!(!work.has_work());
+    assert_eq!(work.remaining, rekall_core::claude::Remaining::Claimed);
+    let all = views(&world, &pipeline).await;
+    assert_eq!(view(&all, &pipeline.fix_app).state, TaskStepState::Open, "the unrun steps stay open");
+}
+
+#[tokio::test]
+async fn a_flow_that_went_round_a_fix_loop_and_then_ended_has_no_work_left() {
+    let world = world().await;
+    let pipeline = pipeline(&world).await;
+    passing_ends_the_flow(&world, &pipeline).await;
+
+    claim(&world, "Build", None).await;
+    claim(&world, "Deploy", Some("deployed")).await;
+    claim(&world, "Test", Some("app-error")).await;
+    claim(&world, "Fix the application", None).await;
+    assert!(has_work(&world, &pipeline).await, "the loop is back on Deploy");
+    claim(&world, "Deploy", Some("deployed")).await;
+    claim(&world, "Test", Some("passed")).await;
+
+    assert!(!has_work(&world, &pipeline).await);
+}
+
+#[tokio::test]
+async fn a_flow_not_started_and_a_flow_reset_after_its_end_still_have_work() {
+    let world = world().await;
+    let pipeline = pipeline(&world).await;
+    passing_ends_the_flow(&world, &pipeline).await;
+    assert!(has_work(&world, &pipeline).await, "nothing has run yet");
+
+    claim(&world, "Build", None).await;
+    claim(&world, "Deploy", Some("deployed")).await;
+    claim(&world, "Test", Some("passed")).await;
+    assert!(!has_work(&world, &pipeline).await);
+
+    world.services.flow.reset(pipeline.task.id).await.unwrap();
+    assert!(has_work(&world, &pipeline).await, "the visits are gone, so the unrun steps are work again");
+}
+
+#[tokio::test]
+async fn a_step_sent_back_from_an_ended_flow_is_work_again() {
+    let world = world().await;
+    let pipeline = pipeline(&world).await;
+    passing_ends_the_flow(&world, &pipeline).await;
+    claim(&world, "Build", None).await;
+    claim(&world, "Deploy", Some("deployed")).await;
+    claim(&world, "Test", Some("passed")).await;
+    assert!(!has_work(&world, &pipeline).await);
+
+    world.services.steps.send_back(pipeline.test.id).await.unwrap();
+
+    assert!(has_work(&world, &pipeline).await);
+}
+
+#[tokio::test]
+async fn a_flow_whose_visits_were_all_accepted_reads_as_accepted_whatever_it_left_unrun() {
+    let world = world().await;
+    let pipeline = pipeline(&world).await;
+    passing_ends_the_flow(&world, &pipeline).await;
+    claim(&world, "Build", None).await;
+    claim(&world, "Deploy", Some("deployed")).await;
+    claim(&world, "Test", Some("passed")).await;
+    for step in [&pipeline.build, &pipeline.deploy, &pipeline.test] {
+        world.services.steps.edit(step.id, None, None, Some(true), None).await.unwrap();
+    }
+
+    let work = world.services.task_work.read(pipeline.task.id).await.unwrap();
+    assert_eq!(work.remaining, rekall_core::claude::Remaining::Accepted);
+}

@@ -11,6 +11,7 @@ use rekall_core::queue::{QueueRunner, RunQueueService};
 use rekall_infra::queue::RunQueueRunner;
 use rekall_core::claude::{ClaudeUsageView, Limit, SessionKind, Severity, UsageReader};
 use rekall_kernel::Instant;
+use rekall_core::flow::RouteTarget;
 use rekall_store::{RunQueueItemState, RunQueueState, TaskStepState};
 use support::{eventually, world, World};
 
@@ -167,4 +168,124 @@ async fn stopping_closes_the_session_and_puts_the_item_back_at_the_head() {
 
     let refused = harness.runner.start(&harness.queue, Some(Instant::now().minus(chrono::TimeDelta::hours(1)))).await;
     assert_eq!(refused.unwrap_err().message(), "That start time has already passed. Pick a later one, or start now.");
+}
+
+async fn claim(world: &World, task: &str, step: &str) {
+    world.services.steps.transition(Some("alpha"), task, Some(step), TaskStepState::Claimed).await.unwrap();
+}
+
+#[tokio::test]
+async fn claiming_every_step_of_a_checklist_moves_the_queue_to_the_next_task_with_nothing_accepted() {
+    let world = world().await;
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let first = world.task(&project, "first").await;
+    for (position, title) in ["One", "Two", "Three"].into_iter().enumerate() {
+        world.step(&first, title, position as i32, TaskStepState::Open).await;
+    }
+    let second = world.task(&project, "second").await;
+    world.step(&second, "Only", 0, TaskStepState::Open).await;
+    let harness = harness(&world, reading(10.0));
+    harness.queue.add(first.id).await.unwrap();
+    harness.queue.add(second.id).await.unwrap();
+    harness.runner.start(&harness.queue, None).await.unwrap();
+    eventually("the first task running", || async { harness.terminals.has_live_terminal_for(first.id) }).await;
+
+    claim(&world, "first", "One").await;
+    claim(&world, "first", "Two").await;
+    assert_eq!(item_states(&harness.queue).await[0].0, RunQueueItemState::Running, "open work keeps it running");
+    claim(&world, "first", "Three").await;
+
+    eventually("the second task running", || async { harness.terminals.has_live_terminal_for(second.id) }).await;
+    let states = item_states(&harness.queue).await;
+    assert_eq!(states[0], (RunQueueItemState::Finished, Some("All of it claimed and waiting for review.".into())));
+    assert_eq!(states[1].0, RunQueueItemState::Running);
+}
+
+#[tokio::test]
+async fn a_flow_that_reaches_its_end_finishes_though_steps_were_never_run_and_the_queue_moves_on() {
+    let world = world().await;
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let flow = world.task(&project, "flow").await;
+    let check = world.step(&flow, "Check", 0, TaskStepState::Open).await;
+    let fix = world.step(&flow, "Fix", 1, TaskStepState::Open).await;
+    world.step(&flow, "Report", 2, TaskStepState::Open).await;
+    world.services.step_links.add(check.id, RouteTarget::End, Some("passed")).await.unwrap();
+    world.services.step_links.add(check.id, RouteTarget::Step(fix.id), Some("failed")).await.unwrap();
+    let after = world.task(&project, "after").await;
+    world.step(&after, "Only", 0, TaskStepState::Open).await;
+    let harness = harness(&world, reading(10.0));
+    harness.queue.add(flow.id).await.unwrap();
+    harness.queue.add(after.id).await.unwrap();
+    harness.runner.start(&harness.queue, None).await.unwrap();
+    eventually("the flow running", || async { harness.terminals.has_live_terminal_for(flow.id) }).await;
+
+    world.services.flow.transition(Some("alpha"), "flow", Some("Check"), TaskStepState::Claimed, Some("passed"), None).await.unwrap();
+
+    eventually("the next task running", || async { harness.terminals.has_live_terminal_for(after.id) }).await;
+    assert_eq!(
+        item_states(&harness.queue).await[0],
+        (RunQueueItemState::Finished, Some("Flow finished: the steps it did not need were left unrun.".into()))
+    );
+    assert!(!harness.terminals.has_live_terminal_for(flow.id));
+}
+
+#[tokio::test]
+async fn a_task_with_claimed_steps_and_open_ones_is_worked_for_the_open_ones_only() {
+    let world = world().await;
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let task = world.task(&project, "partial").await;
+    let done = world.step(&task, "Earlier", 0, TaskStepState::Claimed).await;
+    let later = world.step(&task, "Later", 1, TaskStepState::Open).await;
+    let harness = harness(&world, reading(10.0));
+    harness.queue.add(task.id).await.unwrap();
+    harness.runner.start(&harness.queue, None).await.unwrap();
+
+    eventually("the task running", || async { harness.terminals.has_live_terminal_for(task.id) }).await;
+    assert_eq!(world.step_state(&task, &done).await, TaskStepState::Claimed);
+
+    claim(&world, "partial", "Later").await;
+    eventually("the queue to finish", || async { harness.queue.view().await.unwrap().state == RunQueueState::Idle }).await;
+    assert_eq!(world.step_state(&task, &later).await, TaskStepState::Claimed);
+}
+
+#[tokio::test]
+async fn a_step_a_session_left_running_goes_back_to_open_when_the_session_ends() {
+    let world = world().await;
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let task = world.task(&project, "stalled").await;
+    let step = world.step(&task, "First", 0, TaskStepState::Open).await;
+    let harness = harness(&world, reading(10.0));
+    harness.queue.add(task.id).await.unwrap();
+    harness.runner.start(&harness.queue, None).await.unwrap();
+    eventually("the terminal", || async { harness.terminals.has_live_terminal_for(task.id) }).await;
+    world.services.steps.transition(Some("alpha"), "stalled", Some("First"), TaskStepState::Running).await.unwrap();
+    let terminal = harness.terminals.list().into_iter().next().unwrap();
+    harness.terminals.write(terminal.id, b"exit\n").unwrap();
+
+    eventually("the item to fail", || async { item_states(&harness.queue).await[0].0 == RunQueueItemState::Failed }).await;
+
+    assert_eq!(world.step_state(&task, &step).await, TaskStepState::Open);
+}
+
+#[tokio::test]
+async fn a_claim_that_ends_a_group_of_steps_renews_the_session_on_the_same_item() {
+    let world = world().await;
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let task = world.task(&project, "grouped").await;
+    world.step(&task, "Backend", 0, TaskStepState::Open).await;
+    let frontend = world.step(&task, "Frontend", 1, TaskStepState::Open).await;
+    world.services.steps.begin_session(frontend.id, true).await.unwrap();
+    let harness = harness(&world, reading(10.0));
+    harness.queue.add(task.id).await.unwrap();
+    harness.runner.start(&harness.queue, None).await.unwrap();
+    eventually("the first session", || async { harness.terminals.has_live_terminal_for(task.id) }).await;
+    let first_session = harness.terminals.list().into_iter().next().unwrap().id;
+
+    claim(&world, "grouped", "Backend").await;
+
+    eventually("a new session on the same task", || async {
+        harness.terminals.list().into_iter().any(|terminal| terminal.task_id == Some(task.id) && terminal.id != first_session)
+    })
+    .await;
+    assert_eq!(item_states(&harness.queue).await[0].0, RunQueueItemState::Running);
 }

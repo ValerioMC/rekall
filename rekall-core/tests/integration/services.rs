@@ -851,3 +851,36 @@ async fn the_first_step_opening_a_session_is_no_boundary() {
 
     assert!(!world.services.task_work.read(task.id).await.unwrap().next_opens_session);
 }
+
+#[tokio::test]
+async fn a_claim_completes_a_step_and_a_task_with_only_claimed_steps_has_no_work_left() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let task = world.task(&project, "report-builder").await;
+    claimed_step(&world, &task, "Move", 0).await;
+    world.step(&task, "Docs", 1, TaskStepState::Open).await;
+    assert!(world.services.task_work.read(task.id).await.unwrap().has_work());
+
+    world.services.steps.transition(Some("vega"), "report-builder", Some("Docs"), TaskStepState::Claimed).await.unwrap();
+
+    let work = world.services.task_work.read(task.id).await.unwrap();
+    assert!(!work.has_work());
+    assert_eq!(work.remaining, rekall_core::claude::Remaining::Claimed);
+    assert_eq!(work.settled_steps, 2);
+}
+
+#[tokio::test]
+async fn a_task_without_steps_is_complete_once_its_review_line_is_claimed() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let task = world.task(&project, "report-builder").await;
+    assert!(world.services.task_work.read(task.id).await.unwrap().has_work());
+
+    let mut claimed = task.clone();
+    claimed.review_state = TaskStepState::Claimed;
+    claimed.into_active_model().reset_all().update(world.db()).await.unwrap();
+
+    let work = world.services.task_work.read(task.id).await.unwrap();
+    assert!(!work.has_work());
+    assert_eq!(work.remaining, rekall_core::claude::Remaining::Claimed);
+}

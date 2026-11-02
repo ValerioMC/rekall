@@ -11,7 +11,8 @@
 //! 4. Open a terminal on the task, which types `/rk` with its anchors.
 //! 5. Every claim is a step boundary, and the ceiling is checked again there. Over it: the
 //!    terminal closes, the item waits again at the head, and the queue holds.
-//! 6. Nothing left open: the item is finished, its terminal closed, and the next one starts.
+//! 6. Nothing left open, or a flow at its end: the item is finished, its terminal closed, and the
+//!    next one starts. A claim is enough; nothing waits for acceptance.
 //! 7. The terminal ends while work is still open: the item fails, and the next one starts.
 //!
 //! A terminal is closed the settle grace after the claim that ends its turn, so the session can

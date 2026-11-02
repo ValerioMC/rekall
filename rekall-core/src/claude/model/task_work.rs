@@ -4,7 +4,8 @@ use crate::claude::Remaining;
 
 /// `settled_steps` counts the claimed and done steps, so a rise between two reads is a claim;
 /// `running_step_ids` are the steps a session has marked running; `last_settled_at` is the latest
-/// claim or acceptance; `next_opens_session` says the step to work next starts a session of its own.
+/// claim or acceptance; `next_opens_session` says the step to work next starts a session of its own;
+/// `flow_ended` says a flow reached its end, so the steps it never needed are not work.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TaskWork {
     pub remaining: Remaining,
@@ -12,6 +13,7 @@ pub struct TaskWork {
     pub running_step_ids: Vec<Id>,
     pub last_settled_at: Option<Instant>,
     pub next_opens_session: bool,
+    pub flow_ended: bool,
 }
 
 impl TaskWork {
