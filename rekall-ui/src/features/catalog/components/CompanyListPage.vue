@@ -7,10 +7,10 @@ import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
 import AppInput from '@/components/ui/AppInput.vue'
+import CompanyMark from '@/components/ui/CompanyMark.vue'
 import StatusMixBar from '@/components/ui/StatusMixBar.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { relativeTime } from '@/common/format/relative-time'
-import { identityHue } from '@/common/identity'
 import { useConsoleStore } from '@/stores/console.store'
 import { companyDraft } from '@/features/catalog/model/record-draft'
 import type { RecordDraft } from '@/features/catalog/model/record-draft'
@@ -105,17 +105,12 @@ async function confirmDelete(): Promise<void> {
           :class="index > 0 ? 'border-t border-border' : ''"
           @click="openProjectsOf(company)"
         >
-          <span
-            class="grid size-9 shrink-0 place-items-center rounded-card border font-mono text-body font-semibold"
-            :style="{
-              backgroundColor: identityHue(company.id).soft,
-              borderColor: identityHue(company.id).line,
-              color: identityHue(company.id).base
-            }"
-            aria-hidden="true"
-          >
-            {{ company.name.charAt(0).toUpperCase() }}
-          </span>
+          <CompanyMark
+            :company-id="company.id"
+            :name="company.name"
+            :image-version="company.logoImageVersion"
+            :size="36"
+          />
 
           <span class="min-w-0 flex-1">
             <span class="block truncate text-body font-semibold text-text">{{ company.name }}</span>
