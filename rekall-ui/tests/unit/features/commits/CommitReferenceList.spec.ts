@@ -53,6 +53,21 @@ describe('CommitReferenceList', () => {
     expect(wrapper.find('[data-testid="commit-reference-diff"]').exists()).toBe(false)
   })
 
+  it('joins the commits with one rail that starts at the first and ends at the last', () => {
+    const wrapper = render([reference({ id: 'c1' }), reference({ id: 'c2' }), reference({ id: 'c3' })])
+    const rows = wrapper.findAll('[data-testid="commit-reference-row"]')
+
+    expect(rows.map((row) => row.find('[data-testid="commit-rail-above"]').exists())).toEqual([false, true, true])
+    expect(rows.map((row) => row.find('[data-testid="commit-rail-below"]').exists())).toEqual([true, true, false])
+  })
+
+  it('draws no rail for a single commit', () => {
+    const wrapper = render([reference()])
+
+    expect(wrapper.find('[data-testid="commit-rail-above"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="commit-rail-below"]').exists()).toBe(false)
+  })
+
   it('tags the row with its step, or "task" when it has none, only when asked to', () => {
     const withStep = mount(CommitReferenceList, {
       props: { references: [reference({ stepId, stepTitle: 'Wire the ledger' })], showStepTag: true }

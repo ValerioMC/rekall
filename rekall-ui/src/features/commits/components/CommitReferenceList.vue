@@ -82,15 +82,27 @@ async function confirmDelete(): Promise<void> {
     data-testid="commit-reference-list"
   >
     <li
-      v-for="reference in references"
+      v-for="(reference, index) in references"
       :key="reference.id"
-      class="group/commit min-w-0 rounded-control border border-transparent px-1.5 py-1 transition-colors hover:border-border hover:bg-surface-raised"
+      class="group/commit relative min-w-0 rounded-control border border-transparent px-1.5 py-1 transition-colors hover:border-border hover:bg-surface-raised"
       data-testid="commit-reference-row"
     >
-      <div class="flex min-w-0 items-center gap-1">
+      <span
+        v-if="index > 0"
+        class="pointer-events-none absolute left-[11.25px] top-[-6px] h-[19px] w-[1.5px] bg-border-strong"
+        aria-hidden="true"
+        data-testid="commit-rail-above"
+      />
+      <span
+        v-if="index < references.length - 1"
+        class="pointer-events-none absolute bottom-0 left-[11.25px] top-[21px] w-[1.5px] bg-border-strong"
+        aria-hidden="true"
+        data-testid="commit-rail-below"
+      />
+      <div class="flex h-[26px] min-w-0 items-center gap-1">
         <button
           type="button"
-          class="focus-ring flex w-full min-w-0 items-center gap-2 rounded-key text-left"
+          class="focus-ring flex h-full w-full min-w-0 items-center gap-2 rounded-key text-left"
           :aria-expanded="expandedId === reference.id"
           data-testid="commit-reference-toggle"
           @click="toggle(reference)"
@@ -101,8 +113,7 @@ async function confirmDelete(): Promise<void> {
             fill="none"
             aria-hidden="true"
           >
-            <path d="M1 6h2.7M8.3 6H11" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
-            <circle cx="6" cy="6" r="2.15" stroke="currentColor" stroke-width="1.2" />
+            <circle cx="6" cy="6" r="3.2" stroke="currentColor" stroke-width="1.2" />
           </svg>
 
           <span
