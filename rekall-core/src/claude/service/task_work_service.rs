@@ -2,8 +2,8 @@ use rekall_kernel::{Id, RekallError, Result};
 use rekall_store::repository as repo;
 use rekall_store::TaskStepState;
 
-use crate::flow::{carries_routes, flow_has_ended, steps_entered};
-use crate::{in_read, load, Ctx};
+use crate::flow::{carries_routes, flow_has_ended, progress_of, steps_entered, StepProgress};
+use crate::{in_read, load, Ctx, Tx};
 
 use crate::claude::{Remaining, TaskWork};
 
@@ -18,6 +18,18 @@ pub struct TaskWorkService {
 impl TaskWorkService {
     pub fn new(ctx: Ctx) -> Self {
         Self { ctx }
+    }
+
+    /// The task's released steps as the work reads them, empty when it has no checklist.
+    pub async fn progress(&self, task_id: Id) -> Result<Vec<StepProgress>> {
+        in_read!(&self.ctx, |tx| Self::progress_in(&tx, task_id).await)
+    }
+
+    pub async fn progress_in(tx: &Tx, task_id: Id) -> Result<Vec<StepProgress>> {
+        let steps = load::steps_of(tx.db(), task_id).await?;
+        let visits = repo::step_visit::list_of_task(tx.db(), task_id).await?;
+        let links = repo::step_link::list_of_task(tx.db(), task_id).await?;
+        Ok(progress_of(&steps, &visits, &links))
     }
 
     pub async fn read(&self, task_id: Id) -> Result<TaskWork> {

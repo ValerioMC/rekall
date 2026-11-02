@@ -34,6 +34,7 @@ pub use model::resource_summary::ResourceSummary;
 pub use rekall_store::SessionKind;
 pub use model::severity::Severity;
 pub use model::skill_source::{SkillSource, SkillSourceKind};
+pub use crate::flow::{StepProgress, StepProgressState};
 pub use model::task_work::TaskWork;
 pub use service::task_work_service::TaskWorkService;
 pub use model::terminal_connection::TerminalConnection;

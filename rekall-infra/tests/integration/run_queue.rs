@@ -7,7 +7,8 @@ mod support;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use rekall_core::queue::{QueueRunner, RunQueueService};
+use rekall_core::queue::{QueueRunner, RunQueueFrame, RunQueueService};
+use rekall_core::claude::StepProgressState;
 use rekall_infra::queue::RunQueueRunner;
 use rekall_core::claude::{ClaudeUsageView, Limit, SessionKind, Severity, UsageReader};
 use rekall_kernel::Instant;
@@ -288,4 +289,34 @@ async fn a_claim_that_ends_a_group_of_steps_renews_the_session_on_the_same_item(
     })
     .await;
     assert_eq!(item_states(&harness.queue).await[0].0, RunQueueItemState::Running);
+}
+
+#[tokio::test]
+async fn a_claim_by_the_session_reaches_the_console_as_a_new_queue_frame_with_the_steps_updated() {
+    let world = world().await;
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let task = world.task(&project, "watched").await;
+    world.step(&task, "One", 0, TaskStepState::Open).await;
+    world.step(&task, "Two", 1, TaskStepState::Open).await;
+    let harness = harness(&world, reading(10.0));
+    harness.queue.add(task.id).await.unwrap();
+    harness.runner.start(&harness.queue, None).await.unwrap();
+    eventually("the terminal", || async { harness.terminals.has_live_terminal_for(task.id) }).await;
+    let mut frames = world.events.subscribe();
+
+    claim(&world, "watched", "One").await;
+
+    let seen = tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            let event = frames.recv().await.unwrap();
+            if let Some(RunQueueFrame(view)) = event.downcast::<RunQueueFrame>() {
+                let steps = &view.items[0].steps;
+                if steps[0].state == StepProgressState::Claimed && steps[1].current {
+                    return;
+                }
+            }
+        }
+    })
+    .await;
+    assert!(seen.is_ok(), "a frame showing One claimed and Two current");
 }

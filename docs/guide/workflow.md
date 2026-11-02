@@ -38,7 +38,7 @@ A session drives its own checklist over `/rk`:
 /rk project:vega task:release step:3 done outcome:app-error   # on a flow, follow that route (see Flows)
 ```
 
-The console holds one `text/event-stream` connection (`GET /api/steps/stream`) carrying six frames: `steps` for a checklist, `task-review` for a stepless task's review line, `wrapup` for a wrapup write or delete, `commit-reference` for a commit logged against a task or step, `run-queue` for the run queue, and `note` for a note a session wrote or rewrote. A step moved from an in-app terminal, a box ticked in another window, a wrapup or a note written over MCP, or a commit logged by a session all land without a reload.
+The console holds one `text/event-stream` connection (`GET /api/steps/stream`) carrying six frames: `steps` for a checklist, `task-review` for a stepless task's review line, `wrapup` for a wrapup write or delete, `commit-reference` for a commit logged against a task or step, `run-queue` for the run queue (each item carries its task's steps and where each stands: open, running, claimed, done, or not needed for the steps a finished flow never entered), and `note` for a note a session wrote or rewrote. A step moved from an in-app terminal, a box ticked in another window, a wrapup or a note written over MCP, or a commit logged by a session all land without a reload.
 
 Claude receives an open or running step with its detail, tagged `(in progress)` or `(claimed, …)`. A finished step arrives as its title alone. A draft step is not sent at all, only counted as `draft="N"` on the `<steps>` tag. A step ticked without a following wrapup is marked `(finished since the wrapup was written)` and handed back with its detail until the next wrapup folds it in.
 

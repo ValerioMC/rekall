@@ -7,7 +7,7 @@ use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, IntoActiveModel, Query
 
 use crate::queue::RunQueueFrame;
 use crate::queue::{RunQueueItemView, RunQueueView};
-use crate::claude::{SessionKind, EFFORT_LEVELS, MODEL_ALIASES};
+use crate::claude::{SessionKind, TaskWorkService, EFFORT_LEVELS, MODEL_ALIASES};
 
 use crate::queue::Snapshot;
 
@@ -221,6 +221,19 @@ impl RunQueueService {
         })
     }
 
+    /// Announce the queue again because a step of a listed task moved, so every item carries its
+    /// steps as they stand. A task that is not on the list changes nothing.
+    pub async fn refresh_for_task(&self, task_id: Id) -> Result<()> {
+        in_write!(&self.ctx, |tx| {
+            if ordered(&tx).await?.iter().all(|item| item.task_id != task_id) {
+                return Ok(());
+            }
+            let queue = self.queue(&tx).await?;
+            self.publish(&mut tx, queue).await?;
+            Ok(())
+        })
+    }
+
     /// `SCHEDULED` or `HOLDING` to `RUNNING`: the time came, or the window reset.
     pub async fn resume(&self) -> Result<()> {
         in_write!(&self.ctx, |tx| {
@@ -377,7 +390,8 @@ async fn item_view(tx: &Tx, item: &run_queue_item::Model) -> Result<RunQueueItem
     let project = repo::project::find_by_id(tx.db(), task.project_id)
         .await?
         .ok_or_else(|| RekallError::internal(InternalFailure::Integrity, "A task has no project"))?;
-    Ok(RunQueueItemView::of(item, &task, &project))
+    let steps = TaskWorkService::progress_in(tx, task.id).await?;
+    Ok(RunQueueItemView::of(item, &task, &project, steps))
 }
 
 async fn view_of(tx: &Tx, queue: &run_queue::Model) -> Result<RunQueueView> {

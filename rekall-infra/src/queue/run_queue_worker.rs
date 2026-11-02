@@ -105,6 +105,7 @@ impl Worker {
                 guarded("tick", result);
             }
             Command::Review(task_id) => {
+                guarded("refresh", self.queue.refresh_for_task(task_id).await);
                 let result = self.review(task_id).await;
                 guarded("signal", result);
             }

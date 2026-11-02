@@ -7,3 +7,4 @@ pub(super) mod proposed_flow;
 pub(super) mod replanned;
 pub(super) mod route_choice;
 pub(super) mod route_target;
+pub(super) mod step_progress;
