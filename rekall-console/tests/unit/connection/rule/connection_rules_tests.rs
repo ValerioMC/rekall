@@ -47,3 +47,10 @@ fn a_label_a_binding_already_uses_takes_the_first_free_number() {
     assert_eq!(first_free_label("billing", &taken), "billing");
     assert_eq!(first_free_label("gitlab", &taken), "gitlab-3");
 }
+
+#[test]
+fn a_root_path_loses_the_slashes_at_either_end_and_a_blank_one_covers_the_whole_instance() {
+    assert_eq!(root_path_of(Some(" /acme/platform/ ")).as_deref(), Some("acme/platform"));
+    assert_eq!(root_path_of(Some(" / ")), None);
+    assert_eq!(root_path_of(None), None);
+}

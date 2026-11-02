@@ -21,8 +21,8 @@ async fn world() -> World {
     let app = app().await;
     let acme = app.a_company("Acme").await;
     let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
-    let gitlab = id(&app.post(&format!("/api/companies/{acme}/connections"), json!({ "kind": "GITLAB", "title": "GitLab", "baseUrl": "https://gitlab.example.com" })).await);
-    let cluster = id(&app.post(&format!("/api/companies/{acme}/connections"), json!({ "kind": "KUBERNETES", "title": "Prod" })).await);
+    let gitlab = id(&app.post("/api/connections", json!({ "companyIds": [acme], "kind": "GITLAB", "title": "GitLab", "baseUrl": "https://gitlab.example.com" })).await);
+    let cluster = id(&app.post("/api/connections", json!({ "companyIds": [acme], "kind": "KUBERNETES", "title": "Prod" })).await);
     app.post(&format!("/api/projects/{project_id}/connections"), json!({ "connectionId": gitlab, "target": "acme/vega" })).await;
     let cluster_binding = id(&app.post(&format!("/api/projects/{project_id}/connections"), json!({ "connectionId": cluster, "target": "apps" })).await);
     World { app, project_id, gitlab, cluster, cluster_binding }
@@ -115,7 +115,7 @@ async fn a_graph_is_refused_what_no_flow_could_hold_or_the_project_does_not_bind
     let world = world().await;
     let url = format!("/api/projects/{}/graphs", world.project_id);
     let acme_other = world.app.a_company("Other").await;
-    let foreign = id(&world.app.post(&format!("/api/companies/{acme_other}/connections"), json!({ "kind": "KUBERNETES", "title": "Theirs" })).await);
+    let foreign = id(&world.app.post("/api/connections", json!({ "companyIds": [acme_other], "kind": "KUBERNETES", "title": "Theirs" })).await);
 
     let refusals = [
         json!({ "title": "Release", "steps": [] }),

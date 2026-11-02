@@ -2,7 +2,6 @@ use std::sync::Mutex;
 
 use async_trait::async_trait;
 use rekall_kernel::Instant;
-use rekall_store::company;
 use crate::connection::InMemorySecretStore;
 use crate::EventBus;
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
@@ -57,18 +56,14 @@ struct World {
     probe: Arc<FakeProbe>,
     secrets: Arc<InMemorySecretStore>,
     ctx: Ctx,
-    company_id: Id,
 }
 
 async fn world(outcome: ProbeOutcome) -> World {
     let database = rekall_store::open_in_memory().await.unwrap();
     let ctx = Ctx::new(database.conn.clone(), EventBus::new());
-    let now = Instant::now();
-    let company = company::Model { id: Id::random(), name: "Acme".into(), description: None, created_at: now, updated_at: now };
-    company.clone().into_active_model().insert(&database.conn).await.unwrap();
     let secrets = Arc::new(InMemorySecretStore::new());
     let probe = Arc::new(FakeProbe { outcome, asked: Mutex::new(Vec::new()) });
-    World { checks: ConnectionCheckService::new(ctx.clone(), secrets.clone(), probe.clone()), probe, secrets, ctx, company_id: company.id }
+    World { checks: ConnectionCheckService::new(ctx.clone(), secrets.clone(), probe.clone()), probe, secrets, ctx }
 }
 
 impl World {
@@ -79,7 +74,7 @@ impl World {
             ConnectionKind::Jira => Some("https://example.atlassian.net".to_string()),
             ConnectionKind::Kubernetes => None,
         };
-        let mut connection = external_connection::Model::new(self.company_id, "conn".into(), "Conn".into(), kind, base_url, Instant::now());
+        let mut connection = external_connection::Model::new("conn".into(), "Conn".into(), kind, base_url, Instant::now());
         connection.proxy_url = (kind == ConnectionKind::Jira).then(|| "http://proxy.example.com:8080".to_string());
         if let Some(credential) = credential {
             self.secrets.put(&connection.secret_ref, &Secret::new(credential)).unwrap();

@@ -1,4 +1,4 @@
-//! The routes of a company's connections, their credentials, the projects that bind them, the
+//! The routes of the workspace's connections, the companies each is shared with, their credentials, the projects that bind them, the
 //! repositories a project binds by discovery, their access log and the Jira issues a project
 //! imports as tasks, served by `rekall_console::connection`.
 
@@ -9,7 +9,9 @@ mod routes;
 
 pub use request::connection_access_query::ConnectionAccessQuery;
 pub use response::connection_access_response::ConnectionAccessResponse;
+pub use request::connection_companies_request::ConnectionCompaniesRequest;
 pub use request::connection_credential_request::ConnectionCredentialRequest;
+pub use response::connection_company_response::ConnectionCompanyResponse;
 pub use response::connection_detail_response::ConnectionDetailResponse;
 pub use response::connection_project_response::ConnectionProjectResponse;
 pub use response::connection_removed_response::ConnectionRemovedResponse;

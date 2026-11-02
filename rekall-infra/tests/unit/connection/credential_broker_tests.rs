@@ -1,7 +1,7 @@
 use std::os::unix::fs::PermissionsExt;
 
 use rekall_kernel::Instant;
-use rekall_store::{company, connection_access, external_connection};
+use rekall_store::{connection_access, external_connection};
 use rekall_core::connection::InMemorySecretStore;
 use rekall_core::{Ctx, EventBus};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
@@ -31,23 +31,20 @@ struct World {
 async fn world() -> World {
     let database = rekall_store::open_in_memory().await.unwrap();
     let ctx = Ctx::new(database.conn.clone(), EventBus::new());
-    let now = Instant::now();
-    let company = company::Model { id: Id::random(), name: "Acme".into(), description: None, created_at: now, updated_at: now };
-    company.clone().into_active_model().insert(&ctx.db).await.unwrap();
     let secrets = Arc::new(InMemorySecretStore::new());
-    let gitlab = stored(&ctx, &secrets, &company, ConnectionKind::Gitlab, "gitlab", Some("glpat-secret")).await;
-    let cluster = stored(&ctx, &secrets, &company, ConnectionKind::Kubernetes, "prod", Some(KUBECONFIG)).await;
-    let empty = stored(&ctx, &secrets, &company, ConnectionKind::Kubernetes, "staging", None).await;
-    let jira = stored(&ctx, &secrets, &company, ConnectionKind::Jira, "jira", Some("ada@example.com:atl-secret")).await;
+    let gitlab = stored(&ctx, &secrets, ConnectionKind::Gitlab, "gitlab", Some("glpat-secret")).await;
+    let cluster = stored(&ctx, &secrets, ConnectionKind::Kubernetes, "prod", Some(KUBECONFIG)).await;
+    let empty = stored(&ctx, &secrets, ConnectionKind::Kubernetes, "staging", None).await;
+    let jira = stored(&ctx, &secrets, ConnectionKind::Jira, "jira", Some("ada@example.com:atl-secret")).await;
     let root = tempfile::tempdir().unwrap();
     let broker = CredentialBroker::new(secrets, ConnectionAccessService::new(ctx.clone()), "http://127.0.0.1:47355".into(), root.path().join("sessions"));
     let launch = launch_with(vec![terminal(&gitlab, Some("acme/vega")), terminal(&cluster, Some("apps")), terminal(&empty, None), terminal(&jira, Some("ENG"))]);
     World { broker, ctx, root, launch }
 }
 
-async fn stored(ctx: &Ctx, secrets: &InMemorySecretStore, company: &company::Model, kind: ConnectionKind, label: &str, credential: Option<&str>) -> external_connection::Model {
+async fn stored(ctx: &Ctx, secrets: &InMemorySecretStore, kind: ConnectionKind, label: &str, credential: Option<&str>) -> external_connection::Model {
     let base_url = kind.reached_at_typed_url().then(|| "https://gitlab.example.com".to_string());
-    let mut connection = external_connection::Model::new(company.id, label.into(), label.into(), kind, base_url, Instant::now());
+    let mut connection = external_connection::Model::new(label.into(), label.into(), kind, base_url, Instant::now());
     if let Some(credential) = credential {
         secrets.put(&connection.secret_ref, &Secret::new(credential)).unwrap();
         connection.secret_set_at = Some(Instant::now());
@@ -239,8 +236,7 @@ async fn every_logged_request_is_announced_without_its_credential() {
 async fn a_github_binding_gets_the_git_helper_for_its_host_and_a_bearer_header_for_its_api() {
     let world = world().await;
     let secrets = Arc::new(InMemorySecretStore::new());
-    let company = company::Entity::find().one(&world.ctx.db).await.unwrap().unwrap();
-    let stored_github = stored(&world.ctx, &secrets, &company, ConnectionKind::Github, "lightcraft", Some("ghp_secret")).await;
+    let stored_github = stored(&world.ctx, &secrets, ConnectionKind::Github, "lightcraft", Some("ghp_secret")).await;
     let github = TerminalConnection { instance_url: Some("https://github.com".into()), ..terminal(&stored_github, Some("storytold/lightcraft")) };
     let broker = CredentialBroker::new(secrets, ConnectionAccessService::new(world.ctx.clone()), "http://127.0.0.1:47355".into(), world.root.path().join("github"));
     let terminal_id = Id::random();

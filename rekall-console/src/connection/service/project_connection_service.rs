@@ -1,5 +1,5 @@
-//! Which of its company's connections a project uses, and for what. A project binds only a
-//! connection of its own company, and may bind one several times, once per target.
+//! Which connections a project uses, and for what. A project binds only a connection shared with
+//! its own company, and may bind one several times, once per target.
 
 use rekall_kernel::{Id, RekallError, Result};
 use rekall_store::{external_connection, project, project_connection, Slug};
@@ -61,7 +61,7 @@ impl ProjectConnectionService {
     ) -> Result<(project_connection::Model, external_connection::Model)> {
         let project = repo::project::require(tx.db(), project_id).await?;
         let connection = repo::external_connection::require(tx.db(), connection_id).await?;
-        require_same_company(&project, &connection)?;
+        require_associated(tx, &project, &connection).await?;
         let existing = repo::project_connection::list_of_project(tx.db(), project_id).await?;
         require_target_unbound(&existing, &connection, target.as_deref())?;
         let taken: Vec<String> = existing.iter().map(|(binding, _)| binding.label.clone()).collect();
@@ -70,7 +70,7 @@ impl ProjectConnectionService {
             None => first_free_label(&connection.label, &taken),
         };
         let binding = repo::project_connection::bind(tx.db(), project_connection::Model::new(project_id, connection_id, label, target, self.ctx.now())).await?;
-        tx.publish(ConnectionStreamEvent { company_id: project.company_id });
+        tx.publish(ConnectionStreamEvent { company_ids: vec![project.company_id] });
         Ok((binding, connection))
     }
 
@@ -90,7 +90,7 @@ impl ProjectConnectionService {
             };
             let after = project_connection::Model { label, target, ..before.clone() };
             let binding = repo::update_if_changed(tx.db(), &before, after, self.ctx.now()).await?;
-            tx.publish(ConnectionStreamEvent { company_id: project.company_id });
+            tx.publish(ConnectionStreamEvent { company_ids: vec![project.company_id] });
             Ok::<_, RekallError>(ProjectConnectionView::of(&binding, &connection))
         })
     }
@@ -101,16 +101,16 @@ impl ProjectConnectionService {
             if !repo::project_connection::unbind(tx.db(), project_id, binding_id).await? {
                 return Err(RekallError::not_found_msg("This project has no such connection."));
             }
-            tx.publish(ConnectionStreamEvent { company_id: project.company_id });
+            tx.publish(ConnectionStreamEvent { company_ids: vec![project.company_id] });
             Ok::<_, RekallError>(())
         })
     }
 }
 
-/// A connection belongs to a company; another company's project has no business with its credential.
-fn require_same_company(project: &project::Model, connection: &external_connection::Model) -> Result<()> {
-    if project.company_id != connection.company_id {
-        return Err(RekallError::illegal("A project can only use a connection of its own company."));
+/// Another company's project has no business with a connection that was not shared with its company.
+async fn require_associated(tx: &Tx, project: &project::Model, connection: &external_connection::Model) -> Result<()> {
+    if !repo::connection_company::is_associated(tx.db(), connection.id, project.company_id).await? {
+        return Err(RekallError::illegal("This connection is not shared with the project's company. Share it with that company first."));
     }
     Ok(())
 }

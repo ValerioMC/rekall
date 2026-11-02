@@ -8,6 +8,7 @@ use serde::Serialize;
 #[serde(rename_all = "camelCase")]
 pub struct ConnectionProjectResponse {
     pub project_id: Id,
+    pub company_id: Id,
     pub label: String,
     pub title: String,
     pub binding_label: String,
@@ -16,6 +17,6 @@ pub struct ConnectionProjectResponse {
 
 impl From<ConnectionProjectView> for ConnectionProjectResponse {
     fn from(view: ConnectionProjectView) -> Self {
-        Self { project_id: view.project_id, label: view.label, title: view.title, binding_label: view.binding_label, target: view.target }
+        Self { project_id: view.project_id, company_id: view.company_id, label: view.label, title: view.title, binding_label: view.binding_label, target: view.target }
     }
 }

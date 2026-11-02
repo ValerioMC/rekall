@@ -60,7 +60,7 @@ async fn world(kind: ConnectionKind, target: Option<&str>, failure: Option<JiraF
         updated_at: now,
     };
     project.clone().into_active_model().insert(&database.conn).await.unwrap();
-    let mut connection = external_connection::Model::new(company.id, "jira".into(), "Jira".into(), kind, Some("https://example.atlassian.net".into()), now);
+    let mut connection = external_connection::Model::new("jira".into(), "Jira".into(), kind, Some("https://example.atlassian.net".into()), now);
     connection.secret_set_at = Some(now);
     connection.clone().into_active_model().insert(&database.conn).await.unwrap();
     let binding = project_connection::Model::new(project.id, connection.id, connection.label.clone(), target.map(str::to_string), now);

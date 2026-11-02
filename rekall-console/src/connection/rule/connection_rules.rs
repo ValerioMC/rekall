@@ -31,6 +31,11 @@ pub(in crate::connection) fn proxy_url_of(raw: Option<&str>) -> Option<String> {
     raw.map(jstr::strip).filter(|url| !url.is_empty()).map(str::to_string)
 }
 
+/// A blank root path covers the whole instance; the slashes at either end are not part of it.
+pub(in crate::connection) fn root_path_of(raw: Option<&str>) -> Option<String> {
+    raw.map(jstr::strip).map(|path| path.trim_matches('/')).filter(|path| !path.is_empty()).map(str::to_string)
+}
+
 /// A blank target means the project uses the connection as a whole.
 pub(in crate::connection) fn target_of(raw: Option<&str>) -> Option<String> {
     raw.map(jstr::strip).filter(|target| !target.is_empty()).map(str::to_string)

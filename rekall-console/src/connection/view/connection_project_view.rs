@@ -6,6 +6,7 @@ use rekall_store::{project, project_connection};
 #[derive(Clone, Debug)]
 pub struct ConnectionProjectView {
     pub project_id: Id,
+    pub company_id: Id,
     pub label: String,
     pub title: String,
     pub binding_label: String,
@@ -16,6 +17,7 @@ impl ConnectionProjectView {
     pub fn of(binding: &project_connection::Model, project: &project::Model) -> Self {
         Self {
             project_id: project.id,
+            company_id: project.company_id,
             label: project.label.clone(),
             title: project.title.clone(),
             binding_label: binding.label.clone(),

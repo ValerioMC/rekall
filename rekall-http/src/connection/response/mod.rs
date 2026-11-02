@@ -1,4 +1,5 @@
 pub(super) mod connection_access_response;
+pub(super) mod connection_company_response;
 pub(super) mod connection_detail_response;
 pub(super) mod connection_project_response;
 pub(super) mod connection_removed_response;

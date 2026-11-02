@@ -1,5 +1,5 @@
-//! A company's connections through the console API: created, given a credential that never comes
-//! back, bound to its projects and deleted with their credential.
+//! The workspace's connections through the console API: created and shared with companies, given a
+//! credential that never comes back, bound to their projects and deleted with their credential.
 
 mod support;
 
@@ -34,7 +34,7 @@ async fn a_gitlab_connection_keeps_its_token_out_of_every_answer() {
     let app = app_with_secrets(secrets.clone()).await;
     let acme = app.a_company("Acme").await;
 
-    let created = app.post(&format!("/api/companies/{acme}/connections"), json!({ "kind": "GITLAB", "title": "GitLab", "baseUrl": "https://gitlab.example.com/" })).await;
+    let created = app.post("/api/connections", json!({ "companyIds": [acme], "kind": "GITLAB", "title": "GitLab", "baseUrl": "https://gitlab.example.com/" })).await;
     assert_eq!((created.status, created.str("label"), created.str("baseUrl")), (201, "gitlab".into(), "https://gitlab.example.com".into()));
     let gitlab = id(&created);
 
@@ -58,7 +58,7 @@ async fn a_kubeconfig_is_previewed_without_being_stored_then_imported_for_one_co
     let secrets = Arc::new(InMemorySecretStore::new());
     let app = app_with_secrets(secrets.clone()).await;
     let acme = app.a_company("Acme").await;
-    let cluster = id(&app.post(&format!("/api/companies/{acme}/connections"), json!({ "kind": "KUBERNETES", "title": "Prod" })).await);
+    let cluster = id(&app.post("/api/connections", json!({ "companyIds": [acme], "kind": "KUBERNETES", "title": "Prod" })).await);
 
     let preview = app.post("/api/connections/kubeconfig/contexts", json!({ "kubeconfig": KUBECONFIG })).await;
     assert_eq!(preview.status, 200);
@@ -85,7 +85,7 @@ async fn a_project_binds_only_its_own_companys_connections_and_sets_a_target() {
     let globex = app.a_company("Globex").await;
     let vega = app.a_project(&acme, "vega", "ACTIVE").await;
     let theirs = app.a_project(&globex, "orion", "ACTIVE").await;
-    let cluster = id(&app.post(&format!("/api/companies/{acme}/connections"), json!({ "kind": "KUBERNETES", "title": "Prod" })).await);
+    let cluster = id(&app.post("/api/connections", json!({ "companyIds": [acme], "kind": "KUBERNETES", "title": "Prod" })).await);
     let bindings = format!("/api/projects/{vega}/connections");
 
     let bound = app.post(&bindings, json!({ "connectionId": cluster, "target": " apps " })).await;
@@ -110,7 +110,7 @@ async fn a_project_binds_one_connection_once_per_target_each_under_its_own_label
     let app = app().await;
     let acme = app.a_company("Acme").await;
     let vega = app.a_project(&acme, "vega", "ACTIVE").await;
-    let gitlab = id(&app.post(&format!("/api/companies/{acme}/connections"), json!({ "kind": "GITLAB", "title": "GitLab", "baseUrl": "https://gitlab.example.com" })).await);
+    let gitlab = id(&app.post("/api/connections", json!({ "companyIds": [acme], "kind": "GITLAB", "title": "GitLab", "baseUrl": "https://gitlab.example.com" })).await);
     let bindings = format!("/api/projects/{vega}/connections");
 
     let first = app.post(&bindings, json!({ "connectionId": gitlab, "target": "acme/billing" })).await;
@@ -130,7 +130,7 @@ async fn deleting_a_connection_unbinds_its_projects_and_forgets_its_credential()
     let app = app_with_secrets(secrets.clone()).await;
     let acme = app.a_company("Acme").await;
     let vega = app.a_project(&acme, "vega", "ACTIVE").await;
-    let gitlab = id(&app.post(&format!("/api/companies/{acme}/connections"), json!({ "kind": "GITLAB", "title": "GitLab", "baseUrl": "https://gitlab.example.com" })).await);
+    let gitlab = id(&app.post("/api/connections", json!({ "companyIds": [acme], "kind": "GITLAB", "title": "GitLab", "baseUrl": "https://gitlab.example.com" })).await);
     app.put(&format!("/api/connections/{gitlab}/credential"), json!({ "token": "glpat-secret" })).await;
     app.post(&format!("/api/projects/{vega}/connections"), json!({ "connectionId": gitlab })).await;
 
@@ -146,14 +146,14 @@ async fn deleting_a_connection_unbinds_its_projects_and_forgets_its_credential()
 async fn labels_kinds_and_urls_are_checked() {
     let app = app().await;
     let acme = app.a_company("Acme").await;
-    let url = format!("/api/companies/{acme}/connections");
-    let first = id(&app.post(&url, json!({ "kind": "KUBERNETES", "title": "Prod" })).await);
+    let url = "/api/connections";
+    let first = id(&app.post(url, json!({ "companyIds": [acme], "kind": "KUBERNETES", "title": "Prod" })).await);
 
-    assert_eq!(app.post(&url, json!({ "kind": "KUBERNETES", "title": "PROD" })).await.status, 409);
-    assert_eq!(app.post(&url, json!({ "kind": "SSH", "title": "Box" })).await.status, 400);
-    assert_eq!(app.post(&url, json!({ "kind": "GITLAB", "title": "Plain", "baseUrl": "http://gitlab.example.com" })).await.status, 400);
-    assert_eq!(app.post(&url, json!({ "kind": "GITLAB", "title": "No URL" })).await.status, 400);
-    assert_eq!(app.post(&url, json!({ "kind": "KUBERNETES", "title": "Typed", "baseUrl": "https://k8s.example.com" })).await.status, 400);
+    assert_eq!(app.post(url, json!({ "companyIds": [acme], "kind": "KUBERNETES", "title": "PROD" })).await.status, 409);
+    assert_eq!(app.post(url, json!({ "companyIds": [acme], "kind": "SSH", "title": "Box" })).await.status, 400);
+    assert_eq!(app.post(url, json!({ "companyIds": [acme], "kind": "GITLAB", "title": "Plain", "baseUrl": "http://gitlab.example.com" })).await.status, 400);
+    assert_eq!(app.post(url, json!({ "companyIds": [acme], "kind": "GITLAB", "title": "No URL" })).await.status, 400);
+    assert_eq!(app.post(url, json!({ "companyIds": [acme], "kind": "KUBERNETES", "title": "Typed", "baseUrl": "https://k8s.example.com" })).await.status, 400);
     assert_eq!(app.put(&format!("/api/connections/{first}"), json!({ "kind": "GITLAB" })).await.status, 400);
     assert_eq!(app.put(&format!("/api/connections/{first}"), json!({ "title": "Production" })).await.str("title"), "Production");
     assert!(app.get(&format!("/api/connections/{first}/access")).await.list().is_empty());
@@ -163,7 +163,7 @@ async fn labels_kinds_and_urls_are_checked() {
 async fn a_check_on_a_connection_without_a_credential_says_so_without_asking_anyone() {
     let app = app().await;
     let acme = app.a_company("Acme").await;
-    let gitlab = id(&app.post(&format!("/api/companies/{acme}/connections"), json!({ "kind": "GITLAB", "title": "GitLab", "baseUrl": "https://gitlab.example.com" })).await);
+    let gitlab = id(&app.post("/api/connections", json!({ "companyIds": [acme], "kind": "GITLAB", "title": "GitLab", "baseUrl": "https://gitlab.example.com" })).await);
 
     let check = app.post_empty(&format!("/api/connections/{gitlab}/check")).await;
 
@@ -178,9 +178,9 @@ async fn the_context_names_a_projects_connections_and_never_their_credential_or_
     let acme = app.a_company("Acme").await;
     let vega = app.a_project(&acme, "vega", "ACTIVE").await;
     app.a_task(&vega, "deploy").await;
-    let cluster = id(&app.post(&format!("/api/companies/{acme}/connections"), json!({ "kind": "KUBERNETES", "title": "Production" })).await);
-    let gitlab = id(&app.post(&format!("/api/companies/{acme}/connections"), json!({ "kind": "GITLAB", "title": "GitLab", "baseUrl": "https://gitlab.example.com" })).await);
-    let staging = id(&app.post(&format!("/api/companies/{acme}/connections"), json!({ "kind": "KUBERNETES", "title": "Staging" })).await);
+    let cluster = id(&app.post("/api/connections", json!({ "companyIds": [acme], "kind": "KUBERNETES", "title": "Production" })).await);
+    let gitlab = id(&app.post("/api/connections", json!({ "companyIds": [acme], "kind": "GITLAB", "title": "GitLab", "baseUrl": "https://gitlab.example.com" })).await);
+    let staging = id(&app.post("/api/connections", json!({ "companyIds": [acme], "kind": "KUBERNETES", "title": "Staging" })).await);
     app.put(&format!("/api/connections/{cluster}/credential"), json!({ "kubeconfig": KUBECONFIG, "context": "prod" })).await;
     app.put(&format!("/api/connections/{gitlab}/credential"), json!({ "token": "glpat-secret" })).await;
     app.post(&format!("/api/projects/{vega}/connections"), json!({ "connectionId": cluster, "target": "apps" })).await;
@@ -229,9 +229,9 @@ async fn discovering_a_projects_repositories_binds_each_on_a_gitlab_with_a_token
     let acme = app.a_company("Acme").await;
     let folder = a_product_folder();
     let vega = app.a_project_in(&acme, "vega", folder.path()).await;
-    let gitlab = id(&app.post(&format!("/api/companies/{acme}/connections"), json!({ "kind": "GITLAB", "title": "GitLab", "baseUrl": "https://gitlab.example.com" })).await);
+    let gitlab = id(&app.post("/api/connections", json!({ "companyIds": [acme], "kind": "GITLAB", "title": "GitLab", "baseUrl": "https://gitlab.example.com" })).await);
     app.put(&format!("/api/connections/{gitlab}/credential"), json!({ "token": "glpat-secret" })).await;
-    app.post(&format!("/api/companies/{acme}/connections"), json!({ "kind": "GITLAB", "title": "Legacy", "baseUrl": "https://gitlab.legacy.com" })).await;
+    app.post("/api/connections", json!({ "companyIds": [acme], "kind": "GITLAB", "title": "Legacy", "baseUrl": "https://gitlab.legacy.com" })).await;
     app.post(&format!("/api/projects/{vega}/connections"), json!({ "connectionId": gitlab, "label": "orders-api", "target": "acme/group/orders" })).await;
 
     let discovered = app.post_empty(&format!("/api/projects/{vega}/connections/discover")).await;
@@ -275,7 +275,7 @@ async fn discovering_binds_a_repository_whose_origin_is_on_a_github_connection()
     let acme = app.a_company("Acme").await;
     let folder = a_product_folder();
     let vega = app.a_project_in(&acme, "vega", folder.path()).await;
-    let github = id(&app.post(&format!("/api/companies/{acme}/connections"), json!({ "kind": "GITHUB", "title": "GitHub", "baseUrl": "https://github.com" })).await);
+    let github = id(&app.post("/api/connections", json!({ "companyIds": [acme], "kind": "GITHUB", "title": "GitHub", "baseUrl": "https://github.com" })).await);
     app.put(&format!("/api/connections/{github}/credential"), json!({ "token": "ghp_secret" })).await;
 
     let discovered = app.post_empty(&format!("/api/projects/{vega}/connections/discover")).await;
@@ -315,7 +315,7 @@ async fn a_jira_connection_imports_the_issues_a_project_picks_as_its_tasks() {
     let app = app_with(&[], options).await;
     let acme = app.a_company("Acme").await;
     let vega = app.a_project(&acme, "vega", "ACTIVE").await;
-    let created = app.post(&format!("/api/companies/{acme}/connections"), json!({ "kind": "JIRA", "title": "Jira", "baseUrl": "https://example.atlassian.net", "proxyUrl": " http://proxy.example.com:8080 " })).await;
+    let created = app.post("/api/connections", json!({ "companyIds": [acme], "kind": "JIRA", "title": "Jira", "baseUrl": "https://example.atlassian.net", "proxyUrl": " http://proxy.example.com:8080 " })).await;
     assert_eq!(created.str("proxyUrl"), "http://proxy.example.com:8080");
     let jira = id(&created);
     let set = app.put(&format!("/api/connections/{jira}/credential"), json!({ "email": "ada@example.com", "token": "atl-secret" })).await;
@@ -341,12 +341,45 @@ async fn a_jira_connection_imports_the_issues_a_project_picks_as_its_tasks() {
 async fn only_a_jira_connection_takes_a_proxy_and_a_blank_one_clears_it() {
     let app = app().await;
     let acme = app.a_company("Acme").await;
-    let url = format!("/api/companies/{acme}/connections");
-    let jira = id(&app.post(&url, json!({ "kind": "JIRA", "title": "Jira", "baseUrl": "https://example.atlassian.net", "proxyUrl": "http://proxy.example.com:8080" })).await);
+    let url = "/api/connections";
+    let jira = id(&app.post(url, json!({ "companyIds": [acme], "kind": "JIRA", "title": "Jira", "baseUrl": "https://example.atlassian.net", "proxyUrl": "http://proxy.example.com:8080" })).await);
 
-    assert_eq!(app.post(&url, json!({ "kind": "GITLAB", "title": "GitLab", "baseUrl": "https://gitlab.example.com", "proxyUrl": "http://proxy.example.com:8080" })).await.status, 400);
+    assert_eq!(app.post(url, json!({ "companyIds": [acme], "kind": "GITLAB", "title": "GitLab", "baseUrl": "https://gitlab.example.com", "proxyUrl": "http://proxy.example.com:8080" })).await.status, 400);
     let with_password = app.put(&format!("/api/connections/{jira}"), json!({ "proxyUrl": "http://ada:s3cret@proxy.example.com:8080" })).await;
     assert_eq!(with_password.status, 400);
     assert!(!with_password.text.contains("s3cret"));
     assert!(app.put(&format!("/api/connections/{jira}"), json!({ "proxyUrl": "" })).await.get("proxyUrl").is_null());
+}
+
+#[tokio::test]
+async fn a_connection_is_shared_with_companies_and_a_company_with_bound_projects_cannot_be_removed() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let globex = app.a_company("Globex").await;
+    let vega = app.a_project(&acme, "vega", "ACTIVE").await;
+    let created = app.post("/api/connections", json!({ "kind": "GITLAB", "title": "GitLab", "baseUrl": "https://gitlab.example.com", "rootPath": "/acme/", "companyIds": [acme] })).await;
+    assert_eq!((created.status, created.str("rootPath")), (201, "acme".into()));
+    let gitlab = id(&created);
+
+    assert_eq!(app.get("/api/connections").await.list().len(), 1);
+    assert_eq!(app.get(&format!("/api/companies/{acme}/connections")).await.list().len(), 1);
+    assert!(app.get(&format!("/api/companies/{globex}/connections")).await.list().is_empty());
+
+    let shared = app.put(&format!("/api/connections/{gitlab}/companies"), json!({ "companyIds": [acme, globex] })).await;
+    assert_eq!((shared.status, shared.get("companyIds").as_array().map(Vec::len)), (200, Some(2)));
+    let bound = app.post(&format!("/api/projects/{vega}/connections"), json!({ "connectionId": gitlab, "target": "acme/vega" })).await;
+    assert_eq!(bound.status, 201);
+
+    let blocked = app.put(&format!("/api/connections/{gitlab}/companies"), json!({ "companyIds": [globex] })).await;
+    assert_eq!(blocked.status, 409, "{}", blocked.text);
+    let detail = app.get(&format!("/api/connections/{gitlab}")).await;
+    assert_eq!((detail.get("companies").as_array().map(Vec::len), detail.get("projects")[0]["companyId"].as_str().map(str::to_string)), (Some(2), Some(acme.to_string())));
+}
+
+#[tokio::test]
+async fn a_root_path_belongs_to_a_gitlab_or_github_connection_only() {
+    let app = app().await;
+
+    assert_eq!(app.post("/api/connections", json!({ "kind": "KUBERNETES", "title": "Prod", "rootPath": "acme" })).await.status, 400);
+    assert_eq!(app.post("/api/connections", json!({ "kind": "GITHUB", "title": "GitHub", "baseUrl": "https://github.com", "rootPath": "vmcforge" })).await.status, 201);
 }

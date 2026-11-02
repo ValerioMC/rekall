@@ -15,6 +15,7 @@ pub use view::connection_access_view::ConnectionAccessView;
 pub use command::connection_command::ConnectionCommand;
 pub use command::connection_credential_command::ConnectionCredentialCommand;
 pub use service::connection_credential_service::ConnectionCredentialService;
+pub use view::connection_company_view::ConnectionCompanyView;
 pub use view::connection_detail_view::ConnectionDetailView;
 pub use view::connection_project_view::ConnectionProjectView;
 pub use view::connection_removed_view::ConnectionRemovedView;

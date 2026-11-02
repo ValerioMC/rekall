@@ -1,5 +1,4 @@
 use rekall_kernel::Instant;
-use rekall_store::company;
 use rekall_core::connection::InMemorySecretStore;
 use rekall_core::EventBus;
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
@@ -27,23 +26,19 @@ struct World {
     credentials: ConnectionCredentialService,
     secrets: Arc<InMemorySecretStore>,
     ctx: Ctx,
-    company_id: Id,
 }
 
 async fn world() -> World {
     let database = rekall_store::open_in_memory().await.unwrap();
     let ctx = Ctx::new(database.conn.clone(), EventBus::new());
-    let now = Instant::now();
-    let company = company::Model { id: Id::random(), name: "Acme".into(), description: None, created_at: now, updated_at: now };
-    company.clone().into_active_model().insert(&database.conn).await.unwrap();
     let secrets = Arc::new(InMemorySecretStore::new());
-    World { credentials: ConnectionCredentialService::new(ctx.clone(), secrets.clone()), secrets, ctx, company_id: company.id }
+    World { credentials: ConnectionCredentialService::new(ctx.clone(), secrets.clone()), secrets, ctx }
 }
 
 impl World {
     async fn connection(&self, kind: ConnectionKind) -> external_connection::Model {
         let base_url = kind.reached_at_typed_url().then(|| "https://example.com".to_string());
-        let connection = external_connection::Model::new(self.company_id, format!("{kind}").to_lowercase(), "Conn".into(), kind, base_url, Instant::now());
+        let connection = external_connection::Model::new(format!("{kind}").to_lowercase(), "Conn".into(), kind, base_url, Instant::now());
         connection.clone().into_active_model().insert(&self.ctx.db).await.unwrap();
         connection
     }

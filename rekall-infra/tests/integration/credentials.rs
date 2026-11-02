@@ -119,10 +119,11 @@ async fn launch_with_cluster(world: &World, gitlab_url: &str, kubeconfig: &'stat
         (ConnectionKind::Gitlab, "gitlab", Some(gitlab_url.to_string()), "glpat-secret", Some("acme/vega")),
         (ConnectionKind::Kubernetes, "prod", None, kubeconfig, Some("apps")),
     ] {
-        let mut connection = external_connection::Model::new(project.company_id, label.into(), label.into(), kind, base_url, Instant::now());
+        let mut connection = external_connection::Model::new(label.into(), label.into(), kind, base_url, Instant::now());
         world.secrets.put(&connection.secret_ref, &Secret::new(credential)).unwrap();
         connection.secret_set_at = Some(Instant::now());
         connection.clone().into_active_model().insert(world.db()).await.unwrap();
+        rekall_store::repository::connection_company::replace_companies(world.db(), connection.id, &[project.company_id]).await.unwrap();
         project_connection::Model::new(project.id, connection.id, label.into(), target.map(str::to_string), Instant::now()).into_active_model().insert(world.db()).await.unwrap();
     }
     world.services.terminal_launch.resolve(TerminalTarget::Project(project.id)).await.unwrap()

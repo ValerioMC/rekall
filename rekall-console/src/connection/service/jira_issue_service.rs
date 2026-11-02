@@ -64,7 +64,7 @@ impl JiraIssueService {
             return Err(RekallError::illegal("Only a Jira connection has issues to import."));
         }
         if !connection.has_credential() {
-            return Err(RekallError::illegal("No credential is stored for this Jira connection. Set one on the company's Connections page."));
+            return Err(RekallError::illegal("No credential is stored for this Jira connection. Set one on the Connections page."));
         }
         let project_key = project_key_of(binding.target.as_deref())?;
         let stored = recall(self.secrets.clone(), connection.secret_ref.clone()).await?;
@@ -85,7 +85,7 @@ impl JiraIssueService {
 fn refused_by_jira(failure: JiraFailure) -> RekallError {
     match failure {
         JiraFailure::Rejected { status } => {
-            RekallError::conflict(format!("Jira rejected the stored credential (HTTP {status}). Replace it on the company's Connections page."))
+            RekallError::conflict(format!("Jira rejected the stored credential (HTTP {status}). Replace it on the Connections page."))
         }
         JiraFailure::Failed { reason } => RekallError::conflict(format!("Jira could not be asked: {reason}.")),
     }

@@ -9,6 +9,7 @@ use rekall_store::repository as repo;
 use rekall_core::connection::{ConnectionStreamEvent, JiraCredential, KubeAccess, Kubeconfig, Secret, SecretStore};
 use rekall_core::{in_read, in_write, Ctx};
 
+use crate::connection::support::connection_views::view_in;
 use crate::connection::support::credential_keeping::{blocking, forget, keep};
 use crate::connection::{ConnectionCredentialCommand, ConnectionView};
 
@@ -43,9 +44,9 @@ impl ConnectionCredentialService {
                 after.kube_context = Some(kube.context.clone());
             }
             let after = repo::update_if_changed(tx.db(), &before, after, self.ctx.now()).await?;
-            tx.publish(ConnectionStreamEvent { company_id: after.company_id });
-            let projects = repo::project_connection::project_count(tx.db(), id).await?;
-            Ok::<_, RekallError>(ConnectionView::of(&after, projects))
+            let view = view_in(&tx, &after).await?;
+            tx.publish(ConnectionStreamEvent { company_ids: view.company_ids.clone() });
+            Ok::<_, RekallError>(view)
         })
     }
 
@@ -58,9 +59,9 @@ impl ConnectionCredentialService {
             let mut after = before.clone();
             after.secret_set_at = None;
             let after = repo::update_if_changed(tx.db(), &before, after, self.ctx.now()).await?;
-            tx.publish(ConnectionStreamEvent { company_id: after.company_id });
-            let projects = repo::project_connection::project_count(tx.db(), id).await?;
-            Ok::<_, RekallError>(ConnectionView::of(&after, projects))
+            let view = view_in(&tx, &after).await?;
+            tx.publish(ConnectionStreamEvent { company_ids: view.company_ids.clone() });
+            Ok::<_, RekallError>(view)
         })
     }
 

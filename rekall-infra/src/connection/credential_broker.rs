@@ -116,7 +116,7 @@ impl CredentialBroker {
     async fn answer(&self, connection: &TerminalConnection, purpose: CredentialPurpose) -> std::result::Result<Secret, (Refusal, String)> {
         let stored = match self.read(&connection.secret_ref).await {
             Ok(stored) => stored,
-            Err(RekallError::NotFound(_)) => return Err((Refusal::Missing, "no credential is stored for it; set one on the company's Connections page".into())),
+            Err(RekallError::NotFound(_)) => return Err((Refusal::Missing, "no credential is stored for it; set one on the Connections page".into())),
             Err(failure) => return Err((Refusal::Failed, format!("the OS credential store failed ({})", failure.message()))),
         };
         match purpose {

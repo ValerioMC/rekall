@@ -1,6 +1,6 @@
 //! Binds every repository under a project's folder to the GitLab or GitHub connection its `origin`
 //! points at, and makes each a component. Only a connection with a stored credential is bound: a token
-//! configured once for an instance reaches every repository on it.
+//! configured once for an instance, or for a group on it, reaches every repository under it.
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -11,6 +11,7 @@ use rekall_core::commit::GitRepositoryInspector;
 use rekall_core::{in_write, Ctx, Tx};
 
 use crate::connection::rule::connection_rules::first_free_label;
+use crate::connection::rule::repository_match_rules::connection_at;
 use crate::connection::support::repository_folders::repositories_under;
 use crate::connection::support::repository_origin::RepositoryOrigin;
 use crate::connection::{ConnectionService, DiscoveredRepositoryView, DiscoveryOutcome, ProjectConnectionService, RepositoryDiscoveryView};
@@ -138,17 +139,6 @@ fn root_folder(repo_folder: Option<&str>) -> Result<PathBuf> {
 
 fn hosts_git(kind: ConnectionKind) -> bool {
     matches!(kind, ConnectionKind::Gitlab | ConnectionKind::Github)
-}
-
-/// The GitLab or GitHub connection at the origin's host and the repository path on it. One with a
-/// credential is preferred, so a second, empty connection to the same server does not hide a usable one.
-fn connection_at(git_hosts: &[external_connection::Model], origin: &RepositoryOrigin) -> Option<(external_connection::Model, String)> {
-    let candidates: Vec<(&external_connection::Model, String)> = git_hosts
-        .iter()
-        .filter_map(|connection| connection.base_url.as_deref().and_then(|url| origin.path_on(url)).map(|path| (connection, path)))
-        .collect();
-    let chosen = candidates.iter().find(|(connection, _)| connection.has_credential()).or(candidates.first())?;
-    Some((chosen.0.clone(), chosen.1.clone()))
 }
 
 fn bound_to(bindings: &[(project_connection::Model, external_connection::Model)], connection: &external_connection::Model, target: &str) -> Option<project_connection::Model> {

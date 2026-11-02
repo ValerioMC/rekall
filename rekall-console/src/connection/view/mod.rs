@@ -1,4 +1,5 @@
 pub(super) mod connection_access_view;
+pub(super) mod connection_company_view;
 pub(super) mod connection_detail_view;
 pub(super) mod connection_project_view;
 pub(super) mod connection_removed_view;

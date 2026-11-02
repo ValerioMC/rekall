@@ -50,10 +50,12 @@ which forgets its entries when the session ends.
 The console's write path for connections is `rekall-console/src/connection/`, one service per entity,
 each taking a command and answering a view that the controllers in `rekall-http/src/connection/` map
 from the request and to the response:
-`ConnectionService` (a company's connections; deleting one removes its credential from the store
+`ConnectionService` (the workspace's connections and the companies each is shared with; `set_companies`
+refuses with a 409 naming the count while a project of a company being removed still binds the
+connection, so nothing is unbound silently; deleting one removes its credential from the store
 after the row is gone, logging a failure), `ConnectionCredentialService` (the only code that stores,
 replaces or clears a credential), `ProjectConnectionService` (bindings; a project binds only a
-connection of its own company, the same connection and target twice is a 409, a typed label already
+connection shared with its own company (400 otherwise, saying to share it first), the same connection and target twice is a 409, a typed label already
 used in the project is a 409, and without one the connection's label takes the first free `-2`, `-3`),
 `RepositoryDiscoveryService` (further down), `ConnectionAccessQueryService` (the access log, newest first) and
 `KubeconfigPreviewService` (a kubeconfig's contexts with why each can or cannot be imported, storing
@@ -66,16 +68,20 @@ than the store holds. A Kubernetes connection takes its server and context from 
 kubeconfig and refuses a typed URL; GitLab, GitHub (`https://github.com` or an Enterprise Server) and Jira need theirs; a connection's kind is fixed once created.
 Only a Jira connection takes a `proxyUrl`: an `http://` or `https://` address with no user or password in
 it (it is stored in the row and shown, not kept in the keychain), refused without being echoed; a blank
-one clears it. The routes are
-`GET`/`POST /api/companies/{id}/connections`, `GET`/`PUT`/`DELETE /api/connections/{id}` (`GET` lists
-the projects that bind it, `DELETE` answers `unboundProjects`), `PUT`/`DELETE
+one clears it. A GitLab or GitHub connection may name a `rootPath`, the group, namespace or owner its token covers, stored
+without a slash at either end; the other kinds refuse it. A label is unique across the workspace. The routes are
+`GET`/`POST /api/connections` (`POST` takes `companyIds`, the companies it is shared with, and no company
+is needed to create one), `GET /api/companies/{id}/connections` (the connections shared with a company: the
+ones its projects can bind), `PUT /api/connections/{id}/companies` (replaces `companyIds`),
+`GET`/`PUT`/`DELETE /api/connections/{id}` (`GET` lists the companies it is shared with and the projects
+that bind it, each with its company; `PUT` never changes the companies; `DELETE` answers `unboundProjects`), `PUT`/`DELETE
 /api/connections/{id}/credential`, `POST /api/connections/kubeconfig/contexts`, `GET
 /api/connections/{id}/access?offset=&limit=`, `GET`/`POST /api/projects/{id}/connections` (`POST` binds
 `connectionId` with an optional `label` and `target`), `PUT`/`DELETE
 /api/projects/{id}/connections/{bindingId}` (`PUT` sets the binding's `target`, and its `label` when one
 is sent) and `POST /api/projects/{id}/connections/discover`. A connection's `projectCount` counts each
 project once; its detail lists a row per binding. Every change publishes a `connection` frame naming
-the company.
+the companies concerned (`companyIds`).
 
 `RepositoryDiscoveryService` (`rekall-console/src/connection/`) binds a project's repositories in one go.
 It walks the project's folder (`repository_folders.rs`: a folder holding `.git` is a repository and is
@@ -84,8 +90,10 @@ one's `origin` through `GitRepositoryInspector::origin_url`, all before its tran
 settles each repository in path order:
 
 - `RepositoryOrigin` reads `https://`, `ssh://` and `git@host:path` origins as a host and a project path,
-  dropping any user or token, and matches a GitLab or GitHub connection of the company on the host (port ignored;
-  an instance under a sub-path drops it from an HTTPS origin). One with a credential is preferred.
+  dropping any user or token, and matches a GitLab or GitHub connection shared with the company on the host (port ignored;
+  an instance under a sub-path drops it from an HTTPS origin). A connection with a `root_path` covers only
+  the repositories under it, whole segments, ignoring case; the longest root path wins, then one with a
+  credential (`rule/repository_match_rules.rs`).
 - No origin is `NO_ORIGIN`, no GitLab or GitHub connection at the host `NO_CONNECTION`, one with no credential
   `NO_CREDENTIAL`: nothing is bound for those, since the token is what the binding reaches.
 - A project path the project already binds on that connection is `ALREADY_BOUND`, whether by hand, by an
