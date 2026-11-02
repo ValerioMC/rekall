@@ -1,11 +1,11 @@
 use super::*;
 
 fn gitlab(base_url: Option<&str>) -> Model {
-    Model::new(Id::random(), "gitlab".into(), "GitLab".into(), ConnectionKind::Gitlab, base_url.map(str::to_string), Instant::now())
+    Model::new("gitlab".into(), "GitLab".into(), ConnectionKind::Gitlab, base_url.map(str::to_string), Instant::now())
 }
 
 fn kubernetes() -> Model {
-    Model::new(Id::random(), "prod".into(), "Production".into(), ConnectionKind::Kubernetes, None, Instant::now())
+    Model::new("prod".into(), "Production".into(), ConnectionKind::Kubernetes, None, Instant::now())
 }
 
 #[test]
@@ -64,7 +64,7 @@ fn the_keychain_account_is_generated_from_the_id_and_no_credential_is_stored_yet
 }
 
 fn jira(base_url: Option<&str>) -> Model {
-    Model::new(Id::random(), "jira".into(), "Jira".into(), ConnectionKind::Jira, base_url.map(str::to_string), Instant::now())
+    Model::new("jira".into(), "Jira".into(), ConnectionKind::Jira, base_url.map(str::to_string), Instant::now())
 }
 
 #[test]
@@ -110,7 +110,43 @@ fn only_a_jira_connection_takes_a_proxy() {
 
 #[test]
 fn a_github_connection_without_its_server_url_is_refused() {
-    let github = Model::new(Id::random(), "github".into(), "GitHub".into(), ConnectionKind::Github, None, Instant::now());
+    let github = Model::new("github".into(), "GitHub".into(), ConnectionKind::Github, None, Instant::now());
     let error = github.validate().unwrap_err();
     assert!(error.to_string().contains("GitHub connection needs the server URL"));
+}
+
+fn gitlab_covering(root_path: &str) -> Model {
+    let mut connection = gitlab(Some("https://gitlab.example.com"));
+    connection.root_path = Some(root_path.into());
+    connection
+}
+
+#[test]
+fn a_gitlab_or_github_connection_may_name_the_root_path_its_credential_covers() {
+    assert!(gitlab_covering("acme/platform").validate().is_ok());
+    let mut github = Model::new("github".into(), "GitHub".into(), ConnectionKind::Github, Some("https://github.com".into()), Instant::now());
+    github.root_path = Some("vmcforge".into());
+    assert!(github.validate().is_ok());
+}
+
+#[test]
+fn a_root_path_is_stored_without_a_slash_at_either_end() {
+    assert!(gitlab_covering("/acme").validate().is_err());
+    assert!(gitlab_covering("acme/").validate().is_err());
+    assert!(gitlab_covering("  ").validate().is_err());
+}
+
+#[test]
+fn a_kubernetes_or_jira_connection_takes_no_root_path() {
+    let mut cluster = kubernetes();
+    cluster.root_path = Some("acme".into());
+    assert!(cluster.validate().is_err());
+    let mut site = jira(Some("https://example.atlassian.net"));
+    site.root_path = Some("acme".into());
+    assert!(site.validate().is_err());
+}
+
+#[test]
+fn a_root_path_over_the_cap_is_refused() {
+    assert!(gitlab_covering(&"a".repeat(ROOT_PATH_MAX_CHARACTERS + 1)).validate().is_err());
 }

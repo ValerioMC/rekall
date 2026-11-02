@@ -1,4 +1,4 @@
-//! A project's use of one of its company's connections. The target narrows it to this project:
+//! A project's use of a connection shared with its company. The target narrows it to this project:
 //! the GitLab project path, the Kubernetes namespace its work goes to, or the Jira project key.
 //! A project may bind one connection several times, one target each, so a session names a binding
 //! by its own label.

@@ -1,5 +1,5 @@
-//! A system outside Rekall that a company's projects reach: a GitLab instance, a Kubernetes
-//! cluster or a Jira site. The row holds only what the console shows; the credential lives in the OS keychain
+//! A system outside Rekall that projects reach, shared with the companies in `connection_company`:
+//! a GitLab instance, a GitHub server, a Kubernetes cluster or a Jira site. The row holds only what the console shows; the credential lives in the OS keychain
 //! under `secret_ref`, so no query, export or context can carry it.
 
 use rekall_kernel::{Id, Instant, RekallError};
@@ -12,6 +12,7 @@ pub const LABEL_MAX_CHARACTERS: usize = 120;
 pub const TITLE_MAX_CHARACTERS: usize = 200;
 pub const BASE_URL_MAX_CHARACTERS: usize = 1_000;
 pub const PROXY_URL_MAX_CHARACTERS: usize = 1_000;
+pub const ROOT_PATH_MAX_CHARACTERS: usize = 300;
 pub const KUBE_CONTEXT_MAX_CHARACTERS: usize = 253;
 pub const SECRET_REF_MAX_CHARACTERS: usize = 80;
 
@@ -22,7 +23,7 @@ const LOOPBACK_HOSTS: [&str; 3] = ["localhost", "127.0.0.1", "[::1]"];
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Id,
-    pub company_id: Id,
+    /// Unique across the whole workspace: sessions name a connection by it.
     pub label: String,
     pub title: String,
     pub kind: ConnectionKind,
@@ -32,6 +33,8 @@ pub struct Model {
     pub kube_context: Option<String>,
     /// Jira only: the proxy every call to the site goes through; none goes direct.
     pub proxy_url: Option<String>,
+    /// GitLab and GitHub only: the group, namespace or owner the credential covers, without a leading or trailing slash.
+    pub root_path: Option<String>,
     /// The keychain account holding the credential, generated with the row.
     pub secret_ref: String,
     /// When a credential was stored; none means the keychain holds nothing for this row.
@@ -41,31 +44,22 @@ pub struct Model {
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {
-    #[sea_orm(belongs_to = "crate::company::Entity", from = "Column::CompanyId", to = "crate::company::Column::Id", on_delete = "Cascade")]
-    Company,
-}
-
-impl Related<crate::company::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Company.def()
-    }
-}
+pub enum Relation {}
 
 impl ActiveModelBehavior for ActiveModel {}
 
 impl Model {
-    pub fn new(company_id: Id, label: String, title: String, kind: ConnectionKind, base_url: Option<String>, now: Instant) -> Self {
+    pub fn new(label: String, title: String, kind: ConnectionKind, base_url: Option<String>, now: Instant) -> Self {
         let id = Id::random();
         Self {
             id,
-            company_id,
             label,
             title,
             kind,
             base_url,
             kube_context: None,
             proxy_url: None,
+            root_path: None,
             secret_ref: format!("connection-{id}"),
             secret_set_at: None,
             created_at: now,
@@ -81,6 +75,7 @@ impl Model {
         self.check_kind_fields()?;
         self.check_base_url()?;
         self.check_proxy_url()?;
+        self.check_root_path()?;
         Violations::new("Connection")
             .not_blank("label", Some(&self.label))
             .max_length("label", Some(&self.label), LABEL_MAX_CHARACTERS)
@@ -90,6 +85,7 @@ impl Model {
             .max_length("baseUrl", self.base_url.as_deref(), BASE_URL_MAX_CHARACTERS)
             .max_length("kubeContext", self.kube_context.as_deref(), KUBE_CONTEXT_MAX_CHARACTERS)
             .max_length("proxyUrl", self.proxy_url.as_deref(), PROXY_URL_MAX_CHARACTERS)
+            .max_length("rootPath", self.root_path.as_deref(), ROOT_PATH_MAX_CHARACTERS)
             .not_blank("secretRef", Some(&self.secret_ref))
             .max_length("secretRef", Some(&self.secret_ref), SECRET_REF_MAX_CHARACTERS)
             .finish()
@@ -115,6 +111,19 @@ impl Model {
             }
             _ => Ok(()),
         }
+    }
+
+    fn check_root_path(&self) -> Result<(), RekallError> {
+        let Some(root_path) = self.root_path.as_deref() else {
+            return Ok(());
+        };
+        if !matches!(self.kind, ConnectionKind::Gitlab | ConnectionKind::Github) {
+            return Err(RekallError::illegal("Only a GitLab or GitHub connection has a root path."));
+        }
+        if root_path.trim().is_empty() || root_path.starts_with('/') || root_path.ends_with('/') {
+            return Err(RekallError::illegal("A root path is a group, namespace or owner such as acme/platform, with no slash at either end."));
+        }
+        Ok(())
     }
 
     /// A credential travels to this URL, so plain HTTP is accepted only for this machine.

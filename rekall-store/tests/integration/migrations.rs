@@ -115,7 +115,7 @@ async fn a_database_written_by_v0_2_moves_onto_the_baseline_with_its_rows() {
     let database = rekall_store::open(&path).await.unwrap();
     let db = &database.conn;
 
-    assert_eq!(applied_versions(db).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision", "047-vulnerability", "048-exposure-conclusion", "049-deployment-graph", "050-graph-step-place", "051-binding-label", "052-advisory-reach", "053-visit-report", "054-release-on-run", "055-epic", "056-step-session", "057-telemetry-setting", "058-run-queue-session-kind"]);
+    assert_eq!(applied_versions(db).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision", "047-vulnerability", "048-exposure-conclusion", "049-deployment-graph", "050-graph-step-place", "051-binding-label", "052-advisory-reach", "053-visit-report", "054-release-on-run", "055-epic", "056-step-session", "057-telemetry-setting", "058-run-queue-session-kind", "059-shared-connection"]);
     let task = Task::find().one(db).await.unwrap().unwrap();
     assert_eq!((task.label.as_str(), task.title.as_str()), ("report", "Report"));
     let wrapup = Wrapup::find().one(db).await.unwrap().unwrap();
@@ -132,7 +132,7 @@ async fn a_database_on_the_baseline_opens_again_unchanged() {
 
     let database = rekall_store::open(&path).await.unwrap();
 
-    assert_eq!(applied_versions(&database.conn).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision", "047-vulnerability", "048-exposure-conclusion", "049-deployment-graph", "050-graph-step-place", "051-binding-label", "052-advisory-reach", "053-visit-report", "054-release-on-run", "055-epic", "056-step-session", "057-telemetry-setting", "058-run-queue-session-kind"]);
+    assert_eq!(applied_versions(&database.conn).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision", "047-vulnerability", "048-exposure-conclusion", "049-deployment-graph", "050-graph-step-place", "051-binding-label", "052-advisory-reach", "053-visit-report", "054-release-on-run", "055-epic", "056-step-session", "057-telemetry-setting", "058-run-queue-session-kind", "059-shared-connection"]);
 }
 
 #[tokio::test]
@@ -241,6 +241,53 @@ async fn an_exposure_judged_before_052_keeps_its_verdict_and_a_second_version_of
         .unwrap();
     assert!(db
         .execute_unprepared("INSERT INTO vulnerability_exposure (id, project_id, advisory_id, ecosystem, package_name, package_version, created_at, updated_at) VALUES ('e3', 'p', 'a', 'RUST', 'hashbrown', '0.14.5', 't', 't')")
+        .await
+        .is_err());
+}
+
+async fn text_rows(db: &impl ConnectionTrait, sql: &str) -> Vec<String> {
+    db.query_all_raw(sea_orm::Statement::from_string(db.get_database_backend(), sql))
+        .await
+        .unwrap()
+        .iter()
+        .map(|row| row.try_get_by_index::<String>(0).unwrap())
+        .collect()
+}
+
+#[tokio::test]
+async fn a_connection_owned_by_a_company_before_059_is_shared_with_it_and_a_repeated_label_is_renamed() {
+    use sea_orm_migration::MigratorTrait;
+    let options = SqliteConnectOptions::new().filename(":memory:").foreign_keys(false);
+    let pool = SqlitePoolOptions::new().max_connections(1).connect_with(options).await.unwrap();
+    let db = SqlxSqliteConnector::from_sqlx_sqlite_pool(pool);
+    let before_059 = rekall_store::migration::Migrator::migrations().iter().position(|migration| migration.name() == "059-shared-connection").unwrap() as u32;
+    rekall_store::migration::Migrator::up(&db, Some(before_059)).await.unwrap();
+    for statement in [
+        "INSERT INTO company (id, name, created_at, updated_at) VALUES ('acme', 'Acme', 't', 't'), ('globex', 'Globex', 't', 't')",
+        "INSERT INTO project (id, label, title, status, icon, auto_commit, company_id, created_at, updated_at) VALUES ('p', 'vega', 'Vega', 'ACTIVE', 'folder', 0, 'acme', 't', 't')",
+        "INSERT INTO external_connection (id, company_id, label, title, kind, base_url, secret_ref, created_at, updated_at) VALUES
+            ('acme-gitlab', 'acme', 'gitlab', 'GitLab', 'GITLAB', 'https://gitlab.example.com', 'connection-1', '2024-01-01', 't'),
+            ('globex-gitlab', 'globex', 'gitlab', 'GitLab', 'GITLAB', 'https://gitlab.example.com', 'connection-2', '2024-02-01', 't'),
+            ('globex-taken', 'globex', 'gitlab-2', 'Other', 'GITLAB', 'https://gitlab.example.com', 'connection-3', '2024-03-01', 't')",
+        "INSERT INTO project_connection (id, project_id, connection_id, label, target, created_at, updated_at) VALUES ('b', 'p', 'acme-gitlab', 'gitlab', 'acme/vega', 't', 't')",
+    ] {
+        db.execute_unprepared(statement).await.unwrap();
+    }
+
+    rekall_store::migration::Migrator::up(&db, None).await.unwrap();
+
+    assert_eq!(
+        text_rows(&db, "SELECT id || ':' || label FROM external_connection ORDER BY id").await,
+        ["acme-gitlab:gitlab", "globex-gitlab:gitlab-3", "globex-taken:gitlab-2"]
+    );
+    assert_eq!(
+        text_rows(&db, "SELECT connection_id || '>' || company_id FROM connection_company ORDER BY connection_id").await,
+        ["acme-gitlab>acme", "globex-gitlab>globex", "globex-taken>globex"]
+    );
+    assert!(db.execute_unprepared("SELECT company_id FROM external_connection").await.is_err(), "the connection no longer carries a company");
+    assert_eq!(text_rows(&db, "SELECT connection_id FROM project_connection").await, ["acme-gitlab"]);
+    assert!(db
+        .execute_unprepared("INSERT INTO external_connection (id, label, title, kind, secret_ref, created_at, updated_at) VALUES ('x', 'gitlab', 'Again', 'KUBERNETES', 'connection-4', 't', 't')")
         .await
         .is_err());
 }
