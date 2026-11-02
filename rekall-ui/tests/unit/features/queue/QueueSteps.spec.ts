@@ -178,7 +178,7 @@ describe('a queue row with steps', () => {
 
     expect(row.text()).toContain('Flow finished, 3 steps not needed')
     expect(row.text()).not.toContain('Claimed, waiting for your review')
-    expect(row.get('[data-testid="queue-steps-toggle"]').text()).toBe('1 of 1 steps')
+    expect(row.get('[data-testid="queue-steps-toggle"]').text()).toBe('1 of 1 step')
   })
 
   it('keeps the queue\'s own detail for a task that is not finished', () => {

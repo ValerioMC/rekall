@@ -180,8 +180,9 @@ describe('the run dial', () => {
       'pending',
       'pending'
     ])
-    expect(slices.map((slice) => slice.classes('stroke-accent'))).toEqual([true, true, true, false, false])
-    expect(slices.map((slice) => slice.classes('stroke-border'))).toEqual([false, false, false, true, true])
+    expect(slices.map((slice) => slice.classes('stroke-accent'))).toEqual([true, true, false, false, false])
+    expect(slices.map((slice) => slice.classes('stroke-accent-strong'))).toEqual([false, false, true, false, false])
+    expect(slices.map((slice) => slice.classes('stroke-border-field'))).toEqual([false, false, false, true, true])
     expect(wrapper.find('.dial-comet').exists()).toBe(false)
   })
 

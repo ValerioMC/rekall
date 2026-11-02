@@ -20,7 +20,7 @@
  */
 import { computed, onUnmounted, ref, watch } from 'vue'
 import type { RunDialFace } from '@/features/queue/model/runQueue'
-import { stepRing, type RingProgress } from '@/features/queue/lib/stepRing'
+import { stepRing, type RingProgress, type RingSliceState } from '@/features/queue/lib/stepRing'
 
 const props = withDefaults(
   defineProps<{
@@ -36,6 +36,13 @@ const props = withDefaults(
 )
 
 const RADIUS = 8
+
+const SLICE_STROKE: Readonly<Record<RingSliceState, string>> = {
+  settled: 'stroke-accent',
+  current: 'stroke-accent-strong',
+  pending: 'stroke-border-field'
+}
+
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS
 const COMET_ARC = CIRCUMFERENCE * 0.26
 const ARRIVAL_MS = 340
@@ -141,7 +148,7 @@ onUnmounted(() => clearTimeout(arrivalTimer))
             cx="11"
             cy="11"
             :r="RADIUS"
-            :class="slice.state === 'pending' ? 'stroke-border' : 'stroke-accent'"
+            :class="SLICE_STROKE[slice.state]"
             :data-slice="slice.state"
             data-testid="run-dial-slice"
             class="dial-slice"

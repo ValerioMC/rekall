@@ -125,9 +125,10 @@ under 1100px the `⌘K` hint goes.
 The run queue shows a task's steps in two places, from one value (`runProgress(queue).steps`: the
 steps that count, how many are settled, the current one; a claim settles a step because the queue
 never waits for acceptance). The 22px `RunDial` replaces its comet with a ring of one slice per
-step (`stepRing`, a pure geometry helper): settled in the accent, the current one pulsing in
-opacity on the 1.7s beat and solid under `prefers-reduced-motion`, the rest hairline, and one
-proportional arc above 12 steps. In the panel `QueueStepList` nests under the task row, title and
+step (`stepRing`, a pure geometry helper): settled in the accent, the current one in the lighter
+`accent-strong` and pulsing in opacity on the 1.7s beat (the lighter tone alone marks it under
+`prefers-reduced-motion`), the rest `border-field` hairlines, which hold 3:1 against the bar, and
+one proportional arc above 12 steps. `QueueBead`'s open and not-needed rings use the same token. In the panel `QueueStepList` nests under the task row, title and
 state only, with `QueueBead`'s marks; a not-needed step is a dashed ring with its title muted, and
 claimed and accepted steps share a mark but are named apart for a screen reader. The disclosure
 that opens it carries `aria-expanded`/`aria-controls` and a 44px hit area.

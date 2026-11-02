@@ -198,7 +198,7 @@ onMounted(async () => {
 
     <QueueStatusLine :queue="queue" :progress="progress" :now="now" />
 
-    <div class="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[minmax(0,1fr)_300px]">
+    <div class="grid min-h-0 flex-1 grid-cols-1 max-md:auto-rows-max max-md:overflow-y-auto md:grid-cols-[minmax(0,1fr)_300px]">
       <QueueOrderSection
         :queue="queue"
         :progress="progress"

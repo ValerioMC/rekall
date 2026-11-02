@@ -89,7 +89,7 @@ const MOVE_BUTTON =
       <button
         v-if="item.steps.length"
         type="button"
-        class="focus-ring -my-3 -ml-2 flex min-h-11 w-fit items-center gap-1.5 rounded-control px-2 font-mono text-caption tabular-nums text-text-muted transition-colors hover:text-text"
+        class="focus-ring -my-3 -ml-2 flex min-h-11 w-fit items-center gap-1.5 whitespace-nowrap rounded-control px-2 font-mono text-caption tabular-nums text-text-muted transition-colors hover:text-text"
         :aria-expanded="stepsOpen"
         :aria-controls="stepListId"
         data-testid="queue-steps-toggle"
@@ -104,7 +104,7 @@ const MOVE_BUTTON =
         >
           <path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
-        {{ progress.settled }} of {{ progress.total }} steps
+        {{ progress.settled }} of {{ progress.total }} {{ progress.total === 1 ? 'step' : 'steps' }}
       </button>
       <Transition name="step-list">
         <QueueStepList v-if="item.steps.length && stepsOpen" :steps="item.steps" :live="live" :list-id="stepListId" />

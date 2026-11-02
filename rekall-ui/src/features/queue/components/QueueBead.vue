@@ -26,12 +26,12 @@ const props = withDefaults(
 )
 
 const STATE_CLASS: Readonly<Record<QueueBeadState, string>> = {
-  QUEUED: 'border border-border-strong bg-transparent',
+  QUEUED: 'border border-border-field bg-transparent',
   RUNNING: 'bg-accent',
   FINISHED: 'bg-safe',
   SKIPPED: 'bg-filed',
   FAILED: 'border border-danger bg-danger-soft',
-  NOT_NEEDED: 'border border-dashed border-border-strong bg-transparent'
+  NOT_NEEDED: 'border border-dashed border-border-field bg-transparent'
 }
 
 const popping = ref(false)
