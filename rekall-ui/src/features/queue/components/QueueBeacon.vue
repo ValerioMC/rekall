@@ -6,8 +6,9 @@
  * The line says the one thing worth knowing in each state and nothing else: how many are lined
  * up, when a schedule starts, which task is running and how far along the run is, or when a hold
  * lifts. It shares the bar with the anchor field, which has to keep room for its placeholder, so
- * by default it is the dial and a figure; the words come in from 1680px and the running task's
- * title from 1760px. The full sentence is always the label and the tooltip.
+ * by default it is the dial and a figure; the words, and the running task's step, come in from
+ * 1680px and the running task's title from 1760px. The full sentence is always the label and
+ * the tooltip.
  */
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
@@ -48,6 +49,17 @@ const overflow = computed(() => Math.max(0, queue.value.items.length - MAX_BEADS
 /** Which of the run the running task is, counted from one. */
 const ordinal = computed(() => progress.value.settled + (progress.value.running ? 1 : 0))
 
+/** The running task's current step with the count it is one of; none without a checklist or between steps. */
+const runningStep = computed(() => {
+  const steps = progress.value.steps
+  if (!steps || steps.currentIndex === null) return null
+  return { index: steps.currentIndex, total: steps.total }
+})
+
+const stepSentence = computed(() =>
+  runningStep.value ? `, step ${runningStep.value.index} of ${runningStep.value.total}` : ''
+)
+
 const label = computed(() => {
   const { state, startAt, holdUntil, holdReason } = queue.value
   const { waiting, total, running } = progress.value
@@ -56,7 +68,7 @@ const label = computed(() => {
   }
   if (state === 'RUNNING') {
     return running
-      ? `Run queue: running ${running.taskTitle}, ${ordinal.value} of ${total}`
+      ? `Run queue: running ${running.taskTitle}, task ${ordinal.value} of ${total}${stepSentence.value}`
       : `Run queue: starting the next task, ${progress.value.settled} of ${total} done`
   }
   if (state === 'HOLDING') {
@@ -86,7 +98,12 @@ const label = computed(() => {
     data-testid="queue-beacon"
     @click="store.openPanel()"
   >
-    <RunDial :face="face" :start-at="queue.startAt" :ceiling-percent="queue.ceilingPercent" />
+    <RunDial
+      :face="face"
+      :start-at="queue.startAt"
+      :ceiling-percent="queue.ceilingPercent"
+      :steps="progress.steps"
+    />
 
     <span class="flex min-w-0 items-baseline gap-1.5" data-testid="queue-beacon-line">
       <template v-if="queue.state === 'SCHEDULED'">
@@ -95,6 +112,13 @@ const label = computed(() => {
       </template>
       <template v-else-if="queue.state === 'RUNNING'">
         <span class="font-mono tabular-nums text-accent">{{ ordinal }}/{{ progress.total }}</span>
+        <span
+          v-if="runningStep"
+          class="hidden font-mono tabular-nums text-text-muted min-[1680px]:inline"
+          data-testid="queue-beacon-step"
+        >
+          step {{ runningStep.index }}/{{ runningStep.total }}
+        </span>
         <span v-if="progress.running" class="hidden min-w-0 max-w-[160px] truncate text-text-muted min-[1760px]:inline">
           {{ progress.running.taskTitle }}
         </span>

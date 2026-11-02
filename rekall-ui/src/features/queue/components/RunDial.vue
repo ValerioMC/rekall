@@ -9,15 +9,18 @@
  *   SCHEDULED  a clock face whose single hand points at the start time on a twelve-hour dial,
  *              so "it starts at two" is readable before the label is. Still: waiting is not work.
  *   RUNNING    a comet orbits the bezel and the core breathes, on the step seal's beat. The only
- *              state that moves, and only while a session is actually working.
+ *              state that moves, and only while a session is actually working. When the running
+ *              task has steps the comet gives way to a ring of one slice per step: the claimed
+ *              filled, the current one pulsing, the rest hairline.
  *   HOLDING    the ring filled to the ceiling and stopped there, with a pause mark in its core:
  *              the queue reached the line it was given and waits for the window to reset.
  *
- * A change of state lands once, as a small settle of the whole dial; a dial loading in draws
- * nothing, and re-rendering in the same state never replays it.
+ * A change of state, or a step settling, lands once as a small settle of the whole dial; a dial
+ * loading in draws nothing, and re-rendering in the same state never replays it.
  */
 import { computed, onUnmounted, ref, watch } from 'vue'
 import type { RunDialFace } from '@/features/queue/model/runQueue'
+import { stepRing, type RingProgress } from '@/features/queue/lib/stepRing'
 
 const props = withDefaults(
   defineProps<{
@@ -26,8 +29,10 @@ const props = withDefaults(
     startAt?: string | null
     /** HOLDING: the ceiling, for how far the ring is filled. */
     ceilingPercent?: number | null
+    /** RUNNING: the running task's steps, for the ring; none, or a total of 0, keeps the comet. */
+    steps?: RingProgress | null
   }>(),
-  { startAt: null, ceilingPercent: null }
+  { startAt: null, ceilingPercent: null, steps: null }
 )
 
 const RADIUS = 8
@@ -48,6 +53,8 @@ const holdOffset = computed(() => {
   return CIRCUMFERENCE * (1 - percent / 100)
 })
 
+const ring = computed(() => (props.steps && props.steps.total > 0 ? stepRing(props.steps, CIRCUMFERENCE) : null))
+
 const CARDINALS: readonly string[] = [0, 90, 180, 270].map((degrees) => {
   const radians = ((degrees - 90) * Math.PI) / 180
   const point = (radius: number): string =>
@@ -58,16 +65,26 @@ const CARDINALS: readonly string[] = [0, 90, 180, 270].map((degrees) => {
 const arriving = ref(false)
 let arrivalTimer: ReturnType<typeof setTimeout> | undefined
 
+function arrive(): void {
+  arriving.value = false
+  clearTimeout(arrivalTimer)
+  requestAnimationFrame(() => {
+    arriving.value = true
+    arrivalTimer = setTimeout(() => (arriving.value = false), ARRIVAL_MS)
+  })
+}
+
 watch(
   () => props.face,
   (next, previous) => {
-    if (next === previous) return
-    arriving.value = false
-    clearTimeout(arrivalTimer)
-    requestAnimationFrame(() => {
-      arriving.value = true
-      arrivalTimer = setTimeout(() => (arriving.value = false), ARRIVAL_MS)
-    })
+    if (next !== previous) arrive()
+  }
+)
+
+watch(
+  () => props.steps?.settled ?? 0,
+  (next, previous) => {
+    if (next > previous) arrive()
   }
 )
 
@@ -117,16 +134,47 @@ onUnmounted(() => clearTimeout(arrivalTimer))
       </template>
 
       <template v-else-if="face === 'running'">
-        <circle cx="11" cy="11" :r="RADIUS" class="stroke-border" stroke-width="2" />
-        <circle
-          cx="11"
-          cy="11"
-          :r="RADIUS"
-          class="dial-comet stroke-accent"
-          stroke-width="2"
-          stroke-linecap="round"
-          :stroke-dasharray="`${COMET_ARC} ${CIRCUMFERENCE}`"
-        />
+        <template v-if="ring?.kind === 'slices'">
+          <circle
+            v-for="(slice, index) in ring.slices"
+            :key="index"
+            cx="11"
+            cy="11"
+            :r="RADIUS"
+            :class="slice.state === 'pending' ? 'stroke-border' : 'stroke-accent'"
+            :data-slice="slice.state"
+            data-testid="run-dial-slice"
+            class="dial-slice"
+            stroke-width="2"
+            :stroke-dasharray="slice.dashArray"
+            :stroke-dashoffset="slice.dashOffset"
+            transform="rotate(-90 11 11)"
+          />
+        </template>
+        <template v-else>
+          <circle cx="11" cy="11" :r="RADIUS" class="stroke-border" stroke-width="2" />
+          <circle
+            v-if="ring?.kind === 'arc'"
+            cx="11"
+            cy="11"
+            :r="RADIUS"
+            class="stroke-accent"
+            stroke-width="2"
+            :stroke-dasharray="ring.dashArray"
+            transform="rotate(-90 11 11)"
+            data-testid="run-dial-arc"
+          />
+          <circle
+            v-else
+            cx="11"
+            cy="11"
+            :r="RADIUS"
+            class="dial-comet stroke-accent"
+            stroke-width="2"
+            stroke-linecap="round"
+            :stroke-dasharray="`${COMET_ARC} ${CIRCUMFERENCE}`"
+          />
+        </template>
         <circle cx="11" cy="11" r="2.6" class="dial-core fill-accent" />
       </template>
 
@@ -160,6 +208,27 @@ onUnmounted(() => clearTimeout(arrivalTimer))
   transform-box: fill-box;
   transform-origin: center;
   animation: dial-breathe 1.7s ease-in-out infinite;
+}
+
+/* The slice being worked breathes on the same beat; only opacity moves. */
+.dial-slice[data-slice='current'] {
+  animation: dial-slice-pulse 1.7s ease-in-out infinite;
+}
+
+@keyframes dial-slice-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dial-slice[data-slice='current'] {
+    animation: none;
+  }
 }
 
 @keyframes dial-orbit {
