@@ -6,7 +6,9 @@ use rekall_kernel::RekallError;
 use crate::shared::error::ApiResult;
 use crate::shared::extract::{uuid, JsonBody, OptionalJsonBody};
 
-use crate::queue::{AddRequest, MoveRequest, SettingsRequest, StartRequest};
+use rekall_kernel::Id;
+
+use crate::queue::{AddRequest, MoveRequest, RunRequest, SettingsRequest, StartRequest};
 use crate::ApiState;
 
 pub fn routes() -> Router<ApiState> {
@@ -14,6 +16,7 @@ pub fn routes() -> Router<ApiState> {
         .route("/api/run-queue", get(view))
         .route("/api/run-queue/settings", put(settings))
         .route("/api/run-queue/items", post(add))
+        .route("/api/run-queue/runs", post(run_in_queue))
         .route("/api/run-queue/items/{item_id}", delete(remove))
         .route("/api/run-queue/items/{item_id}/position", put(move_to))
         .route("/api/run-queue/clear", post(clear_settled))
@@ -30,10 +33,17 @@ async fn settings(State(state): State<ApiState>, JsonBody(request): JsonBody<Set
 }
 
 async fn add(State(state): State<ApiState>, JsonBody(request): JsonBody<AddRequest>) -> ApiResult<Json<RunQueueView>> {
-    let Some(task_id) = request.task_id else {
-        return Err(RekallError::illegal("Name the task to queue.").into());
-    };
+    let task_id = task_to_queue(request.task_id)?;
     Ok(Json(state.run_queue.add(task_id).await?))
+}
+
+async fn run_in_queue(State(state): State<ApiState>, JsonBody(request): JsonBody<RunRequest>) -> ApiResult<Json<RunQueueView>> {
+    let task_id = task_to_queue(request.task_id)?;
+    Ok(Json(state.run_queue.run_in_queue(task_id).await?))
+}
+
+fn task_to_queue(task_id: Option<Id>) -> Result<Id, RekallError> {
+    task_id.ok_or_else(|| RekallError::illegal("Name the task to queue."))
 }
 
 async fn remove(State(state): State<ApiState>, Path(item_id): Path<String>) -> ApiResult<Json<RunQueueView>> {

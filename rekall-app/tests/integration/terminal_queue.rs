@@ -459,6 +459,34 @@ async fn a_start_time_in_the_future_schedules_the_queue_stop_disarms_it() {
 }
 
 #[tokio::test]
+async fn running_in_the_queue_starts_at_once_when_idle_and_otherwise_waits_its_turn() {
+    let q = queue_app().await;
+    let first = q.task("report-builder", "Report builder").await;
+    q.open_step(&first, "Build the export").await;
+    let second = q.task("fix-readme", "Fix readme").await;
+    q.open_step(&second, "Reword the intro").await;
+
+    let started = q.app.post("/api/run-queue/runs", json!({ "taskId": first })).await;
+    assert_eq!(started.status, 200);
+    assert_eq!(started.str("state"), "RUNNING");
+    await_until(15, || async { q.item_state(0).await == "RUNNING" && q.terminal_on(&first).await.is_some() }).await;
+
+    let waiting = q.app.post("/api/run-queue/runs", json!({ "taskId": second })).await;
+    assert_eq!(waiting.status, 200);
+    assert_eq!(q.item_state(1).await, "QUEUED");
+    assert!(q.terminal_on(&second).await.is_none());
+    assert_eq!(q.app.post("/api/run-queue/runs", json!({ "taskId": first })).await.status, 409);
+
+    q.claim("report-builder", "1").await;
+    await_until(15, || async { q.item_state(0).await == "FINISHED" && q.item_state(1).await == "RUNNING" }).await;
+    assert!(q.terminal_on(&second).await.is_some());
+
+    q.claim("fix-readme", "1").await;
+    await_until(15, || async { q.item_state(1).await == "FINISHED" && q.queue_state().await == "IDLE" }).await;
+    q.tear_down().await;
+}
+
+#[tokio::test]
 async fn the_queue_refuses_a_duplicate_task_an_empty_start_a_past_time_and_a_silly_ceiling() {
     let q = queue_app().await;
     assert_eq!(q.app.post("/api/run-queue/start", json!({})).await.status, 409);

@@ -6,6 +6,7 @@ mod routes;
 
 use request::add_request::AddRequest;
 use request::move_request::MoveRequest;
+use request::run_request::RunRequest;
 use request::settings_request::SettingsRequest;
 use request::start_request::StartRequest;
 

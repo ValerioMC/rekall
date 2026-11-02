@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use async_trait::async_trait;
 use rekall_core::{Ctx, EventBus};
 use rekall_kernel::RekallError;
-use rekall_store::{company, project, task, ProjectStatus};
+use rekall_store::{company, project, task, ProjectStatus, RunQueueState};
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
 
 use super::*;
@@ -90,4 +90,15 @@ async fn stopping_is_the_workers_to_do() {
     assert!(world.service.stop().await.is_err());
 
     assert_eq!(world.runner.stops.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn running_in_the_queue_starts_an_idle_queue_and_wakes_the_worker() {
+    let world = world().await;
+
+    let started = world.service.run_in_queue(world.task_id).await.unwrap();
+
+    assert_eq!(started.state, RunQueueState::Running);
+    assert_eq!(started.items.len(), 1);
+    assert_eq!(world.runner.nudges.load(Ordering::SeqCst), 1);
 }

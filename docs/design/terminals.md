@@ -58,7 +58,9 @@ one works its steps (`work_session_for`), and renews one (`renew`), so `RunQueue
 `SessionRelay` hold it and not the manager. A `TerminalOpening` and a `TerminalView` carry a
 `SessionKind` (`TERMINAL` or `CHAT`, `TERMINAL` when a request names none); `PtyTerminals` always reports `TERMINAL`. A `TerminalView` also names the `TerminalMode` the session was opened in (`WORK`, `GENERATE`, `INVENTORY`, `AUTOCONFIGURE`...), which is how the console titles a session opened on a project alone. The run queue is driven the same way:
 `RunQueueControlService` edits the rows through `RunQueueService` and wakes the worker through the
-`QueueRunner` port, which `RunQueueRunner` implements. Binary frames are
+`QueueRunner` port, which `RunQueueRunner` implements. `run_in_queue` adds a task and arms an idle
+queue in one transaction (`RunQueueService::add_and_arm`), then wakes the worker; `finish` returns
+the queue to `IDLE` only when no item is still waiting, so a task added meanwhile is not stranded. Binary frames are
 stdin and stdout, a `{"resize":[cols,rows]}` text frame sets the window size, and a
 `{"type":"ended",...}` frame closes it out. Sends go through one bounded
 queue per socket, so a pane that stops reading is dropped rather than left to back up memory. `useTerminalSocket` is the client half,

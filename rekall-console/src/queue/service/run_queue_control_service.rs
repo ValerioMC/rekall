@@ -31,6 +31,12 @@ impl RunQueueControlService {
         Ok(added)
     }
 
+    pub async fn run_in_queue(&self, task_id: Id) -> Result<RunQueueView> {
+        let armed = self.queue.add_and_arm(task_id).await?;
+        self.runner.nudge();
+        Ok(armed)
+    }
+
     pub async fn remove(&self, item_id: Id) -> Result<RunQueueView> {
         self.queue.remove(item_id).await
     }
