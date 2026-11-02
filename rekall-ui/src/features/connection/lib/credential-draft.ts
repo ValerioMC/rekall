@@ -4,6 +4,7 @@ import type { ConnectionKind, CredentialDraft } from '@/features/connection/mode
 export function emptyDraft(kind: ConnectionKind): CredentialDraft {
   switch (kind) {
     case 'GITLAB':
+    case 'GITHUB':
       return { kind, token: '' }
     case 'KUBERNETES':
       return { kind, kubeconfig: '', context: null }
@@ -16,6 +17,7 @@ export function emptyDraft(kind: ConnectionKind): CredentialDraft {
 export function isComplete(draft: CredentialDraft): boolean {
   switch (draft.kind) {
     case 'GITLAB':
+    case 'GITHUB':
       return draft.token.trim().length > 0
     case 'KUBERNETES':
       return draft.kubeconfig.trim().length > 0 && draft.context !== null
@@ -28,6 +30,7 @@ export function isComplete(draft: CredentialDraft): boolean {
 export function isStarted(draft: CredentialDraft): boolean {
   switch (draft.kind) {
     case 'GITLAB':
+    case 'GITHUB':
       return draft.token.length > 0
     case 'KUBERNETES':
       return draft.kubeconfig.length > 0
@@ -40,6 +43,7 @@ export function isStarted(draft: CredentialDraft): boolean {
 export function credentialNoun(kind: ConnectionKind): string {
   switch (kind) {
     case 'GITLAB':
+    case 'GITHUB':
       return 'token'
     case 'KUBERNETES':
       return 'kubeconfig'

@@ -31,6 +31,7 @@ function terminal(over: Partial<Terminal> = {}): Terminal {
     projectLabel: 'vega',
     taskLabel: 'report-builder',
     taskTitle: 'Report builder',
+    mode: 'WORK',
     skipPermissions: true,
     model: null,
     effort: null,

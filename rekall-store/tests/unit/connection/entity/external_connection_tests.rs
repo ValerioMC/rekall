@@ -107,3 +107,10 @@ fn only_a_jira_connection_takes_a_proxy() {
     connection.proxy_url = Some("http://proxy.example.com:8080".into());
     assert!(connection.validate().is_err());
 }
+
+#[test]
+fn a_github_connection_without_its_server_url_is_refused() {
+    let github = Model::new(Id::random(), "github".into(), "GitHub".into(), ConnectionKind::Github, None, Instant::now());
+    let error = github.validate().unwrap_err();
+    assert!(error.to_string().contains("GitHub connection needs the server URL"));
+}

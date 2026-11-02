@@ -1,6 +1,21 @@
 import { describe, expect, it } from 'vitest'
-import { readFlow, routeDestination, routesInto, routeTargets } from '@/features/flow/lib/step-flow'
+import type { TaskStep } from '@/features/catalog/model/catalog'
+import {
+  readFlow,
+  routeDestination,
+  routeSessionRelation,
+  routesInto,
+  routeTargets
+} from '@/features/flow/lib/step-flow'
 import { finishedFlow, flowStep, releaseFlow, route } from './flow.fixtures'
+
+function startingSession(step: TaskStep): TaskStep {
+  return { ...step, startsSession: true }
+}
+
+function releaseFlowWithSessionAt(stepId: string): TaskStep[] {
+  return releaseFlow().map((step) => (step.id === stepId ? startingSession(step) : step))
+}
 
 describe('a checklist read as a flow', () => {
   it('stands on the step with the open visit and lists every move in order', () => {
@@ -66,6 +81,59 @@ describe('a checklist read as a flow', () => {
     expect(routeTargets(ship, steps).map(({ link, target }) => `${link.outcome}->${target}`)).toEqual([
       'shipped->null'
     ])
+  })
+})
+
+describe('the sessions of a flow', () => {
+  it('is one session with nothing marked when no step starts a session', () => {
+    const flow = readFlow(releaseFlow())
+
+    expect(flow.sessionCount).toBe(1)
+    expect([...flow.sessionOf.values()]).toEqual([1, 1, 1, 1, 1])
+    expect(flow.sessionOpeners.size).toBe(0)
+    expect(flow.steps.flatMap((step) => step.links).map((link) => routeSessionRelation(link, flow))).toEqual(
+      ['none', 'none', 'none', 'none', 'none']
+    )
+  })
+
+  it('gives each step its session number and marks the step that opens a new one', () => {
+    const flow = readFlow(releaseFlowWithSessionAt('test'))
+
+    expect(flow.sessionCount).toBe(2)
+    expect(flow.steps.map((step) => `${step.id}:${flow.sessionOf.get(step.id)}`)).toEqual([
+      'build:1',
+      'deploy:1',
+      'test:2',
+      'fix:2',
+      'ship:2'
+    ])
+    expect([...flow.sessionOpeners]).toEqual(['test'])
+  })
+
+  it('does not count a first step that starts a session as a new session', () => {
+    const flow = readFlow(releaseFlowWithSessionAt('build'))
+
+    expect(flow.sessionCount).toBe(1)
+    expect(flow.sessionOpeners.size).toBe(0)
+  })
+
+  it('tells a route across the boundary from a route inside a session', () => {
+    const steps = releaseFlowWithSessionAt('test')
+    const flow = readFlow(steps)
+    const relation = (id: string): string =>
+      routeSessionRelation(steps.flatMap((step) => step.links).find((link) => link.id === id)!, flow)
+
+    expect(relation('deploy-deployed')).toBe('crosses')
+    expect(relation('build-built')).toBe('within')
+    expect(relation('test-passed')).toBe('within')
+    expect(relation('fix-fixed')).toBe('crosses')
+  })
+
+  it('relates a route to the end, or to a step that is gone, to no session', () => {
+    const flow = readFlow(releaseFlowWithSessionAt('test'))
+
+    expect(routeSessionRelation(route('ship', null, 'shipped'), flow)).toBe('none')
+    expect(routeSessionRelation(route('ship', 'missing', 'lost'), flow)).toBe('none')
   })
 })
 

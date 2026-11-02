@@ -26,7 +26,7 @@ schedule, and the fix task is created by `VulnerabilityFixService` in `rekall-co
 read-only transaction. `McpTool.writes()` is declared
 rather than inferred, and the startup log names the write surface out loud.
 
-Connection credentials never reach `rekall-mcp`. A GitLab token, a Kubernetes kubeconfig or a Jira
+Connection credentials never reach `rekall-mcp`. A GitLab or GitHub token, a Kubernetes kubeconfig or a Jira
 credential (`JiraCredential`: a Jira Cloud email and API token, kept as the `email:token` pair Basic
 authentication sends, or a Data Center personal access token sent as Bearer, kept as `pat:token`; which
 one it is decides the site's `JiraDeployment`) lives in
@@ -57,13 +57,13 @@ connection of its own company, the same connection and target twice is a 409, a 
 used in the project is a 409, and without one the connection's label takes the first free `-2`, `-3`),
 `RepositoryDiscoveryService` (further down), `ConnectionAccessQueryService` (the access log, newest first) and
 `KubeconfigPreviewService` (a kubeconfig's contexts with why each can or cannot be imported, storing
-nothing). Credentials are write-only: `PUT /api/connections/{id}/credential` takes `token` (GitLab),
+nothing). Credentials are write-only: `PUT /api/connections/{id}/credential` takes `token` (GitLab, GitHub),
 `kubeconfig` and `context` (Kubernetes) or `token` with an `email` on Jira Cloud and without one on Jira
 Data Center, and answers the connection with `credentialSetAt`, and no
 endpoint returns a credential. The store is written before the row, so a failed write leaves the row
 saying no credential is set; clearing empties the store before the row, so the row never claims less
 than the store holds. A Kubernetes connection takes its server and context from the imported
-kubeconfig and refuses a typed URL; GitLab and Jira need theirs; a connection's kind is fixed once created.
+kubeconfig and refuses a typed URL; GitLab, GitHub (`https://github.com` or an Enterprise Server) and Jira need theirs; a connection's kind is fixed once created.
 Only a Jira connection takes a `proxyUrl`: an `http://` or `https://` address with no user or password in
 it (it is stored in the row and shown, not kept in the keychain), refused without being echoed; a blank
 one clears it. The routes are
@@ -84,9 +84,9 @@ one's `origin` through `GitRepositoryInspector::origin_url`, all before its tran
 settles each repository in path order:
 
 - `RepositoryOrigin` reads `https://`, `ssh://` and `git@host:path` origins as a host and a project path,
-  dropping any user or token, and matches a GitLab connection of the company on the host (port ignored;
+  dropping any user or token, and matches a GitLab or GitHub connection of the company on the host (port ignored;
   an instance under a sub-path drops it from an HTTPS origin). One with a credential is preferred.
-- No origin is `NO_ORIGIN`, no GitLab connection at the host `NO_CONNECTION`, one with no credential
+- No origin is `NO_ORIGIN`, no GitLab or GitHub connection at the host `NO_CONNECTION`, one with no credential
   `NO_CREDENTIAL`: nothing is bound for those, since the token is what the binding reaches.
 - A project path the project already binds on that connection is `ALREADY_BOUND`, whether by hand, by an
   earlier run or by a second clone found earlier in the same run. Otherwise it is `BOUND` under the
@@ -128,7 +128,8 @@ works, before a session finds out mid-deploy. `ConnectionCheckService` (`rekall-
 reads the credential through the store and hands it to a `ConnectionProbe`: `HttpConnectionProbe` in
 `rekall-infra/src/probes/`, because asking is HTTP to the outside, or a fake through
 `StartOptions::connection_probe`.
-GitLab is asked `GET /api/v4/user` with the token, Jira `GET /rest/api/3/myself` (Cloud) or `GET /rest/api/2/myself` (Data Center) with the credential's header; a cluster is asked `/version` and a
+GitLab is asked `GET /api/v4/user` with the token, GitHub `GET /user` on its API root (`github_api_root`:
+`api.github.com`, or `/api/v3` on an Enterprise Server) with a Bearer token and a `User-Agent`, Jira `GET /rest/api/3/myself` (Cloud) or `GET /rest/api/2/myself` (Data Center) with the credential's header; a cluster is asked `/version` and a
 `SelfSubjectReview`, through the kubeconfig's `proxy-url` when it has one, trusted through its CA
 and with a client certificate as the TLS identity, falling back to an authenticated `GET /api` on a cluster too old for the review. The
 answer (`ok`, a sentence naming the identity, the rejection status or why the server could not be

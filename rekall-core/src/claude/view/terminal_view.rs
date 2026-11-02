@@ -1,7 +1,7 @@
 use rekall_kernel::{Id, Instant};
 use serde::Serialize;
 
-use crate::claude::{SessionKind, TerminalConnectionView, TerminalTarget};
+use crate::claude::{SessionKind, TerminalConnectionView, TerminalMode, TerminalTarget};
 
 /// A live session as the console sees it. The task fields are empty on one opened on a project.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -16,6 +16,7 @@ pub struct TerminalView {
     pub project_label: String,
     pub task_label: Option<String>,
     pub task_title: Option<String>,
+    pub mode: TerminalMode,
     pub skip_permissions: bool,
     pub model: Option<String>,
     pub effort: Option<String>,

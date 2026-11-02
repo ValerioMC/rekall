@@ -19,6 +19,7 @@ const GLYPH: Readonly<Record<ReferenceIcon, Glyph>> = {
   component: { path: 'M12 2.8 3.8 7.2v9.6l8.2 4.4 8.2-4.4V7.2L12 2.8ZM3.8 7.2 12 11.6l8.2-4.4M12 11.6v9.6', outline: true },
   task: { path: 'M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm2.5 8.3 2.4 2.4 4.8-5.2', outline: true },
   GITLAB: { path: CONNECTION_KIND_PATH.GITLAB, outline: false },
+  GITHUB: { path: CONNECTION_KIND_PATH.GITHUB, outline: false },
   KUBERNETES: { path: CONNECTION_KIND_PATH.KUBERNETES, outline: false },
   JIRA: { path: CONNECTION_KIND_PATH.JIRA, outline: false }
 }

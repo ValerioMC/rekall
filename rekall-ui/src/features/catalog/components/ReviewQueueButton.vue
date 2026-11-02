@@ -65,7 +65,7 @@ onUnmounted(() => {
         <path d="M6.8 3.6h4M6.8 8.4h4M1.4 8.4h3.4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
       </svg>
       <span class="font-mono tabular-nums" data-testid="review-queue-count">{{ reviewQueue.length }}</span>
-      <span class="max-[1279px]:sr-only">to review</span>
+      <span class="max-[1535px]:sr-only">to review</span>
     </button>
 
     <Transition name="popover">

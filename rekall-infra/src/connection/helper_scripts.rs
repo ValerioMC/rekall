@@ -3,6 +3,7 @@
 //! answer straight to the tool that asked. None holds a credential.
 
 use rekall_core::claude::TerminalConnection;
+use rekall_core::connection::github_api_root;
 
 pub(super) const KUBE_PLUGIN: &str = "rekall-kube-credential";
 pub(super) const GIT_HELPER: &str = "rekall-git-credential";
@@ -33,36 +34,52 @@ pub(super) fn git_helper(endpoint: &str) -> String {
 }
 
 /// What tells one API wrapper from another. Each is `<name> --connection <label> <METHOD> <path>
-/// [curl options]`: a call under `api_root` with the credential's header, `:project` in the path
-/// standing for the binding's target, URL-encoded, through the connection's proxy when it names one.
+/// [curl options]`: a call under `api_base` with the credential's header, `:project` in the path
+/// standing for the binding's target, through the connection's proxy when it names one.
 pub(super) struct ApiWrapper {
     pub(super) name: &'static str,
     system: &'static str,
-    api_root: &'static str,
+    /// The API's base URL for the server URL a connection names.
+    api_base: fn(&str) -> String,
+    /// GitLab takes a project path as one escaped segment; GitHub's `owner/repo` stays two.
+    escapes_target: bool,
     purpose: &'static str,
     /// Further curl options every call carries, each followed by a space.
     headers: &'static str,
 }
 
 /// GitLab's API with the `PRIVATE-TOKEN` header, `:project` the project path.
-pub(super) const GITLAB_API: ApiWrapper = ApiWrapper { name: "rekall-gitlab", system: "GitLab", api_root: "/api/v4", purpose: "gitlab", headers: "" };
+pub(super) const GITLAB_API: ApiWrapper =
+    ApiWrapper { name: "rekall-gitlab", system: "GitLab", api_base: gitlab_api_base, escapes_target: true, purpose: "gitlab", headers: "" };
+
+/// GitHub's REST API with a bearer token and the API version it is written against, `:project` the `owner/repo`.
+pub(super) const GITHUB_API: ApiWrapper = ApiWrapper {
+    name: "rekall-github",
+    system: "GitHub",
+    api_base: github_api_root,
+    escapes_target: false,
+    purpose: "github",
+    headers: "-H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' ",
+};
 
 /// Jira's REST API v2, which Cloud and Data Center both serve, with the credential's header and JSON
 /// both ways, `:project` the project key.
 pub(super) const JIRA_API: ApiWrapper = ApiWrapper {
     name: "rekall-jira",
     system: "Jira",
-    api_root: "/rest/api/2",
+    api_base: jira_api_base,
+    escapes_target: true,
     purpose: "jira",
     headers: "-H 'Accept: application/json' -H 'Content-Type: application/json' ",
 };
 
 pub(super) fn api_wrapper(wrapper: &ApiWrapper, endpoint: &str, connections: &[&TerminalConnection]) -> String {
-    let ApiWrapper { name, system, api_root, purpose, headers } = wrapper;
+    let ApiWrapper { name, system, api_base, escapes_target, purpose, headers } = wrapper;
     let mut cases = String::new();
     for connection in connections {
-        let base = format!("{}{api_root}", connection.instance_url.as_deref().unwrap_or_default().trim_end_matches('/'));
-        let project = connection.target.as_deref().map(percent_encoded).unwrap_or_default();
+        let base = api_base(connection.instance_url.as_deref().unwrap_or_default());
+        let target = connection.target.as_deref().unwrap_or_default();
+        let project = if *escapes_target { percent_encoded(target) } else { target.to_string() };
         let proxy = connection.proxy_url.as_deref().unwrap_or_default();
         cases.push_str(&format!("  {}) base={}; project={}; proxy={} ;;\n", quoted(&connection.label), quoted(&base), quoted(&project), quoted(proxy)));
     }
@@ -81,6 +98,14 @@ printf '%s\\n' \"$header\" | curl --silent --show-error -X \"$method\" -H @- {he
 ",
         quoted(&format!("{endpoint}/"))
     )
+}
+
+fn gitlab_api_base(instance_url: &str) -> String {
+    format!("{}/api/v4", instance_url.trim_end_matches('/'))
+}
+
+fn jira_api_base(site_url: &str) -> String {
+    format!("{}/rest/api/2", site_url.trim_end_matches('/'))
 }
 
 /// `text` as one single-quoted shell word.

@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use portable_pty::{ChildKiller, MasterPty, PtySize};
 use rekall_kernel::{Id, Instant};
-use rekall_core::claude::TerminalLaunch;
+use rekall_core::claude::{TerminalLaunch, TerminalMode};
 use tokio::sync::watch;
 use tracing::debug;
 
@@ -19,8 +19,8 @@ pub(super) struct Terminal {
     /// The last size the pane asked for, as (columns, rows). Its lock also serialises every
     /// resize, so the kick's delayed restore cannot undo a resize that landed meanwhile.
     pub(super) size: Mutex<(u16, u16)>,
-    /// Whether it works a task's steps, the only terminal a new session can follow.
-    pub(super) follows_steps: bool,
+    /// What it was opened to do; only a terminal in a mode that follows steps can be followed by a new session.
+    pub(super) mode: TerminalMode,
     pub(super) skip_permissions: bool,
     pub(super) model: Option<String>,
     pub(super) effort: Option<String>,
@@ -56,6 +56,7 @@ impl Terminal {
             project_label: self.launch.project_label.clone(),
             task_label: self.launch.task_label.clone(),
             task_title: self.launch.task_title.clone(),
+            mode: self.mode.clone(),
             skip_permissions: self.skip_permissions,
             model: self.model.clone(),
             effort: self.effort.clone(),

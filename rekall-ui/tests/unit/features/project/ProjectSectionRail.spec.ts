@@ -18,7 +18,7 @@ function section(id: string, title: string, body = 'text'): ProjectSection {
 
 function rail(props: Partial<InstanceType<typeof ProjectSectionRail>['$props']> = {}) {
   return mount(ProjectSectionRail, {
-    props: { sections: [], selectedId: null, loading: false, creating: false, ...props },
+    props: { sections: [], selectedId: null, loading: false, creating: false, autoconfiguring: false, ...props },
     attachTo: document.body
   })
 }
@@ -30,6 +30,17 @@ describe('ProjectSectionRail', () => {
     expect(wrapper.find('[data-testid="rail-section-s1"]').attributes('aria-current')).toBe('page')
     expect(wrapper.find('[data-testid="rail-section-s2"]').attributes('aria-current')).toBeUndefined()
     expect(wrapper.find('[data-testid="rail-section-s2"]').text()).toContain('Empty')
+    wrapper.unmount()
+  })
+
+  it('asks for an autoconfiguration, and not again while one is starting', async () => {
+    const wrapper = rail()
+
+    await wrapper.find('[data-testid="rail-autoconfigure"]').trigger('click')
+    await wrapper.setProps({ autoconfiguring: true })
+
+    expect(wrapper.emitted('autoconfigure')).toHaveLength(1)
+    expect(wrapper.find('[data-testid="rail-autoconfigure"]').attributes('disabled')).toBeDefined()
     wrapper.unmount()
   })
 

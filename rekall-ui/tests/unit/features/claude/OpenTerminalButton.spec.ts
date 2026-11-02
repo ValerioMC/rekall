@@ -41,6 +41,7 @@ function terminal(): Terminal {
     projectLabel: 'vega',
     taskLabel: 'report-builder',
     taskTitle: 'Report builder',
+    mode: 'WORK',
     skipPermissions: true,
     model: null,
     effort: null,

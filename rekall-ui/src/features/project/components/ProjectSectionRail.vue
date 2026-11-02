@@ -10,9 +10,10 @@ const props = defineProps<{
   selectedId: ProjectSectionId | null
   loading: boolean
   creating: boolean
+  autoconfiguring: boolean
 }>()
 
-const emit = defineEmits<{ select: [id: ProjectSectionId]; create: [title: string] }>()
+const emit = defineEmits<{ select: [id: ProjectSectionId]; create: [title: string]; autoconfigure: [] }>()
 
 const composing = ref(false)
 const title = ref('')
@@ -41,6 +42,21 @@ function submit(): void {
   <nav class="flex min-h-0 flex-col gap-1 overflow-y-auto" aria-label="Sections" data-testid="project-section-rail">
     <div class="flex items-center justify-between pl-4 pr-1">
       <p class="eyebrow">Sections<span v-if="sections.length" class="ml-1.5 text-text-subtle">{{ sections.length }}</span></p>
+      <span class="flex-1" />
+      <button
+        v-if="!composing"
+        type="button"
+        class="key-quiet focus-ring grid size-6 place-items-center rounded-key"
+        aria-label="Autoconfigure from the repository"
+        title="Autoconfigure: a session reads the repository and writes how to contribute"
+        :disabled="autoconfiguring"
+        data-testid="rail-autoconfigure"
+        @click="emit('autoconfigure')"
+      >
+        <svg class="size-3.5" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+          <path d="M7 1.5 8.2 5.8 12.5 7 8.2 8.2 7 12.5 5.8 8.2 1.5 7 5.8 5.8Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" />
+        </svg>
+      </button>
       <button
         v-if="!composing"
         type="button"

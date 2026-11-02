@@ -1,4 +1,5 @@
 import type { StepLink, TaskStep } from '@/features/catalog/model/catalog'
+import { groupBySession } from '@/features/steps/lib/step-sessions'
 import type { StepLinkId, TaskStepId } from '@/model/branded'
 
 /** One move of the flow, in order: the step it entered, the route it left by and what it reported. */
@@ -29,13 +30,23 @@ export interface StepFlow {
   readonly walked: ReadonlySet<StepLinkId>
   /** The route the last move came in by, or the one that ended the flow: the one a live view animates. */
   readonly lastRouteId: StepLinkId | null
+  /** How many Claude sessions the checklist runs in; markers are drawn only when there is more than one. */
+  readonly sessionCount: number
+  /** The session each step runs in, numbered from 1. */
+  readonly sessionOf: ReadonlyMap<TaskStepId, number>
+  /** The steps that open a new session: never the first step, whose session opens silently. */
+  readonly sessionOpeners: ReadonlySet<TaskStepId>
 }
+
+/** Whether a route stays inside one session, crosses into another, or belongs to neither. */
+export type RouteSessionRelation = 'within' | 'crosses' | 'none'
 
 export function readFlow(all: readonly TaskStep[]): StepFlow {
   const steps = all.filter((step) => step.state !== 'DRAFT')
   const trail = movesOf(steps)
   const current = trail.find((move) => move.open)?.step ?? null
   return {
+    ...sessionFacts(steps),
     isFlow: steps.some((step) => step.links.length > 0),
     steps,
     currentId: current?.id ?? null,
@@ -73,6 +84,28 @@ export function routesInto(
   return steps.flatMap((source) =>
     source.links.filter((link) => link.toStepId === step.id).map((link) => ({ link, source }))
   )
+}
+
+/**
+ * How `link` relates to the sessions. A task with one session marks nothing, and neither does a
+ * route to the end or one whose steps are gone.
+ */
+export function routeSessionRelation(link: StepLink, flow: StepFlow): RouteSessionRelation {
+  if (flow.sessionCount < 2 || link.toStepId === null) return 'none'
+  const from = flow.sessionOf.get(link.fromStepId)
+  const to = flow.sessionOf.get(link.toStepId)
+  if (from === undefined || to === undefined) return 'none'
+  return from === to ? 'within' : 'crosses'
+}
+
+function sessionFacts(
+  steps: readonly TaskStep[]
+): Pick<StepFlow, 'sessionCount' | 'sessionOf' | 'sessionOpeners'> {
+  const sessions = groupBySession(steps)
+  const sessionOf = new Map<TaskStepId, number>()
+  sessions.forEach((session) => session.steps.forEach((step) => sessionOf.set(step.id, session.number)))
+  const sessionOpeners = new Set(sessions.slice(1).map((session) => session.steps[0]!.id))
+  return { sessionCount: sessions.length, sessionOf, sessionOpeners }
 }
 
 function movesOf(steps: readonly TaskStep[]): FlowMove[] {

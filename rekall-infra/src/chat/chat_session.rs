@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use rekall_core::chat::{ChatBody, ChatEvent, ChatListener};
-use rekall_core::claude::{SessionKind, TerminalConnectionView, TerminalLaunch, TerminalView};
+use rekall_core::claude::{SessionKind, TerminalConnectionView, TerminalLaunch, TerminalMode, TerminalView};
 use rekall_kernel::{Id, Instant, RekallError, Result};
 
 use super::chat_process::ChatProcess;
@@ -15,8 +15,8 @@ pub(super) struct ChatSession {
     pub(super) id: Id,
     pub(super) launch: TerminalLaunch,
     pub(super) step_id: Mutex<Option<Id>>,
-    /// Whether it works a task's steps, the only chat session a new session can follow.
-    pub(super) follows_steps: bool,
+    /// What it was opened to do; only a session in a mode that follows steps can be followed by a new session.
+    pub(super) mode: TerminalMode,
     pub(super) skip_permissions: bool,
     pub(super) model: Option<String>,
     pub(super) effort: Option<String>,
@@ -34,7 +34,7 @@ impl ChatSession {
         id: Id,
         launch: TerminalLaunch,
         step_id: Option<Id>,
-        follows_steps: bool,
+        mode: TerminalMode,
         options: ClaudeOptions,
         process: ChatProcess,
         backlog_bytes: usize,
@@ -44,7 +44,7 @@ impl ChatSession {
             id,
             launch,
             step_id: Mutex::new(step_id),
-            follows_steps,
+            mode,
             skip_permissions: options.skip_permissions,
             model: options.model,
             effort: options.effort,
@@ -80,6 +80,7 @@ impl ChatSession {
             project_label: self.launch.project_label.clone(),
             task_label: self.launch.task_label.clone(),
             task_title: self.launch.task_title.clone(),
+            mode: self.mode.clone(),
             skip_permissions: self.skip_permissions,
             model: self.model.clone(),
             effort: self.effort.clone(),

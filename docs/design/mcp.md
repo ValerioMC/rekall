@@ -78,8 +78,8 @@ rekall-core, the one write a session makes on a task it did not just create. It 
 `require_joinable`, moves a task between epics and names the one it left, never takes a task out of an
 epic and never changes a kind, and publishes `task-created` so the console reads its lists again.
 
-`rekall_read_sections` is the read side of `rekall_project_section`: sections are in no context, so
-this is the only way a session sees them. `ProjectSectionService::read` lists the titles, or returns one
+`rekall_read_sections` is the read side of `rekall_project_section`: a context lists a project's
+sections by title only, so this is the only way a session reads one. `ProjectSectionService::read` lists the titles, or returns one
 section by title ignoring case; a title the project lacks is refused with the titles it has.
 
 `rekall_note` writes a new note onto one task, taking the anchors, a `title` and the `body`.

@@ -70,6 +70,18 @@ async fn a_gitlab_token_goes_to_the_store_and_the_answer_only_says_when() {
 }
 
 #[tokio::test]
+async fn a_github_token_goes_to_the_store_and_a_kubeconfig_is_refused() {
+    let world = world().await;
+    let github = world.connection(ConnectionKind::Github).await;
+
+    world.credentials.set(github.id, token("ghp_secret")).await.unwrap();
+    let refused = world.credentials.set(github.id, kubeconfig("prod")).await.unwrap_err();
+
+    assert_eq!(world.secrets.read(&github.secret_ref).unwrap().expose(), "ghp_secret");
+    assert!(refused.to_string().contains("GitHub connection takes a token"));
+}
+
+#[tokio::test]
 async fn a_kubeconfig_is_stored_as_its_chosen_context_and_the_row_learns_the_server() {
     let world = world().await;
     let cluster = world.connection(ConnectionKind::Kubernetes).await;

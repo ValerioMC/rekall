@@ -62,6 +62,7 @@ impl ContextRenderer {
         out.push_str(&self.render_components(&record.components));
         out.push_str(&self.render_connections(&record.connections));
         out.push_str(&self.render_blueprint(record.blueprint.as_deref()));
+        out.push_str(&self.render_sections(&record.sections));
         out.push_str(&self.render_steps(&record.steps, &record.step_connections, record.wrapup.as_ref(), &mut references));
         out.push_str(&self.render_commits(&record.commits));
         out.push_str(&self.render_wrapup(record.wrapup.as_ref()));
@@ -227,6 +228,24 @@ impl ContextRenderer {
         }
     }
 
+    /// The project's pages by title only, so a session learns a procedure exists (how a change is
+    /// proposed, how a release ships) without paying for every body in every context.
+    pub fn render_sections(&self, titles: &[String]) -> String {
+        if titles.is_empty() {
+            return String::new();
+        }
+        let mut out = format!(
+            "\n<sections count=\"{}\">\nPages of this project, not loaded here. When the work touches what a title names \
+             (how a change is proposed, built, tested or released), read that page with `rekall_read_sections` and follow it.\n",
+            titles.len()
+        );
+        for title in titles {
+            out.push_str(&format!("- {title}\n"));
+        }
+        out.push_str("</sections>\n");
+        out
+    }
+
     pub fn render_documents(&self, documents: &[DocumentView]) -> String {
         let mut out = String::new();
         for document in documents {
@@ -308,6 +327,16 @@ fn connection_usage(connection: &ConnectionView) -> String {
             let instance = connection.instance_url.as_deref().unwrap_or("its GitLab instance");
             let project = connection.target.as_deref().map_or_else(String::new, |path| format!(", project `{path}` (`:project` in an API path)"));
             format!("GitLab at {instance}{project}. `git push` to it over HTTPS uses the configured credential helper; call its API with `rekall-gitlab --connection {} <METHOD> <path>`", connection.label)
+        }
+        ConnectionKind::Github => {
+            let server = connection.instance_url.as_deref().unwrap_or("its GitHub server");
+            let repository = connection.target.as_deref().map_or_else(String::new, |path| format!(", repository `{path}` (`:project` in an API path)"));
+            format!(
+                "GitHub at {server}{repository}. `git push` to it over HTTPS uses the configured credential helper; open issues and pull requests \
+                 through its REST API with `rekall-github --connection {} <METHOD> <path> [curl options]`, such as `POST /repos/:project/issues` \
+                 with the JSON body as `-d`",
+                connection.label
+            )
         }
         ConnectionKind::Jira => {
             let site = connection.instance_url.as_deref().unwrap_or("its Jira site");
@@ -518,3 +547,7 @@ mod connections_tests;
 #[cfg(test)]
 #[path = "../../../tests/unit/context/model/context_renderer_sessions_tests.rs"]
 mod sessions_tests;
+
+#[cfg(test)]
+#[path = "../../../tests/unit/context/model/context_renderer_sections_tests.rs"]
+mod sections_tests;

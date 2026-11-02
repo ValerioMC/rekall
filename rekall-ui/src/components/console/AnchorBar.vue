@@ -56,6 +56,9 @@ const resultCount = computed(() =>
 /** Browsing tasks, a new note needs a task in view. Browsing notes, the composer asks for one. */
 const needsTaskForNote = computed(() => navMode.value === 'tasks' && !selectedTaskId.value)
 
+const CURRENT_CHIP = 'min-w-[5rem] shrink-[1000] text-anchor-strong'
+const PARENT_CHIP = 'min-w-[3.5rem] shrink'
+
 const SAVE_LABEL = { saved: 'Saved', unsaved: 'Unsaved', saving: 'Saving' } as const
 
 const SAVE_DOT = {
@@ -196,14 +199,14 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
         <template v-for="(part, index) in location" :key="part">
           <span
             v-if="index > 0"
-            class="text-text-subtle max-[1279px]:hidden"
+            class="shrink-0 text-text-subtle"
             aria-hidden="true"
           >
             &#8250;
           </span>
           <span
-            class="anchor-chip shrink-0 truncate px-1.5 text-caption leading-5"
-            :class="index === location.length - 1 ? 'text-anchor-strong' : 'max-[1279px]:hidden'"
+            class="anchor-chip truncate px-1.5 text-caption leading-5"
+            :class="index === location.length - 1 ? CURRENT_CHIP : PARENT_CHIP"
           >
             {{ part }}
           </span>
@@ -288,10 +291,10 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
             title="New note"
             @click="emit('newNote')"
           >
-            <svg class="size-3.5 min-[1280px]:hidden" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+            <svg class="size-3.5 min-[1536px]:hidden" viewBox="0 0 12 12" fill="none" aria-hidden="true">
               <path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
             </svg>
-            <span class="max-[1279px]:sr-only">New note</span>
+            <span class="max-[1535px]:sr-only">New note</span>
           </AppButton>
           <span
             v-if="needsTaskForNote"

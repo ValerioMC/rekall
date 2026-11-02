@@ -36,6 +36,7 @@ function session(over: Partial<Terminal> = {}): Terminal {
     projectLabel: 'vega',
     taskLabel: 'report-builder',
     taskTitle: 'Report builder',
+    mode: 'WORK',
     skipPermissions: false,
     model: null,
     effort: null,

@@ -17,6 +17,7 @@ pub use view::connection_view::ConnectionView;
 pub use port::credential_desk::CredentialDesk;
 pub use event::credential_access_stream_event::CredentialAccessStreamEvent;
 pub use model::credential_purpose::CredentialPurpose;
+pub use model::github_api_root::github_api_root;
 pub use model::hand_out::{HandOut, Refusal};
 pub use port::in_memory_secret_store::InMemorySecretStore;
 pub use model::jira_credential::JiraCredential;

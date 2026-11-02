@@ -125,7 +125,7 @@ impl PtyTerminalManager {
         let environment = self.launcher.environment(id, &launch, &mut options).await?;
         let command = claude_command(&binary, &options, &mode.first_line(&launch.anchors), environment, directory);
 
-        let terminal = match self.register(id, launch.clone(), step_id, mode.follows_steps(), options, command).await {
+        let terminal = match self.register(id, launch.clone(), step_id, mode.clone(), options, command).await {
             Ok(terminal) => terminal,
             Err(refused) => {
                 self.launcher.release(id);
@@ -145,7 +145,7 @@ impl PtyTerminalManager {
         id: Id,
         launch: TerminalLaunch,
         step_id: Option<Id>,
-        follows_steps: bool,
+        mode: TerminalMode,
         options: ClaudeOptions,
         command: CommandBuilder,
     ) -> Result<Arc<Terminal>> {
@@ -163,7 +163,7 @@ impl PtyTerminalManager {
                 runtime.spawn(async move { manager.on_exit(id).await });
             }
         };
-        let terminal = spawn_terminal(id, launch, step_id, follows_steps, options, command, self.scrollback_bytes, on_exit)
+        let terminal = spawn_terminal(id, launch, step_id, mode, options, command, self.scrollback_bytes, on_exit)
             .map_err(|failed| RekallError::conflict(format!("Could not start claude: {failed}")))?;
         self.live_map().insert(id, terminal.clone());
         Ok(terminal)
@@ -188,7 +188,7 @@ impl PtyTerminalManager {
     /// terminal working a task's steps can be renewed.
     pub async fn renew_session(self: &Arc<Self>, id: Id) -> Result<TerminalView> {
         let terminal = self.require(id)?;
-        if !terminal.follows_steps {
+        if !terminal.mode.follows_steps() {
             return Err(RekallError::illegal("Only a terminal working a task's steps starts a new session."));
         }
         let view = terminal.view();
@@ -296,7 +296,7 @@ impl PtyTerminalManager {
     /// The live terminal working this task's steps, if one is.
     pub fn work_terminal_for(&self, task_id: Id) -> Option<TerminalView> {
         self.live_terminal_on(TerminalTarget::Task(task_id))
-            .filter(|terminal| terminal.alive() && terminal.follows_steps)
+            .filter(|terminal| terminal.alive() && terminal.mode.follows_steps())
             .map(|terminal| terminal.view())
     }
 

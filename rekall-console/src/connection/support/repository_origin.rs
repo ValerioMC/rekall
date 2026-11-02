@@ -1,4 +1,4 @@
-//! Where a repository's `origin` remote points, reduced to what matches it to a GitLab connection:
+//! Where a repository's `origin` remote points, reduced to what matches it to a GitLab or GitHub connection:
 //! the host and the project path. Any user, password or token in the URL is dropped on parsing.
 
 #[derive(Clone, Debug, PartialEq, Eq)]

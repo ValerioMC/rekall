@@ -38,6 +38,20 @@ describe('the anchor bar, at rest', () => {
     wrapper.unmount()
   })
 
+  it('keeps every chip whole, the task shrinking before the project', () => {
+    const store = useConsoleStore()
+    store.tasks = [task]
+    store.selectedTaskId = task.id
+
+    const wrapper = render()
+    const [project, current] = wrapper.findAll('[data-testid="anchor-location"] .anchor-chip')
+
+    expect(project!.classes()).toEqual(expect.arrayContaining(['truncate', 'shrink']))
+    expect(current!.classes()).toEqual(expect.arrayContaining(['truncate', 'shrink-[1000]']))
+    expect(project!.classes().join(' ')).not.toMatch(/hidden/)
+    wrapper.unmount()
+  })
+
   it('turns back into a search when focused', async () => {
     const store = useConsoleStore()
     store.tasks = [task]

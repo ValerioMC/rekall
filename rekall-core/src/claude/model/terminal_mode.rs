@@ -9,7 +9,9 @@ pub const REQUEST_MAX_CHARACTERS: usize = 2000;
 /// task's draft and open steps; `Generate` has it draw `request`
 /// as Mermaid sheets of the `kinds` asked for; `Explain` has it write a walkthrough of `request`;
 /// `Inventory` has it record the project's dependencies; `Assess` has it judge whether `advisory`
-/// really reaches the project, `AssessAll` every advisory not judged yet. Only `Work` follows a step.
+/// really reaches the project, `AssessAll` every advisory not judged yet; `Autoconfigure` has it
+/// learn from the project's repository how to contribute and store that as the project's sections.
+/// Only `Work` follows a step.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub enum TerminalMode {
     #[default]
@@ -22,6 +24,7 @@ pub enum TerminalMode {
     Inventory,
     Assess { advisory: String },
     AssessAll,
+    Autoconfigure,
 }
 
 impl TerminalMode {
@@ -39,13 +42,17 @@ impl TerminalMode {
             TerminalMode::Inventory => format!("/rk {anchors} inventory"),
             TerminalMode::Assess { advisory } => format!("/rk {anchors} assess advisory:{advisory}"),
             TerminalMode::AssessAll => format!("/rk {anchors} assess"),
+            TerminalMode::Autoconfigure => format!("/rk {anchors} autoconfigure"),
         }
     }
 
-    /// Whether the work is the project's as a whole: a diagram, its inventory or an assessment, the
-    /// only work a terminal on a project alone has.
+    /// Whether the work is the project's as a whole: a diagram, its inventory, an assessment or its
+    /// configuration, the only work a terminal on a project alone has.
     pub fn works_on_a_project(&self) -> bool {
-        matches!(self, TerminalMode::Generate { .. } | TerminalMode::Explain { .. } | TerminalMode::Inventory | TerminalMode::Assess { .. } | TerminalMode::AssessAll)
+        matches!(
+            self,
+            TerminalMode::Generate { .. } | TerminalMode::Explain { .. } | TerminalMode::Inventory | TerminalMode::Assess { .. } | TerminalMode::AssessAll | TerminalMode::Autoconfigure
+        )
     }
 
     pub fn follows_steps(&self) -> bool {
@@ -81,7 +88,14 @@ impl std::fmt::Display for TerminalMode {
             TerminalMode::Inventory => "INVENTORY",
             TerminalMode::Assess { .. } => "ASSESS",
             TerminalMode::AssessAll => "ASSESS_ALL",
+            TerminalMode::Autoconfigure => "AUTOCONFIGURE",
         })
+    }
+}
+
+impl serde::Serialize for TerminalMode {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error> {
+        serializer.collect_str(self)
     }
 }
 

@@ -56,7 +56,7 @@ through `ApiPorts`, so `rekall-http` never names the PTY. `TerminalHost` also an
 (`subscribe_ended`, a `TerminalEnded`), answers whether a task has a live session (`has_live_for`) and which
 one works its steps (`work_session_for`), and renews one (`renew`), so `RunQueueWorker` and
 `SessionRelay` hold it and not the manager. A `TerminalOpening` and a `TerminalView` carry a
-`SessionKind` (`TERMINAL` or `CHAT`, `TERMINAL` when a request names none); `PtyTerminals` always reports `TERMINAL`. The run queue is driven the same way:
+`SessionKind` (`TERMINAL` or `CHAT`, `TERMINAL` when a request names none); `PtyTerminals` always reports `TERMINAL`. A `TerminalView` also names the `TerminalMode` the session was opened in (`WORK`, `GENERATE`, `INVENTORY`, `AUTOCONFIGURE`...), which is how the console titles a session opened on a project alone. The run queue is driven the same way:
 `RunQueueControlService` edits the rows through `RunQueueService` and wakes the worker through the
 `QueueRunner` port, which `RunQueueRunner` implements. Binary frames are
 stdin and stdout, a `{"resize":[cols,rows]}` text frame sets the window size, and a
@@ -143,17 +143,18 @@ keychain account; never the credential), so a connection bound twice is reached 
 |---|---|
 | `kubeconfig` | One context per cluster, named by its label: the server, CA, TLS name and proxy read from the stored kubeconfig, the binding's namespace, and a user that is the exec plugin (`interactiveMode: Never`) |
 | `rekall-kube-credential` | kubectl's exec plugin: prints the `ExecCredential` (a token, or a client certificate and key as PEM) |
-| `rekall-git-credential` | git's credential helper: answers `get` with `username=oauth2` and the token |
+| `rekall-git-credential` | git's credential helper for GitLab and GitHub hosts: answers `get` with `username=oauth2` and the token |
 | `rekall-gitlab` | `rekall-gitlab --connection <label> <METHOD> <path> [curl options]`: a GitLab API call with the `PRIVATE-TOKEN` header, `:project` standing for the binding's project path, URL-encoded |
+| `rekall-github` | `rekall-github --connection <label> <METHOD> <path> [curl options]`: a GitHub REST call with a Bearer `Authorization` header and `X-GitHub-Api-Version`, under `https://api.github.com` for github.com or `<server>/api/v3` for an Enterprise Server (`github_api_root`), `:project` standing for the binding's `owner/repo` as two path segments |
 | `rekall-jira` | `rekall-jira --connection <label> <METHOD> <path> [curl options]`: a Jira call under `/rest/api/2` with the credential's `Authorization` header (Basic on Cloud, Bearer on Data Center) and JSON both ways, `:project` standing for the binding's project key, through the connection's proxy (`curl --proxy`) when it names one |
 
 None holds a credential. `SessionEnvironment` adds the folder first on `PATH`, `KUBECONFIG` (only
 Rekall's clusters, so the session uses the credential you provided), a `GIT_CONFIG_KEY_n`/`VALUE_n`
-pair per GitLab host (an empty `credential.<url>.helper` that drops helpers configured elsewhere,
+pair per GitLab or GitHub host (an empty `credential.<url>.helper` that drops helpers configured elsewhere,
 then Rekall's, after any entries the shell already set; bindings of one instance share its token, so
 the first answers for the host) and `REKALL_CREDENTIAL_TOKEN`, 244 random bits
 for this terminal. The helpers send the token as a header read from stdin, so it never appears in a
-process listing, to `GET /api/terminal/{id}/credentials/{label}?for=kubectl|git|gitlab|jira`. That route
+process listing, to `GET /api/terminal/{id}/credentials/{label}?for=kubectl|git|gitlab|github|jira`. That route
 sits outside the router's UUID check, answers only a loopback peer even with
 `rekall.security.remote-access` on, and answers in plain text the helpers print as they are: 403
 for a token that is not the terminal's (compared in constant time) or a peer that is not this

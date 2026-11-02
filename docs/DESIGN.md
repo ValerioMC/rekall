@@ -107,7 +107,7 @@ is found by opening one folder per crate:
 |---|---|
 | `catalog` | companies and projects with their logos and icons; in `rekall-console`, `rekall-http` and the UI also the tasks |
 | `component`, `section` | a project's components and its titled pages |
-| `connection` | the GitLab instances, Kubernetes clusters and Jira sites a company's projects reach, the projects that bind each, the log of every credential a terminal asked for, and the Jira issues a project imports as tasks |
+| `connection` | the GitLab instances, GitHub servers, Kubernetes clusters and Jira sites a company's projects reach, the projects that bind each, the log of every credential a terminal asked for, and the Jira issues a project imports as tasks |
 | `task` | the task row, and in `rekall-core` and `rekall-mcp` a session creating one or filing it under an epic; the console's task service is in `catalog` |
 | `step`, `flow` | the checklist, and the routes and visits that turn it into a flow |
 | `graph` | a project's deployment graphs and laying one on a task; console-only, so it has no folder in `rekall-core` |
@@ -169,7 +169,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `commit` | `step`, `task` | `catalog`, `step`, `task` | - | nothing | nothing |
 | `component` | `catalog` | `connection`, `task` | nothing | nothing | - |
 | `connection` | `catalog`, `task` | nothing | `catalog`, `commit`, `component`, `task` | `catalog` | - |
-| `context` | - | `catalog`, `commit`, `component`, `connection`, `note`, `step`, `tag`, `task`, `wrapup` | - | nothing | nothing |
+| `context` | - | `catalog`, `commit`, `component`, `connection`, `note`, `section`, `step`, `tag`, `task`, `wrapup` | - | nothing | nothing |
 | `diagram` | `catalog`, `task` | `catalog`, `task` | nothing | nothing | nothing |
 | `filesystem` | - | - | nothing | nothing | - |
 | `flow` | `step`, `task` | `step` | - | `step` | `step` |
@@ -447,7 +447,9 @@ list; `rekall-mcp` can read the skills through the context and never write them.
 A project's connections arrive as a `<connections>` block after its components, one line per
 binding: the binding's own label, the connection's title and how to reach it. A cluster is `kubectl --context <label>` with the
 binding's namespace; a GitLab instance is its URL and project path, pushed to over HTTPS through the
-configured credential helper and called through `rekall-gitlab --connection <label>`; a Jira site is its
+configured credential helper and called through `rekall-gitlab --connection <label>`; a GitHub server
+is its URL and `owner/repo`, pushed to the same way and called through `rekall-github --connection
+<label>`, which is how a session files an issue or opens a pull request; a Jira site is its
 URL and project key, called through `rekall-jira --connection <label>` under `/rest/api/2`, which Jira Cloud
 and Data Center both serve, its search named for each. A connection with no credential
 says so, so the session reports it. `ConnectionView` carries no field that could hold a credential,
@@ -456,6 +458,13 @@ Rekall opened and forbids handling a credential directly; `/rk` repeats that rul
 deployment graph names the connection it works through on a `Connection:` line by the labels of the
 project's bindings of it (`a` or `b` when it binds it twice; see 4.4 in [design/workflow.md](design/workflow.md)), and says to report one the
 project no longer binds.
+
+A project's sections arrive as a `<sections>` block after its blueprint: their titles only, in the
+console's order, with a line telling the session to read the one the work touches through
+`rekall_read_sections` and follow it. The bodies stay out because a project can hold many long pages
+and only one matters to a given piece of work; the titles stay in because a page nobody knows exists
+is never read, and a `Contributing` page is how a project's procedure for an issue, a branch and a
+pull request reaches every task.
 
 Scalars are rendered as bullets and bodies as tags, which is why a description is a `<description>` block rather than a `description` bullet. It is a document, with headings, lists and a scope section, and a document inlined into a list item stops being one: every line after the first falls outside the bullet, and its own headings outrank the record's.
 

@@ -1,11 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import * as api from '@/features/project/api/project-sections.api'
+import { openTerminal } from '@/features/claude/api/terminal.api'
 import { useProjectSectionsStore } from '@/features/project/store/projectSections.store'
 import type { ProjectSection } from '@/features/project/model/project-section'
 import type { ProjectId, ProjectSectionId } from '@/model/branded'
 
 vi.mock('@/features/project/api/project-sections.api')
+vi.mock('@/features/claude/api/terminal.api', () => ({
+  openTerminal: vi.fn(async (target: unknown) => ({ id: 't-1', kind: 'TERMINAL', target })),
+  fetchTerminals: vi.fn(),
+  closeTerminal: vi.fn(),
+  sendTerminalInput: vi.fn()
+}))
 
 const PROJECT = 'p-1' as ProjectId
 
@@ -76,5 +83,13 @@ describe('the project sections store', () => {
 
     await store.applyEvent(PROJECT)
     expect(api.fetchProjectSections).toHaveBeenCalledTimes(2)
+  })
+
+  it('opens an autoconfigure session on the project alone', async () => {
+    const store = useProjectSectionsStore()
+
+    await store.autoconfigure(PROJECT)
+
+    expect(openTerminal).toHaveBeenCalledWith({ projectId: PROJECT }, expect.objectContaining({ mode: 'AUTOCONFIGURE' }))
   })
 })

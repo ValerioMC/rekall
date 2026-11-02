@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { asCompanyId, asConnectionId, asProjectConnectionId, asProjectId, asTaskId, asTerminalId } from '@/model/branded'
 
-const KindSchema = z.enum(['GITLAB', 'KUBERNETES', 'JIRA'])
+const KindSchema = z.enum(['GITLAB', 'GITHUB', 'KUBERNETES', 'JIRA'])
 
 export const ConnectionSchema = z.object({
   id: z.string().uuid().transform(asConnectionId),

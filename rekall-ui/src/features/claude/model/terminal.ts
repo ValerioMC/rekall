@@ -5,9 +5,10 @@ import type { ConnectionId, ProjectId, TaskId, TaskStepId, TerminalId } from '@/
  * What a terminal is opened to do: `WORK` types `/rk <anchor>`, `PLAN` types `/rk <anchor> plan`,
  * `PLAN_FLOW` types `/rk <anchor> plan flow`, `REPLAN` types `/rk <anchor> replan`, `GENERATE` types `/rk <anchor> generate "<request>"`,
  * `INVENTORY` types `/rk <anchor> inventory`, `ASSESS` types `/rk <anchor> assess advisory:<id>`,
- * `ASSESS_ALL` types `/rk <anchor> assess` to judge every advisory not assessed yet.
+ * `ASSESS_ALL` types `/rk <anchor> assess` to judge every advisory not assessed yet, `AUTOCONFIGURE`
+ * types `/rk <anchor> autoconfigure` to learn how the project takes a contribution.
  */
-export type TerminalMode = 'WORK' | 'PLAN' | 'PLAN_FLOW' | 'REPLAN' | 'GENERATE' | 'EXPLAIN' | 'INVENTORY' | 'ASSESS' | 'ASSESS_ALL'
+export type TerminalMode = 'WORK' | 'PLAN' | 'PLAN_FLOW' | 'REPLAN' | 'GENERATE' | 'EXPLAIN' | 'INVENTORY' | 'ASSESS' | 'ASSESS_ALL' | 'AUTOCONFIGURE'
 
 /**
  * A planning terminal: a checklist of drafts, a flow, drafts joined by their routes, or a replan
@@ -15,7 +16,7 @@ export type TerminalMode = 'WORK' | 'PLAN' | 'PLAN_FLOW' | 'REPLAN' | 'GENERATE'
  */
 export type PlanMode = Extract<TerminalMode, 'PLAN' | 'PLAN_FLOW' | 'REPLAN'>
 
-/** What a terminal is opened on: a task, or a project alone, which draws a diagram, inventories or assesses. */
+/** What a terminal is opened on: a task, or a project alone, which draws a diagram, inventories, assesses or autoconfigures. */
 export type TerminalTarget = { readonly taskId: TaskId } | { readonly projectId: ProjectId }
 
 /** How a session runs `claude`: the interactive TUI in a PTY, or headless over stream-json with its own window. */
@@ -35,6 +36,7 @@ export interface Terminal {
   readonly projectLabel: string
   readonly taskLabel: string | null
   readonly taskTitle: string | null
+  readonly mode: TerminalMode
   readonly skipPermissions: boolean
   readonly model: string | null
   readonly effort: string | null

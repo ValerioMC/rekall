@@ -34,5 +34,7 @@ pub struct ContextRecord {
     /// What the project reaches outside Rekall; never a credential.
     pub connections: Vec<ConnectionView>,
     pub blueprint: Option<String>,
+    /// The titles of the project's sections, in the console's order; their bodies stay out.
+    pub sections: Vec<String>,
     pub description: Option<String>,
 }

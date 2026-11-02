@@ -681,6 +681,10 @@
   color: var(--color-brand-gitlab);
 }
 
+.rk-completion-icon[data-icon='github'] {
+  color: var(--color-text);
+}
+
 .rk-completion-icon[data-icon='kubernetes'] {
   color: var(--color-brand-kubernetes);
 }

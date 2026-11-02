@@ -89,4 +89,12 @@ describe('ScopePicker list', () => {
       'company-mark-initial'
     ])
   })
+
+  it("marks every project row with the project's icon", async () => {
+    const picker = render(null)
+    await picker.get('[data-testid="scope-trigger"]').trigger('click')
+
+    const row = picker.get('[data-testid="scope-project"]')
+    expect(row.find('[data-testid^="project-mark-"]').exists()).toBe(true)
+  })
 })

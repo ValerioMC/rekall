@@ -72,6 +72,7 @@ export async function setCredential(id: ConnectionId, draft: CredentialDraft): P
 function credentialBody(draft: CredentialDraft): Record<string, string | null> {
   switch (draft.kind) {
     case 'GITLAB':
+    case 'GITHUB':
       return { token: draft.token }
     case 'KUBERNETES':
       return { kubeconfig: draft.kubeconfig, context: draft.context }
@@ -157,7 +158,7 @@ export async function unbindConnection(projectId: ProjectId, bindingId: ProjectC
   )
 }
 
-/** Binds every repository under the project's folder whose origin is on a GitLab with a credential. */
+/** Binds every repository under the project's folder whose origin is on a GitLab or GitHub with a credential. */
 export async function discoverRepositories(projectId: ProjectId): Promise<RepositoryDiscovery> {
   return request(async () =>
     RepositoryDiscoverySchema.parse(

@@ -77,6 +77,7 @@ describe('the session kind on a terminal', () => {
     projectLabel: 'vega',
     taskLabel: null,
     taskTitle: null,
+    mode: 'GENERATE',
     skipPermissions: false,
     model: null,
     effort: null,

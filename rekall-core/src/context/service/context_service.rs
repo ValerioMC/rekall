@@ -189,6 +189,7 @@ impl ContextService {
         let tasks = repo::task::list_of_project(tx.db(), project.id).await?;
         let components = repo::project_component::list_of_project(tx.db(), project.id).await?;
         let connections = repo::project_connection::list_of_project(tx.db(), project.id).await?;
+        let sections = repo::project_section::list_of_project(tx.db(), project.id).await?;
         Ok(ContextRecord {
             kind: "Project".into(),
             label: project.title.clone(),
@@ -199,6 +200,7 @@ impl ContextService {
             components: components.iter().map(ProjectComponentView::of).collect(),
             connections: connections.iter().map(|(binding, connection)| ConnectionView::of(binding, connection)).collect(),
             blueprint: project.blueprint_markdown.clone(),
+            sections: sections.into_iter().map(|section| section.title).collect(),
             description: project.description.clone(),
             ..Default::default()
         })
@@ -309,6 +311,7 @@ impl ContextService {
             task_lookup: siblings.iter().map(TaskReferenceView::of).collect(),
             connections: Vec::new(),
             blueprint: None,
+            sections: Vec::new(),
             description: task.description.clone(),
         })
     }

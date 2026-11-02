@@ -1,5 +1,6 @@
 pub(super) mod connection_check;
 pub(super) mod credential_purpose;
+pub(super) mod github_api_root;
 pub(super) mod hand_out;
 pub(super) mod jira_credential;
 pub(super) mod jira_deployment;

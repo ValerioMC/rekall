@@ -18,6 +18,11 @@ describe('endpointOf', () => {
     )
   })
 
+  it('names a GitHub server by its host, or says it has none', () => {
+    expect(endpointOf({ kind: 'GITHUB', baseUrl: 'https://github.com', kubeContext: null })).toBe('github.com')
+    expect(endpointOf({ kind: 'GITHUB', baseUrl: null, kubeContext: null })).toBe('no server URL')
+  })
+
   it('names a cluster by its context and server', () => {
     expect(
       endpointOf({ kind: 'KUBERNETES', baseUrl: 'https://10.0.0.14:6443', kubeContext: 'kmaster14' })

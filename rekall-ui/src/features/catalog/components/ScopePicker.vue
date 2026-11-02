@@ -7,7 +7,6 @@ import CompanyMark from '@/components/ui/CompanyMark.vue'
 import ProjectMark from '@/components/ui/ProjectMark.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { companyDraft, projectDraft } from '@/features/catalog/model/record-draft'
-import { identityHue } from '@/common/identity'
 import { PROJECT_STATUS_LABEL } from '@/features/catalog/model/catalog'
 import { compareText } from '@/features/catalog/lib/compare-text'
 import type { RecordDraft } from '@/features/catalog/model/record-draft'
@@ -193,7 +192,7 @@ defineExpose({ newCompany, newProject })
                 class="flex items-center gap-1.5 truncate text-small"
                 :class="scopeProject === project.id ? 'text-text' : 'text-text-muted'"
               >
-                <span class="size-1.5 shrink-0 rounded-full" :style="{ backgroundColor: identityHue(project.id).base }" aria-hidden="true" />
+                <ProjectMark :project-id="project.id" :icon="project.icon" :image-version="project.iconImageVersion" :size="16" />
                 <span class="truncate">{{ project.title }}</span>
               </span>
               <span class="mt-0.5 block truncate">

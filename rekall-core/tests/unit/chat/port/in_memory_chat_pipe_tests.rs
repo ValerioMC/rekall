@@ -4,7 +4,7 @@ use rekall_kernel::Instant;
 
 use super::*;
 use crate::chat::RecordingChatListener;
-use crate::claude::SessionKind;
+use crate::claude::{SessionKind, TerminalMode};
 
 fn view() -> TerminalView {
     let now = Instant::now();
@@ -18,6 +18,7 @@ fn view() -> TerminalView {
         project_label: "vega".into(),
         task_label: None,
         task_title: None,
+        mode: TerminalMode::Work,
         skip_permissions: false,
         model: None,
         effort: None,

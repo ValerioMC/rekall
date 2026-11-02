@@ -83,3 +83,12 @@ fn the_jira_wrapper_sends_its_calls_through_the_connections_proxy() {
 fn a_quote_in_a_value_cannot_end_its_shell_word() {
     assert_eq!(quoted("it's"), r"'it'\''s'");
 }
+
+#[test]
+fn the_github_wrapper_calls_the_api_host_and_keeps_the_repository_as_two_segments() {
+    let github = TerminalConnection { kind: ConnectionKind::Github, instance_url: Some("https://github.com".into()), ..gitlab("lightcraft", Some("storytold/lightcraft")) };
+    let script = api_wrapper(&GITHUB_API, ENDPOINT, &[&github]);
+    assert!(script.contains("  'lightcraft') base='https://api.github.com'; project='storytold/lightcraft'; proxy='' ;;"));
+    assert!(script.contains("\"$label?for=github\""));
+    assert!(script.contains("-H 'X-GitHub-Api-Version: 2022-11-28' "));
+}

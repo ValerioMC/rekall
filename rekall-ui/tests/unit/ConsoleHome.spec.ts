@@ -5,6 +5,7 @@ import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import HomeReviewCard from '@/components/console/home/HomeReviewCard.vue'
 import HomeSessionsCard from '@/components/console/home/HomeSessionsCard.vue'
 import HomeSituation from '@/components/console/home/HomeSituation.vue'
+import { sessionTitle } from '@/common/format/session-title'
 import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import type { Task, TaskStep } from '@/features/catalog/model/catalog'
@@ -77,6 +78,7 @@ const session: Terminal = {
   projectLabel: 'vega',
   taskLabel: 'report-builder',
   taskTitle: 'Report builder',
+  mode: 'WORK',
   skipPermissions: false,
   model: null,
   effort: null,
@@ -150,7 +152,7 @@ describe('the console home', () => {
   it('opens a session generating a diagram for a project alone on the Diagrams screen', async () => {
     const store = useConsoleStore()
     const terminals = useTerminalStore()
-    terminals.terminals = [{ ...session, taskId: null, taskLabel: null, taskTitle: null, anchors: 'project:vega' }]
+    terminals.terminals = [{ ...session, taskId: null, taskLabel: null, taskTitle: null, mode: 'GENERATE', anchors: 'project:vega' }]
     store.selectTask = vi.fn()
     const router = consoleRouter()
 
@@ -162,6 +164,19 @@ describe('the console home', () => {
     expect(store.selectTask).not.toHaveBeenCalled()
     expect(router.currentRoute.value.name).toBe('diagrams')
     expect(router.currentRoute.value.query.session).toBe('term1')
+  })
+})
+
+describe('what a session on a project alone is listed as', () => {
+  const onProject = { ...session, taskId: null, taskLabel: null, taskTitle: null, anchors: 'project:vega' }
+
+  it.each([
+    ['GENERATE', 'Diagram for vega'],
+    ['INVENTORY', 'Inventory of vega'],
+    ['ASSESS_ALL', 'Assessment of vega'],
+    ['AUTOCONFIGURE', 'Autoconfigure vega']
+  ] as const)('names a %s session by the work it does', (mode, title) => {
+    expect(sessionTitle({ ...onProject, mode })).toBe(title)
   })
 })
 

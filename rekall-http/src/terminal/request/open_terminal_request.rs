@@ -11,7 +11,8 @@ use crate::terminal::TerminalModeName;
 /// unknown or blank model or effort leaves the account default. A missing `mode` is
 /// [`TerminalMode::Work`], and a missing `kind` is a terminal session; `PLAN_FLOW` asks for a flow rather than a checklist, `REPLAN` for the task's draft and open steps to be redesigned; `GENERATE` and
 /// `EXPLAIN` need a `request`, and `kinds` names the diagram types a generation draws; `ASSESS`
-/// needs the GHSA id of the `advisory` to judge, and `ASSESS_ALL` judges every one not judged yet.
+/// needs the GHSA id of the `advisory` to judge, and `ASSESS_ALL` judges every one not judged yet;
+/// `AUTOCONFIGURE` has a project's session learn how to contribute to it.
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct OpenTerminalRequest {
@@ -52,6 +53,7 @@ impl OpenTerminalRequest {
             Some(TerminalModeName::Inventory) => Ok(TerminalMode::Inventory),
             Some(TerminalModeName::Assess) => Ok(TerminalMode::Assess { advisory: rules::ghsa_id(self.advisory.as_deref())? }),
             Some(TerminalModeName::AssessAll) => Ok(TerminalMode::AssessAll),
+            Some(TerminalModeName::Autoconfigure) => Ok(TerminalMode::Autoconfigure),
         }
     }
 

@@ -40,6 +40,11 @@ fn an_inventory_request_opens_an_inventory_terminal() {
 }
 
 #[test]
+fn an_autoconfigure_request_opens_an_autoconfigure_terminal() {
+    assert_eq!(parsed(r#"{"mode":"AUTOCONFIGURE"}"#).mode().unwrap(), TerminalMode::Autoconfigure);
+}
+
+#[test]
 fn an_assess_request_names_the_advisory_by_its_ghsa_id() {
     assert_eq!(
         parsed(r#"{"mode":"ASSESS","advisory":"ghsa-JFH8-c2jp-5v3q"}"#).mode().unwrap(),

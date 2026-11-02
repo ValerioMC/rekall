@@ -1,5 +1,5 @@
-//! Binds every repository under a project's folder to the GitLab connection its `origin` points
-//! at, and makes each a component. Only a connection with a stored credential is bound: a token
+//! Binds every repository under a project's folder to the GitLab or GitHub connection its `origin`
+//! points at, and makes each a component. Only a connection with a stored credential is bound: a token
 //! configured once for an instance reaches every repository on it.
 
 use std::collections::HashSet;
@@ -35,9 +35,9 @@ struct FoundRepository {
 /// What one discovery has to remember from repository to repository.
 struct DiscoveryRun {
     project_id: Id,
-    gitlabs: Vec<external_connection::Model>,
+    git_hosts: Vec<external_connection::Model>,
     bindings: Vec<(project_connection::Model, external_connection::Model)>,
-    /// The GitLab projects a repository of this run already settled, so a second clone of one
+    /// The hosted repositories a repository of this run already settled, so a second clone of one
     /// gets no component of its own.
     settled: HashSet<(Id, String)>,
 }
@@ -60,9 +60,9 @@ impl RepositoryDiscoveryService {
         let root = root_folder(project.repo_folder.as_deref())?;
         let found = self.found_under(&root).await?;
         in_write!(&self.ctx, |tx| {
-            let gitlabs = self.connections.list_in(&tx, project.company_id).await?.into_iter().filter(|connection| connection.kind == ConnectionKind::Gitlab).collect();
+            let git_hosts = self.connections.list_in(&tx, project.company_id).await?.into_iter().filter(|connection| hosts_git(connection.kind)).collect();
             let bindings = self.bindings.list_in(&tx, project_id).await?;
-            let mut run = DiscoveryRun { project_id, gitlabs, bindings, settled: HashSet::new() };
+            let mut run = DiscoveryRun { project_id, git_hosts, bindings, settled: HashSet::new() };
             let mut repositories = Vec::with_capacity(found.len());
             for repository in &found {
                 repositories.push(self.settle_in(&mut tx, &mut run, repository).await?);
@@ -89,7 +89,7 @@ impl RepositoryDiscoveryService {
         let Some(origin) = &repository.origin else {
             return Ok(DiscoveredRepositoryView::unmatched(folder, None, DiscoveryOutcome::NoOrigin, None));
         };
-        let Some((connection, target)) = connection_at(&run.gitlabs, origin) else {
+        let Some((connection, target)) = connection_at(&run.git_hosts, origin) else {
             return Ok(DiscoveredRepositoryView::unmatched(folder, Some(origin.display()), DiscoveryOutcome::NoConnection, None));
         };
         if !connection.has_credential() {
@@ -136,10 +136,14 @@ fn root_folder(repo_folder: Option<&str>) -> Result<PathBuf> {
     Ok(root)
 }
 
-/// The GitLab connection at the origin's host and the project path on it. One with a credential is
-/// preferred, so a second, empty connection to the same instance does not hide a usable one.
-fn connection_at(gitlabs: &[external_connection::Model], origin: &RepositoryOrigin) -> Option<(external_connection::Model, String)> {
-    let candidates: Vec<(&external_connection::Model, String)> = gitlabs
+fn hosts_git(kind: ConnectionKind) -> bool {
+    matches!(kind, ConnectionKind::Gitlab | ConnectionKind::Github)
+}
+
+/// The GitLab or GitHub connection at the origin's host and the repository path on it. One with a
+/// credential is preferred, so a second, empty connection to the same server does not hide a usable one.
+fn connection_at(git_hosts: &[external_connection::Model], origin: &RepositoryOrigin) -> Option<(external_connection::Model, String)> {
+    let candidates: Vec<(&external_connection::Model, String)> = git_hosts
         .iter()
         .filter_map(|connection| connection.base_url.as_deref().and_then(|url| origin.path_on(url)).map(|path| (connection, path)))
         .collect();

@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use rekall_kernel::{Id, Instant, RekallError, Result};
 use tokio::sync::broadcast;
 
-use crate::claude::{SessionKind, TerminalEnded, TerminalHost, TerminalOpening, TerminalTarget, TerminalView};
+use crate::claude::{SessionKind, TerminalEnded, TerminalHost, TerminalMode, TerminalOpening, TerminalTarget, TerminalView};
 
 const ENDED_CAPACITY: usize = 16;
 
@@ -46,6 +46,7 @@ impl InMemoryTerminalHost {
             project_label: "vega".into(),
             task_label: None,
             task_title: None,
+            mode: TerminalMode::Work,
             skip_permissions: false,
             model: None,
             effort: None,

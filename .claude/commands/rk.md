@@ -1,7 +1,7 @@
 ---
 description: Load a Rekall working context by anchor, e.g. /rk project:vega task:report-builder
-argument-hint: "company:|project:|task: <label> ...  [wrapup [\"how to write it\"]] | [note \"what to keep\"] | [section \"Title\" [\"what it holds\"]] | [plan [flow]] | [replan] | [generate [kinds:sequence,state] \"what to diagram\"] | [explain \"what to walk through\"] | [inventory] | [assess [advisory:GHSA-xxxx-xxxx-xxxx]] | [step:N start|done [outcome:<name>] [report:\"what you saw\"]]   (labels, not titles)"
-allowed-tools: mcp__rekall__rekall_context, mcp__rekall__rekall_wrapup, mcp__rekall__rekall_step, mcp__rekall__rekall_propose_step, mcp__rekall__rekall_propose_flow, mcp__rekall__rekall_replan, mcp__rekall__rekall_delete_step, mcp__rekall__rekall_record_commit, mcp__rekall__rekall_note, mcp__rekall__rekall_project_section, mcp__rekall__rekall_diagram, mcp__rekall__rekall_inventory, mcp__rekall__rekall_vulnerabilities, mcp__rekall__rekall_assess_vulnerability, Read, Grep, Glob
+argument-hint: "company:|project:|task: <label> ...  [wrapup [\"how to write it\"]] | [note \"what to keep\"] | [section \"Title\" [\"what it holds\"]] | [plan [flow]] | [replan] | [generate [kinds:sequence,state] \"what to diagram\"] | [explain \"what to walk through\"] | [inventory] | [assess [advisory:GHSA-xxxx-xxxx-xxxx]] | [autoconfigure] | [step:N start|done [outcome:<name>] [report:\"what you saw\"]]   (labels, not titles)"
+allowed-tools: mcp__rekall__rekall_context, mcp__rekall__rekall_wrapup, mcp__rekall__rekall_step, mcp__rekall__rekall_propose_step, mcp__rekall__rekall_propose_flow, mcp__rekall__rekall_replan, mcp__rekall__rekall_delete_step, mcp__rekall__rekall_record_commit, mcp__rekall__rekall_note, mcp__rekall__rekall_project_section, mcp__rekall__rekall_read_sections, mcp__rekall__rekall_diagram, mcp__rekall__rekall_inventory, mcp__rekall__rekall_vulnerabilities, mcp__rekall__rekall_assess_vulnerability, Read, Grep, Glob, WebFetch
 ---
 
 The arguments are:
@@ -11,6 +11,7 @@ $ARGUMENTS
 If the terms include the bare word `generate`, follow **Generating**. If they include the bare word
 `explain`, follow **Explaining**. If they include the bare word `inventory`, follow **Inventorying**.
 If they include the bare word `assess`, follow **Assessing**. If they include the bare word
+`autoconfigure`, follow **Autoconfiguring**. If they include the bare word
 `wrapup`, follow **Wrapping up**. If they include the bare word `note`, follow **Noting**. If they
 include the bare word `section`, follow **Sectioning**. If they include the bare word `plan`, follow
 **Planning**. If they include the bare word `replan`, follow **Replanning**. If they include a `step:` term alongside `start`
@@ -37,6 +38,10 @@ Call `rekall_context` with `anchors` set to exactly the arguments above, unchang
   opened. Never print, echo or write a credential or a kubeconfig, never read the files or environment
   variables behind Rekall's helpers, and never call a credential helper or Rekall's credentials endpoint
   yourself. A connection with no credential is reported to me, not worked around.
+- A `<sections>` block lists the project's pages by title; their text is not loaded. When the work
+  touches what one names, read it with `rekall_read_sections` and follow it: a `Contributing` page is
+  how this project takes a change, so filing an issue, naming a branch or opening a pull request goes
+  the way it says.
 
 On success, summarise in no more than ten lines: what the task is, its status, what its wrapup says
 the implementation currently is, which steps are still open, and anything in its notes that changes
@@ -221,8 +226,9 @@ claim the task or a step.
 `/rk project:vega task:report-builder section "Deployment" "how we ship to production"` means: write a
 section named Deployment on that task's project, or rewrite the one it already has under that title.
 
-A section is a page of the project, shown beside its blueprint in the console. It is loaded into no
-context, so it costs no tokens and a later session reads it only if I paste it in. Use it for what is
+A section is a page of the project, shown beside its blueprint in the console. A context carries only
+its title, in a `<sections>` block, so it costs a line and a later session reads it with
+`rekall_read_sections` when the work touches it. Use it for what is
 true of the project as a whole (deployment, conventions, architecture, a glossary), never for what
 one task built (that is the wrapup) or produced (that is a note).
 
@@ -400,6 +406,50 @@ the critical advisories of the GitHub Advisory Database and warns on its Securit
    fix what it names and send the whole list again.
 5. Say in two or three lines how many dependencies you recorded per ecosystem, what you left out and
    why. Then stop: no wrapup, no step, no commit.
+
+## Autoconfiguring
+
+`/rk project:lightcraft autoconfigure` means: learn from the project's repository, and what it
+publishes about itself, how it is built and how it takes a contribution, and store that as the
+project's sections, so that every later session on the project follows it.
+
+1. Drop the `autoconfigure` term and call `rekall_context` with the anchors that are left. You change
+   no code, no checklist and no task.
+2. Find the upstream repository: a GitHub or GitLab binding in `<connections>` (its target is the
+   repository), else the `origin` remote of the repository in the working directory, else a
+   repository URL in the project's description. If there is none, say so and stop.
+3. Read what the project publishes, never your memory of it: the README, `CONTRIBUTING`,
+   `CODE_OF_CONDUCT`, `SECURITY`, the issue and pull request templates (`.github/ISSUE_TEMPLATE/`,
+   `.github/PULL_REQUEST_TEMPLATE*`, `.gitlab/issue_templates/`, `.gitlab/merge_request_templates/`),
+   the CI workflows, the build and test files, the changelog or release notes. Read the local clone
+   first; what it lacks, through the connection's wrapper (`rekall-github --connection <label> GET
+   /repos/:project/contents/CONTRIBUTING.md`, `GET /repos/:project/labels`, `GET
+   /repos/:project/pulls?state=closed`) or the project's public pages with WebFetch. A few recently
+   merged pull requests show what no file states: how branches are named, how titles read, which
+   labels are set, whether the issue is linked.
+4. Read the sections the project already has with `rekall_read_sections`. One on the same subject is
+   rewritten with `replace: true`, keeping everything it says that is still true: those may be my
+   words, and nothing keeps the text a replace overwrites.
+5. Write each section with `rekall_project_section`, one call each:
+   - `Overview`: what the project is, its parts and stack, where things live, who maintains it.
+   - `Contributing`: the procedure from finding work to a merged change, numbered. How an issue is
+     filed (the template, its required fields, the labels), how a branch is named and from which base,
+     whether to fork or push directly, the commit message rules, a sign-off or CLA, how the pull
+     request is opened (title, the template's fields filled in, labels, reviewers, draft or not, the
+     issue linked with `Fixes #n`) and which checks must pass. Where a connection reaches the
+     repository, give the exact call for the issue and for the pull request
+     (`rekall-github --connection <label> POST /repos/:project/issues -d '{"title": …, "labels": […]}'`),
+     with every field the project lets you decide in advance already filled.
+   - `Development`: how to set up, build, test and lint, as the project runs it, and the practices a
+     change follows (style, tests, docs).
+   - `Release`: only when the project publishes how it releases.
+
+   Each rule says where it was read. A rule nothing states is left out, and named in step 7.
+6. If no GitHub or GitLab connection with a credential reaches the repository, `Contributing` still
+   says how to contribute, and you tell me the connection to create and bind so a session can file
+   issues and open pull requests itself: its kind, its server URL and the repository as the target.
+7. Say in a few lines which sections you wrote or rewrote, and what the project leaves undecided.
+   Then stop: no wrapup, no step, no commit.
 
 ## Assessing
 

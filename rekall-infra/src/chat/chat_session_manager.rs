@@ -147,7 +147,7 @@ impl ChatSessionManager {
         id: Id,
         launch: TerminalLaunch,
         step_id: Option<Id>,
-        follows_steps: bool,
+        mode: TerminalMode,
         options: ClaudeOptions,
         command: Command,
         first_line: &str,
@@ -160,7 +160,7 @@ impl ChatSessionManager {
             )));
         }
         let (process, events) = spawn_chat_process(id, command, first_line)?;
-        let session = Arc::new(ChatSession::new(id, launch, step_id, follows_steps, options, process, self.backlog_bytes));
+        let session = Arc::new(ChatSession::new(id, launch, step_id, mode, options, process, self.backlog_bytes));
         session.publish(ChatBody::UserMessage { text: first_line.to_string() });
         self.live_map().insert(id, session.clone());
         tokio::spawn(follow_process(self.me.clone(), session.clone(), events));
@@ -205,7 +205,7 @@ impl ChatSessionManager {
     async fn finish(&self, session: &Arc<ChatSession>, detail: &str) {
         session.end(session.process.exit_code().unwrap_or(-1), detail);
         self.launcher.release(session.id);
-        if session.follows_steps {
+        if session.mode.follows_steps() {
             self.marker.release_running(session.launch.task_id, session.step_id()).await;
         }
         self.ended.announce(session.id, session.launch.task_id);
@@ -253,7 +253,7 @@ impl TerminalHost for ChatSessionManager {
         let command = chat_command(&binary, &options, environment, directory);
         let first_line = mode.first_line(&launch.anchors);
 
-        let session = match self.register(id, launch.clone(), step_id, follows_steps, options, command, &first_line).await {
+        let session = match self.register(id, launch.clone(), step_id, mode.clone(), options, command, &first_line).await {
             Ok(session) => session,
             Err(refused) => {
                 self.launcher.release(id);
@@ -292,13 +292,13 @@ impl TerminalHost for ChatSessionManager {
 
     fn work_session_for(&self, task_id: Id) -> Option<TerminalView> {
         self.live_session_on(TerminalTarget::Task(task_id))
-            .filter(|session| session.alive() && session.follows_steps)
+            .filter(|session| session.alive() && session.mode.follows_steps())
             .map(|session| session.view())
     }
 
     async fn renew(&self, id: Id) -> Result<TerminalView> {
         let session = self.require(id)?;
-        if !session.follows_steps {
+        if !session.mode.follows_steps() {
             return Err(RekallError::illegal("Only a chat session working a task's steps starts a new session."));
         }
         let view = session.view();

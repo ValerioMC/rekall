@@ -45,7 +45,7 @@ export function connectionTrunks(
   return [...grouped].map(([id, members]) => trunkOf(members, connections.find((connection) => connection.id === id)))
 }
 
-/** The trunks by kind, clusters first, then GitLab, then Jira; each kind keeps its trunks' order and an empty kind is left out. */
+/** The trunks by kind, clusters first, then GitLab, GitHub, then Jira; each kind keeps its trunks' order and an empty kind is left out. */
 export function trunksByKind(trunks: readonly ConnectionTrunk[]): ConnectionKindGroup[] {
   return KIND_ORDER.map((kind) => ({ kind, trunks: trunks.filter((trunk) => trunk.kind === kind) })).filter(
     (group) => group.trunks.length > 0

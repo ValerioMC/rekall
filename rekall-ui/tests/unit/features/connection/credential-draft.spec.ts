@@ -30,3 +30,12 @@ describe('a Jira credential draft', () => {
     expect(credentialNoun('GITLAB')).toBe('token')
   })
 })
+
+describe('a GitHub credential draft', () => {
+  it('is a token, complete once one is typed', () => {
+    expect(emptyDraft('GITHUB')).toEqual({ kind: 'GITHUB', token: '' })
+    expect(isComplete({ kind: 'GITHUB', token: ' ' })).toBe(false)
+    expect(isComplete({ kind: 'GITHUB', token: 'github_pat_1' })).toBe(true)
+    expect(credentialNoun('GITHUB')).toBe('token')
+  })
+})

@@ -210,7 +210,7 @@ describe('ProjectConnectionsPage', () => {
     expect(rows[0]).toContain('billing')
     expect(rows[0]).toContain('Connected')
     expect(rows[1]).toContain('group/tools')
-    expect(rows[1]).toContain('No GitLab connection for its host')
+    expect(rows[1]).toContain('No GitLab or GitHub connection for its host')
   })
 })
 

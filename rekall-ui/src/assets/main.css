@@ -1222,6 +1222,24 @@
   background: var(--color-canvas);
 }
 
+/*
+ * The header's three columns: a side, the search, a side. The sides are equal, so the search sits
+ * at exactly half the window; its width is what is left once each side has the room its content
+ * needs (`--header-side-min`), between 240px and 620px. The tabs fold into a menu below 1536px,
+ * where the left side can no longer hold them.
+ */
+@utility app-header-grid {
+  --header-side-min: 26rem;
+  grid-template-columns:
+    minmax(0, 1fr)
+    clamp(15rem, calc(100% - 2 * (var(--header-side-min) + 1rem)), 38.75rem)
+    minmax(0, 1fr);
+
+  @media (min-width: 1536px) {
+    --header-side-min: 38rem;
+  }
+}
+
 /* One reading inside the header's status capsule. The component sets the text colour, which is state. */
 @utility status-segment {
   display: flex;

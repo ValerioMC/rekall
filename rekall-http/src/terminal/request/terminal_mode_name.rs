@@ -15,4 +15,5 @@ pub enum TerminalModeName {
     Assess,
     #[serde(rename = "ASSESS_ALL")]
     AssessAll,
+    Autoconfigure,
 }

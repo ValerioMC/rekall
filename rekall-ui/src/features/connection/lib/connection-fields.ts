@@ -10,6 +10,7 @@ export interface UrlField {
 
 export const URL_FIELD: Readonly<Record<ConnectionKind, UrlField | null>> = {
   GITLAB: { title: 'Instance URL', label: 'GitLab instance URL', placeholder: 'https://gitlab.example.com' },
+  GITHUB: { title: 'Server URL', label: 'GitHub server URL', placeholder: 'https://github.com' },
   KUBERNETES: null,
   JIRA: { title: 'Site URL', label: 'Jira site URL', placeholder: 'https://example.atlassian.net' }
 }
@@ -17,6 +18,7 @@ export const URL_FIELD: Readonly<Record<ConnectionKind, UrlField | null>> = {
 /** Only a Jira site is reached through a proxy typed in; a cluster's comes from its kubeconfig. */
 export const TAKES_PROXY: Readonly<Record<ConnectionKind, boolean>> = {
   GITLAB: false,
+  GITHUB: false,
   KUBERNETES: false,
   JIRA: true
 }
@@ -35,6 +37,11 @@ export const CREDENTIAL_FIELD: Readonly<Record<ConnectionKind, CredentialField>>
     hint: "Optional now; stored in this machine's credential store.",
     incomplete: 'Type the token, or leave it empty to set it later.'
   },
+  GITHUB: {
+    title: 'Personal access token',
+    hint: "Optional now; a fine-grained token with Issues and Pull requests read and write. Stored in this machine's credential store.",
+    incomplete: 'Type the token, or leave it empty to set it later.'
+  },
   KUBERNETES: {
     title: 'Kubeconfig',
     hint: 'Optional now. A user that runs a command or a password is refused.',
@@ -50,6 +57,7 @@ export const CREDENTIAL_FIELD: Readonly<Record<ConnectionKind, CredentialField>>
 /** What the detail pane calls the address a connection points at. */
 export const ADDRESS_TERM: Readonly<Record<ConnectionKind, string>> = {
   GITLAB: 'Instance',
+  GITHUB: 'Server',
   KUBERNETES: 'Server',
   JIRA: 'Site'
 }
@@ -63,6 +71,7 @@ export interface TargetField {
 
 export const TARGET_FIELD: Readonly<Record<ConnectionKind, TargetField>> = {
   GITLAB: { name: 'GitLab project path', placeholder: 'group/project' },
+  GITHUB: { name: 'GitHub repository', placeholder: 'owner/repository' },
   KUBERNETES: { name: 'Namespace', placeholder: 'namespace' },
   JIRA: { name: 'Jira project key', placeholder: 'project key, such as ENG' }
 }

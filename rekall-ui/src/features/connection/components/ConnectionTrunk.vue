@@ -21,6 +21,7 @@ const emit = defineEmits<{
 
 const LINE: Readonly<Record<ConnectionKind, string>> = {
   GITLAB: 'color-mix(in srgb, var(--color-brand-gitlab) 55%, transparent)',
+  GITHUB: 'color-mix(in srgb, var(--color-text) 40%, transparent)',
   KUBERNETES: 'color-mix(in srgb, var(--color-brand-kubernetes) 70%, transparent)',
   JIRA: 'color-mix(in srgb, var(--color-brand-jira) 60%, transparent)'
 }

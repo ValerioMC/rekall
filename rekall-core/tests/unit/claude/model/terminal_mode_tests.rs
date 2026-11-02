@@ -69,3 +69,18 @@ fn an_assess_all_terminal_asks_for_every_advisory_of_the_project_without_naming_
     assert!(mode.works_on_a_project() && !mode.follows_steps());
     assert_eq!(mode.to_string(), "ASSESS_ALL");
 }
+
+#[test]
+fn an_autoconfigure_terminal_works_on_the_project_and_follows_no_step() {
+    let mode = TerminalMode::Autoconfigure;
+    assert_eq!(mode.first_line("project:lightcraft"), "/rk project:lightcraft autoconfigure");
+    assert!(mode.works_on_a_project() && !mode.follows_steps());
+    assert_eq!(mode.to_string(), "AUTOCONFIGURE");
+}
+
+#[test]
+fn a_mode_goes_to_the_console_under_its_display_name_whatever_it_carries() {
+    let generate = TerminalMode::Generate { request: "how checkout charges".into(), kinds: Vec::new() };
+    assert_eq!(serde_json::to_string(&generate).unwrap(), "\"GENERATE\"");
+    assert_eq!(serde_json::to_string(&TerminalMode::Autoconfigure).unwrap(), "\"AUTOCONFIGURE\"");
+}

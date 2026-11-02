@@ -8,6 +8,7 @@ import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
 import AppInput from '@/components/ui/AppInput.vue'
+import CompanyMark from '@/components/ui/CompanyMark.vue'
 import ProjectMark from '@/components/ui/ProjectMark.vue'
 import TokenCount from '@/components/ui/TokenCount.vue'
 import StatusMixBar from '@/components/ui/StatusMixBar.vue'
@@ -210,7 +211,13 @@ async function confirmDelete(): Promise<void> {
 
       <div v-else class="flex flex-col gap-7">
         <section v-for="group in groups" :key="group.company.id">
-          <h2 class="mb-2 eyebrow text-caption">
+          <h2 class="mb-2 flex items-center gap-2 eyebrow text-caption">
+            <CompanyMark
+              :company-id="group.company.id"
+              :name="group.company.name"
+              :image-version="group.company.logoImageVersion"
+              :size="20"
+            />
             {{ group.company.name }}
           </h2>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

@@ -5,10 +5,12 @@ import ConnectionKindIcon from '@/features/connection/components/ConnectionKindI
 import { useConnectionsStore } from '@/features/connection/store/connections.store'
 import type { Box } from '@/features/diagram/lib/viewport'
 import type { TaskStep } from '@/features/catalog/model/catalog'
+import type { StepSessionMark } from '@/features/flow/lib/session-marks'
 
 /**
  * One step on the flow canvas: its number, seal and title and how many times the work has entered
  * it. The step the work stands on is lit. Dragged by its body to move it; its handle starts a route.
+ * With more than one session, a ribbon marks the step that opens one and a chip and stripe the rest.
  */
 const props = defineProps<{
   step: TaskStep
@@ -19,6 +21,8 @@ const props = defineProps<{
   aimed?: boolean
   /** The step is being dragged, so it floats above the others. */
   dragging?: boolean
+  /** The Claude session the step runs in; null when the task has only one. */
+  session?: StepSessionMark | null
 }>()
 
 const emit = defineEmits<{
@@ -60,6 +64,7 @@ const plateClass = computed(() => {
 
 const label = computed(() => {
   const parts = [`Step ${props.step.position + 1}, ${props.step.title}`, props.step.state.toLowerCase()]
+  if (props.session) parts.push(props.session.description)
   if (props.current) parts.push('the work stands here')
   parts.push(visits.value === 1 ? 'entered once' : `entered ${visits.value} times`)
   if (props.step.maxVisits !== null) parts.push(`at most ${props.step.maxVisits}`)
@@ -75,7 +80,7 @@ const label = computed(() => {
   >
     <button
       type="button"
-      class="focus-ring flex size-full touch-none cursor-grab select-none flex-col justify-between rounded-card border px-3 py-2.5 text-left transition-[border-color,box-shadow] duration-(--motion-quick) active:cursor-grabbing"
+      class="focus-ring relative flex size-full touch-none cursor-grab select-none flex-col justify-between rounded-card border px-3 py-2.5 text-left transition-[border-color,box-shadow] duration-(--motion-quick) active:cursor-grabbing"
       :class="[
         plateClass,
         selected && 'flow-node-selected',
@@ -85,13 +90,32 @@ const label = computed(() => {
       :aria-label="label"
       :aria-pressed="selected"
       :aria-keyshortcuts="'Alt+ArrowUp Alt+ArrowDown Alt+ArrowLeft Alt+ArrowRight'"
+      :style="session ? { '--session-accent': session.accent } : undefined"
       :data-current="current || undefined"
+      :data-session="session?.number"
       data-testid="flow-node"
       :data-step-id="step.id"
       @click="$emit('select')"
       @pointerdown="emit('move-start', $event)"
       @keydown="nudge"
     >
+      <span
+        v-if="session"
+        class="flow-session-stripe absolute inset-y-0 left-0 w-[3px]"
+        aria-hidden="true"
+        data-testid="flow-node-stripe"
+      />
+      <span
+        v-if="session?.opens"
+        class="flow-session-ribbon -mx-3 -mt-2.5 flex shrink-0 items-center gap-1.5 px-3 text-micro font-semibold"
+        data-testid="flow-node-ribbon"
+      >
+        <svg viewBox="0 0 16 16" class="size-3 shrink-0" aria-hidden="true">
+          <circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5" />
+          <path d="M6.6 5.4 10.6 8l-4 2.6Z" fill="currentColor" />
+        </svg>
+        <span class="truncate">Session {{ session.number }} · new Claude session</span>
+      </span>
       <span class="flex min-w-0 items-start gap-2">
         <span class="mt-px shrink-0 font-mono text-micro font-semibold tabular-nums text-text-subtle">{{
           number
@@ -109,6 +133,13 @@ const label = computed(() => {
       </span>
 
       <span class="flex items-center gap-1.5 text-micro">
+        <span
+          v-if="session && !session.opens"
+          class="flow-session-chip font-mono font-semibold tabular-nums"
+          data-testid="flow-node-session"
+        >
+          S{{ session.number }}
+        </span>
         <span v-if="current" class="flow-tag text-accent" data-testid="flow-node-current">here</span>
         <span
           v-if="connection"
@@ -191,6 +222,26 @@ const label = computed(() => {
 .flow-handle:hover {
   border-color: var(--color-anchor);
   color: var(--color-anchor-strong);
+}
+
+.flow-session-stripe {
+  background: var(--session-accent);
+  border-radius: calc(var(--radius-card) - 1px) 0 0 calc(var(--radius-card) - 1px);
+}
+
+.flow-session-ribbon {
+  height: 22px;
+  background: var(--session-accent);
+  color: var(--color-canvas);
+  border-radius: calc(var(--radius-card) - 1px) calc(var(--radius-card) - 1px) 0 0;
+}
+
+.flow-session-chip {
+  border-radius: 9999px;
+  border: 1px solid var(--session-accent);
+  padding: 0 6px;
+  line-height: 15px;
+  color: var(--color-text-muted);
 }
 
 .flow-tag {

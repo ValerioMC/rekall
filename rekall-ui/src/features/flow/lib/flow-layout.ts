@@ -53,11 +53,14 @@ export interface FlowLayout<StepId extends string = TaskStepId, LinkId extends s
 /**
  * Where each step, Start, End and route sits, top to bottom. dagre breaks the loops itself and is
  * deterministic, so the drawing holds still while the work moves. Start leads to the first step;
- * End collects the routes that finish the flow and, on a flow, the steps that have none.
+ * End collects the routes that finish the flow and, on a flow, the steps that have none. A step in
+ * `extraHeight` is taller by that much, so routes still attach to the edges of its box.
  */
 export function layoutFlow<StepId extends string, LinkId extends string>(
-  steps: readonly FlowShapeStep<StepId, LinkId>[]
+  steps: readonly FlowShapeStep<StepId, LinkId>[],
+  extraHeight: ReadonlyMap<StepId, number> = new Map()
 ): FlowLayout<StepId, LinkId> {
+  const heightOf = (id: StepId): number => NODE_HEIGHT + (extraHeight.get(id) ?? 0)
   type Endpoint = StepId | typeof START | typeof END
   const graph = new graphlib.Graph({ multigraph: true })
   graph.setGraph({ rankdir: 'TB', nodesep: 56, ranksep: 72, edgesep: 24, marginx: MARGIN, marginy: MARGIN })
@@ -66,7 +69,7 @@ export function layoutFlow<StepId extends string, LinkId extends string>(
   const isFlow = steps.some((step) => step.links.length > 0)
   graph.setNode(START, { width: TERMINAL_WIDTH, height: TERMINAL_HEIGHT })
   graph.setNode(END, { width: TERMINAL_WIDTH, height: TERMINAL_HEIGHT })
-  for (const step of steps) graph.setNode(step.id, { width: NODE_WIDTH, height: NODE_HEIGHT })
+  for (const step of steps) graph.setNode(step.id, { width: NODE_WIDTH, height: heightOf(step.id) })
 
   const drawn: Array<Omit<PlacedRoute<StepId, LinkId>, 'points' | 'labelAt'> & { edge: graphlib.Edge }> = []
   const connect = (
@@ -103,7 +106,7 @@ export function layoutFlow<StepId extends string, LinkId extends string>(
   runDagre(graph)
 
   const nodes = new Map<StepId, Box>()
-  for (const step of steps) nodes.set(step.id, boxAt(graph.node(step.id), NODE_WIDTH, NODE_HEIGHT))
+  for (const step of steps) nodes.set(step.id, boxAt(graph.node(step.id), NODE_WIDTH, heightOf(step.id)))
   const routes: PlacedRoute<StepId, LinkId>[] = drawn.map(({ edge, ...route }) => {
     const at = graph.edge(edge)
     const points = at.points ?? []

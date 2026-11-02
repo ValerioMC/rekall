@@ -89,3 +89,8 @@ export function setPreferredSessionKind(value: ClaudeSessionView): void {
 export function preferredLaunchKind(): SessionKind {
   return preferredSessionKind() === 'chat' ? 'CHAT' : 'TERMINAL'
 }
+
+/** How this machine starts a session, as Settings and the launch menus left it. */
+export function launchChoices(): { skipPermissions: boolean; model: ClaudeModelChoice; effort: ClaudeEffortChoice; kind: SessionKind } {
+  return { skipPermissions: skipsPermissions(), model: preferredModel(), effort: preferredEffort(), kind: preferredLaunchKind() }
+}

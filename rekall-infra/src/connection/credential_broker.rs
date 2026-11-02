@@ -12,7 +12,7 @@ use tracing::{info, warn};
 
 use super::credential_session::CredentialSession;
 use super::guard_rails::settings_document;
-use super::helper_scripts::{api_wrapper, git_helper, kube_plugin, GITLAB_API, GIT_HELPER, JIRA_API, KUBE_PLUGIN};
+use super::helper_scripts::{api_wrapper, git_helper, kube_plugin, GITHUB_API, GITLAB_API, GIT_HELPER, JIRA_API, KUBE_PLUGIN};
 use super::session_kubeconfig::{exec_credential, session_kubeconfig, SessionCluster};
 use super::{CredentialPurpose, HandOut, Refusal, SessionEnvironment};
 
@@ -126,6 +126,7 @@ impl CredentialBroker {
             }
             CredentialPurpose::Git => Ok(Secret::new(format!("username=oauth2\npassword={}\n", stored.expose()))),
             CredentialPurpose::Gitlab => Ok(Secret::new(format!("PRIVATE-TOKEN: {}\n", stored.expose()))),
+            CredentialPurpose::Github => Ok(Secret::new(format!("Authorization: Bearer {}\n", stored.expose()))),
             CredentialPurpose::Jira => {
                 let credential = JiraCredential::from_stored(&stored).map_err(|failure| (Refusal::Failed, failure.message().to_string()))?;
                 Ok(Secret::new(format!("Authorization: {}\n", credential.authorization().expose())))
@@ -154,12 +155,20 @@ impl CredentialBroker {
             write_private(&kubeconfig, &session_kubeconfig(&sessions, &plugin))?;
             environment.kubeconfig = Some(kubeconfig);
         }
-        let gitlabs: Vec<&TerminalConnection> = connections.iter().filter(|connection| connection.kind == ConnectionKind::Gitlab).collect();
-        if !gitlabs.is_empty() {
+        let git_hosts: Vec<&TerminalConnection> =
+            connections.iter().filter(|connection| matches!(connection.kind, ConnectionKind::Gitlab | ConnectionKind::Github)).collect();
+        if !git_hosts.is_empty() {
             let helper = folder.join(GIT_HELPER);
             write_script(&helper, &git_helper(&endpoint))?;
+            environment.git_config = git_config(&git_hosts, &helper);
+        }
+        let gitlabs: Vec<&TerminalConnection> = connections.iter().filter(|connection| connection.kind == ConnectionKind::Gitlab).collect();
+        if !gitlabs.is_empty() {
             write_script(&folder.join(GITLAB_API.name), &api_wrapper(&GITLAB_API, &endpoint, &gitlabs))?;
-            environment.git_config = git_config(&gitlabs, &helper);
+        }
+        let githubs: Vec<&TerminalConnection> = connections.iter().filter(|connection| connection.kind == ConnectionKind::Github).collect();
+        if !githubs.is_empty() {
+            write_script(&folder.join(GITHUB_API.name), &api_wrapper(&GITHUB_API, &endpoint, &githubs))?;
         }
         let jiras: Vec<&TerminalConnection> = connections.iter().filter(|connection| connection.kind == ConnectionKind::Jira).collect();
         if !jiras.is_empty() {
@@ -200,11 +209,11 @@ impl CredentialDesk for CredentialBroker {
     }
 }
 
-/// For each GitLab host: an empty helper that drops any configured elsewhere, then Rekall's. Several
-/// bindings of one instance share its token, so the first one answers for the host.
-fn git_config(gitlabs: &[&TerminalConnection], helper: &Path) -> Vec<(String, String)> {
+/// For each GitLab or GitHub host: an empty helper that drops any configured elsewhere, then Rekall's.
+/// Several bindings of one server share its token, so the first one answers for the host.
+fn git_config(git_hosts: &[&TerminalConnection], helper: &Path) -> Vec<(String, String)> {
     let mut entries = Vec::new();
-    for connection in gitlabs {
+    for connection in git_hosts {
         let Some(instance) = connection.instance_url.as_deref() else { continue };
         let key = format!("credential.{}.helper", instance.trim_end_matches('/'));
         if entries.iter().any(|(known, _)| *known == key) {

@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 use rekall_kernel::{Id, Instant};
-use rekall_core::claude::TerminalLaunch;
+use rekall_core::claude::{TerminalLaunch, TerminalMode};
 use tokio::sync::watch;
 use tracing::{debug, warn};
 
@@ -31,7 +31,7 @@ pub(super) fn spawn_terminal(
     id: Id,
     launch: TerminalLaunch,
     step_id: Option<Id>,
-    follows_steps: bool,
+    mode: TerminalMode,
     options: ClaudeOptions,
     command: CommandBuilder,
     scrollback_bytes: usize,
@@ -54,7 +54,7 @@ pub(super) fn spawn_terminal(
         launch,
         step_id: Mutex::new(step_id),
         size: Mutex::new((DEFAULT_COLUMNS, DEFAULT_ROWS)),
-        follows_steps,
+        mode,
         skip_permissions: options.skip_permissions,
         model: options.model,
         effort: options.effort,

@@ -8,6 +8,9 @@ import {
   updateProjectSection
 } from '@/features/project/api/project-sections.api'
 import { movedOne, type Direction } from '@/features/project/lib/section-order'
+import { launchChoices } from '@/common/config/claude-launch'
+import { useTerminalStore } from '@/features/claude/store/terminal.store'
+import type { Terminal } from '@/features/claude/model/terminal'
 import type { ProjectSection, ProjectSectionInput } from '@/features/project/model/project-section'
 import type { ProjectId, ProjectSectionId } from '@/model/branded'
 
@@ -84,5 +87,10 @@ export const useProjectSectionsStore = defineStore('projectSections', () => {
     if (isLoaded(projectId)) await load(projectId)
   }
 
-  return { sectionsOf, isLoaded, isLoading, load, create, update, move, remove, applyEvent }
+  /** A session that learns from the project's repository how it takes a contribution, and writes that as sections. */
+  function autoconfigure(projectId: ProjectId): Promise<Terminal> {
+    return useTerminalStore().openForProject(projectId, { ...launchChoices(), mode: 'AUTOCONFIGURE' })
+  }
+
+  return { sectionsOf, isLoaded, isLoading, load, create, update, move, remove, applyEvent, autoconfigure }
 })

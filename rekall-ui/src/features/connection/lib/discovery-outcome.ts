@@ -5,8 +5,8 @@ export const DISCOVERY_OUTCOME_LABEL: Readonly<Record<DiscoveryOutcome, string>>
   BOUND: 'Connected',
   ALREADY_BOUND: 'Already connected',
   NO_ORIGIN: 'No origin remote',
-  NO_CONNECTION: 'No GitLab connection for its host',
-  NO_CREDENTIAL: 'Its GitLab connection has no token'
+  NO_CONNECTION: 'No GitLab or GitHub connection for its host',
+  NO_CREDENTIAL: 'Its connection has no token'
 }
 
 /** The repository's folder below the project's, or the folder itself when it is the project's. */

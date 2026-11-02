@@ -59,7 +59,7 @@ async fn a_title_is_unique_on_a_project_ignoring_case_and_an_order_names_every_s
 }
 
 #[tokio::test]
-async fn a_session_writes_a_section_on_the_tasks_project_and_no_context_loads_it() {
+async fn a_session_writes_a_section_on_the_tasks_project_and_the_context_names_it_without_its_body() {
     let app = app().await;
     let acme = app.a_company("Acme").await;
     let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
@@ -72,7 +72,8 @@ async fn a_session_writes_a_section_on_the_tasks_project_and_no_context_loads_it
     assert_eq!((sections.len(), sections[0]["bodyMarkdown"].as_str()), (1, Some("Blue-green, behind the load balancer.")));
     for anchors in [ANCHORS, "project:vega"] {
         let context = app.call_tool("rekall_context", json!({ "anchors": anchors })).await;
-        assert_lacks!(context, "Blue-green", "Deployment");
+        assert_lacks!(context, "Blue-green");
+        assert_contains!(context, "- Deployment\n</sections>");
     }
 
     assert_contains!(

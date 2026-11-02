@@ -234,3 +234,26 @@ async fn every_logged_request_is_announced_without_its_credential() {
     assert_eq!((announced[0]["granted"].as_bool(), announced[1]["granted"].as_bool()), (Some(true), Some(false)));
     assert!(announced.iter().all(|payload| !payload.to_string().contains("glpat-secret")));
 }
+
+#[tokio::test]
+async fn a_github_binding_gets_the_git_helper_for_its_host_and_a_bearer_header_for_its_api() {
+    let world = world().await;
+    let secrets = Arc::new(InMemorySecretStore::new());
+    let company = company::Entity::find().one(&world.ctx.db).await.unwrap().unwrap();
+    let stored_github = stored(&world.ctx, &secrets, &company, ConnectionKind::Github, "lightcraft", Some("ghp_secret")).await;
+    let github = TerminalConnection { instance_url: Some("https://github.com".into()), ..terminal(&stored_github, Some("storytold/lightcraft")) };
+    let broker = CredentialBroker::new(secrets, ConnectionAccessService::new(world.ctx.clone()), "http://127.0.0.1:47355".into(), world.root.path().join("github"));
+    let terminal_id = Id::random();
+
+    let environment = broker.open(terminal_id, &launch_with(vec![github])).await.unwrap().unwrap();
+    let token = environment.token.clone().unwrap();
+
+    assert!(environment.path_prefix.unwrap().join("rekall-github").is_file());
+    assert!(environment.git_config.iter().any(|(key, value)| key == "credential.https://github.com.helper" && value.ends_with(" lightcraft")));
+    let git = broker.hand_out(terminal_id, Some(&token), "lightcraft", CredentialPurpose::Git).await;
+    let api = broker.hand_out(terminal_id, Some(&token), "lightcraft", CredentialPurpose::Github).await;
+    let wrong = broker.hand_out(terminal_id, Some(&token), "lightcraft", CredentialPurpose::Gitlab).await;
+    assert!(matches!(git, HandOut::Granted { ref body, .. } if body.expose() == "username=oauth2\npassword=ghp_secret\n"));
+    assert!(matches!(api, HandOut::Granted { ref body, .. } if body.expose() == "Authorization: Bearer ghp_secret\n"));
+    assert!(!matches!(wrong, HandOut::Granted { .. }));
+}

@@ -71,6 +71,7 @@ fn view_on(target: &TerminalTarget) -> TerminalView {
         project_label: "vega".into(),
         task_label: None,
         task_title: None,
+        mode: TerminalMode::Work,
         skip_permissions: false,
         model: None,
         effort: None,

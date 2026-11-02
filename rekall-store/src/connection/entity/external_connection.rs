@@ -95,19 +95,22 @@ impl Model {
             .finish()
     }
 
-    /// GitLab and Jira are reached at a typed URL; a context only means something to a kubeconfig.
+    /// GitLab, GitHub and Jira are reached at a typed URL; a context only means something to a kubeconfig.
     fn check_kind_fields(&self) -> Result<(), RekallError> {
         match self.kind {
             ConnectionKind::Gitlab if self.base_url.is_none() => {
                 Err(RekallError::illegal("A GitLab connection needs the instance URL, such as https://gitlab.example.com."))
             }
+            ConnectionKind::Github if self.base_url.is_none() => {
+                Err(RekallError::illegal("A GitHub connection needs the server URL: https://github.com, or a GitHub Enterprise Server's address."))
+            }
             ConnectionKind::Jira if self.base_url.is_none() => {
                 Err(RekallError::illegal("A Jira connection needs the site URL, such as https://example.atlassian.net."))
             }
-            ConnectionKind::Gitlab | ConnectionKind::Jira if self.kube_context.is_some() => {
+            ConnectionKind::Gitlab | ConnectionKind::Github | ConnectionKind::Jira if self.kube_context.is_some() => {
                 Err(RekallError::illegal("Only a Kubernetes connection has a kubeconfig context."))
             }
-            ConnectionKind::Gitlab | ConnectionKind::Kubernetes if self.proxy_url.is_some() => {
+            ConnectionKind::Gitlab | ConnectionKind::Github | ConnectionKind::Kubernetes if self.proxy_url.is_some() => {
                 Err(RekallError::illegal("Only a Jira connection takes a proxy. A cluster is reached through its kubeconfig's proxy-url."))
             }
             _ => Ok(()),

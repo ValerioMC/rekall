@@ -60,3 +60,12 @@ fn a_jira_connection_names_its_site_project_and_how_to_call_it() {
     assert!(rendered.contains("`rekall-jira --connection jira <METHOD> <path> [curl options]`"));
     assert!(rendered.contains("`POST /issue`"));
 }
+
+#[test]
+fn a_github_connection_names_its_repository_and_how_to_open_issues_and_pull_requests() {
+    let github = ConnectionView { instance_url: Some("https://github.com".into()), ..connection(ConnectionKind::Github, "github", Some("storytold/lightcraft"), true) };
+    let rendered = ContextRenderer.render_connections(&[github]);
+    assert!(rendered.contains("GitHub at https://github.com, repository `storytold/lightcraft`"));
+    assert!(rendered.contains("configured credential helper"));
+    assert!(rendered.contains("`rekall-github --connection github <METHOD> <path> [curl options]`"));
+}

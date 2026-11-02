@@ -270,6 +270,22 @@ async fn discovering_a_projects_repositories_binds_each_on_a_gitlab_with_a_token
 }
 
 #[tokio::test]
+async fn discovering_binds_a_repository_whose_origin_is_on_a_github_connection() {
+    let app = app_with_secrets(Arc::new(InMemorySecretStore::new())).await;
+    let acme = app.a_company("Acme").await;
+    let folder = a_product_folder();
+    let vega = app.a_project_in(&acme, "vega", folder.path()).await;
+    let github = id(&app.post(&format!("/api/companies/{acme}/connections"), json!({ "kind": "GITHUB", "title": "GitHub", "baseUrl": "https://github.com" })).await);
+    app.put(&format!("/api/connections/{github}/credential"), json!({ "token": "ghp_secret" })).await;
+
+    let discovered = app.post_empty(&format!("/api/projects/{vega}/connections/discover")).await;
+
+    let tools = discovered.get("repositories").as_array().unwrap().iter().find(|row| row["folder"].as_str().unwrap().ends_with("/group/tools")).cloned().unwrap();
+    assert_eq!((tools["outcome"].as_str(), tools["target"].as_str()), (Some("BOUND"), Some("acme/tools")), "{}", discovered.text);
+    assert!(!discovered.text.contains("ghp_secret"));
+}
+
+#[tokio::test]
 async fn discovering_needs_the_projects_folder() {
     let app = app().await;
     let acme = app.a_company("Acme").await;

@@ -5,7 +5,7 @@ use rekall_store::{ConnectionKind, Slug};
 
 pub(in crate::connection) fn kind_of(raw: Option<&str>) -> Result<ConnectionKind> {
     let raw = raw.map(jstr::strip).unwrap_or("");
-    ConnectionKind::value_of(&raw.to_uppercase()).ok_or_else(|| RekallError::illegal(format!("'{raw}' is not a connection kind. Use GITLAB, KUBERNETES or JIRA.")))
+    ConnectionKind::value_of(&raw.to_uppercase()).ok_or_else(|| RekallError::illegal(format!("'{raw}' is not a connection kind. Use GITLAB, GITHUB, KUBERNETES or JIRA.")))
 }
 
 pub(in crate::connection) fn title_of(raw: Option<&str>) -> Result<String> {
@@ -17,7 +17,7 @@ pub(in crate::connection) fn label_of(label: Option<&str>, title: &str) -> Resul
     Slug::of(Some(label.filter(|label| !jstr::is_blank(label)).unwrap_or(title)))
 }
 
-/// A Kubernetes connection reads its server from the kubeconfig, so only GitLab and Jira take a URL typed in.
+/// A Kubernetes connection reads its server from the kubeconfig, so only GitLab, GitHub and Jira take a URL typed in.
 pub(in crate::connection) fn base_url_of(kind: ConnectionKind, raw: Option<&str>) -> Result<Option<String>> {
     let url = raw.map(jstr::strip).filter(|url| !url.is_empty()).map(|url| url.trim_end_matches('/').to_string());
     if kind == ConnectionKind::Kubernetes && url.is_some() {

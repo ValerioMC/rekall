@@ -29,6 +29,7 @@ impl ConnectionCheckService {
         let stored = self.stored_credential(&connection).await?;
         let outcome = match connection.kind {
             ConnectionKind::Gitlab => self.probe.gitlab(connection.base_url.as_deref().unwrap_or_default(), &stored).await,
+            ConnectionKind::Github => self.probe.github(connection.base_url.as_deref().unwrap_or_default(), &stored).await,
             ConnectionKind::Kubernetes => self.probe.kubernetes(&KubeAccess::from_stored(&stored)?).await,
             ConnectionKind::Jira => self.probe.jira(&JiraSite::of(&connection), &JiraCredential::from_stored(&stored)?).await,
         };

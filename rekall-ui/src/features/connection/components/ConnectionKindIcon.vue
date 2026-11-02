@@ -8,6 +8,7 @@ const props = withDefaults(defineProps<{ kind: ConnectionKind; size?: number }>(
 
 const BRAND: Readonly<Record<ConnectionKind, string>> = {
   GITLAB: 'text-brand-gitlab',
+  GITHUB: 'text-text',
   KUBERNETES: 'text-brand-kubernetes',
   JIRA: 'text-brand-jira'
 }

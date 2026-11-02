@@ -152,7 +152,7 @@ onMounted(async () => {
       <AppField
         v-slot="{ fieldId, describedBy }"
         label="Label"
-        hint="What a session names it by: kubectl --context, rekall-gitlab --connection and rekall-jira --connection."
+        hint="What a session names it by: kubectl --context, rekall-gitlab, rekall-github and rekall-jira --connection."
       >
         <AppInput
           :id="fieldId"

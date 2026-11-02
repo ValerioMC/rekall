@@ -6,6 +6,8 @@ import ProjectSectionRail from '@/features/project/components/ProjectSectionRail
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { canMove, type Direction } from '@/features/project/lib/section-order'
 import { useProjectSectionsStore } from '@/features/project/store/projectSections.store'
+import { useTerminalStore } from '@/features/claude/store/terminal.store'
+import { useToastStore } from '@/stores/toast.store'
 import type { Project } from '@/features/catalog/model/catalog'
 import type { ProjectSection } from '@/features/project/model/project-section'
 import type { ProjectSectionId } from '@/model/branded'
@@ -16,6 +18,8 @@ const props = defineProps<{ project: Project; selectedId: ProjectSectionId | nul
 const emit = defineEmits<{ open: [id: ProjectSectionId | null] }>()
 
 const store = useProjectSectionsStore()
+const terminals = useTerminalStore()
+const toast = useToastStore()
 const { run } = useAsyncAction()
 
 const sections = computed(() => store.sectionsOf(props.project.id))
@@ -23,12 +27,22 @@ const sectionIds = computed(() => sections.value.map((section) => section.id))
 const selected = computed(() => sections.value.find((section) => section.id === props.selectedId) ?? null)
 const creating = ref(false)
 const deleting = ref<ProjectSection | null>(null)
+const autoconfiguring = ref(false)
 
 async function create(title: string): Promise<void> {
   creating.value = true
   const created = await run(() => store.create(props.project.id, title))
   creating.value = false
   if (created) emit('open', created.id)
+}
+
+async function autoconfigure(): Promise<void> {
+  autoconfiguring.value = true
+  const terminal = await run(() => store.autoconfigure(props.project.id))
+  autoconfiguring.value = false
+  if (!terminal) return
+  if (terminal.kind === 'TERMINAL') terminals.select(terminal.id)
+  toast.notify(`A session is learning how ${props.project.title} takes a contribution.`)
 }
 
 async function move(direction: Direction): Promise<void> {
@@ -52,8 +66,10 @@ async function confirmDelete(): Promise<void> {
       :selected-id="selected?.id ?? null"
       :loading="store.isLoading(project.id)"
       :creating="creating"
+      :autoconfiguring="autoconfiguring"
       @select="emit('open', $event)"
       @create="create"
+      @autoconfigure="autoconfigure"
     />
 
     <Transition name="fade-quick" mode="out-in">

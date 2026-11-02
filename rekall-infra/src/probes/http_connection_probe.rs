@@ -5,7 +5,7 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use reqwest::header::{HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use reqwest::{Client, RequestBuilder, Response, StatusCode};
-use rekall_core::connection::{JiraCredential, JiraDeployment, JiraSite, KubeAccess, KubeCredential, Secret};
+use rekall_core::connection::{github_api_root, JiraCredential, JiraDeployment, JiraSite, KubeAccess, KubeCredential, Secret};
 use serde::Deserialize;
 use serde_json::json;
 
@@ -20,6 +20,11 @@ const JIRA_DATA_CENTER_MYSELF: &str = "/rest/api/2/myself";
 #[derive(Deserialize)]
 struct GitlabUser {
     username: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct GithubUser {
+    login: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -88,6 +93,24 @@ impl ConnectionProbe for HttpConnectionProbe {
         let answer = client.get(format!("{base_url}/api/v4/user")).header("PRIVATE-TOKEN", header).send().await;
         match accepted(answer).await {
             Ok(response) => ProbeOutcome::Accepted { identity: response.json::<GitlabUser>().await.ok().and_then(|user| user.username), version: None },
+            Err(outcome) => outcome,
+        }
+    }
+
+    /// GitHub refuses a request without a `User-Agent`.
+    async fn github(&self, server_url: &str, token: &Secret) -> ProbeOutcome {
+        let client = match Client::builder().timeout(self.timeout).user_agent("rekall").build() {
+            Ok(client) => client,
+            Err(failure) => return unreachable(&failure),
+        };
+        let mut header = match HeaderValue::from_str(&format!("Bearer {}", token.expose())) {
+            Ok(header) => header,
+            Err(_) => return ProbeOutcome::Unreachable { reason: "the stored token holds characters a header cannot carry".into() },
+        };
+        header.set_sensitive(true);
+        let answer = client.get(format!("{}/user", github_api_root(server_url))).header(AUTHORIZATION, header).header("Accept", "application/vnd.github+json").send().await;
+        match accepted(answer).await {
+            Ok(response) => ProbeOutcome::Accepted { identity: response.json::<GithubUser>().await.ok().and_then(|user| user.login), version: None },
             Err(outcome) => outcome,
         }
     }

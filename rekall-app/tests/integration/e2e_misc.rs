@@ -181,7 +181,7 @@ async fn a_session_creates_an_epic_and_files_tasks_under_it_and_the_console_list
 // --- Sections read by a session
 
 #[tokio::test]
-async fn a_session_reads_the_sections_of_a_project_listed_by_title_or_one_whole_while_no_context_carries_them() {
+async fn a_session_reads_the_sections_of_a_project_listed_by_title_or_one_whole_while_the_context_carries_only_their_titles() {
     let app = app().await;
     let acme = app.a_company("Acme").await;
     let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
@@ -196,7 +196,9 @@ async fn a_session_reads_the_sections_of_a_project_listed_by_title_or_one_whole_
     assert_contains!(listed, "1 section", "- Deployment (11 characters)");
     assert_lacks!(listed, "Push a tag.");
     assert_contains!(one, "Section \"Deployment\" of `project:vega`", "Push a tag.");
-    assert_lacks!(app.call_tool("rekall_context", json!({ "anchors": anchors })).await, "Push a tag.");
+    let context = app.call_tool("rekall_context", json!({ "anchors": anchors })).await;
+    assert_contains!(context, "<sections count=\"1\">", "- Deployment\n</sections>");
+    assert_lacks!(context, "Push a tag.");
     assert_contains!(
         app.call_tool("rekall_read_sections", json!({ "anchors": "project:vega", "title": "Glossary" })).await,
         "has no section titled 'Glossary'",

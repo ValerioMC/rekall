@@ -24,7 +24,7 @@ import type { ConnectionId } from '@/model/branded'
 
 /**
  * The systems this project's sessions reach, as the company's connections with the bindings the
- * project hangs off each: a label a session names it by and the GitLab project path, namespace or
+ * project hangs off each: a label a session names it by and the GitLab project path, GitHub repository, namespace or
  * Jira project key it is narrowed to. The company's other connections wait below, one click from
  * use, and the repositories under the project's folder can be bound in one go.
  */
@@ -119,7 +119,7 @@ watch(
         size="sm"
         variant="secondary"
         :disabled="isDiscovering"
-        title="Bind every git repository under the project folder whose origin is on a GitLab with a token"
+        title="Bind every git repository under the project folder whose origin is on a GitLab or GitHub with a token"
         data-testid="discover-repositories"
         @click="discover"
         >{{ isDiscovering ? 'Finding…' : 'Find repositories' }}</AppButton
@@ -161,7 +161,7 @@ watch(
         No binding matches “{{ query.trim() }}”.
       </p>
       <p v-else class="max-w-[60ch] text-small leading-relaxed text-text-subtle" data-testid="connections-empty">
-        No connection yet. A session on this project reaches only the clusters, GitLab instances and Jira sites used
+        No connection yet. A session on this project reaches only the clusters, GitLab instances, GitHub servers and Jira sites used
         here.
       </p>
 

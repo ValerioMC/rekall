@@ -35,6 +35,11 @@ impl ConnectionProbe for FakeProbe {
         self.outcome.clone()
     }
 
+    async fn github(&self, server_url: &str, _token: &Secret) -> ProbeOutcome {
+        self.asked.lock().unwrap().push(format!("github {server_url}"));
+        self.outcome.clone()
+    }
+
     async fn kubernetes(&self, access: &KubeAccess) -> ProbeOutcome {
         self.asked.lock().unwrap().push(access.server.clone());
         self.outcome.clone()
@@ -70,6 +75,7 @@ impl World {
     async fn connection(&self, kind: ConnectionKind, credential: Option<&str>) -> Id {
         let base_url = match kind {
             ConnectionKind::Gitlab => Some("https://gitlab.example.com".to_string()),
+            ConnectionKind::Github => Some("https://github.com".to_string()),
             ConnectionKind::Jira => Some("https://example.atlassian.net".to_string()),
             ConnectionKind::Kubernetes => None,
         };
@@ -150,4 +156,15 @@ async fn a_jira_check_asks_the_site_through_its_proxy_with_the_stored_email_and_
     assert!(check.ok);
     assert_eq!(check.detail, "Signed in as Ada Lovelace.");
     assert_eq!(*world.probe.asked.lock().unwrap(), ["https://example.atlassian.net via http://proxy.example.com:8080 as ada@example.com"]);
+}
+
+#[tokio::test]
+async fn a_github_check_asks_the_server_the_connection_names() {
+    let world = world(ProbeOutcome::Accepted { identity: Some("octocat".into()), version: None }).await;
+    let id = world.connection(ConnectionKind::Github, Some("ghp_secret")).await;
+
+    let check = world.checks.check(id).await.unwrap();
+
+    assert_eq!(check.detail, "Signed in as octocat.");
+    assert_eq!(*world.probe.asked.lock().unwrap(), ["github https://github.com"]);
 }
