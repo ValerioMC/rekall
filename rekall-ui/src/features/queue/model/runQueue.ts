@@ -10,6 +10,8 @@ export type RunQueueItemState = (typeof RUN_QUEUE_ITEM_STATES)[number]
 export const RUN_QUEUE_STEP_STATES = ['OPEN', 'RUNNING', 'CLAIMED', 'DONE', 'NOT_NEEDED'] as const
 export type RunQueueStepState = (typeof RUN_QUEUE_STEP_STATES)[number]
 
+export type QueueBeadState = RunQueueItemState | 'NOT_NEEDED'
+
 /** The run dial's five faces; see RunDial.vue for what each looks like. */
 export type RunDialFace = 'empty' | 'ready' | 'scheduled' | 'running' | 'holding'
 
@@ -109,6 +111,29 @@ export function isStepSettled(step: RunQueueStep): boolean {
 /** A claim completes a step for the queue; the person's acceptance comes later, so a claimed step still awaits review. */
 export function isAwaitingReview(step: RunQueueStep): boolean {
   return step.state === 'CLAIMED'
+}
+
+/** The bead that marks a step: the same marks as a task's, plus the dashed ring of a step the flow did not need. */
+export function stepBeadState(step: RunQueueStep): QueueBeadState {
+  switch (step.state) {
+    case 'OPEN':
+      return 'QUEUED'
+    case 'RUNNING':
+      return 'RUNNING'
+    case 'NOT_NEEDED':
+      return 'NOT_NEEDED'
+    default:
+      return 'FINISHED'
+  }
+}
+
+/** Why a finished task's row says it is done: claimed and waiting for review, or a flow that ended with steps unrun. */
+export function finishedNote(item: RunQueueItem): string | null {
+  if (item.state !== 'FINISHED') return null
+  const notNeeded = item.steps.filter((step) => step.state === 'NOT_NEEDED').length
+  if (notNeeded > 0) return `Flow finished, ${notNeeded} ${notNeeded === 1 ? 'step' : 'steps'} not needed`
+  if (item.steps.length === 0 || hasStepsAwaitingReview(item)) return 'Claimed, waiting for your review'
+  return null
 }
 
 export function hasStepsAwaitingReview(item: RunQueueItem): boolean {

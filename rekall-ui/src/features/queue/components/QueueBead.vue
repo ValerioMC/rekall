@@ -8,15 +8,16 @@
  *   FINISHED  filled green: its work is claimed or accepted.
  *   SKIPPED   filled in the archive's verdigris: there was nothing on it to run.
  *   FAILED    a red ring with a bar through it: its session could not open, or ended early.
+ *   NOT_NEEDED a dashed hairline ring: a step of a flow that ended without it.
  *
  * Settling (to FINISHED, SKIPPED or FAILED) lands once as a small pop; a list loading in does not.
  */
 import { onUnmounted, ref, watch } from 'vue'
-import type { RunQueueItemState } from '@/features/queue/model/runQueue'
+import type { QueueBeadState } from '@/features/queue/model/runQueue'
 
 const props = withDefaults(
   defineProps<{
-    state: RunQueueItemState
+    state: QueueBeadState
     /** Whether a RUNNING bead may pulse: false while the queue is holding or stopped. */
     live?: boolean
     size?: 'sm' | 'md'
@@ -24,12 +25,13 @@ const props = withDefaults(
   { live: true, size: 'sm' }
 )
 
-const STATE_CLASS: Readonly<Record<RunQueueItemState, string>> = {
+const STATE_CLASS: Readonly<Record<QueueBeadState, string>> = {
   QUEUED: 'border border-border-strong bg-transparent',
   RUNNING: 'bg-accent',
   FINISHED: 'bg-safe',
   SKIPPED: 'bg-filed',
-  FAILED: 'border border-danger bg-danger-soft'
+  FAILED: 'border border-danger bg-danger-soft',
+  NOT_NEEDED: 'border border-dashed border-border-strong bg-transparent'
 }
 
 const popping = ref(false)
@@ -38,7 +40,7 @@ let popTimer: ReturnType<typeof setTimeout> | undefined
 watch(
   () => props.state,
   (next, previous) => {
-    if (next === previous || next === 'QUEUED' || next === 'RUNNING') return
+    if (next === previous || next === 'QUEUED' || next === 'RUNNING' || next === 'NOT_NEEDED') return
     popping.value = false
     clearTimeout(popTimer)
     requestAnimationFrame(() => {

@@ -2,13 +2,22 @@
 /**
  * One task in the run queue's order: its place, its bead on the rail, what it is and where it has
  * got to, and the moves it allows. Only a waiting task moves or comes off; the running one is
- * watched, not removed.
+ * watched, not removed. A task with a checklist counts its steps and lists them under it: open
+ * for the running task unless the person closed it, collapsed for the others unless they opened it.
  */
+import { computed, ref } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import QueueBead from '@/features/queue/components/QueueBead.vue'
-import { isSettled, type RunQueueItem, type RunQueueItemState } from '@/features/queue/model/runQueue'
+import QueueStepList from '@/features/queue/components/QueueStepList.vue'
+import {
+  finishedNote,
+  isSettled,
+  stepProgress,
+  type RunQueueItem,
+  type RunQueueItemState
+} from '@/features/queue/model/runQueue'
 
-defineProps<{
+const props = defineProps<{
   item: RunQueueItem
   position: number
   last: boolean
@@ -19,6 +28,16 @@ defineProps<{
 }>()
 
 defineEmits<{ move: [delta: -1 | 1]; remove: []; watch: [] }>()
+
+const chosenOpen = ref<boolean | null>(null)
+const stepsOpen = computed(() => chosenOpen.value ?? props.item.state === 'RUNNING')
+const progress = computed(() => stepProgress(props.item))
+const stepListId = computed(() => `queue-steps-${props.item.id}`)
+const reason = computed(() => finishedNote(props.item) ?? props.item.detail)
+
+function toggleSteps(): void {
+  chosenOpen.value = !stepsOpen.value
+}
 
 const STATE_WORD: Readonly<Record<RunQueueItemState, string>> = {
   QUEUED: 'Waiting',
@@ -66,7 +85,30 @@ const MOVE_BUTTON =
         <span class="truncate font-mono text-anchor">{{ item.anchor }}</span>
         <span class="shrink-0" :class="STATE_TONE[item.state]">{{ STATE_WORD[item.state] }}</span>
       </span>
-      <span v-if="item.detail" class="text-caption leading-snug text-text-muted">{{ item.detail }}</span>
+      <span v-if="reason" class="text-caption leading-snug text-text-muted">{{ reason }}</span>
+      <button
+        v-if="item.steps.length"
+        type="button"
+        class="focus-ring -my-3 -ml-2 flex min-h-11 w-fit items-center gap-1.5 rounded-control px-2 font-mono text-caption tabular-nums text-text-muted transition-colors hover:text-text"
+        :aria-expanded="stepsOpen"
+        :aria-controls="stepListId"
+        data-testid="queue-steps-toggle"
+        @click="toggleSteps"
+      >
+        <svg
+          class="size-3 transition-transform motion-reduce:transition-none"
+          :class="stepsOpen ? 'rotate-90' : ''"
+          viewBox="0 0 16 16"
+          fill="none"
+          aria-hidden="true"
+        >
+          <path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        {{ progress.settled }} of {{ progress.total }} steps
+      </button>
+      <Transition name="step-list">
+        <QueueStepList v-if="item.steps.length && stepsOpen" :steps="item.steps" :live="live" :list-id="stepListId" />
+      </Transition>
     </span>
 
     <span class="flex items-center gap-0.5 self-center">
@@ -118,3 +160,17 @@ const MOVE_BUTTON =
     </span>
   </li>
 </template>
+
+<style scoped>
+.step-list-leave-active {
+  position: static;
+  width: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .step-list-enter-active,
+  .step-list-leave-active {
+    transition: none;
+  }
+}
+</style>

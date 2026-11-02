@@ -122,6 +122,16 @@ a dot whose word is for screen readers and the tooltip. The bar gives way under 
 anchors keep only the last one, the review segment drops its words and New note becomes a `+`;
 under 1100px the `⌘K` hint goes.
 
+The run queue shows a task's steps in two places, from one value (`runProgress(queue).steps`: the
+steps that count, how many are settled, the current one; a claim settles a step because the queue
+never waits for acceptance). The 22px `RunDial` replaces its comet with a ring of one slice per
+step (`stepRing`, a pure geometry helper): settled in the accent, the current one pulsing in
+opacity on the 1.7s beat and solid under `prefers-reduced-motion`, the rest hairline, and one
+proportional arc above 12 steps. In the panel `QueueStepList` nests under the task row, title and
+state only, with `QueueBead`'s marks; a not-needed step is a dashed ring with its title muted, and
+claimed and accepted steps share a mark but are named apart for a screen reader. The disclosure
+that opens it carries `aria-expanded`/`aria-controls` and a 44px hit area.
+
 Browsing notes, the middle column (`NotePlacementsPane`) is one card per project the note reaches
 (`NotePlacementCard`), lit with the project's hue, each task in it with its status, anchor, step
 progress and two labelled keys (`NotePlacedTaskRow`): **Open task**, and **Detach**, which acts
