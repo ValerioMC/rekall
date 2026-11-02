@@ -12,7 +12,11 @@ import { asCompanyId, type CompanyId } from '@/model/branded'
  * The hub's three filters: a company ("shared with"), a kind and a status. They narrow the list
  * and never reorder it. Below 640px they fold behind one "Filters (n)" button.
  */
-const props = defineProps<{ filter: ConnectionFilter; companies: readonly { readonly id: CompanyId; readonly name: string }[] }>()
+const props = defineProps<{
+  filter: ConnectionFilter
+  companies: readonly { readonly id: CompanyId; readonly name: string }[]
+  hideClear?: boolean
+}>()
 const emit = defineEmits<{ change: [filter: ConnectionFilter]; clear: [] }>()
 
 const open = ref(false)
@@ -74,7 +78,7 @@ function changeStatus(value: string): void {
         @update:model-value="changeStatus"
       />
       <button
-        v-if="count"
+        v-if="count && !hideClear"
         type="button"
         class="focus-ring rounded-key px-1 text-small text-accent underline-offset-2 hover:underline max-sm:min-h-11 max-sm:text-left"
         data-testid="clear-filters"

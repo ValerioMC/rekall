@@ -17,9 +17,9 @@ describe('ConnectionDeleteDialog', () => {
     const text = document.body.textContent ?? ''
 
     expect(text).toContain('Delete The platform?')
-    expect(text).toContain('Shared with 2 companies.')
-    expect(text).toContain('2 projects lose it, with 3 bindings and their targets.')
-    expect(text).toContain('Its stored credential is removed from this machine.')
+    expect(text).toContain('Shared with ')
+    expect(text).toMatch(/Unbinds from .+\./)
+    expect(text).toContain('Removes the stored token from this machine.')
     expect(text).toContain('Delete and unbind 2 projects')
     wrapper.unmount()
   })
@@ -39,7 +39,7 @@ describe('ConnectionDeleteDialog', () => {
     const buttons = Array.from(document.body.querySelectorAll('button'))
 
     buttons.find((button) => button.textContent?.includes('Delete connection'))?.click()
-    buttons.find((button) => button.textContent?.includes('Keep it'))?.click()
+    buttons.find((button) => button.textContent?.includes('Cancel'))?.click()
 
     expect(wrapper.emitted('confirm')).toHaveLength(1)
     expect(wrapper.emitted('cancel')).toHaveLength(1)

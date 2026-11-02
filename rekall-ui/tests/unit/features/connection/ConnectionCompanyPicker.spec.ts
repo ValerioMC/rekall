@@ -39,12 +39,13 @@ describe('ConnectionCompanyPicker', () => {
   it('locks a company whose projects still bind the connection and names them', () => {
     const blockedBy = new Map([[ACME, [aBinding('billing', ACME, { title: 'Billing' }), aBinding('portal', ACME, { title: 'Portal' })]]])
     const wrapper = mountPicker({ modelValue: [ACME], blockedBy })
-    const [acme, globex] = wrapper.findAll('input[type="checkbox"]')
+    const editable = wrapper.findAll('input[type="checkbox"]')
 
-    expect((acme?.element as HTMLInputElement).disabled).toBe(true)
-    expect((globex?.element as HTMLInputElement).disabled).toBe(false)
+    expect(editable).toHaveLength(2)
+    expect((editable[0]?.element as HTMLInputElement).disabled).toBe(false)
+    expect(wrapper.get('[data-testid="company-locked-row"] [role="checkbox"]').attributes('aria-disabled')).toBe('true')
     const reason = wrapper.get('[data-testid="company-locked"]')
-    expect(reason.text()).toContain('2 projects of Acme bind this connection')
+    expect(reason.text()).toContain('Locked: 2 projects of Acme bind this connection: Billing, Portal. Unbind them to stop sharing.')
     expect(reason.findAll('a').map((link) => link.text())).toEqual(['Billing', 'Portal'])
   })
 })

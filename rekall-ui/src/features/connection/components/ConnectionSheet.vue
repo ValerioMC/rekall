@@ -26,6 +26,7 @@ const props = defineProps<{
   connection: Connection | null
   initialKind: ConnectionKind | null
   initialCompanyIds: readonly CompanyId[]
+  bindToProject?: string | null
   companies: readonly { readonly id: CompanyId; readonly name: string }[]
 }>()
 const emit = defineEmits<{ close: []; saved: [connection: Connection]; editCompanies: [] }>()
@@ -51,6 +52,9 @@ watch(kind, (next) => {
   rootPath.value = ''
 })
 
+const sharedCompanyNames = computed(() =>
+  props.companies.filter((company) => props.initialCompanyIds.includes(company.id)).map((company) => company.name)
+)
 const heading = isNew ? 'New connection' : `Edit ${props.connection?.title}`
 const slug = computed(() => slugify(label.value || title.value))
 const urlField = computed(() => URL_FIELD[kind.value])
@@ -195,8 +199,16 @@ onMounted(async () => {
 
       <section v-if="isNew" class="mb-4" aria-labelledby="sheet-sharing-heading">
         <h3 id="sheet-sharing-heading" class="mb-1.5 text-small font-medium text-text-muted">Shared with</h3>
-        <ConnectionCompanyPicker v-model="companyIds" :companies="companies" />
-        <p class="mt-1.5 text-caption text-text-subtle">A project can bind the connection only if its company is in this list.</p>
+        <p v-if="bindToProject" class="text-small text-text" data-testid="sheet-bind-note">
+          Will be shared with {{ sharedCompanyNames.join(', ') }} and bound to {{ bindToProject }}.
+        </p>
+        <template v-else>
+          <ConnectionCompanyPicker v-model="companyIds" :companies="companies" />
+          <p v-if="!companyIds.length" class="mt-1.5 text-caption text-warn" data-testid="sheet-unshared-note">
+            Not shared yet. No project can use it.
+          </p>
+          <p v-else class="mt-1.5 text-caption text-text-subtle">A project can bind the connection only if its company is in this list.</p>
+        </template>
       </section>
       <p v-else class="mb-4 text-small text-text-muted">
         Companies are changed in
@@ -206,7 +218,7 @@ onMounted(async () => {
       </p>
 
       <details class="mb-2" :open="submitted && !!labelError">
-        <summary class="focus-ring cursor-pointer rounded-key text-small font-medium text-text-muted">Advanced</summary>
+        <summary class="focus-ring cursor-pointer rounded-key text-small font-medium text-text-muted">Label and advanced settings</summary>
         <AppField
           v-slot="{ fieldId, describedBy }"
           class="mt-3"

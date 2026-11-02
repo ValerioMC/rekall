@@ -53,8 +53,11 @@ impl Assets {
     }
 }
 
-const FORWARDED: [&str; 11] = ["/", "/projects", "/companies", "/tasks", "/search", "/calendar", "/report", "/diagrams", "/projects/", "/companies/", "/tasks/"];
-const FORWARDED_TREES: [&str; 3] = ["/projects/{*rest}", "/companies/{*rest}", "/tasks/{*rest}"];
+const FORWARDED: [&str; 15] = [
+    "/", "/projects", "/companies", "/connections", "/tasks", "/search", "/calendar", "/report", "/diagrams", "/security", "/claude", "/projects/",
+    "/companies/", "/connections/", "/tasks/",
+];
+const FORWARDED_TREES: [&str; 4] = ["/projects/{*rest}", "/companies/{*rest}", "/connections/{*rest}", "/tasks/{*rest}"];
 
 pub fn routes(assets: Assets) -> Router {
     let mut router = Router::new();

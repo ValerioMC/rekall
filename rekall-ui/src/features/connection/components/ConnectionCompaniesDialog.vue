@@ -18,6 +18,12 @@ const store = useConnectionsStore()
 const { run, isRunning } = useAsyncAction()
 const selected = ref<readonly CompanyId[]>(props.detail.companyIds)
 
+const changed = computed(
+  () =>
+    selected.value.length !== props.detail.companyIds.length ||
+    selected.value.some((companyId) => !props.detail.companyIds.includes(companyId))
+)
+
 const blockedBy = computed(() => {
   const blocked = new Map<CompanyId, readonly ConnectionProject[]>()
   for (const companyId of props.detail.companyIds) {
@@ -53,7 +59,9 @@ async function save(): Promise<void> {
     </div>
     <footer class="flex items-center justify-end gap-2 border-t border-border bg-canvas px-6 py-3.5">
       <AppButton size="sm" variant="ghost" @click="emit('close')">Cancel</AppButton>
-      <AppButton size="sm" variant="primary" :loading="isRunning" data-testid="save-companies" @click="save">Save companies</AppButton>
+      <AppButton size="sm" variant="primary" :loading="isRunning" :disabled="!changed" data-testid="save-companies" @click="save"
+        >Save companies</AppButton
+      >
     </footer>
   </AppDialog>
 </template>

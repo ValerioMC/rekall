@@ -55,13 +55,15 @@ export function trunksByKind(trunks: readonly ConnectionTrunk[]): ConnectionKind
   )
 }
 
-/** The connections shared with the project's company that it binds nowhere. */
+/** The connections shared with the project's company that it binds nowhere, in kind order then by title. */
 export function unusedConnections(
   bindings: readonly ProjectConnection[],
   connections: readonly Connection[]
 ): Connection[] {
   const used = new Set(bindings.map((binding) => binding.connectionId))
-  return connections.filter((connection) => !used.has(connection.id))
+  return connections
+    .filter((connection) => !used.has(connection.id))
+    .sort((a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind) || a.title.localeCompare(b.title))
 }
 
 /**

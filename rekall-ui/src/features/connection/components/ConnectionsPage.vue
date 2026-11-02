@@ -62,6 +62,9 @@ const backLabel = computed(() =>
     ? returnLabelOf(returnTo.value, new Map(consoleStore.projects.map((project) => [project.id as string, project.title])))
     : null
 )
+const filteredCompanyName = computed(
+  () => companies.value.find((company) => company.id === filter.value.companyId)?.name ?? null
+)
 const filterSummary = computed(() =>
   [
     filter.value.companyId ? `company ${companies.value.find((company) => company.id === filter.value.companyId)?.name ?? 'unknown'}` : null,
@@ -155,7 +158,7 @@ async function backToList(): Promise<void> {
 
 <template>
   <div class="flex min-h-0 flex-1 flex-col overflow-hidden bg-canvas">
-    <AppCatalogHeader title="Connections">
+    <AppCatalogHeader title="Connections" compact>
       <template #actions>
         <AppButton variant="primary" size="sm" class="max-sm:min-h-11" data-testid="new-connection" @click="openSheet(null, null)"
           >New connection</AppButton
@@ -174,7 +177,14 @@ async function backToList(): Promise<void> {
       <span aria-hidden="true">←</span> Back to {{ backLabel }}
     </RouterLink>
 
-    <ConnectionFilterBar :filter="filter" :companies="companies" @change="setFilter" @clear="clearFilters" />
+    <ConnectionFilterBar
+      :class="selectedId ? 'max-[959px]:hidden' : ''"
+      :filter="filter"
+      :companies="companies"
+      :hide-clear="!sections.length"
+      @change="setFilter"
+      @clear="clearFilters"
+    />
 
     <div class="grid min-h-0 flex-1 border-t border-border min-[960px]:grid-cols-[340px_minmax(0,1fr)]">
       <div
@@ -201,7 +211,9 @@ async function backToList(): Promise<void> {
           class="m-4"
           :filtered="filtered && store.connections.length > 0"
           :filter-summary="filterSummary"
+          :company-name="filteredCompanyName"
           @start="openSheet(null, $event)"
+          @create="openSheet(null, null)"
           @clear="clearFilters"
         />
 
@@ -228,7 +240,7 @@ async function backToList(): Promise<void> {
         >
           <AppButton size="sm" variant="secondary" @click="select(null)">Back to connections</AppButton>
         </AppEmptyState>
-        <p v-else-if="store.loaded" class="p-8 text-small text-text-subtle" data-testid="nothing-selected">
+        <p v-else-if="store.loaded && sections.length" class="p-8 text-small text-text-subtle" data-testid="nothing-selected">
           Select a connection to see its credential and who it is shared with.
         </p>
       </div>

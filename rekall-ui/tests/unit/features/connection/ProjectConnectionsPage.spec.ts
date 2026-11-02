@@ -152,7 +152,8 @@ describe('ProjectConnectionsPage', () => {
   it('narrows the bindings to those whose label or target matches the filter', async () => {
     vi.mocked(api.fetchProjectConnections).mockResolvedValue([
       { ...binding('prod', null), target: 'apps' },
-      { ...binding('staging', null), target: 'web' }
+      { ...binding('staging', null), target: 'web' },
+      ...['a', 'b', 'c', 'd', 'e', 'f'].map((id) => ({ ...binding(id, null), target: id }))
     ])
     const wrapper = await mountPage()
     await flushPromises()
@@ -185,6 +186,7 @@ describe('ProjectConnectionsPage', () => {
     expect(api.updateBinding).toHaveBeenLastCalledWith('p-1', 'b-prod', { label: 'prod-apps', target: 'apps' })
 
     await wrapper.get('[data-testid="unbind-connection"]').trigger('click')
+    await wrapper.get('[data-testid="unbind-connection-confirm"]').trigger('click')
     await flushPromises()
     expect(api.unbindConnection).toHaveBeenCalledWith('p-1', 'b-prod')
     expect(wrapper.findAll('[data-testid="project-connection"]')).toHaveLength(0)
@@ -307,8 +309,8 @@ describe('ProjectConnectionsPage as a binding screen', () => {
 
     await wrapper.get('[data-testid="new-project-connection"]').trigger('click')
     const sheet = document.body.querySelector('[data-testid="connection-sheet"]')!
-    const boxes = sheet.querySelectorAll<HTMLInputElement>('[data-testid="company-picker"] input[type="checkbox"]')
-    expect(boxes[0]?.checked).toBe(true)
+    expect(sheet.querySelector('[data-testid="sheet-bind-note"]')?.textContent).toContain('bound to Vega')
+    expect(sheet.querySelector('[data-testid="company-picker"]')).toBeNull()
     const title = sheet.querySelector<HTMLInputElement>('[data-testid="connection-title"]')!
     title.value = 'Fresh'
     title.dispatchEvent(new Event('input'))

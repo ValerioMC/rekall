@@ -60,6 +60,7 @@ async function clear(): Promise<void> {
         <AppButton
           size="sm"
           :variant="connection.credentialSetAt ? 'secondary' : 'primary'"
+          class="max-sm:min-h-11"
           data-testid="replace-credential"
           @click="start"
         >
@@ -69,6 +70,7 @@ async function clear(): Promise<void> {
           v-if="connection.credentialSetAt"
           size="sm"
           variant="danger-quiet"
+          class="max-sm:min-h-11"
           :loading="isRunning"
           data-testid="clear-credential"
           @click="clear"
@@ -93,7 +95,7 @@ async function clear(): Promise<void> {
         </AppButton>
       </div>
     </template>
-    <p class="text-caption text-text-subtle">
+    <p v-if="connection.credentialSetAt" class="text-caption text-text-subtle">
       Kept in this machine's credential store and never shown again, here or to a session.
     </p>
   </div>

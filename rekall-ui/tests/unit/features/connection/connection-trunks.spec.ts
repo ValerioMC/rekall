@@ -64,6 +64,15 @@ describe('the bindings of a project, by connection', () => {
 
     expect(unused.map((each) => each.id)).toEqual(['public'])
   })
+
+  it('orders the connections on offer by kind, then by title', () => {
+    const jira: Connection = { ...connection('tracker'), kind: 'JIRA' }
+    const cluster: Connection = { ...connection('prod'), kind: 'KUBERNETES' }
+
+    const unused = unusedConnections([], [jira, connection('zeta'), cluster, connection('alpha')])
+
+    expect(unused.map((each) => each.id)).toEqual(['prod', 'alpha', 'zeta', 'tracker'])
+  })
 })
 
 describe('the connections of a project, by kind', () => {

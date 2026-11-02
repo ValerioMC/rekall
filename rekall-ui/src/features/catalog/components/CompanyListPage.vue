@@ -146,7 +146,8 @@ async function confirmDelete(): Promise<void> {
           </span>
 
           <button
-            class="focus-ring shrink-0 rounded-key px-1.5 py-1 text-caption text-accent underline-offset-2 hover:underline max-sm:min-h-11"
+            class="focus-ring w-[7.5rem] shrink-0 rounded-key px-1.5 py-1 text-right text-caption underline underline-offset-2 hover:text-text max-sm:min-h-11"
+            :class="connections.loaded && connections.connectionsOf(company.id).length === 0 ? 'text-text-subtle' : 'text-accent'"
             :aria-label="`${connectionsLabelOf(company)} shared with ${company.name}`"
             data-testid="company-connections"
             @click.stop="openConnectionsOf(company)"

@@ -35,6 +35,10 @@ function toggle(companyId: CompanyId, on: boolean): void {
 function lockOf(companyId: CompanyId): readonly ConnectionProject[] {
   return props.blockedBy.get(companyId) ?? []
 }
+
+function lockedProjects(companyId: CompanyId): ConnectionProject[] {
+  return projectsOf(lockOf(companyId))
+}
 </script>
 
 <template>
@@ -42,22 +46,43 @@ function lockOf(companyId: CompanyId): readonly ConnectionProject[] {
     <AppInput v-model="search" type="search" placeholder="Search companies" data-testid="company-search" aria-label="Search companies" />
     <ul class="flex max-h-64 flex-col divide-y divide-border overflow-y-auto rounded-control border border-border">
       <li v-for="company in visible" :key="company.id" class="px-3 py-2" data-testid="company-option">
+        <div v-if="lockOf(company.id).length" class="flex items-start gap-2.5" data-testid="company-locked-row">
+          <span
+            class="mt-0.5 grid size-4 shrink-0 place-items-center text-text-subtle"
+            role="checkbox"
+            aria-checked="true"
+            aria-disabled="true"
+            :aria-label="`${company.name}, locked`"
+          >
+            <svg viewBox="0 0 16 16" class="size-4" fill="none" aria-hidden="true">
+              <rect x="3.5" y="7" width="9" height="6.5" rx="1.5" stroke="currentColor" stroke-width="1.4" />
+              <path d="M5.5 7V5.2a2.5 2.5 0 0 1 5 0V7" stroke="currentColor" stroke-width="1.4" />
+            </svg>
+          </span>
+          <div class="min-w-0">
+            <p class="text-body text-text">{{ company.name }}</p>
+            <p class="mt-0.5 text-small text-text-muted" data-testid="company-locked">
+              Locked: {{ plural(lockedProjects(company.id).length, 'project') }} of {{ company.name }}
+              {{ lockedProjects(company.id).length === 1 ? 'binds' : 'bind' }} this connection:
+              <template v-for="(project, at) in lockedProjects(company.id)" :key="project.projectId"
+                ><RouterLink
+                  :to="`/projects/${project.projectId}`"
+                  target="_blank"
+                  rel="noopener"
+                  class="focus-ring rounded-key text-accent hover:underline"
+                  >{{ project.title }}</RouterLink
+                ><template v-if="at < lockedProjects(company.id).length - 1">, </template
+                ><template v-else>.</template></template
+              > Unbind them to stop sharing.
+            </p>
+          </div>
+        </div>
         <AppCheckbox
+          v-else
           :model-value="modelValue.includes(company.id)"
           :label="company.name"
-          :disabled="lockOf(company.id).length > 0"
           @update:model-value="toggle(company.id, $event)"
         />
-        <p v-if="lockOf(company.id).length" class="mt-1 pl-6.5 text-caption text-text-subtle" data-testid="company-locked">
-          {{ plural(projectsOf(lockOf(company.id)).length, 'project') }} of {{ company.name }} bind this connection:
-          <template v-for="(project, at) in projectsOf(lockOf(company.id))" :key="project.projectId">
-            <RouterLink :to="`/projects/${project.projectId}`" class="focus-ring rounded-key text-accent hover:underline">{{
-              project.title
-            }}</RouterLink
-            ><template v-if="at < projectsOf(lockOf(company.id)).length - 1">, </template>
-          </template>
-          . Unbind them to stop sharing.
-        </p>
       </li>
       <li v-if="!visible.length" class="px-3 py-3 text-small text-text-subtle">No company matches.</li>
     </ul>

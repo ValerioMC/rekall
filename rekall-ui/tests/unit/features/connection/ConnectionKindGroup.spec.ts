@@ -58,7 +58,7 @@ describe('ConnectionKindGroup', () => {
     expect(unshared?.get('[data-testid="connection-scope"]').text()).toBe('gitlab.example.com/acme')
     expect(unshared?.text()).toContain('No credential')
     expect(unshared?.text()).toContain('Not shared with any company')
-    expect(unshared?.get('[data-testid="connection-sharing"]').text()).toBe('0 companies · 3 projects')
+    expect(unshared?.get('[data-testid="connection-sharing"]').text()).toBe('3 projects')
     expect(shared?.text()).toContain('Stored')
     expect(shared?.find('[data-testid="connection-unshared"]').exists()).toBe(false)
     expect(shared?.get('[data-testid="connection-sharing"]').text()).toBe('2 companies · 1 project')

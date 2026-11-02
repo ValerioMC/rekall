@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
+import ConnectionUnbindButton from '@/features/connection/components/ConnectionUnbindButton.vue'
 import { TARGET_FIELD } from '@/features/connection/lib/connection-fields'
 import { expectedTargetPrefix } from '@/features/connection/lib/target-scope'
 import type { ProjectConnection, ProjectConnectionInput } from '@/features/connection/model/connection'
@@ -52,7 +53,7 @@ function commitLabel(): void {
 </script>
 
 <template>
-  <div class="group flex h-[34px] items-center gap-2 rounded-control pr-1 hover:bg-surface-raised" data-testid="project-connection">
+  <div class="group flex min-h-[34px] items-center gap-2 rounded-control pr-1 hover:bg-surface-raised" data-testid="project-connection">
     <input
       v-model="labelDraft"
       spellcheck="false"
@@ -80,17 +81,7 @@ function commitLabel(): void {
     <AppButton v-if="canImport" size="sm" variant="ghost" data-testid="import-jira-issues" @click="emit('importIssues')"
       >Import issues as tasks</AppButton
     >
-    <button
-      class="focus-ring grid size-7 shrink-0 cursor-pointer place-items-center rounded-key text-text-subtle opacity-60 transition-opacity hover:bg-surface-hover hover:text-danger hover:opacity-100 focus-visible:opacity-100 group-hover:opacity-100"
-      :aria-label="`Stop using ${binding.label}`"
-      :title="`Stop using ${binding.label}`"
-      data-testid="unbind-connection"
-      @click="emit('unbind')"
-    >
-      <svg class="size-3" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-        <path d="m3.5 3.5 7 7m0-7-7 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
-      </svg>
-    </button>
+    <ConnectionUnbindButton :subject="binding.label" testid="unbind-connection" @confirm="emit('unbind')" />
   </div>
 </template>
 

@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import AppButton from '@/components/ui/AppButton.vue'
+import ConnectionUnbindButton from '@/features/connection/components/ConnectionUnbindButton.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { bindingsOfCompany } from '@/features/connection/lib/connection-impact'
 import { useConnectionsStore } from '@/features/connection/store/connections.store'
@@ -32,8 +33,8 @@ async function unbind(binding: ConnectionProject): Promise<void> {
 <template>
   <section aria-labelledby="connection-sharing-heading" class="flex flex-col gap-3" data-testid="sharing-panel">
     <header class="flex items-center gap-2">
-      <h3 id="connection-sharing-heading" class="flex-1 text-small font-semibold text-text">Shared with</h3>
-      <AppButton size="sm" variant="secondary" :disabled="!detail" data-testid="edit-companies" @click="emit('editCompanies')"
+      <h3 id="connection-sharing-heading" class="flex-1 text-body font-semibold text-text">Shared with</h3>
+      <AppButton size="sm" variant="secondary" class="max-sm:min-h-11" :disabled="!detail" data-testid="edit-companies" @click="emit('editCompanies')"
         >Edit companies</AppButton
       >
     </header>
@@ -50,7 +51,7 @@ async function unbind(binding: ConnectionProject): Promise<void> {
           <li
             v-for="binding in group.bindings"
             :key="`${binding.projectId}-${binding.bindingLabel}`"
-            class="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-1.5"
+            class="grid grid-cols-[minmax(0,9rem)_minmax(0,7rem)_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 py-1.5 max-sm:grid-cols-[minmax(0,1fr)_auto]"
             data-testid="sharing-binding"
           >
             <RouterLink
@@ -59,16 +60,13 @@ async function unbind(binding: ConnectionProject): Promise<void> {
               >{{ binding.title }}</RouterLink
             >
             <span class="font-mono text-caption text-anchor/80">{{ binding.bindingLabel }}</span>
-            <span v-if="binding.target" class="font-mono text-caption text-text-muted">{{ binding.target }}</span>
-            <AppButton
-              size="sm"
-              variant="danger-quiet"
-              class="ml-auto max-sm:min-h-11"
-              :aria-label="`Unbind ${binding.title} from ${detail.title}`"
-              data-testid="unbind-binding"
-              @click="unbind(binding)"
-              >Unbind</AppButton
-            >
+            <span class="truncate font-mono text-caption text-text-muted max-sm:col-span-2">{{ binding.target ?? '' }}</span>
+            <ConnectionUnbindButton
+              class="max-sm:col-span-2 max-sm:justify-self-end"
+              :subject="binding.title"
+              testid="unbind-binding"
+              @confirm="unbind(binding)"
+            />
           </li>
         </ul>
       </li>

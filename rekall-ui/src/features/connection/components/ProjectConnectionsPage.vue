@@ -34,6 +34,8 @@ import type { ConnectionId } from '@/model/branded'
  */
 const props = defineProps<{ project: Project }>()
 
+const FILTER_FROM = 7
+
 const store = useConnectionsStore()
 const consoleStore = useConsoleStore()
 const toast = useToastStore()
@@ -58,6 +60,7 @@ const kindGroups = computed(() =>
   )
 )
 const unused = computed(() => unusedConnections(bindings.value, companyConnections.value))
+const unsharedElsewhere = computed(() => store.connections.length - companyConnections.value.length)
 
 async function bind(connectionId: ConnectionId): Promise<void> {
   await run(() => store.bind(props.project.id, connectionId, { target: null }))
@@ -113,13 +116,12 @@ watch(
       <div class="min-w-[240px] flex-1">
         <h2 class="text-title font-semibold tracking-[-0.01em] text-text">Connections</h2>
         <p class="mt-0.5 text-small text-text-subtle">
-          What a session on this project can reach. A credential is stored once, on the connection, and every binding
-          below it uses it.
+          Connections this project can reach. Credentials are managed on the connection.
         </p>
       </div>
-      <label v-if="bindings.length" class="sr-only" for="connections-filter">Filter bindings</label>
+      <label v-if="bindings.length > FILTER_FROM" class="sr-only" for="connections-filter">Filter bindings</label>
       <input
-        v-if="bindings.length"
+        v-if="bindings.length > FILTER_FROM"
         id="connections-filter"
         v-model="query"
         type="search"
@@ -138,6 +140,12 @@ watch(
         data-testid="discover-repositories"
         @click="discover"
         >{{ isDiscovering ? 'Finding…' : 'Find repositories' }}</AppButton
+      >
+      <RouterLink
+        :to="{ name: 'connections', query: hubQuery }"
+        class="focus-ring key-slate inline-flex h-7 items-center rounded-control px-3 text-caption font-medium max-sm:min-h-11"
+        data-testid="manage-connections-link"
+        >Manage connections</RouterLink
       >
       <AppButton size="sm" variant="primary" data-testid="new-project-connection" @click="creating = true">New connection</AppButton>
     </header>
@@ -203,18 +211,18 @@ watch(
         <h3 class="section-label mb-1.5">Not used by this project</h3>
         <ul class="flex flex-col">
           <li v-for="connection in unused" :key="connection.id" class="border-t border-border first:border-t-0">
-            <ConnectionOption :connection="connection" @use="bind(connection.id)" />
+            <ConnectionOption :connection="connection" :return-to="returnTo" @use="bind(connection.id)" />
           </li>
         </ul>
       </div>
 
-      <RouterLink
-        :to="{ name: 'connections', query: hubQuery }"
-        class="focus-ring mt-8 inline-flex min-h-11 items-center rounded-key text-caption text-text-subtle hover:text-accent sm:min-h-0"
-        data-testid="manage-connections-link"
-      >
-        Manage connections: credentials, checks, the companies they are shared with and the access log
-      </RouterLink>
+      <p v-if="unsharedElsewhere > 0" class="mt-6 text-small text-text-subtle" data-testid="unshared-elsewhere">
+        {{ unsharedElsewhere }} more {{ unsharedElsewhere === 1 ? 'connection exists' : 'connections exist' }} but
+        {{ unsharedElsewhere === 1 ? 'is' : 'are' }} not shared with {{ project.companyName }}.
+        <RouterLink :to="{ name: 'connections', query: { returnTo } }" class="focus-ring rounded-key text-accent hover:underline"
+          >See them in Connections</RouterLink
+        >
+      </p>
     </div>
 
     <Transition name="slide-over">
@@ -223,6 +231,7 @@ watch(
         :connection="null"
         :initial-kind="null"
         :initial-company-ids="[project.companyId]"
+        :bind-to-project="project.title"
         :companies="companies"
         @close="creating = false"
         @saved="bindCreated"

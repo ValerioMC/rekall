@@ -552,6 +552,10 @@ async fn a_refresh_on_any_ui_route_serves_the_application_and_an_unknown_api_pat
         "/search".into(),
         "/calendar".into(),
         "/diagrams".into(),
+        "/connections".into(),
+        format!("/connections/{random}"),
+        "/security".into(),
+        "/claude".into(),
     ] {
         let response = app.get(&path).await;
         assert_eq!(response.status, 200, "GET {path}");

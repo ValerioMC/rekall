@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
 import ConnectionKindIcon from '@/features/connection/components/ConnectionKindIcon.vue'
@@ -9,18 +10,27 @@ import { CONNECTION_KIND_LABEL, type ConnectionKind } from '@/features/connectio
  * Nothing to list. With no connection at all it explains what one is and starts one of each kind;
  * under filters it names them and offers to clear.
  */
-defineProps<{ filtered: boolean; filterSummary: string }>()
-const emit = defineEmits<{ start: [kind: ConnectionKind]; clear: [] }>()
+const props = defineProps<{ filtered: boolean; filterSummary: string; companyName: string | null }>()
+const emit = defineEmits<{ start: [kind: ConnectionKind]; create: []; clear: [] }>()
+
+const filteredTitle = computed(() =>
+  props.companyName ? `No connections are shared with ${props.companyName}` : 'No connection matches'
+)
 </script>
 
 <template>
   <AppEmptyState
     v-if="filtered"
-    title="No connection matches"
+    :title="filteredTitle"
     :description="`Filtered by ${filterSummary}.`"
     data-testid="connections-empty-filtered"
   >
-    <AppButton variant="secondary" size="sm" data-testid="empty-clear-filters" @click="emit('clear')">Clear filters</AppButton>
+    <div class="flex flex-wrap justify-center gap-2">
+      <AppButton v-if="companyName" variant="primary" size="sm" data-testid="empty-new-connection" @click="emit('create')"
+        >New connection for {{ companyName }}</AppButton
+      >
+      <AppButton variant="secondary" size="sm" data-testid="empty-clear-filters" @click="emit('clear')">Clear filters</AppButton>
+    </div>
   </AppEmptyState>
   <AppEmptyState
     v-else

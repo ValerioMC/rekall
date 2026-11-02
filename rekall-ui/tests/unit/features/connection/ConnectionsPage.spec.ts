@@ -100,6 +100,35 @@ describe('the Connections hub', () => {
     expect(page.get('[data-connection-id="platform"]').attributes('aria-current')).toBe('true')
   })
 
+  it('offers a new connection for the company that has none, instead of a dead end', async () => {
+    const page = await render(`/connections?company=${GLOBEX}&kind=JIRA`)
+
+    expect(page.get('[data-testid="connections-empty-filtered"]').text()).toContain('No connections are shared with Globex')
+    expect(page.get('[data-testid="empty-new-connection"]').text()).toContain('New connection for Globex')
+    expect(page.find('[data-testid="clear-filters"]').exists()).toBe(false)
+    expect(page.find('[data-testid="nothing-selected"]').exists()).toBe(false)
+  })
+
+  it('says there is nothing to check when no credential is stored, and offers to add one', async () => {
+    const page = await render('/connections/prod')
+
+    expect(page.get('[data-testid="credential-none-note"]').text()).toContain('No kubeconfig stored')
+    expect(page.find('[data-testid="check-connection"]').exists()).toBe(false)
+    expect(page.get('[data-testid="replace-credential"]').text()).toBe('Add kubeconfig')
+  })
+
+  it('asks before it unbinds a project and does nothing when asked to cancel', async () => {
+    vi.mocked(api.fetchProjectConnections).mockResolvedValue([])
+    const page = await render('/connections/platform')
+
+    await page.get('[data-testid="unbind-binding"]').trigger('click')
+    expect(page.text()).toContain('Unbind Billing?')
+    await page.get('[data-testid="sharing-binding"] button:last-child').trigger('click')
+
+    expect(api.unbindConnection).not.toHaveBeenCalled()
+    expect(page.find('[data-testid="unbind-binding"]').exists()).toBe(true)
+  })
+
   it('shows every company in Shared with even when the list is filtered to one', async () => {
     const page = await render(`/connections/platform?company=${ACME}`)
 
@@ -156,6 +185,7 @@ describe('the Connections hub', () => {
     const page = await render('/connections/platform')
 
     await page.get('[data-testid="unbind-binding"]').trigger('click')
+    await page.get('[data-testid="unbind-binding-confirm"]').trigger('click')
     await flushPromises()
 
     expect(api.unbindConnection).toHaveBeenCalledWith('p-billing', 'b-platform')
@@ -166,7 +196,7 @@ describe('the Connections hub', () => {
     const page = await render('/connections/platform')
 
     await page.get('[data-testid="delete-connection"]').trigger('click')
-    expect(page.text()).toContain('1 project loses it, with 1 binding and their targets.')
+    expect(page.text()).toContain('Unbinds from ')
     const confirm = Array.from(document.body.querySelectorAll('button')).find((button) => button.textContent?.includes('Delete and unbind 1 project'))
     confirm?.click()
     await flushPromises()

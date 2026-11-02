@@ -41,7 +41,7 @@ defineExpose({
 </script>
 
 <template>
-  <section class="flex flex-col gap-6 p-5" :aria-label="connection.title" data-testid="connection-detail">
+  <section class="flex max-w-[720px] flex-col gap-6 p-5" :aria-label="connection.title" data-testid="connection-detail">
     <button
       type="button"
       class="focus-ring -ml-1 inline-flex min-h-11 w-fit items-center gap-1.5 rounded-key px-1 text-small text-text-muted hover:text-text min-[960px]:hidden"
@@ -94,7 +94,7 @@ defineExpose({
       </dl>
 
       <details>
-        <summary class="focus-ring w-fit cursor-pointer rounded-key text-caption text-text-subtle hover:text-text">Advanced</summary>
+        <summary class="focus-ring w-fit cursor-pointer rounded-key text-caption text-text-subtle hover:text-text">Label and advanced settings</summary>
         <p class="mt-1.5 text-caption text-text-subtle">
           <span class="font-mono text-anchor/80" data-testid="connection-label-value">{{ connection.label }}</span>
           is the short name sessions use: kubectl --context, rekall-gitlab, rekall-github and rekall-jira --connection.
@@ -102,12 +102,12 @@ defineExpose({
       </details>
     </header>
 
-    <ConnectionCredentialPanel ref="credentialPanel" :connection="connection" />
+    <ConnectionCredentialPanel ref="credentialPanel" class="border-t border-border pt-5" :connection="connection" />
 
-    <ConnectionSharingPanel :detail="detail" @edit-companies="emit('editCompanies')" />
+    <ConnectionSharingPanel class="border-t border-border pt-5" :detail="detail" @edit-companies="emit('editCompanies')" />
 
-    <details @toggle="logOpened = true">
-      <summary class="focus-ring cursor-pointer rounded-key text-small font-semibold text-text">Access log</summary>
+    <details class="border-t border-border pt-5" @toggle="logOpened = true">
+      <summary class="focus-ring cursor-pointer rounded-key text-body font-semibold text-text">Access log</summary>
       <div class="mt-2">
         <ConnectionAccessLog v-if="logOpened" ref="accessLog" :connection-id="connection.id" />
       </div>

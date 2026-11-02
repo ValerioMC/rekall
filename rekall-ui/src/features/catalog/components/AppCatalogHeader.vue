@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /** `parent` is what the title sits inside (a project's company): shown before it, stepped back. */
-withDefaults(defineProps<{ title: string; parent?: string | null }>(), { parent: null })
+withDefaults(defineProps<{ title: string; parent?: string | null; compact?: boolean }>(), { parent: null, compact: false })
 </script>
 
 <template>
@@ -11,7 +11,7 @@ withDefaults(defineProps<{ title: string; parent?: string | null }>(), { parent:
     <!-- Two children, for the header's centre and right cells. A hairline, then the title with
          the same short accent tick the panes hang on their kicker: the switcher says which
          screen, the title says what is on it. -->
-    <div class="flex min-w-0 items-center gap-3">
+    <div class="flex min-w-0 items-center gap-3" :class="compact ? 'max-sm:hidden' : ''">
       <span class="h-5 w-px shrink-0 bg-border-strong" aria-hidden="true" />
       <h1 class="flex min-w-0 items-center gap-2 text-title font-semibold tracking-[-0.01em] text-text">
         <slot name="leading">
