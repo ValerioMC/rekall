@@ -1,68 +1,66 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
+import { createMemoryHistory, createRouter } from 'vue-router'
 import ConnectionKindGroup from '@/features/connection/components/ConnectionKindGroup.vue'
 import type { Connection, ConnectionKind } from '@/features/connection/model/connection'
-import type { CompanyId, ConnectionId } from '@/model/branded'
+import type { ConnectionId } from '@/model/branded'
+import { GLOBEX, aConnection } from '../../support/connectionFixture'
 
-function connection(id: string, kind: ConnectionKind, credentialSetAt: string | null): Connection {
-  return {
-    id: id as ConnectionId,
-    companyId: 'c-1' as CompanyId,
-    kind,
-    label: id,
-    title: `The ${id}`,
-    baseUrl: kind === 'GITLAB' ? 'https://gitlab.example.com' : 'https://10.0.0.14:6443',
-    kubeContext: kind === 'KUBERNETES' ? id : null,
-    proxyUrl: null,
-    credentialSetAt,
-    projectCount: 1,
-    updatedAt: '2026-10-21T10:00:00Z'
-  }
-}
+const KUBERNETES: ConnectionKind = 'KUBERNETES'
 
-const ALL = [
-  connection('gitlab', 'GITLAB', '2026-10-21T10:00:00Z'),
-  connection('kmaster14', 'KUBERNETES', null),
-  connection('staging', 'KUBERNETES', '2026-10-21T10:00:00Z')
-]
-
-function mountGroup(kind: ConnectionKind, connections: readonly Connection[] = ALL) {
-  return mount(ConnectionKindGroup, { props: { kind, connections, selectedId: 'staging' as ConnectionId } })
+async function mountGroup(kind: ConnectionKind, connections: readonly Connection[], selectedId: string | null = null) {
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: '/connections/:id?', name: 'connections', component: { template: '<div />' } }]
+  })
+  await router.push('/connections')
+  return mount(ConnectionKindGroup, {
+    props: { kind, connections, selectedId: selectedId as ConnectionId | null },
+    global: { plugins: [router] }
+  })
 }
 
 describe('ConnectionKindGroup', () => {
-  it("lists only the connections of its kind under that kind's logo", () => {
-    const wrapper = mountGroup('KUBERNETES')
+  beforeEach(() => setActivePinia(createPinia()))
+
+  it("lists its connections under the kind's logo and name, with how many there are", async () => {
+    const wrapper = await mountGroup(KUBERNETES, [
+      aConnection('kmaster14', { kind: KUBERNETES, baseUrl: null, kubeContext: 'kmaster14' }),
+      aConnection('staging', { kind: KUBERNETES, baseUrl: null, kubeContext: 'staging' })
+    ])
 
     expect(wrapper.find('svg[data-kind="KUBERNETES"]').exists()).toBe(true)
-    expect(wrapper.findAll('[data-testid="connection-row"]').map((row) => row.text())).toEqual([
-      expect.stringContaining('The kmaster14'),
-      expect.stringContaining('The staging')
-    ])
-    expect(wrapper.get('[data-testid="connection-group-count"]').text()).toBe('2')
-    expect(wrapper.text()).toContain('1 without a credential')
+    expect(wrapper.get('[data-testid="connection-group-name"]').text()).toBe('Kubernetes')
+    expect(wrapper.get('[data-testid="connection-group-count"]').text()).toBe('(2)')
+    expect(wrapper.findAll('[data-testid="connection-row"]')).toHaveLength(2)
   })
 
-  it('marks the selected row and emits the one clicked', async () => {
-    const wrapper = mountGroup('KUBERNETES')
+  it('marks the selected row as current and links every row to its own detail', async () => {
+    const wrapper = await mountGroup(
+      'GITLAB',
+      [aConnection('platform'), aConnection('clients')],
+      'clients'
+    )
     const rows = wrapper.findAll('[data-testid="connection-row"]')
 
-    expect(rows[1]?.attributes('aria-current')).toBe('true')
-    await rows[0]?.trigger('click')
-    expect(wrapper.emitted('select')).toEqual([['kmaster14']])
+    expect(rows.map((row) => row.attributes('href'))).toEqual(['/connections/platform', '/connections/clients'])
+    expect(rows.map((row) => row.attributes('aria-current'))).toEqual([undefined, 'true'])
   })
 
-  it('shows where a GitLab connection points and asks to add one of its kind', async () => {
-    const wrapper = mountGroup('GITLAB')
+  it('says what a row covers, whether it has a credential and how widely it is shared', async () => {
+    const wrapper = await mountGroup('GITLAB', [
+      aConnection('acme', { rootPath: 'acme', credentialSetAt: null, companyIds: [], projectCount: 3 }),
+      aConnection('shared', { companyIds: [GLOBEX, ...aConnection('x').companyIds], projectCount: 1 })
+    ])
+    const [unshared, shared] = wrapper.findAll('[data-testid="connection-row"]')
 
-    expect(wrapper.get('[data-testid="connection-row"]').text()).toContain('gitlab.example.com')
-    await wrapper.get('[data-testid="add-connection-GITLAB"]').trigger('click')
-    expect(wrapper.emitted('add')).toHaveLength(1)
-  })
-
-  it('says so when the company has none of its kind', () => {
-    const wrapper = mountGroup('GITLAB', ALL.slice(1))
-
-    expect(wrapper.get('[data-testid="connection-group-empty"]').text()).toBe('No GitLab instance yet.')
+    expect(unshared?.get('[data-testid="connection-scope"]').text()).toBe('gitlab.example.com/acme')
+    expect(unshared?.text()).toContain('No credential')
+    expect(unshared?.text()).toContain('Not shared with any company')
+    expect(unshared?.get('[data-testid="connection-sharing"]').text()).toBe('0 companies · 3 projects')
+    expect(shared?.text()).toContain('Stored')
+    expect(shared?.find('[data-testid="connection-unshared"]').exists()).toBe(false)
+    expect(shared?.get('[data-testid="connection-sharing"]').text()).toBe('2 companies · 1 project')
   })
 })

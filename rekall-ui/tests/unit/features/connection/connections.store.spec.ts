@@ -12,7 +12,8 @@ const COMPANY = 'c-1' as CompanyId
 function connection(id: string, over: Partial<Connection> = {}): Connection {
   return {
     id: id as ConnectionId,
-    companyId: COMPANY,
+    companyIds: [COMPANY],
+    rootPath: null,
     kind: 'KUBERNETES',
     label: id,
     title: id,
@@ -33,28 +34,27 @@ describe('the connections store', () => {
   })
 
   it('reads a company once opened', async () => {
-    vi.mocked(api.fetchCompanyConnections).mockResolvedValue([connection('prod')])
+    vi.mocked(api.fetchConnections).mockResolvedValue([connection('prod')])
     const store = useConnectionsStore()
 
-    await store.ensureLoaded(COMPANY)
-    await store.ensureLoaded(COMPANY)
+    await store.ensureLoaded()
+    await store.ensureLoaded()
 
     expect(store.connectionsOf(COMPANY).map((c) => c.label)).toEqual(['prod'])
-    expect(api.fetchCompanyConnections).toHaveBeenCalledTimes(1)
+    expect(api.fetchConnections).toHaveBeenCalledTimes(1)
   })
 
   it('creates a connection and then sends its credential, keeping only when it was stored', async () => {
-    vi.mocked(api.fetchCompanyConnections).mockResolvedValue([])
+    vi.mocked(api.fetchConnections).mockResolvedValue([])
     vi.mocked(api.createConnection).mockResolvedValue(connection('gitlab', { kind: 'GITLAB' }))
     vi.mocked(api.setCredential).mockResolvedValue(
       connection('gitlab', { kind: 'GITLAB', credentialSetAt: '2026-10-21T10:01:00Z' })
     )
     const store = useConnectionsStore()
-    await store.load(COMPANY)
+    await store.load()
 
     const created = await store.create(
-      COMPANY,
-      { kind: 'GITLAB', title: 'GitLab', baseUrl: 'https://gitlab.example.com' },
+      { kind: 'GITLAB', title: 'GitLab', baseUrl: 'https://gitlab.example.com', companyIds: [COMPANY] },
       { kind: 'GITLAB', token: 'glpat-secret' }
     )
 
@@ -65,18 +65,18 @@ describe('the connections store', () => {
   })
 
   it('creates without a credential when none was typed', async () => {
-    vi.mocked(api.fetchCompanyConnections).mockResolvedValue([])
+    vi.mocked(api.fetchConnections).mockResolvedValue([])
     vi.mocked(api.createConnection).mockResolvedValue(connection('prod'))
     const store = useConnectionsStore()
 
-    await store.create(COMPANY, { kind: 'KUBERNETES', title: 'Prod' }, null)
+    await store.create({ kind: 'KUBERNETES', title: 'Prod', companyIds: [COMPANY] }, null)
 
     expect(api.setCredential).not.toHaveBeenCalled()
     expect(store.connectionsOf(COMPANY).map((c) => c.id)).toEqual(['prod'])
   })
 
   it('forgets a check once the credential is replaced or cleared', async () => {
-    vi.mocked(api.fetchCompanyConnections).mockResolvedValue([
+    vi.mocked(api.fetchConnections).mockResolvedValue([
       connection('prod', { credentialSetAt: '2026-10-21T10:00:00Z' })
     ])
     vi.mocked(api.checkConnection).mockResolvedValue({
@@ -86,7 +86,7 @@ describe('the connections store', () => {
     })
     vi.mocked(api.clearCredential).mockResolvedValue(connection('prod'))
     const store = useConnectionsStore()
-    await store.load(COMPANY)
+    await store.load()
 
     await store.check('prod' as ConnectionId)
     expect(store.checkOf('prod' as ConnectionId)?.detail).toBe('Rejected')
@@ -97,11 +97,11 @@ describe('the connections store', () => {
   })
 
   it('deletes a connection from its company and its detail', async () => {
-    vi.mocked(api.fetchCompanyConnections).mockResolvedValue([connection('prod'), connection('staging')])
-    vi.mocked(api.fetchConnection).mockResolvedValue({ ...connection('prod'), projects: [] })
+    vi.mocked(api.fetchConnections).mockResolvedValue([connection('prod'), connection('staging')])
+    vi.mocked(api.fetchConnection).mockResolvedValue({ ...connection('prod'), companies: [], projects: [] })
     vi.mocked(api.deleteConnection).mockResolvedValue({ unboundProjects: 2 })
     const store = useConnectionsStore()
-    await store.load(COMPANY)
+    await store.load()
     await store.loadDetail('prod' as ConnectionId)
 
     const removed = await store.remove(connection('prod'))
@@ -109,6 +109,36 @@ describe('the connections store', () => {
     expect(removed.unboundProjects).toBe(2)
     expect(store.connectionsOf(COMPANY).map((c) => c.id)).toEqual(['staging'])
     expect(store.detailOf('prod' as ConnectionId)).toBeNull()
+  })
+
+  it('lists the connections shared with a company across the whole workspace', async () => {
+    vi.mocked(api.fetchConnections).mockResolvedValue([
+      connection('shared', { companyIds: [COMPANY, 'c-2' as CompanyId] }),
+      connection('other', { companyIds: ['c-2' as CompanyId] }),
+      connection('nobody', { companyIds: [] })
+    ])
+    const store = useConnectionsStore()
+
+    await store.load()
+
+    expect(store.connectionsOf(COMPANY).map((c) => c.label)).toEqual(['shared'])
+    expect(store.connections).toHaveLength(3)
+  })
+
+  it('shares a connection with another set of companies and reads its detail again', async () => {
+    const shared = connection('prod', { companyIds: [COMPANY, 'c-2' as CompanyId] })
+    vi.mocked(api.fetchConnections).mockResolvedValue([connection('prod')])
+    vi.mocked(api.fetchConnection).mockResolvedValue({ ...shared, companies: [], projects: [] })
+    vi.mocked(api.setConnectionCompanies).mockResolvedValue(shared)
+    const store = useConnectionsStore()
+    await store.load()
+    await store.loadDetail('prod' as ConnectionId)
+
+    await store.setCompanies('prod' as ConnectionId, [COMPANY, 'c-2' as CompanyId])
+
+    expect(api.setConnectionCompanies).toHaveBeenCalledWith('prod', [COMPANY, 'c-2'])
+    expect(store.connectionById('prod' as ConnectionId)?.companyIds).toEqual([COMPANY, 'c-2'])
+    expect(api.fetchConnection).toHaveBeenCalledTimes(2)
   })
 
   it('pages the access log and knows when the oldest request was read', async () => {
@@ -161,21 +191,21 @@ describe('a project in the connections store', () => {
   })
 
   it('binds a connection twice under two labels and reads the company counts again', async () => {
-    vi.mocked(api.fetchCompanyConnections).mockResolvedValue([connection('prod', { projectCount: 1 })])
+    vi.mocked(api.fetchConnections).mockResolvedValue([connection('prod', { projectCount: 1 })])
     vi.mocked(api.fetchProjectConnections).mockResolvedValue([])
     vi.mocked(api.bindConnection)
       .mockResolvedValueOnce(binding('prod', 'apps'))
       .mockResolvedValueOnce(binding('prod', 'billing', 'prod-2'))
     const store = useConnectionsStore()
-    await store.load(COMPANY)
+    await store.load()
     await store.loadProject(PROJECT)
 
-    await store.bind(PROJECT, COMPANY, 'prod' as ConnectionId, { target: 'apps' })
-    await store.bind(PROJECT, COMPANY, 'prod' as ConnectionId, { target: 'billing' })
+    await store.bind(PROJECT, 'prod' as ConnectionId, { target: 'apps' })
+    await store.bind(PROJECT, 'prod' as ConnectionId, { target: 'billing' })
 
     expect(api.bindConnection).toHaveBeenLastCalledWith(PROJECT, 'prod', { target: 'billing' })
     expect(store.projectConnectionsOf(PROJECT).map((b) => b.label)).toEqual(['prod', 'prod-2'])
-    expect(api.fetchCompanyConnections).toHaveBeenCalledTimes(3)
+    expect(api.fetchConnections).toHaveBeenCalledTimes(3)
   })
 
   it('saves a binding in place without reading the company again', async () => {
@@ -187,22 +217,22 @@ describe('a project in the connections store', () => {
     await store.updateBinding(PROJECT, 'b-prod' as ProjectConnectionId, { label: 'apps', target: 'apps' })
 
     expect(store.projectConnectionsOf(PROJECT).map((b) => [b.label, b.target])).toEqual([['apps', 'apps']])
-    expect(api.fetchCompanyConnections).not.toHaveBeenCalled()
+    expect(api.fetchConnections).not.toHaveBeenCalled()
   })
 
   it('discovers the repositories, then reads the bindings and the company again', async () => {
-    vi.mocked(api.fetchCompanyConnections).mockResolvedValue([connection('prod')])
+    vi.mocked(api.fetchConnections).mockResolvedValue([connection('prod')])
     vi.mocked(api.fetchProjectConnections).mockResolvedValueOnce([]).mockResolvedValueOnce([binding('prod', 'acme/billing', 'billing')])
     vi.mocked(api.discoverRepositories).mockResolvedValue({ folder: '/work/vega', repositories: [] })
     const store = useConnectionsStore()
-    await store.load(COMPANY)
+    await store.load()
     await store.loadProject(PROJECT)
 
-    const discovery = await store.discover(PROJECT, COMPANY)
+    const discovery = await store.discover(PROJECT)
 
     expect(discovery.folder).toBe('/work/vega')
     expect(store.projectConnectionsOf(PROJECT).map((b) => b.label)).toEqual(['billing'])
-    expect(api.fetchCompanyConnections).toHaveBeenCalledTimes(2)
+    expect(api.fetchConnections).toHaveBeenCalledTimes(2)
   })
 
   it('unbinds a connection from the project only', async () => {
@@ -211,9 +241,47 @@ describe('a project in the connections store', () => {
     const store = useConnectionsStore()
     await store.loadProject(PROJECT)
 
-    await store.unbind(PROJECT, COMPANY, 'b-prod' as ProjectConnectionId)
+    await store.unbind(PROJECT, 'b-prod' as ProjectConnectionId)
 
     expect(store.projectConnectionsOf(PROJECT).map((b) => b.label)).toEqual(['staging'])
-    expect(api.fetchCompanyConnections).not.toHaveBeenCalled()
+    expect(api.fetchConnections).not.toHaveBeenCalled()
+  })
+
+  it('unbinds a project the connection detail lists by finding its binding first', async () => {
+    vi.mocked(api.fetchConnections).mockResolvedValue([connection('prod', { projectCount: 1 })])
+    vi.mocked(api.fetchProjectConnections).mockResolvedValue([binding('prod', 'apps', 'apps')])
+    vi.mocked(api.unbindConnection).mockResolvedValue()
+    const store = useConnectionsStore()
+    await store.load()
+
+    await store.unbindProject('prod' as ConnectionId, {
+      projectId: PROJECT,
+      companyId: COMPANY,
+      label: 'vega',
+      title: 'Vega',
+      bindingLabel: 'apps',
+      target: 'apps'
+    })
+
+    expect(api.unbindConnection).toHaveBeenCalledWith(PROJECT, 'b-apps')
+    expect(api.fetchConnections).toHaveBeenCalledTimes(2)
+  })
+
+  it('has nothing to undo when the binding is already gone', async () => {
+    vi.mocked(api.fetchConnections).mockResolvedValue([connection('prod')])
+    vi.mocked(api.fetchProjectConnections).mockResolvedValue([])
+    const store = useConnectionsStore()
+    await store.load()
+
+    await store.unbindProject('prod' as ConnectionId, {
+      projectId: PROJECT,
+      companyId: COMPANY,
+      label: 'vega',
+      title: 'Vega',
+      bindingLabel: 'apps',
+      target: null
+    })
+
+    expect(api.unbindConnection).not.toHaveBeenCalled()
   })
 })

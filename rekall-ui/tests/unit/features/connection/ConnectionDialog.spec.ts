@@ -12,7 +12,8 @@ const COMPANY = 'c-1' as CompanyId
 
 const JIRA: Connection = {
   id: 'jira' as ConnectionId,
-  companyId: COMPANY,
+  companyIds: [COMPANY],
+  rootPath: null,
   kind: 'JIRA',
   label: 'jira',
   title: 'Acme Jira',
@@ -54,7 +55,8 @@ describe('ConnectionDialog', () => {
     await wrapper.get('[data-testid="save-connection"]').trigger('click')
     await flushPromises()
 
-    expect(api.createConnection).toHaveBeenCalledWith(COMPANY, {
+    expect(api.createConnection).toHaveBeenCalledWith({
+      companyIds: [COMPANY],
       kind: 'JIRA',
       title: 'Acme Jira',
       label: 'acme-jira',

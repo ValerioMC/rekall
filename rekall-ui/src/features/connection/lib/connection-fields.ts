@@ -75,3 +75,25 @@ export const TARGET_FIELD: Readonly<Record<ConnectionKind, TargetField>> = {
   KUBERNETES: { name: 'Namespace', placeholder: 'namespace' },
   JIRA: { name: 'Jira project key', placeholder: 'project key, such as ENG' }
 }
+
+/** What a GitLab or GitHub credential is limited to, asked for as the root path. */
+export interface RootPathField {
+  readonly title: string
+  readonly placeholder: string
+  readonly example: string
+}
+
+export const ROOT_PATH_FIELD: Readonly<Record<ConnectionKind, RootPathField | null>> = {
+  GITLAB: {
+    title: 'Root path',
+    placeholder: 'platform/backend',
+    example: 'A token for the group platform/backend covers every project under it.'
+  },
+  GITHUB: {
+    title: 'Account or organisation',
+    placeholder: 'vmcforge',
+    example: 'A token for the account vmcforge covers every repository of that owner.'
+  },
+  KUBERNETES: null,
+  JIRA: null
+}

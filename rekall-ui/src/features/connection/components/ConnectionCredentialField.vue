@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
+import ConnectionCredentialState from '@/features/connection/components/ConnectionCredentialState.vue'
 import ConnectionCredentialInput from '@/features/connection/components/ConnectionCredentialInput.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
-import { relativeTime } from '@/common/format/relative-time'
 import { credentialNoun, emptyDraft, isComplete } from '@/features/connection/lib/credential-draft'
 import { useConnectionsStore } from '@/features/connection/store/connections.store'
 import type { Connection, CredentialDraft } from '@/features/connection/model/connection'
@@ -43,7 +42,7 @@ async function save(): Promise<void> {
 async function clear(): Promise<void> {
   await run(
     () => store.clearCredential(props.connection.id),
-    `Cleared the ${noun.value} of ${props.connection.title}`
+    `Removed the ${noun.value} of ${props.connection.title}`
   )
 }
 </script>
@@ -51,14 +50,20 @@ async function clear(): Promise<void> {
 <template>
   <div class="flex flex-col gap-2" data-testid="credential-field">
     <div class="flex items-center gap-2">
-      <AppBadge v-if="connection.credentialSetAt" tone="safe" dot data-testid="credential-set">
-        Stored {{ relativeTime(connection.credentialSetAt) }}
-      </AppBadge>
-      <AppBadge v-else tone="warn" dot data-testid="credential-missing">No {{ noun }} stored</AppBadge>
+      <ConnectionCredentialState
+        :credential-set-at="connection.credentialSetAt"
+        detailed
+        :data-testid="connection.credentialSetAt ? 'credential-set' : 'credential-missing'"
+      />
       <span class="flex-1" />
       <template v-if="!editing">
-        <AppButton size="sm" variant="secondary" data-testid="replace-credential" @click="start">
-          {{ connection.credentialSetAt ? 'Replace' : 'Set' }} {{ noun }}
+        <AppButton
+          size="sm"
+          :variant="connection.credentialSetAt ? 'secondary' : 'primary'"
+          data-testid="replace-credential"
+          @click="start"
+        >
+          {{ connection.credentialSetAt ? 'Replace' : 'Add' }} {{ noun }}
         </AppButton>
         <AppButton
           v-if="connection.credentialSetAt"
@@ -68,7 +73,7 @@ async function clear(): Promise<void> {
           data-testid="clear-credential"
           @click="clear"
         >
-          Clear
+          Remove
         </AppButton>
       </template>
     </div>

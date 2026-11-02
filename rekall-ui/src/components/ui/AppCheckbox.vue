@@ -2,8 +2,8 @@
 import { useId } from 'vue'
 
 const props = withDefaults(
-  defineProps<{ modelValue: boolean; label: string; id?: string; describedBy?: string }>(),
-  { id: undefined, describedBy: undefined }
+  defineProps<{ modelValue: boolean; label: string; id?: string; describedBy?: string; disabled?: boolean }>(),
+  { id: undefined, describedBy: undefined, disabled: false }
 )
 
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
@@ -16,12 +16,14 @@ const inputId = () => props.id ?? fallbackId
   <label
     :for="inputId()"
     class="inline-flex cursor-pointer select-none items-center gap-2.5 text-body text-text"
+    :class="disabled && 'cursor-not-allowed opacity-70'"
   >
     <span class="relative flex size-4 items-center justify-center">
       <input
         :id="inputId()"
         type="checkbox"
         :checked="modelValue"
+        :disabled="disabled"
         :aria-describedby="describedBy"
         class="focus-ring peer size-4 cursor-pointer appearance-none rounded-key border border-border-strong bg-canvas transition-colors checked:border-accent checked:bg-accent"
         @change="emit('update:modelValue', ($event.target as HTMLInputElement).checked)"

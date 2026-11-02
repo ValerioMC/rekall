@@ -38,7 +38,7 @@ watch(
   (current) => {
     if (!current) return
     void run(() => graphs.ensureLoaded(current.id))
-    void run(() => connections.ensureLoaded(current.companyId))
+    void run(() => connections.ensureLoaded())
   },
   { immediate: true }
 )

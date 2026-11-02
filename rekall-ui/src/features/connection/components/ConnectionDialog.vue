@@ -80,7 +80,7 @@ async function save(): Promise<void> {
     () =>
       props.connection
         ? store.update(props.connection.id, input())
-        : store.create(props.companyId, input(), sending),
+        : store.create({ ...input(), companyIds: [props.companyId] }, sending),
     `${isNew ? 'Created' : 'Saved'} ${title.value.trim()}`
   )
   if (saved) {

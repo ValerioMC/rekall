@@ -36,7 +36,13 @@ export const NAV_ENTRIES: readonly NavEntry[] = [
         hint: 'Every project and its folder',
         routes: ['projects', 'project-detail']
       },
-      { to: '/companies', label: 'Companies', hint: 'Who the work is for', routes: ['companies'] }
+      { to: '/companies', label: 'Companies', hint: 'Who the work is for', routes: ['companies'] },
+      {
+        to: '/connections',
+        label: 'Connections',
+        hint: 'Accounts and servers shared across projects',
+        routes: ['connections']
+      }
     ]
   }),
   screen({ to: '/diagrams', label: 'Diagrams', hint: 'Generated diagrams', routes: ['diagrams'] }),

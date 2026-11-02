@@ -34,7 +34,8 @@ const PROJECT = {
 function connection(id: string): Connection {
   return {
     id: id as ConnectionId,
-    companyId: COMPANY,
+    companyIds: [COMPANY],
+    rootPath: null,
     kind: 'KUBERNETES',
     label: id,
     title: `The ${id}`,
@@ -65,7 +66,7 @@ function binding(id: string, credentialSetAt: string | null, kind: ConnectionKin
 /** The project page loads the connections before it shows this tab, so the test does too. */
 async function mountPage(project: Project = PROJECT) {
   const store = useConnectionsStore()
-  await Promise.all([store.loadProject(project.id), store.load(project.companyId)])
+  await Promise.all([store.loadProject(project.id), store.load()])
   return mount(ProjectConnectionsPage, {
     props: { project },
     global: { stubs: { RouterLink: { template: '<a><slot /></a>' } } }
@@ -76,7 +77,7 @@ describe('ProjectConnectionsPage', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.resetAllMocks()
-    vi.mocked(api.fetchCompanyConnections).mockResolvedValue([connection('prod'), connection('staging')])
+    vi.mocked(api.fetchConnections).mockResolvedValue([connection('prod'), connection('staging')])
   })
 
   it('lists the clusters together before the repositories, whatever order the bindings come in', async () => {
@@ -218,7 +219,7 @@ describe('ProjectConnectionsPage with a Jira connection', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.resetAllMocks()
-    vi.mocked(api.fetchCompanyConnections).mockResolvedValue([])
+    vi.mocked(api.fetchConnections).mockResolvedValue([])
   })
 
   function jira(target: string | null, credentialSetAt: string | null): ProjectConnection {

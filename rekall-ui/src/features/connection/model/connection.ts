@@ -20,12 +20,12 @@ export const CONNECTION_KIND_NOUN: Readonly<Record<ConnectionKind, string>> = {
 }
 
 /**
- * A system outside Rekall a company's projects reach. The console never holds its credential:
- * it only learns when one was stored, from `credentialSetAt`.
+ * A system outside Rekall that projects reach, shared with the companies in `companyIds`. The
+ * console never holds its credential: it only learns when one was stored, from `credentialSetAt`.
  */
 export interface Connection {
   readonly id: ConnectionId
-  readonly companyId: CompanyId
+  readonly companyIds: readonly CompanyId[]
   readonly kind: ConnectionKind
   readonly label: string
   readonly title: string
@@ -34,14 +34,23 @@ export interface Connection {
   readonly kubeContext: string | null
   /** Jira only: the proxy every call to the site goes through. */
   readonly proxyUrl: string | null
+  /** GitLab and GitHub only: the group, namespace or owner the credential covers. */
+  readonly rootPath: string | null
   readonly credentialSetAt: string | null
   readonly projectCount: number
   readonly updatedAt: string
 }
 
+/** A company a connection is shared with. */
+export interface ConnectionCompany {
+  readonly id: CompanyId
+  readonly name: string
+}
+
 /** A project that binds a connection, and what it uses it for: one per binding. */
 export interface ConnectionProject {
   readonly projectId: ProjectId
+  readonly companyId: CompanyId
   readonly label: string
   readonly title: string
   readonly bindingLabel: string
@@ -49,6 +58,7 @@ export interface ConnectionProject {
 }
 
 export interface ConnectionDetail extends Connection {
+  readonly companies: readonly ConnectionCompany[]
   readonly projects: readonly ConnectionProject[]
 }
 
@@ -106,6 +116,10 @@ export interface ConnectionInput {
   readonly baseUrl?: string
   /** Blank clears it. */
   readonly proxyUrl?: string
+  /** GitLab and GitHub only; blank clears it. */
+  readonly rootPath?: string
+  /** Read on a create only: an existing connection is shared through `setConnectionCompanies`. */
+  readonly companyIds?: readonly CompanyId[]
 }
 
 /** Jira Cloud signs in with an email and an API token, Data Center with a personal access token. */
@@ -179,7 +193,7 @@ export interface ConnectionRemoved {
 
 /** The `connection` frame of the console's event stream. */
 export interface ConnectionStreamEvent {
-  readonly companyId: CompanyId
+  readonly companyIds: readonly CompanyId[]
 }
 
 /** The `credential-access` frame: a terminal's helper asked for a connection's credential. */

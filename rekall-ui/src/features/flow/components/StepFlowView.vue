@@ -34,7 +34,7 @@ const companyId = computed(() => store.projects.find((project) => project.id ===
 watch(
   companyId,
   (current) => {
-    if (current && props.steps.some((step) => step.connectionId !== null)) void run(() => connections.ensureLoaded(current))
+    if (current && props.steps.some((step) => step.connectionId !== null)) void run(() => connections.ensureLoaded())
   },
   { immediate: true }
 )

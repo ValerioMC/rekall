@@ -84,7 +84,7 @@ beforeEach(() => {
   vi.mocked(componentsApi.fetchProjectComponents).mockResolvedValue([])
   vi.mocked(graphsApi.fetchDeploymentGraphs).mockResolvedValue([])
   vi.mocked(connectionsApi.fetchProjectConnections).mockResolvedValue([])
-  vi.mocked(connectionsApi.fetchCompanyConnections).mockResolvedValue([])
+  vi.mocked(connectionsApi.fetchConnections).mockResolvedValue([])
   vi.mocked(catalogApi.fetchProjectRepository).mockResolvedValue({ isRepository: false } as never)
 })
 

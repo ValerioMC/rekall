@@ -51,7 +51,7 @@ const kindGroups = computed(() =>
 const unused = computed(() => unusedConnections(bindings.value, companyConnections.value))
 
 async function bind(connectionId: ConnectionId): Promise<void> {
-  await run(() => store.bind(props.project.id, props.project.companyId, connectionId, { target: null }))
+  await run(() => store.bind(props.project.id, connectionId, { target: null }))
 }
 
 async function save(binding: ProjectConnection, input: ProjectConnectionInput): Promise<void> {
@@ -60,7 +60,7 @@ async function save(binding: ProjectConnection, input: ProjectConnectionInput): 
 
 async function unbind(binding: ProjectConnection): Promise<void> {
   await run(
-    () => store.unbind(props.project.id, props.project.companyId, binding.id),
+    () => store.unbind(props.project.id, binding.id),
     `${props.project.title} no longer uses ${binding.label}`
   )
 }
@@ -68,7 +68,7 @@ async function unbind(binding: ProjectConnection): Promise<void> {
 /** The components list is read again too, since discovery adds a component per repository. */
 async function discover(): Promise<void> {
   const found = await runDiscovery(async () => {
-    const result = await store.discover(props.project.id, props.project.companyId)
+    const result = await store.discover(props.project.id)
     await components.load(props.project.id)
     return result
   })

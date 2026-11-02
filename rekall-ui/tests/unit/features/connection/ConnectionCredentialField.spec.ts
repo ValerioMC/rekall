@@ -10,7 +10,8 @@ vi.mock('@/features/connection/api/connections.api')
 
 const GITLAB: Connection = {
   id: 'gitlab' as ConnectionId,
-  companyId: 'c-1' as CompanyId,
+  companyIds: ['c-1' as CompanyId],
+  rootPath: null,
   kind: 'GITLAB',
   label: 'gitlab',
   title: 'GitLab',

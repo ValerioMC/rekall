@@ -1,6 +1,6 @@
 import type { ConnectionKind } from '@/features/connection/model/connection'
 
-/** Clusters first, then GitLab, GitHub, then Jira: the order every list of a project's connections follows. */
+/** Kubernetes first, then GitLab, GitHub, then Jira: the order every list, picker and filter of connections follows. */
 export const KIND_ORDER: readonly ConnectionKind[] = ['KUBERNETES', 'GITLAB', 'GITHUB', 'JIRA']
 
 /** The connections by kind, then by label within a kind. */

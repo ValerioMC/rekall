@@ -30,20 +30,25 @@ import { TaskListSchema } from '@/features/catalog/api/schemas/catalog.schema'
 import type { Task } from '@/features/catalog/model/catalog'
 import type { CompanyId, ConnectionId, ProjectConnectionId, ProjectId } from '@/model/branded'
 
-export async function fetchCompanyConnections(companyId: CompanyId): Promise<Connection[]> {
-  return request(async () =>
-    ConnectionListSchema.parse(await apiClient(`/api/companies/${companyId}/connections`))
-  )
+export async function fetchConnections(): Promise<Connection[]> {
+  return request(async () => ConnectionListSchema.parse(await apiClient('/api/connections')))
 }
 
 export async function fetchConnection(id: ConnectionId): Promise<ConnectionDetail> {
   return request(async () => ConnectionDetailSchema.parse(await apiClient(`/api/connections/${id}`)))
 }
 
-export async function createConnection(companyId: CompanyId, input: ConnectionInput): Promise<Connection> {
+export async function createConnection(input: ConnectionInput): Promise<Connection> {
+  return request(async () =>
+    ConnectionSchema.parse(await apiClient('/api/connections', { method: 'POST', body: input }))
+  )
+}
+
+/** Replaces the companies the connection is shared with; refused while a project of a removed company still binds it. */
+export async function setConnectionCompanies(id: ConnectionId, companyIds: readonly CompanyId[]): Promise<Connection> {
   return request(async () =>
     ConnectionSchema.parse(
-      await apiClient(`/api/companies/${companyId}/connections`, { method: 'POST', body: input })
+      await apiClient(`/api/connections/${id}/companies`, { method: 'PUT', body: { companyIds } })
     )
   )
 }

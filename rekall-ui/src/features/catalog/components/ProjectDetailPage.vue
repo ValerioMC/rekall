@@ -71,13 +71,13 @@ const warnings = computed<Partial<Record<ProjectTab, string>>>(() => {
 
 useProjectSectionStream((event) => void sectionsStore.applyEvent(event.projectId))
 useConnectionStream((event) => {
-  if (project.value && event.companyId === project.value.companyId) void loadConnections()
+  if (project.value && event.companyIds.includes(project.value.companyId)) void loadConnections()
 })
 
 async function loadConnections(): Promise<void> {
   const shown = project.value
   if (!shown) return
-  await run(() => Promise.all([connectionsStore.loadProject(shown.id), connectionsStore.load(shown.companyId)]))
+  await run(() => Promise.all([connectionsStore.loadProject(shown.id), connectionsStore.load()]))
 }
 
 /** A tab opens its first section or graph; pages with nothing to pick open as they are. */

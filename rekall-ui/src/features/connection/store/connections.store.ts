@@ -7,6 +7,7 @@ import type {
   ConnectionCheck,
   ConnectionDetail,
   ConnectionInput,
+  ConnectionProject,
   ConnectionRemoved,
   CredentialDraft,
   JiraIssue,
@@ -20,38 +21,27 @@ import type { CompanyId, ConnectionId, ProjectConnectionId, ProjectId } from '@/
 const ACCESS_PAGE = 50
 
 /**
- * The connections of the companies the console has opened, with each one's projects, last check
- * and access log, and the bindings of the projects it has opened. A credential passes through on
- * its way to the server and is never kept here.
+ * Every connection of the workspace, with the detail, last check and access log of the ones the
+ * console has opened, and the bindings of the projects it has opened. A credential passes
+ * through on its way to the server and is never kept here.
  */
 export const useConnectionsStore = defineStore('connections', () => {
-  const byCompany = ref<Readonly<Record<string, readonly Connection[]>>>({})
+  const connections = ref<readonly Connection[]>([])
+  const loaded = ref(false)
+  const loading = ref(false)
   const details = ref<Readonly<Record<string, ConnectionDetail>>>({})
   const checks = ref<Readonly<Record<string, ConnectionCheck>>>({})
   const accessLogs = ref<Readonly<Record<string, readonly ConnectionAccess[]>>>({})
   const accessEnded = ref<ReadonlySet<string>>(new Set())
-  const loading = ref<ReadonlySet<string>>(new Set())
   const byProject = ref<Readonly<Record<string, readonly ProjectConnection[]>>>({})
 
+  /** The connections shared with a company: the ones its projects can bind. */
   function connectionsOf(companyId: CompanyId): readonly Connection[] {
-    return byCompany.value[companyId] ?? []
+    return connections.value.filter((connection) => connection.companyIds.includes(companyId))
   }
 
-  function isLoaded(companyId: CompanyId): boolean {
-    return companyId in byCompany.value
-  }
-
-  function isLoading(companyId: CompanyId): boolean {
-    return loading.value.has(companyId)
-  }
-
-  /** A connection of any company the console has loaded, by id. */
   function connectionById(id: ConnectionId): Connection | null {
-    for (const connections of Object.values(byCompany.value)) {
-      const found = connections.find((connection) => connection.id === id)
-      if (found) return found
-    }
-    return null
+    return connections.value.find((connection) => connection.id === id) ?? null
   }
 
   function detailOf(id: ConnectionId): ConnectionDetail | null {
@@ -71,19 +61,18 @@ export const useConnectionsStore = defineStore('connections', () => {
     return id in accessLogs.value && !accessEnded.value.has(id)
   }
 
-  async function load(companyId: CompanyId): Promise<void> {
-    loading.value = new Set(loading.value).add(companyId)
+  async function load(): Promise<void> {
+    loading.value = true
     try {
-      byCompany.value = { ...byCompany.value, [companyId]: await api.fetchCompanyConnections(companyId) }
+      connections.value = [...(await api.fetchConnections())].sort(byLabel)
+      loaded.value = true
     } finally {
-      const rest = new Set(loading.value)
-      rest.delete(companyId)
-      loading.value = rest
+      loading.value = false
     }
   }
 
-  async function ensureLoaded(companyId: CompanyId): Promise<void> {
-    if (!isLoaded(companyId) && !isLoading(companyId)) await load(companyId)
+  async function ensureLoaded(): Promise<void> {
+    if (!loaded.value && !loading.value) await load()
   }
 
   async function loadDetail(id: ConnectionId): Promise<ConnectionDetail> {
@@ -92,27 +81,19 @@ export const useConnectionsStore = defineStore('connections', () => {
     return detail
   }
 
-  /** Puts a connection the server answered in its company's list and in its detail, if open. */
+  /** Puts a connection the server answered in the list and in its detail, if open. */
   function replace(saved: Connection): void {
-    const list = connectionsOf(saved.companyId)
-    const known = list.some((connection) => connection.id === saved.id)
-    byCompany.value = {
-      ...byCompany.value,
-      [saved.companyId]: known
-        ? list.map((connection) => (connection.id === saved.id ? saved : connection))
-        : [...list, saved].sort(byLabel)
-    }
+    const known = connections.value.some((connection) => connection.id === saved.id)
+    connections.value = known
+      ? connections.value.map((connection) => (connection.id === saved.id ? saved : connection))
+      : [...connections.value, saved].sort(byLabel)
     const detail = details.value[saved.id]
     if (detail) details.value = { ...details.value, [saved.id]: { ...detail, ...saved } }
   }
 
   /** Creates the connection, then stores its credential when one was given. */
-  async function create(
-    companyId: CompanyId,
-    input: ConnectionInput,
-    credential: CredentialDraft | null
-  ): Promise<Connection> {
-    const created = await api.createConnection(companyId, input)
+  async function create(input: ConnectionInput, credential: CredentialDraft | null): Promise<Connection> {
+    const created = await api.createConnection(input)
     replace(created)
     if (!credential) return created
     return await setCredential(created.id, credential)
@@ -121,6 +102,14 @@ export const useConnectionsStore = defineStore('connections', () => {
   async function update(id: ConnectionId, input: ConnectionInput): Promise<Connection> {
     const saved = await api.updateConnection(id, input)
     replace(saved)
+    return saved
+  }
+
+  /** Shares the connection with exactly these companies; the detail is read again since its tree changes. */
+  async function setCompanies(id: ConnectionId, companyIds: readonly CompanyId[]): Promise<Connection> {
+    const saved = await api.setConnectionCompanies(id, companyIds)
+    replace(saved)
+    if (id in details.value) await loadDetail(id)
     return saved
   }
 
@@ -140,12 +129,7 @@ export const useConnectionsStore = defineStore('connections', () => {
 
   async function remove(connection: Connection): Promise<ConnectionRemoved> {
     const removed = await api.deleteConnection(connection.id)
-    byCompany.value = {
-      ...byCompany.value,
-      [connection.companyId]: connectionsOf(connection.companyId).filter(
-        (known) => known.id !== connection.id
-      )
-    }
+    connections.value = connections.value.filter((known) => known.id !== connection.id)
     const rest = { ...details.value }
     delete rest[connection.id]
     details.value = rest
@@ -202,16 +186,15 @@ export const useConnectionsStore = defineStore('connections', () => {
     byProject.value = { ...byProject.value, [projectId]: await api.fetchProjectConnections(projectId) }
   }
 
-  /** Binds the connection once more; the company's counts follow from the server. */
+  /** Binds the connection once more; the counts and the open detail follow from the server. */
   async function bind(
     projectId: ProjectId,
-    companyId: CompanyId,
     connectionId: ConnectionId,
     input: ProjectConnectionInput
   ): Promise<ProjectConnection> {
     const bound = await api.bindConnection(projectId, connectionId, input)
     putBinding(projectId, bound)
-    await refreshCompany(companyId)
+    await refreshAfterBinding(connectionId)
     return bound
   }
 
@@ -233,29 +216,40 @@ export const useConnectionsStore = defineStore('connections', () => {
     }
   }
 
-  async function unbind(
-    projectId: ProjectId,
-    companyId: CompanyId,
-    bindingId: ProjectConnectionId
-  ): Promise<void> {
+  async function unbind(projectId: ProjectId, bindingId: ProjectConnectionId): Promise<void> {
+    const binding = projectConnectionsOf(projectId).find((known) => known.id === bindingId) ?? null
     await api.unbindConnection(projectId, bindingId)
     byProject.value = {
       ...byProject.value,
       [projectId]: projectConnectionsOf(projectId).filter((known) => known.id !== bindingId)
     }
-    await refreshCompany(companyId)
+    await refreshAfterBinding(binding?.connectionId ?? null)
   }
 
-  /** Binds the repositories under the project's folder, then reads its bindings and the company's counts again. */
-  async function discover(projectId: ProjectId, companyId: CompanyId): Promise<RepositoryDiscovery> {
+  /**
+   * Releases one binding the connection's detail lists. The detail does not carry the binding's
+   * id, so the project's bindings are read fresh to find it; one already gone is nothing to undo.
+   */
+  async function unbindProject(connectionId: ConnectionId, binding: ConnectionProject): Promise<void> {
+    await loadProject(binding.projectId)
+    const found = projectConnectionsOf(binding.projectId).find(
+      (known) => known.connectionId === connectionId && known.label === binding.bindingLabel
+    )
+    if (found) await unbind(binding.projectId, found.id)
+    else await refreshAfterBinding(connectionId)
+  }
+
+  /** Binds the repositories under the project's folder, then reads its bindings and the counts again. */
+  async function discover(projectId: ProjectId): Promise<RepositoryDiscovery> {
     const discovery = await api.discoverRepositories(projectId)
-    await Promise.all([loadProject(projectId), refreshCompany(companyId)])
+    await Promise.all([loadProject(projectId), refreshAfterBinding(null)])
     return discovery
   }
 
-  /** A company list already read is read again, since a binding changes its project counts. */
-  async function refreshCompany(companyId: CompanyId): Promise<void> {
-    if (isLoaded(companyId)) await load(companyId)
+  /** The list already read is read again, since a binding changes project counts; so is the open detail of that connection. */
+  async function refreshAfterBinding(connectionId: ConnectionId | null): Promise<void> {
+    if (loaded.value) await load()
+    if (connectionId && connectionId in details.value) await loadDetail(connectionId)
   }
 
   async function previewKubeconfig(kubeconfig: string): Promise<KubeContextOption[]> {
@@ -263,10 +257,11 @@ export const useConnectionsStore = defineStore('connections', () => {
   }
 
   return {
+    connections,
+    loaded,
+    loading,
     connectionsOf,
     connectionById,
-    isLoaded,
-    isLoading,
     detailOf,
     checkOf,
     accessOf,
@@ -276,6 +271,7 @@ export const useConnectionsStore = defineStore('connections', () => {
     loadDetail,
     create,
     update,
+    setCompanies,
     setCredential,
     clearCredential,
     remove,
@@ -290,6 +286,7 @@ export const useConnectionsStore = defineStore('connections', () => {
     bind,
     updateBinding,
     unbind,
+    unbindProject,
     discover
   }
 })

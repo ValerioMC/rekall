@@ -5,13 +5,14 @@ const KindSchema = z.enum(['GITLAB', 'GITHUB', 'KUBERNETES', 'JIRA'])
 
 export const ConnectionSchema = z.object({
   id: z.string().uuid().transform(asConnectionId),
-  companyId: z.string().uuid().transform(asCompanyId),
+  companyIds: z.array(z.string().uuid().transform(asCompanyId)),
   kind: KindSchema,
   label: z.string(),
   title: z.string(),
   baseUrl: z.string().nullable(),
   kubeContext: z.string().nullable(),
   proxyUrl: z.string().nullable(),
+  rootPath: z.string().nullable(),
   credentialSetAt: z.string().nullable(),
   projectCount: z.number().int(),
   updatedAt: z.string()
@@ -20,9 +21,11 @@ export const ConnectionSchema = z.object({
 export const ConnectionListSchema = z.array(ConnectionSchema)
 
 export const ConnectionDetailSchema = ConnectionSchema.extend({
+  companies: z.array(z.object({ id: z.string().uuid().transform(asCompanyId), name: z.string() })),
   projects: z.array(
     z.object({
       projectId: z.string().uuid().transform(asProjectId),
+      companyId: z.string().uuid().transform(asCompanyId),
       label: z.string(),
       title: z.string(),
       bindingLabel: z.string(),
@@ -74,7 +77,7 @@ export const JiraIssueListSchema = z.array(
 
 export const ConnectionRemovedSchema = z.object({ unboundProjects: z.number().int() })
 
-export const ConnectionStreamEventSchema = z.object({ companyId: z.string().uuid().transform(asCompanyId) })
+export const ConnectionStreamEventSchema = z.object({ companyIds: z.array(z.string().uuid().transform(asCompanyId)) })
 
 export const ProjectConnectionSchema = z.object({
   id: z.string().uuid().transform(asProjectConnectionId),

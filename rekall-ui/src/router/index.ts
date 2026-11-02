@@ -22,9 +22,12 @@ export const router = createRouter({
     },
     {
       path: '/companies/:id/connections',
-      name: 'company-connections',
-      component: () => import('@/features/connection/components/CompanyConnectionsPage.vue'),
-      props: true
+      redirect: (to) => ({ name: 'connections', query: { company: String(to.params.id) } })
+    },
+    {
+      path: '/connections/:id?',
+      name: 'connections',
+      component: () => import('@/features/connection/components/ConnectionsPage.vue')
     },
     {
       path: '/report',

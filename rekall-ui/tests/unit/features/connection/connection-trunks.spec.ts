@@ -6,7 +6,8 @@ import type { CompanyId, ConnectionId, ProjectConnectionId, ProjectId } from '@/
 function connection(id: string, credentialSetAt: string | null = '2026-10-24T10:00:00Z'): Connection {
   return {
     id: id as ConnectionId,
-    companyId: 'c-1' as CompanyId,
+    companyIds: ['c-1' as CompanyId],
+    rootPath: null,
     kind: 'GITLAB',
     label: id,
     title: `GitLab ${id}`,

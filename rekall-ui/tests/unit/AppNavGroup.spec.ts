@@ -18,7 +18,8 @@ function routerAt(): Router {
       { path: '/', name: 'console', component: Blank },
       { path: '/projects', name: 'projects', component: Blank },
       { path: '/projects/:id', name: 'project-detail', component: Blank },
-      { path: '/companies', name: 'companies', component: Blank }
+      { path: '/companies', name: 'companies', component: Blank },
+      { path: '/connections/:id?', name: 'connections', component: Blank }
     ]
   })
 }
@@ -52,6 +53,7 @@ describe('a grouped switcher slot', () => {
     expect(visibleLabel((await mountGroup('/')).wrapper)).toBe('Catalog')
     expect(visibleLabel((await mountGroup('/projects/p-1')).wrapper)).toBe('Projects')
     expect(visibleLabel((await mountGroup('/companies')).wrapper)).toBe('Companies')
+    expect(visibleLabel((await mountGroup('/connections/c-1')).wrapper)).toBe('Connections')
   })
 
   it('stacks every candidate name so its width never depends on which one shows', async () => {
@@ -59,7 +61,7 @@ describe('a grouped switcher slot', () => {
     const labels = wrapper
       .findAll('[data-testid="nav-group-trigger"] .grid > span')
       .map((label) => label.text())
-    expect(labels).toEqual(['Catalog', 'Projects', 'Companies'])
+    expect(labels).toEqual(['Catalog', 'Projects', 'Companies', 'Connections'])
   })
 
   it('opens its members as a menu, marks the one on screen, and closes on navigation', async () => {
@@ -67,7 +69,7 @@ describe('a grouped switcher slot', () => {
 
     await wrapper.get('[data-testid="nav-group-trigger"]').trigger('click')
     const items = wrapper.findAll('[data-testid="nav-group-item"]')
-    expect(items.map((item) => item.attributes('aria-current'))).toEqual([undefined, 'page'])
+    expect(items.map((item) => item.attributes('aria-current'))).toEqual([undefined, 'page', undefined])
 
     await router.push('/projects')
     await flushPromises()

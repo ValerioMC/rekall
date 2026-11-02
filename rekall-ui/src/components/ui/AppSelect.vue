@@ -9,10 +9,12 @@ withDefaults(
     options: readonly SelectOption[]
     id?: string
     describedBy?: string
+    /** Names the select when no visible label sits beside it. */
+    ariaLabel?: string
     placeholder?: string
     disabled?: boolean
   }>(),
-  { id: undefined, describedBy: undefined, placeholder: undefined, disabled: false }
+  { id: undefined, describedBy: undefined, ariaLabel: undefined, placeholder: undefined, disabled: false }
 )
 
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
@@ -28,6 +30,7 @@ const slots = useSlots()
       :value="modelValue ?? ''"
       :disabled="disabled"
       :aria-describedby="describedBy"
+      :aria-label="ariaLabel"
       class="field text-text h-(--spacing-control) w-full cursor-pointer appearance-none rounded-control pl-3 text-body"
       :class="slots.trailing ? 'pr-28' : 'pr-9'"
       @change="emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
