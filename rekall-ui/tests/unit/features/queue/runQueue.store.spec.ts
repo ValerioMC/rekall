@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useRunQueueStore } from '@/features/queue/store/runQueue.store'
-import { EMPTY_RUN_QUEUE } from '@/features/queue/model/runQueue'
+import { EMPTY_RUN_QUEUE, asRunQueueItemId, type RunQueueItem } from '@/features/queue/model/runQueue'
 import { runTaskInQueue } from '@/features/queue/api/runQueue.api'
 import { asTaskId } from '@/model/branded'
 
@@ -51,5 +51,40 @@ describe('the run queue store', () => {
     await store.runInQueue(asTaskId('task-1'))
 
     expect(store.queue.state).toBe('RUNNING')
+  })
+
+  it('exposes the running task step progress and moves it with each frame', () => {
+    const store = useRunQueueStore()
+    const running: RunQueueItem = {
+      id: asRunQueueItemId('item-1'),
+      taskId: asTaskId('task-1'),
+      taskTitle: 'Task',
+      taskLabel: 'task',
+      projectLabel: 'vega',
+      anchor: 'project:vega task:task',
+      position: 0,
+      state: 'RUNNING',
+      detail: null,
+      startedAt: null,
+      finishedAt: null,
+      steps: [
+        { title: 'One', state: 'RUNNING', current: true },
+        { title: 'Two', state: 'OPEN', current: false }
+      ]
+    }
+
+    store.apply({ ...EMPTY_RUN_QUEUE, items: [running], updatedAt: '2026-09-23T10:00:01Z' })
+    expect(store.progress.steps).toEqual({ total: 2, settled: 0, currentIndex: 1, currentTitle: 'One' })
+
+    const claimed: RunQueueItem = {
+      ...running,
+      steps: [
+        { title: 'One', state: 'CLAIMED', current: false },
+        { title: 'Two', state: 'RUNNING', current: true }
+      ]
+    }
+    store.apply({ ...EMPTY_RUN_QUEUE, items: [claimed], updatedAt: '2026-09-23T10:00:02Z' })
+
+    expect(store.progress.steps).toEqual({ total: 2, settled: 1, currentIndex: 2, currentTitle: 'Two' })
   })
 })

@@ -7,11 +7,20 @@ export type RunQueueState = (typeof RUN_QUEUE_STATES)[number]
 export const RUN_QUEUE_ITEM_STATES = ['QUEUED', 'RUNNING', 'FINISHED', 'SKIPPED', 'FAILED'] as const
 export type RunQueueItemState = (typeof RUN_QUEUE_ITEM_STATES)[number]
 
+export const RUN_QUEUE_STEP_STATES = ['OPEN', 'RUNNING', 'CLAIMED', 'DONE', 'NOT_NEEDED'] as const
+export type RunQueueStepState = (typeof RUN_QUEUE_STEP_STATES)[number]
+
 /** The run dial's five faces; see RunDial.vue for what each looks like. */
 export type RunDialFace = 'empty' | 'ready' | 'scheduled' | 'running' | 'holding'
 
 export type RunQueueItemId = string & { readonly __brand: 'RunQueueItemId' }
 export const asRunQueueItemId = (value: string): RunQueueItemId => value as RunQueueItemId
+
+export interface RunQueueStep {
+  readonly title: string
+  readonly state: RunQueueStepState
+  readonly current: boolean
+}
 
 export interface RunQueueItem {
   readonly id: RunQueueItemId
@@ -25,6 +34,7 @@ export interface RunQueueItem {
   readonly detail: string | null
   readonly startedAt: string | null
   readonly finishedAt: string | null
+  readonly steps: readonly RunQueueStep[]
 }
 
 export interface RunQueue {
@@ -75,19 +85,52 @@ export function isArmed(state: RunQueueState): boolean {
   return state !== 'IDLE'
 }
 
+/** A task's checklist as the run reads it. `total` leaves out not-needed steps; `currentIndex` is 1-based among those. */
+export interface StepProgress {
+  readonly total: number
+  readonly settled: number
+  readonly currentIndex: number | null
+  readonly currentTitle: string | null
+}
+
 /** The run the beacon counts: what has had its turn, what is on it, and what is still waiting. */
 export interface RunProgress {
   readonly settled: number
   readonly running: RunQueueItem | null
   readonly waiting: number
   readonly total: number
+  readonly steps: StepProgress | null
+}
+
+export function isStepSettled(step: RunQueueStep): boolean {
+  return step.state === 'CLAIMED' || step.state === 'DONE'
+}
+
+/** A claim completes a step for the queue; the person's acceptance comes later, so a claimed step still awaits review. */
+export function isAwaitingReview(step: RunQueueStep): boolean {
+  return step.state === 'CLAIMED'
+}
+
+export function hasStepsAwaitingReview(item: RunQueueItem): boolean {
+  return item.steps.some(isAwaitingReview)
+}
+
+export function stepProgress(item: RunQueueItem): StepProgress {
+  const counted = item.steps.filter((step) => step.state !== 'NOT_NEEDED')
+  const currentPosition = counted.findIndex((step) => step.current)
+  return {
+    total: counted.length,
+    settled: counted.filter(isStepSettled).length,
+    currentIndex: currentPosition < 0 ? null : currentPosition + 1,
+    currentTitle: currentPosition < 0 ? null : counted[currentPosition]!.title
+  }
 }
 
 export function runProgress(queue: RunQueue): RunProgress {
   const settled = queue.items.filter((item) => isSettled(item.state)).length
   const running = queue.items.find((item) => item.state === 'RUNNING') ?? null
   const waiting = queue.items.filter((item) => item.state === 'QUEUED').length
-  return { settled, running, waiting, total: queue.items.length }
+  return { settled, running, waiting, total: queue.items.length, steps: running ? stepProgress(running) : null }
 }
 
 /** The item the queue will start next: the first one still waiting. */

@@ -6,13 +6,18 @@ import {
   fromLocalInputValue,
   isQueued,
   nextWaiting,
+  hasStepsAwaitingReview,
   runProgress,
+  stepProgress,
   suggestedStart,
   toLocalInputValue,
   type RunQueue,
   type RunQueueItem,
-  type RunQueueItemState
+  type RunQueueItemState,
+  type RunQueueStep,
+  type RunQueueStepState
 } from '@/features/queue/model/runQueue'
+import { RunQueueSchema } from '@/features/queue/api/schemas/runQueue.schema'
 import { asTaskId } from '@/model/branded'
 
 function item(id: string, state: RunQueueItemState): RunQueueItem {
@@ -27,8 +32,17 @@ function item(id: string, state: RunQueueItemState): RunQueueItem {
     state,
     detail: null,
     startedAt: null,
-    finishedAt: null
+    finishedAt: null,
+    steps: []
   }
+}
+
+function step(title: string, state: RunQueueStepState, current = false): RunQueueStep {
+  return { title, state, current }
+}
+
+function withSteps(state: RunQueueItemState, ...steps: RunQueueStep[]): RunQueueItem {
+  return { ...item('t', state), steps }
 }
 
 function queueOf(...items: RunQueueItem[]): RunQueue {
@@ -84,5 +98,94 @@ describe('the run queue model', () => {
     expect(offered.getMinutes()).toBe(0)
     expect(offered.getTime() - now).toBeGreaterThanOrEqual(30 * 60_000)
     expect(offered.getHours()).toBe(12)
+  })
+})
+
+describe('the step progress of a queued task', () => {
+  it('is empty for a task with no checklist', () => {
+    expect(stepProgress(item('a', 'RUNNING'))).toEqual({
+      total: 0,
+      settled: 0,
+      currentIndex: null,
+      currentTitle: null
+    })
+  })
+
+  it('counts a claim as settled and numbers the current step among the steps that count', () => {
+    const running = withSteps(
+      'RUNNING',
+      step('One', 'CLAIMED'),
+      step('Two', 'DONE'),
+      step('Three', 'RUNNING', true),
+      step('Four', 'OPEN')
+    )
+
+    expect(stepProgress(running)).toEqual({ total: 4, settled: 2, currentIndex: 3, currentTitle: 'Three' })
+  })
+
+  it('has no current step once every step is claimed', () => {
+    const complete = withSteps('FINISHED', step('One', 'CLAIMED'), step('Two', 'CLAIMED'))
+
+    expect(stepProgress(complete)).toEqual({ total: 2, settled: 2, currentIndex: null, currentTitle: null })
+  })
+
+  it('leaves the not-needed steps of a flow that ended early out of the total', () => {
+    const ended = withSteps(
+      'FINISHED',
+      step('One', 'CLAIMED'),
+      step('Skipped', 'NOT_NEEDED'),
+      step('Two', 'CLAIMED'),
+      step('Also skipped', 'NOT_NEEDED')
+    )
+
+    expect(stepProgress(ended).total).toBe(2)
+    expect(stepProgress(ended).settled).toBe(2)
+  })
+
+  it('reads a flow step opened again as not settled and current', () => {
+    const looped = withSteps('RUNNING', step('Build', 'CLAIMED'), step('Fix', 'RUNNING', true), step('Test', 'OPEN'))
+
+    expect(stepProgress(looped)).toMatchObject({ total: 3, settled: 1, currentIndex: 2 })
+  })
+
+  it('tells a claimed step waiting for review from an accepted one', () => {
+    expect(hasStepsAwaitingReview(withSteps('FINISHED', step('One', 'CLAIMED')))).toBe(true)
+    expect(hasStepsAwaitingReview(withSteps('FINISHED', step('One', 'DONE')))).toBe(false)
+    expect(hasStepsAwaitingReview(item('a', 'FINISHED'))).toBe(false)
+  })
+
+  it('rides the run progress of the running task only', () => {
+    const queue = queueOf(
+      { ...withSteps('FINISHED', step('Old', 'CLAIMED')), id: asRunQueueItemId('a') },
+      { ...withSteps('RUNNING', step('A', 'CLAIMED'), step('B', 'RUNNING', true)), id: asRunQueueItemId('b') }
+    )
+
+    expect(runProgress(queue).steps).toMatchObject({ total: 2, settled: 1, currentIndex: 2 })
+    expect(runProgress(queueOf(item('c', 'QUEUED'))).steps).toBeNull()
+  })
+
+  it('parses a frame that carries no steps, and one that does', () => {
+    const frame = {
+      id: '7a0e5a52-6d52-4a0c-9d8e-0a3a6a1d0001',
+      taskId: '7a0e5a52-6d52-4a0c-9d8e-0a3a6a1d0002',
+      taskTitle: 'T',
+      taskLabel: 't',
+      projectLabel: 'p',
+      anchor: 'project:p task:t',
+      position: 0,
+      state: 'RUNNING',
+      detail: null,
+      startedAt: null,
+      finishedAt: null
+    }
+    const queue = {
+      ...EMPTY_RUN_QUEUE,
+      items: [frame, { ...frame, steps: [{ title: 'A', state: 'NOT_NEEDED', current: false }] }]
+    }
+
+    const parsed = RunQueueSchema.parse(queue)
+
+    expect(parsed.items[0]!.steps).toEqual([])
+    expect(parsed.items[1]!.steps).toEqual([{ title: 'A', state: 'NOT_NEEDED', current: false }])
   })
 })

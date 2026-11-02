@@ -1,6 +1,17 @@
 import { z } from 'zod'
 import { asTaskId } from '@/model/branded'
-import { RUN_QUEUE_ITEM_STATES, RUN_QUEUE_STATES, asRunQueueItemId } from '@/features/queue/model/runQueue'
+import {
+  RUN_QUEUE_ITEM_STATES,
+  RUN_QUEUE_STATES,
+  RUN_QUEUE_STEP_STATES,
+  asRunQueueItemId
+} from '@/features/queue/model/runQueue'
+
+export const RunQueueStepSchema = z.object({
+  title: z.string(),
+  state: z.enum(RUN_QUEUE_STEP_STATES),
+  current: z.boolean()
+})
 
 export const RunQueueItemSchema = z.object({
   id: z.string().uuid().transform(asRunQueueItemId),
@@ -13,7 +24,8 @@ export const RunQueueItemSchema = z.object({
   state: z.enum(RUN_QUEUE_ITEM_STATES),
   detail: z.string().nullable(),
   startedAt: z.string().nullable(),
-  finishedAt: z.string().nullable()
+  finishedAt: z.string().nullable(),
+  steps: z.array(RunQueueStepSchema).default([])
 })
 
 export const RunQueueSchema = z.object({
