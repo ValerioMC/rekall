@@ -80,6 +80,51 @@ describe('ConnectionSheet', () => {
     wrapper.unmount()
   })
 
+  it('asks for a proxy only on a Jira connection', () => {
+    const gitlab = mountSheet(null, 'GITLAB')
+    const jira = mountSheet(null, 'JIRA')
+
+    expect(gitlab.find('[data-testid="connection-proxy"]').exists()).toBe(false)
+    expect(jira.find('[data-testid="connection-proxy"]').exists()).toBe(true)
+    gitlab.unmount()
+    jira.unmount()
+  })
+
+  it('creates a Jira connection with the proxy typed', async () => {
+    vi.mocked(api.createConnection).mockResolvedValue(aConnection('jira', { kind: 'JIRA' }))
+    const wrapper = mountSheet(null, 'JIRA', [ACME])
+
+    await wrapper.get('[data-testid="connection-title"]').setValue('Acme Jira')
+    await wrapper.get('[data-testid="connection-url"]').setValue('https://example.atlassian.net')
+    await wrapper.get('[data-testid="connection-proxy"]').setValue(' http://proxy.example.com:8080 ')
+    await wrapper.get('[data-testid="save-connection"]').trigger('click')
+    await flushPromises()
+
+    expect(api.createConnection).toHaveBeenCalledWith({
+      companyIds: [ACME],
+      kind: 'JIRA',
+      title: 'Acme Jira',
+      label: 'acme-jira',
+      baseUrl: 'https://example.atlassian.net',
+      proxyUrl: 'http://proxy.example.com:8080'
+    })
+    wrapper.unmount()
+  })
+
+  it('clears the proxy of an edited connection when it is emptied', async () => {
+    const jira = aConnection('jira', { kind: 'JIRA', proxyUrl: 'http://proxy.example.com:8080' })
+    vi.mocked(api.updateConnection).mockResolvedValue({ ...jira, proxyUrl: null })
+    const wrapper = mountSheet(jira)
+
+    expect((wrapper.get('[data-testid="connection-proxy"]').element as HTMLInputElement).value).toBe('http://proxy.example.com:8080')
+    await wrapper.get('[data-testid="connection-proxy"]').setValue('')
+    await wrapper.get('[data-testid="save-connection"]').trigger('click')
+    await flushPromises()
+
+    expect(api.updateConnection).toHaveBeenCalledWith('jira', expect.objectContaining({ proxyUrl: '' }))
+    wrapper.unmount()
+  })
+
   it('edits without the company checklist, pointing to the Shared with panel instead', async () => {
     const wrapper = mountSheet(aConnection('platform', { rootPath: 'platform' }))
 

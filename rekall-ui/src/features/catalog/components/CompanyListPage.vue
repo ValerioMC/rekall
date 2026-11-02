@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import AppCatalogHeader from '@/features/catalog/components/AppCatalogHeader.vue'
 import RecordDialog from '@/features/catalog/components/RecordDialog.vue'
@@ -12,6 +12,8 @@ import StatusMixBar from '@/components/ui/StatusMixBar.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { relativeTime } from '@/common/format/relative-time'
 import { useConsoleStore } from '@/stores/console.store'
+import { useConnectionsStore } from '@/features/connection/store/connections.store'
+import { plural } from '@/features/connection/lib/connection-impact'
 import { companyDraft } from '@/features/catalog/model/record-draft'
 import type { RecordDraft } from '@/features/catalog/model/record-draft'
 import type { Company, Task } from '@/features/catalog/model/catalog'
@@ -19,7 +21,10 @@ import type { CompanyId } from '@/model/branded'
 
 const store = useConsoleStore()
 const router = useRouter()
+const connections = useConnectionsStore()
 const { run } = useAsyncAction()
+
+onMounted(() => run(() => connections.ensureLoaded()))
 
 const search = ref('')
 const editing = ref<RecordDraft | null>(null)
@@ -36,7 +41,13 @@ function openProjectsOf(company: Company): void {
 }
 
 function openConnectionsOf(company: Company): void {
-  router.push(`/companies/${company.id}/connections`)
+  router.push({ name: 'connections', query: { company: company.id } })
+}
+
+function connectionsLabelOf(company: Company): string {
+  if (!connections.loaded) return 'Connections'
+  const count = connections.connectionsOf(company.id).length
+  return count === 0 ? 'No connections' : plural(count, 'connection')
 }
 
 function edit(company: Company): void {
@@ -134,24 +145,16 @@ async function confirmDelete(): Promise<void> {
             <span class="w-[72px] text-right">{{ relativeTime(company.updatedAt) }}</span>
           </span>
 
+          <button
+            class="focus-ring shrink-0 rounded-key px-1.5 py-1 text-caption text-accent underline-offset-2 hover:underline max-sm:min-h-11"
+            :aria-label="`${connectionsLabelOf(company)} shared with ${company.name}`"
+            data-testid="company-connections"
+            @click.stop="openConnectionsOf(company)"
+          >
+            {{ connectionsLabelOf(company) }}
+          </button>
+
           <span class="flex shrink-0 gap-1 opacity-0 transition focus-within:opacity-100 group-hover/row:opacity-100">
-            <button
-              class="focus-ring grid size-7 place-items-center rounded-key text-text-subtle hover:bg-surface-hover hover:text-accent"
-              :aria-label="`Connections of ${company.name}`"
-              title="Connections"
-              data-testid="company-connections"
-              @click.stop="openConnectionsOf(company)"
-            >
-              <svg class="size-3.5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path
-                  d="M9 7V3m6 4V3M7 7h10v4a5 5 0 0 1-10 0V7zm5 9v5"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
-            </button>
             <button
               class="focus-ring grid size-7 place-items-center rounded-key text-text-subtle hover:bg-surface-hover hover:text-accent"
               :aria-label="`Edit ${company.name}`"

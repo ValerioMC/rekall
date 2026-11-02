@@ -62,7 +62,7 @@ let pinia: Pinia
 let wrapper: VueWrapper | null = null
 
 async function render(): Promise<VueWrapper> {
-  const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/:p(.*)*', component: { template: '<div />' } }] })
+  const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/connections/:id?', name: 'connections', component: { template: '<div />' } }, { path: '/:p(.*)*', component: { template: '<div />' } }] })
   const store = useConsoleStore()
   store.isLoading = false
   store.projects = [project]

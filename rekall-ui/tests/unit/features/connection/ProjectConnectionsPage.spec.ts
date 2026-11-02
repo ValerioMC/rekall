@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
+import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '@/features/connection/api/connections.api'
 import * as componentsApi from '@/features/project/api/project-components.api'
 import ProjectConnectionsPage from '@/features/connection/components/ProjectConnectionsPage.vue'
 import { useConnectionsStore } from '@/features/connection/store/connections.store'
+import { useConsoleStore } from '@/stores/console.store'
+import { useToastStore } from '@/stores/toast.store'
+import type { Company } from '@/features/catalog/model/catalog'
 import type { Project } from '@/features/catalog/model/catalog'
 import type { Connection, ConnectionKind, ProjectConnection, RepositoryDiscovery } from '@/features/connection/model/connection'
 import type { CompanyId, ConnectionId, ProjectConnectionId, ProjectId } from '@/model/branded'
@@ -31,7 +35,7 @@ const PROJECT = {
   updatedAt: '2026-10-21T10:00:00Z'
 } as Project
 
-function connection(id: string): Connection {
+function connection(id: string, over: Partial<Connection> = {}): Connection {
   return {
     id: id as ConnectionId,
     companyIds: [COMPANY],
@@ -44,7 +48,8 @@ function connection(id: string): Connection {
     proxyUrl: null,
     credentialSetAt: null,
     projectCount: 0,
-    updatedAt: '2026-10-21T10:00:00Z'
+    updatedAt: '2026-10-21T10:00:00Z',
+    ...over
   }
 }
 
@@ -67,10 +72,15 @@ function binding(id: string, credentialSetAt: string | null, kind: ConnectionKin
 async function mountPage(project: Project = PROJECT) {
   const store = useConnectionsStore()
   await Promise.all([store.loadProject(project.id), store.load()])
-  return mount(ProjectConnectionsPage, {
-    props: { project },
-    global: { stubs: { RouterLink: { template: '<a><slot /></a>' } } }
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/connections/:id?', name: 'connections', component: { template: '<div />' } },
+      { path: '/:p(.*)*', component: { template: '<div />' } }
+    ]
   })
+  useConsoleStore().companies = [{ id: COMPANY, name: 'Acme' }] as unknown as Company[]
+  return mount(ProjectConnectionsPage, { props: { project }, global: { plugins: [router] }, attachTo: document.body })
 }
 
 describe('ProjectConnectionsPage', () => {
@@ -212,6 +222,133 @@ describe('ProjectConnectionsPage', () => {
     expect(rows[0]).toContain('Connected')
     expect(rows[1]).toContain('group/tools')
     expect(rows[1]).toContain('No GitLab or GitHub connection for its host')
+  })
+})
+
+describe('ProjectConnectionsPage as a binding screen', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.resetAllMocks()
+    vi.mocked(api.fetchConnections).mockResolvedValue([connection('prod'), connection('staging')])
+  })
+
+  it('shows the credential state read-only and links each connection to the hub, with the way back', async () => {
+    vi.mocked(api.fetchConnections).mockResolvedValue([connection('prod', { credentialSetAt: '2026-10-21T10:00:00Z' })])
+    vi.mocked(api.fetchProjectConnections).mockResolvedValue([binding('prod', '2026-10-21T10:00:00Z')])
+    const wrapper = await mountPage()
+    await flushPromises()
+
+    const trunk = wrapper.get('[data-testid="trunk-prod"]')
+    expect(trunk.find('[data-testid="project-connection-stored"]').text()).toContain('Stored')
+    expect(trunk.get('[data-testid="open-in-connections"]').attributes('href')).toBe('/connections/prod?returnTo=/projects/p-1')
+    expect(wrapper.find('[data-testid="replace-credential"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="check-connection"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('offers each unused connection with what decides the choice: its scope and its credential', async () => {
+    vi.mocked(api.fetchConnections).mockResolvedValue([
+      connection('platform', { kind: 'GITLAB', baseUrl: 'https://gitlab.example.com', rootPath: 'platform', credentialSetAt: '2026-10-21T10:00:00Z' }),
+      connection('clients', { kind: 'GITLAB', baseUrl: 'https://gitlab.example.com', rootPath: 'clients/acme' })
+    ])
+    vi.mocked(api.fetchProjectConnections).mockResolvedValue([])
+    const wrapper = await mountPage()
+    await flushPromises()
+
+    const options = wrapper.findAll('[data-testid="connection-option"]')
+    expect(options.map((option) => option.get('[data-testid="connection-option-scope"]').text())).toEqual([
+      'gitlab.example.com/clients/acme',
+      'gitlab.example.com/platform'
+    ])
+    expect(options[0]?.text()).toContain('No credential')
+    expect(options[1]?.text()).toContain('Stored')
+    wrapper.unmount()
+  })
+
+  it('warns, without blocking, when a target is outside the root path of its connection', async () => {
+    vi.mocked(api.fetchConnections).mockResolvedValue([connection('platform', { kind: 'GITLAB', rootPath: 'acme' })])
+    vi.mocked(api.fetchProjectConnections).mockResolvedValue([{ ...binding('platform', null, 'GITLAB'), target: 'other/billing' }])
+    vi.mocked(api.updateBinding).mockResolvedValue({ ...binding('platform', null, 'GITLAB'), target: 'other/billing' })
+    const wrapper = await mountPage()
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="target-warning"]').text()).toBe('Expected to start with acme/')
+    const target = wrapper.get('[data-testid="connection-target"]')
+    await target.setValue('acme/billing')
+    expect(wrapper.find('[data-testid="target-warning"]').exists()).toBe(false)
+    await target.setValue('other/api')
+    expect(wrapper.get('[data-testid="target-warning"]').text()).toBe('Expected to start with acme/')
+    await target.trigger('blur')
+    await flushPromises()
+    expect(api.updateBinding).toHaveBeenCalledWith('p-1', 'b-platform', { label: 'platform', target: 'other/api' })
+    wrapper.unmount()
+  })
+
+  it('says no connection is shared with the company, and offers to create one or to share one from the hub', async () => {
+    vi.mocked(api.fetchConnections).mockResolvedValue([connection('elsewhere', { companyIds: ['c-2' as CompanyId] })])
+    vi.mocked(api.fetchProjectConnections).mockResolvedValue([])
+    const wrapper = await mountPage()
+    await flushPromises()
+
+    const empty = wrapper.get('[data-testid="no-shared-connections"]')
+    expect(empty.text()).toContain('No connection is shared with Acme yet')
+    expect(empty.get('[data-testid="shared-connections-link"]').attributes('href')).toBe('/connections?company=c-1&returnTo=/projects/p-1')
+    await empty.get('[data-testid="empty-new-connection"]').trigger('click')
+    expect(document.body.querySelector('[data-testid="connection-sheet"]')).not.toBeNull()
+    wrapper.unmount()
+  })
+
+  it('creates a connection shared with the project company, then binds it and stays on the tab', async () => {
+    vi.mocked(api.fetchProjectConnections).mockResolvedValue([])
+    vi.mocked(api.createConnection).mockResolvedValue(connection('fresh', { kind: 'KUBERNETES' }))
+    vi.mocked(api.bindConnection).mockResolvedValue(binding('fresh', null))
+    const wrapper = await mountPage()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="new-project-connection"]').trigger('click')
+    const sheet = document.body.querySelector('[data-testid="connection-sheet"]')!
+    const boxes = sheet.querySelectorAll<HTMLInputElement>('[data-testid="company-picker"] input[type="checkbox"]')
+    expect(boxes[0]?.checked).toBe(true)
+    const title = sheet.querySelector<HTMLInputElement>('[data-testid="connection-title"]')!
+    title.value = 'Fresh'
+    title.dispatchEvent(new Event('input'))
+    sheet.querySelector<HTMLElement>('[data-testid="save-connection"]')!.click()
+    await flushPromises()
+
+    expect(api.createConnection).toHaveBeenCalledWith(expect.objectContaining({ companyIds: [COMPANY], title: 'Fresh' }))
+    expect(api.bindConnection).toHaveBeenCalledWith('p-1', 'fresh', { target: null })
+    expect(wrapper.find('[data-testid="trunk-fresh"]').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('says the connection was created but not bound when the binding fails', async () => {
+    vi.mocked(api.fetchProjectConnections).mockResolvedValue([])
+    vi.mocked(api.createConnection).mockResolvedValue(connection('fresh', { kind: 'KUBERNETES' }))
+    vi.mocked(api.bindConnection).mockRejectedValue(new Error('project is archived'))
+    const wrapper = await mountPage()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="new-project-connection"]').trigger('click')
+    const sheet = document.body.querySelector('[data-testid="connection-sheet"]')!
+    const title = sheet.querySelector<HTMLInputElement>('[data-testid="connection-title"]')!
+    title.value = 'Fresh'
+    title.dispatchEvent(new Event('input'))
+    sheet.querySelector<HTMLElement>('[data-testid="save-connection"]')!.click()
+    await flushPromises()
+
+    const toasts = useToastStore().toasts.map((toast) => toast.message)
+    expect(toasts.some((message) => message.includes('The fresh was created but not bound to Vega: project is archived'))).toBe(true)
+    expect(useConnectionsStore().connectionById('fresh' as ConnectionId)).not.toBeNull()
+    wrapper.unmount()
+  })
+
+  it('links to the hub for the rest, carrying the way back', async () => {
+    vi.mocked(api.fetchProjectConnections).mockResolvedValue([])
+    const wrapper = await mountPage()
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="manage-connections-link"]').attributes('href')).toBe('/connections?company=c-1&returnTo=/projects/p-1')
+    wrapper.unmount()
   })
 })
 

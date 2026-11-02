@@ -12,7 +12,9 @@ export interface ConnectionTrunk {
   readonly kind: ConnectionKind
   readonly title: string
   readonly endpoint: string
-  readonly hasCredential: boolean
+  readonly credentialSetAt: string | null
+  /** What the connection's token covers; a binding's target is expected to sit under it. */
+  readonly rootPath: string | null
   readonly bindings: readonly ProjectConnection[]
 }
 
@@ -30,7 +32,8 @@ function trunkOf(bindings: readonly ProjectConnection[], connection: Connection 
     kind: source.kind,
     title: source.title,
     endpoint: endpointOf(source),
-    hasCredential: !!source.credentialSetAt,
+    credentialSetAt: source.credentialSetAt,
+    rootPath: connection?.rootPath ?? null,
     bindings
   }
 }
@@ -45,14 +48,14 @@ export function connectionTrunks(
   return [...grouped].map(([id, members]) => trunkOf(members, connections.find((connection) => connection.id === id)))
 }
 
-/** The trunks by kind, clusters first, then GitLab, GitHub, then Jira; each kind keeps its trunks' order and an empty kind is left out. */
+/** The trunks by kind, Kubernetes first, then GitLab, GitHub, then Jira; each kind keeps its trunks' order and an empty kind is left out. */
 export function trunksByKind(trunks: readonly ConnectionTrunk[]): ConnectionKindGroup[] {
   return KIND_ORDER.map((kind) => ({ kind, trunks: trunks.filter((trunk) => trunk.kind === kind) })).filter(
     (group) => group.trunks.length > 0
   )
 }
 
-/** The company's connections this project binds nowhere. */
+/** The connections shared with the project's company that it binds nowhere. */
 export function unusedConnections(
   bindings: readonly ProjectConnection[],
   connections: readonly Connection[]

@@ -51,12 +51,12 @@ describe('the bindings of a project, by connection', () => {
       ['acme', ['gateway', 'orders']],
       ['public', ['sdk']]
     ])
-    expect(trunks[0]).toMatchObject({ title: 'GitLab acme', endpoint: 'acme.example.com', hasCredential: true })
+    expect(trunks[0]).toMatchObject({ title: 'GitLab acme', endpoint: 'acme.example.com', credentialSetAt: '2026-10-24T10:00:00Z' })
   })
 
   it('reads the credential from the company connection, and from the binding before the company is loaded', () => {
-    expect(connectionTrunks([binding('acme', 'gateway')], [connection('acme', null)])[0]!.hasCredential).toBe(false)
-    expect(connectionTrunks([binding('acme', 'gateway')], [])[0]!.hasCredential).toBe(false)
+    expect(connectionTrunks([binding('acme', 'gateway')], [connection('acme', null)])[0]!.credentialSetAt).toBeNull()
+    expect(connectionTrunks([binding('acme', 'gateway')], [])[0]!.credentialSetAt).toBeNull()
   })
 
   it('leaves out the connections the project binds, for the rest to be offered', () => {

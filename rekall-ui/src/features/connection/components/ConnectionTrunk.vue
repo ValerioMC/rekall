@@ -1,16 +1,18 @@
 <script setup lang="ts">
-import AppBadge from '@/components/ui/AppBadge.vue'
+import { RouterLink } from 'vue-router'
 import AppButton from '@/components/ui/AppButton.vue'
+import ConnectionCredentialState from '@/features/connection/components/ConnectionCredentialState.vue'
 import ConnectionKindIcon from '@/features/connection/components/ConnectionKindIcon.vue'
 import ProjectConnectionRow from '@/features/connection/components/ProjectConnectionRow.vue'
 import type { ConnectionTrunk } from '@/features/connection/lib/connection-trunks'
 import type { ConnectionKind, ProjectConnection, ProjectConnectionInput } from '@/features/connection/model/connection'
 
 /**
- * One company connection and the bindings this project hangs off it, drawn on a line in its
- * system's colour: the credential is set once, on the connection, and reaches every binding.
+ * One connection and the bindings this project hangs off it, drawn on a line in its system's
+ * colour: the credential is set once, on the connection, and reaches every binding. The state is
+ * read-only here; the link goes to the connection in the Connections screen, where it is changed.
  */
-defineProps<{ trunk: ConnectionTrunk }>()
+defineProps<{ trunk: ConnectionTrunk; returnTo: string }>()
 
 const emit = defineEmits<{
   addTarget: []
@@ -35,8 +37,17 @@ const LINE: Readonly<Record<ConnectionKind, string>> = {
       </span>
       <h3 class="text-body font-semibold text-text">{{ trunk.title }}</h3>
       <span class="font-mono text-caption text-text-subtle">{{ trunk.endpoint }}</span>
-      <AppBadge v-if="trunk.hasCredential" tone="safe" dot>Credential stored</AppBadge>
-      <AppBadge v-else tone="warn" dot data-testid="project-connection-missing">No credential</AppBadge>
+      <ConnectionCredentialState
+        :credential-set-at="trunk.credentialSetAt"
+        :data-testid="trunk.credentialSetAt ? 'project-connection-stored' : 'project-connection-missing'"
+      />
+      <RouterLink
+        :to="{ name: 'connections', params: { id: trunk.connectionId }, query: { returnTo } }"
+        class="focus-ring rounded-key text-caption text-accent hover:underline"
+        :aria-label="`Open ${trunk.title} in Connections`"
+        data-testid="open-in-connections"
+        >Open in Connections</RouterLink
+      >
       <span class="ml-auto font-mono text-micro tabular-nums text-text-subtle">
         {{ trunk.bindings.length === 1 ? '1 binding' : `${trunk.bindings.length} bindings` }}
       </span>
@@ -53,6 +64,7 @@ const LINE: Readonly<Record<ConnectionKind, string>> = {
       <li v-for="binding in trunk.bindings" :key="binding.id">
         <ProjectConnectionRow
           :binding="binding"
+          :root-path="trunk.rootPath"
           @save="emit('save', binding, $event)"
           @unbind="emit('unbind', binding)"
           @import-issues="emit('importIssues', binding)"

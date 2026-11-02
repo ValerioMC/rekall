@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import { TARGET_FIELD } from '@/features/connection/lib/connection-fields'
+import { expectedTargetPrefix } from '@/features/connection/lib/target-scope'
 import type { ProjectConnection, ProjectConnectionInput } from '@/features/connection/model/connection'
 
 /**
@@ -9,12 +10,13 @@ import type { ProjectConnection, ProjectConnectionInput } from '@/features/conne
  * edited in place, and a way to stop using it. A Jira one with a credential and a project key
  * also opens the import of its issues.
  */
-const props = defineProps<{ binding: ProjectConnection }>()
+const props = defineProps<{ binding: ProjectConnection; rootPath: string | null }>()
 const emit = defineEmits<{ save: [input: ProjectConnectionInput]; unbind: []; importIssues: [] }>()
 
 const draft = ref(props.binding.target ?? '')
 const labelDraft = ref(props.binding.label)
 const targetField = computed(() => TARGET_FIELD[props.binding.kind])
+const expectedPrefix = computed(() => expectedTargetPrefix(props.rootPath, draft.value.trim() || null))
 const canImport = computed(
   () => props.binding.kind === 'JIRA' && !!props.binding.credentialSetAt && !!props.binding.target
 )
@@ -72,6 +74,9 @@ function commitLabel(): void {
       @blur="commit"
       @keydown.enter.prevent="commit"
     />
+    <span v-if="expectedPrefix" class="shrink-0 text-caption text-warn" role="status" data-testid="target-warning"
+      >Expected to start with {{ expectedPrefix }}</span
+    >
     <AppButton v-if="canImport" size="sm" variant="ghost" data-testid="import-jira-issues" @click="emit('importIssues')"
       >Import issues as tasks</AppButton
     >
