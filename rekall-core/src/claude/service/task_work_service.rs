@@ -1,6 +1,6 @@
 use rekall_kernel::{Id, RekallError, Result};
 use rekall_store::repository as repo;
-use rekall_store::{task_step, TaskStepState};
+use rekall_store::TaskStepState;
 
 use crate::flow::{carries_routes, flow_has_ended, steps_entered};
 use crate::{in_read, load, Ctx};
@@ -46,8 +46,7 @@ impl TaskWorkService {
             let visits = repo::step_visit::list_of_task(tx.db(), task_id).await?;
             let links = repo::step_link::list_of_task(tx.db(), task_id).await?;
             let ended = carries_routes(&links, &checklist) && flow_has_ended(&checklist, &visits);
-            let counted: Vec<&task_step::Model> =
-                if ended { steps_entered(&checklist, &visits) } else { checklist.iter().collect() };
+            let counted = if ended { steps_entered(&checklist, &visits) } else { checklist.iter().collect() };
             let work_left = counted.iter().any(|step| step.state == TaskStepState::Open || step.state.running());
             let all_done = counted.iter().all(|step| step.state == TaskStepState::Done);
             let remaining = if work_left {

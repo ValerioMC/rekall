@@ -60,7 +60,7 @@ const CORE: LayeredCrate = LayeredCrate {
     allowed: &[
         ("backup", &[]),
         ("chat", &["claude"]),
-        ("claude", &["catalog", "connection", "task"]),
+        ("claude", &["catalog", "connection", "flow", "task"]),
         ("commit", &["catalog", "step", "task"]),
         ("component", &["connection", "task"]),
         ("connection", &[]),
