@@ -66,20 +66,21 @@ impl RunQueueService {
 
     pub async fn add(&self, task_id: Id) -> Result<RunQueueView> {
         in_write!(&self.ctx, |tx| {
-            let task = repo::task::find_by_id(tx.db(), task_id)
-                .await?
-                .ok_or_else(|| RekallError::unknown_anchor(format!("No task with id {task_id}")))?;
-            task.require_workable("is never queued to run")?;
-            let current = ordered(&tx).await?;
-            let waiting = current.iter().any(|item| item.task_id == task_id && !item.state.settled());
-            if waiting {
-                return Err(RekallError::conflict(format!("'{}' is already in the queue.", task.title)));
-            }
-            run_queue_item::Model::new(task_id, current.len() as i32, self.now())
-                .into_active_model()
-                .insert(tx.db())
-                .await?;
+            self.enqueue(&tx, task_id).await?;
             let queue = self.queue(&tx).await?;
+            self.publish(&mut tx, queue).await
+        })
+    }
+
+    /// Add the task and, when the queue is idle, start it in the same transaction. A running,
+    /// holding or scheduled queue only gains the item: it runs when the worker reaches it.
+    pub async fn add_and_arm(&self, task_id: Id) -> Result<RunQueueView> {
+        in_write!(&self.ctx, |tx| {
+            self.enqueue(&tx, task_id).await?;
+            let mut queue = self.queue(&tx).await?;
+            if queue.state == RunQueueState::Idle {
+                queue.move_to(RunQueueState::Running);
+            }
             self.publish(&mut tx, queue).await
         })
     }
@@ -246,11 +247,13 @@ impl RunQueueService {
         })
     }
 
-    /// The last waiting item has had its turn: back to `IDLE`.
+    /// The last waiting item has had its turn: back to `IDLE`. An item added since the worker
+    /// looked keeps the queue armed.
     pub async fn finish(&self) -> Result<()> {
         in_write!(&self.ctx, |tx| {
             let mut queue = self.queue(&tx).await?;
-            if queue.state.armed() {
+            let any_waiting = ordered(&tx).await?.iter().any(|item| item.state == RunQueueItemState::Queued);
+            if queue.state.armed() && !any_waiting {
                 queue.move_to(RunQueueState::Idle);
                 self.publish(&mut tx, queue).await?;
             }
@@ -303,6 +306,23 @@ impl RunQueueService {
         let queue = run_queue::Model::new(self.now());
         queue.clone().into_active_model().insert(tx.db()).await?;
         Ok(queue)
+    }
+
+    async fn enqueue(&self, tx: &Tx, task_id: Id) -> Result<()> {
+        let task = repo::task::find_by_id(tx.db(), task_id)
+            .await?
+            .ok_or_else(|| RekallError::unknown_anchor(format!("No task with id {task_id}")))?;
+        task.require_workable("is never queued to run")?;
+        let current = ordered(tx).await?;
+        let waiting = current.iter().any(|item| item.task_id == task_id && !item.state.settled());
+        if waiting {
+            return Err(RekallError::conflict(format!("'{}' is already in the queue.", task.title)));
+        }
+        run_queue_item::Model::new(task_id, current.len() as i32, self.now())
+            .into_active_model()
+            .insert(tx.db())
+            .await?;
+        Ok(())
     }
 
     /// Stamp, save and announce. The stamp moves on every write, an item's included, because the
@@ -380,3 +400,7 @@ fn choice(value: Option<&str>, allowed: &[&str], what: &str) -> Result<Option<St
     }
     Ok(Some(normalised))
 }
+
+#[cfg(test)]
+#[path = "../../../tests/unit/queue/service/run_queue_service_tests.rs"]
+mod tests;
