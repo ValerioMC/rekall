@@ -16,7 +16,7 @@ describe('rkCommand', () => {
 })
 
 /**
- * The line that has a session propose the task's checklist as drafts, typed by "Plan here" and
+ * The line that has a session propose the task's checklist, typed by "Plan here" and
  * copied by the plan chip on an empty checklist.
  */
 describe('rkPlanCommand', () => {

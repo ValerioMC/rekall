@@ -56,8 +56,8 @@ export const useTerminalStore = defineStore('terminal', () => {
   }
 
   /**
-   * Have a session propose this task's checklist, or its flow, as drafts, or redesign the steps it
-   * has (`REPLAN`). A live session on the
+   * Have a session propose this task's checklist, or its flow, or redesign the steps it has
+   * (`REPLAN`). A live session on the
    * task gets the plan line typed into it; without one, a terminal is opened that starts on that
    * line, so a plan never needs a session already running. Either way it becomes the active one.
    */

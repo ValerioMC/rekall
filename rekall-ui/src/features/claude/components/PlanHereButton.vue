@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
- * Has a session propose this task's checklist as drafts, which land on the Steps pane's shelf and
- * are nothing until promoted there. Behind its arrow: the task's flow while it has no steps, and
+ * Has a session propose this task's checklist, which lands on the Steps pane open and ready to
+ * work. Behind its arrow: the task's flow while it has no steps, and
  * a replan of the draft and open steps it has, after asking first, since those are deleted. With a
  * session already live on the task, the line is typed into it; without one, a terminal is opened
  * that starts on that line instead of the plain `/rk`. Either way the planning terminal comes
@@ -44,22 +44,22 @@ const liveTerminal = computed(() => terminals.terminalForTask(props.taskId))
 const ready = computed(() => Boolean(liveTerminal.value) || Boolean(props.folder))
 const tooltip = computed(() =>
   liveTerminal.value
-    ? 'Have the session running here propose this task’s steps as drafts'
-    : 'Open a session that proposes this task’s steps as drafts'
+    ? 'Have the session running here propose this task’s steps'
+    : 'Open a session that proposes this task’s steps'
 )
 const alternatives = computed<readonly SplitButtonOption<PlanAlternative>[]>(() => [
   ...(props.offersFlow ? [flowOption()] : []),
   ...(props.replaceableSteps > 0 ? [replanOption()] : [])
 ])
 const confirmBlast = computed(
-  () => `${stepsCount(props.replaceableSteps)} deleted · not kept anywhere · the new plan lands as drafts`
+  () => `${stepsCount(props.replaceableSteps)} deleted · not kept anywhere · the new plan is ready to work`
 )
 
 function flowOption(): SplitButtonOption<PlanAlternative> {
   return {
     id: 'PLAN_FLOW',
     label: 'Plan a flow',
-    hint: 'Proposes the steps with the routes between them, as drafts'
+    hint: 'Proposes the steps with the routes between them'
   }
 }
 
@@ -101,7 +101,7 @@ async function plan(mode: PlanMode): Promise<void> {
         { skipPermissions: skipsPermissions(), model: preferredModel(), effort: preferredEffort(), kind: preferredLaunchKind() },
         mode
       ),
-    mode === 'REPLAN' ? 'Replanning. The new steps land here as drafts.' : 'Planning. Its proposals land here as drafts.'
+    mode === 'REPLAN' ? 'Replanning. The new steps land here.' : 'Planning. Its proposals land here.'
   )
   if (planning === null || planning.kind === 'CHAT') return
   console_.openTerminal()

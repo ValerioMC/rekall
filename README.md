@@ -91,8 +91,8 @@ An anchor is `entity:value`, where the entity is `company`, `project` or `task` 
 | `/rk … wrapup` | Write the task's wrapup instead of loading it |
 | `/rk … note "what to keep"` | Write a note on the task, then stop |
 | `/rk … section "Deployment" "how we ship"` | Write a titled section on the task's project, or rewrite the one with that title |
-| `/rk … plan` | Propose the task's checklist as drafts, then stop; `plan flow` proposes a flow |
-| `/rk … replan` | Redesign the task's draft and open steps as new drafts; running, claimed and done steps stay |
+| `/rk … plan` | Propose the task's checklist, open and ready to work, then stop; `plan flow` proposes a flow |
+| `/rk … replan` | Redesign the task's draft and open steps as new ready-to-work steps; running, claimed and done steps stay |
 | `/rk … step:3 start` / `step:3 done` | Move a step to running / claimed; on a flow `done outcome:<name>` follows that route |
 | `/rk project:vega generate kinds:sequence,state "how checkout charges"` | Store a diagram answering the request, one sheet per type |
 | `/rk project:vega explain "how an order is placed"` | Store a walkthrough the console plays step by step |
@@ -124,7 +124,7 @@ An anchor brings back the record, everything it references resolved in full with
 | `rekall_vulnerabilities` | read | List the advisories that reach a project, or read one whole with `advisory` |
 | `rekall_assess_vulnerability` | write | Record whether an advisory really reaches a project: `affected` or `not_affected`, with reasoning and a conclusion |
 
-There is no query, get or schema tool. Nothing a session creates is work until you promote it: a session writes steps open and ready to work by default (`rekall_create_task`, `rekall_propose_step`, `rekall_propose_flow`) and leaves drafts for you only when it passes `draft: true`, as `/rk … plan` does; a created task starts `TODO`. `rekall_step` refuses `done`; that state is set by hand in the console. `rekall_note` and `rekall_project_section` refuse a title already used unless `replace: true`, and neither can rename, reorder or delete. `rekall_step` (on `claimed`) and `rekall_wrapup` take an optional `commit_message`, used only on a project that commits on claim. Every parameter is in [docs/guide/mcp-tools.md](docs/guide/mcp-tools.md), the reasons in [docs/design/mcp.md](docs/design/mcp.md) and [docs/design/write-safety.md](docs/design/write-safety.md).
+There is no query, get or schema tool. Nothing a session creates is work until you promote it: a session writes steps open and ready to work by default (`rekall_create_task`, `rekall_propose_step`, `rekall_propose_flow`) and leaves drafts for you only when it passes `draft: true`, which `/rk … plan` does not; a created task starts `TODO`. `rekall_step` refuses `done`; that state is set by hand in the console. `rekall_note` and `rekall_project_section` refuse a title already used unless `replace: true`, and neither can rename, reorder or delete. `rekall_step` (on `claimed`) and `rekall_wrapup` take an optional `commit_message`, used only on a project that commits on claim. Every parameter is in [docs/guide/mcp-tools.md](docs/guide/mcp-tools.md), the reasons in [docs/design/mcp.md](docs/design/mcp.md) and [docs/design/write-safety.md](docs/design/write-safety.md).
 
 ## What Rekall does
 

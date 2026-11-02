@@ -251,7 +251,7 @@ renames, reorders or deletes a section, and writing one does not claim the task 
 
 ## Planning
 
-`/rk project:vega task:report-builder plan` means: turn the task into a checklist I can review.
+`/rk project:vega task:report-builder plan` means: turn the task into a checklist, ready to work.
 
 1. Drop the `plan` term, and `flow` after it, and call `rekall_context` with the anchors that are left.
 2. Read what it gives you: the description says what the work is for and what it has to satisfy,
@@ -263,8 +263,9 @@ renames, reorders or deletes a section, and writing one does not claim the task 
    long. The bare word `flow` after `plan` (`/rk ... plan flow`) asks for a flow outright.
 4. For a checklist, call `rekall_propose_step` once per step, in the order the work should be done.
    For a flow, call `rekall_propose_flow` once with every step in order, the first where it begins,
-   and each step's routes: `{"outcome": "app-error", "to": 3}`, or `"to": "end"`. Pass `draft: true`
-   on every call: a plan is for me to review, and without it the steps would land ready to work.
+   and each step's routes: `{"outcome": "app-error", "to": 3}`, or `"to": "end"`. Do not pass
+   `draft`: the steps land open and ready to work, promoted on their own. Pass `draft: true` only
+   when I ask for drafts to review.
    Work out the arcs one step at a time: what can end it (it worked, and each way it can fail) and
    where each of those goes (the next step, back to a fix step, or the end). Name outcomes for
    what happened (`passed`, `app-error`), give a step that simply leads on one route to the next,
@@ -274,9 +275,9 @@ renames, reorders or deletes a section, and writing one does not claim the task 
    title says what the step delivers; the detail says what to build, where, what it must satisfy
    and how I can tell it is done, enough for a session that never saw this one to do it alone.
    Propose only what is still missing, and nothing the description rules out.
-5. Stop. Say in a few lines how many drafts (and, for a flow, routes) you proposed and anything
-   you left out on purpose. Build nothing: the drafts are not work until I promote them in the
-   console.
+5. Stop. Say in a few lines how many steps (and, for a flow, routes) you proposed and anything
+   you left out on purpose. Build nothing: the steps are open, and I review them in the console if
+   I want to.
 
 A title the task already has is refused, so a second `plan` adds only what the first one missed. A
 flow is proposed only onto a task with no steps; on one that has some, plan a checklist and say the
@@ -295,7 +296,7 @@ routes are mine to draw.
    plan a checklist and say the routes are mine to draw.
 4. Call `rekall_replan` once with every new step. It deletes the task's draft and open steps and
    lays the new ones in a single transaction, and refuses the whole plan when any part is wrong.
-   Pass `draft: true`, as in **Planning**. To drop a single step that belongs on no plan, call
+   Leave `draft` out, as in **Planning**. To drop a single step that belongs on no plan, call
    `rekall_delete_step`.
 5. Stop. Say in a few lines how many steps were deleted, how many were laid, which steps stayed and
    anything you left out on purpose. Build nothing.

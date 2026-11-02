@@ -3,8 +3,8 @@ export function rkCommand(anchor: string): string {
 }
 
 /**
- * The planning line: a session that reads the task and proposes its checklist as drafts, which
- * land on the Steps pane's shelf and are nothing until promoted there.
+ * The planning line: a session that reads the task and proposes its checklist, which lands on the
+ * Steps pane open and ready to work.
  */
 export function rkPlanCommand(anchor: string): string {
   const base = rkCommand(anchor)
@@ -12,8 +12,8 @@ export function rkPlanCommand(anchor: string): string {
 }
 
 /**
- * The flow planning line: the session proposes the steps and the routes between them as drafts,
- * which only a task with no steps, drafts included, accepts.
+ * The flow planning line: the session proposes the steps and the routes between them, open and
+ * ready to work, which only a task with no steps, drafts included, accepts.
  */
 export function rkPlanFlowCommand(anchor: string): string {
   const base = rkPlanCommand(anchor)
@@ -21,8 +21,8 @@ export function rkPlanFlowCommand(anchor: string): string {
 }
 
 /**
- * The replanning line: the session redesigns the task's draft and open steps and proposes the new
- * ones as drafts. Steps that are running, claimed or done stay.
+ * The replanning line: the session redesigns the task's draft and open steps and lays the new ones
+ * ready to work. Steps that are running, claimed or done stay.
  */
 export function rkReplanCommand(anchor: string): string {
   const base = rkCommand(anchor)

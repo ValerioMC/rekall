@@ -36,14 +36,14 @@ and without one `CommitMessageGenerator` draws the message from the step's detai
 No commit message lists files.
 
 `rekall_propose_step` adds one step to the tail of the checklist, open and ready to work. With
-`draft: true` (what `/rk … plan` passes, once per step) it stays a draft instead: not work, off the
+`draft: true` (which `/rk … plan` does not pass; a person asks for it) it stays a draft instead: not work, off the
 checklist a session reads until a person promotes it. A `Staging` value carries the choice into
 `TaskStepService::propose`, which promotes the new step and keeps the drafts behind it. A title the
-task already has is refused so a second plan does not double the shelf, and a task holds at most twenty
+task already has is refused so a second plan does not double the checklist, and a task holds at most twenty
 drafts (open steps have no such cap).
 
 `rekall_propose_flow` is the same choice for a task whose work branches or loops: `/rk … plan` calls it
-once, with `draft: true`, every step and its routes, when a step's outcome decides what comes next. The
+once, without `draft`, with every step and its routes, when a step's outcome decides what comes next. The
 plan is checked whole and written in one transaction, so a refused plan leaves nothing on the shelf (4.3
 in [workflow.md](workflow.md)); `FlowProposalService::propose` lays it as drafts and, for `Staging::Ready`,
 releases them in the same transaction. The tool text asks the model to choose checklist or flow first and,
