@@ -39,7 +39,7 @@ function changeStatus(value: string): void {
 </script>
 
 <template>
-  <div class="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center" role="search" aria-label="Filter connections">
+  <div class="glass flex flex-col gap-2 px-4 py-2.5 sm:flex-row sm:flex-wrap sm:items-center" role="search" aria-label="Filter connections">
     <AppButton
       class="sm:hidden max-sm:min-h-11"
       :aria-expanded="open"
@@ -77,15 +77,16 @@ function changeStatus(value: string): void {
         data-testid="filter-status"
         @update:model-value="changeStatus"
       />
-      <button
+      <AppButton
         v-if="count && !hideClear"
-        type="button"
-        class="focus-ring rounded-key px-1 text-small text-accent underline-offset-2 hover:underline max-sm:min-h-11 max-sm:text-left"
+        size="sm"
+        variant="ghost"
+        class="max-sm:min-h-11"
         data-testid="clear-filters"
         @click="emit('clear')"
       >
         Clear filters
-      </button>
+      </AppButton>
     </div>
   </div>
 </template>

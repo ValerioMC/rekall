@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
+import AppCard from '@/components/ui/AppCard.vue'
 import ConnectionAccessLog from '@/features/connection/components/ConnectionAccessLog.vue'
 import ConnectionCredentialPanel from '@/features/connection/components/ConnectionCredentialPanel.vue'
 import ConnectionKindIcon from '@/features/connection/components/ConnectionKindIcon.vue'
@@ -41,7 +42,7 @@ defineExpose({
 </script>
 
 <template>
-  <section class="flex max-w-[720px] flex-col gap-6 p-5" :aria-label="connection.title" data-testid="connection-detail">
+  <section class="flex max-w-[760px] flex-col gap-4 p-5" :aria-label="connection.title" data-testid="connection-detail">
     <button
       type="button"
       class="focus-ring -ml-1 inline-flex min-h-11 w-fit items-center gap-1.5 rounded-key px-1 text-small text-text-muted hover:text-text min-[960px]:hidden"
@@ -51,14 +52,14 @@ defineExpose({
       <span aria-hidden="true">←</span> Connections
     </button>
 
-    <header class="flex flex-col gap-3">
+    <header class="project-header-card flex flex-col gap-4 rounded-card p-4">
       <div class="flex items-start gap-3">
-        <span class="grid size-10 shrink-0 place-items-center rounded-card border border-border-strong bg-surface-raised">
-          <ConnectionKindIcon :kind="connection.kind" :size="22" />
+        <span class="grid size-11 shrink-0 place-items-center rounded-card border border-border-strong bg-canvas shadow-[var(--shadow-well)]">
+          <ConnectionKindIcon :kind="connection.kind" :size="24" />
         </span>
         <div class="min-w-0 flex-1">
-          <h2 class="truncate text-title font-semibold text-text" data-testid="detail-title">{{ connection.title }}</h2>
-          <p class="text-caption text-text-subtle" data-testid="connection-detail-kind">{{ CONNECTION_KIND_LABEL[connection.kind] }}</p>
+          <h2 class="truncate text-heading font-semibold tracking-[-0.01em] text-text" data-testid="detail-title">{{ connection.title }}</h2>
+          <p class="mt-0.5 text-small text-text-subtle" data-testid="connection-detail-kind">{{ CONNECTION_KIND_LABEL[connection.kind] }}</p>
         </div>
         <AppButton size="sm" variant="secondary" class="max-sm:min-h-11" data-testid="edit-connection" @click="emit('edit')">Edit</AppButton>
         <AppButton size="sm" variant="danger-quiet" class="ml-3 max-sm:hidden" data-testid="delete-connection" @click="emit('delete')"
@@ -74,7 +75,7 @@ defineExpose({
         </details>
       </div>
 
-      <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-small">
+      <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 rounded-control border border-border bg-canvas/60 px-3 py-2.5 text-small shadow-[var(--shadow-well)] empty:hidden">
         <template v-if="connection.baseUrl">
           <dt class="text-text-subtle">{{ ADDRESS_TERM[connection.kind] }}</dt>
           <dd class="truncate font-mono text-text">{{ connection.baseUrl }}</dd>
@@ -93,24 +94,34 @@ defineExpose({
         </template>
       </dl>
 
-      <details>
-        <summary class="focus-ring w-fit cursor-pointer rounded-key text-caption text-text-subtle hover:text-text">Label and advanced settings</summary>
-        <p class="mt-1.5 text-caption text-text-subtle">
-          <span class="font-mono text-anchor/80" data-testid="connection-label-value">{{ connection.label }}</span>
-          is the short name sessions use: kubectl --context, rekall-gitlab, rekall-github and rekall-jira --connection.
-        </p>
-      </details>
+      <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-text-subtle">
+        <span class="anchor-chip px-1.5 py-px text-caption" data-testid="connection-label-value">{{ connection.label }}</span>
+        <span>is the short name sessions use: kubectl --context, rekall-gitlab, rekall-github and rekall-jira --connection.</span>
+      </p>
     </header>
 
-    <ConnectionCredentialPanel ref="credentialPanel" class="border-t border-border pt-5" :connection="connection" />
+    <AppCard>
+      <ConnectionCredentialPanel ref="credentialPanel" :connection="connection" />
+    </AppCard>
 
-    <ConnectionSharingPanel class="border-t border-border pt-5" :detail="detail" @edit-companies="emit('editCompanies')" />
+    <AppCard>
+      <ConnectionSharingPanel :detail="detail" @edit-companies="emit('editCompanies')" />
+    </AppCard>
 
-    <details class="border-t border-border pt-5" @toggle="logOpened = true">
-      <summary class="focus-ring cursor-pointer rounded-key text-body font-semibold text-text">Access log</summary>
-      <div class="mt-2">
-        <ConnectionAccessLog v-if="logOpened" ref="accessLog" :connection-id="connection.id" />
-      </div>
-    </details>
+    <AppCard :padded="false">
+      <details class="group" @toggle="logOpened = true">
+        <summary
+          class="focus-ring flex cursor-pointer list-none items-center gap-2 rounded-card px-5 py-3.5 text-body font-semibold text-text hover:bg-surface-hover/40 [&::-webkit-details-marker]:hidden"
+        >
+          <svg viewBox="0 0 24 24" class="size-3.5 text-text-subtle transition-transform group-open:rotate-90" fill="none" aria-hidden="true">
+            <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          </svg>
+          Access log
+        </summary>
+        <div class="border-t border-border px-5 py-2">
+          <ConnectionAccessLog v-if="logOpened" ref="accessLog" :connection-id="connection.id" />
+        </div>
+      </details>
+    </AppCard>
   </section>
 </template>

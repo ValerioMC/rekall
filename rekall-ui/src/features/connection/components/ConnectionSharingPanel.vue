@@ -44,7 +44,12 @@ async function unbind(binding: ConnectionProject): Promise<void> {
       Not shared with any company. No project can bind it until a company is added.
     </p>
     <ul v-else class="flex flex-col gap-3">
-      <li v-for="group in groups" :key="group.company.id" data-testid="sharing-company">
+      <li
+        v-for="group in groups"
+        :key="group.company.id"
+        class="rounded-control border border-border bg-canvas/60 px-3 py-2.5"
+        data-testid="sharing-company"
+      >
         <p class="text-body font-medium text-text">{{ group.company.name }}</p>
         <p v-if="!group.bindings.length" class="text-caption text-text-subtle">Not bound yet</p>
         <ul v-else class="mt-1 flex flex-col divide-y divide-border">

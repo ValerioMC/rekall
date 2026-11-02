@@ -13,14 +13,18 @@ const headingId = computed(() => `connection-group-${props.kind.toLowerCase()}`)
 
 <template>
   <section :aria-labelledby="headingId" :data-testid="`connection-group-${kind}`">
-    <h2 :id="headingId" class="flex items-center gap-2.5 px-4 pb-1.5 pt-4 text-small font-semibold text-text">
-      <span aria-hidden="true"><ConnectionKindIcon :kind="kind" :size="16" /></span>
+    <h2 :id="headingId" class="section-label flex items-center gap-2.5 px-4 pb-2 pt-5">
+      <span class="grid size-6 place-items-center rounded-control border border-border bg-surface-raised" aria-hidden="true">
+        <ConnectionKindIcon :kind="kind" :size="13" />
+      </span>
       <span data-testid="connection-group-name">{{ CONNECTION_KIND_LABEL[kind] }}</span>
-      <span class="font-mono text-caption font-normal tabular-nums text-text-subtle" data-testid="connection-group-count"
+      <span
+        class="rounded-full bg-surface-raised px-1.5 py-px font-mono text-micro font-normal tabular-nums text-text-subtle"
+        data-testid="connection-group-count"
         >({{ connections.length }})</span
       >
     </h2>
-    <ul class="divide-y divide-border border-y border-border">
+    <ul class="flex flex-col gap-1 px-2">
       <li v-for="connection in connections" :key="connection.id">
         <ConnectionRow :connection="connection" :selected="connection.id === selectedId" />
       </li>

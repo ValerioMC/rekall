@@ -188,7 +188,7 @@ async function backToList(): Promise<void> {
 
     <div class="grid min-h-0 flex-1 border-t border-border min-[960px]:grid-cols-[340px_minmax(0,1fr)]">
       <div
-        class="min-h-0 overflow-y-auto border-border min-[960px]:border-r"
+        class="min-h-0 overflow-y-auto border-border bg-surface/60 pb-4 min-[960px]:border-r"
         :class="selectedId ? 'hidden min-[960px]:block' : ''"
         data-testid="connections-list-pane"
       >
@@ -240,9 +240,13 @@ async function backToList(): Promise<void> {
         >
           <AppButton size="sm" variant="secondary" @click="select(null)">Back to connections</AppButton>
         </AppEmptyState>
-        <p v-else-if="store.loaded && sections.length" class="p-8 text-small text-text-subtle" data-testid="nothing-selected">
-          Select a connection to see its credential and who it is shared with.
-        </p>
+        <AppEmptyState
+          v-else-if="store.loaded && sections.length"
+          class="m-5"
+          title="Pick a connection"
+          description="Select one on the left to see its credential and who it is shared with."
+          data-testid="nothing-selected"
+        />
       </div>
     </div>
 

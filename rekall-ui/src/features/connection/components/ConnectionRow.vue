@@ -27,8 +27,8 @@ const sharing = computed(() => {
   <RouterLink v-slot="{ href, navigate }" :to="target" custom>
     <a
       :href="href"
-      class="focus-ring flex min-h-14 w-full flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-left transition-colors hover:bg-surface-raised max-sm:min-h-16"
-      :class="selected ? 'bg-surface-raised shadow-[inset_2px_0_0_var(--color-accent)]' : ''"
+      class="focus-ring flex min-h-14 w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-control py-2.5 pl-4 pr-3 text-left transition-colors max-sm:min-h-16"
+      :class="selected ? 'selected-row' : 'hover:bg-surface-raised'"
       :aria-current="selected ? 'true' : undefined"
       :data-connection-id="connection.id"
       data-connection-row
@@ -37,7 +37,7 @@ const sharing = computed(() => {
     >
       <span class="min-w-0 flex-1">
         <span class="block truncate text-body font-semibold text-text">{{ connection.title }}</span>
-        <span class="block line-clamp-2 break-all font-mono text-small text-text-subtle" data-testid="connection-scope">{{
+        <span class="block line-clamp-2 break-all font-mono text-caption text-text-subtle" data-testid="connection-scope">{{
           scopeOf(connection)
         }}</span>
       </span>
@@ -45,7 +45,7 @@ const sharing = computed(() => {
         <ConnectionCredentialState :credential-set-at="connection.credentialSetAt" :check-failed="checkFailed" />
         <span class="text-small text-text-subtle" data-testid="connection-sharing">{{ sharing }}</span>
       </span>
-      <AppBadge v-if="unshared" tone="warn" class="w-full" data-testid="connection-unshared">Not shared with any company</AppBadge>
+      <AppBadge v-if="unshared" tone="warn" dot class="w-full" data-testid="connection-unshared">Not shared with any company</AppBadge>
     </a>
   </RouterLink>
 </template>
