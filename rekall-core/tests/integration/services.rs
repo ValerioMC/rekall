@@ -200,6 +200,118 @@ async fn asking_for_running_on_an_open_step_is_a_start_and_a_claim_is_not() {
     assert!(!claimed.started);
 }
 
+// ------------------------------------------------------------------------------ commit only the session's files
+
+#[tokio::test]
+async fn a_file_modified_before_the_step_started_stays_out_of_the_claim_commit_and_is_named() {
+    let world = world().await;
+    let repo = ready_repo().await;
+    fs::write(repo.path().join("notes.txt"), "mine, unfinished").unwrap();
+    fs::write(repo.path().join(".env.local"), "SECRET=1").unwrap();
+    let project = world.project("vega", Some(&repo.path().to_string_lossy()), true).await;
+    let task = world.task(&project, "report-builder").await;
+    let step = world.step(&task, "Wire the export endpoint", 0, TaskStepState::Running).await;
+    world.services.step_snapshots.take(task.id, Some(step.id)).await;
+    fs::write(repo.path().join("export.ts"), "export").unwrap();
+
+    let outcome = world.services.auto_commit.after_step_claim(task.id, step.id, None).await.unwrap();
+
+    assert_eq!(outcome.status, AutoCommitStatus::Committed);
+    assert_eq!(git(repo.path(), &["show", "--name-only", "--format=", "HEAD"]), "export.ts");
+    assert_eq!(outcome.left_out, vec![".env.local".to_string(), "notes.txt".to_string()]);
+    assert!(outcome.describe().contains("Left out because they were already modified before this work started: .env.local, notes.txt."));
+    assert!(!outcome.describe().contains("No snapshot"));
+    let left = git(repo.path(), &["status", "--porcelain"]);
+    assert!(left.contains("?? notes.txt") && left.contains("?? .env.local"), "{left}");
+}
+
+#[tokio::test]
+async fn a_file_modified_before_the_start_and_edited_again_by_the_session_goes_in() {
+    let world = world().await;
+    let repo = ready_repo().await;
+    fs::write(repo.path().join("seed.txt"), "edited before").unwrap();
+    let project = world.project("vega", Some(&repo.path().to_string_lossy()), true).await;
+    let task = world.task(&project, "report-builder").await;
+    let step = world.step(&task, "First", 0, TaskStepState::Running).await;
+    world.services.step_snapshots.take(task.id, Some(step.id)).await;
+    fs::write(repo.path().join("seed.txt"), "edited before and by the session").unwrap();
+
+    let outcome = world.services.auto_commit.after_step_claim(task.id, step.id, None).await.unwrap();
+
+    assert_eq!(outcome.status, AutoCommitStatus::Committed);
+    assert_eq!(git(repo.path(), &["show", "--name-only", "--format=", "HEAD"]), "seed.txt");
+    assert!(outcome.left_out.is_empty());
+}
+
+#[tokio::test]
+async fn when_every_modified_file_was_there_before_nothing_is_committed_and_they_are_named() {
+    let world = world().await;
+    let repo = ready_repo().await;
+    fs::write(repo.path().join("notes.txt"), "mine").unwrap();
+    let project = world.project("vega", Some(&repo.path().to_string_lossy()), true).await;
+    let task = world.task(&project, "report-builder").await;
+    let step = world.step(&task, "First", 0, TaskStepState::Running).await;
+    world.services.step_snapshots.take(task.id, Some(step.id)).await;
+
+    let outcome = world.services.auto_commit.after_step_claim(task.id, step.id, None).await.unwrap();
+
+    assert_eq!(outcome.status, AutoCommitStatus::Skipped);
+    assert!(outcome.describe().contains("nothing of this work to commit"));
+    assert!(outcome.describe().contains("notes.txt"));
+    assert_eq!(git(repo.path(), &["log", "-1", "--format=%s"]), "seed");
+    assert!(world.services.commit_references.find_all().await.unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn without_a_snapshot_everything_is_committed_and_the_answer_says_so() {
+    let world = world().await;
+    let repo = ready_repo().await;
+    fs::write(repo.path().join("a.txt"), "a").unwrap();
+    fs::write(repo.path().join("b.txt"), "b").unwrap();
+    let project = world.project("vega", Some(&repo.path().to_string_lossy()), true).await;
+    let task = world.task(&project, "report-builder").await;
+    let step = world.step(&task, "First", 0, TaskStepState::Running).await;
+
+    let outcome = world.services.auto_commit.after_step_claim(task.id, step.id, None).await.unwrap();
+
+    assert_eq!(outcome.status, AutoCommitStatus::Committed);
+    assert_eq!(git(repo.path(), &["show", "--name-only", "--format=", "HEAD"]), "a.txt\nb.txt");
+    assert!(outcome.describe().contains("No snapshot of the folder from when this work started, so everything modified was committed."));
+}
+
+#[tokio::test]
+async fn the_generated_message_is_typed_from_the_committed_files_only() {
+    let world = world().await;
+    let repo = ready_repo().await;
+    fs::write(repo.path().join("unfinished.rs"), "fn main() {}").unwrap();
+    let project = world.project("vega", Some(&repo.path().to_string_lossy()), true).await;
+    let task = world.task(&project, "report-builder").await;
+    let step = world.step(&task, "Describe the export", 0, TaskStepState::Running).await;
+    world.services.step_snapshots.take(task.id, Some(step.id)).await;
+    fs::write(repo.path().join("README.md"), "docs").unwrap();
+
+    world.services.auto_commit.after_step_claim(task.id, step.id, None).await.unwrap();
+
+    assert!(git(repo.path(), &["log", "-1", "--format=%s"]).starts_with("docs: "));
+}
+
+#[tokio::test]
+async fn the_wrapup_of_a_task_with_no_steps_commits_only_what_changed_since_it_started() {
+    let world = world().await;
+    let repo = ready_repo().await;
+    fs::write(repo.path().join("notes.txt"), "mine").unwrap();
+    let project = world.project("vega", Some(&repo.path().to_string_lossy()), true).await;
+    let task = world.task(&project, "fix-typo").await;
+    world.services.step_snapshots.take(task.id, None).await;
+    fs::write(repo.path().join("README.md"), "fixed").unwrap();
+
+    let outcome = world.services.auto_commit.after_wrapup(task.id, None).await.unwrap();
+
+    assert_eq!(outcome.status, AutoCommitStatus::Committed);
+    assert_eq!(git(repo.path(), &["show", "--name-only", "--format=", "HEAD"]), "README.md");
+    assert_eq!(outcome.left_out, vec!["notes.txt".to_string()]);
+}
+
 // ------------------------------------------------------------------------------ auto-commit
 
 async fn ready_repo() -> tempfile::TempDir {

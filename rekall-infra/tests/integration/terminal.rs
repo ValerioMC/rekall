@@ -310,11 +310,7 @@ async fn work_that_starts_running_is_snapshotted_once_and_again_only_after_it_is
     let project = enabled.update(world.db()).await.unwrap();
     let task = world.task(&project, "one").await;
     let step = world.step(&task, "First", 0, TaskStepState::Open).await;
-    let marker = rekall_infra::session::WorkMarker::new(
-        world.services.steps.clone(),
-        world.services.review.clone(),
-        world.services.step_snapshots.clone(),
-    );
+    let marker = world.work_marker();
 
     marker.mark_running(Some(task.id), Some(step.id)).await;
     std::fs::write(folder.join("during.txt"), "the session's own file").unwrap();

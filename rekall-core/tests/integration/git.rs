@@ -45,14 +45,15 @@ async fn a_clean_tree_has_no_pending_change() {
 }
 
 #[tokio::test]
-async fn commits_everything_with_the_multi_line_message_and_returns_the_new_tip() {
+async fn commits_the_given_paths_with_the_multi_line_message_and_returns_the_new_tip() {
     let repo = tempfile::tempdir().unwrap();
     let repo = repo.path();
     init_with_identity(repo);
     fs::write(repo.join("a.txt"), "a").unwrap();
     fs::write(repo.join("b.txt"), "b").unwrap();
+    let changes = GitCommitter.pending_changes(repo).await.unwrap();
 
-    let hash = GitCommitter.commit_all(repo, "feat: the subject\n\nproject:vega task:x\n2 files: 2 added\n").await.unwrap();
+    let hash = GitCommitter.commit_paths(repo, &changes, "feat: the subject\n\nproject:vega task:x\n2 files: 2 added\n").await.unwrap();
 
     assert_eq!(hash, git(repo, &["rev-parse", "HEAD"]));
     assert_eq!(git(repo, &["log", "-1", "--format=%s"]), "feat: the subject");
@@ -68,8 +69,9 @@ async fn a_folder_that_is_not_a_repository_is_refused_with_gits_reason_and_nothi
     fs::write(folder.join("a.txt"), "a").unwrap();
     let pending = GitCommitter.pending_changes(folder).await.unwrap_err();
     assert!(pending.message().contains("Could not read the working tree"), "{pending}");
-    let staged = GitCommitter.commit_all(folder, "feat: nowhere").await.unwrap_err();
-    assert!(staged.message().contains("Could not stage"), "{staged}");
+    let changes = vec![PendingChange::new(PendingChangeKind::Added, "a.txt")];
+    let staged = GitCommitter.commit_paths(folder, &changes, "feat: nowhere").await.unwrap_err();
+    assert!(staged.message().contains("Could not find the repository root"), "{staged}");
     assert!(!folder.join(".git").exists());
 }
 
@@ -262,4 +264,66 @@ async fn the_inspector_counts_the_commits_made_since_a_given_one() {
 
     assert_eq!(GitRepositoryInspector.commits_since(repo, &seed).await, Some(2));
     assert_eq!(GitRepositoryInspector.commits_since(repo, "0123456789abcdef0123456789abcdef01234567").await, None, "a commit git does not know");
+}
+
+#[tokio::test]
+async fn only_the_given_paths_are_committed_and_the_rest_stays_modified_or_staged() {
+    let repo = tempfile::tempdir().unwrap();
+    let repo = repo.path();
+    init_with_identity(repo);
+    fs::write(repo.join("mine.txt"), "mine").unwrap();
+    fs::write(repo.join("theirs.txt"), "theirs").unwrap();
+    fs::write(repo.join("staged.txt"), "staged").unwrap();
+    git(repo, &["add", "staged.txt"]);
+    let pending = GitCommitter.pending_changes(repo).await.unwrap();
+    let mine: Vec<PendingChange> = pending.into_iter().filter(|change| change.path == "mine.txt").collect();
+
+    GitCommitter.commit_paths(repo, &mine, "feat: only mine").await.unwrap();
+
+    assert_eq!(git(repo, &["show", "--name-only", "--format=", "HEAD"]), "mine.txt");
+    let left = git(repo, &["status", "--porcelain"]);
+    assert!(left.contains("A  staged.txt"), "{left}");
+    assert!(left.contains("?? theirs.txt"), "{left}");
+}
+
+#[tokio::test]
+async fn deleted_and_renamed_files_are_committed_by_name_too() {
+    let repo = tempfile::tempdir().unwrap();
+    let repo = repo.path();
+    init_with_identity(repo);
+    fs::write(repo.join("gone.txt"), "gone").unwrap();
+    fs::write(repo.join("old name.txt"), "renamed").unwrap();
+    git(repo, &["add", "-A"]);
+    commit(repo, "seed");
+    fs::remove_file(repo.join("gone.txt")).unwrap();
+    git(repo, &["mv", "old name.txt", "new name.txt"]);
+    let pending = GitCommitter.pending_changes(repo).await.unwrap();
+
+    GitCommitter.commit_paths(repo, &pending, "refactor: rename and delete").await.unwrap();
+
+    assert!(git(repo, &["status", "--porcelain"]).is_empty());
+    let shown = git(repo, &["show", "--name-status", "--format=", "HEAD"]);
+    assert!(shown.contains("D\tgone.txt"), "{shown}");
+    assert!(shown.contains("new name.txt"), "{shown}");
+}
+
+#[tokio::test]
+async fn a_file_name_with_spaces_or_accents_is_staged_by_its_real_name() {
+    let repo = tempfile::tempdir().unwrap();
+    let repo = repo.path();
+    init_with_identity(repo);
+    fs::write(repo.join("a b.txt"), "x").unwrap();
+    fs::write(repo.join("é[1].txt"), "y").unwrap();
+    let pending = GitCommitter.pending_changes(repo).await.unwrap();
+    assert_eq!(pending.iter().map(|change| change.path.as_str()).collect::<Vec<_>>(), vec!["a b.txt", "é[1].txt"]);
+
+    GitCommitter.commit_paths(repo, &pending, "feat: odd names").await.unwrap();
+
+    assert!(git(repo, &["status", "--porcelain"]).is_empty());
+}
+
+#[tokio::test]
+async fn no_code_stages_with_add_dash_a() {
+    let source = fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/commit/git/git_committer.rs")).unwrap();
+    assert!(!source.contains("\"-A\""), "git_committer.rs must never stage with -A");
 }

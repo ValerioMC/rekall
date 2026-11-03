@@ -13,7 +13,7 @@ use rekall_infra::connection::CredentialBroker;
 use rekall_infra::credentials::ClaudeCredentials;
 use rekall_infra::login_shell::LoginShellEnvironment;
 use rekall_infra::pty::{PtyTerminalManager, PtyTerminals, SessionRelay};
-use rekall_infra::session::SessionHosts;
+use rekall_infra::session::{SessionHosts, WorkMarker};
 use rekall_core::claude::TerminalHost;
 use rekall_core::queue::RunQueueService;
 use rekall_infra::queue::RunQueueRunner;
@@ -136,12 +136,11 @@ impl Instance {
             format!("http://127.0.0.1:{served_port}"),
             config.home.join(CREDENTIAL_SESSIONS_FOLDER),
         ));
+        let work_marker = WorkMarker::new(services.steps.clone(), services.review.clone(), services.step_snapshots.clone());
         let terminals = PtyTerminalManager::new(
             services.terminal_launch.clone(),
             cli.clone(),
-            services.steps.clone(),
-            services.review.clone(),
-            services.step_snapshots.clone(),
+            work_marker.clone(),
             broker.clone(),
             TelemetrySettingsService::new(ctx.clone(), secrets.clone()),
             claude_config,
@@ -149,9 +148,7 @@ impl Instance {
         let chats = ChatSessionManager::new(
             services.terminal_launch.clone(),
             cli,
-            services.steps.clone(),
-            services.review.clone(),
-            services.step_snapshots.clone(),
+            work_marker.clone(),
             broker.clone(),
             TelemetrySettingsService::new(ctx.clone(), secrets.clone()),
             claude_config,

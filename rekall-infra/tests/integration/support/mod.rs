@@ -13,6 +13,7 @@ use rekall_infra::cli::{ClaudeCli, EnvironmentSource};
 use rekall_infra::connection::CredentialBroker;
 use rekall_core::claude::TerminalListener;
 use rekall_infra::pty::PtyTerminalManager;
+use rekall_infra::session::WorkMarker;
 use rekall_infra::ClaudeConfig;
 use rekall_kernel::{Id, Instant};
 use rekall_store::{company, project, task, task_step, ProjectStatus, TaskStepState};
@@ -92,6 +93,10 @@ impl World {
         TelemetrySettingsService::new(self.services.ctx.clone(), self.secrets.clone())
     }
 
+    pub fn work_marker(&self) -> WorkMarker {
+        WorkMarker::new(self.services.steps.clone(), self.services.review.clone(), self.services.step_snapshots.clone())
+    }
+
     pub fn terminals(&self, max_sessions: usize) -> Arc<PtyTerminalManager> {
         self.terminals_with(max_sessions, self.broker("http://127.0.0.1:0"))
     }
@@ -102,9 +107,7 @@ impl World {
         PtyTerminalManager::new(
             self.services.terminal_launch.clone(),
             cli,
-            self.services.steps.clone(),
-            self.services.review.clone(),
-            self.services.step_snapshots.clone(),
+            self.work_marker(),
             broker,
             self.telemetry(),
             &config,

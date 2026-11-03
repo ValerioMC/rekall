@@ -19,8 +19,27 @@ fn a_deletion_staged_or_not_reads_as_deleted() {
 }
 
 #[test]
-fn a_rename_keeps_the_new_path() {
-    assert_eq!(PendingChange::parse("R  old.ts -> new.ts").unwrap(), PendingChange::new(PendingChangeKind::Renamed, "new.ts"));
+fn a_rename_is_the_new_path_renamed_and_the_old_path_deleted() {
+    let changes = PendingChange::parse_all("R  new.ts\0old.ts\0 M kept.ts\0").unwrap();
+    assert_eq!(
+        changes,
+        vec![
+            PendingChange::new(PendingChangeKind::Renamed, "new.ts"),
+            PendingChange::new(PendingChangeKind::Deleted, "old.ts"),
+            PendingChange::new(PendingChangeKind::Modified, "kept.ts"),
+        ]
+    );
+}
+
+#[test]
+fn paths_with_spaces_and_accents_arrive_unquoted() {
+    let changes = PendingChange::parse_all("?? a b.txt\0?? é.txt\0").unwrap();
+    assert_eq!(changes.iter().map(|change| change.path.as_str()).collect::<Vec<_>>(), vec!["a b.txt", "é.txt"]);
+}
+
+#[test]
+fn nothing_pending_is_no_change() {
+    assert!(PendingChange::parse_all("").unwrap().is_empty());
 }
 
 #[test]

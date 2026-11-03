@@ -2,7 +2,7 @@ use rekall_kernel::{jstr, RekallError, Result};
 
 use super::PendingChangeKind;
 
-/// One line of `git status --porcelain`: what the working tree holds that HEAD does not.
+/// One entry of `git status --porcelain -z`: what the working tree holds that HEAD does not.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PendingChange {
     pub kind: PendingChangeKind,
@@ -14,21 +14,36 @@ impl PendingChange {
         Self { kind, path: path.to_string() }
     }
 
-    /// Reads a porcelain v1 line (`XY path`, or `XY old -> new` for a rename). An untracked file
-    /// counts as added: `git add -A` is about to stage it.
-    pub fn parse(line: &str) -> Result<Self> {
-        if jstr::len(line) < 4 {
-            return Err(RekallError::illegal(format!("Unexpected git status line: '{line}'")));
+    /// Reads the output of `git status --porcelain -z`: entries end in NUL and paths are never
+    /// quoted. A rename is the new path followed by the old one, and counts as the new path
+    /// renamed plus the old path deleted, which is what staging it takes.
+    pub fn parse_all(output: &str) -> Result<Vec<Self>> {
+        let mut entries = output.split('\0').filter(|entry| !entry.is_empty());
+        let mut changes = Vec::new();
+        while let Some(entry) = entries.next() {
+            let change = Self::parse(entry)?;
+            let renamed = change.kind == PendingChangeKind::Renamed;
+            changes.push(change);
+            if !renamed {
+                continue;
+            }
+            if let Some(old_path) = entries.next() {
+                changes.push(Self::new(PendingChangeKind::Deleted, old_path));
+            }
         }
-        let mut chars = line.chars();
+        Ok(changes)
+    }
+
+    /// Reads one entry (`XY path`). An untracked file counts as added: it is about to be staged.
+    pub fn parse(entry: &str) -> Result<Self> {
+        if jstr::len(entry) < 4 {
+            return Err(RekallError::illegal(format!("Unexpected git status line: '{entry}'")));
+        }
+        let mut chars = entry.chars();
         let index = chars.next().unwrap_or(' ');
         let worktree = chars.next().unwrap_or(' ');
-        let path = jstr::suffix(line, 3);
+        let path = jstr::suffix(entry, 3);
         if index == 'R' || worktree == 'R' {
-            let path = match path.find(" -> ") {
-                Some(arrow) => &path[arrow + 4..],
-                None => path,
-            };
             return Ok(Self::new(PendingChangeKind::Renamed, path));
         }
         if index == '?' || index == 'A' || worktree == 'A' {
