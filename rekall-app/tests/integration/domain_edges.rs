@@ -85,7 +85,7 @@ const CORE: LayeredCrate = LayeredCrate {
         ("token", &[]),
         ("version", &[]),
         ("vulnerability", &["catalog", "commit", "connection", "inventory"]),
-        ("wrapup", &["catalog", "review", "task"]),
+        ("wrapup", &["catalog", "commit", "review", "task"]),
     ],
     refuses_mutual_use: true,
 };

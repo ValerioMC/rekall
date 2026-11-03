@@ -55,7 +55,7 @@ impl Services {
             step_links,
             flow,
             flow_proposals,
-            wrapups: wrapup::WrapupService::new(ctx.clone(), review.clone()),
+            wrapups: wrapup::WrapupService::new(ctx.clone(), review.clone(), commit::GitRepositoryInspector),
             notes: note::NoteService::new(ctx.clone()),
             diagrams: diagram::DiagramService::new(ctx.clone()),
             sections: section::ProjectSectionService::new(ctx.clone()),

@@ -7,6 +7,7 @@ import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import AppModeToggle from '@/components/ui/AppModeToggle.vue'
 import LaunchClaudeCodeButton from '@/features/claude/components/LaunchClaudeCodeButton.vue'
 import WrapupHereDialog from '@/features/wrapup/components/WrapupHereDialog.vue'
+import WrapupVersionsPanel from '@/features/wrapup/components/WrapupVersionsPanel.vue'
 import TaskTitleRow from '@/features/catalog/components/TaskTitleRow.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
@@ -29,6 +30,7 @@ const wrapupHereOpen = ref(false)
 
 const { mode, openFor } = useEditorMode('read')
 const isConfirmingDelete = ref(false)
+const showingVersions = ref(false)
 
 const isDrafting = ref(false)
 const draft = ref('')
@@ -40,6 +42,7 @@ watch(
     if (saveTimer) clearTimeout(saveTimer)
     draft.value = selectedWrapup.value?.bodyMarkdown ?? ''
     isDrafting.value = false
+    showingVersions.value = false
     openFor(selectedWrapup.value?.bodyMarkdown ?? '')
   },
   { immediate: true }
@@ -71,6 +74,11 @@ function scheduleSave(): void {
   saveTimer = setTimeout(() => {
     void run(() => store.saveWrapupBody(task.id, draft.value))
   }, 700)
+}
+
+function adoptRestoredWrapup(): void {
+  draft.value = selectedWrapup.value?.bodyMarkdown ?? ''
+  showingVersions.value = false
 }
 
 function beginWriting(): void {
@@ -139,6 +147,18 @@ async function sendWrapupHere(message: string): Promise<void> {
           Wrapup here
         </AppButton>
 
+        <AppButton
+          v-if="!isEpic(selectedTask)"
+          variant="quiet"
+          size="sm"
+          :pressed="showingVersions"
+          data-testid="wrapup-versions-toggle"
+          title="The earlier texts of this wrapup"
+          @click="showingVersions = !showingVersions"
+        >
+          Versions
+        </AppButton>
+
         <div v-if="selectedWrapup" class="flex shrink-0 items-center gap-2">
           <AppModeToggle v-model="mode" />
           <AppButton variant="danger-quiet" size="sm" @click="isConfirmingDelete = true">Delete</AppButton>
@@ -188,7 +208,14 @@ async function sendWrapupHere(message: string): Promise<void> {
         </span>
       </div>
 
-      <div v-if="!selectedWrapup && !isDrafting" class="min-h-0 flex-1 overflow-y-auto">
+      <WrapupVersionsPanel
+        v-if="showingVersions"
+        :task-id="selectedTask.id"
+        :wrapup-updated-at="selectedWrapup?.updatedAt ?? null"
+        @restored="adoptRestoredWrapup"
+      />
+
+      <div v-else-if="!selectedWrapup && !isDrafting" class="min-h-0 flex-1 overflow-y-auto">
         <div class="max-w-[560px] px-9 py-12">
           <p class="eyebrow">
             Wrapup
@@ -245,7 +272,7 @@ async function sendWrapupHere(message: string): Promise<void> {
         v-if="isConfirmingDelete && selectedTask"
         :title="`Delete the wrapup on ${selectedTask.title}?`"
         body="The task and its notes stay. What goes is the description of where the implementation currently stands."
-        blast="not kept anywhere · the next `/rk … wrapup` starts from nothing"
+        blast="its earlier texts stay in Versions · the next `/rk … wrapup` starts from nothing"
         confirm-label="Delete wrapup"
         @cancel="isConfirmingDelete = false"
         @confirm="confirmDelete"

@@ -85,8 +85,8 @@ impl McpTool for WrapupTool {
         );
         if written.replaced == Some(WrapupAuthor::Hand) {
             out.push_str(
-                "\nThe version you replaced had been edited by hand in the console, and nothing keeps it. If that edit \
-                 said something this one does not, it is gone. Tell them.\n",
+                "\nThe version you replaced had been edited by hand in the console. The previous text is kept in the \
+                 task's Versions there. If that edit said something this one does not, tell them.\n",
             );
         }
         out.push_str(&format!("\nIt is what `/rk {}` will load from now on.", written.wrapup.anchor));

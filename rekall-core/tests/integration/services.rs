@@ -753,6 +753,95 @@ async fn a_search_in_an_unknown_project_is_refused() {
     assert!(world.services.search.search_in_project(Some("settlement"), "nowhere").await.is_err());
 }
 
+// ------------------------------------------------------------------------------ wrapup versions
+
+async fn write_wrapup(world: &support::World, task: &str, body: &str, author: rekall_store::WrapupAuthor) {
+    world.services.wrapups.write_by_anchor(Some("vega"), task, Some(body), author).await.unwrap();
+}
+
+#[tokio::test]
+async fn each_change_of_a_wrapup_text_keeps_a_version_newest_first_and_an_unchanged_text_keeps_none() {
+    use rekall_store::WrapupAuthor::{Claude, Hand};
+
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let task = world.task(&project, "export").await;
+
+    write_wrapup(&world, "export", "First state.", Claude).await;
+    write_wrapup(&world, "export", "Second state.", Hand).await;
+    write_wrapup(&world, "export", "Second state.", Claude).await;
+
+    let versions = world.services.wrapups.versions(task.id).await.unwrap();
+    let kept: Vec<(i32, rekall_store::WrapupAuthor, usize)> = versions.iter().map(|v| (v.number, v.written_by, v.length)).collect();
+    assert_eq!(kept, [(2, Hand, 13), (1, Claude, 12)]);
+    let whole = world.services.wrapups.version(task.id, versions[1].id).await.unwrap();
+    assert_eq!(whole.body_markdown, "First state.");
+    assert_eq!(whole.version.preview, "First state.");
+}
+
+#[tokio::test]
+async fn only_the_last_twenty_versions_stay() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let task = world.task(&project, "export").await;
+
+    for number in 1..=21 {
+        write_wrapup(&world, "export", &format!("State {number}."), rekall_store::WrapupAuthor::Claude).await;
+    }
+
+    let versions = world.services.wrapups.versions(task.id).await.unwrap();
+    assert_eq!(versions.len(), 20);
+    assert_eq!((versions[0].number, versions[19].number), (21, 2));
+}
+
+#[tokio::test]
+async fn restoring_an_old_text_is_a_new_wrapup_and_a_new_version() {
+    use rekall_store::WrapupAuthor::{Claude, Hand};
+
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let task = world.task(&project, "export").await;
+    write_wrapup(&world, "export", "Old state.", Claude).await;
+    write_wrapup(&world, "export", "Bad rewrite.", Claude).await;
+    let old = world.services.wrapups.versions(task.id).await.unwrap().pop().unwrap();
+    let restored_text = world.services.wrapups.version(task.id, old.id).await.unwrap().body_markdown;
+
+    world.services.wrapups.write(task.id, Some(&restored_text), Hand).await.unwrap();
+
+    assert_eq!(world.services.wrapups.find(task.id).await.unwrap().unwrap().body_markdown, "Old state.");
+    let versions = world.services.wrapups.versions(task.id).await.unwrap();
+    assert_eq!((versions.len(), versions[0].number, versions[0].written_by), (3, 3, Hand));
+}
+
+#[tokio::test]
+async fn deleting_a_wrapup_keeps_its_versions_and_a_version_of_another_task_is_not_found() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let export = world.task(&project, "export").await;
+    let other = world.task(&project, "import").await;
+    write_wrapup(&world, "export", "Export state.", rekall_store::WrapupAuthor::Claude).await;
+
+    world.services.wrapups.delete(export.id).await.unwrap();
+
+    let versions = world.services.wrapups.versions(export.id).await.unwrap();
+    assert_eq!(versions.len(), 1);
+    assert!(world.services.wrapups.version(other.id, versions[0].id).await.is_err());
+}
+
+#[tokio::test]
+async fn a_version_records_the_commit_the_project_was_at() {
+    let world = world().await;
+    let repo = ready_repo().await;
+    let project = world.project("vega", Some(&repo.path().to_string_lossy()), false).await;
+    let task = world.task(&project, "export").await;
+    world.project("orion", None, false).await;
+
+    write_wrapup(&world, "export", "State.", rekall_store::WrapupAuthor::Claude).await;
+
+    let versions = world.services.wrapups.versions(task.id).await.unwrap();
+    assert_eq!(versions[0].commit_hash.as_deref(), Some(git(repo.path(), &["rev-parse", "HEAD"]).as_str()));
+}
+
 // ------------------------------------------------------------------------------ send back
 
 #[tokio::test]

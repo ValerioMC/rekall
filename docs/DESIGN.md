@@ -196,7 +196,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `token` | `step`, `task` | nothing | - | nothing | - |
 | `version` | - | nothing | nothing | nothing | - |
 | `vulnerability` | `catalog`, `task` | `catalog`, `commit`, `connection`, `inventory` | `catalog`, `step`, `task` | `catalog` | nothing |
-| `wrapup` | `task` | `catalog`, `review`, `task` | - | nothing | `commit` |
+| `wrapup` | `task` | `catalog`, `commit`, `review`, `task` | - | nothing | `commit` |
 
 Each crate's foundations are modules every domain may use and are no domain: `ctx`, `events`,
 `load`, `services`, `text_rule` and `tx` in `rekall-core`; `constraints`, `enums`, `prelude`,
@@ -397,7 +397,7 @@ does, because the notes describe how things were decided and never what they bec
 |---|---|
 | Its own table, not a `document` with `kind = 'wrapup'` | A document is attached to any number of tasks by construction. That is exactly the shape a wrapup must not have: there is one answer to "what does this task do now", and a row that could hang off three tasks is three answers waiting to disagree |
 | `task_id` is `NOT NULL` and unique | "One per task" is then a constraint. A service check reads the table and then writes it, and the two writers this application now has can interleave between those two statements |
-| Replaced whole, never appended to, no history | A wrapup that accumulated would become the log it is defined against. The previous version is not kept, which is the cost, and it is why overwriting one that was edited by hand is announced |
+| Replaced whole, never appended to; each text kept as a version beside it | A wrapup that accumulated would become the log it is defined against, so the row is one text. `wrapup_version` keeps the last 20 texts per task (`number`, author, the project's `HEAD` when written), written in the transaction that replaces the row, so a rewrite that goes wrong or overwrites a hand edit can be read and restored from the task page. A session never reads them: `rekall_context` carries only the current text, since an old one would be taken for a fact |
 | Capped at 20,000 characters, against 100,000 for a note | The cap is where a wrapup that has turned into a log gets caught. If the state of the work does not fit on a screen, what is being written is the process |
 | `written_by` is `CLAUDE` or `HAND`, stamped by the transport | The console cannot claim to be Claude and the tool cannot claim to be you: the API stamps `HAND` on anything arriving over HTTP and the tool stamps `CLAUDE` on anything arriving over MCP. A field a client could set is a field that says nothing |
 | `ON DELETE CASCADE` on the task, unlike a note | A note may matter to other tasks and is unlinked. A wrapup describes one task and has no meaning anywhere else |

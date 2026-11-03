@@ -84,7 +84,8 @@ A line or two on each piece, what it is there for and what it decides.
   directory tree. That is in the code, it is longer than the wrapup, and it is wrong a week later.
 - Where there is a rule, the rule is the point. What it decides, on what, what happens at the edges,
   what is refused and why. A class name says there is a service; only the wrapup says that
-  overwriting a wrapup edited by hand is announced because nothing keeps the text it replaced.
+  overwriting a wrapup edited by hand is announced, because only a person can read the text it
+  replaced, from the Versions panel in the console.
 
 **Shape it to be scanned.** The kind of information chooses the form:
 
@@ -102,4 +103,4 @@ It fits on one screen: about 300 words suits most tasks. Past 600 the tool says 
 text is carrying history or detail that belongs in a note.
 
 If the tool answers that the version you replaced had been edited by hand, tell me: those were my
-words, and nothing keeps them any more.
+words, and only the Versions panel in the console still holds them.

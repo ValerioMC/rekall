@@ -2,6 +2,8 @@
 //! whole, capped at 20,000 characters.
 
 pub mod wrapup_repository;
+pub mod wrapup_version;
+pub mod wrapup_version_repository;
 
 use rekall_kernel::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;

@@ -27,6 +27,7 @@ Company ──< Project ──< Task >──< Document
 | `StepLink` | through its task | the step it leaves, the step it leads to, its outcome (a slug, unique per step), position. Deleted with either step |
 | `StepVisit` | through its task | the step entered, its move number in the task, when it was entered and left, the outcome it left by and what it reported. The open one is where the flow stands |
 | `Wrapup` | through its task | markdown body, who wrote it last. One per task |
+| `WrapupVersion` | through its task | a past text of the wrapup: number, markdown body, who wrote it, when, the project's `HEAD` then. The last 20 per task, kept when the wrapup is deleted |
 | `Tag` | `name`, unique | icon key, glow-colour key, the tasks currently wearing it |
 | `TokenUsage` | through its task | the input, output, cache-write and cache-read tokens one Claude Code session spent on the task or one of its steps on one UTC day. Rewritten whole each time that session's transcript is read; `transcript_scan` remembers how much of each transcript was read |
 | `ProjectDependency` | through its project | ecosystem, name, exact version, the file that declares it. Unique per project, ecosystem, name and version; replaced whole by `rekall_inventory` |

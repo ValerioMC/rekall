@@ -26,5 +26,6 @@ pub use crate::timeentry::repository::time_entry_repository as time_entry;
 pub use crate::token::{repository::token_usage_repository as token_usage, repository::transcript_scan_repository as transcript_scan};
 pub use crate::vulnerability::{repository::scan_scope_repository as scan_scope, repository::security_advisory_repository as security_advisory, repository::vulnerability_exposure_repository as vulnerability_exposure};
 pub use crate::wrapup::wrapup_repository as wrapup;
+pub use crate::wrapup::wrapup_version_repository as wrapup_version;
 pub use crate::query_support::{at_most_one, contains_ignore_case, equals_ignore_case};
 pub use crate::stamped_update::update_if_changed;

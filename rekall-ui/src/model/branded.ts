@@ -8,6 +8,7 @@ export type StepLinkId = Brand<string, 'StepLinkId'>
 export type StepVisitId = Brand<string, 'StepVisitId'>
 export type DocumentId = Brand<string, 'DocumentId'>
 export type WrapupId = Brand<string, 'WrapupId'>
+export type WrapupVersionId = Brand<string, 'WrapupVersionId'>
 export type TimeEntryId = Brand<string, 'TimeEntryId'>
 export type TerminalId = Brand<string, 'TerminalId'>
 export type TagId = Brand<string, 'TagId'>
@@ -32,6 +33,7 @@ export const asStepLinkId = (value: string): StepLinkId => value as StepLinkId
 export const asStepVisitId = (value: string): StepVisitId => value as StepVisitId
 export const asDocumentId = (value: string): DocumentId => value as DocumentId
 export const asWrapupId = (value: string): WrapupId => value as WrapupId
+export const asWrapupVersionId = (value: string): WrapupVersionId => value as WrapupVersionId
 export const asTimeEntryId = (value: string): TimeEntryId => value as TimeEntryId
 export const asTerminalId = (value: string): TerminalId => value as TerminalId
 export const asTagId = (value: string): TagId => value as TagId

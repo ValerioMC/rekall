@@ -1,23 +1,44 @@
-use rekall_kernel::{Id, RekallError, Result};
-use rekall_store::wrapup::{self, MAX_CHARACTERS};
+use std::path::Path;
+
+use rekall_kernel::{jstr, Id, RekallError, Result};
+use rekall_store::wrapup::{self, wrapup_version, MAX_CHARACTERS};
 use rekall_store::{task, WrapupAuthor};
 use rekall_store::repository as repo;
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
+use crate::commit::GitRepositoryInspector;
 use crate::review::TaskReviewService;
 use crate::{in_read, in_write, load, text_rule, Ctx, Tx};
 
-use crate::wrapup::{WrapupStreamEvent, WrapupView, Written};
+use crate::wrapup::{WrapupStreamEvent, WrapupVersionDetail, WrapupVersionView, WrapupView, Written};
 
 #[derive(Clone)]
 pub struct WrapupService {
     ctx: Ctx,
     review: TaskReviewService,
+    repositories: GitRepositoryInspector,
 }
 
 impl WrapupService {
-    pub fn new(ctx: Ctx, review: TaskReviewService) -> Self {
-        Self { ctx, review }
+    pub fn new(ctx: Ctx, review: TaskReviewService, repositories: GitRepositoryInspector) -> Self {
+        Self { ctx, review, repositories }
+    }
+
+    /// Newest first. Outlives the wrapup: deleting the wrapup keeps its versions.
+    pub async fn versions(&self, task_id: Id) -> Result<Vec<WrapupVersionView>> {
+        in_read!(&self.ctx, |tx| {
+            load::task_or_unknown(tx.db(), task_id).await?;
+            let versions = repo::wrapup_version::list_of_task_newest_first(tx.db(), task_id).await?;
+            Ok::<_, RekallError>(versions.iter().map(WrapupVersionView::of).collect())
+        })
+    }
+
+    pub async fn version(&self, task_id: Id, version_id: Id) -> Result<WrapupVersionDetail> {
+        in_read!(&self.ctx, |tx| {
+            let found = repo::wrapup_version::find_of_task(tx.db(), task_id, version_id).await?;
+            let version = found.ok_or_else(|| RekallError::not_found_msg("This task has no such wrapup version"))?;
+            Ok::<_, RekallError>(WrapupVersionDetail::of(&version))
+        })
     }
 
     pub async fn find(&self, task_id: Id) -> Result<Option<WrapupView>> {
@@ -57,30 +78,58 @@ impl WrapupService {
         body: Option<&str>,
         author: WrapupAuthor,
     ) -> Result<Written> {
+        let folder = in_read!(&self.ctx, |tx| {
+            let task = load::resolve_task(tx.db(), project_label, task_label).await?;
+            project_folder_of(&tx, &task).await
+        })?;
+        let head = self.head_in(folder).await;
         in_write!(&self.ctx, |tx| {
             let task = load::resolve_task(tx.db(), project_label, task_label).await?;
-            self.write_in(&mut tx, task, body, author).await
+            self.write_in(&mut tx, task, body, author, head).await
         })
     }
 
     /// The console path: a task named by its id.
     pub async fn write(&self, task_id: Id, body: Option<&str>, author: WrapupAuthor) -> Result<Written> {
+        let folder = in_read!(&self.ctx, |tx| {
+            let task = load::task_or_unknown(tx.db(), task_id).await?;
+            project_folder_of(&tx, &task).await
+        })?;
+        let head = self.head_in(folder).await;
         in_write!(&self.ctx, |tx| {
             let task = load::task_or_unknown(tx.db(), task_id).await?;
-            self.write_in(&mut tx, task, body, author).await
+            self.write_in(&mut tx, task, body, author, head).await
         })
     }
 
-    async fn write_in(&self, tx: &mut Tx, task: task::Model, body: Option<&str>, author: WrapupAuthor) -> Result<Written> {
+    async fn head_in(&self, folder: Option<String>) -> Option<String> {
+        let folder = folder.filter(|folder| !jstr::is_blank(folder))?;
+        self.repositories.head(Path::new(jstr::strip(&folder))).await
+    }
+
+    async fn write_in(
+        &self,
+        tx: &mut Tx,
+        task: task::Model,
+        body: Option<&str>,
+        author: WrapupAuthor,
+        head: Option<String>,
+    ) -> Result<Written> {
         let text = validated(body)?;
         let project = load::project_of(tx.db(), &task).await?;
-        let (current, replaced) = match repo::wrapup::find_of_task(tx.db(), task.id).await? {
-            None => (self.create(tx, task.id, text, author).await?, None),
+        let (current, replaced, text_changed) = match repo::wrapup::find_of_task(tx.db(), task.id).await? {
+            None => (self.create(tx, task.id, text, author).await?, None, true),
             Some(before) => {
                 let previous = before.written_by;
-                (self.replace(tx, before, text, author).await?, Some(previous))
+                let earlier_text = before.body_markdown.clone();
+                let after = self.replace(tx, before, text, author).await?;
+                let changed = after.body_markdown != earlier_text;
+                (after, Some(previous), changed)
             }
         };
+        if text_changed {
+            self.keep_version(tx, &current, head).await?;
+        }
         let written = Written { wrapup: WrapupView::of(&current, &task, &project), created: replaced.is_none(), replaced };
         // A Claude-authored wrapup advances a stepless task's review line to CLAIMED; a
         // hand-written one does not.
@@ -110,6 +159,20 @@ impl WrapupService {
         repo::update_if_changed(tx.db(), &before, after, self.ctx.now()).await
     }
 
+    async fn keep_version(&self, tx: &mut Tx, current: &wrapup::Model, head: Option<String>) -> Result<()> {
+        let version = wrapup_version::Model {
+            id: Id::random(),
+            task_id: current.task_id,
+            number: 0,
+            body_markdown: current.body_markdown.clone(),
+            written_by: current.written_by,
+            written_at: self.ctx.now(),
+            commit_hash: head,
+        };
+        repo::wrapup_version::append(tx.db(), version).await?;
+        Ok(())
+    }
+
     pub async fn delete(&self, task_id: Id) -> Result<()> {
         in_write!(&self.ctx, |tx| {
             if let Some(found) = repo::wrapup::find_of_task(tx.db(), task_id).await? {
@@ -119,6 +182,10 @@ impl WrapupService {
             Ok::<_, RekallError>(())
         })
     }
+}
+
+async fn project_folder_of(tx: &Tx, task: &task::Model) -> Result<Option<String>> {
+    Ok(load::project_of(tx.db(), task).await?.repo_folder)
 }
 
 fn validated(body: Option<&str>) -> Result<String> {
