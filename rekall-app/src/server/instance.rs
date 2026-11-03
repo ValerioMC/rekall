@@ -38,7 +38,7 @@ use rekall_infra::restart::Restarter;
 use rekall_core::connection::ConnectionProbe;
 use rekall_infra::jira::HttpJiraIssues;
 use rekall_infra::probes::HttpConnectionProbe;
-use rekall_infra::secret::{FileSecretStore, KeychainSecretStore};
+use rekall_infra::secret::{protected_references, FileSecretStore, KeychainSecretStore, SECRETS_FILE};
 use crate::security::{self, LocalAccess};
 use crate::spa::{self, Assets};
 use crate::actuator;
@@ -50,7 +50,6 @@ use super::StartOptions;
 
 /// Under `rekall.home`: one folder of credential helpers per live terminal, emptied at every start.
 const CREDENTIAL_SESSIONS_FOLDER: &str = "terminal-credentials";
-const SECRETS_FILE: &str = "secrets.json";
 
 /// How often open timers are checked against [`IDLE_AFTER`].
 const IDLE_SWEEP_EVERY: Duration = Duration::from_secs(60);
@@ -222,6 +221,7 @@ impl Instance {
             restore: Arc::new(restorer),
             database_folders: Arc::new(DatabaseFolderRegistry::new(DatabaseRegistryStore::new(&config.home), config.user_home.clone())),
             restart: Arc::new(restarter),
+            protected_credential_references: protected_references(&config.home, &config.user_home),
             release_feed: config.update_check.enabled.then_some(release_feed),
         };
         let api = ApiState::new(services.clone(), stream.clone(), config.user_home.clone(), vulnerability_scans.clone(), scan_settings, ports);

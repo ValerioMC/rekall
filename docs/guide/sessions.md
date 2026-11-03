@@ -50,6 +50,31 @@ A session can also be shown as a chat. It is the same `claude`, started without 
 
 Tokens are counted from the transcripts either way, and the token chip counts a chat session's work. Whether chat spends more or fewer tokens than a terminal has not been measured; `scripts/session_shape.py` compares them by session type, and a first run on a very small sample, with no cold turn on either side, says nothing about cache expiry (see [claude-and-tokens](../design/claude-and-tokens.md)).
 
+## Guard command
+
+`rekall-server guard before-tool` and `rekall-server guard before-stop` are the programs Claude Code
+runs as a `PreToolUse` and a `Stop` hook. Each reads the hook's JSON on standard input, asks the
+running Rekall for the context of the session's folder, and exits 0 to let the action go ahead or 2 to
+block it with the reason on standard error.
+
+- On an `auto-commit` project it blocks `git commit`, `git push` and `git add` (also after `&&`, in a
+  subshell or in `sh -c`), because Rekall commits when a step is claimed.
+- On every project it blocks a tool call that names Rekall's credential file, Claude Code's credential
+  file or the credential helpers' endpoint.
+- On `Stop` it blocks while a step of the folder's project is running and unclaimed, once: the next `Stop`
+  goes through so the session can explain why it could not claim.
+
+It lets the action through, and writes a line to `<rekall.home>/guard.log`, when Rekall does not answer
+within a second, when the input cannot be read or when a command has an unclosed quote. The port is
+`server.port` (`SERVER_PORT`), as for the server. Try it by hand:
+
+```
+echo '{"cwd":"/path/to/project","tool_name":"Bash","tool_input":{"command":"git commit -m x"}}' | rekall-server guard before-tool; echo $?
+```
+
+Registering the hooks in `~/.claude/settings.json` is done from Settings. The design is in
+[write-safety](../design/write-safety.md).
+
 ## Run queue
 
 The run queue works through a list of tasks without you: each one in its own terminal, one after another, until everything on it is claimed. It opens from the dial next to the usage meter in the top bar, or `q`. The dial is also its status: three bars when idle, a clock hand at the start time when scheduled, an orbiting comet with `2/5` while running, and a ring stopped at the ceiling with the time it resumes while holding. When the running task has a checklist the comet becomes a ring of one slice per step: claimed steps filled, the current one lighter and pulsing, the rest hairline (a flow's not-needed steps have no slice, and above 12 steps the ring is one arc filled in proportion). From 1680px the figure adds `step 3/6`, and the tooltip always reads in full, for example "Run queue: running Report, task 2 of 5, step 3 of 6". A strand of beads shows each task in the run.

@@ -9,16 +9,21 @@ use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
 async fn main() -> ExitCode {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.first().is_some_and(|word| word == "guard") {
+        return rekall_app::guard_command::execute(&args[1..]).await;
+    }
+
     tracing_subscriber::fmt()
         .with_env_filter(
             EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info,sqlx=warn,sea_orm=warn,sea_orm_migration=warn")),
         )
         .init();
 
-    let args: Vec<String> = std::env::args().skip(1).collect();
     if args.iter().any(|a| a == "--help" || a == "-h") {
         println!(
             "rekall-server [--server.port=N] [--rekall.home=DIR] [--<property>=<value> ...]\n\
+             rekall-server guard before-tool|before-stop   (a Claude Code hook; reads its event on stdin)\n\
              \n\
              Properties can also be set as environment variables (SERVER_PORT, REKALL_HOME, REKALL_DB_URL, ...)."
         );

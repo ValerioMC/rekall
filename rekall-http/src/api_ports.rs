@@ -27,6 +27,8 @@ pub struct ApiPorts {
     pub restore: Arc<dyn DatabaseRestore>,
     pub database_folders: Arc<dyn DatabaseFolders>,
     pub restart: Arc<dyn ApplicationRestart>,
+    /// Paths and URL fragments a session must never read, copy or search: where credentials are kept.
+    pub protected_credential_references: Vec<String>,
     /// `None` when the update check is turned off, so it never reaches the network.
     pub release_feed: Option<Arc<dyn ReleaseFeed>>,
 }

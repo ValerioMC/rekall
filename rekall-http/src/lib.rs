@@ -21,6 +21,7 @@ pub mod diagram;
 pub mod filesystem;
 pub mod flow;
 pub mod graph;
+pub mod guard;
 pub mod inventory;
 pub mod note;
 pub mod queue;

@@ -160,6 +160,35 @@ a sandbox: a command shaped differently (`kubectl config view --minify --raw`, a
 the endpoint) is not caught, and a session set on extracting a credential can still read
 `REKALL_CREDENTIAL_TOKEN` through a command the rules do not name.
 
+### The guard command
+
+Two rules that a session is only asked to follow have a program behind them: on an `auto-commit`
+project nothing runs `git commit`, `git push` or `git add` by hand, and nothing reads, copies or
+searches where credentials are kept. `rekall-server guard before-tool` and `guard before-stop`
+(`rekall-app/src/guard_command/`) are what Claude Code runs as a `PreToolUse` and a `Stop` hook:
+
+1. Claude Code writes the event to standard input (`cwd`, `tool_name`, `tool_input.command`, `file_path`
+   or `path`, and `stop_hook_active` on a `Stop`). The parser is `HookInput`.
+2. The command asks the running Rekall for `GET /api/guard/context?folder=<cwd>` (one request,
+   one-second timeout, the port from `AppConfig`). `GuardContextService` (`rekall-console`) answers
+   with the project that holds the folder (the innermost wins), its `auto_commit`, the first running
+   step as a number and a task anchor, and the credential locations to protect.
+3. `GuardService::decide` (`rekall-core/src/guard/`) returns `Allow` or `Block { reason }`. Exit code 0
+   lets the action go ahead; exit code 2 blocks it and the reason, on standard error, goes to the model.
+
+The credential locations are `<rekall.home>/secrets.json`, `~/.claude/.credentials.json` and the
+`/api/terminal/` prefix of the helper endpoint, built by `rekall-infra::secret::protected_references`
+from the same constants the stores and the broker use. A tool call that names one is blocked on every project.
+
+The command lets the action through when it cannot decide: an input it cannot parse, a command line with an
+unclosed quote, a Rekall that does not answer. It writes the reason to `<rekall.home>/guard.log`. A guard that failed
+closed would stop every session while the app is shut. A `Stop` that follows a block (`stop_hook_active`) is
+let through, so the session can explain why a step cannot be claimed instead of looping. The hooks reach
+only the first running step of a project, so a second session in the same project is blocked from
+stopping while another session's step is running. They are not a sandbox: a command built from a variable
+or a script that runs git is not recognised. Registering the hooks in Claude Code's `settings.json` is
+done from Settings, not by this command.
+
 The residual risk is real and small: Claude can overwrite one task's wrapup with something
 wrong, or with something that replaces a correction made by hand, and it can mark a step running
 or claimed when it is not. Nothing keeps the text a wrapup replaces, so the tool's answer announces

@@ -186,7 +186,7 @@ rekall-console/    the services only the console calls, commands in and views ou
 rekall-http/       Axum REST API for the UI, one folder per domain: controllers, request and response shapes, and the step event stream; `shared` holds the error body, request extractors and response helpers
 rekall-mcp/        MCP server, on rekall-core and never rekall-http: three tools read, fourteen write
 rekall-infra/      everything with a process, a file, a socket or outbound HTTP behind it, each implementing a port of rekall-core and serving no route: the in-app terminal (portable-pty), the Claude Code usage meter, the run queue's worker, the transcript reader, the editor for Claude Code's own files (`~/.claude`), the database registry, backups and restores, the restart handle, the release feed, the OS credential store and the HTTP clients
-rekall-app/        rekall-server: the local-access guard, the console bundle, the supervisor; builds the infrastructure, injects it and serves everything
+rekall-app/        rekall-server: the local-access guard, the console bundle, the supervisor; builds the infrastructure, injects it and serves everything; `rekall-server guard` is the Claude Code hook command
 rekall-app/desktop the Tauri desktop app over the same server
 rekall-ui/         Vue 3 + Vite frontend
 ```

@@ -9,6 +9,8 @@ use super::KeychainSource;
 use super::no_keychain::NoKeychain;
 use super::security_command_keychain::SecurityCommandKeychain;
 
+/// Under the user's home.
+pub const CREDENTIALS_FILE: &str = ".claude/.credentials.json";
 pub const KEYCHAIN_SERVICE: &str = "Claude Code-credentials";
 
 /// One stored token and when Claude Code said it stops working.
@@ -62,7 +64,7 @@ impl ClaudeCredentials {
     }
 
     fn read_credentials_file(&self) -> Option<StoredToken> {
-        let path = self.home.join(".claude/.credentials.json");
+        let path = self.home.join(CREDENTIALS_FILE);
         std::fs::read_to_string(path).ok().and_then(|json| token_from(&json))
     }
 }

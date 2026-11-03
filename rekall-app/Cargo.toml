@@ -20,7 +20,9 @@ rekall-mcp.workspace = true
 rekall-infra.workspace = true
 sea-orm.workspace = true
 sea-orm-migration.workspace = true
+serde.workspace = true
 serde_json.workspace = true
+thiserror.workspace = true
 tokio.workspace = true
 futures.workspace = true
 axum.workspace = true
@@ -75,6 +77,10 @@ path = "tests/integration/e2e_connections.rs"
 [[test]]
 name = "e2e_graphs"
 path = "tests/integration/e2e_graphs.rs"
+
+[[test]]
+name = "e2e_guard"
+path = "tests/integration/e2e_guard.rs"
 
 [[test]]
 name = "e2e_icon_image"

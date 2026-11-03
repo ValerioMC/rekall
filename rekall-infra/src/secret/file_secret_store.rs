@@ -9,6 +9,9 @@ use rekall_kernel::{InternalFailure, RekallError, Result};
 use tempfile::NamedTempFile;
 use tracing::error;
 
+/// Under `rekall.home`.
+pub const SECRETS_FILE: &str = "secrets.json";
+
 /// Rekall's own credential file: one JSON object of account to value, readable by its owner only.
 /// Nothing is encrypted, so whoever reads the file reads every credential; the file stays out of the
 /// database and its backups.

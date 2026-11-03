@@ -20,7 +20,7 @@ use rekall_core::queue::RunQueueService;
 use rekall_core::skill::SkillGroupService;
 use rekall_core::Services;
 
-use rekall_console::{backup, catalog, chat, claude, component, connection, diagram, filesystem, graph, note, queue, section, settings, skill, tag, terminal, version, vulnerability};
+use rekall_console::{backup, catalog, chat, claude, component, connection, diagram, filesystem, graph, guard, note, queue, section, settings, skill, tag, terminal, version, vulnerability};
 
 use crate::{ApiPorts, StepEventStream};
 
@@ -57,6 +57,7 @@ pub struct ApiState {
     pub section_catalog: section::ProjectSectionCatalogService,
     pub component_catalog: component::ProjectComponentCatalogService,
     pub graphs: graph::DeploymentGraphService,
+    pub guard_context: guard::GuardContextService,
     pub graph_attach: graph::GraphAttachService,
     pub connections: connection::ConnectionService,
     pub connection_credentials: connection::ConnectionCredentialService,
@@ -133,6 +134,7 @@ impl ApiState {
             section_catalog: section::ProjectSectionCatalogService::new(ctx.clone()),
             component_catalog,
             graphs,
+            guard_context: guard::GuardContextService::new(ctx.clone(), ports.protected_credential_references.clone()),
             graph_attach,
             connections,
             connection_credentials: connection::ConnectionCredentialService::new(ctx.clone(), ports.secrets.clone()),

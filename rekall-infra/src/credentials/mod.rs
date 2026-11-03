@@ -9,5 +9,5 @@ mod keychain_source;
 mod no_keychain;
 mod security_command_keychain;
 
-pub use claude_credentials::{KEYCHAIN_SERVICE, ClaudeCredentials};
+pub use claude_credentials::{ClaudeCredentials, CREDENTIALS_FILE, KEYCHAIN_SERVICE};
 pub use keychain_source::KeychainSource;

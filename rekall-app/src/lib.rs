@@ -8,6 +8,7 @@
 
 pub mod actuator;
 pub mod config;
+pub mod guard_command;
 pub mod security;
 pub mod server;
 pub mod spa;

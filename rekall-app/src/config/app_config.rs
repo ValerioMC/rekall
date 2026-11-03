@@ -101,8 +101,13 @@ impl AppConfig {
 
     /// The URL the MCP endpoint is registered under with Claude Code.
     pub fn mcp_endpoint(&self, served_port: u16) -> String {
+        format!("{}/mcp", self.local_url(served_port))
+    }
+
+    /// Where a process on this machine reaches the running server.
+    pub fn local_url(&self, served_port: u16) -> String {
         let port = if served_port > 0 { served_port } else { DEFAULT_PORT };
-        format!("http://localhost:{port}/mcp")
+        format!("http://localhost:{port}")
     }
 }
 

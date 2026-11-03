@@ -16,6 +16,8 @@ use super::helper_scripts::{api_wrapper, git_helper, kube_plugin, GITHUB_API, GI
 use super::session_kubeconfig::{exec_credential, session_kubeconfig, SessionCluster};
 use super::{CredentialPurpose, HandOut, Refusal, SessionEnvironment};
 
+/// What every URL a helper asks starts with, after the host; a session never needs to name it.
+pub const CREDENTIAL_ENDPOINT_PREFIX: &str = "/api/terminal/";
 const KUBECONFIG_FILE: &str = "kubeconfig";
 const SETTINGS_FILE: &str = "claude-settings.json";
 
@@ -136,7 +138,7 @@ impl CredentialBroker {
 
     /// Writes the helpers into `folder` and answers the environment that points at them.
     async fn write_helpers(&self, terminal_id: Id, folder: &Path, connections: &[TerminalConnection]) -> Result<SessionEnvironment> {
-        let endpoint = format!("{}/api/terminal/{terminal_id}/credentials", self.endpoint);
+        let endpoint = format!("{}{CREDENTIAL_ENDPOINT_PREFIX}{terminal_id}/credentials", self.endpoint);
         let settings = folder.join(SETTINGS_FILE);
         write_private(&settings, &settings_document(folder, &endpoint))?;
         let mut environment = SessionEnvironment {

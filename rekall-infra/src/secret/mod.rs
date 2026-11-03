@@ -3,6 +3,8 @@
 
 mod file_secret_store;
 mod keychain_secret_store;
+mod protected_references;
 
-pub use file_secret_store::FileSecretStore;
+pub use file_secret_store::{FileSecretStore, SECRETS_FILE};
 pub use keychain_secret_store::KeychainSecretStore;
+pub use protected_references::protected_references;

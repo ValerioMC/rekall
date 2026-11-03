@@ -9,7 +9,7 @@ mod helper_scripts;
 mod session_environment;
 mod session_kubeconfig;
 
-pub use credential_broker::CredentialBroker;
+pub use credential_broker::{CredentialBroker, CREDENTIAL_ENDPOINT_PREFIX};
 pub use session_environment::SessionEnvironment;
 
 use rekall_core::connection::{CredentialPurpose, HandOut, Refusal};

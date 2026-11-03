@@ -10,6 +10,7 @@ pub mod connection;
 pub mod diagram;
 pub mod filesystem;
 pub mod graph;
+pub mod guard;
 pub mod note;
 pub mod queue;
 pub mod section;
