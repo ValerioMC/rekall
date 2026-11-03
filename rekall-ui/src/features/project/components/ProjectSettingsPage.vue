@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ProjectChecksEditor from '@/features/check/components/ProjectChecksEditor.vue'
 import ProjectAboutGroup from '@/features/project/components/ProjectAboutGroup.vue'
 import ProjectRepositoryGroup from '@/features/project/components/ProjectRepositoryGroup.vue'
 import type { Project } from '@/features/catalog/model/catalog'
@@ -16,6 +17,7 @@ defineProps<{ project: Project }>()
     <div class="mx-auto flex w-full max-w-[680px] flex-col gap-8 px-6 py-6">
       <ProjectAboutGroup :project="project" />
       <ProjectRepositoryGroup :project="project" />
+      <ProjectChecksEditor :project="project" />
     </div>
   </section>
 </template>

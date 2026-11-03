@@ -173,3 +173,39 @@ async fn deleting_the_project_removes_its_checks() {
 
     assert!(done_check::Entity::find().all(&world.database.conn).await.unwrap().is_empty());
 }
+
+#[tokio::test]
+async fn the_results_of_a_task_are_listed_latest_first_with_the_label_of_their_check() {
+    let world = world().await;
+    let step = world.steps.add(world.task_id, Some("Wire the form"), None).await.unwrap();
+    let on_project = world.service.create_for_project(world.project_id, check("backend tests")).await.unwrap();
+    let on_step = world.service.create_for_step(step.id, check("form test")).await.unwrap();
+    let ran = |check: &CheckView, step_id: Option<Id>, exit_code: Option<i32>, seconds: i64| rekall_store::done_check_result::Model {
+        id: Id::random(),
+        check_id: check.id,
+        task_id: world.task_id,
+        step_id,
+        passed: exit_code == Some(0),
+        exit_code,
+        output_tail: "tail".into(),
+        ran_at: Instant::now().plus_seconds(seconds),
+        duration_ms: 40,
+    };
+    for result in [ran(&on_project, Some(step.id), Some(0), 0), ran(&on_step, Some(step.id), None, 5)] {
+        result.into_active_model().insert(&world.database.conn).await.unwrap();
+    }
+
+    let results = world.service.results_of_task(world.task_id).await.unwrap();
+
+    assert_eq!(results.iter().map(|result| result.label.as_str()).collect::<Vec<_>>(), ["form test", "backend tests"]);
+    assert_eq!((results[0].passed, results[0].timed_out), (false, true));
+    assert_eq!((results[1].passed, results[1].timed_out), (true, false));
+}
+
+#[tokio::test]
+async fn the_results_of_a_task_that_does_not_exist_are_not_found() {
+    let world = world().await;
+    let refused = world.service.results_of_task(Id::random()).await.unwrap_err();
+
+    assert!(matches!(refused, RekallError::NotFound(_)), "{refused:?}");
+}

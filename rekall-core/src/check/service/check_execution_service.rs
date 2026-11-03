@@ -13,7 +13,7 @@ use sea_orm::{ActiveModelTrait, ConnectionTrait, IntoActiveModel};
 use tracing::info;
 
 use crate::check::rule::working_folder::working_folder;
-use crate::check::{CheckOutcome, CheckRan, CheckReport, CheckRun, CheckRunner};
+use crate::check::{CheckOutcome, CheckRan, CheckReport, CheckResultStreamEvent, CheckRun, CheckRunner};
 use crate::{in_read, in_write, load, Ctx};
 
 #[derive(Clone)]
@@ -117,6 +117,7 @@ impl CheckExecutionService {
                 duration_ms: run.duration.as_millis() as i64,
             };
             result.into_active_model().insert(tx.db()).await?;
+            tx.publish(CheckResultStreamEvent { task_id: plan.task_id });
             Ok::<_, RekallError>(())
         })
     }

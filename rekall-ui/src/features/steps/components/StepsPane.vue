@@ -11,6 +11,8 @@ import StepFlowView from '@/features/flow/components/StepFlowView.vue'
 import GraphAttachPanel from '@/features/graph/components/GraphAttachPanel.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
+import { useCheckStream } from '@/features/check/composables/useCheckStream'
+import { useChecksStore } from '@/features/check/store/checks.store'
 import { provideStepEditor } from '@/features/steps/composables/useStepEditor'
 import { groupBySession } from '@/features/steps/lib/step-sessions'
 import { stepIsComplete, type TaskStep } from '@/features/catalog/model/catalog'
@@ -19,6 +21,7 @@ import type { TaskStepId } from '@/model/branded'
 const store = useConsoleStore()
 const { selectedTask, selectedTaskSteps } = storeToRefs(store)
 const { run } = useAsyncAction()
+const checks = useChecksStore()
 
 const editor = provideStepEditor({
   steps: () => selectedTaskSteps.value,
@@ -67,6 +70,19 @@ watch(
   },
   { immediate: true }
 )
+
+// What the checks found on this task's claims: read when it opens, and again as a session's claim writes more.
+watch(
+  () => selectedTask.value?.id ?? null,
+  (taskId) => {
+    if (taskId) void run(() => checks.loadResults(taskId))
+  },
+  { immediate: true }
+)
+useCheckStream({
+  onChecks: (event) => void checks.applyProjectEvent(event.projectId),
+  onResults: (event) => void checks.applyResultEvent(event.taskId)
+})
 
 // Something outside this pane (search, the review queue) asked for one step: open it, showing
 // the done ones if that is where it is, then clear the request so it is honoured once.

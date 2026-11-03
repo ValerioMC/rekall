@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, toRef } from 'vue'
+import StepCheckResults from '@/features/check/components/StepCheckResults.vue'
+import StepChecksField from '@/features/check/components/StepChecksField.vue'
 import CommitReferenceList from '@/features/commits/components/CommitReferenceList.vue'
 import StepPassHistory from '@/features/steps/components/StepPassHistory.vue'
 import StepSeal from '@/features/steps/components/StepSeal.vue'
@@ -204,6 +206,8 @@ const panelClass = computed(() => {
             @reopen="$emit('reopen')"
           />
 
+          <StepCheckResults :step="step" />
+
           <div v-if="commits.length" class="mb-3" data-testid="step-commits">
             <span class="eyebrow">Commits <span class="font-mono">{{ commits.length }}</span></span>
             <CommitReferenceList :references="commits" dense />
@@ -212,6 +216,8 @@ const panelClass = computed(() => {
           <StepPassHistory v-if="step.passes.length" :passes="step.passes" class="mb-3" />
 
           <StepSkillsField v-if="!stepIsComplete(step.state)" :step="step" :task="task" />
+
+          <StepChecksField :step="step" :task="task" />
 
           <StepDetailEditor
             :step-title="step.title"

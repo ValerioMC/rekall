@@ -8,6 +8,7 @@ mod port;
 pub mod rule;
 mod service;
 
+pub use event::check_result_stream_event::CheckResultStreamEvent;
 pub use event::check_stream_event::CheckStreamEvent;
 pub use model::check_outcome::CheckOutcome;
 pub use model::check_ran::CheckRan;

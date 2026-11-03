@@ -21,6 +21,8 @@ export type ExposureId = Brand<string, 'ExposureId'>
 export type DependencyId = Brand<string, 'DependencyId'>
 export type DeploymentGraphId = Brand<string, 'DeploymentGraphId'>
 export type GraphStepId = Brand<string, 'GraphStepId'>
+export type DoneCheckId = Brand<string, 'DoneCheckId'>
+export type CheckResultId = Brand<string, 'CheckResultId'>
 
 export const asCompanyId = (value: string): CompanyId => value as CompanyId
 export const asProjectId = (value: string): ProjectId => value as ProjectId
@@ -43,3 +45,5 @@ export const asExposureId = (value: string): ExposureId => value as ExposureId
 export const asDependencyId = (value: string): DependencyId => value as DependencyId
 export const asDeploymentGraphId = (value: string): DeploymentGraphId => value as DeploymentGraphId
 export const asGraphStepId = (value: string): GraphStepId => value as GraphStepId
+export const asDoneCheckId = (value: string): DoneCheckId => value as DoneCheckId
+export const asCheckResultId = (value: string): CheckResultId => value as CheckResultId

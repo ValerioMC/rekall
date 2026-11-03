@@ -8,4 +8,5 @@ mod view;
 pub use command::check_command::CheckCommand;
 pub use command::check_order_command::CheckOrderCommand;
 pub use service::check_service::CheckService;
+pub use view::check_result_view::CheckResultView;
 pub use view::check_view::CheckView;

@@ -10,7 +10,7 @@ use rekall_store::done_check;
 use rekall_store::repository as repo;
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
-use crate::check::{CheckCommand, CheckOrderCommand, CheckView};
+use crate::check::{CheckCommand, CheckOrderCommand, CheckResultView, CheckView};
 
 #[derive(Clone)]
 pub struct CheckService {
@@ -28,6 +28,21 @@ impl CheckService {
             repo::project::require(tx.db(), project_id).await?;
             let rows = repo::done_check::list_of_project(tx.db(), project_id).await?;
             Ok::<_, RekallError>(rows.iter().map(CheckView::of).collect())
+        })
+    }
+
+    /// What the runs of a task's checks found, the latest first.
+    pub async fn results_of_task(&self, task_id: Id) -> Result<Vec<CheckResultView>> {
+        in_read!(&self.ctx, |tx| {
+            let task = repo::task::require(tx.db(), task_id).await?;
+            let checks = repo::done_check::list_of_project(tx.db(), task.project_id).await?;
+            let results = repo::done_check_result::list_of_task(tx.db(), task_id).await?;
+            Ok::<_, RekallError>(
+                results
+                    .iter()
+                    .filter_map(|result| checks.iter().find(|check| check.id == result.check_id).map(|check| CheckResultView::of(result, check)))
+                    .collect(),
+            )
         })
     }
 

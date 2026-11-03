@@ -3,7 +3,7 @@ use axum::response::Response;
 use axum::routing::{get, put};
 use axum::{Json, Router};
 
-use crate::check::{CheckOrderRequest, CheckRequest, CheckResponse};
+use crate::check::{CheckOrderRequest, CheckRequest, CheckResponse, CheckResultResponse};
 use crate::shared::error::ApiResult;
 use crate::shared::extract::{uuid, JsonBody, Validator};
 use crate::shared::{created, no_content};
@@ -16,11 +16,17 @@ pub fn routes() -> Router<ApiState> {
         .route("/api/steps/{id}/checks", axum::routing::post(create_for_step))
         .route("/api/steps/{id}/checks/order", put(reorder_for_step))
         .route("/api/checks/{id}", put(update).delete(delete))
+        .route("/api/tasks/{id}/check-results", get(results_of_task))
 }
 
 async fn list(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Json<Vec<CheckResponse>>> {
     let views = state.checks.list(uuid("id", &id)?).await?;
     Ok(Json(views.into_iter().map(CheckResponse::from).collect()))
+}
+
+async fn results_of_task(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Json<Vec<CheckResultResponse>>> {
+    let views = state.checks.results_of_task(uuid("id", &id)?).await?;
+    Ok(Json(views.into_iter().map(CheckResultResponse::from).collect()))
 }
 
 async fn create_for_project(State(state): State<ApiState>, Path(id): Path<String>, JsonBody(request): JsonBody<CheckRequest>) -> ApiResult<Response> {

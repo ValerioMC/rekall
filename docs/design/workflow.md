@@ -29,6 +29,8 @@ that cannot be claimed (a draft, or one already done) runs no check: the move it
 task with no steps the wrapup is the claim: the project's checks run before it is written, and a red one
 refuses it whole.
 
+The console reads the runs with `GET /api/tasks/{id}/check-results` (`CheckService::results_of_task`, each run joined to its check's label and command, the latest first). Saving a run publishes `CheckResultStreamEvent` (frame `task-check-result`, naming the task) and editing a check publishes `CheckStreamEvent` (frame `project-check`), so the open step and the project's **Done when** read again without a reload. A step shows the last run of each check; a task with no steps keeps its runs with `step_id` null, which no screen draws yet.
+
 The rendering is asymmetric, and that is the feature. An open or running step is written into
 the context with its detail, because it is the work about to be done or being done now, and its
 line is tagged `(in progress)` or `(claimed, waiting for the console to accept it)` so a session
