@@ -719,6 +719,40 @@ async fn under_three_characters_there_is_no_search() {
     assert!(world.services.search.search(None).await.unwrap().is_empty());
 }
 
+#[tokio::test]
+async fn a_search_in_a_project_finds_its_own_text_even_when_other_projects_have_eight_newer_hits() {
+    use rekall_core::note::OnTitleClash;
+    use rekall_store::WrapupAuthor;
+
+    let world = world().await;
+    let vega = world.project("vega", None, false).await;
+    let orion = world.project("orion", None, false).await;
+    world.task(&vega, "export").await;
+    world.services.wrapups.write_by_anchor(Some("vega"), "export", Some("The settlement batch runs nightly."), WrapupAuthor::Claude).await.unwrap();
+    for number in 0..9 {
+        let label = format!("other{number}");
+        world.task(&orion, &label).await;
+        world.services.wrapups.write_by_anchor(Some("orion"), &label, Some("Another settlement batch."), WrapupAuthor::Claude).await.unwrap();
+    }
+    world.task(&orion, "ledger").await;
+    world.services.notes.write(Some("orion"), "ledger", Some("ledger.md"), Some("Settlement of the ledger."), OnTitleClash::Refuse).await.unwrap();
+
+    let scoped = world.services.search.search_in_project(Some("settlement"), "vega").await.unwrap();
+
+    assert_eq!(scoped.len(), 1, "{scoped:?}");
+    assert_eq!(scoped[0].r#where, "project:vega task:export");
+    assert!(scoped[0].excerpt.contains("settlement batch runs nightly"));
+    assert!(world.services.search.search(Some("settlement")).await.unwrap().len() > scoped.len());
+    let in_orion = world.services.search.search_in_project(Some("settlement"), "orion").await.unwrap();
+    assert!(in_orion.iter().any(|hit| hit.title == "ledger.md" && hit.context_anchor.starts_with("note:")));
+}
+
+#[tokio::test]
+async fn a_search_in_an_unknown_project_is_refused() {
+    let world = world().await;
+    assert!(world.services.search.search_in_project(Some("settlement"), "nowhere").await.is_err());
+}
+
 // ------------------------------------------------------------------------------ send back
 
 #[tokio::test]

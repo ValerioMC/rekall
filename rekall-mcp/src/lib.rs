@@ -11,6 +11,7 @@ pub mod flow;
 pub mod inventory;
 pub mod note;
 pub mod protocol;
+pub mod search;
 pub mod section;
 pub mod step;
 pub mod task;

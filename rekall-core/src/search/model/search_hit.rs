@@ -15,5 +15,8 @@ pub struct SearchHit {
     pub title: String,
     /// The anchor of the task the text is on, for a note the one it opens on.
     pub r#where: String,
+    /// What `rekall_context` takes to load the text: the note's own anchor for a note, else `where`.
+    #[serde(skip)]
+    pub context_anchor: String,
     pub excerpt: String,
 }

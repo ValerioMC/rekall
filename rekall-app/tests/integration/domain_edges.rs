@@ -174,6 +174,7 @@ const MCP: LayeredCrate = LayeredCrate {
         ("flow", &["step"]),
         ("inventory", &["vulnerability"]),
         ("note", &[]),
+        ("search", &[]),
         ("section", &["note"]),
         ("step", &["check", "commit", "flow"]),
         ("task", &["flow"]),

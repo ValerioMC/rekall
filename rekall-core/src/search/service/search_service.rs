@@ -1,4 +1,4 @@
-use rekall_kernel::{jstr, RekallError, Result};
+use rekall_kernel::{jstr, Id, RekallError, Result};
 use rekall_store::task;
 use rekall_store::repository as repo;
 
@@ -22,15 +22,28 @@ impl SearchService {
     }
 
     pub async fn search(&self, raw_term: Option<&str>) -> Result<Vec<SearchHit>> {
+        self.search_scoped(raw_term, None).await
+    }
+
+    /// The same search restricted to what belongs to one project; a note counts when any of its tasks does.
+    pub async fn search_in_project(&self, raw_term: Option<&str>, project_label: &str) -> Result<Vec<SearchHit>> {
+        self.search_scoped(raw_term, Some(project_label)).await
+    }
+
+    async fn search_scoped(&self, raw_term: Option<&str>, project_label: Option<&str>) -> Result<Vec<SearchHit>> {
         let term = jstr::collapse_whitespace(jstr::strip(raw_term.unwrap_or("")));
         if jstr::len(&term) < TERM_MIN {
             return Ok(Vec::new());
         }
         in_read!(&self.ctx, |tx| {
-            let mut hits = description_hits(&tx, &term).await?;
-            hits.extend(step_hits(&tx, &term).await?);
-            hits.extend(wrapup_hits(&tx, &term).await?);
-            hits.extend(note_hits(&tx, &term).await?);
+            let scope = match project_label {
+                Some(label) => Some(load::resolve_project(tx.db(), label).await?.id),
+                None => None,
+            };
+            let mut hits = description_hits(&tx, &term, scope).await?;
+            hits.extend(step_hits(&tx, &term, scope).await?);
+            hits.extend(wrapup_hits(&tx, &term, scope).await?);
+            hits.extend(note_hits(&tx, &term, scope).await?);
             // Stable: within a kind, the newest first, and a title hit before a body hit.
             hits.sort_by_key(|hit| (hit.kind as usize, !contains(Some(&hit.title), &term)));
             Ok::<_, RekallError>(hits)
@@ -38,16 +51,24 @@ impl SearchService {
     }
 }
 
-async fn description_hits(tx: &Tx, term: &str) -> Result<Vec<SearchHit>> {
+async fn description_hits(tx: &Tx, term: &str, scope: Option<Id>) -> Result<Vec<SearchHit>> {
     let mut hits = Vec::new();
-    for task in repo::task::search_descriptions(tx.db(), term, PER_KIND).await? {
+    for task in repo::task::search_descriptions(tx.db(), term, candidates_wanted(scope)).await? {
+        if !in_scope(scope, task.project_id) {
+            continue;
+        }
+        if hits.len() == PER_KIND {
+            break;
+        }
+        let anchor = anchor_of(tx, &task).await?;
         hits.push(SearchHit {
             kind: SearchHitKind::Description,
             task_id: Some(task.id),
             step_id: None,
             document_id: None,
             title: task.title.clone(),
-            r#where: anchor_of(tx, &task).await?,
+            r#where: anchor.clone(),
+            context_anchor: anchor,
             excerpt: excerpt(task.description.as_deref(), term),
         });
     }
@@ -55,46 +76,72 @@ async fn description_hits(tx: &Tx, term: &str) -> Result<Vec<SearchHit>> {
 }
 
 /// A step matched on its title alone shows the title as its excerpt.
-async fn step_hits(tx: &Tx, term: &str) -> Result<Vec<SearchHit>> {
+async fn step_hits(tx: &Tx, term: &str, scope: Option<Id>) -> Result<Vec<SearchHit>> {
     let mut hits = Vec::new();
-    for step in repo::task_step::search(tx.db(), term, PER_KIND).await? {
+    for step in repo::task_step::search(tx.db(), term, candidates_wanted(scope)).await? {
         let task = load::task_or_unknown(tx.db(), step.task_id).await?;
+        if !in_scope(scope, task.project_id) {
+            continue;
+        }
+        if hits.len() == PER_KIND {
+            break;
+        }
         let shown = if contains(step.body_markdown.as_deref(), term) { step.body_markdown.as_deref() } else { Some(step.title.as_str()) };
+        let anchor = anchor_of(tx, &task).await?;
         hits.push(SearchHit {
             kind: SearchHitKind::Step,
             task_id: Some(task.id),
             step_id: Some(step.id),
             document_id: None,
             title: step.title.clone(),
-            r#where: anchor_of(tx, &task).await?,
+            r#where: anchor.clone(),
+            context_anchor: anchor,
             excerpt: excerpt(shown, term),
         });
     }
     Ok(hits)
 }
 
-async fn wrapup_hits(tx: &Tx, term: &str) -> Result<Vec<SearchHit>> {
+async fn wrapup_hits(tx: &Tx, term: &str, scope: Option<Id>) -> Result<Vec<SearchHit>> {
     let mut hits = Vec::new();
-    for wrapup in repo::wrapup::search(tx.db(), term, PER_KIND).await? {
+    for wrapup in repo::wrapup::search(tx.db(), term, candidates_wanted(scope)).await? {
         let task = load::task_or_unknown(tx.db(), wrapup.task_id).await?;
+        if !in_scope(scope, task.project_id) {
+            continue;
+        }
+        if hits.len() == PER_KIND {
+            break;
+        }
+        let anchor = anchor_of(tx, &task).await?;
         hits.push(SearchHit {
             kind: SearchHitKind::Wrapup,
             task_id: Some(task.id),
             step_id: None,
             document_id: None,
             title: task.title.clone(),
-            r#where: anchor_of(tx, &task).await?,
+            r#where: anchor.clone(),
+            context_anchor: anchor,
             excerpt: excerpt(Some(&wrapup.body_markdown), term),
         });
     }
     Ok(hits)
 }
 
-/// A note opens on the first task it is attached to; a detached one has no anchor.
-async fn note_hits(tx: &Tx, term: &str) -> Result<Vec<SearchHit>> {
+/// A note opens on the first task it is attached to (the first one in the project, when scoped);
+/// a detached one has no anchor and is outside every project.
+async fn note_hits(tx: &Tx, term: &str, scope: Option<Id>) -> Result<Vec<SearchHit>> {
     let mut hits = Vec::new();
-    for document in repo::document::search_newest_first(tx.db(), term, PER_KIND).await? {
-        let first = repo::document::tasks_of_document(tx.db(), document.id).await?.into_iter().next();
+    for document in repo::document::search_newest_first(tx.db(), term, candidates_wanted(scope)).await? {
+        let first = repo::document::tasks_of_document(tx.db(), document.id)
+            .await?
+            .into_iter()
+            .find(|task| in_scope(scope, task.project_id));
+        if scope.is_some() && first.is_none() {
+            continue;
+        }
+        if hits.len() == PER_KIND {
+            break;
+        }
         let shown = if contains(Some(&document.body_markdown), term) { &document.body_markdown } else { &document.title };
         hits.push(SearchHit {
             kind: SearchHitKind::Note,
@@ -106,10 +153,19 @@ async fn note_hits(tx: &Tx, term: &str) -> Result<Vec<SearchHit>> {
                 Some(task) => anchor_of(tx, task).await?,
                 None => String::new(),
             },
+            context_anchor: document.anchor(),
             excerpt: excerpt(Some(shown), term),
         });
     }
     Ok(hits)
+}
+
+fn candidates_wanted(scope: Option<Id>) -> usize {
+    if scope.is_some() { usize::MAX } else { PER_KIND }
+}
+
+fn in_scope(scope: Option<Id>, project_id: Id) -> bool {
+    scope.is_none_or(|wanted| wanted == project_id)
 }
 
 async fn anchor_of(tx: &Tx, task: &task::Model) -> Result<String> {

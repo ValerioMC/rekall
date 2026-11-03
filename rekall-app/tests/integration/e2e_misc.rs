@@ -361,6 +361,28 @@ async fn search_finds_a_phrase_in_descriptions_steps_wrapups_and_notes_with_the_
     assert!(app.get("/api/search?q=100%25_").await.list().is_empty(), "the LIKE wildcards are matched literally");
 }
 
+#[tokio::test]
+async fn a_session_searches_for_earlier_work_and_gets_anchors_to_load_not_the_text() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
+    let task_id = id(&app
+        .post("/api/tasks", json!({ "label": "settlement", "title": "Settlement", "status": "TODO", "projectId": project_id }))
+        .await);
+    app.call_tool("rekall_wrapup", json!({ "anchors": "project:vega task:settlement", "body": "The settlement batch runs." })).await;
+    app.post(
+        "/api/documents",
+        json!({ "title": "batch.md", "kind": "notes", "taskIds": [task_id], "bodyMarkdown": "Settlement batch logs live in /var/log/batch." }),
+    )
+    .await;
+
+    let found = app.call_tool("rekall_search", json!({ "term": "settlement batch", "anchors": "project:vega" })).await;
+
+    assert_contains!(found, "- wrapup \"Settlement\": `project:vega task:settlement`");
+    assert_contains!(found, "- note \"batch.md\": `note:");
+    assert_contains!(app.call_tool("rekall_search", json!({ "term": "se" })).await, "at least 3 characters");
+}
+
 // --- Context size and reference notes
 
 async fn context_size(app: &App, task_id: &str) -> i64 {

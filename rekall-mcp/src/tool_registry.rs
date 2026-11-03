@@ -10,6 +10,7 @@ use crate::diagram::DiagramTool;
 use crate::flow::{FlowProposalTool, ReplanTool};
 use crate::inventory::InventoryTool;
 use crate::note::NoteTool;
+use crate::search::SearchTool;
 use crate::section::{ProjectSectionTool, SectionReadTool};
 use crate::step::{StepDeletionTool, StepProposalTool, StepStateTool};
 use crate::task::{EpicMembershipTool, TaskCreationTool};
@@ -33,6 +34,7 @@ pub fn all(services: &Services) -> Vec<Arc<dyn McpTool>> {
         Arc::new(DiagramTool::new(services.diagrams.clone())),
         Arc::new(ProjectSectionTool::new(services.sections.clone())),
         Arc::new(SectionReadTool::new(services.sections.clone())),
+        Arc::new(SearchTool::new(services.search.clone())),
         Arc::new(InventoryTool::new(services.inventory_recording.clone())),
         Arc::new(VulnerabilityReadTool::new(services.exposures.clone())),
         Arc::new(AssessmentTool::new(services.exposures.clone())),

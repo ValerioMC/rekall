@@ -92,6 +92,13 @@ epic and never changes a kind, and publishes `task-created` so the console reads
 sections by title only, so this is the only way a session reads one. `ProjectSectionService::read` lists the titles, or returns one
 section by title ignoring case; a title the project lacks is refused with the titles it has.
 
+`rekall_search` is how a session learns that earlier work exists before redoing it: a context only
+holds what it was handed. `SearchTool` calls the `SearchService` the console's search bar uses, or
+`search_in_project` when a `project:` anchor comes, and answers with an index only: the kind, the
+title, the anchor to pass to `rekall_context` (`SearchHit::context_anchor`, a `note:` anchor for a
+note) and the excerpt, at most eight hits per kind. A term under three characters gets a message,
+not an error, and no note body leaves beyond its excerpt.
+
 `rekall_note` writes a new note onto one task, taking the anchors, a `title` and the `body`.
 It is what a session uses for output worth keeping that is not the state of the implementation:
 what a step asks to keep, or the note a task exists to write. `/rk … note "…"` asks for one

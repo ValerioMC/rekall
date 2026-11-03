@@ -120,12 +120,13 @@ An anchor brings back the record, everything it references resolved in full with
 | `rekall_note` | write | Write a note on one task, or rewrite one it carries by title with `replace` |
 | `rekall_project_section` | write | Write a titled markdown section on a task's project, or rewrite one by title with `replace` |
 | `rekall_read_sections` | read | List a project's sections by title, or read one whole with `title` |
+| `rekall_search` | read | Find a phrase in descriptions, steps, wrapups and notes, optionally in one project; returns anchors and excerpts to load with `rekall_context` |
 | `rekall_diagram` | write | Store Mermaid sheets generated for a project or one of its tasks, or replace a diagram by id |
 | `rekall_inventory` | write | Replace a project's dependency inventory whole |
 | `rekall_vulnerabilities` | read | List the advisories that reach a project, or read one whole with `advisory` |
 | `rekall_assess_vulnerability` | write | Record whether an advisory really reaches a project: `affected` or `not_affected`, with reasoning and a conclusion |
 
-There is no query, get or schema tool. Nothing a session creates is work until you promote it: a session writes steps open and ready to work by default (`rekall_create_task`, `rekall_propose_step`, `rekall_propose_flow`) and leaves drafts for you only when it passes `draft: true`, which `/rk … plan` does not; a created task starts `TODO`. `rekall_step` refuses `done`; that state is set by hand in the console. `rekall_note` and `rekall_project_section` refuse a title already used unless `replace: true`, and neither can rename, reorder or delete. `rekall_step` (on `claimed`) and `rekall_wrapup` take an optional `commit_message`, used only on a project that commits on claim. Every parameter is in [docs/guide/mcp-tools.md](docs/guide/mcp-tools.md), the reasons in [docs/design/mcp.md](docs/design/mcp.md) and [docs/design/write-safety.md](docs/design/write-safety.md).
+There is no get or schema tool. Nothing a session creates is work until you promote it: a session writes steps open and ready to work by default (`rekall_create_task`, `rekall_propose_step`, `rekall_propose_flow`) and leaves drafts for you only when it passes `draft: true`, which `/rk … plan` does not; a created task starts `TODO`. `rekall_step` refuses `done`; that state is set by hand in the console. `rekall_note` and `rekall_project_section` refuse a title already used unless `replace: true`, and neither can rename, reorder or delete. `rekall_step` (on `claimed`) and `rekall_wrapup` take an optional `commit_message`, used only on a project that commits on claim. Every parameter is in [docs/guide/mcp-tools.md](docs/guide/mcp-tools.md), the reasons in [docs/design/mcp.md](docs/design/mcp.md) and [docs/design/write-safety.md](docs/design/write-safety.md).
 
 ## What Rekall does
 

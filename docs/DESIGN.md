@@ -55,7 +55,7 @@ rekall/
   rekall-core/       the services the MCP tools may use and every port, one folder per domain: context assembly, the step and review lines, flows, wrapups, notes, time entries, token usage, vulnerabilities
   rekall-console/    the services only the console calls, one folder per domain: commands in, views out, no HTTP types
   rekall-http/       Axum REST routes for the UI, one folder per domain: controllers, request and response shapes and routes; `shared` holds the error body, request extractors and response helpers
-  rekall-mcp/        MCP server: three tools read, fourteen write; a folder per domain holds its tools
+  rekall-mcp/        MCP server: four tools read, fourteen write; a folder per domain holds its tools
   rekall-infra/      the implementations of core's ports, a folder per capability: the in-app terminal (`pty`), the chat session (`chat`) and the `session` host that routes between the two, the run queue's worker, the usage meter, the transcript reader, the Claude folder editor (`resources`), the Claude Code installer, the shell that runs a step's checks (`check`), the credential sessions (`connection`), the database registry (`bootstrap`), backups and restores, the restart handle, the release feed and the macOS update installer (`version`), the credential file and the OS credential store it replaced (`secret`), the connection probes, the Jira search, the GitHub Advisory Database client; it serves no route
   rekall-app/        rekall-server: builds the infrastructure and injects it, mounts the HTTP and MCP routers, the local-access guard, serves the built frontend, embedded at compile time
   rekall-app/desktop the Tauri desktop app over the same server, in-process
@@ -182,7 +182,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `note` | `task` | `task` | `catalog` | `catalog` | nothing |
 | `queue` | `task` | `catalog`, `claude`, `task` | nothing | nothing | - |
 | `review` | - | `task`, `timeentry` | - | - | - |
-| `search` | - | `task` | - | nothing | - |
+| `search` | - | `task` | - | nothing | nothing |
 | `section` | `catalog` | `catalog`, `note` | nothing | nothing | `note` |
 | `settings` | - | nothing | nothing | nothing | - |
 | `skill` | `step`, `tag`, `task` | `claude` | nothing | nothing | - |
