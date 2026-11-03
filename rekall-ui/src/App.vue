@@ -24,6 +24,7 @@ import { useChatDockArea } from '@/features/chat/composables/useChatDockArea'
 import { useChatWindowShown } from '@/features/chat/composables/useChatWindowShown'
 import { preferredSessionKind } from '@/common/config/claude-launch'
 import { useRunQueueStore } from '@/features/queue/store/runQueue.store'
+import { useQueueSessionSync } from '@/features/queue/composables/useQueueSessionSync'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useModalGate } from '@/composables/useModalGate'
 import { useStepStream } from '@/features/steps/composables/useStepStream'
@@ -64,6 +65,7 @@ useStepStream(
   () => void store.applyTaskCreated()
 )
 
+useQueueSessionSync()
 useClaimNotifications(reviewQueue, isLoading)
 useConsoleLocation()
 
