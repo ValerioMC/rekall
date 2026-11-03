@@ -15,6 +15,7 @@ pub mod context;
 pub mod diagram;
 pub mod events;
 pub mod flow;
+pub mod guard;
 pub mod inventory;
 pub mod note;
 pub mod queue;

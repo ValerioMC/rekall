@@ -67,6 +67,7 @@ const CORE: LayeredCrate = LayeredCrate {
         ("context", &["catalog", "commit", "component", "connection", "note", "section", "step", "tag", "task", "wrapup"]),
         ("diagram", &["catalog", "task"]),
         ("flow", &["step"]),
+        ("guard", &[]),
         ("inventory", &["catalog"]),
         ("note", &["task"]),
         ("queue", &["catalog", "claude", "task"]),
