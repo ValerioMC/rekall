@@ -59,6 +59,18 @@ fn commands_and_agents_nest_by_folder() {
 }
 
 #[test]
+fn the_mode_files_rekall_installs_beside_its_command_are_not_listed_as_the_users_own() {
+    let dir = tempfile::tempdir().unwrap();
+    put(dir.path(), "commands/rk.md", "text");
+    put(dir.path(), "rk/planning.md", "text");
+
+    let found = catalog(dir.path());
+
+    assert_eq!(names(&found.commands), ["rk"]);
+    assert!(found.skills.is_empty() && found.agents.is_empty() && found.memory_groups.is_empty());
+}
+
+#[test]
 fn the_global_instructions_are_listed_when_present() {
     let dir = tempfile::tempdir().unwrap();
     put(dir.path(), "CLAUDE.md", "rules");

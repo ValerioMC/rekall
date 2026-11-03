@@ -97,6 +97,19 @@ impl Harness {
         std::fs::write(file, content).unwrap();
     }
 
+    fn write_packaged_files(&self) {
+        self.write_command_file(PACKAGED_COMMAND);
+        for (name, text) in PACKAGED_MODES {
+            self.write_mode_file(name, text);
+        }
+    }
+
+    fn write_mode_file(&self, name: &str, content: &str) {
+        let file = self.home().join(".claude/rk").join(name);
+        std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+        std::fs::write(file, content).unwrap();
+    }
+
     fn commands(&self) -> Vec<Vec<String>> {
         self.fixture.lock().unwrap().commands.clone()
     }
@@ -118,6 +131,20 @@ fn write_configuration(home: &Path, fixture: &Fixture) {
         format!("{{\n  {user}\"projects\": {{\n    {}\n  }}\n}}", projects.join(",\n    ")),
     )
     .unwrap();
+}
+
+fn installed_files(home: &Path) -> Vec<(PathBuf, String)> {
+    let mut found: Vec<(PathBuf, String)> = ["commands", "rk"]
+        .iter()
+        .flat_map(|folder| std::fs::read_dir(home.join(".claude").join(folder)).unwrap())
+        .map(|entry| entry.unwrap().path())
+        .map(|file| {
+            let text = std::fs::read_to_string(&file).unwrap();
+            (file, text)
+        })
+        .collect();
+    found.sort();
+    found
 }
 
 fn line(cli: &Path, rest: &[&str]) -> Vec<String> {
@@ -149,7 +176,7 @@ fn the_user_scope_registration_and_a_current_command_file_together_are_connected
     let h = Harness::new();
     h.fake_cli();
     h.register_user_scope(ENDPOINT);
-    h.write_command_file(PACKAGED_COMMAND);
+    h.write_packaged_files();
     assert_eq!(h.installer(h.recording()).status().status, CONNECTED);
 }
 
@@ -158,7 +185,7 @@ fn a_registration_pointing_at_another_port_is_outdated() {
     let h = Harness::new();
     h.fake_cli();
     h.register_user_scope("http://localhost:8080/mcp");
-    h.write_command_file(PACKAGED_COMMAND);
+    h.write_packaged_files();
     let status = h.installer(h.recording()).status();
     assert_eq!(status.status, OUTDATED);
     assert_eq!(status.registered_url.as_deref(), Some("http://localhost:8080/mcp"));
@@ -173,6 +200,31 @@ fn an_older_copy_of_the_slash_command_is_outdated_even_when_the_server_is_right(
     let status = h.installer(h.recording()).status();
     assert_eq!(status.status, OUTDATED);
     assert!(!status.command_installed);
+}
+
+#[test]
+fn a_missing_mode_file_is_outdated_and_the_status_names_it() {
+    let h = Harness::new();
+    h.fake_cli();
+    h.register_user_scope(ENDPOINT);
+    h.write_packaged_files();
+    std::fs::remove_file(h.home().join(".claude/rk/planning.md")).unwrap();
+    let status = h.installer(h.recording()).status();
+    assert_eq!(status.status, OUTDATED);
+    assert!(!status.command_installed);
+    assert_eq!(status.outdated_files, vec!["rk/planning.md".to_string()]);
+}
+
+#[test]
+fn a_mode_file_that_differs_is_outdated_and_the_status_names_it() {
+    let h = Harness::new();
+    h.fake_cli();
+    h.register_user_scope(ENDPOINT);
+    h.write_packaged_files();
+    h.write_mode_file("stepping.md", "an earlier version of the mode");
+    let status = h.installer(h.recording()).status();
+    assert_eq!(status.status, OUTDATED);
+    assert_eq!(status.outdated_files, vec!["rk/stepping.md".to_string()]);
 }
 
 #[test]
@@ -193,7 +245,7 @@ fn a_folder_carrying_a_copy_of_its_own_is_not_connected_right_as_the_user_scope_
     let h = Harness::new();
     h.fake_cli();
     h.register_user_scope(ENDPOINT);
-    h.write_command_file(PACKAGED_COMMAND);
+    h.write_packaged_files();
     h.register_folder_scope(&h.project_folder("carrying"));
     assert_eq!(h.installer(h.recording()).status().status, OUTDATED);
 }
@@ -202,7 +254,7 @@ fn a_folder_carrying_a_copy_of_its_own_is_not_connected_right_as_the_user_scope_
 fn a_copy_left_behind_by_a_folder_that_is_gone_is_ignored_not_reported_forever() {
     let h = Harness::new();
     h.fake_cli();
-    h.write_command_file(PACKAGED_COMMAND);
+    h.write_packaged_files();
     {
         let mut f = h.fixture.lock().unwrap();
         f.user_scope_url = Some(ENDPOINT.into());
@@ -228,6 +280,9 @@ fn installing_removes_the_old_registration_adds_it_at_user_scope_writes_the_comm
         ]
     );
     assert_eq!(std::fs::read_to_string(h.home().join(".claude/commands/rk.md")).unwrap(), PACKAGED_COMMAND);
+    for (name, text) in PACKAGED_MODES {
+        assert_eq!(std::fs::read_to_string(h.home().join(".claude/rk").join(name)).unwrap(), text);
+    }
     assert_eq!(status.status, CONNECTED);
     assert_eq!(status.registered_url.as_deref(), Some(ENDPOINT));
 }
@@ -274,8 +329,20 @@ fn installing_over_a_correct_registration_is_a_no_op_that_still_reports_connecte
     let h = Harness::new();
     h.fake_cli();
     h.register_user_scope(ENDPOINT);
-    h.write_command_file(PACKAGED_COMMAND);
+    h.write_packaged_files();
     assert_eq!(h.installer(h.recording()).install().unwrap().status, CONNECTED);
+}
+
+#[test]
+fn installing_twice_leaves_the_installed_files_as_they_were() {
+    let h = Harness::new();
+    h.fake_cli();
+    let installer = h.installer(h.realistic());
+    installer.install().unwrap();
+    let first = installed_files(h.home());
+    let status = installer.install().unwrap();
+    assert_eq!(installed_files(h.home()), first);
+    assert_eq!(status.status, CONNECTED);
 }
 
 #[test]

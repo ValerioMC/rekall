@@ -13,6 +13,7 @@ fn installation(status: &'static str) -> Installation {
         registered_url: None,
         folder_scoped: Vec::new(),
         command_installed: false,
+        outdated_files: Vec::new(),
         cli_path: None,
         manual_command: "claude mcp add rekall".into(),
     }

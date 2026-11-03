@@ -8,6 +8,7 @@ pub struct Installation {
     pub registered_url: Option<String>,
     pub folder_scoped: Vec<String>,
     pub command_installed: bool,
+    pub outdated_files: Vec<String>,
     pub cli_path: Option<String>,
     pub manual_command: String,
 }
