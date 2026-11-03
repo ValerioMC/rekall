@@ -44,9 +44,10 @@ you reach for it is a number you stop trusting, so edit rides in as its own chip
 instead of displacing them.
 
 Under the pip a second, smaller mark reports the sessions opened on the task (`TaskSessionMark`,
-read by `taskSessionState` from the terminal list): three bars that play while a session is open,
-a pulsing amber dot while a chat waits for an approval, and the same bars standing still and dim
-once every session has ended. A task nothing was opened on draws no mark. The mark follows the
+read by `taskSessionState` from the terminal list): an indigo arc that glows and spins against the
+task mark's orbit while a session is open, an indigo disc with a check once the task's work is
+handed in and awaits review, a pulsing amber dot while a chat waits for an approval, and a dim
+standing ring once every session has ended. A task nothing was opened on draws no mark. The mark follows the
 sessions of this run only, because sessions are not persisted.
 
 A project heading is also two lines: the title and task count on top, the company name and the

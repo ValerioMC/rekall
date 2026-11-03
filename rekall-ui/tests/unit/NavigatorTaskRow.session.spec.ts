@@ -3,6 +3,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { mount } from '@vue/test-utils'
 import NavigatorTaskRow from '@/components/console/NavigatorTaskRow.vue'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
+import type { Task } from '@/features/catalog/model/catalog'
 import type { TaskId } from '@/model/branded'
 import { chatSession } from './features/chat/support'
 import { taskFixture } from './support/taskFixture'
@@ -10,9 +11,9 @@ import { taskFixture } from './support/taskFixture'
 /** The session mark under a task's mark in the navigator. */
 const task = taskFixture('t-1' as TaskId)
 
-function mountRow() {
+function mountRow(openTask: Task = task) {
   return mount(NavigatorTaskRow, {
-    props: { task, selected: false, running: false, showContext: false, showCompany: false }
+    props: { task: openTask, selected: false, running: false, showContext: false, showCompany: false }
   })
 }
 
@@ -41,5 +42,12 @@ describe('NavigatorTaskRow session mark', () => {
 
     expect(row.get('[data-testid=task-session-mark]').attributes('data-state')).toBe('APPROVAL')
     expect(row.text()).toContain('A session is waiting for your approval')
+  })
+
+  it('shows a check once the work a session ran on is handed in', () => {
+    useTerminalStore().upsert(chatSession())
+    const claimedTask: Task = { ...task, status: 'IN_PROGRESS', reviewActive: true, reviewState: 'CLAIMED' }
+
+    expect(mountRow(claimedTask).get('[data-testid=task-session-mark]').attributes('data-state')).toBe('CLAIMED')
   })
 })

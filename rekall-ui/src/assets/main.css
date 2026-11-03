@@ -63,6 +63,11 @@
   --color-anchor-soft: #55c9ea1c;
   --color-anchor-line: #55c9ea45;
 
+  /* A session at work, and the work it handed in: the spinner and the claimed check in a task row. */
+  --color-session: #7c83f7;
+  --color-session-strong: #b4b9ff;
+  --color-session-ink: #12143a;
+
   --color-safe: #3ddc97;
   --color-safe-soft: #3ddc971a;
   --color-warn: #f3c04a;

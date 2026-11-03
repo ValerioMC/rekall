@@ -2,9 +2,10 @@
 import type { TaskSessionState } from '@/features/claude/model/task-session'
 
 /**
- * The session's own mark, under the task mark in a task row. Three bars: they play while a session
- * is open on the task, stand still and dim once it has ended, and give way to a pulsing amber dot
- * when a session waits for an approval. A task no session was opened on draws nothing.
+ * The session's own mark, under the task mark in a task row. An indigo arc glows and spins against
+ * the task mark's own orbit while a session is open on the task, rests as a dim ring once it has
+ * ended, becomes an indigo disc with a check when its work is handed in, and gives way to a pulsing
+ * amber dot when a session waits for an approval. A task no session was opened on draws nothing.
  */
 defineProps<{ state: Exclude<TaskSessionState, 'NONE'> }>()
 </script>
@@ -22,10 +23,13 @@ defineProps<{ state: Exclude<TaskSessionState, 'NONE'> }>()
       <circle class="session-ping" cx="7" cy="5" r="2.2" />
       <circle class="session-dot" cx="7" cy="5" r="2.2" />
     </template>
+    <template v-else-if="state === 'CLAIMED'">
+      <circle class="session-disc" cx="7" cy="5" r="4" />
+      <path class="session-check" d="M5.1 5.1 6.5 6.5 9 3.7" />
+    </template>
     <template v-else>
-      <rect class="session-bar" x="2" y="2" width="2.6" height="6" rx="1.3" />
-      <rect class="session-bar" x="5.7" y="2" width="2.6" height="6" rx="1.3" />
-      <rect class="session-bar" x="9.4" y="2" width="2.6" height="6" rx="1.3" />
+      <circle class="session-track" cx="7" cy="5" r="3.6" />
+      <circle v-if="state === 'LIVE'" class="session-arc" cx="7" cy="5" r="3.6" pathLength="100" />
     </template>
   </svg>
 </template>
@@ -38,28 +42,37 @@ defineProps<{ state: Exclude<TaskSessionState, 'NONE'> }>()
   overflow: visible;
 }
 
-.session-bar {
-  fill: var(--color-safe);
-  transform-box: fill-box;
-  transform-origin: center bottom;
+.session-track {
+  stroke: color-mix(in srgb, var(--color-session) 28%, transparent);
+  stroke-width: 1.4;
 }
 
-.session-mark[data-state='LIVE'] .session-bar {
-  animation: session-play 1.1s ease-in-out infinite;
-}
-
-.session-mark[data-state='LIVE'] .session-bar:nth-child(2) {
-  animation-delay: -0.35s;
-}
-
-.session-mark[data-state='LIVE'] .session-bar:nth-child(3) {
-  animation-delay: -0.7s;
-}
-
-.session-mark[data-state='ENDED'] .session-bar {
-  fill: var(--color-text-subtle);
+.session-mark[data-state='ENDED'] .session-track {
+  stroke: var(--color-text-subtle);
   opacity: 0.55;
-  transform: scaleY(0.55);
+}
+
+.session-arc {
+  stroke: var(--color-session-strong);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-dasharray: 30 70;
+  filter: drop-shadow(0 0 1.2px var(--color-session));
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: session-spin 2.2s linear infinite;
+}
+
+.session-disc {
+  fill: var(--color-session);
+  filter: drop-shadow(0 0 1.2px var(--color-session));
+}
+
+.session-check {
+  stroke: var(--color-session-ink);
+  stroke-width: 1.3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .session-dot {
@@ -74,13 +87,12 @@ defineProps<{ state: Exclude<TaskSessionState, 'NONE'> }>()
   animation: session-ping 1.4s cubic-bezier(0.2, 0.7, 0.3, 1) infinite;
 }
 
-@keyframes session-play {
-  0%,
-  100% {
-    transform: scaleY(0.4);
+@keyframes session-spin {
+  from {
+    transform: rotate(0deg);
   }
-  50% {
-    transform: scaleY(1);
+  to {
+    transform: rotate(-360deg);
   }
 }
 

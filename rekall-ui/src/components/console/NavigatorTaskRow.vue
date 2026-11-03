@@ -44,7 +44,9 @@ const mark = computed(() => taskMark(props.task, steps.value, props.running))
 // The selected row's line and gradient wash take the task's own project colour, so a row
 // reads as belonging to that project rather than to a single fixed "selected" hue.
 const selectTint = computed(() => identityHue(props.task.projectId))
-const sessionState = computed(() => taskSessionState(props.task.id, terminals.value))
+const sessionState = computed(() =>
+  taskSessionState(props.task.id, terminals.value, mark.value.state === 'CLAIMED' || mark.value.state === 'LIVE_CLAIMED')
+)
 const markLabel = computed(() => TASK_MARK_LABEL[mark.value.state] || TASK_STATUS_LABEL[props.task.status])
 
 const awaitingReview = computed(
