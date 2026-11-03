@@ -67,6 +67,10 @@ name = "e2e_commits"
 path = "tests/integration/e2e_commits.rs"
 
 [[test]]
+name = "e2e_checks"
+path = "tests/integration/e2e_checks.rs"
+
+[[test]]
 name = "e2e_components"
 path = "tests/integration/e2e_components.rs"
 

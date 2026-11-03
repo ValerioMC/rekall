@@ -21,6 +21,14 @@ with a state says it.
 | A session can write `RUNNING` and `CLAIMED`, never `DONE` | `rekall_step` moves a step as far as claimed, which is what lets a session drive its own checklist. The last tick is a person in the console saying they reviewed the work: a session claiming its own work accepted is what the `CLAIMED`/`DONE` split exists to prevent. The navigator's progress count is built on `DONE` alone, so it still means "accepted" |
 | `DRAFT` is the creation default, and only the console leaves it | A new step is a line the checklist owner is still wording, not work: it is kept out of the `<steps>` block a session reads (counted only as `draft="N"` on the tag), `rekall_step` refuses to move it, `markRunning` skips it, and `reviewActive()` still treats a task that holds only drafts as stepless. `TaskStepService.edit` promotes `DRAFT -> OPEN` and sends an untouched `OPEN` step back; a step that has been started, claimed or done cannot return to draft, because the run behind it would be lost. `settleDraftsAtTail` keeps every draft after every non-draft in `position` order, so the numbering a session sees is the numbering the console shows. `stepCount` on `TaskResponse` counts non-draft steps; `draftStepCount` carries the rest |
 
+A claim is accepted only after the project's checks pass (`done_check`, run by `CheckExecutionService`
+through the `CheckRunner` port, see `write-safety.md`). They run before `FlowService::transition`, so a
+red check changes nothing: the step stays `RUNNING`, no snapshot is read, nothing is committed and a flow
+takes no route. Each run is kept in `done_check_result`, the red ones included, for the console. A step
+that cannot be claimed (a draft, or one already done) runs no check: the move itself refuses it. On a
+task with no steps the wrapup is the claim: the project's checks run before it is written, and a red one
+refuses it whole.
+
 The rendering is asymmetric, and that is the feature. An open or running step is written into
 the context with its detail, because it is the work about to be done or being done now, and its
 line is tagged `(in progress)` or `(claimed, waiting for the console to accept it)` so a session

@@ -38,6 +38,9 @@ opens a new one on that step. The `step:M start` of that next step is the new se
 `rekall_step` refuses `done` as a state, and refuses a step I have already accepted. If it comes
 back with either, say so and stop.
 
+If the claim is refused for a check, correct the code until it passes and claim again. Do not
+change the check.
+
 If the project's context carries an `auto-commit` field, the claim is what commits: `step:N done`
 (and, on a task with no checklist, the wrapup) stages and commits the folder and logs the commit
 itself. Do not `git commit` on such a project; read the answer for what it committed, or why not.

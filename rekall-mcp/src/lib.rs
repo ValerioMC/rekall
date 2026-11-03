@@ -2,6 +2,7 @@
 //! domain holds its tools, `tool` the kit they share. It depends on `rekall-core` and never on
 //! `rekall-console` or `rekall-http`, so no console write is reachable from here.
 
+pub mod check;
 pub mod commit;
 pub mod context;
 pub mod controller;

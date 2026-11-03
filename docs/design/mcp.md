@@ -35,6 +35,16 @@ task or one of its steps. On a project set to auto-commit, `rekall_step` with `c
 and without one `CommitMessageGenerator` draws the message from the step's detail or the wrapup.
 No commit message lists files.
 
+Before either claim the project's checks run (`CheckExecutionService::run_for_step_claim`, and
+`run_for_wrapup_claim` for the wrapup of a task with no steps; a wrapup on a task with steps runs
+none). They run one at a time, the project's first, and the first red one refuses the call with a
+`ToolError::Failure` naming it and the end of its output (`claim_gate::admit` in `rekall-mcp/src/check/`):
+the step stays as it was, a refused wrapup is not written, and nothing is committed. A green run
+adds a `Checks passed: ...` line to the answer. A refusal produces no `outcome`, so a flow does not
+move. The checks are written only by the console: no tool creates or edits one. The server sets no
+timeout on a request, so a claim lasts as long as the sum of its checks' timeouts; the one limit is
+Claude Code's own wait for an MCP tool call.
+
 `rekall_propose_step` adds one step to the tail of the checklist, open and ready to work. With
 `draft: true` (which `/rk … plan` does not pass; a person asks for it) it stays a draft instead: not work, off the
 checklist a session reads until a person promotes it. A `Staging` value carries the choice into

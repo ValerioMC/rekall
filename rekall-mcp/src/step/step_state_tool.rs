@@ -1,15 +1,18 @@
 use async_trait::async_trait;
 use rekall_core::step::TaskStepState;
+use rekall_core::check::CheckExecutionService;
 use rekall_core::commit::{AutoCommitOutcome, AutoCommitService, StepSnapshotService};
 use rekall_core::flow::{FlowMove, FlowRoute, FlowService};
 use rekall_core::step::TaskStepService;
 use serde_json::Value;
 
+use crate::check::admit;
 use crate::tool::{told, Anchor, AnchoredTask, Arguments, QUALIFY_WITH_PROJECT};
 use crate::protocol::{McpTool, ToolError, ToolSchema};
 use crate::texts;
 
 pub struct StepStateTool {
+    checks: CheckExecutionService,
     auto_commit: AutoCommitService,
     step_snapshots: StepSnapshotService,
     steps: TaskStepService,
@@ -17,8 +20,20 @@ pub struct StepStateTool {
 }
 
 impl StepStateTool {
-    pub fn new(auto_commit: AutoCommitService, step_snapshots: StepSnapshotService, steps: TaskStepService, flow: FlowService) -> Self {
-        Self { auto_commit, step_snapshots, steps, flow }
+    pub fn new(checks: CheckExecutionService, auto_commit: AutoCommitService, step_snapshots: StepSnapshotService, steps: TaskStepService, flow: FlowService) -> Self {
+        Self { checks, auto_commit, step_snapshots, steps, flow }
+    }
+
+    async fn checks_passed_by_claim(&self, target: &AnchoredTask, step_ref: &str, requested: TaskStepState) -> Result<Option<String>, ToolError> {
+        if requested != TaskStepState::Claimed {
+            return Ok(None);
+        }
+        let report = self
+            .checks
+            .run_for_step_claim(target.project_label.as_deref(), &target.task_label, Some(step_ref))
+            .await
+            .map_err(|e| told(e, QUALIFY_WITH_PROJECT))?;
+        admit(report, texts::STEP_LEFT_AS_IT_WAS)
     }
 
     async fn report(
@@ -26,6 +41,7 @@ impl StepStateTool {
         target: &AnchoredTask,
         flow_move: &FlowMove,
         raw_state: &str,
+        checks_passed: Option<&str>,
         committed: Option<&AutoCommitOutcome>,
     ) -> Result<String, ToolError> {
         let moved = &flow_move.step;
@@ -39,6 +55,10 @@ impl StepStateTool {
         );
         if moved.state == TaskStepState::Claimed {
             out.push_str(&claim_note(raw_state, flow_move.route.as_ref()));
+            if let Some(line) = checks_passed {
+                out.push_str(line);
+                out.push('\n');
+            }
             if let Some(committed) = committed.filter(|c| !c.off()) {
                 out.push('\n');
                 out.push_str(&committed.describe());
@@ -179,6 +199,7 @@ impl McpTool for StepStateTool {
         let outcome = args.optional_string("outcome");
         let report = args.optional_string("report");
         let requested = parse_state(&raw_state)?;
+        let checks_passed = self.checks_passed_by_claim(&target, &step_ref, requested).await?;
 
         let flow_move = self
             .flow
@@ -195,6 +216,6 @@ impl McpTool for StepStateTool {
         } else {
             None
         };
-        self.report(&target, &flow_move, &raw_state, committed.as_ref()).await
+        self.report(&target, &flow_move, &raw_state, checks_passed.as_deref(), committed.as_ref()).await
     }
 }

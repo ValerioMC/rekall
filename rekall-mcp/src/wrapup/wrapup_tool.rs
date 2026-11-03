@@ -1,8 +1,9 @@
 use async_trait::async_trait;
 use rekall_core::wrapup::WrapupAuthor;
-use rekall_core::{commit::AutoCommitService, wrapup::WrapupService};
+use rekall_core::{check::CheckExecutionService, commit::AutoCommitService, wrapup::WrapupService};
 use serde_json::Value;
 
+use crate::check::admit;
 use crate::tool::{told, Anchor, AnchoredTask, Arguments, QUALIFY_WITH_PROJECT};
 use crate::protocol::{McpTool, ToolError, ToolSchema};
 use crate::texts;
@@ -11,13 +12,14 @@ use crate::texts;
 const WORDS_BEFORE_NUDGE: usize = 600;
 
 pub struct WrapupTool {
+    checks: CheckExecutionService,
     auto_commit: AutoCommitService,
     wrapups: WrapupService,
 }
 
 impl WrapupTool {
-    pub fn new(auto_commit: AutoCommitService, wrapups: WrapupService) -> Self {
-        Self { auto_commit, wrapups }
+    pub fn new(checks: CheckExecutionService, auto_commit: AutoCommitService, wrapups: WrapupService) -> Self {
+        Self { checks, auto_commit, wrapups }
     }
 }
 
@@ -62,6 +64,13 @@ impl McpTool for WrapupTool {
         let body = args.required_string("body")?;
         let commit_message = args.optional_string("commit_message");
 
+        let report = self
+            .checks
+            .run_for_wrapup_claim(target.project_label.as_deref(), &target.task_label)
+            .await
+            .map_err(|e| told(e, QUALIFY_WITH_PROJECT))?;
+        let checks_passed = admit(report, texts::WRAPUP_LEFT_AS_IT_WAS)?;
+
         // The transport stamps the author: anything arriving over MCP was written by Claude.
         let written = self
             .wrapups
@@ -81,6 +90,10 @@ impl McpTool for WrapupTool {
             );
         }
         out.push_str(&format!("\nIt is what `/rk {}` will load from now on.", written.wrapup.anchor));
+        if let Some(line) = checks_passed {
+            out.push_str("\n\n");
+            out.push_str(&line);
+        }
         if let Some(nudge) = length_nudge(&body) {
             out.push_str("\n\n");
             out.push_str(&nudge);

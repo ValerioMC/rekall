@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use rekall_kernel::Instant;
-use rekall_store::{company, project, task, task_step, ProjectStatus};
+use rekall_store::{company, project, task, task_step, ProjectStatus, TaskStepState};
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryOrder};
 use tempfile::TempDir;
 
@@ -19,6 +19,8 @@ struct World {
     other_step_id: Id,
     task_id: Id,
 }
+
+const STEPLESS_TASK: &str = "quick";
 
 async fn world(runner: ScriptedCheckRunner) -> World {
     world_with_folder(runner, true).await
@@ -47,9 +49,13 @@ async fn world_with_folder(runner: ScriptedCheckRunner, has_folder: bool) -> Wor
     project.clone().into_active_model().insert(&database.conn).await.unwrap();
     let task = task::Model::new("export".into(), "Export".into(), project.id, now);
     task.clone().into_active_model().insert(&database.conn).await.unwrap();
-    let step = task_step::Model::new(task.id, "Wire the form".into(), 0, now);
+    let stepless = task::Model::new(STEPLESS_TASK.into(), "Quick".into(), project.id, now);
+    stepless.clone().into_active_model().insert(&database.conn).await.unwrap();
+    let mut step = task_step::Model::new(task.id, "Wire the form".into(), 0, now);
+    step.state = TaskStepState::Running;
     step.clone().into_active_model().insert(&database.conn).await.unwrap();
-    let other_step = task_step::Model::new(task.id, "Wire the list".into(), 1, now);
+    let mut other_step = task_step::Model::new(task.id, "Wire the list".into(), 1, now);
+    other_step.state = TaskStepState::Draft;
     other_step.clone().into_active_model().insert(&database.conn).await.unwrap();
     let runner = Arc::new(runner);
     let service = CheckExecutionService::new(Ctx::new(database.conn.clone(), EventBus::new()), runner.clone());
@@ -81,6 +87,11 @@ impl World {
             .all(&self.database.conn)
             .await
             .unwrap()
+    }
+
+    async fn database_results_of(&self, task_label: &str) -> Vec<done_check_result::Model> {
+        let task = task::Entity::find().filter(task::Column::Label.eq(task_label)).one(&self.database.conn).await.unwrap().unwrap();
+        done_check_result::Entity::find().filter(done_check_result::Column::TaskId.eq(task.id)).all(&self.database.conn).await.unwrap()
     }
 
     fn commands_run(&self) -> Vec<String> {
@@ -203,4 +214,75 @@ async fn a_project_without_a_folder_and_without_checks_still_reports_none() {
     let world = world_with_folder(ScriptedCheckRunner::new(), false).await;
 
     assert_eq!(world.service.run_all(world.step_id).await.unwrap(), CheckReport::NoChecks);
+}
+
+#[tokio::test]
+async fn claiming_a_step_by_its_labels_runs_the_checks_of_that_step() {
+    let world = world(ScriptedCheckRunner::new()).await;
+    world.add_check("backend tests", "cargo test", None, 0, None).await;
+    world.add_check("form test", "pnpm test form", Some(world.step_id), 0, None).await;
+
+    let report = world.service.run_for_step_claim(Some("app"), "export", Some("1")).await.unwrap();
+
+    let CheckReport::Passed { runs } = report else { panic!("expected Passed, got {report:?}") };
+    assert_eq!(labels(&runs), vec!["backend tests", "form test"]);
+    assert!(world.kept_results().await.iter().all(|result| result.step_id == Some(world.step_id)));
+}
+
+#[tokio::test]
+async fn a_step_that_cannot_be_claimed_runs_no_check() {
+    let world = world(ScriptedCheckRunner::new()).await;
+    world.add_check("backend tests", "cargo test", None, 0, None).await;
+
+    let draft = world.service.run_for_step_claim(Some("app"), "export", Some("Wire the list")).await.unwrap();
+
+    assert_eq!(draft, CheckReport::NoChecks);
+    assert!(world.commands_run().is_empty());
+}
+
+#[tokio::test]
+async fn claiming_a_step_that_does_not_exist_is_refused_like_any_other_move() {
+    let world = world(ScriptedCheckRunner::new()).await;
+
+    let failure = world.service.run_for_step_claim(Some("app"), "export", Some("9")).await.unwrap_err();
+
+    assert!(failure.is_illegal_argument());
+}
+
+#[tokio::test]
+async fn the_wrapup_of_a_task_with_no_steps_runs_the_project_checks_and_keeps_them_without_a_step() {
+    let world = world(ScriptedCheckRunner::new()).await;
+    world.add_check("backend tests", "cargo test", None, 0, None).await;
+    world.add_check("form test", "pnpm test form", Some(world.step_id), 0, None).await;
+
+    let report = world.service.run_for_wrapup_claim(Some("app"), STEPLESS_TASK).await.unwrap();
+
+    let CheckReport::Passed { runs } = report else { panic!("expected Passed, got {report:?}") };
+    assert_eq!(labels(&runs), vec!["backend tests"]);
+    let kept = world.database_results_of(STEPLESS_TASK).await;
+    assert_eq!(kept.len(), 1);
+    assert_eq!(kept[0].step_id, None);
+}
+
+#[tokio::test]
+async fn the_wrapup_of_a_task_with_steps_runs_no_check() {
+    let world = world(ScriptedCheckRunner::new()).await;
+    world.add_check("backend tests", "cargo test", None, 0, None).await;
+
+    let report = world.service.run_for_wrapup_claim(Some("app"), "export").await.unwrap();
+
+    assert_eq!(report, CheckReport::NoChecks);
+    assert!(world.commands_run().is_empty());
+}
+
+#[tokio::test]
+async fn a_failing_check_refuses_the_wrapup_claim_and_keeps_the_run() {
+    let runner = ScriptedCheckRunner::new().answering("cargo test", CheckOutcome::Exited(101), "1 test failed");
+    let world = world(runner).await;
+    world.add_check("backend tests", "cargo test", None, 0, None).await;
+
+    let report = world.service.run_for_wrapup_claim(Some("app"), STEPLESS_TASK).await.unwrap();
+
+    assert!(matches!(report, CheckReport::Failed { ref label, .. } if label == "backend tests"));
+    assert!(!world.database_results_of(STEPLESS_TASK).await[0].passed);
 }

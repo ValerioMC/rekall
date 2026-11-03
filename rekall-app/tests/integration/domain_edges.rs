@@ -167,6 +167,7 @@ const MCP: LayeredCrate = LayeredCrate {
     foundations: &["controller", "protocol", "texts", "tool", "tool_registry"],
     facades: &[],
     allowed: &[
+        ("check", &[]),
         ("commit", &[]),
         ("context", &[]),
         ("diagram", &[]),
@@ -174,10 +175,10 @@ const MCP: LayeredCrate = LayeredCrate {
         ("inventory", &["vulnerability"]),
         ("note", &[]),
         ("section", &["note"]),
-        ("step", &["commit", "flow"]),
+        ("step", &["check", "commit", "flow"]),
         ("task", &["flow"]),
         ("vulnerability", &[]),
-        ("wrapup", &["commit"]),
+        ("wrapup", &["check", "commit"]),
     ],
     refuses_mutual_use: true,
 };

@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use rekall_core::check::CheckRunner;
 use rekall_core::claude::UsageReader;
 use rekall_core::connection::{JiraIssues, SecretStore};
 use rekall_core::vulnerability::AdvisoryFeed;
@@ -17,6 +18,8 @@ pub struct StartOptions {
     pub clock: Option<Clock>,
     /// Stands in for GitHub as the source of the latest release.
     pub release_feed: Option<Arc<dyn ReleaseFeed>>,
+    /// Stands in for the shell that runs a check's command.
+    pub check_runner: Option<Arc<dyn CheckRunner>>,
     /// Stands in for the OS credential store, so a test never touches the real keychain.
     pub secrets: Option<Arc<dyn SecretStore>>,
     /// Stands in for GitLab, the clusters and the Jira sites a connection check asks.
