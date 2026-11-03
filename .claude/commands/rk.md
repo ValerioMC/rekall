@@ -129,6 +129,24 @@ waiting for my review.
 
 Anchors that name a project and no task have no brief in them. Summarise what is there and wait.
 
+### Departing from the plan
+
+A design in a step, a diagram in its detail, in a note or in the description is what was planned, not
+a contract. While you build, the code can show something better than what was drawn: a layer that
+already does the job, a type that fits, a simpler sequence. You may build the better solution. You
+may not do it silently.
+
+- Depart only for a reason you can state: the plan cannot be built as drawn, or the other way is
+  plainly simpler or more correct. Not for taste.
+- Write a note with `rekall_note` on the task, titled for the step it refers to
+  (`step-3-changes.md`) and starting with `Refers to step 3: <its exact title>`. It says what was
+  planned, what was built instead, why, and the diagram of the piece as built. The steps still to do
+  that this changes are named in it by number.
+- A step's detail cannot be edited from here, so the note is where the change lives. A note on that
+  step that already exists is rewritten with `replace: true`, not added to.
+- The wrapup describes the system as it is and does not carry the difference; it can say the note
+  exists.
+
 ### What the work produces
 
 When a step or the description asks for something to be kept as a note (an analysis, a list, a
@@ -257,11 +275,13 @@ renames, reorders or deletes a section, and writing one does not claim the task 
 2. Read what it gives you: the description says what the work is for and what it has to satisfy,
    the wrapup what already exists, the done steps what is finished. Then read the code the task
    touches, enough to know where each piece will go.
-3. Decide whether the work is a checklist or a flow. It is a flow when a step's outcome decides
+3. Draw the solution wherever a picture says more than words (see **Drawing the plan** below),
+   before writing the steps, so each step is cut from a design and not from the description alone.
+4. Decide whether the work is a checklist or a flow. It is a flow when a step's outcome decides
    what comes next: tests that can fail and send the work to a fix, a deploy that can break, a
    review that can reject. Work that only goes from one step to the next is a checklist, however
    long. The bare word `flow` after `plan` (`/rk ... plan flow`) asks for a flow outright.
-4. For a checklist, call `rekall_propose_step` once per step, in the order the work should be done.
+5. For a checklist, call `rekall_propose_step` once per step, in the order the work should be done.
    For a flow, call `rekall_propose_flow` once with every step in order, the first where it begins,
    and each step's routes: `{"outcome": "app-error", "to": 3}`, or `"to": "end"`. Do not pass
    `draft`: the steps land open and ready to work, promoted on their own. Pass `draft: true` only
@@ -275,13 +295,38 @@ renames, reorders or deletes a section, and writing one does not claim the task 
    title says what the step delivers; the detail says what to build, where, what it must satisfy
    and how I can tell it is done, enough for a session that never saw this one to do it alone.
    Propose only what is still missing, and nothing the description rules out.
-5. Stop. Say in a few lines how many steps (and, for a flow, routes) you proposed and anything
-   you left out on purpose. Build nothing: the steps are open, and I review them in the console if
-   I want to.
+6. Stop. Say in a few lines how many steps (and, for a flow, routes) you proposed, which diagrams
+   you drew and where they are, and anything you left out on purpose. Build nothing: the steps are
+   open, and I review them in the console if I want to.
 
 A title the task already has is refused, so a second `plan` adds only what the first one missed. A
 flow is proposed only onto a task with no steps; on one that has some, plan a checklist and say the
 routes are mine to draw.
+
+### Drawing the plan
+
+A description is often too broad to build from, and in a long plan the later steps are the vaguest.
+A diagram fixes the shape of the solution before the steps are cut from it. Draw one **when it makes
+the solution clearer than the words do**; a copy change or a fix in one function gets none, and a
+diagram that repeats its step's sentence is noise.
+
+- Pick the kind by what the solution is: `sequenceDiagram` for who calls whom and in what order,
+  `erDiagram` for stored data, `classDiagram` for types and how they relate, `stateDiagram-v2` for a
+  lifecycle, `flowchart` for a decision. Name the elements as the code names them, and draw only what
+  the solution has or will have. The solution is usually several layers (a table, a repository, a
+  service, an endpoint, a screen): show each layer's piece, not one box for all of them.
+- **The whole solution** goes in a note on the task, written once with `rekall_note` as
+  `solution-overview.md`, when the plan has more than a handful of steps or crosses layers. The
+  details of the steps it covers name the note.
+- **Each step's own piece** goes in the step's `detail`, as a fenced `mermaid` block, drawn in its
+  place among its neighbours: the parts that already exist and the ones other steps build, the new
+  ones marked. A step in the middle of a long plan then shows what it builds and what it touches
+  without sending the session to the description. A step whose piece is one function gets no block.
+- A diagram already written in the description or in a note is the starting point: take it, correct
+  what the code shows is wrong and carry on from it, rather than drawing a second one beside it.
+- The console draws a block that parses and shows an error for one that does not, so keep to plain
+  Mermaid, quote labels with punctuation, and give no sequence participant an id that starts with
+  `x`: the lexer reads `-X` after a deactivation as the cross arrow.
 
 ## Replanning
 
@@ -298,7 +343,9 @@ quoted text is what I noticed the plan missed, in my words. It is not an anchor.
    and add the steps it needs.
 3. Decide checklist or flow and work out the arcs as in **Planning**. Steps that are running,
    claimed or done stay and are not planned again, so the new steps follow them: when any stay,
-   plan a checklist and say the routes are mine to draw.
+   plan a checklist and say the routes are mine to draw. Draw the new steps as in **Drawing the
+   plan**, starting from the diagrams the task already carries and correcting them; a note that
+   already holds the overview is rewritten with `replace: true`.
 4. Call `rekall_replan` once with every new step. It deletes the task's draft and open steps and
    lays the new ones in a single transaction, and refuses the whole plan when any part is wrong.
    Leave `draft` out, as in **Planning**. To drop a single step that belongs on no plan, call
