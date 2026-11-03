@@ -96,6 +96,7 @@ const CONSOLE: LayeredCrate = LayeredCrate {
     foundations: &[],
     facades: &[],
     allowed: &[
+        ("adherence", &["flow", "note", "step", "task"]),
         ("backup", &[]),
         ("catalog", &["commit", "note", "review", "step", "tag", "task", "timeentry", "wrapup"]),
         ("chat", &["claude"]),
@@ -127,6 +128,7 @@ const HTTP: LayeredCrate = LayeredCrate {
     foundations: &["api_ports", "api_state", "router", "shared"],
     facades: &[],
     allowed: &[
+        ("adherence", &[]),
         ("backup", &[]),
         ("catalog", &[]),
         ("chat", &[]),

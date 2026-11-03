@@ -9,6 +9,7 @@ mod router;
 
 pub mod shared;
 
+pub mod adherence;
 pub mod backup;
 pub mod catalog;
 pub mod chat;

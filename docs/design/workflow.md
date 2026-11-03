@@ -110,6 +110,23 @@ again, so a refused start leaves nothing behind. The request carries the termina
 - A task accepted this way can be sent back like any other. Any later move of the review line, the
   console's accept included, clears `auto_accepted`.
 
+### Plan adherence
+
+`GET /api/tasks/{id}/adherence` and `GET /api/projects/{id}/adherence` answer whether the plans are
+good, from data other domains already keep. `PlanAdherenceService` (domain `adherence` in
+`rekall-console`) reads in one `in_read!` transaction and writes nothing. Drafts are not steps here.
+
+- A step is accepted at the first pass when it is `DONE` with no pass in `passes_json`; it is sent back
+  when it has at least one. `passes_total` counts a started step once, plus once for each time it was
+  sent back, so a step sent back twice and accepted counts three.
+- `firstTimeShare` is accepted at the first pass over `DONE` steps, a fraction; with no `DONE` step it is
+  absent, not zero.
+- `deviationSteps` holds the step number of each note titled `step-N-changes.md`; the text is not read.
+- `visits` lists, for a task that ran as a flow, each step the flow entered with its visit count and
+  `max_visits`; `budgetSpent` is true once the step admits no further visit.
+- A project's view sums the same numbers over its tasks and lists the five tasks with the most steps
+  sent back (`mostSentBack`), none that had none sent back. A task with no step answers zeros.
+
 ## 4.3 The flow
 
 A checklist is an order, and some work is not: build, deploy, test, and a failed test goes to a

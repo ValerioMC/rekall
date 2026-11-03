@@ -107,6 +107,7 @@ is found by opening one folder per crate:
 |---|---|
 | `catalog` | companies and projects with their logos and icons; in `rekall-console`, `rekall-http` and the UI also the tasks |
 | `component`, `section` | a project's components and its titled pages |
+| `adherence` | how closely the work followed the plan: steps accepted at the first pass, steps sent back, `step-N-changes.md` deviation notes and flow visits against their budget, per task and per project; read-only, console and HTTP only |
 | `check` | the commands a person sets to pass before a claim is accepted, for a whole project or one step, and what each run found; the console writes them, no session can |
 | `connection` | the GitLab instances, GitHub servers, Kubernetes clusters and Jira sites projects reach, the companies each is shared with, the projects that bind each, the log of every credential a terminal asked for, and the Jira issues a project imports as tasks |
 | `task` | the task row, and in `rekall-core` and `rekall-mcp` a session creating one or filing it under an epic; the console's task service is in `catalog` |
@@ -165,6 +166,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 
 | Domain | `rekall-store` | `rekall-core` | `rekall-console` | `rekall-http` | `rekall-mcp` |
 |---|---|---|---|---|---|
+| `adherence` | - | - | `flow`, `note`, `step`, `task` | nothing | - |
 | `backup` | - | nothing | nothing | nothing | - |
 | `catalog` | `task` | - | `commit`, `note`, `review`, `step`, `tag`, `task`, `timeentry`, `wrapup` | nothing | - |
 | `check` | `catalog`, `step`, `task` | nothing | `catalog`, `step`, `task` | nothing | - |
