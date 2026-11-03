@@ -1,30 +1,35 @@
+use rekall_core::commit::StepSnapshotService;
 use rekall_core::review::TaskReviewService;
 use rekall_core::step::TaskStepService;
-use rekall_kernel::Id;
+use rekall_kernel::{Id, Result};
 use tracing::warn;
 
 /// Moves a task's step to `RUNNING` and back, or its review line on a task with no checklist,
-/// while a session is on it. A failure is logged and never stops the session.
+/// while a session is on it. A failure is logged and never stops the session. When the work goes
+/// from open to running, the files already modified in the project's folder are recorded.
 #[derive(Clone)]
 pub struct WorkMarker {
     task_steps: TaskStepService,
     task_review: TaskReviewService,
+    step_snapshots: StepSnapshotService,
 }
 
 impl WorkMarker {
-    pub fn new(task_steps: TaskStepService, task_review: TaskReviewService) -> Self {
-        Self { task_steps, task_review }
+    pub fn new(task_steps: TaskStepService, task_review: TaskReviewService, step_snapshots: StepSnapshotService) -> Self {
+        Self { task_steps, task_review, step_snapshots }
     }
 
     /// A session on a project alone has no task to mark.
     pub async fn mark_running(&self, task_id: Option<Id>, step_id: Option<Id>) {
         let Some(task_id) = task_id else { return };
-        let result = match step_id {
+        let started: Result<bool> = match step_id {
             Some(step_id) => self.task_steps.mark_running(Some(step_id)).await,
             None => self.task_review.session_running(task_id, true).await,
         };
-        if let Err(failed) = result {
-            warn!(%failed, %task_id, "Could not mark session work running");
+        match started {
+            Ok(true) => self.step_snapshots.take(task_id, step_id).await,
+            Ok(false) => {}
+            Err(failed) => warn!(%failed, %task_id, "Could not mark session work running"),
         }
     }
 
@@ -32,7 +37,7 @@ impl WorkMarker {
         let Some(task_id) = task_id else { return };
         let result = match step_id {
             Some(step_id) => self.task_steps.release_running(Some(step_id)).await,
-            None => self.task_review.session_running(task_id, false).await,
+            None => self.task_review.session_running(task_id, false).await.map(|_| ()),
         };
         if let Err(failed) = result {
             warn!(%failed, %task_id, "Could not release session work");

@@ -12,6 +12,7 @@ use chrono::TimeDelta;
 use portable_pty::CommandBuilder;
 use rekall_kernel::{Id, Instant, RekallError, Result};
 use rekall_core::claude::{TerminalLaunch, TerminalLaunchService, TerminalTarget};
+use rekall_core::commit::StepSnapshotService;
 use rekall_core::review::TaskReviewService;
 use rekall_core::step::TaskStepService;
 use rekall_core::telemetry::TelemetrySettingsService;
@@ -51,6 +52,7 @@ impl PtyTerminalManager {
         cli: ClaudeCli,
         task_steps: TaskStepService,
         task_review: TaskReviewService,
+        step_snapshots: StepSnapshotService,
         broker: Arc<CredentialBroker>,
         telemetry: TelemetrySettingsService,
         config: &ClaudeConfig,
@@ -58,7 +60,7 @@ impl PtyTerminalManager {
         Arc::new(Self {
             launch_service,
             launcher: SessionLauncher::new(cli, broker, telemetry),
-            marker: WorkMarker::new(task_steps, task_review),
+            marker: WorkMarker::new(task_steps, task_review, step_snapshots),
             ended: EndedBus::new(),
             max_live: config.max_sessions,
             idle_minutes: config.idle_minutes,

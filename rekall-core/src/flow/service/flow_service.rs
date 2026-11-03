@@ -35,6 +35,7 @@ impl FlowService {
             let is_flow = self.links.is_flow_in(&tx, task.id).await?;
             let outcome = outcome_for(is_flow, target, outcome)?;
             let report = report_for(is_flow, target, report)?;
+            let started = self.is_start_in(&tx, task.id, step_ref, target).await?;
             let moved = self.steps.transition_in(&tx, &task, step_ref, target).await?;
             let route = match (is_flow, target) {
                 (true, TaskStepState::Running) => {
@@ -45,8 +46,15 @@ impl FlowService {
                 _ => None,
             };
             self.steps.publish_in(&mut tx, task.id).await?;
-            Ok(FlowMove { step: self.steps.view_in(&tx, &moved).await?, route })
+            Ok(FlowMove { step: self.steps.view_in(&tx, &moved).await?, route, started })
         })
+    }
+
+    async fn is_start_in(&self, tx: &Tx, task_id: Id, step_ref: Option<&str>, target: TaskStepState) -> Result<bool> {
+        if target != TaskStepState::Running {
+            return Ok(false);
+        }
+        Ok(load::resolve_step(tx.db(), task_id, step_ref).await?.state != TaskStepState::Running)
     }
 
     /// Forgets where the flow went: every visit is dropped and the counts start from zero. The

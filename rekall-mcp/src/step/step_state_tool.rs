@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use rekall_core::step::TaskStepState;
-use rekall_core::commit::{AutoCommitOutcome, AutoCommitService};
+use rekall_core::commit::{AutoCommitOutcome, AutoCommitService, StepSnapshotService};
 use rekall_core::flow::{FlowMove, FlowRoute, FlowService};
 use rekall_core::step::TaskStepService;
 use serde_json::Value;
@@ -11,13 +11,14 @@ use crate::texts;
 
 pub struct StepStateTool {
     auto_commit: AutoCommitService,
+    step_snapshots: StepSnapshotService,
     steps: TaskStepService,
     flow: FlowService,
 }
 
 impl StepStateTool {
-    pub fn new(auto_commit: AutoCommitService, steps: TaskStepService, flow: FlowService) -> Self {
-        Self { auto_commit, steps, flow }
+    pub fn new(auto_commit: AutoCommitService, step_snapshots: StepSnapshotService, steps: TaskStepService, flow: FlowService) -> Self {
+        Self { auto_commit, step_snapshots, steps, flow }
     }
 
     async fn report(
@@ -186,6 +187,9 @@ impl McpTool for StepStateTool {
             .map_err(|e| told(e, QUALIFY_WITH_PROJECT))?;
 
         let moved = &flow_move.step;
+        if flow_move.started {
+            self.step_snapshots.take(moved.task_id, Some(moved.id)).await;
+        }
         let committed = if moved.state == TaskStepState::Claimed {
             Some(self.auto_commit.after_step_claim(moved.task_id, moved.id, commit_message.as_deref()).await?)
         } else {

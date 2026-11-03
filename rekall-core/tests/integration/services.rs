@@ -16,6 +16,190 @@ use rekall_core::timeentry::IDLE_AFTER;
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 use support::{commit, git, init_with_identity, world, world_at};
 
+// ------------------------------------------------------------------------------ step snapshot
+
+async fn snapshot_files(world: &support::World, task_id: Id, step_id: Option<Id>) -> Option<Vec<(String, Option<String>)>> {
+    let snapshot = rekall_store::repository::step_snapshot::find(world.db(), task_id, step_id).await.unwrap()?;
+    let files = rekall_store::repository::step_snapshot::files_of(world.db(), snapshot.id).await.unwrap();
+    Some(files.into_iter().map(|file| (file.path, file.content_hash)).collect())
+}
+
+#[tokio::test]
+async fn a_snapshot_keeps_each_modified_new_and_deleted_file_with_its_content_hash() {
+    let world = world().await;
+    let repo = ready_repo().await;
+    fs::write(repo.path().join("seed.txt"), "edited before the step").unwrap();
+    fs::write(repo.path().join("notes.txt"), "not tracked").unwrap();
+    fs::write(repo.path().join("gone.txt"), "to delete").unwrap();
+    git(repo.path(), &["add", "gone.txt"]);
+    commit(repo.path(), "add gone");
+    fs::remove_file(repo.path().join("gone.txt")).unwrap();
+    let project = world.project("vega", Some(&repo.path().to_string_lossy()), true).await;
+    let task = world.task(&project, "report-builder").await;
+    let step = world.step(&task, "Wire the export endpoint", 0, TaskStepState::Running).await;
+
+    world.services.step_snapshots.take(task.id, Some(step.id)).await;
+
+    let files = snapshot_files(&world, task.id, Some(step.id)).await.unwrap();
+    let seed_hash = git(repo.path(), &["hash-object", "seed.txt"]);
+    let notes_hash = git(repo.path(), &["hash-object", "notes.txt"]);
+    assert_eq!(
+        files,
+        vec![
+            ("gone.txt".to_string(), None),
+            ("notes.txt".to_string(), Some(notes_hash)),
+            ("seed.txt".to_string(), Some(seed_hash)),
+        ]
+    );
+}
+
+#[tokio::test]
+async fn a_clean_tree_is_a_snapshot_with_no_files_not_a_missing_snapshot() {
+    let world = world().await;
+    let repo = ready_repo().await;
+    let project = world.project("vega", Some(&repo.path().to_string_lossy()), true).await;
+    let task = world.task(&project, "report-builder").await;
+    let step = world.step(&task, "First", 0, TaskStepState::Running).await;
+
+    world.services.step_snapshots.take(task.id, Some(step.id)).await;
+
+    assert_eq!(snapshot_files(&world, task.id, Some(step.id)).await, Some(Vec::new()));
+}
+
+#[tokio::test]
+async fn starting_a_step_again_replaces_its_snapshot_with_the_new_one() {
+    let world = world().await;
+    let repo = ready_repo().await;
+    fs::write(repo.path().join("a.txt"), "first").unwrap();
+    let project = world.project("vega", Some(&repo.path().to_string_lossy()), true).await;
+    let task = world.task(&project, "report-builder").await;
+    let step = world.step(&task, "First", 0, TaskStepState::Running).await;
+    world.services.step_snapshots.take(task.id, Some(step.id)).await;
+
+    fs::write(repo.path().join("a.txt"), "second").unwrap();
+    fs::write(repo.path().join("b.txt"), "new").unwrap();
+    world.services.step_snapshots.take(task.id, Some(step.id)).await;
+
+    let files = snapshot_files(&world, task.id, Some(step.id)).await.unwrap();
+    assert_eq!(files.iter().map(|(path, _)| path.as_str()).collect::<Vec<_>>(), vec!["a.txt", "b.txt"]);
+    assert_eq!(files[0].1.as_deref(), Some(git(repo.path(), &["hash-object", "a.txt"]).as_str()));
+    let kept = rekall_store::step_snapshot::Entity::find().all(world.db()).await.unwrap();
+    assert_eq!(kept.len(), 1);
+}
+
+#[tokio::test]
+async fn a_task_with_no_steps_keeps_its_snapshot_on_the_task_and_each_step_on_its_own() {
+    let world = world().await;
+    let repo = ready_repo().await;
+    fs::write(repo.path().join("a.txt"), "x").unwrap();
+    let project = world.project("vega", Some(&repo.path().to_string_lossy()), true).await;
+    let stepless = world.task(&project, "typo").await;
+    let with_steps = world.task(&project, "report-builder").await;
+    let step = world.step(&with_steps, "First", 0, TaskStepState::Running).await;
+
+    world.services.step_snapshots.take(stepless.id, None).await;
+    world.services.step_snapshots.take(with_steps.id, Some(step.id)).await;
+
+    assert_eq!(snapshot_files(&world, stepless.id, None).await.unwrap().len(), 1);
+    assert_eq!(snapshot_files(&world, with_steps.id, Some(step.id)).await.unwrap().len(), 1);
+    assert_eq!(snapshot_files(&world, with_steps.id, None).await, None);
+}
+
+#[tokio::test]
+async fn a_project_that_does_not_auto_commit_keeps_no_snapshot() {
+    let world = world().await;
+    let repo = ready_repo().await;
+    fs::write(repo.path().join("a.txt"), "x").unwrap();
+    let project = world.project("vega", Some(&repo.path().to_string_lossy()), false).await;
+    let task = world.task(&project, "report-builder").await;
+    let step = world.step(&task, "First", 0, TaskStepState::Running).await;
+
+    world.services.step_snapshots.take(task.id, Some(step.id)).await;
+
+    assert_eq!(snapshot_files(&world, task.id, Some(step.id)).await, None);
+}
+
+#[tokio::test]
+async fn a_folder_that_is_not_a_repository_keeps_no_snapshot_and_does_not_stop_the_work() {
+    let world = world().await;
+    let folder = tempfile::tempdir().unwrap();
+    let project = world.project("vega", Some(&folder.path().to_string_lossy()), true).await;
+    let task = world.task(&project, "report-builder").await;
+    let step = world.step(&task, "First", 0, TaskStepState::Running).await;
+
+    world.services.step_snapshots.take(task.id, Some(step.id)).await;
+
+    assert_eq!(snapshot_files(&world, task.id, Some(step.id)).await, None);
+}
+
+#[tokio::test]
+async fn a_project_folder_inside_the_repository_is_hashed_from_the_repository_root() {
+    let world = world().await;
+    let repo = ready_repo().await;
+    fs::create_dir_all(repo.path().join("app")).unwrap();
+    fs::write(repo.path().join("app/inner.txt"), "inner").unwrap();
+    let project = world.project("vega", Some(&repo.path().join("app").to_string_lossy()), true).await;
+    let task = world.task(&project, "report-builder").await;
+    let step = world.step(&task, "First", 0, TaskStepState::Running).await;
+
+    world.services.step_snapshots.take(task.id, Some(step.id)).await;
+
+    let files = snapshot_files(&world, task.id, Some(step.id)).await.unwrap();
+    assert_eq!(files, vec![("app/inner.txt".to_string(), Some(git(repo.path(), &["hash-object", "app/inner.txt"])))]);
+}
+
+#[tokio::test]
+async fn deleting_a_step_removes_its_snapshot() {
+    let world = world().await;
+    let repo = ready_repo().await;
+    fs::write(repo.path().join("a.txt"), "x").unwrap();
+    let project = world.project("vega", Some(&repo.path().to_string_lossy()), true).await;
+    let task = world.task(&project, "report-builder").await;
+    let step = world.step(&task, "First", 0, TaskStepState::Open).await;
+    world.services.step_snapshots.take(task.id, Some(step.id)).await;
+
+    rekall_store::task_step::Entity::delete_by_id(step.id).exec(world.db()).await.unwrap();
+
+    assert!(rekall_store::step_snapshot::Entity::find().all(world.db()).await.unwrap().is_empty());
+    assert!(rekall_store::step_snapshot_file::Entity::find().all(world.db()).await.unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn a_step_is_started_once_however_many_times_running_is_asked_for() {
+    let world = world().await;
+    let project = world.project("vega", None, true).await;
+    let task = world.task(&project, "report-builder").await;
+    let step = world.step(&task, "First", 0, TaskStepState::Open).await;
+
+    let first = world.services.steps.mark_running(Some(step.id)).await.unwrap();
+    let again = world.services.steps.mark_running(Some(step.id)).await.unwrap();
+    let from_the_tool = world
+        .services
+        .flow
+        .transition(Some("vega"), "report-builder", Some("1"), TaskStepState::Running, None, None)
+        .await
+        .unwrap();
+
+    assert!(first);
+    assert!(!again);
+    assert!(!from_the_tool.started);
+}
+
+#[tokio::test]
+async fn asking_for_running_on_an_open_step_is_a_start_and_a_claim_is_not() {
+    let world = world().await;
+    let project = world.project("vega", None, true).await;
+    let task = world.task(&project, "report-builder").await;
+    world.step(&task, "First", 0, TaskStepState::Open).await;
+    let flow = &world.services.flow;
+
+    let started = flow.transition(Some("vega"), "report-builder", Some("1"), TaskStepState::Running, None, None).await.unwrap();
+    let claimed = flow.transition(Some("vega"), "report-builder", Some("1"), TaskStepState::Claimed, None, None).await.unwrap();
+
+    assert!(started.started);
+    assert!(!claimed.started);
+}
+
 // ------------------------------------------------------------------------------ auto-commit
 
 async fn ready_repo() -> tempfile::TempDir {

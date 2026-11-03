@@ -293,30 +293,34 @@ impl TaskStepService {
         })
     }
 
-    /// Move a step `OPEN -> RUNNING` when a session opens on it. A no-op past `OPEN`.
-    pub async fn mark_running(&self, step_id: Option<Id>) -> Result<()> {
+    /// Move a step `OPEN -> RUNNING` when a session opens on it, and say whether it moved. A
+    /// no-op past `OPEN`.
+    pub async fn mark_running(&self, step_id: Option<Id>) -> Result<bool> {
         self.move_if(step_id, TaskStepState::Open, TaskStepState::Running).await
     }
 
     /// Drop a step `RUNNING -> OPEN` when its session ends without claiming it. A no-op otherwise.
     pub async fn release_running(&self, step_id: Option<Id>) -> Result<()> {
-        self.move_if(step_id, TaskStepState::Running, TaskStepState::Open).await
+        self.move_if(step_id, TaskStepState::Running, TaskStepState::Open).await?;
+        Ok(())
     }
 
-    async fn move_if(&self, step_id: Option<Id>, from: TaskStepState, to: TaskStepState) -> Result<()> {
+    async fn move_if(&self, step_id: Option<Id>, from: TaskStepState, to: TaskStepState) -> Result<bool> {
         let Some(step_id) = step_id else {
-            return Ok(());
+            return Ok(false);
         };
         in_write!(&self.ctx, |tx| {
-            if let Some(before) = repo::task_step::find_by_id(tx.db(), step_id).await? {
-                if before.state == from {
-                    let mut step = before.clone();
-                    step.mark_state(to);
-                    repo::update_if_changed(tx.db(), &before, step, self.ctx.now()).await?;
-                    self.publish_in(&mut tx, before.task_id).await?;
-                }
+            let Some(before) = repo::task_step::find_by_id(tx.db(), step_id).await? else {
+                return Ok::<_, RekallError>(false);
+            };
+            if before.state != from {
+                return Ok(false);
             }
-            Ok::<_, RekallError>(())
+            let mut step = before.clone();
+            step.mark_state(to);
+            repo::update_if_changed(tx.db(), &before, step, self.ctx.now()).await?;
+            self.publish_in(&mut tx, before.task_id).await?;
+            Ok(true)
         })
     }
 

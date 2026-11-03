@@ -104,6 +104,7 @@ impl World {
             cli,
             self.services.steps.clone(),
             self.services.review.clone(),
+            self.services.step_snapshots.clone(),
             broker,
             self.telemetry(),
             &config,

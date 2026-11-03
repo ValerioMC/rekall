@@ -5,6 +5,9 @@ use crate::step::TaskStepView;
 pub struct FlowMove {
     pub step: TaskStepView,
     pub route: Option<FlowRoute>,
+    /// The move took the step into `RUNNING` from another state; asking for `running` on a
+    /// step already running is not a start.
+    pub started: bool,
 }
 
 /// Where a claim on a flow led.

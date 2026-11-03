@@ -5,7 +5,7 @@
 //! `LIKE` fold ASCII only, and a company called "Ärzte" has to be found as "ärzte".
 
 pub use crate::catalog::{repository::company_repository as company, repository::company_logo_image_repository as company_logo_image, repository::project_repository as project, repository::project_icon_image_repository as project_icon_image};
-pub use crate::commit::repository::commit_reference_repository as commit_reference;
+pub use crate::commit::repository::{commit_reference_repository as commit_reference, step_snapshot_repository as step_snapshot};
 pub use crate::component::repository::project_component_repository as project_component;
 pub use crate::connection::{repository::connection_access_repository as connection_access, repository::connection_company_repository as connection_company, repository::external_connection_repository as external_connection, repository::project_connection_repository as project_connection};
 pub use crate::diagram::diagram_repository as diagram;

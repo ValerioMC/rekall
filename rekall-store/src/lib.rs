@@ -41,7 +41,7 @@ pub mod vulnerability;
 pub mod wrapup;
 
 pub use catalog::{entity::company, entity::company_logo_image, entity::project, entity::project_icon_image};
-pub use commit::entity::commit_reference;
+pub use commit::{entity::commit_reference, entity::step_snapshot, entity::step_snapshot_file};
 pub use component::entity::project_component;
 pub use connection::{entity::connection_access, entity::connection_company, entity::external_connection, entity::project_connection};
 pub use flow::{entity::step_link, entity::step_visit};

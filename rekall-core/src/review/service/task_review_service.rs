@@ -19,25 +19,28 @@ impl TaskReviewService {
         Self { ctx, time_entries }
     }
 
-    /// Flip `OPEN <-> RUNNING` as a session on the task anchor comes and goes. Ambient: never
-    /// blocks a claim.
-    pub async fn session_running(&self, task_id: Id, running: bool) -> Result<()> {
+    /// Flip `OPEN <-> RUNNING` as a session on the task anchor comes and goes, and say whether it
+    /// flipped. Ambient: never blocks a claim.
+    pub async fn session_running(&self, task_id: Id, running: bool) -> Result<bool> {
         in_write!(&self.ctx, |tx| {
             let Some(before) = repo::task::find_by_id(tx.db(), task_id).await? else {
-                return Ok(());
+                return Ok(false);
             };
             if !load::review_active(tx.db(), task_id).await? {
-                return Ok(());
+                return Ok(false);
             }
             let mut task = before.clone();
             if running && task.review_state == TaskStepState::Open {
                 task.mark_review_state(TaskStepState::Running);
                 self.save_and_publish(&mut tx, &before, task).await?;
-            } else if !running && task.review_state == TaskStepState::Running {
+                return Ok(true);
+            }
+            if !running && task.review_state == TaskStepState::Running {
                 task.mark_review_state(TaskStepState::Open);
                 self.save_and_publish(&mut tx, &before, task).await?;
+                return Ok(true);
             }
-            Ok(())
+            Ok(false)
         })
     }
 

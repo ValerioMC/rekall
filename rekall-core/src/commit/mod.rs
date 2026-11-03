@@ -1,7 +1,8 @@
 //! Commits of a project's own folder: read from git (`GitLogReader`), made by git
 //! (`GitCommitter`), inspected (`GitRepositoryInspector`), logged against a task or one of its
 //! steps (`CommitReferenceService`), and made on a session's claim when the project asks for it
-//! (`AutoCommitService`), under a message `CommitMessageGenerator` writes.
+//! (`AutoCommitService`), under a message `CommitMessageGenerator` writes. `StepSnapshotService`
+//! records which files were already modified when a step started.
 
 mod event;
 mod model;
@@ -11,6 +12,7 @@ mod git;
 
 pub use model::auto_commit_outcome::AutoCommitOutcome;
 pub use service::auto_commit_service::AutoCommitService;
+pub use service::step_snapshot_service::StepSnapshotService;
 pub use model::auto_commit_status::AutoCommitStatus;
 pub use model::commit_message_generator::{CommitMessageGenerator, BODY_WIDTH, DERIVED_BODY_MAX, SUBJECT_MAX};
 pub use service::commit_reference_service::{CommitReferenceService, RECENT_LIMIT};

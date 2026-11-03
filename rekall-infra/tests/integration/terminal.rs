@@ -285,3 +285,43 @@ async fn a_terminal_starts_claude_without_trace_variables_until_tracing_is_set_u
     terminals.attach(view.id, recorder.clone()).unwrap();
     eventually("the empty trace variables", || async { recorder.text().contains("OTEL:none:none") }).await;
 }
+
+fn git_in(folder: &std::path::Path, args: &[&str]) {
+    let status = std::process::Command::new("git").arg("-C").arg(folder).args(args).status().unwrap();
+    assert!(status.success(), "git {args:?} failed");
+}
+
+async fn snapshot_paths(world: &support::World, task: &rekall_store::task::Model, step: &rekall_store::task_step::Model) -> Option<Vec<String>> {
+    let snapshot = rekall_store::repository::step_snapshot::find(world.db(), task.id, Some(step.id)).await.unwrap()?;
+    let files = rekall_store::repository::step_snapshot::files_of(world.db(), snapshot.id).await.unwrap();
+    Some(files.into_iter().map(|file| file.path).collect())
+}
+
+#[tokio::test]
+async fn work_that_starts_running_is_snapshotted_once_and_again_only_after_it_is_released() {
+    use sea_orm::{ActiveModelTrait, IntoActiveModel, Set};
+    let world = world().await;
+    let folder = world.folder.path();
+    git_in(folder, &["init", "-q", "-b", "main"]);
+    std::fs::write(folder.join("before.txt"), "already dirty").unwrap();
+    let project = world.project("alpha", Some(folder)).await;
+    let mut enabled = project.into_active_model();
+    enabled.auto_commit = Set(true);
+    let project = enabled.update(world.db()).await.unwrap();
+    let task = world.task(&project, "one").await;
+    let step = world.step(&task, "First", 0, TaskStepState::Open).await;
+    let marker = rekall_infra::session::WorkMarker::new(
+        world.services.steps.clone(),
+        world.services.review.clone(),
+        world.services.step_snapshots.clone(),
+    );
+
+    marker.mark_running(Some(task.id), Some(step.id)).await;
+    std::fs::write(folder.join("during.txt"), "the session's own file").unwrap();
+    marker.mark_running(Some(task.id), Some(step.id)).await;
+    assert_eq!(snapshot_paths(&world, &task, &step).await, Some(vec!["before.txt".to_string()]));
+
+    marker.release_running(Some(task.id), Some(step.id)).await;
+    marker.mark_running(Some(task.id), Some(step.id)).await;
+    assert_eq!(snapshot_paths(&world, &task, &step).await, Some(vec!["before.txt".to_string(), "during.txt".to_string()]));
+}

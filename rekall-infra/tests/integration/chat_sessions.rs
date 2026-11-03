@@ -58,6 +58,7 @@ fn chats(world: &World, max_sessions: usize, idle_minutes: u64, behaviour: &[(&s
         cli,
         world.services.steps.clone(),
         world.services.review.clone(),
+        world.services.step_snapshots.clone(),
         world.broker("http://127.0.0.1:0"),
         world.telemetry(),
         &config,
