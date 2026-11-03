@@ -49,7 +49,16 @@ fn init_logging() {
     }
 }
 
+fn run_guard(args: &[String]) -> i32 {
+    let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().expect("a current-thread runtime always builds");
+    i32::from(runtime.block_on(rekall_app::guard_command::execute(args)))
+}
+
 fn main() {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.first().is_some_and(|word| word == "guard") {
+        std::process::exit(run_guard(&args[1..]));
+    }
     init_logging();
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())

@@ -1,5 +1,6 @@
 pub(super) mod claude_code_setup;
 pub(super) mod claude_resources;
+pub(super) mod guard_installer;
 pub(super) mod in_memory_terminal_host;
 pub(super) mod terminal_host;
 pub(super) mod terminal_listener;

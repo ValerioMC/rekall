@@ -2,9 +2,11 @@
 //! Code at user scope, clears the copies single folders carry, and installs the `/rk` command.
 
 mod claude_code_installer;
+mod guard_hook_installer;
 mod outcome;
 
 pub use claude_code_installer::{SERVER_NAME, CONNECTED, CommandRunner, ClaudeCodeInstaller};
+pub use guard_hook_installer::GuardHookInstaller;
 pub use outcome::Outcome;
 
 use rekall_core::claude::Installation;

@@ -7,5 +7,6 @@ mod service;
 
 pub use service::claude_folder_service::ClaudeFolderService;
 pub use service::claude_install_service::ClaudeInstallService;
+pub use service::guard_protection_service::GuardProtectionService;
 pub use command::save_resource_command::SaveResourceCommand;
 pub use service::usage_meter_service::UsageMeterService;

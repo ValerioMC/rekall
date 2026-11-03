@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -29,7 +30,7 @@ use rekall_core::{Ctx, EventBus, Services};
 use tracing::warn;
 
 use rekall_infra::backup::{DatabaseBackupService, DatabaseLocation, DatabaseRestoreService};
-use rekall_infra::installer::ClaudeCodeInstaller;
+use rekall_infra::installer::{ClaudeCodeInstaller, GuardHookInstaller};
 use rekall_core::settings::SetupStatus;
 use rekall_infra::bootstrap::registry::DatabaseRegistryStore;
 use rekall_infra::bootstrap::DatabaseFolderRegistry;
@@ -215,6 +216,7 @@ impl Instance {
             usage: usage.clone(),
             claude_folder: Arc::new(ClaudeResourceService::new(claude_config.claude_home.clone())),
             claude_setup: Arc::new(installer),
+            guard_installer: Arc::new(GuardHookInstaller::new(&config.user_home, guard_program())),
             credential_desk: broker,
             connection_probe,
             backups: Arc::new(backups.clone()),
@@ -326,4 +328,13 @@ impl Instance {
             warn!(%failed, "Stopping open timers on shutdown failed");
         }
     }
+}
+
+/// The executable Claude Code runs for `guard <event>`: this process's own, since both
+/// `rekall-server` and the desktop app answer the `guard` subcommand.
+fn guard_program() -> PathBuf {
+    std::env::current_exe().unwrap_or_else(|failure| {
+        tracing::warn!(%failure, "Could not find this executable, so the guard hooks will name rekall-server on the PATH");
+        PathBuf::from("rekall-server")
+    })
 }

@@ -186,8 +186,18 @@ closed would stop every session while the app is shut. A `Stop` that follows a b
 let through, so the session can explain why a step cannot be claimed instead of looping. The hooks reach
 only the first running step of a project, so a second session in the same project is blocked from
 stopping while another session's step is running. They are not a sandbox: a command built from a variable
-or a script that runs git is not recognised. Registering the hooks in Claude Code's `settings.json` is
-done from Settings, not by this command.
+or a script that runs git is not recognised.
+
+Settings has a **Protections** section that writes the hooks into `~/.claude/settings.json`
+(`GuardInstaller`, a port of `rekall-core`; `GuardHookInstaller` in `rekall-infra/src/installer/`;
+`GET /api/guard/status`, `POST /api/guard/install`, `POST /api/guard/uninstall`). It adds one
+`PreToolUse` group (matcher `Bash|Read|Edit|Write`) running `<this executable> guard before-tool` and one
+`Stop` group running `guard before-stop`. An entry is Rekall's when its command ends in one of those two
+phrases, so installing twice leaves one of each (and replaces the path after the app moved) and removing
+takes out only those. Every other key and hook is kept, in its order. A file that is not JSON, or whose
+`hooks` have another shape, is refused with a 400 and not touched; the first write keeps
+`settings.json.rekall-backup`; writes go through a temporary file and a rename. The hook runs the same
+executable as the app, so `rekall-server` and the desktop app both answer `guard`.
 
 The residual risk is real and small: Claude can overwrite one task's wrapup with something
 wrong, or with something that replaces a correction made by hand, and it can mark a step running

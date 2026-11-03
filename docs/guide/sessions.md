@@ -72,8 +72,9 @@ within a second, when the input cannot be read or when a command has an unclosed
 echo '{"cwd":"/path/to/project","tool_name":"Bash","tool_input":{"command":"git commit -m x"}}' | rekall-server guard before-tool; echo $?
 ```
 
-Registering the hooks in `~/.claude/settings.json` is done from Settings. The design is in
-[write-safety](../design/write-safety.md).
+**Settings, Protections** installs the two hooks into `~/.claude/settings.json` and removes them
+again, keeping every other setting and hook of yours; a settings file that is not valid JSON is shown as
+such and never edited. The design is in [write-safety](../design/write-safety.md).
 
 ## Run queue
 

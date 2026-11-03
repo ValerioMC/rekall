@@ -1,21 +1,22 @@
 use std::fs::OpenOptions;
 use std::io::Read;
 use std::path::Path;
-use std::process::ExitCode;
 use std::sync::Mutex;
 
 use tracing::warn;
 
 use super::context_source::LocalRekall;
 use super::guard_mode::GuardMode;
+use super::guard_outcome::EXIT_ALLOW;
 use super::guard_runner::run;
 use crate::AppConfig;
 
 const LOG_FILE: &str = "guard.log";
+const EXIT_USAGE: u8 = 1;
 
 /// The entry point of `guard <event>`; `args` are the process arguments after `guard`. It writes
 /// the reason to standard error itself, since Claude Code reads it there.
-pub async fn execute(args: &[String]) -> ExitCode {
+pub async fn execute(args: &[String]) -> u8 {
     let config = AppConfig::from_process(&[]);
     let _logging = log_to_file_in(&config.home);
     let mode = match args.first().map(|event| event.parse::<GuardMode>()) {
@@ -26,18 +27,18 @@ pub async fn execute(args: &[String]) -> ExitCode {
     let mut input_text = String::new();
     if let Err(failure) = std::io::stdin().read_to_string(&mut input_text) {
         warn!(%failure, "The guard could not read its input and let the action through");
-        return ExitCode::SUCCESS;
+        return EXIT_ALLOW;
     }
     let outcome = run(mode, &input_text, &LocalRekall::new(config.local_url(config.port))).await;
     if let Some(reason) = &outcome.reason {
         eprintln!("{reason}");
     }
-    ExitCode::from(outcome.exit_code)
+    outcome.exit_code
 }
 
-fn usage(message: &str) -> ExitCode {
+fn usage(message: &str) -> u8 {
     eprintln!("rekall-server guard before-tool|before-stop: {message}");
-    ExitCode::FAILURE
+    EXIT_USAGE
 }
 
 fn log_to_file_in(home: &Path) -> tracing::subscriber::DefaultGuard {

@@ -54,3 +54,36 @@ async fn a_request_without_a_folder_is_refused() {
 
     assert_eq!(app.get("/api/guard/context").await.status, 400);
 }
+
+#[tokio::test]
+async fn the_protections_are_installed_into_claude_codes_settings_and_removed_again() {
+    let app = app().await;
+    let settings = app.folder.path().join("home/.claude/settings.json");
+    std::fs::create_dir_all(settings.parent().unwrap()).unwrap();
+    std::fs::write(&settings, r#"{"model":"opus"}"#).unwrap();
+    assert_eq!(app.get("/api/guard/status").await.str("state"), "NOT_INSTALLED");
+
+    let installed = app.post_empty("/api/guard/install").await;
+
+    assert_eq!((installed.status, installed.str("state")), (200, "INSTALLED".into()));
+    let written: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&settings).unwrap()).unwrap();
+    assert_eq!(written["model"], "opus");
+    assert!(written["hooks"]["Stop"][0]["hooks"][0]["command"].as_str().unwrap().ends_with(" guard before-stop"));
+
+    let removed = app.post_empty("/api/guard/uninstall").await;
+
+    assert_eq!((removed.status, removed.str("state")), (200, "NOT_INSTALLED".into()));
+    assert_eq!(std::fs::read_to_string(&settings).unwrap().replace(char::is_whitespace, ""), r#"{"model":"opus"}"#);
+}
+
+#[tokio::test]
+async fn a_settings_file_that_is_not_json_is_refused_with_a_400_and_left_alone() {
+    let app = app().await;
+    let settings = app.folder.path().join("home/.claude/settings.json");
+    std::fs::create_dir_all(settings.parent().unwrap()).unwrap();
+    std::fs::write(&settings, "{ nope").unwrap();
+
+    assert_eq!(app.post_empty("/api/guard/install").await.status, 400);
+    assert_eq!(app.get("/api/guard/status").await.str("state"), "INVALID_SETTINGS");
+    assert_eq!(std::fs::read_to_string(&settings).unwrap(), "{ nope");
+}
