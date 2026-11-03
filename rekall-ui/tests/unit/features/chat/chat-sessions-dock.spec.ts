@@ -5,7 +5,9 @@ import TerminalSessionsPanel from '@/components/shell/TerminalSessionsPanel.vue'
 import ShellDock from '@/components/shell/ShellDock.vue'
 import { useChatDockStore } from '@/features/chat/store/chatDock.store'
 import { useChatStore } from '@/features/chat/store/chat.store'
+import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
+import type { TaskId } from '@/model/branded'
 import { CHAT_ID, chatSession } from './support'
 import { installStorage } from '../../support/memoryStorage'
 
@@ -67,6 +69,7 @@ describe('chat sessions in the sessions dock', () => {
   it('turns the sessions segment into "approve" while a chat waits, and steps aside while the window is shown', async () => {
     const terminals = useTerminalStore()
     terminals.upsert(chatSession({ awaitingPermission: true }))
+    useConsoleStore().selectedTaskId = 't-1' as TaskId
     const dock = mount(ShellDock, { global: { stubs: { TerminalSessionsPanel: true, RunningTasksPanel: true } } })
 
     expect(dock.find('[data-testid=terminal-dock-toggle]').exists()).toBe(false)
@@ -74,5 +77,13 @@ describe('chat sessions in the sessions dock', () => {
     await dock.vm.$nextTick()
 
     expect(dock.get('[data-testid=terminal-dock-toggle]').text()).toBe('approve')
+  })
+
+  it('keeps the sessions segment while the selected task is not the chat\'s own', async () => {
+    useTerminalStore().upsert(chatSession())
+    useConsoleStore().selectedTaskId = 't-2' as TaskId
+    const dock = mount(ShellDock, { global: { stubs: { TerminalSessionsPanel: true, RunningTasksPanel: true } } })
+
+    expect(dock.get('[data-testid=terminal-dock-toggle]').text()).toBe('1 session')
   })
 })

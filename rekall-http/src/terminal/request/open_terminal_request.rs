@@ -9,7 +9,7 @@ use crate::terminal::TerminalModeName;
 
 /// What the console sends to open a terminal. `stepId`, `model` and `effort` are optional; an
 /// unknown or blank model or effort leaves the account default. A missing `mode` is
-/// [`TerminalMode::Work`], and a missing `kind` is a terminal session; `PLAN_FLOW` asks for a flow rather than a checklist, `REPLAN` for the task's draft and open steps to be redesigned; `GENERATE` and
+/// [`TerminalMode::Work`], and a missing `kind` is a terminal session; `PLAN_FLOW` asks for a flow rather than a checklist, `REPLAN` for the task's draft and open steps to be redesigned, with the `request` as what the plan missed when there is one; `GENERATE` and
 /// `EXPLAIN` need a `request`, and `kinds` names the diagram types a generation draws; `ASSESS`
 /// needs the GHSA id of the `advisory` to judge, and `ASSESS_ALL` judges every one not judged yet;
 /// `AUTOCONFIGURE` has a project's session learn how to contribute to it.
@@ -47,7 +47,7 @@ impl OpenTerminalRequest {
             None | Some(TerminalModeName::Work) => Ok(TerminalMode::Work),
             Some(TerminalModeName::Plan) => Ok(TerminalMode::Plan),
             Some(TerminalModeName::PlanFlow) => Ok(TerminalMode::PlanFlow),
-            Some(TerminalModeName::Replan) => Ok(TerminalMode::Replan),
+            Some(TerminalModeName::Replan) => Ok(TerminalMode::Replan { message: self.replan_message() }),
             Some(TerminalModeName::Generate) => Ok(TerminalMode::Generate { request: self.diagram_request()?, kinds: self.diagram_kinds()? }),
             Some(TerminalModeName::Explain) => Ok(TerminalMode::Explain { request: self.diagram_request()? }),
             Some(TerminalModeName::Inventory) => Ok(TerminalMode::Inventory),
@@ -55,6 +55,10 @@ impl OpenTerminalRequest {
             Some(TerminalModeName::AssessAll) => Ok(TerminalMode::AssessAll),
             Some(TerminalModeName::Autoconfigure) => Ok(TerminalMode::Autoconfigure),
         }
+    }
+
+    fn replan_message(&self) -> Option<String> {
+        self.request.as_deref().filter(|request| !jstr::is_blank(request)).map(str::to_string)
     }
 
     fn diagram_request(&self) -> Result<String, RekallError> {

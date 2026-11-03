@@ -286,11 +286,16 @@ routes are mine to draw.
 ## Replanning
 
 `/rk project:vega task:report-builder replan` means: redesign the steps this task already has.
+`/rk project:vega task:report-builder replan "also cover the csv export"` means the same, and the
+quoted text is what I noticed the plan missed, in my words. It is not an anchor.
 
-1. Drop the `replan` term and call `rekall_context` with the anchors that are left.
+1. Drop the `replan` term and the quoted text, and call `rekall_context` with the anchors that are
+   left. The anchors string never carries the quoted text.
 2. Read what it gives you as in **Planning**, and read the steps that are there: which are done,
    which are running or claimed, which are open or drafts. Work out what is wrong with the open
-   and draft ones, and what still has to be built.
+   and draft ones, and what still has to be built. With quoted text, that is what to find: read it
+   as the new requirement, change the open and draft steps it touches, keep the ones it does not,
+   and add the steps it needs.
 3. Decide checklist or flow and work out the arcs as in **Planning**. Steps that are running,
    claimed or done stay and are not planned again, so the new steps follow them: when any stay,
    plan a checklist and say the routes are mine to draw.

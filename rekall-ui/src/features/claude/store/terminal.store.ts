@@ -57,7 +57,7 @@ export const useTerminalStore = defineStore('terminal', () => {
 
   /**
    * Have a session propose this task's checklist, or its flow, or redesign the steps it has
-   * (`REPLAN`). A live session on the
+   * (`REPLAN`), bending them to a message about what the plan missed. A live session on the
    * task gets the plan line typed into it; without one, a terminal is opened that starts on that
    * line, so a plan never needs a session already running. Either way it becomes the active one.
    */
@@ -65,16 +65,17 @@ export const useTerminalStore = defineStore('terminal', () => {
     taskId: TaskId,
     anchor: string,
     input: Omit<OpenTerminalInput, 'stepId' | 'mode'>,
-    mode: PlanMode = 'PLAN'
+    mode: PlanMode = 'PLAN',
+    message = ''
   ): Promise<Terminal> {
     const live = terminalForTask(taskId)
     if (live) {
-      await sendCommand(live.id, planLine(mode, anchor))
+      await sendCommand(live.id, planLine(mode, anchor, message))
       showInTerminalPane(live)
       lastOpened.value = live
       return live
     }
-    const opened = settleOpened(await openTerminal({ taskId }, { ...input, mode }))
+    const opened = settleOpened(await openTerminal({ taskId }, { ...input, mode, request: message.trim() || undefined }))
     showInTerminalPane(opened)
     return opened
   }
@@ -91,9 +92,9 @@ export const useTerminalStore = defineStore('terminal', () => {
     if (opened.kind === 'TERMINAL') activeTerminalId.value = opened.id
   }
 
-  function planLine(mode: PlanMode, anchor: string): string {
+  function planLine(mode: PlanMode, anchor: string, message: string): string {
     if (mode === 'PLAN_FLOW') return rkPlanFlowCommand(anchor)
-    return mode === 'REPLAN' ? rkReplanCommand(anchor) : rkPlanCommand(anchor)
+    return mode === 'REPLAN' ? rkReplanCommand(anchor, message) : rkPlanCommand(anchor)
   }
 
   /**

@@ -58,10 +58,19 @@ export const useChatStore = defineStore('chat', () => {
     return liveChats.value.find((terminal) => terminal.taskId === taskId) ?? null
   }
 
-  /** Moves the window to the task's own live chat session; a task with none leaves it where it is. */
+  /**
+   * The chat session the window shows for a task: the active one when it belongs to the task, else
+   * the task's own live one, else the active one when it belongs to no task at all.
+   */
+  function sessionFor(taskId: TaskId | null): Terminal | null {
+    const active = terminals.terminals.find((terminal) => terminal.id === activeChatId.value) ?? null
+    if (active && taskId !== null && active.taskId === taskId) return active
+    return chatForTask(taskId) ?? (active?.taskId === null ? active : null)
+  }
+
+  /** Moves the window to the task's session; a task with none leaves the window empty of any other task's. */
   function showTaskSession(taskId: TaskId | null): void {
-    const own = chatForTask(taskId)
-    if (own) activeChatId.value = own.id
+    activeChatId.value = sessionFor(taskId)?.id ?? null
   }
 
   function ingest(id: TerminalId, event: ChatEvent): void {
@@ -144,6 +153,7 @@ export const useChatStore = defineStore('chat', () => {
     isFollowing,
     select,
     chatForTask,
+    sessionFor,
     reveal,
     showTaskSession,
     ingest,

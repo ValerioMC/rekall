@@ -138,6 +138,24 @@ describe('the terminal store', () => {
     expect(api.sendTerminalInput).toHaveBeenCalledWith('term-1', '/rk project:vega task:report-builder replan\r')
   })
 
+  it('hands a replan the message about what the plan missed, in a new terminal or the live one', async () => {
+    api.openTerminal.mockResolvedValue(terminal())
+    api.sendTerminalInput.mockResolvedValue(undefined)
+    const store = useTerminalStore()
+
+    await store.planForTask(TASK, 'project:vega task:report-builder', { skipPermissions: true }, 'REPLAN', 'cover the export')
+    expect(api.openTerminal).toHaveBeenCalledWith(
+      { taskId: TASK },
+      { skipPermissions: true, mode: 'REPLAN', request: 'cover the export' }
+    )
+
+    await store.planForTask(TASK, 'project:vega task:report-builder', { skipPermissions: true }, 'REPLAN', 'cover the export')
+    expect(api.sendTerminalInput).toHaveBeenCalledWith(
+      'term-1',
+      '/rk project:vega task:report-builder replan "cover the export"\r'
+    )
+  })
+
   it('markEnded drops the terminal out of the live set without removing it', () => {
     const store = useTerminalStore()
     store.terminals = [terminal()]

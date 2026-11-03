@@ -49,7 +49,7 @@ function terminal(over: Partial<Terminal> = {}): Terminal {
 function mountButton(folder: string | null = '/code/vega', extra: { offersFlow?: boolean; replaceableSteps?: number } = {}) {
   return mount(PlanHereButton, {
     props: { taskId: TASK, anchor: ANCHOR, folder, ...extra },
-    global: { stubs: { AppConfirm: true } },
+    global: { stubs: { AppConfirm: true }, renderStubDefaultSlot: true },
     attachTo: document.body
   })
 }
@@ -232,6 +232,21 @@ describe('the Plan here button', () => {
       await flushPromises()
 
       expect(sendTerminalInput).toHaveBeenCalledWith('term-1', `/rk ${ANCHOR} replan\r`)
+    })
+
+    it('sends what the plan missed along with the replan', async () => {
+      openTerminal.mockResolvedValue(terminal({ id: 'term-2' as TerminalId }))
+      const wrapper = mountReplan()
+
+      await choose(wrapper, 'REPLAN')
+      await wrapper.get('[data-testid="replan-message"]').setValue('also cover the csv export')
+      await wrapper.findComponent(AppConfirm).vm.$emit('confirm')
+      await flushPromises()
+
+      expect(openTerminal).toHaveBeenCalledWith(
+        { taskId: TASK },
+        expect.objectContaining({ mode: 'REPLAN', request: 'also cover the csv export' })
+      )
     })
 
     it('does nothing when the confirmation is dismissed', async () => {

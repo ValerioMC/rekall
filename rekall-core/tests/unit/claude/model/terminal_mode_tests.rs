@@ -22,9 +22,16 @@ fn a_plan_flow_terminal_asks_the_session_for_a_flow_and_follows_no_step() {
 
 #[test]
 fn a_replan_terminal_asks_the_session_to_redesign_the_steps_and_follows_no_step() {
-    assert_eq!(TerminalMode::Replan.first_line(ANCHORS), "/rk project:vega task:report-builder replan");
-    assert!(!TerminalMode::Replan.follows_steps());
-    assert_eq!(TerminalMode::Replan.to_string(), "REPLAN");
+    let mode = TerminalMode::Replan { message: None };
+    assert_eq!(mode.first_line(ANCHORS), "/rk project:vega task:report-builder replan");
+    assert!(!mode.follows_steps());
+    assert_eq!(mode.to_string(), "REPLAN");
+}
+
+#[test]
+fn a_replan_terminal_carries_what_the_plan_missed_as_one_quoted_line() {
+    let mode = TerminalMode::Replan { message: Some("Also cover \"export\"\nto csv  ".into()) };
+    assert_eq!(mode.first_line(ANCHORS), "/rk project:vega task:report-builder replan \"Also cover 'export' to csv\"");
 }
 
 #[test]

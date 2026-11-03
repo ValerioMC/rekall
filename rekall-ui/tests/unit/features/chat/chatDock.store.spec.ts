@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useChatDockStore } from '@/features/chat/store/chatDock.store'
+import type { TaskId } from '@/model/branded'
 import { installStorage } from '../../support/memoryStorage'
 
 describe('the chat dock', () => {
@@ -65,14 +66,14 @@ describe('the chat dock', () => {
     expect(dock.mode).toBe('overlay')
   })
 
-  it('opens with no session when asked, and forgets the request once hidden', () => {
+  it('opens on one task with no session when asked, and forgets the request once hidden', () => {
     const dock = useChatDockStore()
 
-    dock.open()
-    expect(dock.requested).toBe(true)
+    dock.open('t-1' as TaskId)
+    expect(dock.requestedFor).toBe('t-1')
     expect(dock.hidden).toBe(false)
     dock.hide()
-    expect(dock.requested).toBe(false)
+    expect(dock.requestedFor).toBeNull()
   })
 
   it('is hidden, full or docked, and restores from full', () => {

@@ -21,9 +21,8 @@ import type { Terminal } from '@/features/claude/model/terminal'
 import type { TaskId, TerminalId } from '@/model/branded'
 
 /**
- * The chat session as a panel docked beside the note pane. It follows the active chat session
- * across task navigation, and takes the answers the session waits for: messages, stop, and the
- * allow or deny of a tool call.
+ * The chat session as a panel docked beside the note pane, on the task the session runs on. It
+ * takes the answers the session waits for: messages, stop, and the allow or deny of a tool call.
  */
 const KEY_STEP_PX = 16
 const KEY_STEP_SHIFT_PX = 64

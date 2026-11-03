@@ -43,6 +43,12 @@ note count sit in a steady right-hand column and do not move: a number that vani
 you reach for it is a number you stop trusting, so edit rides in as its own chip on hover
 instead of displacing them.
 
+Under the pip a second, smaller mark reports the sessions opened on the task (`TaskSessionMark`,
+read by `taskSessionState` from the terminal list): three bars that play while a session is open,
+a pulsing amber dot while a chat waits for an approval, and the same bars standing still and dim
+once every session has ended. A task nothing was opened on draws no mark. The mark follows the
+sessions of this run only, because sessions are not persisted.
+
 A project heading is also two lines: the title and task count on top, the company name and the
 project's token total below, so none of the three is fighting the others for the same 12 pixels. The
 navigator is given the width for this rather than made to crush it.
@@ -162,9 +168,11 @@ terminal pane's active session; that pane and the Diagrams and Security drawers 
 The window docks in one of four modes (`chatDock.store`): `inline` beside the note pane while the note
 keeps 360 px, `overlay` when it would not, `full` when expanded, and `hidden`. Its width runs from
 360 to 720 px and is remembered with the hidden flag, per viewer, in `localStorage`. On any page
-but the console it always overlays. It follows the selected task's session, or the active one, and
-shows when a chat exists or was asked for (`useChatWindowShown`); a chat opened from a button brings
-itself to the window (`useRevealOpenedChat`).
+but the console it always overlays. It belongs to a task: it shows only on the task its session
+runs on (or on the one that asked for it with no session yet), and disappears when another task is
+selected (`useChatWindowShown`, `chat.sessionFor`). A session on no task, such as one generating a
+diagram for a project, stays on screen. A chat opened from a button brings itself to the window
+(`useRevealOpenedChat`).
 
 An approval is never answered or expired on the user's behalf: `ChatApprovalCard` shows the call
 (with a diff for an edit) and stays until a `permissionResolved` event arrives. Whether the session is

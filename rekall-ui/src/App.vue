@@ -50,11 +50,7 @@ useChatDockArea(noteArea, true)
 const chatWindowShown = useChatWindowShown()
 
 function chatOwnsTerminalKey(): boolean {
-  return (
-    chat.activeChatId !== null ||
-    chat.chatForTask(selectedTaskId.value) !== null ||
-    preferredSessionKind() === 'chat'
-  )
+  return chat.sessionFor(selectedTaskId.value) !== null || preferredSessionKind() === 'chat'
 }
 
 useStepStream(
@@ -147,10 +143,10 @@ function onKeydown(event: KeyboardEvent): void {
   if (key === 'c' && chatOwnsTerminalKey()) {
     event.preventDefault()
     if (event.shiftKey) {
-      chatDock.open()
+      chatDock.open(selectedTaskId.value)
       chatDock.toggleExpanded()
     } else if (chatWindowShown.value) chatDock.hide()
-    else chatDock.open()
+    else chatDock.open(selectedTaskId.value)
     return
   }
 

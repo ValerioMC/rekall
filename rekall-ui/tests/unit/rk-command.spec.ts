@@ -36,6 +36,13 @@ describe('rkReplanCommand', () => {
     expect(rkReplanCommand('project:stvv task:env-vars-cv')).toBe('/rk project:stvv task:env-vars-cv replan')
   })
 
+  it('quotes what the plan missed on the replan line as one escaped line', () => {
+    expect(rkReplanCommand('project:stvv task:env-vars-cv', '  also cover\n"csv"  ')).toBe(
+      '/rk project:stvv task:env-vars-cv replan "also cover \\"csv\\""'
+    )
+    expect(rkReplanCommand('project:stvv task:env-vars-cv', '   ')).toBe('/rk project:stvv task:env-vars-cv replan')
+  })
+
   it('stays empty when there is no anchor', () => {
     expect(rkReplanCommand('')).toBe('')
   })

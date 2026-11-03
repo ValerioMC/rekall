@@ -2,7 +2,8 @@
 /**
  * Has a session propose this task's checklist, which lands on the Steps pane open and ready to
  * work. Behind its arrow: the task's flow while it has no steps, and
- * a replan of the draft and open steps it has, after asking first, since those are deleted. With a
+ * a replan of the draft and open steps it has, after asking first, since those are deleted; the
+ * question also takes a message about what the plan missed, which the session works in. With a
  * session already live on the task, the line is typed into it; without one, a terminal is opened
  * that starts on that line instead of the plain `/rk`. Either way the planning terminal comes
  * forward.
@@ -17,6 +18,8 @@ import { useAsyncAction } from '@/composables/useAsyncAction'
 import { preferredEffort, preferredLaunchKind, preferredModel, skipsPermissions } from '@/common/config/claude-launch'
 import type { PlanMode } from '@/features/claude/model/terminal'
 import type { TaskId } from '@/model/branded'
+
+const MISSED_MESSAGE_MAX_CHARACTERS = 2000
 
 type PlanAlternative = Exclude<PlanMode, 'PLAN'>
 
@@ -40,6 +43,7 @@ const toast = useToastStore()
 const { run, isRunning } = useAsyncAction()
 
 const isConfirming = ref(false)
+const missedMessage = ref('')
 const liveTerminal = computed(() => terminals.terminalForTask(props.taskId))
 const ready = computed(() => Boolean(liveTerminal.value) || Boolean(props.folder))
 const tooltip = computed(() =>
@@ -81,6 +85,7 @@ function start(mode: PlanMode): void {
     return
   }
   if (mode === 'REPLAN') {
+    missedMessage.value = ''
     isConfirming.value = true
     return
   }
@@ -89,17 +94,18 @@ function start(mode: PlanMode): void {
 
 async function confirmReplan(): Promise<void> {
   isConfirming.value = false
-  await plan('REPLAN')
+  await plan('REPLAN', missedMessage.value)
 }
 
-async function plan(mode: PlanMode): Promise<void> {
+async function plan(mode: PlanMode, message = ''): Promise<void> {
   const planning = await run(
     () =>
       terminals.planForTask(
         props.taskId,
         props.anchor,
         { skipPermissions: skipsPermissions(), model: preferredModel(), effort: preferredEffort(), kind: preferredLaunchKind() },
-        mode
+        mode,
+        message
       ),
     mode === 'REPLAN' ? 'Replanning. The new steps land here.' : 'Planning. Its proposals land here.'
   )
@@ -128,11 +134,26 @@ async function plan(mode: PlanMode): Promise<void> {
     <AppConfirm
       v-if="isConfirming"
       title="Replan this task?"
-      body="A session redesigns the steps. Its draft and open steps are replaced; running, claimed and done steps stay."
+      body="A session redesigns the steps, taking in what you add. Its draft and open steps are replaced; running, claimed and done steps stay."
       :blast="confirmBlast"
       confirm-label="Replan"
       @cancel="isConfirming = false"
       @confirm="confirmReplan"
-    />
+    >
+      <label class="mt-3.5 block">
+        <span class="eyebrow mb-1.5 block text-caption">
+          What did the plan miss?
+          <span class="font-normal normal-case tracking-normal text-text-subtle">optional</span>
+        </span>
+        <textarea
+          v-model="missedMessage"
+          rows="3"
+          :maxlength="MISSED_MESSAGE_MAX_CHARACTERS"
+          class="field w-full resize-y rounded-control px-3 py-2.5 text-body leading-relaxed text-text"
+          placeholder="Something to add, or a step that should change"
+          data-testid="replan-message"
+        />
+      </label>
+    </AppConfirm>
   </Transition>
 </template>

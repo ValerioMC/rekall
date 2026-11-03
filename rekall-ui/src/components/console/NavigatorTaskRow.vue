@@ -5,12 +5,15 @@ import SkillMark from '@/features/skills/components/SkillMark.vue'
 import TagBadge from '@/components/ui/TagBadge.vue'
 import EpicChip from '@/features/catalog/components/epic/EpicChip.vue'
 import TaskMark from '@/features/catalog/components/TaskMark.vue'
+import TaskSessionMark from '@/features/claude/components/TaskSessionMark.vue'
 import TokenCount from '@/components/ui/TokenCount.vue'
 import { identityHue } from '@/common/identity'
 import { TASK_STATUS_LABEL } from '@/features/catalog/model/catalog'
 import type { Task } from '@/features/catalog/model/catalog'
 import { taskSkills } from '@/features/skills/model/skill-assignment'
 import { TASK_MARK_LABEL, taskMark } from '@/features/catalog/model/task-mark'
+import { TASK_SESSION_LABEL, taskSessionState } from '@/features/claude/model/task-session'
+import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useConsoleStore } from '@/stores/console.store'
 import { useTokenUsageStore } from '@/features/tokens/store/tokenUsage.store'
 
@@ -30,6 +33,7 @@ defineEmits<{ select: []; edit: [] }>()
 
 const { steps, tasks, taskSkills: ownedSkills, tagSkills } = storeToRefs(useConsoleStore())
 const tokenUsage = useTokenUsageStore()
+const { terminals } = storeToRefs(useTerminalStore())
 const tokens = computed(() => tokenUsage.ofTask(props.task.id))
 
 const epic = computed(() => (props.task.epicId ? tasks.value.find((task) => task.id === props.task.epicId) ?? null : null))
@@ -40,6 +44,7 @@ const mark = computed(() => taskMark(props.task, steps.value, props.running))
 // The selected row's line and gradient wash take the task's own project colour, so a row
 // reads as belonging to that project rather than to a single fixed "selected" hue.
 const selectTint = computed(() => identityHue(props.task.projectId))
+const sessionState = computed(() => taskSessionState(props.task.id, terminals.value))
 const markLabel = computed(() => TASK_MARK_LABEL[mark.value.state] || TASK_STATUS_LABEL[props.task.status])
 
 const awaitingReview = computed(
@@ -73,23 +78,33 @@ watch(
       :aria-current="selected"
       @click="$emit('select')"
     >
-      <span class="relative mt-[3px] grid size-3.5 shrink-0 place-items-center" :title="markLabel">
-        <span
-          class="absolute size-3.5 rounded-full transition-shadow"
-          :class="[
-            selected && mark.state === 'RESTING' && 'ring-1 ring-inset ring-accent/45',
-            justSelected && 'settle'
-          ]"
-          aria-hidden="true"
-        >
-          <TaskMark
-            :state="mark.state"
-            :status="task.status"
-            :accepted="mark.accepted"
-            :selected="selected"
-          />
+      <span class="mt-[3px] flex shrink-0 flex-col items-center gap-1">
+        <span class="relative grid size-3.5 shrink-0 place-items-center" :title="markLabel">
+          <span
+            class="absolute size-3.5 rounded-full transition-shadow"
+            :class="[
+              selected && mark.state === 'RESTING' && 'ring-1 ring-inset ring-accent/45',
+              justSelected && 'settle'
+            ]"
+            aria-hidden="true"
+          >
+            <TaskMark
+              :state="mark.state"
+              :status="task.status"
+              :accepted="mark.accepted"
+              :selected="selected"
+            />
+          </span>
+          <span class="sr-only">{{ markLabel }}.</span>
         </span>
-        <span class="sr-only">{{ markLabel }}.</span>
+        <span
+          v-if="sessionState !== 'NONE'"
+          class="block h-2.5 w-3.5"
+          :title="TASK_SESSION_LABEL[sessionState]"
+        >
+          <TaskSessionMark :state="sessionState" />
+          <span class="sr-only">{{ TASK_SESSION_LABEL[sessionState] }}.</span>
+        </span>
       </span>
 
       <span class="min-w-0 flex-1">

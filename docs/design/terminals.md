@@ -37,7 +37,7 @@ The in-app session is a real terminal, `C` in the console. `PtyTerminalManager` 
 folder, with `/rk` as the first line (`/rk … plan` for a terminal opened in `TerminalMode.PLAN`,
 which the Steps pane's **Plan here** asks for, and `/rk … plan flow` for `TerminalMode.PLAN_FLOW`,
 which its **Plan a flow** asks for, and `/rk … replan` for `TerminalMode.REPLAN`, which its **Replan**
-asks for after a confirmation; `/rk … generate` and `/rk … explain` for the Diagrams
+asks for after a confirmation that can carry what the plan missed, quoted after `replan`; `/rk … generate` and `/rk … explain` for the Diagrams
 screen's **Generate** and **Explain code**, the only modes a terminal on a project alone takes), and pumps its raw bytes to whoever is watching. The terminal is the
 unmodified interactive `claude`: it shows its own `/context` and cost read-outs, renders its own
 permission prompts and answers them, and is the same program a hand-run session is. The chat view

@@ -9,7 +9,16 @@ fn a_request_without_a_mode_opens_a_work_terminal() {
     assert_eq!(parsed("{}").mode().unwrap(), TerminalMode::Work);
     assert_eq!(parsed(r#"{"mode":"PLAN"}"#).mode().unwrap(), TerminalMode::Plan);
     assert_eq!(parsed(r#"{"mode":"PLAN_FLOW"}"#).mode().unwrap(), TerminalMode::PlanFlow);
-    assert_eq!(parsed(r#"{"mode":"REPLAN"}"#).mode().unwrap(), TerminalMode::Replan);
+    assert_eq!(parsed(r#"{"mode":"REPLAN"}"#).mode().unwrap(), TerminalMode::Replan { message: None });
+}
+
+#[test]
+fn a_replan_carries_the_request_as_what_the_plan_missed_unless_it_is_blank() {
+    assert_eq!(
+        parsed(r#"{"mode":"REPLAN","request":"cover the export"}"#).mode().unwrap(),
+        TerminalMode::Replan { message: Some("cover the export".into()) }
+    );
+    assert_eq!(parsed(r#"{"mode":"REPLAN","request":"  "}"#).mode().unwrap(), TerminalMode::Replan { message: None });
 }
 
 #[test]

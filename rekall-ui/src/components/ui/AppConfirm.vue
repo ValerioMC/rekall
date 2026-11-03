@@ -25,6 +25,7 @@ onMounted(async () => {
     <div class="p-5">
       <h2 class="mb-2 text-title font-semibold text-text">{{ title }}</h2>
       <p class="text-body leading-relaxed text-text-muted">{{ body }}</p>
+      <slot />
       <p
         class="relative mt-3.5 overflow-hidden rounded-control border border-danger bg-danger-soft py-2.5 pl-4 pr-3 font-mono text-small text-danger"
       >

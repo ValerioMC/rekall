@@ -92,7 +92,7 @@ An anchor is `entity:value`, where the entity is `company`, `project` or `task` 
 | `/rk … note "what to keep"` | Write a note on the task, then stop |
 | `/rk … section "Deployment" "how we ship"` | Write a titled section on the task's project, or rewrite the one with that title |
 | `/rk … plan` | Propose the task's checklist, open and ready to work, then stop; `plan flow` proposes a flow |
-| `/rk … replan` | Redesign the task's draft and open steps as new ready-to-work steps; running, claimed and done steps stay |
+| `/rk … replan ["what the plan missed"]` | Redesign the task's draft and open steps as new ready-to-work steps, bending them to the quoted message when there is one; running, claimed and done steps stay |
 | `/rk … step:3 start` / `step:3 done` | Move a step to running / claimed; on a flow `done outcome:<name>` follows that route |
 | `/rk project:vega generate kinds:sequence,state "how checkout charges"` | Store a diagram answering the request, one sheet per type |
 | `/rk project:vega explain "how an order is placed"` | Store a walkthrough the console plays step by step |
