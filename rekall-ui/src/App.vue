@@ -15,6 +15,7 @@ import SettingsPanel from '@/features/settings/components/SettingsPanel.vue'
 import TagsPanel from '@/features/tags/components/TagsPanel.vue'
 import RunQueuePanel from '@/features/queue/components/RunQueuePanel.vue'
 import AppToaster from '@/components/ui/AppToaster.vue'
+import ChatReopenTag from '@/features/chat/components/ChatReopenTag.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useClaudeConnectionStore } from '@/features/claude/store/claudeConnection.store'
 import { useChatStore } from '@/features/chat/store/chat.store'
@@ -257,6 +258,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
         <Transition name="pane">
           <ChatWindow v-if="chatWindowShown" />
         </Transition>
+        <ChatReopenTag />
       </div>
     </div>
 

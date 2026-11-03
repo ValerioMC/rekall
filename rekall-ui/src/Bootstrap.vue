@@ -8,6 +8,7 @@ import AppHeaderChrome from '@/components/shell/AppHeaderChrome.vue'
 import LeaveDialog from '@/components/shell/LeaveDialog.vue'
 import UpdateDialog from '@/components/shell/UpdateDialog.vue'
 import AppLogo from '@/components/ui/AppLogo.vue'
+import ChatReopenTag from '@/features/chat/components/ChatReopenTag.vue'
 import { fetchDatabaseStatus } from '@/features/settings/api/settings.api'
 import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
@@ -34,8 +35,9 @@ const pageArea = ref<HTMLElement | null>(null)
 const chatWindowShown = useChatWindowShown()
 
 // On the console the window docks beside the note pane, which App.vue arranges itself.
-const chatOverPage = computed(() => route.name !== 'console' && chatWindowShown.value)
-useChatDockArea(pageArea, false, () => route.name !== 'console')
+const onConsole = computed(() => route.name === 'console')
+const chatOverPage = computed(() => !onConsole.value && chatWindowShown.value)
+useChatDockArea(pageArea, false, () => !onConsole.value)
 useRevealOpenedChat()
 
 let refreshing = false
@@ -92,6 +94,7 @@ onUnmounted(() => {
           <Transition name="pane">
             <ChatWindow v-if="chatOverPage" />
           </Transition>
+          <ChatReopenTag v-if="!onConsole" />
         </div>
       </div>
       <ShellDock />
