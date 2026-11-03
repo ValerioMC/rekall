@@ -8,15 +8,29 @@ The arguments are:
 
 $ARGUMENTS
 
-If the terms include the bare word `generate`, follow **Generating**. If they include the bare word
-`explain`, follow **Explaining**. If they include the bare word `inventory`, follow **Inventorying**.
-If they include the bare word `assess`, follow **Assessing**. If they include the bare word
-`autoconfigure`, follow **Autoconfiguring**. If they include the bare word
-`wrapup`, follow **Wrapping up**. If they include the bare word `note`, follow **Noting**. If they
-include the bare word `section`, follow **Sectioning**. If they include the bare word `plan`, follow
-**Planning**. If they include the bare word `replan`, follow **Replanning**. If they include a `step:` term alongside `start`
-or `done`, follow **Stepping**. Otherwise follow **Loading**. Words inside double quotes are never
-terms: `generate "how the plan is noted"` is generating, not planning or noting.
+If the terms include one of the words below, the mode is the first row that matches, in this order. A
+`step:` term counts only alongside `start` or `done`. With none of them, follow **Loading** below.
+Words inside double quotes are never terms: `generate "how the plan is noted"` is generating, not
+planning or noting.
+
+| Bare word in the terms | File |
+|---|---|
+| `generate` | `generating.md` |
+| `explain` | `explaining.md` |
+| `inventory` | `inventorying.md` |
+| `assess` | `assessing.md` |
+| `autoconfigure` | `autoconfiguring.md` |
+| `wrapup` | `wrapping-up.md` |
+| `note` | `noting.md` |
+| `section` | `sectioning.md` |
+| `plan` | `planning.md` |
+| `replan` | `replanning.md` |
+| `step:` with `start` or `done` | `stepping.md` |
+
+When the terms pick a mode, read its file with Read before doing anything else, and follow only that.
+The files are in `~/.claude/rk/`; if one is not there, read it from `.claude/rk/` in the working
+directory. `wrapping-up.md` is the one place the wrapup rules live: the other modes and the sections
+below point to it.
 
 ## Loading
 
@@ -66,7 +80,7 @@ work is written down, and it was written so that it would not have to be said ag
 instruction it is, say in one line what you are about to do, and start. A question in it is a
 question to answer, not one to hand back.
 
-When that work is done, finish it yourself with `rekall_wrapup` (see **Wrapping up**): the wrapup is
+When that work is done, finish it yourself with `rekall_wrapup` (see `wrapping-up.md`): the wrapup is
 what claims a task with no steps, and on an `auto-commit` project it is also what commits. Do not wait
 for me to ask for it, and do not stop before it: a run queue does not go on to the next task while
 this one is unclaimed.
@@ -97,7 +111,7 @@ If the task carries steps, that is the plan and it decides what you do next.
 
 You cannot tick a step **done**, and no tool here can: that is mine to do in the console once I have
 looked at the work. What you can do, while you work a checklist, is move a step to **running** and
-then **claimed** with `/rk ... step:N start` and `/rk ... step:N done` (see **Stepping**). When you
+then **claimed** with `/rk ... step:N start` and `/rk ... step:N done` (see `stepping.md`). When you
 claim one, say which, in the words the step uses.
 
 ### The flow
@@ -129,7 +143,7 @@ a step is waiting for the console, and do not write a wrapup in between. Start t
 right away, in the same session. Stop only when a claim answers that the flow is finished, or when a
 step cannot be completed and none of its routes describes why: say what blocks it and stop there. A
 claim refused because the next step's visit budget is spent is such a stop: the loop has gone round as
-often as I allowed, so tell me what keeps sending the work back and stop. When the flow is finished, write the wrapup once (see **Wrapping up**) and tell me the claimed steps are
+often as I allowed, so tell me what keeps sending the work back and stop. When the flow is finished, write the wrapup once (see `wrapping-up.md`) and tell me the claimed steps are
 waiting for my review.
 
 Anchors that name a project and no task have no brief in them. Summarise what is there and wait.
@@ -157,522 +171,8 @@ may not do it silently.
 When a step or the description asks for something to be kept as a note (an analysis, a list, a
 draft, a runbook, "put the result in a note"), or the task exists to write one, that output goes
 to `rekall_note` on this task, not into the wrapup. The wrapup can say the note exists; it does not
-carry it. See **Noting**.
+carry it. See `noting.md`.
 
 When a step or the description asks for documentation about the project as a whole in a section
 (`create a documentation in a section named Deployment`), that goes to `rekall_project_section`
-under the title I named, not to a note or the wrapup. See **Sectioning**.
-
-## Stepping
-
-`/rk project:vega task:report-builder step:3 start` and `/rk project:vega task:report-builder step:3
-done` are how a session drives its own checklist as it works. `step:` takes the step's number as
-`rekall_context` lists them, or its exact title.
-
-- `start` marks that step **running**: call `rekall_step` with `state` `running`.
-- `done` marks it **claimed**: call `rekall_step` with `state` `claimed`. It does not tick the box.
-  Only I do that, in the console, once I have looked at the work.
-- `outcome:<name>` alongside `done`, on a flow, is what happened: pass it as `outcome`. Rekall routes
-  by it to the next step (see **The flow**).
-- `report:"..."` alongside `done`, on a flow, is what you saw there: pass it as `report`. Give one with
-  every failure.
-
-The loop, once you are working a checklist:
-
-1. `/rk project:x task:y step:N start`, before you touch the code for step N.
-2. Do the work the step's detail describes.
-3. `/rk project:x task:y wrapup`, to fold what that step built into the task's wrapup, by the rules
-   in **Wrapping up**. One state, rewritten whole, never a section per step. On a flow, skip this
-   until the flow is finished.
-4. `/rk project:x task:y step:N done`, to claim it.
-5. If a later step is still open, `/rk project:x task:y step:M start` and go again, unless it opens a
-   new session (see **Sessions**). When none is, stop and tell me the checklist is claimed and waiting
-   for my review. On a flow, the next step is the one the claim's answer names and you start it without
-   stopping; the loop ends when the answer says the flow is finished, and only then do you write the
-   wrapup.
-
-**Sessions.** A step that reads `(opens a new session)` is the first of a session of its own, and the `<steps>` tag
-carries `sessions="N"` when there is more than one. A step without it belongs to the session the step
-before it ran in. A checklist with no such step is one session from the first step to the last.
-
-The wrapup is what the next session starts from, so write it before you claim the last step of a
-session. When the step you claimed is followed by one that opens a new session, do not start that one
-here, on a flow too: say which step the next session opens on and stop. Rekall closes this terminal and
-opens a new one on that step. The `step:M start` of that next step is the new session's to make.
-
-`rekall_step` refuses `done` as a state, and refuses a step I have already accepted. If it comes
-back with either, say so and stop.
-
-If the project's context carries an `auto-commit` field, the claim is what commits: `step:N done`
-(and, on a task with no checklist, the wrapup) stages and commits the folder and logs the commit
-itself. Do not `git commit` on such a project; read the answer for what it committed, or why not.
-
-On such a project, pass `commit_message` with the claim (with `rekall_wrapup` on a task with no
-checklist), because it is the commit's message:
-
-- The first line is a Conventional Commits subject under 72 characters, `feat: …` or `fix: …`, saying
-  what the work delivers, not the step's number.
-- Then a blank line and two to five sentences of plain prose: what the change does, why, and anything
-  a reader of `git log` should know. No list of files, no "this session", no anchors: Rekall adds a
-  `Refs:` line with the task and step itself.
-
-Without it, Rekall derives the message from the step's title and detail, which is the fallback and
-reads like one.
-
-## Noting
-
-`/rk project:vega task:report-builder note "the export formats we settled on"` means: write a note
-on that task and attach it there, or rewrite the one it already carries on that subject.
-
-The text in double quotes after `note` says what the note has to hold, in my words. It is not an
-anchor and not the note's text: it is what to put in it. Without one, the note holds what this
-session just produced that I would want again.
-
-1. Drop the `note` term and the quoted text, and call `rekall_context` with the anchors that are
-   left, unless that exact task is already loaded in this session.
-2. Write the note from what the quoted text asks for: the output of a step, a piece of the
-   description worked out, something the session found. Written to be read on its own by someone
-   who was not here, in markdown.
-3. Call `rekall_note` with those anchors, a short `title` named like a file (`export-formats.md`)
-   and the whole note as `body`. If the task already carries a note this one supersedes (the same
-   subject, an older version of the same results), use that note's title and pass `replace: true`,
-   so the task keeps one current note instead of two.
-4. Say in one line which note you wrote or rewrote and its `note:` anchor. Then stop.
-
-`replace` overwrites the body outright: the old text is not kept anywhere, and a note shared with
-other tasks changes for them too, so send the whole note, not the part that changed. Without it, a
-title the task's notes already carry is refused. A note is not the wrapup, and writing one does not
-claim the task or a step.
-
-## Sectioning
-
-`/rk project:vega task:report-builder section "Deployment" "how we ship to production"` means: write a
-section named Deployment on that task's project, or rewrite the one it already has under that title.
-
-A section is a page of the project, shown beside its blueprint in the console. A context carries only
-its title, in a `<sections>` block, so it costs a line and a later session reads it with
-`rekall_read_sections` when the work touches it. Use it for what is
-true of the project as a whole (deployment, conventions, architecture, a glossary), never for what
-one task built (that is the wrapup) or produced (that is a note).
-
-The first quoted text is the section's title, exactly as I typed it. The second, if there is one,
-says what it has to hold, in my words; it is not the section's text. Without it, the section holds
-what the task or the step that asked for it describes. This is also what a step like "create a
-documentation in a section named xxx" means: the name is the title, the rest of the step is the content.
-
-1. Drop the `section` term and the quoted texts, and call `rekall_context` with the anchors that are
-   left, unless that exact task is already loaded in this session.
-2. Write the section from the code and from what the quoted text asks for, in markdown, to be read on
-   its own by someone who was not here.
-3. Call `rekall_project_section` with those anchors, the `title` and the whole section as `body`. If
-   the project already has a section under that title and this one supersedes it, pass `replace: true`.
-4. Say in one line which section you wrote or rewrote and on which project. Then stop.
-
-`replace` overwrites the body outright and no history keeps the old one, so send the whole section,
-not the part that changed. Without it, a title the project already uses is refused. Nothing here
-renames, reorders or deletes a section, and writing one does not claim the task or a step.
-
-## Planning
-
-`/rk project:vega task:report-builder plan` means: turn the task into a checklist, ready to work.
-
-1. Drop the `plan` term, and `flow` after it, and call `rekall_context` with the anchors that are left.
-2. Read what it gives you: the description says what the work is for and what it has to satisfy,
-   the wrapup what already exists, the done steps what is finished. Then read the code the task
-   touches, enough to know where each piece will go.
-3. Draw the solution wherever a picture says more than words (see **Drawing the plan** below),
-   before writing the steps, so each step is cut from a design and not from the description alone.
-4. Decide whether the work is a checklist or a flow. It is a flow when a step's outcome decides
-   what comes next: tests that can fail and send the work to a fix, a deploy that can break, a
-   review that can reject. Work that only goes from one step to the next is a checklist, however
-   long. The bare word `flow` after `plan` (`/rk ... plan flow`) asks for a flow outright.
-5. For a checklist, call `rekall_propose_step` once per step, in the order the work should be done.
-   For a flow, call `rekall_propose_flow` once with every step in order, the first where it begins,
-   and each step's routes: `{"outcome": "app-error", "to": 3}`, or `"to": "end"`. Do not pass
-   `draft`: the steps land open and ready to work, promoted on their own. Pass `draft: true` only
-   when I ask for drafts to review.
-   Work out the arcs one step at a time: what can end it (it worked, and each way it can fail) and
-   where each of those goes (the next step, back to a fix step, or the end). Name outcomes for
-   what happened (`passed`, `app-error`), give a step that simply leads on one route to the next,
-   leave the steps that finish the work without routes, and give every loop a way out. Give the
-   step a loop returns to a `max_visits` (3 is a sensible start), so the flow stops instead of
-   going round forever. Either way, a
-   title says what the step delivers; the detail says what to build, where, what it must satisfy
-   and how I can tell it is done, enough for a session that never saw this one to do it alone.
-   Propose only what is still missing, and nothing the description rules out.
-   Cut the sessions as part of the plan, as **Splitting into sessions** says: never wait to be asked.
-6. Stop. Say in a few lines how many steps (and, for a flow, routes) you proposed, how many
-   sessions they make and where each starts, which diagrams you drew and where they are, and
-   anything you left out on purpose. Build nothing: the steps are
-   open, and I review them in the console if I want to.
-
-A title the task already has is refused, so a second `plan` adds only what the first one missed. A
-flow is proposed only onto a task with no steps; on one that has some, plan a checklist and say the
-routes are mine to draw.
-
-### Splitting into sessions
-
-A plan is also a plan of sessions. Every turn of a session re-reads everything the session has seen,
-so a long one costs more and reasons worse on work unlike what it holds. Decide where sessions
-start whenever you plan or replan, without being told to, and mark each start with `new_session`
-(`true`) on the step, in `rekall_propose_step`, `rekall_propose_flow` or `rekall_replan`.
-
-- Keep steps together when they work the same area and each builds on what the one before read.
-- Open a new session when the area changes (another crate, the backend then the console, code then
-  docs), when earlier steps leave a lot to unlearn (a refactor that moved the code around), when a
-  step is big enough to need its own room, or when a session would otherwise hold more than a few
-  large steps.
-- A step that only checks or documents what the steps before it built stays in their session.
-- On a flow, group by the order the steps are worked, not the order they are listed; a step a loop
-  returns to does not open a session, because it needs what the failed pass left.
-- On a replan, steps that stay keep their sessions. The first new step joins the last kept step's
-  session unless it meets one of the reasons above.
-- A checklist of a few small steps stays one session: the first step opens it, and no other step
-  carries `new_session`. Do not split for the sake of splitting.
-
-The wrapup written before a session's last claim is what the next session starts from, so a split
-costs nothing the wrapup does not carry. Say in the closing lines of the plan how many sessions it
-has and where they start.
-
-### Drawing the plan
-
-A description is often too broad to build from, and in a long plan the later steps are the vaguest.
-A diagram fixes the shape of the solution before the steps are cut from it. Draw one **when it makes
-the solution clearer than the words do**; a copy change or a fix in one function gets none, and a
-diagram that repeats its step's sentence is noise.
-
-- Pick the kind by what the solution is: `sequenceDiagram` for who calls whom and in what order,
-  `erDiagram` for stored data, `classDiagram` for types and how they relate, `stateDiagram-v2` for a
-  lifecycle, `flowchart` for a decision. Name the elements as the code names them, and draw only what
-  the solution has or will have. The solution is usually several layers (a table, a repository, a
-  service, an endpoint, a screen): show each layer's piece, not one box for all of them.
-- **The whole solution** goes in a note on the task, written once with `rekall_note` as
-  `solution-overview.md`, when the plan has more than a handful of steps or crosses layers. The
-  details of the steps it covers name the note.
-- **Each step's own piece** goes in the step's `detail`, as a fenced `mermaid` block, drawn in its
-  place among its neighbours: the parts that already exist and the ones other steps build, the new
-  ones marked. A step in the middle of a long plan then shows what it builds and what it touches
-  without sending the session to the description. A step whose piece is one function gets no block.
-- A diagram already written in the description or in a note is the starting point: take it, correct
-  what the code shows is wrong and carry on from it, rather than drawing a second one beside it.
-- The console draws a block that parses and shows an error for one that does not, so keep to plain
-  Mermaid, quote labels with punctuation, and give no sequence participant an id that starts with
-  `x`: the lexer reads `-X` after a deactivation as the cross arrow.
-
-## Replanning
-
-`/rk project:vega task:report-builder replan` means: redesign the steps this task already has.
-`/rk project:vega task:report-builder replan "also cover the csv export"` means the same, and the
-quoted text is what I noticed the plan missed, in my words. It is not an anchor.
-
-1. Drop the `replan` term and the quoted text, and call `rekall_context` with the anchors that are
-   left. The anchors string never carries the quoted text.
-2. Read what it gives you as in **Planning**, and read the steps that are there: which are done,
-   which are running or claimed, which are open or drafts. Work out what is wrong with the open
-   and draft ones, and what still has to be built. With quoted text, that is what to find: read it
-   as the new requirement, change the open and draft steps it touches, keep the ones it does not,
-   and add the steps it needs.
-3. Decide checklist or flow and work out the arcs as in **Planning**. Steps that are running,
-   claimed or done stay and are not planned again, so the new steps follow them: when any stay,
-   plan a checklist and say the routes are mine to draw. Draw the new steps as in **Drawing the
-   plan**, starting from the diagrams the task already carries and correcting them; a note that
-   already holds the overview is rewritten with `replace: true`. Cut the new steps into sessions as
-   **Splitting into sessions** says, without being asked.
-4. Call `rekall_replan` once with every new step. It deletes the task's draft and open steps and
-   lays the new ones in a single transaction, and refuses the whole plan when any part is wrong.
-   Leave `draft` out, as in **Planning**. To drop a single step that belongs on no plan, call
-   `rekall_delete_step`.
-5. Stop. Say in a few lines how many steps were deleted, how many were laid, how many sessions the
-   new steps make and where each starts, which steps stayed and anything you left out on purpose. Build nothing.
-
-## Generating
-
-`/rk project:vega generate kinds:sequence,state "how checkout decides what to charge"` means: work
-out what the code does to answer that request, describe it as Mermaid sheets whose elements are
-linked to the code, and store them with `rekall_diagram`. The console draws them; you never do.
-A `task:` anchor may come too (`/rk project:vega task:report-builder generate ...`): the diagram is
-then stored on that task as well as on its project.
-
-The text in double quotes is the request, in my words: what the diagram has to make clear. It is not
-an anchor. `kinds:` lists the Mermaid types I asked for, one sheet each, in that order; it is not an
-anchor either.
-
-1. Drop the `generate` term, the `kinds:` term and the request, and call `rekall_context` with the
-   anchors that are left. The description, wrapup and notes tell you what the project is and where
-   things live. They are not work: in this mode you build nothing, and no checklist changes.
-2. Find the code yourself. Your working directory is the project's folder, and every path you link
-   is relative to it. Do not ask me where the project is, which files to read, which functions
-   matter or where to save: search, read, follow calls and references until you can answer the
-   request, and read only what it needs.
-3. Write one sheet per type in `kinds:`. Without `kinds:`, choose what answers the request: a
-   sequence for who calls whom and in what order, a state diagram for a lifecycle, a flowchart for
-   the decisions inside one piece of code, a class or ER diagram for structure.
-4. Describe the behaviour, not the file layout. In a sequence the participants are the components
-   that talk (types, modules, services, external systems), each message is a call labelled with
-   what is called (`charge(card)`), its dashed reply carries what comes back, `+`/`-` activations
-   nest the calls the way the code does, and branches and repetition go in `alt`, `opt` and `loop`
-   with their condition. A 200-line function that validates, charges, stores and notifies is four
-   messages or four nodes, each linked to its own lines. A status field set on different branches
-   is a state diagram even when the code never calls it one.
-5. Keep to what the code supports. Link every participant, message, node, state, class or entity
-   that has a place in the code to that place in `links`, and read those lines before you cite them:
-   a participant to its type, a message to the body of the method it calls. Never draw a call, a
-   transition or a write you did not see.
-6. Call `rekall_diagram` with the anchors, a short `title`, the request as `question` and every
-   sheet. Its description carries the full format: follow it, and answer the request rather than the
-   whole codebase. If the answer is a refusal, fix every line it lists and send every sheet again.
-7. Say in two or three lines what the diagram shows, how many elements are linked to code, and its
-   id. Then stop: no wrapup, no step, no commit. A diagram is not the task's work.
-
-The sheets are the whole output. Never HTML, SVG, Vue or styling, and no rendition of the diagram in
-the chat either. To revise a diagram whose id you have, send every sheet again with that id as
-`diagram`, keeping the ids of the elements that stay.
-
-## Explaining
-
-`/rk project:vega explain "how an order is placed"` means: walk through the code that answers the
-request as a **walkthrough**, a diagram the console plays one message at a time, showing the method
-called, its code, what goes in and what comes back, and store it with `rekall_diagram`. A `task:`
-anchor may come too, as in **Generating**.
-
-The text in double quotes is the request, in my words: the functionality I want to understand. It is
-not an anchor. A walkthrough exists because a static diagram or a written explanation was not enough,
-so it follows the code concretely, call by call.
-
-1. Drop the `explain` term and the request, and call `rekall_context` with the anchors that are left.
-   As in **Generating**, you build nothing and no checklist changes.
-2. Find the entry point the request starts from: the controller handler, the command, the scheduled
-   job or the listener that is triggered first. Follow the calls from there through the layers, and
-   read every method you are going to show.
-3. Sheet 0 is the entry. It is a `sequenceDiagram` whose first message is the call into the entry
-   point, from an `actor` or the external caller, and whose participants follow the call through the
-   layers in order (controller, service, repository...). Every system outside the project's code (a
-   database, an HTTP API, a queue, the filesystem) is a participant of its own, and its id goes in
-   `walkthrough.external`.
-4. Each call is a message labelled with the method and its arguments (`place(order)`), linked by `#n`
-   to the method's body, with a dashed reply carrying what comes back. Give each call an entry in
-   `walkthrough.messages` under the same `#n`: `explain` says what the step does and why, in one or
-   two sentences drawn from the code; `input` what the method receives; `output` what it returns, or
-   the error it raises. A reply needs an entry only when it says something its call does not.
-5. A call whose own implementation is worth walking through gets a sequence sheet of its own, which
-   starts at that call's receiver and whose title names the call. The call's entry points at it with
-   `opens`, the sheet's index in `sheets`, counted from 0. The console opens it when the reader steps
-   into the call and comes back when it ends. Nest as deep as the code needs, within 8 sheets.
-6. Keep to what the code supports. `input` and `output` are values of the types the code declares: a
-   short example when the code makes it concrete (`{ sku: "A-7", qty: 2 }`), the type's shape when it
-   does not (`Order { lines: Vec<Line> }`). Never show a call, a value or a branch you did not see.
-7. Call `rekall_diagram` with the anchors, a short `title`, the request as `question` and every sheet.
-   If the answer is a refusal, fix every line it lists and send every sheet again.
-8. Say in two or three lines what the walkthrough covers, how many messages and sheets it plays, and
-   its id. Then stop: no wrapup, no step, no commit.
-
-## Inventorying
-
-`/rk project:vega inventory` means: record what the project is built from, every library and
-framework at the exact version it uses, with `rekall_inventory`. Rekall checks that list against
-the critical advisories of the GitHub Advisory Database and warns on its Security screen.
-
-1. Drop the `inventory` term and call `rekall_context` with the anchors that are left. You build
-   nothing and no checklist changes.
-2. Find every manifest and lockfile in the project's folder yourself, in every subfolder that is a
-   part of the project: `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `Cargo.lock`,
-   `requirements*.txt`, `poetry.lock`, `uv.lock`, `Pipfile.lock`, `pom.xml`, `build.gradle(.kts)`,
-   `gradle.lockfile`, `go.mod`/`go.sum`, `composer.lock`, `Gemfile.lock`, `*.csproj`,
-   `packages.lock.json`, `pubspec.lock`, `Package.resolved`, `mix.lock`, the workflow files under
-   `.github/workflows`. Skip `node_modules`, `target`, `vendor`, build output and anything ignored.
-3. Read the exact version each dependency resolves to, from the lockfile when there is one. Where a
-   manifest only gives a range and there is no lockfile, use the version the build would pick if the
-   code makes it plain, and leave the dependency out if it does not: a guessed version raises false
-   warnings. Include what a lockfile pins transitively.
-4. Call `rekall_inventory` with the project anchor and the whole list, one entry per package and
-   version: `ecosystem` by the advisory database's name (`npm`, `pip`, `maven`, `rust`, `go`,
-   `nuget`, `rubygems`, `composer`, `pub`, `swift`, `erlang`, `actions`), `name` as that ecosystem
-   writes it, `version`, and `manifest` relative to the project's folder. If the answer is a refusal,
-   fix what it names and send the whole list again.
-5. Say in two or three lines how many dependencies you recorded per ecosystem, what you left out and
-   why. Then stop: no wrapup, no step, no commit.
-
-## Autoconfiguring
-
-`/rk project:lightcraft autoconfigure` means: learn from the project's repository, and what it
-publishes about itself, how it is built and how it takes a contribution, and store that as the
-project's sections, so that every later session on the project follows it.
-
-1. Drop the `autoconfigure` term and call `rekall_context` with the anchors that are left. You change
-   no code, no checklist and no task.
-2. Find the upstream repository: a GitHub or GitLab binding in `<connections>` (its target is the
-   repository), else the `origin` remote of the repository in the working directory, else a
-   repository URL in the project's description. If there is none, say so and stop.
-3. Read what the project publishes, never your memory of it: the README, `CONTRIBUTING`,
-   `CODE_OF_CONDUCT`, `SECURITY`, the issue and pull request templates (`.github/ISSUE_TEMPLATE/`,
-   `.github/PULL_REQUEST_TEMPLATE*`, `.gitlab/issue_templates/`, `.gitlab/merge_request_templates/`),
-   the CI workflows, the build and test files, the changelog or release notes. Read the local clone
-   first; what it lacks, through the connection's wrapper (`rekall-github --connection <label> GET
-   /repos/:project/contents/CONTRIBUTING.md`, `GET /repos/:project/labels`, `GET
-   /repos/:project/pulls?state=closed`) or the project's public pages with WebFetch. A few recently
-   merged pull requests show what no file states: how branches are named, how titles read, which
-   labels are set, whether the issue is linked.
-4. Read the sections the project already has with `rekall_read_sections`. One on the same subject is
-   rewritten with `replace: true`, keeping everything it says that is still true: those may be my
-   words, and nothing keeps the text a replace overwrites.
-5. Write each section with `rekall_project_section`, one call each:
-   - `Overview`: what the project is, its parts and stack, where things live, who maintains it.
-   - `Contributing`: the procedure from finding work to a merged change, numbered. How an issue is
-     filed (the template, its required fields, the labels), how a branch is named and from which base,
-     whether to fork or push directly, the commit message rules, a sign-off or CLA, how the pull
-     request is opened (title, the template's fields filled in, labels, reviewers, draft or not, the
-     issue linked with `Fixes #n`) and which checks must pass. Where a connection reaches the
-     repository, give the exact call for the issue and for the pull request
-     (`rekall-github --connection <label> POST /repos/:project/issues -d '{"title": …, "labels": […]}'`),
-     with every field the project lets you decide in advance already filled.
-   - `Development`: how to set up, build, test and lint, as the project runs it, and the practices a
-     change follows (style, tests, docs).
-   - `Release`: only when the project publishes how it releases.
-
-   Each rule says where it was read. A rule nothing states is left out, and named in step 7.
-6. If no GitHub or GitLab connection with a credential reaches the repository, `Contributing` still
-   says how to contribute, and you tell me the connection to create and bind so a session can file
-   issues and open pull requests itself: its kind, its server URL and the repository as the target.
-7. Say in a few lines which sections you wrote or rewrote, and what the project leaves undecided.
-   Then stop: no wrapup, no step, no commit.
-
-## Assessing
-
-`/rk project:vega assess advisory:GHSA-xxxx-xxxx-xxxx` means: decide whether that advisory
-really affects the project, and record the verdict with `rekall_assess_vulnerability`. A scan only
-knows the project declares a vulnerable version; whether the flaw can be reached is in the code.
-
-`/rk project:vega assess`, with no `advisory:` term, means the same for every advisory reaching the
-project that is still `not assessed`: one verdict each.
-
-1. Drop the `assess` term and the `advisory:` term, and call `rekall_context` with the anchors that
-   are left. You change no code and no checklist.
-2. With no `advisory:` term, call `rekall_vulnerabilities` with the project anchor alone and take
-   every advisory it lists as `not assessed`, in that order. If there is none, say so and stop. Then
-   work steps 3 to 5 for each one, recording each verdict before starting the next.
-3. Call `rekall_vulnerabilities` with the project anchor and `advisory` set to the GHSA id. It gives
-   the package and version, the vulnerable versions, the first safe one, the functions that carry the
-   flaw when GitHub names them, the advisory's own description and any earlier conclusion and
-   reasoning.
-4. Find where the project uses the package: its imports, the calls into it, the configuration that
-   turns a vulnerable feature on, and the inputs that reach those calls. Follow them far enough to say
-   whether the vulnerable code runs, and on what. Advisories on the same package share this search:
-   do it once and judge each against its own vulnerable functions.
-5. Call `rekall_assess_vulnerability` with the project anchor, the advisory, a `verdict`, the
-   `reasoning` and the `conclusion`. `not_affected` only when the code shows the vulnerable path is
-   never taken (the function is never called, the feature is off, no input reaches it); `affected`
-   when it is, or when you cannot show it is not.
-   - The `reasoning` says what the flaw needs to run and names the files and functions that decide
-     whether the project gives it that.
-   - The `conclusion` is one or two plain sentences on why this project is or is not affected, in
-     terms of what the project does, not what the flaw does: `Rekall never unpacks archives; it only
-     reads lockfiles as text.` For `not_affected`, it names the feature or input the project does not
-     use, so whoever reads it knows what not to start using while the package stays at this version.
-6. Say in two or three lines what you concluded and why; for several, one line per advisory with its
-   verdict. Then stop: fixing is a task the console opens.
-
-## Wrapping up
-
-`/rk project:vega task:report-builder wrapup` means: record what that task's implementation looks
-like **now**, replacing what was there.
-
-Anything in double quotes after `wrapup` is a **directive**: what I want the wrapup to say, in my
-words, not an anchor. `/rk project:vega task:report-builder wrapup "solo il modulo di export"`.
-
-1. Drop the `wrapup` term and the directive, and call `rekall_context` with the anchors that are
-   left, so you are working from the current wrapup and notes rather than from memory of this
-   session. Skip this only if you already loaded that exact task in this session and nothing has
-   changed since.
-2. Call `rekall_wrapup` with those same anchors and the complete new text as `body`. The anchors
-   string never carries the directive.
-3. Say in one line what you wrote and that it replaced what was there. If a directive left something
-   out that the previous wrapup had, say what. If the task has a checklist, name the open steps this
-   session finished, so I can tick them: nothing you can call will do it for you. Then stop. On a
-   flow, do not ask me to tick anything: say the flow is finished and its claimed steps are waiting
-   for review.
-
-### The directive
-
-Without one, the wrapup is yours to write: the implementation as this session and the code leave it,
-by the rule the tool states.
-
-With one, it decides the content and you do not go past it. It can narrow the subject, dictate the
-words, set the language or the length, or say what to leave out. Take it literally.
-
-- "write only what I am telling you" means the body carries what I dictated and nothing you inferred
-  from the code. What I did not mention is gone, and step 3 is where you tell me so.
-- A directive that names a subject, `"solo il modulo di export"`, narrows what you write about. What
-  the rest of the wrapup already says stays true and stays in, unless I said to drop it.
-- It never changes the shape. Still one state and not a changelog, still the whole text in one call,
-  still short enough to read on a screen. If what I dictate is phrased as a change I made, record
-  what that change leaves the system as, not the making of it.
-
-The anchors have to name exactly one task. A `project:` anchor on its own names forty and is refused.
-
-### Steps that closed since the last one
-
-A wrapup written after a step is finished has to account for it, and that is the whole reason to
-write one there. Write the text again so it describes the system with that step's work in it. The
-result is one description of the whole task, not the previous wrapup with a paragraph stuck on the
-end.
-
-You do not have to work out which ones those are. The context marks every finished step the wrapup
-predates with `(finished since the wrapup was written)` and hands back its detail, which it does for
-no other closed step. Those are exactly what the current text is missing, and it is often more than
-the one step this session closed: a step ticked in an earlier session that never got a wrapup is
-still marked, and it goes in too. Do not stop at the piece you just built.
-
-- Yes: the piece the step built is now part of what the wrapup says the task is, named where it
-  lives, next to what was already there.
-- No: a section per step, a heading with the step's title on it, "then I did", anything that lets a
-  reader reconstruct the order the pieces arrived in. That is a changelog, and it is what this
-  replaces.
-
-If the step's work made something the wrapup already said untrue, the old sentence goes. Keeping
-both is how a wrapup starts contradicting itself.
-
-**Write it fresh.** A wrapup does not grow. It is rewritten from the code every time. Read the current
-wrapup as a list of claims to check, not as a text to extend: a sentence stays only if the code
-still makes it true and the next session needs it to start work. Open points that are closed,
-decisions nobody will revisit and detail about finished, stable pieces all go. The new text still
-covers the whole task, not only the part you touched.
-
-**Write the state, not the session.** The wrapup describes the system as it stands, for a reader who
-was not here and does not care what it looked like before.
-
-- Yes: what exists, what it does, how the parts fit, which decisions are settled, what is still open,
-  where the sharp edges are.
-- No: "added", "changed", "now also", "previously", "fixed", "refactored", "before/after", anything
-  dated, anything phrased as a step you took, anything that reads as a changelog entry.
-
-If a sentence only makes sense to someone who watched the change happen, it does not belong in the
-wrapup. That is what the notes are for.
-
-**Name the code, do not transcribe it.** It is read next to the repository, so it has to say where
-things are: the class, the file, the endpoint, the table, the component, by the name they have.
-A line or two on each piece, what it is there for and what it decides.
-
-- Yes: `WrapupService` is the whole write path and the only thing that touches the wrapup row.
-- No: the fields of an object, the columns of a table, method signatures, parameter lists, a
-  directory tree. That is in the code, it is longer than the wrapup, and it is wrong a week later.
-- Where there is a rule, the rule is the point. What it decides, on what, what happens at the edges,
-  what is refused and why. A class name says there is a service; only the wrapup says that
-  overwriting a wrapup edited by hand is announced because nothing keeps the text it replaced.
-
-**Shape it to be scanned.** The kind of information chooses the form:
-
-| Information | Form |
-|---|---|
-| What the task delivers and where it stands | One or two sentences, first |
-| The pieces of the implementation | A table: the name in the code, what it is for or decides |
-| A rule | One bullet: what it decides, on what, the edges, what is refused |
-| Results of something checked or tested | A table, one row per check, its outcome and what was seen |
-| A flow or a lifecycle | A numbered list |
-| What is open or fragile | Bullets under their own heading, last; left out when nothing is |
-
-`###` headings separate those blocks and nothing else. Prose is only for what connects the parts.
-It fits on one screen: about 300 words suits most tasks. Past 600 the tool says so, because the
-text is carrying history or detail that belongs in a note.
-
-If the tool answers that the version you replaced had been edited by hand, tell me: those were my
-words, and nothing keeps them any more.
+under the title I named, not to a note or the wrapup. See `sectioning.md`.

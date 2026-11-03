@@ -68,6 +68,7 @@ From a terminal:
 make mcp-add    # claude mcp add --scope user --transport http rekall http://localhost:47355/mcp
 make mcp-check  # verify the endpoint answers
 cp .claude/commands/rk.md ~/.claude/commands/rk.md
+mkdir -p ~/.claude/rk && cp .claude/rk/*.md ~/.claude/rk/
 ```
 
 `--scope user` registers the server for every directory. Without it, `/rk` works only in the directory `claude mcp add` ran from. Restart any open session, then:
@@ -168,7 +169,7 @@ make test     # every crate's tests, then frontend lint, types and unit tests
 make lint     # clippy, as CI runs it
 ```
 
-`RUST_LOG=rekall=debug make run` turns on debug logging. The `/rk` command the app installs is `.claude/commands/rk.md`, compiled into the binary. The frontend stack and its folders are in [docs/guide/development.md](docs/guide/development.md).
+`RUST_LOG=rekall=debug make run` turns on debug logging. The `/rk` command the app installs is `.claude/commands/rk.md`, compiled into the binary. It carries the rules every call needs; each mode (`plan`, `wrapup`, `generate`...) has its own file in `.claude/rk/`, which the command tells the session to read only when the terms ask for that mode. The frontend stack and its folders are in [docs/guide/development.md](docs/guide/development.md).
 
 [`deploy/langfuse`](deploy/langfuse/README.md) holds an optional local Langfuse stack on Docker Compose, for looking at Claude Code's LLM traces. Rekall runs without it.
 
