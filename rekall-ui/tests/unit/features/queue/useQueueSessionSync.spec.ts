@@ -29,7 +29,8 @@ function item(state: RunQueueItem['state']): RunQueueItem {
     detail: null,
     startedAt: null,
     finishedAt: null,
-    steps: []
+    steps: [],
+    waitingFor: []
   }
 }
 

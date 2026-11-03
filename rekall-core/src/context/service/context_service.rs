@@ -12,6 +12,7 @@ use rekall_store::repository as repo;
 use crate::context::{ContextCommitView, ContextRecord, ContextSkillScope, ContextSkillView, DocumentView, StepConnectionView};
 use crate::component::{referenced_task_labels, ProjectComponentView};
 use crate::connection::ConnectionView;
+use crate::dependency::{TaskWait, TaskWaitService};
 use crate::step::{StepFlowRows, TaskStepView};
 use crate::task::TaskReferenceView;
 use crate::wrapup::{Freshness, WrapupFreshnessService, WrapupView};
@@ -288,6 +289,9 @@ impl ContextService {
         if let Some(summary) = flow_summary(&steps) {
             fields.push(("flow".into(), summary));
         }
+        if let Some(summary) = dependency_summary(&TaskWaitService::of_task_in(tx, task.id).await?) {
+            fields.push(("depends-on".into(), summary));
+        }
 
         let components = repo::project_component::list_of_project(db, project.id).await?;
         let connections = repo::project_connection::list_of_project(db, project.id).await?;
@@ -415,6 +419,15 @@ fn referenced_tasks<'a>(record: &ContextRecord, task: &task::Model, siblings: &'
 fn epic_of<'a>(task: &task::Model, siblings: &'a [task::Model]) -> Option<&'a task::Model> {
     let epic_id = task.epic_id?;
     siblings.iter().find(|sibling| sibling.id == epic_id)
+}
+
+/// The tasks this one waits for and where each stands; the run queue starts the task only once all are accepted.
+fn dependency_summary(waits: &[TaskWait]) -> Option<String> {
+    if waits.is_empty() {
+        return None;
+    }
+    let listed: Vec<String> = waits.iter().map(|wait| format!("`{}` ({})", wait.anchor, wait.state_text())).collect();
+    Some(format!("{}. The run queue starts this task only once all are accepted.", listed.join(", ")))
 }
 
 /// What an epic is, for its field list: no steps of its own, and how far the tasks under it are.

@@ -109,6 +109,7 @@ is found by opening one folder per crate:
 | `component`, `section` | a project's components and its titled pages |
 | `adherence` | how closely the work followed the plan: steps accepted at the first pass, steps sent back, `step-N-changes.md` deviation notes and flow visits against their budget, per task and per project; read-only, console and HTTP only |
 | `check` | the commands a person sets to pass before a claim is accepted, for a whole project or one step, and what each run found; the console writes them, no session can |
+| `dependency` | a task that waits for another task of its project to be accepted: the pair, the cycle rule, and what a task still waits for as the run queue and the context read it; the console writes the pairs, no session can |
 | `connection` | the GitLab instances, GitHub servers, Kubernetes clusters and Jira sites projects reach, the companies each is shared with, the projects that bind each, the log of every credential a terminal asked for, and the Jira issues a project imports as tasks |
 | `task` | the task row, and in `rekall-core` and `rekall-mcp` a session creating one or filing it under an epic; the console's task service is in `catalog` |
 | `step`, `flow` | the checklist, and the routes and visits that turn it into a flow |
@@ -175,7 +176,8 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `commit` | `step`, `task` | `catalog`, `step`, `task` | - | nothing | nothing |
 | `component` | `catalog` | `connection`, `task` | nothing | nothing | - |
 | `connection` | `catalog`, `task` | nothing | `catalog`, `commit`, `component`, `task` | `catalog` | - |
-| `context` | - | `catalog`, `commit`, `component`, `connection`, `note`, `section`, `step`, `tag`, `task`, `wrapup` | - | nothing | nothing |
+| `context` | - | `catalog`, `commit`, `component`, `connection`, `dependency`, `note`, `section`, `step`, `tag`, `task`, `wrapup` | - | nothing | nothing |
+| `dependency` | `task` | `claude` | `queue`, `task` | nothing | - |
 | `diagram` | `catalog`, `task` | `catalog`, `task` | nothing | nothing | nothing |
 | `filesystem` | - | - | nothing | nothing | - |
 | `flow` | `step`, `task` | `step` | - | `step` | `step` |
@@ -183,7 +185,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `guard` | - | nothing | `catalog`, `step`, `task` | nothing | - |
 | `inventory` | `catalog` | `catalog` | - | nothing | `vulnerability` |
 | `note` | `task` | `task` | `catalog` | `catalog` | nothing |
-| `queue` | `task` | `catalog`, `claude`, `task` | nothing | nothing | - |
+| `queue` | `task` | `catalog`, `claude`, `dependency`, `task` | nothing | nothing | - |
 | `quick` | - | - | `catalog`, `claude`, `terminal` | `catalog`, `claude` | - |
 | `review` | - | `task`, `timeentry` | - | - | - |
 | `search` | - | `task` | - | nothing | nothing |

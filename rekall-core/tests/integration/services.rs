@@ -1174,6 +1174,20 @@ async fn a_task_of_an_epic_inherits_its_description_and_notes_and_the_epic_lists
     assert!(rendered.contains("  - `task:pay`"), "{rendered}");
 }
 
+#[tokio::test]
+async fn a_task_context_lists_the_tasks_it_waits_for_and_where_each_stands() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let report = world.task(&project, "report").await;
+    let export = world.task(&project, "export").await;
+    rekall_store::task_dependency::Model::new(export.id, report.id, Instant::now()).into_active_model().insert(world.db()).await.unwrap();
+
+    let rendered = world.services.renderer.render(&world.services.context.for_task(export.id).await.unwrap());
+
+    assert!(rendered.contains("- `depends-on`: `project:vega task:report` (not accepted)."), "{rendered}");
+    assert!(rendered.contains("The run queue starts this task only once all are accepted."), "{rendered}");
+}
+
 // ------------------------------------------------------------------------------ task creation
 
 fn draft(title: &str) -> rekall_core::flow::PlannedStep {

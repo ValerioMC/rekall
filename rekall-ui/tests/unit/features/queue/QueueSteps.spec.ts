@@ -31,7 +31,8 @@ function itemWith(state: RunQueueItemState, steps: RunQueueStep[], detail: strin
     detail,
     startedAt: null,
     finishedAt: null,
-    steps
+    steps,
+    waitingFor: []
   }
 }
 

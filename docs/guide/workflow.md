@@ -115,6 +115,23 @@ epic after it, in full, marked `inherited`, with its description and notes as pa
   become one, and an epic with tasks cannot turn back into a task or move to another project.
   Deleting an epic leaves its tasks on their own.
 
+## Dependencies
+
+Epics group tasks and share a brief; they do not order them. A **dependency** does: task B depends
+on task A, so the run queue does not start B until A is accepted (all its steps done, or a task
+with no checklist accepted, or a task you set to `DONE`). A task that is only claimed still waits
+for your review, and the queue says so.
+
+- **Depends on** sits in the task's description header: pick tasks of the same project and remove
+  them with their cross. Refused: a task on itself, one that closes a cycle through any number of
+  others, a task of another project, and an epic on either side. The same pair twice is a 409.
+- A session cannot create or remove one: `rekall-mcp` has no tool for it, since a session able to
+  write its own dependencies could unblock itself. `rekall_context` shows a `depends-on` field
+  with each task and where it stands.
+- `GET /api/tasks/{id}/dependencies`, `POST` (`dependsOnTaskId`) and `DELETE
+  /api/tasks/{id}/dependencies/{dependsOnId}` answer with the task's whole list; `dependsOn` on a
+  task response lists the ids. Deleting a task removes its dependencies.
+
 ## Commits
 
 A task, or one of its steps, keeps a ledger of the commits that built it: the hash, the commit's own subject line as the comment, and the diff it introduced, read from the project's **repo folder** (set on the project's page). The console shows the ledger under the description as a collapsible rail, and under each step's detail; a row opens to its diff, and can be deleted by hand.

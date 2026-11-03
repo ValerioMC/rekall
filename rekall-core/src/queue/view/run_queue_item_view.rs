@@ -3,9 +3,11 @@ use rekall_store::{project, run_queue_item, task, RunQueueItemState};
 use serde::Serialize;
 
 use crate::claude::StepProgress;
+use crate::queue::RunQueueWaitView;
 
 /// One queued task, with enough of the task to name it without a second request, and its
-/// released steps with the one being worked (none for a task with no checklist).
+/// released steps with the one being worked (none for a task with no checklist), and the
+/// unaccepted tasks a waiting item depends on.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RunQueueItemView {
@@ -21,10 +23,11 @@ pub struct RunQueueItemView {
     pub started_at: Option<Instant>,
     pub finished_at: Option<Instant>,
     pub steps: Vec<StepProgress>,
+    pub waiting_for: Vec<RunQueueWaitView>,
 }
 
 impl RunQueueItemView {
-    pub fn of(item: &run_queue_item::Model, task: &task::Model, project: &project::Model, steps: Vec<StepProgress>) -> Self {
+    pub fn of(item: &run_queue_item::Model, task: &task::Model, project: &project::Model, steps: Vec<StepProgress>, waiting_for: Vec<RunQueueWaitView>) -> Self {
         Self {
             id: item.id,
             task_id: task.id,
@@ -38,6 +41,7 @@ impl RunQueueItemView {
             started_at: item.started_at,
             finished_at: item.finished_at,
             steps,
+            waiting_for,
         }
     }
 }

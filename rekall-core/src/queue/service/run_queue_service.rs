@@ -1,12 +1,15 @@
 use chrono::TimeDelta;
+use std::collections::HashSet;
+
 use rekall_kernel::{jstr, Id, Instant, InternalFailure, RekallError, Result};
 use rekall_store::{run_queue, run_queue_item, RunQueueItemState, RunQueueState};
 use rekall_store::repository as repo;
 use crate::{in_read, in_write, Ctx, Tx};
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, IntoActiveModel, QueryFilter};
 
+use crate::dependency::{TaskWaitService, AWAITING_REVIEW_TEXT};
 use crate::queue::RunQueueFrame;
-use crate::queue::{RunQueueItemView, RunQueueView};
+use crate::queue::{BlockedItem, NextTurn, RunQueueItemView, RunQueueView, RunQueueWaitView};
 use crate::claude::{SessionKind, TaskWorkService, EFFORT_LEVELS, MODEL_ALIASES};
 
 use crate::queue::Snapshot;
@@ -211,13 +214,38 @@ impl RunQueueService {
         })
     }
 
-    /// The first item still waiting, if any: the next one to run.
-    pub async fn next_waiting(&self) -> Result<Option<RunQueueItemView>> {
+    /// The first waiting item whose dependencies are all accepted. When items wait and none may
+    /// start, each is returned with the tasks it waits for.
+    pub async fn next_turn(&self) -> Result<NextTurn> {
         in_read!(&self.ctx, |tx| {
-            match ordered(&tx).await?.into_iter().find(|item| item.state == RunQueueItemState::Queued) {
-                None => Ok(None),
-                Some(item) => Ok(Some(item_view(&tx, &item).await?)),
+            let items = ordered(&tx).await?;
+            let queued_tasks = queued_task_ids(&items);
+            let mut blocked = Vec::new();
+            for item in items.iter().filter(|item| item.state == RunQueueItemState::Queued) {
+                let view = item_view(&tx, item, &queued_tasks).await?;
+                if view.waiting_for.is_empty() {
+                    return Ok(NextTurn::Ready(view));
+                }
+                blocked.push(BlockedItem { item_id: item.id, reason: waiting_reason(&view.waiting_for) });
             }
+            Ok(if blocked.is_empty() { NextTurn::Empty } else { NextTurn::Blocked(blocked) })
+        })
+    }
+
+    /// Nothing can start: say on every waiting item what it waits for and disarm the queue, so it
+    /// does not stay armed in silence.
+    pub async fn stop_blocked(&self, blocked: &[BlockedItem]) -> Result<()> {
+        in_write!(&self.ctx, |tx| {
+            for entry in blocked {
+                if let Some(mut item) = repo_item(&tx, entry.item_id).await? {
+                    item.move_to(RunQueueItemState::Queued, Some(&entry.reason));
+                    save_item(&tx, item).await?;
+                }
+            }
+            let mut queue = self.queue(&tx).await?;
+            queue.move_to(RunQueueState::Idle);
+            self.publish(&mut tx, queue).await?;
+            Ok(())
         })
     }
 
@@ -383,7 +411,7 @@ async fn task_title(tx: &Tx, task_id: Id) -> Result<String> {
     Ok(repo::task::find_by_id(tx.db(), task_id).await?.map(|t| t.title).unwrap_or_default())
 }
 
-async fn item_view(tx: &Tx, item: &run_queue_item::Model) -> Result<RunQueueItemView> {
+async fn item_view(tx: &Tx, item: &run_queue_item::Model, queued_tasks: &HashSet<Id>) -> Result<RunQueueItemView> {
     let task = repo::task::find_by_id(tx.db(), item.task_id)
         .await?
         .ok_or_else(|| RekallError::unknown_anchor(format!("No task with id {}", item.task_id)))?;
@@ -391,13 +419,40 @@ async fn item_view(tx: &Tx, item: &run_queue_item::Model) -> Result<RunQueueItem
         .await?
         .ok_or_else(|| RekallError::internal(InternalFailure::Integrity, "A task has no project"))?;
     let steps = TaskWorkService::progress_in(tx, task.id).await?;
-    Ok(RunQueueItemView::of(item, &task, &project, steps))
+    let waiting_for = unmet_dependencies(tx, item, queued_tasks).await?;
+    Ok(RunQueueItemView::of(item, &task, &project, steps, waiting_for))
+}
+
+async fn unmet_dependencies(tx: &Tx, item: &run_queue_item::Model, queued_tasks: &HashSet<Id>) -> Result<Vec<RunQueueWaitView>> {
+    if item.state != RunQueueItemState::Queued {
+        return Ok(Vec::new());
+    }
+    Ok(TaskWaitService::of_task_in(tx, item.task_id)
+        .await?
+        .iter()
+        .filter(|wait| !wait.is_met())
+        .map(|wait| RunQueueWaitView::of(wait, queued_tasks.contains(&wait.task_id)))
+        .collect())
+}
+
+fn queued_task_ids(items: &[run_queue_item::Model]) -> HashSet<Id> {
+    items.iter().filter(|item| !item.state.settled()).map(|item| item.task_id).collect()
+}
+
+fn waiting_reason(waits: &[RunQueueWaitView]) -> String {
+    let names: Vec<String> = waits
+        .iter()
+        .map(|wait| if wait.awaiting_review { format!("{} ({AWAITING_REVIEW_TEXT})", wait.anchor) } else { wait.anchor.clone() })
+        .collect();
+    format!("Waiting for {}.", names.join(", "))
 }
 
 async fn view_of(tx: &Tx, queue: &run_queue::Model) -> Result<RunQueueView> {
+    let all = ordered(tx).await?;
+    let queued_tasks = queued_task_ids(&all);
     let mut items = Vec::new();
-    for item in ordered(tx).await? {
-        items.push(item_view(tx, &item).await?);
+    for item in &all {
+        items.push(item_view(tx, item, &queued_tasks).await?);
     }
     Ok(RunQueueView::of(queue, items))
 }

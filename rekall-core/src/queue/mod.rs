@@ -11,4 +11,6 @@ pub use model::run_queue_frame::RunQueueFrame;
 pub use view::run_queue_item_view::RunQueueItemView;
 pub use service::run_queue_service::{RunQueueService, CEILING_MAX, CEILING_MIN};
 pub use view::run_queue_view::RunQueueView;
+pub use model::next_turn::{BlockedItem, NextTurn};
 pub use model::snapshot::Snapshot;
+pub use view::run_queue_wait_view::RunQueueWaitView;

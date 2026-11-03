@@ -13,6 +13,13 @@ export const RunQueueStepSchema = z.object({
   current: z.boolean()
 })
 
+export const RunQueueWaitSchema = z.object({
+  anchor: z.string(),
+  title: z.string(),
+  awaitingReview: z.boolean(),
+  inQueue: z.boolean()
+})
+
 export const RunQueueItemSchema = z.object({
   id: z.string().uuid().transform(asRunQueueItemId),
   taskId: z.string().uuid().transform(asTaskId),
@@ -25,7 +32,8 @@ export const RunQueueItemSchema = z.object({
   detail: z.string().nullable(),
   startedAt: z.string().nullable(),
   finishedAt: z.string().nullable(),
-  steps: z.array(RunQueueStepSchema).default([])
+  steps: z.array(RunQueueStepSchema).default([]),
+  waitingFor: z.array(RunQueueWaitSchema).default([])
 })
 
 export const RunQueueSchema = z.object({

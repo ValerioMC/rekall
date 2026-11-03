@@ -9,6 +9,7 @@ pub mod claude;
 pub mod check;
 pub mod component;
 pub mod connection;
+pub mod dependency;
 pub mod diagram;
 pub mod filesystem;
 pub mod graph;

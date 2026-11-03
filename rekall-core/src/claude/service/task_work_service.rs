@@ -1,4 +1,4 @@
-use rekall_kernel::{Id, RekallError, Result};
+use rekall_kernel::{Id, Result};
 use rekall_store::repository as repo;
 use rekall_store::TaskStepState;
 
@@ -33,54 +33,56 @@ impl TaskWorkService {
     }
 
     pub async fn read(&self, task_id: Id) -> Result<TaskWork> {
-        in_read!(&self.ctx, |tx| {
-            let task = load::task_or_unknown(tx.db(), task_id).await?;
-            let checklist: Vec<_> = load::steps_of(tx.db(), task_id)
-                .await?
-                .into_iter()
-                .filter(|step| !step.state.draft())
-                .collect();
-            if checklist.is_empty() {
-                let remaining = match task.review_state {
-                    TaskStepState::Claimed => Remaining::Claimed,
-                    TaskStepState::Done => Remaining::Accepted,
-                    _ => Remaining::Open,
-                };
-                return Ok(TaskWork {
-                    remaining,
-                    settled_steps: 0,
-                    running_step_ids: Vec::new(),
-                    last_settled_at: None,
-                    next_opens_session: false,
-                    flow_ended: false,
-                });
-            }
-            let visits = repo::step_visit::list_of_task(tx.db(), task_id).await?;
-            let links = repo::step_link::list_of_task(tx.db(), task_id).await?;
-            let ended = carries_routes(&links, &checklist) && flow_has_ended(&checklist, &visits);
-            let counted = if ended { steps_entered(&checklist, &visits) } else { checklist.iter().collect() };
-            let work_left = counted.iter().any(|step| step.state == TaskStepState::Open || step.state.running());
-            let all_done = counted.iter().all(|step| step.state == TaskStepState::Done);
-            let remaining = if work_left {
-                Remaining::Open
-            } else if all_done {
-                Remaining::Accepted
-            } else {
-                Remaining::Claimed
+        in_read!(&self.ctx, |tx| Self::read_in(&tx, task_id).await)
+    }
+
+    pub async fn read_in(tx: &Tx, task_id: Id) -> Result<TaskWork> {
+        let task = load::task_or_unknown(tx.db(), task_id).await?;
+        let checklist: Vec<_> = load::steps_of(tx.db(), task_id)
+            .await?
+            .into_iter()
+            .filter(|step| !step.state.draft())
+            .collect();
+        if checklist.is_empty() {
+            let remaining = match task.review_state {
+                TaskStepState::Claimed => Remaining::Claimed,
+                TaskStepState::Done => Remaining::Accepted,
+                _ => Remaining::Open,
             };
-            let open_visit = visits.iter().find(|visit| visit.is_open()).map(|visit| visit.step_id);
-            let next_to_work = checklist.iter().position(|step| match open_visit {
-                Some(step_id) => step.id == step_id,
-                None => step.state == TaskStepState::Open,
-            });
-            Ok::<_, RekallError>(TaskWork {
+            return Ok(TaskWork {
                 remaining,
-                settled_steps: checklist.iter().filter(|step| step.state.complete()).count(),
-                running_step_ids: checklist.iter().filter(|step| step.state.running()).map(|step| step.id).collect(),
-                last_settled_at: checklist.iter().filter_map(|step| step.completed_at()).max(),
-                next_opens_session: next_to_work.is_some_and(|index| index > 0 && checklist[index].starts_session),
-                flow_ended: ended,
-            })
+                settled_steps: 0,
+                running_step_ids: Vec::new(),
+                last_settled_at: None,
+                next_opens_session: false,
+                flow_ended: false,
+            });
+        }
+        let visits = repo::step_visit::list_of_task(tx.db(), task_id).await?;
+        let links = repo::step_link::list_of_task(tx.db(), task_id).await?;
+        let ended = carries_routes(&links, &checklist) && flow_has_ended(&checklist, &visits);
+        let counted = if ended { steps_entered(&checklist, &visits) } else { checklist.iter().collect() };
+        let work_left = counted.iter().any(|step| step.state == TaskStepState::Open || step.state.running());
+        let all_done = counted.iter().all(|step| step.state == TaskStepState::Done);
+        let remaining = if work_left {
+            Remaining::Open
+        } else if all_done {
+            Remaining::Accepted
+        } else {
+            Remaining::Claimed
+        };
+        let open_visit = visits.iter().find(|visit| visit.is_open()).map(|visit| visit.step_id);
+        let next_to_work = checklist.iter().position(|step| match open_visit {
+            Some(step_id) => step.id == step_id,
+            None => step.state == TaskStepState::Open,
+        });
+        Ok(TaskWork {
+            remaining,
+            settled_steps: checklist.iter().filter(|step| step.state.complete()).count(),
+            running_step_ids: checklist.iter().filter(|step| step.state.running()).map(|step| step.id).collect(),
+            last_settled_at: checklist.iter().filter_map(|step| step.completed_at()).max(),
+            next_opens_session: next_to_work.is_some_and(|index| index > 0 && checklist[index].starts_session),
+            flow_ended: ended,
         })
     }
 }

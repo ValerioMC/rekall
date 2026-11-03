@@ -21,6 +21,7 @@ pub struct Snapshot {
     tasks_with_wrapup: HashSet<Id>,
     tags: HashMap<Id, tag::Model>,
     documents_per_task: HashMap<Id, usize>,
+    dependencies_per_task: HashMap<Id, Vec<Id>>,
     tasks_per_project: HashMap<Id, usize>,
     icon_image_versions: HashMap<Id, Instant>,
     logo_image_versions: HashMap<Id, Instant>,
@@ -62,6 +63,9 @@ impl Snapshot {
         snapshot.tasks_with_wrapup = with_wrapup.into_iter().collect();
         let tag_ids: Vec<Id> = tasks.iter().filter_map(|task| task.tag_id).collect();
         snapshot.tags = Tag::find().filter(tag::Column::Id.is_in(tag_ids)).all(db).await?.into_iter().map(|t| (t.id, t)).collect();
+        for dependency in repo::task_dependency::list_of_tasks(db, ids.clone()).await? {
+            snapshot.dependencies_per_task.entry(dependency.task_id).or_default().push(dependency.depends_on_task_id);
+        }
         let links = DocumentTask::find().filter(document_task::Column::TaskId.is_in(ids));
         snapshot.documents_per_task = count_by(db, links, document_task::Column::TaskId).await?;
         Ok(snapshot)
@@ -119,6 +123,7 @@ impl Snapshot {
             document_count: self.documents_per_task.get(&task.id).copied().unwrap_or(0),
             has_wrapup: self.tasks_with_wrapup.contains(&task.id),
             tag: task.tag_id.and_then(|id| self.tags.get(&id)),
+            depends_on: self.dependencies_per_task.get(&task.id).cloned().unwrap_or_default(),
         };
         Ok(TaskView::of(&graph))
     }

@@ -70,7 +70,8 @@ describe('the run queue store', () => {
       steps: [
         { title: 'One', state: 'RUNNING', current: true },
         { title: 'Two', state: 'OPEN', current: false }
-      ]
+      ],
+      waitingFor: []
     }
 
     store.apply({ ...EMPTY_RUN_QUEUE, items: [running], updatedAt: '2026-09-23T10:00:01Z' })

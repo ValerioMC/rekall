@@ -35,6 +35,7 @@ pub struct TaskView {
     pub epic_id: Option<Id>,
     pub quick: bool,
     pub auto_accepted: bool,
+    pub depends_on: Vec<Id>,
     pub anchor: String,
     pub updated_at: Instant,
 }
@@ -74,6 +75,7 @@ impl TaskView {
             epic_id: task.epic_id,
             quick: task.quick,
             auto_accepted: task.auto_accepted,
+            depends_on: graph.depends_on.clone(),
             anchor: task.anchor(&project.label),
             updated_at: task.updated_at,
         }

@@ -94,6 +94,7 @@ export const TaskSchema = z.object({
   epicId: taskId.nullable(),
   quick: z.boolean(),
   autoAccepted: z.boolean(),
+  dependsOn: z.array(taskId).default([]),
   anchor: z.string(),
   updatedAt: z.string()
 })

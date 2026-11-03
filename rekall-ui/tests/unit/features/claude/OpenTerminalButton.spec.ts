@@ -74,7 +74,8 @@ function queueItem(taskId: TaskId, position: number, state: RunQueueItem['state'
     detail: null,
     startedAt: null,
     finishedAt: null,
-    steps: []
+    steps: [],
+    waitingFor: []
   }
 }
 

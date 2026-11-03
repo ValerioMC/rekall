@@ -13,6 +13,8 @@ import {
   finishedNote,
   isSettled,
   stepProgress,
+  unqueuedDependencies,
+  waitingNote,
   type RunQueueItem,
   type RunQueueItemState
 } from '@/features/queue/model/runQueue'
@@ -33,7 +35,8 @@ const chosenOpen = ref<boolean | null>(null)
 const stepsOpen = computed(() => chosenOpen.value ?? props.item.state === 'RUNNING')
 const progress = computed(() => stepProgress(props.item))
 const stepListId = computed(() => `queue-steps-${props.item.id}`)
-const reason = computed(() => finishedNote(props.item) ?? props.item.detail)
+const reason = computed(() => finishedNote(props.item) ?? waitingNote(props.item) ?? props.item.detail)
+const unqueued = computed(() => unqueuedDependencies(props.item))
 
 function toggleSteps(): void {
   chosenOpen.value = !stepsOpen.value
@@ -93,7 +96,15 @@ const MOVE_BUTTON =
         <span class="truncate font-mono text-anchor">{{ item.anchor }}</span>
         <span class="shrink-0" :class="STATE_TONE[item.state]">{{ STATE_WORD[item.state] }}</span>
       </span>
-      <span v-if="reason" class="text-caption leading-snug text-text-muted">{{ reason }}</span>
+      <span v-if="reason" class="text-caption leading-snug text-text-muted" data-testid="run-queue-reason">{{ reason }}</span>
+      <span
+        v-for="wait in unqueued"
+        :key="wait.anchor"
+        class="text-caption leading-snug text-warn"
+        data-testid="run-queue-unqueued"
+      >
+        {{ wait.anchor }} is not in the queue. Add it, or accept it by hand, or this task will not start.
+      </span>
       <button
         v-if="item.steps.length"
         type="button"

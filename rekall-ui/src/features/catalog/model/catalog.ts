@@ -157,6 +157,8 @@ export interface Task {
   readonly quick: boolean
   /** Accepted by Rekall when the wrapup landed, not by a person. Cleared when it is sent back. */
   readonly autoAccepted: boolean
+  /** The tasks of the same project this one waits for before the run queue starts it. */
+  readonly dependsOn: readonly TaskId[]
   readonly anchor: string
   readonly updatedAt: string
 }

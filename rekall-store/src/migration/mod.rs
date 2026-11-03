@@ -39,6 +39,7 @@ mod m060_step_snapshot;
 mod m061_check;
 mod m062_wrapup_version;
 mod m063_quick_task;
+mod m064_task_dependency;
 mod migration_support;
 mod migrator;
 

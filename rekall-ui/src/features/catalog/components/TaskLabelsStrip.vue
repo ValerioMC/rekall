@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import SkillField from '@/features/skills/components/SkillField.vue'
+import TaskDependenciesField from '@/features/dependency/components/TaskDependenciesField.vue'
 import TaskTagControl from '@/features/tags/components/TaskTagControl.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useConsoleStore } from '@/stores/console.store'
@@ -35,5 +36,6 @@ function save(names: readonly string[]): void {
     <TaskTagControl :task="task" />
     <span class="h-4 w-px bg-border" aria-hidden="true" />
     <SkillField :model-value="own" :inherited="fromTag" owner="task" @update:model-value="save" />
+    <TaskDependenciesField :task="task" />
   </div>
 </template>

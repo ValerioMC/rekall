@@ -12,6 +12,7 @@ struct World {
     now: Instant,
     first: Id,
     second: Id,
+    third: Id,
 }
 
 async fn world() -> World {
@@ -41,7 +42,9 @@ async fn world() -> World {
     first.clone().into_active_model().insert(&database.conn).await.unwrap();
     let second = task::Model::new("export".into(), "Export".into(), project.id, now);
     second.clone().into_active_model().insert(&database.conn).await.unwrap();
-    World { service: RunQueueService::new(ctx), events, db: database.conn.clone(), now, first: first.id, second: second.id }
+    let third = task::Model::new("archive".into(), "Archive".into(), project.id, now);
+    third.clone().into_active_model().insert(&database.conn).await.unwrap();
+    World { service: RunQueueService::new(ctx), events, db: database.conn.clone(), now, first: first.id, second: second.id, third: third.id }
 }
 
 #[tokio::test]
@@ -170,4 +173,98 @@ async fn a_step_move_on_a_task_outside_the_queue_announces_nothing() {
     world.service.refresh_for_task(world.second).await.unwrap();
 
     assert_eq!(announced_queues(&mut events), 0);
+}
+
+async fn depend(world: &World, task: Id, on: Id) {
+    rekall_store::task_dependency::Model::new(task, on, world.now).into_active_model().insert(&world.db).await.unwrap();
+}
+
+async fn review(world: &World, task: Id, state: TaskStepState) {
+    let mut row = rekall_store::task::Entity::find_by_id(task).one(&world.db).await.unwrap().unwrap();
+    row.mark_review_state(state);
+    row.into_active_model().reset_all().update(&world.db).await.unwrap();
+}
+
+fn ready_task(turn: NextTurn) -> Id {
+    match turn {
+        NextTurn::Ready(item) => item.task_id,
+        other => panic!("expected a task ready to start, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn the_next_turn_goes_to_the_first_waiting_task_when_none_depends_on_another() {
+    let world = world().await;
+    world.service.add(world.first).await.unwrap();
+    world.service.add(world.second).await.unwrap();
+
+    assert_eq!(ready_task(world.service.next_turn().await.unwrap()), world.first);
+}
+
+#[tokio::test]
+async fn a_chain_is_ordered_by_its_dependencies_whatever_the_order_it_was_queued_in() {
+    let world = world().await;
+    depend(&world, world.second, world.first).await;
+    depend(&world, world.third, world.second).await;
+    world.service.add(world.third).await.unwrap();
+    world.service.add(world.second).await.unwrap();
+    let view = world.service.add(world.first).await.unwrap();
+
+    assert_eq!(ready_task(world.service.next_turn().await.unwrap()), world.first);
+
+    world.service.mark_item(view.items[2].id, RunQueueItemState::Finished, None).await.unwrap();
+    review(&world, world.first, TaskStepState::Done).await;
+    assert_eq!(ready_task(world.service.next_turn().await.unwrap()), world.second);
+}
+
+#[tokio::test]
+async fn a_dependency_claimed_but_not_accepted_keeps_the_task_waiting() {
+    let world = world().await;
+    depend(&world, world.first, world.second).await;
+    world.service.add(world.first).await.unwrap();
+    review(&world, world.second, TaskStepState::Claimed).await;
+
+    let turn = world.service.next_turn().await.unwrap();
+
+    let NextTurn::Blocked(blocked) = turn else { panic!("expected a blocked queue, got {turn:?}") };
+    assert_eq!(blocked[0].reason, "Waiting for project:vega task:export (claimed, waiting for your review).");
+}
+
+#[tokio::test]
+async fn an_accepted_dependency_lets_the_task_start() {
+    let world = world().await;
+    depend(&world, world.first, world.second).await;
+    world.service.add(world.first).await.unwrap();
+    review(&world, world.second, TaskStepState::Done).await;
+
+    assert_eq!(ready_task(world.service.next_turn().await.unwrap()), world.first);
+}
+
+#[tokio::test]
+async fn an_item_names_the_unaccepted_tasks_it_waits_for_and_whether_they_are_queued() {
+    let world = world().await;
+    depend(&world, world.first, world.second).await;
+    depend(&world, world.first, world.third).await;
+    world.service.add(world.third).await.unwrap();
+
+    let view = world.service.add(world.first).await.unwrap();
+
+    let mut waits: Vec<(&str, bool)> = view.items[1].waiting_for.iter().map(|wait| (wait.title.as_str(), wait.in_queue)).collect();
+    waits.sort();
+    assert_eq!(waits, vec![("Archive", true), ("Export", false)]);
+}
+
+#[tokio::test]
+async fn a_queue_where_nothing_may_start_stops_and_says_why_on_each_waiting_item() {
+    let world = world().await;
+    depend(&world, world.first, world.second).await;
+    world.service.add_and_arm(world.first).await.unwrap();
+    let NextTurn::Blocked(blocked) = world.service.next_turn().await.unwrap() else { panic!("expected a blocked queue") };
+
+    world.service.stop_blocked(&blocked).await.unwrap();
+
+    let view = world.service.view().await.unwrap();
+    assert_eq!(view.state, RunQueueState::Idle);
+    assert_eq!(view.items[0].state, RunQueueItemState::Queued);
+    assert_eq!(view.items[0].detail.as_deref(), Some("Waiting for project:vega task:export."));
 }

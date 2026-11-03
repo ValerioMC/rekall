@@ -24,6 +24,16 @@ export interface RunQueueStep {
   readonly current: boolean
 }
 
+/** A task a waiting item depends on and that is not accepted yet. */
+export interface RunQueueWait {
+  readonly anchor: string
+  readonly title: string
+  /** Claimed work only waits for the review that accepts it. */
+  readonly awaitingReview: boolean
+  /** False when that task is not on the list, so nothing in the queue will make it ready. */
+  readonly inQueue: boolean
+}
+
 export interface RunQueueItem {
   readonly id: RunQueueItemId
   readonly taskId: TaskId
@@ -37,6 +47,7 @@ export interface RunQueueItem {
   readonly startedAt: string | null
   readonly finishedAt: string | null
   readonly steps: readonly RunQueueStep[]
+  readonly waitingFor: readonly RunQueueWait[]
 }
 
 export interface RunQueue {
@@ -158,9 +169,21 @@ export function runProgress(queue: RunQueue): RunProgress {
   return { settled, running, waiting, total: queue.items.length, steps: running ? stepProgress(running) : null }
 }
 
-/** The item the queue will start next: the first one still waiting. */
+/** The item the queue will start next: the first one still waiting that waits for no unaccepted task. */
 export function nextWaiting(queue: RunQueue): RunQueueItem | null {
-  return queue.items.find((item) => item.state === 'QUEUED') ?? null
+  return queue.items.find((item) => item.state === 'QUEUED' && item.waitingFor.length === 0) ?? null
+}
+
+/** What a waiting item says it waits for, or null when nothing holds it back. */
+export function waitingNote(item: RunQueueItem): string | null {
+  if (item.state !== 'QUEUED' || item.waitingFor.length === 0) return null
+  const names = item.waitingFor.map((wait) => (wait.awaitingReview ? `${wait.anchor} (claimed, waiting for your review)` : wait.anchor))
+  return `Waiting for ${names.join(', ')}`
+}
+
+/** The tasks a waiting item depends on that are not on the queue, so it would wait for them for ever. */
+export function unqueuedDependencies(item: RunQueueItem): readonly RunQueueWait[] {
+  return item.state === 'QUEUED' ? item.waitingFor.filter((wait) => !wait.inQueue) : []
 }
 
 /** Whether a task can be added: it is not already waiting or running in the queue. */

@@ -1,3 +1,4 @@
+use rekall_kernel::Id;
 use rekall_store::{company, project, tag, task, task_step};
 
 /// Everything a task row is built from.
@@ -9,4 +10,5 @@ pub struct TaskGraph<'a> {
     pub document_count: usize,
     pub has_wrapup: bool,
     pub tag: Option<&'a tag::Model>,
+    pub depends_on: Vec<Id>,
 }

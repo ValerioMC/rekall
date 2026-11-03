@@ -14,7 +14,7 @@ use tokio::sync::{mpsc, oneshot};
 use tracing::{info, warn};
 
 use super::usage_ceiling::{self, Verdict};
-use rekall_core::queue::{RunQueueItemView, RunQueueService, RunQueueView, Snapshot};
+use rekall_core::queue::{NextTurn, RunQueueItemView, RunQueueService, RunQueueView, Snapshot};
 use rekall_core::claude::TerminalMode;
 use rekall_core::claude::UsageReader;
 
@@ -177,10 +177,18 @@ impl Worker {
             if snapshot.state != RunQueueState::Running {
                 return Ok(());
             }
-            let Some(next) = self.queue.next_waiting().await? else {
-                info!("Run queue: every queued task has had its turn");
-                self.queue.finish().await?;
-                return Ok(());
+            let next = match self.queue.next_turn().await? {
+                NextTurn::Ready(next) => next,
+                NextTurn::Empty => {
+                    info!("Run queue: every queued task has had its turn");
+                    self.queue.finish().await?;
+                    return Ok(());
+                }
+                NextTurn::Blocked(blocked) => {
+                    info!(waiting = blocked.len(), "Run queue: stopping, every waiting task depends on an unaccepted one");
+                    self.queue.stop_blocked(&blocked).await?;
+                    return Ok(());
+                }
             };
             let verdict = self.ceiling(&snapshot).await;
             if !verdict.clear {
