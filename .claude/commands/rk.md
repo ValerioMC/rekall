@@ -66,6 +66,11 @@ work is written down, and it was written so that it would not have to be said ag
 instruction it is, say in one line what you are about to do, and start. A question in it is a
 question to answer, not one to hand back.
 
+When that work is done, finish it yourself with `rekall_wrapup` (see **Wrapping up**): the wrapup is
+what claims a task with no steps, and on an `auto-commit` project it is also what commits. Do not wait
+for me to ask for it, and do not stop before it: a run queue does not go on to the next task while
+this one is unclaimed.
+
 Ask only when the context does not settle it:
 
 - there is no description and no step, or what they hold is background rather than an instruction
