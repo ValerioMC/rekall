@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia'
 import SkillMark from '@/features/skills/components/SkillMark.vue'
 import TagBadge from '@/components/ui/TagBadge.vue'
 import EpicChip from '@/features/catalog/components/epic/EpicChip.vue'
+import QuickTaskMark from '@/features/catalog/components/QuickTaskMark.vue'
 import TaskMark from '@/features/catalog/components/TaskMark.vue'
 import TaskSessionMark from '@/features/claude/components/TaskSessionMark.vue'
 import TokenCount from '@/components/ui/TokenCount.vue'
@@ -112,6 +113,7 @@ watch(
       <span class="min-w-0 flex-1">
         <span class="flex items-center gap-1.5">
           <span class="min-w-0 truncate text-body font-medium leading-[1.35]">{{ task.title }}</span>
+          <QuickTaskMark :task="task" compact />
           <TagBadge
             v-if="task.tagId && task.tagName && task.tagIcon && task.tagColor"
             class="ml-auto shrink-0"

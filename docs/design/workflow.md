@@ -101,6 +101,12 @@ again, so a refused start leaves nothing behind. The request carries the termina
   `TaskReviewService::accept_quick_claim` moves the task to `DONE`, stops its timer and sets
   `auto_accepted`. A failed commit leaves it `CLAIMED` for a person; a wrapup written by hand never
   reaches this path.
+- The console side is `QuickTaskBar` on the project page (`features/catalog/`): `useQuickTask` sends the
+  text with the session preferences "Run here" uses, `createQuickTask` in `useTaskWrites` adds the task
+  to the list and starts its timer, and the terminal store adopts the session the server opened, so the
+  console never opens it a second time. `QuickTaskMark` shows `Quick` and `Auto-accepted` (with when,
+  except in the navigator rows); `hideQuickTasks` in the console state leaves quick tasks out of
+  `visibleTasks` and the project's task list.
 - A task accepted this way can be sent back like any other. Any later move of the review line, the
   console's accept included, clears `auto_accepted`.
 

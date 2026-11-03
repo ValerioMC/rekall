@@ -3,6 +3,8 @@ import { nextTick, onMounted, ref } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import CloseGlyph from '@/components/ui/CloseGlyph.vue'
 import AppDialog from '@/components/ui/AppDialog.vue'
+import QuickTaskFilter from '@/features/catalog/components/QuickTaskFilter.vue'
+import QuickTaskMark from '@/features/catalog/components/QuickTaskMark.vue'
 import { TASK_STATUS_COLOR, TASK_STATUS_LABEL } from '@/features/catalog/model/catalog'
 import type { Task } from '@/features/catalog/model/catalog'
 import type { TaskId } from '@/model/branded'
@@ -43,6 +45,9 @@ onMounted(async () => {
         <CloseGlyph />
       </button>
     </header>
+    <div class="border-b border-border px-5 py-2">
+      <QuickTaskFilter />
+    </div>
     <p v-if="!tasks.length" class="px-5 py-6 text-body text-text-subtle">
       No task on this project yet. Create one from the console.
     </p>
@@ -50,7 +55,10 @@ onMounted(async () => {
       <li v-for="task in tasks" :key="task.id" class="flex items-center gap-3 px-5 py-2.5">
         <span class="size-[7px] shrink-0 rounded-full" :class="TASK_STATUS_COLOR[task.status]" aria-hidden="true" />
         <span class="min-w-0 flex-1">
-          <span class="block truncate text-body text-text">{{ task.title }}</span>
+          <span class="flex min-w-0 items-center gap-1.5">
+            <span class="truncate text-body text-text">{{ task.title }}</span>
+            <QuickTaskMark :task="task" />
+          </span>
           <span class="block truncate font-mono text-micro text-anchor/80">{{ task.label }}</span>
         </span>
         <span class="shrink-0 text-caption text-text-subtle">{{ TASK_STATUS_LABEL[task.status] }}</span>

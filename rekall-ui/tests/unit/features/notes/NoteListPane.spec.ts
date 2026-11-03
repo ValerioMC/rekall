@@ -45,7 +45,7 @@ const task = (id: TaskId, label: string, title: string): Task => ({
   graphLaidAt: null,
   releaseSkipped: false,
   kind: 'TASK',
-  epicId: null,
+  epicId: null, quick: false, autoAccepted: false,
   anchor: `project:vega task:${label}`,
   updatedAt: '2026-09-01T10:00:00Z'
 })
@@ -263,7 +263,7 @@ describe('NoteListPane on an epic', () => {
     const store = seed([])
     store.tasks = [
       { ...task(epic, 'epics', 'Epics'), kind: 'EPIC' },
-      { ...task(builder, 'report-builder', 'Report builder'), epicId: epic, status: 'DONE' },
+      { ...task(builder, 'report-builder', 'Report builder'), epicId: epic, quick: false, autoAccepted: false, status: 'DONE' },
       { ...task(retry, 'retry-policy', 'Retry policy'), epicId: epic }
     ]
     store.selectedTaskId = epic

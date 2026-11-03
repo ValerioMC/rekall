@@ -5,13 +5,15 @@ import {
   updateTask as apiUpdateTask
 } from '@/features/catalog/api/catalog.api'
 import type { TaskInput } from '@/features/catalog/api/catalog.api'
+import { createQuickTask as apiCreateQuickTask } from '@/features/catalog/api/quick-task.api'
+import type { QuickTaskInput, QuickTaskStarted } from '@/features/catalog/api/quick-task.api'
 import type { Task, TaskReview, TaskStatus } from '@/features/catalog/model/catalog'
-import type { TagId, TaskId } from '@/model/branded'
+import type { ProjectId, TagId, TaskId } from '@/model/branded'
 import type { ConsoleState } from '../../../stores/console/console-state'
 import type { useConsoleNavigation } from '../../../stores/console/useConsoleNavigation'
 import type { useConsoleRefreshes } from '../../../stores/console/useConsoleRefreshes'
 import type { useTimers } from '../../time/store/useTimers'
-import { blankToNull, replaceById, trackSave } from '../../../stores/console/rows'
+import { blankToNull, replaceById, trackSave, upsertById } from '../../../stores/console/rows'
 
 /** The task as stored, with one field changed, in the shape its update takes. */
 function taskInput(
@@ -54,6 +56,15 @@ export function useTaskWrites(
     // Filing a task in the backlog parks it: nothing is being worked on yet.
     if (created.status !== 'BACKLOG') await timers.startTimer(created.id)
     return created
+  }
+
+  /** The server makes the task and opens its session; the task joins the list and its timer starts. */
+  async function createQuickTask(projectId: ProjectId, input: QuickTaskInput): Promise<QuickTaskStarted> {
+    const started = await apiCreateQuickTask(projectId, input)
+    tasks.value = upsertById(tasks.value, started.task, 'last')
+    await Promise.all([refreshes.refreshProjects(), refreshes.refreshCompanies()])
+    await timers.startTimer(started.task.id)
+    return started
   }
 
   async function updateTask(id: TaskId, input: TaskInput): Promise<void> {
@@ -126,7 +137,8 @@ export function useTaskWrites(
             reviewActive: review.reviewActive,
             claimedAt: review.claimedAt,
             acceptedAt: review.acceptedAt,
-            reviewNote: review.reviewNote
+            reviewNote: review.reviewNote,
+            autoAccepted: review.autoAccepted
           }
         : task
     )
@@ -148,6 +160,7 @@ export function useTaskWrites(
 
   return {
     createTask,
+    createQuickTask,
     updateTask,
     deleteTask,
     setTaskStatus,

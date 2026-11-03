@@ -47,7 +47,7 @@ function taskStub(id: TaskId, projectId: ProjectId): Task {
     graphLaidAt: null,
     releaseSkipped: false,
     kind: 'TASK',
-    epicId: null,
+    epicId: null, quick: false, autoAccepted: false,
     anchor: 'project:vega task:report-builder',
     updatedAt: '2026-08-29T10:00:00.000Z'
   }

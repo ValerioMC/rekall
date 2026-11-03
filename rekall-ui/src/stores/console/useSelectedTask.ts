@@ -53,7 +53,8 @@ export function useSelectedTask(state: ConsoleState) {
       reviewActive: task.reviewActive,
       claimedAt: task.claimedAt,
       acceptedAt: task.acceptedAt,
-      reviewNote: task.reviewNote
+      reviewNote: task.reviewNote,
+      autoAccepted: task.autoAccepted
     }
   })
 

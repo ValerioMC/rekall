@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
+import QuickTaskFilter from '@/features/catalog/components/QuickTaskFilter.vue'
 import ScopePicker from '@/features/catalog/components/ScopePicker.vue'
 import RecordDialog from '@/features/catalog/components/RecordDialog.vue'
 import NavigatorProjectGroup from '@/components/console/NavigatorProjectGroup.vue'
@@ -39,6 +40,8 @@ const editing = ref<RecordDraft | null>(null)
 const projectChoices = computed(() => store.scopedProjects)
 
 const groupByProject = computed(() => navMode.value === 'tasks' && scopeProject.value === null)
+
+const hasQuickTasks = computed(() => tasks.value.some((task) => task.quick))
 
 const showNewTaskButton = computed(() => navMode.value === 'tasks' && projectChoices.value.length > 0)
 const showNewNoteButton = computed(() => navMode.value === 'notes' && tasks.value.length > 0)
@@ -121,6 +124,8 @@ defineExpose({ beginCreate, editSelected })
           </span>
         </button>
       </div>
+
+      <QuickTaskFilter v-if="navMode === 'tasks' && hasQuickTasks" class="px-1" />
     </div>
 
     <div ref="scroller" class="min-h-0 flex-1 overflow-y-auto pb-4">

@@ -60,6 +60,10 @@ async function markTaskDone(): Promise<void> {
           A session wrote the wrapup and claimed this. Accept it, or send it back to reopen it
           for another pass.
         </template>
+        <template v-else-if="task.autoAccepted">
+          Rekall accepted this quick task when the session wrote the wrapup. Send it back to
+          review it, or mark the whole task done.
+        </template>
         <template v-else>
           You accepted this. Send it back to reopen it, or mark the whole task done.
         </template>

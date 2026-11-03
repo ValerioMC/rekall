@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import AppCatalogHeader from '@/features/catalog/components/AppCatalogHeader.vue'
+import QuickTaskBar from '@/features/catalog/components/QuickTaskBar.vue'
 import RecordDialog from '@/features/catalog/components/RecordDialog.vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
@@ -26,6 +27,7 @@ import { useProjectSectionStream } from '@/features/project/composables/useProje
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useTokenUsageStore } from '@/features/tokens/store/tokenUsage.store'
 import { projectDraft } from '@/features/catalog/model/record-draft'
+import { withoutQuickTasks } from '@/features/catalog/lib/quick-task'
 import { PROJECT_STATUS_LABEL } from '@/features/catalog/model/catalog'
 import { asProjectId } from '@/model/branded'
 import type { RecordDraft } from '@/features/catalog/model/record-draft'
@@ -222,8 +224,9 @@ watch([sections, graphs], () => {
         class="mx-auto flex min-h-[540px] w-full max-w-[1800px] flex-1 basis-0 flex-col px-6 2xl:px-10"
         data-testid="project-workspace"
       >
+        <QuickTaskBar class="shrink-0 pt-4" :project="project" />
         <ProjectPageTabs
-          class="shrink-0 border-b border-border"
+          class="mt-4 shrink-0 border-b border-border"
           :selected="tabOf(page)"
           :counts="counts"
           :warnings="warnings"
@@ -263,7 +266,12 @@ watch([sections, graphs], () => {
     </template>
 
     <Transition name="slide-over">
-      <ProjectTasksDrawer v-if="showingTasks" :tasks="projectTasks" @close="showingTasks = false" @open="openInConsole" />
+      <ProjectTasksDrawer
+        v-if="showingTasks"
+        :tasks="withoutQuickTasks(projectTasks, store.hideQuickTasks)"
+        @close="showingTasks = false"
+        @open="openInConsole"
+      />
     </Transition>
 
     <Transition name="dialog">

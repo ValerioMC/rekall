@@ -40,7 +40,7 @@ const report: Task = {
   graphLaidAt: null,
   releaseSkipped: false,
   kind: 'TASK',
-  epicId: null,
+  epicId: null, quick: false, autoAccepted: false,
   anchor: 'project:vega task:report-builder',
   updatedAt: '2026-09-22T09:00:00Z'
 }

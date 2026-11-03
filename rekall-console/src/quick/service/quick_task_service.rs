@@ -1,4 +1,4 @@
-use rekall_core::claude::{SessionKind, TerminalMode, TerminalTarget};
+use rekall_core::claude::{TerminalMode, TerminalTarget};
 use rekall_core::{in_write, Ctx, Tx};
 use rekall_kernel::{jstr, Id, RekallError, Result};
 use rekall_store::repository as repo;
@@ -61,7 +61,7 @@ fn opening_of(command: &QuickTaskCommand, task_id: Id) -> OpenTerminalCommand {
         model: command.model.clone(),
         effort: command.effort.clone(),
         mode: TerminalMode::Work,
-        kind: SessionKind::Terminal,
+        kind: command.kind,
     }
 }
 

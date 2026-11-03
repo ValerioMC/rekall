@@ -87,7 +87,7 @@ const task = (
   graphLaidAt: null,
   releaseSkipped: false,
   kind: 'TASK',
-  epicId: null,
+  epicId: null, quick: false, autoAccepted: false,
   anchor: `project:${projectLabel} task:${label}`,
   updatedAt: '2026-09-01T10:00:00Z'
 })

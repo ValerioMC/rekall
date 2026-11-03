@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import CopyAnchorButton from '@/components/console/CopyAnchorButton.vue'
+import QuickTaskMark from '@/features/catalog/components/QuickTaskMark.vue'
 import TaskTokenChip from '@/features/tokens/components/TaskTokenChip.vue'
 import type { Task } from '@/features/catalog/model/catalog'
 
@@ -16,6 +17,7 @@ defineProps<{ task: Task; copyTestid: string }>()
     <h2 class="min-w-0 truncate text-heading font-semibold tracking-[-0.015em] text-text">
       {{ task.title }}
     </h2>
+    <QuickTaskMark :task="task" />
     <slot name="flags" />
     <CopyAnchorButton :anchor="task.anchor" :data-testid="copyTestid" />
     <TaskTokenChip :task="task" />

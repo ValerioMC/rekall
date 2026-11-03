@@ -153,6 +153,10 @@ export interface Task {
   readonly kind: TaskKind
   /** The epic of the same project this task belongs to, and inherits description and notes from. */
   readonly epicId: TaskId | null
+  /** Started from one line of text; Rekall accepts it when the session writes the wrapup. */
+  readonly quick: boolean
+  /** Accepted by Rekall when the wrapup landed, not by a person. Cleared when it is sent back. */
+  readonly autoAccepted: boolean
   readonly anchor: string
   readonly updatedAt: string
 }
@@ -177,6 +181,7 @@ export interface TaskReview {
   readonly claimedAt: string | null
   readonly acceptedAt: string | null
   readonly reviewNote: string | null
+  readonly autoAccepted: boolean
 }
 
 /** An earlier pass at a step: what it worked from, kept when its claim was sent back. */

@@ -50,7 +50,7 @@ function task(id: TaskId, title: string, projectId: ProjectId, companyName: stri
     graphLaidAt: null,
     releaseSkipped: false,
     kind: 'TASK',
-    epicId: null,
+    epicId: null, quick: false, autoAccepted: false,
     anchor: `project:${projectId === vega ? 'vega' : 'beacon'} task:${title.toLowerCase().replace(/ /g, '-')}`,
     updatedAt: ''
   }

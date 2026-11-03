@@ -92,6 +92,8 @@ export const TaskSchema = z.object({
   releaseSkipped: z.boolean(),
   kind: z.enum(TASK_KINDS),
   epicId: taskId.nullable(),
+  quick: z.boolean(),
+  autoAccepted: z.boolean(),
   anchor: z.string(),
   updatedAt: z.string()
 })
@@ -200,7 +202,8 @@ export const TaskReviewSchema = z.object({
   reviewActive: z.boolean(),
   claimedAt: z.string().nullable(),
   acceptedAt: z.string().nullable(),
-  reviewNote: z.string().nullable()
+  reviewNote: z.string().nullable(),
+  autoAccepted: z.boolean()
 })
 
 export const TaskReviewEventSchema = z.object({

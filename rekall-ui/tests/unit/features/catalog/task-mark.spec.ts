@@ -34,7 +34,7 @@ function task(overrides: Partial<Task> = {}): Task {
     graphLaidAt: null,
     releaseSkipped: false,
     kind: 'TASK',
-    epicId: null,
+    epicId: null, quick: false, autoAccepted: false,
     anchor: 'project:vega task:t1',
     updatedAt: '2026-09-20T10:00:00Z',
     ...overrides

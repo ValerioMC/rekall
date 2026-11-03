@@ -141,6 +141,21 @@ With it on, a claim commits: `rekall_step … state="claimed"` stages the files 
 
 The message says what the work does, never which files it touched. The session that claims writes it, as `commit_message` on `rekall_step` or `rekall_wrapup`: a Conventional Commits subject under 72 characters, a blank line, and a few sentences of body. Without one, Rekall derives it: the subject is the step or task title, typed `fix:` or `refactor:` when the title says so, `docs:` when every file is documentation, `test:` when every file is a test and `feat:` otherwise; the body is the opening of the step's detail (or of the wrapup, for a task with no checklist) as plain prose, headings, emphasis and code dropped, cut at a sentence. Either way the body is wrapped at 72 columns and ends with a `Refs: project:… task:…, step N` line. Which files are the session's is decided against a snapshot Rekall takes when the step (or, on a task with no checklist, the task) starts running: every file already modified then, with a hash of its content. A file new since, or whose content differs from its snapshot, goes into the commit; a file that was already modified and has not changed since stays where it is, and the answer names it (`Left out because they were already modified before this work started: notes.txt.`). When every modified file was already there, nothing is committed. When there is no snapshot (the step started before snapshots existed, or git could not be read then), everything modified is committed and the answer says `No snapshot … so everything modified was committed`. The message is typed from the committed files only. A clean tree commits nothing and says so; a git refusal (no identity, a hook, a folder that stopped being a repository) is reported in the tool's answer and the claim stands either way. `rekall_context` marks such a project with an `auto-commit` field telling the session not to `git commit` itself.
 
+## Quick tasks
+
+A small change does not need a task with a description, a run and a review. On a project's page, the
+quick task field takes one text: press Enter, or **Start quick task**, and Rekall makes a task from
+it (its first line is the title, the whole text the description), opens a session on it and starts
+the timer. Shift+Enter goes to a new line. The field needs the project's folder, and waits while
+another quick task on the project is still being worked.
+
+When the session writes its wrapup and the commit on claim did not fail, Rekall accepts the task
+itself. The task then shows **Quick** and **Auto-accepted** beside its title, and the wrapup, the
+commit, the tokens and the time are kept like any task's. A failed commit, or a wrapup you wrote by
+hand, leaves the task claimed for you to review. Accepting is never final: **Send back** reopens an
+auto-accepted task for another pass. **Hide quick tasks**, in the navigator and in a project's task
+list, keeps them out of the way; they are listed by default.
+
 ## Description review
 
 A task with no checklist walks the same line at task scope: **open**, **running** while a terminal is open on it with no step target, **claimed** when a Claude-authored wrapup lands, **accepted** when you accept it in the console. Nothing new is typed for it: running follows the terminal and claimed follows the wrapup write. `/rk` tells the session to write that wrapup itself once the description's work is done, so a run queue, which waits on the claim, goes on to the next task. The description pane shows the running pill and a review bar: on **running** it carries **Accept** and a link to the wrapup, so a session driven by hand still has a console exit; on **claimed** it adds **Send back** (with an optional note the next session sees); accepting offers to also mark the task done. A note left on send back rides in `rekall_context` as a `review` field on the task (`sent back — "…"`), so the next session opened on that anchor reads why, not just that it was. It arrives on the same `GET /api/steps/stream` connection as a `task-review` frame, the wrapup that claims it rides the same connection as a `wrapup` frame so the pane shows the new text with the claim rather than on the next reload, and `PATCH /api/tasks/{id}/review` is the console-only Accept / Send back. Adding a first step retires the task-level line and the checklist takes over.

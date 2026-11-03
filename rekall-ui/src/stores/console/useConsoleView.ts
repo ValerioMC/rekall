@@ -30,7 +30,7 @@ const byTitle = (a: { readonly title: string }, b: { readonly title: string }): 
 
 /** What the navigator lists: the rows inside the company or project in scope that match the filter, by title. */
 export function useConsoleView(state: ConsoleState) {
-  const { companies, projects, tasks, documents, scopeCompany, scopeProject, navMode, filter } = state
+  const { companies, projects, tasks, documents, scopeCompany, scopeProject, navMode, filter, hideQuickTasks } = state
 
   const projectInScope = (project: Project): boolean =>
     (scopeCompany.value === null || project.companyId === scopeCompany.value) &&
@@ -65,7 +65,7 @@ export function useConsoleView(state: ConsoleState) {
 
   const visibleTasks = computed(() =>
     tasks.value
-      .filter((task) => inScope(task) && !isShelved(task) && matchesTask(task, filter.value))
+      .filter((task) => inScope(task) && !isShelved(task) && !(hideQuickTasks.value && task.quick) && matchesTask(task, filter.value))
       .sort(byTitle)
   )
 

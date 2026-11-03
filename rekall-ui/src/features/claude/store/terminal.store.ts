@@ -87,6 +87,12 @@ export const useTerminalStore = defineStore('terminal', () => {
     return opened
   }
 
+  /** A session another call opened, such as a quick task's: listed, announced and shown like one opened here. */
+  function adoptOpened(opened: Terminal): void {
+    settleOpened(opened)
+    showInTerminalPane(opened)
+  }
+
   /** The terminal pane shows PTY sessions only: a chat session is shown by the chat window. */
   function showInTerminalPane(opened: Terminal): void {
     if (opened.kind === 'TERMINAL') activeTerminalId.value = opened.id
@@ -144,6 +150,7 @@ export const useTerminalStore = defineStore('terminal', () => {
     load,
     openForTask,
     openForProject,
+    adoptOpened,
     planForTask,
     followNextSession,
     select,

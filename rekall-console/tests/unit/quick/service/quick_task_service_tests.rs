@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
-use rekall_core::claude::{TerminalEnded, TerminalHost, TerminalOpening, TerminalView};
+use rekall_core::claude::{SessionKind, TerminalEnded, TerminalHost, TerminalOpening, TerminalView};
 use rekall_core::{Ctx, EventBus, Services};
 use rekall_kernel::Instant;
 use rekall_store::{company, project, ProjectStatus, TaskStepState};
@@ -121,7 +121,7 @@ async fn world(refuse_with: Option<&'static str>) -> World {
 }
 
 fn command(project_id: Id, text: &str) -> QuickTaskCommand {
-    QuickTaskCommand { project_id, text: text.into(), skip_permissions: true, model: Some("sonnet".into()), effort: None }
+    QuickTaskCommand { project_id, text: text.into(), skip_permissions: true, model: Some("sonnet".into()), effort: None, kind: SessionKind::Chat }
 }
 
 #[tokio::test]
@@ -139,6 +139,7 @@ async fn the_text_becomes_a_quick_task_titled_by_its_first_line_with_a_session_o
     assert_eq!(openings[0].target, TerminalTarget::Task(started.task.id));
     assert!(openings[0].skip_permissions);
     assert_eq!(openings[0].model.as_deref(), Some("sonnet"));
+    assert_eq!(openings[0].kind, SessionKind::Chat);
 }
 
 #[tokio::test]
