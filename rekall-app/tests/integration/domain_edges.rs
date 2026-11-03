@@ -122,6 +122,7 @@ const CONSOLE: LayeredCrate = LayeredCrate {
         ("terminal", &["claude"]),
         ("version", &[]),
         ("vulnerability", &["catalog", "step", "task"]),
+        ("worktree", &[]),
     ],
     refuses_mutual_use: true,
 };
@@ -165,6 +166,7 @@ const HTTP: LayeredCrate = LayeredCrate {
         ("token", &[]),
         ("version", &[]),
         ("vulnerability", &["catalog"]),
+        ("worktree", &[]),
         ("wrapup", &[]),
     ],
     refuses_mutual_use: true,

@@ -20,7 +20,7 @@ use rekall_core::claude::TerminalHost;
 use rekall_core::queue::RunQueueService;
 use rekall_core::worktree::{TaskWorktreeService, WorktreeLayout};
 use rekall_infra::queue::RunQueueRunner;
-use rekall_infra::worktree::GitWorktreeHost;
+use rekall_infra::worktree::{GitWorktreeHost, WorktreeCleaner};
 use rekall_infra::resources::ClaudeResourceService;
 use rekall_infra::transcript::{TranscriptFolder, TranscriptScanner};
 use rekall_core::claude::UsageReader;
@@ -177,13 +177,14 @@ impl Instance {
         let queue = RunQueueService::new(ctx.clone());
         let layout = WorktreeLayout::new(config.home.join(WORKTREES_FOLDER));
         let worktrees = TaskWorktreeService::new(ctx.clone(), Arc::new(GitWorktreeHost::new(layout.clone())), layout);
+        WorktreeCleaner::start(&events, services.task_work.clone(), worktrees.clone());
         let runner = RunQueueRunner::start(
             queue.clone(),
             sessions.clone(),
             usage.clone(),
             services.task_work.clone(),
             services.steps.clone(),
-            worktrees,
+            worktrees.clone(),
             &events,
             clock.clone(),
             claude_config.run_queue_tick,
@@ -236,6 +237,7 @@ impl Instance {
             restore: Arc::new(restorer),
             database_folders: Arc::new(DatabaseFolderRegistry::new(DatabaseRegistryStore::new(&config.home), config.user_home.clone())),
             restart: Arc::new(restarter),
+            task_worktrees: worktrees.clone(),
             protected_credential_references: protected_references(&config.home, &config.user_home),
             release_feed: config.update_check.enabled.then_some(release_feed),
         };

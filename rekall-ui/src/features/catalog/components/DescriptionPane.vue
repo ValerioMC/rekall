@@ -5,6 +5,7 @@ import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import AppModeToggle from '@/components/ui/AppModeToggle.vue'
 import DescriptionEmptyState from '@/features/catalog/components/DescriptionEmptyState.vue'
 import DescriptionReviewBar from '@/features/catalog/components/DescriptionReviewBar.vue'
+import TaskBranchPanel from '@/features/worktree/components/TaskBranchPanel.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useSelectedProjectComponents } from '@/features/project/composables/useSelectedProjectComponents'
 import { useSelectedProjectConnections } from '@/features/connection/composables/useSelectedProjectConnections'
@@ -134,6 +135,13 @@ defineExpose({ toggleMode })
         v-if="reviewState === 'RUNNING' || reviewState === 'CLAIMED' || reviewState === 'DONE'"
         :task="selectedTask"
         :review-state="reviewState"
+      />
+
+      <TaskBranchPanel
+        v-if="selectedTask.stepCount === 0"
+        class="mx-4 my-2 shrink-0"
+        :task-id="selectedTask.id"
+        :signature="`${reviewState}:${selectedTask.updatedAt}`"
       />
 
       <DescriptionEmptyState v-if="!showEditor" @write="beginWriting" />

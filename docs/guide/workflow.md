@@ -132,6 +132,18 @@ for your review, and the queue says so.
   /api/tasks/{id}/dependencies/{dependsOnId}` answer with the task's whole list; `dependsOn` on a
   task response lists the ids. Deleting a task removes its dependencies.
 
+## Running in parallel and merging by hand
+
+Set **Parallel sessions** in the run queue to two, three or four and the queue works that many tasks at once, each in a git worktree of its own on a `rekall/<task-label>` branch (see Run queue in the sessions guide). Rekall prepares everything and merges nothing:
+
+1. Queue the tasks. Tasks that depend on each other (see Dependencies) never run together.
+2. Each task's session, its "Done when" checks and its commit on claim work in its worktree, so the commits land on its branch and your own branch does not move.
+3. In the review, a **Branch** panel shows the branch, the commits it is ahead of the project's current branch, the files it changed, and whether merging it would conflict (read with `git merge-tree`, which changes nothing). It gives the command to copy, `git merge rekall/<task-label>`, to run yourself in the project's folder. There is no merge button.
+4. When you accept the task, its worktree is removed if it is clean. One with unsaved changes is left where it is and the panel says so; **Remove worktree** takes a clean one away early, and refuses an unclean one. The branch and its commits are never deleted by Rekall.
+5. If you send the task back, the next run uses the worktree when it is still there and makes it again from the same branch when it is not.
+
+A task run by hand, or by a queue set to one session, has no worktree; the panel appears only for a task whose branch exists. `GET /api/tasks/{id}/branch` answers the panel (`null` without a branch) and `DELETE /api/tasks/{id}/worktree` removes the worktree.
+
 ## Commits
 
 A task, or one of its steps, keeps a ledger of the commits that built it: the hash, the commit's own subject line as the comment, and the diff it introduced, read from the project's **repo folder** (set on the project's page). The console shows the ledger under the description as a collapsible rail, and under each step's detail; a row opens to its diff, and can be deleted by hand.

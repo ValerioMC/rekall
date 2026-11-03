@@ -5,7 +5,7 @@ use std::sync::Mutex;
 use async_trait::async_trait;
 use rekall_kernel::{RekallError, Result};
 
-use crate::worktree::{Worktree, WorktreeHost, WorktreeStatus};
+use crate::worktree::{BranchReview, Worktree, WorktreeHost, WorktreeStatus};
 
 /// A `WorktreeHost` that keeps its worktrees in memory and makes their folders on disk, for tests
 /// of what decides when to make one. `refuse` makes `create` fail for a branch.
@@ -54,6 +54,19 @@ impl WorktreeHost for ScriptedWorktreeHost {
 
     async fn list(&self, project_folder: &Path) -> Result<Vec<Worktree>> {
         Ok(self.worktrees.lock().expect("scripted host lock").iter().filter(|worktree| worktree.project_folder == project_folder).cloned().collect())
+    }
+
+    async fn review_branch(&self, _: &Path, branch_name: &str, worktree_folder: Option<&Path>) -> Result<Option<BranchReview>> {
+        let known = self.worktrees.lock().expect("scripted host lock").iter().any(|worktree| worktree.branch == branch_name);
+        let dirty = self.dirty.lock().expect("scripted host lock").contains(branch_name);
+        Ok(known.then(|| BranchReview {
+            branch: branch_name.to_string(),
+            commits_ahead: 0,
+            changed_files: Vec::new(),
+            merges_cleanly: Some(true),
+            worktree_folder: worktree_folder.map(|folder| folder.to_string_lossy().into_owned()),
+            has_unsaved_changes: dirty,
+        }))
     }
 
     async fn status(&self, worktree: &Worktree) -> Result<WorktreeStatus> {

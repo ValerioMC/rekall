@@ -4,7 +4,7 @@ use std::sync::Mutex;
 use async_trait::async_trait;
 
 use super::*;
-use crate::worktree::{Worktree, WorktreeStatus};
+use crate::worktree::{BranchReview, Worktree, WorktreeStatus};
 
 struct FakeHost {
     worktrees: Vec<(Worktree, bool)>,
@@ -24,6 +24,10 @@ impl WorktreeHost for FakeHost {
 
     async fn list(&self, _: &Path) -> Result<Vec<Worktree>> {
         Ok(self.worktrees.iter().map(|(worktree, _)| worktree.clone()).collect())
+    }
+
+    async fn review_branch(&self, _: &Path, _: &str, _: Option<&Path>) -> Result<Option<BranchReview>> {
+        unreachable!("reclaiming never reviews a branch")
     }
 
     async fn status(&self, worktree: &Worktree) -> Result<WorktreeStatus> {

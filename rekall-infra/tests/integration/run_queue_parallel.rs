@@ -11,6 +11,7 @@ use rekall_core::claude::{ClaudeUsageView, Limit, SessionKind, Severity, UsageRe
 use rekall_core::queue::{QueueRunner, RunQueueService};
 use rekall_core::worktree::ScriptedWorktreeHost;
 use rekall_infra::queue::RunQueueRunner;
+use rekall_infra::worktree::WorktreeCleaner;
 use rekall_kernel::Instant;
 use rekall_store::{task, task_dependency, RunQueueItemState, RunQueueState, TaskStepState};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
@@ -186,4 +187,56 @@ async fn one_session_at_a_time_makes_no_worktree() {
     assert!(!harness.terminals.has_live_terminal_for(two.id));
     assert!(harness.git.branches().is_empty());
     assert_eq!(worktree_of(&world, &one).await, None);
+}
+
+#[tokio::test]
+async fn accepting_a_task_removes_its_clean_worktree_and_the_task_forgets_it() {
+    let world = world().await;
+    let (worktrees, git) = world.worktrees();
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let task = world.task(&project, "one").await;
+    let step = world.step(&task, "First", 0, TaskStepState::Claimed).await;
+    let folder = worktrees.ensure(task.id).await.unwrap();
+    WorktreeCleaner::start(&world.events, world.services.task_work.clone(), worktrees);
+
+    world.services.steps.edit(step.id, None, None, Some(true), None).await.unwrap();
+
+    eventually("the worktree to go", || async { worktree_of(&world, &task).await.is_none() }).await;
+    assert!(!folder.exists());
+    assert!(git.branches().is_empty());
+}
+
+#[tokio::test]
+async fn accepting_a_task_whose_worktree_has_unsaved_changes_leaves_it_alone() {
+    let world = world().await;
+    let (worktrees, git) = world.worktrees();
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let task = world.task(&project, "one").await;
+    let step = world.step(&task, "First", 0, TaskStepState::Claimed).await;
+    let folder = worktrees.ensure(task.id).await.unwrap();
+    git.leave_unsaved_changes("rekall/one");
+    WorktreeCleaner::start(&world.events, world.services.task_work.clone(), worktrees);
+
+    world.services.steps.edit(step.id, None, None, Some(true), None).await.unwrap();
+
+    tokio::time::sleep(Duration::from_millis(400)).await;
+    assert!(folder.exists());
+    assert!(worktree_of(&world, &task).await.is_some());
+}
+
+#[tokio::test]
+async fn a_task_with_work_still_open_keeps_its_worktree() {
+    let world = world().await;
+    let (worktrees, _) = world.worktrees();
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let task = world.task(&project, "one").await;
+    let done = world.step(&task, "First", 0, TaskStepState::Claimed).await;
+    world.step(&task, "Second", 1, TaskStepState::Open).await;
+    let folder = worktrees.ensure(task.id).await.unwrap();
+    WorktreeCleaner::start(&world.events, world.services.task_work.clone(), worktrees);
+
+    world.services.steps.edit(done.id, None, None, Some(true), None).await.unwrap();
+
+    tokio::time::sleep(Duration::from_millis(400)).await;
+    assert!(folder.exists());
 }

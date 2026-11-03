@@ -6,8 +6,17 @@ use rekall_kernel::{jstr, Id, Result};
 use rekall_store::repository as repo;
 use tracing::warn;
 
-use crate::worktree::{OrphanReclaimService, WorktreeHost, WorktreeLayout};
+use crate::worktree::{BranchReview, OrphanReclaimService, Worktree, WorktreeHost, WorktreeLayout};
 use crate::{in_read, in_write, load, Ctx};
+
+/// What taking a task's worktree away did.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Release {
+    Removed,
+    /// The worktree has unsaved changes and was left as it was.
+    KeptWithChanges,
+    NoWorktree,
+}
 
 /// Gives a task a worktree to work in, and keeps the tasks and the worktrees on disk in step.
 /// The task row names its worktree (`worktree_folder`), which is what makes its session, its
@@ -37,6 +46,32 @@ impl TaskWorktreeService {
         let worktree = self.host.create(Path::new(&project_folder), &branch, &folder).await?;
         self.name_on_task(task_id, Some(worktree.folder.to_string_lossy().into_owned())).await?;
         Ok(worktree.folder)
+    }
+
+    /// Takes the task's worktree away once its work is accepted, or when a person asks. A worktree
+    /// with unsaved changes is left alone; the branch and its commits always stay.
+    pub async fn release(&self, task_id: Id) -> Result<Release> {
+        let (task, project_folder, _) = self.read(task_id).await?;
+        let Some(folder) = task.worktree_folder.clone() else { return Ok(Release::NoWorktree) };
+        let Some(project_folder) = project_folder else { return Ok(Release::NoWorktree) };
+        let worktree = Worktree { project_folder: PathBuf::from(project_folder), folder: PathBuf::from(&folder), branch: self.layout.branch_for(&task.label)? };
+        if worktree.folder.is_dir() {
+            if self.host.status(&worktree).await?.has_unsaved_changes {
+                return Ok(Release::KeptWithChanges);
+            }
+            self.host.remove(&worktree).await?;
+        }
+        self.name_on_task(task_id, None).await?;
+        Ok(Release::Removed)
+    }
+
+    /// What the task's branch holds, while the branch exists: the worktree or not.
+    pub async fn review_branch(&self, task_id: Id) -> Result<Option<BranchReview>> {
+        let (task, project_folder, _) = self.read(task_id).await?;
+        let Some(project_folder) = project_folder else { return Ok(None) };
+        let branch = self.layout.branch_for(&task.label)?;
+        let worktree = task.worktree_folder.as_deref().map(Path::new).filter(|folder| folder.is_dir());
+        self.host.review_branch(Path::new(&project_folder), &branch, worktree).await
     }
 
     /// After a restart: a task whose worktree folder is gone forgets it (its branch stays and the

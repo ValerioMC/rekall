@@ -7,6 +7,7 @@ use rekall_core::connection::{ConnectionProbe, CredentialDesk, JiraIssues, Secre
 use rekall_core::queue::QueueRunner;
 use rekall_core::settings::{ApplicationRestart, DatabaseFolders};
 use rekall_core::version::ReleaseFeed;
+use rekall_core::worktree::TaskWorktreeService;
 
 /// What the routes reach on the machine, each behind a port of `rekall-core`. `rekall-app` builds
 /// the implementations and hands them over here.
@@ -28,6 +29,8 @@ pub struct ApiPorts {
     pub restore: Arc<dyn DatabaseRestore>,
     pub database_folders: Arc<dyn DatabaseFolders>,
     pub restart: Arc<dyn ApplicationRestart>,
+    /// The task worktrees, over the git port the run queue also uses.
+    pub task_worktrees: TaskWorktreeService,
     /// Paths and URL fragments a session must never read, copy or search: where credentials are kept.
     pub protected_credential_references: Vec<String>,
     /// `None` when the update check is turned off, so it never reaches the network.

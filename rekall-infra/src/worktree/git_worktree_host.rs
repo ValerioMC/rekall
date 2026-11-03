@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use rekall_core::commit::{run_git, GitResult};
-use rekall_core::worktree::{parse_listing, Worktree, WorktreeHost, WorktreeLayout, WorktreeStatus};
+use rekall_core::worktree::{parse_listing, BranchReview, Worktree, WorktreeHost, WorktreeLayout, WorktreeStatus};
 use rekall_kernel::{RekallError, Result};
 
 const ADD_TIMEOUT: Duration = Duration::from_secs(120);
@@ -28,6 +28,17 @@ impl GitWorktreeHost {
             return Err(RekallError::illegal(format!("git {} failed in {}: {}", arguments.join(" "), folder.display(), answer.error())));
         }
         Ok(answer)
+    }
+
+    /// `git merge-tree --write-tree` (git 2.38 and later) says whether a merge would conflict
+    /// without touching the work tree, the index or any branch; older git answers none.
+    async fn merges_cleanly(&self, project_folder: &Path, branch_name: &str) -> Option<bool> {
+        let answer = run_git(project_folder, &["merge-tree", "--write-tree", "HEAD", branch_name], None, READ_TIMEOUT).await.ok()?;
+        match answer.exit_code {
+            0 => Some(true),
+            1 => Some(false),
+            _ => None,
+        }
     }
 
     async fn branch_exists(&self, project_folder: &Path, branch_name: &str) -> Result<bool> {
@@ -77,6 +88,30 @@ impl WorktreeHost for GitWorktreeHost {
                 Some(Worktree { folder, ..listed })
             })
             .collect())
+    }
+
+    async fn review_branch(&self, project_folder: &Path, branch_name: &str, worktree_folder: Option<&Path>) -> Result<Option<BranchReview>> {
+        self.layout.require_branch(branch_name)?;
+        if !self.branch_exists(project_folder, branch_name).await? {
+            return Ok(None);
+        }
+        let range = format!("HEAD..{branch_name}");
+        let ahead = self.git(project_folder, &["rev-list", "--count", &range], READ_TIMEOUT).await?;
+        let commits_ahead = ahead.output().parse().map_err(|_| RekallError::illegal(format!("git did not answer a number of commits: '{}'.", ahead.output())))?;
+        let since_fork = format!("HEAD...{branch_name}");
+        let changed = self.git(project_folder, &["diff", "--name-only", &since_fork], READ_TIMEOUT).await?;
+        let has_unsaved_changes = match worktree_folder {
+            Some(folder) => !self.git(folder, &["status", "--porcelain"], READ_TIMEOUT).await?.output().is_empty(),
+            None => false,
+        };
+        Ok(Some(BranchReview {
+            branch: branch_name.to_string(),
+            commits_ahead,
+            changed_files: changed.output().lines().map(str::to_string).collect(),
+            merges_cleanly: self.merges_cleanly(project_folder, branch_name).await,
+            worktree_folder: worktree_folder.map(|folder| folder.to_string_lossy().into_owned()),
+            has_unsaved_changes,
+        }))
     }
 
     async fn status(&self, worktree: &Worktree) -> Result<WorktreeStatus> {

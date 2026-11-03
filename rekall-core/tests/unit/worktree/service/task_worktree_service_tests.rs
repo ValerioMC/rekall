@@ -106,3 +106,52 @@ async fn an_orphan_with_unsaved_changes_is_left_alone() {
 
     assert_eq!(world.host.branches(), vec!["rekall/orphan".to_string()]);
 }
+
+#[tokio::test]
+async fn releasing_a_clean_worktree_removes_the_folder_and_the_task_forgets_it() {
+    let world = world().await;
+    let report = task_named(&world, "report").await;
+    let folder = world.service.ensure(report).await.unwrap();
+
+    let released = world.service.release(report).await.unwrap();
+
+    assert_eq!(released, Release::Removed);
+    assert!(!folder.exists());
+    assert_eq!(folder_of(&world, report).await, None);
+}
+
+#[tokio::test]
+async fn releasing_a_worktree_with_unsaved_changes_leaves_it_as_it_was() {
+    let world = world().await;
+    let report = task_named(&world, "report").await;
+    let folder = world.service.ensure(report).await.unwrap();
+    world.host.leave_unsaved_changes("rekall/report");
+
+    let released = world.service.release(report).await.unwrap();
+
+    assert_eq!(released, Release::KeptWithChanges);
+    assert!(folder.exists());
+    assert_eq!(folder_of(&world, report).await, Some(folder.to_string_lossy().into_owned()));
+}
+
+#[tokio::test]
+async fn a_task_that_never_had_a_worktree_has_nothing_to_release() {
+    let world = world().await;
+    let report = task_named(&world, "report").await;
+
+    assert_eq!(world.service.release(report).await.unwrap(), Release::NoWorktree);
+}
+
+#[tokio::test]
+async fn the_branch_is_reviewed_whether_or_not_its_worktree_is_still_there() {
+    let world = world().await;
+    let report = task_named(&world, "report").await;
+    world.service.ensure(report).await.unwrap();
+
+    let with_worktree = world.service.review_branch(report).await.unwrap().unwrap();
+    let nothing = world.service.review_branch(task_named(&world, "other").await).await.unwrap();
+
+    assert_eq!(with_worktree.branch, "rekall/report");
+    assert!(with_worktree.worktree_folder.is_some());
+    assert!(nothing.is_none());
+}

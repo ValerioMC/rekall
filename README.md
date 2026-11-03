@@ -140,7 +140,7 @@ The guides describe each area as it behaves today, with its REST routes and prop
 | Epics | A task that gathers other tasks and passes its brief to them | [workflow](docs/guide/workflow.md#epics) |
 | Commits | A ledger of commits per task or step; commit on claim | [workflow](docs/guide/workflow.md#commits) |
 | Review | Accept or send back a claim; the review queue and its notifications | [workflow](docs/guide/workflow.md#description-review) |
-| Terminals | A real `claude` in a pseudo-terminal inside the app, or the same `claude` as a chat window (Settings > Claude Code > Session view); the run queue; the usage meter | [sessions](docs/guide/sessions.md) |
+| Terminals | A real `claude` in a pseudo-terminal inside the app, or the same `claude` as a chat window (Settings > Claude Code > Session view); the run queue, which can work up to four tasks at once in git worktrees of their own; the usage meter | [sessions](docs/guide/sessions.md) |
 | Token usage | Tokens Claude Code generated per task and step, read from its transcripts | [sessions](docs/guide/sessions.md#token-usage) |
 | Projects | Page, sections, components, icons, autoconfigure; connections to GitLab, GitHub, Kubernetes and Jira shared across companies | [projects](docs/guide/projects.md) |
 | Console | Search, notes and their scopes, tags, skills, the markdown editor, timers | [console](docs/guide/console.md) |

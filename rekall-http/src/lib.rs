@@ -42,6 +42,7 @@ pub mod timeentry;
 pub mod token;
 pub mod version;
 pub mod vulnerability;
+pub mod worktree;
 pub mod wrapup;
 
 pub use api_ports::ApiPorts;

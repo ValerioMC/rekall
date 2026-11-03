@@ -174,3 +174,55 @@ async fn reclaiming_removes_a_clean_orphan_and_reports_one_with_unsaved_changes(
     assert_eq!(report.kept_with_changes, vec![dirty.clone()]);
     assert!(!clean.folder.exists() && dirty.folder.exists() && active.folder.exists());
 }
+
+#[tokio::test]
+async fn a_branch_with_two_commits_is_read_as_commits_files_and_a_clean_merge() {
+    let world = world();
+    let worktree = create(&world, "report").await;
+    for (name, text) in [("export.txt", "export\n"), ("import.txt", "import\n")] {
+        fs::write(worktree.folder.join(name), text).unwrap();
+        git(&worktree.folder, &["add", "."]);
+        git(&worktree.folder, &["commit", "-q", "-m", name]);
+    }
+
+    let review = world.host.review_branch(&world.project, "rekall/report", Some(&worktree.folder)).await.unwrap().unwrap();
+
+    assert_eq!(review.commits_ahead, 2);
+    assert_eq!(review.changed_files, vec!["export.txt".to_string(), "import.txt".to_string()]);
+    assert_eq!(review.merges_cleanly, Some(true));
+    assert!(!review.has_unsaved_changes);
+    assert_eq!(git(&world.project, &["rev-parse", "--abbrev-ref", "HEAD"]), "main");
+    assert_eq!(git(&world.project, &["status", "--porcelain"]), "", "reading the branch changed nothing in the project");
+}
+
+#[tokio::test]
+async fn a_branch_that_conflicts_with_the_project_is_reported_as_a_conflict() {
+    let world = world();
+    let worktree = create(&world, "report").await;
+    fs::write(worktree.folder.join("report.txt"), "changed in the branch\n").unwrap();
+    git(&worktree.folder, &["commit", "-q", "-am", "branch edit"]);
+    fs::write(world.project.join("report.txt"), "changed in the project\n").unwrap();
+    git(&world.project, &["commit", "-q", "-am", "project edit"]);
+
+    let review = world.host.review_branch(&world.project, "rekall/report", Some(&worktree.folder)).await.unwrap().unwrap();
+
+    assert_eq!(review.merges_cleanly, Some(false));
+}
+
+#[tokio::test]
+async fn a_branch_that_does_not_exist_has_nothing_to_review() {
+    let world = world();
+
+    assert!(world.host.review_branch(&world.project, "rekall/missing", None).await.unwrap().is_none());
+}
+
+#[tokio::test]
+async fn unsaved_files_in_the_worktree_show_in_the_review() {
+    let world = world();
+    let worktree = create(&world, "report").await;
+    fs::write(worktree.folder.join("half-done.txt"), "wip\n").unwrap();
+
+    let review = world.host.review_branch(&world.project, "rekall/report", Some(&worktree.folder)).await.unwrap().unwrap();
+
+    assert!(review.has_unsaved_changes);
+}
