@@ -14,6 +14,11 @@ pub async fn find_on_task(db: &impl ConnectionTrait, task_id: Id, hash: &str) ->
         .await?)
 }
 
+/// Every commit logged against the task, in context or not.
+pub async fn list_of_task(db: &impl ConnectionTrait, task_id: Id) -> Result<Vec<Model>, RekallError> {
+    Ok(Entity::find().filter(Column::TaskId.eq(task_id)).all(db).await?)
+}
+
 pub async fn list_newest_first(db: &impl ConnectionTrait) -> Result<Vec<Model>, RekallError> {
     Ok(Entity::find().order_by_desc(Column::CreatedAt).all(db).await?)
 }

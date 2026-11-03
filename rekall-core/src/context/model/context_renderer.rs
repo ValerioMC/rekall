@@ -9,7 +9,7 @@ use crate::context::{ContextCommitView, ContextRecord, ContextSkillScope, Contex
 use crate::component::{ComponentReferences, ProjectComponentView};
 use crate::connection::ConnectionView;
 use crate::step::{StepLinkView, TaskStepView};
-use crate::wrapup::WrapupView;
+use crate::wrapup::{Freshness, WrapupView};
 
 pub const MAX_DOCUMENT_CHARACTERS: usize = 20_000;
 
@@ -65,7 +65,7 @@ impl ContextRenderer {
         out.push_str(&self.render_sections(&record.sections));
         out.push_str(&self.render_steps(&record.steps, &record.step_connections, record.wrapup.as_ref(), &mut references));
         out.push_str(&self.render_commits(&record.commits));
-        out.push_str(&self.render_wrapup(record.wrapup.as_ref()));
+        out.push_str(&self.render_wrapup(record.wrapup.as_ref(), &record.wrapup_freshness));
         out.push_str(&self.render_documents(&record.documents));
         for reference in &record.references {
             let nested = self.render_record(reference, heading_level + 1, rendered);
@@ -129,13 +129,14 @@ impl ContextRenderer {
         out
     }
 
-    pub fn render_wrapup(&self, wrapup: Option<&WrapupView>) -> String {
+    pub fn render_wrapup(&self, wrapup: Option<&WrapupView>, freshness: &Freshness) -> String {
         match wrapup {
             None => String::new(),
             Some(wrapup) => format!(
-                "\n<wrapup written-by=\"{}\" updated=\"{}\">\n{}\n</wrapup>\n",
+                "\n<wrapup written-by=\"{}\" updated=\"{}\"{}>\n{}\n</wrapup>\n",
                 wrapup.written_by,
                 wrapup.updated_at,
+                freshness.warning().map(|warning| format!(" freshness=\"{warning}\"")).unwrap_or_default(),
                 truncate(Some(&wrapup.body_markdown), MAX_DOCUMENT_CHARACTERS)
             ),
         }
@@ -551,3 +552,7 @@ mod sessions_tests;
 #[cfg(test)]
 #[path = "../../../tests/unit/context/model/context_renderer_sections_tests.rs"]
 mod sections_tests;
+
+#[cfg(test)]
+#[path = "../../../tests/unit/context/model/context_renderer_freshness_tests.rs"]
+mod freshness_tests;

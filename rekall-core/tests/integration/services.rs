@@ -842,6 +842,95 @@ async fn a_version_records_the_commit_the_project_was_at() {
     assert_eq!(versions[0].commit_hash.as_deref(), Some(git(repo.path(), &["rev-parse", "HEAD"]).as_str()));
 }
 
+// ------------------------------------------------------------------------------ wrapup freshness
+
+async fn stale_world(body: &str) -> (support::World, tempfile::TempDir, rekall_store::task::Model) {
+    let world = world().await;
+    let repo = ready_repo().await;
+    let project = world.project("vega", Some(&repo.path().to_string_lossy()), false).await;
+    let task = world.task(&project, "export").await;
+    world.services.wrapups.write_by_anchor(Some("vega"), "export", Some(body), rekall_store::WrapupAuthor::Claude).await.unwrap();
+    (world, repo, task)
+}
+
+fn commit_file(repo: &std::path::Path, name: &str, content: &str) -> String {
+    if let Some(parent) = std::path::Path::new(name).parent() {
+        fs::create_dir_all(repo.join(parent)).unwrap();
+    }
+    fs::write(repo.join(name), content).unwrap();
+    git(repo, &["add", "-A"]);
+    commit(repo, &format!("change {name}"));
+    git(repo, &["rev-parse", "HEAD"])
+}
+
+#[tokio::test]
+async fn a_commit_on_a_named_file_after_the_wrapup_makes_it_possibly_stale() {
+    use rekall_core::wrapup::Freshness;
+    let (world, repo, task) = stale_world("It lives in `a/b.rs`.").await;
+    let changed = commit_file(repo.path(), "a/b.rs", "one");
+
+    let freshness = world.services.wrapup_freshness.check(task.id).await.unwrap();
+
+    assert_eq!(freshness, Freshness::PossiblyStale { changed_paths: vec!["a/b.rs".into()], commits: vec![changed] });
+}
+
+#[tokio::test]
+async fn a_commit_on_another_file_leaves_it_fresh() {
+    use rekall_core::wrapup::Freshness;
+    let (world, repo, task) = stale_world("It lives in `a/b.rs`.").await;
+    commit_file(repo.path(), "other.rs", "one");
+
+    assert_eq!(world.services.wrapup_freshness.check(task.id).await.unwrap(), Freshness::Fresh);
+}
+
+#[tokio::test]
+async fn a_commit_logged_against_the_task_itself_does_not_count() {
+    use rekall_core::wrapup::Freshness;
+    let (world, repo, task) = stale_world("It lives in `a/b.rs`.").await;
+    let own = commit_file(repo.path(), "a/b.rs", "one");
+    world.services.commit_references.record_commit(task.id, None, Some(&own)).await.unwrap();
+
+    assert_eq!(world.services.wrapup_freshness.check(task.id).await.unwrap(), Freshness::Fresh);
+}
+
+#[tokio::test]
+async fn a_rewrite_starts_from_the_new_commit_and_the_warning_goes() {
+    use rekall_core::wrapup::Freshness;
+    let (world, repo, task) = stale_world("It lives in `a/b.rs`.").await;
+    commit_file(repo.path(), "a/b.rs", "one");
+    world.services.wrapups.write_by_anchor(Some("vega"), "export", Some("It lives in `a/b.rs`, rewritten."), rekall_store::WrapupAuthor::Claude).await.unwrap();
+
+    assert_eq!(world.services.wrapup_freshness.check(task.id).await.unwrap(), Freshness::Fresh);
+}
+
+#[tokio::test]
+async fn what_git_cannot_say_is_unknown_not_stale() {
+    use rekall_core::wrapup::Freshness;
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let task = world.task(&project, "export").await;
+    assert_eq!(world.services.wrapup_freshness.check(task.id).await.unwrap(), Freshness::Unknown, "no wrapup");
+    world.services.wrapups.write_by_anchor(Some("vega"), "export", Some("It lives in `a/b.rs`."), rekall_store::WrapupAuthor::Claude).await.unwrap();
+    assert_eq!(world.services.wrapup_freshness.check(task.id).await.unwrap(), Freshness::Unknown, "no repository");
+
+    let (world, _repo, task) = stale_world("It names nothing at all.").await;
+    assert_eq!(world.services.wrapup_freshness.check(task.id).await.unwrap(), Freshness::Unknown, "no path named");
+
+    let many: String = (0..21).map(|n| format!("`d/f{n}.rs` ")).collect();
+    let (world, _repo, task) = stale_world(&many).await;
+    assert_eq!(world.services.wrapup_freshness.check(task.id).await.unwrap(), Freshness::Unknown, "over twenty paths");
+}
+
+#[tokio::test]
+async fn the_context_of_a_task_carries_the_warning_on_its_wrapup() {
+    let (world, repo, task) = stale_world("It lives in `a/b.rs`.").await;
+    commit_file(repo.path(), "a/b.rs", "one");
+
+    let rendered = world.services.renderer.render(&world.services.context.for_task(task.id).await.unwrap());
+
+    assert!(rendered.contains("freshness=\"possibly stale: a/b.rs changed in 1 commit since it was written\""), "{rendered}");
+}
+
 // ------------------------------------------------------------------------------ send back
 
 #[tokio::test]

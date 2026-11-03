@@ -15,7 +15,7 @@ use rekall_core::timeentry::TimeEntryService;
 use rekall_core::version::RUNNING_VERSION;
 use rekall_core::token::TokenUsageService;
 use rekall_core::vulnerability::{ScanSettingsService, SecurityAdvisoryService, VulnerabilityExposureService, VulnerabilityScanService};
-use rekall_core::wrapup::WrapupService;
+use rekall_core::wrapup::{WrapupFreshnessService, WrapupService};
 use rekall_core::queue::RunQueueService;
 use rekall_core::skill::SkillGroupService;
 use rekall_core::Services;
@@ -31,6 +31,7 @@ pub struct ApiState {
     pub step_links: StepLinkService,
     pub flow: FlowService,
     pub wrapups: WrapupService,
+    pub wrapup_freshness: WrapupFreshnessService,
     pub time_entries: TimeEntryService,
     pub token_usage: TokenUsageService,
     pub commit_references: CommitReferenceService,
@@ -152,6 +153,7 @@ impl ApiState {
             step_links: services.step_links,
             flow: services.flow,
             wrapups: services.wrapups,
+            wrapup_freshness: services.wrapup_freshness,
             time_entries: services.time_entries,
             token_usage: services.token_usage,
             commit_references: services.commit_references,

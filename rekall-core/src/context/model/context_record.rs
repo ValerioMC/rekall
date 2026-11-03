@@ -2,7 +2,7 @@ use crate::component::ProjectComponentView;
 use crate::connection::ConnectionView;
 use crate::step::TaskStepView;
 use crate::task::TaskReferenceView;
-use crate::wrapup::WrapupView;
+use crate::wrapup::{Freshness, WrapupView};
 
 use crate::context::{ContextCommitView, ContextSkillView, DocumentView, StepConnectionView};
 
@@ -24,6 +24,7 @@ pub struct ContextRecord {
     pub skills: Vec<ContextSkillView>,
     pub commits: Vec<ContextCommitView>,
     pub wrapup: Option<WrapupView>,
+    pub wrapup_freshness: Freshness,
     pub components: Vec<ProjectComponentView>,
     /// The project's components, for resolving `[[Name]]` in a task's text only; `None` leaves text untouched.
     pub component_lookup: Option<Vec<ProjectComponentView>>,

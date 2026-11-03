@@ -183,6 +183,9 @@ vi.mock('@xterm/addon-fit', () => ({
   }
 }))
 
+vi.mock('@/features/wrapup/api/wrapup-versions.api', () => ({
+  fetchWrapupFreshness: vi.fn(async () => ({ state: 'unknown' }))
+}))
 vi.mock('@/features/wrapup/api/wrapups.api', () => ({
   fetchWrapups: vi.fn(async () => [wrapup]),
   saveWrapup: (...args: unknown[]) => saveWrapup(...(args as [])),

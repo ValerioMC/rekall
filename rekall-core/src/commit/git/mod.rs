@@ -2,6 +2,7 @@
 //! the three components built on it. A hung or unrunnable git is reported, never waited on
 //! forever; every failure is an `IllegalArgument` the caller turns into its own words.
 
+mod commit_touch;
 mod git_command;
 mod git_committer;
 mod git_log_reader;
@@ -13,6 +14,7 @@ mod pending_change;
 mod pending_change_kind;
 mod repository_status;
 
+pub use commit_touch::CommitTouch;
 pub use git_command::{display_path, run};
 pub use git_committer::GitCommitter;
 pub use git_log_reader::GitLogReader;

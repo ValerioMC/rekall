@@ -15,3 +15,9 @@ export const WrapupVersionSchema = z.object({
 export const WrapupVersionListSchema = z.array(WrapupVersionSchema)
 
 export const WrapupVersionDetailSchema = WrapupVersionSchema.extend({ bodyMarkdown: z.string() })
+
+export const WrapupFreshnessSchema = z.discriminatedUnion('state', [
+  z.object({ state: z.literal('fresh') }),
+  z.object({ state: z.literal('unknown') }),
+  z.object({ state: z.literal('possiblyStale'), changedPaths: z.array(z.string()), commits: z.array(z.string()) })
+])

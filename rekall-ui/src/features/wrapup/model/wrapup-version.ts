@@ -16,3 +16,9 @@ export interface WrapupVersion {
 export interface WrapupVersionDetail extends WrapupVersion {
   readonly bodyMarkdown: string
 }
+
+/** Whether the files a wrapup names changed after it was written. Anything git cannot say is `unknown`. */
+export type WrapupFreshness =
+  | { readonly state: 'fresh' }
+  | { readonly state: 'unknown' }
+  | { readonly state: 'possiblyStale'; readonly changedPaths: readonly string[]; readonly commits: readonly string[] }

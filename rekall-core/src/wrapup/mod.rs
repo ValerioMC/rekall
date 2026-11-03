@@ -6,7 +6,10 @@ mod model;
 mod service;
 mod view;
 
+pub use service::wrapup_freshness_service::WrapupFreshnessService;
 pub use service::wrapup_service::WrapupService;
+pub use model::freshness::Freshness;
+pub use model::named_paths::{NamedPaths, MAX_NAMED_PATHS};
 pub use event::wrapup_stream_event::WrapupStreamEvent;
 pub use view::wrapup_version_view::{WrapupVersionDetail, WrapupVersionView};
 pub use view::wrapup_view::WrapupView;

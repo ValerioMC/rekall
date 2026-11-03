@@ -65,6 +65,23 @@ in one terminal window. A task with no checklist takes the same path at task sco
 no step. A wrapup written from a terminal-run session (over MCP) or by an MCP call lands in the
 pane with the claim it triggers rather than on the next reload.
 
+### Wrapup versions and freshness
+
+`WrapupService` keeps every changed text as a `wrapup_version` row in the transaction that replaces
+the wrapup, with the project's `HEAD` read just before it (`GitRepositoryInspector::head`, outside
+the transaction), and keeps the last 20 per task. The row is one per task still; deleting it leaves
+the versions, so a deleted wrapup can be restored. `rekall_context` never carries them: an old text
+would be read as a fact.
+
+`WrapupFreshnessService::check_in` answers `Fresh`, `PossiblyStale` or `Unknown` from the newest
+version's `HEAD`: `NamedPaths::in_text` takes the paths a wrapup writes between backticks (a `/`
+and a known extension, or a `rekall-` prefix), and `GitLogReader::touching_since` lists the commits
+after that `HEAD` that changed them, with a second to answer. Anything git cannot say is `Unknown`,
+never stale. Commits logged against the task itself are left out, because a session writes its
+wrapup before the claim that commits the work it describes; without that rule every wrapup would
+be flagged by its own claim. `ContextService` puts the answer on the wrapup's tag and the console
+reads it from `GET /api/tasks/{id}/wrapup/freshness`.
+
 ## 4.3 The flow
 
 A checklist is an order, and some work is not: build, deploy, test, and a failed test goes to a

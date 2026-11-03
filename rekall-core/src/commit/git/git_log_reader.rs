@@ -1,14 +1,18 @@
 use std::path::Path;
 use std::sync::LazyLock;
+use std::time::Duration;
 
 use regex::Regex;
 use rekall_kernel::{jstr, Instant, RekallError, Result};
 
-use super::{LogEntry, LoggedCommit, display_path, run};
+use super::{CommitTouch, LogEntry, LoggedCommit, display_path, run};
 use super::git_command::READ_TIMEOUT;
 
 /// ASCII unit separator: not going to show up in a commit subject by accident.
 const FIELD_SEPARATOR: char = '\u{1F}';
+/// ASCII record separator: opens each commit in the output of a log that lists files.
+const RECORD_SEPARATOR: char = '\u{1E}';
+const TOUCHES_TIMEOUT: Duration = Duration::from_secs(1);
 
 /// Reads commits from a repository on disk: the tip, one named by its hash, or the recent log.
 /// Never writes.
@@ -24,13 +28,10 @@ impl GitLogReader {
     /// string cannot become a flag; a prefix that matches no commit, or more than one, is refused
     /// with git's own reason.
     pub async fn commit(&self, folder: &Path, reference: &str) -> Result<LoggedCommit> {
-        static HASH: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[0-9a-fA-F]{4,40}$").expect("a valid pattern"));
         require_repository(folder)?;
         let tip = reference == "HEAD";
-        if !tip && !HASH.is_match(reference) {
-            return Err(RekallError::illegal(format!(
-                "'{reference}' is not a commit hash: paste 4 to 40 hex characters from git log."
-            )));
+        if !tip {
+            require_hash(reference)?;
         }
         let shown = display_path(folder);
         let format = format!("--format=%H{FIELD_SEPARATOR}%s");
@@ -47,6 +48,27 @@ impl GitLogReader {
         let subject = output[separator + FIELD_SEPARATOR.len_utf8()..].to_string();
         let diff = diff_of(folder, &hash).await;
         Ok(LoggedCommit { hash, subject, diff })
+    }
+
+    /// The commits after `since` up to `HEAD` that changed one of `paths` (literal names, files or
+    /// folders), each with the files it changed there. Refused when git does not know `since`
+    /// or takes longer than a second.
+    pub async fn touching_since(&self, folder: &Path, since: &str, paths: &[String]) -> Result<Vec<CommitTouch>> {
+        require_repository(folder)?;
+        require_hash(since)?;
+        let range = format!("{since}..HEAD");
+        let format = format!("--format={RECORD_SEPARATOR}%H");
+        let mut arguments = vec!["--literal-pathspecs", "log", "--name-only", format.as_str(), range.as_str(), "--"];
+        arguments.extend(paths.iter().map(String::as_str));
+        let result = run(folder, &arguments, None, TOUCHES_TIMEOUT).await?;
+        if result.exit_code != 0 {
+            return Err(RekallError::illegal(format!(
+                "Could not read the log since {since} in {}: {}",
+                display_path(folder),
+                jstr::strip(&result.stderr)
+            )));
+        }
+        Ok(result.stdout.split(RECORD_SEPARATOR).filter_map(touch_of).collect())
     }
 
     /// The newest `limit` commits, newest first.
@@ -69,6 +91,22 @@ impl GitLogReader {
         }
         Ok(entries)
     }
+}
+
+fn require_hash(reference: &str) -> Result<()> {
+    static HASH: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[0-9a-fA-F]{4,40}$").expect("a valid pattern"));
+    if !HASH.is_match(reference) {
+        return Err(RekallError::illegal(format!(
+            "'{reference}' is not a commit hash: paste 4 to 40 hex characters from git log."
+        )));
+    }
+    Ok(())
+}
+
+fn touch_of(record: &str) -> Option<CommitTouch> {
+    let mut lines = record.lines().map(jstr::strip).filter(|line| !line.is_empty());
+    let hash = lines.next()?.to_string();
+    Some(CommitTouch { hash, files: lines.map(str::to_string).collect() })
 }
 
 fn require_repository(folder: &Path) -> Result<()> {

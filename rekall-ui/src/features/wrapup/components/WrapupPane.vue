@@ -7,6 +7,7 @@ import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import AppModeToggle from '@/components/ui/AppModeToggle.vue'
 import LaunchClaudeCodeButton from '@/features/claude/components/LaunchClaudeCodeButton.vue'
 import WrapupHereDialog from '@/features/wrapup/components/WrapupHereDialog.vue'
+import WrapupFreshnessTag from '@/features/wrapup/components/WrapupFreshnessTag.vue'
 import WrapupVersionsPanel from '@/features/wrapup/components/WrapupVersionsPanel.vue'
 import TaskTitleRow from '@/features/catalog/components/TaskTitleRow.vue'
 import { useConsoleStore } from '@/stores/console.store'
@@ -198,6 +199,8 @@ async function sendWrapupHere(message: string): Promise<void> {
             &middot; {{ relativeTime(selectedWrapup.updatedAt) }}
           </span>
         </span>
+
+        <WrapupFreshnessTag :task-id="selectedWrapup.taskId" :wrapup-updated-at="selectedWrapup.updatedAt" />
 
         <span
           v-if="wrapupIsBehind > 0"

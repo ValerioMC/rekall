@@ -14,7 +14,7 @@ use crate::component::{referenced_task_labels, ProjectComponentView};
 use crate::connection::ConnectionView;
 use crate::step::{StepFlowRows, TaskStepView};
 use crate::task::TaskReferenceView;
-use crate::wrapup::WrapupView;
+use crate::wrapup::{Freshness, WrapupFreshnessService, WrapupView};
 use crate::{in_read, load, Ctx, Tx};
 
 pub const ENTITY_NAMES: [&str; 4] = ["company", "project", "task", "note"];
@@ -22,11 +22,12 @@ pub const ENTITY_NAMES: [&str; 4] = ["company", "project", "task", "note"];
 #[derive(Clone)]
 pub struct ContextService {
     ctx: Ctx,
+    freshness: WrapupFreshnessService,
 }
 
 impl ContextService {
     pub fn new(ctx: Ctx) -> Self {
-        Self { ctx }
+        Self { freshness: WrapupFreshnessService::new(ctx.clone()), ctx }
     }
 
     pub async fn load(&self, entity_name: Option<&str>, value: &str) -> Result<ContextRecord> {
@@ -292,6 +293,10 @@ impl ContextService {
         let connections = repo::project_connection::list_of_project(db, project.id).await?;
         let documents = repo::document::documents_of_task(db, task.id).await?;
         let wrapup = load::wrapup_of(db, task.id).await?.map(|found| WrapupView::of(&found, task, project));
+        let wrapup_freshness = match wrapup {
+            Some(_) => self.freshness.check_in(tx, task.id).await?,
+            None => Freshness::Unknown,
+        };
         Ok(ContextRecord {
             kind: if task.is_epic() { "Epic" } else { "Task" }.into(),
             label: task.title.clone(),
@@ -305,6 +310,7 @@ impl ContextService {
             steps,
             commits: self.commits_of(tx, task).await?,
             wrapup,
+            wrapup_freshness,
             components: Vec::new(),
             component_lookup: Some(components.iter().map(ProjectComponentView::of).collect()),
             connection_lookup: connections.iter().map(|(binding, connection)| ConnectionView::of(binding, connection)).collect(),

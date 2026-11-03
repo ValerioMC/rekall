@@ -38,7 +38,7 @@ impl ContextSizeService {
             add_part(&mut parts, "Connections", &renderer.render_connections(&project.connections), false);
             add_part(&mut parts, "Description", &renderer.render_description(task.description.as_deref(), &mut references), false);
             add_part(&mut parts, "Steps", &renderer.render_steps(&task.steps, &task.step_connections, task.wrapup.as_ref(), &mut references), false);
-            add_part(&mut parts, "Wrapup", &renderer.render_wrapup(task.wrapup.as_ref()), false);
+            add_part(&mut parts, "Wrapup", &renderer.render_wrapup(task.wrapup.as_ref(), &task.wrapup_freshness), false);
             add_part(&mut parts, "Commits", &renderer.render_commits(&task.commits), false);
             for document in &task.documents {
                 add_part(
