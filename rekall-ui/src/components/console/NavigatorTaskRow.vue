@@ -102,7 +102,7 @@ watch(
         </span>
         <span
           v-if="sessionState !== 'NONE'"
-          class="block h-2.5 w-3.5"
+          class="block size-3.5"
           :title="TASK_SESSION_LABEL[sessionState]"
         >
           <TaskSessionMark :state="sessionState" />
