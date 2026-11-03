@@ -8,6 +8,7 @@ import StepDraftShelf from '@/features/steps/components/StepDraftShelf.vue'
 import StepsEmptyState from '@/features/steps/components/StepsEmptyState.vue'
 import StepsHeader from '@/features/steps/components/StepsHeader.vue'
 import StepFlowView from '@/features/flow/components/StepFlowView.vue'
+import PlanAdherencePanel from '@/features/adherence/components/PlanAdherencePanel.vue'
 import GraphAttachPanel from '@/features/graph/components/GraphAttachPanel.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
@@ -270,6 +271,7 @@ onUnmounted(editor.flush)
 
         <template v-else>
           <template v-if="checklistSteps.length">
+            <PlanAdherencePanel class="mb-4" :task-id="selectedTask.id" :steps="selectedTaskSteps" />
             <p v-if="!visibleSteps.length" class="py-6 text-small text-text-subtle">
               Every step is done. Show them again to correct one.
             </p>

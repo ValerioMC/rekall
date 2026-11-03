@@ -183,6 +183,16 @@ vi.mock('@xterm/addon-fit', () => ({
   }
 }))
 
+vi.mock('@/features/adherence/api/adherence.api', () => ({
+  fetchTaskAdherence: vi.fn(async () => ({
+    stepsTotal: 0, stepsDone: 0, stepsClaimed: 0, acceptedFirstTime: 0, sentBack: 0, passesTotal: 0,
+    firstTimeShare: null, deviationNotes: 0, deviationSteps: [], visits: []
+  })),
+  fetchProjectAdherence: vi.fn(async () => ({
+    stepsTotal: 0, stepsDone: 0, stepsClaimed: 0, acceptedFirstTime: 0, sentBack: 0, passesTotal: 0,
+    firstTimeShare: null, deviationNotes: 0, mostSentBack: []
+  }))
+}))
 vi.mock('@/features/wrapup/api/wrapup-versions.api', () => ({
   fetchWrapupFreshness: vi.fn(async () => ({ state: 'unknown' }))
 }))
@@ -1238,7 +1248,8 @@ describe('the console', () => {
       await flushPromises()
 
       expect(patchStep).toHaveBeenCalledWith('s2', { done: true })
-      expect(useConsoleStore().openStepCount).toBe(0)
+      await vi.waitFor(() => expect(useConsoleStore().openStepCount).toBe(0))
+      await flushPromises()
       // Nothing is left open, so the pane stops showing a detail rather than the last one.
       expect(wrapper.find('[data-testid="step-detail"]').exists()).toBe(false)
     })

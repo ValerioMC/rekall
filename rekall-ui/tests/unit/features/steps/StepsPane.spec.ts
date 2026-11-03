@@ -3,6 +3,17 @@ import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import StepsPane from '@/features/steps/components/StepsPane.vue'
 import { useConsoleStore } from '@/stores/console.store'
+vi.mock('@/features/adherence/api/adherence.api', () => ({
+  fetchTaskAdherence: vi.fn(async () => ({
+    stepsTotal: 0, stepsDone: 0, stepsClaimed: 0, acceptedFirstTime: 0, sentBack: 0, passesTotal: 0,
+    firstTimeShare: null, deviationNotes: 0, deviationSteps: [], visits: []
+  })),
+  fetchProjectAdherence: vi.fn(async () => ({
+    stepsTotal: 0, stepsDone: 0, stepsClaimed: 0, acceptedFirstTime: 0, sentBack: 0, passesTotal: 0,
+    firstTimeShare: null, deviationNotes: 0, mostSentBack: []
+  }))
+}))
+
 import type { Task, TaskStep, TaskStepState } from '@/features/catalog/model/catalog'
 import type { ProjectId, StepLinkId, TaskId, TaskStepId } from '@/model/branded'
 

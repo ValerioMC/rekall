@@ -126,6 +126,13 @@ good, from data other domains already keep. `PlanAdherenceService` (domain `adhe
   `max_visits`; `budgetSpent` is true once the step admits no further visit.
 - A project's view sums the same numbers over its tasks and lists the five tasks with the most steps
   sent back (`mostSentBack`), none that had none sent back. A task with no step answers zeros.
+- The console shows them in `features/adherence/`: `PlanAdherencePanel` above the checklist in the
+  steps pane (list view of a task that has steps) and `ProjectAdherenceCard` on the project page, both
+  read through `useAdherenceStore` when they open and again when the task's steps change state or the
+  project gains a task. The bar of each step draws one segment per pass from the steps the console
+  already holds, so a step sent back shows as many segments as it has had passes; the text beside it
+  says the same in words. The panel prints the numbers with one line on how to read them and sets no
+  threshold and raises no warning.
 
 ## 4.3 The flow
 

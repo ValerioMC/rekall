@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import AppCatalogHeader from '@/features/catalog/components/AppCatalogHeader.vue'
+import ProjectAdherenceCard from '@/features/adherence/components/ProjectAdherenceCard.vue'
 import QuickTaskBar from '@/features/catalog/components/QuickTaskBar.vue'
 import RecordDialog from '@/features/catalog/components/RecordDialog.vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
@@ -225,6 +226,12 @@ watch([sections, graphs], () => {
         data-testid="project-workspace"
       >
         <QuickTaskBar class="shrink-0 pt-4" :project="project" />
+        <ProjectAdherenceCard
+          class="mt-4 shrink-0"
+          :project-id="project.id"
+          :task-count="projectTasks.length"
+          @open="openInConsole"
+        />
         <ProjectPageTabs
           class="mt-4 shrink-0 border-b border-border"
           :selected="tabOf(page)"
