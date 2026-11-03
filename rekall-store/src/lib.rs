@@ -20,6 +20,7 @@ mod query_support;
 mod stamped_update;
 
 pub mod catalog;
+pub mod check;
 pub mod commit;
 pub mod component;
 pub mod connection;
@@ -41,6 +42,7 @@ pub mod vulnerability;
 pub mod wrapup;
 
 pub use catalog::{entity::company, entity::company_logo_image, entity::project, entity::project_icon_image};
+pub use check::{entity::done_check, entity::done_check_result};
 pub use commit::{entity::commit_reference, entity::step_snapshot, entity::step_snapshot_file};
 pub use component::entity::project_component;
 pub use connection::{entity::connection_access, entity::connection_company, entity::external_connection, entity::project_connection};
@@ -67,6 +69,8 @@ pub mod prelude {
     pub use super::connection_access::{Entity as ConnectionAccess, Model as ConnectionAccessModel};
     pub use super::connection_company::{Entity as ConnectionCompany, Model as ConnectionCompanyModel};
     pub use super::company_logo_image::{Entity as CompanyLogoImage, Model as CompanyLogoImageModel};
+    pub use super::done_check::{Entity as DoneCheck, Model as DoneCheckModel};
+    pub use super::done_check_result::{Entity as DoneCheckResult, Model as DoneCheckResultModel};
     pub use super::deployment_graph::{Entity as DeploymentGraph, Model as DeploymentGraphModel};
     pub use super::diagram::{Entity as Diagram, Model as DiagramModel};
     pub use super::document::{Entity as Document, Model as DocumentModel};

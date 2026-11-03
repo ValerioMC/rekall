@@ -9,6 +9,7 @@ pub mod backup;
 pub mod chat;
 pub mod claude;
 pub mod commit;
+pub mod check;
 pub mod component;
 pub mod connection;
 pub mod context;

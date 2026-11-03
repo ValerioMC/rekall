@@ -107,6 +107,7 @@ is found by opening one folder per crate:
 |---|---|
 | `catalog` | companies and projects with their logos and icons; in `rekall-console`, `rekall-http` and the UI also the tasks |
 | `component`, `section` | a project's components and its titled pages |
+| `check` | the commands a person sets to pass before a claim is accepted, for a whole project or one step, and what each run found; the console writes them, no session can |
 | `connection` | the GitLab instances, GitHub servers, Kubernetes clusters and Jira sites projects reach, the companies each is shared with, the projects that bind each, the log of every credential a terminal asked for, and the Jira issues a project imports as tasks |
 | `task` | the task row, and in `rekall-core` and `rekall-mcp` a session creating one or filing it under an epic; the console's task service is in `catalog` |
 | `step`, `flow` | the checklist, and the routes and visits that turn it into a flow |
@@ -165,6 +166,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 |---|---|---|---|---|---|
 | `backup` | - | nothing | nothing | nothing | - |
 | `catalog` | `task` | - | `commit`, `note`, `review`, `step`, `tag`, `task`, `timeentry`, `wrapup` | nothing | - |
+| `check` | `catalog`, `step`, `task` | nothing | `catalog`, `step`, `task` | nothing | - |
 | `chat` | - | `claude` | `claude` | nothing | - |
 | `claude` | - | `catalog`, `connection`, `flow`, `task` | nothing | `skill` | - |
 | `commit` | `step`, `task` | `catalog`, `step`, `task` | - | nothing | nothing |
@@ -317,6 +319,8 @@ Project ──< VulnerabilityExposure >── SecurityAdvisory
 | `step_snapshot_file` | through its snapshot | `snapshot_id`, `path` (relative to the repository root), `content_hash` (git's hash of the file when the snapshot was taken, null for a file already deleted); a snapshot with no file rows is a clean tree, not a missing snapshot |
 | `wrapup` | through its task | `task_id` unique, `body_markdown`, `written_by` |
 | `project_component` | through its project | `project_id`, `name`, `folder`, `description`, `position` |
+| `done_check` | through its project | `project_id`, `step_id` (null: the check runs for every step of the project), `label`, `command`, `folder` (relative to the project folder, null for the folder itself), `timeout_seconds` (1 to 3600), `position` within its scope (the project's checks, or one step's); deleted with its project or step (migration `061-done-check`; not `check`, a SQL keyword). Written by the console only |
+| `done_check_result` | through its check | `check_id`, `task_id`, `step_id` (null for a task with no steps), `passed`, `exit_code` (null when it timed out), `output_tail`, `ran_at`, `duration_ms`; deleted with its check, task or step. Nothing writes it yet |
 | `deployment_graph` | through its project | `project_id`, `title` (unique per project, ignoring case), `description`, `release_default` (laid on every task the console runs; at most one per project); deleted with its project |
 | `graph_step` | through its graph | `graph_id`, `position` (0 is where the flow begins), `title`, `body_markdown`, `connection_id` (null when it reaches nothing or the connection is deleted), `max_visits`, `flow_x`/`flow_y` (where it was dragged on the graph's canvas, null for the automatic layout; migration `050-graph-step-place`); rewritten whole with its graph |
 | `graph_route` | through its graph | `graph_id`, `from_step_id`, `to_step_id` (null: the route ends the flow), `outcome` unique per `from_step_id`, `position`; deleted with either step |

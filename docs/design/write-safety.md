@@ -26,6 +26,8 @@ schedule, and the fix task is created by `VulnerabilityFixService` in `rekall-co
 read-only transaction. `McpTool.writes()` is declared
 rather than inferred, and the startup log names the write surface out loud.
 
+The commands that gate a claim (`done_check`) are written by `CheckService` in `rekall-console` and by nothing else. `rekall-mcp` lists `rekall-core` as its only Rekall dependency, so it cannot name that service, and no tool creates or edits a check: a session able to write the command that verifies its own work could write one that always passes.
+
 Connection credentials never reach `rekall-mcp`. A GitLab or GitHub token, a Kubernetes kubeconfig or a Jira
 credential (`JiraCredential`: a Jira Cloud email and API token, kept as the `email:token` pair Basic
 authentication sends, or a Data Center personal access token sent as Bearer, kept as `pat:token`; which

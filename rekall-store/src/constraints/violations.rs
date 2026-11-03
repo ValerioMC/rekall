@@ -30,6 +30,14 @@ impl Violations {
         self
     }
 
+    /// A whole number within `min` and `max`, both included.
+    pub fn in_range(&mut self, property: &str, value: i32, min: i32, max: i32) -> &mut Self {
+        if value < min || value > max {
+            self.broken.push(format!("{property} must be between {min} and {max} and this one is {value}"));
+        }
+        self
+    }
+
     pub fn slug(&mut self, property: &str, value: Option<&str>) -> &mut Self {
         if value.is_some_and(|v| !Slug::matches(v)) {
             self.broken.push(format!("{property} must be a slug: lowercase letters, digits, '-', '_' or '.'"));

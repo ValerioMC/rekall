@@ -36,6 +36,7 @@ mod m057_telemetry_setting;
 mod m058_run_queue_session_kind;
 mod m059_shared_connection;
 mod m060_step_snapshot;
+mod m061_check;
 mod migration_support;
 mod migrator;
 

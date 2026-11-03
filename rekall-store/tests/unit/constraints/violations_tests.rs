@@ -34,3 +34,10 @@ fn a_length_cap_counts_utf16_units_and_says_by_how_much_it_was_passed() {
 fn an_absent_optional_value_has_no_length_to_check() {
     assert!(Violations::new("Project").max_length("description", None, 10).finish().is_ok());
 }
+
+#[test]
+fn a_number_outside_its_range_is_reported_with_the_value_found() {
+    let refused = Violations::new("Check").in_range("timeoutSeconds", 0, 1, 3_600).finish().unwrap_err();
+    assert_eq!(refused.message(), "Check: timeoutSeconds must be between 1 and 3600 and this one is 0.");
+    assert!(Violations::new("Check").in_range("timeoutSeconds", 3_600, 1, 3_600).finish().is_ok());
+}
