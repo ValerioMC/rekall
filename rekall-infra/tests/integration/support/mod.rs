@@ -74,6 +74,13 @@ pub async fn world() -> World {
 }
 
 impl World {
+    /// A worktree service over a scripted git, with its folders under this world's `home`.
+    pub fn worktrees(&self) -> (rekall_core::worktree::TaskWorktreeService, Arc<rekall_core::worktree::ScriptedWorktreeHost>) {
+        let host = Arc::new(rekall_core::worktree::ScriptedWorktreeHost::new());
+        let layout = rekall_core::worktree::WorktreeLayout::new(self.home.path().join("worktrees"));
+        (rekall_core::worktree::TaskWorktreeService::new(self.services.ctx.clone(), host.clone(), layout), host)
+    }
+
     pub fn db(&self) -> &sea_orm::DatabaseConnection {
         &self.database.conn
     }

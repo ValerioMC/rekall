@@ -18,7 +18,9 @@ use rekall_infra::pty::{PtyTerminalManager, PtyTerminals, SessionRelay};
 use rekall_infra::session::{SessionHosts, WorkMarker};
 use rekall_core::claude::TerminalHost;
 use rekall_core::queue::RunQueueService;
+use rekall_core::worktree::{TaskWorktreeService, WorktreeLayout};
 use rekall_infra::queue::RunQueueRunner;
+use rekall_infra::worktree::GitWorktreeHost;
 use rekall_infra::resources::ClaudeResourceService;
 use rekall_infra::transcript::{TranscriptFolder, TranscriptScanner};
 use rekall_core::claude::UsageReader;
@@ -50,6 +52,9 @@ use rekall_infra::version::GithubReleaseFeed;
 use rekall_infra::vulnerability::GithubAdvisoryFeed;
 
 use super::StartOptions;
+
+/// Under `rekall.home`: one folder per project and task for the git worktrees the run queue works in.
+const WORKTREES_FOLDER: &str = "worktrees";
 
 /// Under `rekall.home`: one folder of credential helpers per live terminal, emptied at every start.
 const CREDENTIAL_SESSIONS_FOLDER: &str = "terminal-credentials";
@@ -170,12 +175,15 @@ impl Instance {
         let pty_terminals = Arc::new(PtyTerminals::new(terminals.clone()));
         let sessions: Arc<dyn TerminalHost> = Arc::new(SessionHosts::start(pty_terminals.clone(), chats.clone(), claude_config.max_sessions));
         let queue = RunQueueService::new(ctx.clone());
+        let layout = WorktreeLayout::new(config.home.join(WORKTREES_FOLDER));
+        let worktrees = TaskWorktreeService::new(ctx.clone(), Arc::new(GitWorktreeHost::new(layout.clone())), layout);
         let runner = RunQueueRunner::start(
             queue.clone(),
             sessions.clone(),
             usage.clone(),
             services.task_work.clone(),
             services.steps.clone(),
+            worktrees,
             &events,
             clock.clone(),
             claude_config.run_queue_tick,

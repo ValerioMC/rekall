@@ -9,4 +9,6 @@ pub struct RunQueueSettingsCommand {
     pub model: Option<String>,
     pub effort: Option<String>,
     pub session_kind: SessionKind,
+    /// None keeps the queue working one task at a time.
+    pub parallel_sessions: Option<i32>,
 }

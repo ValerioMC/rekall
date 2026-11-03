@@ -81,6 +81,21 @@ async fn removing_a_worktree_takes_the_folder_and_keeps_the_branch() {
 }
 
 #[tokio::test]
+async fn a_removed_worktree_comes_back_on_the_branch_with_its_commits() {
+    let world = world();
+    let first = create(&world, "report").await;
+    fs::write(first.folder.join("export.txt"), "export\n").unwrap();
+    git(&first.folder, &["add", "."]);
+    git(&first.folder, &["commit", "-q", "-m", "export"]);
+    world.host.remove(&first).await.unwrap();
+
+    let again = create(&world, "report").await;
+
+    assert!(again.folder.join("export.txt").exists());
+    assert_eq!(git(&again.folder, &["rev-parse", "--abbrev-ref", "HEAD"]), "rekall/report");
+}
+
+#[tokio::test]
 async fn the_listing_holds_the_worktrees_under_the_root_and_not_the_project_itself() {
     let world = world();
     let report = create(&world, "report").await;

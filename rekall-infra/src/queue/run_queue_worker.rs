@@ -1,7 +1,8 @@
-//! The runner's decisions: one item at a time, on a task of its own, along the line the
-//! `RunQueueRunner` module describes. Every decision runs on the worker's task, in the order the
-//! commands arrive, so its memory of the item in hand needs no lock.
+//! The runner's decisions: up to `parallel_sessions` items at a time, each on a task of its own,
+//! along the line the `RunQueueRunner` module describes. Every decision runs on the worker's task,
+//! in the order the commands arrive, so its memory of the items in hand needs no lock.
 
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -9,6 +10,7 @@ use rekall_kernel::{Id, RekallError, Result};
 use rekall_store::{RunQueueItemState, RunQueueState};
 use rekall_core::claude::{Remaining, TaskWork, TaskWorkService, TerminalHost, TerminalOpening, TerminalTarget};
 use rekall_core::step::TaskStepService;
+use rekall_core::worktree::TaskWorktreeService;
 use rekall_core::Clock;
 use tokio::sync::{mpsc, oneshot};
 use tracing::{info, warn};
@@ -18,7 +20,7 @@ use rekall_core::queue::{NextTurn, RunQueueItemView, RunQueueService, RunQueueVi
 use rekall_core::claude::TerminalMode;
 use rekall_core::claude::UsageReader;
 
-/// The item a session is working now.
+/// An item a session is working now.
 #[derive(Clone, Debug)]
 struct Active {
     generation: u64,
@@ -51,9 +53,12 @@ pub(super) struct Worker {
     usage: Arc<dyn UsageReader>,
     work: TaskWorkService,
     steps: TaskStepService,
+    worktrees: TaskWorktreeService,
     clock: Clock,
     settle_grace: Duration,
-    active: Option<Active>,
+    active: Vec<Active>,
+    /// Items that could not be started this run, passed over until the queue is armed again.
+    parked: HashSet<Id>,
     generation: u64,
     commands: mpsc::UnboundedSender<Command>,
 }
@@ -65,6 +70,7 @@ pub(super) struct WorkerParts {
     pub usage: Arc<dyn UsageReader>,
     pub work: TaskWorkService,
     pub steps: TaskStepService,
+    pub worktrees: TaskWorktreeService,
     pub clock: Clock,
     pub settle_grace: Duration,
 }
@@ -77,9 +83,11 @@ impl Worker {
             usage: parts.usage,
             work: parts.work,
             steps: parts.steps,
+            worktrees: parts.worktrees,
             clock: parts.clock,
             settle_grace: parts.settle_grace,
-            active: None,
+            active: Vec::new(),
+            parked: HashSet::new(),
             generation: 0,
             commands,
         }
@@ -88,6 +96,7 @@ impl Worker {
     /// Recovers what a restart left running, then decides on each command until shutdown.
     pub(super) async fn run(mut self, mut inbox: mpsc::UnboundedReceiver<Command>) {
         guarded("recover", self.queue.recover_after_restart().await);
+        guarded("worktrees", self.worktrees.reconcile().await);
         while let Some(command) = inbox.recv().await {
             if matches!(command, Command::Shutdown) {
                 break;
@@ -127,9 +136,10 @@ impl Worker {
             }
             Command::Shutdown => {}
             Command::Stop(reply) => {
-                if let Some(stopping) = self.active.take() {
+                for stopping in std::mem::take(&mut self.active) {
                     self.close_session(stopping, "Stopped from the console.").await;
                 }
+                self.parked.clear();
                 let stopped = self.queue.stop("Stopped from the console; it picks up at the next open step.").await;
                 let _ = reply.send(stopped);
             }
@@ -158,47 +168,54 @@ impl Worker {
             }
             RunQueueState::Running => {}
         }
-        if let Some(active) = self.active.clone() {
+        for active in self.active.clone() {
             if !active.closing && !self.terminals.get(active.terminal_id).is_some_and(|session| session.live) {
                 self.session_ended(active.terminal_id).await?;
             } else {
                 self.review(active.task_id).await?;
-                self.note_permission_wait().await?;
+                self.note_permission_wait(active.generation).await?;
             }
-            return Ok(());
         }
         self.advance().await
     }
 
-    /// Start the next waiting item, skipping and failing past the ones that cannot run.
+    /// Fill the free places with the next waiting items, skipping and failing past the ones that
+    /// cannot run. With every place taken, or nothing that may start while sessions run, it waits
+    /// for one of them to end.
     async fn advance(&mut self) -> Result<()> {
-        while self.active.is_none() {
+        loop {
             let snapshot = self.queue.snapshot().await?;
-            if snapshot.state != RunQueueState::Running {
+            if snapshot.state != RunQueueState::Running || self.active.len() >= places(&snapshot) {
                 return Ok(());
             }
-            let next = match self.queue.next_turn().await? {
+            let next = match self.queue.next_turn(&self.parked).await? {
                 NextTurn::Ready(next) => next,
                 NextTurn::Empty => {
-                    info!("Run queue: every queued task has had its turn");
-                    self.queue.finish().await?;
+                    if self.active.is_empty() {
+                        info!("Run queue: every queued task has had its turn");
+                        self.queue.finish().await?;
+                    }
                     return Ok(());
                 }
                 NextTurn::Blocked(blocked) => {
-                    info!(waiting = blocked.len(), "Run queue: stopping, every waiting task depends on an unaccepted one");
-                    self.queue.stop_blocked(&blocked).await?;
+                    if self.active.is_empty() {
+                        info!(waiting = blocked.len(), "Run queue: stopping, every waiting task is held back");
+                        self.queue.stop_blocked(&blocked).await?;
+                        self.parked.clear();
+                    }
                     return Ok(());
                 }
             };
             let verdict = self.ceiling(&snapshot).await;
             if !verdict.clear {
-                info!(resume_at = ?verdict.resume_at, reason = ?verdict.reason, "Run queue: holding");
-                self.queue.hold(verdict.resume_at, verdict.reason.as_deref()).await?;
+                if self.active.is_empty() {
+                    info!(resume_at = ?verdict.resume_at, reason = ?verdict.reason, "Run queue: holding");
+                    self.queue.hold(verdict.resume_at, verdict.reason.as_deref()).await?;
+                }
                 return Ok(());
             }
             self.launch(next, &snapshot).await?;
         }
-        Ok(())
     }
 
     async fn launch(&mut self, item: RunQueueItemView, snapshot: &Snapshot) -> Result<()> {
@@ -222,6 +239,11 @@ impl Worker {
                 )
                 .await;
         }
+        if snapshot.parallel_sessions > 1 {
+            if let Err(refused) = self.worktrees.ensure(item.task_id).await {
+                return self.park(&item, &refused).await;
+            }
+        }
         let opened = match self
             .terminals
             .open(TerminalOpening {
@@ -242,7 +264,7 @@ impl Worker {
             Err(other) => return Err(other),
         };
         self.generation += 1;
-        self.active = Some(Active {
+        self.active.push(Active {
             generation: self.generation,
             item_id: item.id,
             task_id: item.task_id,
@@ -258,8 +280,8 @@ impl Worker {
 
     /// Says on the item in hand that its chat session waits for a person to answer a permission
     /// prompt, and takes it back once it is answered. The item keeps running meanwhile.
-    async fn note_permission_wait(&mut self) -> Result<()> {
-        let Some(active) = self.active.as_mut() else { return Ok(()) };
+    async fn note_permission_wait(&mut self, generation: u64) -> Result<()> {
+        let Some(active) = self.active.iter_mut().find(|active| active.generation == generation) else { return Ok(()) };
         let waiting = self.terminals.get(active.terminal_id).is_some_and(|session| session.awaiting_permission);
         if waiting == active.waiting_for_permission {
             return Ok(());
@@ -271,21 +293,21 @@ impl Worker {
 
     /// A step or the review line moved on the task in hand: finished, or a boundary to check.
     async fn review(&mut self, task_id: Id) -> Result<()> {
-        let Some(current) = self.active.clone() else { return Ok(()) };
-        if current.closing || current.task_id != task_id {
+        let Some(current) = self.active.iter().find(|active| active.task_id == task_id).cloned() else { return Ok(()) };
+        if current.closing {
             return Ok(());
         }
         let now = match self.work.read(task_id).await {
             Ok(now) => now,
             Err(RekallError::UnknownAnchor(_)) => {
-                self.active = None;
+                self.forget(current.generation);
                 self.close_session(current, "The task was deleted.").await;
                 return self.advance().await;
             }
             Err(other) => return Err(other),
         };
         if !now.has_work() {
-            self.mark_closing();
+            self.mark_closing(current.generation);
             self.later(Command::Settle {
                 generation: current.generation,
                 outcome: RunQueueItemState::Finished,
@@ -294,13 +316,13 @@ impl Worker {
             return Ok(());
         }
         if now.settled_steps > current.settled_steps {
-            if let Some(active) = self.active.as_mut() {
+            if let Some(active) = self.active_mut(current.generation) {
                 active.settled_steps = now.settled_steps;
             }
             let snapshot = self.queue.snapshot().await?;
             let verdict = self.ceiling(&snapshot).await;
             if !verdict.clear {
-                self.mark_closing();
+                self.mark_closing(current.generation);
                 self.later(Command::Pause { generation: current.generation, verdict });
                 return Ok(());
             }
@@ -322,7 +344,7 @@ impl Worker {
         if !self.is_current(generation) {
             return Ok(());
         }
-        let current = self.active.clone().expect("checked above");
+        let current = self.active_of(generation).expect("checked above");
         if current.closing {
             return Ok(());
         }
@@ -330,10 +352,10 @@ impl Worker {
         if !self.is_spent(current.terminal_id, &work) {
             return Ok(());
         }
-        self.mark_closing();
+        self.mark_closing(generation);
         match self.terminals.renew(current.terminal_id).await {
             Ok(renewed) => {
-                if let Some(active) = self.active.as_mut() {
+                if let Some(active) = self.active_mut(generation) {
                     active.terminal_id = renewed.id;
                     active.closing = false;
                 }
@@ -342,7 +364,7 @@ impl Worker {
             }
             Err(failure) => {
                 warn!(%failure, task_id = %current.task_id, "Run queue: the next session could not open");
-                self.active = None;
+                self.forget(generation);
                 self.release_running_steps(current.task_id).await;
                 self.queue
                     .mark_item(current.item_id, RunQueueItemState::Failed, Some("The next session could not be opened."))
@@ -352,14 +374,37 @@ impl Worker {
         }
     }
 
-    fn mark_closing(&mut self) {
-        if let Some(active) = self.active.as_mut() {
+    fn mark_closing(&mut self, generation: u64) {
+        if let Some(active) = self.active_mut(generation) {
             active.closing = true;
         }
     }
 
     fn is_current(&self, generation: u64) -> bool {
-        self.active.as_ref().is_some_and(|active| active.generation == generation)
+        self.active.iter().any(|active| active.generation == generation)
+    }
+
+    fn active_of(&self, generation: u64) -> Option<Active> {
+        self.active.iter().find(|active| active.generation == generation).cloned()
+    }
+
+    fn active_mut(&mut self, generation: u64) -> Option<&mut Active> {
+        self.active.iter_mut().find(|active| active.generation == generation)
+    }
+
+    /// Stop remembering a session, taking it out of the places in use.
+    fn forget(&mut self, generation: u64) -> Option<Active> {
+        let at = self.active.iter().position(|active| active.generation == generation)?;
+        Some(self.active.remove(at))
+    }
+
+    /// An item that cannot be started now waits where it is, with the reason, and the queue goes
+    /// on with the others. It is not offered again until the queue is armed anew.
+    async fn park(&mut self, item: &RunQueueItemView, refusal: &RekallError) -> Result<()> {
+        warn!(%refusal, anchor = %item.anchor, "Run queue: could not give the task a worktree");
+        let reason = format!("Could not make a worktree: {}", refusal.message());
+        self.parked.insert(item.id);
+        self.queue.mark_item(item.id, RunQueueItemState::Queued, Some(&reason)).await
     }
 
     /// The item is done with; close its terminal, record the outcome, and go on to the next.
@@ -367,7 +412,7 @@ impl Worker {
         if !self.is_current(generation) {
             return Ok(());
         }
-        let current = self.active.take().expect("checked above");
+        let current = self.forget(generation).expect("checked above");
         self.close_session(current.clone(), "The run queue moved on to the next task.").await;
         self.queue.mark_item(current.item_id, outcome, Some(reason)).await?;
         self.advance().await
@@ -378,23 +423,25 @@ impl Worker {
         if !self.is_current(generation) {
             return Ok(());
         }
-        let current = self.active.take().expect("checked above");
+        let current = self.forget(generation).expect("checked above");
         self.close_session(current.clone(), "The run queue reached its usage ceiling.").await;
         self.queue
             .mark_item(current.item_id, RunQueueItemState::Queued, Some("Paused at the usage ceiling; it picks up at the next open step."))
             .await?;
-        self.queue.hold(verdict.resume_at, verdict.reason.as_deref()).await?;
+        if self.active.is_empty() {
+            self.queue.hold(verdict.resume_at, verdict.reason.as_deref()).await?;
+        }
         info!(resume_at = ?verdict.resume_at, reason = ?verdict.reason, "Run queue: paused at the ceiling");
         Ok(())
     }
 
     /// The terminal in hand went away without the runner closing it.
     async fn session_ended(&mut self, terminal_id: Id) -> Result<()> {
-        let Some(current) = self.active.clone() else { return Ok(()) };
-        if current.closing || current.terminal_id != terminal_id {
+        let Some(current) = self.active.iter().find(|active| active.terminal_id == terminal_id).cloned() else { return Ok(()) };
+        if current.closing {
             return Ok(());
         }
-        self.active = None;
+        self.forget(current.generation);
         self.release_running_steps(current.task_id).await;
         let after = self.read_or_none(current.task_id).await;
         match after {
@@ -448,6 +495,11 @@ impl Worker {
             let _ = commands.send(command);
         });
     }
+}
+
+/// How many tasks the queue may work at once.
+fn places(snapshot: &Snapshot) -> usize {
+    usize::try_from(snapshot.parallel_sessions).unwrap_or(1).max(1)
 }
 
 const WAITING_FOR_PERMISSION: &str = "Waiting for you to answer a permission prompt in the chat session.";

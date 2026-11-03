@@ -365,6 +365,30 @@ async fn a_step_claim_commits_the_pending_changes_and_logs_the_commit_against_th
 }
 
 #[tokio::test]
+async fn a_task_with_a_worktree_commits_on_its_branch_there_and_leaves_the_project_folder_alone() {
+    let world = world().await;
+    let repo = ready_repo().await;
+    let project = world.project("vega", Some(&repo.path().to_string_lossy()), true).await;
+    let task = world.task(&project, "report-builder").await;
+    let step = world.step(&task, "Wire the export endpoint", 0, TaskStepState::Claimed).await;
+    let worktree = repo.path().parent().unwrap().join(format!("worktree-{}", task.id));
+    git(repo.path(), &["worktree", "add", "-q", "-b", "rekall/report-builder", &worktree.to_string_lossy()]);
+    let mut row = task.clone().into_active_model();
+    row.worktree_folder = sea_orm::ActiveValue::Set(Some(worktree.to_string_lossy().into_owned()));
+    row.update(world.db()).await.unwrap();
+    let tip_before = git(repo.path(), &["rev-parse", "HEAD"]);
+    fs::write(worktree.join("export.ts"), "export").unwrap();
+
+    let outcome = world.services.auto_commit.after_step_claim(task.id, step.id, None).await.unwrap();
+
+    assert_eq!(outcome.status, AutoCommitStatus::Committed);
+    assert_eq!(outcome.reference.unwrap().commit_hash, git(&worktree, &["rev-parse", "HEAD"]));
+    assert_eq!(git(&worktree, &["rev-parse", "--abbrev-ref", "HEAD"]), "rekall/report-builder");
+    assert_eq!(git(repo.path(), &["rev-parse", "HEAD"]), tip_before, "the project's own branch did not move");
+    git(repo.path(), &["worktree", "remove", "--force", &worktree.to_string_lossy()]);
+}
+
+#[tokio::test]
 async fn the_claiming_sessions_own_message_becomes_the_commit_message() {
     let world = world().await;
     let repo = ready_repo().await;

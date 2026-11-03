@@ -40,6 +40,8 @@ mod m061_check;
 mod m062_wrapup_version;
 mod m063_quick_task;
 mod m064_task_dependency;
+mod m065_parallel_sessions;
+mod m066_task_worktree;
 mod migration_support;
 mod migrator;
 

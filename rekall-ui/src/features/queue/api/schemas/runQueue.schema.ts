@@ -44,6 +44,7 @@ export const RunQueueSchema = z.object({
   model: z.string().nullable(),
   effort: z.string().nullable(),
   sessionKind: z.enum(['TERMINAL', 'CHAT']),
+  parallelSessions: z.number().int().min(1).default(1),
   holdUntil: z.string().nullable(),
   holdReason: z.string().nullable(),
   items: z.array(RunQueueItemSchema),

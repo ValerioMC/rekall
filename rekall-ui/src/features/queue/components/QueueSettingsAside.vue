@@ -7,6 +7,7 @@ import { computed, onMounted, ref } from 'vue'
 import AppCheckbox from '@/components/ui/AppCheckbox.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
 import CeilingGauge from '@/features/queue/components/CeilingGauge.vue'
+import { PARALLEL_SESSIONS_CHOICES } from '@/features/queue/model/runQueue'
 import { formatResetIn } from '@/common/format/countdown'
 import { fetchClaudeUsage } from '@/features/claude/api/claude.api'
 import {
@@ -27,6 +28,7 @@ const model = defineModel<string>('model', { required: true })
 const effort = defineModel<string>('effort', { required: true })
 const skipPermissions = defineModel<boolean>('skipPermissions', { required: true })
 const sessionKind = defineModel<string>('sessionKind', { required: true })
+const parallelSessions = defineModel<string>('parallelSessions', { required: true })
 
 // Two selects share a 300px column, so 'Account default' is shortened to fit; the heading says whose.
 const shortDefault = (value: string, label: string): string => (value === 'default' ? 'Default' : label)
@@ -37,6 +39,11 @@ const SESSION_VIEW_OPTIONS = [
   { value: 'TERMINAL', label: 'Terminal' },
   { value: 'CHAT', label: 'Chat (experimental)' }
 ]
+
+const PARALLEL_OPTIONS = PARALLEL_SESSIONS_CHOICES.map((count) => ({
+  value: String(count),
+  label: count === 1 ? 'One at a time' : `${count} at once`
+}))
 
 const usageLimits = ref<readonly ClaudeUsageLimit[]>([])
 
@@ -129,6 +136,17 @@ onMounted(() => void loadUsage())
       <div>
         <label for="queue-session-view" class="mb-1 block text-caption text-text-subtle">Session view</label>
         <AppSelect id="queue-session-view" v-model="sessionKind" :options="SESSION_VIEW_OPTIONS" data-testid="run-queue-session-view" />
+      </div>
+      <div>
+        <label for="queue-parallel" class="mb-1 block text-caption text-text-subtle">Parallel sessions</label>
+        <AppSelect id="queue-parallel" v-model="parallelSessions" :options="PARALLEL_OPTIONS" data-testid="run-queue-parallel" />
+        <p class="mt-1.5 text-caption leading-relaxed text-text-subtle" data-testid="run-queue-parallel-help">
+          <template v-if="parallelSessions === '1'">Tasks run in turn, in the project's folder.</template>
+          <template v-else>
+            Each task works in a git worktree of its own, on a <span class="font-mono">rekall/&lt;task&gt;</span> branch.
+            Tasks that depend on each other never run together. Nothing is merged for you.
+          </template>
+        </p>
       </div>
       <div>
         <AppCheckbox v-model="skipPermissions" label="Skip permission prompts" data-testid="run-queue-skip" />

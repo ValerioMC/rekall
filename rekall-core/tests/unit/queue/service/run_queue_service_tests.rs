@@ -198,7 +198,7 @@ async fn the_next_turn_goes_to_the_first_waiting_task_when_none_depends_on_anoth
     world.service.add(world.first).await.unwrap();
     world.service.add(world.second).await.unwrap();
 
-    assert_eq!(ready_task(world.service.next_turn().await.unwrap()), world.first);
+    assert_eq!(ready_task(world.service.next_turn(&HashSet::new()).await.unwrap()), world.first);
 }
 
 #[tokio::test]
@@ -210,11 +210,11 @@ async fn a_chain_is_ordered_by_its_dependencies_whatever_the_order_it_was_queued
     world.service.add(world.second).await.unwrap();
     let view = world.service.add(world.first).await.unwrap();
 
-    assert_eq!(ready_task(world.service.next_turn().await.unwrap()), world.first);
+    assert_eq!(ready_task(world.service.next_turn(&HashSet::new()).await.unwrap()), world.first);
 
     world.service.mark_item(view.items[2].id, RunQueueItemState::Finished, None).await.unwrap();
     review(&world, world.first, TaskStepState::Done).await;
-    assert_eq!(ready_task(world.service.next_turn().await.unwrap()), world.second);
+    assert_eq!(ready_task(world.service.next_turn(&HashSet::new()).await.unwrap()), world.second);
 }
 
 #[tokio::test]
@@ -224,7 +224,7 @@ async fn a_dependency_claimed_but_not_accepted_keeps_the_task_waiting() {
     world.service.add(world.first).await.unwrap();
     review(&world, world.second, TaskStepState::Claimed).await;
 
-    let turn = world.service.next_turn().await.unwrap();
+    let turn = world.service.next_turn(&HashSet::new()).await.unwrap();
 
     let NextTurn::Blocked(blocked) = turn else { panic!("expected a blocked queue, got {turn:?}") };
     assert_eq!(blocked[0].reason, "Waiting for project:vega task:export (claimed, waiting for your review).");
@@ -237,7 +237,7 @@ async fn an_accepted_dependency_lets_the_task_start() {
     world.service.add(world.first).await.unwrap();
     review(&world, world.second, TaskStepState::Done).await;
 
-    assert_eq!(ready_task(world.service.next_turn().await.unwrap()), world.first);
+    assert_eq!(ready_task(world.service.next_turn(&HashSet::new()).await.unwrap()), world.first);
 }
 
 #[tokio::test]
@@ -259,7 +259,7 @@ async fn a_queue_where_nothing_may_start_stops_and_says_why_on_each_waiting_item
     let world = world().await;
     depend(&world, world.first, world.second).await;
     world.service.add_and_arm(world.first).await.unwrap();
-    let NextTurn::Blocked(blocked) = world.service.next_turn().await.unwrap() else { panic!("expected a blocked queue") };
+    let NextTurn::Blocked(blocked) = world.service.next_turn(&HashSet::new()).await.unwrap() else { panic!("expected a blocked queue") };
 
     world.service.stop_blocked(&blocked).await.unwrap();
 
@@ -267,4 +267,40 @@ async fn a_queue_where_nothing_may_start_stops_and_says_why_on_each_waiting_item
     assert_eq!(view.state, RunQueueState::Idle);
     assert_eq!(view.items[0].state, RunQueueItemState::Queued);
     assert_eq!(view.items[0].detail.as_deref(), Some("Waiting for project:vega task:export."));
+}
+
+#[tokio::test]
+async fn the_queue_works_one_task_at_a_time_until_told_otherwise() {
+    let world = world().await;
+
+    assert_eq!(world.service.view().await.unwrap().parallel_sessions, 1);
+    assert_eq!(world.service.snapshot().await.unwrap().parallel_sessions, 1);
+}
+
+#[tokio::test]
+async fn parallel_sessions_are_kept_between_one_and_four() {
+    let world = world().await;
+
+    let view = world.service.update_settings(None, false, None, None, rekall_store::SessionKind::Terminal, 4).await.unwrap();
+    let too_many = world.service.update_settings(None, false, None, None, rekall_store::SessionKind::Terminal, 5).await.unwrap_err();
+    let none = world.service.update_settings(None, false, None, None, rekall_store::SessionKind::Terminal, 0).await.unwrap_err();
+
+    assert_eq!(view.parallel_sessions, 4);
+    assert!(matches!(too_many, RekallError::IllegalArgument(_)) && matches!(none, RekallError::IllegalArgument(_)));
+    assert_eq!(world.service.snapshot().await.unwrap().parallel_sessions, 4);
+}
+
+#[tokio::test]
+async fn a_parked_item_is_passed_over_and_reported_with_its_reason() {
+    let world = world().await;
+    world.service.add(world.first).await.unwrap();
+    let view = world.service.add(world.second).await.unwrap();
+    world.service.mark_item(view.items[0].id, RunQueueItemState::Queued, Some("git could not make a worktree.")).await.unwrap();
+
+    let ready = world.service.next_turn(&HashSet::from([view.items[0].id])).await.unwrap();
+    let only_parked = world.service.next_turn(&HashSet::from([view.items[0].id, view.items[1].id])).await.unwrap();
+
+    assert_eq!(ready_task(ready), world.second);
+    let NextTurn::Blocked(blocked) = only_parked else { panic!("expected a blocked queue") };
+    assert_eq!(blocked[0].reason, "git could not make a worktree.");
 }

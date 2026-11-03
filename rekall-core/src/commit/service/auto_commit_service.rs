@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use rekall_kernel::{Id, RekallError, Result};
-use rekall_store::{project, task, task_step};
+use rekall_store::{task, task_step};
 use rekall_store::repository as repo;
 use tracing::{info, warn};
 
@@ -65,7 +65,7 @@ impl AutoCommitService {
         if !project.auto_commit {
             return Ok(AutoCommitOutcome::not_applicable());
         }
-        let folder = match self.committable_folder(&project).await {
+        let folder = match self.committable_folder(task.work_folder(&project)).await {
             Ok(folder) => folder,
             Err(refusal) => return Ok(refusal),
         };
@@ -80,12 +80,12 @@ impl AutoCommitService {
     }
 
     /// The repository folder git can commit in, or the failed outcome saying why there is none.
-    async fn committable_folder(&self, project: &project::Model) -> std::result::Result<PathBuf, AutoCommitOutcome> {
-        let status = self.inspector.inspect(project.repo_folder.as_deref()).await;
+    async fn committable_folder(&self, work_folder: Option<&str>) -> std::result::Result<PathBuf, AutoCommitOutcome> {
+        let status = self.inspector.inspect(work_folder).await;
         if !status.repository {
             return Err(AutoCommitOutcome::failed(format!(
-                "this project's folder ({}) is not a git repository.",
-                project.repo_folder.as_deref().unwrap_or("none set")
+                "this task's folder ({}) is not a git repository.",
+                work_folder.unwrap_or("none set")
             )));
         }
         let status_folder = status.folder.unwrap_or_default();

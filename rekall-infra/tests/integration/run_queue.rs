@@ -58,6 +58,7 @@ fn harness(world: &World, usage: ClaudeUsageView) -> Harness {
         Arc::new(FixedUsage(Mutex::new(usage))),
         world.services.task_work.clone(),
         world.services.steps.clone(),
+        world.worktrees().0,
         &world.events,
         rekall_core::system_clock(),
         Duration::from_millis(100),
@@ -135,7 +136,7 @@ async fn usage_at_the_ceiling_holds_the_queue_before_anything_starts() {
     let task = world.task(&project, "one").await;
     let harness = harness(&world, reading(92.4));
 
-    harness.queue.update_settings(Some(80), false, None, None, SessionKind::Terminal).await.unwrap();
+    harness.queue.update_settings(Some(80), false, None, None, SessionKind::Terminal, 1).await.unwrap();
     harness.queue.add(task.id).await.unwrap();
     harness.runner.start(&harness.queue, None).await.unwrap();
 

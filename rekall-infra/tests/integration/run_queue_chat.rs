@@ -59,12 +59,13 @@ async fn harness(world: &World) -> Harness {
         usage.clone(),
         world.services.task_work.clone(),
         world.services.steps.clone(),
+        world.worktrees().0,
         &world.events,
         rekall_core::system_clock(),
         Duration::from_millis(100),
         Duration::from_millis(50),
     );
-    queue.update_settings(Some(80), true, None, None, SessionKind::Chat).await.unwrap();
+    queue.update_settings(Some(80), true, None, None, SessionKind::Chat, 1).await.unwrap();
     Harness { queue, runner, host, usage }
 }
 
@@ -92,7 +93,7 @@ async fn the_kind_the_settings_name_is_kept_and_read_back() {
     assert_eq!(harness.queue.view().await.unwrap().session_kind, SessionKind::Chat);
     assert_eq!(harness.queue.snapshot().await.unwrap().session_kind, SessionKind::Chat);
 
-    let reset = harness.queue.update_settings(None, false, None, None, SessionKind::Terminal).await.unwrap();
+    let reset = harness.queue.update_settings(None, false, None, None, SessionKind::Terminal, 1).await.unwrap();
     assert_eq!(reset.session_kind, SessionKind::Terminal);
 }
 

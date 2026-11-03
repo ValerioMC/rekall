@@ -10,6 +10,7 @@ export interface QueueSettingsDraft {
   readonly model: Ref<string>
   readonly effort: Ref<string>
   readonly sessionKind: Ref<string>
+  readonly parallelSessions: Ref<string>
   /** Waits for a save already on its way, or saves now: what a start must do before it starts. */
   readonly settle: () => Promise<void>
 }
@@ -30,6 +31,7 @@ export function useQueueSettingsDraft(
   const model = ref<string>(queue.model ?? 'default')
   const effort = ref<string>(queue.effort ?? 'default')
   const sessionKind = ref<string>(queue.sessionKind)
+  const parallelSessions = ref<string>(String(queue.parallelSessions))
 
   let timer: ReturnType<typeof setTimeout> | undefined
   let pending: Promise<void> | null = null
@@ -42,14 +44,15 @@ export function useQueueSettingsDraft(
       skipPermissions: skipPermissions.value,
       model: model.value === 'default' ? null : model.value,
       effort: effort.value === 'default' ? null : effort.value,
-      sessionKind: sessionKind.value === 'CHAT' ? 'CHAT' : 'TERMINAL'
+      sessionKind: sessionKind.value === 'CHAT' ? 'CHAT' : 'TERMINAL',
+      parallelSessions: Number(parallelSessions.value) || 1
     })
       .catch(report)
       .finally(() => (pending = null))
     return pending
   }
 
-  watch([ceilingOn, ceiling, skipPermissions, model, effort, sessionKind], () => {
+  watch([ceilingOn, ceiling, skipPermissions, model, effort, sessionKind, parallelSessions], () => {
     clearTimeout(timer)
     timer = setTimeout(() => void saveNow(), SETTINGS_DEBOUNCE_MS)
   })
@@ -65,6 +68,7 @@ export function useQueueSettingsDraft(
     model,
     effort,
     sessionKind,
+    parallelSessions,
     settle: () => pending ?? saveNow()
   }
 }

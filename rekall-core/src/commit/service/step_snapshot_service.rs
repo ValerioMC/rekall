@@ -40,11 +40,11 @@ impl StepSnapshotService {
             if !project.auto_commit {
                 return Ok(());
             }
-            let status = self.inspector.inspect(project.repo_folder.as_deref()).await;
+            let status = self.inspector.inspect(task.work_folder(&project)).await;
             let Some(folder) = status.folder.filter(|_| status.repository) else {
                 return Err(RekallError::illegal(format!(
-                    "the project's folder ({}) is not a git repository.",
-                    project.repo_folder.as_deref().unwrap_or("none set")
+                    "the task's folder ({}) is not a git repository.",
+                    task.work_folder(&project).unwrap_or("none set")
                 )));
             };
             let taken = self.committer.work_tree_snapshot(&PathBuf::from(folder)).await?;

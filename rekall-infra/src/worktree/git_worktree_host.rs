@@ -30,6 +30,12 @@ impl GitWorktreeHost {
         Ok(answer)
     }
 
+    async fn branch_exists(&self, project_folder: &Path, branch_name: &str) -> Result<bool> {
+        let reference = format!("refs/heads/{branch_name}");
+        let answer = run_git(project_folder, &["rev-parse", "--verify", "--quiet", &reference], None, READ_TIMEOUT).await?;
+        Ok(answer.ok())
+    }
+
     fn lexical_folder_of(&self, listed: &Path) -> Option<PathBuf> {
         let root = std::fs::canonicalize(&self.layout.root).ok()?;
         let relative = listed.strip_prefix(&root).ok().or_else(|| listed.strip_prefix(&self.layout.root).ok())?;
@@ -47,7 +53,11 @@ impl WorktreeHost for GitWorktreeHost {
                 .map_err(|e| RekallError::illegal(format!("Could not make {}: {e}", parent.display())))?;
         }
         let target = folder.to_string_lossy();
-        self.git(project_folder, &["worktree", "add", "-b", branch_name, &target, "HEAD"], ADD_TIMEOUT).await?;
+        if self.branch_exists(project_folder, branch_name).await? {
+            self.git(project_folder, &["worktree", "add", &target, branch_name], ADD_TIMEOUT).await?;
+        } else {
+            self.git(project_folder, &["worktree", "add", "-b", branch_name, &target, "HEAD"], ADD_TIMEOUT).await?;
+        }
         Ok(Worktree { project_folder: project_folder.to_path_buf(), folder: folder.to_path_buf(), branch: branch_name.to_string() })
     }
 

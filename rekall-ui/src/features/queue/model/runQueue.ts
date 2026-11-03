@@ -59,6 +59,8 @@ export interface RunQueue {
   readonly model: string | null
   readonly effort: string | null
   readonly sessionKind: SessionKind
+  /** How many tasks the queue works at once; from two on, each in a git worktree of its own. */
+  readonly parallelSessions: number
   readonly holdUntil: string | null
   readonly holdReason: string | null
   readonly items: readonly RunQueueItem[]
@@ -71,7 +73,11 @@ export interface RunQueueSettings {
   readonly model: string | null
   readonly effort: string | null
   readonly sessionKind: SessionKind
+  readonly parallelSessions: number
 }
+
+/** The numbers of tasks the queue can work at once. */
+export const PARALLEL_SESSIONS_CHOICES = [1, 2, 3, 4] as const
 
 /** Where a new ceiling starts: high enough to get work done, low enough to leave room to finish a step. */
 export const DEFAULT_CEILING_PERCENT = 85
@@ -84,6 +90,7 @@ export const EMPTY_RUN_QUEUE: RunQueue = {
   model: null,
   effort: null,
   sessionKind: 'TERMINAL',
+  parallelSessions: 1,
   holdUntil: null,
   holdReason: null,
   items: [],

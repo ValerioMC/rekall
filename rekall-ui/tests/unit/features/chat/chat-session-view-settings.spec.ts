@@ -58,7 +58,8 @@ describe('the run queue Session view', () => {
         model: 'default',
         effort: 'default',
         skipPermissions: true,
-        sessionKind: 'TERMINAL'
+        sessionKind: 'TERMINAL',
+        parallelSessions: '1'
       }
     })
 

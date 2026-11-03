@@ -10,7 +10,8 @@ use crate::worktree::{Worktree, WorktreeStatus};
 /// git missing, the folder no repository, a name or a folder outside the layout.
 #[async_trait]
 pub trait WorktreeHost: Send + Sync {
-    /// Adds `folder` as a worktree on a new `branch_name` that starts at the project's `HEAD`.
+    /// Adds `folder` as a worktree on `branch_name`: a new branch starting at the project's `HEAD`, or the
+    /// branch itself when it exists, with the commits it already has.
     async fn create(&self, project_folder: &Path, branch_name: &str, folder: &Path) -> Result<Worktree>;
 
     /// Takes the worktree's folder away. The branch and its commits stay.

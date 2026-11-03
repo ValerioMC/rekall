@@ -1,4 +1,5 @@
-//! Works through the run queue, one task at a time, each in a `claude` terminal of its own.
+//! Works through the run queue, `parallel_sessions` tasks at a time (one unless the queue says
+//! otherwise), each in a `claude` terminal of its own, and from two on in a git worktree of its own.
 //!
 //! Every decision runs on one task, so the runner's memory of the item in hand needs no lock: a
 //! clock tick every `rekall.run-queue.tick-seconds`, and a nudge from every step move, review move
@@ -25,6 +26,7 @@ use async_trait::async_trait;
 use rekall_kernel::{Instant, RekallError, Result};
 use rekall_core::claude::{TaskWorkService, TerminalEnded, TerminalHost};
 use rekall_core::step::TaskStepService;
+use rekall_core::worktree::TaskWorktreeService;
 use rekall_core::step::StepStreamEvent;
 use rekall_core::review::TaskReviewEvent;
 use rekall_core::{Clock, EventBus, PublishedEvent};
@@ -52,6 +54,7 @@ impl RunQueueRunner {
         usage: Arc<dyn UsageReader>,
         work: TaskWorkService,
         steps: TaskStepService,
+        worktrees: TaskWorktreeService,
         events: &EventBus,
         clock: Clock,
         tick: Duration,
@@ -59,7 +62,7 @@ impl RunQueueRunner {
     ) -> Self {
         let (commands, inbox) = mpsc::unbounded_channel();
         let ended = terminals.subscribe_ended();
-        let parts = WorkerParts { queue, terminals, usage, work, steps, clock, settle_grace };
+        let parts = WorkerParts { queue, terminals, usage, work, steps, worktrees, clock, settle_grace };
         tokio::spawn(Worker::new(parts, commands.clone()).run(inbox));
         spawn_clock(commands.clone(), tick);
         forward_step_and_review_moves(commands.clone(), events.subscribe());

@@ -7,6 +7,9 @@ use sea_orm::entity::prelude::*;
 use crate::constraints::Violations;
 use crate::enums::{RunQueueState, SessionKind};
 
+pub const PARALLEL_SESSIONS_MIN: i32 = 1;
+pub const PARALLEL_SESSIONS_MAX: i32 = 4;
+
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
 #[sea_orm(table_name = "run_queue")]
 pub struct Model {
@@ -22,6 +25,8 @@ pub struct Model {
     pub effort: Option<String>,
     /// Whether the sessions the queue opens are terminals or chat sessions.
     pub session_kind: SessionKind,
+    /// How many tasks the queue works at once; one works them in turn, in the project's folder.
+    pub parallel_sessions: i32,
     /// While `HOLDING`: when the queue looks at usage again.
     pub hold_until: Option<Instant>,
     pub hold_reason: Option<String>,
@@ -46,6 +51,7 @@ impl Model {
             model: None,
             effort: None,
             session_kind: SessionKind::Terminal,
+            parallel_sessions: PARALLEL_SESSIONS_MIN,
             hold_until: None,
             hold_reason: None,
             created_at: now,
@@ -67,6 +73,7 @@ impl Model {
 
     pub fn validate(&self) -> Result<(), RekallError> {
         Violations::new("RunQueue")
+            .in_range("parallelSessions", self.parallel_sessions, PARALLEL_SESSIONS_MIN, PARALLEL_SESSIONS_MAX)
             .max_length("model", self.model.as_deref(), 20)
             .max_length("effort", self.effort.as_deref(), 20)
             .max_length("holdReason", self.hold_reason.as_deref(), 500)

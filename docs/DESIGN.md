@@ -203,7 +203,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `token` | `step`, `task` | nothing | - | nothing | - |
 | `version` | - | nothing | nothing | nothing | - |
 | `vulnerability` | `catalog`, `task` | `catalog`, `commit`, `connection`, `inventory` | `catalog`, `step`, `task` | `catalog` | nothing |
-| `worktree` | - | nothing | - | - | - |
+| `worktree` | - | `task` | - | - | - |
 | `wrapup` | `task` | `catalog`, `commit`, `review`, `task` | - | nothing | `commit` |
 
 Each crate's foundations are modules every domain may use and are no domain: `ctx`, `events`,

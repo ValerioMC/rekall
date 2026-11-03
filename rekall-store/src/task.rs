@@ -38,6 +38,8 @@ pub struct Model {
     pub quick: bool,
     /// Accepted by Rekall, not by a person. Cleared whenever the review line moves again.
     pub auto_accepted: bool,
+    /// The git worktree the run queue gave the task; absent means it works in its project's folder.
+    pub worktree_folder: Option<String>,
     pub created_at: Instant,
     pub updated_at: Instant,
 }
@@ -130,6 +132,7 @@ impl Model {
             epic_id: None,
             quick: false,
             auto_accepted: false,
+            worktree_folder: None,
             created_at: now,
             updated_at: now,
         }
@@ -173,6 +176,12 @@ impl Model {
     pub fn accept_automatically(&mut self) {
         self.mark_review_state(TaskStepState::Done);
         self.auto_accepted = true;
+    }
+
+    /// Where this task's files are: its worktree while it has one, else the project's folder.
+    pub fn work_folder<'a>(&'a self, project: &'a super::project::Model) -> Option<&'a str> {
+        let own = self.worktree_folder.as_deref().filter(|folder| !rekall_kernel::jstr::is_blank(folder));
+        own.or_else(|| project.repo_folder.as_deref().filter(|folder| !rekall_kernel::jstr::is_blank(folder)))
     }
 
     pub fn is_epic(&self) -> bool {

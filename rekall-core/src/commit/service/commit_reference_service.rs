@@ -167,7 +167,7 @@ impl CommitReferenceService {
 
 async fn repo_folder_of(tx: &Tx, task: &task::Model) -> Result<PathBuf> {
     let project = load::project_of(tx.db(), task).await?;
-    match project.repo_folder.as_deref().filter(|f| !jstr::is_blank(f)) {
+    match task.work_folder(&project) {
         None => Err(RekallError::illegal("Set this project's folder on its page before logging a commit here.")),
         Some(folder) => Ok(PathBuf::from(jstr::strip(folder))),
     }

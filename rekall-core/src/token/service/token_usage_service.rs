@@ -29,13 +29,15 @@ impl TokenUsageService {
         in_read!(&self.ctx, |tx| Ok(TokenDayView::summed(&repo::token_usage::list_all(tx.db()).await?)))
     }
 
-    /// The project folders whose sessions are worth reading: every one set on a project.
+    /// The folders whose sessions are worth reading: every one set on a project and every task's worktree.
     pub async fn watched_folders(&self) -> Result<Vec<PathBuf>> {
         in_read!(&self.ctx, |tx| {
             let projects = repo::project::list_oldest_first(tx.db()).await?;
+            let worktrees = repo::task::list_with_worktree(tx.db()).await?;
             let folders: BTreeSet<PathBuf> = projects
                 .iter()
                 .filter_map(|project| project.repo_folder.as_deref())
+                .chain(worktrees.iter().filter_map(|task| task.worktree_folder.as_deref()))
                 .filter(|folder| !jstr::is_blank(folder))
                 .map(|folder| PathBuf::from(jstr::strip(folder)))
                 .collect();

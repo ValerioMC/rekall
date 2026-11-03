@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use rekall_core::queue::{QueueRunner, RunQueueService, RunQueueView};
 use rekall_kernel::{Id, Instant, Result};
+use rekall_store::run_queue::PARALLEL_SESSIONS_MIN;
 
 use crate::queue::RunQueueSettingsCommand;
 
@@ -22,7 +23,7 @@ impl RunQueueControlService {
     }
 
     pub async fn update_settings(&self, command: RunQueueSettingsCommand) -> Result<RunQueueView> {
-        self.queue.update_settings(command.ceiling_percent, command.skip_permissions, command.model.as_deref(), command.effort.as_deref(), command.session_kind).await
+        self.queue.update_settings(command.ceiling_percent, command.skip_permissions, command.model.as_deref(), command.effort.as_deref(), command.session_kind, command.parallel_sessions.unwrap_or(PARALLEL_SESSIONS_MIN)).await
     }
 
     pub async fn add(&self, task_id: Id) -> Result<RunQueueView> {

@@ -68,3 +68,7 @@ path = "tests/integration/chat_sessions.rs"
 [[test]]
 name = "worktree"
 path = "tests/integration/worktree.rs"
+
+[[test]]
+name = "run_queue_parallel"
+path = "tests/integration/run_queue_parallel.rs"

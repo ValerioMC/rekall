@@ -48,7 +48,7 @@ const confirmingStop = ref(false)
 
 // ---------------------------------------------------------------- settings
 
-const { ceilingOn, ceiling, skipPermissions, model, effort, sessionKind, settle } = useQueueSettingsDraft(
+const { ceilingOn, ceiling, skipPermissions, model, effort, sessionKind, parallelSessions, settle } = useQueueSettingsDraft(
   queue.value,
   (settings) => store.saveSettings(settings),
   (error) => toast.notifyError(error)
@@ -225,6 +225,7 @@ onMounted(async () => {
         v-model:effort="effort"
         v-model:skip-permissions="skipPermissions"
         v-model:session-kind="sessionKind"
+        v-model:parallel-sessions="parallelSessions"
         :now="now"
         :start-iso="startIso"
         :start-in-past="startInPast"

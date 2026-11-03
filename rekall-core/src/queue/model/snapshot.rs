@@ -12,4 +12,5 @@ pub struct Snapshot {
     pub model: Option<String>,
     pub effort: Option<String>,
     pub session_kind: SessionKind,
+    pub parallel_sessions: i32,
 }

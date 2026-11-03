@@ -22,7 +22,7 @@ fn project(label: &str, repo_folder: Option<&str>) -> project::Model {
 }
 
 fn label_holding(projects: &[project::Model], folder: &str) -> Option<String> {
-    project_holding(projects, folder).map(|project| project.label.clone())
+    project_holding(projects, &[], folder).map(|project| project.label.clone())
 }
 
 #[test]
@@ -53,4 +53,15 @@ fn a_project_without_a_folder_holds_nothing() {
     let projects = [project("vega", None), project("blank", Some("  "))];
 
     assert_eq!(label_holding(&projects, "/work/vega"), None);
+}
+
+#[test]
+fn a_folder_inside_a_tasks_worktree_belongs_to_the_tasks_project() {
+    let projects = [project("vega", Some("/work/vega"))];
+    let mut task = task::Model::new("report".into(), "Report".into(), projects[0].id, Instant::now());
+    task.worktree_folder = Some("/data/worktrees/vega/report".into());
+
+    let holder = project_holding(&projects, &[task], "/data/worktrees/vega/report/rekall-core");
+
+    assert_eq!(holder.map(|project| project.label.as_str()), Some("vega"));
 }

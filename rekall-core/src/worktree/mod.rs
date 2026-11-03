@@ -13,4 +13,6 @@ pub use model::worktree_status::WorktreeStatus;
 pub use port::worktree_host::WorktreeHost;
 pub use rule::worktree_layout::{WorktreeLayout, BRANCH_PREFIX};
 pub use rule::worktree_listing::parse_listing;
+pub use port::scripted_worktree_host::ScriptedWorktreeHost;
 pub use service::orphan_reclaim_service::OrphanReclaimService;
+pub use service::task_worktree_service::TaskWorktreeService;

@@ -134,7 +134,8 @@ async fn plan_in(db: &impl ConnectionTrait, task_id: Id, project_id: Id, step_id
         return Ok(Plan { task_id, step_id, checks: Vec::new() });
     }
     let project = repo::project::require(db, project_id).await?;
-    let project_folder = project.repo_folder.as_deref().map(PathBuf::from).ok_or_else(|| RekallError::illegal("This project has no folder to run its checks in."))?;
+    let task = repo::task::require(db, task_id).await?;
+    let project_folder = task.work_folder(&project).map(PathBuf::from).ok_or_else(|| RekallError::illegal("This project has no folder to run its checks in."))?;
     let checks = rows
         .into_iter()
         .map(|check| Ok(PlannedCheck { folder: working_folder(&project_folder, check.folder.as_deref())?, check }))

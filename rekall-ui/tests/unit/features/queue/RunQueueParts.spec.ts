@@ -161,7 +161,7 @@ describe('the run queue settings draft', () => {
     vi.advanceTimersByTime(1)
 
     expect(save).toHaveBeenCalledTimes(1)
-    expect(save).toHaveBeenCalledWith({ ceilingPercent: 70, skipPermissions: false, model: null, effort: null, sessionKind: 'TERMINAL' })
+    expect(save).toHaveBeenCalledWith({ ceilingPercent: 70, skipPermissions: false, model: null, effort: null, sessionKind: 'TERMINAL', parallelSessions: 1 })
   })
 
   it('sends the queue\'s session view with its settings', async () => {
@@ -172,6 +172,16 @@ describe('the run queue settings draft', () => {
     vi.advanceTimersByTime(350)
 
     expect(save).toHaveBeenCalledWith(expect.objectContaining({ sessionKind: 'CHAT' }))
+  })
+
+  it('sends how many tasks the queue works at once, as a number', async () => {
+    mountDraft(queue({}))
+
+    draft.parallelSessions.value = '3'
+    await nextTick()
+    vi.advanceTimersByTime(350)
+
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({ parallelSessions: 3 }))
   })
 
   it('flushes a change still waiting when the panel closes', async () => {

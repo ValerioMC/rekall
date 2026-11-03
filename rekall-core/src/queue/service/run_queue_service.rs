@@ -2,6 +2,7 @@ use chrono::TimeDelta;
 use std::collections::HashSet;
 
 use rekall_kernel::{jstr, Id, Instant, InternalFailure, RekallError, Result};
+use rekall_store::run_queue::PARALLEL_SESSIONS_MIN;
 use rekall_store::{run_queue, run_queue_item, RunQueueItemState, RunQueueState};
 use rekall_store::repository as repo;
 use crate::{in_read, in_write, Ctx, Tx};
@@ -50,6 +51,7 @@ impl RunQueueService {
         model: Option<&str>,
         effort: Option<&str>,
         session_kind: SessionKind,
+        parallel_sessions: i32,
     ) -> Result<RunQueueView> {
         in_write!(&self.ctx, |tx| {
             if ceiling_percent.is_some_and(|c| !(CEILING_MIN..=CEILING_MAX).contains(&c)) {
@@ -63,6 +65,7 @@ impl RunQueueService {
             queue.model = choice(model, &MODEL_ALIASES, "model")?;
             queue.effort = choice(effort, &EFFORT_LEVELS, "effort")?;
             queue.session_kind = session_kind;
+            queue.parallel_sessions = parallel_sessions;
             self.publish(&mut tx, queue).await
         })
     }
@@ -199,6 +202,7 @@ impl RunQueueService {
                     model: None,
                     effort: None,
                     session_kind: SessionKind::Terminal,
+                    parallel_sessions: PARALLEL_SESSIONS_MIN,
                 },
                 Some(queue) => Snapshot {
                     state: queue.state,
@@ -209,19 +213,26 @@ impl RunQueueService {
                     model: queue.model,
                     effort: queue.effort,
                     session_kind: queue.session_kind,
+                    parallel_sessions: queue.parallel_sessions,
                 },
             })
         })
     }
 
     /// The first waiting item whose dependencies are all accepted. When items wait and none may
-    /// start, each is returned with the tasks it waits for.
-    pub async fn next_turn(&self) -> Result<NextTurn> {
+    /// start, each is returned with the tasks it waits for. A `parked` item is one the runner could
+    /// not start; it is passed over and reported with the reason it already carries.
+    pub async fn next_turn(&self, parked: &HashSet<Id>) -> Result<NextTurn> {
         in_read!(&self.ctx, |tx| {
             let items = ordered(&tx).await?;
             let queued_tasks = queued_task_ids(&items);
             let mut blocked = Vec::new();
             for item in items.iter().filter(|item| item.state == RunQueueItemState::Queued) {
+                if parked.contains(&item.id) {
+                    let reason = item.detail.clone().unwrap_or_else(|| "It could not be started.".into());
+                    blocked.push(BlockedItem { item_id: item.id, reason });
+                    continue;
+                }
                 let view = item_view(&tx, item, &queued_tasks).await?;
                 if view.waiting_for.is_empty() {
                     return Ok(NextTurn::Ready(view));

@@ -194,7 +194,8 @@ impl WrapupService {
 }
 
 async fn project_folder_of(tx: &Tx, task: &task::Model) -> Result<Option<String>> {
-    Ok(load::project_of(tx.db(), task).await?.repo_folder)
+    let project = load::project_of(tx.db(), task).await?;
+    Ok(task.work_folder(&project).map(str::to_string))
 }
 
 fn validated(body: Option<&str>) -> Result<String> {

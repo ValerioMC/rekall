@@ -16,7 +16,7 @@ impl TerminalLaunchService {
         Self { ctx }
     }
 
-    /// The folder is the project's `repo_folder`; a project without one is refused here.
+    /// The folder is the task's worktree while it has one, else the project's `repo_folder`; a project without one is refused here.
     pub async fn resolve(&self, target: TerminalTarget) -> Result<TerminalLaunch> {
         in_read!(&self.ctx, |tx| {
             let (project, task) = match target {
@@ -35,7 +35,11 @@ impl TerminalLaunchService {
 }
 
 fn launch_of(project: &project::Model, task: Option<&task::Model>, connections: Vec<TerminalConnection>) -> Result<TerminalLaunch> {
-    let Some(folder) = project.repo_folder.as_deref().filter(|f| !jstr::is_blank(f)) else {
+    let folder = match task {
+        Some(task) => task.work_folder(project),
+        None => project.repo_folder.as_deref().filter(|f| !jstr::is_blank(f)),
+    };
+    let Some(folder) = folder else {
         return Err(RekallError::illegal("Set this project's folder on its page before opening a terminal here."));
     };
     Ok(TerminalLaunch {

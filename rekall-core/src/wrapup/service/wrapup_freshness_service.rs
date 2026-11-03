@@ -37,7 +37,7 @@ impl WrapupFreshnessService {
         };
         let task = crate::load::task_or_unknown(tx.db(), task_id).await?;
         let project = crate::load::project_of(tx.db(), &task).await?;
-        let Some(folder) = project.repo_folder.filter(|folder| !jstr::is_blank(folder)) else {
+        let Some(folder) = task.work_folder(&project).map(str::to_string) else {
             return Ok(Freshness::Unknown);
         };
         let paths = NamedPaths::in_text(&wrapup.body_markdown);
