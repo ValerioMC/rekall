@@ -62,7 +62,7 @@ describe('a run queue row', () => {
     expect(row.get('[data-testid="run-queue-down"]').attributes('disabled')).toBeDefined()
   })
 
-  it('offers the running task to watch instead of moves, and a finished one nothing', async () => {
+  it('offers the running task to watch instead of moves, and a finished one no action', async () => {
     const running = mountRow('RUNNING')
     const finished = mountRow('FINISHED')
 
@@ -70,7 +70,15 @@ describe('a run queue row', () => {
 
     expect(running.emitted('watch')).toHaveLength(1)
     expect(running.find('[data-testid="run-queue-up"]').exists()).toBe(false)
-    expect(finished.find('button').exists()).toBe(false)
+    expect(finished.findAll('button').map((button) => button.attributes('data-testid'))).toEqual(['run-queue-open'])
+  })
+
+  it('opens its task when the title is clicked, in any state', async () => {
+    const row = mountRow('FINISHED')
+
+    await row.get('[data-testid="run-queue-open"]').trigger('click')
+
+    expect(row.emitted('open')).toHaveLength(1)
   })
 
   it('draws no rail under the last bead', () => {

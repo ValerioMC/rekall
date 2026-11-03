@@ -27,7 +27,7 @@ const props = defineProps<{
   canMoveLater: boolean
 }>()
 
-defineEmits<{ move: [delta: -1 | 1]; remove: []; watch: [] }>()
+defineEmits<{ move: [delta: -1 | 1]; remove: []; watch: []; open: [] }>()
 
 const chosenOpen = ref<boolean | null>(null)
 const stepsOpen = computed(() => chosenOpen.value ?? props.item.state === 'RUNNING')
@@ -80,7 +80,15 @@ const MOVE_BUTTON =
     </span>
 
     <span class="flex min-w-0 flex-col gap-0.5">
-      <span class="truncate text-body font-medium text-text">{{ item.taskTitle }}</span>
+      <button
+        type="button"
+        class="focus-ring w-fit max-w-full truncate rounded-control text-left text-body font-medium text-text transition-colors hover:text-accent"
+        :aria-label="`Open ${item.taskTitle}`"
+        data-testid="run-queue-open"
+        @click="$emit('open')"
+      >
+        {{ item.taskTitle }}
+      </button>
       <span class="flex min-w-0 items-baseline gap-2 text-caption">
         <span class="truncate font-mono text-anchor">{{ item.anchor }}</span>
         <span class="shrink-0" :class="STATE_TONE[item.state]">{{ STATE_WORD[item.state] }}</span>

@@ -20,6 +20,7 @@ const emit = defineEmits<{
   remove: [item: RunQueueItem]
   clear: []
   watch: [item: RunQueueItem]
+  open: [item: RunQueueItem]
 }>()
 
 const items = computed(() => props.queue.items)
@@ -87,6 +88,7 @@ function moveBy(item: RunQueueItem, delta: number): void {
           @move="moveBy(item, $event)"
           @remove="emit('remove', item)"
           @watch="emit('watch', item)"
+          @open="emit('open', item)"
         />
       </TransitionGroup>
     </div>

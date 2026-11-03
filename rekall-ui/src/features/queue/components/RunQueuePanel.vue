@@ -93,6 +93,11 @@ function clearSettled(): void {
   void act(() => store.clearSettled())
 }
 
+function openTask(item: RunQueueItem): void {
+  consoleStore.selectTask(item.taskId)
+  emit('close')
+}
+
 async function watchSession(item: RunQueueItem): Promise<void> {
   try {
     await terminals.load()
@@ -208,6 +213,7 @@ onMounted(async () => {
         @remove="remove"
         @clear="clearSettled"
         @watch="watchSession"
+        @open="openTask"
       />
 
       <QueueSettingsAside

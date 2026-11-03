@@ -207,4 +207,15 @@ describe('the run queue panel', () => {
     expect(api.enqueueTask).toHaveBeenCalledWith('t-z')
     wrapper.unmount()
   })
+
+  it('opens the task of a row on click, whatever its state, and closes itself', async () => {
+    const current = queue({ state: 'RUNNING', items: [item('a', 'FINISHED'), item('b', 'QUEUED')] })
+    const wrapper = await mountPanel(current)
+
+    await wrapper.findAll('[data-testid="run-queue-open"]')[0]!.trigger('click')
+
+    expect(useConsoleStore().selectedTaskId).toBe('t-a')
+    expect(wrapper.emitted('close')).toHaveLength(1)
+    wrapper.unmount()
+  })
 })
