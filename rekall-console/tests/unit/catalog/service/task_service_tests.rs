@@ -20,7 +20,7 @@ async fn world() -> World {
     company.clone().into_active_model().insert(&database.conn).await.unwrap();
     let project_id = insert_project(&database.conn, company.id, "app").await;
     let other_project_id = insert_project(&database.conn, company.id, "site").await;
-    let services = Services::new(ctx.clone());
+    let services = Services::new(ctx.clone(), std::sync::Arc::new(rekall_core::check::ScriptedCheckRunner::new()));
     let service = TaskService::new(ctx, services.review.clone(), services.time_entries.clone());
     World { service, steps: services.steps.clone(), project_id, other_project_id }
 }

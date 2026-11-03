@@ -20,7 +20,7 @@ pub struct World {
 
 pub async fn world() -> World {
     let database = rekall_store::open_temporary().await.unwrap();
-    let services = Services::new(Ctx::new(database.conn.clone(), EventBus::new()));
+    let services = Services::new(Ctx::new(database.conn.clone(), EventBus::new()), std::sync::Arc::new(rekall_core::check::ScriptedCheckRunner::new()));
     World { database, services }
 }
 
@@ -28,7 +28,7 @@ pub async fn world_at(now: Instant) -> World {
     let database = rekall_store::open_temporary().await.unwrap();
     let mut ctx = Ctx::new(database.conn.clone(), EventBus::new());
     ctx.clock = Arc::new(move || now);
-    World { services: Services::new(ctx), database }
+    World { services: Services::new(ctx, std::sync::Arc::new(rekall_core::check::ScriptedCheckRunner::new())), database }
 }
 
 impl World {

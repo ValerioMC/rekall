@@ -154,7 +154,7 @@ impl LoginShellEnvironment {
     }
 }
 
-fn kill_group(child: &mut std::process::Child) {
+pub(crate) fn kill_group(child: &mut std::process::Child) {
     #[cfg(unix)]
     unsafe {
         libc::kill(-(child.id() as i32), libc::SIGKILL);

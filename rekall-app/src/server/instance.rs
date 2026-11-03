@@ -11,6 +11,7 @@ use rekall_infra::chat::ChatSessionManager;
 use rekall_infra::cli::ClaudeCli;
 use rekall_infra::connection::CredentialBroker;
 use rekall_infra::credentials::ClaudeCredentials;
+use rekall_infra::check::ShellCheckRunner;
 use rekall_infra::login_shell::LoginShellEnvironment;
 use rekall_infra::pty::{PtyTerminalManager, PtyTerminals, SessionRelay};
 use rekall_infra::session::{SessionHosts, WorkMarker};
@@ -98,7 +99,8 @@ impl Instance {
             ctx.clock = clock.clone();
         }
         let clock = ctx.clock.clone();
-        let services = Services::new(ctx.clone());
+        let login_shell = LoginShellEnvironment::new(config.claude.shell.as_deref(), config.claude.shell_environment_timeout);
+        let services = Services::new(ctx.clone(), Arc::new(ShellCheckRunner::new(login_shell.clone())));
 
         let secrets: Arc<dyn SecretStore> = match &options.secrets {
             Some(secrets) => secrets.clone(),
@@ -128,7 +130,6 @@ impl Instance {
         let mcp = rekall_mcp::McpController::new(rekall_mcp::tool_registry::all(&services));
 
         let claude_config = &config.claude;
-        let login_shell = LoginShellEnvironment::new(claude_config.shell.as_deref(), claude_config.shell_environment_timeout);
         let cli = ClaudeCli::new(claude_config.cli_path.as_deref(), claude_config.home.clone(), Arc::new(login_shell.clone()));
         let broker = Arc::new(CredentialBroker::new(
             secrets.clone(),

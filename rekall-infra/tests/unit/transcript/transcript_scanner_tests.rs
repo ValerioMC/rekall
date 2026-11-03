@@ -16,7 +16,7 @@ const SESSION: &str = concat!(
 
 async fn services_with_project(folder: &Path) -> (rekall_store::Database, Services) {
     let database = rekall_store::open_temporary().await.unwrap();
-    let services = Services::new(Ctx::new(database.conn.clone(), EventBus::new()));
+    let services = Services::new(Ctx::new(database.conn.clone(), EventBus::new()), std::sync::Arc::new(rekall_core::check::ScriptedCheckRunner::new()));
     let now = Instant::now();
     let company = company::Model { id: Id::random(), name: "Acme".into(), description: None, created_at: now, updated_at: now };
     company.clone().into_active_model().insert(&database.conn).await.unwrap();

@@ -64,7 +64,7 @@ pub struct World {
 pub async fn world() -> World {
     let database = rekall_store::open_temporary().await.unwrap();
     let events = EventBus::new();
-    let services = Services::new(Ctx::new(database.conn.clone(), events.clone()));
+    let services = Services::new(Ctx::new(database.conn.clone(), events.clone()), std::sync::Arc::new(rekall_core::check::ScriptedCheckRunner::new()));
     let folder = tempfile::tempdir().unwrap();
     let home = tempfile::tempdir().unwrap();
     let claude = home.path().join("stub-claude");

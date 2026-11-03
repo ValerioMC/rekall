@@ -1,4 +1,6 @@
-use crate::{claude, commit, context, diagram, flow, inventory, note, review, search, section, step, task, timeentry, token, vulnerability, wrapup, Ctx};
+use std::sync::Arc;
+
+use crate::{check, claude, commit, context, diagram, flow, inventory, note, review, search, section, step, task, timeentry, token, vulnerability, wrapup, Ctx};
 
 /// Every service, built once over one context: what a controller or a tool is handed.
 #[derive(Clone)]
@@ -24,6 +26,7 @@ pub struct Services {
     pub commit_references: commit::CommitReferenceService,
     pub auto_commit: commit::AutoCommitService,
     pub step_snapshots: commit::StepSnapshotService,
+    pub check_execution: check::CheckExecutionService,
     pub repositories: commit::GitRepositoryInspector,
     pub task_work: claude::TaskWorkService,
     pub terminal_launch: claude::TerminalLaunchService,
@@ -34,7 +37,7 @@ pub struct Services {
 }
 
 impl Services {
-    pub fn new(ctx: Ctx) -> Self {
+    pub fn new(ctx: Ctx, check_runner: Arc<dyn check::CheckRunner>) -> Self {
         let time_entries = timeentry::TimeEntryService::new(ctx.clone());
         let review = review::TaskReviewService::new(ctx.clone(), time_entries.clone());
         let commit_references = commit::CommitReferenceService::new(ctx.clone());
@@ -61,6 +64,7 @@ impl Services {
             search: search::SearchService::new(ctx.clone()),
             auto_commit: commit::AutoCommitService::new(ctx.clone(), commit_references.clone()),
             step_snapshots: commit::StepSnapshotService::new(ctx.clone()),
+            check_execution: check::CheckExecutionService::new(ctx.clone(), check_runner),
             repositories: commit::GitRepositoryInspector,
             task_work: claude::TaskWorkService::new(ctx.clone()),
             terminal_launch: claude::TerminalLaunchService::new(ctx.clone()),

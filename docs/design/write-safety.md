@@ -28,6 +28,8 @@ rather than inferred, and the startup log names the write surface out loud.
 
 The commands that gate a claim (`done_check`) are written by `CheckService` in `rekall-console` and by nothing else. `rekall-mcp` lists `rekall-core` as its only Rekall dependency, so it cannot name that service, and no tool creates or edits a check: a session able to write the command that verifies its own work could write one that always passes.
 
+Running those commands is a port. `CheckExecutionService` (`rekall-core/src/check/`, in `Services::check_execution`) reads a step's checks (the project's first, then the step's), runs them one at a time through `CheckRunner` and stops at the first that fails; each run is saved to `done_check_result`, the failing one included, and the answer is a `CheckReport` (`NoChecks`, `Passed`, `Failed`). A check's folder is the project's folder, or a folder inside it: an absolute path or `..` is refused with a 400. `ShellCheckRunner` (`rekall-infra/src/check/`) runs `/bin/sh -c` in the environment of the user's login shell, in its own process group so a timeout ends the command and its children. It keeps the last 60 lines of the combined output (at most 4000 characters) and never logs them, since they may hold secrets; the log carries the label, the exit code and the duration.
+
 Connection credentials never reach `rekall-mcp`. A GitLab or GitHub token, a Kubernetes kubeconfig or a Jira
 credential (`JiraCredential`: a Jira Cloud email and API token, kept as the `email:token` pair Basic
 authentication sends, or a Data Center personal access token sent as Bearer, kept as `pat:token`; which

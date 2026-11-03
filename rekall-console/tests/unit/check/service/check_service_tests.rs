@@ -35,7 +35,7 @@ async fn world() -> World {
         updated_at: now,
     };
     project.clone().into_active_model().insert(&database.conn).await.unwrap();
-    let services = Services::new(ctx.clone());
+    let services = Services::new(ctx.clone(), std::sync::Arc::new(rekall_core::check::ScriptedCheckRunner::new()));
     let tasks = TaskService::new(ctx.clone(), services.review.clone(), services.time_entries.clone());
     let task = tasks
         .create(TaskCommand { label: Some("export".into()), title: Some("Export".into()), project_id: Some(project.id), kind: Some(TaskKind::Task), ..TaskCommand::default() })
