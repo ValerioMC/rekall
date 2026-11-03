@@ -11,4 +11,5 @@ pub struct TaskCommand {
     pub tag_id: Option<Id>,
     pub kind: Option<TaskKind>,
     pub epic_id: Option<Id>,
+    pub quick: bool,
 }

@@ -14,6 +14,7 @@ pub struct TaskReviewView {
     pub claimed_at: Option<Instant>,
     pub accepted_at: Option<Instant>,
     pub review_note: Option<String>,
+    pub auto_accepted: bool,
 }
 
 impl TaskReviewView {
@@ -25,6 +26,7 @@ impl TaskReviewView {
             claimed_at: task.claimed_at,
             accepted_at: task.accepted_at,
             review_note: task.review_note.clone(),
+            auto_accepted: task.auto_accepted,
         }
     }
 }

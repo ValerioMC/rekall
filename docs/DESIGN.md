@@ -115,6 +115,7 @@ is found by opening one folder per crate:
 | `note` | documents, their attachment to tasks, the scope that decides how they load |
 | `wrapup`, `review`, `timeentry` | the wrapup, the review line, logged time |
 | `commit`, `diagram`, `token`, `search`, `context` | logged commits, stored diagrams, token usage, search, context assembly and its size |
+| `quick` | the quick task: a task started from one line of text with its session opened at once, accepted without a review when Claude's wrapup lands; console and HTTP only, the acceptance itself is in `review` and `wrapup` |
 | `skill`, `tag`, `queue`, `claude` | skill assignments, tags, the run queue, what a session launch needs |
 | `chat` | the chat view of a session: its events (`ChatEvent`) and the ports a client reaches it through (`ChatPipe`, `ChatListener`), in `rekall-core`, next to `TerminalHost`, the lifecycle port, widened so that a session is no longer taken to be a PTY; in `rekall-infra` the stream parser, the headless `claude` process, `ChatSessionManager` and `SessionHosts`, which routes each call to the terminal or chat host; in `rekall-console` and `rekall-http` the service and the routes that follow and talk to one (opening, listing and closing stay with `terminal`) |
 | `backup`, `settings`, `version` | the backups of the open database and restoring one, the registered database folders and the restart onto another, the update check; no table behind them, so no folder in `rekall-store` |
@@ -181,6 +182,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `inventory` | `catalog` | `catalog` | - | nothing | `vulnerability` |
 | `note` | `task` | `task` | `catalog` | `catalog` | nothing |
 | `queue` | `task` | `catalog`, `claude`, `task` | nothing | nothing | - |
+| `quick` | - | - | `catalog`, `claude`, `terminal` | `catalog`, `claude` | - |
 | `review` | - | `task`, `timeentry` | - | - | - |
 | `search` | - | `task` | - | nothing | nothing |
 | `section` | `catalog` | `catalog`, `note` | nothing | nothing | `note` |
@@ -309,7 +311,7 @@ Project ──< VulnerabilityExposure >── SecurityAdvisory
 |---|---|---|
 | `company` | `name`, unique | `description` |
 | `project` | `label`, unique per company | `title`, `status`, `description`, `company_id` |
-| `task` | `label`, unique per project | `title`, `status`, `description`, `project_id`, `graph_laid_at` (when a deployment graph was laid on it), `release_skipped` (the project's release graph is not laid when the console runs it; migration `054-release-on-run`), `kind` (`TASK` or `EPIC`), `epic_id` (the epic of the same project it belongs to, set null when the epic is deleted; migration `055-epic`) |
+| `task` | `label`, unique per project | `title`, `status`, `description`, `project_id`, `graph_laid_at` (when a deployment graph was laid on it), `release_skipped` (the project's release graph is not laid when the console runs it; migration `054-release-on-run`), `kind` (`TASK` or `EPIC`), `epic_id` (the epic of the same project it belongs to, set null when the epic is deleted; migration `055-epic`), `quick` (started from one line of text; at most one still open or running per project), `auto_accepted` (accepted by Rekall when the wrapup landed, not by a person; cleared when the review line moves again; migration `063-quick-task`) |
 | `document` | — | `title`, `kind`, `body_markdown` |
 | `document_task` | — | `document_id`, `task_id`, `position` |
 | `task_step` | through its task | `task_id`, `title`, `body_markdown`, `done`, `done_at`, `position`, `flow_x`/`flow_y` (where it was dragged on the flow canvas, null for the automatic layout), `max_visits` (how many times a flow may enter it, null for no limit), `starts_session` (whether it opens a fresh Claude session instead of joining the one the step before it ran in), `connection_id` (the company connection it reaches, set when a deployment graph laid it; null when the connection is deleted) |

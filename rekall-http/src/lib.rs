@@ -26,6 +26,7 @@ pub mod guard;
 pub mod inventory;
 pub mod note;
 pub mod queue;
+pub mod quick;
 pub mod search;
 pub mod section;
 pub mod settings;

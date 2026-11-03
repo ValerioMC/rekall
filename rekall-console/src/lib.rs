@@ -14,6 +14,7 @@ pub mod graph;
 pub mod guard;
 pub mod note;
 pub mod queue;
+pub mod quick;
 pub mod section;
 pub mod settings;
 pub mod skill;

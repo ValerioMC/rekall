@@ -122,3 +122,31 @@ fn an_epic_is_never_worked_and_a_task_is() {
     let refused = new_epic(Id::random()).require_workable("is never run").unwrap_err();
     assert!(refused.to_string().contains("is an epic, and an epic is never run"), "{refused}");
 }
+
+#[test]
+fn a_task_is_never_quick_or_auto_accepted_until_it_is_made_so() {
+    let task = new_task();
+    assert!(!task.quick);
+    assert!(!task.auto_accepted);
+}
+
+#[test]
+fn accepting_automatically_marks_the_task_and_any_later_move_of_the_review_line_clears_the_mark() {
+    let mut task = new_task();
+    task.mark_review_state(TaskStepState::Claimed);
+    task.accept_automatically();
+    assert_eq!(task.review_state, TaskStepState::Done);
+    assert!(task.auto_accepted);
+    assert!(task.accepted_at.is_some());
+
+    task.mark_review_state(TaskStepState::Open);
+    assert!(!task.auto_accepted);
+}
+
+#[test]
+fn a_person_accepting_a_task_does_not_mark_it_auto_accepted() {
+    let mut task = new_task();
+    task.mark_review_state(TaskStepState::Claimed);
+    task.mark_review_state(TaskStepState::Done);
+    assert!(!task.auto_accepted);
+}

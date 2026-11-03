@@ -65,18 +65,27 @@ impl TaskReviewService {
     pub async fn accept_in(&self, tx: &mut Tx, task_id: Id) -> Result<TaskReviewView> {
         let before = load::task_or_unknown(tx.db(), task_id).await?;
         guard_active(tx, task_id).await?;
-        if before.review_state == TaskStepState::Done {
-            return Err(RekallError::illegal(
-                "This task is already accepted. Send it back to reopen it for another pass.",
-            ));
-        }
         let mut task = before.clone();
         task.mark_review_state(TaskStepState::Done);
-        let view = self.save_and_publish(tx, &before, task).await?;
-        if before.review_state == TaskStepState::Claimed {
-            self.time_entries.stop_if_running_in(tx, task_id).await?;
-        }
-        Ok(view)
+        self.settle_acceptance(tx, before, task).await
+    }
+
+    /// A quick task that a Claude-authored wrapup has claimed is accepted without a review, marked
+    /// `auto_accepted` so the console can reopen it. Says whether it was.
+    pub async fn accept_quick_claim(&self, task_id: Id) -> Result<bool> {
+        in_write!(&self.ctx, |tx| {
+            let Some(before) = repo::task::find_by_id(tx.db(), task_id).await? else {
+                return Ok(false);
+            };
+            let claimed_quick = before.quick && before.review_state == TaskStepState::Claimed;
+            if !claimed_quick || !load::review_active(tx.db(), task_id).await? {
+                return Ok(false);
+            }
+            let mut task = before.clone();
+            task.accept_automatically();
+            self.settle_acceptance(&mut tx, before, task).await?;
+            Ok(true)
+        })
     }
 
     /// The console sends the work back: `-> OPEN`, with an optional note; blank notes are dropped.
@@ -89,6 +98,21 @@ impl TaskReviewService {
             .filter(|n| !jstr::is_blank(n))
             .map(|n| jstr::strip(n).to_string());
         self.save_and_publish(tx, &before, task).await
+    }
+
+    async fn settle_acceptance(&self, tx: &mut Tx, before: task::Model, accepted: task::Model) -> Result<TaskReviewView> {
+        if before.review_state == TaskStepState::Done {
+            return Err(RekallError::illegal(
+                "This task is already accepted. Send it back to reopen it for another pass.",
+            ));
+        }
+        let was_claimed = before.review_state == TaskStepState::Claimed;
+        let task_id = before.id;
+        let view = self.save_and_publish(tx, &before, accepted).await?;
+        if was_claimed {
+            self.time_entries.stop_if_running_in(tx, task_id).await?;
+        }
+        Ok(view)
     }
 
     async fn save_and_publish(&self, tx: &mut Tx, before: &task::Model, task: task::Model) -> Result<TaskReviewView> {

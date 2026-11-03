@@ -6,7 +6,7 @@ use rekall_store::{task, WrapupAuthor};
 use rekall_store::repository as repo;
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
-use crate::commit::GitRepositoryInspector;
+use crate::commit::{AutoCommitOutcome, GitRepositoryInspector};
 use crate::review::TaskReviewService;
 use crate::{in_read, in_write, load, text_rule, Ctx, Tx};
 
@@ -100,6 +100,15 @@ impl WrapupService {
             let task = load::task_or_unknown(tx.db(), task_id).await?;
             self.write_in(&mut tx, task, body, author, head).await
         })
+    }
+
+    /// Called once the wrapup's auto-commit has run: a quick task stays claimed for a person when
+    /// that commit failed. Says whether the task was accepted.
+    pub async fn accept_quick_task_after_commit(&self, task_id: Id, commit: &AutoCommitOutcome) -> Result<bool> {
+        if commit.has_failed() {
+            return Ok(false);
+        }
+        self.review.accept_quick_claim(task_id).await
     }
 
     async fn head_in(&self, folder: Option<String>) -> Option<String> {

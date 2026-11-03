@@ -81,6 +81,9 @@ pub const CHECK_REFUSED_REPORT: &str = "Claim refused: the check \"%s\" %s. %s N
 /// What a refused `rekall_step` claim leaves untouched.
 pub const STEP_LEFT_AS_IT_WAS: &str = "The step is still `running`.";
 
+/// The line a quick task's wrapup adds when Rekall accepted the task itself.
+pub const QUICK_TASK_ACCEPTED: &str = "This was a quick task, so Rekall accepted it with the wrapup. The console can still reopen it.";
+
 /// What a refused `rekall_wrapup` claim leaves untouched.
 pub const WRAPUP_LEFT_AS_IT_WAS: &str = "The wrapup was not written.";
 

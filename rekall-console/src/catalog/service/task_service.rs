@@ -52,8 +52,10 @@ impl TaskService {
         let project = require_owning_project(tx, command.project_id).await?;
         let mut task = task::Model::new(label, trimmed_title(&command), project.id, self.ctx.now());
         apply_request(tx, &mut task, &command).await?;
+        task.quick = command.quick;
         task.validate()?;
         require_label_free(tx, &task, None).await?;
+        require_no_other_active_quick(tx, &task).await?;
         task.clone().into_active_model().insert(tx.db()).await?;
         response(tx, &task).await
     }
@@ -201,6 +203,17 @@ async fn require_label_free(tx: &Tx, task: &task::Model, except: Option<Id>) -> 
         ));
     }
     Ok(())
+}
+
+/// A quick task skips the review, so a project holds one at a time: it is for small changes, not a
+/// way round the review for large ones.
+async fn require_no_other_active_quick(tx: &Tx, task: &task::Model) -> Result<()> {
+    if !task.quick || !repo::task::active_quick_exists(tx.db(), task.project_id).await? {
+        return Ok(());
+    }
+    Err(RekallError::conflict(
+        "This project already has a quick task being worked. Wait for its wrapup, or use a regular task for this change.",
+    ))
 }
 
 #[cfg(test)]

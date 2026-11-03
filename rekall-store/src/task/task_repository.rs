@@ -1,5 +1,6 @@
 use rekall_kernel::{Id, RekallError};
 use crate::project;
+use crate::enums::TaskStepState;
 use crate::task::{Column, Entity, Model};
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QueryOrder};
 
@@ -94,4 +95,15 @@ pub async fn label_taken(db: &impl ConnectionTrait, project_id: Id, label: &str,
         query = query.filter(Column::Id.ne(except));
     }
     Ok(query.one(db).await?.is_some())
+}
+
+/// Whether the project has a quick task that is still being worked: not yet claimed by a wrapup.
+pub async fn active_quick_exists(db: &impl ConnectionTrait, project_id: Id) -> Result<bool, RekallError> {
+    let found = Entity::find()
+        .filter(Column::ProjectId.eq(project_id))
+        .filter(Column::Quick.eq(true))
+        .filter(Column::ReviewState.is_in([TaskStepState::Open, TaskStepState::Running]))
+        .one(db)
+        .await?;
+    Ok(found.is_some())
 }

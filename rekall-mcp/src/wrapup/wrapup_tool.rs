@@ -104,6 +104,11 @@ impl McpTool for WrapupTool {
             out.push_str("\n\n");
             out.push_str(&committed.describe());
         }
+        let accepted = self.wrapups.accept_quick_task_after_commit(written.wrapup.task_id, &committed).await?;
+        if accepted {
+            out.push_str("\n\n");
+            out.push_str(texts::QUICK_TASK_ACCEPTED);
+        }
         Ok(out)
     }
 }

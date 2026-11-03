@@ -34,6 +34,8 @@ pub struct TaskResponse {
     pub release_skipped: bool,
     pub kind: TaskKind,
     pub epic_id: Option<Id>,
+    pub quick: bool,
+    pub auto_accepted: bool,
     pub anchor: String,
     pub updated_at: Instant,
 }
@@ -69,6 +71,8 @@ impl From<TaskView> for TaskResponse {
             release_skipped: view.release_skipped,
             kind: view.kind,
             epic_id: view.epic_id,
+            quick: view.quick,
+            auto_accepted: view.auto_accepted,
             anchor: view.anchor,
             updated_at: view.updated_at,
         }

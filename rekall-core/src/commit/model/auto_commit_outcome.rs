@@ -49,6 +49,10 @@ impl AutoCommitOutcome {
         self.status == AutoCommitStatus::Off
     }
 
+    pub fn has_failed(&self) -> bool {
+        self.status == AutoCommitStatus::Failed
+    }
+
     /// The lines a tool appends to its report: nothing when the project does not auto-commit.
     pub fn describe(&self) -> String {
         let headline = self.headline();

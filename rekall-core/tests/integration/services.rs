@@ -647,6 +647,106 @@ async fn accepting_a_claimed_stepless_task_stops_its_timer_and_accepting_an_uncl
     assert!(!stopped(open.id));
 }
 
+// ------------------------------------------------------------------------------ quick tasks
+
+async fn quick_task(world: &support::World, project: &rekall_store::project::Model, label: &str) -> rekall_store::task::Model {
+    let mut row = world.task(project, label).await;
+    row.quick = true;
+    row.clone().into_active_model().reset_all().update(world.db()).await.unwrap();
+    row
+}
+
+async fn reloaded(world: &support::World, task_id: Id) -> rekall_store::task::Model {
+    rekall_store::repository::task::require(world.db(), task_id).await.unwrap()
+}
+
+async fn wrapup_then_commit(world: &support::World, task: &str, author: rekall_store::WrapupAuthor) -> bool {
+    let written = world.services.wrapups.write_by_anchor(Some("vega"), task, Some("State."), author).await.unwrap();
+    let task_id = written.wrapup.task_id;
+    let committed = world.services.auto_commit.after_wrapup(task_id, None).await.unwrap();
+    world.services.wrapups.accept_quick_task_after_commit(task_id, &committed).await.unwrap()
+}
+
+#[tokio::test]
+async fn the_wrapup_claude_writes_on_a_quick_task_accepts_it_and_marks_it_auto_accepted() {
+    let world = world().await;
+    let repo = ready_repo().await;
+    fs::write(repo.path().join("README.md"), "fixed").unwrap();
+    let project = world.project("vega", Some(&repo.path().to_string_lossy()), true).await;
+    let task = quick_task(&world, &project, "fix-typo").await;
+
+    assert!(wrapup_then_commit(&world, "fix-typo", rekall_store::WrapupAuthor::Claude).await);
+
+    let after = reloaded(&world, task.id).await;
+    assert_eq!(after.review_state, TaskStepState::Done);
+    assert!(after.auto_accepted);
+    assert!(after.accepted_at.is_some());
+    assert!(git(repo.path(), &["log", "-1", "--format=%s"]).starts_with("docs:"));
+}
+
+#[tokio::test]
+async fn a_quick_task_on_a_project_that_does_not_auto_commit_is_accepted_all_the_same() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let task = quick_task(&world, &project, "fix-typo").await;
+
+    assert!(wrapup_then_commit(&world, "fix-typo", rekall_store::WrapupAuthor::Claude).await);
+
+    assert_eq!(reloaded(&world, task.id).await.review_state, TaskStepState::Done);
+}
+
+#[tokio::test]
+async fn a_quick_task_whose_commit_failed_stays_claimed_for_a_person() {
+    let world = world().await;
+    let plain = tempfile::tempdir().unwrap();
+    let project = world.project("vega", Some(&plain.path().to_string_lossy()), true).await;
+    let task = quick_task(&world, &project, "fix-typo").await;
+
+    assert!(!wrapup_then_commit(&world, "fix-typo", rekall_store::WrapupAuthor::Claude).await);
+
+    let after = reloaded(&world, task.id).await;
+    assert_eq!(after.review_state, TaskStepState::Claimed);
+    assert!(!after.auto_accepted);
+}
+
+#[tokio::test]
+async fn a_wrapup_written_by_hand_does_not_accept_a_quick_task() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let task = quick_task(&world, &project, "fix-typo").await;
+
+    assert!(!wrapup_then_commit(&world, "fix-typo", rekall_store::WrapupAuthor::Hand).await);
+
+    assert_eq!(reloaded(&world, task.id).await.review_state, TaskStepState::Open);
+}
+
+#[tokio::test]
+async fn a_task_that_is_not_quick_stays_claimed_after_claudes_wrapup() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let task = world.task(&project, "regular").await;
+
+    assert!(!wrapup_then_commit(&world, "regular", rekall_store::WrapupAuthor::Claude).await);
+
+    assert_eq!(reloaded(&world, task.id).await.review_state, TaskStepState::Claimed);
+}
+
+#[tokio::test]
+async fn sending_an_auto_accepted_task_back_reopens_it_and_clears_the_mark() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let task = quick_task(&world, &project, "fix-typo").await;
+    assert!(wrapup_then_commit(&world, "fix-typo", rekall_store::WrapupAuthor::Claude).await);
+
+    let mut tx = rekall_core::Tx::write(&world.services.ctx).await.unwrap();
+    world.services.review.send_back_in(&mut tx, task.id, Some("The typo is still there.")).await.unwrap();
+    tx.commit().await.unwrap();
+
+    let after = reloaded(&world, task.id).await;
+    assert_eq!(after.review_state, TaskStepState::Open);
+    assert!(!after.auto_accepted);
+}
+
 // ------------------------------------------------------------------------------ remaining Java cases
 
 #[tokio::test]

@@ -20,7 +20,7 @@ use rekall_core::queue::RunQueueService;
 use rekall_core::skill::SkillGroupService;
 use rekall_core::Services;
 
-use rekall_console::{backup, catalog, chat, check, claude, component, connection, diagram, filesystem, graph, guard, note, queue, section, settings, skill, tag, terminal, version, vulnerability};
+use rekall_console::{backup, catalog, chat, check, claude, component, connection, diagram, filesystem, graph, guard, note, queue, quick, section, settings, skill, tag, terminal, version, vulnerability};
 
 use crate::{ApiPorts, StepEventStream};
 
@@ -72,6 +72,7 @@ pub struct ApiState {
     pub directories: filesystem::DirectoryListingService,
     pub chat: chat::ChatService,
     pub terminals: terminal::TerminalService,
+    pub quick_tasks: quick::QuickTaskService,
     pub terminal_pipe: terminal::TerminalPipeService,
     pub run_queue: queue::RunQueueControlService,
     pub usage_meter: claude::UsageMeterService,
@@ -124,6 +125,8 @@ impl ApiState {
             services.step_links.clone(),
             rekall_core::flow::StepVisitService::new(ctx.clone()),
         );
+        let terminals = terminal::TerminalService::new(ports.terminals.clone());
+        let quick_tasks = quick::QuickTaskService::new(ctx.clone(), tasks.clone(), terminals.clone());
         Self {
             companies: catalog::CompanyService::new(ctx.clone()),
             logos: catalog::CompanyLogoService::new(ctx.clone()),
@@ -169,7 +172,8 @@ impl ApiState {
             telemetry: TelemetrySettingsService::new(ctx.clone(), ports.secrets.clone()),
             vulnerability_fixes,
             chat: chat::ChatService::new(ports.terminals.clone(), ports.chat_pipe),
-            terminals: terminal::TerminalService::new(ports.terminals),
+            terminals,
+            quick_tasks,
             terminal_pipe: terminal::TerminalPipeService::new(ports.terminal_pipe),
             run_queue: queue::RunQueueControlService::new(RunQueueService::new(ctx.clone()), ports.queue_runner),
             usage_meter: claude::UsageMeterService::new(ports.usage),

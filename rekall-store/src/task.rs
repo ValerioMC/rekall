@@ -34,6 +34,10 @@ pub struct Model {
     pub release_skipped: bool,
     pub kind: TaskKind,
     pub epic_id: Option<Id>,
+    /// Started from one line of text; accepted without a review once Claude's wrapup lands.
+    pub quick: bool,
+    /// Accepted by Rekall, not by a person. Cleared whenever the review line moves again.
+    pub auto_accepted: bool,
     pub created_at: Instant,
     pub updated_at: Instant,
 }
@@ -124,6 +128,8 @@ impl Model {
             release_skipped: false,
             kind: TaskKind::Task,
             epic_id: None,
+            quick: false,
+            auto_accepted: false,
             created_at: now,
             updated_at: now,
         }
@@ -139,6 +145,7 @@ impl Model {
         }
         self.review_state = next;
         let now = Instant::now();
+        self.auto_accepted = false;
         match next {
             TaskStepState::Open | TaskStepState::Running => {
                 self.claimed_at = None;
@@ -160,6 +167,12 @@ impl Model {
             // DRAFT is a step's state, never the task's.
             TaskStepState::Draft => {}
         }
+    }
+
+    /// `DONE` by Rekall's own hand: the review line moves and the task says nobody reviewed it.
+    pub fn accept_automatically(&mut self) {
+        self.mark_review_state(TaskStepState::Done);
+        self.auto_accepted = true;
     }
 
     pub fn is_epic(&self) -> bool {

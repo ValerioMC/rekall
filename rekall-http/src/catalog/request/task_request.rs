@@ -27,6 +27,7 @@ impl From<TaskRequest> for TaskCommand {
             tag_id: request.tag_id,
             kind: request.kind,
             epic_id: request.epic_id,
+            quick: false,
         }
     }
 }

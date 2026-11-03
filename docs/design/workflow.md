@@ -82,6 +82,28 @@ wrapup before the claim that commits the work it describes; without that rule ev
 be flagged by its own claim. `ContextService` puts the answer on the wrapup's tag and the console
 reads it from `GET /api/tasks/{id}/wrapup/freshness`.
 
+### Quick tasks
+
+A quick task is for a change too small for the full ceremony. `POST /api/projects/{id}/quick-tasks`
+takes one text: `QuickTaskService` (domain `quick` in `rekall-console`) makes a task with no steps
+whose title is the text's first line (80 characters at most), whose description is the whole text and
+whose label is that title as a slug, numbered when the project already uses it. It then opens a work
+terminal on the task through `TerminalService`; when that terminal cannot open, the task is deleted
+again, so a refused start leaves nothing behind. The request carries the terminal's `skipPermissions`,
+`model` and `effort`; the response is the task and the terminal.
+
+- The task is `quick` (migration `063-quick-task`) and a project holds one that is still `OPEN` or
+  `RUNNING` at a time: a second is refused with 409. It is for small changes, not a way round the
+  review for large ones.
+- A quick task keeps the wrapup and the auto-commit of any task with no steps. Only the last move
+  differs: `rekall_wrapup` runs the checks, writes the wrapup (the task becomes `CLAIMED`), runs the
+  auto-commit, then calls `WrapupService::accept_quick_task_after_commit`. Unless that commit failed,
+  `TaskReviewService::accept_quick_claim` moves the task to `DONE`, stops its timer and sets
+  `auto_accepted`. A failed commit leaves it `CLAIMED` for a person; a wrapup written by hand never
+  reaches this path.
+- A task accepted this way can be sent back like any other. Any later move of the review line, the
+  console's accept included, clears `auto_accepted`.
+
 ## 4.3 The flow
 
 A checklist is an order, and some work is not: build, deploy, test, and a failed test goes to a

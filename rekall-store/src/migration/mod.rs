@@ -38,6 +38,7 @@ mod m059_shared_connection;
 mod m060_step_snapshot;
 mod m061_check;
 mod m062_wrapup_version;
+mod m063_quick_task;
 mod migration_support;
 mod migrator;
 
