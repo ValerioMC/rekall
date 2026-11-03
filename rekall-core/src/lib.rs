@@ -34,6 +34,7 @@ pub mod token;
 pub mod tx;
 pub mod version;
 pub mod vulnerability;
+pub mod worktree;
 pub mod wrapup;
 
 mod ctx;

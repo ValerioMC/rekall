@@ -29,5 +29,6 @@ pub mod transcript;
 pub mod usage;
 pub mod version;
 pub mod vulnerability;
+pub mod worktree;
 
 pub use config::ClaudeConfig;

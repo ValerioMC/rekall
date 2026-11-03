@@ -56,7 +56,7 @@ rekall/
   rekall-console/    the services only the console calls, one folder per domain: commands in, views out, no HTTP types
   rekall-http/       Axum REST routes for the UI, one folder per domain: controllers, request and response shapes and routes; `shared` holds the error body, request extractors and response helpers
   rekall-mcp/        MCP server: four tools read, fourteen write; a folder per domain holds its tools
-  rekall-infra/      the implementations of core's ports, a folder per capability: the in-app terminal (`pty`), the chat session (`chat`) and the `session` host that routes between the two, the run queue's worker, the usage meter, the transcript reader, the Claude folder editor (`resources`), the Claude Code installer, the shell that runs a step's checks (`check`), the credential sessions (`connection`), the database registry (`bootstrap`), backups and restores, the restart handle, the release feed and the macOS update installer (`version`), the credential file and the OS credential store it replaced (`secret`), the connection probes, the Jira search, the GitHub Advisory Database client; it serves no route
+  rekall-infra/      the implementations of core's ports, a folder per capability: the in-app terminal (`pty`), the chat session (`chat`) and the `session` host that routes between the two, the run queue's worker, the usage meter, the transcript reader, the Claude folder editor (`resources`), the Claude Code installer, the shell that runs a step's checks (`check`), the git worktrees of a task (`worktree`), the credential sessions (`connection`), the database registry (`bootstrap`), backups and restores, the restart handle, the release feed and the macOS update installer (`version`), the credential file and the OS credential store it replaced (`secret`), the connection probes, the Jira search, the GitHub Advisory Database client; it serves no route
   rekall-app/        rekall-server: builds the infrastructure and injects it, mounts the HTTP and MCP routers, the local-access guard, serves the built frontend, embedded at compile time
   rekall-app/desktop the Tauri desktop app over the same server, in-process
   rekall-ui/         Vue 3 + Vite (built into rekall-ui/dist, embedded by rekall-app)
@@ -122,6 +122,7 @@ is found by opening one folder per crate:
 | `chat` | the chat view of a session: its events (`ChatEvent`) and the ports a client reaches it through (`ChatPipe`, `ChatListener`), in `rekall-core`, next to `TerminalHost`, the lifecycle port, widened so that a session is no longer taken to be a PTY; in `rekall-infra` the stream parser, the headless `claude` process, `ChatSessionManager` and `SessionHosts`, which routes each call to the terminal or chat host; in `rekall-console` and `rekall-http` the service and the routes that follow and talk to one (opening, listing and closing stay with `terminal`) |
 | `backup`, `settings`, `version` | the backups of the open database and restoring one, the registered database folders and the restart onto another, the update check; no table behind them, so no folder in `rekall-store` |
 | `guard` | the rules a Claude Code hook applies before a tool runs and before a session stops: which commands and reads are refused, and when a session may not end; decisions over data, no I/O |
+| `worktree` | a project's second working folder on a branch of its own, one per task: the port `WorktreeHost`, the names and the safety rules of `WorktreeLayout`, the porcelain listing and the reclaiming of worktrees a crash left; `rekall-infra` runs git; `rekall-core` only |
 | `inventory` | what each project is built from: its dependencies at the version each resolves to |
 | `terminal`, `filesystem`, `stream` | the in-app terminals, the folder listing behind the path picker, the event stream the console listens to; console and HTTP only |
 | `vulnerability` | the advisories, the projects they reach, the scan that finds them and what it looks for, a session's verdict and the fix task |
@@ -202,6 +203,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `token` | `step`, `task` | nothing | - | nothing | - |
 | `version` | - | nothing | nothing | nothing | - |
 | `vulnerability` | `catalog`, `task` | `catalog`, `commit`, `connection`, `inventory` | `catalog`, `step`, `task` | `catalog` | nothing |
+| `worktree` | - | nothing | - | - | - |
 | `wrapup` | `task` | `catalog`, `commit`, `review`, `task` | - | nothing | `commit` |
 
 Each crate's foundations are modules every domain may use and are no domain: `ctx`, `events`,
