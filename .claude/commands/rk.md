@@ -300,13 +300,39 @@ renames, reorders or deletes a section, and writing one does not claim the task 
    title says what the step delivers; the detail says what to build, where, what it must satisfy
    and how I can tell it is done, enough for a session that never saw this one to do it alone.
    Propose only what is still missing, and nothing the description rules out.
-6. Stop. Say in a few lines how many steps (and, for a flow, routes) you proposed, which diagrams
-   you drew and where they are, and anything you left out on purpose. Build nothing: the steps are
+   Cut the sessions as part of the plan, as **Splitting into sessions** says: never wait to be asked.
+6. Stop. Say in a few lines how many steps (and, for a flow, routes) you proposed, how many
+   sessions they make and where each starts, which diagrams you drew and where they are, and
+   anything you left out on purpose. Build nothing: the steps are
    open, and I review them in the console if I want to.
 
 A title the task already has is refused, so a second `plan` adds only what the first one missed. A
 flow is proposed only onto a task with no steps; on one that has some, plan a checklist and say the
 routes are mine to draw.
+
+### Splitting into sessions
+
+A plan is also a plan of sessions. Every turn of a session re-reads everything the session has seen,
+so a long one costs more and reasons worse on work unlike what it holds. Decide where sessions
+start whenever you plan or replan, without being told to, and mark each start with `new_session`
+(`true`) on the step, in `rekall_propose_step`, `rekall_propose_flow` or `rekall_replan`.
+
+- Keep steps together when they work the same area and each builds on what the one before read.
+- Open a new session when the area changes (another crate, the backend then the console, code then
+  docs), when earlier steps leave a lot to unlearn (a refactor that moved the code around), when a
+  step is big enough to need its own room, or when a session would otherwise hold more than a few
+  large steps.
+- A step that only checks or documents what the steps before it built stays in their session.
+- On a flow, group by the order the steps are worked, not the order they are listed; a step a loop
+  returns to does not open a session, because it needs what the failed pass left.
+- On a replan, steps that stay keep their sessions. The first new step joins the last kept step's
+  session unless it meets one of the reasons above.
+- A checklist of a few small steps stays one session: the first step opens it, and no other step
+  carries `new_session`. Do not split for the sake of splitting.
+
+The wrapup written before a session's last claim is what the next session starts from, so a split
+costs nothing the wrapup does not carry. Say in the closing lines of the plan how many sessions it
+has and where they start.
 
 ### Drawing the plan
 
@@ -350,13 +376,14 @@ quoted text is what I noticed the plan missed, in my words. It is not an anchor.
    claimed or done stay and are not planned again, so the new steps follow them: when any stay,
    plan a checklist and say the routes are mine to draw. Draw the new steps as in **Drawing the
    plan**, starting from the diagrams the task already carries and correcting them; a note that
-   already holds the overview is rewritten with `replace: true`.
+   already holds the overview is rewritten with `replace: true`. Cut the new steps into sessions as
+   **Splitting into sessions** says, without being asked.
 4. Call `rekall_replan` once with every new step. It deletes the task's draft and open steps and
    lays the new ones in a single transaction, and refuses the whole plan when any part is wrong.
    Leave `draft` out, as in **Planning**. To drop a single step that belongs on no plan, call
    `rekall_delete_step`.
-5. Stop. Say in a few lines how many steps were deleted, how many were laid, which steps stayed and
-   anything you left out on purpose. Build nothing.
+5. Stop. Say in a few lines how many steps were deleted, how many were laid, how many sessions the
+   new steps make and where each starts, which steps stayed and anything you left out on purpose. Build nothing.
 
 ## Generating
 
