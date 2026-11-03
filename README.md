@@ -158,7 +158,7 @@ Properties are passed as `--name=value` arguments or as environment variables in
 | `REKALL_HOME` | `~/.rekall` | Where `config.json` records the database folder |
 | `REKALL_DATABASE_URL` (`rekall.database.url`, or `REKALL_DB_URL`) | the folder in `config.json` | `sqlite:<path>` to a database file, or `sqlite::memory:`, overriding the setup wizard's choice. `spring.datasource.url` is still read, with a deprecation warning |
 
-Notes are stored in plain text in the database file. Credentials kept in them are only as protected as the disk is. A connection's credential is never in the database: it goes to the operating system's credential store.
+Notes are stored in plain text in the database file. Credentials kept in them are only as protected as the disk is. A connection's credential is never in the database: it goes to `secrets.json` under `rekall.home`, a file only its owner can read and that is not encrypted.
 
 ## Develop
 

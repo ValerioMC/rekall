@@ -32,6 +32,7 @@ pub use model::kube_credential::KubeCredential;
 pub use model::kube_user_kind::KubeUserKind;
 pub use model::kubeconfig::Kubeconfig;
 pub use model::probe_outcome::ProbeOutcome;
+pub use port::migrating_secret_store::MigratingSecretStore;
 pub use port::remembering_secret_store::RememberingSecretStore;
 pub use model::secret::Secret;
 pub use port::secret_store::SecretStore;

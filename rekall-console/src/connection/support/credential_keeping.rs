@@ -21,7 +21,7 @@ pub(in crate::connection) async fn forget(secrets: Arc<dyn SecretStore>, account
 /// After the row is gone nothing names the account again, so a failure is logged, not returned.
 pub(in crate::connection) async fn forget_leftover(secrets: Arc<dyn SecretStore>, account: String) {
     if let Err(failure) = forget(secrets, account.clone()).await {
-        warn!(%failure, account, "A deleted connection's credential could not be removed from the OS credential store");
+        warn!(%failure, account, "A deleted connection's credential could not be removed from the credential store");
     }
 }
 

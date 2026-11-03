@@ -1,5 +1,5 @@
 //! What a person does to the workspace's connections: list, read, create, edit, share with
-//! companies, delete. Deleting one also removes its credential from the OS credential store once
+//! companies, delete. Deleting one also removes its credential from the credential store once
 //! the row is gone.
 
 use std::sync::Arc;

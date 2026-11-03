@@ -21,7 +21,7 @@ use rekall_infra::transcript::{TranscriptFolder, TranscriptScanner};
 use rekall_core::claude::UsageReader;
 use rekall_infra::usage::ClaudeUsageService;
 use rekall_store::Database;
-use rekall_core::connection::{ConnectionAccessService, JiraIssues, RememberingSecretStore, SecretStore};
+use rekall_core::connection::{ConnectionAccessService, JiraIssues, MigratingSecretStore, RememberingSecretStore, SecretStore};
 use rekall_core::timeentry::IDLE_AFTER;
 use rekall_core::telemetry::TelemetrySettingsService;
 use rekall_core::vulnerability::{AdvisoryFeed, ScanSettingsService, VulnerabilityScanService};
@@ -38,7 +38,7 @@ use rekall_infra::restart::Restarter;
 use rekall_core::connection::ConnectionProbe;
 use rekall_infra::jira::HttpJiraIssues;
 use rekall_infra::probes::HttpConnectionProbe;
-use rekall_infra::secret::KeychainSecretStore;
+use rekall_infra::secret::{FileSecretStore, KeychainSecretStore};
 use crate::security::{self, LocalAccess};
 use crate::spa::{self, Assets};
 use crate::actuator;
@@ -50,6 +50,7 @@ use super::StartOptions;
 
 /// Under `rekall.home`: one folder of credential helpers per live terminal, emptied at every start.
 const CREDENTIAL_SESSIONS_FOLDER: &str = "terminal-credentials";
+const SECRETS_FILE: &str = "secrets.json";
 
 /// How often open timers are checked against [`IDLE_AFTER`].
 const IDLE_SWEEP_EVERY: Duration = Duration::from_secs(60);
@@ -101,7 +102,10 @@ impl Instance {
 
         let secrets: Arc<dyn SecretStore> = match &options.secrets {
             Some(secrets) => secrets.clone(),
-            None => Arc::new(RememberingSecretStore::new(Arc::new(KeychainSecretStore::new()))),
+            None => Arc::new(MigratingSecretStore::new(
+                Arc::new(FileSecretStore::new(config.home.join(SECRETS_FILE))),
+                Arc::new(RememberingSecretStore::new(Arc::new(KeychainSecretStore::new()))),
+            )),
         };
         let stream = Arc::new(StepEventStream::new(events.clone()));
         let jira_issues: Arc<dyn JiraIssues> = match &options.jira_issues {

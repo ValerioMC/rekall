@@ -30,12 +30,14 @@ Connection credentials never reach `rekall-mcp`. A GitLab or GitHub token, a Kub
 credential (`JiraCredential`: a Jira Cloud email and API token, kept as the `email:token` pair Basic
 authentication sends, or a Data Center personal access token sent as Bearer, kept as `pat:token`; which
 one it is decides the site's `JiraDeployment`) lives in
-the OS credential store (`KeychainSecretStore` in `rekall-infra`, over `keyring`, service
-`Rekall-connections`, one account per connection's `secret_ref`), behind the `SecretStore` trait in
-`rekall-core/src/connection/`. `rekall-app` wraps it in a `RememberingSecretStore`, which reads each account from the keychain
-once and answers later reads from memory until the account is written or removed: the Keychain may
-prompt on every read, and a terminal's helpers read on every `kubectl`, `git` or API call. An edit made
-in Keychain Access is seen after a restart. `rekall-app` builds the store and hands it to `ApiState` (through `ApiPorts`) and the
+Rekall's own credential file (`FileSecretStore` in `rekall-infra`: `secrets.json` under `rekall.home`, one
+account per connection's `secret_ref`, mode 0600, not encrypted, outside the database and its backups),
+behind the `SecretStore` trait in `rekall-core/src/connection/`. The file never prompts, so a terminal's
+helpers read it on every `kubectl`, `git` or API call at no cost. Credentials an earlier version kept in the OS
+credential store (`KeychainSecretStore`, over `keyring`, service `Rekall-connections`) are moved by a
+`MigratingSecretStore`: an account the file does not hold is read once from the keychain, through a
+`RememberingSecretStore`, and copied into the file; a put goes to the file only; a removal reaches both, so the
+old copy cannot come back. `rekall-app` builds the store and hands it to `ApiState` (through `ApiPorts`) and the
 `CredentialBroker` only: it is not part of `Services`, which is what the MCP tools are built from, and
 `rekall-mcp/tests/integration/credential_isolation.rs` fails if `rekall-mcp` or `Services` ever names
 it or a type that carries a credential. A credential in memory is a `Secret`: it prints as `***`, has
