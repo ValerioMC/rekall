@@ -105,6 +105,18 @@ describe('LogCommitButton', () => {
     expect(picker()?.textContent).toContain('tip')
   })
 
+  it('joins the rows with one unbroken rail that starts at the first commit and ends at the last', async () => {
+    wrapper = render()
+
+    await wrapper.get('[data-testid="pick-commit"]').trigger('click')
+    await flushPromises()
+
+    const hasRail = (row: HTMLElement, side: 'above' | 'below'): boolean =>
+      row.querySelector(`[data-testid="commit-picker-rail-${side}"]`) !== null
+    expect(rows().map((row) => hasRail(row, 'above'))).toEqual([false, true, true])
+    expect(rows().map((row) => hasRail(row, 'below'))).toEqual([true, true, false])
+  })
+
   it('logs the commit a row was picked for, against the step it sits in, and closes', async () => {
     vi.mocked(recordCommit).mockResolvedValue(logged(earlier, 'Add the picker', stepId))
     wrapper = render({ stepId })

@@ -146,12 +146,24 @@ onUnmounted(() => {
           <li v-for="(commit, index) in commits" :key="commit.hash" class="relative">
             <button
               type="button"
-              class="commit-row focus-ring group/row flex w-full items-start gap-2.5 px-3.5 py-1.5 text-left transition-colors hover:bg-surface-raised disabled:cursor-default disabled:hover:bg-transparent"
+              class="commit-row focus-ring group/row relative flex w-full items-start gap-2.5 px-3.5 py-1.5 text-left transition-colors hover:bg-surface-raised disabled:cursor-default disabled:hover:bg-transparent"
               :disabled="isLogged(commit.hash)"
               :data-hash="commit.hash"
               data-testid="commit-picker-row"
               @click="pick(commit.hash)"
             >
+              <span
+                v-if="index > 0"
+                class="pointer-events-none absolute left-[19.25px] top-0 h-[11px] w-[1.5px] bg-border-strong"
+                aria-hidden="true"
+                data-testid="commit-picker-rail-above"
+              />
+              <span
+                v-if="index < commits.length - 1"
+                class="pointer-events-none absolute bottom-0 left-[19.25px] top-[19px] w-[1.5px] bg-border-strong"
+                aria-hidden="true"
+                data-testid="commit-picker-rail-below"
+              />
               <span class="relative mt-[5px] flex w-3 shrink-0 flex-col items-center" aria-hidden="true">
                 <span
                   class="size-2 rounded-full border-[1.5px]"
@@ -162,10 +174,6 @@ onUnmounted(() => {
                         ? 'border-anchor bg-anchor/30'
                         : 'border-border-strong bg-surface group-hover/row:border-accent'
                   "
-                />
-                <span
-                  v-if="index < commits.length - 1"
-                  class="absolute top-2.5 h-[calc(100%+6px)] w-px bg-border"
                 />
               </span>
 
