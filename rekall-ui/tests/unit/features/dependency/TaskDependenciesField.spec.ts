@@ -32,13 +32,19 @@ async function render(task: Task = withTitle(exportTask, 'Export')) {
     withTitle(release, 'Release', { kind: 'EPIC' }),
     { ...withTitle('site' as TaskId, 'Banner'), projectId: 'p2' as Task['projectId'] }
   ]
-  const wrapper = mount(TaskDependenciesField, { props: { task } })
+  const wrapper = mount(TaskDependenciesField, { props: { task }, attachTo: document.body })
   await flushPromises()
   return wrapper
 }
 
+const offeredTitles = (): string[] =>
+  Array.from(document.body.querySelectorAll('[data-testid="task-dependency-picker-row"]')).map(
+    (row) => row.querySelector('span:nth-of-type(2)')?.textContent ?? ''
+  )
+
 describe('the Depends on field of a task', () => {
   beforeEach(() => {
+    document.body.innerHTML = ''
     setActivePinia(createPinia())
     vi.resetAllMocks()
     vi.mocked(api.fetchDependencies).mockResolvedValue([])
@@ -47,8 +53,9 @@ describe('the Depends on field of a task', () => {
   it('offers only the other plain tasks of the same project', async () => {
     const wrapper = await render()
 
-    const offered = wrapper.findAll('[data-testid="task-dependency-picker"] option').map((option) => option.text())
-    expect(offered).toEqual(['Add…', 'Archive', 'Report'])
+    await wrapper.get('[data-testid="task-dependency-add"]').trigger('click')
+
+    expect(offeredTitles()).toEqual(['Archive', 'Report'])
   })
 
   it('says where each dependency stands, in words and not only in colour', async () => {
@@ -63,19 +70,22 @@ describe('the Depends on field of a task', () => {
       'ReportAccepted',
       'ArchiveClaimed, waiting for your review'
     ])
-    const offered = wrapper.findAll('[data-testid="task-dependency-picker"] option').map((option) => option.text())
-    expect(offered).toEqual(['Add…'])
+    await wrapper.get('[data-testid="task-dependency-add"]').trigger('click')
+
+    expect(offeredTitles()).toEqual([])
   })
 
   it('adds the picked task and shows the list the server answers with', async () => {
     vi.mocked(api.addDependency).mockResolvedValue([dependency(report, 'Report', false)])
     const wrapper = await render()
 
-    await wrapper.get('[data-testid="task-dependency-picker"]').setValue(report)
+    await wrapper.get('[data-testid="task-dependency-add"]').trigger('click')
+    document.body.querySelectorAll<HTMLButtonElement>('[data-testid="task-dependency-picker-row"]')[1]?.click()
     await flushPromises()
 
     expect(api.addDependency).toHaveBeenCalledWith(exportTask, report)
     expect(wrapper.findAll('[data-testid="task-dependency"]')).toHaveLength(1)
+    expect(document.body.querySelector('[data-testid="task-dependency-picker"]')).toBeNull()
   })
 
   it('takes a dependency off', async () => {

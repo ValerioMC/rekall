@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, useId, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useConsoleStore } from '@/stores/console.store'
 import { useDependenciesStore } from '@/features/dependency/store/dependencies.store'
+import TaskDependencyPicker from '@/features/dependency/components/TaskDependencyPicker.vue'
 import { dependencyStateText } from '@/features/dependency/model/dependency'
 import { isEpic, type Task } from '@/features/catalog/model/catalog'
 import type { TaskId } from '@/model/branded'
@@ -17,7 +18,8 @@ const props = defineProps<{ task: Task }>()
 const store = useDependenciesStore()
 const { tasks } = storeToRefs(useConsoleStore())
 const { run } = useAsyncAction()
-const pickerId = useId()
+const picking = ref(false)
+const addButton = ref<HTMLElement | null>(null)
 
 const dependencies = computed(() => store.of(props.task.id))
 
@@ -40,11 +42,9 @@ watch(
   { immediate: true }
 )
 
-function pick(event: Event): void {
-  const select = event.target as HTMLSelectElement
-  const dependsOn = select.value as TaskId
-  select.value = ''
-  if (dependsOn) void run(() => store.add(props.task.id, dependsOn))
+function add(dependsOn: TaskId): void {
+  picking.value = false
+  void run(() => store.add(props.task.id, dependsOn))
 }
 
 function remove(dependsOn: TaskId): void {
@@ -77,16 +77,24 @@ function remove(dependsOn: TaskId): void {
         </svg>
       </button>
     </span>
-    <label :for="pickerId" class="sr-only">Add a task this one depends on</label>
-    <select
-      :id="pickerId"
-      class="focus-ring rounded-control border border-border bg-surface px-2 py-0.5 text-caption text-text-muted"
-      :disabled="candidates.length === 0"
-      data-testid="task-dependency-picker"
-      @change="pick"
+    <button
+      ref="addButton"
+      type="button"
+      class="focus-ring inline-flex h-6 items-center gap-1 rounded-key border border-dashed border-border-strong px-2 text-caption text-text-muted transition-colors hover:border-anchor hover:text-anchor"
+      :aria-expanded="picking"
+      aria-haspopup="dialog"
+      aria-label="Add a task this one depends on"
+      data-testid="task-dependency-add"
+      @click="picking = !picking"
     >
-      <option value="">Add…</option>
-      <option v-for="candidate in candidates" :key="candidate.id" :value="candidate.id">{{ candidate.title }}</option>
-    </select>
+      Add
+    </button>
+    <TaskDependencyPicker
+      v-if="picking && addButton"
+      :tasks="candidates"
+      :anchor="addButton"
+      @pick="add"
+      @close="picking = false"
+    />
   </div>
 </template>

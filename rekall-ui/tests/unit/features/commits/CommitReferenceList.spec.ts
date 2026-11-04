@@ -169,6 +169,23 @@ describe('CommitReferenceList', () => {
     expect(wrapper.findComponent(AppConfirm).exists()).toBe(true)
   })
 
+  it('opens the confirmation on the body, out of the scroller that would clip it', async () => {
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const wrapper = mount(CommitReferenceList, {
+      props: { references: [reference()] },
+      global: { stubs: { AppConfirm: true } },
+      attachTo: host
+    })
+
+    await wrapper.get('[data-testid="commit-reference-delete"]').trigger('click')
+
+    expect(host.querySelector('app-confirm-stub')).toBeNull()
+    expect(document.body.querySelector('app-confirm-stub')).not.toBeNull()
+    wrapper.unmount()
+    host.remove()
+  })
+
   it('deletes the commit reference through the store once confirmed', async () => {
     const store = useConsoleStore()
     store.deleteCommitReference = vi.fn().mockResolvedValue(undefined)
