@@ -152,10 +152,10 @@ const gradientId = useId()
 
 @keyframes session-spin {
   from {
-    transform: rotate(0deg);
+    transform: rotate(216deg);
   }
   to {
-    transform: rotate(-360deg);
+    transform: rotate(-144deg);
   }
 }
 

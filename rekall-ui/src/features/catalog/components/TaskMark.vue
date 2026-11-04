@@ -394,10 +394,10 @@ onUnmounted(() => {
 
 @keyframes mark-orbit {
   from {
-    transform: rotate(0deg);
+    transform: rotate(36deg);
   }
   to {
-    transform: rotate(360deg);
+    transform: rotate(396deg);
   }
 }
 
