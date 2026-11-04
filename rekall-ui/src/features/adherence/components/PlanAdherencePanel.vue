@@ -54,8 +54,8 @@ watch(
           testid="adherence-sent-back"
         />
         <AdherenceFigure
-          label="Deviation notes"
-          :value="String(adherence.deviationNotes)"
+          label="Deviations"
+          :value="String(adherence.deviations)"
           :detail="adherence.deviationSteps.length ? `on ${stepsLabel(adherence.deviationSteps)}` : 'the plan was built as drawn'"
           testid="adherence-deviations"
         />

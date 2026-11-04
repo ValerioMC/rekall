@@ -113,9 +113,9 @@ describe('going back to a location', () => {
   it('shows the task, note and pane it names, and closes the composer', () => {
     store.openNoteComposer()
 
-    const shown = store.showLocation({ mode: 'notes', taskId: retry, documentId: note.id, pane: 'wrapup' })
+    const shown = store.showLocation({ mode: 'notes', taskId: retry, documentId: note.id, pane: 'wrapup', deviationStep: null })
 
-    expect(shown).toEqual({ mode: 'notes', taskId: retry, documentId: note.id, pane: 'wrapup' })
+    expect(shown).toEqual({ mode: 'notes', taskId: retry, documentId: note.id, pane: 'wrapup', deviationStep: null })
     expect([store.navMode, store.selectedTaskId, store.selectedDocId, store.paneFocus]).toEqual([
       'notes',
       retry,
@@ -130,10 +130,33 @@ describe('going back to a location', () => {
       mode: 'tasks',
       taskId: 'gone' as TaskId,
       documentId: 'gone' as DocumentId,
-      pane: 'steps'
+      pane: 'steps',
+      deviationStep: null
     })
 
-    expect(shown).toEqual({ mode: 'tasks', taskId: null, documentId: null, pane: 'note' })
+    expect(shown).toEqual({ mode: 'tasks', taskId: null, documentId: null, pane: 'note', deviationStep: null })
+  })
+
+  it('opens a deviation on its own pane over the task in view, and leaving the task forgets the step', () => {
+    store.selectTask(retry)
+
+    store.openDeviation(3)
+
+    expect([store.paneFocus, store.selectedDeviationStep]).toEqual(['deviation', 3])
+    expect(store.location).toMatchObject({ pane: 'deviation', deviationStep: 3 })
+
+    store.selectTask(report)
+
+    expect([store.paneFocus, store.selectedDeviationStep]).toEqual(['note', null])
+    expect(store.location.deviationStep).toBeNull()
+  })
+
+  it('shows the deviation a history entry names, and a deviation pane with no step falls back to the note', () => {
+    const shown = store.showLocation({ mode: 'tasks', taskId: retry, documentId: null, pane: 'deviation', deviationStep: 2 })
+    const without = store.showLocation({ mode: 'tasks', taskId: retry, documentId: null, pane: 'deviation', deviationStep: null })
+
+    expect([shown.pane, shown.deviationStep]).toEqual(['deviation', 2])
+    expect([without.pane, without.deviationStep]).toEqual(['note', null])
   })
 })
 

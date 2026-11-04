@@ -6,6 +6,7 @@ import {
   TaskReviewEventSchema,
   WrapupStreamEventSchema
 } from '@/features/catalog/api/schemas/catalog.schema'
+import { DeviationStreamEventSchema } from '@/features/deviations/api/schemas/deviation.schema'
 import { CommitReferenceStreamEventSchema } from '@/features/commits/api/schemas/commitReference.schema'
 import { RunQueueSchema } from '@/features/queue/api/schemas/runQueue.schema'
 import type { NoteStreamEvent, TaskReview, TaskStep, WrapupStreamEvent } from '@/features/catalog/model/catalog'
@@ -14,8 +15,8 @@ import type { RunQueue } from '@/features/queue/model/runQueue'
 import type { TaskId } from '@/model/branded'
 
 /**
- * One SSE connection carrying seven console feeds: `steps`, `task-review`, `wrapup`,
- * `commit-reference`, `run-queue`, `note` and `task-created`.
+ * One SSE connection carrying eight console feeds: `steps`, `task-review`, `wrapup`,
+ * `commit-reference`, `run-queue`, `note`, `deviation` and `task-created`.
  */
 export function useStepStream(
   onSteps: (taskId: TaskId, steps: TaskStep[]) => void,
@@ -24,7 +25,8 @@ export function useStepStream(
   onCommit?: (reference: CommitReference) => void,
   onRunQueue?: (queue: RunQueue) => void,
   onNote?: (event: NoteStreamEvent) => void,
-  onTaskCreated?: () => void
+  onTaskCreated?: () => void,
+  onDeviation?: (taskId: TaskId) => void
 ): { connected: Ref<boolean>; stop: () => void } {
   const connected = ref(false)
   let source: EventSource | null = null
@@ -120,6 +122,19 @@ export function useStepStream(
         )
         if (parsed.success) {
           onNote?.(parsed.data)
+        }
+      } catch {
+      }
+    })
+
+    // A deviation a session recorded: the frame names the task, whose deviations are read again.
+    source.addEventListener('deviation', (event) => {
+      try {
+        const parsed = DeviationStreamEventSchema.safeParse(
+          JSON.parse((event as MessageEvent<string>).data)
+        )
+        if (parsed.success) {
+          onDeviation?.(parsed.data.taskId)
         }
       } catch {
       }

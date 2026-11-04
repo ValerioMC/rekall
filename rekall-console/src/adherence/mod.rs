@@ -1,7 +1,6 @@
 //! How closely the work followed the plan: steps accepted at the first pass, steps sent back,
-//! deviation notes and flow visits. Read-only, over data other domains write.
+//! deviations and flow visits. Read-only, over data other domains write.
 
-mod rule;
 mod service;
 mod view;
 

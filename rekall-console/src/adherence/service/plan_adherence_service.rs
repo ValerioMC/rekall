@@ -1,9 +1,8 @@
 use rekall_core::{in_read, Ctx, Tx};
 use rekall_kernel::{Id, Result};
 use rekall_store::repository as repo;
-use rekall_store::{task, task_step, TaskStepState};
+use rekall_store::{task, task_deviation, task_step, TaskStepState};
 
-use crate::adherence::rule::deviation_note_rule::deviation_steps;
 use crate::adherence::{AdherenceCounts, PlanAdherenceView, ProjectAdherenceView, StepVisitsView, TaskSentBackView};
 
 const MOST_SENT_BACK_LISTED: usize = 5;
@@ -31,28 +30,32 @@ impl PlanAdherenceService {
             repo::project::require(tx.db(), project_id).await?;
             let tasks = repo::task::list_of_project(tx.db(), project_id).await?;
             let mut counts = AdherenceCounts::default();
-            let mut deviation_notes = 0;
+            let mut deviations = 0;
             let mut sent_back = Vec::new();
             for task in &tasks {
                 let adherence = adherence_of(&tx, task.id).await?;
                 counts = counts.plus(adherence.counts);
-                deviation_notes += adherence.deviation_steps.len();
+                deviations += adherence.deviation_steps.len();
                 sent_back.push(sent_back_of(task, &adherence));
             }
-            Ok(ProjectAdherenceView { counts, deviation_notes, most_sent_back: most_sent_back(sent_back) })
+            Ok(ProjectAdherenceView { counts, deviations, most_sent_back: most_sent_back(sent_back) })
         })
     }
 }
 
 async fn adherence_of(tx: &Tx, task_id: Id) -> Result<PlanAdherenceView> {
     let steps = planned_steps(repo::task_step::list_of_task(tx.db(), task_id).await?);
-    let notes = repo::document::documents_of_task(tx.db(), task_id).await?;
+    let deviations = repo::task_deviation::list_of_task(tx.db(), task_id).await?;
     let visits = repo::step_visit::list_of_task(tx.db(), task_id).await?;
     Ok(PlanAdherenceView {
         counts: AdherenceCounts::of(&steps)?,
-        deviation_steps: deviation_steps(&notes),
+        deviation_steps: deviation_steps(&deviations),
         visits: StepVisitsView::of_flow(&steps, &visits),
     })
+}
+
+fn deviation_steps(deviations: &[task_deviation::Model]) -> Vec<usize> {
+    deviations.iter().filter_map(|deviation| usize::try_from(deviation.step_number).ok()).collect()
 }
 
 fn planned_steps(steps: Vec<task_step::Model>) -> Vec<task_step::Model> {

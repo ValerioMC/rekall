@@ -51,8 +51,8 @@ watch(
           testid="project-adherence-sent-back"
         />
         <AdherenceFigure
-          label="Deviation notes"
-          :value="String(adherence.deviationNotes)"
+          label="Deviations"
+          :value="String(adherence.deviations)"
           detail="across the project's tasks"
           testid="project-adherence-deviations"
         />

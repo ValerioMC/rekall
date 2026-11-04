@@ -118,6 +118,7 @@ An anchor brings back the record, everything it references resolved in full with
 | `rekall_create_task` | write | Create a task or an epic in a project with a description and up to 20 steps that start open, as a checklist or a flow with its sessions (none on an epic), optionally filed under an epic |
 | `rekall_join_epic` | write | File an existing task under an epic of its project, or move it from another epic |
 | `rekall_note` | write | Write a note on one task, or rewrite one it carries by title with `replace` |
+| `rekall_deviation` | write | Record where the work departed from the plan, on one task and for one step; kept apart from the notes |
 | `rekall_project_section` | write | Write a titled markdown section on a task's project, or rewrite one by title with `replace` |
 | `rekall_read_sections` | read | List a project's sections by title, or read one whole with `title` |
 | `rekall_search` | read | Find a phrase in descriptions, steps, wrapups and notes, optionally in one project; returns anchors and excerpts to load with `rekall_context` |
@@ -185,7 +186,7 @@ rekall-diagram/    the diagram format: Mermaid sheets and their code links, JSON
 rekall-core/       business logic and every port: context assembly, the step and review lines, flows (routes and visits), wrapups, notes, time entries, token usage, vulnerabilities
 rekall-console/    the services only the console calls, commands in and views out with no HTTP types: the catalog, notes, tags, connections, graphs, the folder listing, and the thin services over core's ports (terminals, run queue, backups, database folders, update check)
 rekall-http/       Axum REST API for the UI, one folder per domain: controllers, request and response shapes, and the step event stream; `shared` holds the error body, request extractors and response helpers
-rekall-mcp/        MCP server, on rekall-core and never rekall-http: three tools read, fourteen write
+rekall-mcp/        MCP server, on rekall-core and never rekall-http: three tools read, fifteen write
 rekall-infra/      everything with a process, a file, a socket or outbound HTTP behind it, each implementing a port of rekall-core and serving no route: the in-app terminal (portable-pty), the Claude Code usage meter, the run queue's worker, the transcript reader, the editor for Claude Code's own files (`~/.claude`), the database registry, backups and restores, the restart handle, the release feed, the OS credential store and the HTTP clients
 rekall-app/        rekall-server: the local-access guard, the console bundle, the supervisor; builds the infrastructure, injects it and serves everything; `rekall-server guard` is the Claude Code hook command
 rekall-app/desktop the Tauri desktop app over the same server

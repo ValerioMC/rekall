@@ -115,7 +115,7 @@ async fn a_database_written_by_v0_2_moves_onto_the_baseline_with_its_rows() {
     let database = rekall_store::open(&path).await.unwrap();
     let db = &database.conn;
 
-    assert_eq!(applied_versions(db).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision", "047-vulnerability", "048-exposure-conclusion", "049-deployment-graph", "050-graph-step-place", "051-binding-label", "052-advisory-reach", "053-visit-report", "054-release-on-run", "055-epic", "056-step-session", "057-telemetry-setting", "058-run-queue-session-kind", "059-shared-connection", "060-step-snapshot", "061-done-check", "062-wrapup-version", "063-quick-task", "064-task-dependency", "065-parallel-sessions", "066-task-worktree"]);
+    assert_eq!(applied_versions(db).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision", "047-vulnerability", "048-exposure-conclusion", "049-deployment-graph", "050-graph-step-place", "051-binding-label", "052-advisory-reach", "053-visit-report", "054-release-on-run", "055-epic", "056-step-session", "057-telemetry-setting", "058-run-queue-session-kind", "059-shared-connection", "060-step-snapshot", "061-done-check", "062-wrapup-version", "063-quick-task", "064-task-dependency", "065-parallel-sessions", "066-task-worktree", "067-task-deviation"]);
     let task = Task::find().one(db).await.unwrap().unwrap();
     assert_eq!((task.label.as_str(), task.title.as_str()), ("report", "Report"));
     let wrapup = Wrapup::find().one(db).await.unwrap().unwrap();
@@ -135,7 +135,7 @@ async fn a_database_on_the_baseline_opens_again_unchanged() {
 
     let database = rekall_store::open(&path).await.unwrap();
 
-    assert_eq!(applied_versions(&database.conn).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision", "047-vulnerability", "048-exposure-conclusion", "049-deployment-graph", "050-graph-step-place", "051-binding-label", "052-advisory-reach", "053-visit-report", "054-release-on-run", "055-epic", "056-step-session", "057-telemetry-setting", "058-run-queue-session-kind", "059-shared-connection", "060-step-snapshot", "061-done-check", "062-wrapup-version", "063-quick-task", "064-task-dependency", "065-parallel-sessions", "066-task-worktree"]);
+    assert_eq!(applied_versions(&database.conn).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision", "047-vulnerability", "048-exposure-conclusion", "049-deployment-graph", "050-graph-step-place", "051-binding-label", "052-advisory-reach", "053-visit-report", "054-release-on-run", "055-epic", "056-step-session", "057-telemetry-setting", "058-run-queue-session-kind", "059-shared-connection", "060-step-snapshot", "061-done-check", "062-wrapup-version", "063-quick-task", "064-task-dependency", "065-parallel-sessions", "066-task-worktree", "067-task-deviation"]);
 }
 
 #[tokio::test]
@@ -293,4 +293,39 @@ async fn a_connection_owned_by_a_company_before_059_is_shared_with_it_and_a_repe
         .execute_unprepared("INSERT INTO external_connection (id, label, title, kind, secret_ref, created_at, updated_at) VALUES ('x', 'gitlab', 'Again', 'KUBERNETES', 'connection-4', 't', 't')")
         .await
         .is_err());
+}
+
+#[tokio::test]
+async fn a_changes_note_on_one_task_becomes_that_tasks_deviation_and_leaves_the_notes() {
+    use sea_orm_migration::MigratorTrait;
+    let options = SqliteConnectOptions::new().filename(":memory:").foreign_keys(false);
+    let pool = SqlitePoolOptions::new().max_connections(1).connect_with(options).await.unwrap();
+    let db = SqlxSqliteConnector::from_sqlx_sqlite_pool(pool);
+    let before_067 = rekall_store::migration::Migrator::migrations().iter().position(|migration| migration.name() == "067-task-deviation").unwrap() as u32;
+    rekall_store::migration::Migrator::up(&db, Some(before_067)).await.unwrap();
+    let note = |id: &str, title: &str| {
+        format!("INSERT INTO document (id, title, kind, body_markdown, context_mode, created_at, updated_at) VALUES ('{id}', '{title}', 'notes', 'body of {id}', 'FULL', '2026-10-01T09:00:00.000000Z', '2026-10-01T09:00:00.000000Z')")
+    };
+    for statement in [
+        "INSERT INTO company (id, name, created_at, updated_at) VALUES ('c', 'Acme', 't', 't')".to_string(),
+        "INSERT INTO project (id, label, title, status, icon, auto_commit, company_id, created_at, updated_at) VALUES ('p', 'vega', 'Vega', 'ACTIVE', 'folder', 0, 'c', 't', 't')".to_string(),
+        "INSERT INTO task (id, label, title, status, project_id, created_at, updated_at) VALUES ('00000000-0000-0000-0000-0000000000a1', 'one', 'One', 'TODO', 'p', 't', 't')".to_string(),
+        "INSERT INTO task (id, label, title, status, project_id, created_at, updated_at) VALUES ('00000000-0000-0000-0000-0000000000a2', 'two', 'Two', 'TODO', 'p', 't', 't')".to_string(),
+        note("00000000-0000-0000-0000-0000000000b3", "Step-3-Changes.md"),
+        note("00000000-0000-0000-0000-0000000000b4", "step-4-changes.md"),
+        note("00000000-0000-0000-0000-0000000000b5", "step-x-changes.md"),
+        note("00000000-0000-0000-0000-0000000000b6", "analysis.md"),
+        "INSERT INTO document_task (document_id, task_id, position) VALUES ('00000000-0000-0000-0000-0000000000b3', '00000000-0000-0000-0000-0000000000a1', 0), ('00000000-0000-0000-0000-0000000000b4', '00000000-0000-0000-0000-0000000000a1', 1), ('00000000-0000-0000-0000-0000000000b4', '00000000-0000-0000-0000-0000000000a2', 0), ('00000000-0000-0000-0000-0000000000b5', '00000000-0000-0000-0000-0000000000a1', 2), ('00000000-0000-0000-0000-0000000000b6', '00000000-0000-0000-0000-0000000000a1', 3)".to_string(),
+    ] {
+        db.execute_unprepared(&statement).await.unwrap();
+    }
+
+    rekall_store::migration::Migrator::up(&db, None).await.unwrap();
+
+    let deviations = TaskDeviation::find().all(&db).await.unwrap();
+    assert_eq!(deviations.len(), 1, "only a note on one task moves");
+    assert_eq!((deviations[0].step_number, deviations[0].body_markdown.as_str()), (3, "body of 00000000-0000-0000-0000-0000000000b3"));
+    let mut notes: Vec<String> = Document::find().all(&db).await.unwrap().into_iter().map(|note| note.title).collect();
+    notes.sort();
+    assert_eq!(notes, ["analysis.md", "step-4-changes.md", "step-x-changes.md"]);
 }

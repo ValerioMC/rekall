@@ -8,6 +8,7 @@ use rekall_store::{ConnectionKind, DocumentContextMode, TaskStepState};
 use crate::context::{ContextCommitView, ContextRecord, ContextSkillScope, ContextSkillView, DocumentView, StepConnectionView};
 use crate::component::{ComponentReferences, ProjectComponentView};
 use crate::connection::ConnectionView;
+use crate::deviation::DeviationView;
 use crate::step::{StepLinkView, TaskStepView};
 use crate::wrapup::{Freshness, WrapupView};
 
@@ -67,6 +68,7 @@ impl ContextRenderer {
         out.push_str(&self.render_commits(&record.commits));
         out.push_str(&self.render_wrapup(record.wrapup.as_ref(), &record.wrapup_freshness));
         out.push_str(&self.render_documents(&record.documents));
+        out.push_str(&self.render_deviations(&record.deviations));
         for reference in &record.references {
             let nested = self.render_record(reference, heading_level + 1, rendered);
             if !nested.is_empty() {
@@ -261,6 +263,23 @@ impl ContextRenderer {
                 ));
             }
         }
+        out
+    }
+
+    pub fn render_deviations(&self, deviations: &[DeviationView]) -> String {
+        if deviations.is_empty() {
+            return String::new();
+        }
+        let mut out = format!("\n<deviations count=\"{}\">\n", deviations.len());
+        for deviation in deviations {
+            let title = deviation.step_title.as_deref().map(|title| format!(" title=\"{}\"", attribute(title))).unwrap_or_default();
+            out.push_str(&format!(
+                "<deviation step=\"{}\"{title}>\n{}\n</deviation>\n",
+                deviation.step_number,
+                truncate(Some(&deviation.body_markdown), MAX_DOCUMENT_CHARACTERS)
+            ));
+        }
+        out.push_str("</deviations>\n");
         out
     }
 
@@ -532,6 +551,10 @@ fn render_route(link: &StepLinkView, steps: &[&TaskStepView]) -> Option<String> 
     let target = steps.iter().find(|candidate| candidate.id == to_step_id)?;
     Some(format!("`{}` -> step {} \"{}\"", link.outcome, target.position + 1, attribute(&target.title)))
 }
+
+#[cfg(test)]
+#[path = "../../../tests/unit/context/model/context_renderer_deviation_tests.rs"]
+mod deviation_tests;
 
 #[cfg(test)]
 #[path = "../../../tests/unit/context/model/context_renderer_flow_tests.rs"]

@@ -400,6 +400,7 @@ async fn the_mcp_endpoint_exposes_four_ways_to_read_and_ten_writes() {
             "rekall_context",
             "rekall_create_task",
             "rekall_delete_step",
+            "rekall_deviation",
             "rekall_diagram",
             "rekall_inventory",
             "rekall_join_epic",

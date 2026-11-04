@@ -1,6 +1,6 @@
 use rekall_core::EventBus;
 use rekall_kernel::Instant;
-use rekall_store::{company, document, document_task, project, step_visit, DocumentContextMode, ProjectStatus, TaskKind};
+use rekall_store::{company, project, step_visit, task_deviation, ProjectStatus, TaskKind};
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
 
 use super::*;
@@ -61,22 +61,12 @@ fn send_back(step: &mut task_step::Model, times: usize) {
     }
 }
 
-async fn add_note(world: &World, task_id: Id, title: &str) {
-    let now = Instant::now();
-    let note = document::Model {
-        id: Id::random(),
-        title: title.into(),
-        kind: "notes".into(),
-        body_markdown: String::new(),
-        source_path: None,
-        context_mode: DocumentContextMode::Full,
-        scope_company_id: None,
-        scope_project_id: None,
-        created_at: now,
-        updated_at: now,
-    };
-    note.clone().into_active_model().insert(&world.database.conn).await.unwrap();
-    document_task::Model { document_id: note.id, task_id, position: 0 }.into_active_model().insert(&world.database.conn).await.unwrap();
+async fn add_deviation(world: &World, task_id: Id, step_number: i32) {
+    task_deviation::Model::new(task_id, step_number, "Built it another way.".into(), Instant::now())
+        .into_active_model()
+        .insert(&world.database.conn)
+        .await
+        .unwrap();
 }
 
 async fn enter(world: &World, step: &task_step::Model, ordinal: i32) {
@@ -113,14 +103,14 @@ async fn a_step_sent_back_and_not_yet_started_again_has_only_its_earlier_passes(
 }
 
 #[tokio::test]
-async fn a_deviation_note_is_counted_with_the_step_its_title_names() {
+async fn a_deviation_is_counted_with_the_step_it_refers_to() {
     let world = world().await;
-    add_note(&world, world.task_id, "step-2-changes.md").await;
-    add_note(&world, world.task_id, "solution-overview.md").await;
+    add_deviation(&world, world.task_id, 4).await;
+    add_deviation(&world, world.task_id, 2).await;
 
     let view = world.service.of_task(world.task_id).await.unwrap();
 
-    assert_eq!(view.deviation_steps, vec![2]);
+    assert_eq!(view.deviation_steps, vec![2, 4]);
 }
 
 #[tokio::test]
@@ -173,13 +163,13 @@ async fn a_project_sums_its_tasks_and_lists_at_most_five_with_steps_sent_back_mo
     add_step(&world, other, 1, TaskStepState::Done, 3).await;
     add_step(&world, other, 2, TaskStepState::Done, 1).await;
     new_task(&world.tasks, world.project_id, "untouched").await;
-    add_note(&world, other, "step-2-changes.md").await;
+    add_deviation(&world, other, 2).await;
 
     let view = world.service.of_project(world.project_id).await.unwrap();
 
     assert_eq!(view.counts.steps_total, 4);
     assert_eq!((view.counts.accepted_first_time, view.counts.sent_back, view.counts.passes_total), (1, 3, 9));
-    assert_eq!(view.deviation_notes, 1);
+    assert_eq!(view.deviations, 1);
     let listed: Vec<(&str, usize)> = view.most_sent_back.iter().map(|task| (task.label.as_str(), task.sent_back)).collect();
     assert_eq!(listed, vec![("import", 2), ("export", 1)]);
 }

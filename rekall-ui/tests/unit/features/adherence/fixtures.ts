@@ -25,7 +25,7 @@ export function adherence(changes: Partial<PlanAdherence> = {}): PlanAdherence {
     sentBack: 1,
     passesTotal: 5,
     firstTimeShare: 2 / 3,
-    deviationNotes: 1,
+    deviations: 1,
     deviationSteps: [2],
     visits: [],
     ...changes
@@ -41,7 +41,7 @@ export function projectAdherence(changes: Partial<ProjectAdherence> = {}): Proje
     sentBack: 3,
     passesTotal: 9,
     firstTimeShare: 0.25,
-    deviationNotes: 1,
+    deviations: 1,
     mostSentBack: [
       { taskId: 'a' as TaskId, label: 'import', title: 'Import', sentBack: 2, passesTotal: 7 },
       { taskId: 'b' as TaskId, label: 'export', title: 'Export', sentBack: 1, passesTotal: 2 }

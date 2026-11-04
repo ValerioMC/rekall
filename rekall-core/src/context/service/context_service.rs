@@ -13,6 +13,7 @@ use crate::context::{ContextCommitView, ContextRecord, ContextSkillScope, Contex
 use crate::component::{referenced_task_labels, ProjectComponentView};
 use crate::connection::ConnectionView;
 use crate::dependency::{TaskWait, TaskWaitService};
+use crate::deviation::DeviationView;
 use crate::step::{StepFlowRows, TaskStepView};
 use crate::task::TaskReferenceView;
 use crate::wrapup::{Freshness, WrapupFreshnessService, WrapupView};
@@ -296,6 +297,7 @@ impl ContextService {
         let components = repo::project_component::list_of_project(db, project.id).await?;
         let connections = repo::project_connection::list_of_project(db, project.id).await?;
         let documents = repo::document::documents_of_task(db, task.id).await?;
+        let deviations = repo::task_deviation::list_of_task(db, task.id).await?;
         let wrapup = load::wrapup_of(db, task.id).await?.map(|found| WrapupView::of(&found, task, project));
         let wrapup_freshness = match wrapup {
             Some(_) => self.freshness.check_in(tx, task.id).await?,
@@ -309,6 +311,7 @@ impl ContextService {
             references: Vec::new(),
             related: children.iter().map(|child| format!("task:{}", child.label)).collect(),
             documents: documents.iter().map(DocumentView::of).collect(),
+            deviations: deviations.iter().map(|deviation| DeviationView::of(deviation, step_title_at(&steps, deviation.step_number))).collect(),
             skills: self.skills_of(tx, task, &steps).await?,
             step_connections: self.step_connections_of(tx, project, &steps).await?,
             steps,
@@ -414,6 +417,12 @@ fn referenced_tasks<'a>(record: &ContextRecord, task: &task::Model, siblings: &'
         }
     }
     found
+}
+
+/// The title of the step a deviation's number names: its place on the checklist, drafts not counted.
+fn step_title_at(steps: &[TaskStepView], step_number: i32) -> Option<String> {
+    let index = usize::try_from(step_number).ok()?.checked_sub(1)?;
+    steps.iter().filter(|step| !step.state.draft()).nth(index).map(|step| step.title.clone())
 }
 
 fn epic_of<'a>(task: &task::Model, siblings: &'a [task::Model]) -> Option<&'a task::Model> {

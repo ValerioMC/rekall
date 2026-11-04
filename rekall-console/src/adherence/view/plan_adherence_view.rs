@@ -1,6 +1,6 @@
 use crate::adherence::{AdherenceCounts, StepVisitsView};
 
-/// One task's adherence. `deviation_steps` holds the step each `step-N-changes.md` note names;
+/// One task's adherence. `deviation_steps` holds the step each deviation of the task refers to, in step order;
 /// `visits` is empty unless the task ran as a flow.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PlanAdherenceView {

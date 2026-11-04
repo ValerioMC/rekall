@@ -1,5 +1,6 @@
 use crate::component::ProjectComponentView;
 use crate::connection::ConnectionView;
+use crate::deviation::DeviationView;
 use crate::step::TaskStepView;
 use crate::task::TaskReferenceView;
 use crate::wrapup::{Freshness, WrapupView};
@@ -18,6 +19,8 @@ pub struct ContextRecord {
     pub references: Vec<ContextRecord>,
     pub related: Vec<String>,
     pub documents: Vec<DocumentView>,
+    /// Where the task's work departed from its plan, by step; apart from the notes.
+    pub deviations: Vec<DeviationView>,
     pub steps: Vec<TaskStepView>,
     /// The connection each step that reaches one names, by step.
     pub step_connections: Vec<StepConnectionView>,

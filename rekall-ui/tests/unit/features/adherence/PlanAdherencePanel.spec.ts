@@ -56,7 +56,7 @@ describe('the plan adherence panel of a task', () => {
   })
 
   it('says there is no plan to measure for a task with no steps', async () => {
-    vi.mocked(api.fetchTaskAdherence).mockResolvedValue(adherence({ stepsTotal: 0, stepsDone: 0, passesTotal: 0, acceptedFirstTime: 0, sentBack: 0, firstTimeShare: null, deviationNotes: 0, deviationSteps: [] }))
+    vi.mocked(api.fetchTaskAdherence).mockResolvedValue(adherence({ stepsTotal: 0, stepsDone: 0, passesTotal: 0, acceptedFirstTime: 0, sentBack: 0, firstTimeShare: null, deviations: 0, deviationSteps: [] }))
 
     const wrapper = await render([])
 
@@ -65,7 +65,7 @@ describe('the plan adherence panel of a task', () => {
   })
 
   it('says no step has been worked when nothing has a pass', async () => {
-    vi.mocked(api.fetchTaskAdherence).mockResolvedValue(adherence({ stepsDone: 0, acceptedFirstTime: 0, sentBack: 0, passesTotal: 0, firstTimeShare: null, deviationNotes: 0, deviationSteps: [] }))
+    vi.mocked(api.fetchTaskAdherence).mockResolvedValue(adherence({ stepsDone: 0, acceptedFirstTime: 0, sentBack: 0, passesTotal: 0, firstTimeShare: null, deviations: 0, deviationSteps: [] }))
 
     const wrapper = await render([step(1, 'OPEN'), step(2, 'OPEN')])
 

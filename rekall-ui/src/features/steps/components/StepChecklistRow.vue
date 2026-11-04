@@ -7,6 +7,8 @@ import StepPassHistory from '@/features/steps/components/StepPassHistory.vue'
 import StepSeal from '@/features/steps/components/StepSeal.vue'
 import SkillMark from '@/features/skills/components/SkillMark.vue'
 import TokenCount from '@/components/ui/TokenCount.vue'
+import { useTaskDeviations } from '@/features/deviations/composables/useTaskDeviations'
+import { stepNumberOf } from '@/features/deviations/model/deviation'
 import { useStepEditor } from '@/features/steps/composables/useStepEditor'
 import { useStepSkills } from '@/features/skills/composables/useStepSkills'
 import { useConsoleStore } from '@/stores/console.store'
@@ -48,6 +50,12 @@ defineEmits<{
 
 const store = useConsoleStore()
 const { expandedId, toggle } = useStepEditor()
+
+const { deviations } = useTaskDeviations(computed(() => props.task.id))
+const deviationStep = computed(() => {
+  const number = stepNumberOf(props.step, store.selectedTaskSteps)
+  return number !== null && deviations.value.some((deviation) => deviation.stepNumber === number) ? number : null
+})
 
 const expanded = computed(() => expandedId.value === props.step.id)
 const commits = computed(() => store.stepCommitReferences(props.step.id))
@@ -158,6 +166,17 @@ const panelClass = computed(() => {
             <SkillMark :skills="skills" />
             <TokenCount :totals="tokens" />
           </span>
+        </button>
+
+        <button
+          v-if="deviationStep !== null"
+          type="button"
+          class="focus-ring shrink-0 rounded-key px-1 text-micro text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent"
+          :title="`Where the work left the plan on ${step.title}`"
+          data-testid="step-deviation"
+          @click="store.openDeviation(deviationStep)"
+        >
+          Deviation
         </button>
 
         <div class="flex shrink-0 items-center gap-0.5 opacity-0 focus-within:opacity-100 group-hover/step:opacity-100">

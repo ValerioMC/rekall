@@ -9,7 +9,7 @@ const FiguresShape = {
   sentBack: z.number().int(),
   passesTotal: z.number().int(),
   firstTimeShare: z.number().nullable(),
-  deviationNotes: z.number().int()
+  deviations: z.number().int()
 }
 
 export const StepVisitsSchema = z.object({

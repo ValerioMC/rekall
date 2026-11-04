@@ -42,6 +42,7 @@ mod m063_quick_task;
 mod m064_task_dependency;
 mod m065_parallel_sessions;
 mod m066_task_worktree;
+mod m067_task_deviation;
 mod migration_support;
 mod migrator;
 

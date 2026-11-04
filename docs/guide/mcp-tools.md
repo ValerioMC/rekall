@@ -13,6 +13,7 @@
 | `rekall_create_task` | write | Create a task or an epic in a project with a description and up to 20 steps that start open, as a checklist or a flow (none on an epic), optionally filed under an epic |
 | `rekall_join_epic` | write | File an existing task under an epic of its project, or move it from another epic |
 | `rekall_note` | write | Write a note on one task, or rewrite one it carries by title with `replace` |
+| `rekall_deviation` | write | Record where the work departed from the plan, on one task and for one step; recording again for the step rewrites it |
 | `rekall_project_section` | write | Write a titled markdown section on a task's project, or rewrite one by title with `replace` |
 | `rekall_read_sections` | read | List a project's sections by title, or read one whole with `title` |
 | `rekall_search` | read | Find a phrase in descriptions, steps, wrapups and notes, optionally in one project; returns anchors and excerpts to load with `rekall_context` |

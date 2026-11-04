@@ -55,7 +55,7 @@ rekall/
   rekall-core/       the services the MCP tools may use and every port, one folder per domain: context assembly, the step and review lines, flows, wrapups, notes, time entries, token usage, vulnerabilities
   rekall-console/    the services only the console calls, one folder per domain: commands in, views out, no HTTP types
   rekall-http/       Axum REST routes for the UI, one folder per domain: controllers, request and response shapes and routes; `shared` holds the error body, request extractors and response helpers
-  rekall-mcp/        MCP server: four tools read, fourteen write; a folder per domain holds its tools
+  rekall-mcp/        MCP server: four tools read, fifteen write; a folder per domain holds its tools
   rekall-infra/      the implementations of core's ports, a folder per capability: the in-app terminal (`pty`), the chat session (`chat`) and the `session` host that routes between the two, the run queue's worker, the usage meter, the transcript reader, the Claude folder editor (`resources`), the Claude Code installer, the shell that runs a step's checks (`check`), the git worktrees of a task (`worktree`), the credential sessions (`connection`), the database registry (`bootstrap`), backups and restores, the restart handle, the release feed and the macOS update installer (`version`), the credential file and the OS credential store it replaced (`secret`), the connection probes, the Jira search, the GitHub Advisory Database client; it serves no route
   rekall-app/        rekall-server: builds the infrastructure and injects it, mounts the HTTP and MCP routers, the local-access guard, serves the built frontend, embedded at compile time
   rekall-app/desktop the Tauri desktop app over the same server, in-process
@@ -107,8 +107,9 @@ is found by opening one folder per crate:
 |---|---|
 | `catalog` | companies and projects with their logos and icons; in `rekall-console`, `rekall-http` and the UI also the tasks |
 | `component`, `section` | a project's components and its titled pages |
-| `adherence` | how closely the work followed the plan: steps accepted at the first pass, steps sent back, `step-N-changes.md` deviation notes and flow visits against their budget, per task and per project; read-only, console and HTTP only |
+| `adherence` | how closely the work followed the plan: steps accepted at the first pass, steps sent back, deviations and flow visits against their budget, per task and per project; read-only, console and HTTP only |
 | `check` | the commands a person sets to pass before a claim is accepted, for a whole project or one step, and what each run found; the console writes them, no session can |
+| `deviation` | where a task's work departed from its plan, one record per task and step and apart from its notes: a session writes it (`rekall_deviation`, in `rekall-core` and `rekall-mcp`), the console only reads it, and the context carries it in a `<deviations>` block |
 | `dependency` | a task that waits for another task of its project to be accepted: the pair, the cycle rule, and what a task still waits for as the run queue and the context read it; the console writes the pairs, no session can |
 | `connection` | the GitLab instances, GitHub servers, Kubernetes clusters and Jira sites projects reach, the companies each is shared with, the projects that bind each, the log of every credential a terminal asked for, and the Jira issues a project imports as tasks |
 | `task` | the task row, and in `rekall-core` and `rekall-mcp` a session creating one or filing it under an epic; the console's task service is in `catalog` |
@@ -168,7 +169,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 
 | Domain | `rekall-store` | `rekall-core` | `rekall-console` | `rekall-http` | `rekall-mcp` |
 |---|---|---|---|---|---|
-| `adherence` | - | - | `flow`, `note`, `step`, `task` | nothing | - |
+| `adherence` | - | - | `deviation`, `flow`, `step`, `task` | nothing | - |
 | `backup` | - | nothing | nothing | nothing | - |
 | `catalog` | `task` | - | `commit`, `note`, `review`, `step`, `tag`, `task`, `timeentry`, `wrapup` | nothing | - |
 | `check` | `catalog`, `step`, `task` | nothing | `catalog`, `step`, `task` | nothing | - |
@@ -177,8 +178,9 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `commit` | `step`, `task` | `catalog`, `step`, `task` | - | nothing | nothing |
 | `component` | `catalog` | `connection`, `task` | nothing | nothing | - |
 | `connection` | `catalog`, `task` | nothing | `catalog`, `commit`, `component`, `task` | `catalog` | - |
-| `context` | - | `catalog`, `commit`, `component`, `connection`, `dependency`, `note`, `section`, `step`, `tag`, `task`, `wrapup` | - | nothing | nothing |
+| `context` | - | `catalog`, `commit`, `component`, `connection`, `dependency`, `deviation`, `note`, `section`, `step`, `tag`, `task`, `wrapup` | - | nothing | nothing |
 | `dependency` | `task` | `claude` | `queue`, `task` | nothing | - |
+| `deviation` | `task` | `step`, `task` | `task` | nothing | nothing |
 | `diagram` | `catalog`, `task` | `catalog`, `task` | nothing | nothing | nothing |
 | `filesystem` | - | - | nothing | nothing | - |
 | `flow` | `step`, `task` | `step` | - | `step` | `step` |

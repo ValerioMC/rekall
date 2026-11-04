@@ -1530,3 +1530,39 @@ async fn a_task_without_steps_is_complete_once_its_review_line_is_claimed() {
     assert!(!work.has_work());
     assert_eq!(work.remaining, rekall_core::claude::Remaining::Claimed);
 }
+
+#[tokio::test]
+async fn a_deviation_is_kept_apart_from_the_notes_rewritten_for_the_same_step_and_loaded_with_the_context() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let task = world.task(&project, "checkout").await;
+    world.step(&task, "Draw the ledger", 0, TaskStepState::Done).await;
+    world.step(&task, "Wire the service", 1, TaskStepState::Open).await;
+    world.step(&task, "Not yet promoted", 2, TaskStepState::Draft).await;
+
+    let first = world.services.deviations.write(Some("vega"), "checkout", 2, Some("Planned a new layer; built it in core.")).await.unwrap();
+    let second = world.services.deviations.write(Some("vega"), "checkout", 2, Some("Built it in core, one method.")).await.unwrap();
+
+    assert_eq!((first.replaced, first.deviations_on_task, first.step_title.as_str()), (false, 1, "Wire the service"));
+    assert_eq!((second.replaced, second.deviations_on_task), (true, 1));
+    assert!(rekall_store::repository::document::documents_of_task(world.db(), task.id).await.unwrap().is_empty());
+    let rendered = world.services.renderer.render(&world.services.context.for_task(task.id).await.unwrap());
+    assert!(rendered.contains("<deviation step=\"2\" title=\"Wire the service\">\nBuilt it in core, one method.\n</deviation>"), "{rendered}");
+    assert!(!rendered.contains("Planned a new layer"), "{rendered}");
+}
+
+#[tokio::test]
+async fn a_deviation_for_a_step_the_checklist_does_not_have_is_refused_and_nothing_is_written() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let task = world.task(&project, "checkout").await;
+    world.step(&task, "Draw the ledger", 0, TaskStepState::Open).await;
+    world.step(&task, "Not yet promoted", 1, TaskStepState::Draft).await;
+
+    for step_number in [0, 2, 9] {
+        let refusal = world.services.deviations.write(Some("vega"), "checkout", step_number, Some("Changed.")).await.unwrap_err();
+        assert!(refusal.message().contains("checklist has 1 step: there is no step"), "{refusal:?}");
+    }
+    assert!(world.services.deviations.write(Some("vega"), "checkout", 1, Some("   ")).await.is_err());
+    assert!(rekall_store::repository::task_deviation::list_of_task(world.db(), task.id).await.unwrap().is_empty());
+}

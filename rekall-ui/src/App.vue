@@ -3,6 +3,7 @@ import { defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import AnchorBar from '@/components/console/AnchorBar.vue'
 import DescriptionPane from '@/features/catalog/components/DescriptionPane.vue'
+import DeviationPane from '@/features/deviations/components/DeviationPane.vue'
 import EpicPane from '@/features/catalog/components/epic/EpicPane.vue'
 import NavigatorPane from '@/components/console/NavigatorPane.vue'
 import NoteListPane from '@/features/notes/components/NoteListPane.vue'
@@ -17,6 +18,7 @@ import RunQueuePanel from '@/features/queue/components/RunQueuePanel.vue'
 import AppToaster from '@/components/ui/AppToaster.vue'
 import ChatReopenTag from '@/features/chat/components/ChatReopenTag.vue'
 import { useConsoleStore } from '@/stores/console.store'
+import { useDeviationsStore } from '@/features/deviations/store/deviations.store'
 import { useClaudeConnectionStore } from '@/features/claude/store/claudeConnection.store'
 import { useChatStore } from '@/features/chat/store/chat.store'
 import { useChatDockStore } from '@/features/chat/store/chatDock.store'
@@ -41,6 +43,7 @@ const ChatWindow = defineAsyncComponent(() => import('@/features/chat/components
 const store = useConsoleStore()
 const { selectedTaskId, selectedTask, navMode, paneFocus, noteComposerOpen, reviewQueue, isLoading } = storeToRefs(store)
 const runQueue = useRunQueueStore()
+const deviations = useDeviationsStore()
 const { panelOpen: runQueueOpen } = storeToRefs(runQueue)
 const { run } = useAsyncAction()
 const { isModalOpen } = useModalGate()
@@ -62,7 +65,8 @@ useStepStream(
   (reference) => store.applyCommitReference(reference),
   (queue) => runQueue.apply(queue),
   () => void store.applyNoteWritten(),
-  () => void store.applyTaskCreated()
+  () => void store.applyTaskCreated(),
+  (taskId) => void deviations.load(taskId).catch(() => undefined)
 )
 
 useQueueSessionSync()
@@ -82,6 +86,7 @@ const navigator = ref<InstanceType<typeof NavigatorPane> | null>(null)
 const descriptionPane = ref<InstanceType<typeof DescriptionPane> | null>(null)
 const epicPane = ref<InstanceType<typeof EpicPane> | null>(null)
 const notePane = ref<InstanceType<typeof NotePane> | null>(null)
+const deviationPane = ref<InstanceType<typeof DeviationPane> | null>(null)
 const settingsOpen = ref(false)
 const claudeConnection = useClaudeConnectionStore()
 const tagsOpen = ref(false)
@@ -120,6 +125,19 @@ function onKeydown(event: KeyboardEvent): void {
   if (typing) return
 
   const key = event.key.toLowerCase()
+
+  if (paneFocus.value === 'deviation') {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      store.closeDeviation()
+      return
+    }
+    if (event.key === '[' || event.key === ']') {
+      event.preventDefault()
+      deviationPane.value?.step(event.key === ']' ? 1 : -1)
+      return
+    }
+  }
 
   if (key === 'n') {
     event.preventDefault()
@@ -253,6 +271,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
             <EpicPane v-else-if="paneFocus === 'description' && selectedTask && isEpic(selectedTask)" ref="epicPane" />
             <DescriptionPane v-else-if="paneFocus === 'description'" ref="descriptionPane" />
             <StepsPane v-else-if="paneFocus === 'steps' && !(selectedTask && isEpic(selectedTask))" />
+            <DeviationPane v-else-if="paneFocus === 'deviation' && !(selectedTask && isEpic(selectedTask))" ref="deviationPane" />
             <TerminalPane v-else-if="paneFocus === 'terminal' && !(selectedTask && isEpic(selectedTask))" />
             <NotePane v-else ref="notePane" />
           </Transition>

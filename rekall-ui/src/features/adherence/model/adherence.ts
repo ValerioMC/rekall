@@ -18,7 +18,7 @@ export interface AdherenceFigures {
   readonly sentBack: number
   readonly passesTotal: number
   readonly firstTimeShare: number | null
-  readonly deviationNotes: number
+  readonly deviations: number
 }
 
 export interface PlanAdherence extends AdherenceFigures {

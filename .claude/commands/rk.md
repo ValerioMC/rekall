@@ -157,13 +157,14 @@ may not do it silently.
 
 - Depart only for a reason you can state: the plan cannot be built as drawn, or the other way is
   plainly simpler or more correct. Not for taste.
-- Write a note with `rekall_note` on the task, titled for the step it refers to
-  (`step-3-changes.md`) and starting with `Refers to step 3: <its exact title>`. It says what was
-  planned, what was built instead, why, and the diagram of the piece as built. The steps still to do
-  that this changes are named in it by number.
-- A step's detail cannot be edited from here, so the note is where the change lives. A note on that
-  step that already exists is rewritten with `replace: true`, not added to.
-- The wrapup describes the system as it is and does not carry the difference; it can say the note
+- Record it with `rekall_deviation` on the task, for the step it refers to: its number, counted from
+  1 as the checklist lists it. It is not a note: it is kept apart from the task's notes and the
+  console lists it as a deviation of that step. It says what was planned, what was built instead,
+  why, and the diagram of the piece as built. The steps still to do that this changes are named in it
+  by number.
+- A step's detail cannot be edited from here, so the deviation is where the change lives. Recording
+  again for the same step rewrites that deviation, so send the whole text.
+- The wrapup describes the system as it is and does not carry the difference; it can say a deviation
   exists.
 
 ### What the work produces

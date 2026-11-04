@@ -121,7 +121,7 @@ good, from data other domains already keep. `PlanAdherenceService` (domain `adhe
   sent back, so a step sent back twice and accepted counts three.
 - `firstTimeShare` is accepted at the first pass over `DONE` steps, a fraction; with no `DONE` step it is
   absent, not zero.
-- `deviationSteps` holds the step number of each note titled `step-N-changes.md`; the text is not read.
+- `deviationSteps` holds the step number of each of the task's deviations (`task_deviation`), in step order; the text is not read.
 - `visits` lists, for a task that ran as a flow, each step the flow entered with its visit count and
   `max_visits`; `budgetSpent` is true once the step admits no further visit.
 - A project's view sums the same numbers over its tasks and lists the five tasks with the most steps

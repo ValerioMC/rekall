@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import DescriptionCard from '@/features/catalog/components/DescriptionCard.vue'
+import DeviationsCard from '@/features/deviations/components/DeviationsCard.vue'
 import NoteAttachPicker from '@/features/notes/components/NoteAttachPicker.vue'
 import TimeLogDialog from '@/features/time/components/TimeLogDialog.vue'
 import StepsCard from '@/features/steps/components/StepsCard.vue'
@@ -11,6 +12,7 @@ import { tasksOfEpic } from '@/features/catalog/model/epic'
 import { isEpic } from '@/features/catalog/model/catalog'
 import TimerCard from '@/features/time/components/TimerCard.vue'
 import WrapupCard from '@/features/wrapup/components/WrapupCard.vue'
+import { useTaskDeviations } from '@/features/deviations/composables/useTaskDeviations'
 import { useConsoleStore } from '@/stores/console.store'
 import { useToastStore } from '@/stores/toast.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
@@ -25,6 +27,7 @@ const {
   selectedDocId,
   taskDocuments,
   paneFocus,
+  selectedDeviationStep,
   selectedTaskSteps,
   selectedWrapup,
   wrapupIsBehind,
@@ -38,6 +41,8 @@ const {
 } = storeToRefs(store)
 const { run } = useAsyncAction()
 const toast = useToastStore()
+
+const { deviations } = useTaskDeviations(computed(() => selectedTask.value?.id ?? null))
 
 const epicOfSelected = computed(() => {
   const epicId = selectedTask.value?.epicId
@@ -205,6 +210,12 @@ async function detach(note: RekallDocument): Promise<void> {
             :behind="wrapupIsBehind"
             :misses-steps="wrapupMissesSteps"
             @open="store.openWrapup()"
+          />
+
+          <DeviationsCard
+            :deviations="deviations"
+            :open-step="paneFocus === 'deviation' ? selectedDeviationStep : null"
+            @open="store.openDeviation"
           />
 
           <div class="dossier-seam relative z-[1] flex items-center gap-2 pb-1.5 pl-[38px] pr-3 pt-2.5">

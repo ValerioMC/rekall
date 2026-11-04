@@ -13,7 +13,7 @@ pub struct ProjectAdherenceResponse {
     pub sent_back: usize,
     pub passes_total: usize,
     pub first_time_share: Option<f64>,
-    pub deviation_notes: usize,
+    pub deviations: usize,
     pub most_sent_back: Vec<TaskSentBackResponse>,
 }
 
@@ -27,7 +27,7 @@ impl From<ProjectAdherenceView> for ProjectAdherenceResponse {
             sent_back: view.counts.sent_back,
             passes_total: view.counts.passes_total,
             first_time_share: view.counts.first_time_share(),
-            deviation_notes: view.deviation_notes,
+            deviations: view.deviations,
             most_sent_back: view.most_sent_back.into_iter().map(TaskSentBackResponse::from).collect(),
         }
     }

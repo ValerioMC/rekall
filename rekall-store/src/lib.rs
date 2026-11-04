@@ -25,6 +25,7 @@ pub mod commit;
 pub mod component;
 pub mod connection;
 pub mod dependency;
+pub mod deviation;
 pub mod diagram;
 pub mod flow;
 pub mod graph;
@@ -48,6 +49,7 @@ pub use commit::{entity::commit_reference, entity::step_snapshot, entity::step_s
 pub use component::entity::project_component;
 pub use connection::{entity::connection_access, entity::connection_company, entity::external_connection, entity::project_connection};
 pub use dependency::entity::task_dependency;
+pub use deviation::entity::task_deviation;
 pub use flow::{entity::step_link, entity::step_visit};
 pub use graph::{entity::deployment_graph, entity::graph_route, entity::graph_step};
 pub use inventory::entity::project_dependency;
@@ -96,6 +98,7 @@ pub mod prelude {
     pub use super::tag_skill::{Entity as TagSkill, Model as TagSkillModel};
     pub use super::task::{Entity as Task, Model as TaskModel};
     pub use super::task_dependency::{Entity as TaskDependency, Model as TaskDependencyModel};
+    pub use super::task_deviation::{Entity as TaskDeviation, Model as TaskDeviationModel};
     pub use super::task_skill::{Entity as TaskSkill, Model as TaskSkillModel};
     pub use super::task_step::{Entity as TaskStep, Model as TaskStepModel};
     pub use super::time_entry::{Entity as TimeEntry, Model as TimeEntryModel};

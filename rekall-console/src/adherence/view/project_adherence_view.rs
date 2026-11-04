@@ -5,6 +5,6 @@ use crate::adherence::{AdherenceCounts, TaskSentBackView};
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProjectAdherenceView {
     pub counts: AdherenceCounts,
-    pub deviation_notes: usize,
+    pub deviations: usize,
     pub most_sent_back: Vec<TaskSentBackView>,
 }

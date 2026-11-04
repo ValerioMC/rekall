@@ -43,6 +43,8 @@ export function createConsoleState() {
     selectedTaskId: ref<TaskId | null>(null),
     selectedDocId: ref<DocumentId | null>(null),
     paneFocus: ref<PaneFocus>('note'),
+    /** The step whose deviation the deviation pane reads. */
+    selectedDeviationStep: ref<number | null>(null),
     /** A step something outside the steps pane asked to see; the pane opens it and clears this. */
     stepToOpen: ref<TaskStepId | null>(null),
     /** Browsing notes, the placements column gives way to the new-note composer while this is on. */

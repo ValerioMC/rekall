@@ -838,3 +838,43 @@ async fn a_sessions_transcript_in_a_projects_folder_reaches_the_token_tallies_of
     assert_eq!(days[0]["outputTokens"], json!(3));
     app.stop().await;
 }
+
+#[tokio::test]
+async fn a_deviation_a_session_records_stays_out_of_the_notes_is_listed_by_the_console_and_reaches_the_open_console() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
+    let task_id = app.a_task(&project_id, "report-builder").await;
+    app.a_step(&task_id, "Aggregate the rows", None).await;
+    app.a_step(&task_id, "Stream the export", None).await;
+    let mut lines = app.open_stream().await;
+    lines.await_line("event:open", 5).await;
+
+    let answer = app
+        .call_tool(
+            "rekall_deviation",
+            json!({ "anchors": "project:vega task:report-builder", "step": "2", "body": "Planned a queue; the existing stream does the job." }),
+        )
+        .await;
+
+    assert_contains!(answer, "Deviation on step 2 \"Stream the export\" recorded on `project:vega task:report-builder`", "1 deviation,");
+    assert_eq!(lines.await_line("event:deviation", 5).await, "event:deviation");
+    assert_contains!(lines.await_line("data:", 5).await, &task_id, "\"stepNumber\":2");
+    assert!(app.documents_on(&task_id).await.is_empty(), "a deviation is not a note");
+    let listed = app.get(&format!("/api/tasks/{task_id}/deviations")).await.list();
+    assert_eq!(listed.len(), 1);
+    assert_eq!((listed[0]["stepNumber"].as_i64(), listed[0]["stepTitle"].as_str()), (Some(2), Some("Stream the export")));
+    assert_contains!(
+        app.call_tool("rekall_context", json!({ "anchors": "project:vega task:report-builder" })).await,
+        "<deviation step=\"2\" title=\"Stream the export\">",
+        "the existing stream does the job."
+    );
+    assert_contains!(
+        app.call_tool("rekall_deviation", json!({ "anchors": "project:vega task:report-builder", "step": "7", "body": "x" })).await,
+        "there is no step 7"
+    );
+    assert_contains!(
+        app.call_tool("rekall_deviation", json!({ "anchors": "project:vega task:report-builder", "step": "two", "body": "x" })).await,
+        "'step' is the number of a step"
+    );
+}

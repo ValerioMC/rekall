@@ -6,6 +6,7 @@ pub mod check;
 pub mod commit;
 pub mod context;
 pub mod controller;
+pub mod deviation;
 pub mod diagram;
 pub mod flow;
 pub mod inventory;

@@ -51,7 +51,7 @@ describe('the plan adherence card of a project', () => {
 
   it('says so for a project whose tasks have no steps', async () => {
     vi.mocked(api.fetchProjectAdherence).mockResolvedValue(
-      projectAdherence({ stepsTotal: 0, stepsDone: 0, acceptedFirstTime: 0, sentBack: 0, passesTotal: 0, firstTimeShare: null, deviationNotes: 0, mostSentBack: [] })
+      projectAdherence({ stepsTotal: 0, stepsDone: 0, acceptedFirstTime: 0, sentBack: 0, passesTotal: 0, firstTimeShare: null, deviations: 0, mostSentBack: [] })
     )
 
     const wrapper = await render()

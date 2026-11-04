@@ -20,6 +20,7 @@ pub mod component;
 pub mod connection;
 pub mod context;
 pub mod dependency;
+pub mod deviation;
 pub mod diagram;
 pub mod filesystem;
 pub mod flow;

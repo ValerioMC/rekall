@@ -186,11 +186,11 @@ vi.mock('@xterm/addon-fit', () => ({
 vi.mock('@/features/adherence/api/adherence.api', () => ({
   fetchTaskAdherence: vi.fn(async () => ({
     stepsTotal: 0, stepsDone: 0, stepsClaimed: 0, acceptedFirstTime: 0, sentBack: 0, passesTotal: 0,
-    firstTimeShare: null, deviationNotes: 0, deviationSteps: [], visits: []
+    firstTimeShare: null, deviations: 0, deviationSteps: [], visits: []
   })),
   fetchProjectAdherence: vi.fn(async () => ({
     stepsTotal: 0, stepsDone: 0, stepsClaimed: 0, acceptedFirstTime: 0, sentBack: 0, passesTotal: 0,
-    firstTimeShare: null, deviationNotes: 0, mostSentBack: []
+    firstTimeShare: null, deviations: 0, mostSentBack: []
   }))
 }))
 vi.mock('@/features/wrapup/api/wrapup-versions.api', () => ({

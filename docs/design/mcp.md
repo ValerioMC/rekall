@@ -110,6 +110,8 @@ rather than overwritten, and the note is `FULL` with kind `notes` until a person
 one by its GHSA id; `rekall_assess_vulnerability` records a verdict, its reasoning and its conclusion on one exposure. See
 [vulnerabilities.md](vulnerabilities.md).
 
+`rekall_deviation` records where a session's work left the plan: the anchors, the number of the `step` (from 1, as the checklist lists them, drafts not counted) and the `body`. It writes a `task_deviation` row, one per task and step, so it never appears among the task's notes; recording again for a step rewrites that row, a step the checklist does not have is refused, and the `deviation` event tells an open console. The context carries the deviations of a task in a `<deviations>` block, in step order, in full.
+
 `rekall_project_section` is `rekall_note` for a project: the anchors name a task, the section lands on that
 task's project, and `replace` rewrites the body of the section with the same title (ignoring case) instead
 of refusing. Sections live in their own table, `project_section`, not in `document`, because a note is

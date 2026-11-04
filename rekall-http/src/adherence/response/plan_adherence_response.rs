@@ -14,7 +14,7 @@ pub struct PlanAdherenceResponse {
     pub sent_back: usize,
     pub passes_total: usize,
     pub first_time_share: Option<f64>,
-    pub deviation_notes: usize,
+    pub deviations: usize,
     pub deviation_steps: Vec<usize>,
     pub visits: Vec<StepVisitsResponse>,
 }
@@ -29,7 +29,7 @@ impl From<PlanAdherenceView> for PlanAdherenceResponse {
             sent_back: view.counts.sent_back,
             passes_total: view.counts.passes_total,
             first_time_share: view.counts.first_time_share(),
-            deviation_notes: view.deviation_steps.len(),
+            deviations: view.deviation_steps.len(),
             deviation_steps: view.deviation_steps,
             visits: view.visits.into_iter().map(StepVisitsResponse::from).collect(),
         }

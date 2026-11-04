@@ -8,7 +8,7 @@ import type { ConsoleState } from './console-state'
 import type { useConsoleView } from './useConsoleView'
 import type { useSelectedTask } from './useSelectedTask'
 
-type TaskPane = Exclude<PaneFocus, 'note'>
+type TaskPane = Exclude<PaneFocus, 'note' | 'deviation'>
 
 /** Where the reader is: the scope, the task and note in view, and which pane is open over them. */
 export function useConsoleNavigation(
@@ -16,7 +16,7 @@ export function useConsoleNavigation(
   view: ReturnType<typeof useConsoleView>,
   selected: ReturnType<typeof useSelectedTask>
 ) {
-  const { tasks, documents, scopeCompany, scopeProject, navMode, selectedTaskId, selectedDocId, paneFocus } =
+  const { tasks, documents, scopeCompany, scopeProject, navMode, selectedTaskId, selectedDocId, paneFocus, selectedDeviationStep } =
     state
   const { stepToOpen, noteComposerOpen } = state
 
@@ -24,11 +24,13 @@ export function useConsoleNavigation(
     mode: navMode.value,
     taskId: selectedTaskId.value,
     documentId: selectedDocId.value,
-    pane: paneFocus.value
+    pane: paneFocus.value,
+    deviationStep: paneFocus.value === 'deviation' ? selectedDeviationStep.value : null
   }))
 
   function selectTask(id: TaskId): void {
     selectedTaskId.value = id
+    selectedDeviationStep.value = null
     const first = documents.value.find((document) => document.tasks.some((ref) => ref.id === id))
     selectedDocId.value = first?.id ?? null
     paneFocus.value = openingPaneOf(id)
@@ -82,7 +84,8 @@ export function useConsoleNavigation(
     navMode.value = target.mode
     selectedTaskId.value = taskId
     selectedDocId.value = documentId
-    paneFocus.value = taskId === null ? 'note' : target.pane
+    selectedDeviationStep.value = target.deviationStep
+    paneFocus.value = taskId === null || (target.pane === 'deviation' && target.deviationStep === null) ? 'note' : target.pane
     noteComposerOpen.value = false
     return location.value
   }
@@ -104,6 +107,18 @@ export function useConsoleNavigation(
   function openPane(pane: TaskPane): void {
     if (selectedTaskId.value === null) return
     paneFocus.value = pane
+  }
+
+  /** Brings a deviation into view on its own pane; the pane steps between the task's deviations. */
+  function openDeviation(stepNumber: number): void {
+    if (selectedTaskId.value === null) return
+    selectedDeviationStep.value = stepNumber
+    paneFocus.value = 'deviation'
+  }
+
+  function closeDeviation(): void {
+    selectedDeviationStep.value = null
+    if (paneFocus.value === 'deviation') paneFocus.value = 'note'
   }
 
   function togglePane(pane: TaskPane): void {
@@ -166,6 +181,8 @@ export function useConsoleNavigation(
     openWrapup: () => openPane('wrapup'),
     openDescription: () => openPane('description'),
     openSteps: () => openPane('steps'),
+    openDeviation,
+    closeDeviation,
     openTerminal: () => openPane('terminal'),
     toggleDescription: () => togglePane('description'),
     toggleWrapup: () => togglePane('wrapup'),
