@@ -46,7 +46,12 @@ const mark = computed(() => taskMark(props.task, steps.value, props.running))
 // reads as belonging to that project rather than to a single fixed "selected" hue.
 const selectTint = computed(() => identityHue(props.task.projectId))
 const sessionState = computed(() =>
-  taskSessionState(props.task.id, terminals.value, mark.value.state === 'CLAIMED' || mark.value.state === 'LIVE_CLAIMED')
+  taskSessionState(
+    props.task.id,
+    terminals.value,
+    mark.value.state === 'CLAIMED' || mark.value.state === 'LIVE_CLAIMED',
+    props.task.status === 'IN_PROGRESS'
+  )
 )
 const markLabel = computed(() => TASK_MARK_LABEL[mark.value.state] || TASK_STATUS_LABEL[props.task.status])
 

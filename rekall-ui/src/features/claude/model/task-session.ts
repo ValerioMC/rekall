@@ -5,9 +5,11 @@ import type { TaskId } from '@/model/branded'
  * What the sessions opened on a task say about it, for the row that lists the task.
  *
  *   APPROVAL  a chat session waits for an answer from you: it outranks every other state.
- *   CLAIMED   a session has run on the task and its work is handed in, awaiting your review.
+ *   CLAIMED   a session has run on the task and its work is handed in, awaiting your review, or
+ *             every session has ended and the task is still in progress: the check stays until the
+ *             task leaves progress.
  *   LIVE      a session is open on the task.
- *   ENDED     a session ran on the task and has ended.
+ *   ENDED     a session ran on the task, has ended, and the task is no longer in progress.
  *   NONE      no session was ever opened on it.
  */
 export type TaskSessionState = 'APPROVAL' | 'CLAIMED' | 'LIVE' | 'ENDED' | 'NONE'
@@ -23,11 +25,13 @@ export const TASK_SESSION_LABEL: Readonly<Record<TaskSessionState, string>> = {
 export function taskSessionState(
   taskId: TaskId,
   sessions: readonly Terminal[],
-  workClaimed: boolean
+  workClaimed: boolean,
+  taskInProgress: boolean
 ): TaskSessionState {
   const own = sessions.filter((session) => session.taskId === taskId)
   if (own.some((session) => session.live && session.awaitingPermission)) return 'APPROVAL'
   if (own.length > 0 && workClaimed) return 'CLAIMED'
   if (own.some((session) => session.live)) return 'LIVE'
+  if (own.length > 0 && taskInProgress) return 'CLAIMED'
   return own.length > 0 ? 'ENDED' : 'NONE'
 }
