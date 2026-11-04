@@ -5,6 +5,7 @@
  */
 import { nextTick, onMounted, ref } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
+import AppCheckbox from '@/components/ui/AppCheckbox.vue'
 import AppDialog from '@/components/ui/AppDialog.vue'
 import { useUpdateStore } from '@/features/settings/store/update.store'
 
@@ -45,6 +46,13 @@ onMounted(async () => {
       >
         The install did not finish: {{ update.installFailure }}. Download it and install it by hand instead.
       </p>
+      <AppCheckbox
+        v-model="update.remindAtStartup"
+        class="mt-3.5"
+        label="Remind me at startup"
+        :disabled="update.installing"
+        data-testid="update-remind"
+      />
     </div>
     <div class="flex justify-end gap-2 border-t border-border bg-canvas px-5 py-3">
       <AppButton variant="ghost" size="sm" :disabled="update.installing" @click="update.dismiss">Later</AppButton>
@@ -64,7 +72,7 @@ onMounted(async () => {
         :href="update.downloadHref"
         class="focus-ring key-gold inline-flex h-7 items-center justify-center gap-1.5 rounded-key px-3 text-caption font-semibold whitespace-nowrap select-none"
         data-testid="update-download"
-        @click="update.dismiss"
+        @click="update.promptOpen = false"
       >
         Download
       </a>

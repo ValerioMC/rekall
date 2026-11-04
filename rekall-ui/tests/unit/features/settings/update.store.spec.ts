@@ -13,13 +13,23 @@ const available: VersionStatus = {
 }
 const upToDate: VersionStatus = { current: '0.2.0', check: 'UP_TO_DATE', latest: null }
 
+// This environment hands out no usable storage, so each test gets one of its own.
 beforeEach(() => {
+  const values = new Map<string, string>()
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    value: {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => void values.set(key, value)
+    }
+  })
   setActivePinia(createPinia())
   vi.mocked(fetchVersionStatus).mockReset()
 })
 
 afterEach(() => {
   delete window.rekallDesktop
+  delete (window as { localStorage?: unknown }).localStorage
 })
 
 describe('update store', () => {
@@ -32,6 +42,54 @@ describe('update store', () => {
 
     expect(update.promptOpen).toBe(true)
     expect(update.downloadHref).toBe('https://example.test/release')
+  })
+
+  it('keeps reminding at startup after Later while the reminder stays on', async () => {
+    window.rekallDesktop = { pickFolder: vi.fn() }
+    vi.mocked(fetchVersionStatus).mockResolvedValue(available)
+    const first = useUpdateStore()
+    await first.checkAtStartup()
+    first.dismiss()
+
+    setActivePinia(createPinia())
+    const next = useUpdateStore()
+    await next.checkAtStartup()
+
+    expect(next.promptOpen).toBe(true)
+  })
+
+  it('stays silent at the next startup for a release dismissed with the reminder off', async () => {
+    window.rekallDesktop = { pickFolder: vi.fn() }
+    vi.mocked(fetchVersionStatus).mockResolvedValue(available)
+    const first = useUpdateStore()
+    await first.checkAtStartup()
+    first.remindAtStartup = false
+    first.dismiss()
+
+    setActivePinia(createPinia())
+    const next = useUpdateStore()
+    await next.checkAtStartup()
+
+    expect(next.promptOpen).toBe(false)
+  })
+
+  it('announces a newer release than the one muted', async () => {
+    window.rekallDesktop = { pickFolder: vi.fn() }
+    vi.mocked(fetchVersionStatus).mockResolvedValue(available)
+    const first = useUpdateStore()
+    await first.checkAtStartup()
+    first.remindAtStartup = false
+    first.dismiss()
+
+    setActivePinia(createPinia())
+    vi.mocked(fetchVersionStatus).mockResolvedValue({
+      ...available,
+      latest: { ...available.latest!, version: '0.3.0' }
+    })
+    const next = useUpdateStore()
+    await next.checkAtStartup()
+
+    expect(next.promptOpen).toBe(true)
   })
 
   it('stays silent at startup when up to date', async () => {

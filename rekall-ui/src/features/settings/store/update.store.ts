@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { fetchVersionStatus } from '@/features/settings/api/version.api'
+import { mutedUpdateVersion, muteUpdateVersion } from '@/common/config/update-reminder'
 import { canInstallUpdate, installUpdate, isDesktopApp } from '@/common/native/desktop'
 import type { LatestRelease, VersionStatus } from '@/features/settings/model/version'
 
@@ -14,6 +15,7 @@ export const useUpdateStore = defineStore('update', () => {
   const installing = ref(false)
   const installFailure = ref<string | null>(null)
   const promptOpen = ref(false)
+  const remindAtStartup = ref(true)
   let startupChecked = false
 
   const latest = computed<LatestRelease | null>(() =>
@@ -39,7 +41,7 @@ export const useUpdateStore = defineStore('update', () => {
     startupChecked = true
     try {
       await check()
-      promptOpen.value = latest.value !== null
+      promptOpen.value = latest.value !== null && latest.value.version !== mutedUpdateVersion()
     } catch {
       promptOpen.value = false
     }
@@ -59,7 +61,9 @@ export const useUpdateStore = defineStore('update', () => {
   }
 
   function dismiss(): void {
-    if (!installing.value) promptOpen.value = false
+    if (installing.value) return
+    if (!remindAtStartup.value && latest.value) muteUpdateVersion(latest.value.version)
+    promptOpen.value = false
   }
 
   return {
@@ -68,6 +72,7 @@ export const useUpdateStore = defineStore('update', () => {
     installing,
     installFailure,
     promptOpen,
+    remindAtStartup,
     latest,
     downloadHref,
     installsItself,

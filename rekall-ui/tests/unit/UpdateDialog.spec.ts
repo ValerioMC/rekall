@@ -86,6 +86,17 @@ describe('UpdateDialog', () => {
     expect(update.promptOpen).toBe(true)
   })
 
+  it('offers a reminder checkbox that starts checked and unchecking it is what Later remembers', async () => {
+    installBridge(() => Promise.resolve(true))
+    const { update, wrapper } = mountDialog()
+    const checkbox = wrapper.get('[data-testid="update-remind"] input')
+
+    expect((checkbox.element as HTMLInputElement).checked).toBe(true)
+    await checkbox.setValue(false)
+
+    expect(update.remindAtStartup).toBe(false)
+  })
+
   it('Later closes it', async () => {
     installBridge(() => Promise.resolve(true))
     const { update, wrapper } = mountDialog()
