@@ -43,6 +43,7 @@ mod m064_task_dependency;
 mod m065_parallel_sessions;
 mod m066_task_worktree;
 mod m067_task_deviation;
+mod m068_drop_orphan_note_links;
 mod migration_support;
 mod migrator;
 

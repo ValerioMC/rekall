@@ -26,6 +26,7 @@ changeset!(TaskDeviation, "067-task-deviation", |manager| {
         "INSERT OR IGNORE INTO task_deviation (id, task_id, step_number, body_markdown, created_at, updated_at)
             SELECT d.id, n.task_id, n.step_number, d.body_markdown, d.created_at, d.updated_at
             FROM deviation_note n JOIN document d ON d.id = n.id WHERE n.step_number > 0",
+        "DELETE FROM document_task WHERE document_id IN (SELECT id FROM task_deviation)",
         "DELETE FROM document WHERE id IN (SELECT id FROM task_deviation)",
         "DROP TABLE deviation_note",
     ])
