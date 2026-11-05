@@ -86,15 +86,14 @@ pub(crate) fn build_window(handle: &AppHandle) -> tauri::Result<WebviewWindow> {
                 replay_splash(&window);
             }
         });
-    // No native title bar and no native traffic lights either: the overlay title bar still drew
-    // the system's own close/minimize/maximize buttons, which sat oddly over the console's header.
-    // Fully borderless instead, so the only close/minimize/maximize buttons are the ones the
-    // console draws itself in AnchorBar.vue, wired to `close_window`/`minimize_window`/
-    // `toggle_maximize_window` in bridges.rs. The window stays resizable and miniaturizable: only
-    // the titlebar chrome is gone. The header itself is the drag region
-    // (`data-tauri-drag-region` in AnchorBar.vue), and double-clicking it maximizes, both for free
-    // from Tauri's own drag-region handling.
-    #[cfg(target_os = "macos")]
+    // No native title bar on macOS and Windows: a native one would sit above the console's own
+    // header, and the macOS overlay style still drew the system buttons over it. Borderless
+    // instead, so the only close/minimize/maximize buttons are the ones the console draws in its
+    // header (`WindowControls.vue`, one component per platform), wired to `close_window`/
+    // `minimize_window`/`toggle_maximize_window`. The window stays resizable. The header is the
+    // drag region (`data-tauri-drag-region` in AppHeaderChrome.vue), and double-clicking it
+    // maximizes, both from Tauri's own drag-region handling.
+    #[cfg(any(target_os = "macos", windows))]
     let builder = builder.decorations(false);
     let window = builder.build()?;
     #[cfg(target_os = "macos")]

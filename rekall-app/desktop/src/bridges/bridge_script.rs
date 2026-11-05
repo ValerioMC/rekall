@@ -34,6 +34,7 @@ const BRIDGE: &str = r#"
     toggleMaximizeWindow: function () {
       return call('toggle_maximize_window', {});
     },
+    platform: '__PLATFORM__',
     installsUpdates: __INSTALLS_UPDATES__,
     installUpdate: function () {
       return call('install_update', {});
@@ -45,7 +46,18 @@ const BRIDGE: &str = r#"
 })();
 "#;
 
+/// The platform the console draws its window controls for: `macos`, `windows` or `linux`.
+pub const PLATFORM: &str = if cfg!(target_os = "macos") {
+    "macos"
+} else if cfg!(windows) {
+    "windows"
+} else {
+    "linux"
+};
+
 /// The script with what only the build knows: installing from the app is a macOS feature.
 pub fn bridge_script() -> String {
-    BRIDGE.replace("__INSTALLS_UPDATES__", if cfg!(target_os = "macos") { "true" } else { "false" })
+    BRIDGE
+        .replace("__INSTALLS_UPDATES__", if cfg!(target_os = "macos") { "true" } else { "false" })
+        .replace("__PLATFORM__", PLATFORM)
 }

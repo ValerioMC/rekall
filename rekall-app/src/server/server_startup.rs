@@ -1,4 +1,10 @@
+use std::convert::Infallible;
 use std::net::{Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
+use std::sync::Arc;
+
+use axum::extract::ConnectInfo;
+use axum::serve::IncomingStream;
+use axum::Extension;
 use std::time::Duration;
 
 use rekall_store::Database;
@@ -11,12 +17,13 @@ use crate::config::AppConfig;
 use rekall_infra::config::DatabaseOverride;
 use rekall_infra::restart::{self, Restarter, RESTART_DELAY};
 
+use super::shared_listener::SharedListener;
 use super::{Instance, Running, StartOptions};
 
 /// Bind the port and start the supervisor. The listening socket is kept across restarts, so a
 /// request that arrives in the gap waits for the next instance instead of being refused.
 pub async fn start(config: AppConfig, options: StartOptions) -> Result<Running, String> {
-    let listener = bind(config.port)?;
+    let listener = Arc::new(tokio::net::TcpListener::from_std(bind(config.port)?).map_err(|e| e.to_string())?);
     let port = listener.local_addr().map_err(|e| e.to_string())?.port();
     let (current_sender, current) = watch::channel(None);
     let (stop, stop_signal) = oneshot::channel();
@@ -30,7 +37,7 @@ pub async fn start(config: AppConfig, options: StartOptions) -> Result<Running, 
 async fn supervise(
     config: AppConfig,
     options: StartOptions,
-    listener: std::net::TcpListener,
+    listener: Arc<tokio::net::TcpListener>,
     port: u16,
     current: watch::Sender<Option<(u64, Services)>>,
     mut stop_signal: oneshot::Receiver<()>,
@@ -50,18 +57,13 @@ async fn supervise(
                 return;
             }
         };
-        let tokio_listener = match listener.try_clone().and_then(tokio::net::TcpListener::from_std) {
-            Ok(tokio_listener) => tokio_listener,
-            Err(failed) => {
-                error!(%failed, %port, "Could not listen on the port");
-                if let Some(first_up) = first_up.take() {
-                    let _ = first_up.send(Err(failed.to_string()));
-                }
-                return;
-            }
-        };
+        let tokio_listener = SharedListener(listener.clone());
         let (serving_stop, serving_stop_signal) = oneshot::channel::<()>();
-        let app = instance.router().into_make_service_with_connect_info::<SocketAddr>();
+        let router = instance.router();
+        let app = tower::service_fn(move |stream: IncomingStream<'_, SharedListener>| {
+            let peer = ConnectInfo(*stream.remote_addr());
+            std::future::ready(Ok::<_, Infallible>(router.clone().layer(Extension(peer))))
+        });
         let server = tokio::spawn(async move {
             let served = axum::serve(tokio_listener, app)
                 .with_graceful_shutdown(async move {

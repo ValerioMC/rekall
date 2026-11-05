@@ -13,12 +13,13 @@ name: Release
 #   rekall-v0.1.1-linux-x64         the server, console embedded
 #   rekall-v0.1.1-windows-x64.exe   the server, console embedded
 #   Rekall-macos-arm64.dmg          Rekall.app (Tauri), Apple Silicon
+#   Rekall-windows-x64-setup.exe    the Windows installer (Tauri, NSIS), per user, unsigned
 #
 # The tag's version (v0.1.1 -> 0.1.1) is compiled into every build as REKALL_VERSION: the console
 # shows it after "Rekall" and compares it with this release feed to offer a newer download.
 #
-# The disk image carries no version in its name, because it is the one asset a link off-site
-# points at and a name that moves would defeat that.
+# The disk image and the installer carry no version in their names, because they are the assets a
+# link off-site points at and a name that moves would defeat that.
 on:
   push:
     tags:
@@ -196,6 +197,58 @@ jobs:
         run: |
           release_name="rekall${{ needs.build-and-release.outputs.suffix }}-windows-x64.exe"
           cp target/release/rekall-server.exe "$release_name"
+          echo "path=$release_name" >> "$GITHUB_OUTPUT"
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.build-and-release.outputs.tag }}
+          files: ${{ steps.bin.outputs.path }}
+
+  # The same installer `scripts/windows-installer.ps1` builds locally: the script checks the
+  # toolchain, installs the Tauri CLI, builds the console and runs `cargo tauri build`, so the
+  # release and a developer's machine cannot drift apart.
+  build-installer-windows:
+    needs: build-and-release
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: rekall-ui/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: rekall-ui/pnpm-lock.yaml
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build installer
+        shell: pwsh
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/windows-installer.ps1 -Version "$env:REKALL_VERSION"
+        env:
+          REKALL_VERSION: ${{ needs.build-and-release.outputs.version }}
+
+      # The installer keeps one name on every release, because a link on a web page points at it.
+      # The name Tauri writes carries the version and the architecture, so the file is found by
+      # pattern rather than by guessing that string.
+      - name: Locate installer
+        id: bin
+        shell: bash
+        run: |
+          setup=$(find target/release/bundle/nsis -maxdepth 1 -name '*-setup.exe' | head -1)
+          if [ -z "$setup" ]; then
+            echo "no installer under target/release/bundle/nsis" >&2
+            exit 1
+          fi
+          release_name="Rekall-windows-x64-setup.exe"
+          cp "$setup" "$release_name"
+          echo "Built $(basename "$setup") ($(du -h "$setup" | cut -f1))"
           echo "path=$release_name" >> "$GITHUB_OUTPUT"
 
       - name: Upload to release

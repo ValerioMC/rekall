@@ -56,7 +56,7 @@ A disk image for Apple Silicon is published with every `v*` tag pushed on a comm
 xattr -dr com.apple.quarantine /Applications/Rekall.app
 ```
 
-The app is a Tauri v2 window over the same server `rekall-server` runs, on the same port, config and MCP endpoint. It checks for a newer release when it starts and installs it in place. `make dmg`, `make app` and `make install` build it locally. The release process, update flow, splash, quit guard and icons are in [docs/guide/desktop.md](docs/guide/desktop.md).
+The app is a Tauri v2 window over the same server `rekall-server` runs, on the same port, config and MCP endpoint. It checks for a newer release when it starts and installs it in place. `make dmg`, `make app` and `make install` build it locally; on Windows, `scripts\windows-installer.ps1` builds a setup `.exe` (see [docs/guide/desktop.md](docs/guide/desktop.md#windows-installer)). The release process, update flow, splash, quit guard and icons are in [docs/guide/desktop.md](docs/guide/desktop.md).
 
 ## Connect Claude Code
 
