@@ -46,7 +46,7 @@ const BRIDGE: &str = r#"
 })();
 "#;
 
-/// The platform the console draws its window controls for: `macos`, `windows` or `linux`.
+/// The platform the console lays its header out for: `macos`, `windows` or `linux`.
 pub const PLATFORM: &str = if cfg!(target_os = "macos") {
     "macos"
 } else if cfg!(windows) {

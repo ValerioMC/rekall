@@ -7,6 +7,8 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
 use tauri::webview::{DownloadEvent, NewWindowResponse};
+#[cfg(target_os = "macos")]
+use tauri::{LogicalPosition, TitleBarStyle};
 use tauri::{AppHandle, LogicalSize, Manager, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 use tauri_plugin_opener::OpenerExt;
 use tracing::{error, warn};
@@ -86,14 +88,18 @@ pub(crate) fn build_window(handle: &AppHandle) -> tauri::Result<WebviewWindow> {
                 replay_splash(&window);
             }
         });
-    // No native title bar on macOS and Windows: a native one would sit above the console's own
-    // header, and the macOS overlay style still drew the system buttons over it. Borderless
-    // instead, so the only close/minimize/maximize buttons are the ones the console draws in its
-    // header (`WindowControls.vue`, one component per platform), wired to `close_window`/
-    // `minimize_window`/`toggle_maximize_window`. The window stays resizable. The header is the
-    // drag region (`data-tauri-drag-region` in AppHeaderChrome.vue), and double-clicking it
-    // maximizes, both from Tauri's own drag-region handling.
-    #[cfg(any(target_os = "macos", windows))]
+    // macOS keeps its own close/minimize/maximize buttons, floated over the console's header: the
+    // overlay title bar draws no bar and no title, and the header (`AppHeaderChrome.vue`) leaves
+    // room for the buttons. Windows has no native frame at all: the console draws its buttons in
+    // the header (`WindowsWindowControls.vue`), wired to `close_window`/`minimize_window`/
+    // `toggle_maximize_window`. Either way the window stays resizable, the header is the drag
+    // region (`data-tauri-drag-region`) and double-clicking it maximizes, from Tauri's own handling.
+    #[cfg(target_os = "macos")]
+    let builder = builder
+        .title_bar_style(TitleBarStyle::Overlay)
+        .hidden_title(true)
+        .traffic_light_position(LogicalPosition::new(16.0, 18.0));
+    #[cfg(windows)]
     let builder = builder.decorations(false);
     let window = builder.build()?;
     #[cfg(target_os = "macos")]
