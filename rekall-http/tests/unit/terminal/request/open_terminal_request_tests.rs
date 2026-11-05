@@ -22,6 +22,12 @@ fn a_replan_carries_the_request_as_what_the_plan_missed_unless_it_is_blank() {
 }
 
 #[test]
+fn a_revise_request_evaluates_the_pending_thread_whatever_else_it_carries() {
+    assert_eq!(parsed(r#"{"mode":"REVISE"}"#).mode().unwrap(), TerminalMode::Revise);
+    assert_eq!(parsed(r#"{"mode":"REVISE","request":"ignored"}"#).mode().unwrap(), TerminalMode::Revise);
+}
+
+#[test]
 fn a_generate_request_needs_something_to_generate() {
     assert!(parsed(r#"{"mode":"GENERATE","request":"  "}"#).mode().is_err());
     assert_eq!(

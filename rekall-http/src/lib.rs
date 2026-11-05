@@ -22,6 +22,7 @@ pub mod context;
 pub mod dependency;
 pub mod deviation;
 pub mod diagram;
+pub mod feedback;
 pub mod filesystem;
 pub mod flow;
 pub mod graph;

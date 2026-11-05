@@ -138,3 +138,7 @@ path = "tests/integration/terminal_queue.rs"
 [[test]]
 name = "terminal_socket"
 path = "tests/integration/terminal_socket.rs"
+
+[[test]]
+name = "e2e_feedback"
+path = "tests/integration/e2e_feedback.rs"

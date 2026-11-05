@@ -152,6 +152,7 @@ const HTTP: LayeredCrate = LayeredCrate {
         ("dependency", &[]),
         ("deviation", &[]),
         ("diagram", &[]),
+        ("feedback", &[]),
         ("filesystem", &[]),
         ("flow", &["step"]),
         ("graph", &["step"]),

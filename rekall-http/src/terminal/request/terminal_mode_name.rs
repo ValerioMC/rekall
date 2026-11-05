@@ -9,6 +9,7 @@ pub enum TerminalModeName {
     #[serde(rename = "PLAN_FLOW")]
     PlanFlow,
     Replan,
+    Revise,
     Generate,
     Explain,
     Inventory,
