@@ -38,8 +38,10 @@ pub const PACKAGED_MODES: [(&str, &str); 12] = [
     ("stepping.md", include_str!("../../../.claude/rk/stepping.md")),
     ("wrapping-up.md", include_str!("../../../.claude/rk/wrapping-up.md")),
 ];
-const HOME_RELATIVE_BINARIES: [&str; 3] = [".local/bin/claude", ".claude/local/claude", "bin/claude"];
-const KNOWN_DIRECTORIES: &str = "/opt/homebrew/bin:/usr/local/bin:/usr/bin";
+const HOME_RELATIVE_DIRECTORIES: [&str; 3] = [".local/bin", ".claude/local", "bin"];
+/// What the binary is called: the native installer writes `claude.exe` on Windows and npm a `claude.cmd` shim.
+const BINARY_NAMES: &[&str] = if cfg!(windows) { &["claude.exe", "claude.cmd"] } else { &["claude"] };
+const KNOWN_DIRECTORIES: [&str; 3] = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"];
 const COMMAND_TIMEOUT: Duration = Duration::from_secs(20);
 
 /// Runs a command in a directory with extra environment; the real one starts a process.
@@ -96,7 +98,8 @@ impl ClaudeCodeInstaller {
                 self.manual_command()
             )));
         };
-        let environment = HashMap::from([("HOME".to_string(), self.home.to_string_lossy().into_owned())]);
+        let home = self.home.to_string_lossy().into_owned();
+        let environment = HashMap::from([("HOME".to_string(), home.clone()), ("USERPROFILE".to_string(), home)]);
 
         let removed = (self.runner)(&args(&cli, &["mcp", "remove", "--scope", "user", SERVER_NAME]), &environment, &self.home);
         if !removed.succeeded() {
@@ -210,23 +213,12 @@ impl ClaudeCodeInstaller {
     }
 
     fn locate_cli(&self) -> Option<String> {
-        for candidate in HOME_RELATIVE_BINARIES {
-            let path = self.home.join(candidate);
-            if crate::login_shell::is_executable(&path) {
-                return Some(path.to_string_lossy().into_owned());
-            }
-        }
-        let search_path = self.search_path.as_deref()?;
-        for directory in search_path.split(':') {
-            if directory.trim().is_empty() {
-                continue;
-            }
-            let candidate = Path::new(directory).join("claude");
-            if crate::login_shell::is_executable(&candidate) {
-                return Some(candidate.to_string_lossy().into_owned());
-            }
-        }
-        None
+        let home_directories = HOME_RELATIVE_DIRECTORIES.iter().map(|directory| self.home.join(directory));
+        let path_directories = self.search_path.iter().flat_map(|search_path| std::env::split_paths(search_path));
+        home_directories
+            .chain(path_directories)
+            .filter(|directory| !directory.as_os_str().is_empty())
+            .find_map(|directory| binary_in(&directory))
     }
 
     fn manual_command(&self) -> String {
@@ -238,11 +230,21 @@ fn args(cli: &str, rest: &[&str]) -> Vec<String> {
     std::iter::once(cli.to_string()).chain(rest.iter().map(|s| s.to_string())).collect()
 }
 
+fn binary_in(directory: &Path) -> Option<String> {
+    BINARY_NAMES
+        .iter()
+        .map(|name| directory.join(name))
+        .find(|candidate| crate::login_shell::is_executable(candidate))
+        .map(|found| found.to_string_lossy().into_owned())
+}
+
+/// `PATH` followed by the directories a desktop app, started without a login shell, would miss.
 fn default_search_path() -> String {
-    match std::env::var("PATH") {
-        Ok(path) if !path.trim().is_empty() => format!("{path}:{KNOWN_DIRECTORIES}"),
-        _ => KNOWN_DIRECTORIES.to_string(),
-    }
+    let known = if cfg!(windows) { Vec::new() } else { KNOWN_DIRECTORIES.iter().map(PathBuf::from).collect() };
+    let inherited = std::env::var_os("PATH").map(|path| std::env::split_paths(&path).collect::<Vec<_>>()).unwrap_or_default();
+    std::env::join_paths(inherited.into_iter().chain(known))
+        .map(|joined| joined.to_string_lossy().into_owned())
+        .unwrap_or_default()
 }
 
 /// Output is stdout then stderr, trimmed; a command past the timeout is killed.

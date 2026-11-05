@@ -172,6 +172,19 @@ fn a_cli_on_this_machine_and_no_registration_is_not_connected_not_a_missing_cli(
 }
 
 #[test]
+fn a_cli_in_a_search_path_directory_is_found_whatever_separator_the_platform_uses() {
+    let h = Harness::new();
+    let bin = h.home().join("tools");
+    std::fs::create_dir_all(&bin).unwrap();
+    let cli = bin.join(BINARY_NAMES[0]);
+    std::fs::write(&cli, "#!/bin/sh\n").unwrap();
+    std::fs::set_permissions(&cli, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let search_path = std::env::join_paths([h.home().join("elsewhere"), bin]).unwrap().to_string_lossy().into_owned();
+    let installer = ClaudeCodeInstaller::with_runner(h.home().to_path_buf(), ENDPOINT.into(), h.recording(), Some(search_path));
+    assert_eq!(installer.status().cli_path, Some(cli.to_string_lossy().into_owned()));
+}
+
+#[test]
 fn the_user_scope_registration_and_a_current_command_file_together_are_connected() {
     let h = Harness::new();
     h.fake_cli();
