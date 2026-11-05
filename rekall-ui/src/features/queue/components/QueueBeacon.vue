@@ -6,9 +6,9 @@
  * The line says the one thing worth knowing in each state and nothing else: how many are lined
  * up, when a schedule starts, which task is running and how far along the run is, or when a hold
  * lifts. It shares the bar with the anchor field, which has to keep room for its placeholder, so
- * by default it is the dial and a figure; the words, and the running task's step, come in from
- * 1680px and the running task's title from 1760px. The full sentence is always the label and
- * the tooltip.
+ * by default it is the dial and a figure; the words and the running task's step come in once the
+ * header's right cell is 43rem wide, the task's title at 53rem, and the strand clips before it
+ * overflows. The full sentence is always the label and the tooltip.
  */
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
@@ -82,7 +82,7 @@ const label = computed(() => {
 <template>
   <button
     type="button"
-    class="status-segment focus-ring group max-w-[340px] shrink-0 pl-1.5"
+    class="status-segment focus-ring group min-w-0 max-w-[340px] pl-1.5"
     :class="
       queue.state === 'HOLDING'
         ? 'bg-warn-soft text-warn'
@@ -107,28 +107,28 @@ const label = computed(() => {
 
     <span class="flex min-w-0 items-baseline gap-1.5" data-testid="queue-beacon-line">
       <template v-if="queue.state === 'SCHEDULED'">
-        <span class="sr-only min-[1680px]:not-sr-only">Starts</span>
+        <span class="sr-only @min-[43rem]:not-sr-only">Starts</span>
         <span class="font-mono tabular-nums text-accent">{{ clockLabel(queue.startAt, now) }}</span>
       </template>
       <template v-else-if="queue.state === 'RUNNING'">
         <span class="font-mono tabular-nums text-accent">{{ ordinal }}/{{ progress.total }}</span>
         <span
           v-if="runningStep"
-          class="hidden font-mono tabular-nums text-text-muted min-[1680px]:inline"
+          class="hidden font-mono tabular-nums text-text-muted @min-[43rem]:inline"
           data-testid="queue-beacon-step"
         >
           step {{ runningStep.index }}/{{ runningStep.total }}
         </span>
-        <span v-if="progress.running" class="hidden min-w-0 max-w-[160px] truncate text-text-muted min-[1760px]:inline">
+        <span v-if="progress.running" class="hidden min-w-0 max-w-[160px] truncate text-text-muted @min-[53rem]:inline">
           {{ progress.running.taskTitle }}
         </span>
       </template>
       <template v-else-if="queue.state === 'HOLDING'">
-        <span class="sr-only min-[1680px]:not-sr-only">Resumes</span>
+        <span class="sr-only @min-[43rem]:not-sr-only">Resumes</span>
         <span class="font-mono tabular-nums">{{ clockLabel(queue.holdUntil, now) }}</span>
       </template>
       <template v-else>
-        <span class="sr-only min-[1680px]:not-sr-only">Queue</span>
+        <span class="sr-only @min-[43rem]:not-sr-only">Queue</span>
         <span
           v-if="progress.waiting > 0"
           class="rounded-full bg-surface-hover px-1.5 font-mono text-micro tabular-nums leading-[15px] text-text-muted"
@@ -140,7 +140,7 @@ const label = computed(() => {
 
     <span
       v-if="beads.length"
-      class="flex shrink-0 items-center gap-[3px] max-[1440px]:hidden"
+      class="flex min-w-0 items-center gap-[3px] overflow-hidden @max-[26rem]:hidden"
       data-testid="queue-beacon-strand"
     >
       <QueueBead

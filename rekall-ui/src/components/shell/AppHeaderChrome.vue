@@ -27,7 +27,7 @@ const isDesktop = isDesktopApp()
         <AppLogo :size="24" class="halo rounded-key" />
         <HistoryArrows />
       </div>
-      <div class="flex min-w-0 flex-1 justify-center self-stretch">
+      <div class="@container flex min-w-0 flex-1 justify-center self-stretch">
         <AppNavSwitcher />
       </div>
     </div>

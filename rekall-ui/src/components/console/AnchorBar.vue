@@ -238,8 +238,8 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
       </span>
     </div>
 
-    <div class="flex min-w-0 items-center gap-4">
-      <div class="flex flex-1 justify-center">
+    <div class="@container flex min-w-0 items-center gap-4">
+      <div class="flex min-w-0 flex-1 justify-center">
         <HeaderStatus />
       </div>
 
@@ -291,10 +291,10 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
             title="New note"
             @click="emit('newNote')"
           >
-            <svg class="size-3.5 min-[1536px]:hidden" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+            <svg class="size-3.5 @min-[34rem]:hidden" viewBox="0 0 12 12" fill="none" aria-hidden="true">
               <path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
             </svg>
-            <span class="max-[1535px]:sr-only">New note</span>
+            <span class="@max-[34rem]:sr-only">New note</span>
           </AppButton>
           <span
             v-if="needsTaskForNote"

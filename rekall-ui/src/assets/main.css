@@ -1230,8 +1230,9 @@
 /*
  * The header's three columns: a side, the search, a side. The sides are equal, so the search sits
  * at exactly half the window; its width is what is left once each side has the room its content
- * needs (`--header-side-min`), between 240px and 620px. The tabs fold into a menu below 1536px,
- * where the left side can no longer hold them.
+ * needs (`--header-side-min`), between 240px and 620px. What a side holds compresses to the room
+ * its cell has (container queries), never to the window: the tabs fold into a menu, and the right
+ * side drops its labels, before either could run under the search.
  */
 @utility app-header-grid {
   --header-side-min: 26rem;

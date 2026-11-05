@@ -165,7 +165,7 @@ function close(): void {
         <span class="font-mono tabular-nums" :class="TEXT[severity]">
           {{ percentLabel(session) }}
         </span>
-        <span class="hidden font-mono text-caption text-text-subtle min-[1600px]:inline">
+        <span class="hidden font-mono text-caption text-text-subtle @min-[37rem]:inline">
           {{ formatResetIn(session.resetsAt, now) }}
         </span>
       </template>

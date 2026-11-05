@@ -12,11 +12,12 @@ const alerts = useNavAlerts()
 const routeName = computed(() => (typeof route.name === 'string' ? route.name : null))
 </script>
 
-<!-- Under 1536px the tabs fold into one key that opens them as a vertical menu, so the header's
-     other cells keep their room in a narrow window. -->
+<!-- The room the header leaves this switcher is its container (set by `AppHeaderChrome`). Below 33rem
+     the tabs, 31rem wide plus an alert count, fold into one key that opens them as a vertical
+     menu, so they never run under the history arrows or the search. -->
 <template>
   <nav class="flex shrink-0 self-stretch" aria-label="Screen">
-    <div class="flex self-stretch max-[1535px]:hidden" data-testid="nav-tabs">
+    <div class="flex self-stretch @max-[33rem]:hidden" data-testid="nav-tabs">
       <template
         v-for="entry in NAV_ENTRIES"
         :key="entry.kind === 'screen' ? entry.screen.to : entry.group.label"
@@ -41,6 +42,6 @@ const routeName = computed(() => (typeof route.name === 'string' ? route.name : 
         <AppNavGroup v-else :group="entry.group" />
       </template>
     </div>
-    <AppNavMenu class="hidden max-[1535px]:flex" />
+    <AppNavMenu class="hidden @max-[33rem]:flex" />
   </nav>
 </template>

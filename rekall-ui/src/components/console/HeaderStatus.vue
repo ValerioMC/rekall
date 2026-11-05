@@ -15,7 +15,7 @@ const { reviewQueue } = storeToRefs(useConsoleStore())
 
 <template>
   <div
-    class="header-capsule"
+    class="header-capsule min-w-0 shrink"
     role="group"
     aria-label="Live status"
     data-testid="header-status"
