@@ -55,3 +55,7 @@ path = "tests/integration/vulnerabilities.rs"
 [[test]]
 name = "telemetry"
 path = "tests/integration/telemetry.rs"
+
+[[test]]
+name = "feedback"
+path = "tests/integration/feedback.rs"

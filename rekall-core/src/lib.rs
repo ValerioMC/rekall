@@ -17,6 +17,7 @@ pub mod dependency;
 pub mod deviation;
 pub mod diagram;
 pub mod events;
+pub mod feedback;
 pub mod flow;
 pub mod guard;
 pub mod inventory;

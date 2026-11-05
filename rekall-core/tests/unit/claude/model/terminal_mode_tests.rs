@@ -29,6 +29,13 @@ fn a_replan_terminal_asks_the_session_to_redesign_the_steps_and_follows_no_step(
 }
 
 #[test]
+fn a_revise_terminal_asks_the_session_to_evaluate_the_pending_thread_and_follows_no_step() {
+    assert_eq!(TerminalMode::Revise.first_line(ANCHORS), "/rk project:vega task:report-builder revise");
+    assert!(!TerminalMode::Revise.follows_steps() && !TerminalMode::Revise.works_on_a_project());
+    assert_eq!(TerminalMode::Revise.to_string(), "REVISE");
+}
+
+#[test]
 fn a_replan_terminal_carries_what_the_plan_missed_as_one_quoted_line() {
     let mode = TerminalMode::Replan { message: Some("Also cover \"export\"\nto csv  ".into()) };
     assert_eq!(mode.first_line(ANCHORS), "/rk project:vega task:report-builder replan \"Also cover 'export' to csv\"");

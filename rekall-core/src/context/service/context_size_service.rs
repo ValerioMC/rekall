@@ -41,6 +41,7 @@ impl ContextSizeService {
             add_part(&mut parts, "Wrapup", &renderer.render_wrapup(task.wrapup.as_ref(), &task.wrapup_freshness), false);
             add_part(&mut parts, "Commits", &renderer.render_commits(&task.commits), false);
             add_part(&mut parts, "Deviations", &renderer.render_deviations(&task.deviations), false);
+            add_part(&mut parts, "Thread", &renderer.render_thread(&task.thread), false);
             for document in &task.documents {
                 add_part(
                     &mut parts,

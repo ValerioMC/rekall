@@ -6,7 +6,8 @@ pub const REQUEST_MAX_CHARACTERS: usize = 2000;
 /// What a terminal is opened to do, which decides the `/rk` line typed into it first. `Work`
 /// loads the task and works it; `Plan` has the session propose the task's checklist as drafts;
 /// `PlanFlow` has it propose a flow, steps and routes, as drafts; `Replan` has it redesign the
-/// task's draft and open steps, bending them to the `message` when one is given; `Generate` has it draw `request`
+/// task's draft and open steps, bending them to the `message` when one is given; `Revise` has it
+/// evaluate the pending entries of the task's thread; `Generate` has it draw `request`
 /// as Mermaid sheets of the `kinds` asked for; `Explain` has it write a walkthrough of `request`;
 /// `Inventory` has it record the project's dependencies; `Assess` has it judge whether `advisory`
 /// really reaches the project, `AssessAll` every advisory not judged yet; `Autoconfigure` has it
@@ -19,6 +20,7 @@ pub enum TerminalMode {
     Plan,
     PlanFlow,
     Replan { message: Option<String> },
+    Revise,
     Generate { request: String, kinds: Vec<DiagramKind> },
     Explain { request: String },
     Inventory,
@@ -36,6 +38,7 @@ impl TerminalMode {
             TerminalMode::PlanFlow => format!("/rk {anchors} plan flow"),
             TerminalMode::Replan { message: None } => format!("/rk {anchors} replan"),
             TerminalMode::Replan { message: Some(message) } => format!("/rk {anchors} replan \"{}\"", one_line(message)),
+            TerminalMode::Revise => format!("/rk {anchors} revise"),
             TerminalMode::Generate { request, kinds } => {
                 format!("/rk {anchors} generate{} \"{}\"", kinds_term(kinds), one_line(request))
             }
@@ -84,6 +87,7 @@ impl std::fmt::Display for TerminalMode {
             TerminalMode::Plan => "PLAN",
             TerminalMode::PlanFlow => "PLAN_FLOW",
             TerminalMode::Replan { .. } => "REPLAN",
+            TerminalMode::Revise => "REVISE",
             TerminalMode::Generate { .. } => "GENERATE",
             TerminalMode::Explain { .. } => "EXPLAIN",
             TerminalMode::Inventory => "INVENTORY",

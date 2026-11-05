@@ -14,6 +14,7 @@ use crate::component::{referenced_task_labels, ProjectComponentView};
 use crate::connection::ConnectionView;
 use crate::dependency::{TaskWait, TaskWaitService};
 use crate::deviation::DeviationView;
+use crate::feedback::FeedbackView;
 use crate::step::{StepFlowRows, TaskStepView};
 use crate::task::TaskReferenceView;
 use crate::wrapup::{Freshness, WrapupFreshnessService, WrapupView};
@@ -298,6 +299,7 @@ impl ContextService {
         let connections = repo::project_connection::list_of_project(db, project.id).await?;
         let documents = repo::document::documents_of_task(db, task.id).await?;
         let deviations = repo::task_deviation::list_of_task(db, task.id).await?;
+        let thread = repo::task_feedback::list_of_task(db, task.id).await?;
         let wrapup = load::wrapup_of(db, task.id).await?.map(|found| WrapupView::of(&found, task, project));
         let wrapup_freshness = match wrapup {
             Some(_) => self.freshness.check_in(tx, task.id).await?,
@@ -312,6 +314,7 @@ impl ContextService {
             related: children.iter().map(|child| format!("task:{}", child.label)).collect(),
             documents: documents.iter().map(DocumentView::of).collect(),
             deviations: deviations.iter().map(|deviation| DeviationView::of(deviation, step_title_at(&steps, deviation.step_number))).collect(),
+            thread: thread.iter().map(FeedbackView::of).collect(),
             skills: self.skills_of(tx, task, &steps).await?,
             step_connections: self.step_connections_of(tx, project, &steps).await?,
             steps,

@@ -3,12 +3,13 @@
 use std::collections::HashSet;
 
 use rekall_kernel::jstr;
-use rekall_store::{ConnectionKind, DocumentContextMode, TaskStepState};
+use rekall_store::{ConnectionKind, DocumentContextMode, FeedbackKind, FeedbackState, TaskStepState};
 
 use crate::context::{ContextCommitView, ContextRecord, ContextSkillScope, ContextSkillView, DocumentView, StepConnectionView};
 use crate::component::{ComponentReferences, ProjectComponentView};
 use crate::connection::ConnectionView;
 use crate::deviation::DeviationView;
+use crate::feedback::FeedbackView;
 use crate::step::{StepLinkView, TaskStepView};
 use crate::wrapup::{Freshness, WrapupView};
 
@@ -69,6 +70,7 @@ impl ContextRenderer {
         out.push_str(&self.render_wrapup(record.wrapup.as_ref(), &record.wrapup_freshness));
         out.push_str(&self.render_documents(&record.documents));
         out.push_str(&self.render_deviations(&record.deviations));
+        out.push_str(&self.render_thread(&record.thread));
         for reference in &record.references {
             let nested = self.render_record(reference, heading_level + 1, rendered);
             if !nested.is_empty() {
@@ -283,6 +285,21 @@ impl ContextRenderer {
         out
     }
 
+    /// The thread under the description: `PENDING` entries in full, which are what a session acts
+    /// on, and `APPLIED` ones as one line each, which are history it never redoes.
+    pub fn render_thread(&self, thread: &[FeedbackView]) -> String {
+        if thread.is_empty() {
+            return String::new();
+        }
+        let pending = thread.iter().filter(|entry| entry.state == FeedbackState::Pending).count();
+        let mut out = format!("\n<thread pending=\"{pending}\" applied=\"{}\">\n", thread.len() - pending);
+        for entry in thread {
+            out.push_str(&render_thread_entry(entry));
+        }
+        out.push_str("</thread>\n");
+        out
+    }
+
     /// A reference note: its title, its opening line so the session can judge whether it
     /// applies, and the anchor that loads the rest.
     pub fn render_reference(&self, document: &DocumentView) -> String {
@@ -368,6 +385,22 @@ fn connection_usage(connection: &ConnectionView) -> String {
                 connection.label
             )
         }
+    }
+}
+
+fn render_thread_entry(entry: &FeedbackView) -> String {
+    let head = format!("seq=\"{}\" kind=\"{}\" state=\"{}\"", entry.seq, entry.kind, entry.state);
+    if entry.state != FeedbackState::Pending {
+        let reply = entry.reply_markdown.as_deref().map(opening_line).unwrap_or_default();
+        return format!("<entry {head}>{reply}</entry>\n");
+    }
+    let body = truncate(Some(&entry.body_markdown), MAX_DOCUMENT_CHARACTERS);
+    match (entry.kind, entry.quoted_markdown.as_deref()) {
+        (FeedbackKind::Revision, Some(quoted)) => format!(
+            "<entry {head}>\n<quoted>\n{}\n</quoted>\n<new>\n{body}\n</new>\n</entry>\n",
+            truncate(Some(quoted), MAX_DOCUMENT_CHARACTERS)
+        ),
+        _ => format!("<entry {head}>\n{body}\n</entry>\n"),
     }
 }
 
@@ -555,6 +588,10 @@ fn render_route(link: &StepLinkView, steps: &[&TaskStepView]) -> Option<String> 
 #[cfg(test)]
 #[path = "../../../tests/unit/context/model/context_renderer_deviation_tests.rs"]
 mod deviation_tests;
+
+#[cfg(test)]
+#[path = "../../../tests/unit/context/model/context_renderer_thread_tests.rs"]
+mod thread_tests;
 
 #[cfg(test)]
 #[path = "../../../tests/unit/context/model/context_renderer_flow_tests.rs"]
