@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { diffLines } from '@/features/feedback/lib/revision-diff'
+import { diffLines, foldUnchanged } from '@/features/feedback/lib/revision-diff'
 
 describe('diffLines', () => {
   it('keeps a text that did not change as one run of kept lines', () => {
@@ -32,5 +32,21 @@ describe('diffLines', () => {
   it('groups consecutive lines of the same kind', () => {
     const hunks = diffLines('keep', 'keep\nnew one\nnew two')
     expect(hunks[1]).toEqual({ kind: 'added', lines: ['new one', 'new two'] })
+  })
+})
+
+describe('foldUnchanged', () => {
+  const run = (count: number): string => Array.from({ length: count }, (_, index) => `line ${index}`).join('\n')
+
+  it('leaves a short kept run as it is', () => {
+    expect(foldUnchanged(diffLines(run(3), run(3)))).toEqual([{ kind: 'same', lines: ['line 0', 'line 1', 'line 2'] }])
+  })
+
+  it('folds the middle of a long kept run and keeps a line of context beside each change', () => {
+    const rows = foldUnchanged(diffLines(`${run(8)}\nold`, `${run(8)}\nnew`))
+
+    expect(rows.map((row) => row.kind)).toEqual(['folded', 'same', 'removed', 'added'])
+    expect(rows[0]?.lines).toHaveLength(7)
+    expect(rows[1]?.lines).toEqual(['line 7'])
   })
 })

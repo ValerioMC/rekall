@@ -57,3 +57,30 @@ function append(hunks: DiffHunk[], kind: DiffHunkKind, line: string): void {
     hunks.push({ kind, lines: [line] })
   }
 }
+
+/** A run of kept lines folded away, which the reader can open. */
+export interface FoldedRun {
+  readonly kind: 'folded'
+  readonly lines: readonly string[]
+}
+
+export type DiffRow = DiffHunk | FoldedRun
+
+const FOLD_CONTEXT = 1
+const FOLD_FROM = 4
+
+/** Keeps `FOLD_CONTEXT` lines either side of a change and folds the middle of a long kept run. */
+export function foldUnchanged(hunks: readonly DiffHunk[]): DiffRow[] {
+  return hunks.flatMap((hunk, index): DiffRow[] => {
+    if (hunk.kind !== 'same' || hunk.lines.length < FOLD_FROM) return [hunk]
+    const head = index === 0 ? 0 : FOLD_CONTEXT
+    const tail = index === hunks.length - 1 ? 0 : FOLD_CONTEXT
+    const hidden = hunk.lines.slice(head, hunk.lines.length - tail)
+    if (hidden.length < 2) return [hunk]
+    const rows: DiffRow[] = []
+    if (head > 0) rows.push({ kind: 'same', lines: hunk.lines.slice(0, head) })
+    rows.push({ kind: 'folded', lines: hidden })
+    if (tail > 0) rows.push({ kind: 'same', lines: hunk.lines.slice(hunk.lines.length - tail) })
+    return rows
+  })
+}
