@@ -36,7 +36,6 @@ function render() {
       stubs: {
         AppMarkdownEditor: true,
         NotesButton: true,
-        PlanHereButton: true,
         OpenTerminalButton: true,
         LaunchClaudeCodeButton: true,
         LogCommitButton: true,

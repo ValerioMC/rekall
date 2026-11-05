@@ -112,7 +112,6 @@ function render() {
       stubs: {
         AppMarkdownEditor: true,
         NotesButton: true,
-        PlanHereButton: true,
         OpenTerminalButton: true,
         LaunchClaudeCodeButton: true,
         LogCommitButton: true,
@@ -124,10 +123,6 @@ function render() {
       }
     }
   })
-}
-
-function planButton(pane: ReturnType<typeof render>) {
-  return pane.get('plan-here-button-stub')
 }
 
 describe('StepsPane', () => {
@@ -164,8 +159,7 @@ describe('StepsPane', () => {
           stubs: {
             AppMarkdownEditor: true,
             NotesButton: true,
-            PlanHereButton: true,
-            OpenTerminalButton: true,
+                OpenTerminalButton: true,
             LaunchClaudeCodeButton: true,
             LogCommitButton: true,
             CommitReferenceList: true,
@@ -204,23 +198,10 @@ describe('StepsPane', () => {
     }
   })
 
-  it('offers to plan a flow only while the task has no steps and no drafts', () => {
+  it('offers the plan flow command on an empty checklist', () => {
     seed([])
-    const empty = render()
-    expect(empty.get('[data-testid="copy-plan-flow-command"]').text()).toContain('project:vega task:report-builder plan flow')
-    expect(planButton(empty).attributes('offersflow')).toBe('true')
-    empty.unmount()
-
-    seed([makeStep('d', 0, 'DRAFT')])
-    expect(planButton(render()).attributes('offersflow')).toBe('false')
-  })
-
-  it('offers to replan only while the task has a draft or an open step to replace, and counts them', () => {
-    seed([makeStep('a', 0, 'DONE'), makeStep('b', 1, 'RUNNING'), makeStep('c', 2, 'CLAIMED')])
-    expect(planButton(render()).attributes('replaceablesteps')).toBe('0')
-
-    seed([makeStep('a', 0, 'DONE'), makeStep('b', 1, 'OPEN'), makeStep('c', 2, 'DRAFT')])
-    expect(planButton(render()).attributes('replaceablesteps')).toBe('2')
+    const pane = render()
+    expect(pane.get('[data-testid="copy-plan-flow-command"]').text()).toContain('project:vega task:report-builder plan flow')
   })
 
   it('counts done, claimed and draft steps on the ledger', () => {

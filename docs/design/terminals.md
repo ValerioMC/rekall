@@ -35,7 +35,7 @@ answer along with it.
 The in-app session is a real terminal, `C` in the console. `PtyTerminalManager` in
 `rekall-infra` starts the interactive `claude` TUI in a pseudo-terminal (`portable-pty`) in the task's
 folder, with `/rk` as the first line (`/rk … plan` for a terminal opened in `TerminalMode.PLAN`,
-which the Steps pane's **Plan here** asks for, and `/rk … plan flow` for `TerminalMode.PLAN_FLOW`,
+which **Plan here** in the arrow of **Run here** asks for, and `/rk … plan flow` for `TerminalMode.PLAN_FLOW`,
 which its **Plan a flow** asks for, and `/rk … replan` for `TerminalMode.REPLAN`, which its **Replan**
 asks for after a confirmation that can carry what the plan missed, quoted after `replan`, and `/rk … revise` for `TerminalMode.REVISE`, which the description's **Run revision** asks for to have the session evaluate the pending entries of the task's thread (`Replan with feedback` types the plain `replan` line); `/rk … generate` and `/rk … explain` for the Diagrams
 screen's **Generate** and **Explain code**, the only modes a terminal on a project alone takes), and pumps its raw bytes to whoever is watching. The terminal is the

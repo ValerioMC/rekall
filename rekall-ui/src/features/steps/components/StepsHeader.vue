@@ -3,7 +3,6 @@ import { computed } from 'vue'
 import LaunchClaudeCodeButton from '@/features/claude/components/LaunchClaudeCodeButton.vue'
 import OpenTerminalButton from '@/features/claude/components/OpenTerminalButton.vue'
 import NotesButton from '@/features/notes/components/NotesButton.vue'
-import PlanHereButton from '@/features/claude/components/PlanHereButton.vue'
 import TaskTitleRow from '@/features/catalog/components/TaskTitleRow.vue'
 import { identityHue } from '@/common/identity'
 import type { Task, TaskStep } from '@/features/catalog/model/catalog'
@@ -37,12 +36,6 @@ const hue = computed(() => identityHue(props.task.projectId))
 const done = computed(() => props.checklistSteps.filter((step) => step.done).length)
 const claimed = computed(() => props.checklistSteps.filter((step) => step.state === 'CLAIMED').length)
 const allDone = computed(() => done.value === props.checklistSteps.length)
-/** A flow begins at the first step, so one is proposed only onto a task with no steps or drafts. */
-const acceptsAFlow = computed(() => props.checklistSteps.length === 0 && props.draftCount === 0)
-/** The steps a replan deletes: the drafts and the open ones; started, claimed and done stay. */
-const replaceableSteps = computed(
-  () => props.draftCount + props.checklistSteps.filter((step) => step.state === 'OPEN').length
-)
 
 function segmentClass(step: TaskStep): string {
   if (step.state === 'DONE') return allDone.value ? 'tube-gold tube-safe' : 'tube-gold'
@@ -87,14 +80,12 @@ function segmentClass(step: TaskStep): string {
 
       <div class="flex shrink-0 items-center gap-1.5">
         <NotesButton :task-id="task.id" />
-        <PlanHereButton
+        <OpenTerminalButton
           :task-id="task.id"
           :anchor="task.anchor"
+          :step-id="currentId"
           :folder="task.projectRepoFolder"
-          :offers-flow="acceptsAFlow"
-          :replaceable-steps="replaceableSteps"
         />
-        <OpenTerminalButton :task-id="task.id" :step-id="currentId" :folder="task.projectRepoFolder" />
         <LaunchClaudeCodeButton
           :task-id="task.id"
           :anchors="task.anchor"

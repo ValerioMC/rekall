@@ -3,7 +3,6 @@ import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import { effectScope, nextTick } from 'vue'
 import OpenTerminalButton from '@/features/claude/components/OpenTerminalButton.vue'
-import PlanHereButton from '@/features/claude/components/PlanHereButton.vue'
 import { preferredLaunchKind, preferredSessionKind, setPreferredSessionKind } from '@/common/config/claude-launch'
 import { useRevealOpenedChat } from '@/features/chat/composables/useRevealOpenedChat'
 import { useChatDockStore } from '@/features/chat/store/chatDock.store'
@@ -86,7 +85,7 @@ describe('the entry points', () => {
   it('Run here asks for a terminal by default and for a chat when the chat view is chosen', async () => {
     terminalApi.openTerminal.mockResolvedValue(chatSession({ kind: 'TERMINAL', id: 'term-1' as never }))
     useConsoleStore().releaseOnRun = vi.fn().mockResolvedValue(null)
-    const button = mount(OpenTerminalButton, { props: { taskId: TASK, folder: '/code/vega' } })
+    const button = mount(OpenTerminalButton, { props: { taskId: TASK, anchor: ANCHOR, folder: '/code/vega' } })
 
     await button.get('[data-testid=open-terminal]').trigger('click')
     await flushPromises()
@@ -95,7 +94,7 @@ describe('the entry points', () => {
 
     chooseChatView()
     terminalApi.openTerminal.mockResolvedValue(chatSession())
-    const chatButton = mount(OpenTerminalButton, { props: { taskId: TASK, folder: '/code/vega' } })
+    const chatButton = mount(OpenTerminalButton, { props: { taskId: TASK, anchor: ANCHOR, folder: '/code/vega' } })
     await chatButton.get('[data-testid=open-terminal]').trigger('click')
     await flushPromises()
 
@@ -108,9 +107,10 @@ describe('the entry points', () => {
     chooseChatView()
     terminalApi.openTerminal.mockResolvedValue(chatSession())
     const openPane = vi.spyOn(useConsoleStore(), 'openTerminal')
-    const button = mount(PlanHereButton, { props: { taskId: TASK, anchor: ANCHOR, folder: '/code/vega' }, global: { stubs: { AppConfirm: true } } })
+    const button = mount(OpenTerminalButton, { props: { taskId: TASK, anchor: ANCHOR, folder: '/code/vega' }, attachTo: document.body })
 
-    await button.get('[data-testid=plan-here]').trigger('click')
+    await button.get('[data-testid=run-menu-arrow]').trigger('click')
+    document.body.querySelector<HTMLElement>('[data-testid=plan-here]')?.click()
     await flushPromises()
 
     expect(terminalApi.openTerminal).toHaveBeenCalledWith({ taskId: TASK }, expect.objectContaining({ mode: 'PLAN', kind: 'CHAT' }))

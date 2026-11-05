@@ -10,6 +10,9 @@ import { sessionAtWork } from '@/model/session-at-work'
 import { NOTHING_TO_RUN_MESSAGE, nothingToRun } from '@/model/nothing-to-run'
 import StepSeal from '@/features/steps/components/StepSeal.vue'
 import RunMenuArrow from '@/features/claude/components/RunMenuArrow.vue'
+import ReplanConfirm from '@/features/claude/components/ReplanConfirm.vue'
+import { usePlanTask } from '@/features/claude/composables/usePlanTask'
+import type { RunMenuAction } from '@/features/claude/model/runMenu'
 import { useRunQueueStore } from '@/features/queue/store/runQueue.store'
 import { queuePlacement } from '@/features/queue/model/runQueue'
 import { useReleaseOnRun } from '@/features/graph/composables/useReleaseOnRun'
@@ -21,10 +24,13 @@ import type { TaskId, TaskStepId } from '@/model/branded'
  * through the edge, `waiting` an open ring turning while the server answers, `done` the amber
  * seal stamped in as a completed step's is, `working` the running step's own seal turning until
  * the session claims the work or ends. `done` and `working` share the pressed key. Only `idle` takes a press.
+ * Its arrow also plans the task: a flow only while the task has no steps, a replan only while
+ * draft or open steps can be replaced.
  */
 const props = withDefaults(
   defineProps<{
     taskId: TaskId
+    anchor: string
     folder: string | null
     stepId?: TaskStepId | null
     missingHint?: string
@@ -40,6 +46,7 @@ const TRAVEL_MS = 380
 const DONE_HOLD_MS = 1200
 /** How long `working` holds after a launch while the server's RUNNING mark is still on its way. */
 const HANDOFF_MS = 8000
+const PLAN_MISSING_HINT = "Set this project's folder on its page to plan from it"
 
 const console_ = useConsoleStore()
 const terminals = useTerminalStore()
@@ -49,6 +56,13 @@ const { run } = useAsyncAction()
 const { releaseBeforeRun } = useReleaseOnRun()
 const { tasks, steps } = storeToRefs(console_)
 const { terminals: openTerminals } = storeToRefs(terminals)
+
+const planTask = usePlanTask(
+  () => props.taskId,
+  () => props.anchor,
+  () => props.folder,
+  PLAN_MISSING_HINT
+)
 
 const launchPhase = ref<LaunchPhase>('idle')
 const handingOff = ref(false)
@@ -71,6 +85,15 @@ const phase = computed<ButtonPhase>(() => {
 const busy = computed(() => phase.value !== 'idle')
 /** The key sits pressed in while the seal stamps and for as long as Claude works. */
 const pressed = computed(() => phase.value === 'done' || phase.value === 'working')
+
+const taskSteps = computed(() => steps.value.filter((step) => step.taskId === props.taskId))
+const replaceableSteps = computed(() => taskSteps.value.filter((step) => step.state === 'DRAFT' || step.state === 'OPEN').length)
+const menuActions = computed<readonly RunMenuAction[]>(() => [
+  'RUN_IN_QUEUE',
+  'PLAN',
+  ...(taskSteps.value.length === 0 ? (['PLAN_FLOW'] as const) : []),
+  ...(replaceableSteps.value > 0 ? (['REPLAN'] as const) : [])
+])
 
 watch(atWork, (working) => {
   if (working) handingOff.value = false
@@ -145,6 +168,11 @@ async function runInQueue(): Promise<void> {
   const queued = await run(() => runQueue.runInQueue(props.taskId))
   if (queued === null) return
   toast.notify(queuePlacement(runQueue.queue, props.taskId))
+}
+
+function chooseFromMenu(action: RunMenuAction): void {
+  if (action === 'RUN_IN_QUEUE') void runInQueue()
+  else planTask.start(action)
 }
 
 onBeforeUnmount(() => {
@@ -240,8 +268,22 @@ onBeforeUnmount(() => {
         phase === 'done' ? 'Session started' : phase === 'working' ? 'Claude is working' : ''
       }}</span>
     </button>
-    <RunMenuArrow :ready="ready" :pressed="pressed" :busy="busy" @run-in-queue="runInQueue" />
+    <RunMenuArrow
+      :ready="ready"
+      :pressed="pressed"
+      :busy="busy"
+      :actions="menuActions"
+      @choose="chooseFromMenu"
+    />
   </div>
+
+  <ReplanConfirm
+    v-if="planTask.isConfirmingReplan.value"
+    v-model:message="planTask.missedMessage.value"
+    :replaceable-steps="replaceableSteps"
+    @cancel="planTask.cancelReplan"
+    @confirm="planTask.confirmReplan"
+  />
 </template>
 
 <style scoped>

@@ -156,6 +156,7 @@ defineExpose({ toggleMode })
             />
             <OpenTerminalButton
               :task-id="selectedTask.id"
+              :anchor="selectedTask.anchor"
               :folder="selectedTask.projectRepoFolder"
             />
             <LaunchClaudeCodeButton
