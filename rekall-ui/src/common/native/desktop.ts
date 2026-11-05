@@ -10,8 +10,14 @@ export interface DesktopNotice {
   readonly body: string
 }
 
+/** The operating system the native host was built for. */
+export type DesktopPlatform = 'macos' | 'windows' | 'linux'
+
 export interface DesktopHost {
   pickFolder(currentPath: string): Promise<string | null>
+
+  /** Set by the host; absent in a browser tab. */
+  platform?: DesktopPlatform
 
   openInClaudeCode?(launch: ClaudeCodeLaunch): Promise<string>
 
@@ -81,6 +87,11 @@ export function desktopHost(): DesktopHost | null {
 /** True inside the Tauri window, false in a browser tab: the two share this frontend. */
 export function isDesktopApp(): boolean {
   return typeof window.rekallDesktop !== 'undefined'
+}
+
+/** The platform of the native host, or null in a browser tab. */
+export function desktopPlatform(): DesktopPlatform | null {
+  return window.rekallDesktop?.platform ?? null
 }
 
 export async function closeWindow(): Promise<void> {

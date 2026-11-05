@@ -34,7 +34,9 @@ mod window_geometry;
 pub use bridge_script::bridge_script;
 pub use claude_code_launch::ClaudeCodeLaunch;
 pub use desktop_notice::DesktopNotice;
-pub use window_controls::{allow_native_fullscreen, open_maximized};
+#[cfg(target_os = "macos")]
+pub use window_controls::allow_native_fullscreen;
+pub use window_controls::open_maximized;
 pub use splash_size::splash_size;
 pub use window_fade::{fade_in, fade_out, show_fading_in};
 pub use window_geometry::WindowGeometry;

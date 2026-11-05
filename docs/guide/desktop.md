@@ -59,3 +59,5 @@ The bundle is signed ad hoc, which is enough for the machine that built it. A di
 xattr -dr com.apple.quarantine /Applications/Rekall.app
 ```
 
+On macOS and Windows the window has no native title bar: the console's own header is the title bar, draggable and maximized by double-click, and it draws the three window buttons itself. The host tells the page which platform it was built for (`window.rekallDesktop.platform`, set in `bridges/bridge_script.rs`), and `WindowControls.vue` mounts the matching component, `MacWindowControls.vue` or `WindowsWindowControls.vue`. On Windows the buttons sit flush with the right edge of the header, as tall as it, in Windows' order (minimize, maximize, close); on macOS they sit at the left, as traffic lights do (`AppHeaderChrome.vue` picks the side). Where the window keeps its native frame (Linux, a browser tab) nothing is drawn.
+
