@@ -17,7 +17,7 @@ a draft or an open step. A running, claimed or done step is refused by name, so 
 a run, work waiting for review or work a person accepted; a replan checks its plan whole before it deletes
 anything and runs in one transaction. `NoteService` (rekall-core) can only create a note and attach it to the one task it was
 written for: it never loads a note by id, so it cannot edit, detach or delete one, and
-`DocumentService`, which can, stays in `rekall-console`. `CommitReferenceService` and `AutoCommitService` log and make commits in the project's own
+`DocumentService`, which can, stays in `rekall-console`. `FeedbackService` (rekall-core) can only move a `PENDING` entry of one task's thread to `APPLIED` with a short reply, naming the `seq`: it has no way to create, edit or delete an entry, and a call that names an unknown or already applied entry writes nothing. `CommitReferenceService` and `AutoCommitService` log and make commits in the project's own
 folder. `InventoryRecordingService` replaces one project's dependency rows and drops the exposures they
 no longer declare; `VulnerabilityExposureService.assess` writes a verdict on an exposure a scan already
 found and refuses an advisory that does not reach the project. Neither reaches the advisory database:

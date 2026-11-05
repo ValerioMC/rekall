@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use rekall_core::version::{Release, ReleaseFeed, ReleaseFeedError};
 use rekall_app::StartOptions;
 use serde_json::json;
-use support::{app, app_with, id, App};
+use support::{app, app_with, id, uuid_value, App};
 
 #[tokio::test]
 async fn a_project_label_two_companies_share_is_disambiguated_by_the_company_anchor() {
@@ -837,6 +837,52 @@ async fn a_sessions_transcript_in_a_projects_folder_reaches_the_token_tallies_of
     assert_eq!(days[0]["day"], json!("2026-10-01T00:00:00Z"));
     assert_eq!(days[0]["outputTokens"], json!(3));
     app.stop().await;
+}
+
+async fn a_pending_entry(app: &App, task_id: &str, kind: rekall_store::FeedbackKind, seq: i32, body: &str) {
+    use sea_orm::{ActiveModelTrait, IntoActiveModel};
+    let quoted = kind.is_revision().then(|| "the text before".to_string());
+    let entry = rekall_store::task_feedback::Model::new(task_id.parse().unwrap(), seq, kind, quoted, body.into(), rekall_kernel::Instant::now());
+    entry.into_active_model().insert(&app.services().ctx.db).await.unwrap();
+}
+
+async fn state_of_entry(app: &App, task_id: &str, seq: i32) -> Option<String> {
+    app.string("SELECT state FROM task_feedback WHERE task_id = ? AND seq = ?", vec![uuid_value(task_id), seq.into()]).await
+}
+
+#[tokio::test]
+async fn a_session_replies_to_pending_entries_of_the_thread_and_a_refused_reply_writes_nothing() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
+    let task_id = app.a_task(&project_id, "report-builder").await;
+    a_pending_entry(&app, &task_id, rekall_store::FeedbackKind::Implementation, 1, "The totals are wrong").await;
+    a_pending_entry(&app, &task_id, rekall_store::FeedbackKind::Plan, 2, "Split step 2").await;
+    a_pending_entry(&app, &task_id, rekall_store::FeedbackKind::Revision, 3, "The new text").await;
+    let anchors = "project:vega task:report-builder";
+
+    let refused = app
+        .call_tool("rekall_feedback", json!({ "anchors": anchors, "replies": [{ "seq": 1, "reply": "Fixed." }, { "seq": 9, "reply": "Fixed." }] }))
+        .await;
+    assert_contains!(refused, "no entry with seq 9");
+    assert_eq!(state_of_entry(&app, &task_id, 1).await.as_deref(), Some("PENDING"), "nothing is written when one reply is refused");
+
+    let one = app.call_tool("rekall_feedback", json!({ "anchors": anchors, "replies": [{ "seq": 1, "reply": "Fixed the totals." }] })).await;
+    assert_contains!(one, "Replied to #1 on `project:vega task:report-builder`", "Still pending: #2, #3.");
+    let several = app
+        .call_tool("rekall_feedback", json!({ "anchors": anchors, "replies": [{ "seq": 2, "reply": "Split it." }, { "seq": "3", "reply": "Built it." }] }))
+        .await;
+    assert_contains!(several, "Replied to #2, #3", "No entry is pending any more.");
+    assert_eq!(state_of_entry(&app, &task_id, 3).await.as_deref(), Some("APPLIED"));
+    assert_contains!(
+        app.call_tool("rekall_feedback", json!({ "anchors": anchors, "replies": [{ "seq": 1, "reply": "Again." }] })).await,
+        "Entry 1 is already applied"
+    );
+    assert_contains!(
+        app.call_tool("rekall_context", json!({ "anchors": anchors })).await,
+        "<thread pending=\"0\" applied=\"3\">",
+        "state=\"APPLIED\">Fixed the totals.</entry>"
+    );
 }
 
 #[tokio::test]

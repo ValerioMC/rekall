@@ -8,6 +8,7 @@ use crate::commit::CommitReferenceTool;
 use crate::context::ContextTool;
 use crate::deviation::DeviationTool;
 use crate::diagram::DiagramTool;
+use crate::feedback::FeedbackTool;
 use crate::flow::{FlowProposalTool, ReplanTool};
 use crate::inventory::InventoryTool;
 use crate::note::NoteTool;
@@ -27,6 +28,7 @@ pub fn all(services: &Services) -> Vec<Arc<dyn McpTool>> {
         Arc::new(EpicMembershipTool::new(services.epic_membership.clone())),
         Arc::new(NoteTool::new(services.notes.clone())),
         Arc::new(DeviationTool::new(services.deviations.clone())),
+        Arc::new(FeedbackTool::new(services.feedback.clone())),
         Arc::new(StepProposalTool::new(services.steps.clone())),
         Arc::new(FlowProposalTool::new(services.flow_proposals.clone())),
         Arc::new(ReplanTool::new(services.flow_proposals.clone())),

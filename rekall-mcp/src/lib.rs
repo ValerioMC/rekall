@@ -8,6 +8,7 @@ pub mod context;
 pub mod controller;
 pub mod deviation;
 pub mod diagram;
+pub mod feedback;
 pub mod flow;
 pub mod inventory;
 pub mod note;
