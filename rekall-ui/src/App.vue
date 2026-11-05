@@ -66,7 +66,8 @@ useStepStream(
   (queue) => runQueue.apply(queue),
   () => void store.applyNoteWritten(),
   () => void store.applyTaskCreated(),
-  (taskId) => void deviations.load(taskId).catch(() => undefined)
+  (taskId) => void deviations.load(taskId).catch(() => undefined),
+  (taskId) => void store.loadFeedback(taskId).catch(() => undefined)
 )
 
 useQueueSessionSync()

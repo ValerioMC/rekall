@@ -24,6 +24,7 @@ export type DeploymentGraphId = Brand<string, 'DeploymentGraphId'>
 export type GraphStepId = Brand<string, 'GraphStepId'>
 export type DoneCheckId = Brand<string, 'DoneCheckId'>
 export type CheckResultId = Brand<string, 'CheckResultId'>
+export type FeedbackId = Brand<string, 'FeedbackId'>
 
 export const asCompanyId = (value: string): CompanyId => value as CompanyId
 export const asProjectId = (value: string): ProjectId => value as ProjectId
@@ -49,3 +50,4 @@ export const asDeploymentGraphId = (value: string): DeploymentGraphId => value a
 export const asGraphStepId = (value: string): GraphStepId => value as GraphStepId
 export const asDoneCheckId = (value: string): DoneCheckId => value as DoneCheckId
 export const asCheckResultId = (value: string): CheckResultId => value as CheckResultId
+export const asFeedbackId = (value: string): FeedbackId => value as FeedbackId

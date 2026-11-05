@@ -7,6 +7,7 @@ import {
   WrapupStreamEventSchema
 } from '@/features/catalog/api/schemas/catalog.schema'
 import { DeviationStreamEventSchema } from '@/features/deviations/api/schemas/deviation.schema'
+import { FeedbackStreamEventSchema } from '@/features/feedback/api/schemas/feedback.schema'
 import { CommitReferenceStreamEventSchema } from '@/features/commits/api/schemas/commitReference.schema'
 import { RunQueueSchema } from '@/features/queue/api/schemas/runQueue.schema'
 import type { NoteStreamEvent, TaskReview, TaskStep, WrapupStreamEvent } from '@/features/catalog/model/catalog'
@@ -15,8 +16,8 @@ import type { RunQueue } from '@/features/queue/model/runQueue'
 import type { TaskId } from '@/model/branded'
 
 /**
- * One SSE connection carrying eight console feeds: `steps`, `task-review`, `wrapup`,
- * `commit-reference`, `run-queue`, `note`, `deviation` and `task-created`.
+ * One SSE connection carrying nine console feeds: `steps`, `task-review`, `wrapup`,
+ * `commit-reference`, `run-queue`, `note`, `deviation`, `feedback` and `task-created`.
  */
 export function useStepStream(
   onSteps: (taskId: TaskId, steps: TaskStep[]) => void,
@@ -26,7 +27,8 @@ export function useStepStream(
   onRunQueue?: (queue: RunQueue) => void,
   onNote?: (event: NoteStreamEvent) => void,
   onTaskCreated?: () => void,
-  onDeviation?: (taskId: TaskId) => void
+  onDeviation?: (taskId: TaskId) => void,
+  onFeedback?: (taskId: TaskId) => void
 ): { connected: Ref<boolean>; stop: () => void } {
   const connected = ref(false)
   let source: EventSource | null = null
@@ -135,6 +137,19 @@ export function useStepStream(
         )
         if (parsed.success) {
           onDeviation?.(parsed.data.taskId)
+        }
+      } catch {
+      }
+    })
+
+    // A reply from a session, or a revision a description save opened: that task's thread is read again.
+    source.addEventListener('feedback', (event) => {
+      try {
+        const parsed = FeedbackStreamEventSchema.safeParse(
+          JSON.parse((event as MessageEvent<string>).data)
+        )
+        if (parsed.success) {
+          onFeedback?.(parsed.data.taskId)
         }
       } catch {
       }
