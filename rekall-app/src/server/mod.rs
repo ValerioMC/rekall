@@ -10,6 +10,7 @@
 mod instance;
 mod running;
 mod server_startup;
+mod shared_listener;
 mod start_options;
 
 pub use instance::Instance;
