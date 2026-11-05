@@ -60,6 +60,7 @@ const WORKTREES_FOLDER: &str = "worktrees";
 const CREDENTIAL_SESSIONS_FOLDER: &str = "terminal-credentials";
 
 /// How often open timers are checked against [`IDLE_AFTER`].
+const MERGE_SESSION_CHECK: Duration = Duration::from_secs(5);
 const IDLE_SWEEP_EVERY: Duration = Duration::from_secs(60);
 
 /// When the first scheduled vulnerability scan runs after a start, and how often after that: soon
@@ -177,7 +178,7 @@ impl Instance {
         let queue = RunQueueService::new(ctx.clone());
         let layout = WorktreeLayout::new(config.home.join(WORKTREES_FOLDER));
         let worktrees = TaskWorktreeService::new(ctx.clone(), Arc::new(GitWorktreeHost::new(layout.clone())), layout);
-        WorktreeCleaner::start(&events, services.task_work.clone(), worktrees.clone());
+        WorktreeCleaner::start(&events, services.task_work.clone(), worktrees.clone(), sessions.clone(), MERGE_SESSION_CHECK);
         let runner = RunQueueRunner::start(
             queue.clone(),
             sessions.clone(),

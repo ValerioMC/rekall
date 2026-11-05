@@ -26,7 +26,9 @@ pub enum Merge {
     AlreadyMerged,
     /// The worktree has unsaved changes, so the branch is not the whole work yet.
     KeptWithChanges,
-    /// The branch conflicts with the project or git refused; nothing was changed.
+    /// `merge-tree` says the branch conflicts with the project's `HEAD`; nothing was changed.
+    Conflicts(String),
+    /// git refused the merge; nothing was changed.
     Refused(String),
     /// The task has no branch, or its project no folder.
     NothingToMerge,
@@ -90,7 +92,7 @@ impl TaskWorktreeService {
             return Ok(Merge::AlreadyMerged);
         }
         if review.merges_cleanly == Some(false) {
-            return Ok(Merge::Refused(format!("{} conflicts with the project's current branch", review.branch)));
+            return Ok(Merge::Conflicts(format!("{} conflicts with the project's current branch", review.branch)));
         }
         let (_, project_folder, _) = self.read(task_id).await?;
         let Some(project_folder) = project_folder else { return Ok(Merge::NothingToMerge) };

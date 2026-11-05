@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { fetchTaskBranch, removeTaskWorktree } from '@/features/worktree/api/taskBranch.api'
+import { fetchTaskBranch } from '@/features/worktree/api/taskBranch.api'
 import type { TaskBranch } from '@/features/worktree/model/taskBranch'
 import type { TaskId } from '@/model/branded'
 
@@ -20,9 +20,5 @@ export const useTaskBranchStore = defineStore('task-branch', () => {
     put(taskId, await fetchTaskBranch(taskId))
   }
 
-  async function removeWorktree(taskId: TaskId): Promise<void> {
-    put(taskId, await removeTaskWorktree(taskId))
-  }
-
-  return { of, load, removeWorktree }
+  return { of, load }
 })

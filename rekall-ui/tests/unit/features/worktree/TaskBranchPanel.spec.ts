@@ -18,7 +18,6 @@ function branch(overrides: Partial<TaskBranch> = {}): TaskBranch {
     mergesCleanly: true,
     worktreeFolder: '/home/rekall/worktrees/vega/report',
     hasUnsavedChanges: false,
-    mergeCommand: 'git merge rekall/report',
     ...overrides
   }
 }
@@ -59,36 +58,23 @@ describe('the Branch panel of a task in review', () => {
     expect(unknown.get('[data-testid="branch-merge"]').text()).toContain('could not tell')
   })
 
-  it('offers the merge command to copy and no button that merges', async () => {
-    const copy = vi.fn().mockResolvedValue(undefined)
-    Object.defineProperty(navigator, 'clipboard', { value: { writeText: copy }, configurable: true })
+  it('offers no action: accepting the task merges the branch and removes the worktree', async () => {
     const wrapper = await render(branch())
 
-    await wrapper.get('[data-testid="branch-copy"]').trigger('click')
-
-    expect(wrapper.get('[data-testid="branch-command"]').text()).toBe('git merge rekall/report')
-    expect(copy).toHaveBeenCalledWith('git merge rekall/report')
-    expect(wrapper.text().toLowerCase()).not.toContain('merge it')
-    expect(wrapper.findAll('button').map((button) => button.text())).toEqual(['Copy merge command', 'Remove worktree'])
+    expect(wrapper.findAll('button')).toEqual([])
+    expect(wrapper.get('[data-testid="branch-worktree"]').text()).toContain('removed when the task is accepted')
   })
 
-  it('removes a clean worktree and keeps showing the branch', async () => {
-    vi.mocked(api.removeTaskWorktree).mockResolvedValue(branch({ worktreeFolder: null }))
-    const wrapper = await render(branch())
-
-    await wrapper.get('[data-testid="branch-remove-worktree"]').trigger('click')
-    await flushPromises()
-
-    expect(api.removeTaskWorktree).toHaveBeenCalledWith(task)
-    expect(wrapper.find('[data-testid="branch-remove-worktree"]').exists()).toBe(false)
-    expect(wrapper.get('[data-testid="branch-worktree"]').text()).toContain('the branch and its commits stay')
-  })
-
-  it('says a worktree with unsaved changes is left alone and cannot be removed from here', async () => {
+  it('says a worktree with unsaved changes is left alone', async () => {
     const wrapper = await render(branch({ hasUnsavedChanges: true }))
 
     expect(wrapper.get('[data-testid="branch-worktree"]').text()).toContain('unsaved changes')
-    expect((wrapper.get('[data-testid="branch-remove-worktree"]').element as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('says when the worktree is already gone and the branch stays', async () => {
+    const wrapper = await render(branch({ worktreeFolder: null }))
+
+    expect(wrapper.get('[data-testid="branch-worktree"]').text()).toContain('the branch and its commits stay')
   })
 
   it('reads the branch again when the work moves', async () => {

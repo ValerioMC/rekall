@@ -6,8 +6,7 @@ export const TaskBranchSchema = z.object({
   changedFiles: z.array(z.string()),
   mergesCleanly: z.boolean().nullable(),
   worktreeFolder: z.string().nullable(),
-  hasUnsavedChanges: z.boolean(),
-  mergeCommand: z.string()
+  hasUnsavedChanges: z.boolean()
 })
 
 export const OptionalTaskBranchSchema = TaskBranchSchema.nullable()

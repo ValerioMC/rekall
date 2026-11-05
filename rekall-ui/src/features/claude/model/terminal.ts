@@ -6,9 +6,10 @@ import type { ConnectionId, ProjectId, TaskId, TaskStepId, TerminalId } from '@/
  * `PLAN_FLOW` types `/rk <anchor> plan flow`, `REPLAN` types `/rk <anchor> replan`, `REVISE` types `/rk <anchor> revise`, `GENERATE` types `/rk <anchor> generate "<request>"`,
  * `INVENTORY` types `/rk <anchor> inventory`, `ASSESS` types `/rk <anchor> assess advisory:<id>`,
  * `ASSESS_ALL` types `/rk <anchor> assess` to judge every advisory not assessed yet, `AUTOCONFIGURE`
- * types `/rk <anchor> autoconfigure` to learn how the project takes a contribution.
+ * types `/rk <anchor> autoconfigure` to learn how the project takes a contribution, `MERGE` types
+ * `/rk <anchor> merge` to resolve the conflicts of an accepted task's branch.
  */
-export type TerminalMode = 'WORK' | 'PLAN' | 'PLAN_FLOW' | 'REPLAN' | 'REVISE' | 'GENERATE' | 'EXPLAIN' | 'INVENTORY' | 'ASSESS' | 'ASSESS_ALL' | 'AUTOCONFIGURE'
+export type TerminalMode = 'WORK' | 'PLAN' | 'PLAN_FLOW' | 'REPLAN' | 'REVISE' | 'GENERATE' | 'EXPLAIN' | 'INVENTORY' | 'ASSESS' | 'ASSESS_ALL' | 'AUTOCONFIGURE' | 'MERGE'
 
 /**
  * A terminal that acts on a task's plan or thread: a checklist of drafts, a flow, drafts joined by

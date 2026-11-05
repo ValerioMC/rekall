@@ -205,7 +205,7 @@ async fn a_branch_that_conflicts_with_the_project_is_refused_and_not_merged() {
 
     let merge = world.service.merge_accepted(report).await.unwrap();
 
-    assert!(matches!(merge, Merge::Refused(_)));
+    assert!(matches!(merge, Merge::Conflicts(_)));
     assert!(world.host.merged().is_empty());
 }
 

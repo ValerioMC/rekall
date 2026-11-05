@@ -8,6 +8,4 @@ export interface TaskBranch {
   /** The worktree's folder while it exists. */
   readonly worktreeFolder: string | null
   readonly hasUnsavedChanges: boolean
-  /** The command that merges the branch by hand; Rekall never runs it. */
-  readonly mergeCommand: string
 }

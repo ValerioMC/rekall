@@ -56,7 +56,7 @@ through `ApiPorts`, so `rekall-http` never names the PTY. `TerminalHost` also an
 (`subscribe_ended`, a `TerminalEnded`), answers whether a task has a live session (`has_live_for`) and which
 one works its steps (`work_session_for`), and renews one (`renew`), so `RunQueueWorker` and
 `SessionRelay` hold it and not the manager. A `TerminalOpening` and a `TerminalView` carry a
-`SessionKind` (`TERMINAL` or `CHAT`, `TERMINAL` when a request names none); `PtyTerminals` always reports `TERMINAL`. A `TerminalView` also names the `TerminalMode` the session was opened in (`WORK`, `GENERATE`, `INVENTORY`, `AUTOCONFIGURE`...), which is how the console titles a session opened on a project alone. The run queue is driven the same way:
+`SessionKind` (`TERMINAL` or `CHAT`, `TERMINAL` when a request names none); `PtyTerminals` always reports `TERMINAL`. A `TerminalView` also names the `TerminalMode` the session was opened in (`WORK`, `GENERATE`, `INVENTORY`, `AUTOCONFIGURE`, `MERGE`...), which is how the console titles a session opened on a project alone. The run queue is driven the same way:
 With `parallel_sessions` above one, `RunQueueWorker` keeps a list of `Active` sessions, one `generation` each, and every command (`Review`, `SessionEnded`, `Settle`, `Renew`, `Pause`) names the session it is about; the worktree of each is made by `TaskWorktreeService` before its terminal opens, and `Stop` closes them all. `RunQueueControlService` edits the rows through `RunQueueService` and wakes the worker through the
 `QueueRunner` port, which `RunQueueRunner` implements. `run_in_queue` adds a task and arms an idle
 queue in one transaction (`RunQueueService::add_and_arm`), then wakes the worker; `finish` returns

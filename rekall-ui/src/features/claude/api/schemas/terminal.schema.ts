@@ -11,7 +11,7 @@ export const TerminalSchema = z.object({
   projectLabel: z.string(),
   taskLabel: z.string().nullable(),
   taskTitle: z.string().nullable(),
-  mode: z.enum(['WORK', 'PLAN', 'PLAN_FLOW', 'REPLAN', 'REVISE', 'GENERATE', 'EXPLAIN', 'INVENTORY', 'ASSESS', 'ASSESS_ALL', 'AUTOCONFIGURE']),
+  mode: z.enum(['WORK', 'PLAN', 'PLAN_FLOW', 'REPLAN', 'REVISE', 'GENERATE', 'EXPLAIN', 'INVENTORY', 'ASSESS', 'ASSESS_ALL', 'AUTOCONFIGURE', 'MERGE']),
   skipPermissions: z.boolean(),
   model: z.string().nullable(),
   effort: z.string().nullable(),

@@ -7,9 +7,9 @@ mod support;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use rekall_core::claude::{ClaudeUsageView, Limit, SessionKind, Severity, UsageReader};
+use rekall_core::claude::{ClaudeUsageView, InMemoryTerminalHost, Limit, SessionKind, Severity, TerminalHost, TerminalMode, UsageReader};
 use rekall_core::queue::{QueueRunner, RunQueueService};
-use rekall_core::worktree::ScriptedWorktreeHost;
+use rekall_core::worktree::{ScriptedWorktreeHost, TaskWorktreeService};
 use rekall_infra::queue::RunQueueRunner;
 use rekall_infra::worktree::WorktreeCleaner;
 use rekall_kernel::Instant;
@@ -68,6 +68,12 @@ async fn harness(world: &World, parallel: i32) -> Harness {
     );
     queue.update_settings(None, false, None, None, SessionKind::Terminal, parallel).await.unwrap();
     Harness { queue, runner, terminals, git }
+}
+
+fn start_cleaner(world: &World, worktrees: TaskWorktreeService) -> Arc<InMemoryTerminalHost> {
+    let sessions = Arc::new(InMemoryTerminalHost::new());
+    WorktreeCleaner::start(&world.events, world.services.task_work.clone(), worktrees, sessions.clone(), Duration::from_millis(50));
+    sessions
 }
 
 async fn item_states(queue: &RunQueueService) -> Vec<(RunQueueItemState, Option<String>)> {
@@ -197,7 +203,7 @@ async fn accepting_a_task_removes_its_clean_worktree_and_the_task_forgets_it() {
     let task = world.task(&project, "one").await;
     let step = world.step(&task, "First", 0, TaskStepState::Claimed).await;
     let folder = worktrees.ensure(task.id).await.unwrap();
-    WorktreeCleaner::start(&world.events, world.services.task_work.clone(), worktrees);
+    let _ = start_cleaner(&world, worktrees);
 
     world.services.steps.edit(step.id, None, None, Some(true), None).await.unwrap();
 
@@ -215,7 +221,7 @@ async fn accepting_a_task_merges_its_branch_before_its_worktree_goes() {
     let step = world.step(&task, "First", 0, TaskStepState::Claimed).await;
     worktrees.ensure(task.id).await.unwrap();
     git.leave_commits("rekall/one");
-    WorktreeCleaner::start(&world.events, world.services.task_work.clone(), worktrees);
+    let _ = start_cleaner(&world, worktrees);
 
     world.services.steps.edit(step.id, None, None, Some(true), None).await.unwrap();
 
@@ -224,7 +230,7 @@ async fn accepting_a_task_merges_its_branch_before_its_worktree_goes() {
 }
 
 #[tokio::test]
-async fn accepting_a_task_whose_branch_conflicts_keeps_the_worktree_and_merges_nothing() {
+async fn accepting_a_task_whose_branch_conflicts_opens_one_merge_session_and_keeps_the_worktree() {
     let world = world().await;
     let (worktrees, git) = world.worktrees();
     let project = world.project("alpha", Some(world.folder.path())).await;
@@ -233,14 +239,60 @@ async fn accepting_a_task_whose_branch_conflicts_keeps_the_worktree_and_merges_n
     let folder = worktrees.ensure(task.id).await.unwrap();
     git.leave_commits("rekall/one");
     git.conflict_on("rekall/one");
-    WorktreeCleaner::start(&world.events, world.services.task_work.clone(), worktrees);
+    let sessions = start_cleaner(&world, worktrees);
 
     world.services.steps.edit(step.id, None, None, Some(true), None).await.unwrap();
 
-    tokio::time::sleep(Duration::from_millis(400)).await;
+    eventually("the merge session", || async { sessions.has_live_for(task.id) }).await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let openings = sessions.openings();
+    assert_eq!(openings.len(), 1);
+    assert_eq!(openings[0].mode, TerminalMode::Merge);
     assert!(git.merged().is_empty());
     assert!(folder.exists());
-    assert!(worktree_of(&world, &task).await.is_some());
+}
+
+#[tokio::test]
+async fn once_the_merge_session_resolves_the_conflict_the_branch_merges_and_the_worktree_goes() {
+    let world = world().await;
+    let (worktrees, git) = world.worktrees();
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let task = world.task(&project, "one").await;
+    let step = world.step(&task, "First", 0, TaskStepState::Claimed).await;
+    let folder = worktrees.ensure(task.id).await.unwrap();
+    git.leave_commits("rekall/one");
+    git.conflict_on("rekall/one");
+    let sessions = start_cleaner(&world, worktrees);
+    world.services.steps.edit(step.id, None, None, Some(true), None).await.unwrap();
+    eventually("the merge session", || async { sessions.has_live_for(task.id) }).await;
+
+    git.resolve_conflict("rekall/one");
+
+    eventually("the worktree to go", || async { worktree_of(&world, &task).await.is_none() }).await;
+    assert_eq!(git.merged(), vec!["rekall/one".to_string()]);
+    assert!(!sessions.has_live_for(task.id));
+    assert!(!folder.exists());
+}
+
+#[tokio::test]
+async fn a_merge_session_that_ends_with_the_conflict_unresolved_is_not_opened_again() {
+    let world = world().await;
+    let (worktrees, git) = world.worktrees();
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let task = world.task(&project, "one").await;
+    let step = world.step(&task, "First", 0, TaskStepState::Claimed).await;
+    let folder = worktrees.ensure(task.id).await.unwrap();
+    git.leave_commits("rekall/one");
+    git.conflict_on("rekall/one");
+    let sessions = start_cleaner(&world, worktrees);
+    world.services.steps.edit(step.id, None, None, Some(true), None).await.unwrap();
+    eventually("the merge session", || async { sessions.has_live_for(task.id) }).await;
+
+    sessions.end(sessions.list()[0].id);
+
+    tokio::time::sleep(Duration::from_millis(400)).await;
+    assert_eq!(sessions.openings().len(), 1);
+    assert!(folder.exists());
 }
 
 #[tokio::test]
@@ -252,7 +304,7 @@ async fn accepting_a_task_whose_worktree_has_unsaved_changes_leaves_it_alone() {
     let step = world.step(&task, "First", 0, TaskStepState::Claimed).await;
     let folder = worktrees.ensure(task.id).await.unwrap();
     git.leave_unsaved_changes("rekall/one");
-    WorktreeCleaner::start(&world.events, world.services.task_work.clone(), worktrees);
+    let _ = start_cleaner(&world, worktrees);
 
     world.services.steps.edit(step.id, None, None, Some(true), None).await.unwrap();
 
@@ -270,7 +322,7 @@ async fn a_task_with_work_still_open_keeps_its_worktree() {
     let done = world.step(&task, "First", 0, TaskStepState::Claimed).await;
     world.step(&task, "Second", 1, TaskStepState::Open).await;
     let folder = worktrees.ensure(task.id).await.unwrap();
-    WorktreeCleaner::start(&world.events, world.services.task_work.clone(), worktrees);
+    let _ = start_cleaner(&world, worktrees);
 
     world.services.steps.edit(done.id, None, None, Some(true), None).await.unwrap();
 

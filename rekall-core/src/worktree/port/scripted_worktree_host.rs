@@ -41,6 +41,10 @@ impl ScriptedWorktreeHost {
         self.conflicting.lock().expect("scripted host lock").insert(branch_name.to_string());
     }
 
+    pub fn resolve_conflict(&self, branch_name: &str) {
+        self.conflicting.lock().expect("scripted host lock").remove(branch_name);
+    }
+
     pub fn merged(&self) -> Vec<String> {
         self.merged.lock().expect("scripted host lock").clone()
     }

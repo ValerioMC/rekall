@@ -11,7 +11,8 @@ pub const REQUEST_MAX_CHARACTERS: usize = 2000;
 /// as Mermaid sheets of the `kinds` asked for; `Explain` has it write a walkthrough of `request`;
 /// `Inventory` has it record the project's dependencies; `Assess` has it judge whether `advisory`
 /// really reaches the project, `AssessAll` every advisory not judged yet; `Autoconfigure` has it
-/// learn from the project's repository how to contribute and store that as the project's sections.
+/// learn from the project's repository how to contribute and store that as the project's sections;
+/// `Merge` has it bring the project's branch into the task's branch and resolve the conflicts.
 /// Only `Work` follows a step.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub enum TerminalMode {
@@ -27,6 +28,7 @@ pub enum TerminalMode {
     Assess { advisory: String },
     AssessAll,
     Autoconfigure,
+    Merge,
 }
 
 impl TerminalMode {
@@ -47,6 +49,7 @@ impl TerminalMode {
             TerminalMode::Assess { advisory } => format!("/rk {anchors} assess advisory:{advisory}"),
             TerminalMode::AssessAll => format!("/rk {anchors} assess"),
             TerminalMode::Autoconfigure => format!("/rk {anchors} autoconfigure"),
+            TerminalMode::Merge => format!("/rk {anchors} merge"),
         }
     }
 
@@ -94,6 +97,7 @@ impl std::fmt::Display for TerminalMode {
             TerminalMode::Assess { .. } => "ASSESS",
             TerminalMode::AssessAll => "ASSESS_ALL",
             TerminalMode::Autoconfigure => "AUTOCONFIGURE",
+            TerminalMode::Merge => "MERGE",
         })
     }
 }

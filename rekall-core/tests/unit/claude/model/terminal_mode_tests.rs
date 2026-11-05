@@ -98,3 +98,10 @@ fn a_mode_goes_to_the_console_under_its_display_name_whatever_it_carries() {
     assert_eq!(serde_json::to_string(&generate).unwrap(), "\"GENERATE\"");
     assert_eq!(serde_json::to_string(&TerminalMode::Autoconfigure).unwrap(), "\"AUTOCONFIGURE\"");
 }
+
+#[test]
+fn a_merge_terminal_asks_the_session_to_resolve_the_branch_and_follows_no_step() {
+    assert_eq!(TerminalMode::Merge.first_line(ANCHORS), "/rk project:vega task:report-builder merge");
+    assert!(!TerminalMode::Merge.follows_steps() && !TerminalMode::Merge.works_on_a_project());
+    assert_eq!(TerminalMode::Merge.to_string(), "MERGE");
+}

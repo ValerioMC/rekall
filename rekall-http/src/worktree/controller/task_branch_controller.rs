@@ -8,15 +8,9 @@ use crate::worktree::TaskBranchResponse;
 use crate::ApiState;
 
 pub fn routes() -> Router<ApiState> {
-    Router::new()
-        .route("/api/tasks/{id}/branch", get(view))
-        .route("/api/tasks/{id}/worktree", axum::routing::delete(remove_worktree))
+    Router::new().route("/api/tasks/{id}/branch", get(view))
 }
 
 async fn view(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Json<Option<TaskBranchResponse>>> {
     Ok(Json(state.task_branches.view(uuid("id", &id)?).await?.map(TaskBranchResponse::from)))
-}
-
-async fn remove_worktree(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Json<Option<TaskBranchResponse>>> {
-    Ok(Json(state.task_branches.remove_worktree(uuid("id", &id)?).await?.map(TaskBranchResponse::from)))
 }

@@ -1,4 +1,8 @@
-use rekall_core::claude::{Remaining, TaskWorkService};
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::Duration;
+
+use rekall_core::claude::{Remaining, SessionKind, TaskWorkService, TerminalHost, TerminalMode, TerminalOpening, TerminalTarget};
 use rekall_core::review::TaskReviewEvent;
 use rekall_core::step::StepStreamEvent;
 use rekall_core::worktree::{Merge, Release, TaskWorktreeService};
@@ -7,71 +11,144 @@ use rekall_kernel::Id;
 use tokio::sync::broadcast::error::RecvError;
 use tracing::{info, warn};
 
+const MERGE_SESSION_CLOSED: &str = "The branch is merged.";
+
 /// Merges a task's branch into the project and then takes its worktree away, once all of its work
-/// is accepted. A branch that cannot be merged, or a worktree with unsaved changes, is left alone
-/// and logged. The branch with its commits always stays.
+/// is accepted. A branch that conflicts gets a `merge` session that resolves it in the task's
+/// worktree; the merge is retried on every tick until it goes through. Unsaved changes and a
+/// merge git refuses are left alone and logged. The branch with its commits always stays.
 pub struct WorktreeCleaner;
 
 impl WorktreeCleaner {
-    /// Listens to every committed step and review move until the event bus closes.
-    pub fn start(events: &EventBus, work: TaskWorkService, worktrees: TaskWorktreeService) {
+    /// Listens to every committed step and review move until the event bus closes, and looks at
+    /// the conflicts being resolved every `check_every`.
+    pub fn start(events: &EventBus, work: TaskWorkService, worktrees: TaskWorktreeService, terminals: Arc<dyn TerminalHost>, check_every: Duration) {
         let mut bus = events.subscribe();
+        let mut cleaner = Cleaner { work, worktrees, terminals, resolutions: HashMap::new() };
         tokio::spawn(async move {
+            let mut clock = tokio::time::interval_at(tokio::time::Instant::now() + check_every, check_every);
             loop {
-                match bus.recv().await {
-                    Ok(event) => {
-                        if let Some(task_id) = task_moved_by(&event) {
-                            clean_if_accepted(&work, &worktrees, task_id).await;
+                tokio::select! {
+                    received = bus.recv() => match received {
+                        Ok(event) => {
+                            if let Some(task_id) = task_moved_by(&event) {
+                                cleaner.clean_if_accepted(task_id).await;
+                            }
                         }
-                    }
-                    Err(RecvError::Lagged(_)) => continue,
-                    Err(RecvError::Closed) => return,
+                        Err(RecvError::Lagged(_)) => continue,
+                        Err(RecvError::Closed) => return,
+                    },
+                    _ = clock.tick() => cleaner.follow_resolutions().await,
                 }
             }
         });
     }
 }
 
-async fn clean_if_accepted(work: &TaskWorkService, worktrees: &TaskWorktreeService, task_id: Id) {
-    match work.read(task_id).await {
-        Ok(state) if state.remaining == Remaining::Accepted => {
-            if merged_into_project(worktrees, task_id).await {
-                release_worktree(worktrees, task_id).await;
+/// Where a task's conflict stands: a session is resolving it, or the session ended without the
+/// branch merging and none is opened again until the task is accepted anew.
+enum Resolution {
+    Running(Id),
+    Abandoned,
+}
+
+struct Cleaner {
+    work: TaskWorkService,
+    worktrees: TaskWorktreeService,
+    terminals: Arc<dyn TerminalHost>,
+    resolutions: HashMap<Id, Resolution>,
+}
+
+impl Cleaner {
+    async fn clean_if_accepted(&mut self, task_id: Id) {
+        match self.work.read(task_id).await {
+            Ok(state) if state.remaining == Remaining::Accepted => self.bring_in(task_id).await,
+            Ok(_) => {
+                self.resolutions.remove(&task_id);
+            }
+            Err(failure) => warn!(%failure, %task_id, "Could not read a task to see whether its worktree can go"),
+        }
+    }
+
+    async fn bring_in(&mut self, task_id: Id) {
+        match self.worktrees.merge_accepted(task_id).await {
+            Ok(Merge::Merged) => {
+                info!(%task_id, "Accepted task's branch merged into the project");
+                self.finish(task_id).await;
+            }
+            Ok(Merge::AlreadyMerged | Merge::NothingToMerge) => self.finish(task_id).await,
+            Ok(Merge::KeptWithChanges) => self.note_unsaved_changes(task_id),
+            Ok(Merge::Conflicts(reason)) => self.resolve_conflict(task_id, &reason).await,
+            Ok(Merge::Refused(reason)) => warn!(%reason, %task_id, "Accepted task's branch was not merged; the worktree stays"),
+            Err(failure) => warn!(%failure, %task_id, "Could not merge the branch of an accepted task"),
+        }
+    }
+
+    fn note_unsaved_changes(&self, task_id: Id) {
+        if !self.resolutions.contains_key(&task_id) {
+            info!(%task_id, "Accepted task's branch is not merged: its worktree has unsaved changes");
+        }
+    }
+
+    async fn resolve_conflict(&mut self, task_id: Id, reason: &str) {
+        if self.resolutions.contains_key(&task_id) {
+            return;
+        }
+        warn!(%reason, %task_id, "Accepted task's branch conflicts; a merge session resolves it");
+        let resolution = match self.terminals.open(merge_opening(task_id)).await {
+            Ok(session) => Resolution::Running(session.id),
+            Err(failure) => {
+                warn!(%failure, %task_id, "Could not open a session to resolve the conflict");
+                Resolution::Abandoned
+            }
+        };
+        self.resolutions.insert(task_id, resolution);
+    }
+
+    async fn finish(&mut self, task_id: Id) {
+        if let Some(Resolution::Running(session_id)) = self.resolutions.remove(&task_id) {
+            self.terminals.close(session_id, MERGE_SESSION_CLOSED).await;
+        }
+        self.release_worktree(task_id).await;
+    }
+
+    async fn follow_resolutions(&mut self) {
+        let running: Vec<(Id, Id)> = self
+            .resolutions
+            .iter()
+            .filter_map(|(task_id, resolution)| match resolution {
+                Resolution::Running(session_id) => Some((*task_id, *session_id)),
+                Resolution::Abandoned => None,
+            })
+            .collect();
+        for (task_id, session_id) in running {
+            self.clean_if_accepted(task_id).await;
+            if matches!(self.resolutions.get(&task_id), Some(Resolution::Running(_))) && self.terminals.get(session_id).is_none() {
+                warn!(%task_id, "The merge session ended and the branch still conflicts; the worktree stays");
+                self.resolutions.insert(task_id, Resolution::Abandoned);
             }
         }
-        Ok(_) => {}
-        Err(failure) => warn!(%failure, %task_id, "Could not read a task to see whether its worktree can go"),
     }
-}
 
-async fn merged_into_project(worktrees: &TaskWorktreeService, task_id: Id) -> bool {
-    match worktrees.merge_accepted(task_id).await {
-        Ok(Merge::Merged) => {
-            info!(%task_id, "Accepted task's branch merged into the project");
-            true
-        }
-        Ok(Merge::AlreadyMerged | Merge::NothingToMerge) => true,
-        Ok(Merge::KeptWithChanges) => {
-            info!(%task_id, "Accepted task's branch is not merged: its worktree has unsaved changes");
-            false
-        }
-        Ok(Merge::Refused(reason)) => {
-            warn!(%reason, %task_id, "Accepted task's branch was not merged; the worktree stays");
-            false
-        }
-        Err(failure) => {
-            warn!(%failure, %task_id, "Could not merge the branch of an accepted task");
-            false
+    async fn release_worktree(&self, task_id: Id) {
+        match self.worktrees.release(task_id).await {
+            Ok(Release::KeptWithChanges) => info!(%task_id, "Accepted task keeps its worktree: it has unsaved changes"),
+            Ok(Release::Removed) => info!(%task_id, "Accepted task's worktree removed"),
+            Ok(Release::NoWorktree) => {}
+            Err(failure) => warn!(%failure, %task_id, "Could not remove the worktree of an accepted task"),
         }
     }
 }
 
-async fn release_worktree(worktrees: &TaskWorktreeService, task_id: Id) {
-    match worktrees.release(task_id).await {
-        Ok(Release::KeptWithChanges) => info!(%task_id, "Accepted task keeps its worktree: it has unsaved changes"),
-        Ok(Release::Removed) => info!(%task_id, "Accepted task's worktree removed"),
-        Ok(Release::NoWorktree) => {}
-        Err(failure) => warn!(%failure, %task_id, "Could not remove the worktree of an accepted task"),
+fn merge_opening(task_id: Id) -> TerminalOpening {
+    TerminalOpening {
+        target: TerminalTarget::Task(task_id),
+        step_id: None,
+        skip_permissions: false,
+        model: None,
+        effort: None,
+        mode: TerminalMode::Merge,
+        kind: SessionKind::Terminal,
     }
 }
 

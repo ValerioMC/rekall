@@ -10,7 +10,6 @@ pub struct TaskBranchResponse {
     pub merges_cleanly: Option<bool>,
     pub worktree_folder: Option<String>,
     pub has_unsaved_changes: bool,
-    pub merge_command: String,
 }
 
 impl From<TaskBranchView> for TaskBranchResponse {
@@ -22,7 +21,6 @@ impl From<TaskBranchView> for TaskBranchResponse {
             merges_cleanly: view.merges_cleanly,
             worktree_folder: view.worktree_folder,
             has_unsaved_changes: view.has_unsaved_changes,
-            merge_command: view.merge_command,
         }
     }
 }

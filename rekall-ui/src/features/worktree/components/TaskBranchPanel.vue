@@ -1,15 +1,14 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue'
-import AppButton from '@/components/ui/AppButton.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { aheadText, mergeText, worktreeText } from '@/features/worktree/lib/taskBranch'
 import { useTaskBranchStore } from '@/features/worktree/store/taskBranch.store'
 import type { TaskId } from '@/model/branded'
 
 /**
- * The branch a task's work lives on when the run queue gave it a worktree: what it holds, whether
- * it merges, and the command to merge it by hand. There is no merge button: that is the
- * reader's decision. Drawn only while the branch exists. `signature` changes whenever the task's
+ * The branch a task's work lives on when the run queue gave it a worktree: what it holds and
+ * whether it merges. Accepting the task merges the branch and removes the worktree, so the panel
+ * offers no action. Drawn only while the branch exists. `signature` changes whenever the task's
  * work moves, so the figures are read again.
  */
 const props = defineProps<{ taskId: TaskId; signature: string }>()
@@ -24,15 +23,6 @@ watch(
   () => void run(() => store.load(props.taskId)),
   { immediate: true }
 )
-
-function copyCommand(): void {
-  const command = branch.value?.mergeCommand
-  if (command) void run(() => navigator.clipboard.writeText(command), 'Command copied')
-}
-
-function removeWorktree(): void {
-  void run(() => store.removeWorktree(props.taskId), 'Worktree removed')
-}
 </script>
 
 <template>
@@ -60,20 +50,5 @@ function removeWorktree(): void {
     </details>
 
     <p class="mt-2 text-caption text-text-subtle" data-testid="branch-worktree">{{ worktreeText(branch) }}</p>
-
-    <div class="mt-2 flex flex-wrap items-center gap-2">
-      <code class="rounded-control bg-surface-raised px-2 py-1 font-mono text-caption text-text" data-testid="branch-command">{{ branch.mergeCommand }}</code>
-      <AppButton variant="secondary" size="sm" data-testid="branch-copy" @click="copyCommand">Copy merge command</AppButton>
-      <AppButton
-        v-if="branch.worktreeFolder"
-        variant="secondary"
-        size="sm"
-        :disabled="branch.hasUnsavedChanges"
-        data-testid="branch-remove-worktree"
-        @click="removeWorktree"
-      >
-        Remove worktree
-      </AppButton>
-    </div>
   </section>
 </template>

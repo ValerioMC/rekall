@@ -6,9 +6,3 @@ import type { TaskId } from '@/model/branded'
 export async function fetchTaskBranch(taskId: TaskId): Promise<TaskBranch | null> {
   return request(async () => OptionalTaskBranchSchema.parse(await apiClient(`/api/tasks/${taskId}/branch`)))
 }
-
-export async function removeTaskWorktree(taskId: TaskId): Promise<TaskBranch | null> {
-  return request(async () =>
-    OptionalTaskBranchSchema.parse(await apiClient(`/api/tasks/${taskId}/worktree`, { method: 'DELETE' }))
-  )
-}
