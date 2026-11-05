@@ -118,7 +118,7 @@ An anchor brings back the record, everything it references resolved in full with
 | `rekall_create_task` | write | Create a task or an epic in a project with a description and up to 20 steps that start open, as a checklist or a flow with its sessions (none on an epic), optionally filed under an epic |
 | `rekall_join_epic` | write | File an existing task under an epic of its project, or move it from another epic |
 | `rekall_note` | write | Write a note on one task, or rewrite one it carries by title with `replace` |
-| `rekall_feedback` | write | Reply to the pending entries of a task's thread, by seq; it cannot create, edit or delete an entry |
+| `rekall_feedback` | write | Reply to the open entries of a task's thread, by seq; it cannot create, edit or delete an entry |
 | `rekall_deviation` | write | Record where the work departed from the plan, on one task and for one step; kept apart from the notes |
 | `rekall_project_section` | write | Write a titled markdown section on a task's project, or rewrite one by title with `replace` |
 | `rekall_read_sections` | read | List a project's sections by title, or read one whole with `title` |
@@ -141,7 +141,7 @@ The guides describe each area as it behaves today, with its REST routes and prop
 | Deployment graphs | A project's route from commit to running app, laid on a task | [workflow](docs/guide/workflow.md#deployment-graphs) |
 | Epics | A task that gathers other tasks and passes its brief to them | [workflow](docs/guide/workflow.md#epics) |
 | Commits | A ledger of commits per task or step; commit on claim | [workflow](docs/guide/workflow.md#commits) |
-| Review | Accept a claim, send a step back, and keep corrections to a description in its thread (revisions, feedback on the work or the plan) that a session replies to; the review queue and its notifications | [workflow](docs/guide/workflow.md#description-review) |
+| Review | Accept a claim, send a step back, and keep corrections to a description in its thread (revisions, feedback on the work or the plan), run as numbered passes that a session replies to; the review queue and its notifications | [workflow](docs/guide/workflow.md#description-review) |
 | Terminals | A real `claude` in a pseudo-terminal inside the app, or the same `claude` as a chat window (Settings > Claude Code > Session view); the run queue, which can work up to four tasks at once in git worktrees of their own; the usage meter | [sessions](docs/guide/sessions.md) |
 | Token usage | Tokens Claude Code generated per task and step, read from its transcripts | [sessions](docs/guide/sessions.md#token-usage) |
 | Projects | Page, sections, components, icons, autoconfigure; connections to GitLab, GitHub, Kubernetes and Jira shared across companies | [projects](docs/guide/projects.md) |
