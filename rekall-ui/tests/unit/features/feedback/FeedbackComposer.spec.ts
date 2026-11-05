@@ -59,4 +59,27 @@ describe('the feedback composer', () => {
 
     await vi.waitFor(() => expect(add).toHaveBeenCalledWith(TASK, 'PLAN', 'Split step 2', null))
   })
+
+  it('says which applied entry it adds detail to, sends it along, and forgets it after', async () => {
+    const { wrapper, add } = composer()
+    ;(wrapper.vm as unknown as { followUp: (seq: number) => void }).followUp(3)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.get('[data-testid="feedback-following"]').text()).toContain('Adding detail to #3')
+    await write(wrapper, 'Still wrong for refunds')
+
+    await wrapper.get('form').trigger('submit')
+
+    await vi.waitFor(() => expect(add).toHaveBeenCalledWith(TASK, 'IMPLEMENTATION', 'Still wrong for refunds', 3))
+    await vi.waitFor(() => expect(wrapper.find('[data-testid="feedback-following"]').exists()).toBe(false))
+  })
+
+  it('lets the person drop the entry it was aimed at', async () => {
+    const { wrapper } = composer()
+    ;(wrapper.vm as unknown as { followUp: (seq: number) => void }).followUp(3)
+    await wrapper.vm.$nextTick()
+
+    await wrapper.get('[data-testid="feedback-following-drop"]').trigger('click')
+
+    expect(wrapper.find('[data-testid="feedback-following"]').exists()).toBe(false)
+  })
 })

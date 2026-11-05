@@ -21,14 +21,12 @@ import ContextSizeChip from '@/features/context/components/ContextSizeChip.vue'
 import TaskTitleRow from '@/features/catalog/components/TaskTitleRow.vue'
 import TaskLabelsStrip from '@/features/catalog/components/TaskLabelsStrip.vue'
 import ApplyFeedbackButton from '@/features/feedback/components/ApplyFeedbackButton.vue'
-import FeedbackComposer from '@/features/feedback/components/FeedbackComposer.vue'
 import FeedbackThread from '@/features/feedback/components/FeedbackThread.vue'
-import AppButton from '@/components/ui/AppButton.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
-import { isWaiting, type Feedback } from '@/features/feedback/model/feedback'
+import type { Feedback } from '@/features/feedback/model/feedback'
 
 const store = useConsoleStore()
-const { selectedTask, selectedTaskId, selectedTaskCommitReferences, selectedTaskFeedback } = storeToRefs(store)
+const { selectedTask, selectedTaskId, selectedTaskCommitReferences, selectedTaskFeedback, waitingCount, runningPass } = storeToRefs(store)
 const { run } = useAsyncAction()
 
 const { draft, showEditor, mode, scheduleSave, beginWriting, toggleMode } = useDescriptionDraft()
@@ -45,9 +43,7 @@ const reviewState = computed(() => {
   return task && task.reviewActive && task.stepCount === 0 ? task.reviewState : null
 })
 
-const pendingRevision = computed(() =>
-  selectedTaskFeedback.value.find((entry) => entry.kind === 'REVISION' && isWaiting(entry)) ?? null
-)
+const needsAttention = computed(() => waitingCount.value > 0 || runningPass.value !== null)
 const threadOpen = ref(false)
 
 watch(
@@ -61,17 +57,14 @@ watch(
 watch(
   selectedTaskId,
   () => {
-    threadOpen.value = selectedTaskFeedback.value.length > 0
+    threadOpen.value = needsAttention.value
   },
   { immediate: true }
 )
 
-watch(
-  () => selectedTaskFeedback.value.length,
-  (count, before) => {
-    if (count > before) threadOpen.value = true
-  }
-)
+watch(needsAttention, (attention) => {
+  if (attention) threadOpen.value = true
+})
 
 function editFeedback(entry: Feedback, body: string): void {
   void run(() => store.editFeedback(entry, body))
@@ -192,23 +185,6 @@ defineExpose({ toggleMode })
         :signature="`${reviewState}:${selectedTask.updatedAt}`"
       />
 
-      <div
-        v-if="pendingRevision"
-        class="flex shrink-0 items-center gap-3 border-b border-border bg-accent-soft px-5 py-2"
-        role="status"
-        data-testid="revision-banner"
-      >
-        <span class="min-w-0 flex-1 text-small text-text">Description revised since the last run</span>
-        <ApplyFeedbackButton
-          :task-id="selectedTask.id"
-          :anchor="selectedTask.anchor"
-          :folder="selectedTask.projectRepoFolder"
-        />
-        <AppButton size="sm" variant="quiet" data-testid="revision-banner-discard" @click="discardRevision(pendingRevision)">
-          Discard
-        </AppButton>
-      </div>
-
       <DescriptionEmptyState v-if="!showEditor" @write="beginWriting" />
 
       <div v-else class="min-h-0 flex-1 overflow-y-auto p-4">
@@ -264,7 +240,6 @@ defineExpose({ toggleMode })
             @remove="removeFeedback"
             @discard="discardRevision"
           />
-          <FeedbackComposer />
         </div>
       </section>
     </template>

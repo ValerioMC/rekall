@@ -5,17 +5,19 @@ import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import RevisionEntry from '@/features/feedback/components/RevisionEntry.vue'
 import { relativeTime } from '@/common/format/relative-time'
 import { kindLabel } from '@/features/feedback/lib/feedback-labels'
-import { isWaiting, type Feedback } from '@/features/feedback/model/feedback'
+import { isRunning, isWaiting, type Feedback } from '@/features/feedback/model/feedback'
 
 /**
- * One message of the thread. Pending, it carries the accent edge and can be changed; applied, it is
- * sealed and recessed like a pass of a step, with the session's reply below it as a response.
+ * One message of the thread. Waiting, it carries the accent edge and can be changed; in a pass, a
+ * session is working on it and it is fixed; applied, it is sealed and recessed like a pass of a
+ * step, with the session's reply below it and a way to add detail to it.
  */
 const props = defineProps<{ entry: Feedback }>()
 const emit = defineEmits<{
   edit: [entry: Feedback, bodyMarkdown: string]
   remove: [entry: Feedback]
   discard: [entry: Feedback]
+  followUp: [entry: Feedback]
 }>()
 
 const editing = ref(false)
@@ -24,6 +26,8 @@ const collapsed = ref(false)
 const replyArrived = ref(false)
 
 const pending = computed(() => isWaiting(props.entry))
+const inPass = computed(() => isRunning(props.entry))
+const sealed = computed(() => !pending.value && !inPass.value)
 const isRevision = computed(() => props.entry.kind === 'REVISION')
 const canChange = computed(() => pending.value && !isRevision.value)
 const replyLine = computed(() => props.entry.replyMarkdown?.split('\n').find((line) => line.trim() !== '') ?? '')
@@ -31,7 +35,7 @@ const replyLine = computed(() => props.entry.replyMarkdown?.split('\n').find((li
 watch(
   () => props.entry.state,
   (state, before) => {
-    if (before === 'PENDING' && state === 'APPLIED') replyArrived.value = true
+    if (before !== 'APPLIED' && state === 'APPLIED') replyArrived.value = true
   }
 )
 
@@ -50,7 +54,7 @@ function save(): void {
 <template>
   <li
     class="entry rounded-card border bg-surface"
-    :class="pending ? 'entry-pending border-border' : 'entry-applied border-border bg-canvas'"
+    :class="sealed ? 'entry-applied border-border bg-canvas' : inPass ? 'entry-running border-border' : 'entry-pending border-border'"
     :data-state="entry.state"
     data-testid="feedback-entry"
   >
@@ -60,15 +64,20 @@ function save(): void {
       </span>
       <span class="font-mono text-micro text-text-subtle">#{{ entry.seq }}</span>
       <span class="text-micro text-text-subtle">{{ relativeTime(entry.createdAt) }}</span>
-      <span v-if="pending" class="text-micro font-medium text-accent" data-testid="feedback-state">Waiting for a session</span>
+      <span v-if="entry.followsSeq !== null" class="text-micro text-text-muted" data-testid="feedback-follows">Follows #{{ entry.followsSeq }}</span>
+      <span v-if="pending" class="text-micro font-medium text-accent" data-testid="feedback-state">Waiting for the next run</span>
+      <span v-else-if="inPass" class="text-micro font-medium text-session-strong" data-testid="feedback-state">In pass {{ entry.pass }}</span>
       <span v-else class="text-micro font-medium text-text-subtle" data-testid="feedback-state">Applied</span>
       <span class="flex-1" />
       <template v-if="canChange && !editing">
         <AppButton size="sm" variant="quiet" data-testid="feedback-edit" @click="startEditing">Edit</AppButton>
         <AppButton size="sm" variant="danger-quiet" data-testid="feedback-delete" @click="emit('remove', entry)">Delete</AppButton>
       </template>
+      <AppButton v-if="sealed" size="sm" variant="quiet" data-testid="feedback-follow-up" @click="emit('followUp', entry)">
+        Add detail
+      </AppButton>
       <button
-        v-if="!pending"
+        v-if="sealed"
         type="button"
         class="focus-ring rounded-control px-1.5 py-0.5 text-micro text-text-subtle hover:text-text"
         :aria-expanded="!collapsed"
@@ -79,7 +88,7 @@ function save(): void {
       </button>
     </header>
 
-    <p v-if="!pending && collapsed" class="truncate px-3 pb-2 text-small text-text-subtle" data-testid="feedback-summary">
+    <p v-if="sealed && collapsed" class="truncate px-3 pb-2 text-small text-text-subtle" data-testid="feedback-summary">
       {{ replyLine || 'Applied without a reply.' }}
     </p>
 
@@ -113,6 +122,10 @@ function save(): void {
 /* Pending is the live edge; applied is sealed, recessed onto the canvas and dimmed like a pass. */
 .entry-pending {
   border-left: 2px solid var(--color-accent);
+}
+
+.entry-running {
+  border-left: 2px solid var(--color-session);
 }
 
 .entry-applied {

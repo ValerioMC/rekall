@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { groupByPass } from '@/features/feedback/lib/feedback-passes'
+import { answeredCount, groupByPass, passDetail } from '@/features/feedback/lib/feedback-passes'
 import { applied, appliedInPass, entry, running } from './fixtures'
 
 describe('groupByPass', () => {
@@ -40,5 +40,22 @@ describe('groupByPass', () => {
 
   it('has nothing for an empty thread', () => {
     expect(groupByPass([])).toEqual({ next: [], passes: [], before: [] })
+  })
+})
+
+describe('passDetail and answeredCount', () => {
+  const NOW = Date.parse('2026-11-04T10:34:00Z')
+
+  it('says when a running pass started and when a done one finished', () => {
+    const groups = groupByPass([appliedInPass(1, 1, 'Done.', { appliedAt: '2026-11-04T10:00:00Z' }), running(2, 2, { takenAt: '2026-11-04T10:30:00Z' })])
+
+    expect(passDetail(groups.passes[0]!, NOW)).toBe('started 4 min ago')
+    expect(passDetail(groups.passes[1]!, NOW)).toBe('finished 34 min ago')
+  })
+
+  it('counts the entries of a pass a session already answered', () => {
+    const groups = groupByPass([appliedInPass(1, 1, 'Done.'), running(2, 1), running(3, 1)])
+
+    expect(answeredCount(groups.passes[0]!)).toBe(1)
   })
 })

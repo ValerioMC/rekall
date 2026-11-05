@@ -3,7 +3,7 @@ import { mount } from '@vue/test-utils'
 import FeedbackEntry from '@/features/feedback/components/FeedbackEntry.vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import type { Feedback } from '@/features/feedback/model/feedback'
-import { applied, entry, revision } from './fixtures'
+import { applied, entry, revision, running } from './fixtures'
 
 function view(feedback: Feedback) {
   return mount(FeedbackEntry, { props: { entry: feedback }, global: { stubs: { AppMarkdownEditor: true } } })
@@ -15,7 +15,7 @@ describe('a message of the thread', () => {
 
     expect(wrapper.get('[data-testid="feedback-kind"]').text()).toBe('Feedback on the plan')
     expect(wrapper.text()).toContain('#3')
-    expect(wrapper.get('[data-testid="feedback-state"]').text()).toBe('Waiting for a session')
+    expect(wrapper.get('[data-testid="feedback-state"]').text()).toBe('Waiting for the next run')
     expect(wrapper.find('[data-testid="feedback-edit"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="feedback-delete"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="feedback-reply"]').exists()).toBe(false)
@@ -30,6 +30,25 @@ describe('a message of the thread', () => {
     const reply = wrapper.get('[data-testid="feedback-reply"]')
     expect(reply.text()).toContain('Session replied')
     expect(reply.getComponent(AppMarkdownEditor).props('modelValue')).toBe('Fixed the totals in the report view.')
+  })
+
+  it('says which pass an entry is in and offers neither edit nor delete while it is', () => {
+    const wrapper = view(running(4, 2))
+
+    expect(wrapper.attributes('data-state')).toBe('RUNNING')
+    expect(wrapper.get('[data-testid="feedback-state"]').text()).toBe('In pass 2')
+    expect(wrapper.find('[data-testid="feedback-edit"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="feedback-delete"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="feedback-follow-up"]').exists()).toBe(false)
+  })
+
+  it('offers Add detail on an applied entry only, and names the entry a follow-up continues', async () => {
+    const wrapper = view(applied(1, 'Done.'))
+    await wrapper.get('[data-testid="feedback-follow-up"]').trigger('click')
+
+    expect(wrapper.emitted('followUp')).toEqual([[applied(1, 'Done.')]])
+    expect(view(entry(2)).find('[data-testid="feedback-follow-up"]').exists()).toBe(false)
+    expect(view(entry(3, { followsSeq: 1 })).get('[data-testid="feedback-follows"]').text()).toBe('Follows #1')
   })
 
   it('collapses an applied entry to one line holding the first line of the reply', async () => {
@@ -75,6 +94,10 @@ describe('a message of the thread', () => {
     const wrapper = view(entry(1))
     await wrapper.setProps({ entry: applied(1, 'Done.') })
     expect(wrapper.get('[data-testid="feedback-reply"]').classes()).toContain('reply-arrived')
+
+    const inPass = view(running(3, 1))
+    await inPass.setProps({ entry: applied(3, 'Done.') })
+    expect(inPass.get('[data-testid="feedback-reply"]').classes()).toContain('reply-arrived')
 
     expect(view(applied(2, 'Done.')).get('[data-testid="feedback-reply"]').classes()).not.toContain('reply-arrived')
   })

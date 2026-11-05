@@ -6,11 +6,13 @@ import { useFeedbackComposer } from '@/features/feedback/composables/useFeedback
 import { switchLabel, WRITTEN_KINDS } from '@/features/feedback/lib/feedback-labels'
 
 /**
- * Where feedback is written: a markdown editor, what it is about, and one button. Once added, the
- * text lives only in the thread, so nothing stays in here.
+ * Where feedback is written: a markdown editor, what it is about, the applied entry it adds detail
+ * to when aimed at one, and one button. Once added, the text lives only in the thread.
  */
-const { draft, kind, chooseKind, canSubmit, submit } = useFeedbackComposer()
+const { draft, kind, followsSeq, followUp, dropFollowUp, chooseKind, canSubmit, submit } = useFeedbackComposer()
 const adding = ref(false)
+
+defineExpose({ followUp })
 
 async function add(): Promise<void> {
   if (!canSubmit.value || adding.value) return
@@ -49,6 +51,18 @@ async function add(): Promise<void> {
       <span class="flex-1" />
       <span class="text-micro text-text-subtle">⌘↵ adds</span>
     </div>
+    <p v-if="followsSeq !== null" class="mb-2 flex items-center gap-2 text-small text-text-muted" data-testid="feedback-following">
+      Adding detail to #{{ followsSeq }}
+      <button
+        type="button"
+        class="focus-ring rounded-control px-1.5 py-0.5 text-micro text-text-subtle hover:text-text"
+        :aria-label="`Stop adding detail to #${followsSeq}`"
+        data-testid="feedback-following-drop"
+        @click="dropFollowUp"
+      >
+        Drop
+      </button>
+    </p>
     <AppMarkdownEditor v-model="draft" height="150px" placeholder="What should change?" compact :page-fullscreen="false" />
     <div class="mt-2 flex justify-end">
       <AppButton type="submit" variant="primary" size="sm" :disabled="!canSubmit" :loading="adding" data-testid="feedback-add">

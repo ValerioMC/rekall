@@ -1,3 +1,4 @@
+import { relativeTime } from '@/common/format/relative-time'
 import { isRunning, isWaiting, type Feedback } from '@/features/feedback/model/feedback'
 
 /** The entries one Run revision took, with whether a session is still on them. */
@@ -40,4 +41,14 @@ function earliest(moments: readonly (string | null)[]): string | null {
 function latest(moments: readonly (string | null)[]): string | null {
   const present = moments.filter((moment): moment is string => moment !== null)
   return present.length === 0 ? null : present.reduce((last, moment) => (moment > last ? moment : last))
+}
+
+/** When a pass was started while it runs, and when it was finished once every entry is answered. */
+export function passDetail(group: PassGroup, now: number = Date.now()): string {
+  if (group.running) return group.takenAt === null ? 'in progress' : `started ${relativeTime(group.takenAt, now)}`
+  return group.finishedAt === null ? '' : `finished ${relativeTime(group.finishedAt, now)}`
+}
+
+export function answeredCount(group: PassGroup): number {
+  return group.entries.filter((entry) => !isRunning(entry)).length
 }
