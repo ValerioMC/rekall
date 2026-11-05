@@ -25,7 +25,7 @@ import FeedbackComposer from '@/features/feedback/components/FeedbackComposer.vu
 import FeedbackThread from '@/features/feedback/components/FeedbackThread.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
-import { isPending, type Feedback } from '@/features/feedback/model/feedback'
+import { isWaiting, type Feedback } from '@/features/feedback/model/feedback'
 
 const store = useConsoleStore()
 const { selectedTask, selectedTaskId, selectedTaskCommitReferences, selectedTaskFeedback } = storeToRefs(store)
@@ -46,7 +46,7 @@ const reviewState = computed(() => {
 })
 
 const pendingRevision = computed(() =>
-  selectedTaskFeedback.value.find((entry) => entry.kind === 'REVISION' && isPending(entry)) ?? null
+  selectedTaskFeedback.value.find((entry) => entry.kind === 'REVISION' && isWaiting(entry)) ?? null
 )
 const threadOpen = ref(false)
 
@@ -200,7 +200,6 @@ defineExpose({ toggleMode })
       >
         <span class="min-w-0 flex-1 text-small text-text">Description revised since the last run</span>
         <ApplyFeedbackButton
-          mode="revise"
           :task-id="selectedTask.id"
           :anchor="selectedTask.anchor"
           :folder="selectedTask.projectRepoFolder"
@@ -253,14 +252,6 @@ defineExpose({ toggleMode })
           </button>
           <span class="flex-1" />
           <ApplyFeedbackButton
-            mode="revise"
-            :task-id="selectedTask.id"
-            :anchor="selectedTask.anchor"
-            :folder="selectedTask.projectRepoFolder"
-          />
-          <ApplyFeedbackButton
-            v-if="selectedTask.stepCount > 0"
-            mode="replan"
             :task-id="selectedTask.id"
             :anchor="selectedTask.anchor"
             :folder="selectedTask.projectRepoFolder"

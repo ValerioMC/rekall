@@ -4,9 +4,10 @@ import {
   deleteFeedback as apiDeleteFeedback,
   discardRevision as apiDiscardRevision,
   editFeedback as apiEditFeedback,
-  fetchFeedback
+  fetchFeedback,
+  startPass as apiStartPass
 } from '@/features/feedback/api/feedback.api'
-import { isPending, type Feedback, type FeedbackKind, type WrittenFeedbackKind } from '@/features/feedback/model/feedback'
+import { isRunning, isWaiting, type Feedback, type WrittenFeedbackKind } from '@/features/feedback/model/feedback'
 import type { TaskId } from '@/model/branded'
 import type { ConsoleState } from '../../../stores/console/console-state'
 import type { useConsoleRefreshes } from '../../../stores/console/useConsoleRefreshes'
@@ -21,9 +22,11 @@ export function useFeedbackThread(state: ConsoleState, refreshes: ReturnType<typ
     selectedTaskId.value === null ? [] : (feedbackByTask.value[selectedTaskId.value] ?? [])
   )
 
-  function pendingCount(kind: FeedbackKind): number {
-    return selectedTaskFeedback.value.filter((entry) => entry.kind === kind && isPending(entry)).length
-  }
+  const waitingCount = computed<number>(() => selectedTaskFeedback.value.filter(isWaiting).length)
+
+  const runningPass = computed<number | null>(
+    () => selectedTaskFeedback.value.find(isRunning)?.pass ?? null
+  )
 
   function putThread(taskId: TaskId, thread: readonly Feedback[]): void {
     feedbackByTask.value = { ...feedbackByTask.value, [taskId]: thread }
@@ -37,9 +40,20 @@ export function useFeedbackThread(state: ConsoleState, refreshes: ReturnType<typ
     putThread(taskId, await fetchFeedback(taskId))
   }
 
-  async function addFeedback(taskId: TaskId, kind: WrittenFeedbackKind, bodyMarkdown: string): Promise<void> {
-    const added = await trackSave(saveState, () => apiAddFeedback(taskId, kind, bodyMarkdown))
+  async function addFeedback(
+    taskId: TaskId,
+    kind: WrittenFeedbackKind,
+    bodyMarkdown: string,
+    followsSeq: number | null = null
+  ): Promise<void> {
+    const added = await trackSave(saveState, () => apiAddFeedback(taskId, kind, bodyMarkdown, followsSeq))
     putThread(taskId, upsertById(threadOf(taskId), added, 'last'))
+  }
+
+  /** Takes every waiting entry into the next pass; the entries it took replace their waiting rows. */
+  async function startPass(taskId: TaskId): Promise<void> {
+    const taken = await apiStartPass(taskId)
+    putThread(taskId, taken.reduce((thread, entry) => replaceById(thread, entry), threadOf(taskId)))
   }
 
   async function editFeedback(entry: Feedback, bodyMarkdown: string): Promise<void> {
@@ -62,9 +76,11 @@ export function useFeedbackThread(state: ConsoleState, refreshes: ReturnType<typ
   return {
     feedbackByTask,
     selectedTaskFeedback,
-    pendingCount,
+    waitingCount,
+    runningPass,
     loadFeedback,
     addFeedback,
+    startPass,
     editFeedback,
     deleteFeedback,
     discardRevision

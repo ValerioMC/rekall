@@ -33,7 +33,7 @@ describe('the feedback composer', () => {
     await write(wrapper, 'The totals are wrong')
 
     await wrapper.get('form').trigger('submit')
-    await vi.waitFor(() => expect(add).toHaveBeenCalledWith(TASK, 'IMPLEMENTATION', 'The totals are wrong'))
+    await vi.waitFor(() => expect(add).toHaveBeenCalledWith(TASK, 'IMPLEMENTATION', 'The totals are wrong', null))
 
     await vi.waitFor(() => expect(wrapper.getComponent(AppMarkdownEditor).props('modelValue')).toBe(''))
   })
@@ -57,6 +57,6 @@ describe('the feedback composer', () => {
 
     await wrapper.get('form').trigger('submit')
 
-    await vi.waitFor(() => expect(add).toHaveBeenCalledWith(TASK, 'PLAN', 'Split step 2'))
+    await vi.waitFor(() => expect(add).toHaveBeenCalledWith(TASK, 'PLAN', 'Split step 2', null))
   })
 })

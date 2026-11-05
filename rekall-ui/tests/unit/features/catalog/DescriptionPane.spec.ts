@@ -202,7 +202,7 @@ describe('DescriptionPane thread', () => {
     await flushPromises()
 
     expect(wrapper.get('[data-testid="revision-banner"]').text()).toContain('Description revised since the last run')
-    expect(wrapper.find('[data-testid="revision-banner"] [data-testid="apply-feedback-revise"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="revision-banner"] [data-testid="apply-feedback"]').exists()).toBe(true)
 
     await wrapper.get('[data-testid="revision-banner-discard"]').trigger('click')
 

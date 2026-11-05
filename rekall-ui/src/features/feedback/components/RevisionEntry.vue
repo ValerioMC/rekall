@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import { diffLines, foldUnchanged, type DiffRow } from '@/features/feedback/lib/revision-diff'
-import { isPending, type Feedback } from '@/features/feedback/model/feedback'
+import { isWaiting, type Feedback } from '@/features/feedback/model/feedback'
 
 /**
  * What a rewrite of the description changed, as a diff: removed lines muted red, added lines in
@@ -55,7 +55,7 @@ function sign(kind: DiffRow['kind']): string {
         </template>
       </template>
     </div>
-    <div v-if="isPending(entry)" class="mt-2 flex items-center gap-2">
+    <div v-if="isWaiting(entry)" class="mt-2 flex items-center gap-2">
       <AppButton size="sm" variant="quiet" data-testid="revision-discard" @click="emit('discard', entry)">
         Discard and restore the earlier text
       </AppButton>

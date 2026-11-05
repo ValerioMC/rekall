@@ -5,7 +5,7 @@ import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import RevisionEntry from '@/features/feedback/components/RevisionEntry.vue'
 import { relativeTime } from '@/common/format/relative-time'
 import { kindLabel } from '@/features/feedback/lib/feedback-labels'
-import { isPending, type Feedback } from '@/features/feedback/model/feedback'
+import { isWaiting, type Feedback } from '@/features/feedback/model/feedback'
 
 /**
  * One message of the thread. Pending, it carries the accent edge and can be changed; applied, it is
@@ -23,7 +23,7 @@ const draft = ref('')
 const collapsed = ref(false)
 const replyArrived = ref(false)
 
-const pending = computed(() => isPending(props.entry))
+const pending = computed(() => isWaiting(props.entry))
 const isRevision = computed(() => props.entry.kind === 'REVISION')
 const canChange = computed(() => pending.value && !isRevision.value)
 const replyLine = computed(() => props.entry.replyMarkdown?.split('\n').find((line) => line.trim() !== '') ?? '')

@@ -39,7 +39,7 @@ describe('useFeedbackComposer', () => {
 
     await composer.submit()
 
-    expect(add).toHaveBeenCalledWith(TASK, 'IMPLEMENTATION', 'The totals are wrong')
+    expect(add).toHaveBeenCalledWith(TASK, 'IMPLEMENTATION', 'The totals are wrong', null)
     expect(composer.draft.value).toBe('')
   })
 
@@ -54,5 +54,30 @@ describe('useFeedbackComposer', () => {
 
     expect(composer.canSubmit.value).toBe(false)
     expect(add).not.toHaveBeenCalled()
+  })
+
+  it('submits against the applied entry it adds detail to, and forgets it afterwards', async () => {
+    const store = useConsoleStore()
+    store.selectedTaskId = TASK
+    const add = vi.spyOn(store, 'addFeedback').mockResolvedValue()
+    const composer = useFeedbackComposer()
+    composer.followUp(3)
+    composer.draft.value = 'Still wrong for refunds'
+
+    await composer.submit()
+
+    expect(add).toHaveBeenCalledWith(TASK, 'IMPLEMENTATION', 'Still wrong for refunds', 3)
+    expect(composer.followsSeq.value).toBeNull()
+  })
+
+  it('lets the person drop the entry it was aimed at', () => {
+    const store = useConsoleStore()
+    store.selectedTaskId = TASK
+    const composer = useFeedbackComposer()
+    composer.followUp(2)
+
+    composer.dropFollowUp()
+
+    expect(composer.followsSeq.value).toBeNull()
   })
 })
