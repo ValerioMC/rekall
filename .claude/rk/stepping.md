@@ -12,6 +12,9 @@ done` are how a session drives its own checklist as it works. `step:` takes the 
 - `report:"..."` alongside `done`, on a flow, is what you saw there: pass it as `report`. Give one with
   every failure.
 
+A `<thread>` with pending entries is worked only through `revise` or `replan`, never while you work
+a checklist step.
+
 The loop, once you are working a checklist:
 
 1. `/rk project:x task:y step:N start`, before you touch the code for step N.

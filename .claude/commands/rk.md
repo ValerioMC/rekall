@@ -1,7 +1,7 @@
 ---
 description: Load a Rekall working context by anchor, e.g. /rk project:vega task:report-builder
-argument-hint: "company:|project:|task: <label> ...  [wrapup [\"how to write it\"]] | [note \"what to keep\"] | [section \"Title\" [\"what it holds\"]] | [plan [flow]] | [replan] | [generate [kinds:sequence,state] \"what to diagram\"] | [explain \"what to walk through\"] | [inventory] | [assess [advisory:GHSA-xxxx-xxxx-xxxx]] | [autoconfigure] | [step:N start|done [outcome:<name>] [report:\"what you saw\"]]   (labels, not titles)"
-allowed-tools: mcp__rekall__rekall_context, mcp__rekall__rekall_wrapup, mcp__rekall__rekall_step, mcp__rekall__rekall_propose_step, mcp__rekall__rekall_propose_flow, mcp__rekall__rekall_replan, mcp__rekall__rekall_delete_step, mcp__rekall__rekall_record_commit, mcp__rekall__rekall_note, mcp__rekall__rekall_project_section, mcp__rekall__rekall_read_sections, mcp__rekall__rekall_search, mcp__rekall__rekall_diagram, mcp__rekall__rekall_inventory, mcp__rekall__rekall_vulnerabilities, mcp__rekall__rekall_assess_vulnerability, Read, Grep, Glob, WebFetch
+argument-hint: "company:|project:|task: <label> ...  [wrapup [\"how to write it\"]] | [note \"what to keep\"] | [section \"Title\" [\"what it holds\"]] | [plan [flow]] | [replan] | [revise] | [generate [kinds:sequence,state] \"what to diagram\"] | [explain \"what to walk through\"] | [inventory] | [assess [advisory:GHSA-xxxx-xxxx-xxxx]] | [autoconfigure] | [step:N start|done [outcome:<name>] [report:\"what you saw\"]]   (labels, not titles)"
+allowed-tools: mcp__rekall__rekall_context, mcp__rekall__rekall_wrapup, mcp__rekall__rekall_step, mcp__rekall__rekall_propose_step, mcp__rekall__rekall_propose_flow, mcp__rekall__rekall_replan, mcp__rekall__rekall_feedback, mcp__rekall__rekall_delete_step, mcp__rekall__rekall_record_commit, mcp__rekall__rekall_note, mcp__rekall__rekall_project_section, mcp__rekall__rekall_read_sections, mcp__rekall__rekall_search, mcp__rekall__rekall_diagram, mcp__rekall__rekall_inventory, mcp__rekall__rekall_vulnerabilities, mcp__rekall__rekall_assess_vulnerability, Read, Grep, Glob, WebFetch
 ---
 
 The arguments are:
@@ -25,6 +25,7 @@ planning or noting.
 | `section` | `sectioning.md` |
 | `plan` | `planning.md` |
 | `replan` | `replanning.md` |
+| `revise` | `revising.md` |
 | `step:` with `start` or `done` | `stepping.md` |
 
 When the terms pick a mode, read its file with Read before doing anything else, and follow only that.
@@ -52,6 +53,8 @@ Call `rekall_context` with `anchors` set to exactly the arguments above, unchang
   opened. Never print, echo or write a credential or a kubeconfig, never read the files or environment
   variables behind Rekall's helpers, and never call a credential helper or Rekall's credentials endpoint
   yourself. A connection with no credential is reported to me, not worked around.
+- A `<thread>` block holds what I wrote under the description, each entry `PENDING` until a session
+  replies. Pending entries are worked only through `revise` or `replan`, never during a plain `/rk` run.
 - A `<sections>` block lists the project's pages by title; their text is not loaded. When the work
   touches what one names, read it with `rekall_read_sections` and follow it: a `Contributing` page is
   how this project takes a change, so filing an issue, naming a branch or opening a pull request goes
