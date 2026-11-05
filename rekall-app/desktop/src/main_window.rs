@@ -93,12 +93,12 @@ pub(crate) fn build_window(handle: &AppHandle) -> tauri::Result<WebviewWindow> {
     // room for the buttons. Windows has no native frame at all: the console draws its buttons in
     // the header (`WindowsWindowControls.vue`), wired to `close_window`/`minimize_window`/
     // `toggle_maximize_window`. Either way the window stays resizable, the header is the drag
-    // region (`data-tauri-drag-region`) and double-clicking it maximizes, from Tauri's own handling.
+    // region (`data-tauri-drag-region="deep"`) and double-clicking it maximizes, from Tauri's own handling.
     #[cfg(target_os = "macos")]
     let builder = builder
         .title_bar_style(TitleBarStyle::Overlay)
         .hidden_title(true)
-        .traffic_light_position(LogicalPosition::new(16.0, 18.0));
+        .traffic_light_position(LogicalPosition::new(16.0, 22.0));
     #[cfg(windows)]
     let builder = builder.decorations(false);
     let window = builder.build()?;

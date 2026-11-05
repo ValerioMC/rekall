@@ -18,14 +18,14 @@ const clearsTrafficLights = platform === 'macos'
      every one. The slot is `display: contents`: a screen teleports exactly two children, which land
      in the centre and right cells. On macOS the system's own window buttons float over the left
      edge, so the left cell starts clear of them. On Windows the window buttons stand outside the
-     grid, flush with the right edge, so the grid is the space left of them. -->
+     grid, flush with the right edge, so the grid is the space left of them. The header is a `deep`
+     drag region: any press on it that lands on no button, link or field drags the window. -->
 <template>
   <header
-    :data-tauri-drag-region="isDesktop ? true : undefined"
+    :data-tauri-drag-region="isDesktop ? 'deep' : undefined"
     class="glass sticky top-0 z-(--z-sticky) flex h-(--spacing-header) shrink-0 items-center border-b border-border"
   >
     <div
-      :data-tauri-drag-region="isDesktop ? true : undefined"
       class="app-header-grid grid h-full min-w-0 flex-1 items-center gap-4 px-3"
     >
       <div class="flex min-w-0 items-center gap-4 self-stretch">
