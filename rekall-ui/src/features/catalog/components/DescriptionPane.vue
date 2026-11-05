@@ -82,7 +82,7 @@ defineExpose({ toggleMode })
 </script>
 
 <template>
-  <section class="flex min-h-0 flex-1 flex-col bg-canvas" aria-label="Description">
+  <section class="flex min-h-0 min-w-0 flex-1 flex-col bg-canvas" aria-label="Description">
     <p v-if="!selectedTask" class="px-9 py-12 text-body text-text-muted">
       Pick a task to see what it is.
     </p>
@@ -207,11 +207,11 @@ defineExpose({ toggleMode })
 
       <section
         class="flex max-h-[55%] shrink flex-col border-t border-border bg-surface"
-        :class="threadOpen ? 'min-h-[24rem]' : 'min-h-0'"
+        :class="threadOpen ? 'min-h-[18.5rem]' : 'min-h-0'"
         aria-label="Feedback"
         data-testid="feedback-dock"
       >
-        <header class="flex shrink-0 items-center gap-2 px-4 py-2">
+        <header class="flex shrink-0 items-center gap-2 py-2 pl-4" :class="threadOpen ? 'pr-4' : 'dock-lane-safe'">
           <button
             type="button"
             class="focus-ring flex items-center gap-1.5 rounded-control px-1 py-0.5 text-left"
