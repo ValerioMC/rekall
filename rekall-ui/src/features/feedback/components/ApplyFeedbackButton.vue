@@ -21,8 +21,9 @@ const props = withDefaults(
     anchor: string
     folder: string | null
     missingHint?: string
+    variant?: 'primary' | 'secondary'
   }>(),
-  { missingHint: "Set this project's folder on its page to run a session from it" }
+  { missingHint: "Set this project's folder on its page to run a session from it", variant: 'secondary' }
 )
 
 const store = useConsoleStore()
@@ -61,7 +62,7 @@ async function apply(): Promise<void> {
 <template>
   <AppButton
     size="sm"
-    variant="secondary"
+    :variant="variant"
     :disabled="waitingCount === 0 || passRunning || isRunning"
     :title="hint"
     data-testid="apply-feedback"

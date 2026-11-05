@@ -73,6 +73,10 @@ function seed(reviewState: TaskStepState, wrapup: Partial<Task> = {}) {
 
 let pinia: Pinia
 
+function threadEntry(extra: Record<string, unknown>): Record<string, unknown> {
+  return { taskId, kind: 'IMPLEMENTATION', quotedMarkdown: null, bodyMarkdown: 'x', replyMarkdown: null, createdAt: '2026-11-04T10:00:00Z', appliedAt: null, pass: null, takenAt: null, followsSeq: null, ...extra }
+}
+
 function render() {
   return mount(DescriptionPane, {
     global: {
@@ -92,24 +96,81 @@ describe('DescriptionPane review bar', () => {
     setActivePinia(pinia)
   })
 
-  it('offers Accept while a session has the stepless task running', async () => {
-    const store = seed('RUNNING')
+  it('offers no Accept while a session has the stepless task running, and says what is running', async () => {
+    const { fetchFeedback } = await import('@/features/feedback/api/feedback.api')
+    vi.mocked(fetchFeedback).mockResolvedValue([threadEntry({ id: 'f1', seq: 4, state: 'RUNNING', pass: 2, takenAt: '2026-11-04T10:30:00Z' }), threadEntry({ id: 'f2', seq: 5, state: 'RUNNING', pass: 2, takenAt: '2026-11-04T10:30:00Z' })] as never)
+    seed('RUNNING')
     const wrapper = render()
     await flushPromises()
 
-    expect(wrapper.find('[data-testid="description-review-bar"]').exists()).toBe(true)
+    const bar = wrapper.get('[data-testid="description-review-bar"]')
+    expect(wrapper.find('[data-testid="description-accept"]').exists()).toBe(false)
+    expect(bar.text()).toContain('Pass 2 is running on #4, #5')
+  })
+
+  it('says a session is on the task when no pass is running, still without Accept', async () => {
+    const { fetchFeedback } = await import('@/features/feedback/api/feedback.api')
+    vi.mocked(fetchFeedback).mockResolvedValue([])
+    seed('RUNNING')
+    const wrapper = render()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="description-accept"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="description-review-bar"]').text()).toContain('A session is working on this task')
+  })
+
+  it('keeps Accept as the main action once a wrapup has claimed the task, and points corrections at the thread', async () => {
+    const { fetchFeedback } = await import('@/features/feedback/api/feedback.api')
+    vi.mocked(fetchFeedback).mockResolvedValue([])
+    const store = seed('CLAIMED')
+    const wrapper = render()
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="description-accept"]').text()).toBe('Accept')
+    expect(wrapper.get('[data-testid="description-review-bar"]').text()).toContain('feedback below')
+    expect(wrapper.find('[data-testid="description-review-bar"] [data-testid="apply-feedback"]').exists()).toBe(false)
 
     await wrapper.get('[data-testid="description-accept"]').trigger('click')
     expect(store.acceptTask).toHaveBeenCalledWith(taskId)
   })
 
-  it('keeps Accept once a wrapup has claimed the task, and points corrections at the thread', async () => {
-    seed('CLAIMED')
+  it('lays out what the last pass did: a reply per entry and the commits logged since it started', async () => {
+    const { fetchFeedback } = await import('@/features/feedback/api/feedback.api')
+    vi.mocked(fetchFeedback).mockResolvedValue([
+      threadEntry({ id: 'f1', seq: 1, state: 'APPLIED', pass: 1, takenAt: '2026-11-04T09:00:00Z', replyMarkdown: 'Old fix.', appliedAt: '2026-11-04T09:30:00Z' }),
+      threadEntry({ id: 'f2', seq: 2, state: 'APPLIED', pass: 2, takenAt: '2026-11-04T10:00:00Z', replyMarkdown: 'Fixed the totals.\nMore.', appliedAt: '2026-11-04T10:30:00Z' })
+    ] as never)
+    const store = seed('CLAIMED')
+    store.commitReferences = [
+      { id: 'c1', taskId, stepId: null, stepTitle: null, commitHash: 'aaaaaaa111', comment: 'before the pass', inContext: false, createdAt: '2026-11-04T08:00:00Z' },
+      { id: 'c2', taskId, stepId: null, stepTitle: null, commitHash: 'bbbbbbb222', comment: 'fix the totals', inContext: false, createdAt: '2026-11-04T10:20:00Z' }
+    ] as never
     const wrapper = render()
     await flushPromises()
 
-    expect(wrapper.find('[data-testid="description-accept"]').exists()).toBe(true)
-    expect(wrapper.get('[data-testid="description-review-bar"]').text()).toContain('feedback below')
+    const summary = wrapper.get('[data-testid="pass-summary"]')
+    expect(summary.get('[data-testid="pass-summary-title"]').text()).toBe('What pass 2 did')
+    expect(summary.findAll('[data-testid="pass-summary-entry"]')).toHaveLength(1)
+    expect(summary.text()).toContain('Fixed the totals.')
+    expect(summary.findAll('[data-testid="pass-summary-commit"]').map((commit) => commit.text())).toEqual(['bbbbbbbfix the totals'])
+  })
+
+  it('makes Run revision the main action and turns Accept into Accept anyway while entries wait', async () => {
+    const { fetchFeedback } = await import('@/features/feedback/api/feedback.api')
+    vi.mocked(fetchFeedback).mockResolvedValue([threadEntry({ id: 'f1', seq: 1, state: 'PENDING' }), threadEntry({ id: 'f2', seq: 2, state: 'PENDING', kind: 'PLAN' })] as never)
+    const store = seed('CLAIMED')
+    const wrapper = render()
+    await flushPromises()
+
+    const bar = wrapper.get('[data-testid="description-review-bar"]')
+    expect(bar.find('[data-testid="apply-feedback"]').exists()).toBe(true)
+    const accept = bar.get('[data-testid="description-accept"]')
+    expect(accept.text()).toBe('Accept anyway')
+    expect(accept.attributes('title')).toBe('2 entries have not been run')
+    expect(bar.text()).toContain('2 entries are waiting for the next run')
+
+    await accept.trigger('click')
+    expect(store.acceptTask).toHaveBeenCalledWith(taskId)
   })
 
   it('shows no review bar while the stepless task is still open', async () => {
@@ -210,7 +271,7 @@ describe('DescriptionPane thread', () => {
     const { fetchFeedback } = await import('@/features/feedback/api/feedback.api')
     const waiting = { id: 'f1', taskId, seq: 1, kind: 'REVISION', state: 'PENDING', quotedMarkdown: 'before', bodyMarkdown: 'after', replyMarkdown: null, createdAt: '2026-11-04T10:00:00Z', appliedAt: null, pass: null, takenAt: null, followsSeq: null }
     vi.mocked(fetchFeedback).mockResolvedValue([waiting] as never)
-    seed('CLAIMED')
+    seed('OPEN')
     const wrapper = render()
     await flushPromises()
 
