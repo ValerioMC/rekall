@@ -58,8 +58,8 @@ async function copyPlan(chip: PlanChip): Promise<void> {
     </AppButton>
 
     <p class="mt-6 text-small leading-relaxed text-text-muted">
-      Or have Claude propose them: <strong class="font-medium text-text">Plan here</strong> above
-      opens a session on it, or give this to one you have. It reads the description, the wrapup and
+      Or have Claude propose them: <strong class="font-medium text-text">Plan here</strong> in the
+      arrow of <strong class="font-medium text-text">Run here</strong> opens a session on it, or give this to one you have. It reads the description, the wrapup and
       the code, and puts each step it suggests on a Drafts shelf here, for you to reword and promote.
       It builds nothing. When what a step finds decides what comes next (tests that can fail, a
       review that can reject), <strong class="font-medium text-text">Plan a flow</strong> has it

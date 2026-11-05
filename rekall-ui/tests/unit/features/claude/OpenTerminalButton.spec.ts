@@ -4,19 +4,22 @@ import { flushPromises, mount } from '@vue/test-utils'
 import OpenTerminalButton from '@/features/claude/components/OpenTerminalButton.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useToastStore } from '@/stores/toast.store'
+import { useTerminalStore } from '@/features/claude/store/terminal.store'
+import AppConfirm from '@/components/ui/AppConfirm.vue'
 import type { Task, TaskStep } from '@/features/catalog/model/catalog'
 import type { Terminal } from '@/features/claude/model/terminal'
 import { EMPTY_RUN_QUEUE, asRunQueueItemId, type RunQueue, type RunQueueItem } from '@/features/queue/model/runQueue'
 import type { ProjectId, TaskId, TaskStepId, TerminalId } from '@/model/branded'
 
 const openTerminal = vi.fn()
+const sendTerminalInput = vi.fn()
 const releaseOnRun = vi.fn()
 
 vi.mock('@/features/claude/api/terminal.api', () => ({
   fetchTerminals: vi.fn(),
   openTerminal: (...args: unknown[]) => openTerminal(...args),
   closeTerminal: vi.fn(),
-  sendTerminalInput: vi.fn()
+  sendTerminalInput: (...args: unknown[]) => sendTerminalInput(...args)
 }))
 
 const runTaskInQueue = vi.fn()
@@ -27,6 +30,7 @@ vi.mock('@/features/queue/api/runQueue.api', () => ({
 
 const TASK = 't-1' as TaskId
 const STEP = 's-1' as TaskStepId
+const ANCHOR = 'project:vega task:report-builder'
 
 /** Only what the button reads of a task and a step; the rest of the record plays no part. */
 function checklistTask(): Task {
@@ -89,9 +93,13 @@ async function chooseRunInQueue(wrapper: ReturnType<typeof mountButton>): Promis
   await flushPromises()
 }
 
+function menuLabels(): string[] {
+  return [...document.body.querySelectorAll('[role="menuitem"]')].map((item) => item.textContent?.trim() ?? '')
+}
+
 function mountButton(folder: string | null = '/code/vega', stepId: TaskStepId | null = null) {
   useConsoleStore().releaseOnRun = releaseOnRun
-  return mount(OpenTerminalButton, { props: { taskId: TASK, folder, stepId } })
+  return mount(OpenTerminalButton, { props: { taskId: TASK, anchor: ANCHOR, folder, stepId } })
 }
 
 describe('the Run here button', () => {
@@ -268,14 +276,14 @@ describe('the Run here button', () => {
     expect(button.attributes('data-phase')).toBe('idle')
   })
 
-  it('opens a menu from the arrow with Run in queue and its hint', async () => {
+  it('opens a menu from the arrow with Run in queue and Plan here, each a name with no description', async () => {
     const wrapper = mountButton()
 
     await wrapper.get('[data-testid="run-menu-arrow"]').trigger('click')
 
     const menu = document.body.querySelector('[data-testid="run-menu"]')
-    expect(menu?.textContent).toContain('Run in queue')
-    expect(menu?.textContent).toContain('Runs the whole task after the ones already queued')
+    expect(menuLabels()).toEqual(['Run in queue', 'Plan here', 'Plan a flow'])
+    expect(menu?.querySelectorAll('[role="menuitem"] svg')).toHaveLength(3)
     expect(wrapper.get('[data-testid="run-menu-arrow"]').attributes('aria-haspopup')).toBe('menu')
     wrapper.unmount()
   })
@@ -352,5 +360,150 @@ describe('the Run here button', () => {
 
     expect(document.body.querySelector('[data-testid="run-menu"]')).toBeNull()
     wrapper.unmount()
+  })
+})
+
+describe('planning from the Run here arrow', () => {
+  function stepOf(id: string, state: TaskStep['state']): TaskStep {
+    return { id: id as TaskStepId, taskId: TASK, state } as TaskStep
+  }
+
+  function mountPlanning(folder: string | null = '/code/vega') {
+    return mount(OpenTerminalButton, {
+      props: { taskId: TASK, anchor: ANCHOR, folder },
+      global: { stubs: { AppConfirm: true }, renderStubDefaultSlot: true },
+      attachTo: document.body
+    })
+  }
+
+  async function choose(wrapper: ReturnType<typeof mountPlanning>, testid: string): Promise<void> {
+    await wrapper.get('[data-testid="run-menu-arrow"]').trigger('click')
+    document.body.querySelector<HTMLElement>(`[data-testid="${testid}"]`)?.click()
+    await flushPromises()
+  }
+
+  function liveTerminal(): Terminal {
+    return { ...terminal(), live: true }
+  }
+
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    openTerminal.mockReset()
+    sendTerminalInput.mockReset()
+  })
+
+  afterEach(() => {
+    document.body.innerHTML = ''
+  })
+
+  it('opens a planning session when none is live on the task', async () => {
+    openTerminal.mockResolvedValue({ ...terminal(), id: 'term-2' as TerminalId })
+    const openPane = vi.spyOn(useConsoleStore(), 'openTerminal')
+
+    await choose(mountPlanning(), 'plan-here')
+
+    expect(openTerminal).toHaveBeenCalledWith({ taskId: TASK }, expect.objectContaining({ mode: 'PLAN' }))
+    expect(openPane).toHaveBeenCalled()
+  })
+
+  it('types the plan line into the session live on the task', async () => {
+    sendTerminalInput.mockResolvedValue(undefined)
+    useTerminalStore().terminals = [liveTerminal()]
+
+    await choose(mountPlanning(null), 'plan-here')
+
+    expect(sendTerminalInput).toHaveBeenCalledWith('term-1', `/rk ${ANCHOR} plan\r`)
+    expect(openTerminal).not.toHaveBeenCalled()
+  })
+
+  it('asks for the project folder instead of planning when there is neither a folder nor a session', async () => {
+    const toast = useToastStore()
+
+    await choose(mountPlanning(null), 'plan-here')
+
+    expect(openTerminal).not.toHaveBeenCalled()
+    expect(toast.toasts[0]?.message).toContain('folder')
+  })
+
+  it('offers the flow only while the task has no steps, and the replan only while a step can be replaced', async () => {
+    const console_ = useConsoleStore()
+    const offered = async (steps: TaskStep[]): Promise<string[]> => {
+      console_.steps = steps
+      const wrapper = mountPlanning()
+      await wrapper.get('[data-testid="run-menu-arrow"]').trigger('click')
+      const labels = menuLabels()
+      wrapper.unmount()
+      document.body.innerHTML = ''
+      return labels
+    }
+
+    expect(await offered([])).toEqual(['Run in queue', 'Plan here', 'Plan a flow'])
+    expect(await offered([stepOf('a', 'DONE'), stepOf('b', 'RUNNING')])).toEqual(['Run in queue', 'Plan here'])
+    expect(await offered([stepOf('a', 'DONE'), stepOf('b', 'OPEN')])).toEqual(['Run in queue', 'Plan here', 'Replan'])
+    expect(await offered([stepOf('a', 'DRAFT')])).toEqual(['Run in queue', 'Plan here', 'Replan'])
+  })
+
+  it('opens a session in flow mode when Plan a flow is chosen', async () => {
+    openTerminal.mockResolvedValue({ ...terminal(), id: 'term-2' as TerminalId })
+
+    await choose(mountPlanning(), 'plan-flow')
+
+    expect(openTerminal).toHaveBeenCalledWith({ taskId: TASK }, expect.objectContaining({ mode: 'PLAN_FLOW' }))
+  })
+
+  describe('replanning', () => {
+    function withReplaceableSteps(count: number): void {
+      useConsoleStore().steps = Array.from({ length: count }, (_, index) => stepOf(`s-${index}`, 'OPEN'))
+    }
+
+    it('asks before anything is deleted, saying how many steps go', async () => {
+      withReplaceableSteps(3)
+      const wrapper = mountPlanning()
+
+      await choose(wrapper, 'replan')
+
+      expect(wrapper.findComponent(AppConfirm).attributes('blast')).toContain('3 steps deleted')
+      expect(openTerminal).not.toHaveBeenCalled()
+      expect(sendTerminalInput).not.toHaveBeenCalled()
+    })
+
+    it('says one step in the singular', async () => {
+      withReplaceableSteps(1)
+      const wrapper = mountPlanning()
+
+      await choose(wrapper, 'replan')
+
+      expect(wrapper.findComponent(AppConfirm).attributes('blast')).toContain('1 step deleted')
+    })
+
+    it('opens a replan session once confirmed, with what the plan missed', async () => {
+      withReplaceableSteps(2)
+      openTerminal.mockResolvedValue({ ...terminal(), id: 'term-2' as TerminalId })
+      const wrapper = mountPlanning()
+
+      await choose(wrapper, 'replan')
+      await wrapper.get('[data-testid="replan-message"]').setValue('also cover the csv export')
+      await wrapper.findComponent(AppConfirm).vm.$emit('confirm')
+      await flushPromises()
+
+      expect(openTerminal).toHaveBeenCalledWith(
+        { taskId: TASK },
+        expect.objectContaining({ mode: 'REPLAN', request: 'also cover the csv export' })
+      )
+      expect(wrapper.findComponent(AppConfirm).exists()).toBe(false)
+    })
+
+    it('does nothing when the confirmation is dismissed', async () => {
+      withReplaceableSteps(2)
+      const wrapper = mountPlanning()
+
+      await choose(wrapper, 'replan')
+      await wrapper.findComponent(AppConfirm).vm.$emit('cancel')
+      await flushPromises()
+
+      expect(wrapper.findComponent(AppConfirm).exists()).toBe(false)
+      expect(openTerminal).not.toHaveBeenCalled()
+      expect(sendTerminalInput).not.toHaveBeenCalled()
+    })
   })
 })

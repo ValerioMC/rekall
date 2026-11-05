@@ -1,24 +1,33 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useAnchoredMenu } from '@/composables/useAnchoredMenu'
+import RunMenuGlyph from '@/features/claude/components/RunMenuGlyph.vue'
+import type { RunMenuAction } from '@/features/claude/model/runMenu'
 
 /**
  * The narrow key joined to the right of Run here. Its menu offers the ways to run beyond starting
- * a terminal now; it takes the main key's look through `ready` and `pressed`, and no press while `busy`.
+ * a terminal now, and the ways to plan; it takes the main key's look through `ready` and `pressed`, and no press while `busy`.
  */
-defineProps<{ ready: boolean; pressed: boolean; busy: boolean }>()
+defineProps<{ ready: boolean; pressed: boolean; busy: boolean; actions: readonly RunMenuAction[] }>()
 
-const emit = defineEmits<{ runInQueue: [] }>()
+const emit = defineEmits<{ choose: [action: RunMenuAction] }>()
 
-const MENU_WIDTH = 280
+const MENU_WIDTH = 200
+
+const ENTRIES: Record<RunMenuAction, { label: string; testid: string }> = {
+  RUN_IN_QUEUE: { label: 'Run in queue', testid: 'run-in-queue' },
+  PLAN: { label: 'Plan here', testid: 'plan-here' },
+  PLAN_FLOW: { label: 'Plan a flow', testid: 'plan-flow' },
+  REPLAN: { label: 'Replan', testid: 'replan' }
+}
 
 const arrow = ref<HTMLButtonElement | null>(null)
 
 const { open, menu, placement, toggle, close, handleKeydown } = useAnchoredMenu(() => arrow.value, MENU_WIDTH)
 
-function runInQueue(): void {
+function choose(action: RunMenuAction): void {
   close(true)
-  emit('runInQueue')
+  emit('choose', action)
 }
 </script>
 
@@ -72,16 +81,16 @@ function runInQueue(): void {
       @keydown="handleKeydown"
     >
       <button
+        v-for="action in actions"
+        :key="action"
         type="button"
         role="menuitem"
-        class="focus-ring flex w-full cursor-pointer flex-col items-start gap-0.5 rounded-control px-2.5 py-2 text-left transition-colors hover:bg-surface"
-        data-testid="run-in-queue"
-        @click="runInQueue"
+        class="focus-ring flex w-full cursor-pointer items-center justify-between gap-3 rounded-control px-2.5 py-2 text-left transition-colors hover:bg-surface"
+        :data-testid="ENTRIES[action].testid"
+        @click="choose(action)"
       >
-        <span class="text-small font-medium text-text">Run in queue</span>
-        <span class="text-caption leading-snug text-text-muted"
-          >Runs the whole task after the ones already queued</span
-        >
+        <span class="text-small font-medium text-text">{{ ENTRIES[action].label }}</span>
+        <RunMenuGlyph :action="action" />
       </button>
     </div>
   </Teleport>
