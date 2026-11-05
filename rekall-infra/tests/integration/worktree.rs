@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
 
-use rekall_core::worktree::{OrphanReclaimService, WorktreeHost, WorktreeLayout};
+use rekall_core::worktree::{MergeOutcome, OrphanReclaimService, WorktreeHost, WorktreeLayout};
 use rekall_infra::worktree::GitWorktreeHost;
 
 struct World {
@@ -225,4 +225,42 @@ async fn unsaved_files_in_the_worktree_show_in_the_review() {
     let review = world.host.review_branch(&world.project, "rekall/report", Some(&worktree.folder)).await.unwrap().unwrap();
 
     assert!(review.has_unsaved_changes);
+}
+
+#[tokio::test]
+async fn merging_a_branch_brings_its_commits_into_the_project() {
+    let world = world();
+    let worktree = create(&world, "report").await;
+    fs::write(worktree.folder.join("export.txt"), "export\n").unwrap();
+    git(&worktree.folder, &["add", "."]);
+    git(&worktree.folder, &["commit", "-q", "-m", "export"]);
+
+    let outcome = world.host.merge_branch(&world.project, "rekall/report").await.unwrap();
+
+    assert_eq!(outcome, MergeOutcome::Merged);
+    assert!(world.project.join("export.txt").exists());
+    assert_eq!(git(&world.project, &["rev-parse", "--abbrev-ref", "HEAD"]), "main");
+}
+
+#[tokio::test]
+async fn a_conflicting_merge_is_abandoned_and_leaves_the_project_as_it_was() {
+    let world = world();
+    let worktree = create(&world, "report").await;
+    fs::write(worktree.folder.join("report.txt"), "changed in the branch\n").unwrap();
+    git(&worktree.folder, &["commit", "-q", "-am", "branch edit"]);
+    fs::write(world.project.join("report.txt"), "changed in the project\n").unwrap();
+    git(&world.project, &["commit", "-q", "-am", "project edit"]);
+
+    let outcome = world.host.merge_branch(&world.project, "rekall/report").await.unwrap();
+
+    assert!(matches!(outcome, MergeOutcome::Refused(_)));
+    assert_eq!(git(&world.project, &["status", "--porcelain"]), "");
+    assert_eq!(fs::read_to_string(world.project.join("report.txt")).unwrap(), "changed in the project\n");
+}
+
+#[tokio::test]
+async fn a_branch_outside_the_layout_is_never_merged() {
+    let world = world();
+
+    assert!(world.host.merge_branch(&world.project, "main").await.is_err());
 }

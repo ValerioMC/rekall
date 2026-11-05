@@ -207,6 +207,43 @@ async fn accepting_a_task_removes_its_clean_worktree_and_the_task_forgets_it() {
 }
 
 #[tokio::test]
+async fn accepting_a_task_merges_its_branch_before_its_worktree_goes() {
+    let world = world().await;
+    let (worktrees, git) = world.worktrees();
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let task = world.task(&project, "one").await;
+    let step = world.step(&task, "First", 0, TaskStepState::Claimed).await;
+    worktrees.ensure(task.id).await.unwrap();
+    git.leave_commits("rekall/one");
+    WorktreeCleaner::start(&world.events, world.services.task_work.clone(), worktrees);
+
+    world.services.steps.edit(step.id, None, None, Some(true), None).await.unwrap();
+
+    eventually("the worktree to go", || async { worktree_of(&world, &task).await.is_none() }).await;
+    assert_eq!(git.merged(), vec!["rekall/one".to_string()]);
+}
+
+#[tokio::test]
+async fn accepting_a_task_whose_branch_conflicts_keeps_the_worktree_and_merges_nothing() {
+    let world = world().await;
+    let (worktrees, git) = world.worktrees();
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let task = world.task(&project, "one").await;
+    let step = world.step(&task, "First", 0, TaskStepState::Claimed).await;
+    let folder = worktrees.ensure(task.id).await.unwrap();
+    git.leave_commits("rekall/one");
+    git.conflict_on("rekall/one");
+    WorktreeCleaner::start(&world.events, world.services.task_work.clone(), worktrees);
+
+    world.services.steps.edit(step.id, None, None, Some(true), None).await.unwrap();
+
+    tokio::time::sleep(Duration::from_millis(400)).await;
+    assert!(git.merged().is_empty());
+    assert!(folder.exists());
+    assert!(worktree_of(&world, &task).await.is_some());
+}
+
+#[tokio::test]
 async fn accepting_a_task_whose_worktree_has_unsaved_changes_leaves_it_alone() {
     let world = world().await;
     let (worktrees, git) = world.worktrees();

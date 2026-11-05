@@ -155,3 +155,64 @@ async fn the_branch_is_reviewed_whether_or_not_its_worktree_is_still_there() {
     assert!(with_worktree.worktree_folder.is_some());
     assert!(nothing.is_none());
 }
+
+#[tokio::test]
+async fn an_accepted_branch_with_commits_is_merged_into_the_project() {
+    let world = world().await;
+    let report = task_named(&world, "report").await;
+    world.service.ensure(report).await.unwrap();
+    world.host.leave_commits("rekall/report");
+
+    let merge = world.service.merge_accepted(report).await.unwrap();
+
+    assert_eq!(merge, Merge::Merged);
+    assert_eq!(world.host.merged(), vec!["rekall/report".to_string()]);
+}
+
+#[tokio::test]
+async fn a_branch_the_project_already_has_is_not_merged_again() {
+    let world = world().await;
+    let report = task_named(&world, "report").await;
+    world.service.ensure(report).await.unwrap();
+
+    let merge = world.service.merge_accepted(report).await.unwrap();
+
+    assert_eq!(merge, Merge::AlreadyMerged);
+    assert!(world.host.merged().is_empty());
+}
+
+#[tokio::test]
+async fn a_branch_with_unsaved_work_in_its_worktree_is_not_merged() {
+    let world = world().await;
+    let report = task_named(&world, "report").await;
+    world.service.ensure(report).await.unwrap();
+    world.host.leave_commits("rekall/report");
+    world.host.leave_unsaved_changes("rekall/report");
+
+    let merge = world.service.merge_accepted(report).await.unwrap();
+
+    assert_eq!(merge, Merge::KeptWithChanges);
+    assert!(world.host.merged().is_empty());
+}
+
+#[tokio::test]
+async fn a_branch_that_conflicts_with_the_project_is_refused_and_not_merged() {
+    let world = world().await;
+    let report = task_named(&world, "report").await;
+    world.service.ensure(report).await.unwrap();
+    world.host.leave_commits("rekall/report");
+    world.host.conflict_on("rekall/report");
+
+    let merge = world.service.merge_accepted(report).await.unwrap();
+
+    assert!(matches!(merge, Merge::Refused(_)));
+    assert!(world.host.merged().is_empty());
+}
+
+#[tokio::test]
+async fn a_task_without_a_branch_has_nothing_to_merge() {
+    let world = world().await;
+    let report = task_named(&world, "report").await;
+
+    assert_eq!(world.service.merge_accepted(report).await.unwrap(), Merge::NothingToMerge);
+}

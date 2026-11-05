@@ -132,14 +132,14 @@ for your review, and the queue says so.
   /api/tasks/{id}/dependencies/{dependsOnId}` answer with the task's whole list; `dependsOn` on a
   task response lists the ids. Deleting a task removes its dependencies.
 
-## Running in parallel and merging by hand
+## Running in parallel and merging on acceptance
 
-Set **Parallel sessions** in the run queue to two, three or four and the queue works that many tasks at once, each in a git worktree of its own on a `rekall/<task-label>` branch (see Run queue in the sessions guide). Rekall prepares everything and merges nothing:
+Set **Parallel sessions** in the run queue to two, three or four and the queue works that many tasks at once, each in a git worktree of its own on a `rekall/<task-label>` branch (see Run queue in the sessions guide). Rekall prepares everything and merges the branch when you accept the task:
 
 1. Queue the tasks. Tasks that depend on each other (see Dependencies) never run together.
 2. Each task's session, its "Done when" checks and its commit on claim work in its worktree, so the commits land on its branch and your own branch does not move.
-3. In the review, a **Branch** panel shows the branch, the commits it is ahead of the project's current branch, the files it changed, and whether merging it would conflict (read with `git merge-tree`, which changes nothing). It gives the command to copy, `git merge rekall/<task-label>`, to run yourself in the project's folder. There is no merge button.
-4. When you accept the task, its worktree is removed if it is clean. One with unsaved changes is left where it is and the panel says so; **Remove worktree** takes a clean one away early, and refuses an unclean one. The branch and its commits are never deleted by Rekall.
+3. In the review, a **Branch** panel shows the branch, the commits it is ahead of the project's current branch, the files it changed, and whether merging it would conflict (read with `git merge-tree`, which changes nothing). It shows the `git merge rekall/<task-label>` command it will run for you on acceptance. There is no merge button.
+4. When you accept the task, once every revision is accepted, its branch is merged into the branch checked out in the project's folder (`git merge --no-edit`) and then its worktree is removed. A branch that conflicts, or whose worktree has unsaved changes, is not merged: the worktree stays, the panel says so and the reason is in the log. A failed merge is abandoned, so your project folder is left as it was. **Remove worktree** takes a clean worktree away early, and refuses an unclean one. The branch and its commits are never deleted by Rekall.
 5. If you send the task back, the next run uses the worktree when it is still there and makes it again from the same branch when it is not.
 
 A task run by hand, or by a queue set to one session, has no worktree; the panel appears only for a task whose branch exists. `GET /api/tasks/{id}/branch` answers the panel (`null` without a branch) and `DELETE /api/tasks/{id}/worktree` removes the worktree.

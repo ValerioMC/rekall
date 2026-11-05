@@ -5,15 +5,19 @@ use std::sync::Mutex;
 use async_trait::async_trait;
 use rekall_kernel::{RekallError, Result};
 
-use crate::worktree::{BranchReview, Worktree, WorktreeHost, WorktreeStatus};
+use crate::worktree::{BranchReview, MergeOutcome, Worktree, WorktreeHost, WorktreeStatus};
 
 /// A `WorktreeHost` that keeps its worktrees in memory and makes their folders on disk, for tests
-/// of what decides when to make one. `refuse` makes `create` fail for a branch.
+/// of what decides when to make one. `refuse` makes `create` fail for a branch; a branch can be
+/// scripted to hold commits or to conflict, and `merged` lists the branches merged.
 #[derive(Default)]
 pub struct ScriptedWorktreeHost {
     worktrees: Mutex<Vec<Worktree>>,
     refused: Mutex<HashSet<String>>,
     dirty: Mutex<HashSet<String>>,
+    ahead: Mutex<HashSet<String>>,
+    conflicting: Mutex<HashSet<String>>,
+    merged: Mutex<Vec<String>>,
 }
 
 impl ScriptedWorktreeHost {
@@ -27,6 +31,18 @@ impl ScriptedWorktreeHost {
 
     pub fn leave_unsaved_changes(&self, branch_name: &str) {
         self.dirty.lock().expect("scripted host lock").insert(branch_name.to_string());
+    }
+
+    pub fn leave_commits(&self, branch_name: &str) {
+        self.ahead.lock().expect("scripted host lock").insert(branch_name.to_string());
+    }
+
+    pub fn conflict_on(&self, branch_name: &str) {
+        self.conflicting.lock().expect("scripted host lock").insert(branch_name.to_string());
+    }
+
+    pub fn merged(&self) -> Vec<String> {
+        self.merged.lock().expect("scripted host lock").clone()
     }
 
     pub fn branches(&self) -> Vec<String> {
@@ -59,11 +75,13 @@ impl WorktreeHost for ScriptedWorktreeHost {
     async fn review_branch(&self, _: &Path, branch_name: &str, worktree_folder: Option<&Path>) -> Result<Option<BranchReview>> {
         let known = self.worktrees.lock().expect("scripted host lock").iter().any(|worktree| worktree.branch == branch_name);
         let dirty = self.dirty.lock().expect("scripted host lock").contains(branch_name);
+        let ahead = self.ahead.lock().expect("scripted host lock").contains(branch_name);
+        let conflicting = self.conflicting.lock().expect("scripted host lock").contains(branch_name);
         Ok(known.then(|| BranchReview {
             branch: branch_name.to_string(),
-            commits_ahead: 0,
+            commits_ahead: u32::from(ahead),
             changed_files: Vec::new(),
-            merges_cleanly: Some(true),
+            merges_cleanly: Some(!conflicting),
             worktree_folder: worktree_folder.map(|folder| folder.to_string_lossy().into_owned()),
             has_unsaved_changes: dirty,
         }))
@@ -72,5 +90,11 @@ impl WorktreeHost for ScriptedWorktreeHost {
     async fn status(&self, worktree: &Worktree) -> Result<WorktreeStatus> {
         let dirty = self.dirty.lock().expect("scripted host lock").contains(&worktree.branch);
         Ok(WorktreeStatus { has_unsaved_changes: dirty, commits_ahead: 0 })
+    }
+
+    async fn merge_branch(&self, _: &Path, branch_name: &str) -> Result<MergeOutcome> {
+        self.ahead.lock().expect("scripted host lock").remove(branch_name);
+        self.merged.lock().expect("scripted host lock").push(branch_name.to_string());
+        Ok(MergeOutcome::Merged)
     }
 }

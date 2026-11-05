@@ -6,7 +6,7 @@ use rekall_kernel::{jstr, Id, Result};
 use rekall_store::repository as repo;
 use tracing::warn;
 
-use crate::worktree::{BranchReview, OrphanReclaimService, Worktree, WorktreeHost, WorktreeLayout};
+use crate::worktree::{BranchReview, MergeOutcome, OrphanReclaimService, Worktree, WorktreeHost, WorktreeLayout};
 use crate::{in_read, in_write, load, Ctx};
 
 /// What taking a task's worktree away did.
@@ -16,6 +16,20 @@ pub enum Release {
     /// The worktree has unsaved changes and was left as it was.
     KeptWithChanges,
     NoWorktree,
+}
+
+/// What bringing an accepted task's branch into the project came to.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Merge {
+    Merged,
+    /// The branch holds nothing the project's `HEAD` lacks.
+    AlreadyMerged,
+    /// The worktree has unsaved changes, so the branch is not the whole work yet.
+    KeptWithChanges,
+    /// The branch conflicts with the project or git refused; nothing was changed.
+    Refused(String),
+    /// The task has no branch, or its project no folder.
+    NothingToMerge,
 }
 
 /// Gives a task a worktree to work in, and keeps the tasks and the worktrees on disk in step.
@@ -63,6 +77,27 @@ impl TaskWorktreeService {
         }
         self.name_on_task(task_id, None).await?;
         Ok(Release::Removed)
+    }
+
+    /// Merges the task's branch into the project folder's current `HEAD` once its work is accepted.
+    /// A branch with unsaved work in its worktree, or one that conflicts, is left as it is.
+    pub async fn merge_accepted(&self, task_id: Id) -> Result<Merge> {
+        let Some(review) = self.review_branch(task_id).await? else { return Ok(Merge::NothingToMerge) };
+        if review.has_unsaved_changes {
+            return Ok(Merge::KeptWithChanges);
+        }
+        if review.commits_ahead == 0 {
+            return Ok(Merge::AlreadyMerged);
+        }
+        if review.merges_cleanly == Some(false) {
+            return Ok(Merge::Refused(format!("{} conflicts with the project's current branch", review.branch)));
+        }
+        let (_, project_folder, _) = self.read(task_id).await?;
+        let Some(project_folder) = project_folder else { return Ok(Merge::NothingToMerge) };
+        match self.host.merge_branch(Path::new(&project_folder), &review.branch).await? {
+            MergeOutcome::Merged => Ok(Merge::Merged),
+            MergeOutcome::Refused(reason) => Ok(Merge::Refused(reason)),
+        }
     }
 
     /// What the task's branch holds, while the branch exists: the worktree or not.

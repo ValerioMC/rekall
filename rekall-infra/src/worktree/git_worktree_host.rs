@@ -3,11 +3,13 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use rekall_core::commit::{run_git, GitResult};
-use rekall_core::worktree::{parse_listing, BranchReview, Worktree, WorktreeHost, WorktreeLayout, WorktreeStatus};
+use rekall_core::worktree::{parse_listing, BranchReview, MergeOutcome, Worktree, WorktreeHost, WorktreeLayout, WorktreeStatus};
 use rekall_kernel::{RekallError, Result};
+use tracing::{debug, warn};
 
 const ADD_TIMEOUT: Duration = Duration::from_secs(120);
 const REMOVE_TIMEOUT: Duration = Duration::from_secs(60);
+const MERGE_TIMEOUT: Duration = Duration::from_secs(120);
 const READ_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Runs `git worktree` for the project's repository. It never touches a folder outside the
@@ -38,6 +40,14 @@ impl GitWorktreeHost {
             0 => Some(true),
             1 => Some(false),
             _ => None,
+        }
+    }
+
+    async fn abandon_merge(&self, project_folder: &Path) {
+        match run_git(project_folder, &["merge", "--abort"], None, READ_TIMEOUT).await {
+            Ok(answer) if !answer.ok() => debug!(reason = answer.error(), "No merge was left to abandon"),
+            Ok(_) => {}
+            Err(failure) => warn!(%failure, folder = %project_folder.display(), "Could not abandon a refused merge"),
         }
     }
 
@@ -124,5 +134,16 @@ impl WorktreeHost for GitWorktreeHost {
             .parse()
             .map_err(|_| RekallError::illegal(format!("git did not answer a number of commits: '{}'.", ahead.output())))?;
         Ok(WorktreeStatus { has_unsaved_changes: !changes.output().is_empty(), commits_ahead })
+    }
+
+    async fn merge_branch(&self, project_folder: &Path, branch_name: &str) -> Result<MergeOutcome> {
+        self.layout.require_branch(branch_name)?;
+        let answer = run_git(project_folder, &["merge", "--no-edit", branch_name], None, MERGE_TIMEOUT).await?;
+        if answer.ok() {
+            return Ok(MergeOutcome::Merged);
+        }
+        self.abandon_merge(project_folder).await;
+        let reason = [answer.error(), answer.output()].into_iter().find(|text| !text.is_empty()).unwrap_or("git refused the merge");
+        Ok(MergeOutcome::Refused(reason.to_string()))
     }
 }

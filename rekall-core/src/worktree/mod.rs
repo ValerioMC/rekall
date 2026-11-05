@@ -8,6 +8,7 @@ mod rule;
 mod service;
 
 pub use model::branch_review::BranchReview;
+pub use model::merge_outcome::MergeOutcome;
 pub use model::orphan_report::OrphanReport;
 pub use model::worktree::Worktree;
 pub use model::worktree_status::WorktreeStatus;
@@ -16,4 +17,4 @@ pub use rule::worktree_layout::{WorktreeLayout, BRANCH_PREFIX};
 pub use rule::worktree_listing::parse_listing;
 pub use port::scripted_worktree_host::ScriptedWorktreeHost;
 pub use service::orphan_reclaim_service::OrphanReclaimService;
-pub use service::task_worktree_service::{Release, TaskWorktreeService};
+pub use service::task_worktree_service::{Merge, Release, TaskWorktreeService};

@@ -3,7 +3,7 @@ use std::path::Path;
 use async_trait::async_trait;
 use rekall_kernel::Result;
 
-use crate::worktree::{BranchReview, Worktree, WorktreeStatus};
+use crate::worktree::{BranchReview, MergeOutcome, Worktree, WorktreeStatus};
 
 /// Creates, lists, inspects and removes the worktrees of a repository. It decides nothing: the
 /// branch and the folder come from `WorktreeLayout`. An `Err` is an `illegal` the caller can show:
@@ -25,4 +25,8 @@ pub trait WorktreeHost: Send + Sync {
     /// What `branch_name` holds beyond the project's `HEAD`, or none when the branch does not
     /// exist. Read-only: it never merges, checks out or deletes anything.
     async fn review_branch(&self, project_folder: &Path, branch_name: &str, worktree_folder: Option<&Path>) -> Result<Option<BranchReview>>;
+
+    /// Merges `branch_name` into the project folder's current `HEAD`. A merge git refuses or cannot
+    /// finish is abandoned before this returns, so the project is left as it was.
+    async fn merge_branch(&self, project_folder: &Path, branch_name: &str) -> Result<MergeOutcome>;
 }
