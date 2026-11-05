@@ -35,6 +35,7 @@ const count = computed(
           : 'key-quiet'
       "
       :title="count ? `${count} note${count === 1 ? '' : 's'} on this task. Add or remove one.` : 'Put a note on this task'"
+      :aria-label="count ? `Notes (${count})` : 'Notes'"
       aria-haspopup="dialog"
       :aria-expanded="pickerOpen"
       data-testid="notes-open"
@@ -43,7 +44,7 @@ const count = computed(
       <svg class="size-3.5" viewBox="0 0 12 12" fill="none" aria-hidden="true">
         <path d="M1.6 3h8.8M1.6 6h8.8M1.6 9h5.4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
       </svg>
-      <span>Notes</span>
+      <span data-label>Notes</span>
       <span
         v-if="count"
         class="rounded-full px-1.5 font-mono text-micro tabular-nums leading-[15px]"

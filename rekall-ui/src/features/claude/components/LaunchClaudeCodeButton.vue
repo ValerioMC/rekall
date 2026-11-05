@@ -103,6 +103,7 @@ async function launch(): Promise<void> {
     class="launch-btn focus-ring relative inline-flex h-7 shrink-0 items-center gap-1.5 rounded-key px-2.5 text-small font-medium disabled:cursor-not-allowed disabled:opacity-60"
     :class="[toneClasses, nudging && 'nudge', phase === 'launched' && 'flash']"
     :disabled="phase === 'launching'"
+    aria-label="Open in terminal"
     :aria-describedby="descriptionId"
     data-testid="launch-claude-code"
     @click="launch"
@@ -138,7 +139,7 @@ async function launch(): Promise<void> {
         </svg>
       </Transition>
     </span>
-    <span>Open in terminal</span>
+    <span data-label>Open in terminal</span>
   </button>
 
   <span v-if="available" :id="descriptionId" class="sr-only">{{ detail }}</span>

@@ -138,11 +138,11 @@ function togglePicker(): void {
         </Transition>
       </span>
       <Transition name="glyph" mode="out-in">
-        <span v-if="phase === 'logged'" key="hash" class="font-mono text-caption tabular-nums">{{
+        <span v-if="phase === 'logged'" key="hash" data-label class="font-mono text-caption tabular-nums">{{
           lastHash
         }}</span>
-        <span v-else-if="phase === 'logging'" key="logging">Logging…</span>
-        <span v-else key="idle">Log commit</span>
+        <span v-else-if="phase === 'logging'" key="logging" data-label>Logging…</span>
+        <span v-else key="idle" data-label>Log commit</span>
       </Transition>
     </button>
 

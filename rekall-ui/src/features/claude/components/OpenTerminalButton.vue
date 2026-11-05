@@ -166,6 +166,7 @@ onBeforeUnmount(() => {
           : 'bg-transparent text-text-subtle transition-colors hover:bg-surface-raised hover:text-text-muted',
         busy && 'cursor-default'
       ]"
+      :aria-label="phase === 'working' ? 'Working' : 'Run here'"
       :aria-busy="busy"
       :aria-disabled="busy"
       :title="
@@ -201,7 +202,7 @@ onBeforeUnmount(() => {
           <StepSeal state="RUNNING" />
         </span>
       </span>
-      <span class="grid [&>*]:[grid-area:1/1]">
+      <span data-label class="grid [&>*]:[grid-area:1/1]">
         <span
           :class="{
             'run-label-return': phase === 'idle' && returning,

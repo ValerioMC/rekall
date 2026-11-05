@@ -107,8 +107,8 @@ defineExpose({ toggleMode })
           aria-hidden="true"
         />
 
-        <header class="relative flex items-start gap-3.5 px-5 py-3.5">
-          <div class="min-w-0 flex-1">
+        <header class="@container/description relative flex flex-wrap items-start gap-x-3.5 gap-y-2 px-5 py-3.5">
+          <div class="min-w-0 grow basis-full @min-[49rem]/description:basis-0">
             <p class="eyebrow flex items-center gap-1.5">
               <span class="h-2.5 w-[3px] shrink-0 rounded-full bg-accent" aria-hidden="true" />
               Description
@@ -148,7 +148,7 @@ defineExpose({ toggleMode })
             <TaskLabelsStrip :task="selectedTask" />
           </div>
 
-          <div class="flex shrink-0 items-center gap-1.5">
+          <div class="flex shrink-0 items-center gap-1.5 @max-[71rem]/description:[&_[data-label]]:hidden">
             <NotesButton :task-id="selectedTask.id" />
             <LogCommitButton
               :task-id="selectedTask.id"
