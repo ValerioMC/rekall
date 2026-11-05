@@ -37,7 +37,6 @@ const task = (id: TaskId, label: string, title: string): Task => ({
   reviewActive: false,
   claimedAt: null,
   acceptedAt: null,
-  reviewNote: null,
   tagId: null,
   tagName: null,
   tagIcon: null,

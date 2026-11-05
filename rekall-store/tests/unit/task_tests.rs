@@ -11,7 +11,6 @@ fn a_fresh_task_opens_open_review_active_with_nothing_behind_it() {
     assert!(review_active(&[]));
     assert!(task.claimed_at.is_none());
     assert!(task.accepted_at.is_none());
-    assert!(task.review_note.is_none());
 }
 
 #[test]
@@ -36,17 +35,6 @@ fn accepting_straight_from_open_still_records_that_it_must_have_been_claimed() {
     task.mark_review_state(TaskStepState::Done);
     assert!(task.claimed_at.is_some());
     assert!(task.accepted_at.is_some());
-}
-
-#[test]
-fn a_send_back_note_is_kept_while_open_and_dropped_the_moment_it_is_claimed_again() {
-    let mut task = new_task();
-    task.mark_review_state(TaskStepState::Open);
-    task.review_note = Some("the export column is still wrong".into());
-    assert_eq!(task.review_note.as_deref(), Some("the export column is still wrong"));
-
-    task.mark_review_state(TaskStepState::Claimed);
-    assert!(task.review_note.is_none());
 }
 
 #[test]

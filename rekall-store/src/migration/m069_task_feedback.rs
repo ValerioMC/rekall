@@ -1,6 +1,6 @@
 //! `069`: the thread under a task's description. Every task whose review line is `OPEN` and still
 //! carries a note written with the old Send back gets it as a `PENDING` `IMPLEMENTATION` entry, so
-//! that note is not lost. `review_note` itself is dropped later, by `070`.
+//! that note is not lost. `review_note` itself is dropped by `070`.
 
 use super::{changeset, exec};
 

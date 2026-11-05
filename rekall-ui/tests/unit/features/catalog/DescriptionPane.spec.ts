@@ -47,7 +47,6 @@ function makeTask(reviewState: TaskStepState, wrapup: Partial<Task> = {}): Task 
     reviewActive: true,
     claimedAt: null,
     acceptedAt: null,
-    reviewNote: null,
     tagId: null,
     tagName: null,
     tagIcon: null,
@@ -68,7 +67,6 @@ function seed(reviewState: TaskStepState, wrapup: Partial<Task> = {}) {
   store.selectedTaskId = taskId
   store.isLoading = false
   store.acceptTask = vi.fn().mockResolvedValue(undefined)
-  store.sendBackTask = vi.fn().mockResolvedValue(undefined)
   store.saveTaskDescription = vi.fn().mockResolvedValue(undefined)
   return store
 }
@@ -94,25 +92,24 @@ describe('DescriptionPane review bar', () => {
     setActivePinia(pinia)
   })
 
-  it('offers Accept while a session has the stepless task running, without a Send back', async () => {
+  it('offers Accept while a session has the stepless task running', async () => {
     const store = seed('RUNNING')
     const wrapper = render()
     await flushPromises()
 
     expect(wrapper.find('[data-testid="description-review-bar"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="description-send-back"]').exists()).toBe(false)
 
     await wrapper.get('[data-testid="description-accept"]').trigger('click')
     expect(store.acceptTask).toHaveBeenCalledWith(taskId)
   })
 
-  it('keeps Accept and Send back once a wrapup has claimed the task', async () => {
+  it('keeps Accept once a wrapup has claimed the task, and points corrections at the thread', async () => {
     seed('CLAIMED')
     const wrapper = render()
     await flushPromises()
 
     expect(wrapper.find('[data-testid="description-accept"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="description-send-back"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="description-review-bar"]').text()).toContain('feedback below')
   })
 
   it('shows no review bar while the stepless task is still open', async () => {

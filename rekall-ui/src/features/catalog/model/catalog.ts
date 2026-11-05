@@ -141,7 +141,6 @@ export interface Task {
   readonly reviewActive: boolean
   readonly claimedAt: string | null
   readonly acceptedAt: string | null
-  readonly reviewNote: string | null
   readonly tagId: TagId | null
   readonly tagName: string | null
   readonly tagIcon: string | null
@@ -182,7 +181,6 @@ export interface TaskReview {
   readonly reviewActive: boolean
   readonly claimedAt: string | null
   readonly acceptedAt: string | null
-  readonly reviewNote: string | null
   readonly autoAccepted: boolean
 }
 

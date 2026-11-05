@@ -83,7 +83,6 @@ export const TaskSchema = z.object({
   reviewActive: z.boolean(),
   claimedAt: z.string().nullable(),
   acceptedAt: z.string().nullable(),
-  reviewNote: z.string().nullable(),
   tagId: tagId.nullable(),
   tagName: z.string().nullable(),
   tagIcon: z.string().nullable(),
@@ -203,7 +202,6 @@ export const TaskReviewSchema = z.object({
   reviewActive: z.boolean(),
   claimedAt: z.string().nullable(),
   acceptedAt: z.string().nullable(),
-  reviewNote: z.string().nullable(),
   autoAccepted: z.boolean()
 })
 

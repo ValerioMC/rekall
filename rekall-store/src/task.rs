@@ -1,6 +1,6 @@
 //! A unit of work inside a project. `label` is unique per project and is the anchor; `title` is
 //! free text. A task with no checklist (or only draft steps) carries its own review line in
-//! `review_state`, `claimed_at`, `accepted_at` and `review_note`. An epic (`kind`) holds no steps
+//! `review_state`, `claimed_at` and `accepted_at`. An epic (`kind`) holds no steps
 //! and gathers the tasks of its project whose `epic_id` names it.
 
 pub mod task_repository;
@@ -25,7 +25,6 @@ pub struct Model {
     pub review_state: TaskStepState,
     pub claimed_at: Option<Instant>,
     pub accepted_at: Option<Instant>,
-    pub review_note: Option<String>,
     pub project_id: Id,
     pub tag_id: Option<Id>,
     /// When a deployment graph was laid on the task; a task is laid once.
@@ -123,7 +122,6 @@ impl Model {
             review_state: TaskStepState::Open,
             claimed_at: None,
             accepted_at: None,
-            review_note: None,
             project_id,
             tag_id: None,
             graph_laid_at: None,
@@ -140,7 +138,7 @@ impl Model {
 
     /// `Task.markReviewState`: move the task-scoped review line. `OPEN` before a run or after a
     /// send back, `RUNNING` during a session, `CLAIMED` once a wrapup lands, `DONE` on accept.
-    /// Each move resets the claim and accept moments and the note to match; marking the state
+    /// Each move resets the claim and accept moments to match; marking the state
     /// the task is already in changes nothing.
     pub fn mark_review_state(&mut self, next: TaskStepState) {
         if self.review_state == next {
@@ -153,19 +151,16 @@ impl Model {
             TaskStepState::Open | TaskStepState::Running => {
                 self.claimed_at = None;
                 self.accepted_at = None;
-                self.review_note = None;
             }
             TaskStepState::Claimed => {
                 self.claimed_at = Some(now);
                 self.accepted_at = None;
-                self.review_note = None;
             }
             TaskStepState::Done => {
                 if self.claimed_at.is_none() {
                     self.claimed_at = Some(now);
                 }
                 self.accepted_at = Some(now);
-                self.review_note = None;
             }
             // DRAFT is a step's state, never the task's.
             TaskStepState::Draft => {}
@@ -231,7 +226,6 @@ impl Model {
             .slug("label", Some(&self.label))
             .not_blank("title", Some(&self.title))
             .max_length("title", Some(&self.title), TITLE_MAX_CHARACTERS)
-            .max_length("reviewNote", self.review_note.as_deref(), 2_000)
             .max_length("description", self.description.as_deref(), 100_000)
             .finish()
     }

@@ -137,7 +137,6 @@ export function useTaskWrites(
             reviewActive: review.reviewActive,
             claimedAt: review.claimedAt,
             acceptedAt: review.acceptedAt,
-            reviewNote: review.reviewNote,
             autoAccepted: review.autoAccepted
           }
         : task
@@ -147,10 +146,6 @@ export function useTaskWrites(
   async function acceptTask(id: TaskId): Promise<void> {
     storeTask(await apiReviewTask(id, 'DONE'))
     await timers.rereadTimerStoppedByAccept(id)
-  }
-
-  async function sendBackTask(id: TaskId, note?: string): Promise<void> {
-    storeTask(await apiReviewTask(id, 'OPEN', note ?? null))
   }
 
   /** A session created a task. Nothing is selected: the reader stays where they were. */
@@ -169,7 +164,6 @@ export function useTaskWrites(
     saveTaskDescription,
     applyTaskReview,
     applyTaskCreated,
-    acceptTask,
-    sendBackTask
+    acceptTask
   }
 }

@@ -1,6 +1,6 @@
 use sea_orm_migration::prelude::*;
 
-use super::{baseline, m031_project_section, m032_project_icon_image, m033_project_component, m034_company_logo_image, m035_mermaid_diagram, m036_token_usage, m037_skill_placement, m038_skill_assignment, m039_step_flow, m040_flow_start_end, m041_token_usage_day, m042_step_max_visits, m043_diagram_walkthrough, m044_connection, m045_connection_proxy, m046_drop_task_revision, m047_vulnerability, m048_exposure_conclusion, m049_deployment_graph, m050_graph_step_place, m051_binding_label, m052_advisory_reach, m053_visit_report, m054_release_on_run, m055_epic, m056_step_session, m057_telemetry_setting, m058_run_queue_session_kind, m059_shared_connection, m060_step_snapshot, m061_check, m062_wrapup_version, m063_quick_task, m064_task_dependency, m065_parallel_sessions, m066_task_worktree, m067_task_deviation, m068_drop_orphan_note_links, m069_task_feedback};
+use super::{baseline, m031_project_section, m032_project_icon_image, m033_project_component, m034_company_logo_image, m035_mermaid_diagram, m036_token_usage, m037_skill_placement, m038_skill_assignment, m039_step_flow, m040_flow_start_end, m041_token_usage_day, m042_step_max_visits, m043_diagram_walkthrough, m044_connection, m045_connection_proxy, m046_drop_task_revision, m047_vulnerability, m048_exposure_conclusion, m049_deployment_graph, m050_graph_step_place, m051_binding_label, m052_advisory_reach, m053_visit_report, m054_release_on_run, m055_epic, m056_step_session, m057_telemetry_setting, m058_run_queue_session_kind, m059_shared_connection, m060_step_snapshot, m061_check, m062_wrapup_version, m063_quick_task, m064_task_dependency, m065_parallel_sessions, m066_task_worktree, m067_task_deviation, m068_drop_orphan_note_links, m069_task_feedback, m070_drop_review_note};
 
 /// Every migration, in the order it is applied.
 pub struct Migrator;
@@ -49,6 +49,7 @@ impl MigratorTrait for Migrator {
             Box::new(m067_task_deviation::TaskDeviation),
             Box::new(m068_drop_orphan_note_links::DropOrphanNoteLinks),
             Box::new(m069_task_feedback::TaskFeedback),
+            Box::new(m070_drop_review_note::DropReviewNote),
         ]
     }
 }

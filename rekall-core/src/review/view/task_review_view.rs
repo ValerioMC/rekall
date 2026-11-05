@@ -13,7 +13,6 @@ pub struct TaskReviewView {
     pub review_active: bool,
     pub claimed_at: Option<Instant>,
     pub accepted_at: Option<Instant>,
-    pub review_note: Option<String>,
     pub auto_accepted: bool,
 }
 
@@ -25,7 +24,6 @@ impl TaskReviewView {
             review_active,
             claimed_at: task.claimed_at,
             accepted_at: task.accepted_at,
-            review_note: task.review_note.clone(),
             auto_accepted: task.auto_accepted,
         }
     }

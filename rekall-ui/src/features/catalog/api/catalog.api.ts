@@ -168,16 +168,12 @@ export async function deleteTask(id: TaskId): Promise<void> {
 }
 
 /** Accept (`DONE`) or send back (`OPEN`) a stepless task's review line; other states are refused. */
-export async function reviewTask(
-  id: TaskId,
-  reviewState: TaskStepState,
-  note?: string | null
-): Promise<Task> {
+export async function reviewTask(id: TaskId, reviewState: TaskStepState): Promise<Task> {
   return request(async () =>
     TaskSchema.parse(
       await apiClient(`/api/tasks/${id}/review`, {
         method: 'PATCH',
-        body: { reviewState, note: note ?? null }
+        body: { reviewState }
       })
     )
   )

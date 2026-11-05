@@ -6,5 +6,4 @@ use serde::Deserialize;
 #[serde(rename_all = "camelCase", default)]
 pub struct TaskReviewRequest {
     pub review_state: Option<TaskStepState>,
-    pub note: Option<String>,
 }

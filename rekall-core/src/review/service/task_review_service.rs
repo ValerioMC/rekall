@@ -1,4 +1,4 @@
-use rekall_kernel::{jstr, Id, RekallError, Result};
+use rekall_kernel::{Id, RekallError, Result};
 use rekall_store::task;
 use rekall_store::TaskStepState;
 use rekall_store::repository as repo;
@@ -88,15 +88,12 @@ impl TaskReviewService {
         })
     }
 
-    /// The console sends the work back: `-> OPEN`, with an optional note; blank notes are dropped.
-    pub async fn send_back_in(&self, tx: &mut Tx, task_id: Id, note: Option<&str>) -> Result<TaskReviewView> {
+    /// The console sends the work back: `-> OPEN`.
+    pub async fn send_back_in(&self, tx: &mut Tx, task_id: Id) -> Result<TaskReviewView> {
         let before = load::task_or_unknown(tx.db(), task_id).await?;
         guard_active(tx, task_id).await?;
         let mut task = before.clone();
         task.mark_review_state(TaskStepState::Open);
-        task.review_note = note
-            .filter(|n| !jstr::is_blank(n))
-            .map(|n| jstr::strip(n).to_string());
         self.save_and_publish(tx, &before, task).await
     }
 

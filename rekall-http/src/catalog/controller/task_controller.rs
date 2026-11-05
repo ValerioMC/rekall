@@ -55,7 +55,7 @@ async fn review(
 ) -> ApiResult<Json<TaskResponse>> {
     let id = uuid("id", &id)?;
     let target = present("reviewState", request.review_state)?;
-    Ok(Json(state.tasks.review(id, target, request.note.as_deref()).await?.into()))
+    Ok(Json(state.tasks.review(id, target).await?.into()))
 }
 
 async fn skip_release(

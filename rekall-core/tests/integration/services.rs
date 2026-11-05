@@ -763,7 +763,7 @@ async fn sending_an_auto_accepted_task_back_reopens_it_and_clears_the_mark() {
     assert!(wrapup_then_commit(&world, "fix-typo", rekall_store::WrapupAuthor::Claude).await);
 
     let mut tx = rekall_core::Tx::write(&world.services.ctx).await.unwrap();
-    world.services.review.send_back_in(&mut tx, task.id, Some("The typo is still there.")).await.unwrap();
+    world.services.review.send_back_in(&mut tx, task.id).await.unwrap();
     tx.commit().await.unwrap();
 
     let after = reloaded(&world, task.id).await;

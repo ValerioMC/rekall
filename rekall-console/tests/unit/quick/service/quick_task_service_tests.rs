@@ -163,7 +163,7 @@ async fn a_second_quick_task_is_refused_while_the_first_is_still_being_worked() 
 async fn the_same_request_twice_gets_a_numbered_label_once_the_first_is_out_of_the_way() {
     let world = world(None).await;
     let first = world.service.create(command(world.project_id, "Fix the typo")).await.unwrap();
-    world.tasks.review(first.task.id, TaskStepState::Done, None).await.unwrap();
+    world.tasks.review(first.task.id, TaskStepState::Done).await.unwrap();
     let second = world.service.create(command(world.project_id, "Fix the typo")).await.unwrap();
     assert_eq!(second.task.label, "fix-the-typo-2");
 }

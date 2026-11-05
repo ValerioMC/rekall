@@ -45,6 +45,7 @@ mod m066_task_worktree;
 mod m067_task_deviation;
 mod m068_drop_orphan_note_links;
 mod m069_task_feedback;
+mod m070_drop_review_note;
 mod migration_support;
 mod migrator;
 

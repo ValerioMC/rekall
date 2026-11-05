@@ -121,7 +121,7 @@ impl FeedbackService {
         let steps = repo::task_step::list_of_task(tx.db(), task.id).await?;
         let line_is_closed = matches!(task.review_state, TaskStepState::Claimed | TaskStepState::Done);
         if line_is_closed && task::review_active(steps.iter().map(|step| &step.state)) {
-            self.review.send_back_in(tx, task.id, None).await?;
+            self.review.send_back_in(tx, task.id).await?;
         }
         Ok(())
     }

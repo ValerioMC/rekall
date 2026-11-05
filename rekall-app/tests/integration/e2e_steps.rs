@@ -456,7 +456,7 @@ async fn the_console_accepts_a_stepless_task_and_cannot_accept_it_twice() {
 }
 
 #[tokio::test]
-async fn sending_a_stepless_task_back_reopens_it_and_carries_a_note_to_the_next_session() {
+async fn sending_a_stepless_task_back_reopens_it_and_a_note_in_the_request_is_no_longer_kept() {
     let app = app().await;
     let acme = app.a_company("Acme").await;
     let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
@@ -467,9 +467,8 @@ async fn sending_a_stepless_task_back_reopens_it_and_carries_a_note_to_the_next_
 
     assert_eq!(sent_back.status, 200);
     assert_eq!(sent_back.str("reviewState"), "OPEN");
-    assert_eq!(sent_back.str("reviewNote"), "la colonna export e' ancora sbagliata");
     assert!(sent_back.get("claimedAt").is_null());
-    assert_contains!(
+    assert_lacks!(
         app.call_tool("rekall_context", json!({ "anchors": "project:vega task:report-builder" })).await,
         "la colonna export e' ancora sbagliata"
     );

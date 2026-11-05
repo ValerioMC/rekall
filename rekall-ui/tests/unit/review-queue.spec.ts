@@ -30,7 +30,6 @@ function task(id: string, title: string, review: Partial<Pick<Task, 'reviewState
     reviewActive: review.reviewActive ?? false,
     claimedAt: review.claimedAt ?? null,
     acceptedAt: null,
-    reviewNote: null,
     tagId: null,
     tagName: null,
     tagIcon: null,

@@ -87,7 +87,7 @@ impl TaskService {
     }
 
     /// `DONE` accepts a stepless task, `OPEN` sends it back; other states are refused.
-    pub async fn review(&self, id: Id, target: TaskStepState, note: Option<&str>) -> Result<TaskView> {
+    pub async fn review(&self, id: Id, target: TaskStepState) -> Result<TaskView> {
         in_write!(&self.ctx, |tx| {
             repo::task::require(tx.db(), id).await?;
             match target {
@@ -95,7 +95,7 @@ impl TaskService {
                     self.review.accept_in(&mut tx, id).await?;
                 }
                 TaskStepState::Open => {
-                    self.review.send_back_in(&mut tx, id, note).await?;
+                    self.review.send_back_in(&mut tx, id).await?;
                 }
                 _ => {
                     return Err(RekallError::illegal(

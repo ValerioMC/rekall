@@ -267,9 +267,6 @@ impl ContextService {
         if task.is_epic() {
             fields.push(("kind".into(), epic_summary(&children)));
         }
-        if let Some(note) = task.review_note.as_deref().filter(|n| !jstr::is_blank(n)) {
-            fields.push(("review".into(), format!("sent back — \"{note}\"")));
-        }
         let drafts = steps.iter().filter(|s| s.state.draft()).count();
         let checklist = steps.len() - drafts;
         if checklist > 0 {

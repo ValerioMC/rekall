@@ -26,7 +26,6 @@ const report: Task = {
   reviewActive: false,
   claimedAt: null,
   acceptedAt: null,
-  reviewNote: null,
   tagId: null,
   tagName: null,
   tagIcon: null,
