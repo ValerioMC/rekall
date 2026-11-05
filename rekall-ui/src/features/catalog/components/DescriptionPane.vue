@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import AppModeToggle from '@/components/ui/AppModeToggle.vue'
@@ -20,9 +20,16 @@ import CommitReferenceRail from '@/features/commits/components/CommitReferenceRa
 import ContextSizeChip from '@/features/context/components/ContextSizeChip.vue'
 import TaskTitleRow from '@/features/catalog/components/TaskTitleRow.vue'
 import TaskLabelsStrip from '@/features/catalog/components/TaskLabelsStrip.vue'
+import ApplyFeedbackButton from '@/features/feedback/components/ApplyFeedbackButton.vue'
+import FeedbackComposer from '@/features/feedback/components/FeedbackComposer.vue'
+import FeedbackThread from '@/features/feedback/components/FeedbackThread.vue'
+import AppButton from '@/components/ui/AppButton.vue'
+import { useAsyncAction } from '@/composables/useAsyncAction'
+import { isPending, type Feedback } from '@/features/feedback/model/feedback'
 
 const store = useConsoleStore()
-const { selectedTask, selectedTaskCommitReferences } = storeToRefs(store)
+const { selectedTask, selectedTaskId, selectedTaskCommitReferences, selectedTaskFeedback } = storeToRefs(store)
+const { run } = useAsyncAction()
 
 const { draft, showEditor, mode, scheduleSave, beginWriting, toggleMode } = useDescriptionDraft()
 
@@ -37,6 +44,46 @@ const reviewState = computed(() => {
   const task = selectedTask.value
   return task && task.reviewActive && task.stepCount === 0 ? task.reviewState : null
 })
+
+const pendingRevision = computed(() =>
+  selectedTaskFeedback.value.find((entry) => entry.kind === 'REVISION' && isPending(entry)) ?? null
+)
+const threadOpen = ref(false)
+
+watch(
+  selectedTaskId,
+  (id) => {
+    if (id !== null) void store.loadFeedback(id).catch(() => undefined)
+  },
+  { immediate: true }
+)
+
+watch(
+  selectedTaskId,
+  () => {
+    threadOpen.value = selectedTaskFeedback.value.length > 0
+  },
+  { immediate: true }
+)
+
+watch(
+  () => selectedTaskFeedback.value.length,
+  (count, before) => {
+    if (count > before) threadOpen.value = true
+  }
+)
+
+function editFeedback(entry: Feedback, body: string): void {
+  void run(() => store.editFeedback(entry, body))
+}
+
+function removeFeedback(entry: Feedback): void {
+  void run(() => store.deleteFeedback(entry))
+}
+
+function discardRevision(entry: Feedback): void {
+  void run(() => store.discardRevision(entry))
+}
 
 defineExpose({ toggleMode })
 </script>
@@ -144,6 +191,24 @@ defineExpose({ toggleMode })
         :signature="`${reviewState}:${selectedTask.updatedAt}`"
       />
 
+      <div
+        v-if="pendingRevision"
+        class="flex shrink-0 items-center gap-3 border-b border-border bg-accent-soft px-5 py-2"
+        role="status"
+        data-testid="revision-banner"
+      >
+        <span class="min-w-0 flex-1 text-small text-text">Description revised since the last run</span>
+        <ApplyFeedbackButton
+          mode="revise"
+          :task-id="selectedTask.id"
+          :anchor="selectedTask.anchor"
+          :folder="selectedTask.projectRepoFolder"
+        />
+        <AppButton size="sm" variant="quiet" data-testid="revision-banner-discard" @click="discardRevision(pendingRevision)">
+          Discard
+        </AppButton>
+      </div>
+
       <DescriptionEmptyState v-if="!showEditor" @write="beginWriting" />
 
       <div v-else class="min-h-0 flex-1 overflow-y-auto p-4">
@@ -163,6 +228,53 @@ defineExpose({ toggleMode })
           <AppMarkdownEditor v-else key="read" :model-value="draft" :components="projectComponents" :connections="projectConnections" :tasks="projectTasks" readonly />
         </Transition>
       </div>
+
+      <section class="flex max-h-[45%] shrink-0 flex-col border-t border-border bg-surface" aria-label="Feedback" data-testid="feedback-dock">
+        <header class="flex shrink-0 items-center gap-2 px-4 py-2">
+          <button
+            type="button"
+            class="focus-ring flex items-center gap-1.5 rounded-control px-1 py-0.5 text-left"
+            :aria-expanded="threadOpen"
+            data-testid="feedback-dock-toggle"
+            @click="threadOpen = !threadOpen"
+          >
+            <svg
+              class="size-2.5 shrink-0 text-text-subtle transition-transform"
+              :class="threadOpen && 'rotate-90'"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <span class="eyebrow">Feedback</span>
+            <span class="text-micro text-text-subtle">{{ selectedTaskFeedback.length }}</span>
+          </button>
+          <span class="flex-1" />
+          <ApplyFeedbackButton
+            mode="revise"
+            :task-id="selectedTask.id"
+            :anchor="selectedTask.anchor"
+            :folder="selectedTask.projectRepoFolder"
+          />
+          <ApplyFeedbackButton
+            v-if="selectedTask.stepCount > 0"
+            mode="replan"
+            :task-id="selectedTask.id"
+            :anchor="selectedTask.anchor"
+            :folder="selectedTask.projectRepoFolder"
+          />
+        </header>
+        <div v-if="threadOpen" class="flex min-h-0 flex-col gap-3 overflow-y-auto px-4 pb-4">
+          <FeedbackThread
+            :entries="selectedTaskFeedback"
+            @edit="editFeedback"
+            @remove="removeFeedback"
+            @discard="discardRevision"
+          />
+          <FeedbackComposer />
+        </div>
+      </section>
     </template>
   </section>
 </template>

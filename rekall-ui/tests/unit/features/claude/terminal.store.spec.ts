@@ -138,6 +138,18 @@ describe('the terminal store', () => {
     expect(api.sendTerminalInput).toHaveBeenCalledWith('term-1', '/rk project:vega task:report-builder replan\r')
   })
 
+  it('revises in a new terminal opened in revise mode, or types the revise line into the live one', async () => {
+    api.openTerminal.mockResolvedValue(terminal())
+    api.sendTerminalInput.mockResolvedValue(undefined)
+    const store = useTerminalStore()
+
+    await store.planForTask(TASK, 'project:vega task:report-builder', { skipPermissions: true }, 'REVISE')
+    expect(api.openTerminal).toHaveBeenCalledWith({ taskId: TASK }, { skipPermissions: true, mode: 'REVISE' })
+
+    await store.planForTask(TASK, 'project:vega task:report-builder', { skipPermissions: true }, 'REVISE')
+    expect(api.sendTerminalInput).toHaveBeenCalledWith('term-1', '/rk project:vega task:report-builder revise\r')
+  })
+
   it('hands a replan the message about what the plan missed, in a new terminal or the live one', async () => {
     api.openTerminal.mockResolvedValue(terminal())
     api.sendTerminalInput.mockResolvedValue(undefined)

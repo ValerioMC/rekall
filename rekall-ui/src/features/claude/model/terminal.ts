@@ -3,18 +3,19 @@ import type { ConnectionId, ProjectId, TaskId, TaskStepId, TerminalId } from '@/
 
 /**
  * What a terminal is opened to do: `WORK` types `/rk <anchor>`, `PLAN` types `/rk <anchor> plan`,
- * `PLAN_FLOW` types `/rk <anchor> plan flow`, `REPLAN` types `/rk <anchor> replan`, `GENERATE` types `/rk <anchor> generate "<request>"`,
+ * `PLAN_FLOW` types `/rk <anchor> plan flow`, `REPLAN` types `/rk <anchor> replan`, `REVISE` types `/rk <anchor> revise`, `GENERATE` types `/rk <anchor> generate "<request>"`,
  * `INVENTORY` types `/rk <anchor> inventory`, `ASSESS` types `/rk <anchor> assess advisory:<id>`,
  * `ASSESS_ALL` types `/rk <anchor> assess` to judge every advisory not assessed yet, `AUTOCONFIGURE`
  * types `/rk <anchor> autoconfigure` to learn how the project takes a contribution.
  */
-export type TerminalMode = 'WORK' | 'PLAN' | 'PLAN_FLOW' | 'REPLAN' | 'GENERATE' | 'EXPLAIN' | 'INVENTORY' | 'ASSESS' | 'ASSESS_ALL' | 'AUTOCONFIGURE'
+export type TerminalMode = 'WORK' | 'PLAN' | 'PLAN_FLOW' | 'REPLAN' | 'REVISE' | 'GENERATE' | 'EXPLAIN' | 'INVENTORY' | 'ASSESS' | 'ASSESS_ALL' | 'AUTOCONFIGURE'
 
 /**
- * A planning terminal: a checklist of drafts, a flow, drafts joined by their routes, or a replan
- * that swaps the task's draft and open steps for a new plan.
+ * A terminal that acts on a task's plan or thread: a checklist of drafts, a flow, drafts joined by
+ * their routes, a replan that swaps the task's draft and open steps for a new plan, or a revise
+ * that evaluates the pending entries of its thread.
  */
-export type PlanMode = Extract<TerminalMode, 'PLAN' | 'PLAN_FLOW' | 'REPLAN'>
+export type PlanMode = Extract<TerminalMode, 'PLAN' | 'PLAN_FLOW' | 'REPLAN' | 'REVISE'>
 
 /** What a terminal is opened on: a task, or a project alone, which draws a diagram, inventories, assesses or autoconfigures. */
 export type TerminalTarget = { readonly taskId: TaskId } | { readonly projectId: ProjectId }

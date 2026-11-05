@@ -16,6 +16,7 @@ vi.mock('@/features/context/api/context.api', () => ({
 }))
 
 vi.mock('@/features/project/api/project-components.api')
+vi.mock('@/features/feedback/api/feedback.api', () => ({ fetchFeedback: vi.fn(async () => []) }))
 
 /**
  * The description's own review bar, shown only while the task has no checklist. It has to give
@@ -171,5 +172,53 @@ describe('DescriptionPane mode', () => {
     await flushPromises()
 
     expect(wrapper.getComponent(AppModeToggle).props('modelValue')).toBe('write')
+  })
+})
+
+describe('DescriptionPane thread', () => {
+  beforeEach(() => {
+    pinia = createPinia()
+    setActivePinia(pinia)
+  })
+
+  it('reads the thread of the task in view and shows it under the description', async () => {
+    const { fetchFeedback } = await import('@/features/feedback/api/feedback.api')
+    vi.mocked(fetchFeedback).mockResolvedValue([
+      { id: 'f1', taskId, seq: 1, kind: 'IMPLEMENTATION', state: 'PENDING', quotedMarkdown: null, bodyMarkdown: 'The totals are wrong', replyMarkdown: null, createdAt: '2026-11-04T10:00:00Z', appliedAt: null }
+    ] as never)
+    seed('CLAIMED')
+    const wrapper = render()
+    await flushPromises()
+
+    expect(fetchFeedback).toHaveBeenCalledWith(taskId)
+    expect(wrapper.find('[data-testid="feedback-dock"]').exists()).toBe(true)
+    expect(wrapper.findAll('[data-testid="feedback-entry"]')).toHaveLength(1)
+  })
+
+  it('banners a pending revision with Run revision and Discard, and Discard asks the store to restore the text', async () => {
+    const { fetchFeedback } = await import('@/features/feedback/api/feedback.api')
+    const revision = { id: 'f1', taskId, seq: 1, kind: 'REVISION', state: 'PENDING', quotedMarkdown: 'before', bodyMarkdown: 'after', replyMarkdown: null, createdAt: '2026-11-04T10:00:00Z', appliedAt: null }
+    vi.mocked(fetchFeedback).mockResolvedValue([revision] as never)
+    const store = seed('CLAIMED')
+    const discard = vi.spyOn(store, 'discardRevision').mockResolvedValue()
+    const wrapper = render()
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="revision-banner"]').text()).toContain('Description revised since the last run')
+    expect(wrapper.find('[data-testid="revision-banner"] [data-testid="apply-feedback-revise"]').exists()).toBe(true)
+
+    await wrapper.get('[data-testid="revision-banner-discard"]').trigger('click')
+
+    expect(discard).toHaveBeenCalledWith(expect.objectContaining({ id: 'f1', kind: 'REVISION' }))
+  })
+
+  it('shows no banner while no revision is pending', async () => {
+    const { fetchFeedback } = await import('@/features/feedback/api/feedback.api')
+    vi.mocked(fetchFeedback).mockResolvedValue([])
+    seed('CLAIMED')
+    const wrapper = render()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="revision-banner"]').exists()).toBe(false)
   })
 })

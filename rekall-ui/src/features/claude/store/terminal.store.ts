@@ -9,7 +9,7 @@ import {
 } from '@/features/claude/api/terminal.api'
 import { sendMessage } from '@/features/chat/api/chat.api'
 import { awaitRenewedSession } from '@/features/claude/lib/renewed-session'
-import { rkPlanCommand, rkPlanFlowCommand, rkReplanCommand } from '@/common/format/rk-command'
+import { rkPlanCommand, rkPlanFlowCommand, rkReplanCommand, rkReviseCommand } from '@/common/format/rk-command'
 import type { PlanMode, Terminal } from '@/features/claude/model/terminal'
 import type { ProjectId, TaskId, TerminalId } from '@/model/branded'
 
@@ -57,7 +57,8 @@ export const useTerminalStore = defineStore('terminal', () => {
 
   /**
    * Have a session propose this task's checklist, or its flow, or redesign the steps it has
-   * (`REPLAN`), bending them to a message about what the plan missed. A live session on the
+   * (`REPLAN`), bending them to a message about what the plan missed, or evaluate the pending
+   * entries of its thread (`REVISE`). A live session on the
    * task gets the plan line typed into it; without one, a terminal is opened that starts on that
    * line, so a plan never needs a session already running. Either way it becomes the active one.
    */
@@ -100,6 +101,7 @@ export const useTerminalStore = defineStore('terminal', () => {
 
   function planLine(mode: PlanMode, anchor: string, message: string): string {
     if (mode === 'PLAN_FLOW') return rkPlanFlowCommand(anchor)
+    if (mode === 'REVISE') return rkReviseCommand(anchor)
     return mode === 'REPLAN' ? rkReplanCommand(anchor, message) : rkPlanCommand(anchor)
   }
 

@@ -32,6 +32,15 @@ export function rkReplanCommand(anchor: string, message = ''): string {
   return quoted ? `${base} replan ${quoted}` : `${base} replan`
 }
 
+/**
+ * The revising line: the session evaluates the pending entries of the task's thread, the
+ * description rewrites and the feedback on the work, on top of what is already built.
+ */
+export function rkReviseCommand(anchor: string): string {
+  const base = rkCommand(anchor)
+  return base ? `${base} revise` : ''
+}
+
 /** The wrapup line, with an optional directive folded in. */
 export function rkWrapupCommand(anchor: string, directive = ''): string {
   const base = rkCommand(anchor)
