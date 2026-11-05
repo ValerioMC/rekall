@@ -1,6 +1,7 @@
-//! A task's thread under its description. The only write a session has is `reply`: it answers
-//! pending entries and cannot create, edit or delete one. The context carries the thread in a
-//! `<thread>` block, pending entries in full and applied ones as one line.
+//! A task's thread under its description. The only writes a session has are `reply`, which answers
+//! the open entries (waiting or in a pass) and cannot create, edit or delete one, and the release of
+//! a pass whose session ended. The context carries the thread in a `<thread>` block, open entries in
+//! full and applied ones as one line.
 
 mod event;
 mod model;

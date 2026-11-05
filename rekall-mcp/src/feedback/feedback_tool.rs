@@ -7,8 +7,8 @@ use crate::protocol::{McpTool, ToolError, ToolSchema};
 use crate::texts;
 use crate::tool::{told, Anchor, AnchoredTask, Arguments, QUALIFY_WITH_PROJECT};
 
-/// Lets a session answer the pending entries of one task's thread, by seq. It cannot create, edit
-/// or delete an entry.
+/// Lets a session answer the open entries of one task's thread, by seq. It cannot create, edit or
+/// delete an entry.
 pub struct FeedbackTool {
     feedback: FeedbackService,
 }
@@ -42,7 +42,7 @@ impl McpTool for FeedbackTool {
             )
             .required_object_array(
                 "replies",
-                "One reply per pending entry the session dealt with: `[{\"seq\":2,\"reply\":\"Split step 3 in two; the wrapup has the detail.\"}]`. \
+                "One reply per open entry (waiting or in a pass) the session dealt with: `[{\"seq\":2,\"reply\":\"Split step 3 in two; the wrapup has the detail.\"}]`. \
                  `seq` is the entry's number in the `<thread>` block; the reply is one or two sentences of what changed and where.",
             )
             .build()
@@ -94,12 +94,12 @@ fn seq_of(seq: &SeqArgument) -> Result<i32, ToolError> {
 }
 
 fn report(replied: &Replied) -> String {
-    let pending = if replied.still_pending.is_empty() {
-        "No entry is pending any more.".to_string()
+    let open = if replied.still_open.is_empty() {
+        "No entry is open any more.".to_string()
     } else {
-        format!("Still pending: {}.", seqs(&replied.still_pending))
+        format!("Still open: {}.", seqs(&replied.still_open))
     };
-    format!("Replied to {} on `{}`. {pending}", seqs(&replied.applied), replied.task_anchor)
+    format!("Replied to {} on `{}`. {open}", seqs(&replied.applied), replied.task_anchor)
 }
 
 fn seqs(seqs: &[i32]) -> String {

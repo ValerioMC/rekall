@@ -150,7 +150,7 @@ async fn the_whole_loop_from_a_rewrite_and_feedback_to_the_sessions_replies() {
     assert!(thread.iter().all(|entry| entry["state"] == "PENDING"));
     assert_contains!(
         scene.app.call_tool("rekall_context", json!({ "anchors": ANCHORS })).await,
-        "<thread pending=\"2\" applied=\"0\">",
+        "<thread pending=\"2\" running=\"0\" applied=\"0\">",
         "<quoted>\nExport to CSV.\n</quoted>",
         "<new>\nExport to CSV and XLSX.\n</new>",
         "The totals are wrong."
@@ -161,12 +161,12 @@ async fn the_whole_loop_from_a_rewrite_and_feedback_to_the_sessions_replies() {
         .call_tool("rekall_feedback", json!({ "anchors": ANCHORS, "replies": [{ "seq": 1, "reply": "Added XLSX." }, { "seq": 2, "reply": "Fixed the totals." }] }))
         .await;
 
-    assert_contains!(answer, "Replied to #1, #2", "No entry is pending any more.");
+    assert_contains!(answer, "Replied to #1, #2", "No entry is open any more.");
     assert!(scene.thread().await.iter().all(|entry| entry["state"] == "APPLIED"));
     let context = scene.app.call_tool("rekall_context", json!({ "anchors": ANCHORS })).await;
     assert_contains!(
         context,
-        "<thread pending=\"0\" applied=\"2\">",
+        "<thread pending=\"0\" running=\"0\" applied=\"2\">",
         "<entry seq=\"1\" kind=\"REVISION\" state=\"APPLIED\">Added XLSX.</entry>",
         "<entry seq=\"2\" kind=\"IMPLEMENTATION\" state=\"APPLIED\">Fixed the totals.</entry>"
     );

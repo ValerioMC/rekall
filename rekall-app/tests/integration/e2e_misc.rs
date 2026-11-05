@@ -868,11 +868,11 @@ async fn a_session_replies_to_pending_entries_of_the_thread_and_a_refused_reply_
     assert_eq!(state_of_entry(&app, &task_id, 1).await.as_deref(), Some("PENDING"), "nothing is written when one reply is refused");
 
     let one = app.call_tool("rekall_feedback", json!({ "anchors": anchors, "replies": [{ "seq": 1, "reply": "Fixed the totals." }] })).await;
-    assert_contains!(one, "Replied to #1 on `project:vega task:report-builder`", "Still pending: #2, #3.");
+    assert_contains!(one, "Replied to #1 on `project:vega task:report-builder`", "Still open: #2, #3.");
     let several = app
         .call_tool("rekall_feedback", json!({ "anchors": anchors, "replies": [{ "seq": 2, "reply": "Split it." }, { "seq": "3", "reply": "Built it." }] }))
         .await;
-    assert_contains!(several, "Replied to #2, #3", "No entry is pending any more.");
+    assert_contains!(several, "Replied to #2, #3", "No entry is open any more.");
     assert_eq!(state_of_entry(&app, &task_id, 3).await.as_deref(), Some("APPLIED"));
     assert_contains!(
         app.call_tool("rekall_feedback", json!({ "anchors": anchors, "replies": [{ "seq": 1, "reply": "Again." }] })).await,
@@ -880,7 +880,7 @@ async fn a_session_replies_to_pending_entries_of_the_thread_and_a_refused_reply_
     );
     assert_contains!(
         app.call_tool("rekall_context", json!({ "anchors": anchors })).await,
-        "<thread pending=\"0\" applied=\"3\">",
+        "<thread pending=\"0\" running=\"0\" applied=\"3\">",
         "state=\"APPLIED\">Fixed the totals.</entry>"
     );
 }

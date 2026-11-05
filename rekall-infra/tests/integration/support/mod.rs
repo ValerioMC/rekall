@@ -101,7 +101,7 @@ impl World {
     }
 
     pub fn work_marker(&self) -> WorkMarker {
-        WorkMarker::new(self.services.steps.clone(), self.services.review.clone(), self.services.step_snapshots.clone())
+        WorkMarker::new(self.services.steps.clone(), self.services.review.clone(), self.services.step_snapshots.clone(), self.services.feedback.clone())
     }
 
     pub fn terminals(&self, max_sessions: usize) -> Arc<PtyTerminalManager> {

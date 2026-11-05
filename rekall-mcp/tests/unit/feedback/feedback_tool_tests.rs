@@ -25,15 +25,15 @@ fn missing_replies_and_a_seq_that_is_no_number_are_refused() {
 }
 
 #[test]
-fn the_answer_lists_what_was_applied_and_what_is_still_pending() {
-    let replied = Replied { task_anchor: "project:vega task:pay".into(), applied: vec![1, 3], still_pending: vec![2] };
+fn the_answer_lists_what_was_applied_and_what_is_still_open() {
+    let replied = Replied { task_anchor: "project:vega task:pay".into(), applied: vec![1, 3], still_open: vec![2] };
 
-    assert_eq!(report(&replied), "Replied to #1, #3 on `project:vega task:pay`. Still pending: #2.");
+    assert_eq!(report(&replied), "Replied to #1, #3 on `project:vega task:pay`. Still open: #2.");
 }
 
 #[test]
-fn the_answer_says_when_nothing_is_pending_any_more() {
-    let replied = Replied { task_anchor: "project:vega task:pay".into(), applied: vec![1], still_pending: vec![] };
+fn the_answer_says_when_nothing_is_open_any_more() {
+    let replied = Replied { task_anchor: "project:vega task:pay".into(), applied: vec![1], still_open: vec![] };
 
-    assert_eq!(report(&replied), "Replied to #1 on `project:vega task:pay`. No entry is pending any more.");
+    assert_eq!(report(&replied), "Replied to #1 on `project:vega task:pay`. No entry is open any more.");
 }

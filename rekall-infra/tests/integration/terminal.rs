@@ -321,3 +321,40 @@ async fn work_that_starts_running_is_snapshotted_once_and_again_only_after_it_is
     marker.mark_running(Some(task.id), Some(step.id)).await;
     assert_eq!(snapshot_paths(&world, &task, &step).await, Some(vec!["before.txt".to_string(), "during.txt".to_string()]));
 }
+
+#[tokio::test]
+async fn a_session_on_the_task_alone_gives_back_the_entries_it_never_answered() {
+    use rekall_store::{task_feedback, FeedbackKind, FeedbackState};
+    use sea_orm::{ActiveModelTrait, IntoActiveModel};
+    let world = world().await;
+    let project = world.project("alpha", None).await;
+    let task = world.task(&project, "one").await;
+    let mut entry = task_feedback::Model::new(task.id, 1, FeedbackKind::Implementation, None, "fix it".into(), None, rekall_kernel::Instant::now());
+    entry.take(1, rekall_kernel::Instant::now());
+    entry.into_active_model().insert(world.db()).await.unwrap();
+    let marker = world.work_marker();
+
+    marker.release_running(Some(task.id), None).await;
+
+    let given_back = rekall_store::repository::task_feedback::find_by_seq(world.db(), task.id, 1).await.unwrap().unwrap();
+    assert_eq!((given_back.state, given_back.pass), (FeedbackState::Pending, None));
+}
+
+#[tokio::test]
+async fn a_session_on_a_step_leaves_the_running_entries_of_the_thread_alone() {
+    use rekall_store::{task_feedback, FeedbackKind, FeedbackState};
+    use sea_orm::{ActiveModelTrait, IntoActiveModel};
+    let world = world().await;
+    let project = world.project("alpha", None).await;
+    let task = world.task(&project, "one").await;
+    let step = world.step(&task, "First", 0, TaskStepState::Running).await;
+    let mut entry = task_feedback::Model::new(task.id, 1, FeedbackKind::Implementation, None, "fix it".into(), None, rekall_kernel::Instant::now());
+    entry.take(1, rekall_kernel::Instant::now());
+    entry.into_active_model().insert(world.db()).await.unwrap();
+    let marker = world.work_marker();
+
+    marker.release_running(Some(task.id), Some(step.id)).await;
+
+    let kept = rekall_store::repository::task_feedback::find_by_seq(world.db(), task.id, 1).await.unwrap().unwrap();
+    assert_eq!((kept.state, kept.pass), (FeedbackState::Running, Some(1)));
+}

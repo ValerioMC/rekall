@@ -285,14 +285,19 @@ impl ContextRenderer {
         out
     }
 
-    /// The thread under the description: `PENDING` entries in full, which are what a session acts
-    /// on, and `APPLIED` ones as one line each, which are history it never redoes.
+    /// The thread under the description: `PENDING` and `RUNNING` entries in full, which are what a
+    /// session acts on, and `APPLIED` ones as one line each, which are history it never redoes.
     pub fn render_thread(&self, thread: &[FeedbackView]) -> String {
         if thread.is_empty() {
             return String::new();
         }
-        let pending = thread.iter().filter(|entry| entry.state == FeedbackState::Pending).count();
-        let mut out = format!("\n<thread pending=\"{pending}\" applied=\"{}\">\n", thread.len() - pending);
+        let count = |state: FeedbackState| thread.iter().filter(|entry| entry.state == state).count();
+        let mut out = format!(
+            "\n<thread pending=\"{}\" running=\"{}\" applied=\"{}\">\n",
+            count(FeedbackState::Pending),
+            count(FeedbackState::Running),
+            count(FeedbackState::Applied)
+        );
         for entry in thread {
             out.push_str(&render_thread_entry(entry));
         }
@@ -389,8 +394,8 @@ fn connection_usage(connection: &ConnectionView) -> String {
 }
 
 fn render_thread_entry(entry: &FeedbackView) -> String {
-    let head = format!("seq=\"{}\" kind=\"{}\" state=\"{}\"", entry.seq, entry.kind, entry.state);
-    if entry.state != FeedbackState::Pending {
+    let head = thread_entry_head(entry);
+    if entry.state == FeedbackState::Applied {
         let reply = entry.reply_markdown.as_deref().map(opening_line).unwrap_or_default();
         return format!("<entry {head}>{reply}</entry>\n");
     }
@@ -402,6 +407,17 @@ fn render_thread_entry(entry: &FeedbackView) -> String {
         ),
         _ => format!("<entry {head}>\n{body}\n</entry>\n"),
     }
+}
+
+fn thread_entry_head(entry: &FeedbackView) -> String {
+    let mut head = format!("seq=\"{}\" kind=\"{}\" state=\"{}\"", entry.seq, entry.kind, entry.state);
+    if let Some(pass) = entry.pass {
+        head.push_str(&format!(" pass=\"{pass}\""));
+    }
+    if let Some(followed) = entry.follows_seq {
+        head.push_str(&format!(" follows=\"{followed}\""));
+    }
+    head
 }
 
 fn attribute(value: &str) -> String {

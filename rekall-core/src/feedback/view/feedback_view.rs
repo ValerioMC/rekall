@@ -1,3 +1,4 @@
+use rekall_kernel::Instant;
 use rekall_store::{task_feedback, FeedbackKind, FeedbackState};
 
 /// A thread entry as a context hands it over.
@@ -9,6 +10,9 @@ pub struct FeedbackView {
     pub quoted_markdown: Option<String>,
     pub body_markdown: String,
     pub reply_markdown: Option<String>,
+    pub pass: Option<i32>,
+    pub taken_at: Option<Instant>,
+    pub follows_seq: Option<i32>,
 }
 
 impl FeedbackView {
@@ -20,6 +24,9 @@ impl FeedbackView {
             quoted_markdown: entry.quoted_markdown.clone(),
             body_markdown: entry.body_markdown.clone(),
             reply_markdown: entry.reply_markdown.clone(),
+            pass: entry.pass,
+            taken_at: entry.taken_at,
+            follows_seq: entry.follows_seq,
         }
     }
 }

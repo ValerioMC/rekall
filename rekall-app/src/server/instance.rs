@@ -148,7 +148,7 @@ impl Instance {
             format!("http://127.0.0.1:{served_port}"),
             config.home.join(CREDENTIAL_SESSIONS_FOLDER),
         ));
-        let work_marker = WorkMarker::new(services.steps.clone(), services.review.clone(), services.step_snapshots.clone());
+        let work_marker = WorkMarker::new(services.steps.clone(), services.review.clone(), services.step_snapshots.clone(), services.feedback.clone());
         let terminals = PtyTerminalManager::new(
             services.terminal_launch.clone(),
             cli.clone(),
