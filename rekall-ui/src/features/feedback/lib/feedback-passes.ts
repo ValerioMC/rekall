@@ -11,21 +11,21 @@ export interface PassGroup {
 }
 
 /**
- * The thread read as groups: what waits for the next run, each pass newest first, and the applied
- * entries from before passes existed.
+ * The thread read as groups, in the order it is shown: the applied entries from before passes
+ * existed, each pass oldest first, and what waits for the next run.
  */
 export interface ThreadGroups {
-  readonly next: readonly Feedback[]
-  readonly passes: readonly PassGroup[]
   readonly before: readonly Feedback[]
+  readonly passes: readonly PassGroup[]
+  readonly next: readonly Feedback[]
 }
 
 export function groupByPass(entries: readonly Feedback[]): ThreadGroups {
   const next = entries.filter(isWaiting)
   const before = entries.filter((entry) => entry.pass === null && !isWaiting(entry))
   const numbers = [...new Set(entries.flatMap((entry) => (entry.pass === null ? [] : [entry.pass])))]
-  const passes = numbers.sort((a, b) => b - a).map((pass) => passGroup(pass, entries.filter((entry) => entry.pass === pass)))
-  return { next, passes, before }
+  const passes = numbers.sort((a, b) => a - b).map((pass) => passGroup(pass, entries.filter((entry) => entry.pass === pass)))
+  return { before, passes, next }
 }
 
 function passGroup(pass: number, entries: readonly Feedback[]): PassGroup {

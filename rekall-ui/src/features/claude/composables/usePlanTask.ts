@@ -1,5 +1,4 @@
 import { computed, ref, type Ref } from 'vue'
-import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useToastStore } from '@/stores/toast.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
@@ -26,7 +25,6 @@ export function usePlanTask(
   folder: () => string | null,
   missingHint: string
 ): PlanTask {
-  const console_ = useConsoleStore()
   const terminals = useTerminalStore()
   const toast = useToastStore()
   const { run, isRunning } = useAsyncAction()
@@ -59,7 +57,7 @@ export function usePlanTask(
   }
 
   async function plan(mode: PlanMode, message = ''): Promise<void> {
-    const planning = await run(
+    await run(
       () =>
         terminals.planForTask(
           taskId(),
@@ -70,8 +68,6 @@ export function usePlanTask(
         ),
       mode === 'REPLAN' ? 'Replanning. The new steps land here.' : 'Planning. Its proposals land here.'
     )
-    if (planning === null || planning.kind === 'CHAT') return
-    console_.openTerminal()
   }
 
   return { isConfirmingReplan, missedMessage, start, confirmReplan, cancelReplan }

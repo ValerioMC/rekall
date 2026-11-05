@@ -396,14 +396,14 @@ describe('planning from the Run here arrow', () => {
     document.body.innerHTML = ''
   })
 
-  it('opens a planning session when none is live on the task', async () => {
+  it('opens a planning session when none is live on the task, and stays on the view it is on', async () => {
     openTerminal.mockResolvedValue({ ...terminal(), id: 'term-2' as TerminalId })
     const openPane = vi.spyOn(useConsoleStore(), 'openTerminal')
 
     await choose(mountPlanning(), 'plan-here')
 
     expect(openTerminal).toHaveBeenCalledWith({ taskId: TASK }, expect.objectContaining({ mode: 'PLAN' }))
-    expect(openPane).toHaveBeenCalled()
+    expect(openPane).not.toHaveBeenCalled()
   })
 
   it('types the plan line into the session live on the task', async () => {

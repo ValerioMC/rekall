@@ -113,6 +113,17 @@ describe('the apply feedback button', () => {
     expect(startPass).toHaveBeenCalledWith(TASK)
   })
 
+  it('stays on the description: the terminal pane is not opened', async () => {
+    openTerminal.mockResolvedValue(terminal())
+    const openPane = vi.spyOn(useConsoleStore(), 'openTerminal')
+    const wrapper = button([entry(1)])
+
+    await wrapper.trigger('click')
+    await flushPromises()
+
+    expect(openPane).not.toHaveBeenCalled()
+  })
+
   it('starts no pass when the session cannot start, so the entries keep waiting', async () => {
     openTerminal.mockRejectedValue(new Error('claude is not installed'))
     const wrapper = button([entry(1)])

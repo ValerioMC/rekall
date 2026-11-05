@@ -2,8 +2,8 @@
 /**
  * Run revision: hands every waiting entry of the thread, of any kind, to a session as one pass.
  * With a session already live on the task the `revise` line is typed into it; without one a
- * terminal is opened that starts on that line. The pass is started once the session is on its way,
- * so a session that cannot start leaves the entries waiting.
+ * terminal is opened that starts on that line, and the view stays on the description. The pass is
+ * started once the session is on its way, so a session that cannot start leaves the entries waiting.
  */
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
@@ -49,13 +49,10 @@ async function apply(): Promise<void> {
     return
   }
   const input = { skipPermissions: skipsPermissions(), model: preferredModel(), effort: preferredEffort(), kind: preferredLaunchKind() }
-  const session = await run(async () => {
-    const started = await terminals.planForTask(props.taskId, props.anchor, input, 'REVISE')
+  await run(async () => {
+    await terminals.planForTask(props.taskId, props.anchor, input, 'REVISE')
     await store.startPass(props.taskId)
-    return started
   })
-  if (session === null || session.kind === 'CHAT') return
-  store.openTerminal()
 }
 </script>
 

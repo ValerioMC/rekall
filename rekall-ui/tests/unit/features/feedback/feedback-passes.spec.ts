@@ -10,12 +10,12 @@ describe('groupByPass', () => {
     expect(groups.passes).toEqual([])
   })
 
-  it('groups the entries of one pass together, newest pass first, with the running one marked', () => {
+  it('groups the entries of one pass together, oldest pass first, with the running one marked', () => {
     const groups = groupByPass([appliedInPass(1, 1, 'Done.'), appliedInPass(2, 1, 'Done too.'), running(3, 2), running(4, 2), entry(5)])
 
     expect(groups.passes.map((pass) => [pass.pass, pass.running, pass.entries.map((feedback) => feedback.seq)])).toEqual([
-      [2, true, [3, 4]],
-      [1, false, [1, 2]]
+      [1, false, [1, 2]],
+      [2, true, [3, 4]]
     ])
     expect(groups.next.map((feedback) => feedback.seq)).toEqual([5])
   })
@@ -27,8 +27,8 @@ describe('groupByPass', () => {
       running(3, 2, { takenAt: '2026-11-04T11:00:00Z' })
     ])
 
-    expect(groups.passes[1]).toMatchObject({ pass: 1, takenAt: '2026-11-04T10:00:00Z', finishedAt: '2026-11-04T10:40:00Z' })
-    expect(groups.passes[0]).toMatchObject({ pass: 2, running: true, finishedAt: null })
+    expect(groups.passes[0]).toMatchObject({ pass: 1, takenAt: '2026-11-04T10:00:00Z', finishedAt: '2026-11-04T10:40:00Z' })
+    expect(groups.passes[1]).toMatchObject({ pass: 2, running: true, finishedAt: null })
   })
 
   it('keeps an entry applied before passes existed apart from every pass', () => {
@@ -39,7 +39,7 @@ describe('groupByPass', () => {
   })
 
   it('has nothing for an empty thread', () => {
-    expect(groupByPass([])).toEqual({ next: [], passes: [], before: [] })
+    expect(groupByPass([])).toEqual({ before: [], passes: [], next: [] })
   })
 })
 
@@ -49,8 +49,8 @@ describe('passDetail and answeredCount', () => {
   it('says when a running pass started and when a done one finished', () => {
     const groups = groupByPass([appliedInPass(1, 1, 'Done.', { appliedAt: '2026-11-04T10:00:00Z' }), running(2, 2, { takenAt: '2026-11-04T10:30:00Z' })])
 
-    expect(passDetail(groups.passes[0]!, NOW)).toBe('started 4 min ago')
-    expect(passDetail(groups.passes[1]!, NOW)).toBe('finished 34 min ago')
+    expect(passDetail(groups.passes[1]!, NOW)).toBe('started 4 min ago')
+    expect(passDetail(groups.passes[0]!, NOW)).toBe('finished 34 min ago')
   })
 
   it('counts the entries of a pass a session already answered', () => {
