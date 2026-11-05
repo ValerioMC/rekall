@@ -21,7 +21,7 @@ const store = useConsoleStore()
 const { run } = useAsyncAction()
 const { selectedTaskFeedback, selectedTaskCommitReferences, waitingCount, runningPass } = storeToRefs(store)
 
-const lastPass = computed(() => groupByPass(selectedTaskFeedback.value).passes[0] ?? null)
+const lastPass = computed(() => groupByPass(selectedTaskFeedback.value).passes.at(-1) ?? null)
 const coveredEntries = computed(() => (lastPass.value?.running ? lastPass.value.entries.map((entry) => `#${entry.seq}`).join(', ') : ''))
 const acceptLabel = computed(() => (waitingCount.value > 0 ? 'Accept anyway' : 'Accept'))
 const acceptHint = computed(() =>
@@ -41,7 +41,7 @@ async function markTaskDone(): Promise<void> {
 
 <template>
   <div
-    class="shrink-0 border-b border-border bg-accent-soft/40 px-5 py-2.5"
+    class="min-h-0 shrink overflow-y-auto border-b border-border bg-accent-soft/40 px-5 py-2.5"
     data-testid="description-review-bar"
   >
     <div class="flex flex-wrap items-center gap-2">

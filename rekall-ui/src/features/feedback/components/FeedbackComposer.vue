@@ -6,8 +6,9 @@ import { useFeedbackComposer } from '@/features/feedback/composables/useFeedback
 import { switchLabel, WRITTEN_KINDS } from '@/features/feedback/lib/feedback-labels'
 
 /**
- * Where feedback is written: a markdown editor, what it is about, the applied entry it adds detail
- * to when aimed at one, and one button. Once added, the text lives only in the thread.
+ * Where feedback is written, always at the foot of the thread: the editor, then what it is about
+ * and the button. Aimed at an applied entry, it says which one. Once added, the text lives only in
+ * the thread.
  */
 const { draft, kind, followsSeq, followUp, dropFollowUp, chooseKind, canSubmit, submit } = useFeedbackComposer()
 const adding = ref(false)
@@ -27,13 +28,25 @@ async function add(): Promise<void> {
 
 <template>
   <form
-    class="rounded-card border border-border bg-surface p-3"
     data-testid="feedback-composer"
     @submit.prevent="add"
     @keydown.meta.enter.prevent="add"
     @keydown.ctrl.enter.prevent="add"
   >
-    <div class="mb-2 flex items-center gap-2">
+    <p v-if="followsSeq !== null" class="mb-2 flex items-center gap-2 text-small text-text-muted" data-testid="feedback-following">
+      Adding detail to #{{ followsSeq }}
+      <button
+        type="button"
+        class="focus-ring rounded-control px-1.5 py-0.5 text-micro text-text-subtle hover:text-text"
+        :aria-label="`Stop adding detail to #${followsSeq}`"
+        data-testid="feedback-following-drop"
+        @click="dropFollowUp"
+      >
+        Drop
+      </button>
+    </p>
+    <AppMarkdownEditor v-model="draft" height="176px" placeholder="What should change?" compact :page-fullscreen="false" />
+    <div class="dock-lane-safe mt-2 flex items-center gap-2" data-testid="feedback-composer-actions">
       <div class="flex gap-0.5 rounded-control bg-canvas p-0.5" role="group" aria-label="What the feedback is about">
         <button
           v-for="option in WRITTEN_KINDS"
@@ -50,21 +63,6 @@ async function add(): Promise<void> {
       </div>
       <span class="flex-1" />
       <span class="text-micro text-text-subtle">⌘↵ adds</span>
-    </div>
-    <p v-if="followsSeq !== null" class="mb-2 flex items-center gap-2 text-small text-text-muted" data-testid="feedback-following">
-      Adding detail to #{{ followsSeq }}
-      <button
-        type="button"
-        class="focus-ring rounded-control px-1.5 py-0.5 text-micro text-text-subtle hover:text-text"
-        :aria-label="`Stop adding detail to #${followsSeq}`"
-        data-testid="feedback-following-drop"
-        @click="dropFollowUp"
-      >
-        Drop
-      </button>
-    </p>
-    <AppMarkdownEditor v-model="draft" height="150px" placeholder="What should change?" compact :page-fullscreen="false" />
-    <div class="mt-2 flex justify-end">
       <AppButton type="submit" variant="primary" size="sm" :disabled="!canSubmit" :loading="adding" data-testid="feedback-add">
         Add feedback
       </AppButton>

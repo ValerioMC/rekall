@@ -205,7 +205,12 @@ defineExpose({ toggleMode })
         </Transition>
       </div>
 
-      <section class="flex max-h-[45%] shrink-0 flex-col border-t border-border bg-surface" aria-label="Feedback" data-testid="feedback-dock">
+      <section
+        class="flex max-h-[55%] shrink flex-col border-t border-border bg-surface"
+        :class="threadOpen ? 'min-h-[24rem]' : 'min-h-0'"
+        aria-label="Feedback"
+        data-testid="feedback-dock"
+      >
         <header class="flex shrink-0 items-center gap-2 px-4 py-2">
           <button
             type="button"
@@ -233,14 +238,13 @@ defineExpose({ toggleMode })
             :folder="selectedTask.projectRepoFolder"
           />
         </header>
-        <div v-if="threadOpen" class="flex min-h-0 flex-col gap-3 overflow-y-auto px-4 pb-4">
-          <FeedbackThread
-            :entries="selectedTaskFeedback"
-            @edit="editFeedback"
-            @remove="removeFeedback"
-            @discard="discardRevision"
-          />
-        </div>
+        <FeedbackThread
+          v-if="threadOpen"
+          :entries="selectedTaskFeedback"
+          @edit="editFeedback"
+          @remove="removeFeedback"
+          @discard="discardRevision"
+        />
       </section>
     </template>
   </section>

@@ -62,4 +62,14 @@ describe('what the last pass did', () => {
     const none = mount(PassSummary, { props: { pass: null, commits: [] } })
     expect(none.get('[data-testid="pass-summary-no-commits"]').text()).toBe('No commit logged yet.')
   })
+
+  it('wraps a long reply instead of cutting it off', () => {
+    const pass = groupByPass([appliedInPass(1, 1, 'A reply long enough to run past the width of the review bar')]).passes[0] ?? null
+
+    const wrapper = mount(PassSummary, { props: { pass, commits: [] } })
+
+    const reply = wrapper.get('[data-testid="pass-summary-reply"]')
+    expect(reply.text()).toBe('A reply long enough to run past the width of the review bar')
+    expect(reply.classes()).not.toContain('truncate')
+  })
 })
