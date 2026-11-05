@@ -842,7 +842,7 @@ async fn a_sessions_transcript_in_a_projects_folder_reaches_the_token_tallies_of
 async fn a_pending_entry(app: &App, task_id: &str, kind: rekall_store::FeedbackKind, seq: i32, body: &str) {
     use sea_orm::{ActiveModelTrait, IntoActiveModel};
     let quoted = kind.is_revision().then(|| "the text before".to_string());
-    let entry = rekall_store::task_feedback::Model::new(task_id.parse().unwrap(), seq, kind, quoted, body.into(), rekall_kernel::Instant::now());
+    let entry = rekall_store::task_feedback::Model::new(task_id.parse().unwrap(), seq, kind, quoted, body.into(), None, rekall_kernel::Instant::now());
     entry.into_active_model().insert(&app.services().ctx.db).await.unwrap();
 }
 

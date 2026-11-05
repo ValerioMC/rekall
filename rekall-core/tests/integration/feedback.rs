@@ -12,7 +12,7 @@ use support::{world, World};
 async fn pending(world: &World, task: &task::Model, kind: FeedbackKind, body: &str) -> task_feedback::Model {
     let seq = repo::task_feedback::next_seq(world.db(), task.id).await.unwrap();
     let quoted = kind.is_revision().then(|| "the text before".to_string());
-    let entry = task_feedback::Model::new(task.id, seq, kind, quoted, body.into(), Instant::now());
+    let entry = task_feedback::Model::new(task.id, seq, kind, quoted, body.into(), None, Instant::now());
     entry.clone().into_active_model().insert(world.db()).await.unwrap();
     entry
 }

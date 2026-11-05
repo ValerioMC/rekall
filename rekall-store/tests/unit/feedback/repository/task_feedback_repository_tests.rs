@@ -22,7 +22,7 @@ async fn a_task(db: &impl ConnectionTrait) -> task::Model {
 async fn add(db: &impl ConnectionTrait, task: &task::Model, kind: FeedbackKind, body: &str) -> Model {
     let seq = next_seq(db, task.id).await.unwrap();
     let quoted = kind.is_revision().then(|| "before".to_string());
-    let entry = Model::new(task.id, seq, kind, quoted, body.into(), Instant::now());
+    let entry = Model::new(task.id, seq, kind, quoted, body.into(), None, Instant::now());
     entry.clone().into_active_model().insert(db).await.unwrap();
     entry
 }
@@ -85,7 +85,7 @@ async fn a_second_entry_with_the_same_number_is_refused_by_the_schema() {
     let task = a_task(db).await;
     add(db, &task, FeedbackKind::Implementation, "one").await;
 
-    let again = Model::new(task.id, 1, FeedbackKind::Plan, None, "two".into(), Instant::now());
+    let again = Model::new(task.id, 1, FeedbackKind::Plan, None, "two".into(), None, Instant::now());
 
     assert!(again.into_active_model().insert(db).await.is_err());
 }
@@ -100,4 +100,63 @@ async fn deleting_the_task_takes_its_thread() {
     task::Entity::delete_by_id(task.id).exec(db).await.unwrap();
 
     assert!(list_of_task(db, task.id).await.unwrap().is_empty());
+}
+
+async fn take(db: &impl ConnectionTrait, entry: &Model, pass: i32) {
+    let mut taken = entry.clone();
+    taken.take(pass, Instant::now());
+    taken.into_active_model().reset_all().update(db).await.unwrap();
+}
+
+#[tokio::test]
+async fn running_and_open_entries_are_told_apart_from_pending_and_applied_ones() {
+    let database = crate::open_temporary().await.unwrap();
+    let db = &database.conn;
+    let task = a_task(db).await;
+    let applied = add(db, &task, FeedbackKind::Implementation, "one").await;
+    let running = add(db, &task, FeedbackKind::Plan, "two").await;
+    add(db, &task, FeedbackKind::Implementation, "three").await;
+    apply(db, &applied).await;
+    take(db, &running, 1).await;
+
+    let running_seqs: Vec<i32> = running_of_task(db, task.id).await.unwrap().iter().map(|entry| entry.seq).collect();
+    let open_seqs: Vec<i32> = open_of_task(db, task.id).await.unwrap().iter().map(|entry| entry.seq).collect();
+    let pending_seqs: Vec<i32> = pending_of_task(db, task.id).await.unwrap().iter().map(|entry| entry.seq).collect();
+
+    assert_eq!(running_seqs, [2]);
+    assert_eq!(open_seqs, [2, 3]);
+    assert_eq!(pending_seqs, [3]);
+}
+
+#[tokio::test]
+async fn the_latest_pass_is_zero_until_an_entry_is_taken_and_then_the_highest_number() {
+    let database = crate::open_temporary().await.unwrap();
+    let db = &database.conn;
+    let task = a_task(db).await;
+    let first = add(db, &task, FeedbackKind::Implementation, "one").await;
+    let second = add(db, &task, FeedbackKind::Plan, "two").await;
+    assert_eq!(latest_pass(db, task.id).await.unwrap(), 0);
+
+    take(db, &first, 1).await;
+    take(db, &second, 2).await;
+
+    assert_eq!(latest_pass(db, task.id).await.unwrap(), 2);
+}
+
+#[tokio::test]
+async fn an_entry_from_before_passes_has_no_pass_and_a_follow_up_keeps_what_it_follows() {
+    let database = crate::open_temporary().await.unwrap();
+    let db = &database.conn;
+    let task = a_task(db).await;
+    let legacy = add(db, &task, FeedbackKind::Implementation, "old").await;
+    apply(db, &legacy).await;
+    let follow_up = Model::new(task.id, 2, FeedbackKind::Implementation, None, "still wrong".into(), Some(1), Instant::now());
+    follow_up.into_active_model().insert(db).await.unwrap();
+
+    let first = find_by_seq(db, task.id, 1).await.unwrap().unwrap();
+    let second = find_by_seq(db, task.id, 2).await.unwrap().unwrap();
+
+    assert_eq!((first.pass, first.taken_at, first.follows_seq), (None, None, None));
+    assert_eq!(second.follows_seq, Some(1));
+    assert_eq!(latest_pass(db, task.id).await.unwrap(), 0);
 }

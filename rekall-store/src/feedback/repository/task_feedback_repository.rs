@@ -31,6 +31,30 @@ pub async fn pending_of_task(db: &impl ConnectionTrait, task_id: Id) -> Result<V
         .await?)
 }
 
+pub async fn running_of_task(db: &impl ConnectionTrait, task_id: Id) -> Result<Vec<Model>, RekallError> {
+    entries_in_state(db, task_id, &[FeedbackState::Running]).await
+}
+
+/// What a reply may still answer: the `PENDING` and the `RUNNING` entries.
+pub async fn open_of_task(db: &impl ConnectionTrait, task_id: Id) -> Result<Vec<Model>, RekallError> {
+    entries_in_state(db, task_id, &[FeedbackState::Pending, FeedbackState::Running]).await
+}
+
+/// The highest pass number the task has used, 0 when no pass ever ran.
+pub async fn latest_pass(db: &impl ConnectionTrait, task_id: Id) -> Result<i32, RekallError> {
+    let last = Entity::find().filter(Column::TaskId.eq(task_id)).filter(Column::Pass.is_not_null()).order_by_desc(Column::Pass).one(db).await?;
+    Ok(last.and_then(|entry| entry.pass).unwrap_or(0))
+}
+
+async fn entries_in_state(db: &impl ConnectionTrait, task_id: Id, states: &[FeedbackState]) -> Result<Vec<Model>, RekallError> {
+    Ok(Entity::find()
+        .filter(Column::TaskId.eq(task_id))
+        .filter(Column::State.is_in(states.iter().copied()))
+        .order_by_asc(Column::Seq)
+        .all(db)
+        .await?)
+}
+
 /// The revision a further description edit keeps rewriting: the task's `PENDING` one, if any.
 pub async fn latest_open_revision(db: &impl ConnectionTrait, task_id: Id) -> Result<Option<Model>, RekallError> {
     Ok(Entity::find()

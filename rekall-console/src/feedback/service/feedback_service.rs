@@ -35,7 +35,7 @@ impl FeedbackService {
             require_typed_kind(command.kind)?;
             let task = repo::task::require(tx.db(), task_id).await?;
             let seq = repo::task_feedback::next_seq(tx.db(), task_id).await?;
-            let entry = task_feedback::Model::new(task_id, seq, command.kind, None, command.body.trim().to_string(), self.ctx.now());
+            let entry = task_feedback::Model::new(task_id, seq, command.kind, None, command.body.trim().to_string(), None, self.ctx.now());
             entry.validate()?;
             entry.clone().into_active_model().insert(tx.db()).await?;
             if command.kind == FeedbackKind::Implementation {
@@ -93,7 +93,7 @@ impl FeedbackService {
             RevisionDecision::Ignore => return Ok(()),
             RevisionDecision::Open { quoted, body } => {
                 let seq = repo::task_feedback::next_seq(tx.db(), task.id).await?;
-                let revision = task_feedback::Model::new(task.id, seq, FeedbackKind::Revision, Some(quoted), body, self.ctx.now());
+                let revision = task_feedback::Model::new(task.id, seq, FeedbackKind::Revision, Some(quoted), body, None, self.ctx.now());
                 revision.validate()?;
                 revision.into_active_model().insert(tx.db()).await?;
             }

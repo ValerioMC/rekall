@@ -1,11 +1,11 @@
 use super::*;
 
 fn a_revision() -> Model {
-    Model::new(Id::random(), 1, FeedbackKind::Revision, Some("before".into()), "after".into(), Instant::now())
+    Model::new(Id::random(), 1, FeedbackKind::Revision, Some("before".into()), "after".into(), None, Instant::now())
 }
 
 fn a_correction() -> Model {
-    Model::new(Id::random(), 1, FeedbackKind::Implementation, None, "the totals are wrong".into(), Instant::now())
+    Model::new(Id::random(), 1, FeedbackKind::Implementation, None, "the totals are wrong".into(), None, Instant::now())
 }
 
 #[test]
@@ -61,4 +61,50 @@ fn applying_an_entry_keeps_the_reply_and_the_moment() {
     assert!(!entry.pending());
     assert_eq!(entry.reply_markdown.as_deref(), Some("Fixed the totals in the report view."));
     assert_eq!(entry.applied_at, Some(now));
+}
+
+#[test]
+fn taking_an_entry_into_a_pass_runs_it_and_releasing_it_makes_it_wait_again() {
+    let mut entry = a_correction();
+    let now = Instant::now();
+    entry.take(3, now);
+    assert_eq!((entry.state, entry.pass, entry.taken_at), (FeedbackState::Running, Some(3), Some(now)));
+    assert!(!entry.pending());
+    assert!(entry.open());
+
+    entry.release(now);
+    assert_eq!((entry.state, entry.pass, entry.taken_at), (FeedbackState::Pending, None, None));
+}
+
+#[test]
+fn applying_a_running_entry_keeps_its_pass_and_closes_it() {
+    let mut entry = a_correction();
+    entry.take(2, Instant::now());
+    entry.mark_applied("Fixed.".into(), Instant::now());
+    assert_eq!((entry.state, entry.pass), (FeedbackState::Applied, Some(2)));
+    assert!(!entry.open());
+}
+
+#[test]
+fn an_entry_waiting_or_running_is_open_and_an_applied_one_is_not() {
+    let mut entry = a_correction();
+    assert!(entry.open());
+    entry.mark_applied("Done.".into(), Instant::now());
+    assert!(!entry.open());
+}
+
+#[test]
+fn an_entry_that_follows_an_earlier_one_passes_and_one_that_follows_itself_is_refused() {
+    let mut entry = Model::new(Id::random(), 4, FeedbackKind::Implementation, None, "still wrong".into(), Some(2), Instant::now());
+    assert!(entry.validate().is_ok());
+    entry.follows_seq = Some(4);
+    assert!(entry.validate().unwrap_err().message().contains("followsSeq"));
+    entry.follows_seq = Some(0);
+    assert!(entry.validate().unwrap_err().is_illegal_argument());
+}
+
+#[test]
+fn a_revision_that_follows_an_entry_is_refused() {
+    let revision = Model::new(Id::random(), 3, FeedbackKind::Revision, Some("before".into()), "after".into(), Some(1), Instant::now());
+    assert!(revision.validate().unwrap_err().is_illegal_argument());
 }
