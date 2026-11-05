@@ -3,7 +3,7 @@ use rekall_core::review::TaskReviewService;
 use rekall_core::{in_read, in_write, Ctx, Tx};
 use rekall_kernel::{Id, RekallError, Result};
 use rekall_store::repository as repo;
-use rekall_store::{task, task_feedback, FeedbackKind, TaskStepState};
+use rekall_store::{task, task_feedback, FeedbackKind, FeedbackState, TaskStepState};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
 use crate::feedback::rule::revision_rule::{decide, is_evaluated, OpenRevision, RevisionDecision};
@@ -34,8 +34,11 @@ impl FeedbackService {
         in_write!(&self.ctx, |tx| {
             require_typed_kind(command.kind)?;
             let task = repo::task::require(tx.db(), task_id).await?;
+            if let Some(followed) = command.follows_seq {
+                require_applied_entry(tx.db(), task_id, followed).await?;
+            }
             let seq = repo::task_feedback::next_seq(tx.db(), task_id).await?;
-            let entry = task_feedback::Model::new(task_id, seq, command.kind, None, command.body.trim().to_string(), None, self.ctx.now());
+            let entry = task_feedback::Model::new(task_id, seq, command.kind, None, command.body.trim().to_string(), command.follows_seq, self.ctx.now());
             entry.validate()?;
             entry.clone().into_active_model().insert(tx.db()).await?;
             if command.kind == FeedbackKind::Implementation {
@@ -43,6 +46,32 @@ impl FeedbackService {
             }
             tx.publish(FeedbackStreamEvent { task_id });
             Ok(FeedbackView::of(&entry))
+        })
+    }
+
+    /// Takes every waiting entry, whatever its kind, into the task's next pass. Entries written
+    /// while the pass runs stay waiting for the one after.
+    pub async fn start_pass(&self, task_id: Id) -> Result<Vec<FeedbackView>> {
+        in_write!(&self.ctx, |tx| {
+            repo::task::require(tx.db(), task_id).await?;
+            if let Some(running) = repo::task_feedback::running_of_task(tx.db(), task_id).await?.first() {
+                return Err(RekallError::conflict(format!("Pass {} is still running: wait for the session to finish it.", running.pass.unwrap_or_default())));
+            }
+            let waiting = repo::task_feedback::pending_of_task(tx.db(), task_id).await?;
+            if waiting.is_empty() {
+                return Err(RekallError::illegal("Nothing is waiting for a run: write feedback, or revise the description, first."));
+            }
+            let pass = repo::task_feedback::latest_pass(tx.db(), task_id).await? + 1;
+            let now = self.ctx.now();
+            let mut taken = Vec::with_capacity(waiting.len());
+            for before in waiting {
+                let mut after = before.clone();
+                after.take(pass, now);
+                let saved = repo::update_if_changed(tx.db(), &before, after, now).await?;
+                taken.push(FeedbackView::of(&saved));
+            }
+            tx.publish(FeedbackStreamEvent { task_id });
+            Ok(taken)
         })
     }
 
@@ -136,10 +165,24 @@ fn require_typed_kind(kind: FeedbackKind) -> Result<()> {
 
 async fn require_pending_entry(db: &impl sea_orm::ConnectionTrait, feedback_id: Id) -> Result<task_feedback::Model> {
     let entry = repo::task_feedback::find_by_id(db, feedback_id).await?.ok_or_else(|| RekallError::not_found("Feedback", feedback_id))?;
-    if !entry.pending() {
-        return Err(RekallError::conflict("This entry was already applied by a session and can no longer be changed."));
+    match entry.state {
+        FeedbackState::Pending => Ok(entry),
+        FeedbackState::Running => Err(RekallError::conflict(format!(
+            "This entry is in pass {} and a session is working on it: add the detail as a new entry for the next run.",
+            entry.pass.unwrap_or_default()
+        ))),
+        FeedbackState::Applied => Err(RekallError::conflict("This entry was already applied by a session and can no longer be changed.")),
     }
-    Ok(entry)
+}
+
+async fn require_applied_entry(db: &impl sea_orm::ConnectionTrait, task_id: Id, seq: i32) -> Result<()> {
+    let Some(entry) = repo::task_feedback::find_by_seq(db, task_id, seq).await? else {
+        return Err(RekallError::illegal(format!("This task's thread has no entry #{seq} to add detail to.")));
+    };
+    if entry.state != FeedbackState::Applied {
+        return Err(RekallError::illegal(format!("Entry #{seq} has not been applied yet: edit it, or wait for the session's reply.")));
+    }
+    Ok(())
 }
 
 fn require_not_a_revision(entry: &task_feedback::Model, action: &str) -> Result<()> {

@@ -14,6 +14,7 @@ use crate::ApiState;
 pub fn routes() -> Router<ApiState> {
     Router::new()
         .route("/api/tasks/{id}/feedback", get(list).post(add))
+        .route("/api/tasks/{id}/feedback/passes", post(start_pass))
         .route("/api/feedback/{id}", patch(edit).delete(delete))
         .route("/api/feedback/{id}/discard", post(discard))
 }
@@ -30,8 +31,17 @@ async fn add(State(state): State<ApiState>, Path(id): Path<String>, JsonBody(req
         .not_blank("bodyMarkdown", request.body_markdown.as_deref())
         .at_most("bodyMarkdown", request.body_markdown.as_deref(), MAX_BODY_CHARACTERS)
         .finish()?;
-    let command = AddFeedbackCommand { kind: present("kind", request.kind)?, body: present("bodyMarkdown", request.body_markdown)? };
+    let command = AddFeedbackCommand {
+        kind: present("kind", request.kind)?,
+        body: present("bodyMarkdown", request.body_markdown)?,
+        follows_seq: request.follows_seq,
+    };
     Ok(created(FeedbackResponse::from(state.feedback.add(task_id, command).await?)))
+}
+
+async fn start_pass(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Response> {
+    let taken = state.feedback.start_pass(uuid("id", &id)?).await?;
+    Ok(created(taken.into_iter().map(FeedbackResponse::from).collect::<Vec<_>>()))
 }
 
 async fn edit(State(state): State<ApiState>, Path(id): Path<String>, JsonBody(request): JsonBody<EditFeedbackRequest>) -> ApiResult<Json<FeedbackResponse>> {

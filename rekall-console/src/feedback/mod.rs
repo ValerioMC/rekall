@@ -1,5 +1,5 @@
 //! A task's thread as the console writes it: the person adds, edits and deletes feedback while it
-//! is pending, discards a revision, and every saved change of an evaluated task's description is
+//! is pending, starts a pass that takes every waiting entry, follows up an applied entry, discards a revision, and every saved change of an evaluated task's description is
 //! tracked as a revision. A session answers entries through `rekall-core`.
 
 mod command;

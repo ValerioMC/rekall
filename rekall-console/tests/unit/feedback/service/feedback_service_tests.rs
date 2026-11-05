@@ -77,7 +77,7 @@ impl World {
     }
 
     async fn add(&self, kind: FeedbackKind, body: &str) -> FeedbackView {
-        self.service.add(self.task_id, AddFeedbackCommand { kind, body: body.into() }).await.unwrap()
+        self.service.add(self.task_id, AddFeedbackCommand { kind, body: body.into(), follows_seq: None }).await.unwrap()
     }
 
     async fn reply_to(&self, seq: i32) {
@@ -101,8 +101,8 @@ async fn feedback_is_added_pending_and_numbered_in_order() {
 async fn a_blank_body_and_a_typed_revision_are_refused_as_the_callers_mistake() {
     let world = world().await;
 
-    let blank = world.service.add(world.task_id, AddFeedbackCommand { kind: FeedbackKind::Plan, body: "  ".into() }).await.unwrap_err();
-    let revision = world.service.add(world.task_id, AddFeedbackCommand { kind: FeedbackKind::Revision, body: "x".into() }).await.unwrap_err();
+    let blank = world.service.add(world.task_id, AddFeedbackCommand { kind: FeedbackKind::Plan, body: "  ".into(), follows_seq: None }).await.unwrap_err();
+    let revision = world.service.add(world.task_id, AddFeedbackCommand { kind: FeedbackKind::Revision, body: "x".into(), follows_seq: None }).await.unwrap_err();
 
     assert!(blank.is_illegal_argument() && revision.is_illegal_argument());
     assert!(world.thread().await.is_empty());
@@ -233,4 +233,101 @@ async fn only_a_pending_revision_can_be_discarded_and_a_revision_cannot_be_edite
     world.reply_to(revision.seq).await;
     assert!(matches!(world.service.discard_revision(revision.id).await.unwrap_err(), RekallError::Conflict(_)));
     assert_eq!(world.task().await.description.as_deref(), Some("Export to CSV and XLSX."));
+}
+
+impl World {
+    async fn follow_up(&self, followed: i32, body: &str) -> Result<FeedbackView> {
+        self.service.add(self.task_id, AddFeedbackCommand { kind: FeedbackKind::Implementation, body: body.into(), follows_seq: Some(followed) }).await
+    }
+}
+
+#[tokio::test]
+async fn a_pass_takes_every_waiting_entry_whatever_its_kind_under_one_number() {
+    let world = world().await;
+    world.evaluate_with_a_wrapup().await;
+    world.edit_description("Export to CSV and XLSX.").await;
+    world.add(FeedbackKind::Implementation, "The totals are wrong").await;
+    world.add(FeedbackKind::Plan, "Split step 2").await;
+
+    let taken = world.service.start_pass(world.task_id).await.unwrap();
+
+    assert_eq!(taken.iter().map(|entry| entry.seq).collect::<Vec<_>>(), [1, 2, 3]);
+    assert!(taken.iter().all(|entry| entry.state == FeedbackState::Running && entry.pass == Some(1) && entry.taken_at.is_some()));
+    assert!(world.thread().await.iter().all(|entry| entry.state == FeedbackState::Running));
+}
+
+#[tokio::test]
+async fn entries_written_during_a_pass_wait_and_form_the_next_one() {
+    let world = world().await;
+    world.add(FeedbackKind::Implementation, "first").await;
+    world.service.start_pass(world.task_id).await.unwrap();
+    let late = world.add(FeedbackKind::Plan, "written while the session works").await;
+    assert_eq!((late.state, late.pass), (FeedbackState::Pending, None));
+    world.reply_to(1).await;
+
+    let taken = world.service.start_pass(world.task_id).await.unwrap();
+
+    assert_eq!(taken.iter().map(|entry| (entry.seq, entry.pass)).collect::<Vec<_>>(), [(2, Some(2))]);
+    assert_eq!(world.thread().await[0].pass, Some(1));
+}
+
+#[tokio::test]
+async fn a_second_pass_is_refused_while_one_runs_and_so_is_a_pass_with_nothing_waiting() {
+    let world = world().await;
+    let nothing = world.service.start_pass(world.task_id).await.unwrap_err();
+    world.add(FeedbackKind::Implementation, "first").await;
+    world.service.start_pass(world.task_id).await.unwrap();
+    world.add(FeedbackKind::Implementation, "second").await;
+
+    let running = world.service.start_pass(world.task_id).await.unwrap_err();
+
+    assert!(nothing.is_illegal_argument(), "{nothing:?}");
+    assert!(matches!(running, RekallError::Conflict(_)) && running.message().contains("Pass 1 is still running"), "{running:?}");
+    assert_eq!(world.thread().await[1].state, FeedbackState::Pending);
+}
+
+#[tokio::test]
+async fn an_entry_in_a_pass_can_be_neither_edited_nor_deleted_nor_discarded() {
+    let world = world().await;
+    world.evaluate_with_a_wrapup().await;
+    world.edit_description("Export to CSV and XLSX.").await;
+    let correction = world.add(FeedbackKind::Implementation, "first").await;
+    world.service.start_pass(world.task_id).await.unwrap();
+    let revision = world.thread().await.remove(0);
+
+    let edit = world.service.edit(correction.id, "new").await.unwrap_err();
+    let delete = world.service.delete(correction.id).await.unwrap_err();
+    let discard = world.service.discard_revision(revision.id).await.unwrap_err();
+
+    assert!([&edit, &delete, &discard].iter().all(|refused| matches!(refused, RekallError::Conflict(_)) && refused.message().contains("pass 1")), "{edit:?} {delete:?} {discard:?}");
+    assert_eq!(world.task().await.description.as_deref(), Some("Export to CSV and XLSX."));
+}
+
+#[tokio::test]
+async fn a_follow_up_is_accepted_only_on_an_applied_entry_of_the_thread() {
+    let world = world().await;
+    let entry = world.add(FeedbackKind::Implementation, "The totals are wrong").await;
+
+    let waiting = world.follow_up(entry.seq, "Still wrong").await.unwrap_err();
+    world.service.start_pass(world.task_id).await.unwrap();
+    let running = world.follow_up(entry.seq, "Still wrong").await.unwrap_err();
+    world.reply_to(entry.seq).await;
+    let unknown = world.follow_up(9, "Still wrong").await.unwrap_err();
+    let follow_up = world.follow_up(entry.seq, "Still wrong for refunds").await.unwrap();
+
+    assert!(waiting.is_illegal_argument() && running.is_illegal_argument() && unknown.is_illegal_argument());
+    assert_eq!((follow_up.seq, follow_up.follows_seq, follow_up.state), (2, Some(1), FeedbackState::Pending));
+}
+
+#[tokio::test]
+async fn a_follow_up_on_the_work_reopens_a_claimed_task_like_any_feedback_on_the_work() {
+    let world = world().await;
+    let entry = world.add(FeedbackKind::Implementation, "The totals are wrong").await;
+    world.service.start_pass(world.task_id).await.unwrap();
+    world.reply_to(entry.seq).await;
+    world.claim_the_review_line().await;
+
+    world.follow_up(entry.seq, "Still wrong").await.unwrap();
+
+    assert_eq!(world.task().await.review_state, TaskStepState::Open);
 }

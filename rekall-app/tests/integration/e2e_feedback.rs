@@ -191,3 +191,40 @@ async fn feedback_on_the_plan_of_a_task_with_steps_stays_pending_until_a_session
 
     assert_eq!(scene.thread().await[0]["state"], "APPLIED");
 }
+
+#[tokio::test]
+async fn a_pass_takes_the_waiting_entries_a_session_answers_it_and_a_follow_up_waits_for_the_next() {
+    let scene = scene().await;
+    scene.add("IMPLEMENTATION", "The totals are wrong.").await;
+    scene.add("PLAN", "Split step 2.").await;
+    let pass_path = format!("/api/tasks/{}/feedback/passes", scene.task_id);
+
+    let nothing_yet = scene.app.post_empty(&format!("/api/tasks/{}/feedback/passes", scene.app.a_task(&scene.project_id, "other").await)).await;
+    assert_eq!(nothing_yet.status, 400, "a task with nothing waiting has no pass to start");
+    let started = scene.app.post_empty(&pass_path).await;
+
+    assert_eq!(started.status, 201, "{}", started.text);
+    let taken = started.list();
+    assert_eq!(taken.iter().map(|entry| (entry["seq"].as_i64(), entry["state"].as_str(), entry["pass"].as_i64())).collect::<Vec<_>>(), [(Some(1), Some("RUNNING"), Some(1)), (Some(2), Some("RUNNING"), Some(1))]);
+    scene.add("IMPLEMENTATION", "Written while the session works.").await;
+    assert_eq!(scene.app.post_empty(&pass_path).await.status, 409, "a pass is still running");
+    assert_contains!(
+        scene.app.call_tool("rekall_context", json!({ "anchors": ANCHORS })).await,
+        "<thread pending=\"1\" running=\"2\" applied=\"0\">",
+        "state=\"RUNNING\" pass=\"1\""
+    );
+
+    let answer = scene
+        .app
+        .call_tool("rekall_feedback", json!({ "anchors": ANCHORS, "replies": [{ "seq": 1, "reply": "Fixed the totals." }, { "seq": 2, "reply": "Split step 2." }] }))
+        .await;
+
+    assert_contains!(answer, "Replied to #1, #2", "Still open: #3.");
+    let follow_up = scene.app.post(&format!("/api/tasks/{}/feedback", scene.task_id), json!({ "kind": "IMPLEMENTATION", "bodyMarkdown": "Still wrong for refunds.", "followsSeq": 1 })).await;
+    assert_eq!(follow_up.status, 201, "{}", follow_up.text);
+    assert_eq!((follow_up.get("followsSeq").as_i64(), follow_up.str("state")), (Some(1), "PENDING".into()));
+    let unapplied = scene.app.post(&format!("/api/tasks/{}/feedback", scene.task_id), json!({ "kind": "PLAN", "bodyMarkdown": "x", "followsSeq": 3 })).await;
+    assert_eq!(unapplied.status, 400);
+    let second = scene.app.post_empty(&pass_path).await;
+    assert_eq!(second.list().iter().map(|entry| entry["pass"].as_i64()).collect::<Vec<_>>(), [Some(2), Some(2)]);
+}
