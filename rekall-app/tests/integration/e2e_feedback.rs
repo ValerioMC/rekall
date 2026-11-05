@@ -133,3 +133,61 @@ async fn a_change_to_the_thread_reaches_the_open_console_as_a_feedback_frame() {
     assert_eq!(lines.await_line("event:feedback", 5).await, "event:feedback");
     assert_contains!(lines.await_line("data:", 5).await, &scene.task_id);
 }
+
+#[tokio::test]
+async fn the_whole_loop_from_a_rewrite_and_feedback_to_the_sessions_replies() {
+    let scene = scene().await;
+    scene.save_description("Export to CSV.").await;
+    scene.evaluate_with_a_wrapup().await;
+
+    scene.save_description("Export to CSV and XLSX.").await;
+    let correction = scene.add("IMPLEMENTATION", "The totals are wrong.").await;
+
+    assert_eq!(correction.status, 201, "{}", correction.text);
+    assert_eq!(scene.app.get_task(&scene.task_id).await["reviewState"], "OPEN", "feedback on the work reopens the review line");
+    let thread = scene.thread().await;
+    assert_eq!(thread.iter().map(|entry| entry["kind"].as_str().unwrap()).collect::<Vec<_>>(), ["REVISION", "IMPLEMENTATION"]);
+    assert!(thread.iter().all(|entry| entry["state"] == "PENDING"));
+    assert_contains!(
+        scene.app.call_tool("rekall_context", json!({ "anchors": ANCHORS })).await,
+        "<thread pending=\"2\" applied=\"0\">",
+        "<quoted>\nExport to CSV.\n</quoted>",
+        "<new>\nExport to CSV and XLSX.\n</new>",
+        "The totals are wrong."
+    );
+
+    let answer = scene
+        .app
+        .call_tool("rekall_feedback", json!({ "anchors": ANCHORS, "replies": [{ "seq": 1, "reply": "Added XLSX." }, { "seq": 2, "reply": "Fixed the totals." }] }))
+        .await;
+
+    assert_contains!(answer, "Replied to #1, #2", "No entry is pending any more.");
+    assert!(scene.thread().await.iter().all(|entry| entry["state"] == "APPLIED"));
+    let context = scene.app.call_tool("rekall_context", json!({ "anchors": ANCHORS })).await;
+    assert_contains!(
+        context,
+        "<thread pending=\"0\" applied=\"2\">",
+        "<entry seq=\"1\" kind=\"REVISION\" state=\"APPLIED\">Added XLSX.</entry>",
+        "<entry seq=\"2\" kind=\"IMPLEMENTATION\" state=\"APPLIED\">Fixed the totals.</entry>"
+    );
+    assert_lacks!(context, "The totals are wrong.");
+}
+
+#[tokio::test]
+async fn feedback_on_the_plan_of_a_task_with_steps_stays_pending_until_a_session_replies() {
+    let scene = scene().await;
+    scene.app.a_step(&scene.task_id, "Aggregate the rows", None).await;
+
+    let plan = scene.add("PLAN", "Split the aggregation in two.").await;
+
+    assert_eq!(plan.status, 201, "{}", plan.text);
+    assert_eq!(scene.thread().await[0]["state"], "PENDING");
+    assert_contains!(
+        scene.app.call_tool("rekall_context", json!({ "anchors": ANCHORS })).await,
+        "<entry seq=\"1\" kind=\"PLAN\" state=\"PENDING\">\nSplit the aggregation in two.\n</entry>"
+    );
+
+    scene.reply_to(1).await;
+
+    assert_eq!(scene.thread().await[0]["state"], "APPLIED");
+}

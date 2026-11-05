@@ -181,13 +181,23 @@ another quick task on the project is still being worked.
 When the session writes its wrapup and the commit on claim did not fail, Rekall accepts the task
 itself. The task then shows **Quick** and **Auto-accepted** beside its title, and the wrapup, the
 commit, the tokens and the time are kept like any task's. A failed commit, or a wrapup you wrote by
-hand, leaves the task claimed for you to review. Accepting is never final: **Send back** reopens an
+hand, leaves the task claimed for you to review. Accepting is never final: feedback on the work reopens an
 auto-accepted task for another pass. **Hide quick tasks**, in the navigator and in a project's task
 list, keeps them out of the way; they are listed by default.
 
 ## Description review
 
-A task with no checklist walks the same line at task scope: **open**, **running** while a terminal is open on it with no step target, **claimed** when a Claude-authored wrapup lands, **accepted** when you accept it in the console. Nothing new is typed for it: running follows the terminal and claimed follows the wrapup write. `/rk` tells the session to write that wrapup itself once the description's work is done, so a run queue, which waits on the claim, goes on to the next task. The description pane shows the running pill and a review bar: on **running** it carries **Accept** and a link to the wrapup, so a session driven by hand still has a console exit; on **claimed** it adds **Send back** (with an optional note the next session sees); accepting offers to also mark the task done. A note left on send back rides in `rekall_context` as a `review` field on the task (`sent back — "…"`), so the next session opened on that anchor reads why, not just that it was. It arrives on the same `GET /api/steps/stream` connection as a `task-review` frame, the wrapup that claims it rides the same connection as a `wrapup` frame so the pane shows the new text with the claim rather than on the next reload, and `PATCH /api/tasks/{id}/review` is the console-only Accept / Send back. Adding a first step retires the task-level line and the checklist takes over.
+A task with no checklist walks the same line at task scope: **open**, **running** while a terminal is open on it with no step target, **claimed** when a Claude-authored wrapup lands, **accepted** when you accept it in the console. Nothing new is typed for it: running follows the terminal and claimed follows the wrapup write. `/rk` tells the session to write that wrapup itself once the description's work is done, so a run queue, which waits on the claim, goes on to the next task. The description pane shows the running pill and a review bar: on **running** it carries **Accept** and a link to the wrapup, so a session driven by hand still has a console exit; on **claimed** it adds **Open the wrapup**; accepting offers to also mark the task done. It arrives on the same `GET /api/steps/stream` connection as a `task-review` frame, the wrapup that claims it rides the same connection as a `wrapup` frame so the pane shows the new text with the claim rather than on the next reload, and `PATCH /api/tasks/{id}/review` is the console-only Accept. Adding a first step retires the task-level line and the checklist takes over.
+
+### The thread under the description
+
+What you want changed after a run goes in the thread under the description, not in a box that disappears: each message stays, and a session replies to it. Three kinds of entry, told apart by the chip on each card:
+
+- **Revision**: you rewrote part of the description of a task that has already been evaluated (it has a wrapup, a started step or a review line past open). Rekall keeps the text before and after and shows the change as a diff; further edits rewrite the pending revision, and editing the text back removes it. **Discard** puts the earlier text back. A banner above the editor says the description was revised since the last run.
+- **Feedback on the work**: markdown written in the composer under the description, about what was built. On a claimed or accepted task with no checklist it reopens the review line, as Send back used to.
+- **Feedback on the plan**: the same composer, about the steps; the description stays as it is. It is the only way to change the steps from the description without using the steps.
+
+An entry is **pending** until a session replies, then **applied**: sealed, dimmed, with the session's reply below it. Only pending entries are evaluated, so a run never rereads feedback already dealt with. A pending entry can be edited or deleted; an applied one cannot, and a revision follows the description, so it is discarded rather than edited. **Run revision** (a count of the pending revisions and feedback on the work) opens or reuses a session on `/rk … revise`; **Replan with feedback** (shown for a task with steps, a count of the pending plan feedback) runs `/rk … replan` on it. The session answers every entry it acted on with `rekall_feedback`, and a `feedback` frame on the event stream refreshes the thread.
 
 ## Review queue and notifications
 
