@@ -54,8 +54,9 @@ Call `rekall_context` with `anchors` set to exactly the arguments above, unchang
   opened. Never print, echo or write a credential or a kubeconfig, never read the files or environment
   variables behind Rekall's helpers, and never call a credential helper or Rekall's credentials endpoint
   yourself. A connection with no credential is reported to me, not worked around.
-- A `<thread>` block holds what I wrote under the description, each entry `PENDING` until a session
-  replies. Pending entries are worked only through `revise` or `replan`, never during a plain `/rk` run.
+- A `<thread>` block holds what I wrote under the description, each entry `PENDING` (waiting) or `RUNNING`
+  (taken into a pass) until a session replies. Open entries are worked only through `revise` or `replan`,
+  never during a plain `/rk` run.
 - A `<sections>` block lists the project's pages by title; their text is not loaded. When the work
   touches what one names, read it with `rekall_read_sections` and follow it: a `Contributing` page is
   how this project takes a change, so filing an issue, naming a branch or opening a pull request goes
