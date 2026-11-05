@@ -13,6 +13,7 @@ pub use crate::connection::{repository::connection_access_repository as connecti
 pub use crate::dependency::repository::task_dependency_repository as task_dependency;
 pub use crate::deviation::repository::task_deviation_repository as task_deviation;
 pub use crate::diagram::diagram_repository as diagram;
+pub use crate::feedback::repository::task_feedback_repository as task_feedback;
 pub use crate::flow::{repository::step_link_repository as step_link, repository::step_visit_repository as step_visit};
 pub use crate::graph::{repository::deployment_graph_repository as deployment_graph, repository::graph_route_repository as graph_route, repository::graph_step_repository as graph_step};
 pub use crate::inventory::repository::project_dependency_repository as project_dependency;

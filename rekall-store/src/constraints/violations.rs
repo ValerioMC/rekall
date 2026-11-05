@@ -38,6 +38,14 @@ impl Violations {
         self
     }
 
+    /// Breaks with `message` when `holds` is false, for a rule that spans several fields.
+    pub fn require(&mut self, holds: bool, message: &str) -> &mut Self {
+        if !holds {
+            self.broken.push(message.to_string());
+        }
+        self
+    }
+
     pub fn slug(&mut self, property: &str, value: Option<&str>) -> &mut Self {
         if value.is_some_and(|v| !Slug::matches(v)) {
             self.broken.push(format!("{property} must be a slug: lowercase letters, digits, '-', '_' or '.'"));
