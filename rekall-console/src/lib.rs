@@ -12,6 +12,7 @@ pub mod connection;
 pub mod dependency;
 pub mod deviation;
 pub mod diagram;
+pub mod feedback;
 pub mod filesystem;
 pub mod graph;
 pub mod guard;

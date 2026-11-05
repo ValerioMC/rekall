@@ -110,7 +110,7 @@ is found by opening one folder per crate:
 | `adherence` | how closely the work followed the plan: steps accepted at the first pass, steps sent back, deviations and flow visits against their budget, per task and per project; read-only, console and HTTP only |
 | `check` | the commands a person sets to pass before a claim is accepted, for a whole project or one step, and what each run found; the console writes them, no session can |
 | `deviation` | where a task's work departed from its plan, one record per task and step and apart from its notes: a session writes it (`rekall_deviation`, in `rekall-core` and `rekall-mcp`), the console only reads it, and the context carries it in a `<deviations>` block |
-| `feedback` | a task's thread under its description: what the person wrote about a rewrite of the description, the work done or the plan, each entry `PENDING` until a session replies; a session answers pending entries with `FeedbackService::reply` (`rekall-core`), and the context carries the thread in a `<thread>` block; the console's writes come later |
+| `feedback` | a task's thread under its description: what the person wrote about a rewrite of the description, the work done or the plan, each entry `PENDING` until a session replies; a session answers pending entries with `FeedbackService::reply` (`rekall-core`), and the context carries the thread in a `<thread>` block; the console's `FeedbackService` (`rekall-console`) adds, edits and deletes pending feedback, discards a revision, and records every saved change of an evaluated task's description as one; a revision is never typed |
 | `dependency` | a task that waits for another task of its project to be accepted: the pair, the cycle rule, and what a task still waits for as the run queue and the context read it; the console writes the pairs, no session can |
 | `connection` | the GitLab instances, GitHub servers, Kubernetes clusters and Jira sites projects reach, the companies each is shared with, the projects that bind each, the log of every credential a terminal asked for, and the Jira issues a project imports as tasks |
 | `task` | the task row, and in `rekall-core` and `rekall-mcp` a session creating one or filing it under an epic; the console's task service is in `catalog` |
@@ -172,7 +172,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 |---|---|---|---|---|---|
 | `adherence` | - | - | `deviation`, `flow`, `step`, `task` | nothing | - |
 | `backup` | - | nothing | nothing | nothing | - |
-| `catalog` | `task` | - | `commit`, `note`, `review`, `step`, `tag`, `task`, `timeentry`, `wrapup` | nothing | - |
+| `catalog` | `task` | - | `commit`, `feedback`, `note`, `review`, `step`, `tag`, `task`, `timeentry`, `wrapup` | nothing | - |
 | `check` | `catalog`, `step`, `task` | nothing | `catalog`, `step`, `task` | nothing | - |
 | `chat` | - | `claude` | `claude` | nothing | - |
 | `claude` | - | `catalog`, `connection`, `flow`, `task` | nothing | `skill` | - |
@@ -183,7 +183,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `dependency` | `task` | `claude` | `queue`, `task` | nothing | - |
 | `deviation` | `task` | `step`, `task` | `task` | nothing | nothing |
 | `diagram` | `catalog`, `task` | `catalog`, `task` | nothing | nothing | nothing |
-| `feedback` | `task` | `task` | - | - | - |
+| `feedback` | `task` | `task` | `review`, `step`, `task`, `wrapup` | - | nothing |
 | `filesystem` | - | - | nothing | nothing | - |
 | `flow` | `step`, `task` | `step` | - | `step` | `step` |
 | `graph` | `catalog`, `flow`, `step` | - | `catalog`, `flow`, `step`, `task` | `step` | - |

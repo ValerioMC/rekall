@@ -12,17 +12,20 @@ use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
 use crate::catalog::Snapshot;
 use crate::catalog::{TaskCommand, TaskView};
+use crate::feedback::FeedbackService;
 
 #[derive(Clone)]
 pub struct TaskService {
     ctx: Ctx,
     review: TaskReviewService,
     time_entries: TimeEntryService,
+    feedback: FeedbackService,
 }
 
 impl TaskService {
     pub fn new(ctx: Ctx, review: TaskReviewService, time_entries: TimeEntryService) -> Self {
-        Self { ctx, review, time_entries }
+        let feedback = FeedbackService::new(ctx.clone(), review.clone());
+        Self { ctx, review, time_entries, feedback }
     }
 
     pub async fn list(&self, project_id: Option<Id>) -> Result<Vec<TaskView>> {
@@ -72,6 +75,9 @@ impl TaskService {
             require_epic_kept_whole(&tx, &before, &task).await?;
             require_epic_stepless(&tx, &task).await?;
             let task = repo::update_if_changed(tx.db(), &before, task, self.ctx.now()).await?;
+            if before.description != task.description {
+                self.feedback.track_description_in(&mut tx, &task, before.description.as_deref(), task.description.as_deref()).await?;
+            }
             let response = response(&tx, &task).await?;
             if before.status != TaskStatus::Done && task.status == TaskStatus::Done {
                 self.time_entries.stop_if_running_in(&mut tx, id).await?;
