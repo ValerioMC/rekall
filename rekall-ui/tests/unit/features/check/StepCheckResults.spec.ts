@@ -40,10 +40,10 @@ describe('the results of a step\'s checks', () => {
 
     const runs = wrapper.findAll('[data-testid="step-check-run"]')
     expect(runs.map((run) => run.attributes('data-passed'))).toEqual(['true', 'false'])
-    expect((runs[0].find('details').element as HTMLDetailsElement).open).toBe(false)
-    expect((runs[1].find('details').element as HTMLDetailsElement).open).toBe(true)
-    expect(runs[1].get('[data-testid="step-check-output"]').text()).toContain('export::pdf ... FAILED')
-    expect(runs[1].get('[data-testid="step-check-outcome"]').text()).toContain('Failed, exit 101')
+    expect((runs[0]!.find('details').element as HTMLDetailsElement).open).toBe(false)
+    expect((runs[1]!.find('details').element as HTMLDetailsElement).open).toBe(true)
+    expect(runs[1]!.get('[data-testid="step-check-output"]').text()).toContain('export::pdf ... FAILED')
+    expect(runs[1]!.get('[data-testid="step-check-outcome"]').text()).toContain('Failed, exit 101')
     expect(wrapper.get('[data-testid="step-check-summary"]').text()).toBe('1 of 2 failed')
   })
 
