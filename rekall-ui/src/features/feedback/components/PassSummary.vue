@@ -35,7 +35,7 @@ function firstLine(text: string): string {
   <section class="mt-2.5 max-h-[30vh] overflow-y-auto border-t border-border pt-2" aria-label="What the last pass did" data-testid="pass-summary">
     <h3 class="mb-1 text-small font-medium text-text" data-testid="pass-summary-title">{{ title }}</h3>
     <ul v-if="pass" class="mb-1.5 flex flex-col gap-0.5" data-testid="pass-summary-entries">
-      <li v-for="entry in pass.entries" :key="entry.id" class="flex gap-2 text-small" :data-state="entry.state" data-testid="pass-summary-entry">
+      <li v-for="entry in pass.entries" :key="entry.id" class="flex items-baseline gap-2 text-small" :data-state="entry.state" data-testid="pass-summary-entry">
         <span v-if="isRunning(entry)" class="shrink-0 text-micro font-medium text-danger" data-testid="pass-summary-no-reply">No reply</span>
         <span v-else class="shrink-0 text-accent" aria-label="Answered">✓</span>
         <span class="shrink-0 font-mono text-micro text-text-subtle">#{{ entry.seq }}</span>
