@@ -1,5 +1,5 @@
 import { onScopeDispose } from 'vue'
-import { env } from '@/common/config/env'
+import { subscribeToFrame } from '@/common/stream/consoleEventStream'
 import { DiagramStreamEventSchema } from '@/features/diagram/api/schemas/diagram.schema'
 import type { DiagramStreamEvent } from '@/features/diagram/model/diagram'
 
@@ -8,9 +8,7 @@ import type { DiagramStreamEvent } from '@/features/diagram/model/diagram'
  * a session writes appears in the library without a reload.
  */
 export function useDiagramStream(onDiagram: (event: DiagramStreamEvent) => void): void {
-  if (typeof EventSource === 'undefined') return
-  const source = new EventSource(`${env.VITE_API_BASE_URL}/api/steps/stream`)
-  source.addEventListener('diagram', (event) => {
+  const unsubscribe = subscribeToFrame('diagram', (event) => {
     let payload: unknown
     try {
       payload = JSON.parse((event as MessageEvent<string>).data)
@@ -20,5 +18,5 @@ export function useDiagramStream(onDiagram: (event: DiagramStreamEvent) => void)
     const parsed = DiagramStreamEventSchema.safeParse(payload)
     if (parsed.success) onDiagram(parsed.data)
   })
-  onScopeDispose(() => source.close())
+  onScopeDispose(unsubscribe)
 }

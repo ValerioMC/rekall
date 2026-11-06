@@ -1,5 +1,5 @@
 import { onScopeDispose, ref, type Ref } from 'vue'
-import { env } from '@/common/config/env'
+import { isConsoleStreamOpen, subscribeToFrame } from '@/common/stream/consoleEventStream'
 import {
   NoteStreamEventSchema,
   StepStreamEventSchema,
@@ -30,131 +30,49 @@ export function useStepStream(
   onDeviation?: (taskId: TaskId) => void,
   onFeedback?: (taskId: TaskId) => void
 ): { connected: Ref<boolean>; stop: () => void } {
-  const connected = ref(false)
-  let source: EventSource | null = null
+  const connected = ref(isConsoleStreamOpen())
+  const unsubscribers: Array<() => void> = []
 
   function stop(): void {
-    source?.close()
-    source = null
+    unsubscribers.splice(0).forEach((unsubscribe) => unsubscribe())
     connected.value = false
   }
 
-  if (typeof EventSource !== 'undefined') {
-    source = new EventSource(`${env.VITE_API_BASE_URL}/api/steps/stream`)
+  function listen(frameName: string, handler: (event: Event) => void): void {
+    unsubscribers.push(subscribeToFrame(frameName, handler))
+  }
 
-    source.addEventListener('open', () => {
-      connected.value = true
-    })
-
-    source.addEventListener('error', () => {
-      connected.value = source?.readyState === EventSource.OPEN
-    })
-
-    source.addEventListener('steps', (event) => {
+  function listenToPayload<T>(
+    frameName: string,
+    schema: { safeParse: (value: unknown) => { success: true; data: T } | { success: false } },
+    handler: (payload: T) => void
+  ): void {
+    listen(frameName, (event) => {
       try {
-        const parsed = StepStreamEventSchema.safeParse(
-          JSON.parse((event as MessageEvent<string>).data)
-        )
-        if (parsed.success) {
-          onSteps(parsed.data.taskId, parsed.data.steps)
-        }
-      } catch {
-      }
-    })
-
-    source.addEventListener('task-review', (event) => {
-      try {
-        const parsed = TaskReviewEventSchema.safeParse(
-          JSON.parse((event as MessageEvent<string>).data)
-        )
-        if (parsed.success) {
-          onReview?.(parsed.data.review)
-        }
-      } catch {
-      }
-    })
-
-    source.addEventListener('wrapup', (event) => {
-      try {
-        const parsed = WrapupStreamEventSchema.safeParse(
-          JSON.parse((event as MessageEvent<string>).data)
-        )
-        if (parsed.success) {
-          onWrapup?.(parsed.data)
-        }
-      } catch {
-      }
-    })
-
-    // A commit logged from a session, by hand or by auto-commit, lands in the rail without a reload.
-    source.addEventListener('commit-reference', (event) => {
-      try {
-        const parsed = CommitReferenceStreamEventSchema.safeParse(
-          JSON.parse((event as MessageEvent<string>).data)
-        )
-        if (parsed.success) {
-          onCommit?.(parsed.data.reference)
-        }
-      } catch {
-      }
-    })
-
-    // The run queue moves on the server's clock, so the beacon learns of a start, a hold or a
-    // finished task from here rather than by asking.
-    source.addEventListener('run-queue', (event) => {
-      try {
-        const parsed = RunQueueSchema.safeParse(JSON.parse((event as MessageEvent<string>).data))
-        if (parsed.success) {
-          onRunQueue?.(parsed.data)
-        }
-      } catch {
-      }
-    })
-
-    // A task a session created is listed without a reload; the frame names it, the lists are read again.
-    source.addEventListener('task-created', () => {
-      onTaskCreated?.()
-    })
-
-    // A note a session wrote onto a task shows up in its list without a reload.
-    source.addEventListener('note', (event) => {
-      try {
-        const parsed = NoteStreamEventSchema.safeParse(
-          JSON.parse((event as MessageEvent<string>).data)
-        )
-        if (parsed.success) {
-          onNote?.(parsed.data)
-        }
-      } catch {
-      }
-    })
-
-    // A deviation a session recorded: the frame names the task, whose deviations are read again.
-    source.addEventListener('deviation', (event) => {
-      try {
-        const parsed = DeviationStreamEventSchema.safeParse(
-          JSON.parse((event as MessageEvent<string>).data)
-        )
-        if (parsed.success) {
-          onDeviation?.(parsed.data.taskId)
-        }
-      } catch {
-      }
-    })
-
-    // A reply from a session, or a revision a description save opened: that task's thread is read again.
-    source.addEventListener('feedback', (event) => {
-      try {
-        const parsed = FeedbackStreamEventSchema.safeParse(
-          JSON.parse((event as MessageEvent<string>).data)
-        )
-        if (parsed.success) {
-          onFeedback?.(parsed.data.taskId)
-        }
+        const parsed = schema.safeParse(JSON.parse((event as MessageEvent<string>).data))
+        if (parsed.success) handler(parsed.data)
       } catch {
       }
     })
   }
+
+  listen('open', () => {
+    connected.value = true
+  })
+
+  listen('error', () => {
+    connected.value = isConsoleStreamOpen()
+  })
+
+  listenToPayload('steps', StepStreamEventSchema, (event) => onSteps(event.taskId, event.steps))
+  listenToPayload('task-review', TaskReviewEventSchema, (event) => onReview?.(event.review))
+  listenToPayload('wrapup', WrapupStreamEventSchema, (event) => onWrapup?.(event))
+  listenToPayload('commit-reference', CommitReferenceStreamEventSchema, (event) => onCommit?.(event.reference))
+  listenToPayload('run-queue', RunQueueSchema, (queue) => onRunQueue?.(queue))
+  listen('task-created', () => onTaskCreated?.())
+  listenToPayload('note', NoteStreamEventSchema, (event) => onNote?.(event))
+  listenToPayload('deviation', DeviationStreamEventSchema, (event) => onDeviation?.(event.taskId))
+  listenToPayload('feedback', FeedbackStreamEventSchema, (event) => onFeedback?.(event.taskId))
 
   onScopeDispose(stop)
 

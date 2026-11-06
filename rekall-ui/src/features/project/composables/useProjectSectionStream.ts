@@ -1,5 +1,5 @@
 import { onScopeDispose } from 'vue'
-import { env } from '@/common/config/env'
+import { subscribeToFrame } from '@/common/stream/consoleEventStream'
 import { ProjectSectionStreamEventSchema } from '@/features/project/api/schemas/project-section.schema'
 import type { ProjectSectionStreamEvent } from '@/features/project/model/project-section'
 
@@ -8,9 +8,7 @@ import type { ProjectSectionStreamEvent } from '@/features/project/model/project
  * section a session writes appears beside the blueprint without a reload.
  */
 export function useProjectSectionStream(onChange: (event: ProjectSectionStreamEvent) => void): void {
-  if (typeof EventSource === 'undefined') return
-  const source = new EventSource(`${env.VITE_API_BASE_URL}/api/steps/stream`)
-  source.addEventListener('project-section', (event) => {
+  const unsubscribe = subscribeToFrame('project-section', (event) => {
     let payload: unknown
     try {
       payload = JSON.parse((event as MessageEvent<string>).data)
@@ -20,5 +18,5 @@ export function useProjectSectionStream(onChange: (event: ProjectSectionStreamEv
     const parsed = ProjectSectionStreamEventSchema.safeParse(payload)
     if (parsed.success) onChange(parsed.data)
   })
-  onScopeDispose(() => source.close())
+  onScopeDispose(unsubscribe)
 }

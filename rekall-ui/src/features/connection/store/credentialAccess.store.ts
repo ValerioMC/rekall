@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { env } from '@/common/config/env'
+import { subscribeToFrame } from '@/common/stream/consoleEventStream'
 import { CredentialAccessEventSchema } from '@/features/connection/api/schemas/connection.schema'
 import type { CredentialAccessEvent, CredentialAccessTally } from '@/features/connection/model/connection'
 import type { ConnectionId, TerminalId } from '@/model/branded'
@@ -11,7 +11,7 @@ import type { ConnectionId, TerminalId } from '@/model/branded'
  */
 export const useCredentialAccessStore = defineStore('credentialAccess', () => {
   const tallies = ref<Readonly<Record<string, CredentialAccessTally>>>({})
-  let source: EventSource | null = null
+  let listening = false
 
   function key(terminalId: TerminalId, connectionId: ConnectionId): string {
     return `${terminalId}:${connectionId}`
@@ -32,9 +32,9 @@ export const useCredentialAccessStore = defineStore('credentialAccess', () => {
 
   /** Opens the one subscription, the first time a chip needs it. */
   function listen(): void {
-    if (source || typeof EventSource === 'undefined') return
-    source = new EventSource(`${env.VITE_API_BASE_URL}/api/steps/stream`)
-    source.addEventListener('credential-access', (event) => {
+    if (listening) return
+    listening = true
+    subscribeToFrame('credential-access', (event) => {
       let payload: unknown
       try {
         payload = JSON.parse((event as MessageEvent<string>).data)

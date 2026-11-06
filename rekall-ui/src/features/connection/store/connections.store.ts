@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { env } from '@/common/config/env'
+import { subscribeToFrame } from '@/common/stream/consoleEventStream'
 import * as api from '@/features/connection/api/connections.api'
 import type {
   Connection,
@@ -35,7 +35,7 @@ export const useConnectionsStore = defineStore('connections', () => {
   const accessLogs = ref<Readonly<Record<string, readonly ConnectionAccess[]>>>({})
   const accessEnded = ref<ReadonlySet<string>>(new Set())
   const byProject = ref<Readonly<Record<string, readonly ProjectConnection[]>>>({})
-  let changes: EventSource | null = null
+  let following = false
 
   /** The connections shared with a company: the ones its projects can bind. */
   function connectionsOf(companyId: CompanyId): readonly Connection[] {
@@ -193,9 +193,9 @@ export const useConnectionsStore = defineStore('connections', () => {
    * connection changes, so a binding made anywhere shows in the editors without a reload.
    */
   function followChanges(onFailure: (failure: unknown) => void): void {
-    if (changes || typeof EventSource === 'undefined') return
-    changes = new EventSource(`${env.VITE_API_BASE_URL}/api/steps/stream`)
-    changes.addEventListener('connection', () => {
+    if (following) return
+    following = true
+    subscribeToFrame('connection', () => {
       void reloadOpenedProjects().catch(onFailure)
     })
   }
