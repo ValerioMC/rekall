@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import ShellDock from '@/components/shell/ShellDock.vue'
+import type { DockPlacement } from '@/components/shell/dock-placement'
 import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useToastStore } from '@/stores/toast.store'
@@ -55,19 +56,6 @@ vi.mock('vue-router', () => ({
     push
   })
 }))
-
-/** Reports once on `observe`, so the lane is published without a layout engine. */
-class ImmediateResizeObserver implements ResizeObserver {
-  constructor(private readonly callback: ResizeObserverCallback) {}
-
-  observe(): void {
-    this.callback([], this)
-  }
-
-  unobserve(): void {}
-
-  disconnect(): void {}
-}
 
 const TASK = 't-1' as TaskId
 
@@ -144,33 +132,20 @@ function running(over: Partial<TimeEntry> = {}): TimeEntry {
   }
 }
 
-async function mountDock(open: Terminal[], entries: TimeEntry[] = []) {
+async function mountDock(open: Terminal[], entries: TimeEntry[] = [], placement: DockPlacement = 'screen') {
   setActivePinia(createPinia())
   const console = useConsoleStore()
   const terminals = useTerminalStore()
   console.tasks = [task]
   console.timeEntries = entries
   terminals.terminals = open
-  const wrapper = mount(ShellDock, { attachTo: document.body })
+  const wrapper = mount(ShellDock, { attachTo: document.body, props: { placement } })
   await flushPromises()
   return { wrapper, console, terminals }
 }
 
-function lane(): { width: string; height: string } {
-  const style = document.documentElement.style
-  return {
-    width: style.getPropertyValue('--dock-lane-width'),
-    height: style.getPropertyValue('--dock-lane-height')
-  }
-}
-
 describe('ShellDock', () => {
   beforeEach(() => {
-    vi.stubGlobal('ResizeObserver', ImmediateResizeObserver)
-    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({
-      width: 240,
-      height: 40
-    } as DOMRect)
     Object.values(terminalApi).forEach((fn) => fn.mockReset())
     terminalApi.closeTerminal.mockResolvedValue(undefined)
     stopTimeEntry.mockReset()
@@ -180,9 +155,7 @@ describe('ShellDock', () => {
   })
 
   afterEach(() => {
-    vi.unstubAllGlobals()
     vi.restoreAllMocks()
-    document.documentElement.removeAttribute('style')
     document.body.innerHTML = ''
   })
 
@@ -190,7 +163,6 @@ describe('ShellDock', () => {
     it('renders nothing when nothing runs and no session is live', async () => {
       const { wrapper } = await mountDock([terminal({ live: false })])
       expect(wrapper.find('[data-testid="shell-dock"]').exists()).toBe(false)
-      expect(lane().width).toBe('')
     })
 
     it('shows only the sessions segment when sessions alone are live', async () => {
@@ -205,9 +177,22 @@ describe('ShellDock', () => {
       expect(wrapper.find('[data-testid="terminal-dock-toggle"]').exists()).toBe(false)
     })
 
-    it('publishes the lane for the whole bar whichever segments are present', async () => {
-      await mountDock([terminal()])
-      expect(lane()).toEqual({ width: '268px', height: '62px' })
+    it('is a fixed capsule on a screen without a navigator', async () => {
+      const { wrapper } = await mountDock([terminal()])
+      expect(wrapper.get('[data-testid="shell-dock"]').classes()).toContain('fixed')
+    })
+
+    it('sits in the flow at the foot of the navigator, taking no corner of the window', async () => {
+      const { wrapper } = await mountDock([terminal()], [], 'navigator')
+      const classes = wrapper.get('[data-testid="shell-dock"]').classes()
+      expect(classes).toContain('relative')
+      expect(classes).not.toContain('fixed')
+    })
+
+    it('raises the sheet over the navigator list', async () => {
+      const { wrapper } = await mountDock([terminal()], [], 'navigator')
+      await wrapper.get('[data-testid="terminal-dock-toggle"]').trigger('click')
+      expect(wrapper.get('[data-testid="dock-panel"]').classes()).toContain('bottom-full')
     })
 
     it('counts the live terminals on the sessions segment', async () => {

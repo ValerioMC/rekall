@@ -211,7 +211,7 @@ defineExpose({ toggleMode })
         aria-label="Feedback"
         data-testid="feedback-dock"
       >
-        <header class="flex shrink-0 items-center gap-2 py-2 pl-4" :class="threadOpen ? 'pr-4' : 'dock-lane-safe'">
+        <header class="flex shrink-0 items-center gap-2 px-4 py-2">
           <button
             type="button"
             class="focus-ring flex items-center gap-1.5 rounded-control px-1 py-0.5 text-left"

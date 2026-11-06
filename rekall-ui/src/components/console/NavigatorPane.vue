@@ -6,6 +6,7 @@ import ScopePicker from '@/features/catalog/components/ScopePicker.vue'
 import RecordDialog from '@/features/catalog/components/RecordDialog.vue'
 import NavigatorProjectGroup from '@/components/console/NavigatorProjectGroup.vue'
 import NavigatorStatusGroups from '@/components/console/NavigatorStatusGroups.vue'
+import ShellDock from '@/components/shell/ShellDock.vue'
 import NavigatorNoteList from '@/features/notes/components/NavigatorNoteList.vue'
 import { groupTasksByProject } from '@/features/catalog/lib/project-task-groups'
 import { revealOffset } from '@/common/scroll/reveal-offset'
@@ -211,6 +212,8 @@ defineExpose({ beginCreate, editSelected })
       </button>
       </template>
     </div>
+
+    <ShellDock placement="navigator" />
 
     <Transition name="dialog">
       <RecordDialog v-if="editing" :draft="editing" @close="editing = null" />

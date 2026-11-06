@@ -97,7 +97,7 @@ onUnmounted(() => {
           <ChatReopenTag v-if="!onConsole" />
         </div>
       </div>
-      <ShellDock />
+      <ShellDock v-if="!onConsole" placement="screen" />
       <UpdateDialog v-if="update.promptOpen" />
     </template>
     <FirstRunSetup v-else-if="status.status === 'SETUP_NEEDED'" />

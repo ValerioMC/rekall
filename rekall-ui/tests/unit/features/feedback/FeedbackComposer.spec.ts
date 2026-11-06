@@ -83,10 +83,9 @@ describe('the feedback composer', () => {
     expect(wrapper.find('[data-testid="feedback-following"]').exists()).toBe(false)
   })
 
-  it('keeps its action row out from under the running-work dock and gives the editor room for several lines', () => {
+  it('gives the editor room for several lines', () => {
     const { wrapper } = composer()
 
-    expect(wrapper.get('[data-testid="feedback-composer-actions"]').classes()).toContain('dock-lane-safe')
     expect(wrapper.getComponent(AppMarkdownEditor).props('height')).toBe('176px')
   })
 })

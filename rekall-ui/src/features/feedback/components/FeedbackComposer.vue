@@ -46,7 +46,7 @@ async function add(): Promise<void> {
       </button>
     </p>
     <AppMarkdownEditor v-model="draft" height="176px" placeholder="What should change?" compact :page-fullscreen="false" />
-    <div class="dock-lane-safe mt-2 flex items-center gap-2" data-testid="feedback-composer-actions">
+    <div class="mt-2 flex items-center gap-2" data-testid="feedback-composer-actions">
       <div class="flex gap-0.5 rounded-control bg-canvas p-0.5" role="group" aria-label="What the feedback is about">
         <button
           v-for="option in WRITTEN_KINDS"

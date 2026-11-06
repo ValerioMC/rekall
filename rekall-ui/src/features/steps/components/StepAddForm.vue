@@ -27,7 +27,7 @@ function remove(name: string): void {
 
 <template>
   <form
-    class="dock-lane-safe shrink-0 border-t border-border bg-surface py-3 pl-5"
+    class="shrink-0 border-t border-border bg-surface px-5 py-3"
     @submit.prevent="$emit('submit')"
   >
     <div class="flex items-center gap-2">
