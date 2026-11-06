@@ -5,8 +5,6 @@ import { useRoute } from 'vue-router'
 import { useConsoleStore } from '@/stores/console.store'
 import { useChatWindowShown } from '@/features/chat/composables/useChatWindowShown'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
-import { useNow } from '@/composables/useNow'
-import { formatClock } from '@/common/format/duration'
 import type { DockPlacement } from '@/components/shell/dock-placement'
 import RunningTasksPanel from './RunningTasksPanel.vue'
 import TerminalSessionsPanel from './TerminalSessionsPanel.vue'
@@ -55,7 +53,6 @@ const terminals = useTerminalStore()
 const { runningEntries, paneFocus } = storeToRefs(store)
 const { terminals: allTerminals } = storeToRefs(terminals)
 const route = useRoute()
-const now = useNow()
 const root = ref<HTMLElement | null>(null)
 const chatWindowShown = useChatWindowShown()
 
@@ -69,14 +66,6 @@ const onTerminalPane = computed(() => route.name === 'console' && paneFocus.valu
 const showsRunning = computed(() => runningEntries.value.length > 0)
 const showsSessions = computed(() => liveSessions.value.length > 0 && !onTerminalPane.value && !chatWindowShown.value)
 const visible = computed(() => showsRunning.value || showsSessions.value)
-
-const latestRunning = computed(
-  () => [...runningEntries.value].sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0] ?? null
-)
-
-const latestClock = computed(() =>
-  latestRunning.value ? formatClock((now.value - Date.parse(latestRunning.value.startedAt)) / 1000) : null
-)
 
 const awaitingApproval = computed(() => liveSessions.value.some((terminal) => terminal.awaitingPermission))
 const sessionsLabel = computed(() =>
@@ -146,10 +135,7 @@ onUnmounted(() => {
         @click="toggle('running')"
       >
         <span class="time-dial shrink-0" aria-hidden="true" />
-        <span class="whitespace-nowrap">{{ runningEntries.length }} running</span>
-        <span v-if="latestClock" class="ml-auto font-mono text-small tabular-nums text-accent">
-          {{ latestClock }}
-        </span>
+        <span class="whitespace-nowrap">{{ runningEntries.length }} in progress</span>
       </button>
 
       <span v-if="showsRunning && showsSessions" class="dock-divider" aria-hidden="true" />

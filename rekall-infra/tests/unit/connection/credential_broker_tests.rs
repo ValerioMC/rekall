@@ -253,3 +253,19 @@ async fn a_github_binding_gets_the_git_helper_for_its_host_and_a_bearer_header_f
     assert!(matches!(api, HandOut::Granted { ref body, .. } if body.expose() == "Authorization: Bearer ghp_secret\n"));
     assert!(!matches!(wrong, HandOut::Granted { .. }));
 }
+
+#[tokio::test]
+async fn a_grafana_connection_gets_its_wrapper_and_its_token_as_a_bearer_header() {
+    let world = world().await;
+    let secrets = Arc::new(InMemorySecretStore::new());
+    let grafana = stored(&world.ctx, &secrets, ConnectionKind::Grafana, "grafana", Some("glsa-secret")).await;
+    let broker = CredentialBroker::new(secrets, ConnectionAccessService::new(world.ctx.clone()), "http://127.0.0.1:47355".into(), world.root.path().join("grafana-sessions"));
+    let terminal_id = Id::random();
+
+    let environment = broker.open(terminal_id, &launch_with(vec![terminal(&grafana, None)])).await.unwrap().unwrap();
+    let token = environment.token.clone().unwrap();
+
+    assert!(environment.path_prefix.unwrap().join("rekall-grafana").exists());
+    let header = broker.hand_out(terminal_id, Some(&token), "grafana", CredentialPurpose::Grafana).await;
+    assert!(matches!(header, HandOut::Granted { ref body, .. } if body.expose() == "Authorization: Bearer glsa-secret\n"));
+}

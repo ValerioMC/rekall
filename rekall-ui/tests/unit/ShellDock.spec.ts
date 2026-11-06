@@ -207,7 +207,12 @@ describe('ShellDock', () => {
 
     it('counts the running timers on the running segment', async () => {
       const { wrapper } = await mountDock([], [running(), running({ id: 'time-2' as TimeEntryId })])
-      expect(wrapper.get('[data-testid="running-dock-toggle"]').text()).toContain('2 running')
+      expect(wrapper.get('[data-testid="running-dock-toggle"]').text()).toContain('2 in progress')
+    })
+
+    it('shows no elapsed clock on the running segment', async () => {
+      const { wrapper } = await mountDock([], [running()])
+      expect(wrapper.get('[data-testid="running-dock-toggle"]').text()).toBe('1 in progress')
     })
 
     it('hides the sessions segment while the terminal pane is already open', async () => {
