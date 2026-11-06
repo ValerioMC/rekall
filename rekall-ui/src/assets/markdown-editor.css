@@ -585,8 +585,13 @@
   border-color: var(--color-accent-deep);
 }
 
-/* The `[[` suggestions: a raised card of rows, each a glyph, the reference in mono and what it is, muted, on the right. */
-.rekall-md .md-editor .cm-editor .cm-tooltip.cm-tooltip-autocomplete {
+/*
+ * The `[[` suggestions: a raised card of rows, each a glyph, the reference in mono and what it is,
+ * muted, on the right. CodeMirror mounts them on the body, so no pane or editor edge clips them;
+ * the z-index clears md-editor's full-screen page and its modals.
+ */
+body .cm-tooltip.cm-tooltip-autocomplete.rk-completion-tooltip {
+  z-index: 30000;
   overflow: hidden;
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-card);
@@ -594,7 +599,7 @@
   box-shadow: 0 12px 32px rgb(0 0 0 / 45%);
 }
 
-.rekall-md .md-editor .cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul {
+body .cm-tooltip.cm-tooltip-autocomplete.rk-completion-tooltip > ul {
   min-width: 300px;
   max-width: min(560px, 80vw);
   max-height: 18rem;
@@ -603,7 +608,7 @@
   font-family: var(--font-sans);
 }
 
-.rekall-md .md-editor .cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul > completion-section {
+body .cm-tooltip.cm-tooltip-autocomplete.rk-completion-tooltip > ul > completion-section {
   display: block;
   padding: 8px 8px 4px;
   border: 0;
@@ -614,7 +619,7 @@
   text-transform: uppercase;
 }
 
-.rekall-md .md-editor .cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul li {
+body .cm-tooltip.cm-tooltip-autocomplete.rk-completion-tooltip > ul li {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -625,22 +630,22 @@
   line-height: 18px;
 }
 
-.rekall-md .md-editor .cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul li[aria-selected] {
+body .cm-tooltip.cm-tooltip-autocomplete.rk-completion-tooltip > ul li[aria-selected] {
   background: var(--color-accent-soft);
   color: var(--color-text);
 }
 
-.rekall-md .md-editor .cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul li .cm-completionIcon[class*='cm-completionIcon-rk-ref-'] {
+body .cm-tooltip.cm-tooltip-autocomplete.rk-completion-tooltip > ul li .cm-completionIcon[class*='cm-completionIcon-rk-ref-'] {
   display: none;
 }
 
-.rekall-md .md-editor .cm-editor .cm-tooltip.cm-tooltip-autocomplete .cm-completionLabel {
+body .cm-tooltip.cm-tooltip-autocomplete.rk-completion-tooltip .cm-completionLabel {
   flex: none;
   font-family: var(--font-mono);
   font-size: var(--text-small);
 }
 
-.rekall-md .md-editor .cm-editor .cm-tooltip.cm-tooltip-autocomplete .cm-completionDetail {
+body .cm-tooltip.cm-tooltip-autocomplete.rk-completion-tooltip .cm-completionDetail {
   overflow: hidden;
   flex: 1;
   min-width: 0;

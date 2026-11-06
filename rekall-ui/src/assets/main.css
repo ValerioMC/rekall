@@ -1372,15 +1372,9 @@
  * `position: fixed` descendants (md-editor-v3's "page fullscreen"), so that overlay gets trapped
  * inside the pane's box instead of covering the viewport, and the pane's own content is still
  * reachable by scrolling past it. Drop the containing block while a fullscreen editor is open.
- *
- * The same holds for the `[[` suggestions: CodeMirror places them `fixed`, and inside a scroller
- * with a containing block it falls back to absolute and is clipped at the scroller's edge, which a
- * short editor (a step's detail) reaches. They get the viewport while they are open.
  */
 .overflow-y-auto:has(.md-editor-fullscreen),
-.overflow-auto:has(.md-editor-fullscreen),
-.overflow-y-auto:has(.cm-tooltip-autocomplete),
-.overflow-auto:has(.cm-tooltip-autocomplete) {
+.overflow-auto:has(.md-editor-fullscreen) {
   will-change: auto;
 }
 

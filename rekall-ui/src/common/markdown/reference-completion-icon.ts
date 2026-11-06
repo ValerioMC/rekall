@@ -67,7 +67,12 @@ export function renderReferenceIcon(completion: Completion): Node | null {
   return icon ? referenceIconElement(icon) : null
 }
 
-/** Adds the glyph to every suggestion row, merged into the editor's own completion setup. */
+export const COMPLETION_TOOLTIP_CLASS = 'rk-completion-tooltip'
+
+/** Adds the glyph to every suggestion row and the class the console styles the list by, merged into the editor's own completion setup. */
 export function referenceCompletionIcons(): Extension {
-  return autocompletion({ addToOptions: [{ render: renderReferenceIcon, position: 20 }] })
+  return autocompletion({
+    addToOptions: [{ render: renderReferenceIcon, position: 20 }],
+    tooltipClass: () => COMPLETION_TOOLTIP_CLASS
+  })
 }
