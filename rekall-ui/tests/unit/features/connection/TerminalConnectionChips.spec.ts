@@ -73,6 +73,24 @@ describe('TerminalConnectionChips', () => {
     expect(wrapper.get('[data-testid="terminal-connections-unused"]').text()).toBe('1 unused')
   })
 
+  it('labels the unused connections as their own group after the used ones', async () => {
+    const wrapper = mountChips([PROD, REPO])
+    useCredentialAccessStore().record({ terminalId: TERMINAL, connectionId: REPO.connectionId, granted: true })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('[data-testid="terminal-connections-unused-label"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="terminal-connections-unused"]').trigger('click')
+
+    const flow = wrapper.findAll('[data-testid="terminal-connections-unused-label"], [data-tone]').map(
+      (node) => node.attributes('data-testid')
+    )
+    expect(flow).toEqual([
+      'terminal-connection-api-repo',
+      'terminal-connections-unused-label',
+      'terminal-connection-prod'
+    ])
+  })
+
   it('orders the connections by kind, clusters first, then GitLab, then Jira', async () => {
     const wrapper = mountChips([BOARD, REPO, STAGING, PROD])
 

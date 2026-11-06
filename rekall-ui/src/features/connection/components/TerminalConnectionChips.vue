@@ -11,7 +11,8 @@ import type { ProjectId, TerminalId } from '@/model/branded'
 /**
  * What a running terminal reached outside Rekall: a chip per connection its helpers asked for,
  * counting the hand-outs and warning on a refusal. The ones never asked for fold into one
- * "unused" chip that opens to list them; a connection leaves it the first time it is asked for.
+ * "unused" chip that opens to list them as a labelled group after the used ones; a connection
+ * leaves it the first time it is asked for.
  */
 const props = defineProps<{
   terminalId: TerminalId
@@ -45,6 +46,10 @@ const usedChips = computed(() => chips.value.filter((chip) => chip.tally !== nul
 const unusedChips = computed(() => chips.value.filter((chip) => chip.tally === null))
 const shownChips = computed(() => (unusedOpen.value ? [...usedChips.value, ...unusedChips.value] : usedChips.value))
 
+function startsUnusedGroup(chip: (typeof chips.value)[number]): boolean {
+  return chip.connection.connectionId === unusedChips.value[0]?.connection.connectionId && unusedOpen.value
+}
+
 function describe(connection: TerminalConnection, granted: number, refused: number): string {
   if (!connection.credentialSet)
     return `${connection.label}: no credential is stored, so this session cannot reach it`
@@ -62,10 +67,15 @@ onMounted(access.listen)
     class="inline-flex flex-wrap items-center gap-1"
     data-testid="terminal-connections"
   >
+    <template v-for="chip in shownChips" :key="`${chip.connection.label}-${chip.tally?.last ?? 0}`">
+    <span
+      v-if="startsUnusedGroup(chip)"
+      class="font-mono text-micro uppercase tracking-wide text-text-subtle"
+      data-testid="terminal-connections-unused-label"
+      >unused</span
+    >
     <component
       :is="companyId ? RouterLink : 'span'"
-      v-for="chip in shownChips"
-      :key="`${chip.connection.label}-${chip.tally?.last ?? 0}`"
       :to="companyId ? `/companies/${companyId}/connections` : undefined"
       class="focus-ring inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-micro ring-1 ring-inset"
       :class="{
@@ -84,6 +94,7 @@ onMounted(access.listen)
         }}<template v-if="chip.tally.refused">/{{ chip.tally.refused }}✕</template></span
       >
     </component>
+    </template>
     <button
       v-if="unusedChips.length"
       type="button"

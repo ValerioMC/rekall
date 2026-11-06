@@ -25,6 +25,13 @@ const live = computed(() => allTerminals.value.filter((terminal) => terminal.liv
 
 const sorted = computed(() => [...live.value].sort((a, b) => b.startedAt.localeCompare(a.startedAt)))
 
+const groups = computed(() =>
+  [
+    { id: 'task', title: 'Working on a task', terminals: sorted.value.filter((terminal) => terminal.taskId) },
+    { id: 'project', title: 'Not on a task', terminals: sorted.value.filter((terminal) => !terminal.taskId) }
+  ].filter((group) => group.terminals.length)
+)
+
 function jumpTo(terminal: Terminal): void {
   openSession(terminal)
   emit('close')
@@ -52,7 +59,14 @@ async function logCommit(terminal: Terminal): Promise<void> {
     tint="session"
     @close="emit('close')"
   >
-    <li v-for="terminal in sorted" :key="terminal.id" data-testid="terminal-dock-row">
+    <template v-for="group in groups" :key="group.id">
+    <li
+      class="px-2 pb-1 pt-2 font-mono text-micro uppercase tracking-wide text-text-subtle"
+      :data-testid="`terminal-dock-group-${group.id}`"
+    >
+      {{ group.title }}
+    </li>
+    <li v-for="terminal in group.terminals" :key="terminal.id" data-testid="terminal-dock-row">
       <div
         class="flex items-center gap-2.5 rounded-control px-2 py-2 hover:bg-surface-raised"
       >
@@ -126,5 +140,6 @@ async function logCommit(terminal: Terminal): Promise<void> {
         :connections="terminal.connections"
       />
     </li>
+    </template>
   </DockPanel>
 </template>
