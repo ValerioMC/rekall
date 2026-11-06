@@ -190,6 +190,23 @@ describe('a project in the connections store', () => {
     vi.resetAllMocks()
   })
 
+  it('reads an opened project again when a connection frame arrives, through one subscription', async () => {
+    const listeners: Array<() => void> = []
+    const sources = vi.fn(() => ({ addEventListener: (_name: string, listener: () => void) => listeners.push(listener) }))
+    vi.stubGlobal('EventSource', sources)
+    vi.mocked(api.fetchProjectConnections).mockResolvedValueOnce([]).mockResolvedValueOnce([binding('admin')])
+    const store = useConnectionsStore()
+    await store.loadProject(PROJECT)
+
+    store.followChanges(vi.fn())
+    store.followChanges(vi.fn())
+    listeners.forEach((listener) => listener())
+    await vi.waitFor(() => expect(store.projectConnectionsOf(PROJECT).map((known) => known.label)).toEqual(['admin']))
+
+    expect(sources).toHaveBeenCalledTimes(1)
+    vi.unstubAllGlobals()
+  })
+
   it('binds a connection twice under two labels and reads the company counts again', async () => {
     vi.mocked(api.fetchConnections).mockResolvedValue([connection('prod', { projectCount: 1 })])
     vi.mocked(api.fetchProjectConnections).mockResolvedValue([])

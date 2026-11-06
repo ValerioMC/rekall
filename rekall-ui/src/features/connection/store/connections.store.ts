@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { env } from '@/common/config/env'
 import * as api from '@/features/connection/api/connections.api'
 import type {
   Connection,
@@ -34,6 +35,7 @@ export const useConnectionsStore = defineStore('connections', () => {
   const accessLogs = ref<Readonly<Record<string, readonly ConnectionAccess[]>>>({})
   const accessEnded = ref<ReadonlySet<string>>(new Set())
   const byProject = ref<Readonly<Record<string, readonly ProjectConnection[]>>>({})
+  let changes: EventSource | null = null
 
   /** The connections shared with a company: the ones its projects can bind. */
   function connectionsOf(companyId: CompanyId): readonly Connection[] {
@@ -186,6 +188,22 @@ export const useConnectionsStore = defineStore('connections', () => {
     byProject.value = { ...byProject.value, [projectId]: await api.fetchProjectConnections(projectId) }
   }
 
+  /**
+   * Opens the one subscription that reads every opened project's bindings again whenever a
+   * connection changes, so a binding made anywhere shows in the editors without a reload.
+   */
+  function followChanges(onFailure: (failure: unknown) => void): void {
+    if (changes || typeof EventSource === 'undefined') return
+    changes = new EventSource(`${env.VITE_API_BASE_URL}/api/steps/stream`)
+    changes.addEventListener('connection', () => {
+      void reloadOpenedProjects().catch(onFailure)
+    })
+  }
+
+  async function reloadOpenedProjects(): Promise<void> {
+    await Promise.all(Object.keys(byProject.value).map((projectId) => loadProject(projectId as ProjectId)))
+  }
+
   /** Binds the connection once more; the counts and the open detail follow from the server. */
   async function bind(
     projectId: ProjectId,
@@ -283,6 +301,7 @@ export const useConnectionsStore = defineStore('connections', () => {
     projectConnectionsOf,
     isProjectLoaded,
     loadProject,
+    followChanges,
     bind,
     updateBinding,
     unbind,
