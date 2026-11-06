@@ -44,7 +44,7 @@ function firstLine(text: string): string {
       </li>
     </ul>
     <ul v-if="commitsOfPass.length > 0" class="flex flex-col gap-0.5" data-testid="pass-summary-commits">
-      <li v-for="commit in shownCommits" :key="commit.id" class="flex gap-2 text-small" data-testid="pass-summary-commit">
+      <li v-for="commit in shownCommits" :key="commit.id" class="flex items-baseline gap-2 text-small" data-testid="pass-summary-commit">
         <span class="shrink-0 font-mono text-micro text-text-subtle">{{ commit.commitHash.slice(0, 7) }}</span>
         <span class="min-w-0 break-words text-text-muted">{{ firstLine(commit.comment) }}</span>
       </li>
