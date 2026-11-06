@@ -30,3 +30,13 @@ export function projectsOf(bindings: readonly ConnectionProject[]): ConnectionPr
 export function plural(count: number, noun: string, many: string = `${noun}s`): string {
   return `${count} ${count === 1 ? noun : many}`
 }
+
+/** The projects of a company that can still take a connection, archived ones left out, by title. */
+export function bindableProjects<T extends { readonly companyId: CompanyId; readonly status: string; readonly title: string }>(
+  projects: readonly T[],
+  companyId: CompanyId
+): T[] {
+  return projects
+    .filter((project) => project.companyId === companyId && project.status !== 'ARCHIVED')
+    .sort((a, b) => a.title.localeCompare(b.title))
+}

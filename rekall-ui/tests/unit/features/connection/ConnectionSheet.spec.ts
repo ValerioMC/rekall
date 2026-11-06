@@ -5,7 +5,9 @@ import * as api from '@/features/connection/api/connections.api'
 import ConnectionSheet from '@/features/connection/components/ConnectionSheet.vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import type { Connection, ConnectionKind } from '@/features/connection/model/connection'
-import type { CompanyId } from '@/model/branded'
+import { useConsoleStore } from '@/stores/console.store'
+import type { Project } from '@/features/catalog/model/catalog'
+import type { CompanyId, ProjectId } from '@/model/branded'
 import { ACME, GLOBEX, aConnection } from '../../support/connectionFixture'
 
 vi.mock('@/features/connection/api/connections.api')
@@ -77,6 +79,30 @@ describe('ConnectionSheet', () => {
       companyIds: [ACME, GLOBEX]
     })
     expect(wrapper.emitted('saved')).toHaveLength(1)
+    wrapper.unmount()
+  })
+
+  it('binds the projects ticked of the companies picked once the connection is created', async () => {
+    useConsoleStore().projects = [
+      { id: 'p-billing' as ProjectId, title: 'Billing', companyId: ACME, status: 'ACTIVE' },
+      { id: 'p-old' as ProjectId, title: 'Old', companyId: ACME, status: 'ARCHIVED' },
+      { id: 'p-site' as ProjectId, title: 'Site', companyId: GLOBEX, status: 'ACTIVE' }
+    ] as unknown as Project[]
+    vi.mocked(api.createConnection).mockResolvedValue(aConnection('platform'))
+    vi.mocked(api.bindConnection).mockResolvedValue({} as never)
+    vi.mocked(api.fetchConnections).mockResolvedValue([])
+    const wrapper = mountSheet(null, 'GITLAB', [ACME])
+
+    const options = wrapper.findAll('[data-testid="project-option"]')
+    expect(options.map((option) => option.text())).toEqual(['Billing'])
+    await options[0]?.get('input').setValue(true)
+    await wrapper.get('[data-testid="connection-title"]').setValue('Platform')
+    await wrapper.get('[data-testid="connection-url"]').setValue('https://gitlab.example.com')
+    await wrapper.get('[data-testid="save-connection"]').trigger('click')
+    await flushPromises()
+
+    expect(api.bindConnection).toHaveBeenCalledTimes(1)
+    expect(api.bindConnection).toHaveBeenCalledWith('p-billing', 'platform', { target: null })
     wrapper.unmount()
   })
 

@@ -34,7 +34,7 @@ async function render(path = '/connections'): Promise<VueWrapper> {
     { id: ACME, name: 'Acme' },
     { id: GLOBEX, name: 'Globex' }
   ] as unknown as Company[]
-  consoleStore.projects = [{ id: 'p-billing' as ProjectId, title: 'Billing' }] as unknown as Project[]
+  consoleStore.projects = [{ id: 'p-billing' as ProjectId, title: 'Billing', companyId: ACME, status: 'ACTIVE' }] as unknown as Project[]
   wrapper = mountWithHeaderChrome(ConnectionsPage, { global: { plugins: [pinia, router] } }) as unknown as VueWrapper
   await flushPromises()
   return wrapper
@@ -96,7 +96,7 @@ describe('the Connections hub', () => {
     const companies = page.findAll('[data-testid="sharing-company"]')
     expect(companies.map((company) => company.get('p').text())).toEqual(['Acme', 'Globex'])
     expect(companies[0]?.get('[data-testid="sharing-binding"]').text()).toContain('platform/billing')
-    expect(companies[1]?.text()).toContain('Not bound yet')
+    expect(companies[1]?.text()).toContain('This company has no active project to use it.')
     expect(page.get('[data-connection-id="platform"]').attributes('aria-current')).toBe('true')
   })
 
@@ -189,6 +189,39 @@ describe('the Connections hub', () => {
     await flushPromises()
 
     expect(api.unbindConnection).toHaveBeenCalledWith('p-billing', 'b-platform')
+  })
+
+  it('binds a project of the company from the Shared with tree, with the target typed', async () => {
+    vi.mocked(api.fetchProjectConnections).mockResolvedValue([])
+    vi.mocked(api.bindConnection).mockResolvedValue({
+      id: 'b-new' as ProjectConnectionId,
+      connectionId: 'platform' as ConnectionId,
+      projectId: 'p-billing' as ProjectId,
+      kind: 'GITLAB',
+      label: 'platform',
+      title: 'The platform',
+      baseUrl: null,
+      kubeContext: null,
+      target: 'platform/billing',
+      credentialSetAt: null
+    })
+    const page = await render('/connections/jira')
+
+    await page.get('[data-testid="bind-project"]').trigger('click')
+    expect(page.get('[data-testid="binder-submit"]').attributes('disabled')).toBeDefined()
+    await page.get('[data-testid="project-binder"] select').setValue('p-billing')
+    await page.get('[data-testid="binder-target"]').setValue(' ENG ')
+    await page.get('[data-testid="project-binder"]').trigger('submit')
+    await flushPromises()
+
+    expect(api.bindConnection).toHaveBeenCalledWith('p-billing', 'jira', { target: 'ENG' })
+    expect(page.find('[data-testid="project-binder"]').exists()).toBe(false)
+  })
+
+  it('offers no project to bind where the company has none', async () => {
+    const page = await render('/connections/prod')
+
+    expect(page.get('[data-testid="bind-project"]').attributes('disabled')).toBeDefined()
   })
 
   it('deletes after stating what goes with it, then selects the next row', async () => {

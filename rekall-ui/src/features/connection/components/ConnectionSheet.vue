@@ -7,15 +7,19 @@ import AppInput from '@/components/ui/AppInput.vue'
 import CloseGlyph from '@/components/ui/CloseGlyph.vue'
 import ConnectionCompanyPicker from '@/features/connection/components/ConnectionCompanyPicker.vue'
 import ConnectionCredentialInput from '@/features/connection/components/ConnectionCredentialInput.vue'
+import ConnectionProjectPicker from '@/features/connection/components/ConnectionProjectPicker.vue'
 import ConnectionKindPicker from '@/features/connection/components/ConnectionKindPicker.vue'
 import ConnectionRootPathField from '@/features/connection/components/ConnectionRootPathField.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { slugify } from '@/features/catalog/model/catalog'
 import { CREDENTIAL_FIELD, ROOT_PATH_FIELD, TAKES_PROXY, URL_FIELD } from '@/features/connection/lib/connection-fields'
 import { emptyDraft, isComplete, isStarted } from '@/features/connection/lib/credential-draft'
+import { bindableProjects } from '@/features/connection/lib/connection-impact'
 import { useConnectionsStore } from '@/features/connection/store/connections.store'
+import { useConsoleStore } from '@/stores/console.store'
+import { useToastStore } from '@/stores/toast.store'
 import type { Connection, ConnectionInput, ConnectionKind, CredentialDraft } from '@/features/connection/model/connection'
-import type { CompanyId } from '@/model/branded'
+import type { CompanyId, ProjectId } from '@/model/branded'
 
 /**
  * Creates a connection, with its credential and the companies it is shared with, or edits one's
@@ -32,6 +36,8 @@ const props = defineProps<{
 const emit = defineEmits<{ close: []; saved: [connection: Connection]; editCompanies: [] }>()
 
 const store = useConnectionsStore()
+const consoleStore = useConsoleStore()
+const toast = useToastStore()
 const { run, isRunning } = useAsyncAction()
 const isNew = props.connection === null
 
@@ -42,6 +48,7 @@ const baseUrl = ref(props.connection?.baseUrl ?? '')
 const proxyUrl = ref(props.connection?.proxyUrl ?? '')
 const rootPath = ref(props.connection?.rootPath ?? '')
 const companyIds = ref<readonly CompanyId[]>(props.initialCompanyIds)
+const projectIds = ref<readonly ProjectId[]>([])
 const credential = ref<CredentialDraft>(emptyDraft(kind.value))
 const submitted = ref(false)
 const summary = ref<HTMLElement | null>(null)
@@ -55,6 +62,9 @@ watch(kind, (next) => {
 const sharedCompanyNames = computed(() =>
   props.companies.filter((company) => props.initialCompanyIds.includes(company.id)).map((company) => company.name)
 )
+const chosenCompanies = computed(() => props.companies.filter((company) => companyIds.value.includes(company.id)))
+const selectableProjects = computed(() => companyIds.value.flatMap((companyId) => bindableProjects(consoleStore.projects, companyId)))
+const projectsToBind = computed(() => selectableProjects.value.filter((project) => projectIds.value.includes(project.id)))
 const heading = isNew ? 'New connection' : `Edit ${props.connection?.title}`
 const slug = computed(() => slugify(label.value || title.value))
 const urlField = computed(() => URL_FIELD[kind.value])
@@ -103,8 +113,20 @@ async function save(): Promise<void> {
     `${isNew ? 'Created' : 'Saved'} ${title.value.trim()}`
   )
   if (saved) {
+    if (isNew) await bindChosenProjects(saved)
     emit('saved', saved)
     emit('close')
+  }
+}
+
+async function bindChosenProjects(created: Connection): Promise<void> {
+  for (const project of projectsToBind.value) {
+    try {
+      await store.bind(project.id, created.id, { target: null })
+    } catch (failure) {
+      const reason = failure instanceof Error ? failure.message : 'the server refused it'
+      toast.notifyError(new Error(`${created.title} was created but not bound to ${project.title}: ${reason}`))
+    }
   }
 }
 
@@ -209,6 +231,11 @@ onMounted(async () => {
           </p>
           <p v-else class="mt-1.5 text-caption text-text-subtle">A project can bind the connection only if its company is in this list.</p>
         </template>
+      </section>
+      <section v-if="isNew && !bindToProject && companyIds.length" class="mb-4" aria-labelledby="sheet-projects-heading">
+        <h3 id="sheet-projects-heading" class="mb-1.5 text-small font-medium text-text-muted">Used by projects</h3>
+        <ConnectionProjectPicker v-model="projectIds" :companies="chosenCompanies" :projects="selectableProjects" />
+        <p class="mt-1.5 text-caption text-text-subtle">Optional. Each project you tick uses the whole connection; narrow it to a repository or namespace from the connection afterwards.</p>
       </section>
       <p v-else class="mb-4 text-small text-text-muted">
         Companies are changed in
