@@ -201,7 +201,7 @@ onMounted(async () => {
         v-if="takesProxy"
         v-slot="{ fieldId, describedBy }"
         label="Proxy URL"
-        hint="Optional. Check, the issue import and rekall-jira all reach the site through it."
+        hint="Optional. Check, the terminal helper and, on Jira, the issue import all reach the site through it."
       >
         <AppInput
           :id="fieldId"

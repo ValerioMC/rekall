@@ -8,7 +8,7 @@ use serde::Deserialize;
 use serde_json::json;
 
 use super::atlassian_document::AdfNode;
-use crate::probes::failure_chain;
+use crate::probes::{client_through, failure_chain};
 
 const TIMEOUT: Duration = Duration::from_secs(15);
 const CLOUD_SEARCH: &str = "/rest/api/3/search/jql";
@@ -93,11 +93,7 @@ impl JiraIssues for HttpJiraIssues {
 }
 
 pub(crate) fn jira_client(site: &JiraSite, timeout: Duration) -> Result<Client, String> {
-    let mut builder = Client::builder().timeout(timeout);
-    if let Some(proxy) = &site.proxy_url {
-        builder = builder.proxy(reqwest::Proxy::all(proxy).map_err(|_| "the connection's proxy is not a usable proxy address".to_string())?);
-    }
-    builder.build().map_err(|failure| failure_chain(&failure))
+    client_through(site.proxy_url.as_deref(), timeout)
 }
 
 pub(crate) fn authorization(credential: &JiraCredential) -> Result<HeaderValue, JiraFailure> {

@@ -31,7 +31,7 @@ pub struct Model {
     pub base_url: Option<String>,
     /// The kubeconfig context chosen on import.
     pub kube_context: Option<String>,
-    /// Jira only: the proxy every call to the site goes through; none goes direct.
+    /// Jira and Grafana only: the proxy every call to the site goes through; none goes direct.
     pub proxy_url: Option<String>,
     /// GitLab and GitHub only: the group, namespace or owner the credential covers, without a leading or trailing slash.
     pub root_path: Option<String>,
@@ -109,8 +109,8 @@ impl Model {
             ConnectionKind::Gitlab | ConnectionKind::Github | ConnectionKind::Jira | ConnectionKind::Grafana if self.kube_context.is_some() => {
                 Err(RekallError::illegal("Only a Kubernetes connection has a kubeconfig context."))
             }
-            ConnectionKind::Gitlab | ConnectionKind::Github | ConnectionKind::Kubernetes | ConnectionKind::Grafana if self.proxy_url.is_some() => {
-                Err(RekallError::illegal("Only a Jira connection takes a proxy. A cluster is reached through its kubeconfig's proxy-url."))
+            ConnectionKind::Gitlab | ConnectionKind::Github | ConnectionKind::Kubernetes if self.proxy_url.is_some() => {
+                Err(RekallError::illegal("Only a Jira or Grafana connection takes a proxy. A cluster is reached through its kubeconfig's proxy-url."))
             }
             _ => Ok(()),
         }

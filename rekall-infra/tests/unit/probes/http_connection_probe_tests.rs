@@ -173,13 +173,22 @@ fn grafana_instance() -> Router {
 #[tokio::test]
 async fn a_good_grafana_token_is_accepted_and_names_its_service_account() {
     let base = serve(grafana_instance()).await;
-    let outcome = HttpConnectionProbe::new().grafana(&format!("{base}/"), &Secret::new("glsa-good")).await;
+    let outcome = HttpConnectionProbe::new().grafana(&format!("{base}/"), None, &Secret::new("glsa-good")).await;
     assert_eq!(outcome, ProbeOutcome::Accepted { identity: Some("sa-rekall".into()), version: None });
 }
 
 #[tokio::test]
 async fn a_bad_grafana_token_is_rejected() {
     let base = serve(grafana_instance()).await;
-    let outcome = HttpConnectionProbe::new().grafana(&base, &Secret::new("glsa-bad")).await;
+    let outcome = HttpConnectionProbe::new().grafana(&base, None, &Secret::new("glsa-bad")).await;
     assert_eq!(outcome, ProbeOutcome::Rejected { status: 401 });
+}
+
+/// The fake instance answers the absolute-form requests a proxy receives, so it stands in for the proxy:
+/// the instance's own host does not resolve, and only a request sent through the proxy gets an answer.
+#[tokio::test]
+async fn a_grafana_instance_behind_a_proxy_is_asked_through_it() {
+    let proxy = serve(grafana_instance()).await;
+    let outcome = HttpConnectionProbe::new().grafana("http://grafana.invalid", Some(&proxy), &Secret::new("glsa-good")).await;
+    assert_eq!(outcome, ProbeOutcome::Accepted { identity: Some("sa-rekall".into()), version: None });
 }

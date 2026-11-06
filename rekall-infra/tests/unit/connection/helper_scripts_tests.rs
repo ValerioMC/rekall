@@ -103,3 +103,15 @@ fn the_grafana_wrapper_calls_the_api_of_each_instance_with_json_both_ways() {
     assert!(script.contains("-H @- -H 'Accept: application/json' -H 'Content-Type: application/json' \"$base$path\""));
     assert!(script.contains("this terminal has no Grafana connection labelled"));
 }
+
+#[test]
+fn the_grafana_wrapper_sends_its_calls_through_the_connections_proxy() {
+    let behind = TerminalConnection {
+        kind: ConnectionKind::Grafana,
+        instance_url: Some("https://grafana.example.com".into()),
+        proxy_url: Some("http://10.250.0.1:33128".into()),
+        ..gitlab("grafana", None)
+    };
+    let script = api_wrapper(&GRAFANA_API, ENDPOINT, &[&behind]);
+    assert!(script.contains("project=''; proxy='http://10.250.0.1:33128' ;;"));
+}

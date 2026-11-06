@@ -107,14 +107,17 @@ describe('ConnectionSheet', () => {
     wrapper.unmount()
   })
 
-  it('asks for a proxy only on a Jira connection', () => {
+  it('asks for a proxy only on a Jira or Grafana connection', () => {
     const gitlab = mountSheet(null, 'GITLAB')
     const jira = mountSheet(null, 'JIRA')
+    const grafana = mountSheet(null, 'GRAFANA')
 
     expect(gitlab.find('[data-testid="connection-proxy"]').exists()).toBe(false)
     expect(jira.find('[data-testid="connection-proxy"]').exists()).toBe(true)
+    expect(grafana.find('[data-testid="connection-proxy"]').exists()).toBe(true)
     gitlab.unmount()
     jira.unmount()
+    grafana.unmount()
   })
 
   it('creates a Jira connection with the proxy typed', async () => {

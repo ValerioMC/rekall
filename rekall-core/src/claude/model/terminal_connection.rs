@@ -12,7 +12,7 @@ pub struct TerminalConnection {
     pub target: Option<String>,
     /// GitLab and Jira only: the instance or site pushes and API calls go to.
     pub instance_url: Option<String>,
-    /// Jira only: the proxy API calls go through.
+    /// Jira and Grafana only: the proxy API calls go through.
     pub proxy_url: Option<String>,
     pub secret_ref: String,
     pub credential_set: bool,

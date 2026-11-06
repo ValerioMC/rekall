@@ -163,14 +163,20 @@ fn a_grafana_connection_without_its_instance_url_is_refused() {
 }
 
 #[test]
-fn a_grafana_connection_takes_neither_a_kubeconfig_context_nor_a_proxy_nor_a_root_path() {
+fn a_grafana_connection_takes_neither_a_kubeconfig_context_nor_a_root_path() {
     let mut context = grafana(Some("https://grafana.example.com"));
     context.kube_context = Some("prod".into());
-    let mut proxy = grafana(Some("https://grafana.example.com"));
-    proxy.proxy_url = Some("http://proxy.example.com:8080".into());
     let mut root = grafana(Some("https://grafana.example.com"));
     root.root_path = Some("acme".into());
     assert!(context.validate().is_err());
-    assert!(proxy.validate().is_err());
     assert!(root.validate().is_err());
+}
+
+#[test]
+fn a_grafana_connection_takes_an_http_or_https_proxy() {
+    let mut proxied = grafana(Some("https://grafana.example.com"));
+    proxied.proxy_url = Some("http://10.250.0.1:33128".into());
+    assert!(proxied.validate().is_ok());
+    proxied.proxy_url = Some("socks5://10.250.0.1:1080".into());
+    assert!(proxied.validate().is_err());
 }

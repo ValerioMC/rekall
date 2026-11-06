@@ -16,13 +16,13 @@ export const URL_FIELD: Readonly<Record<ConnectionKind, UrlField | null>> = {
   GRAFANA: { title: 'Instance URL', label: 'Grafana instance URL', placeholder: 'https://grafana.example.com' }
 }
 
-/** Only a Jira site is reached through a proxy typed in; a cluster's comes from its kubeconfig. */
+/** Only a Jira site or a Grafana instance is reached through a proxy typed in; a cluster's comes from its kubeconfig. */
 export const TAKES_PROXY: Readonly<Record<ConnectionKind, boolean>> = {
   GITLAB: false,
   GITHUB: false,
   KUBERNETES: false,
   JIRA: true,
-  GRAFANA: false
+  GRAFANA: true
 }
 
 /** How a kind's credential is asked for when a connection is created. */

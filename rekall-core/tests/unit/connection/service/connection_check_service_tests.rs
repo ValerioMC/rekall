@@ -50,8 +50,8 @@ impl ConnectionProbe for FakeProbe {
         self.outcome.clone()
     }
 
-    async fn grafana(&self, instance_url: &str, _token: &Secret) -> ProbeOutcome {
-        self.asked.lock().unwrap().push(format!("grafana {instance_url}"));
+    async fn grafana(&self, instance_url: &str, proxy_url: Option<&str>, _token: &Secret) -> ProbeOutcome {
+        self.asked.lock().unwrap().push(format!("grafana {instance_url} via {}", proxy_url.unwrap_or("no proxy")));
         self.outcome.clone()
     }
 }
@@ -81,7 +81,7 @@ impl World {
             ConnectionKind::Kubernetes => None,
         };
         let mut connection = external_connection::Model::new("conn".into(), "Conn".into(), kind, base_url, Instant::now());
-        connection.proxy_url = (kind == ConnectionKind::Jira).then(|| "http://proxy.example.com:8080".to_string());
+        connection.proxy_url = matches!(kind, ConnectionKind::Jira | ConnectionKind::Grafana).then(|| "http://proxy.example.com:8080".to_string());
         if let Some(credential) = credential {
             self.secrets.put(&connection.secret_ref, &Secret::new(credential)).unwrap();
             connection.secret_set_at = Some(Instant::now());
@@ -171,7 +171,7 @@ async fn a_github_check_asks_the_server_the_connection_names() {
 }
 
 #[tokio::test]
-async fn a_grafana_check_asks_the_instance_the_connection_names() {
+async fn a_grafana_check_asks_the_instance_through_the_proxy_the_connection_names() {
     let world = world(ProbeOutcome::Accepted { identity: Some("sa-rekall".into()), version: None }).await;
     let id = world.connection(ConnectionKind::Grafana, Some("glsa_secret")).await;
 
@@ -179,5 +179,5 @@ async fn a_grafana_check_asks_the_instance_the_connection_names() {
 
     assert!(check.ok);
     assert_eq!(check.detail, "Signed in as sa-rekall.");
-    assert_eq!(*world.probe.asked.lock().unwrap(), ["grafana https://grafana.example.com"]);
+    assert_eq!(*world.probe.asked.lock().unwrap(), ["grafana https://grafana.example.com via http://proxy.example.com:8080"]);
 }

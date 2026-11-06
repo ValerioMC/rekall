@@ -66,7 +66,7 @@ struct UserInfo {
 
 /// The probe over HTTPS with `reqwest`. A cluster is trusted through the CA its kubeconfig names,
 /// reached through its `proxy-url` when it has one, and a client certificate is the TLS identity. A
-/// Jira site is reached through the connection's proxy when it names one.
+/// Jira site or a Grafana instance is reached through the connection's proxy when it names one.
 pub struct HttpConnectionProbe {
     timeout: Duration,
 }
@@ -139,10 +139,10 @@ impl ConnectionProbe for HttpConnectionProbe {
         }
     }
 
-    async fn grafana(&self, instance_url: &str, token: &Secret) -> ProbeOutcome {
-        let client = match Client::builder().timeout(self.timeout).build() {
+    async fn grafana(&self, instance_url: &str, proxy_url: Option<&str>, token: &Secret) -> ProbeOutcome {
+        let client = match client_through(proxy_url, self.timeout) {
             Ok(client) => client,
-            Err(failure) => return unreachable(&failure),
+            Err(reason) => return ProbeOutcome::Unreachable { reason },
         };
         let mut header = match HeaderValue::from_str(&format!("Bearer {}", token.expose())) {
             Ok(header) => header,
@@ -197,6 +197,15 @@ async fn identity(client: &Client, access: &KubeAccess) -> Result<Option<String>
             Ok(review.and_then(|review| review.status).and_then(|status| status.user_info).and_then(|user| user.username))
         }
     }
+}
+
+/// A client for a site reached through the connection's proxy when it names one.
+pub(crate) fn client_through(proxy_url: Option<&str>, timeout: Duration) -> Result<Client, String> {
+    let mut builder = Client::builder().timeout(timeout);
+    if let Some(proxy) = proxy_url {
+        builder = builder.proxy(reqwest::Proxy::all(proxy).map_err(|_| "the connection's proxy is not a usable proxy address".to_string())?);
+    }
+    builder.build().map_err(|failure| failure_chain(&failure))
 }
 
 fn kube_client(access: &KubeAccess, timeout: Duration) -> Result<Client, String> {

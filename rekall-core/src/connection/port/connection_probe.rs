@@ -14,5 +14,5 @@ pub trait ConnectionProbe: Send + Sync {
 
     async fn jira(&self, site: &JiraSite, credential: &JiraCredential) -> ProbeOutcome;
 
-    async fn grafana(&self, instance_url: &str, token: &Secret) -> ProbeOutcome;
+    async fn grafana(&self, instance_url: &str, proxy_url: Option<&str>, token: &Secret) -> ProbeOutcome;
 }
