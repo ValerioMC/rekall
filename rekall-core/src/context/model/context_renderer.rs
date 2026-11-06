@@ -10,7 +10,7 @@ use crate::component::{ComponentReferences, ProjectComponentView};
 use crate::connection::ConnectionView;
 use crate::deviation::DeviationView;
 use crate::feedback::FeedbackView;
-use crate::step::{StepLinkView, TaskStepView};
+use crate::step::{flow_entry, StepLinkView, TaskStepView};
 use crate::wrapup::{Freshness, WrapupView};
 
 pub const MAX_DOCUMENT_CHARACTERS: usize = 20_000;
@@ -580,11 +580,21 @@ fn is_flow(steps: &[&TaskStepView]) -> bool {
 fn flow_attributes(steps: &[&TaskStepView]) -> String {
     let moves: usize = steps.iter().map(|step| step.visits.len()).sum();
     let mut attributes = String::from(" flow=\"true\"");
-    if let Some(current) = steps.iter().find(|step| step.is_current()) {
+    if let Some(current) = current_step_of(steps, moves) {
         attributes.push_str(&format!(" current=\"{}\"", current.position + 1));
     }
     attributes.push_str(&format!(" moves=\"{moves}\""));
     attributes
+}
+
+/// The step the flow stands on. A flow laid after finished steps and not yet entered stands on its
+/// entry, which is where the work goes next; a flow from the first step names none until it starts.
+fn current_step_of<'a>(steps: &[&'a TaskStepView], moves: usize) -> Option<&'a TaskStepView> {
+    if let Some(standing) = steps.iter().find(|step| step.is_current()) {
+        return Some(standing);
+    }
+    let entry = flow_entry(steps.iter().copied())?;
+    (moves == 0 && entry.position > 0).then_some(entry)
 }
 
 /// A step's routes, each naming its target by number and title. Finished steps get them too: a

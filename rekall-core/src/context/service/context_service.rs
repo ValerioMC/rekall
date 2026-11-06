@@ -15,7 +15,7 @@ use crate::connection::ConnectionView;
 use crate::dependency::{TaskWait, TaskWaitService};
 use crate::deviation::DeviationView;
 use crate::feedback::FeedbackView;
-use crate::step::{StepFlowRows, TaskStepView};
+use crate::step::{flow_entry, StepFlowRows, TaskStepView};
 use crate::task::TaskReferenceView;
 use crate::wrapup::{Freshness, WrapupFreshnessService, WrapupView};
 use crate::{in_read, load, Ctx, Tx};
@@ -463,15 +463,15 @@ fn flow_summary(steps: &[TaskStepView]) -> Option<String> {
         return None;
     }
     let moves: usize = routed.iter().map(|step| step.visits.len()).sum();
-    let summary = match (routed.iter().find(|step| step.is_current()), routed.first()) {
+    let summary = match (routed.iter().find(|step| step.is_current()), flow_entry(routed.iter().copied())) {
         (Some(current), _) => format!(
             "the steps are routed; the work stands on step {} \"{}\" after {moves} move{}. Claim it with the `outcome` that happened",
             current.position + 1,
             current.title,
             if moves == 1 { "" } else { "s" }
         ),
-        (None, Some(first)) if moves == 0 => {
-            format!("the steps are routed and not started: the flow begins at step 1 \"{}\"", first.title)
+        (None, Some(entry)) if moves == 0 => {
+            format!("the steps are routed and not started: the flow begins at step {} \"{}\"", entry.position + 1, entry.title)
         }
         _ => format!("the steps are routed; no step is current after {moves} moves"),
     };

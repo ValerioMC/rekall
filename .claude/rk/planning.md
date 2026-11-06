@@ -33,8 +33,11 @@
    open, and I review them in the console if I want to.
 
 A title the task already has is refused, so a second `plan` adds only what the first one missed. A
-flow is proposed only onto a task with no steps; on one that has some, plan a checklist and say the
-routes are mine to draw.
+flow is proposed onto a task with no steps, or whose steps are all claimed or done: those stay as
+history and the flow begins at your first new step. A route's `to` counts the whole checklist as the
+console lists it, so after four finished steps the first new step is step 5; a route to a step that
+stays is refused. Design the routes yourself. If the tool refuses, quote the refusal and name the way
+out: a step still `running` is claimed first, a title already taken is renamed.
 
 ### Splitting into sessions
 

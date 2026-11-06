@@ -60,11 +60,12 @@ releases them in the same transaction. The tool text asks the model to choose ch
 for a flow, to work out each step's arcs: what can end it and where each outcome goes.
 
 `rekall_replan` is how a session redesigns a task that already has steps. `FlowProposalService::replan`
-checks the plan whole (`FlowPlan::check_as_written`: a flow when any step has a route, a checklist
-otherwise), then in one transaction deletes the task's draft and open steps (`TaskStepService::clear_unstarted_in`)
+checks the plan whole once it has been rebased over the steps that stay (`FlowPlan::following`, then
+`FlowPlan::check_as_written`: a flow when any step has a route, a checklist otherwise), then in one
+transaction deletes the task's draft and open steps (`TaskStepService::clear_unstarted_in`)
 and lays the plan with `lay_in`. `TaskStepState::unstarted` is the one rule for what a session may delete:
 running, claimed and done steps carry a run, work waiting for review or work a person accepted, so they stay
-and the new steps follow them. A flow begins at the first step, so a flow is refused while any step stays;
+and the new steps follow them. A flow is laid after the steps that stay once none of them is running (its `to` counts the whole checklist, a route into a kept step is refused, and the flow begins at the first new step);
 a title a staying step has is refused; either refusal leaves everything as it was. `rekall_delete_step`
 (`TaskStepService::remove`) deletes one draft or open step by number or title under the same rule, renumbers
 the rest and drops the routes that touched it.

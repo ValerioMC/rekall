@@ -45,7 +45,8 @@ impl McpTool for ReplanTool {
                 "steps",
                 "The new steps in order, as for `rekall_propose_flow`: `[{\"title\":\"Run the tests\",\"detail\":\"markdown\",\
                  \"new_session\":true,\"max_visits\":3,\"routes\":[{\"outcome\":\"passed\",\"to\":\"end\"}]}]`. Without any `routes` \
-                 they are a checklist, in the order listed; with routes they are a flow.",
+                 they are a checklist, in the order listed; with routes they are a flow, and `to` counts the whole checklist \
+                 as the console lists it, steps that stay included.",
             )
             .optional_boolean(
                 "draft",

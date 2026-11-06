@@ -135,3 +135,39 @@ fn a_finished_step_stays_its_title_alone_with_no_connection() {
 
     assert!(!rendered.contains("Connection:"), "{rendered}");
 }
+
+#[test]
+fn a_flow_laid_after_finished_steps_names_its_entry_as_current_before_it_starts() {
+    let task_id = Id::random();
+    let built = step(task_id, "Built", 0, TaskStepState::Claimed);
+    let deploy = step(task_id, "Deploy", 1, TaskStepState::Open);
+    let test = step(task_id, "Test", 2, TaskStepState::Open);
+    let now = Instant::now();
+    let flow = StepFlowRows {
+        links: vec![
+            step_link::Model::new(task_id, deploy.id, Some(test.id), "deployed".into(), 0, now),
+            step_link::Model::new(task_id, test.id, None, "passed".into(), 0, now),
+        ],
+        visits: Vec::new(),
+    };
+
+    let rendered = render(&[built, deploy, test], &flow);
+
+    assert!(rendered.contains("flow=\"true\" current=\"2\" moves=\"0\""), "{rendered}");
+}
+
+#[test]
+fn a_flow_from_its_first_step_names_no_current_step_before_it_starts() {
+    let task_id = Id::random();
+    let deploy = step(task_id, "Deploy", 0, TaskStepState::Open);
+    let test = step(task_id, "Test", 1, TaskStepState::Open);
+    let now = Instant::now();
+    let flow = StepFlowRows {
+        links: vec![step_link::Model::new(task_id, deploy.id, Some(test.id), "deployed".into(), 0, now)],
+        visits: Vec::new(),
+    };
+
+    let rendered = render(&[deploy, test], &flow);
+
+    assert!(rendered.contains("flow=\"true\" moves=\"0\""), "{rendered}");
+}

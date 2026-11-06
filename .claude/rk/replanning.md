@@ -16,8 +16,12 @@ quoted text is what I noticed the plan missed, in my words. It is not an anchor.
    as the new requirement, change the open and draft steps it touches, keep the ones it does not,
    and add the steps it needs.
 3. Decide checklist or flow and work out the arcs as in `planning.md`. Steps that are running,
-   claimed or done stay and are not planned again, so the new steps follow them: when any stay,
-   plan a checklist and say the routes are mine to draw. Draw the new steps as in **Drawing the
+   claimed or done stay and are not planned again, so the new steps follow them. That does not
+   decide against a flow: design the routes yourself, numbering every `to` over the whole checklist
+   as the console lists it (after four steps that stay, the first new step is step 5). The kept
+   steps need no route into the new ones, since the flow begins at your first new step, and a route
+   to a kept step is refused. A kept step that is still `running` refuses a flow: claim it first,
+   and if the tool refuses, quote the refusal and name the way out. Draw the new steps as in **Drawing the
    plan** in `planning.md`, starting from the diagrams the task already carries and correcting them; a note that
    already holds the overview is rewritten with `replace: true`. Cut the new steps into sessions as
    **Splitting into sessions** in `planning.md` says, without being asked.

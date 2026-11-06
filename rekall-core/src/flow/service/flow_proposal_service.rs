@@ -20,8 +20,9 @@ impl FlowProposalService {
         Self { ctx, steps, links }
     }
 
-    /// Only onto a task with no steps: the flow begins at the first one, so a checklist already
-    /// there would decide where it starts and end it at its own unrouted steps.
+    /// Only onto a task with no steps, or whose steps are all finished: they stay as history and
+    /// the flow begins at the plan's first step. An open step already there would decide where it
+    /// starts and end it at its own unrouted steps.
     pub async fn propose(
         &self,
         project_label: Option<&str>,
@@ -29,11 +30,13 @@ impl FlowProposalService {
         plan: &FlowPlan,
         staging: Staging,
     ) -> Result<ProposedFlow> {
-        plan.check()?;
         in_write!(&self.ctx, |tx| {
             let task = load::resolve_task(tx.db(), project_label, task_label).await?;
-            require_no_steps(&self.steps.find_by_task_in(&mut tx, task.id).await?)?;
-            let laid = self.lay_in(&mut tx, task.id, plan).await?;
+            let existing = self.steps.find_by_task_in(&mut tx, task.id).await?;
+            require_only_finished_steps(&existing)?;
+            let plan = following(plan, &existing)?;
+            plan.check()?;
+            let laid = self.lay_in(&mut tx, task.id, &plan).await?;
             if staging == Staging::Ready {
                 self.steps.release_drafts_in(&tx, task.id).await?;
             }
@@ -43,8 +46,9 @@ impl FlowProposalService {
     }
 
     /// Replaces the task's draft and open steps with the plan, in one transaction, after the plan is
-    /// checked whole. Started, claimed and done steps stay: the plan follows them, and a flow cannot,
-    /// since it begins at the first step. A title one of them has is refused, and nothing is deleted.
+    /// checked whole. Started, claimed and done steps stay and the plan follows them; a flow is laid
+    /// after them only once none is still running. A title one of them has is refused, and nothing
+    /// is deleted.
     pub async fn replan(
         &self,
         project_label: Option<&str>,
@@ -52,15 +56,16 @@ impl FlowProposalService {
         plan: &FlowPlan,
         staging: Staging,
     ) -> Result<Replanned> {
-        plan.check_as_written()?;
         in_write!(&self.ctx, |tx| {
             let task = load::resolve_task(tx.db(), project_label, task_label).await?;
             let kept: Vec<TaskStepView> =
                 self.steps.find_by_task_in(&mut tx, task.id).await?.into_iter().filter(|step| !step.state.unstarted()).collect();
-            require_flow_has_no_kept_steps(plan, &kept)?;
-            require_titles_free_of(plan, &kept)?;
+            require_flow_follows_finished_steps(plan, &kept)?;
+            let plan = following(plan, &kept)?;
+            plan.check_as_written()?;
+            require_titles_free_of(&plan, &kept)?;
             let removed = self.steps.clear_unstarted_in(&tx, task.id).await?;
-            let laid = self.lay_in(&mut tx, task.id, plan).await?;
+            let laid = self.lay_in(&mut tx, task.id, &plan).await?;
             if staging == Staging::Ready {
                 self.steps.release_drafts_in(&tx, task.id).await?;
             }
@@ -95,27 +100,42 @@ impl FlowProposalService {
     }
 }
 
-fn require_no_steps(existing: &[TaskStepView]) -> Result<()> {
-    if existing.is_empty() {
+fn require_only_finished_steps(existing: &[TaskStepView]) -> Result<()> {
+    if existing.iter().all(|step| step.state.complete()) {
         return Ok(());
     }
+    if let Some(running) = existing.iter().find(|step| step.state.running()) {
+        return Err(running_step_refusal(running));
+    }
     Err(RekallError::illegal(format!(
-        "A flow is proposed whole, onto a task with no steps, and this one has {}. Propose single steps with \
-         `rekall_propose_step`, or clear the steps in the console first. Nothing was proposed.",
-        existing.len()
+        "A flow is proposed whole, onto a task with no steps or only finished ones, and this one has {} that are not. \
+         Propose single steps with `rekall_propose_step`, replan it with `rekall_replan`, or clear the steps in the \
+         console first. Nothing was proposed.",
+        existing.iter().filter(|step| !step.state.complete()).count()
     )))
 }
 
-fn require_flow_has_no_kept_steps(plan: &FlowPlan, kept: &[TaskStepView]) -> Result<()> {
-    if plan.route_count() == 0 || kept.is_empty() {
+fn require_flow_follows_finished_steps(plan: &FlowPlan, kept: &[TaskStepView]) -> Result<()> {
+    if plan.route_count() == 0 {
         return Ok(());
     }
-    Err(RekallError::illegal(format!(
-        "A flow begins at the first step, and {} stay on this task because they were started or finished: {}. \
-         Replan as a checklist, which follows them, or let a person clear them in the console. Nothing was changed.",
-        kept.len(),
-        titles_of(kept)
-    )))
+    match kept.iter().find(|step| step.state.running()) {
+        Some(running) => Err(running_step_refusal(running)),
+        None => Ok(()),
+    }
+}
+
+fn running_step_refusal(running: &TaskStepView) -> RekallError {
+    RekallError::illegal(format!(
+        "'{}' is still running, so how it ends is not known yet and the flow cannot be laid after it. Claim it with \
+         `rekall_step` first, then plan the flow. Nothing was changed.",
+        running.title
+    ))
+}
+
+fn following(plan: &FlowPlan, kept: &[TaskStepView]) -> Result<FlowPlan> {
+    let titles: Vec<&str> = kept.iter().map(|step| step.title.as_str()).collect();
+    plan.following(&titles)
 }
 
 fn require_titles_free_of(plan: &FlowPlan, kept: &[TaskStepView]) -> Result<()> {
@@ -130,8 +150,4 @@ fn require_titles_free_of(plan: &FlowPlan, kept: &[TaskStepView]) -> Result<()> 
         }
     }
     Ok(())
-}
-
-fn titles_of(steps: &[TaskStepView]) -> String {
-    steps.iter().map(|step| format!("'{}' ({})", step.title, step.state.name().to_lowercase())).collect::<Vec<_>>().join(", ")
 }
