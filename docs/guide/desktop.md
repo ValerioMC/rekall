@@ -8,7 +8,7 @@ A disk image for Apple Silicon is published with every `v*` tag pushed on a comm
 | Needs | macOS 13 or later, Apple Silicon |
 | Install | Drag Rekall onto Applications, then run the `xattr` command below once |
 
-The link always resolves to the newest tagged release. A push to `main` builds nothing; a release is cut with `git tag v0.1.1 && git push origin v0.1.1`, and a tag on a commit that is not on `main` fails before anything is built. It builds on a `macos-14` runner from `.github/workflows/release.yml`. The same release carries `rekall-server` for Linux and Windows, with the console embedded, and the [Windows installer](#windows-installer), `Rekall-windows-x64-setup.exe`, built on a `windows-latest` runner by the same script you run locally.
+The link always resolves to the newest tagged release. A push to `main` builds nothing; a release is cut with `git tag v0.1.1 && git push origin v0.1.1`, and a tag on a commit that is not on `main` fails before anything is built. It builds on a `macos-15` runner from `.github/workflows/release.yml`. The same release carries `rekall-server` for Linux and Windows, with the console embedded, and the [Windows installer](#windows-installer), `Rekall-windows-x64-setup.exe`, built on a `windows-latest` runner by the same script you run locally.
 
 ## Version and updates
 

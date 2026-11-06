@@ -108,7 +108,7 @@ jobs:
   # The same bundle `make dmg` builds locally.
   build-dmg-macos:
     needs: build-and-release
-    runs-on: macos-14 # Apple Silicon
+    runs-on: macos-15 # Apple Silicon
     steps:
       - uses: actions/checkout@v4
 
