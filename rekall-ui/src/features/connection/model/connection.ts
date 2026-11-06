@@ -1,14 +1,15 @@
 import type { CompanyId, ConnectionId, ProjectConnectionId, ProjectId, TaskId, TerminalId } from '@/model/branded'
 
-export type ConnectionKind = 'GITLAB' | 'GITHUB' | 'KUBERNETES' | 'JIRA'
+export type ConnectionKind = 'GITLAB' | 'GITHUB' | 'KUBERNETES' | 'JIRA' | 'GRAFANA'
 
-export const CONNECTION_KINDS: readonly ConnectionKind[] = ['GITLAB', 'GITHUB', 'KUBERNETES', 'JIRA']
+export const CONNECTION_KINDS: readonly ConnectionKind[] = ['GITLAB', 'GITHUB', 'KUBERNETES', 'JIRA', 'GRAFANA']
 
 export const CONNECTION_KIND_LABEL: Readonly<Record<ConnectionKind, string>> = {
   GITLAB: 'GitLab',
   GITHUB: 'GitHub',
   KUBERNETES: 'Kubernetes',
-  JIRA: 'Jira'
+  JIRA: 'Jira',
+  GRAFANA: 'Grafana'
 }
 
 /** What one connection of a kind is called, as a group's add button and empty line name it. */
@@ -16,7 +17,8 @@ export const CONNECTION_KIND_NOUN: Readonly<Record<ConnectionKind, string>> = {
   GITLAB: 'GitLab instance',
   GITHUB: 'GitHub server',
   KUBERNETES: 'cluster',
-  JIRA: 'Jira site'
+  JIRA: 'Jira site',
+  GRAFANA: 'Grafana instance'
 }
 
 /**
@@ -29,7 +31,7 @@ export interface Connection {
   readonly kind: ConnectionKind
   readonly label: string
   readonly title: string
-  /** The GitLab instance, GitHub server or Jira site, or the server the imported kubeconfig names. */
+  /** The GitLab instance, GitHub server, Jira site or Grafana instance, or the server the imported kubeconfig names. */
   readonly baseUrl: string | null
   readonly kubeContext: string | null
   /** Jira only: the proxy every call to the site goes through. */
@@ -76,7 +78,7 @@ export interface ProjectConnection {
   readonly title: string
   readonly baseUrl: string | null
   readonly kubeContext: string | null
-  /** The GitLab project path, the GitHub repository, the Kubernetes namespace or the Jira project key this project uses it for. */
+  /** The GitLab project path, the GitHub repository, the Kubernetes namespace, the Jira project key or the Grafana folder UID this project uses it for. */
   readonly target: string | null
   readonly credentialSetAt: string | null
 }
@@ -132,6 +134,7 @@ export type JiraDeployment = 'CLOUD' | 'DATA_CENTER'
 export type CredentialDraft =
   | { readonly kind: 'GITLAB'; readonly token: string }
   | { readonly kind: 'GITHUB'; readonly token: string }
+  | { readonly kind: 'GRAFANA'; readonly token: string }
   | { readonly kind: 'KUBERNETES'; readonly kubeconfig: string; readonly context: string | null }
   | { readonly kind: 'JIRA'; readonly deployment: JiraDeployment; readonly email: string; readonly token: string }
 

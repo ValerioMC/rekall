@@ -149,6 +149,7 @@ keychain account; never the credential), so a connection bound twice is reached 
 | `rekall-gitlab` | `rekall-gitlab --connection <label> <METHOD> <path> [curl options]`: a GitLab API call with the `PRIVATE-TOKEN` header, `:project` standing for the binding's project path, URL-encoded |
 | `rekall-github` | `rekall-github --connection <label> <METHOD> <path> [curl options]`: a GitHub REST call with a Bearer `Authorization` header and `X-GitHub-Api-Version`, under `https://api.github.com` for github.com or `<server>/api/v3` for an Enterprise Server (`github_api_root`), `:project` standing for the binding's `owner/repo` as two path segments |
 | `rekall-jira` | `rekall-jira --connection <label> <METHOD> <path> [curl options]`: a Jira call under `/rest/api/2` with the credential's `Authorization` header (Basic on Cloud, Bearer on Data Center) and JSON both ways, `:project` standing for the binding's project key, through the connection's proxy (`curl --proxy`) when it names one |
+| `rekall-grafana` | `rekall-grafana --connection <label> <METHOD> <path> [curl options]`: a Grafana call under `/api` with the service account token as a Bearer `Authorization` header and JSON both ways, `:project` standing for the binding's folder UID |
 
 None holds a credential. `SessionEnvironment` adds the folder first on `PATH`, `KUBECONFIG` (only
 Rekall's clusters, so the session uses the credential you provided), a `GIT_CONFIG_KEY_n`/`VALUE_n`
@@ -156,7 +157,7 @@ pair per GitLab or GitHub host (an empty `credential.<url>.helper` that drops he
 then Rekall's, after any entries the shell already set; bindings of one instance share its token, so
 the first answers for the host) and `REKALL_CREDENTIAL_TOKEN`, 244 random bits
 for this terminal. The helpers send the token as a header read from stdin, so it never appears in a
-process listing, to `GET /api/terminal/{id}/credentials/{label}?for=kubectl|git|gitlab|github|jira`. That route
+process listing, to `GET /api/terminal/{id}/credentials/{label}?for=kubectl|git|gitlab|github|jira|grafana`. That route
 sits outside the router's UUID check, answers only a loopback peer even with
 `rekall.security.remote-access` on, and answers in plain text the helpers print as they are: 403
 for a token that is not the terminal's (compared in constant time) or a peer that is not this
@@ -179,5 +180,5 @@ the credential (pulsing once per hand-out), amber when a request was refused, ea
 company's Connections screen. The connections never asked for fold into one `N unused` chip that opens
 to list them (idle, or amber when no credential is stored); a connection leaves it at its first request.
 Both lists follow `sortedByKind` (`features/connection/lib/connection-order.ts`): clusters, then GitLab,
-then Jira, by label within a kind, the order of the project's Connections tab. The counts are `credentialAccess.store`'s, read from one subscription
+GitHub, Jira, then Grafana, by label within a kind, the order of the project's Connections tab. The counts are `credentialAccess.store`'s, read from one subscription
 and kept only for the console's lifetime; the access log is the record.

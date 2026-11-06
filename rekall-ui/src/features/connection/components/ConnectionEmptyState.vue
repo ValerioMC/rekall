@@ -35,7 +35,7 @@ const filteredTitle = computed(() =>
   <AppEmptyState
     v-else
     title="No connection yet"
-    description="A connection is an account or server your projects reach: a GitLab instance, a GitHub account, a Kubernetes cluster or a Jira site. Its credential stays on this machine and is shared with the companies you choose."
+    description="A connection is an account or server your projects reach: a GitLab instance, a GitHub account, a Kubernetes cluster, a Jira site or a Grafana instance. Its credential stays on this machine and is shared with the companies you choose."
     data-testid="connections-empty"
   >
     <div class="flex flex-wrap justify-center gap-2">

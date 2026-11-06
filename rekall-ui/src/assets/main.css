@@ -122,6 +122,7 @@
   --color-brand-gitlab: #fc6d26;
   --color-brand-kubernetes: #326ce5;
   --color-brand-jira: #2684ff;
+  --color-brand-grafana: #f46800;
 
   --font-sans: 'Fira Sans', ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'Fira Code Variable', ui-monospace, SFMono-Regular, Menlo, monospace;

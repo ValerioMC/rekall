@@ -39,3 +39,13 @@ describe('a GitHub credential draft', () => {
     expect(credentialNoun('GITHUB')).toBe('token')
   })
 })
+
+describe('a Grafana credential draft', () => {
+  it('is a service account token, complete once one is typed', () => {
+    expect(emptyDraft('GRAFANA')).toEqual({ kind: 'GRAFANA', token: '' })
+    expect(isStarted({ kind: 'GRAFANA', token: 'glsa_1' })).toBe(true)
+    expect(isComplete({ kind: 'GRAFANA', token: ' ' })).toBe(false)
+    expect(isComplete({ kind: 'GRAFANA', token: 'glsa_1' })).toBe(true)
+    expect(credentialNoun('GRAFANA')).toBe('token')
+  })
+})

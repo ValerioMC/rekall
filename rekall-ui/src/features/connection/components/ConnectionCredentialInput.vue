@@ -11,8 +11,14 @@ const JIRA_DEPLOYMENTS: readonly { value: JiraDeployment; label: string }[] = [
   { value: 'DATA_CENTER', label: 'Data Center' }
 ]
 
+const TOKEN_PLACEHOLDER: Readonly<Record<'GITLAB' | 'GITHUB' | 'GRAFANA', string>> = {
+  GITLAB: 'glpat-…',
+  GITHUB: 'github_pat_…',
+  GRAFANA: 'glsa_…'
+}
+
 function setToken(token: string): void {
-  if (props.modelValue.kind === 'GITLAB' || props.modelValue.kind === 'GITHUB') emit('update:modelValue', { kind: props.modelValue.kind, token })
+  if (props.modelValue.kind === 'GITLAB' || props.modelValue.kind === 'GITHUB' || props.modelValue.kind === 'GRAFANA') emit('update:modelValue', { kind: props.modelValue.kind, token })
   if (props.modelValue.kind === 'JIRA') emit('update:modelValue', { ...props.modelValue, token })
 }
 
@@ -27,7 +33,7 @@ function setDeployment(deployment: JiraDeployment): void {
 
 <template>
   <input
-    v-if="modelValue.kind === 'GITLAB' || modelValue.kind === 'GITHUB'"
+    v-if="modelValue.kind === 'GITLAB' || modelValue.kind === 'GITHUB' || modelValue.kind === 'GRAFANA'"
     :id="id"
     :value="modelValue.token"
     type="password"
@@ -35,7 +41,7 @@ function setDeployment(deployment: JiraDeployment): void {
     spellcheck="false"
     :data-testid="`${modelValue.kind.toLowerCase()}-token`"
     class="field text-text h-(--spacing-control) w-full rounded-control px-3 font-mono text-body"
-    :placeholder="modelValue.kind === 'GITLAB' ? 'glpat-…' : 'github_pat_…'"
+    :placeholder="TOKEN_PLACEHOLDER[modelValue.kind]"
     @input="setToken(($event.target as HTMLInputElement).value)"
   />
   <div v-else-if="modelValue.kind === 'JIRA'" class="flex flex-col gap-2">

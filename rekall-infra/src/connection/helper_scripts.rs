@@ -73,6 +73,17 @@ pub(super) const JIRA_API: ApiWrapper = ApiWrapper {
     headers: "-H 'Accept: application/json' -H 'Content-Type: application/json' ",
 };
 
+/// Grafana's HTTP API under `/api` with the service account token as a bearer and JSON both ways,
+/// `:project` the folder UID.
+pub(super) const GRAFANA_API: ApiWrapper = ApiWrapper {
+    name: "rekall-grafana",
+    system: "Grafana",
+    api_base: grafana_api_base,
+    escapes_target: true,
+    purpose: "grafana",
+    headers: "-H 'Accept: application/json' -H 'Content-Type: application/json' ",
+};
+
 pub(super) fn api_wrapper(wrapper: &ApiWrapper, endpoint: &str, connections: &[&TerminalConnection]) -> String {
     let ApiWrapper { name, system, api_base, escapes_target, purpose, headers } = wrapper;
     let mut cases = String::new();
@@ -102,6 +113,10 @@ printf '%s\\n' \"$header\" | curl --silent --show-error -X \"$method\" -H @- {he
 
 fn gitlab_api_base(instance_url: &str) -> String {
     format!("{}/api/v4", instance_url.trim_end_matches('/'))
+}
+
+fn grafana_api_base(instance_url: &str) -> String {
+    format!("{}/api", instance_url.trim_end_matches('/'))
 }
 
 fn jira_api_base(site_url: &str) -> String {

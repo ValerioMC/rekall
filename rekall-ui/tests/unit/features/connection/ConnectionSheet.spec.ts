@@ -53,7 +53,8 @@ describe('ConnectionSheet', () => {
       'kind-KUBERNETES',
       'kind-GITLAB',
       'kind-GITHUB',
-      'kind-JIRA'
+      'kind-JIRA',
+      'kind-GRAFANA'
     ])
     wrapper.unmount()
   })

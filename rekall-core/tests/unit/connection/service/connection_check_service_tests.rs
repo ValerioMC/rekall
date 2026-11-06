@@ -49,6 +49,11 @@ impl ConnectionProbe for FakeProbe {
         self.asked.lock().unwrap().push(format!("{} via {proxy} as {}", site.url, credential.email().unwrap_or("a personal access token")));
         self.outcome.clone()
     }
+
+    async fn grafana(&self, instance_url: &str, _token: &Secret) -> ProbeOutcome {
+        self.asked.lock().unwrap().push(format!("grafana {instance_url}"));
+        self.outcome.clone()
+    }
 }
 
 struct World {
@@ -72,6 +77,7 @@ impl World {
             ConnectionKind::Gitlab => Some("https://gitlab.example.com".to_string()),
             ConnectionKind::Github => Some("https://github.com".to_string()),
             ConnectionKind::Jira => Some("https://example.atlassian.net".to_string()),
+            ConnectionKind::Grafana => Some("https://grafana.example.com".to_string()),
             ConnectionKind::Kubernetes => None,
         };
         let mut connection = external_connection::Model::new("conn".into(), "Conn".into(), kind, base_url, Instant::now());
@@ -162,4 +168,16 @@ async fn a_github_check_asks_the_server_the_connection_names() {
 
     assert_eq!(check.detail, "Signed in as octocat.");
     assert_eq!(*world.probe.asked.lock().unwrap(), ["github https://github.com"]);
+}
+
+#[tokio::test]
+async fn a_grafana_check_asks_the_instance_the_connection_names() {
+    let world = world(ProbeOutcome::Accepted { identity: Some("sa-rekall".into()), version: None }).await;
+    let id = world.connection(ConnectionKind::Grafana, Some("glsa_secret")).await;
+
+    let check = world.checks.check(id).await.unwrap();
+
+    assert!(check.ok);
+    assert_eq!(check.detail, "Signed in as sa-rekall.");
+    assert_eq!(*world.probe.asked.lock().unwrap(), ["grafana https://grafana.example.com"]);
 }

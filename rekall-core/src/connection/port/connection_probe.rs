@@ -3,7 +3,7 @@ use crate::connection::{JiraCredential, JiraSite, KubeAccess, Secret};
 
 use crate::connection::ProbeOutcome;
 
-/// Asks a GitLab instance, a GitHub server, a Kubernetes cluster or a Jira site whether a credential is accepted.
+/// Asks a GitLab instance, a GitHub server, a Kubernetes cluster, a Jira site or a Grafana instance whether a credential is accepted.
 #[async_trait]
 pub trait ConnectionProbe: Send + Sync {
     async fn gitlab(&self, base_url: &str, token: &Secret) -> ProbeOutcome;
@@ -13,4 +13,6 @@ pub trait ConnectionProbe: Send + Sync {
     async fn kubernetes(&self, access: &KubeAccess) -> ProbeOutcome;
 
     async fn jira(&self, site: &JiraSite, credential: &JiraCredential) -> ProbeOutcome;
+
+    async fn grafana(&self, instance_url: &str, token: &Secret) -> ProbeOutcome;
 }

@@ -15,6 +15,7 @@ export function endpointOf(connection: Pick<Connection, 'kind' | 'baseUrl' | 'ku
   if (connection.kind === 'GITLAB') return host ?? 'no instance URL'
   if (connection.kind === 'GITHUB') return host ?? 'no server URL'
   if (connection.kind === 'JIRA') return host ?? 'no site URL'
+  if (connection.kind === 'GRAFANA') return host ?? 'no instance URL'
   return (
     [connection.kubeContext, host].filter((part): part is string => !!part).join(' · ') || 'no kubeconfig yet'
   )

@@ -697,3 +697,7 @@ body .cm-tooltip.cm-tooltip-autocomplete.rk-completion-tooltip .cm-completionDet
 .rk-completion-icon[data-icon='jira'] {
   color: var(--color-brand-jira);
 }
+
+.rk-completion-icon[data-icon='grafana'] {
+  color: var(--color-brand-grafana);
+}

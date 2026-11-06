@@ -21,7 +21,8 @@ const GLYPH: Readonly<Record<ReferenceIcon, Glyph>> = {
   GITLAB: { path: CONNECTION_KIND_PATH.GITLAB, outline: false },
   GITHUB: { path: CONNECTION_KIND_PATH.GITHUB, outline: false },
   KUBERNETES: { path: CONNECTION_KIND_PATH.KUBERNETES, outline: false },
-  JIRA: { path: CONNECTION_KIND_PATH.JIRA, outline: false }
+  JIRA: { path: CONNECTION_KIND_PATH.JIRA, outline: false },
+  GRAFANA: { path: CONNECTION_KIND_PATH.GRAFANA, outline: false }
 }
 
 /** The completion `type` that carries an icon: CodeMirror also names the row's own icon class after it. */

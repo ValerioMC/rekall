@@ -12,7 +12,7 @@ use tracing::{info, warn};
 
 use super::credential_session::CredentialSession;
 use super::guard_rails::settings_document;
-use super::helper_scripts::{api_wrapper, git_helper, kube_plugin, GITHUB_API, GITLAB_API, GIT_HELPER, JIRA_API, KUBE_PLUGIN};
+use super::helper_scripts::{api_wrapper, git_helper, kube_plugin, GITHUB_API, GITLAB_API, GIT_HELPER, GRAFANA_API, JIRA_API, KUBE_PLUGIN};
 use super::session_kubeconfig::{exec_credential, session_kubeconfig, SessionCluster};
 use super::{CredentialPurpose, HandOut, Refusal, SessionEnvironment};
 
@@ -129,6 +129,7 @@ impl CredentialBroker {
             CredentialPurpose::Git => Ok(Secret::new(format!("username=oauth2\npassword={}\n", stored.expose()))),
             CredentialPurpose::Gitlab => Ok(Secret::new(format!("PRIVATE-TOKEN: {}\n", stored.expose()))),
             CredentialPurpose::Github => Ok(Secret::new(format!("Authorization: Bearer {}\n", stored.expose()))),
+            CredentialPurpose::Grafana => Ok(Secret::new(format!("Authorization: Bearer {}\n", stored.expose()))),
             CredentialPurpose::Jira => {
                 let credential = JiraCredential::from_stored(&stored).map_err(|failure| (Refusal::Failed, failure.message().to_string()))?;
                 Ok(Secret::new(format!("Authorization: {}\n", credential.authorization().expose())))
@@ -175,6 +176,10 @@ impl CredentialBroker {
         let jiras: Vec<&TerminalConnection> = connections.iter().filter(|connection| connection.kind == ConnectionKind::Jira).collect();
         if !jiras.is_empty() {
             write_script(&folder.join(JIRA_API.name), &api_wrapper(&JIRA_API, &endpoint, &jiras))?;
+        }
+        let grafanas: Vec<&TerminalConnection> = connections.iter().filter(|connection| connection.kind == ConnectionKind::Grafana).collect();
+        if !grafanas.is_empty() {
+            write_script(&folder.join(GRAFANA_API.name), &api_wrapper(&GRAFANA_API, &endpoint, &grafanas))?;
         }
         Ok(environment)
     }

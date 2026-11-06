@@ -72,9 +72,10 @@ impl ConnectionCredentialService {
 
 async fn prepare(kind: ConnectionKind, command: ConnectionCredentialCommand) -> Result<PreparedCredential> {
     match kind {
-        ConnectionKind::Gitlab => access_token(command, "GitLab").map(|token| PreparedCredential { stored: token, kube: None }),
-        ConnectionKind::Github => access_token(command, "GitHub").map(|token| PreparedCredential { stored: token, kube: None }),
+        ConnectionKind::Gitlab => access_token(command, "GitLab", "personal access token").map(|token| PreparedCredential { stored: token, kube: None }),
+        ConnectionKind::Github => access_token(command, "GitHub", "personal access token").map(|token| PreparedCredential { stored: token, kube: None }),
         ConnectionKind::Kubernetes => kube_credential(command).await,
+        ConnectionKind::Grafana => access_token(command, "Grafana", "service account token").map(|token| PreparedCredential { stored: token, kube: None }),
         ConnectionKind::Jira => jira_credential(command).map(|credential| PreparedCredential { stored: credential.to_stored(), kube: None }),
     }
 }
@@ -91,12 +92,12 @@ fn jira_credential(command: ConnectionCredentialCommand) -> Result<JiraCredentia
     }
 }
 
-/// GitLab and GitHub both take a personal access token; `server` names which in the refusals.
-fn access_token(command: ConnectionCredentialCommand, server: &str) -> Result<Secret> {
+/// GitLab and GitHub take a personal access token and Grafana a service account token; `server` and `token_name` word the refusals.
+fn access_token(command: ConnectionCredentialCommand, server: &str, token_name: &str) -> Result<Secret> {
     if command.kubeconfig.is_some() {
         return Err(RekallError::illegal(format!("A {server} connection takes a token, not a kubeconfig.")));
     }
-    command.token.filter(|token| !token.is_blank()).ok_or_else(|| RekallError::illegal(format!("A {server} connection needs its personal access token.")))
+    command.token.filter(|token| !token.is_blank()).ok_or_else(|| RekallError::illegal(format!("A {server} connection needs its {token_name}.")))
 }
 
 /// Parsing reads the files a kubeconfig names, so it runs off the async runtime.

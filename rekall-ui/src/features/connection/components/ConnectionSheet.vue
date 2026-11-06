@@ -250,7 +250,7 @@ onMounted(async () => {
           v-slot="{ fieldId, describedBy }"
           class="mt-3"
           label="Label"
-          hint="The short name sessions use for this connection: kubectl --context, rekall-gitlab, rekall-github and rekall-jira --connection. Made from the title when left empty."
+          hint="The short name sessions use for this connection: kubectl --context, rekall-gitlab, rekall-github, rekall-jira and rekall-grafana --connection. Made from the title when left empty."
           :error="submitted ? labelError : null"
         >
           <AppInput

@@ -28,6 +28,11 @@ struct GithubUser {
 }
 
 #[derive(Deserialize)]
+struct GrafanaUser {
+    login: Option<String>,
+}
+
+#[derive(Deserialize)]
 struct JiraUser {
     #[serde(rename = "displayName")]
     display_name: Option<String>,
@@ -130,6 +135,23 @@ impl ConnectionProbe for HttpConnectionProbe {
                 let user = response.json::<JiraUser>().await.ok();
                 ProbeOutcome::Accepted { identity: user.and_then(|user| user.display_name.or(user.email_address).or(user.name)), version: None }
             }
+            Err(outcome) => outcome,
+        }
+    }
+
+    async fn grafana(&self, instance_url: &str, token: &Secret) -> ProbeOutcome {
+        let client = match Client::builder().timeout(self.timeout).build() {
+            Ok(client) => client,
+            Err(failure) => return unreachable(&failure),
+        };
+        let mut header = match HeaderValue::from_str(&format!("Bearer {}", token.expose())) {
+            Ok(header) => header,
+            Err(_) => return ProbeOutcome::Unreachable { reason: "the stored token holds characters a header cannot carry".into() },
+        };
+        header.set_sensitive(true);
+        let answer = client.get(format!("{}/api/user", instance_url.trim_end_matches('/'))).header(AUTHORIZATION, header).send().await;
+        match accepted(answer).await {
+            Ok(response) => ProbeOutcome::Accepted { identity: response.json::<GrafanaUser>().await.ok().and_then(|user| user.login), version: None },
             Err(outcome) => outcome,
         }
     }

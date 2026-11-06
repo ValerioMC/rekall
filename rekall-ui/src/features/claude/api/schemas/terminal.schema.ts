@@ -25,7 +25,7 @@ export const TerminalSchema = z.object({
       z.object({
         connectionId: z.string().uuid().transform(asConnectionId),
         label: z.string(),
-        kind: z.enum(['GITLAB', 'GITHUB', 'KUBERNETES', 'JIRA']),
+        kind: z.enum(['GITLAB', 'GITHUB', 'KUBERNETES', 'JIRA', 'GRAFANA']),
         credentialSet: z.boolean()
       })
     )

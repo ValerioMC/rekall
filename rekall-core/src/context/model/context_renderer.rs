@@ -390,6 +390,15 @@ fn connection_usage(connection: &ConnectionView) -> String {
                 connection.label
             )
         }
+        ConnectionKind::Grafana => {
+            let instance = connection.instance_url.as_deref().unwrap_or("its Grafana instance");
+            let folder = connection.target.as_deref().map_or_else(String::new, |uid| format!(", folder `{uid}` (`:project` in an API path)"));
+            format!(
+                "Grafana at {instance}{folder}. Call its HTTP API with `rekall-grafana --connection {} <METHOD> <path> [curl options]`, \
+                 a path under `/api` such as `GET /search?query=…` for dashboards or `GET /dashboards/uid/<uid>`, with the JSON body as `-d`",
+                connection.label
+            )
+        }
     }
 }
 

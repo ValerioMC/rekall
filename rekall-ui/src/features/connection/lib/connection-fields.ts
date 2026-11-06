@@ -12,7 +12,8 @@ export const URL_FIELD: Readonly<Record<ConnectionKind, UrlField | null>> = {
   GITLAB: { title: 'Instance URL', label: 'GitLab instance URL', placeholder: 'https://gitlab.example.com' },
   GITHUB: { title: 'Server URL', label: 'GitHub server URL', placeholder: 'https://github.com' },
   KUBERNETES: null,
-  JIRA: { title: 'Site URL', label: 'Jira site URL', placeholder: 'https://example.atlassian.net' }
+  JIRA: { title: 'Site URL', label: 'Jira site URL', placeholder: 'https://example.atlassian.net' },
+  GRAFANA: { title: 'Instance URL', label: 'Grafana instance URL', placeholder: 'https://grafana.example.com' }
 }
 
 /** Only a Jira site is reached through a proxy typed in; a cluster's comes from its kubeconfig. */
@@ -20,7 +21,8 @@ export const TAKES_PROXY: Readonly<Record<ConnectionKind, boolean>> = {
   GITLAB: false,
   GITHUB: false,
   KUBERNETES: false,
-  JIRA: true
+  JIRA: true,
+  GRAFANA: false
 }
 
 /** How a kind's credential is asked for when a connection is created. */
@@ -51,6 +53,11 @@ export const CREDENTIAL_FIELD: Readonly<Record<ConnectionKind, CredentialField>>
     title: 'Sign-in',
     hint: "Optional now. Jira Cloud takes the account's email and an API token, Data Center a personal access token; stored in this machine's credential store.",
     incomplete: 'Type the email and the API token, or the personal access token, or leave them empty to set them later.'
+  },
+  GRAFANA: {
+    title: 'Service account token',
+    hint: "Optional now; a token of a Grafana service account with the role the sessions need. Stored in this machine's credential store.",
+    incomplete: 'Type the token, or leave it empty to set it later.'
   }
 }
 
@@ -59,7 +66,8 @@ export const ADDRESS_TERM: Readonly<Record<ConnectionKind, string>> = {
   GITLAB: 'Instance',
   GITHUB: 'Server',
   KUBERNETES: 'Server',
-  JIRA: 'Site'
+  JIRA: 'Site',
+  GRAFANA: 'Instance'
 }
 
 /** What a project narrows a connection of each kind to. */
@@ -73,7 +81,8 @@ export const TARGET_FIELD: Readonly<Record<ConnectionKind, TargetField>> = {
   GITLAB: { name: 'GitLab project path', placeholder: 'group/project' },
   GITHUB: { name: 'GitHub repository', placeholder: 'owner/repository' },
   KUBERNETES: { name: 'Namespace', placeholder: 'namespace' },
-  JIRA: { name: 'Jira project key', placeholder: 'project key, such as ENG' }
+  JIRA: { name: 'Jira project key', placeholder: 'project key, such as ENG' },
+  GRAFANA: { name: 'Grafana folder UID', placeholder: 'folder UID' }
 }
 
 /** What a GitLab or GitHub credential is limited to, asked for as the root path. */
@@ -95,5 +104,6 @@ export const ROOT_PATH_FIELD: Readonly<Record<ConnectionKind, RootPathField | nu
     example: 'A token for the account vmcforge covers every repository of that owner.'
   },
   KUBERNETES: null,
-  JIRA: null
+  JIRA: null,
+  GRAFANA: null
 }

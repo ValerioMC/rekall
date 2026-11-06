@@ -157,3 +157,29 @@ async fn a_data_center_personal_access_token_is_checked_through_v2_and_names_its
     let outcome = HttpConnectionProbe::new().jira(&site, &credential).await;
     assert_eq!(outcome, ProbeOutcome::Accepted { identity: Some("vcasale".into()), version: None });
 }
+
+fn grafana_instance() -> Router {
+    Router::new().route(
+        "/api/user",
+        get(|headers: HeaderMap| async move {
+            match bearer(&headers).as_deref() {
+                Some("Bearer glsa-good") => Ok(Json(json!({ "login": "sa-rekall" }))),
+                _ => Err(AxumStatus::UNAUTHORIZED),
+            }
+        }),
+    )
+}
+
+#[tokio::test]
+async fn a_good_grafana_token_is_accepted_and_names_its_service_account() {
+    let base = serve(grafana_instance()).await;
+    let outcome = HttpConnectionProbe::new().grafana(&format!("{base}/"), &Secret::new("glsa-good")).await;
+    assert_eq!(outcome, ProbeOutcome::Accepted { identity: Some("sa-rekall".into()), version: None });
+}
+
+#[tokio::test]
+async fn a_bad_grafana_token_is_rejected() {
+    let base = serve(grafana_instance()).await;
+    let outcome = HttpConnectionProbe::new().grafana(&base, &Secret::new("glsa-bad")).await;
+    assert_eq!(outcome, ProbeOutcome::Rejected { status: 401 });
+}

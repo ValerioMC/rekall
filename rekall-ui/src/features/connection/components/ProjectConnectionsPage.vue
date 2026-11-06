@@ -203,7 +203,7 @@ watch(
         </div>
       </div>
       <p v-else class="max-w-[60ch] text-small leading-relaxed text-text-subtle" data-testid="connections-empty">
-        No connection used yet. A session on this project reaches only the clusters, GitLab instances, GitHub servers and Jira sites
+        No connection used yet. A session on this project reaches only the clusters, GitLab instances, GitHub servers, Jira sites and Grafana instances
         bound here.
       </p>
 

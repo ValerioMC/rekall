@@ -1,5 +1,5 @@
 //! A system outside Rekall that projects reach, shared with the companies in `connection_company`:
-//! a GitLab instance, a GitHub server, a Kubernetes cluster or a Jira site. The row holds only what the console shows; the credential lives in the OS keychain
+//! a GitLab instance, a GitHub server, a Kubernetes cluster, a Jira site or a Grafana instance. The row holds only what the console shows; the credential lives in the OS keychain
 //! under `secret_ref`, so no query, export or context can carry it.
 
 use rekall_kernel::{Id, Instant, RekallError};
@@ -27,7 +27,7 @@ pub struct Model {
     pub label: String,
     pub title: String,
     pub kind: ConnectionKind,
-    /// The GitLab instance or Jira site, or the Kubernetes server read from the imported kubeconfig.
+    /// The GitLab instance, Jira site or Grafana instance, or the Kubernetes server read from the imported kubeconfig.
     pub base_url: Option<String>,
     /// The kubeconfig context chosen on import.
     pub kube_context: Option<String>,
@@ -91,7 +91,7 @@ impl Model {
             .finish()
     }
 
-    /// GitLab, GitHub and Jira are reached at a typed URL; a context only means something to a kubeconfig.
+    /// GitLab, GitHub, Jira and Grafana are reached at a typed URL; a context only means something to a kubeconfig.
     fn check_kind_fields(&self) -> Result<(), RekallError> {
         match self.kind {
             ConnectionKind::Gitlab if self.base_url.is_none() => {
@@ -103,10 +103,13 @@ impl Model {
             ConnectionKind::Jira if self.base_url.is_none() => {
                 Err(RekallError::illegal("A Jira connection needs the site URL, such as https://example.atlassian.net."))
             }
-            ConnectionKind::Gitlab | ConnectionKind::Github | ConnectionKind::Jira if self.kube_context.is_some() => {
+            ConnectionKind::Grafana if self.base_url.is_none() => {
+                Err(RekallError::illegal("A Grafana connection needs the instance URL, such as https://grafana.example.com."))
+            }
+            ConnectionKind::Gitlab | ConnectionKind::Github | ConnectionKind::Jira | ConnectionKind::Grafana if self.kube_context.is_some() => {
                 Err(RekallError::illegal("Only a Kubernetes connection has a kubeconfig context."))
             }
-            ConnectionKind::Gitlab | ConnectionKind::Github | ConnectionKind::Kubernetes if self.proxy_url.is_some() => {
+            ConnectionKind::Gitlab | ConnectionKind::Github | ConnectionKind::Kubernetes | ConnectionKind::Grafana if self.proxy_url.is_some() => {
                 Err(RekallError::illegal("Only a Jira connection takes a proxy. A cluster is reached through its kubeconfig's proxy-url."))
             }
             _ => Ok(()),

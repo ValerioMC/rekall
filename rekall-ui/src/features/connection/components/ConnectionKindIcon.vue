@@ -10,7 +10,8 @@ const BRAND: Readonly<Record<ConnectionKind, string>> = {
   GITLAB: 'text-brand-gitlab',
   GITHUB: 'text-text',
   KUBERNETES: 'text-brand-kubernetes',
-  JIRA: 'text-brand-jira'
+  JIRA: 'text-brand-jira',
+  GRAFANA: 'text-brand-grafana'
 }
 
 const path = computed(() => CONNECTION_KIND_PATH[props.kind])

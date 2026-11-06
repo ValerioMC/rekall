@@ -159,3 +159,16 @@ async fn a_jira_connection_refuses_a_username_in_place_of_an_email_or_a_kubeconf
     assert!(world.credentials.set(jira.id, kubeconfig("prod")).await.unwrap_err().is_illegal_argument());
     assert!(!world.secrets.contains(&jira.secret_ref));
 }
+
+#[tokio::test]
+async fn a_grafana_service_account_token_goes_to_the_store_and_a_kubeconfig_is_refused() {
+    let world = world().await;
+    let grafana = world.connection(ConnectionKind::Grafana).await;
+
+    assert!(world.credentials.set(grafana.id, kubeconfig("prod")).await.unwrap_err().is_illegal_argument());
+    assert!(!world.secrets.contains(&grafana.secret_ref));
+    let answer = world.credentials.set(grafana.id, token("glsa-secret")).await.unwrap();
+
+    assert!(answer.credential_set_at.is_some());
+    assert_eq!(world.secrets.read(&grafana.secret_ref).unwrap().expose(), "glsa-secret");
+}

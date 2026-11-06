@@ -96,7 +96,7 @@ defineExpose({
 
       <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-text-subtle">
         <span class="anchor-chip px-1.5 py-px text-caption" data-testid="connection-label-value">{{ connection.label }}</span>
-        <span>is the short name sessions use: kubectl --context, rekall-gitlab, rekall-github and rekall-jira --connection.</span>
+        <span>is the short name sessions use: kubectl --context, rekall-gitlab, rekall-github, rekall-jira and rekall-grafana --connection.</span>
       </p>
     </header>
 

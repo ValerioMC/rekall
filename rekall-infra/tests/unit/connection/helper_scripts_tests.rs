@@ -92,3 +92,14 @@ fn the_github_wrapper_calls_the_api_host_and_keeps_the_repository_as_two_segment
     assert!(script.contains("\"$label?for=github\""));
     assert!(script.contains("-H 'X-GitHub-Api-Version: 2022-11-28' "));
 }
+
+#[test]
+fn the_grafana_wrapper_calls_the_api_of_each_instance_with_json_both_ways() {
+    let grafana = TerminalConnection { kind: ConnectionKind::Grafana, instance_url: Some("https://grafana.example.com/".into()), ..gitlab("grafana", None) };
+    let script = api_wrapper(&GRAFANA_API, ENDPOINT, &[&grafana]);
+    assert!(script.contains("usage: rekall-grafana --connection <label> <METHOD> <path> [curl options]"));
+    assert!(script.contains("  'grafana') base='https://grafana.example.com/api'; project=''; proxy='' ;;"));
+    assert!(script.contains("\"$label?for=grafana\""));
+    assert!(script.contains("-H @- -H 'Accept: application/json' -H 'Content-Type: application/json' \"$base$path\""));
+    assert!(script.contains("this terminal has no Grafana connection labelled"));
+}
