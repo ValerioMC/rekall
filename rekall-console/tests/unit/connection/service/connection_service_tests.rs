@@ -121,6 +121,29 @@ async fn an_edit_never_changes_the_companies_a_connection_is_shared_with() {
 }
 
 #[tokio::test]
+async fn a_grafana_connection_accepts_a_self_signed_certificate_until_an_edit_turns_it_off_and_other_kinds_refuse_it() {
+    let world = world().await;
+    let grafana = ConnectionCommand {
+        kind: Some("GRAFANA".into()),
+        title: Some("Grafana".into()),
+        base_url: Some("https://10.36.97.212/grafana".into()),
+        accept_self_signed: Some(true),
+        ..ConnectionCommand::default()
+    };
+    let created = world.connections.create(grafana).await.unwrap();
+    assert!(created.accept_self_signed);
+
+    let untouched = world.connections.update(created.id, ConnectionCommand { title: Some("Ops Grafana".into()), ..ConnectionCommand::default() }).await.unwrap();
+    assert!(untouched.accept_self_signed);
+
+    let off = world.connections.update(created.id, ConnectionCommand { accept_self_signed: Some(false), ..ConnectionCommand::default() }).await.unwrap();
+    assert!(!off.accept_self_signed);
+
+    let gitlab = ConnectionCommand { accept_self_signed: Some(true), ..gitlab("GitLab", Vec::new()) };
+    assert!(world.connections.create(gitlab).await.is_err());
+}
+
+#[tokio::test]
 async fn sharing_replaces_the_companies_and_the_detail_lists_them() {
     let world = world().await;
     let created = world.connections.create(gitlab("GitLab", vec![world.acme.id])).await.unwrap();

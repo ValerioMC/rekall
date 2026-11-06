@@ -5,7 +5,7 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use reqwest::header::{HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use reqwest::{Client, RequestBuilder, Response, StatusCode};
-use rekall_core::connection::{github_api_root, JiraCredential, JiraDeployment, JiraSite, KubeAccess, KubeCredential, Secret};
+use rekall_core::connection::{github_api_root, GrafanaInstance, JiraCredential, JiraDeployment, JiraSite, KubeAccess, KubeCredential, Secret};
 use serde::Deserialize;
 use serde_json::json;
 
@@ -139,8 +139,8 @@ impl ConnectionProbe for HttpConnectionProbe {
         }
     }
 
-    async fn grafana(&self, instance_url: &str, proxy_url: Option<&str>, token: &Secret) -> ProbeOutcome {
-        let client = match client_through(proxy_url, self.timeout) {
+    async fn grafana(&self, instance: &GrafanaInstance, token: &Secret) -> ProbeOutcome {
+        let client = match grafana_client(instance, self.timeout) {
             Ok(client) => client,
             Err(reason) => return ProbeOutcome::Unreachable { reason },
         };
@@ -149,7 +149,7 @@ impl ConnectionProbe for HttpConnectionProbe {
             Err(_) => return ProbeOutcome::Unreachable { reason: "the stored token holds characters a header cannot carry".into() },
         };
         header.set_sensitive(true);
-        let answer = client.get(format!("{}/api/user", instance_url.trim_end_matches('/'))).header(AUTHORIZATION, header).send().await;
+        let answer = client.get(format!("{}/api/user", instance.url.trim_end_matches('/'))).header(AUTHORIZATION, header).send().await;
         match accepted(answer).await {
             Ok(response) => ProbeOutcome::Accepted { identity: response.json::<GrafanaUser>().await.ok().and_then(|user| user.login), version: None },
             Err(outcome) => outcome,
@@ -201,11 +201,24 @@ async fn identity(client: &Client, access: &KubeAccess) -> Result<Option<String>
 
 /// A client for a site reached through the connection's proxy when it names one.
 pub(crate) fn client_through(proxy_url: Option<&str>, timeout: Duration) -> Result<Client, String> {
-    let mut builder = Client::builder().timeout(timeout);
-    if let Some(proxy) = proxy_url {
-        builder = builder.proxy(reqwest::Proxy::all(proxy).map_err(|_| "the connection's proxy is not a usable proxy address".to_string())?);
+    builder_through(proxy_url, timeout)?.build().map_err(|failure| failure_chain(&failure))
+}
+
+/// Not verifying the certificate also accepts an expired one or one for another host: it is the choice
+/// of someone who knows the instance serves a self-signed certificate.
+fn grafana_client(instance: &GrafanaInstance, timeout: Duration) -> Result<Client, String> {
+    builder_through(instance.proxy_url.as_deref(), timeout)?
+        .danger_accept_invalid_certs(instance.accept_self_signed)
+        .build()
+        .map_err(|failure| failure_chain(&failure))
+}
+
+fn builder_through(proxy_url: Option<&str>, timeout: Duration) -> Result<reqwest::ClientBuilder, String> {
+    let builder = Client::builder().timeout(timeout);
+    match proxy_url {
+        Some(proxy) => Ok(builder.proxy(reqwest::Proxy::all(proxy).map_err(|_| "the connection's proxy is not a usable proxy address".to_string())?)),
+        None => Ok(builder),
     }
-    builder.build().map_err(|failure| failure_chain(&failure))
 }
 
 fn kube_client(access: &KubeAccess, timeout: Duration) -> Result<Client, String> {

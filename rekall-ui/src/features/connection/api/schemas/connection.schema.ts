@@ -12,6 +12,7 @@ export const ConnectionSchema = z.object({
   baseUrl: z.string().nullable(),
   kubeContext: z.string().nullable(),
   proxyUrl: z.string().nullable(),
+  acceptSelfSigned: z.boolean(),
   rootPath: z.string().nullable(),
   credentialSetAt: z.string().nullable(),
   projectCount: z.number().int(),

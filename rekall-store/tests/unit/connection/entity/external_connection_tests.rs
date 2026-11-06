@@ -180,3 +180,13 @@ fn a_grafana_connection_takes_an_http_or_https_proxy() {
     proxied.proxy_url = Some("socks5://10.250.0.1:1080".into());
     assert!(proxied.validate().is_err());
 }
+
+#[test]
+fn only_a_grafana_connection_can_accept_a_self_signed_certificate() {
+    let mut trusting = grafana(Some("https://grafana.example.com"));
+    trusting.accept_self_signed = true;
+    assert!(trusting.validate().is_ok());
+    let mut jira = jira(Some("https://example.atlassian.net"));
+    jira.accept_self_signed = true;
+    assert!(jira.validate().is_err());
+}

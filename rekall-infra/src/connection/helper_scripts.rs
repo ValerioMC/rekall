@@ -92,7 +92,15 @@ pub(super) fn api_wrapper(wrapper: &ApiWrapper, endpoint: &str, connections: &[&
         let target = connection.target.as_deref().unwrap_or_default();
         let project = if *escapes_target { percent_encoded(target) } else { target.to_string() };
         let proxy = connection.proxy_url.as_deref().unwrap_or_default();
-        cases.push_str(&format!("  {}) base={}; project={}; proxy={} ;;\n", quoted(&connection.label), quoted(&base), quoted(&project), quoted(proxy)));
+        let insecure = if connection.accept_self_signed { "yes" } else { "" };
+        cases.push_str(&format!(
+            "  {}) base={}; project={}; proxy={}; insecure={} ;;\n",
+            quoted(&connection.label),
+            quoted(&base),
+            quoted(&project),
+            quoted(proxy),
+            quoted(insecure)
+        ));
     }
     format!(
         "{HEADER}{FETCH}usage() {{ echo 'usage: {name} --connection <label> <METHOD> <path> [curl options]' >&2; exit 2; }}
@@ -105,6 +113,7 @@ case \"$path\" in /*) ;; *) path=\"/$path\" ;; esac
 [ -n \"$project\" ] && path=$(printf '%s' \"$path\" | sed \"s|:project|$project|g\")
 header=$(rekall_fetch {}\"$label?for={purpose}\") || {{ printf '{name}: %s\\n' \"$header\" >&2; exit 1; }}
 [ -n \"$proxy\" ] && set -- --proxy \"$proxy\" \"$@\"
+[ -n \"$insecure\" ] && set -- --insecure \"$@\"
 printf '%s\\n' \"$header\" | curl --silent --show-error -X \"$method\" -H @- {headers}\"$base$path\" \"$@\"
 ",
         quoted(&format!("{endpoint}/"))

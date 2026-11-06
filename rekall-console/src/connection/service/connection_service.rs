@@ -70,6 +70,7 @@ impl ConnectionService {
             let base_url = base_url_of(kind, command.base_url.as_deref())?;
             let mut connection = external_connection::Model::new(label, title, kind, base_url, self.ctx.now());
             connection.proxy_url = proxy_url_of(command.proxy_url.as_deref());
+            connection.accept_self_signed = command.accept_self_signed.unwrap_or(false);
             connection.root_path = root_path_of(command.root_path.as_deref());
             connection.validate()?;
             let company_ids = command.company_ids.unwrap_or_default();
@@ -101,6 +102,9 @@ impl ConnectionService {
             }
             if command.proxy_url.is_some() {
                 connection.proxy_url = proxy_url_of(command.proxy_url.as_deref());
+            }
+            if let Some(accept_self_signed) = command.accept_self_signed {
+                connection.accept_self_signed = accept_self_signed;
             }
             if command.root_path.is_some() {
                 connection.root_path = root_path_of(command.root_path.as_deref());

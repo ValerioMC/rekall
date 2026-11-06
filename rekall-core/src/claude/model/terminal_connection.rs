@@ -14,6 +14,8 @@ pub struct TerminalConnection {
     pub instance_url: Option<String>,
     /// Jira and Grafana only: the proxy API calls go through.
     pub proxy_url: Option<String>,
+    /// Grafana only: the instance serves a self-signed certificate the helper does not verify.
+    pub accept_self_signed: bool,
     pub secret_ref: String,
     pub credential_set: bool,
 }
@@ -27,6 +29,7 @@ impl TerminalConnection {
             target: binding.target.clone(),
             instance_url: connection.kind.reached_at_typed_url().then(|| connection.base_url.clone()).flatten(),
             proxy_url: connection.proxy_url.clone(),
+            accept_self_signed: connection.accept_self_signed,
             secret_ref: connection.secret_ref.clone(),
             credential_set: connection.has_credential(),
         }

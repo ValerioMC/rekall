@@ -88,6 +88,10 @@ defineExpose({
           <dt class="text-text-subtle">Proxy</dt>
           <dd class="truncate font-mono text-text" data-testid="connection-proxy-url">{{ connection.proxyUrl }}</dd>
         </template>
+        <template v-if="connection.acceptSelfSigned">
+          <dt class="text-text-subtle">Certificate</dt>
+          <dd class="text-text" data-testid="connection-self-signed">Self-signed accepted</dd>
+        </template>
         <template v-if="connection.kubeContext">
           <dt class="text-text-subtle">Context</dt>
           <dd class="font-mono text-text">{{ connection.kubeContext }}</dd>

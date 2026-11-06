@@ -18,6 +18,7 @@ const GITLAB: Connection = {
   baseUrl: 'https://gitlab.example.com',
   kubeContext: null,
   proxyUrl: null,
+  acceptSelfSigned: false,
   credentialSetAt: null,
   projectCount: 0,
   updatedAt: '2026-10-21T10:00:00Z'

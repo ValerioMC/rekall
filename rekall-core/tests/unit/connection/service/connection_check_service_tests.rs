@@ -50,8 +50,9 @@ impl ConnectionProbe for FakeProbe {
         self.outcome.clone()
     }
 
-    async fn grafana(&self, instance_url: &str, proxy_url: Option<&str>, _token: &Secret) -> ProbeOutcome {
-        self.asked.lock().unwrap().push(format!("grafana {instance_url} via {}", proxy_url.unwrap_or("no proxy")));
+    async fn grafana(&self, instance: &GrafanaInstance, _token: &Secret) -> ProbeOutcome {
+        let trust = if instance.accept_self_signed { "self-signed accepted" } else { "certificate verified" };
+        self.asked.lock().unwrap().push(format!("grafana {} via {}, {trust}", instance.url, instance.proxy_url.as_deref().unwrap_or("no proxy")));
         self.outcome.clone()
     }
 }
@@ -179,5 +180,18 @@ async fn a_grafana_check_asks_the_instance_through_the_proxy_the_connection_name
 
     assert!(check.ok);
     assert_eq!(check.detail, "Signed in as sa-rekall.");
-    assert_eq!(*world.probe.asked.lock().unwrap(), ["grafana https://grafana.example.com via http://proxy.example.com:8080"]);
+    assert_eq!(*world.probe.asked.lock().unwrap(), ["grafana https://grafana.example.com via http://proxy.example.com:8080, certificate verified"]);
+}
+
+#[tokio::test]
+async fn a_grafana_check_trusts_the_self_signed_certificate_when_the_connection_accepts_it() {
+    let world = world(ProbeOutcome::Accepted { identity: Some("sa-rekall".into()), version: None }).await;
+    let id = world.connection(ConnectionKind::Grafana, Some("glsa_secret")).await;
+    let mut connection = repo::external_connection::require(&world.ctx.db, id).await.unwrap();
+    connection.accept_self_signed = true;
+    connection.into_active_model().reset_all().update(&world.ctx.db).await.unwrap();
+
+    world.checks.check(id).await.unwrap();
+
+    assert_eq!(*world.probe.asked.lock().unwrap(), ["grafana https://grafana.example.com via http://proxy.example.com:8080, self-signed accepted"]);
 }

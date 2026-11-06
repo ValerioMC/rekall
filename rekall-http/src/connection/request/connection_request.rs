@@ -14,6 +14,8 @@ pub struct ConnectionRequest {
     pub base_url: Option<String>,
     /// Jira only; blank clears it.
     pub proxy_url: Option<String>,
+    /// Grafana only: trust the self-signed certificate the instance serves.
+    pub accept_self_signed: Option<bool>,
     /// GitLab and GitHub only: the group, namespace or owner the credential covers; blank clears it.
     pub root_path: Option<String>,
     pub company_ids: Option<Vec<Id>>,
@@ -27,6 +29,7 @@ impl From<ConnectionRequest> for ConnectionCommand {
             title: request.title,
             base_url: request.base_url,
             proxy_url: request.proxy_url,
+            accept_self_signed: request.accept_self_signed,
             root_path: request.root_path,
             company_ids: request.company_ids,
         }

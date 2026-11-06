@@ -74,7 +74,7 @@ than the store holds. A Kubernetes connection takes its server and context from 
 kubeconfig and refuses a typed URL; GitLab, GitHub (`https://github.com` or an Enterprise Server), Jira and Grafana need theirs; a connection's kind is fixed once created.
 Only a Jira or Grafana connection takes a `proxyUrl`: an `http://` or `https://` address with no user or password in
 it (it is stored in the row and shown, not kept in the keychain), refused without being echoed; a blank
-one clears it. A GitLab or GitHub connection may name a `rootPath`, the group, namespace or owner its token covers, stored
+one clears it. Only a Grafana connection takes `acceptSelfSigned`, a flag; the other kinds refuse it when it is true. A GitLab or GitHub connection may name a `rootPath`, the group, namespace or owner its token covers, stored
 without a slash at either end; the other kinds refuse it. A label is unique across the workspace. The routes are
 `GET`/`POST /api/connections` (`POST` takes `companyIds`, the companies it is shared with, and no company
 is needed to create one), `GET /api/companies/{id}/connections` (the connections shared with a company: the
@@ -135,7 +135,7 @@ Jira is reached through the `JiraIssues` trait in `rekall-core/src/connection/`,
 `HttpJiraIssues` in `rekall-infra` (`POST /rest/api/3/search/jql` on Jira Cloud, `POST
 /rest/api/2/search` on Data Center, the first page only), or a fake
 through `StartOptions::jira_issues`. It is asked before any transaction opens. Both it and the check
-take a `JiraSite`, the site URL and the connection's proxy, and go through the proxy when there is one. The Grafana check takes the instance URL and the proxy the same way.
+take a `JiraSite`, the site URL and the connection's proxy, and go through the proxy when there is one. The Grafana check takes a `GrafanaInstance`: the URL, the proxy and whether the instance's self-signed certificate is accepted (certificate verification is then off, which also lets an expired one or one for another host through).
 
 `POST /api/connections/{id}/check` asks the connection's server whether its stored credential still
 works, before a session finds out mid-deploy. `ConnectionCheckService` (`rekall-core/src/connection/`)

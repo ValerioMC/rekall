@@ -46,6 +46,7 @@ function connection(id: string, over: Partial<Connection> = {}): Connection {
     baseUrl: null,
     kubeContext: null,
     proxyUrl: null,
+    acceptSelfSigned: false,
     credentialSetAt: null,
     projectCount: 0,
     updatedAt: '2026-10-21T10:00:00Z',

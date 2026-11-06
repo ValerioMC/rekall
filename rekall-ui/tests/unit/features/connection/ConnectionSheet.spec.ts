@@ -141,6 +141,44 @@ describe('ConnectionSheet', () => {
     wrapper.unmount()
   })
 
+  it('asks whether to accept a self-signed certificate only on a Grafana connection', () => {
+    const jira = mountSheet(null, 'JIRA')
+    const grafana = mountSheet(null, 'GRAFANA')
+
+    expect(jira.find('[data-testid="connection-accept-self-signed"]').exists()).toBe(false)
+    expect(grafana.find('[data-testid="connection-accept-self-signed"]').exists()).toBe(true)
+    jira.unmount()
+    grafana.unmount()
+  })
+
+  it('creates a Grafana connection that accepts a self-signed certificate', async () => {
+    vi.mocked(api.createConnection).mockResolvedValue(aConnection('grafana', { kind: 'GRAFANA', acceptSelfSigned: true }))
+    const wrapper = mountSheet(null, 'GRAFANA', [ACME])
+
+    await wrapper.get('[data-testid="connection-title"]').setValue('Grafana')
+    await wrapper.get('[data-testid="connection-url"]').setValue('https://10.36.97.212/grafana')
+    await wrapper.get('[data-testid="connection-accept-self-signed"] input').setValue(true)
+    await wrapper.get('[data-testid="save-connection"]').trigger('click')
+    await flushPromises()
+
+    expect(api.createConnection).toHaveBeenCalledWith(expect.objectContaining({ kind: 'GRAFANA', acceptSelfSigned: true }))
+    wrapper.unmount()
+  })
+
+  it('turns the self-signed certificate off again on an edit', async () => {
+    const grafana = aConnection('grafana', { kind: 'GRAFANA', acceptSelfSigned: true })
+    vi.mocked(api.updateConnection).mockResolvedValue({ ...grafana, acceptSelfSigned: false })
+    const wrapper = mountSheet(grafana)
+
+    expect((wrapper.get('[data-testid="connection-accept-self-signed"] input').element as HTMLInputElement).checked).toBe(true)
+    await wrapper.get('[data-testid="connection-accept-self-signed"] input').setValue(false)
+    await wrapper.get('[data-testid="save-connection"]').trigger('click')
+    await flushPromises()
+
+    expect(api.updateConnection).toHaveBeenCalledWith('grafana', expect.objectContaining({ acceptSelfSigned: false }))
+    wrapper.unmount()
+  })
+
   it('clears the proxy of an edited connection when it is emptied', async () => {
     const jira = aConnection('jira', { kind: 'JIRA', proxyUrl: 'http://proxy.example.com:8080' })
     vi.mocked(api.updateConnection).mockResolvedValue({ ...jira, proxyUrl: null })

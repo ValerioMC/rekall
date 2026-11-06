@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
+import AppCheckbox from '@/components/ui/AppCheckbox.vue'
 import AppDialog from '@/components/ui/AppDialog.vue'
 import AppField from '@/components/ui/AppField.vue'
 import AppInput from '@/components/ui/AppInput.vue'
@@ -12,7 +13,7 @@ import ConnectionKindPicker from '@/features/connection/components/ConnectionKin
 import ConnectionRootPathField from '@/features/connection/components/ConnectionRootPathField.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { slugify } from '@/features/catalog/model/catalog'
-import { CREDENTIAL_FIELD, ROOT_PATH_FIELD, TAKES_PROXY, URL_FIELD } from '@/features/connection/lib/connection-fields'
+import { CREDENTIAL_FIELD, ROOT_PATH_FIELD, TAKES_PROXY, TAKES_SELF_SIGNED, URL_FIELD } from '@/features/connection/lib/connection-fields'
 import { emptyDraft, isComplete, isStarted } from '@/features/connection/lib/credential-draft'
 import { bindableProjects } from '@/features/connection/lib/connection-impact'
 import { useConnectionsStore } from '@/features/connection/store/connections.store'
@@ -46,6 +47,7 @@ const title = ref(props.connection?.title ?? '')
 const label = ref(props.connection?.label ?? '')
 const baseUrl = ref(props.connection?.baseUrl ?? '')
 const proxyUrl = ref(props.connection?.proxyUrl ?? '')
+const acceptSelfSigned = ref(props.connection?.acceptSelfSigned ?? false)
 const rootPath = ref(props.connection?.rootPath ?? '')
 const companyIds = ref<readonly CompanyId[]>(props.initialCompanyIds)
 const projectIds = ref<readonly ProjectId[]>([])
@@ -70,6 +72,7 @@ const slug = computed(() => slugify(label.value || title.value))
 const urlField = computed(() => URL_FIELD[kind.value])
 const credentialField = computed(() => CREDENTIAL_FIELD[kind.value])
 const takesProxy = computed(() => TAKES_PROXY[kind.value])
+const takesSelfSigned = computed(() => TAKES_SELF_SIGNED[kind.value])
 const takesRootPath = computed(() => ROOT_PATH_FIELD[kind.value] !== null)
 
 const titleError = computed(() => (!title.value.trim() ? 'A title is required.' : null))
@@ -94,7 +97,8 @@ function input(): ConnectionInput {
   const typed = { title: title.value.trim(), label: slug.value }
   const withUrl = urlField.value ? { ...typed, baseUrl: baseUrl.value.trim() } : typed
   const withProxy = takesProxy.value ? { ...withUrl, proxyUrl: proxyUrl.value.trim() } : withUrl
-  const withRoot = takesRootPath.value ? { ...withProxy, rootPath: rootPath.value.trim() } : withProxy
+  const withTrust = takesSelfSigned.value ? { ...withProxy, acceptSelfSigned: acceptSelfSigned.value } : withProxy
+  const withRoot = takesRootPath.value ? { ...withTrust, rootPath: rootPath.value.trim() } : withTrust
   return isNew ? { ...withRoot, kind: kind.value, companyIds: companyIds.value } : withRoot
 }
 
@@ -210,6 +214,21 @@ onMounted(async () => {
           mono
           data-testid="connection-proxy"
           placeholder="http://proxy.example.com:8080"
+        />
+      </AppField>
+
+      <AppField
+        v-if="takesSelfSigned"
+        v-slot="{ fieldId, describedBy }"
+        label="Certificate"
+        hint="For an instance that serves a self-signed certificate. Check and the terminal helper then skip verifying it, so only turn it on for a host you trust."
+      >
+        <AppCheckbox
+          :id="fieldId"
+          v-model="acceptSelfSigned"
+          :described-by="describedBy"
+          label="Accept a self-signed certificate"
+          data-testid="connection-accept-self-signed"
         />
       </AppField>
 

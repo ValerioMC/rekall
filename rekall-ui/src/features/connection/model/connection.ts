@@ -36,6 +36,8 @@ export interface Connection {
   readonly kubeContext: string | null
   /** Jira only: the proxy every call to the site goes through. */
   readonly proxyUrl: string | null
+  /** Grafana only: the instance's certificate is not verified, because it serves a self-signed one. */
+  readonly acceptSelfSigned: boolean
   /** GitLab and GitHub only: the group, namespace or owner the credential covers. */
   readonly rootPath: string | null
   readonly credentialSetAt: string | null
@@ -118,6 +120,8 @@ export interface ConnectionInput {
   readonly baseUrl?: string
   /** Blank clears it. */
   readonly proxyUrl?: string
+  /** Grafana only. */
+  readonly acceptSelfSigned?: boolean
   /** GitLab and GitHub only; blank clears it. */
   readonly rootPath?: string
   /** Read on a create only: an existing connection is shared through `setConnectionCompanies`. */

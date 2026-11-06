@@ -14,6 +14,7 @@ function connection(id: string, credentialSetAt: string | null = '2026-10-24T10:
     baseUrl: `https://${id}.example.com`,
     kubeContext: null,
     proxyUrl: null,
+    acceptSelfSigned: false,
     credentialSetAt,
     projectCount: 1,
     updatedAt: '2026-10-24T10:00:00Z'

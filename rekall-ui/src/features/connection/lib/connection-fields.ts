@@ -25,6 +25,15 @@ export const TAKES_PROXY: Readonly<Record<ConnectionKind, boolean>> = {
   GRAFANA: true
 }
 
+/** Only a Grafana instance can be trusted for the self-signed certificate it serves. */
+export const TAKES_SELF_SIGNED: Readonly<Record<ConnectionKind, boolean>> = {
+  GITLAB: false,
+  GITHUB: false,
+  KUBERNETES: false,
+  JIRA: false,
+  GRAFANA: true
+}
+
 /** How a kind's credential is asked for when a connection is created. */
 export interface CredentialField {
   readonly title: string

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use rekall_kernel::{Id, InternalFailure, RekallError, Result};
 use rekall_store::{external_connection, ConnectionKind};
 use rekall_store::repository as repo;
-use crate::connection::{JiraCredential, JiraSite, KubeAccess, Secret, SecretStore};
+use crate::connection::{GrafanaInstance, JiraCredential, JiraSite, KubeAccess, Secret, SecretStore};
 use crate::{in_read, Ctx};
 
 use crate::connection::{ConnectionCheck, ConnectionProbe, ProbeOutcome};
@@ -32,7 +32,7 @@ impl ConnectionCheckService {
             ConnectionKind::Github => self.probe.github(connection.base_url.as_deref().unwrap_or_default(), &stored).await,
             ConnectionKind::Kubernetes => self.probe.kubernetes(&KubeAccess::from_stored(&stored)?).await,
             ConnectionKind::Jira => self.probe.jira(&JiraSite::of(&connection), &JiraCredential::from_stored(&stored)?).await,
-            ConnectionKind::Grafana => self.probe.grafana(connection.base_url.as_deref().unwrap_or_default(), connection.proxy_url.as_deref(), &stored).await,
+            ConnectionKind::Grafana => self.probe.grafana(&GrafanaInstance::of(&connection), &stored).await,
         };
         Ok(self.answer(matches!(outcome, ProbeOutcome::Accepted { .. }), described(&outcome)))
     }

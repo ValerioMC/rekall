@@ -33,6 +33,8 @@ pub struct Model {
     pub kube_context: Option<String>,
     /// Jira and Grafana only: the proxy every call to the site goes through; none goes direct.
     pub proxy_url: Option<String>,
+    /// Grafana only: the instance serves a self-signed certificate, so its certificate is not verified.
+    pub accept_self_signed: bool,
     /// GitLab and GitHub only: the group, namespace or owner the credential covers, without a leading or trailing slash.
     pub root_path: Option<String>,
     /// The keychain account holding the credential, generated with the row.
@@ -59,6 +61,7 @@ impl Model {
             base_url,
             kube_context: None,
             proxy_url: None,
+            accept_self_signed: false,
             root_path: None,
             secret_ref: format!("connection-{id}"),
             secret_set_at: None,
@@ -75,6 +78,7 @@ impl Model {
         self.check_kind_fields()?;
         self.check_base_url()?;
         self.check_proxy_url()?;
+        self.check_self_signed()?;
         self.check_root_path()?;
         Violations::new("Connection")
             .not_blank("label", Some(&self.label))
@@ -114,6 +118,13 @@ impl Model {
             }
             _ => Ok(()),
         }
+    }
+
+    fn check_self_signed(&self) -> Result<(), RekallError> {
+        if self.accept_self_signed && self.kind != ConnectionKind::Grafana {
+            return Err(RekallError::illegal("Only a Grafana connection can accept a self-signed certificate."));
+        }
+        Ok(())
     }
 
     fn check_root_path(&self) -> Result<(), RekallError> {
