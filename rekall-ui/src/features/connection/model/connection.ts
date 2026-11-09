@@ -142,6 +142,16 @@ export type CredentialDraft =
   | { readonly kind: 'KUBERNETES'; readonly kubeconfig: string; readonly context: string | null }
   | { readonly kind: 'JIRA'; readonly deployment: JiraDeployment; readonly email: string; readonly token: string }
 
+/**
+ * A stored credential read back on request: a `token`, a `kubeconfig` (Kubernetes) and, on Jira
+ * Cloud, the `email` the token belongs to. Held by the component that asked, never by a store.
+ */
+export interface RevealedCredential {
+  readonly token: string | null
+  readonly kubeconfig: string | null
+  readonly email: string | null
+}
+
 export type KubeUserKind =
   'token' | 'client-certificate' | 'exec' | 'auth-provider' | 'basic-auth' | 'nothing'
 

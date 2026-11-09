@@ -15,7 +15,8 @@ import type {
   KubeContextOption,
   ProjectConnection,
   ProjectConnectionInput,
-  RepositoryDiscovery
+  RepositoryDiscovery,
+  RevealedCredential
 } from '@/features/connection/model/connection'
 import type { CompanyId, ConnectionId, ProjectConnectionId, ProjectId } from '@/model/branded'
 
@@ -127,6 +128,11 @@ export const useConnectionsStore = defineStore('connections', () => {
     replace(saved)
     forgetCheck(id)
     return saved
+  }
+
+  /** Read fresh each time and handed straight back: the store never keeps a credential. */
+  async function revealCredential(id: ConnectionId): Promise<RevealedCredential> {
+    return await api.revealCredential(id)
   }
 
   async function remove(connection: Connection): Promise<ConnectionRemoved> {
@@ -292,6 +298,7 @@ export const useConnectionsStore = defineStore('connections', () => {
     setCompanies,
     setCredential,
     clearCredential,
+    revealCredential,
     remove,
     check,
     jiraIssues,

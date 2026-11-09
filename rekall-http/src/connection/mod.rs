@@ -26,5 +26,6 @@ pub use request::kubeconfig_preview_request::KubeconfigPreviewRequest;
 pub use request::project_connection_request::ProjectConnectionRequest;
 pub use response::project_connection_response::ProjectConnectionResponse;
 pub use response::repository_discovery_response::RepositoryDiscoveryResponse;
+pub use response::revealed_credential_response::RevealedCredentialResponse;
 pub(crate) use controller::credential_controller::routes as credential_routes;
 pub(crate) use routes::routes;

@@ -1,17 +1,21 @@
 use axum::extract::{Path, State};
-use axum::routing::{post, put};
+use axum::routing::{get, post};
 use axum::{Json, Router};
 use crate::shared::error::ApiResult;
 use crate::shared::extract::{uuid, JsonBody};
 
-use crate::connection::{ConnectionCredentialRequest, ConnectionResponse, KubeContextResponse, KubeconfigPreviewRequest};
+use crate::connection::{ConnectionCredentialRequest, ConnectionResponse, KubeContextResponse, KubeconfigPreviewRequest, RevealedCredentialResponse};
 use crate::ApiState;
 
-/// Credentials go in and never come out: every answer here is a connection or a context list.
+/// Credentials go in as a connection's write and come out only on the `GET`, one at a time, for the console's reveal and copy buttons.
 pub fn routes() -> Router<ApiState> {
     Router::new()
-        .route("/api/connections/{id}/credential", put(set).delete(clear))
+        .route("/api/connections/{id}/credential", get(reveal).put(set).delete(clear))
         .route("/api/connections/kubeconfig/contexts", post(preview))
+}
+
+async fn reveal(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Json<RevealedCredentialResponse>> {
+    Ok(Json(state.connection_credential_reveals.reveal(uuid("id", &id)?).await?.into()))
 }
 
 async fn set(State(state): State<ApiState>, Path(id): Path<String>, JsonBody(request): JsonBody<ConnectionCredentialRequest>) -> ApiResult<Json<ConnectionResponse>> {

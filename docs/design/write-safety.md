@@ -65,10 +65,15 @@ connection shared with its own company (400 otherwise, saying to share it first)
 used in the project is a 409, and without one the connection's label takes the first free `-2`, `-3`),
 `RepositoryDiscoveryService` (further down), `ConnectionAccessQueryService` (the access log, newest first) and
 `KubeconfigPreviewService` (a kubeconfig's contexts with why each can or cannot be imported, storing
-nothing). Credentials are write-only: `PUT /api/connections/{id}/credential` takes `token` (GitLab, GitHub, a Grafana service account),
+nothing). Credentials go in through `PUT /api/connections/{id}/credential`, which takes `token` (GitLab, GitHub, a Grafana service account),
 `kubeconfig` and `context` (Kubernetes) or `token` with an `email` on Jira Cloud and without one on Jira
-Data Center, and answers the connection with `credentialSetAt`, and no
-endpoint returns a credential. The store is written before the row, so a failed write leaves the row
+Data Center, and answers the connection with `credentialSetAt`. The only route that returns one is
+`GET /api/connections/{id}/credential`, served by `ConnectionCredentialRevealService` (the write service
+stays write-only): it answers `token`, `kubeconfig` and, on Jira Cloud, `email`, or a 404 when none is stored, and
+the console calls it only when the person presses the eye or the copy button on a connection's credential,
+keeping the answer in the component until it is hidden, replaced or the view closes. Like the rest of the
+console API it answers any local caller, so a session that curls it by hand reads the credential; the deny
+rules below do not cover it. The store is written before the row, so a failed write leaves the row
 saying no credential is set; clearing empties the store before the row, so the row never claims less
 than the store holds. A Kubernetes connection takes its server and context from the imported
 kubeconfig and refuses a typed URL; GitLab, GitHub (`https://github.com` or an Enterprise Server), Jira and Grafana need theirs; a connection's kind is fixed once created.

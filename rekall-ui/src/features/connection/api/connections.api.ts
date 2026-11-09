@@ -10,7 +10,8 @@ import {
   KubeContextListSchema,
   ProjectConnectionListSchema,
   ProjectConnectionSchema,
-  RepositoryDiscoverySchema
+  RepositoryDiscoverySchema,
+  RevealedCredentialSchema
 } from './schemas/connection.schema'
 import type {
   Connection,
@@ -24,7 +25,8 @@ import type {
   KubeContextOption,
   ProjectConnection,
   ProjectConnectionInput,
-  RepositoryDiscovery
+  RepositoryDiscovery,
+  RevealedCredential
 } from '@/features/connection/model/connection'
 import { TaskListSchema } from '@/features/catalog/api/schemas/catalog.schema'
 import type { Task } from '@/features/catalog/model/catalog'
@@ -85,6 +87,13 @@ function credentialBody(draft: CredentialDraft): Record<string, string | null> {
     case 'JIRA':
       return draft.deployment === 'CLOUD' ? { email: draft.email.trim(), token: draft.token } : { token: draft.token }
   }
+}
+
+/** Reads the stored credential back; the one call that returns one, made only when the person asks to see or copy it. */
+export async function revealCredential(id: ConnectionId): Promise<RevealedCredential> {
+  return request(async () =>
+    RevealedCredentialSchema.parse(await apiClient(`/api/connections/${id}/credential`, { retry: 0 }))
+  )
 }
 
 export async function clearCredential(id: ConnectionId): Promise<Connection> {

@@ -1,5 +1,6 @@
 //! The one path that stores, replaces or clears a connection's credential. Write-only: nothing here
-//! returns a credential, and the row only learns when one was stored.
+//! returns a credential, and the row only learns when one was stored. Reading one back is
+//! `ConnectionCredentialRevealService`.
 
 use std::sync::Arc;
 

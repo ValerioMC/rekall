@@ -64,6 +64,10 @@ impl JiraCredential {
         self.email.as_deref()
     }
 
+    pub fn token(&self) -> &Secret {
+        &self.token
+    }
+
     /// The `Authorization` header's value.
     pub fn authorization(&self) -> Secret {
         match &self.email {

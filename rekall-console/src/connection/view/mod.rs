@@ -9,4 +9,5 @@ pub(super) mod discovery_outcome;
 pub(super) mod jira_issue_view;
 pub(super) mod kube_context_view;
 pub(super) mod project_connection_view;
+pub(super) mod revealed_credential_view;
 pub(super) mod repository_discovery_view;

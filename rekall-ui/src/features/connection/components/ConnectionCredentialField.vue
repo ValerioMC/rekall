@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import ConnectionCredentialState from '@/features/connection/components/ConnectionCredentialState.vue'
+import ConnectionStoredCredential from '@/features/connection/components/ConnectionStoredCredential.vue'
 import ConnectionCredentialInput from '@/features/connection/components/ConnectionCredentialInput.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { credentialNoun, emptyDraft, isComplete } from '@/features/connection/lib/credential-draft'
@@ -79,6 +80,7 @@ async function clear(): Promise<void> {
         </AppButton>
       </template>
     </div>
+    <ConnectionStoredCredential v-if="connection.credentialSetAt && !editing" :connection="connection" />
     <template v-if="editing">
       <ConnectionCredentialInput v-model="draft" />
       <div class="flex justify-end gap-2">
@@ -96,7 +98,7 @@ async function clear(): Promise<void> {
       </div>
     </template>
     <p v-if="connection.credentialSetAt" class="text-caption text-text-subtle">
-      Kept in this machine's credential store and never shown again, here or to a session.
+      Kept in this machine's credential store. Shown here only when you press the eye; never to a session.
     </p>
   </div>
 </template>

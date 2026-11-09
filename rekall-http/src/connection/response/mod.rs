@@ -10,3 +10,4 @@ pub(super) mod jira_issue_response;
 pub(super) mod kube_context_response;
 pub(super) mod project_connection_response;
 pub(super) mod repository_discovery_response;
+pub(super) mod revealed_credential_response;
