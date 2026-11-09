@@ -148,14 +148,8 @@ defineExpose({ toggleMode })
         </header>
       </div>
 
-      <div class="flex h-8 shrink-0 items-end justify-between gap-3 border-b border-border px-5" data-testid="description-view-strip">
+      <div class="flex h-8 shrink-0 items-end border-b border-border px-5" data-testid="description-view-strip">
         <DescriptionViewTabs v-model="view" :count="selectedTaskFeedback.length" :attention="needsAttention" />
-        <AppModeToggle
-          v-model="mode"
-          class="mb-1"
-          :class="{ invisible: !showEditor || view !== 'description' }"
-          :inert="!showEditor || view !== 'description'"
-        />
       </div>
 
       <div
@@ -194,22 +188,28 @@ defineExpose({ toggleMode })
 
       <DescriptionEmptyState v-else-if="!showEditor" @write="beginWriting" />
 
-      <div v-else class="min-h-0 flex-1 overflow-y-auto p-4">
-        <Transition name="fade-quick" mode="out-in">
-          <AppMarkdownEditor
-            v-if="mode === 'write'"
-            key="write"
-            v-model="draft"
-            height="100%"
-            :page-fullscreen="false"
-            :path-root="selectedTask?.projectRepoFolder"
-            :components="projectComponents"
-            :connections="projectConnections"
-            :tasks="projectTasks"
-            @update:model-value="scheduleSave"
-          />
-          <AppMarkdownEditor v-else key="read" :model-value="draft" :components="projectComponents" :connections="projectConnections" :tasks="projectTasks" readonly />
-        </Transition>
+      <div v-else class="flex min-h-0 flex-1 flex-col">
+        <div class="flex shrink-0 items-center gap-2 px-4 pt-3" data-testid="description-mode-row">
+          <span class="h-px flex-1 bg-border" aria-hidden="true" />
+          <AppModeToggle v-model="mode" testid-prefix="description-mode" />
+        </div>
+        <div class="min-h-0 flex-1 overflow-y-auto p-4">
+          <Transition name="fade-quick" mode="out-in">
+            <AppMarkdownEditor
+              v-if="mode === 'write'"
+              key="write"
+              v-model="draft"
+              height="100%"
+              :page-fullscreen="false"
+              :path-root="selectedTask?.projectRepoFolder"
+              :components="projectComponents"
+              :connections="projectConnections"
+              :tasks="projectTasks"
+              @update:model-value="scheduleSave"
+            />
+            <AppMarkdownEditor v-else key="read" :model-value="draft" :components="projectComponents" :connections="projectConnections" :tasks="projectTasks" readonly />
+          </Transition>
+        </div>
       </div>
 
     </template>
