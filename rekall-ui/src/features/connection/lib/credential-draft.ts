@@ -1,4 +1,4 @@
-import type { ConnectionKind, CredentialDraft } from '@/features/connection/model/connection'
+import type { Connection, ConnectionKind, CredentialDraft } from '@/features/connection/model/connection'
 
 /** An empty credential of the kind the connection takes. */
 export function emptyDraft(kind: ConnectionKind): CredentialDraft {
@@ -53,5 +53,21 @@ export function credentialNoun(kind: ConnectionKind): string {
       return 'kubeconfig'
     case 'JIRA':
       return 'token'
+  }
+}
+
+/** The credential as edited beside the one stored: Jira Cloud when an email was stored, a Kubernetes one keeps its stored context. */
+export function draftOfEdit(connection: Connection, secret: string, email: string | null): CredentialDraft {
+  switch (connection.kind) {
+    case 'GITLAB':
+    case 'GITHUB':
+    case 'GRAFANA':
+      return { kind: connection.kind, token: secret }
+    case 'KUBERNETES':
+      return { kind: 'KUBERNETES', kubeconfig: secret, context: connection.kubeContext }
+    case 'JIRA':
+      return email === null
+        ? { kind: 'JIRA', deployment: 'DATA_CENTER', email: '', token: secret }
+        : { kind: 'JIRA', deployment: 'CLOUD', email, token: secret }
   }
 }

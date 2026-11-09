@@ -98,7 +98,7 @@ async function clear(): Promise<void> {
       </div>
     </template>
     <p v-if="connection.credentialSetAt" class="text-caption text-text-subtle">
-      Kept in this machine's credential store. Shown here only when you press the eye; never to a session.
+      Kept in this machine's credential store. Shown here only when you press the eye, where you can also edit it; never to a session.
     </p>
   </div>
 </template>

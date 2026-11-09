@@ -109,4 +109,68 @@ describe('ConnectionStoredCredential', () => {
     expect(field(wrapper).type).toBe('password')
     expect(wrapper.html()).not.toContain('glpat-secret')
   })
+
+  describe('editing the shown value', () => {
+    async function shown(connection: Connection, credential: { token: string | null; kubeconfig: string | null; email: string | null }) {
+      vi.mocked(api.revealCredential).mockResolvedValue(credential)
+      const wrapper = mount(ConnectionStoredCredential, { props: { connection } })
+      await wrapper.get('[data-testid="toggle-stored-credential"]').trigger('click')
+      await flushPromises()
+      return wrapper
+    }
+
+    it('offers no save until the shown value is changed', async () => {
+      const wrapper = await shown(GITLAB, { token: 'glpat-secret', kubeconfig: null, email: null })
+
+      expect(wrapper.find('[data-testid="save-stored-credential"]').exists()).toBe(false)
+
+      await wrapper.get('[data-testid="stored-credential-secret"]').setValue('glpat-new')
+      expect(wrapper.find('[data-testid="save-stored-credential"]').exists()).toBe(true)
+    })
+
+    it('stores the modified token', async () => {
+      vi.mocked(api.setCredential).mockResolvedValue({ ...GITLAB, credentialSetAt: '2026-10-21T11:00:00Z' })
+      const wrapper = await shown(GITLAB, { token: 'glpat-secret', kubeconfig: null, email: null })
+
+      await wrapper.get('[data-testid="stored-credential-secret"]').setValue('glpat-new')
+      await wrapper.get('[data-testid="save-stored-credential"]').trigger('click')
+      await flushPromises()
+
+      expect(api.setCredential).toHaveBeenCalledWith(GITLAB.id, { kind: 'GITLAB', token: 'glpat-new' })
+    })
+
+    it('stores a modified Jira Cloud email with its token', async () => {
+      vi.mocked(api.setCredential).mockResolvedValue({ ...JIRA, credentialSetAt: '2026-10-21T11:00:00Z' })
+      const wrapper = await shown(JIRA, { token: 'api-token', kubeconfig: null, email: 'me@example.com' })
+
+      await wrapper.get('[data-testid="stored-credential-email"]').setValue('you@example.com')
+      await wrapper.get('[data-testid="save-stored-credential"]').trigger('click')
+      await flushPromises()
+
+      expect(api.setCredential).toHaveBeenCalledWith(JIRA.id, {
+        kind: 'JIRA',
+        deployment: 'CLOUD',
+        email: 'you@example.com',
+        token: 'api-token'
+      })
+    })
+
+    it('puts the stored value back on cancel', async () => {
+      const wrapper = await shown(GITLAB, { token: 'glpat-secret', kubeconfig: null, email: null })
+
+      await wrapper.get('[data-testid="stored-credential-secret"]').setValue('glpat-new')
+      await wrapper.get('[data-testid="discard-stored-credential"]').trigger('click')
+
+      expect(field(wrapper).value).toBe('glpat-secret')
+      expect(wrapper.find('[data-testid="save-stored-credential"]').exists()).toBe(false)
+    })
+
+    it('does not let an emptied token be stored', async () => {
+      const wrapper = await shown(GITLAB, { token: 'glpat-secret', kubeconfig: null, email: null })
+
+      await wrapper.get('[data-testid="stored-credential-secret"]').setValue('')
+
+      expect(wrapper.get('[data-testid="save-stored-credential"]').attributes('disabled')).toBeDefined()
+    })
+  })
 })

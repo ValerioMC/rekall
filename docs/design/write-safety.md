@@ -71,7 +71,8 @@ Data Center, and answers the connection with `credentialSetAt`. The only route t
 `GET /api/connections/{id}/credential`, served by `ConnectionCredentialRevealService` (the write service
 stays write-only): it answers `token`, `kubeconfig` and, on Jira Cloud, `email`, or a 404 when none is stored, and
 the console calls it only when the person presses the eye or the copy button on a connection's credential,
-keeping the answer in the component until it is hidden, replaced or the view closes. Like the rest of the
+keeping the answer in the component until it is hidden, replaced or the view closes. Once shown, the value
+can be edited in place and stored through the same `PUT`; a Kubernetes edit keeps the stored context. Like the rest of the
 console API it answers any local caller, so a session that curls it by hand reads the credential; the deny
 rules below do not cover it. The store is written before the row, so a failed write leaves the row
 saying no credential is set; clearing empties the store before the row, so the row never claims less
