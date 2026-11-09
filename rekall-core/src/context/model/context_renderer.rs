@@ -3,7 +3,7 @@
 use std::collections::HashSet;
 
 use rekall_kernel::jstr;
-use rekall_store::{ConnectionKind, DocumentContextMode, FeedbackKind, FeedbackState, TaskStepState};
+use rekall_store::{ConnectionKind, DocumentContextMode, FeedbackState, TaskStepState};
 
 use crate::context::{ContextCommitView, ContextRecord, ContextSkillScope, ContextSkillView, DocumentView, StepConnectionView};
 use crate::component::{ComponentReferences, ProjectComponentView};
@@ -409,12 +409,12 @@ fn render_thread_entry(entry: &FeedbackView) -> String {
         return format!("<entry {head}>{reply}</entry>\n");
     }
     let body = truncate(Some(&entry.body_markdown), MAX_DOCUMENT_CHARACTERS);
-    match (entry.kind, entry.quoted_markdown.as_deref()) {
-        (FeedbackKind::Revision, Some(quoted)) => format!(
+    match entry.quoted_markdown.as_deref() {
+        Some(quoted) => format!(
             "<entry {head}>\n<quoted>\n{}\n</quoted>\n<new>\n{body}\n</new>\n</entry>\n",
             truncate(Some(quoted), MAX_DOCUMENT_CHARACTERS)
         ),
-        _ => format!("<entry {head}>\n{body}\n</entry>\n"),
+        None => format!("<entry {head}>\n{body}\n</entry>\n"),
     }
 }
 
@@ -422,9 +422,6 @@ fn thread_entry_head(entry: &FeedbackView) -> String {
     let mut head = format!("seq=\"{}\" kind=\"{}\" state=\"{}\"", entry.seq, entry.kind, entry.state);
     if let Some(pass) = entry.pass {
         head.push_str(&format!(" pass=\"{pass}\""));
-    }
-    if let Some(followed) = entry.follows_seq {
-        head.push_str(&format!(" follows=\"{followed}\""));
     }
     head
 }

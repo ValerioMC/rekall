@@ -2,13 +2,12 @@
 /**
  * The review line of a task with no checklist: what a session has done with it, and the answers
  * left to give. No Accept while a session is running, because nothing has been claimed to accept.
- * Once claimed, the last pass is laid out, and entries still waiting turn Run revision into the
- * main action. Corrections are written in the thread under the description, not here.
+ * Once claimed, the last pass is laid out, and revisions still waiting are run from the bar under
+ * this one. Corrections are made by revising the description, not here.
  */
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import AppButton from '@/components/ui/AppButton.vue'
-import ApplyFeedbackButton from '@/features/feedback/components/ApplyFeedbackButton.vue'
 import PassSummary from '@/features/feedback/components/PassSummary.vue'
 import { groupByPass } from '@/features/feedback/lib/feedback-passes'
 import { useConsoleStore } from '@/stores/console.store'
@@ -25,7 +24,7 @@ const lastPass = computed(() => groupByPass(selectedTaskFeedback.value).passes.a
 const coveredEntries = computed(() => (lastPass.value?.running ? lastPass.value.entries.map((entry) => `#${entry.seq}`).join(', ') : ''))
 const acceptLabel = computed(() => (waitingCount.value > 0 ? 'Accept anyway' : 'Accept'))
 const acceptHint = computed(() =>
-  waitingCount.value > 0 ? `${waitingCount.value} ${waitingCount.value === 1 ? 'entry has' : 'entries have'} not been run` : 'Accept the result'
+  waitingCount.value > 0 ? `${waitingCount.value} ${waitingCount.value === 1 ? 'revision has' : 'revisions have'} not been run` : 'Accept the result'
 )
 
 async function acceptDescription(): Promise<void> {
@@ -59,30 +58,23 @@ async function markTaskDone(): Promise<void> {
         <template v-else-if="reviewState === 'CLAIMED'">
           <template v-if="waitingCount > 0">
             A session wrote the wrapup and claimed this, and {{ waitingCount }}
-            {{ waitingCount === 1 ? 'entry is' : 'entries are' }} waiting for the next run. Run
+            {{ waitingCount === 1 ? 'revision is' : 'revisions are' }} waiting for the next run. Run
             {{ waitingCount === 1 ? 'it' : 'them' }} before accepting.
           </template>
           <template v-else>
-            A session wrote the wrapup and claimed this. Accept it, or write what needs another pass
-            in the feedback below.
+            A session wrote the wrapup and claimed this. Accept it, or revise the description to ask
+            for another pass.
           </template>
         </template>
         <template v-else-if="task.autoAccepted">
-          Rekall accepted this quick task when the session wrote the wrapup. Write a correction in
-          the feedback below to review it, or mark the whole task done.
+          Rekall accepted this quick task when the session wrote the wrapup. Revise the description
+          to ask for a correction, or mark the whole task done.
         </template>
         <template v-else>
-          You accepted this. Write a correction in the feedback below to reopen it, or mark the
-          whole task done.
+          You accepted this. Revise the description to ask for a correction, or mark the whole task
+          done.
         </template>
       </span>
-      <ApplyFeedbackButton
-        v-if="reviewState === 'CLAIMED' && waitingCount > 0"
-        variant="primary"
-        :task-id="task.id"
-        :anchor="task.anchor"
-        :folder="task.projectRepoFolder"
-      />
       <AppButton
         v-if="reviewState === 'CLAIMED'"
         :variant="waitingCount > 0 ? 'quiet' : 'primary'"

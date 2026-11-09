@@ -25,21 +25,7 @@ describe('the feedback slice of the console store', () => {
     expect(store.selectedTaskFeedback.map((feedback) => feedback.seq)).toEqual([1, 2])
   })
 
-  it('shows an added entry at the end at once, without reading the thread again', async () => {
-    vi.mocked(api.fetchFeedback).mockResolvedValue([entry(1)])
-    vi.mocked(api.addFeedback).mockResolvedValue(entry(2, { kind: 'PLAN' }))
-    const store = useConsoleStore()
-    store.selectedTaskId = TASK
-    await store.loadFeedback(TASK)
-
-    await store.addFeedback(TASK, 'PLAN', 'Split step 2')
-
-    expect(api.addFeedback).toHaveBeenCalledWith(TASK, 'PLAN', 'Split step 2', null)
-    expect(store.selectedTaskFeedback.map((feedback) => feedback.seq)).toEqual([1, 2])
-    expect(api.fetchFeedback).toHaveBeenCalledTimes(1)
-  })
-
-  it('counts the waiting entries of every kind for the task in view, and not the running or applied ones', async () => {
+  it('counts the waiting revisions of both targets for the task in view, and not the running or applied ones', async () => {
     vi.mocked(api.fetchFeedback).mockResolvedValue([
       entry(1),
       applied(2, 'Done.'),
@@ -83,31 +69,17 @@ describe('the feedback slice of the console store', () => {
     expect(store.waitingCount).toBe(1)
   })
 
-  it('sends the entry it follows along with an added one', async () => {
-    vi.mocked(api.fetchFeedback).mockResolvedValue([applied(1, 'Done.')])
-    vi.mocked(api.addFeedback).mockResolvedValue(entry(2, { followsSeq: 1 }))
+  it('swaps a retargeted revision in place, leaving the others as they were', async () => {
+    vi.mocked(api.fetchFeedback).mockResolvedValue([entry(1), applied(2, 'Done.')])
+    vi.mocked(api.retargetFeedback).mockResolvedValue(entry(1, { kind: 'PLAN' }))
     const store = useConsoleStore()
     store.selectedTaskId = TASK
     await store.loadFeedback(TASK)
 
-    await store.addFeedback(TASK, 'IMPLEMENTATION', 'Still wrong for refunds', 1)
+    await store.retargetFeedback(entry(1), 'PLAN')
 
-    expect(api.addFeedback).toHaveBeenCalledWith(TASK, 'IMPLEMENTATION', 'Still wrong for refunds', 1)
-    expect(store.selectedTaskFeedback[1]?.followsSeq).toBe(1)
-  })
-
-  it('swaps an edited entry in place and drops a deleted one', async () => {
-    vi.mocked(api.fetchFeedback).mockResolvedValue([entry(1), entry(2)])
-    vi.mocked(api.editFeedback).mockResolvedValue(entry(1, { bodyMarkdown: 'Better words' }))
-    const store = useConsoleStore()
-    store.selectedTaskId = TASK
-    await store.loadFeedback(TASK)
-
-    await store.editFeedback(entry(1), 'Better words')
-    expect(store.selectedTaskFeedback[0]?.bodyMarkdown).toBe('Better words')
-
-    await store.deleteFeedback(entry(2))
-    expect(store.selectedTaskFeedback.map((feedback) => feedback.seq)).toEqual([1])
+    expect(api.retargetFeedback).toHaveBeenCalledWith('f-1', 'PLAN')
+    expect(store.selectedTaskFeedback.map((feedback) => [feedback.seq, feedback.kind])).toEqual([[1, 'PLAN'], [2, 'IMPLEMENTATION']])
   })
 
   it('reads the tasks again after a revision is discarded, since the server put the old description back', async () => {

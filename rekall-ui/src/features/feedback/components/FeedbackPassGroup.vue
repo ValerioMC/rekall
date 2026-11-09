@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import FeedbackEntry from '@/features/feedback/components/FeedbackEntry.vue'
+import RevisionCard from '@/features/feedback/components/RevisionCard.vue'
 import { kindLabel } from '@/features/feedback/lib/feedback-labels'
 import type { Feedback } from '@/features/feedback/model/feedback'
 
 /**
- * The entries one Run revision took, under a header that says whether a session is still on them.
- * Open it for every entry in full; closed it keeps one line per entry with the first line of the
- * session's reply.
+ * The revisions one Run revision took, under a header that says whether a session is still on them.
+ * Open it for every revision in full; closed it keeps one line per revision with the first line of
+ * the session's reply.
  */
 const props = defineProps<{
   title: string
@@ -17,12 +17,7 @@ const props = defineProps<{
   answered: number
   open: boolean
 }>()
-const emit = defineEmits<{
-  edit: [entry: Feedback, bodyMarkdown: string]
-  remove: [entry: Feedback]
-  discard: [entry: Feedback]
-  followUp: [entry: Feedback]
-}>()
+const emit = defineEmits<{ discard: [entry: Feedback] }>()
 
 const expanded = ref(props.open)
 
@@ -60,16 +55,8 @@ function replyLine(entry: Feedback): string {
       </button>
     </header>
 
-    <ol v-if="expanded" class="mt-1 flex flex-col gap-2 pb-2" aria-label="Entries of the pass">
-      <FeedbackEntry
-        v-for="entry in entries"
-        :key="entry.id"
-        :entry="entry"
-        @edit="(target, body) => emit('edit', target, body)"
-        @remove="emit('remove', $event)"
-        @discard="emit('discard', $event)"
-        @follow-up="emit('followUp', $event)"
-      />
+    <ol v-if="expanded" class="mt-1 flex flex-col gap-2 pb-2" aria-label="Revisions of the pass">
+      <RevisionCard v-for="entry in entries" :key="entry.id" :entry="entry" @discard="emit('discard', $event)" />
     </ol>
     <ul v-else class="flex flex-col gap-0.5 pb-2" data-testid="feedback-pass-summary">
       <li v-for="entry in entries" :key="entry.id" class="flex gap-2 text-small text-text-subtle">

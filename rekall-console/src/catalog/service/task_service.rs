@@ -24,7 +24,7 @@ pub struct TaskService {
 
 impl TaskService {
     pub fn new(ctx: Ctx, review: TaskReviewService, time_entries: TimeEntryService) -> Self {
-        let feedback = FeedbackService::new(ctx.clone(), review.clone());
+        let feedback = FeedbackService::new(ctx.clone());
         Self { ctx, review, time_entries, feedback }
     }
 

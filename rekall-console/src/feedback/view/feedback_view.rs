@@ -15,7 +15,6 @@ pub struct FeedbackView {
     pub applied_at: Option<Instant>,
     pub pass: Option<i32>,
     pub taken_at: Option<Instant>,
-    pub follows_seq: Option<i32>,
 }
 
 impl FeedbackView {
@@ -33,7 +32,6 @@ impl FeedbackView {
             applied_at: entry.applied_at,
             pass: entry.pass,
             taken_at: entry.taken_at,
-            follows_seq: entry.follows_seq,
         }
     }
 }

@@ -18,7 +18,7 @@ describe('what the last pass did', () => {
     expect(wrapper.get('[data-testid="pass-summary-title"]').text()).toBe('What pass 1 did')
     const row = wrapper.get('[data-testid="pass-summary-entry"]')
     expect(row.text()).toContain('#1')
-    expect(row.text()).toContain('Feedback on the plan')
+    expect(row.text()).toContain('On the plan')
     expect(row.text()).toContain('Fixed the totals.')
     expect(row.text()).not.toContain('More detail.')
   })

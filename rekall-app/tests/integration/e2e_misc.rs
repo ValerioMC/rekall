@@ -841,8 +841,7 @@ async fn a_sessions_transcript_in_a_projects_folder_reaches_the_token_tallies_of
 
 async fn a_pending_entry(app: &App, task_id: &str, kind: rekall_store::FeedbackKind, seq: i32, body: &str) {
     use sea_orm::{ActiveModelTrait, IntoActiveModel};
-    let quoted = kind.is_revision().then(|| "the text before".to_string());
-    let entry = rekall_store::task_feedback::Model::new(task_id.parse().unwrap(), seq, kind, quoted, body.into(), None, rekall_kernel::Instant::now());
+    let entry = rekall_store::task_feedback::Model::new(task_id.parse().unwrap(), seq, kind, "the text before".into(), body.into(), rekall_kernel::Instant::now());
     entry.into_active_model().insert(&app.services().ctx.db).await.unwrap();
 }
 
@@ -858,7 +857,7 @@ async fn a_session_replies_to_pending_entries_of_the_thread_and_a_refused_reply_
     let task_id = app.a_task(&project_id, "report-builder").await;
     a_pending_entry(&app, &task_id, rekall_store::FeedbackKind::Implementation, 1, "The totals are wrong").await;
     a_pending_entry(&app, &task_id, rekall_store::FeedbackKind::Plan, 2, "Split step 2").await;
-    a_pending_entry(&app, &task_id, rekall_store::FeedbackKind::Revision, 3, "The new text").await;
+    a_pending_entry(&app, &task_id, rekall_store::FeedbackKind::Implementation, 3, "The new text").await;
     let anchors = "project:vega task:report-builder";
 
     let refused = app

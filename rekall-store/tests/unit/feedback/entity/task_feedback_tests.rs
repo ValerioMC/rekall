@@ -1,11 +1,7 @@
 use super::*;
 
-fn a_revision() -> Model {
-    Model::new(Id::random(), 1, FeedbackKind::Revision, Some("before".into()), "after".into(), None, Instant::now())
-}
-
 fn a_correction() -> Model {
-    Model::new(Id::random(), 1, FeedbackKind::Implementation, None, "the totals are wrong".into(), None, Instant::now())
+    Model::new(Id::random(), 1, FeedbackKind::Implementation, "the totals are right".into(), "the totals are wrong".into(), Instant::now())
 }
 
 #[test]
@@ -16,14 +12,13 @@ fn a_new_entry_waits_for_a_session() {
 }
 
 #[test]
-fn a_revision_and_a_correction_that_follow_the_rules_pass() {
-    assert!(a_revision().validate().is_ok());
+fn a_revision_that_follows_the_rules_passes() {
     assert!(a_correction().validate().is_ok());
 }
 
 #[test]
 fn a_revision_without_a_quoted_text_is_refused() {
-    let mut entry = a_revision();
+    let mut entry = a_correction();
     entry.quoted_markdown = None;
     let refused = entry.validate().unwrap_err();
     assert!(refused.is_illegal_argument());
@@ -31,10 +26,11 @@ fn a_revision_without_a_quoted_text_is_refused() {
 }
 
 #[test]
-fn a_correction_that_quotes_a_text_is_refused() {
+fn retargeting_a_revision_changes_what_it_is_applied_to() {
     let mut entry = a_correction();
-    entry.quoted_markdown = Some("before".into());
-    assert!(entry.validate().unwrap_err().is_illegal_argument());
+    let now = Instant::now();
+    entry.retarget(FeedbackKind::Plan, now);
+    assert_eq!((entry.kind, entry.updated_at), (FeedbackKind::Plan, now));
 }
 
 #[test]
@@ -91,20 +87,4 @@ fn an_entry_waiting_or_running_is_open_and_an_applied_one_is_not() {
     assert!(entry.open());
     entry.mark_applied("Done.".into(), Instant::now());
     assert!(!entry.open());
-}
-
-#[test]
-fn an_entry_that_follows_an_earlier_one_passes_and_one_that_follows_itself_is_refused() {
-    let mut entry = Model::new(Id::random(), 4, FeedbackKind::Implementation, None, "still wrong".into(), Some(2), Instant::now());
-    assert!(entry.validate().is_ok());
-    entry.follows_seq = Some(4);
-    assert!(entry.validate().unwrap_err().message().contains("followsSeq"));
-    entry.follows_seq = Some(0);
-    assert!(entry.validate().unwrap_err().is_illegal_argument());
-}
-
-#[test]
-fn a_revision_that_follows_an_entry_is_refused() {
-    let revision = Model::new(Id::random(), 3, FeedbackKind::Revision, Some("before".into()), "after".into(), Some(1), Instant::now());
-    assert!(revision.validate().unwrap_err().is_illegal_argument());
 }

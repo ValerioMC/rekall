@@ -1,4 +1,4 @@
-//! The thread under a task's description, end to end: the console writes it, a session answers it.
+//! The revisions under a task's description, end to end: saving the description writes them, a session answers them.
 
 mod support;
 
@@ -31,8 +31,9 @@ impl Scene {
         self.app.get(&format!("/api/tasks/{}/feedback", self.task_id)).await.list()
     }
 
-    async fn add(&self, kind: &str, body: &str) -> support::Resp {
-        self.app.post(&format!("/api/tasks/{}/feedback", self.task_id), json!({ "kind": kind, "bodyMarkdown": body })).await
+    async fn revise(&self, description: &str) -> Value {
+        self.save_description(description).await;
+        self.thread().await.pop().unwrap()
     }
 
     async fn evaluate_with_a_wrapup(&self) {
@@ -43,48 +44,6 @@ impl Scene {
         let answer = self.app.call_tool("rekall_feedback", json!({ "anchors": ANCHORS, "replies": [{ "seq": seq, "reply": "Done." }] })).await;
         assert_contains!(answer, "Replied to");
     }
-}
-
-#[tokio::test]
-async fn feedback_is_added_listed_edited_and_deleted_while_it_is_pending() {
-    let scene = scene().await;
-
-    let added = scene.add("IMPLEMENTATION", "The totals are wrong.").await;
-    assert_eq!(added.status, 201, "{}", added.text);
-    assert_eq!((added.get("seq").as_i64(), added.str("kind"), added.str("state")), (Some(1), "IMPLEMENTATION".into(), "PENDING".into()));
-    let id = added.str("id");
-
-    let edited = scene.app.patch(&format!("/api/feedback/{id}"), json!({ "bodyMarkdown": "The totals are wrong in the footer." })).await;
-    assert_eq!(edited.status, 200, "{}", edited.text);
-    assert_eq!(scene.thread().await[0]["bodyMarkdown"], "The totals are wrong in the footer.");
-
-    assert_eq!(scene.app.delete(&format!("/api/feedback/{id}")).await.status, 204);
-    assert!(scene.thread().await.is_empty());
-}
-
-#[tokio::test]
-async fn a_blank_body_a_missing_kind_and_a_typed_revision_are_the_callers_mistake() {
-    let scene = scene().await;
-
-    assert_eq!(scene.add("PLAN", "  ").await.status, 400);
-    let no_kind = scene.app.post(&format!("/api/tasks/{}/feedback", scene.task_id), json!({ "bodyMarkdown": "x" })).await;
-    assert_eq!(no_kind.status, 400);
-    assert_eq!(scene.add("REVISION", "x").await.status, 400);
-    assert!(scene.thread().await.is_empty());
-}
-
-#[tokio::test]
-async fn an_entry_a_session_applied_can_no_longer_be_edited_or_deleted() {
-    let scene = scene().await;
-    let id = scene.add("PLAN", "Split step 2.").await.str("id");
-    scene.reply_to(1).await;
-
-    let edit = scene.app.patch(&format!("/api/feedback/{id}"), json!({ "bodyMarkdown": "new" })).await;
-    let delete = scene.app.delete(&format!("/api/feedback/{id}")).await;
-
-    assert_eq!((edit.status, delete.status), (409, 409));
-    let thread = scene.thread().await;
-    assert_eq!((thread[0]["state"].as_str(), thread[0]["replyMarkdown"].as_str(), thread[0]["bodyMarkdown"].as_str()), (Some("APPLIED"), Some("Done."), Some("Split step 2.")));
 }
 
 #[tokio::test]
@@ -100,7 +59,10 @@ async fn saving_a_changed_description_of_an_evaluated_task_shows_a_revision_and_
 
     let thread = scene.thread().await;
     assert_eq!(thread.len(), 1);
-    assert_eq!((thread[0]["kind"].as_str(), thread[0]["quotedMarkdown"].as_str(), thread[0]["bodyMarkdown"].as_str()), (Some("REVISION"), Some("Export to CSV."), Some("Export to CSV and XLSX.")));
+    assert_eq!(
+        (thread[0]["kind"].as_str(), thread[0]["state"].as_str(), thread[0]["quotedMarkdown"].as_str(), thread[0]["bodyMarkdown"].as_str()),
+        (Some("IMPLEMENTATION"), Some("PENDING"), Some("Export to CSV."), Some("Export to CSV and XLSX."))
+    );
 
     let id = thread[0]["id"].as_str().unwrap().to_string();
     assert_eq!(scene.app.post_empty(&format!("/api/feedback/{id}/discard")).await.status, 204);
@@ -110,93 +72,96 @@ async fn saving_a_changed_description_of_an_evaluated_task_shows_a_revision_and_
 }
 
 #[tokio::test]
-async fn feedback_on_the_work_of_a_claimed_task_reopens_it_and_feedback_on_the_plan_does_not() {
+async fn a_waiting_revision_is_pointed_at_the_plan_or_the_work_and_nothing_else_can_be_sent() {
     let scene = scene().await;
+    scene.save_description("Export to CSV.").await;
     scene.evaluate_with_a_wrapup().await;
-    assert_eq!(scene.app.get_task(&scene.task_id).await["reviewState"], "CLAIMED");
+    let id = scene.revise("Export to CSV and XLSX.").await["id"].as_str().unwrap().to_string();
 
-    scene.add("PLAN", "Split step 2.").await;
-    assert_eq!(scene.app.get_task(&scene.task_id).await["reviewState"], "CLAIMED");
+    let pointed = scene.app.patch(&format!("/api/feedback/{id}"), json!({ "kind": "PLAN" })).await;
+    let missing = scene.app.patch(&format!("/api/feedback/{id}"), json!({})).await;
+    let unknown = scene.app.patch(&format!("/api/feedback/{id}"), json!({ "kind": "REVISION" })).await;
 
-    scene.add("IMPLEMENTATION", "The totals are wrong.").await;
-    assert_eq!(scene.app.get_task(&scene.task_id).await["reviewState"], "OPEN");
+    assert_eq!((pointed.status, pointed.str("kind")), (200, "PLAN".into()), "{}", pointed.text);
+    assert_eq!((missing.status, unknown.status), (400, 400));
+    assert_eq!(scene.thread().await[0]["kind"], "PLAN");
 }
 
 #[tokio::test]
-async fn a_change_to_the_thread_reaches_the_open_console_as_a_feedback_frame() {
+async fn a_revision_a_session_applied_can_no_longer_be_pointed_elsewhere_or_discarded() {
     let scene = scene().await;
+    scene.save_description("Export to CSV.").await;
+    scene.evaluate_with_a_wrapup().await;
+    let id = scene.revise("Export to CSV and XLSX.").await["id"].as_str().unwrap().to_string();
+    scene.reply_to(1).await;
+
+    let pointed = scene.app.patch(&format!("/api/feedback/{id}"), json!({ "kind": "PLAN" })).await;
+    let discarded = scene.app.post_empty(&format!("/api/feedback/{id}/discard")).await;
+
+    assert_eq!((pointed.status, discarded.status), (409, 409));
+    let thread = scene.thread().await;
+    assert_eq!((thread[0]["state"].as_str(), thread[0]["replyMarkdown"].as_str(), thread[0]["kind"].as_str()), (Some("APPLIED"), Some("Done."), Some("IMPLEMENTATION")));
+}
+
+#[tokio::test]
+async fn a_revision_is_aimed_at_the_plan_when_the_task_has_steps() {
+    let scene = scene().await;
+    scene.save_description("Export to CSV.").await;
+    scene.app.a_step(&scene.task_id, "Aggregate the rows", None).await;
+    scene.evaluate_with_a_wrapup().await;
+
+    let revision = scene.revise("Export to CSV and XLSX.").await;
+
+    assert_eq!(revision["kind"], "PLAN");
+}
+
+#[tokio::test]
+async fn a_change_to_the_revisions_reaches_the_open_console_as_a_feedback_frame() {
+    let scene = scene().await;
+    scene.save_description("Export to CSV.").await;
+    scene.evaluate_with_a_wrapup().await;
     let mut lines = scene.app.open_stream().await;
     lines.await_line("event:open", 5).await;
 
-    scene.add("PLAN", "Split step 2.").await;
+    scene.save_description("Export to CSV and XLSX.").await;
 
     assert_eq!(lines.await_line("event:feedback", 5).await, "event:feedback");
     assert_contains!(lines.await_line("data:", 5).await, &scene.task_id);
 }
 
 #[tokio::test]
-async fn the_whole_loop_from_a_rewrite_and_feedback_to_the_sessions_replies() {
+async fn the_whole_loop_from_a_rewrite_to_the_sessions_reply() {
     let scene = scene().await;
     scene.save_description("Export to CSV.").await;
     scene.evaluate_with_a_wrapup().await;
 
     scene.save_description("Export to CSV and XLSX.").await;
-    let correction = scene.add("IMPLEMENTATION", "The totals are wrong.").await;
 
-    assert_eq!(correction.status, 201, "{}", correction.text);
-    assert_eq!(scene.app.get_task(&scene.task_id).await["reviewState"], "OPEN", "feedback on the work reopens the review line");
-    let thread = scene.thread().await;
-    assert_eq!(thread.iter().map(|entry| entry["kind"].as_str().unwrap()).collect::<Vec<_>>(), ["REVISION", "IMPLEMENTATION"]);
-    assert!(thread.iter().all(|entry| entry["state"] == "PENDING"));
     assert_contains!(
         scene.app.call_tool("rekall_context", json!({ "anchors": ANCHORS })).await,
-        "<thread pending=\"2\" running=\"0\" applied=\"0\">",
+        "<thread pending=\"1\" running=\"0\" applied=\"0\">",
+        "<entry seq=\"1\" kind=\"IMPLEMENTATION\" state=\"PENDING\">",
         "<quoted>\nExport to CSV.\n</quoted>",
-        "<new>\nExport to CSV and XLSX.\n</new>",
-        "The totals are wrong."
+        "<new>\nExport to CSV and XLSX.\n</new>"
     );
 
-    let answer = scene
-        .app
-        .call_tool("rekall_feedback", json!({ "anchors": ANCHORS, "replies": [{ "seq": 1, "reply": "Added XLSX." }, { "seq": 2, "reply": "Fixed the totals." }] }))
-        .await;
+    let answer = scene.app.call_tool("rekall_feedback", json!({ "anchors": ANCHORS, "replies": [{ "seq": 1, "reply": "Added XLSX." }] })).await;
 
-    assert_contains!(answer, "Replied to #1, #2", "No entry is open any more.");
+    assert_contains!(answer, "Replied to #1", "No entry is open any more.");
     assert!(scene.thread().await.iter().all(|entry| entry["state"] == "APPLIED"));
-    let context = scene.app.call_tool("rekall_context", json!({ "anchors": ANCHORS })).await;
-    assert_contains!(
-        context,
-        "<thread pending=\"0\" running=\"0\" applied=\"2\">",
-        "<entry seq=\"1\" kind=\"REVISION\" state=\"APPLIED\">Added XLSX.</entry>",
-        "<entry seq=\"2\" kind=\"IMPLEMENTATION\" state=\"APPLIED\">Fixed the totals.</entry>"
-    );
-    assert_lacks!(context, "The totals are wrong.");
-}
-
-#[tokio::test]
-async fn feedback_on_the_plan_of_a_task_with_steps_stays_pending_until_a_session_replies() {
-    let scene = scene().await;
-    scene.app.a_step(&scene.task_id, "Aggregate the rows", None).await;
-
-    let plan = scene.add("PLAN", "Split the aggregation in two.").await;
-
-    assert_eq!(plan.status, 201, "{}", plan.text);
-    assert_eq!(scene.thread().await[0]["state"], "PENDING");
     assert_contains!(
         scene.app.call_tool("rekall_context", json!({ "anchors": ANCHORS })).await,
-        "<entry seq=\"1\" kind=\"PLAN\" state=\"PENDING\">\nSplit the aggregation in two.\n</entry>"
+        "<thread pending=\"0\" running=\"0\" applied=\"1\">",
+        "<entry seq=\"1\" kind=\"IMPLEMENTATION\" state=\"APPLIED\">Added XLSX.</entry>"
     );
-
-    scene.reply_to(1).await;
-
-    assert_eq!(scene.thread().await[0]["state"], "APPLIED");
 }
 
 #[tokio::test]
-async fn a_pass_takes_the_waiting_entries_a_session_answers_it_and_a_follow_up_waits_for_the_next() {
+async fn a_pass_takes_the_waiting_revision_a_session_answers_it_and_a_later_rewrite_waits_for_the_next() {
     let scene = scene().await;
-    scene.add("IMPLEMENTATION", "The totals are wrong.").await;
-    scene.add("PLAN", "Split step 2.").await;
+    scene.save_description("Export to CSV.").await;
+    scene.evaluate_with_a_wrapup().await;
+    scene.save_description("Export to CSV and XLSX.").await;
     let pass_path = format!("/api/tasks/{}/feedback/passes", scene.task_id);
 
     let nothing_yet = scene.app.post_empty(&format!("/api/tasks/{}/feedback/passes", scene.app.a_task(&scene.project_id, "other").await)).await;
@@ -205,26 +170,18 @@ async fn a_pass_takes_the_waiting_entries_a_session_answers_it_and_a_follow_up_w
 
     assert_eq!(started.status, 201, "{}", started.text);
     let taken = started.list();
-    assert_eq!(taken.iter().map(|entry| (entry["seq"].as_i64(), entry["state"].as_str(), entry["pass"].as_i64())).collect::<Vec<_>>(), [(Some(1), Some("RUNNING"), Some(1)), (Some(2), Some("RUNNING"), Some(1))]);
-    scene.add("IMPLEMENTATION", "Written while the session works.").await;
+    assert_eq!(taken.iter().map(|entry| (entry["seq"].as_i64(), entry["state"].as_str(), entry["pass"].as_i64())).collect::<Vec<_>>(), [(Some(1), Some("RUNNING"), Some(1))]);
+    scene.save_description("Export to CSV, XLSX and PDF.").await;
     assert_eq!(scene.app.post_empty(&pass_path).await.status, 409, "a pass is still running");
     assert_contains!(
         scene.app.call_tool("rekall_context", json!({ "anchors": ANCHORS })).await,
-        "<thread pending=\"1\" running=\"2\" applied=\"0\">",
+        "<thread pending=\"1\" running=\"1\" applied=\"0\">",
         "state=\"RUNNING\" pass=\"1\""
     );
 
-    let answer = scene
-        .app
-        .call_tool("rekall_feedback", json!({ "anchors": ANCHORS, "replies": [{ "seq": 1, "reply": "Fixed the totals." }, { "seq": 2, "reply": "Split step 2." }] }))
-        .await;
+    let answer = scene.app.call_tool("rekall_feedback", json!({ "anchors": ANCHORS, "replies": [{ "seq": 1, "reply": "Added XLSX." }] })).await;
 
-    assert_contains!(answer, "Replied to #1, #2", "Still open: #3.");
-    let follow_up = scene.app.post(&format!("/api/tasks/{}/feedback", scene.task_id), json!({ "kind": "IMPLEMENTATION", "bodyMarkdown": "Still wrong for refunds.", "followsSeq": 1 })).await;
-    assert_eq!(follow_up.status, 201, "{}", follow_up.text);
-    assert_eq!((follow_up.get("followsSeq").as_i64(), follow_up.str("state")), (Some(1), "PENDING".into()));
-    let unapplied = scene.app.post(&format!("/api/tasks/{}/feedback", scene.task_id), json!({ "kind": "PLAN", "bodyMarkdown": "x", "followsSeq": 3 })).await;
-    assert_eq!(unapplied.status, 400);
+    assert_contains!(answer, "Replied to #1", "Still open: #2.");
     let second = scene.app.post_empty(&pass_path).await;
-    assert_eq!(second.list().iter().map(|entry| entry["pass"].as_i64()).collect::<Vec<_>>(), [Some(2), Some(2)]);
+    assert_eq!(second.list().iter().map(|entry| entry["pass"].as_i64()).collect::<Vec<_>>(), [Some(2)]);
 }

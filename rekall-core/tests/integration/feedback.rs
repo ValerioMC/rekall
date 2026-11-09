@@ -11,8 +11,7 @@ use support::{world, World};
 
 async fn pending(world: &World, task: &task::Model, kind: FeedbackKind, body: &str) -> task_feedback::Model {
     let seq = repo::task_feedback::next_seq(world.db(), task.id).await.unwrap();
-    let quoted = kind.is_revision().then(|| "the text before".to_string());
-    let entry = task_feedback::Model::new(task.id, seq, kind, quoted, body.into(), None, Instant::now());
+    let entry = task_feedback::Model::new(task.id, seq, kind, "the text before".into(), body.into(), Instant::now());
     entry.clone().into_active_model().insert(world.db()).await.unwrap();
     entry
 }
@@ -49,7 +48,7 @@ async fn replying_to_a_revision_changes_nothing_but_the_entry() {
     let world = world().await;
     let project = world.project("vega", None, false).await;
     let task = world.task(&project, "checkout").await;
-    pending(&world, &task, FeedbackKind::Revision, "the text now").await;
+    pending(&world, &task, FeedbackKind::Implementation, "the text now").await;
 
     world.services.feedback.reply(Some("vega"), "checkout", vec![(1, "Built it.".into())]).await.unwrap();
 
@@ -107,7 +106,7 @@ async fn the_context_shows_pending_entries_in_full_and_applied_ones_as_one_line(
     let rendered = world.services.renderer.render(&world.services.context.for_task(task.id).await.unwrap());
 
     assert!(rendered.contains("<entry seq=\"1\" kind=\"IMPLEMENTATION\" state=\"APPLIED\">Fixed the totals.</entry>"), "{rendered}");
-    assert!(rendered.contains("<entry seq=\"2\" kind=\"PLAN\" state=\"PENDING\">\nSplit step 2\n</entry>"), "{rendered}");
+    assert!(rendered.contains("<entry seq=\"2\" kind=\"PLAN\" state=\"PENDING\">\n<quoted>\nthe text before\n</quoted>\n<new>\nSplit step 2\n</new>\n</entry>"), "{rendered}");
     assert!(!rendered.contains("in detail"), "{rendered}");
 }
 
@@ -183,5 +182,5 @@ async fn the_context_shows_running_entries_in_full_with_their_pass_and_the_count
     let rendered = world.services.renderer.render(&world.services.context.for_task(task.id).await.unwrap());
 
     assert!(rendered.contains("<thread pending=\"0\" running=\"1\" applied=\"0\">"), "{rendered}");
-    assert!(rendered.contains("state=\"RUNNING\" pass=\"2\">\nThe totals are wrong, in detail\n</entry>"), "{rendered}");
+    assert!(rendered.contains("state=\"RUNNING\" pass=\"2\">\n<quoted>\nthe text before\n</quoted>\n<new>\nThe totals are wrong, in detail\n</new>\n</entry>"), "{rendered}");
 }

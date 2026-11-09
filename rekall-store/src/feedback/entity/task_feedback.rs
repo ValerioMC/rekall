@@ -1,8 +1,7 @@
-//! One message of a task's thread. A `REVISION` keeps the description before (`quoted_markdown`) and
-//! after (`body_markdown`) a rewrite; the other kinds carry only the body. It stays `PENDING` until
+//! One revision of a task's description: the text before (`quoted_markdown`) and after
+//! (`body_markdown`) a rewrite, applied to the work or to the plan (`kind`). It stays `PENDING` until
 //! Run revision takes it into a numbered `pass` (`RUNNING`), and `APPLIED` once a session answers it
-//! with a reply. `follows_seq` names the earlier entry it adds detail to. `seq` numbers the entries
-//! of one task from 1.
+//! with a reply. `seq` numbers the revisions of one task from 1.
 
 use rekall_kernel::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;
@@ -30,7 +29,6 @@ pub struct Model {
     pub applied_at: Option<Instant>,
     pub pass: Option<i32>,
     pub taken_at: Option<Instant>,
-    pub follows_seq: Option<i32>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -48,14 +46,14 @@ impl Related<crate::task::Entity> for Entity {
 impl ActiveModelBehavior for ActiveModel {}
 
 impl Model {
-    pub fn new(task_id: Id, seq: i32, kind: FeedbackKind, quoted_markdown: Option<String>, body_markdown: String, follows_seq: Option<i32>, now: Instant) -> Self {
+    pub fn new(task_id: Id, seq: i32, kind: FeedbackKind, quoted_markdown: String, body_markdown: String, now: Instant) -> Self {
         Self {
             id: Id::random(),
             task_id,
             seq,
             kind,
             state: FeedbackState::Pending,
-            quoted_markdown,
+            quoted_markdown: Some(quoted_markdown),
             body_markdown,
             reply_markdown: None,
             created_at: now,
@@ -63,7 +61,6 @@ impl Model {
             applied_at: None,
             pass: None,
             taken_at: None,
-            follows_seq,
         }
     }
 
@@ -74,6 +71,11 @@ impl Model {
     /// Waiting for a session or taken into a pass: what a reply may still answer.
     pub fn open(&self) -> bool {
         matches!(self.state, FeedbackState::Pending | FeedbackState::Running)
+    }
+
+    pub fn retarget(&mut self, kind: FeedbackKind, now: Instant) {
+        self.kind = kind;
+        self.updated_at = now;
     }
 
     pub fn take(&mut self, pass: i32, now: Instant) {
@@ -104,9 +106,7 @@ impl Model {
             .max_length("bodyMarkdown", Some(&self.body_markdown), BODY_MAX_CHARACTERS)
             .max_length("quotedMarkdown", self.quoted_markdown.as_deref(), BODY_MAX_CHARACTERS)
             .max_length("replyMarkdown", self.reply_markdown.as_deref(), REPLY_MAX_CHARACTERS)
-            .require(self.kind.is_revision() == self.quoted_markdown.is_some(), "only a revision carries quotedMarkdown, and a revision must")
-            .require(self.follows_seq.map_or(true, |followed| followed >= 1 && followed != self.seq), "followsSeq names an earlier entry, never the entry itself")
-            .require(!(self.kind.is_revision() && self.follows_seq.is_some()), "a revision follows the description, not an entry")
+            .require(self.quoted_markdown.is_some(), "a revision must carry quotedMarkdown")
             .finish()
     }
 }

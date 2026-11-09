@@ -3,8 +3,8 @@ import { answeredCount, groupByPass, passDetail } from '@/features/feedback/lib/
 import { applied, appliedInPass, entry, running } from './fixtures'
 
 describe('groupByPass', () => {
-  it('puts the waiting entries in the next run, whatever their kind', () => {
-    const groups = groupByPass([entry(1), entry(2, { kind: 'PLAN' }), entry(3, { kind: 'REVISION', quotedMarkdown: 'a' })])
+  it('puts the waiting entries in the next run, whatever they are applied to', () => {
+    const groups = groupByPass([entry(1), entry(2, { kind: 'PLAN' }), entry(3)])
 
     expect(groups.next.map((feedback) => feedback.seq)).toEqual([1, 2, 3])
     expect(groups.passes).toEqual([])

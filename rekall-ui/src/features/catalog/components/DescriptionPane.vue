@@ -20,8 +20,10 @@ import CommitReferenceRail from '@/features/commits/components/CommitReferenceRa
 import ContextSizeChip from '@/features/context/components/ContextSizeChip.vue'
 import TaskTitleRow from '@/features/catalog/components/TaskTitleRow.vue'
 import TaskLabelsStrip from '@/features/catalog/components/TaskLabelsStrip.vue'
-import ApplyFeedbackButton from '@/features/feedback/components/ApplyFeedbackButton.vue'
-import FeedbackThread from '@/features/feedback/components/FeedbackThread.vue'
+import DescriptionViewTabs from '@/features/catalog/components/DescriptionViewTabs.vue'
+import RevisionRunBar from '@/features/feedback/components/RevisionRunBar.vue'
+import RevisionsPanel from '@/features/feedback/components/RevisionsPanel.vue'
+import type { DescriptionView } from '@/features/catalog/model/description-view'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import type { Feedback } from '@/features/feedback/model/feedback'
 
@@ -44,7 +46,7 @@ const reviewState = computed(() => {
 })
 
 const needsAttention = computed(() => waitingCount.value > 0 || runningPass.value !== null)
-const threadOpen = ref(false)
+const view = ref<DescriptionView>('description')
 
 watch(
   selectedTaskId,
@@ -54,25 +56,9 @@ watch(
   { immediate: true }
 )
 
-watch(
-  selectedTaskId,
-  () => {
-    threadOpen.value = needsAttention.value
-  },
-  { immediate: true }
-)
-
-watch(needsAttention, (attention) => {
-  if (attention) threadOpen.value = true
+watch(selectedTaskId, () => {
+  view.value = 'description'
 })
-
-function editFeedback(entry: Feedback, body: string): void {
-  void run(() => store.editFeedback(entry, body))
-}
-
-function removeFeedback(entry: Feedback): void {
-  void run(() => store.deleteFeedback(entry))
-}
 
 function discardRevision(entry: Feedback): void {
   void run(() => store.discardRevision(entry))
@@ -160,7 +146,8 @@ defineExpose({ toggleMode })
             />
           </div>
 
-          <AppModeToggle v-if="showEditor" v-model="mode" />
+          <DescriptionViewTabs v-model="view" :count="selectedTaskFeedback.length" :attention="needsAttention" />
+          <AppModeToggle v-if="showEditor && view === 'description'" v-model="mode" />
         </header>
       </div>
 
@@ -185,7 +172,20 @@ defineExpose({ toggleMode })
         :signature="`${reviewState}:${selectedTask.updatedAt}`"
       />
 
-      <DescriptionEmptyState v-if="!showEditor" @write="beginWriting" />
+      <RevisionRunBar
+        v-if="waitingCount > 0"
+        :task-id="selectedTask.id"
+        :anchor="selectedTask.anchor"
+        :folder="selectedTask.projectRepoFolder"
+        :revisions-shown="view === 'revisions'"
+        @show-revisions="view = 'revisions'"
+      />
+
+      <div v-if="view === 'revisions'" class="min-h-0 flex-1 overflow-y-auto p-4" data-testid="revisions-view">
+        <RevisionsPanel :entries="selectedTaskFeedback" @discard="discardRevision" />
+      </div>
+
+      <DescriptionEmptyState v-else-if="!showEditor" @write="beginWriting" />
 
       <div v-else class="min-h-0 flex-1 overflow-y-auto p-4">
         <Transition name="fade-quick" mode="out-in">
@@ -205,47 +205,6 @@ defineExpose({ toggleMode })
         </Transition>
       </div>
 
-      <section
-        class="flex max-h-[55%] shrink flex-col border-t border-border bg-surface"
-        :class="threadOpen ? 'min-h-[18.5rem]' : 'min-h-0'"
-        aria-label="Feedback"
-        data-testid="feedback-dock"
-      >
-        <header class="flex shrink-0 items-center gap-2 px-4 py-2">
-          <button
-            type="button"
-            class="focus-ring flex items-center gap-1.5 rounded-control px-1 py-0.5 text-left"
-            :aria-expanded="threadOpen"
-            data-testid="feedback-dock-toggle"
-            @click="threadOpen = !threadOpen"
-          >
-            <svg
-              class="size-2.5 shrink-0 text-text-subtle transition-transform"
-              :class="threadOpen && 'rotate-90'"
-              viewBox="0 0 24 24"
-              fill="none"
-              aria-hidden="true"
-            >
-              <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-            <span class="eyebrow">Feedback</span>
-            <span class="text-micro text-text-subtle">{{ selectedTaskFeedback.length }}</span>
-          </button>
-          <span class="flex-1" />
-          <ApplyFeedbackButton
-            :task-id="selectedTask.id"
-            :anchor="selectedTask.anchor"
-            :folder="selectedTask.projectRepoFolder"
-          />
-        </header>
-        <FeedbackThread
-          v-if="threadOpen"
-          :entries="selectedTaskFeedback"
-          @edit="editFeedback"
-          @remove="removeFeedback"
-          @discard="discardRevision"
-        />
-      </section>
     </template>
   </section>
 </template>

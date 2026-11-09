@@ -48,3 +48,9 @@ fn an_unchanged_or_cleared_description_changes_nothing() {
     assert_eq!(decide(true, open("v1"), Some("v2"), None), RevisionDecision::Ignore);
     assert_eq!(decide(true, None, Some("v1"), Some("   ")), RevisionDecision::Ignore);
 }
+
+#[test]
+fn a_task_with_a_plan_applies_its_revisions_to_the_plan_and_one_without_to_the_work() {
+    assert_eq!(default_target(true), FeedbackKind::Plan);
+    assert_eq!(default_target(false), FeedbackKind::Implementation);
+}

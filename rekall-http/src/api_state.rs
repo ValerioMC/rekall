@@ -148,7 +148,7 @@ impl ApiState {
             checks: check::CheckService::new(ctx.clone()),
             task_dependencies: dependency::TaskDependencyService::new(ctx.clone(), RunQueueService::new(ctx.clone())),
             task_deviations: deviation::TaskDeviationService::new(ctx.clone()),
-            feedback: feedback::FeedbackService::new(ctx.clone(), services.review.clone()),
+            feedback: feedback::FeedbackService::new(ctx.clone()),
             task_branches: worktree::TaskBranchService::new(ports.task_worktrees.clone()),
             adherence: adherence::PlanAdherenceService::new(ctx.clone()),
             graphs,

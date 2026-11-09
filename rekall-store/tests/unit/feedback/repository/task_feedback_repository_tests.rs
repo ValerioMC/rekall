@@ -1,5 +1,5 @@
 use super::*;
-use crate::enums::ProjectStatus;
+use crate::enums::{FeedbackKind, ProjectStatus};
 use crate::{company, project, task};
 use rekall_kernel::Instant;
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
@@ -21,8 +21,7 @@ async fn a_task(db: &impl ConnectionTrait) -> task::Model {
 
 async fn add(db: &impl ConnectionTrait, task: &task::Model, kind: FeedbackKind, body: &str) -> Model {
     let seq = next_seq(db, task.id).await.unwrap();
-    let quoted = kind.is_revision().then(|| "before".to_string());
-    let entry = Model::new(task.id, seq, kind, quoted, body.into(), None, Instant::now());
+    let entry = Model::new(task.id, seq, kind, "before".into(), body.into(), Instant::now());
     entry.clone().into_active_model().insert(db).await.unwrap();
     entry
 }
@@ -64,14 +63,13 @@ async fn only_the_pending_entries_are_pending() {
 }
 
 #[tokio::test]
-async fn the_open_revision_is_the_pending_one_and_none_once_it_is_applied() {
+async fn the_open_revision_is_the_latest_pending_one_and_none_once_it_is_applied() {
     let database = crate::open_temporary().await.unwrap();
     let db = &database.conn;
     let task = a_task(db).await;
     assert!(latest_open_revision(db, task.id).await.unwrap().is_none());
 
-    let revision = add(db, &task, FeedbackKind::Revision, "after").await;
-    add(db, &task, FeedbackKind::Implementation, "a correction").await;
+    let revision = add(db, &task, FeedbackKind::Implementation, "after").await;
     assert_eq!(latest_open_revision(db, task.id).await.unwrap().unwrap().id, revision.id);
 
     apply(db, &revision).await;
@@ -85,7 +83,7 @@ async fn a_second_entry_with_the_same_number_is_refused_by_the_schema() {
     let task = a_task(db).await;
     add(db, &task, FeedbackKind::Implementation, "one").await;
 
-    let again = Model::new(task.id, 1, FeedbackKind::Plan, None, "two".into(), None, Instant::now());
+    let again = Model::new(task.id, 1, FeedbackKind::Plan, "before".into(), "two".into(), Instant::now());
 
     assert!(again.into_active_model().insert(db).await.is_err());
 }
@@ -144,19 +142,15 @@ async fn the_latest_pass_is_zero_until_an_entry_is_taken_and_then_the_highest_nu
 }
 
 #[tokio::test]
-async fn an_entry_from_before_passes_has_no_pass_and_a_follow_up_keeps_what_it_follows() {
+async fn an_entry_from_before_passes_has_no_pass() {
     let database = crate::open_temporary().await.unwrap();
     let db = &database.conn;
     let task = a_task(db).await;
     let legacy = add(db, &task, FeedbackKind::Implementation, "old").await;
     apply(db, &legacy).await;
-    let follow_up = Model::new(task.id, 2, FeedbackKind::Implementation, None, "still wrong".into(), Some(1), Instant::now());
-    follow_up.into_active_model().insert(db).await.unwrap();
 
     let first = find_by_seq(db, task.id, 1).await.unwrap().unwrap();
-    let second = find_by_seq(db, task.id, 2).await.unwrap().unwrap();
 
-    assert_eq!((first.pass, first.taken_at, first.follows_seq), (None, None, None));
-    assert_eq!(second.follows_seq, Some(1));
+    assert_eq!((first.pass, first.taken_at), (None, None));
     assert_eq!(latest_pass(db, task.id).await.unwrap(), 0);
 }

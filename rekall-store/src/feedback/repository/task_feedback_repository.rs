@@ -1,5 +1,5 @@
 use rekall_kernel::{Id, RekallError};
-use crate::enums::{FeedbackKind, FeedbackState};
+use crate::enums::FeedbackState;
 use crate::task_feedback::{Column, Entity, Model};
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QueryOrder};
 
@@ -59,7 +59,6 @@ async fn entries_in_state(db: &impl ConnectionTrait, task_id: Id, states: &[Feed
 pub async fn latest_open_revision(db: &impl ConnectionTrait, task_id: Id) -> Result<Option<Model>, RekallError> {
     Ok(Entity::find()
         .filter(Column::TaskId.eq(task_id))
-        .filter(Column::Kind.eq(FeedbackKind::Revision))
         .filter(Column::State.eq(FeedbackState::Pending))
         .order_by_desc(Column::Seq)
         .one(db)

@@ -5,7 +5,7 @@ import { applied, revision } from './fixtures'
 
 function view(before: string, after: string, state: 'PENDING' | 'APPLIED' = 'PENDING') {
   const entry = revision(1, before, after)
-  return mount(RevisionEntry, { props: { entry: state === 'PENDING' ? entry : { ...entry, ...applied(1, 'Built.') , kind: 'REVISION', quotedMarkdown: before, bodyMarkdown: after } } })
+  return mount(RevisionEntry, { props: { entry: state === 'PENDING' ? entry : { ...entry, ...applied(1, 'Built.'), quotedMarkdown: before, bodyMarkdown: after } } })
 }
 
 describe('a revision of the description', () => {

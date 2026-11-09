@@ -12,7 +12,6 @@ pub struct FeedbackView {
     pub reply_markdown: Option<String>,
     pub pass: Option<i32>,
     pub taken_at: Option<Instant>,
-    pub follows_seq: Option<i32>,
 }
 
 impl FeedbackView {
@@ -26,7 +25,6 @@ impl FeedbackView {
             reply_markdown: entry.reply_markdown.clone(),
             pass: entry.pass,
             taken_at: entry.taken_at,
-            follows_seq: entry.follows_seq,
         }
     }
 }

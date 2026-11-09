@@ -329,7 +329,7 @@ async fn a_session_on_the_task_alone_gives_back_the_entries_it_never_answered() 
     let world = world().await;
     let project = world.project("alpha", None).await;
     let task = world.task(&project, "one").await;
-    let mut entry = task_feedback::Model::new(task.id, 1, FeedbackKind::Implementation, None, "fix it".into(), None, rekall_kernel::Instant::now());
+    let mut entry = task_feedback::Model::new(task.id, 1, FeedbackKind::Implementation, "before".into(), "fix it".into(), rekall_kernel::Instant::now());
     entry.take(1, rekall_kernel::Instant::now());
     entry.into_active_model().insert(world.db()).await.unwrap();
     let marker = world.work_marker();
@@ -348,7 +348,7 @@ async fn a_session_on_a_step_leaves_the_running_entries_of_the_thread_alone() {
     let project = world.project("alpha", None).await;
     let task = world.task(&project, "one").await;
     let step = world.step(&task, "First", 0, TaskStepState::Running).await;
-    let mut entry = task_feedback::Model::new(task.id, 1, FeedbackKind::Implementation, None, "fix it".into(), None, rekall_kernel::Instant::now());
+    let mut entry = task_feedback::Model::new(task.id, 1, FeedbackKind::Implementation, "before".into(), "fix it".into(), rekall_kernel::Instant::now());
     entry.take(1, rekall_kernel::Instant::now());
     entry.into_active_model().insert(world.db()).await.unwrap();
     let marker = world.work_marker();

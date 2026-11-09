@@ -15,9 +15,7 @@ const startPass = vi.fn()
 
 vi.mock('@/features/feedback/api/feedback.api', () => ({
   fetchFeedback: vi.fn(),
-  addFeedback: vi.fn(),
-  editFeedback: vi.fn(),
-  deleteFeedback: vi.fn(),
+  retargetFeedback: vi.fn(),
   discardRevision: vi.fn(),
   startPass: (...args: unknown[]) => startPass(...args)
 }))
@@ -69,7 +67,7 @@ describe('the apply feedback button', () => {
     startPass.mockResolvedValue([])
   })
 
-  it('counts every waiting entry whatever its kind, and only those', () => {
+  it('counts every waiting revision whatever it is applied to, and only those', () => {
     const wrapper = button([entry(1), revision(2, 'a', 'b'), entry(3, { kind: 'PLAN' }), entry(4, { state: 'APPLIED' }), running(5, 1)])
 
     expect(wrapper.text()).toContain('Run revision')

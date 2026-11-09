@@ -1,6 +1,6 @@
 use rekall_core::{EventBus, Services};
 use rekall_kernel::Instant;
-use rekall_store::{company, project, task_step, wrapup, FeedbackState, ProjectStatus, WrapupAuthor};
+use rekall_store::{company, project, task_step, wrapup, FeedbackState, ProjectStatus, TaskStepState, WrapupAuthor};
 
 use super::*;
 
@@ -27,7 +27,7 @@ async fn world() -> World {
     task.description = Some("Export to CSV.".into());
     task.clone().into_active_model().insert(&database.conn).await.unwrap();
     let services = Services::new(ctx.clone(), std::sync::Arc::new(rekall_core::check::ScriptedCheckRunner::new()));
-    let service = FeedbackService::new(ctx.clone(), services.review.clone());
+    let service = FeedbackService::new(ctx.clone());
     World { service, services, ctx, task_id: task.id }
 }
 
@@ -40,16 +40,6 @@ impl World {
         let now = Instant::now();
         let wrapup = wrapup::Model { id: Id::random(), task_id: self.task_id, body_markdown: "built".into(), written_by: WrapupAuthor::Claude, created_at: now, updated_at: now };
         wrapup.into_active_model().insert(&self.ctx.db).await.unwrap();
-    }
-
-    async fn claim_the_review_line(&self) {
-        self.set_review_state(TaskStepState::Claimed).await;
-    }
-
-    async fn set_review_state(&self, state: TaskStepState) {
-        let mut task = self.task().await;
-        task.mark_review_state(state);
-        task.into_active_model().reset_all().update(&self.ctx.db).await.unwrap();
     }
 
     async fn add_a_step(&self, state: TaskStepState) {
@@ -76,84 +66,14 @@ impl World {
         self.service.list(self.task_id).await.unwrap()
     }
 
-    async fn add(&self, kind: FeedbackKind, body: &str) -> FeedbackView {
-        self.service.add(self.task_id, AddFeedbackCommand { kind, body: body.into(), follows_seq: None }).await.unwrap()
+    async fn revise(&self, after: &str) -> FeedbackView {
+        self.edit_description(after).await;
+        self.thread().await.pop().unwrap()
     }
 
     async fn reply_to(&self, seq: i32) {
         self.services.feedback.reply(Some("app"), "report", vec![(seq, "Done.".into())]).await.unwrap();
     }
-}
-
-#[tokio::test]
-async fn feedback_is_added_pending_and_numbered_in_order() {
-    let world = world().await;
-
-    let first = world.add(FeedbackKind::Implementation, "  The totals are wrong  ").await;
-    let second = world.add(FeedbackKind::Plan, "Split step 2").await;
-
-    assert_eq!((first.seq, second.seq), (1, 2));
-    assert_eq!((first.state, first.body_markdown.as_str()), (FeedbackState::Pending, "The totals are wrong"));
-    assert_eq!(world.thread().await.len(), 2);
-}
-
-#[tokio::test]
-async fn a_blank_body_and_a_typed_revision_are_refused_as_the_callers_mistake() {
-    let world = world().await;
-
-    let blank = world.service.add(world.task_id, AddFeedbackCommand { kind: FeedbackKind::Plan, body: "  ".into(), follows_seq: None }).await.unwrap_err();
-    let revision = world.service.add(world.task_id, AddFeedbackCommand { kind: FeedbackKind::Revision, body: "x".into(), follows_seq: None }).await.unwrap_err();
-
-    assert!(blank.is_illegal_argument() && revision.is_illegal_argument());
-    assert!(world.thread().await.is_empty());
-}
-
-#[tokio::test]
-async fn feedback_on_the_work_reopens_a_claimed_task_with_no_steps_and_feedback_on_the_plan_does_not() {
-    let world = world().await;
-    world.claim_the_review_line().await;
-
-    world.add(FeedbackKind::Plan, "Split step 2").await;
-    assert_eq!(world.task().await.review_state, TaskStepState::Claimed);
-
-    world.add(FeedbackKind::Implementation, "The totals are wrong").await;
-    assert_eq!(world.task().await.review_state, TaskStepState::Open);
-}
-
-#[tokio::test]
-async fn feedback_on_the_work_of_a_task_with_steps_leaves_its_review_line_alone() {
-    let world = world().await;
-    world.add_a_step(TaskStepState::Claimed).await;
-    world.claim_the_review_line().await;
-
-    world.add(FeedbackKind::Implementation, "The totals are wrong").await;
-
-    assert_eq!(world.task().await.review_state, TaskStepState::Claimed);
-}
-
-#[tokio::test]
-async fn a_pending_entry_can_be_edited_and_deleted() {
-    let world = world().await;
-    let entry = world.add(FeedbackKind::Implementation, "first words").await;
-
-    let edited = world.service.edit(entry.id, " better words ").await.unwrap();
-    assert_eq!(edited.body_markdown, "better words");
-
-    world.service.delete(entry.id).await.unwrap();
-    assert!(world.thread().await.is_empty());
-}
-
-#[tokio::test]
-async fn an_applied_entry_can_no_longer_be_edited_or_deleted() {
-    let world = world().await;
-    let entry = world.add(FeedbackKind::Implementation, "first words").await;
-    world.reply_to(entry.seq).await;
-
-    let edit = world.service.edit(entry.id, "new words").await.unwrap_err();
-    let delete = world.service.delete(entry.id).await.unwrap_err();
-
-    assert!(matches!(edit, RekallError::Conflict(_)) && matches!(delete, RekallError::Conflict(_)), "{edit:?} {delete:?}");
-    assert_eq!(world.thread().await[0].body_markdown, "first words");
 }
 
 #[tokio::test]
@@ -175,9 +95,35 @@ async fn editing_the_description_of_an_evaluated_task_opens_one_revision_that_la
 
     let thread = world.thread().await;
     assert_eq!(thread.len(), 1);
-    assert_eq!(thread[0].kind, FeedbackKind::Revision);
+    assert_eq!((thread[0].seq, thread[0].state), (1, FeedbackState::Pending));
     assert_eq!(thread[0].quoted_markdown.as_deref(), Some("Export to CSV."));
     assert_eq!(thread[0].body_markdown, "Export to CSV, XLSX and PDF.");
+}
+
+#[tokio::test]
+async fn a_revision_is_applied_to_the_work_unless_the_task_has_steps() {
+    let world = world().await;
+    world.evaluate_with_a_wrapup().await;
+    let on_the_work = world.revise("Export to CSV and XLSX.").await;
+    world.reply_to(on_the_work.seq).await;
+    world.add_a_step(TaskStepState::Open).await;
+
+    let on_the_plan = world.revise("Export to CSV, XLSX and PDF.").await;
+
+    assert_eq!((on_the_work.kind, on_the_plan.kind), (FeedbackKind::Implementation, FeedbackKind::Plan));
+}
+
+#[tokio::test]
+async fn a_waiting_revision_can_be_pointed_at_the_plan_or_the_work_and_keeps_its_choice_when_rewritten() {
+    let world = world().await;
+    world.evaluate_with_a_wrapup().await;
+    let revision = world.revise("Export to CSV and XLSX.").await;
+
+    let retargeted = world.service.retarget(revision.id, FeedbackKind::Plan).await.unwrap();
+    world.edit_description("Export to CSV, XLSX and PDF.").await;
+
+    assert_eq!(retargeted.kind, FeedbackKind::Plan);
+    assert_eq!(world.thread().await[0].kind, FeedbackKind::Plan);
 }
 
 #[tokio::test]
@@ -210,8 +156,7 @@ async fn once_a_revision_is_applied_the_next_edit_opens_a_new_one_quoting_the_ap
 async fn discarding_a_revision_puts_the_earlier_text_back_and_removes_it() {
     let world = world().await;
     world.evaluate_with_a_wrapup().await;
-    world.edit_description("Export to CSV and XLSX.").await;
-    let revision = world.thread().await.remove(0);
+    let revision = world.revise("Export to CSV and XLSX.").await;
 
     world.service.discard_revision(revision.id).await.unwrap();
 
@@ -220,49 +165,39 @@ async fn discarding_a_revision_puts_the_earlier_text_back_and_removes_it() {
 }
 
 #[tokio::test]
-async fn only_a_pending_revision_can_be_discarded_and_a_revision_cannot_be_edited_or_deleted() {
+async fn an_applied_revision_can_be_neither_discarded_nor_pointed_elsewhere() {
     let world = world().await;
     world.evaluate_with_a_wrapup().await;
-    world.edit_description("Export to CSV and XLSX.").await;
-    let revision = world.thread().await.remove(0);
-    let correction = world.add(FeedbackKind::Implementation, "The totals are wrong").await;
-
-    assert!(matches!(world.service.discard_revision(correction.id).await.unwrap_err(), RekallError::Conflict(_)));
-    assert!(matches!(world.service.edit(revision.id, "x").await.unwrap_err(), RekallError::Conflict(_)));
-    assert!(matches!(world.service.delete(revision.id).await.unwrap_err(), RekallError::Conflict(_)));
+    let revision = world.revise("Export to CSV and XLSX.").await;
     world.reply_to(revision.seq).await;
-    assert!(matches!(world.service.discard_revision(revision.id).await.unwrap_err(), RekallError::Conflict(_)));
+
+    let discard = world.service.discard_revision(revision.id).await.unwrap_err();
+    let retarget = world.service.retarget(revision.id, FeedbackKind::Plan).await.unwrap_err();
+
+    assert!(matches!(discard, RekallError::Conflict(_)) && matches!(retarget, RekallError::Conflict(_)), "{discard:?} {retarget:?}");
     assert_eq!(world.task().await.description.as_deref(), Some("Export to CSV and XLSX."));
 }
 
-impl World {
-    async fn follow_up(&self, followed: i32, body: &str) -> Result<FeedbackView> {
-        self.service.add(self.task_id, AddFeedbackCommand { kind: FeedbackKind::Implementation, body: body.into(), follows_seq: Some(followed) }).await
-    }
-}
-
 #[tokio::test]
-async fn a_pass_takes_every_waiting_entry_whatever_its_kind_under_one_number() {
+async fn a_pass_takes_the_waiting_revision_under_one_number() {
     let world = world().await;
     world.evaluate_with_a_wrapup().await;
     world.edit_description("Export to CSV and XLSX.").await;
-    world.add(FeedbackKind::Implementation, "The totals are wrong").await;
-    world.add(FeedbackKind::Plan, "Split step 2").await;
 
     let taken = world.service.start_pass(world.task_id).await.unwrap();
 
-    assert_eq!(taken.iter().map(|entry| entry.seq).collect::<Vec<_>>(), [1, 2, 3]);
+    assert_eq!(taken.iter().map(|entry| entry.seq).collect::<Vec<_>>(), [1]);
     assert!(taken.iter().all(|entry| entry.state == FeedbackState::Running && entry.pass == Some(1) && entry.taken_at.is_some()));
-    assert!(world.thread().await.iter().all(|entry| entry.state == FeedbackState::Running));
 }
 
 #[tokio::test]
-async fn entries_written_during_a_pass_wait_and_form_the_next_one() {
+async fn a_revision_made_during_a_pass_waits_and_forms_the_next_one() {
     let world = world().await;
-    world.add(FeedbackKind::Implementation, "first").await;
+    world.evaluate_with_a_wrapup().await;
+    world.edit_description("Export to CSV and XLSX.").await;
     world.service.start_pass(world.task_id).await.unwrap();
-    let late = world.add(FeedbackKind::Plan, "written while the session works").await;
-    assert_eq!((late.state, late.pass), (FeedbackState::Pending, None));
+    let late = world.revise("Export to CSV, XLSX and PDF.").await;
+    assert_eq!((late.seq, late.state, late.pass), (2, FeedbackState::Pending, None));
     world.reply_to(1).await;
 
     let taken = world.service.start_pass(world.task_id).await.unwrap();
@@ -274,10 +209,11 @@ async fn entries_written_during_a_pass_wait_and_form_the_next_one() {
 #[tokio::test]
 async fn a_second_pass_is_refused_while_one_runs_and_so_is_a_pass_with_nothing_waiting() {
     let world = world().await;
+    world.evaluate_with_a_wrapup().await;
     let nothing = world.service.start_pass(world.task_id).await.unwrap_err();
-    world.add(FeedbackKind::Implementation, "first").await;
+    world.edit_description("Export to CSV and XLSX.").await;
     world.service.start_pass(world.task_id).await.unwrap();
-    world.add(FeedbackKind::Implementation, "second").await;
+    world.edit_description("Export to CSV, XLSX and PDF.").await;
 
     let running = world.service.start_pass(world.task_id).await.unwrap_err();
 
@@ -287,47 +223,15 @@ async fn a_second_pass_is_refused_while_one_runs_and_so_is_a_pass_with_nothing_w
 }
 
 #[tokio::test]
-async fn an_entry_in_a_pass_can_be_neither_edited_nor_deleted_nor_discarded() {
+async fn a_revision_in_a_pass_can_be_neither_discarded_nor_pointed_elsewhere() {
     let world = world().await;
     world.evaluate_with_a_wrapup().await;
-    world.edit_description("Export to CSV and XLSX.").await;
-    let correction = world.add(FeedbackKind::Implementation, "first").await;
+    let revision = world.revise("Export to CSV and XLSX.").await;
     world.service.start_pass(world.task_id).await.unwrap();
-    let revision = world.thread().await.remove(0);
 
-    let edit = world.service.edit(correction.id, "new").await.unwrap_err();
-    let delete = world.service.delete(correction.id).await.unwrap_err();
     let discard = world.service.discard_revision(revision.id).await.unwrap_err();
+    let retarget = world.service.retarget(revision.id, FeedbackKind::Plan).await.unwrap_err();
 
-    assert!([&edit, &delete, &discard].iter().all(|refused| matches!(refused, RekallError::Conflict(_)) && refused.message().contains("pass 1")), "{edit:?} {delete:?} {discard:?}");
+    assert!([&discard, &retarget].iter().all(|refused| matches!(refused, RekallError::Conflict(_)) && refused.message().contains("pass 1")), "{discard:?} {retarget:?}");
     assert_eq!(world.task().await.description.as_deref(), Some("Export to CSV and XLSX."));
-}
-
-#[tokio::test]
-async fn a_follow_up_is_accepted_only_on_an_applied_entry_of_the_thread() {
-    let world = world().await;
-    let entry = world.add(FeedbackKind::Implementation, "The totals are wrong").await;
-
-    let waiting = world.follow_up(entry.seq, "Still wrong").await.unwrap_err();
-    world.service.start_pass(world.task_id).await.unwrap();
-    let running = world.follow_up(entry.seq, "Still wrong").await.unwrap_err();
-    world.reply_to(entry.seq).await;
-    let unknown = world.follow_up(9, "Still wrong").await.unwrap_err();
-    let follow_up = world.follow_up(entry.seq, "Still wrong for refunds").await.unwrap();
-
-    assert!(waiting.is_illegal_argument() && running.is_illegal_argument() && unknown.is_illegal_argument());
-    assert_eq!((follow_up.seq, follow_up.follows_seq, follow_up.state), (2, Some(1), FeedbackState::Pending));
-}
-
-#[tokio::test]
-async fn a_follow_up_on_the_work_reopens_a_claimed_task_like_any_feedback_on_the_work() {
-    let world = world().await;
-    let entry = world.add(FeedbackKind::Implementation, "The totals are wrong").await;
-    world.service.start_pass(world.task_id).await.unwrap();
-    world.reply_to(entry.seq).await;
-    world.claim_the_review_line().await;
-
-    world.follow_up(entry.seq, "Still wrong").await.unwrap();
-
-    assert_eq!(world.task().await.review_state, TaskStepState::Open);
 }

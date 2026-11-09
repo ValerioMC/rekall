@@ -8,9 +8,9 @@ quoted text is what I noticed the plan missed, in my words. It is not an anchor.
 
 1. Drop the `replan` term and the quoted text, and call `rekall_context` with the anchors that are
    left. The anchors string never carries the quoted text.
-2. Read the `PLAN` entries of the `<thread>` block, only the `PENDING` or `RUNNING` ones: they are the
-   requirement, alongside the quoted text when there is one. An `APPLIED` entry is history and is not
-   read as work. An entry with `follows="S"` continues entry S: read S's reply line first. Read what the context gives you as in `planning.md`, and read the steps that are there: which are done,
+2. Read the `PLAN` entries of the `<thread>` block, only the `PENDING` or `RUNNING` ones: the
+   difference between an entry's `<quoted>` and `<new>` text is the requirement, alongside the quoted
+   text of the command when there is one. An `APPLIED` entry is history and is not read as work. Read what the context gives you as in `planning.md`, and read the steps that are there: which are done,
    which are running or claimed, which are open or drafts. Work out what is wrong with the open
    and draft ones, and what still has to be built. With quoted text, that is what to find: read it
    as the new requirement, change the open and draft steps it touches, keep the ones it does not,

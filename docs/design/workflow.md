@@ -107,7 +107,7 @@ again, so a refused start leaves nothing behind. The request carries the termina
   console never opens it a second time. `QuickTaskMark` shows `Quick` and `Auto-accepted` (with when,
   except in the navigator rows); `hideQuickTasks` in the console state leaves quick tasks out of
   `visibleTasks` and the project's task list.
-- A task accepted this way can be reopened like any other, by feedback on the work in its thread. Any later move of the review line, the
+- A task accepted this way can be asked for another pass like any other, by revising its description. Any later move of the review line, the
   console's accept included, clears `auto_accepted`.
 
 ### Plan adherence

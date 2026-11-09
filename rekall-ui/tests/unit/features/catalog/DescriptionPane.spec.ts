@@ -74,7 +74,7 @@ function seed(reviewState: TaskStepState, wrapup: Partial<Task> = {}) {
 let pinia: Pinia
 
 function threadEntry(extra: Record<string, unknown>): Record<string, unknown> {
-  return { taskId, kind: 'IMPLEMENTATION', quotedMarkdown: null, bodyMarkdown: 'x', replyMarkdown: null, createdAt: '2026-11-04T10:00:00Z', appliedAt: null, pass: null, takenAt: null, followsSeq: null, ...extra }
+  return { taskId, kind: 'IMPLEMENTATION', quotedMarkdown: 'before', bodyMarkdown: 'x', replyMarkdown: null, createdAt: '2026-11-04T10:00:00Z', appliedAt: null, pass: null, takenAt: null, ...extra }
 }
 
 function render() {
@@ -119,7 +119,7 @@ describe('DescriptionPane review bar', () => {
     expect(wrapper.get('[data-testid="description-review-bar"]').text()).toContain('A session is working on this task')
   })
 
-  it('keeps Accept as the main action once a wrapup has claimed the task, and points corrections at the thread', async () => {
+  it('keeps Accept as the main action once a wrapup has claimed the task, and points corrections at the description', async () => {
     const { fetchFeedback } = await import('@/features/feedback/api/feedback.api')
     vi.mocked(fetchFeedback).mockResolvedValue([])
     const store = seed('CLAIMED')
@@ -127,8 +127,8 @@ describe('DescriptionPane review bar', () => {
     await flushPromises()
 
     expect(wrapper.get('[data-testid="description-accept"]').text()).toBe('Accept')
-    expect(wrapper.get('[data-testid="description-review-bar"]').text()).toContain('feedback below')
-    expect(wrapper.find('[data-testid="description-review-bar"] [data-testid="apply-feedback"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="description-review-bar"]').text()).toContain('revise the description')
+    expect(wrapper.find('[data-testid="revision-run-bar"]').exists()).toBe(false)
 
     await wrapper.get('[data-testid="description-accept"]').trigger('click')
     expect(store.acceptTask).toHaveBeenCalledWith(taskId)
@@ -155,7 +155,7 @@ describe('DescriptionPane review bar', () => {
     expect(summary.findAll('[data-testid="pass-summary-commit"]').map((commit) => commit.text())).toEqual(['bbbbbbbfix the totals'])
   })
 
-  it('makes Run revision the main action and turns Accept into Accept anyway while entries wait', async () => {
+  it('turns Accept into Accept anyway while revisions wait, and runs them from the bar under the review bar', async () => {
     const { fetchFeedback } = await import('@/features/feedback/api/feedback.api')
     vi.mocked(fetchFeedback).mockResolvedValue([threadEntry({ id: 'f1', seq: 1, state: 'PENDING' }), threadEntry({ id: 'f2', seq: 2, state: 'PENDING', kind: 'PLAN' })] as never)
     const store = seed('CLAIMED')
@@ -163,11 +163,12 @@ describe('DescriptionPane review bar', () => {
     await flushPromises()
 
     const bar = wrapper.get('[data-testid="description-review-bar"]')
-    expect(bar.find('[data-testid="apply-feedback"]').exists()).toBe(true)
+    expect(bar.find('[data-testid="apply-feedback"]').exists()).toBe(false)
     const accept = bar.get('[data-testid="description-accept"]')
     expect(accept.text()).toBe('Accept anyway')
-    expect(accept.attributes('title')).toBe('2 entries have not been run')
-    expect(bar.text()).toContain('2 entries are waiting for the next run')
+    expect(accept.attributes('title')).toBe('2 revisions have not been run')
+    expect(bar.text()).toContain('2 revisions are waiting for the next run')
+    expect(wrapper.find('[data-testid="revision-run-bar"] [data-testid="apply-feedback"]').exists()).toBe(true)
 
     await accept.trigger('click')
     expect(store.acceptTask).toHaveBeenCalledWith(taskId)
@@ -233,66 +234,99 @@ describe('DescriptionPane mode', () => {
   })
 })
 
-describe('DescriptionPane thread', () => {
+describe('DescriptionPane revisions', () => {
   beforeEach(() => {
     pinia = createPinia()
     setActivePinia(pinia)
   })
 
-  it('reads the thread of the task in view and shows it under the description', async () => {
+  it('reads the revisions of the task in view and keeps them behind the Revisions tab', async () => {
     const { fetchFeedback } = await import('@/features/feedback/api/feedback.api')
-    vi.mocked(fetchFeedback).mockResolvedValue([
-      { id: 'f1', taskId, seq: 1, kind: 'IMPLEMENTATION', state: 'PENDING', quotedMarkdown: null, bodyMarkdown: 'The totals are wrong', replyMarkdown: null, createdAt: '2026-11-04T10:00:00Z', appliedAt: null, pass: null, takenAt: null, followsSeq: null }
-    ] as never)
-    seed('CLAIMED')
+    vi.mocked(fetchFeedback).mockResolvedValue([threadEntry({ id: 'f1', seq: 1, state: 'APPLIED', pass: 1, takenAt: '2026-11-04T10:30:00Z', replyMarkdown: 'Done.', appliedAt: '2026-11-04T11:00:00Z' })] as never)
+    seed('CLAIMED', { description: 'The brief.' })
     const wrapper = render()
     await flushPromises()
 
     expect(fetchFeedback).toHaveBeenCalledWith(taskId)
-    expect(wrapper.find('[data-testid="feedback-dock"]').exists()).toBe(true)
-    expect(wrapper.findAll('[data-testid="feedback-entry"]')).toHaveLength(1)
+    expect(wrapper.find('[data-testid="feedback-dock"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="revisions-view"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="view-revisions-count"]').text()).toBe('1')
+
+    await wrapper.get('[data-testid="view-revisions"]').trigger('click')
+
+    expect(wrapper.findAll('[data-testid="revision-card"]')).toHaveLength(1)
+    expect(wrapper.findComponent(AppModeToggle).exists()).toBe(false)
+
+    await wrapper.get('[data-testid="view-description"]').trigger('click')
+
+    expect(wrapper.find('[data-testid="revisions-view"]').exists()).toBe(false)
+    expect(wrapper.findComponent(AppModeToggle).exists()).toBe(true)
   })
 
-  it('discards a waiting revision from the thread, which asks the store to restore the text', async () => {
+  it('discards a waiting revision from the tab, which asks the store to restore the text', async () => {
     const { fetchFeedback } = await import('@/features/feedback/api/feedback.api')
-    const revision = { id: 'f1', taskId, seq: 1, kind: 'REVISION', state: 'PENDING', quotedMarkdown: 'before', bodyMarkdown: 'after', replyMarkdown: null, createdAt: '2026-11-04T10:00:00Z', appliedAt: null, pass: null, takenAt: null, followsSeq: null }
+    const revision = threadEntry({ id: 'f1', seq: 1, state: 'PENDING', quotedMarkdown: 'before', bodyMarkdown: 'after' })
     vi.mocked(fetchFeedback).mockResolvedValue([revision] as never)
     const store = seed('CLAIMED')
     const discard = vi.spyOn(store, 'discardRevision').mockResolvedValue()
     const wrapper = render()
     await flushPromises()
+    await wrapper.get('[data-testid="view-revisions"]').trigger('click')
 
     await wrapper.get('[data-testid="revision-discard"]').trigger('click')
 
-    expect(discard).toHaveBeenCalledWith(expect.objectContaining({ id: 'f1', kind: 'REVISION' }))
+    expect(discard).toHaveBeenCalledWith(expect.objectContaining({ id: 'f1', quotedMarkdown: 'before' }))
   })
 
-  it('has no revision banner and one Run revision button, in the header of the dock', async () => {
+  it('shows one Run revision button, in the bar that appears while a revision waits, whichever tab is open', async () => {
     const { fetchFeedback } = await import('@/features/feedback/api/feedback.api')
-    const waiting = { id: 'f1', taskId, seq: 1, kind: 'REVISION', state: 'PENDING', quotedMarkdown: 'before', bodyMarkdown: 'after', replyMarkdown: null, createdAt: '2026-11-04T10:00:00Z', appliedAt: null, pass: null, takenAt: null, followsSeq: null }
-    vi.mocked(fetchFeedback).mockResolvedValue([waiting] as never)
+    vi.mocked(fetchFeedback).mockResolvedValue([threadEntry({ id: 'f1', seq: 1, state: 'PENDING', quotedMarkdown: 'before', bodyMarkdown: 'after' })] as never)
     seed('OPEN')
     const wrapper = render()
     await flushPromises()
 
-    expect(wrapper.find('[data-testid="revision-banner"]').exists()).toBe(false)
     expect(wrapper.findAll('[data-testid="apply-feedback"]')).toHaveLength(1)
-    expect(wrapper.find('[data-testid="feedback-dock"] [data-testid="apply-feedback"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="revision-run-bar"] [data-testid="apply-feedback"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="view-revisions-attention"]').exists()).toBe(true)
+
+    await wrapper.get('[data-testid="view-revisions"]').trigger('click')
+
+    expect(wrapper.findAll('[data-testid="apply-feedback"]')).toHaveLength(1)
+    expect(wrapper.find('[data-testid="revision-run-view"]').exists()).toBe(false)
   })
 
-  it('opens the dock by itself when an entry waits, and keeps it folded when everything was applied', async () => {
+  it('opens the revisions from the run bar, and shows no bar when nothing waits', async () => {
     const { fetchFeedback } = await import('@/features/feedback/api/feedback.api')
-    const base = { taskId, kind: 'IMPLEMENTATION', quotedMarkdown: null, bodyMarkdown: 'x', createdAt: '2026-11-04T10:00:00Z', pass: null, takenAt: null, followsSeq: null }
-    vi.mocked(fetchFeedback).mockResolvedValue([{ ...base, id: 'f1', seq: 1, state: 'APPLIED', replyMarkdown: 'Done.', appliedAt: '2026-11-04T11:00:00Z' }] as never)
+    vi.mocked(fetchFeedback).mockResolvedValue([threadEntry({ id: 'f1', seq: 1, state: 'PENDING' })] as never)
     seed('CLAIMED')
-    const folded = render()
+    const waiting = render()
     await flushPromises()
-    expect(folded.find('[data-testid="feedback-thread"]').exists()).toBe(false)
 
-    vi.mocked(fetchFeedback).mockResolvedValue([{ ...base, id: 'f2', seq: 1, state: 'PENDING', replyMarkdown: null, appliedAt: null }] as never)
+    await waiting.get('[data-testid="revision-run-view"]').trigger('click')
+
+    expect(waiting.find('[data-testid="revisions-view"]').exists()).toBe(true)
+
+    vi.mocked(fetchFeedback).mockResolvedValue([threadEntry({ id: 'f2', seq: 1, state: 'APPLIED', replyMarkdown: 'Done.' })] as never)
     await useConsoleStore().loadFeedback(taskId)
     await flushPromises()
 
-    expect(folded.find('[data-testid="feedback-thread"]').exists()).toBe(true)
+    expect(waiting.find('[data-testid="revision-run-bar"]').exists()).toBe(false)
+  })
+
+  it('goes back to the description when another task is shown', async () => {
+    const { fetchFeedback } = await import('@/features/feedback/api/feedback.api')
+    vi.mocked(fetchFeedback).mockResolvedValue([])
+    const store = seed('OPEN', { description: 'The first brief.' })
+    const wrapper = render()
+    await flushPromises()
+    await wrapper.get('[data-testid="view-revisions"]').trigger('click')
+    expect(wrapper.find('[data-testid="revisions-view"]').exists()).toBe(true)
+
+    const other = { ...makeTask('OPEN'), id: 't2' as TaskId, description: 'The second brief.' }
+    store.tasks = [...store.tasks, other]
+    store.selectedTaskId = other.id
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="revisions-view"]').exists()).toBe(false)
   })
 })

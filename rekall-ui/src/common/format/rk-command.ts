@@ -33,8 +33,8 @@ export function rkReplanCommand(anchor: string, message = ''): string {
 }
 
 /**
- * The revising line: the session evaluates the pending entries of the task's thread, the
- * description rewrites and the feedback on the work, on top of what is already built.
+ * The revising line: the session works the pending revisions of the task's thread, each applied
+ * to the work or the plan, on top of what is already built.
  */
 export function rkReviseCommand(anchor: string): string {
   const base = rkCommand(anchor)
