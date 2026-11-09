@@ -10,11 +10,11 @@ const emit = defineEmits<{ 'update:modelValue': [view: DescriptionView] }>()
 </script>
 
 <template>
-  <div class="flex shrink-0 gap-0.5 rounded-control bg-surface p-0.5" role="group" aria-label="View">
+  <div class="flex shrink-0 gap-4" role="group" aria-label="View">
     <button
       type="button"
-      class="focus-ring h-6 rounded-control px-3 text-caption transition-colors"
-      :class="modelValue === 'description' ? 'bg-surface-raised text-text' : 'text-text-subtle hover:text-text'"
+      class="focus-ring -mb-px flex h-8 items-center border-b-2 text-caption transition-colors"
+      :class="modelValue === 'description' ? 'border-accent text-text' : 'border-transparent text-text-subtle hover:text-text'"
       :aria-pressed="modelValue === 'description'"
       data-testid="view-description"
       @click="emit('update:modelValue', 'description')"
@@ -23,8 +23,8 @@ const emit = defineEmits<{ 'update:modelValue': [view: DescriptionView] }>()
     </button>
     <button
       type="button"
-      class="focus-ring flex h-6 items-center gap-1.5 rounded-control px-3 text-caption transition-colors"
-      :class="modelValue === 'revisions' ? 'bg-surface-raised text-text' : 'text-text-subtle hover:text-text'"
+      class="focus-ring -mb-px flex h-8 items-center gap-1.5 border-b-2 text-caption transition-colors"
+      :class="modelValue === 'revisions' ? 'border-accent text-text' : 'border-transparent text-text-subtle hover:text-text'"
       :aria-pressed="modelValue === 'revisions'"
       data-testid="view-revisions"
       @click="emit('update:modelValue', 'revisions')"

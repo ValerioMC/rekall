@@ -145,10 +145,17 @@ defineExpose({ toggleMode })
               missing-hint="Set this project's folder on its page to open a session from it"
             />
           </div>
-
-          <DescriptionViewTabs v-model="view" :count="selectedTaskFeedback.length" :attention="needsAttention" />
-          <AppModeToggle v-if="showEditor && view === 'description'" v-model="mode" />
         </header>
+      </div>
+
+      <div class="flex h-8 shrink-0 items-end justify-between gap-3 border-b border-border px-5" data-testid="description-view-strip">
+        <DescriptionViewTabs v-model="view" :count="selectedTaskFeedback.length" :attention="needsAttention" />
+        <AppModeToggle
+          v-model="mode"
+          class="mb-1"
+          :class="{ invisible: !showEditor || view !== 'description' }"
+          :inert="!showEditor || view !== 'description'"
+        />
       </div>
 
       <div
