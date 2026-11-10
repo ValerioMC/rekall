@@ -3,6 +3,8 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 
+vi.mock('@/features/diagram/lib/static-diagram', () => ({ showStaticDiagram: vi.fn() }))
+
 /**
  * md-editor-v3 fetches highlight.js from unpkg unless it is handed a local instance, and it
  * does so lazily, on the first fenced block rather than on mount. That makes the regression
@@ -77,14 +79,14 @@ describe('AppMarkdownEditor', () => {
     expect(wrapper.find('.hljs-keyword, .hljs-string, .hljs-title, .hljs-type').exists()).toBe(true)
   })
 
-  it('turns a mermaid fence into a diagram container without reaching for a cdn', async () => {
+  it('turns a mermaid fence into a frame for the console drawing without reaching for a cdn', async () => {
     const wrapper = mount(AppMarkdownEditor, {
       props: { modelValue: '```mermaid\ngraph TD\n  A --> B\n```', readonly: true }
     })
     await flushPromises()
     await nextTick()
 
-    expect(wrapper.find('.md-editor-mermaid').exists()).toBe(true)
+    expect(wrapper.find('.rk-mermaid-fence').exists()).toBe(true)
     expect(wrapper.find('pre code').exists()).toBe(false)
     expect(document.getElementById('md-editor-mermaid')).toBeNull()
     expect(document.getElementById('md-editor-mermaid-m')).toBeNull()

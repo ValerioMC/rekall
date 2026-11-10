@@ -15,6 +15,7 @@ import { paintTaskReferences } from '@/common/markdown/task-reference'
 import { useReferenceChips } from '@/composables/useReferenceChips'
 import { useEditorPathPicker } from '@/composables/useEditorPathPicker'
 import { useFittedEditorHeight } from '@/composables/useFittedEditorHeight'
+import { useMermaidFences } from '@/composables/useMermaidFences'
 import { useReadModeSearch } from '@/composables/useReadModeSearch'
 import { useReferenceWidgets } from '@/composables/useReferenceWidgets'
 import { useTableContextMenu } from '@/composables/useTableContextMenu'
@@ -103,6 +104,7 @@ const tableMenu = useTableContextMenu(editor)
 const componentChips = useReferenceChips(root, () => props.components, paintComponentReferences)
 const connectionChips = useReferenceChips(root, () => props.connections, paintConnectionReferences)
 const taskChips = useReferenceChips(root, () => props.tasks, paintTaskReferences)
+const mermaidFences = useMermaidFences(root)
 
 useReferenceWidgets(editor, () => ({
   components: props.components,
@@ -114,6 +116,7 @@ function paintChips(): void {
   componentChips.paint()
   connectionChips.paint()
   taskChips.paint()
+  mermaidFences.paint()
 }
 
 // One source each for the editor's life; they read the props when asked, so a new list needs no reconfigure.
@@ -204,6 +207,7 @@ const toolbars = computed(() => (props.pageFullscreen ? TOOLBARS : TOOLBARS.filt
       preview-theme="github"
       code-theme="atom"
       no-katex
+      no-mermaid
       no-echarts
       no-img-zoom-in
       @on-html-changed="paintChips"

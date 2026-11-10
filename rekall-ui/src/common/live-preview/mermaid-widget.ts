@@ -1,4 +1,5 @@
 import { WidgetType, type EditorView } from '@codemirror/view'
+import { describeMermaidFailure } from '@/common/markdown/mermaid-fence'
 
 /** A mermaid fence drawn as the Diagram section draws it. */
 export class MermaidWidget extends WidgetType {
@@ -19,7 +20,7 @@ export class MermaidWidget extends WidgetType {
     canvas.className = 'cm-rk-mermaid-canvas'
     this.draw(canvas, view).catch((failure: unknown) => {
       frame.classList.add('cm-rk-mermaid--failed')
-      canvas.textContent = `Mermaid could not draw this diagram: ${failure instanceof Error ? failure.message : String(failure)}`
+      canvas.textContent = describeMermaidFailure(failure)
       view.requestMeasure()
     })
     return frame
