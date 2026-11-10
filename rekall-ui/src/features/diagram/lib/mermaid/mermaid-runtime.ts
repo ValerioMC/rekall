@@ -1,4 +1,4 @@
-import type { Mermaid } from 'mermaid'
+import type { Mermaid, MermaidConfig } from 'mermaid'
 import { nativeThemeVariables } from './native-theme'
 
 /**
@@ -32,10 +32,16 @@ export async function renderMermaid(source: string): Promise<string> {
   return svg
 }
 
+/** Mermaid's settings made from the console's tokens, for every Mermaid drawing that is not the console's own. */
+export function consoleMermaidConfig(): MermaidConfig {
+  const styles = getComputedStyle(document.documentElement)
+  const themeVariables = nativeThemeVariables((token) => styles.getPropertyValue(token))
+  return { startOnLoad: false, theme: 'base', themeVariables }
+}
+
 /** Front matter has to stay first, so a sheet that carries its own keeps its own config. */
 function themed(source: string): string {
   if (source.trimStart().startsWith('---')) return source
-  const styles = getComputedStyle(document.documentElement)
-  const themeVariables = nativeThemeVariables((token) => styles.getPropertyValue(token))
-  return `%%{init: ${JSON.stringify({ theme: 'base', themeVariables })}}%%\n${source}`
+  const { theme, themeVariables } = consoleMermaidConfig()
+  return `%%{init: ${JSON.stringify({ theme, themeVariables })}}%%\n${source}`
 }

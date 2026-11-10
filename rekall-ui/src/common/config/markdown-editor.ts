@@ -11,6 +11,7 @@ import 'highlight.js/styles/github-dark.css'
 import '@/assets/markdown-editor.css'
 import '@/assets/live-preview.css'
 import { markAnchorCode } from '@/common/config/anchor-code'
+import { consoleMermaidConfig } from '@/features/diagram/lib/mermaid/mermaid-runtime'
 import { markComponentReferences } from '@/common/markdown/component-reference'
 import { referenceCompletionIcons } from '@/common/markdown/reference-completion-icon'
 import { livePreview } from '@/common/live-preview/live-preview'
@@ -18,6 +19,7 @@ import { livePreview } from '@/common/live-preview/live-preview'
 config({
   // Local instances so md-editor-v3 does not lazy-fetch highlight.js or mermaid from a CDN.
   editorExtensions: { highlight: { instance: hljs }, mermaid: { instance: mermaid } },
+  mermaidConfig: consoleMermaidConfig,
   markdownItConfig: (md) => {
     // Off, or every source newline in a hard-wrapped brief renders as a permanent <br>.
     md.set({ breaks: false })
