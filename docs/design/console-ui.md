@@ -17,6 +17,15 @@ The company filter holds ids, and an empty selection means every company rather 
 chips are built from the unfiltered period, so narrowing to one client never removes the way back
 to the others.
 
+## The navigator's project group
+
+A project in the navigator is a flat header with no box, edge or raised face: its mark, its name,
+its task count and a chevron, over the project's tokens. The header takes the project's tint only
+when pointed at, and the tinted rail under it is what groups the tasks. Folding a project (or a
+scope in the notes navigator) animates the height through `AppCollapse` and makes the folded rows
+inert; a task that joins a shelf slides in (`nav-row`) and the rows below it glide into place.
+Reduced motion cuts every one of these to an instant change.
+
 ## The navigator's filing drawer
 
 A finished task does not leave the navigator, and after a while that is most of the list: a
@@ -59,7 +68,7 @@ navigator is given the width for this rather than made to crush it.
 A selected row sits on the raised surface, warmed from its left by its tint (the project's
 identity hue in the navigators, the accent elsewhere), held by a tinted hairline, and marked by a
 short solid capsule in the left gutter, clear of the top and bottom edges. Its relief is
-`--shadow-key`, the same as a key, a tag chip and a project header in the navigator, so
+`--shadow-key`, the same as a key and a tag chip, so
 selection reads by colour and outline, never by standing taller than its neighbours. A hovered
 row only takes the raised surface's colour. The status pip of a selected row gains a thin
 accent ring. `selected-row` and `selected-card` in `main.css` are the same idea at two scales.
