@@ -127,7 +127,7 @@ defineExpose({ toggleMode })
             <TaskLabelsStrip :task="selectedTask" />
           </div>
 
-          <div class="flex shrink-0 items-center gap-1.5 @max-[71rem]/description:[&_[data-label]]:hidden">
+          <div class="flex shrink-0 items-center gap-1.5 @max-[71rem]/description:[&_[data-label]]:hidden" data-testid="description-actions">
             <NotesButton :task-id="selectedTask.id" />
             <LogCommitButton
               :task-id="selectedTask.id"
@@ -143,6 +143,12 @@ defineExpose({ toggleMode })
               :anchors="selectedTask.anchor"
               :folder="selectedTask.projectRepoFolder"
               missing-hint="Set this project's folder on its page to open a session from it"
+            />
+            <AppModeToggle
+              v-model="mode"
+              testid-prefix="description-mode"
+              :class="{ invisible: !showEditor || view !== 'description' }"
+              :inert="!showEditor || view !== 'description'"
             />
           </div>
         </header>
@@ -188,28 +194,22 @@ defineExpose({ toggleMode })
 
       <DescriptionEmptyState v-else-if="!showEditor" @write="beginWriting" />
 
-      <div v-else class="flex min-h-0 flex-1 flex-col">
-        <div class="flex shrink-0 items-center gap-2 px-4 pt-3" data-testid="description-mode-row">
-          <span class="h-px flex-1 bg-border" aria-hidden="true" />
-          <AppModeToggle v-model="mode" testid-prefix="description-mode" />
-        </div>
-        <div class="min-h-0 flex-1 overflow-y-auto p-4">
-          <Transition name="fade-quick" mode="out-in">
-            <AppMarkdownEditor
-              v-if="mode === 'write'"
-              key="write"
-              v-model="draft"
-              height="100%"
-              :page-fullscreen="false"
-              :path-root="selectedTask?.projectRepoFolder"
-              :components="projectComponents"
-              :connections="projectConnections"
-              :tasks="projectTasks"
-              @update:model-value="scheduleSave"
-            />
-            <AppMarkdownEditor v-else key="read" :model-value="draft" :components="projectComponents" :connections="projectConnections" :tasks="projectTasks" readonly />
-          </Transition>
-        </div>
+      <div v-else class="min-h-0 flex-1 overflow-y-auto p-4">
+        <Transition name="fade-quick" mode="out-in">
+          <AppMarkdownEditor
+            v-if="mode === 'write'"
+            key="write"
+            v-model="draft"
+            height="100%"
+            :page-fullscreen="false"
+            :path-root="selectedTask?.projectRepoFolder"
+            :components="projectComponents"
+            :connections="projectConnections"
+            :tasks="projectTasks"
+            @update:model-value="scheduleSave"
+          />
+          <AppMarkdownEditor v-else key="read" :model-value="draft" :components="projectComponents" :connections="projectConnections" :tasks="projectTasks" readonly />
+        </Transition>
       </div>
 
     </template>
