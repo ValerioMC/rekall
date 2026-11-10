@@ -1113,7 +1113,8 @@ describe('the console', () => {
 
       expect(wrapper.find('[data-testid="write-description"]').exists()).toBe(false)
       expect(wrapper.text()).not.toContain('Nothing says what this task is')
-      expect(wrapper.find('[data-testid="description-mode-row"]').exists()).toBe(true)
+      expect(wrapper.find('[data-testid="description-actions"] [data-testid="description-mode-write"]').exists()).toBe(true)
+      expect(wrapper.find('[data-testid="description-actions"] [aria-label="Mode"]').classes()).not.toContain('invisible')
     })
 
     /** With a description on the task, the pane opens on it in read mode, without a page in between. */

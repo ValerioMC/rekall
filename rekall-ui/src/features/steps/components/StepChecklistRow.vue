@@ -15,6 +15,7 @@ import { useConsoleStore } from '@/stores/console.store'
 import { useTokenUsageStore } from '@/features/tokens/store/tokenUsage.store'
 import { relativeTime } from '@/common/format/relative-time'
 import { stepIsComplete, type Task, type TaskStep } from '@/features/catalog/model/catalog'
+import AppButton from '@/components/ui/AppButton.vue'
 import StepDetailEditor from './StepDetailEditor.vue'
 import StepRowControls from './StepRowControls.vue'
 import StepSkillsField from './StepSkillsField.vue'
@@ -79,7 +80,7 @@ const panelClass = computed(() => {
   if (props.step.state === 'RUNNING') return 'panel-gold'
   if (props.step.state === 'CLAIMED') return 'panel-gold-quiet'
   if (props.isNext) return 'panel-slate'
-  if (props.step.state === 'DONE') return 'border-transparent opacity-60'
+  if (props.step.state === 'DONE') return 'border-transparent'
   return 'border-transparent transition-[border-color] duration-(--motion-quick) group-hover/step:border-border'
 })
 </script>
@@ -167,6 +168,15 @@ const panelClass = computed(() => {
             <TokenCount :totals="tokens" />
           </span>
         </button>
+
+        <div v-if="step.state === 'CLAIMED' && !expanded" class="flex shrink-0 items-center gap-1.5">
+          <AppButton variant="primary" size="sm" data-testid="step-accept-inline" @click="$emit('mark-forward')">
+            Accept
+          </AppButton>
+          <AppButton variant="quiet" size="sm" data-testid="step-send-back-inline" @click="$emit('send-back')">
+            Send back
+          </AppButton>
+        </div>
 
         <button
           v-if="deviationStep !== null"

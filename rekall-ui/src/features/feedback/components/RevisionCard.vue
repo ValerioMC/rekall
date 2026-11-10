@@ -68,7 +68,7 @@ watch(
 
       <div
         v-if="entry.replyMarkdown"
-        class="reply mt-3 ml-4 rounded-control border-l-2 bg-surface-raised px-3 py-2"
+        class="reply mt-3 ml-4 rounded-control border bg-surface-raised px-3 py-2"
         :class="replyArrived && 'reply-arrived'"
         data-testid="revision-reply"
       >
@@ -100,7 +100,7 @@ watch(
 }
 
 .reply {
-  border-left-color: var(--color-session);
+  border-color: color-mix(in srgb, var(--color-session) 35%, transparent);
 }
 
 .reply-arrived {

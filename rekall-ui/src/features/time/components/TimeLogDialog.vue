@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDate, formatTimeOfDay } from '@/common/format/app-locale'
 import { computed, nextTick, onMounted, ref } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
@@ -35,7 +36,7 @@ function fromLocalInput(value: string): string {
 }
 
 function timeOf(iso: string): string {
-  return new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+  return formatTimeOfDay(new Date(iso))
 }
 
 function dayLabel(iso: string): string {
@@ -47,7 +48,7 @@ function dayLabel(iso: string): string {
     a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
   if (sameDay(d, today)) return 'Today'
   if (sameDay(d, yesterday)) return 'Yesterday'
-  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+  return formatDate(d)
 }
 
 const groups = computed(() => {

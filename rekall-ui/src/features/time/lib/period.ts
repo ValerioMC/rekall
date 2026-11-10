@@ -1,3 +1,4 @@
+import { APP_LOCALE, formatDate } from '@/common/format/app-locale'
 export type ReportPeriod = 'week' | 'month'
 
 export interface PeriodRange {
@@ -41,15 +42,9 @@ export function periodRange(period: ReportPeriod, anchor: Date): PeriodRange {
 
 function label(period: ReportPeriod, start: Date, last: Date): string {
   if (period === 'month') {
-    return start.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+    return start.toLocaleDateString(APP_LOCALE, { month: 'long', year: 'numeric' })
   }
-  const sameMonth = start.getMonth() === last.getMonth()
-  const from = start.toLocaleDateString(
-    undefined,
-    sameMonth ? { day: 'numeric' } : { day: 'numeric', month: 'short' }
-  )
-  const to = last.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
-  return `${from} – ${to}`
+  return `${formatDate(start)} – ${formatDate(last)}`
 }
 
 export function shiftAnchor(period: ReportPeriod, anchor: Date, delta: number): Date {

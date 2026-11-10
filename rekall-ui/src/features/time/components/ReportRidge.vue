@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/common/format/app-locale'
 import { computed } from 'vue'
 import { identityHue } from '@/common/identity'
 import { formatDuration } from '@/common/format/duration'
@@ -25,9 +26,9 @@ const columns = computed(() =>
   props.days.map((day) => ({
     day,
     isWeekend: day.date.getDay() === 0 || day.date.getDay() === 6,
-    weekday: capitalised(day.date.toLocaleDateString(undefined, { weekday: 'short' })),
+    weekday: capitalised(day.date.toLocaleDateString(APP_LOCALE, { weekday: 'short' })),
     dayNumber: day.date.getDate(),
-    label: `${day.date.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}: ${formatDuration(day.totalSeconds)}`,
+    label: `${day.date.toLocaleDateString(APP_LOCALE, { weekday: 'long', day: 'numeric', month: 'long' })}: ${formatDuration(day.totalSeconds)}`,
     segments: day.byCompany.map((slice) => ({
       companyId: slice.companyId,
       height: `${(slice.seconds / peak.value) * 100}%`,

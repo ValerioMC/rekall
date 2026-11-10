@@ -1,3 +1,4 @@
+import { APP_LOCALE } from '@/common/format/app-locale'
 import { capitalised, dateKey } from '@/features/time/lib/month-grid'
 import { formatDuration } from '@/common/format/duration'
 import { isWithin } from './period'
@@ -334,7 +335,7 @@ export function stepTail(task: ReportTaskRow): string | null {
 }
 
 export function stepDay(date: Date): string {
-  return capitalised(date.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' }))
+  return capitalised(date.toLocaleDateString(APP_LOCALE, { weekday: 'short', day: 'numeric' }))
 }
 
 function countOf(count: number, noun: string): string {

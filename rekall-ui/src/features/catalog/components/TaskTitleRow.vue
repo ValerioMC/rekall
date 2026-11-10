@@ -13,8 +13,8 @@ defineProps<{ task: Task; copyTestid: string }>()
 </script>
 
 <template>
-  <div class="flex min-w-0 items-center gap-2">
-    <h2 class="min-w-0 truncate text-heading font-semibold tracking-[-0.015em] text-text">
+  <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+    <h2 class="min-w-[12ch] max-w-full line-clamp-2 text-heading font-semibold tracking-[-0.015em] text-text">
       {{ task.title }}
     </h2>
     <QuickTaskMark :task="task" />

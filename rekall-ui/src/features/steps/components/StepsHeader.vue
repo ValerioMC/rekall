@@ -55,8 +55,8 @@ function segmentClass(step: TaskStep): string {
     />
     <div class="pointer-events-none absolute inset-x-0 top-0 h-px" :style="{ background: hue.line }" aria-hidden="true" />
 
-    <header class="relative flex items-start gap-4 px-5 py-3.5">
-      <div class="min-w-0 flex-1">
+    <header class="relative flex flex-wrap items-start gap-x-4 gap-y-2.5 px-5 py-3.5">
+      <div class="min-w-[min(100%,18rem)] flex-1">
         <p class="eyebrow flex items-center gap-1.5">
           <span class="h-2.5 w-[3px] shrink-0 rounded-full bg-accent" aria-hidden="true" />
           Steps

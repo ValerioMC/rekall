@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/common/format/app-locale'
 import { computed, ref } from 'vue'
 import AppCatalogHeader from '@/features/catalog/components/AppCatalogHeader.vue'
 import CalendarDayCell from '@/features/time/components/CalendarDayCell.vue'
@@ -21,7 +22,7 @@ const viewMonth = ref(today.getMonth())
 const selectedDay = ref<{ date: Date; rows: DaySummaryRow[] } | null>(null)
 
 const monthLabel = computed(() =>
-  new Date(viewYear.value, viewMonth.value, 1).toLocaleDateString(undefined, {
+  new Date(viewYear.value, viewMonth.value, 1).toLocaleDateString(APP_LOCALE, {
     month: 'long',
     year: 'numeric'
   })

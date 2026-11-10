@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDateTime } from '@/common/format/app-locale'
 import { computed } from 'vue'
 import { excerpt as previewOf } from '@/common/format/excerpt'
 import { relativeTime } from '@/common/format/relative-time'
@@ -54,7 +55,7 @@ const writtenBy = computed(() =>
       <span
         v-if="wrapup"
         class="ml-auto flex shrink-0 items-center gap-1 truncate text-micro text-text-muted"
-        :title="`Written by ${writtenBy} on ${new Date(wrapup.updatedAt).toLocaleString()}`"
+        :title="`Written by ${writtenBy} on ${formatDateTime(new Date(wrapup.updatedAt))}`"
       >
         <svg v-if="wrapup.writtenBy === 'CLAUDE'" class="size-2.5 shrink-0" viewBox="0 0 12 12" aria-hidden="true">
           <path

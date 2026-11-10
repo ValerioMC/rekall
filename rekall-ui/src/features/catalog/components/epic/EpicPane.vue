@@ -85,7 +85,7 @@ defineExpose({ toggleMode })
 </script>
 
 <template>
-  <section v-if="selectedTask" class="flex min-h-0 flex-1 flex-col bg-canvas" aria-label="Epic" data-testid="epic-pane">
+  <section v-if="selectedTask" class="flex min-h-0 min-w-0 flex-1 flex-col bg-canvas" aria-label="Epic" data-testid="epic-pane">
     <div class="relative shrink-0 overflow-hidden border-b border-border">
       <div
         class="texture-grid pointer-events-none absolute inset-0 opacity-60"

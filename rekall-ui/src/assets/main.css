@@ -132,7 +132,7 @@
    * cannot tell from its neighbour. Micro is the floor, for kbd hints and pip counts, never prose.
    * No line heights: text inherits its leading, as the bracketed sizes these replace did.
    */
-  --text-micro: 10.5px;
+  --text-micro: 11px;
   --text-caption: 11.5px;
   --text-small: 12.5px;
   --text-body: 13.5px;
@@ -1519,7 +1519,7 @@
 }
 
 @utility settle {
-  animation: settle 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: settle 320ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* The running dock's live mark: a hand sweeping a dial, not a dot repeating one motif app-wide.
@@ -1878,7 +1878,7 @@
     *::after {
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
-      transition-duration: 0.var(--motion-press) !important;
+      transition-duration: 0.01ms !important;
     }
   }
 }

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/common/format/app-locale'
 /** The home screen's opening: today's date, one sentence on what runs and what waits, and the week's tracked time. */
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
@@ -17,10 +18,10 @@ const { terminals } = storeToRefs(useTerminalStore())
 const now = useNow(60_000)
 
 const dateLabel = computed(() =>
-  new Intl.DateTimeFormat(undefined, { weekday: 'long', day: 'numeric', month: 'long' }).format(now.value)
+  new Intl.DateTimeFormat(APP_LOCALE, { weekday: 'long', day: 'numeric', month: 'long' }).format(now.value)
 )
-const weekdayFormat = new Intl.DateTimeFormat(undefined, { weekday: 'narrow' })
-const weekdayLongFormat = new Intl.DateTimeFormat(undefined, { weekday: 'long' })
+const weekdayFormat = new Intl.DateTimeFormat(APP_LOCALE, { weekday: 'narrow' })
+const weekdayLongFormat = new Intl.DateTimeFormat(APP_LOCALE, { weekday: 'long' })
 
 const situation = computed(() =>
   situationOf(terminals.value.filter((terminal) => terminal.live).length, reviewQueue.value.length)

@@ -1,3 +1,4 @@
+import { APP_LOCALE } from '@/common/format/app-locale'
 import type { SessionKind } from '@/features/claude/model/terminal'
 import type { TaskId } from '@/model/branded'
 
@@ -206,14 +207,14 @@ export function clockLabel(iso: string | null, now: number = Date.now()): string
   if (!iso) return ''
   const at = new Date(iso)
   if (Number.isNaN(at.getTime())) return ''
-  const time = at.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false })
+  const time = at.toLocaleTimeString(APP_LOCALE, { hour: '2-digit', minute: '2-digit', hour12: false })
   const today = new Date(now)
   const sameDay =
     at.getFullYear() === today.getFullYear() &&
     at.getMonth() === today.getMonth() &&
     at.getDate() === today.getDate()
   if (sameDay) return time
-  const day = at.toLocaleDateString(undefined, { weekday: 'short' })
+  const day = at.toLocaleDateString(APP_LOCALE, { weekday: 'short' })
   return `${day} ${time}`
 }
 

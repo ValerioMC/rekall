@@ -44,7 +44,7 @@ defineExpose({ step: go })
 </script>
 
 <template>
-  <section class="flex min-h-0 flex-1 flex-col bg-canvas" aria-label="Deviation" data-testid="deviation-pane">
+  <section class="flex min-h-0 min-w-0 flex-1 flex-col bg-canvas" aria-label="Deviation" data-testid="deviation-pane">
     <p v-if="!selectedTask" class="px-9 py-12 text-body text-text-muted">Pick a task to see where its work left the plan.</p>
 
     <template v-else>

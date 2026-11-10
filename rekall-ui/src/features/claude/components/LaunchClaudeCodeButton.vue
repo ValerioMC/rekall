@@ -163,7 +163,7 @@ async function launch(): Promise<void> {
       <template v-if="folder">
         <p class="mt-2 truncate font-mono text-caption text-text-subtle">{{ folder }}</p>
         <p class="anchor-chip mt-1.5 flex max-w-full items-center gap-1.5 truncate px-2 py-1 font-mono text-caption">
-          <span class="shrink-0 opacity-60">/rk</span>
+          <span class="shrink-0 opacity-80">/rk</span>
           <span class="truncate">{{ anchors }}</span>
         </p>
       </template>
