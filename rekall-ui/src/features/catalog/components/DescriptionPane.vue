@@ -149,7 +149,7 @@ defineExpose({ toggleMode })
       </div>
 
       <div class="flex h-8 shrink-0 items-end border-b border-border px-5" data-testid="description-view-strip">
-        <DescriptionViewTabs v-model="view" :count="selectedTaskFeedback.length" :attention="needsAttention" />
+        <DescriptionViewTabs v-model="view" :count="selectedTaskFeedback.length" :attention="needsAttention" :running="runningPass !== null" />
       </div>
 
       <div
@@ -174,7 +174,7 @@ defineExpose({ toggleMode })
       />
 
       <RevisionRunBar
-        v-if="waitingCount > 0"
+        :key="selectedTask.id"
         :task-id="selectedTask.id"
         :anchor="selectedTask.anchor"
         :folder="selectedTask.projectRepoFolder"

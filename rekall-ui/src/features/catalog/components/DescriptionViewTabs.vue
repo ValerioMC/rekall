@@ -3,9 +3,9 @@ import type { DescriptionView } from '@/features/catalog/model/description-view'
 
 /**
  * Switches the description window between the text and its revisions. The revisions tab carries how
- * many there are, and an accent dot while one waits for a run or a session is on one.
+ * many there are, and an accent dot while one waits for a run; the dot pings while a session is on one.
  */
-defineProps<{ modelValue: DescriptionView; count: number; attention: boolean }>()
+defineProps<{ modelValue: DescriptionView; count: number; attention: boolean; running: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [view: DescriptionView] }>()
 </script>
 
@@ -31,7 +31,15 @@ const emit = defineEmits<{ 'update:modelValue': [view: DescriptionView] }>()
     >
       Revisions
       <span v-if="count > 0" class="text-micro text-text-muted" data-testid="view-revisions-count">{{ count }}</span>
-      <span v-if="attention" class="size-1.5 rounded-full bg-accent" data-testid="view-revisions-attention" aria-label="Needs a run" />
+      <span
+        v-if="attention"
+        class="relative grid size-2 place-items-center"
+        :aria-label="running ? 'A revision is running' : 'Needs a run'"
+        data-testid="view-revisions-attention"
+      >
+        <span v-if="running" class="absolute inline-flex size-2 animate-ping rounded-full bg-accent/60 motion-reduce:animate-none" data-testid="view-revisions-running" />
+        <span class="relative inline-flex size-1.5 rounded-full bg-accent" />
+      </span>
     </button>
   </div>
 </template>

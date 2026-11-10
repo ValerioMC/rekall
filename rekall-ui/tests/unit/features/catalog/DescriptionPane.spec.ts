@@ -134,27 +134,6 @@ describe('DescriptionPane review bar', () => {
     expect(store.acceptTask).toHaveBeenCalledWith(taskId)
   })
 
-  it('lays out what the last pass did: a reply per entry and the commits logged since it started', async () => {
-    const { fetchFeedback } = await import('@/features/feedback/api/feedback.api')
-    vi.mocked(fetchFeedback).mockResolvedValue([
-      threadEntry({ id: 'f1', seq: 1, state: 'APPLIED', pass: 1, takenAt: '2026-11-04T09:00:00Z', replyMarkdown: 'Old fix.', appliedAt: '2026-11-04T09:30:00Z' }),
-      threadEntry({ id: 'f2', seq: 2, state: 'APPLIED', pass: 2, takenAt: '2026-11-04T10:00:00Z', replyMarkdown: 'Fixed the totals.\nMore.', appliedAt: '2026-11-04T10:30:00Z' })
-    ] as never)
-    const store = seed('CLAIMED')
-    store.commitReferences = [
-      { id: 'c1', taskId, stepId: null, stepTitle: null, commitHash: 'aaaaaaa111', comment: 'before the pass', inContext: false, createdAt: '2026-11-04T08:00:00Z' },
-      { id: 'c2', taskId, stepId: null, stepTitle: null, commitHash: 'bbbbbbb222', comment: 'fix the totals', inContext: false, createdAt: '2026-11-04T10:20:00Z' }
-    ] as never
-    const wrapper = render()
-    await flushPromises()
-
-    const summary = wrapper.get('[data-testid="pass-summary"]')
-    expect(summary.get('[data-testid="pass-summary-title"]').text()).toBe('What pass 2 did')
-    expect(summary.findAll('[data-testid="pass-summary-entry"]')).toHaveLength(1)
-    expect(summary.text()).toContain('Fixed the totals.')
-    expect(summary.findAll('[data-testid="pass-summary-commit"]').map((commit) => commit.text())).toEqual(['bbbbbbbfix the totals'])
-  })
-
   it('turns Accept into Accept anyway while revisions wait, and runs them from the bar under the review bar', async () => {
     const { fetchFeedback } = await import('@/features/feedback/api/feedback.api')
     vi.mocked(fetchFeedback).mockResolvedValue([threadEntry({ id: 'f1', seq: 1, state: 'PENDING' }), threadEntry({ id: 'f2', seq: 2, state: 'PENDING', kind: 'PLAN' })] as never)

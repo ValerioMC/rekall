@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import DescriptionViewTabs from '@/features/catalog/components/DescriptionViewTabs.vue'
 
-function tabs(count: number, attention: boolean, modelValue: 'description' | 'revisions' = 'description') {
-  return mount(DescriptionViewTabs, { props: { modelValue, count, attention } })
+function tabs(count: number, attention: boolean, modelValue: 'description' | 'revisions' = 'description', running = false) {
+  return mount(DescriptionViewTabs, { props: { modelValue, count, attention, running } })
 }
 
 describe('the tabs of the description window', () => {
@@ -24,5 +24,10 @@ describe('the tabs of the description window', () => {
   it('lights up while a revision needs a run', () => {
     expect(tabs(1, true).find('[data-testid="view-revisions-attention"]').exists()).toBe(true)
     expect(tabs(1, false).find('[data-testid="view-revisions-attention"]').exists()).toBe(false)
+  })
+
+  it('pings the light only while a session is on a revision', () => {
+    expect(tabs(1, true, 'description', true).find('[data-testid="view-revisions-running"]').exists()).toBe(true)
+    expect(tabs(1, true).find('[data-testid="view-revisions-running"]').exists()).toBe(false)
   })
 })

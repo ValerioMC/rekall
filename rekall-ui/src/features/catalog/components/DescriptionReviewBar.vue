@@ -2,13 +2,11 @@
 /**
  * The review line of a task with no checklist: what a session has done with it, and the answers
  * left to give. No Accept while a session is running, because nothing has been claimed to accept.
- * Once claimed, the last pass is laid out, and revisions still waiting are run from the bar under
- * this one. Corrections are made by revising the description, not here.
+ * Revisions still waiting are run from the bar under this one, and what each pass did is read in the Revisions tab. Corrections are made by revising the description, not here.
  */
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import AppButton from '@/components/ui/AppButton.vue'
-import PassSummary from '@/features/feedback/components/PassSummary.vue'
 import { groupByPass } from '@/features/feedback/lib/feedback-passes'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
@@ -18,7 +16,7 @@ const props = defineProps<{ task: Task; reviewState: Exclude<TaskStepState, 'OPE
 
 const store = useConsoleStore()
 const { run } = useAsyncAction()
-const { selectedTaskFeedback, selectedTaskCommitReferences, waitingCount, runningPass } = storeToRefs(store)
+const { selectedTaskFeedback, waitingCount, runningPass } = storeToRefs(store)
 
 const lastPass = computed(() => groupByPass(selectedTaskFeedback.value).passes.at(-1) ?? null)
 const coveredEntries = computed(() => (lastPass.value?.running ? lastPass.value.entries.map((entry) => `#${entry.seq}`).join(', ') : ''))
@@ -103,6 +101,5 @@ async function markTaskDone(): Promise<void> {
         Mark task done
       </AppButton>
     </div>
-    <PassSummary v-if="reviewState === 'CLAIMED'" :pass="lastPass" :commits="selectedTaskCommitReferences" />
   </div>
 </template>
