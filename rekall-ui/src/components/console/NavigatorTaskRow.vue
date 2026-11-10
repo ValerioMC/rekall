@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import SkillMark from '@/features/skills/components/SkillMark.vue'
 import TagBadge from '@/components/ui/TagBadge.vue'
@@ -58,22 +58,6 @@ const markLabel = computed(() => TASK_MARK_LABEL[mark.value.state] || TASK_STATU
 const awaitingReview = computed(
   () => props.task.reviewActive && props.task.stepCount === 0 && props.task.reviewState === 'CLAIMED'
 )
-
-// A short pulse on the marker the moment this row becomes the selected one, not while it stays
-// selected: the settle is the arrival, and a row that is already current has nothing left to say.
-const justSelected = ref(false)
-
-watch(
-  () => props.selected,
-  (selected, wasSelected) => {
-    if (!selected || wasSelected) return
-    justSelected.value = false
-    requestAnimationFrame(() => {
-      justSelected.value = true
-      setTimeout(() => (justSelected.value = false), 340)
-    })
-  }
-)
 </script>
 
 <template>
@@ -90,10 +74,7 @@ watch(
         <span class="relative grid size-3.5 shrink-0 place-items-center" :title="markLabel">
           <span
             class="absolute size-3.5 rounded-full transition-shadow"
-            :class="[
-              selected && mark.state === 'RESTING' && 'ring-1 ring-inset ring-accent/45',
-              justSelected && 'settle'
-            ]"
+            :class="selected && mark.state === 'RESTING' && 'ring-1 ring-inset ring-accent/45'"
             aria-hidden="true"
           >
             <TaskMark
