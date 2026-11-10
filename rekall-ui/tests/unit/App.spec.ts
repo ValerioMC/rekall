@@ -1103,29 +1103,20 @@ describe('the console', () => {
       expect(wrapper.find('[data-testid="assign-open"]').exists()).toBe(false)
     })
 
-    /**
-     * The empty page says which of the three surfaces this is, because that is the moment the
-     * description, the wrapup and a note are easiest to confuse.
-     */
-    it('says what belongs there on a task nobody has described, and opens the editor', async () => {
+    /** A task nobody has described has one thing to do, so the editor is already open. */
+    it('opens the editor straight away on a task nobody has described', async () => {
       const wrapper = await mountConsole()
 
       await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }))
       await flushPromises()
 
-      expect(wrapper.text()).toContain('Nothing says what this task is')
-      expect(wrapper.text()).toContain('Where did the implementation get to?')
-
-      await wrapper.find('[data-testid="write-description"]').trigger('click')
-      await flushPromises()
-
-      // The onboarding page gives way to the editor once you start writing.
       expect(wrapper.find('[data-testid="write-description"]').exists()).toBe(false)
       expect(wrapper.text()).not.toContain('Nothing says what this task is')
+      expect(wrapper.find('[data-testid="description-mode-row"]').exists()).toBe(true)
     })
 
-    /** With a description on the task, the pane opens on it in read mode, not the onboarding page. */
+    /** With a description on the task, the pane opens on it in read mode, without a page in between. */
     it('reads the description back on a task that has one', async () => {
       const wrapper = await mountConsole()
 

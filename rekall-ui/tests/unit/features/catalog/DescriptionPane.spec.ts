@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import DescriptionPane from '@/features/catalog/components/DescriptionPane.vue'
-import DescriptionEmptyState from '@/features/catalog/components/DescriptionEmptyState.vue'
 import AppModeToggle from '@/components/ui/AppModeToggle.vue'
 import * as componentsApi from '@/features/project/api/project-components.api'
 import { useConsoleStore } from '@/stores/console.store'
@@ -182,9 +181,6 @@ describe('DescriptionPane component completion', () => {
     vi.mocked(componentsApi.fetchProjectComponents).mockResolvedValue([auth])
     seed('OPEN')
     const wrapper = render()
-    await flushPromises()
-
-    wrapper.getComponent(DescriptionEmptyState).vm.$emit('write')
     await flushPromises()
 
     expect(wrapper.getComponent({ name: 'AppMarkdownEditor' }).props('components')).toEqual([auth])

@@ -3,7 +3,6 @@ import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import AppModeToggle from '@/components/ui/AppModeToggle.vue'
-import DescriptionEmptyState from '@/features/catalog/components/DescriptionEmptyState.vue'
 import DescriptionReviewBar from '@/features/catalog/components/DescriptionReviewBar.vue'
 import TaskBranchPanel from '@/features/worktree/components/TaskBranchPanel.vue'
 import { useConsoleStore } from '@/stores/console.store'
@@ -31,7 +30,7 @@ const store = useConsoleStore()
 const { selectedTask, selectedTaskId, selectedTaskCommitReferences, selectedTaskFeedback, waitingCount, runningPass } = storeToRefs(store)
 const { run } = useAsyncAction()
 
-const { draft, showEditor, mode, scheduleSave, beginWriting, toggleMode } = useDescriptionDraft()
+const { draft, mode, scheduleSave, toggleMode } = useDescriptionDraft({ openEmptyInEditor: true })
 
 const projectComponents = useSelectedProjectComponents()
 const projectConnections = useSelectedProjectConnections()
@@ -185,8 +184,6 @@ defineExpose({ toggleMode })
       <div v-if="view === 'revisions'" class="min-h-0 flex-1 overflow-y-auto p-4" data-testid="revisions-view">
         <RevisionsPanel :entries="selectedTaskFeedback" @discard="discardRevision" />
       </div>
-
-      <DescriptionEmptyState v-else-if="!showEditor" @write="beginWriting" />
 
       <div v-else class="flex min-h-0 flex-1 flex-col">
         <div class="flex shrink-0 items-center gap-2 px-4 pt-3" data-testid="description-mode-row">

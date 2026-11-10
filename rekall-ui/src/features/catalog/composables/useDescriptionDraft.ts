@@ -22,7 +22,7 @@ export interface DescriptionDraft {
  * The selected task's description as it is being written: saved a moment after the last keystroke,
  * and saved at once when another task comes into view or the pane closes.
  */
-export function useDescriptionDraft(): DescriptionDraft {
+export function useDescriptionDraft(options: { readonly openEmptyInEditor?: boolean } = {}): DescriptionDraft {
   const store = useConsoleStore()
   const { selectedTask } = storeToRefs(store)
   const { run } = useAsyncAction()
@@ -55,7 +55,7 @@ export function useDescriptionDraft(): DescriptionDraft {
     (_id, previousId) => {
       if (previousId) flush(previousId)
       draft.value = selectedTask.value?.description ?? ''
-      showEditor.value = draft.value.trim().length > 0
+      showEditor.value = options.openEmptyInEditor === true || draft.value.trim().length > 0
       openFor(draft.value)
     },
     { immediate: true }
