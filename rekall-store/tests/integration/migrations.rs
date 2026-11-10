@@ -115,7 +115,7 @@ async fn a_database_written_by_v0_2_moves_onto_the_baseline_with_its_rows() {
     let database = rekall_store::open(&path).await.unwrap();
     let db = &database.conn;
 
-    assert_eq!(applied_versions(db).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision", "047-vulnerability", "048-exposure-conclusion", "049-deployment-graph", "050-graph-step-place", "051-binding-label", "052-advisory-reach", "053-visit-report", "054-release-on-run", "055-epic", "056-step-session", "057-telemetry-setting", "058-run-queue-session-kind", "059-shared-connection", "060-step-snapshot", "061-done-check", "062-wrapup-version", "063-quick-task", "064-task-dependency", "065-parallel-sessions", "066-task-worktree", "067-task-deviation", "068-drop-orphan-note-links", "069-task-feedback", "070-drop-review-note", "071-feedback-passes", "072-connection-self-signed", "073-revision-target"]);
+    assert_eq!(applied_versions(db).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision", "047-vulnerability", "048-exposure-conclusion", "049-deployment-graph", "050-graph-step-place", "051-binding-label", "052-advisory-reach", "053-visit-report", "054-release-on-run", "055-epic", "056-step-session", "057-telemetry-setting", "058-run-queue-session-kind", "059-shared-connection", "060-step-snapshot", "061-done-check", "062-wrapup-version", "063-quick-task", "064-task-dependency", "065-parallel-sessions", "066-task-worktree", "067-task-deviation", "068-drop-orphan-note-links", "069-task-feedback", "070-drop-review-note", "071-feedback-passes", "072-connection-self-signed", "073-revision-target", "074-accept-done-tasks"]);
     let task = Task::find().one(db).await.unwrap().unwrap();
     assert_eq!((task.label.as_str(), task.title.as_str()), ("report", "Report"));
     let wrapup = Wrapup::find().one(db).await.unwrap().unwrap();
@@ -135,7 +135,7 @@ async fn a_database_on_the_baseline_opens_again_unchanged() {
 
     let database = rekall_store::open(&path).await.unwrap();
 
-    assert_eq!(applied_versions(&database.conn).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision", "047-vulnerability", "048-exposure-conclusion", "049-deployment-graph", "050-graph-step-place", "051-binding-label", "052-advisory-reach", "053-visit-report", "054-release-on-run", "055-epic", "056-step-session", "057-telemetry-setting", "058-run-queue-session-kind", "059-shared-connection", "060-step-snapshot", "061-done-check", "062-wrapup-version", "063-quick-task", "064-task-dependency", "065-parallel-sessions", "066-task-worktree", "067-task-deviation", "068-drop-orphan-note-links", "069-task-feedback", "070-drop-review-note", "071-feedback-passes", "072-connection-self-signed", "073-revision-target"]);
+    assert_eq!(applied_versions(&database.conn).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision", "047-vulnerability", "048-exposure-conclusion", "049-deployment-graph", "050-graph-step-place", "051-binding-label", "052-advisory-reach", "053-visit-report", "054-release-on-run", "055-epic", "056-step-session", "057-telemetry-setting", "058-run-queue-session-kind", "059-shared-connection", "060-step-snapshot", "061-done-check", "062-wrapup-version", "063-quick-task", "064-task-dependency", "065-parallel-sessions", "066-task-worktree", "067-task-deviation", "068-drop-orphan-note-links", "069-task-feedback", "070-drop-review-note", "071-feedback-passes", "072-connection-self-signed", "073-revision-target", "074-accept-done-tasks"]);
 }
 
 #[tokio::test]
@@ -386,4 +386,34 @@ async fn feedback_written_apart_from_the_description_is_dropped_and_a_revision_t
     assert_eq!(rows, ["plain|1|IMPLEMENTATION", "planned|1|PLAN"]);
     let followed = text_rows(&db, "SELECT name FROM pragma_table_info('task_feedback') WHERE name = 'follows_seq'").await;
     assert!(followed.is_empty(), "073 drops follows_seq");
+}
+
+#[tokio::test]
+async fn a_task_in_done_before_074_has_its_steps_and_review_line_accepted() {
+    use sea_orm_migration::MigratorTrait;
+    let options = SqliteConnectOptions::new().filename(":memory:").foreign_keys(false);
+    let pool = SqlitePoolOptions::new().max_connections(1).connect_with(options).await.unwrap();
+    let db = SqlxSqliteConnector::from_sqlx_sqlite_pool(pool);
+    let before_074 = rekall_store::migration::Migrator::migrations().iter().position(|migration| migration.name() == "074-accept-done-tasks").unwrap() as u32;
+    rekall_store::migration::Migrator::up(&db, Some(before_074)).await.unwrap();
+    for statement in [
+        "INSERT INTO company (id, name, created_at, updated_at) VALUES ('c', 'Acme', 't', 't')",
+        "INSERT INTO project (id, label, title, status, icon, auto_commit, company_id, created_at, updated_at) VALUES ('p', 'vega', 'Vega', 'ACTIVE', 'folder', 0, 'c', 't', 't')",
+        "INSERT INTO task (id, label, title, status, project_id, review_state, created_at, updated_at) VALUES ('planned', 'planned', 'Planned', 'DONE', 'p', 'OPEN', 't', 'u')",
+        "INSERT INTO task (id, label, title, status, project_id, review_state, created_at, updated_at) VALUES ('plain', 'plain', 'Plain', 'DONE', 'p', 'OPEN', 't', 'u')",
+        "INSERT INTO task (id, label, title, status, project_id, review_state, created_at, updated_at) VALUES ('working', 'working', 'Working', 'IN_PROGRESS', 'p', 'OPEN', 't', 'u')",
+        "INSERT INTO task_step (id, task_id, title, position, state, created_at, updated_at) VALUES ('s1', 'planned', 'Open', 0, 'OPEN', 't', 'u')",
+        "INSERT INTO task_step (id, task_id, title, position, state, created_at, updated_at) VALUES ('s2', 'planned', 'Claimed', 1, 'CLAIMED', 't', 'u')",
+        "INSERT INTO task_step (id, task_id, title, position, state, created_at, updated_at) VALUES ('s3', 'planned', 'Draft', 2, 'DRAFT', 't', 'u')",
+        "INSERT INTO task_step (id, task_id, title, position, state, created_at, updated_at) VALUES ('s4', 'working', 'Open', 0, 'OPEN', 't', 'u')",
+    ] {
+        db.execute_unprepared(statement).await.unwrap();
+    }
+
+    rekall_store::migration::Migrator::up(&db, None).await.unwrap();
+
+    let steps = text_rows(&db, "SELECT id || '|' || state FROM task_step ORDER BY id").await;
+    assert_eq!(steps, ["s1|DONE", "s2|DONE", "s3|DRAFT", "s4|OPEN"]);
+    let tasks = text_rows(&db, "SELECT id || '|' || review_state || '|' || COALESCE(accepted_at, '-') FROM task ORDER BY id").await;
+    assert_eq!(tasks, ["plain|DONE|u", "planned|OPEN|-", "working|OPEN|-"]);
 }

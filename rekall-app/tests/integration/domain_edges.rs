@@ -79,7 +79,7 @@ const CORE: LayeredCrate = LayeredCrate {
         ("inventory", &["catalog"]),
         ("note", &["task"]),
         ("queue", &["catalog", "claude", "dependency", "task"]),
-        ("review", &["task", "timeentry"]),
+        ("review", &["step", "task", "timeentry"]),
         ("search", &["task"]),
         ("section", &["catalog", "note"]),
         ("settings", &[]),

@@ -3,6 +3,7 @@ use rekall_store::task;
 use rekall_store::TaskStepState;
 use rekall_store::repository as repo;
 
+use crate::step::TaskStepService;
 use crate::timeentry::TimeEntryService;
 use crate::{in_write, load, Ctx, Tx};
 
@@ -12,11 +13,12 @@ use crate::review::{TaskReviewEvent, TaskReviewView};
 pub struct TaskReviewService {
     ctx: Ctx,
     time_entries: TimeEntryService,
+    steps: TaskStepService,
 }
 
 impl TaskReviewService {
-    pub fn new(ctx: Ctx, time_entries: TimeEntryService) -> Self {
-        Self { ctx, time_entries }
+    pub fn new(ctx: Ctx, time_entries: TimeEntryService, steps: TaskStepService) -> Self {
+        Self { ctx, time_entries, steps }
     }
 
     /// Flip `OPEN <-> RUNNING` as a session on the task anchor comes and goes, and say whether it
@@ -68,6 +70,22 @@ impl TaskReviewService {
         let mut task = before.clone();
         task.mark_review_state(TaskStepState::Done);
         self.settle_acceptance(tx, before, task).await
+    }
+
+    /// The task is put to done: its review line when it has no checklist, else every step that is
+    /// not a draft. An epic holds neither, and what is already accepted stays as it is.
+    pub async fn accept_everything_in(&self, tx: &mut Tx, task_id: Id) -> Result<()> {
+        let task = load::task_or_unknown(tx.db(), task_id).await?;
+        if task.is_epic() {
+            return Ok(());
+        }
+        if !load::review_active(tx.db(), task_id).await? {
+            return self.steps.accept_all_in(tx, task_id).await;
+        }
+        if task.review_state != TaskStepState::Done {
+            self.accept_in(tx, task_id).await?;
+        }
+        Ok(())
     }
 
     /// A quick task that a Claude-authored wrapup has claimed is accepted without a review, marked

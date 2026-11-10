@@ -203,6 +203,22 @@ impl TaskStepService {
         })
     }
 
+    /// Accepts every step past draft that is not done yet, inside a transaction the caller holds,
+    /// and publishes the checklist when one moved. A draft stays: a person is still wording it.
+    pub async fn accept_all_in(&self, tx: &mut Tx, task_id: Id) -> Result<()> {
+        let mut accepted_any = false;
+        for before in load::steps_of(tx.db(), task_id).await?.into_iter().filter(awaits_acceptance) {
+            let mut step = before.clone();
+            step.mark_state(TaskStepState::Done);
+            repo::update_if_changed(tx.db(), &before, step, self.ctx.now()).await?;
+            accepted_any = true;
+        }
+        if accepted_any {
+            self.publish_in(tx, task_id).await?;
+        }
+        Ok(())
+    }
+
     /// Sends a claimed step back for another pass: what it was worked from is kept as a pass and
     /// the detail is left empty for the feedback. Only the console does this; no MCP tool can.
     pub async fn send_back(&self, id: Id) -> Result<TaskStepView> {
@@ -488,6 +504,10 @@ impl TaskStepService {
             .await?
             .ok_or_else(|| RekallError::unknown_anchor(format!("No step with id {id}")))
     }
+}
+
+fn awaits_acceptance(step: &task_step::Model) -> bool {
+    step.state != TaskStepState::Draft && step.state != TaskStepState::Done
 }
 
 fn require_unstarted(step: &task_step::Model) -> Result<()> {

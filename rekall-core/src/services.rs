@@ -42,10 +42,10 @@ pub struct Services {
 impl Services {
     pub fn new(ctx: Ctx, check_runner: Arc<dyn check::CheckRunner>) -> Self {
         let time_entries = timeentry::TimeEntryService::new(ctx.clone());
-        let review = review::TaskReviewService::new(ctx.clone(), time_entries.clone());
         let commit_references = commit::CommitReferenceService::new(ctx.clone());
         let context = context::ContextService::new(ctx.clone());
         let steps = step::TaskStepService::new(ctx.clone(), time_entries.clone());
+        let review = review::TaskReviewService::new(ctx.clone(), time_entries.clone(), steps.clone());
         let step_links = flow::StepLinkService::new(ctx.clone(), steps.clone());
         let flow = flow::FlowService::new(ctx.clone(), steps.clone(), step_links.clone(), flow::StepVisitService::new(ctx.clone()));
         let flow_proposals = flow::FlowProposalService::new(ctx.clone(), steps.clone(), step_links.clone());

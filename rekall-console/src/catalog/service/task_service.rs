@@ -78,11 +78,12 @@ impl TaskService {
             if before.description != task.description {
                 self.feedback.track_description_in(&mut tx, &task, before.description.as_deref(), task.description.as_deref()).await?;
             }
-            let response = response(&tx, &task).await?;
             if before.status != TaskStatus::Done && task.status == TaskStatus::Done {
                 self.time_entries.stop_if_running_in(&mut tx, id).await?;
+                self.review.accept_everything_in(&mut tx, id).await?;
             }
-            Ok(response)
+            let task = repo::task::require(tx.db(), id).await?;
+            response(&tx, &task).await
         })
     }
 

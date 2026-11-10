@@ -49,6 +49,7 @@ mod m070_drop_review_note;
 mod m071_feedback_passes;
 mod m072_connection_self_signed;
 mod m073_revision_target;
+mod m074_accept_done_tasks;
 mod migration_support;
 mod migrator;
 

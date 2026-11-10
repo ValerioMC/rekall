@@ -131,3 +131,44 @@ async fn deleting_an_epic_leaves_its_tasks_on_their_own() {
     world.service.delete(epic.id).await.unwrap();
     assert_eq!(world.service.get(task.id).await.unwrap().epic_id, None);
 }
+
+fn done_command(label: &str, project_id: Id) -> TaskCommand {
+    TaskCommand { status: Some(TaskStatus::Done), ..command(label, project_id, TaskKind::Task, None) }
+}
+
+#[tokio::test]
+async fn putting_a_task_with_steps_to_done_accepts_every_step_but_the_drafts() {
+    let world = world().await;
+    let task = world.service.create(command("checkout", world.project_id, TaskKind::Task, None)).await.unwrap();
+    let worked = world.steps.add(task.id, Some("Wire the form"), None).await.unwrap();
+    world.steps.add(task.id, Some("Maybe later"), None).await.unwrap();
+    world.steps.edit(worked.id, None, None, None, Some(false)).await.unwrap();
+
+    let saved = world.service.update(task.id, done_command("checkout", world.project_id)).await.unwrap();
+
+    let states: Vec<_> = world.steps.find_by_task(task.id).await.unwrap().into_iter().map(|step| step.state).collect();
+    assert_eq!(states, [TaskStepState::Done, TaskStepState::Draft]);
+    assert_eq!(saved.steps_done, 1);
+}
+
+#[tokio::test]
+async fn putting_a_task_without_steps_to_done_accepts_its_review_line() {
+    let world = world().await;
+    let task = world.service.create(command("checkout", world.project_id, TaskKind::Task, None)).await.unwrap();
+
+    let saved = world.service.update(task.id, done_command("checkout", world.project_id)).await.unwrap();
+
+    assert_eq!(saved.review_state, TaskStepState::Done);
+    assert!(saved.accepted_at.is_some());
+}
+
+#[tokio::test]
+async fn putting_an_epic_to_done_leaves_its_review_line_alone() {
+    let world = world().await;
+    let epic = world.service.create(command("checkout", world.project_id, TaskKind::Epic, None)).await.unwrap();
+    let done = TaskCommand { status: Some(TaskStatus::Done), ..command("checkout", world.project_id, TaskKind::Epic, None) };
+
+    let saved = world.service.update(epic.id, done).await.unwrap();
+
+    assert_eq!(saved.review_state, TaskStepState::Open);
+}
