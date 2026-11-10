@@ -84,7 +84,7 @@ describe('chart helpers', () => {
   })
 
   it('names a day the way the server cut it, in UTC', () => {
-    expect(shortDay('2026-10-12')).toBe('Oct 12')
+    expect(shortDay('2026-10-12')).toBe('12 Oct')
     expect(utcToday(new Date('2026-10-12T23:30:00Z'))).toBe('2026-10-12')
   })
 })

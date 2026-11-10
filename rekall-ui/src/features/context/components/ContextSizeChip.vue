@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/common/format/app-locale'
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useConsoleStore } from '@/stores/console.store'
@@ -113,8 +114,8 @@ const heaviestNote = computed(() =>
           data-testid="context-size-parts"
         >
           <p class="border-b border-border px-3.5 py-2 text-caption leading-relaxed text-text-subtle">
-            {{ size.characters.toLocaleString() }} characters on <span class="font-mono">/rk</span>, about
-            {{ size.estimatedTokens.toLocaleString() }} tokens. An estimate for comparing, not a bill.
+            {{ size.characters.toLocaleString(APP_LOCALE) }} characters on <span class="font-mono">/rk</span>, about
+            {{ size.estimatedTokens.toLocaleString(APP_LOCALE) }} tokens. An estimate for comparing, not a bill.
           </p>
           <ul class="max-h-[300px] overflow-y-auto py-1">
             <li

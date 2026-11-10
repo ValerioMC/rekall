@@ -14,7 +14,7 @@ describe('the token trend chart', () => {
   const readout = (wrapper: ReturnType<typeof mountChart>): string => wrapper.get('[data-testid="token-trend-readout"]').text()
 
   it('reads out the latest day until a day is chosen', () => {
-    expect(readout(mountChart())).toBe('Oct 12, 4.2k +3k')
+    expect(readout(mountChart())).toBe('12 Oct, 4.2k +3k')
   })
 
   it('moves along the days with the arrow keys, and to the ends with Home and End', async () => {
@@ -22,16 +22,16 @@ describe('the token trend chart', () => {
     const chart = wrapper.get('[data-testid="token-trend-chart"]')
 
     await chart.trigger('keydown', { key: 'ArrowLeft' })
-    expect(readout(wrapper)).toBe('Oct 11, 1.2k +1.2k')
+    expect(readout(wrapper)).toBe('11 Oct, 1.2k +1.2k')
 
     await chart.trigger('keydown', { key: 'Home' })
-    expect(readout(wrapper)).toBe('Oct 10, 0')
+    expect(readout(wrapper)).toBe('10 Oct, 0')
 
     await chart.trigger('keydown', { key: 'ArrowLeft' })
-    expect(readout(wrapper)).toBe('Oct 10, 0')
+    expect(readout(wrapper)).toBe('10 Oct, 0')
 
     await chart.trigger('keydown', { key: 'End' })
-    expect(readout(wrapper)).toBe('Oct 12, 4.2k +3k')
+    expect(readout(wrapper)).toBe('12 Oct, 4.2k +3k')
   })
 
   it('goes back to the latest day when focus leaves', async () => {
@@ -41,14 +41,14 @@ describe('the token trend chart', () => {
 
     await chart.trigger('blur')
 
-    expect(readout(wrapper)).toBe('Oct 12, 4.2k +3k')
+    expect(readout(wrapper)).toBe('12 Oct, 4.2k +3k')
   })
 
   it('draws the line from the points and labels the first and last day', () => {
     const wrapper = mountChart()
 
     expect(wrapper.findAll('path')[1]!.attributes('d')).toMatch(/^M[\d. ]+ L/)
-    expect(wrapper.get('svg').text()).toContain('Oct 10')
-    expect(wrapper.get('svg').text()).toContain('Oct 12')
+    expect(wrapper.get('svg').text()).toContain('10 Oct')
+    expect(wrapper.get('svg').text()).toContain('12 Oct')
   })
 })

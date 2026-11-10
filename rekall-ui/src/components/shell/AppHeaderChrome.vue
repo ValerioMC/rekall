@@ -23,7 +23,7 @@ const clearsTrafficLights = platform === 'macos'
 <template>
   <header
     :data-tauri-drag-region="isDesktop ? 'deep' : undefined"
-    class="glass sticky top-0 z-(--z-sticky) flex h-(--spacing-header) shrink-0 items-center border-b border-border"
+    class="@container glass sticky top-0 z-(--z-sticky) flex h-(--spacing-header) shrink-0 items-center border-b border-border"
   >
     <div
       class="app-header-grid grid h-full min-w-0 flex-1 items-center gap-4 px-3"

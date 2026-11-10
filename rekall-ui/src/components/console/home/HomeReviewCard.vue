@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** The work sessions claimed and nobody has reviewed: the console's most frequent next action, so the one amber card. */
+/** The work sessions claimed and nobody has reviewed: the console's most frequent next action, so the one card that carries amber, on its heading and its marks, not its border. */
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useConsoleStore } from '@/stores/console.store'
@@ -16,8 +16,7 @@ const hidden = computed(() => Math.max(0, reviewQueue.value.length - SHOWN))
 
 <template>
   <section
-    class="flex flex-col rounded-card border bg-surface p-1.5 shadow-(--shadow-raised)"
-    :class="reviewQueue.length ? 'border-accent-deep' : 'border-border'"
+    class="flex flex-col rounded-card border border-border bg-surface p-1.5 shadow-(--shadow-raised)"
     aria-labelledby="home-review-title"
     data-testid="home-review"
   >

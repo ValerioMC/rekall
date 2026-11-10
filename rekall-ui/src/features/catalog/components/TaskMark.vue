@@ -383,7 +383,7 @@ onUnmounted(() => {
 }
 
 .mark[data-arrive='ACCEPTED'] .mark-disc {
-  animation: mark-stamp 440ms cubic-bezier(0.2, 0.9, 0.3, 1.35);
+  animation: mark-stamp 440ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .mark-ripple {

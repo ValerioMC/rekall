@@ -75,7 +75,7 @@ async function copyPlan(chip: PlanChip): Promise<void> {
         :data-testid="chip === 'flow' ? 'copy-plan-flow-command' : 'copy-plan-command'"
         @click="copyPlan(chip)"
       >
-        <span class="opacity-60">/rk</span>
+        <span class="opacity-80">/rk</span>
         <span>{{ anchor }} {{ chip === 'flow' ? 'plan flow' : 'plan' }}</span>
         <CopyGlyph :copied="copied === chip" />
       </button>

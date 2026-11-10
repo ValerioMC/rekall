@@ -3,6 +3,7 @@ import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import StepsPane from '@/features/steps/components/StepsPane.vue'
 import { useConsoleStore } from '@/stores/console.store'
+import { useToastStore } from '@/stores/toast.store'
 vi.mock('@/features/adherence/api/adherence.api', () => ({
   fetchTaskAdherence: vi.fn(async () => ({
     stepsTotal: 0, stepsDone: 0, stepsClaimed: 0, acceptedFirstTime: 0, sentBack: 0, passesTotal: 0,
@@ -240,13 +241,45 @@ describe('StepsPane', () => {
   it('sends a claimed step back from the review bar its detail opens on', async () => {
     const store = seed([makeStep('b', 0, 'CLAIMED')])
     const pane = render()
-    expect(pane.find('[data-testid="step-review-bar"]').exists()).toBe(false)
-    await pane.get('[data-testid="step-title"]').trigger('click')
+    expect(pane.find('[data-testid="step-review-bar"]').exists()).toBe(true)
 
     await pane.get('[data-testid="step-send-back"]').trigger('click')
     await flushPromises()
 
     expect(store.sendBackStep).toHaveBeenCalledWith('b')
+  })
+
+  it('opens on the claim waiting for review rather than on the next open step', () => {
+    seed([makeStep('a', 0, 'CLAIMED'), makeStep('b', 1, 'OPEN')])
+    const pane = render()
+    const rows = pane.findAll('[data-testid="step-row"]')
+
+    expect(rows[0]!.find('[data-testid="step-review-bar"]').exists()).toBe(true)
+    expect(rows[1]!.find('[data-testid="step-detail"]').exists()).toBe(false)
+  })
+
+  it('accepts and sends back a collapsed claim from its row', async () => {
+    const store = seed([makeStep('a', 0, 'CLAIMED'), makeStep('b', 1, 'CLAIMED')])
+    const pane = render()
+    const rows = pane.findAll('[data-testid="step-row"]')
+    expect(rows[0]!.find('[data-testid="step-accept-inline"]').exists()).toBe(false)
+
+    await rows[1]!.get('[data-testid="step-accept-inline"]').trigger('click')
+    await flushPromises()
+
+    expect(store.acceptStep).toHaveBeenCalledWith('b')
+  })
+
+  it('moves on to the next claim waiting for review after an accept, and offers to reopen it', async () => {
+    seed([makeStep('a', 0, 'CLAIMED'), makeStep('b', 1, 'OPEN'), makeStep('c', 2, 'CLAIMED')])
+    const pane = render()
+
+    await pane.get('[data-testid="step-accept"]').trigger('click')
+    await flushPromises()
+
+    const rows = pane.findAll('[data-testid="step-row"]')
+    expect(rows[2]!.find('[data-testid="step-review-bar"]').exists()).toBe(true)
+    expect(useToastStore().toasts.at(-1)?.action?.label).toBe('Reopen')
   })
 
   it('reopens a done step only on the second click', async () => {

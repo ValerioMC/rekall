@@ -145,7 +145,7 @@ watch(
               <template #flags>
               <span
                 v-if="activeTerminal"
-                class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-surface-raised px-2 py-0.5 text-[10.5px] font-semibold tracking-[0.02em]"
+                class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-surface-raised px-2 py-0.5 text-micro font-semibold tracking-[0.02em]"
                 :class="connected ? 'text-safe' : ended ? 'text-text-subtle' : 'text-accent'"
                 data-testid="terminal-status"
               >
@@ -253,7 +253,7 @@ watch(
           </div>
         </header>
         <div class="relative flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border bg-surface px-5 py-2">
-          <span v-if="activeTerminal" class="truncate font-mono text-[10.5px] text-text-subtle">
+          <span v-if="activeTerminal" class="truncate font-mono text-micro text-text-subtle">
             {{ activeTerminal.workingDir }}
           </span>
           <span

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/common/format/app-locale'
 import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch } from 'vue'
 import PathPickerRow from '@/components/ui/path-picker/PathPickerRow.vue'
 import PathPickerStatus from '@/components/ui/path-picker/PathPickerStatus.vue'
@@ -275,7 +276,7 @@ onUnmounted(() => {
         <span><kbd>⌫</kbd> up</span>
         <span><kbd>⌘↵</kbd> this folder</span>
         <span v-if="listing?.truncated" class="text-warn" data-testid="path-picker-truncated">
-          first {{ listing.entries.length.toLocaleString() }} shown
+          first {{ listing.entries.length.toLocaleString(APP_LOCALE) }} shown
         </span>
         <span class="ml-auto"><kbd>esc</kbd></span>
       </div>

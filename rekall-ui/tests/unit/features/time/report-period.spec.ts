@@ -31,26 +31,11 @@ describe('periodRange', () => {
     expect(february.label).toContain('2028')
   })
 
-  /**
-   * A week that crosses a month has to name both, and one that does not must not repeat it.
-   * Asserted by counting the month names rather than by matching a string: the label is
-   * formatted in whatever locale is reading it, and the rule under test is not.
-   */
-  it('names the month once inside it, twice across it', () => {
-    const inside = periodRange('week', new Date(2026, 8, 9)).label
-    const across = periodRange('week', new Date(2026, 7, 31)).label
-
-    expect(monthNamesIn(inside)).toHaveLength(1)
-    expect(inside).toMatch(/7\D+13\D+2026/)
-    expect(monthNamesIn(across)).toHaveLength(2)
-    expect(across).toMatch(/31\D+6\D+2026/)
+  it('writes a week as its first and last day, day first', () => {
+    expect(periodRange('week', new Date(2026, 8, 9)).label).toBe('07/09/2026 – 13/09/2026')
+    expect(periodRange('week', new Date(2026, 7, 31)).label).toBe('31/08/2026 – 06/09/2026')
   })
 })
-
-/** Whatever the locale spells the months as, they are the only letters in a week's label. */
-function monthNamesIn(label: string): string[] {
-  return label.match(/\p{L}+/gu) ?? []
-}
 
 describe('shiftAnchor', () => {
   it('steps a week at a time, across a month boundary', () => {

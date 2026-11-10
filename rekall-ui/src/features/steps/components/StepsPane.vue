@@ -13,6 +13,7 @@ import TaskBranchPanel from '@/features/worktree/components/TaskBranchPanel.vue'
 import GraphAttachPanel from '@/features/graph/components/GraphAttachPanel.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
+import { useToastStore } from '@/stores/toast.store'
 import { useCheckStream } from '@/features/check/composables/useCheckStream'
 import { useChecksStore } from '@/features/check/store/checks.store'
 import { provideStepEditor } from '@/features/steps/composables/useStepEditor'
@@ -24,6 +25,7 @@ const store = useConsoleStore()
 const { selectedTask, selectedTaskSteps } = storeToRefs(store)
 const { run } = useAsyncAction()
 const checks = useChecksStore()
+const toast = useToastStore()
 
 const editor = provideStepEditor({
   steps: () => selectedTaskSteps.value,
@@ -55,9 +57,17 @@ const canLayGraph = computed(() => !draftSteps.value.length && selectedTask.valu
 const checklistEl = ref<InstanceType<typeof StepChecklist> | null>(null)
 const draftsEl = ref<InstanceType<typeof StepDraftShelf> | null>(null)
 
-/** The first step still to finish, or the first draft when every step is done. */
+function stepAwaitingDecision(excluding: TaskStepId | null): TaskStep | undefined {
+  return checklistSteps.value.find((step) => step.state === 'CLAIMED' && step.id !== excluding)
+}
+
+function nextUnfinishedStep(excluding: TaskStepId | null): TaskStep | undefined {
+  return checklistSteps.value.find((step) => !stepIsComplete(step.state) && step.id !== excluding)
+}
+
+/** A claim waiting for a person comes first, then the first step still to finish, then the first draft. */
 function openFirstUnfinished(): void {
-  const next = checklistSteps.value.find((step) => !stepIsComplete(step.state)) ?? draftSteps.value[0]
+  const next = stepAwaitingDecision(null) ?? nextUnfinishedStep(null) ?? draftSteps.value[0]
   if (next) editor.open(next)
 }
 
@@ -104,15 +114,24 @@ watch(
 const reopenArmed = ref<TaskStepId | null>(null)
 watch(editor.expandedId, () => (reopenArmed.value = null))
 
-/** Ticks an open step or accepts a claimed one; the open detail moves on to the next step. */
+function offerToReopenAccepted(step: TaskStep): void {
+  toast.notify(`Accepted ${step.title}`, {
+    label: 'Reopen',
+    run: () => void run(() => store.reopenStep(step.id))
+  })
+}
+
+/** Ticks an open step or accepts a claimed one; the open detail moves on to the next claim to review, else the next step. */
 async function markForward(step: TaskStep): Promise<void> {
   if (step.state === 'DONE') return
   const wasOpenHere = editor.expandedId.value === step.id
+  const wasClaimed = step.state === 'CLAIMED'
   editor.flush()
-  await run(() => (step.state === 'CLAIMED' ? store.acceptStep(step.id) : store.toggleStep(step.id)))
+  const outcome = await run(() => (wasClaimed ? store.acceptStep(step.id) : store.toggleStep(step.id)))
+  if (wasClaimed && outcome !== null) offerToReopenAccepted(step)
   if (!wasOpenHere) return
-  const next = checklistSteps.value.find((candidate) => !stepIsComplete(candidate.state))
-  if (next && next.id !== step.id) editor.open(next)
+  const next = stepAwaitingDecision(step.id) ?? nextUnfinishedStep(step.id)
+  if (next) editor.open(next)
   else editor.close()
 }
 

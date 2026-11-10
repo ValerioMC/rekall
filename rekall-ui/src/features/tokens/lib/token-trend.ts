@@ -1,3 +1,4 @@
+import { APP_LOCALE } from '@/common/format/app-locale'
 import type { TaskId } from '@/model/branded'
 import type { TokenDay } from '@/features/tokens/model/token-usage'
 
@@ -127,9 +128,9 @@ export function chartGeometry(values: readonly number[], ceiling: number, box: C
   return { xs, ys, line, area }
 }
 
-/** `Oct 12`, from a `YYYY-MM-DD`, in the UTC day the server cut it at. */
+/** `12 Oct`, from a `YYYY-MM-DD`, in the UTC day the server cut it at. */
 export function shortDay(day: string): string {
-  return new Date(`${day}T00:00:00Z`).toLocaleDateString('en-US', {
+  return new Date(`${day}T00:00:00Z`).toLocaleDateString(APP_LOCALE, {
     month: 'short',
     day: 'numeric',
     timeZone: 'UTC'

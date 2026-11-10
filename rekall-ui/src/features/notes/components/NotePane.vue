@@ -138,7 +138,7 @@ async function confirmDelete(): Promise<void> {
 </script>
 
 <template>
-  <section class="flex min-h-0 flex-1 flex-col bg-canvas" aria-label="Note">
+  <section class="flex min-h-0 min-w-0 flex-1 flex-col bg-canvas" aria-label="Note">
     <ConsoleHome v-if="!selectedDocument" />
 
     <template v-else>
@@ -152,14 +152,14 @@ async function confirmDelete(): Promise<void> {
             @input="scheduleSave"
           />
           <button
-            class="anchor-chip focus-ring mt-1.5 inline-flex items-center gap-2 px-2.5 py-1 text-caption transition-colors hover:border-anchor"
+            class="anchor-chip focus-ring mt-1.5 inline-flex max-w-full items-center gap-2 px-2.5 py-1 text-caption transition-colors hover:border-anchor"
             :class="justCopied && 'flash'"
             :title="justCopied ? 'Copied' : `Copy ${rkCommand(anchor)}`"
             data-testid="copy-anchor"
             @click="copyAnchor"
           >
             <span class="opacity-60">/rk</span>
-            <span>{{ anchor }}</span>
+            <span class="min-w-0 truncate">{{ anchor }}</span>
             <CopyGlyph :copied="justCopied" />
           </button>
         </div>
@@ -185,7 +185,7 @@ async function confirmDelete(): Promise<void> {
       <NoteMembershipStrip v-if="showMembership" :note="selectedDocument" @assign="isAssigning = true" />
 
       <div class="flex min-h-0 flex-1 flex-col">
-        <div class="flex shrink-0 items-center gap-2 border-b border-border px-5 py-1.5">
+        <div class="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-5 py-1.5">
           <NoteContextModeSwitch :note="selectedDocument" />
           <NoteScopeSelect :note="selectedDocument" @change="moveTo" />
           <AppModeToggle v-model="mode" class="ml-auto" />

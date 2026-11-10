@@ -473,7 +473,7 @@ onUnmounted(() => {
 /* ---- Arrivals: one each, on a change of state ----------------------------------------- */
 
 .seal[data-arrive='DONE'] .seal-disc {
-  animation: seal-stamp 460ms cubic-bezier(0.2, 0.9, 0.3, 1.35);
+  animation: seal-stamp 460ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .seal[data-arrive='DONE'] .seal-check,
