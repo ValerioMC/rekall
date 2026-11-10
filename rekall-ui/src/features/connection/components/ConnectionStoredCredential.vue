@@ -12,9 +12,9 @@ const props = defineProps<{ connection: Connection }>()
 
 const HIDDEN_MASK = '••••••••••••'
 
-const { revealed, visible, loading, saving, copied, secretInput, emailInput, changed, canSave, toggle, copy, save, discardEdit } = useRevealedCredential(toRef(props, 'connection'))
+const { revealed, visible, loading, saving, copied, secretInput, emailInput, userInput, changed, canSave, toggle, copy, save, discardEdit } = useRevealedCredential(toRef(props, 'connection'))
 
-const noun = computed(() => credentialNoun(props.connection.kind))
+const noun = computed(() => (revealed.value?.user != null ? 'password' : credentialNoun(props.connection.kind)))
 const multiline = computed(() => visible.value && (revealed.value?.kubeconfig != null || secretInput.value.includes('\n')))
 </script>
 
@@ -34,6 +34,22 @@ const multiline = computed(() => visible.value && (revealed.value?.kubeconfig !=
       />
       <AppButton variant="quiet" size="icon" aria-label="Copy email" title="Copy email" data-testid="copy-stored-email" @click="copy('email')">
         <CopyGlyph :copied="copied === 'email'" />
+      </AppButton>
+    </div>
+    <div v-if="revealed?.user" class="flex items-center gap-2">
+      <label class="w-14 shrink-0 text-caption text-text-subtle" for="stored-credential-user">User</label>
+      <input
+        id="stored-credential-user"
+        :value="userInput"
+        type="text"
+        autocomplete="off"
+        spellcheck="false"
+        class="field text-text h-(--spacing-control) min-w-0 flex-1 rounded-control px-3 text-body"
+        data-testid="stored-credential-user"
+        @input="userInput = ($event.target as HTMLInputElement).value"
+      />
+      <AppButton variant="quiet" size="icon" aria-label="Copy user" title="Copy user" data-testid="copy-stored-user" @click="copy('user')">
+        <CopyGlyph :copied="copied === 'user'" />
       </AppButton>
     </div>
     <div class="flex items-start gap-2">

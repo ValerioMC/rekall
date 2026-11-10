@@ -8,6 +8,7 @@ pub struct RevealedCredentialResponse {
     pub token: Option<String>,
     pub kubeconfig: Option<String>,
     pub email: Option<String>,
+    pub user: Option<String>,
 }
 
 impl From<RevealedCredentialView> for RevealedCredentialResponse {
@@ -16,6 +17,7 @@ impl From<RevealedCredentialView> for RevealedCredentialResponse {
             token: view.token.map(|token| token.expose().to_string()),
             kubeconfig: view.kubeconfig.map(|kubeconfig| kubeconfig.expose().to_string()),
             email: view.email,
+            user: view.user,
         }
     }
 }

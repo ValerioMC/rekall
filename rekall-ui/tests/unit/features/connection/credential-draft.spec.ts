@@ -41,11 +41,18 @@ describe('a GitHub credential draft', () => {
 })
 
 describe('a Grafana credential draft', () => {
-  it('is a service account token, complete once one is typed', () => {
-    expect(emptyDraft('GRAFANA')).toEqual({ kind: 'GRAFANA', token: '' })
-    expect(isStarted({ kind: 'GRAFANA', token: 'glsa_1' })).toBe(true)
-    expect(isComplete({ kind: 'GRAFANA', token: ' ' })).toBe(false)
-    expect(isComplete({ kind: 'GRAFANA', token: 'glsa_1' })).toBe(true)
+  it('starts as a service account token, complete once one is typed', () => {
+    expect(emptyDraft('GRAFANA')).toEqual({ kind: 'GRAFANA', authentication: 'SERVICE_ACCOUNT', user: '', token: '' })
+    expect(isStarted({ kind: 'GRAFANA', authentication: 'SERVICE_ACCOUNT', user: '', token: 'glsa_1' })).toBe(true)
+    expect(isComplete({ kind: 'GRAFANA', authentication: 'SERVICE_ACCOUNT', user: '', token: ' ' })).toBe(false)
+    expect(isComplete({ kind: 'GRAFANA', authentication: 'SERVICE_ACCOUNT', user: '', token: 'glsa_1' })).toBe(true)
     expect(credentialNoun('GRAFANA')).toBe('token')
+  })
+
+  it('with a password needs the user as well', () => {
+    expect(isComplete({ kind: 'GRAFANA', authentication: 'PASSWORD', user: '', token: 'pa55' })).toBe(false)
+    expect(isComplete({ kind: 'GRAFANA', authentication: 'PASSWORD', user: 'admin', token: ' ' })).toBe(false)
+    expect(isComplete({ kind: 'GRAFANA', authentication: 'PASSWORD', user: 'admin', token: 'pa55' })).toBe(true)
+    expect(isStarted({ kind: 'GRAFANA', authentication: 'PASSWORD', user: 'admin', token: '' })).toBe(true)
   })
 })

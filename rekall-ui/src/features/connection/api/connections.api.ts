@@ -80,8 +80,9 @@ function credentialBody(draft: CredentialDraft): Record<string, string | null> {
   switch (draft.kind) {
     case 'GITLAB':
     case 'GITHUB':
-    case 'GRAFANA':
       return { token: draft.token }
+    case 'GRAFANA':
+      return draft.authentication === 'PASSWORD' ? { user: draft.user.trim(), token: draft.token } : { token: draft.token }
     case 'KUBERNETES':
       return { kubeconfig: draft.kubeconfig, context: draft.context }
     case 'JIRA':

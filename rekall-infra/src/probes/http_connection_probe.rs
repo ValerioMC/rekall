@@ -5,7 +5,7 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use reqwest::header::{HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use reqwest::{Client, RequestBuilder, Response, StatusCode};
-use rekall_core::connection::{github_api_root, GrafanaInstance, JiraCredential, JiraDeployment, JiraSite, KubeAccess, KubeCredential, Secret};
+use rekall_core::connection::{github_api_root, GrafanaCredential, GrafanaInstance, JiraCredential, JiraDeployment, JiraSite, KubeAccess, KubeCredential, Secret};
 use serde::Deserialize;
 use serde_json::json;
 
@@ -139,14 +139,14 @@ impl ConnectionProbe for HttpConnectionProbe {
         }
     }
 
-    async fn grafana(&self, instance: &GrafanaInstance, token: &Secret) -> ProbeOutcome {
+    async fn grafana(&self, instance: &GrafanaInstance, credential: &GrafanaCredential) -> ProbeOutcome {
         let client = match grafana_client(instance, self.timeout) {
             Ok(client) => client,
             Err(reason) => return ProbeOutcome::Unreachable { reason },
         };
-        let mut header = match HeaderValue::from_str(&format!("Bearer {}", token.expose())) {
+        let mut header = match HeaderValue::from_str(credential.authorization().expose()) {
             Ok(header) => header,
-            Err(_) => return ProbeOutcome::Unreachable { reason: "the stored token holds characters a header cannot carry".into() },
+            Err(_) => return ProbeOutcome::Unreachable { reason: "the stored credential holds characters a header cannot carry".into() },
         };
         header.set_sensitive(true);
         let answer = client.get(format!("{}/api/user", instance.url.trim_end_matches('/'))).header(AUTHORIZATION, header).send().await;

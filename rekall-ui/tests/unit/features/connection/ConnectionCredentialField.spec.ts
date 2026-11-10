@@ -71,4 +71,20 @@ describe('ConnectionCredentialField', () => {
 
     expect(api.setCredential).toHaveBeenCalledWith('jira', { kind: 'JIRA', deployment: 'DATA_CENTER', email: '', token: 'NjQ0Mj' })
   })
+
+  it('sends a Grafana user and password when that sign-in is chosen', async () => {
+    const grafana: Connection = { ...GITLAB, id: 'grafana' as ConnectionId, kind: 'GRAFANA', label: 'grafana', title: 'Grafana' }
+    vi.mocked(api.setCredential).mockResolvedValue({ ...grafana, credentialSetAt: '2026-10-21T10:01:00Z' })
+    const wrapper = mount(ConnectionCredentialField, { props: { connection: grafana } })
+
+    await wrapper.get('[data-testid="replace-credential"]').trigger('click')
+    expect(wrapper.find('[data-testid="grafana-user"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="grafana-authentication-PASSWORD"]').trigger('click')
+    await wrapper.get('[data-testid="grafana-user"]').setValue('admin')
+    await wrapper.get('[data-testid="grafana-token"]').setValue('pa55')
+    await wrapper.get('[data-testid="save-credential"]').trigger('click')
+    await flushPromises()
+
+    expect(api.setCredential).toHaveBeenCalledWith('grafana', { kind: 'GRAFANA', authentication: 'PASSWORD', user: 'admin', token: 'pa55' })
+  })
 })

@@ -178,17 +178,38 @@ fn grafana_instance() -> Router {
     )
 }
 
+fn service_account(token: &str) -> GrafanaCredential {
+    GrafanaCredential::service_account_token(Secret::new(token)).unwrap()
+}
+
+#[tokio::test]
+async fn a_grafana_user_and_password_are_sent_as_basic_authentication() {
+    let base = serve(Router::new().route(
+        "/api/user",
+        get(|headers: HeaderMap| async move {
+            match bearer(&headers).as_deref() {
+                Some("Basic YWRtaW46cGE1NQ==") => Ok(Json(json!({ "login": "admin" }))),
+                _ => Err(AxumStatus::UNAUTHORIZED),
+            }
+        }),
+    ))
+    .await;
+    let credential = GrafanaCredential::password("admin", Secret::new("pa55")).unwrap();
+    let outcome = HttpConnectionProbe::new().grafana(&instance(&base), &credential).await;
+    assert_eq!(outcome, ProbeOutcome::Accepted { identity: Some("admin".into()), version: None });
+}
+
 #[tokio::test]
 async fn a_good_grafana_token_is_accepted_and_names_its_service_account() {
     let base = serve(grafana_instance()).await;
-    let outcome = HttpConnectionProbe::new().grafana(&instance(&format!("{base}/")), &Secret::new("glsa-good")).await;
+    let outcome = HttpConnectionProbe::new().grafana(&instance(&format!("{base}/")), &service_account("glsa-good")).await;
     assert_eq!(outcome, ProbeOutcome::Accepted { identity: Some("sa-rekall".into()), version: None });
 }
 
 #[tokio::test]
 async fn a_bad_grafana_token_is_rejected() {
     let base = serve(grafana_instance()).await;
-    let outcome = HttpConnectionProbe::new().grafana(&instance(&base), &Secret::new("glsa-bad")).await;
+    let outcome = HttpConnectionProbe::new().grafana(&instance(&base), &service_account("glsa-bad")).await;
     assert_eq!(outcome, ProbeOutcome::Rejected { status: 401 });
 }
 
@@ -197,7 +218,7 @@ async fn a_bad_grafana_token_is_rejected() {
 #[tokio::test]
 async fn a_grafana_instance_behind_a_proxy_is_asked_through_it() {
     let proxy = serve(grafana_instance()).await;
-    let outcome = HttpConnectionProbe::new().grafana(&GrafanaInstance { proxy_url: Some(proxy), ..instance("http://grafana.invalid") }, &Secret::new("glsa-good")).await;
+    let outcome = HttpConnectionProbe::new().grafana(&GrafanaInstance { proxy_url: Some(proxy), ..instance("http://grafana.invalid") }, &service_account("glsa-good")).await;
     assert_eq!(outcome, ProbeOutcome::Accepted { identity: Some("sa-rekall".into()), version: None });
 }
 
@@ -232,11 +253,11 @@ async fn serve_self_signed(router: Router) -> String {
 #[tokio::test]
 async fn a_grafana_instance_with_a_self_signed_certificate_is_unreachable_until_the_connection_accepts_it() {
     let base = serve_self_signed(grafana_instance()).await;
-    let verified = HttpConnectionProbe::new().grafana(&instance(&base), &Secret::new("glsa-good")).await;
+    let verified = HttpConnectionProbe::new().grafana(&instance(&base), &service_account("glsa-good")).await;
     let ProbeOutcome::Unreachable { reason } = verified else { panic!("a certificate nobody vouches for must not be trusted") };
     assert!(reason.contains("UnknownIssuer"), "{reason}");
 
     let trusting = GrafanaInstance { accept_self_signed: true, ..instance(&base) };
-    let accepted = HttpConnectionProbe::new().grafana(&trusting, &Secret::new("glsa-good")).await;
+    let accepted = HttpConnectionProbe::new().grafana(&trusting, &service_account("glsa-good")).await;
     assert_eq!(accepted, ProbeOutcome::Accepted { identity: Some("sa-rekall".into()), version: None });
 }

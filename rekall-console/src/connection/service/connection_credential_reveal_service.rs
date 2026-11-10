@@ -6,7 +6,7 @@ use std::sync::Arc;
 use rekall_kernel::{Id, RekallError, Result};
 use rekall_store::{external_connection, ConnectionKind};
 use rekall_store::repository as repo;
-use rekall_core::connection::{JiraCredential, Secret, SecretStore};
+use rekall_core::connection::{GrafanaCredential, JiraCredential, Secret, SecretStore};
 use rekall_core::{in_read, Ctx};
 
 use crate::connection::support::credential_keeping::recall;
@@ -35,11 +35,15 @@ impl ConnectionCredentialRevealService {
 
 fn revealed(connection: &external_connection::Model, stored: Secret) -> Result<RevealedCredentialView> {
     match connection.kind {
-        ConnectionKind::Gitlab | ConnectionKind::Github | ConnectionKind::Grafana => Ok(RevealedCredentialView { token: Some(stored), kubeconfig: None, email: None }),
-        ConnectionKind::Kubernetes => Ok(RevealedCredentialView { token: None, kubeconfig: Some(stored), email: None }),
+        ConnectionKind::Gitlab | ConnectionKind::Github => Ok(RevealedCredentialView { token: Some(stored), kubeconfig: None, email: None, user: None }),
+        ConnectionKind::Kubernetes => Ok(RevealedCredentialView { token: None, kubeconfig: Some(stored), email: None, user: None }),
+        ConnectionKind::Grafana => {
+            let grafana = GrafanaCredential::from_stored(&stored)?;
+            Ok(RevealedCredentialView { token: Some(Secret::new(grafana.secret().expose())), kubeconfig: None, email: None, user: grafana.user().map(str::to_string) })
+        }
         ConnectionKind::Jira => {
             let jira = JiraCredential::from_stored(&stored)?;
-            Ok(RevealedCredentialView { token: Some(Secret::new(jira.token().expose())), kubeconfig: None, email: jira.email().map(str::to_string) })
+            Ok(RevealedCredentialView { token: Some(Secret::new(jira.token().expose())), kubeconfig: None, email: jira.email().map(str::to_string), user: None })
         }
     }
 }

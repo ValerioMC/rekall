@@ -131,6 +131,9 @@ export interface ConnectionInput {
 /** Jira Cloud signs in with an email and an API token, Data Center with a personal access token. */
 export type JiraDeployment = 'CLOUD' | 'DATA_CENTER'
 
+/** A Grafana instance is signed in to with a service account token, or with a user and its password. */
+export type GrafanaAuthentication = 'SERVICE_ACCOUNT' | 'PASSWORD'
+
 /**
  * What the person typed or pasted as a credential, held only until it is sent. Never kept in a
  * store: a component drops it as soon as the request returns.
@@ -138,18 +141,20 @@ export type JiraDeployment = 'CLOUD' | 'DATA_CENTER'
 export type CredentialDraft =
   | { readonly kind: 'GITLAB'; readonly token: string }
   | { readonly kind: 'GITHUB'; readonly token: string }
-  | { readonly kind: 'GRAFANA'; readonly token: string }
+  | { readonly kind: 'GRAFANA'; readonly authentication: GrafanaAuthentication; readonly user: string; readonly token: string }
   | { readonly kind: 'KUBERNETES'; readonly kubeconfig: string; readonly context: string | null }
   | { readonly kind: 'JIRA'; readonly deployment: JiraDeployment; readonly email: string; readonly token: string }
 
 /**
- * A stored credential read back on request: a `token`, a `kubeconfig` (Kubernetes) and, on Jira
- * Cloud, the `email` the token belongs to. Held by the component that asked, never by a store.
+ * A stored credential read back on request: a `token`, a `kubeconfig` (Kubernetes), on Jira Cloud
+ * the `email` the token belongs to and on Grafana, signed in with a password, the `user` whose
+ * password the `token` is. Held by the component that asked, never by a store.
  */
 export interface RevealedCredential {
   readonly token: string | null
   readonly kubeconfig: string | null
   readonly email: string | null
+  readonly user: string | null
 }
 
 export type KubeUserKind =

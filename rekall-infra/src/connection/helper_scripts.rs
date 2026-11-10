@@ -73,7 +73,7 @@ pub(super) const JIRA_API: ApiWrapper = ApiWrapper {
     headers: "-H 'Accept: application/json' -H 'Content-Type: application/json' ",
 };
 
-/// Grafana's HTTP API under `/api` with the service account token as a bearer and JSON both ways,
+/// Grafana's HTTP API under `/api` with the credential's header and JSON both ways,
 /// `:project` the folder UID.
 pub(super) const GRAFANA_API: ApiWrapper = ApiWrapper {
     name: "rekall-grafana",

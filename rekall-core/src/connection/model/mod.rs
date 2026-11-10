@@ -6,6 +6,7 @@ pub(super) mod jira_credential;
 pub(super) mod jira_deployment;
 pub(super) mod jira_failure;
 pub(super) mod jira_issue;
+pub(super) mod grafana_credential;
 pub(super) mod grafana_instance;
 pub(super) mod jira_site;
 pub(super) mod kube_access;

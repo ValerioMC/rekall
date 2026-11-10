@@ -49,7 +49,8 @@ export const KubeContextListSchema = z.array(
 export const RevealedCredentialSchema = z.object({
   token: z.string().nullable(),
   kubeconfig: z.string().nullable(),
-  email: z.string().nullable()
+  email: z.string().nullable(),
+  user: z.string().nullable()
 })
 
 export const ConnectionCheckSchema = z.object({

@@ -270,3 +270,18 @@ async fn a_grafana_connection_gets_its_wrapper_and_its_token_as_a_bearer_header(
     let header = broker.hand_out(terminal_id, Some(&token), "grafana", CredentialPurpose::Grafana).await;
     assert!(matches!(header, HandOut::Granted { ref body, .. } if body.expose() == "Authorization: Bearer glsa-secret\n"));
 }
+
+#[tokio::test]
+async fn a_grafana_user_and_password_are_handed_out_as_a_basic_header() {
+    let world = world().await;
+    let secrets = Arc::new(InMemorySecretStore::new());
+    let grafana = stored(&world.ctx, &secrets, ConnectionKind::Grafana, "grafana", Some("admin:pa55")).await;
+    let broker = CredentialBroker::new(secrets, ConnectionAccessService::new(world.ctx.clone()), "http://127.0.0.1:47355".into(), world.root.path().join("grafana-password-sessions"));
+    let terminal_id = Id::random();
+
+    let environment = broker.open(terminal_id, &launch_with(vec![terminal(&grafana, None)])).await.unwrap().unwrap();
+    let token = environment.token.clone().unwrap();
+
+    let header = broker.hand_out(terminal_id, Some(&token), "grafana", CredentialPurpose::Grafana).await;
+    assert!(matches!(header, HandOut::Granted { ref body, .. } if body.expose() == "Authorization: Basic YWRtaW46cGE1NQ==\n"));
+}

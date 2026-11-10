@@ -62,6 +62,19 @@ async fn a_stored_token_is_read_back() {
     assert_eq!(revealed.token.unwrap().expose(), "glsa_secret");
     assert!(revealed.kubeconfig.is_none());
     assert!(revealed.email.is_none());
+    assert!(revealed.user.is_none());
+}
+
+#[tokio::test]
+async fn a_grafana_password_comes_back_as_its_user_and_password() {
+    let world = world().await;
+    let grafana = world.connection(ConnectionKind::Grafana).await;
+    world.credentials.set(grafana.id, ConnectionCredentialCommand { user: Some("admin".into()), ..token("pa55") }).await.unwrap();
+
+    let revealed = world.reveals.reveal(grafana.id).await.unwrap();
+
+    assert_eq!(revealed.user.as_deref(), Some("admin"));
+    assert_eq!(revealed.token.unwrap().expose(), "pa55");
 }
 
 #[tokio::test]

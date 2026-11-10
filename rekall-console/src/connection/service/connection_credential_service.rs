@@ -7,7 +7,7 @@ use std::sync::Arc;
 use rekall_kernel::{Id, RekallError, Result};
 use rekall_store::{external_connection, ConnectionKind};
 use rekall_store::repository as repo;
-use rekall_core::connection::{ConnectionStreamEvent, JiraCredential, KubeAccess, Kubeconfig, Secret, SecretStore};
+use rekall_core::connection::{ConnectionStreamEvent, GrafanaCredential, JiraCredential, KubeAccess, Kubeconfig, Secret, SecretStore};
 use rekall_core::{in_read, in_write, Ctx};
 
 use crate::connection::support::connection_views::view_in;
@@ -76,7 +76,7 @@ async fn prepare(kind: ConnectionKind, command: ConnectionCredentialCommand) -> 
         ConnectionKind::Gitlab => access_token(command, "GitLab", "personal access token").map(|token| PreparedCredential { stored: token, kube: None }),
         ConnectionKind::Github => access_token(command, "GitHub", "personal access token").map(|token| PreparedCredential { stored: token, kube: None }),
         ConnectionKind::Kubernetes => kube_credential(command).await,
-        ConnectionKind::Grafana => access_token(command, "Grafana", "service account token").map(|token| PreparedCredential { stored: token, kube: None }),
+        ConnectionKind::Grafana => grafana_credential(command).map(|credential| PreparedCredential { stored: credential.to_stored(), kube: None }),
         ConnectionKind::Jira => jira_credential(command).map(|credential| PreparedCredential { stored: credential.to_stored(), kube: None }),
     }
 }
@@ -93,7 +93,19 @@ fn jira_credential(command: ConnectionCredentialCommand) -> Result<JiraCredentia
     }
 }
 
-/// GitLab and GitHub take a personal access token and Grafana a service account token; `server` and `token_name` word the refusals.
+/// A user makes it a password sign-in; without one, `token` is a service account token.
+fn grafana_credential(command: ConnectionCredentialCommand) -> Result<GrafanaCredential> {
+    if command.kubeconfig.is_some() {
+        return Err(RekallError::illegal("A Grafana connection takes a token or a user and password, not a kubeconfig."));
+    }
+    let secret = command.token.ok_or_else(|| RekallError::illegal("A Grafana connection needs its service account token, or a user and a password."))?;
+    match command.user.as_deref().map(str::trim).filter(|user| !user.is_empty()) {
+        Some(user) => GrafanaCredential::password(user, secret),
+        None => GrafanaCredential::service_account_token(secret),
+    }
+}
+
+/// GitLab and GitHub take a personal access token; `server` and `token_name` word the refusals.
 fn access_token(command: ConnectionCredentialCommand, server: &str, token_name: &str) -> Result<Secret> {
     if command.kubeconfig.is_some() {
         return Err(RekallError::illegal(format!("A {server} connection takes a token, not a kubeconfig.")));

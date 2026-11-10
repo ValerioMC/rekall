@@ -64,9 +64,9 @@ export const CREDENTIAL_FIELD: Readonly<Record<ConnectionKind, CredentialField>>
     incomplete: 'Type the email and the API token, or the personal access token, or leave them empty to set them later.'
   },
   GRAFANA: {
-    title: 'Service account token',
-    hint: "Optional now; a token of a Grafana service account with the role the sessions need. Stored in this machine's credential store.",
-    incomplete: 'Type the token, or leave it empty to set it later.'
+    title: 'Sign-in',
+    hint: "Optional now. A token of a Grafana service account with the role the sessions need, or the user and password of an account; stored in this machine's credential store.",
+    incomplete: 'Type the token, or the user and the password, or leave them empty to set them later.'
   }
 }
 

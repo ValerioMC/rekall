@@ -50,9 +50,10 @@ impl ConnectionProbe for FakeProbe {
         self.outcome.clone()
     }
 
-    async fn grafana(&self, instance: &GrafanaInstance, _token: &Secret) -> ProbeOutcome {
+    async fn grafana(&self, instance: &GrafanaInstance, credential: &GrafanaCredential) -> ProbeOutcome {
         let trust = if instance.accept_self_signed { "self-signed accepted" } else { "certificate verified" };
-        self.asked.lock().unwrap().push(format!("grafana {} via {}, {trust}", instance.url, instance.proxy_url.as_deref().unwrap_or("no proxy")));
+        let user = credential.user().map(|user| format!(" as {user}")).unwrap_or_default();
+        self.asked.lock().unwrap().push(format!("grafana {} via {}, {trust}{user}", instance.url, instance.proxy_url.as_deref().unwrap_or("no proxy")));
         self.outcome.clone()
     }
 }
@@ -194,4 +195,14 @@ async fn a_grafana_check_trusts_the_self_signed_certificate_when_the_connection_
     world.checks.check(id).await.unwrap();
 
     assert_eq!(*world.probe.asked.lock().unwrap(), ["grafana https://grafana.example.com via http://proxy.example.com:8080, self-signed accepted"]);
+}
+
+#[tokio::test]
+async fn a_grafana_check_hands_the_probe_the_user_of_a_stored_password() {
+    let world = world(ProbeOutcome::Accepted { identity: Some("admin".into()), version: None }).await;
+    let id = world.connection(ConnectionKind::Grafana, Some("admin:pa55")).await;
+
+    world.checks.check(id).await.unwrap();
+
+    assert_eq!(*world.probe.asked.lock().unwrap(), ["grafana https://grafana.example.com via http://proxy.example.com:8080, certificate verified as admin"]);
 }

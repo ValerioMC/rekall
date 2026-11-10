@@ -161,6 +161,19 @@ async fn a_jira_connection_refuses_a_username_in_place_of_an_email_or_a_kubeconf
 }
 
 #[tokio::test]
+async fn a_grafana_user_and_password_go_to_the_store_as_a_pair_and_a_colon_in_the_user_is_refused() {
+    let world = world().await;
+    let grafana = world.connection(ConnectionKind::Grafana).await;
+    let with_user = |user: &str, password: &str| ConnectionCredentialCommand { user: Some(user.into()), ..token(password) };
+
+    assert!(world.credentials.set(grafana.id, with_user("a:b", "pa55")).await.unwrap_err().is_illegal_argument());
+    assert!(!world.secrets.contains(&grafana.secret_ref));
+    world.credentials.set(grafana.id, with_user(" admin ", "pa:55")).await.unwrap();
+
+    assert_eq!(world.secrets.read(&grafana.secret_ref).unwrap().expose(), "admin:pa:55");
+}
+
+#[tokio::test]
 async fn a_grafana_service_account_token_goes_to_the_store_and_a_kubeconfig_is_refused() {
     let world = world().await;
     let grafana = world.connection(ConnectionKind::Grafana).await;

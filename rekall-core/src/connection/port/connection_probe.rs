@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use crate::connection::{GrafanaInstance, JiraCredential, JiraSite, KubeAccess, Secret};
+use crate::connection::{GrafanaCredential, GrafanaInstance, JiraCredential, JiraSite, KubeAccess, Secret};
 
 use crate::connection::ProbeOutcome;
 
@@ -14,5 +14,5 @@ pub trait ConnectionProbe: Send + Sync {
 
     async fn jira(&self, site: &JiraSite, credential: &JiraCredential) -> ProbeOutcome;
 
-    async fn grafana(&self, instance: &GrafanaInstance, token: &Secret) -> ProbeOutcome;
+    async fn grafana(&self, instance: &GrafanaInstance, credential: &GrafanaCredential) -> ProbeOutcome;
 }

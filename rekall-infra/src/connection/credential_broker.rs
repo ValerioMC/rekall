@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use rekall_kernel::{cleanup, Id, InternalFailure, RekallError, Result};
 use rekall_store::ConnectionKind;
 use rekall_core::claude::{TerminalConnection, TerminalLaunch};
-use rekall_core::connection::{ConnectionAccessService, CredentialDesk, JiraCredential, KubeAccess, Secret, SecretStore};
+use rekall_core::connection::{ConnectionAccessService, CredentialDesk, GrafanaCredential, JiraCredential, KubeAccess, Secret, SecretStore};
 use tracing::{info, warn};
 
 use super::credential_session::CredentialSession;
@@ -129,7 +129,10 @@ impl CredentialBroker {
             CredentialPurpose::Git => Ok(Secret::new(format!("username=oauth2\npassword={}\n", stored.expose()))),
             CredentialPurpose::Gitlab => Ok(Secret::new(format!("PRIVATE-TOKEN: {}\n", stored.expose()))),
             CredentialPurpose::Github => Ok(Secret::new(format!("Authorization: Bearer {}\n", stored.expose()))),
-            CredentialPurpose::Grafana => Ok(Secret::new(format!("Authorization: Bearer {}\n", stored.expose()))),
+            CredentialPurpose::Grafana => {
+                let credential = GrafanaCredential::from_stored(&stored).map_err(|failure| (Refusal::Failed, failure.message().to_string()))?;
+                Ok(Secret::new(format!("Authorization: {}\n", credential.authorization().expose())))
+            }
             CredentialPurpose::Jira => {
                 let credential = JiraCredential::from_stored(&stored).map_err(|failure| (Refusal::Failed, failure.message().to_string()))?;
                 Ok(Secret::new(format!("Authorization: {}\n", credential.authorization().expose())))

@@ -65,9 +65,9 @@ connection shared with its own company (400 otherwise, saying to share it first)
 used in the project is a 409, and without one the connection's label takes the first free `-2`, `-3`),
 `RepositoryDiscoveryService` (further down), `ConnectionAccessQueryService` (the access log, newest first) and
 `KubeconfigPreviewService` (a kubeconfig's contexts with why each can or cannot be imported, storing
-nothing). Credentials go in through `PUT /api/connections/{id}/credential`, which takes `token` (GitLab, GitHub, a Grafana service account),
-`kubeconfig` and `context` (Kubernetes) or `token` with an `email` on Jira Cloud and without one on Jira
-Data Center, and answers the connection with `credentialSetAt`. The only route that returns one is
+nothing). Credentials go in through `PUT /api/connections/{id}/credential`, which takes `token` (GitLab, GitHub),
+`kubeconfig` and `context` (Kubernetes), `token` with an `email` on Jira Cloud and without one on Jira
+Data Center, or on Grafana `token` alone for a service account and `token` (the password) with a `user` for a password sign-in, and answers the connection with `credentialSetAt`. The only route that returns one is
 `GET /api/connections/{id}/credential`, served by `ConnectionCredentialRevealService` (the write service
 stays write-only): it answers `token`, `kubeconfig` and, on Jira Cloud, `email`, or a 404 when none is stored, and
 the console calls it only when the person presses the eye or the copy button on a connection's credential,
@@ -149,7 +149,7 @@ reads the credential through the store and hands it to a `ConnectionProbe`: `Htt
 `rekall-infra/src/probes/`, because asking is HTTP to the outside, or a fake through
 `StartOptions::connection_probe`.
 GitLab is asked `GET /api/v4/user` with the token, GitHub `GET /user` on its API root (`github_api_root`:
-`api.github.com`, or `/api/v3` on an Enterprise Server) with a Bearer token and a `User-Agent`, Jira `GET /rest/api/3/myself` (Cloud) or `GET /rest/api/2/myself` (Data Center) with the credential's header, Grafana `GET /api/user` with a Bearer token; a cluster is asked `/version` and a
+`api.github.com`, or `/api/v3` on an Enterprise Server) with a Bearer token and a `User-Agent`, Jira `GET /rest/api/3/myself` (Cloud) or `GET /rest/api/2/myself` (Data Center) with the credential's header, Grafana `GET /api/user` with a Bearer token, or Basic authentication for a user and password; a cluster is asked `/version` and a
 `SelfSubjectReview`, through the kubeconfig's `proxy-url` when it has one, trusted through its CA
 and with a client certificate as the TLS identity, falling back to an authenticated `GET /api` on a cluster too old for the review. The
 answer (`ok`, a sentence naming the identity, the rejection status or why the server could not be
