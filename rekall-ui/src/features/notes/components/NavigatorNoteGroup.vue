@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * One scope in the notes navigator, built like a project card on the Tasks side: a header that
+ * One scope in the notes navigator, built like a project group on the Tasks side: a header that
  * folds the scope away, its notes on a task under it on the scope's rail, and the loose ones on
  * their own shelf.
  */
@@ -8,6 +8,7 @@ import { computed } from 'vue'
 import NavigatorNoteRow from '@/features/notes/components/NavigatorNoteRow.vue'
 import NavigatorFilingDrawer from '@/components/console/NavigatorFilingDrawer.vue'
 import ProjectPageLink from '@/features/catalog/components/ProjectPageLink.vue'
+import AppCollapse from '@/components/ui/AppCollapse.vue'
 import ProjectMark from '@/components/ui/ProjectMark.vue'
 import { identityHue } from '@/common/identity'
 import type { NoteGroup } from '@/features/notes/lib/note-groups'
@@ -30,26 +31,16 @@ const expanded = computed(() => !props.shelves.collapsedGroups.has(props.group.k
 <template>
   <div class="px-2 pt-2.5 first:pt-1" data-testid="note-group">
     <div
-      class="project-header-card flex items-stretch rounded-card"
+      class="nav-group-header flex items-stretch rounded-card"
       :style="tint ? { '--project-tint-soft': tint.soft } : undefined"
     >
       <button
         data-testid="note-group-toggle"
-        class="focus-ring flex min-w-0 flex-1 items-start gap-2.5 py-2.5 pl-2.5 pr-2 text-left"
+        class="focus-ring flex min-w-0 flex-1 items-start gap-2.5 py-2 pl-1.5 pr-1 text-left"
         :class="projectScope ? 'rounded-l-card' : 'rounded-card'"
         :aria-expanded="expanded"
         @click="shelves.toggleCollapsed(group.key)"
       >
-        <svg
-          class="mt-1.5 size-3 shrink-0 text-text-subtle transition-transform"
-          :class="expanded && 'rotate-90'"
-          viewBox="0 0 24 24"
-          fill="none"
-          aria-hidden="true"
-        >
-          <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
-
         <ProjectMark
           v-if="projectScope"
           class="mt-px"
@@ -80,19 +71,28 @@ const expanded = computed(() => !props.shelves.collapsedGroups.has(props.group.k
             >
               {{ group.name }}
             </span>
-            <span class="shrink-0 rounded-full bg-surface px-1.5 py-px font-mono text-micro tabular-nums text-text-subtle">
+            <span class="shrink-0 rounded-full bg-surface-raised px-1.5 py-px font-mono text-micro tabular-nums text-text-subtle">
               {{ group.notes.length }}
             </span>
           </span>
           <span v-if="group.caption" class="mt-1 block truncate text-micro text-text-subtle">{{ group.caption }}</span>
         </span>
+        <svg
+          class="mt-1 size-3 shrink-0 text-text-subtle transition-transform duration-(--motion-move) ease-out"
+          :class="expanded && 'rotate-90'"
+          viewBox="0 0 24 24"
+          fill="none"
+          aria-hidden="true"
+        >
+          <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
       </button>
       <ProjectPageLink v-if="projectScope" :project-id="projectScope.id" :project-title="group.name" />
     </div>
 
+    <AppCollapse :open="expanded">
     <div
-      v-show="expanded"
-      class="ml-[15px] mt-1 flex flex-col gap-0.5 border-l-2 pl-2"
+      class="ml-[17px] mt-1 flex flex-col gap-0.5 border-l-2 pl-2"
       :style="{ borderLeftColor: tint ? tint.line : 'var(--color-border-strong)' }"
     >
       <NavigatorNoteRow
@@ -121,5 +121,6 @@ const expanded = computed(() => !props.shelves.collapsedGroups.has(props.group.k
         />
       </NavigatorFilingDrawer>
     </div>
+    </AppCollapse>
   </div>
 </template>
