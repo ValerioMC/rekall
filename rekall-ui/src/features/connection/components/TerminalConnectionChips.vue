@@ -10,9 +10,9 @@ import type { ProjectId, TerminalId } from '@/model/branded'
 
 /**
  * What a running terminal reached outside Rekall: a chip per connection its helpers asked for,
- * counting the hand-outs and warning on a refusal. The ones never asked for fold into one
- * "unused" chip that opens to list them as a labelled group after the used ones; a connection
- * leaves it the first time it is asked for.
+ * counting the hand-outs and warning on a refusal. The used ones fold into one "used" chip and
+ * the ones never asked for into one "unused" chip; each opens on its own to list its group, the
+ * unused one labelled after the used ones. A connection leaves "unused" the first time it is asked for.
  */
 const props = defineProps<{
   terminalId: TerminalId
@@ -27,6 +27,7 @@ const companyId = computed(
   () => consoleStore.projects.find((project) => project.id === props.projectId)?.companyId ?? null
 )
 
+const usedOpen = ref(false)
 const unusedOpen = ref(false)
 
 const chips = computed(() =>
@@ -44,7 +45,10 @@ const chips = computed(() =>
 
 const usedChips = computed(() => chips.value.filter((chip) => chip.tally !== null))
 const unusedChips = computed(() => chips.value.filter((chip) => chip.tally === null))
-const shownChips = computed(() => (unusedOpen.value ? [...usedChips.value, ...unusedChips.value] : usedChips.value))
+const shownChips = computed(() => [
+  ...(usedOpen.value ? usedChips.value : []),
+  ...(unusedOpen.value ? unusedChips.value : [])
+])
 
 function startsUnusedGroup(chip: (typeof chips.value)[number]): boolean {
   return chip.connection.connectionId === unusedChips.value[0]?.connection.connectionId && unusedOpen.value
@@ -67,6 +71,17 @@ onMounted(access.listen)
     class="inline-flex flex-wrap items-center gap-1"
     data-testid="terminal-connections"
   >
+    <button
+      v-if="usedChips.length"
+      type="button"
+      class="focus-ring inline-flex items-center gap-1 rounded-full bg-safe-soft px-2 py-0.5 font-mono text-micro text-safe ring-1 ring-inset ring-safe/25 hover:brightness-95"
+      :aria-expanded="usedOpen"
+      :title="usedChips.map((chip) => chip.connection.label).join(', ')"
+      data-testid="terminal-connections-used"
+      @click="usedOpen = !usedOpen"
+    >
+      {{ usedOpen ? 'hide used' : `${usedChips.length} used` }}
+    </button>
     <template v-for="chip in shownChips" :key="`${chip.connection.label}-${chip.tally?.last ?? 0}`">
     <span
       v-if="startsUnusedGroup(chip)"

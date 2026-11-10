@@ -61,16 +61,25 @@ describe('TerminalConnectionChips', () => {
     expect(unused.attributes('title')).toBe('prod, staging')
   })
 
-  it('shows a connection on its own, with its count, from the first time it is asked for', async () => {
+  it('groups a connection asked for into the used chip, which opens and closes on click', async () => {
     const wrapper = mountChips([PROD, STAGING])
 
     useCredentialAccessStore().record({ terminalId: TERMINAL, connectionId: PROD.connectionId, granted: true })
     await wrapper.vm.$nextTick()
 
+    expect(wrapper.find('[data-testid="terminal-connection-prod"]').exists()).toBe(false)
+    const used = wrapper.get('[data-testid="terminal-connections-used"]')
+    expect(used.text()).toBe('1 used')
+    expect(used.attributes('title')).toBe('prod')
+
+    await used.trigger('click')
     const chip = wrapper.get('[data-testid="terminal-connection-prod"]')
     expect(chip.attributes('data-tone')).toBe('used')
     expect(chip.text()).toContain('·1')
     expect(wrapper.get('[data-testid="terminal-connections-unused"]').text()).toBe('1 unused')
+
+    await wrapper.get('[data-testid="terminal-connections-used"]').trigger('click')
+    expect(wrapper.find('[data-testid="terminal-connection-prod"]').exists()).toBe(false)
   })
 
   it('labels the unused connections as their own group after the used ones', async () => {
@@ -79,6 +88,7 @@ describe('TerminalConnectionChips', () => {
     await wrapper.vm.$nextTick()
 
     expect(wrapper.find('[data-testid="terminal-connections-unused-label"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="terminal-connections-used"]').trigger('click')
     await wrapper.get('[data-testid="terminal-connections-unused"]').trigger('click')
 
     const flow = wrapper.findAll('[data-testid="terminal-connections-unused-label"], [data-tone]').map(
@@ -124,6 +134,7 @@ describe('TerminalConnectionChips', () => {
     access.record({ terminalId: TERMINAL, connectionId: PROD.connectionId, granted: true })
     access.record({ terminalId: 'other' as TerminalId, connectionId: PROD.connectionId, granted: true })
     await wrapper.vm.$nextTick()
+    await wrapper.get('[data-testid="terminal-connections-used"]').trigger('click')
 
     const chip = wrapper.get('[data-testid="terminal-connection-prod"]')
     expect(chip.attributes('data-tone')).toBe('used')

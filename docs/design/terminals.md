@@ -177,8 +177,9 @@ connection, granted) in the same transaction as the line, so the pane never show
 lacks. `TerminalConnectionChips` draws, on the terminal pane's header and on each row of the sessions
 panel, a chip per connection the session's helpers asked for: green with a count once they were handed
 the credential (pulsing once per hand-out), amber when a request was refused, each linking to the
-company's Connections screen. The connections never asked for fold into one `N unused` chip that opens
-to list them (idle, or amber when no credential is stored); a connection leaves it at its first request.
+company's Connections screen. Those chips fold into one `N used` chip, closed by default, that opens
+and closes on click. The connections never asked for fold the same way into one `N unused` chip
+(idle, or amber when no credential is stored); a connection leaves it at its first request.
 Both lists follow `sortedByKind` (`features/connection/lib/connection-order.ts`): clusters, then GitLab,
 GitHub, Jira, then Grafana, by label within a kind, the order of the project's Connections tab. The counts are `credentialAccess.store`'s, read from one subscription
 and kept only for the console's lifetime; the access log is the record.
