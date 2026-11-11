@@ -14,7 +14,7 @@ import type { useConsoleRefreshes } from '../../../stores/console/useConsoleRefr
 import { blankToNull, replaceById, trackSave } from '../../../stores/console/rows'
 
 type ProjectPagePatch = Partial<
-  Pick<ProjectInput, 'description' | 'blueprintMarkdown' | 'repoFolder' | 'autoCommit'>
+  Pick<ProjectInput, 'blueprintMarkdown' | 'repoFolder' | 'autoCommit'>
 >
 
 /** The record dialog writes a project whole; its own page saves one field at a time over what is stored. */
@@ -73,7 +73,7 @@ export function useProjectWrites(
         status: current.status,
         icon: current.icon,
         companyId: current.companyId,
-        description: 'description' in patch ? patch.description! : current.description,
+        description: current.description,
         blueprintMarkdown:
           'blueprintMarkdown' in patch ? patch.blueprintMarkdown! : current.blueprintMarkdown,
         repoFolder: 'repoFolder' in patch ? patch.repoFolder! : current.repoFolder,
@@ -84,10 +84,6 @@ export function useProjectWrites(
         task.projectId === id ? { ...task, projectRepoFolder: saved.repoFolder } : task
       )
     })
-  }
-
-  function saveProjectDescription(id: ProjectId, description: string): Promise<void> {
-    return patchProject(id, { description: blankToNull(description) })
   }
 
   function saveProjectBlueprint(id: ProjectId, blueprintMarkdown: string): Promise<void> {
@@ -108,7 +104,6 @@ export function useProjectWrites(
     updateProject,
     deleteProject,
     setProjectIconImage,
-    saveProjectDescription,
     saveProjectBlueprint,
     saveProjectRepoFolder,
     saveProjectAutoCommit

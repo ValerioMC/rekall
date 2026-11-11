@@ -1,6 +1,8 @@
 import type { CompanyId, ProjectId, TagId, TaskId } from '../../../model/branded'
 import type { Company, Project, ProjectStatus, Task, TaskKind, TaskStatus } from './catalog'
 
+export type ProjectDraft = Extract<RecordDraft, { kind: 'project' }>
+
 export type RecordDraft =
   | {
       kind: 'company'
@@ -45,7 +47,7 @@ export function companyDraft(company?: Company): RecordDraft {
   }
 }
 
-export function projectDraft(companyId: CompanyId, project?: Project): RecordDraft {
+export function projectDraft(companyId: CompanyId, project?: Project): ProjectDraft {
   return {
     kind: 'project',
     id: project?.id ?? null,

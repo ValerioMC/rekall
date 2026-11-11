@@ -62,6 +62,7 @@ function clear(): void {
 onUnmounted(releasePreview)
 
 defineExpose({
+  hasPendingChange: computed(() => pendingImage.value !== null || isRemoving.value),
   /** Hands `write` the picked file, or null to take the stored one off; nothing when untouched. */
   async apply(write: (file: File | null) => Promise<void>): Promise<void> {
     if (pendingImage.value) await write(pendingImage.value)

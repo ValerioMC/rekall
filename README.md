@@ -77,7 +77,7 @@ mkdir -p ~/.claude/rk && cp .claude/rk/*.md ~/.claude/rk/
 /rk project:vega task:report-builder
 ```
 
-**Open in terminal**, on a task, hands the session to your own terminal app in the project's folder with `/rk` already running. Set the folder in the **Folder** field of the project page's **Settings** tab. The terminal is iTerm2 when installed, Terminal.app otherwise. A switch in **Settings > Claude Code** adds `--dangerously-skip-permissions`; it is stored on the machine, not in the database. This button works only inside the desktop app. **Run here** runs a session inside the app instead, as a terminal or, if you pick **Chat** under **Settings > Claude Code > Session view**, as a chat window; see [Terminals](docs/guide/sessions.md) and its [Chat view](docs/guide/sessions.md#chat-view).
+**Open in terminal**, on a task, hands the session to your own terminal app in the project's folder with `/rk` already running. Set the folder in the **Folder** field of the project page's **Settings** tab, under **Repository**. The terminal is iTerm2 when installed, Terminal.app otherwise. A switch in **Settings > Claude Code** adds `--dangerously-skip-permissions`; it is stored on the machine, not in the database. This button works only inside the desktop app. **Run here** runs a session inside the app instead, as a terminal or, if you pick **Chat** under **Settings > Claude Code > Session view**, as a chat window; see [Terminals](docs/guide/sessions.md) and its [Chat view](docs/guide/sessions.md#chat-view).
 
 ## Anchor syntax
 

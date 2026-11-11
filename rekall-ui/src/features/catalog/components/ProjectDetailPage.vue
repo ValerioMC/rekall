@@ -4,7 +4,6 @@ import { useRouter } from 'vue-router'
 import AppCatalogHeader from '@/features/catalog/components/AppCatalogHeader.vue'
 import ProjectAdherenceCard from '@/features/adherence/components/ProjectAdherenceCard.vue'
 import QuickTaskBar from '@/features/catalog/components/QuickTaskBar.vue'
-import RecordDialog from '@/features/catalog/components/RecordDialog.vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
@@ -27,11 +26,9 @@ import { useConnectionStream } from '@/features/connection/composables/useConnec
 import { useProjectSectionStream } from '@/features/project/composables/useProjectSectionStream'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useTokenUsageStore } from '@/features/tokens/store/tokenUsage.store'
-import { projectDraft } from '@/features/catalog/model/record-draft'
 import { withoutQuickTasks } from '@/features/catalog/lib/quick-task'
 import { PROJECT_STATUS_LABEL } from '@/features/catalog/model/catalog'
 import { asProjectId } from '@/model/branded'
-import type { RecordDraft } from '@/features/catalog/model/record-draft'
 import { BLUEPRINT, tabOf, type ProjectPage, type ProjectTab } from '@/features/project/model/project-page'
 import type { DeploymentGraphId, ProjectSectionId } from '@/model/branded'
 
@@ -102,16 +99,8 @@ function openGraph(id: DeploymentGraphId | null): void {
 const tokenUsage = useTokenUsageStore()
 const tokens = computed(() => tokenUsage.ofProject(projectId.value, store.tasks))
 
-const editing = ref<RecordDraft | null>(null)
-
-function openRename(): void {
-  if (project.value) editing.value = projectDraft(project.value.companyId, project.value)
-}
-
-function onDialogSaved(): void {
-  if (!store.projects.some((candidate) => candidate.id === projectId.value)) {
-    router.push('/projects')
-  }
+function leaveDeletedProject(): void {
+  void router.push('/projects')
 }
 
 function openInConsole(taskId: (typeof projectTasks.value)[number]['id']): void {
@@ -215,9 +204,6 @@ watch([sections, graphs], () => {
             Tasks
             <span class="font-mono text-caption text-text-subtle">{{ projectTasks.length }}</span>
           </AppButton>
-          <AppButton variant="secondary" size="sm" data-testid="rename-project" @click="openRename">
-            Rename / move
-          </AppButton>
         </template>
       </AppCatalogHeader>
 
@@ -265,7 +251,12 @@ watch([sections, graphs], () => {
               :repo-folder="project.repoFolder"
             />
             <ProjectConnectionsPage v-else-if="page.kind === 'connections'" key="connections" :project="project" />
-            <ProjectSettingsPage v-else-if="page.kind === 'settings'" key="settings" :project="project" />
+            <ProjectSettingsPage
+              v-else-if="page.kind === 'settings'"
+              key="settings"
+              :project="project"
+              @deleted="leaveDeletedProject"
+            />
             <ProjectBlueprintPane v-else key="blueprint" :project="project" />
           </Transition>
         </div>
@@ -279,10 +270,6 @@ watch([sections, graphs], () => {
         @close="showingTasks = false"
         @open="openInConsole"
       />
-    </Transition>
-
-    <Transition name="dialog">
-      <RecordDialog v-if="editing" :draft="editing" @close="editing = null" @saved="onDialogSaved" />
     </Transition>
   </div>
 </template>

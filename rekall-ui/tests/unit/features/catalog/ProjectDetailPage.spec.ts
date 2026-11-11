@@ -136,6 +136,8 @@ describe('the project page', () => {
     await page.get('[data-testid="tab-settings"]').trigger('click')
     await flushPromises()
     expect(workspace.find('[data-testid="project-description"]').exists()).toBe(true)
+    await page.get('[data-testid="settings-rail-repository"]').trigger('click')
+    await flushPromises()
     expect(workspace.find('[data-testid="project-repo-folder"]').exists()).toBe(true)
 
     await page.get('[data-testid="tab-blueprint"]').trigger('click')
