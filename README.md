@@ -77,6 +77,8 @@ mkdir -p ~/.claude/rk && cp .claude/rk/*.md ~/.claude/rk/
 /rk project:vega task:report-builder
 ```
 
+**Fix wording** and **Restructure**, a split button on the description pane beside the Write/Read toggle, have a session rewrite the task's description with `/rk … rewrite fix` or `rewrite restructure` (see the table below). It is disabled while the description is blank or has unsaved changes. When the new text arrives an **Undo** puts the old one back; Rekall keeps no history, so that text is held in the console window only and is gone once you edit, leave the task or close the console.
+
 **Open in terminal**, on a task, hands the session to your own terminal app in the project's folder with `/rk` already running. Set the folder in the **Folder** field of the project page's **Settings** tab, under **Repository**. The terminal is iTerm2 when installed, Terminal.app otherwise. A switch in **Settings > Claude Code** adds `--dangerously-skip-permissions`; it is stored on the machine, not in the database. This button works only inside the desktop app. **Run here** runs a session inside the app instead, as a terminal or, if you pick **Chat** under **Settings > Claude Code > Session view**, as a chat window; see [Terminals](docs/guide/sessions.md) and its [Chat view](docs/guide/sessions.md#chat-view).
 
 ## Anchor syntax

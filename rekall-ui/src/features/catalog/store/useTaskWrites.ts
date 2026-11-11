@@ -1,6 +1,7 @@
 import {
   createTask as apiCreateTask,
   deleteTask as apiDeleteTask,
+  fetchTask,
   reviewTask as apiReviewTask,
   updateTask as apiUpdateTask
 } from '@/features/catalog/api/catalog.api'
@@ -128,6 +129,13 @@ export function useTaskWrites(
     await timers.resumeTimerOnWork(id)
   }
 
+  /** Reads one task again from the server, for a change a session made behind the console's back. */
+  async function reloadTask(id: TaskId): Promise<Task> {
+    const fresh = await fetchTask(id)
+    storeTask(fresh)
+    return fresh
+  }
+
   function applyTaskReview(review: TaskReview): void {
     tasks.value = tasks.value.map((task) =>
       task.id === review.taskId
@@ -162,6 +170,7 @@ export function useTaskWrites(
     setTaskTag,
     setTaskEpic,
     saveTaskDescription,
+    reloadTask,
     applyTaskReview,
     applyTaskCreated,
     acceptTask

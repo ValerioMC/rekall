@@ -19,6 +19,7 @@ import CommitReferenceRail from '@/features/commits/components/CommitReferenceRa
 import ContextSizeChip from '@/features/context/components/ContextSizeChip.vue'
 import TaskTitleRow from '@/features/catalog/components/TaskTitleRow.vue'
 import TaskLabelsStrip from '@/features/catalog/components/TaskLabelsStrip.vue'
+import DescriptionRewriteButton from '@/features/catalog/components/DescriptionRewriteButton.vue'
 import DescriptionViewTabs from '@/features/catalog/components/DescriptionViewTabs.vue'
 import RevisionRunBar from '@/features/feedback/components/RevisionRunBar.vue'
 import RevisionsPanel from '@/features/feedback/components/RevisionsPanel.vue'
@@ -142,6 +143,14 @@ defineExpose({ toggleMode })
               :anchors="selectedTask.anchor"
               :folder="selectedTask.projectRepoFolder"
               missing-hint="Set this project's folder on its page to open a session from it"
+            />
+            <DescriptionRewriteButton
+              :key="selectedTask.id"
+              :task-id="selectedTask.id"
+              :anchor="selectedTask.anchor"
+              :folder="selectedTask.projectRepoFolder"
+              :class="{ invisible: view !== 'description' }"
+              :inert="view !== 'description'"
             />
             <AppModeToggle
               v-model="mode"

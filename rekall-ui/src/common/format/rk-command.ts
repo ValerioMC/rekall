@@ -1,3 +1,5 @@
+import type { RewriteStyle } from '@/features/claude/model/terminal'
+
 export function rkCommand(anchor: string): string {
   return anchor ? `/rk ${anchor}` : ''
 }
@@ -39,6 +41,15 @@ export function rkReplanCommand(anchor: string, message = ''): string {
 export function rkReviseCommand(anchor: string): string {
   const base = rkCommand(anchor)
   return base ? `${base} revise` : ''
+}
+
+/**
+ * The rewriting line: the session corrects the wording of the task's description (`FIX`) or lays it
+ * out under standard headings (`RESTRUCTURE`), and stores the result as the new description.
+ */
+export function rkRewriteCommand(anchor: string, style: RewriteStyle): string {
+  const base = rkCommand(anchor)
+  return base ? `${base} rewrite ${style.toLowerCase()}` : ''
 }
 
 /** The wrapup line, with an optional directive folded in. */

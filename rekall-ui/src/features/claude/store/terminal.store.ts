@@ -9,8 +9,8 @@ import {
 } from '@/features/claude/api/terminal.api'
 import { sendMessage } from '@/features/chat/api/chat.api'
 import { awaitRenewedSession } from '@/features/claude/lib/renewed-session'
-import { rkPlanCommand, rkPlanFlowCommand, rkReplanCommand, rkReviseCommand } from '@/common/format/rk-command'
-import type { PlanMode, Terminal } from '@/features/claude/model/terminal'
+import { rkPlanCommand, rkPlanFlowCommand, rkReplanCommand, rkReviseCommand, rkRewriteCommand } from '@/common/format/rk-command'
+import type { PlanMode, RewriteMode, Terminal } from '@/features/claude/model/terminal'
 import type { ProjectId, TaskId, TerminalId } from '@/model/branded'
 
 /**
@@ -58,7 +58,7 @@ export const useTerminalStore = defineStore('terminal', () => {
   /**
    * Have a session propose this task's checklist, or its flow, or redesign the steps it has
    * (`REPLAN`), bending them to a message about what the plan missed, or evaluate the pending
-   * entries of its thread (`REVISE`). A live session on the
+   * entries of its thread (`REVISE`), or rewrite its description (`REWRITE_FIX`, `REWRITE_RESTRUCTURE`). A live session on the
    * task gets the plan line typed into it; without one, a terminal is opened that starts on that
    * line, so a plan never needs a session already running. Either way it becomes the active one.
    */
@@ -66,7 +66,7 @@ export const useTerminalStore = defineStore('terminal', () => {
     taskId: TaskId,
     anchor: string,
     input: Omit<OpenTerminalInput, 'stepId' | 'mode'>,
-    mode: PlanMode = 'PLAN',
+    mode: PlanMode | RewriteMode = 'PLAN',
     message = ''
   ): Promise<Terminal> {
     const live = terminalForTask(taskId)
@@ -99,7 +99,9 @@ export const useTerminalStore = defineStore('terminal', () => {
     if (opened.kind === 'TERMINAL') activeTerminalId.value = opened.id
   }
 
-  function planLine(mode: PlanMode, anchor: string, message: string): string {
+  function planLine(mode: PlanMode | RewriteMode, anchor: string, message: string): string {
+    if (mode === 'REWRITE_FIX') return rkRewriteCommand(anchor, 'FIX')
+    if (mode === 'REWRITE_RESTRUCTURE') return rkRewriteCommand(anchor, 'RESTRUCTURE')
     if (mode === 'PLAN_FLOW') return rkPlanFlowCommand(anchor)
     if (mode === 'REVISE') return rkReviseCommand(anchor)
     return mode === 'REPLAN' ? rkReplanCommand(anchor, message) : rkPlanCommand(anchor)
