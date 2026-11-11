@@ -26,6 +26,10 @@ name = "migrations"
 path = "tests/integration/migrations.rs"
 
 [[test]]
+name = "schema_indexes"
+path = "tests/integration/schema_indexes.rs"
+
+[[test]]
 name = "stamped_update"
 path = "tests/integration/stamped_update.rs"
 
