@@ -41,7 +41,7 @@ pub enum Relation {
         belongs_to = "crate::task_step::Entity",
         from = "Column::StepId",
         to = "crate::task_step::Column::Id",
-        on_delete = "Cascade"
+        on_delete = "SetNull"
     )]
     TaskStep,
 }
