@@ -1,5 +1,7 @@
 use rekall_diagram::DiagramKind;
 
+use crate::claude::model::rewrite_style::RewriteStyle;
+
 /// Longest request a generate line carries; the rest is cut so the line stays one prompt.
 pub const REQUEST_MAX_CHARACTERS: usize = 2000;
 
@@ -12,7 +14,8 @@ pub const REQUEST_MAX_CHARACTERS: usize = 2000;
 /// `Inventory` has it record the project's dependencies; `Assess` has it judge whether `advisory`
 /// really reaches the project, `AssessAll` every advisory not judged yet; `Autoconfigure` has it
 /// learn from the project's repository how to contribute and store that as the project's sections;
-/// `Merge` has it bring the project's branch into the task's branch and resolve the conflicts.
+/// `Merge` has it bring the project's branch into the task's branch and resolve the conflicts;
+/// `Rewrite` has it replace the task's description, correcting its wording or restructuring it.
 /// Only `Work` follows a step.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub enum TerminalMode {
@@ -29,6 +32,7 @@ pub enum TerminalMode {
     AssessAll,
     Autoconfigure,
     Merge,
+    Rewrite { style: RewriteStyle },
 }
 
 impl TerminalMode {
@@ -50,6 +54,7 @@ impl TerminalMode {
             TerminalMode::AssessAll => format!("/rk {anchors} assess"),
             TerminalMode::Autoconfigure => format!("/rk {anchors} autoconfigure"),
             TerminalMode::Merge => format!("/rk {anchors} merge"),
+            TerminalMode::Rewrite { style } => format!("/rk {anchors} rewrite {}", style.term()),
         }
     }
 
@@ -98,6 +103,8 @@ impl std::fmt::Display for TerminalMode {
             TerminalMode::AssessAll => "ASSESS_ALL",
             TerminalMode::Autoconfigure => "AUTOCONFIGURE",
             TerminalMode::Merge => "MERGE",
+            TerminalMode::Rewrite { style: RewriteStyle::Fix } => "REWRITE_FIX",
+            TerminalMode::Rewrite { style: RewriteStyle::Restructure } => "REWRITE_RESTRUCTURE",
         })
     }
 }

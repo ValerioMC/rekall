@@ -36,6 +36,16 @@ fn a_revise_terminal_asks_the_session_to_evaluate_the_pending_thread_and_follows
 }
 
 #[test]
+fn a_rewrite_terminal_names_the_style_and_follows_no_step() {
+    let fix = TerminalMode::Rewrite { style: RewriteStyle::Fix };
+    let restructure = TerminalMode::Rewrite { style: RewriteStyle::Restructure };
+    assert_eq!(fix.first_line(ANCHORS), "/rk project:vega task:report-builder rewrite fix");
+    assert_eq!(restructure.first_line(ANCHORS), "/rk project:vega task:report-builder rewrite restructure");
+    assert!(!fix.follows_steps() && !fix.works_on_a_project());
+    assert_eq!((fix.to_string(), restructure.to_string()), ("REWRITE_FIX".to_string(), "REWRITE_RESTRUCTURE".to_string()));
+}
+
+#[test]
 fn a_replan_terminal_carries_what_the_plan_missed_as_one_quoted_line() {
     let mode = TerminalMode::Replan { message: Some("Also cover \"export\"\nto csv  ".into()) };
     assert_eq!(mode.first_line(ANCHORS), "/rk project:vega task:report-builder replan \"Also cover 'export' to csv\"");

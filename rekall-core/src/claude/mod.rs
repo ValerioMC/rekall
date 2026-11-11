@@ -46,6 +46,7 @@ pub use model::terminal_ended::TerminalEnded;
 pub use model::terminal_launch::TerminalLaunch;
 pub use service::terminal_launch_service::TerminalLaunchService;
 pub use port::terminal_listener::TerminalListener;
+pub use model::rewrite_style::RewriteStyle;
 pub use model::terminal_mode::{TerminalMode, REQUEST_MAX_CHARACTERS};
 pub use model::terminal_opening::TerminalOpening;
 pub use port::terminal_pipe::TerminalPipe;

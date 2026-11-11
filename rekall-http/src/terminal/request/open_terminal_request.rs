@@ -1,5 +1,5 @@
 use rekall_console::terminal::OpenTerminalCommand;
-use rekall_core::claude::{SessionKind, TerminalMode, TerminalTarget};
+use rekall_core::claude::{RewriteStyle, SessionKind, TerminalMode, TerminalTarget};
 use rekall_core::vulnerability::rule::rules;
 use rekall_diagram::DiagramKind;
 use rekall_kernel::{jstr, Id, RekallError};
@@ -12,7 +12,8 @@ use crate::terminal::TerminalModeName;
 /// [`TerminalMode::Work`], and a missing `kind` is a terminal session; `PLAN_FLOW` asks for a flow rather than a checklist, `REPLAN` for the task's draft and open steps to be redesigned, with the `request` as what the plan missed when there is one; `REVISE` for the pending entries of the task's thread to be evaluated; `GENERATE` and
 /// `EXPLAIN` need a `request`, and `kinds` names the diagram types a generation draws; `ASSESS`
 /// needs the GHSA id of the `advisory` to judge, and `ASSESS_ALL` judges every one not judged yet;
-/// `AUTOCONFIGURE` has a project's session learn how to contribute to it.
+/// `AUTOCONFIGURE` has a project's session learn how to contribute to it; `REWRITE_FIX` and
+/// `REWRITE_RESTRUCTURE` have a task's session replace its description, whatever else the request carries.
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct OpenTerminalRequest {
@@ -55,6 +56,8 @@ impl OpenTerminalRequest {
             Some(TerminalModeName::Assess) => Ok(TerminalMode::Assess { advisory: rules::ghsa_id(self.advisory.as_deref())? }),
             Some(TerminalModeName::AssessAll) => Ok(TerminalMode::AssessAll),
             Some(TerminalModeName::Autoconfigure) => Ok(TerminalMode::Autoconfigure),
+            Some(TerminalModeName::RewriteFix) => Ok(TerminalMode::Rewrite { style: RewriteStyle::Fix }),
+            Some(TerminalModeName::RewriteRestructure) => Ok(TerminalMode::Rewrite { style: RewriteStyle::Restructure }),
         }
     }
 

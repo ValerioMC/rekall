@@ -3,13 +3,14 @@ use super::*;
 /// 40% of the 8,271 words the command had before it was split by mode.
 const BASE_COMMAND_WORD_LIMIT: usize = 3308;
 
-const MODE_HEADINGS: [&str; 12] = [
+const MODE_HEADINGS: [&str; 13] = [
     "Loading",
     "Stepping",
     "Noting",
     "Sectioning",
     "Planning",
     "Replanning",
+    "Rewriting",
     "Generating",
     "Explaining",
     "Inventorying",
