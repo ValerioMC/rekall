@@ -59,3 +59,7 @@ path = "tests/integration/telemetry.rs"
 [[test]]
 name = "feedback"
 path = "tests/integration/feedback.rs"
+
+[[test]]
+name = "descriptions"
+path = "tests/integration/descriptions.rs"

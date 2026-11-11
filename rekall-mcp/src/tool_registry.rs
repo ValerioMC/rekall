@@ -15,7 +15,7 @@ use crate::note::NoteTool;
 use crate::search::SearchTool;
 use crate::section::{ProjectSectionTool, SectionReadTool};
 use crate::step::{StepDeletionTool, StepProposalTool, StepStateTool};
-use crate::task::{EpicMembershipTool, TaskCreationTool};
+use crate::task::{EpicMembershipTool, TaskCreationTool, TaskDescriptionTool};
 use crate::vulnerability::{AssessmentTool, VulnerabilityReadTool};
 use crate::wrapup::WrapupTool;
 
@@ -26,6 +26,7 @@ pub fn all(services: &Services) -> Vec<Arc<dyn McpTool>> {
         Arc::new(ContextTool::new(services.context.clone())),
         Arc::new(TaskCreationTool::new(services.task_authoring.clone())),
         Arc::new(EpicMembershipTool::new(services.epic_membership.clone())),
+        Arc::new(TaskDescriptionTool::new(services.task_descriptions.clone())),
         Arc::new(NoteTool::new(services.notes.clone())),
         Arc::new(DeviationTool::new(services.deviations.clone())),
         Arc::new(FeedbackTool::new(services.feedback.clone())),

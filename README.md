@@ -117,6 +117,7 @@ An anchor brings back the record, everything it references resolved in full with
 | `rekall_propose_flow` | write | Add a whole flow to a task with no steps: its steps and the routes between them, open and ready to work (`draft: true` leaves them for a person to promote) |
 | `rekall_create_task` | write | Create a task or an epic in a project with a description and up to 20 steps that start open, as a checklist or a flow with its sessions (none on an epic), optionally filed under an epic |
 | `rekall_join_epic` | write | File an existing task under an epic of its project, or move it from another epic |
+| `rekall_description` | write | Replace the description of one task with a new text, whole; the old text is not kept and no revision opens |
 | `rekall_note` | write | Write a note on one task, or rewrite one it carries by title with `replace` |
 | `rekall_feedback` | write | Reply to the open entries of a task's thread, by seq; it cannot create, edit or delete an entry |
 | `rekall_deviation` | write | Record where the work departed from the plan, on one task and for one step; kept apart from the notes |

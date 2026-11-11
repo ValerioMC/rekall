@@ -12,6 +12,7 @@ use crate::constraints::Violations;
 use crate::enums::{TaskKind, TaskStatus, TaskStepState};
 
 pub const TITLE_MAX_CHARACTERS: usize = 200;
+pub const DESCRIPTION_MAX_CHARACTERS: usize = 100_000;
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
 #[sea_orm(table_name = "task")]
@@ -226,7 +227,7 @@ impl Model {
             .slug("label", Some(&self.label))
             .not_blank("title", Some(&self.title))
             .max_length("title", Some(&self.title), TITLE_MAX_CHARACTERS)
-            .max_length("description", self.description.as_deref(), 100_000)
+            .max_length("description", self.description.as_deref(), DESCRIPTION_MAX_CHARACTERS)
             .finish()
     }
 }

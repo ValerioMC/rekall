@@ -11,7 +11,7 @@ reorder or remove a step, and the console's `edit` is still the only path to `DO
 only lay a flow onto a task with no steps, and the routes it asks `StepLinkService.propose_in` for are
 refused unless both ends are drafts, so no released step's routes change: a ready flow is laid as
 drafts and released inside the same transaction. `TaskAuthoringService.create` does the same for the
-task it has just created. None of them promotes a draft that was already on a task. The only deletes a session can make are
+task it has just created. `TaskDescriptionService.replace` takes a task and a body and replaces the description, nothing else: it goes around the console's revision tracking, so a rewrite opens no revision, and the old text is kept nowhere. None of them promotes a draft that was already on a task. The only deletes a session can make are
 `FlowProposalService.replan` and `TaskStepService.remove`, and both stop at `TaskStepState::unstarted`:
 a draft or an open step. A running, claimed or done step is refused by name, so a session never discards
 a run, work waiting for review or work a person accepted; a replan checks its plan whole before it deletes
