@@ -7,7 +7,6 @@ edition.workspace = true
 [dependencies]
 rekall-kernel.workspace = true
 rekall-store.workspace = true
-rekall-diagram.workspace = true
 rekall-core.workspace = true
 sea-orm.workspace = true
 serde.workspace = true
@@ -39,12 +38,11 @@ keyring = { workspace = true, features = ["windows-native"] }
 keyring = { workspace = true, features = ["linux-native"] }
 
 [dev-dependencies]
+rekall-diagram.workspace = true
 axum.workspace = true
-tokio-tungstenite = "0.29"
 rustls-pki-types = "1"
 tokio-rustls = { version = "0.26", default-features = false, features = ["ring"] }
 hyper-util = { version = "0.1", features = ["tokio", "http1", "service"] }
-tower = { version = "0.5", features = ["util"] }
 
 # Integration suites live in tests/integration and unit tests in tests/unit, so Cargo discovers
 # neither by itself: each suite is declared here, and a suite left out of this list never runs.

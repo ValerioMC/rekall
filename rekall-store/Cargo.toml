@@ -11,12 +11,11 @@ sea-orm-migration.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 regex.workspace = true
-tokio.workspace = true
-tracing.workspace = true
 async-trait.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
+tokio.workspace = true
 
 # Integration suites live in tests/integration and unit tests in tests/unit, so Cargo discovers
 # neither by itself: each suite is declared here, and a suite left out of this list never runs.

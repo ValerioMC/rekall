@@ -58,8 +58,6 @@ tokio-stream = { version = "0.1", features = ["sync"] }
 futures = "0.3"
 axum = { version = "0.8", features = ["ws", "multipart", "macros"] }
 tower = { version = "0.5", features = ["util"] }
-tower-http = { version = "0.6", features = ["fs"] }
-http-body-util = "0.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }

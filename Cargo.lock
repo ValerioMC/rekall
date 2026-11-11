@@ -4293,8 +4293,6 @@ dependencies = [
  "thiserror 2.0.21",
  "tokio",
  "tokio-rustls",
- "tokio-tungstenite",
- "tower",
  "tracing",
  "zip",
 ]
@@ -4304,11 +4302,9 @@ name = "rekall-kernel"
 version = "0.1.0"
 dependencies = [
  "chrono",
- "regex",
  "sea-orm",
  "serde",
  "serde_json",
- "thiserror 2.0.21",
  "tracing",
  "uuid",
 ]
@@ -4320,14 +4316,12 @@ dependencies = [
  "async-trait",
  "axum",
  "base64 0.22.1",
- "http-body-util",
  "regex",
  "rekall-core",
  "rekall-kernel",
  "serde",
  "serde_json",
  "tokio",
- "tower",
  "tracing",
  "tracing-subscriber",
 ]
@@ -4345,7 +4339,6 @@ dependencies = [
  "serde_json",
  "tempfile",
  "tokio",
- "tracing",
 ]
 
 [[package]]
