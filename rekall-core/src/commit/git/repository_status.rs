@@ -22,9 +22,4 @@ impl RepositoryStatus {
     pub fn not_a_repository(folder: &str) -> Self {
         Self { folder: Some(folder.to_string()), exists: true, ..Self::unset() }
     }
-
-    /// Whether git could commit here as someone: a repository with an email to sign with.
-    pub fn can_commit(&self) -> bool {
-        self.repository && self.user_email.is_some()
-    }
 }

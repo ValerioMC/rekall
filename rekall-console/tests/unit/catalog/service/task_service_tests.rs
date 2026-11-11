@@ -226,8 +226,12 @@ async fn an_edit_is_announced_only_when_the_title_or_the_description_changed() {
 #[tokio::test]
 async fn an_edit_keeps_the_issue_the_task_was_written_to() {
     let world = world().await;
-    let task = world.service.create(command("pay", world.project_id, TaskKind::Task, None)).await.unwrap();
-    world.service.record_tracker_issue(task.id, "12".into(), "https://github.com/acme/app/issues/12".into()).await.unwrap();
+    let imported = TaskCommand {
+        tracker_issue_key: Some("12".into()),
+        tracker_issue_url: Some("https://github.com/acme/app/issues/12".into()),
+        ..command("pay", world.project_id, TaskKind::Task, None)
+    };
+    let task = world.service.create(imported).await.unwrap();
 
     let edited = world.service.update(task.id, TaskCommand { title: Some("Pay".into()), ..command("pay", world.project_id, TaskKind::Task, None) }).await.unwrap();
 

@@ -130,16 +130,6 @@ impl TaskService {
         })
     }
 
-    /// Keeps the issue the task manager created for the task, and forgets the failure that came before it.
-    pub async fn record_tracker_issue(&self, id: Id, key: String, url: String) -> Result<()> {
-        in_write!(&self.ctx, |tx| {
-            let before = repo::task::require(tx.db(), id).await?;
-            let task = task::Model { tracker_issue_key: Some(key), tracker_issue_url: Some(url), tracker_sync_error: None, ..before.clone() };
-            repo::update_if_changed(tx.db(), &before, task, self.ctx.now()).await?;
-            Ok::<_, RekallError>(())
-        })
-    }
-
     /// Records that a deployment graph was laid on the task, inside a transaction the caller holds.
     pub async fn mark_graph_laid_in(&self, tx: &Tx, id: Id) -> Result<()> {
         let before = repo::task::require(tx.db(), id).await?;

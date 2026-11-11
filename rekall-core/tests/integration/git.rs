@@ -206,7 +206,7 @@ async fn the_inspector_tells_unset_missing_plain_and_repository_apart() {
     assert!(!GitRepositoryInspector.is_repository(Some(&missing)).await);
 
     let plain = GitRepositoryInspector.inspect(Some(&dir.path().to_string_lossy())).await;
-    assert!(plain.exists && !plain.repository && !plain.can_commit());
+    assert!(plain.exists && !plain.repository);
 
     let repo = tempfile::tempdir().unwrap();
     git(repo.path(), &["init", "-q", "-b", "main"]);
@@ -222,7 +222,6 @@ async fn the_inspector_tells_unset_missing_plain_and_repository_apart() {
     assert_eq!(status.branch.as_deref(), Some("main"));
     assert_eq!(status.user_name.as_deref(), Some("Test Person"));
     assert_eq!(status.user_email.as_deref(), Some("test@example.com"));
-    assert!(status.can_commit());
 }
 
 #[tokio::test]
