@@ -11,5 +11,6 @@ pub struct ProjectCommand {
     pub blueprint_markdown: Option<String>,
     pub repo_folder: Option<String>,
     pub auto_commit: Option<bool>,
+    pub main_branch: Option<String>,
     pub company_id: Option<Id>,
 }

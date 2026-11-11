@@ -52,7 +52,7 @@ const task = (
   graphLaidAt: null,
   releaseSkipped: false,
   kind: 'TASK',
-  epicId: null, quick: false, autoAccepted: false, dependsOn: [],
+  epicId: null, quick: false, autoAccepted: false, dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null,
   anchor: `project:${projectId === vega ? 'vega' : 'beacon'} task:${label}`,
   updatedAt: '2026-09-01T10:00:00Z'
 })
@@ -80,7 +80,7 @@ const project = (id: ProjectId, label: string, title: string): Project => ({
   description: null,
   blueprintMarkdown: null,
   repoFolder: null,
-  autoCommit: false,
+  autoCommit: false, mainBranch: null,
   companyId: acme,
   companyName: 'acme',
   taskCount: 2,

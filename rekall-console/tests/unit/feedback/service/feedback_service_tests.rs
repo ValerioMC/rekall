@@ -19,7 +19,7 @@ async fn world() -> World {
     company.clone().into_active_model().insert(&database.conn).await.unwrap();
     let project = project::Model {
         id: Id::random(), label: "app".into(), title: "App".into(), status: ProjectStatus::Active, icon: "folder".into(),
-        description: None, blueprint_markdown: None, repo_folder: None, auto_commit: false, company_id: company.id,
+        description: None, blueprint_markdown: None, repo_folder: None, auto_commit: false, main_branch: None, company_id: company.id,
         created_at: now, updated_at: now,
     };
     project.clone().into_active_model().insert(&database.conn).await.unwrap();

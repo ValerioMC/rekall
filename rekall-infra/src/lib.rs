@@ -24,6 +24,7 @@ pub mod queue;
 pub mod resources;
 pub mod restart;
 pub mod secret;
+pub mod tracker;
 pub mod session;
 pub mod transcript;
 pub mod usage;

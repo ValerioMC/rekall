@@ -29,7 +29,7 @@ const task = (id: string, status: TaskStatus): Task => ({
   graphLaidAt: null,
   releaseSkipped: false,
   kind: 'TASK',
-  epicId: null, quick: false, autoAccepted: false, dependsOn: [],
+  epicId: null, quick: false, autoAccepted: false, dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null,
   anchor: `project:vega task:${id}`,
   updatedAt: '2026-09-04T10:00:00Z'
 })

@@ -12,4 +12,6 @@ pub struct TaskCommand {
     pub kind: Option<TaskKind>,
     pub epic_id: Option<Id>,
     pub quick: bool,
+    pub tracker_issue_key: Option<String>,
+    pub tracker_issue_url: Option<String>,
 }

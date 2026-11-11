@@ -6,6 +6,7 @@ use rekall_kernel::{jstr, Id, RekallError, Result};
 use rekall_store::{project, task, Slug, TaskKind, TaskStatus, TaskStepState};
 use rekall_store::repository as repo;
 use rekall_core::review::TaskReviewService;
+use rekall_core::task::TaskContentChangedEvent;
 use rekall_core::timeentry::TimeEntryService;
 use rekall_core::{in_read, in_write, Ctx, Tx};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
@@ -47,19 +48,25 @@ impl TaskService {
     }
 
     pub async fn create(&self, command: TaskCommand) -> Result<TaskView> {
-        in_write!(&self.ctx, |tx| self.create_in(&tx, command).await)
+        in_write!(&self.ctx, |tx| self.create_in(&mut tx, command).await)
     }
 
-    pub async fn create_in(&self, tx: &Tx, command: TaskCommand) -> Result<TaskView> {
+    /// A task that arrives with the issue it was imported from is not pushed back to its task manager.
+    pub async fn create_in(&self, tx: &mut Tx, command: TaskCommand) -> Result<TaskView> {
         let label = Slug::of(command.label.as_deref())?;
         let project = require_owning_project(tx, command.project_id).await?;
         let mut task = task::Model::new(label, trimmed_title(&command), project.id, self.ctx.now());
         apply_request(tx, &mut task, &command).await?;
         task.quick = command.quick;
+        task.tracker_issue_key = command.tracker_issue_key.clone();
+        task.tracker_issue_url = command.tracker_issue_url.clone();
         task.validate()?;
         require_label_free(tx, &task, None).await?;
         require_no_other_active_quick(tx, &task).await?;
         task.clone().into_active_model().insert(tx.db()).await?;
+        if task.tracker_issue_key.is_none() {
+            tx.publish(TaskContentChangedEvent { task_id: task.id });
+        }
         response(tx, &task).await
     }
 
@@ -75,6 +82,9 @@ impl TaskService {
             require_epic_kept_whole(&tx, &before, &task).await?;
             require_epic_stepless(&tx, &task).await?;
             let task = repo::update_if_changed(tx.db(), &before, task, self.ctx.now()).await?;
+            if before.title != task.title || before.description != task.description {
+                tx.publish(TaskContentChangedEvent { task_id: id });
+            }
             if before.description != task.description {
                 self.feedback.track_description_in(&mut tx, &task, before.description.as_deref(), task.description.as_deref()).await?;
             }
@@ -117,6 +127,26 @@ impl TaskService {
             let task = task::Model { release_skipped: skipped, ..before.clone() };
             let task = repo::update_if_changed(tx.db(), &before, task, self.ctx.now()).await?;
             response(&tx, &task).await
+        })
+    }
+
+    /// Keeps the issue the task manager created for the task, and forgets the failure that came before it.
+    pub async fn record_tracker_issue(&self, id: Id, key: String, url: String) -> Result<()> {
+        in_write!(&self.ctx, |tx| {
+            let before = repo::task::require(tx.db(), id).await?;
+            let task = task::Model { tracker_issue_key: Some(key), tracker_issue_url: Some(url), tracker_sync_error: None, ..before.clone() };
+            repo::update_if_changed(tx.db(), &before, task, self.ctx.now()).await?;
+            Ok::<_, RekallError>(())
+        })
+    }
+
+    /// Keeps why the last push to the task manager failed, or clears it after one that worked.
+    pub async fn record_tracker_failure(&self, id: Id, failure: Option<String>) -> Result<()> {
+        in_write!(&self.ctx, |tx| {
+            let before = repo::task::require(tx.db(), id).await?;
+            let task = task::Model { tracker_sync_error: failure, ..before.clone() };
+            repo::update_if_changed(tx.db(), &before, task, self.ctx.now()).await?;
+            Ok::<_, RekallError>(())
         })
     }
 

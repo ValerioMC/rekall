@@ -143,6 +143,27 @@ Jira is reached through the `JiraIssues` trait in `rekall-core/src/connection/`,
 through `StartOptions::jira_issues`. It is asked before any transaction opens. Both it and the check
 take a `JiraSite`, the site URL and the connection's proxy, and go through the proxy when there is one. The Grafana check takes a `GrafanaInstance`: the URL, the proxy and whether the instance's self-signed certificate is accepted (certificate verification is then off, which also lets an expired one or one for another host through).
 
+A project writes its own tasks to one binding, its task manager. `PUT /api/projects/{id}/connections/{bindingId}`
+takes `taskManager` beside the label and the target (left out, the flag stays; the target is still
+written as sent): choosing a binding releases the one the project had, and it is refused (400) unless the
+connection is a GitLab, GitHub or Jira one and the target names where issues go (`tracker_rules.rs`: a Jira
+project key, a GitLab project path of at least two segments, a GitHub `owner/repo`). A task writes to it
+through `TaskTrackerService` (`rekall-core/src/connection/`): the console's `TaskService`, a session creating a
+task (`TaskAuthoringService`) and one replacing a description (`TaskDescriptionService`) publish a
+`TaskContentChangedEvent` once their transaction commits when a task is created or its title or description
+changes, and `TaskTrackerRunner` (`rekall-infra/src/tracker/`) pushes that task, one at a time in the order
+they changed. The push reads the task, its project's task-manager binding and the stored credential,
+asks the `TaskTracker` port (`HttpTaskTracker` in `rekall-infra`: GitLab `POST`/`PUT
+/api/v4/projects/{path}/issues`, GitHub `POST`/`PATCH /repos/{owner}/{repo}/issues` under the API root
+`github_api_root` gives, Jira `POST /issue` and `PUT /issue/{key}` under `/rest/api/3` with an Atlassian
+document description on Cloud and `/rest/api/2` with text on Data Center, or a fake through
+`StartOptions::task_tracker`) outside any transaction, and then keeps the issue's key and URL on the task, or
+the failure in `tracker_sync_error`. The task is written only when it is a plain task (not an epic, not a
+quick one); a task that has a key is rewritten and one without is created, so a change after a failure tries
+again. A task imported from the project's own Jira task manager arrives with its key and is not announced,
+and the credential never leaves `TaskTrackerService`: a failure message names the system and the HTTP
+status, never the credential.
+
 `POST /api/connections/{id}/check` asks the connection's server whether its stored credential still
 works, before a session finds out mid-deploy. `ConnectionCheckService` (`rekall-core/src/connection/`)
 reads the credential through the store and hands it to a `ConnectionProbe`: `HttpConnectionProbe` in

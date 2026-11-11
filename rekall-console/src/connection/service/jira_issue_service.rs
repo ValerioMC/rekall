@@ -28,6 +28,7 @@ struct JiraSource {
     site: JiraSite,
     project_key: String,
     credential: JiraCredential,
+    task_manager: bool,
 }
 
 impl JiraIssueService {
@@ -52,7 +53,7 @@ impl JiraIssueService {
         in_write!(&self.ctx, |tx| {
             let mut created = Vec::with_capacity(fresh.len());
             for issue in &fresh {
-                created.push(self.tasks.create_in(&tx, task_request(project_id, &source.site.url, issue)).await?);
+                created.push(self.tasks.create_in(&mut tx, task_request(project_id, &source.site.url, issue, source.task_manager)).await?);
             }
             Ok(created)
         })
@@ -68,7 +69,7 @@ impl JiraIssueService {
         }
         let project_key = project_key_of(binding.target.as_deref())?;
         let stored = recall(self.secrets.clone(), connection.secret_ref.clone()).await?;
-        Ok(JiraSource { site: JiraSite::of(&connection), project_key, credential: JiraCredential::from_stored(&stored)? })
+        Ok(JiraSource { site: JiraSite::of(&connection), project_key, credential: JiraCredential::from_stored(&stored)?, task_manager: binding.task_manager })
     }
 
     async fn search(&self, source: &JiraSource, jql: &str, limit: u16) -> Result<Vec<JiraIssue>> {

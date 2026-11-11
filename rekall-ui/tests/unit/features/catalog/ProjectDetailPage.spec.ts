@@ -156,6 +156,7 @@ describe('the project page', () => {
       baseUrl: 'https://gitlab.example.com',
       kubeContext: null,
       target: 'acme/billing',
+      taskManager: false,
       credentialSetAt: null
     } satisfies ProjectConnection
     vi.mocked(connectionsApi.fetchProjectConnections).mockResolvedValue([unsigned])

@@ -37,6 +37,7 @@ export interface ProjectInput {
   blueprintMarkdown: string | null
   repoFolder: string | null
   autoCommit: boolean
+  mainBranch: string | null
   companyId: CompanyId
 }
 

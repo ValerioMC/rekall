@@ -103,6 +103,8 @@ export interface Project {
   readonly repoFolder: string | null
   /** A session's claim commits the repo folder and logs it; only ever true on a git repository. */
   readonly autoCommit: boolean
+  /** The branch accepted work is merged into and a task's branch starts from; null is the folder's current branch. */
+  readonly mainBranch: string | null
   readonly companyId: CompanyId
   readonly companyName: string
   readonly taskCount: number
@@ -158,6 +160,11 @@ export interface Task {
   readonly autoAccepted: boolean
   /** The tasks of the same project this one waits for before the run queue starts it. */
   readonly dependsOn: readonly TaskId[]
+  /** The issue the project's task manager holds for this task: Jira's key, GitLab's iid or GitHub's number. */
+  readonly trackerIssueKey: string | null
+  readonly trackerIssueUrl: string | null
+  /** Why the last write to the task manager failed; the next change to the task tries again. */
+  readonly trackerSyncError: string | null
   readonly anchor: string
   readonly updatedAt: string
 }

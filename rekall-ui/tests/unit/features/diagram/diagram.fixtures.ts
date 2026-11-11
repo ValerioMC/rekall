@@ -19,7 +19,7 @@ export function project(id: ProjectId, label: string, repoFolder: string | null 
     description: null,
     blueprintMarkdown: null,
     repoFolder,
-    autoCommit: false,
+    autoCommit: false, mainBranch: null,
     companyId: 'c-acme' as CompanyId,
     companyName: 'acme',
     taskCount: 1,
@@ -56,7 +56,7 @@ export function task(id: TaskId, label: string, projectId: ProjectId): Task {
     graphLaidAt: null,
     releaseSkipped: false,
     kind: 'TASK',
-    epicId: null, quick: false, autoAccepted: false, dependsOn: [],
+    epicId: null, quick: false, autoAccepted: false, dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null,
     anchor: `project:vega task:${label}`,
     updatedAt: '2026-10-01T10:00:00Z'
   }

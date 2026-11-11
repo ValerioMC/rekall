@@ -14,6 +14,7 @@ pub struct ProjectRequest {
     pub blueprint_markdown: Option<String>,
     pub repo_folder: Option<String>,
     pub auto_commit: Option<bool>,
+    pub main_branch: Option<String>,
     pub company_id: Option<Id>,
 }
 
@@ -28,6 +29,7 @@ impl From<ProjectRequest> for ProjectCommand {
             blueprint_markdown: request.blueprint_markdown,
             repo_folder: request.repo_folder,
             auto_commit: request.auto_commit,
+            main_branch: request.main_branch,
             company_id: request.company_id,
         }
     }

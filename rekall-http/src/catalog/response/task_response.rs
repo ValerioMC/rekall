@@ -36,6 +36,9 @@ pub struct TaskResponse {
     pub quick: bool,
     pub auto_accepted: bool,
     pub depends_on: Vec<Id>,
+    pub tracker_issue_key: Option<String>,
+    pub tracker_issue_url: Option<String>,
+    pub tracker_sync_error: Option<String>,
     pub anchor: String,
     pub updated_at: Instant,
 }
@@ -73,6 +76,9 @@ impl From<TaskView> for TaskResponse {
             quick: view.quick,
             auto_accepted: view.auto_accepted,
             depends_on: view.depends_on,
+            tracker_issue_key: view.tracker_issue_key,
+            tracker_issue_url: view.tracker_issue_url,
+            tracker_sync_error: view.tracker_sync_error,
             anchor: view.anchor,
             updated_at: view.updated_at,
         }

@@ -21,6 +21,8 @@ pub struct Model {
     /// Unique in the project: what `<connections>`, `kubectl --context` and the API helpers name.
     pub label: String,
     pub target: Option<String>,
+    /// The project's one task manager: the binding whose tracker receives the project's tasks.
+    pub task_manager: bool,
     pub created_at: Instant,
     pub updated_at: Instant,
 }
@@ -54,7 +56,7 @@ impl ActiveModelBehavior for ActiveModel {}
 
 impl Model {
     pub fn new(project_id: Id, connection_id: Id, label: String, target: Option<String>, now: Instant) -> Self {
-        Self { id: Id::random(), project_id, connection_id, label, target, created_at: now, updated_at: now }
+        Self { id: Id::random(), project_id, connection_id, label, target, task_manager: false, created_at: now, updated_at: now }
     }
 
     pub fn validate(&self) -> Result<(), RekallError> {

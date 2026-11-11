@@ -9,7 +9,7 @@ use crate::worktree::{BranchReview, MergeOutcome, Worktree, WorktreeHost, Worktr
 
 /// A `WorktreeHost` that keeps its worktrees in memory and makes their folders on disk, for tests
 /// of what decides when to make one. `refuse` makes `create` fail for a branch; a branch can be
-/// scripted to hold commits or to conflict, and `merged` lists the branches merged.
+/// scripted to hold commits or to conflict, and `merged` lists the branches merged and `bases` the branch each started from or went into.
 #[derive(Default)]
 pub struct ScriptedWorktreeHost {
     worktrees: Mutex<Vec<Worktree>>,
@@ -18,6 +18,7 @@ pub struct ScriptedWorktreeHost {
     ahead: Mutex<HashSet<String>>,
     conflicting: Mutex<HashSet<String>>,
     merged: Mutex<Vec<String>>,
+    bases: Mutex<Vec<String>>,
 }
 
 impl ScriptedWorktreeHost {
@@ -49,6 +50,11 @@ impl ScriptedWorktreeHost {
         self.merged.lock().expect("scripted host lock").clone()
     }
 
+    /// The base each worktree was started from and each merge went into, in the order they happened.
+    pub fn bases(&self) -> Vec<String> {
+        self.bases.lock().expect("scripted host lock").clone()
+    }
+
     pub fn branches(&self) -> Vec<String> {
         self.worktrees.lock().expect("scripted host lock").iter().map(|worktree| worktree.branch.clone()).collect()
     }
@@ -56,7 +62,8 @@ impl ScriptedWorktreeHost {
 
 #[async_trait]
 impl WorktreeHost for ScriptedWorktreeHost {
-    async fn create(&self, project_folder: &Path, branch_name: &str, folder: &Path) -> Result<Worktree> {
+    async fn create(&self, project_folder: &Path, branch_name: &str, folder: &Path, base: &str) -> Result<Worktree> {
+        self.bases.lock().expect("scripted host lock").push(base.to_string());
         if self.refused.lock().expect("scripted host lock").contains(branch_name) {
             return Err(RekallError::illegal(format!("git could not make a worktree for {branch_name}.")));
         }
@@ -76,7 +83,7 @@ impl WorktreeHost for ScriptedWorktreeHost {
         Ok(self.worktrees.lock().expect("scripted host lock").iter().filter(|worktree| worktree.project_folder == project_folder).cloned().collect())
     }
 
-    async fn review_branch(&self, _: &Path, branch_name: &str, worktree_folder: Option<&Path>) -> Result<Option<BranchReview>> {
+    async fn review_branch(&self, _: &Path, branch_name: &str, worktree_folder: Option<&Path>, _: &str) -> Result<Option<BranchReview>> {
         let known = self.worktrees.lock().expect("scripted host lock").iter().any(|worktree| worktree.branch == branch_name);
         let dirty = self.dirty.lock().expect("scripted host lock").contains(branch_name);
         let ahead = self.ahead.lock().expect("scripted host lock").contains(branch_name);
@@ -96,7 +103,8 @@ impl WorktreeHost for ScriptedWorktreeHost {
         Ok(WorktreeStatus { has_unsaved_changes: dirty, commits_ahead: 0 })
     }
 
-    async fn merge_branch(&self, _: &Path, branch_name: &str) -> Result<MergeOutcome> {
+    async fn merge_branch(&self, _: &Path, branch_name: &str, base: &str) -> Result<MergeOutcome> {
+        self.bases.lock().expect("scripted host lock").push(base.to_string());
         self.ahead.lock().expect("scripted host lock").remove(branch_name);
         self.merged.lock().expect("scripted host lock").push(branch_name.to_string());
         Ok(MergeOutcome::Merged)

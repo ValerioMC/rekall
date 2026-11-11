@@ -26,7 +26,7 @@ use rekall_infra::transcript::{TranscriptFolder, TranscriptScanner};
 use rekall_core::claude::UsageReader;
 use rekall_infra::usage::ClaudeUsageService;
 use rekall_store::Database;
-use rekall_core::connection::{ConnectionAccessService, JiraIssues, MigratingSecretStore, RememberingSecretStore, SecretStore};
+use rekall_core::connection::{ConnectionAccessService, JiraIssues, MigratingSecretStore, RememberingSecretStore, SecretStore, TaskTracker, TaskTrackerService};
 use rekall_core::timeentry::IDLE_AFTER;
 use rekall_core::telemetry::TelemetrySettingsService;
 use rekall_core::vulnerability::{AdvisoryFeed, ScanSettingsService, VulnerabilityScanService};
@@ -42,6 +42,7 @@ use crate::config::AppConfig;
 use rekall_infra::restart::Restarter;
 use rekall_core::connection::ConnectionProbe;
 use rekall_infra::jira::HttpJiraIssues;
+use rekall_infra::tracker::{HttpTaskTracker, TaskTrackerRunner};
 use rekall_infra::probes::HttpConnectionProbe;
 use rekall_infra::secret::{protected_references, FileSecretStore, KeychainSecretStore, SECRETS_FILE};
 use crate::security::{self, LocalAccess};
@@ -125,6 +126,11 @@ impl Instance {
             Some(jira) => jira.clone(),
             None => Arc::new(HttpJiraIssues::new()),
         };
+        let task_tracker: Arc<dyn TaskTracker> = match &options.task_tracker {
+            Some(tracker) => tracker.clone(),
+            None => Arc::new(HttpTaskTracker::new()),
+        };
+        TaskTrackerRunner::start(&events, TaskTrackerService::new(ctx.clone(), secrets.clone(), task_tracker));
         let advisory_feed: Arc<dyn AdvisoryFeed> = match &options.advisory_feed {
             Some(feed) => feed.clone(),
             None => Arc::new(GithubAdvisoryFeed::new(secrets.clone())),

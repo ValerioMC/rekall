@@ -179,6 +179,7 @@ describe('the Connections hub', () => {
       baseUrl: null,
       kubeContext: null,
       target: 'platform/billing',
+      taskManager: false,
       credentialSetAt: null
     }
     vi.mocked(api.fetchProjectConnections).mockResolvedValue([binding])
@@ -204,6 +205,7 @@ describe('the Connections hub', () => {
       baseUrl: null,
       kubeContext: null,
       target: 'platform/billing',
+      taskManager: false,
       credentialSetAt: null
     })
     const page = await render('/connections/jira')

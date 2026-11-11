@@ -28,6 +28,8 @@ impl From<TaskRequest> for TaskCommand {
             kind: request.kind,
             epic_id: request.epic_id,
             quick: false,
+            tracker_issue_key: None,
+            tracker_issue_url: None,
         }
     }
 }

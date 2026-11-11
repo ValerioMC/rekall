@@ -21,7 +21,7 @@ function project(id: string, over: Partial<Project> = {}): Project {
     description: null,
     blueprintMarkdown: null,
     repoFolder: null,
-    autoCommit: false,
+    autoCommit: false, mainBranch: null,
     companyId: 'c1' as CompanyId,
     companyName: 'acme',
     taskCount: 0,

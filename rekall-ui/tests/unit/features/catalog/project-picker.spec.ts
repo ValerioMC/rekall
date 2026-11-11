@@ -14,7 +14,7 @@ function project(id: string, title: string, companyName: string, status: Project
     description: null,
     blueprintMarkdown: null,
     repoFolder: null,
-    autoCommit: false,
+    autoCommit: false, mainBranch: null,
     companyId: companyName as CompanyId,
     companyName,
     taskCount: 0,

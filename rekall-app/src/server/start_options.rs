@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use rekall_core::check::CheckRunner;
 use rekall_core::claude::UsageReader;
-use rekall_core::connection::{JiraIssues, SecretStore};
+use rekall_core::connection::{JiraIssues, SecretStore, TaskTracker};
 use rekall_core::vulnerability::AdvisoryFeed;
 use rekall_core::Clock;
 
@@ -26,6 +26,8 @@ pub struct StartOptions {
     pub connection_probe: Option<Arc<dyn ConnectionProbe>>,
     /// Stands in for the Jira sites issues are imported from.
     pub jira_issues: Option<Arc<dyn JiraIssues>>,
+    /// Stands in for the GitLab, GitHub or Jira project a task is written to.
+    pub task_tracker: Option<Arc<dyn TaskTracker>>,
     /// Stands in for the GitHub Advisory Database a vulnerability scan reads.
     pub advisory_feed: Option<Arc<dyn AdvisoryFeed>>,
     /// Hand the instance a restarter nothing listens to: a database switch is recorded but the

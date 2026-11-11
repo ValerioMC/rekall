@@ -239,7 +239,7 @@ impl Worker {
                 )
                 .await;
         }
-        if snapshot.parallel_sessions > 1 {
+        if self.works_on_its_own_branch(&item, snapshot.parallel_sessions).await {
             if let Err(refused) = self.worktrees.ensure(item.task_id).await {
                 return self.park(&item, &refused).await;
             }
@@ -396,6 +396,17 @@ impl Worker {
     fn forget(&mut self, generation: u64) -> Option<Active> {
         let at = self.active.iter().position(|active| active.generation == generation)?;
         Some(self.active.remove(at))
+    }
+
+    /// Two sessions at once need a folder each, and a project with a task manager keeps every task on a branch of its own.
+    async fn works_on_its_own_branch(&self, item: &RunQueueItemView, parallel_sessions: i32) -> bool {
+        if parallel_sessions > 1 {
+            return true;
+        }
+        self.worktrees.requires_branch(item.task_id).await.unwrap_or_else(|failure| {
+            warn!(%failure, anchor = %item.anchor, "Run queue: could not tell whether the project keeps its tasks on branches");
+            false
+        })
     }
 
     /// An item that cannot be started now waits where it is, with the reason, and the queue goes

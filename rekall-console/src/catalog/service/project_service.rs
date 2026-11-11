@@ -54,11 +54,12 @@ impl ProjectService {
                 blueprint_markdown: None,
                 repo_folder: None,
                 auto_commit: false,
+                main_branch: None,
                 company_id: company.id,
                 created_at: now,
                 updated_at: now,
             };
-            self.apply_request(&mut project, &command).await;
+            self.apply_request(&mut project, &command).await?;
             project.validate()?;
             require_label_free(&tx, &project, None).await?;
             project.clone().into_active_model().insert(tx.db()).await?;
@@ -73,7 +74,7 @@ impl ProjectService {
             project.label = Slug::of(command.label.as_deref())?;
             project.title = trimmed_title(&command);
             project.company_id = require_owning_company(&tx, command.company_id).await?.id;
-            self.apply_request(&mut project, &command).await;
+            self.apply_request(&mut project, &command).await?;
             require_label_free(&tx, &project, Some(id)).await?;
             let project = repo::update_if_changed(tx.db(), &before, project, self.ctx.now()).await?;
             Snapshot::for_project(tx.db(), &project).await?.project_response(&project)
@@ -97,23 +98,36 @@ impl ProjectService {
         })
     }
 
-    /// The fields a request sets on create and update alike; none of them can be refused.
-    async fn apply_request(&self, project: &mut project::Model, command: &ProjectCommand) {
+    /// The fields a request sets on create and update alike.
+    async fn apply_request(&self, project: &mut project::Model, command: &ProjectCommand) -> Result<()> {
         project.description = command.description.clone();
         project.blueprint_markdown = command.blueprint_markdown.clone();
         project.repo_folder = command.repo_folder.as_deref().filter(|folder| !jstr::is_blank(folder)).map(|folder| jstr::trim(folder).to_string());
         project.auto_commit = self.auto_commit_allowed(command.auto_commit, project.repo_folder.as_deref()).await;
+        project.main_branch = main_branch_of(command.main_branch.as_deref())?;
         project.status = command.status.unwrap_or(ProjectStatus::Active);
         project.icon = match command.icon.as_deref() {
             Some(icon) if !jstr::is_blank(icon) => jstr::trim(icon).to_string(),
             _ => DEFAULT_ICON.to_string(),
         };
+        Ok(())
     }
 
     /// Auto-commit only means something in a git repository: asked for anywhere else, it stays off.
     async fn auto_commit_allowed(&self, requested: Option<bool>, repo_folder: Option<&str>) -> bool {
         requested == Some(true) && self.repositories.is_repository(repo_folder).await
     }
+}
+
+/// A blank branch means the folder's current one. Anything git could read as an option or a revision
+/// range is refused, since the name reaches git as an argument.
+fn main_branch_of(raw: Option<&str>) -> Result<Option<String>> {
+    let Some(branch) = raw.map(jstr::strip).filter(|branch| !branch.is_empty()) else { return Ok(None) };
+    let forbidden = |character: char| character.is_whitespace() || character.is_control() || "~^:?*[\\".contains(character);
+    if branch.starts_with('-') || branch.starts_with('/') || branch.ends_with('/') || branch.ends_with(".lock") || branch.contains("..") || branch.contains("@{") || branch.chars().any(forbidden) {
+        return Err(RekallError::illegal(format!("'{branch}' is not a branch name git accepts. Use a name such as main or develop.")));
+    }
+    Ok(Some(branch.to_string()))
 }
 
 fn trimmed_title(command: &ProjectCommand) -> String {
@@ -136,3 +150,7 @@ async fn require_label_free(tx: &Tx, project: &project::Model, except: Option<Id
     }
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "../../../tests/unit/catalog/service/project_service_tests.rs"]
+mod tests;

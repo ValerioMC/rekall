@@ -15,6 +15,7 @@ function binding(id: string, kind: ProjectConnection['kind']): ProjectConnection
     baseUrl: null,
     kubeContext: null,
     target: null,
+    taskManager: false,
     credentialSetAt: null
   }
 }

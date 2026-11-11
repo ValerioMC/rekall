@@ -31,7 +31,7 @@ async fn world() -> World {
         description: None,
         blueprint_markdown: None,
         repo_folder: Some(project_folder.to_string_lossy().into_owned()),
-        auto_commit: false,
+        auto_commit: false, main_branch: None,
         company_id: company.id,
         created_at: now,
         updated_at: now,
@@ -86,7 +86,7 @@ async fn after_a_restart_a_task_forgets_a_folder_that_is_gone_and_a_clean_orphan
     world.service.ensure(kept).await.unwrap();
     let vanished = world.service.ensure(gone).await.unwrap();
     std::fs::remove_dir_all(&vanished).unwrap();
-    world.host.create(&world.project_folder, "rekall/orphan", &world.root.path().join("worktrees/vega/orphan")).await.unwrap();
+    world.host.create(&world.project_folder, "rekall/orphan", &world.root.path().join("worktrees/vega/orphan"), "HEAD").await.unwrap();
 
     world.service.reconcile().await.unwrap();
 
@@ -99,7 +99,7 @@ async fn after_a_restart_a_task_forgets_a_folder_that_is_gone_and_a_clean_orphan
 #[tokio::test]
 async fn an_orphan_with_unsaved_changes_is_left_alone() {
     let world = world().await;
-    world.host.create(&world.project_folder, "rekall/orphan", &world.root.path().join("worktrees/vega/orphan")).await.unwrap();
+    world.host.create(&world.project_folder, "rekall/orphan", &world.root.path().join("worktrees/vega/orphan"), "HEAD").await.unwrap();
     world.host.leave_unsaved_changes("rekall/orphan");
 
     world.service.reconcile().await.unwrap();
@@ -215,4 +215,53 @@ async fn a_task_without_a_branch_has_nothing_to_merge() {
     let report = task_named(&world, "report").await;
 
     assert_eq!(world.service.merge_accepted(report).await.unwrap(), Merge::NothingToMerge);
+}
+
+async fn name_main_branch(world: &World, branch: &str) {
+    let before = project::Entity::find_by_id(world.project_id).one(&world.db).await.unwrap().unwrap();
+    project::Model { main_branch: Some(branch.into()), ..before }.into_active_model().reset_all().update(&world.db).await.unwrap();
+}
+
+async fn make_task_manager(world: &World) {
+    use rekall_store::{external_connection, project_connection, ConnectionKind};
+    let now = Instant::now();
+    let connection = external_connection::Model::new("gitlab".into(), "GitLab".into(), ConnectionKind::Gitlab, Some("https://gitlab.example.com".into()), now);
+    connection.clone().into_active_model().insert(&world.db).await.unwrap();
+    let mut binding = project_connection::Model::new(world.project_id, connection.id, "gitlab".into(), Some("acme/vega".into()), now);
+    binding.task_manager = true;
+    binding.into_active_model().insert(&world.db).await.unwrap();
+}
+
+#[tokio::test]
+async fn a_branch_starts_from_the_projects_main_branch_and_is_merged_into_it() {
+    let world = world().await;
+    name_main_branch(&world, "develop").await;
+    let report = task_named(&world, "report").await;
+    world.service.ensure(report).await.unwrap();
+    world.host.leave_commits("rekall/report");
+
+    world.service.merge_accepted(report).await.unwrap();
+
+    assert_eq!(world.host.bases(), ["develop", "develop"]);
+}
+
+#[tokio::test]
+async fn without_a_main_branch_the_folders_current_branch_is_the_base() {
+    let world = world().await;
+    let report = task_named(&world, "report").await;
+
+    world.service.ensure(report).await.unwrap();
+
+    assert_eq!(world.host.bases(), ["HEAD"]);
+}
+
+#[tokio::test]
+async fn a_project_keeps_its_tasks_on_branches_when_it_has_a_task_manager_and_a_folder() {
+    let world = world().await;
+    let report = task_named(&world, "report").await;
+    assert!(!world.service.requires_branch(report).await.unwrap());
+
+    make_task_manager(&world).await;
+
+    assert!(world.service.requires_branch(report).await.unwrap());
 }

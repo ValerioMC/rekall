@@ -37,7 +37,7 @@ fn an_import_takes_at_least_one_key_and_at_most_the_limit() {
 #[test]
 fn an_issue_becomes_a_task_labelled_by_its_key_that_links_back_to_it() {
     let project_id = Id::random();
-    let command = task_request(project_id, "https://example.atlassian.net/", &issue("ENG-7", " Fix login ", Some("It fails.")));
+    let command = task_request(project_id, "https://example.atlassian.net/", &issue("ENG-7", " Fix login ", Some("It fails.")), false);
 
     assert_eq!(command.label.as_deref(), Some("eng-7"));
     assert_eq!(command.title.as_deref(), Some("Fix login"));
@@ -47,7 +47,17 @@ fn an_issue_becomes_a_task_labelled_by_its_key_that_links_back_to_it() {
 
 #[test]
 fn an_issue_without_a_summary_is_titled_by_its_key_and_a_long_one_is_cut() {
-    assert_eq!(task_request(Id::random(), "https://x", &issue("ENG-1", " ", None)).title.as_deref(), Some("ENG-1"));
+    assert_eq!(task_request(Id::random(), "https://x", &issue("ENG-1", " ", None), false).title.as_deref(), Some("ENG-1"));
     let long = "a".repeat(300);
-    assert_eq!(task_request(Id::random(), "https://x", &issue("ENG-1", &long, None)).title.unwrap().chars().count(), 200);
+    assert_eq!(task_request(Id::random(), "https://x", &issue("ENG-1", &long, None), false).title.unwrap().chars().count(), 200);
+}
+
+#[test]
+fn an_issue_of_the_task_manager_is_imported_already_linked_to_its_task() {
+    let linked = task_request(Id::random(), "https://example.atlassian.net/", &issue("ENG-7", "Fix login", None), true);
+    assert_eq!(linked.tracker_issue_key.as_deref(), Some("ENG-7"));
+    assert_eq!(linked.tracker_issue_url.as_deref(), Some("https://example.atlassian.net/browse/ENG-7"));
+
+    let unlinked = task_request(Id::random(), "https://example.atlassian.net/", &issue("ENG-7", "Fix login", None), false);
+    assert_eq!(unlinked.tracker_issue_key, None);
 }

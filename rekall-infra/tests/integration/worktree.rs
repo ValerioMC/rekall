@@ -41,7 +41,7 @@ fn world() -> World {
 async fn create(world: &World, task: &str) -> rekall_core::worktree::Worktree {
     let branch = world.layout.branch_for(task).unwrap();
     let folder = world.layout.folder_for("vega", task).unwrap();
-    world.host.create(&world.project, &branch, &folder).await.unwrap()
+    world.host.create(&world.project, &branch, &folder, "HEAD").await.unwrap()
 }
 
 #[tokio::test]
@@ -128,9 +128,9 @@ async fn a_branch_or_folder_outside_the_layout_is_refused_and_nothing_is_made() 
     let inside = world.layout.folder_for("vega", "report").unwrap();
     let outside = world.project.parent().unwrap().join("stray");
 
-    let foreign_branch = world.host.create(&world.project, "feature/report", &inside).await;
-    let outside_folder = world.host.create(&world.project, "rekall/report", &outside).await;
-    let escaping = world.host.create(&world.project, "rekall/report", &world.layout.root.join("vega").join("..").join("..").join("stray")).await;
+    let foreign_branch = world.host.create(&world.project, "feature/report", &inside, "HEAD").await;
+    let outside_folder = world.host.create(&world.project, "rekall/report", &outside, "HEAD").await;
+    let escaping = world.host.create(&world.project, "rekall/report", &world.layout.root.join("vega").join("..").join("..").join("stray"), "HEAD").await;
 
     assert!(foreign_branch.is_err() && outside_folder.is_err() && escaping.is_err());
     assert!(!outside.exists() && !inside.exists());
@@ -185,7 +185,7 @@ async fn a_branch_with_two_commits_is_read_as_commits_files_and_a_clean_merge() 
         git(&worktree.folder, &["commit", "-q", "-m", name]);
     }
 
-    let review = world.host.review_branch(&world.project, "rekall/report", Some(&worktree.folder)).await.unwrap().unwrap();
+    let review = world.host.review_branch(&world.project, "rekall/report", Some(&worktree.folder), "HEAD").await.unwrap().unwrap();
 
     assert_eq!(review.commits_ahead, 2);
     assert_eq!(review.changed_files, vec!["export.txt".to_string(), "import.txt".to_string()]);
@@ -204,7 +204,7 @@ async fn a_branch_that_conflicts_with_the_project_is_reported_as_a_conflict() {
     fs::write(world.project.join("report.txt"), "changed in the project\n").unwrap();
     git(&world.project, &["commit", "-q", "-am", "project edit"]);
 
-    let review = world.host.review_branch(&world.project, "rekall/report", Some(&worktree.folder)).await.unwrap().unwrap();
+    let review = world.host.review_branch(&world.project, "rekall/report", Some(&worktree.folder), "HEAD").await.unwrap().unwrap();
 
     assert_eq!(review.merges_cleanly, Some(false));
 }
@@ -213,7 +213,7 @@ async fn a_branch_that_conflicts_with_the_project_is_reported_as_a_conflict() {
 async fn a_branch_that_does_not_exist_has_nothing_to_review() {
     let world = world();
 
-    assert!(world.host.review_branch(&world.project, "rekall/missing", None).await.unwrap().is_none());
+    assert!(world.host.review_branch(&world.project, "rekall/missing", None, "HEAD").await.unwrap().is_none());
 }
 
 #[tokio::test]
@@ -222,7 +222,7 @@ async fn unsaved_files_in_the_worktree_show_in_the_review() {
     let worktree = create(&world, "report").await;
     fs::write(worktree.folder.join("half-done.txt"), "wip\n").unwrap();
 
-    let review = world.host.review_branch(&world.project, "rekall/report", Some(&worktree.folder)).await.unwrap().unwrap();
+    let review = world.host.review_branch(&world.project, "rekall/report", Some(&worktree.folder), "HEAD").await.unwrap().unwrap();
 
     assert!(review.has_unsaved_changes);
 }
@@ -235,7 +235,7 @@ async fn merging_a_branch_brings_its_commits_into_the_project() {
     git(&worktree.folder, &["add", "."]);
     git(&worktree.folder, &["commit", "-q", "-m", "export"]);
 
-    let outcome = world.host.merge_branch(&world.project, "rekall/report").await.unwrap();
+    let outcome = world.host.merge_branch(&world.project, "rekall/report", "HEAD").await.unwrap();
 
     assert_eq!(outcome, MergeOutcome::Merged);
     assert!(world.project.join("export.txt").exists());
@@ -251,7 +251,7 @@ async fn a_conflicting_merge_is_abandoned_and_leaves_the_project_as_it_was() {
     fs::write(world.project.join("report.txt"), "changed in the project\n").unwrap();
     git(&world.project, &["commit", "-q", "-am", "project edit"]);
 
-    let outcome = world.host.merge_branch(&world.project, "rekall/report").await.unwrap();
+    let outcome = world.host.merge_branch(&world.project, "rekall/report", "HEAD").await.unwrap();
 
     assert!(matches!(outcome, MergeOutcome::Refused(_)));
     assert_eq!(git(&world.project, &["status", "--porcelain"]), "");
@@ -262,5 +262,40 @@ async fn a_conflicting_merge_is_abandoned_and_leaves_the_project_as_it_was() {
 async fn a_branch_outside_the_layout_is_never_merged() {
     let world = world();
 
-    assert!(world.host.merge_branch(&world.project, "main").await.is_err());
+    assert!(world.host.merge_branch(&world.project, "main", "HEAD").await.is_err());
+}
+
+#[tokio::test]
+async fn a_worktree_starts_from_the_named_base_branch_whatever_the_folder_is_on() {
+    let world = world();
+    git(&world.project, &["switch", "-q", "-c", "develop"]);
+    fs::write(world.project.join("develop.txt"), "develop\n").unwrap();
+    git(&world.project, &["add", "."]);
+    git(&world.project, &["commit", "-q", "-m", "develop work"]);
+    git(&world.project, &["switch", "-q", "main"]);
+    let branch = world.layout.branch_for("report").unwrap();
+    let folder = world.layout.folder_for("vega", "report").unwrap();
+
+    let worktree = world.host.create(&world.project, &branch, &folder, "develop").await.unwrap();
+
+    assert!(worktree.folder.join("develop.txt").exists());
+    let review = world.host.review_branch(&world.project, &branch, Some(&worktree.folder), "develop").await.unwrap().unwrap();
+    assert_eq!(review.commits_ahead, 0);
+}
+
+#[tokio::test]
+async fn a_branch_is_merged_only_while_the_folder_is_on_the_base_branch() {
+    let world = world();
+    let worktree = create(&world, "report").await;
+    fs::write(worktree.folder.join("export.txt"), "export\n").unwrap();
+    git(&worktree.folder, &["add", "."]);
+    git(&worktree.folder, &["commit", "-q", "-m", "export"]);
+
+    let wrong_base = world.host.merge_branch(&world.project, "rekall/report", "develop").await.unwrap();
+    git(&world.project, &["switch", "-q", "-c", "develop"]);
+    let right_base = world.host.merge_branch(&world.project, "rekall/report", "develop").await.unwrap();
+
+    assert!(matches!(&wrong_base, MergeOutcome::Refused(reason) if reason.contains("'main', not on 'develop'")), "{wrong_base:?}");
+    assert_eq!(right_base, MergeOutcome::Merged);
+    assert!(world.project.join("export.txt").exists());
 }

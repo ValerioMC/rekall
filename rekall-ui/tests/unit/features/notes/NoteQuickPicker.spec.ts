@@ -46,7 +46,7 @@ const project: Project = {
   description: null,
   blueprintMarkdown: null,
   repoFolder: null,
-  autoCommit: false,
+  autoCommit: false, mainBranch: null,
   companyId: vforge,
   companyName: 'vforge',
   taskCount: 3,
@@ -81,7 +81,7 @@ const taskHere: Task = {
   graphLaidAt: null,
   releaseSkipped: false,
   kind: 'TASK',
-  epicId: null, quick: false, autoAccepted: false, dependsOn: [],
+  epicId: null, quick: false, autoAccepted: false, dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null,
   anchor: 'project:rekall task:note-improvement',
   updatedAt: '2026-09-01T10:00:00Z'
 }

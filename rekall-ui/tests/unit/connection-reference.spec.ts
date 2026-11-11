@@ -22,6 +22,7 @@ const PROD: ProjectConnection = {
   baseUrl: null,
   kubeContext: null,
   target: 'payments',
+  taskManager: false,
   credentialSetAt: null
 }
 

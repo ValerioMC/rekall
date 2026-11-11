@@ -65,7 +65,7 @@ function binding(id: string, credentialSetAt: string | null, kind: ConnectionKin
     baseUrl: null,
     kubeContext: null,
     target: null,
-    credentialSetAt
+    taskManager: false, credentialSetAt
   }
 }
 

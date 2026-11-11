@@ -17,3 +17,7 @@ pub(super) mod kubeconfig;
 pub(super) mod kubeconfig_document;
 pub(super) mod probe_outcome;
 pub(super) mod secret;
+pub(super) mod tracker_endpoint;
+pub(super) mod tracker_failure;
+pub(super) mod tracker_issue;
+pub(super) mod tracker_link;

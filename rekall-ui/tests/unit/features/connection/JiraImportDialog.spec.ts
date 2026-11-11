@@ -22,6 +22,7 @@ const BINDING: ProjectConnection = {
   baseUrl: 'https://example.atlassian.net',
   kubeContext: null,
   target: 'ENG',
+  taskManager: false,
   credentialSetAt: '2026-10-21T10:00:00Z'
 }
 

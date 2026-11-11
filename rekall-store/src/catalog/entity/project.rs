@@ -24,6 +24,9 @@ pub struct Model {
     /// Whether a session's claim commits the repo folder for it. Meaningful only while
     /// `repo_folder` is a git repository; the catalog clears it otherwise.
     pub auto_commit: bool,
+    /// The branch accepted work is merged into and a task's branch starts from; none means the
+    /// folder's current branch.
+    pub main_branch: Option<String>,
     pub company_id: Id,
     pub created_at: Instant,
     pub updated_at: Instant,
@@ -71,6 +74,7 @@ impl Model {
             .not_blank("icon", Some(&self.icon))
             .max_length("icon", Some(&self.icon), 40)
             .max_length("repoFolder", self.repo_folder.as_deref(), 1_000)
+            .max_length("mainBranch", self.main_branch.as_deref(), 255)
             .max_length("description", self.description.as_deref(), 100_000)
             .max_length("blueprintMarkdown", self.blueprint_markdown.as_deref(), 100_000)
             .finish()

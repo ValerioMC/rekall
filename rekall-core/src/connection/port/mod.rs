@@ -5,3 +5,5 @@ pub(super) mod jira_issues;
 pub(super) mod migrating_secret_store;
 pub(super) mod remembering_secret_store;
 pub(super) mod secret_store;
+pub(super) mod task_tracker;
+pub(super) mod scripted_task_tracker;

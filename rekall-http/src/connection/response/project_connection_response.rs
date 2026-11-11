@@ -17,6 +17,7 @@ pub struct ProjectConnectionResponse {
     pub base_url: Option<String>,
     pub kube_context: Option<String>,
     pub target: Option<String>,
+    pub task_manager: bool,
     pub credential_set_at: Option<Instant>,
 }
 
@@ -32,6 +33,7 @@ impl From<ProjectConnectionView> for ProjectConnectionResponse {
             base_url: view.base_url,
             kube_context: view.kube_context,
             target: view.target,
+            task_manager: view.task_manager,
             credential_set_at: view.credential_set_at,
         }
     }

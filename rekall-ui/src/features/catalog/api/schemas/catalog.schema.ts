@@ -56,6 +56,7 @@ export const ProjectSchema = z.object({
   blueprintMarkdown: z.string().nullable(),
   repoFolder: z.string().nullable(),
   autoCommit: z.boolean(),
+  mainBranch: z.string().nullable(),
   companyId,
   companyName: z.string(),
   taskCount: z.number().int(),
@@ -94,6 +95,9 @@ export const TaskSchema = z.object({
   quick: z.boolean(),
   autoAccepted: z.boolean(),
   dependsOn: z.array(taskId).default([]),
+  trackerIssueKey: z.string().nullable(),
+  trackerIssueUrl: z.string().nullable(),
+  trackerSyncError: z.string().nullable(),
   anchor: z.string(),
   updatedAt: z.string()
 })

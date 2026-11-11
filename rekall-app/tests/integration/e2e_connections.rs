@@ -7,9 +7,9 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use rekall_app::server::StartOptions;
-use rekall_core::connection::{InMemorySecretStore, JiraCredential, JiraFailure, JiraIssue, JiraIssues, JiraSite, SecretStore};
+use rekall_core::connection::{InMemorySecretStore, JiraCredential, JiraFailure, JiraIssue, JiraIssues, JiraSite, ScriptedTaskTracker, SecretStore};
 use serde_json::json;
-use support::{app, app_with, app_with_secrets, id, run_git};
+use support::{app, app_with, app_with_secrets, await_until, id, run_git};
 
 const KUBECONFIG: &str = "
 clusters:
@@ -382,4 +382,35 @@ async fn a_root_path_belongs_to_a_gitlab_or_github_connection_only() {
 
     assert_eq!(app.post("/api/connections", json!({ "kind": "KUBERNETES", "title": "Prod", "rootPath": "acme" })).await.status, 400);
     assert_eq!(app.post("/api/connections", json!({ "kind": "GITHUB", "title": "GitHub", "baseUrl": "https://github.com", "rootPath": "vmcforge" })).await.status, 201);
+}
+
+#[tokio::test]
+async fn a_task_created_and_edited_in_a_project_with_a_task_manager_is_written_to_the_tracker() {
+    let secrets = Arc::new(InMemorySecretStore::new());
+    let tracker = Arc::new(ScriptedTaskTracker::new());
+    let options = StartOptions { no_restart: true, secrets: Some(secrets.clone()), task_tracker: Some(tracker.clone()), ..StartOptions::default() };
+    let app = app_with(&[], options).await;
+    let acme = app.a_company("Acme").await;
+    let vega = app.a_project(&acme, "vega", "ACTIVE").await;
+    let gitlab = id(&app.post("/api/connections", json!({ "companyIds": [acme], "kind": "GITLAB", "title": "GitLab", "baseUrl": "https://gitlab.example.com" })).await);
+    assert_eq!(app.put(&format!("/api/connections/{gitlab}/credential"), json!({ "token": "glpat-secret" })).await.status, 200);
+    let binding = id(&app.post(&format!("/api/projects/{vega}/connections"), json!({ "connectionId": gitlab, "target": "acme/vega" })).await);
+    let earlier = app.a_task(&vega, "before").await;
+
+    let chosen = app.put(&format!("/api/projects/{vega}/connections/{binding}"), json!({ "target": "acme/vega", "taskManager": true })).await;
+    assert_eq!((chosen.status, chosen.get("taskManager").as_bool()), (200, Some(true)), "{}", chosen.text);
+    let task = app.a_task(&vega, "pay").await;
+
+    await_until(5, || async { !app.get_task(&task).await["trackerIssueKey"].is_null() }).await;
+    let created = app.get_task(&task).await;
+    assert_eq!(created["trackerIssueKey"], "acme/vega-1");
+    assert_eq!(tracker.created().len(), 1, "a task that existed before the choice is not written until it changes");
+    assert!(app.get_task(&earlier).await["trackerIssueKey"].is_null());
+
+    let edited = app.put(&format!("/api/tasks/{task}"), json!({ "label": "pay", "title": "Pay the invoice", "status": "TODO", "projectId": vega })).await;
+    assert_eq!(edited.status, 200, "{}", edited.text);
+    await_until(5, || async { !tracker.updated().is_empty() }).await;
+    assert_eq!(tracker.updated()[0].0, "acme/vega-1");
+    assert_eq!(tracker.updated()[0].1.title, "Pay the invoice");
+    assert_eq!(tracker.created().len(), 1, "an edit rewrites the issue instead of creating another");
 }

@@ -1,6 +1,6 @@
 //! A company's connections as Rekall's services see them: the view a context names them by, the
 //! credential type that never prints, the store that keeps it outside the database, the kubeconfig
-//! a Kubernetes credential arrives as, and the Jira credential and issues a Jira connection reads.
+//! a Kubernetes credential arrives as, and the Jira credential and issues a Jira connection reads, and the task manager a project writes its tasks to.
 
 mod event;
 mod model;
@@ -38,3 +38,10 @@ pub use port::migrating_secret_store::MigratingSecretStore;
 pub use port::remembering_secret_store::RememberingSecretStore;
 pub use model::secret::Secret;
 pub use port::secret_store::SecretStore;
+pub use port::scripted_task_tracker::ScriptedTaskTracker;
+pub use port::task_tracker::TaskTracker;
+pub use service::task_tracker_service::TaskTrackerService;
+pub use model::tracker_endpoint::TrackerEndpoint;
+pub use model::tracker_failure::TrackerFailure;
+pub use model::tracker_issue::TrackerIssue;
+pub use model::tracker_link::TrackerLink;

@@ -50,6 +50,7 @@ mod m071_feedback_passes;
 mod m072_connection_self_signed;
 mod m073_revision_target;
 mod m074_accept_done_tasks;
+mod m075_task_manager;
 mod migration_support;
 mod migrator;
 

@@ -20,6 +20,7 @@ function binding(label: string, kind: ConnectionKind, target: string | null = nu
     baseUrl: null,
     kubeContext: null,
     target,
+    taskManager: false,
     credentialSetAt: null
   }
 }

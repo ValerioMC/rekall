@@ -50,6 +50,7 @@ impl World {
             blueprint_markdown: None,
             repo_folder: folder.map(str::to_string),
             auto_commit,
+            main_branch: None,
             company_id: company.id,
             created_at: now,
             updated_at: now,

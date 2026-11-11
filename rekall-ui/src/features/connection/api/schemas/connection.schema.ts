@@ -97,6 +97,7 @@ export const ProjectConnectionSchema = z.object({
   baseUrl: z.string().nullable(),
   kubeContext: z.string().nullable(),
   target: z.string().nullable(),
+  taskManager: z.boolean(),
   credentialSetAt: z.string().nullable()
 })
 

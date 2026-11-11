@@ -9,7 +9,7 @@ import type { Project, ProjectRepository } from '@/features/catalog/model/catalo
 import type { ProjectId } from '@/model/branded'
 
 /**
- * Where the project's sessions run: its folder, and whether a claim commits it. Git is asked
+ * Where the project's sessions run: its folder, the branch accepted work is merged into, and whether a claim commits it. Git is asked
  * about the folder once per project and again after every folder save, since auto-commit is only
  * offered on a repository.
  */
@@ -21,6 +21,7 @@ const store = useConsoleStore()
 const canBrowse = desktopHost() !== null
 
 const draft = ref('')
+const branchDraft = ref('')
 const repository = ref<ProjectRepository | null>(null)
 const repositoryPending = ref(false)
 const autoCommitSaving = ref(false)
@@ -63,6 +64,12 @@ async function browse(): Promise<void> {
   schedule()
 }
 
+async function saveMainBranch(): Promise<void> {
+  if (branchDraft.value.trim() === (props.project.mainBranch ?? '')) return
+  await store.saveProjectMainBranch(props.project.id, branchDraft.value)
+  branchDraft.value = props.project.mainBranch ?? ''
+}
+
 async function setAutoCommit(enabled: boolean): Promise<void> {
   autoCommitSaving.value = true
   try {
@@ -77,6 +84,7 @@ watch(
   (id, previous) => {
     if (timer && previous) void save(previous)
     draft.value = props.project.repoFolder ?? ''
+    branchDraft.value = props.project.mainBranch ?? ''
     repository.value = null
     void readRepository(id)
   },
@@ -109,6 +117,23 @@ onUnmounted(() => {
       />
       <AppButton v-if="canBrowse" size="sm" variant="secondary" @click="browse">Browse</AppButton>
     </div>
+    <h3 id="project-main-branch-heading" class="mt-4 text-body font-semibold text-text">Main branch</h3>
+    <p class="mb-2 mt-0.5 text-small text-text-subtle">
+      The branch a task's own branch starts from and is merged into once its work is accepted. Left empty, it is
+      whichever branch the folder is on.
+    </p>
+    <label class="sr-only" for="project-main-branch">Main branch</label>
+    <input
+      id="project-main-branch"
+      v-model="branchDraft"
+      data-testid="project-main-branch"
+      spellcheck="false"
+      autocomplete="off"
+      class="field text-text h-8 w-full max-w-[240px] rounded-control px-2.5 font-mono text-caption"
+      placeholder="main"
+      @blur="saveMainBranch"
+      @keydown.enter.prevent="saveMainBranch"
+    />
     <div class="mt-4">
       <AutoCommitSwitch
         :model-value="project.autoCommit"

@@ -4,6 +4,7 @@ import ProjectChecksEditor from '@/features/check/components/ProjectChecksEditor
 import ProjectGeneralPane from '@/features/project/components/ProjectGeneralPane.vue'
 import ProjectRepositoryGroup from '@/features/project/components/ProjectRepositoryGroup.vue'
 import ProjectSettingsRail from '@/features/project/components/ProjectSettingsRail.vue'
+import ProjectTaskManagerPane from '@/features/project/components/ProjectTaskManagerPane.vue'
 import type { Project } from '@/features/catalog/model/catalog'
 import type { SettingsPane } from '@/features/project/model/project-settings'
 
@@ -28,6 +29,7 @@ const pane = ref<SettingsPane>('general')
         <div :key="pane" class="mx-auto w-full max-w-[600px] px-4 py-6">
           <ProjectGeneralPane v-if="pane === 'general'" :project="project" @deleted="emit('deleted')" />
           <ProjectRepositoryGroup v-else-if="pane === 'repository'" :project="project" />
+          <ProjectTaskManagerPane v-else-if="pane === 'taskManager'" :project="project" />
           <ProjectChecksEditor v-else :project="project" />
         </div>
       </Transition>

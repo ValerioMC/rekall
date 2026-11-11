@@ -33,7 +33,7 @@ const project = (id: ProjectId, label: string, title: string, companyId: Company
   description: null,
   blueprintMarkdown: null,
   repoFolder: null,
-  autoCommit: false,
+  autoCommit: false, mainBranch: null,
   companyId,
   companyName: companyId === vforge ? 'vforge' : 'northwind',
   taskCount: 2,
@@ -86,7 +86,7 @@ const task = (
   graphLaidAt: null,
   releaseSkipped: false,
   kind: 'TASK',
-  epicId: null, quick: false, autoAccepted: false, dependsOn: [],
+  epicId: null, quick: false, autoAccepted: false, dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null,
   anchor: `project:${projectLabel} task:${label}`,
   updatedAt: '2026-09-01T10:00:00Z'
 })

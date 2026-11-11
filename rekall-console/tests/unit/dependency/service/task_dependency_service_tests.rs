@@ -37,7 +37,7 @@ async fn new_project(ctx: &Ctx, company_id: Id, label: &str) -> Id {
         description: None,
         blueprint_markdown: None,
         repo_folder: None,
-        auto_commit: false,
+        auto_commit: false, main_branch: None,
         company_id,
         created_at: now,
         updated_at: now,

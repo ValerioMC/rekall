@@ -9,12 +9,13 @@ import type { ProjectId } from '@/model/branded'
 
 vi.mock('@/features/catalog/api/catalog.api', () => ({ fetchProjectRepository: vi.fn() }))
 
-const project = (id: string, repoFolder: string | null, autoCommit = false): Project =>
-  ({ id: id as ProjectId, title: id, repoFolder, autoCommit }) as unknown as Project
+const project = (id: string, repoFolder: string | null, autoCommit = false, mainBranch: string | null = null): Project =>
+  ({ id: id as ProjectId, title: id, repoFolder, autoCommit, mainBranch }) as unknown as Project
 
 let wrapper: VueWrapper | null = null
 let saveFolder: ReturnType<typeof vi.fn>
 let saveAutoCommit: ReturnType<typeof vi.fn>
+let saveMainBranch: ReturnType<typeof vi.fn>
 
 function render(initial: Project): VueWrapper {
   wrapper = mount(ProjectRepositoryGroup, { props: { project: initial } })
@@ -30,6 +31,8 @@ beforeEach(() => {
   saveAutoCommit = vi.fn().mockResolvedValue(undefined)
   store.saveProjectRepoFolder = saveFolder as never
   store.saveProjectAutoCommit = saveAutoCommit as never
+  saveMainBranch = vi.fn().mockResolvedValue(undefined)
+  store.saveProjectMainBranch = saveMainBranch as never
 })
 
 afterEach(() => {
@@ -69,5 +72,26 @@ describe('the repository group', () => {
 
     expect(saveFolder).toHaveBeenCalledWith('p-1', '/work/one')
     expect((group.get('[data-testid="project-repo-folder"]').element as HTMLInputElement).value).toBe('/work/two')
+  })
+
+  it('shows the main branch and saves a typed one when the field is left', async () => {
+    const group = render(project('p-1', '/work/vega', false, 'develop'))
+    await flushPromises()
+    const field = group.get('[data-testid="project-main-branch"]')
+    expect((field.element as HTMLInputElement).value).toBe('develop')
+
+    await field.setValue('main')
+    await field.trigger('blur')
+
+    expect(saveMainBranch).toHaveBeenCalledWith('p-1', 'main')
+  })
+
+  it('does not save a main branch that was left as it was', async () => {
+    const group = render(project('p-1', '/work/vega', false, 'develop'))
+    await flushPromises()
+
+    await group.get('[data-testid="project-main-branch"]').trigger('blur')
+
+    expect(saveMainBranch).not.toHaveBeenCalled()
   })
 })

@@ -30,7 +30,7 @@ async fn world() -> World {
         description: None,
         blueprint_markdown: None,
         repo_folder: None,
-        auto_commit: false,
+        auto_commit: false, main_branch: None,
         company_id: acme.id,
         created_at: now,
         updated_at: now,
@@ -63,7 +63,7 @@ fn gitlab(title: &str, company_ids: Vec<Id>) -> ConnectionCommand {
 }
 
 fn target(path: &str) -> ProjectConnectionCommand {
-    ProjectConnectionCommand { label: None, target: Some(path.into()) }
+    ProjectConnectionCommand { label: None, target: Some(path.into()), task_manager: None }
 }
 
 #[tokio::test]
@@ -203,4 +203,63 @@ async fn deleting_a_connection_reports_the_projects_that_lose_it() {
 
     assert_eq!(removed.unbound_projects, 1);
     assert!(world.connections.list_all().await.unwrap().is_empty());
+}
+
+fn as_task_manager(command: ProjectConnectionCommand) -> ProjectConnectionCommand {
+    ProjectConnectionCommand { task_manager: Some(true), ..command }
+}
+
+#[tokio::test]
+async fn a_project_has_one_task_manager_and_choosing_another_binding_releases_the_first() {
+    let world = world().await;
+    let gitlab = world.connections.create(gitlab("GitLab", vec![world.acme.id])).await.unwrap();
+    let github = ConnectionCommand {
+        kind: Some("GITHUB".into()),
+        title: Some("GitHub".into()),
+        base_url: Some("https://github.com".into()),
+        company_ids: Some(vec![world.acme.id]),
+        ..ConnectionCommand::default()
+    };
+    let github = world.connections.create(github).await.unwrap();
+    let first = world.bindings.bind(world.vega.id, gitlab.id, target("acme/vega")).await.unwrap();
+    let second = world.bindings.bind(world.vega.id, github.id, target("acme/vega")).await.unwrap();
+
+    world.bindings.update(world.vega.id, first.id, as_task_manager(target("acme/vega"))).await.unwrap();
+    world.bindings.update(world.vega.id, second.id, as_task_manager(target("acme/vega"))).await.unwrap();
+
+    let managers: Vec<String> = world.bindings.list(world.vega.id).await.unwrap().into_iter().filter(|binding| binding.task_manager).map(|binding| binding.label).collect();
+    assert_eq!(managers, [second.label.clone()]);
+    assert_eq!(world.bindings.task_manager(world.vega.id).await.unwrap().unwrap().0.id, second.id);
+}
+
+#[tokio::test]
+async fn a_task_manager_has_to_name_where_the_issues_go_and_a_cluster_is_none() {
+    let world = world().await;
+    let gitlab = world.connections.create(gitlab("GitLab", vec![world.acme.id])).await.unwrap();
+    let grafana_command = ConnectionCommand { kind: Some("GRAFANA".into()), title: Some("Grafana".into()), base_url: Some("https://grafana.example.com".into()), company_ids: Some(vec![world.acme.id]), ..ConnectionCommand::default() };
+    let grafana = world.connections.create(grafana_command).await.unwrap();
+    let without_target = world.bindings.bind(world.vega.id, gitlab.id, ProjectConnectionCommand::default()).await.unwrap();
+    let on_grafana = world.bindings.bind(world.vega.id, grafana.id, target("dash")).await.unwrap();
+
+    let no_target = world.bindings.update(world.vega.id, without_target.id, as_task_manager(ProjectConnectionCommand::default())).await.unwrap_err();
+    let no_manager = world.bindings.update(world.vega.id, on_grafana.id, as_task_manager(target("dash"))).await.unwrap_err();
+
+    assert!(matches!(no_target, RekallError::IllegalArgument(_)), "{no_target:?}");
+    assert!(matches!(no_manager, RekallError::IllegalArgument(_)), "{no_manager:?}");
+    assert!(world.bindings.task_manager(world.vega.id).await.unwrap().is_none());
+}
+
+#[tokio::test]
+async fn editing_a_binding_without_a_choice_leaves_it_the_task_manager_and_unchecking_it_clears_the_choice() {
+    let world = world().await;
+    let gitlab = world.connections.create(gitlab("GitLab", vec![world.acme.id])).await.unwrap();
+    let binding = world.bindings.bind(world.vega.id, gitlab.id, target("acme/vega")).await.unwrap();
+    world.bindings.update(world.vega.id, binding.id, as_task_manager(target("acme/vega"))).await.unwrap();
+
+    let renamed = world.bindings.update(world.vega.id, binding.id, target("acme/vega-two")).await.unwrap();
+    assert!(renamed.task_manager);
+
+    let released = world.bindings.update(world.vega.id, binding.id, ProjectConnectionCommand { task_manager: Some(false), ..target("acme/vega-two") }).await.unwrap();
+    assert!(!released.task_manager);
+    assert!(world.bindings.task_manager(world.vega.id).await.unwrap().is_none());
 }

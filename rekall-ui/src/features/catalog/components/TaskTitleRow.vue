@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import CopyAnchorButton from '@/components/console/CopyAnchorButton.vue'
 import QuickTaskMark from '@/features/catalog/components/QuickTaskMark.vue'
+import TaskTrackerMark from '@/features/catalog/components/TaskTrackerMark.vue'
 import TaskTokenChip from '@/features/tokens/components/TaskTokenChip.vue'
 import type { Task } from '@/features/catalog/model/catalog'
 
 /**
  * The task's name with what used to take a second line beside it: its status (`flags`), a button
  * that copies its `/rk` command, its generated tokens with their trend, and any `trailing` chip
- * to the right of them.
+ * to the right of them. The issue the task manager holds for it, or why writing it failed, sits beside the status.
  */
 defineProps<{ task: Task; copyTestid: string }>()
 </script>
@@ -18,6 +19,7 @@ defineProps<{ task: Task; copyTestid: string }>()
       {{ task.title }}
     </h2>
     <QuickTaskMark :task="task" />
+    <TaskTrackerMark :task="task" />
     <slot name="flags" />
     <CopyAnchorButton :anchor="task.anchor" :data-testid="copyTestid" />
     <TaskTokenChip :task="task" />

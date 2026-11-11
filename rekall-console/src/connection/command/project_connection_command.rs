@@ -4,4 +4,6 @@
 pub struct ProjectConnectionCommand {
     pub label: Option<String>,
     pub target: Option<String>,
+    /// Makes this binding the project's task manager, or stops it being one; none leaves it as it is.
+    pub task_manager: Option<bool>,
 }

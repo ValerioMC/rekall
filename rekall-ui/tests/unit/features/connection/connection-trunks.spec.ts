@@ -37,6 +37,7 @@ function binding(
     baseUrl: `https://${connectionId}.example.com`,
     kubeContext: null,
     target,
+    taskManager: false,
     credentialSetAt: null
   }
 }

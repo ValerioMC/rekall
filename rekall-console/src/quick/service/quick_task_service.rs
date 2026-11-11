@@ -42,7 +42,7 @@ impl QuickTaskService {
     async fn create_task(&self, command: &QuickTaskCommand) -> Result<TaskView> {
         in_write!(&self.ctx, |tx| {
             let free = free_label(&tx, command.project_id, &command.text).await?;
-            self.tasks.create_in(&tx, task_request(command.project_id, &command.text, free)).await
+            self.tasks.create_in(&mut tx, task_request(command.project_id, &command.text, free)).await
         })
     }
 

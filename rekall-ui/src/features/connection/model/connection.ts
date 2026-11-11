@@ -82,6 +82,8 @@ export interface ProjectConnection {
   readonly kubeContext: string | null
   /** The GitLab project path, the GitHub repository, the Kubernetes namespace, the Jira project key or the Grafana folder UID this project uses it for. */
   readonly target: string | null
+  /** The project writes its tasks to this binding's GitLab, GitHub or Jira project. At most one binding is. */
+  readonly taskManager: boolean
   readonly credentialSetAt: string | null
 }
 
@@ -89,6 +91,8 @@ export interface ProjectConnection {
 export interface ProjectConnectionInput {
   readonly label?: string
   readonly target: string | null
+  /** Left out, the binding stays as it is. */
+  readonly taskManager?: boolean
 }
 
 export type DiscoveryOutcome = 'BOUND' | 'ALREADY_BOUND' | 'NO_ORIGIN' | 'NO_CONNECTION' | 'NO_CREDENTIAL'

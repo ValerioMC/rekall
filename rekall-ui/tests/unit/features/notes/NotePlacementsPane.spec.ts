@@ -54,7 +54,7 @@ const task = (
   graphLaidAt: null,
   releaseSkipped: false,
   kind: 'TASK',
-  epicId: null, quick: false, autoAccepted: false, dependsOn: [],
+  epicId: null, quick: false, autoAccepted: false, dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null,
   anchor: `project:${projectId === vega ? 'vega' : 'beacon'} task:${label}`,
   updatedAt: '2026-09-01T10:00:00Z'
 })

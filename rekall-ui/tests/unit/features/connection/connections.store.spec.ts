@@ -182,6 +182,7 @@ describe('a project in the connections store', () => {
       baseUrl: null,
       kubeContext: null,
       target,
+      taskManager: false,
       credentialSetAt: null
     }
   }

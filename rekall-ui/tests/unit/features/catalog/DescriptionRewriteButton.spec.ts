@@ -60,7 +60,7 @@ function task(description: string | null): Task {
     epicId: null,
     quick: false,
     autoAccepted: false,
-    dependsOn: [],
+    dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null,
     anchor: ANCHOR,
     updatedAt: '2026-11-11T10:00:00Z'
   }

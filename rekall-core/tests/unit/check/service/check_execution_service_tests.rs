@@ -41,7 +41,7 @@ async fn world_with_folder(runner: ScriptedCheckRunner, has_folder: bool) -> Wor
         description: None,
         blueprint_markdown: None,
         repo_folder: has_folder.then(|| project_folder.path().to_string_lossy().into_owned()),
-        auto_commit: false,
+        auto_commit: false, main_branch: None,
         company_id: company.id,
         created_at: now,
         updated_at: now,

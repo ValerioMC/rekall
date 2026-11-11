@@ -148,7 +148,7 @@ The guides describe each area as it behaves today, with its REST routes and prop
 | Review | Accept a claim, send a step back, and keep revisions of a description in a tab beside it (each aimed at the work or the plan), run as numbered passes that a session replies to; the review queue and its notifications | [workflow](docs/guide/workflow.md#description-review) |
 | Terminals | A real `claude` in a pseudo-terminal inside the app, or the same `claude` as a chat window (Settings > Claude Code > Session view); the run queue, which can work up to four tasks at once in git worktrees of their own; the usage meter | [sessions](docs/guide/sessions.md) |
 | Token usage | Tokens Claude Code generated per task and step, read from its transcripts | [sessions](docs/guide/sessions.md#token-usage) |
-| Projects | Page, sections, components, icons, autoconfigure; connections to GitLab, GitHub, Kubernetes, Jira and Grafana shared across companies | [projects](docs/guide/projects.md) |
+| Projects | Page, sections, components, icons, autoconfigure; connections to GitLab, GitHub, Kubernetes, Jira and Grafana shared across companies; a task manager (GitLab, GitHub or Jira) that receives the project's tasks, and a main branch their work is merged into | [projects](docs/guide/projects.md) |
 | Console | Search, notes and their scopes, tags, skills, the markdown editor, timers | [console](docs/guide/console.md) |
 | Report | Hours per client over a week or a month | [console](docs/guide/console.md#report) |
 | Claude resources | Edit `~/.claude`: instructions, skills, commands, agents, memories, memory review | [claude-resources](docs/guide/claude-resources.md) |

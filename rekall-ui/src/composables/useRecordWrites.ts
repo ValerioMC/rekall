@@ -42,6 +42,7 @@ export function useRecordWrites() {
       blueprintMarkdown: stored?.blueprintMarkdown ?? null,
       repoFolder: draft.id === null ? blankToNull(draft.repoFolder.trim()) : (stored?.repoFolder ?? null),
       autoCommit: stored?.autoCommit ?? false,
+      mainBranch: stored?.mainBranch ?? null,
       companyId: draft.companyId
     }
     if (draft.id === null) return (await store.createProject(input)).id

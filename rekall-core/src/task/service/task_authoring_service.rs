@@ -5,7 +5,7 @@ use rekall_store::repository as repo;
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
 
 use crate::flow::{FlowPlan, FlowProposalService};
-use crate::task::{Created, TaskBrief, TaskStreamEvent};
+use crate::task::{Created, TaskBrief, TaskContentChangedEvent, TaskStreamEvent};
 use crate::step::TaskStepService;
 use crate::{in_write, load, text_rule, Ctx, Tx};
 
@@ -45,6 +45,7 @@ impl TaskAuthoringService {
             require_label_free(&tx, &task).await?;
             task.clone().into_active_model().insert(tx.db()).await?;
             tx.publish(TaskStreamEvent { task_id: task.id, project_id: project.id });
+            tx.publish(TaskContentChangedEvent { task_id: task.id });
             let laid = self.flows.lay_in(&mut tx, task.id, plan).await?;
             self.steps.release_drafts_in(&tx, task.id).await?;
             self.steps.publish_in(&mut tx, task.id).await?;
