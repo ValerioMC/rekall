@@ -140,16 +140,6 @@ impl TaskService {
         })
     }
 
-    /// Keeps why the last push to the task manager failed, or clears it after one that worked.
-    pub async fn record_tracker_failure(&self, id: Id, failure: Option<String>) -> Result<()> {
-        in_write!(&self.ctx, |tx| {
-            let before = repo::task::require(tx.db(), id).await?;
-            let task = task::Model { tracker_sync_error: failure, ..before.clone() };
-            repo::update_if_changed(tx.db(), &before, task, self.ctx.now()).await?;
-            Ok::<_, RekallError>(())
-        })
-    }
-
     /// Records that a deployment graph was laid on the task, inside a transaction the caller holds.
     pub async fn mark_graph_laid_in(&self, tx: &Tx, id: Id) -> Result<()> {
         let before = repo::task::require(tx.db(), id).await?;

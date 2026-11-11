@@ -27,11 +27,6 @@ pub fn strip_trailing(text: &str) -> &str {
     text.trim_end_matches(is_whitespace)
 }
 
-/// Without leading whitespace.
-pub fn strip_leading(text: &str) -> &str {
-    text.trim_start_matches(is_whitespace)
-}
-
 /// Empty, or whitespace only.
 pub fn is_blank(text: &str) -> bool {
     text.chars().all(is_whitespace)

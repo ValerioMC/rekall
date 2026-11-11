@@ -19,9 +19,4 @@ impl DiagramDocument {
     pub fn has_walkthrough(&self) -> bool {
         self.sheets.iter().any(|sheet| sheet.walkthrough.is_some())
     }
-
-    /// How many elements, across every sheet, are tied to code.
-    pub fn linked_elements(&self) -> usize {
-        self.sheets.iter().map(|sheet| sheet.links.len()).sum()
-    }
 }

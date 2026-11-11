@@ -84,19 +84,6 @@ impl ContextService {
         Ok(vec![self.render_project(tx, &project).await?, self.render_task(tx, &task).await?])
     }
 
-    pub async fn load_project(&self, company_name: &str, project_label: &str) -> Result<ContextRecord> {
-        in_read!(&self.ctx, |tx| {
-            match repo::project::find_by_anchor(tx.db(), company_name, project_label)
-                .await?
-            {
-                Some(project) => self.render_project(&tx, &project).await,
-                None => Err(RekallError::unknown_anchor(format!(
-                    "No project '{project_label}' on company '{company_name}'"
-                ))),
-            }
-        })
-    }
-
     async fn load_anywhere(&self, tx: &Tx, value: &str) -> Result<ContextRecord> {
         let mut matches = Vec::new();
         if let Some(company) = repo::company::find_by_name(tx.db(), value).await? {

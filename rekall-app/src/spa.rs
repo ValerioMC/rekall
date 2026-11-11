@@ -46,11 +46,6 @@ impl Assets {
             None => Bundle::get(relative).map(|file| file.data.into_owned()),
         }
     }
-
-    /// Whether there is a console to serve at all.
-    pub fn has_index(&self) -> bool {
-        self.read("index.html").is_some()
-    }
 }
 
 const FORWARDED: [&str; 15] = [

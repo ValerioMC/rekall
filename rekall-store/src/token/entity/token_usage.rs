@@ -6,8 +6,6 @@
 use rekall_kernel::{Id, Instant};
 use sea_orm::entity::prelude::*;
 
-pub const SESSION_ID_MAX: usize = 100;
-
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
 #[sea_orm(table_name = "token_usage")]
 pub struct Model {

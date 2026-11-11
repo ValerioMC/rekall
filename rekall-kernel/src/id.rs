@@ -20,10 +20,6 @@ impl Id {
     pub fn random() -> Self {
         Self(Uuid::new_v4())
     }
-
-    pub fn as_uuid(&self) -> Uuid {
-        self.0
-    }
 }
 
 impl fmt::Display for Id {
