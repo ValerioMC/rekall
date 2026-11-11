@@ -2,8 +2,6 @@
 //! the JSON document `rekall-diagram` reads. It belongs to a project, whose folder its source
 //! paths are relative to, and remembers the task it was generated from while that task exists.
 
-pub mod diagram_repository;
-
 use rekall_kernel::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;
 
@@ -34,19 +32,19 @@ pub struct Model {
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
-    #[sea_orm(belongs_to = "super::project::Entity", from = "Column::ProjectId", to = "super::project::Column::Id", on_delete = "Cascade")]
+    #[sea_orm(belongs_to = "crate::project::Entity", from = "Column::ProjectId", to = "crate::project::Column::Id", on_delete = "Cascade")]
     Project,
-    #[sea_orm(belongs_to = "super::task::Entity", from = "Column::TaskId", to = "super::task::Column::Id", on_delete = "SetNull")]
+    #[sea_orm(belongs_to = "crate::task::Entity", from = "Column::TaskId", to = "crate::task::Column::Id", on_delete = "SetNull")]
     Task,
 }
 
-impl Related<super::project::Entity> for Entity {
+impl Related<crate::project::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Project.def()
     }
 }
 
-impl Related<super::task::Entity> for Entity {
+impl Related<crate::task::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Task.def()
     }

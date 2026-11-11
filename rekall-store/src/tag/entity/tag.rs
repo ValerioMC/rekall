@@ -1,8 +1,6 @@
 //! A configured badge a task can carry: a name, a glowing icon key and a glow colour key, both
 //! chosen from the fixed sets the console offers.
 
-pub mod tag_repository;
-
 use rekall_kernel::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;
 
@@ -22,11 +20,11 @@ pub struct Model {
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
-    #[sea_orm(has_many = "super::task::Entity")]
+    #[sea_orm(has_many = "crate::task::Entity")]
     Task,
 }
 
-impl Related<super::task::Entity> for Entity {
+impl Related<crate::task::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Task.def()
     }

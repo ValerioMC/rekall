@@ -3,8 +3,6 @@
 //! `review_state`, `claimed_at` and `accepted_at`. An epic (`kind`) holds no steps
 //! and gathers the tasks of its project whose `epic_id` names it.
 
-pub mod task_repository;
-
 use rekall_kernel::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;
 
@@ -52,58 +50,58 @@ pub struct Model {
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
     #[sea_orm(
-        belongs_to = "super::project::Entity",
+        belongs_to = "crate::project::Entity",
         from = "Column::ProjectId",
-        to = "super::project::Column::Id",
+        to = "crate::project::Column::Id",
         on_delete = "Cascade"
     )]
     Project,
     #[sea_orm(
-        belongs_to = "super::tag::Entity",
+        belongs_to = "crate::tag::Entity",
         from = "Column::TagId",
-        to = "super::tag::Column::Id",
+        to = "crate::tag::Column::Id",
         on_delete = "SetNull"
     )]
     Tag,
-    #[sea_orm(has_many = "super::task_step::Entity")]
+    #[sea_orm(has_many = "crate::task_step::Entity")]
     TaskStep,
-    #[sea_orm(has_one = "super::wrapup::Entity")]
+    #[sea_orm(has_one = "crate::wrapup::Entity")]
     Wrapup,
-    #[sea_orm(has_many = "super::document_task::Entity")]
+    #[sea_orm(has_many = "crate::document_task::Entity")]
     DocumentTask,
 }
 
-impl Related<super::project::Entity> for Entity {
+impl Related<crate::project::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Project.def()
     }
 }
 
-impl Related<super::tag::Entity> for Entity {
+impl Related<crate::tag::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Tag.def()
     }
 }
 
-impl Related<super::task_step::Entity> for Entity {
+impl Related<crate::task_step::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::TaskStep.def()
     }
 }
 
-impl Related<super::wrapup::Entity> for Entity {
+impl Related<crate::wrapup::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Wrapup.def()
     }
 }
 
-impl Related<super::document::Entity> for Entity {
+impl Related<crate::document::Entity> for Entity {
     fn to() -> RelationDef {
-        super::document_task::Relation::Document.def()
+        crate::document_task::Relation::Document.def()
     }
 
     fn via() -> Option<RelationDef> {
-        Some(super::document_task::Relation::Task.def().rev())
+        Some(crate::document_task::Relation::Task.def().rev())
     }
 }
 
@@ -183,7 +181,7 @@ impl Model {
     }
 
     /// Where this task's files are: its worktree while it has one, else the project's folder.
-    pub fn work_folder<'a>(&'a self, project: &'a super::project::Model) -> Option<&'a str> {
+    pub fn work_folder<'a>(&'a self, project: &'a crate::project::Model) -> Option<&'a str> {
         let own = self.worktree_folder.as_deref().filter(|folder| !rekall_kernel::jstr::is_blank(folder));
         own.or_else(|| project.repo_folder.as_deref().filter(|folder| !rekall_kernel::jstr::is_blank(folder)))
     }
@@ -243,5 +241,5 @@ impl Model {
 }
 
 #[cfg(test)]
-#[path = "../tests/unit/task_tests.rs"]
+#[path = "../../../tests/unit/task/entity/task_tests.rs"]
 mod tests;
