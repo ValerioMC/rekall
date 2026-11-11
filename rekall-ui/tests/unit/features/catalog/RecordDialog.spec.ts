@@ -125,6 +125,62 @@ describe('RecordDialog project icon image', () => {
   })
 })
 
+describe('RecordDialog project folder', () => {
+  const existing = {
+    id: 'p1',
+    label: 'vega',
+    title: 'Vega',
+    description: null,
+    status: 'ACTIVE',
+    icon: 'folder',
+    companyId: 'c1',
+    blueprintMarkdown: null,
+    repoFolder: '/stored/vega',
+    autoCommit: false
+  } as unknown as Project
+
+  function renderProject(draft: RecordDraft): VueWrapper {
+    wrapper = mount(RecordDialog, { attachTo: document.body, props: { draft }, global: { plugins: [pinia] } })
+    return wrapper
+  }
+
+  it('creates the project with the folder that was typed', async () => {
+    const store = useConsoleStore()
+    store.createProject = vi.fn().mockResolvedValue({ id: 'p9' } as Project)
+    const dialog = renderProject({ ...projectDraft('c1' as CompanyId), title: 'Vega', label: 'vega' } as RecordDraft)
+
+    await dialog.get('[data-testid="record-project-folder"]').setValue('  /work/vega  ')
+    await dialog.get('[data-testid="record-save"]').trigger('click')
+    await flushPromises()
+
+    expect(store.createProject).toHaveBeenCalledWith(expect.objectContaining({ repoFolder: '/work/vega' }))
+  })
+
+  it('creates the project without a folder when the field is left blank', async () => {
+    const store = useConsoleStore()
+    store.createProject = vi.fn().mockResolvedValue({ id: 'p9' } as Project)
+    const dialog = renderProject({ ...projectDraft('c1' as CompanyId), title: 'Vega', label: 'vega' } as RecordDraft)
+
+    await dialog.get('[data-testid="record-save"]').trigger('click')
+    await flushPromises()
+
+    expect(store.createProject).toHaveBeenCalledWith(expect.objectContaining({ repoFolder: null }))
+  })
+
+  it('does not ask for the folder when an existing project is edited, and keeps the stored one', async () => {
+    const store = useConsoleStore()
+    store.projects = [existing]
+    store.updateProject = vi.fn().mockResolvedValue(undefined)
+    const dialog = renderProject(projectDraft('c1' as CompanyId, existing))
+
+    expect(dialog.find('[data-testid="record-project-folder"]').exists()).toBe(false)
+    await dialog.get('[data-testid="record-save"]').trigger('click')
+    await flushPromises()
+
+    expect(store.updateProject).toHaveBeenCalledWith('p1', expect.objectContaining({ repoFolder: '/stored/vega' }))
+  })
+})
+
 describe('RecordDialog company logo', () => {
   const acme: Company = {
     id: 'c1' as CompanyId,

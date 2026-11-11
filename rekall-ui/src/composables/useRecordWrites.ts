@@ -1,4 +1,5 @@
 import { useConsoleStore } from '@/stores/console.store'
+import { blankToNull } from '@/stores/console/rows'
 import type { RecordDraft } from '@/features/catalog/model/record-draft'
 import type { CompanyId, ProjectId } from '@/model/branded'
 
@@ -12,8 +13,8 @@ export interface AfterSave {
 
 /**
  * What saving or deleting a company, project or task from the record dialog sends to the store.
- * A project keeps the fields its own page edits (blueprint, folder, auto-commit) as they are
- * stored, since the dialog does not show them. A blank description is saved as none.
+ * A project keeps the fields its own page edits (blueprint, auto-commit, and its folder once
+ * created) as they are stored, since the dialog does not show them. A blank description is saved as none.
  */
 export function useRecordWrites() {
   const store = useConsoleStore()
@@ -39,7 +40,7 @@ export function useRecordWrites() {
       icon: draft.icon,
       description: descriptionOf(draft),
       blueprintMarkdown: stored?.blueprintMarkdown ?? null,
-      repoFolder: stored?.repoFolder ?? null,
+      repoFolder: draft.id === null ? blankToNull(draft.repoFolder.trim()) : (stored?.repoFolder ?? null),
       autoCommit: stored?.autoCommit ?? false,
       companyId: draft.companyId
     }

@@ -6,6 +6,7 @@ import AppSelect from '@/components/ui/AppSelect.vue'
 import CloseGlyph from '@/components/ui/CloseGlyph.vue'
 import ProjectPicker from '@/features/catalog/components/ProjectPicker.vue'
 import CompanyLogoField from '@/features/catalog/components/record/CompanyLogoField.vue'
+import ProjectFolderField from '@/features/catalog/components/record/ProjectFolderField.vue'
 import ProjectIconField from '@/features/catalog/components/record/ProjectIconField.vue'
 import RecordIdentityFields from '@/features/catalog/components/record/RecordIdentityFields.vue'
 import TaskSkillsField from '@/features/catalog/components/record/TaskSkillsField.vue'
@@ -164,6 +165,13 @@ const projectIcon = computed<string>({
   get: () => (form.value.kind === 'project' ? form.value.icon : 'folder'),
   set: (value) => {
     if (form.value.kind === 'project') form.value.icon = value
+  }
+})
+
+const projectFolder = computed<string>({
+  get: () => (form.value.kind === 'project' ? form.value.repoFolder : ''),
+  set: (value) => {
+    if (form.value.kind === 'project') form.value.repoFolder = value
   }
 })
 
@@ -328,6 +336,8 @@ onUnmounted(() => window.removeEventListener('keydown', saveOnModEnter, true))
           </button>
         </div>
       </template>
+
+      <ProjectFolderField v-if="form.kind === 'project' && isNew" v-model="projectFolder" />
 
       <ProjectIconField v-if="form.kind === 'project'" ref="iconField" v-model="projectIcon" :project-id="form.id" />
 

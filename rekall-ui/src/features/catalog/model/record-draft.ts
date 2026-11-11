@@ -17,6 +17,8 @@ export type RecordDraft =
       status: ProjectStatus
       icon: string
       companyId: CompanyId
+      /** Where the project's sessions run; asked only when the project is created. */
+      repoFolder: string
     }
   | {
       kind: 'task'
@@ -52,7 +54,8 @@ export function projectDraft(companyId: CompanyId, project?: Project): RecordDra
     description: project?.description ?? '',
     status: project?.status ?? 'ACTIVE',
     icon: project?.icon ?? 'folder',
-    companyId: project?.companyId ?? companyId
+    companyId: project?.companyId ?? companyId,
+    repoFolder: project?.repoFolder ?? ''
   }
 }
 
