@@ -429,6 +429,18 @@ describe('the console', () => {
     expect(rows[0]!.text()).toContain('Retry policy')
   })
 
+  it('adds information to the task in view on N', async () => {
+    const wrapper = await mountConsole()
+    await wrapper.findAll('[data-testid="task-row"]')[1]!.trigger('click')
+    await flushPromises()
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'n' }))
+    await flushPromises()
+
+    expect(createDocument).toHaveBeenCalledWith(expect.objectContaining({ kind: 'notes', taskIds: [retry] }))
+    wrapper.unmount()
+  })
+
   it('sets a task status from the number keys, with no form and no save', async () => {
     const wrapper = await mountConsole()
 

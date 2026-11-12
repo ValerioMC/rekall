@@ -86,6 +86,7 @@ const navigator = ref<InstanceType<typeof NavigatorPane> | null>(null)
 const descriptionPane = ref<InstanceType<typeof DescriptionPane> | null>(null)
 const epicPane = ref<InstanceType<typeof EpicPane> | null>(null)
 const notePane = ref<InstanceType<typeof NotePane> | null>(null)
+const noteList = ref<InstanceType<typeof NoteListPane> | null>(null)
 const deviationPane = ref<InstanceType<typeof DeviationPane> | null>(null)
 const settingsOpen = ref(false)
 const claudeConnection = useClaudeConnectionStore()
@@ -123,6 +124,12 @@ function onKeydown(event: KeyboardEvent): void {
       deviationPane.value?.step(event.key === ']' ? 1 : -1)
       return
     }
+  }
+
+  if (key === 'n') {
+    event.preventDefault()
+    void noteList.value?.addInformation()
+    return
   }
 
   if (key === 'w' || key === 'd' || key === 's') {
@@ -227,7 +234,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
     <div class="flex min-h-0 flex-1">
       <NavigatorPane ref="navigator" />
-      <NoteListPane />
+      <NoteListPane ref="noteList" />
       <!-- A place focus is sent to (the skip link, a pane shortcut), never a control, so it
            draws no ring: the pane that appears in it is what says where you are. -->
       <div ref="noteArea" class="relative flex min-h-0 min-w-0 flex-1">

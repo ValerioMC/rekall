@@ -4,11 +4,10 @@ const SHORTCUTS = [
   { keys: '⌘K', does: 'search by anchor' },
   { keys: 'T', does: 'new task' },
   { keys: 'E', does: 'edit task' },
-  { keys: 'N', does: 'new note' },
+  { keys: 'N', does: 'add information' },
   { keys: 'D', does: 'description' },
   { keys: 'W', does: 'wrapup' },
   { keys: 'R', does: 'read / write' },
-  { keys: 'B', does: 'tasks / notes' },
   { keys: 'J K', does: 'walk the list' },
   { keys: '1-5', does: 'set status' }
 ] as const
