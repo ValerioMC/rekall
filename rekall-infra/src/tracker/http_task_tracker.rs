@@ -207,7 +207,7 @@ fn jira_description(deployment: JiraDeployment, markdown: &str) -> Value {
 }
 
 /// GitLab names a project in the path by its full path with the slashes encoded.
-fn gitlab_project(path: &str) -> String {
+pub(super) fn gitlab_project(path: &str) -> String {
     path.replace('/', "%2F")
 }
 

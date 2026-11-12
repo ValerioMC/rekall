@@ -29,7 +29,7 @@ use rekall_infra::pty::{PtyTerminalManager, PtyTerminals, SessionRelay};
 use rekall_infra::queue::RunQueueRunner;
 use rekall_infra::secret::{FileSecretStore, KeychainSecretStore, SECRETS_FILE};
 use rekall_infra::session::{SessionHosts, WorkMarker};
-use rekall_infra::tracker::{GithubPullRequestHost, HttpTaskTracker};
+use rekall_infra::tracker::{ConnectionPullRequestHost, HttpTaskTracker};
 use rekall_infra::usage::ClaudeUsageService;
 use rekall_infra::version::GithubReleaseFeed;
 use rekall_infra::vulnerability::GithubAdvisoryFeed;
@@ -183,7 +183,7 @@ pub(super) fn start_queue(
     let layout = WorktreeLayout::new(config.home.join(WORKTREES_FOLDER));
     let git: Arc<dyn WorktreeHost> = Arc::new(GitWorktreeHost::new(layout.clone()));
     let worktrees = TaskWorktreeService::new(ctx.clone(), git.clone(), layout.clone());
-    let pull_requests = TaskPullRequestService::new(ctx.clone(), task_tracker.clone(), git, Arc::new(GithubPullRequestHost::new()), layout);
+    let pull_requests = TaskPullRequestService::new(ctx.clone(), task_tracker.clone(), git, Arc::new(ConnectionPullRequestHost::new()), layout);
     WorktreeCleaner::start(events, services.task_work.clone(), worktrees.clone(), pull_requests, sessions.clone(), MERGE_SESSION_CHECK);
     let runner = RunQueueRunner::start(
         queue.clone(),

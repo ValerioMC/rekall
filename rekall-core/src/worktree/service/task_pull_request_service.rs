@@ -12,6 +12,7 @@ use tracing::{info, warn};
 use crate::claude::{Remaining, TaskWorkService};
 use crate::commit::GitRepositoryInspector;
 use crate::connection::{PullRequest, PullRequestHost, PullRequestMerge, TaskTrackerService, TrackerEndpoint, TrackerFailure, Mergeability};
+use crate::worktree::rule::request_noun::request_noun;
 use crate::worktree::{pull_request_body, PullRequestLanding, PushOutcome, StepCommit, WorktreeHost, WorktreeLayout};
 use crate::{in_read, in_write, load, Ctx};
 
@@ -101,9 +102,9 @@ impl TaskPullRequestService {
                 let base = self.base_of(landing.project_folder.as_deref().unwrap_or_default(), landing.main_branch.as_deref()).await?;
                 Ok(PullRequestLanding::Conflicting { base })
             }
-            Ok(PullRequestMerge::Refused(reason)) => self.refuse_merge(task_id, format!("The pull request was not merged: {reason}")).await,
+            Ok(PullRequestMerge::Refused(reason)) => self.refuse_merge(task_id, format!("The {} was not merged: {reason}", request_noun(endpoint.kind))).await,
             Err(failure) => {
-                let message = failure_message(&failure, "merge the pull request");
+                let message = failure_message(&failure, &format!("merge the {}", request_noun(endpoint.kind)));
                 warn!(failure = %message, %task_id, "A task's pull request could not be merged");
                 self.keep_failure(task_id, Some(message.clone())).await?;
                 Err(RekallError::conflict(message))
@@ -119,7 +120,7 @@ impl TaskPullRequestService {
     async fn close_issue(&self, task_id: Id, endpoint: &TrackerEndpoint, issue_key: Option<&str>) {
         let Some(issue_key) = issue_key else { return };
         if let Err(failure) = self.hosts.close_issue(endpoint, issue_key).await {
-            let message = format!("The pull request is merged. {}", failure_message(&failure, "close its issue"));
+            let message = format!("The {} is merged. {}", request_noun(endpoint.kind), failure_message(&failure, "close its issue"));
             warn!(failure = %message, %task_id, issue = issue_key, "A merged task's issue could not be closed");
             if let Err(failure) = self.keep_failure(task_id, Some(message)).await {
                 warn!(%failure, %task_id, "Could not keep why a merged task's issue stayed open");
@@ -169,7 +170,7 @@ impl TaskPullRequestService {
         let Some(endpoint) = self.tracker.endpoint_of_project(claim.task.project_id).await? else { return Ok(None) };
         let base = self.base_of(&claim.project_folder, claim.main_branch.as_deref()).await?;
         let opened = self.hosts.open(&endpoint, &branch, &base, &claim.task.title, &claim.body).await;
-        opened.map(Some).map_err(|failure| RekallError::conflict(failure_message(&failure, "open the pull request")))
+        opened.map(Some).map_err(|failure| RekallError::conflict(failure_message(&failure, &format!("open the {}", request_noun(endpoint.kind)))))
     }
 
     async fn push(&self, claim: &Claim, branch: &str) -> Result<()> {
