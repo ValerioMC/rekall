@@ -6,7 +6,7 @@ use rekall_store::task;
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
 use crate::step::model::step_rules::{apply_draft, awaits_acceptance, require_unstarted, validated_body, validated_title};
-use crate::step::{Staging, StepFlowRows, StepStreamEvent, TaskStepView};
+use crate::step::{NewStep, Staging, StepEdit, StepFlowRows, StepStreamEvent, TaskStepView};
 use crate::timeentry::TimeEntryService;
 use crate::{in_read, in_write, load, Ctx, Tx};
 
@@ -44,48 +44,28 @@ impl TaskStepService {
         steps.iter().map(|step| TaskStepView::of(step, &flow)).collect()
     }
 
-    pub async fn add(&self, task_id: Id, title: Option<&str>, body_markdown: Option<&str>) -> Result<TaskStepView> {
-        in_write!(&self.ctx, |tx| self.add_in(&mut tx, task_id, title, body_markdown).await)
+    pub async fn add(&self, task_id: Id, step: NewStep<'_>) -> Result<TaskStepView> {
+        in_write!(&self.ctx, |tx| self.add_in(&mut tx, task_id, step).await)
     }
 
-    pub async fn add_in(
-        &self,
-        tx: &mut Tx,
-        task_id: Id,
-        title: Option<&str>,
-        body_markdown: Option<&str>,
-    ) -> Result<TaskStepView> {
-        self.insert_in(tx, task_id, title, body_markdown, TaskStepState::Draft, false).await
+    pub async fn add_in(&self, tx: &mut Tx, task_id: Id, step: NewStep<'_>) -> Result<TaskStepView> {
+        self.insert_in(tx, task_id, step, TaskStepState::Draft).await
     }
 
     /// Adds a step already promoted to work, for a task the console starts a session on as soon
     /// as it exists: a draft there would leave that session with nothing it may work.
-    pub async fn add_open_in(
-        &self,
-        tx: &mut Tx,
-        task_id: Id,
-        title: Option<&str>,
-        body_markdown: Option<&str>,
-    ) -> Result<TaskStepView> {
-        self.insert_in(tx, task_id, title, body_markdown, TaskStepState::Open, false).await
+    pub async fn add_open_in(&self, tx: &mut Tx, task_id: Id, step: NewStep<'_>) -> Result<TaskStepView> {
+        self.insert_in(tx, task_id, step, TaskStepState::Open).await
     }
 
-    async fn insert_in(
-        &self,
-        tx: &mut Tx,
-        task_id: Id,
-        title: Option<&str>,
-        body_markdown: Option<&str>,
-        state: TaskStepState,
-        starts_session: bool,
-    ) -> Result<TaskStepView> {
+    async fn insert_in(&self, tx: &mut Tx, task_id: Id, new_step: NewStep<'_>, state: TaskStepState) -> Result<TaskStepView> {
         let task = load::task_or_unknown(tx.db(), task_id).await?;
         task.require_workable("holds no steps")?;
         let siblings = load::steps_of(tx.db(), task_id).await?;
-        let mut step = task_step::Model::new(task_id, validated_title(title)?, siblings.len() as i32, self.ctx.now());
+        let mut step = task_step::Model::new(task_id, validated_title(new_step.title)?, siblings.len() as i32, self.ctx.now());
         step.mark_state(state);
-        step.starts_session = starts_session;
-        step.body_markdown = validated_body(body_markdown)?;
+        step.starts_session = new_step.starts_session;
+        step.body_markdown = validated_body(new_step.body_markdown)?;
         step.validate()?;
         let saved = step.into_active_model().insert(tx.db()).await?;
         let view = self.view_in(tx, &saved).await?;
@@ -101,14 +81,12 @@ impl TaskStepService {
         &self,
         project_label: Option<&str>,
         task_label: &str,
-        title: Option<&str>,
-        body_markdown: Option<&str>,
-        starts_session: bool,
+        step: NewStep<'_>,
         staging: Staging,
     ) -> Result<Proposed> {
         in_write!(&self.ctx, |tx| {
             let task = load::resolve_task(tx.db(), project_label, task_label).await?;
-            let wanted = validated_title(title)?;
+            let wanted = validated_title(step.title)?;
             let siblings = load::steps_of(tx.db(), task.id).await?;
             if let Some(existing) = siblings
                 .iter()
@@ -127,7 +105,7 @@ impl TaskStepService {
                      or delete some in the console first."
                 )));
             }
-            let added = self.insert_in(&mut tx, task.id, Some(&wanted), body_markdown, TaskStepState::Draft, starts_session).await?;
+            let added = self.insert_in(&mut tx, task.id, NewStep { title: Some(&wanted), ..step }, TaskStepState::Draft).await?;
             if staging == Staging::Ready {
                 self.release_in(&tx, added.id).await?;
                 self.publish_in(&mut tx, task.id).await?;
@@ -164,14 +142,8 @@ impl TaskStepService {
 
     /// A console edit. Ticking a claimed step done accepts the claim, which also stops the task's
     /// timer; ticking an open step by hand leaves it running.
-    pub async fn edit(
-        &self,
-        id: Id,
-        title: Option<&str>,
-        body_markdown: Option<&str>,
-        done: Option<bool>,
-        draft: Option<bool>,
-    ) -> Result<TaskStepView> {
+    pub async fn edit(&self, id: Id, edit: StepEdit<'_>) -> Result<TaskStepView> {
+        let StepEdit { title, body_markdown, done, draft } = edit;
         in_write!(&self.ctx, |tx| {
             let before = self.require(&tx, id).await?;
             let mut step = before.clone();

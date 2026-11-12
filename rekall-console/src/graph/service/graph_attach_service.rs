@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use rekall_kernel::{jstr, Id, RekallError, Result};
 use rekall_store::{deployment_graph, task};
 use rekall_core::flow::{RouteTarget, StepLinkService, StepPlacementService, StepVisitService};
-use rekall_core::step::{StepBindingService, TaskStepService, TaskStepView, VisitBudget};
+use rekall_core::step::{NewStep, StepBindingService, TaskStepService, TaskStepView, VisitBudget};
 use rekall_store::repository as repo;
 use rekall_core::{in_write, Ctx, Tx};
 
@@ -89,7 +89,7 @@ impl GraphAttachService {
         require_no_drafts(&work)?;
         require_free_titles(&work, stored)?;
         if work.is_empty() {
-            work.push(self.steps.add_open_in(tx, task.id, Some(IMPLEMENTATION_TITLE), Some(IMPLEMENTATION_DETAIL)).await?);
+            work.push(self.steps.add_open_in(tx, task.id, NewStep::titled(IMPLEMENTATION_TITLE, Some(IMPLEMENTATION_DETAIL))).await?);
         }
         let laid = self.lay_steps_in(tx, task.id, stored).await?;
         self.lay_routes_in(tx, stored, &laid).await?;
@@ -105,7 +105,7 @@ impl GraphAttachService {
     async fn lay_steps_in(&self, tx: &mut Tx, task_id: Id, stored: &StoredGraph) -> Result<HashMap<Id, Id>> {
         let mut laid = HashMap::with_capacity(stored.steps.len());
         for step in &stored.steps {
-            let added = self.steps.add_open_in(tx, task_id, Some(&step.title), step.body_markdown.as_deref()).await?;
+            let added = self.steps.add_open_in(tx, task_id, NewStep::titled(&step.title, step.body_markdown.as_deref())).await?;
             if let Some(visits) = step.max_visits {
                 self.placement.limit_visits_in(tx, added.id, Some(VisitBudget::new(visits)?)).await?;
             }

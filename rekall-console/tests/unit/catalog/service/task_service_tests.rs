@@ -1,5 +1,6 @@
 use rekall_kernel::Instant;
 use rekall_store::{company, task_pull_request, ProjectStatus, TaskKind};
+use rekall_core::step::{NewStep, StepEdit};
 use rekall_core::task::TaskContentChangedEvent;
 use rekall_core::{EventBus, Services};
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
@@ -115,7 +116,7 @@ async fn an_empty_epic_turns_back_into_a_task() {
 async fn a_task_with_steps_cannot_become_an_epic() {
     let world = world().await;
     let task = world.service.create(command("checkout", world.project_id, TaskKind::Task, None)).await.unwrap();
-    world.steps.add(task.id, Some("Wire the form"), None).await.unwrap();
+    world.steps.add(task.id, NewStep::titled("Wire the form", None)).await.unwrap();
     let refused = world.service.update(task.id, command("checkout", world.project_id, TaskKind::Epic, None)).await;
     assert!(refused.is_err());
 }
@@ -124,7 +125,7 @@ async fn a_task_with_steps_cannot_become_an_epic() {
 async fn an_epic_takes_no_step() {
     let world = world().await;
     let epic = world.service.create(command("checkout", world.project_id, TaskKind::Epic, None)).await.unwrap();
-    assert!(world.steps.add(epic.id, Some("Wire the form"), None).await.is_err());
+    assert!(world.steps.add(epic.id, NewStep::titled("Wire the form", None)).await.is_err());
 }
 
 #[tokio::test]
@@ -144,9 +145,9 @@ fn done_command(label: &str, project_id: Id) -> TaskCommand {
 async fn putting_a_task_with_steps_to_done_accepts_every_step_but_the_drafts() {
     let world = world().await;
     let task = world.service.create(command("checkout", world.project_id, TaskKind::Task, None)).await.unwrap();
-    let worked = world.steps.add(task.id, Some("Wire the form"), None).await.unwrap();
-    world.steps.add(task.id, Some("Maybe later"), None).await.unwrap();
-    world.steps.edit(worked.id, None, None, None, Some(false)).await.unwrap();
+    let worked = world.steps.add(task.id, NewStep::titled("Wire the form", None)).await.unwrap();
+    world.steps.add(task.id, NewStep::titled("Maybe later", None)).await.unwrap();
+    world.steps.edit(worked.id, StepEdit { draft: Some(false), ..StepEdit::default() }).await.unwrap();
 
     let saved = world.service.update(task.id, done_command("checkout", world.project_id)).await.unwrap();
 

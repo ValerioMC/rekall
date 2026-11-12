@@ -3,7 +3,7 @@ use rekall_kernel::{Id, RekallError, Result};
 use rekall_kernel::jstr;
 
 use crate::flow::{FlowPlan, ProposedFlow, Replanned, RouteTarget, StepLinkService, StepPlacementService};
-use crate::step::{Staging, StepBindingService, TaskStepService, TaskStepView};
+use crate::step::{NewStep, Staging, StepBindingService, TaskStepService, TaskStepView};
 use crate::{in_write, load, Ctx, Tx};
 
 /// Lays a planned flow on a task as steps and the routes between them, in one transaction. It
@@ -81,7 +81,7 @@ impl FlowProposalService {
     pub async fn lay_in(&self, tx: &mut Tx, task_id: Id, plan: &FlowPlan) -> Result<ProposedFlow> {
         let mut drafts = Vec::with_capacity(plan.steps.len());
         for planned in &plan.steps {
-            let draft = self.steps.add_in(tx, task_id, Some(&planned.title), planned.detail.as_deref()).await?;
+            let draft = self.steps.add_in(tx, task_id, NewStep::titled(&planned.title, planned.detail.as_deref())).await?;
             if planned.max_visits.is_some() {
                 self.placement.limit_visits_in(tx, draft.id, planned.max_visits).await?;
             }

@@ -2,7 +2,7 @@ use axum::extract::{Path, State};
 use axum::response::Response;
 use axum::routing::{get, patch, post};
 use axum::{Json, Router};
-use rekall_core::step::TaskStepView;
+use rekall_core::step::{NewStep, StepEdit, TaskStepView};
 
 use crate::shared::{created, no_content};
 use crate::step::{TaskStepMoveRequest, TaskStepPatchRequest, TaskStepRequest, TaskStepSessionRequest};
@@ -31,7 +31,7 @@ async fn list_on(State(state): State<ApiState>, Path(task_id): Path<String>) -> 
 async fn add(State(state): State<ApiState>, Path(task_id): Path<String>, JsonBody(request): JsonBody<TaskStepRequest>) -> ApiResult<Response> {
     let task_id = uuid("taskId", &task_id)?;
     Validator::new().not_blank("title", request.title.as_deref()).finish()?;
-    Ok(created(state.steps.add(task_id, request.title.as_deref(), request.body_markdown.as_deref()).await?))
+    Ok(created(state.steps.add(task_id, NewStep { title: request.title.as_deref(), body_markdown: request.body_markdown.as_deref(), ..NewStep::default() }).await?))
 }
 
 async fn edit(State(state): State<ApiState>, Path(id): Path<String>, JsonBody(request): JsonBody<TaskStepPatchRequest>) -> ApiResult<Json<TaskStepView>> {
@@ -39,7 +39,10 @@ async fn edit(State(state): State<ApiState>, Path(id): Path<String>, JsonBody(re
     Ok(Json(
         state
             .steps
-            .edit(id, request.title.as_deref(), request.body_markdown.as_deref(), request.done, request.draft)
+            .edit(
+                id,
+                StepEdit { title: request.title.as_deref(), body_markdown: request.body_markdown.as_deref(), done: request.done, draft: request.draft },
+            )
             .await?,
     ))
 }

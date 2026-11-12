@@ -1,3 +1,4 @@
+use rekall_core::step::NewStep;
 use rekall_core::{EventBus, Services};
 use rekall_kernel::Instant;
 use rekall_store::{company, project, ProjectStatus, TaskKind};
@@ -66,7 +67,7 @@ async fn a_project_check_is_listed_with_the_next_position_of_its_scope() {
 #[tokio::test]
 async fn a_step_check_takes_the_project_of_its_task_and_lists_after_the_project_ones() {
     let world = world().await;
-    let step = world.steps.add(world.task_id, Some("Wire the form"), None).await.unwrap();
+    let step = world.steps.add(world.task_id, NewStep::titled("Wire the form", None)).await.unwrap();
     let on_step = world.service.create_for_step(step.id, check("form test")).await.unwrap();
     let on_project = world.service.create_for_project(world.project_id, check("backend tests")).await.unwrap();
 
@@ -92,7 +93,7 @@ async fn a_check_is_edited_field_by_field_and_a_blank_folder_clears_it() {
 #[tokio::test]
 async fn a_scope_is_put_in_order_and_only_that_scope() {
     let world = world().await;
-    let step = world.steps.add(world.task_id, Some("Wire the form"), None).await.unwrap();
+    let step = world.steps.add(world.task_id, NewStep::titled("Wire the form", None)).await.unwrap();
     let first = world.service.create_for_project(world.project_id, check("one")).await.unwrap();
     let second = world.service.create_for_project(world.project_id, check("two")).await.unwrap();
     let on_step = world.service.create_for_step(step.id, check("form")).await.unwrap();
@@ -155,7 +156,7 @@ async fn deleting_a_check_removes_only_that_check() {
 #[tokio::test]
 async fn deleting_the_task_removes_the_checks_of_its_steps_and_keeps_the_projects() {
     let world = world().await;
-    let step = world.steps.add(world.task_id, Some("Wire the form"), None).await.unwrap();
+    let step = world.steps.add(world.task_id, NewStep::titled("Wire the form", None)).await.unwrap();
     world.service.create_for_step(step.id, check("form")).await.unwrap();
     let on_project = world.service.create_for_project(world.project_id, check("backend tests")).await.unwrap();
 
@@ -177,7 +178,7 @@ async fn deleting_the_project_removes_its_checks() {
 #[tokio::test]
 async fn the_results_of_a_task_are_listed_latest_first_with_the_label_of_their_check() {
     let world = world().await;
-    let step = world.steps.add(world.task_id, Some("Wire the form"), None).await.unwrap();
+    let step = world.steps.add(world.task_id, NewStep::titled("Wire the form", None)).await.unwrap();
     let on_project = world.service.create_for_project(world.project_id, check("backend tests")).await.unwrap();
     let on_step = world.service.create_for_step(step.id, check("form test")).await.unwrap();
     let ran = |check: &CheckView, step_id: Option<Id>, exit_code: Option<i32>, seconds: i64| rekall_store::done_check_result::Model {

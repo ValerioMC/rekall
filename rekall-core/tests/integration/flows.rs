@@ -5,7 +5,7 @@ mod support;
 
 use rekall_store::{task, task_step, TaskStepState};
 use rekall_core::flow::{FlowPlan, FlowRoute, PlannedRoute, PlannedStep, RouteTarget};
-use rekall_core::step::{FlowPlace, Staging, VisitBudget};
+use rekall_core::step::{FlowPlace, Staging, StepEdit, VisitBudget};
 use rekall_core::step::TaskStepView;
 use support::{world, World};
 
@@ -240,7 +240,7 @@ async fn deleting_a_step_drops_the_routes_that_touch_it() {
 async fn a_route_into_a_draft_is_refused_when_the_flow_reaches_it() {
     let world = world().await;
     let pipeline = pipeline(&world).await;
-    world.services.steps.edit(pipeline.deploy.id, None, None, None, Some(true)).await.unwrap();
+    world.services.steps.edit(pipeline.deploy.id, StepEdit { draft: Some(true), ..StepEdit::default() }).await.unwrap();
 
     let refused = world.services.flow.transition(Some("vega"), "release", Some("Build"), TaskStepState::Claimed, None, None).await;
 
@@ -365,7 +365,7 @@ fn deploy_test_fix() -> FlowPlan {
 
 async fn promote_all(world: &World, task: &task::Model) {
     for step in world.services.steps.find_by_task(task.id).await.unwrap() {
-        world.services.steps.edit(step.id, None, None, None, Some(false)).await.unwrap();
+        world.services.steps.edit(step.id, StepEdit { draft: Some(false), ..StepEdit::default() }).await.unwrap();
     }
 }
 
@@ -779,7 +779,7 @@ async fn a_flow_whose_visits_were_all_accepted_reads_as_accepted_whatever_it_lef
     claim(&world, "Deploy", Some("deployed")).await;
     claim(&world, "Test", Some("passed")).await;
     for step in [&pipeline.build, &pipeline.deploy, &pipeline.test] {
-        world.services.steps.edit(step.id, None, None, Some(true), None).await.unwrap();
+        world.services.steps.edit(step.id, StepEdit { done: Some(true), ..StepEdit::default() }).await.unwrap();
     }
 
     let work = world.services.task_work.read(pipeline.task.id).await.unwrap();

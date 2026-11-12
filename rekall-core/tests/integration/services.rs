@@ -11,7 +11,7 @@ use rekall_kernel::{Id, Instant};
 use rekall_store::TaskStepState;
 use rekall_core::commit::AutoCommitStatus;
 use rekall_core::component::ComponentReferences;
-use rekall_core::step::Staging;
+use rekall_core::step::{NewStep, Staging, StepEdit};
 use rekall_core::timeentry::IDLE_AFTER;
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 use support::{commit, git, init_with_identity, world, world_at};
@@ -630,7 +630,7 @@ async fn accepting_a_claimed_step_stops_the_tasks_timer() {
     let step = world.step(&task, "export", 0, TaskStepState::Claimed).await;
     world.services.time_entries.start(task.id).await.unwrap();
 
-    world.services.steps.edit(step.id, None, None, Some(true), None).await.unwrap();
+    world.services.steps.edit(step.id, StepEdit { done: Some(true), ..StepEdit::default() }).await.unwrap();
 
     assert_eq!(running_entries(&world).await, 0);
 }
@@ -643,7 +643,7 @@ async fn ticking_an_open_step_by_hand_keeps_the_timer_running() {
     let step = world.step(&task, "export", 0, TaskStepState::Open).await;
     world.services.time_entries.start(task.id).await.unwrap();
 
-    world.services.steps.edit(step.id, None, None, Some(true), None).await.unwrap();
+    world.services.steps.edit(step.id, StepEdit { done: Some(true), ..StepEdit::default() }).await.unwrap();
 
     assert_eq!(running_entries(&world).await, 1);
 }
@@ -1064,7 +1064,7 @@ async fn a_step_sent_back_hands_the_next_session_its_earlier_pass_and_the_feedba
     let task = world.task(&project, "report-builder").await;
     let step = world.step(&task, "Aggregate the rows", 0, TaskStepState::Open).await;
     let steps = &world.services.steps;
-    steps.edit(step.id, None, Some("Sum by month"), None, None).await.unwrap();
+    steps.edit(step.id, StepEdit { body_markdown: Some("Sum by month"), ..StepEdit::default() }).await.unwrap();
     steps.transition(Some("vega"), "report-builder", Some("1"), TaskStepState::Claimed).await.unwrap();
 
     let sent_back = steps.send_back(step.id).await.unwrap();
@@ -1072,7 +1072,7 @@ async fn a_step_sent_back_hands_the_next_session_its_earlier_pass_and_the_feedba
     assert_eq!(sent_back.body_markdown, None);
     assert_eq!(sent_back.passes[0].detail_markdown.as_deref(), Some("Sum by month"));
 
-    steps.edit(step.id, None, Some("Group by week instead"), None, None).await.unwrap();
+    steps.edit(step.id, StepEdit { body_markdown: Some("Group by week instead"), ..StepEdit::default() }).await.unwrap();
     let record = world.services.context.load_task("vega", "report-builder").await.unwrap();
     let rendered = world.services.renderer.render_steps(&record.steps, &record.step_connections, None, &mut ComponentReferences::new(None));
 
@@ -1122,7 +1122,7 @@ async fn a_component_named_in_a_task_text_is_expanded_in_the_context_but_not_in_
     row.description = ActiveValue::Set(Some("Call [[auth service]] and [[Billing]].".into()));
     row.update(world.db()).await.unwrap();
     let step = world.step(&task, "Check the tokens", 0, TaskStepState::Open).await;
-    world.services.steps.edit(step.id, None, Some("Again [[Auth Service]]"), None, None).await.unwrap();
+    world.services.steps.edit(step.id, StepEdit { body_markdown: Some("Again [[Auth Service]]"), ..StepEdit::default() }).await.unwrap();
 
     let records = world.services.context.for_task(task.id).await.unwrap();
     let rendered = world.services.renderer.render(&records);
@@ -1152,7 +1152,7 @@ async fn a_task_named_in_a_task_text_is_loaded_once_as_background_without_its_ch
     row.description = ActiveValue::Set(Some("Reuse [[task:export]] and [[task:missing]].".into()));
     row.update(world.db()).await.unwrap();
     let step = world.step(&task, "Wire the button", 0, TaskStepState::Open).await;
-    world.services.steps.edit(step.id, None, Some("Like [[task:export]]"), None, None).await.unwrap();
+    world.services.steps.edit(step.id, StepEdit { body_markdown: Some("Like [[task:export]]"), ..StepEdit::default() }).await.unwrap();
 
     let records = world.services.context.for_task(task.id).await.unwrap();
     let rendered = world.services.renderer.render(&records);
@@ -1411,8 +1411,8 @@ async fn a_proposed_step_joins_the_running_session_unless_it_asks_for_a_new_one(
     let project = world.project("vega", None, false).await;
     let task = world.task(&project, "report-builder").await;
 
-    let joining = world.services.steps.propose(Some("vega"), "report-builder", Some("Wire"), None, false, Staging::Draft).await.unwrap();
-    let opening = world.services.steps.propose(Some("vega"), "report-builder", Some("Docs"), None, true, Staging::Draft).await.unwrap();
+    let joining = world.services.steps.propose(Some("vega"), "report-builder", NewStep::titled("Wire", None), Staging::Draft).await.unwrap();
+    let opening = world.services.steps.propose(Some("vega"), "report-builder", NewStep { starts_session: true, ..NewStep::titled("Docs", None) }, Staging::Draft).await.unwrap();
 
     assert!(!joining.step.starts_session);
     assert!(opening.step.starts_session);
@@ -1425,9 +1425,9 @@ async fn a_step_added_ready_is_open_and_sits_ahead_of_the_drafts_left_on_the_she
     let world = world().await;
     let project = world.project("vega", None, false).await;
     let task = world.task(&project, "report-builder").await;
-    world.services.steps.propose(Some("vega"), "report-builder", Some("Review me"), None, false, Staging::Draft).await.unwrap();
+    world.services.steps.propose(Some("vega"), "report-builder", NewStep::titled("Review me", None), Staging::Draft).await.unwrap();
 
-    let added = world.services.steps.propose(Some("vega"), "report-builder", Some("Wire"), None, false, Staging::Ready).await.unwrap();
+    let added = world.services.steps.propose(Some("vega"), "report-builder", NewStep::titled("Wire", None), Staging::Ready).await.unwrap();
 
     assert_eq!(added.draft_count, 1);
     let stored = world.services.steps.find_by_task(task.id).await.unwrap();
