@@ -11,7 +11,6 @@ import EpicGlyph from '@/features/catalog/components/epic/EpicGlyph.vue'
 import EpicProgressPanel from '@/features/catalog/components/epic/EpicProgressPanel.vue'
 import EpicTaskList from '@/features/catalog/components/epic/EpicTaskList.vue'
 import ContextSizeChip from '@/features/context/components/ContextSizeChip.vue'
-import NotesButton from '@/features/notes/components/NotesButton.vue'
 import { useDescriptionDraft } from '@/features/catalog/composables/useDescriptionDraft'
 import { useSelectedProjectComponents } from '@/features/project/composables/useSelectedProjectComponents'
 import { useSelectedProjectConnections } from '@/features/connection/composables/useSelectedProjectConnections'
@@ -107,7 +106,6 @@ defineExpose({ toggleMode })
           </TaskTitleRow>
           <TaskLabelsStrip :task="selectedTask" />
         </div>
-        <NotesButton :task-id="selectedTask.id" />
       </header>
     </div>
 

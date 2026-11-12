@@ -54,7 +54,7 @@ function seed() {
 function render() {
   return mount(EpicPane, {
     attachTo: document.body,
-    global: { plugins: [pinia], stubs: { AppMarkdownEditor: true, NotesButton: true, RecordDialog: true, TaskTitleRow: true, TaskLabelsStrip: true } }
+    global: { plugins: [pinia], stubs: { AppMarkdownEditor: true, RecordDialog: true, TaskTitleRow: true, TaskLabelsStrip: true } }
   })
 }
 

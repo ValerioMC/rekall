@@ -2,7 +2,6 @@
 import { computed } from 'vue'
 import LaunchClaudeCodeButton from '@/features/claude/components/LaunchClaudeCodeButton.vue'
 import OpenTerminalButton from '@/features/claude/components/OpenTerminalButton.vue'
-import NotesButton from '@/features/notes/components/NotesButton.vue'
 import TaskTitleRow from '@/features/catalog/components/TaskTitleRow.vue'
 import { identityHue } from '@/common/identity'
 import type { Task } from '@/features/catalog/model/catalog'
@@ -80,7 +79,6 @@ function segmentClass(step: TaskStep): string {
       </div>
 
       <div class="flex shrink-0 items-center gap-1.5">
-        <NotesButton :task-id="task.id" />
         <OpenTerminalButton
           :task-id="task.id"
           :anchor="task.anchor"

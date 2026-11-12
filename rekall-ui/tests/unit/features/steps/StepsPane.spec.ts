@@ -113,7 +113,6 @@ function render() {
       plugins: [pinia],
       stubs: {
         AppMarkdownEditor: true,
-        NotesButton: true,
         OpenTerminalButton: true,
         LaunchClaudeCodeButton: true,
         LogCommitButton: true,
@@ -160,7 +159,6 @@ describe('StepsPane', () => {
           plugins: [pinia],
           stubs: {
             AppMarkdownEditor: true,
-            NotesButton: true,
                 OpenTerminalButton: true,
             LaunchClaudeCodeButton: true,
             LogCommitButton: true,

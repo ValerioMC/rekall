@@ -14,7 +14,6 @@ import { identityHue } from '@/common/identity'
 import LaunchClaudeCodeButton from '@/features/claude/components/LaunchClaudeCodeButton.vue'
 import OpenTerminalButton from '@/features/claude/components/OpenTerminalButton.vue'
 import LogCommitButton from '@/features/commits/components/LogCommitButton.vue'
-import NotesButton from '@/features/notes/components/NotesButton.vue'
 import CommitReferenceRail from '@/features/commits/components/CommitReferenceRail.vue'
 import ContextSizeChip from '@/features/context/components/ContextSizeChip.vue'
 import TaskTitleRow from '@/features/catalog/components/TaskTitleRow.vue'
@@ -128,7 +127,6 @@ defineExpose({ toggleMode })
           </div>
 
           <div class="flex shrink-0 items-center gap-1.5 @max-[71rem]/description:[&_[data-label]]:hidden" data-testid="description-actions">
-            <NotesButton :task-id="selectedTask.id" />
             <LogCommitButton
               :task-id="selectedTask.id"
               :folder="selectedTask.projectRepoFolder"

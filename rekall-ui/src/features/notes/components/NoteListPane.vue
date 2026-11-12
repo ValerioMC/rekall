@@ -3,7 +3,6 @@ import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import DescriptionCard from '@/features/catalog/components/DescriptionCard.vue'
 import DeviationsCard from '@/features/deviations/components/DeviationsCard.vue'
-import NoteAttachPicker from '@/features/notes/components/NoteAttachPicker.vue'
 import TimeLogDialog from '@/features/time/components/TimeLogDialog.vue'
 import StepsCard from '@/features/steps/components/StepsCard.vue'
 import EpicDossierCard from '@/features/catalog/components/epic/EpicDossierCard.vue'
@@ -18,7 +17,6 @@ import { useToastStore } from '@/stores/toast.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { excerpt } from '@/common/format/excerpt'
 import type { RekallDocument } from '@/features/notes/model/document'
-import { scopeAdmits } from '@/features/notes/model/note-scope'
 import type { DocumentId } from '@/model/branded'
 
 const store = useConsoleStore()
@@ -34,8 +32,6 @@ const {
   wrapupMissesSteps,
   selectedTaskEntries,
   runningEntries,
-  documents,
-  projects,
   tasks,
   isLoading
 } = storeToRefs(store)
@@ -53,17 +49,6 @@ const selectedEpicChildren = computed(() =>
 )
 
 const showTimeLog = ref(false)
-const isAttaching = ref(false)
-const attachButton = ref<HTMLElement | null>(null)
-/** Notes this task's scope admits that are not on it yet: what the attach shortcut can offer. */
-const attachableCount = computed(() => {
-  const task = selectedTask.value
-  const project = projects.value.find((candidate) => candidate.id === task?.projectId)
-  if (!task || !project) return 0
-  return documents.value.filter(
-    (document) => scopeAdmits(document.scope, project) && !document.tasks.some((ref) => ref.id === task.id)
-  ).length
-})
 /** The note whose removal is in flight, so a second click on it does nothing. */
 const leaving = ref<DocumentId | null>(null)
 const { run: runCreate, isRunning: creatingNote } = useAsyncAction()
@@ -304,19 +289,7 @@ async function detach(note: RekallDocument): Promise<void> {
                 </span>
               </button>
 
-              <!--
-                The card's right end is the note's membership. At rest it says where else the note
-                sits; under the pointer or the keyboard it is the one way off this task.
-              -->
               <span class="absolute right-2.5 top-2 z-[2] flex h-[18px] items-center" data-testid="note-card-membership">
-                <span
-                  v-if="document.tasks.length > 1"
-                  class="anchor-chip px-1.5 py-px text-micro transition-opacity duration-(--motion-quick) group-hover/card:opacity-0 group-focus-within/card:opacity-0"
-                  :title="`On ${document.tasks.length} tasks`"
-                  data-testid="note-card-elsewhere"
-                >
-                  &#8942; {{ document.tasks.length }}
-                </span>
                 <button
                   type="button"
                   class="focus-ring absolute right-0 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-control text-text-subtle opacity-0 transition-[opacity,color,background-color] duration-(--motion-quick) hover:bg-danger-soft hover:text-danger focus-visible:opacity-100 group-hover/card:opacity-100 group-focus-within/card:opacity-100"
@@ -345,37 +318,9 @@ async function detach(note: RekallDocument): Promise<void> {
             <span class="min-w-0 flex-1 truncate">New note</span>
             <span class="shrink-0 truncate text-micro text-text-subtle">in {{ selectedTask.projectTitle }}</span>
           </button>
-
-          <button
-            ref="attachButton"
-            type="button"
-            class="add-row focus-ring relative z-[1] mb-2 ml-[38px] mr-3 w-[calc(100%-50px)]"
-            :class="isAttaching && 'add-row-open'"
-            :disabled="attachableCount === 0"
-            :aria-expanded="isAttaching"
-            aria-haspopup="dialog"
-            :title="attachableCount === 0 ? 'Every note this task can carry is already on it' : 'Put a note that already exists on this task'"
-            data-testid="note-attach-existing"
-            @click="isAttaching = !isAttaching"
-          >
-            <svg class="size-3 shrink-0 text-accent" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-              <path d="M5 7l2-2M4.2 5.6L3 6.8a2 2 0 0 0 2.8 2.8L7 8.4M7.8 6.4L9 5.2A2 2 0 0 0 6.2 2.4L5 3.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
-            </svg>
-            <span class="min-w-0 flex-1 truncate">Add existing note</span>
-            <span class="shrink-0 font-mono text-micro tabular-nums text-text-subtle" data-testid="note-attach-available">
-              {{ attachableCount }}
-            </span>
-          </button>
         </div>
       </template>
     </div>
-
-    <NoteAttachPicker
-      v-if="isAttaching && selectedTask && attachButton"
-      :task-id="selectedTask.id"
-      :anchor="attachButton"
-      @close="isAttaching = false"
-    />
 
     <Transition name="dialog">
       <TimeLogDialog

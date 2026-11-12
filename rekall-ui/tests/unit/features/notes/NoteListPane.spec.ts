@@ -9,8 +9,8 @@ import type { Task, TaskRef } from '@/features/catalog/model/catalog'
 import type { DocumentId, ProjectId, TaskId } from '@/model/branded'
 
 /**
- * The task's note column: each card carries its note's membership at the right end, and that
- * slot is how a note is taken off the task in view. Only the choice of what to detach, the
+ * The task's note column: each card carries a control at its right end, and that is how a note
+ * is taken off the task in view. Only the choice of what to detach, the
  * delete confirm on a note that is only here and the Undo that follows are decided here; the
  * write path is the store's, stubbed and covered in `console.spec`.
  */
@@ -109,18 +109,11 @@ describe('NoteListPane', () => {
     setActivePinia(pinia)
   })
 
-  it('says where else each note sits, and offers the same way off whether or not it is only here', () => {
+  it('offers a way off the task on every card', () => {
     seed([note('d1', 'cluster.md', [builder, retry]), note('d2', 'conventions.md', [builder])])
     const wrapper = render()
 
-    const membership = wrapper.findAll('[data-testid="note-card-membership"]')
-    expect(membership).toHaveLength(2)
-
-    expect(membership[0]!.find('[data-testid="note-card-elsewhere"]').text()).toContain('2')
-    expect(membership[0]!.find('[data-testid="note-card-off"]').exists()).toBe(true)
-
-    expect(membership[1]!.find('[data-testid="note-card-elsewhere"]').exists()).toBe(false)
-    expect(membership[1]!.find('[data-testid="note-card-off"]').exists()).toBe(true)
+    expect(wrapper.findAll('[data-testid="note-card-off"]')).toHaveLength(2)
     wrapper.unmount()
   })
 
@@ -159,27 +152,6 @@ describe('NoteListPane', () => {
     expect(store.detachNoteFromTask).toHaveBeenCalledWith('d1', builder)
     expect(store.deleteNote).not.toHaveBeenCalled()
     wrapper.unmount()
-  })
-
-  it('opens the attach picker from the shortcut, counting the notes it can add, and disables it when none is left', async () => {
-    const store = seed([note('d1', 'cluster.md', [builder]), note('d2', 'other.md', [retry])])
-    store.projects = [
-      { id: vega, companyId: 'c1' } as unknown as (typeof store.projects)[number]
-    ]
-    const wrapper = render()
-
-    const button = wrapper.get('[data-testid="note-attach-existing"]')
-    expect(wrapper.get('[data-testid="note-attach-available"]').text()).toBe('1')
-    await button.trigger('click')
-    expect(document.body.querySelector('[data-testid="note-attach-picker"]')).not.toBeNull()
-    wrapper.unmount()
-
-    document.body.innerHTML = ''
-    seed([note('d1', 'cluster.md', [builder])])
-    useConsoleStore().projects = [{ id: vega, companyId: 'c1' } as unknown as ReturnType<typeof useConsoleStore>['projects'][number]]
-    const empty = render()
-    expect(empty.get('[data-testid="note-attach-existing"]').attributes('disabled')).toBeDefined()
-    empty.unmount()
   })
 
   it('creates a note in the task\'s project, on the task, from the button under the last card', async () => {
