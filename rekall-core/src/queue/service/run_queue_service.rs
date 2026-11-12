@@ -162,7 +162,7 @@ impl RunQueueService {
                 }
                 let view = item_view(&tx, item, &queued_tasks).await?;
                 if view.waiting_for.is_empty() {
-                    return Ok(NextTurn::Ready(view));
+                    return Ok(NextTurn::Ready(Box::new(view)));
                 }
                 blocked.push(BlockedItem { item_id: item.id, reason: waiting_reason(&view.waiting_for) });
             }

@@ -46,10 +46,10 @@ impl GraphAttachService {
         tasks: TaskService,
         steps: TaskStepService,
         links: StepLinkService,
-        visits: StepVisitService,
         placement: StepPlacementService,
         bindings: StepBindingService,
     ) -> Self {
+        let visits = StepVisitService::new(ctx.clone());
         Self { ctx, graphs, tasks, steps, links, visits, placement, bindings }
     }
 

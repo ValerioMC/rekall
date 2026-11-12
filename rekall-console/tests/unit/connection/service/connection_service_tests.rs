@@ -228,7 +228,7 @@ async fn a_project_has_one_task_manager_and_choosing_another_binding_releases_th
     world.bindings.update(world.vega.id, second.id, as_task_manager(target("acme/vega"))).await.unwrap();
 
     let managers: Vec<String> = world.bindings.list(world.vega.id).await.unwrap().into_iter().filter(|binding| binding.task_manager).map(|binding| binding.label).collect();
-    assert_eq!(managers, [second.label.clone()]);
+    assert_eq!(managers, std::slice::from_ref(&second.label));
     assert_eq!(world.bindings.task_manager(world.vega.id).await.unwrap().unwrap().0.id, second.id);
 }
 

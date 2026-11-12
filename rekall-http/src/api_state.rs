@@ -136,7 +136,6 @@ impl Wired {
             tasks.clone(),
             services.steps.clone(),
             services.step_links.clone(),
-            rekall_core::flow::StepVisitService::new(ctx.clone()),
             services.step_placement.clone(),
             services.step_bindings.clone(),
         );

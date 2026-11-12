@@ -111,7 +111,7 @@ async fn an_order_that_misses_or_repeats_a_check_is_refused() {
     let first = world.service.create_for_project(world.project_id, check("one")).await.unwrap();
     world.service.create_for_project(world.project_id, check("two")).await.unwrap();
 
-    let missing = world.service.reorder_for_project(world.project_id, CheckOrderCommand { check_ids: Some(ids(&[first.clone()])) }).await;
+    let missing = world.service.reorder_for_project(world.project_id, CheckOrderCommand { check_ids: Some(ids(std::slice::from_ref(&first))) }).await;
     let repeated = world.service.reorder_for_project(world.project_id, CheckOrderCommand { check_ids: Some(ids(&[first.clone(), first])) }).await;
 
     assert!(missing.unwrap_err().is_illegal_argument());

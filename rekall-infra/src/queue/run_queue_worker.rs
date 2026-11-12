@@ -193,7 +193,7 @@ impl Worker {
                 return Ok(());
             }
             let next = match self.queue.next_turn(&self.parked).await? {
-                NextTurn::Ready(next) => next,
+                NextTurn::Ready(next) => *next,
                 NextTurn::Empty => {
                     if self.active.is_empty() {
                         info!("Run queue: every queued task has had its turn");

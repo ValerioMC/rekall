@@ -12,7 +12,7 @@ pub struct BlockedItem {
 /// What the queue has for the worker: the first item that may start, or nothing startable.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NextTurn {
-    Ready(RunQueueItemView),
+    Ready(Box<RunQueueItemView>),
     /// Items wait, and every one waits for a task that is not accepted.
     Blocked(Vec<BlockedItem>),
     Empty,
