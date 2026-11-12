@@ -7,7 +7,6 @@ import RecordDialog from '@/features/catalog/components/RecordDialog.vue'
 import NavigatorProjectGroup from '@/components/console/NavigatorProjectGroup.vue'
 import NavigatorStatusGroups from '@/components/console/NavigatorStatusGroups.vue'
 import ShellDock from '@/components/shell/ShellDock.vue'
-import NavigatorNoteList from '@/features/notes/components/NavigatorNoteList.vue'
 import { groupTasksByProject } from '@/features/catalog/lib/project-task-groups'
 import { revealOffset } from '@/common/scroll/reveal-offset'
 import { useNavigatorShelves } from '@/composables/useNavigatorShelves'
@@ -21,12 +20,9 @@ const {
   scopeCompany,
   scopeProject,
   scopeName,
-  navMode,
   visibleTasks,
-  visibleDocuments,
   selectedTaskId,
   selectedTask,
-  noteComposerOpen,
   tasks,
   projects,
   elsewhere,
@@ -40,12 +36,11 @@ const editing = ref<RecordDraft | null>(null)
 
 const projectChoices = computed(() => store.scopedProjects)
 
-const groupByProject = computed(() => navMode.value === 'tasks' && scopeProject.value === null)
+const groupByProject = computed(() => scopeProject.value === null)
 
 const hasQuickTasks = computed(() => tasks.value.some((task) => task.quick))
 
-const showNewTaskButton = computed(() => navMode.value === 'tasks' && projectChoices.value.length > 0)
-const showNewNoteButton = computed(() => navMode.value === 'notes' && tasks.value.length > 0)
+const showNewTaskButton = computed(() => projectChoices.value.length > 0)
 
 const groupedByProject = computed(() =>
   groupTasksByProject(visibleTasks.value, projects.value, scopeCompany.value === null)
@@ -74,8 +69,8 @@ async function revealSelected(): Promise<void> {
   list.scrollTo?.({ top: list.scrollTop + offset, behavior: reducedMotion ? 'auto' : 'smooth' })
 }
 
-watch([selectedTaskId, navMode, isLoading], () => {
-  if (navMode.value === 'tasks' && !isLoading.value) void revealSelected()
+watch([selectedTaskId, isLoading], () => {
+  if (!isLoading.value) void revealSelected()
 }, { flush: 'post' })
 
 function beginCreate(): void {
@@ -106,27 +101,7 @@ defineExpose({ beginCreate, editSelected })
     <div class="flex shrink-0 flex-col gap-2.5 border-b border-border p-2.5">
       <ScopePicker />
 
-      <div class="flex gap-0.5 rounded-card bg-canvas p-0.5" role="group" aria-label="Browse by">
-        <button
-          v-for="mode in (['tasks', 'notes'] as const)"
-          :key="mode"
-          class="focus-ring flex h-7 flex-1 items-center justify-center gap-1.5 rounded-control text-small capitalize transition-colors"
-          :class="
-            navMode === mode
-              ? 'bg-surface-raised text-text shadow-[0_1px_2px_rgb(0_0_0/0.4)]'
-              : 'text-text-subtle hover:text-text'
-          "
-          :aria-pressed="navMode === mode"
-          @click="store.setNavMode(mode)"
-        >
-          {{ mode }}
-          <span class="font-mono text-micro text-text-subtle">
-            {{ mode === 'tasks' ? visibleTasks.length : visibleDocuments.length }}
-          </span>
-        </button>
-      </div>
-
-      <QuickTaskFilter v-if="navMode === 'tasks' && hasQuickTasks" class="px-1" />
+      <QuickTaskFilter v-if="hasQuickTasks" class="px-1" />
     </div>
 
     <div ref="scroller" class="min-h-0 flex-1 overflow-y-auto pb-4">
@@ -139,12 +114,11 @@ defineExpose({ beginCreate, editSelected })
 
       <template v-else>
       <div
-        v-if="showNewTaskButton || showNewNoteButton"
+        v-if="showNewTaskButton"
         class="glass sticky top-0 z-(--z-sticky) border-b border-border/60 p-2"
         data-nav-sticky
       >
         <button
-          v-if="showNewTaskButton"
           data-testid="new-task"
           class="add-row focus-ring py-2"
           @click="beginCreate"
@@ -157,21 +131,9 @@ defineExpose({ beginCreate, editSelected })
             in {{ scopeName }}
           </span>
         </button>
-
-        <button
-          v-if="showNewNoteButton"
-          data-testid="new-note-here"
-          class="add-row focus-ring py-2"
-          :class="noteComposerOpen && 'add-row-open'"
-          :aria-pressed="noteComposerOpen"
-          @click="store.openNoteComposer()"
-        >
-          <span class="text-accent">+</span> New note
-          <kbd class="ml-auto rounded-key border border-border px-1 font-mono text-micro text-text-subtle">N</kbd>
-        </button>
       </div>
 
-      <template v-if="navMode === 'tasks' && groupByProject">
+      <template v-if="groupByProject">
         <NavigatorProjectGroup
           v-for="group in groupedByProject"
           :key="group.projectId"
@@ -191,14 +153,12 @@ defineExpose({ beginCreate, editSelected })
       </template>
 
       <NavigatorStatusGroups
-        v-else-if="navMode === 'tasks'"
+        v-else
         :shelves="shelves"
         :running-task-ids="runningTaskIds"
         :has-projects="projectChoices.length > 0"
         @edit="editTask"
       />
-
-      <NavigatorNoteList v-else />
 
       <button
         v-if="elsewhere"

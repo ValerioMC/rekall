@@ -399,19 +399,9 @@ describe('console store', () => {
     expect(store.visibleTasks.map((t) => t.label)).toEqual(['wiring'])
   })
 
-  it('lists tasks and notes by title, whatever order they were loaded in', () => {
+  it('lists tasks by title, whatever order they were loaded in', () => {
     const titles = store.visibleTasks.map((task) => task.title)
     expect(titles).toEqual([...titles].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' })))
-
-    store.navMode = 'notes'
-    const noteTitles = store.visibleDocuments.map((document) => document.title)
-    expect(noteTitles).toEqual(['CONTEXT.md', 'kmaster14.md', 'onboarding.md'])
-  })
-
-  it('searches note bodies, not only their titles', () => {
-    store.navMode = 'notes'
-    store.filter = 'bastion'
-    expect(store.visibleDocuments.map((document) => document.title)).toEqual(['kmaster14.md'])
   })
 
   /**
@@ -451,43 +441,12 @@ describe('console store', () => {
     expect(store.selectedDocId).toBe('d2')
   })
 
-  /** Browsing tasks, a note has to bring its task along, or the task panes disagree with it. */
-  it('follows a note back to a task it belongs to while browsing tasks', () => {
+  /** A note has to bring its task along, or the task panes disagree with it. */
+  it('follows a note back to a task it belongs to', () => {
     store.selectTask(validator)
     store.selectDocument('d3' as DocumentId)
 
     expect(store.selectedTaskId).toBe(wiring)
-  })
-
-  /**
-   * Browsing notes is for managing notes, not a detour through tasks: the note opens with its
-   * placements, and whatever task was in view stays there untouched.
-   */
-  it('leaves the task alone when a note is picked while browsing notes', () => {
-    store.selectTask(validator)
-    store.setNavMode('notes')
-    store.selectDocument('d3' as DocumentId)
-
-    expect(store.selectedDocId).toBe('d3')
-    expect(store.selectedTaskId).toBe(validator)
-    expect(store.paneFocus).toBe('note')
-  })
-
-  it('catches the task up with the note when going back to browsing tasks', () => {
-    store.selectTask(validator)
-    store.setNavMode('notes')
-    store.selectDocument('d3' as DocumentId)
-
-    store.setNavMode('tasks')
-    expect(store.selectedTaskId).toBe(wiring)
-  })
-
-  it('opens the note itself when switching to browsing notes', () => {
-    store.selectTask(validator)
-    store.openDescription()
-    store.setNavMode('notes')
-
-    expect(store.paneFocus).toBe('note')
   })
 
   describe('placing a note on tasks', () => {
@@ -546,17 +505,6 @@ describe('console store', () => {
 
       expect(store.selectedDocId).toBe('d2')
     })
-
-    /** Browsing notes, the columns are the note's own: it stays open whatever it leaves. */
-    it('keeps the note open while browsing notes', async () => {
-      store.selectTask(validator)
-      store.setNavMode('notes')
-      store.selectDocument('d2' as DocumentId)
-
-      await store.detachNoteFromTask('d2' as DocumentId, validator)
-
-      expect(store.selectedDocId).toBe('d2')
-    })
   })
 
   describe('starting a note', () => {
@@ -577,9 +525,6 @@ describe('console store', () => {
     })
 
     it('is born on every task it was given, with its name, and opens in the editor', async () => {
-      store.setNavMode('notes')
-      store.openNoteComposer()
-
       await store.createNote({ scope: { kind: 'PROJECT', id: vega }, taskIds: [validator, retry], title: 'cluster.md' })
 
       expect(vi.mocked(createDocument).mock.calls[0]?.[0]).toMatchObject({
@@ -590,7 +535,6 @@ describe('console store', () => {
       })
       expect(store.selectedDocId).toBe('d9')
       expect(store.paneFocus).toBe('note')
-      expect(store.noteComposerOpen).toBe(false)
     })
 
     it('falls back to untitled.md when no name is given', async () => {
@@ -609,17 +553,6 @@ describe('console store', () => {
 
     it('starts a note made from a task in that task\'s project', () => {
       expect(store.projectScopeOf(validator)).toEqual({ kind: 'PROJECT', id: vega })
-    })
-
-    it('closes the composer when a note is picked or the side is switched', () => {
-      store.setNavMode('notes')
-      store.openNoteComposer()
-      store.selectDocument('d1' as DocumentId)
-      expect(store.noteComposerOpen).toBe(false)
-
-      store.openNoteComposer()
-      store.setNavMode('tasks')
-      expect(store.noteComposerOpen).toBe(false)
     })
   })
 

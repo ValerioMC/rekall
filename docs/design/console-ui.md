@@ -133,9 +133,9 @@ task's anchors, or the scope's, as chips, and focused it is the search. Everythi
 the tabs is the same piece, a 36px `header-capsule` with the field's corner: usage, the run queue
 and the review count share one (`HeaderStatus`, segments drawn with `status-segment`), where
 review is the only amber segment because it is the only one asking for action; the save dot,
-Tags and Settings (`header-key`) and New note share the other. The save state is
+Tags and Settings (`header-key`) share the other. The save state is
 a dot whose word is for screen readers and the tooltip. The bar gives way under 1280px: the
-anchors keep only the last one, the review segment drops its words and New note becomes a `+`;
+anchors keep only the last one, the review segment drops its words;
 under 1100px the `⌘K` hint goes.
 
 The run queue shows a task's steps in two places, from one value (`runProgress(queue).steps`: the
@@ -148,12 +148,6 @@ one proportional arc above 12 steps. `QueueBead`'s open and not-needed rings use
 state only, with `QueueBead`'s marks; a not-needed step is a dashed ring with its title muted, and
 claimed and accepted steps share a mark but are named apart for a screen reader. The disclosure
 that opens it carries `aria-expanded`/`aria-controls` and a 44px hit area.
-
-Browsing notes, the middle column (`NotePlacementsPane`) is one card per project the note reaches
-(`NotePlacementCard`), lit with the project's hue, each task in it with its status, anchor, step
-progress and two labelled keys (`NotePlacedTaskRow`): **Open task**, and **Detach**, which acts
-at once and offers Undo in its toast because the note stays in its scope. A note on no task gets
-an empty state with **Put it on a task**.
 
 The calendar (`CalendarPage`, `CalendarDayCell`) heads each day with its total and a load bar:
 its length is the day against an eight-hour day, its segments the projects largest first

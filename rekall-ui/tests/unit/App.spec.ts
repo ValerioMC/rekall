@@ -406,18 +406,6 @@ describe('the console', () => {
     expect(wrapper.text()).toContain('project:vega task:report-builder')
   })
 
-  /** The point of the model change has to be visible, not merely stored. */
-  it('says when a note is shared, and names the other task', async () => {
-    const wrapper = await mountConsole()
-
-    await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
-    await flushPromises()
-
-    expect(wrapper.text()).toContain('On 2 tasks')
-    expect(wrapper.text()).toContain('vega/retry-policy')
-    expect(wrapper.text()).toContain('Editing here changes what that other task load')
-  })
-
   it('filters the task list as the anchor bar is typed into', async () => {
     const wrapper = await mountConsole()
 
@@ -439,87 +427,6 @@ describe('the console', () => {
     const rows = wrapper.findAll('[data-testid="task-row"]')
     expect(rows).toHaveLength(1)
     expect(rows[0]!.text()).toContain('Retry policy')
-  })
-
-  it('switches between browsing tasks and browsing notes on B', async () => {
-    const wrapper = await mountConsole()
-
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'b' }))
-    await flushPromises()
-
-    expect(wrapper.findAll('[data-testid="note-row"]')).toHaveLength(1)
-    expect(wrapper.findAll('[data-testid="task-row"]')).toHaveLength(0)
-  })
-
-  /**
-   * Browsing notes, the middle column is the note's placements rather than a task's cards, and
-   * the editor drops its own membership strip so the tasks are said once. Nothing about the task
-   * in view changes when a note is picked here.
-   */
-  it('manages a note from its own column while browsing notes, without opening a task', async () => {
-    const wrapper = await mountConsole()
-    await wrapper.findAll('[data-testid="task-row"]')[1]!.trigger('click')
-    await flushPromises()
-
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'b' }))
-    await flushPromises()
-    await wrapper.find('[data-testid="note-row"]').trigger('click')
-    await flushPromises()
-
-    expect(wrapper.find('[data-testid="note-placements"]').exists()).toBe(true)
-    expect(wrapper.findAll('[data-testid="note-card"]')).toHaveLength(0)
-    expect(wrapper.find('[data-testid="note-membership"]').exists()).toBe(false)
-    expect(wrapper.findAll('[data-testid="note-placement-row"]')).toHaveLength(2)
-    expect(wrapper.find('[data-testid="note-title"]').element).toHaveProperty('value', 'kmaster14.md')
-    expect(useConsoleStore().selectedTaskId).toBe(retry)
-
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'b' }))
-    await flushPromises()
-
-    expect(wrapper.find('[data-testid="note-placements"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="note-membership"]').exists()).toBe(true)
-  })
-
-  /**
-   * Browsing tasks, a new note lands on the task in view with no questions. Browsing notes, that
-   * task is not on screen, so New note opens the composer in the middle column and the note is
-   * created from there, on whatever it was ticked on. (The N key takes the same path, but goes
-   * through window, where every App this file has mounted still listens.)
-   */
-  it('starts a note from the Notes side through the composer, in its project, on the tasks it is ticked on', async () => {
-    const wrapper = await mountConsole()
-    await wrapper.findAll('[data-testid="task-row"]')[1]!.trigger('click')
-    await flushPromises()
-
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'b' }))
-    await flushPromises()
-    expect(wrapper.find('[data-testid="new-note"]').attributes('disabled')).toBeUndefined()
-    await wrapper.find('[data-testid="new-note-here"]').trigger('click')
-    await flushPromises()
-
-    expect(createDocument).not.toHaveBeenCalled()
-    expect(wrapper.find('[data-testid="note-composer"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="note-placements"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="new-note-here"]').attributes('aria-pressed')).toBe('true')
-
-    await wrapper.find('[data-testid="note-composer-title"]').setValue('runbook.md')
-    const rows = wrapper.findAll('[data-testid="note-placement-row"]')
-    expect(rows.map((row) => row.attributes('data-attached'))).toEqual(['true', 'false'])
-    await rows[1]!.trigger('click')
-    await wrapper.find('[data-testid="note-composer-create"]').trigger('click')
-    await flushPromises()
-
-    expect(createDocument).toHaveBeenCalledWith({
-      title: 'runbook.md',
-      kind: 'notes',
-      bodyMarkdown: '',
-      taskIds: [validator, retry],
-      scope: { kind: 'PROJECT', id: vega }
-    })
-    expect(wrapper.find('[data-testid="note-composer"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="note-placements"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="note-title"]').element).toHaveProperty('value', 'runbook.md')
-    wrapper.unmount()
   })
 
   it('sets a task status from the number keys, with no form and no save', async () => {
@@ -584,10 +491,10 @@ describe('the console', () => {
     const input = wrapper.find('[data-testid="anchor-input"]')
     ;(input.element as HTMLInputElement).focus()
 
-    input.element.dispatchEvent(new KeyboardEvent('keydown', { key: 'b', bubbles: true }))
+    input.element.dispatchEvent(new KeyboardEvent('keydown', { key: '4', bubbles: true }))
     await flushPromises()
 
-    expect(wrapper.findAll('[data-testid="task-row"]').length).toBeGreaterThan(0)
+    expect(updateTask).not.toHaveBeenCalled()
   })
 
   /**
@@ -1174,9 +1081,6 @@ describe('the console', () => {
       const wrapper = await mountConsole()
 
       await wrapper.findAll('[data-testid="task-row"]')[1]!.trigger('click')
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'b' }))
-      await flushPromises()
-      await wrapper.find('[data-testid="note-row"]').trigger('click')
       await flushPromises()
 
       const mode = () => wrapper.findAll('[aria-label="Mode"] button')

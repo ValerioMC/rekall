@@ -6,25 +6,20 @@ import CopyGlyph from '@/components/ui/CopyGlyph.vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import AppModeToggle from '@/components/ui/AppModeToggle.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
-import NoteAssignmentDialog from '@/features/notes/components/NoteAssignmentDialog.vue'
-import NoteScopeSelect from '@/features/notes/components/NoteScopeSelect.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import LaunchClaudeCodeButton from '@/features/claude/components/LaunchClaudeCodeButton.vue'
 import ConsoleHome from '@/components/console/ConsoleHome.vue'
 import NoteContextModeSwitch from '@/features/notes/components/NoteContextModeSwitch.vue'
-import NoteMembershipStrip from '@/features/notes/components/NoteMembershipStrip.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useEditorMode } from '@/composables/useEditorMode'
 import { rkCommand } from '@/common/format/rk-command'
 import { DOCUMENT_KINDS } from '@/features/notes/model/document'
-import type { NoteScope } from '@/features/notes/model/note-scope'
 
 const store = useConsoleStore()
 const {
   selectedDocument,
   selectedTaskId,
-  navMode,
   tasks: allTasks
 } = storeToRefs(store)
 const { run } = useAsyncAction()
@@ -35,7 +30,6 @@ const KIND_OPTIONS = DOCUMENT_KINDS.map((kind) => ({
 }))
 
 const { mode, openFor } = useEditorMode('write')
-const isAssigning = ref(false)
 const isConfirmingDelete = ref(false)
 
 function toggleMode(): void {
@@ -110,21 +104,12 @@ const anchor = computed(() => anchorTask.value?.anchor ?? selectedDocument.value
 
 const anchorFolder = computed(() => anchorTask.value?.projectRepoFolder ?? null)
 
-/** Browsing notes, the placements column owns membership, so the strip here would say it twice. */
-const showMembership = computed(() => navMode.value === 'tasks')
-
 const justCopied = ref(false)
 
 async function copyAnchor(): Promise<void> {
   await navigator.clipboard?.writeText(rkCommand(anchor.value))
   justCopied.value = true
   setTimeout(() => (justCopied.value = false), 1400)
-}
-
-async function moveTo(scope: NoteScope): Promise<void> {
-  const document = selectedDocument.value
-  if (!document) return
-  await run(() => store.saveNote(document.id, { scope }), 'Moved.')
 }
 
 async function confirmDelete(): Promise<void> {
@@ -182,12 +167,9 @@ async function confirmDelete(): Promise<void> {
         </div>
       </header>
 
-      <NoteMembershipStrip v-if="showMembership" :note="selectedDocument" @assign="isAssigning = true" />
-
       <div class="flex min-h-0 flex-1 flex-col">
         <div class="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-5 py-1.5">
           <NoteContextModeSwitch :note="selectedDocument" />
-          <NoteScopeSelect :note="selectedDocument" @change="moveTo" />
           <AppModeToggle v-model="mode" class="ml-auto" />
         </div>
 
@@ -206,10 +188,6 @@ async function confirmDelete(): Promise<void> {
         </div>
       </div>
     </template>
-
-    <Transition name="dialog">
-      <NoteAssignmentDialog v-if="isAssigning" @close="isAssigning = false" />
-    </Transition>
 
     <Transition name="dialog">
       <AppConfirm

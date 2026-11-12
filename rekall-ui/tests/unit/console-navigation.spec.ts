@@ -111,31 +111,22 @@ describe('going back to a location', () => {
     store.documents = [note]
   })
 
-  it('shows the task, note and pane it names, and closes the composer', () => {
-    store.openNoteComposer()
+  it('shows the task, note and pane it names', () => {
+    const shown = store.showLocation({ taskId: retry, documentId: note.id, pane: 'wrapup', deviationStep: null })
 
-    const shown = store.showLocation({ mode: 'notes', taskId: retry, documentId: note.id, pane: 'wrapup', deviationStep: null })
-
-    expect(shown).toEqual({ mode: 'notes', taskId: retry, documentId: note.id, pane: 'wrapup', deviationStep: null })
-    expect([store.navMode, store.selectedTaskId, store.selectedDocId, store.paneFocus]).toEqual([
-      'notes',
-      retry,
-      note.id,
-      'wrapup'
-    ])
-    expect(store.noteComposerOpen).toBe(false)
+    expect(shown).toEqual({ taskId: retry, documentId: note.id, pane: 'wrapup', deviationStep: null })
+    expect([store.selectedTaskId, store.selectedDocId, store.paneFocus]).toEqual([retry, note.id, 'wrapup'])
   })
 
   it('drops a task and note deleted since, and with them the task pane', () => {
     const shown = store.showLocation({
-      mode: 'tasks',
       taskId: 'gone' as TaskId,
       documentId: 'gone' as DocumentId,
       pane: 'steps',
       deviationStep: null
     })
 
-    expect(shown).toEqual({ mode: 'tasks', taskId: null, documentId: null, pane: 'note', deviationStep: null })
+    expect(shown).toEqual({ taskId: null, documentId: null, pane: 'note', deviationStep: null })
   })
 
   it('opens a deviation on its own pane over the task in view, and leaving the task forgets the step', () => {
@@ -153,8 +144,8 @@ describe('going back to a location', () => {
   })
 
   it('shows the deviation a history entry names, and a deviation pane with no step falls back to the note', () => {
-    const shown = store.showLocation({ mode: 'tasks', taskId: retry, documentId: null, pane: 'deviation', deviationStep: 2 })
-    const without = store.showLocation({ mode: 'tasks', taskId: retry, documentId: null, pane: 'deviation', deviationStep: null })
+    const shown = store.showLocation({ taskId: retry, documentId: null, pane: 'deviation', deviationStep: 2 })
+    const without = store.showLocation({ taskId: retry, documentId: null, pane: 'deviation', deviationStep: null })
 
     expect([shown.pane, shown.deviationStep]).toEqual(['deviation', 2])
     expect([without.pane, without.deviationStep]).toEqual(['note', null])

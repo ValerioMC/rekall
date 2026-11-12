@@ -8,8 +8,6 @@ import EpicPane from '@/features/catalog/components/epic/EpicPane.vue'
 import NavigatorPane from '@/components/console/NavigatorPane.vue'
 import NoteListPane from '@/features/notes/components/NoteListPane.vue'
 import NotePane from '@/features/notes/components/NotePane.vue'
-import NoteComposerPane from '@/features/notes/components/NoteComposerPane.vue'
-import NotePlacementsPane from '@/features/notes/components/NotePlacementsPane.vue'
 import StepsPane from '@/features/steps/components/StepsPane.vue'
 import WrapupPane from '@/features/wrapup/components/WrapupPane.vue'
 import SettingsPanel from '@/features/settings/components/SettingsPanel.vue'
@@ -42,7 +40,7 @@ const TerminalPane = defineAsyncComponent(() => import('@/features/claude/compon
 const ChatWindow = defineAsyncComponent(() => import('@/features/chat/components/ChatWindow.vue'))
 
 const store = useConsoleStore()
-const { selectedTaskId, selectedTask, navMode, paneFocus, noteComposerOpen, reviewQueue, isLoading } = storeToRefs(store)
+const { selectedTaskId, selectedTask, paneFocus, reviewQueue, isLoading } = storeToRefs(store)
 const runQueue = useRunQueueStore()
 const deviations = useDeviationsStore()
 const { panelOpen: runQueueOpen } = storeToRefs(runQueue)
@@ -93,20 +91,6 @@ const settingsOpen = ref(false)
 const claudeConnection = useClaudeConnectionStore()
 const tagsOpen = ref(false)
 
-/**
- * Browsing tasks, a note lands on the task in view, in its project, with no questions. Browsing
- * notes, the task in view is not on screen, so the composer asks where the note goes.
- */
-async function newNote(): Promise<void> {
-  if (navMode.value === 'notes') {
-    store.openNoteComposer()
-    return
-  }
-  const taskId = selectedTaskId.value
-  if (!taskId) return
-  await run(() => store.createNote({ scope: store.projectScopeOf(taskId), taskIds: [taskId] }), 'Note created')
-}
-
 function onKeydown(event: KeyboardEvent): void {
   if (isModalOpen.value > 0) return
 
@@ -139,12 +123,6 @@ function onKeydown(event: KeyboardEvent): void {
       deviationPane.value?.step(event.key === ']' ? 1 : -1)
       return
     }
-  }
-
-  if (key === 'n') {
-    event.preventDefault()
-    void newNote()
-    return
   }
 
   if (key === 'w' || key === 'd' || key === 's') {
@@ -186,12 +164,6 @@ function onKeydown(event: KeyboardEvent): void {
     return
   }
 
-  if (key === 'b') {
-    event.preventDefault()
-    store.setNavMode(navMode.value === 'tasks' ? 'notes' : 'tasks')
-    return
-  }
-
   if (key === 't') {
     event.preventDefault()
     navigator.value?.beginCreate()
@@ -206,18 +178,15 @@ function onKeydown(event: KeyboardEvent): void {
 
   if (key === 'j' || key === 'k') {
     event.preventDefault()
-    const list = navMode.value === 'tasks' ? store.visibleTasks : store.visibleDocuments
-    const currentId = navMode.value === 'tasks' ? store.selectedTaskId : store.selectedDocId
-    const at = list.findIndex((item) => item.id === currentId)
+    const list = store.visibleTasks
+    const at = list.findIndex((item) => item.id === selectedTaskId.value)
     const next = list[at + (key === 'j' ? 1 : -1)]
-    if (!next) return
-    if (navMode.value === 'tasks') store.selectTask(next.id as never)
-    else store.selectDocument(next.id as never)
+    if (next) store.selectTask(next.id)
     return
   }
 
   const status = STATUS_BY_KEY[event.key]
-  if (status && navMode.value === 'tasks' && selectedTaskId.value) {
+  if (status && selectedTaskId.value) {
     event.preventDefault()
     void run(() => store.setTaskStatus(selectedTaskId.value!, status))
   }
@@ -252,18 +221,13 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
     <AnchorBar
       ref="anchorBar"
-      @new-note="newNote"
       @open-settings="settingsOpen = true"
       @open-tags="tagsOpen = true"
     />
 
     <div class="flex min-h-0 flex-1">
       <NavigatorPane ref="navigator" />
-      <Transition name="pane" mode="out-in">
-        <NoteListPane v-if="navMode === 'tasks'" />
-        <NoteComposerPane v-else-if="noteComposerOpen" />
-        <NotePlacementsPane v-else />
-      </Transition>
+      <NoteListPane />
       <!-- A place focus is sent to (the skip link, a pane shortcut), never a control, so it
            draws no ring: the pane that appears in it is what says where you are. -->
       <div ref="noteArea" class="relative flex min-h-0 min-w-0 flex-1">

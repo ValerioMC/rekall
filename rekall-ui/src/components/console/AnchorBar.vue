@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import AppButton from '@/components/ui/AppButton.vue'
 import HeaderStatus from '@/components/console/HeaderStatus.vue'
 import SearchHitList from '@/features/search/components/SearchHitList.vue'
 import SettingsTrigger from '@/components/console/SettingsTrigger.vue'
@@ -10,7 +9,7 @@ import { searchText } from '@/features/search/api/search.api'
 import { isTextQuery } from '@/features/search/model/search'
 import type { SearchHit } from '@/features/search/model/search'
 
-const emit = defineEmits<{ newNote: []; openSettings: []; openTags: [] }>()
+const emit = defineEmits<{ openSettings: []; openTags: [] }>()
 
 const store = useConsoleStore()
 const {
@@ -18,12 +17,8 @@ const {
   scopePath,
   scopeName,
   saveState,
-  navMode,
   visibleTasks,
-  visibleDocuments,
-  selectedTaskId,
   selectedTask,
-  selectedDocument,
   scopeAnchor
 } = storeToRefs(store)
 
@@ -37,24 +32,16 @@ const placeholder = computed(() =>
     : `Find in ${scopeName.value}`
 )
 
-/** Where the reader is, as the anchors a session would be handed: the note, the task, or the scope. */
+/** Where the reader is, as the anchors a session would be handed: the task, or the scope. */
 const location = computed<string[]>(() => {
-  const anchors =
-    navMode.value === 'notes' && selectedDocument.value
-      ? selectedDocument.value.anchor
-      : (selectedTask.value?.anchor ?? scopeAnchor.value)
+  const anchors = selectedTask.value?.anchor ?? scopeAnchor.value
   return anchors.split(' ').filter((part) => part.length > 0)
 })
 
 /** At rest the bar is a location bar; the moment it is focused or holds a query it is a search. */
 const showsLocation = computed(() => !isFocused.value && !filter.value && location.value.length > 0)
 
-const resultCount = computed(() =>
-  navMode.value === 'tasks' ? visibleTasks.value.length : visibleDocuments.value.length
-)
-
-/** Browsing tasks, a new note needs a task in view. Browsing notes, the composer asks for one. */
-const needsTaskForNote = computed(() => navMode.value === 'tasks' && !selectedTaskId.value)
+const resultCount = computed(() => visibleTasks.value.length)
 
 const CURRENT_CHIP = 'min-w-[5rem] shrink-[1000] text-anchor-strong'
 const PARENT_CHIP = 'min-w-[3.5rem] shrink'
@@ -145,11 +132,6 @@ function onEnter(): void {
 }
 
 function openFirst(): void {
-  if (navMode.value === 'notes') {
-    const first = visibleDocuments.value[0]
-    if (first) store.selectDocument(first.id)
-    return
-  }
   const first = visibleTasks.value[0]
   if (first) store.selectTask(first.id)
 }
@@ -281,28 +263,6 @@ defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
           </svg>
         </button>
         <SettingsTrigger @open="emit('openSettings')" />
-        <span class="mx-0.5 h-4 w-px bg-border" aria-hidden="true" />
-        <span class="group relative inline-block">
-          <AppButton
-            variant="primary"
-            size="sm"
-            :disabled="needsTaskForNote"
-            data-testid="new-note"
-            title="New note"
-            @click="emit('newNote')"
-          >
-            <svg class="size-3.5 @min-[34rem]:hidden" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-              <path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
-            </svg>
-            <span class="@max-[34rem]:sr-only">New note</span>
-          </AppButton>
-          <span
-            v-if="needsTaskForNote"
-            class="pointer-events-none absolute right-0 top-full z-(--z-sticky) mt-2 whitespace-nowrap rounded-control border border-border-strong bg-surface-raised px-2.5 py-1.5 text-small text-text opacity-0 shadow-lift transition-opacity duration-(--motion-quick) group-hover:opacity-100"
-          >
-            Select a task to create a new note on it
-          </span>
-        </span>
       </div>
     </div>
   </Teleport>

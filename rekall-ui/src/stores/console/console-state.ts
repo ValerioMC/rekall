@@ -7,7 +7,7 @@ import type { TimeEntry } from '@/features/time/model/time-entry'
 import type { Wrapup } from '@/features/wrapup/model/wrapup'
 import type { TagSkill, TaskSkill } from '@/features/skills/model/skill-assignment'
 import type { CompanyId, DocumentId, ProjectId, TaskId, TaskStepId } from '@/model/branded'
-import type { NavMode, PaneFocus } from '@/model/console-location'
+import type { PaneFocus } from '@/model/console-location'
 
 export type SaveState = 'saved' | 'unsaved' | 'saving'
 
@@ -31,7 +31,6 @@ export function createConsoleState() {
 
     scopeCompany: ref<CompanyId | null>(null),
     scopeProject: ref<ProjectId | null>(null),
-    navMode: ref<NavMode>('tasks'),
     filter: ref(''),
     /** Quick tasks stay out of the lists while this is on; they are shown by default. */
     hideQuickTasks: ref(false),
@@ -41,9 +40,7 @@ export function createConsoleState() {
     /** The step whose deviation the deviation pane reads. */
     selectedDeviationStep: ref<number | null>(null),
     /** A step something outside the steps pane asked to see; the pane opens it and clears this. */
-    stepToOpen: ref<TaskStepId | null>(null),
-    /** Browsing notes, the placements column gives way to the new-note composer while this is on. */
-    noteComposerOpen: ref(false)
+    stepToOpen: ref<TaskStepId | null>(null)
   }
 }
 

@@ -41,8 +41,7 @@ export function useNoteWrites(
   refreshes: ReturnType<typeof useConsoleRefreshes>,
   timers: ReturnType<typeof useTimers>
 ) {
-  const { tasks, documents, navMode, selectedTaskId, selectedDocId, paneFocus, noteComposerOpen, saveState } =
-    state
+  const { tasks, documents, selectedTaskId, selectedDocId, paneFocus, saveState } = state
 
   /** The scope a note made from a task starts in: that task's project. */
   function projectScopeOf(taskId: TaskId): NoteScope {
@@ -52,7 +51,7 @@ export function useNoteWrites(
 
   /**
    * A note is born in a scope and on whichever of its tasks were picked, possibly none. The new
-   * one opens in the editor; browsing notes, that also closes the composer that made it.
+   * one opens in the editor.
    */
   async function createNote(draft: NoteDraft): Promise<void> {
     const taskIds = draft.taskIds ?? []
@@ -65,7 +64,6 @@ export function useNoteWrites(
     })
     documents.value = [created, ...documents.value]
     selectedDocId.value = created.id
-    noteComposerOpen.value = false
     paneFocus.value = 'note'
     await refreshes.refreshTasks()
     if (taskIds.length) await timers.resumeTimerOnNote(taskIds)
@@ -107,7 +105,7 @@ export function useNoteWrites(
     const remaining = current.tasks.filter((ref) => ref.id !== taskId).map((ref) => ref.id)
     if (remaining.length === current.tasks.length) return
     await saveNote(id, { taskIds: remaining })
-    if (navMode.value === 'tasks' && selectedDocId.value === id && selectedTaskId.value === taskId) {
+    if (selectedDocId.value === id && selectedTaskId.value === taskId) {
       selectedDocId.value = selected.taskDocuments.value[0]?.id ?? null
     }
   }

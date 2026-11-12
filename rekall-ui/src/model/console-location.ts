@@ -1,28 +1,28 @@
 import type { LocationQuery } from 'vue-router'
 import { asDocumentId, asTaskId, type DocumentId, type TaskId } from '@/model/branded'
 
-export type NavMode = 'tasks' | 'notes'
-
 export type PaneFocus = 'note' | 'wrapup' | 'description' | 'steps' | 'deviation' | 'terminal'
 
-const NAV_MODES: readonly NavMode[] = ['tasks', 'notes']
+const LOCATION_MARK = 'tasks'
 const PANES: readonly PaneFocus[] = ['note', 'wrapup', 'description', 'steps', 'deviation', 'terminal']
 
-/** What the console shows: the side being browsed, the task and note in view, the pane in front, and the step whose deviation that pane reads. */
+/** What the console shows: the task and note in view, the pane in front, and the step whose deviation that pane reads. */
 export interface ConsoleLocation {
-  readonly mode: NavMode
   readonly taskId: TaskId | null
   readonly documentId: DocumentId | null
   readonly pane: PaneFocus
   readonly deviationStep: number | null
 }
 
-/** The query a location is written as. `mode` is always there, so a bare `/` reads as "no location". */
+/**
+ * The query a location is written as. `mode=tasks` is always there, so a bare `/` reads as "no
+ * location"; links written when notes were a second mode keep it, and any other value is no location.
+ */
 export type ConsoleLocationQuery = Readonly<Record<'mode' | 'task' | 'note' | 'pane' | 'deviation', string | undefined>>
 
 export function locationToQuery(location: ConsoleLocation): ConsoleLocationQuery {
   return {
-    mode: location.mode,
+    mode: LOCATION_MARK,
     task: location.taskId ?? undefined,
     note: location.documentId ?? undefined,
     pane: location.pane === 'note' ? undefined : location.pane,
@@ -32,14 +32,12 @@ export function locationToQuery(location: ConsoleLocation): ConsoleLocationQuery
 
 /** `null` when the query carries no location, as on a plain link to the console. */
 export function locationFromQuery(query: LocationQuery): ConsoleLocation | null {
-  const mode = single(query.mode)
-  if (!isOneOf(NAV_MODES, mode)) return null
+  if (single(query.mode) !== LOCATION_MARK) return null
   const task = single(query.task)
   const note = single(query.note)
   const pane = single(query.pane)
   const deviation = Number(single(query.deviation))
   return {
-    mode,
     taskId: task ? asTaskId(task) : null,
     documentId: note ? asDocumentId(note) : null,
     pane: isOneOf(PANES, pane) ? pane : 'note',
@@ -49,7 +47,6 @@ export function locationFromQuery(query: LocationQuery): ConsoleLocation | null 
 
 export function sameLocation(left: ConsoleLocation, right: ConsoleLocation): boolean {
   return (
-    left.mode === right.mode &&
     left.taskId === right.taskId &&
     left.documentId === right.documentId &&
     left.pane === right.pane &&

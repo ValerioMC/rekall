@@ -1,6 +1,6 @@
 import { computed } from 'vue'
 import type { CompanyId, DocumentId, ProjectId, TaskId, TaskStepId } from '@/model/branded'
-import type { ConsoleLocation, NavMode, PaneFocus } from '@/model/console-location'
+import type { ConsoleLocation, PaneFocus } from '@/model/console-location'
 import { isEpic } from '@/features/catalog/model/catalog'
 import type { ReviewItem } from '@/features/catalog/model/review'
 import type { SearchHit } from '@/features/search/model/search'
@@ -16,12 +16,11 @@ export function useConsoleNavigation(
   view: ReturnType<typeof useConsoleView>,
   selected: ReturnType<typeof useSelectedTask>
 ) {
-  const { tasks, documents, scopeCompany, scopeProject, navMode, selectedTaskId, selectedDocId, paneFocus, selectedDeviationStep } =
+  const { tasks, documents, scopeCompany, scopeProject, selectedTaskId, selectedDocId, paneFocus, selectedDeviationStep } =
     state
-  const { stepToOpen, noteComposerOpen } = state
+  const { stepToOpen } = state
 
   const location = computed<ConsoleLocation>(() => ({
-    mode: navMode.value,
     taskId: selectedTaskId.value,
     documentId: selectedDocId.value,
     pane: paneFocus.value,
@@ -42,16 +41,10 @@ export function useConsoleNavigation(
     return task && isEpic(task) ? 'description' : 'note'
   }
 
-  /**
-   * Browsing tasks, a note has to bring one of its tasks along or the task panes disagree with
-   * the editor. Browsing notes, the panes are the note's own, so the task in view is left alone:
-   * that is what makes the Notes side a place to manage notes rather than a detour through tasks.
-   */
+  /** A note has to bring one of its tasks along or the task panes disagree with the editor. */
   function selectDocument(id: DocumentId): void {
     selectedDocId.value = id
     paneFocus.value = 'note'
-    noteComposerOpen.value = false
-    if (navMode.value === 'notes') return
     followDocumentToTask(id)
   }
 
@@ -60,16 +53,6 @@ export function useConsoleNavigation(
     if (document && !document.tasks.some((ref) => ref.id === selectedTaskId.value)) {
       selectedTaskId.value = document.tasks[0]?.id ?? null
     }
-  }
-
-  function setNavMode(mode: NavMode): void {
-    navMode.value = mode
-    noteComposerOpen.value = false
-    if (mode === 'notes') {
-      if (selectedDocId.value !== null) paneFocus.value = 'note'
-      return
-    }
-    if (selectedDocId.value !== null) followDocumentToTask(selectedDocId.value)
   }
 
   /**
@@ -81,12 +64,10 @@ export function useConsoleNavigation(
     const documentId = documents.value.some((document) => document.id === target.documentId)
       ? target.documentId
       : null
-    navMode.value = target.mode
     selectedTaskId.value = taskId
     selectedDocId.value = documentId
     selectedDeviationStep.value = target.deviationStep
     paneFocus.value = taskId === null || (target.pane === 'deviation' && target.deviationStep === null) ? 'note' : target.pane
-    noteComposerOpen.value = false
     return location.value
   }
 
@@ -150,7 +131,7 @@ export function useConsoleNavigation(
   /** Opens whatever a search hit points at, on the pane that shows that text. */
   function openSearchHit(hit: SearchHit): void {
     if (hit.kind === 'NOTE' && hit.documentId) {
-      if (navMode.value === 'tasks' && hit.taskId) selectTask(hit.taskId)
+      if (hit.taskId) selectTask(hit.taskId)
       selectDocument(hit.documentId)
       return
     }
@@ -163,19 +144,10 @@ export function useConsoleNavigation(
     paneFocus.value = hit.kind === 'WRAPUP' ? 'wrapup' : 'description'
   }
 
-  function openNoteComposer(): void {
-    noteComposerOpen.value = true
-  }
-
-  function closeNoteComposer(): void {
-    noteComposerOpen.value = false
-  }
-
   return {
     location,
     selectTask,
     selectDocument,
-    setNavMode,
     showLocation,
     setScope,
     openWrapup: () => openPane('wrapup'),
@@ -191,8 +163,6 @@ export function useConsoleNavigation(
     openStep,
     clearStepToOpen,
     openReviewItem,
-    openSearchHit,
-    openNoteComposer,
-    closeNoteComposer
+    openSearchHit
   }
 }
