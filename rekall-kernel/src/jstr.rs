@@ -256,6 +256,14 @@ pub fn lower(text: &str) -> String {
     text.to_lowercase()
 }
 
+/// `wanted`, or the first of `wanted-2`, `wanted-3`... that `is_taken` does not refuse.
+pub fn first_free_suffix(wanted: &str, is_taken: impl Fn(&str) -> bool) -> String {
+    if !is_taken(wanted) {
+        return wanted.to_string();
+    }
+    (2..).map(|suffix| format!("{wanted}-{suffix}")).find(|name| !is_taken(name)).expect("an unbounded range always finds a free name")
+}
+
 #[cfg(test)]
 #[path = "../tests/unit/jstr_tests.rs"]
 mod tests;

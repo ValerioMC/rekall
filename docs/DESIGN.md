@@ -215,7 +215,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 Each crate's foundations are modules every domain may use and are no domain: `ctx`, `events`,
 `load`, `services`, `text_rule` and `tx` in `rekall-core`; `constraints`, `enums`, `prelude`,
 `slug` and `stamped` in `rekall-store`, with `database`, `migration`, `query_support`,
-`stamped_update` and `repository`, whose re-exports the test reads back to their domains; `api_ports`, `api_state`, `router` and `shared` in `rekall-http`; `controller`, `protocol`, `texts`,
+`stamped_update` and `repository`, whose re-exports the test reads back to their domains; `shared` in `rekall-console`; `api_ports`, `api_state`, `router` and `shared` in `rekall-http`; `controller`, `protocol`, `texts`,
 `tool` and `tool_registry` in `rekall-mcp`. A new edge is a design decision: change the table and
 the test together, or change the code.
 

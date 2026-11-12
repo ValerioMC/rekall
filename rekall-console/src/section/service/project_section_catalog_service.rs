@@ -12,6 +12,7 @@ use rekall_core::section::{rule::rules, ProjectSectionView, SectionStreamEvent};
 use rekall_core::{in_write, Tx};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
+use crate::shared::require_by_id;
 use crate::section::{ProjectSectionOrderCommand, ProjectSectionCommand};
 
 #[derive(Clone)]
@@ -85,7 +86,7 @@ impl ProjectSectionCatalogService {
             let now = self.ctx.now();
             let mut ordered = Vec::with_capacity(sections.len());
             for (position, id) in wanted.iter().enumerate() {
-                let mut section = sections.iter().find(|section| section.id == *id).cloned().expect("checked against the project's sections");
+                let mut section = require_by_id(&sections, *id, |section| section.id, "An order was checked against the project's sections")?;
                 if section.position != position as i32 {
                     section.position = position as i32;
                     section.updated_at = now;

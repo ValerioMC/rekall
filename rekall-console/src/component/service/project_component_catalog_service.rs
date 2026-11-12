@@ -10,6 +10,7 @@ use rekall_core::component::ProjectComponentView;
 use rekall_core::{in_read, in_write, Ctx, Tx};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
+use crate::shared::require_by_id;
 use crate::component::{ProjectComponentOrderCommand, ProjectComponentCommand};
 
 #[derive(Clone)]
@@ -109,7 +110,7 @@ impl ProjectComponentCatalogService {
             let now = self.ctx.now();
             let mut ordered = Vec::with_capacity(components.len());
             for (position, id) in wanted.iter().enumerate() {
-                let mut component = components.iter().find(|component| component.id == *id).cloned().expect("checked against the project's components");
+                let mut component = require_by_id(&components, *id, |component| component.id, "An order was checked against the project's components")?;
                 if component.position != position as i32 {
                     component.position = position as i32;
                     component.updated_at = now;
@@ -144,11 +145,7 @@ pub(crate) fn folder_name(folder: &str) -> String {
 
 /// `wanted`, or the first of `wanted-2`, `wanted-3`... no component of the project is named, ignoring case.
 fn first_free_name(wanted: &str, components: &[project_component::Model]) -> String {
-    let is_free = |name: &str| !components.iter().any(|component| jstr::equals_ignore_case(&component.name, name));
-    if is_free(wanted) {
-        return wanted.to_string();
-    }
-    (2..).map(|suffix| format!("{wanted}-{suffix}")).find(|name| is_free(name)).expect("an unbounded range always finds a free name")
+    jstr::first_free_suffix(wanted, |name| components.iter().any(|component| jstr::equals_ignore_case(&component.name, name)))
 }
 
 async fn require_name_free(tx: &Tx, project_id: Id, name: &str, except: Option<Id>) -> Result<()> {

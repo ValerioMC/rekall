@@ -101,7 +101,7 @@ const CORE: LayeredCrate = LayeredCrate {
 const CONSOLE: LayeredCrate = LayeredCrate {
     folder: "rekall-console",
     domain_root: &[],
-    foundations: &[],
+    foundations: &["shared"],
     facades: &[],
     allowed: &[
         ("adherence", &["deviation", "flow", "step", "task"]),

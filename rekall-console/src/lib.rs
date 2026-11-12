@@ -21,6 +21,7 @@ pub mod queue;
 pub mod quick;
 pub mod section;
 pub mod settings;
+pub mod shared;
 pub mod skill;
 pub mod tag;
 pub mod terminal;

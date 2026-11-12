@@ -10,6 +10,7 @@ use rekall_store::done_check;
 use rekall_store::repository as repo;
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
+use crate::shared::require_by_id;
 use crate::check::{CheckCommand, CheckOrderCommand, CheckResultView, CheckView};
 
 #[derive(Clone)]
@@ -139,7 +140,7 @@ impl CheckService {
         let now = self.ctx.now();
         let mut ordered = Vec::with_capacity(scope.len());
         for (position, id) in wanted.iter().enumerate() {
-            let mut check = scope.iter().find(|check| check.id == *id).cloned().expect("checked against the scope's checks");
+            let mut check = require_by_id(&scope, *id, |check| check.id, "An order was checked against the scope's checks")?;
             if check.position != position as i32 {
                 check.position = position as i32;
                 check.updated_at = now;

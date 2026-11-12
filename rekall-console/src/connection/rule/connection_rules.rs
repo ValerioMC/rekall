@@ -43,10 +43,7 @@ pub(in crate::connection) fn target_of(raw: Option<&str>) -> Option<String> {
 
 /// `wanted`, or the first of `wanted-2`, `wanted-3`... that no binding of the project uses yet.
 pub(in crate::connection) fn first_free_label(wanted: &str, taken: &[String]) -> String {
-    if !taken.iter().any(|label| label == wanted) {
-        return wanted.to_string();
-    }
-    (2..).map(|suffix| format!("{wanted}-{suffix}")).find(|label| !taken.contains(label)).expect("an unbounded range always finds a free label")
+    jstr::first_free_suffix(wanted, |label| taken.iter().any(|used| used == label))
 }
 
 #[cfg(test)]
