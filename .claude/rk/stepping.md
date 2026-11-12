@@ -18,7 +18,8 @@ a checklist step.
 The loop, once you are working a checklist:
 
 1. `/rk project:x task:y step:N start`, before you touch the code for step N.
-2. Do the work the step's detail describes.
+2. Do the work the step's detail describes, and run only the tests of what it built or changed. The
+   whole suite, typecheck and lint belong to the plan's final verification step, not to every step.
 3. `/rk project:x task:y wrapup`, to fold what that step built into the task's wrapup, by the rules
    in `wrapping-up.md`. One state, rewritten whole, never a section per step. On a flow, skip this
    until the flow is finished.

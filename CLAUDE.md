@@ -90,8 +90,10 @@ convention are in `docs/DESIGN.md` §3 ("Layout inside a crate") and are not rep
   (an undeclared suite never runs). See `docs/DESIGN.md` §3.
 - Every non-trivial function has a test. External I/O is faked (temporary directories, an
   in-memory database, a fixed `Clock`).
-- `cargo test --workspace` and, for the console, `pnpm --dir rekall-ui test`, `typecheck` and
-  `lint` must pass before a change is done.
+- While a step is built, run only the tests of what it touches (`cargo test -p <crate> <filter>`,
+  `pnpm --dir rekall-ui test <file>`). `cargo test --workspace` and, for the console,
+  `pnpm --dir rekall-ui test`, `typecheck` and `lint` run once, in the plan's final verification
+  step, and must pass before the task is done.
 
 ## Frontend (`rekall-ui`)
 
