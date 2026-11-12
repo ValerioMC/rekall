@@ -27,6 +27,7 @@
    and how I can tell it is done, enough for a session that never saw this one to do it alone.
    Propose only what is still missing, and nothing the description rules out.
    Cut the sessions as part of the plan, as **Splitting into sessions** says: never wait to be asked.
+   Close the plan as **Testing** says.
 6. Stop. Say in a few lines how many steps (and, for a flow, routes) you proposed, how many
    sessions they make and where each starts, which diagrams you drew and where they are, and
    anything you left out on purpose. Build nothing: the steps are
@@ -62,6 +63,20 @@ start whenever you plan or replan, without being told to, and mark each start wi
 The wrapup written before a session's last claim is what the next session starts from, so a split
 costs nothing the wrapup does not carry. Say in the closing lines of the plan how many sessions it
 has and where they start.
+
+### Testing
+
+A step is tested by what it built, and the whole suite runs once, at the end.
+
+- Say in each step's detail which tests it adds or changes and how to run only those (one Rust test
+  or crate, one spec file). A step never asks for the project's whole test, typecheck and lint run.
+- The last step of the plan is a dedicated verification step: it runs the project's whole suite
+  (build, tests, typecheck, lint, as its sections or `CLAUDE.md` say) and fixes what fails. It stays
+  in the session of the steps before it.
+- On a flow, that step carries the routes: `passed` -> end of the flow, and a route per kind of
+  failure back to the step that fixes it, with a `max_visits` on the step it returns to. A step
+  that fixes a failure runs only the tests of what it fixed, then goes back to verification.
+- A task whose work is not code (documentation, a note, a prompt) has no verification step.
 
 ### Drawing the plan
 
