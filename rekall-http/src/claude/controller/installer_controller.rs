@@ -10,8 +10,8 @@ pub fn routes() -> Router<ApiState> {
     Router::new().route("/api/settings/claude", get(status)).route("/api/settings/claude/install", post(install))
 }
 
-async fn status(State(state): State<ApiState>) -> Json<Installation> {
-    Json(state.claude_install.status().await)
+async fn status(State(state): State<ApiState>) -> ApiResult<Json<Installation>> {
+    Ok(Json(state.claude_install.status().await?))
 }
 
 async fn install(State(state): State<ApiState>) -> ApiResult<Json<Installation>> {

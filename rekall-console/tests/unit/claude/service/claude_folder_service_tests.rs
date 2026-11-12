@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 
 use rekall_core::claude::{ResourceKind, ResourceSummary};
-use rekall_kernel::Instant;
+use rekall_kernel::{Instant, RekallError};
 
 use super::*;
 

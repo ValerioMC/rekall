@@ -33,6 +33,6 @@ impl ClaudeCodeSetup for FakeSetup {
 async fn the_status_and_the_installs_refusal_come_from_the_setup() {
     let service = ClaudeInstallService::new(Arc::new(FakeSetup));
 
-    assert_eq!(service.status().await.status, "MISSING");
+    assert_eq!(service.status().await.unwrap().status, "MISSING");
     assert!(matches!(service.install().await, Err(RekallError::Conflict(_))));
 }

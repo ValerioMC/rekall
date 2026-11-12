@@ -4,6 +4,7 @@
 
 mod command;
 mod service;
+mod support;
 
 pub use service::claude_folder_service::ClaudeFolderService;
 pub use service::claude_install_service::ClaudeInstallService;

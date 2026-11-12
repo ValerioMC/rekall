@@ -3,6 +3,8 @@ use std::sync::Arc;
 use rekall_core::claude::{GuardInstaller, GuardProtection};
 use rekall_kernel::Result;
 
+use crate::claude::support::blocking_job::blocking;
+
 /// Whether Claude Code runs the guard hooks, and the writes that add or remove them. Each reads or
 /// writes a file, so each runs off the async workers.
 #[derive(Clone)]
@@ -15,19 +17,19 @@ impl GuardProtectionService {
         Self { installer }
     }
 
-    pub async fn status(&self) -> GuardProtection {
+    pub async fn status(&self) -> Result<GuardProtection> {
         let installer = self.installer.clone();
-        tokio::task::spawn_blocking(move || installer.status()).await.expect("status never panics")
+        blocking(move || Ok(installer.status())).await
     }
 
     pub async fn install(&self) -> Result<GuardProtection> {
         let installer = self.installer.clone();
-        tokio::task::spawn_blocking(move || installer.install()).await.expect("install never panics")
+        blocking(move || installer.install()).await
     }
 
     pub async fn uninstall(&self) -> Result<GuardProtection> {
         let installer = self.installer.clone();
-        tokio::task::spawn_blocking(move || installer.uninstall()).await.expect("uninstall never panics")
+        blocking(move || installer.uninstall()).await
     }
 }
 
