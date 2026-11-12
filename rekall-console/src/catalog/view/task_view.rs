@@ -38,6 +38,9 @@ pub struct TaskView {
     pub tracker_issue_key: Option<String>,
     pub tracker_issue_url: Option<String>,
     pub tracker_sync_error: Option<String>,
+    pub pull_request_number: Option<i64>,
+    pub pull_request_url: Option<String>,
+    pub pull_request_failure: Option<String>,
     pub anchor: String,
     pub updated_at: Instant,
 }
@@ -80,6 +83,9 @@ impl TaskView {
             tracker_issue_key: graph.tracker_link.and_then(|link| link.issue_key.clone()),
             tracker_issue_url: graph.tracker_link.and_then(|link| link.issue_url.clone()),
             tracker_sync_error: graph.tracker_link.and_then(|link| link.sync_error.clone()),
+            pull_request_number: graph.pull_request.and_then(|pull_request| pull_request.number),
+            pull_request_url: graph.pull_request.and_then(|pull_request| pull_request.url.clone()),
+            pull_request_failure: graph.pull_request.and_then(|pull_request| pull_request.failure.clone()),
             anchor: task.anchor(&project.label),
             updated_at: task.updated_at,
         }

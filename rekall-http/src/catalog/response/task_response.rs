@@ -39,6 +39,9 @@ pub struct TaskResponse {
     pub tracker_issue_key: Option<String>,
     pub tracker_issue_url: Option<String>,
     pub tracker_sync_error: Option<String>,
+    pub pull_request_number: Option<i64>,
+    pub pull_request_url: Option<String>,
+    pub pull_request_failure: Option<String>,
     pub anchor: String,
     pub updated_at: Instant,
 }
@@ -79,6 +82,9 @@ impl From<TaskView> for TaskResponse {
             tracker_issue_key: view.tracker_issue_key,
             tracker_issue_url: view.tracker_issue_url,
             tracker_sync_error: view.tracker_sync_error,
+            pull_request_number: view.pull_request_number,
+            pull_request_url: view.pull_request_url,
+            pull_request_failure: view.pull_request_failure,
             anchor: view.anchor,
             updated_at: view.updated_at,
         }

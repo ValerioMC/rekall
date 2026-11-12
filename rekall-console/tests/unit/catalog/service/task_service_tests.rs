@@ -1,5 +1,5 @@
 use rekall_kernel::Instant;
-use rekall_store::{company, ProjectStatus, TaskKind};
+use rekall_store::{company, task_pull_request, ProjectStatus, TaskKind};
 use rekall_core::task::TaskContentChangedEvent;
 use rekall_core::{EventBus, Services};
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
@@ -7,6 +7,7 @@ use sea_orm::{ActiveModelTrait, IntoActiveModel};
 use super::*;
 
 struct World {
+    db: sea_orm::DatabaseConnection,
     events: EventBus,
     service: TaskService,
     steps: rekall_core::step::TaskStepService,
@@ -25,7 +26,7 @@ async fn world() -> World {
     let other_project_id = insert_project(&database.conn, company.id, "site").await;
     let services = Services::new(ctx.clone(), std::sync::Arc::new(rekall_core::check::ScriptedCheckRunner::new()));
     let service = TaskService::new(ctx, services.review.clone(), services.time_entries.clone());
-    World { events, service, steps: services.steps.clone(), project_id, other_project_id }
+    World { db: database.conn.clone(), events, service, steps: services.steps.clone(), project_id, other_project_id }
 }
 
 async fn insert_project(db: &sea_orm::DatabaseConnection, company_id: Id, label: &str) -> Id {
@@ -236,4 +237,18 @@ async fn an_edit_keeps_the_issue_the_task_was_written_to() {
     let edited = world.service.update(task.id, TaskCommand { title: Some("Pay".into()), ..command("pay", world.project_id, TaskKind::Task, None) }).await.unwrap();
 
     assert_eq!(edited.tracker_issue_key.as_deref(), Some("12"));
+}
+
+#[tokio::test]
+async fn the_task_view_carries_the_pull_request_opened_for_its_branch() {
+    let world = world().await;
+    let task = world.service.create(command("pay", world.project_id, TaskKind::Task, None)).await.unwrap();
+    assert_eq!(task.pull_request_number, None);
+    let now = Instant::now();
+    let opened = task_pull_request::Model { task_id: task.id, number: Some(5), url: Some("https://github.com/acme/app/pull/5".into()), failure: None, created_at: now, updated_at: now };
+    rekall_store::repository::task_pull_request::save(&world.db, opened).await.unwrap();
+
+    let view = world.service.get(task.id).await.unwrap();
+
+    assert_eq!((view.pull_request_number, view.pull_request_url.as_deref(), view.pull_request_failure), (Some(5), Some("https://github.com/acme/app/pull/5"), None));
 }

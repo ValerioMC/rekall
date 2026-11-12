@@ -57,6 +57,7 @@ mod m078_enum_and_scope_checks;
 mod m079_step_owned_task_keys;
 mod m080_task_tracker_link;
 mod m081_pull_request_flow;
+mod m082_task_pull_request;
 mod migration_support;
 mod migrator;
 

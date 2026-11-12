@@ -62,7 +62,7 @@ pub use section::entity::project_section;
 pub use skill::{entity::skill_name, entity::skill_placement, entity::tag_skill, entity::task_skill};
 pub use step::{entity::step_pass, entity::task_step};
 pub use telemetry::entity::telemetry_setting;
-pub use tracker::entity::task_tracker_link;
+pub use tracker::entity::{task_pull_request, task_tracker_link};
 pub use timeentry::entity::time_entry;
 pub use token::{entity::token_usage, entity::transcript_scan};
 pub use vulnerability::{entity::scan_scope, entity::security_advisory, entity::vulnerability_exposure};
