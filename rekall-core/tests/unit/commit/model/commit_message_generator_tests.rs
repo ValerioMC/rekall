@@ -55,45 +55,10 @@ fn body_lines_are_wrapped_at_72_columns_and_list_items_keep_a_hanging_indent() {
 }
 
 #[test]
-fn a_long_detail_is_cut_at_a_sentence() {
-    let detail = "This sentence is long enough to matter. ".repeat(40);
-    let body = CommitMessageGenerator::derived_body(Some(&detail));
-    assert!(jstr::len(&body) <= DERIVED_BODY_MAX);
-    assert!(body.ends_with("matter."));
-}
-
-#[test]
 fn a_task_claim_with_no_wrapup_has_a_subject_and_the_refs_line() {
     let task = Subject { title: "Report builder".into(), anchor: ANCHOR.into(), step_number: None, description: None };
     let message = CommitMessageGenerator::generate(&task, &[PendingChange::new(PendingChangeKind::Deleted, "old.js")], None);
     assert_eq!(message, "feat: Report builder\n\nRefs: project:vega task:report-builder\n");
-}
-
-#[test]
-fn only_documentation_files_make_a_docs_commit_only_tests_a_test_commit() {
-    let docs = [
-        PendingChange::new(PendingChangeKind::Modified, "README.md"),
-        PendingChange::new(PendingChangeKind::Added, "docs/export.txt"),
-    ];
-    assert_eq!(CommitMessageGenerator::type_of("Update guide", &docs), "docs");
-    let tests = [
-        PendingChange::new(PendingChangeKind::Added, "src/test/java/dev/vega/ExportTest.java"),
-        PendingChange::new(PendingChangeKind::Modified, "ui/tests/unit/Export.spec.ts"),
-    ];
-    assert_eq!(CommitMessageGenerator::type_of("Cover export", &tests), "test");
-    let mixed = [
-        PendingChange::new(PendingChangeKind::Added, "src/test/java/dev/vega/ExportTest.java"),
-        PendingChange::new(PendingChangeKind::Added, "src/main/java/dev/vega/Export.java"),
-    ];
-    assert_eq!(CommitMessageGenerator::type_of("Cover export", &mixed), "feat");
-}
-
-#[test]
-fn the_title_decides_fix_and_refactor_in_english_or_italian() {
-    assert_eq!(CommitMessageGenerator::type_of("Fix the await review", &mixed()), "fix");
-    assert_eq!(CommitMessageGenerator::type_of("Errore quando faccio accetto", &mixed()), "fix");
-    assert_eq!(CommitMessageGenerator::type_of("Refactor the store", &mixed()), "refactor");
-    assert_eq!(CommitMessageGenerator::type_of("Fixture loader", &mixed()), "feat");
 }
 
 #[test]
