@@ -21,7 +21,7 @@ async fn a_task(db: &impl ConnectionTrait) -> task::Model {
 
 fn opened(task_id: Id, number: i64) -> Model {
     let now = Instant::now();
-    Model { task_id, number: Some(number), url: Some(format!("https://github.com/acme/app/pull/{number}")), failure: None, created_at: now, updated_at: now }
+    Model { task_id, number: Some(number), url: Some(format!("https://github.com/acme/app/pull/{number}")), failure: None, merged_at: None, created_at: now, updated_at: now }
 }
 
 #[tokio::test]
@@ -41,7 +41,7 @@ async fn a_saved_pull_request_is_read_back_and_a_second_save_replaces_it() {
     save(db, first.clone()).await.unwrap();
     assert_eq!(find_of_task(db, task.id).await.unwrap(), Some(first.clone()));
 
-    let failed = Model { number: None, url: None, failure: Some("The push was refused.".into()), ..first };
+    let failed = Model { number: None, url: None, failure: Some("The push was refused.".into()), merged_at: Some(Instant::now()), ..first };
     save(db, failed.clone()).await.unwrap();
 
     assert_eq!(list_of_tasks(db, vec![task.id]).await.unwrap(), vec![failed]);

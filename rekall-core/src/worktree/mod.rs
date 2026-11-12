@@ -11,6 +11,7 @@ pub use model::branch_review::BranchReview;
 pub use model::merge_outcome::MergeOutcome;
 pub use model::orphan_report::OrphanReport;
 pub use model::pull_request_flow_site::PullRequestFlowSite;
+pub use model::pull_request_landing::PullRequestLanding;
 pub use model::push_outcome::PushOutcome;
 pub use model::step_commit::StepCommit;
 pub use model::worktree::Worktree;

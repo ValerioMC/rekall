@@ -9,7 +9,8 @@ use std::time::Duration;
 
 use rekall_core::claude::{ClaudeUsageView, InMemoryTerminalHost, Limit, SessionKind, Severity, TerminalHost, TerminalMode, UsageReader};
 use rekall_core::queue::{QueueRunner, RunQueueService};
-use rekall_core::worktree::{ScriptedWorktreeHost, TaskWorktreeService};
+use rekall_core::connection::{PullRequestMerge, ScriptedPullRequestHost};
+use rekall_core::worktree::{ScriptedWorktreeHost, TaskPullRequestService, TaskWorktreeService};
 use rekall_infra::queue::RunQueueRunner;
 use rekall_infra::worktree::WorktreeCleaner;
 use rekall_kernel::Instant;
@@ -71,8 +72,11 @@ async fn harness(world: &World, parallel: i32) -> Harness {
 }
 
 fn start_cleaner(world: &World, worktrees: TaskWorktreeService) -> Arc<InMemoryTerminalHost> {
+    start_cleaner_with(world, worktrees, world.pull_requests())
+}
+
+fn start_cleaner_with(world: &World, worktrees: TaskWorktreeService, pull_requests: TaskPullRequestService) -> Arc<InMemoryTerminalHost> {
     let sessions = Arc::new(InMemoryTerminalHost::new());
-    let pull_requests = world.pull_requests();
     WorktreeCleaner::start(&world.events, world.services.task_work.clone(), worktrees, pull_requests, sessions.clone(), Duration::from_millis(50));
     sessions
 }
@@ -228,6 +232,52 @@ async fn accepting_a_task_merges_its_branch_before_its_worktree_goes() {
 
     eventually("the worktree to go", || async { worktree_of(&world, &task).await.is_none() }).await;
     assert_eq!(git.merged(), vec!["rekall/one".to_string()]);
+}
+
+#[tokio::test]
+async fn accepting_a_task_on_the_pull_request_flow_merges_its_pull_request_and_not_its_branch() {
+    let world = world().await;
+    let (worktrees, git) = world.worktrees();
+    let host = Arc::new(ScriptedPullRequestHost::new());
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    world.run_pull_request_flow(&project).await;
+    let task = world.task(&project, "one").await;
+    let step = world.step(&task, "First", 0, TaskStepState::Claimed).await;
+    worktrees.ensure(task.id).await.unwrap();
+    git.leave_commits("rekall/one");
+    let link = rekall_store::task_tracker_link::Model { task_id: task.id, issue_key: Some("12".into()), issue_url: None, sync_error: None, created_at: Instant::now(), updated_at: Instant::now() };
+    rekall_store::repository::task_tracker_link::save(world.db(), link).await.unwrap();
+    let _ = start_cleaner_with(&world, worktrees, world.pull_requests_over(git.clone(), host.clone()));
+
+    world.services.steps.edit(step.id, None, None, Some(true), None).await.unwrap();
+
+    eventually("the worktree to go", || async { worktree_of(&world, &task).await.is_none() }).await;
+    assert_eq!((host.opened().len(), host.merged(), host.closed_issues()), (1, vec![1], vec!["12".to_string()]));
+    assert_eq!((git.pushed(), git.merged()), (vec!["rekall/one".to_string()], Vec::<String>::new()));
+}
+
+#[tokio::test]
+async fn a_pull_request_the_host_refuses_keeps_the_worktree_and_records_why() {
+    let world = world().await;
+    let (worktrees, git) = world.worktrees();
+    let host = Arc::new(ScriptedPullRequestHost::new());
+    host.merge_answers_with(PullRequestMerge::Refused("Required status check is failing".into()));
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    world.run_pull_request_flow(&project).await;
+    let task = world.task(&project, "one").await;
+    let step = world.step(&task, "First", 0, TaskStepState::Claimed).await;
+    worktrees.ensure(task.id).await.unwrap();
+    let _ = start_cleaner_with(&world, worktrees, world.pull_requests_over(git, host.clone()));
+
+    world.services.steps.edit(step.id, None, None, Some(true), None).await.unwrap();
+
+    eventually("the reason to be kept", || async {
+        let stored = rekall_store::repository::task_pull_request::find_of_task(world.db(), task.id).await.unwrap();
+        stored.and_then(|stored| stored.failure).is_some_and(|failure| failure.contains("Required status check is failing"))
+    })
+    .await;
+    assert!(worktree_of(&world, &task).await.is_some());
+    assert!(host.merged().is_empty());
 }
 
 #[tokio::test]

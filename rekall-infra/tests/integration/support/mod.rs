@@ -83,10 +83,36 @@ impl World {
 
     /// A pull request service over a scripted git and a scripted host: no project of these tests turns the flow on.
     pub fn pull_requests(&self) -> rekall_core::worktree::TaskPullRequestService {
+        self.pull_requests_over(Arc::new(rekall_core::worktree::ScriptedWorktreeHost::new()), Arc::new(rekall_core::connection::ScriptedPullRequestHost::new()))
+    }
+
+    pub fn pull_requests_over(
+        &self,
+        git: Arc<rekall_core::worktree::ScriptedWorktreeHost>,
+        host: Arc<rekall_core::connection::ScriptedPullRequestHost>,
+    ) -> rekall_core::worktree::TaskPullRequestService {
         let ctx = self.services.ctx.clone();
         let tracker = rekall_core::connection::TaskTrackerService::new(ctx.clone(), self.secrets.clone(), Arc::new(rekall_core::connection::ScriptedTaskTracker::new()));
         let layout = rekall_core::worktree::WorktreeLayout::new(self.home.path().join("worktrees"));
-        rekall_core::worktree::TaskPullRequestService::new(ctx, tracker, Arc::new(rekall_core::worktree::ScriptedWorktreeHost::new()), Arc::new(rekall_core::connection::ScriptedPullRequestHost::new()), layout)
+        rekall_core::worktree::TaskPullRequestService::new(ctx, tracker, git, host, layout)
+    }
+
+    /// Turns the pull request flow on for `project`, with a GitHub task manager whose credential is stored.
+    pub async fn run_pull_request_flow(&self, project: &project::Model) {
+        use rekall_core::connection::{Secret, SecretStore};
+        use rekall_store::{external_connection, project_connection, ConnectionKind};
+        let now = Instant::now();
+        let mut connection = external_connection::Model::new("github".into(), "GitHub".into(), ConnectionKind::Github, Some("https://github.com".into()), now);
+        connection.secret_set_at = Some(now);
+        connection.clone().into_active_model().insert(self.db()).await.unwrap();
+        let mut binding = project_connection::Model::new(project.id, connection.id, "github".into(), Some("acme/app".into()), now);
+        binding.task_manager = true;
+        binding.clone().into_active_model().insert(self.db()).await.unwrap();
+        self.secrets.put(&connection.secret_ref, &Secret::new("token")).unwrap();
+        let mut flowing = project.clone().into_active_model();
+        flowing.pull_request_flow = sea_orm::Set(true);
+        flowing.main_branch = sea_orm::Set(Some("main".into()));
+        flowing.update(self.db()).await.unwrap();
     }
 
     pub fn db(&self) -> &sea_orm::DatabaseConnection {

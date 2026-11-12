@@ -15,7 +15,7 @@ pub async fn list_of_tasks(db: &impl ConnectionTrait, task_ids: Vec<Id>) -> Resu
 pub async fn save(db: &impl ConnectionTrait, pull_request: Model) -> Result<(), RekallError> {
     pull_request.validate()?;
     Entity::insert(pull_request.into_active_model())
-        .on_conflict(OnConflict::column(Column::TaskId).update_columns([Column::Number, Column::Url, Column::Failure, Column::UpdatedAt]).to_owned())
+        .on_conflict(OnConflict::column(Column::TaskId).update_columns([Column::Number, Column::Url, Column::Failure, Column::MergedAt, Column::UpdatedAt]).to_owned())
         .exec(db)
         .await?;
     Ok(())

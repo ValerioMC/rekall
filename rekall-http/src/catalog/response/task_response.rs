@@ -42,6 +42,7 @@ pub struct TaskResponse {
     pub pull_request_number: Option<i64>,
     pub pull_request_url: Option<String>,
     pub pull_request_failure: Option<String>,
+    pub pull_request_merged_at: Option<Instant>,
     pub anchor: String,
     pub updated_at: Instant,
 }
@@ -85,6 +86,7 @@ impl From<TaskView> for TaskResponse {
             pull_request_number: view.pull_request_number,
             pull_request_url: view.pull_request_url,
             pull_request_failure: view.pull_request_failure,
+            pull_request_merged_at: view.pull_request_merged_at,
             anchor: view.anchor,
             updated_at: view.updated_at,
         }

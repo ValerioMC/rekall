@@ -145,3 +145,88 @@ async fn a_task_outside_the_flow_or_not_yet_claimed_opens_nothing() {
     assert!(inside.git.pushed().is_empty() && inside.host.opened().is_empty());
     assert_eq!(outside.stored(&task).await, None);
 }
+
+impl World {
+    async fn with_pull_request(&self, label: &str) -> task::Model {
+        let task = self.claimed_task(label).await;
+        self.service.open_if_claimed(task.id).await.unwrap();
+        task
+    }
+}
+
+#[tokio::test]
+async fn an_accepted_task_has_its_pull_request_merged_once_and_its_issue_closed() {
+    let world = world(true).await;
+    let task = world.with_pull_request("report").await;
+    let now = Instant::now();
+    let link = task_tracker_link::Model { task_id: task.id, issue_key: Some("12".into()), issue_url: None, sync_error: None, created_at: now, updated_at: now };
+    repo::task_tracker_link::save(&world.ctx.db, link).await.unwrap();
+
+    let first = world.service.merge_accepted(task.id).await.unwrap();
+    let second = world.service.merge_accepted(task.id).await.unwrap();
+
+    assert_eq!((first, second), (PullRequestLanding::Merged, PullRequestLanding::AlreadyMerged));
+    assert_eq!((world.host.merged(), world.host.closed_issues()), (vec![1], vec!["12".to_string()]));
+    assert!(world.stored(&task).await.unwrap().merged_at.is_some());
+}
+
+#[tokio::test]
+async fn a_merge_the_host_refuses_keeps_the_reason_on_the_task_and_merges_nothing() {
+    let world = world(true).await;
+    let task = world.with_pull_request("report").await;
+    world.host.merge_answers_with(PullRequestMerge::Refused("Required status check is failing".into()));
+
+    let landing = world.service.merge_accepted(task.id).await.unwrap();
+
+    assert_eq!(landing, PullRequestLanding::Refused("The pull request was not merged: Required status check is failing".into()));
+    let stored = world.stored(&task).await.unwrap();
+    assert_eq!((stored.merged_at, stored.failure.as_deref()), (None, Some("The pull request was not merged: Required status check is failing")));
+}
+
+#[tokio::test]
+async fn a_pull_request_the_host_finds_conflicting_is_left_for_the_merge_session() {
+    let world = world(true).await;
+    let task = world.with_pull_request("report").await;
+    world.host.merge_answers_with(PullRequestMerge::Conflicting);
+
+    assert_eq!(world.service.merge_accepted(task.id).await.unwrap(), PullRequestLanding::Conflicting);
+    world.host.merge_answers_with(PullRequestMerge::Merged);
+
+    assert_eq!(world.service.merge_accepted(task.id).await.unwrap(), PullRequestLanding::Merged);
+}
+
+#[tokio::test]
+async fn a_host_that_cannot_be_reached_is_an_error_to_retry_and_the_pull_request_stays_unmerged() {
+    let world = world(true).await;
+    let task = world.with_pull_request("report").await;
+    world.host.fail_with(TrackerFailure::Failed { reason: "it answered HTTP 502".into() });
+
+    assert!(world.service.merge_accepted(task.id).await.is_err());
+    world.host.recover();
+
+    assert_eq!(world.service.merge_accepted(task.id).await.unwrap(), PullRequestLanding::Merged);
+}
+
+#[tokio::test]
+async fn a_project_outside_the_flow_or_a_task_that_never_opened_a_pull_request_has_nothing_to_merge_through_the_host() {
+    let outside = world(false).await;
+    let task = outside.claimed_task("report").await;
+    let inside = world(true).await;
+    let never_claimed = task::Model::new("idle".into(), "Idle".into(), inside.project_id, Instant::now());
+    never_claimed.clone().into_active_model().insert(&inside.ctx.db).await.unwrap();
+
+    assert_eq!(outside.service.merge_accepted(task.id).await.unwrap(), PullRequestLanding::NotInFlow);
+    assert_eq!(inside.service.merge_accepted(never_claimed.id).await.unwrap(), PullRequestLanding::NothingToMerge);
+}
+
+#[tokio::test]
+async fn a_task_whose_pull_request_never_opened_is_refused_with_the_reason_it_failed() {
+    let world = world(true).await;
+    let task = world.claimed_task("report").await;
+    world.git.refuse_push("rekall/report", "remote: Permission denied");
+    world.service.open_if_claimed(task.id).await.unwrap();
+
+    let landing = world.service.merge_accepted(task.id).await.unwrap();
+
+    assert_eq!(landing, PullRequestLanding::Refused("The push of rekall/report was refused: remote: Permission denied".into()));
+}

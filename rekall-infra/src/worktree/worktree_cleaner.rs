@@ -5,7 +5,7 @@ use std::time::Duration;
 use rekall_core::claude::{Remaining, SessionKind, TaskWorkService, TerminalHost, TerminalMode, TerminalOpening, TerminalTarget};
 use rekall_core::review::TaskReviewEvent;
 use rekall_core::step::StepStreamEvent;
-use rekall_core::worktree::{Merge, Release, TaskPullRequestService, TaskWorktreeService};
+use rekall_core::worktree::{Merge, PullRequestLanding, Release, TaskPullRequestService, TaskWorktreeService};
 use rekall_core::{EventBus, PublishedEvent};
 use rekall_kernel::Id;
 use tokio::sync::broadcast::error::RecvError;
@@ -80,6 +80,20 @@ impl Cleaner {
     }
 
     async fn bring_in(&mut self, task_id: Id) {
+        match self.pull_requests.merge_accepted(task_id).await {
+            Ok(PullRequestLanding::NotInFlow) => self.merge_locally(task_id).await,
+            Ok(PullRequestLanding::Merged) => {
+                info!(%task_id, "Accepted task's pull request merged");
+                self.finish(task_id).await;
+            }
+            Ok(PullRequestLanding::AlreadyMerged | PullRequestLanding::NothingToMerge) => self.finish(task_id).await,
+            Ok(PullRequestLanding::Conflicting) => self.resolve_conflict(task_id, "the pull request conflicts with the main branch").await,
+            Ok(PullRequestLanding::Refused(reason)) => warn!(%reason, %task_id, "Accepted task's pull request was not merged; the worktree stays"),
+            Err(failure) => warn!(%failure, %task_id, "Could not merge the pull request of an accepted task; it is tried again when the task moves"),
+        }
+    }
+
+    async fn merge_locally(&mut self, task_id: Id) {
         match self.worktrees.merge_accepted(task_id).await {
             Ok(Merge::Merged) => {
                 info!(%task_id, "Accepted task's branch merged into the project");

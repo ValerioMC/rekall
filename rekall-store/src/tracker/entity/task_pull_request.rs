@@ -1,5 +1,5 @@
 //! The pull request (GitLab: merge request) opened for a task's branch: its number and page once it
-//! exists, and why the last attempt to open or merge it failed. A task that never reached a claim
+//! exists, when it was merged, and why the last attempt to open or merge it failed. A task that never reached a claim
 //! has no row.
 
 use rekall_kernel::{Id, Instant, RekallError};
@@ -18,6 +18,7 @@ pub struct Model {
     pub number: Option<i64>,
     pub url: Option<String>,
     pub failure: Option<String>,
+    pub merged_at: Option<Instant>,
     pub created_at: Instant,
     pub updated_at: Instant,
 }

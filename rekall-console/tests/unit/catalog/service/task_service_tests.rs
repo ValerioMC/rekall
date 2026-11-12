@@ -245,7 +245,7 @@ async fn the_task_view_carries_the_pull_request_opened_for_its_branch() {
     let task = world.service.create(command("pay", world.project_id, TaskKind::Task, None)).await.unwrap();
     assert_eq!(task.pull_request_number, None);
     let now = Instant::now();
-    let opened = task_pull_request::Model { task_id: task.id, number: Some(5), url: Some("https://github.com/acme/app/pull/5".into()), failure: None, created_at: now, updated_at: now };
+    let opened = task_pull_request::Model { task_id: task.id, number: Some(5), url: Some("https://github.com/acme/app/pull/5".into()), failure: None, merged_at: None, created_at: now, updated_at: now };
     rekall_store::repository::task_pull_request::save(&world.db, opened).await.unwrap();
 
     let view = world.service.get(task.id).await.unwrap();

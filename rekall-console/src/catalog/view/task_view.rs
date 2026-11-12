@@ -41,6 +41,7 @@ pub struct TaskView {
     pub pull_request_number: Option<i64>,
     pub pull_request_url: Option<String>,
     pub pull_request_failure: Option<String>,
+    pub pull_request_merged_at: Option<Instant>,
     pub anchor: String,
     pub updated_at: Instant,
 }
@@ -86,6 +87,7 @@ impl TaskView {
             pull_request_number: graph.pull_request.and_then(|pull_request| pull_request.number),
             pull_request_url: graph.pull_request.and_then(|pull_request| pull_request.url.clone()),
             pull_request_failure: graph.pull_request.and_then(|pull_request| pull_request.failure.clone()),
+            pull_request_merged_at: graph.pull_request.and_then(|pull_request| pull_request.merged_at),
             anchor: task.anchor(&project.label),
             updated_at: task.updated_at,
         }
