@@ -53,7 +53,7 @@ function makeTask(): Task {
     graphLaidAt: null,
     releaseSkipped: false,
     kind: 'TASK',
-    epicId: null, quick: false, autoAccepted: false, dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null,
+    epicId: null, quick: false, autoAccepted: false, dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null, pullRequestNumber: null, pullRequestUrl: null, pullRequestFailure: null, pullRequestMergedAt: null,
     anchor: 'project:vega task:report-builder',
     updatedAt: '2026-10-01T10:00:00Z'
   }

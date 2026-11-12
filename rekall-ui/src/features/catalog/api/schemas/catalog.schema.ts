@@ -99,6 +99,10 @@ export const TaskSchema = z.object({
   trackerIssueKey: z.string().nullable(),
   trackerIssueUrl: z.string().nullable(),
   trackerSyncError: z.string().nullable(),
+  pullRequestNumber: z.number().int().nullable(),
+  pullRequestUrl: z.string().nullable(),
+  pullRequestFailure: z.string().nullable(),
+  pullRequestMergedAt: z.string().nullable(),
   anchor: z.string(),
   updatedAt: z.string()
 })

@@ -33,7 +33,7 @@ export function taskFixture(id: TaskId): Task {
     epicId: null,
     quick: false,
     autoAccepted: false,
-    dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null,
+    dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null, pullRequestNumber: null, pullRequestUrl: null, pullRequestFailure: null, pullRequestMergedAt: null,
     anchor: `project:vega task:${id}`,
     updatedAt: '2026-08-12T10:00:00Z'
   }

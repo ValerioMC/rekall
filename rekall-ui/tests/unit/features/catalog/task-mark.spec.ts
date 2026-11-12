@@ -33,7 +33,7 @@ function task(overrides: Partial<Task> = {}): Task {
     graphLaidAt: null,
     releaseSkipped: false,
     kind: 'TASK',
-    epicId: null, quick: false, autoAccepted: false, dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null,
+    epicId: null, quick: false, autoAccepted: false, dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null, pullRequestNumber: null, pullRequestUrl: null, pullRequestFailure: null, pullRequestMergedAt: null,
     anchor: 'project:vega task:t1',
     updatedAt: '2026-09-20T10:00:00Z',
     ...overrides

@@ -167,6 +167,12 @@ export interface Task {
   readonly trackerIssueUrl: string | null
   /** Why the last write to the task manager failed; the next change to the task tries again. */
   readonly trackerSyncError: string | null
+  /** The pull request or merge request of the task's branch, on a project whose pull request flow is on. */
+  readonly pullRequestNumber: number | null
+  readonly pullRequestUrl: string | null
+  /** Why the request was not opened or not merged; the next claim or move of the task tries again. */
+  readonly pullRequestFailure: string | null
+  readonly pullRequestMergedAt: string | null
   readonly anchor: string
   readonly updatedAt: string
 }

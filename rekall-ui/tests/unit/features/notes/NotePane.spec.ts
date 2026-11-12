@@ -44,7 +44,7 @@ const task = (id: TaskId, label: string, title: string, status: TaskStatus): Tas
   graphLaidAt: null,
   releaseSkipped: false,
   kind: 'TASK',
-  epicId: null, quick: false, autoAccepted: false, dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null,
+  epicId: null, quick: false, autoAccepted: false, dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null, pullRequestNumber: null, pullRequestUrl: null, pullRequestFailure: null, pullRequestMergedAt: null,
   anchor: `project:rekall task:${label}`,
   updatedAt: '2026-09-01T10:00:00Z'
 })

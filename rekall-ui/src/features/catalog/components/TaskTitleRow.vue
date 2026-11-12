@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import CopyAnchorButton from '@/components/console/CopyAnchorButton.vue'
+import PullRequestMark from '@/features/catalog/components/PullRequestMark.vue'
 import QuickTaskMark from '@/features/catalog/components/QuickTaskMark.vue'
 import TaskTrackerMark from '@/features/catalog/components/TaskTrackerMark.vue'
 import TaskTokenChip from '@/features/tokens/components/TaskTokenChip.vue'
@@ -20,6 +21,7 @@ defineProps<{ task: Task; copyTestid: string }>()
     </h2>
     <QuickTaskMark :task="task" />
     <TaskTrackerMark :task="task" />
+    <PullRequestMark :task="task" />
     <slot name="flags" />
     <CopyAnchorButton :anchor="task.anchor" :data-testid="copyTestid" />
     <TaskTokenChip :task="task" />

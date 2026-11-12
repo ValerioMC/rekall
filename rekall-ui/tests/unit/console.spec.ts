@@ -78,7 +78,7 @@ const task = (
   graphLaidAt: null,
   releaseSkipped: false,
   kind: 'TASK',
-  epicId: null, quick: false, autoAccepted: false, dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null,
+  epicId: null, quick: false, autoAccepted: false, dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null, pullRequestNumber: null, pullRequestUrl: null, pullRequestFailure: null, pullRequestMergedAt: null,
   anchor: `project:${projectLabel} task:${label}`,
   updatedAt: '2026-08-12T10:00:00Z'
 })
