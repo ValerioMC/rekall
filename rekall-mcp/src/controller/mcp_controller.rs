@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -31,15 +31,8 @@ pub struct McpController {
 
 impl McpController {
     pub fn new(tools: Vec<Arc<dyn McpTool>>) -> Self {
-        let mut by_name = HashMap::new();
-        let mut kept = Vec::new();
-        for tool in tools {
-            // First registration wins, as `Collectors.toMap(..., (a, b) -> a, LinkedHashMap::new)` did.
-            if !by_name.contains_key(tool.name()) {
-                by_name.insert(tool.name(), tool.clone());
-                kept.push(tool);
-            }
-        }
+        let kept = register_first_of_each_name(tools);
+        let by_name = kept.iter().map(|tool| (tool.name(), tool.clone())).collect();
         let names: Vec<&str> = kept.iter().map(|t| t.name()).collect();
         let writing: Vec<&str> = kept.iter().filter(|t| t.writes()).map(|t| t.name()).collect();
         info!(tools = ?names, writes = ?writing, "MCP server ready");
@@ -304,6 +297,11 @@ fn decode_header_value(value: Option<&str>) -> Result<Option<String>, ()> {
 fn meta_protocol_version(request: &Request) -> Option<String> {
     let meta = request.params.as_ref()?.get("_meta").filter(|m| !m.is_null())?;
     json_rpc_text(Some(meta), "io.modelcontextprotocol/protocolVersion")
+}
+
+fn register_first_of_each_name(tools: Vec<Arc<dyn McpTool>>) -> Vec<Arc<dyn McpTool>> {
+    let mut names = HashSet::new();
+    tools.into_iter().filter(|tool| names.insert(tool.name())).collect()
 }
 
 #[cfg(test)]
