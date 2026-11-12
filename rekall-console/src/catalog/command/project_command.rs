@@ -12,5 +12,6 @@ pub struct ProjectCommand {
     pub repo_folder: Option<String>,
     pub auto_commit: Option<bool>,
     pub main_branch: Option<String>,
+    pub pull_request_flow: Option<bool>,
     pub company_id: Option<Id>,
 }

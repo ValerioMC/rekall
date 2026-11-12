@@ -44,7 +44,7 @@ const project: Project = {
   description: null,
   blueprintMarkdown: null,
   repoFolder: null,
-  autoCommit: false, mainBranch: null,
+  autoCommit: false, mainBranch: null, pullRequestFlow: false,
   companyId: vforge,
   companyName: 'vforge',
   taskCount: 3,

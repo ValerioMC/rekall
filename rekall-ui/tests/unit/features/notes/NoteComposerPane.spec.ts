@@ -80,7 +80,7 @@ const project = (id: ProjectId, label: string, title: string): Project => ({
   description: null,
   blueprintMarkdown: null,
   repoFolder: null,
-  autoCommit: false, mainBranch: null,
+  autoCommit: false, mainBranch: null, pullRequestFlow: false,
   companyId: acme,
   companyName: 'acme',
   taskCount: 2,

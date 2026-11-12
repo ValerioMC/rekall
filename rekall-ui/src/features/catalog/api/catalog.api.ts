@@ -38,6 +38,7 @@ export interface ProjectInput {
   repoFolder: string | null
   autoCommit: boolean
   mainBranch: string | null
+  pullRequestFlow: boolean
   companyId: CompanyId
 }
 

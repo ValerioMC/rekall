@@ -34,9 +34,9 @@ const beacon = 'p2' as ProjectId
 
 const projects: Project[] = [
   { id: vega, label: 'vega', title: 'Vega Platform', status: 'ACTIVE', icon: 'folder', iconImageVersion: null, description: null, blueprintMarkdown: null,
-    repoFolder: null, autoCommit: false, mainBranch: null, companyId: acme, companyName: 'acme', taskCount: 2, anchor: 'project:vega', updatedAt: '2026-08-12T10:00:00Z' },
+    repoFolder: null, autoCommit: false, mainBranch: null, pullRequestFlow: false, companyId: acme, companyName: 'acme', taskCount: 2, anchor: 'project:vega', updatedAt: '2026-08-12T10:00:00Z' },
   { id: beacon, label: 'beacon', title: 'Beacon', status: 'ACTIVE', icon: 'folder', iconImageVersion: null, description: null, blueprintMarkdown: null,
-    repoFolder: null, autoCommit: false, mainBranch: null, companyId: globex, companyName: 'globex', taskCount: 1, anchor: 'project:beacon', updatedAt: '2026-08-12T10:00:00Z' }
+    repoFolder: null, autoCommit: false, mainBranch: null, pullRequestFlow: false, companyId: globex, companyName: 'globex', taskCount: 1, anchor: 'project:beacon', updatedAt: '2026-08-12T10:00:00Z' }
 ]
 
 const validator = 't1' as TaskId
@@ -804,12 +804,12 @@ describe('console store', () => {
    * goes on saying there is nowhere to open until the window is reloaded.
    */
   it('saves auto-commit through the same full-record update, and keeps what the server decided', async () => {
-    vi.mocked(updateProject).mockResolvedValue({ ...projects[0]!, autoCommit: false, mainBranch: null })
+    vi.mocked(updateProject).mockResolvedValue({ ...projects[0]!, autoCommit: false, mainBranch: null, pullRequestFlow: false })
 
     await store.saveProjectAutoCommit(vega, true)
 
     expect(vi.mocked(updateProject).mock.calls[0]?.[1]).toMatchObject({
-      autoCommit: true, mainBranch: null,
+      autoCommit: true, mainBranch: null, pullRequestFlow: false,
       repoFolder: null,
       label: 'vega'
     })

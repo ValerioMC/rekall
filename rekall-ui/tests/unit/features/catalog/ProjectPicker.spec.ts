@@ -15,7 +15,7 @@ function project(id: string, title: string, companyName: string, status: Project
     description: null,
     blueprintMarkdown: null,
     repoFolder: null,
-    autoCommit: false, mainBranch: null,
+    autoCommit: false, mainBranch: null, pullRequestFlow: false,
     companyId: companyName as CompanyId,
     companyName,
     taskCount: 3,

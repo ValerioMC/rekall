@@ -23,7 +23,7 @@ async fn services_with_project(folder: &Path) -> (rekall_store::Database, Servic
     let project = project::Model {
         id: Id::random(), label: "vega".into(), title: "Vega".into(), status: ProjectStatus::Active, icon: "folder".into(),
         description: None, blueprint_markdown: None, repo_folder: Some(folder.to_string_lossy().into_owned()),
-        auto_commit: false, main_branch: None, company_id: company.id, created_at: now, updated_at: now,
+        auto_commit: false, main_branch: None, pull_request_flow: false, company_id: company.id, created_at: now, updated_at: now,
     };
     project.clone().into_active_model().insert(&database.conn).await.unwrap();
     task::Model::new("report".into(), "Report".into(), project.id, now).into_active_model().insert(&database.conn).await.unwrap();

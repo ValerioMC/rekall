@@ -2,14 +2,16 @@
 import { onUnmounted, ref, watch } from 'vue'
 import AutoCommitSwitch from '@/features/catalog/components/AutoCommitSwitch.vue'
 import AppButton from '@/components/ui/AppButton.vue'
+import PullRequestFlowSwitch from '@/features/project/components/PullRequestFlowSwitch.vue'
 import { fetchProjectRepository } from '@/features/catalog/api/catalog.api'
 import { desktopHost, pickFolder } from '@/common/native/desktop'
 import { useConsoleStore } from '@/stores/console.store'
+import { useToastStore } from '@/stores/toast.store'
 import type { Project, ProjectRepository } from '@/features/catalog/model/catalog'
 import type { ProjectId } from '@/model/branded'
 
 /**
- * Where the project's sessions run: its folder, the branch accepted work is merged into, and whether a claim commits it. Git is asked
+ * Where the project's sessions run: its folder, the branch accepted work is merged into, whether that happens through a pull request, and whether a claim commits it. Git is asked
  * about the folder once per project and again after every folder save, since auto-commit is only
  * offered on a repository.
  */
@@ -18,6 +20,7 @@ const props = defineProps<{ project: Project }>()
 const SAVE_DELAY_MS = 700
 
 const store = useConsoleStore()
+const toast = useToastStore()
 const canBrowse = desktopHost() !== null
 
 const draft = ref('')
@@ -25,6 +28,7 @@ const branchDraft = ref('')
 const repository = ref<ProjectRepository | null>(null)
 const repositoryPending = ref(false)
 const autoCommitSaving = ref(false)
+const pullRequestFlowSaving = ref(false)
 let timer: ReturnType<typeof setTimeout> | null = null
 
 async function readRepository(id: ProjectId): Promise<void> {
@@ -76,6 +80,17 @@ async function setAutoCommit(enabled: boolean): Promise<void> {
     await store.saveProjectAutoCommit(props.project.id, enabled)
   } finally {
     autoCommitSaving.value = false
+  }
+}
+
+async function setPullRequestFlow(enabled: boolean): Promise<void> {
+  pullRequestFlowSaving.value = true
+  try {
+    await store.saveProjectPullRequestFlow(props.project.id, enabled)
+  } catch (failure) {
+    toast.notifyError(failure)
+  } finally {
+    pullRequestFlowSaving.value = false
   }
 }
 
@@ -134,6 +149,13 @@ onUnmounted(() => {
       @blur="saveMainBranch"
       @keydown.enter.prevent="saveMainBranch"
     />
+    <div class="mt-4">
+      <PullRequestFlowSwitch
+        :model-value="project.pullRequestFlow"
+        :saving="pullRequestFlowSaving"
+        @update:model-value="setPullRequestFlow"
+      />
+    </div>
     <div class="mt-4">
       <AutoCommitSwitch
         :model-value="project.autoCommit"

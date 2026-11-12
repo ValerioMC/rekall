@@ -43,6 +43,7 @@ export function useRecordWrites() {
       repoFolder: draft.id === null ? blankToNull(draft.repoFolder.trim()) : (stored?.repoFolder ?? null),
       autoCommit: stored?.autoCommit ?? false,
       mainBranch: stored?.mainBranch ?? null,
+      pullRequestFlow: stored?.pullRequestFlow ?? false,
       companyId: draft.companyId
     }
     if (draft.id === null) return (await store.createProject(input)).id

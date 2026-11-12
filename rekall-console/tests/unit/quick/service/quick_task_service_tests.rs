@@ -107,7 +107,7 @@ async fn world(refuse_with: Option<&'static str>) -> World {
         description: None,
         blueprint_markdown: None,
         repo_folder: None,
-        auto_commit: false, main_branch: None,
+        auto_commit: false, main_branch: None, pull_request_flow: false,
         company_id: company.id,
         created_at: now,
         updated_at: now,

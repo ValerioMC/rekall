@@ -19,7 +19,7 @@ const companies: Company[] = [
 
 const projects: Project[] = [
   { id: vega, label: 'vega', title: 'Vega', status: 'ACTIVE', icon: 'rocket', iconImageVersion: null, description: null, blueprintMarkdown: null,
-    repoFolder: null, autoCommit: false, mainBranch: null, companyId: acme, companyName: 'acme', taskCount: 0, anchor: 'project:vega', updatedAt: '' }
+    repoFolder: null, autoCommit: false, mainBranch: null, pullRequestFlow: false, companyId: acme, companyName: 'acme', taskCount: 0, anchor: 'project:vega', updatedAt: '' }
 ]
 
 let pinia: Pinia

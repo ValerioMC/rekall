@@ -15,6 +15,7 @@ pub struct ProjectRequest {
     pub repo_folder: Option<String>,
     pub auto_commit: Option<bool>,
     pub main_branch: Option<String>,
+    pub pull_request_flow: Option<bool>,
     pub company_id: Option<Id>,
 }
 
@@ -30,6 +31,7 @@ impl From<ProjectRequest> for ProjectCommand {
             repo_folder: request.repo_folder,
             auto_commit: request.auto_commit,
             main_branch: request.main_branch,
+            pull_request_flow: request.pull_request_flow,
             company_id: request.company_id,
         }
     }

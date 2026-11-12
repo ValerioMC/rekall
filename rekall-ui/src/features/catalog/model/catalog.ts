@@ -105,6 +105,8 @@ export interface Project {
   readonly autoCommit: boolean
   /** The branch accepted work is merged into and a task's branch starts from; null is the folder's current branch. */
   readonly mainBranch: string | null
+  /** Accepted work reaches the main branch through a pull request; only ever true with a GitHub or GitLab task manager. */
+  readonly pullRequestFlow: boolean
   readonly companyId: CompanyId
   readonly companyName: string
   readonly taskCount: number

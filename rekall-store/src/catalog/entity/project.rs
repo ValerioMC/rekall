@@ -27,6 +27,10 @@ pub struct Model {
     /// The branch accepted work is merged into and a task's branch starts from; none means the
     /// folder's current branch.
     pub main_branch: Option<String>,
+    /// Whether accepted work reaches the main branch through a pull request or merge request
+    /// instead of a local merge. Turned on only while the project has a folder, a branch and a
+    /// GitHub or GitLab task manager.
+    pub pull_request_flow: bool,
     pub company_id: Id,
     pub created_at: Instant,
     pub updated_at: Instant,

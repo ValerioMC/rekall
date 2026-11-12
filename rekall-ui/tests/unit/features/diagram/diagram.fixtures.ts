@@ -19,7 +19,7 @@ export function project(id: ProjectId, label: string, repoFolder: string | null 
     description: null,
     blueprintMarkdown: null,
     repoFolder,
-    autoCommit: false, mainBranch: null,
+    autoCommit: false, mainBranch: null, pullRequestFlow: false,
     companyId: 'c-acme' as CompanyId,
     companyName: 'acme',
     taskCount: 1,

@@ -16,7 +16,7 @@ async fn a_project(db: &impl ConnectionTrait, company: &company::Model, label: &
     let now = Instant::now();
     let project = project::Model {
         id: Id::random(), label: label.into(), title: label.into(), status: ProjectStatus::Active, icon: "folder".into(),
-        description: None, blueprint_markdown: None, repo_folder: None, auto_commit: false, main_branch: None, company_id: company.id,
+        description: None, blueprint_markdown: None, repo_folder: None, auto_commit: false, main_branch: None, pull_request_flow: false, company_id: company.id,
         created_at: now, updated_at: now,
     };
     project.clone().into_active_model().insert(db).await.unwrap();

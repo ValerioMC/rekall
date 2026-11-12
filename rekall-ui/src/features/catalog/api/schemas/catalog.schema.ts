@@ -57,6 +57,7 @@ export const ProjectSchema = z.object({
   repoFolder: z.string().nullable(),
   autoCommit: z.boolean(),
   mainBranch: z.string().nullable(),
+  pullRequestFlow: z.boolean(),
   companyId,
   companyName: z.string(),
   taskCount: z.number().int(),

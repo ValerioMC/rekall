@@ -39,7 +39,7 @@ async fn insert_project(db: &sea_orm::DatabaseConnection, company_id: Id, label:
         description: None,
         blueprint_markdown: None,
         repo_folder: None,
-        auto_commit: false, main_branch: None,
+        auto_commit: false, main_branch: None, pull_request_flow: false,
         company_id,
         created_at: now,
         updated_at: now,

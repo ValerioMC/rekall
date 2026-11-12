@@ -15,7 +15,7 @@ async fn a_task_of_a_project_with_a_task_manager(ctx: &Ctx) -> Id {
     company.clone().into_active_model().insert(&ctx.db).await.unwrap();
     let project = project::Model {
         id: Id::random(), label: "app".into(), title: "App".into(), status: ProjectStatus::Active, icon: "folder".into(), description: None,
-        blueprint_markdown: None, repo_folder: None, auto_commit: false, main_branch: None, company_id: company.id, created_at: now, updated_at: now,
+        blueprint_markdown: None, repo_folder: None, auto_commit: false, main_branch: None, pull_request_flow: false, company_id: company.id, created_at: now, updated_at: now,
     };
     project.clone().into_active_model().insert(&ctx.db).await.unwrap();
     let mut connection = external_connection::Model::new("gitlab".into(), "GitLab".into(), ConnectionKind::Gitlab, Some("https://gitlab.example.com".into()), now);

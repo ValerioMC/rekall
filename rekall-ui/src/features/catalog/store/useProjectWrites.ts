@@ -14,7 +14,7 @@ import type { useConsoleRefreshes } from '../../../stores/console/useConsoleRefr
 import { blankToNull, replaceById, trackSave } from '../../../stores/console/rows'
 
 type ProjectPagePatch = Partial<
-  Pick<ProjectInput, 'blueprintMarkdown' | 'repoFolder' | 'autoCommit' | 'mainBranch'>
+  Pick<ProjectInput, 'blueprintMarkdown' | 'repoFolder' | 'autoCommit' | 'mainBranch' | 'pullRequestFlow'>
 >
 
 /** The record dialog writes a project whole; its own page saves one field at a time over what is stored. */
@@ -78,7 +78,8 @@ export function useProjectWrites(
           'blueprintMarkdown' in patch ? patch.blueprintMarkdown! : current.blueprintMarkdown,
         repoFolder: 'repoFolder' in patch ? patch.repoFolder! : current.repoFolder,
         autoCommit: 'autoCommit' in patch ? patch.autoCommit! : current.autoCommit,
-        mainBranch: 'mainBranch' in patch ? patch.mainBranch! : current.mainBranch
+        mainBranch: 'mainBranch' in patch ? patch.mainBranch! : current.mainBranch,
+        pullRequestFlow: 'pullRequestFlow' in patch ? patch.pullRequestFlow! : current.pullRequestFlow
       })
       projects.value = replaceById(projects.value, saved)
       tasks.value = tasks.value.map((task) =>
@@ -104,6 +105,10 @@ export function useProjectWrites(
     return patchProject(id, { mainBranch: blankToNull(mainBranch.trim()) })
   }
 
+  function saveProjectPullRequestFlow(id: ProjectId, pullRequestFlow: boolean): Promise<void> {
+    return patchProject(id, { pullRequestFlow })
+  }
+
   return {
     createProject,
     updateProject,
@@ -112,6 +117,7 @@ export function useProjectWrites(
     saveProjectBlueprint,
     saveProjectRepoFolder,
     saveProjectAutoCommit,
-    saveProjectMainBranch
+    saveProjectMainBranch,
+    saveProjectPullRequestFlow
   }
 }

@@ -116,7 +116,7 @@ impl Wired {
     fn of(ctx: &rekall_core::Ctx, services: &Services, ports: &ApiPorts) -> Self {
         let tasks = catalog::TaskService::new(ctx.clone(), services.review.clone(), services.time_entries.clone());
         let project_connections = connection::ProjectConnectionService::new(ctx.clone());
-        let projects = catalog::ProjectService::new(ctx.clone(), services.repositories);
+        let projects = catalog::ProjectService::new(ctx.clone(), services.repositories, rekall_core::worktree::PullRequestFlowService);
         let connections = connection::ConnectionService::new(ctx.clone(), ports.secrets.clone());
         let component_catalog = component::ProjectComponentCatalogService::new(ctx.clone());
         let repository_discovery = connection::RepositoryDiscoveryService::new(

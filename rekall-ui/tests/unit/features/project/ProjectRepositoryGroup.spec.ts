@@ -4,18 +4,25 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import ProjectRepositoryGroup from '@/features/project/components/ProjectRepositoryGroup.vue'
 import * as catalogApi from '@/features/catalog/api/catalog.api'
 import { useConsoleStore } from '@/stores/console.store'
+import { useToastStore } from '@/stores/toast.store'
 import type { Project } from '@/features/catalog/model/catalog'
 import type { ProjectId } from '@/model/branded'
 
 vi.mock('@/features/catalog/api/catalog.api', () => ({ fetchProjectRepository: vi.fn() }))
 
-const project = (id: string, repoFolder: string | null, autoCommit = false, mainBranch: string | null = null): Project =>
-  ({ id: id as ProjectId, title: id, repoFolder, autoCommit, mainBranch }) as unknown as Project
+const project = (
+  id: string,
+  repoFolder: string | null,
+  autoCommit = false,
+  mainBranch: string | null = null,
+  pullRequestFlow = false
+): Project => ({ id: id as ProjectId, title: id, repoFolder, autoCommit, mainBranch, pullRequestFlow }) as unknown as Project
 
 let wrapper: VueWrapper | null = null
 let saveFolder: ReturnType<typeof vi.fn>
 let saveAutoCommit: ReturnType<typeof vi.fn>
 let saveMainBranch: ReturnType<typeof vi.fn>
+let savePullRequestFlow: ReturnType<typeof vi.fn>
 
 function render(initial: Project): VueWrapper {
   wrapper = mount(ProjectRepositoryGroup, { props: { project: initial } })
@@ -33,6 +40,8 @@ beforeEach(() => {
   store.saveProjectAutoCommit = saveAutoCommit as never
   saveMainBranch = vi.fn().mockResolvedValue(undefined)
   store.saveProjectMainBranch = saveMainBranch as never
+  savePullRequestFlow = vi.fn().mockResolvedValue(undefined)
+  store.saveProjectPullRequestFlow = savePullRequestFlow as never
 })
 
 afterEach(() => {
@@ -93,5 +102,38 @@ describe('the repository group', () => {
     await group.get('[data-testid="project-main-branch"]').trigger('blur')
 
     expect(saveMainBranch).not.toHaveBeenCalled()
+  })
+
+  it('shows the pull request flow as the project has it and saves the opposite when it is switched', async () => {
+    const group = render(project('p-1', '/work/vega', false, 'main', false))
+    await flushPromises()
+    const toggle = group.get('[data-testid="pull-request-flow-switch"]')
+    expect(toggle.attributes('aria-checked')).toBe('false')
+
+    await toggle.trigger('click')
+
+    expect(savePullRequestFlow).toHaveBeenCalledWith('p-1', true)
+  })
+
+  it('turns the pull request flow off when it is on', async () => {
+    const group = render(project('p-1', '/work/vega', false, 'main', true))
+    await flushPromises()
+    const toggle = group.get('[data-testid="pull-request-flow-switch"]')
+    expect(toggle.attributes('aria-checked')).toBe('true')
+
+    await toggle.trigger('click')
+
+    expect(savePullRequestFlow).toHaveBeenCalledWith('p-1', false)
+  })
+
+  it('tells the person why the server refused the pull request flow', async () => {
+    savePullRequestFlow.mockRejectedValue(new Error('Choose a GitHub or GitLab connection as this project\'s task manager first.'))
+    const group = render(project('p-1', '/work/vega', false, 'main', false))
+    await flushPromises()
+
+    await group.get('[data-testid="pull-request-flow-switch"]').trigger('click')
+    await flushPromises()
+
+    expect(useToastStore().toasts.map((toast) => toast.message)).toEqual([expect.stringContaining('task manager')])
   })
 })
