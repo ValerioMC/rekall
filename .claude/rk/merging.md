@@ -2,7 +2,7 @@
 
 `/rk project:vega task:report-builder merge` means: the task is accepted and its branch conflicts with the
 project's current branch. Bring the project's branch into the task's branch, in the working directory,
-and resolve what conflicts. Rekall merges the task's branch into the project itself once this branch
+with a merge commit (never a rebase), and resolve what conflicts. Rekall merges the task's branch into the project itself once this branch
 merges cleanly, then closes this session and removes the worktree.
 
 1. Drop the `merge` term and call `rekall_context` with the anchors that are left. You change no
@@ -21,5 +21,5 @@ merges cleanly, then closes this session and removes the worktree.
 7. Say in at most five lines what conflicted, how you resolved each file, and what you ran.
 
 If a conflict cannot be resolved without a decision that is mine, run `git merge --abort`, say what the
-decision is, and stop. Never push, never force, never delete a branch, never switch the working
+decision is, and stop. Never rebase, never push, never force, never delete a branch, never switch the working
 directory to another branch.

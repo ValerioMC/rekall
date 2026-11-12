@@ -253,7 +253,7 @@ async fn a_conflicting_merge_is_abandoned_and_leaves_the_project_as_it_was() {
 
     let outcome = world.host.merge_branch(&world.project, "rekall/report", "HEAD").await.unwrap();
 
-    assert!(matches!(outcome, MergeOutcome::Refused(_)));
+    assert!(matches!(&outcome, MergeOutcome::Conflicts(reason) if reason.contains("report.txt")), "{outcome:?}");
     assert_eq!(git(&world.project, &["status", "--porcelain"]), "");
     assert_eq!(fs::read_to_string(world.project.join("report.txt")).unwrap(), "changed in the project\n");
 }

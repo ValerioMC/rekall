@@ -119,6 +119,7 @@ impl TaskWorktreeService {
         let Some(project_folder) = project_folder else { return Ok(Merge::NothingToMerge) };
         match self.host.merge_branch(Path::new(&project_folder), &review.branch, &base).await? {
             MergeOutcome::Merged => Ok(Merge::Merged),
+            MergeOutcome::Conflicts(reason) => Ok(Merge::Conflicts(reason)),
             MergeOutcome::Refused(reason) => Ok(Merge::Refused(reason)),
         }
     }

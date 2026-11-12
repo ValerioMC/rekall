@@ -52,6 +52,16 @@ impl GitWorktreeHost {
         Ok((current != base).then_some(current))
     }
 
+    async fn unmerged_files(&self, project_folder: &Path) -> Vec<String> {
+        match run_git(project_folder, &["diff", "--name-only", "--diff-filter=U"], None, READ_TIMEOUT).await {
+            Ok(answer) => answer.output().lines().map(str::to_string).collect(),
+            Err(failure) => {
+                warn!(%failure, folder = %project_folder.display(), "Could not list the files a merge conflicted in");
+                Vec::new()
+            }
+        }
+    }
+
     async fn abandon_merge(&self, project_folder: &Path) {
         match run_git(project_folder, &["merge", "--abort"], None, READ_TIMEOUT).await {
             Ok(answer) if !answer.ok() => debug!(reason = answer.error(), "No merge was left to abandon"),
@@ -154,7 +164,11 @@ impl WorktreeHost for GitWorktreeHost {
         if answer.ok() {
             return Ok(MergeOutcome::Merged);
         }
+        let conflicting_files = self.unmerged_files(project_folder).await;
         self.abandon_merge(project_folder).await;
+        if !conflicting_files.is_empty() {
+            return Ok(MergeOutcome::Conflicts(format!("{branch_name} conflicts in {}", conflicting_files.join(", "))));
+        }
         let reason = [answer.error(), answer.output()].into_iter().find(|text| !text.is_empty()).unwrap_or("git refused the merge");
         Ok(MergeOutcome::Refused(reason.to_string()))
     }
