@@ -9,7 +9,7 @@ use rekall_store::document::ANCHOR_ID_LENGTH;
 use rekall_store::{company, project, task, TaskStatus, TaskStepState};
 use rekall_store::repository as repo;
 
-use crate::context::{ContextCommitView, ContextRecord, ContextSkillScope, ContextSkillView, DocumentView, StepConnectionView};
+use crate::context::{AnchorEntity, ContextCommitView, ContextRecord, ContextSkillScope, ContextSkillView, DocumentView, StepConnectionView};
 use crate::component::{referenced_task_labels, ProjectComponentView};
 use crate::connection::ConnectionView;
 use crate::dependency::{TaskWait, TaskWaitService};
@@ -19,8 +19,6 @@ use crate::step::{flow_entry, StepFlowRows, TaskStepView};
 use crate::task::TaskReferenceView;
 use crate::wrapup::{Freshness, WrapupFreshnessService, WrapupView};
 use crate::{in_read, load, Ctx, Tx};
-
-pub const ENTITY_NAMES: [&str; 4] = ["company", "project", "task", "note"];
 
 #[derive(Clone)]
 pub struct ContextService {
@@ -33,34 +31,30 @@ impl ContextService {
         Self { freshness: WrapupFreshnessService::new(ctx.clone()), ctx }
     }
 
-    pub async fn load(&self, entity_name: Option<&str>, value: &str) -> Result<ContextRecord> {
-        in_read!(&self.ctx, |tx| self.load_in(&tx, entity_name, value).await)
+    pub async fn load(&self, entity: Option<AnchorEntity>, value: &str) -> Result<ContextRecord> {
+        in_read!(&self.ctx, |tx| self.load_in(&tx, entity, value).await)
     }
 
-    pub async fn load_in(&self, tx: &Tx, entity_name: Option<&str>, value: &str) -> Result<ContextRecord> {
-        let Some(entity_name) = entity_name else {
+    pub async fn load_in(&self, tx: &Tx, entity: Option<AnchorEntity>, value: &str) -> Result<ContextRecord> {
+        let Some(entity) = entity else {
             return self.load_anywhere(tx, value).await;
         };
-        match entity_name.to_lowercase().as_str() {
-            "company" | "companies" | "azienda" | "aziende" | "cliente" => {
+        match entity {
+            AnchorEntity::Company => {
                 match repo::company::find_by_name(tx.db(), value).await? {
                     Some(company) => self.render_company(tx, &company).await,
                     None => Err(RekallError::unknown_anchor(format!("No company matches '{value}'"))),
                 }
             }
-            "project" | "projects" | "progetto" | "progetti" => {
+            AnchorEntity::Project => {
                 let found = repo::project::find_by_label(tx.db(), value).await?;
                 self.render_single_project(tx, found, value).await
             }
-            "task" | "tasks" | "issue" | "issues" | "attivita" => {
+            AnchorEntity::Task => {
                 let task = load::resolve_task(tx.db(), None, value).await?;
                 self.render_task(tx, &task).await
             }
-            "note" | "notes" | "nota" | "document" => self.render_single_note(tx, value).await,
-            _ => Err(RekallError::unknown_anchor(format!(
-                "No entity matches '{entity_name}'. Known entities: {}",
-                ENTITY_NAMES.join(", ")
-            ))),
+            AnchorEntity::Note => self.render_single_note(tx, value).await,
         }
     }
 
@@ -98,7 +92,7 @@ impl ContextService {
         if matches.is_empty() {
             return Err(RekallError::unknown_anchor(format!(
                 "Nothing matches '{value}'. Known entities: {}",
-                ENTITY_NAMES.join(", ")
+                AnchorEntity::known_names()
             )));
         }
         if matches.len() > 1 {
