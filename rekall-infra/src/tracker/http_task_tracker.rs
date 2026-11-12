@@ -33,7 +33,7 @@ struct GithubIssue {
 
 /// What a tracker says when it refuses a request, in whichever of its shapes.
 #[derive(Deserialize)]
-struct Refusal {
+pub(super) struct Refusal {
     message: Option<Value>,
     #[serde(rename = "errorMessages", default)]
     error_messages: Vec<String>,
@@ -162,7 +162,7 @@ async fn link_of(endpoint: &TrackerEndpoint, response: Response) -> Result<Track
     }
 }
 
-fn signature_of(endpoint: &TrackerEndpoint) -> Result<(HeaderName, HeaderValue), TrackerFailure> {
+pub(super) fn signature_of(endpoint: &TrackerEndpoint) -> Result<(HeaderName, HeaderValue), TrackerFailure> {
     let (name, text) = match endpoint.kind {
         ConnectionKind::Gitlab => (HeaderName::from_static("private-token"), endpoint.credential.expose().to_string()),
         ConnectionKind::Github => (AUTHORIZATION, format!("Bearer {}", endpoint.credential.expose())),
@@ -217,7 +217,10 @@ fn not_a_task_manager() -> TrackerFailure {
 
 /// The response when the tracker took the issue, or why it did not, in its own words when it gave some.
 async fn accepted(answer: reqwest::Result<Response>) -> Result<Response, TrackerFailure> {
-    let response = answer.map_err(|failure| TrackerFailure::Failed { reason: failure_chain(&failure) })?;
+    checked(answer.map_err(|failure| TrackerFailure::Failed { reason: failure_chain(&failure) })?).await
+}
+
+pub(super) async fn checked(response: Response) -> Result<Response, TrackerFailure> {
     match response.status() {
         status if status.is_success() => Ok(response),
         status @ (StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN) => Err(TrackerFailure::Rejected { status: status.as_u16() }),
@@ -229,7 +232,7 @@ async fn accepted(answer: reqwest::Result<Response>) -> Result<Response, Tracker
     }
 }
 
-fn said_by(refusal: &Refusal) -> String {
+pub(super) fn said_by(refusal: &Refusal) -> String {
     let mut parts: Vec<String> = refusal.error_messages.clone();
     for detail in [refusal.message.as_ref(), refusal.errors.as_ref()].into_iter().flatten() {
         parts.push(match detail {

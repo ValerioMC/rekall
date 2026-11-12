@@ -34,7 +34,13 @@ pub use model::kube_context_summary::KubeContextSummary;
 pub use model::kube_credential::KubeCredential;
 pub use model::kube_user_kind::KubeUserKind;
 pub use model::kubeconfig::Kubeconfig;
+pub use model::mergeability::Mergeability;
 pub use model::probe_outcome::ProbeOutcome;
+pub use model::pull_request::PullRequest;
+pub use model::pull_request_merge::PullRequestMerge;
+pub use port::pull_request_host::PullRequestHost;
+#[cfg(any(test, feature = "testing"))]
+pub use port::scripted_pull_request_host::{OpenedPullRequest, ScriptedPullRequestHost};
 pub use port::migrating_secret_store::MigratingSecretStore;
 pub use port::remembering_secret_store::RememberingSecretStore;
 pub use model::secret::Secret;
