@@ -10,5 +10,7 @@ pub use model::chat_event::ChatEvent;
 pub use model::tool_input::ToolInput;
 pub use port::chat_listener::ChatListener;
 pub use port::chat_pipe::ChatPipe;
+#[cfg(any(test, feature = "testing"))]
 pub use port::in_memory_chat_pipe::{ChatCall, InMemoryChatPipe};
+#[cfg(any(test, feature = "testing"))]
 pub use port::recording_chat_listener::RecordingChatListener;

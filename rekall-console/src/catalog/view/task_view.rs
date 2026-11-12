@@ -77,9 +77,9 @@ impl TaskView {
             quick: task.quick,
             auto_accepted: task.auto_accepted,
             depends_on: graph.depends_on.clone(),
-            tracker_issue_key: task.tracker_issue_key.clone(),
-            tracker_issue_url: task.tracker_issue_url.clone(),
-            tracker_sync_error: task.tracker_sync_error.clone(),
+            tracker_issue_key: graph.tracker_link.and_then(|link| link.issue_key.clone()),
+            tracker_issue_url: graph.tracker_link.and_then(|link| link.issue_url.clone()),
+            tracker_sync_error: graph.tracker_link.and_then(|link| link.sync_error.clone()),
             anchor: task.anchor(&project.label),
             updated_at: task.updated_at,
         }

@@ -1,4 +1,6 @@
 use super::*;
+use rekall_store::FeedbackState;
+use crate::feedback::FeedbackView;
 use rekall_store::FeedbackKind;
 
 fn entry(seq: i32, kind: FeedbackKind, state: FeedbackState, quoted: Option<&str>, body: &str, reply: Option<&str>) -> FeedbackView {

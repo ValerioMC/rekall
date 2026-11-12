@@ -13,6 +13,7 @@ mod view;
 pub use port::claude_code_setup::ClaudeCodeSetup;
 pub use port::claude_resources::ClaudeResources;
 pub use port::guard_installer::GuardInstaller;
+#[cfg(any(test, feature = "testing"))]
 pub use port::in_memory_terminal_host::InMemoryTerminalHost;
 pub use view::claude_usage_view::ClaudeUsageView;
 pub use model::covering_document::{CoveringDocument, CoveringKind};

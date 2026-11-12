@@ -276,7 +276,7 @@ async fn a_claim_that_ends_a_group_of_steps_renews_the_session_on_the_same_item(
     let task = world.task(&project, "grouped").await;
     world.step(&task, "Backend", 0, TaskStepState::Open).await;
     let frontend = world.step(&task, "Frontend", 1, TaskStepState::Open).await;
-    world.services.steps.begin_session(frontend.id, true).await.unwrap();
+    world.services.step_bindings.begin_session(frontend.id, true).await.unwrap();
     let harness = harness(&world, reading(10.0));
     harness.queue.add(task.id).await.unwrap();
     harness.runner.start(&harness.queue, None).await.unwrap();

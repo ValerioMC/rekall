@@ -19,6 +19,7 @@ pub use event::credential_access_stream_event::CredentialAccessStreamEvent;
 pub use model::credential_purpose::CredentialPurpose;
 pub use model::github_api_root::github_api_root;
 pub use model::hand_out::{HandOut, Refusal};
+#[cfg(any(test, feature = "testing"))]
 pub use port::in_memory_secret_store::InMemorySecretStore;
 pub use model::grafana_credential::GrafanaCredential;
 pub use model::grafana_instance::GrafanaInstance;
@@ -38,6 +39,7 @@ pub use port::migrating_secret_store::MigratingSecretStore;
 pub use port::remembering_secret_store::RememberingSecretStore;
 pub use model::secret::Secret;
 pub use port::secret_store::SecretStore;
+#[cfg(any(test, feature = "testing"))]
 pub use port::scripted_task_tracker::ScriptedTaskTracker;
 pub use port::task_tracker::TaskTracker;
 pub use service::task_tracker_service::TaskTrackerService;

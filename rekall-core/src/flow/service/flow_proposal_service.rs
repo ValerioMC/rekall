@@ -2,8 +2,8 @@ use rekall_kernel::{Id, RekallError, Result};
 
 use rekall_kernel::jstr;
 
-use crate::flow::{FlowPlan, ProposedFlow, Replanned, RouteTarget, StepLinkService};
-use crate::step::{Staging, TaskStepService, TaskStepView};
+use crate::flow::{FlowPlan, ProposedFlow, Replanned, RouteTarget, StepLinkService, StepPlacementService};
+use crate::step::{Staging, StepBindingService, TaskStepService, TaskStepView};
 use crate::{in_write, load, Ctx, Tx};
 
 /// Lays a planned flow on a task as steps and the routes between them, in one transaction. It
@@ -13,11 +13,13 @@ pub struct FlowProposalService {
     ctx: Ctx,
     steps: TaskStepService,
     links: StepLinkService,
+    placement: StepPlacementService,
+    bindings: StepBindingService,
 }
 
 impl FlowProposalService {
-    pub fn new(ctx: Ctx, steps: TaskStepService, links: StepLinkService) -> Self {
-        Self { ctx, steps, links }
+    pub fn new(ctx: Ctx, steps: TaskStepService, links: StepLinkService, placement: StepPlacementService, bindings: StepBindingService) -> Self {
+        Self { ctx, steps, links, placement, bindings }
     }
 
     /// Only onto a task with no steps, or whose steps are all finished: they stay as history and
@@ -81,10 +83,10 @@ impl FlowProposalService {
         for planned in &plan.steps {
             let draft = self.steps.add_in(tx, task_id, Some(&planned.title), planned.detail.as_deref()).await?;
             if planned.max_visits.is_some() {
-                self.steps.limit_visits_in(tx, draft.id, planned.max_visits).await?;
+                self.placement.limit_visits_in(tx, draft.id, planned.max_visits).await?;
             }
             if planned.starts_session {
-                self.steps.begin_session_in(tx, draft.id, true).await?;
+                self.bindings.begin_session_in(tx, draft.id, true).await?;
             }
             drafts.push(draft);
         }

@@ -22,7 +22,11 @@ async-trait.workspace = true
 futures.workspace = true
 thiserror.workspace = true
 
+[features]
+testing = []
+
 [dev-dependencies]
+rekall-core = { workspace = true, features = ["testing"] }
 tempfile.workspace = true
 
 # Integration suites live in tests/integration and unit tests in tests/unit, so Cargo discovers

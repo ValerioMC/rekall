@@ -115,7 +115,7 @@ async fn a_database_written_by_v0_2_moves_onto_the_baseline_with_its_rows() {
     let database = rekall_store::open(&path).await.unwrap();
     let db = &database.conn;
 
-    assert_eq!(applied_versions(db).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision", "047-vulnerability", "048-exposure-conclusion", "049-deployment-graph", "050-graph-step-place", "051-binding-label", "052-advisory-reach", "053-visit-report", "054-release-on-run", "055-epic", "056-step-session", "057-telemetry-setting", "058-run-queue-session-kind", "059-shared-connection", "060-step-snapshot", "061-done-check", "062-wrapup-version", "063-quick-task", "064-task-dependency", "065-parallel-sessions", "066-task-worktree", "067-task-deviation", "068-drop-orphan-note-links", "069-task-feedback", "070-drop-review-note", "071-feedback-passes", "072-connection-self-signed", "073-revision-target", "074-accept-done-tasks", "075-task-manager", "076-commit-reference-step-kept", "077-foreign-key-indexes"]);
+    assert_eq!(applied_versions(db).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision", "047-vulnerability", "048-exposure-conclusion", "049-deployment-graph", "050-graph-step-place", "051-binding-label", "052-advisory-reach", "053-visit-report", "054-release-on-run", "055-epic", "056-step-session", "057-telemetry-setting", "058-run-queue-session-kind", "059-shared-connection", "060-step-snapshot", "061-done-check", "062-wrapup-version", "063-quick-task", "064-task-dependency", "065-parallel-sessions", "066-task-worktree", "067-task-deviation", "068-drop-orphan-note-links", "069-task-feedback", "070-drop-review-note", "071-feedback-passes", "072-connection-self-signed", "073-revision-target", "074-accept-done-tasks", "075-task-manager", "076-commit-reference-step-kept", "077-foreign-key-indexes", "078-enum-and-scope-checks", "079-step-owned-task-keys", "080-task-tracker-link"]);
     let task = Task::find().one(db).await.unwrap().unwrap();
     assert_eq!((task.label.as_str(), task.title.as_str()), ("report", "Report"));
     let wrapup = Wrapup::find().one(db).await.unwrap().unwrap();
@@ -135,7 +135,7 @@ async fn a_database_on_the_baseline_opens_again_unchanged() {
 
     let database = rekall_store::open(&path).await.unwrap();
 
-    assert_eq!(applied_versions(&database.conn).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision", "047-vulnerability", "048-exposure-conclusion", "049-deployment-graph", "050-graph-step-place", "051-binding-label", "052-advisory-reach", "053-visit-report", "054-release-on-run", "055-epic", "056-step-session", "057-telemetry-setting", "058-run-queue-session-kind", "059-shared-connection", "060-step-snapshot", "061-done-check", "062-wrapup-version", "063-quick-task", "064-task-dependency", "065-parallel-sessions", "066-task-worktree", "067-task-deviation", "068-drop-orphan-note-links", "069-task-feedback", "070-drop-review-note", "071-feedback-passes", "072-connection-self-signed", "073-revision-target", "074-accept-done-tasks", "075-task-manager", "076-commit-reference-step-kept", "077-foreign-key-indexes"]);
+    assert_eq!(applied_versions(&database.conn).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision", "047-vulnerability", "048-exposure-conclusion", "049-deployment-graph", "050-graph-step-place", "051-binding-label", "052-advisory-reach", "053-visit-report", "054-release-on-run", "055-epic", "056-step-session", "057-telemetry-setting", "058-run-queue-session-kind", "059-shared-connection", "060-step-snapshot", "061-done-check", "062-wrapup-version", "063-quick-task", "064-task-dependency", "065-parallel-sessions", "066-task-worktree", "067-task-deviation", "068-drop-orphan-note-links", "069-task-feedback", "070-drop-review-note", "071-feedback-passes", "072-connection-self-signed", "073-revision-target", "074-accept-done-tasks", "075-task-manager", "076-commit-reference-step-kept", "077-foreign-key-indexes", "078-enum-and-scope-checks", "079-step-owned-task-keys", "080-task-tracker-link"]);
 }
 
 #[tokio::test]
@@ -483,4 +483,86 @@ async fn a_commit_logged_before_076_survives_the_rebuild_of_its_table() {
     assert_eq!(row.try_get_by_index::<String>(2).unwrap(), "abc123");
     assert_eq!(row.try_get_by_index::<String>(3).unwrap(), "the diff");
     assert!(row.try_get_by_index::<bool>(4).unwrap());
+}
+
+const REBUILT_BY_078: [&str; 8] = ["project", "task", "task_step", "run_queue", "run_queue_item", "external_connection", "task_feedback", "document"];
+
+async fn shape_of(db: &impl ConnectionTrait, table: &str) -> Vec<String> {
+    let mut shape = Vec::new();
+    for (sql, columns) in [
+        ("SELECT name, type, \"notnull\", dflt_value, pk FROM pragma_table_info(?)", 5),
+        ("SELECT \"from\", \"table\", \"to\", on_delete FROM pragma_foreign_key_list(?)", 4),
+        ("SELECT name, \"unique\", partial FROM pragma_index_list(?)", 3),
+    ] {
+        let rows = db.query_all_raw(sea_orm::Statement::from_sql_and_values(db.get_database_backend(), sql, [table.into()])).await.unwrap();
+        for row in rows {
+            let cells: Vec<String> = (0..columns).map(|at| row.try_get_by_index::<Option<String>>(at).ok().flatten().or_else(|| row.try_get_by_index::<i64>(at).ok().map(|n| n.to_string())).unwrap_or_default()).collect();
+            shape.push(format!("{sql} :: {}", cells.join("|")));
+        }
+    }
+    shape.sort();
+    shape
+}
+
+#[tokio::test]
+async fn the_checks_of_078_leave_every_rebuilt_table_with_its_columns_keys_and_indexes() {
+    use sea_orm_migration::MigratorTrait;
+    let options = SqliteConnectOptions::new().filename(":memory:").foreign_keys(false);
+    let pool = SqlitePoolOptions::new().max_connections(1).connect_with(options).await.unwrap();
+    let db = SqlxSqliteConnector::from_sqlx_sqlite_pool(pool);
+    let before_078 = rekall_store::migration::Migrator::migrations().iter().position(|migration| migration.name() == "078-enum-and-scope-checks").unwrap() as u32;
+    rekall_store::migration::Migrator::up(&db, Some(before_078)).await.unwrap();
+    let mut before = Vec::new();
+    for table in REBUILT_BY_078 {
+        before.push(shape_of(&db, table).await);
+    }
+
+    rekall_store::migration::Migrator::up(&db, Some(1)).await.unwrap();
+
+    for (table, shape_before) in REBUILT_BY_078.iter().zip(before) {
+        assert_eq!(shape_of(&db, table).await, shape_before, "{table} changed shape");
+    }
+}
+
+#[tokio::test]
+async fn the_schema_refuses_an_unknown_status_and_a_document_scoped_twice() {
+    let database = rekall_store::open_temporary().await.unwrap();
+    let db = &database.conn;
+    for statement in [
+        "INSERT INTO company (id, name, created_at, updated_at) VALUES ('c', 'Acme', 't', 't')",
+        "INSERT INTO project (id, label, title, status, icon, auto_commit, company_id, created_at, updated_at) VALUES ('p', 'vega', 'Vega', 'ACTIVE', 'folder', 0, 'c', 't', 't')",
+    ] {
+        db.execute_unprepared(statement).await.unwrap();
+    }
+
+    let unknown_status = db
+        .execute_unprepared("INSERT INTO project (id, label, title, status, icon, auto_commit, company_id, created_at, updated_at) VALUES ('q', 'site', 'Site', 'WANDERING', 'folder', 0, 'c', 't', 't')")
+        .await;
+    let scoped_twice = db
+        .execute_unprepared("INSERT INTO document (id, title, kind, body_markdown, created_at, updated_at, context_mode, scope_company_id, scope_project_id) VALUES ('d', 'Note', 'NOTE', 'x', 't', 't', 'FULL', 'c', 'p')")
+        .await;
+
+    assert!(unknown_status.unwrap_err().to_string().contains("CHECK"));
+    assert!(scoped_twice.unwrap_err().to_string().contains("CHECK"));
+}
+
+#[tokio::test]
+async fn a_visit_that_names_another_tasks_step_is_refused() {
+    let database = rekall_store::open_temporary().await.unwrap();
+    let db = &database.conn;
+    for statement in [
+        "INSERT INTO company (id, name, created_at, updated_at) VALUES ('c', 'Acme', 't', 't')",
+        "INSERT INTO project (id, label, title, status, icon, auto_commit, company_id, created_at, updated_at) VALUES ('p', 'vega', 'Vega', 'ACTIVE', 'folder', 0, 'c', 't', 't')",
+        "INSERT INTO task (id, label, title, status, project_id, created_at, updated_at) VALUES ('t1', 'report', 'Report', 'TODO', 'p', 't', 't')",
+        "INSERT INTO task (id, label, title, status, project_id, created_at, updated_at) VALUES ('t2', 'export', 'Export', 'TODO', 'p', 't', 't')",
+        "INSERT INTO task_step (id, task_id, title, position, created_at, updated_at) VALUES ('s1', 't1', 'First', 0, 't', 't')",
+    ] {
+        db.execute_unprepared(statement).await.unwrap();
+    }
+
+    let own = db.execute_unprepared("INSERT INTO step_visit (id, task_id, step_id, ordinal, entered_at) VALUES ('v1', 't1', 's1', 1, 't')").await;
+    let other = db.execute_unprepared("INSERT INTO step_visit (id, task_id, step_id, ordinal, entered_at) VALUES ('v2', 't2', 's1', 1, 't')").await;
+
+    own.unwrap();
+    assert!(other.unwrap_err().to_string().contains("FOREIGN KEY"));
 }

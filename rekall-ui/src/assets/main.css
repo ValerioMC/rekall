@@ -1669,8 +1669,9 @@
  * of the finished steps, so the light does too. A static gradient forms the conduit, brighter
  * toward the bottom where the running node sits; two heads of light fall down it, half a beat
  * apart, in the direction the work is moving, and are clipped as they reach the node that
- * breathes. `top` and `height` are set inline from measured node positions. Runs on the same
- * 1.7s beat as `step-pulse`, so the arrival and the breath stay in step.
+ * breathes. `top`, `height` and `--stream-height` are set inline from measured node positions.
+ * The heads travel by `transform`: animating their `top` makes WebKit scroll the pane. Runs on
+ * the same 1.7s beat as `step-pulse`, so the arrival and the breath stay in step.
  */
 @utility energy-stream {
   position: absolute;
@@ -1695,6 +1696,7 @@
   &::after {
     content: '';
     position: absolute;
+    top: 0;
     inset-inline: -1px;
     height: 34px;
     border-radius: 9999px;
@@ -1801,7 +1803,7 @@
 
 @keyframes energy-descent {
   0% {
-    top: -34px;
+    transform: translateY(-34px);
     opacity: 0;
   }
   12% {
@@ -1811,7 +1813,7 @@
     opacity: 1;
   }
   100% {
-    top: 100%;
+    transform: translateY(var(--stream-height));
     opacity: 0;
   }
 }

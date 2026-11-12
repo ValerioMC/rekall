@@ -5,11 +5,11 @@ use rekall_core::commit::CommitReferenceService;
 use rekall_core::connection::ConnectionCheckService;
 use rekall_core::context::ContextSizeService;
 use rekall_core::diagram::DiagramService;
-use rekall_core::flow::{FlowService, StepLinkService};
+use rekall_core::flow::{FlowService, StepLinkService, StepPlacementService};
 use rekall_core::inventory::DependencyInventoryService;
 use rekall_core::search::SearchService;
 use rekall_core::section::ProjectSectionService;
-use rekall_core::step::TaskStepService;
+use rekall_core::step::{StepBindingService, TaskStepService};
 use rekall_core::telemetry::TelemetrySettingsService;
 use rekall_core::timeentry::TimeEntryService;
 use rekall_core::version::RUNNING_VERSION;
@@ -28,6 +28,8 @@ use crate::{ApiPorts, StepEventStream};
 #[derive(Clone)]
 pub struct ApiState {
     pub steps: TaskStepService,
+    pub step_bindings: StepBindingService,
+    pub step_placement: StepPlacementService,
     pub step_links: StepLinkService,
     pub flow: FlowService,
     pub wrapups: WrapupService,
@@ -94,19 +96,24 @@ pub struct ApiState {
     pub stream: Arc<StepEventStream>,
 }
 
-impl ApiState {
-    /// The composition root of the API: `services` is taken apart here, so each controller
-    /// reaches only the services it calls. `user_home` is where the path picker starts; `scans`
-    /// is built by the caller, which also runs it on a schedule, over the same `scan_settings`.
-    pub fn new(
-        services: Services,
-        stream: Arc<StepEventStream>,
-        user_home: PathBuf,
-        scans: VulnerabilityScanService,
-        scan_settings: ScanSettingsService,
-        ports: ApiPorts,
-    ) -> Self {
-        let ctx = services.ctx.clone();
+/// The services the API builds from other services, before the state is assembled.
+struct Wired {
+    tasks: catalog::TaskService,
+    project_connections: connection::ProjectConnectionService,
+    projects: catalog::ProjectService,
+    connections: connection::ConnectionService,
+    component_catalog: component::ProjectComponentCatalogService,
+    repository_discovery: connection::RepositoryDiscoveryService,
+    jira_issues: connection::JiraIssueService,
+    vulnerability_fixes: vulnerability::VulnerabilityFixService,
+    graphs: graph::DeploymentGraphService,
+    graph_attach: graph::GraphAttachService,
+    terminals: terminal::TerminalService,
+    quick_tasks: quick::QuickTaskService,
+}
+
+impl Wired {
+    fn of(ctx: &rekall_core::Ctx, services: &Services, ports: &ApiPorts) -> Self {
         let tasks = catalog::TaskService::new(ctx.clone(), services.review.clone(), services.time_entries.clone());
         let project_connections = connection::ProjectConnectionService::new(ctx.clone());
         let projects = catalog::ProjectService::new(ctx.clone(), services.repositories);
@@ -120,7 +127,7 @@ impl ApiState {
             project_connections.clone(),
             component_catalog.clone(),
         );
-        let jira_issues = connection::JiraIssueService::new(ctx.clone(), project_connections.clone(), tasks.clone(), ports.secrets.clone(), ports.jira);
+        let jira_issues = connection::JiraIssueService::new(ctx.clone(), project_connections.clone(), tasks.clone(), ports.secrets.clone(), ports.jira.clone());
         let vulnerability_fixes = vulnerability::VulnerabilityFixService::new(ctx.clone(), services.exposures.clone(), tasks.clone(), services.steps.clone());
         let graphs = graph::DeploymentGraphService::new(ctx.clone());
         let graph_attach = graph::GraphAttachService::new(
@@ -130,9 +137,30 @@ impl ApiState {
             services.steps.clone(),
             services.step_links.clone(),
             rekall_core::flow::StepVisitService::new(ctx.clone()),
+            services.step_placement.clone(),
+            services.step_bindings.clone(),
         );
         let terminals = terminal::TerminalService::new(ports.terminals.clone());
         let quick_tasks = quick::QuickTaskService::new(ctx.clone(), tasks.clone(), terminals.clone());
+        Self { tasks, project_connections, projects, connections, component_catalog, repository_discovery, jira_issues, vulnerability_fixes, graphs, graph_attach, terminals, quick_tasks }
+    }
+}
+
+impl ApiState {
+    /// The composition root of the API: `services` is taken apart here, so each controller
+    /// reaches only the services it calls. `user_home` is where the path picker starts; `scans`
+    /// is built by the caller, which also runs it on a schedule, over the same `scan_settings`.
+    pub fn new(
+        services: Services,
+        stream: Arc<StepEventStream>,
+        user_home: PathBuf,
+        scans: VulnerabilityScanService,
+        scan_settings: ScanSettingsService,
+        ports: ApiPorts,
+    ) -> Self {
+        let ctx = services.ctx.clone();
+        let Wired { tasks, project_connections, projects, connections, component_catalog, repository_discovery, jira_issues, vulnerability_fixes, graphs, graph_attach, terminals, quick_tasks } =
+            Wired::of(&ctx, &services, &ports);
         Self {
             companies: catalog::CompanyService::new(ctx.clone()),
             logos: catalog::CompanyLogoService::new(ctx.clone()),
@@ -165,6 +193,8 @@ impl ApiState {
             icons: catalog::ProjectIconService::new(ctx.clone()),
             directories: filesystem::DirectoryListingService::new(user_home),
             steps: services.steps,
+            step_bindings: services.step_bindings,
+            step_placement: services.step_placement,
             step_links: services.step_links,
             flow: services.flow,
             wrapups: services.wrapups,

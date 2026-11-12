@@ -4200,6 +4200,7 @@ dependencies = [
  "chrono",
  "futures",
  "regex",
+ "rekall-core",
  "rekall-diagram",
  "rekall-kernel",
  "rekall-store",

@@ -1,13 +1,14 @@
 use rekall_kernel::{jstr, Id, RekallError, Result};
-use rekall_store::task_step::{self, MAX_CHARACTERS, TITLE_MAX_CHARACTERS};
+use rekall_store::task_step;
 use rekall_store::TaskStepState;
 use rekall_store::repository as repo;
 use rekall_store::task;
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
-use crate::step::{FlowPlace, Staging, StepFlowRows, StepStreamEvent, TaskStepView, VisitBudget};
+use crate::step::model::step_rules::{apply_draft, awaits_acceptance, require_unstarted, validated_body, validated_title};
+use crate::step::{Staging, StepFlowRows, StepStreamEvent, TaskStepView};
 use crate::timeentry::TimeEntryService;
-use crate::{in_read, in_write, load, text_rule, Ctx, Tx};
+use crate::{in_read, in_write, load, Ctx, Tx};
 
 use crate::step::{Proposed, Removed};
 
@@ -54,7 +55,7 @@ impl TaskStepService {
         title: Option<&str>,
         body_markdown: Option<&str>,
     ) -> Result<TaskStepView> {
-        self.insert_in(tx, task_id, title, body_markdown, TaskStepState::Draft).await
+        self.insert_in(tx, task_id, title, body_markdown, TaskStepState::Draft, false).await
     }
 
     /// Adds a step already promoted to work, for a task the console starts a session on as soon
@@ -66,7 +67,7 @@ impl TaskStepService {
         title: Option<&str>,
         body_markdown: Option<&str>,
     ) -> Result<TaskStepView> {
-        self.insert_in(tx, task_id, title, body_markdown, TaskStepState::Open).await
+        self.insert_in(tx, task_id, title, body_markdown, TaskStepState::Open, false).await
     }
 
     async fn insert_in(
@@ -76,12 +77,14 @@ impl TaskStepService {
         title: Option<&str>,
         body_markdown: Option<&str>,
         state: TaskStepState,
+        starts_session: bool,
     ) -> Result<TaskStepView> {
         let task = load::task_or_unknown(tx.db(), task_id).await?;
         task.require_workable("holds no steps")?;
         let siblings = load::steps_of(tx.db(), task_id).await?;
         let mut step = task_step::Model::new(task_id, validated_title(title)?, siblings.len() as i32, self.ctx.now());
         step.mark_state(state);
+        step.starts_session = starts_session;
         step.body_markdown = validated_body(body_markdown)?;
         step.validate()?;
         let saved = step.into_active_model().insert(tx.db()).await?;
@@ -124,10 +127,7 @@ impl TaskStepService {
                      or delete some in the console first."
                 )));
             }
-            let added = self.add_in(&mut tx, task.id, Some(&wanted), body_markdown).await?;
-            if starts_session {
-                self.begin_session_in(&tx, added.id, true).await?;
-            }
+            let added = self.insert_in(&mut tx, task.id, Some(&wanted), body_markdown, TaskStepState::Draft, starts_session).await?;
             if staging == Staging::Ready {
                 self.release_in(&tx, added.id).await?;
                 self.publish_in(&mut tx, task.id).await?;
@@ -355,75 +355,6 @@ impl TaskStepService {
         })
     }
 
-    /// Remembers where the person dragged a step on the flow canvas. `None` hands it back to the
-    /// automatic layout. Answers the task's whole checklist, like a route does.
-    pub async fn place_in_flow(&self, id: Id, place: Option<FlowPlace>) -> Result<Vec<TaskStepView>> {
-        in_write!(&self.ctx, |tx| {
-            let before = self.require(&tx, id).await?;
-            let mut step = before.clone();
-            step.flow_x = place.map(|at| at.x);
-            step.flow_y = place.map(|at| at.y);
-            repo::update_if_changed(tx.db(), &before, step, self.ctx.now()).await?;
-            self.publish_in(&mut tx, before.task_id).await?;
-            self.find_by_task_in(&mut tx, before.task_id).await
-        })
-    }
-
-    /// Caps how many times a flow may enter the step; `None` lifts the cap. Answers the task's
-    /// whole checklist, like a route does.
-    pub async fn limit_visits(&self, id: Id, budget: Option<VisitBudget>) -> Result<Vec<TaskStepView>> {
-        in_write!(&self.ctx, |tx| {
-            let saved = self.limit_visits_in(&tx, id, budget).await?;
-            self.publish_in(&mut tx, saved.task_id).await?;
-            self.find_by_task_in(&mut tx, saved.task_id).await
-        })
-    }
-
-    pub async fn limit_visits_in(&self, tx: &Tx, id: Id, budget: Option<VisitBudget>) -> Result<task_step::Model> {
-        let before = self.require(tx, id).await?;
-        let mut step = before.clone();
-        step.max_visits = budget.map(VisitBudget::visits);
-        repo::update_if_changed(tx.db(), &before, step, self.ctx.now()).await
-    }
-
-    /// Makes the step open a fresh session, or join the one running. Answers the task's whole
-    /// checklist, because the sessions group the steps around it.
-    pub async fn begin_session(&self, id: Id, starts_session: bool) -> Result<Vec<TaskStepView>> {
-        in_write!(&self.ctx, |tx| {
-            let saved = self.begin_session_in(&tx, id, starts_session).await?;
-            self.publish_in(&mut tx, saved.task_id).await?;
-            self.find_by_task_in(&mut tx, saved.task_id).await
-        })
-    }
-
-    pub async fn begin_session_in(&self, tx: &Tx, id: Id, starts_session: bool) -> Result<task_step::Model> {
-        let before = self.require(tx, id).await?;
-        let step = task_step::Model { starts_session, ..before.clone() };
-        repo::update_if_changed(tx.db(), &before, step, self.ctx.now()).await
-    }
-
-    /// Sets the connection the step reaches, as a deployment graph laid on the task says.
-    pub async fn reach_connection_in(&self, tx: &Tx, id: Id, connection_id: Option<Id>) -> Result<task_step::Model> {
-        let before = self.require(tx, id).await?;
-        let step = task_step::Model { connection_id, ..before.clone() };
-        repo::update_if_changed(tx.db(), &before, step, self.ctx.now()).await
-    }
-
-    /// Hands every step of the task back to the automatic layout.
-    pub async fn clear_flow_places(&self, task_id: Id) -> Result<Vec<TaskStepView>> {
-        in_write!(&self.ctx, |tx| {
-            load::task_or_unknown(tx.db(), task_id).await?;
-            for before in load::steps_of(tx.db(), task_id).await? {
-                let mut step = before.clone();
-                step.flow_x = None;
-                step.flow_y = None;
-                repo::update_if_changed(tx.db(), &before, step, self.ctx.now()).await?;
-            }
-            self.publish_in(&mut tx, task_id).await?;
-            self.find_by_task_in(&mut tx, task_id).await
-        })
-    }
-
     pub async fn delete(&self, id: Id) -> Result<()> {
         in_write!(&self.ctx, |tx| {
             if let Some(step) = repo::task_step::find_by_id(tx.db(), id).await? {
@@ -504,63 +435,4 @@ impl TaskStepService {
             .await?
             .ok_or_else(|| RekallError::unknown_anchor(format!("No step with id {id}")))
     }
-}
-
-fn awaits_acceptance(step: &task_step::Model) -> bool {
-    step.state != TaskStepState::Draft && step.state != TaskStepState::Done
-}
-
-fn require_unstarted(step: &task_step::Model) -> Result<()> {
-    if step.state.unstarted() {
-        return Ok(());
-    }
-    Err(RekallError::illegal(format!(
-        "'{}' is {}. A session deletes a draft or an open step only; a step that was started, claimed or accepted \
-         is discarded in the console. Nothing was deleted.",
-        step.title,
-        step.state.name().to_lowercase()
-    )))
-}
-
-/// Move a step between `DRAFT` and `OPEN`. Only those two states move; a step a session has
-/// started, claimed or finished is refused.
-fn apply_draft(step: &mut task_step::Model, draft: bool) -> Result<()> {
-    let current = step.state;
-    if draft && current == TaskStepState::Open {
-        step.mark_state(TaskStepState::Draft);
-    } else if !draft && current == TaskStepState::Draft {
-        step.mark_state(TaskStepState::Open);
-    } else if draft != (current == TaskStepState::Draft) {
-        return Err(RekallError::illegal(format!(
-            "'{}' is {} and cannot change its draft state. Only a step that is still draft or open moves between the two.",
-            step.title,
-            current.name().to_lowercase()
-        )));
-    }
-    Ok(())
-}
-
-fn validated_title(title: Option<&str>) -> Result<String> {
-    let title =
-        text_rule::present(title).ok_or_else(|| RekallError::illegal("A step needs a title. To remove one, delete it."))?;
-    text_rule::within(title, TITLE_MAX_CHARACTERS, |length| {
-        format!(
-            "A step's title is capped at {TITLE_MAX_CHARACTERS} characters and this one is {length}. What it has to \
-             satisfy goes in the detail below it."
-        )
-    })
-}
-
-/// A step's detail is optional: blank clears it.
-fn validated_body(body: Option<&str>) -> Result<Option<String>> {
-    text_rule::present(body)
-        .map(|body| {
-            text_rule::within(body, MAX_CHARACTERS, |length| {
-                format!(
-                    "A step's detail is capped at {MAX_CHARACTERS} characters and this one is {length}. A step that \
-                     long is a task of its own; split it, or move the detail into a note."
-                )
-            })
-        })
-        .transpose()
 }

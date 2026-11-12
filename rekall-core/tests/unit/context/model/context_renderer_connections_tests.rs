@@ -1,4 +1,6 @@
 use super::*;
+use rekall_store::ConnectionKind;
+use crate::connection::ConnectionView;
 
 fn connection(kind: ConnectionKind, label: &str, target: Option<&str>, credential_set: bool) -> ConnectionView {
     ConnectionView {

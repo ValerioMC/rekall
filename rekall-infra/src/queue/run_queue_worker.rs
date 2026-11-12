@@ -6,19 +6,23 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 
-use rekall_kernel::{Id, RekallError, Result};
+use rekall_kernel::{Id, Result};
 use rekall_store::{RunQueueItemState, RunQueueState};
-use rekall_core::claude::{Remaining, TaskWork, TaskWorkService, TerminalHost, TerminalOpening, TerminalTarget};
+use rekall_core::claude::{TaskWorkService, TerminalHost};
 use rekall_core::step::TaskStepService;
 use rekall_core::worktree::TaskWorktreeService;
 use rekall_core::Clock;
 use tokio::sync::{mpsc, oneshot};
 use tracing::{info, warn};
 
-use super::usage_ceiling::{self, Verdict};
-use rekall_core::queue::{NextTurn, RunQueueItemView, RunQueueService, RunQueueView, Snapshot};
-use rekall_core::claude::TerminalMode;
+use super::usage_ceiling::Verdict;
+use rekall_core::queue::{NextTurn, RunQueueService, RunQueueView, Snapshot};
 use rekall_core::claude::UsageReader;
+
+mod launch;
+mod renewal;
+mod review;
+mod settling;
 
 /// An item a session is working now.
 #[derive(Clone, Debug)]
@@ -218,162 +222,6 @@ impl Worker {
         }
     }
 
-    async fn launch(&mut self, item: RunQueueItemView, snapshot: &Snapshot) -> Result<()> {
-        let before = match self.work.read(item.task_id).await {
-            Ok(before) => before,
-            Err(RekallError::UnknownAnchor(_)) => {
-                return self.queue.mark_item(item.id, RunQueueItemState::Failed, Some("The task no longer exists.")).await;
-            }
-            Err(other) => return Err(other),
-        };
-        if !before.has_work() {
-            return self.queue.mark_item(item.id, RunQueueItemState::Skipped, Some(nothing_open(&before))).await;
-        }
-        if self.terminals.has_live_for(item.task_id) {
-            return self
-                .queue
-                .mark_item(
-                    item.id,
-                    RunQueueItemState::Failed,
-                    Some("A terminal was already open on this task. Close it and queue the task again."),
-                )
-                .await;
-        }
-        if self.works_on_its_own_branch(&item, snapshot.parallel_sessions).await {
-            if let Err(refused) = self.worktrees.ensure(item.task_id).await {
-                return self.park(&item, &refused).await;
-            }
-        }
-        let opened = match self
-            .terminals
-            .open(TerminalOpening {
-                target: TerminalTarget::Task(item.task_id),
-                step_id: None,
-                skip_permissions: snapshot.skip_permissions,
-                model: snapshot.model.clone(),
-                effort: snapshot.effort.clone(),
-                mode: TerminalMode::Work,
-                kind: snapshot.session_kind,
-            })
-            .await
-        {
-            Ok(opened) => opened,
-            Err(refused @ (RekallError::Conflict(_) | RekallError::IllegalArgument(_) | RekallError::UnknownAnchor(_))) => {
-                return self.queue.mark_item(item.id, RunQueueItemState::Failed, Some(refused.message())).await;
-            }
-            Err(other) => return Err(other),
-        };
-        self.generation += 1;
-        self.active.push(Active {
-            generation: self.generation,
-            item_id: item.id,
-            task_id: item.task_id,
-            terminal_id: opened.id,
-            settled_steps: before.settled_steps,
-            waiting_for_permission: false,
-            closing: false,
-        });
-        self.queue.mark_item(item.id, RunQueueItemState::Running, None).await?;
-        info!(anchor = %item.anchor, terminal_id = %opened.id, "Run queue: running");
-        Ok(())
-    }
-
-    /// Says on the item in hand that its chat session waits for a person to answer a permission
-    /// prompt, and takes it back once it is answered. The item keeps running meanwhile.
-    async fn note_permission_wait(&mut self, generation: u64) -> Result<()> {
-        let Some(active) = self.active.iter_mut().find(|active| active.generation == generation) else { return Ok(()) };
-        let waiting = self.terminals.get(active.terminal_id).is_some_and(|session| session.awaiting_permission);
-        if waiting == active.waiting_for_permission {
-            return Ok(());
-        }
-        active.waiting_for_permission = waiting;
-        let item_id = active.item_id;
-        self.queue.mark_item(item_id, RunQueueItemState::Running, waiting.then_some(WAITING_FOR_PERMISSION)).await
-    }
-
-    /// A step or the review line moved on the task in hand: finished, or a boundary to check.
-    async fn review(&mut self, task_id: Id) -> Result<()> {
-        let Some(current) = self.active.iter().find(|active| active.task_id == task_id).cloned() else { return Ok(()) };
-        if current.closing {
-            return Ok(());
-        }
-        let now = match self.work.read(task_id).await {
-            Ok(now) => now,
-            Err(RekallError::UnknownAnchor(_)) => {
-                self.forget(current.generation);
-                self.close_session(current, "The task was deleted.").await;
-                return self.advance().await;
-            }
-            Err(other) => return Err(other),
-        };
-        if !now.has_work() {
-            self.mark_closing(current.generation);
-            self.later(Command::Settle {
-                generation: current.generation,
-                outcome: RunQueueItemState::Finished,
-                reason: finished(&now).into(),
-            });
-            return Ok(());
-        }
-        if now.settled_steps > current.settled_steps {
-            if let Some(active) = self.active_mut(current.generation) {
-                active.settled_steps = now.settled_steps;
-            }
-            let snapshot = self.queue.snapshot().await?;
-            let verdict = self.ceiling(&snapshot).await;
-            if !verdict.clear {
-                self.mark_closing(current.generation);
-                self.later(Command::Pause { generation: current.generation, verdict });
-                return Ok(());
-            }
-        }
-        if self.is_spent(current.terminal_id, &now) {
-            self.later(Command::Renew { generation: current.generation });
-        }
-        Ok(())
-    }
-
-    fn is_spent(&self, terminal_id: Id, work: &TaskWork) -> bool {
-        self.terminals.get(terminal_id).is_some_and(|terminal| work.session_is_spent(&terminal.started_at))
-    }
-
-    /// Close the terminal that ended its session and open another on the same item, which stays
-    /// `Running`. Decided again here, after the grace: a session that went on to the next step
-    /// by itself keeps its terminal.
-    async fn renew(&mut self, generation: u64) -> Result<()> {
-        if !self.is_current(generation) {
-            return Ok(());
-        }
-        let current = self.active_of(generation).expect("checked above");
-        if current.closing {
-            return Ok(());
-        }
-        let work = self.work.read(current.task_id).await?;
-        if !self.is_spent(current.terminal_id, &work) {
-            return Ok(());
-        }
-        self.mark_closing(generation);
-        match self.terminals.renew(current.terminal_id).await {
-            Ok(renewed) => {
-                if let Some(active) = self.active_mut(generation) {
-                    active.terminal_id = renewed.id;
-                    active.closing = false;
-                }
-                info!(terminal_id = %renewed.id, "Run queue: a new session opened on the next step");
-                Ok(())
-            }
-            Err(failure) => {
-                warn!(%failure, task_id = %current.task_id, "Run queue: the next session could not open");
-                self.forget(generation);
-                self.release_running_steps(current.task_id).await;
-                self.queue
-                    .mark_item(current.item_id, RunQueueItemState::Failed, Some("The next session could not be opened."))
-                    .await?;
-                self.advance().await
-            }
-        }
-    }
-
     fn mark_closing(&mut self, generation: u64) {
         if let Some(active) = self.active_mut(generation) {
             active.closing = true;
@@ -398,106 +246,6 @@ impl Worker {
         Some(self.active.remove(at))
     }
 
-    /// Two sessions at once need a folder each, and a project with a task manager keeps every task on a branch of its own.
-    async fn works_on_its_own_branch(&self, item: &RunQueueItemView, parallel_sessions: i32) -> bool {
-        if parallel_sessions > 1 {
-            return true;
-        }
-        self.worktrees.requires_branch(item.task_id).await.unwrap_or_else(|failure| {
-            warn!(%failure, anchor = %item.anchor, "Run queue: could not tell whether the project keeps its tasks on branches");
-            false
-        })
-    }
-
-    /// An item that cannot be started now waits where it is, with the reason, and the queue goes
-    /// on with the others. It is not offered again until the queue is armed anew.
-    async fn park(&mut self, item: &RunQueueItemView, refusal: &RekallError) -> Result<()> {
-        warn!(%refusal, anchor = %item.anchor, "Run queue: could not give the task a worktree");
-        let reason = format!("Could not make a worktree: {}", refusal.message());
-        self.parked.insert(item.id);
-        self.queue.mark_item(item.id, RunQueueItemState::Queued, Some(&reason)).await
-    }
-
-    /// The item is done with; close its terminal, record the outcome, and go on to the next.
-    async fn settle(&mut self, generation: u64, outcome: RunQueueItemState, reason: &str) -> Result<()> {
-        if !self.is_current(generation) {
-            return Ok(());
-        }
-        let current = self.forget(generation).expect("checked above");
-        self.close_session(current.clone(), "The run queue moved on to the next task.").await;
-        self.queue.mark_item(current.item_id, outcome, Some(reason)).await?;
-        self.advance().await
-    }
-
-    /// At the ceiling on a step boundary: close the session, put the item back at the head, hold.
-    async fn pause(&mut self, generation: u64, verdict: Verdict) -> Result<()> {
-        if !self.is_current(generation) {
-            return Ok(());
-        }
-        let current = self.forget(generation).expect("checked above");
-        self.close_session(current.clone(), "The run queue reached its usage ceiling.").await;
-        self.queue
-            .mark_item(current.item_id, RunQueueItemState::Queued, Some("Paused at the usage ceiling; it picks up at the next open step."))
-            .await?;
-        if self.active.is_empty() {
-            self.queue.hold(verdict.resume_at, verdict.reason.as_deref()).await?;
-        }
-        info!(resume_at = ?verdict.resume_at, reason = ?verdict.reason, "Run queue: paused at the ceiling");
-        Ok(())
-    }
-
-    /// The terminal in hand went away without the runner closing it.
-    async fn session_ended(&mut self, terminal_id: Id) -> Result<()> {
-        let Some(current) = self.active.iter().find(|active| active.terminal_id == terminal_id).cloned() else { return Ok(()) };
-        if current.closing {
-            return Ok(());
-        }
-        self.forget(current.generation);
-        self.release_running_steps(current.task_id).await;
-        let after = self.read_or_none(current.task_id).await;
-        match after {
-            Some(after) if !after.has_work() => {
-                self.queue.mark_item(current.item_id, RunQueueItemState::Finished, Some(finished(&after))).await?;
-            }
-            _ => {
-                self.queue
-                    .mark_item(current.item_id, RunQueueItemState::Failed, Some("The session ended before its work was claimed."))
-                    .await?;
-            }
-        }
-        self.advance().await
-    }
-
-    async fn ceiling(&self, snapshot: &Snapshot) -> Verdict {
-        if snapshot.ceiling_percent.is_none() {
-            return Verdict::go();
-        }
-        let reading = self.usage.current().await;
-        usage_ceiling::check(Some(&reading), snapshot.ceiling_percent, snapshot.model.as_deref(), (self.clock)())
-    }
-
-    /// Close the item's terminal and put back any step its session had marked running: the next
-    /// session has to find it open to pick it up.
-    async fn close_session(&self, mut current: Active, reason: &str) {
-        current.closing = true;
-        self.terminals.close(current.terminal_id, reason).await;
-        self.release_running_steps(current.task_id).await;
-    }
-
-    async fn release_running_steps(&self, task_id: Id) {
-        if let Some(state) = self.read_or_none(task_id).await {
-            for step_id in state.running_step_ids {
-                if let Err(failed) = self.steps.release_running(Some(step_id)).await {
-                    warn!(%failed, %step_id, "Run queue: releasing a step failed");
-                }
-            }
-        }
-    }
-
-    async fn read_or_none(&self, task_id: Id) -> Option<TaskWork> {
-        self.work.read(task_id).await.ok()
-    }
-
     fn later(&self, command: Command) {
         let commands = self.commands.clone();
         let grace = self.settle_grace;
@@ -511,28 +259,6 @@ impl Worker {
 /// How many tasks the queue may work at once.
 fn places(snapshot: &Snapshot) -> usize {
     usize::try_from(snapshot.parallel_sessions).unwrap_or(1).max(1)
-}
-
-const WAITING_FOR_PERMISSION: &str = "Waiting for you to answer a permission prompt in the chat session.";
-
-fn nothing_open(work: &TaskWork) -> &'static str {
-    if work.flow_ended {
-        "Nothing to run: the flow already reached its end."
-    } else if work.remaining == Remaining::Accepted {
-        "Nothing to run: all of it is already accepted."
-    } else {
-        "Nothing to run: all of it is claimed and waiting for review."
-    }
-}
-
-fn finished(work: &TaskWork) -> &'static str {
-    if work.flow_ended {
-        "Flow finished: the steps it did not need were left unrun."
-    } else if work.remaining == Remaining::Accepted {
-        "All of it accepted."
-    } else {
-        "All of it claimed and waiting for review."
-    }
 }
 
 /// One failed decision is logged and the next tick tries again; it never kills the runner.

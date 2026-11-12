@@ -6,7 +6,7 @@ use std::collections::{HashMap, HashSet};
 
 use rekall_kernel::{Id, Instant, InternalFailure, RekallError, Result};
 use rekall_store::prelude::*;
-use rekall_store::{company, document_task, project, tag, task, task_step, wrapup};
+use rekall_store::{company, document_task, project, tag, task, task_step, task_tracker_link, wrapup};
 use rekall_store::repository as repo;
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QueryOrder, QuerySelect};
 
@@ -22,6 +22,7 @@ pub struct Snapshot {
     tags: HashMap<Id, tag::Model>,
     documents_per_task: HashMap<Id, usize>,
     dependencies_per_task: HashMap<Id, Vec<Id>>,
+    tracker_links: HashMap<Id, task_tracker_link::Model>,
     tasks_per_project: HashMap<Id, usize>,
     icon_image_versions: HashMap<Id, Instant>,
     logo_image_versions: HashMap<Id, Instant>,
@@ -66,6 +67,7 @@ impl Snapshot {
         for dependency in repo::task_dependency::list_of_tasks(db, ids.clone()).await? {
             snapshot.dependencies_per_task.entry(dependency.task_id).or_default().push(dependency.depends_on_task_id);
         }
+        snapshot.tracker_links = repo::task_tracker_link::list_of_tasks(db, ids.clone()).await?.into_iter().map(|link| (link.task_id, link)).collect();
         let links = DocumentTask::find().filter(document_task::Column::TaskId.is_in(ids));
         snapshot.documents_per_task = count_by(db, links, document_task::Column::TaskId).await?;
         Ok(snapshot)
@@ -124,6 +126,7 @@ impl Snapshot {
             has_wrapup: self.tasks_with_wrapup.contains(&task.id),
             tag: task.tag_id.and_then(|id| self.tags.get(&id)),
             depends_on: self.dependencies_per_task.get(&task.id).cloned().unwrap_or_default(),
+            tracker_link: self.tracker_links.get(&task.id),
         };
         Ok(TaskView::of(&graph))
     }

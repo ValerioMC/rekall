@@ -79,7 +79,7 @@ defineExpose({ reveal })
     <span
       v-if="stream"
       class="energy-stream"
-      :style="{ top: `${stream.top}px`, height: `${stream.height}px` }"
+      :style="{ top: `${stream.top}px`, height: `${stream.height}px`, '--stream-height': `${stream.height}px` }"
       data-testid="energy-stream"
       aria-hidden="true"
     />

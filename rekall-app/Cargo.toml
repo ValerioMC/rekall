@@ -38,6 +38,7 @@ mime_guess = "2"
 socket2 = { version = "0.5", features = ["all"] }
 
 [dev-dependencies]
+rekall-core = { workspace = true, features = ["testing"] }
 rekall-kernel.workspace = true
 rekall-store.workspace = true
 futures.workspace = true

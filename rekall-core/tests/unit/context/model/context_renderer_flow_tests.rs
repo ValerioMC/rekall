@@ -4,6 +4,9 @@ use rekall_store::step_visit;
 use rekall_store::task_step;
 
 use super::*;
+use rekall_store::TaskStepState;
+use crate::context::StepConnectionView;
+use crate::step::TaskStepView;
 use crate::step::StepFlowRows;
 
 fn step(task_id: Id, title: &str, position: i32, state: TaskStepState) -> task_step::Model {

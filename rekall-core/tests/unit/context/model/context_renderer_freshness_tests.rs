@@ -1,4 +1,5 @@
 use super::*;
+use crate::wrapup::{Freshness, WrapupView};
 use rekall_kernel::{Id, Instant};
 use rekall_store::WrapupAuthor;
 

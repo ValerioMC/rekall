@@ -1,17 +1,16 @@
 use chrono::TimeDelta;
 use std::collections::HashSet;
 
-use rekall_kernel::{jstr, Id, Instant, InternalFailure, RekallError, Result};
+use rekall_kernel::{jstr, Id, Instant, RekallError, Result};
 use rekall_store::run_queue::PARALLEL_SESSIONS_MIN;
 use rekall_store::{run_queue, run_queue_item, RunQueueItemState, RunQueueState};
 use rekall_store::repository as repo;
 use crate::{in_read, in_write, Ctx, Tx};
-use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, IntoActiveModel, QueryFilter};
+use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
-use crate::dependency::{TaskWaitService, AWAITING_REVIEW_TEXT};
 use crate::queue::RunQueueFrame;
-use crate::queue::{BlockedItem, NextTurn, RunQueueItemView, RunQueueView, RunQueueWaitView};
-use crate::claude::{SessionKind, TaskWorkService, EFFORT_LEVELS, MODEL_ALIASES};
+use crate::queue::{BlockedItem, NextTurn, RunQueueView};
+use crate::claude::{SessionKind, EFFORT_LEVELS, MODEL_ALIASES};
 
 use crate::queue::Snapshot;
 
@@ -20,6 +19,11 @@ pub const CEILING_MAX: i32 = 100;
 
 /// How far in the past a start time may be and still count as "now": a form submitted slowly.
 const START_SLACK: TimeDelta = TimeDelta::minutes(1);
+
+mod queue_edits;
+mod queue_views;
+
+use queue_views::{item_view, queued_task_ids, view_of, waiting_reason};
 
 #[derive(Clone)]
 pub struct RunQueueService {
@@ -66,83 +70,6 @@ impl RunQueueService {
             queue.effort = choice(effort, &EFFORT_LEVELS, "effort")?;
             queue.session_kind = session_kind;
             queue.parallel_sessions = parallel_sessions;
-            self.publish(&mut tx, queue).await
-        })
-    }
-
-    pub async fn add(&self, task_id: Id) -> Result<RunQueueView> {
-        in_write!(&self.ctx, |tx| {
-            self.enqueue(&tx, task_id).await?;
-            let queue = self.queue(&tx).await?;
-            self.publish(&mut tx, queue).await
-        })
-    }
-
-    /// Add the task and, when the queue is idle, start it in the same transaction. A running,
-    /// holding or scheduled queue only gains the item: it runs when the worker reaches it.
-    pub async fn add_and_arm(&self, task_id: Id) -> Result<RunQueueView> {
-        in_write!(&self.ctx, |tx| {
-            self.enqueue(&tx, task_id).await?;
-            let mut queue = self.queue(&tx).await?;
-            if queue.state == RunQueueState::Idle {
-                queue.move_to(RunQueueState::Running);
-            }
-            self.publish(&mut tx, queue).await
-        })
-    }
-
-    pub async fn remove(&self, item_id: Id) -> Result<RunQueueView> {
-        in_write!(&self.ctx, |tx| {
-            let item = require_item(&tx, item_id).await?;
-            if item.state == RunQueueItemState::Running {
-                let title = task_title(&tx, item.task_id).await?;
-                return Err(RekallError::conflict(format!("'{title}' is running. Stop the queue to take it off.")));
-            }
-            run_queue_item::Entity::delete_by_id(item.id).exec(tx.db()).await?;
-            renumber(&tx, ordered(&tx).await?).await?;
-            let queue = self.queue(&tx).await?;
-            self.publish(&mut tx, queue).await
-        })
-    }
-
-    /// Move a waiting item to `index` among the waiting items. Settled and running items keep
-    /// their places ahead of them; only the order still to run changes.
-    pub async fn move_to(&self, item_id: Id, index: i32) -> Result<RunQueueView> {
-        in_write!(&self.ctx, |tx| {
-            let item = require_item(&tx, item_id).await?;
-            if item.state != RunQueueItemState::Queued {
-                return Err(RekallError::conflict("Only a task still waiting its turn can be moved."));
-            }
-            let all = ordered(&tx).await?;
-            let mut waiting: Vec<run_queue_item::Model> = all
-                .iter()
-                .filter(|candidate| candidate.state == RunQueueItemState::Queued && candidate.id != item.id)
-                .cloned()
-                .collect();
-            let at = index.clamp(0, waiting.len() as i32) as usize;
-            waiting.insert(at, item);
-            let mut reordered: Vec<run_queue_item::Model> =
-                all.iter().filter(|candidate| candidate.state != RunQueueItemState::Queued).cloned().collect();
-            reordered.extend(waiting);
-            renumber(&tx, reordered).await?;
-            let queue = self.queue(&tx).await?;
-            self.publish(&mut tx, queue).await
-        })
-    }
-
-    /// Take every finished, skipped and failed item off the list.
-    pub async fn clear_settled(&self) -> Result<RunQueueView> {
-        in_write!(&self.ctx, |tx| {
-            let all = ordered(&tx).await?;
-            let settled: Vec<Id> = all.iter().filter(|item| item.state.settled()).map(|item| item.id).collect();
-            if !settled.is_empty() {
-                run_queue_item::Entity::delete_many()
-                    .filter(run_queue_item::Column::Id.is_in(settled))
-                    .exec(tx.db())
-                    .await?;
-            }
-            renumber(&tx, all.into_iter().filter(|item| !item.state.settled()).collect()).await?;
-            let queue = self.queue(&tx).await?;
             self.publish(&mut tx, queue).await
         })
     }
@@ -360,23 +287,6 @@ impl RunQueueService {
         Ok(queue)
     }
 
-    async fn enqueue(&self, tx: &Tx, task_id: Id) -> Result<()> {
-        let task = repo::task::find_by_id(tx.db(), task_id)
-            .await?
-            .ok_or_else(|| RekallError::unknown_anchor(format!("No task with id {task_id}")))?;
-        task.require_workable("is never queued to run")?;
-        let current = ordered(tx).await?;
-        let waiting = current.iter().any(|item| item.task_id == task_id && !item.state.settled());
-        if waiting {
-            return Err(RekallError::conflict(format!("'{}' is already in the queue.", task.title)));
-        }
-        run_queue_item::Model::new(task_id, current.len() as i32, self.now())
-            .into_active_model()
-            .insert(tx.db())
-            .await?;
-        Ok(())
-    }
-
     /// Stamp, save and announce. The stamp moves on every write, an item's included, because the
     /// console orders what it receives by it and drops anything older than what it holds.
     async fn publish(&self, tx: &mut Tx, mut queue: run_queue::Model) -> Result<RunQueueView> {
@@ -420,52 +330,6 @@ async fn renumber(tx: &Tx, ordered: Vec<run_queue_item::Model>) -> Result<()> {
 
 async fn task_title(tx: &Tx, task_id: Id) -> Result<String> {
     Ok(repo::task::find_by_id(tx.db(), task_id).await?.map(|t| t.title).unwrap_or_default())
-}
-
-async fn item_view(tx: &Tx, item: &run_queue_item::Model, queued_tasks: &HashSet<Id>) -> Result<RunQueueItemView> {
-    let task = repo::task::find_by_id(tx.db(), item.task_id)
-        .await?
-        .ok_or_else(|| RekallError::unknown_anchor(format!("No task with id {}", item.task_id)))?;
-    let project = repo::project::find_by_id(tx.db(), task.project_id)
-        .await?
-        .ok_or_else(|| RekallError::internal(InternalFailure::Integrity, "A task has no project"))?;
-    let steps = TaskWorkService::progress_in(tx, task.id).await?;
-    let waiting_for = unmet_dependencies(tx, item, queued_tasks).await?;
-    Ok(RunQueueItemView::of(item, &task, &project, steps, waiting_for))
-}
-
-async fn unmet_dependencies(tx: &Tx, item: &run_queue_item::Model, queued_tasks: &HashSet<Id>) -> Result<Vec<RunQueueWaitView>> {
-    if item.state != RunQueueItemState::Queued {
-        return Ok(Vec::new());
-    }
-    Ok(TaskWaitService::of_task_in(tx, item.task_id)
-        .await?
-        .iter()
-        .filter(|wait| !wait.is_met())
-        .map(|wait| RunQueueWaitView::of(wait, queued_tasks.contains(&wait.task_id)))
-        .collect())
-}
-
-fn queued_task_ids(items: &[run_queue_item::Model]) -> HashSet<Id> {
-    items.iter().filter(|item| !item.state.settled()).map(|item| item.task_id).collect()
-}
-
-fn waiting_reason(waits: &[RunQueueWaitView]) -> String {
-    let names: Vec<String> = waits
-        .iter()
-        .map(|wait| if wait.awaiting_review { format!("{} ({AWAITING_REVIEW_TEXT})", wait.anchor) } else { wait.anchor.clone() })
-        .collect();
-    format!("Waiting for {}.", names.join(", "))
-}
-
-async fn view_of(tx: &Tx, queue: &run_queue::Model) -> Result<RunQueueView> {
-    let all = ordered(tx).await?;
-    let queued_tasks = queued_task_ids(&all);
-    let mut items = Vec::new();
-    for item in &all {
-        items.push(item_view(tx, item, &queued_tasks).await?);
-    }
-    Ok(RunQueueView::of(queue, items))
 }
 
 /// Blank or `default` is the account's own setting; anything else must be offered.

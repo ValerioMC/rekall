@@ -53,6 +53,9 @@ mod m074_accept_done_tasks;
 mod m075_task_manager;
 mod m076_commit_reference_step_kept;
 mod m077_foreign_key_indexes;
+mod m078_enum_and_scope_checks;
+mod m079_step_owned_task_keys;
+mod m080_task_tracker_link;
 mod migration_support;
 mod migrator;
 

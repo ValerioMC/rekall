@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use rekall_kernel::{Id, Instant};
-use rekall_store::{company, external_connection, project, project_connection, task, ConnectionKind, ProjectStatus, TaskKind};
-use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
+use rekall_store::{company, external_connection, project, project_connection, task, task_tracker_link, ConnectionKind, ProjectStatus, TaskKind};
+use sea_orm::{ActiveModelTrait, IntoActiveModel};
 
 use super::*;
 use crate::connection::{InMemorySecretStore, ScriptedTaskTracker, TrackerFailure};
@@ -47,8 +47,14 @@ impl World {
         task.id
     }
 
-    async fn stored(&self, id: Id) -> task::Model {
-        task::Entity::find_by_id(id).one(&self.ctx.db).await.unwrap().unwrap()
+    async fn link(&self, id: Id) -> Option<task_tracker_link::Model> {
+        rekall_store::repository::task_tracker_link::find_of_task(&self.ctx.db, id).await.unwrap()
+    }
+
+    async fn link_issue(&self, id: Id, key: &str) {
+        let now = Instant::now();
+        let link = task_tracker_link::Model { task_id: id, issue_key: Some(key.into()), issue_url: None, sync_error: None, created_at: now, updated_at: now };
+        rekall_store::repository::task_tracker_link::save(&self.ctx.db, link).await.unwrap();
     }
 }
 
@@ -64,16 +70,17 @@ async fn a_task_without_an_issue_creates_one_and_keeps_its_link() {
     assert_eq!(created[0].0, "acme/app");
     assert_eq!(created[0].1.title, "Task first");
     assert_eq!(created[0].1.description, "Do it.");
-    let stored = world.stored(id).await;
-    assert_eq!(stored.tracker_issue_key.as_deref(), Some("acme/app-1"));
-    assert_eq!(stored.tracker_issue_url.as_deref(), Some("https://tracker.example.com/issues/acme/app-1"));
-    assert_eq!(stored.tracker_sync_error, None);
+    let link = world.link(id).await.unwrap();
+    assert_eq!(link.issue_key.as_deref(), Some("acme/app-1"));
+    assert_eq!(link.issue_url.as_deref(), Some("https://tracker.example.com/issues/acme/app-1"));
+    assert_eq!(link.sync_error, None);
 }
 
 #[tokio::test]
 async fn a_task_that_has_an_issue_rewrites_it_instead_of_creating_another() {
     let world = world(ConnectionKind::Github, Some("acme/app"), true).await;
-    let id = world.task("first", |task| task.tracker_issue_key = Some("12".into())).await;
+    let id = world.task("first", |_| {}).await;
+    world.link_issue(id, "12").await;
 
     world.service.push(id).await.unwrap();
 
@@ -101,7 +108,7 @@ async fn a_project_without_a_task_manager_writes_nothing() {
     world.service.push(id).await.unwrap();
 
     assert!(world.tracker.created().is_empty());
-    assert_eq!(world.stored(id).await.tracker_issue_key, None);
+    assert!(world.link(id).await.is_none());
 }
 
 #[tokio::test]
@@ -124,16 +131,16 @@ async fn a_refusal_is_kept_on_the_task_and_cleared_by_the_next_push_that_works()
 
     world.service.push(id).await.unwrap();
 
-    let failed = world.stored(id).await;
-    assert_eq!(failed.tracker_issue_key, None);
-    assert!(failed.tracker_sync_error.unwrap().contains("rejected the stored credential (HTTP 401)"));
+    let failed = world.link(id).await.unwrap();
+    assert_eq!(failed.issue_key, None);
+    assert!(failed.sync_error.unwrap().contains("rejected the stored credential (HTTP 401)"));
 
     world.tracker.recover();
     world.service.push(id).await.unwrap();
 
-    let recovered = world.stored(id).await;
-    assert!(recovered.tracker_issue_key.is_some());
-    assert_eq!(recovered.tracker_sync_error, None);
+    let recovered = world.link(id).await.unwrap();
+    assert!(recovered.issue_key.is_some());
+    assert_eq!(recovered.sync_error, None);
 }
 
 #[tokio::test]
@@ -144,5 +151,5 @@ async fn a_binding_without_a_target_is_kept_as_a_failure() {
     world.service.push(id).await.unwrap();
 
     assert!(world.tracker.created().is_empty());
-    assert!(world.stored(id).await.tracker_sync_error.unwrap().contains("target"));
+    assert!(world.link(id).await.unwrap().sync_error.unwrap().contains("target"));
 }

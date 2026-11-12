@@ -2,7 +2,8 @@ use std::sync::Arc;
 
 use rekall_kernel::{Id, InternalFailure, RekallError, Result};
 use rekall_store::repository as repo;
-use rekall_store::{external_connection, project_connection, task, ConnectionKind, TaskKind};
+use rekall_store::{external_connection, project_connection, task, task_tracker_link, ConnectionKind, TaskKind};
+use sea_orm::{ActiveModelTrait, IntoActiveModel, Set};
 use tracing::{info, warn};
 
 use crate::connection::{Secret, SecretStore, TaskTracker, TrackerEndpoint, TrackerFailure, TrackerIssue, TrackerLink};
@@ -22,6 +23,7 @@ pub struct TaskTrackerService {
 /// What a push found to write and where.
 struct Delivery {
     task: task::Model,
+    issue_key: Option<String>,
     binding: project_connection::Model,
     connection: external_connection::Model,
 }
@@ -54,7 +56,8 @@ impl TaskTrackerService {
                 return Ok(None);
             }
             let manager = repo::project_connection::task_manager_of_project(tx.db(), task.project_id).await?;
-            Ok(manager.map(|(binding, connection)| Delivery { task, binding, connection }))
+            let issue_key = repo::task_tracker_link::find_of_task(tx.db(), task.id).await?.and_then(|link| link.issue_key);
+            Ok(manager.map(|(binding, connection)| Delivery { task, issue_key, binding, connection }))
         })
     }
 
@@ -63,7 +66,7 @@ impl TaskTrackerService {
         let endpoint = self.endpoint(&delivery.binding, &delivery.connection).await?;
         let issue = issue_of(&delivery.task);
         let kind = delivery.connection.kind;
-        match delivery.task.tracker_issue_key.as_deref() {
+        match delivery.issue_key.as_deref() {
             Some(key) => self.tracker.update(&endpoint, key, &issue).await.map(|()| None),
             None => self.tracker.create(&endpoint, &issue).await.map(Some),
         }
@@ -89,19 +92,29 @@ impl TaskTrackerService {
     }
 
     async fn keep_issue(&self, task_id: Id, link: TrackerLink) -> Result<()> {
-        in_write!(&self.ctx, |tx| {
-            let before = load::task_or_unknown(tx.db(), task_id).await?;
-            let after = task::Model { tracker_issue_key: Some(link.key), tracker_issue_url: Some(link.url), tracker_sync_error: None, ..before.clone() };
-            repo::update_if_changed(tx.db(), &before, after, self.ctx.now()).await?;
-            Ok(())
-        })
+        self.keep_link(task_id, |held| task_tracker_link::Model { issue_key: Some(link.key), issue_url: Some(link.url), sync_error: None, ..held }).await
     }
 
     async fn keep_failure(&self, task_id: Id, failure: Option<String>) -> Result<()> {
+        self.keep_link(task_id, |held| task_tracker_link::Model { sync_error: failure, ..held }).await
+    }
+
+    /// Saves what the push found on the task's link, creating it the first time, and moves the
+    /// task's own stamp when the link changed, since the console orders what it receives by it.
+    async fn keep_link(&self, task_id: Id, change: impl FnOnce(task_tracker_link::Model) -> task_tracker_link::Model) -> Result<()> {
         in_write!(&self.ctx, |tx| {
-            let before = load::task_or_unknown(tx.db(), task_id).await?;
-            let after = task::Model { tracker_sync_error: failure, ..before.clone() };
-            repo::update_if_changed(tx.db(), &before, after, self.ctx.now()).await?;
+            let task = load::task_or_unknown(tx.db(), task_id).await?;
+            let now = self.ctx.now();
+            let existing = repo::task_tracker_link::find_of_task(tx.db(), task_id).await?;
+            let held = existing.clone().unwrap_or(task_tracker_link::Model { task_id, issue_key: None, issue_url: None, sync_error: None, created_at: now, updated_at: now });
+            let changed = change(held.clone());
+            if existing.as_ref() == Some(&changed) || (existing.is_none() && changed == held) {
+                return Ok(());
+            }
+            repo::task_tracker_link::save(tx.db(), task_tracker_link::Model { updated_at: now, ..changed }).await?;
+            let mut stamped = task.into_active_model();
+            stamped.updated_at = Set(now);
+            stamped.update(tx.db()).await?;
             Ok(())
         })
     }

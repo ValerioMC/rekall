@@ -1444,9 +1444,9 @@ async fn a_step_can_be_made_to_open_a_session_and_made_to_join_one_again() {
     let task = world.task(&project, "report-builder").await;
     let step = world.step(&task, "Docs", 0, TaskStepState::Open).await;
 
-    let opened = world.services.steps.begin_session(step.id, true).await.unwrap();
+    let opened = world.services.step_bindings.begin_session(step.id, true).await.unwrap();
     assert!(opened[0].starts_session);
-    let joined = world.services.steps.begin_session(step.id, false).await.unwrap();
+    let joined = world.services.step_bindings.begin_session(step.id, false).await.unwrap();
     assert!(!joined[0].starts_session);
 }
 
@@ -1479,7 +1479,7 @@ async fn a_task_reads_as_spent_when_the_next_open_step_opens_a_session_of_its_ow
     let next = world.step(&task, "Docs", 1, TaskStepState::Open).await;
 
     assert!(!world.services.task_work.read(task.id).await.unwrap().next_opens_session);
-    world.services.steps.begin_session(next.id, true).await.unwrap();
+    world.services.step_bindings.begin_session(next.id, true).await.unwrap();
 
     let work = world.services.task_work.read(task.id).await.unwrap();
     assert!(work.next_opens_session);
@@ -1493,7 +1493,7 @@ async fn the_first_step_opening_a_session_is_no_boundary() {
     let project = world.project("vega", None, false).await;
     let task = world.task(&project, "report-builder").await;
     let first = world.step(&task, "Move", 0, TaskStepState::Open).await;
-    world.services.steps.begin_session(first.id, true).await.unwrap();
+    world.services.step_bindings.begin_session(first.id, true).await.unwrap();
 
     assert!(!world.services.task_work.read(task.id).await.unwrap().next_opens_session);
 }

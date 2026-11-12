@@ -269,17 +269,17 @@ async fn a_dragged_step_keeps_its_place_until_the_layout_is_cleared() {
     let world = world().await;
     let pipeline = pipeline(&world).await;
 
-    let placed = world.services.steps.place_in_flow(pipeline.test.id, Some(FlowPlace::new(120, -40).unwrap())).await.unwrap();
+    let placed = world.services.step_placement.place_in_flow(pipeline.test.id, Some(FlowPlace::new(120, -40).unwrap())).await.unwrap();
     assert_eq!((view(&placed, &pipeline.test).flow_x, view(&placed, &pipeline.test).flow_y), (Some(120), Some(-40)));
 
-    let cleared = world.services.steps.clear_flow_places(pipeline.task.id).await.unwrap();
+    let cleared = world.services.step_placement.clear_flow_places(pipeline.task.id).await.unwrap();
     assert_eq!((view(&cleared, &pipeline.test).flow_x, view(&cleared, &pipeline.test).flow_y), (None, None));
 }
 
 // --- Visit budgets
 
 async fn budget(world: &World, step: &task_step::Model, visits: i32) {
-    world.services.steps.limit_visits(step.id, Some(VisitBudget::new(visits).unwrap())).await.unwrap();
+    world.services.step_placement.limit_visits(step.id, Some(VisitBudget::new(visits).unwrap())).await.unwrap();
 }
 
 /// Goes round deploy, test, fix once: deploy is entered twice.
@@ -336,7 +336,7 @@ async fn lifting_the_budget_lets_the_flow_go_round_again() {
     claim(&world, "Deploy", Some("deployed")).await;
     claim(&world, "Test", Some("app-error")).await;
 
-    world.services.steps.limit_visits(pipeline.deploy.id, None).await.unwrap();
+    world.services.step_placement.limit_visits(pipeline.deploy.id, None).await.unwrap();
 
     assert!(claim(&world, "Fix the application", None).await.route.is_some());
     assert_eq!(view(&views(&world, &pipeline).await, &pipeline.deploy).max_visits, None);

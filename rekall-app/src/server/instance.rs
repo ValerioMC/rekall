@@ -2,66 +2,36 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use axum::extract::DefaultBodyLimit;
-use axum::http::StatusCode;
-use axum::{middleware, Router};
-use rekall_http::shared::error::{framework, render_errors};
-use rekall_http::{ApiPorts, ApiState, StepEventStream};
-use rekall_infra::chat::ChatSessionManager;
-use rekall_infra::cli::ClaudeCli;
-use rekall_infra::connection::CredentialBroker;
-use rekall_infra::credentials::ClaudeCredentials;
-use rekall_core::check::CheckRunner;
-use rekall_infra::check::ShellCheckRunner;
-use rekall_infra::login_shell::LoginShellEnvironment;
-use rekall_infra::pty::{PtyTerminalManager, PtyTerminals, SessionRelay};
-use rekall_infra::session::{SessionHosts, WorkMarker};
-use rekall_core::claude::TerminalHost;
-use rekall_core::queue::RunQueueService;
-use rekall_core::worktree::{TaskWorktreeService, WorktreeLayout};
-use rekall_infra::queue::RunQueueRunner;
-use rekall_infra::worktree::{GitWorktreeHost, WorktreeCleaner};
-use rekall_infra::resources::ClaudeResourceService;
-use rekall_infra::transcript::{TranscriptFolder, TranscriptScanner};
+use axum::Router;
 use rekall_core::claude::UsageReader;
-use rekall_infra::usage::ClaudeUsageService;
-use rekall_store::Database;
-use rekall_core::connection::{ConnectionAccessService, JiraIssues, MigratingSecretStore, RememberingSecretStore, SecretStore, TaskTracker, TaskTrackerService};
-use rekall_core::timeentry::IDLE_AFTER;
-use rekall_core::telemetry::TelemetrySettingsService;
-use rekall_core::vulnerability::{AdvisoryFeed, ScanSettingsService, VulnerabilityScanService};
-use rekall_core::{Ctx, EventBus, Services};
-use tracing::warn;
-
-use rekall_infra::backup::{DatabaseBackupService, DatabaseLocation, DatabaseRestoreService};
-use rekall_infra::installer::{ClaudeCodeInstaller, GuardHookInstaller};
+use rekall_core::connection::TaskTrackerService;
 use rekall_core::settings::SetupStatus;
+use rekall_core::timeentry::IDLE_AFTER;
+use rekall_core::vulnerability::{ScanSettingsService, VulnerabilityScanService};
+use rekall_core::{Ctx, EventBus, Services};
+use rekall_http::{ApiPorts, ApiState, StepEventStream};
+use rekall_infra::backup::{DatabaseBackupService, DatabaseLocation, DatabaseRestoreService};
 use rekall_infra::bootstrap::registry::DatabaseRegistryStore;
 use rekall_infra::bootstrap::DatabaseFolderRegistry;
-use crate::config::AppConfig;
+use rekall_infra::chat::ChatSessionManager;
+use rekall_infra::installer::{ClaudeCodeInstaller, GuardHookInstaller};
+use rekall_infra::login_shell::LoginShellEnvironment;
+use rekall_infra::pty::PtyTerminalManager;
+use rekall_infra::queue::RunQueueRunner;
+use rekall_infra::resources::ClaudeResourceService;
 use rekall_infra::restart::Restarter;
-use rekall_core::connection::ConnectionProbe;
-use rekall_infra::jira::HttpJiraIssues;
-use rekall_infra::tracker::{HttpTaskTracker, TaskTrackerRunner};
-use rekall_infra::probes::HttpConnectionProbe;
-use rekall_infra::secret::{protected_references, FileSecretStore, KeychainSecretStore, SECRETS_FILE};
-use crate::security::{self, LocalAccess};
-use crate::spa::{self, Assets};
-use crate::actuator;
-use rekall_core::version::ReleaseFeed;
-use rekall_infra::version::GithubReleaseFeed;
-use rekall_infra::vulnerability::GithubAdvisoryFeed;
+use rekall_infra::secret::protected_references;
+use rekall_infra::tracker::TaskTrackerRunner;
+use rekall_infra::transcript::{TranscriptFolder, TranscriptScanner};
+use rekall_store::Database;
+use tracing::warn;
 
+use crate::config::AppConfig;
+
+use super::instance_parts::{advisory_feed_of, assemble_router, check_runner_of, connection_probe_of, jira_issues_of, open_sessions, release_feed_of, secrets_of, start_queue, task_tracker_of, usage_of, Sessions};
 use super::StartOptions;
 
-/// Under `rekall.home`: one folder per project and task for the git worktrees the run queue works in.
-const WORKTREES_FOLDER: &str = "worktrees";
-
-/// Under `rekall.home`: one folder of credential helpers per live terminal, emptied at every start.
-const CREDENTIAL_SESSIONS_FOLDER: &str = "terminal-credentials";
-
 /// How often open timers are checked against [`IDLE_AFTER`].
-const MERGE_SESSION_CHECK: Duration = Duration::from_secs(5);
 const IDLE_SWEEP_EVERY: Duration = Duration::from_secs(60);
 
 /// When the first scheduled vulnerability scan runs after a start, and how often after that: soon
@@ -107,108 +77,26 @@ impl Instance {
             ctx.clock = clock.clone();
         }
         let clock = ctx.clock.clone();
-        let login_shell = LoginShellEnvironment::new(config.claude.shell.as_deref(), config.claude.shell_environment_timeout);
-        let check_runner: Arc<dyn CheckRunner> = match &options.check_runner {
-            Some(runner) => runner.clone(),
-            None => Arc::new(ShellCheckRunner::new(login_shell.clone())),
-        };
-        let services = Services::new(ctx.clone(), check_runner);
-
-        let secrets: Arc<dyn SecretStore> = match &options.secrets {
-            Some(secrets) => secrets.clone(),
-            None => Arc::new(MigratingSecretStore::new(
-                Arc::new(FileSecretStore::new(config.home.join(SECRETS_FILE))),
-                Arc::new(RememberingSecretStore::new(Arc::new(KeychainSecretStore::new()))),
-            )),
-        };
+        let claude_config = &config.claude;
+        let login_shell = LoginShellEnvironment::new(claude_config.shell.as_deref(), claude_config.shell_environment_timeout);
+        let services = Services::new(ctx.clone(), check_runner_of(options, &login_shell));
+        let secrets = secrets_of(config, options);
         let stream = Arc::new(StepEventStream::new(events.clone()));
-        let jira_issues: Arc<dyn JiraIssues> = match &options.jira_issues {
-            Some(jira) => jira.clone(),
-            None => Arc::new(HttpJiraIssues::new()),
-        };
-        let task_tracker: Arc<dyn TaskTracker> = match &options.task_tracker {
-            Some(tracker) => tracker.clone(),
-            None => Arc::new(HttpTaskTracker::new()),
-        };
-        TaskTrackerRunner::start(&events, TaskTrackerService::new(ctx.clone(), secrets.clone(), task_tracker));
-        let advisory_feed: Arc<dyn AdvisoryFeed> = match &options.advisory_feed {
-            Some(feed) => feed.clone(),
-            None => Arc::new(GithubAdvisoryFeed::new(secrets.clone())),
-        };
+        TaskTrackerRunner::start(&events, TaskTrackerService::new(ctx.clone(), secrets.clone(), task_tracker_of(options)));
         let scan_settings = ScanSettingsService::new(ctx.clone(), secrets.clone());
         let vulnerability_scans = VulnerabilityScanService::new(
             ctx.clone(),
-            advisory_feed,
+            advisory_feed_of(options, &secrets),
             services.inventory.clone(),
             services.advisories.clone(),
             services.exposures.clone(),
             scan_settings.clone(),
         );
         let mcp = rekall_mcp::McpController::new(rekall_mcp::tool_registry::all(&services));
-
-        let claude_config = &config.claude;
-        let cli = ClaudeCli::new(claude_config.cli_path.as_deref(), claude_config.home.clone(), Arc::new(login_shell.clone()));
-        let broker = Arc::new(CredentialBroker::new(
-            secrets.clone(),
-            ConnectionAccessService::new(ctx.clone()),
-            format!("http://127.0.0.1:{served_port}"),
-            config.home.join(CREDENTIAL_SESSIONS_FOLDER),
-        ));
-        let work_marker = WorkMarker::new(services.steps.clone(), services.review.clone(), services.step_snapshots.clone(), services.feedback.clone());
-        let terminals = PtyTerminalManager::new(
-            services.terminal_launch.clone(),
-            cli.clone(),
-            work_marker.clone(),
-            broker.clone(),
-            TelemetrySettingsService::new(ctx.clone(), secrets.clone()),
-            claude_config,
-        );
-        let chats = ChatSessionManager::new(
-            services.terminal_launch.clone(),
-            cli,
-            work_marker.clone(),
-            broker.clone(),
-            TelemetrySettingsService::new(ctx.clone(), secrets.clone()),
-            claude_config,
-        );
-        let usage: Arc<dyn UsageReader> = match &options.usage {
-            Some(usage) => usage.clone(),
-            None => Arc::new(ClaudeUsageService::new(
-                Arc::new(ClaudeCredentials::new(claude_config.home.clone())),
-                &claude_config.usage_url,
-                clock.clone(),
-            )),
-        };
-        let pty_terminals = Arc::new(PtyTerminals::new(terminals.clone()));
-        let sessions: Arc<dyn TerminalHost> = Arc::new(SessionHosts::start(pty_terminals.clone(), chats.clone(), claude_config.max_sessions));
-        let queue = RunQueueService::new(ctx.clone());
-        let layout = WorktreeLayout::new(config.home.join(WORKTREES_FOLDER));
-        let worktrees = TaskWorktreeService::new(ctx.clone(), Arc::new(GitWorktreeHost::new(layout.clone())), layout);
-        WorktreeCleaner::start(&events, services.task_work.clone(), worktrees.clone(), sessions.clone(), MERGE_SESSION_CHECK);
-        let runner = RunQueueRunner::start(
-            queue.clone(),
-            sessions.clone(),
-            usage.clone(),
-            services.task_work.clone(),
-            services.steps.clone(),
-            worktrees.clone(),
-            &events,
-            clock.clone(),
-            claude_config.run_queue_tick,
-            claude_config.run_queue_settle_grace,
-        );
-        SessionRelay::start(
-            sessions.clone(),
-            services.task_work.clone(),
-            queue.clone(),
-            &events,
-            claude_config.run_queue_settle_grace,
-        );
-        let transcripts = TranscriptScanner::new(
-            TranscriptFolder::new(claude_config.transcripts_dir.clone()),
-            services.token_usage.clone(),
-        );
-        let installer = ClaudeCodeInstaller::new(config.user_home.clone(), config.mcp_endpoint(served_port));
+        let usage = usage_of(options, claude_config, &clock);
+        let sessions = open_sessions(config, &ctx, &services, &secrets, &login_shell, served_port);
+        let queue = start_queue(config, &ctx, &events, &services, &sessions.hosts, &usage);
+        let transcripts = TranscriptScanner::new(TranscriptFolder::new(claude_config.transcripts_dir.clone()), services.token_usage.clone());
         let location = database.path.as_deref().and_then(DatabaseLocation::of);
         let backups = DatabaseBackupService::new(
             database.conn.clone(),
@@ -218,51 +106,30 @@ impl Instance {
             config.backup.keep,
             clock,
         );
-        let restorer = DatabaseRestoreService::new(backups.clone(), restarter.clone());
-        let release_feed: Arc<dyn ReleaseFeed> = match &options.release_feed {
-            Some(feed) => feed.clone(),
-            None => Arc::new(GithubReleaseFeed::new(&config.update_check.url)),
-        };
-        let connection_probe: Arc<dyn ConnectionProbe> = match &options.connection_probe {
-            Some(probe) => probe.clone(),
-            None => Arc::new(HttpConnectionProbe::new()),
-        };
+        let Sessions { broker, terminals, chats, pty_terminals, hosts } = sessions;
         let ports = ApiPorts {
             secrets: secrets.clone(),
-            jira: jira_issues,
-            terminals: sessions,
+            jira: jira_issues_of(options),
+            terminals: hosts,
             terminal_pipe: pty_terminals,
             chat_pipe: chats.clone(),
-            queue_runner: Arc::new(runner.clone()),
+            queue_runner: Arc::new(queue.runner.clone()),
             usage: usage.clone(),
             claude_folder: Arc::new(ClaudeResourceService::new(claude_config.claude_home.clone())),
-            claude_setup: Arc::new(installer),
+            claude_setup: Arc::new(ClaudeCodeInstaller::new(config.user_home.clone(), config.mcp_endpoint(served_port))),
             guard_installer: Arc::new(GuardHookInstaller::new(&config.user_home, guard_program())),
             credential_desk: broker,
-            connection_probe,
+            connection_probe: connection_probe_of(options),
             backups: Arc::new(backups.clone()),
-            restore: Arc::new(restorer),
+            restore: Arc::new(DatabaseRestoreService::new(backups.clone(), restarter.clone())),
             database_folders: Arc::new(DatabaseFolderRegistry::new(DatabaseRegistryStore::new(&config.home), config.user_home.clone())),
             restart: Arc::new(restarter),
-            task_worktrees: worktrees.clone(),
+            task_worktrees: queue.worktrees.clone(),
             protected_credential_references: protected_references(&config.home, &config.user_home),
-            release_feed: config.update_check.enabled.then_some(release_feed),
+            release_feed: config.update_check.enabled.then_some(release_feed_of(options, config)),
         };
         let api = ApiState::new(services.clone(), stream.clone(), config.user_home.clone(), vulnerability_scans.clone(), scan_settings, ports);
-
-
-        let routes = Router::new()
-            .merge(rekall_http::router(api))
-            .merge(rekall_mcp::router(mcp))
-            .merge(actuator::routes(database.conn.clone()))
-            .merge(spa::routes(Assets::new(config.ui_dist.clone())))
-            .method_not_allowed_fallback(|| async { framework(StatusCode::METHOD_NOT_ALLOWED) });
-        // The routes sit behind a fallback so the layers below see each response whole.
-        let router = Router::new()
-            .fallback_service(routes)
-            .layer(DefaultBodyLimit::max(1024 * 1024 * 1024))
-            .layer(middleware::from_fn_with_state(LocalAccess::new(config.remote_access), security::guard))
-            .layer(middleware::from_fn(render_errors));
+        let router = assemble_router(config, api, mcp, database.conn.clone());
 
         Self {
             database,
@@ -273,7 +140,7 @@ impl Instance {
             terminals,
             chats,
             usage,
-            runner,
+            runner: queue.runner,
             backups,
             login_shell,
             sweep_minutes: claude_config.sweep_minutes,

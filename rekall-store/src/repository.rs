@@ -25,6 +25,7 @@ pub use crate::step::repository::task_step_repository as task_step;
 pub use crate::tag::repository::tag_repository as tag;
 pub use crate::task::repository::task_repository as task;
 pub use crate::telemetry::repository::telemetry_setting_repository as telemetry_setting;
+pub use crate::tracker::repository::task_tracker_link_repository as task_tracker_link;
 pub use crate::timeentry::repository::time_entry_repository as time_entry;
 pub use crate::token::{repository::token_usage_repository as token_usage, repository::transcript_scan_repository as transcript_scan};
 pub use crate::vulnerability::{repository::scan_scope_repository as scan_scope, repository::security_advisory_repository as security_advisory, repository::vulnerability_exposure_repository as vulnerability_exposure};

@@ -8,6 +8,7 @@
 //! then the database pool closes.
 
 mod instance;
+mod instance_parts;
 mod running;
 mod server_startup;
 mod shared_listener;

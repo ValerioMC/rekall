@@ -1,4 +1,5 @@
 use super::*;
+use crate::context::{ContextSkillScope, ContextSkillView};
 
 fn skill(name: &str, scope: ContextSkillScope) -> ContextSkillView {
     ContextSkillView { name: name.into(), scope }

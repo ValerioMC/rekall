@@ -39,10 +39,6 @@ pub struct Model {
     /// The git worktree the run queue gave the task; absent means it works in its project's folder.
     pub worktree_folder: Option<String>,
     /// The issue the project's task manager holds for this task: Jira's key, GitLab's `iid` or GitHub's number.
-    pub tracker_issue_key: Option<String>,
-    pub tracker_issue_url: Option<String>,
-    /// Why the last push to the task manager failed; cleared by the next one that succeeds.
-    pub tracker_sync_error: Option<String>,
     pub created_at: Instant,
     pub updated_at: Instant,
 }
@@ -135,9 +131,6 @@ impl Model {
             quick: false,
             auto_accepted: false,
             worktree_folder: None,
-            tracker_issue_key: None,
-            tracker_issue_url: None,
-            tracker_sync_error: None,
             created_at: now,
             updated_at: now,
         }
@@ -234,8 +227,6 @@ impl Model {
             .not_blank("title", Some(&self.title))
             .max_length("title", Some(&self.title), TITLE_MAX_CHARACTERS)
             .max_length("description", self.description.as_deref(), DESCRIPTION_MAX_CHARACTERS)
-            .max_length("trackerIssueKey", self.tracker_issue_key.as_deref(), 200)
-            .max_length("trackerIssueUrl", self.tracker_issue_url.as_deref(), 1_000)
             .finish()
     }
 }

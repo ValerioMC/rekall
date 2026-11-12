@@ -61,7 +61,7 @@ async fn begin_session(
 ) -> ApiResult<Json<Vec<TaskStepView>>> {
     let id = uuid("id", &id)?;
     let starts_session = present("startsSession", request.starts_session)?;
-    Ok(Json(state.steps.begin_session(id, starts_session).await?))
+    Ok(Json(state.step_bindings.begin_session(id, starts_session).await?))
 }
 
 async fn delete(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Response> {

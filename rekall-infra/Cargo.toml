@@ -38,6 +38,7 @@ keyring = { workspace = true, features = ["windows-native"] }
 keyring = { workspace = true, features = ["linux-native"] }
 
 [dev-dependencies]
+rekall-core = { workspace = true, features = ["testing"] }
 rekall-diagram.workspace = true
 axum.workspace = true
 rustls-pki-types = "1"

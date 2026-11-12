@@ -10,6 +10,8 @@ pub struct Services {
     pub task_authoring: task::TaskAuthoringService,
     pub task_descriptions: task::TaskDescriptionService,
     pub epic_membership: task::EpicMembershipService,
+    pub step_bindings: step::StepBindingService,
+    pub step_placement: flow::StepPlacementService,
     pub step_links: flow::StepLinkService,
     pub flow: flow::FlowService,
     pub flow_proposals: flow::FlowProposalService,
@@ -47,9 +49,11 @@ impl Services {
         let context = context::ContextService::new(ctx.clone());
         let steps = step::TaskStepService::new(ctx.clone(), time_entries.clone());
         let review = review::TaskReviewService::new(ctx.clone(), time_entries.clone(), steps.clone());
+        let step_bindings = step::StepBindingService::new(ctx.clone(), steps.clone());
+        let step_placement = flow::StepPlacementService::new(ctx.clone(), steps.clone());
         let step_links = flow::StepLinkService::new(ctx.clone(), steps.clone());
         let flow = flow::FlowService::new(ctx.clone(), steps.clone(), step_links.clone(), flow::StepVisitService::new(ctx.clone()));
-        let flow_proposals = flow::FlowProposalService::new(ctx.clone(), steps.clone(), step_links.clone());
+        let flow_proposals = flow::FlowProposalService::new(ctx.clone(), steps.clone(), step_links.clone(), step_placement.clone(), step_bindings.clone());
         let inventory = inventory::DependencyInventoryService::new(ctx.clone());
         let exposures = vulnerability::VulnerabilityExposureService::new(ctx.clone(), commit::GitRepositoryInspector);
         Self {
@@ -57,6 +61,8 @@ impl Services {
             task_descriptions: task::TaskDescriptionService::new(ctx.clone()),
             epic_membership: task::EpicMembershipService::new(ctx.clone()),
             steps,
+            step_bindings,
+            step_placement,
             step_links,
             flow,
             flow_proposals,

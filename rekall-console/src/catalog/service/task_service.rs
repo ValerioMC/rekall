@@ -3,7 +3,7 @@
 //! its project while tasks belong to it.
 
 use rekall_kernel::{jstr, Id, RekallError, Result};
-use rekall_store::{project, task, Slug, TaskKind, TaskStatus, TaskStepState};
+use rekall_store::{project, task, task_tracker_link, Slug, TaskKind, TaskStatus, TaskStepState};
 use rekall_store::repository as repo;
 use rekall_core::review::TaskReviewService;
 use rekall_core::task::TaskContentChangedEvent;
@@ -58,16 +58,29 @@ impl TaskService {
         let mut task = task::Model::new(label, trimmed_title(&command), project.id, self.ctx.now());
         apply_request(tx, &mut task, &command).await?;
         task.quick = command.quick;
-        task.tracker_issue_key = command.tracker_issue_key.clone();
-        task.tracker_issue_url = command.tracker_issue_url.clone();
         task.validate()?;
         require_label_free(tx, &task, None).await?;
         require_no_other_active_quick(tx, &task).await?;
         task.clone().into_active_model().insert(tx.db()).await?;
-        if task.tracker_issue_key.is_none() {
+        if command.tracker_issue_key.is_none() {
             tx.publish(TaskContentChangedEvent { task_id: task.id });
+        } else {
+            self.keep_imported_issue_in(tx, &task, &command).await?;
         }
         response(tx, &task).await
+    }
+
+    async fn keep_imported_issue_in(&self, tx: &mut Tx, task: &task::Model, command: &TaskCommand) -> Result<()> {
+        let now = self.ctx.now();
+        let link = task_tracker_link::Model {
+            task_id: task.id,
+            issue_key: command.tracker_issue_key.clone(),
+            issue_url: command.tracker_issue_url.clone(),
+            sync_error: None,
+            created_at: now,
+            updated_at: now,
+        };
+        repo::task_tracker_link::save(tx.db(), link).await
     }
 
     pub async fn update(&self, id: Id, command: TaskCommand) -> Result<TaskView> {

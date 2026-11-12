@@ -1,4 +1,5 @@
 use super::*;
+use crate::deviation::DeviationView;
 
 fn deviation(step_number: i32, step_title: Option<&str>, body: &str) -> DeviationView {
     DeviationView { step_number, step_title: step_title.map(str::to_string), body_markdown: body.into() }

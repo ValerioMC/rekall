@@ -4,12 +4,14 @@
 //! size shown is the length of what a session receives.
 
 mod model;
+mod render;
 mod service;
 mod view;
 
 pub use view::context_commit_view::ContextCommitView;
 pub use model::context_record::ContextRecord;
-pub use model::context_renderer::{ContextRenderer, MAX_DIFF_CHARACTERS, MAX_DOCUMENT_CHARACTERS, REFERENCE_LINE_MAX};
+pub use model::context_renderer::ContextRenderer;
+pub use render::text::{MAX_DIFF_CHARACTERS, MAX_DOCUMENT_CHARACTERS, REFERENCE_LINE_MAX};
 pub use service::context_service::{ContextService, ENTITY_NAMES};
 pub use model::context_size::ContextSize;
 pub use model::context_size_part::ContextSizePart;
