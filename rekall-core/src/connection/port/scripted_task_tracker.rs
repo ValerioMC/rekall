@@ -10,6 +10,7 @@ use crate::connection::{TaskTracker, TrackerEndpoint, TrackerFailure, TrackerIss
 pub struct ScriptedTaskTracker {
     created: Mutex<Vec<(String, TrackerIssue)>>,
     updated: Mutex<Vec<(String, TrackerIssue)>>,
+    deleted: Mutex<Vec<String>>,
     failure: Mutex<Option<TrackerFailure>>,
 }
 
@@ -36,6 +37,11 @@ impl ScriptedTaskTracker {
         self.updated.lock().expect("scripted tracker lock").clone()
     }
 
+    /// The key of each issue deleted, in order.
+    pub fn deleted(&self) -> Vec<String> {
+        self.deleted.lock().expect("scripted tracker lock").clone()
+    }
+
     fn refusal(&self) -> Option<TrackerFailure> {
         self.failure.lock().expect("scripted tracker lock").clone()
     }
@@ -58,6 +64,14 @@ impl TaskTracker for ScriptedTaskTracker {
             return Err(failure);
         }
         self.updated.lock().expect("scripted tracker lock").push((key.to_string(), issue.clone()));
+        Ok(())
+    }
+
+    async fn delete(&self, _: &TrackerEndpoint, key: &str) -> Result<(), TrackerFailure> {
+        if let Some(failure) = self.refusal() {
+            return Err(failure);
+        }
+        self.deleted.lock().expect("scripted tracker lock").push(key.to_string());
         Ok(())
     }
 }

@@ -25,6 +25,9 @@ const BRIDGE: &str = r#"
         body: String((notice && notice.body) || '')
       } });
     },
+    openExternalLink: function (url) {
+      return call('open_external_link', { url: String(url || '') });
+    },
     closeWindow: function () {
       return call('close_window', {});
     },

@@ -50,6 +50,10 @@ impl PullRequestHost for ConnectionPullRequestHost {
     async fn close_issue(&self, endpoint: &TrackerEndpoint, issue_key: &str) -> Result<(), TrackerFailure> {
         self.host_of(endpoint)?.close_issue(endpoint, issue_key).await
     }
+
+    async fn delete_branch(&self, endpoint: &TrackerEndpoint, branch: &str) -> Result<(), TrackerFailure> {
+        self.host_of(endpoint)?.delete_branch(endpoint, branch).await
+    }
 }
 
 #[cfg(test)]

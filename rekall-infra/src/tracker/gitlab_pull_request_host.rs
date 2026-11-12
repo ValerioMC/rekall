@@ -120,6 +120,14 @@ impl PullRequestHost for GitlabPullRequestHost {
         let response = self.send(endpoint, Method::PUT, &format!("/issues/{issue_key}"), &[], Some(json!({ "state_event": "close" }))).await?;
         checked(response).await.map(|_| ())
     }
+
+    async fn delete_branch(&self, endpoint: &TrackerEndpoint, branch: &str) -> Result<(), TrackerFailure> {
+        let response = self.send(endpoint, Method::DELETE, &format!("/repository/branches/{}", branch.replace('/', "%2F")), &[], None).await?;
+        match response.status() {
+            StatusCode::NOT_FOUND => Ok(()),
+            _ => checked(response).await.map(|_| ()),
+        }
+    }
 }
 
 fn require_gitlab(endpoint: &TrackerEndpoint) -> Result<(), TrackerFailure> {

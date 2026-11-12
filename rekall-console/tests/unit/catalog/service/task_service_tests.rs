@@ -1,5 +1,5 @@
 use rekall_kernel::Instant;
-use rekall_store::{company, task_pull_request, ProjectStatus, TaskKind};
+use rekall_store::{company, task_pull_request, ProjectStatus, TaskKind, TaskStepState};
 use rekall_core::step::{NewStep, StepEdit};
 use rekall_core::task::TaskContentChangedEvent;
 use rekall_core::{EventBus, Services};
@@ -252,4 +252,43 @@ async fn the_task_view_carries_the_pull_request_opened_for_its_branch() {
     let view = world.service.get(task.id).await.unwrap();
 
     assert_eq!((view.pull_request_number, view.pull_request_url.as_deref(), view.pull_request_failure), (Some(5), Some("https://github.com/acme/app/pull/5"), None));
+}
+
+#[tokio::test]
+async fn accepting_a_task_with_steps_accepts_every_claimed_step_once_all_are_claimed() {
+    let world = world().await;
+    let task = world.service.create(command("checkout", world.project_id, TaskKind::Task, None)).await.unwrap();
+    for title in ["Wire the form", "Pay"] {
+        let step = world.steps.add(task.id, NewStep::titled(title, None)).await.unwrap();
+        world.steps.edit(step.id, StepEdit { draft: Some(false), ..StepEdit::default() }).await.unwrap();
+    }
+    world.steps.transition(Some("app"), "checkout", Some("Wire the form"), TaskStepState::Claimed).await.unwrap();
+
+    let early = world.service.review(task.id, TaskStepState::Done).await;
+    world.steps.transition(Some("app"), "checkout", Some("Pay"), TaskStepState::Claimed).await.unwrap();
+    world.service.review(task.id, TaskStepState::Done).await.unwrap();
+
+    assert!(matches!(early, Err(RekallError::IllegalArgument(_))));
+    let states: Vec<TaskStepState> = world.steps.find_by_task(task.id).await.unwrap().into_iter().map(|step| step.state).collect();
+    assert_eq!(states, [TaskStepState::Done, TaskStepState::Done]);
+    assert!(matches!(world.service.review(task.id, TaskStepState::Done).await, Err(RekallError::IllegalArgument(_))));
+}
+
+#[tokio::test]
+async fn a_deleted_task_announces_the_issue_it_held_and_one_without_an_issue_announces_nothing() {
+    let world = world().await;
+    let held = world.service.create(TaskCommand { tracker_issue_key: Some("7".into()), tracker_issue_url: Some("https://github.com/acme/app/issues/7".into()), ..command("pay", world.project_id, TaskKind::Task, None) }).await.unwrap();
+    let bare = world.service.create(command("ship", world.project_id, TaskKind::Task, None)).await.unwrap();
+    let mut feed = world.events.subscribe();
+
+    world.service.delete(held.id).await.unwrap();
+    world.service.delete(bare.id).await.unwrap();
+
+    let mut deleted = Vec::new();
+    while let Ok(event) = feed.try_recv() {
+        if let Some(event) = event.downcast::<rekall_core::task::TaskDeletedEvent>() {
+            deleted.push(event.clone());
+        }
+    }
+    assert_eq!(deleted, [rekall_core::task::TaskDeletedEvent { project_id: world.project_id, issue_key: Some("7".into()) }]);
 }

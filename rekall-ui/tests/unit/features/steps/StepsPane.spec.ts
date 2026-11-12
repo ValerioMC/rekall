@@ -212,6 +212,19 @@ describe('StepsPane', () => {
     expect(pane.get('[data-testid="steps-draft-count"]').text()).toContain('1 in draft')
   })
 
+  it('offers Accept on the task only once every step is claimed, and accepts the task when pressed', async () => {
+    const store = seed([makeStep('a', 0, 'CLAIMED'), makeStep('b', 1, 'OPEN')])
+    store.acceptTask = vi.fn().mockResolvedValue(undefined)
+    const pane = render()
+    expect(pane.find('[data-testid="steps-accept-task"]').exists()).toBe(false)
+
+    store.steps = [makeStep('a', 0, 'DONE'), makeStep('b', 1, 'CLAIMED')]
+    await flushPromises()
+    await pane.get('[data-testid="steps-accept-task"]').trigger('click')
+
+    expect(store.acceptTask).toHaveBeenCalledWith(taskId)
+  })
+
   it('opens the first unfinished step on its own, and a title click switches to another', async () => {
     seed([makeStep('a', 0, 'DONE'), makeStep('b', 1, 'OPEN'), makeStep('c', 2, 'OPEN')])
     const pane = render()

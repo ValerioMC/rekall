@@ -49,6 +49,15 @@ impl TaskTrackerService {
         }
     }
 
+    /// Removes the issue a deleted task held from the project's task manager, which the task's own
+    /// row can no longer name. A project that lost its task manager since has nothing to tell.
+    pub async fn remove(&self, project_id: Id, issue_key: &str) -> Result<()> {
+        let Some(endpoint) = self.endpoint_of_project(project_id).await? else { return Ok(()) };
+        self.tracker.delete(&endpoint, issue_key).await.map_err(|failure| RekallError::conflict(failure_message(endpoint.kind, &failure)))?;
+        info!(%project_id, issue = issue_key, "A deleted task's issue was removed from the project's task manager");
+        Ok(())
+    }
+
     /// The project's task manager with the credential read from the store; none when it has no task
     /// manager. The one place a credential is read for a pull request too.
     pub async fn endpoint_of_project(&self, project_id: Id) -> Result<Option<TrackerEndpoint>> {

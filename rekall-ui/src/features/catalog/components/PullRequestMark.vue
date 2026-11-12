@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
+import { useExternalLink } from '@/composables/useExternalLink'
 import { requestKindOf } from '@/features/catalog/lib/pull-request-request'
 import type { Task } from '@/features/catalog/model/catalog'
 
@@ -13,6 +14,7 @@ const props = defineProps<{
   task: Pick<Task, 'pullRequestNumber' | 'pullRequestUrl' | 'pullRequestFailure' | 'pullRequestMergedAt'>
 }>()
 
+const { follow } = useExternalLink()
 const kind = computed(() => requestKindOf(props.task.pullRequestUrl))
 const merged = computed(() => props.task.pullRequestMergedAt !== null)
 const opened = computed(() => props.task.pullRequestNumber !== null)
@@ -31,6 +33,7 @@ const visible = computed(() => opened.value || notOpened.value)
       class="focus-ring rounded-control"
       :aria-label="`Open ${kind.noun} ${kind.prefix}${task.pullRequestNumber} on the host`"
       data-testid="pull-request-link"
+      @click="follow($event, task.pullRequestUrl)"
     >
       <AppBadge tone="accent" mono>{{ kind.short }} {{ kind.prefix }}{{ task.pullRequestNumber }} &#8599;</AppBadge>
     </a>

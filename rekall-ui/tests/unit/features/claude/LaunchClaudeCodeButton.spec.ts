@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import LaunchClaudeCodeButton from '@/features/claude/components/LaunchClaudeCodeButton.vue'
 import { useToastStore } from '@/stores/toast.store'
 import { useConsoleStore } from '@/stores/console.store'
+import { useTaskBranchStore } from '@/features/worktree/store/taskBranch.store'
 import type { TaskId } from '@/model/branded'
 
 /**
@@ -58,6 +59,7 @@ describe('LaunchClaudeCodeButton', () => {
   it("lays the task's release graph before it opens the session", async () => {
     const releaseOnRun = vi.fn().mockResolvedValue('Release')
     useConsoleStore().releaseOnRun = releaseOnRun
+    useTaskBranchStore().start = vi.fn().mockResolvedValue(null)
     const wrapper = mount(LaunchClaudeCodeButton, { props: { anchors: ANCHORS, folder: FOLDER, taskId: 't-1' as TaskId } })
 
     await wrapper.get('[data-testid="launch-claude-code"]').trigger('click')
@@ -65,6 +67,32 @@ describe('LaunchClaudeCodeButton', () => {
 
     expect(releaseOnRun).toHaveBeenCalledWith('t-1')
     expect(releaseOnRun.mock.invocationCallOrder[0]!).toBeLessThan(openInClaudeCode.mock.invocationCallOrder[0]!)
+  })
+
+  it("opens the session in the task's worktree once its branch is started", async () => {
+    useConsoleStore().releaseOnRun = vi.fn().mockResolvedValue(null)
+    useTaskBranchStore().start = vi.fn().mockResolvedValue('/worktrees/stvv/env-vars-cv')
+    const wrapper = mount(LaunchClaudeCodeButton, { props: { anchors: ANCHORS, folder: FOLDER, taskId: 't-1' as TaskId } })
+
+    await wrapper.get('[data-testid="launch-claude-code"]').trigger('click')
+    await flushPromises()
+
+    expect(openInClaudeCode).toHaveBeenCalledWith({ directory: '/worktrees/stvv/env-vars-cv', anchors: ANCHORS, skipPermissions: false })
+  })
+
+  it('keeps the project folder when the project keeps no branches, and opens nothing when the branch cannot be made', async () => {
+    useConsoleStore().releaseOnRun = vi.fn().mockResolvedValue(null)
+    const start = vi.fn().mockResolvedValueOnce(null).mockRejectedValueOnce(new Error('git could not make a worktree'))
+    useTaskBranchStore().start = start
+    const wrapper = mount(LaunchClaudeCodeButton, { props: { anchors: ANCHORS, folder: FOLDER, taskId: 't-1' as TaskId } })
+
+    await wrapper.get('[data-testid="launch-claude-code"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="launch-claude-code"]').trigger('click')
+    await flushPromises()
+
+    expect(openInClaudeCode).toHaveBeenCalledTimes(1)
+    expect(openInClaudeCode).toHaveBeenCalledWith({ directory: FOLDER, anchors: ANCHORS, skipPermissions: false })
   })
 
   it('is not there at all in a browser, where no terminal can be opened', () => {

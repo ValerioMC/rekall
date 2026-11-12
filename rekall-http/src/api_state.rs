@@ -139,7 +139,7 @@ impl Wired {
             services.step_placement.clone(),
             services.step_bindings.clone(),
         );
-        let terminals = terminal::TerminalService::new(ports.terminals.clone());
+        let terminals = terminal::TerminalService::new(ports.terminals.clone(), ports.task_worktrees.clone());
         let quick_tasks = quick::QuickTaskService::new(ctx.clone(), tasks.clone(), terminals.clone());
         Self { tasks, project_connections, projects, connections, component_catalog, repository_discovery, jira_issues, vulnerability_fixes, graphs, graph_attach, terminals, quick_tasks }
     }

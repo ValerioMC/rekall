@@ -265,3 +265,25 @@ async fn a_project_keeps_its_tasks_on_branches_when_it_has_a_task_manager_and_a_
 
     assert!(world.service.requires_branch(report).await.unwrap());
 }
+
+#[tokio::test]
+async fn a_quick_task_is_never_put_on_a_branch_because_the_task_manager_never_sees_it() {
+    let world = world().await;
+    make_task_manager(&world).await;
+    let mut quick = task::Model::new("typo".into(), "Typo".into(), world.project_id, Instant::now());
+    quick.quick = true;
+    quick.clone().into_active_model().insert(&world.db).await.unwrap();
+
+    assert!(!world.service.requires_branch(quick.id).await.unwrap());
+}
+
+#[tokio::test]
+async fn closing_a_merged_task_makes_its_status_done() {
+    let world = world().await;
+    let report = task_named(&world, "report").await;
+
+    world.service.close_merged(report).await.unwrap();
+
+    let stored = task::Entity::find_by_id(report).one(&world.db).await.unwrap().unwrap();
+    assert_eq!(stored.status, rekall_store::TaskStatus::Done);
+}

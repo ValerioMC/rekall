@@ -6,6 +6,7 @@ fn main() {
             "pick_folder",
             "open_in_claude_code",
             "notify",
+            "open_external_link",
             "close_window",
             "minimize_window",
             "toggle_maximize_window",

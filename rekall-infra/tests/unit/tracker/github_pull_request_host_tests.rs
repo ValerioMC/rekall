@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use axum::extract::Query;
 use axum::http::{HeaderMap, StatusCode as AxumStatus};
-use axum::routing::{get, patch, put};
+use axum::routing::{delete, get, patch, put};
 use axum::{Json, Router};
 use rekall_core::connection::Secret;
 
@@ -156,6 +156,22 @@ async fn an_issue_is_closed_by_patching_its_state() {
     let site = serve(router).await;
 
     GithubPullRequestHost::new().close_issue(&endpoint(&site), "12").await.unwrap();
+}
+
+#[tokio::test]
+async fn a_branch_is_deleted_by_deleting_its_ref() {
+    let router = Router::new().route("/api/v3/repos/acme/app/git/refs/heads/rekall/fix-login", delete(|| async { AxumStatus::NO_CONTENT }));
+    let site = serve(router).await;
+
+    GithubPullRequestHost::new().delete_branch(&endpoint(&site), "rekall/fix-login").await.unwrap();
+}
+
+#[tokio::test]
+async fn a_branch_the_host_no_longer_has_is_already_deleted() {
+    let router = Router::new().route("/api/v3/repos/acme/app/git/refs/heads/rekall/fix-login", delete(|| async { AxumStatus::UNPROCESSABLE_ENTITY }));
+    let site = serve(router).await;
+
+    GithubPullRequestHost::new().delete_branch(&endpoint(&site), "rekall/fix-login").await.unwrap();
 }
 
 #[tokio::test]

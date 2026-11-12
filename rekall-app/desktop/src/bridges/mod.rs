@@ -6,6 +6,7 @@
 //! - `openInClaudeCode({directory, anchors, skipPermissions})` resolves to the name of the terminal
 //!   it opened (`ClaudeCodeLauncher`);
 //! - `notify({title, body})` resolves to whether the system showed it (`Notifier`);
+//! - `openExternalLink(url)` opens a web page in the browser (`external_link.rs`);
 //! - `closeWindow()`, `minimizeWindow()` and `toggleMaximizeWindow()` stand in for the native
 //!   traffic lights the window has none of: the console draws its own close/minimize/maximize
 //!   controls in `AnchorBar.vue` and calls these instead of a titlebar button;
@@ -23,6 +24,7 @@ mod bridge_script;
 mod claude_code_launch;
 pub mod claude_code_launcher;
 mod desktop_notice;
+pub mod external_link;
 pub mod folder_picker;
 mod home_path;
 pub mod notifier;

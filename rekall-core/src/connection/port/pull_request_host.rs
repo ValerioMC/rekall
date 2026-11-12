@@ -16,4 +16,7 @@ pub trait PullRequestHost: Send + Sync {
     async fn merge(&self, endpoint: &TrackerEndpoint, pull_request: &PullRequest) -> Result<PullRequestMerge, TrackerFailure>;
 
     async fn close_issue(&self, endpoint: &TrackerEndpoint, issue_key: &str) -> Result<(), TrackerFailure>;
+
+    /// Deletes `branch` on the remote. A branch the host no longer has is deleted already, not a failure.
+    async fn delete_branch(&self, endpoint: &TrackerEndpoint, branch: &str) -> Result<(), TrackerFailure>;
 }

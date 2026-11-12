@@ -2,6 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use rekall_core::connection::{InMemorySecretStore, ScriptedTaskTracker, Secret, SecretStore};
+use rekall_core::task::TaskDeletedEvent;
 use rekall_core::Ctx;
 use rekall_kernel::Instant;
 use rekall_store::{company, external_connection, project, project_connection, task, ConnectionKind, ProjectStatus};
@@ -51,4 +52,29 @@ async fn a_task_whose_content_changed_is_written_to_the_task_manager() {
         tokio::time::sleep(Duration::from_millis(20)).await;
     }
     assert_eq!(tracker.created().len(), 1);
+}
+
+#[tokio::test]
+async fn a_deleted_task_has_its_issue_removed_from_the_task_manager() {
+    let database = rekall_store::open_in_memory().await.unwrap();
+    let events = EventBus::new();
+    let ctx = Ctx::new(database.conn.clone(), events.clone());
+    let task_id = a_task_of_a_project_with_a_task_manager(&ctx).await;
+    let project_id = task::Entity::find_by_id(task_id).one(&ctx.db).await.unwrap().unwrap().project_id;
+    let secrets = Arc::new(InMemorySecretStore::new());
+    for account in external_connection::Entity::find().all(&ctx.db).await.unwrap().iter().map(|connection| connection.secret_ref.clone()) {
+        secrets.put(&account, &Secret::new("glpat")).unwrap();
+    }
+    let tracker = Arc::new(ScriptedTaskTracker::new());
+    TaskTrackerRunner::start(&events, TaskTrackerService::new(ctx.clone(), secrets, tracker.clone()));
+
+    events.publish(TaskDeletedEvent { project_id, issue_key: Some("7".into()) });
+
+    for _ in 0..100 {
+        if !tracker.deleted().is_empty() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    assert_eq!(tracker.deleted(), ["7".to_string()]);
 }

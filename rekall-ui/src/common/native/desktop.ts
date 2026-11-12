@@ -24,6 +24,9 @@ export interface DesktopHost {
   /** Posts a system notification; resolves false when the system refused it. */
   notify?(notice: DesktopNotice): Promise<boolean>
 
+  /** Opens a web page in the browser; rejects with the reason it could not. */
+  openExternalLink?(url: string): Promise<void>
+
   /** Stand in for the native titlebar buttons the window draws none of. */
   closeWindow?(): Promise<void>
   minimizeWindow?(): Promise<void>
@@ -92,6 +95,14 @@ export function isDesktopApp(): boolean {
 /** The platform of the native host, or null in a browser tab. */
 export function desktopPlatform(): DesktopPlatform | null {
   return window.rekallDesktop?.platform ?? null
+}
+
+export function canOpenExternalLink(): boolean {
+  return typeof window.rekallDesktop?.openExternalLink === 'function'
+}
+
+export async function openExternalLink(url: string): Promise<void> {
+  await window.rekallDesktop?.openExternalLink?.(url)
 }
 
 export async function closeWindow(): Promise<void> {

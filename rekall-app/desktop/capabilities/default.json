@@ -12,6 +12,7 @@
     "allow-pick-folder",
     "allow-open-in-claude-code",
     "allow-notify",
+    "allow-open-external-link",
     "allow-close-window",
     "allow-minimize-window",
     "allow-toggle-maximize-window",

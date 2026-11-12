@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import AppButton from '@/components/ui/AppButton.vue'
 import LaunchClaudeCodeButton from '@/features/claude/components/LaunchClaudeCodeButton.vue'
 import OpenTerminalButton from '@/features/claude/components/OpenTerminalButton.vue'
 import TaskTitleRow from '@/features/catalog/components/TaskTitleRow.vue'
 import { identityHue } from '@/common/identity'
+import { useAsyncAction } from '@/composables/useAsyncAction'
+import { useConsoleStore } from '@/stores/console.store'
 import type { Task } from '@/features/catalog/model/catalog'
 import type { TaskStep } from '@/features/steps/model/task-step'
 import type { TaskStepId } from '@/model/branded'
@@ -32,10 +35,19 @@ defineEmits<{
   'show-drafts': []
 }>()
 
+const store = useConsoleStore()
+const { run } = useAsyncAction()
+
 const hue = computed(() => identityHue(props.task.projectId))
 const done = computed(() => props.checklistSteps.filter((step) => step.done).length)
 const claimed = computed(() => props.checklistSteps.filter((step) => step.state === 'CLAIMED').length)
 const allDone = computed(() => done.value === props.checklistSteps.length)
+const readyToAccept = computed(() => claimed.value > 0 && done.value + claimed.value === props.checklistSteps.length)
+
+async function acceptTask(): Promise<void> {
+  const id = props.task.id
+  await run(() => store.acceptTask(id))
+}
 
 function segmentClass(step: TaskStep): string {
   if (step.state === 'DONE') return allDone.value ? 'tube-gold tube-safe' : 'tube-gold'
@@ -79,6 +91,16 @@ function segmentClass(step: TaskStep): string {
       </div>
 
       <div class="flex shrink-0 items-center gap-1.5">
+        <AppButton
+          v-if="readyToAccept"
+          variant="primary"
+          size="sm"
+          title="Accept every claimed step"
+          data-testid="steps-accept-task"
+          @click="acceptTask"
+        >
+          Accept
+        </AppButton>
         <OpenTerminalButton
           :task-id="task.id"
           :anchor="task.anchor"

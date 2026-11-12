@@ -126,7 +126,7 @@ const CONSOLE: LayeredCrate = LayeredCrate {
         ("settings", &[]),
         ("skill", &[]),
         ("tag", &[]),
-        ("terminal", &["claude"]),
+        ("terminal", &["claude", "worktree"]),
         ("version", &[]),
         ("vulnerability", &["catalog", "step", "task"]),
         ("worktree", &[]),

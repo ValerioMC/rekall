@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { fetchTaskBranch } from '@/features/worktree/api/taskBranch.api'
+import { fetchTaskBranch, startTaskBranch } from '@/features/worktree/api/taskBranch.api'
 import type { TaskBranch } from '@/features/worktree/model/taskBranch'
 import type { TaskId } from '@/model/branded'
 
@@ -20,5 +20,12 @@ export const useTaskBranchStore = defineStore('task-branch', () => {
     put(taskId, await fetchTaskBranch(taskId))
   }
 
-  return { of, load }
+  /** The folder a session on the task works in: its worktree once its branch is started, else null. */
+  async function start(taskId: TaskId): Promise<string | null> {
+    const branch = await startTaskBranch(taskId)
+    put(taskId, branch)
+    return branch?.worktreeFolder ?? null
+  }
+
+  return { of, load, start }
 })

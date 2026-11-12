@@ -2,6 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use rekall_core::claude::{SessionKind, TerminalEnded, TerminalHost, TerminalOpening, TerminalView};
+use rekall_core::worktree::{ScriptedWorktreeHost, TaskWorktreeService, WorktreeLayout};
 use rekall_core::{Ctx, EventBus, Services};
 use rekall_kernel::Instant;
 use rekall_store::{company, project, ProjectStatus, TaskStepState};
@@ -116,7 +117,7 @@ async fn world(refuse_with: Option<&'static str>) -> World {
     let services = Services::new(ctx.clone(), Arc::new(rekall_core::check::ScriptedCheckRunner::new()));
     let tasks = TaskService::new(ctx.clone(), services.review.clone(), services.time_entries.clone());
     let host = Arc::new(FakeHost { refuse_with, openings: Mutex::new(Vec::new()) });
-    let service = QuickTaskService::new(ctx, tasks.clone(), TerminalService::new(host.clone()));
+    let service = QuickTaskService::new(ctx.clone(), tasks.clone(), TerminalService::new(host.clone(), TaskWorktreeService::new(ctx.clone(), Arc::new(ScriptedWorktreeHost::new()), WorktreeLayout::new(std::env::temp_dir().join("rekall-quick-worktrees")))));
     World { service, tasks, host, project_id: project.id }
 }
 

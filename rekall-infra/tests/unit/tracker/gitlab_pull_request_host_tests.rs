@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use axum::extract::{Query, State};
 use axum::http::{HeaderMap, StatusCode as AxumStatus};
-use axum::routing::{get, put};
+use axum::routing::{delete, get, put};
 use axum::{Json, Router};
 use rekall_core::connection::Secret;
 
@@ -204,6 +204,22 @@ async fn an_issue_is_closed_by_a_close_state_event() {
     let site = serve(router).await;
 
     host().close_issue(&endpoint(&site), "12").await.unwrap();
+}
+
+#[tokio::test]
+async fn a_branch_is_deleted_by_its_encoded_name() {
+    let router = Router::new().route("/api/v4/projects/acme%2Fapp/repository/branches/rekall%2Ffix-login", delete(|| async { AxumStatus::NO_CONTENT }));
+    let site = serve(router).await;
+
+    host().delete_branch(&endpoint(&site), "rekall/fix-login").await.unwrap();
+}
+
+#[tokio::test]
+async fn a_branch_gitlab_no_longer_has_is_already_deleted() {
+    let router = Router::new().route("/api/v4/projects/acme%2Fapp/repository/branches/rekall%2Ffix-login", delete(|| async { AxumStatus::NOT_FOUND }));
+    let site = serve(router).await;
+
+    host().delete_branch(&endpoint(&site), "rekall/fix-login").await.unwrap();
 }
 
 #[tokio::test]

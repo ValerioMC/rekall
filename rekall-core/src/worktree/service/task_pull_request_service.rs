@@ -30,6 +30,7 @@ struct Landing {
     project_id: Id,
     project_folder: Option<String>,
     main_branch: Option<String>,
+    branch: String,
     pull_request: Option<task_pull_request::Model>,
     issue_key: Option<String>,
 }
@@ -68,7 +69,7 @@ impl TaskPullRequestService {
         }
     }
 
-    /// Merges the accepted task's pull request with a merge commit and closes its issue. A merge the
+    /// Merges the accepted task's pull request with a merge commit, closes its issue and deletes its branch on the remote. A merge the
     /// host turns down is kept on the task as the reason. A network error or a 5xx is an `Err`: the
     /// pull request is untouched and the next move of the task tries again.
     pub async fn merge_accepted(&self, task_id: Id) -> Result<PullRequestLanding> {
@@ -96,6 +97,7 @@ impl TaskPullRequestService {
                 info!(%task_id, number = pull_request.number, "A task's pull request is merged");
                 self.keep_merged(task_id).await?;
                 self.close_issue(task_id, endpoint, landing.issue_key.as_deref()).await;
+                self.delete_remote_branch(task_id, endpoint, &landing.branch).await;
                 Ok(PullRequestLanding::Merged)
             }
             Ok(PullRequestMerge::Conflicting) => {
@@ -128,6 +130,16 @@ impl TaskPullRequestService {
         }
     }
 
+    async fn delete_remote_branch(&self, task_id: Id, endpoint: &TrackerEndpoint, branch: &str) {
+        if let Err(failure) = self.hosts.delete_branch(endpoint, branch).await {
+            let message = format!("The {} is merged. {}", request_noun(endpoint.kind), failure_message(&failure, "delete its branch"));
+            warn!(failure = %message, %task_id, branch, "A merged task's branch could not be deleted on the remote");
+            if let Err(failure) = self.keep_failure(task_id, Some(message)).await {
+                warn!(%failure, %task_id, "Could not keep why a merged task's branch stayed on the remote");
+            }
+        }
+    }
+
     async fn read_landing(&self, task_id: Id) -> Result<Option<Landing>> {
         in_read!(&self.ctx, |tx| {
             let task = load::task_or_unknown(tx.db(), task_id).await?;
@@ -137,7 +149,8 @@ impl TaskPullRequestService {
             }
             let pull_request = repo::task_pull_request::find_of_task(tx.db(), task_id).await?;
             let issue_key = repo::task_tracker_link::find_of_task(tx.db(), task_id).await?.and_then(|link| link.issue_key);
-            Ok(Some(Landing { project_id: project.id, project_folder: project.repo_folder, main_branch: project.main_branch, pull_request, issue_key }))
+            let branch = self.layout.branch_for(&task.label)?;
+            Ok(Some(Landing { project_id: project.id, project_folder: project.repo_folder, main_branch: project.main_branch, branch, pull_request, issue_key }))
         })
     }
 

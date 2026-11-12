@@ -11,6 +11,7 @@ pub struct ScriptedPullRequestHost {
     opened: Mutex<Vec<OpenedPullRequest>>,
     merged: Mutex<Vec<u64>>,
     closed_issues: Mutex<Vec<String>>,
+    deleted_branches: Mutex<Vec<String>>,
     merge_answer: Mutex<PullRequestMerge>,
     failure: Mutex<Option<TrackerFailure>>,
 }
@@ -31,6 +32,7 @@ impl Default for ScriptedPullRequestHost {
             opened: Mutex::new(Vec::new()),
             merged: Mutex::new(Vec::new()),
             closed_issues: Mutex::new(Vec::new()),
+            deleted_branches: Mutex::new(Vec::new()),
             merge_answer: Mutex::new(PullRequestMerge::Merged),
             failure: Mutex::new(None),
         }
@@ -65,6 +67,10 @@ impl ScriptedPullRequestHost {
 
     pub fn closed_issues(&self) -> Vec<String> {
         self.closed_issues.lock().expect("scripted host lock").clone()
+    }
+
+    pub fn deleted_branches(&self) -> Vec<String> {
+        self.deleted_branches.lock().expect("scripted host lock").clone()
     }
 
     fn refusal(&self) -> Result<(), TrackerFailure> {
@@ -107,6 +113,12 @@ impl PullRequestHost for ScriptedPullRequestHost {
     async fn close_issue(&self, _: &TrackerEndpoint, issue_key: &str) -> Result<(), TrackerFailure> {
         self.refusal()?;
         self.closed_issues.lock().expect("scripted host lock").push(issue_key.to_string());
+        Ok(())
+    }
+
+    async fn delete_branch(&self, _: &TrackerEndpoint, branch: &str) -> Result<(), TrackerFailure> {
+        self.refusal()?;
+        self.deleted_branches.lock().expect("scripted host lock").push(branch.to_string());
         Ok(())
     }
 }

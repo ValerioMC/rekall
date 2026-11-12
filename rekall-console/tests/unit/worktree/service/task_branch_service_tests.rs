@@ -13,6 +13,8 @@ struct World {
     service: TaskBranchService,
     worktrees: TaskWorktreeService,
     task_id: Id,
+    project_id: Id,
+    db: sea_orm::DatabaseConnection,
     _root: tempfile::TempDir,
 }
 
@@ -41,7 +43,7 @@ async fn world() -> World {
     let root = tempfile::tempdir().unwrap();
     let host = Arc::new(ScriptedWorktreeHost::new());
     let worktrees = TaskWorktreeService::new(Ctx::new(database.conn.clone(), EventBus::new()), host, WorktreeLayout::new(root.path().join("worktrees")));
-    World { service: TaskBranchService::new(worktrees.clone()), worktrees, task_id: task.id, _root: root }
+    World { service: TaskBranchService::new(worktrees.clone()), worktrees, task_id: task.id, project_id: project.id, db: database.conn.clone(), _root: root }
 }
 
 #[tokio::test]
@@ -60,4 +62,33 @@ async fn the_branch_is_shown_with_the_worktree_it_works_in() {
 
     assert_eq!(view.branch, "rekall/report");
     assert!(view.worktree_folder.is_some());
+}
+
+#[tokio::test]
+async fn a_project_without_a_task_manager_starts_no_branch() {
+    let world = world().await;
+
+    assert_eq!(world.service.start(world.task_id).await.unwrap(), None);
+    assert_eq!(world.service.view(world.task_id).await.unwrap(), None);
+}
+
+#[tokio::test]
+async fn a_project_with_a_task_manager_starts_the_branch_and_shows_the_worktree_to_work_in() {
+    let world = world().await;
+    keep_tasks_on_branches(&world).await;
+
+    let view = world.service.start(world.task_id).await.unwrap().unwrap();
+
+    assert_eq!(view.branch, "rekall/report");
+    assert!(view.worktree_folder.is_some());
+}
+
+async fn keep_tasks_on_branches(world: &World) {
+    use rekall_store::{external_connection, project_connection, ConnectionKind};
+    let now = Instant::now();
+    let connection = external_connection::Model::new("github".into(), "GitHub".into(), ConnectionKind::Github, Some("https://github.com".into()), now);
+    connection.clone().into_active_model().insert(&world.db).await.unwrap();
+    let mut binding = project_connection::Model::new(world.project_id, connection.id, "github".into(), Some("acme/vega".into()), now);
+    binding.task_manager = true;
+    binding.into_active_model().insert(&world.db).await.unwrap();
 }

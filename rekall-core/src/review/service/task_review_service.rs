@@ -72,6 +72,14 @@ impl TaskReviewService {
         self.settle_acceptance(tx, before, task).await
     }
 
+    /// The console accepts the task: its review line when it has no checklist, else every claimed step at once.
+    pub async fn accept_work_in(&self, tx: &mut Tx, task_id: Id) -> Result<()> {
+        if load::review_active(tx.db(), task_id).await? {
+            return self.accept_in(tx, task_id).await.map(|_| ());
+        }
+        self.steps.accept_claimed_in(tx, task_id).await
+    }
+
     /// The task is put to done: its review line when it has no checklist, else every step that is
     /// not a draft. An epic holds neither, and what is already accepted stays as it is.
     pub async fn accept_everything_in(&self, tx: &mut Tx, task_id: Id) -> Result<()> {

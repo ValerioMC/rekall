@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use rekall_core::claude::{TerminalHost, TerminalOpening, TerminalTarget, TerminalView};
+use rekall_core::worktree::TaskWorktreeService;
 use rekall_kernel::{Id, RekallError, Result};
 
 use crate::terminal::OpenTerminalCommand;
@@ -10,11 +11,12 @@ const CLOSED_FROM_THE_CONSOLE: &str = "Closed from the console.";
 #[derive(Clone)]
 pub struct TerminalService {
     host: Arc<dyn TerminalHost>,
+    worktrees: TaskWorktreeService,
 }
 
 impl TerminalService {
-    pub fn new(host: Arc<dyn TerminalHost>) -> Self {
-        Self { host }
+    pub fn new(host: Arc<dyn TerminalHost>, worktrees: TaskWorktreeService) -> Self {
+        Self { host, worktrees }
     }
 
     pub fn list(&self) -> Vec<TerminalView> {
@@ -33,7 +35,18 @@ impl TerminalService {
                 "A terminal on a project only generates a diagram, records the inventory or assesses an advisory. Open one on a task to work or plan.",
             ));
         }
+        self.give_work_its_branch(&command).await?;
         self.host.open(opening_of(command)).await
+    }
+
+    /// Work on a task of a project that keeps tasks on branches starts in the task's own worktree,
+    /// whichever way the session was opened.
+    async fn give_work_its_branch(&self, command: &OpenTerminalCommand) -> Result<()> {
+        let TerminalTarget::Task(task_id) = command.target else { return Ok(()) };
+        if !command.mode.follows_steps() || !self.worktrees.requires_branch(task_id).await? {
+            return Ok(());
+        }
+        self.worktrees.ensure(task_id).await.map(|_| ())
     }
 
     pub async fn close(&self, id: Id) -> Result<()> {

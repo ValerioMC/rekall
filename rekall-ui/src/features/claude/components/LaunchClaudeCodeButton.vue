@@ -5,6 +5,7 @@ import { skipsPermissions } from '@/common/config/claude-launch'
 import { useToastStore } from '@/stores/toast.store'
 import StepSeal from '@/features/steps/components/StepSeal.vue'
 import { useReleaseOnRun } from '@/features/graph/composables/useReleaseOnRun'
+import { useBranchOnRun } from '@/features/worktree/composables/useBranchOnRun'
 import type { TaskId } from '@/model/branded'
 
 defineOptions({ inheritAttrs: false })
@@ -19,6 +20,7 @@ const props = defineProps<{
 
 const toast = useToastStore()
 const { releaseBeforeRun } = useReleaseOnRun()
+const { folderToRunIn } = useBranchOnRun()
 
 const available = canLaunchClaudeCode()
 const descriptionId = useId()
@@ -77,9 +79,14 @@ async function launch(): Promise<void> {
   }
   phase.value = 'launching'
   if (props.taskId) await releaseBeforeRun(props.taskId)
+  const directory = props.taskId ? await folderToRunIn(props.taskId, props.folder) : props.folder
+  if (directory === null) {
+    phase.value = 'idle'
+    return
+  }
   try {
     const terminal = await launchClaudeCode({
-      directory: props.folder,
+      directory,
       anchors: props.anchors,
       skipPermissions: skipsPermissions()
     })

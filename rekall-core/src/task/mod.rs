@@ -17,5 +17,6 @@ pub use service::task_description_service::TaskDescriptionService;
 pub use model::task_brief::TaskBrief;
 pub use view::task_reference_view::TaskReferenceView;
 pub use event::task_content_changed_event::TaskContentChangedEvent;
+pub use event::task_deleted_event::TaskDeletedEvent;
 pub use event::task_stream_event::TaskStreamEvent;
 pub use rekall_store::TaskKind;

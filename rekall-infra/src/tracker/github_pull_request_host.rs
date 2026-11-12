@@ -104,6 +104,14 @@ impl PullRequestHost for GithubPullRequestHost {
         let response = self.send(endpoint, Method::PATCH, &format!("/issues/{issue_key}"), &[], Some(json!({ "state": "closed" }))).await?;
         checked(response).await.map(|_| ())
     }
+
+    async fn delete_branch(&self, endpoint: &TrackerEndpoint, branch: &str) -> Result<(), TrackerFailure> {
+        let response = self.send(endpoint, Method::DELETE, &format!("/git/refs/heads/{branch}"), &[], None).await?;
+        match response.status() {
+            StatusCode::NOT_FOUND | StatusCode::UNPROCESSABLE_ENTITY => Ok(()),
+            _ => checked(response).await.map(|_| ()),
+        }
+    }
 }
 
 fn require_github(endpoint: &TrackerEndpoint) -> Result<(), TrackerFailure> {

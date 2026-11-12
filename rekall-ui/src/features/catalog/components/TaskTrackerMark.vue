@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppBadge from '@/components/ui/AppBadge.vue'
+import { useExternalLink } from '@/composables/useExternalLink'
 import type { Task } from '@/features/catalog/model/catalog'
 
 /**
@@ -7,6 +8,8 @@ import type { Task } from '@/features/catalog/model/catalog'
  * the reason when the last write to it failed.
  */
 defineProps<{ task: Pick<Task, 'trackerIssueKey' | 'trackerIssueUrl' | 'trackerSyncError'> }>()
+
+const { follow } = useExternalLink()
 </script>
 
 <template>
@@ -19,6 +22,7 @@ defineProps<{ task: Pick<Task, 'trackerIssueKey' | 'trackerIssueUrl' | 'trackerS
       class="focus-ring rounded-control"
       :aria-label="`Open issue ${task.trackerIssueKey} in the task manager`"
       data-testid="tracker-issue-link"
+      @click="follow($event, task.trackerIssueUrl)"
     >
       <AppBadge tone="accent" mono>{{ task.trackerIssueKey }} &#8599;</AppBadge>
     </a>

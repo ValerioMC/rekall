@@ -6,7 +6,7 @@ use rekall_kernel::{jstr, Id, RekallError, Result};
 use rekall_store::{project, task, task_tracker_link, Slug, TaskKind, TaskStatus, TaskStepState};
 use rekall_store::repository as repo;
 use rekall_core::review::TaskReviewService;
-use rekall_core::task::TaskContentChangedEvent;
+use rekall_core::task::{TaskContentChangedEvent, TaskDeletedEvent};
 use rekall_core::timeentry::TimeEntryService;
 use rekall_core::{in_read, in_write, Ctx, Tx};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
@@ -110,13 +110,13 @@ impl TaskService {
         })
     }
 
-    /// `DONE` accepts a stepless task, `OPEN` sends it back; other states are refused.
+    /// `DONE` accepts a stepless task, or every claimed step of one with a checklist; `OPEN` sends a stepless task back; other states are refused.
     pub async fn review(&self, id: Id, target: TaskStepState) -> Result<TaskView> {
         in_write!(&self.ctx, |tx| {
             repo::task::require(tx.db(), id).await?;
             match target {
                 TaskStepState::Done => {
-                    self.review.accept_in(&mut tx, id).await?;
+                    self.review.accept_work_in(&mut tx, id).await?;
                 }
                 TaskStepState::Open => {
                     self.review.send_back_in(&mut tx, id).await?;
@@ -154,7 +154,11 @@ impl TaskService {
     pub async fn delete(&self, id: Id) -> Result<()> {
         in_write!(&self.ctx, |tx| {
             let task = repo::task::require(tx.db(), id).await?;
+            let issue_key = repo::task_tracker_link::find_of_task(tx.db(), id).await?.and_then(|link| link.issue_key);
             task::Entity::delete_by_id(task.id).exec(tx.db()).await?;
+            if issue_key.is_some() {
+                tx.publish(TaskDeletedEvent { project_id: task.project_id, issue_key });
+            }
             Ok::<_, RekallError>(())
         })
     }

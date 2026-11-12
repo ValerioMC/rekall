@@ -16,7 +16,7 @@ const MERGE_SESSION_CLOSED: &str = "The branch is merged.";
 /// Opens the pull request of a task whose work is claimed, on a project with the pull request flow
 /// on. Merges a task's branch into the project and then takes its worktree away, once all of its work
 /// is accepted. A branch that conflicts gets a `merge` session that resolves it in the task's
-/// worktree; the merge is retried on every tick until it goes through. Unsaved changes and a
+/// worktree; the merge is retried on every tick until it goes through. A merged task is closed. Unsaved changes and a
 /// merge git refuses are left alone and logged. The branch with its commits always stays.
 pub struct WorktreeCleaner;
 
@@ -84,6 +84,7 @@ impl Cleaner {
             Ok(PullRequestLanding::NotInFlow) => self.merge_locally(task_id).await,
             Ok(PullRequestLanding::Merged) => {
                 info!(%task_id, "Accepted task's pull request merged");
+                self.close_task(task_id).await;
                 self.finish(task_id).await;
             }
             Ok(PullRequestLanding::AlreadyMerged | PullRequestLanding::NothingToMerge) => self.finish(task_id).await,
@@ -97,6 +98,7 @@ impl Cleaner {
         match self.worktrees.merge_accepted(task_id).await {
             Ok(Merge::Merged) => {
                 info!(%task_id, "Accepted task's branch merged into the project");
+                self.close_task(task_id).await;
                 self.finish(task_id).await;
             }
             Ok(Merge::AlreadyMerged | Merge::NothingToMerge) => self.finish(task_id).await,
@@ -126,6 +128,12 @@ impl Cleaner {
             }
         };
         self.resolutions.insert(task_id, resolution);
+    }
+
+    async fn close_task(&self, task_id: Id) {
+        if let Err(failure) = self.worktrees.close_merged(task_id).await {
+            warn!(%failure, %task_id, "Could not close a task whose branch is merged");
+        }
     }
 
     async fn finish(&mut self, task_id: Id) {

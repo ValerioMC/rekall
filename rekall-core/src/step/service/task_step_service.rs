@@ -191,6 +191,19 @@ impl TaskStepService {
         Ok(())
     }
 
+    /// Accepts every claimed step of the checklist together, once none is left open or running.
+    pub async fn accept_claimed_in(&self, tx: &mut Tx, task_id: Id) -> Result<()> {
+        let steps = load::steps_of(tx.db(), task_id).await?;
+        if !steps.iter().any(|step| step.state == TaskStepState::Claimed) {
+            return Err(RekallError::illegal("No step of this task is claimed, so there is nothing to accept."));
+        }
+        if steps.iter().any(|step| matches!(step.state, TaskStepState::Open | TaskStepState::Running)) {
+            return Err(RekallError::illegal("The task is accepted once every step is claimed: some are still open or running."));
+        }
+        self.time_entries.stop_if_running_in(tx, task_id).await?;
+        self.accept_all_in(tx, task_id).await
+    }
+
     /// Sends a claimed step back for another pass: what it was worked from is kept as a pass and
     /// the detail is left empty for the feedback. Only the console does this; no MCP tool can.
     pub async fn send_back(&self, id: Id) -> Result<TaskStepView> {

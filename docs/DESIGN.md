@@ -124,11 +124,11 @@ is found by opening one folder per crate:
 | `chat` | the chat view of a session: its events (`ChatEvent`) and the ports a client reaches it through (`ChatPipe`, `ChatListener`), in `rekall-core`, next to `TerminalHost`, the lifecycle port, widened so that a session is no longer taken to be a PTY; in `rekall-infra` the stream parser, the headless `claude` process, `ChatSessionManager` and `SessionHosts`, which routes each call to the terminal or chat host; in `rekall-console` and `rekall-http` the service and the routes that follow and talk to one (opening, listing and closing stay with `terminal`) |
 | `backup`, `settings`, `version` | the backups of the open database and restoring one, the registered database folders and the restart onto another, the update check; no table behind them, so no folder in `rekall-store` |
 | `guard` | the rules a Claude Code hook applies before a tool runs and before a session stops: which commands and reads are refused, and when a session may not end; decisions over data, no I/O |
-| `worktree` | a project's second working folder on a branch of its own, one per task, started from and merged into the project's main branch: the port `WorktreeHost`, the names and the safety rules of `WorktreeLayout`, the porcelain listing and the reclaiming of worktrees a crash left; `rekall-infra` runs git; for a project with `pull_request_flow` on, `PullRequestFlowService` guards the switch and `TaskPullRequestService` pushes the branch (`WorktreeHost::push_branch`), opens the request through `PullRequestHost` and merges it on acceptance, the only writer of `task_pull_request`; `rekall-core` only |
+| `worktree` | a project's second working folder on a branch of its own, one per task, started from and merged into the project's main branch: the port `WorktreeHost`, the names and the safety rules of `WorktreeLayout`, the porcelain listing and the reclaiming of worktrees a crash left; `rekall-infra` runs git; for a project with `pull_request_flow` on, `PullRequestFlowService` guards the switch and `TaskPullRequestService` pushes the branch (`WorktreeHost::push_branch`), opens the request through `PullRequestHost` and merges it on acceptance, then closes the issue and deletes the remote branch, the only writer of `task_pull_request`; `TaskWorktreeService::requires_branch` decides which tasks live on a branch (a project with a folder and a task manager, never a quick task) and every session that works one, whether the run queue, `TerminalService` or `TaskBranchService::start` (for the desktop's external terminal) makes it first; a merged task is closed with `close_merged`; `rekall-core` only |
 | `inventory` | what each project is built from: its dependencies at the version each resolves to |
 | `terminal`, `filesystem`, `stream` | the in-app terminals, the folder listing behind the path picker, the event stream the console listens to; console and HTTP only |
 | `vulnerability` | the advisories, the projects they reach, the scan that finds them and what it looks for, a session's verdict and the fix task |
-| `tracker` | the issue a task was written to in its project's task manager, and why the last write failed: the console creates it for a task imported with its issue, `rekall-core`'s `TaskTrackerService` keeps it on every push (`rekall-store` only) |
+| `tracker` | the issue a task was written to in its project's task manager, and why the last write failed: the console creates it for a task imported with its issue, `rekall-core`'s `TaskTrackerService` keeps it on every push and removes the issue when `TaskDeletedEvent` says its task was deleted (`rekall-store` only) |
 | `telemetry` | where Claude Code's OpenTelemetry traces are sent (a self-hosted Langfuse), and the variables a terminal's `claude` starts with when they are on |
 
 `diagram` also has `rekall-diagram`, the one domain with a crate of its own, because the format
@@ -203,7 +203,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `tag` | `task` | - | nothing | nothing | - |
 | `task` | `catalog`, `note`, `step`, `tag`, `wrapup` | `flow`, `step` | - | - | `flow` |
 | `telemetry` | - | `claude`, `connection` | - | nothing | - |
-| `terminal` | - | - | `claude` | `claude`, `vulnerability` | - |
+| `terminal` | - | - | `claude`, `worktree` | `claude`, `vulnerability` | - |
 | `timeentry` | `task` | `catalog`, `task` | - | nothing | - |
 | `token` | `step`, `task` | nothing | - | nothing | - |
 | `tracker` | `task` | - | - | - | - |

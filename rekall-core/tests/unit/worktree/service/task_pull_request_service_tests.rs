@@ -167,6 +167,7 @@ async fn an_accepted_task_has_its_pull_request_merged_once_and_its_issue_closed(
 
     assert_eq!((first, second), (PullRequestLanding::Merged, PullRequestLanding::AlreadyMerged));
     assert_eq!((world.host.merged(), world.host.closed_issues()), (vec![1], vec!["12".to_string()]));
+    assert_eq!(world.host.deleted_branches(), vec!["rekall/report".to_string()]);
     assert!(world.stored(&task).await.unwrap().merged_at.is_some());
 }
 

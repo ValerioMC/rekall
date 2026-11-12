@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use rekall_kernel::{jstr, Id, Result};
 use rekall_store::repository as repo;
+use rekall_store::TaskStatus;
 use tracing::warn;
 
 use crate::worktree::{BranchReview, MergeOutcome, OrphanReclaimService, Worktree, WorktreeHost, WorktreeLayout};
@@ -74,10 +75,13 @@ impl TaskWorktreeService {
     }
 
     /// Whether the task's project wants every task on a branch of its own: it has a task manager
-    /// and a folder to branch in.
+    /// and a folder to branch in. A quick task never goes through the task manager, so it has none.
     pub async fn requires_branch(&self, task_id: Id) -> Result<bool> {
         in_read!(&self.ctx, |tx| {
             let task = load::task_or_unknown(tx.db(), task_id).await?;
+            if task.quick {
+                return Ok(false);
+            }
             let project = load::project_of(tx.db(), &task).await?;
             let has_folder = project.repo_folder.as_deref().is_some_and(|folder| !jstr::is_blank(folder));
             Ok(has_folder && repo::project_connection::task_manager_of_project(tx.db(), project.id).await?.is_some())
@@ -122,6 +126,17 @@ impl TaskWorktreeService {
             MergeOutcome::Conflicts(reason) => Ok(Merge::Conflicts(reason)),
             MergeOutcome::Refused(reason) => Ok(Merge::Refused(reason)),
         }
+    }
+
+    /// Closes the task once its branch is merged: its status becomes done.
+    pub async fn close_merged(&self, task_id: Id) -> Result<()> {
+        in_write!(&self.ctx, |tx| {
+            let before = load::task_or_unknown(tx.db(), task_id).await?;
+            let mut task = before.clone();
+            task.status = TaskStatus::Done;
+            repo::update_if_changed(tx.db(), &before, task, self.ctx.now()).await?;
+            Ok(())
+        })
     }
 
     /// What the task's branch holds, while the branch exists: the worktree or not.
