@@ -82,7 +82,8 @@ impl Instance {
         let services = Services::new(ctx.clone(), check_runner_of(options, &login_shell));
         let secrets = secrets_of(config, options);
         let stream = Arc::new(StepEventStream::new(events.clone()));
-        TaskTrackerRunner::start(&events, TaskTrackerService::new(ctx.clone(), secrets.clone(), task_tracker_of(options)));
+        let task_tracker = TaskTrackerService::new(ctx.clone(), secrets.clone(), task_tracker_of(options));
+        TaskTrackerRunner::start(&events, task_tracker.clone());
         let scan_settings = ScanSettingsService::new(ctx.clone(), secrets.clone());
         let vulnerability_scans = VulnerabilityScanService::new(
             ctx.clone(),
@@ -95,7 +96,7 @@ impl Instance {
         let mcp = rekall_mcp::McpController::new(rekall_mcp::tool_registry::all(&services));
         let usage = usage_of(options, claude_config, &clock);
         let sessions = open_sessions(config, &ctx, &services, &secrets, &login_shell, served_port);
-        let queue = start_queue(config, &ctx, &events, &services, &sessions.hosts, &usage);
+        let queue = start_queue(config, &ctx, &events, &services, &task_tracker, &sessions.hosts, &usage);
         let transcripts = TranscriptScanner::new(TranscriptFolder::new(claude_config.transcripts_dir.clone()), services.token_usage.clone());
         let location = database.path.as_deref().and_then(DatabaseLocation::of);
         let backups = DatabaseBackupService::new(

@@ -72,7 +72,8 @@ async fn harness(world: &World, parallel: i32) -> Harness {
 
 fn start_cleaner(world: &World, worktrees: TaskWorktreeService) -> Arc<InMemoryTerminalHost> {
     let sessions = Arc::new(InMemoryTerminalHost::new());
-    WorktreeCleaner::start(&world.events, world.services.task_work.clone(), worktrees, sessions.clone(), Duration::from_millis(50));
+    let pull_requests = world.pull_requests();
+    WorktreeCleaner::start(&world.events, world.services.task_work.clone(), worktrees, pull_requests, sessions.clone(), Duration::from_millis(50));
     sessions
 }
 

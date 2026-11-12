@@ -49,6 +49,16 @@ impl TaskTrackerService {
         }
     }
 
+    /// The project's task manager with the credential read from the store; none when it has no task
+    /// manager. The one place a credential is read for a pull request too.
+    pub async fn endpoint_of_project(&self, project_id: Id) -> Result<Option<TrackerEndpoint>> {
+        let manager = in_read!(&self.ctx, |tx| repo::project_connection::task_manager_of_project(tx.db(), project_id).await)?;
+        match manager {
+            Some((binding, connection)) => self.endpoint(&binding, &connection).await.map(Some),
+            None => Ok(None),
+        }
+    }
+
     async fn read(&self, task_id: Id) -> Result<Option<Delivery>> {
         in_read!(&self.ctx, |tx| {
             let task = load::task_or_unknown(tx.db(), task_id).await?;

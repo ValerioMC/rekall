@@ -5,7 +5,7 @@ use std::time::Duration;
 use rekall_core::claude::{Remaining, SessionKind, TaskWorkService, TerminalHost, TerminalMode, TerminalOpening, TerminalTarget};
 use rekall_core::review::TaskReviewEvent;
 use rekall_core::step::StepStreamEvent;
-use rekall_core::worktree::{Merge, Release, TaskWorktreeService};
+use rekall_core::worktree::{Merge, Release, TaskPullRequestService, TaskWorktreeService};
 use rekall_core::{EventBus, PublishedEvent};
 use rekall_kernel::Id;
 use tokio::sync::broadcast::error::RecvError;
@@ -13,7 +13,8 @@ use tracing::{info, warn};
 
 const MERGE_SESSION_CLOSED: &str = "The branch is merged.";
 
-/// Merges a task's branch into the project and then takes its worktree away, once all of its work
+/// Opens the pull request of a task whose work is claimed, on a project with the pull request flow
+/// on. Merges a task's branch into the project and then takes its worktree away, once all of its work
 /// is accepted. A branch that conflicts gets a `merge` session that resolves it in the task's
 /// worktree; the merge is retried on every tick until it goes through. Unsaved changes and a
 /// merge git refuses are left alone and logged. The branch with its commits always stays.
@@ -22,9 +23,9 @@ pub struct WorktreeCleaner;
 impl WorktreeCleaner {
     /// Listens to every committed step and review move until the event bus closes, and looks at
     /// the conflicts being resolved every `check_every`.
-    pub fn start(events: &EventBus, work: TaskWorkService, worktrees: TaskWorktreeService, terminals: Arc<dyn TerminalHost>, check_every: Duration) {
+    pub fn start(events: &EventBus, work: TaskWorkService, worktrees: TaskWorktreeService, pull_requests: TaskPullRequestService, terminals: Arc<dyn TerminalHost>, check_every: Duration) {
         let mut bus = events.subscribe();
-        let mut cleaner = Cleaner { work, worktrees, terminals, resolutions: HashMap::new() };
+        let mut cleaner = Cleaner { work, worktrees, pull_requests, terminals, resolutions: HashMap::new() };
         tokio::spawn(async move {
             let mut clock = tokio::time::interval_at(tokio::time::Instant::now() + check_every, check_every);
             loop {
@@ -32,6 +33,7 @@ impl WorktreeCleaner {
                     received = bus.recv() => match received {
                         Ok(event) => {
                             if let Some(task_id) = task_moved_by(&event) {
+                                cleaner.open_pull_request(task_id).await;
                                 cleaner.clean_if_accepted(task_id).await;
                             }
                         }
@@ -55,11 +57,18 @@ enum Resolution {
 struct Cleaner {
     work: TaskWorkService,
     worktrees: TaskWorktreeService,
+    pull_requests: TaskPullRequestService,
     terminals: Arc<dyn TerminalHost>,
     resolutions: HashMap<Id, Resolution>,
 }
 
 impl Cleaner {
+    async fn open_pull_request(&self, task_id: Id) {
+        if let Err(failure) = self.pull_requests.open_if_claimed(task_id).await {
+            warn!(%failure, %task_id, "Could not look for the pull request of a claimed task");
+        }
+    }
+
     async fn clean_if_accepted(&mut self, task_id: Id) {
         match self.work.read(task_id).await {
             Ok(state) if state.remaining == Remaining::Accepted => self.bring_in(task_id).await,

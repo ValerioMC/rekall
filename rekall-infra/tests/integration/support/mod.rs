@@ -81,6 +81,14 @@ impl World {
         (rekall_core::worktree::TaskWorktreeService::new(self.services.ctx.clone(), host.clone(), layout), host)
     }
 
+    /// A pull request service over a scripted git and a scripted host: no project of these tests turns the flow on.
+    pub fn pull_requests(&self) -> rekall_core::worktree::TaskPullRequestService {
+        let ctx = self.services.ctx.clone();
+        let tracker = rekall_core::connection::TaskTrackerService::new(ctx.clone(), self.secrets.clone(), Arc::new(rekall_core::connection::ScriptedTaskTracker::new()));
+        let layout = rekall_core::worktree::WorktreeLayout::new(self.home.path().join("worktrees"));
+        rekall_core::worktree::TaskPullRequestService::new(ctx, tracker, Arc::new(rekall_core::worktree::ScriptedWorktreeHost::new()), Arc::new(rekall_core::connection::ScriptedPullRequestHost::new()), layout)
+    }
+
     pub fn db(&self) -> &sea_orm::DatabaseConnection {
         &self.database.conn
     }
