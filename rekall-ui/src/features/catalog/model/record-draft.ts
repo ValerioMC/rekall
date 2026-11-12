@@ -1,7 +1,9 @@
 import type { CompanyId, ProjectId, TagId, TaskId } from '../../../model/branded'
 import type { Company, Project, ProjectStatus, Task, TaskKind, TaskStatus } from './catalog'
 
+export type CompanyDraft = Extract<RecordDraft, { kind: 'company' }>
 export type ProjectDraft = Extract<RecordDraft, { kind: 'project' }>
+export type TaskDraft = Extract<RecordDraft, { kind: 'task' }>
 
 export type RecordDraft =
   | {
@@ -37,6 +39,14 @@ export type RecordDraft =
       /** The skills a new task starts with; an existing task's are changed on its own pane. */
       skills: string[]
     }
+
+export function titleOf(draft: RecordDraft): string {
+  return draft.kind === 'company' ? draft.name : draft.title
+}
+
+export function labelOf(draft: RecordDraft): string {
+  return draft.kind === 'company' ? '' : draft.label
+}
 
 export function companyDraft(company?: Company): RecordDraft {
   return {

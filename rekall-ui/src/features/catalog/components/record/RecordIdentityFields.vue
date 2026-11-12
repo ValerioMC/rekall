@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { identityHue } from '@/common/identity'
 import { slugify } from '@/features/catalog/model/catalog'
 
@@ -8,21 +8,26 @@ import { slugify } from '@/features/catalog/model/catalog'
  * title until it is typed in), and the `/rk` line the two make, with a warning when renaming the
  * label of an existing record moves its anchor.
  */
-const props = defineProps<{
-  kind: 'company' | 'project' | 'task'
-  isNew: boolean
-  /** The label as stored, for the rename warning; empty for a company, which has none. */
-  originalLabel: string
-  /** The parent's anchor, `project:vega` for a task; empty when the anchor has no parent part. */
-  anchorParent: string
-  /** The parent's id, which tints a task's anchor with its project's colour. */
-  parentId: string
-  titleError: string | null
-  labelError: string | null
-}>()
+const props = withDefaults(
+  defineProps<{
+    kind: 'company' | 'project' | 'task'
+    isNew: boolean
+    /** The label as stored, for the rename warning; empty for a company, which has none. */
+    originalLabel?: string
+    /** The parent's anchor, `project:vega` for a task; empty when the anchor has no parent part. */
+    anchorParent?: string
+    /** The parent's id, which tints a task's anchor with its project's colour. */
+    parentId?: string
+    titleError: string | null
+    labelError?: string | null
+    /** Puts the cursor in the title, selected, once the dialog around it has settled. */
+    autofocus?: boolean
+  }>(),
+  { originalLabel: '', anchorParent: '', parentId: '', labelError: null, autofocus: false }
+)
 
 const title = defineModel<string>('title', { required: true })
-const rawLabel = defineModel<string>('label', { required: true })
+const rawLabel = defineModel<string>('label', { default: '' })
 
 const hasLabel = computed(() => props.kind !== 'company')
 const label = computed(() => slugify(rawLabel.value))
@@ -47,11 +52,11 @@ const anchorSelf = computed(() => {
 const anchorPreview = computed(() => [props.anchorParent, anchorSelf.value].filter(Boolean).join(' '))
 const anchorIsMoving = computed(() => !props.isNew && hasLabel.value && label.value !== props.originalLabel)
 
-defineExpose({
-  focusTitle(): void {
-    titleField.value?.focus()
-    titleField.value?.select()
-  }
+onMounted(async () => {
+  if (!props.autofocus) return
+  await nextTick()
+  titleField.value?.focus()
+  titleField.value?.select()
 })
 </script>
 
