@@ -135,13 +135,13 @@ impl ContextService {
             return Err(RekallError::ambiguous(value, found.iter().map(|d| d.anchor()).collect()));
         }
         let note = &found[0];
-        let tasks = repo::document::tasks_of_document(tx.db(), note.id).await?;
+        let task = repo::task::require(tx.db(), note.task_id).await?;
         Ok(ContextRecord {
             kind: "Note".into(),
             label: note.title.clone(),
             anchor: note.anchor(),
             fields: vec![("kind".into(), note.kind.clone())],
-            related: tasks.iter().map(|t| format!("task:{}", t.label)).collect(),
+            related: vec![format!("task:{}", task.label)],
             documents: vec![DocumentView::of(note).in_full()],
             ..Default::default()
         })

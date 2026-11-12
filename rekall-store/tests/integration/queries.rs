@@ -1,7 +1,7 @@
 //! The queries whose rules live in SQL: label lookups, catalog order, and note search.
 
 use rekall_kernel::{Id, Instant};
-use rekall_store::{company, document, document_task, project, task, DocumentContextMode, ProjectStatus};
+use rekall_store::{company, document, project, task, DocumentContextMode, ProjectStatus};
 use rekall_store::repository as repo;
 use sea_orm::{ActiveModelTrait, ConnectionTrait, IntoActiveModel};
 
@@ -32,11 +32,10 @@ async fn a_task(db: &impl ConnectionTrait, project: &project::Model, label: &str
 async fn a_note(db: &impl ConnectionTrait, title: &str, body: &str, on: &task::Model) -> document::Model {
     let now = Instant::now();
     let note = document::Model {
-        id: Id::random(), title: title.into(), kind: "notes".into(), body_markdown: body.into(), source_path: None,
-        context_mode: DocumentContextMode::Full, scope_company_id: None, scope_project_id: None, created_at: now, updated_at: now,
+        id: Id::random(), task_id: on.id, position: 0, title: title.into(), kind: "notes".into(), body_markdown: body.into(),
+        source_path: None, context_mode: DocumentContextMode::Full, created_at: now, updated_at: now,
     };
     note.clone().into_active_model().insert(db).await.unwrap();
-    document_task::Model { document_id: note.id, task_id: on.id, position: 0 }.into_active_model().insert(db).await.unwrap();
     note
 }
 
@@ -87,7 +86,7 @@ async fn note_search_takes_percent_and_underscore_literally() {
 }
 
 #[tokio::test]
-async fn a_projects_notes_are_those_on_its_tasks_once_each() {
+async fn a_projects_notes_are_those_on_its_tasks() {
     let database = rekall_store::open_temporary().await.unwrap();
     let db = &database.conn;
     let acme = a_company(db, "Acme").await;
@@ -96,11 +95,12 @@ async fn a_projects_notes_are_those_on_its_tasks_once_each() {
     let first = a_task(db, &vega, "first").await;
     let second = a_task(db, &vega, "second").await;
     let elsewhere = a_task(db, &other, "elsewhere").await;
-    let shared = a_note(db, "Shared", "x", &first).await;
-    document_task::Model { document_id: shared.id, task_id: second.id, position: 0 }.into_active_model().insert(db).await.unwrap();
+    a_note(db, "First", "x", &first).await;
+    a_note(db, "Second", "x", &second).await;
     a_note(db, "Elsewhere", "x", &elsewhere).await;
 
-    let notes: Vec<String> = repo::document::list_on_project_tasks(db, vega.id).await.unwrap().into_iter().map(|d| d.title).collect();
+    let mut notes: Vec<String> = repo::document::list_on_project_tasks(db, vega.id).await.unwrap().into_iter().map(|d| d.title).collect();
+    notes.sort();
 
-    assert_eq!(notes, ["Shared"]);
+    assert_eq!(notes, ["First", "Second"]);
 }

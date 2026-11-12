@@ -1,7 +1,7 @@
 use rekall_kernel::{Id, RekallError};
 use crate::document::{Column, Entity, Model};
-use crate::{document_task, task};
-use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QueryOrder, QuerySelect};
+use crate::task;
+use sea_orm::{ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, IntoActiveModel, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, Set};
 
 use crate::repository::contains_ignore_case;
 
@@ -9,49 +9,18 @@ pub async fn find_by_id(db: &impl ConnectionTrait, id: Id) -> Result<Option<Mode
     Ok(Entity::find_by_id(id).one(db).await?)
 }
 
-pub async fn find_by_ids(db: &impl ConnectionTrait, ids: Vec<Id>) -> Result<Vec<Model>, RekallError> {
-    if ids.is_empty() {
-        return Ok(Vec::new());
-    }
-    Ok(Entity::find().filter(Column::Id.is_in(ids)).all(db).await?)
-}
-
-/// The links of one task, in `position` order.
-pub async fn links_of_task(db: &impl ConnectionTrait, task_id: Id) -> Result<Vec<document_task::Model>, RekallError> {
-    Ok(document_task::Entity::find()
-        .filter(document_task::Column::TaskId.eq(task_id))
-        .order_by_asc(document_task::Column::Position)
-        .all(db)
-        .await?)
-}
-
-/// The links of one note in the order its tasks were attached.
-pub async fn links_of_document(db: &impl ConnectionTrait, document_id: Id) -> Result<Vec<document_task::Model>, RekallError> {
-    Ok(document_task::Entity::find()
-        .filter(document_task::Column::DocumentId.eq(document_id))
-        .order_by_asc(sea_orm::sea_query::Expr::cust("rowid"))
-        .all(db)
-        .await?)
+/// The note by id, or `NotFound` when there is none.
+pub async fn require(db: &impl ConnectionTrait, id: Id) -> Result<Model, RekallError> {
+    find_by_id(db, id).await?.ok_or_else(|| RekallError::not_found("Document", id))
 }
 
 /// A task's notes in their order on it.
 pub async fn documents_of_task(db: &impl ConnectionTrait, task_id: Id) -> Result<Vec<Model>, RekallError> {
-    let links = links_of_task(db, task_id).await?;
-    let docs = find_by_ids(db, links.iter().map(|l| l.document_id).collect()).await?;
-    Ok(links
-        .iter()
-        .filter_map(|l| docs.iter().find(|d| d.id == l.document_id).cloned())
-        .collect())
-}
-
-/// The tasks a note is on, in the order they were attached.
-pub async fn tasks_of_document(db: &impl ConnectionTrait, document_id: Id) -> Result<Vec<task::Model>, RekallError> {
-    let links = links_of_document(db, document_id).await?;
-    let tasks = crate::repository::task::find_by_ids(db, links.iter().map(|l| l.task_id).collect()).await?;
-    Ok(links
-        .iter()
-        .filter_map(|l| tasks.iter().find(|t| t.id == l.task_id).cloned())
-        .collect())
+    Ok(Entity::find()
+        .filter(Column::TaskId.eq(task_id))
+        .order_by_asc(Column::Position)
+        .all(db)
+        .await?)
 }
 
 /// A task's notes by title.
@@ -61,11 +30,28 @@ pub async fn notes_of_task_by_title(db: &impl ConnectionTrait, task_id: Id) -> R
     Ok(docs)
 }
 
+/// The place a task's next note takes: the end of its notes.
+pub async fn next_position(db: &impl ConnectionTrait, task_id: Id) -> Result<i32, RekallError> {
+    Ok(Entity::find().filter(Column::TaskId.eq(task_id)).count(db).await? as i32)
+}
+
+/// Closes the gap a deleted note leaves, so a task's positions stay dense from zero.
+pub async fn close_gaps(db: &impl ConnectionTrait, task_id: Id) -> Result<(), RekallError> {
+    for (at, note) in documents_of_task(db, task_id).await?.into_iter().enumerate() {
+        if note.position != at as i32 {
+            let mut moved = note.into_active_model();
+            moved.position = Set(at as i32);
+            moved.update(db).await?;
+        }
+    }
+    Ok(())
+}
+
 pub async fn list_newest_first(db: &impl ConnectionTrait) -> Result<Vec<Model>, RekallError> {
     Ok(Entity::find().order_by_desc(Column::UpdatedAt).all(db).await?)
 }
 
-/// Every note on any task of the project, once, newest first.
+/// Every note on any task of the project, newest first.
 pub async fn list_on_project_tasks(db: &impl ConnectionTrait, project_id: Id) -> Result<Vec<Model>, RekallError> {
     let task_ids: Vec<Id> = task::Entity::find()
         .select_only()
@@ -74,16 +60,8 @@ pub async fn list_on_project_tasks(db: &impl ConnectionTrait, project_id: Id) ->
         .into_tuple()
         .all(db)
         .await?;
-    let document_ids: Vec<Id> = document_task::Entity::find()
-        .select_only()
-        .column(document_task::Column::DocumentId)
-        .filter(document_task::Column::TaskId.is_in(task_ids))
-        .distinct()
-        .into_tuple()
-        .all(db)
-        .await?;
     Ok(Entity::find()
-        .filter(Column::Id.is_in(document_ids))
+        .filter(Column::TaskId.is_in(task_ids))
         .order_by_desc(Column::UpdatedAt)
         .all(db)
         .await?)

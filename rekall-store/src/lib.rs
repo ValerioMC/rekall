@@ -56,7 +56,7 @@ pub use feedback::entity::task_feedback;
 pub use flow::{entity::step_link, entity::step_visit};
 pub use graph::{entity::deployment_graph, entity::graph_route, entity::graph_step};
 pub use inventory::entity::project_dependency;
-pub use note::{entity::document, entity::document_task, entity::note_scope};
+pub use note::entity::document;
 pub use queue::{entity::run_queue, entity::run_queue_item};
 pub use section::entity::project_section;
 pub use skill::{entity::skill_name, entity::skill_placement, entity::tag_skill, entity::task_skill};
@@ -82,7 +82,6 @@ pub mod prelude {
     pub use super::deployment_graph::{Entity as DeploymentGraph, Model as DeploymentGraphModel};
     pub use super::diagram::{Entity as Diagram, Model as DiagramModel};
     pub use super::document::{Entity as Document, Model as DocumentModel};
-    pub use super::document_task::{Entity as DocumentTask, Model as DocumentTaskModel};
     pub use super::external_connection::{Entity as ExternalConnection, Model as ExternalConnectionModel};
     pub use super::graph_route::{Entity as GraphRoute, Model as GraphRouteModel};
     pub use super::graph_step::{Entity as GraphStep, Model as GraphStepModel};

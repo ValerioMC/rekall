@@ -49,7 +49,7 @@ async fn deleting_a_company_takes_its_projects_and_tasks_and_sweeps_the_orphaned
     let acme = app.a_company("Acme").await;
     let vega = app.a_project(&acme, "vega", "ACTIVE").await;
     let task = app.a_task(&vega, "t").await;
-    app.post("/api/documents", json!({ "title": "n.md", "kind": "notes", "taskIds": [task], "bodyMarkdown": "x" })).await;
+    app.post("/api/documents", json!({ "title": "n.md", "kind": "notes", "taskId": task, "bodyMarkdown": "x" })).await;
 
     app.delete(&format!("/api/companies/{acme}")).await;
 
@@ -256,16 +256,15 @@ async fn a_session_writes_a_note_onto_a_task_which_travels_with_its_context_and_
 }
 
 #[tokio::test]
-async fn a_session_rewrites_a_note_by_its_title_when_asked_to_replace_and_every_task_it_is_on_reads_the_new_body() {
+async fn a_session_rewrites_a_note_by_its_title_when_asked_to_replace() {
     let app = app().await;
     let acme = app.a_company("Acme").await;
     let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
     let task_id = app.a_task(&project_id, "report-builder").await;
-    let other_id = app.a_task(&project_id, "exporter").await;
     let document_id = app
         .post(
             "/api/documents",
-            json!({ "title": "Results.md", "kind": "notes", "taskIds": [task_id, other_id], "bodyMarkdown": "| check | outcome |" }),
+            json!({ "title": "Results.md", "kind": "notes", "taskId": task_id, "bodyMarkdown": "| check | outcome |" }),
         )
         .await
         .str("id")
@@ -278,13 +277,12 @@ async fn a_session_rewrites_a_note_by_its_title_when_asked_to_replace_and_every_
         )
         .await;
 
-    assert_contains!(answer, "Note \"Results.md\" on `project:vega task:report-builder` rewritten", "1 other task,");
+    assert_contains!(answer, "Note \"Results.md\" on `project:vega task:report-builder` rewritten");
     let notes = app.documents_on(&task_id).await;
     assert_eq!(notes.len(), 1, "rewritten in place, not added");
     assert_eq!(notes[0]["id"], document_id.as_str());
     assert_eq!(notes[0]["title"], "Results.md", "the title keeps the console's spelling");
     assert_eq!(notes[0]["bodyMarkdown"], "All green.");
-    assert_eq!(app.documents_on(&other_id).await[0]["bodyMarkdown"], "All green.");
 
     // With nothing to replace, `replace` adds the note.
     assert_contains!(
@@ -349,7 +347,7 @@ async fn search_finds_a_phrase_in_descriptions_steps_wrapups_and_notes_with_the_
     app.call_tool("rekall_wrapup", json!({ "anchors": "project:vega task:settlement", "body": "The settlement batch runs." })).await;
     app.post(
         "/api/documents",
-        json!({ "title": "batch.md", "kind": "notes", "taskIds": [task_id], "bodyMarkdown": "Settlement batch logs live in /var/log/batch." }),
+        json!({ "title": "batch.md", "kind": "notes", "taskId": task_id, "bodyMarkdown": "Settlement batch logs live in /var/log/batch." }),
     )
     .await;
 
@@ -372,7 +370,7 @@ async fn a_session_searches_for_earlier_work_and_gets_anchors_to_load_not_the_te
     app.call_tool("rekall_wrapup", json!({ "anchors": "project:vega task:settlement", "body": "The settlement batch runs." })).await;
     app.post(
         "/api/documents",
-        json!({ "title": "batch.md", "kind": "notes", "taskIds": [task_id], "bodyMarkdown": "Settlement batch logs live in /var/log/batch." }),
+        json!({ "title": "batch.md", "kind": "notes", "taskId": task_id, "bodyMarkdown": "Settlement batch logs live in /var/log/batch." }),
     )
     .await;
 
@@ -397,13 +395,13 @@ async fn a_note_sent_by_reference_travels_as_a_line_and_an_anchor_loads_in_full_
     let task_id = app.a_task(&project_id, "report-builder").await;
     let body = format!("Cluster kmaster14, accesso via bastion.\n\n{}", "Dettaglio lungo. ".repeat(400));
     let note = app
-        .post("/api/documents", json!({ "title": "kmaster14.md", "kind": "notes", "taskIds": [task_id], "bodyMarkdown": body }))
+        .post("/api/documents", json!({ "title": "kmaster14.md", "kind": "notes", "taskId": task_id, "bodyMarkdown": body }))
         .await;
     let full_size = context_size(&app, &task_id).await;
 
     app.put(
         &format!("/api/documents/{}", note.str("id")),
-        json!({ "title": "kmaster14.md", "kind": "notes", "taskIds": [task_id], "bodyMarkdown": body, "contextMode": "REFERENCE" }),
+        json!({ "title": "kmaster14.md", "kind": "notes", "taskId": task_id, "bodyMarkdown": body, "contextMode": "REFERENCE" }),
     )
     .await;
 
@@ -497,7 +495,7 @@ async fn a_create_answers_with_the_timestamps_already_written_not_with_nulls() {
     assert!(!task.get("updatedAt").is_null());
 
     let document = app
-        .post("/api/documents", json!({ "title": "CONTEXT.md", "kind": "context", "taskIds": [id(&task)], "bodyMarkdown": "x" }))
+        .post("/api/documents", json!({ "title": "CONTEXT.md", "kind": "context", "taskId": id(&task), "bodyMarkdown": "x" }))
         .await;
     assert!(!document.get("updatedAt").is_null());
 }

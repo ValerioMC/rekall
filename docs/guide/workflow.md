@@ -24,7 +24,7 @@ A session can keep what it produced as a note on the task, rather than in the wr
 /rk project:vega task:report-builder note "the export formats we settled on"
 ```
 
-The session writes the note and calls `rekall_note`, which creates it on that task, in full, with kind `notes`. It then travels with the task's context and shows up in the console without a reload. A step or a description that asks for its output to be kept as a note, or a task whose whole point is to write one, gets the same without the `note` term. A title the task's notes already carry is refused, unless the session passes `replace`: then that note's body is rewritten in place, its title and placements kept, so a runbook or a table of results stays one current note instead of piling up versions. The old body is not kept anywhere, and a note on several tasks changes on all of them; the tool's answer says how many. Sharing, detaching or deleting a note stays in the console. Writing a note does not claim the task or a step.
+The session writes the note and calls `rekall_note`, which creates it on that task, in full, with kind `notes`. It then travels with the task's context and shows up in the console without a reload. A step or a description that asks for its output to be kept as a note, or a task whose whole point is to write one, gets the same without the `note` term. A title the task's notes already carry is refused, unless the session passes `replace`: then that note's body is rewritten in place, its title and place on the task kept, so a runbook or a table of results stays one current note instead of piling up versions. The old body is not kept anywhere. Deleting a note stays in the console. Writing a note does not claim the task or a step.
 
 ## Steps
 

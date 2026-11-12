@@ -1,5 +1,5 @@
 use rekall_kernel::{jstr, Id, RekallError, Result};
-use rekall_store::{document, document_task, task, DocumentContextMode};
+use rekall_store::{document, task, DocumentContextMode};
 use rekall_store::repository as repo;
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
 
@@ -43,7 +43,7 @@ impl NoteService {
             match existing.iter().find(|note| jstr::equals_ignore_case(jstr::strip(&note.title), &wanted)) {
                 Some(clash) if on_clash == OnTitleClash::Refuse => Err(clash_refusal(clash)),
                 Some(clash) => self.rewrite(&mut tx, target, clash, text).await,
-                None => self.add(&mut tx, target, project.id, wanted, text).await,
+                None => self.add(&mut tx, target, wanted, text).await,
             }
         })
     }
@@ -53,7 +53,6 @@ impl NoteService {
         let mut rewritten = clash.clone();
         rewritten.body_markdown = text;
         let rewritten = repo::update_if_changed(tx.db(), clash, rewritten, self.ctx.now()).await?;
-        let readers = repo::document::links_of_document(tx.db(), rewritten.id).await?;
         tx.publish(NoteStreamEvent { task_id: target.task.id, document_id: rewritten.id });
         Ok(Written {
             note_anchor: rewritten.anchor(),
@@ -61,31 +60,25 @@ impl NoteService {
             task_anchor: target.task_anchor,
             notes_on_task: target.notes_on_task,
             replaced: true,
-            other_tasks: readers.len().saturating_sub(1),
         })
     }
 
-    /// A session writes for the task it is on, so the note belongs to that task's project.
-    async fn add(&self, tx: &mut Tx, target: Target<'_>, project_id: Id, title: String, text: String) -> Result<Written> {
+    async fn add(&self, tx: &mut Tx, target: Target<'_>, title: String, text: String) -> Result<Written> {
         let now = self.ctx.now();
         let note = document::Model {
             id: Id::random(),
+            task_id: target.task.id,
+            position: target.notes_on_task as i32,
             title,
             kind: KIND.to_string(),
             body_markdown: text,
             source_path: None,
             context_mode: DocumentContextMode::Full,
-            scope_company_id: None,
-            scope_project_id: Some(project_id),
             created_at: now,
             updated_at: now,
         };
         note.validate()?;
         note.clone().into_active_model().insert(tx.db()).await?;
-        document_task::Model { document_id: note.id, task_id: target.task.id, position: target.notes_on_task as i32 }
-            .into_active_model()
-            .insert(tx.db())
-            .await?;
         tx.publish(NoteStreamEvent { task_id: target.task.id, document_id: note.id });
         Ok(Written {
             note_anchor: note.anchor(),
@@ -93,7 +86,6 @@ impl NoteService {
             task_anchor: target.task_anchor,
             notes_on_task: target.notes_on_task + 1,
             replaced: false,
-            other_tasks: 0,
         })
     }
 }

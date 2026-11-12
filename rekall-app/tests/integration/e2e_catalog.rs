@@ -26,12 +26,12 @@ async fn one_anchored_call_brings_back_the_task_its_project_and_every_note_on_it
 
     app.post(
         "/api/documents",
-        json!({ "title": "CONTEXT.md", "kind": "context", "taskIds": [task_id], "bodyMarkdown": "# Contesto\n\nIl workflow parte da POST /api/v1/pipelines." }),
+        json!({ "title": "CONTEXT.md", "kind": "context", "taskId": task_id, "bodyMarkdown": "# Contesto\n\nIl workflow parte da POST /api/v1/pipelines." }),
     )
     .await;
     app.post(
         "/api/documents",
-        json!({ "title": "kmaster14.md", "kind": "notes", "taskIds": [task_id], "bodyMarkdown": "Cluster kmaster14, accesso via bastion." }),
+        json!({ "title": "kmaster14.md", "kind": "notes", "taskId": task_id, "bodyMarkdown": "Cluster kmaster14, accesso via bastion." }),
     )
     .await;
 
@@ -194,120 +194,55 @@ async fn a_projects_folder_reaches_its_tasks_and_a_blank_one_clears_it() {
 }
 
 #[tokio::test]
-async fn a_note_attached_to_several_tasks_arrives_with_each_of_them() {
+async fn a_note_belongs_to_the_task_it_is_written_on() {
     let app = app().await;
     let acme = app.a_company("Acme").await;
     let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
     let validator = app.a_task(&project_id, "report-builder").await;
     let retry = app.a_task(&project_id, "retry-policy").await;
 
-    let shared = app
-        .post(
-            "/api/documents",
-            json!({ "title": "kmaster14.md", "kind": "notes", "taskIds": [validator, retry], "bodyMarkdown": "Accesso via bastion." }),
-        )
+    let note = app
+        .post("/api/documents", json!({ "title": "kmaster14.md", "kind": "notes", "taskId": validator, "bodyMarkdown": "Accesso via bastion." }))
         .await;
-    assert_eq!(shared.get("tasks").as_array().unwrap().len(), 2, "the response names every task the note is on");
 
+    assert_eq!(note.str("taskId"), validator);
     assert_contains!(app.call_tool("rekall_context", json!({ "anchors": "task:report-builder" })).await, "Accesso via bastion.");
-    assert_contains!(app.call_tool("rekall_context", json!({ "anchors": "task:retry-policy" })).await, "Accesso via bastion.");
-
-    // Editing through one task is visible from the other: one row, not two.
-    let document_id = shared.str("id");
-    app.put(
-        &format!("/api/documents/{document_id}"),
-        json!({ "title": "kmaster14.md", "kind": "notes", "taskIds": [validator, retry], "bodyMarkdown": "Accesso via bastion, il certificato scade il 14." }),
-    )
-    .await;
-    assert_contains!(app.call_tool("rekall_context", json!({ "anchors": "task:retry-policy" })).await, "il certificato scade il 14");
+    assert_lacks!(app.call_tool("rekall_context", json!({ "anchors": "task:retry-policy" })).await, "Accesso via bastion.");
+    assert!(app.documents_on(&retry).await.is_empty());
 }
 
 #[tokio::test]
-async fn detaching_a_note_from_one_task_leaves_it_on_the_others() {
+async fn a_note_needs_a_task_and_cannot_move_to_another() {
     let app = app().await;
     let acme = app.a_company("Acme").await;
     let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
     let first = app.a_task(&project_id, "a").await;
     let second = app.a_task(&project_id, "b").await;
-    let document_id = id(&app
-        .post("/api/documents", json!({ "title": "shared.md", "kind": "notes", "taskIds": [first, second], "bodyMarkdown": "condivisa" }))
-        .await);
 
-    app.put(
-        &format!("/api/documents/{document_id}"),
-        json!({ "title": "shared.md", "kind": "notes", "taskIds": [second], "bodyMarkdown": "condivisa" }),
-    )
-    .await;
+    let without_task = app.post("/api/documents", json!({ "title": "x", "kind": "notes" })).await;
+    let note = id(&app.post("/api/documents", json!({ "title": "x", "kind": "notes", "taskId": first })).await);
+    let moved = app.put(&format!("/api/documents/{note}"), json!({ "title": "x", "kind": "notes", "taskId": second })).await;
 
-    assert!(app.documents_on(&first).await.is_empty(), "gone from the task it was detached from");
-    assert_eq!(app.documents_on(&second).await.len(), 1, "still on the other one");
+    assert_eq!(without_task.status, 400);
+    assert_eq!(moved.status, 400);
+    assert_eq!(app.documents_on(&first).await.len(), 1, "still on the task it was written on");
+    assert!(app.documents_on(&second).await.is_empty());
 }
 
 #[tokio::test]
-async fn a_note_on_no_task_lives_on_in_its_scope() {
-    let app = app().await;
-    let acme = app.a_company("Acme").await;
-    let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
-
-    let created = app
-        .post("/api/documents", json!({ "title": "x", "kind": "notes", "taskIds": [], "scope": { "kind": "PROJECT", "id": project_id } }))
-        .await;
-
-    assert_eq!(created.status, 201);
-    assert_eq!(created.body["scope"], json!({ "kind": "PROJECT", "id": project_id }));
-}
-
-#[tokio::test]
-async fn a_new_note_takes_the_narrowest_scope_its_tasks_share() {
-    let app = app().await;
-    let acme = app.a_company("Acme").await;
-    let vega = app.a_project(&acme, "vega", "ACTIVE").await;
-    let rigel = app.a_project(&acme, "rigel", "ACTIVE").await;
-    let on_vega = app.a_task(&vega, "a").await;
-    let on_rigel = app.a_task(&rigel, "b").await;
-
-    let one_project = app.post("/api/documents", json!({ "title": "p.md", "kind": "notes", "taskIds": [on_vega] })).await;
-    let two_projects =
-        app.post("/api/documents", json!({ "title": "c.md", "kind": "notes", "taskIds": [on_vega, on_rigel] })).await;
-
-    assert_eq!(one_project.body["scope"], json!({ "kind": "PROJECT", "id": vega }));
-    assert_eq!(two_projects.body["scope"], json!({ "kind": "COMPANY", "id": acme }));
-}
-
-#[tokio::test]
-async fn a_task_outside_the_notes_scope_is_refused_and_says_which() {
-    let app = app().await;
-    let acme = app.a_company("Acme").await;
-    let vega = app.a_project(&acme, "vega", "ACTIVE").await;
-    let rigel = app.a_project(&acme, "rigel", "ACTIVE").await;
-    let on_rigel = app.a_task(&rigel, "elsewhere").await;
-
-    let refused = app
-        .post("/api/documents", json!({ "title": "x", "kind": "notes", "taskIds": [on_rigel], "scope": { "kind": "PROJECT", "id": vega } }))
-        .await;
-
-    assert_eq!(refused.status, 409);
-    assert!(refused.body.to_string().contains("rigel/elsewhere"), "{}", refused.body);
-}
-
-#[tokio::test]
-async fn deleting_a_task_unlinks_its_notes_and_their_scope_keeps_them() {
+async fn deleting_a_task_deletes_its_notes_and_only_its_own() {
     let app = app().await;
     let acme = app.a_company("Acme").await;
     let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
     let doomed = app.a_task(&project_id, "doomed").await;
     let survivor = app.a_task(&project_id, "survivor").await;
-    app.post("/api/documents", json!({ "title": "only-here.md", "kind": "notes", "taskIds": [doomed], "bodyMarkdown": "sola" })).await;
-    app.post(
-        "/api/documents",
-        json!({ "title": "shared.md", "kind": "notes", "taskIds": [doomed, survivor], "bodyMarkdown": "condivisa" }),
-    )
-    .await;
+    app.post("/api/documents", json!({ "title": "doomed.md", "kind": "notes", "taskId": doomed, "bodyMarkdown": "sola" })).await;
+    app.post("/api/documents", json!({ "title": "survivor.md", "kind": "notes", "taskId": survivor, "bodyMarkdown": "resta" })).await;
 
     app.delete(&format!("/api/tasks/{doomed}")).await;
 
     assert_eq!(app.documents_on(&survivor).await.len(), 1);
-    assert_eq!(app.count("SELECT COUNT(*) FROM document", vec![]).await, 2, "both stay with the project that owns them");
+    assert_eq!(app.count("SELECT COUNT(*) FROM document", vec![]).await, 1);
 }
 
 #[tokio::test]
@@ -316,7 +251,7 @@ async fn deleting_a_project_takes_its_tasks_and_the_notes_it_owns() {
     let acme = app.a_company("Acme").await;
     let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
     let task = app.a_task(&project_id, "report-builder").await;
-    app.post("/api/documents", json!({ "title": "n.md", "kind": "notes", "taskIds": [task], "bodyMarkdown": "x" })).await;
+    app.post("/api/documents", json!({ "title": "n.md", "kind": "notes", "taskId": task, "bodyMarkdown": "x" })).await;
 
     app.delete(&format!("/api/projects/{project_id}")).await;
 
@@ -330,7 +265,7 @@ async fn a_single_project_anchor_lists_its_tasks_as_anchors_without_their_bodies
     let acme = app.a_company("Acme").await;
     let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
     let task_id = app.a_task(&project_id, "report-builder-main-workflow").await;
-    app.post("/api/documents", json!({ "title": "CONTEXT.md", "kind": "context", "taskIds": [task_id], "bodyMarkdown": "segreto" })).await;
+    app.post("/api/documents", json!({ "title": "CONTEXT.md", "kind": "context", "taskId": task_id, "bodyMarkdown": "segreto" })).await;
 
     let context = app.call_tool("rekall_context", json!({ "anchors": "project:vega" })).await;
 

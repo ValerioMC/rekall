@@ -127,16 +127,12 @@ async fn wrapup_hits(tx: &Tx, term: &str, scope: Option<Id>) -> Result<Vec<Searc
     Ok(hits)
 }
 
-/// A note opens on the first task it is attached to (the first one in the project, when scoped);
-/// a detached one has no anchor and is outside every project.
+/// A note opens on the task it belongs to.
 async fn note_hits(tx: &Tx, term: &str, scope: Option<Id>) -> Result<Vec<SearchHit>> {
     let mut hits = Vec::new();
     for document in repo::document::search_newest_first(tx.db(), term, candidates_wanted(scope)).await? {
-        let first = repo::document::tasks_of_document(tx.db(), document.id)
-            .await?
-            .into_iter()
-            .find(|task| in_scope(scope, task.project_id));
-        if scope.is_some() && first.is_none() {
+        let task = repo::task::require(tx.db(), document.task_id).await?;
+        if !in_scope(scope, task.project_id) {
             continue;
         }
         if hits.len() == PER_KIND {
@@ -145,14 +141,11 @@ async fn note_hits(tx: &Tx, term: &str, scope: Option<Id>) -> Result<Vec<SearchH
         let shown = if contains(Some(&document.body_markdown), term) { &document.body_markdown } else { &document.title };
         hits.push(SearchHit {
             kind: SearchHitKind::Note,
-            task_id: first.as_ref().map(|t| t.id),
+            task_id: Some(task.id),
             step_id: None,
             document_id: Some(document.id),
             title: document.title.clone(),
-            r#where: match &first {
-                Some(task) => anchor_of(tx, task).await?,
-                None => String::new(),
-            },
+            r#where: anchor_of(tx, &task).await?,
             context_anchor: document.anchor(),
             excerpt: excerpt(Some(shown), term),
         });

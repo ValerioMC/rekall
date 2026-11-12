@@ -306,9 +306,10 @@ FROM ttask t WHERE t.j IN (8, 12);
 -- Notes
 ------------------------------------------------------------------------------------------------
 
-INSERT INTO document (id, title, kind, body_markdown, source_path, created_at, updated_at, context_mode,
-                      scope_company_id, scope_project_id)
-SELECT printf('%08x-0000-4000-8000-%012x', 31, p.pn * 10 + d.n),
+INSERT INTO document (id, task_id, position, title, kind, body_markdown, source_path, created_at, updated_at, context_mode)
+SELECT printf('%08x-0000-4000-8000-%012x', 31, t.tn),
+       printf('%08x-0000-4000-8000-%012x', 3, t.tn),
+       0,
        m.title || ' — ' || CASE d.n WHEN 1 THEN 'Operating context' WHEN 2 THEN 'Design notes' ELSE 'Architecture overview' END,
        CASE d.n WHEN 1 THEN 'context' WHEN 2 THEN 'notes' ELSE 'architecture' END,
        CASE d.n
@@ -318,27 +319,12 @@ SELECT printf('%08x-0000-4000-8000-%012x', 31, p.pn * 10 + d.n),
        NULL,
        strftime('%Y-%m-%dT%H:%M:%S.000000Z', 'now', '-' || ((80 - p.pn % 30) * 1440) || ' minutes'),
        strftime('%Y-%m-%dT%H:%M:%S.000000Z', 'now', '-' || ((p.pn % 20 + d.n) * 1440) || ' minutes'),
-       CASE WHEN d.n = 3 THEN 'REFERENCE' ELSE 'FULL' END,
-       NULL,
-       CASE WHEN d.n = 1 THEN printf('%08x-0000-4000-8000-%012x', 2, p.pn) END
-FROM tproject p JOIN tproject_template m ON m.n = p.tmpl JOIN seq d ON d.n <= 3;
-
-INSERT INTO document (id, title, kind, body_markdown, source_path, created_at, updated_at, context_mode,
-                      scope_company_id, scope_project_id)
-SELECT printf('%08x-0000-4000-8000-%012x', 31, 1000 + c.n),
-       c.name || ' — House rules', 'context',
-       '## House rules' || char(10) || '- Conventional commits.' || char(10) || '- Two reviewers on anything that touches money or permissions.' || char(10) || '- Write the wrapup before you close the session.',
-       NULL,
-       strftime('%Y-%m-%dT%H:%M:%S.000000Z', 'now', '-120 days'),
-       strftime('%Y-%m-%dT%H:%M:%S.000000Z', 'now', '-' || (c.n * 3) || ' days'),
-       'FULL',
-       printf('%08x-0000-4000-8000-%012x', 1, c.n), NULL
-FROM tcompany c;
-
-INSERT INTO document_task (document_id, task_id, position)
-SELECT printf('%08x-0000-4000-8000-%012x', 31, t.pn * 10 + CASE WHEN t.j BETWEEN 2 AND 5 THEN 2 ELSE 3 END),
-       printf('%08x-0000-4000-8000-%012x', 3, t.tn), 0
-FROM ttask t WHERE t.kind = 'TASK' AND t.j BETWEEN 2 AND 8;
+       CASE WHEN d.n = 3 THEN 'REFERENCE' ELSE 'FULL' END
+FROM ttask t
+JOIN tproject p ON p.pn = t.pn
+JOIN tproject_template m ON m.n = p.tmpl
+JOIN seq d ON d.n = CASE WHEN t.j BETWEEN 2 AND 5 THEN 2 ELSE 3 END
+WHERE t.kind = 'TASK' AND t.j BETWEEN 2 AND 8;
 
 ------------------------------------------------------------------------------------------------
 -- Work done: wrapups, commits, time, tokens, checks, deviations, feedback

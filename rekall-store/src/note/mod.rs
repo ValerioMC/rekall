@@ -1,4 +1,4 @@
-//! Markdown notes, the tasks they are attached to and the scope that decides how they load.
+//! Markdown notes, each owned by one task.
 
 pub mod entity;
 pub mod repository;

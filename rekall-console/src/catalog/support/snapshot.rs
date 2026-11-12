@@ -6,7 +6,7 @@ use std::collections::{HashMap, HashSet};
 
 use rekall_kernel::{Id, Instant, InternalFailure, RekallError, Result};
 use rekall_store::prelude::*;
-use rekall_store::{company, document_task, project, tag, task, task_pull_request, task_step, task_tracker_link, wrapup};
+use rekall_store::{company, document, project, tag, task, task_pull_request, task_step, task_tracker_link, wrapup};
 use rekall_store::repository as repo;
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QueryOrder, QuerySelect};
 
@@ -70,8 +70,8 @@ impl Snapshot {
         }
         snapshot.tracker_links = repo::task_tracker_link::list_of_tasks(db, ids.clone()).await?.into_iter().map(|link| (link.task_id, link)).collect();
         snapshot.pull_requests = repo::task_pull_request::list_of_tasks(db, ids.clone()).await?.into_iter().map(|pull_request| (pull_request.task_id, pull_request)).collect();
-        let links = DocumentTask::find().filter(document_task::Column::TaskId.is_in(ids));
-        snapshot.documents_per_task = count_by(db, links, document_task::Column::TaskId).await?;
+        let notes = Document::find().filter(document::Column::TaskId.is_in(ids));
+        snapshot.documents_per_task = count_by(db, notes, document::Column::TaskId).await?;
         Ok(snapshot)
     }
 

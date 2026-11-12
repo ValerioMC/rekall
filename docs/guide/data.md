@@ -3,8 +3,8 @@
 ## Model
 
 ```
-Company ──< Project ──< Task >──< Document
-               │         │       via document_task
+Company ──< Project ──< Task ──< Document
+               │         │
                │         ├──< TaskStep ──< StepLink (a route to another step of the task)
                │         ├──< StepVisit ──> TaskStep (one entry of the flow into it)
                │         ├──1 Wrapup
@@ -22,7 +22,7 @@ Company ──< Project ──< Task >──< Document
 | `Company` | `name` | description, its projects |
 | `Project` | `label`, unique per company | title, status, description, its tasks |
 | `Task` | `label`, unique per project | title, status, kind (a task or an epic), the epic it belongs to, markdown description, a standing wrapup directive, its notes, steps, wrapup, an optional tag, when a deployment graph was laid on it and whether it is left unreleased |
-| `Document` | none | title, kind, markdown body, the tasks it is on |
+| `Document` | none | title, kind, markdown body, how it loads, the task it belongs to |
 | `TaskStep` | through its task | title, optional detail, state, position, the connection it reaches when a deployment graph laid it |
 | `StepLink` | through its task | the step it leaves, the step it leads to, its outcome (a slug, unique per step), position. Deleted with either step |
 | `StepVisit` | through its task | the step entered, its move number in the task, when it was entered and left, the outcome it left by and what it reported. The open one is where the flow stands |
@@ -40,13 +40,13 @@ Company ──< Project ──< Task >──< Document
 
 `label` is what an anchor resolves: lowercase letters, digits, `-`, `_`, `.`, no spaces, normalised on write. `title` is free text and changing it never breaks an anchor. Renaming a label moves the anchor, and the editor says so before saving.
 
-A project belongs to one company, a task to one project. A note belongs to a scope (a project, a company, or none for global) and sits on any number of that scope's tasks. Deleting a task unlinks its notes; deleting a project or company deletes the notes it owns. A wrapup and a step belong to exactly one task and are deleted with it. Adding an entity is a SeaORM model and a migration in `rekall-store`, not a UI action.
+A project belongs to one company, a task to one project. A note belongs to exactly one task and is deleted with it, so deleting a project or company deletes its notes too. A wrapup and a step belong to exactly one task and are deleted with it. Adding an entity is a SeaORM model and a migration in `rekall-store`, not a UI action.
 
 ## Context size and reference notes
 
 On the title line of a task's description, a chip estimates what `/rk project:… task:…` costs a session: the characters of the markdown it hands over and roughly how many tokens that is (3.5 characters to a token, an estimate for comparing tasks, not a bill). Under the pointer it lists the parts heaviest first: the description, the steps, the wrapup, the commits chosen for the context, each note, and the project around them. `GET /api/tasks/{id}/context-size` measures it with the same context renderer that answers `rekall_context`, so the figure is the length of what a session gets.
 
-A note most sessions do not need can go **By reference**, switched on the note's own pane. It then travels as its title, its first line and an anchor such as `note:3f2a9c1e` (`loaded="on request"`), and a session loads the rest with `rekall_context` and that anchor only when the work asks for it. **In full** puts it back. The mode belongs to the note, so it holds on every task the note is on.
+A note most sessions do not need can go **By reference**, switched on the note's own pane. It then travels as its title, its first line and an anchor such as `note:3f2a9c1e` (`loaded="on request"`), and a session loads the rest with `rekall_context` and that anchor only when the work asks for it. **In full** puts it back. The mode belongs to the note.
 
 ## Backups
 

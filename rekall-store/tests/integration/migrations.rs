@@ -115,7 +115,7 @@ async fn a_database_written_by_v0_2_moves_onto_the_baseline_with_its_rows() {
     let database = rekall_store::open(&path).await.unwrap();
     let db = &database.conn;
 
-    assert_eq!(applied_versions(db).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision", "047-vulnerability", "048-exposure-conclusion", "049-deployment-graph", "050-graph-step-place", "051-binding-label", "052-advisory-reach", "053-visit-report", "054-release-on-run", "055-epic", "056-step-session", "057-telemetry-setting", "058-run-queue-session-kind", "059-shared-connection", "060-step-snapshot", "061-done-check", "062-wrapup-version", "063-quick-task", "064-task-dependency", "065-parallel-sessions", "066-task-worktree", "067-task-deviation", "068-drop-orphan-note-links", "069-task-feedback", "070-drop-review-note", "071-feedback-passes", "072-connection-self-signed", "073-revision-target", "074-accept-done-tasks", "075-task-manager", "076-commit-reference-step-kept", "077-foreign-key-indexes", "078-enum-and-scope-checks", "079-step-owned-task-keys", "080-task-tracker-link", "081-pull-request-flow", "082-task-pull-request", "083-pull-request-merged"]);
+    assert_eq!(applied_versions(db).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision", "047-vulnerability", "048-exposure-conclusion", "049-deployment-graph", "050-graph-step-place", "051-binding-label", "052-advisory-reach", "053-visit-report", "054-release-on-run", "055-epic", "056-step-session", "057-telemetry-setting", "058-run-queue-session-kind", "059-shared-connection", "060-step-snapshot", "061-done-check", "062-wrapup-version", "063-quick-task", "064-task-dependency", "065-parallel-sessions", "066-task-worktree", "067-task-deviation", "068-drop-orphan-note-links", "069-task-feedback", "070-drop-review-note", "071-feedback-passes", "072-connection-self-signed", "073-revision-target", "074-accept-done-tasks", "075-task-manager", "076-commit-reference-step-kept", "077-foreign-key-indexes", "078-enum-and-scope-checks", "079-step-owned-task-keys", "080-task-tracker-link", "081-pull-request-flow", "082-task-pull-request", "083-pull-request-merged", "084-note-owned-by-task"]);
     let task = Task::find().one(db).await.unwrap().unwrap();
     assert_eq!((task.label.as_str(), task.title.as_str()), ("report", "Report"));
     let wrapup = Wrapup::find().one(db).await.unwrap().unwrap();
@@ -135,7 +135,7 @@ async fn a_database_on_the_baseline_opens_again_unchanged() {
 
     let database = rekall_store::open(&path).await.unwrap();
 
-    assert_eq!(applied_versions(&database.conn).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision", "047-vulnerability", "048-exposure-conclusion", "049-deployment-graph", "050-graph-step-place", "051-binding-label", "052-advisory-reach", "053-visit-report", "054-release-on-run", "055-epic", "056-step-session", "057-telemetry-setting", "058-run-queue-session-kind", "059-shared-connection", "060-step-snapshot", "061-done-check", "062-wrapup-version", "063-quick-task", "064-task-dependency", "065-parallel-sessions", "066-task-worktree", "067-task-deviation", "068-drop-orphan-note-links", "069-task-feedback", "070-drop-review-note", "071-feedback-passes", "072-connection-self-signed", "073-revision-target", "074-accept-done-tasks", "075-task-manager", "076-commit-reference-step-kept", "077-foreign-key-indexes", "078-enum-and-scope-checks", "079-step-owned-task-keys", "080-task-tracker-link", "081-pull-request-flow", "082-task-pull-request", "083-pull-request-merged"]);
+    assert_eq!(applied_versions(&database.conn).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision", "047-vulnerability", "048-exposure-conclusion", "049-deployment-graph", "050-graph-step-place", "051-binding-label", "052-advisory-reach", "053-visit-report", "054-release-on-run", "055-epic", "056-step-session", "057-telemetry-setting", "058-run-queue-session-kind", "059-shared-connection", "060-step-snapshot", "061-done-check", "062-wrapup-version", "063-quick-task", "064-task-dependency", "065-parallel-sessions", "066-task-worktree", "067-task-deviation", "068-drop-orphan-note-links", "069-task-feedback", "070-drop-review-note", "071-feedback-passes", "072-connection-self-signed", "073-revision-target", "074-accept-done-tasks", "075-task-manager", "076-commit-reference-step-kept", "077-foreign-key-indexes", "078-enum-and-scope-checks", "079-step-owned-task-keys", "080-task-tracker-link", "081-pull-request-flow", "082-task-pull-request", "083-pull-request-merged", "084-note-owned-by-task"]);
 }
 
 #[tokio::test]
@@ -327,7 +327,7 @@ async fn a_changes_note_on_one_task_becomes_that_tasks_deviation_and_leaves_the_
     assert_eq!((deviations[0].step_number, deviations[0].body_markdown.as_str()), (3, "body of 00000000-0000-0000-0000-0000000000b3"));
     let mut notes: Vec<String> = Document::find().all(&db).await.unwrap().into_iter().map(|note| note.title).collect();
     notes.sort();
-    assert_eq!(notes, ["analysis.md", "step-4-changes.md", "step-x-changes.md"]);
+    assert_eq!(notes, ["analysis.md", "step-4-changes.md", "step-4-changes.md", "step-x-changes.md"], "084 then gives the note on two tasks one copy per task");
     assert_eq!(dangling_references(&db).await, 0, "the moved note takes its task link with it");
 }
 
@@ -525,7 +525,7 @@ async fn the_checks_of_078_leave_every_rebuilt_table_with_its_columns_keys_and_i
 }
 
 #[tokio::test]
-async fn the_schema_refuses_an_unknown_status_and_a_document_scoped_twice() {
+async fn the_schema_refuses_an_unknown_status() {
     let database = rekall_store::open_temporary().await.unwrap();
     let db = &database.conn;
     for statement in [
@@ -538,12 +538,8 @@ async fn the_schema_refuses_an_unknown_status_and_a_document_scoped_twice() {
     let unknown_status = db
         .execute_unprepared("INSERT INTO project (id, label, title, status, icon, auto_commit, company_id, created_at, updated_at) VALUES ('q', 'site', 'Site', 'WANDERING', 'folder', 0, 'c', 't', 't')")
         .await;
-    let scoped_twice = db
-        .execute_unprepared("INSERT INTO document (id, title, kind, body_markdown, created_at, updated_at, context_mode, scope_company_id, scope_project_id) VALUES ('d', 'Note', 'NOTE', 'x', 't', 't', 'FULL', 'c', 'p')")
-        .await;
 
     assert!(unknown_status.unwrap_err().to_string().contains("CHECK"));
-    assert!(scoped_twice.unwrap_err().to_string().contains("CHECK"));
 }
 
 #[tokio::test]
@@ -565,4 +561,46 @@ async fn a_visit_that_names_another_tasks_step_is_refused() {
 
     own.unwrap();
     assert!(other.unwrap_err().to_string().contains("FOREIGN KEY"));
+}
+
+#[tokio::test]
+async fn a_note_on_several_tasks_becomes_a_copy_per_task_and_a_note_on_none_is_dropped() {
+    use sea_orm_migration::MigratorTrait;
+    let options = SqliteConnectOptions::new().filename(":memory:").foreign_keys(false);
+    let pool = SqlitePoolOptions::new().max_connections(1).connect_with(options).await.unwrap();
+    let db = SqlxSqliteConnector::from_sqlx_sqlite_pool(pool);
+    let before_084 = rekall_store::migration::Migrator::migrations().iter().position(|migration| migration.name() == "084-note-owned-by-task").unwrap() as u32;
+    rekall_store::migration::Migrator::up(&db, Some(before_084)).await.unwrap();
+    let note = |id: &str, title: &str| {
+        format!("INSERT INTO document (id, title, kind, body_markdown, context_mode, created_at, updated_at) VALUES ('{id}', '{title}', 'notes', 'body of {title}', 'REFERENCE', '2026-10-01T09:00:00.000000Z', '2026-10-01T09:00:00.000000Z')")
+    };
+    for statement in [
+        "INSERT INTO company (id, name, created_at, updated_at) VALUES ('c', 'Acme', 't', 't')".to_string(),
+        "INSERT INTO project (id, label, title, status, icon, auto_commit, company_id, created_at, updated_at) VALUES ('p', 'vega', 'Vega', 'ACTIVE', 'folder', 0, 'c', 't', 't')".to_string(),
+        "INSERT INTO task (id, label, title, status, project_id, created_at, updated_at) VALUES ('00000000-0000-0000-0000-0000000000a1', 'one', 'One', 'TODO', 'p', 't', 't')".to_string(),
+        "INSERT INTO task (id, label, title, status, project_id, created_at, updated_at) VALUES ('00000000-0000-0000-0000-0000000000a2', 'two', 'Two', 'TODO', 'p', 't', 't')".to_string(),
+        note("00000000-0000-0000-0000-0000000000b1", "shared.md"),
+        note("00000000-0000-0000-0000-0000000000b2", "orphan.md"),
+        note("00000000-0000-0000-0000-0000000000b3", "single.md"),
+        "INSERT INTO document_task (document_id, task_id, position) VALUES ('00000000-0000-0000-0000-0000000000b3', '00000000-0000-0000-0000-0000000000a1', 0), ('00000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-0000000000a1', 1), ('00000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-0000000000a2', 0)".to_string(),
+    ] {
+        db.execute_unprepared(&statement).await.unwrap();
+    }
+
+    rekall_store::migration::Migrator::up(&db, None).await.unwrap();
+
+    let mut notes: Vec<(String, String, i32)> =
+        Document::find().all(&db).await.unwrap().into_iter().map(|n| (n.title, n.task_id.to_string(), n.position)).collect();
+    notes.sort();
+    assert_eq!(
+        notes,
+        [("shared.md".to_string(), "00000000-0000-0000-0000-0000000000a1".to_string(), 1), ("shared.md".to_string(), "00000000-0000-0000-0000-0000000000a2".to_string(), 0), ("single.md".to_string(), "00000000-0000-0000-0000-0000000000a1".to_string(), 0)],
+        "one copy of the shared note per task, each at its place on that task; the orphan is gone"
+    );
+    let copies = Document::find().all(&db).await.unwrap().into_iter().filter(|n| n.title == "shared.md").collect::<Vec<_>>();
+    assert!(copies.iter().any(|n| n.id.to_string() == "00000000-0000-0000-0000-0000000000b1"), "the first task keeps the original id");
+    assert_ne!(copies[0].id, copies[1].id);
+    assert!(copies.iter().all(|n| n.body_markdown == "body of shared.md" && n.context_mode == DocumentContextMode::Reference));
+    assert!(!table_exists(&db, "document_task").await);
+    assert_eq!(dangling_references(&db).await, 0);
 }

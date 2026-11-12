@@ -213,9 +213,6 @@ is looked up across both entities and accepted only when exactly one record matc
 than one the candidates come back and nothing is loaded. The tool does not score, weigh or
 choose.
 
-A note attached to several tasks arrives under each of their anchors. The same markdown showing
-up twice in one session is the relation working, not a duplicate.
-
 The two writes are narrower on purpose. `rekall_context` may be handed a company and will
 happily return everything under it; a write cannot, because a project names forty tasks and
 none of them is the answer. Anything that does not resolve to exactly one task is refused with

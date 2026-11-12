@@ -38,7 +38,7 @@ async fn search(State(state): State<ApiState>, Query(query): Query<DocumentSearc
 
 async fn create(State(state): State<ApiState>, JsonBody(request): JsonBody<DocumentRequest>) -> ApiResult<Response> {
     validate(&request)?;
-    Ok(created(DocumentResponse::from(state.documents.create(request.into()).await?)))
+    Ok(created(DocumentResponse::from(state.documents.create(request.into_command()?).await?)))
 }
 
 async fn update(
@@ -48,7 +48,7 @@ async fn update(
 ) -> ApiResult<Json<DocumentResponse>> {
     let id = uuid("id", &id)?;
     validate(&request)?;
-    Ok(Json(state.documents.update(id, request.into()).await?.into()))
+    Ok(Json(state.documents.update(id, request.into_command()?).await?.into()))
 }
 
 async fn delete(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Response> {

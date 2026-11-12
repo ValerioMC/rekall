@@ -2,7 +2,7 @@
 
 Rekall stores your projects, tasks and markdown notes, and loads one task in full into a Claude Code session on a single command.
 
-Projects, tasks and notes live in a local app. `/rk project:vega task:report-builder` loads that task, its project, its checklist and every attached note. `/rk project:vega task:report-builder wrapup` records what the implementation is now, so the next session starts from the current state instead of reading the code back.
+Projects, tasks and notes live in a local app. `/rk project:vega task:report-builder` loads that task, its project, its checklist and every note on it. `/rk project:vega task:report-builder wrapup` records what the implementation is now, so the next session starts from the current state instead of reading the code back.
 
 Source-available, not open source. See [License](#license).
 
@@ -104,7 +104,7 @@ An anchor is `entity:value`, where the entity is `company`, `project` or `task` 
 | `/rk project:vega assess advisory:GHSA-xxxx-xxxx-xxxx` | Record whether that advisory's vulnerable code is really reached; without `advisory:`, every one not assessed yet |
 | `/rk note:3f2a9c1e` | A note sent by reference, loaded in full |
 
-An anchor brings back the record, everything it references resolved in full with their notes, what references it as anchors, and its own markdown. A note can be attached to several tasks and arrives with each. If a bare term matches more than one record, the candidates come back and nothing loads. `project:` disambiguates a label two projects share.
+An anchor brings back the record, everything it references resolved in full with their notes, what references it as anchors, and its own markdown. A note belongs to one task and arrives with it. If a bare term matches more than one record, the candidates come back and nothing loads. `project:` disambiguates a label two projects share.
 
 ## MCP tools
 
@@ -150,7 +150,7 @@ The guides describe each area as it behaves today, with its REST routes and prop
 | Terminals | A real `claude` in a pseudo-terminal inside the app, or the same `claude` as a chat window (Settings > Claude Code > Session view); the run queue, which can work up to four tasks at once in git worktrees of their own; the usage meter | [sessions](docs/guide/sessions.md) |
 | Token usage | Tokens Claude Code generated per task and step, read from its transcripts | [sessions](docs/guide/sessions.md#token-usage) |
 | Projects | Page, sections, components, icons, autoconfigure; connections to GitLab, GitHub, Kubernetes, Jira and Grafana shared across companies; a task manager (GitLab, GitHub or Jira) that receives the project's tasks, and a main branch their work is merged into | [projects](docs/guide/projects.md) |
-| Console | Search, notes and their scopes, tags, skills, the markdown editor, timers | [console](docs/guide/console.md) |
+| Console | Search, notes, tags, skills, the markdown editor, timers | [console](docs/guide/console.md) |
 | Report | Hours per client over a week or a month | [console](docs/guide/console.md#report) |
 | Claude resources | Edit `~/.claude`: instructions, skills, commands, agents, memories, memory review | [claude-resources](docs/guide/claude-resources.md) |
 | Diagrams | Mermaid diagrams linked to code, and walkthroughs the console plays | [diagrams](docs/guide/diagrams.md) |

@@ -63,8 +63,8 @@ pub enum Relation {
     TaskStep,
     #[sea_orm(has_one = "crate::wrapup::Entity")]
     Wrapup,
-    #[sea_orm(has_many = "crate::document_task::Entity")]
-    DocumentTask,
+    #[sea_orm(has_many = "crate::document::Entity")]
+    Document,
 }
 
 impl Related<crate::project::Entity> for Entity {
@@ -93,11 +93,7 @@ impl Related<crate::wrapup::Entity> for Entity {
 
 impl Related<crate::document::Entity> for Entity {
     fn to() -> RelationDef {
-        crate::document_task::Relation::Document.def()
-    }
-
-    fn via() -> Option<RelationDef> {
-        Some(crate::document_task::Relation::Task.def().rev())
+        Relation::Document.def()
     }
 }
 

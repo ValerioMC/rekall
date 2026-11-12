@@ -1,6 +1,6 @@
 # Rekall - Design Document
 
-Status: label, title and description on projects and tasks; notes shared across tasks; one
+Status: label, title and description on projects and tasks; notes that belong to one task; one
 wrapup per task, written by Claude and corrected by hand; a step checklist a session moves along
 and a person ticks done, optionally routed into a flow
 
@@ -24,7 +24,7 @@ can read files, but:
   what they became.
 
 Target: type `/rk project:vega task:report-builder-main-workflow` and have the full context
-loaded in one call, including every note the task shares with its neighbours.
+loaded in one call, including its notes.
 
 ---
 
@@ -36,10 +36,10 @@ loaded in one call, including every note the task shares with its neighbours.
 | D2 | Claude reads everything and writes a few narrow things | `rekall-mcp` depends on `rekall-core` and never on `rekall-http` or `rekall-console`, so no controller and none of the console's catalog services are on its classpath, and every read runs in a read-only transaction. The exceptions are `rekall_wrapup`, which replaces one task's wrapup; `rekall_step`, which moves a step from `open` to `running` to `claimed`, follows a flow's route on a claim, and cannot reach `done`; `rekall_record_commit`, which logs a commit against a task; `rekall_propose_step`, which can only add one step, a draft when asked; `rekall_propose_flow`, which can only lay steps and the routes between them onto a task with no steps, as drafts when asked; `rekall_replan` and `rekall_delete_step`, which can only delete draft and open steps of a task, the first inside the transaction that lays their replacement; `rekall_create_task`, which can only add a `TODO` task or epic whose steps, a checklist or a flow, start open; `rekall_join_epic`, which can only file one task under an epic of its project; `rekall_description`, which can only replace the description of one task, whole, opening no revision and keeping no copy of the old text; `rekall_note`, which can only add a new note to one task; `rekall_feedback`, which can only answer open entries (waiting or in a pass) of one task's thread by their seq; `rekall_project_section`, which can only add a section to a task's project or rewrite the body of one that already has that title; `rekall_inventory`, which can only replace one project's dependency list; and `rekall_assess_vulnerability`, which can only write a verdict on one exposure the project already has. See [design/write-safety.md](design/write-safety.md). |
 | D3 | Markdown content lives in the database | One backup target, reachable through MCP, searchable. |
 | D4 | One entry point, and it is a slash command | A session begins with `/rk project:vega task:report-builder`, not with a question. Reaching a record through a natural-language query costs several turns and a few thousand tokens before any work starts, and it is the part that fails when the model guesses the wrong entity. An explicit anchor removes both. |
-| D5 | The model is fixed at compile time | There is no runtime meta-model and no DDL engine. Company, project, task and document are fixed SeaORM entities; adding a new kind of record is a model and a migration, not a screen. The status, state and kind columns of `project`, `task`, `task_step`, `run_queue`, `run_queue_item`, `external_connection` and `task_feedback` carry a `CHECK` of the stored names of their enum (migration `078-enum-and-scope-checks`), as does a document's scope (a company or a project, never both): a new variant of one of those enums needs a migration that rebuilds its table. |
+| D5 | The model is fixed at compile time | There is no runtime meta-model and no DDL engine. Company, project, task and document are fixed SeaORM entities; adding a new kind of record is a model and a migration, not a screen. The status, state and kind columns of `project`, `task`, `task_step`, `run_queue`, `run_queue_item`, `external_connection` and `task_feedback` carry a `CHECK` of the stored names of their enum (migration `078-enum-and-scope-checks`): a new variant of one of those enums needs a migration that rebuilds its table. |
 | D6 | Modular monolith, single process, embedded database | Single user, localhost. The application has to be reachable with one command or it will not get used. Localhost is enforced, not assumed: `LocalAccessFilter` refuses a peer that is not loopback, a `Host` that is not this machine and an `Origin` from another site, since nothing here authenticates and the API can open a terminal. |
 | D7 | What a record is called and what an anchor resolves are two columns | One column serving both jobs would mean a rename breaks anchors written down elsewhere, and makes every name a compromise between readable and typeable. `label` is a slug and is the identity; `title` is prose and is free. See §4. |
-| D8 | A task carries one wrapup, and it is a state and not a log | The thing that costs a session its first twenty minutes is reconstructing what the code already does. A note cannot answer that: notes accumulate, and the reader has to synthesise the current state out of them. A wrapup is that synthesis, written once and overwritten thereafter. Its own table, because a document belongs to many tasks by construction and "one answer per task" has to be a constraint rather than a convention. See §4.1. |
+| D8 | A task carries one wrapup, and it is a state and not a log | The thing that costs a session its first twenty minutes is reconstructing what the code already does. A note cannot answer that: notes accumulate, and the reader has to synthesise the current state out of them. A wrapup is that synthesis, written once and overwritten thereafter. Its own table, because notes accumulate on a task by construction and "one answer per task" has to be a constraint rather than a convention. See §4.1. |
 
 Non-goals: multi-user, authentication, remote deployment, vector search.
 
@@ -116,7 +116,7 @@ is found by opening one folder per crate:
 | `task` | the task row, and in `rekall-core` and `rekall-mcp` a session creating one, filing it under an epic or replacing its description; the console's task service is in `catalog` |
 | `step`, `flow` | the checklist, and the routes and visits that turn it into a flow |
 | `graph` | a project's deployment graphs and laying one on a task; console-only, so it has no folder in `rekall-core` |
-| `note` | documents, their attachment to tasks, the scope that decides how they load |
+| `note` | documents, each owned by one task and deleted with it, and how they load (in full or by reference) |
 | `wrapup`, `review`, `timeentry` | the wrapup, the review line, logged time |
 | `commit`, `diagram`, `token`, `search`, `context` | logged commits, stored diagrams, token usage, search, context assembly and its size |
 | `quick` | the quick task: a task started from one line of text with its session opened at once, accepted without a review when Claude's wrapup lands; console and HTTP only, the acceptance itself is in `review` and `wrapup` |
@@ -190,7 +190,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `graph` | `catalog`, `flow`, `step` | - | `catalog`, `flow`, `step`, `task` | `step` | - |
 | `guard` | - | nothing | `catalog`, `step`, `task` | nothing | - |
 | `inventory` | `catalog` | `catalog` | - | nothing | `vulnerability` |
-| `note` | `task` | `task` | `catalog` | `catalog` | nothing |
+| `note` | `task` | `task` | nothing | nothing | nothing |
 | `queue` | `task` | `catalog`, `claude`, `dependency`, `task` | nothing | nothing | - |
 | `quick` | - | - | `catalog`, `claude`, `terminal` | `catalog`, `claude` | - |
 | `review` | - | `step`, `task`, `timeentry` | - | - | - |
@@ -304,8 +304,8 @@ A capability that touches the machine:
 ## 4. Model
 
 ```
-Company ──< Project ──< Task >──< Document
-                         │      (document_task)
+Company ──< Project ──< Task ──< Document
+                         │
                          ├──< TaskStep ──< StepLink
                          ├──< StepVisit
                          ├──< TokenUsage
@@ -331,8 +331,7 @@ Project ──< VulnerabilityExposure >── SecurityAdvisory
 | `task` | `label`, unique per project | `title`, `status`, `description`, `project_id`, `graph_laid_at` (when a deployment graph was laid on it), `release_skipped` (the project's release graph is not laid when the console runs it; migration `054-release-on-run`), `kind` (`TASK` or `EPIC`), `epic_id` (the epic of the same project it belongs to, set null when the epic is deleted; migration `055-epic`), `quick` (started from one line of text; at most one still open or running per project), `auto_accepted` (accepted by Rekall when the wrapup landed, not by a person; cleared when the review line moves again; migration `063-quick-task`) |
 | `task_pull_request` | through its task | `task_id` (the key: one row per task of a project with the pull request flow on, once its work was first claimed), `number` and `url` (the pull request, or GitLab merge request, open for its branch), `failure` (why it was not opened or not merged, cleared by the next move that works), `merged_at` (when the host merged it); deleted with its task (migrations `082-task-pull-request` and `083-pull-request-merged`) |
 | `task_tracker_link` | through its task | `task_id` (the key: one row per task that was ever pushed to its project's task manager, none for one that was not), `issue_key` and `issue_url` (the issue the task manager holds for it), `sync_error` (why the last write there failed, cleared by the next that works); deleted with its task (migrations `075-task-manager` and `080-task-tracker-link`) |
-| `document` | — | `title`, `kind`, `body_markdown` |
-| `document_task` | — | `document_id`, `task_id`, `position` |
+| `document` | through its task | `task_id`, `position` (its place on the task, dense from zero), `title`, `kind`, `body_markdown`, `context_mode`; deleted with its task (migration `084-note-owned-by-task`) |
 | `task_step` | through its task | `task_id`, `title`, `body_markdown`, `done`, `done_at`, `position`, `flow_x`/`flow_y` (where it was dragged on the flow canvas, null for the automatic layout), `max_visits` (how many times a flow may enter it, null for no limit), `starts_session` (whether it opens a fresh Claude session instead of joining the one the step before it ran in), `connection_id` (the company connection it reaches, set when a deployment graph laid it; null when the connection is deleted) |
 | `step_link` | through its task | `task_id`, `from_step_id`, `to_step_id` (null: the route ends the flow), `outcome` unique per `from_step_id`, `position`; deleted with either step |
 | `step_visit` | through its task | `task_id`, `step_id`, `ordinal` unique per task, `entered_at`, `left_at`, `outcome`, `report` (what the claim that closed it reported; migration `053-visit-report`); deleted with its step |
@@ -388,16 +387,15 @@ Project labels are unique per company rather than globally, for the same reason 
 unique per project: two companies routinely have a project called `website`. A bare
 `project:website` that matches twice is reported as ambiguous, resolvable with `company:acme`.
 
-A note is attached to **at least one task and possibly many**. Cluster access, a naming
-convention and an onboarding step are all notes of that kind.
+A note belongs to **exactly one task** and is deleted with it. Cluster access, a naming
+convention and an onboarding step are all notes of that kind, written on the task that needs them.
 
-The lower bound of one is enforced in the service and not in the database, because it is a rule
-about what the interface may leave behind rather than about referential integrity: a note on no
-task is unreachable, and no screen could show it again. Deleting a task therefore unlinks its
-notes and sweeps up only the ones now attached to nothing.
+`task_id` is a foreign key with `ON DELETE CASCADE`, so a note cannot outlive its task or point at
+a deleted one. `position` is the note's place on its task, kept dense when a note is deleted.
 
-`position` lives on the link, not on the note: the same note can sit first on one task and last
-on another without the two orderings fighting.
+Migration `084-note-owned-by-task` moved notes that were shared: one on several tasks became one
+copy per task, the first task it was attached to keeping the original id, and one on no task was
+deleted, since nothing could show it any more.
 
 Task labels are unique per project rather than globally, because two projects routinely have a
 task with the same one. A bare `task:setup` that matches in two projects is reported as
@@ -422,7 +420,7 @@ does, because the notes describe how things were decided and never what they bec
 | Replaced whole, never appended to; each text kept as a version beside it | A wrapup that accumulated would become the log it is defined against, so the row is one text. `wrapup_version` keeps the last 20 texts per task (`number`, author, the project's `HEAD` when written), written in the transaction that replaces the row, so a rewrite that goes wrong or overwrites a hand edit can be read and restored from the task page. A session never reads them: `rekall_context` carries only the current text, since an old one would be taken for a fact |
 | Capped at 20,000 characters, against 100,000 for a note | The cap is where a wrapup that has turned into a log gets caught. If the state of the work does not fit on a screen, what is being written is the process |
 | `written_by` is `CLAUDE` or `HAND`, stamped by the transport | The console cannot claim to be Claude and the tool cannot claim to be you: the API stamps `HAND` on anything arriving over HTTP and the tool stamps `CLAUDE` on anything arriving over MCP. A field a client could set is a field that says nothing |
-| `ON DELETE CASCADE` on the task, unlike a note | A note may matter to other tasks and is unlinked. A wrapup describes one task and has no meaning anywhere else |
+| `ON DELETE CASCADE` on the task | A wrapup describes one task and has no meaning anywhere else |
 
 What is **not** enforced is the rule that matters most: that the text describes the state and not
 the process. It is not checkable, and a heuristic that rejected the word "added" would be wrong
@@ -502,9 +500,9 @@ Scalars are rendered as bullets and bodies as tags, which is why a description i
 That distinction is why the two-anchor form exists. `/rk project:vega` loads the project and
 lists its tasks as anchors; naming the task as a second anchor is how you narrow to one.
 
-A note arriving with every task that references it is the point of the whole design. One row,
-many links, is what lets a cluster note reach every task it belongs to without going stale in
-any of its copies.
+A note arrives with the task it belongs to, in full or, when the person marked it so, as a title,
+a line and an anchor the session loads on request. Knowledge several tasks need belongs in the
+project's sections or components, which are shared by construction, not in a note.
 
 ---
 

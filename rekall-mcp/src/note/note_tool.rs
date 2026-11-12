@@ -78,17 +78,8 @@ impl McpTool for NoteTool {
 }
 
 fn replaced_report(written: &rekall_core::note::Written) -> String {
-    let mut out = format!(
+    format!(
         "Note \"{}\" on `{}` rewritten as `{}`. Its earlier body is gone: no history keeps a note's text.",
         written.title, written.task_anchor, written.note_anchor
-    );
-    if written.other_tasks > 0 {
-        out.push_str(&format!(
-            " It is also attached to {} other task{}, which load{} the new body too.",
-            written.other_tasks,
-            if written.other_tasks == 1 { "" } else { "s" },
-            if written.other_tasks == 1 { "s" } else { "" }
-        ));
-    }
-    out
+    )
 }
