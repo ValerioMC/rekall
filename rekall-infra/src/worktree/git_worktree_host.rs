@@ -2,8 +2,8 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use async_trait::async_trait;
-use rekall_core::commit::{run_git, GitResult};
-use rekall_core::worktree::{parse_listing, BranchReview, MergeOutcome, Worktree, WorktreeHost, WorktreeLayout, WorktreeStatus};
+use rekall_core::commit::{run_git, run_git_with_environment, GitResult};
+use rekall_core::worktree::{parse_listing, BranchReview, MergeOutcome, PushOutcome, Worktree, WorktreeHost, WorktreeLayout, WorktreeStatus};
 use rekall_kernel::{RekallError, Result};
 use tracing::{debug, warn};
 
@@ -11,6 +11,10 @@ const ADD_TIMEOUT: Duration = Duration::from_secs(120);
 const REMOVE_TIMEOUT: Duration = Duration::from_secs(60);
 const MERGE_TIMEOUT: Duration = Duration::from_secs(120);
 const READ_TIMEOUT: Duration = Duration::from_secs(10);
+const PUSH_TIMEOUT: Duration = Duration::from_secs(120);
+const PUSH_REFUSAL_LINES: usize = 3;
+/// A push never waits on a terminal prompt for a credential, and git's own messages stay in English so the answer can be read.
+const PUSH_ENVIRONMENT: [(&str, &str); 2] = [("GIT_TERMINAL_PROMPT", "0"), ("LC_ALL", "C")];
 
 /// Runs `git worktree` for the project's repository. It never touches a folder outside the
 /// layout's root: every path it creates or removes is checked against it first.
@@ -74,6 +78,12 @@ impl GitWorktreeHost {
         let reference = format!("refs/heads/{branch_name}");
         let answer = run_git(project_folder, &["rev-parse", "--verify", "--quiet", &reference], None, READ_TIMEOUT).await?;
         Ok(answer.ok())
+    }
+
+    fn push_refusal_of(&self, answer: &GitResult) -> PushOutcome {
+        let message = if answer.error().is_empty() { answer.output() } else { answer.error() };
+        let lines: Vec<String> = message.lines().map(without_credentials).filter(|line| !line.trim().is_empty()).take(PUSH_REFUSAL_LINES).collect();
+        PushOutcome::Refused(if lines.is_empty() { "git refused the push".to_string() } else { lines.join("\n") })
     }
 
     fn lexical_folder_of(&self, listed: &Path) -> Option<PathBuf> {
@@ -172,4 +182,37 @@ impl WorktreeHost for GitWorktreeHost {
         let reason = [answer.error(), answer.output()].into_iter().find(|text| !text.is_empty()).unwrap_or("git refused the merge");
         Ok(MergeOutcome::Refused(reason.to_string()))
     }
+
+    async fn push_branch(&self, project_folder: &Path, branch_name: &str) -> Result<PushOutcome> {
+        self.layout.require_branch(branch_name)?;
+        let answer = run_git_with_environment(project_folder, &["push", "--set-upstream", "origin", branch_name], None, PUSH_TIMEOUT, &PUSH_ENVIRONMENT).await?;
+        if !answer.ok() {
+            return Ok(self.push_refusal_of(&answer));
+        }
+        if answer.error().contains("Everything up-to-date") {
+            return Ok(PushOutcome::UpToDate);
+        }
+        Ok(PushOutcome::Pushed)
+    }
 }
+
+/// A remote URL may carry `user:token@`; a message that reaches the task or the log never does.
+fn without_credentials(line: &str) -> String {
+    let mut kept = String::with_capacity(line.len());
+    let mut rest = line;
+    while let Some(position) = rest.find("://") {
+        let (scheme, after) = rest.split_at(position + 3);
+        kept.push_str(scheme);
+        let authority_end = after.find(|character: char| character == '/' || character.is_whitespace()).unwrap_or(after.len());
+        rest = match after[..authority_end].rfind('@') {
+            Some(at) => &after[at + 1..],
+            None => after,
+        };
+    }
+    kept.push_str(rest);
+    kept
+}
+
+#[cfg(test)]
+#[path = "../../tests/unit/worktree/git_worktree_host_tests.rs"]
+mod tests;

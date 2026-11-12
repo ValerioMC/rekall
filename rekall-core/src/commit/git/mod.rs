@@ -15,7 +15,7 @@ mod pending_change_kind;
 mod repository_status;
 
 pub use commit_touch::CommitTouch;
-pub use git_command::{display_path, run};
+pub use git_command::{display_path, run, run_with_environment};
 pub use git_committer::GitCommitter;
 pub use git_log_reader::GitLogReader;
 pub use git_repository_inspector::GitRepositoryInspector;

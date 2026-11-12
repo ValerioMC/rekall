@@ -3,7 +3,7 @@ use std::path::Path;
 use async_trait::async_trait;
 use rekall_kernel::Result;
 
-use crate::worktree::{BranchReview, MergeOutcome, Worktree, WorktreeStatus};
+use crate::worktree::{BranchReview, MergeOutcome, PushOutcome, Worktree, WorktreeStatus};
 
 /// Creates, lists, inspects and removes the worktrees of a repository. It decides nothing: the
 /// branch and the folder come from `WorktreeLayout`. An `Err` is an `illegal` the caller can show:
@@ -31,4 +31,9 @@ pub trait WorktreeHost: Send + Sync {
     /// `base` is `HEAD`. A merge git refuses or cannot finish is abandoned before this returns, so
     /// the project is left as it was.
     async fn merge_branch(&self, project_folder: &Path, branch_name: &str, base: &str) -> Result<MergeOutcome>;
+
+    /// Pushes `branch_name` to the project's `origin` and sets it as the branch's upstream. A push
+    /// the remote or git turns down is `Refused` with git's first lines, not an error; the message
+    /// never carries a credential.
+    async fn push_branch(&self, project_folder: &Path, branch_name: &str) -> Result<PushOutcome>;
 }

@@ -33,12 +33,25 @@ pub fn display_path(path: &Path) -> String {
 /// `GitCommand.run`: `git -C <folder> <arguments>`, with `stdin` fed to it when given (how a
 /// multi-line commit message travels), refused after `timeout`.
 pub async fn run(folder: &Path, arguments: &[&str], stdin: Option<&str>, timeout: Duration) -> Result<GitResult> {
+    run_with_environment(folder, arguments, stdin, timeout, &[]).await
+}
+
+/// `run` with `environment` set on the git process, for what git reads from it (a prompt turned
+/// off, a locale fixed).
+pub async fn run_with_environment(
+    folder: &Path,
+    arguments: &[&str],
+    stdin: Option<&str>,
+    timeout: Duration,
+    environment: &[(&str, &str)],
+) -> Result<GitResult> {
     let shown = display_path(folder);
     let mut command = Command::new("git");
     command
         .arg("-C")
         .arg(folder)
         .args(arguments)
+        .envs(environment.iter().copied())
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

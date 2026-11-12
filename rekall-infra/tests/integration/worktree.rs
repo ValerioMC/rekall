@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
 
-use rekall_core::worktree::{MergeOutcome, OrphanReclaimService, WorktreeHost, WorktreeLayout};
+use rekall_core::worktree::{MergeOutcome, OrphanReclaimService, PushOutcome, WorktreeHost, WorktreeLayout};
 use rekall_infra::worktree::GitWorktreeHost;
 
 struct World {
@@ -299,3 +299,82 @@ async fn a_branch_is_merged_only_while_the_folder_is_on_the_base_branch() {
     assert_eq!(right_base, MergeOutcome::Merged);
     assert!(world.project.join("export.txt").exists());
 }
+
+fn bare_remote_of(world: &World) -> PathBuf {
+    let remote = world._folder.path().join("remote.git");
+    git(world._folder.path(), &["init", "-q", "--bare", remote.to_str().unwrap()]);
+    git(&world.project, &["remote", "add", "origin", remote.to_str().unwrap()]);
+    remote
+}
+
+#[tokio::test]
+async fn a_branch_is_pushed_to_origin_with_its_upstream_set_and_pushing_it_again_is_up_to_date() {
+    let world = world();
+    let remote = bare_remote_of(&world);
+    let worktree = create(&world, "report").await;
+    fs::write(worktree.folder.join("export.txt"), "export\n").unwrap();
+    git(&worktree.folder, &["add", "."]);
+    git(&worktree.folder, &["commit", "-q", "-m", "export"]);
+
+    let first = world.host.push_branch(&world.project, &worktree.branch).await.unwrap();
+    let second = world.host.push_branch(&world.project, &worktree.branch).await.unwrap();
+
+    assert_eq!(first, PushOutcome::Pushed);
+    assert_eq!(second, PushOutcome::UpToDate);
+    assert_eq!(git(&remote, &["rev-parse", "rekall/report"]), git(&worktree.folder, &["rev-parse", "HEAD"]));
+    assert_eq!(git(&world.project, &["config", "branch.rekall/report.remote"]), "origin");
+}
+
+#[tokio::test]
+async fn a_new_commit_on_a_pushed_branch_is_pushed_again() {
+    let world = world();
+    bare_remote_of(&world);
+    let worktree = create(&world, "report").await;
+    world.host.push_branch(&world.project, &worktree.branch).await.unwrap();
+    fs::write(worktree.folder.join("later.txt"), "later\n").unwrap();
+    git(&worktree.folder, &["add", "."]);
+    git(&worktree.folder, &["commit", "-q", "-m", "later"]);
+
+    assert_eq!(world.host.push_branch(&world.project, &worktree.branch).await.unwrap(), PushOutcome::Pushed);
+}
+
+#[tokio::test]
+async fn a_project_without_a_remote_refuses_the_push_with_gits_message() {
+    let world = world();
+    let worktree = create(&world, "report").await;
+
+    let outcome = world.host.push_branch(&world.project, &worktree.branch).await.unwrap();
+
+    let PushOutcome::Refused(reason) = outcome else { panic!("expected a refusal, got {outcome:?}") };
+    assert!(reason.contains("origin"), "{reason}");
+}
+
+#[tokio::test]
+async fn a_branch_the_remote_holds_differently_is_refused_and_the_remote_is_left_alone() {
+    let world = world();
+    let remote = bare_remote_of(&world);
+    let worktree = create(&world, "report").await;
+    git(&world.project, &["push", "-q", "origin", "main:refs/heads/rekall/report"]);
+    fs::write(worktree.folder.join("export.txt"), "export\n").unwrap();
+    git(&worktree.folder, &["add", "."]);
+    git(&worktree.folder, &["commit", "-q", "-m", "export"]);
+    fs::write(world.project.join("other.txt"), "other\n").unwrap();
+    git(&world.project, &["add", "."]);
+    git(&world.project, &["commit", "-q", "-m", "other"]);
+    git(&world.project, &["push", "-q", "--force", "origin", "main:refs/heads/rekall/report"]);
+    let held = git(&remote, &["rev-parse", "rekall/report"]);
+
+    let outcome = world.host.push_branch(&world.project, &worktree.branch).await.unwrap();
+
+    assert!(matches!(outcome, PushOutcome::Refused(_)), "{outcome:?}");
+    assert_eq!(git(&remote, &["rev-parse", "rekall/report"]), held);
+}
+
+#[tokio::test]
+async fn a_branch_outside_the_layout_is_never_pushed() {
+    let world = world();
+    bare_remote_of(&world);
+
+    assert!(world.host.push_branch(&world.project, "main").await.is_err());
+}
+

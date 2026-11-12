@@ -1,15 +1,16 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::sync::Mutex;
 
 use async_trait::async_trait;
 use rekall_kernel::{RekallError, Result};
 
-use crate::worktree::{BranchReview, MergeOutcome, Worktree, WorktreeHost, WorktreeStatus};
+use crate::worktree::{BranchReview, MergeOutcome, PushOutcome, Worktree, WorktreeHost, WorktreeStatus};
 
 /// A `WorktreeHost` that keeps its worktrees in memory and makes their folders on disk, for tests
 /// of what decides when to make one. `refuse` makes `create` fail for a branch; a branch can be
 /// scripted to hold commits or to conflict, and `merged` lists the branches merged and `bases` the branch each started from or went into.
+/// `refuse_push` makes pushes of a branch fail with a reason; a branch pushed twice is up to date the second time.
 #[derive(Default)]
 pub struct ScriptedWorktreeHost {
     worktrees: Mutex<Vec<Worktree>>,
@@ -19,6 +20,8 @@ pub struct ScriptedWorktreeHost {
     conflicting: Mutex<HashSet<String>>,
     merged: Mutex<Vec<String>>,
     bases: Mutex<Vec<String>>,
+    pushed: Mutex<Vec<String>>,
+    push_refusals: Mutex<HashMap<String, String>>,
 }
 
 impl ScriptedWorktreeHost {
@@ -44,6 +47,15 @@ impl ScriptedWorktreeHost {
 
     pub fn resolve_conflict(&self, branch_name: &str) {
         self.conflicting.lock().expect("scripted host lock").remove(branch_name);
+    }
+
+    pub fn refuse_push(&self, branch_name: &str, reason: &str) {
+        self.push_refusals.lock().expect("scripted host lock").insert(branch_name.to_string(), reason.to_string());
+    }
+
+    /// The branches pushed, once each, in the order they first went.
+    pub fn pushed(&self) -> Vec<String> {
+        self.pushed.lock().expect("scripted host lock").clone()
     }
 
     pub fn merged(&self) -> Vec<String> {
@@ -108,5 +120,17 @@ impl WorktreeHost for ScriptedWorktreeHost {
         self.ahead.lock().expect("scripted host lock").remove(branch_name);
         self.merged.lock().expect("scripted host lock").push(branch_name.to_string());
         Ok(MergeOutcome::Merged)
+    }
+
+    async fn push_branch(&self, _: &Path, branch_name: &str) -> Result<PushOutcome> {
+        if let Some(reason) = self.push_refusals.lock().expect("scripted host lock").get(branch_name) {
+            return Ok(PushOutcome::Refused(reason.clone()));
+        }
+        let mut pushed = self.pushed.lock().expect("scripted host lock");
+        if pushed.iter().any(|branch| branch == branch_name) {
+            return Ok(PushOutcome::UpToDate);
+        }
+        pushed.push(branch_name.to_string());
+        Ok(PushOutcome::Pushed)
     }
 }

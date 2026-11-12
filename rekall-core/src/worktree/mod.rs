@@ -11,6 +11,7 @@ pub use model::branch_review::BranchReview;
 pub use model::merge_outcome::MergeOutcome;
 pub use model::orphan_report::OrphanReport;
 pub use model::pull_request_flow_site::PullRequestFlowSite;
+pub use model::push_outcome::PushOutcome;
 pub use model::worktree::Worktree;
 pub use model::worktree_status::WorktreeStatus;
 pub use port::worktree_host::WorktreeHost;
