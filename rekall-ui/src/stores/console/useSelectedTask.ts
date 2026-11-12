@@ -23,7 +23,7 @@ export function useSelectedTask(state: ConsoleState) {
   const taskDocuments = computed(() =>
     selectedTaskId.value === null
       ? []
-      : documents.value.filter((document) => document.tasks.some((ref) => ref.id === selectedTaskId.value))
+      : documents.value.filter((document) => document.taskId === selectedTaskId.value)
   )
 
   const selectedTaskSteps = computed(() =>

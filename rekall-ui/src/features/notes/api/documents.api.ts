@@ -1,18 +1,16 @@
 import { apiClient, request } from '../../../api/client'
 import { DocumentListSchema, DocumentSchema } from '../../catalog/api/schemas/catalog.schema'
 import type { DocumentContextMode, RekallDocument } from '@/features/notes/model/document'
-import type { NoteScope } from '@/features/notes/model/note-scope'
 import type { DocumentId, TaskId } from '@/model/branded'
 
 export interface DocumentInput {
   title: string
   kind: string
   bodyMarkdown: string
-  taskIds: readonly TaskId[]
+  /** The task the note belongs to; an update has to name the one it already has. */
+  taskId: TaskId
   /** Left out, a new note is sent in full and an existing one keeps its mode. */
   contextMode?: DocumentContextMode
-  /** Left out, an existing note keeps its scope and a new one takes the narrowest its tasks share. */
-  scope?: NoteScope
 }
 
 export async function fetchDocuments(taskId: TaskId): Promise<RekallDocument[]> {

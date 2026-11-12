@@ -5,27 +5,15 @@ import {
 } from '@/features/notes/api/documents.api'
 import type { RekallDocument } from '@/features/notes/model/document'
 import type { DocumentId, TaskId } from '@/model/branded'
-import { GLOBAL_SCOPE, type NoteScope } from '@/features/notes/model/note-scope'
 import type { ConsoleState } from '../../../stores/console/console-state'
 import type { useConsoleRefreshes } from '../../../stores/console/useConsoleRefreshes'
 import type { useSelectedTask } from '../../../stores/console/useSelectedTask'
 import type { useTimers } from '../../time/store/useTimers'
 import { replaceById, trackSave } from '../../../stores/console/rows'
 
-/** What a new note starts from: where it lives, which of that scope's tasks it is on, its name. */
-export interface NoteDraft {
-  readonly scope: NoteScope
-  readonly taskIds?: readonly TaskId[]
-  readonly title?: string
-}
+type NotePatch = Partial<Pick<RekallDocument, 'title' | 'kind' | 'bodyMarkdown' | 'contextMode'>>
 
-type NotePatch = Partial<
-  Pick<RekallDocument, 'title' | 'kind' | 'bodyMarkdown' | 'contextMode' | 'scope'>
-> & {
-  taskIds?: readonly TaskId[]
-}
-
-/** Whether a save changes what the note says, which is working on its task, rather than where it sits. */
+/** Whether a save changes what the note says, which is working on its task. */
 function writesContent(current: RekallDocument, patch: NotePatch): boolean {
   return (
     (patch.title !== undefined && patch.title !== current.title) ||
@@ -34,39 +22,28 @@ function writesContent(current: RekallDocument, patch: NotePatch): boolean {
   )
 }
 
-/** Notes written in the console. Tasks count their notes, so a write that moves one re-reads them. */
+/** Notes written in the console. Tasks count their notes, so a write that adds or deletes one re-reads them. */
 export function useNoteWrites(
   state: ConsoleState,
   selected: ReturnType<typeof useSelectedTask>,
   refreshes: ReturnType<typeof useConsoleRefreshes>,
   timers: ReturnType<typeof useTimers>
 ) {
-  const { tasks, documents, selectedTaskId, selectedDocId, paneFocus, saveState } = state
+  const { documents, selectedDocId, paneFocus, saveState } = state
 
-  /** The scope a note made from a task starts in: that task's project. */
-  function projectScopeOf(taskId: TaskId): NoteScope {
-    const task = tasks.value.find((candidate) => candidate.id === taskId)
-    return task ? { kind: 'PROJECT', id: task.projectId } : GLOBAL_SCOPE
-  }
-
-  /**
-   * A note is born in a scope and on whichever of its tasks were picked, possibly none. The new
-   * one opens in the editor.
-   */
-  async function createNote(draft: NoteDraft): Promise<void> {
-    const taskIds = draft.taskIds ?? []
+  /** A note is written on one task and opens in the editor. */
+  async function createNote(taskId: TaskId, title?: string): Promise<void> {
     const created = await apiCreateDocument({
-      title: draft.title?.trim() || 'untitled.md',
+      title: title?.trim() || 'untitled.md',
       kind: 'notes',
       bodyMarkdown: '',
-      taskIds: [...taskIds],
-      scope: draft.scope
+      taskId
     })
     documents.value = [created, ...documents.value]
     selectedDocId.value = created.id
     paneFocus.value = 'note'
     await refreshes.refreshTasks()
-    if (taskIds.length) await timers.resumeTimerOnNote(taskIds)
+    await timers.resumeTimerOnWork(taskId)
   }
 
   async function saveNote(id: DocumentId, patch: NotePatch): Promise<void> {
@@ -77,37 +54,12 @@ export function useNoteWrites(
         title: patch.title ?? current.title,
         kind: patch.kind ?? current.kind,
         bodyMarkdown: patch.bodyMarkdown ?? current.bodyMarkdown,
-        taskIds: patch.taskIds ?? current.tasks.map((ref) => ref.id),
-        contextMode: patch.contextMode ?? current.contextMode,
-        scope: patch.scope ?? current.scope
+        taskId: current.taskId,
+        contextMode: patch.contextMode ?? current.contextMode
       })
       documents.value = replaceById(documents.value, saved)
     })
-    if (patch.taskIds || patch.scope) await refreshes.refreshTasks()
-    if (writesContent(current, patch))
-      await timers.resumeTimerOnNote(patch.taskIds ?? current.tasks.map((ref) => ref.id))
-  }
-
-  async function attachNoteToTask(id: DocumentId, taskId: TaskId): Promise<void> {
-    const current = documents.value.find((document) => document.id === id)
-    if (!current || current.tasks.some((ref) => ref.id === taskId)) return
-    await saveNote(id, { taskIds: [...current.tasks.map((ref) => ref.id), taskId] })
-  }
-
-  /**
-   * Its scope keeps a note taken off every task. Browsing tasks, the editor shows a note on the
-   * task in view; when that note leaves that task, the next note on it takes its place so the
-   * columns keep agreeing.
-   */
-  async function detachNoteFromTask(id: DocumentId, taskId: TaskId): Promise<void> {
-    const current = documents.value.find((document) => document.id === id)
-    if (!current) return
-    const remaining = current.tasks.filter((ref) => ref.id !== taskId).map((ref) => ref.id)
-    if (remaining.length === current.tasks.length) return
-    await saveNote(id, { taskIds: remaining })
-    if (selectedDocId.value === id && selectedTaskId.value === taskId) {
-      selectedDocId.value = selected.taskDocuments.value[0]?.id ?? null
-    }
+    if (writesContent(current, patch)) await timers.resumeTimerOnWork(current.taskId)
   }
 
   async function deleteNote(id: DocumentId): Promise<void> {
@@ -129,11 +81,8 @@ export function useNoteWrites(
   }
 
   return {
-    projectScopeOf,
     createNote,
     saveNote,
-    attachNoteToTask,
-    detachNoteFromTask,
     deleteNote,
     applyNoteWritten
   }

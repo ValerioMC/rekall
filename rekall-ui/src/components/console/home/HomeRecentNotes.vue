@@ -4,9 +4,14 @@ import { storeToRefs } from 'pinia'
 import NoteKindGlyph from '@/components/ui/NoteKindGlyph.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { relativeTime } from '@/common/format/relative-time'
+import type { RekallDocument } from '@/features/notes/model/document'
 
 const store = useConsoleStore()
-const { recentDocuments, isLoading } = storeToRefs(store)
+const { recentDocuments, isLoading, tasks } = storeToRefs(store)
+
+function anchorOf(document: RekallDocument): string {
+  return tasks.value.find((task) => task.id === document.taskId)?.anchor ?? document.anchor
+}
 </script>
 
 <template>
@@ -33,7 +38,7 @@ const { recentDocuments, isLoading } = storeToRefs(store)
         <span class="line-clamp-2 text-body font-medium leading-snug text-text">{{ document.title }}</span>
         <span class="mt-auto flex items-baseline justify-between gap-2 text-caption">
           <span class="min-w-0 truncate font-mono text-anchor">
-            {{ document.tasks[0]?.anchor ?? document.anchor }}
+            {{ anchorOf(document) }}
           </span>
           <span class="shrink-0 text-text-subtle">{{ relativeTime(document.updatedAt) }}</span>
         </span>

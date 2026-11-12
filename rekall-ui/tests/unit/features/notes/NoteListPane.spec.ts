@@ -58,8 +58,6 @@ function seed(documents: RekallDocument[]) {
   store.selectedTaskId = builder
   store.selectedDocId = documents[0]?.id ?? null
   store.isLoading = false
-  store.attachNoteToTask = vi.fn().mockResolvedValue(undefined)
-  store.detachNoteFromTask = vi.fn().mockResolvedValue(undefined)
   store.deleteNote = vi.fn().mockResolvedValue(undefined)
   store.selectDocument = vi.fn()
   return store

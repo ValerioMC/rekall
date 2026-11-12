@@ -21,8 +21,7 @@ to the others.
 
 A project in the navigator is a flat header with no box, edge or raised face: its mark, its name,
 its task count and a chevron, over the project's tokens. The header takes the project's tint only
-when pointed at, and the tinted rail under it is what groups the tasks. Folding a project (or a
-scope in the notes navigator) animates the height through `AppCollapse` and makes the folded rows
+when pointed at, and the tinted rail under it is what groups the tasks. Folding a project animates the height through `AppCollapse` and makes the folded rows
 inert; a task that joins a shelf slides in (`nav-row`) and the rows below it glide into place.
 Reduced motion cuts every one of these to an instant change.
 

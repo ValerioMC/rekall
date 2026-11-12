@@ -21,7 +21,6 @@ import { useVulnerabilityFix } from '../features/vulnerability/store/useVulnerab
 import { useWrapupWrites } from '../features/wrapup/store/useWrapupWrites'
 
 export type { SaveState } from './console/console-state'
-export type { NoteDraft } from '../features/notes/store/useNoteWrites'
 
 /**
  * The console's one store: every row the console shows and where the reader is in them. Each

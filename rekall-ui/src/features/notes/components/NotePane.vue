@@ -6,10 +6,10 @@ import CopyGlyph from '@/components/ui/CopyGlyph.vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import AppModeToggle from '@/components/ui/AppModeToggle.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
-import AppConfirm from '@/components/ui/AppConfirm.vue'
 import LaunchClaudeCodeButton from '@/features/claude/components/LaunchClaudeCodeButton.vue'
 import ConsoleHome from '@/components/console/ConsoleHome.vue'
 import NoteContextModeSwitch from '@/features/notes/components/NoteContextModeSwitch.vue'
+import NoteDeleteConfirm from '@/features/notes/components/NoteDeleteConfirm.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useEditorMode } from '@/composables/useEditorMode'
@@ -17,11 +17,7 @@ import { rkCommand } from '@/common/format/rk-command'
 import { DOCUMENT_KINDS } from '@/features/notes/model/document'
 
 const store = useConsoleStore()
-const {
-  selectedDocument,
-  selectedTaskId,
-  tasks: allTasks
-} = storeToRefs(store)
+const { selectedDocument, tasks: allTasks } = storeToRefs(store)
 const { run } = useAsyncAction()
 
 const KIND_OPTIONS = DOCUMENT_KINDS.map((kind) => ({
@@ -39,23 +35,10 @@ function toggleMode(): void {
 
 defineExpose({ toggleMode })
 
-/**
- * A note belongs to no one project, so its path picker opens in the folder of the task it was
- * reached from when that task holds it, and otherwise in the first of its tasks that has one.
- */
-const notePathRoot = computed<string | null>(() => {
-  const note = selectedDocument.value
-  if (!note) return null
-  const onIds = note.tasks.map((ref) => ref.id)
-  const ordered = selectedTaskId.value && onIds.includes(selectedTaskId.value)
-    ? [selectedTaskId.value, ...onIds]
-    : onIds
-  for (const id of ordered) {
-    const folder = allTasks.value.find((task) => task.id === id)?.projectRepoFolder
-    if (folder) return folder
-  }
-  return null
-})
+const noteTask = computed(() => allTasks.value.find((task) => task.id === selectedDocument.value?.taskId) ?? null)
+
+/** The note's path picker opens in the folder of its task's project. */
+const notePathRoot = computed<string | null>(() => noteTask.value?.projectRepoFolder ?? null)
 
 const draft = ref({ title: '', kind: 'notes', bodyMarkdown: '' })
 let saveTimer: ReturnType<typeof setTimeout> | null = null
@@ -92,17 +75,9 @@ function scheduleSave(): void {
   }, 700)
 }
 
-const anchorTask = computed(() => {
-  const document = selectedDocument.value
-  if (!document) return null
-  const onCurrent = document.tasks.find((task) => task.id === selectedTaskId.value)
-  const ref = onCurrent ?? document.tasks[0]
-  return allTasks.value.find((task) => task.id === ref?.id) ?? null
-})
+const anchor = computed(() => noteTask.value?.anchor ?? '')
 
-const anchor = computed(() => anchorTask.value?.anchor ?? selectedDocument.value?.tasks[0]?.anchor ?? '')
-
-const anchorFolder = computed(() => anchorTask.value?.projectRepoFolder ?? null)
+const anchorFolder = computed(() => noteTask.value?.projectRepoFolder ?? null)
 
 const justCopied = ref(false)
 
@@ -190,16 +165,9 @@ async function confirmDelete(): Promise<void> {
     </template>
 
     <Transition name="dialog">
-      <AppConfirm
+      <NoteDeleteConfirm
         v-if="isConfirmingDelete && selectedDocument"
-        :title="`Delete ${selectedDocument.title}?`"
-        :body="
-          selectedDocument.tasks.length > 1
-            ? 'This note is on more than one task. Deleting removes it everywhere.'
-            : 'This removes the note and its content.'
-        "
-        :blast="`removes it from ${selectedDocument.tasks.length} task${selectedDocument.tasks.length === 1 ? '' : 's'} · not recoverable`"
-        confirm-label="Delete note"
+        :note="selectedDocument"
         @cancel="isConfirmingDelete = false"
         @confirm="confirmDelete"
       />

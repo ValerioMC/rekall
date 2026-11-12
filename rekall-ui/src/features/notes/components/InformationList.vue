@@ -2,9 +2,9 @@
 import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import NoteKindGlyph from '@/components/ui/NoteKindGlyph.vue'
+import NoteDeleteConfirm from '@/features/notes/components/NoteDeleteConfirm.vue'
 import { useExcerptReveal } from '@/features/notes/composables/useExcerptReveal'
 import { useConsoleStore } from '@/stores/console.store'
-import { useToastStore } from '@/stores/toast.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { excerpt } from '@/common/format/excerpt'
 import type { RekallDocument } from '@/features/notes/model/document'
@@ -12,12 +12,12 @@ import type { DocumentId } from '@/model/branded'
 
 const store = useConsoleStore()
 const { selectedTask, selectedDocId, taskDocuments, paneFocus } = storeToRefs(store)
-const toast = useToastStore()
 const { run } = useAsyncAction()
 const { run: runCreate, isRunning: isCreating } = useAsyncAction()
 const { revealedId, reveal, hide } = useExcerptReveal()
 
 const leaving = ref<DocumentId | null>(null)
+const asking = ref<RekallDocument | null>(null)
 
 const hasReferenceNote = computed(() =>
   taskDocuments.value.some((note) => note.contextMode === 'REFERENCE')
@@ -38,34 +38,19 @@ function excerptOf(note: RekallDocument): string {
 async function add(): Promise<void> {
   const task = selectedTask.value
   if (!task || isCreating.value) return
-  await runCreate(
-    () => store.createNote({ scope: store.projectScopeOf(task.id), taskIds: [task.id] }),
-    'Information added'
-  )
+  await runCreate(() => store.createNote(task.id), 'Information added')
 }
 
-async function takeOff(note: RekallDocument): Promise<void> {
-  const task = selectedTask.value
-  if (!task || leaving.value !== null) return
-  const wasOpen = selectedDocId.value === note.id
+async function confirmDelete(): Promise<void> {
+  const note = asking.value
+  if (!note || leaving.value !== null) return
+  asking.value = null
   leaving.value = note.id
   try {
-    const removed = await run(async () => {
-      await store.detachNoteFromTask(note.id, task.id)
-      return true
-    })
-    if (!removed) return
+    await run(() => store.deleteNote(note.id), `Deleted ${note.title}`)
   } finally {
     leaving.value = null
   }
-  toast.notify(`${note.title} is off this task. It stays in its scope.`, {
-    label: 'Undo',
-    run: () =>
-      void run(async () => {
-        await store.attachNoteToTask(note.id, task.id)
-        if (wasOpen) store.selectDocument(note.id)
-      })
-  })
 }
 
 defineExpose({ add })
@@ -129,7 +114,7 @@ defineExpose({ add })
           :aria-current="isOpen(note)"
           :aria-describedby="`note-excerpt-${note.id}`"
           @click="store.selectDocument(note.id)"
-          @keydown.delete.prevent="takeOff(note)"
+          @keydown.delete.prevent="asking = note"
         >
           <span class="dossier-leaf top-[11px]" :class="isOpen(note) && 'dossier-leaf-lit'" aria-hidden="true" />
           <span class="flex h-full items-center gap-2 pr-9">
@@ -155,10 +140,10 @@ defineExpose({ add })
           <button
             type="button"
             class="focus-ring absolute right-0 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-control text-text-subtle opacity-0 transition-[opacity,color,background-color] duration-(--motion-quick) hover:bg-danger-soft hover:text-danger focus-visible:opacity-100 group-hover/card:opacity-100 group-focus-within/card:opacity-100"
-            :title="`Take ${note.title} off this task`"
-            :aria-label="`Take ${note.title} off this task`"
-            data-testid="note-card-off"
-            @click.stop="takeOff(note)"
+            :title="`Delete ${note.title}`"
+            :aria-label="`Delete ${note.title}`"
+            data-testid="note-card-delete"
+            @click.stop="asking = note"
           >
             <svg class="size-3" viewBox="0 0 12 12" fill="none" aria-hidden="true">
               <path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
@@ -189,5 +174,9 @@ defineExpose({ add })
       <span class="min-w-0 flex-1 truncate">Add information</span>
       <kbd class="shrink-0 rounded-key border border-border px-1 font-mono text-micro text-text-subtle">N</kbd>
     </button>
+
+    <Transition name="dialog">
+      <NoteDeleteConfirm v-if="asking" :note="asking" @cancel="asking = null" @confirm="confirmDelete" />
+    </Transition>
   </div>
 </template>

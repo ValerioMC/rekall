@@ -3,14 +3,13 @@ import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import InformationList from '@/features/notes/components/InformationList.vue'
 import { useConsoleStore } from '@/stores/console.store'
-import { useToastStore } from '@/stores/toast.store'
 import type { RekallDocument } from '@/features/notes/model/document'
-import type { Task, TaskRef } from '@/features/catalog/model/catalog'
+import type { Task } from '@/features/catalog/model/catalog'
 import type { DocumentId, ProjectId, TaskId } from '@/model/branded'
 
 /**
  * The Information list of the task in view: one line per note, how each loads, the excerpt on
- * hover or focus, the way off the task with its Undo, and the add row. The write path is the
+ * hover or focus, the confirmed delete, and the add row. The write path is the
  * store's, stubbed here and covered in `console.spec`.
  */
 const vega = 'p1' as ProjectId
@@ -54,27 +53,13 @@ const tasks: Task[] = [
   task(retry, 'retry-policy', 'Retry policy')
 ]
 
-const refOf = (id: TaskId): TaskRef => {
-  const found = tasks.find((candidate) => candidate.id === id)!
-  return {
-    id,
-    label: found.label,
-    title: found.title,
-    projectLabel: found.projectLabel,
-    projectTitle: found.projectTitle,
-    companyName: found.companyName,
-    anchor: found.anchor
-  }
-}
-
-const note = (id: string, title: string, on: TaskId[]): RekallDocument => ({
+const note = (id: string, title: string, on: TaskId): RekallDocument => ({
   id: id as DocumentId,
   title,
   kind: 'notes',
   bodyMarkdown: 'Accesso via bastion',
-  tasks: on.map(refOf),
+  taskId: on,
   contextMode: 'FULL',
-  scope: { kind: 'GLOBAL' },
   anchor: 'note:00000000',
   updatedAt: '2026-09-01T10:00:00Z'
 })
@@ -88,8 +73,6 @@ function seed(documents: RekallDocument[]) {
   store.selectedTaskId = builder
   store.selectedDocId = documents[0]?.id ?? null
   store.isLoading = false
-  store.attachNoteToTask = vi.fn().mockResolvedValue(undefined)
-  store.detachNoteFromTask = vi.fn().mockResolvedValue(undefined)
   store.deleteNote = vi.fn().mockResolvedValue(undefined)
   store.selectDocument = vi.fn()
   return store
@@ -114,7 +97,7 @@ describe('InformationList', () => {
   })
 
   it('renders one row per note of the task, with no excerpt in the row', () => {
-    seed([note('d1', 'cluster.md', [builder]), note('d2', 'conventions.md', [builder]), note('d3', 'other.md', [retry])])
+    seed([note('d1', 'cluster.md', builder), note('d2', 'conventions.md', builder), note('d3', 'other.md', retry)])
     const wrapper = render()
 
     const rows = cardsOf(wrapper)
@@ -126,8 +109,8 @@ describe('InformationList', () => {
   })
 
   it('marks a note loaded on request with the hollow marker and says what it means, only while one is on screen', () => {
-    const onRequest: RekallDocument = { ...note('d2', 'runbook.md', [builder]), contextMode: 'REFERENCE' }
-    seed([note('d1', 'cluster.md', [builder]), onRequest])
+    const onRequest: RekallDocument = { ...note('d2', 'runbook.md', builder), contextMode: 'REFERENCE' }
+    seed([note('d1', 'cluster.md', builder), onRequest])
     const wrapper = render()
 
     const markers = wrapper.findAll('[data-testid="note-load-marker"]').map((marker) => marker.attributes('data-load-mode'))
@@ -136,7 +119,7 @@ describe('InformationList', () => {
     wrapper.unmount()
 
     document.body.innerHTML = ''
-    seed([note('d1', 'cluster.md', [builder])])
+    seed([note('d1', 'cluster.md', builder)])
     const inFull = render()
     expect(inFull.find('[data-testid="dossier-reference-legend"]').exists()).toBe(false)
     inFull.unmount()
@@ -152,7 +135,7 @@ describe('InformationList', () => {
   })
 
   it('shows the excerpt after a short delay on hover, and drops it when the pointer leaves', async () => {
-    seed([note('d1', 'cluster.md', [builder])])
+    seed([note('d1', 'cluster.md', builder)])
     const wrapper = render()
     const row = wrapper.get('[data-testid="note-card"]').element.parentElement!
 
@@ -169,7 +152,7 @@ describe('InformationList', () => {
   })
 
   it('shows the excerpt on keyboard focus too', async () => {
-    seed([note('d1', 'cluster.md', [builder])])
+    seed([note('d1', 'cluster.md', builder)])
     const wrapper = render()
 
     wrapper.get('[data-testid="note-card"]').element.dispatchEvent(new FocusEvent('focusin', { bubbles: true }))
@@ -181,13 +164,13 @@ describe('InformationList', () => {
   })
 
   it('adds information to the task in view from the last row, and not twice while it is being created', async () => {
-    const store = seed([note('d1', 'cluster.md', [builder])])
+    const store = seed([note('d1', 'cluster.md', builder)])
     let finish: () => void = () => undefined
     store.createNote = vi.fn().mockReturnValue(new Promise<void>((resolve) => (finish = resolve)))
     const wrapper = render()
 
     await wrapper.get('[data-testid="information-add"]').trigger('click')
-    expect(store.createNote).toHaveBeenCalledWith({ scope: store.projectScopeOf(builder), taskIds: [builder] })
+    expect(store.createNote).toHaveBeenCalledWith(builder)
     expect(wrapper.get('[data-testid="information-add"]').attributes('disabled')).toBeDefined()
 
     await wrapper.get('[data-testid="information-add"]').trigger('click')
@@ -199,102 +182,57 @@ describe('InformationList', () => {
     wrapper.unmount()
   })
 
-  it('offers a way off the task on every card', () => {
-    seed([note('d1', 'cluster.md', [builder, retry]), note('d2', 'conventions.md', [builder])])
+  it('offers a delete on every card', () => {
+    seed([note('d1', 'cluster.md', builder), note('d2', 'conventions.md', builder)])
     const wrapper = render()
 
-    expect(wrapper.findAll('[data-testid="note-card-off"]')).toHaveLength(2)
+    expect(wrapper.findAll('[data-testid="note-card-delete"]')).toHaveLength(2)
     wrapper.unmount()
   })
 
-  it('takes a note off the task in view with one click, without opening the note', async () => {
-    const store = seed([note('d1', 'cluster.md', [builder, retry])])
+  it('asks before deleting a note, and deletes it once confirmed, without opening it', async () => {
+    const store = seed([note('d1', 'cluster.md', builder)])
     const wrapper = render()
 
-    await wrapper.find('[data-testid="note-card-off"]').trigger('click')
+    await wrapper.get('[data-testid="note-card-delete"]').trigger('click')
     await flushPromises()
 
-    expect(store.detachNoteFromTask).toHaveBeenCalledWith('d1', builder)
+    expect(document.body.querySelector('[role="alertdialog"]')).not.toBeNull()
+    expect(store.deleteNote).not.toHaveBeenCalled()
     expect(store.selectDocument).not.toHaveBeenCalled()
-    wrapper.unmount()
-  })
 
-  it('takes a note off the task from the keyboard, with Backspace or Delete on its card', async () => {
-    const store = seed([note('d1', 'cluster.md', [builder, retry])])
-    const wrapper = render()
-
-    await cardsOf(wrapper)[0]!.trigger('keydown', { key: 'Backspace' })
+    const confirm = [...document.body.querySelectorAll('button')].find((button) => button.textContent?.includes('Delete note'))!
+    confirm.click()
     await flushPromises()
 
-    expect(store.detachNoteFromTask).toHaveBeenCalledWith('d1', builder)
+    expect(store.deleteNote).toHaveBeenCalledWith('d1')
     wrapper.unmount()
   })
 
-  /** Its scope keeps a note, so taking it off its only task is an unlink like any other. */
-  it('takes a note off its only task without deleting it', async () => {
-    const store = seed([note('d1', 'cluster.md', [builder])])
+  it('asks the same from the keyboard, with Backspace or Delete on its card', async () => {
+    const store = seed([note('d1', 'cluster.md', builder)])
     const wrapper = render()
 
     await cardsOf(wrapper)[0]!.trigger('keydown', { key: 'Delete' })
     await flushPromises()
 
-    expect(document.body.querySelector('[role="alertdialog"]')).toBeNull()
-    expect(store.detachNoteFromTask).toHaveBeenCalledWith('d1', builder)
+    expect(document.body.querySelector('[role="alertdialog"]')).not.toBeNull()
     expect(store.deleteNote).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 
-  /** No confirm before taking a note off: the toast that follows offers Undo instead. */
-  it('offers Undo in the toast, which puts the note back and reopens it if it was open', async () => {
-    const store = seed([note('d1', 'cluster.md', [builder, retry])])
+  it('deletes nothing when the question is cancelled', async () => {
+    const store = seed([note('d1', 'cluster.md', builder)])
     const wrapper = render()
 
-    await wrapper.find('[data-testid="note-card-off"]').trigger('click')
+    await wrapper.get('[data-testid="note-card-delete"]').trigger('click')
+    await flushPromises()
+    const cancel = [...document.body.querySelectorAll('button')].find((button) => button.textContent?.includes('Keep it'))!
+    cancel.click()
     await flushPromises()
 
-    const toast = useToastStore()
-    const announced = toast.toasts[0]
-    expect(announced?.message).toBe('cluster.md is off this task. It stays in its scope.')
-    expect(announced?.action?.label).toBe('Undo')
-
-    toast.act(announced!.id)
-    await flushPromises()
-
-    expect(store.attachNoteToTask).toHaveBeenCalledWith('d1', builder)
-    expect(store.selectDocument).toHaveBeenCalledWith('d1')
-    expect(toast.toasts).toHaveLength(0)
-    wrapper.unmount()
-  })
-
-  it('does not offer to reopen a note that was not the one in the editor', async () => {
-    const store = seed([note('d1', 'cluster.md', [builder, retry]), note('d2', 'other.md', [builder, retry])])
-    const wrapper = render()
-
-    await wrapper.findAll('[data-testid="note-card-off"]')[1]!.trigger('click')
-    await flushPromises()
-
-    const toast = useToastStore()
-    toast.act(toast.toasts[0]!.id)
-    await flushPromises()
-
-    expect(store.attachNoteToTask).toHaveBeenCalledWith('d2', builder)
-    expect(store.selectDocument).not.toHaveBeenCalled()
-    wrapper.unmount()
-  })
-
-  it('says nothing and puts nothing back when the removal failed', async () => {
-    const store = seed([note('d1', 'cluster.md', [builder, retry])])
-    store.detachNoteFromTask = vi.fn().mockRejectedValue(new Error('offline'))
-    const wrapper = render()
-
-    await wrapper.find('[data-testid="note-card-off"]').trigger('click')
-    await flushPromises()
-
-    const toast = useToastStore()
-    expect(toast.toasts).toHaveLength(1)
-    expect(toast.toasts[0]?.kind).toBe('error')
-    expect(toast.toasts[0]?.action).toBeNull()
+    expect(document.body.querySelector('[role="alertdialog"]')).toBeNull()
+    expect(store.deleteNote).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 })
-

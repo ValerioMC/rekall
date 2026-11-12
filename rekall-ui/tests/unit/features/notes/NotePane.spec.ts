@@ -54,25 +54,14 @@ const tasks: Task[] = [
   task(archived, 'old-layout', 'Old layout', 'DONE')
 ]
 
-const taskRef = (t: Task) => ({
-  id: t.id,
-  label: t.label,
-  title: t.title,
-  projectLabel: t.projectLabel,
-  projectTitle: t.projectTitle,
-  companyName: t.companyName,
-  anchor: t.anchor
-})
-
-function makeDocument(on: Task[]): RekallDocument {
+function makeDocument(on: Task): RekallDocument {
   return {
     id: 'd1' as DocumentId,
     title: 'conventions.md',
     kind: 'notes',
     bodyMarkdown: 'body',
-    tasks: on.map(taskRef),
+    taskId: on.id,
     contextMode: 'FULL',
-    scope: { kind: 'GLOBAL' },
     anchor: 'note:00000000',
     updatedAt: '2026-09-05T10:00:00Z'
   }
@@ -112,7 +101,7 @@ describe('NotePane context mode', () => {
   })
 
   it('sends a note by reference, and back in full, saving only the mode', async () => {
-    const store = seed(makeDocument([tasks[0]!]), live)
+    const store = seed(makeDocument(tasks[0]!), live)
     const wrapper = render()
     await flushPromises()
 
@@ -123,7 +112,7 @@ describe('NotePane context mode', () => {
   })
 
   it('does not save when the mode picked is the one it has', async () => {
-    const store = seed(makeDocument([tasks[0]!]), live)
+    const store = seed(makeDocument(tasks[0]!), live)
     const wrapper = render()
     await flushPromises()
 

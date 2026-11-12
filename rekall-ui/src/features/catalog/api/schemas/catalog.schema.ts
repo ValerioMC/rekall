@@ -159,20 +159,13 @@ export const TaskStepSchema = z.object({
   updatedAt: z.string()
 })
 
-export const NoteScopeSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('GLOBAL') }),
-  z.object({ kind: z.literal('COMPANY'), id: companyId }),
-  z.object({ kind: z.literal('PROJECT'), id: projectId })
-])
-
 export const DocumentSchema = z.object({
   id: documentId,
   title: z.string(),
   kind: z.string(),
   bodyMarkdown: z.string(),
-  tasks: z.array(TaskRefSchema),
+  taskId,
   contextMode: z.enum(['FULL', 'REFERENCE']),
-  scope: NoteScopeSchema,
   anchor: z.string(),
   updatedAt: z.string()
 })

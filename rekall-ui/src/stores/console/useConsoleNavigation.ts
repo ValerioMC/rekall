@@ -30,7 +30,7 @@ export function useConsoleNavigation(
   function selectTask(id: TaskId): void {
     selectedTaskId.value = id
     selectedDeviationStep.value = null
-    const first = documents.value.find((document) => document.tasks.some((ref) => ref.id === id))
+    const first = documents.value.find((document) => document.taskId === id)
     selectedDocId.value = first?.id ?? null
     paneFocus.value = openingPaneOf(id)
   }
@@ -41,7 +41,7 @@ export function useConsoleNavigation(
     return task && isEpic(task) ? 'description' : 'note'
   }
 
-  /** A note has to bring one of its tasks along or the task panes disagree with the editor. */
+  /** A note has to bring its task along or the task panes disagree with the editor. */
   function selectDocument(id: DocumentId): void {
     selectedDocId.value = id
     paneFocus.value = 'note'
@@ -50,9 +50,7 @@ export function useConsoleNavigation(
 
   function followDocumentToTask(id: DocumentId): void {
     const document = documents.value.find((candidate) => candidate.id === id)
-    if (document && !document.tasks.some((ref) => ref.id === selectedTaskId.value)) {
-      selectedTaskId.value = document.tasks[0]?.id ?? null
-    }
+    if (document && document.taskId !== selectedTaskId.value) selectedTaskId.value = document.taskId
   }
 
   /**

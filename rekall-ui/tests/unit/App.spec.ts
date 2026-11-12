@@ -55,12 +55,8 @@ const shared: RekallDocument = {
   title: 'kmaster14.md',
   kind: 'notes',
   bodyMarkdown: '# Cluster\n\nAccesso via bastion.',
-  tasks: [
-    { id: validator, label: 'report-builder', title: 'Report builder', projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', anchor: 'project:vega task:report-builder' },
-    { id: retry, label: 'retry-policy', title: 'Retry policy', projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', anchor: 'project:vega task:retry-policy' }
-  ],
+  taskId: validator,
   contextMode: 'FULL',
-  scope: { kind: 'GLOBAL' },
   anchor: 'note:00000000',
   updatedAt: '2026-08-12T13:00:00Z'
 }
@@ -115,9 +111,8 @@ const createDocument = vi.fn(async (input: DocumentInput) => ({
   title: input.title,
   kind: input.kind,
   bodyMarkdown: input.bodyMarkdown,
-  tasks: shared.tasks.filter((ref) => input.taskIds.includes(ref.id)),
+  taskId: input.taskId,
   contextMode: 'FULL' as const,
-  scope: input.scope ?? { kind: 'GLOBAL' as const },
   anchor: 'note:d9000000',
   updatedAt: '2026-08-12T15:00:00Z'
 }))
@@ -129,8 +124,7 @@ vi.mock('@/features/notes/api/documents.api', () => ({
   updateDocument: vi.fn(async (id: DocumentId, input: DocumentInput) => ({
     ...shared,
     ...input,
-    id,
-    tasks: shared.tasks.filter((ref) => input.taskIds.includes(ref.id))
+    id
   })),
   deleteDocument: vi.fn()
 }))
@@ -437,7 +431,7 @@ describe('the console', () => {
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'n' }))
     await flushPromises()
 
-    expect(createDocument).toHaveBeenCalledWith(expect.objectContaining({ kind: 'notes', taskIds: [retry] }))
+    expect(createDocument).toHaveBeenCalledWith(expect.objectContaining({ kind: 'notes', taskId: retry }))
     wrapper.unmount()
   })
 
@@ -1092,7 +1086,7 @@ describe('the console', () => {
     it('toggles a note between write and read on R', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]')[1]!.trigger('click')
+      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
       await flushPromises()
 
       const mode = () => wrapper.findAll('[aria-label="Mode"] button')
