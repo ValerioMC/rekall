@@ -115,3 +115,12 @@ fn a_merge_terminal_asks_the_session_to_resolve_the_branch_and_follows_no_step()
     assert!(!TerminalMode::Merge.follows_steps() && !TerminalMode::Merge.works_on_a_project());
     assert_eq!(TerminalMode::Merge.to_string(), "MERGE");
 }
+
+#[test]
+fn a_pull_request_merge_terminal_names_the_branch_the_pull_request_targets() {
+    let mode = TerminalMode::MergePullRequest { base: "main".into() };
+
+    assert_eq!(mode.first_line(ANCHORS), "/rk project:vega task:report-builder merge pull-request base:main");
+    assert!(!mode.follows_steps() && !mode.works_on_a_project());
+    assert_eq!(mode.to_string(), "MERGE");
+}

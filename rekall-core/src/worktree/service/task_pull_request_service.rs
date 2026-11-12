@@ -27,6 +27,8 @@ struct Claim {
 /// What the project of an accepted task holds for its pull request.
 struct Landing {
     project_id: Id,
+    project_folder: Option<String>,
+    main_branch: Option<String>,
     pull_request: Option<task_pull_request::Model>,
     issue_key: Option<String>,
 }
@@ -70,7 +72,7 @@ impl TaskPullRequestService {
     /// pull request is untouched and the next move of the task tries again.
     pub async fn merge_accepted(&self, task_id: Id) -> Result<PullRequestLanding> {
         let Some(landing) = self.read_landing(task_id).await? else { return Ok(PullRequestLanding::NotInFlow) };
-        let Some(held) = landing.pull_request else { return Ok(PullRequestLanding::NothingToMerge) };
+        let Some(held) = landing.pull_request.clone() else { return Ok(PullRequestLanding::NothingToMerge) };
         if held.merged_at.is_some() {
             return Ok(PullRequestLanding::AlreadyMerged);
         }
@@ -84,18 +86,21 @@ impl TaskPullRequestService {
             Ok(None) => return self.refuse_merge(task_id, "The project has no task manager to merge the pull request through.".to_string()).await,
             Err(failure) => return self.refuse_merge(task_id, failure.message().to_string()).await,
         };
-        self.merge(task_id, &endpoint, &pull_request, landing.issue_key.as_deref()).await
+        self.merge(task_id, &endpoint, &pull_request, &landing).await
     }
 
-    async fn merge(&self, task_id: Id, endpoint: &TrackerEndpoint, pull_request: &PullRequest, issue_key: Option<&str>) -> Result<PullRequestLanding> {
+    async fn merge(&self, task_id: Id, endpoint: &TrackerEndpoint, pull_request: &PullRequest, landing: &Landing) -> Result<PullRequestLanding> {
         match self.hosts.merge(endpoint, pull_request).await {
             Ok(PullRequestMerge::Merged) => {
                 info!(%task_id, number = pull_request.number, "A task's pull request is merged");
                 self.keep_merged(task_id).await?;
-                self.close_issue(task_id, endpoint, issue_key).await;
+                self.close_issue(task_id, endpoint, landing.issue_key.as_deref()).await;
                 Ok(PullRequestLanding::Merged)
             }
-            Ok(PullRequestMerge::Conflicting) => Ok(PullRequestLanding::Conflicting),
+            Ok(PullRequestMerge::Conflicting) => {
+                let base = self.base_of(landing.project_folder.as_deref().unwrap_or_default(), landing.main_branch.as_deref()).await?;
+                Ok(PullRequestLanding::Conflicting { base })
+            }
             Ok(PullRequestMerge::Refused(reason)) => self.refuse_merge(task_id, format!("The pull request was not merged: {reason}")).await,
             Err(failure) => {
                 let message = failure_message(&failure, "merge the pull request");
@@ -131,7 +136,7 @@ impl TaskPullRequestService {
             }
             let pull_request = repo::task_pull_request::find_of_task(tx.db(), task_id).await?;
             let issue_key = repo::task_tracker_link::find_of_task(tx.db(), task_id).await?.and_then(|link| link.issue_key);
-            Ok(Some(Landing { project_id: project.id, pull_request, issue_key }))
+            Ok(Some(Landing { project_id: project.id, project_folder: project.repo_folder, main_branch: project.main_branch, pull_request, issue_key }))
         })
     }
 
@@ -162,7 +167,7 @@ impl TaskPullRequestService {
             return Ok(None);
         }
         let Some(endpoint) = self.tracker.endpoint_of_project(claim.task.project_id).await? else { return Ok(None) };
-        let base = self.base_of(claim).await?;
+        let base = self.base_of(&claim.project_folder, claim.main_branch.as_deref()).await?;
         let opened = self.hosts.open(&endpoint, &branch, &base, &claim.task.title, &claim.body).await;
         opened.map(Some).map_err(|failure| RekallError::conflict(failure_message(&failure, "open the pull request")))
     }
@@ -174,11 +179,11 @@ impl TaskPullRequestService {
         }
     }
 
-    async fn base_of(&self, claim: &Claim) -> Result<String> {
-        if let Some(branch) = claim.main_branch.as_deref().map(jstr::strip).filter(|branch| !branch.is_empty()) {
+    async fn base_of(&self, project_folder: &str, main_branch: Option<&str>) -> Result<String> {
+        if let Some(branch) = main_branch.map(jstr::strip).filter(|branch| !branch.is_empty()) {
             return Ok(branch.to_string());
         }
-        let status = self.repositories.inspect(Some(&claim.project_folder)).await;
+        let status = self.repositories.inspect(Some(project_folder)).await;
         status.branch.ok_or_else(|| RekallError::illegal("Name this project's main branch: its folder is not on a branch to open pull requests against."))
     }
 

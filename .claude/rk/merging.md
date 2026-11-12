@@ -23,3 +23,26 @@ merges cleanly, then closes this session and removes the worktree.
 If a conflict cannot be resolved without a decision that is mine, run `git merge --abort`, say what the
 decision is, and stop. Never rebase, never push, never force, never delete a branch, never switch the working
 directory to another branch.
+
+### When the terms include `pull-request`
+
+`/rk project:vega task:report-builder merge pull-request base:main` means: the task is accepted, its
+pull request is open, and the host says it conflicts with `base`, the branch it targets. Bring `base`
+into the task's branch, in the working directory, with a merge commit (never a rebase), resolve what
+conflicts, and push the branch. Rekall merges the pull request through the host itself once it merges
+cleanly, then closes this session and removes the worktree. Everything above applies except the
+instructions about which branch to merge and about pushing:
+
+1. Drop the `merge`, `pull-request` and `base:` terms and call `rekall_context` with the anchors that
+   are left. You change no checklist, no wrapup and no task.
+2. Check the working directory is the task's worktree on the branch `rekall/<task-label>`. If it is
+   not, say so and stop.
+3. `git fetch origin`, then merge the base into this branch with `git merge --no-edit origin/<base>`.
+4. Resolve each conflicted file, run the project's build and tests and commit the merge, as above.
+5. `git push origin rekall/<task-label>`. If the remote refuses because the branch moved, fetch, merge
+   `origin/<base>` again and push again.
+6. Say in at most five lines what conflicted, how you resolved each file, and what you ran.
+
+Never force-push (no `--force`, no `--force-with-lease`, no `+` refspec). Never merge or close the pull
+request and never call the host's merge API: Rekall does that when the push is in. If a conflict needs a
+decision that is mine, run `git merge --abort`, say what it is, and stop.

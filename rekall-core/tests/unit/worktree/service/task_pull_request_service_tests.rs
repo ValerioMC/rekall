@@ -189,7 +189,7 @@ async fn a_pull_request_the_host_finds_conflicting_is_left_for_the_merge_session
     let task = world.with_pull_request("report").await;
     world.host.merge_answers_with(PullRequestMerge::Conflicting);
 
-    assert_eq!(world.service.merge_accepted(task.id).await.unwrap(), PullRequestLanding::Conflicting);
+    assert_eq!(world.service.merge_accepted(task.id).await.unwrap(), PullRequestLanding::Conflicting { base: "main".into() });
     world.host.merge_answers_with(PullRequestMerge::Merged);
 
     assert_eq!(world.service.merge_accepted(task.id).await.unwrap(), PullRequestLanding::Merged);

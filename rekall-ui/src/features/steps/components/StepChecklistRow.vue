@@ -118,8 +118,9 @@ const panelClass = computed(() => {
 
     <div class="min-w-0 rounded-card border px-3 py-2" :class="panelClass">
       <div class="flex items-start gap-2">
+        <div class="min-w-0 flex-1">
         <button
-          class="focus-ring min-w-0 flex-1 rounded-key text-left"
+          class="focus-ring w-full rounded-key text-left"
           :aria-expanded="expanded"
           data-testid="step-title"
           @click="toggle(step)"
@@ -168,6 +169,17 @@ const panelClass = computed(() => {
             <TokenCount :totals="tokens" />
           </span>
         </button>
+        <button
+          v-if="deviationStep !== null"
+          type="button"
+          class="focus-ring mt-1 rounded-key text-micro text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent"
+          :title="`Where the work left the plan on ${step.title}`"
+          data-testid="step-deviation"
+          @click="store.openDeviation(deviationStep)"
+        >
+          Deviation
+        </button>
+        </div>
 
         <div v-if="step.state === 'CLAIMED' && !expanded" class="flex shrink-0 items-center gap-1.5">
           <AppButton variant="primary" size="sm" data-testid="step-accept-inline" @click="$emit('mark-forward')">
@@ -177,17 +189,6 @@ const panelClass = computed(() => {
             Send back
           </AppButton>
         </div>
-
-        <button
-          v-if="deviationStep !== null"
-          type="button"
-          class="focus-ring shrink-0 rounded-key px-1 text-micro text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent"
-          :title="`Where the work left the plan on ${step.title}`"
-          data-testid="step-deviation"
-          @click="store.openDeviation(deviationStep)"
-        >
-          Deviation
-        </button>
 
         <div class="flex shrink-0 items-center gap-0.5 opacity-0 focus-within:opacity-100 group-hover/step:opacity-100">
           <button

@@ -8,8 +8,8 @@ pub enum PullRequestLanding {
     AlreadyMerged,
     /// The task never reached a claim, so no pull request exists.
     NothingToMerge,
-    /// The host says the pull request conflicts with the main branch.
-    Conflicting,
+    /// The host says the pull request conflicts with `base`, the branch it targets.
+    Conflicting { base: String },
     /// The host or the task's state turned the merge down; the reason stays on the task.
     Refused(String),
 }

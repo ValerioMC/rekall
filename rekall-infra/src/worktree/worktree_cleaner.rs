@@ -87,7 +87,7 @@ impl Cleaner {
                 self.finish(task_id).await;
             }
             Ok(PullRequestLanding::AlreadyMerged | PullRequestLanding::NothingToMerge) => self.finish(task_id).await,
-            Ok(PullRequestLanding::Conflicting) => self.resolve_conflict(task_id, "the pull request conflicts with the main branch").await,
+            Ok(PullRequestLanding::Conflicting { base }) => self.resolve_conflict(task_id, "the pull request conflicts with its base branch", TerminalMode::MergePullRequest { base }).await,
             Ok(PullRequestLanding::Refused(reason)) => warn!(%reason, %task_id, "Accepted task's pull request was not merged; the worktree stays"),
             Err(failure) => warn!(%failure, %task_id, "Could not merge the pull request of an accepted task; it is tried again when the task moves"),
         }
@@ -101,7 +101,7 @@ impl Cleaner {
             }
             Ok(Merge::AlreadyMerged | Merge::NothingToMerge) => self.finish(task_id).await,
             Ok(Merge::KeptWithChanges) => self.note_unsaved_changes(task_id),
-            Ok(Merge::Conflicts(reason)) => self.resolve_conflict(task_id, &reason).await,
+            Ok(Merge::Conflicts(reason)) => self.resolve_conflict(task_id, &reason, TerminalMode::Merge).await,
             Ok(Merge::Refused(reason)) => warn!(%reason, %task_id, "Accepted task's branch was not merged; the worktree stays"),
             Err(failure) => warn!(%failure, %task_id, "Could not merge the branch of an accepted task"),
         }
@@ -113,12 +113,12 @@ impl Cleaner {
         }
     }
 
-    async fn resolve_conflict(&mut self, task_id: Id, reason: &str) {
+    async fn resolve_conflict(&mut self, task_id: Id, reason: &str, mode: TerminalMode) {
         if self.resolutions.contains_key(&task_id) {
             return;
         }
         warn!(%reason, %task_id, "Accepted task's branch conflicts; a merge session resolves it");
-        let resolution = match self.terminals.open(merge_opening(task_id)).await {
+        let resolution = match self.terminals.open(merge_opening(task_id, mode)).await {
             Ok(session) => Resolution::Running(session.id),
             Err(failure) => {
                 warn!(%failure, %task_id, "Could not open a session to resolve the conflict");
@@ -163,14 +163,14 @@ impl Cleaner {
     }
 }
 
-fn merge_opening(task_id: Id) -> TerminalOpening {
+fn merge_opening(task_id: Id, mode: TerminalMode) -> TerminalOpening {
     TerminalOpening {
         target: TerminalTarget::Task(task_id),
         step_id: None,
         skip_permissions: false,
         model: None,
         effort: None,
-        mode: TerminalMode::Merge,
+        mode,
         kind: SessionKind::Terminal,
     }
 }

@@ -304,6 +304,33 @@ async fn accepting_a_task_whose_branch_conflicts_opens_one_merge_session_and_kee
 }
 
 #[tokio::test]
+async fn a_conflicting_pull_request_opens_one_merge_session_and_merges_once_the_session_has_pushed() {
+    let world = world().await;
+    let (worktrees, git) = world.worktrees();
+    let host = Arc::new(ScriptedPullRequestHost::new());
+    host.merge_answers_with(PullRequestMerge::Conflicting);
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    world.run_pull_request_flow(&project).await;
+    let task = world.task(&project, "one").await;
+    let step = world.step(&task, "First", 0, TaskStepState::Claimed).await;
+    let folder = worktrees.ensure(task.id).await.unwrap();
+    let sessions = start_cleaner_with(&world, worktrees, world.pull_requests_over(git, host.clone()));
+    world.services.steps.edit(step.id, None, None, Some(true), None).await.unwrap();
+    eventually("the merge session", || async { sessions.has_live_for(task.id) }).await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert_eq!(sessions.openings().len(), 1);
+    assert_eq!(sessions.openings()[0].mode, TerminalMode::MergePullRequest { base: "main".into() });
+    assert!(folder.exists() && host.merged().is_empty());
+
+    host.merge_answers_with(PullRequestMerge::Merged);
+
+    eventually("the worktree to go", || async { worktree_of(&world, &task).await.is_none() }).await;
+    assert_eq!(host.merged(), vec![1]);
+    assert!(!sessions.has_live_for(task.id));
+    assert_eq!(sessions.openings().len(), 1);
+}
+
+#[tokio::test]
 async fn once_the_merge_session_resolves_the_conflict_the_branch_merges_and_the_worktree_goes() {
     let world = world().await;
     let (worktrees, git) = world.worktrees();
